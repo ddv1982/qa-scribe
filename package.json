@@ -1,0 +1,94 @@
+{
+  "name": "qa-scribe",
+  "version": "0.1.0",
+  "description": "Local-first desktop testing notepad for turning testing sessions into structured testware.",
+  "author": "qa-scribe contributors",
+  "main": "out/main/index.js",
+  "scripts": {
+    "dev": "npm run rebuild:electron && electron-vite dev",
+    "build": "tsc -b --noEmit && electron-vite build",
+    "dist": "npm run build && npm run rebuild:electron && electron-builder",
+    "dist:dir": "npm run build && npm run rebuild:electron && electron-builder --dir",
+    "dist:mac": "node scripts/assert-package-platform.cjs darwin macOS && npm run build && npm run rebuild:electron && electron-builder --mac",
+    "dist:win": "node scripts/assert-package-platform.cjs win32 Windows && npm run build && npm run rebuild:electron && electron-builder --win",
+    "dist:linux": "node scripts/assert-package-platform.cjs linux Linux && npm run build && npm run rebuild:electron && electron-builder --linux",
+    "preview": "electron-vite preview",
+    "test": "npm rebuild better-sqlite3 && vitest run && npm run rebuild:electron",
+    "test:watch": "npm rebuild better-sqlite3 && vitest",
+    "postinstall": "npm run rebuild:electron",
+    "rebuild:electron": "electron-rebuild -f -w better-sqlite3",
+    "db:generate": "drizzle-kit generate",
+    "lint": "tsc -b --noEmit"
+  },
+  "dependencies": {
+    "@ai-sdk/openai": "^3.0.70",
+    "@electron-toolkit/preload": "^3.0.2",
+    "@electron-toolkit/utils": "^4.0.0",
+    "ai": "^6.0.202",
+    "better-sqlite3": "^12.10.0",
+    "drizzle-orm": "^0.45.2",
+    "lucide-react": "^0.468.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zod": "^3.24.1",
+    "zustand": "^5.0.2"
+  },
+  "devDependencies": {
+    "@electron-toolkit/tsconfig": "^1.0.1",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.1.0",
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.0.1",
+    "@types/react-dom": "^19.0.2",
+    "@vitejs/plugin-react": "^4.3.4",
+    "drizzle-kit": "^0.31.10",
+    "electron": "^41.7.2",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^5.0.0",
+    "jsdom": "^25.0.1",
+    "typescript": "^5.7.2",
+    "vite": "^7.3.5",
+    "vitest": "^4.1.8"
+  },
+  "build": {
+    "appId": "com.qa-scribe.app",
+    "productName": "qa-scribe",
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "directories": {
+      "output": "release/${version}"
+    },
+    "files": [
+      "out/**/*",
+      "package.json",
+      "node_modules/**/*"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "**/node_modules/better-sqlite3/**/*"
+    ],
+    "npmRebuild": false,
+    "buildDependenciesFromSource": true,
+    "publish": null,
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "zip"
+      ]
+    },
+    "linux": {
+      "category": "Development",
+      "target": [
+        "AppImage",
+        "deb"
+      ]
+    }
+  }
+}

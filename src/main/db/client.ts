@@ -1,0 +1,137 @@
+import { mkdirSync } from 'node:fs'
+import { join } from 'node:path'
+import Database from 'better-sqlite3'
+import { drizzle } from 'drizzle-orm/better-sqlite3'
+import * as schema from './schema'
+
+export type DbClient = {
+  sqlite: Database.Database
+  db: ReturnType<typeof drizzle<typeof schema>>
+}
+
+export function createDbClient(userDataPath: string): DbClient {
+  mkdirSync(userDataPath, { recursive: true })
+  const sqlite = new Database(join(userDataPath, 'qa-scribe.sqlite'))
+  sqlite.pragma('journal_mode = WAL')
+  sqlite.pragma('foreign_keys = ON')
+  migrate(sqlite)
+
+  return {
+    sqlite,
+    db: drizzle(sqlite, { schema })
+  }
+}
+
+function migrate(sqlite: Database.Database): void {
+  const currentVersion = Number(sqlite.pragma('user_version', { simple: true }) ?? 0)
+  const migrations = [
+    {
+      version: 1,
+      sql: `
+        CREATE TABLE IF NOT EXISTS sessions (
+          id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          test_target TEXT,
+          charter TEXT,
+          environment TEXT,
+          build_version TEXT,
+          related_reference TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          last_opened_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS entries (
+          id TEXT PRIMARY KEY,
+          session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+          type TEXT NOT NULL CHECK (type IN ('note', 'observation', 'api_response', 'log', 'screenshot', 'finding_candidate')),
+          title TEXT,
+          body TEXT NOT NULL,
+          metadata_json TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          excluded_from_generation INTEGER NOT NULL DEFAULT 0
+        );
+
+        CREATE TABLE IF NOT EXISTS attachments (
+          id TEXT PRIMARY KEY,
+          session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+          entry_id TEXT REFERENCES entries(id) ON DELETE SET NULL,
+          filename TEXT NOT NULL,
+          mime_type TEXT,
+          size_bytes INTEGER NOT NULL,
+          sha256 TEXT NOT NULL,
+          relative_path TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS findings (
+          id TEXT PRIMARY KEY,
+          session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+          title TEXT NOT NULL,
+          body TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS evidence_links (
+          id TEXT PRIMARY KEY,
+          finding_id TEXT NOT NULL REFERENCES findings(id) ON DELETE CASCADE,
+          entry_id TEXT REFERENCES entries(id) ON DELETE CASCADE,
+          attachment_id TEXT REFERENCES attachments(id) ON DELETE CASCADE,
+          created_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS generation_contexts (
+          id TEXT PRIMARY KEY,
+          session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+          created_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS generation_context_entries (
+          id TEXT PRIMARY KEY,
+          generation_context_id TEXT NOT NULL REFERENCES generation_contexts(id) ON DELETE CASCADE,
+          entry_id TEXT NOT NULL REFERENCES entries(id) ON DELETE CASCADE,
+          included INTEGER NOT NULL DEFAULT 1
+        );
+
+        CREATE TABLE IF NOT EXISTS ai_runs (
+          id TEXT PRIMARY KEY,
+          session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+          generation_context_id TEXT REFERENCES generation_contexts(id) ON DELETE SET NULL,
+          provider TEXT NOT NULL,
+          model TEXT NOT NULL,
+          prompt_version TEXT NOT NULL,
+          status TEXT NOT NULL,
+          error_message TEXT,
+          created_at TEXT NOT NULL,
+          completed_at TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS drafts (
+          id TEXT PRIMARY KEY,
+          session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+          ai_run_id TEXT REFERENCES ai_runs(id) ON DELETE SET NULL,
+          kind TEXT NOT NULL,
+          title TEXT NOT NULL,
+          body TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+      `
+    }
+  ]
+
+  const pending = migrations.filter((migration) => migration.version > currentVersion)
+  if (pending.length === 0) return
+
+  const runMigrations = sqlite.transaction(() => {
+    for (const migration of pending) {
+      sqlite.exec(migration.sql)
+      sqlite.pragma(`user_version = ${migration.version}`)
+    }
+  })
+
+  runMigrations()
+}
