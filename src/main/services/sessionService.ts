@@ -305,6 +305,7 @@ export class SessionService {
           title: data.title.trim(),
           body: data.body,
           kind: data.kind,
+          metadataJson: cleanNullable(data.metadataJson),
           createdAt: now,
           updatedAt: now
         })
@@ -333,6 +334,7 @@ export class SessionService {
         title: data.title === undefined ? previous.title : data.title.trim(),
         body: data.body ?? previous.body,
         kind: data.kind ?? previous.kind,
+        metadataJson: data.metadataJson === undefined ? previous.metadataJson : cleanNullable(data.metadataJson),
         updatedAt: now
       })
       .where(eq(findings.id, findingId))

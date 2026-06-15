@@ -8,6 +8,7 @@ import type {
   AiRun,
   Draft,
   Entry,
+  Finding as StoredFinding,
   GenerationContextReview,
   GenerationResult,
   ProviderStatus,
@@ -19,6 +20,7 @@ import type {
 describe('App Session setup and provider controls', () => {
   beforeEach(() => {
     installLocalStorage()
+    installBrowserLayoutMocks()
   })
 
   afterEach(() => {
@@ -117,6 +119,76 @@ describe('App Session setup and provider controls', () => {
     expect(screen.getByLabelText('Build (optional)')).toBeInTheDocument()
     expect(screen.getByLabelText('Related Reference (optional)')).toBeInTheDocument()
   })
+
+  it('creates a structured Finding from the capture composer with selected Entry evidence', async () => {
+    const snapshot = createSnapshot({
+      entries: [baseEntry()],
+      session: {
+        ...baseSession(),
+        title: 'Checkout finding',
+        environment: 'Staging',
+        buildVersion: '2026.06.16'
+      }
+    })
+    const api = installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
+    vi.mocked(api.createFinding).mockResolvedValue({
+      id: 'finding-1',
+      sessionId: snapshot.session.id,
+      title: 'Valid card payment fails',
+      body: 'Structured finding body',
+      kind: 'bug',
+      metadataJson: null,
+      createdAt: '2026-06-15T00:04:00.000Z',
+      updatedAt: '2026-06-15T00:04:00.000Z'
+    } satisfies StoredFinding)
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Checkout finding' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('heading', { name: 'Checkout completed' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Finding' }))
+    fireEvent.change(screen.getByLabelText('Finding summary (required)'), {
+      target: { value: 'Valid card payment fails' }
+    })
+    fireEvent.change(screen.getByLabelText('Actual result (required)'), {
+      target: { value: 'The payment form shows a card error.' }
+    })
+    fireEvent.change(screen.getByLabelText('Expected result'), {
+      target: { value: 'The order should be confirmed.' }
+    })
+    fireEvent.change(screen.getByLabelText('Steps to reproduce'), {
+      target: { value: 'Open checkout\nSubmit valid test card' }
+    })
+    fireEvent.change(screen.getByLabelText('Severity'), { target: { value: 'major' } })
+    fireEvent.change(screen.getByLabelText('Priority'), { target: { value: 'high' } })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add Finding' }))
+
+    await waitFor(() =>
+      expect(api.createFinding).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sessionId: snapshot.session.id,
+          title: 'Valid card payment fails',
+          kind: 'bug',
+          entryId: 'entry-1'
+        })
+      )
+    )
+    const payload = vi.mocked(api.createFinding).mock.calls[0]?.[0]
+    expect(payload?.body).toContain('**Actual Result**')
+    expect(payload?.body).toContain('The payment form shows a card error.')
+    expect(JSON.parse(payload?.metadataJson ?? '{}')).toEqual(
+      expect.objectContaining({
+        schema: 'qa-scribe.structured-finding.v1',
+        actual: 'The payment form shows a card error.',
+        expected: 'The order should be confirmed.',
+        steps: ['Open checkout', 'Submit valid test card'],
+        severity: 'major',
+        priority: 'high',
+        environment: 'Staging / 2026.06.16'
+      })
+    )
+  })
 })
 
 function installLocalStorage(): void {
@@ -138,6 +210,15 @@ function installLocalStorage(): void {
       })
     } satisfies Storage
   })
+}
+
+function installBrowserLayoutMocks(): void {
+  if (!document.elementFromPoint) {
+    Object.defineProperty(document, 'elementFromPoint', {
+      configurable: true,
+      value: vi.fn(() => document.body)
+    })
+  }
 }
 
 function installQaScribeApi(snapshot: SessionSnapshot, status: ProviderStatus): QaScribeApi {

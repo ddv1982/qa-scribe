@@ -7,7 +7,7 @@ export const entryTypes: EntryTypeOption[] = [
   { value: 'api_response', label: 'API Response' },
   { value: 'log', label: 'Log' },
   { value: 'screenshot', label: 'Screenshot' },
-  { value: 'finding_candidate', label: 'Finding' }
+  { value: 'finding_candidate', label: 'Finding Candidate' }
 ]
 
 export const emptyDraft: SessionDraft = {

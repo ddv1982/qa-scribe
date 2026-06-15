@@ -1,26 +1,38 @@
 import type { Attachment, Entry, EntryType, GenerationContextReview } from '../../../shared/contracts'
 
 export type WorkspaceMode = 'capture' | 'generation' | 'drafts'
+export type CaptureMode = 'note' | 'finding'
+
+export type StructuredFindingDetails = {
+  schema: 'qa-scribe.structured-finding.v1'
+  actual: string
+  expected: string
+  steps: string[]
+  severity: string
+  priority: string
+  environment: string
+  component: string
+  notes: string
+}
+
+export type StructuredFindingDraft = Omit<StructuredFindingDetails, 'schema' | 'steps'> & {
+  title: string
+  steps: string
+  linkSelectedEntry: boolean
+}
 
 export type Finding = {
   id: string
   sessionId: string
   title: string
   summary: string
+  details?: StructuredFindingDetails | null
   severity?: string | null
+  priority?: string | null
   status?: string | null
   evidenceEntryIds: string[]
   evidenceAttachmentIds: string[]
   createdAt: string
-}
-
-export type FindingDraft = {
-  sessionId: string
-  title: string
-  summary: string
-  severity?: string | null
-  evidenceEntryIds: string[]
-  evidenceAttachmentIds?: string[]
 }
 
 export type JiraBugDraft = {

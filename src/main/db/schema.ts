@@ -51,6 +51,7 @@ export const findings = sqliteTable('findings', {
   title: text('title').notNull(),
   body: text('body').notNull(),
   kind: text('kind', { enum: ['bug', 'question', 'risk', 'follow_up', 'note'] }).notNull(),
+  metadataJson: text('metadata_json'),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull()
 })

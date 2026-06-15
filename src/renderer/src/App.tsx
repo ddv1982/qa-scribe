@@ -30,17 +30,34 @@ import {
   normalizeDraft,
   normalizeFinding
 } from './domain/reviewDrafts'
+import {
+  createEmptyStructuredFindingDraft,
+  createStructuredFindingDetails,
+  renderStructuredFindingBody,
+  serializeStructuredFindingDetails
+} from './domain/findingDetails'
 import { formatEntryType } from './domain/formatters'
 import { emptyDraft, hasSessionOptionalDetails } from './domain/session'
-import type { ContextAttachment, ContextRow, Finding, FindingDraft, ReviewDraft, WorkspaceMode } from './domain/types'
+import type {
+  CaptureMode,
+  ContextAttachment,
+  ContextRow,
+  Finding,
+  ReviewDraft,
+  StructuredFindingDraft,
+  WorkspaceMode
+} from './domain/types'
 
 export function App(): ReactElement {
   const [sessions, setSessions] = useState<Session[]>([])
   const [snapshot, setSnapshot] = useState<SessionSnapshot | null>(null)
   const [sessionDraft, setSessionDraft] = useState<SessionDraft>(emptyDraft)
-  const [entryType, setEntryType] = useState<EntryType>('note')
+  const [captureMode, setCaptureMode] = useState<CaptureMode>('note')
   const [entryTitle, setEntryTitle] = useState('')
   const [entryBody, setEntryBody] = useState('')
+  const [entryMetadataJson, setEntryMetadataJson] = useState<string | null>(null)
+  const [richTextResetKey, setRichTextResetKey] = useState(0)
+  const [findingDraft, setFindingDraft] = useState<StructuredFindingDraft>(createEmptyStructuredFindingDraft)
   const [filter, setFilter] = useState<EntryType | 'all'>('all')
   const [query, setQuery] = useState('')
   const [providerStatus, setProviderStatus] = useState<ProviderStatus | null>(null)
@@ -210,6 +227,7 @@ export function App(): ReactElement {
     setSelectedEntryId(null)
     setGenerationContext(null)
     setGenerationContextId(null)
+    resetCaptureDrafts()
     await loadReviewState(next)
     window.localStorage.setItem('qa-scribe:last-session', id)
     await refreshSessions()
@@ -252,7 +270,16 @@ export function App(): ReactElement {
     setSessionDraft(emptyDraft)
     setFindings([])
     setDraft(null)
+    resetCaptureDrafts()
     await bootstrap()
+  }
+
+  function resetCaptureDrafts(): void {
+    setEntryTitle('')
+    setEntryBody('')
+    setEntryMetadataJson(null)
+    setFindingDraft(createEmptyStructuredFindingDraft())
+    setRichTextResetKey((current) => current + 1)
   }
 
   async function addEntry(): Promise<void> {
@@ -260,15 +287,51 @@ export function App(): ReactElement {
     try {
       await window.qaScribe.createEntry({
         sessionId: snapshot.session.id,
-        type: entryType,
+        type: 'note',
         title: entryTitle,
-        body: entryBody
+        body: entryBody,
+        metadataJson: entryMetadataJson
       })
-      setEntryTitle('')
-      setEntryBody('')
+      resetCaptureDrafts()
       await openSession(snapshot.session.id)
     } catch (error) {
       flashError(error, 'Entry could not be saved')
+    }
+  }
+
+  function updateFindingDraft(patch: Partial<StructuredFindingDraft>): void {
+    setFindingDraft((current) => ({ ...current, ...patch }))
+  }
+
+  async function addFinding(): Promise<void> {
+    if (!snapshot) return
+    const details = createStructuredFindingDetails(findingDraft, snapshot.session)
+    const selectedEvidenceEntry = findingDraft.linkSelectedEntry ? selectedEntry : null
+    const linkedAttachments = selectedEvidenceEntry
+      ? snapshot.attachments.filter((attachment) => attachment.entryId === selectedEvidenceEntry.id)
+      : []
+    if (findingDraft.title.trim().length === 0 || details.actual.length === 0) return
+
+    try {
+      const storedFinding = await window.qaScribe.createFinding({
+        sessionId: snapshot.session.id,
+        title: findingDraft.title.trim(),
+        body: renderStructuredFindingBody(details),
+        kind: 'bug',
+        metadataJson: serializeStructuredFindingDetails(details),
+        entryId: selectedEvidenceEntry?.id
+      })
+
+      for (const attachment of linkedAttachments) {
+        await window.qaScribe.createEvidenceLink({ findingId: storedFinding.id, attachmentId: attachment.id })
+      }
+
+      setFindingDraft(createEmptyStructuredFindingDraft())
+      await openSession(snapshot.session.id)
+      if (selectedEvidenceEntry) setSelectedEntryId(selectedEvidenceEntry.id)
+      flash('Finding created')
+    } catch (error) {
+      flashError(error, 'Finding could not be saved')
     }
   }
 
@@ -340,19 +403,11 @@ export function App(): ReactElement {
   async function createFindingFromEntry(entry: Entry): Promise<void> {
     if (!snapshot) return
     const entryAttachments = snapshot.attachments.filter((attachment) => attachment.entryId === entry.id)
-    const input: FindingDraft = {
-      sessionId: snapshot.session.id,
-      title: entry.title || formatEntryType(entry.type),
-      summary: entry.body,
-      severity: 'untriaged',
-      evidenceEntryIds: [entry.id],
-      evidenceAttachmentIds: entryAttachments.map((attachment) => attachment.id)
-    }
     try {
       const storedFinding = await window.qaScribe.createFinding({
-        sessionId: input.sessionId,
-        title: input.title,
-        body: input.summary,
+        sessionId: snapshot.session.id,
+        title: entry.title || formatEntryType(entry.type),
+        body: entry.body,
         kind: 'bug',
         entryId: entry.id
       })
@@ -647,25 +702,32 @@ export function App(): ReactElement {
 
                 {workspaceMode === 'capture' ? (
                   <CapturePane
+                    captureMode={captureMode}
                     entryBody={entryBody}
+                    entryMetadataJson={entryMetadataJson}
                     entryTitle={entryTitle}
-                    entryType={entryType}
+                    findingDraft={findingDraft}
                     filter={filter}
                     filteredEntries={filteredEntries}
                     query={query}
+                    richTextResetKey={richTextResetKey}
+                    selectedEntry={selectedEntry}
                     selectedEntryId={selectedEntryId}
                     snapshot={snapshot}
+                    setCaptureMode={setCaptureMode}
                     setEntryBody={setEntryBody}
+                    setEntryMetadataJson={setEntryMetadataJson}
                     setEntryTitle={setEntryTitle}
-                    setEntryType={setEntryType}
                     setFilter={setFilter}
                     setQuery={setQuery}
                     onAddEntry={addEntry}
+                    onAddFinding={addFinding}
                     onAttach={importAttachment}
                     onCreateFinding={createFindingFromEntry}
                     onDelete={deleteEntry}
                     onSelect={setSelectedEntryId}
                     onToggleExclude={toggleGenerationExclusion}
+                    onUpdateFindingDraft={updateFindingDraft}
                   />
                 ) : null}
 

@@ -26,31 +26,61 @@ import type {
   SessionSnapshot
 } from '../../../shared/contracts'
 import { entryTypes } from '../domain/session'
-import type { ContextAttachment, ContextRow, Finding, ReviewDraft, WorkspaceMode } from '../domain/types'
+import type {
+  CaptureMode,
+  ContextAttachment,
+  ContextRow,
+  Finding,
+  ReviewDraft,
+  StructuredFindingDraft,
+  WorkspaceMode
+} from '../domain/types'
 import { formatJiraDraft, jiraDraftFromFinding } from '../domain/reviewDrafts'
 import { firstLine, formatEntryType, formatReasoningEffort, formatTime, providerSummary } from '../domain/formatters'
+import { RichTextContent } from './RichTextContent'
+import { RichTextEditor, type RichTextValue } from './RichTextEditor'
 
 export function CapturePane(props: {
   snapshot: SessionSnapshot
   filteredEntries: Entry[]
+  selectedEntry: Entry | null
   selectedEntryId: string | null
   query: string
   filter: EntryType | 'all'
-  entryType: EntryType
+  captureMode: CaptureMode
   entryTitle: string
   entryBody: string
+  entryMetadataJson: string | null
+  findingDraft: StructuredFindingDraft
+  richTextResetKey: number
   setQuery: (value: string) => void
   setFilter: (value: EntryType | 'all') => void
-  setEntryType: (value: EntryType) => void
+  setCaptureMode: (value: CaptureMode) => void
   setEntryTitle: (value: string) => void
   setEntryBody: (value: string) => void
+  setEntryMetadataJson: (value: string | null) => void
+  onUpdateFindingDraft: (patch: Partial<StructuredFindingDraft>) => void
   onAddEntry: () => Promise<void>
+  onAddFinding: () => Promise<void>
   onAttach: (entryId?: string) => Promise<void>
   onSelect: (entryId: string) => void
   onDelete: (entry: Entry) => Promise<void>
   onToggleExclude: (entry: Entry) => Promise<void>
   onCreateFinding: (entry: Entry) => Promise<void>
 }): ReactElement {
+  const noteSubmitDisabled = props.entryBody.trim().length === 0
+  const findingSubmitDisabled =
+    props.findingDraft.title.trim().length === 0 || props.findingDraft.actual.trim().length === 0
+  const submitDisabled = props.captureMode === 'note' ? noteSubmitDisabled : findingSubmitDisabled
+  const selectedEvidenceLabel = props.selectedEntry
+    ? props.selectedEntry.title || firstLine(props.selectedEntry.body) || formatEntryType(props.selectedEntry.type)
+    : null
+
+  function handleRichTextChange(value: RichTextValue): void {
+    props.setEntryBody(value.text)
+    props.setEntryMetadataJson(value.metadataJson)
+  }
+
   return (
     <>
       <div className="timeline-tools">
@@ -90,7 +120,7 @@ export function CapturePane(props: {
           <div className="empty-state">
             <Clipboard size={34} />
             <h2>No Entries yet</h2>
-            <p>Capture notes, observations, API responses, logs, and possible Findings as they happen.</p>
+            <p>Capture notes as they happen, then turn important behavior into structured Findings.</p>
           </div>
         ) : (
           props.filteredEntries.map((entry) => (
@@ -110,36 +140,161 @@ export function CapturePane(props: {
       </div>
 
       <form
-        className="composer"
+        className={props.captureMode === 'finding' ? 'composer finding-composer' : 'composer'}
         onSubmit={(event) => {
           event.preventDefault()
-          void props.onAddEntry()
+          void (props.captureMode === 'note' ? props.onAddEntry() : props.onAddFinding())
         }}
       >
         <div className="composer-header">
-          <select value={props.entryType} onChange={(event) => props.setEntryType(event.target.value as EntryType)}>
-            {entryTypes.map((type) => (
-              <option value={type.value} key={type.value}>
-                {type.label}
-              </option>
-            ))}
-          </select>
-          <input
-            placeholder="Entry title (optional)"
-            value={props.entryTitle}
-            onChange={(event) => props.setEntryTitle(event.target.value)}
-          />
+          <div className="composer-mode-toggle" role="group" aria-label="Capture mode">
+            <button
+              className={props.captureMode === 'note' ? 'selected' : ''}
+              type="button"
+              onClick={() => props.setCaptureMode('note')}
+            >
+              <Clipboard size={15} />
+              Note
+            </button>
+            <button
+              className={props.captureMode === 'finding' ? 'selected' : ''}
+              type="button"
+              onClick={() => props.setCaptureMode('finding')}
+            >
+              <Bug size={15} />
+              Finding
+            </button>
+          </div>
+          {props.captureMode === 'note' ? (
+            <input
+              aria-label="Note title"
+              placeholder="Note title (optional)"
+              value={props.entryTitle}
+              onChange={(event) => props.setEntryTitle(event.target.value)}
+            />
+          ) : (
+            <input
+              aria-label="Finding summary (required)"
+              placeholder="Finding summary (required)"
+              value={props.findingDraft.title}
+              onChange={(event) => props.onUpdateFindingDraft({ title: event.target.value })}
+            />
+          )}
         </div>
-        <textarea
-          placeholder="Capture what happened..."
-          value={props.entryBody}
-          onChange={(event) => props.setEntryBody(event.target.value)}
-        />
+        {props.captureMode === 'note' ? (
+          <RichTextEditor
+            ariaLabel="Note body"
+            initialMetadataJson={props.entryMetadataJson}
+            initialText={props.entryBody}
+            placeholder="Capture what happened..."
+            resetKey={props.richTextResetKey}
+            onChange={handleRichTextChange}
+          />
+        ) : (
+          <div className="finding-fields">
+            <label className="field">
+              <span>Actual result</span>
+              <textarea
+                aria-label="Actual result (required)"
+                placeholder="What failed, changed, blocked you, or looked wrong?"
+                value={props.findingDraft.actual}
+                onChange={(event) => props.onUpdateFindingDraft({ actual: event.target.value })}
+              />
+            </label>
+            <label className="field">
+              <span>Expected result</span>
+              <textarea
+                aria-label="Expected result"
+                placeholder="What should have happened?"
+                value={props.findingDraft.expected}
+                onChange={(event) => props.onUpdateFindingDraft({ expected: event.target.value })}
+              />
+            </label>
+            <label className="field field-wide">
+              <span>Steps to reproduce</span>
+              <textarea
+                aria-label="Steps to reproduce"
+                placeholder="One step per line"
+                value={props.findingDraft.steps}
+                onChange={(event) => props.onUpdateFindingDraft({ steps: event.target.value })}
+              />
+            </label>
+            <label className="field">
+              <span>Severity</span>
+              <select
+                aria-label="Severity"
+                value={props.findingDraft.severity}
+                onChange={(event) => props.onUpdateFindingDraft({ severity: event.target.value })}
+              >
+                <option value="untriaged">Untriaged</option>
+                <option value="critical">Critical</option>
+                <option value="major">Major</option>
+                <option value="minor">Minor</option>
+                <option value="trivial">Trivial</option>
+              </select>
+            </label>
+            <label className="field">
+              <span>Priority</span>
+              <select
+                aria-label="Priority"
+                value={props.findingDraft.priority}
+                onChange={(event) => props.onUpdateFindingDraft({ priority: event.target.value })}
+              >
+                <option value="medium">Medium</option>
+                <option value="urgent">Urgent</option>
+                <option value="high">High</option>
+                <option value="low">Low</option>
+              </select>
+            </label>
+            <label className="field">
+              <span>Component</span>
+              <input
+                aria-label="Component"
+                placeholder="Area or feature"
+                value={props.findingDraft.component}
+                onChange={(event) => props.onUpdateFindingDraft({ component: event.target.value })}
+              />
+            </label>
+            <label className="field">
+              <span>Environment</span>
+              <input
+                aria-label="Finding environment"
+                placeholder="Uses Session environment if empty"
+                value={props.findingDraft.environment}
+                onChange={(event) => props.onUpdateFindingDraft({ environment: event.target.value })}
+              />
+            </label>
+            <label className="field field-wide">
+              <span>Notes</span>
+              <textarea
+                aria-label="Finding notes"
+                placeholder="Extra context, logs, workaround, suspected cause"
+                value={props.findingDraft.notes}
+                onChange={(event) => props.onUpdateFindingDraft({ notes: event.target.value })}
+              />
+            </label>
+            <label className="evidence-toggle">
+              <input
+                checked={Boolean(props.selectedEntry && props.findingDraft.linkSelectedEntry)}
+                disabled={!props.selectedEntry}
+                type="checkbox"
+                onChange={(event) => props.onUpdateFindingDraft({ linkSelectedEntry: event.target.checked })}
+              />
+              <span>
+                {selectedEvidenceLabel
+                  ? `Link selected Entry: ${selectedEvidenceLabel}`
+                  : 'Select a timeline Entry to link it as evidence'}
+              </span>
+            </label>
+          </div>
+        )}
         <div className="composer-actions">
-          <span>{props.snapshot.entries.length} Entries</span>
-          <button className="primary-command fit" disabled={props.entryBody.trim().length === 0} type="submit">
+          <span>
+            {props.snapshot.entries.length} Entries / {props.snapshot.findings.length} Findings
+          </span>
+          <button className="primary-command fit" disabled={submitDisabled} type="submit">
             <Plus size={16} />
-            Add Entry
+            {props.captureMode === 'note' ? 'Add Note' : 'Add Finding'}
           </button>
         </div>
       </form>
@@ -581,7 +736,7 @@ export function TimelineEntry(props: {
             </button>
           </div>
         </div>
-        <p>{props.entry.body}</p>
+        <RichTextContent body={props.entry.body} metadataJson={props.entry.metadataJson} />
         <div className="entry-footer">
           {props.entry.excludedFromGeneration ? <span>Excluded from generation</span> : <span>Included for generation</span>}
           {props.attachments.length > 0 ? <span>{props.attachments.length} attachments</span> : null}

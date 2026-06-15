@@ -94,7 +94,8 @@
 
   .session-required-fields,
   .session-optional-fields,
-  .composer-header {
+  .composer-header,
+  .finding-fields {
     grid-template-columns: 1fr;
   }
 
@@ -125,6 +126,10 @@
 
   .entry-actions {
     opacity: 1;
+  }
+
+  .evidence-toggle span {
+    white-space: normal;
   }
 }
 

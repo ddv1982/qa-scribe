@@ -1,5 +1,6 @@
 import type { Draft, EvidenceLink, Finding as StoredFinding, SessionSnapshot } from '../../../shared/contracts'
 import type { ContextRow, Finding, JiraBugDraft, ReviewDraft } from './types'
+import { parseStructuredFindingDetails } from './findingDetails'
 import { firstLine, formatEntryType } from './formatters'
 import { normalizeContextRows } from './generation'
 
@@ -8,13 +9,16 @@ export function normalizeFinding(
   evidenceLinks: EvidenceLink[]
 ): Finding {
   const linkedEvidence = evidenceLinks.filter((link) => link.findingId === value.id)
+  const details = parseStructuredFindingDetails(value.metadataJson)
 
   return {
     id: value.id,
     sessionId: value.sessionId,
     title: value.title,
-    summary: value.body,
-    severity: value.kind,
+    summary: details?.actual || value.body,
+    details,
+    severity: details?.severity ?? value.kind,
+    priority: details?.priority ?? null,
     status: 'draft',
     evidenceEntryIds: linkedEvidence.map((link) => link.entryId).filter((entryId): entryId is string => entryId !== null),
     evidenceAttachmentIds: linkedEvidence
@@ -155,13 +159,17 @@ export function jiraDraftFromUnknown(value: unknown): JiraBugDraft | null {
 }
 
 export function jiraDraftFromFinding(finding: Finding): JiraBugDraft {
+  const details = finding.details
   return {
     id: `jira-${finding.id}`,
     title: finding.title,
-    description: finding.summary,
-    steps: '1. Review linked evidence and fill exact reproduction steps.',
-    expected: 'Expected result not drafted yet.',
-    actual: finding.summary,
+    description: details?.notes || finding.summary,
+    steps:
+      details && details.steps.length > 0
+        ? details.steps.map((step, index) => `${index + 1}. ${step}`).join('\n')
+        : '1. Review linked evidence and fill exact reproduction steps.',
+    expected: details?.expected || 'Expected result not drafted yet.',
+    actual: details?.actual || finding.summary,
     evidence: [
       finding.evidenceEntryIds.length > 0 ? `Entries: ${finding.evidenceEntryIds.join(', ')}` : '',
       finding.evidenceAttachmentIds.length > 0 ? `Attachments: ${finding.evidenceAttachmentIds.join(', ')}` : ''

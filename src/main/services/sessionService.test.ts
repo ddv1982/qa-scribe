@@ -218,6 +218,7 @@ describe('SessionService', () => {
       kind: 'bug',
       title: 'Valid card submission fails',
       body: 'The payment flow reports an error after a valid submit.',
+      metadataJson: '{"schema":"qa-scribe.structured-finding.v1","actual":"Payment failed"}',
       entryId: entry.id
     })
 
@@ -226,7 +227,8 @@ describe('SessionService', () => {
       expect.objectContaining({
         id: finding.id,
         title: 'Valid card submission fails',
-        kind: 'bug'
+        kind: 'bug',
+        metadataJson: '{"schema":"qa-scribe.structured-finding.v1","actual":"Payment failed"}'
       })
     ])
     expect(snapshot?.evidenceLinks).toEqual([
@@ -580,9 +582,12 @@ describe('SessionService', () => {
   it('records the applied database schema version', () => {
     const { client } = createHarness()
 
-    expect(client.sqlite.pragma('user_version', { simple: true })).toBe(3)
+    expect(client.sqlite.pragma('user_version', { simple: true })).toBe(4)
     expect(client.sqlite.prepare('PRAGMA table_info(ai_runs)').all()).toEqual(
       expect.arrayContaining([expect.objectContaining({ name: 'reasoning_effort' })])
+    )
+    expect(client.sqlite.prepare('PRAGMA table_info(findings)').all()).toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: 'metadata_json' })])
     )
   })
 })

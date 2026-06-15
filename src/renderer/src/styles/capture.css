@@ -76,6 +76,35 @@
   line-height: 1.45;
 }
 
+.rich-entry-content {
+  margin-top: 7px;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
+}
+
+.rich-entry-content p {
+  margin: 0 0 8px;
+  white-space: normal;
+}
+
+.rich-entry-content p:last-child,
+.rich-entry-content ul:last-child,
+.rich-entry-content ol:last-child {
+  margin-bottom: 0;
+}
+
+.rich-entry-content ul,
+.rich-entry-content ol {
+  margin: 0 0 8px;
+  padding-left: 22px;
+}
+
+.rich-entry-content code {
+  border-radius: 5px;
+  background: var(--surface-raised);
+  padding: 1px 4px;
+}
+
 .entry-footer {
   margin-top: 10px;
   color: var(--text-secondary);
@@ -93,11 +122,149 @@
 .composer-header {
   display: grid;
   grid-template-columns: 172px minmax(0, 1fr);
+  gap: 8px;
 }
 
 .composer textarea {
   height: 96px;
   min-height: 96px;
+}
+
+.composer-mode-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  min-width: 0;
+}
+
+.composer-mode-toggle button {
+  align-items: center;
+  display: inline-flex;
+  justify-content: center;
+  min-width: 0;
+  height: 34px;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-weight: 680;
+}
+
+.composer-mode-toggle button.selected {
+  border-color: var(--accent);
+  background: var(--selection);
+  color: var(--text);
+}
+
+.rich-editor {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.rich-editor:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--selection);
+}
+
+.rich-editor-toolbar {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  padding: 6px;
+}
+
+.rich-editor-toolbar button {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.rich-editor-toolbar button:hover,
+.rich-editor-toolbar button.selected {
+  border-color: var(--border);
+  background: var(--surface-raised);
+  color: var(--text);
+}
+
+.rich-editor-toolbar button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.rich-editor-surface {
+  min-height: 118px;
+  padding: 10px;
+  outline: none;
+  line-height: 1.45;
+}
+
+.rich-editor-surface p {
+  margin: 0 0 8px;
+}
+
+.rich-editor-surface p:last-child,
+.rich-editor-surface ul:last-child,
+.rich-editor-surface ol:last-child {
+  margin-bottom: 0;
+}
+
+.rich-editor-surface ul,
+.rich-editor-surface ol {
+  margin: 0 0 8px;
+  padding-left: 22px;
+}
+
+.rich-editor-surface.is-editor-empty::before,
+.rich-editor-surface .is-editor-empty::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+
+.finding-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.finding-fields textarea {
+  min-height: 78px;
+}
+
+.finding-fields .field-wide,
+.evidence-toggle {
+  grid-column: 1 / -1;
+}
+
+.evidence-toggle {
+  align-items: center;
+  display: flex;
+  min-width: 0;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.evidence-toggle input {
+  flex: 0 0 auto;
+}
+
+.evidence-toggle span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .composer-actions {

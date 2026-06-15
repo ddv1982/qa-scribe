@@ -135,6 +135,7 @@ export const findingSchema = z.object({
   title: z.string(),
   body: z.string(),
   kind: findingKindSchema,
+  metadataJson: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string()
 })
@@ -145,6 +146,7 @@ export const findingDraftSchema = z.object({
   title: z.string().min(1).max(180),
   body: z.string().min(1),
   kind: findingKindSchema.default('bug'),
+  metadataJson: z.string().nullable().optional(),
   entryId: idSchema.optional()
 })
 export type FindingDraft = z.infer<typeof findingDraftSchema>

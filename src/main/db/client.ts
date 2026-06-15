@@ -138,6 +138,12 @@ function migrate(sqlite: Database.Database): void {
         UPDATE ai_runs SET provider = 'openai_legacy' WHERE provider = 'openai';
         ALTER TABLE ai_runs ADD COLUMN reasoning_effort TEXT;
       `
+    },
+    {
+      version: 4,
+      sql: `
+        ALTER TABLE findings ADD COLUMN metadata_json TEXT;
+      `
     }
   ]
 
