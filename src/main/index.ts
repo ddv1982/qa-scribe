@@ -11,8 +11,8 @@ function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 860,
-    minWidth: 940,
-    minHeight: 680,
+    minWidth: 720,
+    minHeight: 560,
     show: false,
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     backgroundColor: '#f5f5f7',

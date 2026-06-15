@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
+import { evidenceLinkDraftSchema } from '../../shared/contracts'
 import { createDbClient, type DbClient } from '../db/client'
 import { __testables, SessionService } from './sessionService'
 
@@ -178,6 +179,19 @@ describe('SessionService', () => {
     )
   })
 
+  it('exports Sessions without changing last opened recency', () => {
+    const { client, service } = createHarness()
+    const session = service.createSession({ title: 'Side-effect-free export' })
+    const lastOpenedAt = '2026-01-01T00:00:00.000Z'
+    client.sqlite.prepare('UPDATE sessions SET last_opened_at = ? WHERE id = ?').run(lastOpenedAt, session.id)
+
+    service.exportSession(session.id, 'json')
+
+    expect(client.sqlite.prepare('SELECT last_opened_at FROM sessions WHERE id = ?').get(session.id)).toEqual({
+      last_opened_at: lastOpenedAt
+    })
+  })
+
   it('persists Findings with linked Entry evidence', () => {
     const { service } = createHarness()
     const session = service.createSession({ title: 'Checkout review' })
@@ -211,6 +225,36 @@ describe('SessionService', () => {
         attachmentId: null
       })
     ])
+  })
+
+  it('rolls back Finding creation when linked Entry evidence is invalid', () => {
+    const { service } = createHarness()
+    const session = service.createSession({ title: 'Finding rollback' })
+    const otherSession = service.createSession({ title: 'Other session' })
+    const otherEntry = service.createEntry({
+      sessionId: otherSession.id,
+      type: 'observation',
+      body: 'This evidence belongs elsewhere.'
+    })
+
+    expect(() =>
+      service.createFinding({
+        sessionId: session.id,
+        kind: 'bug',
+        title: 'Should not persist',
+        body: 'The linked evidence is invalid.',
+        entryId: otherEntry.id
+      })
+    ).toThrow(`Entry not found in Session: ${otherEntry.id}`)
+
+    expect(service.getSession(session.id)?.findings).toEqual([])
+    expect(service.getSession(session.id)?.evidenceLinks).toEqual([])
+  })
+
+  it('rejects Evidence link drafts without an Entry or Attachment at the contract boundary', () => {
+    const findingId = '00000000-0000-4000-8000-000000000001'
+
+    expect(() => evidenceLinkDraftSchema.parse({ findingId })).toThrow('Evidence link requires an Entry or Attachment')
   })
 
   it('imports managed attachment files and links them as evidence', () => {
@@ -323,7 +367,9 @@ describe('SessionService', () => {
     const prompt = __testables.buildGenerationPrompt(review)
 
     expect(review.session).toEqual(expect.objectContaining({ id: session.id, testTarget: 'Checkout' }))
-    expect(review.attachments).toEqual([expect.objectContaining({ id: attachment.id, entryId: null })])
+    expect(review.attachments).toEqual([
+      expect.objectContaining({ attachment: expect.objectContaining({ id: attachment.id, entryId: null }), included: true })
+    ])
     expect(prompt).toContain('- Title: Release candidate checkout')
     expect(prompt).toContain('- Test Target: Checkout')
     expect(prompt).toContain('- Charter: Verify the happy path and payment failures')
@@ -332,6 +378,24 @@ describe('SessionService', () => {
     expect(prompt).toContain('- Related Reference: QA-456')
     expect(prompt).toContain('Session-level Attachments:')
     expect(prompt).toContain('session-log.txt; type=text/plain')
+  })
+
+  it('excludes session-level attachments from Generation Context prompts when toggled out', () => {
+    const harness = createHarness()
+    const session = harness.service.createSession({ title: 'Attachment review' })
+    const sourcePath = join(harness.root, 'private-note.txt')
+    writeFileSync(sourcePath, 'sensitive setup details')
+    const attachment = harness.service.importAttachment(sourcePath, session.id)
+
+    const review = harness.service.createGenerationContext(session.id)
+    const updated = harness.service.updateGenerationContextAttachment(review.context.id, attachment.id, false)
+    const prompt = __testables.buildGenerationPrompt(updated)
+
+    expect(updated.attachments).toEqual([
+      expect.objectContaining({ attachment: expect.objectContaining({ id: attachment.id }), included: false })
+    ])
+    expect(prompt).toContain('- No session-level attachments were included.')
+    expect(prompt).not.toContain('private-note.txt')
   })
 
   it('persists a failed AI Run when generation is requested without an API key', async () => {
@@ -386,7 +450,7 @@ describe('SessionService', () => {
   it('records the applied database schema version', () => {
     const { client } = createHarness()
 
-    expect(client.sqlite.pragma('user_version', { simple: true })).toBe(1)
+    expect(client.sqlite.pragma('user_version', { simple: true })).toBe(2)
   })
 })
 

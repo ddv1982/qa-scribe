@@ -120,6 +120,17 @@ function migrate(sqlite: Database.Database): void {
           updated_at TEXT NOT NULL
         );
       `
+    },
+    {
+      version: 2,
+      sql: `
+        CREATE TABLE IF NOT EXISTS generation_context_attachments (
+          id TEXT PRIMARY KEY,
+          generation_context_id TEXT NOT NULL REFERENCES generation_contexts(id) ON DELETE CASCADE,
+          attachment_id TEXT NOT NULL REFERENCES attachments(id) ON DELETE CASCADE,
+          included INTEGER NOT NULL DEFAULT 1
+        );
+      `
     }
   ]
 

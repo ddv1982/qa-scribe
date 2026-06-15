@@ -34,6 +34,8 @@ const api: QaScribeApi = {
   createGenerationContext: (sessionId: string) => ipcRenderer.invoke('generation-contexts:create', sessionId),
   updateGenerationContextEntry: (contextId: string, entryId: string, included: boolean) =>
     ipcRenderer.invoke('generation-contexts:update-entry', contextId, entryId, included),
+  updateGenerationContextAttachment: (contextId: string, attachmentId: string, included: boolean) =>
+    ipcRenderer.invoke('generation-contexts:update-attachment', contextId, attachmentId, included),
   generateTestware: (contextId: string) => ipcRenderer.invoke('generation:run', contextId),
   exportSession: (id: string, format: 'markdown' | 'json') => ipcRenderer.invoke('sessions:export', id, format),
   getProviderStatus: () => ipcRenderer.invoke('ai:provider-status')

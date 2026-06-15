@@ -55,6 +55,15 @@ export function registerIpcHandlers(service: SessionService): void {
   ipcMain.handle('generation-contexts:update-entry', (_event, contextId: string, entryId: string, included: boolean) =>
     service.updateGenerationContextEntry(idSchema.parse(contextId), idSchema.parse(entryId), booleanSchema.parse(included))
   )
+  ipcMain.handle(
+    'generation-contexts:update-attachment',
+    (_event, contextId: string, attachmentId: string, included: boolean) =>
+      service.updateGenerationContextAttachment(
+        idSchema.parse(contextId),
+        idSchema.parse(attachmentId),
+        booleanSchema.parse(included)
+      )
+  )
   ipcMain.handle('generation:run', (_event, contextId: string) => service.generateTestware(idSchema.parse(contextId)))
   ipcMain.handle('ai:provider-status', () => service.getProviderStatus())
   ipcMain.handle('attachments:import', async (_event, sessionId: string, entryId?: string) => {

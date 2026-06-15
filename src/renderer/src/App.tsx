@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type MouseEvent, type ReactElement } from 'react'
+import { useEffect, useMemo, useRef, useState, type MouseEvent, type ReactElement } from 'react'
 import {
   Archive,
   Bot,
@@ -80,11 +80,14 @@ type ContextRow = {
   attachments: Attachment[]
 }
 
+type ContextAttachment = GenerationContextReview['attachments'][number]
+
 const entryTypes: Array<{ value: EntryType; label: string }> = [
   { value: 'note', label: 'Note' },
   { value: 'observation', label: 'Observation' },
   { value: 'api_response', label: 'API Response' },
   { value: 'log', label: 'Log' },
+  { value: 'screenshot', label: 'Screenshot' },
   { value: 'finding_candidate', label: 'Finding' }
 ]
 
@@ -116,9 +119,13 @@ export function App(): ReactElement {
   const [busy, setBusy] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
+  const noticeTimerRef = useRef<number | null>(null)
 
   useEffect(() => {
     void bootstrap()
+    return () => {
+      if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current)
+    }
   }, [])
 
   const selectedEntry = snapshot?.entries.find((entry) => entry.id === selectedEntryId) ?? null
@@ -130,7 +137,12 @@ export function App(): ReactElement {
 
   const sessionLevelAttachments = useMemo(() => {
     if (!snapshot) return []
-    return generationContext?.attachments ?? snapshot.attachments.filter((attachment) => attachment.entryId === null)
+    return (
+      generationContext?.attachments ??
+      snapshot.attachments
+        .filter((attachment) => attachment.entryId === null)
+        .map((attachment) => ({ attachment, included: true }))
+    )
   }, [generationContext, snapshot])
 
   const filteredEntries = useMemo(() => {
@@ -257,7 +269,7 @@ export function App(): ReactElement {
       flash(row.included ? 'Entry excluded from context' : 'Entry included in context')
       return
     }
-    await toggleGenerationExclusion(row.entry)
+    flash('Generation Context is still loading')
   }
 
   async function deleteEntry(entry: Entry): Promise<void> {
@@ -293,8 +305,7 @@ export function App(): ReactElement {
   async function openGenerationReview(): Promise<void> {
     if (!snapshot) return
     setWorkspaceMode('generation')
-    setGenerationContext(null)
-    setGenerationContextId(null)
+    if (generationContextId) return
     setBusy(true)
     try {
       const nextContext = await window.qaScribe.createGenerationContext(snapshot.session.id)
@@ -354,6 +365,18 @@ export function App(): ReactElement {
     } catch (error) {
       flashError(error, 'Finding could not be created')
     }
+  }
+
+  async function toggleReviewedAttachment(item: ContextAttachment): Promise<void> {
+    if (!generationContextId) return
+    const nextContext = await window.qaScribe.updateGenerationContextAttachment(
+      generationContextId,
+      item.attachment.id,
+      !item.included
+    )
+    setGenerationContext(nextContext)
+    setGenerationContextId(nextContext.context.id)
+    flash(item.included ? 'Attachment excluded from context' : 'Attachment included in context')
   }
 
   async function generateTestware(): Promise<void> {
@@ -443,8 +466,12 @@ export function App(): ReactElement {
   }
 
   function flash(message: string): void {
+    if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current)
     setNotice(message)
-    window.setTimeout(() => setNotice(null), 1800)
+    noticeTimerRef.current = window.setTimeout(() => {
+      setNotice(null)
+      noticeTimerRef.current = null
+    }, 1800)
   }
 
   function flashError(error: unknown, fallback: string): void {
@@ -532,7 +559,7 @@ export function App(): ReactElement {
 
             <section className="detail-grid">
               <div className="timeline-pane">
-                <ModeTabs mode={workspaceMode} setMode={setWorkspaceMode} />
+                <ModeTabs mode={workspaceMode} setMode={setWorkspaceMode} onOpenGeneration={openGenerationReview} />
 
                 {workspaceMode === 'capture' ? (
                   <CapturePane
@@ -563,11 +590,13 @@ export function App(): ReactElement {
                     busy={busy}
 	                    findings={findings}
 	                    generating={generating}
+	                    contextReady={Boolean(generationContextId)}
 	                    providerStatus={providerStatus}
 	                    rows={contextRows}
 	                    sessionAttachments={sessionLevelAttachments}
 	                    session={snapshot.session}
 	                    onGenerate={generateTestware}
+	                    onToggleAttachment={toggleReviewedAttachment}
 	                    onToggleEntry={toggleReviewedEntry}
                   />
                 ) : null}
@@ -751,7 +780,11 @@ function CapturePane(props: {
   )
 }
 
-function ModeTabs(props: { mode: WorkspaceMode; setMode: (mode: WorkspaceMode) => void }): ReactElement {
+function ModeTabs(props: {
+  mode: WorkspaceMode
+  setMode: (mode: WorkspaceMode) => void
+  onOpenGeneration: () => Promise<void>
+}): ReactElement {
   return (
     <nav className="mode-tabs" aria-label="Workspace mode">
       <button className={props.mode === 'capture' ? 'selected' : ''} type="button" onClick={() => props.setMode('capture')}>
@@ -760,7 +793,7 @@ function ModeTabs(props: { mode: WorkspaceMode; setMode: (mode: WorkspaceMode) =
       <button
         className={props.mode === 'generation' ? 'selected' : ''}
         type="button"
-        onClick={() => props.setMode('generation')}
+        onClick={() => void props.onOpenGeneration()}
       >
         Generation Context
       </button>
@@ -774,17 +807,20 @@ function ModeTabs(props: { mode: WorkspaceMode; setMode: (mode: WorkspaceMode) =
 function GenerationReviewPane(props: {
   session: Session
   rows: ContextRow[]
-  sessionAttachments: Attachment[]
+  sessionAttachments: ContextAttachment[]
   findings: Finding[]
   providerStatus: ProviderStatus | null
   busy: boolean
   generating: boolean
+  contextReady: boolean
   onToggleEntry: (row: ContextRow) => Promise<void>
+  onToggleAttachment: (item: ContextAttachment) => Promise<void>
   onGenerate: () => Promise<void>
 }): ReactElement {
   const includedRows = props.rows.filter((row) => row.included)
   const excludedRows = props.rows.filter((row) => !row.included)
-  const includedAttachments = [...includedRows.flatMap((row) => row.attachments), ...props.sessionAttachments]
+  const includedSessionAttachments = props.sessionAttachments.filter((item) => item.included)
+  const includedAttachments = [...includedRows.flatMap((row) => row.attachments), ...includedSessionAttachments.map((item) => item.attachment)]
 
   return (
     <section className="review-pane">
@@ -799,7 +835,7 @@ function GenerationReviewPane(props: {
         </div>
         <button
           className="primary-command"
-          disabled={props.generating || props.busy || includedRows.length === 0}
+          disabled={props.generating || props.busy || (includedRows.length === 0 && includedAttachments.length === 0)}
           type="button"
           onClick={() => void props.onGenerate()}
         >
@@ -815,8 +851,20 @@ function GenerationReviewPane(props: {
       </div>
 
       <div className="review-columns">
-        <ReviewList title="Included" rows={includedRows} empty="No Entries included." onToggleEntry={props.onToggleEntry} />
-        <ReviewList title="Excluded" rows={excludedRows} empty="No Entries excluded." onToggleEntry={props.onToggleEntry} />
+        <ReviewList
+          title="Included"
+          rows={includedRows}
+          empty="No Entries included."
+          disabled={!props.contextReady || props.busy}
+          onToggleEntry={props.onToggleEntry}
+        />
+        <ReviewList
+          title="Excluded"
+          rows={excludedRows}
+          empty="No Entries excluded."
+          disabled={!props.contextReady || props.busy}
+          onToggleEntry={props.onToggleEntry}
+        />
       </div>
 
       <section className="finding-strip">
@@ -824,7 +872,11 @@ function GenerationReviewPane(props: {
           <ImagePlus size={16} />
           <h3>Session attachments in context</h3>
         </div>
-        <AttachmentList attachments={props.sessionAttachments} />
+        <ReviewAttachmentList
+          attachments={props.sessionAttachments}
+          disabled={!props.contextReady || props.busy}
+          onToggleAttachment={props.onToggleAttachment}
+        />
       </section>
 
       <section className="finding-strip">
@@ -927,6 +979,7 @@ function ReviewList(props: {
   title: string
   rows: ContextRow[]
   empty: string
+  disabled: boolean
   onToggleEntry: (row: ContextRow) => Promise<void>
 }): ReactElement {
   return (
@@ -942,7 +995,12 @@ function ReviewList(props: {
           </div>
           <div className="context-entry-footer">
             <span>{row.attachments.length} attachments</span>
-            <button className="secondary-command compact" type="button" onClick={() => void props.onToggleEntry(row)}>
+            <button
+              className="secondary-command compact"
+              disabled={props.disabled}
+              type="button"
+              onClick={() => void props.onToggleEntry(row)}
+            >
               {row.included ? 'Exclude' : 'Include'}
             </button>
           </div>
@@ -1108,6 +1166,35 @@ function AttachmentList({ attachments }: { attachments: Attachment[] }): ReactEl
         </li>
       ))}
     </ul>
+  )
+}
+
+function ReviewAttachmentList(props: {
+  attachments: ContextAttachment[]
+  disabled: boolean
+  onToggleAttachment: (item: ContextAttachment) => Promise<void>
+}): ReactElement {
+  if (props.attachments.length === 0) return <p className="muted">No evidence attached.</p>
+  return (
+    <div className="finding-list">
+      {props.attachments.map((item) => (
+        <article className="finding-row" key={item.attachment.id}>
+          <strong>{item.attachment.filename}</strong>
+          <span>{Math.ceil(item.attachment.sizeBytes / 1024)} KB</span>
+          <div className="context-entry-footer">
+            <small>{item.included ? 'Included in context' : 'Excluded from context'}</small>
+            <button
+              className="secondary-command compact"
+              disabled={props.disabled}
+              type="button"
+              onClick={() => void props.onToggleAttachment(item)}
+            >
+              {item.included ? 'Exclude' : 'Include'}
+            </button>
+          </div>
+        </article>
+      ))}
+    </div>
   )
 }
 

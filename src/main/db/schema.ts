@@ -84,6 +84,17 @@ export const generationContextEntries = sqliteTable('generation_context_entries'
   included: integer('included', { mode: 'boolean' }).notNull().default(true)
 })
 
+export const generationContextAttachments = sqliteTable('generation_context_attachments', {
+  id: text('id').primaryKey(),
+  generationContextId: text('generation_context_id')
+    .notNull()
+    .references(() => generationContexts.id, { onDelete: 'cascade' }),
+  attachmentId: text('attachment_id')
+    .notNull()
+    .references(() => attachments.id, { onDelete: 'cascade' }),
+  included: integer('included', { mode: 'boolean' }).notNull().default(true)
+})
+
 export const aiRuns = sqliteTable('ai_runs', {
   id: text('id').primaryKey(),
   sessionId: text('session_id')

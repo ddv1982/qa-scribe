@@ -45,7 +45,6 @@
 
 body {
   margin: 0;
-  min-width: 900px;
   min-height: 100vh;
   overflow: hidden;
   background: var(--background);
@@ -131,7 +130,8 @@ button {
   transform: translateY(-1px);
 }
 
-.primary-command:disabled {
+.primary-command:disabled,
+.secondary-command:disabled {
   cursor: not-allowed;
   opacity: 0.55;
   transform: none;
@@ -821,6 +821,112 @@ dd {
   *::after {
     animation-duration: 1ms !important;
     transition-duration: 1ms !important;
+  }
+}
+
+@media (max-width: 920px) {
+  body {
+    overflow: auto;
+  }
+
+  .app-shell {
+    grid-template-columns: 1fr;
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .session-sidebar {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+    padding: 14px;
+  }
+
+  .session-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    max-height: 150px;
+  }
+
+  .workspace,
+  .detail-grid,
+  .timeline-pane {
+    overflow: visible;
+  }
+
+  .topbar,
+  .review-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .topbar-actions {
+    justify-content: flex-start;
+  }
+
+  .metadata-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .metadata-strip .icon-command {
+    width: 100%;
+  }
+
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .inspector {
+    border-left: 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .review-columns,
+  .context-summary {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 680px) {
+  .topbar,
+  .metadata-strip,
+  .mode-tabs,
+  .timeline-tools,
+  .timeline,
+  .review-pane,
+  .drafts-pane,
+  .composer {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+
+  .metadata-strip,
+  .composer-header {
+    grid-template-columns: 1fr;
+  }
+
+  .timeline-tools,
+  .entry-heading,
+  .entry-footer,
+  .context-entry-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .search-box {
+    width: 100%;
+  }
+
+  .select-box select {
+    width: 100%;
+  }
+
+  .timeline-entry {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .entry-actions {
+    opacity: 1;
   }
 }
 

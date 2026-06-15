@@ -116,6 +116,9 @@ export const evidenceLinkDraftSchema = z.object({
   findingId: idSchema,
   entryId: idSchema.nullable().optional(),
   attachmentId: idSchema.nullable().optional()
+}).refine((value) => Boolean(value.entryId || value.attachmentId), {
+  message: 'Evidence link requires an Entry or Attachment',
+  path: ['entryId']
 })
 export type EvidenceLinkDraft = z.infer<typeof evidenceLinkDraftSchema>
 
@@ -191,7 +194,7 @@ export type GenerationContextReview = {
   context: GenerationContext
   session: Session
   entries: Array<{ entry: Entry; included: boolean; attachments: Attachment[] }>
-  attachments: Attachment[]
+  attachments: Array<{ attachment: Attachment; included: boolean }>
   findings: Array<{ finding: Finding; evidenceLinks: EvidenceLink[] }>
 }
 
@@ -227,6 +230,7 @@ export interface QaScribeApi {
   deleteDraft(id: string): Promise<void>
   createGenerationContext(sessionId: string): Promise<GenerationContextReview>
   updateGenerationContextEntry(contextId: string, entryId: string, included: boolean): Promise<GenerationContextReview>
+  updateGenerationContextAttachment(contextId: string, attachmentId: string, included: boolean): Promise<GenerationContextReview>
   generateTestware(contextId: string): Promise<GenerationResult>
   exportSession(id: string, format: 'markdown' | 'json'): Promise<SessionExport>
   getProviderStatus(): Promise<ProviderStatus>

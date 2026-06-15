@@ -49,6 +49,7 @@ import {
   entries,
   evidenceLinks,
   findings,
+  generationContextAttachments,
   generationContextEntries,
   generationContexts,
   sessions
@@ -133,21 +134,24 @@ export class SessionService {
   }
 
   getSession(id: string): SessionSnapshot | null {
+    return this.getSessionSnapshot(idSchema.parse(id), true)
+  }
+
+  private getSessionSnapshot(id: string, touchOnRead: boolean): SessionSnapshot | null {
     const session = this.client.db.select().from(sessions).where(eq(sessions.id, id)).get()
     if (!session) return null
 
-    const now = isoNow()
-    this.client.db.update(sessions).set({ lastOpenedAt: now }).where(eq(sessions.id, id)).run()
+    const now = touchOnRead ? isoNow() : session.lastOpenedAt
+    if (touchOnRead) this.client.db.update(sessions).set({ lastOpenedAt: now }).where(eq(sessions.id, id)).run()
 
-    const sessionId = idSchema.parse(id)
     return {
       session: mapSession({ ...session, lastOpenedAt: now }),
-      entries: this.listEntries(sessionId),
-      attachments: this.listAttachments(sessionId),
-      findings: this.listFindings(sessionId),
-      evidenceLinks: this.listEvidenceLinks(sessionId),
-      drafts: this.listDrafts(sessionId),
-      aiRuns: this.listAiRuns(sessionId)
+      entries: this.listEntries(id),
+      attachments: this.listAttachments(id),
+      findings: this.listFindings(id),
+      evidenceLinks: this.listEvidenceLinks(id),
+      drafts: this.listDrafts(id),
+      aiRuns: this.listAiRuns(id)
     }
   }
 
@@ -310,27 +314,29 @@ export class SessionService {
   createFinding(input: FindingDraft): Finding {
     const data = findingDraftSchema.parse(input)
     this.assertSessionExists(data.sessionId)
-    const now = isoNow()
-    const [finding] = this.client.db
-      .insert(findings)
-      .values({
-        id: randomUUID(),
-        sessionId: data.sessionId,
-        title: data.title.trim(),
-        body: data.body,
-        kind: data.kind,
-        createdAt: now,
-        updatedAt: now
-      })
-      .returning()
-      .all()
+    return this.client.sqlite.transaction(() => {
+      const now = isoNow()
+      const [finding] = this.client.db
+        .insert(findings)
+        .values({
+          id: randomUUID(),
+          sessionId: data.sessionId,
+          title: data.title.trim(),
+          body: data.body,
+          kind: data.kind,
+          createdAt: now,
+          updatedAt: now
+        })
+        .returning()
+        .all()
 
-    if (data.entryId) {
-      this.createEvidenceLink({ findingId: finding.id, entryId: data.entryId })
-    }
+      if (data.entryId) {
+        this.createEvidenceLink({ findingId: finding.id, entryId: data.entryId })
+      }
 
-    this.touchSession(data.sessionId)
-    return mapFinding(finding)
+      this.touchSession(data.sessionId)
+      return mapFinding(finding)
+    })()
   }
 
   updateFinding(id: string, input: FindingPatch): Finding {
@@ -376,7 +382,6 @@ export class SessionService {
 
   createEvidenceLink(input: EvidenceLinkDraft): EvidenceLink {
     const data = evidenceLinkDraftSchema.parse(input)
-    if (!data.entryId && !data.attachmentId) throw new Error('Evidence link requires an Entry or Attachment')
 
     const finding = this.client.db.select().from(findings).where(eq(findings.id, data.findingId)).get()
     if (!finding) throw new Error(`Finding not found: ${data.findingId}`)
@@ -532,6 +537,18 @@ export class SessionService {
         .run()
     }
 
+    for (const attachment of this.listAttachments(parsedSessionId).filter((value) => value.entryId === null)) {
+      this.client.db
+        .insert(generationContextAttachments)
+        .values({
+          id: randomUUID(),
+          generationContextId: context.id,
+          attachmentId: attachment.id,
+          included: true
+        })
+        .run()
+    }
+
     return this.getGenerationContextReview(context.id)
   }
 
@@ -555,6 +572,31 @@ export class SessionService {
       .update(generationContextEntries)
       .set({ included })
       .where(eq(generationContextEntries.id, existing.id))
+      .run()
+
+    return this.getGenerationContextReview(parsedContextId)
+  }
+
+  updateGenerationContextAttachment(contextId: string, attachmentId: string, included: boolean): GenerationContextReview {
+    const parsedContextId = idSchema.parse(contextId)
+    const parsedAttachmentId = idSchema.parse(attachmentId)
+    const existing = this.client.db
+      .select()
+      .from(generationContextAttachments)
+      .where(
+        and(
+          eq(generationContextAttachments.generationContextId, parsedContextId),
+          eq(generationContextAttachments.attachmentId, parsedAttachmentId)
+        )
+      )
+      .get()
+
+    if (!existing) throw new Error(`Attachment not found in Generation Context: ${parsedAttachmentId}`)
+
+    this.client.db
+      .update(generationContextAttachments)
+      .set({ included })
+      .where(eq(generationContextAttachments.id, existing.id))
       .run()
 
     return this.getGenerationContextReview(parsedContextId)
@@ -587,7 +629,7 @@ export class SessionService {
   }
 
   exportSession(id: string, format: 'markdown' | 'json'): SessionExport {
-    const snapshot = this.getSession(idSchema.parse(id))
+    const snapshot = this.getSessionSnapshot(idSchema.parse(id), false)
     if (!snapshot) throw new Error(`Session not found: ${id}`)
 
     if (format === 'json') {
@@ -665,6 +707,14 @@ export class SessionService {
       .where(eq(generationContextEntries.generationContextId, parsedContextId))
       .all()
     const contextEntryByEntryId = new Map(contextEntries.map((entry) => [entry.entryId, entry]))
+    const contextAttachments = this.client.db
+      .select()
+      .from(generationContextAttachments)
+      .where(eq(generationContextAttachments.generationContextId, parsedContextId))
+      .all()
+    const contextAttachmentByAttachmentId = new Map(
+      contextAttachments.map((attachment) => [attachment.attachmentId, attachment])
+    )
     const attachmentsForSession = this.listAttachments(context.sessionId)
 
     return {
@@ -677,7 +727,12 @@ export class SessionService {
           included: Boolean(contextEntryByEntryId.get(entry.id)?.included),
           attachments: attachmentsForSession.filter((attachment) => attachment.entryId === entry.id)
         })),
-      attachments: attachmentsForSession.filter((attachment) => attachment.entryId === null),
+      attachments: attachmentsForSession
+        .filter((attachment) => attachment.entryId === null && contextAttachmentByAttachmentId.has(attachment.id))
+        .map((attachment) => ({
+          attachment,
+          included: Boolean(contextAttachmentByAttachmentId.get(attachment.id)?.included)
+        })),
       findings: this.listFindings(context.sessionId).map((finding) => ({
         finding,
         evidenceLinks: this.listEvidenceLinks(context.sessionId).filter((link) => link.findingId === finding.id)
@@ -882,11 +937,13 @@ function buildGenerationPrompt(review: GenerationContextReview): string {
 
   lines.push('', 'Session-level Attachments:')
 
-  if (review.attachments.length === 0) {
+  const includedAttachments = review.attachments.filter((item) => item.included)
+
+  if (includedAttachments.length === 0) {
     lines.push('- No session-level attachments were included.')
   }
 
-  for (const attachment of review.attachments) {
+  for (const { attachment } of includedAttachments) {
     lines.push(
       `- ${attachment.filename}; type=${attachment.mimeType ?? 'unknown'}; bytes=${attachment.sizeBytes}; sha256=${attachment.sha256}`
     )
