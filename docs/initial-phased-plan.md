@@ -41,7 +41,7 @@ The MVP should not introduce a separate design-system workspace or Storybook. In
 The MVP should include:
 
 - Minimal Session Library: create, reopen, rename, and delete Sessions.
-- Session metadata: title, Test Target, optional Charter, environment, build or version, related reference.
+- Session metadata: title, Test Target, required Test Objective, environment, build or version, related reference.
 - Session Timeline: chronological capture of typed Entries.
 - Entry types: Note, Observation, API Response, Log, screenshot attachment, and finding candidate.
 - SQLite persistence in the Electron main process.
@@ -50,7 +50,7 @@ The MVP should include:
 - Generation Context review before provider calls.
 - One editable Session Report Draft generated from a Session.
 - Jira Bug Draft sections inside the generated Session Report Draft.
-- Environment-variable AI provider configuration.
+- Local AI provider detection for already-authenticated Codex CLI, Claude Code, and Apple Intelligence bridge support.
 - Local capture remains fully usable without AI configuration.
 - Apple-inspired visual direction with adaptive light/dark theming.
 - Minimal sidebar-first workspace with contextual inspector.
@@ -71,14 +71,14 @@ Out of scope for MVP:
 ## Main Workflow
 
 1. User opens qa-scribe and the app resumes the last active Session, or shows a minimal New Session empty state if no Session exists.
-2. User fills basic Session metadata, including Test Target and optional Charter.
+2. User fills basic Session metadata, including Test Target and Test Objective.
 3. During testing, user adds Entries to the Session Timeline.
 4. User attaches screenshots or larger files when useful.
 5. User optionally marks important Entries as possible Findings.
 6. When testing is done, user clicks Generate Testware.
 7. qa-scribe shows the Generation Context review: included Session metadata, Entries, attachments, and Findings.
 8. User excludes any sensitive or irrelevant material.
-9. Electron main process sends the selected Generation Context to the configured AI provider through the AI SDK.
+9. Electron main process sends the selected Generation Context to the selected local AI provider.
 10. qa-scribe stores an immutable AI Run and creates an editable Session Report Draft.
 11. User edits the Draft, copies Jira-ready bug content, and saves the Session.
 
@@ -93,7 +93,7 @@ Out of scope for MVP:
 - Database: SQLite.
 - Database access: Drizzle ORM with `better-sqlite3` in Electron main.
 - Validation: Zod.
-- AI: Vercel AI SDK in Electron main.
+- AI: local provider adapters in Electron main for Codex CLI, Claude Code, and Apple Intelligence bridge support.
 - Testing: Vitest, Testing Library, and focused main-process tests.
 - Packaging: electron-builder or Electron Forge, to be chosen during the packaging spike.
 
@@ -112,7 +112,7 @@ SQLite is the source of truth for:
 - Sessions.
 - Session metadata.
 - Test Targets.
-- Charters.
+- Test Objectives.
 - Entries.
 - Attachment metadata.
 - Evidence links.
@@ -330,7 +330,7 @@ Deliverables:
 - As a tester, I can describe the Test Target.
 - As a tester, I can record the environment under test.
 - As a tester, I can record a build, version, URL, or related ticket.
-- As a tester, I can add an optional Charter.
+- As a tester, I can add a required Test Objective.
 
 ### Epic: Timeline Capture
 

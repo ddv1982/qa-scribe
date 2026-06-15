@@ -131,6 +131,13 @@ function migrate(sqlite: Database.Database): void {
           included INTEGER NOT NULL DEFAULT 1
         );
       `
+    },
+    {
+      version: 3,
+      sql: `
+        UPDATE ai_runs SET provider = 'openai_legacy' WHERE provider = 'openai';
+        ALTER TABLE ai_runs ADD COLUMN reasoning_effort TEXT;
+      `
     }
   ]
 

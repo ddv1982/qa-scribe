@@ -1,12 +1,10 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { copyFileSync, mkdirSync, readFileSync, statSync } from 'node:fs'
-import { basename, extname, isAbsolute, join, relative, resolve } from 'node:path'
-import { createOpenAI } from '@ai-sdk/openai'
-import { generateObject } from 'ai'
+import { basename } from 'node:path'
 import { and, desc, eq } from 'drizzle-orm'
-import { z } from 'zod'
 import type {
   AiRun,
+  AiProviderId,
   Attachment,
   Draft,
   DraftCreate,
@@ -19,10 +17,11 @@ import type {
   Finding,
   FindingDraft,
   FindingPatch,
-  GenerationContext,
+  GenerationOptions,
   GenerationContextReview,
   GenerationResult,
   ProviderStatus,
+  ReasoningEffort,
   Session,
   SessionDraft,
   SessionExport,
@@ -37,9 +36,11 @@ import {
   evidenceLinkDraftSchema,
   findingDraftSchema,
   findingPatchSchema,
+  generationOptionsSchema,
   idSchema,
   sessionDraftSchema,
-  sessionPatchSchema
+  sessionPatchSchema,
+  validateSessionRequirements
 } from '../../shared/contracts'
 import type { DbClient } from '../db/client'
 import {
@@ -54,56 +55,39 @@ import {
   generationContexts,
   sessions
 } from '../db/schema'
-
-const promptVersion = 'session-report-v1'
-
-const generatedReportSchema = z.object({
-  whatWasTested: z.string(),
-  scenariosCovered: z.array(z.string()),
-  checks: z.array(
-    z.object({
-      title: z.string(),
-      status: z.enum(['passed', 'failed', 'blocked', 'unknown']),
-      notes: z.string().optional()
-    })
-  ),
-  findings: z.array(z.string()),
-  bugs: z.array(
-    z.object({
-      title: z.string(),
-      stepsToReproduce: z.array(z.string()),
-      expectedResult: z.string(),
-      actualResult: z.string(),
-      evidence: z.array(z.string()).optional()
-    })
-  ),
-  openQuestions: z.array(z.string()),
-  followUpActions: z.array(z.string()),
-  jiraBugDrafts: z.array(
-    z.object({
-      summary: z.string(),
-      description: z.string(),
-      stepsToReproduce: z.array(z.string()),
-      expectedResult: z.string(),
-      actualResult: z.string(),
-      evidence: z.array(z.string()).optional()
-    })
-  )
-})
-
-type GeneratedReport = z.infer<typeof generatedReportSchema>
-type RawEvidenceLink = typeof evidenceLinks.$inferSelect | {
-  id: string
-  finding_id: string
-  entry_id: string | null
-  attachment_id: string | null
-  created_at: string
-}
+import {
+  defaultProviderModels,
+  detectProviderStatuses,
+  generateStructuredOutput,
+  type CommandRunner
+} from './aiProviders'
+import { guessMimeType, resolveAttachmentStorageDestination } from './session/attachmentStorage'
+import { renderSessionExport } from './session/exportRenderer'
+import {
+  buildGenerationPrompt,
+  generatedReportJsonSchema,
+  generatedReportSchema,
+  promptVersion,
+  renderGeneratedReport
+} from './session/generation'
+import {
+  mapAiRun,
+  mapAttachment,
+  mapDraft,
+  mapEntry,
+  mapEvidenceLink,
+  mapFinding,
+  mapGenerationContext,
+  mapSession,
+  type RawEvidenceLink
+} from './session/mappers'
+import { cleanNullable, defaultReasoningEffort, formatRequirementLabels, isoNow } from './session/utils'
 
 export class SessionService {
   constructor(
     private readonly client: DbClient,
-    private readonly attachmentsRoot: string
+    private readonly attachmentsRoot: string,
+    private readonly commandRunner?: CommandRunner
   ) {}
 
   listSessions(): Session[] {
@@ -278,15 +262,12 @@ export class SessionService {
     const stats = statSync(sourcePath)
     const now = isoNow()
     const id = randomUUID()
-    const ext = extname(sourcePath)
-    const relativePath = join(parsedSessionId, `${id}${ext}`)
-    const destinationDir = join(this.attachmentsRoot, parsedSessionId)
-    const destination = resolve(this.attachmentsRoot, relativePath)
-    const attachmentsRoot = resolve(this.attachmentsRoot)
-    const relativeDestination = relative(attachmentsRoot, destination)
-    if (relativeDestination.startsWith('..') || isAbsolute(relativeDestination)) {
-      throw new Error('Attachment destination escaped managed storage')
-    }
+    const { relativePath, destinationDir, destination, extension } = resolveAttachmentStorageDestination(
+      this.attachmentsRoot,
+      parsedSessionId,
+      id,
+      sourcePath
+    )
 
     mkdirSync(destinationDir, { recursive: true })
     copyFileSync(sourcePath, destination)
@@ -298,7 +279,7 @@ export class SessionService {
         sessionId: parsedSessionId,
         entryId: parsedEntryId ?? null,
         filename: basename(sourcePath),
-        mimeType: guessMimeType(ext),
+        mimeType: guessMimeType(extension),
         sizeBytes: stats.size,
         sha256: hash,
         relativePath,
@@ -602,25 +583,52 @@ export class SessionService {
     return this.getGenerationContextReview(parsedContextId)
   }
 
-  async generateTestware(contextId: string): Promise<GenerationResult> {
+  async generateTestware(contextId: string, options?: GenerationOptions): Promise<GenerationResult> {
     const review = this.getGenerationContextReview(idSchema.parse(contextId))
-    const model = process.env.OPENAI_MODEL || 'gpt-4.1-mini'
-    if (!process.env.OPENAI_API_KEY) {
-      this.createAiRun(review.context.sessionId, review.context.id, model, 'failed', 'OPENAI_API_KEY is not configured')
-      throw new Error('OPENAI_API_KEY is not configured')
+    const requirements = validateSessionRequirements(review.session)
+    if (!requirements.valid) {
+      throw new Error(`Complete required Session fields before generating: ${formatRequirementLabels(requirements.missing)}`)
     }
 
-    const aiRun = this.createAiRun(review.context.sessionId, review.context.id, model, 'running')
+    const generationOptions = await this.resolveGenerationOptions(generationOptionsSchema.parse(options ?? {}))
+    const status = (await this.getProviderStatus()).providers.find((item) => item.provider === generationOptions.provider)
+    if (!status?.available) {
+      const errorMessage = status?.reason ?? `${generationOptions.provider} is not available.`
+      this.createAiRun(
+        review.context.sessionId,
+        review.context.id,
+        generationOptions.provider,
+        generationOptions.model,
+        generationOptions.reasoningEffort,
+        'failed',
+        errorMessage
+      )
+      throw new Error(errorMessage)
+    }
+
+    const aiRun = this.createAiRun(
+      review.context.sessionId,
+      review.context.id,
+      generationOptions.provider,
+      generationOptions.model,
+      generationOptions.reasoningEffort,
+      'running'
+    )
 
     try {
-      const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY })
-      const result = await generateObject({
-        model: openai(model),
-        schema: generatedReportSchema,
-        prompt: buildGenerationPrompt(review)
-      })
+      const output = await generateStructuredOutput(
+        {
+          provider: generationOptions.provider,
+          model: generationOptions.model,
+          reasoningEffort: generationOptions.reasoningEffort,
+          outputSchema: generatedReportJsonSchema,
+          prompt: buildGenerationPrompt(review)
+        },
+        this.commandRunner
+      )
+      const report = generatedReportSchema.parse(output)
       const completedRun = this.completeAiRun(aiRun.id)
-      const draft = this.createGeneratedDraft(review.context.sessionId, completedRun.id, renderGeneratedReport(result.object))
+      const draft = this.createGeneratedDraft(review.context.sessionId, completedRun.id, renderGeneratedReport(report))
       return { aiRun: completedRun, draft }
     } catch (error) {
       this.failAiRun(aiRun.id, error instanceof Error ? error.message : 'Unknown AI provider error')
@@ -632,60 +640,21 @@ export class SessionService {
     const snapshot = this.getSessionSnapshot(idSchema.parse(id), false)
     if (!snapshot) throw new Error(`Session not found: ${id}`)
 
-    if (format === 'json') {
-      return { format, content: JSON.stringify(snapshot, null, 2) }
-    }
-
-    const lines = [
-      `# ${snapshot.session.title}`,
-      '',
-      `- Test Target: ${snapshot.session.testTarget ?? ''}`,
-      `- Charter: ${snapshot.session.charter ?? ''}`,
-      `- Environment: ${snapshot.session.environment ?? ''}`,
-      `- Build/Version: ${snapshot.session.buildVersion ?? ''}`,
-      `- Related Reference: ${snapshot.session.relatedReference ?? ''}`,
-      '',
-      '## Session Timeline',
-      ''
-    ]
-
-    for (const entry of snapshot.entries) {
-      lines.push(`### ${labelEntryType(entry.type)} - ${entry.createdAt}`)
-      if (entry.title) lines.push(`**${entry.title}**`, '')
-      lines.push(entry.body, '')
-    }
-
-    if (snapshot.attachments.length > 0) {
-      lines.push('## Attachments', '')
-      for (const attachment of snapshot.attachments) {
-        lines.push(`- ${attachment.filename} (${attachment.sizeBytes} bytes, ${attachment.sha256})`)
-      }
-      lines.push('')
-    }
-
-    if (snapshot.findings.length > 0) {
-      lines.push('## Findings', '')
-      for (const finding of snapshot.findings) {
-        lines.push(`### ${finding.title}`, '', `- Kind: ${finding.kind}`, '', finding.body, '')
-      }
-    }
-
-    if (snapshot.drafts.length > 0) {
-      lines.push('## Drafts', '')
-      for (const draft of snapshot.drafts) {
-        lines.push(`### ${draft.title}`, '', draft.body, '')
-      }
-    }
-
-    return { format, content: lines.join('\n') }
+    return renderSessionExport(snapshot, format)
   }
 
-  getProviderStatus(): ProviderStatus {
-    const model = process.env.OPENAI_MODEL || null
+  async getProviderStatus(): Promise<ProviderStatus> {
+    const providers = await detectProviderStatuses(this.commandRunner)
+    const selectedProvider =
+      providers.find((status) => status.available)?.provider ??
+      null
+    const selectedStatus = selectedProvider ? providers.find((status) => status.provider === selectedProvider) : null
+
     return {
-      configured: Boolean(process.env.OPENAI_API_KEY),
-      provider: process.env.OPENAI_API_KEY ? 'openai' : null,
-      model: process.env.OPENAI_API_KEY ? model || 'gpt-4.1-mini' : null
+      providers,
+      selectedProvider,
+      selectedModel: selectedStatus?.defaultModel ?? null,
+      selectedReasoningEffort: selectedStatus?.defaultReasoningEffort ?? null
     }
   }
 
@@ -743,7 +712,9 @@ export class SessionService {
   private createAiRun(
     sessionId: string,
     generationContextId: string,
+    provider: AiProviderId,
     model: string,
+    reasoningEffort: ReasoningEffort | null,
     status: 'running' | 'completed' | 'failed',
     errorMessage: string | null = null
   ): AiRun {
@@ -754,8 +725,9 @@ export class SessionService {
         id: randomUUID(),
         sessionId,
         generationContextId,
-        provider: 'openai',
+        provider,
         model,
+        reasoningEffort,
         promptVersion,
         status,
         errorMessage,
@@ -830,225 +802,31 @@ export class SessionService {
     const now = isoNow()
     this.client.db.update(sessions).set({ updatedAt: now, lastOpenedAt: now }).where(eq(sessions.id, id)).run()
   }
-}
 
-function isoNow(): string {
-  return new Date().toISOString()
-}
+  private async resolveGenerationOptions(options: GenerationOptions): Promise<{
+    provider: AiProviderId
+    model: string
+    reasoningEffort: ReasoningEffort | null
+  }> {
+    const providerStatus = await this.getProviderStatus()
+    const provider = options.provider ?? providerStatus.selectedProvider ?? 'codex_cli'
+    const selectedStatus = providerStatus.providers.find((status) => status.provider === provider)
+    const defaultModel = selectedStatus?.defaultModel ?? defaultProviderModels[provider]
+    const defaultReasoning = selectedStatus?.defaultReasoningEffort ?? defaultReasoningEffort(provider)
+    const reasoningEffort = options.reasoningEffort === undefined ? defaultReasoning : options.reasoningEffort
 
-function cleanNullable(value: string | null | undefined): string | null {
-  const normalized = value?.trim()
-  return normalized ? normalized : null
-}
+    if (reasoningEffort && selectedStatus && !selectedStatus.reasoningEfforts.includes(reasoningEffort)) {
+      throw new Error(`${selectedStatus.label} does not support ${reasoningEffort} reasoning effort.`)
+    }
 
-function mapSession(row: typeof sessions.$inferSelect): Session {
-  return row
-}
-
-function mapEntry(row: typeof entries.$inferSelect): Entry {
-  return row
-}
-
-function mapAttachment(row: typeof attachments.$inferSelect): Attachment {
-  return row
-}
-
-function mapFinding(row: typeof findings.$inferSelect): Finding {
-  return row
-}
-
-function mapEvidenceLink(row: RawEvidenceLink): EvidenceLink {
-  if ('findingId' in row) return row
-  return {
-    id: row.id,
-    findingId: row.finding_id,
-    entryId: row.entry_id,
-    attachmentId: row.attachment_id,
-    createdAt: row.created_at
-  }
-}
-
-function mapDraft(row: typeof drafts.$inferSelect): Draft {
-  return row
-}
-
-function mapAiRun(row: typeof aiRuns.$inferSelect): AiRun {
-  return row
-}
-
-function mapGenerationContext(row: typeof generationContexts.$inferSelect): GenerationContext {
-  return row
-}
-
-function guessMimeType(ext: string): string | null {
-  const normalized = ext.toLowerCase()
-  if (normalized === '.png') return 'image/png'
-  if (normalized === '.jpg' || normalized === '.jpeg') return 'image/jpeg'
-  if (normalized === '.gif') return 'image/gif'
-  if (normalized === '.webp') return 'image/webp'
-  if (normalized === '.json') return 'application/json'
-  if (normalized === '.txt' || normalized === '.log') return 'text/plain'
-  return null
-}
-
-function labelEntryType(type: Entry['type']): string {
-  return type
-    .split('_')
-    .map((part) => part[0].toUpperCase() + part.slice(1))
-    .join(' ')
-}
-
-function buildGenerationPrompt(review: GenerationContextReview): string {
-  const includedEntries = review.entries.filter((item) => item.included)
-  const lines = [
-    'You are helping a tester turn a local testing session into structured testware.',
-    'Use only the information in this context. Do not invent unsupported facts.',
-    'Return concise but useful structured output that matches the requested schema.',
-    'Screenshots and files are represented by metadata only; do not assume image contents.',
-    '',
-    'Session Metadata:',
-    `- ID: ${review.session.id}`,
-    `- Title: ${review.session.title}`,
-    `- Test Target: ${review.session.testTarget ?? 'Not set'}`,
-    `- Charter: ${review.session.charter ?? 'Not set'}`,
-    `- Environment: ${review.session.environment ?? 'Not set'}`,
-    `- Build/Version: ${review.session.buildVersion ?? 'Not set'}`,
-    `- Related Reference: ${review.session.relatedReference ?? 'Not set'}`,
-    '',
-    'Included Timeline Entries:'
-  ]
-
-  if (includedEntries.length === 0) {
-    lines.push('- No timeline entries were included.')
-  }
-
-  for (const item of includedEntries) {
-    lines.push(
-      `- [${labelEntryType(item.entry.type)}] ${item.entry.title || 'Untitled'} at ${item.entry.createdAt}`,
-      item.entry.body
-    )
-
-    for (const attachment of item.attachments) {
-      lines.push(
-        `  Attachment: ${attachment.filename}; type=${attachment.mimeType ?? 'unknown'}; bytes=${attachment.sizeBytes}; sha256=${attachment.sha256}`
-      )
+    return {
+      provider,
+      model: options.model?.trim() || defaultModel,
+      reasoningEffort
     }
   }
-
-  lines.push('', 'Session-level Attachments:')
-
-  const includedAttachments = review.attachments.filter((item) => item.included)
-
-  if (includedAttachments.length === 0) {
-    lines.push('- No session-level attachments were included.')
-  }
-
-  for (const { attachment } of includedAttachments) {
-    lines.push(
-      `- ${attachment.filename}; type=${attachment.mimeType ?? 'unknown'}; bytes=${attachment.sizeBytes}; sha256=${attachment.sha256}`
-    )
-  }
-
-  lines.push('', 'Manual Findings:')
-
-  if (review.findings.length === 0) {
-    lines.push('- No manual Findings were created.')
-  }
-
-  for (const item of review.findings) {
-    lines.push(`- [${item.finding.kind}] ${item.finding.title}`, item.finding.body)
-    if (item.evidenceLinks.length > 0) {
-      lines.push(`  Evidence links: ${item.evidenceLinks.length}`)
-    }
-  }
-
-  return lines.join('\n')
 }
 
 export const __testables = {
   buildGenerationPrompt
-}
-
-function renderGeneratedReport(report: GeneratedReport): string {
-  return [
-    '# Session Report',
-    '',
-    '## What Was Tested',
-    '',
-    report.whatWasTested,
-    '',
-    '## Scenarios Covered',
-    '',
-    renderList(report.scenariosCovered),
-    '',
-    '## Checks',
-    '',
-    report.checks
-      .map((check) => `- [${check.status}] ${check.title}${check.notes ? `: ${check.notes}` : ''}`)
-      .join('\n') || '- None recorded.',
-    '',
-    '## Findings',
-    '',
-    renderList(report.findings),
-    '',
-    '## Bugs',
-    '',
-    report.bugs
-      .map(
-        (bug) =>
-          [
-            `### ${bug.title}`,
-            '',
-            '**Steps to Reproduce**',
-            renderOrderedList(bug.stepsToReproduce),
-            '',
-            `**Expected:** ${bug.expectedResult}`,
-            '',
-            `**Actual:** ${bug.actualResult}`,
-            '',
-            '**Evidence**',
-            renderList(bug.evidence ?? [])
-          ].join('\n')
-      )
-      .join('\n\n') || 'None recorded.',
-    '',
-    '## Open Questions',
-    '',
-    renderList(report.openQuestions),
-    '',
-    '## Follow-up Actions',
-    '',
-    renderList(report.followUpActions),
-    '',
-    '## Jira Bug Drafts',
-    '',
-    report.jiraBugDrafts
-      .map(
-        (bug) =>
-          [
-            `### ${bug.summary}`,
-            '',
-            bug.description,
-            '',
-            '**Steps to Reproduce**',
-            renderOrderedList(bug.stepsToReproduce),
-            '',
-            `**Expected Result:** ${bug.expectedResult}`,
-            '',
-            `**Actual Result:** ${bug.actualResult}`,
-            '',
-            '**Evidence**',
-            renderList(bug.evidence ?? [])
-          ].join('\n')
-      )
-      .join('\n\n') || 'None recorded.'
-  ].join('\n')
-}
-
-function renderList(values: string[]): string {
-  return values.length > 0 ? values.map((value) => `- ${value}`).join('\n') : '- None recorded.'
-}
-
-function renderOrderedList(values: string[]): string {
-  return values.length > 0 ? values.map((value, index) => `${index + 1}. ${value}`).join('\n') : '1. None recorded.'
 }

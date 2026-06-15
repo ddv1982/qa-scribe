@@ -1,0 +1,24 @@
+.app-shell {
+  display: grid;
+  grid-template-columns: 248px 1fr;
+  height: 100vh;
+  background: var(--background);
+}
+
+.session-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px 14px 18px;
+  border-right: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 78%, var(--background));
+}
+
+.sidebar-title,
+.inspector-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 32px;
+  font-weight: 680;
+}

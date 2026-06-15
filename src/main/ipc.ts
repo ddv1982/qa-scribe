@@ -8,6 +8,7 @@ import {
   evidenceLinkDraftSchema,
   findingDraftSchema,
   findingPatchSchema,
+  generationOptionsSchema,
   idSchema,
   sessionDraftSchema,
   sessionPatchSchema
@@ -64,7 +65,9 @@ export function registerIpcHandlers(service: SessionService): void {
         booleanSchema.parse(included)
       )
   )
-  ipcMain.handle('generation:run', (_event, contextId: string) => service.generateTestware(idSchema.parse(contextId)))
+  ipcMain.handle('generation:run', (_event, contextId: string, options) =>
+    service.generateTestware(idSchema.parse(contextId), generationOptionsSchema.parse(options ?? {}))
+  )
   ipcMain.handle('ai:provider-status', () => service.getProviderStatus())
   ipcMain.handle('attachments:import', async (_event, sessionId: string, entryId?: string) => {
     const parsedSessionId = idSchema.parse(sessionId)

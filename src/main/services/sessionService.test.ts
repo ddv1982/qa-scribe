@@ -2,8 +2,9 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { evidenceLinkDraftSchema } from '../../shared/contracts'
+import { evidenceLinkDraftSchema, validateSessionRequirements } from '../../shared/contracts'
 import { createDbClient, type DbClient } from '../db/client'
+import type { CommandRunner } from './aiProviders'
 import { __testables, SessionService } from './sessionService'
 
 type TestHarness = {
@@ -123,11 +124,19 @@ describe('SessionService', () => {
     expect(updated.title).toBe('Untitled Session')
   })
 
+  it('treats whitespace-only Session requirement fields as missing', () => {
+    expect(validateSessionRequirements({ title: '   ', testTarget: '\n\t', charter: '  ' })).toEqual({
+      valid: false,
+      missing: ['title', 'testTarget', 'testObjective']
+    })
+  })
+
   it('exports sessions to markdown and json', () => {
     const { service } = createHarness()
     const session = service.createSession({
       title: 'API notes',
       testTarget: 'Orders API',
+      charter: 'Verify order creation',
       environment: 'Local'
     })
     service.createEntry({
@@ -160,7 +169,8 @@ describe('SessionService', () => {
         session: expect.objectContaining({
           id: session.id,
           title: 'API notes',
-          testTarget: 'Orders API'
+          testTarget: 'Orders API',
+          testObjective: 'Verify order creation'
         }),
         entries: expect.arrayContaining([
           expect.objectContaining({
@@ -177,6 +187,7 @@ describe('SessionService', () => {
         attachments: []
       })
     )
+    expect(JSON.parse(json.content).session).not.toHaveProperty('charter')
   })
 
   it('exports Sessions without changing last opened recency', () => {
@@ -372,7 +383,7 @@ describe('SessionService', () => {
     ])
     expect(prompt).toContain('- Title: Release candidate checkout')
     expect(prompt).toContain('- Test Target: Checkout')
-    expect(prompt).toContain('- Charter: Verify the happy path and payment failures')
+    expect(prompt).toContain('- Test Objective: Verify the happy path and payment failures')
     expect(prompt).toContain('- Environment: Staging')
     expect(prompt).toContain('- Build/Version: 2026.06.12')
     expect(prompt).toContain('- Related Reference: QA-456')
@@ -398,68 +409,193 @@ describe('SessionService', () => {
     expect(prompt).not.toContain('private-note.txt')
   })
 
-  it('persists a failed AI Run when generation is requested without an API key', async () => {
-    const originalApiKey = process.env.OPENAI_API_KEY
-    delete process.env.OPENAI_API_KEY
+  it('persists a failed AI Run when the selected local provider is unavailable', async () => {
+    const { service } = createHarness(undefined, missingCommandRunner)
+    const session = service.createSession({
+      title: 'AI unavailable generation',
+      testTarget: 'Checkout',
+      charter: 'Generate a report from notes'
+    })
+    service.createEntry({
+      sessionId: session.id,
+      type: 'note',
+      body: 'Generate from this note.'
+    })
+    const review = service.createGenerationContext(session.id)
 
-    try {
-      const { service } = createHarness()
-      const session = service.createSession({ title: 'AI offline generation' })
-      service.createEntry({
+    await expect(service.generateTestware(review.context.id, { provider: 'codex_cli' })).rejects.toThrow(
+      'codex was not found on PATH.'
+    )
+    expect(service.getSession(session.id)?.aiRuns).toEqual([
+      expect.objectContaining({
         sessionId: session.id,
-        type: 'note',
-        body: 'Generate from this note.'
+        generationContextId: review.context.id,
+        provider: 'codex_cli',
+        model: 'gpt-5.5',
+        reasoningEffort: 'high',
+        status: 'failed',
+        errorMessage: 'codex was not found on PATH.'
       })
-      const review = service.createGenerationContext(session.id)
-
-      await expect(service.generateTestware(review.context.id)).rejects.toThrow('OPENAI_API_KEY is not configured')
-      expect(service.getSession(session.id)?.aiRuns).toEqual([
-        expect.objectContaining({
-          sessionId: session.id,
-          generationContextId: review.context.id,
-          provider: 'openai',
-          status: 'failed',
-          errorMessage: 'OPENAI_API_KEY is not configured'
-        })
-      ])
-    } finally {
-      restoreEnv('OPENAI_API_KEY', originalApiKey)
-    }
+    ])
   })
 
-  it('reports an unconfigured provider when OPENAI_API_KEY is absent', () => {
-    const originalApiKey = process.env.OPENAI_API_KEY
-    const originalModel = process.env.OPENAI_MODEL
-    delete process.env.OPENAI_API_KEY
-    process.env.OPENAI_MODEL = 'gpt-test-model'
+  it('rejects incomplete Session metadata before provider command execution', async () => {
+    const calls: Array<{ command: string; args: string[] }> = []
+    const runner: CommandRunner = async (command, args) => {
+      calls.push({ command, args })
+      return { code: 1, stdout: '', stderr: 'provider should not be called' }
+    }
+    const { service } = createHarness(undefined, runner)
+    const session = service.createSession({ title: 'Incomplete generation' })
+    service.createEntry({
+      sessionId: session.id,
+      type: 'note',
+      body: 'This note should not be sent to a provider yet.'
+    })
+    const review = service.createGenerationContext(session.id)
 
-    try {
-      const { service } = createHarness()
+    await expect(service.generateTestware(review.context.id, { provider: 'codex_cli' })).rejects.toThrow(
+      'Complete required Session fields before generating: Test Target, Test Objective'
+    )
+    expect(calls).toEqual([])
+    expect(service.getSession(session.id)?.aiRuns).toEqual([])
+  })
 
-      expect(service.getProviderStatus()).toEqual({
-        configured: false,
-        provider: null,
-        model: null
+  it('generates a report draft with a fake authenticated Codex CLI', async () => {
+    const calls: Array<{ command: string; args: string[]; input?: string; cwd?: string }> = []
+    const runner: CommandRunner = async (command, args, options) => {
+      calls.push({ command, args, input: options.input, cwd: options.cwd })
+      if (command === 'codex' && args.join(' ') === 'login status') return { code: 0, stdout: 'logged in', stderr: '' }
+      if (command === 'claude') return { code: null, stdout: '', stderr: '', error: Object.assign(new Error('missing'), { code: 'ENOENT' }) }
+      if (command === 'codex' && args[0] === 'exec') {
+        return {
+          code: 0,
+          stdout: JSON.stringify(fakeGeneratedReport()),
+          stderr: ''
+        }
+      }
+      return { code: 1, stdout: '', stderr: 'unexpected command' }
+    }
+    const { service } = createHarness(undefined, runner)
+    const session = service.createSession({
+      title: 'AI generation',
+      testTarget: 'Checkout',
+      charter: 'Create testware from a completed checkout smoke test'
+    })
+    service.createEntry({
+      sessionId: session.id,
+      type: 'note',
+      body: 'Checkout completed successfully.'
+    })
+    const review = service.createGenerationContext(session.id)
+
+    const result = await service.generateTestware(review.context.id, {
+      provider: 'codex_cli',
+      model: 'gpt-5-mini',
+      reasoningEffort: 'low'
+    })
+
+    expect(result.aiRun).toEqual(
+      expect.objectContaining({
+        provider: 'codex_cli',
+        model: 'gpt-5-mini',
+        reasoningEffort: 'low',
+        status: 'completed'
       })
+    )
+    expect(result.draft.body).toContain('# Session Report')
+    expect(result.draft.body).toContain('Checkout smoke')
+    const execCall = calls.find((call) => call.command === 'codex' && call.args[0] === 'exec')
+    expect(execCall).toEqual(expect.objectContaining({ input: expect.stringContaining('Checkout completed successfully.') }))
+    expect(execCall?.args).toEqual(
+      expect.arrayContaining([
+        '--ephemeral',
+        '--skip-git-repo-check',
+        '--sandbox',
+        'read-only',
+        '-c',
+        'approval_policy="never"',
+        '--model',
+        'gpt-5-mini',
+        '-c',
+        'model_reasoning_effort="low"',
+        '--output-schema'
+      ])
+    )
+    expect(execCall?.cwd).toContain('qa-scribe-codex-')
+  })
+
+  it('reports provider statuses from local tool detection', async () => {
+    const originalAppleHelper = process.env.QA_SCRIBE_APPLE_INTELLIGENCE_HELPER
+    delete process.env.QA_SCRIBE_APPLE_INTELLIGENCE_HELPER
+    try {
+      const { service } = createHarness(undefined, missingCommandRunner)
+
+      await expect(service.getProviderStatus()).resolves.toEqual(
+        expect.objectContaining({
+          selectedProvider: null,
+          selectedModel: null,
+          selectedReasoningEffort: null,
+          providers: expect.arrayContaining([
+            expect.objectContaining({
+              provider: 'apple_intelligence',
+              label: 'Apple Intelligence',
+              available: false,
+              reason: 'Apple Intelligence native helper is not bundled or configured.',
+              models: ['system-language-model'],
+              defaultModel: 'system-language-model',
+              reasoningEfforts: []
+            }),
+            expect.objectContaining({
+              provider: 'claude_code',
+              label: 'Claude Code',
+              available: false,
+              reason: 'claude was not found on PATH.',
+              reasoningEfforts: ['low', 'medium', 'high'],
+              defaultReasoningEffort: 'medium'
+            }),
+            expect.objectContaining({
+              provider: 'codex_cli',
+              label: 'Codex CLI',
+              available: false,
+              reason: 'codex was not found on PATH.',
+              defaultModel: 'gpt-5.5',
+              reasoningEfforts: ['low', 'medium', 'high', 'xhigh'],
+              defaultReasoningEffort: 'high'
+            }),
+            expect.objectContaining({
+              provider: 'openai_legacy',
+              label: 'OpenAI Legacy',
+              available: false
+            })
+          ])
+        })
+      )
     } finally {
-      restoreEnv('OPENAI_API_KEY', originalApiKey)
-      restoreEnv('OPENAI_MODEL', originalModel)
+      if (originalAppleHelper === undefined) delete process.env.QA_SCRIBE_APPLE_INTELLIGENCE_HELPER
+      else process.env.QA_SCRIBE_APPLE_INTELLIGENCE_HELPER = originalAppleHelper
     }
   })
 
   it('records the applied database schema version', () => {
     const { client } = createHarness()
 
-    expect(client.sqlite.pragma('user_version', { simple: true })).toBe(2)
+    expect(client.sqlite.pragma('user_version', { simple: true })).toBe(3)
+    expect(client.sqlite.prepare('PRAGMA table_info(ai_runs)').all()).toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: 'reasoning_effort' })])
+    )
   })
 })
 
-function createHarness(root = mkdtempSync(join(tmpdir(), 'qa-scribe-session-service-'))): TestHarness {
+function createHarness(
+  root = mkdtempSync(join(tmpdir(), 'qa-scribe-session-service-')),
+  commandRunner?: CommandRunner
+): TestHarness {
   const client = createDbClient(join(root, 'user-data'))
   const harness = {
     client,
     root,
-    service: new SessionService(client, join(root, 'attachments'))
+    service: new SessionService(client, join(root, 'attachments'), commandRunner)
   }
 
   harnesses.push(harness)
@@ -472,11 +608,22 @@ function reopenHarness(previous: TestHarness): TestHarness {
   return createHarness(previous.root)
 }
 
-function restoreEnv(name: string, value: string | undefined): void {
-  if (value === undefined) {
-    delete process.env[name]
-    return
-  }
+const missingCommandRunner: CommandRunner = async () => ({
+  code: null,
+  stdout: '',
+  stderr: '',
+  error: Object.assign(new Error('missing'), { code: 'ENOENT' })
+})
 
-  process.env[name] = value
+function fakeGeneratedReport(): unknown {
+  return {
+    whatWasTested: 'Checkout smoke',
+    scenariosCovered: ['Card checkout'],
+    checks: [{ title: 'Submit order', status: 'passed', notes: 'Order completed.' }],
+    findings: [],
+    bugs: [],
+    openQuestions: [],
+    followUpActions: [],
+    jiraBugDrafts: []
+  }
 }

@@ -1,0 +1,64 @@
+.empty-state,
+.launch-state {
+  display: grid;
+  flex: 1;
+  place-items: center;
+  min-height: 280px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.empty-state h2 {
+  margin: 10px 0 4px;
+  color: var(--text);
+  font-size: 18px;
+}
+
+.empty-state p,
+.launch-state p {
+  max-width: 420px;
+  line-height: 1.45;
+}
+
+.launch-state {
+  height: 100%;
+}
+
+.launch-state div {
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  padding: 0 10px;
+  font-size: 13px;
+}
+
+.status-pill.ready {
+  border-color: color-mix(in srgb, var(--success) 36%, var(--border));
+  color: var(--success);
+}
+
+.toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow);
+  padding: 11px 14px;
+}
+
+.spin {
+  animation: spin 900ms linear infinite;
+}

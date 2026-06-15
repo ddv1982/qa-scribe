@@ -1,0 +1,57 @@
+.primary-command,
+.secondary-command,
+.danger-command {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 34px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 0 12px;
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    transform 150ms ease;
+}
+
+.primary-command {
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 650;
+}
+
+.secondary-command {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+.danger-command {
+  background: color-mix(in srgb, var(--danger) 9%, var(--surface));
+  border-color: color-mix(in srgb, var(--danger) 36%, var(--border));
+  color: var(--danger);
+}
+
+.primary-command:hover,
+.secondary-command:hover,
+.danger-command:hover,
+.icon-command:hover,
+.timeline-entry:hover {
+  transform: translateY(-1px);
+}
+
+.primary-command:disabled,
+.secondary-command:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
+}
+
+.fit {
+  width: fit-content;
+}
+
+.compact {
+  min-width: 92px;
+}

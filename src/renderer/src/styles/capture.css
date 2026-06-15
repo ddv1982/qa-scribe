@@ -1,0 +1,107 @@
+.timeline-entry {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr);
+  gap: 18px;
+  border-radius: 8px;
+  padding: 13px 12px;
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    transform 150ms ease;
+}
+
+.timeline-entry.selected {
+  background: var(--selection);
+}
+
+.entry-marker {
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.entry-marker span {
+  color: var(--accent);
+  font-weight: 720;
+}
+
+.entry-body {
+  min-width: 0;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 14px;
+}
+
+.entry-heading {
+  justify-content: space-between;
+  min-height: 28px;
+}
+
+.entry-heading h2,
+.inspector-stack h2 {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.25;
+}
+
+.entry-actions {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.timeline-entry:hover .entry-actions,
+.timeline-entry:focus-within .entry-actions,
+.timeline-entry.selected .entry-actions {
+  opacity: 1;
+}
+
+.entry-actions button {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.entry-body p {
+  margin: 7px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
+}
+
+.entry-footer {
+  margin-top: 10px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.composer {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 78%, var(--background));
+  padding: 14px 26px 18px;
+}
+
+.composer-header {
+  display: grid;
+  grid-template-columns: 172px minmax(0, 1fr);
+}
+
+.composer textarea {
+  height: 96px;
+  min-height: 96px;
+}
+
+.composer-actions {
+  justify-content: space-between;
+  color: var(--text-secondary);
+  font-size: 13px;
+}

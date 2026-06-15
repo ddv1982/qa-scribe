@@ -57,6 +57,27 @@ export type SessionDraft = z.infer<typeof sessionDraftSchema>
 export const sessionPatchSchema = sessionDraftSchema.partial()
 export type SessionPatch = z.infer<typeof sessionPatchSchema>
 
+export const sessionRequirementKeySchema = z.enum(['title', 'testTarget', 'testObjective'])
+export type SessionRequirementKey = z.infer<typeof sessionRequirementKeySchema>
+
+export type SessionRequirementsResult = {
+  valid: boolean
+  missing: SessionRequirementKey[]
+}
+
+type SessionRequirementsInput = Pick<SessionDraft, 'title' | 'testTarget' | 'charter'>
+
+export function validateSessionRequirements(input: SessionRequirementsInput): SessionRequirementsResult {
+  const missing: SessionRequirementKey[] = []
+  if (!input.title?.trim()) missing.push('title')
+  if (!input.testTarget?.trim()) missing.push('testTarget')
+  if (!input.charter?.trim()) missing.push('testObjective')
+  return {
+    valid: missing.length === 0,
+    missing
+  }
+}
+
 export const entryDraftSchema = z.object({
   sessionId: idSchema,
   type: entryTypeSchema,
@@ -70,12 +91,40 @@ export type EntryDraft = z.infer<typeof entryDraftSchema>
 export const entryPatchSchema = entryDraftSchema.partial().omit({ sessionId: true })
 export type EntryPatch = z.infer<typeof entryPatchSchema>
 
+export const aiProviderIdSchema = z.enum(['apple_intelligence', 'claude_code', 'codex_cli', 'openai_legacy'])
+export type AiProviderId = z.infer<typeof aiProviderIdSchema>
+
+export const reasoningEffortSchema = z.enum(['minimal', 'low', 'medium', 'high', 'xhigh'])
+export type ReasoningEffort = z.infer<typeof reasoningEffortSchema>
+
+export const aiProviderStatusSchema = z.object({
+  provider: aiProviderIdSchema,
+  label: z.string(),
+  available: z.boolean(),
+  reason: z.string().nullable(),
+  models: z.array(z.string()),
+  defaultModel: z.string().nullable(),
+  reasoningEfforts: z.array(reasoningEffortSchema),
+  defaultReasoningEffort: reasoningEffortSchema.nullable(),
+  localOnly: z.boolean(),
+  requiresNetwork: z.boolean()
+})
+export type AiProviderStatus = z.infer<typeof aiProviderStatusSchema>
+
 export const providerStatusSchema = z.object({
-  configured: z.boolean(),
-  provider: z.literal('openai').nullable(),
-  model: z.string().nullable()
+  providers: z.array(aiProviderStatusSchema),
+  selectedProvider: aiProviderIdSchema.nullable(),
+  selectedModel: z.string().nullable(),
+  selectedReasoningEffort: reasoningEffortSchema.nullable()
 })
 export type ProviderStatus = z.infer<typeof providerStatusSchema>
+
+export const generationOptionsSchema = z.object({
+  provider: aiProviderIdSchema.optional(),
+  model: z.string().min(1).max(120).optional(),
+  reasoningEffort: reasoningEffortSchema.nullable().optional()
+})
+export type GenerationOptions = z.infer<typeof generationOptionsSchema>
 
 export const findingKindSchema = z.enum(['bug', 'question', 'risk', 'follow_up', 'note'])
 export type FindingKind = z.infer<typeof findingKindSchema>
@@ -155,8 +204,9 @@ export const aiRunSchema = z.object({
   id: z.string(),
   sessionId: z.string(),
   generationContextId: z.string().nullable(),
-  provider: z.literal('openai'),
+  provider: aiProviderIdSchema,
   model: z.string(),
+  reasoningEffort: reasoningEffortSchema.nullable(),
   promptVersion: z.string(),
   status: z.enum(['running', 'completed', 'failed']),
   errorMessage: z.string().nullable(),
@@ -231,7 +281,7 @@ export interface QaScribeApi {
   createGenerationContext(sessionId: string): Promise<GenerationContextReview>
   updateGenerationContextEntry(contextId: string, entryId: string, included: boolean): Promise<GenerationContextReview>
   updateGenerationContextAttachment(contextId: string, attachmentId: string, included: boolean): Promise<GenerationContextReview>
-  generateTestware(contextId: string): Promise<GenerationResult>
+  generateTestware(contextId: string, options?: GenerationOptions): Promise<GenerationResult>
   exportSession(id: string, format: 'markdown' | 'json'): Promise<SessionExport>
   getProviderStatus(): Promise<ProviderStatus>
 }

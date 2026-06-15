@@ -1,0 +1,79 @@
+.inspector {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 18px;
+  border-left: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 72%, var(--background));
+  padding: 18px;
+  overflow-y: auto;
+}
+
+.inspector-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.button-row {
+  flex-wrap: wrap;
+}
+
+dl {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 8px 12px;
+  margin: 0;
+}
+
+dt {
+  color: var(--text-secondary);
+}
+
+dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.attachment-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.attachment-list li,
+.finding-row {
+  display: grid;
+  gap: 2px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 9px;
+}
+
+.finding-list {
+  display: grid;
+  gap: 8px;
+}
+
+.finding-row strong,
+.jira-draft-title strong {
+  overflow-wrap: anywhere;
+}
+
+.finding-row span {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--text-secondary);
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.attachment-list small,
+.finding-row small,
+.muted {
+  color: var(--text-secondary);
+}

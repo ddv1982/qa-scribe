@@ -1,0 +1,42 @@
+.draft-editor textarea {
+  width: 100%;
+  min-height: 360px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font-family:
+    ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", monospace;
+  line-height: 1.45;
+  outline: none;
+  padding: 12px;
+  resize: vertical;
+}
+
+.draft-editor textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--selection);
+}
+
+.jira-drafts {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.jira-drafts > .section-heading,
+.jira-drafts > .muted {
+  grid-column: 1 / -1;
+}
+
+.jira-draft {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 12px;
+}
+
+.jira-draft dl {
+  grid-template-columns: 82px minmax(0, 1fr);
+  font-size: 13px;
+}

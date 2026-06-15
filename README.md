@@ -11,12 +11,12 @@ This repository contains an Electron, React, TypeScript, SQLite, and Drizzle MVP
 Implemented capabilities include:
 
 - Session Library with create, reopen, rename, and delete flows.
-- Session metadata for Test Target, Charter, environment, build/version, and related reference.
+- Session metadata for Test Target, Test Objective, environment, build/version, and related reference.
 - Chronological Session Timeline with typed Entries.
 - Managed attachment ingestion stored outside SQLite with metadata in the database.
 - Findings linked to Entry or attachment Evidence.
 - Manual Draft editing and copy-friendly Jira bug draft sections.
-- Explicit AI generation through the Vercel AI SDK and OpenAI provider configuration.
+- Explicit AI generation through already-authenticated local Codex CLI, Claude Code, or an Apple Intelligence bridge.
 - Generation Context review before provider calls.
 - Local capture, persistence, and export without AI configuration.
 - macOS local directory packaging through electron-builder.
@@ -30,7 +30,7 @@ Implemented capabilities include:
 - Database: SQLite
 - Database access: Drizzle ORM with `better-sqlite3` in Electron main
 - IPC validation: Zod
-- AI: Vercel AI SDK with OpenAI
+- AI: local provider adapters for Codex CLI, Claude Code, and Apple Intelligence bridge
 - Tests: Vitest
 - Packaging: electron-builder
 
@@ -56,23 +56,21 @@ Run the desktop app in development mode:
 npm run dev
 ```
 
-## AI Configuration
+## AI Providers
 
-AI generation is optional. Capture, persistence, manual review, drafts, and export work without an API key.
+AI generation is optional. Capture, persistence, manual review, drafts, and export work without any AI provider.
 
-To enable generation, set:
+qa-scribe does not manage API keys or expose an AI settings screen. It detects already-authenticated local tools:
 
-```sh
-export OPENAI_API_KEY="your-api-key"
-export OPENAI_MODEL="gpt-4.1-mini"
-```
-
-`OPENAI_MODEL` is optional. If omitted, qa-scribe uses `gpt-4.1-mini`.
+- Apple Intelligence through a native helper bridge when bundled and available.
+- Claude Code through the local `claude` CLI and existing Claude authentication.
+- Codex through the local `codex` CLI and existing Codex authentication.
 
 Privacy boundaries:
 
 - AI calls only happen when the user explicitly starts generation.
-- API keys are read from environment variables and are not stored in SQLite.
+- Provider, model, and reasoning choices are per-run Generation Context controls.
+- Only non-secret last-used provider/model/reasoning choices are persisted locally for convenience.
 - Attachments are sent to the prompt as metadata only; raw screenshot or file binaries are not sent by default.
 
 ## Scripts

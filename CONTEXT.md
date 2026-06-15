@@ -5,7 +5,7 @@ qa-scribe is a local-first testing notepad that helps testers collect raw testin
 ## Language
 
 **Session**:
-A bounded testing effort for one feature, bug, build, ticket, release candidate, or exploratory charter. A Session contains the raw material captured during testing and the structured testware generated from it.
+A bounded testing effort for one feature, bug, build, ticket, release candidate, or Test Objective. A Session contains the raw material captured during testing and the structured testware generated from it.
 _Avoid_: Project, Notebook
 
 **Entry**:
@@ -32,8 +32,8 @@ _Avoid_: Project, Workspace
 The product, feature, environment, build, ticket, URL, API, or flow being tested in a Session.
 _Avoid_: Subject, System under test
 
-**Charter**:
-The optional intent for a Session, describing what the tester is trying to learn, verify, or explore.
+**Test Objective**:
+The required intent for a Session, describing what the tester is trying to learn, verify, or explore.
 _Avoid_: Goal, Mission
 
 **Session Timeline**:

@@ -1,0 +1,139 @@
+.session-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+}
+
+.session-row {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  min-height: 58px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 9px 10px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.session-row span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 620;
+}
+
+.session-row small {
+  overflow: hidden;
+  color: var(--text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-row.selected {
+  border-color: color-mix(in srgb, var(--accent) 26%, var(--border));
+  background: var(--selection);
+}
+
+.workspace {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 22px 26px 14px;
+}
+
+.topbar h1,
+.launch-state h1 {
+  margin: 0;
+  font-size: 28px;
+  letter-spacing: 0;
+  line-height: 1.08;
+}
+
+.topbar p,
+.launch-state p {
+  margin: 6px 0 0;
+  color: var(--text-secondary);
+}
+
+.topbar-actions,
+.timeline-tools,
+.composer-header,
+.composer-actions,
+.entry-heading,
+.entry-footer,
+.button-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.topbar-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.topbar-actions .primary-command,
+.topbar-actions .secondary-command {
+  white-space: nowrap;
+}
+
+.session-setup {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 38px;
+  gap: 10px 12px;
+  align-items: start;
+  padding: 0 26px 16px;
+}
+
+.session-required-fields,
+.session-optional-fields {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.session-required-fields {
+  grid-template-columns: minmax(160px, 0.9fr) minmax(180px, 1fr) minmax(260px, 1.45fr);
+}
+
+.session-required-fields .field textarea {
+  min-height: 68px;
+}
+
+.session-more-details {
+  grid-column: 1 / -1;
+  min-width: 0;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+
+.session-more-details summary {
+  width: fit-content;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 680;
+  text-transform: uppercase;
+}
+
+.session-optional-fields {
+  grid-template-columns: repeat(3, minmax(160px, 1fr));
+  padding-top: 10px;
+}
+
+.session-setup-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-self: end;
+}

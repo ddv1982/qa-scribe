@@ -7,6 +7,7 @@ import type {
   EvidenceLinkDraft,
   FindingDraft,
   FindingPatch,
+  GenerationOptions,
   QaScribeApi,
   SessionDraft,
   SessionPatch
@@ -36,7 +37,8 @@ const api: QaScribeApi = {
     ipcRenderer.invoke('generation-contexts:update-entry', contextId, entryId, included),
   updateGenerationContextAttachment: (contextId: string, attachmentId: string, included: boolean) =>
     ipcRenderer.invoke('generation-contexts:update-attachment', contextId, attachmentId, included),
-  generateTestware: (contextId: string) => ipcRenderer.invoke('generation:run', contextId),
+  generateTestware: (contextId: string, options?: GenerationOptions) =>
+    ipcRenderer.invoke('generation:run', contextId, options),
   exportSession: (id: string, format: 'markdown' | 'json') => ipcRenderer.invoke('sessions:export', id, format),
   getProviderStatus: () => ipcRenderer.invoke('ai:provider-status')
 }
