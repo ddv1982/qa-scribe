@@ -112,6 +112,21 @@
   outline-offset: 2px;
 }
 
+.draft-evidence-previews {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 82%, var(--background));
+  padding: 12px;
+}
+
+.draft-empty {
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 74%, var(--background));
+}
+
 .jira-drafts {
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
 }

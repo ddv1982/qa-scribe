@@ -82,6 +82,7 @@ export function installQaScribeApi(snapshot: SessionSnapshot, status: ProviderSt
     createDraft: vi.fn(),
     updateDraft: vi.fn(),
     deleteDraft: vi.fn(),
+    getDraftEvidenceAttachments: vi.fn(async () => []),
     createGenerationContext: vi.fn(async () => review),
     updateGenerationContextEntry: vi.fn(async () => review),
     updateGenerationContextAttachment: vi.fn(async () => review),
@@ -94,15 +95,25 @@ export function installQaScribeApi(snapshot: SessionSnapshot, status: ProviderSt
   return api
 }
 
-export function createSnapshot(input: { session?: Session; entries?: Entry[]; attachments?: Attachment[] } = {}): SessionSnapshot {
+export function createSnapshot(
+  input: {
+    session?: Session
+    entries?: Entry[]
+    attachments?: Attachment[]
+    findings?: SessionSnapshot['findings']
+    evidenceLinks?: SessionSnapshot['evidenceLinks']
+    drafts?: Draft[]
+    aiRuns?: AiRun[]
+  } = {}
+): SessionSnapshot {
   return {
     session: input.session ?? baseSession(),
     entries: input.entries ?? [],
     attachments: input.attachments ?? [],
-    findings: [],
-    evidenceLinks: [],
-    drafts: [],
-    aiRuns: []
+    findings: input.findings ?? [],
+    evidenceLinks: input.evidenceLinks ?? [],
+    drafts: input.drafts ?? [],
+    aiRuns: input.aiRuns ?? []
   }
 }
 
@@ -157,8 +168,14 @@ function createGenerationContextReview(snapshot: SessionSnapshot): GenerationCon
       createdAt: '2026-06-15T00:02:00.000Z'
     },
     session: snapshot.session,
-    entries: snapshot.entries.map((entry) => ({ entry, included: !entry.excludedFromGeneration, attachments: [] })),
-    attachments: [],
+    entries: snapshot.entries.map((entry) => ({
+      entry,
+      included: !entry.excludedFromGeneration,
+      attachments: snapshot.attachments.filter((attachment) => attachment.entryId === entry.id)
+    })),
+    attachments: snapshot.attachments
+      .filter((attachment) => attachment.entryId === null)
+      .map((attachment) => ({ attachment, included: true })),
     findings: []
   }
 }

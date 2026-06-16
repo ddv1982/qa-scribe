@@ -406,6 +406,56 @@ describe('SessionService', () => {
     expect(service.listDrafts(session.id)).toEqual([expect.objectContaining({ id: draft.id, title: 'Edited Report' })])
   })
 
+  it('resolves included Generation Context attachments for generated drafts', async () => {
+    const runner: CommandRunner = async (command, args) => {
+      if (command === 'codex' && args.join(' ') === 'login status') return { code: 0, stdout: 'logged in', stderr: '' }
+      if (command === 'claude') return { code: null, stdout: '', stderr: '', error: Object.assign(new Error('missing'), { code: 'ENOENT' }) }
+      if (command === 'codex' && args[0] === 'exec') return { code: 0, stdout: JSON.stringify(fakeGeneratedReport()), stderr: '' }
+      return { code: 1, stdout: '', stderr: 'unexpected command' }
+    }
+    const harness = createHarness(undefined, runner)
+    const session = harness.service.createSession({ title: 'Generated evidence' })
+    const includedEntry = harness.service.createEntry({
+      sessionId: session.id,
+      type: 'screenshot',
+      body: 'Included screenshot note.'
+    })
+    const excludedEntry = harness.service.createEntry({
+      sessionId: session.id,
+      type: 'screenshot',
+      body: 'Excluded screenshot note.',
+      excludedFromGeneration: true
+    })
+    const includedEntryPath = join(harness.root, 'included-entry.png')
+    const excludedEntryPath = join(harness.root, 'excluded-entry.png')
+    const includedSessionPath = join(harness.root, 'included-session.png')
+    const excludedSessionPath = join(harness.root, 'excluded-session.png')
+    writeFileSync(includedEntryPath, 'included entry image')
+    writeFileSync(excludedEntryPath, 'excluded entry image')
+    writeFileSync(includedSessionPath, 'included session image')
+    writeFileSync(excludedSessionPath, 'excluded session image')
+    const includedEntryAttachment = harness.service.importAttachment(includedEntryPath, session.id, includedEntry.id)
+    const excludedEntryAttachment = harness.service.importAttachment(excludedEntryPath, session.id, excludedEntry.id)
+    const includedSessionAttachment = harness.service.importAttachment(includedSessionPath, session.id)
+    const excludedSessionAttachment = harness.service.importAttachment(excludedSessionPath, session.id)
+    const manualDraft = harness.service.createDraft({
+      sessionId: session.id,
+      kind: 'session_report',
+      title: 'Manual Report',
+      body: '# Manual'
+    })
+
+    const review = harness.service.createGenerationContext(session.id)
+    harness.service.updateGenerationContextAttachment(review.context.id, excludedSessionAttachment.id, false)
+    const result = await harness.service.generateTestware(review.context.id, { provider: 'codex_cli' })
+    const attachmentIds = harness.service.getDraftEvidenceAttachments(result.draft.id).map((attachment) => attachment.id)
+
+    expect(attachmentIds).toEqual(expect.arrayContaining([includedEntryAttachment.id, includedSessionAttachment.id]))
+    expect(attachmentIds).not.toContain(excludedEntryAttachment.id)
+    expect(attachmentIds).not.toContain(excludedSessionAttachment.id)
+    expect(harness.service.getDraftEvidenceAttachments(manualDraft.id)).toEqual([])
+  })
+
   it('builds editable Generation Context reviews from included Entries', () => {
     const { service } = createHarness()
     const session = service.createSession({ title: 'Generation context' })

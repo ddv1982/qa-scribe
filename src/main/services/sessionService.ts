@@ -535,6 +535,30 @@ export class SessionService {
     if (draft) this.touchSession(draft.sessionId)
   }
 
+  getDraftEvidenceAttachments(id: string): Attachment[] {
+    const draftId = idSchema.parse(id)
+    const draft = this.client.db.select().from(drafts).where(eq(drafts.id, draftId)).get()
+    if (!draft) throw new Error(`Draft not found: ${draftId}`)
+    if (!draft.aiRunId) return []
+
+    const aiRun = this.client.db.select().from(aiRuns).where(eq(aiRuns.id, draft.aiRunId)).get()
+    if (!aiRun?.generationContextId) return []
+
+    const review = getGenerationContextReview(this.generationContextDeps(), aiRun.generationContextId)
+    const attachmentsById = new Map<string, Attachment>()
+
+    for (const item of review.entries) {
+      if (!item.included) continue
+      for (const attachment of item.attachments) attachmentsById.set(attachment.id, attachment)
+    }
+
+    for (const item of review.attachments) {
+      if (item.included) attachmentsById.set(item.attachment.id, item.attachment)
+    }
+
+    return Array.from(attachmentsById.values())
+  }
+
   listAiRuns(sessionId: string): AiRun[] {
     const parsedSessionId = idSchema.parse(sessionId)
     return this.client.db

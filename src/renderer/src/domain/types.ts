@@ -48,6 +48,7 @@ export type JiraBugDraft = {
 export type ReviewDraft = {
   id: string
   sessionId: string
+  aiRunId: string | null
   title: string
   content: string
   jiraBugDrafts: JiraBugDraft[]

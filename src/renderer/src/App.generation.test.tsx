@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { App } from './App'
 import {
   baseEntry,
+  baseImageAttachment,
   baseSession,
   claudeAvailable,
   codexAvailable,
@@ -46,8 +47,10 @@ describe('App provider controls', () => {
   })
 
   it('shows only available providers as selectable and waits for explicit Generate', async () => {
+    const screenshot = baseImageAttachment()
     const snapshot = createSnapshot({
       entries: [baseEntry()],
+      attachments: [screenshot],
       session: {
         ...baseSession(),
         title: 'Checkout smoke',
@@ -63,6 +66,8 @@ describe('App provider controls', () => {
         copilotAvailable()
       ])
     )
+    vi.mocked(api.getDraftEvidenceAttachments).mockResolvedValue([screenshot])
+    vi.mocked(api.getAttachmentPreviewDataUrl).mockResolvedValue('data:image/png;base64,c2NyZWVu')
 
     render(<App />)
 
@@ -90,6 +95,9 @@ describe('App provider controls', () => {
     )
     expect(await screen.findByTestId('draft-markdown-view')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Session Report', level: 1 })).toBeInTheDocument()
+    expect(api.getDraftEvidenceAttachments).toHaveBeenCalledWith('draft-1')
+    const preview = await screen.findByRole('img', { name: 'Screenshot preview: checkout.png' })
+    expect(preview).toHaveAttribute('src', 'data:image/png;base64,c2NyZWVu')
   })
 
   it('updates reasoning choices when the selected model has model-specific capabilities', async () => {

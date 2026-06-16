@@ -35,6 +35,7 @@ const api: QaScribeApi = {
   createDraft: (input: DraftCreate) => ipcRenderer.invoke('drafts:create', input),
   updateDraft: (id: string, input: DraftPatch) => ipcRenderer.invoke('drafts:update', id, input),
   deleteDraft: (id: string) => ipcRenderer.invoke('drafts:delete', id),
+  getDraftEvidenceAttachments: (id: string) => ipcRenderer.invoke('drafts:evidence-attachments', id),
   createGenerationContext: (sessionId: string) => ipcRenderer.invoke('generation-contexts:create', sessionId),
   updateGenerationContextEntry: (contextId: string, entryId: string, included: boolean) =>
     ipcRenderer.invoke('generation-contexts:update-entry', contextId, entryId, included),

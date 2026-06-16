@@ -95,6 +95,9 @@ export function App(): ReactElement {
   const [draft, setDraft] = useState<ReviewDraft | null>(null)
   const [draftDirty, setDraftDirty] = useState(false)
   const [draftAutosaveStatus, setDraftAutosaveStatus] = useState<AutosaveStatus>('idle')
+  const [draftPlaceholderSuppressed, setDraftPlaceholderSuppressed] = useState(false)
+  const [draftEvidenceAttachments, setDraftEvidenceAttachments] = useState<Attachment[]>([])
+  const [deletingDraft, setDeletingDraft] = useState(false)
   const [busy, setBusy] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [attachmentImportTarget, setAttachmentImportTarget] = useState<AttachmentImportTarget | null>(null)
@@ -236,6 +239,7 @@ export function App(): ReactElement {
 
     const version = draftSaveVersionRef.current
     const timer = window.setTimeout(() => {
+      if (version !== draftSaveVersionRef.current) return
       void persistDraft(draft, false, version).catch((error) => {
         if (version !== draftSaveVersionRef.current) return
         setDraftAutosaveStatus('error')
@@ -245,6 +249,28 @@ export function App(): ReactElement {
 
     return () => window.clearTimeout(timer)
   }, [draft, draftDirty])
+
+  useEffect(() => {
+    const draftId = draft?.id
+    if (!draftId || draftId.startsWith('local-draft-')) {
+      setDraftEvidenceAttachments([])
+      return
+    }
+
+    let cancelled = false
+    void window.qaScribe
+      .getDraftEvidenceAttachments(draftId)
+      .then((attachments) => {
+        if (!cancelled) setDraftEvidenceAttachments(attachments)
+      })
+      .catch(() => {
+        if (!cancelled) setDraftEvidenceAttachments([])
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [draft?.id])
 
   const contextRows = useMemo(() => {
     if (!snapshot) return []
@@ -315,6 +341,8 @@ export function App(): ReactElement {
     setSelectedEntryId(null)
     setGenerationContext(null)
     setGenerationContextId(null)
+    setDraftPlaceholderSuppressed(false)
+    setDraftEvidenceAttachments([])
     resetCaptureDrafts()
     await loadReviewState(next)
     setDraftDirty(false)
@@ -341,9 +369,11 @@ export function App(): ReactElement {
     return true
   }
 
-  async function loadReviewState(next: SessionSnapshot): Promise<void> {
+  async function loadReviewState(next: SessionSnapshot): Promise<ReviewDraft | null> {
     setFindings(next.findings.map((finding) => normalizeFinding(finding, next.evidenceLinks)))
-    setDraft(normalizeDraft(next.drafts[0]))
+    const nextDraft = normalizeDraft(next.drafts[0])
+    setDraft(nextDraft)
+    return nextDraft
   }
 
   async function createSession(): Promise<void> {
@@ -668,6 +698,7 @@ export function App(): ReactElement {
       const generatedDraft = draftFromGenerationResult(result, snapshot, findings)
       await openSession(snapshot.session.id)
       setDraft(generatedDraft)
+      setDraftPlaceholderSuppressed(false)
       setWorkspaceMode('drafts')
       flash('Generated draft ready')
     } catch (error) {
@@ -680,6 +711,7 @@ export function App(): ReactElement {
 
   async function persistDraft(nextDraft: ReviewDraft, showToast = false, version = draftSaveVersionRef.current): Promise<boolean> {
     if (!snapshot) return false
+    if (version !== draftSaveVersionRef.current) return false
     let saved = nextDraft
     setDraftAutosaveStatus('saving')
     if (draft?.id && !draft.id.startsWith('local-draft-')) {
@@ -702,6 +734,7 @@ export function App(): ReactElement {
     }
     if (version === draftSaveVersionRef.current) {
       setDraft(saved)
+      setDraftPlaceholderSuppressed(false)
       setDraftAutosaveStatus('saved')
       setDraftDirty(false)
       if (showToast) flash('Draft saved')
@@ -720,6 +753,7 @@ export function App(): ReactElement {
         contextRows.filter((row) => row.included)
       )
     setDraft({ ...nextDraft, content, updatedAt: new Date().toISOString() })
+    setDraftPlaceholderSuppressed(false)
     setDraftDirty(true)
     draftSaveVersionRef.current += 1
     setDraftAutosaveStatus('idle')
@@ -739,6 +773,63 @@ export function App(): ReactElement {
     } catch (error) {
       setDraftAutosaveStatus('error')
       flashError(error, 'Draft could not be saved')
+    }
+  }
+
+  function createDraftFromTemplate(): void {
+    if (!snapshot) return
+    setDraft(
+      createLocalReviewDraft(
+        snapshot,
+        findings,
+        contextRows.filter((row) => row.included)
+      )
+    )
+    setDraftDirty(false)
+    setDraftAutosaveStatus('idle')
+    setDraftPlaceholderSuppressed(false)
+  }
+
+  async function deleteCurrentDraft(): Promise<void> {
+    if (!snapshot) return
+    const draftToDelete =
+      draft ??
+      (!draftPlaceholderSuppressed
+        ? createLocalReviewDraft(
+            snapshot,
+            findings,
+            contextRows.filter((row) => row.included)
+          )
+        : null)
+    if (!draftToDelete) return
+    if (!window.confirm(`Delete "${draftToDelete.title}"? This cannot be undone.`)) return
+
+    draftSaveVersionRef.current += 1
+    setDraftDirty(false)
+    setDraftAutosaveStatus('idle')
+
+    if (draftToDelete.id.startsWith('local-draft-')) {
+      setDraft(null)
+      setDraftEvidenceAttachments([])
+      setDraftPlaceholderSuppressed(true)
+      flash('Draft deleted')
+      return
+    }
+
+    setDeletingDraft(true)
+    try {
+      await window.qaScribe.deleteDraft(draftToDelete.id)
+      const next = await window.qaScribe.getSession(snapshot.session.id)
+      const nextDraft = next ? await loadReviewState(next) : null
+      if (next) setSnapshot(next)
+      setDraftPlaceholderSuppressed(nextDraft === null)
+      await refreshSessions()
+      flash('Draft deleted')
+    } catch (error) {
+      setDraftAutosaveStatus('error')
+      flashError(error, 'Draft could not be deleted')
+    } finally {
+      setDeletingDraft(false)
     }
   }
 
@@ -793,6 +884,16 @@ export function App(): ReactElement {
     if (status === 'error') return 'Save failed'
     return 'Autosave on'
   }
+
+  const displayedDraft =
+    snapshot && !draftPlaceholderSuppressed
+      ? draft ??
+        createLocalReviewDraft(
+          snapshot,
+          findings,
+          contextRows.filter((row) => row.included)
+        )
+      : draft
 
   return (
     <main className="app-shell">
@@ -922,17 +1023,14 @@ export function App(): ReactElement {
 
                 {workspaceMode === 'drafts' ? (
                   <DraftsPane
-                    draft={
-                      draft ??
-                      createLocalReviewDraft(
-                        snapshot,
-                        findings,
-                        contextRows.filter((row) => row.included)
-                      )
-                    }
+                    draft={displayedDraft}
+                    deleting={deletingDraft}
+                    evidenceAttachments={draftEvidenceAttachments}
                     findings={findings}
                     autosaveStatus={draftAutosaveStatus}
+                    onCreateDraft={createDraftFromTemplate}
                     onCopy={copyText}
+                    onDelete={deleteCurrentDraft}
                     onSave={saveDraft}
                     onUpdateContent={(content) => void updateDraftContent(content)}
                   />

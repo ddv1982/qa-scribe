@@ -33,6 +33,7 @@ export function normalizeDraft(value: Draft | undefined): ReviewDraft | null {
   return {
     id: value.id,
     sessionId: value.sessionId,
+    aiRunId: value.aiRunId,
     title: value.title,
     content: value.body,
     jiraBugDrafts: jiraDraftsFromMarkdown(value.body),
@@ -45,6 +46,7 @@ export function createLocalReviewDraft(snapshot: SessionSnapshot, findings: Find
   return {
     id: `local-draft-${snapshot.session.id}`,
     sessionId: snapshot.session.id,
+    aiRunId: null,
     title: 'Session Report Draft',
     content: [
       `# ${snapshot.session.title}`,
@@ -78,6 +80,7 @@ export function draftFromGenerationResult(result: unknown, snapshot: SessionSnap
   if (typeof result === 'string') {
     return {
       ...createLocalReviewDraft(snapshot, findings, []),
+      aiRunId: null,
       content: result,
       updatedAt: new Date().toISOString()
     }
@@ -96,6 +99,7 @@ export function draftFromGenerationResult(result: unknown, snapshot: SessionSnap
   return {
     id: stringFromUnknown(draftRecord.id) ?? `local-draft-${snapshot.session.id}`,
     sessionId: snapshot.session.id,
+    aiRunId: stringFromUnknown(draftRecord.aiRunId) ?? stringFromUnknown(result.aiRunId) ?? null,
     title: stringFromUnknown(draftRecord.title) ?? 'Session Report Draft',
     content,
     jiraBugDrafts: jiraDraftsFromUnknown(draftRecord.jiraBugDrafts ?? result.jiraBugDrafts, findings),

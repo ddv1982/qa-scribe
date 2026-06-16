@@ -356,6 +356,7 @@ export interface QaScribeApi {
   createDraft(input: DraftCreate): Promise<Draft>
   updateDraft(id: string, input: DraftPatch): Promise<Draft>
   deleteDraft(id: string): Promise<void>
+  getDraftEvidenceAttachments(id: string): Promise<Attachment[]>
   createGenerationContext(sessionId: string): Promise<GenerationContextReview>
   updateGenerationContextEntry(contextId: string, entryId: string, included: boolean): Promise<GenerationContextReview>
   updateGenerationContextAttachment(contextId: string, attachmentId: string, included: boolean): Promise<GenerationContextReview>

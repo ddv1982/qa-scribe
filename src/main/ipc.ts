@@ -50,6 +50,9 @@ export function registerIpcHandlers(service: SessionService): void {
     service.updateDraft(idSchema.parse(id), draftPatchSchema.parse(input))
   )
   ipcMain.handle('drafts:delete', (_event, id: string) => service.deleteDraft(idSchema.parse(id)))
+  ipcMain.handle('drafts:evidence-attachments', (_event, id: string) =>
+    service.getDraftEvidenceAttachments(idSchema.parse(id))
+  )
   ipcMain.handle('generation-contexts:create', (_event, sessionId: string) =>
     service.createGenerationContext(idSchema.parse(sessionId))
   )

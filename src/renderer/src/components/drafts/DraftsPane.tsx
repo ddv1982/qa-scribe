@@ -1,15 +1,21 @@
 import { useState, type ReactElement } from 'react'
-import { Bug, Check, Copy, Eye, Pencil } from 'lucide-react'
+import { Bug, Check, Copy, Eye, FileText, Pencil, Trash2 } from 'lucide-react'
+import type { Attachment } from '../../../../shared/contracts'
 import type { Finding, ReviewDraft } from '../../domain/types'
 import { formatJiraDraft, jiraDraftFromFinding } from '../../domain/reviewDrafts'
+import { AttachmentPreviewGrid } from '../evidence/Attachments'
 import { DraftMarkdownView } from './DraftMarkdownView'
 
 export function DraftsPane(props: {
-  draft: ReviewDraft
+  draft: ReviewDraft | null
+  deleting: boolean
+  evidenceAttachments: Attachment[]
   findings: Finding[]
   autosaveStatus: 'idle' | 'saving' | 'saved' | 'error'
+  onCreateDraft: () => void
   onUpdateContent: (content: string) => void
   onSave: () => Promise<void>
+  onDelete: () => Promise<void>
   onCopy: (text: string, message?: string) => Promise<void>
 }): ReactElement {
   const [mode, setMode] = useState<'preview' | 'edit'>('preview')
@@ -21,6 +27,25 @@ export function DraftsPane(props: {
         : props.autosaveStatus === 'error'
           ? 'Save failed'
           : 'Autosave on'
+  const imageEvidenceAttachments = props.evidenceAttachments.filter((attachment) => attachment.mimeType?.startsWith('image/'))
+
+  const draft = props.draft
+
+  if (!draft) {
+    return (
+      <section className="drafts-pane">
+        <div className="empty-state draft-empty">
+          <FileText size={24} />
+          <h2>No draft</h2>
+          <p>Create a new draft or generate testware to prepare a report.</p>
+          <button className="primary-command fit" type="button" onClick={props.onCreateDraft}>
+            <FileText size={16} />
+            New Draft
+          </button>
+        </div>
+      </section>
+    )
+  }
 
   return (
     <section className="drafts-pane">
@@ -28,7 +53,7 @@ export function DraftsPane(props: {
         <div className="review-header">
           <div>
             <span className="eyebrow">Session Report Draft</span>
-            <h2>{props.draft.title}</h2>
+            <h2>{draft.title}</h2>
           </div>
           <div className="topbar-actions">
             <span className={`autosave-status ${props.autosaveStatus}`} role="status">
@@ -44,7 +69,7 @@ export function DraftsPane(props: {
                 Edit Draft
               </button>
             </div>
-            <button className="secondary-command" type="button" onClick={() => props.onCopy(props.draft.content, 'Report copied')}>
+            <button className="secondary-command" type="button" onClick={() => props.onCopy(draft.content, 'Report copied')}>
               <Copy size={16} />
               Copy Report
             </button>
@@ -52,17 +77,35 @@ export function DraftsPane(props: {
               <Check size={16} />
               Save Draft
             </button>
+            <button
+              className="danger-command"
+              disabled={props.deleting}
+              type="button"
+              onClick={() => void props.onDelete()}
+            >
+              <Trash2 size={16} />
+              {props.deleting ? 'Deleting...' : 'Delete Draft'}
+            </button>
           </div>
         </div>
         {mode === 'preview' ? (
-          <DraftMarkdownView content={props.draft.content} />
+          <DraftMarkdownView content={draft.content} />
         ) : (
           <textarea
             aria-label="Session Report Draft"
-            value={props.draft.content}
+            value={draft.content}
             onChange={(event) => props.onUpdateContent(event.target.value)}
           />
         )}
+        {imageEvidenceAttachments.length > 0 ? (
+          <div className="draft-evidence-previews" aria-label="Draft evidence screenshots">
+            <div className="section-heading">
+              <Eye size={16} />
+              <h3>Evidence Screenshots</h3>
+            </div>
+            <AttachmentPreviewGrid attachments={imageEvidenceAttachments} />
+          </div>
+        ) : null}
       </div>
 
       <div className="jira-drafts">
@@ -70,10 +113,10 @@ export function DraftsPane(props: {
           <Bug size={16} />
           <h3>Jira Bug Drafts</h3>
         </div>
-        {props.draft.jiraBugDrafts.length === 0 && props.findings.length === 0 ? (
+        {draft.jiraBugDrafts.length === 0 && props.findings.length === 0 ? (
           <p className="muted">Create Findings to prepare copy-friendly bug sections.</p>
         ) : null}
-        {(props.draft.jiraBugDrafts.length > 0 ? props.draft.jiraBugDrafts : props.findings.map(jiraDraftFromFinding)).map(
+        {(draft.jiraBugDrafts.length > 0 ? draft.jiraBugDrafts : props.findings.map(jiraDraftFromFinding)).map(
           (jiraDraft) => (
             <article className="jira-draft" key={jiraDraft.id}>
               <div className="jira-draft-title">
