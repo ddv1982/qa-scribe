@@ -45,11 +45,22 @@
 }
 
 .topbar {
+  -webkit-app-region: drag;
+  app-region: drag;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 18px;
   padding: 22px 26px 14px;
+  user-select: none;
+}
+
+.topbar-actions,
+.topbar button,
+.topbar summary {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+  user-select: auto;
 }
 
 .topbar h1,

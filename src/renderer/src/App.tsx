@@ -1,7 +1,20 @@
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react'
-import { FileJson, FileText, Loader2, MoreHorizontal, PanelRightOpen, Plus, Sparkles, Trash2 } from 'lucide-react'
+import {
+  ClipboardPaste,
+  FileJson,
+  FileText,
+  FolderOpen,
+  Loader2,
+  MoreHorizontal,
+  PanelRightOpen,
+  Plus,
+  Sparkles,
+  Trash2,
+  X
+} from 'lucide-react'
 import { defaultReasoningEffortFor, reasoningEffortsFor, validateSessionRequirements } from '../../shared/contracts'
 import type {
+  Attachment,
   Entry,
   EntryType,
   AiProviderId,
@@ -49,6 +62,9 @@ import type {
 } from './domain/types'
 
 type AutosaveStatus = SessionAutosaveStatus
+type AttachmentImportSource = 'browse' | 'paste'
+type AttachmentImportTarget = { kind: 'entry'; entryId?: string } | { kind: 'draft-note' }
+type AttachmentImportResult = Attachment | null | undefined
 
 export function App(): ReactElement {
   const [sessions, setSessions] = useState<Session[]>([])
@@ -81,6 +97,8 @@ export function App(): ReactElement {
   const [draftAutosaveStatus, setDraftAutosaveStatus] = useState<AutosaveStatus>('idle')
   const [busy, setBusy] = useState(false)
   const [generating, setGenerating] = useState(false)
+  const [attachmentImportTarget, setAttachmentImportTarget] = useState<AttachmentImportTarget | null>(null)
+  const [attachmentImportBusy, setAttachmentImportBusy] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const noticeTimerRef = useRef<number | null>(null)
   const sessionSaveVersionRef = useRef(0)
@@ -470,22 +488,56 @@ export function App(): ReactElement {
     await openSession(snapshot.session.id)
   }
 
-  async function importAttachment(entryId?: string): Promise<void> {
-    if (!snapshot) return
+  async function runAttachmentImport(source: AttachmentImportSource, entryId?: string): Promise<Attachment | null> {
+    if (!snapshot) return null
+    const sessionId = snapshot.session.id
+    if (source === 'browse') return window.qaScribe.importAttachment(sessionId, entryId)
+    return window.qaScribe.importClipboardScreenshot(sessionId, entryId)
+  }
+
+  function openAttachmentImportModal(entryId?: string): void {
+    setAttachmentImportTarget({ kind: 'entry', entryId })
+  }
+
+  function openDraftAttachmentImportModal(): void {
+    setAttachmentImportTarget({ kind: 'draft-note' })
+  }
+
+  async function handleAttachmentImport(source: AttachmentImportSource): Promise<void> {
+    if (!snapshot || !attachmentImportTarget || attachmentImportBusy) return
+    setAttachmentImportBusy(true)
     try {
-      const attachment = await window.qaScribe.importAttachment(snapshot.session.id, entryId)
+      if (attachmentImportTarget.kind === 'draft-note') {
+        await attachToDraftNote(source)
+        return
+      }
+
+      const attachment = await importAttachment(source, attachmentImportTarget.entryId)
+      if (attachment === null && source === 'paste') flash('No screenshot or image available')
+    } finally {
+      setAttachmentImportBusy(false)
+      setAttachmentImportTarget(null)
+    }
+  }
+
+  async function importAttachment(source: AttachmentImportSource, entryId?: string): Promise<AttachmentImportResult> {
+    if (!snapshot) return undefined
+    try {
+      const attachment = await runAttachmentImport(source, entryId)
       if (attachment) {
         await openSession(snapshot.session.id)
         if (entryId) setSelectedEntryId(entryId)
         flash('Evidence imported')
       }
+      return attachment ?? null
     } catch (error) {
       flashError(error, 'Evidence could not be imported')
+      return undefined
     }
   }
 
-  async function attachToDraftNote(): Promise<void> {
-    if (!snapshot) return
+  async function attachToDraftNote(source: AttachmentImportSource): Promise<AttachmentImportResult> {
+    if (!snapshot) return undefined
     const body = entryBody.trim() || entryTitle.trim() || 'Evidence attached.'
     try {
       const entry = await window.qaScribe.createEntry({
@@ -495,17 +547,20 @@ export function App(): ReactElement {
         body,
         metadataJson: entryMetadataJson
       })
-      const attachment = await window.qaScribe.importAttachment(snapshot.session.id, entry.id)
+      const attachment = await runAttachmentImport(source, entry.id)
       if (!attachment) {
         await window.qaScribe.deleteEntry(entry.id)
-        return
+        if (source === 'paste') flash('No screenshot or image available')
+        return null
       }
       resetCaptureDrafts()
       await openSession(snapshot.session.id)
       setSelectedEntryId(entry.id)
       flash('Evidence attached')
+      return attachment
     } catch (error) {
       flashError(error, 'Evidence could not be attached')
+      return undefined
     }
   }
 
@@ -833,8 +888,8 @@ export function App(): ReactElement {
                     setQuery={setQuery}
                     onAddEntry={addEntry}
                     onAddFinding={addFinding}
-                    onAttach={importAttachment}
-                    onAttachToDraft={attachToDraftNote}
+                    onAttach={async (entryId) => openAttachmentImportModal(entryId)}
+                    onAttachToDraft={async () => openDraftAttachmentImportModal()}
                     onCreateFinding={createFindingFromEntry}
                     onDelete={deleteEntry}
                     onSelect={setSelectedEntryId}
@@ -894,7 +949,7 @@ export function App(): ReactElement {
                     attachments={snapshot.attachments.filter((attachment) => attachment.entryId === selectedEntry.id)}
                     entry={selectedEntry}
                     findings={findings.filter((finding) => finding.evidenceEntryIds.includes(selectedEntry.id))}
-                    onAttach={() => importAttachment(selectedEntry.id)}
+                    onAttach={() => openAttachmentImportModal(selectedEntry.id)}
                     onCreateFinding={() => createFindingFromEntry(selectedEntry)}
                   />
                 </aside>
@@ -914,6 +969,74 @@ export function App(): ReactElement {
           </section>
         )}
       </section>
+
+      {attachmentImportTarget ? (
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onClick={() => !attachmentImportBusy && setAttachmentImportTarget(null)}
+        >
+          <section
+            aria-labelledby="attachment-import-title"
+            aria-modal="true"
+            className="attachment-import-modal"
+            role="dialog"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="modal-header">
+              <div>
+                <span className="eyebrow">Evidence</span>
+                <h2 id="attachment-import-title">Attach Evidence</h2>
+              </div>
+              <button
+                aria-label="Close evidence import"
+                className="icon-command"
+                disabled={attachmentImportBusy}
+                type="button"
+                onClick={() => setAttachmentImportTarget(null)}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="attachment-import-actions">
+              <button
+                className="secondary-command attachment-import-action"
+                disabled={attachmentImportBusy}
+                type="button"
+                onClick={() => void handleAttachmentImport('browse')}
+              >
+                <FolderOpen size={18} />
+                <span>
+                  <strong>Browse</strong>
+                  <small>Select a file from disk</small>
+                </span>
+              </button>
+              <button
+                className="secondary-command attachment-import-action"
+                disabled={attachmentImportBusy}
+                type="button"
+                onClick={() => void handleAttachmentImport('paste')}
+              >
+                <ClipboardPaste size={18} />
+                <span>
+                  <strong>Paste Screenshot/Image</strong>
+                  <small>Import the current clipboard image</small>
+                </span>
+              </button>
+            </div>
+            <div className="modal-footer">
+              <button
+                className="secondary-command fit"
+                disabled={attachmentImportBusy}
+                type="button"
+                onClick={() => setAttachmentImportTarget(null)}
+              >
+                Cancel
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
 
       {notice ? <div className="toast">{notice}</div> : null}
     </main>

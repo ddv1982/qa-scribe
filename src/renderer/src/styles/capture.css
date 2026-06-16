@@ -312,3 +312,61 @@
 .composer-actions span {
   white-space: nowrap;
 }
+
+.modal-backdrop {
+  position: fixed;
+  z-index: 40;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--background) 72%, transparent);
+  padding: 18px;
+}
+
+.attachment-import-modal {
+  display: grid;
+  width: min(440px, 100%);
+  gap: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow);
+  padding: 18px;
+}
+
+.modal-header,
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.modal-header h2 {
+  margin: 2px 0 0;
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.attachment-import-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.attachment-import-action {
+  justify-content: flex-start;
+  width: 100%;
+  min-height: 64px;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.attachment-import-action span {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.attachment-import-action small {
+  color: var(--text-secondary);
+}

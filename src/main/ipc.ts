@@ -1,4 +1,4 @@
-import { dialog, ipcMain } from 'electron'
+import { clipboard, dialog, ipcMain } from 'electron'
 import { z } from 'zod'
 import {
   draftCreateSchema,
@@ -82,6 +82,14 @@ export function registerIpcHandlers(service: SessionService): void {
 
     if (result.canceled || result.filePaths.length === 0) return null
     return service.importAttachment(result.filePaths[0], parsedSessionId, parsedEntryId)
+  })
+  ipcMain.handle('attachments:import-clipboard-screenshot', (_event, sessionId: string, entryId?: string) => {
+    const parsedSessionId = idSchema.parse(sessionId)
+    const parsedEntryId = optionalIdSchema.parse(entryId)
+    const image = clipboard.readImage()
+
+    if (image.isEmpty()) return null
+    return service.importClipboardScreenshot(image.toPNG(), parsedSessionId, parsedEntryId)
   })
   ipcMain.handle('attachments:preview', (_event, id: string) => service.getAttachmentPreviewDataUrl(idSchema.parse(id)))
 }

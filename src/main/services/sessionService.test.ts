@@ -1,4 +1,5 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -328,6 +329,56 @@ describe('SessionService', () => {
       `data:image/png;base64,${pngBytes.toString('base64')}`
     )
     expect(harness.service.getAttachmentPreviewDataUrl(textAttachment.id)).toBeNull()
+  })
+
+  it('imports clipboard screenshot bytes with image metadata and preview data', () => {
+    const harness = createHarness()
+    const session = harness.service.createSession({ title: 'Clipboard screenshot import' })
+    const entry = harness.service.createEntry({
+      sessionId: session.id,
+      type: 'screenshot',
+      body: 'Pasted screenshot evidence.'
+    })
+    const pngBytes = Buffer.from('clipboard png bytes')
+
+    const attachment = harness.service.importClipboardScreenshot(pngBytes, session.id, entry.id)
+
+    expect(attachment).toEqual(
+      expect.objectContaining({
+        sessionId: session.id,
+        entryId: entry.id,
+        mimeType: 'image/png',
+        sizeBytes: pngBytes.length,
+        sha256: createHash('sha256').update(pngBytes).digest('hex')
+      })
+    )
+    expect(attachment.filename).toMatch(/^pasted-screenshot-\d{8}-\d{6}\.png$/)
+    expect(attachment.relativePath).toBe(`${session.id}/${attachment.id}.png`)
+    expect(readFileSync(join(harness.root, 'attachments', attachment.relativePath))).toEqual(pngBytes)
+    expect(harness.service.getAttachmentPreviewDataUrl(attachment.id)).toBe(
+      `data:image/png;base64,${pngBytes.toString('base64')}`
+    )
+  })
+
+  it('rejects clipboard screenshot imports for invalid Sessions or Entries', () => {
+    const { service } = createHarness()
+    const session = service.createSession({ title: 'Clipboard screenshot validation' })
+    const otherSession = service.createSession({ title: 'Other session' })
+    const otherEntry = service.createEntry({
+      sessionId: otherSession.id,
+      type: 'note',
+      body: 'Evidence belongs to another session.'
+    })
+    const missingSessionId = '00000000-0000-4000-8000-000000000001'
+    const pngBytes = Buffer.from('clipboard png bytes')
+
+    expect(() => service.importClipboardScreenshot(pngBytes, missingSessionId)).toThrow(
+      `Session not found: ${missingSessionId}`
+    )
+    expect(() => service.importClipboardScreenshot(pngBytes, session.id, otherEntry.id)).toThrow(
+      `Entry not found in Session: ${otherEntry.id}`
+    )
+    expect(service.listAttachments(session.id)).toEqual([])
   })
 
   it('creates and updates manual Session Report drafts', () => {

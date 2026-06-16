@@ -22,3 +22,9 @@
   min-height: 32px;
   font-weight: 680;
 }
+
+.sidebar-title {
+  -webkit-app-region: drag;
+  app-region: drag;
+  user-select: none;
+}

@@ -141,6 +141,27 @@ describe('App capture and evidence', () => {
     expect(api.getAttachmentPreviewDataUrl).toHaveBeenCalledWith('attachment-1')
   })
 
+  it('opens the evidence import modal and browses for session evidence', async () => {
+    const snapshot = createSnapshot()
+    const api = installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
+    vi.mocked(api.importAttachment).mockResolvedValue({
+      ...baseImageAttachment(),
+      entryId: null
+    })
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Evidence' }))
+
+    const dialog = screen.getByRole('dialog', { name: 'Attach Evidence' })
+    expect(within(dialog).getByRole('button', { name: /Paste Screenshot\/Image/ })).toBeInTheDocument()
+    fireEvent.click(within(dialog).getByRole('button', { name: /Browse/ }))
+
+    await waitFor(() => expect(api.importAttachment).toHaveBeenCalledWith(snapshot.session.id, undefined))
+    expect(api.importClipboardScreenshot).not.toHaveBeenCalled()
+  })
+
   it('persists formatted note content after saving and reopening the Session', async () => {
     let snapshot = createSnapshot()
     const api = installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
@@ -207,6 +228,9 @@ describe('App capture and evidence', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Add Note' })).toBeEnabled())
     fireEvent.click(screen.getByRole('button', { name: 'Attach evidence' }))
 
+    expect(api.createEntry).not.toHaveBeenCalled()
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Attach Evidence' })).getByRole('button', { name: /Browse/ }))
+
     await waitFor(() =>
       expect(api.createEntry).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -218,6 +242,70 @@ describe('App capture and evidence', () => {
       )
     )
     expect(api.importAttachment).toHaveBeenCalledWith(snapshot.session.id, 'entry-draft')
+  })
+
+  it('attaches clipboard evidence from the note editor after saving the draft note', async () => {
+    const snapshot = createSnapshot()
+    const api = installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
+    vi.mocked(api.createEntry).mockResolvedValue({
+      ...baseEntry(),
+      id: 'entry-draft',
+      title: 'Pasted screenshot',
+      body: 'Clipboard image',
+      metadataJson: null
+    })
+    vi.mocked(api.importClipboardScreenshot).mockResolvedValue({
+      ...baseImageAttachment(),
+      entryId: 'entry-draft'
+    })
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Note title'), { target: { value: 'Pasted screenshot' } })
+    fireEvent.input(screen.getByLabelText('Note body'), { target: { textContent: 'Clipboard image' } })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Add Note' })).toBeEnabled())
+    fireEvent.click(screen.getByRole('button', { name: 'Attach evidence' }))
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Attach Evidence' })).getByRole('button', { name: /Paste Screenshot\/Image/ }))
+
+    await waitFor(() =>
+      expect(api.createEntry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sessionId: snapshot.session.id,
+          type: 'note',
+          title: 'Pasted screenshot',
+          body: 'Clipboard image'
+        })
+      )
+    )
+    expect(api.importClipboardScreenshot).toHaveBeenCalledWith(snapshot.session.id, 'entry-draft')
+    expect(api.importAttachment).not.toHaveBeenCalled()
+  })
+
+  it('deletes the draft note when clipboard evidence import returns null', async () => {
+    const snapshot = createSnapshot()
+    const api = installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
+    vi.mocked(api.createEntry).mockResolvedValue({
+      ...baseEntry(),
+      id: 'entry-draft',
+      title: 'No image',
+      body: 'Try paste',
+      metadataJson: null
+    })
+    vi.mocked(api.importClipboardScreenshot).mockResolvedValue(null)
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Note title'), { target: { value: 'No image' } })
+    fireEvent.input(screen.getByLabelText('Note body'), { target: { textContent: 'Try paste' } })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Add Note' })).toBeEnabled())
+    fireEvent.click(screen.getByRole('button', { name: 'Attach evidence' }))
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Attach Evidence' })).getByRole('button', { name: /Paste Screenshot\/Image/ }))
+
+    await waitFor(() => expect(api.importClipboardScreenshot).toHaveBeenCalledWith(snapshot.session.id, 'entry-draft'))
+    expect(api.deleteEntry).toHaveBeenCalledWith('entry-draft')
+    expect(api.importAttachment).not.toHaveBeenCalled()
   })
 
   it('clears timeline filters from the filtered empty state', async () => {
@@ -250,6 +338,7 @@ describe('App capture and evidence', () => {
     expect(within(inspector).getByRole('heading', { name: 'Checkout completed' })).toBeInTheDocument()
 
     fireEvent.click(within(inspector).getByRole('button', { name: 'Attach Evidence' }))
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Attach Evidence' })).getByRole('button', { name: /Browse/ }))
 
     await waitFor(() => expect(api.importAttachment).toHaveBeenCalledWith(snapshot.session.id, 'entry-1'))
     expect(within(inspector).getByRole('heading', { name: 'Checkout completed' })).toBeInTheDocument()

@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { copyFileSync, mkdirSync, readFileSync, statSync } from 'node:fs'
+import { copyFileSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { basename } from 'node:path'
 import { desc, eq } from 'drizzle-orm'
 import type {
@@ -259,13 +259,7 @@ export class SessionService {
   importAttachment(sourcePath: string, sessionId: string, entryId?: string): Attachment {
     const parsedSessionId = idSchema.parse(sessionId)
     const parsedEntryId = entryId ? idSchema.parse(entryId) : undefined
-    const session = this.client.db.select().from(sessions).where(eq(sessions.id, parsedSessionId)).get()
-    if (!session) throw new Error(`Session not found: ${parsedSessionId}`)
-
-    if (parsedEntryId) {
-      const entry = this.client.db.select().from(entries).where(eq(entries.id, parsedEntryId)).get()
-      if (!entry || entry.sessionId !== parsedSessionId) throw new Error(`Entry not found in Session: ${parsedEntryId}`)
-    }
+    this.assertAttachmentImportTarget(parsedSessionId, parsedEntryId)
 
     const file = readFileSync(sourcePath)
     const hash = createHash('sha256').update(file).digest('hex')
@@ -291,6 +285,45 @@ export class SessionService {
         filename: basename(sourcePath),
         mimeType: guessMimeType(extension),
         sizeBytes: stats.size,
+        sha256: hash,
+        relativePath,
+        createdAt: now
+      })
+      .returning()
+      .all()
+
+    this.touchSession(parsedSessionId)
+    return mapAttachment(attachment)
+  }
+
+  importClipboardScreenshot(pngBytes: Buffer, sessionId: string, entryId?: string): Attachment {
+    const parsedSessionId = idSchema.parse(sessionId)
+    const parsedEntryId = entryId ? idSchema.parse(entryId) : undefined
+    this.assertAttachmentImportTarget(parsedSessionId, parsedEntryId)
+
+    const filename = `pasted-screenshot-${formatAttachmentTimestamp(new Date())}.png`
+    const hash = createHash('sha256').update(pngBytes).digest('hex')
+    const now = isoNow()
+    const id = randomUUID()
+    const { relativePath, destinationDir, destination } = resolveAttachmentStorageDestination(
+      this.attachmentsRoot,
+      parsedSessionId,
+      id,
+      filename
+    )
+
+    mkdirSync(destinationDir, { recursive: true })
+    writeFileSync(destination, pngBytes)
+
+    const [attachment] = this.client.db
+      .insert(attachments)
+      .values({
+        id,
+        sessionId: parsedSessionId,
+        entryId: parsedEntryId ?? null,
+        filename,
+        mimeType: 'image/png',
+        sizeBytes: pngBytes.length,
         sha256: hash,
         relativePath,
         createdAt: now
@@ -616,6 +649,16 @@ export class SessionService {
     if (!session) throw new Error(`Session not found: ${sessionId}`)
   }
 
+  private assertAttachmentImportTarget(sessionId: string, entryId?: string): void {
+    const session = this.client.db.select().from(sessions).where(eq(sessions.id, sessionId)).get()
+    if (!session) throw new Error(`Session not found: ${sessionId}`)
+
+    if (entryId) {
+      const entry = this.client.db.select().from(entries).where(eq(entries.id, entryId)).get()
+      if (!entry || entry.sessionId !== sessionId) throw new Error(`Entry not found in Session: ${entryId}`)
+    }
+  }
+
   private touchSession(id: string): void {
     const now = isoNow()
     this.client.db.update(sessions).set({ updatedAt: now, lastOpenedAt: now }).where(eq(sessions.id, id)).run()
@@ -648,4 +691,9 @@ export class SessionService {
 
 export const __testables = {
   buildGenerationPrompt
+}
+
+function formatAttachmentTimestamp(date: Date): string {
+  const value = date.toISOString()
+  return `${value.slice(0, 10).replaceAll('-', '')}-${value.slice(11, 19).replaceAll(':', '')}`
 }
