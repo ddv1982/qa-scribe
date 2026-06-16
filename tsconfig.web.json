@@ -6,10 +6,9 @@
     "jsx": "react-jsx",
     "strict": true,
     "types": ["vite/client", "vitest", "@testing-library/jest-dom"],
-    "baseUrl": ".",
     "paths": {
-      "@renderer/*": ["src/renderer/src/*"],
-      "@shared/*": ["src/shared/*"]
+      "@renderer/*": ["./src/renderer/src/*"],
+      "@shared/*": ["./src/shared/*"]
     }
   }
 }

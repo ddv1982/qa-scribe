@@ -1,6 +1,6 @@
 {
   "name": "qa-scribe",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Local-first desktop testing notepad for turning testing sessions into structured testware.",
   "author": "qa-scribe contributors",
   "main": "out/main/index.js",
@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "@electron-toolkit/utils": "^4.0.0",
+    "@tiptap/core": "^3.26.1",
     "@tiptap/extension-placeholder": "^3.26.1",
     "@tiptap/pm": "^3.26.1",
     "@tiptap/react": "^3.26.1",
@@ -31,7 +32,7 @@
     "lucide-react": "^1.18.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "zod": "^3.25.76"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@electron-toolkit/tsconfig": "^2.0.0",
@@ -47,7 +48,7 @@
     "electron-builder": "^26.15.3",
     "electron-vite": "^5.0.0",
     "jsdom": "^29.1.1",
-    "typescript": "^5.9.3",
+    "typescript": "^6.0.3",
     "vite": "^7.3.5",
     "vitest": "^4.1.9"
   },
