@@ -1,7 +1,8 @@
-import type { ReactElement } from 'react'
-import { Bug, Check, Copy } from 'lucide-react'
+import { useState, type ReactElement } from 'react'
+import { Bug, Check, Copy, Eye, Pencil } from 'lucide-react'
 import type { Finding, ReviewDraft } from '../../domain/types'
 import { formatJiraDraft, jiraDraftFromFinding } from '../../domain/reviewDrafts'
+import { DraftMarkdownView } from './DraftMarkdownView'
 
 export function DraftsPane(props: {
   draft: ReviewDraft
@@ -11,6 +12,7 @@ export function DraftsPane(props: {
   onSave: () => Promise<void>
   onCopy: (text: string, message?: string) => Promise<void>
 }): ReactElement {
+  const [mode, setMode] = useState<'preview' | 'edit'>('preview')
   const autosaveLabel =
     props.autosaveStatus === 'saving'
       ? 'Saving...'
@@ -25,13 +27,23 @@ export function DraftsPane(props: {
       <div className="draft-editor">
         <div className="review-header">
           <div>
-            <span className="eyebrow">Editable Draft</span>
+            <span className="eyebrow">Session Report Draft</span>
             <h2>{props.draft.title}</h2>
           </div>
           <div className="topbar-actions">
             <span className={`autosave-status ${props.autosaveStatus}`} role="status">
               {autosaveLabel}
             </span>
+            <div className="draft-view-toggle" role="group" aria-label="Draft view mode">
+              <button className={mode === 'preview' ? 'selected' : ''} type="button" onClick={() => setMode('preview')}>
+                <Eye size={15} />
+                Preview
+              </button>
+              <button className={mode === 'edit' ? 'selected' : ''} type="button" onClick={() => setMode('edit')}>
+                <Pencil size={15} />
+                Edit Draft
+              </button>
+            </div>
             <button className="secondary-command" type="button" onClick={() => props.onCopy(props.draft.content, 'Report copied')}>
               <Copy size={16} />
               Copy Report
@@ -42,11 +54,15 @@ export function DraftsPane(props: {
             </button>
           </div>
         </div>
-        <textarea
-          aria-label="Session Report Draft"
-          value={props.draft.content}
-          onChange={(event) => props.onUpdateContent(event.target.value)}
-        />
+        {mode === 'preview' ? (
+          <DraftMarkdownView content={props.draft.content} />
+        ) : (
+          <textarea
+            aria-label="Session Report Draft"
+            value={props.draft.content}
+            onChange={(event) => props.onUpdateContent(event.target.value)}
+          />
+        )}
       </div>
 
       <div className="jira-drafts">

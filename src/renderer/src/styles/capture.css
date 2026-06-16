@@ -74,6 +74,12 @@
   cursor: pointer;
 }
 
+.entry-actions button:hover,
+.entry-actions button:focus-visible {
+  border-color: color-mix(in srgb, var(--accent) 32%, var(--border));
+  color: var(--accent);
+}
+
 .entry-body p {
   margin: 7px 0 0;
   white-space: pre-wrap;
@@ -301,4 +307,8 @@
   justify-content: space-between;
   color: var(--text-secondary);
   font-size: 13px;
+}
+
+.composer-actions span {
+  white-space: nowrap;
 }

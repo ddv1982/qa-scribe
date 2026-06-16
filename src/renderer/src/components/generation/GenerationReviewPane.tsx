@@ -34,6 +34,11 @@ export function GenerationReviewPane(props: {
   const selectedProviderStatus = availableProviders.find((provider) => provider.provider === props.selectedProvider) ?? null
   const reasoningDescriptor = selectedProviderStatus ? reasoningEffortDescriptor(selectedProviderStatus, props.selectedModel) : null
   const hasProvider = Boolean(selectedProviderStatus)
+  const providerReadiness = selectedProviderStatus
+    ? `${selectedProviderStatus.label}${props.selectedModel ? ` / ${props.selectedModel}` : ''}`
+    : availableProviders.length > 0
+      ? 'Choose a provider before generating'
+      : 'No available providers'
 
   return (
     <section className="review-pane">
@@ -63,7 +68,14 @@ export function GenerationReviewPane(props: {
         <SummaryItem label="Providers" value={providerSummary(props.providerStatus)} />
       </div>
 
-      <section className="provider-panel" aria-label="Generation provider options">
+      <details className="provider-panel" aria-label="Generation provider options" open={!hasProvider}>
+        <summary className="provider-panel-summary">
+          <span>
+            <span className="eyebrow">Provider settings</span>
+            <strong>{providerReadiness}</strong>
+          </span>
+          <span className={hasProvider ? 'provider-ready' : 'provider-missing'}>{hasProvider ? 'Ready' : 'Needs setup'}</span>
+        </summary>
         <div className="provider-controls">
           <label className="field">
             <span>Provider (required)</span>
@@ -118,7 +130,7 @@ export function GenerationReviewPane(props: {
             ))}
           </div>
         ) : null}
-      </section>
+      </details>
 
       <div className="review-columns">
         <ReviewList

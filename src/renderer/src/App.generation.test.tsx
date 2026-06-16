@@ -2,7 +2,7 @@
 
 import '@testing-library/jest-dom/vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { App } from './App'
 import {
   baseEntry,
@@ -20,6 +20,30 @@ import {
 
 describe('App provider controls', () => {
   setupAppTestHooks()
+
+  it('keeps Markdown and JSON export available from the secondary Session menu', async () => {
+    const snapshot = createSnapshot()
+    const api = installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
+    const writeText = vi.fn(async () => undefined)
+    vi.mocked(api.exportSession).mockImplementation(async (_id, format) => ({ format, content: `${format} export` }))
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText }
+    })
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Session', { selector: 'summary' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Export Markdown' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Export JSON' }))
+
+    await waitFor(() => expect(api.exportSession).toHaveBeenCalledTimes(2))
+    expect(api.exportSession).toHaveBeenCalledWith(snapshot.session.id, 'markdown')
+    expect(api.exportSession).toHaveBeenCalledWith(snapshot.session.id, 'json')
+    expect(writeText).toHaveBeenCalledWith('markdown export')
+    expect(writeText).toHaveBeenCalledWith('json export')
+  })
 
   it('shows only available providers as selectable and waits for explicit Generate', async () => {
     const snapshot = createSnapshot({
@@ -44,6 +68,7 @@ describe('App provider controls', () => {
 
     expect(await screen.findByRole('heading', { name: 'Checkout smoke' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Generate Testware/i }))
+    fireEvent.click(await screen.findByText('Provider settings'))
 
     const providerSelect = (await screen.findByLabelText('Provider (required)')) as HTMLSelectElement
     await waitFor(() => expect(providerSelect).toHaveValue('claude_code'))
@@ -63,6 +88,8 @@ describe('App provider controls', () => {
         reasoningEffort: 'medium'
       })
     )
+    expect(await screen.findByTestId('draft-markdown-view')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Session Report', level: 1 })).toBeInTheDocument()
   })
 
   it('updates reasoning choices when the selected model has model-specific capabilities', async () => {
@@ -80,6 +107,7 @@ describe('App provider controls', () => {
     render(<App />)
 
     fireEvent.click(await screen.findByRole('button', { name: /Generate Testware/i }))
+    fireEvent.click(await screen.findByText('Provider settings'))
     const modelSelect = (await screen.findByLabelText('Model (optional)')) as HTMLSelectElement
     const reasoningSelect = (await screen.findByLabelText('Reasoning (optional)')) as HTMLSelectElement
 

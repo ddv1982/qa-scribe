@@ -43,6 +43,12 @@ export function CapturePane(props: {
   const selectedEvidenceLabel = props.selectedEntry
     ? props.selectedEntry.title || firstLine(props.selectedEntry.body) || formatEntryType(props.selectedEntry.type)
     : null
+  const hasTimelineFilters = props.query.trim().length > 0 || props.filter !== 'all'
+  const emptyTitle = props.snapshot.entries.length === 0 ? 'No Entries yet' : 'No matching Entries'
+  const emptyDescription =
+    props.snapshot.entries.length === 0
+      ? 'Use the composer below to capture notes as testing happens. Turn important behavior into Findings when it matters.'
+      : 'The current search or type filter is hiding the captured Entries.'
 
   function handleRichTextChange(value: RichTextValue): void {
     props.setEntryBody(value.text)
@@ -52,43 +58,63 @@ export function CapturePane(props: {
   return (
     <>
       <div className="timeline-tools">
-        <label className="search-box">
-          <Search size={15} />
-          <input
-            aria-label="Search Entries"
-            placeholder="Search Entries"
-            value={props.query}
-            onChange={(event) => props.setQuery(event.target.value)}
-          />
-        </label>
-        <label className="select-box">
-          <Filter size={15} />
-          <select
-            aria-label="Filter by Entry type"
-            value={props.filter}
-            onChange={(event) => props.setFilter(event.target.value as EntryType | 'all')}
-          >
-            <option value="all">All types</option>
-            {entryTypes.map((type) => (
-              <option value={type.value} key={type.value}>
-                {type.label}
-              </option>
-            ))}
-          </select>
-          <ChevronDown size={14} />
-        </label>
-        <button className="secondary-command compact" type="button" onClick={() => props.onAttach()}>
-          <ImagePlus size={16} />
-          Add Evidence
-        </button>
+        <div className="timeline-tools-summary">
+          <span className="eyebrow">Session Timeline</span>
+          <strong>
+            {props.filteredEntries.length} of {props.snapshot.entries.length} Entries
+          </strong>
+        </div>
+        <div className="timeline-tools-controls">
+          <label className="search-box">
+            <Search size={15} />
+            <input
+              aria-label="Search Entries"
+              placeholder="Search"
+              value={props.query}
+              onChange={(event) => props.setQuery(event.target.value)}
+            />
+          </label>
+          <label className="select-box">
+            <Filter size={15} />
+            <select
+              aria-label="Filter by Entry type"
+              value={props.filter}
+              onChange={(event) => props.setFilter(event.target.value as EntryType | 'all')}
+            >
+              <option value="all">All types</option>
+              {entryTypes.map((type) => (
+                <option value={type.value} key={type.value}>
+                  {type.label}
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={14} />
+          </label>
+          <button className="secondary-command compact" type="button" onClick={() => props.onAttach()}>
+            <ImagePlus size={16} />
+            Evidence
+          </button>
+        </div>
       </div>
 
       <div className="timeline" aria-label="Session Timeline">
         {props.filteredEntries.length === 0 ? (
-          <div className="empty-state">
+          <div className="empty-state capture-empty">
             <Clipboard size={34} />
-            <h2>No Entries yet</h2>
-            <p>Capture notes as they happen, then turn important behavior into structured Findings.</p>
+            <h2>{emptyTitle}</h2>
+            <p>{emptyDescription}</p>
+            {hasTimelineFilters ? (
+              <button
+                className="secondary-command fit"
+                type="button"
+                onClick={() => {
+                  props.setQuery('')
+                  props.setFilter('all')
+                }}
+              >
+                Clear filters
+              </button>
+            ) : null}
           </div>
         ) : (
           props.filteredEntries.map((entry) => (

@@ -1,7 +1,7 @@
 import { useEffect, useRef, type ReactElement } from 'react'
 import type { Editor, JSONContent } from '@tiptap/core'
 import Placeholder from '@tiptap/extension-placeholder'
-import { EditorContent, useEditor } from '@tiptap/react'
+import { EditorContent, useEditor, useEditorState } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { Bold, Code2, Italic, List, ListOrdered } from 'lucide-react'
 import { parseRichTextMetadata, richTextMetadataSchema, textToDoc } from '../domain/richText'
@@ -54,12 +54,28 @@ export function RichTextEditor(props: {
     immediatelyRender: false,
     onUpdate: ({ editor }) => props.onChange(readEditorValue(editor))
   })
+  const toolbarState = useEditorState({
+    editor,
+    selector: ({ editor }) => ({
+      bold: editor?.isActive('bold') ?? false,
+      italic: editor?.isActive('italic') ?? false,
+      code: editor?.isActive('code') ?? false,
+      bulletList: editor?.isActive('bulletList') ?? false,
+      orderedList: editor?.isActive('orderedList') ?? false
+    })
+  }) ?? {
+    bold: false,
+    italic: false,
+    code: false,
+    bulletList: false,
+    orderedList: false
+  }
 
   useEffect(() => {
     if (!editor) return
     if (lastResetKeyRef.current === props.resetKey) return
     lastResetKeyRef.current = props.resetKey
-    editor.commands.clearContent()
+    editor.commands.clearContent(false)
     props.onChange(emptyRichTextValue)
   }, [editor, props.resetKey])
 
@@ -67,7 +83,7 @@ export function RichTextEditor(props: {
     <div className="rich-editor">
       <div className="rich-editor-toolbar" aria-label="Note formatting">
         <ToolbarButton
-          active={editor?.isActive('bold') ?? false}
+          active={toolbarState.bold}
           disabled={!editor}
           label="Bold"
           onClick={() => editor?.chain().focus().toggleBold().run()}
@@ -75,7 +91,7 @@ export function RichTextEditor(props: {
           <Bold size={15} />
         </ToolbarButton>
         <ToolbarButton
-          active={editor?.isActive('italic') ?? false}
+          active={toolbarState.italic}
           disabled={!editor}
           label="Italic"
           onClick={() => editor?.chain().focus().toggleItalic().run()}
@@ -83,7 +99,7 @@ export function RichTextEditor(props: {
           <Italic size={15} />
         </ToolbarButton>
         <ToolbarButton
-          active={editor?.isActive('code') ?? false}
+          active={toolbarState.code}
           disabled={!editor}
           label="Inline code"
           onClick={() => editor?.chain().focus().toggleCode().run()}
@@ -91,7 +107,7 @@ export function RichTextEditor(props: {
           <Code2 size={15} />
         </ToolbarButton>
         <ToolbarButton
-          active={editor?.isActive('bulletList') ?? false}
+          active={toolbarState.bulletList}
           disabled={!editor}
           label="Bulleted list"
           onClick={() => editor?.chain().focus().toggleBulletList().run()}
@@ -99,7 +115,7 @@ export function RichTextEditor(props: {
           <List size={15} />
         </ToolbarButton>
         <ToolbarButton
-          active={editor?.isActive('orderedList') ?? false}
+          active={toolbarState.orderedList}
           disabled={!editor}
           label="Numbered list"
           onClick={() => editor?.chain().focus().toggleOrderedList().run()}
@@ -122,6 +138,7 @@ function ToolbarButton(props: {
   return (
     <button
       aria-label={props.label}
+      aria-pressed={props.active}
       className={props.active ? 'selected' : ''}
       disabled={props.disabled}
       title={props.label}

@@ -89,11 +89,45 @@
 }
 
 .session-setup {
+  margin: 0 26px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface) 68%, transparent);
+}
+
+.session-setup.needs-attention {
+  border-color: color-mix(in srgb, var(--warning) 38%, var(--border));
+  background: color-mix(in srgb, var(--warning) 7%, var(--surface));
+}
+
+.session-setup-summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 42px;
+  cursor: pointer;
+  padding: 0 14px;
+}
+
+.session-setup-summary span:first-child {
+  font-weight: 680;
+}
+
+.session-setup-summary small {
+  overflow: hidden;
+  color: var(--text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-setup-body {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 38px;
   gap: 10px 12px;
   align-items: start;
-  padding: 0 26px 16px;
+  border-top: 1px solid var(--border);
+  padding: 14px;
 }
 
 .session-required-fields,
@@ -130,14 +164,6 @@
 .session-optional-fields {
   grid-template-columns: repeat(3, minmax(160px, 1fr));
   padding-top: 10px;
-}
-
-.session-setup-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  justify-content: flex-end;
-  align-self: end;
 }
 
 .autosave-status {

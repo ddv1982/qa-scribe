@@ -56,6 +56,7 @@ describe('App Session setup', () => {
     render(<App />)
 
     expect(await screen.findByRole('heading', { name: 'Checkout smoke' })).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Session setup'))
     fireEvent.click(screen.getByText('Optional details'))
 
     expect(screen.getByLabelText('Environment (optional)')).toBeInTheDocument()

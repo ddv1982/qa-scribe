@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react'
-import { FileJson, FileText, Loader2, PanelRightOpen, Plus, Sparkles } from 'lucide-react'
+import { FileJson, FileText, Loader2, MoreHorizontal, PanelRightOpen, Plus, Sparkles, Trash2 } from 'lucide-react'
 import { defaultReasoningEffortFor, reasoningEffortsFor, validateSessionRequirements } from '../../shared/contracts'
 import type {
   Entry,
@@ -19,7 +19,6 @@ import {
   EntryInspector,
   GenerationReviewPane,
   ModeTabs,
-  SessionInspector,
   StatusPill
 } from './components/AppSections'
 import { SessionSetupPanel, type SessionAutosaveStatus } from './components/SessionSetupPanel'
@@ -72,6 +71,7 @@ export function App(): ReactElement {
   const [sessionRequirementErrors, setSessionRequirementErrors] = useState<SessionRequirementKey[]>([])
   const [sessionDraftDirty, setSessionDraftDirty] = useState(false)
   const [sessionAutosaveStatus, setSessionAutosaveStatus] = useState<AutosaveStatus>('idle')
+  const [sessionSetupOpen, setSessionSetupOpen] = useState(false)
   const [moreDetailsOpen, setMoreDetailsOpen] = useState(false)
   const [generationContext, setGenerationContext] = useState<GenerationContextReview | null>(null)
   const [generationContextId, setGenerationContextId] = useState<string | null>(null)
@@ -95,6 +95,8 @@ export function App(): ReactElement {
 
   const selectedEntry = snapshot?.entries.find((entry) => entry.id === selectedEntryId) ?? null
   const hasOptionalDetails = hasSessionOptionalDetails(sessionDraft)
+  const sessionRequirementState = useMemo(() => validateSessionRequirements(sessionDraft), [sessionDraft])
+  const sessionSetupNeedsAttention = !sessionRequirementState.valid || sessionRequirementErrors.length > 0
   const availableProviders = useMemo(() => providerStatus?.providers.filter((provider) => provider.available) ?? [], [providerStatus])
   const selectedProviderStatus = useMemo(
     () => availableProviders.find((provider) => provider.provider === selectedProvider) ?? null,
@@ -191,6 +193,10 @@ export function App(): ReactElement {
   useEffect(() => {
     if (hasOptionalDetails) setMoreDetailsOpen(true)
   }, [hasOptionalDetails])
+
+  useEffect(() => {
+    if (sessionSetupNeedsAttention) setSessionSetupOpen(true)
+  }, [sessionSetupNeedsAttention])
 
   useEffect(() => {
     if (!snapshot || !sessionDraftDirty) return
@@ -579,8 +585,9 @@ export function App(): ReactElement {
         setGenerationContextId(activeContextId)
       }
       const result = await window.qaScribe.generateTestware(activeContextId, generationOptions)
-      setDraft(draftFromGenerationResult(result, snapshot, findings))
+      const generatedDraft = draftFromGenerationResult(result, snapshot, findings)
       await openSession(snapshot.session.id)
+      setDraft(generatedDraft)
       setWorkspaceMode('drafts')
       flash('Generated draft ready')
     } catch (error) {
@@ -732,14 +739,34 @@ export function App(): ReactElement {
                   <Sparkles size={16} />
                   Generate Testware
                 </button>
-                <button className="secondary-command" type="button" onClick={() => exportSession('markdown')}>
-                  <FileText size={16} />
-                  Export MD
-                </button>
-                <button className="secondary-command" type="button" onClick={() => exportSession('json')}>
-                  <FileJson size={16} />
-                  Export JSON
-                </button>
+                <details className="topbar-menu">
+                  <summary className="secondary-command compact">
+                    <MoreHorizontal size={16} />
+                    Session
+                  </summary>
+                  <div className="topbar-menu-panel">
+                    <dl className="session-menu-stats">
+                      <dt>Entries</dt>
+                      <dd>{snapshot.entries.length}</dd>
+                      <dt>Findings</dt>
+                      <dd>{findings.length}</dd>
+                      <dt>Evidence</dt>
+                      <dd>{snapshot.attachments.length}</dd>
+                    </dl>
+                    <button className="secondary-command fit" type="button" onClick={() => exportSession('markdown')}>
+                      <FileText size={16} />
+                      Export Markdown
+                    </button>
+                    <button className="secondary-command fit" type="button" onClick={() => exportSession('json')}>
+                      <FileJson size={16} />
+                      Export JSON
+                    </button>
+                    <button className="danger-command fit" type="button" onClick={deleteCurrentSession}>
+                      <Trash2 size={16} />
+                      Delete Session
+                    </button>
+                  </div>
+                </details>
               </div>
             </header>
 
@@ -748,13 +775,16 @@ export function App(): ReactElement {
               autosaveStatus={sessionAutosaveStatus}
               draft={sessionDraft}
               fieldError={sessionFieldError}
+              needsAttention={sessionSetupNeedsAttention}
+              open={sessionSetupOpen}
               moreDetailsOpen={moreDetailsOpen}
+              onOpenToggle={setSessionSetupOpen}
               onMoreDetailsToggle={setMoreDetailsOpen}
               onSave={saveSession}
               onUpdateDraft={updateSessionDraft}
             />
 
-            <section className="detail-grid">
+            <section className={selectedEntry ? 'detail-grid has-inspector' : 'detail-grid'}>
               <div className="timeline-pane">
                 <ModeTabs mode={workspaceMode} setMode={setWorkspaceMode} onOpenGeneration={openGenerationReview} />
 
@@ -830,12 +860,12 @@ export function App(): ReactElement {
                 ) : null}
               </div>
 
-              <aside className="inspector" aria-label="Inspector">
-                <div className="inspector-title">
-                  <PanelRightOpen size={17} />
-                  <span>Inspector</span>
-                </div>
-                {selectedEntry ? (
+              {selectedEntry ? (
+                <aside className="inspector" aria-label="Inspector">
+                  <div className="inspector-title">
+                    <PanelRightOpen size={17} />
+                    <span>Entry Inspector</span>
+                  </div>
                   <EntryInspector
                     attachments={snapshot.attachments.filter((attachment) => attachment.entryId === selectedEntry.id)}
                     entry={selectedEntry}
@@ -843,14 +873,8 @@ export function App(): ReactElement {
                     onAttach={() => importAttachment(selectedEntry.id)}
                     onCreateFinding={() => createFindingFromEntry(selectedEntry)}
                   />
-                ) : (
-                  <SessionInspector
-                    attachments={snapshot.attachments}
-                    findingCount={findings.length}
-                    onDelete={deleteCurrentSession}
-                  />
-                )}
-              </aside>
+                </aside>
+              ) : null}
             </section>
           </>
         ) : (

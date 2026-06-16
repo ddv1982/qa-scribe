@@ -95,6 +95,7 @@ describe('App autosave behavior', () => {
 
     expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Drafts' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Draft' }))
     fireEvent.change(screen.getByLabelText('Session Report Draft'), { target: { value: '# Edited report' } })
 
     await waitFor(
@@ -117,6 +118,7 @@ describe('App autosave behavior', () => {
 
     expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Drafts' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Draft' }))
     fireEvent.change(screen.getByLabelText('Session Report Draft'), { target: { value: '# Unsaved report' } })
 
     expect(await screen.findByText('Save failed', {}, { timeout: 1500 })).toBeInTheDocument()

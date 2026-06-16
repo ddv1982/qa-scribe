@@ -20,6 +20,15 @@
   line-height: 1.45;
 }
 
+.capture-empty {
+  align-content: center;
+  gap: 10px;
+}
+
+.capture-empty p {
+  margin: 0;
+}
+
 .launch-state {
   height: 100%;
 }

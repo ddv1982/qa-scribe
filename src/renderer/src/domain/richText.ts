@@ -14,7 +14,7 @@ export function parseRichTextMetadata(metadataJson: string | null | undefined): 
   if (!metadataJson) return null
   try {
     const value = JSON.parse(metadataJson) as Partial<RichTextMetadata>
-    if (value.schema !== richTextMetadataSchema || value.format !== 'tiptap-json' || !isRecord(value.json)) return null
+    if (value.schema !== richTextMetadataSchema || value.format !== 'tiptap-json' || !isRichTextDoc(value.json)) return null
     return {
       schema: richTextMetadataSchema,
       format: 'tiptap-json',
@@ -46,4 +46,8 @@ export function textToDoc(text: string): JSONContent {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
+}
+
+function isRichTextDoc(value: unknown): value is JSONContent {
+  return isRecord(value) && value.type === 'doc'
 }

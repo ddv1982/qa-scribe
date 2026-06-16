@@ -3,7 +3,7 @@
 import '@testing-library/jest-dom/vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import type { Finding as StoredFinding } from '../../shared/contracts'
+import type { Entry, Finding as StoredFinding } from '../../shared/contracts'
 import { App } from './App'
 import {
   baseEntry,
@@ -15,6 +15,7 @@ import {
   providerStatus,
   setupAppTestHooks
 } from './test/appTestHelpers'
+import { richTextMetadataSchema } from './domain/richText'
 
 describe('App capture and evidence', () => {
   setupAppTestHooks()
@@ -106,6 +107,65 @@ describe('App capture and evidence', () => {
     expect(api.getAttachmentPreviewDataUrl).toHaveBeenCalledWith('attachment-1')
   })
 
+  it('persists formatted note content after saving and reopening the Session', async () => {
+    let snapshot = createSnapshot()
+    const api = installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
+    vi.mocked(api.getSession).mockImplementation(async () => snapshot)
+    vi.mocked(api.createEntry).mockImplementation(async (input) => {
+      const entry = {
+        ...baseEntry(),
+        id: 'entry-rich',
+        title: input.title ?? null,
+        body: input.body,
+        metadataJson: input.metadataJson ?? null,
+        createdAt: '2026-06-15T00:02:00.000Z',
+        updatedAt: '2026-06-15T00:02:00.000Z'
+      } satisfies Entry
+      snapshot = createSnapshot({
+        entries: [entry]
+      })
+      return entry
+    })
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Note title'), { target: { value: 'Formatted note' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Bold' }))
+    fireEvent.input(screen.getByLabelText('Note body'), { target: { textContent: 'Important behavior' } })
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Add Note' })).toBeEnabled())
+    fireEvent.click(screen.getByRole('button', { name: 'Add Note' }))
+
+    await waitFor(() => expect(api.createEntry).toHaveBeenCalled())
+    const payload = vi.mocked(api.createEntry).mock.calls[0]?.[0]
+    expect(payload?.metadataJson).toBeTruthy()
+    expect(JSON.parse(payload?.metadataJson ?? '{}')).toEqual(
+      expect.objectContaining({
+        schema: richTextMetadataSchema,
+        text: 'Important behavior'
+      })
+    )
+    expect(await screen.findByRole('heading', { name: 'Formatted note' })).toBeInTheDocument()
+    expect(screen.getByText('Important behavior').tagName).toBe('STRONG')
+  })
+
+  it('clears timeline filters from the filtered empty state', async () => {
+    const snapshot = createSnapshot({ entries: [baseEntry()] })
+    installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Search Entries'), { target: { value: 'missing text' } })
+
+    expect(screen.getByRole('heading', { name: 'No matching Entries' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }))
+
+    expect(screen.getByRole('heading', { name: 'Checkout completed' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Search Entries')).toHaveValue('')
+  })
+
   it('keeps an Entry selected after attaching evidence to it', async () => {
     const snapshot = createSnapshot({ entries: [baseEntry()] })
     const api = installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
@@ -114,6 +174,7 @@ describe('App capture and evidence', () => {
     render(<App />)
 
     expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Inspector')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('heading', { name: 'Checkout completed' }))
     const inspector = screen.getByLabelText('Inspector')
     expect(within(inspector).getByRole('heading', { name: 'Checkout completed' })).toBeInTheDocument()
@@ -133,6 +194,7 @@ describe('App capture and evidence', () => {
 
     expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Delete Entry' }))
+    fireEvent.click(screen.getByText('Session', { selector: 'summary' }))
     fireEvent.click(screen.getByRole('button', { name: 'Delete Session' }))
 
     expect(confirm).toHaveBeenCalledTimes(2)
@@ -149,6 +211,6 @@ describe('App capture and evidence', () => {
     expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
     fireEvent.keyDown(screen.getByRole('button', { name: 'Delete Entry' }), { key: 'Enter' })
 
-    expect(within(screen.getByLabelText('Inspector')).queryByRole('heading', { name: 'Checkout completed' })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Inspector')).not.toBeInTheDocument()
   })
 })

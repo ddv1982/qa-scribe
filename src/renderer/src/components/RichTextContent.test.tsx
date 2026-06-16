@@ -42,4 +42,22 @@ describe('RichTextContent', () => {
     expect(screen.getByText('Saved rich note').tagName).toBe('STRONG')
     expect(screen.queryByText('Fallback')).not.toBeInTheDocument()
   })
+
+  it('falls back to plain body text for malformed rich-text metadata', () => {
+    render(
+      <RichTextContent
+        body="Fallback body"
+        metadataJson={JSON.stringify({
+          schema: richTextMetadataSchema,
+          format: 'tiptap-json',
+          text: 'Bad metadata',
+          html: '<script>alert(1)</script>',
+          json: { type: 'paragraph', text: 'Not a document' }
+        })}
+      />
+    )
+
+    expect(screen.getByText('Fallback body')).toBeInTheDocument()
+    expect(screen.queryByText('Bad metadata')).not.toBeInTheDocument()
+  })
 })

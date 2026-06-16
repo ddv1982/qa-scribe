@@ -47,6 +47,11 @@
   }
 
   .session-setup {
+    margin-right: 14px;
+    margin-left: 14px;
+  }
+
+  .session-setup-body {
     grid-template-columns: 1fr;
   }
 
@@ -59,11 +64,15 @@
     grid-column: 1 / -1;
   }
 
-  .session-setup .icon-command {
+  .session-setup-body .icon-command {
     width: 100%;
   }
 
   .detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-grid.has-inspector {
     grid-template-columns: 1fr;
   }
 
@@ -81,7 +90,7 @@
 
 @media (max-width: 680px) {
   .topbar,
-  .session-setup,
+  .session-setup-body,
   .mode-tabs,
   .timeline-tools,
   .timeline,
@@ -94,9 +103,29 @@
 
   .session-required-fields,
   .session-optional-fields,
+  .session-setup-summary,
   .composer-header,
   .finding-fields {
     grid-template-columns: 1fr;
+  }
+
+  .topbar-menu-panel {
+    right: auto;
+    left: 0;
+    width: min(100%, 280px);
+  }
+
+  .draft-view-toggle {
+    width: 100%;
+  }
+
+  .draft-view-toggle button {
+    min-width: 0;
+  }
+
+  .provider-panel-summary {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .session-required-fields .field:last-child {
@@ -106,9 +135,14 @@
   .timeline-tools,
   .entry-heading,
   .entry-footer,
+  .timeline-tools-controls,
   .context-entry-footer {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .timeline-tools {
+    grid-template-columns: 1fr;
   }
 
   .search-box {

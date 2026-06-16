@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import '@testing-library/jest-dom/vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { richTextMetadataSchema } from '../domain/richText'
 import { RichTextEditor } from './RichTextEditor'
@@ -64,6 +64,56 @@ describe('RichTextEditor', () => {
     )
 
     expect(await screen.findByText('Plain note draft')).toBeInTheDocument()
+  })
+
+  it('keeps toolbar pressed state in sync with formatting commands', async () => {
+    render(
+      <RichTextEditor
+        ariaLabel="Note body"
+        initialMetadataJson={null}
+        initialText=""
+        placeholder="Capture what happened..."
+        resetKey={0}
+        onChange={vi.fn()}
+      />
+    )
+
+    const bold = await screen.findByRole('button', { name: 'Bold' })
+    expect(bold).toHaveAttribute('aria-pressed', 'false')
+
+    fireEvent.click(bold)
+
+    await waitFor(() => expect(bold).toHaveAttribute('aria-pressed', 'true'))
+  })
+
+  it('clears editor content once when resetKey changes', async () => {
+    const onChange = vi.fn()
+    const { rerender } = render(
+      <RichTextEditor
+        ariaLabel="Note body"
+        initialMetadataJson={null}
+        initialText="Draft text"
+        placeholder="Capture what happened..."
+        resetKey={0}
+        onChange={onChange}
+      />
+    )
+
+    expect(await screen.findByText('Draft text')).toBeInTheDocument()
+
+    rerender(
+      <RichTextEditor
+        ariaLabel="Note body"
+        initialMetadataJson={null}
+        initialText=""
+        placeholder="Capture what happened..."
+        resetKey={1}
+        onChange={onChange}
+      />
+    )
+
+    await waitFor(() => expect(screen.queryByText('Draft text')).not.toBeInTheDocument())
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ empty: true, metadataJson: null, text: '' }))
   })
 })
 

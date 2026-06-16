@@ -1,9 +1,13 @@
 .detail-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 318px;
+  grid-template-columns: minmax(0, 1fr);
   min-height: 0;
   flex: 1;
   border-top: 1px solid var(--border);
+}
+
+.detail-grid.has-inspector {
+  grid-template-columns: minmax(0, 1fr) 318px;
 }
 
 .timeline-pane {
@@ -40,9 +44,29 @@
 }
 
 .timeline-tools {
+  display: grid;
+  grid-template-columns: minmax(150px, auto) minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
   min-height: 58px;
   padding: 11px 26px;
   border-bottom: 1px solid var(--border);
+}
+
+.timeline-tools-summary {
+  display: grid;
+  gap: 2px;
+}
+
+.timeline-tools-summary strong {
+  font-size: 14px;
+}
+
+.timeline-tools-controls {
+  display: flex;
+  min-width: 0;
+  justify-content: flex-end;
+  gap: 10px;
 }
 
 .search-box,
@@ -58,7 +82,7 @@
 }
 
 .search-box {
-  width: min(360px, 45%);
+  width: min(280px, 42vw);
 }
 
 .search-box input,

@@ -18,6 +18,100 @@
   box-shadow: 0 0 0 3px var(--selection);
 }
 
+.draft-view-toggle {
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  padding: 3px;
+}
+
+.draft-view-toggle button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 28px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0 9px;
+}
+
+.draft-view-toggle button.selected {
+  background: var(--selection);
+  color: var(--text);
+  font-weight: 650;
+}
+
+.draft-view-toggle button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.draft-markdown-view {
+  overflow-wrap: anywhere;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  line-height: 1.55;
+  padding: 18px;
+}
+
+.draft-markdown-view :where(h1, h2, h3) {
+  margin: 1.1em 0 0.45em;
+  line-height: 1.2;
+}
+
+.draft-markdown-view :where(h1, h2, h3):first-child {
+  margin-top: 0;
+}
+
+.draft-markdown-view :where(p, ul, ol, pre, table) {
+  margin: 0 0 1em;
+}
+
+.draft-markdown-view :where(pre, code) {
+  border-radius: 8px;
+  background: var(--surface-raised);
+  font-family:
+    ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", monospace;
+}
+
+.draft-markdown-view pre {
+  overflow-x: auto;
+  padding: 12px;
+}
+
+.draft-markdown-view code {
+  padding: 2px 4px;
+}
+
+.draft-markdown-view pre code {
+  padding: 0;
+}
+
+.draft-markdown-view table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.draft-markdown-view :where(th, td) {
+  border: 1px solid var(--border);
+  padding: 8px;
+  text-align: left;
+}
+
+.draft-markdown-view :where(a, button):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .jira-drafts {
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
 }
