@@ -11,8 +11,9 @@ function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 860,
-    minWidth: 720,
-    minHeight: 560,
+    minWidth: 640,
+    minHeight: 520,
+    resizable: true,
     show: false,
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     backgroundColor: '#f5f5f7',

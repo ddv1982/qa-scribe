@@ -15,7 +15,7 @@ export function normalizeFinding(
     id: value.id,
     sessionId: value.sessionId,
     title: value.title,
-    summary: details?.actual || value.body,
+    summary: details ? details.actual || details.notes || 'No details added yet.' : value.body,
     details,
     severity: details?.severity ?? value.kind,
     priority: details?.priority ?? null,
@@ -49,11 +49,11 @@ export function createLocalReviewDraft(snapshot: SessionSnapshot, findings: Find
     content: [
       `# ${snapshot.session.title}`,
       '',
-      `Test Target: ${snapshot.session.testTarget || 'Not set'}`,
+      `Context: ${snapshot.session.testTarget || 'Not set'}`,
       `Environment: ${snapshot.session.environment || 'Not set'}`,
       `Build: ${snapshot.session.buildVersion || 'Not set'}`,
       '',
-      '## Test Objective',
+      '## Objective / Notes',
       snapshot.session.charter || 'Not set',
       '',
       '## What Was Tested',
@@ -169,7 +169,7 @@ export function jiraDraftFromFinding(finding: Finding): JiraBugDraft {
         ? details.steps.map((step, index) => `${index + 1}. ${step}`).join('\n')
         : '1. Review linked evidence and fill exact reproduction steps.',
     expected: details?.expected || 'Expected result not drafted yet.',
-    actual: details?.actual || finding.summary,
+    actual: details?.actual || 'Actual result not drafted yet.',
     evidence: [
       finding.evidenceEntryIds.length > 0 ? `Entries: ${finding.evidenceEntryIds.join(', ')}` : '',
       finding.evidenceAttachmentIds.length > 0 ? `Attachments: ${finding.evidenceAttachmentIds.join(', ')}` : ''

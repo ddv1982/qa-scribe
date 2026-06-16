@@ -11,7 +11,7 @@ This repository contains an Electron, React, TypeScript, SQLite, and Drizzle MVP
 Implemented capabilities include:
 
 - Session Library with create, reopen, rename, and delete flows.
-- Session metadata for Test Target, Test Objective, environment, build/version, and related reference.
+- Required Session title plus optional context, objective notes, environment, build/version, and related reference.
 - Chronological Session Timeline with typed Entries.
 - Managed attachment ingestion stored outside SQLite with metadata in the database.
 - Findings linked to Entry or attachment Evidence.

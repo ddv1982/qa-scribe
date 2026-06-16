@@ -47,10 +47,10 @@ describe('App capture and evidence', () => {
     expect(await screen.findByRole('heading', { name: 'Checkout finding' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('heading', { name: 'Checkout completed' }))
     fireEvent.click(screen.getByRole('button', { name: 'Finding' }))
-    fireEvent.change(screen.getByLabelText('Finding summary (required)'), {
+    fireEvent.change(screen.getByLabelText('Finding title (required)'), {
       target: { value: 'Valid card payment fails' }
     })
-    fireEvent.change(screen.getByLabelText('Actual result (required)'), {
+    fireEvent.change(screen.getByLabelText('Actual result'), {
       target: { value: 'The payment form shows a card error.' }
     })
     fireEvent.change(screen.getByLabelText('Expected result'), {
@@ -87,6 +87,40 @@ describe('App capture and evidence', () => {
         priority: 'high',
         environment: 'Staging / 2026.06.16'
       })
+    )
+  })
+
+  it('creates a Finding from a title-only finding draft', async () => {
+    const snapshot = createSnapshot()
+    const api = installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
+    vi.mocked(api.createFinding).mockResolvedValue({
+      id: 'finding-1',
+      sessionId: snapshot.session.id,
+      title: 'Clarify empty checkout state',
+      body: 'No additional finding details yet.',
+      kind: 'bug',
+      metadataJson: null,
+      createdAt: '2026-06-15T00:04:00.000Z',
+      updatedAt: '2026-06-15T00:04:00.000Z'
+    } satisfies StoredFinding)
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Finding' }))
+    fireEvent.change(screen.getByLabelText('Finding title (required)'), {
+      target: { value: 'Clarify empty checkout state' }
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Add Finding' }))
+
+    await waitFor(() =>
+      expect(api.createFinding).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sessionId: snapshot.session.id,
+          title: 'Clarify empty checkout state',
+          body: 'No additional finding details yet.'
+        })
+      )
     )
   })
 
@@ -148,6 +182,42 @@ describe('App capture and evidence', () => {
     )
     expect(await screen.findByRole('heading', { name: 'Formatted note' })).toBeInTheDocument()
     expect(screen.getByText('Important behavior').tagName).toBe('STRONG')
+  })
+
+  it('attaches evidence from the note editor by first saving the draft note', async () => {
+    const snapshot = createSnapshot()
+    const api = installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
+    vi.mocked(api.createEntry).mockResolvedValue({
+      ...baseEntry(),
+      id: 'entry-draft',
+      title: 'Screenshot note',
+      body: 'Attach this screenshot',
+      metadataJson: null
+    })
+    vi.mocked(api.importAttachment).mockResolvedValue({
+      ...baseImageAttachment(),
+      entryId: 'entry-draft'
+    })
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Note title'), { target: { value: 'Screenshot note' } })
+    fireEvent.input(screen.getByLabelText('Note body'), { target: { textContent: 'Attach this screenshot' } })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Add Note' })).toBeEnabled())
+    fireEvent.click(screen.getByRole('button', { name: 'Attach evidence' }))
+
+    await waitFor(() =>
+      expect(api.createEntry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sessionId: snapshot.session.id,
+          type: 'note',
+          title: 'Screenshot note',
+          body: 'Attach this screenshot'
+        })
+      )
+    )
+    expect(api.importAttachment).toHaveBeenCalledWith(snapshot.session.id, 'entry-draft')
   })
 
   it('clears timeline filters from the filtered empty state', async () => {

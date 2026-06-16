@@ -9,14 +9,13 @@ This note anchors the UI cleanup work against the product direction in `docs/ini
 | Launch state | New Session | Primary | Keep as the only strong launch action. |
 | Session Library | Session list | Primary | Keep visible in the sidebar. |
 | Session Library | Create Session | Primary | Keep text-labeled or clearly discoverable in the sidebar. |
-| Topbar | Session title and Test Target | Primary context | Keep, but make it quieter than capture controls. |
+| Topbar | Session title and optional context | Primary context | Keep, but make it quieter than capture controls. |
 | Topbar | Provider status | Secondary status | Keep visible, but compact; details belong in generation/provider context. |
-| Topbar | Generate Testware | Primary transition action | Keep easy to find after required Session fields exist. Disabled or redirected state must explain missing prerequisites. |
+| Topbar | Generate Testware | Primary transition action | Keep easy to find once the Session has a title. Missing optional context should be nonblocking. |
 | Topbar | Export MD | Secondary command | Demote behind a more/options or Draft/export area. |
 | Topbar | Export JSON | Secondary command | Demote behind a more/options or Draft/export area. |
 | Session setup | Title | Required setup | Keep near the top for new/incomplete Sessions; reduce dominance after saved. |
-| Session setup | Test Target | Required setup | Keep near the top for new/incomplete Sessions; reduce dominance after saved. |
-| Session setup | Test Objective | Required setup | Keep near the top for new/incomplete Sessions; reduce dominance after saved. |
+| Session setup | Area, URL, ticket, objective, notes | Optional context | Keep collapsed unless already populated or explicitly opened. |
 | Session setup | Environment, Build, Related Reference | Optional setup | Keep collapsed unless already populated or explicitly opened. |
 | Session setup | Autosave status | Secondary status | Keep quiet and near the form it describes. |
 | Session setup | Save Session icon | Secondary/manual fallback | Keep reachable but low emphasis because autosave is the default. |
@@ -59,8 +58,8 @@ This note anchors the UI cleanup work against the product direction in `docs/ini
 
 ### New Or Incomplete Session
 
-- Required setup fields are the dominant task until title, Test Target, and Test Objective are valid.
-- Capture remains visible enough that testers understand where Entries will go, but Generate Testware is disabled or redirects to the missing fields with clear field-level errors.
+- The title is the only required setup field.
+- Capture remains visible and usable immediately; Generate Testware only redirects when the title is missing.
 - Optional metadata is collapsed unless populated.
 - Export and provider details are secondary; they should not be in the primary command row.
 
@@ -95,7 +94,7 @@ This note anchors the UI cleanup work against the product direction in `docs/ini
 ## Mobile Expectations
 
 - Use a single-column workflow order: Session context, required setup if needed, active mode content, composer, then contextual details.
-- Keep `New Session`, required setup fields, composer input, and Add Note/Add Finding reachable without horizontal scrolling.
+- Keep `New Session`, the title field, optional context, composer input, and Add Note/Add Finding reachable without horizontal scrolling.
 - Convert sidebars/inspectors into stacked or collapsible sections instead of shrinking three columns.
 - Entry actions must remain reachable by focus/tap even when hover is unavailable.
 

@@ -4,11 +4,28 @@ import { generatedReportJsonSchema, generatedReportSchema } from './generation'
 describe('generation schema', () => {
   it('uses required nullable fields for OpenAI strict structured outputs', () => {
     const checks = generatedReportJsonSchema.properties.checks.items
+    const findings = generatedReportJsonSchema.properties.findings.items
     const bugs = generatedReportJsonSchema.properties.bugs.items
     const jiraBugDrafts = generatedReportJsonSchema.properties.jiraBugDrafts.items
 
-    expect(checks.required).toEqual(['title', 'status', 'notes'])
+    expect(checks.required).toEqual(['title', 'status', 'expectedResult', 'actualResult', 'evidence', 'notes'])
+    expect(checks.properties.expectedResult).toEqual({ type: ['string', 'null'] })
+    expect(checks.properties.actualResult).toEqual({ type: ['string', 'null'] })
+    expect(checks.properties.evidence).toEqual({ type: ['array', 'null'], items: { type: 'string' } })
     expect(checks.properties.notes).toEqual({ type: ['string', 'null'] })
+    expect(findings.required).toEqual([
+      'title',
+      'type',
+      'summary',
+      'severity',
+      'priority',
+      'expectedResult',
+      'actualResult',
+      'evidence',
+      'followUp'
+    ])
+    expect(findings.properties.type.enum).toEqual(['bug', 'risk', 'question', 'follow_up', 'note'])
+    expect(findings.properties.evidence).toEqual({ type: ['array', 'null'], items: { type: 'string' } })
     expect(bugs.required).toEqual(['title', 'stepsToReproduce', 'expectedResult', 'actualResult', 'evidence'])
     expect(bugs.properties.evidence).toEqual({ type: ['array', 'null'], items: { type: 'string' } })
     expect(jiraBugDrafts.required).toEqual([
@@ -27,8 +44,29 @@ describe('generation schema', () => {
       generatedReportSchema.parse({
         whatWasTested: 'BreedingValuesTable',
         scenariosCovered: [],
-        checks: [{ title: 'Data visibility', status: 'failed', notes: null }],
-        findings: [],
+        checks: [
+          {
+            title: 'Data visibility',
+            status: 'failed',
+            expectedResult: 'Data is visible',
+            actualResult: 'No data is visible',
+            evidence: null,
+            notes: null
+          }
+        ],
+        findings: [
+          {
+            title: 'No data shown',
+            type: 'bug',
+            summary: 'Data is not visible in the table.',
+            severity: null,
+            priority: null,
+            expectedResult: 'Data is visible',
+            actualResult: 'No data is visible',
+            evidence: null,
+            followUp: null
+          }
+        ],
         bugs: [
           {
             title: 'No data shown',
@@ -53,7 +91,8 @@ describe('generation schema', () => {
       })
     ).toEqual(
       expect.objectContaining({
-        checks: [expect.objectContaining({ notes: null })],
+        checks: [expect.objectContaining({ evidence: null, notes: null })],
+        findings: [expect.objectContaining({ evidence: null, followUp: null })],
         bugs: [expect.objectContaining({ evidence: null })],
         jiraBugDrafts: [expect.objectContaining({ evidence: null })]
       })

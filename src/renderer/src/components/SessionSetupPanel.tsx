@@ -19,9 +19,9 @@ export function SessionSetupPanel(props: {
   onUpdateDraft: (patch: Partial<SessionDraft>) => void
 }): ReactElement {
   const summary = props.needsAttention
-    ? 'Required fields need attention'
-    : props.draft.testTarget
-      ? `Ready for ${props.draft.testTarget}`
+    ? 'Title needs attention'
+    : props.draft.testTarget || props.draft.charter
+      ? 'Optional context saved'
       : 'Ready for capture'
 
   return (
@@ -47,21 +47,6 @@ export function SessionSetupPanel(props: {
             value={props.draft.title ?? ''}
             onChange={(value) => props.onUpdateDraft({ title: value })}
           />
-          <TextField
-            error={props.fieldError('testTarget')}
-            label="Test Target"
-            required
-            value={props.draft.testTarget ?? ''}
-            onChange={(value) => props.onUpdateDraft({ testTarget: value })}
-          />
-          <TextField
-            error={props.fieldError('testObjective')}
-            label="Test Objective"
-            multiline
-            required
-            value={props.draft.charter ?? ''}
-            onChange={(value) => props.onUpdateDraft({ charter: value })}
-          />
         </div>
 
         <button className="icon-command confirmed" title="Save session" type="button" onClick={props.onSave}>
@@ -73,8 +58,21 @@ export function SessionSetupPanel(props: {
           open={props.moreDetailsOpen}
           onToggle={(event) => props.onMoreDetailsToggle(event.currentTarget.open)}
         >
-          <summary>Optional details</summary>
+          <summary>Optional context</summary>
           <div className="session-optional-fields">
+            <TextField
+              label="Area, URL, or ticket"
+              optional
+              value={props.draft.testTarget ?? ''}
+              onChange={(value) => props.onUpdateDraft({ testTarget: value })}
+            />
+            <TextField
+              label="Objective or notes"
+              multiline
+              optional
+              value={props.draft.charter ?? ''}
+              onChange={(value) => props.onUpdateDraft({ charter: value })}
+            />
             <TextField
               label="Environment"
               optional

@@ -3,7 +3,7 @@ import type { Editor, JSONContent } from '@tiptap/core'
 import Placeholder from '@tiptap/extension-placeholder'
 import { EditorContent, useEditor, useEditorState } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
-import { Bold, Code2, Italic, List, ListOrdered } from 'lucide-react'
+import { Bold, Code2, ImagePlus, Italic, List, ListOrdered } from 'lucide-react'
 import { parseRichTextMetadata, richTextMetadataSchema, textToDoc } from '../domain/richText'
 
 export type RichTextValue = {
@@ -29,6 +29,7 @@ export function RichTextEditor(props: {
   placeholder: string
   resetKey: number
   onChange: (value: RichTextValue) => void
+  onAttach?: () => void
 }): ReactElement {
   const lastResetKeyRef = useRef(props.resetKey)
   const editor = useEditor({
@@ -122,6 +123,11 @@ export function RichTextEditor(props: {
         >
           <ListOrdered size={15} />
         </ToolbarButton>
+        {props.onAttach ? (
+          <ToolbarButton active={false} disabled={!editor} label="Attach evidence" onClick={props.onAttach}>
+            <ImagePlus size={15} />
+          </ToolbarButton>
+        ) : null}
       </div>
       <EditorContent editor={editor} />
     </div>

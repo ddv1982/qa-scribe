@@ -51,7 +51,7 @@ This plan records the behavior-preserving cleanup baseline for qa-scribe. It is 
 ## Review Checklist
 
 - Every changed artifact maps to a listed cleanup target or validation need.
-- Session, Entry, Evidence, Finding, Testware, Session Library, Test Target, Test Objective, Session Timeline, Generation Context, Draft, and AI Run language is preserved in user-facing docs and UI.
+- Session, Entry, Evidence, Finding, Testware, Session Library, optional Session context, Session Timeline, Generation Context, Draft, and AI Run language is preserved in user-facing docs and UI.
 - Electron security settings remain `sandbox: true`, `contextIsolation: true`, and `nodeIntegration: false`.
 - IPC remains explicitly validated with Zod.
 - Existing local data remains readable through the current runtime migrations.

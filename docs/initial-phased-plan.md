@@ -41,7 +41,7 @@ The MVP should not introduce a separate design-system workspace or Storybook. In
 The MVP should include:
 
 - Minimal Session Library: create, reopen, rename, and delete Sessions.
-- Session metadata: title, Test Target, required Test Objective, environment, build or version, related reference.
+- Session metadata: required title plus optional context, objective notes, environment, build or version, and related reference.
 - Session Timeline: chronological capture of typed Entries.
 - Entry types: Note, Observation, API Response, Log, screenshot attachment, and finding candidate.
 - SQLite persistence in the Electron main process.
@@ -71,7 +71,7 @@ Out of scope for MVP:
 ## Main Workflow
 
 1. User opens qa-scribe and the app resumes the last active Session, or shows a minimal New Session empty state if no Session exists.
-2. User fills basic Session metadata, including Test Target and Test Objective.
+2. User names the Session and optionally adds context, objective notes, environment, build/version, or a related reference.
 3. During testing, user adds Entries to the Session Timeline.
 4. User attaches screenshots or larger files when useful.
 5. User optionally marks important Entries as possible Findings.
@@ -111,8 +111,7 @@ SQLite is the source of truth for:
 
 - Sessions.
 - Session metadata.
-- Test Targets.
-- Test Objectives.
+- Optional Session context such as area, URL, ticket, target, objective, or notes.
 - Entries.
 - Attachment metadata.
 - Evidence links.
@@ -327,10 +326,10 @@ Deliverables:
 
 ### Epic: Session Metadata
 
-- As a tester, I can describe the Test Target.
+- As a tester, I can describe optional Session context such as an area, URL, ticket, target, objective, or note.
 - As a tester, I can record the environment under test.
 - As a tester, I can record a build, version, URL, or related ticket.
-- As a tester, I can add a required Test Objective.
+- As a tester, I can add optional objective notes.
 
 ### Epic: Timeline Capture
 

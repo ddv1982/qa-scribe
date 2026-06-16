@@ -29,7 +29,7 @@ export function SessionSidebar(props: {
             type="button"
           >
             <span>{session.title}</span>
-            <small>{session.testTarget || 'No target'}</small>
+            <small>{session.testTarget || session.charter || 'No context'}</small>
           </button>
         ))}
       </div>

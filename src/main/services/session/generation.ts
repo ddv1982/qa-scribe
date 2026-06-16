@@ -11,10 +11,25 @@ export const generatedReportSchema = z.object({
     z.object({
       title: z.string(),
       status: z.enum(['passed', 'failed', 'blocked', 'unknown']),
+      expectedResult: z.string().nullable().optional(),
+      actualResult: z.string().nullable().optional(),
+      evidence: z.array(z.string()).nullable().optional(),
       notes: z.string().nullable().optional()
     })
   ),
-  findings: z.array(z.string()),
+  findings: z.array(
+    z.object({
+      title: z.string(),
+      type: z.enum(['bug', 'risk', 'question', 'follow_up', 'note']),
+      summary: z.string(),
+      severity: z.string().nullable().optional(),
+      priority: z.string().nullable().optional(),
+      expectedResult: z.string().nullable().optional(),
+      actualResult: z.string().nullable().optional(),
+      evidence: z.array(z.string()).nullable().optional(),
+      followUp: z.string().nullable().optional()
+    })
+  ),
   bugs: z.array(
     z.object({
       title: z.string(),
@@ -59,15 +74,46 @@ export const generatedReportJsonSchema = {
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['title', 'status', 'notes'],
+        required: ['title', 'status', 'expectedResult', 'actualResult', 'evidence', 'notes'],
         properties: {
           title: { type: 'string' },
           status: { type: 'string', enum: ['passed', 'failed', 'blocked', 'unknown'] },
+          expectedResult: { type: ['string', 'null'] },
+          actualResult: { type: ['string', 'null'] },
+          evidence: { type: ['array', 'null'], items: { type: 'string' } },
           notes: { type: ['string', 'null'] }
         }
       }
     },
-    findings: { type: 'array', items: { type: 'string' } },
+    findings: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: [
+          'title',
+          'type',
+          'summary',
+          'severity',
+          'priority',
+          'expectedResult',
+          'actualResult',
+          'evidence',
+          'followUp'
+        ],
+        properties: {
+          title: { type: 'string' },
+          type: { type: 'string', enum: ['bug', 'risk', 'question', 'follow_up', 'note'] },
+          summary: { type: 'string' },
+          severity: { type: ['string', 'null'] },
+          priority: { type: ['string', 'null'] },
+          expectedResult: { type: ['string', 'null'] },
+          actualResult: { type: ['string', 'null'] },
+          evidence: { type: ['array', 'null'], items: { type: 'string' } },
+          followUp: { type: ['string', 'null'] }
+        }
+      }
+    },
     bugs: {
       type: 'array',
       items: {
@@ -113,12 +159,14 @@ export function buildGenerationPrompt(review: GenerationContextReview): string {
     'Use only the information in this context. Do not invent unsupported facts.',
     'Return concise but useful structured output that matches the requested schema.',
     'Screenshots and files are represented by metadata only; do not assume image contents.',
+    'Preserve the difference between a Check and a Finding: a Check records expected versus actual outcome and pass/fail/blocked/unknown status; a Finding is only for a bug, risk, question, follow-up, or note that needs triage or action.',
+    'If the actual result matches the expected result, make it a passed Check. If it differs, make it a failed Check and create a Finding only when the context supports a triage-worthy issue.',
     '',
     'Session Metadata:',
     `- ID: ${review.session.id}`,
     `- Title: ${review.session.title}`,
-    `- Test Target: ${review.session.testTarget ?? 'Not set'}`,
-    `- Test Objective: ${review.session.charter ?? 'Not set'}`,
+    `- Context: ${review.session.testTarget ?? 'Not set'}`,
+    `- Objective/Notes: ${review.session.charter ?? 'Not set'}`,
     `- Environment: ${review.session.environment ?? 'Not set'}`,
     `- Build/Version: ${review.session.buildVersion ?? 'Not set'}`,
     `- Related Reference: ${review.session.relatedReference ?? 'Not set'}`,
@@ -188,12 +236,35 @@ export function renderGeneratedReport(report: GeneratedReport): string {
     '## Checks',
     '',
     report.checks
-      .map((check) => `- [${check.status}] ${check.title}${check.notes ? `: ${check.notes}` : ''}`)
-      .join('\n') || '- None recorded.',
+      .map((check) =>
+        [
+          `### [${check.status}] ${check.title}`,
+          ...renderOptionalField('Expected', check.expectedResult),
+          ...renderOptionalField('Actual', check.actualResult),
+          ...renderOptionalField('Notes', check.notes),
+          ...renderOptionalList('Evidence', check.evidence)
+        ].join('\n')
+      )
+      .join('\n\n') || '- None recorded.',
     '',
     '## Findings',
     '',
-    renderList(report.findings),
+    report.findings
+      .map((finding) =>
+        [
+          `### ${finding.title}`,
+          '',
+          `Type: ${finding.type}`,
+          ...renderOptionalField('Summary', finding.summary),
+          ...renderOptionalField('Severity', finding.severity),
+          ...renderOptionalField('Priority', finding.priority),
+          ...renderOptionalField('Expected', finding.expectedResult),
+          ...renderOptionalField('Actual', finding.actualResult),
+          ...renderOptionalList('Evidence', finding.evidence),
+          ...renderOptionalField('Follow-up', finding.followUp)
+        ].join('\n')
+      )
+      .join('\n\n') || '- None recorded.',
     '',
     '## Bugs',
     '',
@@ -255,4 +326,14 @@ function renderList(values: string[]): string {
 
 function renderOrderedList(values: string[]): string {
   return values.length > 0 ? values.map((value, index) => `${index + 1}. ${value}`).join('\n') : '1. None recorded.'
+}
+
+function renderOptionalField(label: string, value: string | null | undefined): string[] {
+  const trimmed = value?.trim()
+  return trimmed ? ['', `**${label}:** ${trimmed}`] : []
+}
+
+function renderOptionalList(label: string, values: string[] | null | undefined): string[] {
+  if (!values || values.length === 0) return []
+  return ['', `**${label}**`, renderList(values)]
 }

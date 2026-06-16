@@ -125,9 +125,13 @@ describe('SessionService', () => {
   })
 
   it('treats whitespace-only Session requirement fields as missing', () => {
-    expect(validateSessionRequirements({ title: '   ', testTarget: '\n\t', charter: '  ' })).toEqual({
+    expect(validateSessionRequirements({ title: '   ' })).toEqual({
       valid: false,
-      missing: ['title', 'testTarget', 'testObjective']
+      missing: ['title']
+    })
+    expect(validateSessionRequirements({ title: 'Only title is required' })).toEqual({
+      valid: true,
+      missing: []
     })
   })
 
@@ -154,7 +158,8 @@ describe('SessionService', () => {
     const markdown = service.exportSession(session.id, 'markdown')
     expect(markdown.format).toBe('markdown')
     expect(markdown.content).toContain('# API notes')
-    expect(markdown.content).toContain('- Test Target: Orders API')
+    expect(markdown.content).toContain('- Context: Orders API')
+    expect(markdown.content).toContain('- Objective/Notes: Verify order creation')
     expect(markdown.content).toContain('- Environment: Local')
     expect(markdown.content).toContain('### Api Response - ')
     expect(markdown.content).toContain('**Create order**')
@@ -402,8 +407,8 @@ describe('SessionService', () => {
       expect.objectContaining({ attachment: expect.objectContaining({ id: attachment.id, entryId: null }), included: true })
     ])
     expect(prompt).toContain('- Title: Release candidate checkout')
-    expect(prompt).toContain('- Test Target: Checkout')
-    expect(prompt).toContain('- Test Objective: Verify the happy path and payment failures')
+    expect(prompt).toContain('- Context: Checkout')
+    expect(prompt).toContain('- Objective/Notes: Verify the happy path and payment failures')
     expect(prompt).toContain('- Environment: Staging')
     expect(prompt).toContain('- Build/Version: 2026.06.12')
     expect(prompt).toContain('- Related Reference: QA-456')
@@ -459,26 +464,30 @@ describe('SessionService', () => {
     ])
   })
 
-  it('rejects incomplete Session metadata before provider command execution', async () => {
+  it('allows generation when only optional Session context is empty', async () => {
     const calls: Array<{ command: string; args: string[] }> = []
     const runner: CommandRunner = async (command, args) => {
       calls.push({ command, args })
-      return { code: 1, stdout: '', stderr: 'provider should not be called' }
+      if (command === 'codex' && args.join(' ') === 'login status') return { code: 0, stdout: 'logged in', stderr: '' }
+      if (command === 'claude') return { code: null, stdout: '', stderr: '', error: Object.assign(new Error('missing'), { code: 'ENOENT' }) }
+      if (command === 'codex' && args[0] === 'exec') return { code: 0, stdout: JSON.stringify(fakeGeneratedReport()), stderr: '' }
+      return { code: 1, stdout: '', stderr: 'unexpected command' }
     }
     const { service } = createHarness(undefined, runner)
-    const session = service.createSession({ title: 'Incomplete generation' })
+    const session = service.createSession({ title: 'Minimal generation' })
     service.createEntry({
       sessionId: session.id,
       type: 'note',
-      body: 'This note should not be sent to a provider yet.'
+      body: 'This note can be sent with only a title.'
     })
     const review = service.createGenerationContext(session.id)
 
-    await expect(service.generateTestware(review.context.id, { provider: 'codex_cli' })).rejects.toThrow(
-      'Complete required Session fields before generating: Test Target, Test Objective'
+    await expect(service.generateTestware(review.context.id, { provider: 'codex_cli' })).resolves.toEqual(
+      expect.objectContaining({
+        aiRun: expect.objectContaining({ status: 'completed' })
+      })
     )
-    expect(calls).toEqual([])
-    expect(service.getSession(session.id)?.aiRuns).toEqual([])
+    expect(calls.some((call) => call.command === 'codex' && call.args[0] === 'exec')).toBe(true)
   })
 
   it('generates a report draft with a fake authenticated Codex CLI', async () => {
@@ -656,7 +665,16 @@ function fakeGeneratedReport(): unknown {
   return {
     whatWasTested: 'Checkout smoke',
     scenariosCovered: ['Card checkout'],
-    checks: [{ title: 'Submit order', status: 'passed', notes: 'Order completed.' }],
+    checks: [
+      {
+        title: 'Submit order',
+        status: 'passed',
+        expectedResult: 'Order confirmation is displayed.',
+        actualResult: 'Order confirmation displayed.',
+        evidence: null,
+        notes: 'Order completed.'
+      }
+    ],
     findings: [],
     bugs: [],
     openQuestions: [],

@@ -57,7 +57,7 @@ export type SessionDraft = z.infer<typeof sessionDraftSchema>
 export const sessionPatchSchema = sessionDraftSchema.partial()
 export type SessionPatch = z.infer<typeof sessionPatchSchema>
 
-export const sessionRequirementKeySchema = z.enum(['title', 'testTarget', 'testObjective'])
+export const sessionRequirementKeySchema = z.enum(['title'])
 export type SessionRequirementKey = z.infer<typeof sessionRequirementKeySchema>
 
 export type SessionRequirementsResult = {
@@ -65,13 +65,11 @@ export type SessionRequirementsResult = {
   missing: SessionRequirementKey[]
 }
 
-type SessionRequirementsInput = Pick<SessionDraft, 'title' | 'testTarget' | 'charter'>
+type SessionRequirementsInput = Pick<SessionDraft, 'title'>
 
 export function validateSessionRequirements(input: SessionRequirementsInput): SessionRequirementsResult {
   const missing: SessionRequirementKey[] = []
   if (!input.title?.trim()) missing.push('title')
-  if (!input.testTarget?.trim()) missing.push('testTarget')
-  if (!input.charter?.trim()) missing.push('testObjective')
   return {
     valid: missing.length === 0,
     missing

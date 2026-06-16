@@ -36,26 +36,18 @@ export function createStructuredFindingDetails(
 }
 
 export function renderStructuredFindingBody(details: StructuredFindingDetails): string {
-  return [
-    '**Actual Result**',
-    details.actual || 'Not specified.',
-    '',
-    '**Expected Result**',
-    details.expected || 'Not specified.',
-    '',
-    '**Steps to Reproduce**',
-    renderSteps(details.steps),
-    '',
-    `**Severity:** ${details.severity || 'untriaged'}`,
-    `**Priority:** ${details.priority || 'medium'}`,
+  const lines = [
+    ...renderTextSection('Actual Result', details.actual),
+    ...renderTextSection('Expected Result', details.expected),
+    ...renderStepsSection(details.steps),
+    details.severity && details.severity !== 'untriaged' ? `**Severity:** ${details.severity}` : '',
+    details.priority && details.priority !== 'medium' ? `**Priority:** ${details.priority}` : '',
     details.component ? `**Component:** ${details.component}` : '',
     details.environment ? `**Environment:** ${details.environment}` : '',
-    '',
-    '**Notes**',
-    details.notes || 'None.'
-  ]
-    .filter((line, index, lines) => line.length > 0 || lines[index - 1]?.length !== 0)
-    .join('\n')
+    ...renderTextSection('Notes', details.notes)
+  ].filter(Boolean)
+
+  return lines.length > 0 ? lines.join('\n\n') : 'No additional finding details yet.'
 }
 
 export function serializeStructuredFindingDetails(details: StructuredFindingDetails): string {
@@ -92,6 +84,14 @@ function splitSteps(value: string): string[] {
 
 function renderSteps(steps: string[]): string {
   return steps.length > 0 ? steps.map((step, index) => `${index + 1}. ${step}`).join('\n') : '1. Not specified.'
+}
+
+function renderTextSection(title: string, value: string): string[] {
+  return value ? [`**${title}**`, value] : []
+}
+
+function renderStepsSection(steps: string[]): string[] {
+  return steps.length > 0 ? ['**Steps to Reproduce**', renderSteps(steps)] : []
 }
 
 function stringOrEmpty(value: unknown): string {

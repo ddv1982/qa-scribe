@@ -31,14 +31,14 @@ export function CapturePane(props: {
   onAddEntry: () => Promise<void>
   onAddFinding: () => Promise<void>
   onAttach: (entryId?: string) => Promise<void>
+  onAttachToDraft: () => Promise<void>
   onSelect: (entryId: string) => void
   onDelete: (entry: Entry) => Promise<void>
   onToggleExclude: (entry: Entry) => Promise<void>
   onCreateFinding: (entry: Entry) => Promise<void>
 }): ReactElement {
   const noteSubmitDisabled = props.entryBody.trim().length === 0
-  const findingSubmitDisabled =
-    props.findingDraft.title.trim().length === 0 || props.findingDraft.actual.trim().length === 0
+  const findingSubmitDisabled = props.findingDraft.title.trim().length === 0
   const submitDisabled = props.captureMode === 'note' ? noteSubmitDisabled : findingSubmitDisabled
   const selectedEvidenceLabel = props.selectedEntry
     ? props.selectedEntry.title || firstLine(props.selectedEntry.body) || formatEntryType(props.selectedEntry.type)
@@ -168,8 +168,8 @@ export function CapturePane(props: {
             />
           ) : (
             <input
-              aria-label="Finding summary (required)"
-              placeholder="Finding summary (required)"
+              aria-label="Finding title (required)"
+              placeholder="Finding title (required)"
               value={props.findingDraft.title}
               onChange={(event) => props.onUpdateFindingDraft({ title: event.target.value })}
             />
@@ -183,13 +183,14 @@ export function CapturePane(props: {
             placeholder="Capture what happened..."
             resetKey={props.richTextResetKey}
             onChange={handleRichTextChange}
+            onAttach={props.onAttachToDraft}
           />
         ) : (
           <div className="finding-fields">
             <label className="field">
               <span>Actual result</span>
               <textarea
-                aria-label="Actual result (required)"
+                aria-label="Actual result"
                 placeholder="What failed, changed, blocked you, or looked wrong?"
                 value={props.findingDraft.actual}
                 onChange={(event) => props.onUpdateFindingDraft({ actual: event.target.value })}

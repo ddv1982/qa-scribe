@@ -417,7 +417,7 @@ export function App(): ReactElement {
     const linkedAttachments = selectedEvidenceEntry
       ? snapshot.attachments.filter((attachment) => attachment.entryId === selectedEvidenceEntry.id)
       : []
-    if (findingDraft.title.trim().length === 0 || details.actual.length === 0) return
+    if (findingDraft.title.trim().length === 0) return
 
     try {
       const storedFinding = await window.qaScribe.createFinding({
@@ -481,6 +481,31 @@ export function App(): ReactElement {
       }
     } catch (error) {
       flashError(error, 'Evidence could not be imported')
+    }
+  }
+
+  async function attachToDraftNote(): Promise<void> {
+    if (!snapshot) return
+    const body = entryBody.trim() || entryTitle.trim() || 'Evidence attached.'
+    try {
+      const entry = await window.qaScribe.createEntry({
+        sessionId: snapshot.session.id,
+        type: 'note',
+        title: entryTitle,
+        body,
+        metadataJson: entryMetadataJson
+      })
+      const attachment = await window.qaScribe.importAttachment(snapshot.session.id, entry.id)
+      if (!attachment) {
+        await window.qaScribe.deleteEntry(entry.id)
+        return
+      }
+      resetCaptureDrafts()
+      await openSession(snapshot.session.id)
+      setSelectedEntryId(entry.id)
+      flash('Evidence attached')
+    } catch (error) {
+      flashError(error, 'Evidence could not be attached')
     }
   }
 
@@ -698,14 +723,12 @@ export function App(): ReactElement {
   function validateSessionDraftForAction(): boolean {
     const result = validateSessionRequirements(sessionDraft)
     setSessionRequirementErrors(result.missing)
-    if (!result.valid) flash('Complete required Session fields')
+    if (!result.valid) flash('Add a Session title before continuing')
     return result.valid
   }
 
   function sessionFieldError(key: SessionRequirementKey): string | null {
     if (!sessionRequirementErrors.includes(key)) return null
-    if (key === 'testObjective') return 'Test Objective is required.'
-    if (key === 'testTarget') return 'Test Target is required.'
     return 'Title is required.'
   }
 
@@ -731,7 +754,7 @@ export function App(): ReactElement {
             <header className="topbar">
               <div>
                 <h1>{snapshot.session.title}</h1>
-                <p>{snapshot.session.testTarget || 'Set a Test Target before capture'}</p>
+                <p>{snapshot.session.testTarget || snapshot.session.charter || 'Capture notes, evidence, and findings'}</p>
               </div>
               <div className="topbar-actions">
                 <StatusPill providerStatus={providerStatus} />
@@ -811,6 +834,7 @@ export function App(): ReactElement {
                     onAddEntry={addEntry}
                     onAddFinding={addFinding}
                     onAttach={importAttachment}
+                    onAttachToDraft={attachToDraftNote}
                     onCreateFinding={createFindingFromEntry}
                     onDelete={deleteEntry}
                     onSelect={setSelectedEntryId}

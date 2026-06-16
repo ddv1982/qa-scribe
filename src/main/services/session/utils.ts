@@ -18,9 +18,7 @@ export function defaultReasoningEffort(provider: AiProviderId): ReasoningEffort 
 
 export function formatRequirementLabels(keys: SessionRequirementKey[]): string {
   const labels: Record<SessionRequirementKey, string> = {
-    title: 'Title',
-    testTarget: 'Test Target',
-    testObjective: 'Test Objective'
+    title: 'Title'
   }
   return keys.map((key) => labels[key]).join(', ')
 }

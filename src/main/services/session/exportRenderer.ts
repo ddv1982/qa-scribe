@@ -9,8 +9,8 @@ export function renderSessionExport(snapshot: SessionSnapshot, format: 'markdown
   const lines = [
     `# ${snapshot.session.title}`,
     '',
-    `- Test Target: ${snapshot.session.testTarget ?? ''}`,
-    `- Test Objective: ${snapshot.session.charter ?? ''}`,
+    `- Context: ${snapshot.session.testTarget ?? ''}`,
+    `- Objective/Notes: ${snapshot.session.charter ?? ''}`,
     `- Environment: ${snapshot.session.environment ?? ''}`,
     `- Build/Version: ${snapshot.session.buildVersion ?? ''}`,
     `- Related Reference: ${snapshot.session.relatedReference ?? ''}`,

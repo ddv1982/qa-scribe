@@ -64,7 +64,7 @@ export function GenerationReviewPane(props: {
 
       <div className="context-summary">
         <SummaryItem label="Session" value={props.session.title} />
-        <SummaryItem label="Target" value={props.session.testTarget || 'Not set'} />
+        <SummaryItem label="Context" value={props.session.testTarget || 'Not set'} />
         <SummaryItem label="Providers" value={providerSummary(props.providerStatus)} />
       </div>
 
