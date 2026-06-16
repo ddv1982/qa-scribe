@@ -12,6 +12,7 @@ export function cleanNullable(value: string | null | undefined): string | null {
 export function defaultReasoningEffort(provider: AiProviderId): ReasoningEffort | null {
   if (provider === 'codex_cli') return 'high'
   if (provider === 'claude_code') return 'medium'
+  if (provider === 'copilot_cli') return null
   return null
 }
 

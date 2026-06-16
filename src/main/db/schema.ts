@@ -102,9 +102,11 @@ export const aiRuns = sqliteTable('ai_runs', {
     .notNull()
     .references(() => sessions.id, { onDelete: 'cascade' }),
   generationContextId: text('generation_context_id').references(() => generationContexts.id, { onDelete: 'set null' }),
-  provider: text('provider', { enum: ['apple_intelligence', 'claude_code', 'codex_cli', 'openai_legacy'] }).notNull(),
+  provider: text('provider', {
+    enum: ['apple_intelligence', 'claude_code', 'codex_cli', 'copilot_cli']
+  }).notNull(),
   model: text('model').notNull(),
-  reasoningEffort: text('reasoning_effort', { enum: ['minimal', 'low', 'medium', 'high', 'xhigh'] }),
+  reasoningEffort: text('reasoning_effort', { enum: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'] }),
   promptVersion: text('prompt_version').notNull(),
   status: text('status', { enum: ['running', 'completed', 'failed'] }).notNull(),
   errorMessage: text('error_message'),

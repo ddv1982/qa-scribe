@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react'
-import { Archive, Check, FileJson, FileText, Loader2, PanelRightOpen, Plus, Sparkles } from 'lucide-react'
-import { validateSessionRequirements } from '../../shared/contracts'
+import { FileJson, FileText, Loader2, PanelRightOpen, Plus, Sparkles } from 'lucide-react'
+import { defaultReasoningEffortFor, reasoningEffortsFor, validateSessionRequirements } from '../../shared/contracts'
 import type {
   Entry,
   EntryType,
@@ -20,9 +20,10 @@ import {
   GenerationReviewPane,
   ModeTabs,
   SessionInspector,
-  StatusPill,
-  TextField
+  StatusPill
 } from './components/AppSections'
+import { SessionSetupPanel, type SessionAutosaveStatus } from './components/SessionSetupPanel'
+import { SessionSidebar } from './components/SessionSidebar'
 import { buildGenerationOptions, normalizeContextRows } from './domain/generation'
 import {
   createLocalReviewDraft,
@@ -48,7 +49,7 @@ import type {
   WorkspaceMode
 } from './domain/types'
 
-type AutosaveStatus = 'idle' | 'saving' | 'saved' | 'error'
+type AutosaveStatus = SessionAutosaveStatus
 
 export function App(): ReactElement {
   const [sessions, setSessions] = useState<Session[]>([])
@@ -99,6 +100,14 @@ export function App(): ReactElement {
     () => availableProviders.find((provider) => provider.provider === selectedProvider) ?? null,
     [availableProviders, selectedProvider]
   )
+  const selectedReasoningEfforts = useMemo(
+    () => (selectedProviderStatus ? reasoningEffortsFor(selectedProviderStatus, selectedModel) : []),
+    [selectedModel, selectedProviderStatus]
+  )
+  const selectedDefaultReasoningEffort = useMemo(
+    () => (selectedProviderStatus ? defaultReasoningEffortFor(selectedProviderStatus, selectedModel) : null),
+    [selectedModel, selectedProviderStatus]
+  )
 
   useEffect(() => {
     if (!providerStatus) return
@@ -131,7 +140,8 @@ export function App(): ReactElement {
     const nextModel = preferredModel ?? selectedProviderStatus.defaultModel ?? selectedProviderStatus.models[0] ?? ''
     setSelectedModel(nextModel)
 
-    if (selectedProviderStatus.reasoningEfforts.length === 0) {
+    const reasoningEfforts = reasoningEffortsFor(selectedProviderStatus, nextModel)
+    if (reasoningEfforts.length === 0) {
       setSelectedReasoningEffort(null)
       return
     }
@@ -143,11 +153,22 @@ export function App(): ReactElement {
           ? providerStatus.selectedReasoningEffort
           : null
     const nextReasoningEffort =
-      preferredReasoningEffort && selectedProviderStatus.reasoningEfforts.includes(preferredReasoningEffort)
+      preferredReasoningEffort && reasoningEfforts.includes(preferredReasoningEffort)
         ? preferredReasoningEffort
-        : selectedProviderStatus.defaultReasoningEffort ?? selectedProviderStatus.reasoningEfforts[0] ?? null
+        : defaultReasoningEffortFor(selectedProviderStatus, nextModel) ?? reasoningEfforts[0] ?? null
     setSelectedReasoningEffort(nextReasoningEffort)
   }, [providerStatus, selectedProviderStatus])
+
+  useEffect(() => {
+    if (!selectedProviderStatus) return
+    if (selectedReasoningEfforts.length === 0) {
+      setSelectedReasoningEffort(null)
+      return
+    }
+    if (selectedReasoningEffort === null) return
+    if (selectedReasoningEffort && selectedReasoningEfforts.includes(selectedReasoningEffort)) return
+    setSelectedReasoningEffort(selectedDefaultReasoningEffort ?? selectedReasoningEfforts[0] ?? null)
+  }, [selectedDefaultReasoningEffort, selectedProviderStatus, selectedReasoningEffort, selectedReasoningEfforts])
 
   useEffect(() => {
     if (!selectedProvider) return
@@ -690,31 +711,12 @@ export function App(): ReactElement {
 
   return (
     <main className="app-shell">
-      <aside className="session-sidebar" aria-label="Session Library">
-        <div className="sidebar-title">
-          <Archive size={18} />
-          <span>qa-scribe</span>
-        </div>
-
-        <button className="primary-command" onClick={createSession} type="button">
-          <Plus size={17} />
-          New Session
-        </button>
-
-        <div className="session-list">
-          {sessions.map((session) => (
-            <button
-              className={session.id === snapshot?.session.id ? 'session-row selected' : 'session-row'}
-              key={session.id}
-              onClick={() => openSession(session.id)}
-              type="button"
-            >
-              <span>{session.title}</span>
-              <small>{session.testTarget || 'No target'}</small>
-            </button>
-          ))}
-        </div>
-      </aside>
+      <SessionSidebar
+        sessions={sessions}
+        selectedSessionId={snapshot?.session.id ?? null}
+        onCreateSession={createSession}
+        onOpenSession={openSession}
+      />
 
       <section className="workspace">
         {snapshot ? (
@@ -741,69 +743,16 @@ export function App(): ReactElement {
               </div>
             </header>
 
-            <section className="session-setup" aria-label="Session setup">
-              <div className="session-required-fields">
-                <TextField
-                  error={sessionFieldError('title')}
-                  label="Title"
-                  required
-                  value={sessionDraft.title ?? ''}
-                  onChange={(value) => updateSessionDraft({ title: value })}
-                />
-                <TextField
-                  error={sessionFieldError('testTarget')}
-                  label="Test Target"
-                  required
-                  value={sessionDraft.testTarget ?? ''}
-                  onChange={(value) => updateSessionDraft({ testTarget: value })}
-                />
-                <TextField
-                  error={sessionFieldError('testObjective')}
-                  label="Test Objective"
-                  multiline
-                  required
-                  value={sessionDraft.charter ?? ''}
-                  onChange={(value) => updateSessionDraft({ charter: value })}
-                />
-              </div>
-
-              <details
-                className="session-more-details"
-                open={moreDetailsOpen}
-                onToggle={(event) => setMoreDetailsOpen(event.currentTarget.open)}
-              >
-                <summary>Optional details</summary>
-                <div className="session-optional-fields">
-                  <TextField
-                    label="Environment"
-                    optional
-                    value={sessionDraft.environment ?? ''}
-                    onChange={(value) => updateSessionDraft({ environment: value })}
-                  />
-                  <TextField
-                    label="Build"
-                    optional
-                    value={sessionDraft.buildVersion ?? ''}
-                    onChange={(value) => updateSessionDraft({ buildVersion: value })}
-                  />
-                  <TextField
-                    label="Related Reference"
-                    optional
-                    value={sessionDraft.relatedReference ?? ''}
-                    onChange={(value) => updateSessionDraft({ relatedReference: value })}
-                  />
-                </div>
-              </details>
-
-              <div className="session-setup-actions">
-                <span className={`autosave-status ${sessionAutosaveStatus}`} role="status">
-                  {autosaveLabel(sessionAutosaveStatus)}
-                </span>
-                <button className="icon-command confirmed" title="Save session" type="button" onClick={saveSession}>
-                  <Check size={17} />
-                </button>
-              </div>
-            </section>
+            <SessionSetupPanel
+              autosaveLabel={autosaveLabel(sessionAutosaveStatus)}
+              autosaveStatus={sessionAutosaveStatus}
+              draft={sessionDraft}
+              fieldError={sessionFieldError}
+              moreDetailsOpen={moreDetailsOpen}
+              onMoreDetailsToggle={setMoreDetailsOpen}
+              onSave={saveSession}
+              onUpdateDraft={updateSessionDraft}
+            />
 
             <section className="detail-grid">
               <div className="timeline-pane">

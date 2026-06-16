@@ -451,7 +451,7 @@ describe('SessionService', () => {
         sessionId: session.id,
         generationContextId: review.context.id,
         provider: 'codex_cli',
-        model: 'gpt-5.5',
+        model: 'gpt-5.4',
         reasoningEffort: 'high',
         status: 'failed',
         errorMessage: 'codex was not found on PATH.'
@@ -548,55 +548,67 @@ describe('SessionService', () => {
   })
 
   it('reports provider statuses from local tool detection', async () => {
-    const originalAppleHelper = process.env.QA_SCRIBE_APPLE_INTELLIGENCE_HELPER
-    delete process.env.QA_SCRIBE_APPLE_INTELLIGENCE_HELPER
-    try {
-      const { service } = createHarness(undefined, missingCommandRunner)
+    const { service } = createHarness(undefined, missingCommandRunner)
 
-      await expect(service.getProviderStatus()).resolves.toEqual(
-        expect.objectContaining({
-          selectedProvider: null,
-          selectedModel: null,
-          selectedReasoningEffort: null,
-          providers: expect.arrayContaining([
-            expect.objectContaining({
-              provider: 'apple_intelligence',
-              label: 'Apple Intelligence',
-              available: false,
-              reason: 'Apple Intelligence native helper is not bundled or configured.',
-              models: ['system-language-model'],
-              defaultModel: 'system-language-model',
-              reasoningEfforts: []
-            }),
-            expect.objectContaining({
-              provider: 'claude_code',
-              label: 'Claude Code',
-              available: false,
-              reason: 'claude was not found on PATH.',
-              reasoningEfforts: ['low', 'medium', 'high'],
-              defaultReasoningEffort: 'medium'
-            }),
-            expect.objectContaining({
-              provider: 'codex_cli',
-              label: 'Codex CLI',
-              available: false,
-              reason: 'codex was not found on PATH.',
-              defaultModel: 'gpt-5.5',
-              reasoningEfforts: ['low', 'medium', 'high', 'xhigh'],
-              defaultReasoningEffort: 'high'
-            }),
-            expect.objectContaining({
-              provider: 'openai_legacy',
-              label: 'OpenAI Legacy',
-              available: false
-            })
-          ])
-        })
-      )
-    } finally {
-      if (originalAppleHelper === undefined) delete process.env.QA_SCRIBE_APPLE_INTELLIGENCE_HELPER
-      else process.env.QA_SCRIBE_APPLE_INTELLIGENCE_HELPER = originalAppleHelper
-    }
+    await expect(service.getProviderStatus()).resolves.toEqual(
+      expect.objectContaining({
+        selectedProvider: null,
+        selectedModel: null,
+        selectedReasoningEffort: null,
+        providers: expect.arrayContaining([
+          expect.objectContaining({
+            provider: 'claude_code',
+            label: 'Claude Code',
+            available: false,
+            reason: 'claude was not found on PATH.',
+            capabilities: {
+              optionDescriptors: [
+                expect.objectContaining({
+                  id: 'reasoningEffort',
+                  defaultValue: 'medium',
+                  options: [
+                    { value: 'low', label: 'Low' },
+                    { value: 'medium', label: 'Medium' },
+                    { value: 'high', label: 'High' },
+                    { value: 'xhigh', label: 'Extra high' },
+                    { value: 'max', label: 'Max' }
+                  ]
+                })
+              ]
+            }
+          }),
+          expect.objectContaining({
+            provider: 'codex_cli',
+            label: 'Codex CLI',
+            available: false,
+            reason: 'codex was not found on PATH.',
+            defaultModel: 'gpt-5.4',
+            capabilities: {
+              optionDescriptors: [
+                expect.objectContaining({
+                  id: 'reasoningEffort',
+                  defaultValue: 'high',
+                  options: [
+                    { value: 'low', label: 'Low' },
+                    { value: 'medium', label: 'Medium' },
+                    { value: 'high', label: 'High' },
+                    { value: 'xhigh', label: 'Extra high' }
+                  ]
+                })
+              ]
+            }
+          }),
+          expect.objectContaining({
+            provider: 'copilot_cli',
+            label: 'GitHub Copilot CLI',
+            available: false,
+            reason: 'copilot was not found on PATH.',
+            defaultModel: 'auto',
+            capabilities: { optionDescriptors: [] }
+          })
+        ])
+      })
+    )
   })
 
   it('records the applied database schema version', () => {

@@ -50,7 +50,7 @@ The MVP should include:
 - Generation Context review before provider calls.
 - One editable Session Report Draft generated from a Session.
 - Jira Bug Draft sections inside the generated Session Report Draft.
-- Local AI provider detection for already-authenticated Codex CLI, Claude Code, and Apple Intelligence bridge support.
+- Local AI provider detection for already-authenticated Codex CLI, Claude Code, and GitHub Copilot CLI support.
 - Local capture remains fully usable without AI configuration.
 - Apple-inspired visual direction with adaptive light/dark theming.
 - Minimal sidebar-first workspace with contextual inspector.
@@ -93,7 +93,7 @@ Out of scope for MVP:
 - Database: SQLite.
 - Database access: Drizzle ORM with `better-sqlite3` in Electron main.
 - Validation: Zod.
-- AI: local provider adapters in Electron main for Codex CLI, Claude Code, and Apple Intelligence bridge support.
+- AI: local provider adapters in Electron main for Codex CLI, Claude Code, and GitHub Copilot CLI support.
 - Testing: Vitest, Testing Library, and focused main-process tests.
 - Packaging: electron-builder or Electron Forge, to be chosen during the packaging spike.
 

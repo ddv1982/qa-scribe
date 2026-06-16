@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { copyFileSync, mkdirSync, readFileSync, statSync } from 'node:fs'
 import { basename } from 'node:path'
-import { and, desc, eq } from 'drizzle-orm'
+import { desc, eq } from 'drizzle-orm'
 import type {
   AiRun,
   AiProviderId,
@@ -38,6 +38,8 @@ import {
   findingPatchSchema,
   generationOptionsSchema,
   idSchema,
+  defaultReasoningEffortFor,
+  reasoningEffortsFor,
   sessionDraftSchema,
   sessionPatchSchema,
   validateSessionRequirements
@@ -50,9 +52,6 @@ import {
   entries,
   evidenceLinks,
   findings,
-  generationContextAttachments,
-  generationContextEntries,
-  generationContexts,
   sessions
 } from '../db/schema'
 import {
@@ -62,14 +61,26 @@ import {
   type CommandRunner
 } from './aiProviders'
 import { guessMimeType, resolveAttachmentStorageDestination, resolveStoredAttachmentPath } from './session/attachmentStorage'
+import {
+  completeAiRun,
+  createAiRun,
+  createGeneratedDraft,
+  failAiRun
+} from './session/aiRuns'
 import { renderSessionExport } from './session/exportRenderer'
 import {
   buildGenerationPrompt,
   generatedReportJsonSchema,
   generatedReportSchema,
-  promptVersion,
   renderGeneratedReport
 } from './session/generation'
+import {
+  createGenerationContext as createGenerationContextReview,
+  getGenerationContextReview,
+  updateGenerationContextAttachment as updateGenerationContextAttachmentReview,
+  updateGenerationContextEntry as updateGenerationContextEntryReview,
+  type GenerationContextDeps
+} from './session/generationContext'
 import {
   mapAiRun,
   mapAttachment,
@@ -77,7 +88,6 @@ import {
   mapEntry,
   mapEvidenceLink,
   mapFinding,
-  mapGenerationContext,
   mapSession,
   type RawEvidenceLink
 } from './session/mappers'
@@ -504,98 +514,19 @@ export class SessionService {
   }
 
   createGenerationContext(sessionId: string): GenerationContextReview {
-    const parsedSessionId = idSchema.parse(sessionId)
-    this.assertSessionExists(parsedSessionId)
-    const now = isoNow()
-    const [context] = this.client.db
-      .insert(generationContexts)
-      .values({
-        id: randomUUID(),
-        sessionId: parsedSessionId,
-        createdAt: now
-      })
-      .returning()
-      .all()
-
-    for (const entry of this.listEntries(parsedSessionId)) {
-      this.client.db
-        .insert(generationContextEntries)
-        .values({
-          id: randomUUID(),
-          generationContextId: context.id,
-          entryId: entry.id,
-          included: !entry.excludedFromGeneration
-        })
-        .run()
-    }
-
-    for (const attachment of this.listAttachments(parsedSessionId).filter((value) => value.entryId === null)) {
-      this.client.db
-        .insert(generationContextAttachments)
-        .values({
-          id: randomUUID(),
-          generationContextId: context.id,
-          attachmentId: attachment.id,
-          included: true
-        })
-        .run()
-    }
-
-    return this.getGenerationContextReview(context.id)
+    return createGenerationContextReview(this.generationContextDeps(), sessionId)
   }
 
   updateGenerationContextEntry(contextId: string, entryId: string, included: boolean): GenerationContextReview {
-    const parsedContextId = idSchema.parse(contextId)
-    const parsedEntryId = idSchema.parse(entryId)
-    const existing = this.client.db
-      .select()
-      .from(generationContextEntries)
-      .where(
-        and(
-          eq(generationContextEntries.generationContextId, parsedContextId),
-          eq(generationContextEntries.entryId, parsedEntryId)
-        )
-      )
-      .get()
-
-    if (!existing) throw new Error(`Entry not found in Generation Context: ${parsedEntryId}`)
-
-    this.client.db
-      .update(generationContextEntries)
-      .set({ included })
-      .where(eq(generationContextEntries.id, existing.id))
-      .run()
-
-    return this.getGenerationContextReview(parsedContextId)
+    return updateGenerationContextEntryReview(this.generationContextDeps(), contextId, entryId, included)
   }
 
   updateGenerationContextAttachment(contextId: string, attachmentId: string, included: boolean): GenerationContextReview {
-    const parsedContextId = idSchema.parse(contextId)
-    const parsedAttachmentId = idSchema.parse(attachmentId)
-    const existing = this.client.db
-      .select()
-      .from(generationContextAttachments)
-      .where(
-        and(
-          eq(generationContextAttachments.generationContextId, parsedContextId),
-          eq(generationContextAttachments.attachmentId, parsedAttachmentId)
-        )
-      )
-      .get()
-
-    if (!existing) throw new Error(`Attachment not found in Generation Context: ${parsedAttachmentId}`)
-
-    this.client.db
-      .update(generationContextAttachments)
-      .set({ included })
-      .where(eq(generationContextAttachments.id, existing.id))
-      .run()
-
-    return this.getGenerationContextReview(parsedContextId)
+    return updateGenerationContextAttachmentReview(this.generationContextDeps(), contextId, attachmentId, included)
   }
 
   async generateTestware(contextId: string, options?: GenerationOptions): Promise<GenerationResult> {
-    const review = this.getGenerationContextReview(idSchema.parse(contextId))
+    const review = getGenerationContextReview(this.generationContextDeps(), idSchema.parse(contextId))
     const requirements = validateSessionRequirements(review.session)
     if (!requirements.valid) {
       throw new Error(`Complete required Session fields before generating: ${formatRequirementLabels(requirements.missing)}`)
@@ -605,26 +536,26 @@ export class SessionService {
     const status = (await this.getProviderStatus()).providers.find((item) => item.provider === generationOptions.provider)
     if (!status?.available) {
       const errorMessage = status?.reason ?? `${generationOptions.provider} is not available.`
-      this.createAiRun(
-        review.context.sessionId,
-        review.context.id,
-        generationOptions.provider,
-        generationOptions.model,
-        generationOptions.reasoningEffort,
-        'failed',
+      createAiRun(this.client, {
+        sessionId: review.context.sessionId,
+        generationContextId: review.context.id,
+        provider: generationOptions.provider,
+        model: generationOptions.model,
+        reasoningEffort: generationOptions.reasoningEffort,
+        status: 'failed',
         errorMessage
-      )
+      })
       throw new Error(errorMessage)
     }
 
-    const aiRun = this.createAiRun(
-      review.context.sessionId,
-      review.context.id,
-      generationOptions.provider,
-      generationOptions.model,
-      generationOptions.reasoningEffort,
-      'running'
-    )
+    const aiRun = createAiRun(this.client, {
+      sessionId: review.context.sessionId,
+      generationContextId: review.context.id,
+      provider: generationOptions.provider,
+      model: generationOptions.model,
+      reasoningEffort: generationOptions.reasoningEffort,
+      status: 'running'
+    })
 
     try {
       const output = await generateStructuredOutput(
@@ -638,11 +569,11 @@ export class SessionService {
         this.commandRunner
       )
       const report = generatedReportSchema.parse(output)
-      const completedRun = this.completeAiRun(aiRun.id)
-      const draft = this.createGeneratedDraft(review.context.sessionId, completedRun.id, renderGeneratedReport(report))
+      const completedRun = completeAiRun(this.client, aiRun.id)
+      const draft = createGeneratedDraft(this.client, review.context.sessionId, completedRun.id, renderGeneratedReport(report))
       return { aiRun: completedRun, draft }
     } catch (error) {
-      this.failAiRun(aiRun.id, error instanceof Error ? error.message : 'Unknown AI provider error')
+      failAiRun(this.client, aiRun.id, error instanceof Error ? error.message : 'Unknown AI provider error')
       throw error
     }
   }
@@ -665,143 +596,19 @@ export class SessionService {
       providers,
       selectedProvider,
       selectedModel: selectedStatus?.defaultModel ?? null,
-      selectedReasoningEffort: selectedStatus?.defaultReasoningEffort ?? null
+      selectedReasoningEffort: selectedStatus ? defaultReasoningEffortFor(selectedStatus, selectedStatus.defaultModel) : null
     }
   }
 
-  private getGenerationContextReview(contextId: string): GenerationContextReview {
-    const parsedContextId = idSchema.parse(contextId)
-    const context = this.client.db
-      .select()
-      .from(generationContexts)
-      .where(eq(generationContexts.id, parsedContextId))
-      .get()
-    if (!context) throw new Error(`Generation Context not found: ${parsedContextId}`)
-
-    const session = this.client.db.select().from(sessions).where(eq(sessions.id, context.sessionId)).get()
-    if (!session) throw new Error(`Session not found: ${context.sessionId}`)
-
-    const contextEntries = this.client.db
-      .select()
-      .from(generationContextEntries)
-      .where(eq(generationContextEntries.generationContextId, parsedContextId))
-      .all()
-    const contextEntryByEntryId = new Map(contextEntries.map((entry) => [entry.entryId, entry]))
-    const contextAttachments = this.client.db
-      .select()
-      .from(generationContextAttachments)
-      .where(eq(generationContextAttachments.generationContextId, parsedContextId))
-      .all()
-    const contextAttachmentByAttachmentId = new Map(
-      contextAttachments.map((attachment) => [attachment.attachmentId, attachment])
-    )
-    const attachmentsForSession = this.listAttachments(context.sessionId)
-
+  private generationContextDeps(): GenerationContextDeps {
     return {
-      context: mapGenerationContext(context),
-      session: mapSession(session),
-      entries: this.listEntries(context.sessionId)
-        .filter((entry) => contextEntryByEntryId.has(entry.id))
-        .map((entry) => ({
-          entry,
-          included: Boolean(contextEntryByEntryId.get(entry.id)?.included),
-          attachments: attachmentsForSession.filter((attachment) => attachment.entryId === entry.id)
-        })),
-      attachments: attachmentsForSession
-        .filter((attachment) => attachment.entryId === null && contextAttachmentByAttachmentId.has(attachment.id))
-        .map((attachment) => ({
-          attachment,
-          included: Boolean(contextAttachmentByAttachmentId.get(attachment.id)?.included)
-        })),
-      findings: this.listFindings(context.sessionId).map((finding) => ({
-        finding,
-        evidenceLinks: this.listEvidenceLinks(context.sessionId).filter((link) => link.findingId === finding.id)
-      }))
+      client: this.client,
+      listEntries: (sessionId) => this.listEntries(sessionId),
+      listAttachments: (sessionId) => this.listAttachments(sessionId),
+      listFindings: (sessionId) => this.listFindings(sessionId),
+      listEvidenceLinks: (sessionId) => this.listEvidenceLinks(sessionId),
+      assertSessionExists: (sessionId) => this.assertSessionExists(sessionId)
     }
-  }
-
-  private createAiRun(
-    sessionId: string,
-    generationContextId: string,
-    provider: AiProviderId,
-    model: string,
-    reasoningEffort: ReasoningEffort | null,
-    status: 'running' | 'completed' | 'failed',
-    errorMessage: string | null = null
-  ): AiRun {
-    const now = isoNow()
-    const [run] = this.client.db
-      .insert(aiRuns)
-      .values({
-        id: randomUUID(),
-        sessionId,
-        generationContextId,
-        provider,
-        model,
-        reasoningEffort,
-        promptVersion,
-        status,
-        errorMessage,
-        createdAt: now,
-        completedAt: status === 'running' ? null : now
-      })
-      .returning()
-      .all()
-
-    this.touchSession(sessionId)
-    return mapAiRun(run)
-  }
-
-  private completeAiRun(id: string): AiRun {
-    const runId = idSchema.parse(id)
-    const [run] = this.client.db
-      .update(aiRuns)
-      .set({
-        status: 'completed',
-        errorMessage: null,
-        completedAt: isoNow()
-      })
-      .where(eq(aiRuns.id, runId))
-      .returning()
-      .all()
-    this.touchSession(run.sessionId)
-    return mapAiRun(run)
-  }
-
-  private failAiRun(id: string, errorMessage: string): AiRun {
-    const runId = idSchema.parse(id)
-    const [run] = this.client.db
-      .update(aiRuns)
-      .set({
-        status: 'failed',
-        errorMessage,
-        completedAt: isoNow()
-      })
-      .where(eq(aiRuns.id, runId))
-      .returning()
-      .all()
-    this.touchSession(run.sessionId)
-    return mapAiRun(run)
-  }
-
-  private createGeneratedDraft(sessionId: string, aiRunId: string, body: string): Draft {
-    const now = isoNow()
-    const [draft] = this.client.db
-      .insert(drafts)
-      .values({
-        id: randomUUID(),
-        sessionId,
-        aiRunId,
-        kind: 'session_report',
-        title: 'Generated Session Report',
-        body,
-        createdAt: now,
-        updatedAt: now
-      })
-      .returning()
-      .all()
-    this.touchSession(sessionId)
-    return mapDraft(draft)
   }
 
   private assertSessionExists(sessionId: string): void {
@@ -823,16 +630,17 @@ export class SessionService {
     const provider = options.provider ?? providerStatus.selectedProvider ?? 'codex_cli'
     const selectedStatus = providerStatus.providers.find((status) => status.provider === provider)
     const defaultModel = selectedStatus?.defaultModel ?? defaultProviderModels[provider]
-    const defaultReasoning = selectedStatus?.defaultReasoningEffort ?? defaultReasoningEffort(provider)
+    const model = options.model?.trim() || defaultModel
+    const defaultReasoning = selectedStatus ? defaultReasoningEffortFor(selectedStatus, model) : defaultReasoningEffort(provider)
     const reasoningEffort = options.reasoningEffort === undefined ? defaultReasoning : options.reasoningEffort
 
-    if (reasoningEffort && selectedStatus && !selectedStatus.reasoningEfforts.includes(reasoningEffort)) {
+    if (reasoningEffort && selectedStatus && !reasoningEffortsFor(selectedStatus, model).includes(reasoningEffort)) {
       throw new Error(`${selectedStatus.label} does not support ${reasoningEffort} reasoning effort.`)
     }
 
     return {
       provider,
-      model: options.model?.trim() || defaultModel,
+      model,
       reasoningEffort
     }
   }

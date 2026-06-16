@@ -91,11 +91,48 @@ export type EntryDraft = z.infer<typeof entryDraftSchema>
 export const entryPatchSchema = entryDraftSchema.partial().omit({ sessionId: true })
 export type EntryPatch = z.infer<typeof entryPatchSchema>
 
-export const aiProviderIdSchema = z.enum(['apple_intelligence', 'claude_code', 'codex_cli', 'openai_legacy'])
+export const aiProviderIdSchema = z.enum(['claude_code', 'codex_cli', 'copilot_cli'])
 export type AiProviderId = z.infer<typeof aiProviderIdSchema>
 
-export const reasoningEffortSchema = z.enum(['minimal', 'low', 'medium', 'high', 'xhigh'])
+export const aiRunProviderIdSchema = z.enum([
+  'apple_intelligence',
+  'claude_code',
+  'codex_cli',
+  'copilot_cli'
+])
+export type AiRunProviderId = z.infer<typeof aiRunProviderIdSchema>
+
+export const reasoningEffortSchema = z.enum(['minimal', 'low', 'medium', 'high', 'xhigh', 'max'])
 export type ReasoningEffort = z.infer<typeof reasoningEffortSchema>
+
+export const providerOptionIdSchema = z.enum(['reasoningEffort'])
+export type ProviderOptionId = z.infer<typeof providerOptionIdSchema>
+
+export const providerOptionDescriptorSchema = z.object({
+  id: providerOptionIdSchema,
+  type: z.literal('select'),
+  label: z.string(),
+  options: z.array(
+    z.object({
+      value: reasoningEffortSchema,
+      label: z.string()
+    })
+  ),
+  defaultValue: reasoningEffortSchema.nullable()
+})
+export type ProviderOptionDescriptor = z.infer<typeof providerOptionDescriptorSchema>
+
+export const providerCapabilitiesSchema = z.object({
+  optionDescriptors: z.array(providerOptionDescriptorSchema)
+})
+export type ProviderCapabilities = z.infer<typeof providerCapabilitiesSchema>
+
+export const aiModelDescriptorSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  capabilities: providerCapabilitiesSchema
+})
+export type AiModelDescriptor = z.infer<typeof aiModelDescriptorSchema>
 
 export const aiProviderStatusSchema = z.object({
   provider: aiProviderIdSchema,
@@ -103,13 +140,52 @@ export const aiProviderStatusSchema = z.object({
   available: z.boolean(),
   reason: z.string().nullable(),
   models: z.array(z.string()),
+  modelDescriptors: z.array(aiModelDescriptorSchema),
   defaultModel: z.string().nullable(),
   reasoningEfforts: z.array(reasoningEffortSchema),
   defaultReasoningEffort: reasoningEffortSchema.nullable(),
+  capabilities: providerCapabilitiesSchema,
   localOnly: z.boolean(),
   requiresNetwork: z.boolean()
 })
 export type AiProviderStatus = z.infer<typeof aiProviderStatusSchema>
+
+export function reasoningEffortDescriptor(
+  provider: Pick<AiProviderStatus, 'capabilities' | 'modelDescriptors'>,
+  model?: string | null
+): ProviderOptionDescriptor | null {
+  const capabilities = modelCapabilitiesFor(provider, model)
+  return capabilities.optionDescriptors.find((descriptor) => descriptor.id === 'reasoningEffort') ?? null
+}
+
+export function reasoningEffortsFor(
+  provider: Pick<AiProviderStatus, 'capabilities' | 'modelDescriptors'>,
+  model?: string | null
+): ReasoningEffort[] {
+  return reasoningEffortDescriptor(provider, model)?.options.map((option) => option.value) ?? []
+}
+
+export function defaultReasoningEffortFor(
+  provider: Pick<AiProviderStatus, 'capabilities' | 'modelDescriptors'>,
+  model?: string | null
+): ReasoningEffort | null {
+  return reasoningEffortDescriptor(provider, model)?.defaultValue ?? null
+}
+
+export function modelDescriptorFor(
+  provider: Pick<AiProviderStatus, 'modelDescriptors'>,
+  model?: string | null
+): AiModelDescriptor | null {
+  const selectedModel = model?.trim()
+  return selectedModel ? provider.modelDescriptors.find((descriptor) => descriptor.id === selectedModel) ?? null : null
+}
+
+export function modelCapabilitiesFor(
+  provider: Pick<AiProviderStatus, 'capabilities' | 'modelDescriptors'>,
+  model?: string | null
+): ProviderCapabilities {
+  return modelDescriptorFor(provider, model)?.capabilities ?? provider.capabilities
+}
 
 export const providerStatusSchema = z.object({
   providers: z.array(aiProviderStatusSchema),
@@ -206,7 +282,7 @@ export const aiRunSchema = z.object({
   id: z.string(),
   sessionId: z.string(),
   generationContextId: z.string().nullable(),
-  provider: aiProviderIdSchema,
+  provider: aiRunProviderIdSchema,
   model: z.string(),
   reasoningEffort: reasoningEffortSchema.nullable(),
   promptVersion: z.string(),

@@ -5,6 +5,7 @@ import type {
   ReasoningEffort,
   SessionSnapshot
 } from '../../../shared/contracts'
+import { reasoningEffortsFor } from '../../../shared/contracts'
 import type { ContextRow } from './types'
 
 export function buildGenerationOptions(
@@ -17,7 +18,7 @@ export function buildGenerationOptions(
   return {
     provider: provider.provider,
     ...(trimmedModel ? { model: trimmedModel } : {}),
-    reasoningEffort: provider.reasoningEfforts.length > 0 ? reasoningEffort : null
+    reasoningEffort: reasoningEffortsFor(provider, trimmedModel).length > 0 ? reasoningEffort : null
   }
 }
 
