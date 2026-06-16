@@ -11,7 +11,7 @@ export const generatedReportSchema = z.object({
     z.object({
       title: z.string(),
       status: z.enum(['passed', 'failed', 'blocked', 'unknown']),
-      notes: z.string().optional()
+      notes: z.string().nullable().optional()
     })
   ),
   findings: z.array(z.string()),
@@ -21,7 +21,7 @@ export const generatedReportSchema = z.object({
       stepsToReproduce: z.array(z.string()),
       expectedResult: z.string(),
       actualResult: z.string(),
-      evidence: z.array(z.string()).optional()
+      evidence: z.array(z.string()).nullable().optional()
     })
   ),
   openQuestions: z.array(z.string()),
@@ -33,7 +33,7 @@ export const generatedReportSchema = z.object({
       stepsToReproduce: z.array(z.string()),
       expectedResult: z.string(),
       actualResult: z.string(),
-      evidence: z.array(z.string()).optional()
+      evidence: z.array(z.string()).nullable().optional()
     })
   )
 })
@@ -59,11 +59,11 @@ export const generatedReportJsonSchema = {
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['title', 'status'],
+        required: ['title', 'status', 'notes'],
         properties: {
           title: { type: 'string' },
           status: { type: 'string', enum: ['passed', 'failed', 'blocked', 'unknown'] },
-          notes: { type: 'string' }
+          notes: { type: ['string', 'null'] }
         }
       }
     },
@@ -73,13 +73,13 @@ export const generatedReportJsonSchema = {
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['title', 'stepsToReproduce', 'expectedResult', 'actualResult'],
+        required: ['title', 'stepsToReproduce', 'expectedResult', 'actualResult', 'evidence'],
         properties: {
           title: { type: 'string' },
           stepsToReproduce: { type: 'array', items: { type: 'string' } },
           expectedResult: { type: 'string' },
           actualResult: { type: 'string' },
-          evidence: { type: 'array', items: { type: 'string' } }
+          evidence: { type: ['array', 'null'], items: { type: 'string' } }
         }
       }
     },
@@ -90,14 +90,14 @@ export const generatedReportJsonSchema = {
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['summary', 'description', 'stepsToReproduce', 'expectedResult', 'actualResult'],
+        required: ['summary', 'description', 'stepsToReproduce', 'expectedResult', 'actualResult', 'evidence'],
         properties: {
           summary: { type: 'string' },
           description: { type: 'string' },
           stepsToReproduce: { type: 'array', items: { type: 'string' } },
           expectedResult: { type: 'string' },
           actualResult: { type: 'string' },
-          evidence: { type: 'array', items: { type: 'string' } }
+          evidence: { type: ['array', 'null'], items: { type: 'string' } }
         }
       }
     }

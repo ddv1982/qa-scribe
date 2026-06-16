@@ -1,7 +1,7 @@
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { spawn } from 'node:child_process'
+import { execFileSync, spawn } from 'node:child_process'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { homedir, tmpdir, userInfo } from 'node:os'
+import { delimiter, join } from 'node:path'
 import type { AiProviderId, AiProviderStatus, ReasoningEffort } from '../../shared/contracts'
 
 export type CommandResult = {
@@ -58,6 +58,8 @@ const defaultReasoningEfforts: Record<AiProviderId, ReasoningEffort | null> = {
 }
 
 const commandTimeoutMs = 10 * 60 * 1000
+const shellPathTimeoutMs = 5_000
+let commandPath: string | null | undefined
 
 type AppleIntelligenceBridge = {
   isAvailable?: () => boolean | Promise<boolean>
@@ -111,7 +113,7 @@ export async function runCommand(
     const child = spawn(command, args, {
       cwd: options.cwd,
       stdio: ['pipe', 'pipe', 'pipe'],
-      env: process.env
+      env: commandEnvironment()
     })
     let stdout = ''
     let stderr = ''
@@ -150,7 +152,8 @@ export async function runCommand(
 }
 
 async function detectCodexCli(runner: CommandRunner): Promise<AiProviderStatus> {
-  const loginStatus = await runner('codex', ['login', 'status'], { timeoutMs: 10_000 })
+  const cwd = providerRuntimeDir('codex')
+  const loginStatus = await runner('codex', ['login', 'status'], { cwd, timeoutMs: 10_000 })
   if (isMissingCommand(loginStatus)) {
     return unavailable('codex_cli', 'codex was not found on PATH.')
   }
@@ -158,7 +161,7 @@ async function detectCodexCli(runner: CommandRunner): Promise<AiProviderStatus> 
     return available('codex_cli')
   }
 
-  const doctor = await runner('codex', ['doctor', '--json'], { timeoutMs: 20_000 })
+  const doctor = await runner('codex', ['doctor', '--json'], { cwd, timeoutMs: 20_000 })
   if (doctor.code === 0) {
     return available('codex_cli')
   }
@@ -170,7 +173,7 @@ async function detectCodexCli(runner: CommandRunner): Promise<AiProviderStatus> 
 }
 
 async function detectClaudeCode(runner: CommandRunner): Promise<AiProviderStatus> {
-  const status = await runner('claude', ['auth', 'status', '--json'], { timeoutMs: 10_000 })
+  const status = await runner('claude', ['auth', 'status', '--json'], { cwd: providerRuntimeDir('claude'), timeoutMs: 10_000 })
   if (isMissingCommand(status)) {
     return unavailable('claude_code', 'claude was not found on PATH.')
   }
@@ -224,6 +227,7 @@ async function runCodexGeneration(
 ): Promise<unknown> {
   const tempDir = mkdtempSync(join(tmpdir(), 'qa-scribe-codex-'))
   try {
+    const runtimeDir = providerRuntimeDir('codex')
     const schemaPath = join(tempDir, 'schema.json')
     writeFileSync(schemaPath, JSON.stringify(request.outputSchema), 'utf8')
     const result = await runner(
@@ -244,7 +248,7 @@ async function runCodexGeneration(
         schemaPath
       ],
       {
-        cwd: tempDir,
+        cwd: runtimeDir,
         input: request.prompt,
         timeoutMs: commandTimeoutMs
       }
@@ -260,34 +264,30 @@ async function runClaudeGeneration(
   request: StructuredGenerationRequest,
   runner: CommandRunner
 ): Promise<unknown> {
-  const tempDir = mkdtempSync(join(tmpdir(), 'qa-scribe-claude-'))
-  try {
-    const args = [
-      '-p',
-      '--output-format',
-      'json',
-      '--json-schema',
-      JSON.stringify(request.outputSchema),
-      '--no-session-persistence',
-      '--tools',
-      '',
-      '--model',
-      request.model
-    ]
-    if (request.reasoningEffort) {
-      args.push('--effort', request.reasoningEffort)
-    }
-
-    const result = await runner('claude', args, {
-      cwd: tempDir,
-      input: request.prompt,
-      timeoutMs: commandTimeoutMs
-    })
-    assertCommandSucceeded('claude -p', result)
-    return parseStructuredCliOutput(result.stdout)
-  } finally {
-    rmSync(tempDir, { force: true, recursive: true })
+  const runtimeDir = providerRuntimeDir('claude')
+  const args = [
+    '-p',
+    '--output-format',
+    'json',
+    '--json-schema',
+    JSON.stringify(request.outputSchema),
+    '--no-session-persistence',
+    '--tools',
+    '',
+    '--model',
+    request.model
+  ]
+  if (request.reasoningEffort) {
+    args.push('--effort', request.reasoningEffort)
   }
+
+  const result = await runner('claude', args, {
+    cwd: runtimeDir,
+    input: request.prompt,
+    timeoutMs: commandTimeoutMs
+  })
+  assertCommandSucceeded('claude -p', result)
+  return parseStructuredCliOutput(result.stdout)
 }
 
 async function runAppleGeneration(request: StructuredGenerationRequest, runner: CommandRunner): Promise<unknown> {
@@ -340,6 +340,7 @@ function outputCandidates(value: unknown): unknown[] {
   const record = value as Record<string, unknown>
   return [
     record.result,
+    record.structured_output,
     record.output,
     record.response,
     record.content,
@@ -435,6 +436,68 @@ function isMissingCommand(result: CommandResult): boolean {
   return result.error?.code === 'ENOENT'
 }
 
+function providerRuntimeDir(provider: 'claude' | 'codex'): string {
+  const root = process.env.QA_SCRIBE_PROVIDER_RUNTIME_DIR || join(homedir(), '.qa-scribe', 'provider-runtime')
+  const dir = join(root, provider)
+  mkdirSync(dir, { recursive: true })
+  return dir
+}
+
+function commandEnvironment(): NodeJS.ProcessEnv {
+  const path = providerCommandPath()
+  return path ? { ...process.env, PATH: path } : process.env
+}
+
+function providerCommandPath(): string | undefined {
+  if (commandPath !== undefined) return commandPath ?? undefined
+
+  const paths = [readLoginShellPath(), process.env.PATH, fallbackProviderPath()].filter(Boolean) as string[]
+  commandPath = mergePaths(paths)
+  return commandPath ?? undefined
+}
+
+function readLoginShellPath(): string | null {
+  const shell = resolveLoginShell()
+  if (!shell) return null
+
+  try {
+    const path = execFileSync(shell, ['-ilc', 'printf %s "$PATH"'], {
+      encoding: 'utf8',
+      env: process.env,
+      timeout: shellPathTimeoutMs
+    }).trim()
+    return path || null
+  } catch {
+    return null
+  }
+}
+
+function resolveLoginShell(): string | null {
+  if (process.platform === 'win32') return null
+  if (process.env.SHELL?.trim()) return process.env.SHELL.trim()
+
+  try {
+    const shell = userInfo().shell?.trim()
+    if (shell) return shell
+  } catch {
+    // Ignore unavailable user info and fall back below.
+  }
+
+  return process.platform === 'darwin' ? '/bin/zsh' : '/bin/bash'
+}
+
+function fallbackProviderPath(): string | null {
+  if (process.platform === 'win32') return null
+  const commonPaths = ['/opt/homebrew/bin', '/usr/local/bin', '/usr/bin', '/bin', '/usr/sbin', '/sbin']
+  return commonPaths.join(delimiter)
+}
+
+function mergePaths(paths: string[]): string | null {
+  const parts = paths.flatMap((path) => path.split(delimiter).map((part) => part.trim()).filter(Boolean))
+  const unique = [...new Set(parts)]
+  return unique.length > 0 ? unique.join(delimiter) : null
+}
+
 function getAppleBridge(): AppleIntelligenceBridge | undefined {
   return (globalThis as { qaScribeAppleIntelligence?: AppleIntelligenceBridge }).qaScribeAppleIntelligence
 }
@@ -449,5 +512,8 @@ function appleHelperPath(): string | null {
 }
 
 export const __testables = {
-  parseStructuredCliOutput
+  parseStructuredCliOutput,
+  commandEnvironment,
+  mergePaths,
+  resolveLoginShell
 }

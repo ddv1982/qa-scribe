@@ -61,7 +61,7 @@ import {
   generateStructuredOutput,
   type CommandRunner
 } from './aiProviders'
-import { guessMimeType, resolveAttachmentStorageDestination } from './session/attachmentStorage'
+import { guessMimeType, resolveAttachmentStorageDestination, resolveStoredAttachmentPath } from './session/attachmentStorage'
 import { renderSessionExport } from './session/exportRenderer'
 import {
   buildGenerationPrompt,
@@ -290,6 +290,15 @@ export class SessionService {
 
     this.touchSession(parsedSessionId)
     return mapAttachment(attachment)
+  }
+
+  getAttachmentPreviewDataUrl(id: string): string | null {
+    const attachmentId = idSchema.parse(id)
+    const attachment = this.client.db.select().from(attachments).where(eq(attachments.id, attachmentId)).get()
+    if (!attachment?.mimeType?.startsWith('image/')) return null
+
+    const path = resolveStoredAttachmentPath(this.attachmentsRoot, attachment.relativePath)
+    return `data:${attachment.mimeType};base64,${readFileSync(path).toString('base64')}`
   }
 
   createFinding(input: FindingDraft): Finding {

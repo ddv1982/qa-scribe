@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
 import type {
   AiRun,
+  Attachment,
   Draft,
   Entry,
   Finding as StoredFinding,
@@ -189,6 +190,174 @@ describe('App Session setup and provider controls', () => {
       })
     )
   })
+
+  it('renders screenshot attachment previews in the timeline', async () => {
+    const snapshot = createSnapshot({
+      entries: [baseEntry()],
+      attachments: [baseImageAttachment()]
+    })
+    const api = installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
+    vi.mocked(api.getAttachmentPreviewDataUrl).mockResolvedValue('data:image/png;base64,c2NyZWVu')
+
+    render(<App />)
+
+    const timeline = await screen.findByLabelText('Session Timeline')
+    const preview = await within(timeline).findByRole('img', { name: 'Screenshot preview: checkout.png' })
+
+    expect(preview).toHaveAttribute('src', 'data:image/png;base64,c2NyZWVu')
+    expect(api.getAttachmentPreviewDataUrl).toHaveBeenCalledWith('attachment-1')
+  })
+
+  it('keeps an Entry selected after attaching evidence to it', async () => {
+    const snapshot = createSnapshot({ entries: [baseEntry()] })
+    const api = installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
+    vi.mocked(api.importAttachment).mockResolvedValue(baseImageAttachment())
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('heading', { name: 'Checkout completed' }))
+    const inspector = screen.getByLabelText('Inspector')
+    expect(within(inspector).getByRole('heading', { name: 'Checkout completed' })).toBeInTheDocument()
+
+    fireEvent.click(within(inspector).getByRole('button', { name: 'Attach Evidence' }))
+
+    await waitFor(() => expect(api.importAttachment).toHaveBeenCalledWith(snapshot.session.id, 'entry-1'))
+    expect(within(inspector).getByRole('heading', { name: 'Checkout completed' })).toBeInTheDocument()
+  })
+
+  it('asks before deleting Entries and Sessions', async () => {
+    const snapshot = createSnapshot({ entries: [baseEntry()] })
+    const api = installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Entry' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Session' }))
+
+    expect(confirm).toHaveBeenCalledTimes(2)
+    expect(api.deleteEntry).not.toHaveBeenCalled()
+    expect(api.deleteSession).not.toHaveBeenCalled()
+  })
+
+  it('does not select an Entry when keyboarding nested Entry actions', async () => {
+    const snapshot = createSnapshot({ entries: [baseEntry()] })
+    installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Delete Entry' }), { key: 'Enter' })
+
+    expect(within(screen.getByLabelText('Inspector')).queryByRole('heading', { name: 'Checkout completed' })).not.toBeInTheDocument()
+  })
+
+  it('autosaves Session setup edits after a short pause', async () => {
+    const snapshot = createSnapshot()
+    const api = installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Title (required)'), { target: { value: 'Updated Session' } })
+
+    await waitFor(
+      () => {
+        expect(api.updateSession).toHaveBeenCalledWith(snapshot.session.id, expect.objectContaining({ title: 'Updated Session' }))
+      },
+      { timeout: 1500 }
+    )
+    expect(await screen.findByText('Saved')).toBeInTheDocument()
+  })
+
+  it('flushes dirty Session setup edits before opening Generation Context', async () => {
+    const snapshot = createSnapshot({ entries: [baseEntry()] })
+    const api = installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Test Target (required)'), { target: { value: 'Updated checkout' } })
+    fireEvent.click(screen.getByRole('button', { name: /Generate Testware/i }))
+
+    await waitFor(() => expect(api.createGenerationContext).toHaveBeenCalledWith(snapshot.session.id))
+    expect(api.updateSession).toHaveBeenCalledWith(
+      snapshot.session.id,
+      expect.objectContaining({ testTarget: 'Updated checkout' })
+    )
+    expect(vi.mocked(api.updateSession).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(api.createGenerationContext).mock.invocationCallOrder[0]
+    )
+  })
+
+  it('flushes dirty Session setup edits before switching Sessions', async () => {
+    const snapshot = createSnapshot()
+    const otherSnapshot = createSnapshot({
+      session: { ...baseSession(), id: 'session-2', title: 'Other Session', testTarget: 'Search' }
+    })
+    const api = installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
+    vi.mocked(api.listSessions).mockResolvedValue([snapshot.session, otherSnapshot.session])
+    vi.mocked(api.getSession).mockImplementation(async (id) => (id === otherSnapshot.session.id ? otherSnapshot : snapshot))
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Title (required)'), { target: { value: 'Before switch' } })
+    fireEvent.click(screen.getByText('Other Session').closest('button') as HTMLButtonElement)
+
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Other Session' })).toBeInTheDocument())
+    expect(api.updateSession).toHaveBeenCalledWith(snapshot.session.id, expect.objectContaining({ title: 'Before switch' }))
+    expect(vi.mocked(api.updateSession).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(api.getSession).mock.invocationCallOrder[1]
+    )
+  })
+
+  it('autosaves Session Report Draft edits', async () => {
+    const snapshot = createSnapshot()
+    const api = installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
+    vi.mocked(api.createDraft).mockImplementation(async (input) => ({
+      id: 'draft-1',
+      sessionId: input.sessionId,
+      aiRunId: null,
+      kind: 'session_report',
+      title: input.title,
+      body: input.body,
+      createdAt: '2026-06-15T00:04:00.000Z',
+      updatedAt: '2026-06-15T00:04:01.000Z'
+    }))
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Drafts' }))
+    fireEvent.change(screen.getByLabelText('Session Report Draft'), { target: { value: '# Edited report' } })
+
+    await waitFor(
+      () => {
+        expect(api.createDraft).toHaveBeenCalledWith(
+          expect.objectContaining({ sessionId: snapshot.session.id, body: '# Edited report' })
+        )
+      },
+      { timeout: 1500 }
+    )
+    expect(await screen.findByText('Saved')).toBeInTheDocument()
+  })
+
+  it('shows a failed status when Draft autosave fails', async () => {
+    const snapshot = createSnapshot()
+    const api = installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
+    vi.mocked(api.createDraft).mockRejectedValue(new Error('disk full'))
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Drafts' }))
+    fireEvent.change(screen.getByLabelText('Session Report Draft'), { target: { value: '# Unsaved report' } })
+
+    expect(await screen.findByText('Save failed', {}, { timeout: 1500 })).toBeInTheDocument()
+  })
 })
 
 function installLocalStorage(): void {
@@ -234,6 +403,7 @@ function installQaScribeApi(snapshot: SessionSnapshot, status: ProviderStatus): 
     updateEntry: vi.fn(),
     deleteEntry: vi.fn(),
     importAttachment: vi.fn(),
+    getAttachmentPreviewDataUrl: vi.fn(async () => null),
     createFinding: vi.fn(),
     updateFinding: vi.fn(),
     deleteFinding: vi.fn(),
@@ -255,15 +425,29 @@ function installQaScribeApi(snapshot: SessionSnapshot, status: ProviderStatus): 
   return api
 }
 
-function createSnapshot(input: { session?: Session; entries?: Entry[] } = {}): SessionSnapshot {
+function createSnapshot(input: { session?: Session; entries?: Entry[]; attachments?: Attachment[] } = {}): SessionSnapshot {
   return {
     session: input.session ?? baseSession(),
     entries: input.entries ?? [],
-    attachments: [],
+    attachments: input.attachments ?? [],
     findings: [],
     evidenceLinks: [],
     drafts: [],
     aiRuns: []
+  }
+}
+
+function baseImageAttachment(): Attachment {
+  return {
+    id: 'attachment-1',
+    sessionId: 'session-1',
+    entryId: 'entry-1',
+    filename: 'checkout.png',
+    mimeType: 'image/png',
+    sizeBytes: 1024,
+    sha256: 'hash',
+    relativePath: 'session-1/attachment-1.png',
+    createdAt: '2026-06-15T00:01:30.000Z'
   }
 }
 

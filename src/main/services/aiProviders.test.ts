@@ -1,10 +1,11 @@
 import { existsSync } from 'node:fs'
+import { delimiter } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { CommandRunner } from './aiProviders'
 import { __testables, detectProviderStatuses, generateStructuredOutput } from './aiProviders'
 
 describe('aiProviders', () => {
-  it('runs Claude with schema, model, effort, temp cwd, and prompt over stdin', async () => {
+  it('runs Claude with schema, model, effort, provider runtime cwd, and prompt over stdin', async () => {
     const calls: Array<{ command: string; args: string[]; input?: string; cwd?: string }> = []
     const runner: CommandRunner = async (command, args, options) => {
       calls.push({ command, args, input: options.input, cwd: options.cwd })
@@ -12,9 +13,9 @@ describe('aiProviders', () => {
         code: 0,
         stdout: JSON.stringify({
           type: 'result',
-          result: JSON.stringify({
+          structured_output: {
             answer: 'ok'
-          })
+          }
         }),
         stderr: ''
       }
@@ -40,7 +41,9 @@ describe('aiProviders', () => {
         input: 'reviewed generation context'
       })
     )
-    expect(calls[0].cwd).toContain('qa-scribe-claude-')
+    expect(calls[0].cwd).toContain('qa-scribe')
+    expect(calls[0].cwd).toContain('provider-runtime')
+    expect(calls[0].cwd).toContain('claude')
     expect(calls[0].args).toEqual([
       '-p',
       '--output-format',
@@ -61,7 +64,22 @@ describe('aiProviders', () => {
     expect(__testables.parseStructuredCliOutput('{"answer":"ok"}')).toEqual({ answer: 'ok' })
   })
 
-  it('runs Codex with a schema file, never-approval config, model, effort, temp cwd, and prompt over stdin', async () => {
+  it('hydrates provider command PATH with inherited and common local install paths', () => {
+    const env = __testables.commandEnvironment()
+    const path = env.PATH ?? ''
+    const pathParts = path.split(delimiter)
+
+    for (const part of (process.env.PATH ?? '').split(delimiter).filter(Boolean)) {
+      expect(pathParts).toContain(part)
+    }
+
+    if (process.platform !== 'win32') {
+      expect(pathParts).toContain('/usr/local/bin')
+      expect(pathParts).toContain('/opt/homebrew/bin')
+    }
+  })
+
+  it('runs Codex with a temp schema file, never-approval config, model, effort, provider runtime cwd, and prompt over stdin', async () => {
     const calls: Array<{ command: string; args: string[]; input?: string; cwd?: string }> = []
     const runner: CommandRunner = async (command, args, options) => {
       calls.push({ command, args, input: options.input, cwd: options.cwd })
@@ -97,7 +115,9 @@ describe('aiProviders', () => {
         input: 'reviewed generation context'
       })
     )
-    expect(calls[0].cwd).toContain('qa-scribe-codex-')
+    expect(calls[0].cwd).toContain('qa-scribe')
+    expect(calls[0].cwd).toContain('provider-runtime')
+    expect(calls[0].cwd).toContain('codex')
     expect(calls[0].args).toEqual(
       expect.arrayContaining([
         'exec',

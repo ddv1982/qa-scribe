@@ -271,6 +271,7 @@ export interface QaScribeApi {
   updateEntry(id: string, input: EntryPatch): Promise<Entry>
   deleteEntry(id: string): Promise<void>
   importAttachment(sessionId: string, entryId?: string): Promise<Attachment | null>
+  getAttachmentPreviewDataUrl(id: string): Promise<string | null>
   createFinding(input: FindingDraft): Promise<Finding>
   updateFinding(id: string, input: FindingPatch): Promise<Finding>
   deleteFinding(id: string): Promise<void>

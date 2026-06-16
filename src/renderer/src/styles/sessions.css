@@ -134,6 +134,23 @@
 
 .session-setup-actions {
   display: flex;
+  align-items: center;
+  gap: 8px;
   justify-content: flex-end;
   align-self: end;
+}
+
+.autosave-status {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 680;
+  white-space: nowrap;
+}
+
+.autosave-status.saving {
+  color: var(--accent);
+}
+
+.autosave-status.error {
+  color: var(--danger);
 }

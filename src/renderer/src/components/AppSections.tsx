@@ -1,4 +1,4 @@
-import { type MouseEvent, type ReactElement } from 'react'
+import { useEffect, useState, type KeyboardEvent, type MouseEvent, type ReactElement } from 'react'
 import {
   Bot,
   Bug,
@@ -111,7 +111,7 @@ export function CapturePane(props: {
         </label>
         <button className="secondary-command compact" type="button" onClick={() => props.onAttach()}>
           <ImagePlus size={16} />
-          Attach
+          Add Evidence
         </button>
       </div>
 
@@ -492,10 +492,20 @@ export function GenerationReviewPane(props: {
 export function DraftsPane(props: {
   draft: ReviewDraft
   findings: Finding[]
+  autosaveStatus: 'idle' | 'saving' | 'saved' | 'error'
   onUpdateContent: (content: string) => void
   onSave: () => Promise<void>
   onCopy: (text: string, message?: string) => Promise<void>
 }): ReactElement {
+  const autosaveLabel =
+    props.autosaveStatus === 'saving'
+      ? 'Saving...'
+      : props.autosaveStatus === 'saved'
+        ? 'Saved'
+        : props.autosaveStatus === 'error'
+          ? 'Save failed'
+          : 'Autosave on'
+
   return (
     <section className="drafts-pane">
       <div className="draft-editor">
@@ -505,6 +515,9 @@ export function DraftsPane(props: {
             <h2>{props.draft.title}</h2>
           </div>
           <div className="topbar-actions">
+            <span className={`autosave-status ${props.autosaveStatus}`} role="status">
+              {autosaveLabel}
+            </span>
             <button className="secondary-command" type="button" onClick={() => props.onCopy(props.draft.content, 'Report copied')}>
               <Copy size={16} />
               Copy Report
@@ -712,8 +725,18 @@ export function TimelineEntry(props: {
   onToggleExclude: () => void
   onCreateFinding: () => void
 }): ReactElement {
+  const entryLabel = props.entry.title || firstLine(props.entry.body) || formatEntryType(props.entry.type)
+
   return (
-    <article className={props.selected ? 'timeline-entry selected' : 'timeline-entry'} onClick={props.onSelect}>
+    <article
+      aria-label={`Select Entry: ${entryLabel}`}
+      aria-pressed={props.selected}
+      className={props.selected ? 'timeline-entry selected' : 'timeline-entry'}
+      role="button"
+      tabIndex={0}
+      onClick={props.onSelect}
+      onKeyDown={selectWithKeyboard(props.onSelect)}
+    >
       <div className="entry-marker">
         <span>{formatEntryType(props.entry.type)}</span>
         <time>{formatTime(props.entry.createdAt)}</time>
@@ -722,21 +745,27 @@ export function TimelineEntry(props: {
         <div className="entry-heading">
           <h2>{props.entry.title || formatEntryType(props.entry.type)}</h2>
           <div className="entry-actions">
-            <button type="button" title="Create Finding" onClick={stopAnd(props.onCreateFinding)}>
+            <button aria-label="Create Finding from Entry" type="button" title="Create Finding" onClick={stopAnd(props.onCreateFinding)}>
               <Bug size={15} />
             </button>
-            <button type="button" title="Attach evidence" onClick={stopAnd(props.onAttach)}>
+            <button aria-label="Add Evidence to Entry" type="button" title="Add Evidence" onClick={stopAnd(props.onAttach)}>
               <ImagePlus size={15} />
             </button>
-            <button type="button" title="Toggle generation inclusion" onClick={stopAnd(props.onToggleExclude)}>
+            <button
+              aria-label={props.entry.excludedFromGeneration ? 'Include Entry in generation' : 'Exclude Entry from generation'}
+              type="button"
+              title={props.entry.excludedFromGeneration ? 'Include in generation' : 'Exclude from generation'}
+              onClick={stopAnd(props.onToggleExclude)}
+            >
               <Bot size={15} />
             </button>
-            <button type="button" title="Delete Entry" onClick={stopAnd(props.onDelete)}>
+            <button aria-label="Delete Entry" type="button" title="Delete Entry" onClick={stopAnd(props.onDelete)}>
               <Trash2 size={15} />
             </button>
           </div>
         </div>
         <RichTextContent body={props.entry.body} metadataJson={props.entry.metadataJson} />
+        <AttachmentPreviewGrid attachments={props.attachments} compact />
         <div className="entry-footer">
           {props.entry.excludedFromGeneration ? <span>Excluded from generation</span> : <span>Included for generation</span>}
           {props.attachments.length > 0 ? <span>{props.attachments.length} attachments</span> : null}
@@ -784,7 +813,7 @@ export function EntryInspector(props: {
 }
 
 export function SessionInspector(props: {
-  attachmentCount: number
+  attachments: Attachment[]
   findingCount: number
   onDelete: () => void
 }): ReactElement {
@@ -792,7 +821,7 @@ export function SessionInspector(props: {
     <div className="inspector-stack">
       <dl>
         <dt>Attachments</dt>
-        <dd>{props.attachmentCount}</dd>
+        <dd>{props.attachments.length}</dd>
         <dt>Findings</dt>
         <dd>{props.findingCount}</dd>
       </dl>
@@ -800,6 +829,7 @@ export function SessionInspector(props: {
         <Trash2 size={16} />
         Delete Session
       </button>
+      <AttachmentList attachments={props.attachments} />
     </div>
   )
 }
@@ -810,6 +840,7 @@ export function AttachmentList({ attachments }: { attachments: Attachment[] }): 
     <ul className="attachment-list">
       {attachments.map((attachment) => (
         <li key={attachment.id}>
+          <AttachmentPreview attachment={attachment} />
           <span>{attachment.filename}</span>
           <small>{Math.ceil(attachment.sizeBytes / 1024)} KB</small>
         </li>
@@ -828,6 +859,7 @@ export function ReviewAttachmentList(props: {
     <div className="finding-list">
       {props.attachments.map((item) => (
         <article className="finding-row" key={item.attachment.id}>
+          <AttachmentPreview attachment={item.attachment} compact />
           <strong>{item.attachment.filename}</strong>
           <span>{Math.ceil(item.attachment.sizeBytes / 1024)} KB</span>
           <div className="context-entry-footer">
@@ -845,6 +877,57 @@ export function ReviewAttachmentList(props: {
       ))}
     </div>
   )
+}
+
+export function AttachmentPreviewGrid(props: { attachments: Attachment[]; compact?: boolean }): ReactElement | null {
+  const imageAttachments = props.attachments.filter(isImageAttachment)
+  if (imageAttachments.length === 0) return null
+
+  return (
+    <div className={props.compact ? 'attachment-preview-grid compact' : 'attachment-preview-grid'}>
+      {imageAttachments.map((attachment) => (
+        <AttachmentPreview attachment={attachment} compact={props.compact} key={attachment.id} />
+      ))}
+    </div>
+  )
+}
+
+export function AttachmentPreview(props: { attachment: Attachment; compact?: boolean }): ReactElement | null {
+  const [dataUrl, setDataUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    setDataUrl(null)
+
+    if (!isImageAttachment(props.attachment)) return
+
+    void window.qaScribe
+      .getAttachmentPreviewDataUrl(props.attachment.id)
+      .then((nextDataUrl) => {
+        if (!cancelled) setDataUrl(nextDataUrl)
+      })
+      .catch(() => {
+        if (!cancelled) setDataUrl(null)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [props.attachment])
+
+  if (!isImageAttachment(props.attachment) || !dataUrl) return null
+
+  return (
+    <img
+      alt={`Screenshot preview: ${props.attachment.filename}`}
+      className={props.compact ? 'attachment-preview compact' : 'attachment-preview'}
+      src={dataUrl}
+    />
+  )
+}
+
+function isImageAttachment(attachment: Attachment): boolean {
+  return attachment.mimeType?.startsWith('image/') ?? false
 }
 
 export function FindingList({ findings }: { findings: Finding[] }): ReactElement {
@@ -865,6 +948,15 @@ export function FindingList({ findings }: { findings: Finding[] }): ReactElement
 export function stopAnd(callback: () => void): (event: MouseEvent<HTMLButtonElement>) => void {
   return (event) => {
     event.stopPropagation()
+    callback()
+  }
+}
+
+function selectWithKeyboard(callback: () => void): (event: KeyboardEvent<HTMLElement>) => void {
+  return (event) => {
+    if (event.target !== event.currentTarget) return
+    if (event.key !== 'Enter' && event.key !== ' ') return
+    event.preventDefault()
     callback()
   }
 }

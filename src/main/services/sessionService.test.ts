@@ -307,6 +307,24 @@ describe('SessionService', () => {
     ])
   })
 
+  it('returns data URLs for image attachment previews only', () => {
+    const harness = createHarness()
+    const session = harness.service.createSession({ title: 'Screenshot preview' })
+    const pngPath = join(harness.root, 'screen.png')
+    const logPath = join(harness.root, 'source.log')
+    const pngBytes = Buffer.from('png bytes')
+    writeFileSync(pngPath, pngBytes)
+    writeFileSync(logPath, 'plain text')
+
+    const imageAttachment = harness.service.importAttachment(pngPath, session.id)
+    const textAttachment = harness.service.importAttachment(logPath, session.id)
+
+    expect(harness.service.getAttachmentPreviewDataUrl(imageAttachment.id)).toBe(
+      `data:image/png;base64,${pngBytes.toString('base64')}`
+    )
+    expect(harness.service.getAttachmentPreviewDataUrl(textAttachment.id)).toBeNull()
+  })
+
   it('creates and updates manual Session Report drafts', () => {
     const { service } = createHarness()
     const session = service.createSession({ title: 'Draft workflow' })
@@ -524,7 +542,9 @@ describe('SessionService', () => {
         '--output-schema'
       ])
     )
-    expect(execCall?.cwd).toContain('qa-scribe-codex-')
+    expect(execCall?.cwd).toContain('qa-scribe')
+    expect(execCall?.cwd).toContain('provider-runtime')
+    expect(execCall?.cwd).toContain('codex')
   })
 
   it('reports provider statuses from local tool detection', async () => {

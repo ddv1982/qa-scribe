@@ -48,6 +48,8 @@ import type {
   WorkspaceMode
 } from './domain/types'
 
+type AutosaveStatus = 'idle' | 'saving' | 'saved' | 'error'
+
 export function App(): ReactElement {
   const [sessions, setSessions] = useState<Session[]>([])
   const [snapshot, setSnapshot] = useState<SessionSnapshot | null>(null)
@@ -67,15 +69,21 @@ export function App(): ReactElement {
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null)
   const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>('capture')
   const [sessionRequirementErrors, setSessionRequirementErrors] = useState<SessionRequirementKey[]>([])
+  const [sessionDraftDirty, setSessionDraftDirty] = useState(false)
+  const [sessionAutosaveStatus, setSessionAutosaveStatus] = useState<AutosaveStatus>('idle')
   const [moreDetailsOpen, setMoreDetailsOpen] = useState(false)
   const [generationContext, setGenerationContext] = useState<GenerationContextReview | null>(null)
   const [generationContextId, setGenerationContextId] = useState<string | null>(null)
   const [findings, setFindings] = useState<Finding[]>([])
   const [draft, setDraft] = useState<ReviewDraft | null>(null)
+  const [draftDirty, setDraftDirty] = useState(false)
+  const [draftAutosaveStatus, setDraftAutosaveStatus] = useState<AutosaveStatus>('idle')
   const [busy, setBusy] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const noticeTimerRef = useRef<number | null>(null)
+  const sessionSaveVersionRef = useRef(0)
+  const draftSaveVersionRef = useRef(0)
 
   useEffect(() => {
     void bootstrap()
@@ -163,6 +171,36 @@ export function App(): ReactElement {
     if (hasOptionalDetails) setMoreDetailsOpen(true)
   }, [hasOptionalDetails])
 
+  useEffect(() => {
+    if (!snapshot || !sessionDraftDirty) return
+    if (!sessionDraft.title?.trim()) {
+      setSessionAutosaveStatus('idle')
+      return
+    }
+
+    const version = sessionSaveVersionRef.current
+    const timer = window.setTimeout(() => {
+      void persistSessionDraft(false, version)
+    }, 600)
+
+    return () => window.clearTimeout(timer)
+  }, [sessionDraft, sessionDraftDirty, snapshot?.session.id])
+
+  useEffect(() => {
+    if (!draft || !draftDirty) return
+
+    const version = draftSaveVersionRef.current
+    const timer = window.setTimeout(() => {
+      void persistDraft(draft, false, version).catch((error) => {
+        if (version !== draftSaveVersionRef.current) return
+        setDraftAutosaveStatus('error')
+        flashError(error, 'Draft could not be autosaved')
+      })
+    }, 600)
+
+    return () => window.clearTimeout(timer)
+  }, [draft, draftDirty])
+
   const contextRows = useMemo(() => {
     if (!snapshot) return []
     return normalizeContextRows(generationContext, snapshot)
@@ -210,6 +248,9 @@ export function App(): ReactElement {
   }
 
   async function openSession(id: string): Promise<void> {
+    if (!(await flushPendingAutosaves())) return
+    sessionSaveVersionRef.current += 1
+    draftSaveVersionRef.current += 1
     const next = await window.qaScribe.getSession(id)
     if (!next) return
     const nextDraft = {
@@ -222,6 +263,8 @@ export function App(): ReactElement {
     }
     setSnapshot(next)
     setSessionDraft(nextDraft)
+    setSessionDraftDirty(false)
+    setSessionAutosaveStatus('idle')
     setSessionRequirementErrors([])
     setMoreDetailsOpen(hasSessionOptionalDetails(nextDraft))
     setSelectedEntryId(null)
@@ -229,8 +272,28 @@ export function App(): ReactElement {
     setGenerationContextId(null)
     resetCaptureDrafts()
     await loadReviewState(next)
+    setDraftDirty(false)
+    setDraftAutosaveStatus('idle')
     window.localStorage.setItem('qa-scribe:last-session', id)
     await refreshSessions()
+  }
+
+  async function flushPendingAutosaves(): Promise<boolean> {
+    if (!snapshot) return true
+
+    if (sessionDraftDirty && !(await persistSessionDraft(false, ++sessionSaveVersionRef.current))) return false
+
+    if (draftDirty && draft) {
+      try {
+        if (!(await persistDraft(draft, false, ++draftSaveVersionRef.current))) return false
+      } catch (error) {
+        setDraftAutosaveStatus('error')
+        flashError(error, 'Draft could not be autosaved')
+        return false
+      }
+    }
+
+    return true
   }
 
   async function loadReviewState(next: SessionSnapshot): Promise<void> {
@@ -250,20 +313,37 @@ export function App(): ReactElement {
   }
 
   async function saveSession(): Promise<void> {
-    if (!snapshot) return
     if (!validateSessionDraftForAction()) return
+    await persistSessionDraft(true, ++sessionSaveVersionRef.current)
+  }
+
+  async function persistSessionDraft(showToast: boolean, version: number): Promise<boolean> {
+    if (!snapshot) return false
     try {
-      const updated = await window.qaScribe.updateSession(snapshot.session.id, sessionDraft)
-      setSnapshot({ ...snapshot, session: updated })
-      await refreshSessions()
-      flash('Session saved')
+      setSessionAutosaveStatus('saving')
+      const sessionId = snapshot.session.id
+      const updated = await window.qaScribe.updateSession(sessionId, sessionDraft)
+      if (version === sessionSaveVersionRef.current) {
+        setSnapshot((current) => (current?.session.id === sessionId ? { ...current, session: updated } : current))
+        await refreshSessions()
+        setSessionAutosaveStatus('saved')
+        setSessionDraftDirty(false)
+        if (showToast) flash('Session saved')
+        return true
+      }
+      return false
     } catch (error) {
-      flashError(error, 'Session could not be saved')
+      if (version === sessionSaveVersionRef.current) {
+        setSessionAutosaveStatus('error')
+        flashError(error, 'Session could not be saved')
+      }
+      return false
     }
   }
 
   async function deleteCurrentSession(): Promise<void> {
     if (!snapshot) return
+    if (!window.confirm(`Delete Session "${snapshot.session.title}" and all captured Entries, evidence, Findings, and Drafts?`)) return
     await window.qaScribe.deleteSession(snapshot.session.id)
     window.localStorage.removeItem('qa-scribe:last-session')
     setSnapshot(null)
@@ -357,6 +437,8 @@ export function App(): ReactElement {
 
   async function deleteEntry(entry: Entry): Promise<void> {
     if (!snapshot) return
+    const label = entry.title || formatEntryType(entry.type)
+    if (!window.confirm(`Delete Entry "${label}"?`)) return
     await window.qaScribe.deleteEntry(entry.id)
     await openSession(snapshot.session.id)
   }
@@ -367,6 +449,7 @@ export function App(): ReactElement {
       const attachment = await window.qaScribe.importAttachment(snapshot.session.id, entryId)
       if (attachment) {
         await openSession(snapshot.session.id)
+        if (entryId) setSelectedEntryId(entryId)
         flash('Evidence imported')
       }
     } catch (error) {
@@ -388,6 +471,7 @@ export function App(): ReactElement {
   async function openGenerationReview(): Promise<void> {
     if (!snapshot) return
     if (!validateSessionDraftForAction()) return
+    if (sessionDraftDirty && !(await persistSessionDraft(false, ++sessionSaveVersionRef.current))) return
     setWorkspaceMode('generation')
     if (generationContextId) return
     setBusy(true)
@@ -458,6 +542,7 @@ export function App(): ReactElement {
   async function generateTestware(): Promise<void> {
     if (!snapshot) return
     if (!validateSessionDraftForAction()) return
+    if (sessionDraftDirty && !(await persistSessionDraft(false, ++sessionSaveVersionRef.current))) return
     const generationOptions = buildGenerationOptions(selectedProviderStatus, selectedModel, selectedReasoningEffort)
     if (!generationOptions) {
       flash('Select an available provider')
@@ -485,9 +570,10 @@ export function App(): ReactElement {
     }
   }
 
-  async function persistDraft(nextDraft: ReviewDraft): Promise<void> {
-    if (!snapshot) return
+  async function persistDraft(nextDraft: ReviewDraft, showToast = false, version = draftSaveVersionRef.current): Promise<boolean> {
+    if (!snapshot) return false
     let saved = nextDraft
+    setDraftAutosaveStatus('saving')
     if (draft?.id && !draft.id.startsWith('local-draft-')) {
       saved = normalizeDraft(
         await window.qaScribe.updateDraft(draft.id, {
@@ -506,7 +592,14 @@ export function App(): ReactElement {
           })
         ) ?? nextDraft
     }
-    setDraft(saved)
+    if (version === draftSaveVersionRef.current) {
+      setDraft(saved)
+      setDraftAutosaveStatus('saved')
+      setDraftDirty(false)
+      if (showToast) flash('Draft saved')
+      return true
+    }
+    return false
   }
 
   async function updateDraftContent(content: string): Promise<void> {
@@ -519,6 +612,9 @@ export function App(): ReactElement {
         contextRows.filter((row) => row.included)
       )
     setDraft({ ...nextDraft, content, updatedAt: new Date().toISOString() })
+    setDraftDirty(true)
+    draftSaveVersionRef.current += 1
+    setDraftAutosaveStatus('idle')
   }
 
   async function saveDraft(): Promise<void> {
@@ -529,11 +625,11 @@ export function App(): ReactElement {
         snapshot,
         findings,
         contextRows.filter((row) => row.included)
-      )
+    )
     try {
-      await persistDraft({ ...nextDraft, updatedAt: new Date().toISOString() })
-      flash('Draft saved')
+      await persistDraft({ ...nextDraft, updatedAt: new Date().toISOString() }, true, ++draftSaveVersionRef.current)
     } catch (error) {
+      setDraftAutosaveStatus('error')
       flashError(error, 'Draft could not be saved')
     }
   }
@@ -563,6 +659,9 @@ export function App(): ReactElement {
   function updateSessionDraft(patch: Partial<SessionDraft>): void {
     const nextDraft = { ...sessionDraft, ...patch }
     setSessionDraft(nextDraft)
+    setSessionDraftDirty(true)
+    sessionSaveVersionRef.current += 1
+    setSessionAutosaveStatus('idle')
     if (sessionRequirementErrors.length > 0) {
       setSessionRequirementErrors(validateSessionRequirements(nextDraft).missing)
     }
@@ -580,6 +679,13 @@ export function App(): ReactElement {
     if (key === 'testObjective') return 'Test Objective is required.'
     if (key === 'testTarget') return 'Test Target is required.'
     return 'Title is required.'
+  }
+
+  function autosaveLabel(status: AutosaveStatus): string {
+    if (status === 'saving') return 'Saving...'
+    if (status === 'saved') return 'Saved'
+    if (status === 'error') return 'Save failed'
+    return 'Autosave on'
   }
 
   return (
@@ -690,6 +796,9 @@ export function App(): ReactElement {
               </details>
 
               <div className="session-setup-actions">
+                <span className={`autosave-status ${sessionAutosaveStatus}`} role="status">
+                  {autosaveLabel(sessionAutosaveStatus)}
+                </span>
                 <button className="icon-command confirmed" title="Save session" type="button" onClick={saveSession}>
                   <Check size={17} />
                 </button>
@@ -764,6 +873,7 @@ export function App(): ReactElement {
                       )
                     }
                     findings={findings}
+                    autosaveStatus={draftAutosaveStatus}
                     onCopy={copyText}
                     onSave={saveDraft}
                     onUpdateContent={(content) => void updateDraftContent(content)}
@@ -786,7 +896,7 @@ export function App(): ReactElement {
                   />
                 ) : (
                   <SessionInspector
-                    attachmentCount={snapshot.attachments.length}
+                    attachments={snapshot.attachments}
                     findingCount={findings.length}
                     onDelete={deleteCurrentSession}
                   />

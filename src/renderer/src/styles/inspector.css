@@ -53,6 +53,11 @@ dd {
   padding: 9px;
 }
 
+.attachment-list .attachment-preview,
+.finding-row .attachment-preview {
+  margin-bottom: 6px;
+}
+
 .finding-list {
   display: grid;
   gap: 8px;

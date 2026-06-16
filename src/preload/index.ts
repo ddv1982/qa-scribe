@@ -23,6 +23,7 @@ const api: QaScribeApi = {
   updateEntry: (id: string, input: EntryPatch) => ipcRenderer.invoke('entries:update', id, input),
   deleteEntry: (id: string) => ipcRenderer.invoke('entries:delete', id),
   importAttachment: (sessionId: string, entryId?: string) => ipcRenderer.invoke('attachments:import', sessionId, entryId),
+  getAttachmentPreviewDataUrl: (id: string) => ipcRenderer.invoke('attachments:preview', id),
   createFinding: (input: FindingDraft) => ipcRenderer.invoke('findings:create', input),
   updateFinding: (id: string, input: FindingPatch) => ipcRenderer.invoke('findings:update', id, input),
   deleteFinding: (id: string) => ipcRenderer.invoke('findings:delete', id),

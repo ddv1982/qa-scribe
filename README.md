@@ -42,6 +42,8 @@ Implemented capabilities include:
 
 `better-sqlite3` is a native dependency. The project scripts rebuild it for Node during tests and for Electron during app runtime/package workflows.
 
+Dependency updates should stay compatible with the Electron toolchain. In particular, `electron-vite@5` currently peers with Vite 5, 6, or 7, so Vite 8 and `@vitejs/plugin-react@6` should wait until the Electron build stack supports them. Node typings should track Electron's embedded Node major rather than the newest local Node installed on a developer machine.
+
 ## Setup
 
 Install dependencies:
@@ -65,6 +67,8 @@ qa-scribe does not manage API keys or expose an AI settings screen. It detects a
 - Apple Intelligence through a native helper bridge when bundled and available.
 - Claude Code through the local `claude` CLI and existing Claude authentication.
 - Codex through the local `codex` CLI and existing Codex authentication.
+
+For desktop launches, qa-scribe hydrates the provider command `PATH` from the user's login shell and common local install locations before spawning `claude` or `codex`. This helps CLIs installed through Homebrew, npm, nvm, fnm, or similar tools work the same way they do in a terminal. Provider checks and generation run from an empty qa-scribe runtime directory under `~/.qa-scribe/provider-runtime` by default, so the CLIs can resolve their normal user-local configuration without receiving the app repository as working-directory context. Set `QA_SCRIBE_PROVIDER_RUNTIME_DIR` to override that runtime location.
 
 Privacy boundaries:
 

@@ -37,3 +37,15 @@ export function guessMimeType(extension: string): string | null {
   if (normalized === '.txt' || normalized === '.log') return 'text/plain'
   return null
 }
+
+export function resolveStoredAttachmentPath(attachmentsRoot: string, relativePath: string): string {
+  const resolvedRoot = resolve(attachmentsRoot)
+  const resolvedPath = resolve(resolvedRoot, relativePath)
+  const relativeTarget = relative(resolvedRoot, resolvedPath)
+
+  if (relativeTarget.startsWith('..') || isAbsolute(relativeTarget)) {
+    throw new Error('Attachment path escaped managed storage')
+  }
+
+  return resolvedPath
+}

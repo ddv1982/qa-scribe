@@ -83,4 +83,5 @@ export function registerIpcHandlers(service: SessionService): void {
     if (result.canceled || result.filePaths.length === 0) return null
     return service.importAttachment(result.filePaths[0], parsedSessionId, parsedEntryId)
   })
+  ipcMain.handle('attachments:preview', (_event, id: string) => service.getAttachmentPreviewDataUrl(idSchema.parse(id)))
 }
