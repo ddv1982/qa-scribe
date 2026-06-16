@@ -344,6 +344,14 @@ export class SessionService {
     return `data:${attachment.mimeType};base64,${readFileSync(path).toString('base64')}`
   }
 
+  getAttachmentImageBytes(id: string): Buffer | null {
+    const attachmentId = idSchema.parse(id)
+    const attachment = this.client.db.select().from(attachments).where(eq(attachments.id, attachmentId)).get()
+    if (!attachment?.mimeType?.startsWith('image/')) return null
+
+    return readFileSync(resolveStoredAttachmentPath(this.attachmentsRoot, attachment.relativePath))
+  }
+
   createFinding(input: FindingDraft): Finding {
     const data = findingDraftSchema.parse(input)
     this.assertSessionExists(data.sessionId)

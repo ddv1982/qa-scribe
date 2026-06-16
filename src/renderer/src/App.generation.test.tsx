@@ -98,6 +98,10 @@ describe('App provider controls', () => {
     expect(api.getDraftEvidenceAttachments).toHaveBeenCalledWith('draft-1')
     const preview = await screen.findByRole('img', { name: 'Screenshot preview: checkout.png' })
     expect(preview).toHaveAttribute('src', 'data:image/png;base64,c2NyZWVu')
+    fireEvent.click(screen.getByRole('button', { name: 'Copy screenshot: checkout.png' }))
+
+    await waitFor(() => expect(api.copyAttachmentImageToClipboard).toHaveBeenCalledWith(screenshot.id))
+    expect(await screen.findByText('Screenshot copied')).toBeInTheDocument()
   })
 
   it('updates reasoning choices when the selected model has model-specific capabilities', async () => {

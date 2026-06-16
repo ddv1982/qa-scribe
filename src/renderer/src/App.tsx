@@ -842,6 +842,19 @@ export function App(): ReactElement {
     }
   }
 
+  async function copyScreenshot(attachment: Attachment): Promise<void> {
+    try {
+      const copied = await window.qaScribe.copyAttachmentImageToClipboard(attachment.id)
+      if (copied) {
+        flash('Screenshot copied')
+      } else {
+        flash('Screenshot could not be copied')
+      }
+    } catch (error) {
+      flashError(error, 'Screenshot copy failed')
+    }
+  }
+
   function flash(message: string): void {
     if (noticeTimerRef.current !== null) window.clearTimeout(noticeTimerRef.current)
     setNotice(message)
@@ -1030,6 +1043,7 @@ export function App(): ReactElement {
                     autosaveStatus={draftAutosaveStatus}
                     onCreateDraft={createDraftFromTemplate}
                     onCopy={copyText}
+                    onCopyScreenshot={copyScreenshot}
                     onDelete={deleteCurrentDraft}
                     onSave={saveDraft}
                     onUpdateContent={(content) => void updateDraftContent(content)}

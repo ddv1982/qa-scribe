@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { EvidenceLink, Finding as StoredFinding } from '../../../shared/contracts'
 import { serializeStructuredFindingDetails } from './findingDetails'
-import { jiraDraftFromFinding, normalizeFinding } from './reviewDrafts'
+import { jiraDraftFromFinding, jiraDraftsFromMarkdown, normalizeFinding, reportContentFromDraftContent } from './reviewDrafts'
 
 describe('reviewDrafts Finding normalization', () => {
   it('uses structured Finding metadata for summaries and Jira fields', () => {
@@ -45,5 +45,32 @@ describe('reviewDrafts Finding normalization', () => {
     expect(jiraDraft.expected).toBe('The order should be confirmed.')
     expect(jiraDraft.actual).toBe('Card submit shows an error.')
     expect(jiraDraft.evidence).toContain('entry-1')
+  })
+
+  it('separates copyable report content from stored Jira bug draft data', () => {
+    const markdown = [
+      '# Session Report',
+      '',
+      '## What Was Tested',
+      '',
+      'Checkout smoke.',
+      '',
+      '## Jira Bug Drafts',
+      '',
+      '### Checkout fails',
+      '',
+      'Payment fails after card submit.',
+      '',
+      '**Steps to Reproduce**',
+      '1. Open checkout'
+    ].join('\n')
+
+    expect(reportContentFromDraftContent(markdown)).toBe('# Session Report\n\n## What Was Tested\n\nCheckout smoke.')
+    expect(jiraDraftsFromMarkdown(markdown)).toEqual([
+      expect.objectContaining({
+        title: 'Checkout fails',
+        description: expect.stringContaining('Payment fails')
+      })
+    ])
   })
 })

@@ -121,6 +121,17 @@
   padding: 12px;
 }
 
+.draft-evidence-previews .attachment-preview-item {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+.draft-evidence-previews .attachment-preview-action {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .draft-empty {
   border: 1px dashed var(--border);
   border-radius: 8px;

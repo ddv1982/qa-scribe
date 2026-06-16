@@ -328,7 +328,10 @@ describe('SessionService', () => {
     expect(harness.service.getAttachmentPreviewDataUrl(imageAttachment.id)).toBe(
       `data:image/png;base64,${pngBytes.toString('base64')}`
     )
+    expect(harness.service.getAttachmentImageBytes(imageAttachment.id)).toEqual(pngBytes)
     expect(harness.service.getAttachmentPreviewDataUrl(textAttachment.id)).toBeNull()
+    expect(harness.service.getAttachmentImageBytes(textAttachment.id)).toBeNull()
+    expect(harness.service.getAttachmentImageBytes('00000000-0000-4000-8000-000000000001')).toBeNull()
   })
 
   it('imports clipboard screenshot bytes with image metadata and preview data', () => {

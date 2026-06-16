@@ -347,6 +347,7 @@ export interface QaScribeApi {
   importAttachment(sessionId: string, entryId?: string): Promise<Attachment | null>
   importClipboardScreenshot(sessionId: string, entryId?: string): Promise<Attachment | null>
   getAttachmentPreviewDataUrl(id: string): Promise<string | null>
+  copyAttachmentImageToClipboard(id: string): Promise<boolean>
   createFinding(input: FindingDraft): Promise<Finding>
   updateFinding(id: string, input: FindingPatch): Promise<Finding>
   deleteFinding(id: string): Promise<void>

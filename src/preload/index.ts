@@ -26,6 +26,7 @@ const api: QaScribeApi = {
   importClipboardScreenshot: (sessionId: string, entryId?: string) =>
     ipcRenderer.invoke('attachments:import-clipboard-screenshot', sessionId, entryId),
   getAttachmentPreviewDataUrl: (id: string) => ipcRenderer.invoke('attachments:preview', id),
+  copyAttachmentImageToClipboard: (id: string) => ipcRenderer.invoke('attachments:copy-image-to-clipboard', id),
   createFinding: (input: FindingDraft) => ipcRenderer.invoke('findings:create', input),
   updateFinding: (id: string, input: FindingPatch) => ipcRenderer.invoke('findings:update', id, input),
   deleteFinding: (id: string) => ipcRenderer.invoke('findings:delete', id),

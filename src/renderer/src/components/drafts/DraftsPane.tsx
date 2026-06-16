@@ -2,7 +2,7 @@ import { useState, type ReactElement } from 'react'
 import { Bug, Check, Copy, Eye, FileText, Pencil, Trash2 } from 'lucide-react'
 import type { Attachment } from '../../../../shared/contracts'
 import type { Finding, ReviewDraft } from '../../domain/types'
-import { formatJiraDraft, jiraDraftFromFinding } from '../../domain/reviewDrafts'
+import { formatJiraDraft, jiraDraftFromFinding, reportContentFromDraftContent } from '../../domain/reviewDrafts'
 import { AttachmentPreviewGrid } from '../evidence/Attachments'
 import { DraftMarkdownView } from './DraftMarkdownView'
 
@@ -17,8 +17,10 @@ export function DraftsPane(props: {
   onSave: () => Promise<void>
   onDelete: () => Promise<void>
   onCopy: (text: string, message?: string) => Promise<void>
+  onCopyScreenshot: (attachment: Attachment) => Promise<void>
 }): ReactElement {
   const [mode, setMode] = useState<'preview' | 'edit'>('preview')
+  const [copyingAttachmentId, setCopyingAttachmentId] = useState<string | null>(null)
   const autosaveLabel =
     props.autosaveStatus === 'saving'
       ? 'Saving...'
@@ -47,6 +49,17 @@ export function DraftsPane(props: {
     )
   }
 
+  const reportContent = reportContentFromDraftContent(draft.content)
+
+  async function copyScreenshot(attachment: Attachment): Promise<void> {
+    setCopyingAttachmentId(attachment.id)
+    try {
+      await props.onCopyScreenshot(attachment)
+    } finally {
+      setCopyingAttachmentId(null)
+    }
+  }
+
   return (
     <section className="drafts-pane">
       <div className="draft-editor">
@@ -69,7 +82,7 @@ export function DraftsPane(props: {
                 Edit Draft
               </button>
             </div>
-            <button className="secondary-command" type="button" onClick={() => props.onCopy(draft.content, 'Report copied')}>
+            <button className="secondary-command" type="button" onClick={() => props.onCopy(reportContent, 'Report copied')}>
               <Copy size={16} />
               Copy Report
             </button>
@@ -89,7 +102,7 @@ export function DraftsPane(props: {
           </div>
         </div>
         {mode === 'preview' ? (
-          <DraftMarkdownView content={draft.content} />
+          <DraftMarkdownView content={reportContent} />
         ) : (
           <textarea
             aria-label="Session Report Draft"
@@ -103,7 +116,22 @@ export function DraftsPane(props: {
               <Eye size={16} />
               <h3>Evidence Screenshots</h3>
             </div>
-            <AttachmentPreviewGrid attachments={imageEvidenceAttachments} />
+            <AttachmentPreviewGrid
+              attachments={imageEvidenceAttachments}
+              renderAction={(attachment) => (
+                <button
+                  aria-label={`Copy screenshot: ${attachment.filename}`}
+                  className="secondary-command compact"
+                  disabled={copyingAttachmentId === attachment.id}
+                  title={`Copy screenshot: ${attachment.filename}`}
+                  type="button"
+                  onClick={() => void copyScreenshot(attachment)}
+                >
+                  <Copy size={14} />
+                  {copyingAttachmentId === attachment.id ? 'Copying...' : 'Copy'}
+                </button>
+              )}
+            />
           </div>
         ) : null}
       </div>

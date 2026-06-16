@@ -1,6 +1,6 @@
 {
   "name": "qa-scribe",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "Local-first desktop testing notepad for turning testing sessions into structured testware.",
   "author": "qa-scribe contributors",
   "main": "out/main/index.js",

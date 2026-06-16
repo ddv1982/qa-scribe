@@ -139,6 +139,14 @@ export function jiraDraftsFromMarkdown(markdown: string): JiraBugDraft[] {
     .filter((draft): draft is JiraBugDraft => draft !== null)
 }
 
+export function reportContentFromDraftContent(markdown: string): string {
+  const marker = '\n## Jira Bug Drafts'
+  const markerIndex = markdown.indexOf(marker)
+  if (markerIndex >= 0) return markdown.slice(0, markerIndex).trimEnd()
+  if (markdown.startsWith('## Jira Bug Drafts')) return ''
+  return markdown
+}
+
 export function sectionValue(markdown: string, label: string): string {
   const marker = `**${label}`
   const start = markdown.indexOf(marker)

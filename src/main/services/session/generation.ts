@@ -4,53 +4,74 @@ import { labelEntryType } from './utils'
 
 export const promptVersion = 'session-report-v1'
 
+const limits = {
+  whatWasTestedLength: 280,
+  scenarioCount: 5,
+  scenarioLength: 120,
+  checkCount: 8,
+  findingCount: 5,
+  bugCount: 3,
+  jiraBugDraftCount: 3,
+  questionCount: 3,
+  actionCount: 3,
+  titleLength: 120,
+  shortFieldLength: 180,
+  detailFieldLength: 320,
+  evidenceCount: 3,
+  evidenceLength: 140,
+  stepsCount: 6,
+  stepLength: 180
+}
+
+const evidenceSchema = z.array(z.string().max(limits.evidenceLength)).max(limits.evidenceCount)
+
 export const generatedReportSchema = z.object({
-  whatWasTested: z.string(),
-  scenariosCovered: z.array(z.string()),
+  whatWasTested: z.string().max(limits.whatWasTestedLength),
+  scenariosCovered: z.array(z.string().max(limits.scenarioLength)).max(limits.scenarioCount),
   checks: z.array(
     z.object({
-      title: z.string(),
+      title: z.string().max(limits.titleLength),
       status: z.enum(['passed', 'failed', 'blocked', 'unknown']),
-      expectedResult: z.string().nullable().optional(),
-      actualResult: z.string().nullable().optional(),
-      evidence: z.array(z.string()).nullable().optional(),
-      notes: z.string().nullable().optional()
+      expectedResult: z.string().max(limits.detailFieldLength).nullable().optional(),
+      actualResult: z.string().max(limits.detailFieldLength).nullable().optional(),
+      evidence: evidenceSchema.nullable().optional(),
+      notes: z.string().max(limits.shortFieldLength).nullable().optional()
     })
-  ),
+  ).max(limits.checkCount),
   findings: z.array(
     z.object({
-      title: z.string(),
+      title: z.string().max(limits.titleLength),
       type: z.enum(['bug', 'risk', 'question', 'follow_up', 'note']),
-      summary: z.string(),
-      severity: z.string().nullable().optional(),
-      priority: z.string().nullable().optional(),
-      expectedResult: z.string().nullable().optional(),
-      actualResult: z.string().nullable().optional(),
-      evidence: z.array(z.string()).nullable().optional(),
-      followUp: z.string().nullable().optional()
+      summary: z.string().max(limits.detailFieldLength),
+      severity: z.string().max(limits.shortFieldLength).nullable().optional(),
+      priority: z.string().max(limits.shortFieldLength).nullable().optional(),
+      expectedResult: z.string().max(limits.detailFieldLength).nullable().optional(),
+      actualResult: z.string().max(limits.detailFieldLength).nullable().optional(),
+      evidence: evidenceSchema.nullable().optional(),
+      followUp: z.string().max(limits.detailFieldLength).nullable().optional()
     })
-  ),
+  ).max(limits.findingCount),
   bugs: z.array(
     z.object({
-      title: z.string(),
-      stepsToReproduce: z.array(z.string()),
-      expectedResult: z.string(),
-      actualResult: z.string(),
-      evidence: z.array(z.string()).nullable().optional()
+      title: z.string().max(limits.titleLength),
+      stepsToReproduce: z.array(z.string().max(limits.stepLength)).max(limits.stepsCount),
+      expectedResult: z.string().max(limits.detailFieldLength),
+      actualResult: z.string().max(limits.detailFieldLength),
+      evidence: evidenceSchema.nullable().optional()
     })
-  ),
-  openQuestions: z.array(z.string()),
-  followUpActions: z.array(z.string()),
+  ).max(limits.bugCount),
+  openQuestions: z.array(z.string().max(limits.detailFieldLength)).max(limits.questionCount),
+  followUpActions: z.array(z.string().max(limits.detailFieldLength)).max(limits.actionCount),
   jiraBugDrafts: z.array(
     z.object({
-      summary: z.string(),
-      description: z.string(),
-      stepsToReproduce: z.array(z.string()),
-      expectedResult: z.string(),
-      actualResult: z.string(),
-      evidence: z.array(z.string()).nullable().optional()
+      summary: z.string().max(limits.titleLength),
+      description: z.string().max(limits.detailFieldLength),
+      stepsToReproduce: z.array(z.string().max(limits.stepLength)).max(limits.stepsCount),
+      expectedResult: z.string().max(limits.detailFieldLength),
+      actualResult: z.string().max(limits.detailFieldLength),
+      evidence: evidenceSchema.nullable().optional()
     })
-  )
+  ).max(limits.jiraBugDraftCount)
 })
 
 export const generatedReportJsonSchema = {
@@ -67,26 +88,36 @@ export const generatedReportJsonSchema = {
     'jiraBugDrafts'
   ],
   properties: {
-    whatWasTested: { type: 'string' },
-    scenariosCovered: { type: 'array', items: { type: 'string' } },
+    whatWasTested: { type: 'string', maxLength: limits.whatWasTestedLength },
+    scenariosCovered: {
+      type: 'array',
+      maxItems: limits.scenarioCount,
+      items: { type: 'string', maxLength: limits.scenarioLength }
+    },
     checks: {
       type: 'array',
+      maxItems: limits.checkCount,
       items: {
         type: 'object',
         additionalProperties: false,
         required: ['title', 'status', 'expectedResult', 'actualResult', 'evidence', 'notes'],
         properties: {
-          title: { type: 'string' },
+          title: { type: 'string', maxLength: limits.titleLength },
           status: { type: 'string', enum: ['passed', 'failed', 'blocked', 'unknown'] },
-          expectedResult: { type: ['string', 'null'] },
-          actualResult: { type: ['string', 'null'] },
-          evidence: { type: ['array', 'null'], items: { type: 'string' } },
-          notes: { type: ['string', 'null'] }
+          expectedResult: { type: ['string', 'null'], maxLength: limits.detailFieldLength },
+          actualResult: { type: ['string', 'null'], maxLength: limits.detailFieldLength },
+          evidence: {
+            type: ['array', 'null'],
+            maxItems: limits.evidenceCount,
+            items: { type: 'string', maxLength: limits.evidenceLength }
+          },
+          notes: { type: ['string', 'null'], maxLength: limits.shortFieldLength }
         }
       }
     },
     findings: {
       type: 'array',
+      maxItems: limits.findingCount,
       items: {
         type: 'object',
         additionalProperties: false,
@@ -102,48 +133,78 @@ export const generatedReportJsonSchema = {
           'followUp'
         ],
         properties: {
-          title: { type: 'string' },
+          title: { type: 'string', maxLength: limits.titleLength },
           type: { type: 'string', enum: ['bug', 'risk', 'question', 'follow_up', 'note'] },
-          summary: { type: 'string' },
-          severity: { type: ['string', 'null'] },
-          priority: { type: ['string', 'null'] },
-          expectedResult: { type: ['string', 'null'] },
-          actualResult: { type: ['string', 'null'] },
-          evidence: { type: ['array', 'null'], items: { type: 'string' } },
-          followUp: { type: ['string', 'null'] }
+          summary: { type: 'string', maxLength: limits.detailFieldLength },
+          severity: { type: ['string', 'null'], maxLength: limits.shortFieldLength },
+          priority: { type: ['string', 'null'], maxLength: limits.shortFieldLength },
+          expectedResult: { type: ['string', 'null'], maxLength: limits.detailFieldLength },
+          actualResult: { type: ['string', 'null'], maxLength: limits.detailFieldLength },
+          evidence: {
+            type: ['array', 'null'],
+            maxItems: limits.evidenceCount,
+            items: { type: 'string', maxLength: limits.evidenceLength }
+          },
+          followUp: { type: ['string', 'null'], maxLength: limits.detailFieldLength }
         }
       }
     },
     bugs: {
       type: 'array',
+      maxItems: limits.bugCount,
       items: {
         type: 'object',
         additionalProperties: false,
         required: ['title', 'stepsToReproduce', 'expectedResult', 'actualResult', 'evidence'],
         properties: {
-          title: { type: 'string' },
-          stepsToReproduce: { type: 'array', items: { type: 'string' } },
-          expectedResult: { type: 'string' },
-          actualResult: { type: 'string' },
-          evidence: { type: ['array', 'null'], items: { type: 'string' } }
+          title: { type: 'string', maxLength: limits.titleLength },
+          stepsToReproduce: {
+            type: 'array',
+            maxItems: limits.stepsCount,
+            items: { type: 'string', maxLength: limits.stepLength }
+          },
+          expectedResult: { type: 'string', maxLength: limits.detailFieldLength },
+          actualResult: { type: 'string', maxLength: limits.detailFieldLength },
+          evidence: {
+            type: ['array', 'null'],
+            maxItems: limits.evidenceCount,
+            items: { type: 'string', maxLength: limits.evidenceLength }
+          }
         }
       }
     },
-    openQuestions: { type: 'array', items: { type: 'string' } },
-    followUpActions: { type: 'array', items: { type: 'string' } },
+    openQuestions: {
+      type: 'array',
+      maxItems: limits.questionCount,
+      items: { type: 'string', maxLength: limits.detailFieldLength }
+    },
+    followUpActions: {
+      type: 'array',
+      maxItems: limits.actionCount,
+      items: { type: 'string', maxLength: limits.detailFieldLength }
+    },
     jiraBugDrafts: {
       type: 'array',
+      maxItems: limits.jiraBugDraftCount,
       items: {
         type: 'object',
         additionalProperties: false,
         required: ['summary', 'description', 'stepsToReproduce', 'expectedResult', 'actualResult', 'evidence'],
         properties: {
-          summary: { type: 'string' },
-          description: { type: 'string' },
-          stepsToReproduce: { type: 'array', items: { type: 'string' } },
-          expectedResult: { type: 'string' },
-          actualResult: { type: 'string' },
-          evidence: { type: ['array', 'null'], items: { type: 'string' } }
+          summary: { type: 'string', maxLength: limits.titleLength },
+          description: { type: 'string', maxLength: limits.detailFieldLength },
+          stepsToReproduce: {
+            type: 'array',
+            maxItems: limits.stepsCount,
+            items: { type: 'string', maxLength: limits.stepLength }
+          },
+          expectedResult: { type: 'string', maxLength: limits.detailFieldLength },
+          actualResult: { type: 'string', maxLength: limits.detailFieldLength },
+          evidence: {
+            type: ['array', 'null'],
+            maxItems: limits.evidenceCount,
+            items: { type: 'string', maxLength: limits.evidenceLength }
+          }
         }
       }
     }
@@ -157,10 +218,13 @@ export function buildGenerationPrompt(review: GenerationContextReview): string {
   const lines = [
     'You are helping a tester turn a local testing session into structured testware.',
     'Use only the information in this context. Do not invent unsupported facts.',
-    'Return concise but useful structured output that matches the requested schema.',
+    'Return concise, scannable structured output that matches the requested schema.',
     'Screenshots and files are represented by metadata only; do not assume image contents.',
     'Preserve the difference between a Check and a Finding: a Check records expected versus actual outcome and pass/fail/blocked/unknown status; a Finding is only for a bug, risk, question, follow-up, or note that needs triage or action.',
     'If the actual result matches the expected result, make it a passed Check. If it differs, make it a failed Check and create a Finding only when the context supports a triage-worthy issue.',
+    'Brevity rules: whatWasTested is one sentence; checks are one-line facts; findings are only triage-worthy; openQuestions and followUpActions are only actionable gaps.',
+    `Caps: max ${limits.scenarioCount} scenarios, ${limits.checkCount} checks, ${limits.findingCount} findings, ${limits.questionCount} open questions, ${limits.actionCount} follow-up actions, and ${limits.jiraBugDraftCount} Jira bug drafts.`,
+    'Use bugs and jiraBugDrafts only for real bugs. Keep both lists aligned and avoid duplicating narrative detail across fields.',
     '',
     'Session Metadata:',
     `- ID: ${review.session.id}`,
@@ -235,57 +299,11 @@ export function renderGeneratedReport(report: GeneratedReport): string {
     '',
     '## Checks',
     '',
-    report.checks
-      .map((check) =>
-        [
-          `### [${check.status}] ${check.title}`,
-          ...renderOptionalField('Expected', check.expectedResult),
-          ...renderOptionalField('Actual', check.actualResult),
-          ...renderOptionalField('Notes', check.notes),
-          ...renderOptionalList('Evidence', check.evidence)
-        ].join('\n')
-      )
-      .join('\n\n') || '- None recorded.',
+    renderChecks(report.checks),
     '',
     '## Findings',
     '',
-    report.findings
-      .map((finding) =>
-        [
-          `### ${finding.title}`,
-          '',
-          `Type: ${finding.type}`,
-          ...renderOptionalField('Summary', finding.summary),
-          ...renderOptionalField('Severity', finding.severity),
-          ...renderOptionalField('Priority', finding.priority),
-          ...renderOptionalField('Expected', finding.expectedResult),
-          ...renderOptionalField('Actual', finding.actualResult),
-          ...renderOptionalList('Evidence', finding.evidence),
-          ...renderOptionalField('Follow-up', finding.followUp)
-        ].join('\n')
-      )
-      .join('\n\n') || '- None recorded.',
-    '',
-    '## Bugs',
-    '',
-    report.bugs
-      .map(
-        (bug) =>
-          [
-            `### ${bug.title}`,
-            '',
-            '**Steps to Reproduce**',
-            renderOrderedList(bug.stepsToReproduce),
-            '',
-            `**Expected:** ${bug.expectedResult}`,
-            '',
-            `**Actual:** ${bug.actualResult}`,
-            '',
-            '**Evidence**',
-            renderList(bug.evidence ?? [])
-          ].join('\n')
-      )
-      .join('\n\n') || 'None recorded.',
+    renderFindings(report.findings),
     '',
     '## Open Questions',
     '',
@@ -324,16 +342,52 @@ function renderList(values: string[]): string {
   return values.length > 0 ? values.map((value) => `- ${value}`).join('\n') : '- None recorded.'
 }
 
+function renderChecks(checks: GeneratedReport['checks']): string {
+  if (checks.length === 0) return '- None recorded.'
+  return checks
+    .map((check) =>
+      [
+        `- [${check.status}] ${check.title}`,
+        inlinePart('Expected', check.expectedResult),
+        inlinePart('Actual', check.actualResult),
+        inlinePart('Notes', check.notes),
+        inlineListPart('Evidence', check.evidence)
+      ]
+        .filter(Boolean)
+        .join(' ')
+    )
+    .join('\n')
+}
+
+function renderFindings(findings: GeneratedReport['findings']): string {
+  if (findings.length === 0) return '- None recorded.'
+  return findings
+    .map((finding) =>
+      [
+        `- [${finding.type}] ${finding.title}: ${finding.summary}`,
+        inlinePart('Severity', finding.severity),
+        inlinePart('Priority', finding.priority),
+        inlinePart('Expected', finding.expectedResult),
+        inlinePart('Actual', finding.actualResult),
+        inlineListPart('Evidence', finding.evidence),
+        inlinePart('Follow-up', finding.followUp)
+      ]
+        .filter(Boolean)
+        .join(' ')
+    )
+    .join('\n')
+}
+
 function renderOrderedList(values: string[]): string {
   return values.length > 0 ? values.map((value, index) => `${index + 1}. ${value}`).join('\n') : '1. None recorded.'
 }
 
-function renderOptionalField(label: string, value: string | null | undefined): string[] {
+function inlinePart(label: string, value: string | null | undefined): string {
   const trimmed = value?.trim()
-  return trimmed ? ['', `**${label}:** ${trimmed}`] : []
+  return trimmed ? `**${label}:** ${trimmed};` : ''
 }
 
-function renderOptionalList(label: string, values: string[] | null | undefined): string[] {
-  if (!values || values.length === 0) return []
-  return ['', `**${label}**`, renderList(values)]
+function inlineListPart(label: string, values: string[] | null | undefined): string {
+  if (!values || values.length === 0) return ''
+  return `**${label}:** ${values.join('; ')};`
 }

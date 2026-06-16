@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactElement } from 'react'
+import { useEffect, useState, type ReactElement, type ReactNode } from 'react'
 import type { Attachment } from '../../../../shared/contracts'
 import type { ContextAttachment } from '../../domain/types'
 
@@ -47,14 +47,21 @@ export function ReviewAttachmentList(props: {
   )
 }
 
-export function AttachmentPreviewGrid(props: { attachments: Attachment[]; compact?: boolean }): ReactElement | null {
+export function AttachmentPreviewGrid(props: {
+  attachments: Attachment[]
+  compact?: boolean
+  renderAction?: (attachment: Attachment) => ReactNode
+}): ReactElement | null {
   const imageAttachments = props.attachments.filter(isImageAttachment)
   if (imageAttachments.length === 0) return null
 
   return (
     <div className={props.compact ? 'attachment-preview-grid compact' : 'attachment-preview-grid'}>
       {imageAttachments.map((attachment) => (
-        <AttachmentPreview attachment={attachment} compact={props.compact} key={attachment.id} />
+        <div className="attachment-preview-item" key={attachment.id}>
+          <AttachmentPreview attachment={attachment} compact={props.compact} />
+          {props.renderAction ? <div className="attachment-preview-action">{props.renderAction(attachment)}</div> : null}
+        </div>
       ))}
     </div>
   )

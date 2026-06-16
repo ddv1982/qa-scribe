@@ -1,4 +1,4 @@
-import { clipboard, dialog, ipcMain } from 'electron'
+import { clipboard, dialog, ipcMain, nativeImage } from 'electron'
 import { z } from 'zod'
 import {
   draftCreateSchema,
@@ -95,4 +95,14 @@ export function registerIpcHandlers(service: SessionService): void {
     return service.importClipboardScreenshot(image.toPNG(), parsedSessionId, parsedEntryId)
   })
   ipcMain.handle('attachments:preview', (_event, id: string) => service.getAttachmentPreviewDataUrl(idSchema.parse(id)))
+  ipcMain.handle('attachments:copy-image-to-clipboard', (_event, id: string) => {
+    const imageBytes = service.getAttachmentImageBytes(idSchema.parse(id))
+    if (!imageBytes) return false
+
+    const image = nativeImage.createFromBuffer(imageBytes)
+    if (image.isEmpty()) return false
+
+    clipboard.writeImage(image)
+    return true
+  })
 }

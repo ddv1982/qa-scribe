@@ -73,6 +73,7 @@ export function installQaScribeApi(snapshot: SessionSnapshot, status: ProviderSt
     importAttachment: vi.fn(),
     importClipboardScreenshot: vi.fn(),
     getAttachmentPreviewDataUrl: vi.fn(async () => null),
+    copyAttachmentImageToClipboard: vi.fn(async () => true),
     createFinding: vi.fn(),
     updateFinding: vi.fn(),
     deleteFinding: vi.fn(),
