@@ -18,6 +18,8 @@ Implemented capabilities include:
 - Manual Draft editing and copy-friendly Jira bug draft sections.
 - Explicit AI generation through already-authenticated local Codex CLI, Claude Code, or GitHub Copilot CLI.
 - Generation Context review before provider calls.
+- Application settings for selectable AI providers, the generation system prompt, and Note/Finding capture templates.
+- Finding composer attachments from actual and expected result editors, linked as Finding Evidence on save.
 - Local capture, persistence, and export without AI configuration.
 - macOS local directory packaging through electron-builder.
 
@@ -62,7 +64,7 @@ npm run dev
 
 AI generation is optional. Capture, persistence, manual review, drafts, and export work without any AI provider.
 
-qa-scribe does not manage API keys or expose an AI settings screen. It detects already-authenticated local tools:
+qa-scribe does not manage API keys. It detects already-authenticated local tools and lets users enable or disable which detected CLI providers are selectable in application settings:
 
 - Claude Code through the local `claude` CLI and existing Claude authentication.
 - Codex through the local `codex` CLI and existing Codex authentication.
@@ -76,7 +78,11 @@ Provider model discovery is best-effort and never makes an otherwise authenticat
 | Claude Code | `claude --help` is parsed for documented aliases and effort values. If the separate Anthropic `ant` CLI is installed and credentialed, `ant beta:models list` can add full model descriptors and model-specific effort capabilities. | Static Claude fallback choices prefer `sonnet` by default and include `haiku` for cheaper runs. Premium models such as Opus or Fable are not promoted as static fallbacks, but remain usable when discovered by the provider or entered as custom model names. |
 | GitHub Copilot CLI | `copilot help config` is parsed for the local CLI model catalog. Concrete discovered models expose documented `--effort` choices; `auto` remains the no-explicit-reasoning default. | Static Copilot choices are used if help-config parsing fails, and custom model names remain accepted. |
 
-Environment overrides still set the initial default model when present: `CLAUDE_MODEL`, `CODEX_MODEL`, and `COPILOT_MODEL`.
+Environment overrides still influence default model selection when present: `CLAUDE_MODEL`, `CODEX_MODEL`, and `COPILOT_MODEL`.
+
+Application settings also store the editable system prompt used as the first instruction block for AI generation. qa-scribe still appends protected context, evidence, and structured-output instructions so generated Testware remains grounded in the reviewed Generation Context.
+
+Settings also control the fields shown by the Note and Finding capture forms. Required fields stay enabled, while optional fields can be hidden and supported field types include text, textarea, rich text, select, multiselect, and checkbox controls. The Finding form keeps structured Jira-oriented fields such as actual result, expected result, steps, severity, priority, component, environment, and notes.
 
 For desktop launches, qa-scribe hydrates the provider command `PATH` from the user's login shell and common local install locations before spawning `claude`, `codex`, or `copilot`. This helps CLIs installed through Homebrew, npm, nvm, fnm, or similar tools work the same way they do in a terminal. Provider checks and generation run from an empty qa-scribe runtime directory under `~/.qa-scribe/provider-runtime` by default, so the CLIs can resolve their normal user-local configuration without receiving the app repository as working-directory context. Set `QA_SCRIBE_PROVIDER_RUNTIME_DIR` to override that runtime location.
 

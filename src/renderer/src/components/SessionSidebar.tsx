@@ -1,4 +1,4 @@
-import { Archive, Loader2, Plus, Trash2 } from 'lucide-react'
+import { Archive, Loader2, Plus, Settings, Trash2 } from 'lucide-react'
 import { useState, type ReactElement } from 'react'
 import type { Session } from '../../../shared/contracts'
 
@@ -7,7 +7,9 @@ export function SessionSidebar(props: {
   selectedSessionId: string | null
   onCreateSession: () => Promise<void>
   onOpenSession: (id: string) => Promise<void>
+  onOpenSettings: () => Promise<void>
   onDeleteSession: (session: Session) => Promise<void>
+  settingsSelected?: boolean
   busy?: boolean
   newSessionBusy?: boolean
   newSessionDisabled?: boolean
@@ -43,6 +45,16 @@ export function SessionSidebar(props: {
       >
         {newSessionBusy ? <Loader2 className="spin" size={17} /> : <Plus size={17} />}
         {newSessionBusy ? 'Creating...' : 'New Session'}
+      </button>
+
+      <button
+        aria-current={props.settingsSelected ? 'page' : undefined}
+        className={props.settingsSelected ? 'sidebar-settings selected' : 'sidebar-settings'}
+        onClick={() => void props.onOpenSettings()}
+        type="button"
+      >
+        <Settings size={16} />
+        <span>Settings</span>
       </button>
 
       <div className="session-list" aria-label="Saved sessions">

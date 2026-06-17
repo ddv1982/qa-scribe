@@ -1,6 +1,6 @@
 import type { Attachment, Entry, EntryType, GenerationContextReview } from '../../../shared/contracts'
 
-export type WorkspaceMode = 'capture' | 'generation' | 'drafts'
+export type WorkspaceMode = 'capture' | 'generation' | 'drafts' | 'settings'
 export type CaptureMode = 'note' | 'finding'
 
 export type StructuredFindingDetails = {

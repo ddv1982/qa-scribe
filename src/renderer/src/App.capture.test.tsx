@@ -11,6 +11,7 @@ import {
   baseSession,
   codexAvailable,
   createSnapshot,
+  defaultSettings,
   installQaScribeApi,
   providerStatus,
   setupAppTestHooks
@@ -123,6 +124,161 @@ describe('App capture and evidence', () => {
           sessionId: snapshot.session.id,
           title: 'Clarify empty checkout state',
           body: 'No additional finding details yet.'
+        })
+      )
+    )
+  })
+
+  it('applies finding template visibility and order without breaking Finding serialization', async () => {
+    const snapshot = createSnapshot()
+    const api = installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
+    const settings = defaultSettings()
+    settings.templates.finding = {
+      fields: [
+        settings.templates.finding.fields.find((field) => field.id === 'title')!,
+        { ...settings.templates.finding.fields.find((field) => field.id === 'expected')!, type: 'textarea' as const },
+        { ...settings.templates.finding.fields.find((field) => field.id === 'actual')!, type: 'textarea' as const },
+        { ...settings.templates.finding.fields.find((field) => field.id === 'severity')!, enabled: false },
+        { ...settings.templates.finding.fields.find((field) => field.id === 'priority')!, enabled: false },
+        settings.templates.finding.fields.find((field) => field.id === 'notes')!
+      ]
+    }
+    vi.mocked(api.getSettings).mockResolvedValue(settings)
+    vi.mocked(api.createFinding).mockResolvedValue({
+      id: 'finding-1',
+      sessionId: snapshot.session.id,
+      title: 'Template-driven finding',
+      body: 'Structured finding body',
+      kind: 'bug',
+      metadataJson: null,
+      createdAt: '2026-06-15T00:04:00.000Z',
+      updatedAt: '2026-06-15T00:04:00.000Z'
+    } satisfies StoredFinding)
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Finding' }))
+    expect(screen.queryByLabelText('Severity')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Priority')).not.toBeInTheDocument()
+    const expectedEditor = screen.getByLabelText('Expected result')
+    const actualEditor = screen.getByLabelText('Actual result')
+    expect(expectedEditor.tagName).toBe('TEXTAREA')
+    expect(actualEditor.tagName).toBe('TEXTAREA')
+    expect(expectedEditor.compareDocumentPosition(actualEditor) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+
+    fireEvent.change(screen.getByLabelText('Finding title (required)'), { target: { value: 'Template-driven finding' } })
+    fireEvent.input(expectedEditor, { target: { textContent: 'Expected value remains visible.' } })
+    fireEvent.input(actualEditor, { target: { textContent: 'Actual value remains visible.' } })
+    await waitFor(() => expect(expectedEditor).toHaveTextContent('Expected value remains visible.'))
+    await waitFor(() => expect(actualEditor).toHaveTextContent('Actual value remains visible.'))
+    fireEvent.click(screen.getByRole('button', { name: 'Add Finding' }))
+
+    await waitFor(() => expect(api.createFinding).toHaveBeenCalled())
+    const payload = vi.mocked(api.createFinding).mock.calls[0]?.[0]
+    expect(JSON.parse(payload?.metadataJson ?? '{}')).toEqual(
+      expect.objectContaining({
+        expected: 'Expected value remains visible.',
+        actual: 'Actual value remains visible.',
+        severity: 'untriaged',
+        priority: 'medium'
+      })
+    )
+  })
+
+  it('attaches evidence from a finding result editor and links it after saving the Finding', async () => {
+    const draftAttachment = { ...baseImageAttachment(), id: 'finding-attachment-1', entryId: null }
+    const snapshot = createSnapshot()
+    const api = installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
+    vi.mocked(api.importAttachment).mockResolvedValue(draftAttachment)
+    vi.mocked(api.createFinding).mockResolvedValue({
+      id: 'finding-1',
+      sessionId: snapshot.session.id,
+      title: 'Finding with attached result evidence',
+      body: 'Structured finding body',
+      kind: 'bug',
+      metadataJson: null,
+      createdAt: '2026-06-15T00:04:00.000Z',
+      updatedAt: '2026-06-15T00:04:00.000Z'
+    } satisfies StoredFinding)
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Finding' }))
+    fireEvent.change(screen.getByLabelText('Finding title (required)'), {
+      target: { value: 'Finding with attached result evidence' }
+    })
+    fireEvent.click(screen.getAllByRole('button', { name: 'Attach evidence' })[0]!)
+    const dialog = screen.getByRole('dialog', { name: 'Attach Evidence' })
+    expect(within(dialog).getByText('Attach to Finding draft actual result')).toBeInTheDocument()
+    fireEvent.click(within(dialog).getByRole('button', { name: /Browse/ }))
+
+    expect(await screen.findByText(/1 draft Evidence/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Add Finding' }))
+
+    await waitFor(() => expect(api.createFinding).toHaveBeenCalled())
+    expect(api.importAttachment).toHaveBeenCalledWith(snapshot.session.id, undefined)
+    expect(api.createEvidenceLink).toHaveBeenCalledWith({ findingId: 'finding-1', attachmentId: 'finding-attachment-1' })
+  })
+
+  it('applies note template visibility and field types', async () => {
+    const snapshot = createSnapshot()
+    const api = installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
+    const settings = defaultSettings()
+    settings.templates.note = {
+      fields: [
+        { ...settings.templates.note.fields.find((field) => field.id === 'title')!, enabled: false },
+        { ...settings.templates.note.fields.find((field) => field.id === 'body')!, type: 'textarea' as const },
+        settings.templates.note.fields.find((field) => field.id === 'evidence')!
+      ]
+    }
+    vi.mocked(api.getSettings).mockResolvedValue(settings)
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Note title')).not.toBeInTheDocument()
+    const noteBody = screen.getByLabelText('Note body')
+    expect(noteBody.tagName).toBe('TEXTAREA')
+    fireEvent.change(noteBody, { target: { value: 'Template note body' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add Note' }))
+
+    await waitFor(() =>
+      expect(api.createEntry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: '',
+          body: 'Template note body',
+          metadataJson: null
+        })
+      )
+    )
+  })
+
+  it('saves a note when the template disables the body field', async () => {
+    const snapshot = createSnapshot()
+    const api = installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
+    const settings = defaultSettings()
+    settings.templates.note = {
+      fields: [
+        settings.templates.note.fields.find((field) => field.id === 'title')!,
+        { ...settings.templates.note.fields.find((field) => field.id === 'body')!, enabled: false }
+      ]
+    }
+    vi.mocked(api.getSettings).mockResolvedValue(settings)
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Note body')).not.toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Note title'), { target: { value: 'Title-only template note' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add Note' }))
+
+    await waitFor(() =>
+      expect(api.createEntry).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Title-only template note',
+          body: 'Title-only template note'
         })
       )
     )

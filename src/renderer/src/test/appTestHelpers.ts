@@ -1,6 +1,7 @@
 import { cleanup } from '@testing-library/react'
 import { afterEach, beforeEach, vi } from 'vitest'
 import type {
+  AppSettings,
   AiModelDescriptor,
   AiRun,
   Attachment,
@@ -13,7 +14,7 @@ import type {
   Session,
   SessionSnapshot
 } from '../../../shared/contracts'
-import { defaultReasoningEffortFor, type ProviderCapabilities } from '../../../shared/contracts'
+import { defaultAppSettings, defaultReasoningEffortFor, type ProviderCapabilities } from '../../../shared/contracts'
 
 export function setupAppTestHooks(): void {
   beforeEach(() => {
@@ -62,6 +63,14 @@ export function installQaScribeApi(snapshot: SessionSnapshot, status: ProviderSt
   const review = createGenerationContextReview(snapshot)
   const generated = createGenerationResult(snapshot.session.id)
   const api = {
+    getSettings: vi.fn(async () => defaultSettings()),
+    updateSettings: vi.fn(async (input) => ({
+      ...defaultSettings(),
+      ...input,
+      providers: { ...defaultSettings().providers, ...input.providers },
+      generation: { ...defaultSettings().generation, ...input.generation },
+      templates: { ...defaultSettings().templates, ...input.templates }
+    })),
     listSessions: vi.fn(async () => [snapshot.session]),
     createSession: vi.fn(),
     getSession: vi.fn(async () => snapshot),
@@ -94,6 +103,10 @@ export function installQaScribeApi(snapshot: SessionSnapshot, status: ProviderSt
 
   window.qaScribe = api
   return api
+}
+
+export function defaultSettings(): AppSettings {
+  return JSON.parse(JSON.stringify(defaultAppSettings)) as AppSettings
 }
 
 export function createSnapshot(

@@ -13,6 +13,7 @@ import {
   codexWithModelSpecificReasoning,
   copilotAvailable,
   createSnapshot,
+  defaultSettings,
   descriptorOnlyReasoning,
   installQaScribeApi,
   providerStatus,
@@ -104,6 +105,100 @@ describe('App provider controls', () => {
 
     await waitFor(() => expect(api.copyAttachmentImageToClipboard).toHaveBeenCalledWith(screenshot.id))
     expect(await screen.findByText('Screenshot copied')).toBeInTheDocument()
+  })
+
+  it('does not offer settings-disabled providers in generation controls', async () => {
+    const snapshot = createSnapshot({
+      entries: [baseEntry()],
+      session: {
+        ...baseSession(),
+        title: 'Disabled provider controls',
+        testTarget: 'Checkout',
+        charter: 'Verify settings-disabled provider filtering'
+      }
+    })
+    installQaScribeApi(
+      snapshot,
+      providerStatus([
+        codexAvailable(),
+        {
+          ...copilotAvailable(),
+          available: false,
+          reason: 'GitHub Copilot CLI is disabled in Settings.'
+        }
+      ])
+    )
+
+    render(<App />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /Generate Testware/i }))
+    fireEvent.click(await screen.findByText('Provider settings'))
+    const providerSelect = (await screen.findByLabelText('Provider (required)')) as HTMLSelectElement
+
+    expect(within(providerSelect).getByRole('option', { name: 'Codex CLI' })).toBeInTheDocument()
+    expect(within(providerSelect).queryByRole('option', { name: 'GitHub Copilot CLI' })).not.toBeInTheDocument()
+    expect(await screen.findByText('GitHub Copilot CLI: GitHub Copilot CLI is disabled in Settings.')).toBeInTheDocument()
+  })
+
+  it('opens settings and saves provider prompt and template changes', async () => {
+    const snapshot = createSnapshot()
+    const api = installQaScribeApi(snapshot, providerStatus([codexAvailable(), copilotAvailable()]))
+    vi.mocked(api.getSettings).mockResolvedValue(defaultSettings())
+    vi.mocked(api.updateSettings).mockImplementation(async (input) => ({
+      ...defaultSettings(),
+      ...input,
+      providers: { ...defaultSettings().providers, ...input.providers },
+      generation: { ...defaultSettings().generation, ...input.generation },
+      templates: { ...defaultSettings().templates, ...input.templates }
+    }))
+
+    render(<App />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Settings' }))
+    expect(await screen.findByRole('heading', { name: 'Settings' })).toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('Codex CLI'))
+    fireEvent.change(screen.getByLabelText('Custom system prompt'), {
+      target: { value: 'Use my concise QA voice.' }
+    })
+    fireEvent.change(screen.getByLabelText('Note title type'), { target: { value: 'textarea' } })
+    fireEvent.click(within(screen.getByRole('group', { name: 'Note title order' })).getByRole('button', { name: 'Down' }))
+    fireEvent.change(screen.getByLabelText('Severity choices'), { target: { value: 'blocker\nminor' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save Settings' }))
+
+    await waitFor(() => expect(api.updateSettings).toHaveBeenCalled())
+    expect(api.updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providers: expect.objectContaining({ codex_cli: false }),
+        generation: expect.objectContaining({ systemPrompt: 'Use my concise QA voice.' }),
+        templates: expect.objectContaining({
+          note: expect.objectContaining({
+            fields: expect.arrayContaining([expect.objectContaining({ id: 'title', type: 'textarea' })])
+          }),
+          finding: expect.objectContaining({
+            fields: expect.arrayContaining([expect.objectContaining({ id: 'severity', options: ['blocker', 'minor'] })])
+          })
+        })
+      })
+    )
+    const savedSettings = vi.mocked(api.updateSettings).mock.calls[0]?.[0]
+    expect(savedSettings?.templates?.note?.fields.map((field) => field.id).slice(0, 2)).toEqual(['body', 'title'])
+    await waitFor(() => expect(api.getProviderStatus).toHaveBeenCalledTimes(2))
+    expect(await screen.findByText('Settings saved')).toBeInTheDocument()
+  })
+
+  it('shows settings save errors without leaving the settings pane', async () => {
+    const snapshot = createSnapshot()
+    const api = installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
+    vi.mocked(api.updateSettings).mockRejectedValue(new Error('Prompt is required'))
+
+    render(<App />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Settings' }))
+    fireEvent.change(await screen.findByLabelText('Custom system prompt'), { target: { value: 'Broken prompt' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save Settings' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Prompt is required')
+    expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument()
   })
 
   it('updates reasoning choices when the selected model has model-specific capabilities', async () => {

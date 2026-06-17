@@ -3,6 +3,8 @@ import { copyFileSync, mkdirSync, readFileSync, statSync, writeFileSync } from '
 import { basename } from 'node:path'
 import { desc, eq } from 'drizzle-orm'
 import type {
+  AppSettings,
+  AppSettingsPatch,
   AiRun,
   AiProviderId,
   Attachment,
@@ -29,6 +31,9 @@ import type {
   SessionPatch
 } from '../../shared/contracts'
 import {
+  appSettingsPatchSchema,
+  appSettingsSchema,
+  defaultAppSettings,
   draftCreateSchema,
   draftPatchSchema,
   entryDraftSchema,
@@ -47,6 +52,7 @@ import {
 import type { DbClient } from '../db/client'
 import {
   aiRuns,
+  appSettings,
   attachments,
   drafts,
   entries,
@@ -93,12 +99,54 @@ import {
 } from './session/mappers'
 import { cleanNullable, defaultReasoningEffort, formatRequirementLabels, isoNow } from './session/utils'
 
+const applicationSettingsKey = 'application'
+
 export class SessionService {
   constructor(
     private readonly client: DbClient,
     private readonly attachmentsRoot: string,
     private readonly commandRunner?: CommandRunner
   ) {}
+
+  getSettings(): AppSettings {
+    const row = this.client.db.select().from(appSettings).where(eq(appSettings.key, applicationSettingsKey)).get()
+    if (!row) return cloneSettings(defaultAppSettings)
+
+    return appSettingsSchema.parse(JSON.parse(row.valueJson))
+  }
+
+  updateSettings(input: AppSettingsPatch): AppSettings {
+    const patch = appSettingsPatchSchema.parse(input)
+    const previous = this.getSettings()
+    const next = appSettingsSchema.parse({
+      ...previous,
+      providers: {
+        ...previous.providers,
+        ...patch.providers
+      },
+      generation: {
+        ...previous.generation,
+        ...patch.generation
+      },
+      templates: {
+        note: patch.templates?.note ?? previous.templates.note,
+        finding: patch.templates?.finding ?? previous.templates.finding
+      }
+    })
+    const now = isoNow()
+    const valueJson = JSON.stringify(next)
+
+    this.client.db
+      .insert(appSettings)
+      .values({ key: applicationSettingsKey, valueJson, updatedAt: now })
+      .onConflictDoUpdate({
+        target: appSettings.key,
+        set: { valueJson, updatedAt: now }
+      })
+      .run()
+
+    return next
+  }
 
   listSessions(): Session[] {
     return this.client.db.select().from(sessions).orderBy(desc(sessions.lastOpenedAt)).all().map(mapSession)
@@ -629,7 +677,7 @@ export class SessionService {
           model: generationOptions.model,
           reasoningEffort: generationOptions.reasoningEffort,
           outputSchema: generatedReportJsonSchema,
-          prompt: buildGenerationPrompt(review)
+          prompt: buildGenerationPrompt(review, this.getSettings().generation.systemPrompt)
         },
         this.commandRunner
       )
@@ -651,7 +699,16 @@ export class SessionService {
   }
 
   async getProviderStatus(): Promise<ProviderStatus> {
-    const providers = await detectProviderStatuses(this.commandRunner)
+    const settings = this.getSettings()
+    const providers = (await detectProviderStatuses(this.commandRunner)).map((provider) =>
+      settings.providers[provider.provider]
+        ? provider
+        : {
+            ...provider,
+            available: false,
+            reason: `${provider.label} is disabled in Settings.`
+          }
+    )
     const selectedProvider =
       providers.find((status) => status.available)?.provider ??
       null
@@ -702,7 +759,10 @@ export class SessionService {
     reasoningEffort: ReasoningEffort | null
   }> {
     const providerStatus = await this.getProviderStatus()
-    const provider = options.provider ?? providerStatus.selectedProvider ?? 'codex_cli'
+    const provider = options.provider ?? providerStatus.selectedProvider
+    if (!provider) {
+      throw new Error('No selectable AI provider is available. Enable an available provider in Settings before generating.')
+    }
     const selectedStatus = providerStatus.providers.find((status) => status.provider === provider)
     const defaultModel = selectedStatus?.defaultModel ?? defaultProviderModels[provider]
     const model = options.model?.trim() || defaultModel
@@ -723,6 +783,10 @@ export class SessionService {
 
 export const __testables = {
   buildGenerationPrompt
+}
+
+function cloneSettings(settings: AppSettings): AppSettings {
+  return appSettingsSchema.parse(JSON.parse(JSON.stringify(settings)))
 }
 
 function formatAttachmentTimestamp(date: Date): string {

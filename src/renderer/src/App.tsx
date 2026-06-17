@@ -15,6 +15,8 @@ import {
 import { defaultReasoningEffortFor, reasoningEffortsFor, validateSessionRequirements } from '../../shared/contracts'
 import type {
   Attachment,
+  AppSettings,
+  AppSettingsPatch,
   Entry,
   EntryType,
   AiProviderId,
@@ -32,6 +34,7 @@ import {
   EntryInspector,
   GenerationReviewPane,
   ModeTabs,
+  SettingsPane,
   StatusPill
 } from './components/AppSections'
 import type { EntryInspectorSavePatch } from './components/inspector/Inspectors'
@@ -64,7 +67,7 @@ import type {
 
 type AutosaveStatus = SessionAutosaveStatus
 type AttachmentImportSource = 'browse' | 'paste'
-type AttachmentImportTarget = { kind: 'entry'; entryId?: string } | { kind: 'draft-note' }
+type AttachmentImportTarget = { kind: 'entry'; entryId?: string } | { kind: 'draft-note' } | { kind: 'draft-finding'; field: 'actual' | 'expected' }
 type AttachmentImportResult = Attachment | null | undefined
 type OpenSessionOptions = {
   mode?: WorkspaceMode
@@ -85,6 +88,10 @@ export function App(): ReactElement {
   const [filter, setFilter] = useState<EntryType | 'all'>('all')
   const [query, setQuery] = useState('')
   const [providerStatus, setProviderStatus] = useState<ProviderStatus | null>(null)
+  const [settings, setSettings] = useState<AppSettings | null>(null)
+  const [settingsDraft, setSettingsDraft] = useState<AppSettings | null>(null)
+  const [settingsSaving, setSettingsSaving] = useState(false)
+  const [settingsError, setSettingsError] = useState<string | null>(null)
   const [selectedProvider, setSelectedProvider] = useState<AiProviderId | null>(null)
   const [selectedModel, setSelectedModel] = useState('')
   const [selectedReasoningEffort, setSelectedReasoningEffort] = useState<ReasoningEffort | null>(null)
@@ -104,6 +111,7 @@ export function App(): ReactElement {
   const [draftAutosaveStatus, setDraftAutosaveStatus] = useState<AutosaveStatus>('idle')
   const [draftPlaceholderSuppressed, setDraftPlaceholderSuppressed] = useState(false)
   const [draftEvidenceAttachments, setDraftEvidenceAttachments] = useState<Attachment[]>([])
+  const [findingDraftAttachments, setFindingDraftAttachments] = useState<Attachment[]>([])
   const [deletingDraft, setDeletingDraft] = useState(false)
   const [busy, setBusy] = useState(false)
   const [generating, setGenerating] = useState(false)
@@ -315,9 +323,15 @@ export function App(): ReactElement {
   async function bootstrap(): Promise<void> {
     setBusy(true)
     try {
-      const [sessionList, aiStatus] = await Promise.all([window.qaScribe.listSessions(), window.qaScribe.getProviderStatus()])
+      const [sessionList, aiStatus, appSettings] = await Promise.all([
+        window.qaScribe.listSessions(),
+        window.qaScribe.getProviderStatus(),
+        window.qaScribe.getSettings()
+      ])
       setSessions(sessionList)
       setProviderStatus(aiStatus)
+      setSettings(appSettings)
+      setSettingsDraft(appSettings)
 
       const lastActive = window.localStorage.getItem('qa-scribe:last-session')
       const preferred = sessionList.find((session) => session.id === lastActive) ?? sessionList[0]
@@ -329,6 +343,65 @@ export function App(): ReactElement {
 
   async function refreshSessions(): Promise<void> {
     setSessions(await window.qaScribe.listSessions())
+  }
+
+  function updateSettingsDraft(patch: AppSettingsPatch): void {
+    setSettingsDraft((current) => {
+      if (!current) return current
+      return {
+        ...current,
+        providers: {
+          ...current.providers,
+          ...patch.providers
+        },
+        generation: {
+          ...current.generation,
+          ...patch.generation
+        },
+        templates: {
+          note: patch.templates?.note ?? current.templates.note,
+          finding: patch.templates?.finding ?? current.templates.finding
+        }
+      }
+    })
+    setSettingsError(null)
+  }
+
+  function resetSettingsDraft(): void {
+    setSettingsDraft(settings)
+    setSettingsError(null)
+  }
+
+  async function saveSettings(): Promise<boolean> {
+    if (!settingsDraft) return false
+    setSettingsSaving(true)
+    setSettingsError(null)
+    try {
+      const saved = await window.qaScribe.updateSettings(settingsDraft)
+      setSettings(saved)
+      setSettingsDraft(saved)
+      setProviderStatus(await window.qaScribe.getProviderStatus())
+      flash('Settings saved')
+      return true
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Settings could not be saved'
+      setSettingsError(message)
+      flash(message)
+      return false
+    } finally {
+      setSettingsSaving(false)
+    }
+  }
+
+  async function openSettings(): Promise<void> {
+    if (!(await flushPendingAutosaves())) return
+    if (!settingsDraft) {
+      const loaded = await window.qaScribe.getSettings()
+      setSettings(loaded)
+      setSettingsDraft(loaded)
+    }
+    setSelectedEntryId(null)
+    setWorkspaceMode('settings')
   }
 
   async function openSession(id: string, options: OpenSessionOptions = {}): Promise<void> {
@@ -369,6 +442,7 @@ export function App(): ReactElement {
   }
 
   async function flushPendingAutosaves(): Promise<boolean> {
+    if (settings && settingsDraft && JSON.stringify(settings) !== JSON.stringify(settingsDraft)) return saveSettings()
     if (!snapshot) return true
 
     if (sessionDraftDirty) {
@@ -482,17 +556,19 @@ export function App(): ReactElement {
     setEntryBody('')
     setEntryMetadataJson(null)
     setFindingDraft(createEmptyStructuredFindingDraft())
+    setFindingDraftAttachments([])
     setRichTextResetKey((current) => current + 1)
   }
 
   async function addEntry(): Promise<void> {
-    if (!snapshot || entryBody.trim().length === 0) return
+    if (!snapshot) return
+    const body = entryBody.trim() || entryTitle.trim() || 'Note captured.'
     try {
       const created = await window.qaScribe.createEntry({
         sessionId: snapshot.session.id,
         type: 'note',
         title: entryTitle,
-        body: entryBody,
+        body,
         metadataJson: entryMetadataJson
       })
       resetCaptureDrafts()
@@ -517,12 +593,12 @@ export function App(): ReactElement {
     const linkedAttachments = selectedEvidenceEntry
       ? snapshot.attachments.filter((attachment) => attachment.entryId === selectedEvidenceEntry.id)
       : []
-    if (findingDraft.title.trim().length === 0) return
+    const title = findingDraft.title.trim() || details.actual || details.expected || details.notes || 'Untitled Finding'
 
     try {
       const storedFinding = await window.qaScribe.createFinding({
         sessionId: snapshot.session.id,
-        title: findingDraft.title.trim(),
+        title,
         body: renderStructuredFindingBody(details),
         kind: 'bug',
         metadataJson: serializeStructuredFindingDetails(details),
@@ -533,7 +609,12 @@ export function App(): ReactElement {
         await window.qaScribe.createEvidenceLink({ findingId: storedFinding.id, attachmentId: attachment.id })
       }
 
+      for (const attachment of findingDraftAttachments) {
+        await window.qaScribe.createEvidenceLink({ findingId: storedFinding.id, attachmentId: attachment.id })
+      }
+
       setFindingDraft(createEmptyStructuredFindingDraft())
+      setFindingDraftAttachments([])
       await openSession(snapshot.session.id)
       if (selectedEvidenceEntry) setSelectedEntryId(selectedEvidenceEntry.id)
       flash('Finding created')
@@ -605,12 +686,21 @@ export function App(): ReactElement {
     setAttachmentImportTarget({ kind: 'draft-note' })
   }
 
+  function openFindingDraftAttachmentImportModal(field: 'actual' | 'expected'): void {
+    setAttachmentImportTarget({ kind: 'draft-finding', field })
+  }
+
   async function handleAttachmentImport(source: AttachmentImportSource): Promise<void> {
     if (!snapshot || !attachmentImportTarget || attachmentImportBusy) return
     setAttachmentImportBusy(true)
     try {
       if (attachmentImportTarget.kind === 'draft-note') {
         await attachToDraftNote(source)
+        return
+      }
+
+      if (attachmentImportTarget.kind === 'draft-finding') {
+        await attachToFindingDraft(source)
         return
       }
 
@@ -663,6 +753,23 @@ export function App(): ReactElement {
       return attachment
     } catch (error) {
       if (entry) await Promise.resolve(window.qaScribe.deleteEntry(entry.id)).catch(() => undefined)
+      flashError(error, 'Evidence could not be attached')
+      return undefined
+    }
+  }
+
+  async function attachToFindingDraft(source: AttachmentImportSource): Promise<AttachmentImportResult> {
+    if (!snapshot) return undefined
+    try {
+      const attachment = await runAttachmentImport(source)
+      if (!attachment) {
+        if (source === 'paste') flash('No screenshot or image available')
+        return null
+      }
+      setFindingDraftAttachments((current) => [...current, attachment])
+      flash('Evidence attached to Finding draft')
+      return attachment
+    } catch (error) {
       flashError(error, 'Evidence could not be attached')
       return undefined
     }
@@ -945,6 +1052,7 @@ export function App(): ReactElement {
 
   function attachmentTargetLabel(target: AttachmentImportTarget): string {
     if (target.kind === 'draft-note') return 'Attach to new note from the current composer'
+    if (target.kind === 'draft-finding') return `Attach to Finding draft ${target.field} result`
     if (!target.entryId) return 'Attach to this Session'
     const entry = snapshot?.entries.find((item) => item.id === target.entryId)
     return `Attach to Entry: ${entry?.title || entry?.body.split('\n')[0] || 'Untitled Entry'}`
@@ -964,15 +1072,27 @@ export function App(): ReactElement {
     <main className="app-shell">
       <SessionSidebar
         busy={busy}
+        settingsSelected={workspaceMode === 'settings'}
         sessions={sessions}
-        selectedSessionId={snapshot?.session.id ?? null}
+        selectedSessionId={workspaceMode === 'settings' ? null : snapshot?.session.id ?? null}
         onCreateSession={createSession}
         onDeleteSession={deleteSession}
+        onOpenSettings={openSettings}
         onOpenSession={openSession}
       />
 
       <section className="workspace">
-        {snapshot ? (
+        {workspaceMode === 'settings' ? (
+          <SettingsPane
+            draft={settingsDraft}
+            error={settingsError}
+            saving={settingsSaving}
+            settings={settings}
+            onChange={updateSettingsDraft}
+            onReset={resetSettingsDraft}
+            onSave={saveSettings}
+          />
+        ) : snapshot ? (
           <>
             <header className="topbar">
               <div>
@@ -1040,6 +1160,7 @@ export function App(): ReactElement {
                     entryBody={entryBody}
                     entryMetadataJson={entryMetadataJson}
                     entryTitle={entryTitle}
+                    findingDraftAttachmentCount={findingDraftAttachments.length}
                     findingDraft={findingDraft}
                     filter={filter}
                     filteredEntries={filteredEntries}
@@ -1048,6 +1169,7 @@ export function App(): ReactElement {
                     selectedEntry={selectedEntry}
                     selectedEntryId={selectedEntryId}
                     snapshot={snapshot}
+                    templates={settings?.templates}
                     setCaptureMode={setCaptureMode}
                     setEntryBody={setEntryBody}
                     setEntryMetadataJson={setEntryMetadataJson}
@@ -1058,6 +1180,7 @@ export function App(): ReactElement {
                     onAddFinding={addFinding}
                     onAttach={async (entryId) => openAttachmentImportModal(entryId)}
                     onAttachToDraft={async () => openDraftAttachmentImportModal()}
+                    onAttachToFindingDraft={async (field) => openFindingDraftAttachmentImportModal(field)}
                     onCreateFinding={createFindingFromEntry}
                     onDelete={deleteEntry}
                     onSelect={setSelectedEntryId}

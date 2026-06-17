@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { GenerationContextReview } from '../../../shared/contracts'
+import { defaultAppSettings, type GenerationContextReview } from '../../../shared/contracts'
 import { labelEntryType } from './utils'
 
 export const promptVersion = 'session-report-v1'
@@ -213,10 +213,14 @@ export const generatedReportJsonSchema = {
 
 export type GeneratedReport = z.infer<typeof generatedReportSchema>
 
-export function buildGenerationPrompt(review: GenerationContextReview): string {
+export function buildGenerationPrompt(
+  review: GenerationContextReview,
+  systemPrompt = defaultAppSettings.generation.systemPrompt
+): string {
   const includedEntries = review.entries.filter((item) => item.included)
+  const trimmedSystemPrompt = systemPrompt.trim() || defaultAppSettings.generation.systemPrompt
   const lines = [
-    'You are helping a tester turn a local testing session into structured testware.',
+    trimmedSystemPrompt,
     'Use only the information in this context. Do not invent unsupported facts.',
     'Return concise, scannable structured output that matches the requested schema.',
     'Screenshots and files are represented by metadata only; do not assume image contents.',

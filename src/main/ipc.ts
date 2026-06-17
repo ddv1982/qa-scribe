@@ -8,6 +8,7 @@ import {
   evidenceLinkDraftSchema,
   findingDraftSchema,
   findingPatchSchema,
+  appSettingsPatchSchema,
   generationOptionsSchema,
   idSchema,
   sessionDraftSchema,
@@ -20,6 +21,8 @@ const optionalIdSchema = idSchema.optional()
 const booleanSchema = z.boolean()
 
 export function registerIpcHandlers(service: SessionService): void {
+  ipcMain.handle('settings:get', () => service.getSettings())
+  ipcMain.handle('settings:update', (_event, input) => service.updateSettings(appSettingsPatchSchema.parse(input)))
   ipcMain.handle('sessions:list', () => service.listSessions())
   ipcMain.handle('sessions:create', (_event, input) => service.createSession(sessionDraftSchema.parse(input)))
   ipcMain.handle('sessions:get', (_event, id: string) => service.getSession(idSchema.parse(id)))

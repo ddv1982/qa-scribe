@@ -13,6 +13,12 @@ export const sessions = sqliteTable('sessions', {
   lastOpenedAt: text('last_opened_at').notNull()
 })
 
+export const appSettings = sqliteTable('app_settings', {
+  key: text('key').primaryKey(),
+  valueJson: text('value_json').notNull(),
+  updatedAt: text('updated_at').notNull()
+})
+
 export const entries = sqliteTable('entries', {
   id: text('id').primaryKey(),
   sessionId: text('session_id')

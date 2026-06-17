@@ -193,6 +193,111 @@ export const providerStatusSchema = z.object({
 })
 export type ProviderStatus = z.infer<typeof providerStatusSchema>
 
+export const appSettingsSchemaVersion = 1
+
+export const providerSettingsSchema = z.object({
+  claude_code: z.boolean(),
+  codex_cli: z.boolean(),
+  copilot_cli: z.boolean()
+})
+export type ProviderSettings = z.infer<typeof providerSettingsSchema>
+
+export const templateFieldTypeSchema = z.enum(['text', 'textarea', 'rich_text', 'select', 'multiselect', 'checkbox'])
+export type TemplateFieldType = z.infer<typeof templateFieldTypeSchema>
+
+export const formTemplateFieldSchema = z.object({
+  id: z.string().min(1).max(80),
+  label: z.string().min(1).max(120),
+  type: templateFieldTypeSchema,
+  required: z.boolean(),
+  enabled: z.boolean(),
+  options: z.array(z.string().min(1).max(120)).max(30).optional()
+})
+export type FormTemplateField = z.infer<typeof formTemplateFieldSchema>
+
+export const captureTemplateSchema = z.object({
+  fields: z.array(formTemplateFieldSchema).max(30)
+})
+export type CaptureTemplate = z.infer<typeof captureTemplateSchema>
+
+export const appSettingsSchema = z.object({
+  schemaVersion: z.literal(appSettingsSchemaVersion),
+  providers: providerSettingsSchema,
+  generation: z.object({
+    systemPrompt: z.string().min(1).max(8000)
+  }),
+  templates: z.object({
+    note: captureTemplateSchema,
+    finding: captureTemplateSchema
+  })
+})
+export type AppSettings = z.infer<typeof appSettingsSchema>
+
+export const appSettingsPatchSchema = z.object({
+  providers: providerSettingsSchema.partial().optional(),
+  generation: z
+    .object({
+      systemPrompt: z.string().min(1).max(8000).optional()
+    })
+    .optional(),
+  templates: z
+    .object({
+      note: captureTemplateSchema.optional(),
+      finding: captureTemplateSchema.optional()
+    })
+    .optional()
+})
+export type AppSettingsPatch = z.infer<typeof appSettingsPatchSchema>
+
+export const defaultAppSettings: AppSettings = {
+  schemaVersion: appSettingsSchemaVersion,
+  providers: {
+    claude_code: true,
+    codex_cli: true,
+    copilot_cli: true
+  },
+  generation: {
+    systemPrompt: 'You are helping a tester turn a local testing session into structured testware.'
+  },
+  templates: {
+    note: {
+      fields: [
+        { id: 'title', label: 'Note title', type: 'text', required: false, enabled: true },
+        { id: 'body', label: 'Note body', type: 'rich_text', required: true, enabled: true },
+        { id: 'evidence', label: 'Evidence', type: 'checkbox', required: false, enabled: true }
+      ]
+    },
+    finding: {
+      fields: [
+        { id: 'title', label: 'Finding title', type: 'text', required: true, enabled: true },
+        { id: 'actual', label: 'Actual result', type: 'rich_text', required: false, enabled: true },
+        { id: 'expected', label: 'Expected result', type: 'rich_text', required: false, enabled: true },
+        { id: 'steps', label: 'Steps to reproduce', type: 'textarea', required: false, enabled: true },
+        {
+          id: 'severity',
+          label: 'Severity',
+          type: 'select',
+          required: false,
+          enabled: true,
+          options: ['untriaged', 'critical', 'major', 'minor', 'trivial']
+        },
+        {
+          id: 'priority',
+          label: 'Priority',
+          type: 'select',
+          required: false,
+          enabled: true,
+          options: ['medium', 'urgent', 'high', 'low']
+        },
+        { id: 'component', label: 'Component', type: 'text', required: false, enabled: true },
+        { id: 'environment', label: 'Environment', type: 'text', required: false, enabled: true },
+        { id: 'notes', label: 'Notes', type: 'textarea', required: false, enabled: true },
+        { id: 'linked-entry', label: 'Linked Entry Evidence', type: 'checkbox', required: false, enabled: true }
+      ]
+    }
+  }
+}
+
 export const generationOptionsSchema = z.object({
   provider: aiProviderIdSchema.optional(),
   model: z.string().min(1).max(120).optional(),
@@ -336,6 +441,8 @@ export const sessionExportSchema = z.object({
 export type SessionExport = z.infer<typeof sessionExportSchema>
 
 export interface QaScribeApi {
+  getSettings(): Promise<AppSettings>
+  updateSettings(input: AppSettingsPatch): Promise<AppSettings>
   listSessions(): Promise<Session[]>
   createSession(input: SessionDraft): Promise<Session>
   getSession(id: string): Promise<SessionSnapshot | null>

@@ -121,6 +121,16 @@ export function migrate(sqlite: Database.Database): void {
       sql: `
         ALTER TABLE findings ADD COLUMN metadata_json TEXT;
       `
+    },
+    {
+      version: 5,
+      sql: `
+        CREATE TABLE IF NOT EXISTS app_settings (
+          key TEXT PRIMARY KEY,
+          value_json TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+      `
     }
   ]
 

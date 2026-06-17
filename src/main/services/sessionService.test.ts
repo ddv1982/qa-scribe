@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { evidenceLinkDraftSchema, validateSessionRequirements } from '../../shared/contracts'
+import { defaultAppSettings, evidenceLinkDraftSchema, validateSessionRequirements } from '../../shared/contracts'
 import { createDbClient, type DbClient } from '../db/client'
 import type { CommandRunner } from './aiProviders'
 import { __testables, SessionService } from './sessionService'
@@ -26,6 +26,75 @@ afterEach(() => {
 })
 
 describe('SessionService', () => {
+  it('returns default application settings when no settings have been saved', () => {
+    const { service } = createHarness()
+
+    expect(service.getSettings()).toEqual(defaultAppSettings)
+  })
+
+  it('persists application settings updates across database reopen', () => {
+    const first = createHarness()
+    const updated = first.service.updateSettings({
+      providers: { claude_code: false },
+      generation: { systemPrompt: 'Prefer concise exploratory testing summaries.' }
+    })
+
+    expect(updated.providers).toEqual({
+      claude_code: false,
+      codex_cli: true,
+      copilot_cli: true
+    })
+    expect(updated.generation.systemPrompt).toBe('Prefer concise exploratory testing summaries.')
+    expect(updated.templates).toEqual(defaultAppSettings.templates)
+
+    first.client.sqlite.close()
+    const reopened = reopenHarness(first)
+
+    expect(reopened.service.getSettings()).toEqual(updated)
+  })
+
+  it('updates form templates without replacing unrelated settings', () => {
+    const { service } = createHarness()
+    const noteTemplate = {
+      fields: [
+        { id: 'body', label: 'Session note', type: 'rich_text' as const, required: true, enabled: true },
+        { id: 'tag', label: 'Tag', type: 'select' as const, required: false, enabled: true, options: ['setup', 'risk'] }
+      ]
+    }
+
+    service.updateSettings({ providers: { copilot_cli: false } })
+    const updated = service.updateSettings({ templates: { note: noteTemplate } })
+
+    expect(updated.providers.copilot_cli).toBe(false)
+    expect(updated.templates.note).toEqual(noteTemplate)
+    expect(updated.templates.finding).toEqual(defaultAppSettings.templates.finding)
+  })
+
+  it('rejects invalid application settings updates', () => {
+    const { service } = createHarness()
+
+    expect(() =>
+      service.updateSettings({
+        generation: { systemPrompt: '' }
+      })
+    ).toThrow()
+    expect(() =>
+      service.updateSettings({
+        templates: { note: { fields: [{ id: '', label: 'Broken', type: 'text', required: false, enabled: true }] } }
+      })
+    ).toThrow()
+  })
+
+  it('creates the application settings table during migration', () => {
+    const { client } = createHarness()
+
+    expect(
+      client.sqlite
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'app_settings'")
+        .get()
+    ).toEqual({ name: 'app_settings' })
+  })
+
   it('persists created sessions and lists them from the database', () => {
     const first = createHarness()
     const session = first.service.createSession({
@@ -538,6 +607,94 @@ describe('SessionService', () => {
     expect(prompt).not.toContain('private-note.txt')
   })
 
+  it('includes a custom system prompt while preserving protected generation instructions', () => {
+    const harness = createHarness()
+    const session = harness.service.createSession({ title: 'Prompt settings' })
+    harness.service.createEntry({
+      sessionId: session.id,
+      type: 'note',
+      body: 'Search returned no results.'
+    })
+
+    const review = harness.service.createGenerationContext(session.id)
+    const prompt = __testables.buildGenerationPrompt(review, 'Use the tester preferred voice.')
+
+    expect(prompt).toContain('Use the tester preferred voice.')
+    expect(prompt).toContain('Use only the information in this context. Do not invent unsupported facts.')
+    expect(prompt).toContain('Return concise, scannable structured output that matches the requested schema.')
+    expect(prompt).toContain('Search returned no results.')
+  })
+
+  it('marks disabled providers unavailable in provider status', async () => {
+    const { service } = createHarness(undefined, codexOnlyRunner())
+    service.updateSettings({ providers: { codex_cli: false } })
+
+    await expect(service.getProviderStatus()).resolves.toEqual(
+      expect.objectContaining({
+        selectedProvider: null,
+        providers: expect.arrayContaining([
+          expect.objectContaining({
+            provider: 'codex_cli',
+            available: false,
+            reason: 'Codex CLI is disabled in Settings.'
+          })
+        ])
+      })
+    )
+  })
+
+  it('persists a failed AI Run when the selected provider is disabled in settings', async () => {
+    const { service } = createHarness(undefined, codexOnlyRunner())
+    service.updateSettings({ providers: { codex_cli: false } })
+    const session = service.createSession({
+      title: 'Disabled AI provider',
+      testTarget: 'Checkout',
+      charter: 'Generate a report from notes'
+    })
+    service.createEntry({
+      sessionId: session.id,
+      type: 'note',
+      body: 'Generate from this note.'
+    })
+    const review = service.createGenerationContext(session.id)
+
+    await expect(service.generateTestware(review.context.id, { provider: 'codex_cli' })).rejects.toThrow(
+      'Codex CLI is disabled in Settings.'
+    )
+    expect(service.getSession(session.id)?.aiRuns).toEqual([
+      expect.objectContaining({
+        sessionId: session.id,
+        generationContextId: review.context.id,
+        provider: 'codex_cli',
+        model: 'gpt-5.4',
+        reasoningEffort: 'high',
+        status: 'failed',
+        errorMessage: 'Codex CLI is disabled in Settings.'
+      })
+    ])
+  })
+
+  it('does not implicitly fall back to Codex when no provider is selectable', async () => {
+    const { service } = createHarness(undefined, codexOnlyRunner())
+    service.updateSettings({ providers: { codex_cli: false } })
+    const session = service.createSession({
+      title: 'No selectable provider',
+      testTarget: 'Checkout',
+      charter: 'Generate a report from notes'
+    })
+    service.createEntry({
+      sessionId: session.id,
+      type: 'note',
+      body: 'Generate from this note.'
+    })
+    const review = service.createGenerationContext(session.id)
+
+    await expect(service.generateTestware(review.context.id)).rejects.toThrow(
+      'No selectable AI provider is available. Enable an available provider in Settings before generating.'
+    )
+    expect(service.getSession(session.id)?.aiRuns).toEqual([])
+  })
+
   it('persists a failed AI Run when the selected local provider is unavailable', async () => {
     const { service } = createHarness(undefined, missingCommandRunner)
     const session = service.createSession({
@@ -610,6 +767,7 @@ describe('SessionService', () => {
       return { code: 1, stdout: '', stderr: 'unexpected command' }
     }
     const { service } = createHarness(undefined, runner)
+    service.updateSettings({ generation: { systemPrompt: 'Write in the tester configured voice.' } })
     const session = service.createSession({
       title: 'AI generation',
       testTarget: 'Checkout',
@@ -640,6 +798,8 @@ describe('SessionService', () => {
     expect(result.draft.body).toContain('Checkout smoke')
     const execCall = calls.find((call) => call.command === 'codex' && call.args[0] === 'exec')
     expect(execCall).toEqual(expect.objectContaining({ input: expect.stringContaining('Checkout completed successfully.') }))
+    expect(execCall?.input).toContain('Write in the tester configured voice.')
+    expect(execCall?.input).toContain('Use only the information in this context. Do not invent unsupported facts.')
     expect(execCall?.args).toEqual(
       expect.arrayContaining([
         '--ephemeral',
@@ -727,12 +887,15 @@ describe('SessionService', () => {
   it('records the applied database schema version', () => {
     const { client } = createHarness()
 
-    expect(client.sqlite.pragma('user_version', { simple: true })).toBe(4)
+    expect(client.sqlite.pragma('user_version', { simple: true })).toBe(5)
     expect(client.sqlite.prepare('PRAGMA table_info(ai_runs)').all()).toEqual(
       expect.arrayContaining([expect.objectContaining({ name: 'reasoning_effort' })])
     )
     expect(client.sqlite.prepare('PRAGMA table_info(findings)').all()).toEqual(
       expect.arrayContaining([expect.objectContaining({ name: 'metadata_json' })])
+    )
+    expect(client.sqlite.prepare('PRAGMA table_info(app_settings)').all()).toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: 'value_json' })])
     )
   })
 })
@@ -756,6 +919,14 @@ function reopenHarness(previous: TestHarness): TestHarness {
   const index = harnesses.indexOf(previous)
   if (index >= 0) harnesses.splice(index, 1)
   return createHarness(previous.root)
+}
+
+function codexOnlyRunner(): CommandRunner {
+  return async (command, args) => {
+    if (command === 'codex' && args.join(' ') === 'login status') return { code: 0, stdout: 'logged in', stderr: '' }
+    if (command === 'codex' && args[0] === 'exec') return { code: 0, stdout: JSON.stringify(fakeGeneratedReport()), stderr: '' }
+    return { code: null, stdout: '', stderr: '', error: Object.assign(new Error('missing'), { code: 'ENOENT' }) }
+  }
 }
 
 const missingCommandRunner: CommandRunner = async () => ({

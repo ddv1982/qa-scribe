@@ -9,6 +9,27 @@
   width: 100%;
 }
 
+.sidebar-settings {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+  color: var(--text);
+  padding: 0 10px;
+  cursor: pointer;
+}
+
+.sidebar-settings:hover,
+.sidebar-settings:focus-visible,
+.sidebar-settings.selected {
+  border-color: color-mix(in srgb, var(--accent) 26%, var(--border));
+  background: var(--selection);
+}
+
 .session-empty {
   display: grid;
   gap: 5px;

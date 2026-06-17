@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type {
+  AppSettingsPatch,
   DraftCreate,
   DraftPatch,
   EntryDraft,
@@ -14,6 +15,8 @@ import type {
 } from '../shared/contracts'
 
 const api: QaScribeApi = {
+  getSettings: () => ipcRenderer.invoke('settings:get'),
+  updateSettings: (input: AppSettingsPatch) => ipcRenderer.invoke('settings:update', input),
   listSessions: () => ipcRenderer.invoke('sessions:list'),
   createSession: (input: SessionDraft) => ipcRenderer.invoke('sessions:create', input),
   getSession: (id: string) => ipcRenderer.invoke('sessions:get', id),
