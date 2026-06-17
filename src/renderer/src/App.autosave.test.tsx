@@ -79,6 +79,28 @@ describe('App autosave behavior', () => {
     )
   })
 
+  it('blocks Session switching when the dirty title is empty', async () => {
+    const snapshot = createSnapshot()
+    const otherSnapshot = createSnapshot({
+      session: { ...baseSession(), id: 'session-2', title: 'Other Session', testTarget: 'Search' }
+    })
+    const api = installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
+    vi.mocked(api.listSessions).mockResolvedValue([snapshot.session, otherSnapshot.session])
+    vi.mocked(api.getSession).mockImplementation(async (id) => (id === otherSnapshot.session.id ? otherSnapshot : snapshot))
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Title (required)'), { target: { value: '' } })
+    fireEvent.click(screen.getByText('Other Session').closest('button') as HTMLButtonElement)
+
+    expect(await screen.findByText('Title is required.')).toBeInTheDocument()
+    expect(await screen.findByText('Add a Session title before continuing')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Session' })).toBeInTheDocument()
+    expect(api.updateSession).not.toHaveBeenCalled()
+    expect(api.getSession).toHaveBeenCalledTimes(1)
+  })
+
   it('autosaves Session Report Draft edits', async () => {
     const snapshot = createSnapshot()
     const api = installQaScribeApi(snapshot, providerStatus([codexAvailable()]))

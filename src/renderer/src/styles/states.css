@@ -59,13 +59,23 @@
 
 .toast {
   position: fixed;
+  z-index: 30;
   right: 24px;
   bottom: 24px;
+  max-width: min(420px, calc(100vw - 32px));
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface-raised);
   box-shadow: var(--shadow);
+  color: var(--text);
+  line-height: 1.4;
   padding: 11px 14px;
+}
+
+.toast[aria-live],
+.toast[role="alert"],
+.toast[role="status"] {
+  display: block;
 }
 
 .spin {

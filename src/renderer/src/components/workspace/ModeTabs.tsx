@@ -8,17 +8,28 @@ export function ModeTabs(props: {
 }): ReactElement {
   return (
     <nav className="mode-tabs" aria-label="Workspace mode">
-      <button className={props.mode === 'capture' ? 'selected' : ''} type="button" onClick={() => props.setMode('capture')}>
+      <button
+        aria-pressed={props.mode === 'capture'}
+        className={props.mode === 'capture' ? 'selected' : ''}
+        type="button"
+        onClick={() => props.setMode('capture')}
+      >
         Capture
       </button>
       <button
+        aria-pressed={props.mode === 'generation'}
         className={props.mode === 'generation' ? 'selected' : ''}
         type="button"
         onClick={() => void props.onOpenGeneration()}
       >
         Generation Context
       </button>
-      <button className={props.mode === 'drafts' ? 'selected' : ''} type="button" onClick={() => props.setMode('drafts')}>
+      <button
+        aria-pressed={props.mode === 'drafts'}
+        className={props.mode === 'drafts' ? 'selected' : ''}
+        type="button"
+        onClick={() => props.setMode('drafts')}
+      >
         Drafts
       </button>
     </nav>

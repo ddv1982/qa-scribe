@@ -114,22 +114,19 @@ export function jiraDraftsFromUnknown(value: unknown, findings: Finding[]): Jira
 }
 
 export function jiraDraftsFromMarkdown(markdown: string): JiraBugDraft[] {
-  const section = markdown.split('## Jira Bug Drafts')[1]
-  if (!section) return []
+  const section = findJiraBugDraftsSection(markdown)?.body
+  if (section === undefined) return []
 
-  return section
-    .split('\n### ')
-    .map((chunk) => chunk.trim())
-    .filter(Boolean)
+  const chunks = jiraDraftMarkdownChunks(section)
+  return chunks
     .map((chunk) => {
-      const [rawTitle, ...bodyLines] = chunk.split('\n')
-      const title = rawTitle.replace(/^###\s*/, '').trim()
+      const title = cleanMarkdownHeading(chunk.title)
       if (!title || title === 'None recorded.') return null
-      const body = bodyLines.join('\n').trim()
+      const body = chunk.body.trim()
       return {
         id: `jira-${title}`,
         title,
-        description: body || title,
+        description: jiraDescriptionFromBody(body, title),
         steps: sectionValue(body, 'Steps to Reproduce'),
         expected: sectionValue(body, 'Expected Result') || sectionValue(body, 'Expected'),
         actual: sectionValue(body, 'Actual Result') || sectionValue(body, 'Actual'),
@@ -139,20 +136,42 @@ export function jiraDraftsFromMarkdown(markdown: string): JiraBugDraft[] {
     .filter((draft): draft is JiraBugDraft => draft !== null)
 }
 
+export function jiraBugDraftsForReviewDraft(draft: ReviewDraft, findings: Finding[]): JiraBugDraft[] {
+  if (hasJiraBugDraftsSection(draft.content)) return jiraDraftsFromMarkdown(draft.content)
+  if (draft.jiraBugDrafts.length > 0) return draft.jiraBugDrafts
+  return findings.map(jiraDraftFromFinding)
+}
+
+export function hasJiraBugDraftsSection(markdown: string): boolean {
+  return findJiraBugDraftsSection(markdown) !== null
+}
+
 export function reportContentFromDraftContent(markdown: string): string {
-  const marker = '\n## Jira Bug Drafts'
-  const markerIndex = markdown.indexOf(marker)
-  if (markerIndex >= 0) return markdown.slice(0, markerIndex).trimEnd()
-  if (markdown.startsWith('## Jira Bug Drafts')) return ''
+  const section = findJiraBugDraftsSection(markdown)
+  if (section) return markdown.slice(0, section.startIndex).trimEnd()
   return markdown
 }
 
 export function sectionValue(markdown: string, label: string): string {
-  const marker = `**${label}`
-  const start = markdown.indexOf(marker)
-  if (start < 0) return ''
-  const after = markdown.slice(start).split('\n').slice(1).join('\n').trim()
-  return after.split('\n**')[0]?.trim() ?? ''
+  const targetLabel = normalizeJiraFieldLabel(label)
+  const valueLines: string[] = []
+  let collecting = false
+
+  for (const line of markdown.split('\n')) {
+    const field = boldFieldLine(line)
+    if (field) {
+      if (collecting) break
+      if (normalizeJiraFieldLabel(field.label) === targetLabel) {
+        collecting = true
+        if (field.value) valueLines.push(field.value)
+      }
+      continue
+    }
+
+    if (collecting) valueLines.push(line)
+  }
+
+  return valueLines.join('\n').trim()
 }
 
 export function jiraDraftFromUnknown(value: unknown): JiraBugDraft | null {
@@ -213,4 +232,85 @@ export function stringFromUnknown(value: unknown): string | null {
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
+}
+
+type JiraMarkdownSection = {
+  startIndex: number
+  body: string
+}
+
+type JiraMarkdownChunk = {
+  title: string
+  body: string
+}
+
+function findJiraBugDraftsSection(markdown: string): JiraMarkdownSection | null {
+  const headingPattern = /^[ \t]{0,3}(#{1,6})[ \t]+Jira Bug Drafts[ \t]*#*[ \t]*$/gim
+  const match = headingPattern.exec(markdown)
+  if (!match) return null
+
+  const headingLevel = match[1].length
+  const sectionStart = match.index + match[0].length
+  const rest = markdown.slice(sectionStart)
+  const nextHeadingPattern = /^[ \t]{0,3}(#{1,6})[ \t]+\S.*$/gm
+  let sectionEnd = markdown.length
+  let nextHeading: RegExpExecArray | null
+
+  while ((nextHeading = nextHeadingPattern.exec(rest)) !== null) {
+    if (nextHeading[1].length <= headingLevel) {
+      sectionEnd = sectionStart + nextHeading.index
+      break
+    }
+  }
+
+  return {
+    startIndex: match.index,
+    body: markdown.slice(sectionStart, sectionEnd).trim()
+  }
+}
+
+function jiraDraftMarkdownChunks(section: string): JiraMarkdownChunk[] {
+  const headingPattern = /^[ \t]{0,3}###[ \t]+(.+?)[ \t]*#*[ \t]*$/gm
+  const headings: Array<{ title: string; headingStart: number; bodyStart: number }> = []
+  let heading: RegExpExecArray | null
+
+  while ((heading = headingPattern.exec(section)) !== null) {
+    headings.push({
+      title: heading[1],
+      headingStart: heading.index,
+      bodyStart: heading.index + heading[0].length
+    })
+  }
+
+  return headings.map((item, index) => ({
+    title: item.title,
+    body: section.slice(item.bodyStart, headings[index + 1]?.headingStart ?? section.length)
+  }))
+}
+
+function cleanMarkdownHeading(value: string): string {
+  return value.replace(/[ \t]+#+[ \t]*$/, '').trim()
+}
+
+function jiraDescriptionFromBody(body: string, title: string): string {
+  const descriptionLines: string[] = []
+  for (const line of body.split('\n')) {
+    if (boldFieldLine(line)) break
+    descriptionLines.push(line)
+  }
+
+  return descriptionLines.join('\n').trim() || title
+}
+
+function boldFieldLine(line: string): { label: string; value: string } | null {
+  const match = line.match(/^\s*\*\*([^*]+?)\*\*\s*:?\s*(.*)$/)
+  if (!match) return null
+  return {
+    label: match[1].replace(/:$/, '').trim(),
+    value: match[2].replace(/^:\s*/, '').trim()
+  }
+}
+
+function normalizeJiraFieldLabel(label: string): string {
+  return label.trim().replace(/\s+/g, ' ').toLowerCase()
 }

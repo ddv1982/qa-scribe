@@ -83,6 +83,8 @@ describe('App provider controls', () => {
     expect(within(providerSelect).queryByRole('option', { name: 'Apple Intelligence' })).not.toBeInTheDocument()
     expect(api.createGenerationContext).toHaveBeenCalledTimes(1)
     expect(api.generateTestware).not.toHaveBeenCalled()
+    expect(await screen.findByText('checkout.png')).toBeInTheDocument()
+    expect(screen.getByText('image/png / 1 KB')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: /^Generate$/ }))
 
@@ -141,5 +143,55 @@ describe('App provider controls', () => {
         reasoningEffort: null
       })
     )
+  })
+
+  it('preserves reviewed generation context after provider failure', async () => {
+    const excludedEntry = baseEntry()
+    const includedEntry = {
+      ...baseEntry(),
+      id: 'entry-2',
+      title: 'Payment retry observed',
+      body: 'Retry completed successfully.'
+    }
+    const snapshot = createSnapshot({
+      entries: [excludedEntry, includedEntry],
+      session: {
+        ...baseSession(),
+        title: 'Generation failure recovery',
+        testTarget: 'Checkout',
+        charter: 'Verify provider failure recovery'
+      }
+    })
+    const api = installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
+    const excludedReview = {
+      context: {
+        id: 'context-1',
+        sessionId: snapshot.session.id,
+        createdAt: '2026-06-15T00:02:00.000Z'
+      },
+      session: snapshot.session,
+      entries: [
+        { entry: excludedEntry, included: false, attachments: [] },
+        { entry: includedEntry, included: true, attachments: [] }
+      ],
+      attachments: [],
+      findings: []
+    }
+    vi.mocked(api.updateGenerationContextEntry).mockResolvedValue(excludedReview)
+    vi.mocked(api.generateTestware).mockRejectedValue(new Error('provider failed'))
+
+    render(<App />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /Generate Testware/i }))
+    const excludeButtons = await screen.findAllByRole('button', { name: 'Exclude' })
+    fireEvent.click(excludeButtons[0]!)
+    expect(await screen.findByRole('button', { name: 'Include' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /^Generate$/ }))
+
+    expect(await screen.findByText('provider failed')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Generation Context' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Include' })).toBeInTheDocument()
+    expect(api.getSession).toHaveBeenCalledTimes(1)
   })
 })

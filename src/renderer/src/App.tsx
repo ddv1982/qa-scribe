@@ -34,6 +34,7 @@ import {
   ModeTabs,
   StatusPill
 } from './components/AppSections'
+import type { EntryInspectorSavePatch } from './components/inspector/Inspectors'
 import { SessionSetupPanel, type SessionAutosaveStatus } from './components/SessionSetupPanel'
 import { SessionSidebar } from './components/SessionSidebar'
 import { buildGenerationOptions, normalizeContextRows } from './domain/generation'
@@ -65,6 +66,11 @@ type AutosaveStatus = SessionAutosaveStatus
 type AttachmentImportSource = 'browse' | 'paste'
 type AttachmentImportTarget = { kind: 'entry'; entryId?: string } | { kind: 'draft-note' }
 type AttachmentImportResult = Attachment | null | undefined
+type OpenSessionOptions = {
+  mode?: WorkspaceMode
+  openSetup?: boolean
+  preserveGenerationContext?: boolean
+}
 
 export function App(): ReactElement {
   const [sessions, setSessions] = useState<Session[]>([])
@@ -83,6 +89,7 @@ export function App(): ReactElement {
   const [selectedModel, setSelectedModel] = useState('')
   const [selectedReasoningEffort, setSelectedReasoningEffort] = useState<ReasoningEffort | null>(null)
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null)
+  const [entrySaveBusy, setEntrySaveBusy] = useState(false)
   const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>('capture')
   const [sessionRequirementErrors, setSessionRequirementErrors] = useState<SessionRequirementKey[]>([])
   const [sessionDraftDirty, setSessionDraftDirty] = useState(false)
@@ -104,6 +111,7 @@ export function App(): ReactElement {
   const [attachmentImportBusy, setAttachmentImportBusy] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const noticeTimerRef = useRef<number | null>(null)
+  const creatingSessionRef = useRef(false)
   const sessionSaveVersionRef = useRef(0)
   const draftSaveVersionRef = useRef(0)
 
@@ -216,8 +224,8 @@ export function App(): ReactElement {
   }, [hasOptionalDetails])
 
   useEffect(() => {
-    if (sessionSetupNeedsAttention) setSessionSetupOpen(true)
-  }, [sessionSetupNeedsAttention])
+    if (snapshot && sessionSetupNeedsAttention) setSessionSetupOpen(true)
+  }, [sessionSetupNeedsAttention, snapshot])
 
   useEffect(() => {
     if (!snapshot || !sessionDraftDirty) return
@@ -290,11 +298,16 @@ export function App(): ReactElement {
   const filteredEntries = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
     return (snapshot?.entries ?? []).filter((entry) => {
+      const attachmentNames =
+        snapshot?.attachments
+          .filter((attachment) => attachment.entryId === entry.id)
+          .map((attachment) => attachment.filename.toLowerCase()) ?? []
       const matchesType = filter === 'all' || entry.type === filter
       const matchesQuery =
         normalizedQuery.length === 0 ||
         entry.title?.toLowerCase().includes(normalizedQuery) ||
-        entry.body.toLowerCase().includes(normalizedQuery)
+        entry.body.toLowerCase().includes(normalizedQuery) ||
+        attachmentNames.some((filename) => filename.includes(normalizedQuery))
       return matchesType && matchesQuery
     })
   }, [filter, query, snapshot])
@@ -318,7 +331,7 @@ export function App(): ReactElement {
     setSessions(await window.qaScribe.listSessions())
   }
 
-  async function openSession(id: string): Promise<void> {
+  async function openSession(id: string, options: OpenSessionOptions = {}): Promise<void> {
     if (!(await flushPendingAutosaves())) return
     sessionSaveVersionRef.current += 1
     draftSaveVersionRef.current += 1
@@ -338,15 +351,19 @@ export function App(): ReactElement {
     setSessionAutosaveStatus('idle')
     setSessionRequirementErrors([])
     setMoreDetailsOpen(hasSessionOptionalDetails(nextDraft))
+    setSessionSetupOpen(options.openSetup ?? !validateSessionRequirements(nextDraft).valid)
     setSelectedEntryId(null)
-    setGenerationContext(null)
-    setGenerationContextId(null)
+    if (!options.preserveGenerationContext) {
+      setGenerationContext(null)
+      setGenerationContextId(null)
+    }
     setDraftPlaceholderSuppressed(false)
     setDraftEvidenceAttachments([])
     resetCaptureDrafts()
     await loadReviewState(next)
     setDraftDirty(false)
     setDraftAutosaveStatus('idle')
+    setWorkspaceMode(options.mode ?? 'capture')
     window.localStorage.setItem('qa-scribe:last-session', id)
     await refreshSessions()
   }
@@ -354,7 +371,17 @@ export function App(): ReactElement {
   async function flushPendingAutosaves(): Promise<boolean> {
     if (!snapshot) return true
 
-    if (sessionDraftDirty && !(await persistSessionDraft(false, ++sessionSaveVersionRef.current))) return false
+    if (sessionDraftDirty) {
+      const result = validateSessionRequirements(sessionDraft)
+      if (!result.valid) {
+        setSessionRequirementErrors(result.missing)
+        setSessionSetupOpen(true)
+        setSessionAutosaveStatus('error')
+        flash('Add a Session title before continuing')
+        return false
+      }
+      if (!(await persistSessionDraft(false, ++sessionSaveVersionRef.current))) return false
+    }
 
     if (draftDirty && draft) {
       try {
@@ -377,12 +404,15 @@ export function App(): ReactElement {
   }
 
   async function createSession(): Promise<void> {
+    if (creatingSessionRef.current) return
+    creatingSessionRef.current = true
     setBusy(true)
     try {
       const created = await window.qaScribe.createSession({ title: 'New Session' })
       await refreshSessions()
-      await openSession(created.id)
+      await openSession(created.id, { mode: 'capture', openSetup: true })
     } finally {
+      creatingSessionRef.current = false
       setBusy(false)
     }
   }
@@ -394,6 +424,14 @@ export function App(): ReactElement {
 
   async function persistSessionDraft(showToast: boolean, version: number): Promise<boolean> {
     if (!snapshot) return false
+    const result = validateSessionRequirements(sessionDraft)
+    if (!result.valid) {
+      setSessionRequirementErrors(result.missing)
+      setSessionSetupOpen(true)
+      setSessionAutosaveStatus('error')
+      if (showToast) flash('Add a Session title before continuing')
+      return false
+    }
     try {
       setSessionAutosaveStatus('saving')
       const sessionId = snapshot.session.id
@@ -440,7 +478,7 @@ export function App(): ReactElement {
   async function addEntry(): Promise<void> {
     if (!snapshot || entryBody.trim().length === 0) return
     try {
-      await window.qaScribe.createEntry({
+      const created = await window.qaScribe.createEntry({
         sessionId: snapshot.session.id,
         type: 'note',
         title: entryTitle,
@@ -448,7 +486,11 @@ export function App(): ReactElement {
         metadataJson: entryMetadataJson
       })
       resetCaptureDrafts()
-      await openSession(snapshot.session.id)
+      setQuery('')
+      setFilter('all')
+      await openSession(snapshot.session.id, { mode: 'capture' })
+      setSelectedEntryId(created.id)
+      flash('Entry saved')
     } catch (error) {
       flashError(error, 'Entry could not be saved')
     }
@@ -496,6 +538,26 @@ export function App(): ReactElement {
     await openSession(snapshot.session.id)
     setSelectedEntryId(entry.id)
     flash(entry.excludedFromGeneration ? 'Entry included for generation' : 'Entry excluded from generation')
+  }
+
+  async function saveSelectedEntry(entry: Entry, patch: EntryInspectorSavePatch): Promise<void> {
+    if (!snapshot) return
+    setEntrySaveBusy(true)
+    try {
+      await window.qaScribe.updateEntry(entry.id, patch)
+      const next = await window.qaScribe.getSession(snapshot.session.id)
+      if (next) {
+        setSnapshot(next)
+        await loadReviewState(next)
+        await refreshSessions()
+      }
+      setSelectedEntryId(entry.id)
+      flash('Entry saved')
+    } catch (error) {
+      flashError(error, 'Entry could not be saved')
+    } finally {
+      setEntrySaveBusy(false)
+    }
   }
 
   async function toggleReviewedEntry(row: ContextRow): Promise<void> {
@@ -569,8 +631,9 @@ export function App(): ReactElement {
   async function attachToDraftNote(source: AttachmentImportSource): Promise<AttachmentImportResult> {
     if (!snapshot) return undefined
     const body = entryBody.trim() || entryTitle.trim() || 'Evidence attached.'
+    let entry: Entry | null = null
     try {
-      const entry = await window.qaScribe.createEntry({
+      entry = await window.qaScribe.createEntry({
         sessionId: snapshot.session.id,
         type: 'note',
         title: entryTitle,
@@ -589,6 +652,7 @@ export function App(): ReactElement {
       flash('Evidence attached')
       return attachment
     } catch (error) {
+      if (entry) await Promise.resolve(window.qaScribe.deleteEntry(entry.id)).catch(() => undefined)
       flashError(error, 'Evidence could not be attached')
       return undefined
     }
@@ -623,45 +687,17 @@ export function App(): ReactElement {
 
   async function createFindingFromEntry(entry: Entry): Promise<void> {
     if (!snapshot) return
-    const entryAttachments = snapshot.attachments.filter((attachment) => attachment.entryId === entry.id)
-    try {
-      const storedFinding = await window.qaScribe.createFinding({
-        sessionId: snapshot.session.id,
-        title: entry.title || formatEntryType(entry.type),
-        body: entry.body,
-        kind: 'bug',
-        entryId: entry.id
-      })
-      for (const attachment of entryAttachments) {
-        await window.qaScribe.createEvidenceLink({ findingId: storedFinding.id, attachmentId: attachment.id })
-      }
-      const created = normalizeFinding(
-        storedFinding,
-        [
-          {
-            id: `entry-${entry.id}`,
-            findingId: storedFinding.id,
-            entryId: entry.id,
-            attachmentId: null,
-            createdAt: storedFinding.createdAt
-          },
-          ...entryAttachments.map((attachment) => ({
-            id: `attachment-${attachment.id}`,
-            findingId: storedFinding.id,
-            entryId: null,
-            attachmentId: attachment.id,
-            createdAt: storedFinding.createdAt
-          }))
-        ]
-      )
-      const nextFindings = [...findings, created]
-      setFindings(nextFindings)
-      await openSession(snapshot.session.id)
-      setSelectedEntryId(entry.id)
-      flash('Finding created')
-    } catch (error) {
-      flashError(error, 'Finding could not be created')
-    }
+    setFindingDraft({
+      ...createEmptyStructuredFindingDraft(),
+      title: entry.title || formatEntryType(entry.type),
+      actual: entry.body,
+      environment: [snapshot.session.environment, snapshot.session.buildVersion].filter(Boolean).join(' / '),
+      linkSelectedEntry: true
+    })
+    setSelectedEntryId(entry.id)
+    setCaptureMode('finding')
+    setWorkspaceMode('capture')
+    flash('Finding draft started')
   }
 
   async function toggleReviewedAttachment(item: ContextAttachment): Promise<void> {
@@ -702,7 +738,6 @@ export function App(): ReactElement {
       setWorkspaceMode('drafts')
       flash('Generated draft ready')
     } catch (error) {
-      await openSession(snapshot.session.id)
       flash(error instanceof Error ? error.message : 'Generation failed')
     } finally {
       setGenerating(false)
@@ -874,9 +909,7 @@ export function App(): ReactElement {
     setSessionDraftDirty(true)
     sessionSaveVersionRef.current += 1
     setSessionAutosaveStatus('idle')
-    if (sessionRequirementErrors.length > 0) {
-      setSessionRequirementErrors(validateSessionRequirements(nextDraft).missing)
-    }
+    setSessionRequirementErrors(validateSessionRequirements(nextDraft).missing)
   }
 
   function validateSessionDraftForAction(): boolean {
@@ -892,10 +925,18 @@ export function App(): ReactElement {
   }
 
   function autosaveLabel(status: AutosaveStatus): string {
+    if (sessionSetupNeedsAttention) return 'Title required'
     if (status === 'saving') return 'Saving...'
     if (status === 'saved') return 'Saved'
     if (status === 'error') return 'Save failed'
     return 'Autosave on'
+  }
+
+  function attachmentTargetLabel(target: AttachmentImportTarget): string {
+    if (target.kind === 'draft-note') return 'Attach to new note from the current composer'
+    if (!target.entryId) return 'Attach to this Session'
+    const entry = snapshot?.entries.find((item) => item.id === target.entryId)
+    return `Attach to Entry: ${entry?.title || entry?.body.split('\n')[0] || 'Untitled Entry'}`
   }
 
   const displayedDraft =
@@ -911,6 +952,7 @@ export function App(): ReactElement {
   return (
     <main className="app-shell">
       <SessionSidebar
+        busy={busy}
         sessions={sessions}
         selectedSessionId={snapshot?.session.id ?? null}
         onCreateSession={createSession}
@@ -1061,8 +1103,11 @@ export function App(): ReactElement {
                     attachments={snapshot.attachments.filter((attachment) => attachment.entryId === selectedEntry.id)}
                     entry={selectedEntry}
                     findings={findings.filter((finding) => finding.evidenceEntryIds.includes(selectedEntry.id))}
+                    saving={entrySaveBusy}
                     onAttach={() => openAttachmentImportModal(selectedEntry.id)}
+                    onClose={() => setSelectedEntryId(null)}
                     onCreateFinding={() => createFindingFromEntry(selectedEntry)}
+                    onSaveEntry={(patch) => saveSelectedEntry(selectedEntry, patch)}
                   />
                 </aside>
               ) : null}
@@ -1073,7 +1118,7 @@ export function App(): ReactElement {
             <div>
               <h1>qa-scribe</h1>
               <p>Start a local testing Session and capture the raw material while it is still fresh.</p>
-              <button className="primary-command fit" onClick={createSession} type="button">
+              <button className="primary-command fit" disabled={busy} onClick={createSession} type="button">
                 {busy ? <Loader2 className="spin" size={17} /> : <Plus size={17} />}
                 New Session
               </button>
@@ -1099,6 +1144,7 @@ export function App(): ReactElement {
               <div>
                 <span className="eyebrow">Evidence</span>
                 <h2 id="attachment-import-title">Attach Evidence</h2>
+                <p className="modal-context">{attachmentTargetLabel(attachmentImportTarget)}</p>
               </div>
               <button
                 aria-label="Close evidence import"
@@ -1150,7 +1196,11 @@ export function App(): ReactElement {
         </div>
       ) : null}
 
-      {notice ? <div className="toast">{notice}</div> : null}
+      {notice ? (
+        <div aria-live="polite" className="toast" role="status">
+          {notice}
+        </div>
+      ) : null}
     </main>
   )
 }

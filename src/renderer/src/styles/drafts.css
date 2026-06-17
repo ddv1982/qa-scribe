@@ -18,6 +18,11 @@
   box-shadow: 0 0 0 3px var(--selection);
 }
 
+.draft-editor textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .draft-view-toggle {
   display: inline-grid;
   grid-template-columns: 1fr 1fr;
@@ -33,7 +38,7 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-height: 28px;
+  min-height: 34px;
   border: 0;
   border-radius: 7px;
   background: transparent;
@@ -51,6 +56,7 @@
 .draft-view-toggle button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
+  box-shadow: 0 0 0 3px var(--selection);
 }
 
 .draft-markdown-view {

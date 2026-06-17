@@ -141,6 +141,79 @@ describe('App capture and evidence', () => {
     expect(api.getAttachmentPreviewDataUrl).toHaveBeenCalledWith('attachment-1')
   })
 
+  it('renders non-image attachment metadata in the timeline and inspector', async () => {
+    const logAttachment = {
+      ...baseImageAttachment(),
+      id: 'attachment-log',
+      filename: 'console.log',
+      mimeType: 'text/plain',
+      sizeBytes: 2048,
+      relativePath: 'session-1/attachment-log.txt'
+    }
+    const snapshot = createSnapshot({
+      entries: [baseEntry()],
+      attachments: [logAttachment]
+    })
+    const api = installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
+
+    render(<App />)
+
+    const timeline = await screen.findByLabelText('Session Timeline')
+    expect(within(timeline).getByText('console.log')).toBeInTheDocument()
+    expect(within(timeline).getByText('text/plain')).toBeInTheDocument()
+    expect(within(timeline).getByText('2 KB')).toBeInTheDocument()
+    expect(api.getAttachmentPreviewDataUrl).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('heading', { name: 'Checkout completed' }))
+    const inspector = screen.getByLabelText('Inspector')
+    expect(within(inspector).getByLabelText('Selected Entry content')).toHaveTextContent('Order confirmation displayed.')
+    expect(within(inspector).getByText('console.log')).toBeInTheDocument()
+    expect(within(inspector).getByText('text/plain / 2 KB')).toBeInTheDocument()
+  })
+
+  it('edits selected Entry content from the inspector', async () => {
+    let snapshot = createSnapshot({ entries: [baseEntry()] })
+    const api = installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
+    vi.mocked(api.getSession).mockImplementation(async () => snapshot)
+    vi.mocked(api.updateEntry).mockImplementation(async (_id, input) => {
+      const updated = {
+        ...baseEntry(),
+        title: input.title ?? null,
+        body: input.body ?? '',
+        metadataJson: input.metadataJson ?? null,
+        updatedAt: '2026-06-15T00:05:00.000Z'
+      } satisfies Entry
+      snapshot = createSnapshot({ entries: [updated] })
+      return updated
+    })
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('heading', { name: 'Checkout completed' }))
+    const inspector = screen.getByLabelText('Inspector')
+    fireEvent.click(within(inspector).getByRole('button', { name: 'Edit' }))
+    fireEvent.change(within(inspector).getByLabelText('Entry title'), { target: { value: 'Edited checkout note' } })
+    fireEvent.change(within(inspector).getByLabelText('Entry body'), {
+      target: { value: 'Edited entry body.' }
+    })
+    fireEvent.click(within(inspector).getByRole('button', { name: 'Save' }))
+
+    await waitFor(() =>
+      expect(api.updateEntry).toHaveBeenCalledWith(
+        'entry-1',
+        expect.objectContaining({
+          title: 'Edited checkout note',
+          body: 'Edited entry body.'
+        })
+      )
+    )
+    expect(
+      await within(screen.getByLabelText('Session Timeline')).findByRole('heading', { name: 'Edited checkout note' })
+    ).toBeInTheDocument()
+    expect(screen.getByLabelText('Inspector')).toHaveTextContent('Edited entry body.')
+  })
+
   it('opens the evidence import modal and browses for session evidence', async () => {
     const snapshot = createSnapshot()
     const api = installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
@@ -201,8 +274,75 @@ describe('App capture and evidence', () => {
         text: 'Important behavior'
       })
     )
-    expect(await screen.findByRole('heading', { name: 'Formatted note' })).toBeInTheDocument()
-    expect(screen.getByText('Important behavior').tagName).toBe('STRONG')
+    expect(await within(screen.getByLabelText('Session Timeline')).findByRole('heading', { name: 'Formatted note' })).toBeInTheDocument()
+    expect(within(screen.getByLabelText('Session Timeline')).getByText('Important behavior').tagName).toBe('STRONG')
+  })
+
+  it('reveals a saved note even when timeline filters were active', async () => {
+    let snapshot = createSnapshot({ entries: [baseEntry()] })
+    const api = installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
+    vi.mocked(api.getSession).mockImplementation(async () => snapshot)
+    vi.mocked(api.createEntry).mockImplementation(async (input) => {
+      const entry = {
+        ...baseEntry(),
+        id: 'entry-filtered',
+        type: 'note',
+        title: input.title ?? null,
+        body: input.body,
+        metadataJson: input.metadataJson ?? null,
+        createdAt: '2026-06-15T00:03:00.000Z',
+        updatedAt: '2026-06-15T00:03:00.000Z'
+      } satisfies Entry
+      snapshot = createSnapshot({ entries: [baseEntry(), entry] })
+      return entry
+    })
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Filter by Entry type'), { target: { value: 'observation' } })
+    expect(screen.getByRole('heading', { name: 'No matching Entries' })).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Note title'), { target: { value: 'Filtered note' } })
+    fireEvent.input(screen.getByLabelText('Note body'), { target: { textContent: 'Saved under an active filter.' } })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Add Note' })).toBeEnabled())
+    fireEvent.click(screen.getByRole('button', { name: 'Add Note' }))
+
+    expect(await within(screen.getByLabelText('Session Timeline')).findByRole('heading', { name: 'Filtered note' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Filter by Entry type')).toHaveValue('all')
+    expect(screen.getByLabelText('Search Entries')).toHaveValue('')
+    expect(screen.getByRole('button', { name: 'Select Entry: Filtered note' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('finds Entries by attachment filename', async () => {
+    const snapshot = createSnapshot({
+      entries: [baseEntry()],
+      attachments: [{ ...baseImageAttachment(), filename: 'network.har', mimeType: 'application/json' }]
+    })
+    installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Search Entries'), { target: { value: 'network.har' } })
+
+    expect(screen.getByRole('heading', { name: 'Checkout completed' })).toBeInTheDocument()
+    expect(screen.getByText('1 of 1 Entries')).toBeInTheDocument()
+  })
+
+  it('prefills a structured Finding draft from an Entry instead of immediately saving a bug', async () => {
+    const snapshot = createSnapshot({ entries: [baseEntry()] })
+    const api = installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Create Finding from Entry' }))
+
+    expect(api.createFinding).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Finding' })).toHaveClass('selected')
+    expect(screen.getByLabelText('Finding title (required)')).toHaveValue('Checkout completed')
+    expect(screen.getByLabelText('Actual result')).toHaveValue('Order confirmation displayed.')
+    expect(screen.getByLabelText('Link selected Entry: Checkout completed')).toBeChecked()
   })
 
   it('attaches evidence from the note editor by first saving the draft note', async () => {
@@ -308,6 +448,32 @@ describe('App capture and evidence', () => {
     expect(api.importAttachment).not.toHaveBeenCalled()
   })
 
+  it('deletes the draft note when file evidence import throws', async () => {
+    const snapshot = createSnapshot()
+    const api = installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
+    vi.mocked(api.createEntry).mockResolvedValue({
+      ...baseEntry(),
+      id: 'entry-draft',
+      title: 'Failed file',
+      body: 'Try browse',
+      metadataJson: null
+    })
+    vi.mocked(api.importAttachment).mockRejectedValue(new Error('file dialog failed'))
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Note title'), { target: { value: 'Failed file' } })
+    fireEvent.input(screen.getByLabelText('Note body'), { target: { textContent: 'Try browse' } })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Add Note' })).toBeEnabled())
+    fireEvent.click(screen.getByRole('button', { name: 'Attach evidence' }))
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Attach Evidence' })).getByRole('button', { name: /Browse/ }))
+
+    await waitFor(() => expect(api.importAttachment).toHaveBeenCalledWith(snapshot.session.id, 'entry-draft'))
+    expect(api.deleteEntry).toHaveBeenCalledWith('entry-draft')
+    expect(await screen.findByText('file dialog failed')).toBeInTheDocument()
+  })
+
   it('clears timeline filters from the filtered empty state', async () => {
     const snapshot = createSnapshot({ entries: [baseEntry()] })
     installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
@@ -336,6 +502,7 @@ describe('App capture and evidence', () => {
     fireEvent.click(screen.getByRole('heading', { name: 'Checkout completed' }))
     const inspector = screen.getByLabelText('Inspector')
     expect(within(inspector).getByRole('heading', { name: 'Checkout completed' })).toBeInTheDocument()
+    expect(within(inspector).getByLabelText('Selected Entry content')).toHaveTextContent('Order confirmation displayed.')
 
     fireEvent.click(within(inspector).getByRole('button', { name: 'Attach Evidence' }))
     fireEvent.click(within(screen.getByRole('dialog', { name: 'Attach Evidence' })).getByRole('button', { name: /Browse/ }))

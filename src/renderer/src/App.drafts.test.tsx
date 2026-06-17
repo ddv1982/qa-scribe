@@ -3,7 +3,7 @@
 import '@testing-library/jest-dom/vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import type { Draft } from '../../shared/contracts'
+import type { Draft, Finding as StoredFinding } from '../../shared/contracts'
 import { App } from './App'
 import {
   codexAvailable,
@@ -67,6 +67,79 @@ describe('App Drafts behavior', () => {
     expect(api.createDraft).not.toHaveBeenCalled()
     expect(await screen.findByRole('heading', { name: 'No draft' })).toBeInTheDocument()
   })
+
+  it('uses edited Jira markdown for bug cards and scoped draft copy actions', async () => {
+    const initialBody = [
+      '# Stored report',
+      '',
+      '## Jira Bug Drafts',
+      '',
+      '### Stored checkout bug',
+      '',
+      'Stored stale description.',
+      '',
+      '**Steps to Reproduce**',
+      '1. Use the old checkout'
+    ].join('\n')
+    const editedBody = [
+      '# Edited report',
+      '',
+      '## What Was Tested',
+      '',
+      'Checkout smoke.',
+      '',
+      '## Jira Bug Drafts',
+      '',
+      '### Edited checkout bug',
+      '',
+      'Edited draft description.',
+      '',
+      '**Steps to Reproduce**',
+      '1. Submit a valid card',
+      '',
+      '**Expected Result:** The order is confirmed.',
+      '',
+      '**Actual Result:** Checkout remains blocked.',
+      '',
+      '**Evidence**',
+      '- checkout.png'
+    ].join('\n')
+    const snapshot = createSnapshot({
+      drafts: [sessionReportDraft({ body: initialBody })],
+      findings: [storedFinding({ title: 'Fallback Finding bug' })]
+    })
+    installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
+    const writeText = vi.fn(async (_text: string) => undefined)
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText }
+    })
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Drafts' }))
+    expect(await screen.findByText('Stored checkout bug')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Draft' }))
+    fireEvent.change(screen.getByLabelText('Session Report Draft'), { target: { value: editedBody } })
+
+    expect(await screen.findByText('Edited checkout bug')).toBeInTheDocument()
+    expect(screen.queryByText('Stored checkout bug')).not.toBeInTheDocument()
+    expect(screen.queryByText('Fallback Finding bug')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByTitle('Copy Jira bug draft'))
+    await waitFor(() => expect(writeText).toHaveBeenLastCalledWith(expect.stringContaining('Title: Edited checkout bug')))
+    expect(writeText.mock.calls.at(-1)?.[0]).toContain('Expected:\nThe order is confirmed.')
+    expect(writeText.mock.calls.at(-1)?.[0]).not.toContain('Stored stale description')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copy Report Body' }))
+    await waitFor(() =>
+      expect(writeText).toHaveBeenLastCalledWith('# Edited report\n\n## What Was Tested\n\nCheckout smoke.')
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copy Full Draft' }))
+    await waitFor(() => expect(writeText).toHaveBeenLastCalledWith(editedBody))
+  })
 })
 
 function sessionReportDraft(input: Partial<Draft> = {}): Draft {
@@ -79,6 +152,20 @@ function sessionReportDraft(input: Partial<Draft> = {}): Draft {
     body: '# Persisted report',
     createdAt: '2026-06-15T00:04:00.000Z',
     updatedAt: '2026-06-15T00:04:01.000Z',
+    ...input
+  }
+}
+
+function storedFinding(input: Partial<StoredFinding> = {}): StoredFinding {
+  return {
+    id: 'finding-1',
+    sessionId: 'session-1',
+    title: 'Checkout failure',
+    body: 'Checkout cannot complete.',
+    kind: 'bug',
+    metadataJson: null,
+    createdAt: '2026-06-15T00:04:00.000Z',
+    updatedAt: '2026-06-15T00:04:00.000Z',
     ...input
   }
 }

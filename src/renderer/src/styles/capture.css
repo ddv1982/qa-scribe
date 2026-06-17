@@ -17,6 +17,7 @@
 .timeline-entry:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--selection);
 }
 
 .entry-marker {
@@ -65,8 +66,8 @@
 
 .entry-actions button {
   display: grid;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   place-items: center;
   border: 1px solid var(--border);
   border-radius: 7px;
@@ -178,7 +179,7 @@
   display: inline-flex;
   justify-content: center;
   min-width: 0;
-  height: 34px;
+  min-height: 38px;
   gap: 6px;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -192,6 +193,14 @@
   border-color: var(--accent);
   background: var(--selection);
   color: var(--text);
+}
+
+.composer-mode-toggle button:focus-visible,
+.rich-editor-toolbar button:focus-visible,
+.entry-actions button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--selection);
 }
 
 .rich-editor {
@@ -215,8 +224,8 @@
 
 .rich-editor-toolbar button {
   display: grid;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   place-items: center;
   border: 1px solid transparent;
   border-radius: 7px;

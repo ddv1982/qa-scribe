@@ -2,7 +2,7 @@ import { useState, type ReactElement } from 'react'
 import { Bug, Check, Copy, Eye, FileText, Pencil, Trash2 } from 'lucide-react'
 import type { Attachment } from '../../../../shared/contracts'
 import type { Finding, ReviewDraft } from '../../domain/types'
-import { formatJiraDraft, jiraDraftFromFinding, reportContentFromDraftContent } from '../../domain/reviewDrafts'
+import { formatJiraDraft, jiraBugDraftsForReviewDraft, reportContentFromDraftContent } from '../../domain/reviewDrafts'
 import { AttachmentPreviewGrid } from '../evidence/Attachments'
 import { DraftMarkdownView } from './DraftMarkdownView'
 
@@ -50,6 +50,8 @@ export function DraftsPane(props: {
   }
 
   const reportContent = reportContentFromDraftContent(draft.content)
+  const jiraBugDrafts = jiraBugDraftsForReviewDraft(draft, props.findings)
+  const hasSeparateFullDraft = reportContent !== draft.content
 
   async function copyScreenshot(attachment: Attachment): Promise<void> {
     setCopyingAttachmentId(attachment.id)
@@ -82,10 +84,16 @@ export function DraftsPane(props: {
                 Edit Draft
               </button>
             </div>
-            <button className="secondary-command" type="button" onClick={() => props.onCopy(reportContent, 'Report copied')}>
+            <button className="secondary-command" type="button" onClick={() => props.onCopy(reportContent, 'Report body copied')}>
               <Copy size={16} />
-              Copy Report
+              Copy Report Body
             </button>
+            {hasSeparateFullDraft ? (
+              <button className="secondary-command" type="button" onClick={() => props.onCopy(draft.content, 'Full draft copied')}>
+                <Copy size={16} />
+                Copy Full Draft
+              </button>
+            ) : null}
             <button className="primary-command" type="button" onClick={() => void props.onSave()}>
               <Check size={16} />
               Save Draft
@@ -141,38 +149,40 @@ export function DraftsPane(props: {
           <Bug size={16} />
           <h3>Jira Bug Drafts</h3>
         </div>
-        {draft.jiraBugDrafts.length === 0 && props.findings.length === 0 ? (
-          <p className="muted">Create Findings to prepare copy-friendly bug sections.</p>
+        {jiraBugDrafts.length === 0 ? (
+          <p className="muted">
+            {props.findings.length === 0
+              ? 'Create Findings to prepare copy-friendly bug sections.'
+              : 'No Jira bug drafts in the current draft.'}
+          </p>
         ) : null}
-        {(draft.jiraBugDrafts.length > 0 ? draft.jiraBugDrafts : props.findings.map(jiraDraftFromFinding)).map(
-          (jiraDraft) => (
-            <article className="jira-draft" key={jiraDraft.id}>
-              <div className="jira-draft-title">
-                <strong>{jiraDraft.title}</strong>
-                <button
-                  className="icon-command"
-                  title="Copy Jira bug draft"
-                  type="button"
-                  onClick={() => props.onCopy(formatJiraDraft(jiraDraft), 'Jira draft copied')}
-                >
-                  <Copy size={15} />
-                </button>
-              </div>
-              <dl>
-                <dt>Description</dt>
-                <dd>{jiraDraft.description}</dd>
-                <dt>Steps</dt>
-                <dd>{jiraDraft.steps}</dd>
-                <dt>Expected</dt>
-                <dd>{jiraDraft.expected}</dd>
-                <dt>Actual</dt>
-                <dd>{jiraDraft.actual}</dd>
-                <dt>Evidence</dt>
-                <dd>{jiraDraft.evidence}</dd>
-              </dl>
-            </article>
-          )
-        )}
+        {jiraBugDrafts.map((jiraDraft) => (
+          <article className="jira-draft" key={jiraDraft.id}>
+            <div className="jira-draft-title">
+              <strong>{jiraDraft.title}</strong>
+              <button
+                className="icon-command"
+                title="Copy Jira bug draft"
+                type="button"
+                onClick={() => props.onCopy(formatJiraDraft(jiraDraft), 'Jira draft copied')}
+              >
+                <Copy size={15} />
+              </button>
+            </div>
+            <dl>
+              <dt>Description</dt>
+              <dd>{jiraDraft.description}</dd>
+              <dt>Steps</dt>
+              <dd>{jiraDraft.steps}</dd>
+              <dt>Expected</dt>
+              <dd>{jiraDraft.expected}</dd>
+              <dt>Actual</dt>
+              <dd>{jiraDraft.actual}</dd>
+              <dt>Evidence</dt>
+              <dd>{jiraDraft.evidence}</dd>
+            </dl>
+          </article>
+        ))}
       </div>
     </section>
   )

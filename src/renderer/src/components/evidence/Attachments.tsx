@@ -4,13 +4,18 @@ import type { ContextAttachment } from '../../domain/types'
 
 export function AttachmentList({ attachments }: { attachments: Attachment[] }): ReactElement {
   if (attachments.length === 0) return <p className="muted">No evidence attached.</p>
+  return <AttachmentSummaryList attachments={attachments} />
+}
+
+export function AttachmentSummaryList(props: { attachments: Attachment[]; compact?: boolean }): ReactElement | null {
+  if (props.attachments.length === 0) return null
   return (
-    <ul className="attachment-list">
-      {attachments.map((attachment) => (
+    <ul className="attachment-list" aria-label="Attached evidence">
+      {props.attachments.map((attachment) => (
         <li key={attachment.id}>
-          <AttachmentPreview attachment={attachment} />
+          <AttachmentPreview attachment={attachment} compact={props.compact} />
           <span>{attachment.filename}</span>
-          <small>{Math.ceil(attachment.sizeBytes / 1024)} KB</small>
+          <small>{formatAttachmentMeta(attachment)}</small>
         </li>
       ))}
     </ul>
@@ -29,7 +34,7 @@ export function ReviewAttachmentList(props: {
         <article className="finding-row" key={item.attachment.id}>
           <AttachmentPreview attachment={item.attachment} compact />
           <strong>{item.attachment.filename}</strong>
-          <span>{Math.ceil(item.attachment.sizeBytes / 1024)} KB</span>
+          <span>{formatAttachmentMeta(item.attachment)}</span>
           <div className="context-entry-footer">
             <small>{item.included ? 'Included in context' : 'Excluded from context'}</small>
             <button
@@ -52,14 +57,20 @@ export function AttachmentPreviewGrid(props: {
   compact?: boolean
   renderAction?: (attachment: Attachment) => ReactNode
 }): ReactElement | null {
-  const imageAttachments = props.attachments.filter(isImageAttachment)
-  if (imageAttachments.length === 0) return null
+  if (props.attachments.length === 0) return null
 
   return (
     <div className={props.compact ? 'attachment-preview-grid compact' : 'attachment-preview-grid'}>
-      {imageAttachments.map((attachment) => (
-        <div className="attachment-preview-item" key={attachment.id}>
-          <AttachmentPreview attachment={attachment} compact={props.compact} />
+      {props.attachments.map((attachment) => (
+        <div
+          className={isImageAttachment(attachment) ? 'attachment-preview-item' : 'attachment-preview-item finding-row'}
+          key={attachment.id}
+        >
+          {isImageAttachment(attachment) ? (
+            <AttachmentPreview attachment={attachment} compact={props.compact} />
+          ) : (
+            <AttachmentFileRow attachment={attachment} />
+          )}
           {props.renderAction ? <div className="attachment-preview-action">{props.renderAction(attachment)}</div> : null}
         </div>
       ))}
@@ -103,4 +114,30 @@ export function AttachmentPreview(props: { attachment: Attachment; compact?: boo
 
 function isImageAttachment(attachment: Attachment): boolean {
   return attachment.mimeType?.startsWith('image/') ?? false
+}
+
+function AttachmentFileRow({ attachment }: { attachment: Attachment }): ReactElement {
+  return (
+    <>
+      <strong>{attachment.filename}</strong>
+      <span>{formatAttachmentType(attachment)}</span>
+      <small>{formatAttachmentSize(attachment.sizeBytes)}</small>
+    </>
+  )
+}
+
+function formatAttachmentMeta(attachment: Attachment): string {
+  return `${formatAttachmentType(attachment)} / ${formatAttachmentSize(attachment.sizeBytes)}`
+}
+
+function formatAttachmentType(attachment: Attachment): string {
+  if (attachment.mimeType) return attachment.mimeType
+  const extension = attachment.filename.split('.').pop()
+  return extension && extension !== attachment.filename ? `${extension.toUpperCase()} file` : 'File'
+}
+
+function formatAttachmentSize(sizeBytes: number): string {
+  if (sizeBytes < 1024) return `${sizeBytes} B`
+  if (sizeBytes < 1024 * 1024) return `${Math.ceil(sizeBytes / 1024)} KB`
+  return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`
 }

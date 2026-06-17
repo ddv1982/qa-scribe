@@ -2,7 +2,8 @@
 
 import '@testing-library/jest-dom/vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import type { Session } from '../../shared/contracts'
 import { App } from './App'
 import {
   baseSession,
@@ -62,5 +63,40 @@ describe('App Session setup', () => {
     expect(screen.getByLabelText('Environment (optional)')).toBeInTheDocument()
     expect(screen.getByLabelText('Build (optional)')).toBeInTheDocument()
     expect(screen.getByLabelText('Related Reference (optional)')).toBeInTheDocument()
+  })
+
+  it('guards repeated New Session clicks and opens setup for the created Session', async () => {
+    const snapshot = createSnapshot()
+    const createdSession: Session = {
+      ...baseSession(),
+      id: 'session-2',
+      title: 'New Session',
+      testTarget: null,
+      charter: null
+    }
+    const createdSnapshot = createSnapshot({ session: createdSession })
+    const api = installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
+    let resolveCreate: (session: Session) => void = () => undefined
+    vi.mocked(api.createSession).mockReturnValue(
+      new Promise<Session>((resolve) => {
+        resolveCreate = resolve
+      })
+    )
+    vi.mocked(api.listSessions).mockResolvedValue([snapshot.session, createdSession])
+    vi.mocked(api.getSession).mockImplementation(async (id) => (id === createdSession.id ? createdSnapshot : snapshot))
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
+    const newSessionButton = screen.getByRole('button', { name: 'New Session' })
+    fireEvent.click(newSessionButton)
+    fireEvent.click(newSessionButton)
+
+    expect(api.createSession).toHaveBeenCalledTimes(1)
+    resolveCreate(createdSession)
+
+    expect(await screen.findByRole('heading', { name: 'New Session' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Session setup fields')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Capture' })).toHaveClass('selected')
   })
 })

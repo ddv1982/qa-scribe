@@ -4,7 +4,7 @@ import { reasoningEffortDescriptor } from '../../../../shared/contracts'
 import type { AiProviderId, AiProviderStatus, ProviderStatus, ReasoningEffort, Session } from '../../../../shared/contracts'
 import type { ContextAttachment, ContextRow, Finding } from '../../domain/types'
 import { firstLine, formatEntryType, providerSummary } from '../../domain/formatters'
-import { ReviewAttachmentList } from '../evidence/Attachments'
+import { AttachmentSummaryList, ReviewAttachmentList } from '../evidence/Attachments'
 
 export function GenerationReviewPane(props: {
   session: Session
@@ -200,8 +200,11 @@ function ReviewList(props: {
             <strong>{row.entry.title || firstLine(row.entry.body) || 'Untitled Entry'}</strong>
             <p>{row.entry.body}</p>
           </div>
+          <AttachmentSummaryList attachments={row.attachments} compact />
           <div className="context-entry-footer">
-            <span>{row.attachments.length} attachments</span>
+            <span>
+              {row.attachments.length === 1 ? '1 attachment' : `${row.attachments.length} attachments`}
+            </span>
             <button
               className="secondary-command compact"
               disabled={props.disabled}

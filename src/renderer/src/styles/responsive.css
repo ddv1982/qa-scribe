@@ -84,6 +84,21 @@
   }
 }
 
+@media (max-width: 1180px) and (min-width: 921px) {
+  .app-shell {
+    grid-template-columns: minmax(208px, 220px) minmax(0, 1fr);
+  }
+
+  .detail-grid.has-inspector {
+    grid-template-columns: minmax(0, 1fr) 288px;
+  }
+
+  .timeline-entry {
+    grid-template-columns: 88px minmax(0, 1fr);
+    gap: 14px;
+  }
+}
+
 @media (max-width: 680px) {
   .topbar,
   .session-setup-body,
@@ -126,6 +141,11 @@
 
   .session-required-fields .field:last-child {
     grid-column: auto;
+  }
+
+  .session-list {
+    grid-template-columns: 1fr;
+    max-height: none;
   }
 
   .timeline-tools,
