@@ -7,7 +7,9 @@ export function createEmptyStructuredFindingDraft(): StructuredFindingDraft {
   return {
     title: '',
     actual: '',
+    actualMetadataJson: null,
     expected: '',
+    expectedMetadataJson: null,
     steps: '',
     severity: 'untriaged',
     priority: 'medium',
@@ -25,7 +27,9 @@ export function createStructuredFindingDetails(
   return {
     schema: structuredFindingMetadataSchema,
     actual: draft.actual.trim(),
+    actualMetadataJson: draft.actualMetadataJson,
     expected: draft.expected.trim(),
+    expectedMetadataJson: draft.expectedMetadataJson,
     steps: splitSteps(draft.steps),
     severity: draft.severity.trim() || 'untriaged',
     priority: draft.priority.trim() || 'medium',
@@ -62,7 +66,9 @@ export function parseStructuredFindingDetails(metadataJson: string | null | unde
     return {
       schema: structuredFindingMetadataSchema,
       actual: stringOrEmpty(value.actual),
+      actualMetadataJson: stringOrNull(value.actualMetadataJson),
       expected: stringOrEmpty(value.expected),
+      expectedMetadataJson: stringOrNull(value.expectedMetadataJson),
       steps: Array.isArray(value.steps) ? value.steps.filter((step): step is string => typeof step === 'string') : [],
       severity: stringOrEmpty(value.severity) || 'untriaged',
       priority: stringOrEmpty(value.priority) || 'medium',
@@ -96,4 +102,8 @@ function renderStepsSection(steps: string[]): string[] {
 
 function stringOrEmpty(value: unknown): string {
   return typeof value === 'string' ? value : ''
+}
+
+function stringOrNull(value: unknown): string | null {
+  return typeof value === 'string' ? value : null
 }

@@ -1,4 +1,4 @@
-import { Archive, Loader2, Plus } from 'lucide-react'
+import { Archive, Loader2, Plus, Trash2 } from 'lucide-react'
 import { useState, type ReactElement } from 'react'
 import type { Session } from '../../../shared/contracts'
 
@@ -7,6 +7,7 @@ export function SessionSidebar(props: {
   selectedSessionId: string | null
   onCreateSession: () => Promise<void>
   onOpenSession: (id: string) => Promise<void>
+  onDeleteSession: (session: Session) => Promise<void>
   busy?: boolean
   newSessionBusy?: boolean
   newSessionDisabled?: boolean
@@ -58,22 +59,32 @@ export function SessionSidebar(props: {
             const activity = sessionActivity(session)
 
             return (
-              <button
-                aria-current={selected ? 'page' : undefined}
-                aria-label={[session.title, summary, ...metadata, activity.label].filter(Boolean).join('. ')}
-                className={selected ? 'session-row selected' : 'session-row'}
-                key={session.id}
-                onClick={() => void props.onOpenSession(session.id)}
-                type="button"
-              >
-                <span className="session-row-title">{session.title}</span>
-                <small className="session-row-summary">{summary}</small>
-                <small className="session-row-meta">
-                  {metadata.length > 0 ? <span>{metadata.join(' · ')}</span> : null}
-                  {metadata.length > 0 ? <span aria-hidden="true"> · </span> : null}
-                  <time dateTime={activity.dateTime}>{activity.label}</time>
-                </small>
-              </button>
+              <div className={selected ? 'session-row-shell selected' : 'session-row-shell'} key={session.id}>
+                <button
+                  aria-current={selected ? 'page' : undefined}
+                  aria-label={[session.title, summary, ...metadata, activity.label].filter(Boolean).join('. ')}
+                  className="session-row"
+                  onClick={() => void props.onOpenSession(session.id)}
+                  type="button"
+                >
+                  <span className="session-row-title">{session.title}</span>
+                  <small className="session-row-summary">{summary}</small>
+                  <small className="session-row-meta">
+                    {metadata.length > 0 ? <span>{metadata.join(' · ')}</span> : null}
+                    {metadata.length > 0 ? <span aria-hidden="true"> · </span> : null}
+                    <time dateTime={activity.dateTime}>{activity.label}</time>
+                  </small>
+                </button>
+                <button
+                  aria-label={`Delete Session: ${session.title}`}
+                  className="session-row-delete"
+                  title="Delete Session"
+                  type="button"
+                  onClick={() => void props.onDeleteSession(session)}
+                >
+                  <Trash2 size={15} />
+                </button>
+              </div>
             )
           })
         )}

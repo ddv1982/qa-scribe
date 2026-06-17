@@ -29,24 +29,68 @@
   font-size: 12px;
 }
 
+.session-row-shell {
+  position: relative;
+  border: 1px solid transparent;
+  border-radius: 8px;
+}
+
 .session-row {
   display: grid;
   gap: 3px;
   width: 100%;
   min-height: 72px;
-  border: 1px solid transparent;
+  border: 0;
   border-radius: 8px;
-  padding: 9px 10px;
+  padding: 9px 42px 9px 10px;
   background: transparent;
   text-align: left;
   cursor: pointer;
 }
 
-.session-row:focus-visible {
+.session-row-shell:focus-within,
+.session-row-shell:hover {
+  border-color: color-mix(in srgb, var(--accent) 18%, var(--border));
+  background: color-mix(in srgb, var(--surface) 62%, transparent);
+}
+
+.session-row:focus-visible,
+.session-row-delete:focus-visible {
   border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
   outline: 2px solid var(--accent);
   outline-offset: 2px;
   box-shadow: 0 0 0 4px var(--selection);
+}
+
+.session-row-delete {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    border-color 150ms ease,
+    color 150ms ease,
+    opacity 150ms ease;
+}
+
+.session-row-shell:hover .session-row-delete,
+.session-row-shell:focus-within .session-row-delete {
+  opacity: 1;
+}
+
+.session-row-delete:hover,
+.session-row-delete:focus-visible {
+  border-color: color-mix(in srgb, var(--danger) 34%, var(--border));
+  color: var(--danger);
 }
 
 .session-row-title,
@@ -69,7 +113,7 @@
   font-size: 11px;
 }
 
-.session-row.selected {
+.session-row-shell.selected {
   border-color: color-mix(in srgb, var(--accent) 26%, var(--border));
   background: var(--selection);
 }

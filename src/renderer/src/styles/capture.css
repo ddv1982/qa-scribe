@@ -150,10 +150,17 @@
 
 .composer {
   display: grid;
+  flex: 0 0 auto;
   gap: 10px;
   border-top: 1px solid var(--border);
   background: color-mix(in srgb, var(--surface) 78%, var(--background));
   padding: 14px 26px 18px;
+}
+
+.finding-composer {
+  max-height: clamp(300px, 44vh, 460px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .composer-header {
@@ -285,6 +292,10 @@
 }
 
 .finding-fields textarea {
+  min-height: 78px;
+}
+
+.finding-fields .rich-editor-surface {
   min-height: 78px;
 }
 

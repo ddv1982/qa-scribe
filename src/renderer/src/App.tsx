@@ -456,9 +456,19 @@ export function App(): ReactElement {
 
   async function deleteCurrentSession(): Promise<void> {
     if (!snapshot) return
-    if (!window.confirm(`Delete Session "${snapshot.session.title}" and all captured Entries, evidence, Findings, and Drafts?`)) return
-    await window.qaScribe.deleteSession(snapshot.session.id)
-    window.localStorage.removeItem('qa-scribe:last-session')
+    await deleteSession(snapshot.session)
+  }
+
+  async function deleteSession(session: Session): Promise<void> {
+    if (!window.confirm(`Delete Session "${session.title}" and all captured Entries, evidence, Findings, and Drafts?`)) return
+    await window.qaScribe.deleteSession(session.id)
+    if (window.localStorage.getItem('qa-scribe:last-session') === session.id) {
+      window.localStorage.removeItem('qa-scribe:last-session')
+    }
+    if (snapshot?.session.id !== session.id) {
+      await refreshSessions()
+      return
+    }
     setSnapshot(null)
     setSessionDraft(emptyDraft)
     setFindings([])
@@ -691,6 +701,7 @@ export function App(): ReactElement {
       ...createEmptyStructuredFindingDraft(),
       title: entry.title || formatEntryType(entry.type),
       actual: entry.body,
+      actualMetadataJson: entry.metadataJson,
       environment: [snapshot.session.environment, snapshot.session.buildVersion].filter(Boolean).join(' / '),
       linkSelectedEntry: true
     })
@@ -956,6 +967,7 @@ export function App(): ReactElement {
         sessions={sessions}
         selectedSessionId={snapshot?.session.id ?? null}
         onCreateSession={createSession}
+        onDeleteSession={deleteSession}
         onOpenSession={openSession}
       />
 

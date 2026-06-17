@@ -55,6 +55,14 @@ export function CapturePane(props: {
     props.setEntryMetadataJson(value.metadataJson)
   }
 
+  function handleActualResultChange(value: RichTextValue): void {
+    props.onUpdateFindingDraft({ actual: value.text, actualMetadataJson: value.metadataJson })
+  }
+
+  function handleExpectedResultChange(value: RichTextValue): void {
+    props.onUpdateFindingDraft({ expected: value.text, expectedMetadataJson: value.metadataJson })
+  }
+
   return (
     <>
       <div className="timeline-tools">
@@ -187,24 +195,28 @@ export function CapturePane(props: {
           />
         ) : (
           <div className="finding-fields">
-            <label className="field">
+            <div className="field">
               <span>Actual result</span>
-              <textarea
-                aria-label="Actual result"
+              <RichTextEditor
+                ariaLabel="Actual result"
+                initialMetadataJson={props.findingDraft.actualMetadataJson ?? null}
+                initialText={props.findingDraft.actual}
                 placeholder="What failed, changed, blocked you, or looked wrong?"
-                value={props.findingDraft.actual}
-                onChange={(event) => props.onUpdateFindingDraft({ actual: event.target.value })}
+                resetKey={props.richTextResetKey}
+                onChange={handleActualResultChange}
               />
-            </label>
-            <label className="field">
+            </div>
+            <div className="field">
               <span>Expected result</span>
-              <textarea
-                aria-label="Expected result"
+              <RichTextEditor
+                ariaLabel="Expected result"
+                initialMetadataJson={props.findingDraft.expectedMetadataJson ?? null}
+                initialText={props.findingDraft.expected}
                 placeholder="What should have happened?"
-                value={props.findingDraft.expected}
-                onChange={(event) => props.onUpdateFindingDraft({ expected: event.target.value })}
+                resetKey={props.richTextResetKey}
+                onChange={handleExpectedResultChange}
               />
-            </label>
+            </div>
             <label className="field field-wide">
               <span>Steps to reproduce</span>
               <textarea

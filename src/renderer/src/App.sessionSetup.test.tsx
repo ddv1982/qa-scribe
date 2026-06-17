@@ -99,4 +99,48 @@ describe('App Session setup', () => {
     expect(screen.getByLabelText('Session setup fields')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Capture' })).toHaveClass('selected')
   })
+
+  it('keeps Session row opening separate from the sidebar delete action', async () => {
+    const currentSession = baseSession()
+    const archiveSession: Session = {
+      ...baseSession(),
+      id: 'session-archive',
+      title: 'Archive cleanup',
+      testTarget: 'Archive',
+      charter: 'Review saved sessions'
+    }
+    const currentSnapshot = createSnapshot({ session: currentSession })
+    const archiveSnapshot = createSnapshot({ session: archiveSession })
+    const api = installQaScribeApi(currentSnapshot, providerStatus([codexAvailable()]))
+    vi.mocked(api.listSessions).mockResolvedValue([currentSession, archiveSession])
+    vi.mocked(api.getSession).mockImplementation(async (id) => (id === archiveSession.id ? archiveSnapshot : currentSnapshot))
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /^Archive cleanup\./ }))
+    expect(await screen.findByRole('heading', { name: 'Archive cleanup' })).toBeInTheDocument()
+
+    vi.mocked(api.getSession).mockClear()
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Session: Session' }))
+
+    await waitFor(() => expect(api.deleteSession).toHaveBeenCalledWith(currentSession.id))
+    expect(api.getSession).not.toHaveBeenCalledWith(currentSession.id)
+  })
+
+  it('deletes the selected Session from the sidebar and returns to launch state when none remain', async () => {
+    const snapshot = createSnapshot()
+    const api = installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
+    vi.mocked(api.listSessions).mockResolvedValueOnce([snapshot.session]).mockResolvedValueOnce([snapshot.session]).mockResolvedValueOnce([])
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Session: Session' }))
+
+    await waitFor(() => expect(api.deleteSession).toHaveBeenCalledWith(snapshot.session.id))
+    expect(await screen.findByText('Start a local testing Session and capture the raw material while it is still fresh.')).toBeInTheDocument()
+  })
 })

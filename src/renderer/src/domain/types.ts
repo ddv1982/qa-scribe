@@ -6,7 +6,9 @@ export type CaptureMode = 'note' | 'finding'
 export type StructuredFindingDetails = {
   schema: 'qa-scribe.structured-finding.v1'
   actual: string
+  actualMetadataJson?: string | null
   expected: string
+  expectedMetadataJson?: string | null
   steps: string[]
   severity: string
   priority: string

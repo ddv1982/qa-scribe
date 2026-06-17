@@ -174,7 +174,15 @@
     gap: 8px;
   }
 
+  .finding-composer {
+    max-height: 70vh;
+  }
+
   .entry-actions {
+    opacity: 1;
+  }
+
+  .session-row-delete {
     opacity: 1;
   }
 

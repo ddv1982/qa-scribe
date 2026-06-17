@@ -50,12 +50,14 @@ describe('App capture and evidence', () => {
     fireEvent.change(screen.getByLabelText('Finding title (required)'), {
       target: { value: 'Valid card payment fails' }
     })
-    fireEvent.change(screen.getByLabelText('Actual result'), {
-      target: { value: 'The payment form shows a card error.' }
+    fireEvent.input(screen.getByLabelText('Actual result'), {
+      target: { textContent: 'The payment form shows a card error.' }
     })
-    fireEvent.change(screen.getByLabelText('Expected result'), {
-      target: { value: 'The order should be confirmed.' }
+    fireEvent.input(screen.getByLabelText('Expected result'), {
+      target: { textContent: 'The order should be confirmed.' }
     })
+    await waitFor(() => expect(screen.getByLabelText('Actual result')).toHaveTextContent('The payment form shows a card error.'))
+    await waitFor(() => expect(screen.getByLabelText('Expected result')).toHaveTextContent('The order should be confirmed.'))
     fireEvent.change(screen.getByLabelText('Steps to reproduce'), {
       target: { value: 'Open checkout\nSubmit valid test card' }
     })
@@ -81,7 +83,9 @@ describe('App capture and evidence', () => {
       expect.objectContaining({
         schema: 'qa-scribe.structured-finding.v1',
         actual: 'The payment form shows a card error.',
+        actualMetadataJson: expect.any(String),
         expected: 'The order should be confirmed.',
+        expectedMetadataJson: expect.any(String),
         steps: ['Open checkout', 'Submit valid test card'],
         severity: 'major',
         priority: 'high',
@@ -341,7 +345,7 @@ describe('App capture and evidence', () => {
     expect(api.createFinding).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: 'Finding' })).toHaveClass('selected')
     expect(screen.getByLabelText('Finding title (required)')).toHaveValue('Checkout completed')
-    expect(screen.getByLabelText('Actual result')).toHaveValue('Order confirmation displayed.')
+    expect(screen.getByLabelText('Actual result')).toHaveTextContent('Order confirmation displayed.')
     expect(screen.getByLabelText('Link selected Entry: Checkout completed')).toBeChecked()
   })
 
