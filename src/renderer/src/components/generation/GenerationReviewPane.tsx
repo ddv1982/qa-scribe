@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react'
-import { Bot, Bug, ImagePlus, Loader2, Sparkles } from 'lucide-react'
+import { Bot, Bug, CheckCircle2, CircleMinus, FileText, Loader2, Paperclip, Sparkles, Target } from 'lucide-react'
 import { reasoningEffortDescriptor } from '../../../../shared/contracts'
 import type { AiProviderId, AiProviderStatus, ProviderStatus, ReasoningEffort, Session } from '../../../../shared/contracts'
 import type { ContextAttachment, ContextRow, Finding } from '../../domain/types'
@@ -39,47 +39,44 @@ export function GenerationReviewPane(props: {
     : availableProviders.length > 0
       ? 'Choose a provider before generating'
       : 'No available providers'
+  const generateDisabled = props.generating || props.busy || !hasProvider || (includedRows.length === 0 && includedAttachments.length === 0)
 
   return (
     <section className="review-pane">
-      <div className="review-header">
-        <div>
-          <span className="eyebrow">Review before provider call</span>
-          <h2>Generation Context</h2>
-          <p>
-            {includedRows.length} included Entries, {excludedRows.length} excluded, {includedAttachments.length} included
-            attachments, {props.findings.length} Findings.
-          </p>
-        </div>
-        <button
-          className="primary-command"
-          disabled={props.generating || props.busy || !hasProvider || (includedRows.length === 0 && includedAttachments.length === 0)}
-          type="button"
-          onClick={() => void props.onGenerate()}
-        >
-          {props.generating ? <Loader2 className="spin" size={16} /> : <Sparkles size={16} />}
-          Generate
-        </button>
-      </div>
+      <h2 className="visually-hidden">Generation Context</h2>
+      <p className="context-intro">Review and confirm the information to guide generation.</p>
 
       <div className="context-summary">
-        <SummaryItem label="Session" value={props.session.title} />
-        <SummaryItem label="Context" value={props.session.testTarget || 'Not set'} />
-        <SummaryItem label="Providers" value={providerSummary(props.providerStatus)} />
+        <SummaryItem
+          icon={<FileText size={18} />}
+          label="Session"
+          title={props.session.title}
+          value={`Created ${formatShortDate(props.session.createdAt)}`}
+          meta={`${props.rows.length} notes · ${props.findings.length} findings`}
+        />
+        <SummaryItem
+          action="Add context"
+          icon={<Target size={18} />}
+          label="Context"
+          title={props.session.testTarget || 'No additional context'}
+          value={props.session.charter || 'Add details, scope, or goals to improve results.'}
+        />
+        <SummaryItem
+          icon={<Bot size={18} />}
+          label="Provider"
+          title={selectedProviderStatus?.label ?? 'No provider selected'}
+          value={hasProvider ? 'Provider is ready' : providerReadiness}
+          meta={providerSummary(props.providerStatus)}
+          ready={hasProvider}
+        />
       </div>
 
-      <details className="provider-panel" aria-label="Generation provider options" open={!hasProvider}>
-        <summary className="provider-panel-summary">
-          <span>
-            <span className="eyebrow">Provider settings</span>
-            <strong>{providerReadiness}</strong>
-          </span>
-          <span className={hasProvider ? 'provider-ready' : 'provider-missing'}>{hasProvider ? 'Ready' : 'Needs setup'}</span>
-        </summary>
+      <section className="provider-panel" aria-label="Generation provider options">
         <div className="provider-controls">
           <label className="field">
-            <span>Provider (required)</span>
+            <span>Provider</span>
             <select
+              aria-label="Provider (required)"
               value={props.selectedProvider ?? ''}
               onChange={(event) => props.onProviderChange(event.target.value ? (event.target.value as AiProviderId) : null)}
               disabled={availableProviders.length === 0}
@@ -130,44 +127,70 @@ export function GenerationReviewPane(props: {
             ))}
           </div>
         ) : null}
-      </details>
+      </section>
 
-      <div className="review-columns">
+      <div className="review-grid">
         <ReviewList
-          title="Included"
+          actionLabel="Add more"
+          count={includedRows.length}
+          icon={<FileText size={16} />}
+          title="Included entries"
           rows={includedRows}
-          empty="No Entries included."
+          empty="No included entries."
           disabled={!props.contextReady || props.busy}
           onToggleEntry={props.onToggleEntry}
         />
         <ReviewList
-          title="Excluded"
+          actionLabel="Add exclusions"
+          count={excludedRows.length}
+          icon={<CircleMinus size={16} />}
+          title="Excluded entries"
           rows={excludedRows}
-          empty="No Entries excluded."
+          empty="No excluded entries. Exclude notes or findings you don't want to include."
           disabled={!props.contextReady || props.busy}
           onToggleEntry={props.onToggleEntry}
         />
+        <section className="review-list attachment-context-card">
+          <div className="context-card-heading">
+            <span>
+              <Paperclip size={16} />
+              <h3>Attachments</h3>
+            </span>
+            <strong>{props.sessionAttachments.length}</strong>
+          </div>
+          {props.sessionAttachments.length === 0 ? (
+            <div className="context-empty">
+              <Paperclip size={34} />
+              <p>No attachments</p>
+              <span>Add screenshots, docs, or files to provide more context.</span>
+            </div>
+          ) : (
+            <ReviewAttachmentList
+              attachments={props.sessionAttachments}
+              disabled={!props.contextReady || props.busy}
+              onToggleAttachment={props.onToggleAttachment}
+            />
+          )}
+          <button className="context-link-action" type="button">
+            + Add attachment
+          </button>
+        </section>
       </div>
 
       <section className="finding-strip">
-        <div className="section-heading">
-          <ImagePlus size={16} />
-          <h3>Session attachments in context (optional)</h3>
-        </div>
-        <ReviewAttachmentList
-          attachments={props.sessionAttachments}
-          disabled={!props.contextReady || props.busy}
-          onToggleAttachment={props.onToggleAttachment}
-        />
-      </section>
-
-      <section className="finding-strip">
-        <div className="section-heading">
-          <Bug size={16} />
-          <h3>Findings in context</h3>
+        <div className="context-card-heading">
+          <span>
+            <Bug size={16} />
+            <h3>Findings</h3>
+          </span>
+          <strong>{props.findings.length}</strong>
         </div>
         {props.findings.length === 0 ? (
-          <p className="muted">No Findings created yet.</p>
+          <div className="context-empty compact">
+            <Bug size={26} />
+            <p>No findings captured</p>
+            <span>Findings from your notes will appear here.</span>
+          </div>
         ) : (
           props.findings.map((finding) => (
             <article className="finding-row" key={finding.id}>
@@ -178,11 +201,32 @@ export function GenerationReviewPane(props: {
           ))
         )}
       </section>
+
+      <section className={generateDisabled ? 'generation-ready-bar blocked' : 'generation-ready-bar'}>
+        <div>
+          <CheckCircle2 size={22} />
+          <span>
+            <strong>{generateDisabled ? 'Review context before generating' : 'Ready to generate'}</strong>
+            <small>
+              {generateDisabled
+                ? 'Choose an available provider and include at least one Entry or attachment.'
+                : 'Your context looks good. You can generate Testware when you are ready.'}
+            </small>
+          </span>
+        </div>
+        <button className="primary-command" disabled={generateDisabled} type="button" onClick={() => void props.onGenerate()}>
+          {props.generating ? <Loader2 className="spin" size={16} /> : <Sparkles size={16} />}
+          Generate Testware
+        </button>
+      </section>
     </section>
   )
 }
 
 function ReviewList(props: {
+  actionLabel: string
+  count: number
+  icon: ReactElement
   title: string
   rows: ContextRow[]
   empty: string
@@ -191,8 +235,19 @@ function ReviewList(props: {
 }): ReactElement {
   return (
     <section className="review-list">
-      <h3>{props.title}</h3>
-      {props.rows.length === 0 ? <p className="muted">{props.empty}</p> : null}
+      <div className="context-card-heading">
+        <span>
+          {props.icon}
+          <h3>{props.title}</h3>
+        </span>
+        <strong>{props.count}</strong>
+      </div>
+      {props.rows.length === 0 ? (
+        <div className="context-empty compact">
+          <CircleMinus size={26} />
+          <p>{props.empty}</p>
+        </div>
+      ) : null}
       {props.rows.map((row) => (
         <article className="context-entry" key={row.entry.id}>
           <div>
@@ -216,17 +271,44 @@ function ReviewList(props: {
           </div>
         </article>
       ))}
+      <button className="context-link-action" type="button">
+        + {props.actionLabel}
+      </button>
     </section>
   )
 }
 
-function SummaryItem(props: { label: string; value: string }): ReactElement {
+function SummaryItem(props: {
+  action?: string
+  icon: ReactElement
+  label: string
+  meta?: string
+  ready?: boolean
+  title: string
+  value: string
+}): ReactElement {
   return (
-    <div>
-      <span className="eyebrow">{props.label}</span>
-      <strong>{props.value}</strong>
-    </div>
+    <article className={props.ready ? 'summary-card ready' : 'summary-card'}>
+      <span className="summary-icon">{props.icon}</span>
+      <div>
+        <span className="eyebrow">{props.label}</span>
+        <strong>{props.title}</strong>
+        <p>{props.value}</p>
+        {props.meta ? <small>{props.meta}</small> : null}
+      </div>
+      {props.action ? (
+        <button className="secondary-command fit" type="button">
+          {props.action}
+        </button>
+      ) : null}
+    </article>
   )
+}
+
+function formatShortDate(value: string): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'recently'
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 
 function ModelSelector(props: {

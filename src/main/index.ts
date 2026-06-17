@@ -33,7 +33,7 @@ function createWindow(): void {
     resizable: true,
     show: false,
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
-    backgroundColor: '#f5f5f7',
+    backgroundColor: '#08090d',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: true,

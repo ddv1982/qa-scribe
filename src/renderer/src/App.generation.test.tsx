@@ -36,7 +36,7 @@ describe('App provider controls', () => {
     render(<App />)
 
     expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
-    fireEvent.click(screen.getByText('Session', { selector: 'summary' }))
+    fireEvent.click(screen.getByLabelText('Session actions'))
     fireEvent.click(screen.getByRole('button', { name: 'Export Markdown' }))
     fireEvent.click(screen.getByRole('button', { name: 'Export JSON' }))
 
@@ -74,7 +74,6 @@ describe('App provider controls', () => {
 
     expect(await screen.findByRole('heading', { name: 'Checkout smoke' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Generate Testware/i }))
-    fireEvent.click(await screen.findByText('Provider settings'))
 
     const providerSelect = (await screen.findByLabelText('Provider (required)')) as HTMLSelectElement
     await waitFor(() => expect(providerSelect).toHaveValue('claude_code'))
@@ -87,7 +86,7 @@ describe('App provider controls', () => {
     expect(await screen.findByText('checkout.png')).toBeInTheDocument()
     expect(screen.getByText('image/png / 1 KB')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: /^Generate$/ }))
+    fireEvent.click(screen.getAllByRole('button', { name: 'Generate Testware' }).at(-1)!)
 
     await waitFor(() =>
       expect(api.generateTestware).toHaveBeenCalledWith('context-1', {
@@ -96,8 +95,8 @@ describe('App provider controls', () => {
         reasoningEffort: 'medium'
       })
     )
-    expect(await screen.findByTestId('draft-markdown-view')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Session Report', level: 1 })).toBeInTheDocument()
+    expect(await screen.findByTestId('draft-report-view')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Generated Testware' })).toBeInTheDocument()
     expect(api.getDraftEvidenceAttachments).toHaveBeenCalledWith('draft-1')
     const preview = await screen.findByRole('img', { name: 'Screenshot preview: checkout.png' })
     expect(preview).toHaveAttribute('src', 'data:image/png;base64,c2NyZWVu')
@@ -132,7 +131,6 @@ describe('App provider controls', () => {
     render(<App />)
 
     fireEvent.click(await screen.findByRole('button', { name: /Generate Testware/i }))
-    fireEvent.click(await screen.findByText('Provider settings'))
     const providerSelect = (await screen.findByLabelText('Provider (required)')) as HTMLSelectElement
 
     expect(within(providerSelect).getByRole('option', { name: 'Codex CLI' })).toBeInTheDocument()
@@ -216,7 +214,6 @@ describe('App provider controls', () => {
     render(<App />)
 
     fireEvent.click(await screen.findByRole('button', { name: /Generate Testware/i }))
-    fireEvent.click(await screen.findByText('Provider settings'))
     const modelSelect = (await screen.findByLabelText('Model (optional)')) as HTMLSelectElement
     const reasoningSelect = (await screen.findByLabelText('Reasoning (optional)')) as HTMLSelectElement
 
@@ -229,7 +226,7 @@ describe('App provider controls', () => {
     fireEvent.change(reasoningSelect, { target: { value: '' } })
     expect(reasoningSelect).toHaveValue('')
 
-    fireEvent.click(screen.getByRole('button', { name: /^Generate$/ }))
+    fireEvent.click(screen.getAllByRole('button', { name: 'Generate Testware' }).at(-1)!)
 
     await waitFor(() =>
       expect(api.generateTestware).toHaveBeenCalledWith('context-1', {
@@ -282,7 +279,7 @@ describe('App provider controls', () => {
     fireEvent.click(excludeButtons[0]!)
     expect(await screen.findByRole('button', { name: 'Include' })).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: /^Generate$/ }))
+    fireEvent.click(screen.getAllByRole('button', { name: 'Generate Testware' }).at(-1)!)
 
     expect(await screen.findByText('provider failed')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Generation Context' })).toBeInTheDocument()

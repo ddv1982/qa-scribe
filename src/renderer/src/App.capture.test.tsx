@@ -62,7 +62,7 @@ describe('App capture and evidence', () => {
     fireEvent.change(screen.getByLabelText('Steps to reproduce'), {
       target: { value: 'Open checkout\nSubmit valid test card' }
     })
-    fireEvent.change(screen.getByLabelText('Severity'), { target: { value: 'major' } })
+    fireEvent.click(screen.getByRole('radio', { name: 'High' }))
     fireEvent.change(screen.getByLabelText('Priority'), { target: { value: 'high' } })
 
     fireEvent.click(screen.getByRole('button', { name: 'Add Finding' }))
@@ -88,7 +88,7 @@ describe('App capture and evidence', () => {
         expected: 'The order should be confirmed.',
         expectedMetadataJson: expect.any(String),
         steps: ['Open checkout', 'Submit valid test card'],
-        severity: 'major',
+        severity: 'high',
         priority: 'high',
         environment: 'Staging / 2026.06.16'
       })
@@ -180,7 +180,7 @@ describe('App capture and evidence', () => {
       expect.objectContaining({
         expected: 'Expected value remains visible.',
         actual: 'Actual value remains visible.',
-        severity: 'untriaged',
+        severity: 'medium',
         priority: 'medium'
       })
     )
@@ -211,7 +211,7 @@ describe('App capture and evidence', () => {
     })
     fireEvent.click(screen.getAllByRole('button', { name: 'Attach evidence' })[0]!)
     const dialog = screen.getByRole('dialog', { name: 'Attach Evidence' })
-    expect(within(dialog).getByText('Attach to Finding draft actual result')).toBeInTheDocument()
+    expect(within(dialog).getByText('Attach to Finding draft expected result')).toBeInTheDocument()
     fireEvent.click(within(dialog).getByRole('button', { name: /Browse/ }))
 
     expect(await screen.findByText(/1 draft Evidence/)).toBeInTheDocument()
@@ -680,7 +680,7 @@ describe('App capture and evidence', () => {
 
     expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Delete Entry' }))
-    fireEvent.click(screen.getByText('Session', { selector: 'summary' }))
+    fireEvent.click(screen.getByLabelText('Session actions'))
     fireEvent.click(screen.getByRole('button', { name: 'Delete Session' }))
 
     expect(confirm).toHaveBeenCalledTimes(2)

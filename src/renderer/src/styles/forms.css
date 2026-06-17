@@ -9,6 +9,7 @@
   color: var(--text-secondary);
   font-size: 12px;
   font-weight: 680;
+  letter-spacing: 0;
   text-transform: uppercase;
 }
 
@@ -22,10 +23,15 @@
 .search-box input {
   width: 100%;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--glass) 78%, rgba(0, 0, 0, 0.24));
   color: var(--text);
   outline: none;
+  box-shadow: var(--inner-highlight);
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    box-shadow 150ms ease;
 }
 
 .field input,
@@ -54,7 +60,8 @@
 .select-box select:focus,
 .search-box input:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--selection);
+  background: color-mix(in srgb, var(--glass-strong) 78%, rgba(0, 0, 0, 0.2));
+  box-shadow: var(--focus-ring);
 }
 
 .field input[aria-invalid="true"],
@@ -74,8 +81,9 @@
   height: 38px;
   place-items: center;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
+  border-radius: var(--radius-sm);
+  background: var(--glass);
+  box-shadow: var(--inner-highlight);
   cursor: pointer;
 }
 

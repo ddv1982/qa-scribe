@@ -5,30 +5,38 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 38px;
+  min-height: 42px;
   border: 1px solid transparent;
-  border-radius: 8px;
-  padding: 0 12px;
+  border-radius: var(--radius-sm);
+  padding: 0 15px;
   cursor: pointer;
+  font-weight: 620;
   transition:
     background-color 150ms ease,
     border-color 150ms ease,
+    box-shadow 150ms ease,
     transform 150ms ease;
 }
 
 .primary-command {
-  background: var(--accent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--accent) 94%, #ffffff 6%), var(--accent-strong));
+  border-color: color-mix(in srgb, var(--accent) 70%, #ffffff 14%);
+  box-shadow:
+    0 12px 30px rgba(47, 109, 246, 0.35),
+    var(--inner-highlight);
   color: var(--accent-text);
-  font-weight: 650;
 }
 
 .secondary-command {
-  background: var(--surface);
+  background: var(--glass);
   border-color: var(--border);
+  box-shadow: var(--inner-highlight);
+  color: var(--text);
 }
 
 .danger-command {
-  background: color-mix(in srgb, var(--danger) 9%, var(--surface));
+  background: color-mix(in srgb, var(--danger) 11%, var(--surface));
   border-color: color-mix(in srgb, var(--danger) 36%, var(--border));
   color: var(--danger);
 }
@@ -39,6 +47,18 @@
 .icon-command:hover,
 .timeline-entry:hover {
   transform: translateY(-1px);
+}
+
+.primary-command:hover {
+  box-shadow:
+    0 15px 34px rgba(47, 109, 246, 0.42),
+    var(--inner-highlight);
+}
+
+.secondary-command:hover,
+.icon-command:hover {
+  border-color: color-mix(in srgb, var(--accent) 34%, var(--border));
+  background: var(--glass-strong);
 }
 
 .primary-command:disabled,
@@ -55,7 +75,9 @@
 }
 
 .compact {
-  min-width: 92px;
+  min-width: 0;
+  min-height: 36px;
+  padding: 0 12px;
 }
 
 .topbar-menu {
@@ -64,6 +86,12 @@
 
 .topbar-menu > summary {
   list-style: none;
+}
+
+.topbar-menu > summary.compact {
+  width: 44px;
+  border-radius: var(--radius-pill);
+  padding: 0;
 }
 
 .topbar-menu > summary::-webkit-details-marker {
@@ -77,7 +105,7 @@
 .icon-command:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
-  box-shadow: 0 0 0 4px var(--selection);
+  box-shadow: var(--focus-ring);
 }
 
 .topbar-menu-panel {
@@ -89,8 +117,9 @@
   min-width: 236px;
   gap: 10px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: var(--surface-raised);
+  backdrop-filter: var(--blur);
   box-shadow: var(--shadow);
   padding: 12px;
 }

@@ -1,5 +1,5 @@
 import type { ChangeEvent, KeyboardEvent, MouseEvent, ReactElement } from 'react'
-import { Bot, Bug, ChevronDown, Clipboard, Filter, ImagePlus, Plus, Search, Trash2 } from 'lucide-react'
+import { Bot, Bug, ChevronDown, Clipboard, Feather, Filter, ImagePlus, Plus, Search, Trash2 } from 'lucide-react'
 import { defaultAppSettings } from '../../../../shared/contracts'
 import type { AppSettings, Attachment, Entry, EntryType, FormTemplateField, SessionSnapshot } from '../../../../shared/contracts'
 import { entryTypes } from '../../domain/session'
@@ -44,6 +44,9 @@ export function CapturePane(props: {
   const templates = props.templates ?? defaultAppSettings.templates
   const noteFields = enabledFields(templates.note.fields)
   const findingFields = enabledFields(templates.finding.fields)
+  const visibleNoteFields = orderedFields(noteFields, ['body', 'evidence', 'title'])
+  const primaryFindingFields = orderedSubset(findingFields, ['title', 'severity', 'expected', 'actual', 'steps'])
+  const secondaryFindingFields = findingFields.filter((field) => !primaryFindingFields.some((primary) => primary.id === field.id))
   const noteSubmitDisabled = !requiredFieldsSatisfied(noteFields, noteValue)
   const findingSubmitDisabled = !requiredFieldsSatisfied(findingFields, findingValue)
   const submitDisabled = props.captureMode === 'note' ? noteSubmitDisabled : findingSubmitDisabled
@@ -56,6 +59,7 @@ export function CapturePane(props: {
     props.snapshot.entries.length === 0
       ? 'Use the composer below to capture notes as testing happens. Turn important behavior into Findings when it matters.'
       : 'The current search or type filter is hiding the captured Entries.'
+  const showTimelineTools = props.snapshot.entries.length > 0 || hasTimelineFilters
 
   function handleRichTextChange(value: RichTextValue): void {
     props.setEntryBody(value.text)
@@ -90,53 +94,61 @@ export function CapturePane(props: {
   }
 
   return (
-    <>
-      <div className="timeline-tools">
-        <div className="timeline-tools-summary">
-          <span className="eyebrow">Session Timeline</span>
-          <strong>
-            {props.filteredEntries.length} of {props.snapshot.entries.length} Entries
-          </strong>
+    <section className={props.captureMode === 'finding' ? 'capture-workspace finding-active' : 'capture-workspace'}>
+      {showTimelineTools ? (
+        <div className="timeline-tools">
+          <div className="timeline-tools-summary">
+            <span className="eyebrow">Session Timeline</span>
+            <strong>
+              {props.filteredEntries.length} of {props.snapshot.entries.length} Entries
+            </strong>
+          </div>
+          <div className="timeline-tools-controls">
+            <label className="search-box">
+              <Search size={15} />
+              <input
+                aria-label="Search Entries"
+                placeholder="Search"
+                value={props.query}
+                onChange={(event) => props.setQuery(event.target.value)}
+              />
+            </label>
+            <label className="select-box">
+              <Filter size={15} />
+              <select
+                aria-label="Filter by Entry type"
+                value={props.filter}
+                onChange={(event) => props.setFilter(event.target.value as EntryType | 'all')}
+              >
+                <option value="all">All types</option>
+                {entryTypes.map((type) => (
+                  <option value={type.value} key={type.value}>
+                    {type.label}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown size={14} />
+            </label>
+            <button className="secondary-command compact" type="button" onClick={() => props.onAttach()}>
+              <ImagePlus size={16} />
+              Evidence
+            </button>
+          </div>
         </div>
-        <div className="timeline-tools-controls">
-          <label className="search-box">
-            <Search size={15} />
-            <input
-              aria-label="Search Entries"
-              placeholder="Search"
-              value={props.query}
-              onChange={(event) => props.setQuery(event.target.value)}
-            />
-          </label>
-          <label className="select-box">
-            <Filter size={15} />
-            <select
-              aria-label="Filter by Entry type"
-              value={props.filter}
-              onChange={(event) => props.setFilter(event.target.value as EntryType | 'all')}
-            >
-              <option value="all">All types</option>
-              {entryTypes.map((type) => (
-                <option value={type.value} key={type.value}>
-                  {type.label}
-                </option>
-              ))}
-            </select>
-            <ChevronDown size={14} />
-          </label>
-          <button className="secondary-command compact" type="button" onClick={() => props.onAttach()}>
-            <ImagePlus size={16} />
-            Evidence
-          </button>
-        </div>
-      </div>
+      ) : null}
 
       <div className="timeline" aria-label="Session Timeline">
         {props.filteredEntries.length === 0 ? (
           <div className="empty-state capture-empty">
-            <Clipboard size={34} />
-            <h2>{emptyTitle}</h2>
-            <p>{emptyDescription}</p>
+            <span className="capture-empty-icon">
+              <Feather size={42} />
+            </span>
+            <h2>{props.snapshot.entries.length === 0 ? 'Capture your testing notes' : emptyTitle}</h2>
+            <p>
+              {props.snapshot.entries.length === 0
+                ? "Record what you're testing, what happened, and attach evidence as you go. We'll help you turn it into structured testware."
+                : emptyDescription}
+            </p>
             {hasTimelineFilters ? (
               <button
                 className="secondary-command fit"
@@ -196,11 +208,22 @@ export function CapturePane(props: {
         </div>
         {props.captureMode === 'note' ? (
           <div className="finding-fields note-template-fields">
-            {noteFields.map((field) => renderNoteField(field))}
+            {visibleNoteFields.map((field) => renderNoteField(field))}
           </div>
         ) : (
           <div className="finding-fields">
-            {findingFields.map((field) => renderFindingField(field))}
+            {primaryFindingFields.map((field) => renderFindingField(field))}
+            {secondaryFindingFields.length > 0 ? (
+              <details className="finding-more-details">
+                <summary>
+                  <ChevronDown size={15} />
+                  More details
+                </summary>
+                <div className="finding-more-details-grid">
+                  {secondaryFindingFields.map((field) => renderFindingField(field))}
+                </div>
+              </details>
+            ) : null}
           </div>
         )}
         <div className="composer-actions">
@@ -210,13 +233,17 @@ export function CapturePane(props: {
               ? ` / ${props.findingDraftAttachmentCount} draft Evidence`
               : ''}
           </span>
+          <button className="secondary-command fit" type="button" onClick={() => void props.onAttach()}>
+            <ImagePlus size={16} />
+            Evidence
+          </button>
           <button className="primary-command fit" disabled={submitDisabled} type="submit">
             <Plus size={16} />
             {props.captureMode === 'note' ? 'Add Note' : 'Add Finding'}
           </button>
         </div>
       </form>
-    </>
+    </section>
   )
 
   function renderNoteField(field: FormTemplateField): ReactElement | null {
@@ -224,6 +251,7 @@ export function CapturePane(props: {
       return renderTextInput({
         field,
         ariaLabel: 'Note title',
+        className: 'note-title-field',
         placeholder: 'Note title (optional)',
         value: props.entryTitle,
         onChange: props.setEntryTitle
@@ -352,19 +380,29 @@ export function CapturePane(props: {
     }
 
     if (field.id === 'severity') {
+      const options = severityOptions(field)
+
       return (
-        <label className="field" key={field.id}>
-          <span>{field.label}</span>
-          <select
-            aria-label="Severity"
-            value={props.findingDraft.severity}
-            onChange={(event) => props.onUpdateFindingDraft({ severity: event.target.value })}
-          >
-            {selectOptions(field, ['untriaged', 'critical', 'major', 'minor', 'trivial']).map((option) => (
-              <option value={option} key={option}>{formatOption(option)}</option>
-            ))}
-          </select>
-        </label>
+        <div className="field field-wide" key={field.id}>
+          <span id="finding-severity-label">{field.label}</span>
+          <div className="severity-picker" role="radiogroup" aria-labelledby="finding-severity-label">
+            {options.map((option) => {
+              const selected = props.findingDraft.severity === option
+              return (
+                <button
+                  aria-checked={selected}
+                  className={selected ? `severity-pill ${severityClass(option)} selected` : `severity-pill ${severityClass(option)}`}
+                  key={option}
+                  role="radio"
+                  type="button"
+                  onClick={() => props.onUpdateFindingDraft({ severity: option })}
+                >
+                  {formatOption(option)}
+                </button>
+              )
+            })}
+          </div>
+        </div>
       )
     }
 
@@ -440,6 +478,23 @@ export function CapturePane(props: {
 
 function enabledFields(fields: FormTemplateField[]): FormTemplateField[] {
   return fields.filter((field) => field.enabled)
+}
+
+function orderedFields(fields: FormTemplateField[], preferredOrder: string[]): FormTemplateField[] {
+  return [...fields].sort((a, b) => {
+    const left = preferredOrder.indexOf(a.id)
+    const right = preferredOrder.indexOf(b.id)
+    if (left === -1 && right === -1) return 0
+    if (left === -1) return 1
+    if (right === -1) return -1
+    return left - right
+  })
+}
+
+function orderedSubset(fields: FormTemplateField[], preferredOrder: string[]): FormTemplateField[] {
+  return preferredOrder
+    .map((id) => fields.find((field) => field.id === id))
+    .filter((field): field is FormTemplateField => Boolean(field))
 }
 
 function hasField(fields: FormTemplateField[], id: string): boolean {
@@ -519,8 +574,21 @@ function selectOptions(field: FormTemplateField, fallback: string[]): string[] {
   return field.options && field.options.length > 0 ? field.options : fallback
 }
 
+function severityOptions(field: FormTemplateField): string[] {
+  const options = selectOptions(field, ['critical', 'high', 'medium', 'low', 'info'])
+  const legacy = ['untriaged', 'critical', 'major', 'minor', 'trivial']
+  if (options.length === legacy.length && options.every((option, index) => option === legacy[index])) {
+    return ['critical', 'high', 'medium', 'low', 'info']
+  }
+  return options
+}
+
 function formatOption(value: string): string {
   return value.replaceAll('_', ' ').replace(/^\w/, (letter) => letter.toUpperCase())
+}
+
+function severityClass(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, '-')
 }
 
 function TimelineEntry(props: {

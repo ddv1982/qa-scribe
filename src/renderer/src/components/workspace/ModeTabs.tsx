@@ -22,7 +22,7 @@ export function ModeTabs(props: {
         type="button"
         onClick={() => void props.onOpenGeneration()}
       >
-        Generation Context
+        Context
       </button>
       <button
         aria-pressed={props.mode === 'drafts'}
@@ -30,7 +30,7 @@ export function ModeTabs(props: {
         type="button"
         onClick={() => props.setMode('drafts')}
       >
-        Drafts
+        Output
       </button>
     </nav>
   )

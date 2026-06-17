@@ -2,12 +2,18 @@
   box-sizing: border-box;
 }
 
+html {
+  background: var(--background);
+}
+
 body {
   margin: 0;
   min-height: 100vh;
   overflow: hidden;
-  background: var(--background);
+  background:
+    linear-gradient(145deg, rgba(28, 30, 37, 0.96) 0%, rgba(11, 12, 17, 0.98) 42%, var(--background) 100%);
   color: var(--text);
+  -webkit-font-smoothing: antialiased;
 }
 
 button,
@@ -19,4 +25,34 @@ textarea {
 
 button {
   color: inherit;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+::selection {
+  background: var(--selection);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.2);
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
 }

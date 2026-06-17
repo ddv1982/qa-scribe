@@ -3,6 +3,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
+  padding: 0 2px;
 }
 
 .review-header h2 {
@@ -17,34 +18,80 @@
   line-height: 1.4;
 }
 
+.context-intro {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 16px;
+}
+
 .context-summary {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  gap: 16px;
 }
 
-.context-summary > div {
+.summary-card {
   display: grid;
-  gap: 4px;
+  grid-template-columns: 38px minmax(0, 1fr);
+  min-height: 164px;
+  align-content: start;
+  gap: 12px;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
-  padding: 10px;
+  border-radius: var(--radius-md);
+  background: var(--glass);
+  box-shadow: var(--inner-highlight);
+  padding: 20px;
 }
 
-.context-summary strong {
+.summary-card.ready .summary-icon {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.summary-icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.summary-card strong {
+  display: block;
+  margin-top: 14px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.summary-card p {
+  margin: 6px 0 0;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.summary-card small {
+  display: block;
+  margin-top: 4px;
+  color: var(--success);
+}
+
+.summary-card .secondary-command {
+  grid-column: 2;
+  justify-self: start;
+  margin-top: 6px;
 }
 
 .provider-panel {
   display: grid;
   gap: 10px;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--surface) 82%, var(--background));
-  padding: 12px;
+  border-radius: var(--radius-md);
+  background: var(--glass-muted);
+  box-shadow: var(--inner-highlight);
+  padding: 16px;
 }
 
 .provider-panel-summary {
@@ -79,20 +126,20 @@
 
 .provider-ready,
 .provider-missing {
-  border-radius: 999px;
-  padding: 4px 8px;
+  border-radius: var(--radius-pill);
+  padding: 5px 10px;
   font-size: 12px;
   font-weight: 680;
   white-space: nowrap;
 }
 
 .provider-ready {
-  background: color-mix(in srgb, var(--success) 12%, var(--surface));
+  background: var(--success-soft);
   color: var(--success);
 }
 
 .provider-missing {
-  background: color-mix(in srgb, var(--warning) 10%, var(--surface));
+  background: var(--warning-soft);
   color: var(--warning);
 }
 
@@ -105,8 +152,8 @@
 }
 
 .provider-panel .provider-controls {
-  border-top: 1px solid var(--border);
-  padding-top: 10px;
+  border-top: 0;
+  padding-top: 0;
 }
 
 .model-selector {
@@ -123,15 +170,15 @@
 
 .provider-unavailable span {
   border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--surface);
+  border-radius: var(--radius-pill);
+  background: var(--glass);
   padding: 4px 8px;
 }
 
-.review-columns {
+.review-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
   align-items: start;
 }
 
@@ -142,6 +189,15 @@
   display: grid;
   gap: 10px;
   min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--glass-muted);
+  box-shadow: var(--inner-highlight);
+  padding: 16px;
+}
+
+.finding-strip {
+  min-height: 126px;
 }
 
 .review-list h3,
@@ -150,12 +206,91 @@
   font-size: 14px;
 }
 
+.context-card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.context-card-heading > span {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  gap: 9px;
+}
+
+.context-card-heading svg {
+  color: var(--text-secondary);
+}
+
+.context-card-heading h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.context-card-heading > strong {
+  display: grid;
+  min-width: 34px;
+  height: 28px;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--glass-strong);
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.context-empty {
+  display: grid;
+  min-height: 136px;
+  place-items: center;
+  align-content: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.context-empty.compact {
+  min-height: 92px;
+}
+
+.context-empty p,
+.context-empty span {
+  margin: 0;
+}
+
+.context-empty p {
+  color: var(--text-secondary);
+  font-weight: 640;
+}
+
+.context-empty span {
+  max-width: 260px;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.context-link-action {
+  width: fit-content;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 6px 2px 0;
+  font: inherit;
+}
+
+.context-link-action:hover,
+.context-link-action:focus-visible {
+  color: var(--accent);
+}
+
 .context-entry {
   display: grid;
   gap: 10px;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
+  border-radius: var(--radius-sm);
+  background: var(--glass);
   padding: 11px;
 }
 
@@ -192,4 +327,56 @@
 .section-heading {
   justify-content: flex-start;
   color: var(--text);
+}
+
+.generation-ready-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  border: 1px solid color-mix(in srgb, var(--success) 34%, var(--border));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--success-soft) 54%, var(--glass));
+  box-shadow: var(--inner-highlight), var(--shadow-soft);
+  padding: 16px;
+}
+
+.generation-ready-bar.blocked {
+  border-color: color-mix(in srgb, var(--warning) 34%, var(--border));
+  background: color-mix(in srgb, var(--warning-soft) 44%, var(--glass));
+}
+
+.generation-ready-bar > div {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  color: var(--success);
+}
+
+.generation-ready-bar.blocked > div {
+  color: var(--warning);
+}
+
+.generation-ready-bar span {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.generation-ready-bar strong {
+  color: var(--text);
+}
+
+.generation-ready-bar small {
+  color: var(--text-secondary);
+}
+
+@media (max-width: 1050px) {
+  .context-summary,
+  .review-grid,
+  .provider-controls,
+  .model-selector {
+    grid-template-columns: 1fr;
+  }
 }

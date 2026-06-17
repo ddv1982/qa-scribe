@@ -21,7 +21,11 @@
   .session-sidebar {
     border-right: 0;
     border-bottom: 1px solid var(--border);
-    padding: 14px;
+    padding: 52px 16px 16px;
+  }
+
+  .sidebar-settings {
+    margin-top: 0;
   }
 
   .session-list {
@@ -47,8 +51,7 @@
   }
 
   .session-setup {
-    margin-right: 14px;
-    margin-left: 14px;
+    width: calc(100% - 32px);
   }
 
   .session-setup-body {
@@ -79,14 +82,16 @@
 
   .review-columns,
   .context-summary,
-  .provider-controls {
+  .provider-controls,
+  .settings-grid,
+  .template-columns {
     grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 1180px) and (min-width: 921px) {
   .app-shell {
-    grid-template-columns: minmax(208px, 220px) minmax(0, 1fr);
+    grid-template-columns: minmax(248px, 264px) minmax(0, 1fr);
   }
 
   .detail-grid.has-inspector {
@@ -101,15 +106,27 @@
 
 @media (max-width: 680px) {
   .topbar,
-  .session-setup-body,
+  .session-setup-body {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+
   .mode-tabs,
   .timeline-tools,
   .timeline,
   .review-pane,
   .drafts-pane,
-  .composer {
-    padding-right: 16px;
-    padding-left: 16px;
+  .composer,
+  .settings-pane {
+    width: calc(100% - 32px);
+  }
+
+  .mode-tabs {
+    margin-bottom: 16px;
+  }
+
+  .draft-markdown-view {
+    padding: 20px;
   }
 
   .session-required-fields,

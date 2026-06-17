@@ -31,8 +31,9 @@ describe('App Drafts behavior', () => {
     render(<App />)
 
     expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Drafts' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Output' }))
     expect(await screen.findByRole('heading', { name: 'Persisted Report' })).toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('More draft actions'))
     fireEvent.click(screen.getByRole('button', { name: 'Delete Draft' }))
 
     await waitFor(() => expect(api.deleteDraft).toHaveBeenCalledWith('draft-1'))
@@ -56,7 +57,8 @@ describe('App Drafts behavior', () => {
     render(<App />)
 
     expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Drafts' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Output' }))
+    fireEvent.click(screen.getByLabelText('More draft actions'))
     fireEvent.click(screen.getByRole('button', { name: 'Edit Draft' }))
     fireEvent.change(screen.getByLabelText('Session Report Draft'), { target: { value: '# Dirty report' } })
     fireEvent.click(screen.getByRole('button', { name: 'Delete Draft' }))
@@ -118,8 +120,9 @@ describe('App Drafts behavior', () => {
     render(<App />)
 
     expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Drafts' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Output' }))
     expect(await screen.findByText('Stored checkout bug')).toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('More draft actions'))
     fireEvent.click(screen.getByRole('button', { name: 'Edit Draft' }))
     fireEvent.change(screen.getByLabelText('Session Report Draft'), { target: { value: editedBody } })
 
@@ -132,7 +135,7 @@ describe('App Drafts behavior', () => {
     expect(writeText.mock.calls.at(-1)?.[0]).toContain('Expected:\nThe order is confirmed.')
     expect(writeText.mock.calls.at(-1)?.[0]).not.toContain('Stored stale description')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Copy Report Body' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
     await waitFor(() =>
       expect(writeText).toHaveBeenLastCalledWith('# Edited report\n\n## What Was Tested\n\nCheckout smoke.')
     )

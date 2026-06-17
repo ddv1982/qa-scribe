@@ -279,7 +279,7 @@ export const defaultAppSettings: AppSettings = {
           type: 'select',
           required: false,
           enabled: true,
-          options: ['untriaged', 'critical', 'major', 'minor', 'trivial']
+          options: ['critical', 'high', 'medium', 'low', 'info']
         },
         {
           id: 'priority',

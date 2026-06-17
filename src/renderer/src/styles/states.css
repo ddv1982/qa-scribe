@@ -11,7 +11,9 @@
 .empty-state h2 {
   margin: 10px 0 4px;
   color: var(--text);
-  font-size: 18px;
+  font-size: 28px;
+  font-weight: 560;
+  letter-spacing: 0;
 }
 
 .empty-state p,
@@ -23,6 +25,11 @@
 .capture-empty {
   align-content: center;
   gap: 10px;
+  min-height: 420px;
+}
+
+.capture-workspace.finding-active .capture-empty {
+  min-height: 220px;
 }
 
 .capture-empty p {
@@ -43,17 +50,19 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  min-height: 30px;
+  min-height: 42px;
   border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--surface);
+  border-radius: var(--radius-pill);
+  background: var(--glass);
+  box-shadow: var(--inner-highlight);
   color: var(--text-secondary);
-  padding: 0 10px;
-  font-size: 13px;
+  padding: 0 16px;
+  font-size: 14px;
 }
 
 .status-pill.ready {
   border-color: color-mix(in srgb, var(--success) 36%, var(--border));
+  background: var(--success-soft);
   color: var(--success);
 }
 
@@ -64,8 +73,9 @@
   bottom: 24px;
   max-width: min(420px, calc(100vw - 32px));
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--surface-raised);
+  backdrop-filter: var(--blur);
   box-shadow: var(--shadow);
   color: var(--text);
   line-height: 1.4;

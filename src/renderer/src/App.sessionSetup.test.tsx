@@ -31,6 +31,7 @@ describe('App Session setup', () => {
     render(<App />)
 
     expect(await screen.findByRole('heading', { name: 'Minimal checkout notes' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Session details' }))
     expect(screen.getByLabelText('Title (required)')).toBeInTheDocument()
     expect(screen.queryByLabelText('Test Target (required)')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Test Objective (required)')).not.toBeInTheDocument()
@@ -55,7 +56,7 @@ describe('App Session setup', () => {
     render(<App />)
 
     expect(await screen.findByRole('heading', { name: 'Checkout smoke' })).toBeInTheDocument()
-    fireEvent.click(screen.getByText('Session setup'))
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Session details' }))
     fireEvent.click(screen.getByText('Optional context'))
 
     expect(screen.getByLabelText('Area, URL, or ticket (optional)')).toBeInTheDocument()

@@ -1,4 +1,4 @@
-import { RotateCcw, Save, Settings } from 'lucide-react'
+import { Box, ChevronDown, ChevronUp, Code2, GripVertical, RotateCcw, Save, Settings, Sparkles } from 'lucide-react'
 import type { ReactElement } from 'react'
 import type { AppSettings, AppSettingsPatch, FormTemplateField, TemplateFieldType } from '../../../../shared/contracts'
 
@@ -63,9 +63,7 @@ export function SettingsPane(props: {
     <section className="settings-pane" aria-label="Application Settings">
       <header className="settings-header">
         <div>
-          <span className="eyebrow">Application</span>
           <h2>Settings</h2>
-          <p>Control selectable CLI providers, the AI generation prompt, and the fields shown by capture templates.</p>
         </div>
         <div className="settings-actions">
           <button className="secondary-command fit" disabled={!dirty || props.saving} type="button" onClick={props.onReset}>
@@ -82,48 +80,50 @@ export function SettingsPane(props: {
       {props.error ? <p className="settings-error" role="alert">{props.error}</p> : null}
 
       <div className="settings-grid">
-        <section className="settings-card">
+        <section className="settings-card settings-row-card">
           <div className="settings-section-heading">
-            <span className="eyebrow">AI Providers</span>
-            <h3>Selectable CLI providers</h3>
-            <p>Disabled providers stay installed but disappear from generation choices.</p>
+            <h3>AI Providers</h3>
+            <p>Choose which providers qa-scribe can use.</p>
           </div>
           <div className="provider-toggle-list">
             {(Object.keys(providerLabels) as Array<keyof AppSettings['providers']>).map((provider) => (
               <label className="settings-toggle" key={provider}>
+                <span className={`provider-toggle-icon ${provider}`}>{providerIcon(provider)}</span>
+                <span className="provider-toggle-label">{providerLabels[provider]}</span>
                 <input
+                  aria-label={providerLabels[provider]}
                   checked={draft.providers[provider]}
                   type="checkbox"
                   onChange={(event) => props.onChange({ providers: { [provider]: event.target.checked } as AppSettingsPatch['providers'] })}
                 />
-                <span>{providerLabels[provider]}</span>
               </label>
             ))}
           </div>
         </section>
 
-        <section className="settings-card settings-card-wide">
+        <section className="settings-card settings-row-card settings-card-wide">
           <div className="settings-section-heading">
-            <span className="eyebrow">AI Generation</span>
-            <h3>System prompt</h3>
-            <p>Use this for your preferred testware style. qa-scribe still appends protected context and schema rules.</p>
+            <h3>System Prompt</h3>
+            <p>Customize the instructions that guide qa-scribe when generating notes.</p>
           </div>
-          <label className="field">
-            <span>Custom system prompt</span>
+          <div className="settings-control-stack">
+            <label className="field">
+              <span className="visually-hidden">Custom system prompt</span>
             <textarea
               aria-label="Custom system prompt"
               value={draft.generation.systemPrompt}
               onChange={(event) => props.onChange({ generation: { systemPrompt: event.target.value } })}
             />
-          </label>
+            </label>
+            <p className="settings-tip">Tip: Keep it concise and specific for the best results.</p>
+          </div>
         </section>
       </div>
 
-      <section className="settings-card settings-card-wide">
+      <section className="settings-card settings-row-card settings-card-wide">
         <div className="settings-section-heading">
-          <span className="eyebrow">Capture Templates</span>
-          <h3>Field choices</h3>
-          <p>Choose which configured fields are enabled and what type each field uses.</p>
+          <h3>Capture Templates</h3>
+          <p>Configure the default structure for notes and findings.</p>
         </div>
         <div className="template-columns">
           <TemplateEditor
@@ -153,11 +153,14 @@ function TemplateEditor(props: {
   return (
     <section className="template-editor">
       <h4>{props.title}</h4>
-      <div className="template-field-list">
-        {props.fields.map((field, index) => (
-          <div className="template-field-row" key={field.id}>
-            <label className="settings-toggle compact-toggle">
-              <input
+          <div className="template-field-list">
+            {props.fields.map((field, index) => (
+              <div className="template-field-row" key={field.id}>
+                <span className="template-drag-handle" aria-hidden="true">
+                  <GripVertical size={15} />
+                </span>
+                <label className="settings-toggle compact-toggle">
+                  <input
                 checked={field.enabled}
                 disabled={field.required}
                 type="checkbox"
@@ -178,16 +181,25 @@ function TemplateEditor(props: {
               </select>
             </label>
             <div className="template-order-actions" role="group" aria-label={`${field.label} order`}>
-              <button className="secondary-command compact" disabled={index === 0} type="button" onClick={() => props.onMove(field.id, -1)}>
-                Up
+              <button
+                aria-label="Up"
+                className="icon-command"
+                disabled={index === 0}
+                title="Move up"
+                type="button"
+                onClick={() => props.onMove(field.id, -1)}
+              >
+                <ChevronUp size={15} />
               </button>
               <button
-                className="secondary-command compact"
+                aria-label="Down"
+                className="icon-command"
                 disabled={index === props.fields.length - 1}
+                title="Move down"
                 type="button"
                 onClick={() => props.onMove(field.id, 1)}
               >
-                Down
+                <ChevronDown size={15} />
               </button>
             </div>
             {field.type === 'select' || field.type === 'multiselect' ? (
@@ -205,6 +217,12 @@ function TemplateEditor(props: {
       </div>
     </section>
   )
+}
+
+function providerIcon(provider: keyof AppSettings['providers']): ReactElement {
+  if (provider === 'claude_code') return <Sparkles size={18} />
+  if (provider === 'codex_cli') return <Box size={18} />
+  return <Code2 size={18} />
 }
 
 function formatFieldType(type: TemplateFieldType): string {

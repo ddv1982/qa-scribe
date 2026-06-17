@@ -24,6 +24,7 @@ describe('App autosave behavior', () => {
     render(<App />)
 
     expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Session details' }))
     fireEvent.change(screen.getByLabelText('Title (required)'), { target: { value: 'Updated Session' } })
 
     await waitFor(
@@ -42,7 +43,7 @@ describe('App autosave behavior', () => {
     render(<App />)
 
     expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
-    fireEvent.click(screen.getByText('Session setup'))
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Session details' }))
     fireEvent.click(screen.getByText('Optional context'))
     fireEvent.change(screen.getByLabelText('Area, URL, or ticket (optional)'), { target: { value: 'Updated checkout' } })
     fireEvent.click(screen.getByRole('button', { name: /Generate Testware/i }))
@@ -69,6 +70,7 @@ describe('App autosave behavior', () => {
     render(<App />)
 
     expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Session details' }))
     fireEvent.change(screen.getByLabelText('Title (required)'), { target: { value: 'Before switch' } })
     fireEvent.click(screen.getByText('Other Session').closest('button') as HTMLButtonElement)
 
@@ -91,6 +93,7 @@ describe('App autosave behavior', () => {
     render(<App />)
 
     expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Session details' }))
     fireEvent.change(screen.getByLabelText('Title (required)'), { target: { value: '' } })
     fireEvent.click(screen.getByText('Other Session').closest('button') as HTMLButtonElement)
 
@@ -118,7 +121,8 @@ describe('App autosave behavior', () => {
     render(<App />)
 
     expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Drafts' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Output' }))
+    fireEvent.click(screen.getByLabelText('More draft actions'))
     fireEvent.click(screen.getByRole('button', { name: 'Edit Draft' }))
     fireEvent.change(screen.getByLabelText('Session Report Draft'), { target: { value: '# Edited report' } })
 
@@ -141,7 +145,8 @@ describe('App autosave behavior', () => {
     render(<App />)
 
     expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Drafts' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Output' }))
+    fireEvent.click(screen.getByLabelText('More draft actions'))
     fireEvent.click(screen.getByRole('button', { name: 'Edit Draft' }))
     fireEvent.change(screen.getByLabelText('Session Report Draft'), { target: { value: '# Unsaved report' } })
 

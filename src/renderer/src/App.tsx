@@ -7,6 +7,7 @@ import {
   Loader2,
   MoreHorizontal,
   PanelRightOpen,
+  Pencil,
   Plus,
   Sparkles,
   Trash2,
@@ -1096,19 +1097,29 @@ export function App(): ReactElement {
           <>
             <header className="topbar">
               <div>
-                <h1>{snapshot.session.title}</h1>
+                <div className="topbar-title">
+                  <h1>{snapshot.session.title}</h1>
+                  <button
+                    aria-label="Edit Session details"
+                    className="icon-command"
+                    title="Edit Session details"
+                    type="button"
+                    onClick={() => setSessionSetupOpen((open) => !open)}
+                  >
+                    <Pencil size={15} />
+                  </button>
+                </div>
                 <p>{snapshot.session.testTarget || snapshot.session.charter || 'Capture notes, evidence, and findings'}</p>
               </div>
               <div className="topbar-actions">
                 <StatusPill providerStatus={providerStatus} />
                 <button className="primary-command" type="button" onClick={openGenerationReview}>
                   <Sparkles size={16} />
-                  Generate Testware
+                  {workspaceMode === 'drafts' ? 'Regenerate' : 'Generate Testware'}
                 </button>
                 <details className="topbar-menu">
-                  <summary className="secondary-command compact">
+                  <summary aria-label="Session actions" className="secondary-command compact">
                     <MoreHorizontal size={16} />
-                    Session
                   </summary>
                   <div className="topbar-menu-panel">
                     <dl className="session-menu-stats">
@@ -1136,19 +1147,21 @@ export function App(): ReactElement {
               </div>
             </header>
 
-            <SessionSetupPanel
-              autosaveLabel={autosaveLabel(sessionAutosaveStatus)}
-              autosaveStatus={sessionAutosaveStatus}
-              draft={sessionDraft}
-              fieldError={sessionFieldError}
-              needsAttention={sessionSetupNeedsAttention}
-              open={sessionSetupOpen}
-              moreDetailsOpen={moreDetailsOpen}
-              onOpenToggle={setSessionSetupOpen}
-              onMoreDetailsToggle={setMoreDetailsOpen}
-              onSave={saveSession}
-              onUpdateDraft={updateSessionDraft}
-            />
+            {sessionSetupOpen || sessionSetupNeedsAttention ? (
+              <SessionSetupPanel
+                autosaveLabel={autosaveLabel(sessionAutosaveStatus)}
+                autosaveStatus={sessionAutosaveStatus}
+                draft={sessionDraft}
+                fieldError={sessionFieldError}
+                needsAttention={sessionSetupNeedsAttention}
+                open={sessionSetupOpen}
+                moreDetailsOpen={moreDetailsOpen}
+                onOpenToggle={setSessionSetupOpen}
+                onMoreDetailsToggle={setMoreDetailsOpen}
+                onSave={saveSession}
+                onUpdateDraft={updateSessionDraft}
+              />
+            ) : null}
 
             <section className={selectedEntry ? 'detail-grid has-inspector' : 'detail-grid'}>
               <div className="timeline-pane">
@@ -1222,6 +1235,7 @@ export function App(): ReactElement {
                     onCopy={copyText}
                     onCopyScreenshot={copyScreenshot}
                     onDelete={deleteCurrentDraft}
+                    onExport={exportSession}
                     onSave={saveDraft}
                     onUpdateContent={(content) => void updateDraftContent(content)}
                   />

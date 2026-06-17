@@ -1,4 +1,4 @@
-import { Archive, Loader2, Plus, Settings, Trash2 } from 'lucide-react'
+import { Feather, Loader2, Plus, Settings, Trash2 } from 'lucide-react'
 import { useState, type ReactElement } from 'react'
 import type { Session } from '../../../shared/contracts'
 
@@ -32,7 +32,7 @@ export function SessionSidebar(props: {
   return (
     <aside className="session-sidebar" aria-label="Session Library">
       <div className="sidebar-title">
-        <Archive size={18} />
+        <Feather size={20} />
         <span>qa-scribe</span>
       </div>
 
@@ -47,16 +47,7 @@ export function SessionSidebar(props: {
         {newSessionBusy ? 'Creating...' : 'New Session'}
       </button>
 
-      <button
-        aria-current={props.settingsSelected ? 'page' : undefined}
-        className={props.settingsSelected ? 'sidebar-settings selected' : 'sidebar-settings'}
-        onClick={() => void props.onOpenSettings()}
-        type="button"
-      >
-        <Settings size={16} />
-        <span>Settings</span>
-      </button>
-
+      <span className="session-list-heading">Sessions</span>
       <div className="session-list" aria-label="Saved sessions">
         {props.sessions.length === 0 ? (
           <div className="session-empty" role="status">
@@ -101,6 +92,16 @@ export function SessionSidebar(props: {
           })
         )}
       </div>
+
+      <button
+        aria-current={props.settingsSelected ? 'page' : undefined}
+        className={props.settingsSelected ? 'sidebar-settings selected' : 'sidebar-settings'}
+        onClick={() => void props.onOpenSettings()}
+        type="button"
+      >
+        <Settings size={16} />
+        <span>Settings</span>
+      </button>
     </aside>
   )
 }
