@@ -3,31 +3,26 @@
   "version": "0.2.9",
   "description": "Local-first desktop testing notepad for turning testing sessions into structured testware.",
   "author": "qa-scribe contributors",
-  "main": "out/main/index.js",
+  "packageManager": "bun@1.3.5",
+  "main": "src/bun/index.ts",
   "scripts": {
-    "dev": "npm run rebuild:electron && electron-vite dev",
-    "build": "tsc -b --noEmit && electron-vite build",
-    "dist": "npm run build && npm run rebuild:electron && electron-builder",
-    "dist:dir": "npm run build && npm run rebuild:electron && electron-builder --dir",
-    "dist:mac": "node scripts/assert-package-platform.cjs darwin macOS && npm run build && npm run rebuild:electron && electron-builder --mac",
-    "dist:win": "node scripts/assert-package-platform.cjs win32 Windows && npm run build && npm run rebuild:electron && electron-builder --win",
-    "dist:linux": "node scripts/assert-package-platform.cjs linux Linux && npm run build && npm run rebuild:electron && electron-builder --linux",
-    "preview": "electron-vite preview",
-    "test": "npm rebuild better-sqlite3 && vitest run && npm run rebuild:electron",
-    "test:watch": "npm rebuild better-sqlite3 && vitest",
-    "postinstall": "npm run rebuild:electron",
-    "rebuild:electron": "electron-rebuild -f -w better-sqlite3",
+    "dev": "electrobun dev --watch",
+    "start": "electrobun run",
+    "build": "bun run lint && electrobun build",
+    "build:dev": "electrobun build",
+    "build:canary": "electrobun build --env=canary",
+    "build:stable": "electrobun build --env=stable",
+    "test": "vitest run --exclude src/main/services/sessionService.test.ts && bun test src/main/services/sessionService.test.ts",
+    "test:watch": "vitest --exclude src/main/services/sessionService.test.ts",
     "db:generate": "drizzle-kit generate",
     "lint": "tsc -b --noEmit"
   },
   "dependencies": {
-    "@electron-toolkit/utils": "^4.0.0",
     "@tiptap/core": "^3.26.1",
     "@tiptap/extension-placeholder": "^3.26.1",
     "@tiptap/pm": "^3.26.1",
     "@tiptap/react": "^3.26.1",
     "@tiptap/starter-kit": "^3.26.1",
-    "better-sqlite3": "^12.11.1",
     "drizzle-orm": "^0.45.2",
     "lucide-react": "^1.18.0",
     "react": "^19.2.7",
@@ -36,75 +31,22 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@electron-toolkit/tsconfig": "^2.0.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
-    "@types/better-sqlite3": "^7.6.13",
+    "@types/bun": "^1.3.14",
     "@types/node": "^24.13.2",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
+    "@types/three": "^0.184.1",
     "@vitejs/plugin-react": "^5.2.0",
     "drizzle-kit": "^0.31.10",
-    "electron": "^42.4.0",
-    "electron-builder": "^26.15.3",
-    "electron-vite": "^5.0.0",
+    "electrobun": "^1.18.1",
     "jsdom": "^29.1.1",
     "typescript": "^6.0.3",
     "vite": "^7.3.5",
     "vitest": "^4.1.9"
   },
   "overrides": {
-    "vite": {
-      "esbuild": "0.28.1"
-    },
-    "electron-vite": {
-      "esbuild": "0.28.1"
-    },
-    "drizzle-kit": {
-      "esbuild": "0.28.1"
-    },
-    "@esbuild-kit/core-utils": {
-      "esbuild": "0.28.1"
-    }
-  },
-  "build": {
-    "appId": "com.qa-scribe.app",
-    "productName": "qa-scribe",
-    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
-    "directories": {
-      "output": "release/${version}"
-    },
-    "files": [
-      "out/**/*",
-      "package.json",
-      "node_modules/**/*"
-    ],
-    "asar": true,
-    "asarUnpack": [
-      "**/node_modules/better-sqlite3/**/*"
-    ],
-    "npmRebuild": false,
-    "buildDependenciesFromSource": true,
-    "publish": null,
-    "mac": {
-      "category": "public.app-category.developer-tools",
-      "target": [
-        "dmg",
-        "zip"
-      ]
-    },
-    "win": {
-      "target": [
-        "nsis",
-        "zip"
-      ]
-    },
-    "linux": {
-      "category": "Development",
-      "target": [
-        "AppImage",
-        "deb"
-      ]
-    }
+    "esbuild": "0.28.1"
   }
 }

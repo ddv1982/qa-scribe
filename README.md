@@ -6,7 +6,7 @@ During a Session, testers can collect notes, observations, API responses, logs, 
 
 ## Current Status
 
-This repository contains an Electron, React, TypeScript, SQLite, and Drizzle MVP implementation.
+This repository contains an Electrobun, Bun, React, TypeScript, SQLite, and Drizzle MVP implementation.
 
 Implemented capabilities include:
 
@@ -21,43 +21,42 @@ Implemented capabilities include:
 - Application settings for selectable AI providers, the generation system prompt, and Note/Finding capture templates.
 - Finding composer attachments from actual and expected result editors, linked as Finding Evidence on save.
 - Local capture, persistence, and export without AI configuration.
-- macOS local directory packaging through electron-builder.
+- Electrobun local builds for the current platform.
 
 ## Tech Stack
 
-- Desktop shell: Electron
-- Build tooling: electron-vite
+- Desktop shell: Electrobun
+- Runtime: Bun
+- Build tooling: Electrobun CLI
 - UI: React and TypeScript
 - Styling: plain CSS with adaptive light/dark design tokens
 - Database: SQLite
-- Database access: Drizzle ORM with `better-sqlite3` in Electron main
-- IPC validation: Zod
+- Database access: Drizzle ORM with `bun:sqlite`
+- Host/renderer bridge: Electrobun typed RPC with Zod validation
 - AI: local provider adapters for Codex CLI, Claude Code, and GitHub Copilot CLI
 - Tests: Vitest
-- Packaging: electron-builder
+- Packaging: Electrobun
 
 ## Requirements
 
-- Node.js compatible with the versions in `package-lock.json`
-- npm
-- macOS for local macOS packaging
+- Bun for dependency installation, scripts, the Electrobun runtime, and Bun SQLite tests
+- Node.js for Node-based development tools invoked by package scripts
+- macOS, Windows, or Linux matching the local build target
 
-`better-sqlite3` is a native dependency. The project scripts rebuild it for Node during tests and for Electron during app runtime/package workflows.
-
-Dependency updates should stay compatible with the Electron toolchain. In particular, `electron-vite@5` currently peers with Vite 5, 6, or 7, so Vite 8 and `@vitejs/plugin-react@6` should wait until the Electron build stack supports them. Node typings should track Electron's embedded Node major rather than the newest local Node installed on a developer machine.
+The app uses Bun's built-in SQLite driver. Service tests that open the database run under Bun through the package scripts.
 
 ## Setup
 
 Install dependencies:
 
 ```sh
-npm install
+bun install
 ```
 
 Run the desktop app in development mode:
 
 ```sh
-npm run dev
+bun run dev
 ```
 
 ## AI Providers
@@ -96,57 +95,56 @@ Privacy boundaries:
 ## Scripts
 
 ```sh
-npm run dev
+bun run dev
 ```
 
-Starts the Electron development app.
+Starts the Electrobun development app with watch mode.
 
 ```sh
-npm run lint
+bun run lint
 ```
 
 Runs TypeScript checks.
 
 ```sh
-npm test
+bun run test
 ```
 
-Rebuilds `better-sqlite3` for Node, runs Vitest, then rebuilds it for Electron.
+Runs Vitest for renderer/provider tests and Bun's test runner for the SQLite service suite.
 
 ```sh
-npm run test:watch
+bun run test:watch
 ```
 
-Rebuilds `better-sqlite3` for Node and starts Vitest.
+Starts Vitest watch mode for the non-SQLite suites.
 
 ```sh
-npm run build
+bun run build
 ```
 
-Type-checks and builds Electron main, preload, and renderer output.
+Type-checks and builds an Electrobun app for the current platform.
 
 ```sh
-npm run dist:dir
+bun run build:dev
 ```
 
-Builds and packages an unpacked app directory for the current platform.
+Builds an Electrobun development artifact.
 
 ```sh
-npm run dist:mac
+bun run build:canary
 ```
 
-Builds macOS artifacts. This script only runs on macOS.
+Builds an Electrobun canary artifact.
 
 ```sh
-npm run dist:win
-npm run dist:linux
+bun run build:stable
 ```
 
-These scripts must be run on their matching operating systems because `better-sqlite3` needs target-platform native binaries.
+Builds an Electrobun stable artifact. Production release artifacts should be built on their matching host OS/architecture.
 
 ## Database And Files
 
-The app stores its SQLite database in Electron's app data directory as `qa-scribe.sqlite`.
+The app stores its SQLite database in Electrobun's app-scoped user data directory as `qa-scribe.sqlite`.
 
 Managed attachment files are stored in an `attachments` folder under the same app data location. SQLite remains the source of truth for attachment ownership and metadata.
 
@@ -155,10 +153,11 @@ The database currently uses a small versioned migration runner based on SQLite `
 ## Project Structure
 
 ```text
-src/main/              Electron main process, SQLite, IPC, services
-src/preload/           Narrow preload bridge exposed to the renderer
+src/bun/               Electrobun host process, window lifecycle, and RPC handlers
+src/main/              SQLite, services, provider adapters, and domain logic
+src/renderer-view/     Electrobun browser adapter that exposes window.qaScribe
 src/renderer/          React app and styles
-src/shared/            Shared Zod contracts and TypeScript types
+src/shared/            Shared Zod contracts, TypeScript types, and RPC schema
 drizzle/               Generated Drizzle schema migration artifacts
 docs/                  Product plan and architecture decisions
 scripts/               Local build/package helper scripts
@@ -169,10 +168,9 @@ scripts/               Local build/package helper scripts
 Before packaging or sharing changes, run:
 
 ```sh
-npm run lint
-npm test
-npm run build
-npm run dist:dir
+bun run lint
+bun run test
+bun run build
 ```
 
 ## Documentation

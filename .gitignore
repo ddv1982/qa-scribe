@@ -3,6 +3,8 @@ out/
 dist/
 dist-electron/
 release/
+build/
+artifacts/
 .DS_Store
 *.log
 *.tsbuildinfo

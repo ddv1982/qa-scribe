@@ -1,7 +1,7 @@
-import type Database from 'better-sqlite3'
+import type { Database } from 'bun:sqlite'
 
-export function migrate(sqlite: Database.Database): void {
-  const currentVersion = Number(sqlite.pragma('user_version', { simple: true }) ?? 0)
+export function migrate(sqlite: Database): void {
+  const currentVersion = readUserVersion(sqlite)
   const migrations = [
     {
       version: 1,
@@ -140,9 +140,14 @@ export function migrate(sqlite: Database.Database): void {
   const runMigrations = sqlite.transaction(() => {
     for (const migration of pending) {
       sqlite.exec(migration.sql)
-      sqlite.pragma(`user_version = ${migration.version}`)
+      sqlite.exec(`PRAGMA user_version = ${migration.version}`)
     }
   })
 
   runMigrations()
+}
+
+function readUserVersion(sqlite: Database): number {
+  const row = sqlite.prepare('PRAGMA user_version').get() as { user_version?: number } | null
+  return Number(row?.user_version ?? 0)
 }

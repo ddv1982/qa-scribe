@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'bun:test'
 import { defaultAppSettings, evidenceLinkDraftSchema, validateSessionRequirements } from '../../shared/contracts'
 import { createDbClient, type DbClient } from '../db/client'
 import type { CommandRunner } from './aiProviders'
@@ -20,7 +20,7 @@ afterEach(() => {
   while (harnesses.length > 0) {
     const harness = harnesses.pop()
     if (!harness) continue
-    if (harness.client.sqlite.open) harness.client.sqlite.close()
+    harness.client.sqlite.close()
     rmSync(harness.root, { force: true, recursive: true })
   }
 })
@@ -887,7 +887,7 @@ describe('SessionService', () => {
   it('records the applied database schema version', () => {
     const { client } = createHarness()
 
-    expect(client.sqlite.pragma('user_version', { simple: true })).toBe(5)
+    expect(client.sqlite.prepare('PRAGMA user_version').get()).toEqual({ user_version: 5 })
     expect(client.sqlite.prepare('PRAGMA table_info(ai_runs)').all()).toEqual(
       expect.arrayContaining([expect.objectContaining({ name: 'reasoning_effort' })])
     )
