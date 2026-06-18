@@ -1,4 +1,4 @@
-import type { ChangeEvent, KeyboardEvent, MouseEvent, ReactElement } from 'react'
+import type { ChangeEvent, MouseEvent, ReactElement } from 'react'
 import { Bot, Bug, ChevronDown, Clipboard, Feather, Filter, ImagePlus, Plus, Search, Trash2 } from 'lucide-react'
 import { defaultAppSettings } from '../../../../shared/contracts'
 import type { AppSettings, Attachment, Entry, EntryType, FormTemplateField, SessionSnapshot } from '../../../../shared/contracts'
@@ -604,22 +604,24 @@ function TimelineEntry(props: {
   const entryLabel = props.entry.title || firstLine(props.entry.body) || formatEntryType(props.entry.type)
 
   return (
-    <article
-      aria-label={`Select Entry: ${entryLabel}`}
-      aria-pressed={props.selected}
-      className={props.selected ? 'timeline-entry selected' : 'timeline-entry'}
-      role="button"
-      tabIndex={0}
-      onClick={props.onSelect}
-      onKeyDown={selectWithKeyboard(props.onSelect)}
-    >
+    <article className={props.selected ? 'timeline-entry selected' : 'timeline-entry'}>
       <div className="entry-marker">
         <span>{formatEntryType(props.entry.type)}</span>
         <time>{formatTime(props.entry.createdAt)}</time>
       </div>
       <div className="entry-body">
         <div className="entry-heading">
-          <h2>{props.entry.title || formatEntryType(props.entry.type)}</h2>
+          <h2>
+            <button
+              aria-label={`Select Entry: ${entryLabel}`}
+              aria-pressed={props.selected}
+              className="entry-select-button"
+              type="button"
+              onClick={props.onSelect}
+            >
+              {props.entry.title || formatEntryType(props.entry.type)}
+            </button>
+          </h2>
           <div className="entry-actions">
             <button aria-label="Create Finding from Entry" type="button" title="Create Finding" onClick={stopAnd(props.onCreateFinding)}>
               <Bug size={15} />
@@ -654,15 +656,6 @@ function TimelineEntry(props: {
 function stopAnd(callback: () => void): (event: MouseEvent<HTMLButtonElement>) => void {
   return (event) => {
     event.stopPropagation()
-    callback()
-  }
-}
-
-function selectWithKeyboard(callback: () => void): (event: KeyboardEvent<HTMLElement>) => void {
-  return (event) => {
-    if (event.target !== event.currentTarget) return
-    if (event.key !== 'Enter' && event.key !== ' ') return
-    event.preventDefault()
     callback()
   }
 }

@@ -20,6 +20,10 @@ This plan records the behavior-preserving cleanup baseline for qa-scribe. It is 
 - `src/main/db/client.ts`: SQLite client plus runtime migration logic based on `user_version`.
 - Large tests should only be split when the implementation split creates clearer behavior ownership.
 
+## Completed Cleanup
+
+- Extracted the Evidence import modal from `App.tsx` into `src/renderer/src/components/evidence/AttachmentImportDialog.tsx`, preserving the existing browse/paste callbacks and modal semantics while reducing the renderer orchestrator surface.
+
 ## Standards For Changes
 
 - Keep changes behavior-preserving unless a separate product change is approved.

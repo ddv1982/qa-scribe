@@ -21,6 +21,7 @@ export function GenerationReviewPane(props: {
   onProviderChange: (provider: AiProviderId | null) => void
   onModelChange: (model: string) => void
   onReasoningEffortChange: (effort: ReasoningEffort | null) => void
+  onAddAttachment: () => void
   onToggleEntry: (row: ContextRow) => Promise<void>
   onToggleAttachment: (item: ContextAttachment) => Promise<void>
   onGenerate: () => Promise<void>
@@ -55,7 +56,6 @@ export function GenerationReviewPane(props: {
           meta={`${props.rows.length} notes · ${props.findings.length} findings`}
         />
         <SummaryItem
-          action="Add context"
           icon={<Target size={18} />}
           label="Context"
           title={props.session.testTarget || 'No additional context'}
@@ -131,7 +131,6 @@ export function GenerationReviewPane(props: {
 
       <div className="review-grid">
         <ReviewList
-          actionLabel="Add more"
           count={includedRows.length}
           icon={<FileText size={16} />}
           title="Included entries"
@@ -141,7 +140,6 @@ export function GenerationReviewPane(props: {
           onToggleEntry={props.onToggleEntry}
         />
         <ReviewList
-          actionLabel="Add exclusions"
           count={excludedRows.length}
           icon={<CircleMinus size={16} />}
           title="Excluded entries"
@@ -171,7 +169,7 @@ export function GenerationReviewPane(props: {
               onToggleAttachment={props.onToggleAttachment}
             />
           )}
-          <button className="context-link-action" type="button">
+          <button className="context-link-action" disabled={!props.contextReady || props.busy} type="button" onClick={props.onAddAttachment}>
             + Add attachment
           </button>
         </section>
@@ -224,7 +222,6 @@ export function GenerationReviewPane(props: {
 }
 
 function ReviewList(props: {
-  actionLabel: string
   count: number
   icon: ReactElement
   title: string
@@ -271,15 +268,11 @@ function ReviewList(props: {
           </div>
         </article>
       ))}
-      <button className="context-link-action" type="button">
-        + {props.actionLabel}
-      </button>
     </section>
   )
 }
 
 function SummaryItem(props: {
-  action?: string
   icon: ReactElement
   label: string
   meta?: string
@@ -296,11 +289,6 @@ function SummaryItem(props: {
         <p>{props.value}</p>
         {props.meta ? <small>{props.meta}</small> : null}
       </div>
-      {props.action ? (
-        <button className="secondary-command fit" type="button">
-          {props.action}
-        </button>
-      ) : null}
     </article>
   )
 }

@@ -107,6 +107,40 @@ describe('aiProviders', () => {
     )
   })
 
+  it('does not probe settings-disabled providers while preserving unavailable status rows', async () => {
+    const calls: Array<{ command: string; args: string[] }> = []
+    const runner: CommandRunner = async (command, args) => {
+      calls.push({ command, args })
+      return missingCommand()
+    }
+
+    await expect(
+      detectProviderStatuses(runner, {
+        claude_code: false,
+        codex_cli: true,
+        copilot_cli: false
+      })
+    ).resolves.toEqual([
+      expect.objectContaining({
+        provider: 'claude_code',
+        available: false,
+        reason: 'Claude Code is disabled in Settings.'
+      }),
+      expect.objectContaining({
+        provider: 'codex_cli',
+        available: false,
+        reason: 'codex was not found on PATH.'
+      }),
+      expect.objectContaining({
+        provider: 'copilot_cli',
+        available: false,
+        reason: 'GitHub Copilot CLI is disabled in Settings.'
+      })
+    ])
+
+    expect(calls.map((call) => call.command)).toEqual(['codex'])
+  })
+
   it('discovers Claude aliases, effort values, and Anthropic models without requiring them for availability', async () => {
     const runner: CommandRunner = async (command, args) => {
       if (command === 'claude' && args.join(' ') === 'auth status --json') {
@@ -305,6 +339,7 @@ describe('aiProviders', () => {
 
   it('parses direct JSON CLI output', () => {
     expect(__testables.parseStructuredCliOutput('{"answer":"ok"}')).toEqual({ answer: 'ok' })
+    expect(__testables.parseStructuredCliOutput('warning: using fallback\n{"answer":"ok"}\n')).toEqual({ answer: 'ok' })
   })
 
   it('hydrates provider command PATH with inherited and common local install paths', () => {

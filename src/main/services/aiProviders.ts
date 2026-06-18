@@ -1,4 +1,4 @@
-import type { AiProviderId, AiProviderStatus, ReasoningEffort } from '../../shared/contracts'
+import type { AiProviderId, AiProviderStatus, ProviderSettings, ReasoningEffort } from '../../shared/contracts'
 import { detectClaudeCode, runClaudeGeneration } from './ai/claude'
 import { detectCodexCli, runCodexGeneration } from './ai/codex'
 import { detectCopilotCli, runCopilotGeneration } from './ai/copilot'
@@ -10,7 +10,7 @@ import {
   type CommandResult,
   type CommandRunner
 } from './ai/commandRunner'
-import { defaultProviderModels } from './ai/capabilities'
+import { defaultProviderModels, providerMetadata, unavailable } from './ai/capabilities'
 import { parseStructuredCliOutput } from './ai/structuredOutput'
 
 export type { CommandResult, CommandRunner }
@@ -25,18 +25,26 @@ export type StructuredGenerationRequest = {
 
 export { defaultProviderModels }
 
-export async function detectProviderStatuses(runner: CommandRunner = runCommand): Promise<AiProviderStatus[]> {
-  const [claude, codex, copilot] = await Promise.all([
-    detectClaudeCode(runner),
-    detectCodexCli(runner),
-    detectCopilotCli(runner)
-  ])
+const providerDetectors: Record<AiProviderId, (runner: CommandRunner) => Promise<AiProviderStatus>> = {
+  claude_code: detectClaudeCode,
+  codex_cli: detectCodexCli,
+  copilot_cli: detectCopilotCli
+}
 
-  return [
-    claude,
-    codex,
-    copilot
-  ]
+const providerOrder: AiProviderId[] = ['claude_code', 'codex_cli', 'copilot_cli']
+
+export async function detectProviderStatuses(
+  runner: CommandRunner = runCommand,
+  enabledProviders?: ProviderSettings
+): Promise<AiProviderStatus[]> {
+  const providers = await Promise.all(
+    providerOrder.map((provider) => {
+      if (enabledProviders?.[provider] === false) return Promise.resolve(disabledProviderStatus(provider))
+      return providerDetectors[provider](runner)
+    })
+  )
+
+  return providers
 }
 
 export async function generateStructuredOutput(
@@ -63,4 +71,9 @@ export const __testables = {
   commandEnvironment,
   mergePaths,
   resolveLoginShell
+}
+
+function disabledProviderStatus(provider: AiProviderId): AiProviderStatus {
+  const metadata = providerMetadata(provider)
+  return unavailable(provider, `${metadata.label} is disabled in Settings.`)
 }

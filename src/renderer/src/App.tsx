@@ -1,18 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react'
-import {
-  ClipboardPaste,
-  FileJson,
-  FileText,
-  FolderOpen,
-  Loader2,
-  MoreHorizontal,
-  PanelRightOpen,
-  Pencil,
-  Plus,
-  Sparkles,
-  Trash2,
-  X
-} from 'lucide-react'
+import { FileJson, FileText, Loader2, MoreHorizontal, PanelRightOpen, Pencil, Plus, Sparkles, Trash2 } from 'lucide-react'
 import { defaultReasoningEffortFor, reasoningEffortsFor, validateSessionRequirements } from '../../shared/contracts'
 import type {
   Attachment,
@@ -41,6 +28,7 @@ import {
 import type { EntryInspectorSavePatch } from './components/inspector/Inspectors'
 import { SessionSetupPanel, type SessionAutosaveStatus } from './components/SessionSetupPanel'
 import { SessionSidebar } from './components/SessionSidebar'
+import { AttachmentImportDialog, type AttachmentImportSource } from './components/evidence/AttachmentImportDialog'
 import { buildGenerationOptions, normalizeContextRows } from './domain/generation'
 import {
   createLocalReviewDraft,
@@ -67,7 +55,6 @@ import type {
 } from './domain/types'
 
 type AutosaveStatus = SessionAutosaveStatus
-type AttachmentImportSource = 'browse' | 'paste'
 type AttachmentImportTarget = { kind: 'entry'; entryId?: string } | { kind: 'draft-note' } | { kind: 'draft-finding'; field: 'actual' | 'expected' }
 type AttachmentImportResult = Attachment | null | undefined
 type OpenSessionOptions = {
@@ -1215,6 +1202,7 @@ export function App(): ReactElement {
                     selectedReasoningEffort={selectedReasoningEffort}
                     sessionAttachments={sessionLevelAttachments}
                     session={snapshot.session}
+                    onAddAttachment={() => openAttachmentImportModal()}
                     onGenerate={generateTestware}
                     onModelChange={setSelectedModel}
                     onProviderChange={setSelectedProvider}
@@ -1277,72 +1265,12 @@ export function App(): ReactElement {
       </section>
 
       {attachmentImportTarget ? (
-        <div
-          className="modal-backdrop"
-          role="presentation"
-          onClick={() => !attachmentImportBusy && setAttachmentImportTarget(null)}
-        >
-          <section
-            aria-labelledby="attachment-import-title"
-            aria-modal="true"
-            className="attachment-import-modal"
-            role="dialog"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="modal-header">
-              <div>
-                <span className="eyebrow">Evidence</span>
-                <h2 id="attachment-import-title">Attach Evidence</h2>
-                <p className="modal-context">{attachmentTargetLabel(attachmentImportTarget)}</p>
-              </div>
-              <button
-                aria-label="Close evidence import"
-                className="icon-command"
-                disabled={attachmentImportBusy}
-                type="button"
-                onClick={() => setAttachmentImportTarget(null)}
-              >
-                <X size={16} />
-              </button>
-            </div>
-            <div className="attachment-import-actions">
-              <button
-                className="secondary-command attachment-import-action"
-                disabled={attachmentImportBusy}
-                type="button"
-                onClick={() => void handleAttachmentImport('browse')}
-              >
-                <FolderOpen size={18} />
-                <span>
-                  <strong>Browse</strong>
-                  <small>Select a file from disk</small>
-                </span>
-              </button>
-              <button
-                className="secondary-command attachment-import-action"
-                disabled={attachmentImportBusy}
-                type="button"
-                onClick={() => void handleAttachmentImport('paste')}
-              >
-                <ClipboardPaste size={18} />
-                <span>
-                  <strong>Paste Screenshot/Image</strong>
-                  <small>Import the current clipboard image</small>
-                </span>
-              </button>
-            </div>
-            <div className="modal-footer">
-              <button
-                className="secondary-command fit"
-                disabled={attachmentImportBusy}
-                type="button"
-                onClick={() => setAttachmentImportTarget(null)}
-              >
-                Cancel
-              </button>
-            </div>
-          </section>
-        </div>
+        <AttachmentImportDialog
+          busy={attachmentImportBusy}
+          targetLabel={attachmentTargetLabel(attachmentImportTarget)}
+          onClose={() => setAttachmentImportTarget(null)}
+          onImport={(source) => void handleAttachmentImport(source)}
+        />
       ) : null}
 
       {notice ? (

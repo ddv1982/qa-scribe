@@ -85,7 +85,6 @@ describe('App provider controls', () => {
     expect(api.generateTestware).not.toHaveBeenCalled()
     expect(await screen.findByText('checkout.png')).toBeInTheDocument()
     expect(screen.getByText('image/png / 1 KB')).toBeInTheDocument()
-
     fireEvent.click(screen.getAllByRole('button', { name: 'Generate Testware' }).at(-1)!)
 
     await waitFor(() =>
@@ -104,6 +103,29 @@ describe('App provider controls', () => {
 
     await waitFor(() => expect(api.copyAttachmentImageToClipboard).toHaveBeenCalledWith(screenshot.id))
     expect(await screen.findByText('Screenshot copied')).toBeInTheDocument()
+  })
+
+  it('opens the Evidence import modal from Generation Context attachments', async () => {
+    const snapshot = createSnapshot({
+      entries: [baseEntry()],
+      session: {
+        ...baseSession(),
+        title: 'Generation attachment import',
+        testTarget: 'Checkout',
+        charter: 'Attach extra Evidence before generation'
+      }
+    })
+    const api = installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
+    vi.mocked(api.importAttachment).mockResolvedValue({ ...baseImageAttachment(), id: 'session-attachment-2', entryId: null })
+
+    render(<App />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /Generate Testware/i }))
+    await screen.findByRole('heading', { name: 'Generation Context' })
+    fireEvent.click(screen.getByRole('button', { name: '+ Add attachment' }))
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Attach Evidence' })).getByRole('button', { name: /Browse/ }))
+
+    await waitFor(() => expect(api.importAttachment).toHaveBeenCalledWith(snapshot.session.id, undefined))
   })
 
   it('does not offer settings-disabled providers in generation controls', async () => {

@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { copyFileSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { copyFileSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { basename } from 'node:path'
 import { desc, eq } from 'drizzle-orm'
 import type {
@@ -100,6 +100,8 @@ import {
 import { cleanNullable, defaultReasoningEffort, formatRequirementLabels, isoNow } from './session/utils'
 
 const applicationSettingsKey = 'application'
+const maxAttachmentImportBytes = 25 * 1024 * 1024
+const maxAttachmentPreviewBytes = 10 * 1024 * 1024
 
 export class SessionService {
   constructor(
@@ -224,7 +226,9 @@ export class SessionService {
   }
 
   deleteSession(id: string): void {
-    this.client.db.delete(sessions).where(eq(sessions.id, idSchema.parse(id))).run()
+    const sessionId = idSchema.parse(id)
+    this.client.db.delete(sessions).where(eq(sessions.id, sessionId)).run()
+    rmSync(resolveStoredAttachmentPath(this.attachmentsRoot, sessionId), { force: true, recursive: true })
   }
 
   createEntry(input: EntryDraft): Entry {
@@ -309,9 +313,13 @@ export class SessionService {
     const parsedEntryId = entryId ? idSchema.parse(entryId) : undefined
     this.assertAttachmentImportTarget(parsedSessionId, parsedEntryId)
 
+    const stats = statSync(sourcePath)
+    if (stats.size > maxAttachmentImportBytes) {
+      throw new Error(`Attachment is too large. Maximum size is ${formatBytes(maxAttachmentImportBytes)}.`)
+    }
+
     const file = readFileSync(sourcePath)
     const hash = createHash('sha256').update(file).digest('hex')
-    const stats = statSync(sourcePath)
     const now = isoNow()
     const id = randomUUID()
     const { relativePath, destinationDir, destination, extension } = resolveAttachmentStorageDestination(
@@ -324,30 +332,39 @@ export class SessionService {
     mkdirSync(destinationDir, { recursive: true })
     copyFileSync(sourcePath, destination)
 
-    const [attachment] = this.client.db
-      .insert(attachments)
-      .values({
-        id,
-        sessionId: parsedSessionId,
-        entryId: parsedEntryId ?? null,
-        filename: basename(sourcePath),
-        mimeType: guessMimeType(extension),
-        sizeBytes: stats.size,
-        sha256: hash,
-        relativePath,
-        createdAt: now
-      })
-      .returning()
-      .all()
+    try {
+      const [attachment] = this.client.db
+        .insert(attachments)
+        .values({
+          id,
+          sessionId: parsedSessionId,
+          entryId: parsedEntryId ?? null,
+          filename: basename(sourcePath),
+          mimeType: mimeTypeForImport(extension, file),
+          sizeBytes: stats.size,
+          sha256: hash,
+          relativePath,
+          createdAt: now
+        })
+        .returning()
+        .all()
 
-    this.touchSession(parsedSessionId)
-    return mapAttachment(attachment)
+      this.touchSession(parsedSessionId)
+      return mapAttachment(attachment)
+    } catch (error) {
+      rmSync(destination, { force: true })
+      throw error
+    }
   }
 
   importClipboardScreenshot(pngBytes: Buffer, sessionId: string, entryId?: string): Attachment {
     const parsedSessionId = idSchema.parse(sessionId)
     const parsedEntryId = entryId ? idSchema.parse(entryId) : undefined
     this.assertAttachmentImportTarget(parsedSessionId, parsedEntryId)
+    if (pngBytes.length > maxAttachmentImportBytes) {
+      throw new Error(`Attachment is too large. Maximum size is ${formatBytes(maxAttachmentImportBytes)}.`)
+    }
+    if (!isPng(pngBytes)) throw new Error('Clipboard screenshot data is not a valid PNG image.')
 
     const filename = `pasted-screenshot-${formatAttachmentTimestamp(new Date())}.png`
     const hash = createHash('sha256').update(pngBytes).digest('hex')
@@ -363,41 +380,51 @@ export class SessionService {
     mkdirSync(destinationDir, { recursive: true })
     writeFileSync(destination, pngBytes)
 
-    const [attachment] = this.client.db
-      .insert(attachments)
-      .values({
-        id,
-        sessionId: parsedSessionId,
-        entryId: parsedEntryId ?? null,
-        filename,
-        mimeType: 'image/png',
-        sizeBytes: pngBytes.length,
-        sha256: hash,
-        relativePath,
-        createdAt: now
-      })
-      .returning()
-      .all()
+    try {
+      const [attachment] = this.client.db
+        .insert(attachments)
+        .values({
+          id,
+          sessionId: parsedSessionId,
+          entryId: parsedEntryId ?? null,
+          filename,
+          mimeType: 'image/png',
+          sizeBytes: pngBytes.length,
+          sha256: hash,
+          relativePath,
+          createdAt: now
+        })
+        .returning()
+        .all()
 
-    this.touchSession(parsedSessionId)
-    return mapAttachment(attachment)
+      this.touchSession(parsedSessionId)
+      return mapAttachment(attachment)
+    } catch (error) {
+      rmSync(destination, { force: true })
+      throw error
+    }
   }
 
   getAttachmentPreviewDataUrl(id: string): string | null {
     const attachmentId = idSchema.parse(id)
     const attachment = this.client.db.select().from(attachments).where(eq(attachments.id, attachmentId)).get()
     if (!attachment?.mimeType?.startsWith('image/')) return null
+    if (attachment.sizeBytes > maxAttachmentPreviewBytes) return null
 
     const path = resolveStoredAttachmentPath(this.attachmentsRoot, attachment.relativePath)
-    return `data:${attachment.mimeType};base64,${readFileSync(path).toString('base64')}`
+    const bytes = readFileSync(path)
+    if (!isImageMimeAndBytes(attachment.mimeType, bytes)) return null
+    return `data:${attachment.mimeType};base64,${bytes.toString('base64')}`
   }
 
   getAttachmentImageBytes(id: string): Buffer | null {
     const attachmentId = idSchema.parse(id)
     const attachment = this.client.db.select().from(attachments).where(eq(attachments.id, attachmentId)).get()
     if (!attachment?.mimeType?.startsWith('image/')) return null
+    if (attachment.sizeBytes > maxAttachmentPreviewBytes) return null
 
-    return readFileSync(resolveStoredAttachmentPath(this.attachmentsRoot, attachment.relativePath))
+    const bytes = readFileSync(resolveStoredAttachmentPath(this.attachmentsRoot, attachment.relativePath))
+    return isImageMimeAndBytes(attachment.mimeType, bytes) ? bytes : null
   }
 
   createFinding(input: FindingDraft): Finding {
@@ -645,8 +672,9 @@ export class SessionService {
       throw new Error(`Complete required Session fields before generating: ${formatRequirementLabels(requirements.missing)}`)
     }
 
-    const generationOptions = await this.resolveGenerationOptions(generationOptionsSchema.parse(options ?? {}))
-    const status = (await this.getProviderStatus()).providers.find((item) => item.provider === generationOptions.provider)
+    const providerStatus = await this.getProviderStatus()
+    const generationOptions = this.resolveGenerationOptions(generationOptionsSchema.parse(options ?? {}), providerStatus)
+    const status = providerStatus.providers.find((item) => item.provider === generationOptions.provider)
     if (!status?.available) {
       const errorMessage = status?.reason ?? `${generationOptions.provider} is not available.`
       createAiRun(this.client, {
@@ -700,15 +728,7 @@ export class SessionService {
 
   async getProviderStatus(): Promise<ProviderStatus> {
     const settings = this.getSettings()
-    const providers = (await detectProviderStatuses(this.commandRunner)).map((provider) =>
-      settings.providers[provider.provider]
-        ? provider
-        : {
-            ...provider,
-            available: false,
-            reason: `${provider.label} is disabled in Settings.`
-          }
-    )
+    const providers = await detectProviderStatuses(this.commandRunner, settings.providers)
     const selectedProvider =
       providers.find((status) => status.available)?.provider ??
       null
@@ -753,12 +773,11 @@ export class SessionService {
     this.client.db.update(sessions).set({ updatedAt: now, lastOpenedAt: now }).where(eq(sessions.id, id)).run()
   }
 
-  private async resolveGenerationOptions(options: GenerationOptions): Promise<{
+  private resolveGenerationOptions(options: GenerationOptions, providerStatus: ProviderStatus): {
     provider: AiProviderId
     model: string
     reasoningEffort: ReasoningEffort | null
-  }> {
-    const providerStatus = await this.getProviderStatus()
+  } {
     const provider = options.provider ?? providerStatus.selectedProvider
     if (!provider) {
       throw new Error('No selectable AI provider is available. Enable an available provider in Settings before generating.')
@@ -792,4 +811,40 @@ function cloneSettings(settings: AppSettings): AppSettings {
 function formatAttachmentTimestamp(date: Date): string {
   const value = date.toISOString()
   return `${value.slice(0, 10).replaceAll('-', '')}-${value.slice(11, 19).replaceAll(':', '')}`
+}
+
+function mimeTypeForImport(extension: string, bytes: Buffer): string | null {
+  const guessed = guessMimeType(extension)
+  if (!guessed?.startsWith('image/')) return guessed
+  return isImageMimeAndBytes(guessed, bytes) ? guessed : null
+}
+
+function isImageMimeAndBytes(mimeType: string, bytes: Buffer): boolean {
+  if (mimeType === 'image/png') return isPng(bytes)
+  if (mimeType === 'image/jpeg') return isJpeg(bytes)
+  if (mimeType === 'image/gif') return isGif(bytes)
+  if (mimeType === 'image/webp') return isWebp(bytes)
+  return false
+}
+
+function isPng(bytes: Buffer): boolean {
+  return bytes.length >= 8 && bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+}
+
+function isJpeg(bytes: Buffer): boolean {
+  return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff
+}
+
+function isGif(bytes: Buffer): boolean {
+  if (bytes.length < 6) return false
+  const signature = bytes.subarray(0, 6).toString('ascii')
+  return signature === 'GIF87a' || signature === 'GIF89a'
+}
+
+function isWebp(bytes: Buffer): boolean {
+  return bytes.length >= 12 && bytes.subarray(0, 4).toString('ascii') === 'RIFF' && bytes.subarray(8, 12).toString('ascii') === 'WEBP'
+}
+
+function formatBytes(value: number): string {
+  return `${Math.round(value / 1024 / 1024)} MB`
 }

@@ -122,6 +122,7 @@ describe('App Drafts behavior', () => {
     expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Output' }))
     expect(await screen.findByText('Stored checkout bug')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Open' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByLabelText('More draft actions'))
     fireEvent.click(screen.getByRole('button', { name: 'Edit Draft' }))
     fireEvent.change(screen.getByLabelText('Session Report Draft'), { target: { value: editedBody } })

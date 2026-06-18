@@ -46,7 +46,7 @@ describe('App capture and evidence', () => {
     render(<App />)
 
     expect(await screen.findByRole('heading', { name: 'Checkout finding' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('heading', { name: 'Checkout completed' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Select Entry: Checkout completed' }))
     fireEvent.click(screen.getByRole('button', { name: 'Finding' }))
     fireEvent.change(screen.getByLabelText('Finding title (required)'), {
       target: { value: 'Valid card payment fails' }
@@ -324,7 +324,7 @@ describe('App capture and evidence', () => {
     expect(within(timeline).getByText('2 KB')).toBeInTheDocument()
     expect(api.getAttachmentPreviewDataUrl).not.toHaveBeenCalled()
 
-    fireEvent.click(screen.getByRole('heading', { name: 'Checkout completed' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Select Entry: Checkout completed' }))
     const inspector = screen.getByLabelText('Inspector')
     expect(within(inspector).getByLabelText('Selected Entry content')).toHaveTextContent('Order confirmation displayed.')
     expect(within(inspector).getByText('console.log')).toBeInTheDocument()
@@ -350,7 +350,7 @@ describe('App capture and evidence', () => {
     render(<App />)
 
     expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('heading', { name: 'Checkout completed' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Select Entry: Checkout completed' }))
     const inspector = screen.getByLabelText('Inspector')
     fireEvent.click(within(inspector).getByRole('button', { name: 'Edit' }))
     fireEvent.change(within(inspector).getByLabelText('Entry title'), { target: { value: 'Edited checkout note' } })
@@ -418,6 +418,7 @@ describe('App capture and evidence', () => {
     render(<App />)
 
     expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Note title')).toBeVisible()
     fireEvent.change(screen.getByLabelText('Note title'), { target: { value: 'Formatted note' } })
     fireEvent.click(screen.getByRole('button', { name: 'Bold' }))
     fireEvent.input(screen.getByLabelText('Note body'), { target: { textContent: 'Important behavior' } })
@@ -659,7 +660,7 @@ describe('App capture and evidence', () => {
 
     expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
     expect(screen.queryByLabelText('Inspector')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('heading', { name: 'Checkout completed' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Select Entry: Checkout completed' }))
     const inspector = screen.getByLabelText('Inspector')
     expect(within(inspector).getByRole('heading', { name: 'Checkout completed' })).toBeInTheDocument()
     expect(within(inspector).getByLabelText('Selected Entry content')).toHaveTextContent('Order confirmation displayed.')
@@ -688,7 +689,23 @@ describe('App capture and evidence', () => {
     expect(api.deleteSession).not.toHaveBeenCalled()
   })
 
-  it('does not select an Entry when keyboarding nested Entry actions', async () => {
+  it('selects timeline Entries from a dedicated focusable button', async () => {
+    const snapshot = createSnapshot({ entries: [baseEntry()] })
+    installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Inspector')).not.toBeInTheDocument()
+    const selectButton = screen.getByRole('button', { name: 'Select Entry: Checkout completed' })
+    selectButton.focus()
+    expect(selectButton).toHaveFocus()
+    fireEvent.click(selectButton)
+
+    expect(screen.getByLabelText('Inspector')).toBeInTheDocument()
+  })
+
+  it('does not select an Entry when keyboarding Entry action buttons', async () => {
     const snapshot = createSnapshot({ entries: [baseEntry()] })
     installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
 

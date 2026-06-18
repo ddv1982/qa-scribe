@@ -1,6 +1,12 @@
 import { z } from 'zod'
 
 export const idSchema = z.string().uuid()
+export const textBodyMaxLength = 100_000
+export const metadataJsonMaxLength = 20_000
+export const draftBodyMaxLength = 250_000
+const metadataJsonSchema = z.string().max(metadataJsonMaxLength).refine(isJsonObjectString, {
+  message: 'Metadata JSON must be a JSON object'
+})
 export const entryTypeSchema = z.enum(['note', 'observation', 'api_response', 'log', 'screenshot', 'finding_candidate'])
 export type EntryType = z.infer<typeof entryTypeSchema>
 
@@ -80,8 +86,8 @@ export const entryDraftSchema = z.object({
   sessionId: idSchema,
   type: entryTypeSchema,
   title: z.string().max(160).nullable().optional(),
-  body: z.string().min(1),
-  metadataJson: z.string().nullable().optional(),
+  body: z.string().min(1).max(textBodyMaxLength),
+  metadataJson: metadataJsonSchema.nullable().optional(),
   excludedFromGeneration: z.boolean().optional()
 })
 export type EntryDraft = z.infer<typeof entryDraftSchema>
@@ -323,9 +329,9 @@ export type Finding = z.infer<typeof findingSchema>
 export const findingDraftSchema = z.object({
   sessionId: idSchema,
   title: z.string().min(1).max(180),
-  body: z.string().min(1),
+  body: z.string().min(1).max(textBodyMaxLength),
   kind: findingKindSchema.default('bug'),
-  metadataJson: z.string().nullable().optional(),
+  metadataJson: metadataJsonSchema.nullable().optional(),
   entryId: idSchema.optional()
 })
 export type FindingDraft = z.infer<typeof findingDraftSchema>
@@ -371,13 +377,13 @@ export const draftCreateSchema = z.object({
   sessionId: idSchema,
   kind: draftKindSchema.default('session_report'),
   title: z.string().min(1).max(180),
-  body: z.string()
+  body: z.string().max(draftBodyMaxLength)
 })
 export type DraftCreate = z.infer<typeof draftCreateSchema>
 
 export const draftPatchSchema = z.object({
   title: z.string().min(1).max(180).optional(),
-  body: z.string().optional()
+  body: z.string().max(draftBodyMaxLength).optional()
 })
 export type DraftPatch = z.infer<typeof draftPatchSchema>
 
@@ -471,4 +477,13 @@ export interface QaScribeApi {
   generateTestware(contextId: string, options?: GenerationOptions): Promise<GenerationResult>
   exportSession(id: string, format: 'markdown' | 'json'): Promise<SessionExport>
   getProviderStatus(): Promise<ProviderStatus>
+}
+
+function isJsonObjectString(value: string): boolean {
+  try {
+    const parsed = JSON.parse(value)
+    return Boolean(parsed && typeof parsed === 'object' && !Array.isArray(parsed))
+  } catch {
+    return false
+  }
 }

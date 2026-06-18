@@ -85,7 +85,7 @@ export function DraftsPane(props: {
               Copy
             </button>
             {hasSeparateFullDraft ? (
-              <button className="visually-hidden" type="button" onClick={() => props.onCopy(draft.content, 'Full draft copied')}>
+              <button className="secondary-command" type="button" onClick={() => props.onCopy(draft.content, 'Full draft copied')}>
                 Copy Full Draft
               </button>
             ) : null}
@@ -238,7 +238,6 @@ function StructuredDraftPreview(props: { content: string; findings: Finding[] })
                     <strong>{finding.title}</strong>
                     <p>{finding.summary}</p>
                   </div>
-                  <button className="secondary-command compact" type="button">Open</button>
                   <small>{`FND-${String(index + 1).padStart(3, '0')}`}</small>
                 </article>
               ))}
@@ -251,7 +250,6 @@ function StructuredDraftPreview(props: { content: string; findings: Finding[] })
                   <div>
                     <strong>{finding}</strong>
                   </div>
-                  <button className="secondary-command compact" type="button">Open</button>
                   <small>{`FND-${String(index + 1).padStart(3, '0')}`}</small>
                 </article>
               ))}

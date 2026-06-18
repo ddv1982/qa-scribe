@@ -2,7 +2,7 @@ import type { CommandResult } from './commandRunner'
 import { isMissingCommand } from './commandRunner'
 
 export function parseStructuredCliOutput(stdout: string): unknown {
-  const parsed = parseJson(stdout.trim())
+  const parsed = parseJsonValueFromOutput(stdout.trim())
   if (parsed === null) {
     throw new Error('AI provider returned non-JSON output.')
   }
@@ -13,6 +13,53 @@ export function parseStructuredCliOutput(stdout: string): unknown {
   }
 
   throw new Error('AI provider JSON output did not contain a structured result.')
+}
+
+function parseJsonValueFromOutput(value: string): unknown | null {
+  const parsed = parseJson(value)
+  if (parsed !== null) return parsed
+
+  for (let index = 0; index < value.length; index += 1) {
+    const char = value[index]
+    if (char !== '{' && char !== '[') continue
+    const candidate = balancedJsonCandidate(value, index, char === '{' ? '}' : ']')
+    if (!candidate) continue
+    const candidateParsed = parseJson(candidate)
+    if (candidateParsed !== null) return candidateParsed
+  }
+
+  return null
+}
+
+function balancedJsonCandidate(value: string, start: number, closing: string): string | null {
+  const stack = [closing]
+  let inString = false
+  let escaped = false
+
+  for (let index = start + 1; index < value.length; index += 1) {
+    const char = value[index]
+    if (escaped) {
+      escaped = false
+      continue
+    }
+    if (char === '\\') {
+      escaped = inString
+      continue
+    }
+    if (char === '"') {
+      inString = !inString
+      continue
+    }
+    if (inString) continue
+    if (char === '{') stack.push('}')
+    if (char === '[') stack.push(']')
+    if (char === '}' || char === ']') {
+      if (char !== stack.pop()) return null
+      if (stack.length === 0) return value.slice(start, index + 1)
+    }
+  }
+
+  return null
 }
 
 function outputCandidates(value: unknown): unknown[] {

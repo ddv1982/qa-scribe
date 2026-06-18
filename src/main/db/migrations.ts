@@ -131,6 +131,16 @@ export function migrate(sqlite: Database): void {
           updated_at TEXT NOT NULL
         );
       `
+    },
+    {
+      version: 6,
+      sql: `
+        CREATE INDEX IF NOT EXISTS idx_entries_session_created ON entries(session_id, created_at);
+        CREATE INDEX IF NOT EXISTS idx_attachments_session_created ON attachments(session_id, created_at);
+        CREATE INDEX IF NOT EXISTS idx_findings_session_created ON findings(session_id, created_at);
+        CREATE INDEX IF NOT EXISTS idx_drafts_session_updated ON drafts(session_id, updated_at);
+        CREATE INDEX IF NOT EXISTS idx_ai_runs_session_created ON ai_runs(session_id, created_at);
+      `
     }
   ]
 

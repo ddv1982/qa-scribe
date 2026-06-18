@@ -150,6 +150,10 @@ Managed attachment files are stored in an `attachments` folder under the same ap
 
 The database currently uses a small versioned migration runner based on SQLite `user_version`.
 
+Drizzle schema files describe the TypeScript data model. Runtime database changes are applied through the `user_version` migration runner in `src/main/db/migrations.ts`; generated Drizzle artifacts are not the runtime migration source of truth.
+
+Managed attachment files are deleted with their owning Session and are bounded by service-level import and preview limits.
+
 ## Project Structure
 
 ```text
@@ -168,14 +172,19 @@ scripts/               Local build/package helper scripts
 Before packaging or sharing changes, run:
 
 ```sh
-bun run lint
-bun run test
+bun run verify
 bun run build
 ```
 
+`bun run verify` runs the project typecheck and test suite. Release-oriented build scripts (`build`, `build:dev`, `build:canary`, and `build:stable`) run verification before invoking Electrobun.
+
+Production artifacts should be built on the target host OS/architecture. Use `scripts/assert-package-platform.cjs` in any release automation that targets a specific platform, for example `bun scripts/assert-package-platform.cjs darwin macOS` before a macOS package step.
+
+The current Electrobun configuration leaves macOS codesigning/notarization disabled and has an empty release `baseUrl`; set those values before publishing signed or auto-updated artifacts.
+
 ## Documentation
 
-- [Initial phased plan](docs/initial-phased-plan.md)
+- [Initial phased plan](docs/initial-phased-plan.md) (historical baseline)
 - [Architecture cleanup plan](docs/architecture-cleanup-plan.md)
 - [Project language](CONTEXT.md)
 - [Architecture decisions](docs/adr)

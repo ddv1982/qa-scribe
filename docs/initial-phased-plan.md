@@ -1,5 +1,7 @@
 # qa-scribe Initial Phased Plan
 
+Status: historical baseline. This document records the initial product and architecture direction and is not the authoritative implementation contract. For the current app architecture, commands, runtime migration model, and release verification expectations, use `README.md`, `CONTEXT.md`, `docs/adr/`, and the current source tree.
+
 ## Product Vision
 
 qa-scribe is a local-first desktop testing notepad for capturing the messy reality of testing and turning it into useful testware afterwards.

@@ -44,8 +44,7 @@
 .primary-command:hover,
 .secondary-command:hover,
 .danger-command:hover,
-.icon-command:hover,
-.timeline-entry:hover {
+.icon-command:hover {
   transform: translateY(-1px);
 }
 

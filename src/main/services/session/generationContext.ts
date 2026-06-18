@@ -24,42 +24,46 @@ export type GenerationContextDeps = {
 export function createGenerationContext(deps: GenerationContextDeps, sessionId: string): GenerationContextReview {
   const parsedSessionId = idSchema.parse(sessionId)
   deps.assertSessionExists(parsedSessionId)
-  const now = isoNow()
-  const [context] = deps.client.db
-    .insert(generationContexts)
-    .values({
-      id: randomUUID(),
-      sessionId: parsedSessionId,
-      createdAt: now
-    })
-    .returning()
-    .all()
-
-  for (const entry of deps.listEntries(parsedSessionId)) {
-    deps.client.db
-      .insert(generationContextEntries)
+  const contextId = deps.client.sqlite.transaction(() => {
+    const now = isoNow()
+    const [context] = deps.client.db
+      .insert(generationContexts)
       .values({
         id: randomUUID(),
-        generationContextId: context.id,
-        entryId: entry.id,
-        included: !entry.excludedFromGeneration
+        sessionId: parsedSessionId,
+        createdAt: now
       })
-      .run()
-  }
+      .returning()
+      .all()
 
-  for (const attachment of deps.listAttachments(parsedSessionId).filter((value) => value.entryId === null)) {
-    deps.client.db
-      .insert(generationContextAttachments)
-      .values({
-        id: randomUUID(),
-        generationContextId: context.id,
-        attachmentId: attachment.id,
-        included: true
-      })
-      .run()
-  }
+    for (const entry of deps.listEntries(parsedSessionId)) {
+      deps.client.db
+        .insert(generationContextEntries)
+        .values({
+          id: randomUUID(),
+          generationContextId: context.id,
+          entryId: entry.id,
+          included: !entry.excludedFromGeneration
+        })
+        .run()
+    }
 
-  return getGenerationContextReview(deps, context.id)
+    for (const attachment of deps.listAttachments(parsedSessionId).filter((value) => value.entryId === null)) {
+      deps.client.db
+        .insert(generationContextAttachments)
+        .values({
+          id: randomUUID(),
+          generationContextId: context.id,
+          attachmentId: attachment.id,
+          included: true
+        })
+        .run()
+    }
+
+    return context.id
+  })()
+
+  return getGenerationContextReview(deps, contextId)
 }
 
 export function updateGenerationContextEntry(
