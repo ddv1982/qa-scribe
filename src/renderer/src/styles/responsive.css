@@ -41,9 +41,14 @@
   }
 
   .topbar,
-  .review-header {
+  .review-header,
+  .context-review-header {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .context-metrics {
+    flex-wrap: wrap;
   }
 
   .topbar-actions {

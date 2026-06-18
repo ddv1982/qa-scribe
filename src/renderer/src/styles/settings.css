@@ -49,7 +49,9 @@
 }
 
 .settings-actions {
-  grid-auto-flow: column;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .settings-grid {

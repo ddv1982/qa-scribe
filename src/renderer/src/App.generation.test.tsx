@@ -221,6 +221,46 @@ describe('App provider controls', () => {
     expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument()
   })
 
+  it('leaves settings from the sidebar toggle or in-pane back action', async () => {
+    const snapshot = createSnapshot()
+    installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
+    expect(await screen.findByRole('heading', { name: 'Settings' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
+    expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Settings' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
+    expect(await screen.findByRole('heading', { name: 'Settings' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Session' }))
+
+    expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Settings' })).not.toBeInTheDocument()
+  })
+
+  it('leaves settings back to the launch state when no Session is active', async () => {
+    const snapshot = createSnapshot()
+    const api = installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
+    vi.mocked(api.listSessions).mockResolvedValue([])
+    vi.mocked(api.getSession).mockResolvedValue(null)
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'qa-scribe' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
+    expect(await screen.findByRole('heading', { name: 'Settings' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Session' }))
+
+    expect(await screen.findByRole('heading', { name: 'qa-scribe' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Settings' })).not.toBeInTheDocument()
+  })
+
   it('updates reasoning choices when the selected model has model-specific capabilities', async () => {
     const snapshot = createSnapshot({
       entries: [baseEntry()],

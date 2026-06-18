@@ -1,4 +1,4 @@
-import { Box, ChevronDown, ChevronUp, Code2, GripVertical, RotateCcw, Save, Settings, Sparkles } from 'lucide-react'
+import { ArrowLeft, Box, ChevronDown, ChevronUp, Code2, GripVertical, RotateCcw, Save, Settings, Sparkles } from 'lucide-react'
 import type { ReactElement } from 'react'
 import type { AppSettings, AppSettingsPatch, FormTemplateField, TemplateFieldType } from '../../../../shared/contracts'
 
@@ -16,6 +16,7 @@ export function SettingsPane(props: {
   saving: boolean
   error: string | null
   onChange: (patch: AppSettingsPatch) => void
+  onClose: () => Promise<void> | void
   onReset: () => void
   onSave: () => Promise<unknown>
 }): ReactElement {
@@ -66,6 +67,10 @@ export function SettingsPane(props: {
           <h2>Settings</h2>
         </div>
         <div className="settings-actions">
+          <button className="secondary-command fit" type="button" onClick={() => void props.onClose()}>
+            <ArrowLeft size={16} />
+            Back to Session
+          </button>
           <button className="secondary-command fit" disabled={!dirty || props.saving} type="button" onClick={props.onReset}>
             <RotateCcw size={16} />
             Reset

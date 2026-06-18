@@ -382,6 +382,10 @@ export function App(): ReactElement {
   }
 
   async function openSettings(): Promise<void> {
+    if (workspaceMode === 'settings') {
+      await closeSettings()
+      return
+    }
     if (!(await flushPendingAutosaves())) return
     if (!settingsDraft) {
       const loaded = await window.qaScribe.getSettings()
@@ -390,6 +394,11 @@ export function App(): ReactElement {
     }
     setSelectedEntryId(null)
     setWorkspaceMode('settings')
+  }
+
+  async function closeSettings(): Promise<void> {
+    if (!(await flushPendingAutosaves())) return
+    setWorkspaceMode('capture')
   }
 
   async function openSession(id: string, options: OpenSessionOptions = {}): Promise<void> {
@@ -1077,6 +1086,7 @@ export function App(): ReactElement {
             saving={settingsSaving}
             settings={settings}
             onChange={updateSettingsDraft}
+            onClose={closeSettings}
             onReset={resetSettingsDraft}
             onSave={saveSettings}
           />

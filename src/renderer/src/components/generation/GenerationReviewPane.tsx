@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react'
-import { Bot, Bug, CheckCircle2, CircleMinus, FileText, Loader2, Paperclip, Sparkles, Target } from 'lucide-react'
+import { Bot, Bug, CheckCircle2, CircleMinus, FileText, Loader2, Paperclip, Sparkles } from 'lucide-react'
 import { reasoningEffortDescriptor } from '../../../../shared/contracts'
 import type { AiProviderId, AiProviderStatus, ProviderStatus, ReasoningEffort, Session } from '../../../../shared/contracts'
 import type { ContextAttachment, ContextRow, Finding } from '../../domain/types'
@@ -41,37 +41,41 @@ export function GenerationReviewPane(props: {
       ? 'Choose a provider before generating'
       : 'No available providers'
   const generateDisabled = props.generating || props.busy || !hasProvider || (includedRows.length === 0 && includedAttachments.length === 0)
+  const contextCount = includedRows.length + includedAttachments.length
 
   return (
     <section className="review-pane">
-      <h2 className="visually-hidden">Generation Context</h2>
-      <p className="context-intro">Review and confirm the information to guide generation.</p>
-
-      <div className="context-summary">
-        <SummaryItem
-          icon={<FileText size={18} />}
-          label="Session"
-          title={props.session.title}
-          value={`Created ${formatShortDate(props.session.createdAt)}`}
-          meta={`${props.rows.length} notes · ${props.findings.length} findings`}
-        />
-        <SummaryItem
-          icon={<Target size={18} />}
-          label="Context"
-          title={props.session.testTarget || 'No additional context'}
-          value={props.session.charter || 'Add details, scope, or goals to improve results.'}
-        />
-        <SummaryItem
-          icon={<Bot size={18} />}
-          label="Provider"
-          title={selectedProviderStatus?.label ?? 'No provider selected'}
-          value={hasProvider ? 'Provider is ready' : providerReadiness}
-          meta={providerSummary(props.providerStatus)}
-          ready={hasProvider}
-        />
-      </div>
+      <header className="context-review-header">
+        <div>
+          <span className="eyebrow">Choose what the AI can use</span>
+          <h2>Generation Context</h2>
+          <p>{props.session.testTarget || props.session.charter || 'Review Session material before generating Testware.'}</p>
+        </div>
+        <dl className="context-metrics" aria-label="Generation Context summary">
+          <div>
+            <dt>Included</dt>
+            <dd>{contextCount}</dd>
+          </div>
+          <div>
+            <dt>Entries</dt>
+            <dd>{includedRows.length}/{props.rows.length}</dd>
+          </div>
+          <div>
+            <dt>Findings</dt>
+            <dd>{props.findings.length}</dd>
+          </div>
+        </dl>
+      </header>
 
       <section className="provider-panel" aria-label="Generation provider options">
+        <div className="provider-panel-heading">
+          <div>
+            <span className="eyebrow">Provider</span>
+            <strong>{providerReadiness}</strong>
+            <small>{providerSummary(props.providerStatus)}</small>
+          </div>
+          <span className={hasProvider ? 'provider-ready' : 'provider-missing'}>{hasProvider ? 'Ready' : 'Needs setup'}</span>
+        </div>
         <div className="provider-controls">
           <label className="field">
             <span>Provider</span>
@@ -270,33 +274,6 @@ function ReviewList(props: {
       ))}
     </section>
   )
-}
-
-function SummaryItem(props: {
-  icon: ReactElement
-  label: string
-  meta?: string
-  ready?: boolean
-  title: string
-  value: string
-}): ReactElement {
-  return (
-    <article className={props.ready ? 'summary-card ready' : 'summary-card'}>
-      <span className="summary-icon">{props.icon}</span>
-      <div>
-        <span className="eyebrow">{props.label}</span>
-        <strong>{props.title}</strong>
-        <p>{props.value}</p>
-        {props.meta ? <small>{props.meta}</small> : null}
-      </div>
-    </article>
-  )
-}
-
-function formatShortDate(value: string): string {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return 'recently'
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 
 function ModelSelector(props: {
