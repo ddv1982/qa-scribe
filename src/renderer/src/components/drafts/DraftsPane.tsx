@@ -93,6 +93,10 @@ export function DraftsPane(props: {
               <Check size={16} />
               Save
             </button>
+            <button className="danger-command" disabled={props.deleting} type="button" onClick={() => void props.onDelete()}>
+              <Trash2 size={16} />
+              {props.deleting ? 'Deleting...' : 'Delete Draft'}
+            </button>
             <details className="topbar-menu">
               <summary aria-label="Export draft" className="secondary-command">
                 <Download size={16} />
@@ -121,15 +125,6 @@ export function DraftsPane(props: {
                 <button className="secondary-command fit" type="button" onClick={() => setMode('edit')}>
                   <Pencil size={16} />
                   Edit Draft
-                </button>
-                <button
-                  className="danger-command fit"
-                  disabled={props.deleting}
-                  type="button"
-                  onClick={() => void props.onDelete()}
-                >
-                  <Trash2 size={16} />
-                  {props.deleting ? 'Deleting...' : 'Delete Draft'}
                 </button>
               </div>
             </details>

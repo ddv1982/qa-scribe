@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { Draft, Finding as StoredFinding } from '../../shared/contracts'
 import { App } from './App'
 import {
+  baseEntry,
   codexAvailable,
   createSnapshot,
   installQaScribeApi,
@@ -33,12 +34,68 @@ describe('App Drafts behavior', () => {
     expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Output' }))
     expect(await screen.findByRole('heading', { name: 'Persisted Report' })).toBeInTheDocument()
-    fireEvent.click(screen.getByLabelText('More draft actions'))
     fireEvent.click(screen.getByRole('button', { name: 'Delete Draft' }))
 
     await waitFor(() => expect(api.deleteDraft).toHaveBeenCalledWith('draft-1'))
     expect(await screen.findByRole('heading', { name: 'No draft' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Persisted Report' })).not.toBeInTheDocument()
+    expect(api.createDraft).not.toHaveBeenCalled()
+  })
+
+  it('deletes a generated draft and leaves the Drafts view empty', async () => {
+    const generatedDraft = sessionReportDraft({
+      aiRunId: 'run-1',
+      title: 'Generated Session Report',
+      body: '# Generated report'
+    })
+    const snapshot = createSnapshot({ drafts: [generatedDraft] })
+    const afterDelete = createSnapshot({ session: snapshot.session })
+    const api = installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
+    let deleted = false
+    vi.mocked(api.deleteDraft).mockImplementation(async () => {
+      deleted = true
+    })
+    vi.mocked(api.getSession).mockImplementation(async () => (deleted ? afterDelete : snapshot))
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Output' }))
+    expect(await screen.findByRole('heading', { name: 'Generated Session Report' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Draft' }))
+
+    await waitFor(() => expect(api.deleteDraft).toHaveBeenCalledWith('draft-1'))
+    expect(await screen.findByRole('heading', { name: 'No draft' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Generated Session Report' })).not.toBeInTheDocument()
+    expect(api.createDraft).not.toHaveBeenCalled()
+  })
+
+  it('deletes a draft immediately after generating it', async () => {
+    const snapshot = createSnapshot({ entries: [baseEntry()] })
+    const afterDelete = createSnapshot({ session: snapshot.session })
+    const api = installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
+    let deleted = false
+    vi.mocked(api.deleteDraft).mockImplementation(async () => {
+      deleted = true
+    })
+    vi.mocked(api.getSession).mockImplementation(async () => (deleted ? afterDelete : snapshot))
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Session' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Generate' }))
+    expect(await screen.findByRole('heading', { name: 'Generate Testware' })).toBeInTheDocument()
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Generate Testware' }).at(-1)).toBeEnabled())
+    fireEvent.click(screen.getAllByRole('button', { name: 'Generate Testware' }).at(-1)!)
+
+    await waitFor(() => expect(api.generateTestware).toHaveBeenCalled())
+    expect(await screen.findByRole('heading', { name: 'Generated Testware' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Draft' }))
+
+    await waitFor(() => expect(api.deleteDraft).toHaveBeenCalledWith('draft-1'))
+    expect(await screen.findByRole('heading', { name: 'No draft' })).toBeInTheDocument()
     expect(api.createDraft).not.toHaveBeenCalled()
   })
 
