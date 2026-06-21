@@ -156,7 +156,7 @@
     min-width: 0;
   }
 
-  .provider-panel-summary {
+  .settings-advanced-summary {
     align-items: flex-start;
     flex-direction: column;
   }

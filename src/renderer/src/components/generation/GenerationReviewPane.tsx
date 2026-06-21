@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react'
-import { Bot, Bug, CheckCircle2, CircleMinus, FileText, Loader2, Paperclip, Sparkles } from 'lucide-react'
+import { Bot, Bug, CircleMinus, FileText, Loader2, Paperclip, Sparkles } from 'lucide-react'
 import { reasoningEffortDescriptor } from '../../../../shared/contracts'
 import type { AiProviderId, AiProviderStatus, ProviderStatus, ReasoningEffort, Session } from '../../../../shared/contracts'
 import type { ContextAttachment, ContextRow, Finding } from '../../domain/types'
@@ -40,21 +40,30 @@ export function GenerationReviewPane(props: {
     : availableProviders.length > 0
       ? 'Choose a provider before generating'
       : 'No available providers'
-  const generateDisabled = props.generating || props.busy || !hasProvider || (includedRows.length === 0 && includedAttachments.length === 0)
-  const contextCount = includedRows.length + includedAttachments.length
+  const materialCount = includedRows.length + includedAttachments.length + props.findings.length
+  const generateBlocker = props.generating
+    ? 'Generating...'
+    : props.busy || !props.contextReady
+      ? 'Preparing Session material...'
+      : !hasProvider
+        ? 'Choose an available provider before generating.'
+        : materialCount === 0
+          ? 'Capture at least one Entry, attachment, or Finding.'
+          : null
+  const generateDisabled = Boolean(generateBlocker)
 
   return (
     <section className="review-pane">
       <header className="context-review-header">
         <div>
-          <span className="eyebrow">Choose what the AI can use</span>
-          <h2>Generation Context</h2>
-          <p>{props.session.testTarget || props.session.charter || 'Review Session material before generating Testware.'}</p>
+          <span className="eyebrow">AI draft</span>
+          <h2>Generate Testware</h2>
+          <p>{props.session.testTarget || props.session.charter || 'Create a Session Report Draft from the material in this Session.'}</p>
         </div>
         <dl className="context-metrics" aria-label="Generation Context summary">
           <div>
             <dt>Included</dt>
-            <dd>{contextCount}</dd>
+            <dd>{materialCount}</dd>
           </div>
           <div>
             <dt>Entries</dt>
@@ -67,15 +76,33 @@ export function GenerationReviewPane(props: {
         </dl>
       </header>
 
-      <section className="provider-panel" aria-label="Generation provider options">
-        <div className="provider-panel-heading">
+      <section className={generateDisabled ? 'generation-preflight blocked' : 'generation-preflight'} aria-label="Generate Draft preflight">
+        <div className="generation-preflight-copy">
+          <Sparkles size={24} />
           <div>
-            <span className="eyebrow">Provider</span>
+            <h3>{generateDisabled ? 'Not quite ready' : 'Ready to generate a Draft'}</h3>
+            <p>
+              {generateDisabled
+                ? generateBlocker
+                : `${materialCount} included ${materialCount === 1 ? 'piece' : 'pieces'} of Session material will be used. You can review details before sending.`}
+            </p>
+          </div>
+        </div>
+        <button className="primary-command" disabled={generateDisabled} type="button" onClick={() => void props.onGenerate()}>
+          {props.generating ? <Loader2 className="spin" size={16} /> : <Sparkles size={16} />}
+          Generate Testware
+        </button>
+      </section>
+
+      <details className="preflight-disclosure provider-panel">
+        <summary className="preflight-disclosure-summary">
+          <span>
+            <span className="eyebrow">AI options</span>
             <strong>{providerReadiness}</strong>
             <small>{providerSummary(props.providerStatus)}</small>
-          </div>
+          </span>
           <span className={hasProvider ? 'provider-ready' : 'provider-missing'}>{hasProvider ? 'Ready' : 'Needs setup'}</span>
-        </div>
+        </summary>
         <div className="provider-controls">
           <label className="field">
             <span>Provider</span>
@@ -131,96 +158,87 @@ export function GenerationReviewPane(props: {
             ))}
           </div>
         ) : null}
-      </section>
+      </details>
 
-      <div className="review-grid">
-        <ReviewList
-          count={includedRows.length}
-          icon={<FileText size={16} />}
-          title="Included entries"
-          rows={includedRows}
-          empty="No included entries."
-          disabled={!props.contextReady || props.busy}
-          onToggleEntry={props.onToggleEntry}
-        />
-        <ReviewList
-          count={excludedRows.length}
-          icon={<CircleMinus size={16} />}
-          title="Excluded entries"
-          rows={excludedRows}
-          empty="No excluded entries. Exclude notes or findings you don't want to include."
-          disabled={!props.contextReady || props.busy}
-          onToggleEntry={props.onToggleEntry}
-        />
-        <section className="review-list attachment-context-card">
+      <details className="preflight-disclosure">
+        <summary className="preflight-disclosure-summary">
+          <span>
+            <span className="eyebrow">Review material</span>
+            <strong>{materialCount} included for AI</strong>
+            <small>Open only when you want to exclude Entries, add Evidence, or check what will be sent.</small>
+          </span>
+        </summary>
+        <div className="review-grid">
+          <ReviewList
+            count={includedRows.length}
+            icon={<FileText size={16} />}
+            title="Included entries"
+            rows={includedRows}
+            empty="No included entries."
+            disabled={!props.contextReady || props.busy}
+            onToggleEntry={props.onToggleEntry}
+          />
+          <ReviewList
+            count={excludedRows.length}
+            icon={<CircleMinus size={16} />}
+            title="Excluded entries"
+            rows={excludedRows}
+            empty="No excluded entries. Exclude notes or findings you don't want to include."
+            disabled={!props.contextReady || props.busy}
+            onToggleEntry={props.onToggleEntry}
+          />
+          <section className="review-list attachment-context-card">
+            <div className="context-card-heading">
+              <span>
+                <Paperclip size={16} />
+                <h3>Attachments</h3>
+              </span>
+              <strong>{props.sessionAttachments.length}</strong>
+            </div>
+            {props.sessionAttachments.length === 0 ? (
+              <div className="context-empty">
+                <Paperclip size={34} />
+                <p>No attachments</p>
+                <span>Add screenshots, docs, or files to provide more context.</span>
+              </div>
+            ) : (
+              <ReviewAttachmentList
+                attachments={props.sessionAttachments}
+                disabled={!props.contextReady || props.busy}
+                onToggleAttachment={props.onToggleAttachment}
+              />
+            )}
+            <button className="context-link-action" disabled={!props.contextReady || props.busy} type="button" onClick={props.onAddAttachment}>
+              + Add attachment
+            </button>
+          </section>
+        </div>
+
+        <section className="finding-strip">
           <div className="context-card-heading">
             <span>
-              <Paperclip size={16} />
-              <h3>Attachments</h3>
+              <Bug size={16} />
+              <h3>Findings</h3>
             </span>
-            <strong>{props.sessionAttachments.length}</strong>
+            <strong>{props.findings.length}</strong>
           </div>
-          {props.sessionAttachments.length === 0 ? (
-            <div className="context-empty">
-              <Paperclip size={34} />
-              <p>No attachments</p>
-              <span>Add screenshots, docs, or files to provide more context.</span>
+          {props.findings.length === 0 ? (
+            <div className="context-empty compact">
+              <Bug size={26} />
+              <p>No findings captured</p>
+              <span>Findings from your notes will appear here.</span>
             </div>
           ) : (
-            <ReviewAttachmentList
-              attachments={props.sessionAttachments}
-              disabled={!props.contextReady || props.busy}
-              onToggleAttachment={props.onToggleAttachment}
-            />
+            props.findings.map((finding) => (
+              <article className="finding-row" key={finding.id}>
+                <strong>{finding.title}</strong>
+                <span>{finding.summary}</span>
+                <small>{finding.evidenceEntryIds.length} linked Entries</small>
+              </article>
+            ))
           )}
-          <button className="context-link-action" disabled={!props.contextReady || props.busy} type="button" onClick={props.onAddAttachment}>
-            + Add attachment
-          </button>
         </section>
-      </div>
-
-      <section className="finding-strip">
-        <div className="context-card-heading">
-          <span>
-            <Bug size={16} />
-            <h3>Findings</h3>
-          </span>
-          <strong>{props.findings.length}</strong>
-        </div>
-        {props.findings.length === 0 ? (
-          <div className="context-empty compact">
-            <Bug size={26} />
-            <p>No findings captured</p>
-            <span>Findings from your notes will appear here.</span>
-          </div>
-        ) : (
-          props.findings.map((finding) => (
-            <article className="finding-row" key={finding.id}>
-              <strong>{finding.title}</strong>
-              <span>{finding.summary}</span>
-              <small>{finding.evidenceEntryIds.length} linked Entries</small>
-            </article>
-          ))
-        )}
-      </section>
-
-      <section className={generateDisabled ? 'generation-ready-bar blocked' : 'generation-ready-bar'}>
-        <div>
-          <CheckCircle2 size={22} />
-          <span>
-            <strong>{generateDisabled ? 'Review context before generating' : 'Ready to generate'}</strong>
-            <small>
-              {generateDisabled
-                ? 'Choose an available provider and include at least one Entry or attachment.'
-                : 'Your context looks good. You can generate Testware when you are ready.'}
-            </small>
-          </span>
-        </div>
-        <button className="primary-command" disabled={generateDisabled} type="button" onClick={() => void props.onGenerate()}>
-          {props.generating ? <Loader2 className="spin" size={16} /> : <Sparkles size={16} />}
-          Generate Testware
-        </button>
-      </section>
+      </details>
     </section>
   )
 }

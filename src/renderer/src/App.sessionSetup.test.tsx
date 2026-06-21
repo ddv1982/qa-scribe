@@ -36,7 +36,7 @@ describe('App Session setup', () => {
     expect(screen.queryByLabelText('Test Target (required)')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Test Objective (required)')).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: /Generate Testware/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Generate' }))
 
     await waitFor(() => expect(api.createGenerationContext).toHaveBeenCalledWith(snapshot.session.id))
     expect(api.generateTestware).not.toHaveBeenCalled()

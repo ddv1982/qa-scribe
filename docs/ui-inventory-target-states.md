@@ -11,7 +11,7 @@ This note anchors the UI cleanup work against the product direction in `docs/ini
 | Session Library | Create Session | Primary | Keep text-labeled or clearly discoverable in the sidebar. |
 | Topbar | Session title and optional context | Primary context | Keep, but make it quieter than capture controls. |
 | Topbar | Provider status | Secondary status | Keep visible, but compact; details belong in generation/provider context. |
-| Topbar | Generate Testware | Primary transition action | Keep easy to find once the Session has a title. Missing optional context should be nonblocking. |
+| Topbar | Generate | Primary transition action | Keep easy to find once the Session has a title. Missing optional context should be nonblocking. |
 | Topbar | Export MD | Secondary command | Demote behind a more/options or Draft/export area. |
 | Topbar | Export JSON | Secondary command | Demote behind a more/options or Draft/export area. |
 | Session setup | Title | Required setup | Keep near the top for new/incomplete Sessions; reduce dominance after saved. |
@@ -20,8 +20,8 @@ This note anchors the UI cleanup work against the product direction in `docs/ini
 | Session setup | Autosave status | Secondary status | Keep quiet and near the form it describes. |
 | Session setup | Save Session icon | Secondary/manual fallback | Keep reachable but low emphasis because autosave is the default. |
 | Mode tabs | Capture | Primary mode | Capture should be the default and visually dominant. |
-| Mode tabs | Review Context / Generation | Secondary mode | Keep as a step entered from Generate Testware or tabs. |
-| Mode tabs | Drafts | Secondary mode | Keep available after a Draft exists; should show rendered output first. |
+| Mode tabs | Generation | Secondary mode | Remove from default tabs; enter only from the explicit Generate action. |
+| Mode tabs | Output | Secondary mode | Keep available for Draft review; should show rendered output first. |
 | Capture tools | Search Entries | Secondary utility | Keep compact; avoid competing with composer. |
 | Capture tools | Filter by Entry type | Secondary utility | Keep compact; pair with search. |
 | Capture tools | Add Evidence | Contextual/secondary | Prefer entry/session context or inspector; keep reachable without top-level dominance. |
@@ -72,10 +72,16 @@ This note anchors the UI cleanup work against the product direction in `docs/ini
 
 ### Generation Review
 
-- Generate Testware leads to a distinct review step that explains what will be sent before any provider call.
-- Provider/model/reasoning controls are available in this step, not permanently dominant in the capture view.
-- Excluding Entries and attachments is treated as review work, not general timeline clutter.
+- Generate leads to a compact preflight step that explains what will be used before any provider call.
+- Provider/model/reasoning controls are available under AI options, not permanently dominant in capture or the default preflight.
+- Excluding Entries and attachments is treated as optional review work under Review material, not general timeline clutter.
 - Generation progress must prevent duplicate submission and preserve the reviewed context.
+
+### Settings
+
+- AI providers and the generation system prompt are visible by default.
+- Capture template customization is advanced and disclosed only when requested.
+- Settings copy should reinforce that ordinary capture and generation work without template tuning.
 
 ### Draft Review
 

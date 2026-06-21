@@ -3,6 +3,7 @@
 import '@testing-library/jest-dom/vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import type { Finding as StoredFinding } from '../../shared/contracts'
 import { App } from './App'
 import {
   baseEntry,
@@ -73,8 +74,13 @@ describe('App provider controls', () => {
     render(<App />)
 
     expect(await screen.findByRole('heading', { name: 'Checkout smoke' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /Generate Testware/i }))
+    expect(screen.queryByRole('button', { name: 'Context' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Generate' }))
 
+    expect(await screen.findByRole('heading', { name: 'Generate Testware' })).toBeInTheDocument()
+    expect(await screen.findByText('Ready to generate a Draft')).toBeInTheDocument()
+    expect(screen.getByLabelText('Provider (required)')).not.toBeVisible()
+    fireEvent.click(screen.getByText('AI options'))
     const providerSelect = (await screen.findByLabelText('Provider (required)')) as HTMLSelectElement
     await waitFor(() => expect(providerSelect).toHaveValue('claude_code'))
     expect(within(providerSelect).getByRole('option', { name: 'Claude Code' })).toBeInTheDocument()
@@ -120,12 +126,38 @@ describe('App provider controls', () => {
 
     render(<App />)
 
-    fireEvent.click(await screen.findByRole('button', { name: /Generate Testware/i }))
-    await screen.findByRole('heading', { name: 'Generation Context' })
+    fireEvent.click(await screen.findByRole('button', { name: 'Generate' }))
+    await screen.findByRole('heading', { name: 'Generate Testware' })
+    fireEvent.click(screen.getByText('Review material'))
     fireEvent.click(screen.getByRole('button', { name: '+ Add attachment' }))
     fireEvent.click(within(screen.getByRole('dialog', { name: 'Attach Evidence' })).getByRole('button', { name: /Browse/ }))
 
     await waitFor(() => expect(api.importAttachment).toHaveBeenCalledWith(snapshot.session.id, undefined))
+  })
+
+  it('allows generation from manual Findings when no Entries or attachments are included', async () => {
+    const snapshot = createSnapshot({
+      entries: [],
+      attachments: [],
+      findings: [storedFinding({ title: 'Checkout blocks retry', body: 'Retry remains disabled after payment failure.' })],
+      session: {
+        ...baseSession(),
+        title: 'Findings only',
+        testTarget: 'Checkout',
+        charter: 'Turn manual Finding into Testware'
+      }
+    })
+    const api = installQaScribeApi(snapshot, providerStatus([codexAvailable()]))
+
+    render(<App />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Generate' }))
+
+    expect(await screen.findByText('Ready to generate a Draft')).toBeInTheDocument()
+    expect(screen.getByText('1 included for AI')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Generate Testware' }))
+
+    await waitFor(() => expect(api.generateTestware).toHaveBeenCalledWith('context-1', expect.objectContaining({ provider: 'codex_cli' })))
   })
 
   it('does not offer settings-disabled providers in generation controls', async () => {
@@ -152,7 +184,8 @@ describe('App provider controls', () => {
 
     render(<App />)
 
-    fireEvent.click(await screen.findByRole('button', { name: /Generate Testware/i }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Generate' }))
+    fireEvent.click(await screen.findByText('AI options'))
     const providerSelect = (await screen.findByLabelText('Provider (required)')) as HTMLSelectElement
 
     expect(within(providerSelect).getByRole('option', { name: 'Codex CLI' })).toBeInTheDocument()
@@ -180,6 +213,9 @@ describe('App provider controls', () => {
     fireEvent.change(screen.getByLabelText('Custom system prompt'), {
       target: { value: 'Use my concise QA voice.' }
     })
+    expect(screen.getByLabelText('Note title type')).not.toBeVisible()
+    fireEvent.click(screen.getByText('Advanced'))
+    expect(screen.getByLabelText('Note title type')).toBeVisible()
     fireEvent.change(screen.getByLabelText('Note title type'), { target: { value: 'textarea' } })
     fireEvent.click(within(screen.getByRole('group', { name: 'Note title order' })).getByRole('button', { name: 'Down' }))
     fireEvent.change(screen.getByLabelText('Severity choices'), { target: { value: 'blocker\nminor' } })
@@ -275,7 +311,8 @@ describe('App provider controls', () => {
 
     render(<App />)
 
-    fireEvent.click(await screen.findByRole('button', { name: /Generate Testware/i }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Generate' }))
+    fireEvent.click(await screen.findByText('AI options'))
     const modelSelect = (await screen.findByLabelText('Model (optional)')) as HTMLSelectElement
     const reasoningSelect = (await screen.findByLabelText('Reasoning (optional)')) as HTMLSelectElement
 
@@ -336,7 +373,8 @@ describe('App provider controls', () => {
 
     render(<App />)
 
-    fireEvent.click(await screen.findByRole('button', { name: /Generate Testware/i }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Generate' }))
+    fireEvent.click(await screen.findByText('Review material'))
     const excludeButtons = await screen.findAllByRole('button', { name: 'Exclude' })
     fireEvent.click(excludeButtons[0]!)
     expect(await screen.findByRole('button', { name: 'Include' })).toBeInTheDocument()
@@ -344,8 +382,22 @@ describe('App provider controls', () => {
     fireEvent.click(screen.getAllByRole('button', { name: 'Generate Testware' }).at(-1)!)
 
     expect(await screen.findByText('provider failed')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Generation Context' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Generate Testware' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Include' })).toBeInTheDocument()
     expect(api.getSession).toHaveBeenCalledTimes(1)
   })
 })
+
+function storedFinding(input: Partial<StoredFinding> = {}): StoredFinding {
+  return {
+    id: 'finding-1',
+    sessionId: 'session-1',
+    title: 'Checkout failure',
+    body: 'Checkout cannot complete.',
+    kind: 'bug',
+    metadataJson: null,
+    createdAt: '2026-06-15T00:04:00.000Z',
+    updatedAt: '2026-06-15T00:04:00.000Z',
+    ...input
+  }
+}

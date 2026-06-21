@@ -65,6 +65,7 @@ export function SettingsPane(props: {
       <header className="settings-header">
         <div>
           <h2>Settings</h2>
+          <p>Keep AI generation simple. Advanced capture structure is optional.</p>
         </div>
         <div className="settings-actions">
           <button className="secondary-command fit" type="button" onClick={() => void props.onClose()}>
@@ -125,11 +126,15 @@ export function SettingsPane(props: {
         </section>
       </div>
 
-      <section className="settings-card settings-row-card settings-card-wide">
-        <div className="settings-section-heading">
-          <h3>Capture Templates</h3>
-          <p>Configure the default structure for notes and findings.</p>
-        </div>
+      <details className="settings-card settings-card-wide settings-advanced-card">
+        <summary className="settings-advanced-summary">
+          <span className="settings-section-heading">
+            <span className="eyebrow">Advanced</span>
+            <h3>Capture Templates</h3>
+            <p>Change Note and Finding form fields only when the default notepad flow is not enough.</p>
+          </span>
+          <span className="secondary-command compact" aria-hidden="true">Show fields</span>
+        </summary>
         <div className="template-columns">
           <TemplateEditor
             title="Note form"
@@ -144,7 +149,7 @@ export function SettingsPane(props: {
             onUpdate={(id, patch) => updateField('finding', id, patch)}
           />
         </div>
-      </section>
+      </details>
     </section>
   )
 }

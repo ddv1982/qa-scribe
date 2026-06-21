@@ -1112,7 +1112,7 @@ export function App(): ReactElement {
                 <StatusPill providerStatus={providerStatus} />
                 <button className="primary-command" type="button" onClick={openGenerationReview}>
                   <Sparkles size={16} />
-                  {workspaceMode === 'drafts' ? 'Regenerate' : 'Generate Testware'}
+                  {workspaceMode === 'drafts' ? 'Regenerate' : 'Generate'}
                 </button>
                 <details className="topbar-menu">
                   <summary aria-label="Session actions" className="secondary-command compact">
@@ -1162,7 +1162,7 @@ export function App(): ReactElement {
 
             <section className={selectedEntry ? 'detail-grid has-inspector' : 'detail-grid'}>
               <div className="timeline-pane">
-                <ModeTabs mode={workspaceMode} setMode={setWorkspaceMode} onOpenGeneration={openGenerationReview} />
+                <ModeTabs mode={workspaceMode} setMode={setWorkspaceMode} />
 
                 {workspaceMode === 'capture' ? (
                   <CapturePane

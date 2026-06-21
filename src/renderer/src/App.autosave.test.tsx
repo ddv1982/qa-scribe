@@ -46,7 +46,7 @@ describe('App autosave behavior', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Edit Session details' }))
     fireEvent.click(screen.getByText('Optional context'))
     fireEvent.change(screen.getByLabelText('Area, URL, or ticket (optional)'), { target: { value: 'Updated checkout' } })
-    fireEvent.click(screen.getByRole('button', { name: /Generate Testware/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Generate' }))
 
     await waitFor(() => expect(api.createGenerationContext).toHaveBeenCalledWith(snapshot.session.id))
     expect(api.updateSession).toHaveBeenCalledWith(

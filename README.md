@@ -18,7 +18,7 @@ Implemented capabilities include:
 - Manual Draft editing and copy-friendly Jira bug draft sections.
 - Explicit AI generation through already-authenticated local Codex CLI, Claude Code, or GitHub Copilot CLI.
 - Generation Context review before provider calls.
-- Application settings for selectable AI providers, the generation system prompt, and Note/Finding capture templates.
+- Application settings for selectable AI providers, the generation system prompt, and advanced Note/Finding capture templates.
 - Finding composer attachments from actual and expected result editors, linked as Finding Evidence on save.
 - Local capture, persistence, and export without AI configuration.
 - Electrobun local builds for the current platform.
@@ -81,7 +81,7 @@ Environment overrides still influence default model selection when present: `CLA
 
 Application settings also store the editable system prompt used as the first instruction block for AI generation. qa-scribe still appends protected context, evidence, and structured-output instructions so generated Testware remains grounded in the reviewed Generation Context.
 
-Settings also control the fields shown by the Note and Finding capture forms. Required fields stay enabled, while optional fields can be hidden and supported field types include text, textarea, rich text, select, multiselect, and checkbox controls. The Finding form keeps structured Jira-oriented fields such as actual result, expected result, steps, severity, priority, component, environment, and notes.
+Advanced settings also control the fields shown by the Note and Finding capture forms. Required fields stay enabled, while optional fields can be hidden and supported field types include text, textarea, rich text, select, multiselect, and checkbox controls. The Finding form keeps structured Jira-oriented fields such as actual result, expected result, steps, severity, priority, component, environment, and notes.
 
 For desktop launches, qa-scribe hydrates the provider command `PATH` from the user's login shell and common local install locations before spawning `claude`, `codex`, or `copilot`. This helps CLIs installed through Homebrew, npm, nvm, fnm, or similar tools work the same way they do in a terminal. Provider checks and generation run from an empty qa-scribe runtime directory under `~/.qa-scribe/provider-runtime` by default, so the CLIs can resolve their normal user-local configuration without receiving the app repository as working-directory context. Set `QA_SCRIBE_PROVIDER_RUNTIME_DIR` to override that runtime location.
 

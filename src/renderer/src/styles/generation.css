@@ -80,57 +80,108 @@
   padding: 14px;
 }
 
-.provider-panel-heading {
+.generation-preflight {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 18px;
+  border: 1px solid color-mix(in srgb, var(--success) 34%, var(--border));
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--success-soft) 48%, var(--glass));
+  box-shadow: var(--inner-highlight), var(--shadow-soft);
+  padding: 20px;
 }
 
-.provider-panel-heading > div {
-  display: grid;
+.generation-preflight.blocked {
+  border-color: color-mix(in srgb, var(--warning) 34%, var(--border));
+  background: color-mix(in srgb, var(--warning-soft) 42%, var(--glass));
+}
+
+.generation-preflight-copy {
+  display: flex;
+  align-items: center;
+  gap: 14px;
   min-width: 0;
-  gap: 3px;
 }
 
-.provider-panel-heading strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.generation-preflight-copy > svg {
+  flex: 0 0 auto;
+  color: var(--success);
 }
 
-.provider-panel-heading small {
+.generation-preflight.blocked .generation-preflight-copy > svg {
+  color: var(--warning);
+}
+
+.generation-preflight-copy h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.generation-preflight-copy p {
+  max-width: 680px;
+  margin: 5px 0 0;
   color: var(--text-secondary);
+  line-height: 1.4;
 }
 
-.provider-panel-summary {
+.preflight-disclosure {
+  display: grid;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--glass-muted) 58%, transparent);
+  box-shadow: var(--inner-highlight);
+  padding: 0;
+}
+
+.preflight-disclosure[open] {
+  gap: 14px;
+  padding-bottom: 14px;
+}
+
+.preflight-disclosure-summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  min-width: 0;
   cursor: pointer;
   list-style: none;
+  padding: 14px;
 }
 
-.provider-panel-summary::-webkit-details-marker {
+.preflight-disclosure-summary::-webkit-details-marker {
   display: none;
 }
 
-.provider-panel-summary:focus-visible {
+.preflight-disclosure-summary:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
 
-.provider-panel-summary > span:first-child {
+.preflight-disclosure-summary > span:first-child {
   display: grid;
   min-width: 0;
   gap: 3px;
 }
 
-.provider-panel-summary strong {
+.preflight-disclosure-summary strong,
+.preflight-disclosure-summary small {
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+}
+
+.preflight-disclosure-summary small {
+  color: var(--text-secondary);
+}
+
+.preflight-disclosure[open] .provider-controls,
+.preflight-disclosure[open] .provider-unavailable,
+.preflight-disclosure[open] .review-grid,
+.preflight-disclosure[open] .finding-strip {
+  margin-right: 14px;
+  margin-left: 14px;
 }
 
 .provider-ready,
@@ -336,54 +387,22 @@
   color: var(--text);
 }
 
-.generation-ready-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  border: 1px solid color-mix(in srgb, var(--success) 34%, var(--border));
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--success-soft) 54%, var(--glass));
-  box-shadow: var(--inner-highlight), var(--shadow-soft);
-  padding: 16px;
-}
-
-.generation-ready-bar.blocked {
-  border-color: color-mix(in srgb, var(--warning) 34%, var(--border));
-  background: color-mix(in srgb, var(--warning-soft) 44%, var(--glass));
-}
-
-.generation-ready-bar > div {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-  color: var(--success);
-}
-
-.generation-ready-bar.blocked > div {
-  color: var(--warning);
-}
-
-.generation-ready-bar span {
-  display: grid;
-  min-width: 0;
-  gap: 3px;
-}
-
-.generation-ready-bar strong {
-  color: var(--text);
-}
-
-.generation-ready-bar small {
-  color: var(--text-secondary);
-}
-
 @media (max-width: 1050px) {
   .context-summary,
   .review-grid,
   .provider-controls,
   .model-selector {
     grid-template-columns: 1fr;
+  }
+
+  .generation-preflight,
+  .preflight-disclosure-summary {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .generation-preflight .primary-command {
+    width: 100%;
+    justify-content: center;
   }
 }
