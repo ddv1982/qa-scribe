@@ -14,9 +14,9 @@ use qa_scribe_core::{
         EntryType, Finding, FindingDraft, FindingKind, GenerationContext,
     },
     generation::{
-        ActionPromptKind, SESSION_REPORT_PROMPT_VERSION, parse_session_report_response,
-        preserve_managed_attachment_images, project_html_to_prompt_text, render_action_prompt,
-        render_session_report_prompt,
+        ActionPromptKind, SESSION_REPORT_PROMPT_VERSION, parse_rich_html_fragment_response,
+        parse_session_report_response, preserve_managed_attachment_images,
+        project_html_to_prompt_text, render_action_prompt, render_session_report_prompt,
     },
 };
 use serde::{Deserialize, Serialize};
@@ -72,7 +72,7 @@ impl GenerateAiActionKind {
         match self {
             GenerateAiActionKind::Testware => "testware-v3",
             GenerateAiActionKind::Finding => "finding-v3",
-            GenerateAiActionKind::Summary => "note-summary-v2",
+            GenerateAiActionKind::Summary => "note-summary-v3",
         }
     }
 
@@ -506,7 +506,7 @@ fn finish_ai_action_generation(
     match output {
         Ok(output) if output.success() => {
             let response = output.response_text();
-            let body = parse_session_report_response(&response);
+            let body = parse_rich_html_fragment_response(&response);
             let completed_run = service.complete_ai_run(&prepared.ai_run.id)?;
             match request.action {
                 GenerateAiActionKind::Testware => {
@@ -1295,9 +1295,19 @@ fn derive_title(markdown: &str, fallback: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use qa_scribe_core::ai::GenerationOutputFormat;
+    use std::{os::unix::process::ExitStatusExt, process::ExitStatus};
 
-    use super::{ProviderStreamParser, StreamUpdate};
+    use qa_scribe_core::{
+        ai::GenerationOutputFormat,
+        domain::{AiProvider, EntryDraft, EntryType, SessionDraft},
+        services::SessionService,
+    };
+
+    use super::{
+        GenerateAiActionKind, GenerateAiActionRequest, ProviderGenerationOutput,
+        ProviderStreamParser, StreamUpdate, finish_ai_action_generation,
+        prepare_ai_action_generation,
+    };
 
     #[test]
     fn stream_parser_accumulates_codex_style_deltas() {
@@ -1331,5 +1341,84 @@ mod tests {
         parser.push_bytes(b"line two\n");
 
         assert_eq!(parser.finish().as_deref(), Some("line one\nline two"));
+    }
+
+    #[test]
+    fn action_completion_repairs_escaped_rich_html_before_persistence() {
+        for action in [
+            GenerateAiActionKind::Testware,
+            GenerateAiActionKind::Finding,
+            GenerateAiActionKind::Summary,
+        ] {
+            let result = finish_action_with_output(
+                action,
+                "&lt;h2&gt;Escaped Title&lt;/h2&gt;&lt;p&gt;Generated rich content.&lt;/p&gt;",
+            );
+            let body = match action {
+                GenerateAiActionKind::Testware => result.draft.expect("draft").body,
+                GenerateAiActionKind::Finding => {
+                    let finding = result.finding.expect("finding");
+                    assert_eq!(finding.title, "Escaped Title");
+                    finding.body
+                }
+                GenerateAiActionKind::Summary => result.note_entry.expect("note entry").body,
+            };
+
+            assert!(body.contains("<h2>Escaped Title</h2>"));
+            assert!(body.contains("<p>Generated rich content.</p>"));
+            assert!(!body.contains("&lt;p&gt;"));
+            assert!(!body.contains("&lt;h2&gt;"));
+        }
+    }
+
+    fn finish_action_with_output(
+        action: GenerateAiActionKind,
+        response: &str,
+    ) -> super::GenerateAiActionResult {
+        let service = SessionService::in_memory().expect("service should open");
+        let session = service
+            .create_session(SessionDraft {
+                title: "Gmail login".to_string(),
+                ..SessionDraft::default()
+            })
+            .expect("session should create");
+        let note = service
+            .create_entry(EntryDraft {
+                session_id: session.id.clone(),
+                entry_type: EntryType::Note,
+                title: Some("Gmail login".to_string()),
+                body: "<p>Gmail login fails.</p>".to_string(),
+                metadata_json: None,
+                excluded_from_generation: false,
+            })
+            .expect("note should create");
+        let request = GenerateAiActionRequest {
+            session_id: session.id,
+            provider: AiProvider::CodexCli,
+            model: "test-model".to_string(),
+            reasoning_effort: None,
+            action,
+            note_entry_id: Some(note.id),
+        };
+        let prepared =
+            prepare_ai_action_generation(&service, &request).expect("generation should prepare");
+
+        finish_ai_action_generation(
+            &service,
+            &request,
+            prepared,
+            Ok(success_generation_output(response)),
+        )
+        .expect("generation should finish")
+    }
+
+    fn success_generation_output(response: &str) -> ProviderGenerationOutput {
+        ProviderGenerationOutput {
+            status: Some(ExitStatus::from_raw(0)),
+            stdout: response.as_bytes().to_vec(),
+            stderr: Vec::new(),
+            assistant_text: None,
+            cancelled: false,
+        }
     }
 }

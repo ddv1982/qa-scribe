@@ -7,7 +7,10 @@ pub use prompt::{
     ActionPromptKind, SESSION_REPORT_PROMPT_VERSION, render_action_prompt,
     render_session_report_prompt,
 };
-pub use response::{parse_session_report_response, preserve_managed_attachment_images};
+pub use response::{
+    parse_rich_html_fragment_response, parse_session_report_response,
+    preserve_managed_attachment_images,
+};
 
 #[cfg(test)]
 mod tests {
@@ -100,6 +103,7 @@ mod tests {
         assert_eq!(prompt.matches("Guest checkout failed.").count(), 1);
         assert!(prompt.contains("clean HTML fragment"));
         assert!(prompt.contains("selected note only"));
+        assert!(prompt.contains("Do not escape tags as &lt;p&gt;"));
         assert!(!prompt.contains("Console showed 500."));
         assert!(!prompt.contains("Previous finding."));
         assert!(!prompt.contains("console.png"));
@@ -137,6 +141,7 @@ mod tests {
 
         assert!(prompt.contains("5-8"));
         assert!(prompt.contains("clean HTML fragment"));
+        assert!(prompt.contains("Do not escape tags as &lt;p&gt;"));
         assert!(prompt.contains("Checkout fails after applying coupon."));
         assert!(!prompt.contains("Console showed 500."));
         assert!(!prompt.contains("Previous finding."));
@@ -199,6 +204,7 @@ mod tests {
         assert!(prompt.contains("Gmail failed."));
         assert!(prompt.contains("qa-scribe-attachment://attachment-1"));
         assert!(prompt.contains("data-attachment-id=\"attachment-1\""));
+        assert!(prompt.contains("Do not escape tags as &lt;p&gt;"));
         assert!(!prompt.contains("Console showed 500."));
         assert!(!prompt.contains("Existing finding."));
         assert!(!prompt.contains("attachments/session/attachment-1_gmail-error.png"));
@@ -240,6 +246,57 @@ mod tests {
 
         assert!(repaired_from_broken.contains("src=\"qa-scribe-attachment://attachment-1\""));
         assert!(repaired_from_broken.contains("alt=\"Broken before repair\""));
+    }
+
+    #[test]
+    fn rich_html_parser_repairs_escaped_editor_fragments() {
+        let parsed = parse_rich_html_fragment_response(
+            "```html\n&lt;h2&gt;Clean summary&lt;/h2&gt;\n&lt;p&gt;Gmail login failed &amp;amp; showed an error.&lt;/p&gt;\n```",
+        );
+
+        assert!(parsed.contains("<h2>Clean summary</h2>"));
+        assert!(parsed.contains("<p>Gmail login failed &amp; showed an error.</p>"));
+        assert!(!parsed.contains("&lt;p&gt;"));
+    }
+
+    #[test]
+    fn rich_html_parser_repairs_mixed_literal_and_escaped_fragments() {
+        let parsed = parse_rich_html_fragment_response(
+            "<h2>Gmail login doesn't work</h2>\nGmail login doesn't work\n&lt;p&gt;Gmail displays an error message.&lt;/p&gt;\n&lt;ol&gt;&lt;li&gt;Go to Gmail.&lt;/li&gt;&lt;/ol&gt;",
+        );
+
+        assert!(parsed.contains("<h2>Gmail login doesn't work</h2>"));
+        assert!(parsed.contains("<p>Gmail displays an error message.</p>"));
+        assert!(parsed.contains("<ol><li>Go to Gmail.</li></ol>"));
+        assert!(!parsed.contains("&lt;ol&gt;"));
+    }
+
+    #[test]
+    fn rich_html_parser_does_not_decode_plain_text_tag_mentions() {
+        let parsed =
+            parse_rich_html_fragment_response("Use &lt;p&gt; for paragraph tags in examples.");
+
+        assert_eq!(parsed, "Use &lt;p&gt; for paragraph tags in examples.");
+    }
+
+    #[test]
+    fn escaped_summary_response_can_restore_attachment_images() {
+        let attachment = test_attachment("attachment-1", Some("entry-selected"), "gmail-error.png");
+        let original = "<p>Original evidence.</p><img src=\"qa-scribe-attachment://attachment-1\" data-attachment-id=\"attachment-1\" alt=\"Gmail screenshot\" />";
+        let response = "&lt;h2&gt;Clean summary&lt;/h2&gt;&lt;p&gt;Screenshot:&lt;/p&gt;&lt;img src=&quot;attachments/session/attachment-1_gmail-error.png&quot; alt=&quot;Updated alt&quot;&gt;";
+
+        let parsed = parse_rich_html_fragment_response(response);
+        let preserved = preserve_managed_attachment_images(
+            &parsed,
+            original,
+            std::slice::from_ref(&attachment),
+        );
+
+        assert!(preserved.contains("<h2>Clean summary</h2>"));
+        assert!(preserved.contains("src=\"qa-scribe-attachment://attachment-1\""));
+        assert!(preserved.contains("data-attachment-id=\"attachment-1\""));
+        assert!(!preserved.contains("&lt;img"));
+        assert!(!preserved.contains("src=\"attachments/session/attachment-1_gmail-error.png\""));
     }
 
     #[test]

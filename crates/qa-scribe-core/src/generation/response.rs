@@ -1,16 +1,18 @@
 use crate::domain::Attachment;
 
 const MANAGED_ATTACHMENT_PROTOCOL: &str = "qa-scribe-attachment://";
+const EDITOR_HTML_TAGS: &[&str] = &[
+    "a", "b", "br", "em", "h2", "h3", "i", "img", "input", "li", "ol", "p", "strong", "ul",
+];
+const SELF_CLOSING_EDITOR_HTML_TAGS: &[&str] = &["br", "img", "input"];
 
 pub fn parse_session_report_response(response: &str) -> String {
-    let trimmed = response.trim();
-    if let Some(stripped) = trimmed.strip_prefix("```markdown") {
-        return stripped.trim_end_matches("```").trim().to_string();
-    }
-    if let Some(stripped) = trimmed.strip_prefix("```") {
-        return stripped.trim_end_matches("```").trim().to_string();
-    }
-    trimmed.to_string()
+    strip_response_fence(response)
+}
+
+pub fn parse_rich_html_fragment_response(response: &str) -> String {
+    let stripped = strip_response_fence(response);
+    repair_escaped_editor_html(&stripped)
 }
 
 pub fn preserve_managed_attachment_images(
@@ -66,6 +68,107 @@ fn replace_image_source(value: &str, source: &str, attachment_id: &str) -> Strin
         output = output.replace(&needle, &replacement);
     }
     output
+}
+
+fn strip_response_fence(response: &str) -> String {
+    let trimmed = response.trim();
+    let Some(after_ticks) = trimmed.strip_prefix("```") else {
+        return trimmed.to_string();
+    };
+    let Some(body_start) = after_ticks.find('\n') else {
+        return trimmed.to_string();
+    };
+
+    let body = after_ticks[body_start + 1..].trim();
+    body.strip_suffix("```")
+        .map(str::trim)
+        .unwrap_or(body)
+        .to_string()
+}
+
+fn repair_escaped_editor_html(value: &str) -> String {
+    let trimmed = value.trim();
+    if should_decode_escaped_editor_html(trimmed) {
+        decode_basic_html_entities(trimmed)
+    } else {
+        trimmed.to_string()
+    }
+}
+
+fn should_decode_escaped_editor_html(value: &str) -> bool {
+    let lower = value.to_ascii_lowercase();
+    if !contains_escaped_editor_opening_tag(&lower) {
+        return false;
+    }
+
+    contains_escaped_editor_closing_tag(&lower)
+        || contains_literal_editor_tag(&lower)
+        || contains_escaped_self_closing_editor_tag(&lower)
+}
+
+fn contains_escaped_editor_opening_tag(lower: &str) -> bool {
+    EDITOR_HTML_TAGS
+        .iter()
+        .any(|tag| contains_escaped_tag_start(lower, tag, false))
+}
+
+fn contains_escaped_editor_closing_tag(lower: &str) -> bool {
+    EDITOR_HTML_TAGS
+        .iter()
+        .filter(|tag| !SELF_CLOSING_EDITOR_HTML_TAGS.contains(tag))
+        .any(|tag| contains_escaped_tag_start(lower, tag, true))
+}
+
+fn contains_escaped_self_closing_editor_tag(lower: &str) -> bool {
+    SELF_CLOSING_EDITOR_HTML_TAGS
+        .iter()
+        .any(|tag| contains_escaped_tag_start(lower, tag, false))
+}
+
+fn contains_literal_editor_tag(lower: &str) -> bool {
+    EDITOR_HTML_TAGS.iter().any(|tag| {
+        contains_literal_tag_start(lower, tag, false)
+            || contains_literal_tag_start(lower, tag, true)
+    })
+}
+
+fn contains_escaped_tag_start(lower: &str, tag: &str, closing: bool) -> bool {
+    let needle = if closing {
+        format!("&lt;/{tag}")
+    } else {
+        format!("&lt;{tag}")
+    };
+    contains_tag_boundary(lower, &needle, tag.len() + if closing { 5 } else { 4 })
+}
+
+fn contains_literal_tag_start(lower: &str, tag: &str, closing: bool) -> bool {
+    let needle = if closing {
+        format!("</{tag}")
+    } else {
+        format!("<{tag}")
+    };
+    contains_tag_boundary(lower, &needle, tag.len() + if closing { 2 } else { 1 })
+}
+
+fn contains_tag_boundary(lower: &str, needle: &str, boundary_offset: usize) -> bool {
+    let mut offset = 0usize;
+    while let Some(relative_start) = lower[offset..].find(needle) {
+        let start = offset + relative_start;
+        let boundary_index = start + boundary_offset;
+        if tag_boundary_matches(lower, boundary_index) {
+            return true;
+        }
+        offset = boundary_index;
+    }
+    false
+}
+
+fn tag_boundary_matches(value: &str, index: usize) -> bool {
+    value[index..]
+        .chars()
+        .next()
+        .is_some_and(|character| character.is_whitespace() || character == '/' || character == '>')
+        || value[index..].starts_with("&gt;")
 }
 
 fn managed_images_from_html(value: &str, attachments: &[Attachment]) -> Vec<ManagedImage> {

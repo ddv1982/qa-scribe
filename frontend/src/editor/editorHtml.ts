@@ -4,6 +4,11 @@ export const emptyNoteHtml = '<p><br></p>'
 export const managedAttachmentProtocol = 'qa-scribe-attachment://'
 const allowedEditorTags = new Set(['a', 'b', 'br', 'em', 'h2', 'h3', 'i', 'img', 'input', 'li', 'ol', 'p', 'strong', 'ul'])
 const removedEditorTags = new Set(['embed', 'form', 'iframe', 'math', 'meta', 'object', 'script', 'style', 'svg', 'template'])
+const editorTagPattern = 'a|b|br|em|h2|h3|i|img|input|li|ol|p|strong|ul'
+const escapedEditorOpeningTagPattern = new RegExp(`&lt;(?:${editorTagPattern})(?:\\s|/|&gt;)`, 'i')
+const escapedEditorClosingTagPattern = new RegExp(`&lt;/(?:a|b|em|h2|h3|i|li|ol|p|strong|ul)&gt;`, 'i')
+const escapedSelfClosingEditorTagPattern = /&lt;(?:br|img|input)(?:\s|\/|&gt;)/i
+const literalEditorTagPattern = new RegExp(`</?(?:${editorTagPattern})(?:\\s|/|>)`, 'i')
 
 export function containsInlineImageData(value: string): boolean {
   return /<img\b[^>]*\bsrc=["']data:image\//i.test(value)
@@ -52,7 +57,7 @@ export function managedAttachmentImageHtml(attachmentId: string, filename: strin
 }
 
 export function normalizeEditorHtml(value: string): string {
-  const trimmed = value.trim()
+  const trimmed = repairEscapedEditorHtml(value.trim())
   if (!trimmed || trimmed === '<br>') return emptyNoteHtml
   const html = trimmed.startsWith('<') ? trimmed : `<p>${escapeHtml(trimmed).replace(/\n/g, '<br />')}</p>`
   return sanitizeNoteHtml(html) || emptyNoteHtml
@@ -118,6 +123,22 @@ function escapeHtml(value: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;')
+}
+
+function repairEscapedEditorHtml(value: string): string {
+  if (!shouldDecodeEscapedEditorHtml(value)) return value
+  return decodeHtmlEntities(value).trim()
+}
+
+function shouldDecodeEscapedEditorHtml(value: string): boolean {
+  if (!escapedEditorOpeningTagPattern.test(value)) return false
+  return escapedEditorClosingTagPattern.test(value) || literalEditorTagPattern.test(value) || escapedSelfClosingEditorTagPattern.test(value)
+}
+
+function decodeHtmlEntities(value: string): string {
+  const textarea = document.createElement('textarea')
+  textarea.innerHTML = value
+  return textarea.value
 }
 
 function managedAttachmentIdFromImage(image: HTMLImageElement): string | null {
