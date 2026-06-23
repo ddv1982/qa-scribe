@@ -103,8 +103,8 @@ Validation should be added early and become stricter with each phase:
 - `cargo clippy --workspace --all-targets -- -D warnings` for Rust linting.
 - `cargo test --workspace` for core, command, and smoke tests.
 - Frontend typecheck and build for React/Vite.
-- `npm run verify` for the broad gate used before packaging or handoff.
-- `npm run smoke` for the non-GUI status smoke harness.
+- `bun run verify` for the broad gate used before packaging or handoff.
+- `bun run smoke` for the non-GUI status smoke harness.
 - Manual desktop smoke for path-based attachment import, clipboard image paste/copy, app-data paths, provider detection, and package launch when a GUI target is available.
 
 ## Follow-Up Decisions

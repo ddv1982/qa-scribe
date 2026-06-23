@@ -110,6 +110,9 @@ pub struct EntryDraft {
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EntryPatch {
+    pub title: Option<Option<String>>,
+    pub body: Option<String>,
+    pub metadata_json: Option<Option<String>>,
     pub excluded_from_generation: Option<bool>,
 }
 
@@ -220,16 +223,21 @@ pub struct EvidenceLinkDraft {
 #[serde(rename_all = "snake_case")]
 pub enum DraftKind {
     SessionReport,
+    Testware,
 }
 
 impl DraftKind {
     pub fn as_str(self) -> &'static str {
-        "session_report"
+        match self {
+            DraftKind::SessionReport => "session_report",
+            DraftKind::Testware => "testware",
+        }
     }
 
     pub fn from_stored(value: &str) -> Result<Self> {
         match value {
             "session_report" => Ok(DraftKind::SessionReport),
+            "testware" => Ok(DraftKind::Testware),
             _ => Err(QaScribeError::InvalidStoredValue {
                 field: "draft.kind",
                 value: value.to_string(),
@@ -368,6 +376,16 @@ pub struct AiRunCreate {
 pub struct AppSettings {
     pub schema_version: u16,
     pub generation_system_prompt: String,
+    #[serde(default = "default_selected_ai_provider")]
+    pub selected_ai_provider: AiProvider,
+    #[serde(default = "default_selected_ai_model")]
+    pub selected_ai_model: String,
+    #[serde(default = "default_testware_template")]
+    pub testware_template: String,
+    #[serde(default = "default_finding_template")]
+    pub finding_template: String,
+    #[serde(default = "default_note_summary_template")]
+    pub note_summary_template: String,
 }
 
 impl Default for AppSettings {
@@ -377,8 +395,48 @@ impl Default for AppSettings {
             generation_system_prompt:
                 "Turn the selected Session material into concise, evidence-grounded Testware."
                     .to_string(),
+            selected_ai_provider: default_selected_ai_provider(),
+            selected_ai_model: default_selected_ai_model(),
+            testware_template: default_testware_template(),
+            finding_template: default_finding_template(),
+            note_summary_template: default_note_summary_template(),
         }
     }
+}
+
+fn default_selected_ai_provider() -> AiProvider {
+    AiProvider::CodexCli
+}
+
+fn default_selected_ai_model() -> String {
+    "default".to_string()
+}
+
+fn default_testware_template() -> String {
+    [
+        "Create detailed QA test cases from the note.",
+        "Use this structure: title, purpose, preconditions, test data, steps, expected results, and coverage notes.",
+        "Keep the output concise and actionable.",
+    ]
+    .join("\n")
+}
+
+fn default_finding_template() -> String {
+    [
+        "Create one well-structured QA finding from the note.",
+        "Use this structure: title, severity, environment, steps to reproduce, expected result, actual result, evidence, and impact.",
+        "Ground the finding in the note text only.",
+    ]
+    .join("\n")
+}
+
+fn default_note_summary_template() -> String {
+    [
+        "Improve the current QA note for clarity while preserving meaning.",
+        "Return a clean HTML fragment using only headings, paragraphs, lists, checkboxes, links, and images when present.",
+        "Do not wrap the response in a code fence.",
+    ]
+    .join("\n")
 }
 
 pub fn clean_optional(value: Option<String>) -> Option<String> {

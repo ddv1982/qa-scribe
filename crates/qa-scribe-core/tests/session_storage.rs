@@ -79,6 +79,7 @@ fn settings_generation_context_ai_run_and_draft_round_trip() {
         .update_settings(AppSettings {
             schema_version: 1,
             generation_system_prompt: "Summarize the selected Session into Testware.".to_string(),
+            ..AppSettings::default()
         })
         .expect("settings should update");
     assert_eq!(
@@ -117,6 +118,7 @@ fn settings_generation_context_ai_run_and_draft_round_trip() {
             &excluded_entry.id,
             EntryPatch {
                 excluded_from_generation: Some(true),
+                ..EntryPatch::default()
             },
         )
         .expect("entry should update");

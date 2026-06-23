@@ -34,55 +34,55 @@ Implemented capabilities include:
 - Rust stable
 - Node.js 22.13 or newer
 - Platform toolchain for the local Tauri target
-- Optional authenticated local AI CLIs: `claude`, `codex`, or `gh copilot`
+- Optional authenticated local AI CLIs: `claude`, `codex`, or `copilot`
 
 Install frontend dependencies:
 
 ```sh
-npm --prefix frontend install
+cd frontend && bun install
 ```
 
 Run the desktop app in development mode:
 
 ```sh
-npm run dev
+bun run dev
 ```
 
 Build the Rust workspace and frontend:
 
 ```sh
-npm run build
+bun run build
 ```
 
 Run the broad verification gate:
 
 ```sh
-npm run verify
+bun run verify
 ```
 
 Run the non-GUI smoke harness:
 
 ```sh
-npm run smoke
+bun run smoke
 ```
 
 Validate package metadata JSON:
 
 ```sh
-npm run package:check
+bun run package:check
 ```
 
 ## AI Providers
 
 AI generation is optional. Capture, persistence, manual review, Draft editing, attachment handling, and export work without AI configuration.
 
-qa-scribe does not manage API keys. It detects local CLI tools and only starts generation when the user explicitly chooses a provider and runs generation.
+qa-scribe does not manage API keys. It checks local CLI readiness and only starts generation when the user explicitly chooses a ready provider and runs generation.
 
-- Claude Code: detects `claude --version` and runs `claude -p`.
-- Codex CLI: detects `codex --version` and runs `codex exec`.
-- GitHub Copilot CLI: detects `gh copilot --help` and runs `gh copilot explain`.
+- Claude Code: checks `claude --version` and `claude auth status --json`, detects model aliases from `claude --help`, then runs `claude -p` with the prompt on stdin. When a non-default model is selected, qa-scribe passes `--model <model>`.
+- Codex CLI: checks `codex --version` and `codex login status`, detects selectable models from `codex debug models`, then runs `codex exec --skip-git-repo-check -`. When a non-default model is selected, qa-scribe passes `--model <model>`.
+- GitHub Copilot CLI: checks the real `copilot version` command. If the standalone CLI is not present, qa-scribe only treats `gh copilot` as ready when `gh copilot -- --help` confirms the Copilot CLI bridge is installed. Plain `gh copilot --help` does not mark Copilot ready.
 
-Provider model and reasoning choices are recorded on each AI Run and included in the provider prompt. Provider authentication remains the responsibility of the local CLI.
+Provider status can be ready, auth required, install required, or error. Provider model and reasoning choices are recorded on each AI Run, included in the provider prompt, and passed to provider CLIs where supported. Provider authentication remains the responsibility of the local CLI.
 
 ## Data And Privacy
 
@@ -101,7 +101,6 @@ crates/qa-scribe-app/   Non-GUI smoke harness
 src-tauri/              Tauri 2 shell and command modules
 frontend/               React/Vite renderer and typed Tauri bridge
 docs/                   Rebuild plan and architecture decisions
-scripts/                Local packaging helpers
 ```
 
 ## Documentation

@@ -1,11 +1,12 @@
 mod commands;
 mod jobs;
 mod path_access;
+mod provider_command;
 mod settings;
 
 use commands::{
     create_ai_run, create_draft, create_entry, create_evidence_link, create_finding,
-    create_generation_context, create_session, delete_session, export_session,
+    create_generation_context, create_session, delete_session, export_session, generate_ai_action,
     generate_session_report, get_app_status, get_attachment_preview_data_url,
     get_command_shell_status, get_provider_status, get_session, get_settings, import_attachment,
     import_clipboard_screenshot, list_attachments, list_drafts, list_entries, list_findings,
@@ -50,6 +51,7 @@ fn main() {
             create_draft,
             list_drafts,
             update_draft,
+            generate_ai_action,
             generate_session_report,
             import_attachment,
             import_clipboard_screenshot,

@@ -1,18 +1,22 @@
 use chrono::{SecondsFormat, Utc};
-use rusqlite::{OptionalExtension, Row, params};
+use rusqlite::{OptionalExtension, params};
 use uuid::Uuid;
 
 use crate::{
     QaScribeError, Result,
     domain::{
-        AiProvider, AiRun, AiRunCreate, AiRunStatus, AppSettings, Attachment, AttachmentDraft,
-        DRAFT_BODY_MAX_LENGTH, Draft, DraftCreate, DraftKind, DraftPatch, Entry, EntryDraft,
-        EntryPatch, EntryType, EvidenceLink, EvidenceLinkDraft, Finding, FindingDraft, FindingKind,
-        GenerationContext, Session, SessionDraft, SessionPatch, TEXT_BODY_MAX_LENGTH,
-        validate_metadata_json, validate_optional_text, validate_required_text,
+        AiRun, AiRunCreate, AppSettings, Attachment, AttachmentDraft, DRAFT_BODY_MAX_LENGTH, Draft,
+        DraftCreate, DraftPatch, Entry, EntryDraft, EntryPatch, EvidenceLink, EvidenceLinkDraft,
+        Finding, FindingDraft, GenerationContext, Session, SessionDraft, SessionPatch,
+        TEXT_BODY_MAX_LENGTH, validate_metadata_json, validate_optional_text,
+        validate_required_text,
     },
     error::validation,
     storage::Database,
+};
+
+use super::session_rows::{
+    map_ai_run, map_attachment, map_draft, map_entry, map_evidence_link, map_finding, map_session,
 };
 
 const APPLICATION_SETTINGS_KEY: &str = "application";
@@ -61,8 +65,22 @@ impl SessionService {
             &settings.generation_system_prompt,
             8_000,
         )?;
+        let model = validate_required_text("selected AI model", &settings.selected_ai_model, 240)?;
+        let testware_template =
+            validate_required_text("testware template", &settings.testware_template, 12_000)?;
+        let finding_template =
+            validate_required_text("finding template", &settings.finding_template, 12_000)?;
+        let note_summary_template = validate_required_text(
+            "note summary template",
+            &settings.note_summary_template,
+            12_000,
+        )?;
         let next = AppSettings {
             generation_system_prompt: prompt,
+            selected_ai_model: model,
+            testware_template,
+            finding_template,
+            note_summary_template,
             ..settings
         };
         let now = now();
@@ -251,15 +269,27 @@ impl SessionService {
         let existing = self
             .entry(id)?
             .ok_or_else(|| QaScribeError::NotFound(id.to_string()))?;
+        let title = match patch.title {
+            Some(title) => validate_optional_text("Entry title", title, 160)?,
+            None => existing.title,
+        };
+        let body = match patch.body {
+            Some(body) => validate_required_text("Entry body", &body, TEXT_BODY_MAX_LENGTH)?,
+            None => existing.body,
+        };
+        let metadata_json = match patch.metadata_json {
+            Some(metadata_json) => validate_metadata_json(metadata_json)?,
+            None => existing.metadata_json,
+        };
         let excluded = patch
             .excluded_from_generation
             .unwrap_or(existing.excluded_from_generation);
         let now = now();
         self.database.connection().execute(
             "UPDATE entries
-             SET excluded_from_generation = ?1, updated_at = ?2
-             WHERE id = ?3",
-            params![excluded, now, id],
+             SET title = ?1, body = ?2, metadata_json = ?3, excluded_from_generation = ?4, updated_at = ?5
+             WHERE id = ?6",
+            params![title, body, metadata_json, excluded, now, id],
         )?;
         self.entry(id)?
             .ok_or_else(|| QaScribeError::NotFound(id.to_string()))
@@ -689,106 +719,6 @@ impl SessionService {
     }
 }
 
-fn map_session(row: &Row<'_>) -> rusqlite::Result<Session> {
-    Ok(Session {
-        id: row.get(0)?,
-        title: row.get(1)?,
-        session_context: row.get(2)?,
-        objective_notes: row.get(3)?,
-        environment: row.get(4)?,
-        build_version: row.get(5)?,
-        related_reference: row.get(6)?,
-        created_at: row.get(7)?,
-        updated_at: row.get(8)?,
-        last_opened_at: row.get(9)?,
-    })
-}
-
-fn map_entry(row: &Row<'_>) -> rusqlite::Result<Entry> {
-    let entry_type: String = row.get(2)?;
-    Ok(Entry {
-        id: row.get(0)?,
-        session_id: row.get(1)?,
-        entry_type: EntryType::from_stored(&entry_type).map_err(to_sql_error)?,
-        title: row.get(3)?,
-        body: row.get(4)?,
-        metadata_json: row.get(5)?,
-        excluded_from_generation: row.get(6)?,
-        created_at: row.get(7)?,
-        updated_at: row.get(8)?,
-    })
-}
-
-fn map_attachment(row: &Row<'_>) -> rusqlite::Result<Attachment> {
-    Ok(Attachment {
-        id: row.get(0)?,
-        session_id: row.get(1)?,
-        entry_id: row.get(2)?,
-        filename: row.get(3)?,
-        mime_type: row.get(4)?,
-        size_bytes: row.get(5)?,
-        sha256: row.get(6)?,
-        relative_path: row.get(7)?,
-        created_at: row.get(8)?,
-    })
-}
-
-fn map_finding(row: &Row<'_>) -> rusqlite::Result<Finding> {
-    let kind: String = row.get(4)?;
-    Ok(Finding {
-        id: row.get(0)?,
-        session_id: row.get(1)?,
-        title: row.get(2)?,
-        body: row.get(3)?,
-        kind: FindingKind::from_stored(&kind).map_err(to_sql_error)?,
-        metadata_json: row.get(5)?,
-        created_at: row.get(6)?,
-        updated_at: row.get(7)?,
-    })
-}
-
-fn map_evidence_link(row: &Row<'_>) -> rusqlite::Result<EvidenceLink> {
-    Ok(EvidenceLink {
-        id: row.get(0)?,
-        finding_id: row.get(1)?,
-        entry_id: row.get(2)?,
-        attachment_id: row.get(3)?,
-        created_at: row.get(4)?,
-    })
-}
-
-fn map_ai_run(row: &Row<'_>) -> rusqlite::Result<AiRun> {
-    let provider: String = row.get(3)?;
-    let status: String = row.get(7)?;
-    Ok(AiRun {
-        id: row.get(0)?,
-        session_id: row.get(1)?,
-        generation_context_id: row.get(2)?,
-        provider: AiProvider::from_stored(&provider).map_err(to_sql_error)?,
-        model: row.get(4)?,
-        reasoning_effort: row.get(5)?,
-        prompt_version: row.get(6)?,
-        status: AiRunStatus::from_stored(&status).map_err(to_sql_error)?,
-        error_message: row.get(8)?,
-        created_at: row.get(9)?,
-        completed_at: row.get(10)?,
-    })
-}
-
-fn map_draft(row: &Row<'_>) -> rusqlite::Result<Draft> {
-    let kind: String = row.get(3)?;
-    Ok(Draft {
-        id: row.get(0)?,
-        session_id: row.get(1)?,
-        ai_run_id: row.get(2)?,
-        kind: DraftKind::from_stored(&kind).map_err(to_sql_error)?,
-        title: row.get(4)?,
-        body: row.get(5)?,
-        created_at: row.get(6)?,
-        updated_at: row.get(7)?,
-    })
-}
-
 fn require_session(connection: &rusqlite::Connection, session_id: &str) -> Result<()> {
     let exists: Option<String> = connection
         .query_row(
@@ -800,10 +730,6 @@ fn require_session(connection: &rusqlite::Connection, session_id: &str) -> Resul
     exists
         .map(|_| ())
         .ok_or_else(|| QaScribeError::NotFound(session_id.to_string()))
-}
-
-fn to_sql_error(error: QaScribeError) -> rusqlite::Error {
-    rusqlite::Error::FromSqlConversionFailure(0, rusqlite::types::Type::Text, Box::new(error))
 }
 
 fn new_id() -> String {

@@ -1,0 +1,17 @@
+export type ThemePreference = 'light' | 'dark'
+export type WorkspaceView = 'notes' | 'testware' | 'findings' | 'templates' | 'settings'
+export type SettingsSaveState = 'idle' | 'saving' | 'saved' | 'error'
+export type BusyAction =
+  | 'boot'
+  | 'open-note'
+  | 'new-note'
+  | 'save-title'
+  | 'save-body'
+  | 'save-settings'
+  | 'manual-testware'
+  | 'manual-finding'
+  | 'ai-testware'
+  | 'ai-finding'
+  | 'ai-summary'
+  | 'attach-image'
+  | `draft:${string}`

@@ -43,6 +43,15 @@ export type SessionDraft = {
   relatedReference?: string | null
 }
 
+export type SessionPatch = {
+  title?: string | null
+  sessionContext?: string | null
+  objectiveNotes?: string | null
+  environment?: string | null
+  buildVersion?: string | null
+  relatedReference?: string | null
+}
+
 export type EntryType = 'note' | 'observation' | 'api_response' | 'log' | 'screenshot' | 'finding_candidate'
 
 export type Entry = {
@@ -67,6 +76,9 @@ export type EntryDraft = {
 }
 
 export type EntryPatch = {
+  title?: string | null
+  body?: string | null
+  metadataJson?: string | null
   excludedFromGeneration?: boolean | null
 }
 
@@ -119,6 +131,9 @@ export type GenerationContext = {
 
 export type AiProvider = 'claude_code' | 'codex_cli' | 'copilot_cli'
 
+export type ProviderReadinessStatus = 'ready' | 'authRequired' | 'installRequired' | 'error'
+export type ProviderModelSource = 'providerDefault' | 'environment' | 'detected'
+
 export type AiRun = {
   id: string
   sessionId: string
@@ -143,12 +158,14 @@ export type Draft = {
   id: string
   sessionId: string
   aiRunId: string | null
-  kind: 'session_report'
+  kind: DraftKind
   title: string
   body: string
   createdAt: string
   updatedAt: string
 }
+
+export type DraftKind = 'session_report' | 'testware'
 
 export type DraftPatch = {
   title?: string | null
@@ -158,16 +175,33 @@ export type DraftPatch = {
 export type AppSettings = {
   schemaVersion: number
   generationSystemPrompt: string
+  selectedAiProvider: AiProvider
+  selectedAiModel: string
+  testwareTemplate: string
+  findingTemplate: string
+  noteSummaryTemplate: string
 }
 
 export type ProviderStatus = {
   providers: Array<{
     id: AiProvider
     label: string
+    status: ProviderReadinessStatus
     available: boolean
     reason: string
+    command: string | null
+    models: ProviderModelDescriptor[]
     localOnly: boolean
   }>
+}
+
+export type ProviderModelDescriptor = {
+  id: string
+  label: string
+  description: string | null
+  source: ProviderModelSource
+  isDefault: boolean
+  reasoningEfforts: string[]
 }
 
 export type ExportFormat = 'markdown' | 'json'
@@ -200,6 +234,14 @@ export function createSession(draft: SessionDraft): Promise<Session> {
 
 export function reopenSession(id: string): Promise<Session> {
   return invoke<Session>('reopen_session', { id })
+}
+
+export function updateSession(id: string, patch: SessionPatch): Promise<Session> {
+  return invoke<Session>('update_session', { id, patch })
+}
+
+export function deleteSession(id: string): Promise<void> {
+  return invoke<void>('delete_session', { id })
 }
 
 export function createEntry(draft: EntryDraft): Promise<Entry> {
@@ -279,7 +321,7 @@ export function createAiRun(input: {
 export function createDraft(input: {
   sessionId: string
   aiRunId: string | null
-  kind: 'session_report'
+  kind: DraftKind
   title: string
   body: string
 }): Promise<Draft> {
@@ -305,4 +347,25 @@ export function generateSessionReport(input: {
   reasoningEffort: string | null
 }): Promise<GenerateSessionReportResult> {
   return invoke<GenerateSessionReportResult>('generate_session_report', { request: input })
+}
+
+export type GenerateAiActionKind = 'testware' | 'finding' | 'summary'
+
+export type GenerateAiActionResult = {
+  generationContext: GenerationContext
+  aiRun: AiRun
+  draft: Draft | null
+  finding: Finding | null
+  noteEntry: Entry | null
+}
+
+export function generateAiAction(input: {
+  sessionId: string
+  provider: AiProvider
+  model: string
+  reasoningEffort: string | null
+  action: GenerateAiActionKind
+  noteEntryId?: string | null
+}): Promise<GenerateAiActionResult> {
+  return invoke<GenerateAiActionResult>('generate_ai_action', { request: input })
 }

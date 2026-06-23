@@ -12,10 +12,8 @@ tauri-build.workspace = true
 [dependencies]
 qa-scribe-core.workspace = true
 serde.workspace = true
-tauri.workspace = true
-
-[dev-dependencies]
 serde_json.workspace = true
+tauri.workspace = true
 
 [features]
 default = ["custom-protocol"]

@@ -29,6 +29,52 @@ impl Database {
 fn initialize(connection: &Connection) -> Result<()> {
     connection.pragma_update(None, "foreign_keys", "ON")?;
     connection.execute_batch(SCHEMA)?;
+    migrate(connection)?;
+    Ok(())
+}
+
+fn migrate(connection: &Connection) -> Result<()> {
+    ensure_testware_drafts_supported(connection)?;
+    connection.pragma_update(None, "user_version", 2)?;
+    Ok(())
+}
+
+fn ensure_testware_drafts_supported(connection: &Connection) -> Result<()> {
+    let sql: Option<String> = connection.query_row(
+        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'drafts'",
+        [],
+        |row| row.get(0),
+    )?;
+    if sql
+        .as_deref()
+        .is_some_and(|schema| schema.contains("'testware'"))
+    {
+        return Ok(());
+    }
+
+    connection.execute_batch(
+        r#"
+        ALTER TABLE drafts RENAME TO drafts_old;
+
+        CREATE TABLE drafts (
+          id TEXT PRIMARY KEY,
+          session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+          ai_run_id TEXT REFERENCES ai_runs(id) ON DELETE SET NULL,
+          kind TEXT NOT NULL CHECK (kind IN ('session_report', 'testware')),
+          title TEXT NOT NULL CHECK (length(trim(title)) > 0),
+          body TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+
+        INSERT INTO drafts (id, session_id, ai_run_id, kind, title, body, created_at, updated_at)
+        SELECT id, session_id, ai_run_id, kind, title, body, created_at, updated_at
+        FROM drafts_old;
+
+        DROP TABLE drafts_old;
+        "#,
+    )?;
+
     Ok(())
 }
 
@@ -134,7 +180,7 @@ CREATE TABLE IF NOT EXISTS drafts (
   id TEXT PRIMARY KEY,
   session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
   ai_run_id TEXT REFERENCES ai_runs(id) ON DELETE SET NULL,
-  kind TEXT NOT NULL CHECK (kind IN ('session_report')),
+  kind TEXT NOT NULL CHECK (kind IN ('session_report', 'testware')),
   title TEXT NOT NULL CHECK (length(trim(title)) > 0),
   body TEXT NOT NULL,
   created_at TEXT NOT NULL,
@@ -148,5 +194,5 @@ CREATE INDEX IF NOT EXISTS idx_findings_session_created ON findings(session_id, 
 CREATE INDEX IF NOT EXISTS idx_drafts_session_updated ON drafts(session_id, updated_at);
 CREATE INDEX IF NOT EXISTS idx_ai_runs_session_created ON ai_runs(session_id, created_at);
 
-PRAGMA user_version = 1;
+PRAGMA user_version = 2;
 "#;

@@ -1,249 +1,175 @@
-import { useEffect, useState, type ClipboardEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type ClipboardEvent } from 'react'
+import {
+  Box,
+  ClipboardCheck,
+  FileText,
+  Flag,
+  Loader2,
+  PencilLine,
+  Plus,
+  Search,
+  Settings,
+} from 'lucide-react'
 import {
   createDraft,
   createEntry,
-  createEvidenceLink,
   createFinding,
-  createGenerationContext,
   createSession,
-  exportSession,
-  getAttachmentPreviewDataUrl,
-  getAppStatus,
-  getCommandShellStatus,
+  generateAiAction,
   getProviderStatus,
   getSettings,
-  generateSessionReport,
-  importAttachment,
   importClipboardScreenshot,
-  listAttachments,
-  listEntries,
   listDrafts,
+  listEntries,
   listFindings,
   listSessions,
   reopenSession,
   updateDraft,
   updateEntry,
+  updateSession,
   updateSettings,
-  type Attachment,
+  type AiProvider,
   type AppSettings,
-  type AppStatus,
-  type CommandShellStatus,
   type Draft,
   type Entry,
-  type EntryType,
-  type AiProvider,
   type Finding,
-  type GenerationContext,
+  type GenerateAiActionKind,
   type ProviderStatus,
   type Session,
-  type SessionExport,
 } from './tauri'
+import { RailItem } from './components/Common'
+import { ModelCombobox, ProviderGlyph } from './components/ModelSelector'
+import {
+  containsInlineImageData,
+  emptyNoteHtml,
+  inlineImageFilename,
+  insertEditorHtml,
+  managedAttachmentImageHtml,
+  managedAttachmentProtocol,
+  normalizeEditorHtml,
+  pastedImageFilename,
+  readFileAsDataUrl,
+  restoreSelection,
+  selectedRangeWithin,
+  serializeEditorHtml,
+  stripHtml,
+} from './editor/editorHtml'
+import { countWords, formatError, formatSessionDate, initialTheme, nextUntitledTitle, statusLabel } from './ui/format'
+import type { BusyAction, SettingsSaveState, ThemePreference, WorkspaceView } from './ui/types'
+import { FindingsView } from './views/FindingsView'
+import { NotesView } from './views/NotesView'
+import { SettingsView } from './views/SettingsView'
+import { TemplatesView } from './views/TemplatesView'
+import { TestwareView } from './views/TestwareView'
 
-const entryTypes: EntryType[] = ['note', 'observation', 'api_response', 'log', 'finding_candidate']
+const noteBodyMaxLength = 100_000
 
 export function App() {
-  const [appStatus, setAppStatus] = useState<AppStatus | null>(null)
-  const [shellStatus, setShellStatus] = useState<CommandShellStatus | null>(null)
   const [settings, setSettings] = useState<AppSettings | null>(null)
   const [providerStatus, setProviderStatus] = useState<ProviderStatus | null>(null)
   const [sessions, setSessions] = useState<Session[]>([])
   const [activeSession, setActiveSession] = useState<Session | null>(null)
-  const [entries, setEntries] = useState<Entry[]>([])
-  const [findings, setFindings] = useState<Finding[]>([])
+  const [noteEntry, setNoteEntry] = useState<Entry | null>(null)
   const [drafts, setDrafts] = useState<Draft[]>([])
-  const [attachments, setAttachments] = useState<Attachment[]>([])
-  const [generationContext, setGenerationContext] = useState<GenerationContext | null>(null)
-  const [sessionTitle, setSessionTitle] = useState('Exploratory checkout pass')
-  const [sessionContext, setSessionContext] = useState('Feature, build, URL, API, or flow under test')
-  const [objectiveNotes, setObjectiveNotes] = useState('What are we trying to learn or verify?')
-  const [entryType, setEntryType] = useState<EntryType>('note')
-  const [entryBody, setEntryBody] = useState('')
-  const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null)
-  const [findingTitle, setFindingTitle] = useState('')
-  const [attachmentSourcePath, setAttachmentSourcePath] = useState('')
-  const [previewDataUrl, setPreviewDataUrl] = useState<string | null>(null)
-  const [sessionExport, setSessionExport] = useState<SessionExport | null>(null)
+  const [findings, setFindings] = useState<Finding[]>([])
+  const [noteTitle, setNoteTitle] = useState('')
+  const [noteBody, setNoteBody] = useState(emptyNoteHtml)
   const [selectedProvider, setSelectedProvider] = useState<AiProvider>('codex_cli')
   const [selectedModel, setSelectedModel] = useState('default')
-  const [settingsPrompt, setSettingsPrompt] = useState('')
-  const [busyAction, setBusyAction] = useState<string | null>(null)
+  const [settingsDraft, setSettingsDraft] = useState<AppSettings | null>(null)
+  const [settingsSaveState, setSettingsSaveState] = useState<SettingsSaveState>('idle')
+  const [busyAction, setBusyAction] = useState<BusyAction | null>('boot')
   const [notice, setNotice] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const selectedEntry = entries.find((entry) => entry.id === selectedEntryId) ?? null
+  const [searchQuery, setSearchQuery] = useState('')
+  const [activeView, setActiveView] = useState<WorkspaceView>('notes')
+  const [theme, setTheme] = useState<ThemePreference>(() => initialTheme())
+
+  const savedTitleRef = useRef('')
+  const savedBodyRef = useRef(emptyNoteHtml)
+  const settingsSaveResetRef = useRef<number | null>(null)
+  const bootedRef = useRef(false)
+
+  const providerOptions = providerStatus?.providers ?? []
+  const activeProvider = providerOptions.find((provider) => provider.id === selectedProvider) ?? providerOptions[0] ?? null
+  const testwareDrafts = drafts.filter((draft) => draft.kind === 'testware')
+  const filteredSessions = useMemo(() => {
+    const query = searchQuery.trim().toLocaleLowerCase()
+    if (!query) return sessions
+    return sessions.filter((session) => session.title.toLocaleLowerCase().includes(query))
+  }, [sessions, searchQuery])
+  const noteWordCount = countWords(stripHtml(noteBody))
+  const noteIsReady = Boolean(activeSession && noteEntry)
+  const isBusy = busyAction !== null
 
   useEffect(() => {
-    void refreshBootData()
+    document.documentElement.dataset.theme = theme
+    document.documentElement.style.colorScheme = theme
+    window.localStorage.setItem('qa-scribe-theme', theme)
+  }, [theme])
+
+  useEffect(() => {
+    return () => {
+      if (settingsSaveResetRef.current) window.clearTimeout(settingsSaveResetRef.current)
+    }
   }, [])
 
-  async function refreshBootData() {
+  useEffect(() => {
+    void boot()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps -- desktop boot is intentionally one-shot
+
+  useEffect(() => {
+    if (!activeSession || !bootedRef.current) return
+    const trimmedTitle = noteTitle.trim()
+    if (!trimmedTitle || trimmedTitle === savedTitleRef.current) return
+
+    const timeout = window.setTimeout(() => {
+      void saveTitle(trimmedTitle)
+    }, 700)
+    return () => window.clearTimeout(timeout)
+  }, [activeSession, noteTitle]) // eslint-disable-line react-hooks/exhaustive-deps -- debounce is keyed to note identity and title
+
+  useEffect(() => {
+    if (!noteEntry || !bootedRef.current) return
+    const nextBody = normalizeEditorHtml(noteBody)
+    if (nextBody === savedBodyRef.current) return
+
+    const timeout = window.setTimeout(() => {
+      void saveNoteNow()
+    }, 850)
+    return () => window.clearTimeout(timeout)
+  }, [noteEntry, noteBody]) // eslint-disable-line react-hooks/exhaustive-deps -- debounce is keyed to note identity and body
+
+  useEffect(() => {
+    if (!settings || !bootedRef.current) return
+    if (selectedProvider === settings.selectedAiProvider && selectedModel === settings.selectedAiModel) return
+
+    const timeout = window.setTimeout(() => {
+      void persistSettings({
+        ...settings,
+        selectedAiProvider: selectedProvider,
+        selectedAiModel: selectedModel.trim() || 'default',
+      })
+    }, 550)
+    return () => window.clearTimeout(timeout)
+  }, [settings, selectedProvider, selectedModel])
+
+  async function boot() {
     try {
-      setBusyAction('loading')
+      setBusyAction('boot')
       setError(null)
-      const [nextAppStatus, nextShellStatus, nextSettings, nextProviderStatus, nextSessions] = await Promise.all([
-        getAppStatus(),
-        getCommandShellStatus(),
-        getSettings(),
-        getProviderStatus(),
-        listSessions(),
-      ])
-      setAppStatus(nextAppStatus)
-      setShellStatus(nextShellStatus)
+      const [nextSettings, nextProviderStatus, nextSessions] = await Promise.all([getSettings(), getProviderStatus(), listSessions()])
       setSettings(nextSettings)
-      setSettingsPrompt(nextSettings.generationSystemPrompt)
+      setSettingsDraft(nextSettings)
       setProviderStatus(nextProviderStatus)
-      setSelectedProvider(nextProviderStatus.providers[0]?.id ?? 'codex_cli')
+      setSelectedProvider(nextSettings.selectedAiProvider)
+      setSelectedModel(nextSettings.selectedAiModel || 'default')
       setSessions(nextSessions)
-      if (nextSessions[0]) await openSession(nextSessions[0])
-    } catch (cause) {
-      setError(formatError(cause))
-    } finally {
-      setBusyAction(null)
-    }
-  }
-
-  async function openSession(session: Session) {
-    try {
-      setBusyAction('opening')
-      setError(null)
-      const reopened = await reopenSession(session.id)
-      const [nextEntries, nextFindings, nextDrafts, nextAttachments] = await Promise.all([
-        listEntries(session.id),
-        listFindings(session.id),
-        listDrafts(session.id),
-        listAttachments(session.id),
-      ])
-      setActiveSession(reopened)
-      setEntries(nextEntries)
-      setFindings(nextFindings)
-      setDrafts(nextDrafts)
-      setAttachments(nextAttachments)
-      setSelectedEntryId(nextEntries[0]?.id ?? null)
-      setGenerationContext(null)
-      setPreviewDataUrl(null)
-      setSessionExport(null)
-      setNotice(`Opened Session: ${reopened.title}`)
-    } catch (cause) {
-      setError(formatError(cause))
-    } finally {
-      setBusyAction(null)
-    }
-  }
-
-  async function handleCreateSession() {
-    try {
-      setBusyAction('session')
-      setError(null)
-      const session = await createSession({
-        title: sessionTitle,
-        sessionContext,
-        objectiveNotes,
-      })
-      const nextSessions = await listSessions()
-      setSessions(nextSessions)
-      setActiveSession(session)
-      setEntries([])
-      setFindings([])
-      setDrafts([])
-      setAttachments([])
-      setSelectedEntryId(null)
-      setPreviewDataUrl(null)
-      setSessionExport(null)
-      setNotice('New Session ready for capture')
-    } catch (cause) {
-      setError(formatError(cause))
-    } finally {
-      setBusyAction(null)
-    }
-  }
-
-  async function handleCreateEntry() {
-    if (!activeSession || !entryBody.trim()) return
-    try {
-      setBusyAction('entry')
-      setError(null)
-      const entry = await createEntry({
-        sessionId: activeSession.id,
-        entryType,
-        title: null,
-        body: entryBody,
-        metadataJson: null,
-        excludedFromGeneration: false,
-      })
-      const nextEntries = await listEntries(activeSession.id)
-      setEntries(nextEntries)
-      setSelectedEntryId(entry.id)
-      setEntryBody('')
-      setNotice('Entry added to the Session Timeline')
-    } catch (cause) {
-      setError(formatError(cause))
-    } finally {
-      setBusyAction(null)
-    }
-  }
-
-  async function handleCreateFinding() {
-    if (!activeSession || !selectedEntry) return
-    try {
-      setBusyAction('finding')
-      setError(null)
-      const finding = await createFinding({
-        sessionId: activeSession.id,
-        title: findingTitle.trim() || selectedEntry.body.slice(0, 80),
-        body: selectedEntry.body,
-        kind: 'bug',
-        metadataJson: null,
-      })
-      await createEvidenceLink({ findingId: finding.id, entryId: selectedEntry.id })
-      setFindings(await listFindings(activeSession.id))
-      setFindingTitle('')
-      setNotice('Finding created and linked to Entry Evidence')
-    } catch (cause) {
-      setError(formatError(cause))
-    } finally {
-      setBusyAction(null)
-    }
-  }
-
-  async function handleGenerationDraft() {
-    if (!activeSession) return
-    try {
-      setBusyAction('draft')
-      setError(null)
-      const context = await createGenerationContext(activeSession.id)
-      await createDraft({
-        sessionId: activeSession.id,
-        aiRunId: null,
-        kind: 'session_report',
-        title: `${activeSession.title} Session Report Draft`,
-        body: renderManualDraft(activeSession, entries, findings),
-      })
-      setGenerationContext(context)
-      setDrafts(await listDrafts(activeSession.id))
-      setNotice('Generation Context and editable Draft created')
-    } catch (cause) {
-      setError(formatError(cause))
-    } finally {
-      setBusyAction(null)
-    }
-  }
-
-  async function handleAiGeneration() {
-    if (!activeSession) return
-    try {
-      setBusyAction('ai-generation')
-      setError(null)
-      const result = await generateSessionReport({
-        sessionId: activeSession.id,
-        provider: selectedProvider,
-        model: selectedModel,
-        reasoningEffort: null,
-      })
-      setGenerationContext(result.generationContext)
-      if (result.draft) {
-        setDrafts(await listDrafts(activeSession.id))
-        setNotice('AI Session Report Draft generated locally')
+      bootedRef.current = true
+      if (nextSessions[0]) {
+        await openNote(nextSessions[0], false)
       } else {
-        setNotice(result.aiRun.errorMessage ?? 'AI provider command failed without creating a Draft')
+        setNotice('Create a note to start')
       }
     } catch (cause) {
       setError(formatError(cause))
@@ -252,18 +178,74 @@ export function App() {
     }
   }
 
-  async function handleSaveSettings() {
-    if (!settings) return
+  async function openNote(session: Session, showNotice = true) {
     try {
-      setBusyAction('settings')
+      setBusyAction('open-note')
       setError(null)
-      const nextSettings = await updateSettings({
-        ...settings,
-        generationSystemPrompt: settingsPrompt,
+      const reopened = await reopenSession(session.id)
+      const [nextEntries, nextDrafts, nextFindings] = await Promise.all([
+        listEntries(session.id),
+        listDrafts(session.id),
+        listFindings(session.id),
+      ])
+      const editableNote = await ensureNoteEntry(reopened.id, nextEntries)
+
+      setActiveSession(reopened)
+      setNoteEntry(editableNote)
+      setDrafts(nextDrafts)
+      setFindings(nextFindings)
+      setNoteTitle(reopened.title)
+      setNoteBody(normalizeEditorHtml(editableNote.body))
+      savedTitleRef.current = reopened.title
+      savedBodyRef.current = normalizeEditorHtml(editableNote.body)
+      setActiveView('notes')
+      if (showNotice) setNotice(`Opened ${reopened.title}`)
+    } catch (cause) {
+      setError(formatError(cause))
+    } finally {
+      setBusyAction(null)
+    }
+  }
+
+  async function ensureNoteEntry(sessionId: string, currentEntries: Entry[]): Promise<Entry> {
+    const existing = currentEntries.find((entry) => entry.entryType === 'note')
+    if (existing) return existing
+    return createEntry({
+      sessionId,
+      entryType: 'note',
+      title: 'Note body',
+      body: emptyNoteHtml,
+      metadataJson: null,
+      excludedFromGeneration: false,
+    })
+  }
+
+  async function handleNewNote() {
+    try {
+      setBusyAction('new-note')
+      setError(null)
+      const title = nextUntitledTitle(sessions)
+      const session = await createSession({ title, sessionContext: null, objectiveNotes: null })
+      const editableNote = await createEntry({
+        sessionId: session.id,
+        entryType: 'note',
+        title: 'Note body',
+        body: emptyNoteHtml,
+        metadataJson: null,
+        excludedFromGeneration: false,
       })
-      setSettings(nextSettings)
-      setSettingsPrompt(nextSettings.generationSystemPrompt)
-      setNotice('Settings saved locally')
+      const nextSessions = await listSessions()
+      setSessions(nextSessions)
+      setActiveSession(session)
+      setNoteEntry(editableNote)
+      setDrafts([])
+      setFindings([])
+      setNoteTitle(session.title)
+      setNoteBody(emptyNoteHtml)
+      savedTitleRef.current = session.title
+      savedBodyRef.current = emptyNoteHtml
+      setActiveView('notes')
+      setNotice('New note created')
     } catch (cause) {
       setError(formatError(cause))
     } finally {
@@ -271,34 +253,97 @@ export function App() {
     }
   }
 
-  async function handleToggleEntryGeneration(entry: Entry) {
-    if (!activeSession) return
+  async function saveTitle(title: string): Promise<boolean> {
+    if (!activeSession) return false
     try {
-      setBusyAction(`entry-toggle:${entry.id}`)
-      setError(null)
-      await updateEntry(entry.id, { excludedFromGeneration: !entry.excludedFromGeneration })
-      setEntries(await listEntries(activeSession.id))
-      setNotice(entry.excludedFromGeneration ? 'Entry included in generation' : 'Entry excluded from generation')
+      setBusyAction('save-title')
+      const saved = await updateSession(activeSession.id, { title })
+      savedTitleRef.current = saved.title
+      setActiveSession(saved)
+      setSessions((previous) => previous.map((session) => (session.id === saved.id ? saved : session)))
+      setNotice('Note saved')
+      return true
     } catch (cause) {
       setError(formatError(cause))
+      return false
     } finally {
       setBusyAction(null)
     }
   }
 
-  async function handleImportAttachment() {
-    if (!activeSession || !attachmentSourcePath.trim()) return
+  async function saveBody(body: string): Promise<boolean> {
+    if (!noteEntry) return false
+    if (body.length > noteBodyMaxLength) {
+      setError('Note is too large to autosave. This usually means an image was embedded directly in the note; paste images again so QA Scribe can store them as attachments.')
+      return false
+    }
     try {
-      setBusyAction('attachment')
+      setBusyAction('save-body')
+      const saved = await updateEntry(noteEntry.id, { body })
+      savedBodyRef.current = saved.body
+      setNoteEntry(saved)
+      setNotice('Note saved')
+      return true
+    } catch (cause) {
+      setError(formatError(cause))
+      return false
+    } finally {
+      setBusyAction(null)
+    }
+  }
+
+  async function saveNoteNow(): Promise<boolean> {
+    const title = noteTitle.trim()
+    let body: string
+    try {
+      body = await materializeInlineImages(noteBody)
+    } catch (cause) {
+      setError(formatError(cause))
+      return false
+    }
+    let saved = true
+    if (activeSession && title && title !== savedTitleRef.current) {
+      saved = (await saveTitle(title)) && saved
+    }
+    if (noteEntry && body !== savedBodyRef.current) {
+      saved = (await saveBody(body)) && saved
+    }
+    return saved
+  }
+
+  async function handleAiAction(action: GenerateAiActionKind) {
+    if (!activeSession || !noteEntry) return
+    const busy = action === 'testware' ? 'ai-testware' : action === 'finding' ? 'ai-finding' : 'ai-summary'
+    try {
+      setBusyAction(busy)
       setError(null)
-      await importAttachment({
+      const saved = await saveNoteNow()
+      if (!saved) return
+      const result = await generateAiAction({
         sessionId: activeSession.id,
-        entryId: selectedEntry?.id ?? null,
-        sourcePath: attachmentSourcePath,
+        provider: selectedProvider,
+        model: selectedModel.trim() || 'default',
+        reasoningEffort: null,
+        action,
+        noteEntryId: noteEntry.id,
       })
-      setAttachments(await listAttachments(activeSession.id))
-      setAttachmentSourcePath('')
-      setNotice('Attachment imported into managed local storage')
+      if (result.draft) {
+        setDrafts(await listDrafts(activeSession.id))
+        setActiveView('testware')
+        setNotice('Testware generated')
+      } else if (result.finding) {
+        setFindings(await listFindings(activeSession.id))
+        setActiveView('findings')
+        setNotice('Finding created')
+      } else if (result.noteEntry) {
+        const body = normalizeEditorHtml(result.noteEntry.body)
+        setNoteEntry(result.noteEntry)
+        setNoteBody(body)
+        savedBodyRef.current = body
+        setNotice('Note summarized')
+      } else {
+        setNotice(result.aiRun.errorMessage ?? 'AI action finished without creating output')
+      }
     } catch (cause) {
       setError(formatError(cause))
     } finally {
@@ -306,23 +351,23 @@ export function App() {
     }
   }
 
-  async function handlePasteAttachment(event: ClipboardEvent<HTMLElement>) {
+  async function handleManualTestware() {
     if (!activeSession) return
-    const image = Array.from(event.clipboardData.files).find((file) => file.type.startsWith('image/'))
-    if (!image) return
-    event.preventDefault()
     try {
-      setBusyAction('clipboard')
+      setBusyAction('manual-testware')
       setError(null)
-      const dataUrl = await readFileAsDataUrl(image)
-      await importClipboardScreenshot({
+      const saved = await saveNoteNow()
+      if (!saved) return
+      await createDraft({
         sessionId: activeSession.id,
-        entryId: selectedEntry?.id ?? null,
-        filename: image.name || `clipboard-screenshot-${Date.now()}.png`,
-        dataUrl,
+        aiRunId: null,
+        kind: 'testware',
+        title: `${activeSession.title} Test Cases`,
+        body: renderManualTestware(activeSession.title, noteBody),
       })
-      setAttachments(await listAttachments(activeSession.id))
-      setNotice('Clipboard screenshot imported into managed local storage')
+      setDrafts(await listDrafts(activeSession.id))
+      setActiveView('testware')
+      setNotice('Manual testware created')
     } catch (cause) {
       setError(formatError(cause))
     } finally {
@@ -330,59 +375,28 @@ export function App() {
     }
   }
 
-  async function handlePreviewAttachment(attachment: Attachment) {
-    try {
-      setBusyAction(`attachment:${attachment.id}`)
-      setError(null)
-      setPreviewDataUrl(await getAttachmentPreviewDataUrl(attachment.id))
-      setNotice(`Preview loaded for ${attachment.filename}`)
-    } catch (cause) {
-      setError(formatError(cause))
-    } finally {
-      setBusyAction(null)
-    }
-  }
-
-  async function handleLinkAttachment(attachment: Attachment) {
-    if (!findings[0]) return
-    try {
-      setBusyAction(`attachment-link:${attachment.id}`)
-      setError(null)
-      await createEvidenceLink({ findingId: findings[0].id, attachmentId: attachment.id })
-      setNotice(`Attachment linked as Evidence for ${findings[0].title}`)
-    } catch (cause) {
-      setError(formatError(cause))
-    } finally {
-      setBusyAction(null)
-    }
-  }
-
-  async function handleCopyPreviewDataUrl() {
-    if (!previewDataUrl) return
-    try {
-      await navigator.clipboard.writeText(previewDataUrl)
-      setNotice('Attachment preview data URL copied')
-    } catch (cause) {
-      setError(formatError(cause))
-    }
-  }
-
-  async function handleExport(format: 'markdown' | 'json') {
+  async function handleManualFinding() {
     if (!activeSession) return
     try {
-      setBusyAction(`export:${format}`)
+      setBusyAction('manual-finding')
       setError(null)
-      setSessionExport(await exportSession(activeSession.id, format))
-      setNotice(`${format.toUpperCase()} export rendered locally`)
+      const saved = await saveNoteNow()
+      if (!saved) return
+      await createFinding({
+        sessionId: activeSession.id,
+        title: `Finding from ${activeSession.title}`,
+        body: stripHtml(noteBody).slice(0, 4000) || 'Describe the finding.',
+        kind: 'bug',
+        metadataJson: null,
+      })
+      setFindings(await listFindings(activeSession.id))
+      setActiveView('findings')
+      setNotice('Manual finding created')
     } catch (cause) {
       setError(formatError(cause))
     } finally {
       setBusyAction(null)
     }
-  }
-
-  function updateLocalDraftBody(id: string, body: string) {
-    setDrafts((previous) => previous.map((draft) => (draft.id === id ? { ...draft, body } : draft)))
   }
 
   async function handleSaveDraft(draft: Draft) {
@@ -391,7 +405,7 @@ export function App() {
       setError(null)
       const saved = await updateDraft(draft.id, { title: draft.title, body: draft.body })
       setDrafts((previous) => previous.map((item) => (item.id === saved.id ? saved : item)))
-      setNotice('Draft saved locally')
+      setNotice('Testware saved')
     } catch (cause) {
       setError(formatError(cause))
     } finally {
@@ -399,321 +413,285 @@ export function App() {
     }
   }
 
+  function updateLocalDraft(id: string, patch: Partial<Pick<Draft, 'title' | 'body'>>) {
+    setDrafts((previous) => previous.map((draft) => (draft.id === id ? { ...draft, ...patch } : draft)))
+  }
+
+  async function persistSettings(nextSettings: AppSettings): Promise<AppSettings | null> {
+    try {
+      setError(null)
+      const saved = await updateSettings(nextSettings)
+      setSettings(saved)
+      setSettingsDraft(saved)
+      setSelectedProvider(saved.selectedAiProvider)
+      setSelectedModel(saved.selectedAiModel)
+      setNotice('Settings saved')
+      return saved
+    } catch (cause) {
+      setError(formatError(cause))
+      return null
+    }
+  }
+
+  async function handleSaveSettings() {
+    if (!settingsDraft) return
+    try {
+      setBusyAction('save-settings')
+      setSettingsSaveState('saving')
+      const saved = await persistSettings({
+        ...settingsDraft,
+        selectedAiProvider: selectedProvider,
+        selectedAiModel: selectedModel.trim() || 'default',
+      })
+      setSettingsSaveState(saved ? 'saved' : 'error')
+      if (saved) scheduleSettingsSaveReset()
+    } finally {
+      setBusyAction(null)
+    }
+  }
+
+  function updateSettingsDraft(patch: Partial<AppSettings>) {
+    setSettingsSaveState('idle')
+    setSettingsDraft((previous) => (previous ? { ...previous, ...patch } : previous))
+  }
+
+  function scheduleSettingsSaveReset() {
+    if (settingsSaveResetRef.current) window.clearTimeout(settingsSaveResetRef.current)
+    settingsSaveResetRef.current = window.setTimeout(() => {
+      setSettingsSaveState('idle')
+      settingsSaveResetRef.current = null
+    }, 1800)
+  }
+
+  function handleProviderChange(provider: AiProvider) {
+    setSelectedProvider(provider)
+    const nextProvider = providerOptions.find((option) => option.id === provider)
+    if (!nextProvider) return
+
+    const currentModel = selectedModel.trim() || 'default'
+    if (!nextProvider.models.some((model) => model.id === currentModel)) {
+      setSelectedModel('default')
+    }
+  }
+
+  function handlePaste(event: ClipboardEvent<HTMLElement>) {
+    const target = event.target as HTMLElement | null
+    const editor = target?.closest<HTMLElement>('.rich-editor')
+    if (!editor) return
+
+    const file = Array.from(event.clipboardData.files).find((item) => item.type.startsWith('image/'))
+    if (!file) return
+
+    const insertionRange = selectedRangeWithin(editor)
+    event.preventDefault()
+    void importPastedImage(file, insertionRange)
+  }
+
+  async function importPastedImage(file: File, insertionRange: Range | null) {
+    if (!activeSession || !noteEntry) {
+      setError('Open a note before pasting images.')
+      return
+    }
+
+    try {
+      setBusyAction('attach-image')
+      setError(null)
+      const dataUrl = await readFileAsDataUrl(file)
+      const filename = pastedImageFilename(file)
+      const attachment = await importClipboardScreenshot({
+        sessionId: activeSession.id,
+        entryId: noteEntry.id,
+        filename,
+        dataUrl,
+      })
+      restoreSelection(insertionRange)
+      insertEditorHtml(managedAttachmentImageHtml(attachment.id, attachment.filename, dataUrl))
+      const editor = document.querySelector<HTMLElement>('.rich-editor')
+      if (editor) {
+        setNoteBody(serializeEditorHtml(editor))
+      }
+      setNotice('Image attached')
+    } catch (cause) {
+      setError(formatError(cause))
+    } finally {
+      setBusyAction(null)
+    }
+  }
+
+  async function materializeInlineImages(html: string): Promise<string> {
+    if (!activeSession || !noteEntry || !containsInlineImageData(html)) {
+      return normalizeEditorHtml(html)
+    }
+
+    const documentFragment = new DOMParser().parseFromString(html, 'text/html')
+    const images = Array.from(documentFragment.body.querySelectorAll<HTMLImageElement>('img')).filter((image) =>
+      (image.getAttribute('src') ?? '').startsWith('data:image/'),
+    )
+
+    for (let index = 0; index < images.length; index += 1) {
+      const image = images[index]
+      const dataUrl = image.getAttribute('src')
+      if (!dataUrl) continue
+
+      const filename = inlineImageFilename(image, index, dataUrl)
+      const attachment = await importClipboardScreenshot({
+        sessionId: activeSession.id,
+        entryId: noteEntry.id,
+        filename,
+        dataUrl,
+      })
+      image.setAttribute('data-attachment-id', attachment.id)
+      image.setAttribute('src', `${managedAttachmentProtocol}${attachment.id}`)
+      image.setAttribute('alt', image.getAttribute('alt') || attachment.filename)
+      image.removeAttribute('srcset')
+    }
+
+    const body = normalizeEditorHtml(documentFragment.body.innerHTML)
+    setNoteBody(body)
+    return body
+  }
+
   return (
-    <main className="workspace-shell">
-      <aside className="session-rail">
-        <div>
-          <p className="eyebrow">qa-scribe</p>
-          <h1>Session Library</h1>
-          <p className="rail-copy">Rust/Tauri rebuild with fresh local storage.</p>
+    <main className="app-shell" onPaste={handlePaste}>
+      <header className="top-bar">
+        <div className="brand-cluster">
+          <span className="brand-mark">
+            <PencilLine size={21} strokeWidth={2.4} />
+          </span>
+          <strong>QA Scribe</strong>
         </div>
-        <section className="new-session-card" aria-label="Create Session">
-          <label>
-            Session title
-            <input value={sessionTitle} onChange={(event) => setSessionTitle(event.target.value)} />
-          </label>
-          <label>
-            Session Context
-            <textarea value={sessionContext} onChange={(event) => setSessionContext(event.target.value)} />
-          </label>
-          <label>
-            Objective Notes
-            <textarea value={objectiveNotes} onChange={(event) => setObjectiveNotes(event.target.value)} />
-          </label>
-          <button disabled={busyAction !== null || !sessionTitle.trim()} onClick={handleCreateSession}>
-            {busyAction === 'session' ? 'Creating...' : 'New Session'}
-          </button>
-        </section>
-        <nav className="session-list" aria-label="Saved Sessions">
-          {sessions.map((session) => (
-            <button
-              className={session.id === activeSession?.id ? 'active' : ''}
-              key={session.id}
-              disabled={busyAction !== null}
-              onClick={() => void openSession(session)}
-            >
-              <strong>{session.title}</strong>
-              <span>{new Date(session.lastOpenedAt).toLocaleString()}</span>
-            </button>
-          ))}
+
+        <label className="global-search">
+          <Search size={17} />
+          <span className="sr-only">Search notes</span>
+          <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search notes, testware, findings..." />
+        </label>
+
+        <button className="primary-button top-new-button" type="button" disabled={isBusy} onClick={() => void handleNewNote()}>
+          {busyAction === 'new-note' ? <Loader2 className="spin" size={17} /> : <Plus size={17} />}
+          New note
+        </button>
+      </header>
+
+      <aside className="left-rail" aria-label="Workspace navigation">
+        <nav className="section-nav" aria-label="Primary">
+          <RailItem icon={FileText} label="Notes" count={sessions.length} active={activeView === 'notes'} onClick={() => setActiveView('notes')} />
+          <RailItem icon={Box} label="Testware" count={testwareDrafts.length} active={activeView === 'testware'} onClick={() => setActiveView('testware')} />
+          <RailItem icon={Flag} label="Findings" count={findings.length} active={activeView === 'findings'} onClick={() => setActiveView('findings')} />
+          <RailItem icon={ClipboardCheck} label="Templates" active={activeView === 'templates'} onClick={() => setActiveView('templates')} />
         </nav>
-      </aside>
 
-      <section className="timeline-pane">
-        <header className="pane-header">
-          <div>
-            <p className="eyebrow">Session Timeline</p>
-            <h2>{activeSession?.title ?? 'Create or reopen a Session'}</h2>
-            <p>{activeSession?.sessionContext ?? 'Entries will appear here as raw testing material.'}</p>
+        <section className="note-picker" aria-label="Choose note">
+          <p className="rail-heading">Choose note</p>
+          <div className="note-picker-list" role="listbox" aria-label="Notes">
+            {filteredSessions.slice(0, 8).map((session) => (
+              <button
+                key={session.id}
+                className={activeSession?.id === session.id ? 'note-picker-item active' : 'note-picker-item'}
+                type="button"
+                role="option"
+                aria-selected={activeSession?.id === session.id}
+                disabled={isBusy && activeSession?.id !== session.id}
+                onClick={() => void openNote(session)}
+              >
+                <span>{session.title}</span>
+                <small>{formatSessionDate(session.updatedAt)}</small>
+              </button>
+            ))}
+            {filteredSessions.length === 0 ? <p className="note-picker-empty">No matching notes</p> : null}
           </div>
-          <button disabled={busyAction !== null || !activeSession || includedEntries(entries).length === 0} onClick={handleGenerationDraft}>
-            {busyAction === 'draft' ? 'Creating...' : 'Create Draft'}
-          </button>
-          <button disabled={busyAction !== null || !activeSession} onClick={() => void handleExport('markdown')}>
-            Export MD
-          </button>
-          <button disabled={busyAction !== null || !activeSession} onClick={() => void handleExport('json')}>
-            Export JSON
-          </button>
-        </header>
-
-        {notice ? <p className="notice">{notice}</p> : null}
-        {error ? <p className="error">{error}</p> : null}
-
-        <section className="capture-card" aria-label="Capture Entry">
-          <label>
-            Entry type
-            <select value={entryType} onChange={(event) => setEntryType(event.target.value as EntryType)}>
-              {entryTypes.map((type) => (
-                <option key={type} value={type}>
-                  {formatEntryType(type)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Entry body
-            <textarea
-              placeholder="Capture a Note, Observation, API Response, Log, or possible Finding..."
-              value={entryBody}
-              onChange={(event) => setEntryBody(event.target.value)}
-            />
-          </label>
-          <button disabled={busyAction !== null || !activeSession || !entryBody.trim()} onClick={handleCreateEntry}>
-            {busyAction === 'entry' ? 'Adding...' : 'Add Entry'}
-          </button>
+          {filteredSessions.length > 8 ? <p className="note-picker-more">Showing 8 of {filteredSessions.length}. Search to narrow.</p> : null}
         </section>
 
-        <div className="timeline-list">
-          {entries.map((entry) => (
-            <article
-              className={entry.id === selectedEntryId ? 'timeline-entry selected' : 'timeline-entry'}
-              key={entry.id}
-            >
-              <button onClick={() => setSelectedEntryId(entry.id)}>
-                <span>{formatEntryType(entry.entryType)}</span>
-                <time>{new Date(entry.createdAt).toLocaleTimeString()}</time>
-              </button>
-              {entry.excludedFromGeneration ? <span className="entry-badge">Excluded from generation</span> : null}
-              <p>{entry.body}</p>
-            </article>
-          ))}
-          {entries.length === 0 ? <p className="empty-state">No Entries captured yet.</p> : null}
-        </div>
-      </section>
-
-      <aside className="inspector-pane">
-        <section className="panel">
-          <p className="eyebrow">Inspector</p>
-          {selectedEntry ? (
-            <>
-              <h2>{formatEntryType(selectedEntry.entryType)}</h2>
-              <p>{selectedEntry.body}</p>
-              <input
-                placeholder="Finding title"
-                value={findingTitle}
-                onChange={(event) => setFindingTitle(event.target.value)}
-              />
-              <button disabled={busyAction !== null} onClick={handleCreateFinding}>
-                {busyAction === 'finding' ? 'Creating...' : 'Create Finding From Entry'}
-              </button>
-              <button disabled={busyAction !== null} onClick={() => void handleToggleEntryGeneration(selectedEntry)}>
-                {selectedEntry.excludedFromGeneration ? 'Include In Generation' : 'Exclude From Generation'}
-              </button>
-            </>
-          ) : (
-            <p>Select an Entry to inspect it or create a Finding.</p>
-          )}
-        </section>
-
-        <section className="panel">
-          <p className="eyebrow">Generation Context</p>
-          <p>{generationContext ? `Created ${new Date(generationContext.createdAt).toLocaleString()}` : 'Not created yet.'}</p>
-          <p>{includedEntries(entries).length} Entries included for generation.</p>
-          <p>{findings.length} Findings in this local view.</p>
-          <div className="context-material" aria-label="Generation Context material">
-            <p className="context-heading">Entries</p>
-            {includedEntries(entries).slice(0, 4).map((entry) => (
-              <p key={entry.id}>
-                <strong>{formatEntryType(entry.entryType)}:</strong> {entry.body}
-              </p>
-            ))}
-            {includedEntries(entries).length > 4 ? <p>{includedEntries(entries).length - 4} more Entries available.</p> : null}
-            <p className="context-heading">Findings</p>
-            {findings.slice(0, 4).map((finding) => (
-              <p key={finding.id}>
-                <strong>{finding.title}:</strong> {finding.body}
-              </p>
-            ))}
-            {findings.length === 0 ? <p>No Findings created yet.</p> : null}
-            {findings.length > 4 ? <p>{findings.length - 4} more Findings available.</p> : null}
-            <p className="context-heading">Attachments</p>
-            {attachments.slice(0, 4).map((attachment) => (
-              <p key={attachment.id}>
-                <strong>{attachment.filename}:</strong> {attachment.relativePath}
-              </p>
-            ))}
-            {attachments.length === 0 ? <p>No Attachments imported yet.</p> : null}
-            {attachments.length > 4 ? <p>{attachments.length - 4} more Attachments available.</p> : null}
-          </div>
-          <p className="deferred-note">AI generation runs only when you choose a detected local CLI provider.</p>
-        </section>
-
-        <section className="panel">
-          <p className="eyebrow">AI Generation</p>
-          <label>
-            Provider
-            <select value={selectedProvider} onChange={(event) => setSelectedProvider(event.target.value as AiProvider)}>
-              {providerStatus?.providers.map((provider) => (
+        <section className="model-selector" aria-label="AI model">
+          <p className="rail-heading">AI model</p>
+          <label className="select-shell">
+            <ProviderGlyph provider={selectedProvider} />
+            <select value={selectedProvider} onChange={(event) => handleProviderChange(event.target.value as AiProvider)}>
+              {providerOptions.map((provider) => (
                 <option key={provider.id} value={provider.id}>
-                  {provider.label} {provider.available ? '' : '(unavailable)'}
+                  {provider.label} {provider.available ? '' : `(${statusLabel(provider.status)})`}
                 </option>
               ))}
             </select>
           </label>
-          <label>
-            Model label
-            <input value={selectedModel} onChange={(event) => setSelectedModel(event.target.value)} />
-          </label>
-          <button disabled={busyAction !== null || !activeSession || includedEntries(entries).length === 0} onClick={handleAiGeneration}>
-            {busyAction === 'ai-generation' ? 'Generating...' : 'Generate With Local CLI'}
-          </button>
-          {providerStatus?.providers.map((provider) => (
-            <p className="provider-line" key={provider.id}>
-              <strong>{provider.label}:</strong> {provider.reason}
-            </p>
-          ))}
+          <ModelCombobox models={activeProvider?.models ?? []} value={selectedModel} onChange={setSelectedModel} />
+          <p className={activeProvider?.available ? 'provider-hint ready' : 'provider-hint'}>
+            {activeProvider ? activeProvider.reason : 'Loading provider status'}
+          </p>
         </section>
 
-        <section className="panel" onPaste={(event) => void handlePasteAttachment(event)}>
-          <p className="eyebrow">Attachments</p>
-          <p>Paste an image here to import a clipboard screenshot, or import by local path.</p>
-          <label>
-            Source file path
-            <input
-              placeholder="/path/to/screenshot.png"
-              value={attachmentSourcePath}
-              onChange={(event) => setAttachmentSourcePath(event.target.value)}
-            />
-          </label>
-          <button disabled={busyAction !== null || !activeSession || !attachmentSourcePath.trim()} onClick={handleImportAttachment}>
-            {busyAction === 'attachment' ? 'Importing...' : 'Import Attachment'}
-          </button>
-          <div className="attachment-list">
-            {attachments.map((attachment) => (
-              <article key={attachment.id}>
-                <strong>{attachment.filename}</strong>
-                <span>{Math.round(attachment.sizeBytes / 1024)} KB</span>
-                <button disabled={busyAction !== null} onClick={() => void handlePreviewAttachment(attachment)}>
-                  Preview
-                </button>
-                <button disabled={busyAction !== null || findings.length === 0} onClick={() => void handleLinkAttachment(attachment)}>
-                  Link to Latest Finding
-                </button>
-              </article>
-            ))}
-            {attachments.length === 0 ? <p>No managed Attachments yet.</p> : null}
-          </div>
-          {previewDataUrl ? (
-            <>
-              <button onClick={() => void handleCopyPreviewDataUrl()}>Copy Preview Data URL</button>
-              {previewDataUrl.startsWith('data:image/') ? <img alt="Attachment preview" className="attachment-preview" src={previewDataUrl} /> : <textarea readOnly value={previewDataUrl} />}
-            </>
-          ) : null}
-        </section>
-
-        <section className="panel drafts-panel">
-          <p className="eyebrow">Export</p>
-          {sessionExport ? (
-            <article>
-              <h3>{sessionExport.filename}</h3>
-              <textarea readOnly value={sessionExport.body} />
-            </article>
-          ) : (
-            <p>Render a local Markdown or JSON export from the active Session.</p>
-          )}
-        </section>
-
-        <section className="panel drafts-panel">
-          <p className="eyebrow">Drafts</p>
-          {drafts.map((draft) => (
-            <article key={draft.id}>
-              <h3>{draft.title}</h3>
-              <label>
-                Editable Draft body
-                <textarea value={draft.body} onChange={(event) => updateLocalDraftBody(draft.id, event.target.value)} />
-              </label>
-              <button disabled={busyAction !== null} onClick={() => void handleSaveDraft(draft)}>
-                {busyAction === `draft:${draft.id}` ? 'Saving...' : 'Save Draft'}
-              </button>
-            </article>
-          ))}
-          {drafts.length === 0 ? <p>No Drafts yet.</p> : null}
-          <p className="deferred-note">Draft edits are saved to local SQLite when you choose Save Draft.</p>
-        </section>
-
-        <section className="panel">
-          <p className="eyebrow">Settings</p>
-          <label>
-            Generation system prompt
-            <textarea value={settingsPrompt} onChange={(event) => setSettingsPrompt(event.target.value)} />
-          </label>
-          <button disabled={busyAction !== null || !settings} onClick={handleSaveSettings}>
-            {busyAction === 'settings' ? 'Saving...' : 'Save Settings'}
-          </button>
-        </section>
-
-        <section className="panel system-panel">
-          <p className="eyebrow">System</p>
-          <dl>
-            <dt>Storage</dt>
-            <dd>{appStatus?.storageMode ?? 'loading'}</dd>
-            <dt>Database</dt>
-            <dd>{shellStatus?.databaseFilename ?? 'loading'}</dd>
-            <dt>Providers</dt>
-            <dd>{providerStatus?.providers.map((provider) => provider.label).join(', ') ?? 'loading'}</dd>
-            <dt>Deferred</dt>
-            <dd>{shellStatus?.deferredCommands.join(', ') ?? 'loading'}</dd>
-          </dl>
-        </section>
+        <button className={activeView === 'settings' ? 'settings-link active' : 'settings-link'} type="button" onClick={() => setActiveView('settings')}>
+          <Settings size={17} />
+          Settings
+        </button>
       </aside>
+
+      <section className="center-workspace" aria-label="Workspace">
+        {activeView === 'notes' ? (
+          <NotesView
+            activeProviderAvailable={Boolean(activeProvider?.available)}
+            activeSession={activeSession}
+            busyAction={busyAction}
+            filteredSessions={filteredSessions}
+            isBusy={isBusy}
+            noteBody={noteBody}
+            noteIsReady={noteIsReady}
+            noteTitle={noteTitle}
+            noteWordCount={noteWordCount}
+            notice={notice}
+            error={error}
+            onAiAction={handleAiAction}
+            onNewNote={handleNewNote}
+            onOpenNote={openNote}
+            onSetNoteBody={setNoteBody}
+            onSetNoteTitle={setNoteTitle}
+          />
+        ) : null}
+
+        {activeView === 'testware' ? (
+          <TestwareView
+            busyAction={busyAction}
+            drafts={testwareDrafts}
+            isBusy={isBusy}
+            onManualCreate={handleManualTestware}
+            onSaveDraft={handleSaveDraft}
+            updateLocalDraft={updateLocalDraft}
+          />
+        ) : null}
+
+        {activeView === 'findings' ? (
+          <FindingsView busyAction={busyAction} findings={findings} isBusy={isBusy} onManualCreate={handleManualFinding} />
+        ) : null}
+
+        {activeView === 'templates' ? (
+          <TemplatesView
+            busyAction={busyAction}
+            settingsDraft={settingsDraft}
+            settingsSaveState={settingsSaveState}
+            updateSettingsDraft={updateSettingsDraft}
+            onSaveSettings={handleSaveSettings}
+          />
+        ) : null}
+
+        {activeView === 'settings' ? (
+          <SettingsView
+            busyAction={busyAction}
+            providerStatus={providerStatus}
+            settingsDraft={settingsDraft}
+            settingsSaveState={settingsSaveState}
+            theme={theme}
+            updateSettingsDraft={updateSettingsDraft}
+            setTheme={setTheme}
+            onSaveSettings={handleSaveSettings}
+          />
+        ) : null}
+      </section>
     </main>
   )
 }
 
-function formatEntryType(type: EntryType): string {
-  return type.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
-}
-
-function renderManualDraft(session: Session, entries: Entry[], findings: Finding[]): string {
-  const generationEntries = includedEntries(entries)
-  return [
-    `# ${session.title}`,
-    '',
-    '## Session Context',
-    session.sessionContext ?? 'No Session Context captured.',
-    '',
-    '## Timeline Entries',
-    generationEntries.map((entry, index) => `${index + 1}. ${formatEntryType(entry.entryType)}: ${entry.body}`).join('\n') || 'No Entries captured.',
-    '',
-    '## Findings',
-    findings.map((finding) => `- ${finding.title}: ${finding.body}`).join('\n') || 'No Findings captured.',
-  ].join('\n')
-}
-
-function includedEntries(entries: Entry[]): Entry[] {
-  return entries.filter((entry) => !entry.excludedFromGeneration)
-}
-
-function formatError(cause: unknown): string {
-  return cause instanceof Error ? cause.message : String(cause)
-}
-
-function readFileAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.addEventListener('load', () => resolve(String(reader.result)))
-    reader.addEventListener('error', () => reject(reader.error ?? new Error('File could not be read')))
-    reader.readAsDataURL(file)
-  })
+function renderManualTestware(title: string, body: string): string {
+  const note = stripHtml(body) || 'Add source note detail.'
+  return [`# ${title} Test Cases`, '', '## Source Note', note, '', '## Test Cases', '- Scenario:', '  - Steps:', '  - Expected result:'].join('\n')
 }

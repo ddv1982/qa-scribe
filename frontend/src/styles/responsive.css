@@ -1,0 +1,99 @@
+.spin {
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 1100px) {
+  .app-shell {
+    width: 100vw;
+    min-height: 100vh;
+    margin: 0;
+    border-radius: 0;
+    grid-template-columns: 244px minmax(0, 1fr);
+    grid-template-rows: 76px 1fr;
+  }
+
+  .top-bar {
+    grid-template-columns: 244px minmax(180px, 1fr) max-content;
+    padding-inline: 18px;
+  }
+
+  .note-workspace {
+    padding-inline: 18px;
+  }
+}
+
+@media (max-width: 760px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto 1fr;
+  }
+
+  .top-bar {
+    grid-column: 1;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .top-new-button {
+    justify-self: stretch;
+  }
+
+  .left-rail {
+    grid-column: 1;
+    grid-row: 2;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .note-picker,
+  .model-selector {
+    margin-top: 18px;
+  }
+
+  .center-workspace {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
+  .note-workspace {
+    padding: 18px 14px;
+  }
+
+  .document-topline,
+  .bottom-command-bar,
+  .collection-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .bottom-command-bar button {
+    width: 100%;
+  }
+
+  .document-body {
+    padding: 18px;
+  }
+
+  .note-title-input {
+    font-size: 25px;
+  }
+
+  .format-toolbar {
+    flex-wrap: wrap;
+  }
+
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
+}
