@@ -7,11 +7,13 @@ pub use prompt::{
     ActionPromptKind, SESSION_REPORT_PROMPT_VERSION, render_action_prompt,
     render_session_report_prompt,
 };
-pub use response::parse_session_report_response;
+pub use response::{parse_session_report_response, preserve_managed_attachment_images};
 
 #[cfg(test)]
 mod tests {
-    use crate::domain::{AppSettings, Entry, EntryType, Finding, FindingKind, SessionDraft};
+    use crate::domain::{
+        AppSettings, Attachment, Entry, EntryType, Finding, FindingKind, SessionDraft,
+    };
     use crate::services::SessionService;
 
     use super::*;
@@ -124,6 +126,79 @@ mod tests {
     }
 
     #[test]
+    fn summary_prompt_is_note_local_and_uses_compact_managed_image_refs() {
+        let selected = test_entry(
+            "entry-selected",
+            EntryType::Note,
+            Some("Selected note"),
+            "<p>Gmail failed.</p><img src=\"qa-scribe-attachment://attachment-1\" data-attachment-id=\"attachment-1\" alt=\"gmail-error.png\" />",
+        );
+        let supporting = test_entry(
+            "entry-support",
+            EntryType::Observation,
+            Some("Console"),
+            "<p>Console showed <code>500</code>.</p>",
+        );
+        let finding = test_finding("finding-1", "Known bug", "<p>Existing finding.</p>");
+        let attachment = test_attachment("attachment-1", Some("entry-selected"), "gmail-error.png");
+
+        let prompt = render_action_prompt(
+            &AppSettings::default(),
+            "Gmail issue",
+            Some(&selected),
+            &[selected.clone(), supporting],
+            &[finding],
+            &[attachment],
+            ActionPromptKind::Summary,
+        );
+
+        assert!(prompt.contains("Gmail failed."));
+        assert!(prompt.contains("qa-scribe-attachment://attachment-1"));
+        assert!(prompt.contains("data-attachment-id=\"attachment-1\""));
+        assert!(!prompt.contains("Console showed 500."));
+        assert!(!prompt.contains("Existing finding."));
+        assert!(!prompt.contains("attachments/session/attachment-1_gmail-error.png"));
+        assert!(!prompt.contains("sha256"));
+    }
+
+    #[test]
+    fn summary_response_restores_attachment_paths_and_missing_managed_images() {
+        let attachment = test_attachment("attachment-1", Some("entry-selected"), "gmail-error.png");
+        let original = "<p>Original evidence.</p><img src=\"qa-scribe-attachment://attachment-1\" data-attachment-id=\"attachment-1\" alt=\"Gmail screenshot\" />";
+        let response = "<h2>Clean summary</h2><img src=\"attachments/session/attachment-1_gmail-error.png\" alt=\"Updated alt\" />";
+
+        let preserved = preserve_managed_attachment_images(
+            response,
+            original,
+            std::slice::from_ref(&attachment),
+        );
+
+        assert!(preserved.contains("src=\"qa-scribe-attachment://attachment-1\""));
+        assert!(preserved.contains("data-attachment-id=\"attachment-1\""));
+        assert!(!preserved.contains("src=\"attachments/session/attachment-1_gmail-error.png\""));
+
+        let dropped = preserve_managed_attachment_images(
+            "<p>No image here.</p>",
+            original,
+            std::slice::from_ref(&attachment),
+        );
+
+        assert!(dropped.contains("<p>No image here.</p>"));
+        assert!(dropped.contains("src=\"qa-scribe-attachment://attachment-1\""));
+        assert!(dropped.contains("alt=\"Gmail screenshot\""));
+
+        let broken_original = "<p>Original evidence.</p><img src=\"attachments/session/attachment-1_gmail-error.png\" alt=\"Broken before repair\" />";
+        let repaired_from_broken = preserve_managed_attachment_images(
+            "<p>No image here.</p>",
+            broken_original,
+            &[attachment],
+        );
+
+        assert!(repaired_from_broken.contains("src=\"qa-scribe-attachment://attachment-1\""));
+        assert!(repaired_from_broken.contains("alt=\"Broken before repair\""));
+    }
+
+    #[test]
     fn session_report_prompt_projects_entry_and_finding_bodies() {
         let service = SessionService::in_memory().expect("service should open");
         let session = service
@@ -190,6 +265,20 @@ mod tests {
             metadata_json: None,
             created_at: "2026-06-23T00:00:00Z".to_string(),
             updated_at: "2026-06-23T00:00:00Z".to_string(),
+        }
+    }
+
+    fn test_attachment(id: &str, entry_id: Option<&str>, filename: &str) -> Attachment {
+        Attachment {
+            id: id.to_string(),
+            session_id: "session-1".to_string(),
+            entry_id: entry_id.map(ToOwned::to_owned),
+            filename: filename.to_string(),
+            mime_type: Some("image/png".to_string()),
+            size_bytes: 123,
+            sha256: "a".repeat(64),
+            relative_path: format!("attachments/session/{id}_{filename}"),
+            created_at: "2026-06-23T00:00:00Z".to_string(),
         }
     }
 }

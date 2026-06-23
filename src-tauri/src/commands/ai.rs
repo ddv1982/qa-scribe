@@ -12,7 +12,7 @@ use qa_scribe_core::{
     },
     generation::{
         ActionPromptKind, SESSION_REPORT_PROMPT_VERSION, parse_session_report_response,
-        render_action_prompt, render_session_report_prompt,
+        preserve_managed_attachment_images, render_action_prompt, render_session_report_prompt,
     },
 };
 use serde::{Deserialize, Serialize};
@@ -99,6 +99,8 @@ struct PreparedGeneration {
     generation_context: GenerationContext,
     ai_run: AiRun,
     prompt: String,
+    selected_note_body: Option<String>,
+    attachments: Vec<qa_scribe_core::domain::Attachment>,
 }
 
 #[tauri::command]
@@ -156,6 +158,8 @@ pub fn generate_ai_action(
             generation_context,
             ai_run,
             prompt,
+            selected_note_body: note_entry.map(|entry| entry.body.clone()),
+            attachments,
         })
     })?;
     eprintln!(
@@ -239,6 +243,11 @@ pub fn generate_ai_action(
                             note_entry: None,
                         });
                     };
+                    let body = preserve_managed_attachment_images(
+                        &body,
+                        prepared.selected_note_body.as_deref().unwrap_or_default(),
+                        &prepared.attachments,
+                    );
                     let note_entry = service.update_entry(
                         &note_entry_id,
                         EntryPatch {
@@ -317,6 +326,8 @@ pub fn generate_session_report(
             generation_context,
             ai_run,
             prompt,
+            selected_note_body: None,
+            attachments,
         })
     })?;
     eprintln!(
