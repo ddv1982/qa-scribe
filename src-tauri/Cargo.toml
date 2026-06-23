@@ -1,0 +1,22 @@
+[package]
+name = "qa-scribe-tauri"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Tauri desktop shell for qa-scribe."
+
+[build-dependencies]
+tauri-build.workspace = true
+
+[dependencies]
+qa-scribe-core.workspace = true
+serde.workspace = true
+tauri.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]

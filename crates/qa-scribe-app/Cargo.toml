@@ -1,0 +1,11 @@
+[package]
+name = "qa-scribe-app"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "CLI smoke harness for qa-scribe core workflows."
+
+[dependencies]
+qa-scribe-core.workspace = true
+serde_json.workspace = true

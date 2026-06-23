@@ -1,0 +1,254 @@
+use std::{
+    fs,
+    path::{Component, Path, PathBuf},
+};
+
+use base64::{Engine, engine::general_purpose::STANDARD};
+use sha2::{Digest, Sha256};
+use uuid::Uuid;
+
+use crate::{
+    Result,
+    domain::{Attachment, AttachmentDraft},
+    error::validation,
+    services::SessionService,
+};
+
+const MAX_ATTACHMENT_BYTES: u64 = 25 * 1024 * 1024;
+
+pub fn import_managed_attachment(
+    service: &SessionService,
+    app_data_dir: impl AsRef<Path>,
+    session_id: &str,
+    entry_id: Option<String>,
+    source_path: impl AsRef<Path>,
+) -> Result<Attachment> {
+    let source_path = source_path.as_ref();
+    service
+        .get_session(session_id)?
+        .ok_or_else(|| crate::QaScribeError::NotFound(session_id.to_string()))?;
+    if let Some(entry_id) = &entry_id {
+        let entry_belongs_to_session = service
+            .list_entries(session_id)?
+            .iter()
+            .any(|entry| entry.id == *entry_id);
+        if !entry_belongs_to_session {
+            return Err(validation("Attachment Entry must belong to the Session"));
+        }
+    }
+
+    if !source_path.is_file() {
+        return Err(validation("attachment source must be a file"));
+    }
+
+    let metadata = fs::metadata(source_path)?;
+    if metadata.len() > MAX_ATTACHMENT_BYTES {
+        return Err(validation(format!(
+            "attachment must be at most {MAX_ATTACHMENT_BYTES} bytes"
+        )));
+    }
+
+    let filename = source_path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .map(safe_filename)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| validation("attachment filename is required"))?;
+    let bytes = fs::read(source_path)?;
+    import_managed_attachment_bytes(
+        service,
+        app_data_dir,
+        session_id,
+        entry_id,
+        filename,
+        guess_mime_type(source_path).map(str::to_string),
+        bytes,
+    )
+}
+
+pub fn import_clipboard_screenshot_data_url(
+    service: &SessionService,
+    app_data_dir: impl AsRef<Path>,
+    session_id: &str,
+    entry_id: Option<String>,
+    filename: String,
+    data_url: &str,
+) -> Result<Attachment> {
+    let (mime_type, encoded) = data_url
+        .split_once(",")
+        .ok_or_else(|| validation("clipboard screenshot data URL is invalid"))?;
+    if !mime_type.starts_with("data:image/") || !mime_type.ends_with(";base64") {
+        return Err(validation(
+            "clipboard screenshot must be a base64 image data URL",
+        ));
+    }
+    let bytes = STANDARD
+        .decode(encoded)
+        .map_err(|_| validation("clipboard screenshot data URL could not decode"))?;
+    import_managed_attachment_bytes(
+        service,
+        app_data_dir,
+        session_id,
+        entry_id,
+        filename,
+        Some(
+            mime_type
+                .trim_start_matches("data:")
+                .trim_end_matches(";base64")
+                .to_string(),
+        ),
+        bytes,
+    )
+}
+
+pub fn import_managed_attachment_bytes(
+    service: &SessionService,
+    app_data_dir: impl AsRef<Path>,
+    session_id: &str,
+    entry_id: Option<String>,
+    filename: String,
+    mime_type: Option<String>,
+    bytes: Vec<u8>,
+) -> Result<Attachment> {
+    service
+        .get_session(session_id)?
+        .ok_or_else(|| crate::QaScribeError::NotFound(session_id.to_string()))?;
+    if let Some(entry_id) = &entry_id {
+        let entry_belongs_to_session = service
+            .list_entries(session_id)?
+            .iter()
+            .any(|entry| entry.id == *entry_id);
+        if !entry_belongs_to_session {
+            return Err(validation("Attachment Entry must belong to the Session"));
+        }
+    }
+    if bytes.len() as u64 > MAX_ATTACHMENT_BYTES {
+        return Err(validation(format!(
+            "attachment must be at most {MAX_ATTACHMENT_BYTES} bytes"
+        )));
+    }
+
+    let filename = safe_filename(&filename);
+    if filename.is_empty() {
+        return Err(validation("attachment filename is required"));
+    }
+    let sha256 = hex_sha256(&bytes);
+    let attachment_id = Uuid::new_v4().to_string();
+    let relative_path = PathBuf::from("attachments")
+        .join(session_id)
+        .join(format!("{attachment_id}_{filename}"));
+    let destination_path = app_data_dir.as_ref().join(&relative_path);
+    if !is_safe_relative_path(&relative_path) {
+        return Err(validation("attachment destination path is invalid"));
+    }
+    if let Some(parent) = destination_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(&destination_path, &bytes)?;
+
+    let result = service.create_attachment(AttachmentDraft {
+        session_id: session_id.to_string(),
+        entry_id,
+        filename,
+        mime_type,
+        size_bytes: bytes.len() as i64,
+        sha256,
+        relative_path: relative_path.to_string_lossy().replace('\\', "/"),
+    });
+    if result.is_err() {
+        let _ = fs::remove_file(destination_path);
+    }
+    result
+}
+
+pub fn delete_session_attachment_files(
+    app_data_dir: impl AsRef<Path>,
+    session_id: &str,
+) -> Result<()> {
+    let path = app_data_dir.as_ref().join("attachments").join(session_id);
+    if path.exists() {
+        fs::remove_dir_all(path)?;
+    }
+    Ok(())
+}
+
+pub fn attachment_preview_data_url(
+    service: &SessionService,
+    app_data_dir: impl AsRef<Path>,
+    attachment_id: &str,
+) -> Result<Option<String>> {
+    let Some(attachment) = service.get_attachment(attachment_id)? else {
+        return Ok(None);
+    };
+    let relative_path = PathBuf::from(&attachment.relative_path);
+    if !is_safe_relative_path(&relative_path) {
+        return Err(validation("stored attachment path is invalid"));
+    }
+    let bytes = fs::read(app_data_dir.as_ref().join(relative_path))?;
+    let mime_type = attachment
+        .mime_type
+        .as_deref()
+        .unwrap_or("application/octet-stream");
+    Ok(Some(format!(
+        "data:{mime_type};base64,{}",
+        STANDARD.encode(bytes)
+    )))
+}
+
+fn hex_sha256(bytes: &[u8]) -> String {
+    let digest = Sha256::digest(bytes);
+    digest.iter().map(|byte| format!("{byte:02x}")).collect()
+}
+
+fn safe_filename(filename: &str) -> String {
+    filename
+        .chars()
+        .map(|character| match character {
+            'a'..='z' | 'A'..='Z' | '0'..='9' | '.' | '-' | '_' => character,
+            _ => '_',
+        })
+        .collect::<String>()
+        .trim_matches('.')
+        .to_string()
+}
+
+fn is_safe_relative_path(path: &Path) -> bool {
+    path.components()
+        .all(|component| matches!(component, Component::Normal(_)))
+}
+
+fn guess_mime_type(path: &Path) -> Option<&'static str> {
+    match path
+        .extension()
+        .and_then(|value| value.to_str())
+        .map(str::to_ascii_lowercase)
+    {
+        Some(extension) if extension == "png" => Some("image/png"),
+        Some(extension) if extension == "jpg" || extension == "jpeg" => Some("image/jpeg"),
+        Some(extension) if extension == "gif" => Some("image/gif"),
+        Some(extension) if extension == "webp" => Some("image/webp"),
+        Some(extension) if extension == "txt" || extension == "log" => Some("text/plain"),
+        Some(extension) if extension == "json" => Some("application/json"),
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn safe_filename_removes_path_control_characters() {
+        assert_eq!(safe_filename("../screen shot.png"), "_screen_shot.png");
+    }
+
+    #[test]
+    fn safe_relative_path_rejects_parent_segments() {
+        assert!(!is_safe_relative_path(Path::new(
+            "attachments/../secret.txt"
+        )));
+        assert!(is_safe_relative_path(Path::new(
+            "attachments/session/file.txt"
+        )));
+    }
+}

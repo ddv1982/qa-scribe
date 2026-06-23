@@ -2,6 +2,10 @@
 
 qa-scribe is a local-first testing notepad that helps testers collect raw testing material and turn it into structured testware.
 
+## Implementation Direction
+
+qa-scribe is implemented as a Rust/Tauri application rebuilt from the earlier Electrobun/Bun MVP. The product language below remains authoritative. Existing Electrobun/Bun app data is not a migration target.
+
 ## Language
 
 **Session**:

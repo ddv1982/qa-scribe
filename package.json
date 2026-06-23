@@ -1,53 +1,21 @@
 {
   "name": "qa-scribe",
-  "version": "0.2.13",
+  "version": "0.3.0",
   "description": "Local-first desktop testing notepad for turning testing sessions into structured testware.",
   "author": "qa-scribe contributors",
-  "packageManager": "bun@1.3.5",
-  "main": "src/bun/index.ts",
   "scripts": {
-    "dev": "electrobun dev --watch",
-    "start": "electrobun run",
-    "verify": "bun run lint && bun run test",
-    "build": "bun run verify && electrobun build",
-    "build:dev": "bun run verify && electrobun build",
-    "build:canary": "bun run verify && electrobun build --env=canary",
-    "build:stable": "bun run verify && electrobun build --env=stable",
-    "test": "vitest run --exclude src/main/services/sessionService.test.ts && bun test src/main/services/sessionService.test.ts",
-    "test:watch": "vitest --exclude src/main/services/sessionService.test.ts",
-    "db:generate": "drizzle-kit generate",
-    "lint": "tsc -b --noEmit"
-  },
-  "dependencies": {
-    "@tiptap/core": "^3.26.1",
-    "@tiptap/extension-placeholder": "^3.26.1",
-    "@tiptap/pm": "^3.26.1",
-    "@tiptap/react": "^3.26.1",
-    "@tiptap/starter-kit": "^3.26.1",
-    "drizzle-orm": "^0.45.2",
-    "lucide-react": "^1.18.0",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7",
-    "streamdown": "^2.5.0",
-    "zod": "^4.4.3"
-  },
-  "devDependencies": {
-    "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^16.3.2",
-    "@types/bun": "^1.3.14",
-    "@types/node": "^24.13.2",
-    "@types/react": "^19.2.17",
-    "@types/react-dom": "^19.2.3",
-    "@types/three": "^0.184.1",
-    "@vitejs/plugin-react": "^5.2.0",
-    "drizzle-kit": "^0.31.10",
-    "electrobun": "^1.18.1",
-    "jsdom": "^29.1.1",
-    "typescript": "^6.0.3",
-    "vite": "^7.3.5",
-    "vitest": "^4.1.9"
-  },
-  "overrides": {
-    "esbuild": "0.28.1"
+    "dev": "cd src-tauri && cargo tauri dev",
+    "tauri:dev": "cd src-tauri && cargo tauri dev",
+    "tauri:build": "cd src-tauri && cargo tauri build",
+    "frontend:build": "npm --prefix frontend run build",
+    "frontend:typecheck": "npm --prefix frontend run typecheck",
+    "fmt": "cargo fmt --all --check",
+    "typecheck": "npm run frontend:build && cargo check --workspace",
+    "lint": "npm run frontend:build && cargo clippy --workspace --all-targets -- -D warnings",
+    "test": "npm run frontend:build && cargo test --workspace",
+    "build": "npm run frontend:build && cargo build --workspace",
+    "smoke": "cargo run -p qa-scribe-app",
+    "package:check": "node -e \"JSON.parse(require('fs').readFileSync('package.json','utf8')); JSON.parse(require('fs').readFileSync('src-tauri/tauri.conf.json','utf8'))\"",
+    "verify": "npm run frontend:build && cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace && cargo run -p qa-scribe-app"
   }
 }
