@@ -84,8 +84,28 @@
 
 .record-actions {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
   gap: 10px;
+}
+
+.generation-record input,
+.generation-record textarea {
+  cursor: default;
+}
+
+.generation-record textarea {
+  min-height: 180px;
+}
+
+.generation-progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: auto;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 650;
 }
 
 .record-grid,

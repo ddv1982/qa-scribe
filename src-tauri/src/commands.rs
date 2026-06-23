@@ -8,7 +8,10 @@ mod sessions;
 mod settings;
 mod status;
 
-pub use ai::{generate_ai_action, generate_session_report};
+pub use ai::{
+    cancel_ai_action_job, generate_ai_action, generate_session_report, get_ai_action_job_status,
+    start_ai_action_job,
+};
 pub use entries::{create_entry, list_entries, update_entry};
 pub use files::{
     export_session, get_attachment_preview_data_url, import_attachment,

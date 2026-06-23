@@ -18,7 +18,7 @@ import {
   deleteDraft,
   deleteFinding,
   deleteSession,
-  generateAiAction,
+  cancelAiActionJob,
   getProviderStatus,
   getSettings,
   importClipboardScreenshot,
@@ -27,6 +27,7 @@ import {
   listFindings,
   listSessions,
   reopenSession,
+  startAiActionJob,
   updateDraft,
   updateEntry,
   updateSession,
@@ -37,6 +38,8 @@ import {
   type Entry,
   type Finding,
   type GenerateAiActionKind,
+  type GenerationJobEvent,
+  type GenerationJobStatus,
   type ProviderStatus,
   type Session,
 } from './tauri'
@@ -58,7 +61,7 @@ import {
   stripHtml,
 } from './editor/editorHtml'
 import { countWords, formatError, formatSessionDate, initialTheme, nextUntitledTitle, statusLabel } from './ui/format'
-import type { BusyAction, SettingsSaveState, ThemePreference, WorkspaceView } from './ui/types'
+import type { BusyAction, PendingAiActions, SettingsSaveState, ThemePreference, WorkspaceView } from './ui/types'
 import { FindingsView } from './views/FindingsView'
 import { NotesView } from './views/NotesView'
 import { SettingsView } from './views/SettingsView'
@@ -71,6 +74,10 @@ type DeleteConfirmation =
   | { kind: 'note'; session: Session }
   | { kind: 'draft'; draft: Draft }
   | { kind: 'finding'; finding: Finding }
+
+function generationIsActive(job: GenerationJobStatus): boolean {
+  return job.state === 'starting' || job.state === 'running' || job.state === 'cancelling'
+}
 
 function deleteConfirmationCopy(confirmation: DeleteConfirmation) {
   if (confirmation.kind === 'note') {
@@ -108,6 +115,7 @@ export function App() {
   const [selectedModel, setSelectedModel] = useState('default')
   const [settingsDraft, setSettingsDraft] = useState<AppSettings | null>(null)
   const [settingsSaveState, setSettingsSaveState] = useState<SettingsSaveState>('idle')
+  const [generationJobs, setGenerationJobs] = useState<Record<string, GenerationJobStatus>>({})
   const [busyAction, setBusyAction] = useState<BusyAction | null>('boot')
   const [notice, setNotice] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -119,6 +127,8 @@ export function App() {
   const savedTitleRef = useRef('')
   const savedBodyRef = useRef(emptyNoteHtml)
   const deletingSessionIdRef = useRef<string | null>(null)
+  const activeSessionIdRef = useRef<string | null>(null)
+  const noteEntryIdRef = useRef<string | null>(null)
   const settingsSaveResetRef = useRef<number | null>(null)
   const bootedRef = useRef(false)
 
@@ -134,12 +144,27 @@ export function App() {
   const noteIsReady = Boolean(activeSession && noteEntry)
   const isBusy = busyAction !== null
   const deleteCopy = deleteConfirmation ? deleteConfirmationCopy(deleteConfirmation) : null
+  const activeSessionJobs = useMemo(
+    () => Object.values(generationJobs).filter((job) => activeSession && job.sessionId === activeSession.id && generationIsActive(job)),
+    [generationJobs, activeSession],
+  )
+  const pendingAiActions = useMemo<PendingAiActions>(() => {
+    const pending: PendingAiActions = {}
+    for (const job of activeSessionJobs) pending[job.action] = true
+    return pending
+  }, [activeSessionJobs])
+  const activeTestwareJob = activeSessionJobs.find((job) => job.action === 'testware') ?? null
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
     document.documentElement.style.colorScheme = theme
     window.localStorage.setItem('qa-scribe-theme', theme)
   }, [theme])
+
+  useEffect(() => {
+    activeSessionIdRef.current = activeSession?.id ?? null
+    noteEntryIdRef.current = noteEntry?.id ?? null
+  }, [activeSession?.id, noteEntry?.id])
 
   useEffect(() => {
     return () => {
@@ -344,6 +369,74 @@ export function App() {
     return saved
   }
 
+  function storeGenerationStatus(status: GenerationJobStatus) {
+    setGenerationJobs((previous) => ({ ...previous, [status.jobId]: status }))
+  }
+
+  function mergeDraft(draft: Draft) {
+    setDrafts((previous) => {
+      const exists = previous.some((item) => item.id === draft.id)
+      if (exists) return previous.map((item) => (item.id === draft.id ? draft : item))
+      return [draft, ...previous]
+    })
+  }
+
+  function mergeFinding(finding: Finding) {
+    setFindings((previous) => {
+      const exists = previous.some((item) => item.id === finding.id)
+      if (exists) return previous.map((item) => (item.id === finding.id ? finding : item))
+      return [finding, ...previous]
+    })
+  }
+
+  function applyGenerationEvent(event: GenerationJobEvent) {
+    storeGenerationStatus(event.status)
+
+    if (event.type === 'progress') {
+      setNotice(event.message)
+      return
+    }
+
+    if (event.type === 'partial') {
+      setNotice(event.status.progressMessage || 'Generating')
+      return
+    }
+
+    if (event.type === 'started') {
+      setNotice(event.status.progressMessage || 'Generation started')
+      return
+    }
+
+    if (event.type === 'cancelled') {
+      setNotice('Generation cancelled')
+      return
+    }
+
+    if (event.type === 'failed') {
+      setError(event.errorMessage)
+      return
+    }
+
+    const { result } = event
+    if (result.draft && activeSessionIdRef.current === result.draft.sessionId) {
+      mergeDraft(result.draft)
+      setActiveView('testware')
+      setNotice('Testware generated')
+    } else if (result.finding && activeSessionIdRef.current === result.finding.sessionId) {
+      mergeFinding(result.finding)
+      setActiveView('findings')
+      setNotice('Finding created')
+    } else if (result.noteEntry && noteEntryIdRef.current === result.noteEntry.id) {
+      const body = normalizeEditorHtml(result.noteEntry.body)
+      setNoteEntry(result.noteEntry)
+      setNoteBody(body)
+      savedBodyRef.current = body
+      setNotice('Note summarized')
+    } else {
+      setNotice(result.aiRun.errorMessage ?? 'AI action finished')
+    }
+  }
+
   async function handleAiAction(action: GenerateAiActionKind) {
     if (!activeSession || !noteEntry) return
     const busy = action === 'testware' ? 'ai-testware' : action === 'finding' ? 'ai-finding' : 'ai-summary'
@@ -352,35 +445,41 @@ export function App() {
       setError(null)
       const saved = await saveNoteNow()
       if (!saved) return
-      const result = await generateAiAction({
-        sessionId: activeSession.id,
-        provider: selectedProvider,
-        model: selectedModel.trim() || 'default',
-        reasoningEffort: null,
-        action,
-        noteEntryId: noteEntry.id,
-      })
-      if (result.draft) {
-        setDrafts(await listDrafts(activeSession.id))
+      const started = await startAiActionJob(
+        {
+          sessionId: activeSession.id,
+          provider: selectedProvider,
+          model: selectedModel.trim() || 'default',
+          reasoningEffort: null,
+          action,
+          noteEntryId: noteEntry.id,
+        },
+        applyGenerationEvent,
+      )
+      storeGenerationStatus(started.status)
+      if (action === 'testware') {
         setActiveView('testware')
-        setNotice('Testware generated')
-      } else if (result.finding) {
-        setFindings(await listFindings(activeSession.id))
-        setActiveView('findings')
-        setNotice('Finding created')
-      } else if (result.noteEntry) {
-        const body = normalizeEditorHtml(result.noteEntry.body)
-        setNoteEntry(result.noteEntry)
-        setNoteBody(body)
-        savedBodyRef.current = body
-        setNotice('Note summarized')
+        setNotice('Generating testware')
+      } else if (action === 'finding') {
+        setNotice('Generating finding')
       } else {
-        setNotice(result.aiRun.errorMessage ?? 'AI action finished without creating output')
+        setNotice('Summarizing note')
       }
     } catch (cause) {
       setError(formatError(cause))
     } finally {
       setBusyAction(null)
+    }
+  }
+
+  async function handleCancelGenerationJob(jobId: string) {
+    try {
+      setError(null)
+      const status = await cancelAiActionJob(jobId)
+      storeGenerationStatus(status)
+      setNotice('Cancelling generation')
+    } catch (cause) {
+      setError(formatError(cause))
     }
   }
 
@@ -767,6 +866,7 @@ export function App() {
             noteWordCount={noteWordCount}
             notice={notice}
             error={error}
+            pendingAiActions={pendingAiActions}
             onAiAction={handleAiAction}
             onDeleteNote={requestDeleteNote}
             onNewNote={handleNewNote}
@@ -783,6 +883,8 @@ export function App() {
             notice={notice}
             error={error}
             isBusy={isBusy}
+            activeGenerationJob={activeTestwareJob}
+            onCancelGenerationJob={handleCancelGenerationJob}
             onDeleteDraft={requestDeleteDraft}
             onManualCreate={handleManualTestware}
             onSaveDraft={handleSaveDraft}

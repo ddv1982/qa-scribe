@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core'
+import { Channel, invoke } from '@tauri-apps/api/core'
 
 export type AppStatus = {
   name: string
@@ -367,6 +367,38 @@ export type GenerateAiActionResult = {
   noteEntry: Entry | null
 }
 
+export type GenerationJobState = 'starting' | 'running' | 'cancelling' | 'completed' | 'failed' | 'cancelled'
+
+export type GenerationJobStatus = {
+  jobId: string
+  sessionId: string
+  action: GenerateAiActionKind
+  state: GenerationJobState
+  progressMessage: string
+  aiRunId: string | null
+  errorMessage: string | null
+  partialText: string | null
+}
+
+export type GenerationJobEvent =
+  | {
+      type: 'started'
+      jobId: string
+      status: GenerationJobStatus
+      generationContext: GenerationContext
+      aiRun: AiRun
+    }
+  | { type: 'progress'; jobId: string; status: GenerationJobStatus; message: string }
+  | { type: 'partial'; jobId: string; status: GenerationJobStatus; body: string }
+  | { type: 'completed'; jobId: string; status: GenerationJobStatus; result: GenerateAiActionResult }
+  | { type: 'failed'; jobId: string; status: GenerationJobStatus; errorMessage: string; aiRun: AiRun | null }
+  | { type: 'cancelled'; jobId: string; status: GenerationJobStatus; aiRun: AiRun | null }
+
+export type StartAiActionJobResult = {
+  jobId: string
+  status: GenerationJobStatus
+}
+
 export function generateAiAction(input: {
   sessionId: string
   provider: AiProvider
@@ -376,4 +408,27 @@ export function generateAiAction(input: {
   noteEntryId?: string | null
 }): Promise<GenerateAiActionResult> {
   return invoke<GenerateAiActionResult>('generate_ai_action', { request: input })
+}
+
+export function startAiActionJob(
+  input: {
+    sessionId: string
+    provider: AiProvider
+    model: string
+    reasoningEffort: string | null
+    action: GenerateAiActionKind
+    noteEntryId?: string | null
+  },
+  onEvent: (event: GenerationJobEvent) => void,
+): Promise<StartAiActionJobResult> {
+  const events = new Channel<GenerationJobEvent>(onEvent)
+  return invoke<StartAiActionJobResult>('start_ai_action_job', { request: input, events })
+}
+
+export function getAiActionJobStatus(jobId: string): Promise<GenerationJobStatus> {
+  return invoke<GenerationJobStatus>('get_ai_action_job_status', { jobId })
+}
+
+export function cancelAiActionJob(jobId: string): Promise<GenerationJobStatus> {
+  return invoke<GenerationJobStatus>('cancel_ai_action_job', { jobId })
 }

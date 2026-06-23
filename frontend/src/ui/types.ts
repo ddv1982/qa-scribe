@@ -1,6 +1,9 @@
+import type { GenerateAiActionKind } from '../tauri'
+
 export type ThemePreference = 'light' | 'dark'
 export type WorkspaceView = 'notes' | 'testware' | 'findings' | 'templates' | 'settings'
 export type SettingsSaveState = 'idle' | 'saving' | 'saved' | 'error'
+export type PendingAiActions = Partial<Record<GenerateAiActionKind, boolean>>
 export type BusyAction =
   | 'boot'
   | 'open-note'

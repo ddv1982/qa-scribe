@@ -1,6 +1,9 @@
 use std::{
+    collections::HashMap,
     io::ErrorKind,
     process::{Command, Output},
+    sync::{Mutex, OnceLock},
+    time::{Duration, Instant},
 };
 
 use qa_scribe_core::{
@@ -16,6 +19,10 @@ mod models;
 use models::{
     claude_models, codex_models, copilot_models, normalize_models, provider_default_model,
 };
+
+const READINESS_CACHE_TTL: Duration = Duration::from_secs(30);
+static READINESS_CACHE: OnceLock<Mutex<HashMap<AiProvider, CachedProviderReadiness>>> =
+    OnceLock::new();
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -74,6 +81,12 @@ impl ProviderState {
 pub struct ProviderReadiness {
     pub descriptor: ProviderDescriptor,
     pub copilot_runtime: Option<CopilotRuntime>,
+}
+
+#[derive(Clone, Debug)]
+struct CachedProviderReadiness {
+    checked_at: Instant,
+    readiness: ProviderReadiness,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -135,7 +148,25 @@ pub fn get_provider_status() -> ProviderStatus {
 }
 
 pub fn provider_readiness(provider: AiProvider) -> ProviderReadiness {
-    detect_provider(provider, &SystemProbeRunner)
+    let cache = READINESS_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+    if let Ok(cached) = cache.lock()
+        && let Some(entry) = cached.get(&provider)
+        && entry.checked_at.elapsed() < READINESS_CACHE_TTL
+    {
+        return entry.readiness.clone();
+    }
+
+    let readiness = detect_provider(provider, &SystemProbeRunner);
+    if let Ok(mut cached) = cache.lock() {
+        cached.insert(
+            provider,
+            CachedProviderReadiness {
+                checked_at: Instant::now(),
+                readiness: readiness.clone(),
+            },
+        );
+    }
+    readiness
 }
 
 fn provider_status_with_runner(runner: &impl ProbeRunner) -> ProviderStatus {

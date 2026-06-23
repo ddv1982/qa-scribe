@@ -51,8 +51,9 @@ pub fn get_command_shell_status(
             "exports",
             "provider_status",
             "local_ai_generation",
+            "long_running_jobs",
         ],
-        deferred_commands: vec!["long_running_jobs"],
+        deferred_commands: Vec::new(),
     }
 }
 

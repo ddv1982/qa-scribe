@@ -1,6 +1,6 @@
-import { Box, Loader2, Plus, Save, Trash2 } from 'lucide-react'
+import { Box, Loader2, Plus, Save, Trash2, X } from 'lucide-react'
 import { EmptyCollection, StatusPill } from '../components/Common'
-import type { Draft } from '../tauri'
+import type { Draft, GenerationJobStatus } from '../tauri'
 import type { BusyAction } from '../ui/types'
 
 export function TestwareView({
@@ -9,7 +9,9 @@ export function TestwareView({
   notice,
   error,
   isBusy,
+  activeGenerationJob,
   updateLocalDraft,
+  onCancelGenerationJob,
   onDeleteDraft,
   onManualCreate,
   onSaveDraft,
@@ -19,7 +21,9 @@ export function TestwareView({
   notice: string | null
   error: string | null
   isBusy: boolean
+  activeGenerationJob: GenerationJobStatus | null
   updateLocalDraft: (id: string, patch: Partial<Pick<Draft, 'title' | 'body'>>) => void
+  onCancelGenerationJob: (jobId: string) => Promise<void>
   onDeleteDraft: (draft: Draft) => void
   onManualCreate: () => Promise<void>
   onSaveDraft: (draft: Draft) => Promise<void>
@@ -43,6 +47,31 @@ export function TestwareView({
       ) : null}
 
       <div className="collection-stack">
+        {activeGenerationJob ? (
+          <article className="editable-record generation-record">
+            <input readOnly value="Generating test cases" aria-label="Pending testware title" />
+            <textarea
+              readOnly
+              value={activeGenerationJob.partialText || activeGenerationJob.progressMessage || 'Preparing testware...'}
+              aria-label="Pending generated testware"
+            />
+            <div className="record-actions">
+              <span className="generation-progress">
+                <Loader2 className="spin" size={16} />
+                {activeGenerationJob.progressMessage}
+              </span>
+              <button
+                className="secondary-button"
+                type="button"
+                disabled={activeGenerationJob.state === 'cancelling'}
+                onClick={() => void onCancelGenerationJob(activeGenerationJob.jobId)}
+              >
+                {activeGenerationJob.state === 'cancelling' ? <Loader2 className="spin" size={16} /> : <X size={16} />}
+                Cancel
+              </button>
+            </div>
+          </article>
+        ) : null}
         {drafts.map((draft) => {
           const deletingDraft = busyAction === `delete-draft:${draft.id}`
           const savingDraft = busyAction === `draft:${draft.id}`

@@ -14,6 +14,7 @@ qa-scribe-core.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tauri.workspace = true
+uuid.workspace = true
 
 [features]
 default = ["custom-protocol"]

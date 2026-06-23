@@ -3,6 +3,7 @@ import { FormatToolbar, RichTextEditor } from '../editor/RichTextEditor'
 import type { GenerateAiActionKind, Session } from '../tauri'
 import { StatusPill } from '../components/Common'
 import type { BusyAction } from '../ui/types'
+import type { PendingAiActions } from '../ui/types'
 
 export function NotesView({
   activeProviderAvailable,
@@ -16,6 +17,7 @@ export function NotesView({
   noteWordCount,
   notice,
   error,
+  pendingAiActions,
   onAiAction,
   onDeleteNote,
   onNewNote,
@@ -34,6 +36,7 @@ export function NotesView({
   noteWordCount: number
   notice: string | null
   error: string | null
+  pendingAiActions: PendingAiActions
   onAiAction: (action: GenerateAiActionKind) => Promise<void>
   onDeleteNote: () => void
   onNewNote: () => Promise<void>
@@ -42,6 +45,9 @@ export function NotesView({
   onSetNoteTitle: (value: string) => void
 }) {
   const deletingNote = busyAction === 'delete-note'
+  const testwarePending = Boolean(pendingAiActions.testware)
+  const findingPending = Boolean(pendingAiActions.finding)
+  const summaryPending = Boolean(pendingAiActions.summary)
 
   if (!activeSession) {
     return (
@@ -103,17 +109,17 @@ export function NotesView({
       </section>
 
       <footer className="bottom-command-bar" aria-label="AI note actions">
-        <button className="secondary-button" type="button" disabled={isBusy || !noteIsReady || !activeProviderAvailable} onClick={() => void onAiAction('testware')}>
-          {busyAction === 'ai-testware' ? <Loader2 className="spin" size={16} /> : <Box size={16} />}
-          Generate test cases
+        <button className="secondary-button" type="button" disabled={isBusy || testwarePending || !noteIsReady || !activeProviderAvailable} onClick={() => void onAiAction('testware')}>
+          {busyAction === 'ai-testware' || testwarePending ? <Loader2 className="spin" size={16} /> : <Box size={16} />}
+          {testwarePending ? 'Generating test cases' : 'Generate test cases'}
         </button>
-        <button className="secondary-button" type="button" disabled={isBusy || !noteIsReady || !activeProviderAvailable} onClick={() => void onAiAction('finding')}>
-          {busyAction === 'ai-finding' ? <Loader2 className="spin" size={16} /> : <Flag size={16} />}
-          Create finding
+        <button className="secondary-button" type="button" disabled={isBusy || findingPending || !noteIsReady || !activeProviderAvailable} onClick={() => void onAiAction('finding')}>
+          {busyAction === 'ai-finding' || findingPending ? <Loader2 className="spin" size={16} /> : <Flag size={16} />}
+          {findingPending ? 'Creating finding' : 'Create finding'}
         </button>
-        <button className="primary-button" type="button" disabled={isBusy || !noteIsReady || !activeProviderAvailable} onClick={() => void onAiAction('summary')}>
-          {busyAction === 'ai-summary' ? <Loader2 className="spin" size={16} /> : <Sparkles size={16} />}
-          Summarize notes
+        <button className="primary-button" type="button" disabled={isBusy || summaryPending || !noteIsReady || !activeProviderAvailable} onClick={() => void onAiAction('summary')}>
+          {busyAction === 'ai-summary' || summaryPending ? <Loader2 className="spin" size={16} /> : <Sparkles size={16} />}
+          {summaryPending ? 'Summarizing notes' : 'Summarize notes'}
         </button>
       </footer>
     </div>
