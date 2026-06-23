@@ -100,7 +100,7 @@ export function NotesView({
             placeholder="Untitled note"
             aria-label="Note title"
           />
-          <RichTextEditor value={noteBody} onChange={onSetNoteBody} />
+          <RichTextEditor value={noteBody} onChange={onSetNoteBody} className="note-rich-editor" />
         </div>
         <footer className="editor-footer">
           <StatusPill notice={notice} error={error} busyAction={busyAction} />

@@ -8,6 +8,10 @@ const SELECTED_NOTE_PROMPT_CHAR_LIMIT: usize = 20_000;
 const SUPPORTING_ENTRY_PROMPT_CHAR_LIMIT: usize = 6_000;
 const FINDING_PROMPT_CHAR_LIMIT: usize = 4_000;
 const TOTAL_PROMPT_MATERIAL_CHAR_LIMIT: usize = 40_000;
+const TESTWARE_SELECTED_NOTE_PROMPT_CHAR_LIMIT: usize = 12_000;
+const TESTWARE_TOTAL_PROMPT_MATERIAL_CHAR_LIMIT: usize = 16_000;
+const FINDING_SELECTED_NOTE_PROMPT_CHAR_LIMIT: usize = 10_000;
+const FINDING_TOTAL_PROMPT_MATERIAL_CHAR_LIMIT: usize = 14_000;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ActionPromptKind {
@@ -81,106 +85,62 @@ pub fn render_action_prompt(
     settings: &AppSettings,
     session_title: &str,
     note_entry: Option<&Entry>,
-    entries: &[Entry],
-    findings: &[Finding],
+    _entries: &[Entry],
+    _findings: &[Finding],
     attachments: &[Attachment],
     action: ActionPromptKind,
 ) -> String {
-    if matches!(action, ActionPromptKind::Summary) {
-        return render_note_summary_prompt(settings, session_title, note_entry, attachments);
+    match action {
+        ActionPromptKind::Testware => render_testware_prompt(settings, session_title, note_entry),
+        ActionPromptKind::Finding => render_finding_prompt(settings, session_title, note_entry),
+        ActionPromptKind::Summary => {
+            render_note_summary_prompt(settings, session_title, note_entry, attachments)
+        }
     }
+}
 
-    let action_template = match action {
-        ActionPromptKind::Testware => &settings.testware_template,
-        ActionPromptKind::Finding => &settings.finding_template,
-        ActionPromptKind::Summary => &settings.note_summary_template,
-    };
-    let mut budget = PromptMaterialBudget::new();
+fn render_testware_prompt(
+    settings: &AppSettings,
+    session_title: &str,
+    note_entry: Option<&Entry>,
+) -> String {
+    let mut budget = PromptMaterialBudget::with_limit(TESTWARE_TOTAL_PROMPT_MATERIAL_CHAR_LIMIT);
     let mut prompt = String::new();
     prompt.push_str(&settings.generation_system_prompt);
     prompt.push_str("\n\n");
-    prompt.push_str(action_template);
-    prompt.push_str(&format!("\n\n# Note\nTitle: {session_title}\n"));
-    match note_entry {
-        Some(entry) => {
-            let note = budget.take(
-                "selected note",
-                &entry.body,
-                SELECTED_NOTE_PROMPT_CHAR_LIMIT,
-            );
-            if note.is_empty() {
-                prompt.push_str("(No note text available.)\n");
-            } else {
-                prompt.push_str(&note);
-                prompt.push('\n');
-            }
-        }
-        None => prompt.push_str("(No note selected.)\n"),
-    }
+    prompt.push_str(&settings.testware_template);
+    prompt.push_str("\nReturn only a clean HTML fragment. Do not use Markdown, code fences, an introduction, or a closing summary. Use only h2, h3, p, ul, ol, li, strong, em, a, and checkbox inputs when useful.\n");
+    prompt.push_str("Create 5-8 high-value test cases from the selected note only. Prefer coverage over exhaustiveness. Do not invent facts not present in the note.\n");
+    append_selected_note(
+        &mut prompt,
+        &mut budget,
+        session_title,
+        note_entry,
+        TESTWARE_SELECTED_NOTE_PROMPT_CHAR_LIMIT,
+    );
+    budget.append_omissions(&mut prompt);
+    prompt
+}
 
-    let selected_note_id = note_entry.map(|entry| entry.id.as_str());
-    prompt.push_str("\n# Supporting Entries\n");
-    let mut supporting_count = 0usize;
-    for entry in entries
-        .iter()
-        .filter(|entry| !entry.excluded_from_generation)
-        .filter(|entry| Some(entry.id.as_str()) != selected_note_id)
-    {
-        let body = budget.take(
-            &format!("{} entry", entry.entry_type.as_str()),
-            &entry.body,
-            SUPPORTING_ENTRY_PROMPT_CHAR_LIMIT,
-        );
-        if body.is_empty() {
-            continue;
-        }
-        supporting_count += 1;
-        prompt.push_str(&format!(
-            "- {}{}: {}\n",
-            entry.entry_type.as_str(),
-            entry
-                .title
-                .as_deref()
-                .map(|title| format!(" / {title}"))
-                .unwrap_or_default(),
-            inline_prompt_material(&body)
-        ));
-    }
-    if supporting_count == 0 {
-        prompt.push_str("(No additional entries.)\n");
-    }
-
-    prompt.push_str("\n# Existing Findings\n");
-    if findings.is_empty() {
-        prompt.push_str("(No existing findings.)\n");
-    }
-    for finding in findings {
-        let body = budget.take(
-            &format!("finding {}", finding.title),
-            &finding.body,
-            FINDING_PROMPT_CHAR_LIMIT,
-        );
-        if body.is_empty() {
-            continue;
-        }
-        prompt.push_str(&format!(
-            "- {}: {}\n",
-            finding.title,
-            inline_prompt_material(&body)
-        ));
-    }
-
-    prompt.push_str("\n# Attachments\n");
-    if attachments.is_empty() {
-        prompt.push_str("(No managed attachments.)\n");
-    }
-    for attachment in attachments {
-        prompt.push_str(&format!(
-            "- {} ({}, sha256: {})\n",
-            attachment.filename, attachment.relative_path, attachment.sha256
-        ));
-    }
-
+fn render_finding_prompt(
+    settings: &AppSettings,
+    session_title: &str,
+    note_entry: Option<&Entry>,
+) -> String {
+    let mut budget = PromptMaterialBudget::with_limit(FINDING_TOTAL_PROMPT_MATERIAL_CHAR_LIMIT);
+    let mut prompt = String::new();
+    prompt.push_str(&settings.generation_system_prompt);
+    prompt.push_str("\n\n");
+    prompt.push_str(&settings.finding_template);
+    prompt.push_str("\nReturn only a clean HTML fragment. Use the first h2 as the concise finding title. Do not use Markdown, code fences, an introduction, or a closing summary. Use only h2, h3, p, ul, ol, li, strong, em, and a.\n");
+    prompt.push_str("Create one focused QA finding from the selected note only. If a field is missing, write \"Unknown\" rather than inventing details.\n");
+    append_selected_note(
+        &mut prompt,
+        &mut budget,
+        session_title,
+        note_entry,
+        FINDING_SELECTED_NOTE_PROMPT_CHAR_LIMIT,
+    );
     budget.append_omissions(&mut prompt);
     prompt
 }
@@ -239,6 +199,28 @@ fn render_note_summary_prompt(
     prompt
 }
 
+fn append_selected_note(
+    prompt: &mut String,
+    budget: &mut PromptMaterialBudget,
+    session_title: &str,
+    note_entry: Option<&Entry>,
+    item_limit: usize,
+) {
+    prompt.push_str(&format!("\n\n# Selected Note\nTitle: {session_title}\n"));
+    match note_entry {
+        Some(entry) => {
+            let note = budget.take("selected note", &entry.body, item_limit);
+            if note.is_empty() {
+                prompt.push_str("(No note text available.)\n");
+            } else {
+                prompt.push_str(&note);
+                prompt.push('\n');
+            }
+        }
+        None => prompt.push_str("(No note selected.)\n"),
+    }
+}
+
 struct PromptMaterialBudget {
     remaining: usize,
     omissions: Vec<String>,
@@ -246,8 +228,12 @@ struct PromptMaterialBudget {
 
 impl PromptMaterialBudget {
     fn new() -> Self {
+        Self::with_limit(TOTAL_PROMPT_MATERIAL_CHAR_LIMIT)
+    }
+
+    fn with_limit(remaining: usize) -> Self {
         Self {
-            remaining: TOTAL_PROMPT_MATERIAL_CHAR_LIMIT,
+            remaining,
             omissions: Vec::new(),
         }
     }

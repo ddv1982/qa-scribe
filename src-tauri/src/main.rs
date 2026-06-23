@@ -11,8 +11,8 @@ use commands::{
     get_ai_action_job_status, get_app_status, get_attachment_preview_data_url,
     get_command_shell_status, get_provider_status, get_session, get_settings, import_attachment,
     import_clipboard_screenshot, list_attachments, list_drafts, list_entries, list_findings,
-    list_sessions, reopen_session, start_ai_action_job, update_draft, update_entry, update_session,
-    update_settings,
+    list_sessions, reopen_session, start_ai_action_job, update_draft, update_entry, update_finding,
+    update_session, update_settings,
 };
 use jobs::JobStore;
 use path_access::PathAccess;
@@ -47,6 +47,7 @@ fn main() {
             update_entry,
             create_finding,
             list_findings,
+            update_finding,
             create_evidence_link,
             create_generation_context,
             create_ai_run,

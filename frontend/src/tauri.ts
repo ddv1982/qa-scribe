@@ -103,6 +103,11 @@ export type FindingDraft = {
   metadataJson?: string | null
 }
 
+export type FindingPatch = {
+  title?: string | null
+  body?: string | null
+}
+
 export type EvidenceLink = {
   id: string
   findingId: string
@@ -262,6 +267,10 @@ export function createFinding(draft: FindingDraft): Promise<Finding> {
 
 export function listFindings(sessionId: string): Promise<Finding[]> {
   return invoke<Finding[]>('list_findings', { sessionId })
+}
+
+export function updateFinding(id: string, patch: FindingPatch): Promise<Finding> {
+  return invoke<Finding>('update_finding', { id, patch })
 }
 
 export function deleteFinding(id: string): Promise<void> {

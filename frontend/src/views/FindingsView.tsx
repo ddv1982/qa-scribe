@@ -1,6 +1,7 @@
-import { Flag, Loader2, Plus, Trash2 } from 'lucide-react'
+import { Flag, Loader2, Plus, Save, Trash2, X } from 'lucide-react'
 import { EmptyCollection, StatusPill } from '../components/Common'
-import type { Finding } from '../tauri'
+import { FormatToolbar, RichTextEditor } from '../editor/RichTextEditor'
+import type { Finding, GenerationJobStatus } from '../tauri'
 import { formatFindingKind } from '../ui/format'
 import type { BusyAction } from '../ui/types'
 
@@ -10,16 +11,24 @@ export function FindingsView({
   notice,
   error,
   isBusy,
+  activeGenerationJob,
+  updateLocalFinding,
+  onCancelGenerationJob,
   onDeleteFinding,
   onManualCreate,
+  onSaveFinding,
 }: {
   busyAction: BusyAction | null
   findings: Finding[]
   notice: string | null
   error: string | null
   isBusy: boolean
+  activeGenerationJob: GenerationJobStatus | null
+  updateLocalFinding: (id: string, patch: Partial<Pick<Finding, 'title' | 'body'>>) => void
+  onCancelGenerationJob: (jobId: string) => Promise<void>
   onDeleteFinding: (finding: Finding) => void
   onManualCreate: () => Promise<void>
+  onSaveFinding: (finding: Finding) => Promise<void>
 }) {
   return (
     <section className="collection-view">
@@ -39,13 +48,58 @@ export function FindingsView({
         </div>
       ) : null}
 
-      <div className="record-grid">
+      <div className="collection-stack">
+        {activeGenerationJob ? (
+          <article className="editable-record generation-record">
+            <input readOnly value="Generating finding" aria-label="Pending finding title" />
+            <div className="rich-record-editor-field rich-record-preview-field">
+              <RichTextEditor
+                value={activeGenerationJob.partialText || activeGenerationJob.progressMessage || 'Preparing finding...'}
+                ariaLabel="Pending generated finding"
+                placeholder="Preparing finding..."
+                readOnly
+              />
+            </div>
+            <div className="record-actions">
+              <span className="generation-progress">
+                <Loader2 className="spin" size={16} />
+                {activeGenerationJob.progressMessage}
+              </span>
+              <button
+                className="secondary-button"
+                type="button"
+                disabled={activeGenerationJob.state === 'cancelling'}
+                onClick={() => void onCancelGenerationJob(activeGenerationJob.jobId)}
+              >
+                {activeGenerationJob.state === 'cancelling' ? <Loader2 className="spin" size={16} /> : <X size={16} />}
+                Cancel
+              </button>
+            </div>
+          </article>
+        ) : null}
         {findings.map((finding) => {
           const deletingFinding = busyAction === `delete-finding:${finding.id}`
+          const savingFinding = busyAction === `finding:${finding.id}`
           return (
-            <article className="record-card" key={finding.id}>
-              <div className="record-card-header">
+            <article className="editable-record" key={finding.id}>
+              <div className="finding-meta-row">
                 <span>{formatFindingKind(finding.kind)}</span>
+              </div>
+              <input value={finding.title} aria-label="Finding title" onChange={(event) => updateLocalFinding(finding.id, { title: event.target.value })} />
+              <div className="rich-record-editor-field">
+                <FormatToolbar />
+                <RichTextEditor
+                  value={finding.body}
+                  onChange={(body) => updateLocalFinding(finding.id, { body })}
+                  ariaLabel={`${finding.title} finding body`}
+                  placeholder="Write finding detail..."
+                />
+              </div>
+              <div className="record-actions">
+                <button className="secondary-button" type="button" disabled={isBusy} onClick={() => void onSaveFinding(finding)}>
+                  {savingFinding ? <Loader2 className="spin" size={16} /> : <Save size={16} />}
+                  Save
+                </button>
                 <button
                   className="icon-button danger"
                   type="button"
@@ -57,12 +111,10 @@ export function FindingsView({
                   {deletingFinding ? <Loader2 className="spin" size={16} /> : <Trash2 size={16} />}
                 </button>
               </div>
-              <h2>{finding.title}</h2>
-              <p>{finding.body}</p>
             </article>
           )
         })}
-        {findings.length === 0 ? <EmptyCollection icon={Flag} title="No findings yet" /> : null}
+        {findings.length === 0 && !activeGenerationJob ? <EmptyCollection icon={Flag} title="No findings yet" /> : null}
       </div>
     </section>
   )

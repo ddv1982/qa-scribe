@@ -1,5 +1,6 @@
 import { Box, Loader2, Plus, Save, Trash2, X } from 'lucide-react'
 import { EmptyCollection, StatusPill } from '../components/Common'
+import { FormatToolbar, RichTextEditor } from '../editor/RichTextEditor'
 import type { Draft, GenerationJobStatus } from '../tauri'
 import type { BusyAction } from '../ui/types'
 
@@ -50,11 +51,14 @@ export function TestwareView({
         {activeGenerationJob ? (
           <article className="editable-record generation-record">
             <input readOnly value="Generating test cases" aria-label="Pending testware title" />
-            <textarea
-              readOnly
-              value={activeGenerationJob.partialText || activeGenerationJob.progressMessage || 'Preparing testware...'}
-              aria-label="Pending generated testware"
-            />
+            <div className="rich-record-editor-field rich-record-preview-field">
+              <RichTextEditor
+                value={activeGenerationJob.partialText || activeGenerationJob.progressMessage || 'Preparing testware...'}
+                ariaLabel="Pending generated testware"
+                placeholder="Preparing testware..."
+                readOnly
+              />
+            </div>
             <div className="record-actions">
               <span className="generation-progress">
                 <Loader2 className="spin" size={16} />
@@ -77,8 +81,16 @@ export function TestwareView({
           const savingDraft = busyAction === `draft:${draft.id}`
           return (
             <article className="editable-record" key={draft.id}>
-              <input value={draft.title} onChange={(event) => updateLocalDraft(draft.id, { title: event.target.value })} />
-              <textarea value={draft.body} onChange={(event) => updateLocalDraft(draft.id, { body: event.target.value })} />
+              <input value={draft.title} aria-label="Testware title" onChange={(event) => updateLocalDraft(draft.id, { title: event.target.value })} />
+              <div className="rich-record-editor-field">
+                <FormatToolbar />
+                <RichTextEditor
+                  value={draft.body}
+                  onChange={(body) => updateLocalDraft(draft.id, { body })}
+                  ariaLabel={`${draft.title} testware body`}
+                  placeholder="Write test cases..."
+                />
+              </div>
               <div className="record-actions">
                 <button className="secondary-button" type="button" disabled={isBusy} onClick={() => void onSaveDraft(draft)}>
                   {savingDraft ? <Loader2 className="spin" size={16} /> : <Save size={16} />}
@@ -98,7 +110,7 @@ export function TestwareView({
             </article>
           )
         })}
-        {drafts.length === 0 ? <EmptyCollection icon={Box} title="No testware yet" /> : null}
+        {drafts.length === 0 && !activeGenerationJob ? <EmptyCollection icon={Box} title="No testware yet" /> : null}
       </div>
     </section>
   )

@@ -82,6 +82,45 @@
   line-height: 1.55;
 }
 
+.rich-record-editor-field {
+  display: grid;
+  min-height: 260px;
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.rich-record-editor-field .format-toolbar {
+  min-height: 46px;
+  padding: 6px 10px;
+  background: var(--panel-bg);
+}
+
+.rich-record-editor-field .rich-editor {
+  min-height: 212px;
+  padding: 12px;
+}
+
+.rich-record-preview-field {
+  min-height: 180px;
+}
+
+.rich-record-preview-field .rich-editor {
+  min-height: 178px;
+}
+
+.finding-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--purple);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
 .record-actions {
   display: flex;
   align-items: center;
@@ -90,7 +129,8 @@
 }
 
 .generation-record input,
-.generation-record textarea {
+.generation-record textarea,
+.generation-record .rich-editor {
   cursor: default;
 }
 

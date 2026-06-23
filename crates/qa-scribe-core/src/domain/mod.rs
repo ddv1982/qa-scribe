@@ -201,6 +201,13 @@ pub struct FindingDraft {
     pub metadata_json: Option<String>,
 }
 
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FindingPatch {
+    pub title: Option<String>,
+    pub body: Option<String>,
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EvidenceLink {
@@ -414,9 +421,10 @@ fn default_selected_ai_model() -> String {
 
 fn default_testware_template() -> String {
     [
-        "Create detailed QA test cases from the note.",
-        "Use this structure: title, purpose, preconditions, test data, steps, expected results, and coverage notes.",
-        "Keep the output concise and actionable.",
+        "Create 5-8 concise QA test cases from the selected note only.",
+        "Return a clean HTML fragment with a heading and one section per test case.",
+        "For each case include purpose, preconditions, test data, steps, expected result, and coverage notes when the note supports them.",
+        "Do not wrap the response in a code fence.",
     ]
     .join("\n")
 }
@@ -424,8 +432,10 @@ fn default_testware_template() -> String {
 fn default_finding_template() -> String {
     [
         "Create one well-structured QA finding from the note.",
-        "Use this structure: title, severity, environment, steps to reproduce, expected result, actual result, evidence, and impact.",
+        "Use the first h2 as the concise finding title.",
+        "Return a clean HTML fragment with sections for title, severity, environment, steps to reproduce, expected result, actual result, evidence, and impact.",
         "Ground the finding in the note text only.",
+        "Do not wrap the response in a code fence.",
     ]
     .join("\n")
 }

@@ -7,8 +7,8 @@ use crate::{
     domain::{
         AiRun, AiRunCreate, AppSettings, Attachment, AttachmentDraft, DRAFT_BODY_MAX_LENGTH, Draft,
         DraftCreate, DraftPatch, Entry, EntryDraft, EntryPatch, EvidenceLink, EvidenceLinkDraft,
-        Finding, FindingDraft, GenerationContext, Session, SessionDraft, SessionPatch,
-        TEXT_BODY_MAX_LENGTH, validate_metadata_json, validate_optional_text,
+        Finding, FindingDraft, FindingPatch, GenerationContext, Session, SessionDraft,
+        SessionPatch, TEXT_BODY_MAX_LENGTH, validate_metadata_json, validate_optional_text,
         validate_required_text,
     },
     error::validation,
@@ -395,6 +395,31 @@ impl SessionService {
             .query_map([session_id], map_finding)?
             .collect::<std::result::Result<Vec<_>, _>>()?;
         Ok(findings)
+    }
+
+    pub fn update_finding(&self, id: &str, patch: FindingPatch) -> Result<Finding> {
+        let existing = self
+            .finding(id)?
+            .ok_or_else(|| QaScribeError::NotFound(id.to_string()))?;
+        let title = match patch.title {
+            Some(title) => validate_required_text("Finding title", &title, 160)?,
+            None => existing.title,
+        };
+        let body = match patch.body {
+            Some(body) => validate_required_text("Finding body", &body, TEXT_BODY_MAX_LENGTH)?,
+            None => existing.body,
+        };
+        let now = now();
+
+        self.database.connection().execute(
+            "UPDATE findings
+             SET title = ?1, body = ?2, updated_at = ?3
+             WHERE id = ?4",
+            params![title, body, now, id],
+        )?;
+
+        self.finding(id)?
+            .ok_or_else(|| QaScribeError::NotFound(id.to_string()))
     }
 
     pub fn delete_finding(&self, id: &str) -> Result<()> {

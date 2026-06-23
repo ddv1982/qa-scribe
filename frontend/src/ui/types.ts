@@ -21,3 +21,4 @@ export type BusyAction =
   | `delete-draft:${string}`
   | `delete-finding:${string}`
   | `draft:${string}`
+  | `finding:${string}`

@@ -79,6 +79,7 @@
 
 :root[data-theme="dark"] .editable-record input,
 :root[data-theme="dark"] .editable-record textarea,
+:root[data-theme="dark"] .rich-record-editor-field,
 :root[data-theme="dark"] .template-field textarea,
 :root[data-theme="dark"] .settings-grid textarea,
 :root[data-theme="dark"] .provider-lines article {
@@ -170,7 +171,12 @@
 
 .rich-editor:empty::before {
   color: var(--faint);
-  content: "Write testing notes...";
+  content: attr(data-placeholder);
+  pointer-events: none;
+}
+
+.rich-editor[aria-readonly="true"] {
+  cursor: default;
 }
 
 .rich-editor h2,

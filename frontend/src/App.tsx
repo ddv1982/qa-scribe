@@ -30,6 +30,7 @@ import {
   startAiActionJob,
   updateDraft,
   updateEntry,
+  updateFinding,
   updateSession,
   updateSettings,
   type AiProvider,
@@ -154,6 +155,7 @@ export function App() {
     return pending
   }, [activeSessionJobs])
   const activeTestwareJob = activeSessionJobs.find((job) => job.action === 'testware') ?? null
+  const activeFindingJob = activeSessionJobs.find((job) => job.action === 'finding') ?? null
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -450,7 +452,7 @@ export function App() {
           sessionId: activeSession.id,
           provider: selectedProvider,
           model: selectedModel.trim() || 'default',
-          reasoningEffort: null,
+          reasoningEffort: action === 'testware' || action === 'finding' ? 'low' : null,
           action,
           noteEntryId: noteEntry.id,
         },
@@ -517,7 +519,7 @@ export function App() {
       await createFinding({
         sessionId: activeSession.id,
         title: `Finding from ${activeSession.title}`,
-        body: stripHtml(noteBody).slice(0, 4000) || 'Describe the finding.',
+        body: renderManualFinding(noteBody),
         kind: 'bug',
         metadataJson: null,
       })
@@ -547,6 +549,24 @@ export function App() {
 
   function updateLocalDraft(id: string, patch: Partial<Pick<Draft, 'title' | 'body'>>) {
     setDrafts((previous) => previous.map((draft) => (draft.id === id ? { ...draft, ...patch } : draft)))
+  }
+
+  async function handleSaveFinding(finding: Finding) {
+    try {
+      setBusyAction(`finding:${finding.id}`)
+      setError(null)
+      const saved = await updateFinding(finding.id, { title: finding.title, body: finding.body })
+      setFindings((previous) => previous.map((item) => (item.id === saved.id ? saved : item)))
+      setNotice('Finding saved')
+    } catch (cause) {
+      setError(formatError(cause))
+    } finally {
+      setBusyAction(null)
+    }
+  }
+
+  function updateLocalFinding(id: string, patch: Partial<Pick<Finding, 'title' | 'body'>>) {
+    setFindings((previous) => previous.map((finding) => (finding.id === id ? { ...finding, ...patch } : finding)))
   }
 
   function requestDeleteDraft(draft: Draft) {
@@ -659,17 +679,17 @@ export function App() {
   function handlePaste(event: ClipboardEvent<HTMLElement>) {
     const target = event.target as HTMLElement | null
     const editor = target?.closest<HTMLElement>('.rich-editor')
-    if (!editor) return
+    if (!editor || !editor.classList.contains('note-rich-editor')) return
 
     const file = Array.from(event.clipboardData.files).find((item) => item.type.startsWith('image/'))
     if (!file) return
 
     const insertionRange = selectedRangeWithin(editor)
     event.preventDefault()
-    void importPastedImage(file, insertionRange)
+    void importPastedImage(file, insertionRange, editor)
   }
 
-  async function importPastedImage(file: File, insertionRange: Range | null) {
+  async function importPastedImage(file: File, insertionRange: Range | null, editor: HTMLElement) {
     if (!activeSession || !noteEntry) {
       setError('Open a note before pasting images.')
       return
@@ -688,10 +708,7 @@ export function App() {
       })
       restoreSelection(insertionRange)
       insertEditorHtml(managedAttachmentImageHtml(attachment.id, attachment.filename, dataUrl))
-      const editor = document.querySelector<HTMLElement>('.rich-editor')
-      if (editor) {
-        setNoteBody(serializeEditorHtml(editor))
-      }
+      setNoteBody(serializeEditorHtml(editor))
       setNotice('Image attached')
     } catch (cause) {
       setError(formatError(cause))
@@ -899,8 +916,12 @@ export function App() {
             notice={notice}
             error={error}
             isBusy={isBusy}
+            activeGenerationJob={activeFindingJob}
+            onCancelGenerationJob={handleCancelGenerationJob}
             onDeleteFinding={requestDeleteFinding}
             onManualCreate={handleManualFinding}
+            onSaveFinding={handleSaveFinding}
+            updateLocalFinding={updateLocalFinding}
           />
         ) : null}
 
@@ -953,5 +974,34 @@ export function App() {
 
 function renderManualTestware(title: string, body: string): string {
   const note = stripHtml(body) || 'Add source note detail.'
-  return [`# ${title} Test Cases`, '', '## Source Note', note, '', '## Test Cases', '- Scenario:', '  - Steps:', '  - Expected result:'].join('\n')
+  return [
+    `<h2>${escapeHtml(title)} Test Cases</h2>`,
+    '<h3>Source note</h3>',
+    `<p>${escapeHtml(note)}</p>`,
+    '<h3>Test cases</h3>',
+    '<ol>',
+    '<li><p><strong>Scenario:</strong> Describe the behavior under test.</p><p><strong>Steps:</strong> Add concise steps.</p><p><strong>Expected result:</strong> Describe the expected outcome.</p></li>',
+    '</ol>',
+  ].join('')
+}
+
+function renderManualFinding(body: string): string {
+  const note = stripHtml(body).slice(0, 4000) || 'Describe the finding.'
+  return [
+    '<h2>Finding detail</h2>',
+    `<p>${escapeHtml(note)}</p>`,
+    '<h3>Reproduction</h3>',
+    '<ol><li>Add the first reproduction step.</li><li>Add the expected and actual result.</li></ol>',
+    '<h3>Impact</h3>',
+    '<p>Describe user impact and risk.</p>',
+  ].join('')
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 }

@@ -71,7 +71,7 @@ mod tests {
     }
 
     #[test]
-    fn action_prompt_projects_html_and_skips_selected_note_duplication() {
+    fn finding_prompt_is_note_local_html_and_compact() {
         let selected = test_entry(
             "entry-selected",
             EntryType::Note,
@@ -84,21 +84,65 @@ mod tests {
             Some("Console"),
             "<p>Console showed <code>500</code>.</p>",
         );
+        let finding = test_finding("finding-1", "Existing bug", "<p>Previous finding.</p>");
+        let attachment = test_attachment("attachment-1", Some("entry-support"), "console.png");
 
         let prompt = render_action_prompt(
             &AppSettings::default(),
             "Checkout regression",
             Some(&selected),
             &[selected.clone(), supporting],
-            &[],
-            &[],
+            &[finding],
+            &[attachment],
             ActionPromptKind::Finding,
         );
 
         assert_eq!(prompt.matches("Guest checkout failed.").count(), 1);
-        assert!(prompt.contains("Console showed 500."));
+        assert!(prompt.contains("clean HTML fragment"));
+        assert!(prompt.contains("selected note only"));
+        assert!(!prompt.contains("Console showed 500."));
+        assert!(!prompt.contains("Previous finding."));
+        assert!(!prompt.contains("console.png"));
+        assert!(!prompt.contains("sha256"));
         assert!(!prompt.contains("<h2>"));
         assert!(!prompt.contains("data:image"));
+    }
+
+    #[test]
+    fn testware_prompt_is_note_local_html_and_compact() {
+        let selected = test_entry(
+            "entry-selected",
+            EntryType::Note,
+            Some("Selected note"),
+            "<p>Checkout fails after applying coupon.</p>",
+        );
+        let supporting = test_entry(
+            "entry-support",
+            EntryType::Observation,
+            Some("Console"),
+            "<p>Console showed <code>500</code>.</p>",
+        );
+        let finding = test_finding("finding-1", "Existing bug", "<p>Previous finding.</p>");
+        let attachment = test_attachment("attachment-1", Some("entry-support"), "console.png");
+
+        let prompt = render_action_prompt(
+            &AppSettings::default(),
+            "Checkout regression",
+            Some(&selected),
+            &[selected.clone(), supporting],
+            &[finding],
+            &[attachment],
+            ActionPromptKind::Testware,
+        );
+
+        assert!(prompt.contains("5-8"));
+        assert!(prompt.contains("clean HTML fragment"));
+        assert!(prompt.contains("Checkout fails after applying coupon."));
+        assert!(!prompt.contains("Console showed 500."));
+        assert!(!prompt.contains("Previous finding."));
+        assert!(!prompt.contains("console.png"));
+        assert!(!prompt.contains("sha256"));
+        assert!(prompt.len() < 18_000);
     }
 
     #[test]

@@ -6,8 +6,8 @@ use qa_scribe_core::{
     },
     domain::{
         AiProvider, AiRunCreate, AppSettings, DraftCreate, DraftKind, DraftPatch, EntryDraft,
-        EntryPatch, EntryType, EvidenceLinkDraft, FindingDraft, FindingKind, SessionDraft,
-        SessionPatch,
+        EntryPatch, EntryType, EvidenceLinkDraft, FindingDraft, FindingKind, FindingPatch,
+        SessionDraft, SessionPatch,
     },
     export::{ExportFormat, export_session},
     services::SessionService,
@@ -244,6 +244,17 @@ fn entries_findings_and_evidence_links_cascade_with_session() {
             metadata_json: None,
         })
         .expect("finding should be created");
+    let finding = service
+        .update_finding(
+            &finding.id,
+            FindingPatch {
+                title: Some("Coupon blocks checkout".to_string()),
+                body: Some("<p>SAVE10 produces an internal error.</p>".to_string()),
+            },
+        )
+        .expect("finding should update");
+    assert_eq!(finding.title, "Coupon blocks checkout");
+    assert_eq!(finding.body, "<p>SAVE10 produces an internal error.</p>");
     let link = service
         .create_evidence_link(EvidenceLinkDraft {
             finding_id: finding.id,

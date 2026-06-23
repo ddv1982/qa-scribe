@@ -2,6 +2,8 @@ import { getAttachmentPreviewDataUrl } from '../tauri'
 
 export const emptyNoteHtml = '<p><br></p>'
 export const managedAttachmentProtocol = 'qa-scribe-attachment://'
+const allowedEditorTags = new Set(['a', 'b', 'br', 'em', 'h2', 'h3', 'i', 'img', 'input', 'li', 'ol', 'p', 'strong', 'ul'])
+const removedEditorTags = new Set(['embed', 'form', 'iframe', 'math', 'meta', 'object', 'script', 'style', 'svg', 'template'])
 
 export function containsInlineImageData(value: string): boolean {
   return /<img\b[^>]*\bsrc=["']data:image\//i.test(value)
@@ -129,23 +131,129 @@ function managedAttachmentIdFromSrc(source: string): string | null {
 
 function sanitizeNoteHtml(value: string): string {
   const documentFragment = new DOMParser().parseFromString(value, 'text/html')
-  documentFragment.body.querySelectorAll('img').forEach((image) => {
-    const attachmentId = managedAttachmentIdFromImage(image)
-    if (attachmentId) {
-      image.setAttribute('data-attachment-id', attachmentId)
-      image.setAttribute('src', `${managedAttachmentProtocol}${attachmentId}`)
-      image.removeAttribute('srcset')
+  sanitizeEditorChildren(documentFragment.body)
+  return documentFragment.body.innerHTML.trim()
+}
+
+function sanitizeEditorChildren(parent: Element) {
+  Array.from(parent.childNodes).forEach((node) => {
+    if (node.nodeType === Node.COMMENT_NODE) {
+      node.remove()
       return
     }
 
-    const source = image.getAttribute('src') ?? ''
-    if (source.startsWith('data:') && !source.startsWith('data:image/')) {
-      image.removeAttribute('src')
-      image.removeAttribute('srcset')
-      image.setAttribute('alt', image.getAttribute('alt') || 'Embedded image omitted')
-    } else if (source.startsWith('data:')) {
-      image.removeAttribute('srcset')
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      sanitizeEditorElement(node as HTMLElement)
     }
   })
-  return documentFragment.body.innerHTML.trim()
+}
+
+function sanitizeEditorElement(element: HTMLElement) {
+  const tagName = element.tagName.toLowerCase()
+  if (removedEditorTags.has(tagName)) {
+    element.remove()
+    return
+  }
+
+  if (!allowedEditorTags.has(tagName)) {
+    sanitizeEditorChildren(element)
+    unwrapElement(element)
+    return
+  }
+
+  sanitizeEditorChildren(element)
+
+  if (tagName === 'a') {
+    sanitizeLinkElement(element as HTMLAnchorElement)
+    return
+  }
+
+  if (tagName === 'img') {
+    sanitizeImageElement(element as HTMLImageElement)
+    return
+  }
+
+  if (tagName === 'input') {
+    sanitizeInputElement(element as HTMLInputElement)
+    return
+  }
+
+  removeAllAttributes(element)
+}
+
+function removeAllAttributes(element: Element) {
+  Array.from(element.attributes).forEach((attribute) => element.removeAttribute(attribute.name))
+}
+
+function sanitizeLinkElement(link: HTMLAnchorElement) {
+  const href = link.getAttribute('href')?.trim() ?? ''
+  removeAllAttributes(link)
+  if (!isSafeEditorLinkUrl(href)) return
+  link.setAttribute('href', href)
+  link.setAttribute('target', '_blank')
+  link.setAttribute('rel', 'noreferrer')
+}
+
+function sanitizeImageElement(image: HTMLImageElement) {
+  const attachmentId = managedAttachmentIdFromImage(image)
+  const source = image.getAttribute('src')?.trim() ?? ''
+  const alt = image.getAttribute('alt')?.trim() ?? ''
+  removeAllAttributes(image)
+
+  if (attachmentId) {
+    image.setAttribute('data-attachment-id', attachmentId)
+    image.setAttribute('src', `${managedAttachmentProtocol}${attachmentId}`)
+    if (alt) image.setAttribute('alt', alt)
+    return
+  }
+
+  if (!isSafeEditorImageSource(source)) {
+    image.remove()
+    return
+  }
+
+  image.setAttribute('src', source)
+  if (alt) image.setAttribute('alt', alt)
+}
+
+function sanitizeInputElement(input: HTMLInputElement) {
+  const type = input.getAttribute('type')?.trim().toLowerCase() ?? ''
+  const checked = input.hasAttribute('checked')
+  removeAllAttributes(input)
+  if (type !== 'checkbox') {
+    input.remove()
+    return
+  }
+
+  input.setAttribute('type', 'checkbox')
+  if (checked) input.setAttribute('checked', '')
+}
+
+function unwrapElement(element: Element) {
+  const parent = element.parentNode
+  if (!parent) return
+  while (element.firstChild) {
+    parent.insertBefore(element.firstChild, element)
+  }
+  element.remove()
+}
+
+export function isSafeEditorImageSource(source: string): boolean {
+  if (source.startsWith(managedAttachmentProtocol)) return true
+  if (/^data:image\//i.test(source)) return true
+  return isSafeUrlWithProtocols(source, new Set(['http:', 'https:']))
+}
+
+export function isSafeEditorLinkUrl(source: string): boolean {
+  return isSafeUrlWithProtocols(source, new Set(['http:', 'https:', 'mailto:']))
+}
+
+function isSafeUrlWithProtocols(source: string, protocols: Set<string>): boolean {
+  if (!source) return false
+  try {
+    const base = window.location.href || 'https://qa-scribe.local/'
+    return protocols.has(new URL(source, base).protocol)
+  } catch {
+    return false
+  }
 }

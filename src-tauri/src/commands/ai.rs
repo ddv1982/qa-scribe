@@ -2,7 +2,7 @@ use std::{
     io::{BufRead, BufReader, Read, Write},
     process::{Command, ExitStatus, Output, Stdio},
     thread,
-    time::Instant,
+    time::{Duration, Instant},
 };
 
 use qa_scribe_core::{
@@ -15,7 +15,8 @@ use qa_scribe_core::{
     },
     generation::{
         ActionPromptKind, SESSION_REPORT_PROMPT_VERSION, parse_session_report_response,
-        preserve_managed_attachment_images, render_action_prompt, render_session_report_prompt,
+        preserve_managed_attachment_images, project_html_to_prompt_text, render_action_prompt,
+        render_session_report_prompt,
     },
 };
 use serde::{Deserialize, Serialize};
@@ -29,6 +30,9 @@ use crate::{
     provider_command::apply_provider_path,
     settings::AppState,
 };
+
+const PARTIAL_UPDATE_MIN_BYTES: usize = 512;
+const PARTIAL_UPDATE_INTERVAL: Duration = Duration::from_millis(250);
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -66,8 +70,8 @@ impl GenerateAiActionKind {
 
     fn prompt_version(self) -> &'static str {
         match self {
-            GenerateAiActionKind::Testware => "testware-v2",
-            GenerateAiActionKind::Finding => "finding-v2",
+            GenerateAiActionKind::Testware => "testware-v3",
+            GenerateAiActionKind::Finding => "finding-v3",
             GenerateAiActionKind::Summary => "note-summary-v2",
         }
     }
@@ -169,13 +173,16 @@ pub fn generate_ai_action(
     state: State<'_, AppState>,
     request: GenerateAiActionRequest,
 ) -> Result<GenerateAiActionResult, String> {
+    let prepare_started = Instant::now();
     let prepared = state.with_service(|service| prepare_ai_action_generation(service, &request))?;
     eprintln!(
-        "qa-scribe AI action prompt prepared: action={}, provider={}, model={}, prompt_bytes={}",
+        "qa-scribe AI action prompt prepared: action={}, provider={}, model={}, prompt_bytes={}, prompt_chars={}, elapsed_ms={}",
         request.action.label(),
         request.provider.as_str(),
         request.model,
-        prepared.prompt.len()
+        prepared.prompt.len(),
+        prepared.prompt.chars().count(),
+        prepare_started.elapsed().as_millis()
     );
 
     if matches!(request.action, GenerateAiActionKind::Summary) && request.note_entry_id.is_none() {
@@ -253,6 +260,7 @@ fn run_ai_action_job(
     let state = app.state::<AppState>();
     let _ = send_progress(&events, &jobs, &job_id, "Preparing prompt");
 
+    let prepare_started = Instant::now();
     let prepared =
         match state.with_service(|service| prepare_ai_action_generation(service, &request)) {
             Ok(prepared) => prepared,
@@ -272,6 +280,15 @@ fn run_ai_action_job(
                 return;
             }
         };
+    eprintln!(
+        "qa-scribe AI action job prompt prepared: action={}, provider={}, model={}, prompt_bytes={}, prompt_chars={}, elapsed_ms={}",
+        request.action.label(),
+        request.provider.as_str(),
+        request.model,
+        prepared.prompt.len(),
+        prepared.prompt.chars().count(),
+        prepare_started.elapsed().as_millis()
+    );
 
     let running_status = match jobs.mark_running(
         &job_id,
@@ -735,11 +752,23 @@ fn execute_provider_generation_streaming(
         readiness.copilot_runtime,
     )?;
     let started = Instant::now();
+    let mut last_partial_len = 0usize;
+    let mut last_partial_emit = Instant::now()
+        .checked_sub(PARTIAL_UPDATE_INTERVAL)
+        .unwrap_or_else(Instant::now);
     let output = run_generation_command_streaming(&command, control, |update| match update {
         StreamUpdate::Progress(message) => {
             let _ = send_progress(events, jobs, job_id, &message);
         }
         StreamUpdate::Partial(body) => {
+            let body_len = body.len();
+            let enough_new_text = body_len < last_partial_len
+                || body_len.saturating_sub(last_partial_len) >= PARTIAL_UPDATE_MIN_BYTES;
+            if !enough_new_text && last_partial_emit.elapsed() < PARTIAL_UPDATE_INTERVAL {
+                return;
+            }
+            last_partial_len = body_len;
+            last_partial_emit = Instant::now();
             let status = jobs.update_partial(job_id, &body);
             if let Ok(status) = status {
                 send_event(
@@ -1253,9 +1282,10 @@ fn fallback_status(
 }
 
 fn derive_title(markdown: &str, fallback: &str) -> String {
-    markdown
+    project_html_to_prompt_text(markdown)
         .lines()
         .map(|line| line.trim().trim_start_matches('#').trim())
+        .map(|line| line.trim_start_matches("- ").trim())
         .find(|line| !line.is_empty())
         .unwrap_or(fallback)
         .chars()

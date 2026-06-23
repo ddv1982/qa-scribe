@@ -1,4 +1,6 @@
-use qa_scribe_core::domain::{EvidenceLink, EvidenceLinkDraft, Finding, FindingDraft};
+use qa_scribe_core::domain::{
+    EvidenceLink, EvidenceLinkDraft, Finding, FindingDraft, FindingPatch,
+};
 use tauri::State;
 
 use crate::settings::AppState;
@@ -14,6 +16,15 @@ pub fn list_findings(
     session_id: String,
 ) -> Result<Vec<Finding>, String> {
     state.with_service(|service| service.list_findings(&session_id))
+}
+
+#[tauri::command]
+pub fn update_finding(
+    state: State<'_, AppState>,
+    id: String,
+    patch: FindingPatch,
+) -> Result<Finding, String> {
+    state.with_service(|service| service.update_finding(&id, patch))
 }
 
 #[tauri::command]
