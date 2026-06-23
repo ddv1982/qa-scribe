@@ -14,4 +14,7 @@ export type BusyAction =
   | 'ai-finding'
   | 'ai-summary'
   | 'attach-image'
+  | 'delete-note'
+  | `delete-draft:${string}`
+  | `delete-finding:${string}`
   | `draft:${string}`

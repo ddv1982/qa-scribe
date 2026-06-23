@@ -77,7 +77,20 @@
     flex-direction: column;
   }
 
+  .document-actions {
+    justify-content: space-between;
+    width: 100%;
+  }
+
   .bottom-command-bar button {
+    width: 100%;
+  }
+
+  .confirmation-actions {
+    flex-direction: column-reverse;
+  }
+
+  .confirmation-actions button {
     width: 100%;
   }
 

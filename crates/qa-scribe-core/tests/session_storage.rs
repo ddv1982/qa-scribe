@@ -1,4 +1,5 @@
 use qa_scribe_core::{
+    QaScribeError,
     attachments::{
         attachment_preview_data_url, delete_session_attachment_files,
         import_clipboard_screenshot_data_url, import_managed_attachment,
@@ -274,6 +275,120 @@ fn entries_findings_and_evidence_links_cascade_with_session() {
     assert_eq!(count_rows(connection, "entries"), 0);
     assert_eq!(count_rows(connection, "findings"), 0);
     assert_eq!(count_rows(connection, "evidence_links"), 0);
+}
+
+#[test]
+fn deleting_finding_removes_evidence_links_but_keeps_entries() {
+    let service = SessionService::in_memory().expect("in-memory service should open");
+    let session = service
+        .create_session(SessionDraft {
+            title: "Finding cleanup".to_string(),
+            ..SessionDraft::default()
+        })
+        .expect("session should be created");
+    let entry = service
+        .create_entry(EntryDraft {
+            session_id: session.id.clone(),
+            entry_type: EntryType::Observation,
+            title: Some("Checkout observation".to_string()),
+            body: "The checkout confirmation did not render.".to_string(),
+            metadata_json: None,
+            excluded_from_generation: false,
+        })
+        .expect("entry should be created");
+    let finding = service
+        .create_finding(FindingDraft {
+            session_id: session.id.clone(),
+            title: "Checkout confirmation missing".to_string(),
+            body: "The confirmation screen stays blank after payment.".to_string(),
+            kind: FindingKind::Bug,
+            metadata_json: None,
+        })
+        .expect("finding should be created");
+    let finding_id = finding.id.clone();
+    service
+        .create_evidence_link(EvidenceLinkDraft {
+            finding_id: finding.id,
+            entry_id: Some(entry.id),
+            attachment_id: None,
+        })
+        .expect("evidence link should be created");
+
+    service
+        .delete_finding(&finding_id)
+        .expect("finding should delete");
+    assert!(
+        service
+            .list_findings(&session.id)
+            .expect("findings should list")
+            .is_empty()
+    );
+    let connection = service.database().connection();
+    assert_eq!(count_rows(connection, "evidence_links"), 0);
+    assert_eq!(count_rows(connection, "entries"), 1);
+    assert!(matches!(
+        service.delete_finding(&finding_id),
+        Err(QaScribeError::NotFound(missing_id)) if missing_id == finding_id
+    ));
+}
+
+#[test]
+fn deleting_draft_preserves_ai_run_and_other_drafts() {
+    let service = SessionService::in_memory().expect("in-memory service should open");
+    let session = service
+        .create_session(SessionDraft {
+            title: "Draft cleanup".to_string(),
+            ..SessionDraft::default()
+        })
+        .expect("session should be created");
+    let context = service
+        .create_generation_context(&session.id)
+        .expect("generation context should be created");
+    let ai_run = service
+        .create_ai_run(AiRunCreate {
+            session_id: session.id.clone(),
+            generation_context_id: Some(context.id),
+            provider: AiProvider::CodexCli,
+            model: "gpt-test".to_string(),
+            reasoning_effort: None,
+            prompt_version: "draft-delete-v1".to_string(),
+        })
+        .expect("AI Run should be created");
+    let testware = service
+        .create_draft(DraftCreate {
+            session_id: session.id.clone(),
+            ai_run_id: Some(ai_run.id.clone()),
+            kind: DraftKind::Testware,
+            title: "Checkout testware".to_string(),
+            body: "Scenario: checkout completion".to_string(),
+        })
+        .expect("Testware Draft should be created");
+    let report = service
+        .create_draft(DraftCreate {
+            session_id: session.id.clone(),
+            ai_run_id: Some(ai_run.id),
+            kind: DraftKind::SessionReport,
+            title: "Session report".to_string(),
+            body: "Report stays available.".to_string(),
+        })
+        .expect("Session Report Draft should be created");
+    let testware_id = testware.id.clone();
+
+    service
+        .delete_draft(&testware_id)
+        .expect("Testware Draft should delete");
+    let drafts = service
+        .list_drafts(&session.id)
+        .expect("Drafts should list after delete");
+    assert_eq!(drafts.len(), 1);
+    assert_eq!(drafts[0].id, report.id);
+    let connection = service.database().connection();
+    assert_eq!(count_rows(connection, "ai_runs"), 1);
+    assert_eq!(count_rows(connection, "generation_contexts"), 1);
+    assert!(matches!(
+        service.delete_draft(&testware_id),
+        Err(QaScribeError::NotFound(missing_id)) if missing_id == testware_id
+    ));
 }
 
 #[test]

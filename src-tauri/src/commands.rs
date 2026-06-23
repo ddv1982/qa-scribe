@@ -14,9 +14,9 @@ pub use files::{
     export_session, get_attachment_preview_data_url, import_attachment,
     import_clipboard_screenshot, list_attachments,
 };
-pub use findings::{create_evidence_link, create_finding, list_findings};
+pub use findings::{create_evidence_link, create_finding, delete_finding, list_findings};
 pub use generation::{
-    create_ai_run, create_draft, create_generation_context, list_drafts, update_draft,
+    create_ai_run, create_draft, create_generation_context, delete_draft, list_drafts, update_draft,
 };
 pub use providers::get_provider_status;
 pub use sessions::{

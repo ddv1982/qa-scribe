@@ -1,4 +1,4 @@
-import { Box, CheckCircle2, ChevronDown, FileText, Flag, Loader2, Plus, Sparkles } from 'lucide-react'
+import { Box, CheckCircle2, ChevronDown, FileText, Flag, Loader2, Plus, Sparkles, Trash2 } from 'lucide-react'
 import { FormatToolbar, RichTextEditor } from '../editor/RichTextEditor'
 import type { GenerateAiActionKind, Session } from '../tauri'
 import { StatusPill } from '../components/Common'
@@ -17,6 +17,7 @@ export function NotesView({
   notice,
   error,
   onAiAction,
+  onDeleteNote,
   onNewNote,
   onOpenNote,
   onSetNoteBody,
@@ -34,11 +35,14 @@ export function NotesView({
   notice: string | null
   error: string | null
   onAiAction: (action: GenerateAiActionKind) => Promise<void>
+  onDeleteNote: () => void
   onNewNote: () => Promise<void>
   onOpenNote: (session: Session) => Promise<void>
   onSetNoteBody: (value: string) => void
   onSetNoteTitle: (value: string) => void
 }) {
+  const deletingNote = busyAction === 'delete-note'
+
   if (!activeSession) {
     return (
       <section className="workspace-empty">
@@ -69,9 +73,14 @@ export function NotesView({
           <ChevronDown size={14} />
           <strong>{activeSession.title}</strong>
         </div>
-        <div className="document-status">
-          <CheckCircle2 size={15} />
-          <span>{busyAction === 'save-title' || busyAction === 'save-body' ? 'Saving...' : 'Autosaved'}</span>
+        <div className="document-actions">
+          <div className="document-status">
+            <CheckCircle2 size={15} />
+            <span>{busyAction === 'save-title' || busyAction === 'save-body' ? 'Saving...' : 'Autosaved'}</span>
+          </div>
+          <button className="icon-button danger" type="button" aria-label="Delete note" title="Delete note" disabled={isBusy} onClick={() => void onDeleteNote()}>
+            {deletingNote ? <Loader2 className="spin" size={16} /> : <Trash2 size={16} />}
+          </button>
         </div>
       </header>
 

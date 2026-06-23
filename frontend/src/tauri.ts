@@ -264,6 +264,10 @@ export function listFindings(sessionId: string): Promise<Finding[]> {
   return invoke<Finding[]>('list_findings', { sessionId })
 }
 
+export function deleteFinding(id: string): Promise<void> {
+  return invoke<void>('delete_finding', { id })
+}
+
 export function createEvidenceLink(input: {
   findingId: string
   entryId?: string | null
@@ -334,6 +338,10 @@ export function listDrafts(sessionId: string): Promise<Draft[]> {
 
 export function updateDraft(id: string, patch: DraftPatch): Promise<Draft> {
   return invoke<Draft>('update_draft', { id, patch })
+}
+
+export function deleteDraft(id: string): Promise<void> {
+  return invoke<void>('delete_draft', { id })
 }
 
 export function getProviderStatus(): Promise<ProviderStatus> {

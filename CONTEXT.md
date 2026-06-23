@@ -29,7 +29,7 @@ The structured QA outputs generated or maintained from a Session, including summ
 _Avoid_: Raw notes, Evidence
 
 **Session Library**:
-The minimal collection of Sessions a user can create, reopen, and save while working in qa-scribe.
+The minimal collection of Sessions a user can create, reopen, save, and delete while working in qa-scribe.
 _Avoid_: Project, Workspace
 
 **Session Context**:

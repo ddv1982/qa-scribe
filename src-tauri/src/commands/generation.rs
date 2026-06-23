@@ -36,3 +36,8 @@ pub fn update_draft(
 ) -> Result<Draft, String> {
     state.with_service(|service| service.update_draft(&id, patch))
 }
+
+#[tauri::command]
+pub fn delete_draft(state: State<'_, AppState>, id: String) -> Result<(), String> {
+    state.with_service(|service| service.delete_draft(&id))
+}

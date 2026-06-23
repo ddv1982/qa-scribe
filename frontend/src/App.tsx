@@ -15,6 +15,9 @@ import {
   createEntry,
   createFinding,
   createSession,
+  deleteDraft,
+  deleteFinding,
+  deleteSession,
   generateAiAction,
   getProviderStatus,
   getSettings,
@@ -64,6 +67,33 @@ import { TestwareView } from './views/TestwareView'
 
 const noteBodyMaxLength = 100_000
 
+type DeleteConfirmation =
+  | { kind: 'note'; session: Session }
+  | { kind: 'draft'; draft: Draft }
+  | { kind: 'finding'; finding: Finding }
+
+function deleteConfirmationCopy(confirmation: DeleteConfirmation) {
+  if (confirmation.kind === 'note') {
+    return {
+      title: `Delete "${confirmation.session.title}"?`,
+      body: 'This removes the note, its testware, findings, and attachments. This cannot be undone.',
+      confirmLabel: 'Delete note permanently',
+    }
+  }
+  if (confirmation.kind === 'draft') {
+    return {
+      title: `Delete "${confirmation.draft.title}"?`,
+      body: 'This removes this testware draft only. AI run history is kept. This cannot be undone.',
+      confirmLabel: 'Delete testware permanently',
+    }
+  }
+  return {
+    title: `Delete "${confirmation.finding.title}"?`,
+    body: 'This removes this finding and its evidence links. Source notes and attachments are kept. This cannot be undone.',
+    confirmLabel: 'Delete finding permanently',
+  }
+}
+
 export function App() {
   const [settings, setSettings] = useState<AppSettings | null>(null)
   const [providerStatus, setProviderStatus] = useState<ProviderStatus | null>(null)
@@ -84,9 +114,11 @@ export function App() {
   const [searchQuery, setSearchQuery] = useState('')
   const [activeView, setActiveView] = useState<WorkspaceView>('notes')
   const [theme, setTheme] = useState<ThemePreference>(() => initialTheme())
+  const [deleteConfirmation, setDeleteConfirmation] = useState<DeleteConfirmation | null>(null)
 
   const savedTitleRef = useRef('')
   const savedBodyRef = useRef(emptyNoteHtml)
+  const deletingSessionIdRef = useRef<string | null>(null)
   const settingsSaveResetRef = useRef<number | null>(null)
   const bootedRef = useRef(false)
 
@@ -101,6 +133,7 @@ export function App() {
   const noteWordCount = countWords(stripHtml(noteBody))
   const noteIsReady = Boolean(activeSession && noteEntry)
   const isBusy = busyAction !== null
+  const deleteCopy = deleteConfirmation ? deleteConfirmationCopy(deleteConfirmation) : null
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -113,46 +146,6 @@ export function App() {
       if (settingsSaveResetRef.current) window.clearTimeout(settingsSaveResetRef.current)
     }
   }, [])
-
-  useEffect(() => {
-    void boot()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps -- desktop boot is intentionally one-shot
-
-  useEffect(() => {
-    if (!activeSession || !bootedRef.current) return
-    const trimmedTitle = noteTitle.trim()
-    if (!trimmedTitle || trimmedTitle === savedTitleRef.current) return
-
-    const timeout = window.setTimeout(() => {
-      void saveTitle(trimmedTitle)
-    }, 700)
-    return () => window.clearTimeout(timeout)
-  }, [activeSession, noteTitle]) // eslint-disable-line react-hooks/exhaustive-deps -- debounce is keyed to note identity and title
-
-  useEffect(() => {
-    if (!noteEntry || !bootedRef.current) return
-    const nextBody = normalizeEditorHtml(noteBody)
-    if (nextBody === savedBodyRef.current) return
-
-    const timeout = window.setTimeout(() => {
-      void saveNoteNow()
-    }, 850)
-    return () => window.clearTimeout(timeout)
-  }, [noteEntry, noteBody]) // eslint-disable-line react-hooks/exhaustive-deps -- debounce is keyed to note identity and body
-
-  useEffect(() => {
-    if (!settings || !bootedRef.current) return
-    if (selectedProvider === settings.selectedAiProvider && selectedModel === settings.selectedAiModel) return
-
-    const timeout = window.setTimeout(() => {
-      void persistSettings({
-        ...settings,
-        selectedAiProvider: selectedProvider,
-        selectedAiModel: selectedModel.trim() || 'default',
-      })
-    }, 550)
-    return () => window.clearTimeout(timeout)
-  }, [settings, selectedProvider, selectedModel])
 
   async function boot() {
     try {
@@ -253,8 +246,48 @@ export function App() {
     }
   }
 
+  function clearActiveNoteState() {
+    setActiveSession(null)
+    setNoteEntry(null)
+    setDrafts([])
+    setFindings([])
+    setNoteTitle('')
+    setNoteBody(emptyNoteHtml)
+    savedTitleRef.current = ''
+    savedBodyRef.current = emptyNoteHtml
+  }
+
+  function requestDeleteNote() {
+    if (!activeSession) return
+    setDeleteConfirmation({ kind: 'note', session: activeSession })
+  }
+
+  async function handleDeleteNote(sessionToDelete: Session) {
+    try {
+      deletingSessionIdRef.current = sessionToDelete.id
+      setBusyAction('delete-note')
+      setError(null)
+      await deleteSession(sessionToDelete.id)
+      const nextSessions = await listSessions()
+      setSessions(nextSessions)
+      clearActiveNoteState()
+
+      if (nextSessions[0]) {
+        await openNote(nextSessions[0], false)
+      } else {
+        setActiveView('notes')
+      }
+      setNotice('Note deleted')
+    } catch (cause) {
+      setError(formatError(cause))
+    } finally {
+      deletingSessionIdRef.current = null
+      setBusyAction(null)
+    }
+  }
+
   async function saveTitle(title: string): Promise<boolean> {
-    if (!activeSession) return false
+    if (!activeSession || deletingSessionIdRef.current === activeSession.id) return false
     try {
       setBusyAction('save-title')
       const saved = await updateSession(activeSession.id, { title })
@@ -272,7 +305,7 @@ export function App() {
   }
 
   async function saveBody(body: string): Promise<boolean> {
-    if (!noteEntry) return false
+    if (!noteEntry || deletingSessionIdRef.current === noteEntry.sessionId) return false
     if (body.length > noteBodyMaxLength) {
       setError('Note is too large to autosave. This usually means an image was embedded directly in the note; paste images again so QA Scribe can store them as attachments.')
       return false
@@ -417,6 +450,56 @@ export function App() {
     setDrafts((previous) => previous.map((draft) => (draft.id === id ? { ...draft, ...patch } : draft)))
   }
 
+  function requestDeleteDraft(draft: Draft) {
+    setDeleteConfirmation({ kind: 'draft', draft })
+  }
+
+  async function handleDeleteDraft(draft: Draft) {
+    try {
+      setBusyAction(`delete-draft:${draft.id}`)
+      setError(null)
+      await deleteDraft(draft.id)
+      setDrafts(await listDrafts(draft.sessionId))
+      setNotice('Testware deleted')
+    } catch (cause) {
+      setError(formatError(cause))
+    } finally {
+      setBusyAction(null)
+    }
+  }
+
+  function requestDeleteFinding(finding: Finding) {
+    setDeleteConfirmation({ kind: 'finding', finding })
+  }
+
+  async function handleDeleteFinding(finding: Finding) {
+    try {
+      setBusyAction(`delete-finding:${finding.id}`)
+      setError(null)
+      await deleteFinding(finding.id)
+      setFindings(await listFindings(finding.sessionId))
+      setNotice('Finding deleted')
+    } catch (cause) {
+      setError(formatError(cause))
+    } finally {
+      setBusyAction(null)
+    }
+  }
+
+  async function confirmDelete() {
+    const confirmation = deleteConfirmation
+    if (!confirmation) return
+
+    setDeleteConfirmation(null)
+    if (confirmation.kind === 'note') {
+      await handleDeleteNote(confirmation.session)
+    } else if (confirmation.kind === 'draft') {
+      await handleDeleteDraft(confirmation.draft)
+    } else {
+      await handleDeleteFinding(confirmation.finding)
+    }
+  }
+
   async function persistSettings(nextSettings: AppSettings): Promise<AppSettings | null> {
     try {
       setError(null)
@@ -551,6 +634,49 @@ export function App() {
     return body
   }
 
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      void boot()
+    }, 0)
+    return () => window.clearTimeout(timeout)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps -- desktop boot is intentionally one-shot
+
+  useEffect(() => {
+    if (!activeSession || !bootedRef.current) return
+    const trimmedTitle = noteTitle.trim()
+    if (!trimmedTitle || trimmedTitle === savedTitleRef.current) return
+
+    const timeout = window.setTimeout(() => {
+      void saveTitle(trimmedTitle)
+    }, 700)
+    return () => window.clearTimeout(timeout)
+  }, [activeSession, noteTitle]) // eslint-disable-line react-hooks/exhaustive-deps -- debounce is keyed to note identity and title
+
+  useEffect(() => {
+    if (!noteEntry || !bootedRef.current) return
+    const nextBody = normalizeEditorHtml(noteBody)
+    if (nextBody === savedBodyRef.current) return
+
+    const timeout = window.setTimeout(() => {
+      void saveNoteNow()
+    }, 850)
+    return () => window.clearTimeout(timeout)
+  }, [noteEntry, noteBody]) // eslint-disable-line react-hooks/exhaustive-deps -- debounce is keyed to note identity and body
+
+  useEffect(() => {
+    if (!settings || !bootedRef.current) return
+    if (selectedProvider === settings.selectedAiProvider && selectedModel === settings.selectedAiModel) return
+
+    const timeout = window.setTimeout(() => {
+      void persistSettings({
+        ...settings,
+        selectedAiProvider: selectedProvider,
+        selectedAiModel: selectedModel.trim() || 'default',
+      })
+    }, 550)
+    return () => window.clearTimeout(timeout)
+  }, [settings, selectedProvider, selectedModel])
+
   return (
     <main className="app-shell" onPaste={handlePaste}>
       <header className="top-bar">
@@ -642,6 +768,7 @@ export function App() {
             notice={notice}
             error={error}
             onAiAction={handleAiAction}
+            onDeleteNote={requestDeleteNote}
             onNewNote={handleNewNote}
             onOpenNote={openNote}
             onSetNoteBody={setNoteBody}
@@ -653,7 +780,10 @@ export function App() {
           <TestwareView
             busyAction={busyAction}
             drafts={testwareDrafts}
+            notice={notice}
+            error={error}
             isBusy={isBusy}
+            onDeleteDraft={requestDeleteDraft}
             onManualCreate={handleManualTestware}
             onSaveDraft={handleSaveDraft}
             updateLocalDraft={updateLocalDraft}
@@ -661,7 +791,15 @@ export function App() {
         ) : null}
 
         {activeView === 'findings' ? (
-          <FindingsView busyAction={busyAction} findings={findings} isBusy={isBusy} onManualCreate={handleManualFinding} />
+          <FindingsView
+            busyAction={busyAction}
+            findings={findings}
+            notice={notice}
+            error={error}
+            isBusy={isBusy}
+            onDeleteFinding={requestDeleteFinding}
+            onManualCreate={handleManualFinding}
+          />
         ) : null}
 
         {activeView === 'templates' ? (
@@ -687,6 +825,26 @@ export function App() {
           />
         ) : null}
       </section>
+
+      {deleteConfirmation && deleteCopy ? (
+        <div className="modal-backdrop" role="presentation">
+          <section className="confirmation-dialog" role="dialog" aria-modal="true" aria-labelledby="delete-dialog-title">
+            <div>
+              <p className="eyebrow">Confirm delete</p>
+              <h2 id="delete-dialog-title">{deleteCopy.title}</h2>
+              <p>{deleteCopy.body}</p>
+            </div>
+            <div className="confirmation-actions">
+              <button className="secondary-button" type="button" disabled={isBusy} onClick={() => setDeleteConfirmation(null)}>
+                Cancel
+              </button>
+              <button className="primary-button danger-button" type="button" disabled={isBusy} onClick={() => void confirmDelete()}>
+                {deleteCopy.confirmLabel}
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </main>
   )
 }

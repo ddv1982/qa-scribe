@@ -6,11 +6,12 @@ mod settings;
 
 use commands::{
     create_ai_run, create_draft, create_entry, create_evidence_link, create_finding,
-    create_generation_context, create_session, delete_session, export_session, generate_ai_action,
-    generate_session_report, get_app_status, get_attachment_preview_data_url,
-    get_command_shell_status, get_provider_status, get_session, get_settings, import_attachment,
-    import_clipboard_screenshot, list_attachments, list_drafts, list_entries, list_findings,
-    list_sessions, reopen_session, update_draft, update_entry, update_session, update_settings,
+    create_generation_context, create_session, delete_draft, delete_finding, delete_session,
+    export_session, generate_ai_action, generate_session_report, get_app_status,
+    get_attachment_preview_data_url, get_command_shell_status, get_provider_status, get_session,
+    get_settings, import_attachment, import_clipboard_screenshot, list_attachments, list_drafts,
+    list_entries, list_findings, list_sessions, reopen_session, update_draft, update_entry,
+    update_session, update_settings,
 };
 use jobs::JobStore;
 use path_access::PathAccess;
@@ -51,6 +52,8 @@ fn main() {
             create_draft,
             list_drafts,
             update_draft,
+            delete_draft,
+            delete_finding,
             generate_ai_action,
             generate_session_report,
             import_attachment,

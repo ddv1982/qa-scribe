@@ -397,6 +397,17 @@ impl SessionService {
         Ok(findings)
     }
 
+    pub fn delete_finding(&self, id: &str) -> Result<()> {
+        let changed = self
+            .database
+            .connection()
+            .execute("DELETE FROM findings WHERE id = ?1", [id])?;
+        if changed == 0 {
+            return Err(QaScribeError::NotFound(id.to_string()));
+        }
+        Ok(())
+    }
+
     pub fn create_evidence_link(&self, draft: EvidenceLinkDraft) -> Result<EvidenceLink> {
         if draft.entry_id.is_none() && draft.attachment_id.is_none() {
             return Err(validation(
@@ -645,6 +656,17 @@ impl SessionService {
 
         self.draft(id)?
             .ok_or_else(|| QaScribeError::NotFound(id.to_string()))
+    }
+
+    pub fn delete_draft(&self, id: &str) -> Result<()> {
+        let changed = self
+            .database
+            .connection()
+            .execute("DELETE FROM drafts WHERE id = ?1", [id])?;
+        if changed == 0 {
+            return Err(QaScribeError::NotFound(id.to_string()));
+        }
+        Ok(())
     }
 
     fn entry(&self, id: &str) -> Result<Option<Entry>> {

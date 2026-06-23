@@ -17,6 +17,11 @@ pub fn list_findings(
 }
 
 #[tauri::command]
+pub fn delete_finding(state: State<'_, AppState>, id: String) -> Result<(), String> {
+    state.with_service(|service| service.delete_finding(&id))
+}
+
+#[tauri::command]
 pub fn create_evidence_link(
     state: State<'_, AppState>,
     draft: EvidenceLinkDraft,

@@ -13,10 +13,10 @@ Implemented capabilities include:
 - Session Library create/reopen/delete flows.
 - Session Context and Objective Notes.
 - Session Timeline Entry capture with include/exclude controls for generation.
-- Findings linked to Entry Evidence and managed attachment Evidence.
+- Findings linked to Entry Evidence and managed attachment Evidence, with Finding deletion.
 - Managed attachment import by local path and pasted clipboard image data.
 - Attachment preview data URLs and local Markdown/JSON Session export.
-- Editable Session Report Drafts persisted in local SQLite.
+- Editable Testware Drafts persisted in local SQLite, with Draft deletion.
 - Explicit user-triggered AI generation through already-authenticated local Claude Code, Codex CLI, or GitHub Copilot CLI commands when available.
 - Local app settings for the generation system prompt.
 
@@ -90,6 +90,7 @@ Provider status can be ready, auth required, install required, or error. Provide
 - Managed attachment files are stored under `attachments/<session-id>/` in the app-data directory.
 - SQLite stores attachment metadata, ownership, hashes, and relative paths.
 - Deleting a Session through the Tauri app removes its managed attachment files and cascades database rows.
+- Deleting a Finding removes its Evidence links; deleting a Draft removes only that Draft row and preserves AI Run history.
 - AI calls send only the selected Generation Context text and attachment metadata, not raw attachment binaries.
 - Existing Electrobun/Bun databases are intentionally not read or migrated.
 
