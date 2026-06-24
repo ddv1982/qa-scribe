@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ClipboardEvent } from 'react'
 import {
   Box,
-  ClipboardCheck,
   FileText,
   Flag,
   Loader2,
@@ -33,20 +32,15 @@ import {
   updateEntry,
   updateFinding,
   updateSession,
-  updateSettings,
-  type AiProvider,
-  type AppSettings,
   type Draft,
   type Entry,
   type Finding,
   type GenerateAiActionKind,
   type GenerationJobEvent,
   type GenerationJobStatus,
-  type ProviderStatus,
   type Session,
 } from './tauri'
 import { RailItem } from './components/Common'
-import { ModelCombobox, ProviderGlyph } from './components/ModelSelector'
 import { ThemeToggle } from './components/ThemeToggle'
 import {
   containsInlineImageData,
@@ -60,31 +54,25 @@ import {
 } from './editor/editorHtml'
 import {
   countWords,
-  currentSystemTheme,
   formatError,
   formatSessionDate,
-  initialTheme,
   nextUntitledRecordTitle,
   nextUntitledTitle,
-  resolveThemePreference,
-  statusLabel,
 } from './ui/format'
-import type { BusyAction, PendingAiActions, SettingsSaveState, ThemePreference, WorkspaceView } from './ui/types'
+import type { BusyAction, PendingAiActions, WorkspaceView } from './ui/types'
 import type { RichEditorImageUpload } from './editor/RichTextEditor'
 import { copyRecordForJira, managedAttachmentReferencesForClipboard } from './editor/clipboardExport'
 import { richEditorImageInserterForElement, type RichEditorImageInserter } from './editor/richEditorRegistry'
+import { useSettingsController } from './hooks/useSettingsController'
 import { FindingsView } from './views/FindingsView'
 import { NotesView } from './views/NotesView'
 import { SettingsView } from './views/SettingsView'
-import { TemplatesView } from './views/TemplatesView'
 import { TestwareView } from './views/TestwareView'
+import { deleteConfirmationCopy, type DeleteConfirmation } from './workflows/deleteConfirmation'
+import { GenerationPreflight } from './workflows/generationPreflight'
+import { renderPrefilledFinding, renderPrefilledTestware } from './workflows/prefillTemplates'
 
 const noteBodyMaxLength = 100_000
-
-type DeleteConfirmation =
-  | { kind: 'note'; session: Session }
-  | { kind: 'draft'; draft: Draft }
-  | { kind: 'finding'; finding: Finding }
 
 type CopiedTargetAction = 'jira-text' | 'screenshot'
 type CopiedTarget =
@@ -96,31 +84,7 @@ function generationIsActive(job: GenerationJobStatus): boolean {
   return job.state === 'starting' || job.state === 'running' || job.state === 'cancelling'
 }
 
-function deleteConfirmationCopy(confirmation: DeleteConfirmation) {
-  if (confirmation.kind === 'note') {
-    return {
-      title: `Delete "${confirmation.session.title}"?`,
-      body: 'This removes the note, its testware, findings, and attachments. This cannot be undone.',
-      confirmLabel: 'Delete note permanently',
-    }
-  }
-  if (confirmation.kind === 'draft') {
-    return {
-      title: `Delete "${confirmation.draft.title}"?`,
-      body: 'This removes this testware draft only. AI run history is kept. This cannot be undone.',
-      confirmLabel: 'Delete testware permanently',
-    }
-  }
-  return {
-    title: `Delete "${confirmation.finding.title}"?`,
-    body: 'This removes this finding and its evidence links. Source notes and attachments are kept. This cannot be undone.',
-    confirmLabel: 'Delete finding permanently',
-  }
-}
-
 export function App() {
-  const [settings, setSettings] = useState<AppSettings | null>(null)
-  const [providerStatus, setProviderStatus] = useState<ProviderStatus | null>(null)
   const [sessions, setSessions] = useState<Session[]>([])
   const [activeSession, setActiveSession] = useState<Session | null>(null)
   const [noteEntry, setNoteEntry] = useState<Entry | null>(null)
@@ -128,10 +92,6 @@ export function App() {
   const [findings, setFindings] = useState<Finding[]>([])
   const [noteTitle, setNoteTitle] = useState('')
   const [noteBody, setNoteBody] = useState(emptyEditorHtml)
-  const [selectedProvider, setSelectedProvider] = useState<AiProvider>('codex_cli')
-  const [selectedModel, setSelectedModel] = useState('default')
-  const [settingsDraft, setSettingsDraft] = useState<AppSettings | null>(null)
-  const [settingsSaveState, setSettingsSaveState] = useState<SettingsSaveState>('idle')
   const [generationJobs, setGenerationJobs] = useState<Record<string, GenerationJobStatus>>({})
   const [busyAction, setBusyAction] = useState<BusyAction | null>('boot')
   const [copiedTarget, setCopiedTarget] = useState<CopiedTarget | null>(null)
@@ -139,8 +99,7 @@ export function App() {
   const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [activeView, setActiveView] = useState<WorkspaceView>('notes')
-  const [theme, setTheme] = useState<ThemePreference>(() => initialTheme())
-  const [systemTheme, setSystemTheme] = useState(() => currentSystemTheme())
+  const [pendingGenerationAction, setPendingGenerationAction] = useState<GenerateAiActionKind | null>(null)
   const [deleteConfirmation, setDeleteConfirmation] = useState<DeleteConfirmation | null>(null)
 
   const savedTitleRef = useRef('')
@@ -148,12 +107,25 @@ export function App() {
   const deletingSessionIdRef = useRef<string | null>(null)
   const activeSessionIdRef = useRef<string | null>(null)
   const noteEntryIdRef = useRef<string | null>(null)
-  const settingsSaveResetRef = useRef<number | null>(null)
   const copySuccessResetRef = useRef<number | null>(null)
   const bootedRef = useRef(false)
+  const {
+    activeProvider,
+    handleProviderChange,
+    loadSettings,
+    providerOptions,
+    providerStatus,
+    selectedModel,
+    selectedProvider,
+    setSelectedModel,
+    setTheme,
+    settingsDraft,
+    settingsSaveState,
+    theme,
+    updateSettingsDraft,
+    handleSaveSettings: saveSettingsDraft,
+  } = useSettingsController({ bootedRef, setError, setNotice })
 
-  const providerOptions = providerStatus?.providers ?? []
-  const activeProvider = providerOptions.find((provider) => provider.id === selectedProvider) ?? providerOptions[0] ?? null
   const testwareDrafts = drafts.filter((draft) => draft.kind === 'testware')
   const noteScreenshotCount = useMemo(
     () => managedAttachmentReferencesForClipboard({ title: noteTitle, bodyHtml: noteBody }).length,
@@ -199,23 +171,6 @@ export function App() {
   }, [activeSessionJobs])
   const activeTestwareJob = activeSessionJobs.find((job) => job.action === 'testware') ?? null
   const activeFindingJob = activeSessionJobs.find((job) => job.action === 'finding') ?? null
-  const resolvedTheme = resolveThemePreference(theme, systemTheme)
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-    const updateSystemTheme = () => setSystemTheme(mediaQuery.matches ? 'dark' : 'light')
-
-    updateSystemTheme()
-    mediaQuery.addEventListener('change', updateSystemTheme)
-    return () => mediaQuery.removeEventListener('change', updateSystemTheme)
-  }, [])
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = resolvedTheme
-    document.documentElement.style.colorScheme = resolvedTheme
-    window.localStorage.setItem('qa-scribe-theme', theme)
-  }, [resolvedTheme, theme])
-
   useEffect(() => {
     activeSessionIdRef.current = activeSession?.id ?? null
     noteEntryIdRef.current = noteEntry?.id ?? null
@@ -223,7 +178,6 @@ export function App() {
 
   useEffect(() => {
     return () => {
-      if (settingsSaveResetRef.current) window.clearTimeout(settingsSaveResetRef.current)
       if (copySuccessResetRef.current) window.clearTimeout(copySuccessResetRef.current)
     }
   }, [])
@@ -233,11 +187,7 @@ export function App() {
       setBusyAction('boot')
       setError(null)
       const [nextSettings, nextProviderStatus, nextSessions] = await Promise.all([getSettings(), getProviderStatus(), listSessions()])
-      setSettings(nextSettings)
-      setSettingsDraft(nextSettings)
-      setProviderStatus(nextProviderStatus)
-      setSelectedProvider(nextSettings.selectedAiProvider)
-      setSelectedModel(nextSettings.selectedAiModel || 'default')
+      loadSettings(nextSettings, nextProviderStatus)
       setSessions(nextSessions)
       bootedRef.current = true
       if (nextSessions[0]) {
@@ -839,60 +789,12 @@ export function App() {
     }
   }
 
-  async function persistSettings(nextSettings: AppSettings): Promise<AppSettings | null> {
-    try {
-      setError(null)
-      const saved = await updateSettings(nextSettings)
-      setSettings(saved)
-      setSettingsDraft(saved)
-      setSelectedProvider(saved.selectedAiProvider)
-      setSelectedModel(saved.selectedAiModel)
-      setNotice('Settings saved')
-      return saved
-    } catch (cause) {
-      setError(formatError(cause))
-      return null
-    }
-  }
-
   async function handleSaveSettings() {
-    if (!settingsDraft) return
     try {
       setBusyAction('save-settings')
-      setSettingsSaveState('saving')
-      const saved = await persistSettings({
-        ...settingsDraft,
-        selectedAiProvider: selectedProvider,
-        selectedAiModel: selectedModel.trim() || 'default',
-      })
-      setSettingsSaveState(saved ? 'saved' : 'error')
-      if (saved) scheduleSettingsSaveReset()
+      await saveSettingsDraft()
     } finally {
       setBusyAction(null)
-    }
-  }
-
-  function updateSettingsDraft(patch: Partial<AppSettings>) {
-    setSettingsSaveState('idle')
-    setSettingsDraft((previous) => (previous ? { ...previous, ...patch } : previous))
-  }
-
-  function scheduleSettingsSaveReset() {
-    if (settingsSaveResetRef.current) window.clearTimeout(settingsSaveResetRef.current)
-    settingsSaveResetRef.current = window.setTimeout(() => {
-      setSettingsSaveState('idle')
-      settingsSaveResetRef.current = null
-    }, 1800)
-  }
-
-  function handleProviderChange(provider: AiProvider) {
-    setSelectedProvider(provider)
-    const nextProvider = providerOptions.find((option) => option.id === provider)
-    if (!nextProvider) return
-
-    const currentModel = selectedModel.trim() || 'default'
-    if (!nextProvider.models.some((model) => model.id === currentModel)) {
-      setSelectedModel('default')
     }
   }
 
@@ -1030,20 +932,6 @@ export function App() {
     return () => window.clearTimeout(timeout)
   }, [noteEntry, noteBody]) // eslint-disable-line react-hooks/exhaustive-deps -- debounce is keyed to note identity and body
 
-  useEffect(() => {
-    if (!settings || !bootedRef.current) return
-    if (selectedProvider === settings.selectedAiProvider && selectedModel === settings.selectedAiModel) return
-
-    const timeout = window.setTimeout(() => {
-      void persistSettings({
-        ...settings,
-        selectedAiProvider: selectedProvider,
-        selectedAiModel: selectedModel.trim() || 'default',
-      })
-    }, 550)
-    return () => window.clearTimeout(timeout)
-  }, [settings, selectedProvider, selectedModel])
-
   return (
     <main className="app-shell" onPaste={handlePaste}>
       <header className="top-bar">
@@ -1057,7 +945,7 @@ export function App() {
         <label className="global-search">
           <Search size={17} />
           <span className="sr-only">Search notes</span>
-          <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search notes, testware, findings..." />
+          <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search notes..." />
         </label>
 
         <div className="top-actions">
@@ -1074,7 +962,6 @@ export function App() {
           <RailItem icon={FileText} label="Notes" count={sessions.length} active={activeView === 'notes'} onClick={() => setActiveView('notes')} />
           <RailItem icon={Box} label="Testware" count={testwareDrafts.length} active={activeView === 'testware'} onClick={() => setActiveView('testware')} />
           <RailItem icon={Flag} label="Findings" count={findings.length} active={activeView === 'findings'} onClick={() => setActiveView('findings')} />
-          <RailItem icon={ClipboardCheck} label="Templates" active={activeView === 'templates'} onClick={() => setActiveView('templates')} />
         </nav>
 
         <section className="note-picker" aria-label="Choose note">
@@ -1097,24 +984,6 @@ export function App() {
             {filteredSessions.length === 0 ? <p className="note-picker-empty">No matching notes</p> : null}
           </div>
           {filteredSessions.length > 8 ? <p className="note-picker-more">Showing 8 of {filteredSessions.length}. Search to narrow.</p> : null}
-        </section>
-
-        <section className="model-selector" aria-label="AI model">
-          <p className="rail-heading">AI model</p>
-          <label className="select-shell">
-            <ProviderGlyph provider={selectedProvider} />
-            <select value={selectedProvider} onChange={(event) => handleProviderChange(event.target.value as AiProvider)}>
-              {providerOptions.map((provider) => (
-                <option key={provider.id} value={provider.id}>
-                  {provider.label} {provider.available ? '' : `(${statusLabel(provider.status)})`}
-                </option>
-              ))}
-            </select>
-          </label>
-          <ModelCombobox models={activeProvider?.models ?? []} value={selectedModel} onChange={setSelectedModel} />
-          <p className={activeProvider?.available ? 'provider-hint ready' : 'provider-hint'}>
-            {activeProvider ? activeProvider.reason : 'Loading provider status'}
-          </p>
         </section>
 
         <button className={activeView === 'settings' ? 'settings-link active' : 'settings-link'} type="button" onClick={() => setActiveView('settings')}>
@@ -1141,7 +1010,16 @@ export function App() {
             notice={notice}
             error={error}
             pendingAiActions={pendingAiActions}
-            onAiAction={handleAiAction}
+            providerOptions={providerOptions}
+            selectedProvider={selectedProvider}
+            selectedModel={selectedModel}
+            activeProvider={activeProvider}
+            onProviderChange={handleProviderChange}
+            onModelChange={setSelectedModel}
+            onAiAction={(action) => {
+              setPendingGenerationAction(action)
+              return Promise.resolve()
+            }}
             onCopyNote={handleCopyNoteForJira}
             onCopyNoteScreenshot={handleCopyNoteScreenshotForJira}
             onDeleteNote={requestDeleteNote}
@@ -1204,16 +1082,6 @@ export function App() {
           />
         ) : null}
 
-        {activeView === 'templates' ? (
-          <TemplatesView
-            busyAction={busyAction}
-            settingsDraft={settingsDraft}
-            settingsSaveState={settingsSaveState}
-            updateSettingsDraft={updateSettingsDraft}
-            onSaveSettings={handleSaveSettings}
-          />
-        ) : null}
-
         {activeView === 'settings' ? (
           <SettingsView
             busyAction={busyAction}
@@ -1247,40 +1115,25 @@ export function App() {
           </section>
         </div>
       ) : null}
+
+      {pendingGenerationAction ? (
+        <GenerationPreflight
+          action={pendingGenerationAction}
+          isBusy={isBusy}
+          noteTitle={noteTitle}
+          noteWordCount={noteWordCount}
+          noteScreenshotCount={noteScreenshotCount}
+          activeProviderLabel={activeProvider?.label ?? selectedProvider}
+          activeProviderAvailable={Boolean(activeProvider?.available)}
+          selectedModel={selectedModel.trim() || 'default'}
+          onCancel={() => setPendingGenerationAction(null)}
+          onConfirm={() => {
+            const action = pendingGenerationAction
+            setPendingGenerationAction(null)
+            void handleAiAction(action)
+          }}
+        />
+      ) : null}
     </main>
   )
-}
-
-function renderPrefilledTestware(title: string, body: string): string {
-  const note = stripHtml(body) || 'Add source note detail.'
-  return [
-    `<h2>${escapeHtml(title)} Test Cases</h2>`,
-    '<h3>Source note</h3>',
-    `<p>${escapeHtml(note)}</p>`,
-    '<h3>Test cases</h3>',
-    '<ol>',
-    '<li><p><strong>Scenario:</strong> Describe the behavior under test.</p><p><strong>Steps:</strong> Add concise steps.</p><p><strong>Expected result:</strong> Describe the expected outcome.</p></li>',
-    '</ol>',
-  ].join('')
-}
-
-function renderPrefilledFinding(body: string): string {
-  const note = stripHtml(body).slice(0, 4000) || 'Describe the finding.'
-  return [
-    '<h2>Finding detail</h2>',
-    `<p>${escapeHtml(note)}</p>`,
-    '<h3>Reproduction</h3>',
-    '<ol><li>Add the first reproduction step.</li><li>Add the expected and actual result.</li></ol>',
-    '<h3>Impact</h3>',
-    '<p>Describe user impact and risk.</p>',
-  ].join('')
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
 }

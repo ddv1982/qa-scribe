@@ -1,4 +1,5 @@
-import { Box, CheckCircle2, Copy, FileText, Image as ImageIcon, Loader2, Plus, Save, Trash2, X } from 'lucide-react'
+import { useState } from 'react'
+import { Box, CheckCircle2, Copy, FileText, Image as ImageIcon, Loader2, PencilLine, Plus, Save, Trash2, X } from 'lucide-react'
 import { EmptyCollection, StatusPill } from '../components/Common'
 import { FormatToolbar, RichTextEditor, type RichEditorImageUpload } from '../editor/RichTextEditor'
 import type { Draft, GenerationJobStatus } from '../tauri'
@@ -43,6 +44,9 @@ export function TestwareView({
   onSaveDraft: (draft: Draft) => Promise<void>
   onUploadImage: (input: RichEditorImageUpload) => void | Promise<void>
 }) {
+  const [editingDraftIds, setEditingDraftIds] = useState<Record<string, boolean>>({})
+  const setDraftEditing = (id: string, editing: boolean) => setEditingDraftIds((previous) => ({ ...previous, [id]: editing }))
+
   return (
     <section className="collection-view">
       <header className="collection-header">
@@ -108,19 +112,31 @@ export function TestwareView({
           const draftTitle = draft.title.trim()
           const copyLabel = draftCopyLabel(draftTitle, draftCopied)
           const screenshotCopyLabel = draftScreenshotCopyLabel(draftTitle, draftScreenshotCopied, draftScreenshotCount)
+          const editingDraft = Boolean(editingDraftIds[draft.id])
           return (
             <article className="editable-record" key={draft.id}>
-              <input value={draft.title} aria-label="Testware title" onChange={(event) => updateLocalDraft(draft.id, { title: event.target.value })} />
-              <div className="rich-record-editor-field">
-                <FormatToolbar editorId={editorId} onUploadImage={onUploadImage} />
-                <RichTextEditor
-                  editorId={editorId}
-                  value={draft.body}
-                  onChange={(body) => updateLocalDraft(draft.id, { body })}
-                  ariaLabel={`${draft.title} testware body`}
-                  placeholder="Write test cases..."
-                />
-              </div>
+              {editingDraft ? (
+                <>
+                  <input value={draft.title} aria-label="Testware title" onChange={(event) => updateLocalDraft(draft.id, { title: event.target.value })} />
+                  <div className="rich-record-editor-field">
+                    <FormatToolbar editorId={editorId} onUploadImage={onUploadImage} />
+                    <RichTextEditor
+                      editorId={editorId}
+                      value={draft.body}
+                      onChange={(body) => updateLocalDraft(draft.id, { body })}
+                      ariaLabel={`${draft.title} testware body`}
+                      placeholder="Write test cases..."
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h2 className="record-title">{draft.title}</h2>
+                  <div className="rich-record-editor-field rich-record-preview-field">
+                    <RichTextEditor value={draft.body || '<p>No testware detail yet.</p>'} ariaLabel={`${draft.title} testware preview`} readOnly />
+                  </div>
+                </>
+              )}
               <div className="record-actions">
                 <button
                   className={draftCopied ? 'icon-button success' : 'icon-button'}
@@ -144,9 +160,20 @@ export function TestwareView({
                     {copyingDraftScreenshot ? <Loader2 className="spin" size={16} /> : draftScreenshotCopied ? <CheckCircle2 size={16} /> : <ImageIcon size={16} />}
                   </button>
                 ) : null}
-                <button className="secondary-button" type="button" disabled={isBusy} onClick={() => void onSaveDraft(draft)}>
-                  {savingDraft ? <Loader2 className="spin" size={16} /> : <Save size={16} />}
-                  Save
+                <button
+                  className="secondary-button"
+                  type="button"
+                  disabled={isBusy}
+                  onClick={() => {
+                    if (editingDraft) {
+                      void onSaveDraft(draft).then(() => setDraftEditing(draft.id, false))
+                    } else {
+                      setDraftEditing(draft.id, true)
+                    }
+                  }}
+                >
+                  {savingDraft ? <Loader2 className="spin" size={16} /> : editingDraft ? <Save size={16} /> : <PencilLine size={16} />}
+                  {editingDraft ? 'Save' : 'Edit'}
                 </button>
                 <button
                   className="icon-button danger"

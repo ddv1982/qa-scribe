@@ -209,6 +209,10 @@
   box-shadow: var(--shadow);
 }
 
+.generation-preflight {
+  width: min(100%, 520px);
+}
+
 .confirmation-dialog h2 {
   margin: 6px 0 8px;
   font-size: 20px;
@@ -225,6 +229,35 @@
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+}
+
+.preflight-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.preflight-list div {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.preflight-list dt {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.preflight-list dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .left-rail {

@@ -109,6 +109,12 @@
     width: 100%;
   }
 
+  .ai-options,
+  .ai-options-grid {
+    width: 100%;
+    max-width: none;
+  }
+
   .confirmation-actions {
     flex-direction: column-reverse;
   }

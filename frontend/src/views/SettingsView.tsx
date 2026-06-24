@@ -3,6 +3,7 @@ import { ProviderGlyph } from '../components/ModelSelector'
 import { ThemeToggle } from '../components/ThemeToggle'
 import type { AppSettings, ProviderStatus } from '../tauri'
 import type { BusyAction, SettingsSaveState, ThemePreference } from '../ui/types'
+import { TemplatesView } from './TemplatesView'
 
 export function SettingsView({
   busyAction,
@@ -64,9 +65,23 @@ export function SettingsView({
         {settingsDraft ? (
           <section className="wide-setting">
             <h2>Generation prompt</h2>
+            <p className="settings-note">Standard note capture and generation work without template tuning. Adjust these only when your Jira or testware format needs stricter wording.</p>
             <textarea value={settingsDraft.generationSystemPrompt} onChange={(event) => updateSettingsDraft({ generationSystemPrompt: event.target.value })} />
           </section>
         ) : null}
+
+        <section className="wide-setting advanced-setting">
+          <details>
+            <summary>Advanced templates</summary>
+            <TemplatesView
+              busyAction={busyAction}
+              settingsDraft={settingsDraft}
+              settingsSaveState={settingsSaveState}
+              updateSettingsDraft={updateSettingsDraft}
+              onSaveSettings={onSaveSettings}
+            />
+          </details>
+        </section>
       </div>
     </section>
   )

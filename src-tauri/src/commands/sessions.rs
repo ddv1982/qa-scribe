@@ -1,5 +1,5 @@
 use qa_scribe_core::{
-    attachments::delete_session_attachment_files,
+    attachments::delete_session_with_attachment_files,
     domain::{Session, SessionDraft, SessionPatch},
 };
 use tauri::State;
@@ -38,6 +38,5 @@ pub fn update_session(
 #[tauri::command]
 pub fn delete_session(state: State<'_, AppState>, id: String) -> Result<(), String> {
     let app_data_dir = state.app_data_dir().clone();
-    state.with_service(|service| service.delete_session(&id))?;
-    delete_session_attachment_files(app_data_dir, &id).map_err(crate::settings::command_error)
+    state.with_service(|service| delete_session_with_attachment_files(service, app_data_dir, &id))
 }

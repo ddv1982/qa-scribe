@@ -1,4 +1,5 @@
-import { CheckCircle2, Copy, FileText, Flag, Image as ImageIcon, Loader2, Plus, Save, Trash2, X } from 'lucide-react'
+import { useState } from 'react'
+import { CheckCircle2, Copy, FileText, Flag, Image as ImageIcon, Loader2, PencilLine, Plus, Save, Trash2, X } from 'lucide-react'
 import { EmptyCollection, StatusPill } from '../components/Common'
 import { FormatToolbar, RichTextEditor, type RichEditorImageUpload } from '../editor/RichTextEditor'
 import type { Finding, GenerationJobStatus } from '../tauri'
@@ -44,6 +45,9 @@ export function FindingsView({
   onSaveFinding: (finding: Finding) => Promise<void>
   onUploadImage: (input: RichEditorImageUpload) => void | Promise<void>
 }) {
+  const [editingFindingIds, setEditingFindingIds] = useState<Record<string, boolean>>({})
+  const setFindingEditing = (id: string, editing: boolean) => setEditingFindingIds((previous) => ({ ...previous, [id]: editing }))
+
   return (
     <section className="collection-view">
       <header className="collection-header">
@@ -109,22 +113,34 @@ export function FindingsView({
           const findingTitle = finding.title.trim()
           const copyLabel = findingCopyLabel(findingTitle, findingCopied)
           const screenshotCopyLabel = findingScreenshotCopyLabel(findingTitle, findingScreenshotCopied, findingScreenshotCount)
+          const editingFinding = Boolean(editingFindingIds[finding.id])
           return (
             <article className="editable-record" key={finding.id}>
               <div className="finding-meta-row">
                 <span>{formatFindingKind(finding.kind)}</span>
               </div>
-              <input value={finding.title} aria-label="Finding title" onChange={(event) => updateLocalFinding(finding.id, { title: event.target.value })} />
-              <div className="rich-record-editor-field">
-                <FormatToolbar editorId={editorId} onUploadImage={onUploadImage} />
-                <RichTextEditor
-                  editorId={editorId}
-                  value={finding.body}
-                  onChange={(body) => updateLocalFinding(finding.id, { body })}
-                  ariaLabel={`${finding.title} finding body`}
-                  placeholder="Write finding detail..."
-                />
-              </div>
+              {editingFinding ? (
+                <>
+                  <input value={finding.title} aria-label="Finding title" onChange={(event) => updateLocalFinding(finding.id, { title: event.target.value })} />
+                  <div className="rich-record-editor-field">
+                    <FormatToolbar editorId={editorId} onUploadImage={onUploadImage} />
+                    <RichTextEditor
+                      editorId={editorId}
+                      value={finding.body}
+                      onChange={(body) => updateLocalFinding(finding.id, { body })}
+                      ariaLabel={`${finding.title} finding body`}
+                      placeholder="Write finding detail..."
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h2 className="record-title">{finding.title}</h2>
+                  <div className="rich-record-editor-field rich-record-preview-field">
+                    <RichTextEditor value={finding.body || '<p>No finding detail yet.</p>'} ariaLabel={`${finding.title} finding preview`} readOnly />
+                  </div>
+                </>
+              )}
               <div className="record-actions">
                 <button
                   className={findingCopied ? 'icon-button success' : 'icon-button'}
@@ -148,9 +164,20 @@ export function FindingsView({
                     {copyingFindingScreenshot ? <Loader2 className="spin" size={16} /> : findingScreenshotCopied ? <CheckCircle2 size={16} /> : <ImageIcon size={16} />}
                   </button>
                 ) : null}
-                <button className="secondary-button" type="button" disabled={isBusy} onClick={() => void onSaveFinding(finding)}>
-                  {savingFinding ? <Loader2 className="spin" size={16} /> : <Save size={16} />}
-                  Save
+                <button
+                  className="secondary-button"
+                  type="button"
+                  disabled={isBusy}
+                  onClick={() => {
+                    if (editingFinding) {
+                      void onSaveFinding(finding).then(() => setFindingEditing(finding.id, false))
+                    } else {
+                      setFindingEditing(finding.id, true)
+                    }
+                  }}
+                >
+                  {savingFinding ? <Loader2 className="spin" size={16} /> : editingFinding ? <Save size={16} /> : <PencilLine size={16} />}
+                  {editingFinding ? 'Save' : 'Edit'}
                 </button>
                 <button
                   className="icon-button danger"

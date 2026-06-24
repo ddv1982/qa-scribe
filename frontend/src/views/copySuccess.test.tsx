@@ -6,7 +6,7 @@ vi.mock('../editor/RichTextEditor', () => ({
   RichTextEditor: () => <div role="textbox" />,
 }))
 
-import type { Draft, Finding, Session } from '../tauri'
+import type { Draft, Finding, ProviderStatus, Session } from '../tauri'
 import { FindingsView } from './FindingsView'
 import { NotesView } from './NotesView'
 import { TestwareView } from './TestwareView'
@@ -35,6 +35,12 @@ describe('copy success buttons', () => {
         notice={null}
         error={null}
         pendingAiActions={{}}
+        providerOptions={providerStatus.providers}
+        selectedProvider="codex_cli"
+        selectedModel="default"
+        activeProvider={providerStatus.providers[0]}
+        onProviderChange={() => undefined}
+        onModelChange={() => undefined}
         onAiAction={async () => undefined}
         onCopyNote={async () => undefined}
         onCopyNoteScreenshot={async () => undefined}
@@ -124,6 +130,12 @@ describe('copy success buttons', () => {
         notice={null}
         error={null}
         pendingAiActions={{}}
+        providerOptions={providerStatus.providers}
+        selectedProvider="codex_cli"
+        selectedModel="default"
+        activeProvider={providerStatus.providers[0]}
+        onProviderChange={() => undefined}
+        onModelChange={() => undefined}
         onAiAction={async () => undefined}
         onCopyNote={async () => undefined}
         onCopyNoteScreenshot={async () => undefined}
@@ -229,4 +241,28 @@ const finding: Finding = {
   metadataJson: null,
   createdAt: '2026-06-24T08:00:00Z',
   updatedAt: '2026-06-24T08:00:00Z',
+}
+
+const providerStatus: ProviderStatus = {
+  providers: [
+    {
+      id: 'codex_cli',
+      label: 'Codex CLI',
+      status: 'ready',
+      available: true,
+      reason: 'Codex CLI is installed and authenticated.',
+      command: 'codex',
+      localOnly: true,
+      models: [
+        {
+          id: 'default',
+          label: 'Provider default',
+          description: null,
+          source: 'providerDefault',
+          isDefault: true,
+          reasoningEfforts: ['low'],
+        },
+      ],
+    },
+  ],
 }

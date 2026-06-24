@@ -2,7 +2,8 @@ use qa_scribe_core::{
     QaScribeError,
     attachments::{
         attachment_preview_data_url, delete_session_attachment_files,
-        import_clipboard_screenshot_data_url, import_managed_attachment,
+        delete_session_with_attachment_files, import_clipboard_screenshot_data_url,
+        import_managed_attachment, reconcile_attachment_files,
     },
     domain::{
         AiProvider, AiRunCreate, AppSettings, DraftCreate, DraftKind, DraftPatch, EntryDraft,
@@ -784,6 +785,83 @@ fn managed_attachments_preview_generation_context_and_export_flow() {
     delete_session_attachment_files(&temp_dir, &session.id)
         .expect("managed attachment files should clean up");
     assert!(!temp_dir.join("attachments").join(&session.id).exists());
+
+    fs::remove_dir_all(temp_dir).expect("temp dir should be removed");
+}
+
+#[test]
+fn attachment_reconciliation_reports_missing_and_stray_files() {
+    let service = SessionService::in_memory().expect("in-memory service should open");
+    let temp_dir = unique_temp_dir();
+    fs::create_dir_all(&temp_dir).expect("temp dir should be created");
+    let source_path = temp_dir.join("screen.png");
+    fs::write(&source_path, "image bytes").expect("source attachment should write");
+
+    let session = service
+        .create_session(SessionDraft {
+            title: "Attachment reconciliation".to_string(),
+            ..SessionDraft::default()
+        })
+        .expect("session should be created");
+    let attachment =
+        import_managed_attachment(&service, &temp_dir, &session.id, None, &source_path)
+            .expect("attachment should import");
+
+    let clean_report =
+        reconcile_attachment_files(&service, &temp_dir).expect("attachments should reconcile");
+    assert!(clean_report.missing_files.is_empty());
+    assert!(clean_report.stray_files.is_empty());
+
+    fs::remove_file(temp_dir.join(&attachment.relative_path)).expect("managed file should remove");
+    let stray_path = temp_dir
+        .join("attachments")
+        .join(&session.id)
+        .join("stray.log");
+    fs::write(&stray_path, "orphaned").expect("stray file should write");
+
+    let report =
+        reconcile_attachment_files(&service, &temp_dir).expect("attachments should reconcile");
+    assert_eq!(report.missing_files, vec![attachment.relative_path]);
+    assert_eq!(
+        report.stray_files,
+        vec![format!("attachments/{}/stray.log", session.id)]
+    );
+
+    fs::remove_dir_all(temp_dir).expect("temp dir should be removed");
+}
+
+#[test]
+fn delete_session_with_attachment_files_removes_database_rows_and_files() {
+    let service = SessionService::in_memory().expect("in-memory service should open");
+    let temp_dir = unique_temp_dir();
+    fs::create_dir_all(&temp_dir).expect("temp dir should be created");
+    let source_path = temp_dir.join("evidence.txt");
+    fs::write(&source_path, "evidence").expect("source attachment should write");
+
+    let session = service
+        .create_session(SessionDraft {
+            title: "Delete with files".to_string(),
+            ..SessionDraft::default()
+        })
+        .expect("session should be created");
+    import_managed_attachment(&service, &temp_dir, &session.id, None, &source_path)
+        .expect("attachment should import");
+
+    let session_dir = temp_dir.join("attachments").join(&session.id);
+    assert!(session_dir.exists());
+    delete_session_with_attachment_files(&service, &temp_dir, &session.id)
+        .expect("session and attachment files should delete");
+    assert!(!session_dir.exists());
+    assert!(
+        service
+            .get_session(&session.id)
+            .expect("session query should work")
+            .is_none()
+    );
+    assert_eq!(
+        count_rows(service.database().connection(), "attachments"),
+        0
+    );
 
     fs::remove_dir_all(temp_dir).expect("temp dir should be removed");
 }

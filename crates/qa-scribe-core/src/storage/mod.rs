@@ -28,8 +28,12 @@ impl Database {
 
 fn initialize(connection: &Connection) -> Result<()> {
     connection.pragma_update(None, "foreign_keys", "ON")?;
+    connection.pragma_update(None, "busy_timeout", 5_000)?;
+    connection.pragma_update(None, "journal_mode", "WAL")?;
+    connection.pragma_update(None, "synchronous", "NORMAL")?;
     connection.execute_batch(SCHEMA)?;
     migrate(connection)?;
+    assert_no_foreign_key_violations(connection)?;
     Ok(())
 }
 
@@ -53,28 +57,41 @@ fn ensure_testware_drafts_supported(connection: &Connection) -> Result<()> {
         return Ok(());
     }
 
-    connection.execute_batch(
-        r#"
-        ALTER TABLE drafts RENAME TO drafts_old;
+    connection.execute_batch("BEGIN IMMEDIATE;")?;
+    let rebuild_result = (|| {
+        connection.execute_batch(
+            r#"
+            ALTER TABLE drafts RENAME TO drafts_old;
 
-        CREATE TABLE drafts (
-          id TEXT PRIMARY KEY,
-          session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-          ai_run_id TEXT REFERENCES ai_runs(id) ON DELETE SET NULL,
-          kind TEXT NOT NULL CHECK (kind IN ('session_report', 'testware')),
-          title TEXT NOT NULL CHECK (length(trim(title)) > 0),
-          body TEXT NOT NULL,
-          created_at TEXT NOT NULL,
-          updated_at TEXT NOT NULL
-        );
+            CREATE TABLE drafts (
+              id TEXT PRIMARY KEY,
+              session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+              ai_run_id TEXT REFERENCES ai_runs(id) ON DELETE SET NULL,
+              kind TEXT NOT NULL CHECK (kind IN ('session_report', 'testware')),
+              title TEXT NOT NULL CHECK (length(trim(title)) > 0),
+              body TEXT NOT NULL,
+              created_at TEXT NOT NULL,
+              updated_at TEXT NOT NULL
+            );
 
-        INSERT INTO drafts (id, session_id, ai_run_id, kind, title, body, created_at, updated_at)
-        SELECT id, session_id, ai_run_id, kind, title, body, created_at, updated_at
-        FROM drafts_old;
+            INSERT INTO drafts (id, session_id, ai_run_id, kind, title, body, created_at, updated_at)
+            SELECT id, session_id, ai_run_id, kind, title, body, created_at, updated_at
+            FROM drafts_old;
 
-        DROP TABLE drafts_old;
-        "#,
-    )?;
+            DROP TABLE drafts_old;
+            CREATE INDEX IF NOT EXISTS idx_drafts_session_updated ON drafts(session_id, updated_at);
+            "#,
+        )?;
+        assert_no_foreign_key_violations(connection)
+    })();
+
+    match rebuild_result {
+        Ok(()) => connection.execute_batch("COMMIT;")?,
+        Err(error) => {
+            let _ = connection.execute_batch("ROLLBACK;");
+            return Err(error);
+        }
+    }
 
     Ok(())
 }

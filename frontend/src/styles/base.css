@@ -88,3 +88,16 @@ button:disabled {
   cursor: not-allowed;
   opacity: 0.58;
 }
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+summary:focus-visible,
+.model-combobox-trigger:focus-visible,
+.model-option:focus-visible,
+.note-picker-item:focus-visible,
+.toolbar-button:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}

@@ -509,40 +509,55 @@ impl SessionService {
         require_session(self.database.connection(), session_id)?;
         let context_id = new_id();
         let now = now();
-        self.database.connection().execute(
-            "INSERT INTO generation_contexts (id, session_id, created_at) VALUES (?1, ?2, ?3)",
-            params![context_id, session_id, now],
-        )?;
-
-        let mut statement = self.database.connection().prepare(
-            "SELECT id FROM entries
-                 WHERE session_id = ?1 AND excluded_from_generation = 0
-                 ORDER BY created_at ASC",
-        )?;
-        let entry_ids = statement
-            .query_map([session_id], |row| row.get::<_, String>(0))?
-            .collect::<std::result::Result<Vec<_>, _>>()?;
-        for entry_id in entry_ids {
-            self.database.connection().execute(
-                "INSERT INTO generation_context_entries (id, generation_context_id, entry_id, included)
-                 VALUES (?1, ?2, ?3, 1)",
-                params![new_id(), context_id, entry_id],
-            )?;
-        }
-
-        let mut statement = self
-            .database
+        self.database
             .connection()
-            .prepare("SELECT id FROM attachments WHERE session_id = ?1 ORDER BY created_at ASC")?;
-        let attachment_ids = statement
-            .query_map([session_id], |row| row.get::<_, String>(0))?
-            .collect::<std::result::Result<Vec<_>, _>>()?;
-        for attachment_id in attachment_ids {
+            .execute_batch("BEGIN IMMEDIATE;")?;
+        let create_result = (|| {
             self.database.connection().execute(
-                "INSERT INTO generation_context_attachments (id, generation_context_id, attachment_id, included)
-                 VALUES (?1, ?2, ?3, 1)",
-                params![new_id(), context_id, attachment_id],
+                "INSERT INTO generation_contexts (id, session_id, created_at) VALUES (?1, ?2, ?3)",
+                params![context_id, session_id, now],
             )?;
+
+            let mut statement = self.database.connection().prepare(
+                "SELECT id FROM entries
+                     WHERE session_id = ?1 AND excluded_from_generation = 0
+                     ORDER BY created_at ASC",
+            )?;
+            let entry_ids = statement
+                .query_map([session_id], |row| row.get::<_, String>(0))?
+                .collect::<std::result::Result<Vec<_>, _>>()?;
+            drop(statement);
+            for entry_id in entry_ids {
+                self.database.connection().execute(
+                    "INSERT INTO generation_context_entries (id, generation_context_id, entry_id, included)
+                     VALUES (?1, ?2, ?3, 1)",
+                    params![new_id(), context_id, entry_id],
+                )?;
+            }
+
+            let mut statement = self.database.connection().prepare(
+                "SELECT id FROM attachments WHERE session_id = ?1 ORDER BY created_at ASC",
+            )?;
+            let attachment_ids = statement
+                .query_map([session_id], |row| row.get::<_, String>(0))?
+                .collect::<std::result::Result<Vec<_>, _>>()?;
+            drop(statement);
+            for attachment_id in attachment_ids {
+                self.database.connection().execute(
+                    "INSERT INTO generation_context_attachments (id, generation_context_id, attachment_id, included)
+                     VALUES (?1, ?2, ?3, 1)",
+                    params![new_id(), context_id, attachment_id],
+                )?;
+            }
+            Ok(())
+        })();
+
+        match create_result {
+            Ok(()) => self.database.connection().execute_batch("COMMIT;")?,
+            Err(error) => {
+                let _ = self.database.connection().execute_batch("ROLLBACK;");
+                return Err(error);
+            }
         }
 
         Ok(GenerationContext {

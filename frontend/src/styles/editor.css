@@ -290,9 +290,38 @@
 
 .bottom-command-bar {
   display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 10px;
   padding-bottom: 2px;
+}
+
+.ai-options {
+  flex: 1 1 280px;
+  min-width: min(100%, 280px);
+  margin-right: auto;
+  color: var(--muted);
+}
+
+.ai-options summary {
+  width: fit-content;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  color: var(--text);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.ai-options-grid {
+  display: grid;
+  gap: 8px;
+  max-width: 420px;
+  padding: 10px;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
 }
 
 .workspace-empty,

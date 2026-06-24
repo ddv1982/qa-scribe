@@ -1,4 +1,5 @@
 use std::{
+    collections::HashSet,
     fs,
     path::{Component, Path, PathBuf},
 };
@@ -15,6 +16,12 @@ use crate::{
 };
 
 const MAX_ATTACHMENT_BYTES: u64 = 25 * 1024 * 1024;
+
+#[derive(Debug, Default, Eq, PartialEq)]
+pub struct AttachmentReconciliationReport {
+    pub missing_files: Vec<String>,
+    pub stray_files: Vec<String>,
+}
 
 pub fn import_managed_attachment(
     service: &SessionService,
@@ -144,7 +151,12 @@ pub fn import_managed_attachment_bytes(
     if let Some(parent) = destination_path.parent() {
         fs::create_dir_all(parent)?;
     }
-    fs::write(&destination_path, &bytes)?;
+    let temp_path = destination_path.with_file_name(format!(".{attachment_id}.tmp"));
+    fs::write(&temp_path, &bytes)?;
+    if let Err(error) = fs::rename(&temp_path, &destination_path) {
+        let _ = fs::remove_file(&temp_path);
+        return Err(error.into());
+    }
 
     let result = service.create_attachment(AttachmentDraft {
         session_id: session_id.to_string(),
@@ -161,15 +173,69 @@ pub fn import_managed_attachment_bytes(
     result
 }
 
+pub fn delete_session_with_attachment_files(
+    service: &SessionService,
+    app_data_dir: impl AsRef<Path>,
+    session_id: &str,
+) -> Result<()> {
+    service
+        .get_session(session_id)?
+        .ok_or_else(|| crate::QaScribeError::NotFound(session_id.to_string()))?;
+    delete_session_attachment_files(app_data_dir, session_id)?;
+    service.delete_session(session_id)
+}
+
 pub fn delete_session_attachment_files(
     app_data_dir: impl AsRef<Path>,
     session_id: &str,
 ) -> Result<()> {
+    if !is_safe_path_component(session_id) {
+        return Err(validation("session attachment directory is invalid"));
+    }
     let path = app_data_dir.as_ref().join("attachments").join(session_id);
     if path.exists() {
         fs::remove_dir_all(path)?;
     }
     Ok(())
+}
+
+pub fn reconcile_attachment_files(
+    service: &SessionService,
+    app_data_dir: impl AsRef<Path>,
+) -> Result<AttachmentReconciliationReport> {
+    let app_data_dir = app_data_dir.as_ref();
+    let mut expected_paths = HashSet::new();
+    let mut missing_files = Vec::new();
+
+    for session in service.list_sessions()? {
+        for attachment in service.list_attachments(&session.id)? {
+            let relative_path = PathBuf::from(&attachment.relative_path);
+            if !is_safe_relative_path(&relative_path) {
+                missing_files.push(attachment.relative_path);
+                continue;
+            }
+            let normalized = relative_path.to_string_lossy().replace('\\', "/");
+            expected_paths.insert(normalized.clone());
+            if !app_data_dir.join(relative_path).is_file() {
+                missing_files.push(normalized);
+            }
+        }
+    }
+
+    let mut stray_files = Vec::new();
+    let attachments_root = app_data_dir.join("attachments");
+    collect_stray_attachment_files(
+        app_data_dir,
+        &attachments_root,
+        &expected_paths,
+        &mut stray_files,
+    )?;
+    missing_files.sort();
+    stray_files.sort();
+    Ok(AttachmentReconciliationReport {
+        missing_files,
+        stray_files,
+    })
 }
 
 pub fn attachment_preview_data_url(
@@ -227,6 +293,43 @@ fn safe_filename(filename: &str) -> String {
 fn is_safe_relative_path(path: &Path) -> bool {
     path.components()
         .all(|component| matches!(component, Component::Normal(_)))
+}
+
+fn is_safe_path_component(value: &str) -> bool {
+    !value.is_empty()
+        && Path::new(value)
+            .components()
+            .all(|component| matches!(component, Component::Normal(_)))
+}
+
+fn collect_stray_attachment_files(
+    app_data_dir: &Path,
+    directory: &Path,
+    expected_paths: &HashSet<String>,
+    stray_files: &mut Vec<String>,
+) -> Result<()> {
+    if !directory.exists() {
+        return Ok(());
+    }
+    for entry in fs::read_dir(directory)? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_dir() {
+            collect_stray_attachment_files(app_data_dir, &path, expected_paths, stray_files)?;
+            continue;
+        }
+        if !path.is_file() {
+            continue;
+        }
+        let Ok(relative_path) = path.strip_prefix(app_data_dir) else {
+            continue;
+        };
+        let normalized = relative_path.to_string_lossy().replace('\\', "/");
+        if !expected_paths.contains(&normalized) {
+            stray_files.push(normalized);
+        }
+    }
+    Ok(())
 }
 
 fn guess_mime_type(path: &Path) -> Option<&'static str> {

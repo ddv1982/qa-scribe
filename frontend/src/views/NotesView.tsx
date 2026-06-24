@@ -1,9 +1,11 @@
 import { Box, CheckCircle2, ChevronDown, Copy, FileText, Flag, Image as ImageIcon, Loader2, Sparkles, Trash2 } from 'lucide-react'
+import { ModelCombobox, ProviderGlyph } from '../components/ModelSelector'
 import { FormatToolbar, RichTextEditor, type RichEditorImageUpload } from '../editor/RichTextEditor'
-import type { GenerateAiActionKind, Session } from '../tauri'
+import type { AiProvider, GenerateAiActionKind, ProviderStatus, Session } from '../tauri'
 import { StatusPill } from '../components/Common'
 import type { BusyAction } from '../ui/types'
 import type { PendingAiActions } from '../ui/types'
+import { statusLabel } from '../ui/format'
 
 export function NotesView({
   activeProviderAvailable,
@@ -21,6 +23,12 @@ export function NotesView({
   notice,
   error,
   pendingAiActions,
+  providerOptions,
+  selectedProvider,
+  selectedModel,
+  activeProvider,
+  onProviderChange,
+  onModelChange,
   onAiAction,
   onCopyNote,
   onCopyNoteScreenshot,
@@ -45,6 +53,12 @@ export function NotesView({
   notice: string | null
   error: string | null
   pendingAiActions: PendingAiActions
+  providerOptions: ProviderStatus['providers']
+  selectedProvider: AiProvider
+  selectedModel: string
+  activeProvider: ProviderStatus['providers'][number] | null
+  onProviderChange: (provider: AiProvider) => void
+  onModelChange: (model: string) => void
   onAiAction: (action: GenerateAiActionKind) => Promise<void>
   onCopyNote: () => Promise<void>
   onCopyNoteScreenshot: () => Promise<void>
@@ -148,6 +162,25 @@ export function NotesView({
       </section>
 
       <footer className="bottom-command-bar" aria-label="AI note actions">
+        <details className="ai-options">
+          <summary>AI options</summary>
+          <div className="ai-options-grid">
+            <label className="select-shell">
+              <ProviderGlyph provider={selectedProvider} />
+              <select value={selectedProvider} onChange={(event) => onProviderChange(event.target.value as AiProvider)}>
+                {providerOptions.map((provider) => (
+                  <option key={provider.id} value={provider.id}>
+                    {provider.label} {provider.available ? '' : `(${statusLabel(provider.status)})`}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <ModelCombobox models={activeProvider?.models ?? []} value={selectedModel} onChange={onModelChange} />
+            <p className={activeProvider?.available ? 'provider-hint ready' : 'provider-hint'}>
+              {activeProvider ? activeProvider.reason : 'Loading provider status'}
+            </p>
+          </div>
+        </details>
         <button className="secondary-button" type="button" disabled={isBusy || testwarePending || !noteIsReady || !activeProviderAvailable} onClick={() => void onAiAction('testware')}>
           {busyAction === 'ai-testware' || testwarePending ? <Loader2 className="spin" size={16} /> : <Box size={16} />}
           {testwarePending ? 'Generating test cases' : 'Generate test cases'}
