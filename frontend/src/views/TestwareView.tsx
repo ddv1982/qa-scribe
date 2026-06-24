@@ -1,6 +1,6 @@
 import { Box, Loader2, Plus, Save, Trash2, X } from 'lucide-react'
 import { EmptyCollection, StatusPill } from '../components/Common'
-import { FormatToolbar, RichTextEditor } from '../editor/RichTextEditor'
+import { FormatToolbar, RichTextEditor, type RichEditorImageUpload } from '../editor/RichTextEditor'
 import type { Draft, GenerationJobStatus } from '../tauri'
 import type { BusyAction } from '../ui/types'
 
@@ -16,6 +16,7 @@ export function TestwareView({
   onDeleteDraft,
   onManualCreate,
   onSaveDraft,
+  onUploadImage,
 }: {
   busyAction: BusyAction | null
   drafts: Draft[]
@@ -28,6 +29,7 @@ export function TestwareView({
   onDeleteDraft: (draft: Draft) => void
   onManualCreate: () => Promise<void>
   onSaveDraft: (draft: Draft) => Promise<void>
+  onUploadImage: (input: RichEditorImageUpload) => void | Promise<void>
 }) {
   return (
     <section className="collection-view">
@@ -79,12 +81,14 @@ export function TestwareView({
         {drafts.map((draft) => {
           const deletingDraft = busyAction === `delete-draft:${draft.id}`
           const savingDraft = busyAction === `draft:${draft.id}`
+          const editorId = `testware-editor-${draft.id}`
           return (
             <article className="editable-record" key={draft.id}>
               <input value={draft.title} aria-label="Testware title" onChange={(event) => updateLocalDraft(draft.id, { title: event.target.value })} />
               <div className="rich-record-editor-field">
-                <FormatToolbar />
+                <FormatToolbar editorId={editorId} onUploadImage={onUploadImage} />
                 <RichTextEditor
+                  editorId={editorId}
                   value={draft.body}
                   onChange={(body) => updateLocalDraft(draft.id, { body })}
                   ariaLabel={`${draft.title} testware body`}

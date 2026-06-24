@@ -1,6 +1,6 @@
 {
   "name": "qa-scribe",
-  "version": "0.4.5",
+  "version": "0.4.6",
   "description": "Local-first desktop testing notepad for turning testing sessions into structured testware.",
   "author": "qa-scribe contributors",
   "packageManager": "bun@1.3.5",
@@ -10,14 +10,15 @@
     "tauri:build": "cd src-tauri && cargo tauri build",
     "frontend:build": "bun run --cwd frontend build",
     "frontend:lint": "bun run --cwd frontend lint",
+    "frontend:test": "bun run --cwd frontend test",
     "frontend:typecheck": "bun run --cwd frontend typecheck",
     "fmt": "cargo fmt --all --check",
     "typecheck": "bun run frontend:typecheck && cargo check --workspace",
     "lint": "bun run frontend:lint && cargo clippy --workspace --all-targets -- -D warnings",
-    "test": "bun run frontend:build && cargo test --workspace",
+    "test": "bun run frontend:test && bun run frontend:build && cargo test --workspace",
     "build": "bun run frontend:build && cargo build --workspace",
     "smoke": "cargo run -p qa-scribe-app",
     "package:check": "node -e \"for (const file of ['package.json','frontend/package.json','frontend/tsconfig.json','frontend/tsconfig.node.json','src-tauri/tauri.conf.json']) JSON.parse(require('fs').readFileSync(file,'utf8'))\"",
-    "verify": "bun run frontend:typecheck && bun run frontend:lint && bun run frontend:build && cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace && cargo run -p qa-scribe-app"
+    "verify": "bun run frontend:typecheck && bun run frontend:lint && bun run frontend:test && bun run frontend:build && cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace && cargo run -p qa-scribe-app"
   }
 }

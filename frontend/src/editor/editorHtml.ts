@@ -96,7 +96,8 @@ export function selectedRangeWithin(element: HTMLElement): Range | null {
 }
 
 export function serializeEditorHtml(editor: HTMLElement): string {
-  return sanitizeNoteHtml(editor.innerHTML)
+  const clone = editor.cloneNode(true) as HTMLElement
+  return sanitizeEditorHtmlTree(clone)
 }
 
 export function stripHtml(value: string): string {
@@ -152,8 +153,12 @@ function managedAttachmentIdFromSrc(source: string): string | null {
 
 function sanitizeNoteHtml(value: string): string {
   const documentFragment = new DOMParser().parseFromString(value, 'text/html')
-  sanitizeEditorChildren(documentFragment.body)
-  return documentFragment.body.innerHTML.trim()
+  return sanitizeEditorHtmlTree(documentFragment.body)
+}
+
+function sanitizeEditorHtmlTree(root: Element): string {
+  sanitizeEditorChildren(root)
+  return root.innerHTML.trim()
 }
 
 function sanitizeEditorChildren(parent: Element) {
@@ -239,7 +244,7 @@ function sanitizeImageElement(image: HTMLImageElement) {
 
 function sanitizeInputElement(input: HTMLInputElement) {
   const type = input.getAttribute('type')?.trim().toLowerCase() ?? ''
-  const checked = input.hasAttribute('checked')
+  const checked = input.checked || input.hasAttribute('checked')
   removeAllAttributes(input)
   if (type !== 'checkbox') {
     input.remove()

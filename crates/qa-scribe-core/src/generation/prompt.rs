@@ -92,7 +92,9 @@ pub fn render_action_prompt(
 ) -> String {
     match action {
         ActionPromptKind::Testware => render_testware_prompt(settings, session_title, note_entry),
-        ActionPromptKind::Finding => render_finding_prompt(settings, session_title, note_entry),
+        ActionPromptKind::Finding => {
+            render_finding_prompt(settings, session_title, note_entry, attachments)
+        }
         ActionPromptKind::Summary => {
             render_note_summary_prompt(settings, session_title, note_entry, attachments)
         }
@@ -127,14 +129,16 @@ fn render_finding_prompt(
     settings: &AppSettings,
     session_title: &str,
     note_entry: Option<&Entry>,
+    attachments: &[Attachment],
 ) -> String {
     let mut budget = PromptMaterialBudget::with_limit(FINDING_TOTAL_PROMPT_MATERIAL_CHAR_LIMIT);
     let mut prompt = String::new();
     prompt.push_str(&settings.generation_system_prompt);
     prompt.push_str("\n\n");
     prompt.push_str(&settings.finding_template);
-    prompt.push_str("\nReturn only a clean HTML fragment. Use the first h2 as the concise finding title. Do not use Markdown, code fences, an introduction, or a closing summary. Use only h2, h3, p, ul, ol, li, strong, em, and a.\n");
+    prompt.push_str("\nReturn only a clean HTML fragment. Use the first h2 as the concise finding title. Do not use Markdown, code fences, an introduction, or a closing summary. Use only h2, h3, p, ul, ol, li, strong, em, a, and img.\n");
     prompt.push_str("Return literal HTML tags such as <p>Text</p>. Do not escape tags as &lt;p&gt;Text&lt;/p&gt; or display tag names as text.\n");
+    prompt.push_str("Preserve managed image placeholders exactly as literal <img> elements when they are relevant evidence. Never invent filesystem paths for images.\n");
     prompt.push_str("Create one focused QA finding from the selected note only. If a field is missing, write \"Unknown\" rather than inventing details.\n");
     append_selected_note(
         &mut prompt,
@@ -143,6 +147,7 @@ fn render_finding_prompt(
         note_entry,
         FINDING_SELECTED_NOTE_PROMPT_CHAR_LIMIT,
     );
+    append_managed_images(&mut prompt, note_entry, attachments);
     budget.append_omissions(&mut prompt);
     prompt
 }
@@ -162,10 +167,8 @@ fn render_note_summary_prompt(
     prompt.push_str("Preserve managed image placeholders exactly as literal <img> elements when they are still relevant. Never invent filesystem paths for images.\n");
     prompt.push_str(&format!("\n# Note\nTitle: {session_title}\n"));
 
-    let mut managed_attachment_ids = Vec::new();
     match note_entry {
         Some(entry) => {
-            managed_attachment_ids = managed_attachment_ids_from_html(&entry.body);
             let note = budget.take(
                 "selected note",
                 &entry.body,
@@ -181,6 +184,19 @@ fn render_note_summary_prompt(
         None => prompt.push_str("(No note selected.)\n"),
     }
 
+    append_managed_images(&mut prompt, note_entry, attachments);
+    budget.append_omissions(&mut prompt);
+    prompt
+}
+
+fn append_managed_images(
+    prompt: &mut String,
+    note_entry: Option<&Entry>,
+    attachments: &[Attachment],
+) {
+    let managed_attachment_ids = note_entry
+        .map(|entry| managed_attachment_ids_from_html(&entry.body))
+        .unwrap_or_default();
     let note_attachments = attachments
         .iter()
         .filter(|attachment| managed_attachment_ids.iter().any(|id| id == &attachment.id))
@@ -197,9 +213,6 @@ fn render_note_summary_prompt(
             ));
         }
     }
-
-    budget.append_omissions(&mut prompt);
-    prompt
 }
 
 fn append_selected_note(
@@ -293,7 +306,7 @@ fn truncate_chars(value: &str, max_chars: usize) -> String {
     truncated
 }
 
-fn managed_attachment_ids_from_html(value: &str) -> Vec<String> {
+pub fn managed_attachment_ids_from_html(value: &str) -> Vec<String> {
     let mut ids = Vec::new();
     collect_attribute_values(value, "data-attachment-id", &mut ids);
     collect_protocol_sources(value, &mut ids);

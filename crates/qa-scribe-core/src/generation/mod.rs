@@ -4,8 +4,8 @@ mod response;
 
 pub use html_projection::project_html_to_prompt_text;
 pub use prompt::{
-    ActionPromptKind, SESSION_REPORT_PROMPT_VERSION, render_action_prompt,
-    render_session_report_prompt,
+    ActionPromptKind, SESSION_REPORT_PROMPT_VERSION, managed_attachment_ids_from_html,
+    render_action_prompt, render_session_report_prompt,
 };
 pub use response::{
     parse_rich_html_fragment_response, parse_session_report_response,
@@ -110,6 +110,39 @@ mod tests {
         assert!(!prompt.contains("sha256"));
         assert!(!prompt.contains("<h2>"));
         assert!(!prompt.contains("data:image"));
+    }
+
+    #[test]
+    fn finding_prompt_includes_selected_note_managed_image_refs() {
+        let selected = test_entry(
+            "entry-selected",
+            EntryType::Note,
+            Some("Selected note"),
+            "<p>Gmail failed.</p><img src=\"qa-scribe-attachment://attachment-1\" data-attachment-id=\"attachment-1\" alt=\"gmail-error.png\" />",
+        );
+        let selected_attachment =
+            test_attachment("attachment-1", Some("entry-selected"), "gmail-error.png");
+        let supporting_attachment =
+            test_attachment("attachment-2", Some("entry-support"), "console.png");
+
+        let prompt = render_action_prompt(
+            &AppSettings::default(),
+            "Gmail issue",
+            Some(&selected),
+            std::slice::from_ref(&selected),
+            &[],
+            &[selected_attachment, supporting_attachment],
+            ActionPromptKind::Finding,
+        );
+
+        assert!(prompt.contains("Use only h2, h3, p, ul, ol, li, strong, em, a, and img."));
+        assert!(prompt.contains("Preserve managed image placeholders"));
+        assert!(prompt.contains("# Managed Images"));
+        assert!(prompt.contains("qa-scribe-attachment://attachment-1"));
+        assert!(prompt.contains("data-attachment-id=\"attachment-1\""));
+        assert!(prompt.contains("gmail-error.png"));
+        assert!(!prompt.contains("attachment-2"));
+        assert!(!prompt.contains("console.png"));
     }
 
     #[test]

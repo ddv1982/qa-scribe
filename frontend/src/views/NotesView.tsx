@@ -1,5 +1,5 @@
 import { Box, CheckCircle2, ChevronDown, FileText, Flag, Loader2, Plus, Sparkles, Trash2 } from 'lucide-react'
-import { FormatToolbar, RichTextEditor } from '../editor/RichTextEditor'
+import { FormatToolbar, RichTextEditor, type RichEditorImageUpload } from '../editor/RichTextEditor'
 import type { GenerateAiActionKind, Session } from '../tauri'
 import { StatusPill } from '../components/Common'
 import type { BusyAction } from '../ui/types'
@@ -24,6 +24,7 @@ export function NotesView({
   onOpenNote,
   onSetNoteBody,
   onSetNoteTitle,
+  onUploadImage,
 }: {
   activeProviderAvailable: boolean
   activeSession: Session | null
@@ -43,11 +44,13 @@ export function NotesView({
   onOpenNote: (session: Session) => Promise<void>
   onSetNoteBody: (value: string) => void
   onSetNoteTitle: (value: string) => void
+  onUploadImage: (input: RichEditorImageUpload) => void | Promise<void>
 }) {
   const deletingNote = busyAction === 'delete-note'
   const testwarePending = Boolean(pendingAiActions.testware)
   const findingPending = Boolean(pendingAiActions.finding)
   const summaryPending = Boolean(pendingAiActions.summary)
+  const editorId = 'note-body-editor'
 
   if (!activeSession) {
     return (
@@ -91,7 +94,7 @@ export function NotesView({
       </header>
 
       <section className="editor-card" aria-label="Note editor">
-        <FormatToolbar />
+        <FormatToolbar editorId={editorId} onUploadImage={onUploadImage} />
         <div className="document-body">
           <input
             className="note-title-input"
@@ -100,7 +103,7 @@ export function NotesView({
             placeholder="Untitled note"
             aria-label="Note title"
           />
-          <RichTextEditor value={noteBody} onChange={onSetNoteBody} className="note-rich-editor" />
+          <RichTextEditor editorId={editorId} value={noteBody} onChange={onSetNoteBody} className="note-rich-editor" />
         </div>
         <footer className="editor-footer">
           <StatusPill notice={notice} error={error} busyAction={busyAction} />

@@ -141,6 +141,19 @@
   background: var(--panel-soft);
 }
 
+.toolbar-button:disabled {
+  color: var(--faint);
+  cursor: not-allowed;
+}
+
+.toolbar-button:disabled:hover {
+  background: transparent;
+}
+
+.toolbar-file-input {
+  display: none;
+}
+
 .document-body {
   min-height: 0;
   overflow: auto;

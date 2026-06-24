@@ -1,24 +1,58 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type ChangeEvent } from 'react'
 import { Bold, ImageIcon, Italic, Link2, List, ListChecks, type LucideIcon } from 'lucide-react'
 import {
   hydrateManagedAttachmentPreviews,
   insertEditorHtml,
-  isSafeEditorImageSource,
   isSafeEditorLinkUrl,
   normalizeEditorHtml,
+  restoreSelection,
   serializeEditorHtml,
+  selectedRangeWithin,
 } from './editorHtml'
 
 let activeRichEditor: HTMLElement | null = null
 
-export function FormatToolbar() {
+export type RichEditorImageUpload = {
+  file: File
+  editor: HTMLElement
+  insertionRange: Range | null
+}
+
+type FormatToolbarProps = {
+  editorId?: string
+  onUploadImage?: (input: RichEditorImageUpload) => void | Promise<void>
+}
+
+export function FormatToolbar({ editorId, onUploadImage }: FormatToolbarProps) {
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const uploadContextRef = useRef<Omit<RichEditorImageUpload, 'file'> | null>(null)
+
+  function requestImageUpload() {
+    const editor = toolbarEditor(editorId)
+    if (!editor || !onUploadImage) return
+    uploadContextRef.current = {
+      editor,
+      insertionRange: selectedRangeWithin(editor) ?? rangeAtEnd(editor),
+    }
+    fileInputRef.current?.click()
+  }
+
+  function handleImageSelected(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.currentTarget.files?.[0]
+    event.currentTarget.value = ''
+    const context = uploadContextRef.current
+    uploadContextRef.current = null
+    if (!file || !context || !onUploadImage) return
+    void onUploadImage({ ...context, file })
+  }
+
   return (
     <div className="format-toolbar" aria-label="Formatting toolbar">
       <select
         defaultValue="p"
         aria-label="Block style"
         onChange={(event) => {
-          formatBlock(event.target.value)
+          formatBlock(event.target.value, editorId)
           event.target.value = 'p'
         }}
       >
@@ -27,12 +61,13 @@ export function FormatToolbar() {
         <option value="h3">Subheading</option>
       </select>
       <span className="toolbar-divider" />
-      <ToolbarButton label="Bold" icon={Bold} command={() => applyEditorCommand(() => document.execCommand('bold'))} />
-      <ToolbarButton label="Italic" icon={Italic} command={() => applyEditorCommand(() => document.execCommand('italic'))} />
-      <ToolbarButton label="Bulleted list" icon={List} command={() => applyEditorCommand(() => document.execCommand('insertUnorderedList'))} />
-      <ToolbarButton label="Checklist" icon={ListChecks} command={() => applyEditorCommand(() => insertEditorHtml('<p><input type="checkbox" /> Task</p>'))} />
-      <ToolbarButton label="Link" icon={Link2} command={insertLink} />
-      <ToolbarButton label="Image" icon={ImageIcon} command={insertImage} />
+      <ToolbarButton label="Bold" icon={Bold} command={() => applyEditorCommand(() => document.execCommand('bold'), editorId)} />
+      <ToolbarButton label="Italic" icon={Italic} command={() => applyEditorCommand(() => document.execCommand('italic'), editorId)} />
+      <ToolbarButton label="Bulleted list" icon={List} command={() => applyEditorCommand(() => document.execCommand('insertUnorderedList'), editorId)} />
+      <ToolbarButton label="Checklist" icon={ListChecks} command={() => applyEditorCommand(() => insertEditorHtml('<p><input type="checkbox" /> Task</p>'), editorId)} />
+      <ToolbarButton label="Link" icon={Link2} command={() => insertLink(editorId)} />
+      <ToolbarButton label="Upload image" icon={ImageIcon} command={requestImageUpload} disabled={!onUploadImage} />
+      <input ref={fileInputRef} className="toolbar-file-input" type="file" accept="image/*" aria-label="Upload image file" onChange={handleImageSelected} />
     </div>
   )
 }
@@ -44,6 +79,7 @@ type RichTextEditorProps = {
   placeholder?: string
   readOnly?: boolean
   className?: string
+  editorId?: string
 }
 
 export function RichTextEditor({
@@ -53,6 +89,7 @@ export function RichTextEditor({
   placeholder = 'Write testing notes...',
   readOnly = false,
   className,
+  editorId,
 }: RichTextEditorProps) {
   const editorRef = useRef<HTMLDivElement | null>(null)
   const previewLoadRef = useRef(0)
@@ -71,6 +108,7 @@ export function RichTextEditor({
 
   return (
     <div
+      id={editorId}
       ref={editorRef}
       className={['rich-editor', className].filter(Boolean).join(' ')}
       contentEditable={!readOnly}
@@ -90,52 +128,45 @@ export function RichTextEditor({
   )
 }
 
-function ToolbarButton({ label, icon: Icon, command }: { label: string; icon: LucideIcon; command: () => void }) {
+function ToolbarButton({ label, icon: Icon, command, disabled = false }: { label: string; icon: LucideIcon; command: () => void; disabled?: boolean }) {
   return (
-    <button className="toolbar-button" type="button" aria-label={label} title={label} onClick={command}>
+    <button className="toolbar-button" type="button" aria-label={label} title={label} disabled={disabled} onClick={command}>
       <Icon size={16} />
     </button>
   )
 }
 
-function escapeAttribute(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
-    .replace(/`/g, '&#96;')
+function formatBlock(tag: string, editorId?: string) {
+  applyEditorCommand(() => document.execCommand('formatBlock', false, tag), editorId)
 }
 
-function formatBlock(tag: string) {
-  applyEditorCommand(() => document.execCommand('formatBlock', false, tag))
-}
-
-function insertImage() {
-  const url = window.prompt('Image URL')
-  if (!url) return
-  if (!isSafeEditorImageSource(url)) {
-    window.alert('Use an http, https, data:image, or managed attachment image URL.')
-    return
-  }
-  applyEditorCommand(() => insertEditorHtml(`<img src="${escapeAttribute(url)}" alt="" />`))
-}
-
-function insertLink() {
+function insertLink(editorId?: string) {
   const url = window.prompt('Link URL')
   if (!url) return
   if (!isSafeEditorLinkUrl(url)) {
     window.alert('Use an http, https, or mailto link.')
     return
   }
-  applyEditorCommand(() => document.execCommand('createLink', false, url))
+  applyEditorCommand(() => document.execCommand('createLink', false, url), editorId)
 }
 
-function applyEditorCommand(command: () => void) {
-  const editor = selectedEditor() ?? activeRichEditor
+function applyEditorCommand(command: () => void, editorId?: string) {
+  const editor = toolbarEditor(editorId)
+  if (editor) {
+    const range = selectedRangeWithin(editor) ?? rangeAtEnd(editor)
+    restoreSelection(range)
+    editor.focus({ preventScroll: true })
+  }
   command()
   editor?.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'formatSetBlockTextDirection' }))
+}
+
+function toolbarEditor(editorId?: string): HTMLElement | null {
+  if (editorId) {
+    const editor = document.getElementById(editorId)
+    if (editor?.classList.contains('rich-editor')) return editor
+  }
+  return selectedEditor() ?? activeRichEditor
 }
 
 function selectedEditor(): HTMLElement | null {
@@ -144,4 +175,11 @@ function selectedEditor(): HTMLElement | null {
   const node = selection.getRangeAt(0).commonAncestorContainer
   const element = node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement
   return element?.closest<HTMLElement>('.rich-editor') ?? null
+}
+
+function rangeAtEnd(editor: HTMLElement): Range {
+  const range = document.createRange()
+  range.selectNodeContents(editor)
+  range.collapse(false)
+  return range
 }

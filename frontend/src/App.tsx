@@ -63,6 +63,7 @@ import {
 } from './editor/editorHtml'
 import { countWords, formatError, formatSessionDate, initialTheme, nextUntitledTitle, statusLabel } from './ui/format'
 import type { BusyAction, PendingAiActions, SettingsSaveState, ThemePreference, WorkspaceView } from './ui/types'
+import type { RichEditorImageUpload } from './editor/RichTextEditor'
 import { FindingsView } from './views/FindingsView'
 import { NotesView } from './views/NotesView'
 import { SettingsView } from './views/SettingsView'
@@ -717,6 +718,40 @@ export function App() {
     }
   }
 
+  async function uploadEditorImage({ file, insertionRange, editor }: RichEditorImageUpload, entryId: string | null) {
+    if (!activeSession) {
+      setError('Open a note before uploading images.')
+      return
+    }
+
+    if (entryId && !noteEntry) {
+      setError('Open an editable note before uploading note images.')
+      return
+    }
+
+    try {
+      setBusyAction('attach-image')
+      setError(null)
+      const dataUrl = await readFileAsDataUrl(file)
+      const filename = pastedImageFilename(file)
+      const attachment = await importClipboardScreenshot({
+        sessionId: activeSession.id,
+        entryId,
+        filename,
+        dataUrl,
+      })
+      restoreSelection(insertionRange)
+      editor.focus({ preventScroll: true })
+      insertEditorHtml(managedAttachmentImageHtml(attachment.id, attachment.filename, dataUrl))
+      editor.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertFromPaste' }))
+      setNotice('Image attached')
+    } catch (cause) {
+      setError(formatError(cause))
+    } finally {
+      setBusyAction(null)
+    }
+  }
+
   async function materializeInlineImages(html: string): Promise<string> {
     if (!activeSession || !noteEntry || !containsInlineImageData(html)) {
       return normalizeEditorHtml(html)
@@ -890,6 +925,13 @@ export function App() {
             onOpenNote={openNote}
             onSetNoteBody={setNoteBody}
             onSetNoteTitle={setNoteTitle}
+            onUploadImage={(input) => {
+              if (!noteEntry) {
+                setError('Open an editable note before uploading note images.')
+                return
+              }
+              return uploadEditorImage(input, noteEntry.id)
+            }}
           />
         ) : null}
 
@@ -905,6 +947,7 @@ export function App() {
             onDeleteDraft={requestDeleteDraft}
             onManualCreate={handleManualTestware}
             onSaveDraft={handleSaveDraft}
+            onUploadImage={(input) => uploadEditorImage(input, null)}
             updateLocalDraft={updateLocalDraft}
           />
         ) : null}
@@ -921,6 +964,7 @@ export function App() {
             onDeleteFinding={requestDeleteFinding}
             onManualCreate={handleManualFinding}
             onSaveFinding={handleSaveFinding}
+            onUploadImage={(input) => uploadEditorImage(input, null)}
             updateLocalFinding={updateLocalFinding}
           />
         ) : null}

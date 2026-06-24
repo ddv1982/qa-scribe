@@ -11,12 +11,13 @@ use qa_scribe_core::{
     },
     domain::{
         AiProvider, AiRun, AiRunCreate, Draft, DraftCreate, DraftKind, Entry, EntryPatch,
-        EntryType, Finding, FindingDraft, FindingKind, GenerationContext,
+        EntryType, EvidenceLinkDraft, Finding, FindingDraft, FindingKind, GenerationContext,
     },
     generation::{
-        ActionPromptKind, SESSION_REPORT_PROMPT_VERSION, parse_rich_html_fragment_response,
-        parse_session_report_response, preserve_managed_attachment_images,
-        project_html_to_prompt_text, render_action_prompt, render_session_report_prompt,
+        ActionPromptKind, SESSION_REPORT_PROMPT_VERSION, managed_attachment_ids_from_html,
+        parse_rich_html_fragment_response, parse_session_report_response,
+        preserve_managed_attachment_images, project_html_to_prompt_text, render_action_prompt,
+        render_session_report_prompt,
     },
 };
 use serde::{Deserialize, Serialize};
@@ -164,6 +165,7 @@ struct PreparedGeneration {
     generation_context: GenerationContext,
     ai_run: AiRun,
     prompt: String,
+    selected_note_id: Option<String>,
     selected_note_body: Option<String>,
     attachments: Vec<qa_scribe_core::domain::Attachment>,
 }
@@ -492,6 +494,7 @@ fn prepare_ai_action_generation(
         generation_context,
         ai_run,
         prompt,
+        selected_note_id: note_entry.map(|entry| entry.id.clone()),
         selected_note_body: note_entry.map(|entry| entry.body.clone()),
         attachments,
     })
@@ -526,13 +529,25 @@ fn finish_ai_action_generation(
                     })
                 }
                 GenerateAiActionKind::Finding => {
+                    let body = preserve_managed_attachment_images(
+                        &body,
+                        prepared.selected_note_body.as_deref().unwrap_or_default(),
+                        &prepared.attachments,
+                    );
                     let finding = service.create_finding(FindingDraft {
-                        session_id: prepared.session_id,
+                        session_id: prepared.session_id.clone(),
                         title: derive_title(&body, "AI Finding"),
                         body,
                         kind: FindingKind::Bug,
                         metadata_json: None,
                     })?;
+                    create_generated_finding_evidence_links(
+                        service,
+                        &finding.id,
+                        prepared.selected_note_id.as_deref(),
+                        prepared.selected_note_body.as_deref().unwrap_or_default(),
+                        &prepared.attachments,
+                    )?;
                     Ok(GenerateAiActionResult {
                         generation_context: prepared.generation_context,
                         ai_run: completed_run,
@@ -601,6 +616,36 @@ fn finish_ai_action_generation(
     }
 }
 
+fn create_generated_finding_evidence_links(
+    service: &qa_scribe_core::services::SessionService,
+    finding_id: &str,
+    selected_note_id: Option<&str>,
+    selected_note_body: &str,
+    attachments: &[qa_scribe_core::domain::Attachment],
+) -> qa_scribe_core::Result<()> {
+    if let Some(entry_id) = selected_note_id {
+        service.create_evidence_link(EvidenceLinkDraft {
+            finding_id: finding_id.to_string(),
+            entry_id: Some(entry_id.to_string()),
+            attachment_id: None,
+        })?;
+    }
+
+    let managed_attachment_ids = managed_attachment_ids_from_html(selected_note_body);
+    for attachment in attachments
+        .iter()
+        .filter(|attachment| managed_attachment_ids.iter().any(|id| id == &attachment.id))
+    {
+        service.create_evidence_link(EvidenceLinkDraft {
+            finding_id: finding_id.to_string(),
+            entry_id: None,
+            attachment_id: Some(attachment.id.clone()),
+        })?;
+    }
+
+    Ok(())
+}
+
 #[tauri::command]
 pub fn generate_session_report(
     state: State<'_, AppState>,
@@ -638,6 +683,7 @@ pub fn generate_session_report(
             generation_context,
             ai_run,
             prompt,
+            selected_note_id: None,
             selected_note_body: None,
             attachments,
         })
@@ -1299,7 +1345,7 @@ mod tests {
 
     use qa_scribe_core::{
         ai::GenerationOutputFormat,
-        domain::{AiProvider, EntryDraft, EntryType, SessionDraft},
+        domain::{AiProvider, AttachmentDraft, EntryDraft, EntryPatch, EntryType, SessionDraft},
         services::SessionService,
     };
 
@@ -1369,6 +1415,100 @@ mod tests {
             assert!(!body.contains("&lt;p&gt;"));
             assert!(!body.contains("&lt;h2&gt;"));
         }
+    }
+
+    #[test]
+    fn finding_completion_preserves_managed_screenshots_and_links_evidence() {
+        let service = SessionService::in_memory().expect("service should open");
+        let session = service
+            .create_session(SessionDraft {
+                title: "Gmail login".to_string(),
+                ..SessionDraft::default()
+            })
+            .expect("session should create");
+        let note = service
+            .create_entry(EntryDraft {
+                session_id: session.id.clone(),
+                entry_type: EntryType::Note,
+                title: Some("Gmail login".to_string()),
+                body: "<p>Gmail login fails.</p>".to_string(),
+                metadata_json: None,
+                excluded_from_generation: false,
+            })
+            .expect("note should create");
+        let attachment = service
+            .create_attachment(AttachmentDraft {
+                session_id: session.id.clone(),
+                entry_id: Some(note.id.clone()),
+                filename: "gmail-error.png".to_string(),
+                mime_type: Some("image/png".to_string()),
+                size_bytes: 123,
+                sha256: "a".repeat(64),
+                relative_path: "attachments/session/gmail-error.png".to_string(),
+            })
+            .expect("attachment should create");
+        let note = service
+            .update_entry(
+                &note.id,
+                EntryPatch {
+                    body: Some(format!(
+                        "<p>Gmail login fails.</p><img src=\"qa-scribe-attachment://{}\" data-attachment-id=\"{}\" alt=\"Gmail error\" />",
+                        attachment.id, attachment.id
+                    )),
+                    ..EntryPatch::default()
+                },
+            )
+            .expect("note should update");
+        let request = GenerateAiActionRequest {
+            session_id: session.id.clone(),
+            provider: AiProvider::CodexCli,
+            model: "test-model".to_string(),
+            reasoning_effort: None,
+            action: GenerateAiActionKind::Finding,
+            note_entry_id: Some(note.id.clone()),
+        };
+        let prepared =
+            prepare_ai_action_generation(&service, &request).expect("generation should prepare");
+        let response = format!(
+            "<h2>Gmail login fails</h2><p>Evidence:</p><img src=\"{}\" alt=\"Updated evidence\" />",
+            attachment.relative_path
+        );
+
+        let result = finish_ai_action_generation(
+            &service,
+            &request,
+            prepared,
+            Ok(success_generation_output(&response)),
+        )
+        .expect("generation should finish");
+
+        let finding = result.finding.expect("finding should be created");
+        assert!(
+            finding
+                .body
+                .contains(&format!("qa-scribe-attachment://{}", attachment.id))
+        );
+        assert!(
+            finding
+                .body
+                .contains(&format!("data-attachment-id=\"{}\"", attachment.id))
+        );
+        assert!(
+            !finding
+                .body
+                .contains(&format!("src=\"{}\"", attachment.relative_path))
+        );
+
+        let evidence_links = service
+            .list_evidence_links(&session.id)
+            .expect("evidence links should list");
+        assert!(evidence_links.iter().any(|link| {
+            link.finding_id == finding.id && link.entry_id.as_deref() == Some(note.id.as_str())
+        }));
+        assert!(evidence_links.iter().any(|link| {
+            link.finding_id == finding.id
+                && link.attachment_id.as_deref() == Some(attachment.id.as_str())
+        }));
     }
 
     fn finish_action_with_output(

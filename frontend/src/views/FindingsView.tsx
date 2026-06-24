@@ -1,6 +1,6 @@
 import { Flag, Loader2, Plus, Save, Trash2, X } from 'lucide-react'
 import { EmptyCollection, StatusPill } from '../components/Common'
-import { FormatToolbar, RichTextEditor } from '../editor/RichTextEditor'
+import { FormatToolbar, RichTextEditor, type RichEditorImageUpload } from '../editor/RichTextEditor'
 import type { Finding, GenerationJobStatus } from '../tauri'
 import { formatFindingKind } from '../ui/format'
 import type { BusyAction } from '../ui/types'
@@ -17,6 +17,7 @@ export function FindingsView({
   onDeleteFinding,
   onManualCreate,
   onSaveFinding,
+  onUploadImage,
 }: {
   busyAction: BusyAction | null
   findings: Finding[]
@@ -29,6 +30,7 @@ export function FindingsView({
   onDeleteFinding: (finding: Finding) => void
   onManualCreate: () => Promise<void>
   onSaveFinding: (finding: Finding) => Promise<void>
+  onUploadImage: (input: RichEditorImageUpload) => void | Promise<void>
 }) {
   return (
     <section className="collection-view">
@@ -80,6 +82,7 @@ export function FindingsView({
         {findings.map((finding) => {
           const deletingFinding = busyAction === `delete-finding:${finding.id}`
           const savingFinding = busyAction === `finding:${finding.id}`
+          const editorId = `finding-editor-${finding.id}`
           return (
             <article className="editable-record" key={finding.id}>
               <div className="finding-meta-row">
@@ -87,8 +90,9 @@ export function FindingsView({
               </div>
               <input value={finding.title} aria-label="Finding title" onChange={(event) => updateLocalFinding(finding.id, { title: event.target.value })} />
               <div className="rich-record-editor-field">
-                <FormatToolbar />
+                <FormatToolbar editorId={editorId} onUploadImage={onUploadImage} />
                 <RichTextEditor
+                  editorId={editorId}
                   value={finding.body}
                   onChange={(body) => updateLocalFinding(finding.id, { body })}
                   ariaLabel={`${finding.title} finding body`}
