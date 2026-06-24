@@ -29,7 +29,7 @@ export function formatRecordForClipboard(record: ClipboardRecord): ClipboardPayl
 }
 
 export async function copyRecordForJira(record: ClipboardRecord): Promise<void> {
-  await writeRichClipboard(formatRecordForClipboard(record))
+  await writePlainClipboard(formatRecordForClipboard(record).plain)
 }
 
 export async function writeRichClipboard(payload: ClipboardPayload): Promise<void> {
@@ -52,6 +52,12 @@ export async function writeRichClipboard(payload: ClipboardPayload): Promise<voi
 
   if (typeof clipboard.writeText !== 'function') throw new Error('Clipboard text writing is not available')
   await clipboard.writeText(payload.plain)
+}
+
+export async function writePlainClipboard(value: string): Promise<void> {
+  const clipboard = navigator.clipboard
+  if (!clipboard || typeof clipboard.writeText !== 'function') throw new Error('Clipboard text writing is not available')
+  await clipboard.writeText(value)
 }
 
 function renderHtmlChildren(parent: ParentNode): string {

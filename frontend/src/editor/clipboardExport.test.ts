@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { formatRecordForClipboard, writeRichClipboard } from './clipboardExport'
+import { copyRecordForJira, formatRecordForClipboard, writeRichClipboard } from './clipboardExport'
 import { managedAttachmentImageHtml } from './editorHtml'
 
 describe('clipboardExport', () => {
@@ -75,6 +75,26 @@ describe('clipboardExport', () => {
     expect(payload.html).not.toContain('qa-scribe-attachment://')
     expect(payload.plain).toContain('Image: gmail-error.png')
     expect(payload.plain).not.toContain('qa-scribe-attachment://')
+  })
+
+  it('copies Jira records as plain Markdown-style text so Jira owns theme colors', async () => {
+    const write = vi.fn().mockResolvedValue(undefined)
+    const writeText = vi.fn().mockResolvedValue(undefined)
+
+    class MockClipboardItem {
+      constructor(_items: Record<string, Blob>) {}
+    }
+
+    vi.stubGlobal('ClipboardItem', MockClipboardItem)
+    vi.stubGlobal('navigator', { clipboard: { write, writeText } })
+
+    await copyRecordForJira({
+      title: 'Gmail sign-in issue',
+      bodyHtml: '<p><strong>Login</strong> fails</p><ul><li>Open Gmail</li></ul>',
+    })
+
+    expect(write).not.toHaveBeenCalled()
+    expect(writeText).toHaveBeenCalledWith(['## Gmail sign-in issue', '**Login** fails', '- Open Gmail'].join('\n\n'))
   })
 
   it('writes rich clipboard data when the browser API is available', async () => {
