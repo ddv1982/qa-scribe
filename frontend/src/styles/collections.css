@@ -20,6 +20,13 @@
   line-height: 1.2;
 }
 
+.collection-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .collection-status {
   margin: -8px 0 18px;
 }

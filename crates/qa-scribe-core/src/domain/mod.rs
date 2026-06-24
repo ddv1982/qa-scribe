@@ -473,6 +473,16 @@ pub fn validate_required_text(label: &str, value: &str, max_len: usize) -> Resul
     Ok(trimmed.to_string())
 }
 
+pub fn validate_body_text(label: &str, value: &str, max_len: usize) -> Result<String> {
+    let trimmed = value.trim();
+    if trimmed.len() > max_len {
+        return Err(validation(format!(
+            "{label} must be at most {max_len} characters"
+        )));
+    }
+    Ok(trimmed.to_string())
+}
+
 pub fn validate_optional_text(
     label: &str,
     value: Option<String>,

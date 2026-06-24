@@ -1,6 +1,6 @@
 import { getAttachmentPreviewDataUrl } from '../tauri'
 
-export const emptyNoteHtml = '<p><br></p>'
+export const emptyEditorHtml = ''
 export const managedAttachmentProtocol = 'qa-scribe-attachment://'
 const allowedEditorTags = new Set(['a', 'b', 'br', 'em', 'h2', 'h3', 'i', 'img', 'input', 'li', 'ol', 'p', 'strong', 'ul'])
 const removedEditorTags = new Set(['embed', 'form', 'iframe', 'math', 'meta', 'object', 'script', 'style', 'svg', 'template'])
@@ -54,9 +54,10 @@ export function managedAttachmentImageHtml(attachmentId: string, filename: strin
 
 export function normalizeEditorHtml(value: string): string {
   const trimmed = repairEscapedEditorHtml(value.trim())
-  if (!trimmed || trimmed === '<br>') return emptyNoteHtml
+  if (!trimmed || trimmed === '<br>') return emptyEditorHtml
   const html = trimmed.startsWith('<') ? trimmed : `<p>${escapeHtml(trimmed).replace(/\n/g, '<br />')}</p>`
-  return sanitizeNoteHtml(html) || emptyNoteHtml
+  const sanitized = sanitizeNoteHtml(html)
+  return isVisuallyEmptyEditorHtml(sanitized) ? emptyEditorHtml : sanitized
 }
 
 export function pastedImageFilename(file: File): string {
@@ -133,6 +134,13 @@ function managedAttachmentIdFromSrc(source: string): string | null {
 function sanitizeNoteHtml(value: string): string {
   const documentFragment = new DOMParser().parseFromString(value, 'text/html')
   return sanitizeEditorHtmlTree(documentFragment.body)
+}
+
+function isVisuallyEmptyEditorHtml(value: string): boolean {
+  if (!value.trim()) return true
+  const documentFragment = new DOMParser().parseFromString(value, 'text/html')
+  if (documentFragment.body.querySelector('img, input')) return false
+  return !(documentFragment.body.textContent ?? '').replace(/\u00a0/g, ' ').trim()
 }
 
 function sanitizeEditorHtmlTree(root: Element): string {

@@ -1,4 +1,4 @@
-import { Box, Loader2, Plus, Save, Trash2, X } from 'lucide-react'
+import { Box, FileText, Loader2, Plus, Save, Trash2, X } from 'lucide-react'
 import { EmptyCollection, StatusPill } from '../components/Common'
 import { FormatToolbar, RichTextEditor, type RichEditorImageUpload } from '../editor/RichTextEditor'
 import type { Draft, GenerationJobStatus } from '../tauri'
@@ -15,6 +15,7 @@ export function TestwareView({
   onCancelGenerationJob,
   onDeleteDraft,
   onManualCreate,
+  onPrefillFromNote,
   onSaveDraft,
   onUploadImage,
 }: {
@@ -28,6 +29,7 @@ export function TestwareView({
   onCancelGenerationJob: (jobId: string) => Promise<void>
   onDeleteDraft: (draft: Draft) => void
   onManualCreate: () => Promise<void>
+  onPrefillFromNote: () => Promise<void>
   onSaveDraft: (draft: Draft) => Promise<void>
   onUploadImage: (input: RichEditorImageUpload) => void | Promise<void>
 }) {
@@ -38,10 +40,16 @@ export function TestwareView({
           <p className="eyebrow">Testware</p>
           <h1>Test cases</h1>
         </div>
-        <button className="primary-button" type="button" disabled={isBusy} onClick={() => void onManualCreate()}>
-          {busyAction === 'manual-testware' ? <Loader2 className="spin" size={16} /> : <Plus size={16} />}
-          New testware
-        </button>
+        <div className="collection-header-actions">
+          <button className="secondary-button" type="button" disabled={isBusy} onClick={() => void onPrefillFromNote()}>
+            {busyAction === 'prefill-testware' ? <Loader2 className="spin" size={16} /> : <FileText size={16} />}
+            Prefill from note
+          </button>
+          <button className="primary-button" type="button" disabled={isBusy} onClick={() => void onManualCreate()}>
+            {busyAction === 'manual-testware' ? <Loader2 className="spin" size={16} /> : <Plus size={16} />}
+            New testware
+          </button>
+        </div>
       </header>
       {notice || error ? (
         <div className="collection-status">

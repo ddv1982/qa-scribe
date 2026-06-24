@@ -13,6 +13,8 @@ export type BusyAction =
   | 'save-settings'
   | 'manual-testware'
   | 'manual-finding'
+  | 'prefill-testware'
+  | 'prefill-finding'
   | 'ai-testware'
   | 'ai-finding'
   | 'ai-summary'

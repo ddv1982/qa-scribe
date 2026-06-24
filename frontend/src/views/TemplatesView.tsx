@@ -22,15 +22,15 @@ export function TemplatesView({
     <section className="template-view">
       <header className="collection-header">
         <div>
-          <p className="eyebrow">Templates</p>
-          <h1>Generated output structure</h1>
+          <p className="eyebrow">AI templates</p>
+          <h1>AI-generated output structure</h1>
         </div>
-        <SaveSettingsButton label="Save templates" busyAction={busyAction} disabled={busyAction !== null} state={settingsSaveState} onSave={onSaveSettings} />
+        <SaveSettingsButton label="Save AI templates" busyAction={busyAction} disabled={busyAction !== null} state={settingsSaveState} onSave={onSaveSettings} />
       </header>
       <div className="template-grid">
-        <TemplateField label="Testware" value={settingsDraft.testwareTemplate} onChange={(value) => updateSettingsDraft({ testwareTemplate: value })} />
-        <TemplateField label="Findings" value={settingsDraft.findingTemplate} onChange={(value) => updateSettingsDraft({ findingTemplate: value })} />
-        <TemplateField label="Note summary" value={settingsDraft.noteSummaryTemplate} onChange={(value) => updateSettingsDraft({ noteSummaryTemplate: value })} />
+        <TemplateField label="AI testware" value={settingsDraft.testwareTemplate} onChange={(value) => updateSettingsDraft({ testwareTemplate: value })} />
+        <TemplateField label="AI findings" value={settingsDraft.findingTemplate} onChange={(value) => updateSettingsDraft({ findingTemplate: value })} />
+        <TemplateField label="AI note summary" value={settingsDraft.noteSummaryTemplate} onChange={(value) => updateSettingsDraft({ noteSummaryTemplate: value })} />
       </div>
     </section>
   )

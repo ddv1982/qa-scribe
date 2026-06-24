@@ -1,4 +1,4 @@
-import { Flag, Loader2, Plus, Save, Trash2, X } from 'lucide-react'
+import { FileText, Flag, Loader2, Plus, Save, Trash2, X } from 'lucide-react'
 import { EmptyCollection, StatusPill } from '../components/Common'
 import { FormatToolbar, RichTextEditor, type RichEditorImageUpload } from '../editor/RichTextEditor'
 import type { Finding, GenerationJobStatus } from '../tauri'
@@ -16,6 +16,7 @@ export function FindingsView({
   onCancelGenerationJob,
   onDeleteFinding,
   onManualCreate,
+  onPrefillFromNote,
   onSaveFinding,
   onUploadImage,
 }: {
@@ -29,6 +30,7 @@ export function FindingsView({
   onCancelGenerationJob: (jobId: string) => Promise<void>
   onDeleteFinding: (finding: Finding) => void
   onManualCreate: () => Promise<void>
+  onPrefillFromNote: () => Promise<void>
   onSaveFinding: (finding: Finding) => Promise<void>
   onUploadImage: (input: RichEditorImageUpload) => void | Promise<void>
 }) {
@@ -39,10 +41,16 @@ export function FindingsView({
           <p className="eyebrow">Findings</p>
           <h1>Issues and risks</h1>
         </div>
-        <button className="primary-button" type="button" disabled={isBusy} onClick={() => void onManualCreate()}>
-          {busyAction === 'manual-finding' ? <Loader2 className="spin" size={16} /> : <Plus size={16} />}
-          New finding
-        </button>
+        <div className="collection-header-actions">
+          <button className="secondary-button" type="button" disabled={isBusy} onClick={() => void onPrefillFromNote()}>
+            {busyAction === 'prefill-finding' ? <Loader2 className="spin" size={16} /> : <FileText size={16} />}
+            Prefill from note
+          </button>
+          <button className="primary-button" type="button" disabled={isBusy} onClick={() => void onManualCreate()}>
+            {busyAction === 'manual-finding' ? <Loader2 className="spin" size={16} /> : <Plus size={16} />}
+            New finding
+          </button>
+        </div>
       </header>
       {notice || error ? (
         <div className="collection-status">

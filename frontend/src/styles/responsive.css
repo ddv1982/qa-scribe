@@ -82,6 +82,14 @@
     width: 100%;
   }
 
+  .collection-header-actions {
+    width: 100%;
+  }
+
+  .collection-header-actions button {
+    flex: 1 1 170px;
+  }
+
   .bottom-command-bar button {
     width: 100%;
   }

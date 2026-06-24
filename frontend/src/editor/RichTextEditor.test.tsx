@@ -39,6 +39,20 @@ describe('RichTextEditor toolbar', () => {
     vi.restoreAllMocks()
   })
 
+  it('renders and resets a true blank value through TipTap', async () => {
+    const onChange = vi.fn()
+    const { rerender } = render(<RichTextEditor value="" onChange={onChange} />)
+
+    const editor = await screen.findByRole('textbox', { name: 'Note body' })
+    expect(editor.textContent).toBe('')
+
+    rerender(<RichTextEditor value="<p>Gmail login fails</p>" onChange={onChange} />)
+    await waitFor(() => expect(editor.textContent).toContain('Gmail login fails'))
+
+    rerender(<RichTextEditor value="" onChange={onChange} />)
+    await waitFor(() => expect(editor.textContent).toBe(''))
+  })
+
   it('formats selected content and can toggle the mark off again', async () => {
     const onChange = vi.fn()
     render(

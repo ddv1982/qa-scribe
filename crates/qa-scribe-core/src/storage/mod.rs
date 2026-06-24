@@ -2,7 +2,7 @@ use std::path::Path;
 
 use rusqlite::Connection;
 
-use crate::Result;
+use crate::{Result, error::validation};
 
 pub struct Database {
     connection: Connection,
@@ -35,7 +35,8 @@ fn initialize(connection: &Connection) -> Result<()> {
 
 fn migrate(connection: &Connection) -> Result<()> {
     ensure_testware_drafts_supported(connection)?;
-    connection.pragma_update(None, "user_version", 2)?;
+    ensure_blank_bodies_supported(connection)?;
+    connection.pragma_update(None, "user_version", 3)?;
     Ok(())
 }
 
@@ -78,6 +79,127 @@ fn ensure_testware_drafts_supported(connection: &Connection) -> Result<()> {
     Ok(())
 }
 
+fn ensure_blank_bodies_supported(connection: &Connection) -> Result<()> {
+    let rebuild_entries = body_has_required_length_check(connection, "entries")?;
+    let rebuild_findings = body_has_required_length_check(connection, "findings")?;
+    if !rebuild_entries && !rebuild_findings {
+        return Ok(());
+    }
+
+    connection.pragma_update(None, "foreign_keys", "OFF")?;
+    let migration_result = (|| {
+        connection.execute_batch("BEGIN IMMEDIATE;")?;
+        let rebuild_result = (|| {
+            if rebuild_entries {
+                rebuild_entries_without_body_length_check(connection)?;
+            }
+            if rebuild_findings {
+                rebuild_findings_without_body_length_check(connection)?;
+            }
+            assert_no_foreign_key_violations(connection)
+        })();
+
+        match rebuild_result {
+            Ok(()) => connection.execute_batch("COMMIT;")?,
+            Err(error) => {
+                let _ = connection.execute_batch("ROLLBACK;");
+                return Err(error);
+            }
+        }
+
+        Ok(())
+    })();
+    let foreign_keys_result = connection.pragma_update(None, "foreign_keys", "ON");
+
+    match (migration_result, foreign_keys_result) {
+        (Ok(()), Ok(())) => Ok(()),
+        (Err(error), _) => Err(error),
+        (Ok(()), Err(error)) => Err(error.into()),
+    }
+}
+
+fn body_has_required_length_check(connection: &Connection, table: &str) -> Result<bool> {
+    let sql: String = connection.query_row(
+        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?1",
+        [table],
+        |row| row.get(0),
+    )?;
+    let compact = sql.split_whitespace().collect::<String>().to_lowercase();
+    Ok(compact.contains("check(length(body)>0)"))
+}
+
+fn rebuild_entries_without_body_length_check(connection: &Connection) -> Result<()> {
+    connection.execute_batch(
+        r#"
+        DROP TABLE IF EXISTS entries_new;
+
+        CREATE TABLE entries_new (
+          id TEXT PRIMARY KEY,
+          session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+          type TEXT NOT NULL CHECK (type IN ('note', 'observation', 'api_response', 'log', 'screenshot', 'finding_candidate')),
+          title TEXT,
+          body TEXT NOT NULL,
+          metadata_json TEXT,
+          excluded_from_generation INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+
+        INSERT INTO entries_new (
+          id, session_id, type, title, body, metadata_json, excluded_from_generation, created_at, updated_at
+        )
+        SELECT id, session_id, type, title, body, metadata_json, excluded_from_generation, created_at, updated_at
+        FROM entries;
+
+        DROP TABLE entries;
+        ALTER TABLE entries_new RENAME TO entries;
+        CREATE INDEX IF NOT EXISTS idx_entries_session_created ON entries(session_id, created_at);
+        "#,
+    )?;
+    Ok(())
+}
+
+fn rebuild_findings_without_body_length_check(connection: &Connection) -> Result<()> {
+    connection.execute_batch(
+        r#"
+        DROP TABLE IF EXISTS findings_new;
+
+        CREATE TABLE findings_new (
+          id TEXT PRIMARY KEY,
+          session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+          title TEXT NOT NULL CHECK (length(trim(title)) > 0),
+          body TEXT NOT NULL,
+          kind TEXT NOT NULL CHECK (kind IN ('bug', 'question', 'risk', 'follow_up', 'note')),
+          metadata_json TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+
+        INSERT INTO findings_new (id, session_id, title, body, kind, metadata_json, created_at, updated_at)
+        SELECT id, session_id, title, body, kind, metadata_json, created_at, updated_at
+        FROM findings;
+
+        DROP TABLE findings;
+        ALTER TABLE findings_new RENAME TO findings;
+        CREATE INDEX IF NOT EXISTS idx_findings_session_created ON findings(session_id, created_at);
+        "#,
+    )?;
+    Ok(())
+}
+
+fn assert_no_foreign_key_violations(connection: &Connection) -> Result<()> {
+    let mut statement = connection.prepare("PRAGMA foreign_key_check")?;
+    let mut rows = statement.query([])?;
+    if let Some(row) = rows.next()? {
+        let table: String = row.get(0)?;
+        let rowid: i64 = row.get(1)?;
+        return Err(validation(format!(
+            "database migration left a foreign key violation in {table} row {rowid}"
+        )));
+    }
+    Ok(())
+}
+
 const SCHEMA: &str = r#"
 CREATE TABLE IF NOT EXISTS sessions (
   id TEXT PRIMARY KEY,
@@ -103,7 +225,7 @@ CREATE TABLE IF NOT EXISTS entries (
   session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
   type TEXT NOT NULL CHECK (type IN ('note', 'observation', 'api_response', 'log', 'screenshot', 'finding_candidate')),
   title TEXT,
-  body TEXT NOT NULL CHECK (length(body) > 0),
+  body TEXT NOT NULL,
   metadata_json TEXT,
   excluded_from_generation INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL,
@@ -126,7 +248,7 @@ CREATE TABLE IF NOT EXISTS findings (
   id TEXT PRIMARY KEY,
   session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
   title TEXT NOT NULL CHECK (length(trim(title)) > 0),
-  body TEXT NOT NULL CHECK (length(body) > 0),
+  body TEXT NOT NULL,
   kind TEXT NOT NULL CHECK (kind IN ('bug', 'question', 'risk', 'follow_up', 'note')),
   metadata_json TEXT,
   created_at TEXT NOT NULL,
@@ -194,5 +316,5 @@ CREATE INDEX IF NOT EXISTS idx_findings_session_created ON findings(session_id, 
 CREATE INDEX IF NOT EXISTS idx_drafts_session_updated ON drafts(session_id, updated_at);
 CREATE INDEX IF NOT EXISTS idx_ai_runs_session_created ON ai_runs(session_id, created_at);
 
-PRAGMA user_version = 2;
+PRAGMA user_version = 3;
 "#;

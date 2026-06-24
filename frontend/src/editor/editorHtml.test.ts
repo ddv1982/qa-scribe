@@ -5,6 +5,7 @@ vi.mock('../tauri', () => ({
 }))
 
 import {
+  emptyEditorHtml,
   isSafeEditorImageSource,
   isSafeEditorLinkUrl,
   managedAttachmentImageHtml,
@@ -13,6 +14,17 @@ import {
 } from './editorHtml'
 
 describe('editorHtml', () => {
+  it('normalizes blank and TipTap-empty documents to a true blank value', () => {
+    const blankInputs = ['', '   ', '<br>', '<p></p>', '<p><br></p>', '<p>&nbsp;</p>', '&lt;p&gt;&lt;br&gt;&lt;/p&gt;', '<script>alert("no")</script>']
+
+    for (const input of blankInputs) {
+      expect(normalizeEditorHtml(input)).toBe(emptyEditorHtml)
+    }
+
+    expect(normalizeEditorHtml('<p><input type="checkbox" /></p>')).not.toBe(emptyEditorHtml)
+    expect(normalizeEditorHtml('<p><img src="data:image/png;base64,AAAA" alt="Evidence" /></p>')).not.toBe(emptyEditorHtml)
+  })
+
   it('repairs escaped rich HTML and preserves supported WYSIWYG markup', () => {
     const html = normalizeEditorHtml(`
       &lt;h2&gt;Gmail login&lt;/h2&gt;

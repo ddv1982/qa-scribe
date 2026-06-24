@@ -48,7 +48,7 @@ import { RailItem } from './components/Common'
 import { ModelCombobox, ProviderGlyph } from './components/ModelSelector'
 import {
   containsInlineImageData,
-  emptyNoteHtml,
+  emptyEditorHtml,
   inlineImageFilename,
   managedAttachmentProtocol,
   normalizeEditorHtml,
@@ -108,7 +108,7 @@ export function App() {
   const [drafts, setDrafts] = useState<Draft[]>([])
   const [findings, setFindings] = useState<Finding[]>([])
   const [noteTitle, setNoteTitle] = useState('')
-  const [noteBody, setNoteBody] = useState(emptyNoteHtml)
+  const [noteBody, setNoteBody] = useState(emptyEditorHtml)
   const [selectedProvider, setSelectedProvider] = useState<AiProvider>('codex_cli')
   const [selectedModel, setSelectedModel] = useState('default')
   const [settingsDraft, setSettingsDraft] = useState<AppSettings | null>(null)
@@ -123,7 +123,7 @@ export function App() {
   const [deleteConfirmation, setDeleteConfirmation] = useState<DeleteConfirmation | null>(null)
 
   const savedTitleRef = useRef('')
-  const savedBodyRef = useRef(emptyNoteHtml)
+  const savedBodyRef = useRef(emptyEditorHtml)
   const deletingSessionIdRef = useRef<string | null>(null)
   const activeSessionIdRef = useRef<string | null>(null)
   const noteEntryIdRef = useRef<string | null>(null)
@@ -231,7 +231,7 @@ export function App() {
       sessionId,
       entryType: 'note',
       title: 'Note body',
-      body: emptyNoteHtml,
+      body: emptyEditorHtml,
       metadataJson: null,
       excludedFromGeneration: false,
     })
@@ -247,7 +247,7 @@ export function App() {
         sessionId: session.id,
         entryType: 'note',
         title: 'Note body',
-        body: emptyNoteHtml,
+        body: emptyEditorHtml,
         metadataJson: null,
         excludedFromGeneration: false,
       })
@@ -258,9 +258,9 @@ export function App() {
       setDrafts([])
       setFindings([])
       setNoteTitle(session.title)
-      setNoteBody(emptyNoteHtml)
+      setNoteBody(emptyEditorHtml)
       savedTitleRef.current = session.title
-      savedBodyRef.current = emptyNoteHtml
+      savedBodyRef.current = emptyEditorHtml
       setActiveView('notes')
       setNotice('New note created')
     } catch (cause) {
@@ -276,9 +276,9 @@ export function App() {
     setDrafts([])
     setFindings([])
     setNoteTitle('')
-    setNoteBody(emptyNoteHtml)
+    setNoteBody(emptyEditorHtml)
     savedTitleRef.current = ''
-    savedBodyRef.current = emptyNoteHtml
+    savedBodyRef.current = emptyEditorHtml
   }
 
   function requestDeleteNote() {
@@ -494,11 +494,35 @@ export function App() {
         aiRunId: null,
         kind: 'testware',
         title: `${activeSession.title} Test Cases`,
-        body: renderManualTestware(activeSession.title, noteBody),
+        body: emptyEditorHtml,
       })
       setDrafts(await listDrafts(activeSession.id))
       setActiveView('testware')
       setNotice('Manual testware created')
+    } catch (cause) {
+      setError(formatError(cause))
+    } finally {
+      setBusyAction(null)
+    }
+  }
+
+  async function handlePrefillTestwareFromNote() {
+    if (!activeSession) return
+    try {
+      setBusyAction('prefill-testware')
+      setError(null)
+      const saved = await saveNoteNow()
+      if (!saved) return
+      await createDraft({
+        sessionId: activeSession.id,
+        aiRunId: null,
+        kind: 'testware',
+        title: `${activeSession.title} Test Cases`,
+        body: renderPrefilledTestware(activeSession.title, noteBody),
+      })
+      setDrafts(await listDrafts(activeSession.id))
+      setActiveView('testware')
+      setNotice('Testware prefilled from note')
     } catch (cause) {
       setError(formatError(cause))
     } finally {
@@ -516,13 +540,37 @@ export function App() {
       await createFinding({
         sessionId: activeSession.id,
         title: `Finding from ${activeSession.title}`,
-        body: renderManualFinding(noteBody),
+        body: emptyEditorHtml,
         kind: 'bug',
         metadataJson: null,
       })
       setFindings(await listFindings(activeSession.id))
       setActiveView('findings')
       setNotice('Manual finding created')
+    } catch (cause) {
+      setError(formatError(cause))
+    } finally {
+      setBusyAction(null)
+    }
+  }
+
+  async function handlePrefillFindingFromNote() {
+    if (!activeSession) return
+    try {
+      setBusyAction('prefill-finding')
+      setError(null)
+      const saved = await saveNoteNow()
+      if (!saved) return
+      await createFinding({
+        sessionId: activeSession.id,
+        title: `Finding from ${activeSession.title}`,
+        body: renderPrefilledFinding(noteBody),
+        kind: 'bug',
+        metadataJson: null,
+      })
+      setFindings(await listFindings(activeSession.id))
+      setActiveView('findings')
+      setNotice('Finding prefilled from note')
     } catch (cause) {
       setError(formatError(cause))
     } finally {
@@ -939,6 +987,7 @@ export function App() {
             onCancelGenerationJob={handleCancelGenerationJob}
             onDeleteDraft={requestDeleteDraft}
             onManualCreate={handleManualTestware}
+            onPrefillFromNote={handlePrefillTestwareFromNote}
             onSaveDraft={handleSaveDraft}
             onUploadImage={(input) => uploadEditorImage(input, null)}
             updateLocalDraft={updateLocalDraft}
@@ -956,6 +1005,7 @@ export function App() {
             onCancelGenerationJob={handleCancelGenerationJob}
             onDeleteFinding={requestDeleteFinding}
             onManualCreate={handleManualFinding}
+            onPrefillFromNote={handlePrefillFindingFromNote}
             onSaveFinding={handleSaveFinding}
             onUploadImage={(input) => uploadEditorImage(input, null)}
             updateLocalFinding={updateLocalFinding}
@@ -1009,7 +1059,7 @@ export function App() {
   )
 }
 
-function renderManualTestware(title: string, body: string): string {
+function renderPrefilledTestware(title: string, body: string): string {
   const note = stripHtml(body) || 'Add source note detail.'
   return [
     `<h2>${escapeHtml(title)} Test Cases</h2>`,
@@ -1022,7 +1072,7 @@ function renderManualTestware(title: string, body: string): string {
   ].join('')
 }
 
-function renderManualFinding(body: string): string {
+function renderPrefilledFinding(body: string): string {
   const note = stripHtml(body).slice(0, 4000) || 'Describe the finding.'
   return [
     '<h2>Finding detail</h2>',

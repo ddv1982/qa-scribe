@@ -8,8 +8,8 @@ use crate::{
         AiRun, AiRunCreate, AppSettings, Attachment, AttachmentDraft, DRAFT_BODY_MAX_LENGTH, Draft,
         DraftCreate, DraftPatch, Entry, EntryDraft, EntryPatch, EvidenceLink, EvidenceLinkDraft,
         Finding, FindingDraft, FindingPatch, GenerationContext, Session, SessionDraft,
-        SessionPatch, TEXT_BODY_MAX_LENGTH, validate_metadata_json, validate_optional_text,
-        validate_required_text,
+        SessionPatch, TEXT_BODY_MAX_LENGTH, validate_body_text, validate_metadata_json,
+        validate_optional_text, validate_required_text,
     },
     error::validation,
     storage::Database,
@@ -228,7 +228,7 @@ impl SessionService {
     pub fn create_entry(&self, draft: EntryDraft) -> Result<Entry> {
         let id = new_id();
         let now = now();
-        let body = validate_required_text("Entry body", &draft.body, TEXT_BODY_MAX_LENGTH)?;
+        let body = validate_body_text("Entry body", &draft.body, TEXT_BODY_MAX_LENGTH)?;
         let title = validate_optional_text("Entry title", draft.title, 160)?;
         let metadata_json = validate_metadata_json(draft.metadata_json)?;
 
@@ -274,7 +274,7 @@ impl SessionService {
             None => existing.title,
         };
         let body = match patch.body {
-            Some(body) => validate_required_text("Entry body", &body, TEXT_BODY_MAX_LENGTH)?,
+            Some(body) => validate_body_text("Entry body", &body, TEXT_BODY_MAX_LENGTH)?,
             None => existing.body,
         };
         let metadata_json = match patch.metadata_json {
@@ -371,7 +371,7 @@ impl SessionService {
         let id = new_id();
         let now = now();
         let title = validate_required_text("Finding title", &draft.title, 160)?;
-        let body = validate_required_text("Finding body", &draft.body, TEXT_BODY_MAX_LENGTH)?;
+        let body = validate_body_text("Finding body", &draft.body, TEXT_BODY_MAX_LENGTH)?;
         let metadata_json = validate_metadata_json(draft.metadata_json)?;
 
         self.database.connection().execute(
@@ -406,7 +406,7 @@ impl SessionService {
             None => existing.title,
         };
         let body = match patch.body {
-            Some(body) => validate_required_text("Finding body", &body, TEXT_BODY_MAX_LENGTH)?,
+            Some(body) => validate_body_text("Finding body", &body, TEXT_BODY_MAX_LENGTH)?,
             None => existing.body,
         };
         let now = now();
@@ -633,7 +633,7 @@ impl SessionService {
         let id = new_id();
         let now = now();
         let title = validate_required_text("Draft title", &draft.title, 160)?;
-        let body = validate_required_text("Draft body", &draft.body, DRAFT_BODY_MAX_LENGTH)?;
+        let body = validate_body_text("Draft body", &draft.body, DRAFT_BODY_MAX_LENGTH)?;
 
         self.database.connection().execute(
             "INSERT INTO drafts (id, session_id, ai_run_id, kind, title, body, created_at, updated_at)
@@ -667,7 +667,7 @@ impl SessionService {
             None => existing.title,
         };
         let body = match patch.body {
-            Some(body) => validate_required_text("Draft body", &body, DRAFT_BODY_MAX_LENGTH)?,
+            Some(body) => validate_body_text("Draft body", &body, DRAFT_BODY_MAX_LENGTH)?,
             None => existing.body,
         };
         let now = now();
