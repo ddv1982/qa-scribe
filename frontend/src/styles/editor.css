@@ -141,6 +141,12 @@
   background: var(--panel-soft);
 }
 
+.toolbar-button[aria-pressed="true"] {
+  color: var(--accent);
+  background: var(--panel-soft);
+  border-color: var(--border);
+}
+
 .toolbar-button:disabled {
   color: var(--faint);
   cursor: not-allowed;
@@ -182,9 +188,12 @@
   line-height: 1.68;
 }
 
-.rich-editor:empty::before {
+.rich-editor:empty::before,
+.rich-editor p.is-editor-empty:first-child::before {
   color: var(--faint);
   content: attr(data-placeholder);
+  float: left;
+  height: 0;
   pointer-events: none;
 }
 
@@ -198,6 +207,36 @@
 .rich-editor ul,
 .rich-editor ol {
   margin: 0 0 14px;
+}
+
+.rich-editor ul,
+.rich-editor ol {
+  padding-left: 24px;
+}
+
+.rich-editor ul[data-type="taskList"] {
+  padding-left: 0;
+  list-style: none;
+}
+
+.rich-editor li[data-type="taskItem"] {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+}
+
+.rich-editor li[data-type="taskItem"] > label {
+  display: inline-flex;
+  padding-top: 2px;
+}
+
+.rich-editor li[data-type="taskItem"] > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.rich-editor li[data-type="taskItem"] p {
+  margin-bottom: 8px;
 }
 
 .rich-editor h2 {

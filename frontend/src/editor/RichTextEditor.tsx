@@ -1,59 +1,94 @@
 import { useEffect, useRef, type ChangeEvent } from 'react'
+import { EditorContent, useEditor, type Editor } from '@tiptap/react'
+import Image from '@tiptap/extension-image'
+import Link from '@tiptap/extension-link'
+import Placeholder from '@tiptap/extension-placeholder'
+import StarterKit from '@tiptap/starter-kit'
+import TaskItem from '@tiptap/extension-task-item'
+import TaskList from '@tiptap/extension-task-list'
 import { Bold, ImageIcon, Italic, Link2, List, ListChecks, type LucideIcon } from 'lucide-react'
+import { isSafeEditorLinkUrl, managedAttachmentProtocol, normalizeEditorHtml, hydrateManagedAttachmentPreviews } from './editorHtml'
 import {
-  hydrateManagedAttachmentPreviews,
-  insertEditorHtml,
-  isSafeEditorLinkUrl,
-  normalizeEditorHtml,
-  restoreSelection,
-  serializeEditorHtml,
-  selectedRangeWithin,
-} from './editorHtml'
+  notifyRichEditorRegistry,
+  registerRichEditor,
+  setActiveRichEditor,
+  useRichEditorController,
+  type RichEditorImageInserter,
+  type RichEditorImageUpload,
+} from './richEditorRegistry'
 
-let activeRichEditor: HTMLElement | null = null
-
-export type RichEditorImageUpload = {
-  file: File
-  editor: HTMLElement
-  insertionRange: Range | null
-}
+export type { RichEditorImageInserter, RichEditorImageUpload } from './richEditorRegistry'
 
 type FormatToolbarProps = {
   editorId?: string
   onUploadImage?: (input: RichEditorImageUpload) => void | Promise<void>
 }
 
+const ManagedImage = Image.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      src: {
+        default: null,
+        parseHTML: (element: HTMLElement) => element.getAttribute('src'),
+        renderHTML: (attributes) => {
+          const attachmentId = stringAttribute(attributes.attachmentId)
+          const source = attachmentId ? `${managedAttachmentProtocol}${attachmentId}` : stringAttribute(attributes.src)
+          return source ? { src: source } : {}
+        },
+      },
+      attachmentId: {
+        default: null,
+        parseHTML: (element: HTMLElement) => element.getAttribute('data-attachment-id') || managedAttachmentIdFromSource(element.getAttribute('src') ?? ''),
+        renderHTML: (attributes) => {
+          const attachmentId = stringAttribute(attributes.attachmentId)
+          return attachmentId ? { 'data-attachment-id': attachmentId } : {}
+        },
+      },
+      alt: {
+        default: null,
+        parseHTML: (element: HTMLElement) => element.getAttribute('alt'),
+        renderHTML: (attributes) => {
+          const alt = stringAttribute(attributes.alt)
+          return alt ? { alt } : {}
+        },
+      },
+    }
+  },
+})
+
 export function FormatToolbar({ editorId, onUploadImage }: FormatToolbarProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
-  const uploadContextRef = useRef<Omit<RichEditorImageUpload, 'file'> | null>(null)
+  const uploadInserterRef = useRef<RichEditorImageInserter | null>(null)
+  const controller = useRichEditorController(editorId)
+  const editor = controller?.editor ?? null
+  const disabled = !editor || Boolean(controller?.readOnly)
+  const blockValue = editor?.isActive('heading', { level: 2 }) ? 'h2' : editor?.isActive('heading', { level: 3 }) ? 'h3' : 'p'
 
   function requestImageUpload() {
-    const editor = toolbarEditor(editorId)
-    if (!editor || !onUploadImage) return
-    uploadContextRef.current = {
-      editor,
-      insertionRange: selectedRangeWithin(editor) ?? rangeAtEnd(editor),
-    }
+    if (!controller || !onUploadImage) return
+    uploadInserterRef.current = controller.insertImage
+    controller.editor.chain().focus().run()
     fileInputRef.current?.click()
   }
 
   function handleImageSelected(event: ChangeEvent<HTMLInputElement>) {
     const file = event.currentTarget.files?.[0]
     event.currentTarget.value = ''
-    const context = uploadContextRef.current
-    uploadContextRef.current = null
-    if (!file || !context || !onUploadImage) return
-    void onUploadImage({ ...context, file })
+    const insertImage = uploadInserterRef.current
+    uploadInserterRef.current = null
+    if (!file || !insertImage || !onUploadImage) return
+    void onUploadImage({ file, insertImage })
   }
 
   return (
     <div className="format-toolbar" aria-label="Formatting toolbar">
       <select
-        defaultValue="p"
+        value={blockValue}
         aria-label="Block style"
+        disabled={disabled}
         onChange={(event) => {
-          formatBlock(event.target.value, editorId)
-          event.target.value = 'p'
+          setBlockStyle(editor, event.target.value)
         }}
       >
         <option value="p">Paragraph</option>
@@ -61,12 +96,24 @@ export function FormatToolbar({ editorId, onUploadImage }: FormatToolbarProps) {
         <option value="h3">Subheading</option>
       </select>
       <span className="toolbar-divider" />
-      <ToolbarButton label="Bold" icon={Bold} command={() => applyEditorCommand(() => document.execCommand('bold'), editorId)} />
-      <ToolbarButton label="Italic" icon={Italic} command={() => applyEditorCommand(() => document.execCommand('italic'), editorId)} />
-      <ToolbarButton label="Bulleted list" icon={List} command={() => applyEditorCommand(() => document.execCommand('insertUnorderedList'), editorId)} />
-      <ToolbarButton label="Checklist" icon={ListChecks} command={() => applyEditorCommand(() => insertEditorHtml('<p><input type="checkbox" /> Task</p>'), editorId)} />
-      <ToolbarButton label="Link" icon={Link2} command={() => insertLink(editorId)} />
-      <ToolbarButton label="Upload image" icon={ImageIcon} command={requestImageUpload} disabled={!onUploadImage} />
+      <ToolbarButton label="Bold" icon={Bold} active={editor?.isActive('bold')} disabled={disabled} command={() => editor?.chain().focus().toggleBold().run()} />
+      <ToolbarButton label="Italic" icon={Italic} active={editor?.isActive('italic')} disabled={disabled} command={() => editor?.chain().focus().toggleItalic().run()} />
+      <ToolbarButton
+        label="Bulleted list"
+        icon={List}
+        active={editor?.isActive('bulletList')}
+        disabled={disabled}
+        command={() => editor?.chain().focus().toggleBulletList().run()}
+      />
+      <ToolbarButton
+        label="Checklist"
+        icon={ListChecks}
+        active={editor?.isActive('taskList')}
+        disabled={disabled}
+        command={() => editor?.chain().focus().toggleTaskList().run()}
+      />
+      <ToolbarButton label="Link" icon={Link2} active={editor?.isActive('link')} disabled={disabled} command={() => editLink(editor)} />
+      <ToolbarButton label="Upload image" icon={ImageIcon} command={requestImageUpload} disabled={disabled || !onUploadImage} />
       <input ref={fileInputRef} className="toolbar-file-input" type="file" accept="image/*" aria-label="Upload image file" onChange={handleImageSelected} />
     </div>
   )
@@ -91,95 +138,212 @@ export function RichTextEditor({
   className,
   editorId,
 }: RichTextEditorProps) {
-  const editorRef = useRef<HTMLDivElement | null>(null)
   const previewLoadRef = useRef(0)
+  const onChangeRef = useRef(onChange)
 
   useEffect(() => {
-    const editor = editorRef.current
+    onChangeRef.current = onChange
+  }, [onChange])
+
+  const editor = useEditor(
+    {
+      extensions: [
+        StarterKit.configure({
+          blockquote: false,
+          code: false,
+          codeBlock: false,
+          heading: { levels: [2, 3] },
+          horizontalRule: false,
+          link: false,
+          strike: false,
+        }),
+        Link.configure({
+          autolink: true,
+          enableClickSelection: true,
+          linkOnPaste: true,
+          openOnClick: false,
+          HTMLAttributes: {
+            target: '_blank',
+            rel: 'noreferrer',
+          },
+          isAllowedUri: (url) => isSafeEditorLinkUrl(url),
+          shouldAutoLink: (url) => isSafeEditorLinkUrl(url),
+        }),
+        ManagedImage.configure({
+          allowBase64: true,
+        }),
+        TaskList,
+        TaskItem.configure({
+          nested: false,
+        }),
+        Placeholder.configure({
+          placeholder,
+        }),
+      ],
+      content: normalizeEditorHtml(value),
+      editable: !readOnly,
+      immediatelyRender: false,
+      editorProps: {
+        attributes: editorAttributes({ editorId, className, ariaLabel, placeholder, readOnly }),
+        handleDOMEvents: {
+          focus: () => {
+            if (editorId) {
+              setActiveRichEditor(editorId)
+            }
+            return false
+          },
+        },
+      },
+      onUpdate: ({ editor: updatedEditor }) => {
+        const nextValue = normalizeEditorHtml(updatedEditor.getHTML())
+        onChangeRef.current?.(nextValue)
+        queueManagedPreviewHydration(updatedEditor, previewLoadRef)
+        notifyRichEditorRegistry()
+      },
+      onSelectionUpdate: () => notifyRichEditorRegistry(),
+      onTransaction: () => notifyRichEditorRegistry(),
+    },
+    [ariaLabel, className, editorId, placeholder, readOnly],
+  )
+
+  useEffect(() => {
+    if (!editor) return
+    editor.setEditable(!readOnly)
+  }, [editor, readOnly])
+
+  useEffect(() => {
     if (!editor) return
     const normalizedValue = normalizeEditorHtml(value)
-    if (serializeEditorHtml(editor) !== normalizedValue) {
-      editor.innerHTML = normalizedValue
+    if (normalizeEditorHtml(editor.getHTML()) !== normalizedValue) {
+      editor.commands.setContent(normalizedValue, { emitUpdate: false })
     }
-    const loadId = previewLoadRef.current + 1
-    previewLoadRef.current = loadId
-    void hydrateManagedAttachmentPreviews(editor, () => previewLoadRef.current === loadId)
-  }, [value])
+    queueManagedPreviewHydration(editor, previewLoadRef)
+  }, [editor, value])
 
-  return (
-    <div
-      id={editorId}
-      ref={editorRef}
-      className={['rich-editor', className].filter(Boolean).join(' ')}
-      contentEditable={!readOnly}
-      role="textbox"
-      aria-label={ariaLabel}
-      aria-readonly={readOnly || undefined}
-      data-placeholder={placeholder}
-      spellCheck={!readOnly}
-      onFocus={(event) => {
-        activeRichEditor = event.currentTarget
-      }}
-      onInput={(event) => {
-        if (!readOnly) onChange?.(serializeEditorHtml(event.currentTarget))
-      }}
-      suppressContentEditableWarning
-    />
-  )
+  useEffect(() => {
+    if (!editor || !editorId) return
+    const insertImage: RichEditorImageInserter = (attachmentId, filename, previewSrc) => {
+      const source = `${managedAttachmentProtocol}${attachmentId}`
+      editor
+        .chain()
+        .focus(undefined, { scrollIntoView: false })
+        .insertContent({
+          type: 'image',
+          attrs: {
+            src: source,
+            attachmentId,
+            alt: filename,
+          },
+        })
+        .run()
+
+      if (previewSrc) {
+        queueManagedPreviewHydration(editor, previewLoadRef)
+      }
+    }
+
+    return registerRichEditor(editorId, { editor, insertImage, readOnly })
+  }, [editor, editorId, readOnly])
+
+  if (!editor) {
+    return <div id={editorId} className={['rich-editor', className].filter(Boolean).join(' ')} role="textbox" aria-label={ariaLabel} data-placeholder={placeholder} />
+  }
+
+  return <EditorContent editor={editor} />
 }
 
-function ToolbarButton({ label, icon: Icon, command, disabled = false }: { label: string; icon: LucideIcon; command: () => void; disabled?: boolean }) {
+function ToolbarButton({
+  label,
+  icon: Icon,
+  command,
+  active = false,
+  disabled = false,
+}: {
+  label: string
+  icon: LucideIcon
+  command: () => void
+  active?: boolean
+  disabled?: boolean
+}) {
   return (
-    <button className="toolbar-button" type="button" aria-label={label} title={label} disabled={disabled} onClick={command}>
+    <button className="toolbar-button" type="button" aria-label={label} title={label} disabled={disabled} aria-pressed={active} onClick={command}>
       <Icon size={16} />
     </button>
   )
 }
 
-function formatBlock(tag: string, editorId?: string) {
-  applyEditorCommand(() => document.execCommand('formatBlock', false, tag), editorId)
+function setBlockStyle(editor: Editor | null, value: string) {
+  if (!editor) return
+  if (value === 'h2') {
+    editor.chain().focus().toggleHeading({ level: 2 }).run()
+    return
+  }
+  if (value === 'h3') {
+    editor.chain().focus().toggleHeading({ level: 3 }).run()
+    return
+  }
+  editor.chain().focus().setParagraph().run()
 }
 
-function insertLink(editorId?: string) {
-  const url = window.prompt('Link URL')
-  if (!url) return
-  if (!isSafeEditorLinkUrl(url)) {
+function editLink(editor: Editor | null) {
+  if (!editor) return
+  const previousUrl = typeof editor.getAttributes('link').href === 'string' ? editor.getAttributes('link').href : ''
+  const nextUrl = window.prompt(previousUrl ? 'Edit link URL. Leave blank to remove it.' : 'Link URL', previousUrl)
+  if (nextUrl === null) return
+
+  const trimmedUrl = nextUrl.trim()
+  if (!trimmedUrl) {
+    editor.chain().focus().extendMarkRange('link').unsetLink().run()
+    return
+  }
+
+  if (!isSafeEditorLinkUrl(trimmedUrl)) {
     window.alert('Use an http, https, or mailto link.')
     return
   }
-  applyEditorCommand(() => document.execCommand('createLink', false, url), editorId)
+
+  editor.chain().focus().extendMarkRange('link').setLink({ href: trimmedUrl }).run()
 }
 
-function applyEditorCommand(command: () => void, editorId?: string) {
-  const editor = toolbarEditor(editorId)
-  if (editor) {
-    const range = selectedRangeWithin(editor) ?? rangeAtEnd(editor)
-    restoreSelection(range)
-    editor.focus({ preventScroll: true })
+function editorAttributes({
+  editorId,
+  className,
+  ariaLabel,
+  placeholder,
+  readOnly,
+}: {
+  editorId?: string
+  className?: string
+  ariaLabel: string
+  placeholder: string
+  readOnly: boolean
+}) {
+  const attributes: Record<string, string> = {
+    class: ['rich-editor', className].filter(Boolean).join(' '),
+    role: 'textbox',
+    'aria-label': ariaLabel,
+    'data-placeholder': placeholder,
+    spellcheck: String(!readOnly),
   }
-  command()
-  editor?.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'formatSetBlockTextDirection' }))
+
+  if (editorId) attributes.id = editorId
+  if (readOnly) attributes['aria-readonly'] = 'true'
+  return attributes
 }
 
-function toolbarEditor(editorId?: string): HTMLElement | null {
-  if (editorId) {
-    const editor = document.getElementById(editorId)
-    if (editor?.classList.contains('rich-editor')) return editor
-  }
-  return selectedEditor() ?? activeRichEditor
+function queueManagedPreviewHydration(editor: Editor, previewLoadRef: { current: number }) {
+  const loadId = previewLoadRef.current + 1
+  previewLoadRef.current = loadId
+  window.queueMicrotask(() => {
+    void hydrateManagedAttachmentPreviews(editor.view.dom as HTMLElement, () => previewLoadRef.current === loadId)
+  })
 }
 
-function selectedEditor(): HTMLElement | null {
-  const selection = window.getSelection()
-  if (!selection || selection.rangeCount === 0) return null
-  const node = selection.getRangeAt(0).commonAncestorContainer
-  const element = node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement
-  return element?.closest<HTMLElement>('.rich-editor') ?? null
+function stringAttribute(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value : null
 }
 
-function rangeAtEnd(editor: HTMLElement): Range {
-  const range = document.createRange()
-  range.selectNodeContents(editor)
-  range.collapse(false)
-  return range
+function managedAttachmentIdFromSource(source: string): string | null {
+  if (!source.startsWith(managedAttachmentProtocol)) return null
+  return source.slice(managedAttachmentProtocol.length)
 }

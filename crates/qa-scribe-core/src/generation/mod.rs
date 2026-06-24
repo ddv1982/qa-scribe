@@ -74,6 +74,43 @@ mod tests {
     }
 
     #[test]
+    fn projection_preserves_tiptap_task_list_state() {
+        let html = r#"
+            <ul data-type="taskList">
+              <li data-type="taskItem" data-checked="true">
+                <input type="checkbox" checked />
+                <p>Sign in to Gmail</p>
+              </li>
+              <li data-type="taskItem" data-checked="false">
+                <input type="checkbox" />
+                <p>Confirm the error message</p>
+              </li>
+            </ul>
+        "#;
+
+        let text = project_html_to_prompt_text(html);
+
+        assert!(text.contains("- [x] Sign in to Gmail"));
+        assert!(text.contains("- [ ] Confirm the error message"));
+    }
+
+    #[test]
+    fn managed_attachment_ids_accept_tiptap_image_markup() {
+        let html = r#"
+            <p>Evidence:</p>
+            <img alt="gmail-error.png" data-attachment-id="attachment-1" src="qa-scribe-attachment://attachment-1" />
+            <img alt="console.png" src="qa-scribe-attachment://attachment-2" />
+        "#;
+
+        let ids = managed_attachment_ids_from_html(html);
+
+        assert_eq!(
+            ids,
+            vec!["attachment-1".to_string(), "attachment-2".to_string()]
+        );
+    }
+
+    #[test]
     fn finding_prompt_is_note_local_html_and_compact() {
         let selected = test_entry(
             "entry-selected",

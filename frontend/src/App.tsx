@@ -50,20 +50,16 @@ import {
   containsInlineImageData,
   emptyNoteHtml,
   inlineImageFilename,
-  insertEditorHtml,
-  managedAttachmentImageHtml,
   managedAttachmentProtocol,
   normalizeEditorHtml,
   pastedImageFilename,
   readFileAsDataUrl,
-  restoreSelection,
-  selectedRangeWithin,
-  serializeEditorHtml,
   stripHtml,
 } from './editor/editorHtml'
 import { countWords, formatError, formatSessionDate, initialTheme, nextUntitledTitle, statusLabel } from './ui/format'
 import type { BusyAction, PendingAiActions, SettingsSaveState, ThemePreference, WorkspaceView } from './ui/types'
 import type { RichEditorImageUpload } from './editor/RichTextEditor'
+import { richEditorImageInserterForElement, type RichEditorImageInserter } from './editor/richEditorRegistry'
 import { FindingsView } from './views/FindingsView'
 import { NotesView } from './views/NotesView'
 import { SettingsView } from './views/SettingsView'
@@ -685,12 +681,14 @@ export function App() {
     const file = Array.from(event.clipboardData.files).find((item) => item.type.startsWith('image/'))
     if (!file) return
 
-    const insertionRange = selectedRangeWithin(editor)
+    const insertImage = richEditorImageInserterForElement(editor)
+    if (!insertImage) return
+
     event.preventDefault()
-    void importPastedImage(file, insertionRange, editor)
+    void importPastedImage(file, insertImage)
   }
 
-  async function importPastedImage(file: File, insertionRange: Range | null, editor: HTMLElement) {
+  async function importPastedImage(file: File, insertImage: RichEditorImageInserter) {
     if (!activeSession || !noteEntry) {
       setError('Open a note before pasting images.')
       return
@@ -707,9 +705,7 @@ export function App() {
         filename,
         dataUrl,
       })
-      restoreSelection(insertionRange)
-      insertEditorHtml(managedAttachmentImageHtml(attachment.id, attachment.filename, dataUrl))
-      setNoteBody(serializeEditorHtml(editor))
+      insertImage(attachment.id, attachment.filename, dataUrl)
       setNotice('Image attached')
     } catch (cause) {
       setError(formatError(cause))
@@ -718,7 +714,7 @@ export function App() {
     }
   }
 
-  async function uploadEditorImage({ file, insertionRange, editor }: RichEditorImageUpload, entryId: string | null) {
+  async function uploadEditorImage({ file, insertImage }: RichEditorImageUpload, entryId: string | null) {
     if (!activeSession) {
       setError('Open a note before uploading images.')
       return
@@ -740,10 +736,7 @@ export function App() {
         filename,
         dataUrl,
       })
-      restoreSelection(insertionRange)
-      editor.focus({ preventScroll: true })
-      insertEditorHtml(managedAttachmentImageHtml(attachment.id, attachment.filename, dataUrl))
-      editor.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertFromPaste' }))
+      insertImage(attachment.id, attachment.filename, dataUrl)
       setNotice('Image attached')
     } catch (cause) {
       setError(formatError(cause))

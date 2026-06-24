@@ -63,7 +63,7 @@ impl<'a> HtmlPromptProjector<'a> {
     fn handle_tag(&mut self, raw_tag: &str, tag: &Tag) {
         match (tag.closing, tag.name.as_str()) {
             (false, "br") => self.push_newline(),
-            (false, "p" | "div" | "section" | "article" | "blockquote") => self.push_newline(),
+            (false, "p" | "div" | "section" | "article" | "blockquote") => self.push_block_start(),
             (true, "p" | "div" | "section" | "article" | "blockquote") => self.push_newline(),
             (false, "h1" | "h2" | "h3" | "h4" | "h5" | "h6") => self.push_newline(),
             (true, "h1" | "h2" | "h3" | "h4" | "h5" | "h6") => self.push_newline(),
@@ -156,6 +156,17 @@ impl<'a> HtmlPromptProjector<'a> {
         if !self.output.ends_with('\n') {
             self.output.push('\n');
         }
+    }
+
+    fn push_block_start(&mut self) {
+        if self.output.ends_with("- ")
+            || self.output.ends_with("- [x] ")
+            || self.output.ends_with("- [ ] ")
+        {
+            return;
+        }
+
+        self.push_newline();
     }
 }
 

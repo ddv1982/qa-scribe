@@ -60,6 +60,26 @@ describe('editorHtml', () => {
     expect(html).toMatch(/<input type="checkbox" checked(="")?>/)
   })
 
+  it('keeps Tiptap task-list metadata while stripping wrapper-only markup', () => {
+    const html = normalizeEditorHtml(`
+      <ul data-type="taskList" class="unused">
+        <li data-type="taskItem" data-checked="true" class="unused">
+          <label><input type="checkbox" checked="checked" /><span></span></label>
+          <div><p>Verify Gmail login</p></div>
+        </li>
+      </ul>
+    `)
+
+    expect(html).toContain('<ul data-type="taskList">')
+    expect(html).toContain('<li data-type="taskItem" data-checked="true">')
+    expect(html).toMatch(/<input type="checkbox" checked(="")?>/)
+    expect(html).toContain('<p>Verify Gmail login</p>')
+    expect(html).not.toContain('<label>')
+    expect(html).not.toContain('<span')
+    expect(html).not.toContain('<div>')
+    expect(html).not.toContain('class=')
+  })
+
   it('accepts only safe rich editor links and images', () => {
     expect(isSafeEditorLinkUrl('https://example.test')).toBe(true)
     expect(isSafeEditorLinkUrl('mailto:qa@example.test')).toBe(true)

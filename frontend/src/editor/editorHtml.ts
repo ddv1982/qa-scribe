@@ -48,10 +48,6 @@ export function inlineImageFilename(image: HTMLImageElement, index: number, data
   return /\.[a-z0-9]{2,5}$/i.test(cleaned) ? cleaned : `${cleaned}.${extension}`
 }
 
-export function insertEditorHtml(html: string) {
-  document.execCommand('insertHTML', false, html)
-}
-
 export function managedAttachmentImageHtml(attachmentId: string, filename: string, previewSrc = `${managedAttachmentProtocol}${attachmentId}`): string {
   return `<img src="${escapeAttribute(previewSrc)}" data-attachment-id="${escapeAttribute(attachmentId)}" alt="${escapeAttribute(filename)}" />`
 }
@@ -76,23 +72,6 @@ export function readFileAsDataUrl(file: File): Promise<string> {
     reader.addEventListener('error', () => reject(reader.error ?? new Error('Image could not be read')))
     reader.readAsDataURL(file)
   })
-}
-
-export function restoreSelection(range: Range | null) {
-  if (!range) return
-  const selection = window.getSelection()
-  if (!selection) return
-  selection.removeAllRanges()
-  selection.addRange(range)
-}
-
-export function selectedRangeWithin(element: HTMLElement): Range | null {
-  const selection = window.getSelection()
-  if (!selection || selection.rangeCount === 0) return null
-
-  const range = selection.getRangeAt(0)
-  if (!element.contains(range.commonAncestorContainer)) return null
-  return range.cloneRange()
 }
 
 export function serializeEditorHtml(editor: HTMLElement): string {
@@ -204,6 +183,16 @@ function sanitizeEditorElement(element: HTMLElement) {
     return
   }
 
+  if (tagName === 'ul') {
+    sanitizeUnorderedListElement(element as HTMLUListElement)
+    return
+  }
+
+  if (tagName === 'li') {
+    sanitizeListItemElement(element as HTMLLIElement)
+    return
+  }
+
   removeAllAttributes(element)
 }
 
@@ -253,6 +242,25 @@ function sanitizeInputElement(input: HTMLInputElement) {
 
   input.setAttribute('type', 'checkbox')
   if (checked) input.setAttribute('checked', '')
+}
+
+function sanitizeUnorderedListElement(list: HTMLUListElement) {
+  const dataType = list.getAttribute('data-type')?.trim()
+  removeAllAttributes(list)
+  if (dataType === 'taskList') {
+    list.setAttribute('data-type', 'taskList')
+  }
+}
+
+function sanitizeListItemElement(item: HTMLLIElement) {
+  const dataType = item.getAttribute('data-type')?.trim()
+  const dataChecked = item.getAttribute('data-checked')?.trim().toLowerCase()
+  const checkbox = item.querySelector<HTMLInputElement>('input[type="checkbox"]')
+  removeAllAttributes(item)
+  if (dataType !== 'taskItem') return
+
+  item.setAttribute('data-type', 'taskItem')
+  item.setAttribute('data-checked', dataChecked === 'true' || checkbox?.checked || checkbox?.hasAttribute('checked') ? 'true' : 'false')
 }
 
 function unwrapElement(element: Element) {
