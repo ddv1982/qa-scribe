@@ -1,7 +1,8 @@
-import { Box, CheckCircle2, ChevronDown, Copy, FileText, Flag, Image as ImageIcon, Loader2, Sparkles, Trash2 } from 'lucide-react'
-import { ModelCombobox, ProviderGlyph } from '../components/ModelSelector'
+import { Box, CheckCircle2, ChevronDown, Copy, FileText, Flag, Image as ImageIcon, Loader2, Sparkles, Trash2, Undo2 } from 'lucide-react'
+import { ProviderGlyph } from '../components/ModelSelector'
 import { FormatToolbar, RichTextEditor, type RichEditorImageUpload } from '../editor/RichTextEditor'
 import type { AiProvider, GenerateAiActionKind, ProviderStatus, Session } from '../tauri'
+import type { RichEditorDocument } from '../editor/editorDocument'
 import { StatusPill } from '../components/Common'
 import type { BusyAction } from '../ui/types'
 import type { PendingAiActions } from '../ui/types'
@@ -12,6 +13,7 @@ export function NotesView({
   activeSession,
   busyAction,
   copySucceeded,
+  canUndoLatestGeneration,
   screenshotCopySucceeded,
   filteredSessions,
   isBusy,
@@ -23,13 +25,11 @@ export function NotesView({
   notice,
   error,
   pendingAiActions,
-  providerOptions,
   selectedProvider,
   selectedModel,
   activeProvider,
-  onProviderChange,
-  onModelChange,
   onAiAction,
+  onUndoLatestGeneration,
   onCopyNote,
   onCopyNoteScreenshot,
   onDeleteNote,
@@ -41,11 +41,12 @@ export function NotesView({
   activeProviderAvailable: boolean
   activeSession: Session | null
   busyAction: BusyAction | null
+  canUndoLatestGeneration: boolean
   copySucceeded: boolean
   screenshotCopySucceeded: boolean
   filteredSessions: Session[]
   isBusy: boolean
-  noteBody: string
+  noteBody: RichEditorDocument
   noteIsReady: boolean
   noteScreenshotCount: number
   noteTitle: string
@@ -53,24 +54,23 @@ export function NotesView({
   notice: string | null
   error: string | null
   pendingAiActions: PendingAiActions
-  providerOptions: ProviderStatus['providers']
   selectedProvider: AiProvider
   selectedModel: string
   activeProvider: ProviderStatus['providers'][number] | null
-  onProviderChange: (provider: AiProvider) => void
-  onModelChange: (model: string) => void
   onAiAction: (action: GenerateAiActionKind) => Promise<void>
+  onUndoLatestGeneration: () => Promise<void>
   onCopyNote: () => Promise<void>
   onCopyNoteScreenshot: () => Promise<void>
   onDeleteNote: () => void
   onOpenNote: (session: Session) => Promise<void>
-  onSetNoteBody: (value: string) => void
+  onSetNoteBody: (value: RichEditorDocument) => void
   onSetNoteTitle: (value: string) => void
   onUploadImage: (input: RichEditorImageUpload) => void | Promise<void>
 }) {
   const deletingNote = busyAction === 'delete-note'
   const copyingNote = busyAction === 'copy-note'
   const copyingNoteScreenshot = busyAction === 'copy-note-screenshot'
+  const undoingGeneration = busyAction === 'undo-generation'
   const copyNoteLabel = copySucceeded ? 'Note copied for Jira' : 'Copy note for Jira'
   const copyNoteScreenshotLabel = screenshotCopySucceeded
     ? 'Note screenshot copied for Jira'
@@ -82,6 +82,9 @@ export function NotesView({
   const summaryPending = Boolean(pendingAiActions.summary)
   const editorId = 'note-body-editor'
   const selectedModelLabel = activeProvider?.models.find((model) => model.id === (selectedModel.trim() || 'default'))?.label ?? (selectedModel.trim() || 'Provider default')
+  const selectedProviderLabel = activeProvider?.label ?? selectedProvider
+  const providerReadinessLabel = activeProvider ? (activeProvider.available ? 'Ready' : statusLabel(activeProvider.status)) : 'Loading'
+  const providerSummaryLabel = `AI default: ${selectedProviderLabel}, ${selectedModelLabel}, ${providerReadinessLabel}`
 
   if (!activeSession) {
     return (
@@ -112,6 +115,12 @@ export function NotesView({
           <strong>{activeSession.title}</strong>
         </div>
         <div className="document-actions">
+          {canUndoLatestGeneration ? (
+            <button className="secondary-button compact-button" type="button" disabled={isBusy} onClick={() => void onUndoLatestGeneration()}>
+              {undoingGeneration ? <Loader2 className="spin" size={16} /> : <Undo2 size={16} />}
+              Undo generation
+            </button>
+          ) : null}
           <div className="document-status">
             <CheckCircle2 size={15} />
             <span>{busyAction === 'save-title' || busyAction === 'save-body' ? 'Saving...' : 'Autosaved'}</span>
@@ -163,34 +172,30 @@ export function NotesView({
       </section>
 
       <footer className="bottom-command-bar" aria-label="AI note actions">
-        <div className="ai-inline-controls" aria-label={`AI provider ${activeProvider?.label ?? 'loading'} model ${selectedModelLabel}`}>
-          <label className="select-shell">
-            <ProviderGlyph provider={selectedProvider} />
-            <select value={selectedProvider} onChange={(event) => onProviderChange(event.target.value as AiProvider)}>
-              {providerOptions.map((provider) => (
-                <option key={provider.id} value={provider.id}>
-                  {provider.label} {provider.available ? '' : `(${statusLabel(provider.status)})`}
-                </option>
-              ))}
-            </select>
-          </label>
-          <ModelCombobox models={activeProvider?.models ?? []} value={selectedModel} onChange={onModelChange} />
-          <p className={activeProvider?.available ? 'provider-hint ready' : 'provider-hint'}>
-            {activeProvider ? activeProvider.reason : 'Loading provider status'}
-          </p>
+        <div className={activeProvider?.available ? 'ai-provider-summary ready' : 'ai-provider-summary'} aria-label={providerSummaryLabel} title={activeProvider?.reason}>
+          <ProviderGlyph provider={selectedProvider} />
+          <div>
+            <span>AI default</span>
+            <strong>{selectedProviderLabel}</strong>
+          </div>
+          <span className="ai-provider-model">{selectedModelLabel}</span>
+          <span className={activeProvider?.available ? 'ai-provider-state ready' : 'ai-provider-state'}>{providerReadinessLabel}</span>
+          {!activeProvider?.available ? <p>{activeProvider ? activeProvider.reason : 'Loading provider status'}</p> : null}
         </div>
-        <button className="secondary-button" type="button" disabled={isBusy || testwarePending || !noteIsReady || !activeProviderAvailable} onClick={() => void onAiAction('testware')}>
-          {busyAction === 'ai-testware' || testwarePending ? <Loader2 className="spin" size={16} /> : <Box size={16} />}
-          {testwarePending ? 'Generating test cases' : 'Generate test cases'}
-        </button>
-        <button className="secondary-button" type="button" disabled={isBusy || findingPending || !noteIsReady || !activeProviderAvailable} onClick={() => void onAiAction('finding')}>
-          {busyAction === 'ai-finding' || findingPending ? <Loader2 className="spin" size={16} /> : <Flag size={16} />}
-          {findingPending ? 'Creating finding' : 'Create finding'}
-        </button>
-        <button className="primary-button" type="button" disabled={isBusy || summaryPending || !noteIsReady || !activeProviderAvailable} onClick={() => void onAiAction('summary')}>
-          {busyAction === 'ai-summary' || summaryPending ? <Loader2 className="spin" size={16} /> : <Sparkles size={16} />}
-          {summaryPending ? 'Summarizing notes' : 'Summarize notes'}
-        </button>
+        <div className="ai-action-buttons">
+          <button className="secondary-button" type="button" disabled={isBusy || testwarePending || !noteIsReady || !activeProviderAvailable} onClick={() => void onAiAction('testware')}>
+            {busyAction === 'ai-testware' || testwarePending ? <Loader2 className="spin" size={16} /> : <Box size={16} />}
+            {testwarePending ? 'Generating test cases' : 'Generate test cases'}
+          </button>
+          <button className="secondary-button" type="button" disabled={isBusy || findingPending || !noteIsReady || !activeProviderAvailable} onClick={() => void onAiAction('finding')}>
+            {busyAction === 'ai-finding' || findingPending ? <Loader2 className="spin" size={16} /> : <Flag size={16} />}
+            {findingPending ? 'Creating finding' : 'Create finding'}
+          </button>
+          <button className="primary-button" type="button" disabled={isBusy || summaryPending || !noteIsReady || !activeProviderAvailable} onClick={() => void onAiAction('summary')}>
+            {busyAction === 'ai-summary' || summaryPending ? <Loader2 className="spin" size={16} /> : <Sparkles size={16} />}
+            {summaryPending ? 'Summarizing notes' : 'Summarize notes'}
+          </button>
+        </div>
       </footer>
     </div>
   )

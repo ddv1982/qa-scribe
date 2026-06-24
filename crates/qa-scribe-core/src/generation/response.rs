@@ -21,17 +21,17 @@ pub fn preserve_managed_attachment_images(
     attachments: &[Attachment],
 ) -> String {
     let mut output = restore_known_attachment_sources(response.trim(), attachments);
-    let original_images = managed_images_from_html(original_note_html, attachments);
+    let original_images = preservable_images_from_html(original_note_html, attachments);
 
     for image in original_images {
-        if contains_managed_attachment(&output, &image.id) {
+        if image_already_present(&output, &image) {
             continue;
         }
         if !output.is_empty() && !output.ends_with('\n') {
             output.push('\n');
         }
         output.push_str("<p>");
-        output.push_str(&managed_image_html(&image.id, &image.alt));
+        output.push_str(&image.html);
         output.push_str("</p>");
     }
 
@@ -39,9 +39,18 @@ pub fn preserve_managed_attachment_images(
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-struct ManagedImage {
-    id: String,
-    alt: String,
+struct PreservableImage {
+    key: String,
+    managed_attachment_id: Option<String>,
+    html: String,
+}
+
+fn image_already_present(output: &str, image: &PreservableImage) -> bool {
+    image
+        .managed_attachment_id
+        .as_deref()
+        .map(|id| contains_managed_attachment(output, id))
+        .unwrap_or_else(|| output.contains(&image.key))
 }
 
 fn restore_known_attachment_sources(value: &str, attachments: &[Attachment]) -> String {
@@ -170,7 +179,7 @@ fn tag_boundary_matches(value: &str, index: usize) -> bool {
         || value[index..].starts_with("&gt;")
 }
 
-fn managed_images_from_html(value: &str, attachments: &[Attachment]) -> Vec<ManagedImage> {
+fn preservable_images_from_html(value: &str, attachments: &[Attachment]) -> Vec<PreservableImage> {
     let mut images = Vec::new();
     let mut offset = 0usize;
     while let Some(relative_start) = value[offset..].to_ascii_lowercase().find("<img") {
@@ -179,23 +188,54 @@ fn managed_images_from_html(value: &str, attachments: &[Attachment]) -> Vec<Mana
             break;
         };
         let tag = &value[tag_start + 1..tag_start + relative_end];
-        if let Some(id) = managed_attachment_id_from_img_tag(tag, attachments)
-            && !images.iter().any(|image: &ManagedImage| image.id == id)
+        if let Some(image) = preservable_image_from_img_tag(tag, attachments)
+            && !images
+                .iter()
+                .any(|existing: &PreservableImage| existing.key == image.key)
         {
-            let alt = attribute_value(tag, "alt")
-                .filter(|value| !value.trim().is_empty())
-                .or_else(|| {
-                    attachments
-                        .iter()
-                        .find(|attachment| attachment.id == id)
-                        .map(|attachment| attachment.filename.clone())
-                })
-                .unwrap_or_else(|| "Attached image".to_string());
-            images.push(ManagedImage { id, alt });
+            images.push(image);
         }
         offset = tag_start + relative_end + 1;
     }
     images
+}
+
+fn preservable_image_from_img_tag(
+    tag: &str,
+    attachments: &[Attachment],
+) -> Option<PreservableImage> {
+    if let Some(id) = managed_attachment_id_from_img_tag(tag, attachments) {
+        let alt = image_alt_from_tag(tag).or_else(|| {
+            attachments
+                .iter()
+                .find(|attachment| attachment.id == id)
+                .map(|attachment| attachment.filename.clone())
+        });
+        return Some(PreservableImage {
+            key: format!("{MANAGED_ATTACHMENT_PROTOCOL}{id}"),
+            managed_attachment_id: Some(id.clone()),
+            html: managed_image_html(&id, alt.as_deref().unwrap_or("Attached image")),
+        });
+    }
+
+    let source = attribute_value(tag, "src")?.trim().to_string();
+    if !is_preservable_external_image_source(&source) {
+        return None;
+    }
+    Some(PreservableImage {
+        key: source.clone(),
+        managed_attachment_id: None,
+        html: image_html(
+            &source,
+            image_alt_from_tag(tag)
+                .as_deref()
+                .unwrap_or("Attached image"),
+        ),
+    })
+}
+
+fn image_alt_from_tag(tag: &str) -> Option<String> {
+    attribute_value(tag, "alt").filter(|value| !value.trim().is_empty())
 }
 
 fn managed_attachment_id_from_img_tag(tag: &str, attachments: &[Attachment]) -> Option<String> {
@@ -233,6 +273,18 @@ fn managed_image_html(attachment_id: &str, alt: &str) -> String {
         escape_html_attribute(attachment_id),
         escape_html_attribute(alt)
     )
+}
+
+fn image_html(source: &str, alt: &str) -> String {
+    format!(
+        "<img src=\"{}\" alt=\"{}\" />",
+        escape_html_attribute(source),
+        escape_html_attribute(alt)
+    )
+}
+
+fn is_preservable_external_image_source(source: &str) -> bool {
+    source.starts_with("https://") || source.starts_with("http://")
 }
 
 fn attribute_value(raw_tag: &str, attribute: &str) -> Option<String> {

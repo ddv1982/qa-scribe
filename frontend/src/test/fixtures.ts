@@ -25,6 +25,8 @@ export function entryFixture(patch: Partial<Entry> = {}): Entry {
     entryType: 'note',
     title: 'Note body',
     body: '<p>Checkout fails after payment.</p>',
+    bodyJson: null,
+    bodyFormat: 'html',
     metadataJson: null,
     excludedFromGeneration: false,
     createdAt: now,
@@ -41,6 +43,9 @@ export function draftFixture(patch: Partial<Draft> = {}): Draft {
     kind: 'testware',
     title: 'Checkout test cases',
     body: '<ol><li>Submit payment.</li></ol>',
+    bodyJson: null,
+    bodyFormat: 'html',
+    metadataJson: null,
     createdAt: now,
     updatedAt: now,
     ...patch,
@@ -53,6 +58,8 @@ export function findingFixture(patch: Partial<Finding> = {}): Finding {
     sessionId: 'session-1',
     title: 'Checkout returns 500',
     body: '<p>Payment submission returns a server error.</p>',
+    bodyJson: null,
+    bodyFormat: 'html',
     kind: 'bug',
     metadataJson: null,
     createdAt: now,
@@ -64,7 +71,7 @@ export function findingFixture(patch: Partial<Finding> = {}): Finding {
 export function settingsFixture(patch: Partial<AppSettings> = {}): AppSettings {
   return {
     schemaVersion: 1,
-    generationSystemPrompt: 'Use the note to create useful QA output.',
+    generationSystemPrompt: 'Use the selected note material to complete the requested QA action. Do not invent facts.',
     selectedAiProvider: 'codex_cli',
     selectedAiModel: 'default',
     selectedAiModelsByProvider: {
@@ -77,9 +84,9 @@ export function settingsFixture(patch: Partial<AppSettings> = {}): AppSettings {
       codex_cli: 'low',
       copilot_cli: null,
     },
-    testwareTemplate: 'Write test cases.',
-    findingTemplate: 'Write a bug finding.',
-    noteSummaryTemplate: 'Summarize the note.',
+    testwareTemplate: 'Create test scenarios with test cases from the selected note only.',
+    findingTemplate: 'Create exactly one QA finding from the selected note only.',
+    noteSummaryTemplate: 'Summarize and clarify the selected note without turning it into a finding or testware.',
     ...patch,
   }
 }

@@ -1,6 +1,8 @@
+import { Loader2, RefreshCw } from 'lucide-react'
 import { SaveSettingsButton } from '../components/Common'
 import { ModelCombobox, ProviderGlyph } from '../components/ModelSelector'
 import { ThemeToggle } from '../components/ThemeToggle'
+import { modelForProvider, providerModelDefaults, providerReasoningDefaults, reasoningEffortsFor } from '../settings/defaults'
 import type { AiProvider, AppSettings, ProviderStatus } from '../tauri'
 import type { BusyAction, SettingsSaveState, ThemePreference } from '../ui/types'
 import { TemplatesView } from './TemplatesView'
@@ -14,6 +16,7 @@ export function SettingsView({
   updateSettingsDraft,
   setTheme,
   onSaveSettings,
+  onRefreshProviderStatus,
 }: {
   busyAction: BusyAction | null
   providerStatus: ProviderStatus | null
@@ -23,6 +26,7 @@ export function SettingsView({
   updateSettingsDraft: (patch: Partial<AppSettings>) => void
   setTheme: (theme: ThemePreference) => void
   onSaveSettings: () => Promise<void>
+  onRefreshProviderStatus: () => Promise<void>
 }) {
   const providerOptions = providerStatus?.providers ?? []
   const defaultProvider = settingsDraft?.selectedAiProvider ?? 'codex_cli'
@@ -86,7 +90,13 @@ export function SettingsView({
         </section>
 
         <section>
-          <h2>Provider readiness</h2>
+          <div className="settings-section-heading">
+            <h2>Provider readiness</h2>
+            <button className="secondary-button compact-button" type="button" disabled={busyAction !== null} onClick={() => void onRefreshProviderStatus()}>
+              {busyAction === 'refresh-providers' ? <Loader2 className="spin" size={14} /> : <RefreshCw size={14} />}
+              Refresh
+            </button>
+          </div>
           <div className="provider-lines">
             {providerStatus?.providers.map((provider) => (
               <article key={provider.id}>
@@ -133,53 +143,21 @@ export function SettingsView({
 
         {settingsDraft ? (
           <section className="wide-setting">
-            <h2>Generation prompt</h2>
-            <p className="settings-note">Standard note capture and generation work without template tuning. Adjust these only when your Jira or testware format needs stricter wording.</p>
+            <h2>Global AI instructions</h2>
+            <p className="settings-note">Keep these neutral across summaries, findings, and testware. Output shape belongs in the action templates below.</p>
             <textarea value={settingsDraft.generationSystemPrompt} onChange={(event) => updateSettingsDraft({ generationSystemPrompt: event.target.value })} />
           </section>
         ) : null}
 
         <section className="wide-setting advanced-setting">
           <details>
-            <summary>Advanced templates</summary>
-            <TemplatesView
-              busyAction={busyAction}
-              settingsDraft={settingsDraft}
-              settingsSaveState={settingsSaveState}
-              updateSettingsDraft={updateSettingsDraft}
-              onSaveSettings={onSaveSettings}
-            />
+            <summary>Output templates</summary>
+            <TemplatesView settingsDraft={settingsDraft} updateSettingsDraft={updateSettingsDraft} />
           </details>
         </section>
       </div>
     </section>
   )
-}
-
-function providerModelDefaults(): Record<AiProvider, string> {
-  return {
-    claude_code: 'default',
-    codex_cli: 'default',
-    copilot_cli: 'auto',
-  }
-}
-
-function providerReasoningDefaults(): Record<AiProvider, string | null> {
-  return {
-    claude_code: 'medium',
-    codex_cli: 'low',
-    copilot_cli: null,
-  }
-}
-
-function modelForProvider(settings: AppSettings, provider: AiProvider): string {
-  return settings.selectedAiModelsByProvider?.[provider] || (provider === settings.selectedAiProvider ? settings.selectedAiModel : null) || providerModelDefaults()[provider]
-}
-
-function reasoningEffortsFor(provider: ProviderStatus['providers'][number] | null): string[] {
-  const efforts = provider?.models.flatMap((model) => model.reasoningEfforts) ?? []
-  const unique = Array.from(new Set(efforts))
-  return unique.length > 0 ? unique : ['low', 'medium', 'high', 'xhigh']
 }
 
 function reasoningLabel(effort: string): string {

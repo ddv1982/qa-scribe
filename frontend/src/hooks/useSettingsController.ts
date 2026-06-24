@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   getProviderStatus,
+  refreshProviderStatus as refreshProviderStatusCommand,
   updateSettings,
   type AiProvider,
   type AppSettings,
   type ProviderStatus,
 } from '../tauri'
+import { modelForProvider, providerModelDefaults } from '../settings/defaults'
 import { currentSystemTheme, formatError, initialTheme, resolveThemePreference } from '../ui/format'
 import type { SettingsSaveState, ThemePreference } from '../ui/types'
 
@@ -74,7 +76,7 @@ export function useSettingsController({
     return () => window.clearTimeout(timeout)
   }, [settings, selectedProvider, selectedModel]) // eslint-disable-line react-hooks/exhaustive-deps -- persistence is intentionally keyed to saved settings and selected model fields
 
-  function loadSettings(nextSettings: AppSettings, nextProviderStatus: ProviderStatus) {
+  function loadSettings(nextSettings: AppSettings, nextProviderStatus: ProviderStatus | null = null) {
     setSettings(nextSettings)
     setSettingsDraft(nextSettings)
     setProviderStatus(nextProviderStatus)
@@ -83,6 +85,10 @@ export function useSettingsController({
   }
 
   async function refreshProviderStatus() {
+    setProviderStatus(await refreshProviderStatusCommand())
+  }
+
+  async function loadProviderStatus() {
     setProviderStatus(await getProviderStatus())
   }
 
@@ -122,18 +128,6 @@ export function useSettingsController({
     setSettingsDraft((previous) => (previous ? { ...previous, ...patch } : previous))
   }
 
-  function handleProviderChange(provider: AiProvider) {
-    setSelectedProvider(provider)
-    const nextProvider = providerOptions.find((option) => option.id === provider)
-    const nextModel = settings ? modelForProvider(settings, provider) : 'default'
-    setSelectedModel(nextModel)
-    if (!nextProvider) return
-
-    if (!nextProvider.models.some((model) => model.id === nextModel)) {
-      setSelectedModel('default')
-    }
-  }
-
   function scheduleSettingsSaveReset() {
     if (settingsSaveResetRef.current) window.clearTimeout(settingsSaveResetRef.current)
     settingsSaveResetRef.current = window.setTimeout(() => {
@@ -144,17 +138,15 @@ export function useSettingsController({
 
   return {
     activeProvider,
-    handleProviderChange,
     handleSaveSettings,
+    loadProviderStatus,
     loadSettings,
     persistSettings,
-    providerOptions,
     providerStatus,
     refreshProviderStatus,
     selectedModel,
     selectedProvider,
     selectedReasoningEffort,
-    setSelectedModel,
     setTheme,
     settings,
     settingsDraft,
@@ -162,16 +154,4 @@ export function useSettingsController({
     theme,
     updateSettingsDraft,
   }
-}
-
-function providerModelDefaults(): Record<AiProvider, string> {
-  return {
-    claude_code: 'default',
-    codex_cli: 'default',
-    copilot_cli: 'auto',
-  }
-}
-
-function modelForProvider(settings: AppSettings, provider: AiProvider): string {
-  return settings.selectedAiModelsByProvider?.[provider] || (provider === settings.selectedAiProvider ? settings.selectedAiModel : null) || providerModelDefaults()[provider]
 }

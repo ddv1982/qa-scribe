@@ -8,8 +8,9 @@ use crate::{
         AiRun, AiRunCreate, AppSettings, Attachment, AttachmentDraft, DRAFT_BODY_MAX_LENGTH, Draft,
         DraftCreate, DraftPatch, Entry, EntryDraft, EntryPatch, EvidenceLink, EvidenceLinkDraft,
         Finding, FindingDraft, FindingPatch, GenerationContext, Session, SessionDraft,
-        SessionPatch, TEXT_BODY_MAX_LENGTH, validate_body_text, validate_metadata_json,
-        validate_optional_text, validate_required_text,
+        SessionPatch, TEXT_BODY_MAX_LENGTH, default_generation_system_prompt,
+        legacy_testware_generation_system_prompt, validate_body_json, validate_body_text,
+        validate_metadata_json, validate_optional_text, validate_required_text,
     },
     error::validation,
     storage::Database,
@@ -20,6 +21,13 @@ use super::session_rows::{
 };
 
 const APPLICATION_SETTINGS_KEY: &str = "application";
+
+fn normalize_loaded_settings(mut settings: AppSettings) -> AppSettings {
+    if settings.generation_system_prompt.trim() == legacy_testware_generation_system_prompt() {
+        settings.generation_system_prompt = default_generation_system_prompt();
+    }
+    settings
+}
 
 pub struct SessionService {
     database: Database,
@@ -51,6 +59,7 @@ impl SessionService {
 
         match value_json {
             Some(value) => serde_json::from_str(&value)
+                .map(normalize_loaded_settings)
                 .map_err(|_| validation("stored app settings are invalid")),
             None => Ok(AppSettings::default()),
         }
@@ -247,19 +256,23 @@ impl SessionService {
         let id = new_id();
         let now = now();
         let body = validate_body_text("Entry body", &draft.body, TEXT_BODY_MAX_LENGTH)?;
+        let body_json = validate_body_json(draft.body_json)?;
+        let body_format = validate_optional_text("Entry body format", draft.body_format, 40)?;
         let title = validate_optional_text("Entry title", draft.title, 160)?;
         let metadata_json = validate_metadata_json(draft.metadata_json)?;
 
         self.database.connection().execute(
             "INSERT INTO entries (
-                id, session_id, type, title, body, metadata_json, excluded_from_generation, created_at, updated_at
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?8)",
+                id, session_id, type, title, body, body_json, body_format, metadata_json, excluded_from_generation, created_at, updated_at
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, COALESCE(?7, 'html'), ?8, ?9, ?10, ?10)",
             params![
                 id,
                 draft.session_id,
                 draft.entry_type.as_str(),
                 title,
                 body,
+                body_json,
+                body_format,
                 metadata_json,
                 draft.excluded_from_generation,
                 now
@@ -272,7 +285,7 @@ impl SessionService {
     pub fn list_entries(&self, session_id: &str) -> Result<Vec<Entry>> {
         require_session(self.database.connection(), session_id)?;
         let mut statement = self.database.connection().prepare(
-            "SELECT id, session_id, type, title, body, metadata_json, excluded_from_generation, created_at, updated_at
+            "SELECT id, session_id, type, title, body, body_json, body_format, metadata_json, excluded_from_generation, created_at, updated_at
              FROM entries
              WHERE session_id = ?1
              ORDER BY created_at ASC",
@@ -295,6 +308,14 @@ impl SessionService {
             Some(body) => validate_body_text("Entry body", &body, TEXT_BODY_MAX_LENGTH)?,
             None => existing.body,
         };
+        let body_json = match patch.body_json {
+            Some(body_json) => validate_body_json(body_json)?,
+            None => existing.body_json,
+        };
+        let body_format = match patch.body_format {
+            Some(body_format) => validate_optional_text("Entry body format", body_format, 40)?,
+            None => existing.body_format,
+        };
         let metadata_json = match patch.metadata_json {
             Some(metadata_json) => validate_metadata_json(metadata_json)?,
             None => existing.metadata_json,
@@ -305,9 +326,9 @@ impl SessionService {
         let now = now();
         self.database.connection().execute(
             "UPDATE entries
-             SET title = ?1, body = ?2, metadata_json = ?3, excluded_from_generation = ?4, updated_at = ?5
-             WHERE id = ?6",
-            params![title, body, metadata_json, excluded, now, id],
+             SET title = ?1, body = ?2, body_json = ?3, body_format = COALESCE(?4, 'html'), metadata_json = ?5, excluded_from_generation = ?6, updated_at = ?7
+             WHERE id = ?8",
+            params![title, body, body_json, body_format, metadata_json, excluded, now, id],
         )?;
         self.entry(id)?
             .ok_or_else(|| QaScribeError::NotFound(id.to_string()))
@@ -390,12 +411,14 @@ impl SessionService {
         let now = now();
         let title = validate_required_text("Finding title", &draft.title, 160)?;
         let body = validate_body_text("Finding body", &draft.body, TEXT_BODY_MAX_LENGTH)?;
+        let body_json = validate_body_json(draft.body_json)?;
+        let body_format = validate_optional_text("Finding body format", draft.body_format, 40)?;
         let metadata_json = validate_metadata_json(draft.metadata_json)?;
 
         self.database.connection().execute(
-            "INSERT INTO findings (id, session_id, title, body, kind, metadata_json, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7)",
-            params![id, draft.session_id, title, body, draft.kind.as_str(), metadata_json, now],
+            "INSERT INTO findings (id, session_id, title, body, body_json, body_format, kind, metadata_json, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, COALESCE(?6, 'html'), ?7, ?8, ?9, ?9)",
+            params![id, draft.session_id, title, body, body_json, body_format, draft.kind.as_str(), metadata_json, now],
         )?;
 
         self.finding(&id)?.ok_or(QaScribeError::NotFound(id))
@@ -404,7 +427,7 @@ impl SessionService {
     pub fn list_findings(&self, session_id: &str) -> Result<Vec<Finding>> {
         require_session(self.database.connection(), session_id)?;
         let mut statement = self.database.connection().prepare(
-            "SELECT id, session_id, title, body, kind, metadata_json, created_at, updated_at
+            "SELECT id, session_id, title, body, body_json, body_format, kind, metadata_json, created_at, updated_at
              FROM findings
              WHERE session_id = ?1
              ORDER BY created_at DESC",
@@ -427,13 +450,21 @@ impl SessionService {
             Some(body) => validate_body_text("Finding body", &body, TEXT_BODY_MAX_LENGTH)?,
             None => existing.body,
         };
+        let body_json = match patch.body_json {
+            Some(body_json) => validate_body_json(body_json)?,
+            None => existing.body_json,
+        };
+        let body_format = match patch.body_format {
+            Some(body_format) => validate_optional_text("Finding body format", body_format, 40)?,
+            None => existing.body_format,
+        };
         let now = now();
 
         self.database.connection().execute(
             "UPDATE findings
-             SET title = ?1, body = ?2, updated_at = ?3
-             WHERE id = ?4",
-            params![title, body, now, id],
+             SET title = ?1, body = ?2, body_json = ?3, body_format = COALESCE(?4, 'html'), updated_at = ?5
+             WHERE id = ?6",
+            params![title, body, body_json, body_format, now, id],
         )?;
 
         self.finding(id)?
@@ -667,11 +698,14 @@ impl SessionService {
         let now = now();
         let title = validate_required_text("Draft title", &draft.title, 160)?;
         let body = validate_body_text("Draft body", &draft.body, DRAFT_BODY_MAX_LENGTH)?;
+        let body_json = validate_body_json(draft.body_json)?;
+        let body_format = validate_optional_text("Draft body format", draft.body_format, 40)?;
+        let metadata_json = validate_metadata_json(draft.metadata_json)?;
 
         self.database.connection().execute(
-            "INSERT INTO drafts (id, session_id, ai_run_id, kind, title, body, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7)",
-            params![id, draft.session_id, draft.ai_run_id, draft.kind.as_str(), title, body, now],
+            "INSERT INTO drafts (id, session_id, ai_run_id, kind, title, body, body_json, body_format, metadata_json, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, COALESCE(?8, 'html'), ?9, ?10, ?10)",
+            params![id, draft.session_id, draft.ai_run_id, draft.kind.as_str(), title, body, body_json, body_format, metadata_json, now],
         )?;
 
         self.draft(&id)?.ok_or(QaScribeError::NotFound(id))
@@ -680,7 +714,7 @@ impl SessionService {
     pub fn list_drafts(&self, session_id: &str) -> Result<Vec<Draft>> {
         require_session(self.database.connection(), session_id)?;
         let mut statement = self.database.connection().prepare(
-            "SELECT id, session_id, ai_run_id, kind, title, body, created_at, updated_at
+            "SELECT id, session_id, ai_run_id, kind, title, body, body_json, body_format, metadata_json, created_at, updated_at
              FROM drafts
              WHERE session_id = ?1
              ORDER BY updated_at DESC, created_at DESC",
@@ -703,13 +737,25 @@ impl SessionService {
             Some(body) => validate_body_text("Draft body", &body, DRAFT_BODY_MAX_LENGTH)?,
             None => existing.body,
         };
+        let body_json = match patch.body_json {
+            Some(body_json) => validate_body_json(body_json)?,
+            None => existing.body_json,
+        };
+        let body_format = match patch.body_format {
+            Some(body_format) => validate_optional_text("Draft body format", body_format, 40)?,
+            None => existing.body_format,
+        };
+        let metadata_json = match patch.metadata_json {
+            Some(metadata_json) => validate_metadata_json(metadata_json)?,
+            None => existing.metadata_json,
+        };
         let now = now();
 
         self.database.connection().execute(
             "UPDATE drafts
-             SET title = ?1, body = ?2, updated_at = ?3
-             WHERE id = ?4",
-            params![title, body, now, id],
+             SET title = ?1, body = ?2, body_json = ?3, body_format = COALESCE(?4, 'html'), metadata_json = ?5, updated_at = ?6
+             WHERE id = ?7",
+            params![title, body, body_json, body_format, metadata_json, now, id],
         )?;
 
         self.draft(id)?
@@ -731,7 +777,7 @@ impl SessionService {
         self.database
             .connection()
             .query_row(
-                "SELECT id, session_id, type, title, body, metadata_json, excluded_from_generation, created_at, updated_at
+                "SELECT id, session_id, type, title, body, body_json, body_format, metadata_json, excluded_from_generation, created_at, updated_at
                  FROM entries
                  WHERE id = ?1",
                 [id],
@@ -745,7 +791,7 @@ impl SessionService {
         self.database
             .connection()
             .query_row(
-                "SELECT id, session_id, title, body, kind, metadata_json, created_at, updated_at
+                "SELECT id, session_id, title, body, body_json, body_format, kind, metadata_json, created_at, updated_at
                  FROM findings
                  WHERE id = ?1",
                 [id],
@@ -788,7 +834,7 @@ impl SessionService {
         self.database
             .connection()
             .query_row(
-                "SELECT id, session_id, ai_run_id, kind, title, body, created_at, updated_at
+                "SELECT id, session_id, ai_run_id, kind, title, body, body_json, body_format, metadata_json, created_at, updated_at
                  FROM drafts
                  WHERE id = ?1",
                 [id],

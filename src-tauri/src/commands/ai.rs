@@ -103,6 +103,152 @@ pub struct GenerateAiActionRequest {
     pub reasoning_effort: Option<String>,
     pub action: GenerateAiActionKind,
     pub note_entry_id: Option<String>,
+    pub testware_preferences: Option<TestwareGenerationPreferences>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TestwareTechnique {
+    Auto,
+    UseCase,
+    EquivalenceBoundary,
+    DecisionTable,
+    StateTransition,
+    Pairwise,
+    RiskBased,
+    Exploratory,
+    Bdd,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TestwareOutputFormat {
+    QaCases,
+    Checklist,
+    Gherkin,
+    Charters,
+    CoverageOutline,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TestwareDepth {
+    Lean,
+    Balanced,
+    Thorough,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TestwareGenerationPreferences {
+    pub technique: TestwareTechnique,
+    pub output_format: TestwareOutputFormat,
+    pub depth: TestwareDepth,
+    pub include_negative_cases: bool,
+    pub include_boundary_cases: bool,
+    pub include_test_data: bool,
+    pub preserve_evidence: bool,
+    pub custom_instructions: Option<String>,
+}
+
+impl TestwareTechnique {
+    fn label(self) -> &'static str {
+        match self {
+            TestwareTechnique::Auto => "Auto-select",
+            TestwareTechnique::UseCase => "Use case flows",
+            TestwareTechnique::EquivalenceBoundary => "Equivalence and boundary",
+            TestwareTechnique::DecisionTable => "Decision table",
+            TestwareTechnique::StateTransition => "State transition",
+            TestwareTechnique::Pairwise => "Pairwise coverage",
+            TestwareTechnique::RiskBased => "Risk-based",
+            TestwareTechnique::Exploratory => "Exploratory charters",
+            TestwareTechnique::Bdd => "BDD scenarios",
+        }
+    }
+
+    fn guidance(self) -> &'static str {
+        match self {
+            TestwareTechnique::Auto => {
+                "Inspect the note and choose the strongest fitting technique. State the chosen technique in the output."
+            }
+            TestwareTechnique::UseCase => {
+                "Model the main user or system flows, including happy paths, alternate paths, and exception paths."
+            }
+            TestwareTechnique::EquivalenceBoundary => {
+                "Identify equivalence classes and relevant boundaries. Include valid and invalid partitions, plus min/at/max style checks when the note supports them."
+            }
+            TestwareTechnique::DecisionTable => {
+                "Identify conditions, actions, and rule combinations. Render the table-like coverage as headings and lists, not a literal HTML table."
+            }
+            TestwareTechnique::StateTransition => {
+                "Identify states, events, transitions, and invalid transitions. Cover meaningful state changes and recovery paths."
+            }
+            TestwareTechnique::Pairwise => {
+                "Extract parameters and values, then create a compact pairwise-style scenario set. If dimensions are missing, state assumptions and fall back to scenario coverage."
+            }
+            TestwareTechnique::RiskBased => {
+                "Prioritize cases by likely product risk, impact, likelihood, and recent change complexity. Add concise risk notes per group."
+            }
+            TestwareTechnique::Exploratory => {
+                "Create exploratory charters with mission, risks, setup/data, timebox, checks, and observation prompts."
+            }
+            TestwareTechnique::Bdd => {
+                "Use Gherkin-like Given/When/Then scenario structure in clean HTML, without code fences."
+            }
+        }
+    }
+}
+
+impl TestwareOutputFormat {
+    fn label(self) -> &'static str {
+        match self {
+            TestwareOutputFormat::QaCases => "QA test cases",
+            TestwareOutputFormat::Checklist => "Checklist",
+            TestwareOutputFormat::Gherkin => "Gherkin-style scenarios",
+            TestwareOutputFormat::Charters => "Exploratory charters",
+            TestwareOutputFormat::CoverageOutline => "Coverage outline",
+        }
+    }
+
+    fn guidance(self) -> &'static str {
+        match self {
+            TestwareOutputFormat::QaCases => {
+                "Use h2 scenario groups and h3 test cases. For each case include preconditions, test data, steps, expected result, and coverage notes when applicable."
+            }
+            TestwareOutputFormat::Checklist => {
+                "Use checklist items for executable checks. Keep each item directly testable and include expected results where useful."
+            }
+            TestwareOutputFormat::Gherkin => {
+                "Use Feature/Scenario style content with Given/When/Then phrasing in h2, h3, p, ul, and ol elements."
+            }
+            TestwareOutputFormat::Charters => {
+                "Use exploratory charter sections with mission, scope, risks, setup/data, timebox, and notes to capture observations."
+            }
+            TestwareOutputFormat::CoverageOutline => {
+                "Start with a compact coverage map, then list the concrete cases needed to exercise each area."
+            }
+        }
+    }
+}
+
+impl TestwareDepth {
+    fn label(self) -> &'static str {
+        match self {
+            TestwareDepth::Lean => "Lean",
+            TestwareDepth::Balanced => "Balanced",
+            TestwareDepth::Thorough => "Thorough",
+        }
+    }
+
+    fn guidance(self) -> &'static str {
+        match self {
+            TestwareDepth::Lean => "Target 3-5 high-value cases or charters.",
+            TestwareDepth::Balanced => "Target 6-10 cases or charters when the note supports it.",
+            TestwareDepth::Thorough => {
+                "Target 10-16 cases or charters when the note supports it, with broader negative and edge coverage."
+            }
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -480,6 +626,11 @@ fn prepare_ai_action_generation(
         &attachments,
         request.action.prompt_kind(),
     );
+    if matches!(request.action, GenerateAiActionKind::Testware) {
+        prompt.push_str(&testware_preferences_prompt(
+            request.testware_preferences.as_ref(),
+        ));
+    }
     prompt.push_str(&format!(
         "\n# Provider Request\nAction: {}\nProvider: {}\nModel: {}\nReasoning Effort: {}\n",
         request.action.label(),
@@ -524,6 +675,11 @@ fn finish_ai_action_generation(
                         kind: DraftKind::Testware,
                         title: format!("{} Test Cases", prepared.session_title),
                         body,
+                        body_json: None,
+                        body_format: Some("html".to_string()),
+                        metadata_json: testware_metadata_json(
+                            request.testware_preferences.as_ref(),
+                        ),
                     })?;
                     Ok(GenerateAiActionResult {
                         generation_context: prepared.generation_context,
@@ -543,6 +699,8 @@ fn finish_ai_action_generation(
                         session_id: prepared.session_id.clone(),
                         title: derive_title(&body, "AI Finding"),
                         body,
+                        body_json: None,
+                        body_format: Some("html".to_string()),
                         kind: FindingKind::Bug,
                         metadata_json: None,
                     })?;
@@ -584,6 +742,8 @@ fn finish_ai_action_generation(
                         note_entry_id,
                         EntryPatch {
                             body: Some(body),
+                            body_json: Some(None),
+                            body_format: Some(Some("html".to_string())),
                             ..EntryPatch::default()
                         },
                     )?;
@@ -598,7 +758,7 @@ fn finish_ai_action_generation(
             }
         }
         Ok(output) => {
-            let message = output.failure_message();
+            let message = output.failure_message_for_provider(request.provider);
             let failed_run = service.fail_ai_run(&prepared.ai_run.id, &message)?;
             Ok(GenerateAiActionResult {
                 generation_context: prepared.generation_context,
@@ -619,6 +779,84 @@ fn finish_ai_action_generation(
             })
         }
     }
+}
+
+fn default_testware_preferences() -> TestwareGenerationPreferences {
+    TestwareGenerationPreferences {
+        technique: TestwareTechnique::Auto,
+        output_format: TestwareOutputFormat::QaCases,
+        depth: TestwareDepth::Balanced,
+        include_negative_cases: true,
+        include_boundary_cases: true,
+        include_test_data: true,
+        preserve_evidence: true,
+        custom_instructions: None,
+    }
+}
+
+fn testware_preferences_prompt(preferences: Option<&TestwareGenerationPreferences>) -> String {
+    let default_preferences;
+    let preferences = match preferences {
+        Some(preferences) => preferences,
+        None => {
+            default_preferences = default_testware_preferences();
+            &default_preferences
+        }
+    };
+    let custom_instructions = preferences
+        .custom_instructions
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or("None");
+
+    format!(
+        "\n# Testware Generation Preferences\n\
+Technique: {}\n\
+Technique guidance: {}\n\
+Output format: {}\n\
+Output contract: {}\n\
+Depth: {} - {}\n\
+Include negative cases: {}\n\
+Include boundary cases: {}\n\
+Include test data: {}\n\
+Preserve evidence: {}\n\
+Additional user guidance: {}\n\
+\n\
+Honor these preferences while still using only supplied note material and managed image references. \
+If the selected technique cannot be applied cleanly, say what was missing and use the nearest useful coverage structure.\n",
+        preferences.technique.label(),
+        preferences.technique.guidance(),
+        preferences.output_format.label(),
+        preferences.output_format.guidance(),
+        preferences.depth.label(),
+        preferences.depth.guidance(),
+        yes_no(preferences.include_negative_cases),
+        yes_no(preferences.include_boundary_cases),
+        yes_no(preferences.include_test_data),
+        yes_no(preferences.preserve_evidence),
+        custom_instructions,
+    )
+}
+
+fn yes_no(value: bool) -> &'static str {
+    if value { "yes" } else { "no" }
+}
+
+fn testware_metadata_json(preferences: Option<&TestwareGenerationPreferences>) -> Option<String> {
+    let default_preferences;
+    let preferences = match preferences {
+        Some(preferences) => preferences,
+        None => {
+            default_preferences = default_testware_preferences();
+            &default_preferences
+        }
+    };
+
+    serde_json::to_string(&serde_json::json!({
+        "testwareGeneration": preferences,
+    }))
+    .ok()
 }
 
 fn create_generated_finding_evidence_links(
@@ -724,6 +962,9 @@ pub fn generate_session_report(
                 kind: DraftKind::SessionReport,
                 title: format!("{} Session Report Draft", prepared.session_title),
                 body,
+                body_json: None,
+                body_format: Some("html".to_string()),
+                metadata_json: None,
             })?;
             Ok(GenerateSessionReportResult {
                 generation_context: prepared.generation_context,
@@ -732,7 +973,7 @@ pub fn generate_session_report(
             })
         }
         Ok(output) => {
-            let message = output.failure_message();
+            let message = output.failure_message_for_provider(request.provider);
             let failed_run = service.fail_ai_run(&prepared.ai_run.id, &message)?;
             Ok(GenerateSessionReportResult {
                 generation_context: prepared.generation_context,
@@ -773,12 +1014,13 @@ fn execute_provider_generation(
     let started = Instant::now();
     let output = run_generation_command(&command).map(ProviderGenerationOutput::from);
     eprintln!(
-        "qa-scribe {log_context} provider finished: elapsed_ms={}, success={}",
+        "qa-scribe {log_context} provider finished: elapsed_ms={}, success={}, failure={}",
         started.elapsed().as_millis(),
         output
             .as_ref()
             .map(ProviderGenerationOutput::success)
-            .unwrap_or(false)
+            .unwrap_or(false),
+        output_failure_for_log(&output)
     );
     output
 }
@@ -839,14 +1081,36 @@ fn execute_provider_generation_streaming(
         }
     });
     eprintln!(
-        "qa-scribe {log_context} provider stream finished: elapsed_ms={}, success={}",
+        "qa-scribe {log_context} provider stream finished: elapsed_ms={}, success={}, failure={}",
         started.elapsed().as_millis(),
         output
             .as_ref()
             .map(ProviderGenerationOutput::success)
-            .unwrap_or(false)
+            .unwrap_or(false),
+        output_failure_for_log(&output)
     );
     output
+}
+
+fn output_failure_for_log(output: &Result<ProviderGenerationOutput, String>) -> String {
+    match output {
+        Ok(output) if output.success() => "none".to_string(),
+        Ok(output) => truncate_for_log(&output.failure_message(), 500),
+        Err(error) => truncate_for_log(error, 500),
+    }
+}
+
+fn truncate_for_log(value: &str, max_chars: usize) -> String {
+    let trimmed = value.trim();
+    let mut chars = trimmed.chars();
+    let truncated: String = chars.by_ref().take(max_chars).collect();
+    if chars.next().is_some() {
+        format!("{truncated}...")
+    } else if truncated.is_empty() {
+        "none".to_string()
+    } else {
+        truncated
+    }
 }
 
 fn run_generation_command(command: &GenerationCommand) -> Result<Output, String> {
@@ -995,6 +1259,47 @@ impl ProviderGenerationOutput {
             stderr.trim().to_string()
         }
     }
+
+    fn failure_message_for_provider(&self, provider: AiProvider) -> String {
+        let message = self.failure_message();
+        if provider != AiProvider::CopilotCli {
+            return message;
+        }
+
+        copilot_generation_failure_message(&message).unwrap_or(message)
+    }
+}
+
+fn copilot_generation_failure_message(message: &str) -> Option<String> {
+    let detail = message.to_ascii_lowercase();
+    let auth_required = [
+        "no authentication information found",
+        "authentication failed",
+        "authenticate",
+        "not logged",
+        "unauthorized",
+        "401",
+        "token",
+        "login",
+    ]
+    .iter()
+    .any(|needle| detail.contains(needle));
+    if auth_required {
+        return Some(format!(
+            "GitHub Copilot CLI could not authenticate. Run `copilot login`, or set `COPILOT_GITHUB_TOKEN`, `GH_TOKEN`, or `GITHUB_TOKEN`. Last response: {message}"
+        ));
+    }
+
+    let policy_or_license = ["forbidden", "403", "license", "policy", "copilot requests"]
+        .iter()
+        .any(|needle| detail.contains(needle));
+    if policy_or_license {
+        return Some(format!(
+            "GitHub Copilot CLI was rejected by account, license, or policy settings. Check Copilot CLI access for this GitHub account. Last response: {message}"
+        ));
+    }
+
+    None
 }
 
 impl From<Output> for ProviderGenerationOutput {
@@ -1086,15 +1391,16 @@ impl ProviderStreamParser {
 }
 
 fn stream_event_name(value: &Value) -> Option<String> {
-    ["type", "event", "method"]
-        .iter()
-        .find_map(|key| value.get(*key).and_then(Value::as_str))
-        .map(ToString::to_string)
+    value
+        .get("event")
+        .and_then(stream_event_name)
+        .or_else(|| value.get("message").and_then(stream_event_name))
+        .or_else(|| value.get("msg").and_then(stream_event_name))
         .or_else(|| {
-            value
-                .get("msg")
-                .and_then(stream_event_name)
-                .or_else(|| value.get("message").and_then(stream_event_name))
+            ["type", "method"]
+                .iter()
+                .find_map(|key| value.get(*key).and_then(Value::as_str))
+                .map(ToString::to_string)
         })
 }
 
@@ -1173,7 +1479,10 @@ fn collect_delta_strings(value: &Value, parts: &mut Vec<String>) {
             {
                 parts.push(text.to_string());
             }
-            for nested in map.values() {
+            for (key, nested) in map {
+                if key == "delta" {
+                    continue;
+                }
                 collect_delta_strings(nested, parts);
             }
         }
@@ -1377,7 +1686,8 @@ mod tests {
 
     use super::{
         GenerateAiActionKind, GenerateAiActionRequest, ProviderGenerationOutput,
-        ProviderStreamParser, StreamUpdate, finish_ai_action_generation,
+        ProviderStreamParser, StreamUpdate, TestwareDepth, TestwareGenerationPreferences,
+        TestwareOutputFormat, TestwareTechnique, finish_ai_action_generation,
         prepare_ai_action_generation,
     };
 
@@ -1403,6 +1713,25 @@ mod tests {
         parser.push_bytes(br##"{"type":"result","result":"# Final draft"}"##);
 
         assert_eq!(parser.finish().as_deref(), Some("# Final draft"));
+    }
+
+    #[test]
+    fn stream_parser_handles_verbose_claude_text_events() {
+        let mut parser = ProviderStreamParser::new(GenerationOutputFormat::ClaudeStreamJson);
+
+        parser.push_bytes(br#"{"type":"system","subtype":"init","model":"claude"}"#);
+        parser.push_bytes(
+            br#"{"type":"stream_event","event":{"type":"content_block_delta","delta":{"type":"thinking_delta","thinking":"reasoning"}}}"#,
+        );
+        let updates = parser.push_bytes(
+            br#"{"type":"stream_event","event":{"type":"content_block_delta","delta":{"type":"text_delta","text":"<p>ok</p>"}}}"#,
+        );
+
+        assert!(matches!(
+            updates.last(),
+            Some(StreamUpdate::Partial(body)) if body == "<p>ok</p>"
+        ));
+        assert_eq!(parser.finish().as_deref(), Some("<p>ok</p>"));
     }
 
     #[test]
@@ -1458,6 +1787,8 @@ mod tests {
                 entry_type: EntryType::Note,
                 title: Some("Gmail login".to_string()),
                 body: "<p>Gmail login fails.</p>".to_string(),
+                body_json: None,
+                body_format: Some("html".to_string()),
                 metadata_json: None,
                 excluded_from_generation: false,
             })
@@ -1492,6 +1823,7 @@ mod tests {
             reasoning_effort: None,
             action: GenerateAiActionKind::Finding,
             note_entry_id: Some(note.id.clone()),
+            testware_preferences: None,
         };
         let prepared =
             prepare_ai_action_generation(&service, &request).expect("generation should prepare");
@@ -1552,6 +1884,8 @@ mod tests {
                 entry_type: EntryType::Note,
                 title: Some("Gmail login".to_string()),
                 body: "<p>Gmail login fails.</p>".to_string(),
+                body_json: None,
+                body_format: Some("html".to_string()),
                 metadata_json: None,
                 excluded_from_generation: false,
             })
@@ -1586,6 +1920,7 @@ mod tests {
             reasoning_effort: None,
             action: GenerateAiActionKind::Testware,
             note_entry_id: Some(note.id.clone()),
+            testware_preferences: None,
         };
         let prepared =
             prepare_ai_action_generation(&service, &request).expect("generation should prepare");
@@ -1614,6 +1949,156 @@ mod tests {
         assert!(draft.body.contains("alt=\"Gmail error\""));
     }
 
+    #[test]
+    fn testware_preferences_are_added_to_prompt_and_draft_metadata() {
+        let service = SessionService::in_memory().expect("service should open");
+        let session = service
+            .create_session(SessionDraft {
+                title: "Checkout rules".to_string(),
+                ..SessionDraft::default()
+            })
+            .expect("session should create");
+        let note = service
+            .create_entry(EntryDraft {
+                session_id: session.id.clone(),
+                entry_type: EntryType::Note,
+                title: Some("Checkout rules".to_string()),
+                body: "<p>Discounts depend on country and basket total.</p>".to_string(),
+                body_json: None,
+                body_format: Some("html".to_string()),
+                metadata_json: None,
+                excluded_from_generation: false,
+            })
+            .expect("note should create");
+        let preferences = TestwareGenerationPreferences {
+            technique: TestwareTechnique::DecisionTable,
+            output_format: TestwareOutputFormat::CoverageOutline,
+            depth: TestwareDepth::Thorough,
+            include_negative_cases: true,
+            include_boundary_cases: true,
+            include_test_data: false,
+            preserve_evidence: true,
+            custom_instructions: Some(
+                "Prioritize country and basket total combinations.".to_string(),
+            ),
+        };
+        let request = GenerateAiActionRequest {
+            session_id: session.id.clone(),
+            provider: AiProvider::CodexCli,
+            model: "test-model".to_string(),
+            reasoning_effort: None,
+            action: GenerateAiActionKind::Testware,
+            note_entry_id: Some(note.id),
+            testware_preferences: Some(preferences),
+        };
+        let prepared =
+            prepare_ai_action_generation(&service, &request).expect("generation should prepare");
+
+        assert!(prepared.prompt.contains("Decision table"));
+        assert!(prepared.prompt.contains("Coverage outline"));
+        assert!(
+            prepared
+                .prompt
+                .contains("Prioritize country and basket total combinations.")
+        );
+
+        let result = finish_ai_action_generation(
+            &service,
+            &request,
+            prepared,
+            Ok(success_generation_output("<h2>Coverage</h2><p>Case.</p>")),
+        )
+        .expect("generation should finish");
+        let metadata = result
+            .draft
+            .expect("testware draft")
+            .metadata_json
+            .expect("testware metadata");
+        assert!(metadata.contains("\"technique\":\"decision_table\""));
+        assert!(metadata.contains("\"outputFormat\":\"coverage_outline\""));
+        assert!(metadata.contains("\"includeTestData\":false"));
+    }
+
+    #[test]
+    fn summary_completion_preserves_managed_screenshots_on_note_overwrite() {
+        let service = SessionService::in_memory().expect("service should open");
+        let session = service
+            .create_session(SessionDraft {
+                title: "Gmail login".to_string(),
+                ..SessionDraft::default()
+            })
+            .expect("session should create");
+        let note = service
+            .create_entry(EntryDraft {
+                session_id: session.id.clone(),
+                entry_type: EntryType::Note,
+                title: Some("Gmail login".to_string()),
+                body: "<p>Gmail login fails.</p>".to_string(),
+                body_json: None,
+                body_format: Some("html".to_string()),
+                metadata_json: None,
+                excluded_from_generation: false,
+            })
+            .expect("note should create");
+        let attachment = service
+            .create_attachment(AttachmentDraft {
+                session_id: session.id.clone(),
+                entry_id: Some(note.id.clone()),
+                filename: "gmail-error.png".to_string(),
+                mime_type: Some("image/png".to_string()),
+                size_bytes: 123,
+                sha256: "a".repeat(64),
+                relative_path: "attachments/session/gmail-error.png".to_string(),
+            })
+            .expect("attachment should create");
+        let note = service
+            .update_entry(
+                &note.id,
+                EntryPatch {
+                    body: Some(format!(
+                        "<p>Gmail login fails.</p><img src=\"qa-scribe-attachment://{}\" data-attachment-id=\"{}\" alt=\"Gmail error\" />",
+                        attachment.id, attachment.id
+                    )),
+                    ..EntryPatch::default()
+                },
+            )
+            .expect("note should update");
+        let request = GenerateAiActionRequest {
+            session_id: session.id.clone(),
+            provider: AiProvider::CodexCli,
+            model: "test-model".to_string(),
+            reasoning_effort: None,
+            action: GenerateAiActionKind::Summary,
+            note_entry_id: Some(note.id.clone()),
+            testware_preferences: None,
+        };
+        let prepared =
+            prepare_ai_action_generation(&service, &request).expect("generation should prepare");
+
+        let result = finish_ai_action_generation(
+            &service,
+            &request,
+            prepared,
+            Ok(success_generation_output(
+                "<h2>Summary</h2><p>Gmail login fails with an error.</p>",
+            )),
+        )
+        .expect("generation should finish");
+
+        let note_entry = result.note_entry.expect("note entry should update");
+        assert!(
+            note_entry
+                .body
+                .contains(&format!("qa-scribe-attachment://{}", attachment.id))
+        );
+        assert!(
+            note_entry
+                .body
+                .contains(&format!("data-attachment-id=\"{}\"", attachment.id))
+        );
+        assert!(note_entry.body.contains("alt=\"Gmail error\""));
+    }
+
     fn finish_action_with_output(
         action: GenerateAiActionKind,
         response: &str,
@@ -1631,6 +2116,8 @@ mod tests {
                 entry_type: EntryType::Note,
                 title: Some("Gmail login".to_string()),
                 body: "<p>Gmail login fails.</p>".to_string(),
+                body_json: None,
+                body_format: Some("html".to_string()),
                 metadata_json: None,
                 excluded_from_generation: false,
             })
@@ -1642,6 +2129,7 @@ mod tests {
             reasoning_effort: None,
             action,
             note_entry_id: Some(note.id),
+            testware_preferences: None,
         };
         let prepared =
             prepare_ai_action_generation(&service, &request).expect("generation should prepare");
@@ -1663,5 +2151,38 @@ mod tests {
             assistant_text: None,
             cancelled: false,
         }
+    }
+
+    #[test]
+    fn copilot_generation_auth_failure_gets_actionable_message() {
+        let output = ProviderGenerationOutput {
+            status: Some(ExitStatus::from_raw(1)),
+            stdout: Vec::new(),
+            stderr: b"Error: No authentication information found".to_vec(),
+            assistant_text: None,
+            cancelled: false,
+        };
+
+        let message = output.failure_message_for_provider(AiProvider::CopilotCli);
+
+        assert!(message.contains("copilot login"));
+        assert!(message.contains("COPILOT_GITHUB_TOKEN"));
+        assert!(message.contains("No authentication information found"));
+    }
+
+    #[test]
+    fn non_copilot_generation_failure_stays_raw() {
+        let output = ProviderGenerationOutput {
+            status: Some(ExitStatus::from_raw(1)),
+            stdout: Vec::new(),
+            stderr: b"Error: No authentication information found".to_vec(),
+            assistant_text: None,
+            cancelled: false,
+        };
+
+        assert_eq!(
+            output.failure_message_for_provider(AiProvider::CodexCli),
+            "Error: No authentication information found"
+        );
     }
 }

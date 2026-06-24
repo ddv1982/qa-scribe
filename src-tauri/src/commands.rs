@@ -23,7 +23,7 @@ pub use findings::{
 pub use generation::{
     create_ai_run, create_draft, create_generation_context, delete_draft, list_drafts, update_draft,
 };
-pub use providers::get_provider_status;
+pub use providers::{get_provider_status, refresh_provider_status};
 pub use sessions::{
     create_session, delete_session, get_session, list_sessions, reopen_session, update_session,
 };

@@ -19,7 +19,6 @@ import {
   deleteFinding,
   deleteSession,
   cancelAiActionJob,
-  getProviderStatus,
   getSettings,
   importClipboardScreenshot,
   listDrafts,
@@ -39,19 +38,28 @@ import {
   type GenerationJobEvent,
   type GenerationJobStatus,
   type Session,
+  type TestwareGenerationPreferences,
 } from './tauri'
 import { RailItem } from './components/Common'
 import { ThemeToggle } from './components/ThemeToggle'
 import {
   containsInlineImageData,
-  emptyEditorHtml,
   inlineImageFilename,
   managedAttachmentProtocol,
-  normalizeEditorHtml,
   pastedImageFilename,
   readFileAsDataUrl,
-  stripHtml,
 } from './editor/editorHtml'
+import {
+  emptyRichEditorDocument,
+  preserveManagedImageNodes,
+  richEditorDocumentFromHtml,
+  richEditorDocumentFromStoredBody,
+  richEditorDocumentToHtml,
+  richEditorDocumentToPlainText,
+  richEditorDocumentToStoredBody,
+  serializeRichEditorDocument,
+  type RichEditorDocument,
+} from './editor/editorDocument'
 import {
   countWords,
   formatError,
@@ -80,6 +88,11 @@ type CopiedTarget =
   | { kind: 'draft'; id: string; action: CopiedTargetAction }
   | { kind: 'finding'; id: string; action: CopiedTargetAction }
 
+type LatestNoteGenerationUndo = {
+  entryId: string
+  before: RichEditorDocument
+}
+
 function generationIsActive(job: GenerationJobStatus): boolean {
   return job.state === 'starting' || job.state === 'running' || job.state === 'cancelling'
 }
@@ -91,7 +104,7 @@ export function App() {
   const [drafts, setDrafts] = useState<Draft[]>([])
   const [findings, setFindings] = useState<Finding[]>([])
   const [noteTitle, setNoteTitle] = useState('')
-  const [noteBody, setNoteBody] = useState(emptyEditorHtml)
+  const [noteBody, setNoteBody] = useState<RichEditorDocument>(emptyRichEditorDocument)
   const [generationJobs, setGenerationJobs] = useState<Record<string, GenerationJobStatus>>({})
   const [busyAction, setBusyAction] = useState<BusyAction | null>('boot')
   const [copiedTarget, setCopiedTarget] = useState<CopiedTarget | null>(null)
@@ -101,9 +114,12 @@ export function App() {
   const [activeView, setActiveView] = useState<WorkspaceView>('notes')
   const [pendingGenerationAction, setPendingGenerationAction] = useState<GenerateAiActionKind | null>(null)
   const [deleteConfirmation, setDeleteConfirmation] = useState<DeleteConfirmation | null>(null)
+  const [latestNoteGenerationUndo, setLatestNoteGenerationUndo] = useState<LatestNoteGenerationUndo | null>(null)
 
   const savedTitleRef = useRef('')
-  const savedBodyRef = useRef(emptyEditorHtml)
+  const savedBodyRef = useRef(serializeRichEditorDocument(emptyRichEditorDocument))
+  const noteBodyRef = useRef<RichEditorDocument>(emptyRichEditorDocument)
+  const noteBodyWriteVersionRef = useRef(0)
   const deletingSessionIdRef = useRef<string | null>(null)
   const activeSessionIdRef = useRef<string | null>(null)
   const noteEntryIdRef = useRef<string | null>(null)
@@ -111,14 +127,13 @@ export function App() {
   const bootedRef = useRef(false)
   const {
     activeProvider,
-    handleProviderChange,
+    loadProviderStatus,
     loadSettings,
-    providerOptions,
     providerStatus,
+    refreshProviderStatus,
     selectedModel,
     selectedProvider,
     selectedReasoningEffort,
-    setSelectedModel,
     setTheme,
     settingsDraft,
     settingsSaveState,
@@ -128,9 +143,10 @@ export function App() {
   } = useSettingsController({ bootedRef, setError, setNotice })
 
   const testwareDrafts = drafts.filter((draft) => draft.kind === 'testware')
+  const noteBodyHtml = useMemo(() => richEditorDocumentToHtml(noteBody), [noteBody])
   const noteScreenshotCount = useMemo(
-    () => managedAttachmentReferencesForClipboard({ title: noteTitle, bodyHtml: noteBody }).length,
-    [noteBody, noteTitle],
+    () => managedAttachmentReferencesForClipboard({ title: noteTitle, bodyHtml: noteBodyHtml }).length,
+    [noteBodyHtml, noteTitle],
   )
   const draftScreenshotCounts = useMemo(
     () =>
@@ -157,7 +173,7 @@ export function App() {
     if (!query) return sessions
     return sessions.filter((session) => session.title.toLocaleLowerCase().includes(query))
   }, [sessions, searchQuery])
-  const noteWordCount = countWords(stripHtml(noteBody))
+  const noteWordCount = countWords(richEditorDocumentToPlainText(noteBody))
   const noteIsReady = Boolean(activeSession && noteEntry)
   const isBusy = busyAction !== null
   const deleteCopy = deleteConfirmation ? deleteConfirmationCopy(deleteConfirmation) : null
@@ -178,6 +194,10 @@ export function App() {
   }, [activeSession?.id, noteEntry?.id])
 
   useEffect(() => {
+    noteBodyRef.current = noteBody
+  }, [noteBody])
+
+  useEffect(() => {
     return () => {
       if (copySuccessResetRef.current) window.clearTimeout(copySuccessResetRef.current)
     }
@@ -187,8 +207,8 @@ export function App() {
     try {
       setBusyAction('boot')
       setError(null)
-      const [nextSettings, nextProviderStatus, nextSessions] = await Promise.all([getSettings(), getProviderStatus(), listSessions()])
-      loadSettings(nextSettings, nextProviderStatus)
+      const [nextSettings, nextSessions] = await Promise.all([getSettings(), listSessions()])
+      loadSettings(nextSettings)
       setSessions(nextSessions)
       bootedRef.current = true
       if (nextSessions[0]) {
@@ -196,10 +216,21 @@ export function App() {
       } else {
         setNotice('Create a note to start')
       }
+      window.setTimeout(() => {
+        void loadProviderStatusAfterBoot()
+      }, 0)
     } catch (cause) {
       setError(formatError(cause))
     } finally {
       setBusyAction(null)
+    }
+  }
+
+  async function loadProviderStatusAfterBoot() {
+    try {
+      await loadProviderStatus()
+    } catch (cause) {
+      setError(formatError(cause))
     }
   }
 
@@ -215,14 +246,17 @@ export function App() {
       ])
       const editableNote = await ensureNoteEntry(reopened.id, nextEntries)
 
+      noteBodyWriteVersionRef.current += 1
       setActiveSession(reopened)
       setNoteEntry(editableNote)
+      setLatestNoteGenerationUndo(null)
       setDrafts(nextDrafts)
       setFindings(nextFindings)
       setNoteTitle(reopened.title)
-      setNoteBody(normalizeEditorHtml(editableNote.body))
+      const noteDocument = richEditorDocumentFromStoredBody(editableNote)
+      setNoteBody(noteDocument)
       savedTitleRef.current = reopened.title
-      savedBodyRef.current = normalizeEditorHtml(editableNote.body)
+      savedBodyRef.current = serializeRichEditorDocument(noteDocument)
       setActiveView('notes')
       if (showNotice) setNotice(`Opened ${reopened.title}`)
     } catch (cause) {
@@ -239,7 +273,7 @@ export function App() {
       sessionId,
       entryType: 'note',
       title: 'Note body',
-      body: emptyEditorHtml,
+      ...richEditorDocumentToStoredBody(emptyRichEditorDocument),
       metadataJson: null,
       excludedFromGeneration: false,
     })
@@ -255,20 +289,22 @@ export function App() {
         sessionId: session.id,
         entryType: 'note',
         title: 'Note body',
-        body: emptyEditorHtml,
+        ...richEditorDocumentToStoredBody(emptyRichEditorDocument),
         metadataJson: null,
         excludedFromGeneration: false,
       })
       const nextSessions = await listSessions()
+      noteBodyWriteVersionRef.current += 1
       setSessions(nextSessions)
       setActiveSession(session)
       setNoteEntry(editableNote)
+      setLatestNoteGenerationUndo(null)
       setDrafts([])
       setFindings([])
       setNoteTitle(session.title)
-      setNoteBody(emptyEditorHtml)
+      setNoteBody(emptyRichEditorDocument)
       savedTitleRef.current = session.title
-      savedBodyRef.current = emptyEditorHtml
+      savedBodyRef.current = serializeRichEditorDocument(emptyRichEditorDocument)
       setActiveView('notes')
       setNotice('New note created')
     } catch (cause) {
@@ -279,14 +315,16 @@ export function App() {
   }
 
   function clearActiveNoteState() {
+    noteBodyWriteVersionRef.current += 1
     setActiveSession(null)
     setNoteEntry(null)
+    setLatestNoteGenerationUndo(null)
     setDrafts([])
     setFindings([])
     setNoteTitle('')
-    setNoteBody(emptyEditorHtml)
+    setNoteBody(emptyRichEditorDocument)
     savedTitleRef.current = ''
-    savedBodyRef.current = emptyEditorHtml
+    savedBodyRef.current = serializeRichEditorDocument(emptyRichEditorDocument)
   }
 
   function requestDeleteNote() {
@@ -336,30 +374,34 @@ export function App() {
     }
   }
 
-  async function saveBody(body: string): Promise<boolean> {
+  async function saveBody(body: RichEditorDocument): Promise<boolean> {
     if (!noteEntry || deletingSessionIdRef.current === noteEntry.sessionId) return false
-    if (body.length > noteBodyMaxLength) {
+    const storedBody = richEditorDocumentToStoredBody(body)
+    if (storedBody.body.length > noteBodyMaxLength) {
       setError('Note is too large to autosave. This usually means an image was embedded directly in the note; paste images again so QA Scribe can store them as attachments.')
       return false
     }
+    const writeVersion = ++noteBodyWriteVersionRef.current
     try {
       setBusyAction('save-body')
-      const saved = await updateEntry(noteEntry.id, { body })
-      savedBodyRef.current = saved.body
+      const saved = await updateEntry(noteEntry.id, storedBody)
+      if (writeVersion !== noteBodyWriteVersionRef.current) return true
+      savedBodyRef.current = serializeRichEditorDocument(richEditorDocumentFromStoredBody(saved))
       setNoteEntry(saved)
       setNotice('Note saved')
       return true
     } catch (cause) {
+      if (writeVersion !== noteBodyWriteVersionRef.current) return true
       setError(formatError(cause))
       return false
     } finally {
-      setBusyAction(null)
+      if (writeVersion === noteBodyWriteVersionRef.current) setBusyAction(null)
     }
   }
 
   async function saveNoteNow(): Promise<boolean> {
     const title = noteTitle.trim()
-    let body: string
+    let body: RichEditorDocument
     try {
       body = await materializeInlineImages(noteBody)
     } catch (cause) {
@@ -370,7 +412,7 @@ export function App() {
     if (activeSession && title && title !== savedTitleRef.current) {
       saved = (await saveTitle(title)) && saved
     }
-    if (noteEntry && body !== savedBodyRef.current) {
+    if (noteEntry && serializeRichEditorDocument(body) !== savedBodyRef.current) {
       saved = (await saveBody(body)) && saved
     }
     return saved
@@ -394,6 +436,56 @@ export function App() {
       if (exists) return previous.map((item) => (item.id === finding.id ? finding : item))
       return [finding, ...previous]
     })
+  }
+
+  function applyGeneratedNoteEntry(generatedEntry: Entry) {
+    const previousBody = noteBodyRef.current
+    const generatedBody = richEditorDocumentFromStoredBody(generatedEntry)
+    const nextBody = preserveManagedImageNodes(previousBody, generatedBody)
+    const storedBody = richEditorDocumentToStoredBody(nextBody)
+    const richNoteEntry = { ...generatedEntry, ...storedBody }
+    const writeVersion = ++noteBodyWriteVersionRef.current
+
+    setLatestNoteGenerationUndo({ entryId: richNoteEntry.id, before: previousBody })
+    setNoteEntry(richNoteEntry)
+    setNoteBody(nextBody)
+    savedBodyRef.current = serializeRichEditorDocument(nextBody)
+    void updateEntry(richNoteEntry.id, storedBody)
+      .then((saved) => {
+        if (writeVersion !== noteBodyWriteVersionRef.current) return
+        setNoteEntry(saved)
+        savedBodyRef.current = serializeRichEditorDocument(richEditorDocumentFromStoredBody(saved))
+      })
+      .catch((cause) => {
+        if (writeVersion === noteBodyWriteVersionRef.current) setError(formatError(cause))
+      })
+    setNotice('Note summarized')
+  }
+
+  async function handleUndoLatestNoteGeneration() {
+    if (!latestNoteGenerationUndo || noteEntry?.id !== latestNoteGenerationUndo.entryId) return
+    const undo = latestNoteGenerationUndo
+    const storedBody = richEditorDocumentToStoredBody(undo.before)
+    const writeVersion = ++noteBodyWriteVersionRef.current
+
+    try {
+      setBusyAction('undo-generation')
+      setError(null)
+      setLatestNoteGenerationUndo(null)
+      setNoteBody(undo.before)
+      savedBodyRef.current = serializeRichEditorDocument(undo.before)
+      const saved = await updateEntry(undo.entryId, storedBody)
+      if (writeVersion !== noteBodyWriteVersionRef.current) return
+      setNoteEntry(saved)
+      savedBodyRef.current = serializeRichEditorDocument(richEditorDocumentFromStoredBody(saved))
+      setNotice('Generation undone')
+    } catch (cause) {
+      if (writeVersion !== noteBodyWriteVersionRef.current) return
+      setError(formatError(cause))
+      setLatestNoteGenerationUndo(undo)
+    } finally {
+      if (writeVersion === noteBodyWriteVersionRef.current) setBusyAction(null)
+    }
   }
 
   function applyGenerationEvent(event: GenerationJobEvent) {
@@ -426,30 +518,39 @@ export function App() {
 
     const { result } = event
     if (result.draft && activeSessionIdRef.current === result.draft.sessionId) {
-      mergeDraft(result.draft)
+      const draftDocument = richEditorDocumentFromStoredBody(result.draft)
+      const storedBody = richEditorDocumentToStoredBody(draftDocument)
+      const richDraft = { ...result.draft, ...storedBody }
+      mergeDraft(richDraft)
+      void updateDraft(richDraft.id, storedBody)
+        .then(mergeDraft)
+        .catch((cause) => setError(formatError(cause)))
       setActiveView('testware')
       setNotice('Testware generated')
     } else if (result.finding && activeSessionIdRef.current === result.finding.sessionId) {
-      mergeFinding(result.finding)
+      const findingDocument = richEditorDocumentFromStoredBody(result.finding)
+      const storedBody = richEditorDocumentToStoredBody(findingDocument)
+      const richFinding = { ...result.finding, ...storedBody }
+      mergeFinding(richFinding)
+      void updateFinding(richFinding.id, storedBody)
+        .then(mergeFinding)
+        .catch((cause) => setError(formatError(cause)))
       setActiveView('findings')
       setNotice('Finding created')
     } else if (result.noteEntry && noteEntryIdRef.current === result.noteEntry.id) {
-      const body = normalizeEditorHtml(result.noteEntry.body)
-      setNoteEntry(result.noteEntry)
-      setNoteBody(body)
-      savedBodyRef.current = body
-      setNotice('Note summarized')
+      applyGeneratedNoteEntry(result.noteEntry)
     } else {
       setNotice(result.aiRun.errorMessage ?? 'AI action finished')
     }
   }
 
-  async function handleAiAction(action: GenerateAiActionKind) {
+  async function handleAiAction(action: GenerateAiActionKind, testwarePreferences?: TestwareGenerationPreferences) {
     if (!activeSession || !noteEntry) return
     const busy = action === 'testware' ? 'ai-testware' : action === 'finding' ? 'ai-finding' : 'ai-summary'
     try {
       setBusyAction(busy)
       setError(null)
+      setLatestNoteGenerationUndo(null)
       const saved = await saveNoteNow()
       if (!saved) return
       const started = await startAiActionJob(
@@ -460,6 +561,7 @@ export function App() {
           reasoningEffort: selectedReasoningEffort,
           action,
           noteEntryId: noteEntry.id,
+          testwarePreferences: action === 'testware' ? testwarePreferences ?? null : null,
         },
         applyGenerationEvent,
       )
@@ -490,6 +592,19 @@ export function App() {
     }
   }
 
+  async function handleRefreshProviderStatus() {
+    try {
+      setBusyAction('refresh-providers')
+      setError(null)
+      await refreshProviderStatus()
+      setNotice('Provider status refreshed')
+    } catch (cause) {
+      setError(formatError(cause))
+    } finally {
+      setBusyAction(null)
+    }
+  }
+
   async function handleManualTestware() {
     if (!activeSession) return
     try {
@@ -502,7 +617,8 @@ export function App() {
         aiRunId: null,
         kind: 'testware',
         title: nextUntitledRecordTitle(testwareDrafts, 'Untitled testware'),
-        body: emptyEditorHtml,
+        ...richEditorDocumentToStoredBody(emptyRichEditorDocument),
+        metadataJson: null,
       })
       setDrafts(await listDrafts(activeSession.id))
       setActiveView('testware')
@@ -526,7 +642,8 @@ export function App() {
         aiRunId: null,
         kind: 'testware',
         title: nextUntitledRecordTitle(testwareDrafts, 'Untitled testware'),
-        body: renderPrefilledTestware(activeSession.title, noteBody),
+        ...richEditorDocumentToStoredBody(richEditorDocumentFromHtml(renderPrefilledTestware(activeSession.title, noteBodyHtml))),
+        metadataJson: null,
       })
       setDrafts(await listDrafts(activeSession.id))
       setActiveView('testware')
@@ -548,7 +665,7 @@ export function App() {
       await createFinding({
         sessionId: activeSession.id,
         title: nextUntitledRecordTitle(findings, 'Untitled finding'),
-        body: emptyEditorHtml,
+        ...richEditorDocumentToStoredBody(emptyRichEditorDocument),
         kind: 'bug',
         metadataJson: null,
       })
@@ -572,7 +689,7 @@ export function App() {
       await createFinding({
         sessionId: activeSession.id,
         title: nextUntitledRecordTitle(findings, 'Untitled finding'),
-        body: renderPrefilledFinding(noteBody),
+        ...richEditorDocumentToStoredBody(richEditorDocumentFromHtml(renderPrefilledFinding(noteBodyHtml))),
         kind: 'bug',
         metadataJson: null,
       })
@@ -590,7 +707,7 @@ export function App() {
     try {
       setBusyAction(`draft:${draft.id}`)
       setError(null)
-      const saved = await updateDraft(draft.id, { title: draft.title, body: draft.body })
+      const saved = await updateDraft(draft.id, { title: draft.title, body: draft.body, bodyJson: draft.bodyJson, bodyFormat: draft.bodyFormat })
       setDrafts((previous) => previous.map((item) => (item.id === saved.id ? saved : item)))
       setNotice('Testware saved')
     } catch (cause) {
@@ -600,7 +717,7 @@ export function App() {
     }
   }
 
-  function updateLocalDraft(id: string, patch: Partial<Pick<Draft, 'title' | 'body'>>) {
+  function updateLocalDraft(id: string, patch: Partial<Pick<Draft, 'title' | 'body' | 'bodyJson' | 'bodyFormat'>>) {
     setDrafts((previous) => previous.map((draft) => (draft.id === id ? { ...draft, ...patch } : draft)))
   }
 
@@ -608,7 +725,7 @@ export function App() {
     try {
       setBusyAction(`finding:${finding.id}`)
       setError(null)
-      const saved = await updateFinding(finding.id, { title: finding.title, body: finding.body })
+      const saved = await updateFinding(finding.id, { title: finding.title, body: finding.body, bodyJson: finding.bodyJson, bodyFormat: finding.bodyFormat })
       setFindings((previous) => previous.map((item) => (item.id === saved.id ? saved : item)))
       setNotice('Finding saved')
     } catch (cause) {
@@ -618,7 +735,7 @@ export function App() {
     }
   }
 
-  function updateLocalFinding(id: string, patch: Partial<Pick<Finding, 'title' | 'body'>>) {
+  function updateLocalFinding(id: string, patch: Partial<Pick<Finding, 'title' | 'body' | 'bodyJson' | 'bodyFormat'>>) {
     setFindings((previous) => previous.map((finding) => (finding.id === id ? { ...finding, ...patch } : finding)))
   }
 
@@ -646,7 +763,7 @@ export function App() {
       clearCopiedTarget()
       setBusyAction('copy-note')
       setError(null)
-      await copyRecordForJira({ title: noteTitle, bodyHtml: noteBody })
+      await copyRecordForJira({ title: noteTitle, bodyHtml: noteBodyHtml })
       markCopiedTarget({ kind: 'note', id: sessionId, action: 'jira-text' })
       setNotice('Note copied for Jira')
     } catch (cause) {
@@ -715,7 +832,7 @@ export function App() {
   async function handleCopyNoteScreenshotForJira() {
     if (!activeSession) return
     await copyFirstScreenshotForJira(
-      { title: noteTitle, bodyHtml: noteBody },
+      { title: noteTitle, bodyHtml: noteBodyHtml },
       { kind: 'note', id: activeSession.id, action: 'screenshot' },
       'copy-note-screenshot',
       'Note screenshot copied',
@@ -871,9 +988,10 @@ export function App() {
     }
   }
 
-  async function materializeInlineImages(html: string): Promise<string> {
+  async function materializeInlineImages(document: RichEditorDocument): Promise<RichEditorDocument> {
+    const html = richEditorDocumentToHtml(document)
     if (!activeSession || !noteEntry || !containsInlineImageData(html)) {
-      return normalizeEditorHtml(html)
+      return document
     }
 
     const documentFragment = new DOMParser().parseFromString(html, 'text/html')
@@ -899,7 +1017,7 @@ export function App() {
       image.removeAttribute('srcset')
     }
 
-    const body = normalizeEditorHtml(documentFragment.body.innerHTML)
+    const body = richEditorDocumentFromHtml(documentFragment.body.innerHTML)
     setNoteBody(body)
     return body
   }
@@ -924,7 +1042,7 @@ export function App() {
 
   useEffect(() => {
     if (!noteEntry || !bootedRef.current) return
-    const nextBody = normalizeEditorHtml(noteBody)
+    const nextBody = serializeRichEditorDocument(noteBody)
     if (nextBody === savedBodyRef.current) return
 
     const timeout = window.setTimeout(() => {
@@ -999,6 +1117,7 @@ export function App() {
             activeProviderAvailable={Boolean(activeProvider?.available)}
             activeSession={activeSession}
             busyAction={busyAction}
+            canUndoLatestGeneration={Boolean(latestNoteGenerationUndo && noteEntry?.id === latestNoteGenerationUndo.entryId)}
             copySucceeded={Boolean(activeSession && copiedTarget?.kind === 'note' && copiedTarget.id === activeSession.id && copiedTarget.action === 'jira-text')}
             screenshotCopySucceeded={Boolean(activeSession && copiedTarget?.kind === 'note' && copiedTarget.id === activeSession.id && copiedTarget.action === 'screenshot')}
             filteredSessions={filteredSessions}
@@ -1011,12 +1130,10 @@ export function App() {
             notice={notice}
             error={error}
             pendingAiActions={pendingAiActions}
-            providerOptions={providerOptions}
             selectedProvider={selectedProvider}
             selectedModel={selectedModel}
             activeProvider={activeProvider}
-            onProviderChange={handleProviderChange}
-            onModelChange={setSelectedModel}
+            onUndoLatestGeneration={handleUndoLatestNoteGeneration}
             onAiAction={(action) => {
               setPendingGenerationAction(action)
               return Promise.resolve()
@@ -1025,7 +1142,10 @@ export function App() {
             onCopyNoteScreenshot={handleCopyNoteScreenshotForJira}
             onDeleteNote={requestDeleteNote}
             onOpenNote={openNote}
-            onSetNoteBody={setNoteBody}
+            onSetNoteBody={(value) => {
+              setLatestNoteGenerationUndo(null)
+              setNoteBody(value)
+            }}
             onSetNoteTitle={setNoteTitle}
             onUploadImage={(input) => {
               if (!noteEntry) {
@@ -1093,6 +1213,7 @@ export function App() {
             updateSettingsDraft={updateSettingsDraft}
             setTheme={setTheme}
             onSaveSettings={handleSaveSettings}
+            onRefreshProviderStatus={handleRefreshProviderStatus}
           />
         ) : null}
       </section>
@@ -1128,10 +1249,10 @@ export function App() {
           activeProviderAvailable={Boolean(activeProvider?.available)}
           selectedModel={selectedModel.trim() || 'default'}
           onCancel={() => setPendingGenerationAction(null)}
-          onConfirm={() => {
+          onConfirm={(testwarePreferences) => {
             const action = pendingGenerationAction
             setPendingGenerationAction(null)
-            void handleAiAction(action)
+            void handleAiAction(action, testwarePreferences)
           }}
         />
       ) : null}

@@ -1,36 +1,22 @@
 import { ClipboardCheck } from 'lucide-react'
-import { EmptyCollection, SaveSettingsButton } from '../components/Common'
+import { EmptyCollection } from '../components/Common'
 import type { AppSettings } from '../tauri'
-import type { BusyAction, SettingsSaveState } from '../ui/types'
 
 export function TemplatesView({
-  busyAction,
   settingsDraft,
-  settingsSaveState,
   updateSettingsDraft,
-  onSaveSettings,
 }: {
-  busyAction: BusyAction | null
   settingsDraft: AppSettings | null
-  settingsSaveState: SettingsSaveState
   updateSettingsDraft: (patch: Partial<AppSettings>) => void
-  onSaveSettings: () => Promise<void>
 }) {
   if (!settingsDraft) return <EmptyCollection icon={ClipboardCheck} title="Templates unavailable" />
 
   return (
     <section className="template-view">
-      <header className="collection-header">
-        <div>
-          <p className="eyebrow">AI templates</p>
-          <h1>AI-generated output structure</h1>
-        </div>
-        <SaveSettingsButton label="Save AI templates" busyAction={busyAction} disabled={busyAction !== null} state={settingsSaveState} onSave={onSaveSettings} />
-      </header>
       <div className="template-grid">
-        <TemplateField label="AI testware" value={settingsDraft.testwareTemplate} onChange={(value) => updateSettingsDraft({ testwareTemplate: value })} />
-        <TemplateField label="AI findings" value={settingsDraft.findingTemplate} onChange={(value) => updateSettingsDraft({ findingTemplate: value })} />
-        <TemplateField label="AI note summary" value={settingsDraft.noteSummaryTemplate} onChange={(value) => updateSettingsDraft({ noteSummaryTemplate: value })} />
+        <TemplateField label="Testware output" value={settingsDraft.testwareTemplate} onChange={(value) => updateSettingsDraft({ testwareTemplate: value })} />
+        <TemplateField label="Finding output" value={settingsDraft.findingTemplate} onChange={(value) => updateSettingsDraft({ findingTemplate: value })} />
+        <TemplateField label="Note summary output" value={settingsDraft.noteSummaryTemplate} onChange={(value) => updateSettingsDraft({ noteSummaryTemplate: value })} />
       </div>
     </section>
   )

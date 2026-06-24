@@ -43,6 +43,8 @@ fn run_smoke() -> qa_scribe_core::Result<()> {
         entry_type: EntryType::Note,
         title: Some("Smoke note body".to_string()),
         body: "<p>Checkout shows a network error after payment.</p>".to_string(),
+        body_json: None,
+        body_format: Some("html".to_string()),
         metadata_json: None,
         excluded_from_generation: false,
     })?;
@@ -65,11 +67,16 @@ fn run_smoke() -> qa_scribe_core::Result<()> {
         kind: DraftKind::Testware,
         title: "Checkout regression cases".to_string(),
         body: "<ol><li>Submit payment and verify confirmation.</li></ol>".to_string(),
+        body_json: None,
+        body_format: Some("html".to_string()),
+        metadata_json: None,
     })?;
     service.create_finding(FindingDraft {
         session_id: session.id.clone(),
         title: "Checkout returns 500".to_string(),
         body: "<p>Payment submission fails with a server error.</p>".to_string(),
+        body_json: None,
+        body_format: Some("html".to_string()),
         kind: FindingKind::Bug,
         metadata_json: None,
     })?;

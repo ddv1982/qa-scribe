@@ -41,6 +41,22 @@ describe('editorHtml', () => {
     expect(html).not.toContain('&lt;h2&gt;')
   })
 
+  it('repairs escaped rich HTML when a plain text title comes before tags', () => {
+    const html = normalizeEditorHtml(`
+      Cannot Log In to Gmail
+      &lt;p&gt;Logging in to Gmail fails.&lt;/p&gt;
+      &lt;h2&gt;Evidence&lt;/h2&gt;
+      &lt;ul&gt;&lt;li&gt;Gmail displayed an error message.&lt;/li&gt;&lt;/ul&gt;
+    `)
+
+    expect(html).toContain('Cannot Log In to Gmail')
+    expect(html).toContain('<p>Logging in to Gmail fails.</p>')
+    expect(html).toContain('<h2>Evidence</h2>')
+    expect(html).toContain('<ul><li>Gmail displayed an error message.</li></ul>')
+    expect(html).not.toContain('&lt;p&gt;')
+    expect(html).not.toContain('&lt;h2&gt;')
+  })
+
   it('sanitizes links, checkboxes, scripts, and managed images for display', () => {
     const html = normalizeEditorHtml(`
       <script>alert("no")</script>

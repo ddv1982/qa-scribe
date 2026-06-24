@@ -31,10 +31,12 @@ pub(super) fn map_entry(row: &Row<'_>) -> rusqlite::Result<Entry> {
         entry_type: EntryType::from_stored(&entry_type).map_err(to_sql_error)?,
         title: row.get(3)?,
         body: row.get(4)?,
-        metadata_json: row.get(5)?,
-        excluded_from_generation: row.get(6)?,
-        created_at: row.get(7)?,
-        updated_at: row.get(8)?,
+        body_json: row.get(5)?,
+        body_format: row.get(6)?,
+        metadata_json: row.get(7)?,
+        excluded_from_generation: row.get(8)?,
+        created_at: row.get(9)?,
+        updated_at: row.get(10)?,
     })
 }
 
@@ -53,16 +55,18 @@ pub(super) fn map_attachment(row: &Row<'_>) -> rusqlite::Result<Attachment> {
 }
 
 pub(super) fn map_finding(row: &Row<'_>) -> rusqlite::Result<Finding> {
-    let kind: String = row.get(4)?;
+    let kind: String = row.get(6)?;
     Ok(Finding {
         id: row.get(0)?,
         session_id: row.get(1)?,
         title: row.get(2)?,
         body: row.get(3)?,
+        body_json: row.get(4)?,
+        body_format: row.get(5)?,
         kind: FindingKind::from_stored(&kind).map_err(to_sql_error)?,
-        metadata_json: row.get(5)?,
-        created_at: row.get(6)?,
-        updated_at: row.get(7)?,
+        metadata_json: row.get(7)?,
+        created_at: row.get(8)?,
+        updated_at: row.get(9)?,
     })
 }
 
@@ -103,8 +107,11 @@ pub(super) fn map_draft(row: &Row<'_>) -> rusqlite::Result<Draft> {
         kind: DraftKind::from_stored(&kind).map_err(to_sql_error)?,
         title: row.get(4)?,
         body: row.get(5)?,
-        created_at: row.get(6)?,
-        updated_at: row.get(7)?,
+        body_json: row.get(6)?,
+        body_format: row.get(7)?,
+        metadata_json: row.get(8)?,
+        created_at: row.get(9)?,
+        updated_at: row.get(10)?,
     })
 }
 

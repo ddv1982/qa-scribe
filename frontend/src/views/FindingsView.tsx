@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { CheckCircle2, Copy, FileText, Flag, Image as ImageIcon, Loader2, PencilLine, Plus, Save, Trash2, X } from 'lucide-react'
 import { EmptyCollection, StatusPill } from '../components/Common'
 import { FormatToolbar, RichTextEditor, type RichEditorImageUpload } from '../editor/RichTextEditor'
+import { richEditorDocumentFromHtml, richEditorDocumentFromStoredBody, richEditorDocumentToStoredBody } from '../editor/editorDocument'
 import type { Finding, GenerationJobStatus } from '../tauri'
 import { formatFindingKind } from '../ui/format'
 import type { BusyAction } from '../ui/types'
@@ -35,7 +36,7 @@ export function FindingsView({
   error: string | null
   isBusy: boolean
   activeGenerationJob: GenerationJobStatus | null
-  updateLocalFinding: (id: string, patch: Partial<Pick<Finding, 'title' | 'body'>>) => void
+  updateLocalFinding: (id: string, patch: Partial<Pick<Finding, 'title' | 'body' | 'bodyJson' | 'bodyFormat'>>) => void
   onCancelGenerationJob: (jobId: string) => Promise<void>
   onCopyFinding: (finding: Finding) => Promise<void>
   onCopyFindingScreenshot: (finding: Finding) => Promise<void>
@@ -78,7 +79,7 @@ export function FindingsView({
             <input readOnly value="Generating finding" aria-label="Pending finding title" />
             <div className="rich-record-editor-field rich-record-preview-field">
               <RichTextEditor
-                value={activeGenerationJob.partialText || activeGenerationJob.progressMessage || 'Preparing finding...'}
+                value={richEditorDocumentFromHtml(activeGenerationJob.partialText || activeGenerationJob.progressMessage || 'Preparing finding...')}
                 ariaLabel="Pending generated finding"
                 placeholder="Preparing finding..."
                 readOnly
@@ -110,6 +111,7 @@ export function FindingsView({
           const findingScreenshotCount = findingScreenshotCounts[finding.id] ?? 0
           const savingFinding = busyAction === `finding:${finding.id}`
           const editorId = `finding-editor-${finding.id}`
+          const findingDocument = richEditorDocumentFromStoredBody(finding)
           const findingTitle = finding.title.trim()
           const copyLabel = findingCopyLabel(findingTitle, findingCopied)
           const screenshotCopyLabel = findingScreenshotCopyLabel(findingTitle, findingScreenshotCopied, findingScreenshotCount)
@@ -126,8 +128,8 @@ export function FindingsView({
                     <FormatToolbar editorId={editorId} onUploadImage={onUploadImage} />
                     <RichTextEditor
                       editorId={editorId}
-                      value={finding.body}
-                      onChange={(body) => updateLocalFinding(finding.id, { body })}
+                      value={findingDocument}
+                      onChange={(body) => updateLocalFinding(finding.id, richEditorDocumentToStoredBody(body))}
                       ariaLabel={`${finding.title} finding body`}
                       placeholder="Write finding detail..."
                     />
@@ -137,7 +139,7 @@ export function FindingsView({
                 <>
                   <h2 className="record-title">{finding.title}</h2>
                   <div className="rich-record-editor-field rich-record-preview-field">
-                    <RichTextEditor value={finding.body || '<p>No finding detail yet.</p>'} ariaLabel={`${finding.title} finding preview`} readOnly />
+                    <RichTextEditor value={finding.body ? findingDocument : richEditorDocumentFromHtml('<p>No finding detail yet.</p>')} ariaLabel={`${finding.title} finding preview`} readOnly />
                   </div>
                 </>
               )}

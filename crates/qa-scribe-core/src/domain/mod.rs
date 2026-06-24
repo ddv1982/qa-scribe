@@ -7,6 +7,7 @@ use crate::{QaScribeError, Result, error::validation};
 pub const TEXT_BODY_MAX_LENGTH: usize = 100_000;
 pub const METADATA_JSON_MAX_LENGTH: usize = 20_000;
 pub const DRAFT_BODY_MAX_LENGTH: usize = 250_000;
+pub const RICH_BODY_JSON_MAX_LENGTH: usize = 500_000;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -92,6 +93,8 @@ pub struct Entry {
     pub entry_type: EntryType,
     pub title: Option<String>,
     pub body: String,
+    pub body_json: Option<String>,
+    pub body_format: Option<String>,
     pub metadata_json: Option<String>,
     pub excluded_from_generation: bool,
     pub created_at: String,
@@ -105,6 +108,8 @@ pub struct EntryDraft {
     pub entry_type: EntryType,
     pub title: Option<String>,
     pub body: String,
+    pub body_json: Option<String>,
+    pub body_format: Option<String>,
     pub metadata_json: Option<String>,
     pub excluded_from_generation: bool,
 }
@@ -114,6 +119,8 @@ pub struct EntryDraft {
 pub struct EntryPatch {
     pub title: Option<Option<String>>,
     pub body: Option<String>,
+    pub body_json: Option<Option<String>>,
+    pub body_format: Option<Option<String>>,
     pub metadata_json: Option<Option<String>>,
     pub excluded_from_generation: Option<bool>,
 }
@@ -187,6 +194,8 @@ pub struct Finding {
     pub session_id: String,
     pub title: String,
     pub body: String,
+    pub body_json: Option<String>,
+    pub body_format: Option<String>,
     pub kind: FindingKind,
     pub metadata_json: Option<String>,
     pub created_at: String,
@@ -199,6 +208,8 @@ pub struct FindingDraft {
     pub session_id: String,
     pub title: String,
     pub body: String,
+    pub body_json: Option<String>,
+    pub body_format: Option<String>,
     pub kind: FindingKind,
     pub metadata_json: Option<String>,
 }
@@ -208,6 +219,8 @@ pub struct FindingDraft {
 pub struct FindingPatch {
     pub title: Option<String>,
     pub body: Option<String>,
+    pub body_json: Option<Option<String>>,
+    pub body_format: Option<Option<String>>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -264,6 +277,9 @@ pub struct Draft {
     pub kind: DraftKind,
     pub title: String,
     pub body: String,
+    pub body_json: Option<String>,
+    pub body_format: Option<String>,
+    pub metadata_json: Option<String>,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -276,6 +292,9 @@ pub struct DraftCreate {
     pub kind: DraftKind,
     pub title: String,
     pub body: String,
+    pub body_json: Option<String>,
+    pub body_format: Option<String>,
+    pub metadata_json: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
@@ -283,6 +302,9 @@ pub struct DraftCreate {
 pub struct DraftPatch {
     pub title: Option<String>,
     pub body: Option<String>,
+    pub body_json: Option<Option<String>>,
+    pub body_format: Option<Option<String>>,
+    pub metadata_json: Option<Option<String>>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -405,9 +427,7 @@ impl Default for AppSettings {
     fn default() -> Self {
         Self {
             schema_version: 1,
-            generation_system_prompt:
-                "Turn the selected Session material into concise, evidence-grounded Testware."
-                    .to_string(),
+            generation_system_prompt: default_generation_system_prompt(),
             selected_ai_provider: default_selected_ai_provider(),
             selected_ai_model: default_selected_ai_model(),
             selected_ai_models_by_provider: default_selected_ai_models_by_provider(),
@@ -418,6 +438,21 @@ impl Default for AppSettings {
             note_summary_template: default_note_summary_template(),
         }
     }
+}
+
+pub fn default_generation_system_prompt() -> String {
+    [
+        "You help QA practitioners transform selected QA Scribe material into the requested output.",
+        "Follow the action-specific instructions exactly.",
+        "Use only supplied note material and managed image references.",
+        "Do not invent facts, environment details, severity, steps, expected results, or test data.",
+        "Return the requested clean HTML fragment unless the action explicitly asks otherwise.",
+    ]
+    .join("\n")
+}
+
+pub fn legacy_testware_generation_system_prompt() -> &'static str {
+    "Turn the selected Session material into concise, evidence-grounded Testware."
 }
 
 fn default_selected_ai_provider() -> AiProvider {
@@ -446,9 +481,11 @@ fn default_selected_ai_reasoning_efforts_by_provider() -> HashMap<AiProvider, Op
 
 fn default_testware_template() -> String {
     [
-        "Create 5-8 concise QA test cases from the selected note only.",
-        "Return a clean HTML fragment with a heading and one section per test case.",
-        "For each case include purpose, preconditions, test data, steps, expected result, and coverage notes when the note supports them.",
+        "Create test scenarios with test cases from the selected note only.",
+        "Group related cases under scenario headings.",
+        "For each test case include purpose, preconditions, test data, steps, expected result, and coverage notes when supported.",
+        "Use checkboxes only for executable test steps.",
+        "Do not create a bug finding, severity field, Jira issue, or impact section.",
         "Do not wrap the response in a code fence.",
     ]
     .join("\n")
@@ -456,10 +493,11 @@ fn default_testware_template() -> String {
 
 fn default_finding_template() -> String {
     [
-        "Create one well-structured QA finding from the note.",
+        "Create exactly one QA finding from the selected note only.",
         "Use the first h2 as the concise finding title.",
-        "Return a clean HTML fragment with sections for title, severity, environment, steps to reproduce, expected result, actual result, evidence, and impact.",
-        "Ground the finding in the note text only.",
+        "Include sections for severity, environment, steps to reproduce, expected result, actual result, evidence, and impact.",
+        "If a field is not supported by the note, write \"Unknown\".",
+        "Do not create test scenarios or test cases.",
         "Do not wrap the response in a code fence.",
     ]
     .join("\n")
@@ -467,8 +505,11 @@ fn default_finding_template() -> String {
 
 fn default_note_summary_template() -> String {
     [
-        "Improve the current QA note for clarity while preserving meaning.",
-        "Return a clean HTML fragment using only headings, paragraphs, lists, checkboxes, links, and images when present.",
+        "Summarize and clarify the selected note only.",
+        "Keep it as a note, not a finding and not testware.",
+        "Preserve the original meaning, relevant checkboxes, links, and managed images.",
+        "Remove duplication and tighten wording.",
+        "Do not add severity, expected/actual result sections, test cases, Jira fields, or new facts.",
         "Do not wrap the response in a code fence.",
     ]
     .join("\n")
@@ -535,4 +576,14 @@ pub fn validate_metadata_json(value: Option<String>) -> Result<Option<String>> {
         return Err(validation("metadata JSON must be a JSON object"));
     }
     Ok(Some(cleaned))
+}
+
+pub fn validate_body_json(value: Option<String>) -> Result<Option<String>> {
+    let Some(value) = validate_optional_text("rich body JSON", value, RICH_BODY_JSON_MAX_LENGTH)?
+    else {
+        return Ok(None);
+    };
+    serde_json::from_str::<serde_json::Value>(&value)
+        .map_err(|_| validation("rich body JSON must be valid JSON"))?;
+    Ok(Some(value))
 }

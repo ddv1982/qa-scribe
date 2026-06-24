@@ -1,4 +1,11 @@
-import type { GenerateAiActionKind } from '../tauri'
+import { useState } from 'react'
+import type { GenerateAiActionKind, TestwareDepth, TestwareGenerationPreferences, TestwareOutputFormat } from '../tauri'
+import {
+  defaultTestwareGenerationPreferences,
+  testwareDepthOptions,
+  testwareOutputFormatOptions,
+  testwareTechniquePresets,
+} from '../testware/generationPreferences'
 
 export function GenerationPreflight({
   action,
@@ -21,12 +28,22 @@ export function GenerationPreflight({
   noteWordCount: number
   selectedModel: string
   onCancel: () => void
-  onConfirm: () => void
+  onConfirm: (testwarePreferences?: TestwareGenerationPreferences) => void
 }) {
   const copy = generationPreflightCopy(action)
+  const [testwarePreferences, setTestwarePreferences] = useState<TestwareGenerationPreferences>(defaultTestwareGenerationPreferences)
+  const isTestware = action === 'testware'
+  const updateTestwarePreferences = (patch: Partial<TestwareGenerationPreferences>) =>
+    setTestwarePreferences((previous) => ({ ...previous, ...patch }))
+
   return (
     <div className="modal-backdrop" role="presentation">
-      <section className="confirmation-dialog generation-preflight" role="dialog" aria-modal="true" aria-labelledby="generation-preflight-title">
+      <section
+        className={isTestware ? 'confirmation-dialog generation-preflight testware-preflight' : 'confirmation-dialog generation-preflight'}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="generation-preflight-title"
+      >
         <div>
           <p className="eyebrow">Generation preflight</p>
           <h2 id="generation-preflight-title">{copy.title}</h2>
@@ -52,11 +69,114 @@ export function GenerationPreflight({
             <dd>{selectedModel}</dd>
           </div>
         </dl>
+        {isTestware ? (
+          <div className="preflight-testware-options">
+            <fieldset className="preflight-fieldset">
+              <legend>Test design</legend>
+              <div className="preflight-technique-grid">
+                {testwareTechniquePresets.map((preset) => (
+                  <button
+                    className={testwarePreferences.technique === preset.id ? 'preflight-choice active' : 'preflight-choice'}
+                    type="button"
+                    key={preset.id}
+                    aria-pressed={testwarePreferences.technique === preset.id}
+                    onClick={() => updateTestwarePreferences({ technique: preset.id })}
+                  >
+                    <span>{preset.shortLabel}</span>
+                    <strong>{preset.bestFor}</strong>
+                    <small>{preset.description}</small>
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+
+            <div className="preflight-control-grid">
+              <label className="preflight-select-field">
+                <span>Output</span>
+                <select
+                  value={testwarePreferences.outputFormat}
+                  onChange={(event) => updateTestwarePreferences({ outputFormat: event.target.value as TestwareOutputFormat })}
+                >
+                  {testwareOutputFormatOptions.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="preflight-select-field">
+                <span>Depth</span>
+                <select
+                  value={testwarePreferences.depth}
+                  onChange={(event) => updateTestwarePreferences({ depth: event.target.value as TestwareDepth })}
+                >
+                  {testwareDepthOptions.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <fieldset className="preflight-fieldset compact">
+              <legend>Include</legend>
+              <div className="preflight-toggle-grid">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={testwarePreferences.includeNegativeCases}
+                    onChange={(event) => updateTestwarePreferences({ includeNegativeCases: event.target.checked })}
+                  />
+                  Negative cases
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={testwarePreferences.includeBoundaryCases}
+                    onChange={(event) => updateTestwarePreferences({ includeBoundaryCases: event.target.checked })}
+                  />
+                  Boundary cases
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={testwarePreferences.includeTestData}
+                    onChange={(event) => updateTestwarePreferences({ includeTestData: event.target.checked })}
+                  />
+                  Test data
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={testwarePreferences.preserveEvidence}
+                    onChange={(event) => updateTestwarePreferences({ preserveEvidence: event.target.checked })}
+                  />
+                  Preserve evidence
+                </label>
+              </div>
+            </fieldset>
+
+            <label className="preflight-textarea-field">
+              <span>Additional guidance</span>
+              <textarea
+                value={testwarePreferences.customInstructions ?? ''}
+                placeholder="Optional constraints, priorities, or areas to emphasize."
+                onChange={(event) => updateTestwarePreferences({ customInstructions: event.target.value || null })}
+              />
+            </label>
+          </div>
+        ) : null}
         <div className="confirmation-actions">
           <button className="secondary-button" type="button" disabled={isBusy} onClick={onCancel}>
             Cancel
           </button>
-          <button className="primary-button" type="button" disabled={isBusy || !activeProviderAvailable} onClick={onConfirm}>
+          <button
+            className="primary-button"
+            type="button"
+            disabled={isBusy || !activeProviderAvailable}
+            onClick={() => onConfirm(isTestware ? testwarePreferences : undefined)}
+          >
             {copy.confirmLabel}
           </button>
         </div>

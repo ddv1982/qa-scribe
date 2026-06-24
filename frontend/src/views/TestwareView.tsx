@@ -2,6 +2,13 @@ import { useState } from 'react'
 import { Box, CheckCircle2, Copy, FileText, Image as ImageIcon, Loader2, PencilLine, Plus, Save, Trash2, X } from 'lucide-react'
 import { EmptyCollection, StatusPill } from '../components/Common'
 import { FormatToolbar, RichTextEditor, type RichEditorImageUpload } from '../editor/RichTextEditor'
+import { richEditorDocumentFromHtml, richEditorDocumentFromStoredBody, richEditorDocumentToStoredBody } from '../editor/editorDocument'
+import {
+  parseTestwareGenerationMetadata,
+  testwareDepthLabel,
+  testwareOutputFormatLabel,
+  testwareTechniqueLabel,
+} from '../testware/generationPreferences'
 import type { Draft, GenerationJobStatus } from '../tauri'
 import type { BusyAction } from '../ui/types'
 
@@ -34,7 +41,7 @@ export function TestwareView({
   error: string | null
   isBusy: boolean
   activeGenerationJob: GenerationJobStatus | null
-  updateLocalDraft: (id: string, patch: Partial<Pick<Draft, 'title' | 'body'>>) => void
+  updateLocalDraft: (id: string, patch: Partial<Pick<Draft, 'title' | 'body' | 'bodyJson' | 'bodyFormat'>>) => void
   onCancelGenerationJob: (jobId: string) => Promise<void>
   onCopyDraft: (draft: Draft) => Promise<void>
   onCopyDraftScreenshot: (draft: Draft) => Promise<void>
@@ -77,7 +84,7 @@ export function TestwareView({
             <input readOnly value="Generating test cases" aria-label="Pending testware title" />
             <div className="rich-record-editor-field rich-record-preview-field">
               <RichTextEditor
-                value={activeGenerationJob.partialText || activeGenerationJob.progressMessage || 'Preparing testware...'}
+                value={richEditorDocumentFromHtml(activeGenerationJob.partialText || activeGenerationJob.progressMessage || 'Preparing testware...')}
                 ariaLabel="Pending generated testware"
                 placeholder="Preparing testware..."
                 readOnly
@@ -109,10 +116,12 @@ export function TestwareView({
           const draftScreenshotCount = draftScreenshotCounts[draft.id] ?? 0
           const savingDraft = busyAction === `draft:${draft.id}`
           const editorId = `testware-editor-${draft.id}`
+          const draftDocument = richEditorDocumentFromStoredBody(draft)
           const draftTitle = draft.title.trim()
           const copyLabel = draftCopyLabel(draftTitle, draftCopied)
           const screenshotCopyLabel = draftScreenshotCopyLabel(draftTitle, draftScreenshotCopied, draftScreenshotCount)
           const editingDraft = Boolean(editingDraftIds[draft.id])
+          const generationMetadata = parseTestwareGenerationMetadata(draft)
           return (
             <article className="editable-record" key={draft.id}>
               {editingDraft ? (
@@ -122,8 +131,8 @@ export function TestwareView({
                     <FormatToolbar editorId={editorId} onUploadImage={onUploadImage} />
                     <RichTextEditor
                       editorId={editorId}
-                      value={draft.body}
-                      onChange={(body) => updateLocalDraft(draft.id, { body })}
+                      value={draftDocument}
+                      onChange={(body) => updateLocalDraft(draft.id, richEditorDocumentToStoredBody(body))}
                       ariaLabel={`${draft.title} testware body`}
                       placeholder="Write test cases..."
                     />
@@ -131,9 +140,18 @@ export function TestwareView({
                 </>
               ) : (
                 <>
-                  <h2 className="record-title">{draft.title}</h2>
+                  <div className="record-heading-row">
+                    <h2 className="record-title">{draft.title}</h2>
+                    {generationMetadata ? (
+                      <div className="testware-metadata-badges" aria-label="Testware generation settings">
+                        <span>{testwareTechniqueLabel(generationMetadata.technique)}</span>
+                        <span>{testwareDepthLabel(generationMetadata.depth)}</span>
+                        <span>{testwareOutputFormatLabel(generationMetadata.outputFormat)}</span>
+                      </div>
+                    ) : null}
+                  </div>
                   <div className="rich-record-editor-field rich-record-preview-field">
-                    <RichTextEditor value={draft.body || '<p>No testware detail yet.</p>'} ariaLabel={`${draft.title} testware preview`} readOnly />
+                    <RichTextEditor value={draft.body ? draftDocument : richEditorDocumentFromHtml('<p>No testware detail yet.</p>')} ariaLabel={`${draft.title} testware preview`} readOnly />
                   </div>
                 </>
               )}

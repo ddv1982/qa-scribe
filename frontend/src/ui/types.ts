@@ -12,6 +12,7 @@ export type BusyAction =
   | 'save-title'
   | 'save-body'
   | 'save-settings'
+  | 'refresh-providers'
   | 'manual-testware'
   | 'manual-finding'
   | 'prefill-testware'
@@ -21,6 +22,7 @@ export type BusyAction =
   | 'ai-testware'
   | 'ai-finding'
   | 'ai-summary'
+  | 'undo-generation'
   | 'attach-image'
   | 'delete-note'
   | `copy-draft:${string}`

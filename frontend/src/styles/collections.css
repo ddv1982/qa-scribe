@@ -71,6 +71,35 @@
   line-height: 1.3;
 }
 
+.record-heading-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.testware-metadata-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+
+.testware-metadata-badges span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 3px 8px;
+  color: var(--blue);
+  background: color-mix(in srgb, var(--blue) 11%, transparent);
+  border: 1px solid color-mix(in srgb, var(--blue) 36%, var(--border));
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
 .editable-record input,
 .editable-record textarea,
 .template-field textarea,
@@ -233,14 +262,34 @@
 
 .settings-grid {
   grid-template-columns: minmax(240px, 0.8fr) minmax(320px, 1.2fr);
+  align-items: start;
 }
 
-.settings-grid section {
-  padding: 16px;
+.settings-view .settings-grid section {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px 16px;
 }
 
-.settings-grid h2 {
-  margin: 0 0 12px;
+.settings-view .settings-grid h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 750;
+  line-height: 1.25;
+}
+
+.settings-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.settings-section-heading .compact-button {
+  min-height: 30px;
+  padding: 0 9px;
+  font-size: 12px;
 }
 
 .wide-setting {
@@ -248,7 +297,7 @@
 }
 
 .settings-note {
-  margin: -4px 0 12px;
+  margin: -4px 0 2px;
   color: var(--muted);
   font-size: 13px;
   line-height: 1.5;
@@ -260,21 +309,30 @@
 }
 
 .advanced-setting summary {
-  width: fit-content;
-  color: var(--blue);
+  width: 100%;
+  color: var(--text);
   cursor: pointer;
+  font-size: 14px;
   font-weight: 750;
+  line-height: 1.25;
 }
 
 .advanced-setting .template-view {
   width: 100%;
-  padding: 14px 0 0;
+  padding: 2px 0 0;
 }
 
-.settings-grid textarea {
-  min-height: 160px;
+.settings-view .settings-grid textarea {
+  min-height: 150px;
   padding: 12px;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
   resize: vertical;
+}
+
+.settings-view .wide-setting textarea {
+  font-family: inherit;
 }
 
 .theme-toggle {
@@ -294,6 +352,8 @@
   height: 32px;
   padding: 0 12px;
   color: var(--muted);
+  font-size: 14px;
+  font-weight: 500;
   background: transparent;
   border: 0;
   border-radius: 6px;
@@ -303,6 +363,7 @@
 
 .theme-toggle button.active {
   color: var(--text);
+  font-weight: 650;
   background: var(--panel-bg);
 }
 
@@ -313,21 +374,82 @@
 
 .ai-defaults-stack {
   display: grid;
-  gap: 10px;
+  gap: 9px;
+}
+
+.settings-view .select-shell {
+  height: 40px;
+  background: var(--panel-soft);
+}
+
+.settings-view .select-shell span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.settings-view .select-shell select {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.settings-view .model-combobox-trigger {
+  min-height: 48px;
+  background: var(--panel-soft);
+}
+
+.settings-view .model-combobox-trigger strong {
+  font-weight: 700;
+}
+
+.settings-view .template-field {
+  gap: 8px;
+  padding: 14px;
+}
+
+.settings-view .template-field span {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1.25;
+}
+
+.settings-view .template-field textarea {
+  min-height: 230px;
+  background: var(--panel-soft);
 }
 
 .provider-lines article {
   gap: 10px;
-  padding: 10px;
+  min-width: 0;
+  padding: 10px 11px;
   background: var(--panel-soft);
   border: 1px solid var(--border);
   border-radius: var(--radius);
+}
+
+.provider-lines article > div {
+  min-width: 0;
+}
+
+.provider-lines strong {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .provider-lines p {
   margin: 2px 0 0;
   color: var(--muted);
   font-size: 12px;
+  line-height: 1.35;
 }
 
 .status-dot {

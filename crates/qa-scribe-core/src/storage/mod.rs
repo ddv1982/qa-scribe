@@ -40,8 +40,81 @@ fn initialize(connection: &Connection) -> Result<()> {
 fn migrate(connection: &Connection) -> Result<()> {
     ensure_testware_drafts_supported(connection)?;
     ensure_blank_bodies_supported(connection)?;
-    connection.pragma_update(None, "user_version", 3)?;
+    ensure_rich_body_columns_supported(connection)?;
+    ensure_draft_metadata_supported(connection)?;
+    connection.pragma_update(None, "user_version", 5)?;
     Ok(())
+}
+
+fn ensure_draft_metadata_supported(connection: &Connection) -> Result<()> {
+    ensure_column(
+        connection,
+        "drafts",
+        "metadata_json",
+        "ALTER TABLE drafts ADD COLUMN metadata_json TEXT",
+    )?;
+    Ok(())
+}
+
+fn ensure_rich_body_columns_supported(connection: &Connection) -> Result<()> {
+    ensure_column(
+        connection,
+        "entries",
+        "body_json",
+        "ALTER TABLE entries ADD COLUMN body_json TEXT",
+    )?;
+    ensure_column(
+        connection,
+        "entries",
+        "body_format",
+        "ALTER TABLE entries ADD COLUMN body_format TEXT NOT NULL DEFAULT 'html'",
+    )?;
+    ensure_column(
+        connection,
+        "findings",
+        "body_json",
+        "ALTER TABLE findings ADD COLUMN body_json TEXT",
+    )?;
+    ensure_column(
+        connection,
+        "findings",
+        "body_format",
+        "ALTER TABLE findings ADD COLUMN body_format TEXT NOT NULL DEFAULT 'html'",
+    )?;
+    ensure_column(
+        connection,
+        "drafts",
+        "body_json",
+        "ALTER TABLE drafts ADD COLUMN body_json TEXT",
+    )?;
+    ensure_column(
+        connection,
+        "drafts",
+        "body_format",
+        "ALTER TABLE drafts ADD COLUMN body_format TEXT NOT NULL DEFAULT 'html'",
+    )?;
+    Ok(())
+}
+
+fn ensure_column(
+    connection: &Connection,
+    table: &str,
+    column: &str,
+    alter_sql: &str,
+) -> Result<()> {
+    if table_has_column(connection, table, column)? {
+        return Ok(());
+    }
+    connection.execute_batch(alter_sql)?;
+    Ok(())
+}
+
+fn table_has_column(connection: &Connection, table: &str, column: &str) -> Result<bool> {
+    let mut statement = connection.prepare(&format!("PRAGMA table_info({table})"))?;
+    let columns = statement
+        .query_map([], |row| row.get::<_, String>(1))?
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    Ok(columns.iter().any(|name| name == column))
 }
 
 fn ensure_testware_drafts_supported(connection: &Connection) -> Result<()> {
@@ -156,6 +229,8 @@ fn rebuild_entries_without_body_length_check(connection: &Connection) -> Result<
           type TEXT NOT NULL CHECK (type IN ('note', 'observation', 'api_response', 'log', 'screenshot', 'finding_candidate')),
           title TEXT,
           body TEXT NOT NULL,
+          body_json TEXT,
+          body_format TEXT NOT NULL DEFAULT 'html',
           metadata_json TEXT,
           excluded_from_generation INTEGER NOT NULL DEFAULT 0,
           created_at TEXT NOT NULL,
@@ -243,6 +318,8 @@ CREATE TABLE IF NOT EXISTS entries (
   type TEXT NOT NULL CHECK (type IN ('note', 'observation', 'api_response', 'log', 'screenshot', 'finding_candidate')),
   title TEXT,
   body TEXT NOT NULL,
+  body_json TEXT,
+  body_format TEXT NOT NULL DEFAULT 'html',
   metadata_json TEXT,
   excluded_from_generation INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL,
@@ -266,6 +343,8 @@ CREATE TABLE IF NOT EXISTS findings (
   session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
   title TEXT NOT NULL CHECK (length(trim(title)) > 0),
   body TEXT NOT NULL,
+  body_json TEXT,
+  body_format TEXT NOT NULL DEFAULT 'html',
   kind TEXT NOT NULL CHECK (kind IN ('bug', 'question', 'risk', 'follow_up', 'note')),
   metadata_json TEXT,
   created_at TEXT NOT NULL,
@@ -322,6 +401,9 @@ CREATE TABLE IF NOT EXISTS drafts (
   kind TEXT NOT NULL CHECK (kind IN ('session_report', 'testware')),
   title TEXT NOT NULL CHECK (length(trim(title)) > 0),
   body TEXT NOT NULL,
+  body_json TEXT,
+  body_format TEXT NOT NULL DEFAULT 'html',
+  metadata_json TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
@@ -333,5 +415,5 @@ CREATE INDEX IF NOT EXISTS idx_findings_session_created ON findings(session_id, 
 CREATE INDEX IF NOT EXISTS idx_drafts_session_updated ON drafts(session_id, updated_at);
 CREATE INDEX IF NOT EXISTS idx_ai_runs_session_created ON ai_runs(session_id, created_at);
 
-PRAGMA user_version = 3;
+PRAGMA user_version = 4;
 "#;

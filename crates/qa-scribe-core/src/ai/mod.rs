@@ -14,7 +14,6 @@ pub struct ProviderCapability {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CopilotRuntime {
     DirectCli,
-    GhWrapper,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -104,6 +103,7 @@ fn generation_command_for_mode(
             let mut args = vec!["-p".to_string()];
             if stream_events {
                 args.extend([
+                    "--verbose".to_string(),
                     "--output-format".to_string(),
                     "stream-json".to_string(),
                     "--include-partial-messages".to_string(),
@@ -156,21 +156,9 @@ fn generation_command_for_mode(
             let copilot_model_arg = selected_copilot_model_arg(model);
             match copilot_runtime {
                 Some(CopilotRuntime::DirectCli) => {
-                    let mut args = vec!["-s".to_string(), "--no-ask-user".to_string()];
-                    if let Some(model) = copilot_model_arg {
-                        args.extend(["--model".to_string(), model]);
-                    }
-                    Ok(GenerationCommand {
-                        program: "copilot".to_string(),
-                        args,
-                        stdin: prompt.to_string(),
-                        output_format: GenerationOutputFormat::PlainText,
-                    })
-                }
-                Some(CopilotRuntime::GhWrapper) => {
                     let mut args = vec![
-                        "copilot".to_string(),
-                        "--".to_string(),
+                        "-p".to_string(),
+                        prompt.to_string(),
                         "-s".to_string(),
                         "--no-ask-user".to_string(),
                     ];
@@ -178,9 +166,9 @@ fn generation_command_for_mode(
                         args.extend(["--model".to_string(), model]);
                     }
                     Ok(GenerationCommand {
-                        program: "gh".to_string(),
+                        program: "copilot".to_string(),
                         args,
-                        stdin: prompt.to_string(),
+                        stdin: String::new(),
                         output_format: GenerationOutputFormat::PlainText,
                     })
                 }
@@ -326,7 +314,11 @@ mod tests {
         .unwrap();
 
         assert_eq!(command.program, "copilot");
-        assert_eq!(command.args, vec!["-s", "--no-ask-user"]);
+        assert_eq!(
+            command.args,
+            vec!["-p", "draft this", "-s", "--no-ask-user"]
+        );
+        assert_eq!(command.stdin, "");
     }
 
     #[test]
@@ -336,15 +328,23 @@ mod tests {
             "draft this",
             "gpt-5.5",
             None,
-            Some(CopilotRuntime::GhWrapper),
+            Some(CopilotRuntime::DirectCli),
         )
         .unwrap();
 
-        assert_eq!(command.program, "gh");
+        assert_eq!(command.program, "copilot");
         assert_eq!(
             command.args,
-            vec!["copilot", "--", "-s", "--no-ask-user", "--model", "gpt-5.5"]
+            vec![
+                "-p",
+                "draft this",
+                "-s",
+                "--no-ask-user",
+                "--model",
+                "gpt-5.5"
+            ]
         );
+        assert_eq!(command.stdin, "");
     }
 
     #[test]
@@ -389,6 +389,7 @@ mod tests {
             command.args,
             vec![
                 "-p",
+                "--verbose",
                 "--output-format",
                 "stream-json",
                 "--include-partial-messages",
@@ -416,24 +417,11 @@ mod tests {
         .unwrap();
 
         assert_eq!(command.program, "copilot");
-        assert_eq!(command.args, vec!["-s", "--no-ask-user"]);
-        assert_eq!(command.stdin, "draft this");
-    }
-
-    #[test]
-    fn copilot_generation_can_use_gh_double_dash_bridge() {
-        let command = generation_command(
-            AiProvider::CopilotCli,
-            "draft this",
-            "default",
-            None,
-            Some(CopilotRuntime::GhWrapper),
-        )
-        .unwrap();
-
-        assert_eq!(command.program, "gh");
-        assert_eq!(command.args, vec!["copilot", "--", "-s", "--no-ask-user"]);
-        assert_eq!(command.stdin, "draft this");
+        assert_eq!(
+            command.args,
+            vec!["-p", "draft this", "-s", "--no-ask-user"]
+        );
+        assert_eq!(command.stdin, "");
     }
 
     #[test]

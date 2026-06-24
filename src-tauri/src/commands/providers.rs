@@ -1,8 +1,13 @@
 use std::{
     collections::HashMap,
+    fs,
     io::ErrorKind,
-    process::{Command, Output},
-    sync::{Mutex, OnceLock},
+    process::{Command, Output, Stdio},
+    sync::{
+        Mutex, OnceLock,
+        atomic::{AtomicU64, Ordering},
+    },
+    thread,
     time::{Duration, Instant},
 };
 
@@ -12,17 +17,20 @@ use qa_scribe_core::{
 };
 use serde::Serialize;
 
-use crate::provider_command::apply_provider_path;
+use crate::provider_command::{apply_provider_path, provider_executable_exists};
 
 mod models;
 
 use models::{
-    claude_models, codex_models, copilot_models, normalize_models, provider_default_model,
+    claude_models, claude_static_models, codex_models, codex_static_models, copilot_models,
+    copilot_models_with_config_help, normalize_models, provider_default_model,
 };
 
 const READINESS_CACHE_TTL: Duration = Duration::from_secs(30);
-static READINESS_CACHE: OnceLock<Mutex<HashMap<AiProvider, CachedProviderReadiness>>> =
+const PROVIDER_PROBE_TIMEOUT: Duration = Duration::from_secs(4);
+static READINESS_CACHE: OnceLock<Mutex<HashMap<ReadinessCacheKey, CachedProviderReadiness>>> =
     OnceLock::new();
+static PROVIDER_PROBE_OUTPUT_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -90,6 +98,18 @@ struct CachedProviderReadiness {
     readiness: ProviderReadiness,
 }
 
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+enum DetectionMode {
+    Fast,
+    Deep,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+struct ReadinessCacheKey {
+    provider: AiProvider,
+    mode: DetectionMode,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct CommandProbe {
     success: bool,
@@ -99,18 +119,26 @@ struct CommandProbe {
 }
 
 trait ProbeRunner {
+    fn has_executable(&self, program: &str) -> bool;
     fn run(&self, program: &str, args: &[&str]) -> CommandProbe;
 }
 
 struct SystemProbeRunner;
 
 impl ProbeRunner for SystemProbeRunner {
+    fn has_executable(&self, program: &str) -> bool {
+        provider_executable_exists(program)
+    }
+
     fn run(&self, program: &str, args: &[&str]) -> CommandProbe {
         let mut command = Command::new(program);
         command.args(args);
         apply_provider_path(&mut command);
+        if program == "copilot" {
+            command.env("COPILOT_AUTO_UPDATE", "false");
+        }
 
-        match command.output() {
+        match run_command_with_timeout(command, PROVIDER_PROBE_TIMEOUT) {
             Ok(output) => CommandProbe::from_output(output),
             Err(error) => CommandProbe {
                 success: false,
@@ -122,6 +150,52 @@ impl ProbeRunner for SystemProbeRunner {
     }
 }
 
+fn run_command_with_timeout(mut command: Command, timeout: Duration) -> std::io::Result<Output> {
+    let output_id = PROVIDER_PROBE_OUTPUT_COUNTER.fetch_add(1, Ordering::Relaxed);
+    let stdout_path = std::env::temp_dir().join(format!(
+        "qa-scribe-provider-probe-{}-{output_id}.stdout",
+        std::process::id()
+    ));
+    let stderr_path = std::env::temp_dir().join(format!(
+        "qa-scribe-provider-probe-{}-{output_id}.stderr",
+        std::process::id()
+    ));
+    let stdout = fs::File::create(&stdout_path)?;
+    let stderr = fs::File::create(&stderr_path)?;
+    let mut child = command
+        .stdout(Stdio::from(stdout))
+        .stderr(Stdio::from(stderr))
+        .spawn()?;
+    let started_at = Instant::now();
+
+    loop {
+        if let Some(status) = child.try_wait()? {
+            let stdout = fs::read(&stdout_path)?;
+            let stderr = fs::read(&stderr_path)?;
+            let _ = fs::remove_file(&stdout_path);
+            let _ = fs::remove_file(&stderr_path);
+            return Ok(Output {
+                status,
+                stdout,
+                stderr,
+            });
+        }
+
+        if started_at.elapsed() >= timeout {
+            let _ = child.kill();
+            let _ = child.wait();
+            let _ = fs::remove_file(&stdout_path);
+            let _ = fs::remove_file(&stderr_path);
+            return Err(std::io::Error::new(
+                ErrorKind::TimedOut,
+                format!("provider probe timed out after {}s", timeout.as_secs()),
+            ));
+        }
+
+        thread::sleep(Duration::from_millis(25));
+    }
+}
+
 impl CommandProbe {
     fn from_output(output: Output) -> Self {
         Self {
@@ -129,6 +203,15 @@ impl CommandProbe {
             stdout: String::from_utf8_lossy(&output.stdout).trim().to_string(),
             stderr: String::from_utf8_lossy(&output.stderr).trim().to_string(),
             not_found: false,
+        }
+    }
+
+    fn not_found() -> Self {
+        Self {
+            success: false,
+            stdout: String::new(),
+            stderr: "command not found".to_string(),
+            not_found: true,
         }
     }
 
@@ -145,60 +228,148 @@ impl CommandProbe {
 
 #[tauri::command]
 pub fn get_provider_status() -> ProviderStatus {
-    provider_status_with_runner(&SystemProbeRunner)
+    provider_status_with_system_runner()
+}
+
+#[tauri::command]
+pub fn refresh_provider_status() -> ProviderStatus {
+    clear_readiness_cache();
+    provider_status_with_system_runner_for_mode(DetectionMode::Deep)
+}
+
+fn clear_readiness_cache() {
+    if let Some(cache) = READINESS_CACHE.get()
+        && let Ok(mut cache) = cache.lock()
+    {
+        cache.clear();
+    }
 }
 
 pub fn provider_readiness(provider: AiProvider) -> ProviderReadiness {
-    let cache = READINESS_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
-    if let Ok(cached) = cache.lock()
-        && let Some(entry) = cached.get(&provider)
-        && entry.checked_at.elapsed() < READINESS_CACHE_TTL
-    {
-        return entry.readiness.clone();
+    if let Some(readiness) = cached_readiness(provider, DetectionMode::Deep) {
+        return readiness;
+    }
+    if let Some(readiness) = cached_readiness(provider, DetectionMode::Fast) {
+        return readiness;
     }
 
-    let readiness = detect_provider(provider, &SystemProbeRunner);
-    if let Ok(mut cached) = cache.lock() {
-        cached.insert(
-            provider,
+    let readiness = detect_provider(provider, &SystemProbeRunner, DetectionMode::Fast);
+    cache_readiness(provider, DetectionMode::Fast, &readiness);
+    readiness
+}
+
+fn cached_readiness(provider: AiProvider, mode: DetectionMode) -> Option<ProviderReadiness> {
+    let cache = READINESS_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+    if let Ok(cached) = cache.lock()
+        && let Some(entry) = cached.get(&ReadinessCacheKey { provider, mode })
+        && entry.checked_at.elapsed() < READINESS_CACHE_TTL
+    {
+        return Some(entry.readiness.clone());
+    }
+    None
+}
+
+#[cfg(test)]
+fn provider_status_with_runner(runner: &impl ProbeRunner, mode: DetectionMode) -> ProviderStatus {
+    ProviderStatus {
+        providers: provider_capabilities()
+            .into_iter()
+            .map(|capability| detect_capability(capability, runner, mode).descriptor)
+            .collect(),
+    }
+}
+
+fn provider_status_with_system_runner() -> ProviderStatus {
+    provider_status_with_system_runner_for_mode(DetectionMode::Fast)
+}
+
+fn provider_status_with_system_runner_for_mode(mode: DetectionMode) -> ProviderStatus {
+    let readinesses: Vec<_> = provider_capabilities()
+        .into_iter()
+        .map(|capability| {
+            let provider = capability.id;
+            (
+                provider,
+                detect_capability(capability, &SystemProbeRunner, mode),
+            )
+        })
+        .collect();
+    cache_readinesses(mode, &readinesses);
+
+    ProviderStatus {
+        providers: readinesses
+            .into_iter()
+            .map(|(_, readiness)| readiness.descriptor)
+            .collect(),
+    }
+}
+
+fn cache_readinesses(mode: DetectionMode, readinesses: &[(AiProvider, ProviderReadiness)]) {
+    for (provider, readiness) in readinesses {
+        cache_readiness(*provider, mode, readiness);
+    }
+}
+
+fn cache_readiness(provider: AiProvider, mode: DetectionMode, readiness: &ProviderReadiness) {
+    let cache = READINESS_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+    if let Ok(mut cache) = cache.lock() {
+        cache.insert(
+            ReadinessCacheKey { provider, mode },
             CachedProviderReadiness {
                 checked_at: Instant::now(),
                 readiness: readiness.clone(),
             },
         );
     }
-    readiness
 }
 
-fn provider_status_with_runner(runner: &impl ProbeRunner) -> ProviderStatus {
-    ProviderStatus {
-        providers: provider_capabilities()
-            .into_iter()
-            .map(|capability| detect_capability(capability, runner).descriptor)
-            .collect(),
-    }
-}
-
-fn detect_provider(provider: AiProvider, runner: &impl ProbeRunner) -> ProviderReadiness {
+fn detect_provider(
+    provider: AiProvider,
+    runner: &impl ProbeRunner,
+    mode: DetectionMode,
+) -> ProviderReadiness {
     let capability = provider_capabilities()
         .into_iter()
         .find(|capability| capability.id == provider)
         .expect("provider capability exists for every AiProvider");
-    detect_capability(capability, runner)
+    detect_capability(capability, runner, mode)
 }
 
 fn detect_capability(
     capability: ProviderCapability,
     runner: &impl ProbeRunner,
+    mode: DetectionMode,
 ) -> ProviderReadiness {
     match capability.id {
-        AiProvider::ClaudeCode => detect_claude(capability, runner),
-        AiProvider::CodexCli => detect_codex(capability, runner),
-        AiProvider::CopilotCli => detect_copilot(capability, runner),
+        AiProvider::ClaudeCode => detect_claude(capability, runner, mode),
+        AiProvider::CodexCli => detect_codex(capability, runner, mode),
+        AiProvider::CopilotCli => detect_copilot(capability, runner, mode),
     }
 }
 
-fn detect_claude(capability: ProviderCapability, runner: &impl ProbeRunner) -> ProviderReadiness {
+fn detect_claude(
+    capability: ProviderCapability,
+    runner: &impl ProbeRunner,
+    mode: DetectionMode,
+) -> ProviderReadiness {
+    if mode == DetectionMode::Fast {
+        let models = claude_static_models();
+        if !runner.has_executable(capability.executable) {
+            return not_installed_or_error(
+                capability,
+                CommandProbe::not_found(),
+                "Install Claude Code and ensure `claude` is on PATH.",
+            );
+        }
+        return ready(
+            capability,
+            "Claude Code executable was found. Authentication will be verified when generation runs.",
+            "claude -p",
+            models,
+            None,
+        );
+    }
+
     let install = runner.run(capability.executable, &capability.version_args);
     if !install.success {
         return not_installed_or_error(
@@ -233,7 +404,29 @@ fn detect_claude(capability: ProviderCapability, runner: &impl ProbeRunner) -> P
     )
 }
 
-fn detect_codex(capability: ProviderCapability, runner: &impl ProbeRunner) -> ProviderReadiness {
+fn detect_codex(
+    capability: ProviderCapability,
+    runner: &impl ProbeRunner,
+    mode: DetectionMode,
+) -> ProviderReadiness {
+    if mode == DetectionMode::Fast {
+        let models = codex_static_models();
+        if !runner.has_executable(capability.executable) {
+            return not_installed_or_error(
+                capability,
+                CommandProbe::not_found(),
+                "Install Codex CLI and ensure `codex` is on PATH.",
+            );
+        }
+        return ready(
+            capability,
+            "Codex CLI executable was found. Authentication will be verified when generation runs.",
+            "codex exec --skip-git-repo-check -",
+            models,
+            None,
+        );
+    }
+
     let install = runner.run(capability.executable, &capability.version_args);
     if !install.success {
         return not_installed_or_error(
@@ -268,46 +461,57 @@ fn detect_codex(capability: ProviderCapability, runner: &impl ProbeRunner) -> Pr
     )
 }
 
-fn detect_copilot(capability: ProviderCapability, runner: &impl ProbeRunner) -> ProviderReadiness {
-    let models = copilot_models(runner);
-    let direct = runner.run("copilot", &["version"]);
-    if direct.success {
+fn detect_copilot(
+    capability: ProviderCapability,
+    runner: &impl ProbeRunner,
+    mode: DetectionMode,
+) -> ProviderReadiness {
+    let executable_found = runner.has_executable(capability.executable);
+    if !executable_found {
+        return not_installed_or_error(
+            capability,
+            CommandProbe::not_found(),
+            "Install GitHub Copilot CLI and ensure `copilot` is on PATH.",
+        );
+    }
+
+    let models = if mode == DetectionMode::Deep {
+        copilot_models_with_config_help(runner)
+    } else {
+        copilot_models()
+    };
+
+    if mode == DetectionMode::Fast {
         return ready(
             capability,
-            "GitHub Copilot CLI is installed.",
-            "copilot -s --no-ask-user",
+            "GitHub Copilot CLI executable was found. Authentication will be verified when generation runs.",
+            "copilot -p <prompt> -s --no-ask-user",
             models,
             Some(CopilotRuntime::DirectCli),
         );
     }
 
-    let gh_bridge = runner.run("gh", &["copilot", "--", "--help"]);
-    if gh_bridge.success {
-        return ready(
-            capability,
-            "GitHub Copilot CLI is available through the GitHub CLI bridge.",
-            "gh copilot -- -s --no-ask-user",
-            models,
-            Some(CopilotRuntime::GhWrapper),
-        );
-    }
-
-    let gh_wrapper = runner.run("gh", &["copilot", "--help"]);
-    if gh_wrapper.success {
+    let help = runner.run("copilot", &["--help"]);
+    if !copilot_supports_prompt_mode(&help) {
         return descriptor(
             capability,
-            ProviderState::InstallRequired,
-            "GitHub CLI is installed, but the Copilot CLI is not installed yet. Run `gh copilot` to install it, or install the `copilot` CLI directly.".to_string(),
-            Some("gh copilot -- --help".to_string()),
+            ProviderState::Error,
+            format_auth_reason(
+                "GitHub Copilot CLI is installed, but this version does not expose noninteractive prompt mode. Update the standalone `copilot` CLI.",
+                &help,
+            ),
+            Some("copilot update".to_string()),
             models,
             None,
         );
     }
 
-    not_installed_or_error(
+    ready(
         capability,
-        direct,
-        "Install GitHub Copilot CLI and ensure `copilot` is on PATH.",
+        "GitHub Copilot CLI is installed and exposes noninteractive prompt mode. Authentication will be verified when generation runs.",
+        "copilot -p <prompt> -s --no-ask-user",
+        models,
+        Some(CopilotRuntime::DirectCli),
     )
 }
 
@@ -326,6 +530,14 @@ fn ready(
         models,
         copilot_runtime,
     )
+}
+
+fn copilot_supports_prompt_mode(probe: &CommandProbe) -> bool {
+    if !probe.success {
+        return false;
+    }
+    let help = format!("{}\n{}", probe.stdout, probe.stderr);
+    help.contains("--prompt") || help.contains("-p,")
 }
 
 fn not_installed_or_error(
@@ -385,24 +597,46 @@ fn format_auth_reason(prefix: &str, probe: &CommandProbe) -> String {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
+    use std::{
+        cell::RefCell,
+        collections::{HashMap, HashSet},
+    };
 
     use super::*;
 
     #[derive(Default)]
     struct MockRunner {
+        executables: HashSet<String>,
         probes: HashMap<String, CommandProbe>,
+        calls: RefCell<Vec<String>>,
     }
 
     impl MockRunner {
+        fn with_executable(mut self, program: &str) -> Self {
+            self.executables.insert(program.to_string());
+            self
+        }
+
         fn with(mut self, program: &str, args: &[&str], probe: CommandProbe) -> Self {
+            if probe.success {
+                self.executables.insert(program.to_string());
+            }
             self.probes.insert(command_key(program, args), probe);
             self
+        }
+
+        fn calls(&self) -> Vec<String> {
+            self.calls.borrow().clone()
         }
     }
 
     impl ProbeRunner for MockRunner {
+        fn has_executable(&self, program: &str) -> bool {
+            self.executables.contains(program)
+        }
+
         fn run(&self, program: &str, args: &[&str]) -> CommandProbe {
+            self.calls.borrow_mut().push(command_key(program, args));
             self.probes
                 .get(&command_key(program, args))
                 .cloned()
@@ -437,15 +671,12 @@ mod tests {
                 not_found: false,
             }
         }
+    }
 
-        fn not_found() -> Self {
-            Self {
-                success: false,
-                stdout: String::new(),
-                stderr: "command not found".to_string(),
-                not_found: true,
-            }
-        }
+    fn copilot_prompt_help() -> CommandProbe {
+        CommandProbe::success_with_stdout(
+            "Usage: copilot [options]\n  -p, --prompt <prompt> Execute a prompt in non-interactive mode",
+        )
     }
 
     fn command_key(program: &str, args: &[&str]) -> String {
@@ -459,17 +690,11 @@ mod tests {
     #[test]
     fn provider_status_is_local_and_reports_all_providers() {
         let runner = MockRunner::default()
-            .with("claude", &["--version"], CommandProbe::success())
-            .with(
-                "claude",
-                &["auth", "status", "--json"],
-                CommandProbe::success(),
-            )
-            .with("codex", &["--version"], CommandProbe::success())
-            .with("codex", &["login", "status"], CommandProbe::success())
-            .with("copilot", &["version"], CommandProbe::success());
+            .with_executable("claude")
+            .with_executable("codex")
+            .with_executable("copilot");
 
-        let status = provider_status_with_runner(&runner);
+        let status = provider_status_with_runner(&runner, DetectionMode::Fast);
 
         assert_eq!(status.providers.len(), 3);
         assert!(status.providers.iter().all(|provider| provider.local_only));
@@ -480,6 +705,7 @@ mod tests {
                 .iter()
                 .all(|provider| provider.models[0].id == "default")
         );
+        assert!(runner.calls().is_empty());
     }
 
     #[test]
@@ -514,7 +740,7 @@ mod tests {
             )
             .with("codex", &["login", "status"], CommandProbe::success());
 
-        let readiness = detect_provider(AiProvider::CodexCli, &runner);
+        let readiness = detect_provider(AiProvider::CodexCli, &runner, DetectionMode::Deep);
 
         assert_eq!(readiness.descriptor.status, ProviderState::Ready);
         assert_eq!(readiness.descriptor.models[0].id, "default");
@@ -542,7 +768,7 @@ mod tests {
             .with("codex", &["--version"], CommandProbe::success())
             .with("codex", &["login", "status"], CommandProbe::success());
 
-        let readiness = detect_provider(AiProvider::CodexCli, &runner);
+        let readiness = detect_provider(AiProvider::CodexCli, &runner, DetectionMode::Deep);
         let preset_ids: Vec<&str> = readiness
             .descriptor
             .models
@@ -575,7 +801,7 @@ mod tests {
                 CommandProbe::success(),
             );
 
-        let readiness = detect_provider(AiProvider::ClaudeCode, &runner);
+        let readiness = detect_provider(AiProvider::ClaudeCode, &runner, DetectionMode::Deep);
         let model_ids: Vec<&str> = readiness
             .descriptor
             .models
@@ -591,9 +817,9 @@ mod tests {
     }
 
     #[test]
-    fn copilot_ignores_plain_gh_wrapper_help_false_positive() {
+    fn copilot_install_detection_ignores_gh_copilot() {
         let runner = MockRunner::default()
-            .with("copilot", &["version"], CommandProbe::not_found())
+            .with_executable("gh")
             .with(
                 "gh",
                 &["copilot", "--", "--help"],
@@ -601,7 +827,7 @@ mod tests {
             )
             .with("gh", &["copilot", "--help"], CommandProbe::success());
 
-        let readiness = detect_provider(AiProvider::CopilotCli, &runner);
+        let readiness = detect_provider(AiProvider::CopilotCli, &runner, DetectionMode::Deep);
 
         assert_eq!(readiness.descriptor.status, ProviderState::InstallRequired);
         assert!(!readiness.descriptor.available);
@@ -610,54 +836,109 @@ mod tests {
             readiness
                 .descriptor
                 .reason
-                .contains("Copilot CLI is not installed yet")
+                .contains("Install GitHub Copilot CLI")
         );
+        assert!(runner.calls().is_empty());
     }
 
     #[test]
-    fn copilot_direct_cli_is_ready() {
-        let runner = MockRunner::default().with("copilot", &["version"], CommandProbe::success());
+    fn copilot_fast_detection_is_ready_without_cli_process() {
+        let runner = MockRunner::default().with_executable("copilot");
 
-        let readiness = detect_provider(AiProvider::CopilotCli, &runner);
+        let readiness = detect_provider(AiProvider::CopilotCli, &runner, DetectionMode::Fast);
 
         assert_eq!(readiness.descriptor.status, ProviderState::Ready);
         assert!(readiness.descriptor.available);
         assert_eq!(readiness.copilot_runtime, Some(CopilotRuntime::DirectCli));
         assert_eq!(
             readiness.descriptor.command.as_deref(),
-            Some("copilot -s --no-ask-user")
+            Some("copilot -p <prompt> -s --no-ask-user")
+        );
+        assert!(readiness.descriptor.reason.contains("executable was found"));
+        assert!(runner.calls().is_empty());
+    }
+
+    #[test]
+    fn copilot_deep_detection_checks_prompt_support_without_prompt_probe() {
+        let runner = MockRunner::default().with_executable("copilot").with(
+            "copilot",
+            &["--help"],
+            copilot_prompt_help(),
+        );
+
+        let readiness = detect_provider(AiProvider::CopilotCli, &runner, DetectionMode::Deep);
+
+        assert_eq!(readiness.descriptor.status, ProviderState::Ready);
+        assert!(readiness.descriptor.available);
+        assert_eq!(readiness.copilot_runtime, Some(CopilotRuntime::DirectCli));
+        assert!(runner.calls().contains(&"copilot help config".to_string()));
+        assert!(runner.calls().contains(&"copilot --help".to_string()));
+        assert!(!runner.calls().contains(&"copilot version".to_string()));
+        assert!(
+            !runner
+                .calls()
+                .iter()
+                .any(|call| call.starts_with("copilot -p "))
+        );
+        assert!(!runner.calls().iter().any(|call| call.starts_with("gh ")));
+    }
+
+    #[test]
+    fn copilot_direct_cli_without_prompt_mode_is_not_ready() {
+        let runner = MockRunner::default().with_executable("copilot").with(
+            "copilot",
+            &["--help"],
+            CommandProbe::success_with_stdout("Usage: copilot [options]\n  --interactive <prompt>"),
+        );
+
+        let readiness = detect_provider(AiProvider::CopilotCli, &runner, DetectionMode::Deep);
+
+        assert_eq!(readiness.descriptor.status, ProviderState::Error);
+        assert!(!readiness.descriptor.available);
+        assert_eq!(readiness.copilot_runtime, None);
+        assert_eq!(
+            readiness.descriptor.command.as_deref(),
+            Some("copilot update")
         );
     }
 
     #[test]
     fn copilot_models_merge_presets_and_detected_config_help() {
         let runner = MockRunner::default()
-            .with("copilot", &["version"], CommandProbe::success())
+            .with_executable("copilot")
+            .with("copilot", &["--help"], copilot_prompt_help())
             .with(
                 "copilot",
                 &["help", "config"],
                 CommandProbe::success_with_stdout(
                     r#"
-model:
-  gpt-5.5
-  gpt-5.3-codex
-  claude-opus-4.6-fast
-  gemini-3.5-flash
-editor:
-  vim
+`model`: AI model to use for Copilot CLI; can be changed with /model command or --model flag option.
+  - "claude-sonnet-4.6"
+  - "gpt-5.5"
+  - "gpt-5.3-codex"
+  - "claude-opus-4.6-fast"
+  - "gemini-3.5-flash"
+
+`contextTier`: context window tier for tiered-pricing models.
+  - "default"
+  - "long_context"
 "#,
                 ),
             );
 
-        let readiness = detect_provider(AiProvider::CopilotCli, &runner);
+        let readiness = detect_provider(AiProvider::CopilotCli, &runner, DetectionMode::Deep);
         let models = &readiness.descriptor.models;
 
         assert_eq!(models[0].id, "default");
         assert_eq!(models[1].id, "auto");
         assert_eq!(models[1].source, ProviderModelSource::Preset);
         assert_eq!(
-            models.iter().filter(|model| model.id == "gpt-5.5").count(),
-            1
+            models
+                .iter()
+                .find(|model| model.id == "gpt-5.5")
+                .expect("detected GPT model remains available")
+                .source,
+            ProviderModelSource::Detected
         );
         assert_eq!(
             models
@@ -675,23 +956,33 @@ editor:
                 .source,
             ProviderModelSource::Detected
         );
+        assert!(!runner.calls().contains(&"copilot version".to_string()));
+        assert!(
+            !runner
+                .calls()
+                .iter()
+                .any(|call| call.starts_with("copilot -p "))
+        );
+        assert!(!runner.calls().iter().any(|call| call.starts_with("gh ")));
     }
 
     #[test]
-    fn copilot_gh_bridge_is_ready_only_after_double_dash_probe_succeeds() {
-        let runner = MockRunner::default()
-            .with("copilot", &["version"], CommandProbe::not_found())
-            .with("gh", &["copilot", "--", "--help"], CommandProbe::success());
+    fn retired_gh_copilot_extension_is_not_a_runtime_fallback() {
+        let runner = MockRunner::default();
 
-        let readiness = detect_provider(AiProvider::CopilotCli, &runner);
+        let readiness = detect_provider(AiProvider::CopilotCli, &runner, DetectionMode::Deep);
 
-        assert_eq!(readiness.descriptor.status, ProviderState::Ready);
-        assert!(readiness.descriptor.available);
-        assert_eq!(readiness.copilot_runtime, Some(CopilotRuntime::GhWrapper));
-        assert_eq!(
-            readiness.descriptor.command.as_deref(),
-            Some("gh copilot -- -s --no-ask-user")
+        assert_eq!(readiness.descriptor.status, ProviderState::InstallRequired);
+        assert!(!readiness.descriptor.available);
+        assert_eq!(readiness.copilot_runtime, None);
+        assert_eq!(readiness.descriptor.command.as_deref(), None);
+        assert!(
+            readiness
+                .descriptor
+                .reason
+                .contains("Install GitHub Copilot CLI")
         );
+        assert!(runner.calls().is_empty());
     }
 
     #[test]
@@ -704,7 +995,7 @@ editor:
                 CommandProbe::failed("not logged in"),
             );
 
-        let readiness = detect_provider(AiProvider::ClaudeCode, &runner);
+        let readiness = detect_provider(AiProvider::ClaudeCode, &runner, DetectionMode::Deep);
 
         assert_eq!(readiness.descriptor.status, ProviderState::AuthRequired);
         assert!(!readiness.descriptor.available);
@@ -721,7 +1012,7 @@ editor:
                 CommandProbe::failed("not logged in"),
             );
 
-        let readiness = detect_provider(AiProvider::CodexCli, &runner);
+        let readiness = detect_provider(AiProvider::CodexCli, &runner, DetectionMode::Deep);
 
         assert_eq!(readiness.descriptor.status, ProviderState::AuthRequired);
         assert!(!readiness.descriptor.available);

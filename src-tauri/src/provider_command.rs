@@ -1,6 +1,14 @@
-use std::{collections::HashSet, env, path::PathBuf, process::Command, sync::OnceLock};
+use std::{
+    collections::HashSet,
+    env,
+    ffi::OsString,
+    path::{Path, PathBuf},
+    process::Command,
+    sync::OnceLock,
+};
 
-static PROVIDER_PATH: OnceLock<Option<String>> = OnceLock::new();
+static PROVIDER_PATH: OnceLock<Option<OsString>> = OnceLock::new();
+static LIGHTWEIGHT_PROVIDER_PATH: OnceLock<Option<OsString>> = OnceLock::new();
 
 pub fn apply_provider_path(command: &mut Command) {
     if let Some(path) = provider_command_path() {
@@ -8,25 +16,43 @@ pub fn apply_provider_path(command: &mut Command) {
     }
 }
 
-fn provider_command_path() -> Option<String> {
+pub fn provider_executable_exists(program: &str) -> bool {
+    resolve_provider_executable(program).is_some()
+}
+
+fn provider_command_path() -> Option<OsString> {
     PROVIDER_PATH
         .get_or_init(build_provider_command_path)
         .clone()
 }
 
-fn build_provider_command_path() -> Option<String> {
+fn lightweight_provider_path() -> Option<OsString> {
+    LIGHTWEIGHT_PROVIDER_PATH
+        .get_or_init(build_lightweight_provider_path)
+        .clone()
+}
+
+fn build_provider_command_path() -> Option<OsString> {
     let mut paths = Vec::new();
     if let Some(path) = read_login_shell_path() {
         paths.push(path);
     }
-    if let Ok(path) = env::var("PATH") {
-        paths.push(path);
-    }
-    paths.push(fallback_provider_path());
+    paths.extend(lightweight_provider_path());
     merge_paths(paths)
 }
 
-fn read_login_shell_path() -> Option<String> {
+fn build_lightweight_provider_path() -> Option<OsString> {
+    let mut paths = Vec::new();
+    if let Some(path) = env::var_os("PATH").filter(|value| !value.is_empty()) {
+        paths.push(path);
+    }
+    if let Some(path) = fallback_provider_path() {
+        paths.push(path);
+    }
+    merge_paths(paths)
+}
+
+fn read_login_shell_path() -> Option<OsString> {
     let shell = resolve_login_shell()?;
     let output = Command::new(shell)
         .args(["-ilc", "printf %s \"$PATH\""])
@@ -37,7 +63,11 @@ fn read_login_shell_path() -> Option<String> {
     }
 
     let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    if path.is_empty() { None } else { Some(path) }
+    if path.is_empty() {
+        None
+    } else {
+        Some(OsString::from(path))
+    }
 }
 
 fn resolve_login_shell() -> Option<PathBuf> {
@@ -54,12 +84,12 @@ fn resolve_login_shell() -> Option<PathBuf> {
     }
 }
 
-fn fallback_provider_path() -> String {
+fn fallback_provider_path() -> Option<OsString> {
     let mut paths = Vec::new();
     if let Some(home) = env::var_os("HOME").filter(|value| !value.is_empty()) {
         let home = PathBuf::from(home);
-        paths.push(home.join(".local/bin").display().to_string());
-        paths.push(home.join(".bun/bin").display().to_string());
+        paths.push(home.join(".local/bin"));
+        paths.push(home.join(".bun/bin"));
     }
     paths.extend(
         [
@@ -70,30 +100,88 @@ fn fallback_provider_path() -> String {
             "/usr/sbin",
             "/sbin",
         ]
-        .map(str::to_string),
+        .map(PathBuf::from),
     );
-    paths.join(":")
+    env::join_paths(paths).ok()
 }
 
-fn merge_paths(paths: Vec<String>) -> Option<String> {
+fn merge_paths(paths: Vec<OsString>) -> Option<OsString> {
     let mut seen = HashSet::new();
     let mut parts = Vec::new();
-    for part in paths
-        .iter()
-        .flat_map(|path| path.split(':'))
-        .map(str::trim)
-        .filter(|part| !part.is_empty())
-    {
-        if seen.insert(part.to_string()) {
-            parts.push(part.to_string());
+    for part in paths.iter().flat_map(env::split_paths) {
+        if part.as_os_str().is_empty() {
+            continue;
+        }
+        if seen.insert(part.clone()) {
+            parts.push(part);
         }
     }
 
     if parts.is_empty() {
         None
     } else {
-        Some(parts.join(":"))
+        env::join_paths(parts).ok()
     }
+}
+
+fn resolve_provider_executable(program: &str) -> Option<PathBuf> {
+    let program_path = Path::new(program);
+    if program_path.is_absolute() || program_path.components().count() > 1 {
+        return executable_file(program_path).map(Path::to_path_buf);
+    }
+
+    let path = lightweight_provider_path()?;
+    for directory in env::split_paths(&path) {
+        let candidate = directory.join(program);
+        if let Some(executable) = executable_file(&candidate) {
+            return Some(executable.to_path_buf());
+        }
+
+        #[cfg(windows)]
+        {
+            if candidate.extension().is_none() {
+                for extension in executable_extensions() {
+                    let candidate = directory.join(format!("{program}{extension}"));
+                    if let Some(executable) = executable_file(&candidate) {
+                        return Some(executable.to_path_buf());
+                    }
+                }
+            }
+        }
+    }
+
+    None
+}
+
+fn executable_file(path: &Path) -> Option<&Path> {
+    let metadata = path.metadata().ok()?;
+    if !metadata.is_file() {
+        return None;
+    }
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        if metadata.permissions().mode() & 0o111 == 0 {
+            return None;
+        }
+    }
+
+    Some(path)
+}
+
+#[cfg(windows)]
+fn executable_extensions() -> Vec<String> {
+    env::var_os("PATHEXT")
+        .map(|value| {
+            value
+                .to_string_lossy()
+                .split(';')
+                .filter(|extension| !extension.trim().is_empty())
+                .map(str::to_string)
+                .collect()
+        })
+        .unwrap_or_else(|| vec![".exe".to_string(), ".cmd".to_string(), ".bat".to_string()])
 }
 
 #[cfg(test)]
@@ -102,12 +190,8 @@ mod tests {
 
     #[test]
     fn merge_paths_deduplicates_and_drops_empty_segments() {
-        let path = merge_paths(vec![
-            "/a:/b::".to_string(),
-            " /b : /c ".to_string(),
-            String::new(),
-        ]);
+        let path = merge_paths(vec!["/a:/b::".into(), "/b:/c".into(), String::new().into()]);
 
-        assert_eq!(path.as_deref(), Some("/a:/b:/c"));
+        assert_eq!(path.as_deref(), Some(std::ffi::OsStr::new("/a:/b:/c")));
     }
 }

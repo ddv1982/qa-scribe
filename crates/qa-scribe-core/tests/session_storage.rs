@@ -8,7 +8,8 @@ use qa_scribe_core::{
     domain::{
         AiProvider, AiRunCreate, AppSettings, DraftCreate, DraftKind, DraftPatch, EntryDraft,
         EntryPatch, EntryType, EvidenceLinkDraft, FindingDraft, FindingKind, FindingPatch,
-        SessionDraft, SessionPatch,
+        SessionDraft, SessionPatch, default_generation_system_prompt,
+        legacy_testware_generation_system_prompt,
     },
     export::{ExportFormat, export_session},
     services::SessionService,
@@ -71,12 +72,112 @@ fn session_library_create_reopen_update_delete_flow() {
 }
 
 #[test]
+fn rich_body_json_round_trips_for_entries_findings_and_drafts() {
+    let service = SessionService::in_memory().expect("in-memory service should open");
+    let session = service
+        .create_session(SessionDraft {
+            title: "Rich text storage".to_string(),
+            ..SessionDraft::default()
+        })
+        .expect("session should be created");
+    let body_json = r#"{"schemaVersion":1,"doc":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Stored JSON"}]}]}}"#;
+    let updated_body_json = r#"{"schemaVersion":1,"doc":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Updated JSON"}]}]}}"#;
+
+    let entry = service
+        .create_entry(EntryDraft {
+            session_id: session.id.clone(),
+            entry_type: EntryType::Note,
+            title: Some("Note body".to_string()),
+            body: "<p>Stored JSON</p>".to_string(),
+            body_json: Some(body_json.to_string()),
+            body_format: Some("tiptap_json".to_string()),
+            metadata_json: None,
+            excluded_from_generation: false,
+        })
+        .expect("entry should create with rich body JSON");
+    assert_eq!(entry.body_json.as_deref(), Some(body_json));
+    assert_eq!(entry.body_format.as_deref(), Some("tiptap_json"));
+    let entry = service
+        .update_entry(
+            &entry.id,
+            EntryPatch {
+                body: Some("<p>Updated JSON</p>".to_string()),
+                body_json: Some(Some(updated_body_json.to_string())),
+                body_format: Some(Some("tiptap_json".to_string())),
+                ..EntryPatch::default()
+            },
+        )
+        .expect("entry should update rich body JSON");
+    assert_eq!(entry.body_json.as_deref(), Some(updated_body_json));
+
+    let finding = service
+        .create_finding(FindingDraft {
+            session_id: session.id.clone(),
+            title: "Finding".to_string(),
+            body: "<p>Stored JSON</p>".to_string(),
+            body_json: Some(body_json.to_string()),
+            body_format: Some("tiptap_json".to_string()),
+            kind: FindingKind::Bug,
+            metadata_json: None,
+        })
+        .expect("finding should create with rich body JSON");
+    assert_eq!(finding.body_json.as_deref(), Some(body_json));
+    let finding = service
+        .update_finding(
+            &finding.id,
+            FindingPatch {
+                body: Some("<p>Updated JSON</p>".to_string()),
+                body_json: Some(Some(updated_body_json.to_string())),
+                body_format: Some(Some("tiptap_json".to_string())),
+                ..FindingPatch::default()
+            },
+        )
+        .expect("finding should update rich body JSON");
+    assert_eq!(finding.body_json.as_deref(), Some(updated_body_json));
+
+    let draft = service
+        .create_draft(DraftCreate {
+            session_id: session.id,
+            ai_run_id: None,
+            kind: DraftKind::Testware,
+            title: "Draft".to_string(),
+            body: "<p>Stored JSON</p>".to_string(),
+            body_json: Some(body_json.to_string()),
+            body_format: Some("tiptap_json".to_string()),
+            metadata_json: None,
+        })
+        .expect("draft should create with rich body JSON");
+    assert_eq!(draft.body_json.as_deref(), Some(body_json));
+    let draft = service
+        .update_draft(
+            &draft.id,
+            DraftPatch {
+                body: Some("<p>Updated JSON</p>".to_string()),
+                body_json: Some(Some(updated_body_json.to_string())),
+                body_format: Some(Some("tiptap_json".to_string())),
+                ..DraftPatch::default()
+            },
+        )
+        .expect("draft should update rich body JSON");
+    assert_eq!(draft.body_json.as_deref(), Some(updated_body_json));
+}
+
+#[test]
 fn settings_generation_context_ai_run_and_draft_round_trip() {
     let service = SessionService::in_memory().expect("in-memory service should open");
     let default_settings = service
         .get_settings()
         .expect("default settings should load");
     assert_eq!(default_settings.schema_version, 1);
+    assert_eq!(
+        default_settings.generation_system_prompt,
+        default_generation_system_prompt()
+    );
+    assert!(
+        !default_settings
+            .generation_system_prompt
+            .contains("Testware")
+    );
 
     let updated_settings = service
         .update_settings(AppSettings {
@@ -88,6 +189,21 @@ fn settings_generation_context_ai_run_and_draft_round_trip() {
     assert_eq!(
         service.get_settings().expect("settings should reload"),
         updated_settings
+    );
+
+    service
+        .update_settings(AppSettings {
+            schema_version: 1,
+            generation_system_prompt: legacy_testware_generation_system_prompt().to_string(),
+            ..AppSettings::default()
+        })
+        .expect("legacy default settings should save");
+    assert_eq!(
+        service
+            .get_settings()
+            .expect("legacy default should normalize")
+            .generation_system_prompt,
+        default_generation_system_prompt()
     );
 
     let session = service
@@ -102,6 +218,8 @@ fn settings_generation_context_ai_run_and_draft_round_trip() {
             entry_type: EntryType::Note,
             title: None,
             body: "Checkout works for guest users.".to_string(),
+            body_json: None,
+            body_format: Some("html".to_string()),
             metadata_json: None,
             excluded_from_generation: false,
         })
@@ -112,6 +230,8 @@ fn settings_generation_context_ai_run_and_draft_round_trip() {
             entry_type: EntryType::Note,
             title: None,
             body: "Do not include this setup note.".to_string(),
+            body_json: None,
+            body_format: Some("html".to_string()),
             metadata_json: None,
             excluded_from_generation: false,
         })
@@ -165,6 +285,9 @@ fn settings_generation_context_ai_run_and_draft_round_trip() {
             kind: DraftKind::SessionReport,
             title: "Session Report Draft".to_string(),
             body: format!("Entry used: {}", entry.id),
+            body_json: None,
+            body_format: Some("html".to_string()),
+            metadata_json: None,
         })
         .expect("Draft should be created");
     assert_eq!(draft.kind, DraftKind::SessionReport);
@@ -175,6 +298,7 @@ fn settings_generation_context_ai_run_and_draft_round_trip() {
             DraftPatch {
                 title: None,
                 body: Some("Edited Session Report Draft".to_string()),
+                ..DraftPatch::default()
             },
         )
         .expect("Draft should update");
@@ -233,6 +357,8 @@ fn entries_findings_and_evidence_links_cascade_with_session() {
             entry_type: EntryType::Observation,
             title: Some("Coupon failure".to_string()),
             body: "Applying SAVE10 returns a 500.".to_string(),
+            body_json: None,
+            body_format: Some("html".to_string()),
             metadata_json: Some(r#"{"url":"https://example.test/cart"}"#.to_string()),
             excluded_from_generation: false,
         })
@@ -242,6 +368,8 @@ fn entries_findings_and_evidence_links_cascade_with_session() {
             session_id: session.id.clone(),
             title: "Coupon crashes checkout".to_string(),
             body: "SAVE10 produces an internal error.".to_string(),
+            body_json: None,
+            body_format: Some("html".to_string()),
             kind: FindingKind::Bug,
             metadata_json: None,
         })
@@ -252,6 +380,7 @@ fn entries_findings_and_evidence_links_cascade_with_session() {
             FindingPatch {
                 title: Some("Coupon blocks checkout".to_string()),
                 body: Some("<p>SAVE10 produces an internal error.</p>".to_string()),
+                ..FindingPatch::default()
             },
         )
         .expect("finding should update");
@@ -305,6 +434,8 @@ fn deleting_finding_removes_evidence_links_but_keeps_entries() {
             entry_type: EntryType::Observation,
             title: Some("Checkout observation".to_string()),
             body: "The checkout confirmation did not render.".to_string(),
+            body_json: None,
+            body_format: Some("html".to_string()),
             metadata_json: None,
             excluded_from_generation: false,
         })
@@ -314,6 +445,8 @@ fn deleting_finding_removes_evidence_links_but_keeps_entries() {
             session_id: session.id.clone(),
             title: "Checkout confirmation missing".to_string(),
             body: "The confirmation screen stays blank after payment.".to_string(),
+            body_json: None,
+            body_format: Some("html".to_string()),
             kind: FindingKind::Bug,
             metadata_json: None,
         })
@@ -374,6 +507,9 @@ fn deleting_draft_preserves_ai_run_and_other_drafts() {
             kind: DraftKind::Testware,
             title: "Checkout testware".to_string(),
             body: "Scenario: checkout completion".to_string(),
+            body_json: None,
+            body_format: Some("html".to_string()),
+            metadata_json: None,
         })
         .expect("Testware Draft should be created");
     let report = service
@@ -383,6 +519,9 @@ fn deleting_draft_preserves_ai_run_and_other_drafts() {
             kind: DraftKind::SessionReport,
             title: "Session report".to_string(),
             body: "Report stays available.".to_string(),
+            body_json: None,
+            body_format: Some("html".to_string()),
+            metadata_json: None,
         })
         .expect("Session Report Draft should be created");
     let testware_id = testware.id.clone();
@@ -420,6 +559,8 @@ fn rich_text_bodies_can_be_blank() {
             entry_type: EntryType::Note,
             title: Some("Editable note".to_string()),
             body: "".to_string(),
+            body_json: None,
+            body_format: Some("html".to_string()),
             metadata_json: None,
             excluded_from_generation: false,
         })
@@ -442,6 +583,8 @@ fn rich_text_bodies_can_be_blank() {
             session_id: session.id.clone(),
             title: "Blank finding".to_string(),
             body: "".to_string(),
+            body_json: None,
+            body_format: Some("html".to_string()),
             kind: FindingKind::Bug,
             metadata_json: None,
         })
@@ -454,6 +597,7 @@ fn rich_text_bodies_can_be_blank() {
             FindingPatch {
                 title: None,
                 body: Some("   ".to_string()),
+                ..FindingPatch::default()
             },
         )
         .expect("blank finding update should be accepted");
@@ -466,6 +610,9 @@ fn rich_text_bodies_can_be_blank() {
             kind: DraftKind::Testware,
             title: "Blank testware".to_string(),
             body: "".to_string(),
+            body_json: None,
+            body_format: Some("html".to_string()),
+            metadata_json: None,
         })
         .expect("blank draft body should be accepted");
     assert_eq!(draft.body, "");
@@ -476,6 +623,7 @@ fn rich_text_bodies_can_be_blank() {
             DraftPatch {
                 title: None,
                 body: Some("   ".to_string()),
+                ..DraftPatch::default()
             },
         )
         .expect("blank draft update should be accepted");
@@ -674,6 +822,7 @@ fn migration_removes_body_length_checks_without_losing_dependents() {
             FindingPatch {
                 title: None,
                 body: Some("".to_string()),
+                ..FindingPatch::default()
             },
         )
         .expect("migrated finding should accept blank body");
@@ -704,6 +853,8 @@ fn managed_attachments_preview_generation_context_and_export_flow() {
             entry_type: EntryType::Log,
             title: None,
             body: "Console showed a checkout error.".to_string(),
+            body_json: None,
+            body_format: Some("html".to_string()),
             metadata_json: None,
             excluded_from_generation: false,
         })
@@ -760,6 +911,8 @@ fn managed_attachments_preview_generation_context_and_export_flow() {
             session_id: session.id.clone(),
             title: "Checkout log evidence".to_string(),
             body: "The imported log supports the Finding.".to_string(),
+            body_json: None,
+            body_format: Some("html".to_string()),
             kind: FindingKind::Bug,
             metadata_json: None,
         })
@@ -893,6 +1046,8 @@ fn validation_rejects_blank_session_titles_and_non_object_metadata() {
                 entry_type: EntryType::Log,
                 title: None,
                 body: "console output".to_string(),
+                body_json: None,
+                body_format: Some("html".to_string()),
                 metadata_json: Some("[]".to_string()),
                 excluded_from_generation: false,
             })
@@ -922,6 +1077,8 @@ fn evidence_links_must_stay_within_one_session() {
             entry_type: EntryType::Note,
             title: None,
             body: "Evidence from another Session".to_string(),
+            body_json: None,
+            body_format: Some("html".to_string()),
             metadata_json: None,
             excluded_from_generation: false,
         })
@@ -931,6 +1088,8 @@ fn evidence_links_must_stay_within_one_session() {
             session_id: second.id.clone(),
             title: "Cross-session risk".to_string(),
             body: "Should not link to another Session.".to_string(),
+            body_json: None,
+            body_format: Some("html".to_string()),
             kind: FindingKind::Risk,
             metadata_json: None,
         })
@@ -963,6 +1122,8 @@ fn evidence_links_must_stay_within_one_session() {
             session_id: second.id,
             title: "Attachment cross-session risk".to_string(),
             body: "Should not link to another Session attachment.".to_string(),
+            body_json: None,
+            body_format: Some("html".to_string()),
             kind: FindingKind::Risk,
             metadata_json: None,
         })

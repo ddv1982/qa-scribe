@@ -55,7 +55,7 @@ export function managedAttachmentImageHtml(attachmentId: string, filename: strin
 export function normalizeEditorHtml(value: string): string {
   const trimmed = repairEscapedEditorHtml(value.trim())
   if (!trimmed || trimmed === '<br>') return emptyEditorHtml
-  const html = trimmed.startsWith('<') ? trimmed : `<p>${escapeHtml(trimmed).replace(/\n/g, '<br />')}</p>`
+  const html = trimmed.startsWith('<') || literalEditorTagPattern.test(trimmed) ? trimmed : `<p>${escapeHtml(trimmed).replace(/\n/g, '<br />')}</p>`
   const sanitized = sanitizeNoteHtml(html)
   return isVisuallyEmptyEditorHtml(sanitized) ? emptyEditorHtml : sanitized
 }

@@ -1,13 +1,9 @@
 import { useEffect, useRef, type ChangeEvent } from 'react'
 import { EditorContent, useEditor, type Editor } from '@tiptap/react'
-import Image from '@tiptap/extension-image'
-import Link from '@tiptap/extension-link'
-import Placeholder from '@tiptap/extension-placeholder'
-import StarterKit from '@tiptap/starter-kit'
-import TaskItem from '@tiptap/extension-task-item'
-import TaskList from '@tiptap/extension-task-list'
 import { Bold, ImageIcon, Italic, Link2, List, ListChecks, type LucideIcon } from 'lucide-react'
-import { isSafeEditorLinkUrl, managedAttachmentProtocol, normalizeEditorHtml, hydrateManagedAttachmentPreviews } from './editorHtml'
+import { isSafeEditorLinkUrl, managedAttachmentProtocol, hydrateManagedAttachmentPreviews } from './editorHtml'
+import { richTextEditorExtensions } from './editorExtensions'
+import { normalizeRichEditorDocument, richEditorDocumentsEqual, type RichEditorDocument } from './editorDocument'
 import {
   notifyRichEditorRegistry,
   registerRichEditor,
@@ -23,39 +19,6 @@ type FormatToolbarProps = {
   editorId?: string
   onUploadImage?: (input: RichEditorImageUpload) => void | Promise<void>
 }
-
-const ManagedImage = Image.extend({
-  addAttributes() {
-    return {
-      ...this.parent?.(),
-      src: {
-        default: null,
-        parseHTML: (element: HTMLElement) => element.getAttribute('src'),
-        renderHTML: (attributes) => {
-          const attachmentId = stringAttribute(attributes.attachmentId)
-          const source = attachmentId ? `${managedAttachmentProtocol}${attachmentId}` : stringAttribute(attributes.src)
-          return source ? { src: source } : {}
-        },
-      },
-      attachmentId: {
-        default: null,
-        parseHTML: (element: HTMLElement) => element.getAttribute('data-attachment-id') || managedAttachmentIdFromSource(element.getAttribute('src') ?? ''),
-        renderHTML: (attributes) => {
-          const attachmentId = stringAttribute(attributes.attachmentId)
-          return attachmentId ? { 'data-attachment-id': attachmentId } : {}
-        },
-      },
-      alt: {
-        default: null,
-        parseHTML: (element: HTMLElement) => element.getAttribute('alt'),
-        renderHTML: (attributes) => {
-          const alt = stringAttribute(attributes.alt)
-          return alt ? { alt } : {}
-        },
-      },
-    }
-  },
-})
 
 export function FormatToolbar({ editorId, onUploadImage }: FormatToolbarProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
@@ -120,8 +83,8 @@ export function FormatToolbar({ editorId, onUploadImage }: FormatToolbarProps) {
 }
 
 type RichTextEditorProps = {
-  value: string
-  onChange?: (value: string) => void
+  value: RichEditorDocument
+  onChange?: (value: RichEditorDocument) => void
   ariaLabel?: string
   placeholder?: string
   readOnly?: boolean
@@ -147,40 +110,8 @@ export function RichTextEditor({
 
   const editor = useEditor(
     {
-      extensions: [
-        StarterKit.configure({
-          blockquote: false,
-          code: false,
-          codeBlock: false,
-          heading: { levels: [2, 3] },
-          horizontalRule: false,
-          link: false,
-          strike: false,
-        }),
-        Link.configure({
-          autolink: true,
-          enableClickSelection: true,
-          linkOnPaste: true,
-          openOnClick: false,
-          HTMLAttributes: {
-            target: '_blank',
-            rel: 'noreferrer',
-          },
-          isAllowedUri: (url) => isSafeEditorLinkUrl(url),
-          shouldAutoLink: (url) => isSafeEditorLinkUrl(url),
-        }),
-        ManagedImage.configure({
-          allowBase64: true,
-        }),
-        TaskList,
-        TaskItem.configure({
-          nested: false,
-        }),
-        Placeholder.configure({
-          placeholder,
-        }),
-      ],
-      content: normalizeEditorHtml(value),
+      extensions: richTextEditorExtensions(placeholder),
+      content: normalizeRichEditorDocument(value).doc,
       editable: !readOnly,
       immediatelyRender: false,
       editorProps: {
@@ -195,7 +126,7 @@ export function RichTextEditor({
         },
       },
       onUpdate: ({ editor: updatedEditor }) => {
-        const nextValue = normalizeEditorHtml(updatedEditor.getHTML())
+        const nextValue = normalizeRichEditorDocument({ schemaVersion: 1, doc: updatedEditor.getJSON() })
         onChangeRef.current?.(nextValue)
         queueManagedPreviewHydration(updatedEditor, previewLoadRef)
         notifyRichEditorRegistry()
@@ -213,9 +144,10 @@ export function RichTextEditor({
 
   useEffect(() => {
     if (!editor) return
-    const normalizedValue = normalizeEditorHtml(value)
-    if (normalizeEditorHtml(editor.getHTML()) !== normalizedValue) {
-      editor.commands.setContent(normalizedValue, { emitUpdate: false })
+    const normalizedValue = normalizeRichEditorDocument(value)
+    const currentValue = normalizeRichEditorDocument({ schemaVersion: 1, doc: editor.getJSON() })
+    if (!richEditorDocumentsEqual(currentValue, normalizedValue)) {
+      editor.commands.setContent(normalizedValue.doc, { emitUpdate: false })
     }
     queueManagedPreviewHydration(editor, previewLoadRef)
   }, [editor, value])
@@ -337,13 +269,4 @@ function queueManagedPreviewHydration(editor: Editor, previewLoadRef: { current:
   window.queueMicrotask(() => {
     void hydrateManagedAttachmentPreviews(editor.view.dom as HTMLElement, () => previewLoadRef.current === loadId)
   })
-}
-
-function stringAttribute(value: unknown): string | null {
-  return typeof value === 'string' && value.trim() ? value : null
-}
-
-function managedAttachmentIdFromSource(source: string): string | null {
-  if (!source.startsWith(managedAttachmentProtocol)) return null
-  return source.slice(managedAttachmentProtocol.length)
 }

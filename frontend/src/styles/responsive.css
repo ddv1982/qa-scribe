@@ -109,10 +109,27 @@
     width: 100%;
   }
 
-  .ai-inline-controls {
+  .ai-action-buttons {
     grid-template-columns: 1fr;
     width: 100%;
+  }
+
+  .ai-action-buttons .primary-button {
+    grid-column: auto;
+  }
+
+  .ai-provider-summary {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    width: 100%;
     max-width: none;
+  }
+
+  .ai-provider-model {
+    grid-column: 2 / -1;
+  }
+
+  .ai-provider-summary p {
+    grid-column: 2 / -1;
   }
 
   .confirmation-actions {
@@ -121,6 +138,25 @@
 
   .confirmation-actions button {
     width: 100%;
+  }
+
+  .preflight-list div,
+  .preflight-control-grid,
+  .preflight-toggle-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .preflight-technique-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .record-heading-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .testware-metadata-badges {
+    justify-content: flex-start;
   }
 
   .document-body {

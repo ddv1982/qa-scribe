@@ -4,6 +4,8 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
 import { draftFixture, entryFixture, findingFixture, generationStatusFixture, providerStatusFixture, sessionFixture, settingsFixture } from './test/fixtures'
+import { richEditorDocumentFromHtml, richEditorDocumentToStoredBody } from './editor/editorDocument'
+import { managedAttachmentImageHtml } from './editor/editorHtml'
 
 const tauriMock = vi.hoisted(() => ({
   cancelAiActionJob: vi.fn(),
@@ -23,6 +25,7 @@ const tauriMock = vi.hoisted(() => ({
   listFindings: vi.fn(),
   listSessions: vi.fn(),
   reopenSession: vi.fn(),
+  refreshProviderStatus: vi.fn(),
   startAiActionJob: vi.fn(),
   updateDraft: vi.fn(),
   updateEntry: vi.fn(),
@@ -35,12 +38,29 @@ vi.mock('./tauri', () => tauriMock)
 
 vi.mock('./editor/RichTextEditor', () => ({
   FormatToolbar: () => <div data-testid="format-toolbar" />,
-  RichTextEditor: ({ ariaLabel, editorId, onChange, readOnly, value }: { ariaLabel?: string; editorId?: string; onChange?: (value: string) => void; readOnly?: boolean; value: string }) => (
+  RichTextEditor: ({
+    ariaLabel,
+    editorId,
+    onChange,
+    readOnly,
+    value,
+  }: {
+    ariaLabel?: string
+    editorId?: string
+    onChange?: (value: { schemaVersion: 1; doc: { type: string; content?: unknown[] } }) => void
+    readOnly?: boolean
+    value: { doc?: { content?: Array<{ content?: Array<{ text?: string }> }> } }
+  }) => (
     <textarea
       aria-label={ariaLabel ?? editorId ?? 'Rich text editor'}
       readOnly={readOnly}
-      value={value}
-      onChange={(event) => onChange?.(event.target.value)}
+      value={value.doc?.content?.[0]?.content?.[0]?.text ?? ''}
+      onChange={(event) =>
+        onChange?.({
+          schemaVersion: 1,
+          doc: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: event.target.value }] }] },
+        })
+      }
     />
   ),
 }))
@@ -57,6 +77,7 @@ describe('App workflows', () => {
 
     tauriMock.getSettings.mockResolvedValue(settingsFixture())
     tauriMock.getProviderStatus.mockResolvedValue(providerStatusFixture())
+    tauriMock.refreshProviderStatus.mockResolvedValue(providerStatusFixture())
     tauriMock.listSessions.mockResolvedValue([sessionFixture()])
     tauriMock.reopenSession.mockResolvedValue(sessionFixture())
     tauriMock.listEntries.mockResolvedValue([entryFixture()])
@@ -65,7 +86,13 @@ describe('App workflows', () => {
     tauriMock.createEntry.mockResolvedValue(entryFixture())
     tauriMock.createSession.mockResolvedValue(sessionFixture({ id: 'session-2', title: 'Untitled note 2' }))
     tauriMock.updateSession.mockImplementation(async (_id: string, patch: { title?: string | null }) => sessionFixture({ title: patch.title ?? 'Checkout note' }))
-    tauriMock.updateEntry.mockImplementation(async (_id: string, patch: { body?: string | null }) => entryFixture({ body: patch.body ?? '<p>Checkout fails after payment.</p>' }))
+    tauriMock.updateEntry.mockImplementation(async (_id: string, patch: { body?: string | null; bodyJson?: string | null; bodyFormat?: string | null }) =>
+      entryFixture({
+        body: patch.body ?? '<p>Checkout fails after payment.</p>',
+        bodyJson: patch.bodyJson ?? null,
+        bodyFormat: patch.bodyFormat ?? 'html',
+      }),
+    )
     tauriMock.createDraft.mockResolvedValue(draftFixture())
     tauriMock.createFinding.mockResolvedValue(findingFixture())
     tauriMock.startAiActionJob.mockResolvedValue({ jobId: 'job-1', status: generationStatusFixture() })
@@ -88,9 +115,29 @@ describe('App workflows', () => {
       entryType: 'note',
       title: 'Note body',
       body: '',
+      bodyJson: expect.any(String),
+      bodyFormat: 'tiptap_json',
       metadataJson: null,
       excludedFromGeneration: false,
     })
+  })
+
+  it('opens the first note before provider status resolves', async () => {
+    let resolveProviderStatus: (status: ReturnType<typeof providerStatusFixture>) => void = () => {}
+    tauriMock.getProviderStatus.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveProviderStatus = resolve
+      }),
+    )
+    render(<App />)
+
+    await screen.findByDisplayValue('Checkout note')
+    const generateButton = screen.getByRole('button', { name: /generate test cases/i })
+    expect(generateButton).toBeDisabled()
+
+    resolveProviderStatus(providerStatusFixture())
+
+    await waitFor(() => expect(generateButton).toBeEnabled())
   })
 
   it('creates a new note from the top action', async () => {
@@ -107,6 +154,8 @@ describe('App workflows', () => {
       entryType: 'note',
       title: 'Note body',
       body: '',
+      bodyJson: expect.any(String),
+      bodyFormat: 'tiptap_json',
       metadataJson: null,
       excludedFromGeneration: false,
     })
@@ -133,9 +182,105 @@ describe('App workflows', () => {
           reasoningEffort: 'low',
           action: 'testware',
           noteEntryId: 'entry-1',
+          testwarePreferences: expect.objectContaining({
+            technique: 'auto',
+            outputFormat: 'qa_cases',
+            depth: 'balanced',
+            includeNegativeCases: true,
+            includeBoundaryCases: true,
+            includeTestData: true,
+            preserveEvidence: true,
+            customInstructions: null,
+          }),
         },
         expect.any(Function),
       ),
+    )
+  })
+
+  it('passes the selected test design technique to testware generation', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await screen.findByDisplayValue('Checkout note')
+    await user.click(screen.getByRole('button', { name: /generate test cases/i }))
+    const dialog = screen.getByRole('dialog', { name: /generate test cases/i })
+    await user.click(within(dialog).getByRole('button', { name: /boundaries/i }))
+    await user.click(within(dialog).getByRole('button', { name: /^generate test cases$/i }))
+
+    await waitFor(() =>
+      expect(tauriMock.startAiActionJob).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'testware',
+          testwarePreferences: expect.objectContaining({
+            technique: 'equivalence_boundary',
+          }),
+        }),
+        expect.any(Function),
+      ),
+    )
+  })
+
+  it('preserves managed images after note summary generation and can undo the result', async () => {
+    const user = userEvent.setup()
+    const originalBody = `<p>Original note.</p>${managedAttachmentImageHtml('attachment-1', 'gmail-error.png')}`
+    const originalStoredBody = richEditorDocumentToStoredBody(richEditorDocumentFromHtml(originalBody))
+    const generatedEntry = entryFixture({ body: '<p>Generated summary.</p>', bodyJson: null, bodyFormat: 'html' })
+    tauriMock.listEntries.mockResolvedValue([entryFixture(originalStoredBody)])
+
+    render(<App />)
+
+    await screen.findByDisplayValue('Original note.')
+    await user.click(screen.getByRole('button', { name: /summarize notes/i }))
+    const dialog = screen.getByRole('dialog', { name: /summarize note/i })
+    await user.click(within(dialog).getByRole('button', { name: /summarize note/i }))
+
+    await waitFor(() => expect(tauriMock.startAiActionJob).toHaveBeenCalled())
+    const onEvent = tauriMock.startAiActionJob.mock.calls[0][1]
+    onEvent({
+      type: 'completed',
+      jobId: 'job-1',
+      status: generationStatusFixture({ action: 'summary', state: 'completed', progressMessage: 'Completed' }),
+      result: {
+        generationContext: { id: 'context-1', sessionId: 'session-1', createdAt: '2026-06-24T10:00:00.000Z' },
+        aiRun: {
+          id: 'ai-run-1',
+          sessionId: 'session-1',
+          generationContextId: 'context-1',
+          provider: 'codex_cli',
+          model: 'default',
+          reasoningEffort: 'low',
+          promptVersion: 'note-summary-v3',
+          status: 'completed',
+          errorMessage: null,
+          createdAt: '2026-06-24T10:00:00.000Z',
+          completedAt: '2026-06-24T10:00:01.000Z',
+        },
+        draft: null,
+        finding: null,
+        noteEntry: generatedEntry,
+      },
+    })
+
+    await waitFor(() => expect(screen.getByDisplayValue('Generated summary.')).toBeInTheDocument())
+    expect(tauriMock.updateEntry).toHaveBeenLastCalledWith(
+      'entry-1',
+      expect.objectContaining({
+        body: expect.stringContaining('data-attachment-id="attachment-1"'),
+        bodyFormat: 'tiptap_json',
+      }),
+    )
+
+    await user.click(screen.getByRole('button', { name: /undo generation/i }))
+
+    await waitFor(() => expect(screen.getByDisplayValue('Original note.')).toBeInTheDocument())
+    expect(tauriMock.updateEntry).toHaveBeenLastCalledWith(
+      'entry-1',
+      expect.objectContaining({
+        body: expect.stringContaining('Original note.'),
+        bodyJson: originalStoredBody.bodyJson,
+        bodyFormat: 'tiptap_json',
+      }),
     )
   })
 
@@ -152,6 +297,7 @@ describe('App workflows', () => {
       sessionId: 'session-1',
       aiRunId: null,
       kind: 'testware',
+      metadataJson: null,
     })
   })
 })

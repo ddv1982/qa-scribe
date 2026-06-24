@@ -116,8 +116,9 @@ fn render_testware_prompt(
     prompt.push_str(&settings.testware_template);
     prompt.push_str("\nReturn only a clean HTML fragment. Do not use Markdown, code fences, an introduction, or a closing summary. Use only h2, h3, p, ul, ol, li, strong, em, a, img, and checkbox inputs when useful.\n");
     prompt.push_str("Return literal HTML tags such as <p>Text</p>. Do not escape tags as &lt;p&gt;Text&lt;/p&gt; or display tag names as text.\n");
-    prompt.push_str("Preserve managed image placeholders exactly as literal <img> elements when they are relevant test evidence. Never invent filesystem paths for images.\n");
-    prompt.push_str("Create 5-8 high-value test cases from the selected note only. Prefer coverage over exhaustiveness. Do not invent facts not present in the note.\n");
+    prompt.push_str("Preserve existing image elements when they are relevant test evidence. Preserve managed image placeholders exactly as literal <img> elements. Never invent filesystem paths for images.\n");
+    prompt.push_str("Create test scenarios with test cases from the selected note only. Prefer coverage over exhaustiveness. Do not invent facts not present in the note.\n");
+    prompt.push_str("Do not create a bug finding, severity field, Jira issue, impact section, or finding-style report.\n");
     append_selected_note(
         &mut prompt,
         &mut budget,
@@ -143,8 +144,9 @@ fn render_finding_prompt(
     prompt.push_str(&settings.finding_template);
     prompt.push_str("\nReturn only a clean HTML fragment. Use the first h2 as the concise finding title. Do not use Markdown, code fences, an introduction, or a closing summary. Use only h2, h3, p, ul, ol, li, strong, em, a, and img.\n");
     prompt.push_str("Return literal HTML tags such as <p>Text</p>. Do not escape tags as &lt;p&gt;Text&lt;/p&gt; or display tag names as text.\n");
-    prompt.push_str("Preserve managed image placeholders exactly as literal <img> elements when they are relevant evidence. Never invent filesystem paths for images.\n");
-    prompt.push_str("Create one focused QA finding from the selected note only. If a field is missing, write \"Unknown\" rather than inventing details.\n");
+    prompt.push_str("Preserve existing image elements when they are relevant evidence. Preserve managed image placeholders exactly as literal <img> elements. Never invent filesystem paths for images.\n");
+    prompt.push_str("Create exactly one focused QA finding from the selected note only. If a field is missing, write \"Unknown\" rather than inventing details.\n");
+    prompt.push_str("Do not create test scenarios, test cases, coverage matrices, or testware.\n");
     append_selected_note(
         &mut prompt,
         &mut budget,
@@ -169,7 +171,8 @@ fn render_note_summary_prompt(
     prompt.push_str("\n\n");
     prompt.push_str(&settings.note_summary_template);
     prompt.push_str("\nReturn literal HTML tags such as <p>Text</p>. Do not escape tags as &lt;p&gt;Text&lt;/p&gt; or display tag names as text.\n");
-    prompt.push_str("Preserve managed image placeholders exactly as literal <img> elements when they are still relevant. Never invent filesystem paths for images.\n");
+    prompt.push_str("Preserve existing image elements when they are still relevant. Preserve managed image placeholders exactly as literal <img> elements. Never invent filesystem paths for images.\n");
+    prompt.push_str("Keep the output as a summarized QA note. Do not create findings, test scenarios, test cases, testware, Jira fields, severity, steps-to-reproduce, expected result, or actual result sections.\n");
     prompt.push_str(&format!("\n# Note\nTitle: {session_title}\n"));
 
     match note_entry {

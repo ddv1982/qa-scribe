@@ -60,6 +60,8 @@ export type Entry = {
   entryType: EntryType
   title: string | null
   body: string
+  bodyJson: string | null
+  bodyFormat: string | null
   metadataJson: string | null
   excludedFromGeneration: boolean
   createdAt: string
@@ -71,6 +73,8 @@ export type EntryDraft = {
   entryType: EntryType
   title?: string | null
   body: string
+  bodyJson?: string | null
+  bodyFormat?: string | null
   metadataJson?: string | null
   excludedFromGeneration: boolean
 }
@@ -78,6 +82,8 @@ export type EntryDraft = {
 export type EntryPatch = {
   title?: string | null
   body?: string | null
+  bodyJson?: string | null
+  bodyFormat?: string | null
   metadataJson?: string | null
   excludedFromGeneration?: boolean | null
 }
@@ -89,6 +95,8 @@ export type Finding = {
   sessionId: string
   title: string
   body: string
+  bodyJson: string | null
+  bodyFormat: string | null
   kind: FindingKind
   metadataJson: string | null
   createdAt: string
@@ -99,6 +107,8 @@ export type FindingDraft = {
   sessionId: string
   title: string
   body: string
+  bodyJson?: string | null
+  bodyFormat?: string | null
   kind: FindingKind
   metadataJson?: string | null
 }
@@ -106,6 +116,8 @@ export type FindingDraft = {
 export type FindingPatch = {
   title?: string | null
   body?: string | null
+  bodyJson?: string | null
+  bodyFormat?: string | null
 }
 
 export type EvidenceLink = {
@@ -166,6 +178,9 @@ export type Draft = {
   kind: DraftKind
   title: string
   body: string
+  bodyJson: string | null
+  bodyFormat: string | null
+  metadataJson: string | null
   createdAt: string
   updatedAt: string
 }
@@ -175,6 +190,9 @@ export type DraftKind = 'session_report' | 'testware'
 export type DraftPatch = {
   title?: string | null
   body?: string | null
+  bodyJson?: string | null
+  bodyFormat?: string | null
+  metadataJson?: string | null
 }
 
 export type AppSettings = {
@@ -343,6 +361,9 @@ export function createDraft(input: {
   kind: DraftKind
   title: string
   body: string
+  bodyJson?: string | null
+  bodyFormat?: string | null
+  metadataJson?: string | null
 }): Promise<Draft> {
   return invoke<Draft>('create_draft', { draft: input })
 }
@@ -363,6 +384,10 @@ export function getProviderStatus(): Promise<ProviderStatus> {
   return invoke<ProviderStatus>('get_provider_status')
 }
 
+export function refreshProviderStatus(): Promise<ProviderStatus> {
+  return invoke<ProviderStatus>('refresh_provider_status')
+}
+
 export function generateSessionReport(input: {
   sessionId: string
   provider: AiProvider
@@ -373,6 +398,32 @@ export function generateSessionReport(input: {
 }
 
 export type GenerateAiActionKind = 'testware' | 'finding' | 'summary'
+
+export type TestwareTechnique =
+  | 'auto'
+  | 'use_case'
+  | 'equivalence_boundary'
+  | 'decision_table'
+  | 'state_transition'
+  | 'pairwise'
+  | 'risk_based'
+  | 'exploratory'
+  | 'bdd'
+
+export type TestwareOutputFormat = 'qa_cases' | 'checklist' | 'gherkin' | 'charters' | 'coverage_outline'
+
+export type TestwareDepth = 'lean' | 'balanced' | 'thorough'
+
+export type TestwareGenerationPreferences = {
+  technique: TestwareTechnique
+  outputFormat: TestwareOutputFormat
+  depth: TestwareDepth
+  includeNegativeCases: boolean
+  includeBoundaryCases: boolean
+  includeTestData: boolean
+  preserveEvidence: boolean
+  customInstructions?: string | null
+}
 
 export type GenerateAiActionResult = {
   generationContext: GenerationContext
@@ -421,6 +472,7 @@ export function generateAiAction(input: {
   reasoningEffort: string | null
   action: GenerateAiActionKind
   noteEntryId?: string | null
+  testwarePreferences?: TestwareGenerationPreferences | null
 }): Promise<GenerateAiActionResult> {
   return invoke<GenerateAiActionResult>('generate_ai_action', { request: input })
 }
@@ -433,6 +485,7 @@ export function startAiActionJob(
     reasoningEffort: string | null
     action: GenerateAiActionKind
     noteEntryId?: string | null
+    testwarePreferences?: TestwareGenerationPreferences | null
   },
   onEvent: (event: GenerationJobEvent) => void,
 ): Promise<StartAiActionJobResult> {

@@ -37,6 +37,8 @@ mod tests {
                 entry_type: EntryType::Observation,
                 title: None,
                 body: "SAVE10 failed".to_string(),
+                body_json: None,
+                body_format: Some("html".to_string()),
                 metadata_json: None,
                 excluded_from_generation: false,
             })
@@ -140,6 +142,8 @@ mod tests {
         assert_eq!(prompt.matches("Guest checkout failed.").count(), 1);
         assert!(prompt.contains("clean HTML fragment"));
         assert!(prompt.contains("selected note only"));
+        assert!(prompt.contains("Create exactly one focused QA finding"));
+        assert!(prompt.contains("Do not create test scenarios, test cases"));
         assert!(prompt.contains("Do not escape tags as &lt;p&gt;"));
         assert!(!prompt.contains("Console showed 500."));
         assert!(!prompt.contains("Previous finding."));
@@ -209,7 +213,8 @@ mod tests {
             ActionPromptKind::Testware,
         );
 
-        assert!(prompt.contains("5-8"));
+        assert!(prompt.contains("Create test scenarios with test cases"));
+        assert!(prompt.contains("Do not create a bug finding"));
         assert!(prompt.contains("clean HTML fragment"));
         assert!(prompt.contains("Preserve managed image placeholders"));
         assert!(prompt.contains("Do not escape tags as &lt;p&gt;"));
@@ -308,10 +313,43 @@ mod tests {
         assert!(prompt.contains("qa-scribe-attachment://attachment-1"));
         assert!(prompt.contains("data-attachment-id=\"attachment-1\""));
         assert!(prompt.contains("Do not escape tags as &lt;p&gt;"));
+        assert!(prompt.contains("Keep the output as a summarized QA note"));
+        assert!(prompt.contains("Do not create findings, test scenarios, test cases"));
         assert!(!prompt.contains("Console showed 500."));
         assert!(!prompt.contains("Existing finding."));
         assert!(!prompt.contains("attachments/session/attachment-1_gmail-error.png"));
         assert!(!prompt.contains("sha256"));
+    }
+
+    #[test]
+    fn default_action_prompts_do_not_inherit_testware_specific_global_instructions() {
+        let selected = test_entry(
+            "entry-selected",
+            EntryType::Note,
+            Some("Selected note"),
+            "<p>Gmail login fails with Something went wrong.</p>",
+        );
+        let settings = AppSettings::default();
+
+        for action in [
+            ActionPromptKind::Finding,
+            ActionPromptKind::Summary,
+            ActionPromptKind::Testware,
+        ] {
+            let prompt = render_action_prompt(
+                &settings,
+                "Gmail issue",
+                Some(&selected),
+                std::slice::from_ref(&selected),
+                &[],
+                &[],
+                action,
+            );
+
+            assert!(!prompt.contains(
+                "Turn the selected Session material into concise, evidence-grounded Testware."
+            ));
+        }
     }
 
     #[test]
@@ -349,6 +387,30 @@ mod tests {
 
         assert!(repaired_from_broken.contains("src=\"qa-scribe-attachment://attachment-1\""));
         assert!(repaired_from_broken.contains("alt=\"Broken before repair\""));
+    }
+
+    #[test]
+    fn summary_response_restores_missing_external_images() {
+        let original = "<p>Original evidence.</p><img src=\"https://example.com/gmail-error.png\" alt=\"Gmail screenshot\" />";
+
+        let preserved =
+            preserve_managed_attachment_images("<p>Summary without image.</p>", original, &[]);
+
+        assert!(preserved.contains("<p>Summary without image.</p>"));
+        assert!(preserved.contains("src=\"https://example.com/gmail-error.png\""));
+        assert!(preserved.contains("alt=\"Gmail screenshot\""));
+
+        let already_present = preserve_managed_attachment_images(
+            "<p>Summary.</p><img src=\"https://example.com/gmail-error.png\" alt=\"Updated\" />",
+            original,
+            &[],
+        );
+        assert_eq!(
+            already_present
+                .match_indices("https://example.com/gmail-error.png")
+                .count(),
+            1
+        );
     }
 
     #[test]
@@ -452,6 +514,8 @@ mod tests {
             entry_type,
             title: title.map(ToOwned::to_owned),
             body: body.to_string(),
+            body_json: None,
+            body_format: Some("html".to_string()),
             metadata_json: None,
             excluded_from_generation: false,
             created_at: "2026-06-23T00:00:00Z".to_string(),
@@ -465,6 +529,8 @@ mod tests {
             session_id: "session-1".to_string(),
             title: title.to_string(),
             body: body.to_string(),
+            body_json: None,
+            body_format: Some("html".to_string()),
             kind: FindingKind::Bug,
             metadata_json: None,
             created_at: "2026-06-23T00:00:00Z".to_string(),

@@ -6,6 +6,7 @@ vi.mock('../tauri', () => ({
 }))
 
 import { FormatToolbar, RichTextEditor, type RichEditorImageUpload } from './RichTextEditor'
+import { emptyRichEditorDocument, richEditorDocumentFromHtml, richEditorDocumentToHtml, type RichEditorDocument } from './editorDocument'
 
 beforeAll(() => {
   const rect = {
@@ -41,15 +42,15 @@ describe('RichTextEditor toolbar', () => {
 
   it('renders and resets a true blank value through TipTap', async () => {
     const onChange = vi.fn()
-    const { rerender } = render(<RichTextEditor value="" onChange={onChange} />)
+    const { rerender } = render(<RichTextEditor value={emptyRichEditorDocument} onChange={onChange} />)
 
     const editor = await screen.findByRole('textbox', { name: 'Note body' })
     expect(editor.textContent).toBe('')
 
-    rerender(<RichTextEditor value="<p>Gmail login fails</p>" onChange={onChange} />)
+    rerender(<RichTextEditor value={richEditorDocumentFromHtml('<p>Gmail login fails</p>')} onChange={onChange} />)
     await waitFor(() => expect(editor.textContent).toContain('Gmail login fails'))
 
-    rerender(<RichTextEditor value="" onChange={onChange} />)
+    rerender(<RichTextEditor value={emptyRichEditorDocument} onChange={onChange} />)
     await waitFor(() => expect(editor.textContent).toBe(''))
   })
 
@@ -58,7 +59,7 @@ describe('RichTextEditor toolbar', () => {
     render(
       <>
         <FormatToolbar editorId="editor-one" onUploadImage={vi.fn()} />
-        <RichTextEditor editorId="editor-one" value="<p>Gmail login fails</p>" onChange={onChange} />
+        <RichTextEditor editorId="editor-one" value={richEditorDocumentFromHtml('<p>Gmail login fails</p>')} onChange={onChange} />
       </>,
     )
 
@@ -66,12 +67,12 @@ describe('RichTextEditor toolbar', () => {
     selectText(editor)
 
     fireEvent.click(screen.getByRole('button', { name: 'Bold' }))
-    await waitFor(() => expect(lastChange(onChange)).toContain('<strong>Gmail login fails</strong>'))
+    await waitFor(() => expect(lastChangeHtml(onChange)).toContain('<strong>Gmail login fails</strong>'))
 
     selectText(editor)
     fireEvent.click(screen.getByRole('button', { name: 'Bold' }))
-    await waitFor(() => expect(lastChange(onChange)).toContain('<p>Gmail login fails</p>'))
-    expect(lastChange(onChange)).not.toContain('<strong>')
+    await waitFor(() => expect(lastChangeHtml(onChange)).toContain('<p>Gmail login fails</p>'))
+    expect(lastChangeHtml(onChange)).not.toContain('<strong>')
   })
 
   it('adds a safe link to selected content', async () => {
@@ -82,7 +83,7 @@ describe('RichTextEditor toolbar', () => {
     render(
       <>
         <FormatToolbar editorId="editor-one" onUploadImage={vi.fn()} />
-        <RichTextEditor editorId="editor-one" value="<p>Evidence</p>" onChange={onChange} />
+        <RichTextEditor editorId="editor-one" value={richEditorDocumentFromHtml('<p>Evidence</p>')} onChange={onChange} />
       </>,
     )
 
@@ -90,7 +91,7 @@ describe('RichTextEditor toolbar', () => {
     selectText(editor)
     fireEvent.click(screen.getByRole('button', { name: 'Link' }))
 
-    await waitFor(() => expect(lastChange(onChange)).toContain('<a href="https://example.test/evidence" target="_blank" rel="noreferrer">Evidence</a>'))
+    await waitFor(() => expect(lastChangeHtml(onChange)).toContain('<a href="https://example.test/evidence" target="_blank" rel="noreferrer">Evidence</a>'))
     expect(prompt).toHaveBeenCalled()
   })
 
@@ -101,9 +102,9 @@ describe('RichTextEditor toolbar', () => {
     render(
       <>
         <FormatToolbar editorId="first-editor" onUploadImage={onUploadImage} />
-        <RichTextEditor editorId="first-editor" value="<p>First</p>" />
+        <RichTextEditor editorId="first-editor" value={richEditorDocumentFromHtml('<p>First</p>')} />
         <FormatToolbar editorId="second-editor" onUploadImage={onUploadImage} />
-        <RichTextEditor editorId="second-editor" value="<p>Second</p>" onChange={onSecondChange} />
+        <RichTextEditor editorId="second-editor" value={richEditorDocumentFromHtml('<p>Second</p>')} onChange={onSecondChange} />
       </>,
     )
 
@@ -122,9 +123,9 @@ describe('RichTextEditor toolbar', () => {
     expect(upload?.insertImage).toEqual(expect.any(Function))
 
     upload?.insertImage('attachment-1', 'evidence.png', 'data:image/png;base64,AAAA')
-    await waitFor(() => expect(lastChange(onSecondChange)).toContain('data-attachment-id="attachment-1"'))
-    expect(lastChange(onSecondChange)).toContain('src="qa-scribe-attachment://attachment-1"')
-    expect(lastChange(onSecondChange)).toContain('alt="evidence.png"')
+    await waitFor(() => expect(lastChangeHtml(onSecondChange)).toContain('data-attachment-id="attachment-1"'))
+    expect(lastChangeHtml(onSecondChange)).toContain('src="qa-scribe-attachment://attachment-1"')
+    expect(lastChangeHtml(onSecondChange)).toContain('alt="evidence.png"')
   })
 })
 
@@ -142,8 +143,12 @@ function selectText(editor: HTMLElement) {
   fireEvent.mouseUp(editor)
 }
 
-function lastChange(onChange: ReturnType<typeof vi.fn>): string {
+function lastChange(onChange: ReturnType<typeof vi.fn>): RichEditorDocument {
   const call = onChange.mock.calls.at(-1)
   if (!call) throw new Error('onChange was not called')
-  return String(call[0])
+  return call[0] as RichEditorDocument
+}
+
+function lastChangeHtml(onChange: ReturnType<typeof vi.fn>): string {
+  return richEditorDocumentToHtml(lastChange(onChange))
 }

@@ -1,4 +1,4 @@
-use std::{collections::HashSet, env};
+use std::{collections::HashSet, env, fs, path::PathBuf};
 
 use serde::Deserialize;
 
@@ -31,12 +31,55 @@ fn environment_model(key: &str) -> Option<ProviderModelDescriptor> {
     })
 }
 
-pub(super) fn codex_models(runner: &impl ProbeRunner) -> Vec<ProviderModelDescriptor> {
+fn copilot_settings_model() -> Option<ProviderModelDescriptor> {
+    let path = copilot_settings_path()?;
+    let settings = fs::read_to_string(path).ok()?;
+    let settings = serde_json::from_str::<CopilotSettings>(&settings).ok()?;
+    let model = settings.model?.trim().to_string();
+    if model.is_empty()
+        || model.eq_ignore_ascii_case("default")
+        || model.eq_ignore_ascii_case("auto")
+    {
+        return None;
+    }
+
+    Some(ProviderModelDescriptor {
+        id: model.clone(),
+        label: model,
+        description: Some("Detected from GitHub Copilot CLI settings.".to_string()),
+        source: ProviderModelSource::Detected,
+        is_default: false,
+        reasoning_efforts: Vec::new(),
+    })
+}
+
+fn copilot_settings_path() -> Option<PathBuf> {
+    if let Some(home) = env::var_os("COPILOT_HOME").filter(|value| !value.is_empty()) {
+        return Some(PathBuf::from(home).join("settings.json"));
+    }
+
+    env::var_os("HOME")
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
+        .map(|home| home.join(".copilot").join("settings.json"))
+}
+
+#[derive(Debug, Deserialize)]
+struct CopilotSettings {
+    model: Option<String>,
+}
+
+pub(super) fn codex_static_models() -> Vec<ProviderModelDescriptor> {
     let mut models = vec![provider_default_model()];
     if let Some(model) = environment_model("CODEX_MODEL") {
         models.push(model);
     }
     models.extend(preset_models(&CODEX_PRESET_MODELS));
+    normalize_models(models)
+}
+
+pub(super) fn codex_models(runner: &impl ProbeRunner) -> Vec<ProviderModelDescriptor> {
+    let mut models = codex_static_models();
 
     let catalog = runner.run("codex", &["debug", "models"]);
     if catalog.success {
@@ -46,12 +89,17 @@ pub(super) fn codex_models(runner: &impl ProbeRunner) -> Vec<ProviderModelDescri
     normalize_models(models)
 }
 
-pub(super) fn claude_models(runner: &impl ProbeRunner) -> Vec<ProviderModelDescriptor> {
+pub(super) fn claude_static_models() -> Vec<ProviderModelDescriptor> {
     let mut models = vec![provider_default_model()];
     if let Some(model) = environment_model("CLAUDE_MODEL") {
         models.push(model);
     }
     models.extend(preset_models(&CLAUDE_PRESET_MODELS));
+    normalize_models(models)
+}
+
+pub(super) fn claude_models(runner: &impl ProbeRunner) -> Vec<ProviderModelDescriptor> {
+    let mut models = claude_static_models();
 
     let help = runner.run("claude", &["--help"]);
     if help.success {
@@ -61,19 +109,43 @@ pub(super) fn claude_models(runner: &impl ProbeRunner) -> Vec<ProviderModelDescr
     normalize_models(models)
 }
 
-pub(super) fn copilot_models(runner: &impl ProbeRunner) -> Vec<ProviderModelDescriptor> {
-    let mut models = vec![provider_default_model()];
-    if let Some(model) = environment_model("COPILOT_MODEL") {
-        models.push(model);
-    }
+pub(super) fn copilot_models() -> Vec<ProviderModelDescriptor> {
+    let mut models = copilot_base_models();
     models.extend(preset_models(&COPILOT_PRESET_MODELS));
+    normalize_models(models)
+}
+
+pub(super) fn copilot_models_with_config_help(
+    runner: &impl ProbeRunner,
+) -> Vec<ProviderModelDescriptor> {
+    let mut models = copilot_base_models();
 
     let help = runner.run("copilot", &["help", "config"]);
     if help.success {
-        models.extend(parse_copilot_config_help(&help.stdout));
+        let detected_models = parse_copilot_config_help(&help.stdout);
+        if detected_models.is_empty() {
+            models.extend(preset_models(&COPILOT_PRESET_MODELS));
+        } else {
+            models.extend(detected_models);
+        }
+    } else {
+        models.extend(preset_models(&COPILOT_PRESET_MODELS));
     }
 
     normalize_models(models)
+}
+
+fn copilot_base_models() -> Vec<ProviderModelDescriptor> {
+    let mut models = vec![provider_default_model()];
+    models.extend(preset_models(&["auto"]));
+    if let Some(model) = environment_model("COPILOT_MODEL") {
+        models.push(model);
+    }
+    if let Some(model) = copilot_settings_model() {
+        models.push(model);
+    }
+
+    models
 }
 
 const CODEX_PRESET_MODELS: [&str; 5] = [
@@ -237,11 +309,18 @@ fn parse_copilot_config_help(help: &str) -> Vec<ProviderModelDescriptor> {
 }
 
 fn starts_model_section(line: &str) -> bool {
-    let normalized = line.trim_matches(':').to_ascii_lowercase();
-    normalized == "model" || normalized.starts_with("model ")
+    let normalized = line.trim().to_ascii_lowercase();
+    normalized == "model:"
+        || normalized == "model"
+        || normalized.starts_with("model ")
+        || normalized.starts_with("`model`:")
 }
 
 fn starts_new_config_section(line: &str) -> bool {
+    if line.starts_with('`') && line.contains("`:") && !starts_model_section(line) {
+        return true;
+    }
+
     line.ends_with(':')
         && line.trim_end_matches(':').chars().all(|character| {
             character.is_ascii_alphanumeric() || character == '-' || character == '_'

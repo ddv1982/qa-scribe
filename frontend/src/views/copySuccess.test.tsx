@@ -7,6 +7,7 @@ vi.mock('../editor/RichTextEditor', () => ({
 }))
 
 import type { Draft, Finding, ProviderStatus, Session } from '../tauri'
+import { richEditorDocumentFromHtml } from '../editor/editorDocument'
 import { FindingsView } from './FindingsView'
 import { NotesView } from './NotesView'
 import { TestwareView } from './TestwareView'
@@ -23,11 +24,12 @@ describe('copy success buttons', () => {
         activeProviderAvailable
         activeSession={session}
         busyAction={null}
+        canUndoLatestGeneration={false}
         copySucceeded
         screenshotCopySucceeded={false}
         filteredSessions={[session]}
         isBusy={false}
-        noteBody="<p>Body</p>"
+        noteBody={richEditorDocumentFromHtml('<p>Body</p>')}
         noteIsReady
         noteScreenshotCount={0}
         noteTitle="Login note"
@@ -35,13 +37,11 @@ describe('copy success buttons', () => {
         notice={null}
         error={null}
         pendingAiActions={{}}
-        providerOptions={providerStatus.providers}
         selectedProvider="codex_cli"
         selectedModel="default"
         activeProvider={providerStatus.providers[0]}
-        onProviderChange={() => undefined}
-        onModelChange={() => undefined}
         onAiAction={async () => undefined}
+        onUndoLatestGeneration={async () => undefined}
         onCopyNote={async () => undefined}
         onCopyNoteScreenshot={async () => undefined}
         onDeleteNote={() => undefined}
@@ -118,11 +118,12 @@ describe('copy success buttons', () => {
         activeProviderAvailable
         activeSession={session}
         busyAction={null}
+        canUndoLatestGeneration={false}
         copySucceeded={false}
         screenshotCopySucceeded
         filteredSessions={[session]}
         isBusy={false}
-        noteBody="<p>Body</p>"
+        noteBody={richEditorDocumentFromHtml('<p>Body</p>')}
         noteIsReady
         noteScreenshotCount={1}
         noteTitle="Login note"
@@ -130,13 +131,11 @@ describe('copy success buttons', () => {
         notice={null}
         error={null}
         pendingAiActions={{}}
-        providerOptions={providerStatus.providers}
         selectedProvider="codex_cli"
         selectedModel="default"
         activeProvider={providerStatus.providers[0]}
-        onProviderChange={() => undefined}
-        onModelChange={() => undefined}
         onAiAction={async () => undefined}
+        onUndoLatestGeneration={async () => undefined}
         onCopyNote={async () => undefined}
         onCopyNoteScreenshot={async () => undefined}
         onDeleteNote={() => undefined}
@@ -228,6 +227,9 @@ const draft: Draft = {
   kind: 'testware',
   title: 'Login case',
   body: '<p>Verify login</p>',
+  bodyJson: null,
+  bodyFormat: 'html',
+  metadataJson: null,
   createdAt: '2026-06-24T08:00:00Z',
   updatedAt: '2026-06-24T08:00:00Z',
 }
@@ -237,6 +239,8 @@ const finding: Finding = {
   sessionId: 'session-1',
   title: 'Login finding',
   body: '<p>Login fails</p>',
+  bodyJson: null,
+  bodyFormat: 'html',
   kind: 'bug',
   metadataJson: null,
   createdAt: '2026-06-24T08:00:00Z',
