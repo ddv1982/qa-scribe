@@ -19,7 +19,7 @@
   }
 
   .top-bar {
-    grid-template-columns: 244px minmax(180px, 1fr) max-content;
+    grid-template-columns: 244px minmax(180px, 1fr) minmax(max-content, 1fr);
     padding-inline: 18px;
   }
 
@@ -42,7 +42,22 @@
   }
 
   .top-new-button {
-    justify-self: stretch;
+    flex: 1 1 100%;
+  }
+
+  .top-actions {
+    justify-content: stretch;
+    flex-wrap: wrap;
+  }
+
+  .top-actions .theme-toggle {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .top-actions .theme-toggle button {
+    flex: 1 1 0;
+    justify-content: center;
   }
 
   .left-rail {

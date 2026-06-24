@@ -1,5 +1,5 @@
 import type { Finding, Session } from '../tauri'
-import type { ThemePreference } from './types'
+import type { ResolvedTheme, ThemePreference } from './types'
 
 export function countWords(value: string): number {
   return value.trim().split(/\s+/).filter(Boolean).length
@@ -31,8 +31,16 @@ export function formatSessionDate(value: string): string {
 
 export function initialTheme(): ThemePreference {
   const stored = window.localStorage.getItem('qa-scribe-theme')
-  if (stored === 'light' || stored === 'dark') return stored
+  if (stored === 'light' || stored === 'dark' || stored === 'system') return stored
+  return 'system'
+}
+
+export function currentSystemTheme(): ResolvedTheme {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+}
+
+export function resolveThemePreference(theme: ThemePreference, systemTheme: ResolvedTheme): ResolvedTheme {
+  return theme === 'system' ? systemTheme : theme
 }
 
 export function nextUntitledTitle(sessions: Session[]): string {

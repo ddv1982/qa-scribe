@@ -62,8 +62,7 @@ fn replace_image_source(value: &str, source: &str, attachment_id: &str) -> Strin
     for quote in ['"', '\''] {
         let needle = format!("src={quote}{source}{quote}");
         let replacement = format!(
-            "src={quote}{}{attachment_id}{quote} data-attachment-id={quote}{attachment_id}{quote}",
-            MANAGED_ATTACHMENT_PROTOCOL
+            "src={quote}{MANAGED_ATTACHMENT_PROTOCOL}{attachment_id}{quote} data-attachment-id={quote}{attachment_id}{quote}"
         );
         output = output.replace(&needle, &replacement);
     }

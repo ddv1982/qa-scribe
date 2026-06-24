@@ -1,6 +1,6 @@
-import { Moon, Sun } from 'lucide-react'
 import { SaveSettingsButton } from '../components/Common'
 import { ProviderGlyph } from '../components/ModelSelector'
+import { ThemeToggle } from '../components/ThemeToggle'
 import type { AppSettings, ProviderStatus } from '../tauri'
 import type { BusyAction, SettingsSaveState, ThemePreference } from '../ui/types'
 
@@ -42,16 +42,7 @@ export function SettingsView({
       <div className="settings-grid">
         <section>
           <h2>Appearance</h2>
-          <div className="theme-toggle" role="group" aria-label="Theme">
-            <button className={theme === 'light' ? 'active' : ''} type="button" onClick={() => setTheme('light')}>
-              <Sun size={15} />
-              Light
-            </button>
-            <button className={theme === 'dark' ? 'active' : ''} type="button" onClick={() => setTheme('dark')}>
-              <Moon size={15} />
-              Dark
-            </button>
-          </div>
+          <ThemeToggle theme={theme} onThemeChange={setTheme} />
         </section>
 
         <section>

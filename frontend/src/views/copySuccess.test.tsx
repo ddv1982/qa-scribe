@@ -39,7 +39,6 @@ describe('copy success buttons', () => {
         onCopyNote={async () => undefined}
         onCopyNoteScreenshot={async () => undefined}
         onDeleteNote={() => undefined}
-        onNewNote={async () => undefined}
         onOpenNote={async () => undefined}
         onSetNoteBody={() => undefined}
         onSetNoteTitle={() => undefined}
@@ -129,7 +128,6 @@ describe('copy success buttons', () => {
         onCopyNote={async () => undefined}
         onCopyNoteScreenshot={async () => undefined}
         onDeleteNote={() => undefined}
-        onNewNote={async () => undefined}
         onOpenNote={async () => undefined}
         onSetNoteBody={() => undefined}
         onSetNoteTitle={() => undefined}

@@ -47,6 +47,7 @@ import {
 } from './tauri'
 import { RailItem } from './components/Common'
 import { ModelCombobox, ProviderGlyph } from './components/ModelSelector'
+import { ThemeToggle } from './components/ThemeToggle'
 import {
   containsInlineImageData,
   emptyEditorHtml,
@@ -57,7 +58,17 @@ import {
   readFileAsDataUrl,
   stripHtml,
 } from './editor/editorHtml'
-import { countWords, formatError, formatSessionDate, initialTheme, nextUntitledRecordTitle, nextUntitledTitle, statusLabel } from './ui/format'
+import {
+  countWords,
+  currentSystemTheme,
+  formatError,
+  formatSessionDate,
+  initialTheme,
+  nextUntitledRecordTitle,
+  nextUntitledTitle,
+  resolveThemePreference,
+  statusLabel,
+} from './ui/format'
 import type { BusyAction, PendingAiActions, SettingsSaveState, ThemePreference, WorkspaceView } from './ui/types'
 import type { RichEditorImageUpload } from './editor/RichTextEditor'
 import { copyRecordForJira, managedAttachmentReferencesForClipboard } from './editor/clipboardExport'
@@ -129,6 +140,7 @@ export function App() {
   const [searchQuery, setSearchQuery] = useState('')
   const [activeView, setActiveView] = useState<WorkspaceView>('notes')
   const [theme, setTheme] = useState<ThemePreference>(() => initialTheme())
+  const [systemTheme, setSystemTheme] = useState(() => currentSystemTheme())
   const [deleteConfirmation, setDeleteConfirmation] = useState<DeleteConfirmation | null>(null)
 
   const savedTitleRef = useRef('')
@@ -187,12 +199,22 @@ export function App() {
   }, [activeSessionJobs])
   const activeTestwareJob = activeSessionJobs.find((job) => job.action === 'testware') ?? null
   const activeFindingJob = activeSessionJobs.find((job) => job.action === 'finding') ?? null
+  const resolvedTheme = resolveThemePreference(theme, systemTheme)
 
   useEffect(() => {
-    document.documentElement.dataset.theme = theme
-    document.documentElement.style.colorScheme = theme
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+    const updateSystemTheme = () => setSystemTheme(mediaQuery.matches ? 'dark' : 'light')
+
+    updateSystemTheme()
+    mediaQuery.addEventListener('change', updateSystemTheme)
+    return () => mediaQuery.removeEventListener('change', updateSystemTheme)
+  }, [])
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = resolvedTheme
+    document.documentElement.style.colorScheme = resolvedTheme
     window.localStorage.setItem('qa-scribe-theme', theme)
-  }, [theme])
+  }, [resolvedTheme, theme])
 
   useEffect(() => {
     activeSessionIdRef.current = activeSession?.id ?? null
@@ -1038,10 +1060,13 @@ export function App() {
           <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search notes, testware, findings..." />
         </label>
 
-        <button className="primary-button top-new-button" type="button" disabled={isBusy} onClick={() => void handleNewNote()}>
-          {busyAction === 'new-note' ? <Loader2 className="spin" size={17} /> : <Plus size={17} />}
-          New note
-        </button>
+        <div className="top-actions">
+          <ThemeToggle theme={theme} onThemeChange={setTheme} />
+          <button className="primary-button top-new-button" type="button" disabled={isBusy} onClick={() => void handleNewNote()}>
+            {busyAction === 'new-note' ? <Loader2 className="spin" size={17} /> : <Plus size={17} />}
+            New note
+          </button>
+        </div>
       </header>
 
       <aside className="left-rail" aria-label="Workspace navigation">
@@ -1120,7 +1145,6 @@ export function App() {
             onCopyNote={handleCopyNoteForJira}
             onCopyNoteScreenshot={handleCopyNoteScreenshotForJira}
             onDeleteNote={requestDeleteNote}
-            onNewNote={handleNewNote}
             onOpenNote={openNote}
             onSetNoteBody={setNoteBody}
             onSetNoteTitle={setNoteTitle}

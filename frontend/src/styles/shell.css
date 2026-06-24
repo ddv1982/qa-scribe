@@ -24,7 +24,7 @@
 .top-bar {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: 272px minmax(260px, 560px) max-content;
+  grid-template-columns: 272px minmax(260px, 560px) minmax(max-content, 1fr);
   align-items: center;
   gap: 24px;
   padding: 0 28px 0 26px;
@@ -176,7 +176,15 @@
 }
 
 .top-new-button {
-  justify-self: end;
+  flex: 0 0 auto;
+}
+
+.top-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: 0;
 }
 
 .modal-backdrop {

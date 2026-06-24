@@ -1,4 +1,4 @@
-import { Box, CheckCircle2, ChevronDown, Copy, FileText, Flag, Image as ImageIcon, Loader2, Plus, Sparkles, Trash2 } from 'lucide-react'
+import { Box, CheckCircle2, ChevronDown, Copy, FileText, Flag, Image as ImageIcon, Loader2, Sparkles, Trash2 } from 'lucide-react'
 import { FormatToolbar, RichTextEditor, type RichEditorImageUpload } from '../editor/RichTextEditor'
 import type { GenerateAiActionKind, Session } from '../tauri'
 import { StatusPill } from '../components/Common'
@@ -25,7 +25,6 @@ export function NotesView({
   onCopyNote,
   onCopyNoteScreenshot,
   onDeleteNote,
-  onNewNote,
   onOpenNote,
   onSetNoteBody,
   onSetNoteTitle,
@@ -50,7 +49,6 @@ export function NotesView({
   onCopyNote: () => Promise<void>
   onCopyNoteScreenshot: () => Promise<void>
   onDeleteNote: () => void
-  onNewNote: () => Promise<void>
   onOpenNote: (session: Session) => Promise<void>
   onSetNoteBody: (value: string) => void
   onSetNoteTitle: (value: string) => void
@@ -76,17 +74,15 @@ export function NotesView({
         <FileText size={34} />
         <h1>No note selected</h1>
         <p>Create a note or open an existing one to start writing QA notes.</p>
-        <div className="empty-note-actions">
-          <button className="primary-button" type="button" disabled={isBusy} onClick={() => void onNewNote()}>
-            <Plus size={17} />
-            New note
-          </button>
-          {filteredSessions.slice(0, 3).map((session) => (
-            <button className="secondary-button" key={session.id} type="button" disabled={isBusy} onClick={() => void onOpenNote(session)}>
-              {session.title}
-            </button>
-          ))}
-        </div>
+        {filteredSessions.length > 0 ? (
+          <div className="empty-note-actions">
+            {filteredSessions.slice(0, 3).map((session) => (
+              <button className="secondary-button" key={session.id} type="button" disabled={isBusy} onClick={() => void onOpenNote(session)}>
+                {session.title}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </section>
     )
   }

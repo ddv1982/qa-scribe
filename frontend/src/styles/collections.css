@@ -248,6 +248,7 @@
 
 .theme-toggle {
   width: fit-content;
+  max-width: 100%;
   gap: 4px;
   padding: 4px;
   background: var(--panel-soft);
@@ -266,6 +267,7 @@
   border: 0;
   border-radius: 6px;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .theme-toggle button.active {
