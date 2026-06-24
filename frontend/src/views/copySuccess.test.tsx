@@ -24,10 +24,12 @@ describe('copy success buttons', () => {
         activeSession={session}
         busyAction={null}
         copySucceeded
+        screenshotCopySucceeded={false}
         filteredSessions={[session]}
         isBusy={false}
         noteBody="<p>Body</p>"
         noteIsReady
+        noteScreenshotCount={0}
         noteTitle="Login note"
         noteWordCount={1}
         notice={null}
@@ -35,6 +37,7 @@ describe('copy success buttons', () => {
         pendingAiActions={{}}
         onAiAction={async () => undefined}
         onCopyNote={async () => undefined}
+        onCopyNoteScreenshot={async () => undefined}
         onDeleteNote={() => undefined}
         onNewNote={async () => undefined}
         onOpenNote={async () => undefined}
@@ -53,6 +56,8 @@ describe('copy success buttons', () => {
       <TestwareView
         busyAction={null}
         copiedDraftId="draft-1"
+        copiedDraftScreenshotId={null}
+        draftScreenshotCounts={{}}
         drafts={[draft]}
         notice={null}
         error={null}
@@ -61,6 +66,7 @@ describe('copy success buttons', () => {
         updateLocalDraft={() => undefined}
         onCancelGenerationJob={async () => undefined}
         onCopyDraft={async () => undefined}
+        onCopyDraftScreenshot={async () => undefined}
         onDeleteDraft={() => undefined}
         onManualCreate={async () => undefined}
         onPrefillFromNote={async () => undefined}
@@ -78,6 +84,8 @@ describe('copy success buttons', () => {
       <FindingsView
         busyAction={null}
         copiedFindingId="finding-1"
+        copiedFindingScreenshotId={null}
+        findingScreenshotCounts={{}}
         findings={[finding]}
         notice={null}
         error={null}
@@ -86,6 +94,7 @@ describe('copy success buttons', () => {
         updateLocalFinding={() => undefined}
         onCancelGenerationJob={async () => undefined}
         onCopyFinding={async () => undefined}
+        onCopyFindingScreenshot={async () => undefined}
         onDeleteFinding={() => undefined}
         onManualCreate={async () => undefined}
         onPrefillFromNote={async () => undefined}
@@ -95,6 +104,96 @@ describe('copy success buttons', () => {
     )
 
     const button = screen.getByRole('button', { name: 'Login finding copied for Jira' })
+    expect(button.className).toContain('success')
+  })
+
+  it('shows a success state for copied note screenshots', () => {
+    render(
+      <NotesView
+        activeProviderAvailable
+        activeSession={session}
+        busyAction={null}
+        copySucceeded={false}
+        screenshotCopySucceeded
+        filteredSessions={[session]}
+        isBusy={false}
+        noteBody="<p>Body</p>"
+        noteIsReady
+        noteScreenshotCount={1}
+        noteTitle="Login note"
+        noteWordCount={1}
+        notice={null}
+        error={null}
+        pendingAiActions={{}}
+        onAiAction={async () => undefined}
+        onCopyNote={async () => undefined}
+        onCopyNoteScreenshot={async () => undefined}
+        onDeleteNote={() => undefined}
+        onNewNote={async () => undefined}
+        onOpenNote={async () => undefined}
+        onSetNoteBody={() => undefined}
+        onSetNoteTitle={() => undefined}
+        onUploadImage={() => undefined}
+      />,
+    )
+
+    const button = screen.getByRole('button', { name: 'Note screenshot copied for Jira' })
+    expect(button.className).toContain('success')
+  })
+
+  it('shows a success state for copied testware screenshots', () => {
+    render(
+      <TestwareView
+        busyAction={null}
+        copiedDraftId={null}
+        copiedDraftScreenshotId="draft-1"
+        draftScreenshotCounts={{ 'draft-1': 1 }}
+        drafts={[draft]}
+        notice={null}
+        error={null}
+        isBusy={false}
+        activeGenerationJob={null}
+        updateLocalDraft={() => undefined}
+        onCancelGenerationJob={async () => undefined}
+        onCopyDraft={async () => undefined}
+        onCopyDraftScreenshot={async () => undefined}
+        onDeleteDraft={() => undefined}
+        onManualCreate={async () => undefined}
+        onPrefillFromNote={async () => undefined}
+        onSaveDraft={async () => undefined}
+        onUploadImage={() => undefined}
+      />,
+    )
+
+    const button = screen.getByRole('button', { name: 'Login case screenshot copied for Jira' })
+    expect(button.className).toContain('success')
+  })
+
+  it('shows a success state for copied finding screenshots', () => {
+    render(
+      <FindingsView
+        busyAction={null}
+        copiedFindingId={null}
+        copiedFindingScreenshotId="finding-1"
+        findingScreenshotCounts={{ 'finding-1': 1 }}
+        findings={[finding]}
+        notice={null}
+        error={null}
+        isBusy={false}
+        activeGenerationJob={null}
+        updateLocalFinding={() => undefined}
+        onCancelGenerationJob={async () => undefined}
+        onCopyFinding={async () => undefined}
+        onCopyFindingScreenshot={async () => undefined}
+        onDeleteFinding={() => undefined}
+        onManualCreate={async () => undefined}
+        onPrefillFromNote={async () => undefined}
+        onSaveFinding={async () => undefined}
+        onUploadImage={() => undefined}
+      />,
+    )
+
+    const button = screen.getByRole('button', { name: 'Login finding screenshot copied for Jira' })
     expect(button.className).toContain('success')
   })
 })

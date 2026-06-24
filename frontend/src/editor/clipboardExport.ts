@@ -1,4 +1,3 @@
-import { getAttachmentPreviewDataUrl } from '../tauri'
 import { managedAttachmentProtocol, normalizeEditorHtml } from './editorHtml'
 
 export type ClipboardRecord = {
@@ -11,8 +10,9 @@ export type ClipboardPayload = {
   plain: string
 }
 
-export type JiraClipboardPayload = ClipboardPayload & {
-  includesInlineImages: boolean
+export type ClipboardImageReference = {
+  attachmentId: string
+  alt: string
 }
 
 type HtmlRenderOptions = {
@@ -21,15 +21,6 @@ type HtmlRenderOptions = {
 
 export function formatRecordForClipboard(record: ClipboardRecord): ClipboardPayload {
   return renderClipboardPayload(record.title, createNormalizedBody(record.bodyHtml), {})
-}
-
-export async function formatRecordForJiraClipboard(record: ClipboardRecord): Promise<JiraClipboardPayload> {
-  const body = createNormalizedBody(record.bodyHtml)
-  await resolveManagedImagesForJira(body)
-  return {
-    ...renderClipboardPayload(record.title, body, { inlineDataImages: true }),
-    includesInlineImages: containsInlineDataImage(body),
-  }
 }
 
 function createNormalizedBody(bodyHtml: string): HTMLDivElement {
@@ -55,35 +46,8 @@ function renderClipboardPayload(titleInput: string, body: ParentNode, options: H
 }
 
 export async function copyRecordForJira(record: ClipboardRecord): Promise<void> {
-  const payload = await formatRecordForJiraClipboard(record)
-  if (payload.includesInlineImages) {
-    await writeRichClipboard(payload)
-    return
-  }
-
+  const payload = formatRecordForClipboard(record)
   await writePlainClipboard(payload.plain)
-}
-
-export async function writeRichClipboard(payload: ClipboardPayload): Promise<void> {
-  const clipboard = navigator.clipboard
-  if (!clipboard) throw new Error('Clipboard is not available')
-
-  if (typeof ClipboardItem !== 'undefined' && typeof clipboard.write === 'function') {
-    try {
-      await clipboard.write([
-        new ClipboardItem({
-          'text/html': new Blob([payload.html], { type: 'text/html' }),
-          'text/plain': new Blob([payload.plain], { type: 'text/plain' }),
-        }),
-      ])
-      return
-    } catch (cause) {
-      if (typeof clipboard.writeText !== 'function') throw cause
-    }
-  }
-
-  if (typeof clipboard.writeText !== 'function') throw new Error('Clipboard text writing is not available')
-  await clipboard.writeText(payload.plain)
 }
 
 export async function writePlainClipboard(value: string): Promise<void> {
@@ -92,32 +56,24 @@ export async function writePlainClipboard(value: string): Promise<void> {
   await clipboard.writeText(value)
 }
 
-async function resolveManagedImagesForJira(parent: ParentNode): Promise<void> {
+export function managedAttachmentReferencesForClipboard(record: ClipboardRecord): ClipboardImageReference[] {
+  const body = createNormalizedBody(record.bodyHtml)
   const images = Array.from(
-    parent.querySelectorAll<HTMLImageElement>('img[data-attachment-id], img[src^="qa-scribe-attachment://"]'),
+    body.querySelectorAll<HTMLImageElement>('img[data-attachment-id], img[src^="qa-scribe-attachment://"]'),
   )
+  const references = new Map<string, ClipboardImageReference>()
 
-  await Promise.all(
-    images.map(async (image) => {
-      const attachmentId = managedAttachmentIdFromImage(image)
-      if (!attachmentId) return
+  images.forEach((image) => {
+    const attachmentId = managedAttachmentIdFromImage(image)
+    if (!attachmentId || references.has(attachmentId)) return
 
-      try {
-        const preview = await getAttachmentPreviewDataUrl(attachmentId)
-        if (preview && isDataImageSource(preview)) {
-          image.setAttribute('src', preview)
-        }
-      } catch {
-        // The plain-text fallback still names the image if preview lookup fails.
-      }
-    }),
-  )
-}
+    references.set(attachmentId, {
+      attachmentId,
+      alt: image.getAttribute('alt')?.trim() || 'Attached image',
+    })
+  })
 
-function containsInlineDataImage(parent: ParentNode): boolean {
-  return Array.from(parent.querySelectorAll<HTMLImageElement>('img')).some((image) =>
-    isDataImageSource(image.getAttribute('src')?.trim() ?? ''),
-  )
+  return Array.from(references.values())
 }
 
 function managedAttachmentIdFromImage(image: HTMLImageElement): string | null {

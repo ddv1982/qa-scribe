@@ -312,6 +312,10 @@ export function getAttachmentPreviewDataUrl(attachmentId: string): Promise<strin
   return invoke<string | null>('get_attachment_preview_data_url', { attachmentId })
 }
 
+export function copyAttachmentImageToClipboard(attachmentId: string): Promise<void> {
+  return invoke<void>('copy_attachment_image_to_clipboard', { attachmentId })
+}
+
 export function exportSession(sessionId: string, format: ExportFormat): Promise<SessionExport> {
   return invoke<SessionExport>('export_session', { sessionId, format })
 }

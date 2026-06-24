@@ -1,4 +1,4 @@
-import { Box, CheckCircle2, Copy, FileText, Loader2, Plus, Save, Trash2, X } from 'lucide-react'
+import { Box, CheckCircle2, Copy, FileText, Image as ImageIcon, Loader2, Plus, Save, Trash2, X } from 'lucide-react'
 import { EmptyCollection, StatusPill } from '../components/Common'
 import { FormatToolbar, RichTextEditor, type RichEditorImageUpload } from '../editor/RichTextEditor'
 import type { Draft, GenerationJobStatus } from '../tauri'
@@ -7,6 +7,8 @@ import type { BusyAction } from '../ui/types'
 export function TestwareView({
   busyAction,
   copiedDraftId,
+  copiedDraftScreenshotId,
+  draftScreenshotCounts,
   drafts,
   notice,
   error,
@@ -15,6 +17,7 @@ export function TestwareView({
   updateLocalDraft,
   onCancelGenerationJob,
   onCopyDraft,
+  onCopyDraftScreenshot,
   onDeleteDraft,
   onManualCreate,
   onPrefillFromNote,
@@ -23,6 +26,8 @@ export function TestwareView({
 }: {
   busyAction: BusyAction | null
   copiedDraftId: string | null
+  copiedDraftScreenshotId: string | null
+  draftScreenshotCounts: Record<string, number>
   drafts: Draft[]
   notice: string | null
   error: string | null
@@ -31,6 +36,7 @@ export function TestwareView({
   updateLocalDraft: (id: string, patch: Partial<Pick<Draft, 'title' | 'body'>>) => void
   onCancelGenerationJob: (jobId: string) => Promise<void>
   onCopyDraft: (draft: Draft) => Promise<void>
+  onCopyDraftScreenshot: (draft: Draft) => Promise<void>
   onDeleteDraft: (draft: Draft) => void
   onManualCreate: () => Promise<void>
   onPrefillFromNote: () => Promise<void>
@@ -93,11 +99,15 @@ export function TestwareView({
         {drafts.map((draft) => {
           const deletingDraft = busyAction === `delete-draft:${draft.id}`
           const copyingDraft = busyAction === `copy-draft:${draft.id}`
+          const copyingDraftScreenshot = busyAction === `copy-draft-screenshot:${draft.id}`
           const draftCopied = copiedDraftId === draft.id
+          const draftScreenshotCopied = copiedDraftScreenshotId === draft.id
+          const draftScreenshotCount = draftScreenshotCounts[draft.id] ?? 0
           const savingDraft = busyAction === `draft:${draft.id}`
           const editorId = `testware-editor-${draft.id}`
           const draftTitle = draft.title.trim()
           const copyLabel = draftCopyLabel(draftTitle, draftCopied)
+          const screenshotCopyLabel = draftScreenshotCopyLabel(draftTitle, draftScreenshotCopied, draftScreenshotCount)
           return (
             <article className="editable-record" key={draft.id}>
               <input value={draft.title} aria-label="Testware title" onChange={(event) => updateLocalDraft(draft.id, { title: event.target.value })} />
@@ -122,6 +132,18 @@ export function TestwareView({
                 >
                   {copyingDraft ? <Loader2 className="spin" size={16} /> : draftCopied ? <CheckCircle2 size={16} /> : <Copy size={16} />}
                 </button>
+                {draftScreenshotCount > 0 ? (
+                  <button
+                    className={draftScreenshotCopied ? 'icon-button success' : 'icon-button'}
+                    type="button"
+                    aria-label={screenshotCopyLabel}
+                    title={draftScreenshotCopied ? 'Screenshot copied' : draftScreenshotCount > 1 ? 'Copy first screenshot' : 'Copy screenshot'}
+                    disabled={isBusy}
+                    onClick={() => void onCopyDraftScreenshot(draft)}
+                  >
+                    {copyingDraftScreenshot ? <Loader2 className="spin" size={16} /> : draftScreenshotCopied ? <CheckCircle2 size={16} /> : <ImageIcon size={16} />}
+                  </button>
+                ) : null}
                 <button className="secondary-button" type="button" disabled={isBusy} onClick={() => void onSaveDraft(draft)}>
                   {savingDraft ? <Loader2 className="spin" size={16} /> : <Save size={16} />}
                   Save
@@ -149,4 +171,10 @@ export function TestwareView({
 function draftCopyLabel(title: string, copied: boolean): string {
   if (copied) return title ? `${title} copied for Jira` : 'Testware copied for Jira'
   return title ? `Copy ${title} for Jira` : 'Copy testware for Jira'
+}
+
+function draftScreenshotCopyLabel(title: string, copied: boolean, count: number): string {
+  if (copied) return title ? `${title} screenshot copied for Jira` : 'Testware screenshot copied for Jira'
+  if (count > 1) return title ? `Copy first ${title} screenshot for Jira` : 'Copy first testware screenshot for Jira'
+  return title ? `Copy ${title} screenshot for Jira` : 'Copy testware screenshot for Jira'
 }

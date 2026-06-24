@@ -5,14 +5,14 @@ mod provider_command;
 mod settings;
 
 use commands::{
-    cancel_ai_action_job, create_ai_run, create_draft, create_entry, create_evidence_link,
-    create_finding, create_generation_context, create_session, delete_draft, delete_finding,
-    delete_session, export_session, generate_ai_action, generate_session_report,
-    get_ai_action_job_status, get_app_status, get_attachment_preview_data_url,
-    get_command_shell_status, get_provider_status, get_session, get_settings, import_attachment,
-    import_clipboard_screenshot, list_attachments, list_drafts, list_entries, list_findings,
-    list_sessions, reopen_session, start_ai_action_job, update_draft, update_entry, update_finding,
-    update_session, update_settings,
+    cancel_ai_action_job, copy_attachment_image_to_clipboard, create_ai_run, create_draft,
+    create_entry, create_evidence_link, create_finding, create_generation_context, create_session,
+    delete_draft, delete_finding, delete_session, export_session, generate_ai_action,
+    generate_session_report, get_ai_action_job_status, get_app_status,
+    get_attachment_preview_data_url, get_command_shell_status, get_provider_status, get_session,
+    get_settings, import_attachment, import_clipboard_screenshot, list_attachments, list_drafts,
+    list_entries, list_findings, list_sessions, reopen_session, start_ai_action_job, update_draft,
+    update_entry, update_finding, update_session, update_settings,
 };
 use jobs::JobStore;
 use path_access::PathAccess;
@@ -22,6 +22,7 @@ use tauri::Manager;
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_clipboard_manager::init())
         .setup(|app| {
             let app_data_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&app_data_dir)?;
@@ -66,7 +67,8 @@ fn main() {
             list_attachments,
             get_provider_status,
             export_session,
-            get_attachment_preview_data_url
+            get_attachment_preview_data_url,
+            copy_attachment_image_to_clipboard
         ])
         .run(tauri::generate_context!())
         .expect("error while running qa-scribe");

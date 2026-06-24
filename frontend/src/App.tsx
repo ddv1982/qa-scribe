@@ -15,6 +15,7 @@ import {
   createEntry,
   createFinding,
   createSession,
+  copyAttachmentImageToClipboard,
   deleteDraft,
   deleteFinding,
   deleteSession,
@@ -59,7 +60,7 @@ import {
 import { countWords, formatError, formatSessionDate, initialTheme, nextUntitledRecordTitle, nextUntitledTitle, statusLabel } from './ui/format'
 import type { BusyAction, PendingAiActions, SettingsSaveState, ThemePreference, WorkspaceView } from './ui/types'
 import type { RichEditorImageUpload } from './editor/RichTextEditor'
-import { copyRecordForJira } from './editor/clipboardExport'
+import { copyRecordForJira, managedAttachmentReferencesForClipboard } from './editor/clipboardExport'
 import { richEditorImageInserterForElement, type RichEditorImageInserter } from './editor/richEditorRegistry'
 import { FindingsView } from './views/FindingsView'
 import { NotesView } from './views/NotesView'
@@ -74,7 +75,11 @@ type DeleteConfirmation =
   | { kind: 'draft'; draft: Draft }
   | { kind: 'finding'; finding: Finding }
 
-type CopiedTarget = { kind: 'note'; id: string } | { kind: 'draft'; id: string } | { kind: 'finding'; id: string }
+type CopiedTargetAction = 'jira-text' | 'screenshot'
+type CopiedTarget =
+  | { kind: 'note'; id: string; action: CopiedTargetAction }
+  | { kind: 'draft'; id: string; action: CopiedTargetAction }
+  | { kind: 'finding'; id: string; action: CopiedTargetAction }
 
 function generationIsActive(job: GenerationJobStatus): boolean {
   return job.state === 'starting' || job.state === 'running' || job.state === 'cancelling'
@@ -138,6 +143,30 @@ export function App() {
   const providerOptions = providerStatus?.providers ?? []
   const activeProvider = providerOptions.find((provider) => provider.id === selectedProvider) ?? providerOptions[0] ?? null
   const testwareDrafts = drafts.filter((draft) => draft.kind === 'testware')
+  const noteScreenshotCount = useMemo(
+    () => managedAttachmentReferencesForClipboard({ title: noteTitle, bodyHtml: noteBody }).length,
+    [noteBody, noteTitle],
+  )
+  const draftScreenshotCounts = useMemo(
+    () =>
+      Object.fromEntries(
+        testwareDrafts.map((draft) => [
+          draft.id,
+          managedAttachmentReferencesForClipboard({ title: draft.title, bodyHtml: draft.body }).length,
+        ]),
+      ),
+    [testwareDrafts],
+  )
+  const findingScreenshotCounts = useMemo(
+    () =>
+      Object.fromEntries(
+        findings.map((finding) => [
+          finding.id,
+          managedAttachmentReferencesForClipboard({ title: finding.title, bodyHtml: finding.body }).length,
+        ]),
+      ),
+    [findings],
+  )
   const filteredSessions = useMemo(() => {
     const query = searchQuery.trim().toLocaleLowerCase()
     if (!query) return sessions
@@ -645,7 +674,7 @@ export function App() {
       setBusyAction('copy-note')
       setError(null)
       await copyRecordForJira({ title: noteTitle, bodyHtml: noteBody })
-      markCopiedTarget({ kind: 'note', id: sessionId })
+      markCopiedTarget({ kind: 'note', id: sessionId, action: 'jira-text' })
       setNotice('Note copied for Jira')
     } catch (cause) {
       setError(formatError(cause))
@@ -660,7 +689,7 @@ export function App() {
       setBusyAction(`copy-draft:${draft.id}`)
       setError(null)
       await copyRecordForJira({ title: draft.title, bodyHtml: draft.body })
-      markCopiedTarget({ kind: 'draft', id: draft.id })
+      markCopiedTarget({ kind: 'draft', id: draft.id, action: 'jira-text' })
       setNotice('Testware copied for Jira')
     } catch (cause) {
       setError(formatError(cause))
@@ -675,13 +704,67 @@ export function App() {
       setBusyAction(`copy-finding:${finding.id}`)
       setError(null)
       await copyRecordForJira({ title: finding.title, bodyHtml: finding.body })
-      markCopiedTarget({ kind: 'finding', id: finding.id })
+      markCopiedTarget({ kind: 'finding', id: finding.id, action: 'jira-text' })
       setNotice('Finding copied for Jira')
     } catch (cause) {
       setError(formatError(cause))
     } finally {
       setBusyAction(null)
     }
+  }
+
+  async function copyFirstScreenshotForJira(
+    record: { title: string; bodyHtml: string },
+    target: CopiedTarget,
+    busy: BusyAction,
+    successNotice: string,
+  ) {
+    const [screenshot] = managedAttachmentReferencesForClipboard(record)
+    if (!screenshot) {
+      setError('No screenshot found in this record.')
+      return
+    }
+
+    try {
+      clearCopiedTarget()
+      setBusyAction(busy)
+      setError(null)
+      await copyAttachmentImageToClipboard(screenshot.attachmentId)
+      markCopiedTarget(target)
+      setNotice(successNotice)
+    } catch (cause) {
+      setError(formatError(cause))
+    } finally {
+      setBusyAction(null)
+    }
+  }
+
+  async function handleCopyNoteScreenshotForJira() {
+    if (!activeSession) return
+    await copyFirstScreenshotForJira(
+      { title: noteTitle, bodyHtml: noteBody },
+      { kind: 'note', id: activeSession.id, action: 'screenshot' },
+      'copy-note-screenshot',
+      'Note screenshot copied',
+    )
+  }
+
+  async function handleCopyDraftScreenshotForJira(draft: Draft) {
+    await copyFirstScreenshotForJira(
+      { title: draft.title, bodyHtml: draft.body },
+      { kind: 'draft', id: draft.id, action: 'screenshot' },
+      `copy-draft-screenshot:${draft.id}`,
+      'Testware screenshot copied',
+    )
+  }
+
+  async function handleCopyFindingScreenshotForJira(finding: Finding) {
+    await copyFirstScreenshotForJira(
+      { title: finding.title, bodyHtml: finding.body },
+      { kind: 'finding', id: finding.id, action: 'screenshot' },
+      `copy-finding-screenshot:${finding.id}`,
+      'Finding screenshot copied',
+    )
   }
 
   function requestDeleteDraft(draft: Draft) {
@@ -1021,18 +1104,21 @@ export function App() {
             activeProviderAvailable={Boolean(activeProvider?.available)}
             activeSession={activeSession}
             busyAction={busyAction}
-            copySucceeded={Boolean(activeSession && copiedTarget?.kind === 'note' && copiedTarget.id === activeSession.id)}
+            copySucceeded={Boolean(activeSession && copiedTarget?.kind === 'note' && copiedTarget.id === activeSession.id && copiedTarget.action === 'jira-text')}
+            screenshotCopySucceeded={Boolean(activeSession && copiedTarget?.kind === 'note' && copiedTarget.id === activeSession.id && copiedTarget.action === 'screenshot')}
             filteredSessions={filteredSessions}
             isBusy={isBusy}
             noteBody={noteBody}
             noteIsReady={noteIsReady}
             noteTitle={noteTitle}
+            noteScreenshotCount={noteScreenshotCount}
             noteWordCount={noteWordCount}
             notice={notice}
             error={error}
             pendingAiActions={pendingAiActions}
             onAiAction={handleAiAction}
             onCopyNote={handleCopyNoteForJira}
+            onCopyNoteScreenshot={handleCopyNoteScreenshotForJira}
             onDeleteNote={requestDeleteNote}
             onNewNote={handleNewNote}
             onOpenNote={openNote}
@@ -1051,7 +1137,9 @@ export function App() {
         {activeView === 'testware' ? (
           <TestwareView
             busyAction={busyAction}
-            copiedDraftId={copiedTarget?.kind === 'draft' ? copiedTarget.id : null}
+            copiedDraftId={copiedTarget?.kind === 'draft' && copiedTarget.action === 'jira-text' ? copiedTarget.id : null}
+            copiedDraftScreenshotId={copiedTarget?.kind === 'draft' && copiedTarget.action === 'screenshot' ? copiedTarget.id : null}
+            draftScreenshotCounts={draftScreenshotCounts}
             drafts={testwareDrafts}
             notice={notice}
             error={error}
@@ -1059,6 +1147,7 @@ export function App() {
             activeGenerationJob={activeTestwareJob}
             onCancelGenerationJob={handleCancelGenerationJob}
             onCopyDraft={handleCopyDraftForJira}
+            onCopyDraftScreenshot={handleCopyDraftScreenshotForJira}
             onDeleteDraft={requestDeleteDraft}
             onManualCreate={handleManualTestware}
             onPrefillFromNote={handlePrefillTestwareFromNote}
@@ -1071,7 +1160,9 @@ export function App() {
         {activeView === 'findings' ? (
           <FindingsView
             busyAction={busyAction}
-            copiedFindingId={copiedTarget?.kind === 'finding' ? copiedTarget.id : null}
+            copiedFindingId={copiedTarget?.kind === 'finding' && copiedTarget.action === 'jira-text' ? copiedTarget.id : null}
+            copiedFindingScreenshotId={copiedTarget?.kind === 'finding' && copiedTarget.action === 'screenshot' ? copiedTarget.id : null}
+            findingScreenshotCounts={findingScreenshotCounts}
             findings={findings}
             notice={notice}
             error={error}
@@ -1079,6 +1170,7 @@ export function App() {
             activeGenerationJob={activeFindingJob}
             onCancelGenerationJob={handleCancelGenerationJob}
             onCopyFinding={handleCopyFindingForJira}
+            onCopyFindingScreenshot={handleCopyFindingScreenshotForJira}
             onDeleteFinding={requestDeleteFinding}
             onManualCreate={handleManualFinding}
             onPrefillFromNote={handlePrefillFindingFromNote}

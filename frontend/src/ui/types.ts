@@ -16,13 +16,16 @@ export type BusyAction =
   | 'prefill-testware'
   | 'prefill-finding'
   | 'copy-note'
+  | 'copy-note-screenshot'
   | 'ai-testware'
   | 'ai-finding'
   | 'ai-summary'
   | 'attach-image'
   | 'delete-note'
   | `copy-draft:${string}`
+  | `copy-draft-screenshot:${string}`
   | `copy-finding:${string}`
+  | `copy-finding-screenshot:${string}`
   | `delete-draft:${string}`
   | `delete-finding:${string}`
   | `draft:${string}`

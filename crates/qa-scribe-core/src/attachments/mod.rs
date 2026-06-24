@@ -177,14 +177,10 @@ pub fn attachment_preview_data_url(
     app_data_dir: impl AsRef<Path>,
     attachment_id: &str,
 ) -> Result<Option<String>> {
-    let Some(attachment) = service.get_attachment(attachment_id)? else {
+    let Some((attachment, bytes)) = attachment_file_bytes(service, app_data_dir, attachment_id)?
+    else {
         return Ok(None);
     };
-    let relative_path = PathBuf::from(&attachment.relative_path);
-    if !is_safe_relative_path(&relative_path) {
-        return Err(validation("stored attachment path is invalid"));
-    }
-    let bytes = fs::read(app_data_dir.as_ref().join(relative_path))?;
     let mime_type = attachment
         .mime_type
         .as_deref()
@@ -193,6 +189,22 @@ pub fn attachment_preview_data_url(
         "data:{mime_type};base64,{}",
         STANDARD.encode(bytes)
     )))
+}
+
+pub fn attachment_file_bytes(
+    service: &SessionService,
+    app_data_dir: impl AsRef<Path>,
+    attachment_id: &str,
+) -> Result<Option<(Attachment, Vec<u8>)>> {
+    let Some(attachment) = service.get_attachment(attachment_id)? else {
+        return Ok(None);
+    };
+    let relative_path = PathBuf::from(&attachment.relative_path);
+    if !is_safe_relative_path(&relative_path) {
+        return Err(validation("stored attachment path is invalid"));
+    }
+    let bytes = fs::read(app_data_dir.as_ref().join(relative_path))?;
+    Ok(Some((attachment, bytes)))
 }
 
 fn hex_sha256(bytes: &[u8]) -> String {

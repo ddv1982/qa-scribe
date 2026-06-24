@@ -1,4 +1,4 @@
-import { Box, CheckCircle2, ChevronDown, Copy, FileText, Flag, Loader2, Plus, Sparkles, Trash2 } from 'lucide-react'
+import { Box, CheckCircle2, ChevronDown, Copy, FileText, Flag, Image as ImageIcon, Loader2, Plus, Sparkles, Trash2 } from 'lucide-react'
 import { FormatToolbar, RichTextEditor, type RichEditorImageUpload } from '../editor/RichTextEditor'
 import type { GenerateAiActionKind, Session } from '../tauri'
 import { StatusPill } from '../components/Common'
@@ -10,10 +10,12 @@ export function NotesView({
   activeSession,
   busyAction,
   copySucceeded,
+  screenshotCopySucceeded,
   filteredSessions,
   isBusy,
   noteBody,
   noteIsReady,
+  noteScreenshotCount,
   noteTitle,
   noteWordCount,
   notice,
@@ -21,6 +23,7 @@ export function NotesView({
   pendingAiActions,
   onAiAction,
   onCopyNote,
+  onCopyNoteScreenshot,
   onDeleteNote,
   onNewNote,
   onOpenNote,
@@ -32,10 +35,12 @@ export function NotesView({
   activeSession: Session | null
   busyAction: BusyAction | null
   copySucceeded: boolean
+  screenshotCopySucceeded: boolean
   filteredSessions: Session[]
   isBusy: boolean
   noteBody: string
   noteIsReady: boolean
+  noteScreenshotCount: number
   noteTitle: string
   noteWordCount: number
   notice: string | null
@@ -43,6 +48,7 @@ export function NotesView({
   pendingAiActions: PendingAiActions
   onAiAction: (action: GenerateAiActionKind) => Promise<void>
   onCopyNote: () => Promise<void>
+  onCopyNoteScreenshot: () => Promise<void>
   onDeleteNote: () => void
   onNewNote: () => Promise<void>
   onOpenNote: (session: Session) => Promise<void>
@@ -52,7 +58,13 @@ export function NotesView({
 }) {
   const deletingNote = busyAction === 'delete-note'
   const copyingNote = busyAction === 'copy-note'
+  const copyingNoteScreenshot = busyAction === 'copy-note-screenshot'
   const copyNoteLabel = copySucceeded ? 'Note copied for Jira' : 'Copy note for Jira'
+  const copyNoteScreenshotLabel = screenshotCopySucceeded
+    ? 'Note screenshot copied for Jira'
+    : noteScreenshotCount > 1
+      ? 'Copy first note screenshot for Jira'
+      : 'Copy note screenshot for Jira'
   const testwarePending = Boolean(pendingAiActions.testware)
   const findingPending = Boolean(pendingAiActions.finding)
   const summaryPending = Boolean(pendingAiActions.summary)
@@ -103,6 +115,18 @@ export function NotesView({
           >
             {copyingNote ? <Loader2 className="spin" size={16} /> : copySucceeded ? <CheckCircle2 size={16} /> : <Copy size={16} />}
           </button>
+          {noteScreenshotCount > 0 ? (
+            <button
+              className={screenshotCopySucceeded ? 'icon-button success' : 'icon-button'}
+              type="button"
+              aria-label={copyNoteScreenshotLabel}
+              title={screenshotCopySucceeded ? 'Screenshot copied' : noteScreenshotCount > 1 ? 'Copy first screenshot' : 'Copy screenshot'}
+              disabled={isBusy}
+              onClick={() => void onCopyNoteScreenshot()}
+            >
+              {copyingNoteScreenshot ? <Loader2 className="spin" size={16} /> : screenshotCopySucceeded ? <CheckCircle2 size={16} /> : <ImageIcon size={16} />}
+            </button>
+          ) : null}
           <button className="icon-button danger" type="button" aria-label="Delete note" title="Delete note" disabled={isBusy} onClick={() => void onDeleteNote()}>
             {deletingNote ? <Loader2 className="spin" size={16} /> : <Trash2 size={16} />}
           </button>

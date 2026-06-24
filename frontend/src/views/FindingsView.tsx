@@ -1,4 +1,4 @@
-import { CheckCircle2, Copy, FileText, Flag, Loader2, Plus, Save, Trash2, X } from 'lucide-react'
+import { CheckCircle2, Copy, FileText, Flag, Image as ImageIcon, Loader2, Plus, Save, Trash2, X } from 'lucide-react'
 import { EmptyCollection, StatusPill } from '../components/Common'
 import { FormatToolbar, RichTextEditor, type RichEditorImageUpload } from '../editor/RichTextEditor'
 import type { Finding, GenerationJobStatus } from '../tauri'
@@ -8,6 +8,8 @@ import type { BusyAction } from '../ui/types'
 export function FindingsView({
   busyAction,
   copiedFindingId,
+  copiedFindingScreenshotId,
+  findingScreenshotCounts,
   findings,
   notice,
   error,
@@ -16,6 +18,7 @@ export function FindingsView({
   updateLocalFinding,
   onCancelGenerationJob,
   onCopyFinding,
+  onCopyFindingScreenshot,
   onDeleteFinding,
   onManualCreate,
   onPrefillFromNote,
@@ -24,6 +27,8 @@ export function FindingsView({
 }: {
   busyAction: BusyAction | null
   copiedFindingId: string | null
+  copiedFindingScreenshotId: string | null
+  findingScreenshotCounts: Record<string, number>
   findings: Finding[]
   notice: string | null
   error: string | null
@@ -32,6 +37,7 @@ export function FindingsView({
   updateLocalFinding: (id: string, patch: Partial<Pick<Finding, 'title' | 'body'>>) => void
   onCancelGenerationJob: (jobId: string) => Promise<void>
   onCopyFinding: (finding: Finding) => Promise<void>
+  onCopyFindingScreenshot: (finding: Finding) => Promise<void>
   onDeleteFinding: (finding: Finding) => void
   onManualCreate: () => Promise<void>
   onPrefillFromNote: () => Promise<void>
@@ -94,11 +100,15 @@ export function FindingsView({
         {findings.map((finding) => {
           const deletingFinding = busyAction === `delete-finding:${finding.id}`
           const copyingFinding = busyAction === `copy-finding:${finding.id}`
+          const copyingFindingScreenshot = busyAction === `copy-finding-screenshot:${finding.id}`
           const findingCopied = copiedFindingId === finding.id
+          const findingScreenshotCopied = copiedFindingScreenshotId === finding.id
+          const findingScreenshotCount = findingScreenshotCounts[finding.id] ?? 0
           const savingFinding = busyAction === `finding:${finding.id}`
           const editorId = `finding-editor-${finding.id}`
           const findingTitle = finding.title.trim()
           const copyLabel = findingCopyLabel(findingTitle, findingCopied)
+          const screenshotCopyLabel = findingScreenshotCopyLabel(findingTitle, findingScreenshotCopied, findingScreenshotCount)
           return (
             <article className="editable-record" key={finding.id}>
               <div className="finding-meta-row">
@@ -126,6 +136,18 @@ export function FindingsView({
                 >
                   {copyingFinding ? <Loader2 className="spin" size={16} /> : findingCopied ? <CheckCircle2 size={16} /> : <Copy size={16} />}
                 </button>
+                {findingScreenshotCount > 0 ? (
+                  <button
+                    className={findingScreenshotCopied ? 'icon-button success' : 'icon-button'}
+                    type="button"
+                    aria-label={screenshotCopyLabel}
+                    title={findingScreenshotCopied ? 'Screenshot copied' : findingScreenshotCount > 1 ? 'Copy first screenshot' : 'Copy screenshot'}
+                    disabled={isBusy}
+                    onClick={() => void onCopyFindingScreenshot(finding)}
+                  >
+                    {copyingFindingScreenshot ? <Loader2 className="spin" size={16} /> : findingScreenshotCopied ? <CheckCircle2 size={16} /> : <ImageIcon size={16} />}
+                  </button>
+                ) : null}
                 <button className="secondary-button" type="button" disabled={isBusy} onClick={() => void onSaveFinding(finding)}>
                   {savingFinding ? <Loader2 className="spin" size={16} /> : <Save size={16} />}
                   Save
@@ -153,4 +175,10 @@ export function FindingsView({
 function findingCopyLabel(title: string, copied: boolean): string {
   if (copied) return title ? `${title} copied for Jira` : 'Finding copied for Jira'
   return title ? `Copy ${title} for Jira` : 'Copy finding for Jira'
+}
+
+function findingScreenshotCopyLabel(title: string, copied: boolean, count: number): string {
+  if (copied) return title ? `${title} screenshot copied for Jira` : 'Finding screenshot copied for Jira'
+  if (count > 1) return title ? `Copy first ${title} screenshot for Jira` : 'Copy first finding screenshot for Jira'
+  return title ? `Copy ${title} screenshot for Jira` : 'Copy finding screenshot for Jira'
 }
