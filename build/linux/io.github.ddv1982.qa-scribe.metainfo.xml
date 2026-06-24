@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.ddv1982.qa-scribe</id>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+  <name>QA Scribe</name>
+  <summary>Local-first desktop testing notepad</summary>
+  <description>
+    <p>QA Scribe helps testers turn exploratory testing sessions, evidence, findings, and notes into structured testware while keeping project data local.</p>
+  </description>
+  <launchable type="desktop-id">qa-scribe.desktop</launchable>
+  <provides>
+    <binary>qa-scribe</binary>
+  </provides>
+  <url type="homepage">https://github.com/ddv1982/qa-scribe</url>
+  <categories>
+    <category>Office</category>
+    <category>ProjectManagement</category>
+  </categories>
+  <releases>
+    <release version="0.4.19" date="2026-06-24" />
+  </releases>
+</component>

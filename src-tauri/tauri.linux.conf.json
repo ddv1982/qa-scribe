@@ -1,0 +1,23 @@
+{
+  "productName": "qa-scribe",
+  "bundle": {
+    "linux": {
+      "deb": {
+        "depends": [],
+        "desktopTemplate": "../build/linux/qa-scribe.desktop.hbs",
+        "files": {
+          "/usr/share/doc/qa-scribe/copyright": "../build/linux/debian/copyright",
+          "/usr/share/metainfo/io.github.ddv1982.qa-scribe.metainfo.xml": "../build/linux/io.github.ddv1982.qa-scribe.metainfo.xml"
+        }
+      },
+      "rpm": {
+        "depends": [],
+        "desktopTemplate": "../build/linux/qa-scribe.desktop.hbs",
+        "files": {
+          "/usr/share/licenses/qa-scribe/LICENSE": "../LICENSE",
+          "/usr/share/metainfo/io.github.ddv1982.qa-scribe.metainfo.xml": "../build/linux/io.github.ddv1982.qa-scribe.metainfo.xml"
+        }
+      }
+    }
+  }
+}

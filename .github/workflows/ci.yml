@@ -1,0 +1,279 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  RUST_LINUX_ARTIFACT_NAME: qa-scribe-rust-linux-x64-release-bundle
+  TAURI_TARGET: x86_64-unknown-linux-gnu
+  TAURI_CLI_VERSION: 2.11.3
+
+jobs:
+  changes:
+    name: Detect changed files
+    runs-on: ubuntu-24.04
+    outputs:
+      run_package_ci: ${{ steps.filter.outputs.run_package_ci }}
+      run_rust_ci: ${{ steps.filter.outputs.run_rust_ci }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Detect code changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            run_rust_ci:
+              - '.github/workflows/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - 'crates/**'
+              - 'src-tauri/**'
+              - 'frontend/**'
+              - 'tests/**'
+              - 'build/icons/**'
+              - 'package.json'
+              - 'scripts/check-release-metadata.mjs'
+              - 'scripts/build_frontend_for_tauri.sh'
+            run_package_ci:
+              - '.github/workflows/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - 'crates/**'
+              - 'src-tauri/**'
+              - 'frontend/**'
+              - 'tests/**'
+              - 'build/**'
+              - 'scripts/**'
+              - 'README.md'
+              - 'LICENSE'
+              - 'CHANGELOG.md'
+              - 'package.json'
+
+  rust:
+    name: Rust ${{ matrix.os }}
+    needs: changes
+    if: needs.changes.outputs.run_rust_ci == 'true' || needs.changes.outputs.run_package_ci == 'true'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-26]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.5'
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Linux Tauri desktop dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo env DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get install -y \
+            pkg-config \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libssl-dev \
+            libwebkit2gtk-4.1-dev
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+            src-tauri -> src-tauri/target
+          key: rust-${{ runner.os }}
+
+      - name: Install frontend dependencies
+        run: bun install --cwd frontend --frozen-lockfile
+
+      - name: Audit frontend dependencies
+        run: bun run frontend:audit
+
+      - name: Validate release metadata
+        run: node scripts/check-release-metadata.mjs
+
+      - name: Build frontend
+        run: bun run frontend:build
+
+      - name: Validate Tauri prebuilt frontend contract
+        run: |
+          set -euo pipefail
+          temp_dir="$(mktemp -d)"
+          cleanup() {
+            if [ -n "${css_file:-}" ] && [ -n "${css_name:-}" ] && [ -f "${temp_dir}/css/${css_name}" ]; then
+              mkdir -p "$(dirname "${css_file}")"
+              mv "${temp_dir}/css/${css_name}" "${css_file}"
+            fi
+            if [ -d "${temp_dir}/dist" ]; then
+              rm -rf frontend/dist
+              mv "${temp_dir}/dist" frontend/dist
+            fi
+            rm -rf "${temp_dir}"
+          }
+          trap cleanup EXIT
+
+          mv frontend/dist "${temp_dir}/dist"
+          if QA_SCRIBE_USE_PREBUILT_FRONTEND=1 scripts/build_frontend_for_tauri.sh; then
+            echo "Expected prebuilt frontend mode to fail without frontend/dist/index.html." >&2
+            exit 1
+          fi
+
+          mv "${temp_dir}/dist" frontend/dist
+          css_file="$(find frontend/dist/assets -maxdepth 1 -type f -name '*.css' | head -n 1)"
+          if [ -z "${css_file}" ]; then
+            echo "Expected frontend build to emit a CSS asset under frontend/dist/assets." >&2
+            exit 1
+          fi
+
+          mkdir -p "${temp_dir}/css"
+          css_name="$(basename "${css_file}")"
+          mv "${css_file}" "${temp_dir}/css/${css_name}"
+          if QA_SCRIBE_USE_PREBUILT_FRONTEND=1 scripts/build_frontend_for_tauri.sh; then
+            echo "Expected prebuilt frontend mode to fail without a built CSS asset." >&2
+            exit 1
+          fi
+
+          mv "${temp_dir}/css/${css_name}" "${css_file}"
+          QA_SCRIBE_USE_PREBUILT_FRONTEND=1 scripts/build_frontend_for_tauri.sh
+
+      - name: Check Rust formatting
+        run: cargo fmt --all --check
+
+      - name: Run Rust tests
+        run: cargo test --workspace
+
+      - name: Run Rust clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Build Rust workspace
+        run: cargo build --workspace
+
+      - name: Smoke test Rust binary
+        run: bun run smoke
+
+  package-linux:
+    name: Package Linux Rust
+    needs: [changes, rust]
+    if: |
+      always() &&
+      needs.changes.outputs.run_package_ci == 'true' &&
+      needs.rust.result == 'success'
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.5'
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ env.TAURI_TARGET }}
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+            src-tauri -> src-tauri/target
+          key: rust-linux-package
+
+      - name: Install Linux Tauri and packaging dependencies
+        run: |
+          sudo apt-get update
+          sudo env DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get install -y \
+            pkg-config \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libssl-dev \
+            libwebkit2gtk-4.1-dev \
+            patchelf \
+            zstd \
+            rpm \
+            rpm2cpio \
+            libarchive-tools \
+            desktop-file-utils \
+            appstream
+
+      - name: Install frontend dependencies
+        run: bun install --cwd frontend --frozen-lockfile
+
+      - name: Build frontend
+        run: bun run frontend:build
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --locked --version "=${TAURI_CLI_VERSION}"
+
+      - name: Build Linux artifacts
+        env:
+          QA_SCRIBE_USE_PREBUILT_FRONTEND: '1'
+        run: node scripts/package-tauri-linux.mjs
+
+      - name: Validate Rust artifacts
+        run: node scripts/check-rust-artifacts.mjs --platform linux --require-rpm --require-appimage
+
+      - name: Validate Linux package metadata
+        run: |
+          set +e
+          python3 scripts/validate_linux_package_metadata.py \
+            "dist/rust/artifacts/*.deb" \
+            "dist/rust/artifacts/*.rpm" \
+            --json-report linux-package-metadata-report.json
+          validator_status=$?
+          set -e
+          if [ -f linux-package-metadata-report.json ]; then
+            node scripts/write-linux-metadata-summary.mjs linux-package-metadata-report.json
+          fi
+          exit "${validator_status}"
+
+      - name: Validate APT repository generation
+        run: node scripts/check-apt-repository.mjs
+
+      - name: Validate APT installer rendering
+        run: node scripts/check-apt-installer.mjs
+
+      - name: Upload reusable Linux Rust artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.RUST_LINUX_ARTIFACT_NAME }}
+          path: dist/rust/artifacts/**
+          if-no-files-found: error
+          retention-days: 7

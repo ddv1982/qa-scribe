@@ -1,11 +1,11 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "qa-scribe",
-  "version": "0.4.18",
-  "identifier": "com.qa-scribe.app",
+  "productName": "QA Scribe",
+  "version": "0.4.19",
+  "identifier": "io.github.ddv1982.qa-scribe",
   "build": {
     "beforeDevCommand": "cd frontend && bun run dev",
-    "beforeBuildCommand": "cd frontend && bun run build",
+    "beforeBuildCommand": "scripts/build_frontend_for_tauri.sh",
     "devUrl": "http://localhost:5173",
     "frontendDist": "../frontend/dist"
   },
@@ -13,7 +13,7 @@
     "withGlobalTauri": false,
     "windows": [
       {
-        "title": "qa-scribe",
+        "title": "QA Scribe",
         "width": 1280,
         "height": 860,
         "minWidth": 640,
@@ -26,6 +26,45 @@
   },
   "bundle": {
     "active": true,
-    "icon": ["icons/icon.png"]
-  }
+    "targets": "all",
+    "icon": [
+      "../build/icons/16x16.png",
+      "../build/icons/32x32.png",
+      "../build/icons/48x48.png",
+      "../build/icons/64x64.png",
+      "../build/icons/128x128.png",
+      "../build/icons/256x256.png",
+      "../build/icons/512x512.png",
+      "../build/icons/1024x1024.png",
+      "../build/macos/AppIcon.icns"
+    ],
+    "shortDescription": "Local-first desktop testing notepad",
+    "longDescription": "QA Scribe is a local-first desktop testing notepad for turning testing sessions, evidence, findings, and notes into structured testware.",
+    "license": "MIT",
+    "licenseFile": "../LICENSE",
+    "category": "Productivity",
+    "linux": {
+      "deb": {
+        "depends": [],
+        "files": {
+          "/usr/share/doc/qa-scribe/copyright": "../build/linux/debian/copyright",
+          "/usr/share/metainfo/io.github.ddv1982.qa-scribe.metainfo.xml": "../build/linux/io.github.ddv1982.qa-scribe.metainfo.xml"
+        }
+      },
+      "rpm": {
+        "depends": [],
+        "files": {
+          "/usr/share/licenses/qa-scribe/LICENSE": "../LICENSE",
+          "/usr/share/metainfo/io.github.ddv1982.qa-scribe.metainfo.xml": "../build/linux/io.github.ddv1982.qa-scribe.metainfo.xml"
+        }
+      }
+    },
+    "macOS": {
+      "entitlements": "../build/entitlements.mac.plist",
+      "exceptionDomain": "",
+      "frameworks": [],
+      "providerShortName": null
+    }
+  },
+  "mainBinaryName": "qa-scribe"
 }
