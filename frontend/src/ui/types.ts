@@ -15,11 +15,14 @@ export type BusyAction =
   | 'manual-finding'
   | 'prefill-testware'
   | 'prefill-finding'
+  | 'copy-note'
   | 'ai-testware'
   | 'ai-finding'
   | 'ai-summary'
   | 'attach-image'
   | 'delete-note'
+  | `copy-draft:${string}`
+  | `copy-finding:${string}`
   | `delete-draft:${string}`
   | `delete-finding:${string}`
   | `draft:${string}`

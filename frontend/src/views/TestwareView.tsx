@@ -1,4 +1,4 @@
-import { Box, FileText, Loader2, Plus, Save, Trash2, X } from 'lucide-react'
+import { Box, Copy, FileText, Loader2, Plus, Save, Trash2, X } from 'lucide-react'
 import { EmptyCollection, StatusPill } from '../components/Common'
 import { FormatToolbar, RichTextEditor, type RichEditorImageUpload } from '../editor/RichTextEditor'
 import type { Draft, GenerationJobStatus } from '../tauri'
@@ -13,6 +13,7 @@ export function TestwareView({
   activeGenerationJob,
   updateLocalDraft,
   onCancelGenerationJob,
+  onCopyDraft,
   onDeleteDraft,
   onManualCreate,
   onPrefillFromNote,
@@ -27,6 +28,7 @@ export function TestwareView({
   activeGenerationJob: GenerationJobStatus | null
   updateLocalDraft: (id: string, patch: Partial<Pick<Draft, 'title' | 'body'>>) => void
   onCancelGenerationJob: (jobId: string) => Promise<void>
+  onCopyDraft: (draft: Draft) => Promise<void>
   onDeleteDraft: (draft: Draft) => void
   onManualCreate: () => Promise<void>
   onPrefillFromNote: () => Promise<void>
@@ -88,8 +90,10 @@ export function TestwareView({
         ) : null}
         {drafts.map((draft) => {
           const deletingDraft = busyAction === `delete-draft:${draft.id}`
+          const copyingDraft = busyAction === `copy-draft:${draft.id}`
           const savingDraft = busyAction === `draft:${draft.id}`
           const editorId = `testware-editor-${draft.id}`
+          const copyLabel = draft.title.trim() ? `Copy ${draft.title} for Jira` : 'Copy testware for Jira'
           return (
             <article className="editable-record" key={draft.id}>
               <input value={draft.title} aria-label="Testware title" onChange={(event) => updateLocalDraft(draft.id, { title: event.target.value })} />
@@ -104,6 +108,16 @@ export function TestwareView({
                 />
               </div>
               <div className="record-actions">
+                <button
+                  className="icon-button"
+                  type="button"
+                  aria-label={copyLabel}
+                  title="Copy for Jira"
+                  disabled={isBusy}
+                  onClick={() => void onCopyDraft(draft)}
+                >
+                  {copyingDraft ? <Loader2 className="spin" size={16} /> : <Copy size={16} />}
+                </button>
                 <button className="secondary-button" type="button" disabled={isBusy} onClick={() => void onSaveDraft(draft)}>
                   {savingDraft ? <Loader2 className="spin" size={16} /> : <Save size={16} />}
                   Save

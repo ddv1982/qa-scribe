@@ -1,4 +1,4 @@
-import { Box, CheckCircle2, ChevronDown, FileText, Flag, Loader2, Plus, Sparkles, Trash2 } from 'lucide-react'
+import { Box, CheckCircle2, ChevronDown, Copy, FileText, Flag, Loader2, Plus, Sparkles, Trash2 } from 'lucide-react'
 import { FormatToolbar, RichTextEditor, type RichEditorImageUpload } from '../editor/RichTextEditor'
 import type { GenerateAiActionKind, Session } from '../tauri'
 import { StatusPill } from '../components/Common'
@@ -19,6 +19,7 @@ export function NotesView({
   error,
   pendingAiActions,
   onAiAction,
+  onCopyNote,
   onDeleteNote,
   onNewNote,
   onOpenNote,
@@ -39,6 +40,7 @@ export function NotesView({
   error: string | null
   pendingAiActions: PendingAiActions
   onAiAction: (action: GenerateAiActionKind) => Promise<void>
+  onCopyNote: () => Promise<void>
   onDeleteNote: () => void
   onNewNote: () => Promise<void>
   onOpenNote: (session: Session) => Promise<void>
@@ -47,6 +49,7 @@ export function NotesView({
   onUploadImage: (input: RichEditorImageUpload) => void | Promise<void>
 }) {
   const deletingNote = busyAction === 'delete-note'
+  const copyingNote = busyAction === 'copy-note'
   const testwarePending = Boolean(pendingAiActions.testware)
   const findingPending = Boolean(pendingAiActions.finding)
   const summaryPending = Boolean(pendingAiActions.summary)
@@ -87,6 +90,9 @@ export function NotesView({
             <CheckCircle2 size={15} />
             <span>{busyAction === 'save-title' || busyAction === 'save-body' ? 'Saving...' : 'Autosaved'}</span>
           </div>
+          <button className="icon-button" type="button" aria-label="Copy note for Jira" title="Copy note for Jira" disabled={isBusy} onClick={() => void onCopyNote()}>
+            {copyingNote ? <Loader2 className="spin" size={16} /> : <Copy size={16} />}
+          </button>
           <button className="icon-button danger" type="button" aria-label="Delete note" title="Delete note" disabled={isBusy} onClick={() => void onDeleteNote()}>
             {deletingNote ? <Loader2 className="spin" size={16} /> : <Trash2 size={16} />}
           </button>

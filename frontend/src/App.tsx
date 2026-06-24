@@ -59,6 +59,7 @@ import {
 import { countWords, formatError, formatSessionDate, initialTheme, nextUntitledRecordTitle, nextUntitledTitle, statusLabel } from './ui/format'
 import type { BusyAction, PendingAiActions, SettingsSaveState, ThemePreference, WorkspaceView } from './ui/types'
 import type { RichEditorImageUpload } from './editor/RichTextEditor'
+import { copyRecordForJira } from './editor/clipboardExport'
 import { richEditorImageInserterForElement, type RichEditorImageInserter } from './editor/richEditorRegistry'
 import { FindingsView } from './views/FindingsView'
 import { NotesView } from './views/NotesView'
@@ -614,6 +615,46 @@ export function App() {
     setFindings((previous) => previous.map((finding) => (finding.id === id ? { ...finding, ...patch } : finding)))
   }
 
+  async function handleCopyNoteForJira() {
+    if (!activeSession) return
+    try {
+      setBusyAction('copy-note')
+      setError(null)
+      await copyRecordForJira({ title: noteTitle, bodyHtml: noteBody })
+      setNotice('Note copied for Jira')
+    } catch (cause) {
+      setError(formatError(cause))
+    } finally {
+      setBusyAction(null)
+    }
+  }
+
+  async function handleCopyDraftForJira(draft: Draft) {
+    try {
+      setBusyAction(`copy-draft:${draft.id}`)
+      setError(null)
+      await copyRecordForJira({ title: draft.title, bodyHtml: draft.body })
+      setNotice('Testware copied for Jira')
+    } catch (cause) {
+      setError(formatError(cause))
+    } finally {
+      setBusyAction(null)
+    }
+  }
+
+  async function handleCopyFindingForJira(finding: Finding) {
+    try {
+      setBusyAction(`copy-finding:${finding.id}`)
+      setError(null)
+      await copyRecordForJira({ title: finding.title, bodyHtml: finding.body })
+      setNotice('Finding copied for Jira')
+    } catch (cause) {
+      setError(formatError(cause))
+    } finally {
+      setBusyAction(null)
+    }
+  }
+
   function requestDeleteDraft(draft: Draft) {
     setDeleteConfirmation({ kind: 'draft', draft })
   }
@@ -961,6 +1002,7 @@ export function App() {
             error={error}
             pendingAiActions={pendingAiActions}
             onAiAction={handleAiAction}
+            onCopyNote={handleCopyNoteForJira}
             onDeleteNote={requestDeleteNote}
             onNewNote={handleNewNote}
             onOpenNote={openNote}
@@ -985,6 +1027,7 @@ export function App() {
             isBusy={isBusy}
             activeGenerationJob={activeTestwareJob}
             onCancelGenerationJob={handleCancelGenerationJob}
+            onCopyDraft={handleCopyDraftForJira}
             onDeleteDraft={requestDeleteDraft}
             onManualCreate={handleManualTestware}
             onPrefillFromNote={handlePrefillTestwareFromNote}
@@ -1003,6 +1046,7 @@ export function App() {
             isBusy={isBusy}
             activeGenerationJob={activeFindingJob}
             onCancelGenerationJob={handleCancelGenerationJob}
+            onCopyFinding={handleCopyFindingForJira}
             onDeleteFinding={requestDeleteFinding}
             onManualCreate={handleManualFinding}
             onPrefillFromNote={handlePrefillFindingFromNote}

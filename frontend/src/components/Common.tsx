@@ -61,7 +61,7 @@ export function SaveSettingsButton({
 export function StatusPill({ notice, error, busyAction }: { notice: string | null; error: string | null; busyAction: BusyAction | null }) {
   if (error) {
     return (
-      <p className="status-pill error">
+      <p className="status-pill error" role="alert">
         <Bug size={16} />
         {error}
       </p>
@@ -70,7 +70,7 @@ export function StatusPill({ notice, error, busyAction }: { notice: string | nul
 
   if (busyAction === 'save-title' || busyAction === 'save-body') {
     return (
-      <p className="status-pill busy">
+      <p className="status-pill busy" role="status" aria-live="polite">
         <Loader2 className="spin" size={16} />
         Saving note
       </p>
@@ -78,7 +78,7 @@ export function StatusPill({ notice, error, busyAction }: { notice: string | nul
   }
 
   return (
-    <p className="status-pill saved">
+    <p className="status-pill saved" role="status" aria-live="polite">
       <Check size={16} />
       {notice ?? 'Note saved'}
     </p>
