@@ -68,6 +68,7 @@ vi.mock('./editor/RichTextEditor', () => ({
 describe('App workflows', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    ensureTestLocalStorage()
     window.localStorage.clear()
     window.matchMedia = vi.fn().mockReturnValue({
       matches: true,
@@ -301,3 +302,34 @@ describe('App workflows', () => {
     })
   })
 })
+
+function ensureTestLocalStorage() {
+  if (typeof window.localStorage.clear === 'function') return
+
+  const storage = new Map<string, string>()
+  const localStorage = {
+    get length() {
+      return storage.size
+    },
+    clear() {
+      storage.clear()
+    },
+    getItem(key: string) {
+      return storage.get(key) ?? null
+    },
+    key(index: number) {
+      return Array.from(storage.keys())[index] ?? null
+    },
+    removeItem(key: string) {
+      storage.delete(key)
+    },
+    setItem(key: string, value: string) {
+      storage.set(key, value)
+    },
+  } satisfies Storage
+
+  Object.defineProperty(window, 'localStorage', {
+    configurable: true,
+    value: localStorage,
+  })
+}

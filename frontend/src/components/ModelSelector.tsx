@@ -9,10 +9,12 @@ export function ProviderGlyph({ provider }: { provider: AiProvider }) {
 }
 
 export function ModelCombobox({
+  disabled = false,
   models,
   value,
   onChange,
 }: {
+  disabled?: boolean
   models: ProviderModelDescriptor[]
   value: string
   onChange: (value: string) => void
@@ -32,14 +34,22 @@ export function ModelCombobox({
   const customModel = query.trim()
   const exactMatch = options.some((model) => model.id.toLocaleLowerCase() === customModel.toLocaleLowerCase())
   const showCustomOption = customModel.length > 0 && !exactMatch
+  const popoverOpen = open && !disabled
 
   useEffect(() => {
-    if (!open) return
+    if (!disabled || !open) return
+    const timeout = window.setTimeout(() => setOpen(false), 0)
+    return () => window.clearTimeout(timeout)
+  }, [disabled, open])
+
+  useEffect(() => {
+    if (!popoverOpen) return
     const timeout = window.setTimeout(() => searchRef.current?.focus(), 0)
     return () => window.clearTimeout(timeout)
-  }, [open])
+  }, [popoverOpen])
 
   function chooseModel(modelId: string) {
+    if (disabled) return
     onChange(modelId)
     setOpen(false)
   }
@@ -67,6 +77,7 @@ export function ModelCombobox({
   }
 
   function toggleOpen() {
+    if (disabled) return
     if (open) {
       setOpen(false)
       return
@@ -81,14 +92,15 @@ export function ModelCombobox({
         className="model-combobox-trigger"
         type="button"
         aria-haspopup="listbox"
-        aria-expanded={open}
+        aria-expanded={popoverOpen}
+        disabled={disabled}
         onClick={toggleOpen}
       >
         <span>Model</span>
         <strong>{selectedLabel}</strong>
         <ChevronDown size={15} />
       </button>
-      {open ? (
+      {popoverOpen ? (
         <div className="model-combobox-popover">
           <label className="model-search">
             <Search size={15} />
