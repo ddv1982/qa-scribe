@@ -74,6 +74,8 @@ type DeleteConfirmation =
   | { kind: 'draft'; draft: Draft }
   | { kind: 'finding'; finding: Finding }
 
+type CopiedTarget = { kind: 'note'; id: string } | { kind: 'draft'; id: string } | { kind: 'finding'; id: string }
+
 function generationIsActive(job: GenerationJobStatus): boolean {
   return job.state === 'starting' || job.state === 'running' || job.state === 'cancelling'
 }
@@ -116,6 +118,7 @@ export function App() {
   const [settingsSaveState, setSettingsSaveState] = useState<SettingsSaveState>('idle')
   const [generationJobs, setGenerationJobs] = useState<Record<string, GenerationJobStatus>>({})
   const [busyAction, setBusyAction] = useState<BusyAction | null>('boot')
+  const [copiedTarget, setCopiedTarget] = useState<CopiedTarget | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -129,6 +132,7 @@ export function App() {
   const activeSessionIdRef = useRef<string | null>(null)
   const noteEntryIdRef = useRef<string | null>(null)
   const settingsSaveResetRef = useRef<number | null>(null)
+  const copySuccessResetRef = useRef<number | null>(null)
   const bootedRef = useRef(false)
 
   const providerOptions = providerStatus?.providers ?? []
@@ -169,6 +173,7 @@ export function App() {
   useEffect(() => {
     return () => {
       if (settingsSaveResetRef.current) window.clearTimeout(settingsSaveResetRef.current)
+      if (copySuccessResetRef.current) window.clearTimeout(copySuccessResetRef.current)
     }
   }, [])
 
@@ -615,12 +620,32 @@ export function App() {
     setFindings((previous) => previous.map((finding) => (finding.id === id ? { ...finding, ...patch } : finding)))
   }
 
+  function clearCopiedTarget() {
+    if (copySuccessResetRef.current) {
+      window.clearTimeout(copySuccessResetRef.current)
+      copySuccessResetRef.current = null
+    }
+    setCopiedTarget(null)
+  }
+
+  function markCopiedTarget(target: CopiedTarget) {
+    if (copySuccessResetRef.current) window.clearTimeout(copySuccessResetRef.current)
+    setCopiedTarget(target)
+    copySuccessResetRef.current = window.setTimeout(() => {
+      setCopiedTarget(null)
+      copySuccessResetRef.current = null
+    }, 1800)
+  }
+
   async function handleCopyNoteForJira() {
     if (!activeSession) return
+    const sessionId = activeSession.id
     try {
+      clearCopiedTarget()
       setBusyAction('copy-note')
       setError(null)
       await copyRecordForJira({ title: noteTitle, bodyHtml: noteBody })
+      markCopiedTarget({ kind: 'note', id: sessionId })
       setNotice('Note copied for Jira')
     } catch (cause) {
       setError(formatError(cause))
@@ -631,9 +656,11 @@ export function App() {
 
   async function handleCopyDraftForJira(draft: Draft) {
     try {
+      clearCopiedTarget()
       setBusyAction(`copy-draft:${draft.id}`)
       setError(null)
       await copyRecordForJira({ title: draft.title, bodyHtml: draft.body })
+      markCopiedTarget({ kind: 'draft', id: draft.id })
       setNotice('Testware copied for Jira')
     } catch (cause) {
       setError(formatError(cause))
@@ -644,9 +671,11 @@ export function App() {
 
   async function handleCopyFindingForJira(finding: Finding) {
     try {
+      clearCopiedTarget()
       setBusyAction(`copy-finding:${finding.id}`)
       setError(null)
       await copyRecordForJira({ title: finding.title, bodyHtml: finding.body })
+      markCopiedTarget({ kind: 'finding', id: finding.id })
       setNotice('Finding copied for Jira')
     } catch (cause) {
       setError(formatError(cause))
@@ -992,6 +1021,7 @@ export function App() {
             activeProviderAvailable={Boolean(activeProvider?.available)}
             activeSession={activeSession}
             busyAction={busyAction}
+            copySucceeded={Boolean(activeSession && copiedTarget?.kind === 'note' && copiedTarget.id === activeSession.id)}
             filteredSessions={filteredSessions}
             isBusy={isBusy}
             noteBody={noteBody}
@@ -1021,6 +1051,7 @@ export function App() {
         {activeView === 'testware' ? (
           <TestwareView
             busyAction={busyAction}
+            copiedDraftId={copiedTarget?.kind === 'draft' ? copiedTarget.id : null}
             drafts={testwareDrafts}
             notice={notice}
             error={error}
@@ -1040,6 +1071,7 @@ export function App() {
         {activeView === 'findings' ? (
           <FindingsView
             busyAction={busyAction}
+            copiedFindingId={copiedTarget?.kind === 'finding' ? copiedTarget.id : null}
             findings={findings}
             notice={notice}
             error={error}

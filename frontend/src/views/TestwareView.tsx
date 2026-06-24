@@ -1,4 +1,4 @@
-import { Box, Copy, FileText, Loader2, Plus, Save, Trash2, X } from 'lucide-react'
+import { Box, CheckCircle2, Copy, FileText, Loader2, Plus, Save, Trash2, X } from 'lucide-react'
 import { EmptyCollection, StatusPill } from '../components/Common'
 import { FormatToolbar, RichTextEditor, type RichEditorImageUpload } from '../editor/RichTextEditor'
 import type { Draft, GenerationJobStatus } from '../tauri'
@@ -6,6 +6,7 @@ import type { BusyAction } from '../ui/types'
 
 export function TestwareView({
   busyAction,
+  copiedDraftId,
   drafts,
   notice,
   error,
@@ -21,6 +22,7 @@ export function TestwareView({
   onUploadImage,
 }: {
   busyAction: BusyAction | null
+  copiedDraftId: string | null
   drafts: Draft[]
   notice: string | null
   error: string | null
@@ -91,9 +93,11 @@ export function TestwareView({
         {drafts.map((draft) => {
           const deletingDraft = busyAction === `delete-draft:${draft.id}`
           const copyingDraft = busyAction === `copy-draft:${draft.id}`
+          const draftCopied = copiedDraftId === draft.id
           const savingDraft = busyAction === `draft:${draft.id}`
           const editorId = `testware-editor-${draft.id}`
-          const copyLabel = draft.title.trim() ? `Copy ${draft.title} for Jira` : 'Copy testware for Jira'
+          const draftTitle = draft.title.trim()
+          const copyLabel = draftCopyLabel(draftTitle, draftCopied)
           return (
             <article className="editable-record" key={draft.id}>
               <input value={draft.title} aria-label="Testware title" onChange={(event) => updateLocalDraft(draft.id, { title: event.target.value })} />
@@ -109,14 +113,14 @@ export function TestwareView({
               </div>
               <div className="record-actions">
                 <button
-                  className="icon-button"
+                  className={draftCopied ? 'icon-button success' : 'icon-button'}
                   type="button"
                   aria-label={copyLabel}
-                  title="Copy for Jira"
+                  title={draftCopied ? 'Copied' : 'Copy for Jira'}
                   disabled={isBusy}
                   onClick={() => void onCopyDraft(draft)}
                 >
-                  {copyingDraft ? <Loader2 className="spin" size={16} /> : <Copy size={16} />}
+                  {copyingDraft ? <Loader2 className="spin" size={16} /> : draftCopied ? <CheckCircle2 size={16} /> : <Copy size={16} />}
                 </button>
                 <button className="secondary-button" type="button" disabled={isBusy} onClick={() => void onSaveDraft(draft)}>
                   {savingDraft ? <Loader2 className="spin" size={16} /> : <Save size={16} />}
@@ -140,4 +144,9 @@ export function TestwareView({
       </div>
     </section>
   )
+}
+
+function draftCopyLabel(title: string, copied: boolean): string {
+  if (copied) return title ? `${title} copied for Jira` : 'Testware copied for Jira'
+  return title ? `Copy ${title} for Jira` : 'Copy testware for Jira'
 }

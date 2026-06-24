@@ -1,4 +1,4 @@
-import { Copy, FileText, Flag, Loader2, Plus, Save, Trash2, X } from 'lucide-react'
+import { CheckCircle2, Copy, FileText, Flag, Loader2, Plus, Save, Trash2, X } from 'lucide-react'
 import { EmptyCollection, StatusPill } from '../components/Common'
 import { FormatToolbar, RichTextEditor, type RichEditorImageUpload } from '../editor/RichTextEditor'
 import type { Finding, GenerationJobStatus } from '../tauri'
@@ -7,6 +7,7 @@ import type { BusyAction } from '../ui/types'
 
 export function FindingsView({
   busyAction,
+  copiedFindingId,
   findings,
   notice,
   error,
@@ -22,6 +23,7 @@ export function FindingsView({
   onUploadImage,
 }: {
   busyAction: BusyAction | null
+  copiedFindingId: string | null
   findings: Finding[]
   notice: string | null
   error: string | null
@@ -92,9 +94,11 @@ export function FindingsView({
         {findings.map((finding) => {
           const deletingFinding = busyAction === `delete-finding:${finding.id}`
           const copyingFinding = busyAction === `copy-finding:${finding.id}`
+          const findingCopied = copiedFindingId === finding.id
           const savingFinding = busyAction === `finding:${finding.id}`
           const editorId = `finding-editor-${finding.id}`
-          const copyLabel = finding.title.trim() ? `Copy ${finding.title} for Jira` : 'Copy finding for Jira'
+          const findingTitle = finding.title.trim()
+          const copyLabel = findingCopyLabel(findingTitle, findingCopied)
           return (
             <article className="editable-record" key={finding.id}>
               <div className="finding-meta-row">
@@ -113,14 +117,14 @@ export function FindingsView({
               </div>
               <div className="record-actions">
                 <button
-                  className="icon-button"
+                  className={findingCopied ? 'icon-button success' : 'icon-button'}
                   type="button"
                   aria-label={copyLabel}
-                  title="Copy for Jira"
+                  title={findingCopied ? 'Copied' : 'Copy for Jira'}
                   disabled={isBusy}
                   onClick={() => void onCopyFinding(finding)}
                 >
-                  {copyingFinding ? <Loader2 className="spin" size={16} /> : <Copy size={16} />}
+                  {copyingFinding ? <Loader2 className="spin" size={16} /> : findingCopied ? <CheckCircle2 size={16} /> : <Copy size={16} />}
                 </button>
                 <button className="secondary-button" type="button" disabled={isBusy} onClick={() => void onSaveFinding(finding)}>
                   {savingFinding ? <Loader2 className="spin" size={16} /> : <Save size={16} />}
@@ -144,4 +148,9 @@ export function FindingsView({
       </div>
     </section>
   )
+}
+
+function findingCopyLabel(title: string, copied: boolean): string {
+  if (copied) return title ? `${title} copied for Jira` : 'Finding copied for Jira'
+  return title ? `Copy ${title} for Jira` : 'Copy finding for Jira'
 }

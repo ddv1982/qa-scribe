@@ -9,6 +9,7 @@ export function NotesView({
   activeProviderAvailable,
   activeSession,
   busyAction,
+  copySucceeded,
   filteredSessions,
   isBusy,
   noteBody,
@@ -30,6 +31,7 @@ export function NotesView({
   activeProviderAvailable: boolean
   activeSession: Session | null
   busyAction: BusyAction | null
+  copySucceeded: boolean
   filteredSessions: Session[]
   isBusy: boolean
   noteBody: string
@@ -50,6 +52,7 @@ export function NotesView({
 }) {
   const deletingNote = busyAction === 'delete-note'
   const copyingNote = busyAction === 'copy-note'
+  const copyNoteLabel = copySucceeded ? 'Note copied for Jira' : 'Copy note for Jira'
   const testwarePending = Boolean(pendingAiActions.testware)
   const findingPending = Boolean(pendingAiActions.finding)
   const summaryPending = Boolean(pendingAiActions.summary)
@@ -90,8 +93,15 @@ export function NotesView({
             <CheckCircle2 size={15} />
             <span>{busyAction === 'save-title' || busyAction === 'save-body' ? 'Saving...' : 'Autosaved'}</span>
           </div>
-          <button className="icon-button" type="button" aria-label="Copy note for Jira" title="Copy note for Jira" disabled={isBusy} onClick={() => void onCopyNote()}>
-            {copyingNote ? <Loader2 className="spin" size={16} /> : <Copy size={16} />}
+          <button
+            className={copySucceeded ? 'icon-button success' : 'icon-button'}
+            type="button"
+            aria-label={copyNoteLabel}
+            title={copySucceeded ? 'Copied' : 'Copy note for Jira'}
+            disabled={isBusy}
+            onClick={() => void onCopyNote()}
+          >
+            {copyingNote ? <Loader2 className="spin" size={16} /> : copySucceeded ? <CheckCircle2 size={16} /> : <Copy size={16} />}
           </button>
           <button className="icon-button danger" type="button" aria-label="Delete note" title="Delete note" disabled={isBusy} onClick={() => void onDeleteNote()}>
             {deletingNote ? <Loader2 className="spin" size={16} /> : <Trash2 size={16} />}

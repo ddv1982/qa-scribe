@@ -1,3 +1,4 @@
+import { getAttachmentPreviewDataUrl } from '../tauri'
 import { managedAttachmentProtocol, normalizeEditorHtml } from './editorHtml'
 
 export type ClipboardRecord = {
@@ -10,12 +11,37 @@ export type ClipboardPayload = {
   plain: string
 }
 
-export function formatRecordForClipboard(record: ClipboardRecord): ClipboardPayload {
-  const title = record.title.trim()
-  const body = document.createElement('div')
-  body.innerHTML = normalizeEditorHtml(record.bodyHtml)
+export type JiraClipboardPayload = ClipboardPayload & {
+  includesInlineImages: boolean
+}
 
-  const htmlParts = [title ? `<h2>${escapeHtml(title)}</h2>` : '', renderHtmlChildren(body)]
+type HtmlRenderOptions = {
+  inlineDataImages?: boolean
+}
+
+export function formatRecordForClipboard(record: ClipboardRecord): ClipboardPayload {
+  return renderClipboardPayload(record.title, createNormalizedBody(record.bodyHtml), {})
+}
+
+export async function formatRecordForJiraClipboard(record: ClipboardRecord): Promise<JiraClipboardPayload> {
+  const body = createNormalizedBody(record.bodyHtml)
+  await resolveManagedImagesForJira(body)
+  return {
+    ...renderClipboardPayload(record.title, body, { inlineDataImages: true }),
+    includesInlineImages: containsInlineDataImage(body),
+  }
+}
+
+function createNormalizedBody(bodyHtml: string): HTMLDivElement {
+  const body = document.createElement('div')
+  body.innerHTML = normalizeEditorHtml(bodyHtml)
+  return body
+}
+
+function renderClipboardPayload(titleInput: string, body: ParentNode, options: HtmlRenderOptions): ClipboardPayload {
+  const title = titleInput.trim()
+
+  const htmlParts = [title ? `<h2>${escapeHtml(title)}</h2>` : '', renderHtmlChildren(body, options)]
     .map((part) => part.trim())
     .filter(Boolean)
   const plainParts = [title ? `## ${title}` : '', renderPlainChildren(body)]
@@ -29,7 +55,13 @@ export function formatRecordForClipboard(record: ClipboardRecord): ClipboardPayl
 }
 
 export async function copyRecordForJira(record: ClipboardRecord): Promise<void> {
-  await writePlainClipboard(formatRecordForClipboard(record).plain)
+  const payload = await formatRecordForJiraClipboard(record)
+  if (payload.includesInlineImages) {
+    await writeRichClipboard(payload)
+    return
+  }
+
+  await writePlainClipboard(payload.plain)
 }
 
 export async function writeRichClipboard(payload: ClipboardPayload): Promise<void> {
@@ -60,11 +92,48 @@ export async function writePlainClipboard(value: string): Promise<void> {
   await clipboard.writeText(value)
 }
 
-function renderHtmlChildren(parent: ParentNode): string {
-  return Array.from(parent.childNodes).map(renderHtmlNode).join('').trim()
+async function resolveManagedImagesForJira(parent: ParentNode): Promise<void> {
+  const images = Array.from(
+    parent.querySelectorAll<HTMLImageElement>('img[data-attachment-id], img[src^="qa-scribe-attachment://"]'),
+  )
+
+  await Promise.all(
+    images.map(async (image) => {
+      const attachmentId = managedAttachmentIdFromImage(image)
+      if (!attachmentId) return
+
+      try {
+        const preview = await getAttachmentPreviewDataUrl(attachmentId)
+        if (preview && isDataImageSource(preview)) {
+          image.setAttribute('src', preview)
+        }
+      } catch {
+        // The plain-text fallback still names the image if preview lookup fails.
+      }
+    }),
+  )
 }
 
-function renderHtmlNode(node: ChildNode): string {
+function containsInlineDataImage(parent: ParentNode): boolean {
+  return Array.from(parent.querySelectorAll<HTMLImageElement>('img')).some((image) =>
+    isDataImageSource(image.getAttribute('src')?.trim() ?? ''),
+  )
+}
+
+function managedAttachmentIdFromImage(image: HTMLImageElement): string | null {
+  return image.getAttribute('data-attachment-id') || managedAttachmentIdFromSrc(image.getAttribute('src') ?? '')
+}
+
+function managedAttachmentIdFromSrc(source: string): string | null {
+  if (!source.startsWith(managedAttachmentProtocol)) return null
+  return source.slice(managedAttachmentProtocol.length)
+}
+
+function renderHtmlChildren(parent: ParentNode, options: HtmlRenderOptions): string {
+  return Array.from(parent.childNodes).map((node) => renderHtmlNode(node, options)).join('').trim()
+}
+
+function renderHtmlNode(node: ChildNode, options: HtmlRenderOptions): string {
   if (node.nodeType === Node.TEXT_NODE) return escapeHtml(node.textContent ?? '')
   if (node.nodeType !== Node.ELEMENT_NODE) return ''
 
@@ -73,9 +142,9 @@ function renderHtmlNode(node: ChildNode): string {
 
   if (tagName === 'br') return '<br />'
   if (tagName === 'input') return checkboxMarker(element as HTMLInputElement)
-  if (tagName === 'img') return renderHtmlImage(element as HTMLImageElement)
+  if (tagName === 'img') return renderHtmlImage(element as HTMLImageElement, options)
 
-  const children = renderHtmlChildren(element)
+  const children = renderHtmlChildren(element, options)
   if (!children && tagName !== 'p') return ''
 
   if (tagName === 'a') {
@@ -88,18 +157,18 @@ function renderHtmlNode(node: ChildNode): string {
   if (tagName === 'h2' || tagName === 'h3' || tagName === 'ol' || tagName === 'p') return `<${tagName}>${children}</${tagName}>`
 
   if (tagName === 'ul') {
-    return `<ul>${Array.from(element.children).map((child) => renderHtmlListItem(child as HTMLElement)).join('')}</ul>`
+    return `<ul>${Array.from(element.children).map((child) => renderHtmlListItem(child as HTMLElement, options)).join('')}</ul>`
   }
 
-  if (tagName === 'li') return renderHtmlListItem(element)
+  if (tagName === 'li') return renderHtmlListItem(element, options)
   return children
 }
 
-function renderHtmlListItem(item: HTMLElement): string {
+function renderHtmlListItem(item: HTMLElement, options: HtmlRenderOptions): string {
   const taskMarker = item.getAttribute('data-type') === 'taskItem' ? `${taskItemMarker(item)} ` : ''
   const children = Array.from(item.childNodes)
     .filter((child) => !(child.nodeType === Node.ELEMENT_NODE && (child as HTMLElement).tagName.toLowerCase() === 'input'))
-    .map(renderHtmlNode)
+    .map((node) => renderHtmlNode(node, options))
     .join('')
     .trim()
 
@@ -191,11 +260,16 @@ function checkboxMarker(checkbox: HTMLInputElement): string {
   return checkbox.checked || checkbox.hasAttribute('checked') ? '[x]' : '[ ]'
 }
 
-function renderHtmlImage(image: HTMLImageElement): string {
+function renderHtmlImage(image: HTMLImageElement, options: HtmlRenderOptions): string {
   const source = image.getAttribute('src')?.trim() ?? ''
   const alt = image.getAttribute('alt')?.trim() || 'Attached image'
 
-  if (source.startsWith(managedAttachmentProtocol) || /^data:image\//i.test(source)) {
+  if (isDataImageSource(source)) {
+    if (options.inlineDataImages) return `<img src="${escapeAttribute(source)}" alt="${escapeAttribute(alt)}" />`
+    return `Image: ${escapeHtml(alt)}`
+  }
+
+  if (source.startsWith(managedAttachmentProtocol)) {
     return `Image: ${escapeHtml(alt)}`
   }
 
@@ -206,7 +280,7 @@ function renderPlainImage(image: HTMLImageElement): string {
   const source = image.getAttribute('src')?.trim() ?? ''
   const alt = image.getAttribute('alt')?.trim() || 'Attached image'
 
-  if (source.startsWith(managedAttachmentProtocol) || /^data:image\//i.test(source) || !isSafeImageSource(source)) {
+  if (source.startsWith(managedAttachmentProtocol) || isDataImageSource(source) || !isSafeImageSource(source)) {
     return `Image: ${alt}`
   }
 
@@ -220,6 +294,10 @@ function safeLinkHref(link: HTMLAnchorElement): string | null {
 
 function isSafeImageSource(source: string): boolean {
   return isSafeUrlWithProtocols(source, new Set(['http:', 'https:']))
+}
+
+function isDataImageSource(source: string): boolean {
+  return /^data:image\//i.test(source)
 }
 
 function isSafeUrlWithProtocols(source: string, protocols: Set<string>): boolean {

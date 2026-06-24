@@ -1,11 +1,17 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { copyRecordForJira, formatRecordForClipboard, writeRichClipboard } from './clipboardExport'
+vi.mock('../tauri', () => ({
+  getAttachmentPreviewDataUrl: vi.fn(),
+}))
+
+import { getAttachmentPreviewDataUrl } from '../tauri'
+import { copyRecordForJira, formatRecordForClipboard, formatRecordForJiraClipboard, writeRichClipboard } from './clipboardExport'
 import { managedAttachmentImageHtml } from './editorHtml'
 
 describe('clipboardExport', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
+    vi.clearAllMocks()
   })
 
   it('formats title and rich body as HTML plus Markdown-like plain text', () => {
@@ -95,6 +101,78 @@ describe('clipboardExport', () => {
 
     expect(write).not.toHaveBeenCalled()
     expect(writeText).toHaveBeenCalledWith(['## Gmail sign-in issue', '**Login** fails', '- Open Gmail'].join('\n\n'))
+  })
+
+  it('copies Jira records with managed screenshots as clean rich HTML', async () => {
+    vi.mocked(getAttachmentPreviewDataUrl).mockResolvedValue('data:image/png;base64,AAAA')
+    const write = vi.fn().mockResolvedValue(undefined)
+    const writeText = vi.fn().mockResolvedValue(undefined)
+
+    class MockClipboardItem {
+      items: Record<string, Blob>
+
+      constructor(items: Record<string, Blob>) {
+        this.items = items
+      }
+    }
+
+    vi.stubGlobal('ClipboardItem', MockClipboardItem)
+    vi.stubGlobal('navigator', { clipboard: { write, writeText } })
+
+    await copyRecordForJira({
+      title: 'Screenshot evidence',
+      bodyHtml: `<p style="color: #111">${managedAttachmentImageHtml('attachment-1', 'gmail-error.png')}</p>`,
+    })
+
+    expect(getAttachmentPreviewDataUrl).toHaveBeenCalledWith('attachment-1')
+    expect(write).toHaveBeenCalledTimes(1)
+    expect(writeText).not.toHaveBeenCalled()
+
+    const [[items]] = write.mock.calls as [[MockClipboardItem[]]]
+    const html = await items[0].items['text/html'].text()
+    const plain = await items[0].items['text/plain'].text()
+    expect(html).toContain('<h2>Screenshot evidence</h2>')
+    expect(html).toContain('<img src="data:image/png;base64,AAAA" alt="gmail-error.png" />')
+    expect(html).not.toContain('style=')
+    expect(html).not.toContain('color')
+    expect(html).not.toContain('qa-scribe-attachment://')
+    expect(html).not.toContain('data-attachment-id')
+    expect(plain).toContain('Image: gmail-error.png')
+  })
+
+  it('falls back to plain Jira copy when a managed screenshot preview cannot be resolved', async () => {
+    vi.mocked(getAttachmentPreviewDataUrl).mockResolvedValue(null)
+    const write = vi.fn().mockResolvedValue(undefined)
+    const writeText = vi.fn().mockResolvedValue(undefined)
+
+    class MockClipboardItem {
+      constructor(_items: Record<string, Blob>) {}
+    }
+
+    vi.stubGlobal('ClipboardItem', MockClipboardItem)
+    vi.stubGlobal('navigator', { clipboard: { write, writeText } })
+
+    await copyRecordForJira({
+      title: 'Screenshot evidence',
+      bodyHtml: `<p>${managedAttachmentImageHtml('attachment-1', 'gmail-error.png')}</p>`,
+    })
+
+    expect(getAttachmentPreviewDataUrl).toHaveBeenCalledWith('attachment-1')
+    expect(write).not.toHaveBeenCalled()
+    expect(writeText).toHaveBeenCalledWith(['## Screenshot evidence', 'Image: gmail-error.png'].join('\n\n'))
+  })
+
+  it('formats direct data images for Jira without copying editor color styles', async () => {
+    const payload = await formatRecordForJiraClipboard({
+      title: 'Inline evidence',
+      bodyHtml: '<p><img src="data:image/png;base64,BBBB" alt="inline.png" style="color: red" /></p>',
+    })
+
+    expect(payload.includesInlineImages).toBe(true)
+    expect(payload.html).toContain('<img src="data:image/png;base64,BBBB" alt="inline.png" />')
+    expect(payload.html).not.toContain('style=')
+    expect(payload.html).not.toContain('color')
+    expect(payload.plain).toContain('Image: inline.png')
   })
 
   it('writes rich clipboard data when the browser API is available', async () => {
