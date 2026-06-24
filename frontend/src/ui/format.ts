@@ -43,6 +43,20 @@ export function nextUntitledTitle(sessions: Session[]): string {
   return `Untitled note ${highest + 1}`
 }
 
+export function nextUntitledRecordTitle(records: Array<{ title: string }>, baseTitle: string): string {
+  const pattern = new RegExp(`^${escapeRegExp(baseTitle)}(?: (\\d+))?$`)
+  const highest = records.reduce((max, record) => {
+    const match = pattern.exec(record.title)
+    if (!match) return max
+    return Math.max(max, match[1] ? Number(match[1]) : 1)
+  }, 0)
+  return highest === 0 ? baseTitle : `${baseTitle} ${highest + 1}`
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
 export function statusLabel(status: string): string {
   return status.replace(/([A-Z])/g, ' $1').toLowerCase()
 }

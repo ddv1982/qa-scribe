@@ -56,7 +56,7 @@ import {
   readFileAsDataUrl,
   stripHtml,
 } from './editor/editorHtml'
-import { countWords, formatError, formatSessionDate, initialTheme, nextUntitledTitle, statusLabel } from './ui/format'
+import { countWords, formatError, formatSessionDate, initialTheme, nextUntitledRecordTitle, nextUntitledTitle, statusLabel } from './ui/format'
 import type { BusyAction, PendingAiActions, SettingsSaveState, ThemePreference, WorkspaceView } from './ui/types'
 import type { RichEditorImageUpload } from './editor/RichTextEditor'
 import { richEditorImageInserterForElement, type RichEditorImageInserter } from './editor/richEditorRegistry'
@@ -493,7 +493,7 @@ export function App() {
         sessionId: activeSession.id,
         aiRunId: null,
         kind: 'testware',
-        title: `${activeSession.title} Test Cases`,
+        title: nextUntitledRecordTitle(testwareDrafts, 'Untitled testware'),
         body: emptyEditorHtml,
       })
       setDrafts(await listDrafts(activeSession.id))
@@ -517,7 +517,7 @@ export function App() {
         sessionId: activeSession.id,
         aiRunId: null,
         kind: 'testware',
-        title: `${activeSession.title} Test Cases`,
+        title: nextUntitledRecordTitle(testwareDrafts, 'Untitled testware'),
         body: renderPrefilledTestware(activeSession.title, noteBody),
       })
       setDrafts(await listDrafts(activeSession.id))
@@ -539,7 +539,7 @@ export function App() {
       if (!saved) return
       await createFinding({
         sessionId: activeSession.id,
-        title: `Finding from ${activeSession.title}`,
+        title: nextUntitledRecordTitle(findings, 'Untitled finding'),
         body: emptyEditorHtml,
         kind: 'bug',
         metadataJson: null,
@@ -563,7 +563,7 @@ export function App() {
       if (!saved) return
       await createFinding({
         sessionId: activeSession.id,
-        title: `Finding from ${activeSession.title}`,
+        title: nextUntitledRecordTitle(findings, 'Untitled finding'),
         body: renderPrefilledFinding(noteBody),
         kind: 'bug',
         metadataJson: null,

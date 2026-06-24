@@ -2306,7 +2306,7 @@ dependencies = [
 
 [[package]]
 name = "qa-scribe-app"
-version = "0.4.8"
+version = "0.4.9"
 dependencies = [
  "qa-scribe-core",
  "serde_json",
@@ -2314,7 +2314,7 @@ dependencies = [
 
 [[package]]
 name = "qa-scribe-core"
-version = "0.4.8"
+version = "0.4.9"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -2328,7 +2328,7 @@ dependencies = [
 
 [[package]]
 name = "qa-scribe-tauri"
-version = "0.4.8"
+version = "0.4.9"
 dependencies = [
  "qa-scribe-core",
  "serde",
