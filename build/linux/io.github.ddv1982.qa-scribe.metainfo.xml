@@ -18,6 +18,7 @@
     <category>ProjectManagement</category>
   </categories>
   <releases>
+    <release version="0.4.20" date="2026-06-25" />
     <release version="0.4.19" date="2026-06-24" />
   </releases>
 </component>

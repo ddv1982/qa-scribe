@@ -229,6 +229,7 @@ export function App() {
   async function loadProviderStatusAfterBoot() {
     try {
       await loadProviderStatus()
+      await refreshProviderStatus()
     } catch (cause) {
       setError(formatError(cause))
     }

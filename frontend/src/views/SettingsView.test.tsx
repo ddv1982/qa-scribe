@@ -24,6 +24,15 @@ describe('SettingsView AI defaults', () => {
     expect(screen.getByText('Claude Code')).toBeInTheDocument()
   })
 
+  it('shows the resolved executable path for detected providers', () => {
+    renderSettingsView({
+      providerStatus: providerStatusWith([codexProvider(), claudeProvider(false), copilotProvider(true)]),
+    })
+
+    expect(screen.getByText('/mock/bin/codex')).toBeInTheDocument()
+    expect(screen.queryByText('/mock/bin/claude')).not.toBeInTheDocument()
+  })
+
   it('shows an unavailable saved default as a disabled stale option until another provider is selected', async () => {
     const user = userEvent.setup()
     renderSettingsView({
@@ -153,9 +162,16 @@ function providerDescriptor(
     available,
     reason: available ? `${label} is ready.` : `${label} needs setup.`,
     command: label.toLocaleLowerCase().replaceAll(' ', '-'),
+    executablePath: available ? `/mock/bin/${providerExecutable(id)}` : null,
     localOnly: true,
     models,
   }
+}
+
+function providerExecutable(id: AiProvider): string {
+  if (id === 'claude_code') return 'claude'
+  if (id === 'copilot_cli') return 'copilot'
+  return 'codex'
 }
 
 function modelDescriptor(id: string, label: string, reasoningEfforts: string[] = []): ProviderModelDescriptor {

@@ -101,6 +101,7 @@ export function providerStatusFixture(): ProviderStatus {
         available: true,
         reason: 'Codex CLI is installed and authenticated.',
         command: 'codex',
+        executablePath: '/mock/bin/codex',
         localOnly: true,
         models: [
           {

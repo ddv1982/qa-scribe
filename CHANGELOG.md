@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.4.20 - 2026-06-25
+
+- Fix desktop-launched provider detection by sharing mode-aware executable path resolution across provider readiness checks.
+- Expand CLI discovery for common Linux and developer-tool installs including Linuxbrew, pnpm, nvm, asdf, mise, cargo, Volta, Bun, and local bin paths.
+- Keep app boot responsive with fast provider status first, then refresh deeper shell-aware provider status in the background.
+- Show the resolved provider executable path in Settings to make Codex, Claude Code, and Copilot CLI diagnosis visible.
+- Add regression coverage for fast-miss/deep-success provider readiness, fallback path coverage, executable resolution, and Settings path display.
+
 ## v0.4.19 - 2026-06-24
 
 - Add GitHub Actions CI and release automation for Rust, frontend, macOS notarized DMGs, Linux packages, and GitHub Pages APT publishing.

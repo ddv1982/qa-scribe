@@ -2,6 +2,7 @@ use std::{
     collections::HashMap,
     fs,
     io::ErrorKind,
+    path::PathBuf,
     process::{Command, Output, Stdio},
     sync::{
         Mutex, OnceLock,
@@ -17,7 +18,7 @@ use qa_scribe_core::{
 };
 use serde::Serialize;
 
-use crate::provider_command::{apply_provider_path, provider_executable_exists};
+use crate::provider_command::{ProviderPathMode, apply_provider_path, provider_executable_path};
 
 mod models;
 
@@ -47,6 +48,7 @@ pub struct ProviderDescriptor {
     pub available: bool,
     pub reason: String,
     pub command: Option<String>,
+    pub executable_path: Option<String>,
     pub models: Vec<ProviderModelDescriptor>,
     pub local_only: bool,
 }
@@ -104,6 +106,15 @@ enum DetectionMode {
     Deep,
 }
 
+impl From<DetectionMode> for ProviderPathMode {
+    fn from(mode: DetectionMode) -> Self {
+        match mode {
+            DetectionMode::Fast => ProviderPathMode::Fast,
+            DetectionMode::Deep => ProviderPathMode::Deep,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 struct ReadinessCacheKey {
     provider: AiProvider,
@@ -119,15 +130,23 @@ struct CommandProbe {
 }
 
 trait ProbeRunner {
-    fn has_executable(&self, program: &str) -> bool;
+    fn executable_path(&self, program: &str) -> Option<PathBuf>;
     fn run(&self, program: &str, args: &[&str]) -> CommandProbe;
 }
 
-struct SystemProbeRunner;
+struct SystemProbeRunner {
+    path_mode: ProviderPathMode,
+}
+
+impl SystemProbeRunner {
+    fn new(path_mode: ProviderPathMode) -> Self {
+        Self { path_mode }
+    }
+}
 
 impl ProbeRunner for SystemProbeRunner {
-    fn has_executable(&self, program: &str) -> bool {
-        provider_executable_exists(program)
+    fn executable_path(&self, program: &str) -> Option<PathBuf> {
+        provider_executable_path(program, self.path_mode)
     }
 
     fn run(&self, program: &str, args: &[&str]) -> CommandProbe {
@@ -246,15 +265,35 @@ fn clear_readiness_cache() {
 }
 
 pub fn provider_readiness(provider: AiProvider) -> ProviderReadiness {
+    provider_readiness_with_runners(
+        provider,
+        &SystemProbeRunner::new(ProviderPathMode::Fast),
+        &SystemProbeRunner::new(ProviderPathMode::Deep),
+    )
+}
+
+fn provider_readiness_with_runners(
+    provider: AiProvider,
+    fast_runner: &impl ProbeRunner,
+    deep_runner: &impl ProbeRunner,
+) -> ProviderReadiness {
     if let Some(readiness) = cached_readiness(provider, DetectionMode::Deep) {
         return readiness;
     }
     if let Some(readiness) = cached_readiness(provider, DetectionMode::Fast) {
-        return readiness;
+        if readiness.descriptor.available {
+            return readiness;
+        }
+    } else {
+        let readiness = detect_provider(provider, fast_runner, DetectionMode::Fast);
+        cache_readiness(provider, DetectionMode::Fast, &readiness);
+        if readiness.descriptor.available {
+            return readiness;
+        }
     }
 
-    let readiness = detect_provider(provider, &SystemProbeRunner, DetectionMode::Fast);
-    cache_readiness(provider, DetectionMode::Fast, &readiness);
+    let readiness = detect_provider(provider, deep_runner, DetectionMode::Deep);
+    cache_readiness(provider, DetectionMode::Deep, &readiness);
     readiness
 }
 
@@ -284,14 +323,12 @@ fn provider_status_with_system_runner() -> ProviderStatus {
 }
 
 fn provider_status_with_system_runner_for_mode(mode: DetectionMode) -> ProviderStatus {
+    let runner = SystemProbeRunner::new(mode.into());
     let readinesses: Vec<_> = provider_capabilities()
         .into_iter()
         .map(|capability| {
             let provider = capability.id;
-            (
-                provider,
-                detect_capability(capability, &SystemProbeRunner, mode),
-            )
+            (provider, detect_capability(capability, &runner, mode))
         })
         .collect();
     cache_readinesses(mode, &readinesses);
@@ -354,28 +391,33 @@ fn detect_claude(
 ) -> ProviderReadiness {
     if mode == DetectionMode::Fast {
         let models = claude_static_models();
-        if !runner.has_executable(capability.executable) {
+        let executable_path = runner.executable_path(capability.executable);
+        if executable_path.is_none() {
             return not_installed_or_error(
                 capability,
                 CommandProbe::not_found(),
                 "Install Claude Code and ensure `claude` is on PATH.",
+                None,
             );
         }
         return ready(
             capability,
             "Claude Code executable was found. Authentication will be verified when generation runs.",
             "claude -p",
+            executable_path,
             models,
             None,
         );
     }
 
+    let executable_path = runner.executable_path(capability.executable);
     let install = runner.run(capability.executable, &capability.version_args);
     if !install.success {
         return not_installed_or_error(
             capability,
             install,
             "Install Claude Code and ensure `claude` is on PATH.",
+            executable_path,
         );
     }
     let models = claude_models(runner);
@@ -386,6 +428,7 @@ fn detect_claude(
             capability,
             "Claude Code is installed and authenticated.",
             "claude -p",
+            executable_path,
             models,
             None,
         );
@@ -399,6 +442,7 @@ fn detect_claude(
             &auth,
         ),
         Some("claude auth status --json".to_string()),
+        executable_path,
         models,
         None,
     )
@@ -411,28 +455,33 @@ fn detect_codex(
 ) -> ProviderReadiness {
     if mode == DetectionMode::Fast {
         let models = codex_static_models();
-        if !runner.has_executable(capability.executable) {
+        let executable_path = runner.executable_path(capability.executable);
+        if executable_path.is_none() {
             return not_installed_or_error(
                 capability,
                 CommandProbe::not_found(),
                 "Install Codex CLI and ensure `codex` is on PATH.",
+                None,
             );
         }
         return ready(
             capability,
             "Codex CLI executable was found. Authentication will be verified when generation runs.",
             "codex exec --skip-git-repo-check -",
+            executable_path,
             models,
             None,
         );
     }
 
+    let executable_path = runner.executable_path(capability.executable);
     let install = runner.run(capability.executable, &capability.version_args);
     if !install.success {
         return not_installed_or_error(
             capability,
             install,
             "Install Codex CLI and ensure `codex` is on PATH.",
+            executable_path,
         );
     }
     let models = codex_models(runner);
@@ -443,6 +492,7 @@ fn detect_codex(
             capability,
             "Codex CLI is installed and authenticated.",
             "codex exec --skip-git-repo-check -",
+            executable_path,
             models,
             None,
         );
@@ -456,6 +506,7 @@ fn detect_codex(
             &auth,
         ),
         Some("codex login status".to_string()),
+        executable_path,
         models,
         None,
     )
@@ -466,12 +517,13 @@ fn detect_copilot(
     runner: &impl ProbeRunner,
     mode: DetectionMode,
 ) -> ProviderReadiness {
-    let executable_found = runner.has_executable(capability.executable);
-    if !executable_found {
+    let executable_path = runner.executable_path(capability.executable);
+    if executable_path.is_none() {
         return not_installed_or_error(
             capability,
             CommandProbe::not_found(),
             "Install GitHub Copilot CLI and ensure `copilot` is on PATH.",
+            None,
         );
     }
 
@@ -486,6 +538,7 @@ fn detect_copilot(
             capability,
             "GitHub Copilot CLI executable was found. Authentication will be verified when generation runs.",
             "copilot -p <prompt> -s --no-ask-user",
+            executable_path,
             models,
             Some(CopilotRuntime::DirectCli),
         );
@@ -501,6 +554,7 @@ fn detect_copilot(
                 &help,
             ),
             Some("copilot update".to_string()),
+            executable_path,
             models,
             None,
         );
@@ -510,6 +564,7 @@ fn detect_copilot(
         capability,
         "GitHub Copilot CLI is installed and exposes noninteractive prompt mode. Authentication will be verified when generation runs.",
         "copilot -p <prompt> -s --no-ask-user",
+        executable_path,
         models,
         Some(CopilotRuntime::DirectCli),
     )
@@ -519,6 +574,7 @@ fn ready(
     capability: ProviderCapability,
     reason: &str,
     command: &str,
+    executable_path: Option<PathBuf>,
     models: Vec<ProviderModelDescriptor>,
     copilot_runtime: Option<CopilotRuntime>,
 ) -> ProviderReadiness {
@@ -527,6 +583,7 @@ fn ready(
         ProviderState::Ready,
         reason.to_string(),
         Some(command.to_string()),
+        executable_path,
         models,
         copilot_runtime,
     )
@@ -544,6 +601,7 @@ fn not_installed_or_error(
     capability: ProviderCapability,
     probe: CommandProbe,
     install_message: &str,
+    executable_path: Option<PathBuf>,
 ) -> ProviderReadiness {
     let status = if probe.not_found {
         ProviderState::InstallRequired
@@ -560,6 +618,7 @@ fn not_installed_or_error(
         status,
         reason,
         None,
+        executable_path,
         vec![provider_default_model()],
         None,
     )
@@ -570,6 +629,7 @@ fn descriptor(
     status: ProviderState,
     reason: String,
     command: Option<String>,
+    executable_path: Option<PathBuf>,
     models: Vec<ProviderModelDescriptor>,
     copilot_runtime: Option<CopilotRuntime>,
 ) -> ProviderReadiness {
@@ -581,6 +641,7 @@ fn descriptor(
             available: status.is_ready(),
             reason,
             command,
+            executable_path: executable_path.map(|path| path.to_string_lossy().into_owned()),
             models: normalize_models(models),
             local_only: true,
         },
@@ -631,8 +692,10 @@ mod tests {
     }
 
     impl ProbeRunner for MockRunner {
-        fn has_executable(&self, program: &str) -> bool {
-            self.executables.contains(program)
+        fn executable_path(&self, program: &str) -> Option<PathBuf> {
+            self.executables
+                .contains(program)
+                .then(|| PathBuf::from(format!("/mock/bin/{program}")))
         }
 
         fn run(&self, program: &str, args: &[&str]) -> CommandProbe {
@@ -705,7 +768,41 @@ mod tests {
                 .iter()
                 .all(|provider| provider.models[0].id == "default")
         );
+        assert_eq!(
+            status
+                .providers
+                .iter()
+                .find(|provider| provider.id == "codex_cli")
+                .and_then(|provider| provider.executable_path.as_deref()),
+            Some("/mock/bin/codex")
+        );
         assert!(runner.calls().is_empty());
+    }
+
+    #[test]
+    fn provider_readiness_deep_checks_when_fast_detection_misses() {
+        clear_readiness_cache();
+        let fast_runner = MockRunner::default();
+        let deep_runner = MockRunner::default()
+            .with("codex", &["--version"], CommandProbe::success())
+            .with("codex", &["login", "status"], CommandProbe::success());
+
+        let readiness =
+            provider_readiness_with_runners(AiProvider::CodexCli, &fast_runner, &deep_runner);
+
+        assert_eq!(readiness.descriptor.status, ProviderState::Ready);
+        assert_eq!(
+            readiness.descriptor.executable_path.as_deref(),
+            Some("/mock/bin/codex")
+        );
+        assert!(fast_runner.calls().is_empty());
+        assert!(deep_runner.calls().contains(&"codex --version".to_string()));
+        assert!(
+            deep_runner
+                .calls()
+                .contains(&"codex login status".to_string())
+        );
+        clear_readiness_cache();
     }
 
     #[test]

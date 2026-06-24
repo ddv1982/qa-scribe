@@ -26,7 +26,7 @@ Then commit, tag, and push:
 
 ```bash
 git add -A
-git commit -m "release: v1.0.0"
+git commit -m "lore(release): v1.0.0"
 git tag v1.0.0
 git push origin main
 git push origin v1.0.0

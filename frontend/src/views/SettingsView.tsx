@@ -113,6 +113,7 @@ export function SettingsView({
                 <div>
                   <strong>{provider.label}</strong>
                   <p>{provider.reason}</p>
+                  {provider.executablePath ? <code title={provider.executablePath}>{provider.executablePath}</code> : null}
                 </div>
                 <span className={provider.available ? 'status-dot ready' : 'status-dot'} />
               </article>

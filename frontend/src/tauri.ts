@@ -215,6 +215,7 @@ export type ProviderStatus = {
     available: boolean
     reason: string
     command: string | null
+    executablePath: string | null
     models: ProviderModelDescriptor[]
     localOnly: boolean
   }>
