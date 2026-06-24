@@ -66,6 +66,22 @@ impl SessionService {
             8_000,
         )?;
         let model = validate_required_text("selected AI model", &settings.selected_ai_model, 240)?;
+        let mut selected_ai_models_by_provider =
+            crate::domain::AppSettings::default().selected_ai_models_by_provider;
+        for (provider, model) in settings.selected_ai_models_by_provider.clone() {
+            selected_ai_models_by_provider.insert(
+                provider,
+                validate_required_text("selected AI provider model", &model, 240)?,
+            );
+        }
+        let mut selected_ai_reasoning_efforts_by_provider =
+            crate::domain::AppSettings::default().selected_ai_reasoning_efforts_by_provider;
+        for (provider, effort) in settings.selected_ai_reasoning_efforts_by_provider.clone() {
+            selected_ai_reasoning_efforts_by_provider.insert(
+                provider,
+                validate_optional_text("selected AI reasoning effort", effort, 40)?,
+            );
+        }
         let testware_template =
             validate_required_text("testware template", &settings.testware_template, 12_000)?;
         let finding_template =
@@ -78,6 +94,8 @@ impl SessionService {
         let next = AppSettings {
             generation_system_prompt: prompt,
             selected_ai_model: model,
+            selected_ai_models_by_provider,
+            selected_ai_reasoning_efforts_by_provider,
             testware_template,
             finding_template,
             note_summary_template,

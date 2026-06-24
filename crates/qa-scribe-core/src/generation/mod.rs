@@ -211,6 +211,7 @@ mod tests {
 
         assert!(prompt.contains("5-8"));
         assert!(prompt.contains("clean HTML fragment"));
+        assert!(prompt.contains("Preserve managed image placeholders"));
         assert!(prompt.contains("Do not escape tags as &lt;p&gt;"));
         assert!(prompt.contains("Checkout fails after applying coupon."));
         assert!(!prompt.contains("Console showed 500."));
@@ -218,6 +219,38 @@ mod tests {
         assert!(!prompt.contains("console.png"));
         assert!(!prompt.contains("sha256"));
         assert!(prompt.len() < 18_000);
+    }
+
+    #[test]
+    fn testware_prompt_includes_selected_note_managed_image_refs() {
+        let selected = test_entry(
+            "entry-selected",
+            EntryType::Note,
+            Some("Selected note"),
+            "<p>Gmail failed.</p><img src=\"qa-scribe-attachment://attachment-1\" data-attachment-id=\"attachment-1\" alt=\"gmail-error.png\" />",
+        );
+        let selected_attachment =
+            test_attachment("attachment-1", Some("entry-selected"), "gmail-error.png");
+        let supporting_attachment =
+            test_attachment("attachment-2", Some("entry-support"), "console.png");
+
+        let prompt = render_action_prompt(
+            &AppSettings::default(),
+            "Gmail issue",
+            Some(&selected),
+            std::slice::from_ref(&selected),
+            &[],
+            &[selected_attachment, supporting_attachment],
+            ActionPromptKind::Testware,
+        );
+
+        assert!(prompt.contains("Use only h2, h3, p, ul, ol, li, strong, em, a, img"));
+        assert!(prompt.contains("# Managed Images"));
+        assert!(prompt.contains("qa-scribe-attachment://attachment-1"));
+        assert!(prompt.contains("data-attachment-id=\"attachment-1\""));
+        assert!(prompt.contains("gmail-error.png"));
+        assert!(!prompt.contains("attachment-2"));
+        assert!(!prompt.contains("console.png"));
     }
 
     #[test]

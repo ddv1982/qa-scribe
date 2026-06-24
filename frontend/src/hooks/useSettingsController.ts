@@ -30,6 +30,7 @@ export function useSettingsController({
 
   const providerOptions = providerStatus?.providers ?? []
   const activeProvider = providerOptions.find((provider) => provider.id === selectedProvider) ?? providerOptions[0] ?? null
+  const selectedReasoningEffort = settings?.selectedAiReasoningEffortsByProvider?.[selectedProvider] ?? null
   const resolvedTheme = resolveThemePreference(theme, systemTheme)
 
   useEffect(() => {
@@ -58,10 +59,16 @@ export function useSettingsController({
     if (selectedProvider === settings.selectedAiProvider && selectedModel === settings.selectedAiModel) return
 
     const timeout = window.setTimeout(() => {
+      const selectedAiModelsByProvider = {
+        ...providerModelDefaults(),
+        ...settings.selectedAiModelsByProvider,
+        [selectedProvider]: selectedModel.trim() || 'default',
+      }
       void persistSettings({
         ...settings,
         selectedAiProvider: selectedProvider,
         selectedAiModel: selectedModel.trim() || 'default',
+        selectedAiModelsByProvider,
       })
     }, 550)
     return () => window.clearTimeout(timeout)
@@ -72,7 +79,7 @@ export function useSettingsController({
     setSettingsDraft(nextSettings)
     setProviderStatus(nextProviderStatus)
     setSelectedProvider(nextSettings.selectedAiProvider)
-    setSelectedModel(nextSettings.selectedAiModel || 'default')
+    setSelectedModel(modelForProvider(nextSettings, nextSettings.selectedAiProvider))
   }
 
   async function refreshProviderStatus() {
@@ -101,8 +108,7 @@ export function useSettingsController({
       setSettingsSaveState('saving')
       const saved = await persistSettings({
         ...settingsDraft,
-        selectedAiProvider: selectedProvider,
-        selectedAiModel: selectedModel.trim() || 'default',
+        selectedAiModel: modelForProvider(settingsDraft, settingsDraft.selectedAiProvider),
       })
       setSettingsSaveState(saved ? 'saved' : 'error')
       if (saved) scheduleSettingsSaveReset()
@@ -119,10 +125,11 @@ export function useSettingsController({
   function handleProviderChange(provider: AiProvider) {
     setSelectedProvider(provider)
     const nextProvider = providerOptions.find((option) => option.id === provider)
+    const nextModel = settings ? modelForProvider(settings, provider) : 'default'
+    setSelectedModel(nextModel)
     if (!nextProvider) return
 
-    const currentModel = selectedModel.trim() || 'default'
-    if (!nextProvider.models.some((model) => model.id === currentModel)) {
+    if (!nextProvider.models.some((model) => model.id === nextModel)) {
       setSelectedModel('default')
     }
   }
@@ -146,6 +153,7 @@ export function useSettingsController({
     refreshProviderStatus,
     selectedModel,
     selectedProvider,
+    selectedReasoningEffort,
     setSelectedModel,
     setTheme,
     settings,
@@ -154,4 +162,16 @@ export function useSettingsController({
     theme,
     updateSettingsDraft,
   }
+}
+
+function providerModelDefaults(): Record<AiProvider, string> {
+  return {
+    claude_code: 'default',
+    codex_cli: 'default',
+    copilot_cli: 'auto',
+  }
+}
+
+function modelForProvider(settings: AppSettings, provider: AiProvider): string {
+  return settings.selectedAiModelsByProvider?.[provider] || (provider === settings.selectedAiProvider ? settings.selectedAiModel : null) || providerModelDefaults()[provider]
 }

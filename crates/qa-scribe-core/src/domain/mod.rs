@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 
 use crate::{QaScribeError, Result, error::validation};
@@ -387,6 +389,10 @@ pub struct AppSettings {
     pub selected_ai_provider: AiProvider,
     #[serde(default = "default_selected_ai_model")]
     pub selected_ai_model: String,
+    #[serde(default = "default_selected_ai_models_by_provider")]
+    pub selected_ai_models_by_provider: HashMap<AiProvider, String>,
+    #[serde(default = "default_selected_ai_reasoning_efforts_by_provider")]
+    pub selected_ai_reasoning_efforts_by_provider: HashMap<AiProvider, Option<String>>,
     #[serde(default = "default_testware_template")]
     pub testware_template: String,
     #[serde(default = "default_finding_template")]
@@ -404,6 +410,9 @@ impl Default for AppSettings {
                     .to_string(),
             selected_ai_provider: default_selected_ai_provider(),
             selected_ai_model: default_selected_ai_model(),
+            selected_ai_models_by_provider: default_selected_ai_models_by_provider(),
+            selected_ai_reasoning_efforts_by_provider:
+                default_selected_ai_reasoning_efforts_by_provider(),
             testware_template: default_testware_template(),
             finding_template: default_finding_template(),
             note_summary_template: default_note_summary_template(),
@@ -417,6 +426,22 @@ fn default_selected_ai_provider() -> AiProvider {
 
 fn default_selected_ai_model() -> String {
     "default".to_string()
+}
+
+fn default_selected_ai_models_by_provider() -> HashMap<AiProvider, String> {
+    HashMap::from([
+        (AiProvider::ClaudeCode, "default".to_string()),
+        (AiProvider::CodexCli, "default".to_string()),
+        (AiProvider::CopilotCli, "auto".to_string()),
+    ])
+}
+
+fn default_selected_ai_reasoning_efforts_by_provider() -> HashMap<AiProvider, Option<String>> {
+    HashMap::from([
+        (AiProvider::ClaudeCode, Some("medium".to_string())),
+        (AiProvider::CodexCli, Some("low".to_string())),
+        (AiProvider::CopilotCli, None),
+    ])
 }
 
 fn default_testware_template() -> String {

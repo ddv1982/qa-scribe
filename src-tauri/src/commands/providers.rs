@@ -59,6 +59,7 @@ pub struct ProviderModelDescriptor {
 pub enum ProviderModelSource {
     ProviderDefault,
     Environment,
+    Preset,
     Detected,
 }
 
@@ -268,7 +269,7 @@ fn detect_codex(capability: ProviderCapability, runner: &impl ProbeRunner) -> Pr
 }
 
 fn detect_copilot(capability: ProviderCapability, runner: &impl ProbeRunner) -> ProviderReadiness {
-    let models = copilot_models();
+    let models = copilot_models(runner);
     let direct = runner.run("copilot", &["version"]);
     if direct.success {
         return ready(
@@ -492,8 +493,8 @@ mod tests {
                     r#"{
                       "models": [
                         {
-                          "slug": "gpt-5.5",
-                          "display_name": "GPT-5.5",
+                          "slug": "gpt-6-test",
+                          "display_name": "GPT-6 Test",
                           "description": "Frontier model",
                           "visibility": "list",
                           "supported_reasoning_levels": [
@@ -521,9 +522,9 @@ mod tests {
             .descriptor
             .models
             .iter()
-            .find(|model| model.id == "gpt-5.5")
+            .find(|model| model.id == "gpt-6-test")
             .expect("listed Codex model is detected");
-        assert_eq!(detected.label, "GPT-5.5");
+        assert_eq!(detected.label, "GPT-6 Test");
         assert_eq!(detected.source, ProviderModelSource::Detected);
         assert_eq!(detected.reasoning_efforts, vec!["low", "medium", "high"]);
         assert!(
@@ -533,6 +534,28 @@ mod tests {
                 .iter()
                 .any(|model| model.id == "hidden-model")
         );
+    }
+
+    #[test]
+    fn codex_static_presets_exclude_codex_and_fast_variants() {
+        let runner = MockRunner::default()
+            .with("codex", &["--version"], CommandProbe::success())
+            .with("codex", &["login", "status"], CommandProbe::success());
+
+        let readiness = detect_provider(AiProvider::CodexCli, &runner);
+        let preset_ids: Vec<&str> = readiness
+            .descriptor
+            .models
+            .iter()
+            .filter(|model| model.source == ProviderModelSource::Preset)
+            .map(|model| model.id.as_str())
+            .collect();
+
+        assert!(preset_ids.contains(&"gpt-5.5"));
+        assert!(preset_ids.contains(&"gpt-5.4"));
+        assert!(preset_ids.contains(&"gpt-5.2"));
+        assert!(preset_ids.iter().all(|model| !model.contains("-codex")));
+        assert!(preset_ids.iter().all(|model| !model.contains("fast")));
     }
 
     #[test]
@@ -603,6 +626,54 @@ mod tests {
         assert_eq!(
             readiness.descriptor.command.as_deref(),
             Some("copilot -s --no-ask-user")
+        );
+    }
+
+    #[test]
+    fn copilot_models_merge_presets_and_detected_config_help() {
+        let runner = MockRunner::default()
+            .with("copilot", &["version"], CommandProbe::success())
+            .with(
+                "copilot",
+                &["help", "config"],
+                CommandProbe::success_with_stdout(
+                    r#"
+model:
+  gpt-5.5
+  gpt-5.3-codex
+  claude-opus-4.6-fast
+  gemini-3.5-flash
+editor:
+  vim
+"#,
+                ),
+            );
+
+        let readiness = detect_provider(AiProvider::CopilotCli, &runner);
+        let models = &readiness.descriptor.models;
+
+        assert_eq!(models[0].id, "default");
+        assert_eq!(models[1].id, "auto");
+        assert_eq!(models[1].source, ProviderModelSource::Preset);
+        assert_eq!(
+            models.iter().filter(|model| model.id == "gpt-5.5").count(),
+            1
+        );
+        assert_eq!(
+            models
+                .iter()
+                .find(|model| model.id == "gpt-5.3-codex")
+                .expect("detected codex variant remains available")
+                .source,
+            ProviderModelSource::Detected
+        );
+        assert_eq!(
+            models
+                .iter()
+                .find(|model| model.id == "claude-opus-4.6-fast")
+                .expect("detected fast variant remains available")
+                .source,
+            ProviderModelSource::Detected
         );
     }
 

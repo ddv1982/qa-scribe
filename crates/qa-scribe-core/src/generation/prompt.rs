@@ -91,7 +91,9 @@ pub fn render_action_prompt(
     action: ActionPromptKind,
 ) -> String {
     match action {
-        ActionPromptKind::Testware => render_testware_prompt(settings, session_title, note_entry),
+        ActionPromptKind::Testware => {
+            render_testware_prompt(settings, session_title, note_entry, attachments)
+        }
         ActionPromptKind::Finding => {
             render_finding_prompt(settings, session_title, note_entry, attachments)
         }
@@ -105,14 +107,16 @@ fn render_testware_prompt(
     settings: &AppSettings,
     session_title: &str,
     note_entry: Option<&Entry>,
+    attachments: &[Attachment],
 ) -> String {
     let mut budget = PromptMaterialBudget::with_limit(TESTWARE_TOTAL_PROMPT_MATERIAL_CHAR_LIMIT);
     let mut prompt = String::new();
     prompt.push_str(&settings.generation_system_prompt);
     prompt.push_str("\n\n");
     prompt.push_str(&settings.testware_template);
-    prompt.push_str("\nReturn only a clean HTML fragment. Do not use Markdown, code fences, an introduction, or a closing summary. Use only h2, h3, p, ul, ol, li, strong, em, a, and checkbox inputs when useful.\n");
+    prompt.push_str("\nReturn only a clean HTML fragment. Do not use Markdown, code fences, an introduction, or a closing summary. Use only h2, h3, p, ul, ol, li, strong, em, a, img, and checkbox inputs when useful.\n");
     prompt.push_str("Return literal HTML tags such as <p>Text</p>. Do not escape tags as &lt;p&gt;Text&lt;/p&gt; or display tag names as text.\n");
+    prompt.push_str("Preserve managed image placeholders exactly as literal <img> elements when they are relevant test evidence. Never invent filesystem paths for images.\n");
     prompt.push_str("Create 5-8 high-value test cases from the selected note only. Prefer coverage over exhaustiveness. Do not invent facts not present in the note.\n");
     append_selected_note(
         &mut prompt,
@@ -121,6 +125,7 @@ fn render_testware_prompt(
         note_entry,
         TESTWARE_SELECTED_NOTE_PROMPT_CHAR_LIMIT,
     );
+    append_managed_images(&mut prompt, note_entry, attachments);
     budget.append_omissions(&mut prompt);
     prompt
 }

@@ -81,6 +81,7 @@ export function NotesView({
   const findingPending = Boolean(pendingAiActions.finding)
   const summaryPending = Boolean(pendingAiActions.summary)
   const editorId = 'note-body-editor'
+  const selectedModelLabel = activeProvider?.models.find((model) => model.id === (selectedModel.trim() || 'default'))?.label ?? (selectedModel.trim() || 'Provider default')
 
   if (!activeSession) {
     return (
@@ -162,25 +163,22 @@ export function NotesView({
       </section>
 
       <footer className="bottom-command-bar" aria-label="AI note actions">
-        <details className="ai-options">
-          <summary>AI options</summary>
-          <div className="ai-options-grid">
-            <label className="select-shell">
-              <ProviderGlyph provider={selectedProvider} />
-              <select value={selectedProvider} onChange={(event) => onProviderChange(event.target.value as AiProvider)}>
-                {providerOptions.map((provider) => (
-                  <option key={provider.id} value={provider.id}>
-                    {provider.label} {provider.available ? '' : `(${statusLabel(provider.status)})`}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <ModelCombobox models={activeProvider?.models ?? []} value={selectedModel} onChange={onModelChange} />
-            <p className={activeProvider?.available ? 'provider-hint ready' : 'provider-hint'}>
-              {activeProvider ? activeProvider.reason : 'Loading provider status'}
-            </p>
-          </div>
-        </details>
+        <div className="ai-inline-controls" aria-label={`AI provider ${activeProvider?.label ?? 'loading'} model ${selectedModelLabel}`}>
+          <label className="select-shell">
+            <ProviderGlyph provider={selectedProvider} />
+            <select value={selectedProvider} onChange={(event) => onProviderChange(event.target.value as AiProvider)}>
+              {providerOptions.map((provider) => (
+                <option key={provider.id} value={provider.id}>
+                  {provider.label} {provider.available ? '' : `(${statusLabel(provider.status)})`}
+                </option>
+              ))}
+            </select>
+          </label>
+          <ModelCombobox models={activeProvider?.models ?? []} value={selectedModel} onChange={onModelChange} />
+          <p className={activeProvider?.available ? 'provider-hint ready' : 'provider-hint'}>
+            {activeProvider ? activeProvider.reason : 'Loading provider status'}
+          </p>
+        </div>
         <button className="secondary-button" type="button" disabled={isBusy || testwarePending || !noteIsReady || !activeProviderAvailable} onClick={() => void onAiAction('testware')}>
           {busyAction === 'ai-testware' || testwarePending ? <Loader2 className="spin" size={16} /> : <Box size={16} />}
           {testwarePending ? 'Generating test cases' : 'Generate test cases'}

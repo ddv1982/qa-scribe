@@ -513,6 +513,11 @@ fn finish_ai_action_generation(
             let completed_run = service.complete_ai_run(&prepared.ai_run.id)?;
             match request.action {
                 GenerateAiActionKind::Testware => {
+                    let body = preserve_managed_attachment_images(
+                        &body,
+                        prepared.selected_note_body.as_deref().unwrap_or_default(),
+                        &prepared.attachments,
+                    );
                     let draft = service.create_draft(DraftCreate {
                         session_id: prepared.session_id,
                         ai_run_id: Some(completed_run.id.clone()),
@@ -659,6 +664,7 @@ pub fn generate_session_report(
         let entries = service.list_entries(&request.session_id)?;
         let findings = service.list_findings(&request.session_id)?;
         let attachments = service.list_attachments(&request.session_id)?;
+        let source_html = session_report_source_html(&entries, &findings);
         let generation_context = service.create_generation_context(&request.session_id)?;
         let ai_run = service.create_ai_run(AiRunCreate {
             session_id: request.session_id.clone(),
@@ -684,7 +690,7 @@ pub fn generate_session_report(
             ai_run,
             prompt,
             selected_note_id: None,
-            selected_note_body: None,
+            selected_note_body: Some(source_html),
             attachments,
         })
     })?;
@@ -706,7 +712,11 @@ pub fn generate_session_report(
     state.with_service(|service| match output {
         Ok(output) if output.success() => {
             let response = output.response_text();
-            let body = parse_session_report_response(&response);
+            let body = preserve_managed_attachment_images(
+                &parse_session_report_response(&response),
+                prepared.selected_note_body.as_deref().unwrap_or_default(),
+                &prepared.attachments,
+            );
             let completed_run = service.complete_ai_run(&prepared.ai_run.id)?;
             let draft = service.create_draft(DraftCreate {
                 session_id: prepared.session_id,
@@ -1327,6 +1337,22 @@ fn fallback_status(
     }
 }
 
+fn session_report_source_html(entries: &[Entry], findings: &[Finding]) -> String {
+    let mut source = String::new();
+    for entry in entries
+        .iter()
+        .filter(|entry| !entry.excluded_from_generation)
+    {
+        source.push_str(&entry.body);
+        source.push('\n');
+    }
+    for finding in findings {
+        source.push_str(&finding.body);
+        source.push('\n');
+    }
+    source
+}
+
 fn derive_title(markdown: &str, fallback: &str) -> String {
     project_html_to_prompt_text(markdown)
         .lines()
@@ -1509,6 +1535,83 @@ mod tests {
             link.finding_id == finding.id
                 && link.attachment_id.as_deref() == Some(attachment.id.as_str())
         }));
+    }
+
+    #[test]
+    fn testware_completion_preserves_managed_screenshots() {
+        let service = SessionService::in_memory().expect("service should open");
+        let session = service
+            .create_session(SessionDraft {
+                title: "Gmail login".to_string(),
+                ..SessionDraft::default()
+            })
+            .expect("session should create");
+        let note = service
+            .create_entry(EntryDraft {
+                session_id: session.id.clone(),
+                entry_type: EntryType::Note,
+                title: Some("Gmail login".to_string()),
+                body: "<p>Gmail login fails.</p>".to_string(),
+                metadata_json: None,
+                excluded_from_generation: false,
+            })
+            .expect("note should create");
+        let attachment = service
+            .create_attachment(AttachmentDraft {
+                session_id: session.id.clone(),
+                entry_id: Some(note.id.clone()),
+                filename: "gmail-error.png".to_string(),
+                mime_type: Some("image/png".to_string()),
+                size_bytes: 123,
+                sha256: "a".repeat(64),
+                relative_path: "attachments/session/gmail-error.png".to_string(),
+            })
+            .expect("attachment should create");
+        let note = service
+            .update_entry(
+                &note.id,
+                EntryPatch {
+                    body: Some(format!(
+                        "<p>Gmail login fails.</p><img src=\"qa-scribe-attachment://{}\" data-attachment-id=\"{}\" alt=\"Gmail error\" />",
+                        attachment.id, attachment.id
+                    )),
+                    ..EntryPatch::default()
+                },
+            )
+            .expect("note should update");
+        let request = GenerateAiActionRequest {
+            session_id: session.id.clone(),
+            provider: AiProvider::CodexCli,
+            model: "test-model".to_string(),
+            reasoning_effort: None,
+            action: GenerateAiActionKind::Testware,
+            note_entry_id: Some(note.id.clone()),
+        };
+        let prepared =
+            prepare_ai_action_generation(&service, &request).expect("generation should prepare");
+
+        let result = finish_ai_action_generation(
+            &service,
+            &request,
+            prepared,
+            Ok(success_generation_output(
+                "<h2>Login test</h2><p>Verify the login error.</p>",
+            )),
+        )
+        .expect("generation should finish");
+
+        let draft = result.draft.expect("testware draft should be created");
+        assert!(
+            draft
+                .body
+                .contains(&format!("qa-scribe-attachment://{}", attachment.id))
+        );
+        assert!(
+            draft
+                .body
+                .contains(&format!("data-attachment-id=\"{}\"", attachment.id))
+        );
+        assert!(draft.body.contains("alt=\"Gmail error\""));
     }
 
     fn finish_action_with_output(

@@ -151,5 +151,6 @@ function defaultProviderModel(): ProviderModelDescriptor {
 function modelSourceLabel(source: ProviderModelDescriptor['source']): string {
   if (source === 'detected') return 'Detected'
   if (source === 'environment') return 'Env'
+  if (source === 'preset') return 'Preset'
   return 'Default'
 }

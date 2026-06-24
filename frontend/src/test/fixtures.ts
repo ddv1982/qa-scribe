@@ -67,6 +67,16 @@ export function settingsFixture(patch: Partial<AppSettings> = {}): AppSettings {
     generationSystemPrompt: 'Use the note to create useful QA output.',
     selectedAiProvider: 'codex_cli',
     selectedAiModel: 'default',
+    selectedAiModelsByProvider: {
+      claude_code: 'default',
+      codex_cli: 'default',
+      copilot_cli: 'auto',
+    },
+    selectedAiReasoningEffortsByProvider: {
+      claude_code: 'medium',
+      codex_cli: 'low',
+      copilot_cli: null,
+    },
     testwareTemplate: 'Write test cases.',
     findingTemplate: 'Write a bug finding.',
     noteSummaryTemplate: 'Summarize the note.',

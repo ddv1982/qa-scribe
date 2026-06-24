@@ -109,8 +109,8 @@
     width: 100%;
   }
 
-  .ai-options,
-  .ai-options-grid {
+  .ai-inline-controls {
+    grid-template-columns: 1fr;
     width: 100%;
     max-width: none;
   }

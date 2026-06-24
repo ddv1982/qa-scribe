@@ -152,32 +152,59 @@ fn generation_command_for_mode(
                 },
             })
         }
-        AiProvider::CopilotCli => match copilot_runtime {
-            Some(CopilotRuntime::DirectCli) => Ok(GenerationCommand {
-                program: "copilot".to_string(),
-                args: vec!["-s".to_string(), "--no-ask-user".to_string()],
-                stdin: prompt.to_string(),
-                output_format: GenerationOutputFormat::PlainText,
-            }),
-            Some(CopilotRuntime::GhWrapper) => Ok(GenerationCommand {
-                program: "gh".to_string(),
-                args: vec![
-                    "copilot".to_string(),
-                    "--".to_string(),
-                    "-s".to_string(),
-                    "--no-ask-user".to_string(),
-                ],
-                stdin: prompt.to_string(),
-                output_format: GenerationOutputFormat::PlainText,
-            }),
-            None => Err("GitHub Copilot CLI is not ready.".to_string()),
-        },
+        AiProvider::CopilotCli => {
+            let copilot_model_arg = selected_copilot_model_arg(model);
+            match copilot_runtime {
+                Some(CopilotRuntime::DirectCli) => {
+                    let mut args = vec!["-s".to_string(), "--no-ask-user".to_string()];
+                    if let Some(model) = copilot_model_arg {
+                        args.extend(["--model".to_string(), model]);
+                    }
+                    Ok(GenerationCommand {
+                        program: "copilot".to_string(),
+                        args,
+                        stdin: prompt.to_string(),
+                        output_format: GenerationOutputFormat::PlainText,
+                    })
+                }
+                Some(CopilotRuntime::GhWrapper) => {
+                    let mut args = vec![
+                        "copilot".to_string(),
+                        "--".to_string(),
+                        "-s".to_string(),
+                        "--no-ask-user".to_string(),
+                    ];
+                    if let Some(model) = copilot_model_arg {
+                        args.extend(["--model".to_string(), model]);
+                    }
+                    Ok(GenerationCommand {
+                        program: "gh".to_string(),
+                        args,
+                        stdin: prompt.to_string(),
+                        output_format: GenerationOutputFormat::PlainText,
+                    })
+                }
+                None => Err("GitHub Copilot CLI is not ready.".to_string()),
+            }
+        }
     }
 }
 
 fn selected_model_arg(model: &str) -> Option<String> {
     let trimmed = model.trim();
     if trimmed.is_empty() || trimmed.eq_ignore_ascii_case("default") {
+        None
+    } else {
+        Some(trimmed.to_string())
+    }
+}
+
+fn selected_copilot_model_arg(model: &str) -> Option<String> {
+    let trimmed = model.trim();
+    if trimmed.is_empty()
+        || trimmed.eq_ignore_ascii_case("default")
+        || trimmed.eq_ignore_ascii_case("auto")
+    {
         None
     } else {
         Some(trimmed.to_string())
@@ -284,6 +311,39 @@ mod tests {
         assert_eq!(
             command.args,
             vec!["-p", "--model", "sonnet", "--effort", "low"]
+        );
+    }
+
+    #[test]
+    fn copilot_auto_omits_model_argument() {
+        let command = generation_command(
+            AiProvider::CopilotCli,
+            "draft this",
+            "auto",
+            None,
+            Some(CopilotRuntime::DirectCli),
+        )
+        .unwrap();
+
+        assert_eq!(command.program, "copilot");
+        assert_eq!(command.args, vec!["-s", "--no-ask-user"]);
+    }
+
+    #[test]
+    fn copilot_generation_uses_selected_model() {
+        let command = generation_command(
+            AiProvider::CopilotCli,
+            "draft this",
+            "gpt-5.5",
+            None,
+            Some(CopilotRuntime::GhWrapper),
+        )
+        .unwrap();
+
+        assert_eq!(command.program, "gh");
+        assert_eq!(
+            command.args,
+            vec!["copilot", "--", "-s", "--no-ask-user", "--model", "gpt-5.5"]
         );
     }
 

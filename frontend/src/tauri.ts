@@ -137,7 +137,7 @@ export type GenerationContext = {
 export type AiProvider = 'claude_code' | 'codex_cli' | 'copilot_cli'
 
 export type ProviderReadinessStatus = 'ready' | 'authRequired' | 'installRequired' | 'error'
-export type ProviderModelSource = 'providerDefault' | 'environment' | 'detected'
+export type ProviderModelSource = 'providerDefault' | 'environment' | 'preset' | 'detected'
 
 export type AiRun = {
   id: string
@@ -182,6 +182,8 @@ export type AppSettings = {
   generationSystemPrompt: string
   selectedAiProvider: AiProvider
   selectedAiModel: string
+  selectedAiModelsByProvider: Record<AiProvider, string>
+  selectedAiReasoningEffortsByProvider: Record<AiProvider, string | null>
   testwareTemplate: string
   findingTemplate: string
   noteSummaryTemplate: string

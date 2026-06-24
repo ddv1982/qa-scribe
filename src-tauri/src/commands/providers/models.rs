@@ -36,6 +36,7 @@ pub(super) fn codex_models(runner: &impl ProbeRunner) -> Vec<ProviderModelDescri
     if let Some(model) = environment_model("CODEX_MODEL") {
         models.push(model);
     }
+    models.extend(preset_models(&CODEX_PRESET_MODELS));
 
     let catalog = runner.run("codex", &["debug", "models"]);
     if catalog.success {
@@ -50,6 +51,7 @@ pub(super) fn claude_models(runner: &impl ProbeRunner) -> Vec<ProviderModelDescr
     if let Some(model) = environment_model("CLAUDE_MODEL") {
         models.push(model);
     }
+    models.extend(preset_models(&CLAUDE_PRESET_MODELS));
 
     let help = runner.run("claude", &["--help"]);
     if help.success {
@@ -59,12 +61,76 @@ pub(super) fn claude_models(runner: &impl ProbeRunner) -> Vec<ProviderModelDescr
     normalize_models(models)
 }
 
-pub(super) fn copilot_models() -> Vec<ProviderModelDescriptor> {
+pub(super) fn copilot_models(runner: &impl ProbeRunner) -> Vec<ProviderModelDescriptor> {
     let mut models = vec![provider_default_model()];
     if let Some(model) = environment_model("COPILOT_MODEL") {
         models.push(model);
     }
+    models.extend(preset_models(&COPILOT_PRESET_MODELS));
+
+    let help = runner.run("copilot", &["help", "config"]);
+    if help.success {
+        models.extend(parse_copilot_config_help(&help.stdout));
+    }
+
     normalize_models(models)
+}
+
+const CODEX_PRESET_MODELS: [&str; 5] = [
+    "gpt-5.5",
+    "gpt-5.4",
+    "gpt-5.4-mini",
+    "gpt-5.2",
+    "gpt-5-mini",
+];
+
+const CLAUDE_PRESET_MODELS: [&str; 9] = [
+    "sonnet",
+    "haiku",
+    "claude-sonnet-4-6",
+    "claude-sonnet-4-5",
+    "claude-haiku-4-5",
+    "claude-opus-4-8",
+    "claude-opus-4-7",
+    "claude-opus-4-6",
+    "claude-opus-4-5",
+];
+
+const COPILOT_PRESET_MODELS: [&str; 15] = [
+    "auto",
+    "gpt-5.5",
+    "gpt-5.4",
+    "gpt-5.2",
+    "gpt-5.4-mini",
+    "gpt-5-mini",
+    "claude-sonnet-4.6",
+    "claude-sonnet-4.5",
+    "claude-haiku-4.5",
+    "claude-opus-4.8",
+    "claude-opus-4.7",
+    "claude-opus-4.6",
+    "claude-opus-4.5",
+    "gemini-3.1-pro-preview",
+    "gemini-3.5-flash",
+];
+
+fn preset_models(models: &[&str]) -> Vec<ProviderModelDescriptor> {
+    models
+        .iter()
+        .filter(|model| curated_static_model_allowed(model))
+        .map(|model| ProviderModelDescriptor {
+            id: (*model).to_string(),
+            label: (*model).to_string(),
+            description: Some("Curated QA Scribe preset.".to_string()),
+            source: ProviderModelSource::Preset,
+            is_default: false,
+            reasoning_efforts: Vec::new(),
+        })
+        .collect()
+}
+
+fn curated_static_model_allowed(model: &str) -> bool {
+    !model.contains("-codex") && !model.contains("fast")
 }
 
 #[derive(Debug, Deserialize)]
@@ -130,6 +196,73 @@ fn parse_claude_model_help(help: &str) -> Vec<ProviderModelDescriptor> {
             reasoning_efforts: Vec::new(),
         })
         .collect()
+}
+
+fn parse_copilot_config_help(help: &str) -> Vec<ProviderModelDescriptor> {
+    let mut in_model_section = false;
+    let mut models = Vec::new();
+
+    for line in help.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+
+        if starts_model_section(trimmed) {
+            in_model_section = true;
+            continue;
+        }
+
+        if in_model_section && starts_new_config_section(trimmed) {
+            break;
+        }
+
+        if !in_model_section {
+            continue;
+        }
+
+        if let Some(model) = copilot_model_from_help_line(trimmed) {
+            models.push(ProviderModelDescriptor {
+                id: model.clone(),
+                label: model,
+                description: Some("Detected from GitHub Copilot CLI config help.".to_string()),
+                source: ProviderModelSource::Detected,
+                is_default: false,
+                reasoning_efforts: Vec::new(),
+            });
+        }
+    }
+
+    models
+}
+
+fn starts_model_section(line: &str) -> bool {
+    let normalized = line.trim_matches(':').to_ascii_lowercase();
+    normalized == "model" || normalized.starts_with("model ")
+}
+
+fn starts_new_config_section(line: &str) -> bool {
+    line.ends_with(':')
+        && line.trim_end_matches(':').chars().all(|character| {
+            character.is_ascii_alphanumeric() || character == '-' || character == '_'
+        })
+}
+
+fn copilot_model_from_help_line(line: &str) -> Option<String> {
+    let candidate = line
+        .trim_start_matches(['-', '*', '•'])
+        .split_whitespace()
+        .next()?
+        .trim_matches(['`', '\'', '"', ',', ';']);
+    if candidate.is_empty()
+        || !candidate.contains('-')
+        || candidate.eq_ignore_ascii_case("default")
+        || candidate.contains('<')
+        || candidate.contains('>')
+    {
+        return None;
+    }
+    Some(candidate.to_string())
 }
 
 fn quoted_tokens(line: &str) -> Vec<String> {

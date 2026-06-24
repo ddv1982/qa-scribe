@@ -311,6 +311,11 @@
   gap: 8px;
 }
 
+.ai-defaults-stack {
+  display: grid;
+  gap: 10px;
+}
+
 .provider-lines article {
   gap: 10px;
   padding: 10px;
