@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { CheckCircle2, Copy, FileText, Flag, Image as ImageIcon, Loader2, PencilLine, Plus, Save, Trash2, X } from 'lucide-react'
+import { CheckCircle2, Copy, FileText, Flag, Image as ImageIcon, Loader2, PencilLine, Plus, Save, Trash2 } from 'lucide-react'
 import { EmptyCollection, StatusPill } from '../components/Common'
-import { FormatToolbar, RichTextEditor, type RichEditorImageUpload } from '../editor/RichTextEditor'
-import { richEditorDocumentFromHtml, richEditorDocumentFromStoredBody, richEditorDocumentToStoredBody } from '../editor/editorDocument'
+import type { RichEditorImageUpload } from '../editor/RichTextEditor'
 import type { Finding, GenerationJobStatus } from '../tauri'
 import { formatFindingKind } from '../ui/format'
 import type { BusyAction } from '../ui/types'
+import { EditableRichRecord, GenerationRecord } from './RichRecordView'
 
 export function FindingsView({
   busyAction,
@@ -43,7 +43,7 @@ export function FindingsView({
   onDeleteFinding: (finding: Finding) => void
   onManualCreate: () => Promise<void>
   onPrefillFromNote: () => Promise<void>
-  onSaveFinding: (finding: Finding) => Promise<void>
+  onSaveFinding: (finding: Finding) => Promise<boolean>
   onUploadImage: (input: RichEditorImageUpload) => void | Promise<void>
 }) {
   const [editingFindingIds, setEditingFindingIds] = useState<Record<string, boolean>>({})
@@ -75,32 +75,14 @@ export function FindingsView({
 
       <div className="collection-stack">
         {activeGenerationJob ? (
-          <article className="editable-record generation-record">
-            <input readOnly value="Generating finding" aria-label="Pending finding title" />
-            <div className="rich-record-editor-field rich-record-preview-field">
-              <RichTextEditor
-                value={richEditorDocumentFromHtml(activeGenerationJob.partialText || activeGenerationJob.progressMessage || 'Preparing finding...')}
-                ariaLabel="Pending generated finding"
-                placeholder="Preparing finding..."
-                readOnly
-              />
-            </div>
-            <div className="record-actions">
-              <span className="generation-progress">
-                <Loader2 className="spin" size={16} />
-                {activeGenerationJob.progressMessage}
-              </span>
-              <button
-                className="secondary-button"
-                type="button"
-                disabled={activeGenerationJob.state === 'cancelling'}
-                onClick={() => void onCancelGenerationJob(activeGenerationJob.jobId)}
-              >
-                {activeGenerationJob.state === 'cancelling' ? <Loader2 className="spin" size={16} /> : <X size={16} />}
-                Cancel
-              </button>
-            </div>
-          </article>
+          <GenerationRecord
+            title="Generating finding"
+            titleAriaLabel="Pending finding title"
+            job={activeGenerationJob}
+            placeholder="Preparing finding..."
+            bodyAriaLabel="Pending generated finding"
+            onCancelGenerationJob={onCancelGenerationJob}
+          />
         ) : null}
         {findings.map((finding) => {
           const deletingFinding = busyAction === `delete-finding:${finding.id}`
@@ -111,42 +93,34 @@ export function FindingsView({
           const findingScreenshotCount = findingScreenshotCounts[finding.id] ?? 0
           const savingFinding = busyAction === `finding:${finding.id}`
           const editorId = `finding-editor-${finding.id}`
-          const findingDocument = richEditorDocumentFromStoredBody(finding)
           const findingTitle = finding.title.trim()
           const copyLabel = findingCopyLabel(findingTitle, findingCopied)
           const screenshotCopyLabel = findingScreenshotCopyLabel(findingTitle, findingScreenshotCopied, findingScreenshotCount)
           const editingFinding = Boolean(editingFindingIds[finding.id])
           return (
-            <article className="editable-record" key={finding.id}>
-              <div className="finding-meta-row">
-                <span>{formatFindingKind(finding.kind)}</span>
-              </div>
-              {editingFinding ? (
+            <EditableRichRecord
+              key={finding.id}
+              record={finding}
+              editing={editingFinding}
+              editorId={editorId}
+              titleInputLabel="Finding title"
+              bodyAriaLabel={`${finding.title} finding ${editingFinding ? 'body' : 'preview'}`}
+              placeholder="Write finding detail..."
+              previewFallbackHtml="<p>No finding detail yet.</p>"
+              meta={
+                <div className="finding-meta-row">
+                  <span>{formatFindingKind(finding.kind)}</span>
+                </div>
+              }
+              previewHeader={<h2 className="record-title">{finding.title}</h2>}
+              onTitleChange={(title) => updateLocalFinding(finding.id, { title })}
+              onBodyChange={(patch) => updateLocalFinding(finding.id, patch)}
+              onUploadImage={onUploadImage}
+              actions={
                 <>
-                  <input value={finding.title} aria-label="Finding title" onChange={(event) => updateLocalFinding(finding.id, { title: event.target.value })} />
-                  <div className="rich-record-editor-field">
-                    <FormatToolbar editorId={editorId} onUploadImage={onUploadImage} />
-                    <RichTextEditor
-                      editorId={editorId}
-                      value={findingDocument}
-                      onChange={(body) => updateLocalFinding(finding.id, richEditorDocumentToStoredBody(body))}
-                      ariaLabel={`${finding.title} finding body`}
-                      placeholder="Write finding detail..."
-                    />
-                  </div>
-                </>
-              ) : (
-                <>
-                  <h2 className="record-title">{finding.title}</h2>
-                  <div className="rich-record-editor-field rich-record-preview-field">
-                    <RichTextEditor value={finding.body ? findingDocument : richEditorDocumentFromHtml('<p>No finding detail yet.</p>')} ariaLabel={`${finding.title} finding preview`} readOnly />
-                  </div>
-                </>
-              )}
-              <div className="record-actions">
-                <button
-                  className={findingCopied ? 'icon-button success' : 'icon-button'}
-                  type="button"
+                  <button
+                    className={findingCopied ? 'icon-button success' : 'icon-button'}
+                    type="button"
                   aria-label={copyLabel}
                   title={findingCopied ? 'Copied' : 'Copy for Jira'}
                   disabled={isBusy}
@@ -172,7 +146,9 @@ export function FindingsView({
                   disabled={isBusy}
                   onClick={() => {
                     if (editingFinding) {
-                      void onSaveFinding(finding).then(() => setFindingEditing(finding.id, false))
+                      void onSaveFinding(finding).then((saved) => {
+                        if (saved) setFindingEditing(finding.id, false)
+                      })
                     } else {
                       setFindingEditing(finding.id, true)
                     }
@@ -188,11 +164,12 @@ export function FindingsView({
                   title="Delete finding"
                   disabled={isBusy}
                   onClick={() => void onDeleteFinding(finding)}
-                >
-                  {deletingFinding ? <Loader2 className="spin" size={16} /> : <Trash2 size={16} />}
-                </button>
-              </div>
-            </article>
+                  >
+                    {deletingFinding ? <Loader2 className="spin" size={16} /> : <Trash2 size={16} />}
+                  </button>
+                </>
+              }
+            />
           )
         })}
         {findings.length === 0 && !activeGenerationJob ? <EmptyCollection icon={Flag} title="No findings yet" /> : null}

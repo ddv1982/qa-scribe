@@ -1,4 +1,6 @@
-import { cleanup, render, screen } from '@testing-library/react'
+import '@testing-library/jest-dom/vitest'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('../editor/RichTextEditor', () => ({
@@ -75,7 +77,7 @@ describe('copy success buttons', () => {
         onDeleteDraft={() => undefined}
         onManualCreate={async () => undefined}
         onPrefillFromNote={async () => undefined}
-        onSaveDraft={async () => undefined}
+        onSaveDraft={async () => true}
         onUploadImage={() => undefined}
       />,
     )
@@ -103,7 +105,7 @@ describe('copy success buttons', () => {
         onDeleteFinding={() => undefined}
         onManualCreate={async () => undefined}
         onPrefillFromNote={async () => undefined}
-        onSaveFinding={async () => undefined}
+        onSaveFinding={async () => true}
         onUploadImage={() => undefined}
       />,
     )
@@ -169,7 +171,7 @@ describe('copy success buttons', () => {
         onDeleteDraft={() => undefined}
         onManualCreate={async () => undefined}
         onPrefillFromNote={async () => undefined}
-        onSaveDraft={async () => undefined}
+        onSaveDraft={async () => true}
         onUploadImage={() => undefined}
       />,
     )
@@ -197,13 +199,75 @@ describe('copy success buttons', () => {
         onDeleteFinding={() => undefined}
         onManualCreate={async () => undefined}
         onPrefillFromNote={async () => undefined}
-        onSaveFinding={async () => undefined}
+        onSaveFinding={async () => true}
         onUploadImage={() => undefined}
       />,
     )
 
     const button = screen.getByRole('button', { name: 'Login finding screenshot copied for Jira' })
     expect(button.className).toContain('success')
+  })
+
+  it('keeps a testware record editable when save fails', async () => {
+    const user = userEvent.setup()
+    render(
+      <TestwareView
+        busyAction={null}
+        copiedDraftId={null}
+        copiedDraftScreenshotId={null}
+        draftScreenshotCounts={{}}
+        drafts={[draft]}
+        notice={null}
+        error={null}
+        isBusy={false}
+        activeGenerationJob={null}
+        updateLocalDraft={() => undefined}
+        onCancelGenerationJob={async () => undefined}
+        onCopyDraft={async () => undefined}
+        onCopyDraftScreenshot={async () => undefined}
+        onDeleteDraft={() => undefined}
+        onManualCreate={async () => undefined}
+        onPrefillFromNote={async () => undefined}
+        onSaveDraft={async () => false}
+        onUploadImage={() => undefined}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Edit' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => expect(screen.getByLabelText('Testware title')).toBeInTheDocument())
+  })
+
+  it('keeps a finding record editable when save fails', async () => {
+    const user = userEvent.setup()
+    render(
+      <FindingsView
+        busyAction={null}
+        copiedFindingId={null}
+        copiedFindingScreenshotId={null}
+        findingScreenshotCounts={{}}
+        findings={[finding]}
+        notice={null}
+        error={null}
+        isBusy={false}
+        activeGenerationJob={null}
+        updateLocalFinding={() => undefined}
+        onCancelGenerationJob={async () => undefined}
+        onCopyFinding={async () => undefined}
+        onCopyFindingScreenshot={async () => undefined}
+        onDeleteFinding={() => undefined}
+        onManualCreate={async () => undefined}
+        onPrefillFromNote={async () => undefined}
+        onSaveFinding={async () => false}
+        onUploadImage={() => undefined}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Edit' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => expect(screen.getByLabelText('Finding title')).toBeInTheDocument())
   })
 })
 

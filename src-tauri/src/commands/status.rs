@@ -2,7 +2,6 @@ use serde::Serialize;
 use tauri::State;
 
 use crate::jobs::JobStore;
-use crate::path_access::PathAccess;
 use crate::settings::AppState;
 
 #[tauri::command]
@@ -17,7 +16,6 @@ pub struct CommandShellStatus {
     pub database_filename: String,
     pub native_permissions: Vec<String>,
     pub active_job_count: usize,
-    pub granted_path_count: usize,
     pub implemented_commands: Vec<&'static str>,
     pub deferred_commands: Vec<&'static str>,
 }
@@ -26,14 +24,12 @@ pub struct CommandShellStatus {
 pub fn get_command_shell_status(
     state: State<'_, AppState>,
     jobs: State<'_, JobStore>,
-    path_access: State<'_, PathAccess>,
 ) -> CommandShellStatus {
     CommandShellStatus {
         app_data_dir: state.app_data_dir().display().to_string(),
         database_filename: "qa-scribe.sqlite".to_string(),
         native_permissions: Vec::new(),
         active_job_count: jobs.len(),
-        granted_path_count: path_access.len(),
         implemented_commands: vec![
             "settings",
             "sessions",
@@ -68,7 +64,6 @@ mod tests {
             database_filename: "qa-scribe.sqlite".to_string(),
             native_permissions: Vec::new(),
             active_job_count: 0,
-            granted_path_count: 0,
             implemented_commands: vec!["sessions"],
             deferred_commands: vec!["attachments"],
         };
@@ -77,5 +72,6 @@ mod tests {
         assert_eq!(json["appDataDir"], "/tmp/qa-scribe");
         assert_eq!(json["activeJobCount"], 0);
         assert_eq!(json["nativePermissions"].as_array().unwrap().len(), 0);
+        assert!(json.get("grantedPathCount").is_none());
     }
 }

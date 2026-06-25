@@ -10,6 +10,7 @@ use std::{
 use serde::Serialize;
 
 const PARTIAL_TEXT_LIMIT: usize = 32_000;
+const TERMINAL_JOB_LIMIT: usize = 32;
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -42,6 +43,15 @@ impl GenerationJobState {
             GenerationJobState::Starting
                 | GenerationJobState::Running
                 | GenerationJobState::Cancelling
+        )
+    }
+
+    fn is_terminal(self) -> bool {
+        matches!(
+            self,
+            GenerationJobState::Completed
+                | GenerationJobState::Failed
+                | GenerationJobState::Cancelled
         )
     }
 }
@@ -90,19 +100,28 @@ impl JobControl {
 struct JobRecord {
     status: GenerationJobStatus,
     control: JobControl,
+    terminal_sequence: Option<u64>,
 }
 
 #[derive(Default)]
 pub struct JobStore {
-    jobs: Mutex<HashMap<String, JobRecord>>,
+    inner: Mutex<JobStoreInner>,
+}
+
+#[derive(Default)]
+struct JobStoreInner {
+    jobs: HashMap<String, JobRecord>,
+    next_terminal_sequence: u64,
 }
 
 impl JobStore {
     pub fn len(&self) -> usize {
-        self.jobs
+        self.inner
             .lock()
-            .map(|jobs| {
-                jobs.values()
+            .map(|inner| {
+                inner
+                    .jobs
+                    .values()
                     .filter(|record| record.status.state.is_active())
                     .count()
             })
@@ -129,18 +148,21 @@ impl JobStore {
         let record = JobRecord {
             status: status.clone(),
             control: control.clone(),
+            terminal_sequence: None,
         };
-        self.jobs
+        self.inner
             .lock()
             .map_err(|_| "Job store lock was poisoned".to_string())?
+            .jobs
             .insert(job_id, record);
         Ok((status, control))
     }
 
     pub fn status(&self, job_id: &str) -> Result<GenerationJobStatus, String> {
-        self.jobs
+        self.inner
             .lock()
             .map_err(|_| "Job store lock was poisoned".to_string())?
+            .jobs
             .get(job_id)
             .map(|record| record.status.clone())
             .ok_or_else(|| format!("Generation job {job_id} was not found."))
@@ -183,7 +205,7 @@ impl JobStore {
     }
 
     pub fn complete(&self, job_id: &str) -> Result<GenerationJobStatus, String> {
-        self.update(job_id, |status| {
+        self.finish(job_id, |status| {
             status.state = GenerationJobState::Completed;
             status.progress_message = "Generation completed".to_string();
             status.error_message = None;
@@ -191,7 +213,7 @@ impl JobStore {
     }
 
     pub fn fail(&self, job_id: &str, error_message: &str) -> Result<GenerationJobStatus, String> {
-        self.update(job_id, |status| {
+        self.finish(job_id, |status| {
             status.state = GenerationJobState::Failed;
             status.progress_message = "Generation failed".to_string();
             status.error_message = Some(error_message.to_string());
@@ -200,11 +222,12 @@ impl JobStore {
 
     pub fn cancel(&self, job_id: &str) -> Result<GenerationJobStatus, String> {
         let record_control = {
-            let mut jobs = self
-                .jobs
+            let mut inner = self
+                .inner
                 .lock()
                 .map_err(|_| "Job store lock was poisoned".to_string())?;
-            let record = jobs
+            let record = inner
+                .jobs
                 .get_mut(job_id)
                 .ok_or_else(|| format!("Generation job {job_id} was not found."))?;
             if matches!(
@@ -224,7 +247,7 @@ impl JobStore {
     }
 
     pub fn mark_cancelled(&self, job_id: &str) -> Result<GenerationJobStatus, String> {
-        self.update(job_id, |status| {
+        self.finish(job_id, |status| {
             status.state = GenerationJobState::Cancelled;
             status.progress_message = "Generation cancelled".to_string();
             status.error_message = Some("Generation cancelled.".to_string());
@@ -236,15 +259,72 @@ impl JobStore {
         job_id: &str,
         apply: impl FnOnce(&mut GenerationJobStatus),
     ) -> Result<GenerationJobStatus, String> {
-        let mut jobs = self
-            .jobs
+        let mut inner = self
+            .inner
             .lock()
             .map_err(|_| "Job store lock was poisoned".to_string())?;
-        let record = jobs
+        let record = inner
+            .jobs
             .get_mut(job_id)
             .ok_or_else(|| format!("Generation job {job_id} was not found."))?;
         apply(&mut record.status);
         Ok(record.status.clone())
+    }
+
+    fn finish(
+        &self,
+        job_id: &str,
+        apply: impl FnOnce(&mut GenerationJobStatus),
+    ) -> Result<GenerationJobStatus, String> {
+        let mut inner = self
+            .inner
+            .lock()
+            .map_err(|_| "Job store lock was poisoned".to_string())?;
+        let next_terminal_sequence = inner.next_terminal_sequence;
+        let (status, assigned_terminal_sequence) = {
+            let record = inner
+                .jobs
+                .get_mut(job_id)
+                .ok_or_else(|| format!("Generation job {job_id} was not found."))?;
+            apply(&mut record.status);
+            let needs_terminal_sequence =
+                record.status.state.is_terminal() && record.terminal_sequence.is_none();
+            if needs_terminal_sequence {
+                record.terminal_sequence = Some(next_terminal_sequence);
+            }
+            (record.status.clone(), needs_terminal_sequence)
+        };
+        if assigned_terminal_sequence {
+            inner.next_terminal_sequence = inner.next_terminal_sequence.saturating_add(1);
+        }
+        prune_terminal_jobs(&mut inner.jobs);
+        Ok(status)
+    }
+}
+
+fn prune_terminal_jobs(jobs: &mut HashMap<String, JobRecord>) {
+    let terminal_count = jobs
+        .values()
+        .filter(|record| record.status.state.is_terminal())
+        .count();
+    if terminal_count <= TERMINAL_JOB_LIMIT {
+        return;
+    }
+
+    let mut terminal_jobs: Vec<(String, u64)> = jobs
+        .iter()
+        .filter_map(|(id, record)| {
+            record
+                .terminal_sequence
+                .map(|sequence| (id.clone(), sequence))
+        })
+        .collect();
+    terminal_jobs.sort_by_key(|(_, sequence)| *sequence);
+    for (job_id, _) in terminal_jobs
+        .into_iter()
+        .take(terminal_count.saturating_sub(TERMINAL_JOB_LIMIT))
+    {
+        jobs.remove(&job_id);
     }
 }
 
@@ -312,5 +392,26 @@ mod tests {
         let status = store.mark_cancelled("job-1").expect("job marks cancelled");
         assert_eq!(status.state, GenerationJobState::Cancelled);
         assert_eq!(store.len(), 0);
+    }
+
+    #[test]
+    fn terminal_jobs_are_bounded_but_recent_status_is_available() {
+        let store = JobStore::default();
+        for index in 0..40 {
+            let job_id = format!("job-{index}");
+            store
+                .insert_generation_job(
+                    job_id.clone(),
+                    "session-1".to_string(),
+                    "summary".to_string(),
+                )
+                .expect("job inserts");
+            store.complete(&job_id).expect("job completes");
+        }
+
+        assert_eq!(store.len(), 0);
+        assert!(store.status("job-0").is_err());
+        let recent = store.status("job-39").expect("recent terminal job remains");
+        assert_eq!(recent.state, GenerationJobState::Completed);
     }
 }

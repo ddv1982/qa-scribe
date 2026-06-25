@@ -1,8 +1,7 @@
 import { useState } from 'react'
-import { Box, CheckCircle2, Copy, FileText, Image as ImageIcon, Loader2, PencilLine, Plus, Save, Trash2, X } from 'lucide-react'
+import { Box, CheckCircle2, Copy, FileText, Image as ImageIcon, Loader2, PencilLine, Plus, Save, Trash2 } from 'lucide-react'
 import { EmptyCollection, StatusPill } from '../components/Common'
-import { FormatToolbar, RichTextEditor, type RichEditorImageUpload } from '../editor/RichTextEditor'
-import { richEditorDocumentFromHtml, richEditorDocumentFromStoredBody, richEditorDocumentToStoredBody } from '../editor/editorDocument'
+import type { RichEditorImageUpload } from '../editor/RichTextEditor'
 import {
   parseTestwareGenerationMetadata,
   testwareDepthLabel,
@@ -11,6 +10,7 @@ import {
 } from '../testware/generationPreferences'
 import type { Draft, GenerationJobStatus } from '../tauri'
 import type { BusyAction } from '../ui/types'
+import { EditableRichRecord, GenerationRecord } from './RichRecordView'
 
 export function TestwareView({
   busyAction,
@@ -48,7 +48,7 @@ export function TestwareView({
   onDeleteDraft: (draft: Draft) => void
   onManualCreate: () => Promise<void>
   onPrefillFromNote: () => Promise<void>
-  onSaveDraft: (draft: Draft) => Promise<void>
+  onSaveDraft: (draft: Draft) => Promise<boolean>
   onUploadImage: (input: RichEditorImageUpload) => void | Promise<void>
 }) {
   const [editingDraftIds, setEditingDraftIds] = useState<Record<string, boolean>>({})
@@ -80,32 +80,14 @@ export function TestwareView({
 
       <div className="collection-stack">
         {activeGenerationJob ? (
-          <article className="editable-record generation-record">
-            <input readOnly value="Generating test cases" aria-label="Pending testware title" />
-            <div className="rich-record-editor-field rich-record-preview-field">
-              <RichTextEditor
-                value={richEditorDocumentFromHtml(activeGenerationJob.partialText || activeGenerationJob.progressMessage || 'Preparing testware...')}
-                ariaLabel="Pending generated testware"
-                placeholder="Preparing testware..."
-                readOnly
-              />
-            </div>
-            <div className="record-actions">
-              <span className="generation-progress">
-                <Loader2 className="spin" size={16} />
-                {activeGenerationJob.progressMessage}
-              </span>
-              <button
-                className="secondary-button"
-                type="button"
-                disabled={activeGenerationJob.state === 'cancelling'}
-                onClick={() => void onCancelGenerationJob(activeGenerationJob.jobId)}
-              >
-                {activeGenerationJob.state === 'cancelling' ? <Loader2 className="spin" size={16} /> : <X size={16} />}
-                Cancel
-              </button>
-            </div>
-          </article>
+          <GenerationRecord
+            title="Generating test cases"
+            titleAriaLabel="Pending testware title"
+            job={activeGenerationJob}
+            placeholder="Preparing testware..."
+            bodyAriaLabel="Pending generated testware"
+            onCancelGenerationJob={onCancelGenerationJob}
+          />
         ) : null}
         {drafts.map((draft) => {
           const deletingDraft = busyAction === `delete-draft:${draft.id}`
@@ -116,49 +98,41 @@ export function TestwareView({
           const draftScreenshotCount = draftScreenshotCounts[draft.id] ?? 0
           const savingDraft = busyAction === `draft:${draft.id}`
           const editorId = `testware-editor-${draft.id}`
-          const draftDocument = richEditorDocumentFromStoredBody(draft)
           const draftTitle = draft.title.trim()
           const copyLabel = draftCopyLabel(draftTitle, draftCopied)
           const screenshotCopyLabel = draftScreenshotCopyLabel(draftTitle, draftScreenshotCopied, draftScreenshotCount)
           const editingDraft = Boolean(editingDraftIds[draft.id])
           const generationMetadata = parseTestwareGenerationMetadata(draft)
           return (
-            <article className="editable-record" key={draft.id}>
-              {editingDraft ? (
+            <EditableRichRecord
+              key={draft.id}
+              record={draft}
+              editing={editingDraft}
+              editorId={editorId}
+              titleInputLabel="Testware title"
+              bodyAriaLabel={`${draft.title} testware ${editingDraft ? 'body' : 'preview'}`}
+              placeholder="Write test cases..."
+              previewFallbackHtml="<p>No testware detail yet.</p>"
+              previewHeader={
+                <div className="record-heading-row">
+                  <h2 className="record-title">{draft.title}</h2>
+                  {generationMetadata ? (
+                    <div className="testware-metadata-badges" aria-label="Testware generation settings">
+                      <span>{testwareTechniqueLabel(generationMetadata.technique)}</span>
+                      <span>{testwareDepthLabel(generationMetadata.depth)}</span>
+                      <span>{testwareOutputFormatLabel(generationMetadata.outputFormat)}</span>
+                    </div>
+                  ) : null}
+                </div>
+              }
+              onTitleChange={(title) => updateLocalDraft(draft.id, { title })}
+              onBodyChange={(patch) => updateLocalDraft(draft.id, patch)}
+              onUploadImage={onUploadImage}
+              actions={
                 <>
-                  <input value={draft.title} aria-label="Testware title" onChange={(event) => updateLocalDraft(draft.id, { title: event.target.value })} />
-                  <div className="rich-record-editor-field">
-                    <FormatToolbar editorId={editorId} onUploadImage={onUploadImage} />
-                    <RichTextEditor
-                      editorId={editorId}
-                      value={draftDocument}
-                      onChange={(body) => updateLocalDraft(draft.id, richEditorDocumentToStoredBody(body))}
-                      ariaLabel={`${draft.title} testware body`}
-                      placeholder="Write test cases..."
-                    />
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="record-heading-row">
-                    <h2 className="record-title">{draft.title}</h2>
-                    {generationMetadata ? (
-                      <div className="testware-metadata-badges" aria-label="Testware generation settings">
-                        <span>{testwareTechniqueLabel(generationMetadata.technique)}</span>
-                        <span>{testwareDepthLabel(generationMetadata.depth)}</span>
-                        <span>{testwareOutputFormatLabel(generationMetadata.outputFormat)}</span>
-                      </div>
-                    ) : null}
-                  </div>
-                  <div className="rich-record-editor-field rich-record-preview-field">
-                    <RichTextEditor value={draft.body ? draftDocument : richEditorDocumentFromHtml('<p>No testware detail yet.</p>')} ariaLabel={`${draft.title} testware preview`} readOnly />
-                  </div>
-                </>
-              )}
-              <div className="record-actions">
-                <button
-                  className={draftCopied ? 'icon-button success' : 'icon-button'}
-                  type="button"
+                  <button
+                    className={draftCopied ? 'icon-button success' : 'icon-button'}
+                    type="button"
                   aria-label={copyLabel}
                   title={draftCopied ? 'Copied' : 'Copy for Jira'}
                   disabled={isBusy}
@@ -184,7 +158,9 @@ export function TestwareView({
                   disabled={isBusy}
                   onClick={() => {
                     if (editingDraft) {
-                      void onSaveDraft(draft).then(() => setDraftEditing(draft.id, false))
+                      void onSaveDraft(draft).then((saved) => {
+                        if (saved) setDraftEditing(draft.id, false)
+                      })
                     } else {
                       setDraftEditing(draft.id, true)
                     }
@@ -200,11 +176,12 @@ export function TestwareView({
                   title="Delete testware"
                   disabled={isBusy}
                   onClick={() => void onDeleteDraft(draft)}
-                >
-                  {deletingDraft ? <Loader2 className="spin" size={16} /> : <Trash2 size={16} />}
-                </button>
-              </div>
-            </article>
+                  >
+                    {deletingDraft ? <Loader2 className="spin" size={16} /> : <Trash2 size={16} />}
+                  </button>
+                </>
+              }
+            />
           )
         })}
         {drafts.length === 0 && !activeGenerationJob ? <EmptyCollection icon={Box} title="No testware yet" /> : null}

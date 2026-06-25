@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.4.21 - 2026-06-25
+
+- Split oversized maintained source and test files into focused Rust, Tauri, frontend, and integration-test modules while preserving public command names and app behavior.
+- Add code-size guidelines based on external line-count guidance and document the post-split threshold result.
+- Harden save behavior, command bridge drift coverage, terminal job retention, and selected-note validation from the quality improvement pass.
+
 ## v0.4.20 - 2026-06-25
 
 - Fix desktop-launched provider detection by sharing mode-aware executable path resolution across provider readiness checks.

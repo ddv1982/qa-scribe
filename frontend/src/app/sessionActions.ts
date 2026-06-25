@@ -1,0 +1,222 @@
+import {
+  createEntry,
+  createSession,
+  deleteSession,
+  listDrafts,
+  listEntries,
+  listFindings,
+  listSessions,
+  reopenSession,
+  updateEntry,
+  updateSession,
+  type Entry,
+  type Session,
+} from '../tauri'
+import {
+  emptyRichEditorDocument,
+  richEditorDocumentFromStoredBody,
+  richEditorDocumentToStoredBody,
+  serializeRichEditorDocument,
+  type RichEditorDocument,
+} from '../editor/editorDocument'
+import { formatError, nextUntitledTitle } from '../ui/format'
+import type { AppWorkflowContext } from './types'
+
+const noteBodyMaxLength = 100_000
+
+export function createSessionActions(ctx: AppWorkflowContext, materializeInlineImages: (document: RichEditorDocument) => Promise<RichEditorDocument>) {
+  async function openNote(session: Session, showNotice = true) {
+    try {
+      ctx.setBusyAction('open-note')
+      ctx.setError(null)
+      const reopened = await reopenSession(session.id)
+      const [nextEntries, nextDrafts, nextFindings] = await Promise.all([
+        listEntries(session.id),
+        listDrafts(session.id),
+        listFindings(session.id),
+      ])
+      const editableNote = await ensureNoteEntry(reopened.id, nextEntries)
+
+      ctx.noteBodyWriteVersionRef.current += 1
+      ctx.setActiveSession(reopened)
+      ctx.setNoteEntry(editableNote)
+      ctx.setLatestNoteGenerationUndo(null)
+      ctx.setDrafts(nextDrafts)
+      ctx.setFindings(nextFindings)
+      ctx.setNoteTitle(reopened.title)
+      const noteDocument = richEditorDocumentFromStoredBody(editableNote)
+      ctx.setNoteBody(noteDocument)
+      ctx.savedTitleRef.current = reopened.title
+      ctx.savedBodyRef.current = serializeRichEditorDocument(noteDocument)
+      ctx.setActiveView('notes')
+      if (showNotice) ctx.setNotice(`Opened ${reopened.title}`)
+    } catch (cause) {
+      ctx.setError(formatError(cause))
+    } finally {
+      ctx.setBusyAction(null)
+    }
+  }
+
+  async function handleNewNote() {
+    try {
+      ctx.setBusyAction('new-note')
+      ctx.setError(null)
+      const title = nextUntitledTitle(ctx.sessions)
+      const session = await createSession({ title, sessionContext: null, objectiveNotes: null })
+      const editableNote = await createEntry({
+        sessionId: session.id,
+        entryType: 'note',
+        title: 'Note body',
+        ...richEditorDocumentToStoredBody(emptyRichEditorDocument),
+        metadataJson: null,
+        excludedFromGeneration: false,
+      })
+      const nextSessions = await listSessions()
+      ctx.noteBodyWriteVersionRef.current += 1
+      ctx.setSessions(nextSessions)
+      ctx.setActiveSession(session)
+      ctx.setNoteEntry(editableNote)
+      ctx.setLatestNoteGenerationUndo(null)
+      ctx.setDrafts([])
+      ctx.setFindings([])
+      ctx.setNoteTitle(session.title)
+      ctx.setNoteBody(emptyRichEditorDocument)
+      ctx.savedTitleRef.current = session.title
+      ctx.savedBodyRef.current = serializeRichEditorDocument(emptyRichEditorDocument)
+      ctx.setActiveView('notes')
+      ctx.setNotice('New note created')
+    } catch (cause) {
+      ctx.setError(formatError(cause))
+    } finally {
+      ctx.setBusyAction(null)
+    }
+  }
+
+  function clearActiveNoteState() {
+    ctx.noteBodyWriteVersionRef.current += 1
+    ctx.setActiveSession(null)
+    ctx.setNoteEntry(null)
+    ctx.setLatestNoteGenerationUndo(null)
+    ctx.setDrafts([])
+    ctx.setFindings([])
+    ctx.setNoteTitle('')
+    ctx.setNoteBody(emptyRichEditorDocument)
+    ctx.savedTitleRef.current = ''
+    ctx.savedBodyRef.current = serializeRichEditorDocument(emptyRichEditorDocument)
+  }
+
+  function requestDeleteNote() {
+    if (!ctx.activeSession) return
+    ctx.setDeleteConfirmation({ kind: 'note', session: ctx.activeSession })
+  }
+
+  async function handleDeleteNote(sessionToDelete: Session) {
+    try {
+      ctx.deletingSessionIdRef.current = sessionToDelete.id
+      ctx.setBusyAction('delete-note')
+      ctx.setError(null)
+      await deleteSession(sessionToDelete.id)
+      const nextSessions = await listSessions()
+      ctx.setSessions(nextSessions)
+      clearActiveNoteState()
+
+      if (nextSessions[0]) {
+        await openNote(nextSessions[0], false)
+      } else {
+        ctx.setActiveView('notes')
+      }
+      ctx.setNotice('Note deleted')
+    } catch (cause) {
+      ctx.setError(formatError(cause))
+    } finally {
+      ctx.deletingSessionIdRef.current = null
+      ctx.setBusyAction(null)
+    }
+  }
+
+  async function saveTitle(title: string): Promise<boolean> {
+    if (!ctx.activeSession || ctx.deletingSessionIdRef.current === ctx.activeSession.id) return false
+    try {
+      ctx.setBusyAction('save-title')
+      const saved = await updateSession(ctx.activeSession.id, { title })
+      ctx.savedTitleRef.current = saved.title
+      ctx.setActiveSession(saved)
+      ctx.setSessions((previous) => previous.map((session) => (session.id === saved.id ? saved : session)))
+      ctx.setNotice('Note saved')
+      return true
+    } catch (cause) {
+      ctx.setError(formatError(cause))
+      return false
+    } finally {
+      ctx.setBusyAction(null)
+    }
+  }
+
+  async function saveBody(body: RichEditorDocument): Promise<boolean> {
+    if (!ctx.noteEntry || ctx.deletingSessionIdRef.current === ctx.noteEntry.sessionId) return false
+    const storedBody = richEditorDocumentToStoredBody(body)
+    if (storedBody.body.length > noteBodyMaxLength) {
+      ctx.setError('Note is too large to autosave. This usually means an image was embedded directly in the note; paste images again so QA Scribe can store them as attachments.')
+      return false
+    }
+    const writeVersion = ++ctx.noteBodyWriteVersionRef.current
+    try {
+      ctx.setBusyAction('save-body')
+      const saved = await updateEntry(ctx.noteEntry.id, storedBody)
+      if (writeVersion !== ctx.noteBodyWriteVersionRef.current) return true
+      ctx.savedBodyRef.current = serializeRichEditorDocument(richEditorDocumentFromStoredBody(saved))
+      ctx.setNoteEntry(saved)
+      ctx.setNotice('Note saved')
+      return true
+    } catch (cause) {
+      if (writeVersion !== ctx.noteBodyWriteVersionRef.current) return true
+      ctx.setError(formatError(cause))
+      return false
+    } finally {
+      if (writeVersion === ctx.noteBodyWriteVersionRef.current) ctx.setBusyAction(null)
+    }
+  }
+
+  async function saveNoteNow(): Promise<boolean> {
+    const title = ctx.noteTitle.trim()
+    let body: RichEditorDocument
+    try {
+      body = await materializeInlineImages(ctx.noteBody)
+    } catch (cause) {
+      ctx.setError(formatError(cause))
+      return false
+    }
+    let saved = true
+    if (ctx.activeSession && title && title !== ctx.savedTitleRef.current) {
+      saved = (await saveTitle(title)) && saved
+    }
+    if (ctx.noteEntry && serializeRichEditorDocument(body) !== ctx.savedBodyRef.current) {
+      saved = (await saveBody(body)) && saved
+    }
+    return saved
+  }
+
+  return {
+    clearActiveNoteState,
+    handleDeleteNote,
+    handleNewNote,
+    openNote,
+    requestDeleteNote,
+    saveBody,
+    saveNoteNow,
+    saveTitle,
+  }
+}
+
+async function ensureNoteEntry(sessionId: string, currentEntries: Entry[]): Promise<Entry> {
+  const existing = currentEntries.find((entry) => entry.entryType === 'note')
+  if (existing) return existing
+  return createEntry({
+    sessionId,
+    entryType: 'note',
+    title: 'Note body',
+    ...richEditorDocumentToStoredBody(emptyRichEditorDocument),
+    metadataJson: null,
+    excludedFromGeneration: false,
+  })
+}

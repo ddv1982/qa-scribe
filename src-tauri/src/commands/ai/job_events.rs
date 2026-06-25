@@ -1,0 +1,160 @@
+use qa_scribe_core::domain::{AiRun, GenerationContext};
+use serde::Serialize;
+use tauri::ipc::Channel;
+
+use super::types::{GenerateAiActionRequest, GenerateAiActionResult};
+use crate::{
+    jobs::{GenerationJobState, GenerationJobStatus, JobStore},
+    settings::AppState,
+};
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase", tag = "type")]
+pub enum GenerationJobEvent {
+    Started {
+        job_id: String,
+        status: GenerationJobStatus,
+        generation_context: GenerationContext,
+        ai_run: AiRun,
+    },
+    Progress {
+        job_id: String,
+        status: GenerationJobStatus,
+        message: String,
+    },
+    Partial {
+        job_id: String,
+        status: GenerationJobStatus,
+        body: String,
+    },
+    Completed {
+        job_id: String,
+        status: GenerationJobStatus,
+        result: Box<GenerateAiActionResult>,
+    },
+    Failed {
+        job_id: String,
+        status: GenerationJobStatus,
+        error_message: String,
+        ai_run: Option<AiRun>,
+    },
+    Cancelled {
+        job_id: String,
+        status: GenerationJobStatus,
+        ai_run: Option<AiRun>,
+    },
+}
+
+pub(super) fn send_event(events: &Channel<GenerationJobEvent>, event: GenerationJobEvent) {
+    let _ = events.send(event);
+}
+
+pub(super) fn send_progress(
+    events: &Channel<GenerationJobEvent>,
+    jobs: &JobStore,
+    job_id: &str,
+    message: &str,
+) -> Result<GenerationJobStatus, String> {
+    let status = jobs.update_progress(job_id, message)?;
+    send_event(
+        events,
+        GenerationJobEvent::Progress {
+            job_id: job_id.to_string(),
+            status: status.clone(),
+            message: message.to_string(),
+        },
+    );
+    Ok(status)
+}
+
+pub(super) fn send_job_failure(
+    events: &Channel<GenerationJobEvent>,
+    jobs: &JobStore,
+    job_id: &str,
+    request: &GenerateAiActionRequest,
+    result: Result<GenerateAiActionResult, String>,
+    fallback_error: String,
+) {
+    match result {
+        Ok(result) => {
+            let error_message = result
+                .ai_run
+                .error_message
+                .clone()
+                .unwrap_or(fallback_error);
+            let status = jobs.fail(job_id, &error_message).unwrap_or_else(|_| {
+                fallback_status(job_id, request, GenerationJobState::Failed, &error_message)
+            });
+            send_event(
+                events,
+                GenerationJobEvent::Failed {
+                    job_id: job_id.to_string(),
+                    status,
+                    error_message,
+                    ai_run: Some(result.ai_run),
+                },
+            );
+        }
+        Err(error) => {
+            let status = jobs.fail(job_id, &error).unwrap_or_else(|_| {
+                fallback_status(job_id, request, GenerationJobState::Failed, &error)
+            });
+            send_event(
+                events,
+                GenerationJobEvent::Failed {
+                    job_id: job_id.to_string(),
+                    status,
+                    error_message: error,
+                    ai_run: None,
+                },
+            );
+        }
+    }
+}
+
+pub(super) fn finish_cancelled_job(
+    events: &Channel<GenerationJobEvent>,
+    jobs: &JobStore,
+    state: &AppState,
+    job_id: &str,
+    request: &GenerateAiActionRequest,
+    ai_run_id: &str,
+) {
+    let ai_run = state
+        .with_service(|service| service.fail_ai_run(ai_run_id, "Generation cancelled."))
+        .ok();
+    let status = jobs.mark_cancelled(job_id).unwrap_or_else(|_| {
+        fallback_status(
+            job_id,
+            request,
+            GenerationJobState::Cancelled,
+            "Generation cancelled.",
+        )
+    });
+    send_event(
+        events,
+        GenerationJobEvent::Cancelled {
+            job_id: job_id.to_string(),
+            status,
+            ai_run,
+        },
+    );
+}
+
+pub(super) fn fallback_status(
+    job_id: &str,
+    request: &GenerateAiActionRequest,
+    state: GenerationJobState,
+    message: &str,
+) -> GenerationJobStatus {
+    GenerationJobStatus {
+        job_id: job_id.to_string(),
+        session_id: request.session_id.clone(),
+        action: request.action.as_str().to_string(),
+        state,
+        progress_message: message.to_string(),
+        ai_run_id: None,
+        error_message: (!message.is_empty()).then(|| message.to_string()),
+        partial_text: None,
+    }
+}

@@ -1,6 +1,5 @@
 mod commands;
 mod jobs;
-mod path_access;
 mod provider_command;
 mod settings;
 
@@ -16,7 +15,6 @@ use commands::{
     update_settings,
 };
 use jobs::JobStore;
-use path_access::PathAccess;
 use qa_scribe_core::{services::SessionService, storage::Database};
 use settings::AppState;
 use tauri::Manager;
@@ -30,7 +28,6 @@ fn main() {
             let database = Database::open(app_data_dir.join("qa-scribe.sqlite"))?;
             app.manage(AppState::new(SessionService::new(database), app_data_dir));
             app.manage(JobStore::default());
-            app.manage(PathAccess::default());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
