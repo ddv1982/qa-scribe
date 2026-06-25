@@ -16,6 +16,7 @@ pub use entries::{create_entry, list_entries, update_entry};
 pub use files::{
     copy_attachment_image_to_clipboard, export_session, get_attachment_preview_data_url,
     import_attachment, import_clipboard_screenshot, list_attachments,
+    read_clipboard_image_data_url,
 };
 pub use findings::{
     create_evidence_link, create_finding, delete_finding, list_findings, update_finding,

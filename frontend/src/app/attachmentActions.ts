@@ -1,5 +1,5 @@
 import type { ClipboardEvent } from 'react'
-import { importClipboardScreenshot } from '../tauri'
+import { importClipboardScreenshot, readClipboardImageDataUrl } from '../tauri'
 import {
   containsInlineImageData,
   inlineImageFilename,
@@ -17,20 +17,48 @@ import { richEditorImageInserterForElement, type RichEditorImageInserter } from 
 import { formatError } from '../ui/format'
 import type { AppWorkflowContext } from './types'
 
+const imageFilenamePattern = /\.(?:png|jpe?g|gif|webp|bmp|tiff?|heic|heif)$/i
+
+export function imageFileFromClipboardData(clipboardData: DataTransfer): File | null {
+  const files = Array.from(clipboardData.files)
+  const file = files.find(fileLooksLikeImage)
+  if (file) return file
+
+  for (const item of Array.from(clipboardData.items)) {
+    if (item.kind !== 'file' && !clipboardItemLooksLikeImage(item)) continue
+    const itemFile = item.getAsFile()
+    if (itemFile && fileLooksLikeImage(itemFile)) return itemFile
+  }
+
+  return null
+}
+
+export function shouldReadNativeClipboardImage(clipboardData: DataTransfer): boolean {
+  if (clipboardHasImageType(clipboardData)) return true
+  if (clipboardHtmlLooksLikeImageOnly(clipboardData)) return true
+  return !clipboardHasTextData(clipboardData) && clipboardHasNoDomPayload(clipboardData)
+}
+
 export function createAttachmentActions(ctx: AppWorkflowContext) {
   function handlePaste(event: ClipboardEvent<HTMLElement>) {
     const target = event.target as HTMLElement | null
     const editor = target?.closest<HTMLElement>('.rich-editor')
     if (!editor || !editor.classList.contains('note-rich-editor')) return
 
-    const file = Array.from(event.clipboardData.files).find((item) => item.type.startsWith('image/'))
-    if (!file) return
-
     const insertImage = richEditorImageInserterForElement(editor)
     if (!insertImage) return
 
-    event.preventDefault()
-    void importPastedImage(file, insertImage)
+    const file = imageFileFromClipboardData(event.clipboardData)
+    if (file) {
+      event.preventDefault()
+      void importPastedImage(file, insertImage)
+      return
+    }
+
+    if (shouldReadNativeClipboardImage(event.clipboardData)) {
+      event.preventDefault()
+      void importNativeClipboardImage(insertImage)
+    }
   }
 
   async function importPastedImage(file: File, insertImage: RichEditorImageInserter) {
@@ -48,6 +76,35 @@ export function createAttachmentActions(ctx: AppWorkflowContext) {
         sessionId: ctx.activeSession.id,
         entryId: ctx.noteEntry.id,
         filename,
+        dataUrl,
+      })
+      insertImage(attachment.id, attachment.filename, dataUrl)
+      ctx.setNotice('Image attached')
+    } catch (cause) {
+      ctx.setError(formatError(cause))
+    } finally {
+      ctx.setBusyAction(null)
+    }
+  }
+
+  async function importNativeClipboardImage(insertImage: RichEditorImageInserter) {
+    if (!ctx.activeSession || !ctx.noteEntry) {
+      ctx.setError('Open a note before pasting images.')
+      return
+    }
+
+    try {
+      ctx.setBusyAction('attach-image')
+      ctx.setError(null)
+      const dataUrl = await readClipboardImageDataUrl()
+      if (!dataUrl) {
+        ctx.setError('Clipboard image could not be read.')
+        return
+      }
+      const attachment = await importClipboardScreenshot({
+        sessionId: ctx.activeSession.id,
+        entryId: ctx.noteEntry.id,
+        filename: `pasted-image-${Date.now()}.png`,
         dataUrl,
       })
       insertImage(attachment.id, attachment.filename, dataUrl)
@@ -125,4 +182,59 @@ export function createAttachmentActions(ctx: AppWorkflowContext) {
   }
 
   return { handlePaste, materializeInlineImages, uploadEditorImage }
+}
+
+function fileLooksLikeImage(file: File): boolean {
+  return file.type.startsWith('image/') || (!file.type && imageFilenamePattern.test(file.name))
+}
+
+function clipboardItemLooksLikeImage(item: DataTransferItem): boolean {
+  return item.type.startsWith('image/') || (item.kind === 'file' && clipboardTypeLooksLikeImage(item.type))
+}
+
+function clipboardHasImageType(clipboardData: DataTransfer): boolean {
+  return Array.from(clipboardData.items).some(clipboardItemLooksLikeImage) || Array.from(clipboardData.types).some(clipboardTypeLooksLikeImage)
+}
+
+function clipboardTypeLooksLikeImage(type: string): boolean {
+  const normalized = type.trim().toLowerCase()
+  if (!normalized) return false
+  return (
+    normalized.startsWith('image/') ||
+    normalized.includes('png') ||
+    normalized.includes('jpeg') ||
+    normalized.includes('jpg') ||
+    normalized.includes('gif') ||
+    normalized.includes('webp') ||
+    normalized.includes('tiff') ||
+    normalized.includes('bitmap') ||
+    normalized.includes('pict')
+  )
+}
+
+function clipboardHtmlLooksLikeImageOnly(clipboardData: DataTransfer): boolean {
+  const html = clipboardDataText(clipboardData, 'text/html').trim()
+  if (!/<img\b/i.test(html) || typeof DOMParser === 'undefined') return false
+
+  const documentFragment = new DOMParser().parseFromString(html, 'text/html')
+  if (documentFragment.body.querySelectorAll('img').length !== 1) return false
+
+  const text = documentFragment.body.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+  return text.length === 0
+}
+
+function clipboardHasTextData(clipboardData: DataTransfer): boolean {
+  return Boolean(clipboardDataText(clipboardData, 'text/plain').trim() || clipboardDataText(clipboardData, 'text/html').trim())
+}
+
+function clipboardHasNoDomPayload(clipboardData: DataTransfer): boolean {
+  return clipboardData.files.length === 0 && clipboardData.items.length === 0 && clipboardData.types.length === 0
+}
+
+function clipboardDataText(clipboardData: DataTransfer, type: string): string {
+  try {
+    return clipboardData.getData(type)
+  } catch {
+    return ''
+  }
 }

@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.4.22 - 2026-06-25
+
+- Restore reliable image paste in note editors by reading image files from both clipboard files and clipboard items.
+- Add a native Tauri clipboard image fallback for WebView paste events that expose image metadata but no DOM `File`, while keeping normal text and HTML paste behavior untouched.
+- Keep the existing attach-image path unchanged and add regression coverage for paste files, item-based paste, native fallback, command mapping, and PNG data URL encoding.
+
 ## v0.4.21 - 2026-06-25
 
 - Split oversized maintained source and test files into focused Rust, Tauri, frontend, and integration-test modules while preserving public command names and app behavior.

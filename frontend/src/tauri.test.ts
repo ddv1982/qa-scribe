@@ -39,6 +39,7 @@ describe('Tauri command bridge', () => {
     await expectCommand('import_clipboard_screenshot', () =>
       tauri.importClipboardScreenshot({ sessionId: 'session-1', entryId: null, filename: 'screenshot.png', dataUrl: 'data:image/png;base64,' }),
     )
+    await expectCommand('read_clipboard_image_data_url', () => tauri.readClipboardImageDataUrl())
     await expectCommand('list_attachments', () => tauri.listAttachments('session-1'))
     await expectCommand('get_attachment_preview_data_url', () => tauri.getAttachmentPreviewDataUrl('attachment-1'))
     await expectCommand('copy_attachment_image_to_clipboard', () => tauri.copyAttachmentImageToClipboard('attachment-1'))

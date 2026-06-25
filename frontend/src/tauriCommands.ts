@@ -124,6 +124,10 @@ export function importClipboardScreenshot(input: {
   return invoke<Attachment>('import_clipboard_screenshot', input)
 }
 
+export function readClipboardImageDataUrl(): Promise<string | null> {
+  return invoke<string | null>('read_clipboard_image_data_url')
+}
+
 export function listAttachments(sessionId: string): Promise<Attachment[]> {
   return invoke<Attachment[]>('list_attachments', { sessionId })
 }

@@ -10,9 +10,9 @@ use commands::{
     generate_session_report, get_ai_action_job_status, get_app_status,
     get_attachment_preview_data_url, get_command_shell_status, get_provider_status, get_session,
     get_settings, import_attachment, import_clipboard_screenshot, list_attachments, list_drafts,
-    list_entries, list_findings, list_sessions, refresh_provider_status, reopen_session,
-    start_ai_action_job, update_draft, update_entry, update_finding, update_session,
-    update_settings,
+    list_entries, list_findings, list_sessions, read_clipboard_image_data_url,
+    refresh_provider_status, reopen_session, start_ai_action_job, update_draft, update_entry,
+    update_finding, update_session, update_settings,
 };
 use jobs::JobStore;
 use qa_scribe_core::{services::SessionService, storage::Database};
@@ -67,6 +67,7 @@ fn main() {
             refresh_provider_status,
             export_session,
             get_attachment_preview_data_url,
+            read_clipboard_image_data_url,
             copy_attachment_image_to_clipboard
         ])
         .run(tauri::generate_context!())

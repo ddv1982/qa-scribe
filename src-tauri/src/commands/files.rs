@@ -1,3 +1,6 @@
+use std::io::Cursor;
+
+use base64::{Engine, engine::general_purpose::STANDARD};
 use qa_scribe_core::{
     attachments::{
         attachment_file_bytes, attachment_preview_data_url, import_clipboard_screenshot_data_url,
@@ -55,6 +58,21 @@ pub fn import_clipboard_screenshot(
 }
 
 #[tauri::command]
+pub async fn read_clipboard_image_data_url(app: AppHandle) -> Result<Option<String>, String> {
+    let read_result = tauri::async_runtime::spawn_blocking(move || {
+        app.clipboard().read_image().map(|image| image.to_owned())
+    })
+    .await
+    .map_err(|error| format!("Clipboard image read task failed: {error}"))?;
+
+    match read_result {
+        Ok(image) => clipboard_image_to_png_data_url(&image).map(Some),
+        Err(error) if clipboard_image_is_unavailable(&error) => Ok(None),
+        Err(error) => Err(format!("Clipboard image could not be read: {error}")),
+    }
+}
+
+#[tauri::command]
 pub fn list_attachments(
     state: State<'_, AppState>,
     session_id: String,
@@ -98,4 +116,54 @@ pub fn copy_attachment_image_to_clipboard(
     app.clipboard()
         .write_image(&image)
         .map_err(|error| format!("Attachment image could not be copied: {error}"))
+}
+
+fn clipboard_image_to_png_data_url(image: &Image<'_>) -> Result<String, String> {
+    let rgba = image::ImageBuffer::<image::Rgba<u8>, Vec<u8>>::from_raw(
+        image.width(),
+        image.height(),
+        image.rgba().to_vec(),
+    )
+    .ok_or_else(|| "Clipboard image data was invalid".to_string())?;
+    let mut png = Vec::new();
+    image::DynamicImage::ImageRgba8(rgba)
+        .write_to(&mut Cursor::new(&mut png), image::ImageFormat::Png)
+        .map_err(|error| format!("Clipboard image could not be encoded: {error}"))?;
+    Ok(format!("data:image/png;base64,{}", STANDARD.encode(png)))
+}
+
+fn clipboard_image_is_unavailable(error: &tauri_plugin_clipboard_manager::Error) -> bool {
+    matches!(
+        error,
+        tauri_plugin_clipboard_manager::Error::Clipboard(message)
+            if message.contains("not available in the requested format")
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn converts_clipboard_image_to_png_data_url() {
+        let image = Image::new(&[255, 0, 0, 255], 1, 1);
+
+        let data_url = clipboard_image_to_png_data_url(&image).expect("data URL");
+
+        assert!(data_url.starts_with("data:image/png;base64,"));
+        let encoded = data_url
+            .strip_prefix("data:image/png;base64,")
+            .expect("PNG data URL prefix");
+        let bytes = STANDARD.decode(encoded).expect("PNG base64");
+        assert_eq!(&bytes[..8], b"\x89PNG\r\n\x1a\n");
+    }
+
+    #[test]
+    fn rejects_clipboard_image_with_invalid_rgba_length() {
+        let image = Image::new(&[255, 0, 0, 255], 2, 1);
+
+        let error = clipboard_image_to_png_data_url(&image).expect_err("invalid image");
+
+        assert_eq!(error, "Clipboard image data was invalid");
+    }
 }
