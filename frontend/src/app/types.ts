@@ -17,7 +17,7 @@ export type LatestNoteGenerationUndo = {
 
 export type RichRecordPatch = Partial<Pick<Draft, 'title' | 'body' | 'bodyJson' | 'bodyFormat'>>
 
-export type AppWorkflowContext = {
+export type AppWorkflowState = {
   activeSession: Session | null
   noteEntry: Entry | null
   drafts: Draft[]
@@ -32,6 +32,9 @@ export type AppWorkflowContext = {
   selectedReasoningEffort: string | null
   latestNoteGenerationUndo: LatestNoteGenerationUndo | null
   deleteConfirmation: DeleteConfirmation | null
+}
+
+export type AppWorkflowRefs = {
   savedTitleRef: MutableRefObject<string>
   savedBodyRef: MutableRefObject<string>
   noteBodyRef: MutableRefObject<RichEditorDocument>
@@ -40,6 +43,9 @@ export type AppWorkflowContext = {
   activeSessionIdRef: MutableRefObject<string | null>
   noteEntryIdRef: MutableRefObject<string | null>
   copySuccessResetRef: MutableRefObject<number | null>
+}
+
+export type AppWorkflowSetters = {
   setSessions: Dispatch<SetStateAction<Session[]>>
   setActiveSession: Dispatch<SetStateAction<Session | null>>
   setNoteEntry: Dispatch<SetStateAction<Entry | null>>
@@ -56,3 +62,5 @@ export type AppWorkflowContext = {
   setDeleteConfirmation: Dispatch<SetStateAction<DeleteConfirmation | null>>
   setLatestNoteGenerationUndo: Dispatch<SetStateAction<LatestNoteGenerationUndo | null>>
 }
+
+export type AppWorkflowContext = AppWorkflowState & AppWorkflowRefs & AppWorkflowSetters

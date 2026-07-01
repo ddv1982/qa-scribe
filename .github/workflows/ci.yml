@@ -118,6 +118,12 @@ jobs:
       - name: Audit frontend dependencies
         run: bun run frontend:audit
 
+      - name: Run frontend lint
+        run: bun run frontend:lint
+
+      - name: Run frontend tests
+        run: bun run frontend:test
+
       - name: Validate release metadata
         run: node scripts/check-release-metadata.mjs
 

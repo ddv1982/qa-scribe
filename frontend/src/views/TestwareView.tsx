@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Box, CheckCircle2, Copy, FileText, Image as ImageIcon, Loader2, PencilLine, Plus, Save, Trash2 } from 'lucide-react'
+import { Box, FileText, Loader2, Plus } from 'lucide-react'
 import { EmptyCollection, StatusPill } from '../components/Common'
 import type { RichEditorImageUpload } from '../editor/RichTextEditor'
 import {
@@ -10,7 +10,7 @@ import {
 } from '../testware/generationPreferences'
 import type { Draft, GenerationJobStatus } from '../tauri'
 import type { BusyAction } from '../ui/types'
-import { EditableRichRecord, GenerationRecord } from './RichRecordView'
+import { EditableRichRecord, GenerationRecord, RichRecordActions } from './RichRecordView'
 
 export function TestwareView({
   busyAction,
@@ -129,34 +129,28 @@ export function TestwareView({
               onBodyChange={(patch) => updateLocalDraft(draft.id, patch)}
               onUploadImage={onUploadImage}
               actions={
-                <>
-                  <button
-                    className={draftCopied ? 'icon-button success' : 'icon-button'}
-                    type="button"
-                  aria-label={copyLabel}
-                  title={draftCopied ? 'Copied' : 'Copy for Jira'}
-                  disabled={isBusy}
-                  onClick={() => void onCopyDraft(draft)}
-                >
-                  {copyingDraft ? <Loader2 className="spin" size={16} /> : draftCopied ? <CheckCircle2 size={16} /> : <Copy size={16} />}
-                </button>
-                {draftScreenshotCount > 0 ? (
-                  <button
-                    className={draftScreenshotCopied ? 'icon-button success' : 'icon-button'}
-                    type="button"
-                    aria-label={screenshotCopyLabel}
-                    title={draftScreenshotCopied ? 'Screenshot copied' : draftScreenshotCount > 1 ? 'Copy first screenshot' : 'Copy screenshot'}
-                    disabled={isBusy}
-                    onClick={() => void onCopyDraftScreenshot(draft)}
-                  >
-                    {copyingDraftScreenshot ? <Loader2 className="spin" size={16} /> : draftScreenshotCopied ? <CheckCircle2 size={16} /> : <ImageIcon size={16} />}
-                  </button>
-                ) : null}
-                <button
-                  className="secondary-button"
-                  type="button"
-                  disabled={isBusy}
-                  onClick={() => {
+                <RichRecordActions
+                  copied={draftCopied}
+                  copying={copyingDraft}
+                  copyLabel={copyLabel}
+                  copyTitle={draftCopied ? 'Copied' : 'Copy for Jira'}
+                  deleting={deletingDraft}
+                  deleteLabel={`Delete ${draft.title}`}
+                  deleteTitle="Delete testware"
+                  editing={editingDraft}
+                  isBusy={isBusy}
+                  saving={savingDraft}
+                  screenshot={{
+                    copied: draftScreenshotCopied,
+                    copying: copyingDraftScreenshot,
+                    count: draftScreenshotCount,
+                    label: screenshotCopyLabel,
+                    title: draftScreenshotCopied ? 'Screenshot copied' : draftScreenshotCount > 1 ? 'Copy first screenshot' : 'Copy screenshot',
+                    onCopy: () => void onCopyDraftScreenshot(draft),
+                  }}
+                  onCopy={() => void onCopyDraft(draft)}
+                  onDelete={() => void onDeleteDraft(draft)}
+                  onToggleEdit={() => {
                     if (editingDraft) {
                       void onSaveDraft(draft).then((saved) => {
                         if (saved) setDraftEditing(draft.id, false)
@@ -165,21 +159,7 @@ export function TestwareView({
                       setDraftEditing(draft.id, true)
                     }
                   }}
-                >
-                  {savingDraft ? <Loader2 className="spin" size={16} /> : editingDraft ? <Save size={16} /> : <PencilLine size={16} />}
-                  {editingDraft ? 'Save' : 'Edit'}
-                </button>
-                <button
-                  className="icon-button danger"
-                  type="button"
-                  aria-label={`Delete ${draft.title}`}
-                  title="Delete testware"
-                  disabled={isBusy}
-                  onClick={() => void onDeleteDraft(draft)}
-                  >
-                    {deletingDraft ? <Loader2 className="spin" size={16} /> : <Trash2 size={16} />}
-                  </button>
-                </>
+                />
               }
             />
           )

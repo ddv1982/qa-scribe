@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Loader2, X } from 'lucide-react'
+import { CheckCircle2, Copy, Image as ImageIcon, Loader2, PencilLine, Save, Trash2, X } from 'lucide-react'
 import { FormatToolbar, RichTextEditor, type RichEditorImageUpload } from '../editor/RichTextEditor'
 import { richEditorDocumentFromHtml, richEditorDocumentFromStoredBody, richEditorDocumentToStoredBody } from '../editor/editorDocument'
 import type { GenerationJobStatus } from '../tauri'
@@ -102,5 +102,78 @@ export function EditableRichRecord({
       )}
       <div className="record-actions">{actions}</div>
     </article>
+  )
+}
+
+export function RichRecordActions({
+  copied,
+  copying,
+  copyLabel,
+  copyTitle,
+  deleting,
+  deleteLabel,
+  deleteTitle,
+  editing,
+  isBusy,
+  saving,
+  screenshot,
+  onCopy,
+  onDelete,
+  onToggleEdit,
+}: {
+  copied: boolean
+  copying: boolean
+  copyLabel: string
+  copyTitle: string
+  deleting: boolean
+  deleteLabel: string
+  deleteTitle: string
+  editing: boolean
+  isBusy: boolean
+  saving: boolean
+  screenshot?: {
+    copied: boolean
+    copying: boolean
+    count: number
+    label: string
+    title: string
+    onCopy: () => void
+  }
+  onCopy: () => void
+  onDelete: () => void
+  onToggleEdit: () => void
+}) {
+  return (
+    <>
+      <button
+        className={copied ? 'icon-button success' : 'icon-button'}
+        type="button"
+        aria-label={copyLabel}
+        title={copyTitle}
+        disabled={isBusy}
+        onClick={onCopy}
+      >
+        {copying ? <Loader2 className="spin" size={16} /> : copied ? <CheckCircle2 size={16} /> : <Copy size={16} />}
+      </button>
+      {screenshot && screenshot.count > 0 ? (
+        <button
+          className={screenshot.copied ? 'icon-button success' : 'icon-button'}
+          type="button"
+          aria-label={screenshot.label}
+          title={screenshot.title}
+          disabled={isBusy}
+          onClick={screenshot.onCopy}
+        >
+          {screenshot.copying ? <Loader2 className="spin" size={16} /> : screenshot.copied ? <CheckCircle2 size={16} /> : <ImageIcon size={16} />}
+        </button>
+      ) : null}
+      <button className="secondary-button" type="button" disabled={isBusy} onClick={onToggleEdit}>
+        {saving ? <Loader2 className="spin" size={16} /> : editing ? <Save size={16} /> : <PencilLine size={16} />}
+        {editing ? 'Save' : 'Edit'}
+      </button>
+      <button className="icon-button danger" type="button" aria-label={deleteLabel} title={deleteTitle} disabled={isBusy} onClick={onDelete}>
+        {deleting ? <Loader2 className="spin" size={16} /> : <Trash2 size={16} />}
+      </button>
+    </>
   )
 }

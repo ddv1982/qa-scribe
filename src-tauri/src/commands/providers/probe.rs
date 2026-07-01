@@ -1,5 +1,5 @@
 use std::{
-    fs,
+    fs::{self, File},
     io::ErrorKind,
     path::PathBuf,
     process::{Command, Output, Stdio},
@@ -76,18 +76,13 @@ impl ProbeRunner for SystemProbeRunner {
     }
 }
 
-fn run_command_with_timeout(mut command: Command, timeout: Duration) -> std::io::Result<Output> {
+pub(super) fn run_command_with_timeout(
+    mut command: Command,
+    timeout: Duration,
+) -> std::io::Result<Output> {
     let output_id = PROVIDER_PROBE_OUTPUT_COUNTER.fetch_add(1, Ordering::Relaxed);
-    let stdout_path = std::env::temp_dir().join(format!(
-        "qa-scribe-provider-probe-{}-{output_id}.stdout",
-        std::process::id()
-    ));
-    let stderr_path = std::env::temp_dir().join(format!(
-        "qa-scribe-provider-probe-{}-{output_id}.stderr",
-        std::process::id()
-    ));
-    let stdout = fs::File::create(&stdout_path)?;
-    let stderr = fs::File::create(&stderr_path)?;
+    let output_files = ProbeOutputFiles::new(output_id);
+    let (stdout, stderr) = output_files.create()?;
     let mut child = command
         .stdout(Stdio::from(stdout))
         .stderr(Stdio::from(stderr))
@@ -96,10 +91,8 @@ fn run_command_with_timeout(mut command: Command, timeout: Duration) -> std::io:
 
     loop {
         if let Some(status) = child.try_wait()? {
-            let stdout = fs::read(&stdout_path)?;
-            let stderr = fs::read(&stderr_path)?;
-            let _ = fs::remove_file(&stdout_path);
-            let _ = fs::remove_file(&stderr_path);
+            let stdout = fs::read(&output_files.stdout_path)?;
+            let stderr = fs::read(&output_files.stderr_path)?;
             return Ok(Output {
                 status,
                 stdout,
@@ -110,8 +103,6 @@ fn run_command_with_timeout(mut command: Command, timeout: Duration) -> std::io:
         if started_at.elapsed() >= timeout {
             let _ = child.kill();
             let _ = child.wait();
-            let _ = fs::remove_file(&stdout_path);
-            let _ = fs::remove_file(&stderr_path);
             return Err(std::io::Error::new(
                 ErrorKind::TimedOut,
                 format!("provider probe timed out after {}s", timeout.as_secs()),
@@ -119,6 +110,45 @@ fn run_command_with_timeout(mut command: Command, timeout: Duration) -> std::io:
         }
 
         thread::sleep(Duration::from_millis(25));
+    }
+}
+
+struct ProbeOutputFiles {
+    stdout_path: PathBuf,
+    stderr_path: PathBuf,
+}
+
+impl ProbeOutputFiles {
+    fn new(output_id: u64) -> Self {
+        Self {
+            stdout_path: std::env::temp_dir().join(format!(
+                "qa-scribe-provider-probe-{}-{output_id}.stdout",
+                std::process::id()
+            )),
+            stderr_path: std::env::temp_dir().join(format!(
+                "qa-scribe-provider-probe-{}-{output_id}.stderr",
+                std::process::id()
+            )),
+        }
+    }
+
+    fn create(&self) -> std::io::Result<(File, File)> {
+        let stdout = File::create(&self.stdout_path)?;
+        let stderr = match File::create(&self.stderr_path) {
+            Ok(stderr) => stderr,
+            Err(error) => {
+                let _ = fs::remove_file(&self.stdout_path);
+                return Err(error);
+            }
+        };
+        Ok((stdout, stderr))
+    }
+}
+
+impl Drop for ProbeOutputFiles {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.stdout_path);
+        let _ = fs::remove_file(&self.stderr_path);
     }
 }
 

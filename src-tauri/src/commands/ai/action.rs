@@ -40,20 +40,6 @@ pub fn generate_ai_action(
         prepare_started.elapsed().as_millis()
     );
 
-    if matches!(request.action, GenerateAiActionKind::Summary) && request.note_entry_id.is_none() {
-        let message = "Summarize notes requires an editable note entry.";
-        return state.with_service(|service| {
-            let failed_run = service.fail_ai_run(&prepared.ai_run.id, message)?;
-            Ok(GenerateAiActionResult {
-                generation_context: prepared.generation_context,
-                ai_run: failed_run,
-                draft: None,
-                finding: None,
-                note_entry: None,
-            })
-        });
-    }
-
     let output = execute_provider_generation(
         request.provider,
         &request.model,
@@ -74,6 +60,7 @@ pub(super) fn prepare_ai_action_generation(
         .ok_or_else(|| qa_scribe_core::QaScribeError::NotFound(request.session_id.clone()))?;
     let settings = service.get_settings()?;
     let entries = service.list_entries(&request.session_id)?;
+    let note_entry = selected_note_entry(request, &entries)?;
     let findings = service.list_findings(&request.session_id)?;
     let attachments = service.list_attachments(&request.session_id)?;
     let generation_context = service.create_generation_context(&request.session_id)?;
@@ -86,7 +73,6 @@ pub(super) fn prepare_ai_action_generation(
         prompt_version: request.action.prompt_version().to_string(),
     })?;
 
-    let note_entry = selected_note_entry(request, &entries)?;
     let mut prompt = render_action_prompt(
         &settings,
         &session.title,

@@ -1,6 +1,6 @@
 {
   "name": "qa-scribe",
-  "version": "0.4.22",
+  "version": "0.4.23",
   "description": "Local-first desktop testing notepad for turning testing sessions into structured testware.",
   "desktopName": "qa-scribe.desktop",
   "homepage": "https://github.com/ddv1982/qa-scribe",
@@ -28,7 +28,7 @@
     "dist:linux:ci": "node scripts/package-tauri-linux.mjs",
     "linux:packages": "node scripts/package-tauri-linux.mjs",
     "linux:metadata:check": "python3 scripts/validate_linux_package_metadata.py \"dist/rust/artifacts/*.deb\" \"dist/rust/artifacts/*.rpm\"",
-    "linux:metadata:test": "python3 -m unittest tests.test_linux_package_metadata",
+    "linux:metadata:test": "python3 -m unittest tests.test_linux_package_metadata tests.test_package_archive",
     "linux:package-manager:check": "node scripts/package-tauri-linux.mjs && bun run linux:metadata:check -- --skip-external-tools && bun run apt:repo:check && bun run apt:installer:check",
     "apt:repo:check": "node scripts/check-apt-repository.mjs",
     "apt:installer:check": "node scripts/check-apt-installer.mjs",

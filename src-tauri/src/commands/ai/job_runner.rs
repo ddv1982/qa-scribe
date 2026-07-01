@@ -6,11 +6,10 @@ use uuid::Uuid;
 use super::{
     action::{finish_ai_action_generation, prepare_ai_action_generation},
     job_events::{
-        GenerationJobEvent, fallback_status, finish_cancelled_job, send_event, send_job_failure,
-        send_progress,
+        GenerationJobEvent, fallback_status, finish_cancelled_job, send_event, send_progress,
     },
     provider_execution::execute_provider_generation_streaming,
-    types::{GenerateAiActionKind, GenerateAiActionRequest, StartAiActionJobResult},
+    types::{GenerateAiActionRequest, StartAiActionJobResult},
 };
 use crate::{
     jobs::{GenerationJobState, GenerationJobStatus, JobControl, JobStore},
@@ -125,29 +124,6 @@ fn run_ai_action_job(
             ai_run: prepared.ai_run.clone(),
         },
     );
-
-    if matches!(request.action, GenerateAiActionKind::Summary) && request.note_entry_id.is_none() {
-        let message = "Summarize notes requires an editable note entry.";
-        let result = state.with_service(|service| {
-            let failed_run = service.fail_ai_run(&prepared.ai_run.id, message)?;
-            Ok(super::types::GenerateAiActionResult {
-                generation_context: prepared.generation_context,
-                ai_run: failed_run,
-                draft: None,
-                finding: None,
-                note_entry: None,
-            })
-        });
-        send_job_failure(
-            &events,
-            &jobs,
-            &job_id,
-            &request,
-            result,
-            message.to_string(),
-        );
-        return;
-    }
 
     if control.is_cancelled() {
         finish_cancelled_job(

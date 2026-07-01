@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { CheckCircle2, Copy, FileText, Flag, Image as ImageIcon, Loader2, PencilLine, Plus, Save, Trash2 } from 'lucide-react'
+import { FileText, Flag, Loader2, Plus } from 'lucide-react'
 import { EmptyCollection, StatusPill } from '../components/Common'
 import type { RichEditorImageUpload } from '../editor/RichTextEditor'
 import type { Finding, GenerationJobStatus } from '../tauri'
 import { formatFindingKind } from '../ui/format'
 import type { BusyAction } from '../ui/types'
-import { EditableRichRecord, GenerationRecord } from './RichRecordView'
+import { EditableRichRecord, GenerationRecord, RichRecordActions } from './RichRecordView'
 
 export function FindingsView({
   busyAction,
@@ -117,34 +117,28 @@ export function FindingsView({
               onBodyChange={(patch) => updateLocalFinding(finding.id, patch)}
               onUploadImage={onUploadImage}
               actions={
-                <>
-                  <button
-                    className={findingCopied ? 'icon-button success' : 'icon-button'}
-                    type="button"
-                  aria-label={copyLabel}
-                  title={findingCopied ? 'Copied' : 'Copy for Jira'}
-                  disabled={isBusy}
-                  onClick={() => void onCopyFinding(finding)}
-                >
-                  {copyingFinding ? <Loader2 className="spin" size={16} /> : findingCopied ? <CheckCircle2 size={16} /> : <Copy size={16} />}
-                </button>
-                {findingScreenshotCount > 0 ? (
-                  <button
-                    className={findingScreenshotCopied ? 'icon-button success' : 'icon-button'}
-                    type="button"
-                    aria-label={screenshotCopyLabel}
-                    title={findingScreenshotCopied ? 'Screenshot copied' : findingScreenshotCount > 1 ? 'Copy first screenshot' : 'Copy screenshot'}
-                    disabled={isBusy}
-                    onClick={() => void onCopyFindingScreenshot(finding)}
-                  >
-                    {copyingFindingScreenshot ? <Loader2 className="spin" size={16} /> : findingScreenshotCopied ? <CheckCircle2 size={16} /> : <ImageIcon size={16} />}
-                  </button>
-                ) : null}
-                <button
-                  className="secondary-button"
-                  type="button"
-                  disabled={isBusy}
-                  onClick={() => {
+                <RichRecordActions
+                  copied={findingCopied}
+                  copying={copyingFinding}
+                  copyLabel={copyLabel}
+                  copyTitle={findingCopied ? 'Copied' : 'Copy for Jira'}
+                  deleting={deletingFinding}
+                  deleteLabel={`Delete ${finding.title}`}
+                  deleteTitle="Delete finding"
+                  editing={editingFinding}
+                  isBusy={isBusy}
+                  saving={savingFinding}
+                  screenshot={{
+                    copied: findingScreenshotCopied,
+                    copying: copyingFindingScreenshot,
+                    count: findingScreenshotCount,
+                    label: screenshotCopyLabel,
+                    title: findingScreenshotCopied ? 'Screenshot copied' : findingScreenshotCount > 1 ? 'Copy first screenshot' : 'Copy screenshot',
+                    onCopy: () => void onCopyFindingScreenshot(finding),
+                  }}
+                  onCopy={() => void onCopyFinding(finding)}
+                  onDelete={() => void onDeleteFinding(finding)}
+                  onToggleEdit={() => {
                     if (editingFinding) {
                       void onSaveFinding(finding).then((saved) => {
                         if (saved) setFindingEditing(finding.id, false)
@@ -153,21 +147,7 @@ export function FindingsView({
                       setFindingEditing(finding.id, true)
                     }
                   }}
-                >
-                  {savingFinding ? <Loader2 className="spin" size={16} /> : editingFinding ? <Save size={16} /> : <PencilLine size={16} />}
-                  {editingFinding ? 'Save' : 'Edit'}
-                </button>
-                <button
-                  className="icon-button danger"
-                  type="button"
-                  aria-label={`Delete ${finding.title}`}
-                  title="Delete finding"
-                  disabled={isBusy}
-                  onClick={() => void onDeleteFinding(finding)}
-                  >
-                    {deletingFinding ? <Loader2 className="spin" size={16} /> : <Trash2 size={16} />}
-                  </button>
-                </>
+                />
               }
             />
           )

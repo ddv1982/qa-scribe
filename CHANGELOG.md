@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.4.23 - 2026-07-02
+
+- Prevent invalid Session Report Draft generation requests from creating Generation Context or AI Run records.
+- Strengthen CI and release validation with explicit frontend lint and test gates before packaging.
+- Harden provider probing, rich-record actions, and Debian archive handling with shared code and regression coverage.
+
 ## v0.4.22 - 2026-06-25
 
 - Restore reliable image paste in note editors by reading image files from both clipboard files and clipboard items.

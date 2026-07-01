@@ -233,6 +233,8 @@ fn summary_generation_rejects_note_id_from_another_session() {
         GenerateAiActionKind::Summary,
         Some(&other_note.id),
     );
+    let ai_run_count = count_table_rows(&service, "ai_runs");
+    let generation_context_count = count_table_rows(&service, "generation_contexts");
 
     let error = match prepare_ai_action_generation(&service, &request) {
         Ok(_) => panic!("cross-session note must be rejected"),
@@ -244,6 +246,37 @@ fn summary_generation_rejects_note_id_from_another_session() {
             .to_string()
             .contains("Selected note entry was not found in this Session")
     );
+    assert_eq!(count_table_rows(&service, "ai_runs"), ai_run_count);
+    assert_eq!(
+        count_table_rows(&service, "generation_contexts"),
+        generation_context_count
+    );
+}
+
+#[test]
+fn summary_generation_without_note_does_not_persist_ai_run() {
+    let service = SessionService::in_memory().expect("service should open");
+    let session = create_session(&service, "Target session");
+    create_note(
+        &service,
+        &session.id,
+        "Fallback note",
+        "<p>This note must not be used as a fallback.</p>",
+    );
+    let request = request_for(&session.id, GenerateAiActionKind::Summary, None);
+
+    let error = match prepare_ai_action_generation(&service, &request) {
+        Ok(_) => panic!("summary without a selected note must be rejected"),
+        Err(error) => error,
+    };
+
+    assert!(
+        error
+            .to_string()
+            .contains("Summarize notes requires an editable note entry")
+    );
+    assert_eq!(count_table_rows(&service, "ai_runs"), 0);
+    assert_eq!(count_table_rows(&service, "generation_contexts"), 0);
 }
 
 #[test]
@@ -392,4 +425,14 @@ fn success_generation_output(response: &str) -> ProviderGenerationOutput {
         assistant_text: None,
         cancelled: false,
     }
+}
+
+fn count_table_rows(service: &SessionService, table: &str) -> i64 {
+    service
+        .database()
+        .connection()
+        .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| {
+            row.get(0)
+        })
+        .expect("table row count")
 }

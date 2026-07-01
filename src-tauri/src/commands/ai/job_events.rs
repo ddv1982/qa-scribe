@@ -67,51 +67,6 @@ pub(super) fn send_progress(
     Ok(status)
 }
 
-pub(super) fn send_job_failure(
-    events: &Channel<GenerationJobEvent>,
-    jobs: &JobStore,
-    job_id: &str,
-    request: &GenerateAiActionRequest,
-    result: Result<GenerateAiActionResult, String>,
-    fallback_error: String,
-) {
-    match result {
-        Ok(result) => {
-            let error_message = result
-                .ai_run
-                .error_message
-                .clone()
-                .unwrap_or(fallback_error);
-            let status = jobs.fail(job_id, &error_message).unwrap_or_else(|_| {
-                fallback_status(job_id, request, GenerationJobState::Failed, &error_message)
-            });
-            send_event(
-                events,
-                GenerationJobEvent::Failed {
-                    job_id: job_id.to_string(),
-                    status,
-                    error_message,
-                    ai_run: Some(result.ai_run),
-                },
-            );
-        }
-        Err(error) => {
-            let status = jobs.fail(job_id, &error).unwrap_or_else(|_| {
-                fallback_status(job_id, request, GenerationJobState::Failed, &error)
-            });
-            send_event(
-                events,
-                GenerationJobEvent::Failed {
-                    job_id: job_id.to_string(),
-                    status,
-                    error_message: error,
-                    ai_run: None,
-                },
-            );
-        }
-    }
-}
-
 pub(super) fn finish_cancelled_job(
     events: &Channel<GenerationJobEvent>,
     jobs: &JobStore,

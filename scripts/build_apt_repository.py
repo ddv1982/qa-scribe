@@ -20,6 +20,8 @@ from dataclasses import dataclass
 from email.parser import Parser
 from email.utils import format_datetime
 
+from package_archive import extract_tar_member, read_ar_entries
+
 
 DEFAULT_SUITE = "stable"
 DEFAULT_COMPONENT = "main"
@@ -48,65 +50,6 @@ class DebPackage:
     sha256: str
     metainfo_xml: bytes
     desktop_fields: dict[str, str]
-
-
-def read_ar_entries(deb_path: pathlib.Path) -> dict[str, bytes]:
-    entries: dict[str, bytes] = {}
-    with deb_path.open("rb") as handle:
-        if handle.read(8) != b"!<arch>\n":
-            raise ValueError(f"{deb_path} is not a Debian ar archive")
-
-        while True:
-            header = handle.read(60)
-            if not header:
-                break
-            if len(header) != 60 or header[58:60] != b"`\n":
-                raise ValueError(f"{deb_path} has an invalid ar member header")
-
-            name = header[:16].decode("utf-8", errors="replace").strip().rstrip("/")
-            try:
-                size = int(header[48:58].decode("ascii").strip())
-            except ValueError as error:
-                raise ValueError(f"{deb_path} has an invalid ar member size") from error
-
-            data = handle.read(size)
-            if len(data) != size:
-                raise ValueError(f"{deb_path} has a truncated ar member")
-            if size % 2 == 1:
-                handle.read(1)
-            entries[name] = data
-    return entries
-
-
-def extract_tar_member(archive_name: str, data: bytes, predicate) -> dict[str, bytes]:
-    if archive_name.endswith(".tar.zst"):
-        zstd = shutil.which("zstd")
-        if not zstd:
-            raise ValueError(".deb uses zstd-compressed tar members; zstd is required")
-        completed = subprocess.run(
-            [zstd, "-dc"],
-            input=data,
-            check=False,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-        if completed.returncode != 0:
-            raise ValueError(completed.stderr.decode("utf-8", errors="replace"))
-        data = completed.stdout
-        mode = "r:"
-    else:
-        mode = "r:*"
-
-    found: dict[str, bytes] = {}
-    with tarfile.open(fileobj=io.BytesIO(data), mode=mode) as tar:
-        for member in tar.getmembers():
-            normalized = member.name.removeprefix("./")
-            if not member.isfile() or not predicate(normalized):
-                continue
-            extracted = tar.extractfile(member)
-            if extracted is not None:
-                found[normalized] = extracted.read()
-    return found
 
 
 def parse_control(control_bytes: bytes) -> dict[str, str]:

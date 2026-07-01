@@ -5,18 +5,18 @@ from __future__ import annotations
 
 import argparse
 import glob
-import io
 import json
 import pathlib
 import shlex
 import shutil
 import subprocess
 import sys
-import tarfile
 import tempfile
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from typing import Any
+
+from package_archive import extract_data_archive, read_ar_entries
 
 
 DEFAULT_COMPONENT_ID = "io.github.ddv1982.qa-scribe"
@@ -140,69 +140,6 @@ def first_release(element: ET.Element) -> tuple[str | None, str | None]:
         if strip_ns(child.tag) == "release":
             return child.attrib.get("version"), child.attrib.get("date")
     return None, None
-
-
-def read_ar_entries(deb_path: pathlib.Path) -> dict[str, bytes]:
-    entries: dict[str, bytes] = {}
-    with deb_path.open("rb") as handle:
-        if handle.read(8) != b"!<arch>\n":
-            raise ValueError("not a Debian ar archive: missing global header")
-        while True:
-            header = handle.read(60)
-            if not header:
-                break
-            if len(header) != 60 or header[58:60] != b"`\n":
-                raise ValueError("invalid ar member header")
-            name = header[:16].decode("utf-8", errors="replace").strip().rstrip("/")
-            size = int(header[48:58].decode("ascii").strip())
-            data = handle.read(size)
-            if len(data) != size:
-                raise ValueError("truncated ar member data")
-            if size % 2 == 1:
-                handle.read(1)
-            entries[name] = data
-    return entries
-
-
-def safe_extract_tar(tar: tarfile.TarFile, destination: pathlib.Path) -> None:
-    destination = destination.resolve()
-    for member in tar.getmembers():
-        output_path = destination / member.name.removeprefix("./")
-        try:
-            output_path.resolve().relative_to(destination)
-        except ValueError as error:
-            raise ValueError(f"refusing unsafe tar member path: {member.name}") from error
-        if member.isdir():
-            output_path.mkdir(parents=True, exist_ok=True)
-            continue
-        if not member.isreg():
-            raise ValueError(f"refusing non-regular tar member: {member.name}")
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        source = tar.extractfile(member)
-        if source is None:
-            raise ValueError(f"could not read tar member: {member.name}")
-        with source, output_path.open("wb") as handle:
-            shutil.copyfileobj(source, handle)
-        output_path.chmod(member.mode & 0o777)
-
-
-def extract_data_archive(data_name: str, data: bytes, destination: pathlib.Path) -> str:
-    if data_name.endswith(".tar.zst"):
-        zstd = shutil.which("zstd")
-        if not zstd:
-            raise ValueError("data.tar.zst requires the zstd command")
-        completed = subprocess.run([zstd, "-dc"], input=data, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        if completed.returncode != 0:
-            raise ValueError(completed.stderr.decode("utf-8", errors="replace"))
-        data = completed.stdout
-        mode = "r:"
-        extraction = "python-ar+zstd+tarfile"
-    else:
-        mode = "r:*"
-        extraction = "python-ar+tarfile"
-    with tarfile.open(fileobj=io.BytesIO(data), mode=mode) as tar:
-        safe_extract_tar(tar, destination)
-    return extraction
 
 
 def extract_deb(deb_path: pathlib.Path, destination: pathlib.Path) -> str:

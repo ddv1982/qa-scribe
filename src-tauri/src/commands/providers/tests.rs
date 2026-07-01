@@ -1,7 +1,10 @@
 use std::{
     cell::RefCell,
     collections::{HashMap, HashSet},
+    fs,
     path::PathBuf,
+    process::Command,
+    time::Duration,
 };
 
 use qa_scribe_core::{ai::CopilotRuntime, domain::AiProvider};
@@ -10,7 +13,7 @@ use super::{
     ProviderModelSource, ProviderState,
     cache::clear_readiness_cache,
     detection::{detect_provider, provider_readiness_with_runners},
-    probe::{CommandProbe, DetectionMode, ProbeRunner},
+    probe::{CommandProbe, DetectionMode, ProbeRunner, run_command_with_timeout},
     provider_status_with_runner,
 };
 
@@ -85,6 +88,20 @@ impl CommandProbe {
     }
 }
 
+#[test]
+fn provider_probe_cleans_temp_files_when_spawn_fails() {
+    let before = provider_probe_temp_files();
+
+    let error = run_command_with_timeout(
+        Command::new("qa-scribe-provider-probe-command-that-does-not-exist"),
+        Duration::from_millis(10),
+    )
+    .expect_err("missing command should fail to spawn");
+
+    assert_eq!(error.kind(), std::io::ErrorKind::NotFound);
+    assert_eq!(provider_probe_temp_files(), before);
+}
+
 fn copilot_prompt_help() -> CommandProbe {
     CommandProbe::success_with_stdout(
         "Usage: copilot [options]\n  -p, --prompt <prompt> Execute a prompt in non-interactive mode",
@@ -97,6 +114,20 @@ fn command_key(program: &str, args: &[&str]) -> String {
     } else {
         format!("{} {}", program, args.join(" "))
     }
+}
+
+fn provider_probe_temp_files() -> HashSet<PathBuf> {
+    let prefix = format!("qa-scribe-provider-probe-{}-", std::process::id());
+    fs::read_dir(std::env::temp_dir())
+        .expect("temp dir should be readable")
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .filter(|path| {
+            path.file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| name.starts_with(&prefix))
+        })
+        .collect()
 }
 
 #[test]
