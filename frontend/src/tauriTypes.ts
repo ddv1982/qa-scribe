@@ -97,14 +97,6 @@ export type FindingPatch = {
   bodyFormat?: string | null
 }
 
-export type EvidenceLink = {
-  id: string
-  findingId: string
-  entryId: string | null
-  attachmentId: string | null
-  createdAt: string
-}
-
 export type Attachment = {
   id: string
   sessionId: string
