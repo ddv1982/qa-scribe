@@ -53,7 +53,9 @@ impl ProviderStreamParser {
         };
 
         let event_name = stream_event_name(&value);
-        if let Some(final_text) = final_text_from_event(&value) {
+        if let Some(final_text) = final_text_from_event(&value)
+            && (self.assistant_text.is_empty() || final_text.len() >= self.assistant_text.len())
+        {
             self.assistant_text = final_text;
             return vec![StreamUpdate::Partial(self.assistant_text.clone())];
         }
@@ -276,5 +278,46 @@ mod tests {
         parser.push_bytes(b"line two\n");
 
         assert_eq!(parser.finish().as_deref(), Some("line one\nline two"));
+    }
+
+    #[test]
+    fn stream_parser_does_not_let_short_completed_item_clobber_long_answer() {
+        let mut parser = ProviderStreamParser::new(GenerationOutputFormat::CodexJsonl);
+
+        let long_answer = "This is the real, complete answer with plenty of detail.";
+        parser.push_bytes(
+            format!(r#"{{"type":"item/agentMessage/delta","delta":"{long_answer}"}}"#).as_bytes(),
+        );
+
+        // A reasoning/tool item completion event with a short nested `text`
+        // field must not overwrite the accumulated long answer.
+        let updates = parser
+            .push_bytes(br#"{"type":"item.completed","item":{"type":"reasoning","text":"ok"}}"#);
+
+        assert!(
+            updates.is_empty()
+                || matches!(
+                    updates.last(),
+                    Some(StreamUpdate::Progress(_)) | Some(StreamUpdate::Partial(_))
+                )
+        );
+        assert_eq!(parser.finish().as_deref(), Some(long_answer));
+    }
+
+    #[test]
+    fn stream_parser_genuine_final_result_still_replaces_streamed_partials() {
+        let mut parser = ProviderStreamParser::new(GenerationOutputFormat::CodexJsonl);
+
+        parser.push_bytes(br#"{"type":"item/agentMessage/delta","delta":"partial"}"#);
+
+        let full_answer = "The complete final answer, longer than the partial streamed text.";
+        let updates = parser
+            .push_bytes(format!(r#"{{"type":"result","result":"{full_answer}"}}"#).as_bytes());
+
+        assert!(matches!(
+            updates.last(),
+            Some(StreamUpdate::Partial(body)) if body == full_answer
+        ));
+        assert_eq!(parser.finish().as_deref(), Some(full_answer));
     }
 }
