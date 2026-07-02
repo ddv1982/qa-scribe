@@ -3,10 +3,7 @@ target/
 src-tauri/gen/
 out/
 dist/
-dist-electron/
 release/
-build/
-!build/
 build/*
 !build/icons/
 !build/icons/*.png
@@ -18,7 +15,6 @@ build/macos/*
 !build/macos/AppIcon.iconset/
 !build/macos/AppIcon.iconset/*.png
 !build/entitlements.mac.plist
-!build/entitlements.mac.inherit.plist
 artifacts/
 .DS_Store
 *.log

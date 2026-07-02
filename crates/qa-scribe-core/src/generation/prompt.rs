@@ -1,4 +1,4 @@
-use crate::domain::{AppSettings, Attachment, Entry, Finding};
+use crate::domain::{AppSettings, Attachment, Entry};
 
 use super::html_projection::project_html_to_prompt_text;
 
@@ -21,8 +21,6 @@ pub fn render_action_prompt(
     settings: &AppSettings,
     session_title: &str,
     note_entry: Option<&Entry>,
-    _entries: &[Entry],
-    _findings: &[Finding],
     attachments: &[Attachment],
     action: ActionPromptKind,
 ) -> String {
@@ -248,9 +246,10 @@ fn truncate_chars(value: &str, max_chars: usize) -> String {
 
 pub fn managed_attachment_ids_from_html(value: &str) -> Vec<String> {
     let mut ids = Vec::new();
+    // Both collectors already skip ids already present in `ids`, so the
+    // combined result is de-duplicated without a separate pass here.
     collect_attribute_values(value, "data-attachment-id", &mut ids);
     collect_protocol_sources(value, &mut ids);
-    ids.dedup();
     ids
 }
 

@@ -1,4 +1,4 @@
-use qa_scribe_core::{ai::CopilotRuntime, domain::AiProvider};
+use qa_scribe_core::domain::AiProvider;
 use serde::Serialize;
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -59,7 +59,7 @@ impl ProviderState {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ProviderReadiness {
     pub descriptor: ProviderDescriptor,
-    pub copilot_runtime: Option<CopilotRuntime>,
+    pub copilot_direct_cli_ready: bool,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]

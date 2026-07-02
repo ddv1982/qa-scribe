@@ -1,4 +1,4 @@
-use crate::domain::{Attachment, Entry, EntryType, Finding, FindingKind};
+use crate::domain::{Attachment, Entry, EntryType};
 
 pub fn test_entry(id: &str, entry_type: EntryType, title: Option<&str>, body: &str) -> Entry {
     Entry {
@@ -11,21 +11,6 @@ pub fn test_entry(id: &str, entry_type: EntryType, title: Option<&str>, body: &s
         body_format: Some("html".to_string()),
         metadata_json: None,
         excluded_from_generation: false,
-        created_at: "2026-06-23T00:00:00Z".to_string(),
-        updated_at: "2026-06-23T00:00:00Z".to_string(),
-    }
-}
-
-pub fn test_finding(id: &str, title: &str, body: &str) -> Finding {
-    Finding {
-        id: id.to_string(),
-        session_id: "session-1".to_string(),
-        title: title.to_string(),
-        body: body.to_string(),
-        body_json: None,
-        body_format: Some("html".to_string()),
-        kind: FindingKind::Bug,
-        metadata_json: None,
         created_at: "2026-06-23T00:00:00Z".to_string(),
         updated_at: "2026-06-23T00:00:00Z".to_string(),
     }

@@ -7,7 +7,7 @@ use std::{
     time::Duration,
 };
 
-use qa_scribe_core::{ai::CopilotRuntime, domain::AiProvider};
+use qa_scribe_core::domain::AiProvider;
 
 use super::{
     ProviderModelSource, ProviderState,
@@ -304,7 +304,7 @@ fn copilot_install_detection_ignores_gh_copilot() {
 
     assert_eq!(readiness.descriptor.status, ProviderState::InstallRequired);
     assert!(!readiness.descriptor.available);
-    assert_eq!(readiness.copilot_runtime, None);
+    assert!(!readiness.copilot_direct_cli_ready);
     assert!(
         readiness
             .descriptor
@@ -322,7 +322,7 @@ fn copilot_fast_detection_is_ready_without_cli_process() {
 
     assert_eq!(readiness.descriptor.status, ProviderState::Ready);
     assert!(readiness.descriptor.available);
-    assert_eq!(readiness.copilot_runtime, Some(CopilotRuntime::DirectCli));
+    assert!(readiness.copilot_direct_cli_ready);
     assert_eq!(
         readiness.descriptor.command.as_deref(),
         Some("copilot -s --no-ask-user (prompt on stdin)")
@@ -343,7 +343,7 @@ fn copilot_deep_detection_checks_prompt_support_without_prompt_probe() {
 
     assert_eq!(readiness.descriptor.status, ProviderState::Ready);
     assert!(readiness.descriptor.available);
-    assert_eq!(readiness.copilot_runtime, Some(CopilotRuntime::DirectCli));
+    assert!(readiness.copilot_direct_cli_ready);
     assert!(runner.calls().contains(&"copilot help config".to_string()));
     assert!(runner.calls().contains(&"copilot --help".to_string()));
     assert!(!runner.calls().contains(&"copilot version".to_string()));
@@ -368,7 +368,7 @@ fn copilot_direct_cli_without_prompt_mode_is_not_ready() {
 
     assert_eq!(readiness.descriptor.status, ProviderState::Error);
     assert!(!readiness.descriptor.available);
-    assert_eq!(readiness.copilot_runtime, None);
+    assert!(!readiness.copilot_direct_cli_ready);
     assert_eq!(
         readiness.descriptor.command.as_deref(),
         Some("copilot update")
@@ -447,7 +447,7 @@ fn retired_gh_copilot_extension_is_not_a_runtime_fallback() {
 
     assert_eq!(readiness.descriptor.status, ProviderState::InstallRequired);
     assert!(!readiness.descriptor.available);
-    assert_eq!(readiness.copilot_runtime, None);
+    assert!(!readiness.copilot_direct_cli_ready);
     assert_eq!(readiness.descriptor.command.as_deref(), None);
     assert!(
         readiness
@@ -472,7 +472,7 @@ fn claude_installed_but_not_authenticated_is_not_ready() {
 
     assert_eq!(readiness.descriptor.status, ProviderState::AuthRequired);
     assert!(!readiness.descriptor.available);
-    assert_eq!(readiness.copilot_runtime, None);
+    assert!(!readiness.copilot_direct_cli_ready);
 }
 
 #[test]
@@ -489,5 +489,5 @@ fn codex_installed_but_not_authenticated_is_not_ready() {
 
     assert_eq!(readiness.descriptor.status, ProviderState::AuthRequired);
     assert!(!readiness.descriptor.available);
-    assert_eq!(readiness.copilot_runtime, None);
+    assert!(!readiness.copilot_direct_cli_ready);
 }

@@ -1,19 +1,14 @@
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::domain::AiProvider;
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProviderCapability {
     pub id: AiProvider,
     pub label: &'static str,
     pub executable: &'static str,
     pub version_args: Vec<&'static str>,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum CopilotRuntime {
-    DirectCli,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -59,14 +54,14 @@ pub fn generation_command(
     prompt: &str,
     model: &str,
     reasoning_effort: Option<&str>,
-    copilot_runtime: Option<CopilotRuntime>,
+    copilot_direct_cli_ready: bool,
 ) -> Result<GenerationCommand, String> {
     generation_command_for_mode(
         provider,
         prompt,
         model,
         reasoning_effort,
-        copilot_runtime,
+        copilot_direct_cli_ready,
         false,
     )
 }
@@ -76,14 +71,14 @@ pub fn streaming_generation_command(
     prompt: &str,
     model: &str,
     reasoning_effort: Option<&str>,
-    copilot_runtime: Option<CopilotRuntime>,
+    copilot_direct_cli_ready: bool,
 ) -> Result<GenerationCommand, String> {
     generation_command_for_mode(
         provider,
         prompt,
         model,
         reasoning_effort,
-        copilot_runtime,
+        copilot_direct_cli_ready,
         true,
     )
 }
@@ -93,7 +88,7 @@ fn generation_command_for_mode(
     prompt: &str,
     model: &str,
     reasoning_effort: Option<&str>,
-    copilot_runtime: Option<CopilotRuntime>,
+    copilot_direct_cli_ready: bool,
     stream_events: bool,
 ) -> Result<GenerationCommand, String> {
     let model_arg = selected_model_arg(model);
@@ -154,36 +149,35 @@ fn generation_command_for_mode(
         }
         AiProvider::CopilotCli => {
             let copilot_model_arg = selected_copilot_model_arg(model);
-            match copilot_runtime {
-                Some(CopilotRuntime::DirectCli) => {
-                    // The prompt is passed on stdin, not via `-p`/`--prompt`:
-                    // per the official docs
-                    // (https://docs.github.com/en/copilot/how-tos/copilot-cli/automate-copilot-cli/run-cli-programmatically),
-                    // Copilot CLI supports two programmatic invocation modes,
-                    // `copilot -p "PROMPT"` (argv) or `echo "PROMPT" | copilot`
-                    // (piped stdin), and "piped input is ignored if you also
-                    // provide a prompt with the -p or --prompt option." Passing
-                    // both `-p -` and stdin (as this code previously did) would
-                    // make Copilot treat the literal string "-" as the entire
-                    // prompt and silently discard the real session content, so
-                    // `-p`/`--prompt` must be omitted entirely and the prompt
-                    // must only ever be sent on stdin. This also avoids leaking
-                    // session content into argv (world-visible via `ps`) and
-                    // the OS ARG_MAX (~1MB on macOS) that large sessions could
-                    // exceed, mirroring how Claude Code and Codex CLI receive
-                    // the prompt.
-                    let mut args = vec!["-s".to_string(), "--no-ask-user".to_string()];
-                    if let Some(model) = copilot_model_arg {
-                        args.extend(["--model".to_string(), model]);
-                    }
-                    Ok(GenerationCommand {
-                        program: "copilot".to_string(),
-                        args,
-                        stdin: prompt.to_string(),
-                        output_format: GenerationOutputFormat::PlainText,
-                    })
+            if copilot_direct_cli_ready {
+                // The prompt is passed on stdin, not via `-p`/`--prompt`:
+                // per the official docs
+                // (https://docs.github.com/en/copilot/how-tos/copilot-cli/automate-copilot-cli/run-cli-programmatically),
+                // Copilot CLI supports two programmatic invocation modes,
+                // `copilot -p "PROMPT"` (argv) or `echo "PROMPT" | copilot`
+                // (piped stdin), and "piped input is ignored if you also
+                // provide a prompt with the -p or --prompt option." Passing
+                // both `-p -` and stdin (as this code previously did) would
+                // make Copilot treat the literal string "-" as the entire
+                // prompt and silently discard the real session content, so
+                // `-p`/`--prompt` must be omitted entirely and the prompt
+                // must only ever be sent on stdin. This also avoids leaking
+                // session content into argv (world-visible via `ps`) and
+                // the OS ARG_MAX (~1MB on macOS) that large sessions could
+                // exceed, mirroring how Claude Code and Codex CLI receive
+                // the prompt.
+                let mut args = vec!["-s".to_string(), "--no-ask-user".to_string()];
+                if let Some(model) = copilot_model_arg {
+                    args.extend(["--model".to_string(), model]);
                 }
-                None => Err("GitHub Copilot CLI is not ready.".to_string()),
+                Ok(GenerationCommand {
+                    program: "copilot".to_string(),
+                    args,
+                    stdin: prompt.to_string(),
+                    output_format: GenerationOutputFormat::PlainText,
+                })
+            } else {
+                Err("GitHub Copilot CLI is not ready.".to_string())
             }
         }
     }

@@ -41,7 +41,7 @@ pub(super) fn execute_provider_generation_streaming(
         prompt,
         model,
         reasoning_effort,
-        readiness.copilot_runtime,
+        readiness.copilot_direct_cli_ready,
     )?;
     let started = Instant::now();
     let mut last_partial_len = 0usize;

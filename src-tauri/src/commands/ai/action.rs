@@ -29,7 +29,6 @@ pub(super) fn prepare_ai_action_generation(
     let settings = service.get_settings()?;
     let entries = service.list_entries(&request.session_id)?;
     let note_entry = selected_note_entry(request, &entries)?;
-    let findings = service.list_findings(&request.session_id)?;
     let attachments = service.list_attachments(&request.session_id)?;
     let generation_context = service.create_generation_context(&request.session_id)?;
     let ai_run = service.create_ai_run(AiRunCreate {
@@ -45,8 +44,6 @@ pub(super) fn prepare_ai_action_generation(
         &settings,
         &session.title,
         note_entry,
-        &entries,
-        &findings,
         &attachments,
         request.action.prompt_kind(),
     );

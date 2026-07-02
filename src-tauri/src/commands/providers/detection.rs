@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use qa_scribe_core::{
-    ai::{CopilotRuntime, ProviderCapability, provider_capabilities},
+    ai::{ProviderCapability, provider_capabilities},
     domain::AiProvider,
 };
 
@@ -86,7 +86,7 @@ fn detect_claude(
             "claude -p",
             executable_path,
             models,
-            None,
+            false,
         );
     }
 
@@ -110,7 +110,7 @@ fn detect_claude(
             "claude -p",
             executable_path,
             models,
-            None,
+            false,
         );
     }
 
@@ -124,7 +124,7 @@ fn detect_claude(
         Some("claude auth status --json".to_string()),
         executable_path,
         models,
-        None,
+        false,
     )
 }
 
@@ -150,7 +150,7 @@ fn detect_codex(
             "codex exec --skip-git-repo-check -",
             executable_path,
             models,
-            None,
+            false,
         );
     }
 
@@ -174,7 +174,7 @@ fn detect_codex(
             "codex exec --skip-git-repo-check -",
             executable_path,
             models,
-            None,
+            false,
         );
     }
 
@@ -188,7 +188,7 @@ fn detect_codex(
         Some("codex login status".to_string()),
         executable_path,
         models,
-        None,
+        false,
     )
 }
 
@@ -220,7 +220,7 @@ fn detect_copilot(
             "copilot -s --no-ask-user (prompt on stdin)",
             executable_path,
             models,
-            Some(CopilotRuntime::DirectCli),
+            true,
         );
     }
 
@@ -236,7 +236,7 @@ fn detect_copilot(
             Some("copilot update".to_string()),
             executable_path,
             models,
-            None,
+            false,
         );
     }
 
@@ -246,7 +246,7 @@ fn detect_copilot(
         "copilot -s --no-ask-user (prompt on stdin)",
         executable_path,
         models,
-        Some(CopilotRuntime::DirectCli),
+        true,
     )
 }
 
@@ -256,7 +256,7 @@ fn ready(
     command: &str,
     executable_path: Option<PathBuf>,
     models: Vec<ProviderModelDescriptor>,
-    copilot_runtime: Option<CopilotRuntime>,
+    copilot_direct_cli_ready: bool,
 ) -> ProviderReadiness {
     descriptor(
         capability,
@@ -265,7 +265,7 @@ fn ready(
         Some(command.to_string()),
         executable_path,
         models,
-        copilot_runtime,
+        copilot_direct_cli_ready,
     )
 }
 
@@ -300,7 +300,7 @@ fn not_installed_or_error(
         None,
         executable_path,
         vec![provider_default_model()],
-        None,
+        false,
     )
 }
 
@@ -311,7 +311,7 @@ fn descriptor(
     command: Option<String>,
     executable_path: Option<PathBuf>,
     models: Vec<ProviderModelDescriptor>,
-    copilot_runtime: Option<CopilotRuntime>,
+    copilot_direct_cli_ready: bool,
 ) -> ProviderReadiness {
     ProviderReadiness {
         descriptor: ProviderDescriptor {
@@ -325,7 +325,7 @@ fn descriptor(
             models: normalize_models(models),
             local_only: true,
         },
-        copilot_runtime,
+        copilot_direct_cli_ready,
     }
 }
 

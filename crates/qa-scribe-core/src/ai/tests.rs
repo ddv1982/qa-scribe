@@ -14,7 +14,7 @@ fn provider_capabilities_cover_supported_providers() {
 #[test]
 fn codex_generation_reads_prompt_from_stdin() {
     let command =
-        generation_command(AiProvider::CodexCli, "draft this", "default", None, None).unwrap();
+        generation_command(AiProvider::CodexCli, "draft this", "default", None, false).unwrap();
 
     assert_eq!(command.program, "codex");
     assert_eq!(command.args, vec!["exec", "--skip-git-repo-check", "-"]);
@@ -25,7 +25,7 @@ fn codex_generation_reads_prompt_from_stdin() {
 #[test]
 fn codex_generation_uses_selected_model() {
     let command =
-        generation_command(AiProvider::CodexCli, "draft this", "gpt-5.5", None, None).unwrap();
+        generation_command(AiProvider::CodexCli, "draft this", "gpt-5.5", None, false).unwrap();
 
     assert_eq!(command.program, "codex");
     assert_eq!(
@@ -38,7 +38,7 @@ fn codex_generation_uses_selected_model() {
 #[test]
 fn claude_generation_uses_selected_model() {
     let command =
-        generation_command(AiProvider::ClaudeCode, "draft this", "sonnet", None, None).unwrap();
+        generation_command(AiProvider::ClaudeCode, "draft this", "sonnet", None, false).unwrap();
 
     assert_eq!(command.program, "claude");
     assert_eq!(command.args, vec!["-p", "--model", "sonnet"]);
@@ -52,7 +52,7 @@ fn codex_generation_uses_reasoning_effort_config() {
         "draft this",
         "gpt-5.5",
         Some("low"),
-        None,
+        false,
     )
     .unwrap();
 
@@ -77,7 +77,7 @@ fn claude_generation_uses_reasoning_effort() {
         "draft this",
         "sonnet",
         Some("low"),
-        None,
+        false,
     )
     .unwrap();
 
@@ -89,14 +89,8 @@ fn claude_generation_uses_reasoning_effort() {
 
 #[test]
 fn copilot_auto_omits_model_argument() {
-    let command = generation_command(
-        AiProvider::CopilotCli,
-        "draft this",
-        "auto",
-        None,
-        Some(CopilotRuntime::DirectCli),
-    )
-    .unwrap();
+    let command =
+        generation_command(AiProvider::CopilotCli, "draft this", "auto", None, true).unwrap();
 
     assert_eq!(command.program, "copilot");
     assert_eq!(command.args, vec!["-s", "--no-ask-user"]);
@@ -105,14 +99,8 @@ fn copilot_auto_omits_model_argument() {
 
 #[test]
 fn copilot_generation_uses_selected_model() {
-    let command = generation_command(
-        AiProvider::CopilotCli,
-        "draft this",
-        "gpt-5.5",
-        None,
-        Some(CopilotRuntime::DirectCli),
-    )
-    .unwrap();
+    let command =
+        generation_command(AiProvider::CopilotCli, "draft this", "gpt-5.5", None, true).unwrap();
 
     assert_eq!(command.program, "copilot");
     assert_eq!(
@@ -129,7 +117,7 @@ fn copilot_generation_does_not_leak_prompt_into_argv() {
         "sensitive session content",
         "default",
         None,
-        Some(CopilotRuntime::DirectCli),
+        true,
     )
     .unwrap();
 
@@ -149,14 +137,8 @@ fn copilot_generation_omits_prompt_flag_and_uses_stdin_only() {
     // Per https://docs.github.com/en/copilot/how-tos/copilot-cli/automate-copilot-cli/run-cli-programmatically,
     // piped stdin input is ignored whenever `-p`/`--prompt` is also supplied,
     // so the prompt must be sent exclusively via stdin with no `-p` argument.
-    let command = generation_command(
-        AiProvider::CopilotCli,
-        "draft this",
-        "default",
-        None,
-        Some(CopilotRuntime::DirectCli),
-    )
-    .unwrap();
+    let command =
+        generation_command(AiProvider::CopilotCli, "draft this", "default", None, true).unwrap();
 
     assert!(
         !command.args.iter().any(|arg| arg == "-p" || arg == "-"),
@@ -178,7 +160,7 @@ fn streaming_codex_generation_uses_json_events() {
         "draft this",
         "gpt-5.5",
         Some("medium"),
-        None,
+        false,
     )
     .unwrap();
 
@@ -205,7 +187,7 @@ fn streaming_claude_generation_uses_stream_json() {
         "draft this",
         "sonnet",
         Some("low"),
-        None,
+        false,
     )
     .unwrap();
 
@@ -231,14 +213,8 @@ fn streaming_claude_generation_uses_stream_json() {
 
 #[test]
 fn copilot_generation_uses_direct_cli_when_requested() {
-    let command = generation_command(
-        AiProvider::CopilotCli,
-        "draft this",
-        "default",
-        None,
-        Some(CopilotRuntime::DirectCli),
-    )
-    .unwrap();
+    let command =
+        generation_command(AiProvider::CopilotCli, "draft this", "default", None, true).unwrap();
 
     assert_eq!(command.program, "copilot");
     assert_eq!(command.args, vec!["-s", "--no-ask-user"]);
@@ -247,7 +223,7 @@ fn copilot_generation_uses_direct_cli_when_requested() {
 
 #[test]
 fn copilot_generation_requires_verified_runtime() {
-    let error = generation_command(AiProvider::CopilotCli, "draft this", "default", None, None)
+    let error = generation_command(AiProvider::CopilotCli, "draft this", "default", None, false)
         .unwrap_err();
 
     assert_eq!(error, "GitHub Copilot CLI is not ready.");
@@ -261,7 +237,7 @@ fn reasoning_effort_allowlist_accepts_known_values() {
             "draft this",
             "gpt-5.5",
             Some(effort),
-            None,
+            false,
         )
         .unwrap();
 
@@ -280,7 +256,7 @@ fn reasoning_effort_rejects_toml_injection() {
         "draft this",
         "gpt-5.5",
         Some(r#"high" sandbox_mode="danger-full-access"#),
-        None,
+        false,
     )
     .unwrap_err();
 
@@ -297,7 +273,7 @@ fn reasoning_effort_rejects_unknown_value_for_claude() {
         "draft this",
         "sonnet",
         Some("extreme"),
-        None,
+        false,
     )
     .unwrap_err();
 

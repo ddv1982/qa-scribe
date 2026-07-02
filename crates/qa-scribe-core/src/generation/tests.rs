@@ -1,6 +1,6 @@
 use crate::domain::{AppSettings, EntryType};
 
-use super::test_support::{test_attachment, test_entry, test_finding};
+use super::test_support::{test_attachment, test_entry};
 use super::*;
 
 #[test]
@@ -73,21 +73,12 @@ fn finding_prompt_is_note_local_html_and_compact() {
         Some("Selected note"),
         "<h2>Selected</h2><p>Guest checkout failed.</p><img src=\"data:image/png;base64,AAAA\" />",
     );
-    let supporting = test_entry(
-        "entry-support",
-        EntryType::Observation,
-        Some("Console"),
-        "<p>Console showed <code>500</code>.</p>",
-    );
-    let finding = test_finding("finding-1", "Existing bug", "<p>Previous finding.</p>");
     let attachment = test_attachment("attachment-1", Some("entry-support"), "console.png");
 
     let prompt = render_action_prompt(
         &AppSettings::default(),
         "Checkout regression",
         Some(&selected),
-        &[selected.clone(), supporting],
-        &[finding],
         &[attachment],
         ActionPromptKind::Finding,
     );
@@ -98,8 +89,6 @@ fn finding_prompt_is_note_local_html_and_compact() {
     assert!(prompt.contains("Create exactly one focused QA finding"));
     assert!(prompt.contains("Do not create test scenarios, test cases"));
     assert!(prompt.contains("Do not escape tags as &lt;p&gt;"));
-    assert!(!prompt.contains("Console showed 500."));
-    assert!(!prompt.contains("Previous finding."));
     assert!(!prompt.contains("console.png"));
     assert!(!prompt.contains("sha256"));
     assert!(!prompt.contains("<h2>"));
@@ -123,8 +112,6 @@ fn finding_prompt_includes_selected_note_managed_image_refs() {
         &AppSettings::default(),
         "Gmail issue",
         Some(&selected),
-        std::slice::from_ref(&selected),
-        &[],
         &[selected_attachment, supporting_attachment],
         ActionPromptKind::Finding,
     );
@@ -147,21 +134,12 @@ fn testware_prompt_is_note_local_html_and_compact() {
         Some("Selected note"),
         "<p>Checkout fails after applying coupon.</p>",
     );
-    let supporting = test_entry(
-        "entry-support",
-        EntryType::Observation,
-        Some("Console"),
-        "<p>Console showed <code>500</code>.</p>",
-    );
-    let finding = test_finding("finding-1", "Existing bug", "<p>Previous finding.</p>");
     let attachment = test_attachment("attachment-1", Some("entry-support"), "console.png");
 
     let prompt = render_action_prompt(
         &AppSettings::default(),
         "Checkout regression",
         Some(&selected),
-        &[selected.clone(), supporting],
-        &[finding],
         &[attachment],
         ActionPromptKind::Testware,
     );
@@ -180,8 +158,6 @@ fn testware_prompt_is_note_local_html_and_compact() {
     assert!(!prompt.contains("Session Report Draft"));
     assert!(!prompt.contains("Finding Draft"));
     assert!(prompt.contains("Checkout fails after applying coupon."));
-    assert!(!prompt.contains("Console showed 500."));
-    assert!(!prompt.contains("Previous finding."));
     assert!(!prompt.contains("console.png"));
     assert!(!prompt.contains("sha256"));
     assert!(prompt.len() < 18_000);
@@ -204,8 +180,6 @@ fn testware_prompt_includes_selected_note_managed_image_refs() {
         &AppSettings::default(),
         "Gmail issue",
         Some(&selected),
-        std::slice::from_ref(&selected),
-        &[],
         &[selected_attachment, supporting_attachment],
         ActionPromptKind::Testware,
     );
@@ -232,8 +206,6 @@ fn action_prompt_reports_material_truncation() {
         &AppSettings::default(),
         "Large note",
         Some(&selected),
-        std::slice::from_ref(&selected),
-        &[],
         &[],
         ActionPromptKind::Summary,
     );
@@ -251,21 +223,12 @@ fn summary_prompt_is_note_local_and_uses_compact_managed_image_refs() {
         Some("Selected note"),
         "<p>Gmail failed.</p><img src=\"qa-scribe-attachment://attachment-1\" data-attachment-id=\"attachment-1\" alt=\"gmail-error.png\" />",
     );
-    let supporting = test_entry(
-        "entry-support",
-        EntryType::Observation,
-        Some("Console"),
-        "<p>Console showed <code>500</code>.</p>",
-    );
-    let finding = test_finding("finding-1", "Known bug", "<p>Existing finding.</p>");
     let attachment = test_attachment("attachment-1", Some("entry-selected"), "gmail-error.png");
 
     let prompt = render_action_prompt(
         &AppSettings::default(),
         "Gmail issue",
         Some(&selected),
-        &[selected.clone(), supporting],
-        &[finding],
         &[attachment],
         ActionPromptKind::Summary,
     );
@@ -276,8 +239,6 @@ fn summary_prompt_is_note_local_and_uses_compact_managed_image_refs() {
     assert!(prompt.contains("Do not escape tags as &lt;p&gt;"));
     assert!(prompt.contains("Keep the output as a summarized QA note"));
     assert!(prompt.contains("Do not create findings, test scenarios, test cases"));
-    assert!(!prompt.contains("Console showed 500."));
-    assert!(!prompt.contains("Existing finding."));
     assert!(!prompt.contains("attachments/session/attachment-1_gmail-error.png"));
     assert!(!prompt.contains("sha256"));
 }
@@ -297,15 +258,7 @@ fn default_action_prompts_do_not_inherit_testware_specific_global_instructions()
         ActionPromptKind::Summary,
         ActionPromptKind::Testware,
     ] {
-        let prompt = render_action_prompt(
-            &settings,
-            "Gmail issue",
-            Some(&selected),
-            std::slice::from_ref(&selected),
-            &[],
-            &[],
-            action,
-        );
+        let prompt = render_action_prompt(&settings, "Gmail issue", Some(&selected), &[], action);
 
         assert!(!prompt.contains(
             "Turn the selected Session material into concise, evidence-grounded Testware."
