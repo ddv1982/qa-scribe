@@ -99,7 +99,7 @@ fn copilot_auto_omits_model_argument() {
     .unwrap();
 
     assert_eq!(command.program, "copilot");
-    assert_eq!(command.args, vec!["-p", "-", "-s", "--no-ask-user"]);
+    assert_eq!(command.args, vec!["-s", "--no-ask-user"]);
     assert_eq!(command.stdin, "draft this");
 }
 
@@ -117,7 +117,7 @@ fn copilot_generation_uses_selected_model() {
     assert_eq!(command.program, "copilot");
     assert_eq!(
         command.args,
-        vec!["-p", "-", "-s", "--no-ask-user", "--model", "gpt-5.5"]
+        vec!["-s", "--no-ask-user", "--model", "gpt-5.5"]
     );
     assert_eq!(command.stdin, "draft this");
 }
@@ -142,6 +142,33 @@ fn copilot_generation_does_not_leak_prompt_into_argv() {
         command.args
     );
     assert_eq!(command.stdin, "sensitive session content");
+}
+
+#[test]
+fn copilot_generation_omits_prompt_flag_and_uses_stdin_only() {
+    // Per https://docs.github.com/en/copilot/how-tos/copilot-cli/automate-copilot-cli/run-cli-programmatically,
+    // piped stdin input is ignored whenever `-p`/`--prompt` is also supplied,
+    // so the prompt must be sent exclusively via stdin with no `-p` argument.
+    let command = generation_command(
+        AiProvider::CopilotCli,
+        "draft this",
+        "default",
+        None,
+        Some(CopilotRuntime::DirectCli),
+    )
+    .unwrap();
+
+    assert!(
+        !command.args.iter().any(|arg| arg == "-p" || arg == "-"),
+        "copilot argv must not contain -p or a literal '-' prompt placeholder: {:?}",
+        command.args
+    );
+    assert!(
+        !command.args.iter().any(|arg| arg == "draft this"),
+        "prompt must not appear in argv: {:?}",
+        command.args
+    );
+    assert_eq!(command.stdin, "draft this");
 }
 
 #[test]
@@ -214,7 +241,7 @@ fn copilot_generation_uses_direct_cli_when_requested() {
     .unwrap();
 
     assert_eq!(command.program, "copilot");
-    assert_eq!(command.args, vec!["-p", "-", "-s", "--no-ask-user"]);
+    assert_eq!(command.args, vec!["-s", "--no-ask-user"]);
     assert_eq!(command.stdin, "draft this");
 }
 
@@ -228,7 +255,7 @@ fn copilot_generation_requires_verified_runtime() {
 
 #[test]
 fn reasoning_effort_allowlist_accepts_known_values() {
-    for effort in ["minimal", "low", "medium", "high"] {
+    for effort in ["minimal", "low", "medium", "high", "xhigh"] {
         let command = generation_command(
             AiProvider::CodexCli,
             "draft this",

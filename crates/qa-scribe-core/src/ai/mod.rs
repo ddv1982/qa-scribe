@@ -156,18 +156,23 @@ fn generation_command_for_mode(
             let copilot_model_arg = selected_copilot_model_arg(model);
             match copilot_runtime {
                 Some(CopilotRuntime::DirectCli) => {
-                    // The prompt is passed on stdin (via `-p -`), not as an argv
-                    // element: argv is world-visible to any local process (e.g.
-                    // `ps`), which would leak session content, and is bounded by
-                    // the OS ARG_MAX (~1MB on macOS), which large sessions can
-                    // exceed. This mirrors how Claude Code and Codex CLI receive
+                    // The prompt is passed on stdin, not via `-p`/`--prompt`:
+                    // per the official docs
+                    // (https://docs.github.com/en/copilot/how-tos/copilot-cli/automate-copilot-cli/run-cli-programmatically),
+                    // Copilot CLI supports two programmatic invocation modes,
+                    // `copilot -p "PROMPT"` (argv) or `echo "PROMPT" | copilot`
+                    // (piped stdin), and "piped input is ignored if you also
+                    // provide a prompt with the -p or --prompt option." Passing
+                    // both `-p -` and stdin (as this code previously did) would
+                    // make Copilot treat the literal string "-" as the entire
+                    // prompt and silently discard the real session content, so
+                    // `-p`/`--prompt` must be omitted entirely and the prompt
+                    // must only ever be sent on stdin. This also avoids leaking
+                    // session content into argv (world-visible via `ps`) and
+                    // the OS ARG_MAX (~1MB on macOS) that large sessions could
+                    // exceed, mirroring how Claude Code and Codex CLI receive
                     // the prompt.
-                    let mut args = vec![
-                        "-p".to_string(),
-                        "-".to_string(),
-                        "-s".to_string(),
-                        "--no-ask-user".to_string(),
-                    ];
+                    let mut args = vec!["-s".to_string(), "--no-ask-user".to_string()];
                     if let Some(model) = copilot_model_arg {
                         args.extend(["--model".to_string(), model]);
                     }
@@ -209,7 +214,7 @@ fn selected_copilot_model_arg(model: &str) -> Option<String> {
 /// selection is constrained to this set; anything else (e.g. a value crafted
 /// to break out of the quoted TOML string Codex receives via `--config`) is
 /// rejected rather than interpolated.
-const ALLOWED_REASONING_EFFORTS: [&str; 4] = ["minimal", "low", "medium", "high"];
+const ALLOWED_REASONING_EFFORTS: [&str; 5] = ["minimal", "low", "medium", "high", "xhigh"];
 
 fn selected_reasoning_effort_arg(reasoning_effort: Option<&str>) -> Result<Option<String>, String> {
     let Some(raw) = reasoning_effort else {

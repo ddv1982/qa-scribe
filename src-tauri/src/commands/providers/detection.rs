@@ -217,7 +217,7 @@ fn detect_copilot(
         return ready(
             capability,
             "GitHub Copilot CLI executable was found. Authentication will be verified when generation runs.",
-            "copilot -p <prompt> -s --no-ask-user",
+            "copilot -s --no-ask-user (prompt on stdin)",
             executable_path,
             models,
             Some(CopilotRuntime::DirectCli),
@@ -243,7 +243,7 @@ fn detect_copilot(
     ready(
         capability,
         "GitHub Copilot CLI is installed and exposes noninteractive prompt mode. Authentication will be verified when generation runs.",
-        "copilot -p <prompt> -s --no-ask-user",
+        "copilot -s --no-ask-user (prompt on stdin)",
         executable_path,
         models,
         Some(CopilotRuntime::DirectCli),

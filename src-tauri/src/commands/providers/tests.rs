@@ -325,7 +325,7 @@ fn copilot_fast_detection_is_ready_without_cli_process() {
     assert_eq!(readiness.copilot_runtime, Some(CopilotRuntime::DirectCli));
     assert_eq!(
         readiness.descriptor.command.as_deref(),
-        Some("copilot -p <prompt> -s --no-ask-user")
+        Some("copilot -s --no-ask-user (prompt on stdin)")
     );
     assert!(readiness.descriptor.reason.contains("executable was found"));
     assert!(runner.calls().is_empty());
