@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, copyFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isCurrentVersionDesktopArtifactName } from './command-utils.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const args = new Set(process.argv.slice(2));
@@ -51,7 +52,7 @@ function collectArtifacts(root) {
     for (const entry of readdirSync(directory)) {
       if (entry.endsWith(extension)) {
         const artifact = path.join(directory, entry);
-        if (!isCurrentVersionArtifact(entry)) {
+        if (!isCurrentVersionDesktopArtifactName(entry, version)) {
           console.warn(`Skipping non-current Tauri artifact: ${path.relative(repoRoot, artifact)}`);
           continue;
         }
@@ -61,23 +62,6 @@ function collectArtifacts(root) {
   }
 
   return artifacts;
-}
-
-function isCurrentVersionArtifact(name) {
-  if (name.endsWith('.deb')) {
-    return new RegExp(`^qa-scribe_${escapeRegExp(version)}_[A-Za-z0-9_]+\\.deb$`).test(name);
-  }
-  if (name.endsWith('.rpm')) {
-    return new RegExp(`^qa-scribe-${escapeRegExp(version)}-[A-Za-z0-9_.+-]+\\.rpm$`).test(name);
-  }
-  if (name.endsWith('.AppImage')) {
-    return new RegExp(`(^|[_ .-])${escapeRegExp(version)}([_ .-]|$)`).test(name);
-  }
-  return false;
-}
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 if (!skipBuild) {

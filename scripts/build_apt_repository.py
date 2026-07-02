@@ -20,7 +20,16 @@ from dataclasses import dataclass
 from email.parser import Parser
 from email.utils import format_datetime
 
-from package_archive import extract_tar_member, read_ar_entries
+from package_archive import (
+    child_text,
+    descendant_text,
+    extract_tar_member,
+    first_release,
+    launchable_desktop_id,
+    parse_desktop_file,
+    read_ar_entries,
+    strip_ns,
+)
 
 
 DEFAULT_SUITE = "stable"
@@ -55,22 +64,6 @@ class DebPackage:
 def parse_control(control_bytes: bytes) -> dict[str, str]:
     message = Parser().parsestr(control_bytes.decode("utf-8", errors="replace"))
     return {key: value for key, value in message.items()}
-
-
-def parse_desktop_file(data: bytes) -> dict[str, str]:
-    fields: dict[str, str] = {}
-    in_desktop_entry = False
-    for raw_line in data.decode("utf-8", errors="replace").splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#"):
-            continue
-        if line.startswith("[") and line.endswith("]"):
-            in_desktop_entry = line == "[Desktop Entry]"
-            continue
-        if in_desktop_entry and "=" in line:
-            key, value = line.split("=", 1)
-            fields[key] = value
-    return fields
 
 
 def deb_control_metainfo_and_desktop(deb_path: pathlib.Path) -> tuple[dict[str, str], bytes, dict[str, str]]:
@@ -148,43 +141,11 @@ def package_stanza(package: DebPackage) -> str:
     return "\n".join(lines) + "\n"
 
 
-def strip_ns(name: str) -> str:
-    return name.rsplit("}", 1)[-1]
-
-
-def child_text(element: ET.Element, tag: str) -> str:
-    for child in element:
-        if strip_ns(child.tag) == tag and child.text:
-            return child.text.strip()
-    return ""
-
-
-def descendant_text(element: ET.Element, tag: str) -> str:
-    for child in element.iter():
-        if strip_ns(child.tag) == tag and child.text:
-            return child.text.strip()
-    return ""
-
-
-def launchable_desktop_id(element: ET.Element) -> str:
-    for child in element.iter():
-        if strip_ns(child.tag) == "launchable" and child.attrib.get("type") == "desktop-id":
-            return (child.text or "").strip()
-    return ""
-
-
 def homepage_url(element: ET.Element) -> str:
     for child in element.iter():
         if strip_ns(child.tag) == "url" and child.attrib.get("type") == "homepage":
             return (child.text or "").strip()
     return ""
-
-
-def first_release(element: ET.Element) -> tuple[str, str]:
-    for child in element.iter():
-        if strip_ns(child.tag) == "release":
-            return child.attrib.get("version", ""), child.attrib.get("date", "")
-    return "", ""
 
 
 def description_markup(element: ET.Element) -> str:

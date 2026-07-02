@@ -1,6 +1,11 @@
 #!/usr/bin/env node
 import { readFile } from 'node:fs/promises'
 import { basename, join, relative } from 'node:path'
+import {
+  isAuxiliaryArtifactName,
+  isCurrentVersionDesktopArtifactName,
+  isDesktopArtifactName
+} from './command-utils.mjs'
 
 const args = new Set(process.argv.slice(2))
 const platform = readOption('--platform') ?? process.platform
@@ -106,34 +111,7 @@ async function collectFiles(directory) {
   return files.sort()
 }
 
-function isDesktopArtifactName(name) {
-  return /\.(?:deb|rpm|AppImage|dmg)$/i.test(name) || name.endsWith('.tar.gz')
-}
-
-function isAuxiliaryArtifactName(name) {
-  return name.startsWith('qa-scribe-repository-setup_')
-}
-
 function isCurrentVersionArtifact(file) {
   const name = basename(file)
-  if (name.endsWith('.deb')) {
-    return new RegExp(`^qa-scribe_${escapeRegExp(version)}_[A-Za-z0-9_]+\\.deb$`).test(name)
-  }
-  if (name.endsWith('.rpm')) {
-    return new RegExp(`^qa-scribe-${escapeRegExp(version)}-[A-Za-z0-9_.+-]+\\.rpm$`).test(name)
-  }
-  if (name.endsWith('.AppImage')) {
-    return new RegExp(`(^|[_ .-])${escapeRegExp(version)}([_ .-]|$)`).test(name)
-  }
-  if (name.endsWith('.dmg')) {
-    return new RegExp(`^QA\\.Scribe_${escapeRegExp(version)}_[A-Za-z0-9_]+\\.dmg$`).test(name)
-  }
-  if (name.endsWith('.tar.gz')) {
-    return new RegExp(`^qa-scribe-${escapeRegExp(version)}-(?:linux|macos)-[A-Za-z0-9_+-]+(?:\\.app)?\\.tar\\.gz$`).test(name)
-  }
-  return false
-}
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return isCurrentVersionDesktopArtifactName(name, version)
 }

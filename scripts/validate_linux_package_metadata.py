@@ -16,7 +16,15 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from typing import Any
 
-from package_archive import extract_data_archive, read_ar_entries
+from package_archive import (
+    child_text,
+    descendant_text,
+    extract_data_archive,
+    first_release,
+    launchable_desktop_id,
+    parse_desktop_file as parse_desktop_bytes,
+    read_ar_entries,
+)
 
 
 DEFAULT_COMPONENT_ID = "io.github.ddv1982.qa-scribe"
@@ -108,38 +116,6 @@ class PackageReport:
             "rpm_header_validation": self.rpm_header_validation.to_json() if self.rpm_header_validation else None,
             "errors": self.errors,
         }
-
-
-def strip_ns(name: str) -> str:
-    return name.rsplit("}", 1)[-1]
-
-
-def child_text(element: ET.Element, tag_name: str) -> str | None:
-    for child in element:
-        if strip_ns(child.tag) == tag_name and child.text:
-            return child.text.strip()
-    return None
-
-
-def descendant_text(element: ET.Element, tag_name: str) -> str | None:
-    for child in element.iter():
-        if strip_ns(child.tag) == tag_name and child.text:
-            return child.text.strip()
-    return None
-
-
-def launchable_desktop_id(element: ET.Element) -> str | None:
-    for child in element.iter():
-        if strip_ns(child.tag) == "launchable" and child.attrib.get("type") == "desktop-id":
-            return (child.text or "").strip() or None
-    return None
-
-
-def first_release(element: ET.Element) -> tuple[str | None, str | None]:
-    for child in element.iter():
-        if strip_ns(child.tag) == "release":
-            return child.attrib.get("version"), child.attrib.get("date")
-    return None, None
 
 
 def extract_deb(deb_path: pathlib.Path, destination: pathlib.Path) -> str:
@@ -286,19 +262,7 @@ def query_rpm_header(package_path: pathlib.Path) -> tuple[ToolResult, dict[str, 
 
 
 def parse_desktop_file(path: pathlib.Path) -> dict[str, str]:
-    fields: dict[str, str] = {}
-    in_desktop_entry = False
-    for raw_line in path.read_text(encoding="utf-8").splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#"):
-            continue
-        if line.startswith("[") and line.endswith("]"):
-            in_desktop_entry = line == "[Desktop Entry]"
-            continue
-        if in_desktop_entry and "=" in line:
-            key, value = line.split("=", 1)
-            fields[key] = value
-    return fields
+    return parse_desktop_bytes(path.read_bytes())
 
 
 def exec_binary(exec_field: str | None) -> str | None:

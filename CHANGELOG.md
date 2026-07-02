@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.4.24 - 2026-07-02
+
+- Harden release automation by pinning external GitHub Actions, scoping signing secrets to first-party steps, and preventing published release drafts from being reset.
+- Gate APT publication on both macOS and Linux packaging success, replace parallel release-upload actions with `gh release upload`, and centralize CI/release validation.
+- Reduce local gate rebuilds, preserve macOS app symlinks during packaging, share Linux package metadata parsing helpers, and avoid retrying deterministic notarization rejections.
+
 ## v0.4.23 - 2026-07-02
 
 - Prevent invalid Session Report Draft generation requests from creating Generation Context or AI Run records.

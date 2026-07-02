@@ -1,0 +1,72 @@
+name: Validate build
+description: >-
+  Shared frontend and Rust validation gate used by both the CI rust job and the
+  release validate-release job, so the release gate cannot drift from CI.
+  Expects checkout, Node.js, Bun, the Rust toolchain, and Linux Tauri desktop
+  dependencies to be set up by the calling workflow.
+
+inputs:
+  expected-tag:
+    description: >-
+      Release tag to validate metadata against. Leave empty to validate metadata
+      without tag matching, as CI does.
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Install frontend dependencies
+      shell: bash
+      run: bun install --cwd frontend --frozen-lockfile
+
+    - name: Audit frontend dependencies
+      shell: bash
+      run: bun run frontend:audit
+
+    - name: Run frontend lint
+      shell: bash
+      run: bun run frontend:lint
+
+    - name: Run frontend tests
+      shell: bash
+      run: bun run frontend:test
+
+    - name: Validate release metadata
+      shell: bash
+      env:
+        EXPECTED_TAG: ${{ inputs.expected-tag }}
+      run: |
+        if [ -n "${EXPECTED_TAG}" ]; then
+          node scripts/check-release-metadata.mjs --expected-tag "${EXPECTED_TAG}"
+        else
+          node scripts/check-release-metadata.mjs
+        fi
+
+    - name: Build frontend
+      shell: bash
+      run: bun run frontend:build
+
+    - name: Validate Tauri prebuilt frontend contract
+      shell: bash
+      run: bash scripts/check-tauri-prebuilt-frontend.sh
+
+    - name: Check Rust formatting
+      shell: bash
+      run: cargo fmt --all --check
+
+    - name: Run Rust tests
+      shell: bash
+      run: cargo test --workspace
+
+    - name: Run Rust clippy
+      shell: bash
+      run: cargo clippy --workspace --all-targets -- -D warnings
+
+    - name: Build Rust workspace
+      shell: bash
+      run: cargo build --workspace
+
+    - name: Smoke test Rust binary
+      shell: bash
+      run: bun run smoke
