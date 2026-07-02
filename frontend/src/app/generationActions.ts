@@ -25,7 +25,7 @@ export function generationIsActive(job: GenerationJobStatus): boolean {
   return job.state === 'starting' || job.state === 'running' || job.state === 'cancelling'
 }
 
-export function createGenerationActions(ctx: AppWorkflowContext, saveNoteNow: () => Promise<boolean>) {
+export function createGenerationActions(ctx: AppWorkflowContext, saveNoteNow: (options?: { manageBusy?: boolean }) => Promise<boolean>) {
   function storeGenerationStatus(status: GenerationJobStatus) {
     ctx.setGenerationJobs((previous) => ({ ...previous, [status.jobId]: status }))
   }
@@ -159,7 +159,7 @@ export function createGenerationActions(ctx: AppWorkflowContext, saveNoteNow: ()
       ctx.setBusyAction(busy)
       ctx.setError(null)
       ctx.setLatestNoteGenerationUndo(null)
-      const saved = await saveNoteNow()
+      const saved = await saveNoteNow({ manageBusy: false })
       if (!saved) return
       const started = await startAiActionJob(
         {

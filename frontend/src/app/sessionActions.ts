@@ -29,6 +29,8 @@ export function createSessionActions(ctx: AppWorkflowContext, materializeInlineI
     try {
       ctx.setBusyAction('open-note')
       ctx.setError(null)
+      const flushed = await saveNoteNow({ manageBusy: false })
+      if (!flushed) return
       const reopened = await reopenSession(session.id)
       const [nextEntries, nextDrafts, nextFindings] = await Promise.all([
         listEntries(session.id),
@@ -61,6 +63,8 @@ export function createSessionActions(ctx: AppWorkflowContext, materializeInlineI
     try {
       ctx.setBusyAction('new-note')
       ctx.setError(null)
+      const flushed = await saveNoteNow({ manageBusy: false })
+      if (!flushed) return
       const title = nextUntitledTitle(ctx.sessions)
       const session = await createSession({ title, sessionContext: null, objectiveNotes: null })
       const editableNote = await createEntry({
@@ -116,9 +120,14 @@ export function createSessionActions(ctx: AppWorkflowContext, materializeInlineI
       ctx.setBusyAction('delete-note')
       ctx.setError(null)
       await deleteSession(sessionToDelete.id)
+      // Clear active-note state immediately after the delete succeeds, before any
+      // follow-up call that could reject. Once cleared, the title/body autosave
+      // effects have nothing left to save against the deleted session, so the
+      // guard below no longer needs to keep protecting it if listSessions/openNote fail.
+      if (ctx.activeSession?.id === sessionToDelete.id) clearActiveNoteState()
+
       const nextSessions = await listSessions()
       ctx.setSessions(nextSessions)
-      clearActiveNoteState()
 
       if (nextSessions[0]) {
         await openNote(nextSessions[0], false)
@@ -134,10 +143,11 @@ export function createSessionActions(ctx: AppWorkflowContext, materializeInlineI
     }
   }
 
-  async function saveTitle(title: string): Promise<boolean> {
+  async function saveTitle(title: string, options: { manageBusy?: boolean } = {}): Promise<boolean> {
+    const { manageBusy = true } = options
     if (!ctx.activeSession || ctx.deletingSessionIdRef.current === ctx.activeSession.id) return false
     try {
-      ctx.setBusyAction('save-title')
+      if (manageBusy) ctx.setBusyAction('save-title')
       const saved = await updateSession(ctx.activeSession.id, { title })
       ctx.savedTitleRef.current = saved.title
       ctx.setActiveSession(saved)
@@ -148,11 +158,12 @@ export function createSessionActions(ctx: AppWorkflowContext, materializeInlineI
       ctx.setError(formatError(cause))
       return false
     } finally {
-      ctx.setBusyAction(null)
+      if (manageBusy) ctx.setBusyAction(null)
     }
   }
 
-  async function saveBody(body: RichEditorDocument): Promise<boolean> {
+  async function saveBody(body: RichEditorDocument, options: { manageBusy?: boolean } = {}): Promise<boolean> {
+    const { manageBusy = true } = options
     if (!ctx.noteEntry || ctx.deletingSessionIdRef.current === ctx.noteEntry.sessionId) return false
     const storedBody = richEditorDocumentToStoredBody(body)
     if (storedBody.body.length > noteBodyMaxLength) {
@@ -161,7 +172,7 @@ export function createSessionActions(ctx: AppWorkflowContext, materializeInlineI
     }
     const writeVersion = ++ctx.noteBodyWriteVersionRef.current
     try {
-      ctx.setBusyAction('save-body')
+      if (manageBusy) ctx.setBusyAction('save-body')
       const saved = await updateEntry(ctx.noteEntry.id, storedBody)
       if (writeVersion !== ctx.noteBodyWriteVersionRef.current) return true
       ctx.savedBodyRef.current = serializeRichEditorDocument(richEditorDocumentFromStoredBody(saved))
@@ -173,11 +184,12 @@ export function createSessionActions(ctx: AppWorkflowContext, materializeInlineI
       ctx.setError(formatError(cause))
       return false
     } finally {
-      if (writeVersion === ctx.noteBodyWriteVersionRef.current) ctx.setBusyAction(null)
+      if (manageBusy && writeVersion === ctx.noteBodyWriteVersionRef.current) ctx.setBusyAction(null)
     }
   }
 
-  async function saveNoteNow(): Promise<boolean> {
+  async function saveNoteNow(options: { manageBusy?: boolean } = {}): Promise<boolean> {
+    const { manageBusy = true } = options
     const title = ctx.noteTitle.trim()
     let body: RichEditorDocument
     try {
@@ -188,10 +200,10 @@ export function createSessionActions(ctx: AppWorkflowContext, materializeInlineI
     }
     let saved = true
     if (ctx.activeSession && title && title !== ctx.savedTitleRef.current) {
-      saved = (await saveTitle(title)) && saved
+      saved = (await saveTitle(title, { manageBusy })) && saved
     }
     if (ctx.noteEntry && serializeRichEditorDocument(body) !== ctx.savedBodyRef.current) {
-      saved = (await saveBody(body)) && saved
+      saved = (await saveBody(body, { manageBusy })) && saved
     }
     return saved
   }

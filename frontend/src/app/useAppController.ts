@@ -41,6 +41,7 @@ export function useAppController() {
   const noteEntryIdRef = useRef<string | null>(null)
   const copySuccessResetRef = useRef<number | null>(null)
   const bootedRef = useRef(false)
+  const saveNoteNowRef = useRef<() => Promise<boolean>>(async () => true)
   const {
     activeProvider,
     loadProviderStatus,
@@ -155,6 +156,10 @@ export function useAppController() {
   // eslint-disable-next-line react-hooks/refs -- factories only close over refs; .current reads happen later in event handlers/effects.
   const copyActions = createCopyActions(workflowContext)
 
+  useEffect(() => {
+    saveNoteNowRef.current = sessionActions.saveNoteNow
+  })
+
   async function boot() {
     try {
       setBusyAction('boot')
@@ -254,6 +259,14 @@ export function useAppController() {
     }, 850)
     return () => window.clearTimeout(timeout)
   }, [noteEntry, noteBody]) // eslint-disable-line react-hooks/exhaustive-deps -- debounce is keyed to note identity and body
+
+  useEffect(() => {
+    function handleBeforeUnload() {
+      void saveNoteNowRef.current()
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [])
 
   return {
     ...attachmentActions,

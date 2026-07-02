@@ -22,7 +22,7 @@ import type { AppWorkflowContext, RichRecordPatch } from './types'
 
 export function createRecordActions(
   ctx: AppWorkflowContext,
-  saveNoteNow: () => Promise<boolean>,
+  saveNoteNow: (options?: { manageBusy?: boolean }) => Promise<boolean>,
   handleDeleteNote: (session: Session) => Promise<void>,
 ) {
   async function handleManualTestware() {
@@ -30,7 +30,7 @@ export function createRecordActions(
     try {
       ctx.setBusyAction('manual-testware')
       ctx.setError(null)
-      const saved = await saveNoteNow()
+      const saved = await saveNoteNow({ manageBusy: false })
       if (!saved) return
       await createDraft({
         sessionId: ctx.activeSession.id,
@@ -55,7 +55,7 @@ export function createRecordActions(
     try {
       ctx.setBusyAction('prefill-testware')
       ctx.setError(null)
-      const saved = await saveNoteNow()
+      const saved = await saveNoteNow({ manageBusy: false })
       if (!saved) return
       await createDraft({
         sessionId: ctx.activeSession.id,
@@ -80,7 +80,7 @@ export function createRecordActions(
     try {
       ctx.setBusyAction('manual-finding')
       ctx.setError(null)
-      const saved = await saveNoteNow()
+      const saved = await saveNoteNow({ manageBusy: false })
       if (!saved) return
       await createFinding({
         sessionId: ctx.activeSession.id,
@@ -104,7 +104,7 @@ export function createRecordActions(
     try {
       ctx.setBusyAction('prefill-finding')
       ctx.setError(null)
-      const saved = await saveNoteNow()
+      const saved = await saveNoteNow({ manageBusy: false })
       if (!saved) return
       await createFinding({
         sessionId: ctx.activeSession.id,
