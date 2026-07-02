@@ -1,7 +1,6 @@
 use std::{
-    io::{BufRead, BufReader, Read, Write},
+    io::Write,
     process::{Command, ExitStatus, Output, Stdio},
-    thread,
     time::{Duration, Instant},
 };
 
@@ -13,7 +12,8 @@ use tauri::ipc::Channel;
 
 use super::{
     job_events::{GenerationJobEvent, send_event, send_progress},
-    stream_parser::{ProviderStreamParser, StreamUpdate},
+    stream_parser::StreamUpdate,
+    streaming_exec::run_generation_command_streaming,
 };
 use crate::{
     commands::providers::provider_readiness,
@@ -165,90 +165,7 @@ fn run_generation_command(command: &GenerationCommand) -> Result<Output, String>
     child.wait_with_output().map_err(|error| error.to_string())
 }
 
-fn run_generation_command_streaming(
-    command: &GenerationCommand,
-    control: &JobControl,
-    mut on_update: impl FnMut(StreamUpdate),
-) -> Result<ProviderGenerationOutput, String> {
-    if control.is_cancelled() {
-        return Ok(ProviderGenerationOutput::cancelled());
-    }
-
-    let mut process = Command::new(&command.program);
-    process
-        .args(&command.args)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
-    apply_provider_path(&mut process);
-
-    let mut child = process.spawn().map_err(|error| error.to_string())?;
-
-    if let Some(mut stdin) = child.stdin.take() {
-        stdin
-            .write_all(command.stdin.as_bytes())
-            .map_err(|error| error.to_string())?;
-    }
-
-    let stdout = child
-        .stdout
-        .take()
-        .ok_or_else(|| "provider stdout was not available".to_string())?;
-    let stderr = child
-        .stderr
-        .take()
-        .ok_or_else(|| "provider stderr was not available".to_string())?;
-    control.set_child(child)?;
-
-    let stderr_reader = thread::spawn(move || {
-        let mut buffer = Vec::new();
-        let mut reader = BufReader::new(stderr);
-        let _ = reader.read_to_end(&mut buffer);
-        buffer
-    });
-
-    let mut stdout_reader = BufReader::new(stdout);
-    let mut stdout_bytes = Vec::new();
-    let mut parser = ProviderStreamParser::new(command.output_format);
-    let mut chunk = Vec::new();
-
-    loop {
-        chunk.clear();
-        let read = stdout_reader
-            .read_until(b'\n', &mut chunk)
-            .map_err(|error| error.to_string())?;
-        if read == 0 {
-            break;
-        }
-        stdout_bytes.extend_from_slice(&chunk);
-        for update in parser.push_bytes(&chunk) {
-            on_update(update);
-        }
-        if control.is_cancelled()
-            && let Some(mut child) = control.take_child()?
-        {
-            let _ = child.kill();
-            control.set_child(child)?;
-        }
-    }
-
-    let status = match control.take_child()? {
-        Some(mut child) => Some(child.wait().map_err(|error| error.to_string())?),
-        None => None,
-    };
-    let stderr = stderr_reader
-        .join()
-        .map_err(|_| "provider stderr reader panicked".to_string())?;
-
-    Ok(ProviderGenerationOutput {
-        status,
-        stdout: stdout_bytes,
-        stderr,
-        assistant_text: parser.finish(),
-        cancelled: control.is_cancelled(),
-    })
-}
-
+#[derive(Debug)]
 pub(super) struct ProviderGenerationOutput {
     pub(super) status: Option<ExitStatus>,
     pub(super) stdout: Vec<u8>,
@@ -258,7 +175,7 @@ pub(super) struct ProviderGenerationOutput {
 }
 
 impl ProviderGenerationOutput {
-    fn cancelled() -> Self {
+    pub(super) fn cancelled() -> Self {
         Self {
             status: None,
             stdout: Vec::new(),

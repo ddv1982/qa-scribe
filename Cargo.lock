@@ -2527,6 +2527,7 @@ version = "0.4.24"
 dependencies = [
  "base64 0.22.1",
  "image",
+ "libc",
  "qa-scribe-core",
  "serde",
  "serde_json",

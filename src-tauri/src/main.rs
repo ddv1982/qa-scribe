@@ -1,5 +1,6 @@
 mod commands;
 mod jobs;
+mod process_io;
 mod provider_command;
 mod settings;
 
@@ -70,6 +71,11 @@ fn main() {
             read_clipboard_image_data_url,
             copy_attachment_image_to_clipboard
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running qa-scribe");
+        .build(tauri::generate_context!())
+        .expect("error while building qa-scribe")
+        .run(|app, event| {
+            if let tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit = event {
+                app.state::<JobStore>().kill_all_children();
+            }
+        });
 }

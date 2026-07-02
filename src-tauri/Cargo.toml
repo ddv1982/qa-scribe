@@ -19,6 +19,9 @@ tauri.workspace = true
 tauri-plugin-clipboard-manager = "2.3.2"
 uuid.workspace = true
 
+[target.'cfg(unix)'.dependencies]
+libc = "0.2.186"
+
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]

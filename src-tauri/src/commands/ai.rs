@@ -6,6 +6,7 @@ mod provider_execution;
 mod report;
 mod selection;
 mod stream_parser;
+mod streaming_exec;
 mod types;
 
 #[cfg(test)]

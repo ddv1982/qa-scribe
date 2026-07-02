@@ -83,7 +83,22 @@ impl JobControl {
             .map_err(|_| "Generation process lock was poisoned".to_string())
     }
 
-    fn request_cancel(&self) -> Result<(), String> {
+    /// Kill the registered child (and its process group on unix) in place,
+    /// without removing or reaping it. Used by the cancellation and watchdog
+    /// paths so the owning worker thread can still `wait()` on it afterwards.
+    pub fn kill_registered_child(&self) -> Result<(), String> {
+        if let Some(child) = self
+            .child
+            .lock()
+            .map_err(|_| "Generation process lock was poisoned".to_string())?
+            .as_mut()
+        {
+            crate::process_io::kill_child_group(child);
+        }
+        Ok(())
+    }
+
+    pub(crate) fn request_cancel(&self) -> Result<(), String> {
         self.cancel_requested.store(true, Ordering::SeqCst);
         if let Some(child) = self
             .child
@@ -91,9 +106,21 @@ impl JobControl {
             .map_err(|_| "Generation process lock was poisoned".to_string())?
             .as_mut()
         {
-            let _ = child.kill();
+            crate::process_io::kill_child_group(child);
         }
         Ok(())
+    }
+
+    /// Kill the registered child (and its process group on unix) without
+    /// reaping it. Used on app exit to make sure spawned CLIs and their
+    /// grandchildren do not outlive the app. The owning worker thread is
+    /// still responsible for `wait()`ing on its own child.
+    fn kill_child_for_exit(&self) {
+        if let Ok(mut slot) = self.child.lock()
+            && let Some(child) = slot.as_mut()
+        {
+            crate::process_io::kill_child_group(child);
+        }
     }
 }
 
@@ -156,6 +183,18 @@ impl JobStore {
             .jobs
             .insert(job_id, record);
         Ok((status, control))
+    }
+
+    /// Kill every live child process (and its process group on unix).
+    /// Called on app exit so provider CLIs and their grandchildren
+    /// (node, MCP servers) are not orphaned.
+    pub fn kill_all_children(&self) {
+        let Ok(inner) = self.inner.lock() else {
+            return;
+        };
+        for record in inner.jobs.values() {
+            record.control.kill_child_for_exit();
+        }
     }
 
     pub fn status(&self, job_id: &str) -> Result<GenerationJobStatus, String> {
