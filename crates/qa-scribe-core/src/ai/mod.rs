@@ -97,7 +97,7 @@ fn generation_command_for_mode(
     stream_events: bool,
 ) -> Result<GenerationCommand, String> {
     let model_arg = selected_model_arg(model);
-    let reasoning_effort_arg = selected_reasoning_effort_arg(reasoning_effort);
+    let reasoning_effort_arg = selected_reasoning_effort_arg(reasoning_effort)?;
     match provider {
         AiProvider::ClaudeCode => {
             let mut args = vec!["-p".to_string()];
@@ -156,9 +156,15 @@ fn generation_command_for_mode(
             let copilot_model_arg = selected_copilot_model_arg(model);
             match copilot_runtime {
                 Some(CopilotRuntime::DirectCli) => {
+                    // The prompt is passed on stdin (via `-p -`), not as an argv
+                    // element: argv is world-visible to any local process (e.g.
+                    // `ps`), which would leak session content, and is bounded by
+                    // the OS ARG_MAX (~1MB on macOS), which large sessions can
+                    // exceed. This mirrors how Claude Code and Codex CLI receive
+                    // the prompt.
                     let mut args = vec![
                         "-p".to_string(),
-                        prompt.to_string(),
+                        "-".to_string(),
                         "-s".to_string(),
                         "--no-ask-user".to_string(),
                     ];
@@ -168,7 +174,7 @@ fn generation_command_for_mode(
                     Ok(GenerationCommand {
                         program: "copilot".to_string(),
                         args,
-                        stdin: String::new(),
+                        stdin: prompt.to_string(),
                         output_format: GenerationOutputFormat::PlainText,
                     })
                 }
@@ -199,236 +205,35 @@ fn selected_copilot_model_arg(model: &str) -> Option<String> {
     }
 }
 
-fn selected_reasoning_effort_arg(reasoning_effort: Option<&str>) -> Option<String> {
-    let trimmed = reasoning_effort?.trim();
+/// Reasoning-effort values the app allows through to provider CLIs. Frontend
+/// selection is constrained to this set; anything else (e.g. a value crafted
+/// to break out of the quoted TOML string Codex receives via `--config`) is
+/// rejected rather than interpolated.
+const ALLOWED_REASONING_EFFORTS: [&str; 4] = ["minimal", "low", "medium", "high"];
+
+fn selected_reasoning_effort_arg(reasoning_effort: Option<&str>) -> Result<Option<String>, String> {
+    let Some(raw) = reasoning_effort else {
+        return Ok(None);
+    };
+    let trimmed = raw.trim();
     if trimmed.is_empty()
         || trimmed.eq_ignore_ascii_case("default")
         || trimmed.eq_ignore_ascii_case("unspecified")
     {
-        None
+        return Ok(None);
+    }
+    if ALLOWED_REASONING_EFFORTS
+        .iter()
+        .any(|allowed| trimmed.eq_ignore_ascii_case(allowed))
+    {
+        Ok(Some(trimmed.to_string()))
     } else {
-        Some(trimmed.to_string())
+        Err(format!(
+            "Unsupported reasoning effort \"{trimmed}\"; expected one of: {}",
+            ALLOWED_REASONING_EFFORTS.join(", ")
+        ))
     }
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn provider_capabilities_cover_supported_providers() {
-        let capabilities = provider_capabilities();
-        assert_eq!(capabilities.len(), 3);
-        assert!(
-            capabilities
-                .iter()
-                .any(|capability| capability.id == AiProvider::CodexCli)
-        );
-    }
-
-    #[test]
-    fn codex_generation_reads_prompt_from_stdin() {
-        let command =
-            generation_command(AiProvider::CodexCli, "draft this", "default", None, None).unwrap();
-
-        assert_eq!(command.program, "codex");
-        assert_eq!(command.args, vec!["exec", "--skip-git-repo-check", "-"]);
-        assert_eq!(command.stdin, "draft this");
-        assert_eq!(command.output_format, GenerationOutputFormat::PlainText);
-    }
-
-    #[test]
-    fn codex_generation_uses_selected_model() {
-        let command =
-            generation_command(AiProvider::CodexCli, "draft this", "gpt-5.5", None, None).unwrap();
-
-        assert_eq!(command.program, "codex");
-        assert_eq!(
-            command.args,
-            vec!["exec", "--skip-git-repo-check", "--model", "gpt-5.5", "-"]
-        );
-        assert_eq!(command.stdin, "draft this");
-    }
-
-    #[test]
-    fn claude_generation_uses_selected_model() {
-        let command =
-            generation_command(AiProvider::ClaudeCode, "draft this", "sonnet", None, None).unwrap();
-
-        assert_eq!(command.program, "claude");
-        assert_eq!(command.args, vec!["-p", "--model", "sonnet"]);
-        assert_eq!(command.stdin, "draft this");
-    }
-
-    #[test]
-    fn codex_generation_uses_reasoning_effort_config() {
-        let command = generation_command(
-            AiProvider::CodexCli,
-            "draft this",
-            "gpt-5.5",
-            Some("low"),
-            None,
-        )
-        .unwrap();
-
-        assert_eq!(
-            command.args,
-            vec![
-                "exec",
-                "--skip-git-repo-check",
-                "--model",
-                "gpt-5.5",
-                "--config",
-                "model_reasoning_effort=\"low\"",
-                "-"
-            ]
-        );
-    }
-
-    #[test]
-    fn claude_generation_uses_reasoning_effort() {
-        let command = generation_command(
-            AiProvider::ClaudeCode,
-            "draft this",
-            "sonnet",
-            Some("low"),
-            None,
-        )
-        .unwrap();
-
-        assert_eq!(
-            command.args,
-            vec!["-p", "--model", "sonnet", "--effort", "low"]
-        );
-    }
-
-    #[test]
-    fn copilot_auto_omits_model_argument() {
-        let command = generation_command(
-            AiProvider::CopilotCli,
-            "draft this",
-            "auto",
-            None,
-            Some(CopilotRuntime::DirectCli),
-        )
-        .unwrap();
-
-        assert_eq!(command.program, "copilot");
-        assert_eq!(
-            command.args,
-            vec!["-p", "draft this", "-s", "--no-ask-user"]
-        );
-        assert_eq!(command.stdin, "");
-    }
-
-    #[test]
-    fn copilot_generation_uses_selected_model() {
-        let command = generation_command(
-            AiProvider::CopilotCli,
-            "draft this",
-            "gpt-5.5",
-            None,
-            Some(CopilotRuntime::DirectCli),
-        )
-        .unwrap();
-
-        assert_eq!(command.program, "copilot");
-        assert_eq!(
-            command.args,
-            vec![
-                "-p",
-                "draft this",
-                "-s",
-                "--no-ask-user",
-                "--model",
-                "gpt-5.5"
-            ]
-        );
-        assert_eq!(command.stdin, "");
-    }
-
-    #[test]
-    fn streaming_codex_generation_uses_json_events() {
-        let command = streaming_generation_command(
-            AiProvider::CodexCli,
-            "draft this",
-            "gpt-5.5",
-            Some("medium"),
-            None,
-        )
-        .unwrap();
-
-        assert_eq!(
-            command.args,
-            vec![
-                "exec",
-                "--skip-git-repo-check",
-                "--json",
-                "--model",
-                "gpt-5.5",
-                "--config",
-                "model_reasoning_effort=\"medium\"",
-                "-"
-            ]
-        );
-        assert_eq!(command.output_format, GenerationOutputFormat::CodexJsonl);
-    }
-
-    #[test]
-    fn streaming_claude_generation_uses_stream_json() {
-        let command = streaming_generation_command(
-            AiProvider::ClaudeCode,
-            "draft this",
-            "sonnet",
-            Some("low"),
-            None,
-        )
-        .unwrap();
-
-        assert_eq!(
-            command.args,
-            vec![
-                "-p",
-                "--verbose",
-                "--output-format",
-                "stream-json",
-                "--include-partial-messages",
-                "--model",
-                "sonnet",
-                "--effort",
-                "low"
-            ]
-        );
-        assert_eq!(
-            command.output_format,
-            GenerationOutputFormat::ClaudeStreamJson
-        );
-    }
-
-    #[test]
-    fn copilot_generation_uses_direct_cli_when_requested() {
-        let command = generation_command(
-            AiProvider::CopilotCli,
-            "draft this",
-            "default",
-            None,
-            Some(CopilotRuntime::DirectCli),
-        )
-        .unwrap();
-
-        assert_eq!(command.program, "copilot");
-        assert_eq!(
-            command.args,
-            vec!["-p", "draft this", "-s", "--no-ask-user"]
-        );
-        assert_eq!(command.stdin, "");
-    }
-
-    #[test]
-    fn copilot_generation_requires_verified_runtime() {
-        let error = generation_command(AiProvider::CopilotCli, "draft this", "default", None, None)
-            .unwrap_err();
-
-        assert_eq!(error, "GitHub Copilot CLI is not ready.");
-    }
-}
+mod tests;
