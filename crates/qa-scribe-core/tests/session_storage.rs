@@ -13,7 +13,7 @@ use qa_scribe_core::{
     },
     export::{ExportFormat, export_session},
     services::SessionService,
-    storage::Database,
+    storage::{Database, SCHEMA_VERSION},
 };
 use std::fs;
 

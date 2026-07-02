@@ -26,15 +26,38 @@ impl Database {
     }
 }
 
+/// The schema version this build expects `user_version` to read after
+/// `initialize` returns. Bumped whenever a migration helper below changes
+/// what "current" means.
+///
+/// Every pre-versioning build (before `user_version` was actually read back)
+/// unconditionally set `user_version = 5` on every open, regardless of
+/// whether the feature-detecting migrations below had genuinely converged.
+/// That means databases already in the wild can carry a `user_version` of 5
+/// without their schema truly being at parity with this build. `SCHEMA_VERSION`
+/// is therefore deliberately > 5: any database bearing that stale value is
+/// treated as "not yet current", runs the (idempotent) migration helpers one
+/// final time, and settles on a `user_version` this build can trust from then
+/// on. Once every database in the wild has passed through this once, future
+/// bumps can go strictly by increment again.
+pub const SCHEMA_VERSION: i32 = 6;
+
 fn initialize(connection: &Connection) -> Result<()> {
     connection.pragma_update(None, "foreign_keys", "ON")?;
     connection.pragma_update(None, "busy_timeout", 5_000)?;
     connection.pragma_update(None, "journal_mode", "WAL")?;
     connection.pragma_update(None, "synchronous", "NORMAL")?;
     connection.execute_batch(SCHEMA)?;
-    migrate(connection)?;
+    if current_schema_version(connection)? < SCHEMA_VERSION {
+        migrate(connection)?;
+        connection.pragma_update(None, "user_version", SCHEMA_VERSION)?;
+    }
     assert_no_foreign_key_violations(connection)?;
     Ok(())
+}
+
+fn current_schema_version(connection: &Connection) -> Result<i32> {
+    Ok(connection.query_row("PRAGMA user_version", [], |row| row.get(0))?)
 }
 
 fn migrate(connection: &Connection) -> Result<()> {
@@ -42,7 +65,6 @@ fn migrate(connection: &Connection) -> Result<()> {
     ensure_blank_bodies_supported(connection)?;
     ensure_rich_body_columns_supported(connection)?;
     ensure_draft_metadata_supported(connection)?;
-    connection.pragma_update(None, "user_version", 5)?;
     Ok(())
 }
 
@@ -414,6 +436,7 @@ CREATE INDEX IF NOT EXISTS idx_attachments_session_created ON attachments(sessio
 CREATE INDEX IF NOT EXISTS idx_findings_session_created ON findings(session_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_drafts_session_updated ON drafts(session_id, updated_at);
 CREATE INDEX IF NOT EXISTS idx_ai_runs_session_created ON ai_runs(session_id, created_at);
-
-PRAGMA user_version = 4;
 "#;
+
+#[cfg(test)]
+mod tests;
