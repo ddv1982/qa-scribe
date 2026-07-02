@@ -1,7 +1,8 @@
 use crate::domain::Attachment;
 
 use super::html::{
-    MANAGED_ATTACHMENT_PROTOCOL, attribute_value, decode_html_entities, escape_html_attribute,
+    MANAGED_ATTACHMENT_PROTOCOL, attribute_value_with_decoder, decode_basic_html_entities,
+    escape_html_attribute, find_case_insensitive,
 };
 
 const EDITOR_HTML_TAGS: &[&str] = &[
@@ -96,7 +97,7 @@ fn strip_response_fence(response: &str) -> String {
 fn repair_escaped_editor_html(value: &str) -> String {
     let trimmed = value.trim();
     if should_decode_escaped_editor_html(trimmed) {
-        decode_html_entities(trimmed)
+        decode_basic_html_entities(trimmed)
     } else {
         trimmed.to_string()
     }
@@ -181,7 +182,7 @@ fn tag_boundary_matches(value: &str, index: usize) -> bool {
 fn preservable_images_from_html(value: &str, attachments: &[Attachment]) -> Vec<PreservableImage> {
     let mut images = Vec::new();
     let mut offset = 0usize;
-    while let Some(relative_start) = value[offset..].to_ascii_lowercase().find("<img") {
+    while let Some(relative_start) = find_case_insensitive(&value[offset..], "<img") {
         let tag_start = offset + relative_start;
         let Some(relative_end) = value[tag_start..].find('>') else {
             break;
@@ -197,6 +198,14 @@ fn preservable_images_from_html(value: &str, attachments: &[Attachment]) -> Vec<
         offset = tag_start + relative_end + 1;
     }
     images
+}
+
+/// `attribute_value_with_decoder` pinned to the narrow (six-entity) decoder.
+/// Every attribute read in this module feeds into repaired/stored note HTML,
+/// so it must not widen entity decoding beyond what
+/// `decode_basic_html_entities` does — see that function's doc comment.
+fn attribute_value(raw_tag: &str, attribute: &str) -> Option<String> {
+    attribute_value_with_decoder(raw_tag, attribute, decode_basic_html_entities)
 }
 
 fn preservable_image_from_img_tag(

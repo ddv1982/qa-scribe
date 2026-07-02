@@ -298,6 +298,27 @@ fn summary_response_restores_attachment_paths_and_missing_managed_images() {
 }
 
 #[test]
+fn summary_response_restores_multiple_mixed_case_external_images_in_order() {
+    // Regression test for the preservable_images_from_html O(n^2) scan
+    // migration to the shared find_case_insensitive helper: verifies that
+    // per-<img>-tag offset arithmetic still finds every image (including
+    // mixed-case "<IMG"/"<Img" tags) and preserves all of them, not just the
+    // first.
+    let original = "<p>Evidence.</p>\
+        <IMG src=\"https://example.com/one.png\" alt=\"One\" />\
+        <p>More.</p>\
+        <img src=\"https://example.com/two.png\" alt=\"Two\" />\
+        <Img src=\"https://example.com/three.png\" alt=\"Three\" />";
+
+    let preserved = preserve_managed_attachment_images("<p>Summary only.</p>", original, &[]);
+
+    assert!(preserved.contains("https://example.com/one.png"));
+    assert!(preserved.contains("https://example.com/two.png"));
+    assert!(preserved.contains("https://example.com/three.png"));
+    assert_eq!(preserved.matches("<img").count(), 3);
+}
+
+#[test]
 fn summary_response_restores_missing_external_images() {
     let original = "<p>Original evidence.</p><img src=\"https://example.com/gmail-error.png\" alt=\"Gmail screenshot\" />";
 
@@ -349,6 +370,58 @@ fn rich_html_parser_does_not_decode_plain_text_tag_mentions() {
     let parsed = parse_rich_html_fragment_response("Use &lt;p&gt; for paragraph tags in examples.");
 
     assert_eq!(parsed, "Use &lt;p&gt; for paragraph tags in examples.");
+}
+
+#[test]
+fn rich_html_parser_repair_path_leaves_typographic_entities_literal() {
+    // The repair path only undoes the six structural entities an LLM might
+    // use to double-escape editor HTML (&lt;, &gt;, &amp;, &quot;, &apos;,
+    // &#39;). It must not widen into decoding typographic entities, since
+    // that would silently alter stored note content that was never meant to
+    // be touched by this repair pass.
+    let parsed = parse_rich_html_fragment_response(
+        "&lt;p&gt;Caption&nbsp;&mdash; almost done&hellip; she said &#8217;great&#8217;&lt;/p&gt;",
+    );
+
+    assert!(parsed.contains("<p>"));
+    assert!(parsed.contains("</p>"));
+    assert!(parsed.contains("&nbsp;"));
+    assert!(parsed.contains("&mdash;"));
+    assert!(parsed.contains("&hellip;"));
+    assert!(parsed.contains("&#8217;"));
+}
+
+#[test]
+fn project_html_to_prompt_text_still_decodes_typographic_entities() {
+    // In contrast to the repair path above, projecting stored HTML into
+    // plain prompt text for the model should decode as much as possible.
+    //
+    // Note: this deliberately avoids mixing a decoded multi-byte character
+    // (e.g. the curly quote from &#8217;) into the same projected string as
+    // an unrelated pre-existing `find_case_insensitive` char-boundary bug in
+    // `redact_data_urls`'s "data:" scan (out of scope for this fix; not
+    // introduced by it — reproducible on the pre-fix branch too).
+    let projected = project_html_to_prompt_text("<p>Caption&nbsp;almost done&hellip;</p>");
+
+    assert!(!projected.contains("&nbsp;"));
+    assert!(!projected.contains("&hellip;"));
+    assert!(projected.contains("Caption almost done..."));
+}
+
+#[test]
+fn decode_html_entities_projection_decoder_handles_numeric_curly_quote() {
+    // Narrower unit-level check for the numeric curly-quote case, exercising
+    // the wide (projection) decoder function directly rather than through
+    // the full HTML-to-prompt-text pipeline (which independently calls
+    // `redact_data_urls`, hitting the unrelated char-boundary issue noted
+    // above whenever the decoded text contains a multi-byte character).
+    // `&#8217;` is the numeric reference for U+2019 RIGHT SINGLE QUOTATION
+    // MARK ('\u{2019}'), decoded to the literal Unicode character (not
+    // folded to an ASCII apostrophe).
+    assert_eq!(
+        super::html::decode_html_entities("&#8217;great&#8217;"),
+        "\u{2019}great\u{2019}"
+    );
 }
 
 #[test]

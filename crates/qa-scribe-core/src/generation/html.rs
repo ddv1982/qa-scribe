@@ -25,9 +25,28 @@ pub(super) fn skip_whitespace(value: &str, mut index: usize) -> usize {
 
 /// Extract the value of `attribute` from a raw (already `<`/`>`-stripped)
 /// tag body, e.g. `img src="foo.png" alt="bar"`. Attribute values are
-/// entity-decoded before being returned. Returns `None` if the attribute is
-/// not present.
+/// entity-decoded (using the wide [`decode_html_entities`] decoder) before
+/// being returned. Returns `None` if the attribute is not present.
+///
+/// Used by `html_projection.rs`, where maximal entity decoding is desired
+/// when projecting HTML to plain prompt text. The response-repair path in
+/// `response.rs` needs narrower decoding and uses
+/// [`attribute_value_with_decoder`] with [`decode_basic_html_entities`]
+/// instead.
 pub(super) fn attribute_value(raw_tag: &str, attribute: &str) -> Option<String> {
+    attribute_value_with_decoder(raw_tag, attribute, decode_html_entities)
+}
+
+/// Same as [`attribute_value`], but decodes the extracted value with the
+/// given `decoder` instead of always using the wide entity set. This lets
+/// callers that must not widen entity decoding (e.g. the response-repair
+/// path, which historically only decoded six structural entities) reuse the
+/// same attribute-parsing state machine without duplicating it.
+pub(super) fn attribute_value_with_decoder(
+    raw_tag: &str,
+    attribute: &str,
+    decoder: impl Fn(&str) -> String,
+) -> Option<String> {
     let mut index = raw_tag.find(char::is_whitespace).unwrap_or(raw_tag.len());
     while index < raw_tag.len() {
         index = skip_whitespace(raw_tag, index);
@@ -92,18 +111,73 @@ pub(super) fn attribute_value(raw_tag: &str, attribute: &str) -> Option<String> 
         };
 
         if name == attribute.to_ascii_lowercase() {
-            return Some(decode_html_entities(&value));
+            return Some(decoder(&value));
         }
     }
     None
 }
 
-/// Decode HTML entities in `value`. Covers the union of entities the
-/// generation pipeline has ever needed: the standard XML set (`amp`, `lt`,
-/// `gt`, `quot`, `apos`/`#39`), common typographic entities (`nbsp`,
-/// `ndash`/`mdash`, `hellip`, curly quotes), and numeric character
-/// references (`&#39;`, `&#x27;`). Unknown entities are left untouched.
+/// Decode HTML entities in `value` using the wide entity set: the standard
+/// XML set (`amp`, `lt`, `gt`, `quot`, `apos`/`#39`), common typographic
+/// entities (`nbsp`, `ndash`/`mdash`, `hellip`, curly quotes), and numeric
+/// character references (`&#39;`, `&#x27;`). Unknown entities are left
+/// untouched.
+///
+/// Used for projecting stored HTML into plain prompt text
+/// (`html_projection.rs`), where maximal decoding is desirable: prompt text
+/// is read-only material handed to the model, so turning `&mdash;` into `-`
+/// or `&hellip;` into `...` only improves readability and there is no
+/// stored-content fidelity to preserve.
+///
+/// Do **not** use this on the response-repair path (`response.rs`). That
+/// path rewrites LLM output back into the editor's stored HTML, and widening
+/// its entity decoding would silently alter stored content that pre-refactor
+/// behavior left untouched (typographic entities, curly quotes, numeric
+/// references). Use [`decode_basic_html_entities`] there instead.
 pub(super) fn decode_html_entities(value: &str) -> String {
+    decode_entities_with(value, decode_entity)
+}
+
+/// Decode only the six structural HTML entities `&quot;`, `&#39;`, `&apos;`,
+/// `&lt;`, `&gt;`, `&amp;` in `value`. All other entities (typographic
+/// entities like `&nbsp;`/`&mdash;`/`&hellip;`, curly quotes, and numeric
+/// character references) are left as literal text.
+///
+/// Used by the response-repair path (`response.rs`) when unescaping HTML
+/// that an LLM returned double-escaped (e.g. `&lt;p&gt;`). That path writes
+/// the result back into stored note content, so it must only undo the
+/// structural escaping it is trying to repair — decoding typographic
+/// entities here would rewrite characters the user (or a prior editor pass)
+/// deliberately encoded, which is not this pass's job.
+///
+/// This is implemented as a sequential chain of exact substring replacements
+/// (one per entity, in a fixed order), not as the scan-one-entity-at-a-time
+/// loop that backs [`decode_html_entities`]. That is deliberate, not
+/// laziness: on malformed input containing stray `&`/`;` characters (which
+/// LLM output can and does produce), the two algorithms disagree — e.g. for
+/// `"&lt;&amp&&amp;"`, chained `.replace()` calls only ever match an exact
+/// `&amp;` substring and leave the dangling `&amp&` alone, while a
+/// scan-to-next-`;` loop would swallow `&amp&&amp;` as a single (unknown,
+/// left-untouched) entity candidate, dropping a `;` that `.replace()` would
+/// have kept. This function must stay byte-identical to the pre-refactor
+/// `decode_basic_html_entities`, so it keeps that exact replace-chain
+/// behavior rather than being unified with the scanning implementation.
+pub(super) fn decode_basic_html_entities(value: &str) -> String {
+    value
+        .replace("&quot;", "\"")
+        .replace("&#39;", "'")
+        .replace("&apos;", "'")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&amp;", "&")
+}
+
+/// Shared scanning loop: find each `&...;` run in `value` and hand the inner
+/// entity name to `lookup`, falling back to leaving the run untouched when
+/// `lookup` returns `None`. Only [`decode_html_entities`] uses this — see
+/// [`decode_basic_html_entities`]'s doc comment for why the repair-path
+/// decoder deliberately does *not* share this loop.
+fn decode_entities_with(value: &str, lookup: impl Fn(&str) -> Option<String>) -> String {
     let mut output = String::with_capacity(value.len());
     let mut index = 0usize;
     while let Some(relative_start) = value[index..].find('&') {
@@ -120,7 +194,7 @@ pub(super) fn decode_html_entities(value: &str) -> String {
             continue;
         }
         let entity = &value[start + 1..end];
-        match decode_entity(entity) {
+        match lookup(entity) {
             Some(decoded) => output.push_str(&decoded),
             None => output.push_str(&value[start..=end]),
         }
@@ -292,6 +366,46 @@ mod tests {
     fn decode_html_entities_ignores_overlong_entity_candidates() {
         let value = format!("&{};", "x".repeat(40));
         assert_eq!(decode_html_entities(&value), value);
+    }
+
+    #[test]
+    fn decode_basic_html_entities_decodes_only_the_six_structural_entities() {
+        assert_eq!(decode_basic_html_entities("&amp;&lt;&gt;&quot;"), "&<>\"");
+        assert_eq!(decode_basic_html_entities("&apos;&#39;"), "''");
+    }
+
+    #[test]
+    fn decode_basic_html_entities_leaves_typographic_entities_literal() {
+        // This is the crux of the repair-path/projection-path split: the
+        // repair path (response.rs) must not widen into decoding
+        // typographic entities or numeric character references, unlike the
+        // projection decoder above.
+        assert_eq!(
+            decode_basic_html_entities("&nbsp;&mdash;&hellip;&#8217;&lsquo;&rsquo;"),
+            "&nbsp;&mdash;&hellip;&#8217;&lsquo;&rsquo;"
+        );
+    }
+
+    #[test]
+    fn decode_basic_html_entities_does_not_double_decode() {
+        assert_eq!(decode_basic_html_entities("&amp;amp;"), "&amp;");
+    }
+
+    #[test]
+    fn decode_basic_html_entities_matches_pre_refactor_replace_chain_on_malformed_input() {
+        // Regression test for a real divergence found while restoring this
+        // decoder: unlike decode_html_entities (a scan-to-next-`;` loop),
+        // the pre-refactor decoder was a sequential chain of exact
+        // substring replacements. On input with a stray `&` between an
+        // entity-like prefix and a `;`, the two algorithms disagree — the
+        // scanning loop swallows the whole run as one (unknown) entity
+        // candidate, while the replace-chain only touches the exact
+        // trailing `&amp;` match. This decoder must keep the replace-chain
+        // behavior to stay byte-identical to the pre-refactor version.
+        assert_eq!(
+            decode_basic_html_entities("text&lt;&amp&&amp;"),
+            "text<&amp&&"
+        );
     }
 
     #[test]
