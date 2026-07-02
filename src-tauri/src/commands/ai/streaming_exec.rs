@@ -147,7 +147,16 @@ fn run_generation_command_streaming_with_timeout(
         chunk.clear();
         let read = match stdout_reader.read_until(b'\n', &mut chunk) {
             Ok(read) => read,
-            Err(error) => break Err(error.to_string()),
+            Err(error) => {
+                // The child may still be alive here (e.g. an EIO/EBADF on the
+                // pipe without the process having exited). `finish()` below
+                // only reaps via `wait()` and does not kill, so without this
+                // the reap would block until the child exits on its own.
+                // Kill in place (no take/wait) so `guard.finish()` remains the
+                // sole reaper and the watchdog join ordering is unchanged.
+                let _ = control.kill_registered_child();
+                break Err(error.to_string());
+            }
         };
         if read == 0 {
             break Ok(());
@@ -174,9 +183,9 @@ fn run_generation_command_streaming_with_timeout(
 
     if watchdog_fired.load(Ordering::SeqCst) && !control.is_cancelled() {
         return Err(format!(
-            "Generation timed out after {} minutes with no response from the provider. \
+            "Generation timed out after {} with no response from the provider. \
              The provider process was stopped. Try again or check the provider CLI.",
-            watchdog_timeout.as_secs() / 60
+            format_watchdog_duration(watchdog_timeout)
         ));
     }
 
@@ -187,6 +196,19 @@ fn run_generation_command_streaming_with_timeout(
         assistant_text: parser.finish(),
         cancelled: control.is_cancelled(),
     })
+}
+
+/// Render a watchdog bound for the timeout error message. Whole minutes when
+/// the bound is at least a minute, seconds otherwise, so a sub-minute bound
+/// (as used in tests, and plausible for a tightened production value) never
+/// renders as "timed out after 0 minutes".
+fn format_watchdog_duration(duration: Duration) -> String {
+    let secs = duration.as_secs();
+    if secs >= 60 {
+        format!("{} minutes", secs / 60)
+    } else {
+        format!("{secs} seconds")
+    }
 }
 
 fn spawn_watchdog(

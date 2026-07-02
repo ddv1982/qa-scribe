@@ -74,6 +74,8 @@ fn main() {
         .build(tauri::generate_context!())
         .expect("error while building qa-scribe")
         .run(|app, event| {
+            // Both events can fire during a single shutdown; that's fine since
+            // killing an already-killed/reaped child is a no-op in place.
             if let tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit = event {
                 app.state::<JobStore>().kill_all_children();
             }
