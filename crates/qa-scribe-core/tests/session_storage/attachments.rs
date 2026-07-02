@@ -183,3 +183,65 @@ fn delete_session_with_attachment_files_removes_database_rows_and_files() {
 
     fs::remove_dir_all(temp_dir).expect("temp dir should be removed");
 }
+
+#[test]
+fn delete_session_with_attachment_files_keeps_files_when_db_delete_fails() {
+    let temp_dir = unique_temp_dir();
+    fs::create_dir_all(&temp_dir).expect("temp dir should be created");
+    let db_path = temp_dir.join("qa-scribe.sqlite");
+    let service = SessionService::new(Database::open(&db_path).expect("file-backed database should open"))
+        .expect("session service should construct");
+    let source_path = temp_dir.join("evidence.txt");
+    fs::write(&source_path, "evidence").expect("source attachment should write");
+
+    let session = service
+        .create_session(SessionDraft {
+            title: "Delete order safety".to_string(),
+            ..SessionDraft::default()
+        })
+        .expect("session should be created");
+    import_managed_attachment(&service, &temp_dir, &session.id, None, &source_path)
+        .expect("attachment should import");
+
+    let session_dir = temp_dir.join("attachments").join(&session.id);
+    assert!(session_dir.exists());
+
+    // Force delete_session's UPDATE/DELETE to fail with SQLITE_BUSY by holding
+    // a write transaction open on a second connection to the same file, and
+    // shrinking the busy_timeout so the test does not wait out the default.
+    service
+        .database()
+        .connection()
+        .pragma_update(None, "busy_timeout", 50)
+        .expect("busy_timeout should update");
+    let blocker = rusqlite::Connection::open(&db_path).expect("blocking connection should open");
+    blocker
+        .execute_batch("BEGIN IMMEDIATE; DELETE FROM sessions WHERE id = 'unrelated';")
+        .expect("blocking transaction should start");
+
+    let result = delete_session_with_attachment_files(&service, &temp_dir, &session.id);
+    assert!(
+        result.is_err(),
+        "delete should surface the DB failure instead of pretending to succeed"
+    );
+
+    blocker
+        .execute_batch("ROLLBACK;")
+        .expect("blocking transaction should release");
+
+    // The critical assertion: because the DB delete happens BEFORE file
+    // cleanup, a DB failure must leave the evidence files untouched on disk.
+    assert!(
+        session_dir.exists(),
+        "attachment files must survive a failed DB delete, not be destroyed before it runs"
+    );
+    assert!(
+        service
+            .get_session(&session.id)
+            .expect("session query should work")
+            .is_some(),
+        "session row must still exist after the failed delete"
+    );
+
+    fs::remove_dir_all(temp_dir).expect("temp dir should be removed");
+}

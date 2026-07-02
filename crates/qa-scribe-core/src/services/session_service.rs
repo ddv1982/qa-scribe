@@ -17,12 +17,18 @@ pub struct SessionService {
 }
 
 impl SessionService {
-    pub fn new(database: Database) -> Self {
-        Self { database }
+    /// Builds a service around an already-open database. Sweeps any AI Runs
+    /// left `running` from a previous process (e.g. the app was killed mid
+    /// generation), so every consumer that constructs a `SessionService` gets
+    /// crash recovery for free without having to remember to call it.
+    pub fn new(database: Database) -> Result<Self> {
+        let service = Self { database };
+        service.fail_orphaned_running_ai_runs()?;
+        Ok(service)
     }
 
     pub fn in_memory() -> Result<Self> {
-        Ok(Self::new(Database::in_memory()?))
+        Self::new(Database::in_memory()?)
     }
 
     pub fn database(&self) -> &Database {

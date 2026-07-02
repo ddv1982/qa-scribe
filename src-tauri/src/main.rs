@@ -27,7 +27,7 @@ fn main() {
             let app_data_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&app_data_dir)?;
             let database = Database::open(app_data_dir.join("qa-scribe.sqlite"))?;
-            app.manage(AppState::new(SessionService::new(database), app_data_dir));
+            app.manage(AppState::new(SessionService::new(database)?, app_data_dir));
             app.manage(JobStore::default());
             Ok(())
         })

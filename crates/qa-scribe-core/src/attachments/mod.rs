@@ -178,11 +178,14 @@ pub fn delete_session_with_attachment_files(
     app_data_dir: impl AsRef<Path>,
     session_id: &str,
 ) -> Result<()> {
-    service
-        .get_session(session_id)?
-        .ok_or_else(|| crate::QaScribeError::NotFound(session_id.to_string()))?;
-    delete_session_attachment_files(app_data_dir, session_id)?;
-    service.delete_session(session_id)
+    // Delete the DB row first. If it fails (SQLITE_BUSY, I/O error, etc.),
+    // nothing has been touched on disk yet, so the evidence files survive.
+    // Only after the row is gone do we remove its files; if that cleanup
+    // fails, the session is already gone from the DB, so it just leaves
+    // stray files behind, which reconcile_attachment_files already detects
+    // and reports without treating them as data loss.
+    service.delete_session(session_id)?;
+    delete_session_attachment_files(app_data_dir, session_id)
 }
 
 pub fn delete_session_attachment_files(

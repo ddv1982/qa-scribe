@@ -139,8 +139,8 @@ fn migration_removes_body_length_checks_without_losing_dependents() {
             .expect("legacy schema fixture should be created");
     }
 
-    let service =
-        SessionService::new(Database::open(&database_path).expect("database should migrate"));
+    let service = SessionService::new(Database::open(&database_path).expect("database should migrate"))
+        .expect("session service should construct");
     let connection = service.database().connection();
     assert_no_foreign_key_violations(connection);
 

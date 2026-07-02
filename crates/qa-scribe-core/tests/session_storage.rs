@@ -26,3 +26,4 @@ include!("session_storage/lifecycle_and_validation.rs");
 include!("session_storage/generation_and_relationships.rs");
 include!("session_storage/migrations.rs");
 include!("session_storage/attachments.rs");
+include!("session_storage/ai_run_lifecycle.rs");
