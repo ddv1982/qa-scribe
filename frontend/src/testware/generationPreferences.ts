@@ -2,7 +2,6 @@ import type { Draft, TestwareDepth, TestwareGenerationPreferences, TestwareOutpu
 
 export type TestwareTechniquePreset = {
   id: TestwareTechnique
-  label: string
   shortLabel: string
   bestFor: string
   description: string
@@ -22,63 +21,54 @@ export const defaultTestwareGenerationPreferences: TestwareGenerationPreferences
 export const testwareTechniquePresets: TestwareTechniquePreset[] = [
   {
     id: 'auto',
-    label: 'Auto-select',
     shortLabel: 'Auto',
     bestFor: 'Mixed notes',
     description: 'Let QA Scribe choose the strongest coverage technique from the note.',
   },
   {
     id: 'use_case',
-    label: 'Use case flows',
     shortLabel: 'Flows',
     bestFor: 'Journeys',
     description: 'Cover happy paths, alternates, exceptions, and end-to-end behavior.',
   },
   {
     id: 'equivalence_boundary',
-    label: 'Equivalence and boundary',
     shortLabel: 'Boundaries',
     bestFor: 'Inputs',
     description: 'Group valid and invalid partitions, then check relevant edges.',
   },
   {
     id: 'decision_table',
-    label: 'Decision table',
     shortLabel: 'Rules',
     bestFor: 'Business rules',
     description: 'Map conditions, actions, and combinations without losing rule coverage.',
   },
   {
     id: 'state_transition',
-    label: 'State transition',
     shortLabel: 'States',
     bestFor: 'Workflows',
     description: 'Exercise valid and invalid movement between states and recovery paths.',
   },
   {
     id: 'pairwise',
-    label: 'Pairwise coverage',
     shortLabel: 'Pairwise',
     bestFor: 'Combinations',
     description: 'Compress parameter combinations into a practical high-signal set.',
   },
   {
     id: 'risk_based',
-    label: 'Risk-based',
     shortLabel: 'Risk',
     bestFor: 'Triage',
     description: 'Prioritize by impact, likelihood, complexity, and likely failure cost.',
   },
   {
     id: 'exploratory',
-    label: 'Exploratory charters',
     shortLabel: 'Charters',
     bestFor: 'Discovery',
     description: 'Create focused missions, risks, data needs, and observation prompts.',
   },
   {
     id: 'bdd',
-    label: 'BDD scenarios',
     shortLabel: 'BDD',
     bestFor: 'Acceptance',
     description: 'Shape behavior as Given/When/Then scenarios for stakeholder review.',

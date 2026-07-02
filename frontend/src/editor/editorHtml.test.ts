@@ -10,7 +10,6 @@ import {
   isSafeEditorLinkUrl,
   managedAttachmentImageHtml,
   normalizeEditorHtml,
-  serializeEditorHtml,
 } from './editorHtml'
 
 describe('editorHtml', () => {
@@ -74,18 +73,6 @@ describe('editorHtml', () => {
     expect(html).toContain('src="qa-scribe-attachment://attachment-1"')
     expect(html).toContain('data-attachment-id="attachment-1"')
     expect(html).toContain('alt="gmail-error.png"')
-  })
-
-  it('serializes live checkbox state from the editor', () => {
-    const editor = document.createElement('div')
-    editor.innerHTML = '<p><input type="checkbox" /> Verified in app</p>'
-    const checkbox = editor.querySelector('input')
-    if (!checkbox) throw new Error('checkbox missing')
-    checkbox.checked = true
-
-    const html = serializeEditorHtml(editor)
-
-    expect(html).toMatch(/<input type="checkbox" checked(="")?>/)
   })
 
   it('keeps Tiptap task-list metadata while stripping wrapper-only markup', () => {

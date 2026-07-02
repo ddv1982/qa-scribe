@@ -75,11 +75,6 @@ export function readFileAsDataUrl(file: File): Promise<string> {
   })
 }
 
-export function serializeEditorHtml(editor: HTMLElement): string {
-  const clone = editor.cloneNode(true) as HTMLElement
-  return sanitizeEditorHtmlTree(clone)
-}
-
 export function stripHtml(value: string): string {
   const documentFragment = new DOMParser().parseFromString(value, 'text/html')
   return documentFragment.body.textContent?.replace(/\s+/g, ' ').trim() ?? ''

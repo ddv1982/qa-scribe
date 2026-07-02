@@ -15,12 +15,8 @@ export type ClipboardImageReference = {
   alt: string
 }
 
-type HtmlRenderOptions = {
-  inlineDataImages?: boolean
-}
-
 export function formatRecordForClipboard(record: ClipboardRecord): ClipboardPayload {
-  return renderClipboardPayload(record.title, createNormalizedBody(record.bodyHtml), {})
+  return renderClipboardPayload(record.title, createNormalizedBody(record.bodyHtml))
 }
 
 function createNormalizedBody(bodyHtml: string): HTMLDivElement {
@@ -29,10 +25,10 @@ function createNormalizedBody(bodyHtml: string): HTMLDivElement {
   return body
 }
 
-function renderClipboardPayload(titleInput: string, body: ParentNode, options: HtmlRenderOptions): ClipboardPayload {
+function renderClipboardPayload(titleInput: string, body: ParentNode): ClipboardPayload {
   const title = titleInput.trim()
 
-  const htmlParts = [title ? `<h2>${escapeHtml(title)}</h2>` : '', renderHtmlChildren(body, options)]
+  const htmlParts = [title ? `<h2>${escapeHtml(title)}</h2>` : '']
     .map((part) => part.trim())
     .filter(Boolean)
   const plainParts = [title ? `## ${title}` : '', renderPlainChildren(body)]
@@ -83,52 +79,6 @@ function managedAttachmentIdFromImage(image: HTMLImageElement): string | null {
 function managedAttachmentIdFromSrc(source: string): string | null {
   if (!source.startsWith(managedAttachmentProtocol)) return null
   return source.slice(managedAttachmentProtocol.length)
-}
-
-function renderHtmlChildren(parent: ParentNode, options: HtmlRenderOptions): string {
-  return Array.from(parent.childNodes).map((node) => renderHtmlNode(node, options)).join('').trim()
-}
-
-function renderHtmlNode(node: ChildNode, options: HtmlRenderOptions): string {
-  if (node.nodeType === Node.TEXT_NODE) return escapeHtml(node.textContent ?? '')
-  if (node.nodeType !== Node.ELEMENT_NODE) return ''
-
-  const element = node as HTMLElement
-  const tagName = element.tagName.toLowerCase()
-
-  if (tagName === 'br') return '<br />'
-  if (tagName === 'input') return checkboxMarker(element as HTMLInputElement)
-  if (tagName === 'img') return renderHtmlImage(element as HTMLImageElement, options)
-
-  const children = renderHtmlChildren(element, options)
-  if (!children && tagName !== 'p') return ''
-
-  if (tagName === 'a') {
-    const href = safeLinkHref(element as HTMLAnchorElement)
-    return href ? `<a href="${escapeAttribute(href)}">${children}</a>` : children
-  }
-
-  if (tagName === 'b' || tagName === 'strong') return `<strong>${children}</strong>`
-  if (tagName === 'em' || tagName === 'i') return `<em>${children}</em>`
-  if (tagName === 'h2' || tagName === 'h3' || tagName === 'ol' || tagName === 'p') return `<${tagName}>${children}</${tagName}>`
-
-  if (tagName === 'ul') {
-    return `<ul>${Array.from(element.children).map((child) => renderHtmlListItem(child as HTMLElement, options)).join('')}</ul>`
-  }
-
-  if (tagName === 'li') return renderHtmlListItem(element, options)
-  return children
-}
-
-function renderHtmlListItem(item: HTMLElement, options: HtmlRenderOptions): string {
-  const taskMarker = item.getAttribute('data-type') === 'taskItem' ? `${taskItemMarker(item)} ` : ''
-  const children = Array.from(item.childNodes)
-    .filter((child) => !(child.nodeType === Node.ELEMENT_NODE && (child as HTMLElement).tagName.toLowerCase() === 'input'))
-    .map((node) => renderHtmlNode(node, options))
-    .join('')
-    .trim()
-
-  return `<li>${taskMarker}${children}</li>`
 }
 
 function renderPlainChildren(parent: ParentNode): string {
@@ -216,22 +166,6 @@ function checkboxMarker(checkbox: HTMLInputElement): string {
   return checkbox.checked || checkbox.hasAttribute('checked') ? '[x]' : '[ ]'
 }
 
-function renderHtmlImage(image: HTMLImageElement, options: HtmlRenderOptions): string {
-  const source = image.getAttribute('src')?.trim() ?? ''
-  const alt = image.getAttribute('alt')?.trim() || 'Attached image'
-
-  if (isDataImageSource(source)) {
-    if (options.inlineDataImages) return `<img src="${escapeAttribute(source)}" alt="${escapeAttribute(alt)}" />`
-    return `Image: ${escapeHtml(alt)}`
-  }
-
-  if (source.startsWith(managedAttachmentProtocol)) {
-    return `Image: ${escapeHtml(alt)}`
-  }
-
-  return isSafeImageSource(source) ? `<img src="${escapeAttribute(source)}" alt="${escapeAttribute(alt)}" />` : `Image: ${escapeHtml(alt)}`
-}
-
 function renderPlainImage(image: HTMLImageElement): string {
   const source = image.getAttribute('src')?.trim() ?? ''
   const alt = image.getAttribute('alt')?.trim() || 'Attached image'
@@ -277,10 +211,6 @@ function trimBlankLines(value: string): string {
 
 function collapseWhitespace(value: string): string {
   return value.replace(/[ \t\n\r]+/g, ' ').trim()
-}
-
-function escapeAttribute(value: string): string {
-  return escapeHtml(value).replace(/`/g, '&#96;')
 }
 
 function escapeHtml(value: string): string {

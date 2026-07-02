@@ -31,18 +31,12 @@
   border-color: color-mix(in srgb, var(--blue) 12%, transparent);
 }
 
-.note-picker,
-.model-selector {
+.note-picker {
   display: grid;
   gap: 10px;
   padding-top: 24px;
   margin-top: 24px;
   border-top: 1px solid var(--border);
-}
-
-.model-selector {
-  margin-top: 24px;
-  position: relative;
 }
 
 .rail-heading {
@@ -256,17 +250,6 @@
 
 .model-option.custom {
   border-color: var(--border);
-}
-
-.provider-hint {
-  margin: 0;
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.45;
-}
-
-.provider-hint.ready {
-  color: var(--green);
 }
 
 .settings-link {

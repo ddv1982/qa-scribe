@@ -9,7 +9,7 @@ describe('clipboardExport', () => {
     vi.clearAllMocks()
   })
 
-  it('formats title and rich body as HTML plus Markdown-like plain text', () => {
+  it('formats title and rich body as Markdown-like plain text', () => {
     const payload = formatRecordForClipboard({
       title: 'Gmail sign-in issue',
       bodyHtml: `
@@ -20,12 +20,6 @@ describe('clipboardExport', () => {
       `,
     })
 
-    expect(payload.html).toContain('<h2>Gmail sign-in issue</h2>')
-    expect(payload.html).toContain('<strong>Gmail</strong>')
-    expect(payload.html).toContain('<em>fails</em>')
-    expect(payload.html).toContain('<a href="https://example.test/ticket">ticket</a>')
-    expect(payload.html).toContain('<ul><li>Open Gmail</li></ul>')
-    expect(payload.html).toContain('<ol><li>Enter credentials</li></ol>')
     expect(payload.plain).toBe(
       [
         '## Gmail sign-in issue',
@@ -48,10 +42,6 @@ describe('clipboardExport', () => {
       `,
     })
 
-    expect(payload.html).toContain('<li>[x] Verify login</li>')
-    expect(payload.html).toContain('<li>[ ] Verify logout</li>')
-    expect(payload.html).not.toContain('data-type')
-    expect(payload.html).not.toContain('<input')
     expect(payload.plain).toContain('- [x] Verify login')
     expect(payload.plain).toContain('- [ ] Verify logout')
   })
@@ -62,7 +52,6 @@ describe('clipboardExport', () => {
       bodyHtml: '<p><br></p>',
     })
 
-    expect(payload.html).toBe('<h2>Untitled finding</h2>')
     expect(payload.plain).toBe('## Untitled finding')
   })
 
@@ -72,8 +61,6 @@ describe('clipboardExport', () => {
       bodyHtml: `<p>${managedAttachmentImageHtml('attachment-1', 'gmail-error.png')}</p>`,
     })
 
-    expect(payload.html).toContain('Image: gmail-error.png')
-    expect(payload.html).not.toContain('qa-scribe-attachment://')
     expect(payload.plain).toContain('Image: gmail-error.png')
     expect(payload.plain).not.toContain('qa-scribe-attachment://')
   })
@@ -144,9 +131,8 @@ describe('clipboardExport', () => {
       bodyHtml: '<p><img src="data:image/png;base64,BBBB" alt="inline.png" style="color: red" /></p>',
     })
 
-    expect(payload.html).not.toContain('style=')
-    expect(payload.html).not.toContain('color')
-    expect(payload.html).toContain('Image: inline.png')
+    expect(payload.plain).not.toContain('style=')
+    expect(payload.plain).not.toContain('color')
     expect(payload.plain).toContain('Image: inline.png')
   })
 })

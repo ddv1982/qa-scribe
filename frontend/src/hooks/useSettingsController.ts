@@ -7,29 +7,27 @@ import {
   type AppSettings,
   type ProviderStatus,
 } from '../tauri'
-import { modelForProvider, providerModelDefaults } from '../settings/defaults'
+import { modelForProvider } from '../settings/defaults'
 import { currentSystemTheme, formatError, initialTheme, resolveThemePreference } from '../ui/format'
 import type { SettingsSaveState, ThemePreference } from '../ui/types'
 
 export function useSettingsController({
-  bootedRef,
   setError,
   setNotice,
 }: {
-  bootedRef: { current: boolean }
   setError: (message: string | null) => void
   setNotice: (message: string | null) => void
 }) {
   const [settings, setSettings] = useState<AppSettings | null>(null)
   const [providerStatus, setProviderStatus] = useState<ProviderStatus | null>(null)
-  const [selectedProvider, setSelectedProvider] = useState<AiProvider>('codex_cli')
-  const [selectedModel, setSelectedModel] = useState('default')
   const [settingsDraft, setSettingsDraft] = useState<AppSettings | null>(null)
   const [settingsSaveState, setSettingsSaveState] = useState<SettingsSaveState>('idle')
   const [theme, setTheme] = useState<ThemePreference>(() => initialTheme())
   const [systemTheme, setSystemTheme] = useState(() => currentSystemTheme())
   const settingsSaveResetRef = useRef<number | null>(null)
 
+  const selectedProvider: AiProvider = settings?.selectedAiProvider ?? 'codex_cli'
+  const selectedModel = settings ? modelForProvider(settings, selectedProvider) : 'default'
   const providerOptions = providerStatus?.providers ?? []
   const activeProvider = providerOptions.find((provider) => provider.id === selectedProvider) ?? providerOptions[0] ?? null
   const selectedReasoningEffort = settings?.selectedAiReasoningEffortsByProvider?.[selectedProvider] ?? null
@@ -56,32 +54,10 @@ export function useSettingsController({
     }
   }, [])
 
-  useEffect(() => {
-    if (!settings || !bootedRef.current) return
-    if (selectedProvider === settings.selectedAiProvider && selectedModel === settings.selectedAiModel) return
-
-    const timeout = window.setTimeout(() => {
-      const selectedAiModelsByProvider = {
-        ...providerModelDefaults(),
-        ...settings.selectedAiModelsByProvider,
-        [selectedProvider]: selectedModel.trim() || 'default',
-      }
-      void persistSettings({
-        ...settings,
-        selectedAiProvider: selectedProvider,
-        selectedAiModel: selectedModel.trim() || 'default',
-        selectedAiModelsByProvider,
-      })
-    }, 550)
-    return () => window.clearTimeout(timeout)
-  }, [settings, selectedProvider, selectedModel]) // eslint-disable-line react-hooks/exhaustive-deps -- persistence is intentionally keyed to saved settings and selected model fields
-
   function loadSettings(nextSettings: AppSettings, nextProviderStatus: ProviderStatus | null = null) {
     setSettings(nextSettings)
     setSettingsDraft(nextSettings)
     setProviderStatus(nextProviderStatus)
-    setSelectedProvider(nextSettings.selectedAiProvider)
-    setSelectedModel(modelForProvider(nextSettings, nextSettings.selectedAiProvider))
   }
 
   async function refreshProviderStatus() {
@@ -98,8 +74,6 @@ export function useSettingsController({
       const saved = await updateSettings(nextSettings)
       setSettings(saved)
       setSettingsDraft(saved)
-      setSelectedProvider(saved.selectedAiProvider)
-      setSelectedModel(saved.selectedAiModel)
       setNotice('Settings saved')
       return saved
     } catch (cause) {
@@ -141,7 +115,6 @@ export function useSettingsController({
     handleSaveSettings,
     loadProviderStatus,
     loadSettings,
-    persistSettings,
     providerStatus,
     refreshProviderStatus,
     selectedModel,

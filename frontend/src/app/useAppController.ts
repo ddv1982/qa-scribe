@@ -57,7 +57,7 @@ export function useAppController() {
     theme,
     updateSettingsDraft,
     handleSaveSettings: saveSettingsDraft,
-  } = useSettingsController({ bootedRef, setError, setNotice })
+  } = useSettingsController({ setError, setNotice })
 
   const testwareDrafts = drafts.filter((draft) => draft.kind === 'testware')
   const noteBodyHtml = useMemo(() => richEditorDocumentToHtml(noteBody), [noteBody])
