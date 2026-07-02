@@ -1,3 +1,4 @@
+mod html;
 mod html_projection;
 mod prompt;
 mod response;

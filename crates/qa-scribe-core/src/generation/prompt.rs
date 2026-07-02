@@ -1,8 +1,8 @@
 use crate::domain::{AppSettings, Attachment, Entry};
 
+use super::html::{MANAGED_ATTACHMENT_PROTOCOL, escape_html_attribute};
 use super::html_projection::project_html_to_prompt_text;
 
-const MANAGED_ATTACHMENT_PROTOCOL: &str = "qa-scribe-attachment://";
 const SELECTED_NOTE_PROMPT_CHAR_LIMIT: usize = 20_000;
 const TOTAL_PROMPT_MATERIAL_CHAR_LIMIT: usize = 40_000;
 const TESTWARE_SELECTED_NOTE_PROMPT_CHAR_LIMIT: usize = 12_000;
@@ -150,7 +150,7 @@ fn append_managed_images(
                 "- {}: <img src=\"{}{id}\" data-attachment-id=\"{id}\" alt=\"{}\" />\n",
                 attachment.filename,
                 MANAGED_ATTACHMENT_PROTOCOL,
-                escape_prompt_attribute(&attachment.filename),
+                escape_html_attribute(&attachment.filename),
                 id = attachment.id
             ));
         }
@@ -291,12 +291,4 @@ fn collect_protocol_sources(value: &str, ids: &mut Vec<String>) {
         }
         offset = value_end;
     }
-}
-
-fn escape_prompt_attribute(value: &str) -> String {
-    value
-        .replace('&', "&amp;")
-        .replace('"', "&quot;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
 }

@@ -1,4 +1,6 @@
-const MANAGED_ATTACHMENT_PROTOCOL: &str = "qa-scribe-attachment://";
+use super::html::{
+    MANAGED_ATTACHMENT_PROTOCOL, attribute_value, decode_html_entities, find_case_insensitive,
+};
 
 pub fn project_html_to_prompt_text(value: &str) -> String {
     let mut projector = HtmlPromptProjector::new(value);
@@ -198,151 +200,10 @@ impl Tag {
     }
 }
 
-fn attribute_value(raw_tag: &str, attribute: &str) -> Option<String> {
-    let mut index = raw_tag.find(char::is_whitespace).unwrap_or(raw_tag.len());
-    while index < raw_tag.len() {
-        index = skip_whitespace(raw_tag, index);
-        if index >= raw_tag.len() {
-            return None;
-        }
-        if raw_tag[index..].starts_with('/') {
-            index += 1;
-            continue;
-        }
-
-        let name_start = index;
-        while index < raw_tag.len() {
-            let character = raw_tag[index..].chars().next()?;
-            if character.is_whitespace() || character == '=' || character == '/' {
-                break;
-            }
-            index += character.len_utf8();
-        }
-        if name_start == index {
-            index += raw_tag[index..].chars().next()?.len_utf8();
-            continue;
-        }
-        let name = raw_tag[name_start..index].to_ascii_lowercase();
-        index = skip_whitespace(raw_tag, index);
-
-        let value = if raw_tag[index..].starts_with('=') {
-            index += 1;
-            index = skip_whitespace(raw_tag, index);
-            if index >= raw_tag.len() {
-                String::new()
-            } else {
-                let quote = raw_tag[index..].chars().next()?;
-                if quote == '"' || quote == '\'' {
-                    index += quote.len_utf8();
-                    let value_start = index;
-                    let mut value_end = raw_tag.len();
-                    while index < raw_tag.len() {
-                        let character = raw_tag[index..].chars().next()?;
-                        if character == quote {
-                            value_end = index;
-                            index += quote.len_utf8();
-                            break;
-                        }
-                        index += character.len_utf8();
-                    }
-                    raw_tag[value_start..value_end].to_string()
-                } else {
-                    let value_start = index;
-                    while index < raw_tag.len() {
-                        let character = raw_tag[index..].chars().next()?;
-                        if character.is_whitespace() || character == '/' {
-                            break;
-                        }
-                        index += character.len_utf8();
-                    }
-                    raw_tag[value_start..index].to_string()
-                }
-            }
-        } else {
-            String::new()
-        };
-
-        if name == attribute.to_ascii_lowercase() {
-            return Some(decode_html_entities(&value));
-        }
-    }
-    None
-}
-
 fn has_attribute(raw_tag: &str, attribute: &str, value: &str) -> bool {
     attribute_value(raw_tag, attribute)
         .map(|candidate| candidate.eq_ignore_ascii_case(value))
         .unwrap_or(false)
-}
-
-fn skip_whitespace(value: &str, mut index: usize) -> usize {
-    while index < value.len() {
-        let Some(character) = value[index..].chars().next() else {
-            break;
-        };
-        if !character.is_whitespace() {
-            break;
-        }
-        index += character.len_utf8();
-    }
-    index
-}
-
-fn decode_html_entities(value: &str) -> String {
-    let mut output = String::with_capacity(value.len());
-    let mut index = 0usize;
-    while let Some(relative_start) = value[index..].find('&') {
-        let start = index + relative_start;
-        output.push_str(&value[index..start]);
-        let Some(relative_end) = value[start..].find(';') else {
-            output.push_str(&value[start..]);
-            return output;
-        };
-        let end = start + relative_end;
-        if end - start > 32 {
-            output.push('&');
-            index = start + 1;
-            continue;
-        }
-        let entity = &value[start + 1..end];
-        match decode_entity(entity) {
-            Some(decoded) => output.push_str(&decoded),
-            None => output.push_str(&value[start..=end]),
-        }
-        index = end + 1;
-    }
-    output.push_str(&value[index..]);
-    output
-}
-
-fn decode_entity(entity: &str) -> Option<String> {
-    match entity {
-        "amp" => Some("&".to_string()),
-        "lt" => Some("<".to_string()),
-        "gt" => Some(">".to_string()),
-        "quot" => Some("\"".to_string()),
-        "apos" | "#39" => Some("'".to_string()),
-        "nbsp" => Some(" ".to_string()),
-        "ndash" | "mdash" => Some("-".to_string()),
-        "hellip" => Some("...".to_string()),
-        "lsquo" | "rsquo" => Some("'".to_string()),
-        "ldquo" | "rdquo" => Some("\"".to_string()),
-        _ => decode_numeric_entity(entity),
-    }
-}
-
-fn decode_numeric_entity(entity: &str) -> Option<String> {
-    let number = if let Some(hex) = entity
-        .strip_prefix("#x")
-        .or_else(|| entity.strip_prefix("#X"))
-    {
-        u32::from_str_radix(hex, 16).ok()?
-    } else if let Some(decimal) = entity.strip_prefix('#') {
-        decimal.parse::<u32>().ok()?
-    } else {
-        return None;
-    };
-    char::from_u32(number).map(|character| character.to_string())
 }
 
 fn image_label_from_source(source: Option<&str>) -> Option<String> {
@@ -384,12 +245,6 @@ fn redact_data_urls(value: &str) -> String {
     }
     output.push_str(&value[index..]);
     output
-}
-
-fn find_case_insensitive(haystack: &str, needle: &str) -> Option<usize> {
-    haystack
-        .to_ascii_lowercase()
-        .find(&needle.to_ascii_lowercase())
 }
 
 fn normalize_prompt_text(value: &str) -> String {

@@ -1,6 +1,9 @@
 use crate::domain::Attachment;
 
-const MANAGED_ATTACHMENT_PROTOCOL: &str = "qa-scribe-attachment://";
+use super::html::{
+    MANAGED_ATTACHMENT_PROTOCOL, attribute_value, decode_html_entities, escape_html_attribute,
+};
+
 const EDITOR_HTML_TAGS: &[&str] = &[
     "a", "b", "br", "em", "h2", "h3", "i", "img", "input", "li", "ol", "p", "strong", "ul",
 ];
@@ -93,7 +96,7 @@ fn strip_response_fence(response: &str) -> String {
 fn repair_escaped_editor_html(value: &str) -> String {
     let trimmed = value.trim();
     if should_decode_escaped_editor_html(trimmed) {
-        decode_basic_html_entities(trimmed)
+        decode_html_entities(trimmed)
     } else {
         trimmed.to_string()
     }
@@ -281,106 +284,4 @@ fn image_html(source: &str, alt: &str) -> String {
 
 fn is_preservable_external_image_source(source: &str) -> bool {
     source.starts_with("https://") || source.starts_with("http://")
-}
-
-fn attribute_value(raw_tag: &str, attribute: &str) -> Option<String> {
-    let mut index = raw_tag.find(char::is_whitespace).unwrap_or(raw_tag.len());
-    while index < raw_tag.len() {
-        index = skip_whitespace(raw_tag, index);
-        if index >= raw_tag.len() {
-            return None;
-        }
-        if raw_tag[index..].starts_with('/') {
-            index += 1;
-            continue;
-        }
-
-        let name_start = index;
-        while index < raw_tag.len() {
-            let character = raw_tag[index..].chars().next()?;
-            if character.is_whitespace() || character == '=' || character == '/' {
-                break;
-            }
-            index += character.len_utf8();
-        }
-        if name_start == index {
-            index += raw_tag[index..].chars().next()?.len_utf8();
-            continue;
-        }
-        let name = raw_tag[name_start..index].to_ascii_lowercase();
-        index = skip_whitespace(raw_tag, index);
-
-        let value = if raw_tag[index..].starts_with('=') {
-            index += 1;
-            index = skip_whitespace(raw_tag, index);
-            if index >= raw_tag.len() {
-                String::new()
-            } else {
-                let quote = raw_tag[index..].chars().next()?;
-                if quote == '"' || quote == '\'' {
-                    index += quote.len_utf8();
-                    let value_start = index;
-                    let mut value_end = raw_tag.len();
-                    while index < raw_tag.len() {
-                        let character = raw_tag[index..].chars().next()?;
-                        if character == quote {
-                            value_end = index;
-                            index += quote.len_utf8();
-                            break;
-                        }
-                        index += character.len_utf8();
-                    }
-                    raw_tag[value_start..value_end].to_string()
-                } else {
-                    let value_start = index;
-                    while index < raw_tag.len() {
-                        let character = raw_tag[index..].chars().next()?;
-                        if character.is_whitespace() || character == '/' {
-                            break;
-                        }
-                        index += character.len_utf8();
-                    }
-                    raw_tag[value_start..index].to_string()
-                }
-            }
-        } else {
-            String::new()
-        };
-
-        if name == attribute.to_ascii_lowercase() {
-            return Some(decode_basic_html_entities(&value));
-        }
-    }
-    None
-}
-
-fn skip_whitespace(value: &str, mut index: usize) -> usize {
-    while index < value.len() {
-        let Some(character) = value[index..].chars().next() else {
-            break;
-        };
-        if !character.is_whitespace() {
-            break;
-        }
-        index += character.len_utf8();
-    }
-    index
-}
-
-fn decode_basic_html_entities(value: &str) -> String {
-    value
-        .replace("&quot;", "\"")
-        .replace("&#39;", "'")
-        .replace("&apos;", "'")
-        .replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&amp;", "&")
-}
-
-fn escape_html_attribute(value: &str) -> String {
-    value
-        .replace('&', "&amp;")
-        .replace('"', "&quot;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
 }
