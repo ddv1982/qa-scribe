@@ -247,22 +247,32 @@ pub(super) fn escape_html_attribute(value: &str) -> String {
 /// Case-insensitive substring search. Returns the byte offset of the first
 /// match, if any, without allocating a lowercased copy of the remainder of
 /// `haystack` for every candidate position.
+///
+/// `needle` is always an ASCII literal at every call site (`"data:"`,
+/// `"<img"`, `"</script>"`/`"</style>"` tag names). Comparisons are done on
+/// raw bytes via `eq_ignore_ascii_case`, never through `str` slicing, so a
+/// candidate window is never rejected (or panicked on) for landing in the
+/// middle of a multi-byte UTF-8 character in `haystack` — the byte-level
+/// comparison simply reports "not equal" instead of panicking. This also
+/// means an explicit `is_char_boundary` guard is unnecessary: an ASCII
+/// needle byte (`< 0x80`) can only compare equal to a `haystack` byte that
+/// is itself `< 0x80`, and every UTF-8 continuation byte is `>= 0x80`, so a
+/// full match can never end (or start) inside a multi-byte character. Any
+/// `Some(start)` returned is therefore guaranteed to be a valid char
+/// boundary in the original `haystack`, preserving the contract relied on
+/// by all three call sites that slice `haystack` at the returned offset.
 pub(super) fn find_case_insensitive(haystack: &str, needle: &str) -> Option<usize> {
     if needle.is_empty() {
         return Some(0);
     }
     let haystack_bytes = haystack.as_bytes();
-    let needle_len = needle.len();
+    let needle_bytes = needle.as_bytes();
+    let needle_len = needle_bytes.len();
     if needle_len > haystack_bytes.len() {
         return None;
     }
     for start in 0..=haystack_bytes.len() - needle_len {
-        // Only attempt a match at valid UTF-8 character boundaries so the
-        // returned offset can be used safely to slice `haystack`.
-        if !haystack.is_char_boundary(start) {
-            continue;
-        }
-        if haystack[start..start + needle_len].eq_ignore_ascii_case(needle) {
+        if haystack_bytes[start..start + needle_len].eq_ignore_ascii_case(needle_bytes) {
             return Some(start);
         }
     }
@@ -440,5 +450,20 @@ mod tests {
         // inside it while scanning byte-by-byte.
         let haystack = "café DATA:foo";
         assert_eq!(find_case_insensitive(haystack, "data:"), Some(6));
+    }
+
+    #[test]
+    fn find_case_insensitive_does_not_panic_when_multibyte_char_overlaps_match_window() {
+        // Regression test: the match START boundary was guarded
+        // (`is_char_boundary(start)`), but the END of the fixed-width
+        // window (`start + needle_len`) was not. "data\u{2019}x" has the
+        // multi-byte '\u{2019}' (’, 3 bytes in UTF-8) beginning right where
+        // a 5-byte "data:" window would end, so the window
+        // `haystack[start..start + needle_len]` slices into the middle of
+        // '’' and previously panicked with "byte index N is not a char
+        // boundary". There is no valid case-insensitive match for "data:"
+        // in this haystack, so the correct result is `None`, not a panic.
+        let haystack = "data\u{2019}x";
+        assert_eq!(find_case_insensitive(haystack, "data:"), None);
     }
 }

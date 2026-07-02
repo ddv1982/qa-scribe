@@ -394,34 +394,44 @@ fn rich_html_parser_repair_path_leaves_typographic_entities_literal() {
 #[test]
 fn project_html_to_prompt_text_still_decodes_typographic_entities() {
     // In contrast to the repair path above, projecting stored HTML into
-    // plain prompt text for the model should decode as much as possible.
-    //
-    // Note: this deliberately avoids mixing a decoded multi-byte character
-    // (e.g. the curly quote from &#8217;) into the same projected string as
-    // an unrelated pre-existing `find_case_insensitive` char-boundary bug in
-    // `redact_data_urls`'s "data:" scan (out of scope for this fix; not
-    // introduced by it — reproducible on the pre-fix branch too).
-    let projected = project_html_to_prompt_text("<p>Caption&nbsp;almost done&hellip;</p>");
+    // plain prompt text for the model should decode as much as possible,
+    // including typographic entities that decode to multi-byte Unicode
+    // characters (e.g. the curly quote from &#8217;).
+    let projected = project_html_to_prompt_text(
+        "<p>Caption&nbsp;almost done&hellip; she said &#8217;great&#8217;</p>",
+    );
 
     assert!(!projected.contains("&nbsp;"));
     assert!(!projected.contains("&hellip;"));
-    assert!(projected.contains("Caption almost done..."));
+    assert!(!projected.contains("&#8217;"));
+    assert!(projected.contains("Caption almost done... she said \u{2019}great\u{2019}"));
 }
 
 #[test]
 fn decode_html_entities_projection_decoder_handles_numeric_curly_quote() {
-    // Narrower unit-level check for the numeric curly-quote case, exercising
-    // the wide (projection) decoder function directly rather than through
-    // the full HTML-to-prompt-text pipeline (which independently calls
-    // `redact_data_urls`, hitting the unrelated char-boundary issue noted
-    // above whenever the decoded text contains a multi-byte character).
     // `&#8217;` is the numeric reference for U+2019 RIGHT SINGLE QUOTATION
     // MARK ('\u{2019}'), decoded to the literal Unicode character (not
-    // folded to an ASCII apostrophe).
-    assert_eq!(
-        super::html::decode_html_entities("&#8217;great&#8217;"),
-        "\u{2019}great\u{2019}"
-    );
+    // folded to an ASCII apostrophe). Exercised through the full
+    // HTML-to-prompt-text pipeline (which also runs decoded text through
+    // `redact_data_urls`'s "data:" scan) to confirm the multi-byte character
+    // survives projection end to end, not just the decoder in isolation.
+    let projected = project_html_to_prompt_text("<p>&#8217;great&#8217;</p>");
+
+    assert!(projected.contains("\u{2019}great\u{2019}"));
+}
+
+#[test]
+fn project_html_to_prompt_text_does_not_panic_on_entity_decoded_apostrophe_near_data_scan() {
+    // Regression test for the find_case_insensitive char-boundary panic:
+    // decoding `&#8217;` (numeric reference for U+2019 RIGHT SINGLE
+    // QUOTATION MARK, '\u{2019}') injects a multi-byte character into the
+    // projected text, which `redact_data_urls`'s unconditional "data:" scan
+    // over that text used to panic on when the multi-byte character
+    // overlapped the fixed-width match window. This must complete without
+    // panicking and must decode the entity the same way the literal
+    // character would project.
+    let projected = project_html_to_prompt_text("<p>see data&#8217;s value</p>");
+    assert!(projected.contains("see data\u{2019}s value"));
 }
 
 #[test]
