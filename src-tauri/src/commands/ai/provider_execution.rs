@@ -1,13 +1,9 @@
 use std::{
-    io::Write,
-    process::{Command, ExitStatus, Output, Stdio},
+    process::ExitStatus,
     time::{Duration, Instant},
 };
 
-use qa_scribe_core::{
-    ai::{GenerationCommand, generation_command, streaming_generation_command},
-    domain::AiProvider,
-};
+use qa_scribe_core::{ai::streaming_generation_command, domain::AiProvider};
 use tauri::ipc::Channel;
 
 use super::{
@@ -18,44 +14,10 @@ use super::{
 use crate::{
     commands::providers::provider_readiness,
     jobs::{JobControl, JobStore},
-    provider_command::apply_provider_path,
 };
 
 const PARTIAL_UPDATE_MIN_BYTES: usize = 512;
 const PARTIAL_UPDATE_INTERVAL: Duration = Duration::from_millis(250);
-
-pub(super) fn execute_provider_generation(
-    provider: AiProvider,
-    model: &str,
-    reasoning_effort: Option<&str>,
-    prompt: &str,
-    log_context: &str,
-) -> Result<ProviderGenerationOutput, String> {
-    let readiness = provider_readiness(provider);
-    if !readiness.descriptor.status.is_ready() {
-        return Err(readiness.descriptor.reason);
-    }
-
-    let command = generation_command(
-        provider,
-        prompt,
-        model,
-        reasoning_effort,
-        readiness.copilot_runtime,
-    )?;
-    let started = Instant::now();
-    let output = run_generation_command(&command).map(ProviderGenerationOutput::from);
-    eprintln!(
-        "qa-scribe {log_context} provider finished: elapsed_ms={}, success={}, failure={}",
-        started.elapsed().as_millis(),
-        output
-            .as_ref()
-            .map(ProviderGenerationOutput::success)
-            .unwrap_or(false),
-        output_failure_for_log(&output)
-    );
-    output
-}
 
 #[allow(clippy::too_many_arguments)]
 pub(super) fn execute_provider_generation_streaming(
@@ -145,26 +107,6 @@ fn truncate_for_log(value: &str, max_chars: usize) -> String {
     }
 }
 
-fn run_generation_command(command: &GenerationCommand) -> Result<Output, String> {
-    let mut process = Command::new(&command.program);
-    process
-        .args(&command.args)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
-    apply_provider_path(&mut process);
-
-    let mut child = process.spawn().map_err(|error| error.to_string())?;
-
-    if let Some(mut stdin) = child.stdin.take() {
-        stdin
-            .write_all(command.stdin.as_bytes())
-            .map_err(|error| error.to_string())?;
-    }
-
-    child.wait_with_output().map_err(|error| error.to_string())
-}
-
 #[derive(Debug)]
 pub(super) struct ProviderGenerationOutput {
     pub(super) status: Option<ExitStatus>,
@@ -249,18 +191,6 @@ fn copilot_generation_failure_message(message: &str) -> Option<String> {
     }
 
     None
-}
-
-impl From<Output> for ProviderGenerationOutput {
-    fn from(output: Output) -> Self {
-        Self {
-            status: Some(output.status),
-            stdout: output.stdout,
-            stderr: output.stderr,
-            assistant_text: None,
-            cancelled: false,
-        }
-    }
 }
 
 #[cfg(test)]

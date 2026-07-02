@@ -52,7 +52,6 @@ Measure:
 
 - An explicit `noteEntryId` must resolve to a Note in the requested Session.
 - Summary completion updates the prepared selected Note id, not an unchecked request id.
-- `get_command_shell_status` does not report unused native path grants.
 
 Validation:
 

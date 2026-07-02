@@ -17,11 +17,6 @@ pub fn create_session(state: State<'_, AppState>, draft: SessionDraft) -> Result
 }
 
 #[tauri::command]
-pub fn get_session(state: State<'_, AppState>, id: String) -> Result<Option<Session>, String> {
-    state.with_service(|service| service.get_session(&id))
-}
-
-#[tauri::command]
 pub fn reopen_session(state: State<'_, AppState>, id: String) -> Result<Session, String> {
     state.with_service(|service| service.reopen_session(&id))
 }

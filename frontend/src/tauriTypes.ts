@@ -1,19 +1,3 @@
-export type AppStatus = {
-  name: string
-  storageMode: string
-  migrationRequired: boolean
-  implementedFeatures: string[]
-}
-
-export type CommandShellStatus = {
-  appDataDir: string
-  databaseFilename: string
-  nativePermissions: string[]
-  activeJobCount: number
-  implementedCommands: string[]
-  deferredCommands: string[]
-}
-
 export type Session = {
   id: string
   title: string
@@ -156,12 +140,6 @@ export type AiRun = {
   errorMessage: string | null
   createdAt: string
   completedAt: string | null
-}
-
-export type GenerateSessionReportResult = {
-  generationContext: GenerationContext
-  aiRun: AiRun
-  draft: Draft | null
 }
 
 export type Draft = {

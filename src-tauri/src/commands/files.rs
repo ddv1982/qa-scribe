@@ -4,7 +4,6 @@ use base64::{Engine, engine::general_purpose::STANDARD};
 use qa_scribe_core::{
     attachments::{
         attachment_file_bytes, attachment_preview_data_url, import_clipboard_screenshot_data_url,
-        import_managed_attachment,
     },
     domain::Attachment,
     export::{ExportFormat, SessionExport, export_session as render_session_export},
@@ -21,19 +20,6 @@ pub fn export_session(
     format: ExportFormat,
 ) -> Result<SessionExport, String> {
     state.with_service(|service| render_session_export(service, &session_id, format))
-}
-
-#[tauri::command]
-pub fn import_attachment(
-    state: State<'_, AppState>,
-    session_id: String,
-    entry_id: Option<String>,
-    source_path: String,
-) -> Result<Attachment, String> {
-    let app_data_dir = state.app_data_dir().clone();
-    state.with_service(|service| {
-        import_managed_attachment(service, &app_data_dir, &session_id, entry_id, source_path)
-    })
 }
 
 #[tauri::command]
@@ -70,14 +56,6 @@ pub async fn read_clipboard_image_data_url(app: AppHandle) -> Result<Option<Stri
         Err(error) if clipboard_image_is_unavailable(&error) => Ok(None),
         Err(error) => Err(format!("Clipboard image could not be read: {error}")),
     }
-}
-
-#[tauri::command]
-pub fn list_attachments(
-    state: State<'_, AppState>,
-    session_id: String,
-) -> Result<Vec<Attachment>, String> {
-    state.with_service(|service| service.list_attachments(&session_id))
 }
 
 #[tauri::command]

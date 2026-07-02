@@ -1,12 +1,9 @@
-use crate::domain::{AppSettings, Attachment, Entry, Finding, Session};
+use crate::domain::{AppSettings, Attachment, Entry, Finding};
 
 use super::html_projection::project_html_to_prompt_text;
 
-pub const SESSION_REPORT_PROMPT_VERSION: &str = "session-report-v1";
 const MANAGED_ATTACHMENT_PROTOCOL: &str = "qa-scribe-attachment://";
 const SELECTED_NOTE_PROMPT_CHAR_LIMIT: usize = 20_000;
-const SUPPORTING_ENTRY_PROMPT_CHAR_LIMIT: usize = 6_000;
-const FINDING_PROMPT_CHAR_LIMIT: usize = 4_000;
 const TOTAL_PROMPT_MATERIAL_CHAR_LIMIT: usize = 40_000;
 const TESTWARE_SELECTED_NOTE_PROMPT_CHAR_LIMIT: usize = 12_000;
 const TESTWARE_TOTAL_PROMPT_MATERIAL_CHAR_LIMIT: usize = 16_000;
@@ -18,67 +15,6 @@ pub enum ActionPromptKind {
     Testware,
     Finding,
     Summary,
-}
-
-pub fn render_session_report_prompt(
-    settings: &AppSettings,
-    session: &Session,
-    entries: &[Entry],
-    findings: &[Finding],
-    attachments: &[Attachment],
-) -> String {
-    let mut budget = PromptMaterialBudget::new();
-    let mut prompt = String::new();
-    prompt.push_str(&settings.generation_system_prompt);
-    prompt.push_str("\n\nCreate a concise Session Report Draft as Markdown. Use qa-scribe terminology: Session, Entry, Evidence, Finding, Testware, Draft. Ground every conclusion in the selected Session material.\n\n");
-    prompt.push_str(&format!("# Session\nTitle: {}\n", session.title));
-    if let Some(context) = &session.session_context {
-        prompt.push_str(&format!("Session Context: {context}\n"));
-    }
-    if let Some(notes) = &session.objective_notes {
-        prompt.push_str(&format!("Objective Notes: {notes}\n"));
-    }
-    prompt.push_str("\n# Entries\n");
-    for entry in entries
-        .iter()
-        .filter(|entry| !entry.excluded_from_generation)
-    {
-        let label = format!("{} entry", entry.entry_type.as_str());
-        let body = budget.take(&label, &entry.body, SUPPORTING_ENTRY_PROMPT_CHAR_LIMIT);
-        if body.is_empty() {
-            continue;
-        }
-        prompt.push_str(&format!(
-            "- {}: {}\n",
-            entry.entry_type.as_str(),
-            inline_prompt_material(&body)
-        ));
-    }
-    prompt.push_str("\n# Findings\n");
-    for finding in findings {
-        let body = budget.take(
-            &format!("finding {}", finding.title),
-            &finding.body,
-            FINDING_PROMPT_CHAR_LIMIT,
-        );
-        if body.is_empty() {
-            continue;
-        }
-        prompt.push_str(&format!(
-            "- {}: {}\n",
-            finding.title,
-            inline_prompt_material(&body)
-        ));
-    }
-    prompt.push_str("\n# Attachments\n");
-    for attachment in attachments {
-        prompt.push_str(&format!(
-            "- {} ({}, sha256: {})\n",
-            attachment.filename, attachment.relative_path, attachment.sha256
-        ));
-    }
-    budget.append_omissions(&mut prompt);
-    prompt
 }
 
 pub fn render_action_prompt(
@@ -299,10 +235,6 @@ impl PromptMaterialBudget {
             prompt.push('\n');
         }
     }
-}
-
-fn inline_prompt_material(value: &str) -> String {
-    value.lines().collect::<Vec<_>>().join(" / ")
 }
 
 fn truncate_chars(value: &str, max_chars: usize) -> String {

@@ -1,5 +1,3 @@
-use std::time::Instant;
-
 use qa_scribe_core::{
     domain::{
         AiRunCreate, DraftCreate, DraftKind, EntryPatch, EvidenceLinkDraft, FindingDraft,
@@ -11,45 +9,15 @@ use qa_scribe_core::{
     },
     services::SessionService,
 };
-use tauri::State;
 
 use super::{
     preferences::{testware_metadata_json, testware_preferences_prompt},
-    provider_execution::{ProviderGenerationOutput, execute_provider_generation},
+    provider_execution::ProviderGenerationOutput,
     selection::selected_note_entry,
     types::{
         GenerateAiActionKind, GenerateAiActionRequest, GenerateAiActionResult, PreparedGeneration,
     },
 };
-use crate::settings::AppState;
-
-#[tauri::command]
-pub fn generate_ai_action(
-    state: State<'_, AppState>,
-    request: GenerateAiActionRequest,
-) -> Result<GenerateAiActionResult, String> {
-    let prepare_started = Instant::now();
-    let prepared = state.with_service(|service| prepare_ai_action_generation(service, &request))?;
-    eprintln!(
-        "qa-scribe AI action prompt prepared: action={}, provider={}, model={}, prompt_bytes={}, prompt_chars={}, elapsed_ms={}",
-        request.action.label(),
-        request.provider.as_str(),
-        request.model,
-        prepared.prompt.len(),
-        prepared.prompt.chars().count(),
-        prepare_started.elapsed().as_millis()
-    );
-
-    let output = execute_provider_generation(
-        request.provider,
-        &request.model,
-        request.reasoning_effort.as_deref(),
-        &prepared.prompt,
-        &format!("AI action action={}", request.action.label()),
-    );
-
-    state.with_service(|service| finish_ai_action_generation(service, &request, prepared, output))
-}
 
 pub(super) fn prepare_ai_action_generation(
     service: &SessionService,

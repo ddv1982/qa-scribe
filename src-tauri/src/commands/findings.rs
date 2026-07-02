@@ -1,6 +1,4 @@
-use qa_scribe_core::domain::{
-    EvidenceLink, EvidenceLinkDraft, Finding, FindingDraft, FindingPatch,
-};
+use qa_scribe_core::domain::{Finding, FindingDraft, FindingPatch};
 use tauri::State;
 
 use crate::settings::AppState;
@@ -30,12 +28,4 @@ pub fn update_finding(
 #[tauri::command]
 pub fn delete_finding(state: State<'_, AppState>, id: String) -> Result<(), String> {
     state.with_service(|service| service.delete_finding(&id))
-}
-
-#[tauri::command]
-pub fn create_evidence_link(
-    state: State<'_, AppState>,
-    draft: EvidenceLinkDraft,
-) -> Result<EvidenceLink, String> {
-    state.with_service(|service| service.create_evidence_link(draft))
 }

@@ -6,23 +6,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::jobs::GenerationJobStatus;
 
-#[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct GenerateSessionReportRequest {
-    pub session_id: String,
-    pub provider: AiProvider,
-    pub model: String,
-    pub reasoning_effort: Option<String>,
-}
-
-#[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct GenerateSessionReportResult {
-    pub generation_context: GenerationContext,
-    pub ai_run: AiRun,
-    pub draft: Option<Draft>,
-}
-
 #[derive(Clone, Copy, Debug, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum GenerateAiActionKind {

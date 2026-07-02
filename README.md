@@ -14,7 +14,7 @@ Implemented capabilities include:
 - Session Context and Objective Notes.
 - Session Timeline Entry capture with include/exclude controls for generation.
 - Findings linked to Entry Evidence and managed attachment Evidence, with Finding deletion.
-- Managed attachment import by local path and pasted clipboard image data.
+- Managed attachment import from pasted or uploaded clipboard image data.
 - Attachment preview data URLs and local Markdown/JSON Session export.
 - Editable Testware Drafts persisted in local SQLite, with Draft deletion.
 - Explicit user-triggered AI generation through already-authenticated local Claude Code, Codex CLI, or GitHub Copilot CLI commands when available.

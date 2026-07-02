@@ -1,37 +1,7 @@
-use crate::domain::{AppSettings, EntryType, SessionDraft};
-use crate::services::SessionService;
+use crate::domain::{AppSettings, EntryType};
 
 use super::test_support::{test_attachment, test_entry, test_finding};
 use super::*;
-
-#[test]
-fn prompt_includes_session_material_and_terms() {
-    let service = SessionService::in_memory().expect("service should open");
-    let session = service
-        .create_session(SessionDraft {
-            title: "Checkout".to_string(),
-            session_context: Some("Cart flow".to_string()),
-            ..SessionDraft::default()
-        })
-        .expect("session should create");
-    let entry = service
-        .create_entry(crate::domain::EntryDraft {
-            session_id: session.id.clone(),
-            entry_type: EntryType::Observation,
-            title: None,
-            body: "SAVE10 failed".to_string(),
-            body_json: None,
-            body_format: Some("html".to_string()),
-            metadata_json: None,
-            excluded_from_generation: false,
-        })
-        .expect("entry should create");
-    let prompt =
-        render_session_report_prompt(&AppSettings::default(), &session, &[entry], &[], &[]);
-    assert!(prompt.contains("Session Report Draft"));
-    assert!(prompt.contains("SAVE10 failed"));
-    assert!(prompt.contains("Evidence"));
-}
 
 #[test]
 fn projection_turns_editor_html_into_prompt_text() {
@@ -443,42 +413,4 @@ fn escaped_summary_response_can_restore_attachment_images() {
     assert!(preserved.contains("data-attachment-id=\"attachment-1\""));
     assert!(!preserved.contains("&lt;img"));
     assert!(!preserved.contains("src=\"attachments/session/attachment-1_gmail-error.png\""));
-}
-
-#[test]
-fn session_report_prompt_projects_entry_and_finding_bodies() {
-    let service = SessionService::in_memory().expect("service should open");
-    let session = service
-        .create_session(SessionDraft {
-            title: "Checkout".to_string(),
-            ..SessionDraft::default()
-        })
-        .expect("session should create");
-    let entry = test_entry(
-        "entry-html",
-        EntryType::Note,
-        None,
-        "<p>Screenshot attached</p><img src=\"data:image/png;base64,AAAA\" alt=\"gmail-error.png\" />",
-    );
-    let finding = test_finding(
-        "finding-1",
-        "Gmail error",
-        "<p>Login failed &amp; retried.</p>",
-    );
-
-    let prompt =
-        render_session_report_prompt(&AppSettings::default(), &session, &[entry], &[finding], &[]);
-
-    assert!(prompt.contains("Screenshot attached / [Image: gmail-error.png]"));
-    assert!(prompt.contains("Login failed & retried."));
-    assert!(!prompt.contains("<p>"));
-    assert!(!prompt.contains("data:image"));
-}
-
-#[test]
-fn parser_strips_markdown_fence() {
-    assert_eq!(
-        parse_session_report_response("```markdown\n# Report\n```"),
-        "# Report"
-    );
 }

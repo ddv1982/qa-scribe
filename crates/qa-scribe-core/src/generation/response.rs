@@ -6,10 +6,6 @@ const EDITOR_HTML_TAGS: &[&str] = &[
 ];
 const SELF_CLOSING_EDITOR_HTML_TAGS: &[&str] = &["br", "img", "input"];
 
-pub fn parse_session_report_response(response: &str) -> String {
-    strip_response_fence(response)
-}
-
 pub fn parse_rich_html_fragment_response(response: &str) -> String {
     let stripped = strip_response_fence(response);
     repair_escaped_editor_html(&stripped)

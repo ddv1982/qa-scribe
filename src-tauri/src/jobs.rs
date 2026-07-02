@@ -37,6 +37,7 @@ pub enum GenerationJobState {
 }
 
 impl GenerationJobState {
+    #[cfg(test)]
     fn is_active(self) -> bool {
         matches!(
             self,
@@ -142,6 +143,7 @@ struct JobStoreInner {
 }
 
 impl JobStore {
+    #[cfg(test)]
     pub fn len(&self) -> usize {
         self.inner
             .lock()
