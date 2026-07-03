@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.6.1 - 2026-07-03
+
+- Remove a strip of dead vertical scroll below the window by containing the framed layout's margin, so empty states and short views no longer scroll past their content.
+
 ## v0.6.0 - 2026-07-03
 
 - Rebuild the interface on a semantic design-token system with distinct light and dark palettes, replacing scattered hardcoded colors so both themes are first-class rather than one inverted from the other.
