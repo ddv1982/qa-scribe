@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "lint": "eslint .",
+    "lint:css": "node scripts/check-css-colors.mjs",
     "check": "bun run typecheck && bun run lint",
+    "check:contrast": "node scripts/check-contrast.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview"
