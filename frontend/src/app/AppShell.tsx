@@ -7,6 +7,7 @@ import { SessionEditorView } from '../views/SessionEditorView'
 import { SettingsView } from '../views/SettingsView'
 import { TestwareView } from '../views/TestwareView'
 import { GenerationPreflight } from '../workflows/generationPreflight'
+import { useModalDialog } from '../hooks/useModalDialog'
 import type { AppController } from './useAppController'
 
 export function AppShell(c: AppController) {
@@ -178,23 +179,12 @@ export function AppShell(c: AppController) {
       </section>
 
       {c.deleteConfirmation && c.deleteCopy ? (
-        <div className="modal-backdrop" role="presentation">
-          <section className="confirmation-dialog" role="dialog" aria-modal="true" aria-labelledby="delete-dialog-title">
-            <div>
-              <p className="eyebrow">Confirm delete</p>
-              <h2 id="delete-dialog-title">{c.deleteCopy.title}</h2>
-              <p>{c.deleteCopy.body}</p>
-            </div>
-            <div className="confirmation-actions">
-              <button className="secondary-button" type="button" disabled={c.isBusy} onClick={() => c.setDeleteConfirmation(null)}>
-                Cancel
-              </button>
-              <button className="primary-button danger-button" type="button" disabled={c.isBusy} onClick={() => void c.confirmDelete()}>
-                {c.deleteCopy.confirmLabel}
-              </button>
-            </div>
-          </section>
-        </div>
+        <DeleteConfirmationDialog
+          copy={c.deleteCopy}
+          isBusy={c.isBusy}
+          onCancel={() => c.setDeleteConfirmation(null)}
+          onConfirm={() => void c.confirmDelete()}
+        />
       ) : null}
 
       {c.pendingGenerationAction ? (
@@ -217,5 +207,38 @@ export function AppShell(c: AppController) {
         />
       ) : null}
     </main>
+  )
+}
+
+export function DeleteConfirmationDialog({
+  copy,
+  isBusy,
+  onCancel,
+  onConfirm,
+}: {
+  copy: { title: string; body: string; confirmLabel: string }
+  isBusy: boolean
+  onCancel: () => void
+  onConfirm: () => void
+}) {
+  const dialogRef = useModalDialog<HTMLElement>(onCancel)
+  return (
+    <div className="modal-backdrop" role="presentation">
+      <section ref={dialogRef} className="confirmation-dialog" role="dialog" aria-modal="true" aria-labelledby="delete-dialog-title">
+        <div>
+          <p className="eyebrow">Confirm delete</p>
+          <h2 id="delete-dialog-title">{copy.title}</h2>
+          <p>{copy.body}</p>
+        </div>
+        <div className="confirmation-actions">
+          <button className="secondary-button" type="button" disabled={isBusy} onClick={onCancel}>
+            Cancel
+          </button>
+          <button className="primary-button danger-button" type="button" disabled={isBusy} onClick={onConfirm}>
+            {copy.confirmLabel}
+          </button>
+        </div>
+      </section>
+    </div>
   )
 }

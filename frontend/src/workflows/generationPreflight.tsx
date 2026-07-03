@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { GenerateAiActionKind, TestwareDepth, TestwareGenerationPreferences, TestwareOutputFormat } from '../tauri'
+import { useModalDialog } from '../hooks/useModalDialog'
 import {
   defaultTestwareGenerationPreferences,
   testwareDepthOptions,
@@ -35,10 +36,12 @@ export function GenerationPreflight({
   const isTestware = action === 'testware'
   const updateTestwarePreferences = (patch: Partial<TestwareGenerationPreferences>) =>
     setTestwarePreferences((previous) => ({ ...previous, ...patch }))
+  const dialogRef = useModalDialog<HTMLElement>(onCancel)
 
   return (
     <div className="modal-backdrop" role="presentation">
       <section
+        ref={dialogRef}
         className={isTestware ? 'confirmation-dialog generation-preflight testware-preflight' : 'confirmation-dialog generation-preflight'}
         role="dialog"
         aria-modal="true"
