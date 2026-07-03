@@ -1,5 +1,7 @@
 import {
   cancelAiActionJob,
+  getAiActionJobStatus,
+  listActiveAiActionJobs,
   startAiActionJob,
   updateDraft,
   updateEntry,
@@ -25,9 +27,58 @@ export function generationIsActive(job: GenerationJobStatus): boolean {
   return job.state === 'starting' || job.state === 'running' || job.state === 'cancelling'
 }
 
+// How often boot-time reconciliation re-polls a recovered job's status. The
+// original invoke `Channel` is gone after a webview reload, so we cannot
+// re-subscribe to the streaming events; polling `get_ai_action_job_status` is
+// the simplest way to drive the recovered job to a terminal UI state.
+const RECONCILE_POLL_INTERVAL_MS = 1000
+
 export function createGenerationActions(ctx: AppWorkflowContext, saveNoteNow: (options?: { manageBusy?: boolean }) => Promise<boolean>) {
   function storeGenerationStatus(status: GenerationJobStatus) {
     ctx.setGenerationJobs((previous) => ({ ...previous, [status.jobId]: status }))
+  }
+
+  // Backend jobs keep running when the webview reloads, but the frontend loses
+  // its job map and the streaming `Channel`. On boot we ask the backend which
+  // jobs are still active, restore their busy/pending UI state, and poll each to
+  // completion so the spinner/cancel affordance and the terminal notice recover.
+  // The generated artifact itself was already persisted by the backend worker;
+  // reopening the session surfaces it, so reconciliation only owns the UI state.
+  async function reconcileActiveJobs() {
+    let active: GenerationJobStatus[]
+    try {
+      active = await listActiveAiActionJobs()
+    } catch (cause) {
+      // A reconciliation failure must never block boot; surface it quietly.
+      ctx.setError(formatError(cause))
+      return
+    }
+    for (const status of active) {
+      storeGenerationStatus(status)
+      void pollJobToTerminal(status.jobId)
+    }
+  }
+
+  async function pollJobToTerminal(jobId: string) {
+    // Loop until the job reports a terminal state (or vanishes from the store,
+    // which also counts as terminal). Errors surface once and stop the poll.
+    for (;;) {
+      await delay(RECONCILE_POLL_INTERVAL_MS)
+      let status: GenerationJobStatus
+      try {
+        status = await getAiActionJobStatus(jobId)
+      } catch {
+        // The job left the store (pruned/unknown); nothing more to reconcile.
+        return
+      }
+      storeGenerationStatus(status)
+      if (!generationIsActive(status)) {
+        if (status.state === 'failed' && status.errorMessage) ctx.setError(status.errorMessage)
+        else if (status.state === 'cancelled') ctx.setNotice('Generation cancelled')
+        else if (status.state === 'completed') ctx.setNotice('Generation finished')
+        return
+      }
+    }
   }
 
   function mergeDraft(draft: Draft) {
@@ -200,5 +251,9 @@ export function createGenerationActions(ctx: AppWorkflowContext, saveNoteNow: (o
     }
   }
 
-  return { handleAiAction, handleCancelGenerationJob, handleUndoLatestNoteGeneration, storeGenerationStatus }
+  return { handleAiAction, handleCancelGenerationJob, handleUndoLatestNoteGeneration, reconcileActiveJobs, storeGenerationStatus }
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms))
 }

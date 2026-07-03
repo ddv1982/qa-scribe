@@ -61,6 +61,20 @@ pub fn get_ai_action_job_status(
     jobs.status(&job_id).map_err(CommandError::internal)
 }
 
+/// Enumerate the AI-action jobs still running in the backend.
+///
+/// The webview can reload (or the app can be reopened onto a still-running
+/// backend) without the worker threads noticing; when that happens the frontend
+/// has lost its job map and the original invoke `Channel`. On boot it calls this
+/// to recover the survivors and re-subscribe by polling `get_ai_action_job_status`.
+#[tauri::command]
+#[specta::specta]
+pub fn list_active_ai_action_jobs(
+    jobs: State<'_, JobStore>,
+) -> Result<Vec<GenerationJobStatus>, CommandError> {
+    jobs.active_jobs().map_err(CommandError::internal)
+}
+
 #[tauri::command]
 #[specta::specta]
 pub fn cancel_ai_action_job(

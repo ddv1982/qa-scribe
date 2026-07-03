@@ -167,6 +167,10 @@ export function getAiActionJobStatus(jobId: string): Promise<GenerationJobStatus
   return commands.getAiActionJobStatus(jobId)
 }
 
+export function listActiveAiActionJobs(): Promise<GenerationJobStatus[]> {
+  return commands.listActiveAiActionJobs()
+}
+
 export function cancelAiActionJob(jobId: string): Promise<GenerationJobStatus> {
   return commands.cancelAiActionJob(jobId)
 }

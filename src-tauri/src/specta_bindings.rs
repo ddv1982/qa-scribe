@@ -67,6 +67,7 @@ pub fn builder() -> Builder<tauri::Wry> {
             commands::findings::delete_finding,
             commands::ai::job_runner::start_ai_action_job,
             commands::ai::job_runner::get_ai_action_job_status,
+            commands::ai::job_runner::list_active_ai_action_jobs,
             commands::ai::job_runner::cancel_ai_action_job,
             commands::files::import_clipboard_screenshot,
             commands::providers::get_provider_status,

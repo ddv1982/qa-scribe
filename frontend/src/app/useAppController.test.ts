@@ -1,10 +1,12 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { draftFixture, entryFixture, sessionFixture } from '../test/fixtures'
+import { draftFixture, entryFixture, generationStatusFixture, sessionFixture } from '../test/fixtures'
 import { richEditorDocumentFromPlainText } from '../editor/editorDocument'
 
 const tauriMock = vi.hoisted(() => ({
   cancelAiActionJob: vi.fn(),
+  getAiActionJobStatus: vi.fn(),
+  listActiveAiActionJobs: vi.fn(),
   createDraft: vi.fn(),
   createEntry: vi.fn(),
   createFinding: vi.fn(),
@@ -50,6 +52,7 @@ describe('useAppController autosave flush', () => {
     tauriMock.getProviderStatus.mockResolvedValue(providerStatusFixture())
     tauriMock.refreshProviderStatus.mockResolvedValue(providerStatusFixture())
     tauriMock.listSessions.mockResolvedValue([sessionFixture()])
+    tauriMock.listActiveAiActionJobs.mockResolvedValue([])
     tauriMock.reopenSession.mockResolvedValue(sessionFixture())
     tauriMock.listEntries.mockResolvedValue([entryFixture()])
     tauriMock.listDrafts.mockResolvedValue([])
@@ -265,6 +268,115 @@ describe('useAppController autosave flush', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+})
+
+describe('useAppController render-hot-path memoization', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    ensureTestLocalStorage()
+    window.localStorage.clear()
+    window.matchMedia = vi.fn().mockReturnValue({
+      matches: true,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })
+
+    tauriMock.getSettings.mockResolvedValue(settingsFixture())
+    tauriMock.getProviderStatus.mockResolvedValue(providerStatusFixture())
+    tauriMock.refreshProviderStatus.mockResolvedValue(providerStatusFixture())
+    tauriMock.listSessions.mockResolvedValue([sessionFixture()])
+    tauriMock.listActiveAiActionJobs.mockResolvedValue([])
+    tauriMock.reopenSession.mockResolvedValue(sessionFixture())
+    tauriMock.listEntries.mockResolvedValue([entryFixture()])
+    tauriMock.listDrafts.mockResolvedValue([draftFixture({ id: 'draft-1' })])
+    tauriMock.listFindings.mockResolvedValue([])
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('keeps testwareDrafts and draftScreenshotCounts referentially stable across a keystroke that only touches noteBody', async () => {
+    const { result } = renderHook(() => useAppController())
+
+    await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
+    await waitFor(() => expect(result.current.testwareDrafts.length).toBe(1))
+
+    // Capture the memoized references, then re-render via a note-body change
+    // (a keystroke). Because `drafts` is unchanged, both memos must reuse their
+    // prior value — an inline `drafts.filter(...)` would break this and re-run
+    // the DOMParser-backed `draftScreenshotCounts` computation every keystroke.
+    const draftsBefore = result.current.testwareDrafts
+    const countsBefore = result.current.draftScreenshotCounts
+
+    act(() => {
+      result.current.setNoteBody(richEditorDocumentFromPlainText('a keystroke unrelated to drafts'))
+    })
+
+    expect(result.current.testwareDrafts).toBe(draftsBefore)
+    expect(result.current.draftScreenshotCounts).toBe(countsBefore)
+  })
+})
+
+describe('useAppController generation-job reconciliation on boot', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    ensureTestLocalStorage()
+    window.localStorage.clear()
+    window.matchMedia = vi.fn().mockReturnValue({
+      matches: true,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })
+
+    tauriMock.getSettings.mockResolvedValue(settingsFixture())
+    tauriMock.getProviderStatus.mockResolvedValue(providerStatusFixture())
+    tauriMock.refreshProviderStatus.mockResolvedValue(providerStatusFixture())
+    tauriMock.listSessions.mockResolvedValue([sessionFixture()])
+    tauriMock.reopenSession.mockResolvedValue(sessionFixture())
+    tauriMock.listEntries.mockResolvedValue([entryFixture()])
+    tauriMock.listDrafts.mockResolvedValue([])
+    tauriMock.listFindings.mockResolvedValue([])
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('recovers an active job on boot and drives it to terminal by polling', async () => {
+    // Backend still has a running testware job from before the webview reload.
+    tauriMock.listActiveAiActionJobs.mockResolvedValue([
+      generationStatusFixture({ jobId: 'job-boot', action: 'testware', state: 'running' }),
+    ])
+    // First poll: still running. Second poll: completed.
+    tauriMock.getAiActionJobStatus
+      .mockResolvedValueOnce(generationStatusFixture({ jobId: 'job-boot', action: 'testware', state: 'running' }))
+      .mockResolvedValueOnce(generationStatusFixture({ jobId: 'job-boot', action: 'testware', state: 'completed', progressMessage: 'Generation completed' }))
+
+    const { result } = renderHook(() => useAppController())
+
+    await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
+
+    // The recovered job restores the pending/busy affordance for its action.
+    await waitFor(() => expect(result.current.pendingAiActions.testware).toBe(true))
+    expect(result.current.activeTestwareJob?.jobId).toBe('job-boot')
+
+    // Polling eventually observes the terminal state and clears the pending UI.
+    await waitFor(() => expect(tauriMock.getAiActionJobStatus).toHaveBeenCalledWith('job-boot'))
+    await waitFor(() => expect(result.current.pendingAiActions.testware).toBeUndefined(), { timeout: 4000 })
+    expect(result.current.activeTestwareJob).toBeNull()
+  })
+
+  it('does not reconcile when the backend reports no active jobs', async () => {
+    tauriMock.listActiveAiActionJobs.mockResolvedValue([])
+
+    const { result } = renderHook(() => useAppController())
+
+    await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
+    await waitFor(() => expect(tauriMock.listActiveAiActionJobs).toHaveBeenCalled())
+    expect(tauriMock.getAiActionJobStatus).not.toHaveBeenCalled()
+    expect(result.current.pendingAiActions.testware).toBeUndefined()
   })
 })
 

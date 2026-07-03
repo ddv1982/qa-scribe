@@ -24,6 +24,15 @@ export const commands = {
 	deleteFinding: (id: string) => __TAURI_INVOKE<null>("delete_finding", { id }),
 	startAiActionJob: (request: GenerateAiActionRequest, events: Channel<GenerationJobEvent>) => __TAURI_INVOKE<StartAiActionJobResult>("start_ai_action_job", { request, events }),
 	getAiActionJobStatus: (jobId: string) => __TAURI_INVOKE<GenerationJobStatus>("get_ai_action_job_status", { jobId }),
+	/**
+	 *  Enumerate the AI-action jobs still running in the backend.
+	 * 
+	 *  The webview can reload (or the app can be reopened onto a still-running
+	 *  backend) without the worker threads noticing; when that happens the frontend
+	 *  has lost its job map and the original invoke `Channel`. On boot it calls this
+	 *  to recover the survivors and re-subscribe by polling `get_ai_action_job_status`.
+	 */
+	listActiveAiActionJobs: () => __TAURI_INVOKE<GenerationJobStatus[]>("list_active_ai_action_jobs"),
 	cancelAiActionJob: (jobId: string) => __TAURI_INVOKE<GenerationJobStatus>("cancel_ai_action_job", { jobId }),
 	importClipboardScreenshot: (sessionId: string, entryId: string | null, filename: string, dataUrl: string) => __TAURI_INVOKE<Attachment>("import_clipboard_screenshot", { sessionId, entryId, filename, dataUrl }),
 	getProviderStatus: () => __TAURI_INVOKE<ProviderStatus>("get_provider_status"),

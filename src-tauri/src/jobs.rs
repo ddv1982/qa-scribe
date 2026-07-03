@@ -199,6 +199,24 @@ impl JobStore {
         }
     }
 
+    /// Snapshot every job that is still active (starting/running/cancelling).
+    ///
+    /// Used on webview reload to reconcile: the backend worker threads keep
+    /// running across a reload, but the frontend loses its in-memory job map
+    /// and the original invoke `Channel`, so on boot it enumerates the survivors
+    /// here and re-subscribes to them by polling [`Self::status`].
+    pub fn active_jobs(&self) -> Result<Vec<GenerationJobStatus>, String> {
+        Ok(self
+            .inner
+            .lock()
+            .map_err(|_| "Job store lock was poisoned".to_string())?
+            .jobs
+            .values()
+            .filter(|record| !record.status.state.is_terminal())
+            .map(|record| record.status.clone())
+            .collect())
+    }
+
     pub fn status(&self, job_id: &str) -> Result<GenerationJobStatus, String> {
         self.inner
             .lock()
@@ -413,6 +431,31 @@ mod tests {
         let status = store.complete("job-1").expect("job completes");
         assert_eq!(status.state, GenerationJobState::Completed);
         assert_eq!(store.len(), 0);
+    }
+
+    #[test]
+    fn active_jobs_lists_only_non_terminal_snapshots() {
+        let store = JobStore::default();
+        store
+            .insert_generation_job(
+                "job-active".to_string(),
+                "session-1".to_string(),
+                "testware".to_string(),
+            )
+            .expect("job inserts");
+        store
+            .insert_generation_job(
+                "job-done".to_string(),
+                "session-1".to_string(),
+                "finding".to_string(),
+            )
+            .expect("job inserts");
+        store.complete("job-done").expect("job completes");
+
+        let active = store.active_jobs().expect("active jobs list");
+        assert_eq!(active.len(), 1);
+        assert_eq!(active[0].job_id, "job-active");
+        assert_eq!(active[0].state, GenerationJobState::Starting);
     }
 
     #[test]
