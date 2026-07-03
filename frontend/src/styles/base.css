@@ -1,52 +1,162 @@
 :root {
   font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
-  color: #162033;
-  background: #e8ecf2;
+    "Inter Variable", Inter, ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  --app-bg: #e8ecf2;
-  --shell-bg: #f8fafc;
-  --panel-bg: #ffffff;
-  --panel-soft: #f2f6fb;
-  --text: #162033;
-  --muted: #6e7787;
-  --faint: #9aa4b3;
-  --border: #dce2eb;
-  --border-strong: #c9d2df;
-  --blue: #1f6bff;
-  --blue-soft: #eaf1ff;
-  --green: #20a15f;
-  --green-soft: #e9f8ef;
-  --purple: #7b4dff;
-  --amber: #e3931d;
-  --danger: #d94d4d;
-  --shadow: 0 22px 55px rgba(31, 43, 66, 0.18);
-  --radius: 8px;
+  font-feature-settings: "cv01", "ss03";
+
+  /* ---- type scale ---- */
+  --font-size-xs: 11px;
+  --font-size-sm: 12px;
+  --font-size-md: 13px; /* default UI size */
+  --font-size-lg: 15px; /* editor body */
+  --font-size-xl: 17px;
+  --font-size-2xl: 20px;
+  --font-size-3xl: 24px; /* page + note titles */
+  --leading-tight: 1.25;
+  --leading-normal: 1.45;
+  --leading-relaxed: 1.6;
+  --tracking-tight: -0.01em;
+  --tracking-wide: 0.08em;
+
+  /* ---- spacing (4px grid) ---- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* ---- shape ---- */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 999px;
+
+  /* ---- control heights ---- */
+  --control-sm: 28px;
+  --control-md: 32px;
+  --control-lg: 36px;
+
+  /* ---- motion ---- */
+  --duration-fast: 150ms;
+  --duration-base: 200ms;
+  --duration-slow: 300ms;
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+
+  /* ---- light theme ---- */
+  --surface-base: #eef1f6;
+  --surface-panel: #f7f9fc;
+  --surface-raised: #ffffff;
+  --surface-sunken: #eff3f9;
+  --surface-overlay: #ffffff;
+
+  --text-primary: #1a2334;
+  --text-secondary: #55617a;
+  --text-tertiary: #8390a6;
+
+  --border-subtle: rgba(26, 35, 52, 0.08);
+  --border-default: rgba(26, 35, 52, 0.14);
+  --border-strong: rgba(26, 35, 52, 0.24);
+
+  --accent: #2563eb;
+  --accent-hover: color-mix(in oklab, var(--accent) 88%, #000);
+  --accent-tint: color-mix(in oklab, var(--accent) 9%, var(--surface-raised));
+  --accent-alt: #6d28d9;
+  --on-accent: #ffffff;
+
+  --success: #15803d;
+  --success-hover: color-mix(in oklab, var(--success) 88%, #000);
+  --success-tint: color-mix(in oklab, var(--success) 10%, var(--surface-raised));
+  --warning: #b45309;
+  --warning-tint: color-mix(in oklab, var(--warning) 10%, var(--surface-raised));
+  --danger: #b91c1c;
+  --danger-hover: color-mix(in oklab, var(--danger) 88%, #000);
+  --danger-tint: color-mix(in oklab, var(--danger) 8%, var(--surface-raised));
+
+  --backdrop: rgba(9, 13, 20, 0.4);
+
+  --shadow-sm:
+    0 1px 2px rgba(26, 35, 52, 0.06),
+    0 0 0 1px rgba(26, 35, 52, 0.04);
+  --shadow-md:
+    0 4px 12px -2px rgba(26, 35, 52, 0.12),
+    0 0 0 1px rgba(26, 35, 52, 0.05);
+  --shadow-lg:
+    0 24px 48px -12px rgba(26, 35, 52, 0.24),
+    0 0 0 1px rgba(26, 35, 52, 0.06);
+
+  color: var(--text-primary);
+  background: var(--surface-base);
 }
 
 :root[data-theme="dark"] {
-  color: #e7edf6;
-  background: #111820;
-  --app-bg: #111820;
-  --shell-bg: #0f1822;
-  --panel-bg: #121d28;
-  --panel-soft: #172231;
-  --text: #e7edf6;
-  --muted: #9ca8b8;
-  --faint: #707f91;
-  --border: #2a3746;
-  --border-strong: #38485a;
-  --blue: #2f75ff;
-  --blue-soft: rgba(47, 117, 255, 0.16);
-  --green: #46d17d;
-  --green-soft: rgba(70, 209, 125, 0.14);
-  --purple: #9b70ff;
-  --amber: #f3a531;
-  --danger: #ff6969;
-  --shadow: 0 22px 55px rgba(0, 0, 0, 0.34);
+  --surface-base: #0d1219;
+  --surface-panel: #10161f;
+  --surface-raised: #161d28;
+  --surface-sunken: #0f141c;
+  --surface-overlay: #1c2532;
+
+  --text-primary: #e4eaf3;
+  --text-secondary: #9aa6ba;
+  --text-tertiary: #6e7b90;
+
+  --border-subtle: rgba(255, 255, 255, 0.07);
+  --border-default: rgba(255, 255, 255, 0.11);
+  --border-strong: rgba(255, 255, 255, 0.18);
+
+  --accent: #5b93ff;
+  --accent-hover: color-mix(in oklab, var(--accent) 88%, #fff);
+  --accent-tint: color-mix(in oklab, var(--accent) 15%, var(--surface-panel));
+  --accent-alt: #a88fff;
+  --on-accent: #0d1219;
+
+  --success: #3fcb7c;
+  --success-hover: color-mix(in oklab, var(--success) 88%, #fff);
+  --success-tint: color-mix(in oklab, var(--success) 14%, var(--surface-panel));
+  --warning: #f3a531;
+  --warning-tint: color-mix(in oklab, var(--warning) 14%, var(--surface-panel));
+  --danger: #ff7a7a;
+  --danger-hover: color-mix(in oklab, var(--danger) 88%, #fff);
+  --danger-tint: color-mix(in oklab, var(--danger) 12%, var(--surface-panel));
+
+  --backdrop: rgba(2, 4, 8, 0.6);
+
+  --shadow-sm: 0 0 0 1px rgba(255, 255, 255, 0.04);
+  --shadow-md:
+    0 4px 12px -2px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.06);
+  --shadow-lg:
+    0 24px 48px -12px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(255, 255, 255, 0.08);
+
+  color: var(--text-primary);
+  background: var(--surface-base);
+}
+
+/* TEMPORARY migration aliases — removed in the color-sweep task.
+ * Values resolve per-theme through the semantic tokens above,
+ * so this single block serves both themes. */
+:root {
+  --app-bg: var(--surface-base);
+  --shell-bg: var(--surface-panel);
+  --panel-bg: var(--surface-raised);
+  --panel-soft: var(--surface-sunken);
+  --text: var(--text-primary);
+  --muted: var(--text-secondary);
+  --faint: var(--text-tertiary);
+  --border: var(--border-default);
+  --blue: var(--accent);
+  --blue-soft: var(--accent-tint);
+  --green: var(--success);
+  --green-soft: var(--success-tint);
+  --purple: var(--accent-alt);
+  --amber: var(--warning);
+  --shadow: var(--shadow-lg);
+  --radius: var(--radius-md);
 }
 
 * {
@@ -63,14 +173,8 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  color: var(--text);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0)),
-    var(--app-bg);
-}
-
-:root[data-theme="dark"] body {
-  background: var(--app-bg);
+  color: var(--text-primary);
+  background: var(--surface-base);
 }
 
 button,
@@ -86,18 +190,21 @@ button {
 
 button:disabled {
   cursor: not-allowed;
-  opacity: 0.58;
+  opacity: 0.5;
 }
 
 button:focus-visible,
-input:focus-visible,
-textarea:focus-visible,
-select:focus-visible,
 summary:focus-visible,
 .model-combobox-trigger:focus-visible,
 .model-option:focus-visible,
 .note-picker-item:focus-visible,
 .toolbar-button:focus-visible {
-  outline: 2px solid var(--blue);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
 }
