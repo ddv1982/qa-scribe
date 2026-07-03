@@ -364,7 +364,9 @@ describe('useAppController generation-job reconciliation on boot', () => {
     expect(result.current.activeTestwareJob?.jobId).toBe('job-boot')
 
     // Polling eventually observes the terminal state and clears the pending UI.
-    await waitFor(() => expect(tauriMock.getAiActionJobStatus).toHaveBeenCalledWith('job-boot'))
+    // The first poll fires only after RECONCILE_POLL_INTERVAL_MS (1s), which
+    // dead-heats waitFor's default 1s timeout on slow runners.
+    await waitFor(() => expect(tauriMock.getAiActionJobStatus).toHaveBeenCalledWith('job-boot'), { timeout: 4000 })
     await waitFor(() => expect(result.current.pendingAiActions.testware).toBeUndefined(), { timeout: 4000 })
     expect(result.current.activeTestwareJob).toBeNull()
   })
