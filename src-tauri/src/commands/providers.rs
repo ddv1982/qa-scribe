@@ -19,7 +19,7 @@ use detection::{detect_capability, provider_readiness_with_runners};
 use probe::ProbeRunner;
 use probe::{DetectionMode, SystemProbeRunner};
 
-use crate::provider_command::ProviderPathMode;
+use crate::provider_command::{ProviderPathMode, invalidate_provider_path_cache};
 
 #[tauri::command]
 pub fn get_provider_status() -> ProviderStatus {
@@ -29,6 +29,7 @@ pub fn get_provider_status() -> ProviderStatus {
 #[tauri::command]
 pub fn refresh_provider_status() -> ProviderStatus {
     clear_readiness_cache();
+    invalidate_provider_path_cache();
     provider_status_with_system_runner_for_mode(DetectionMode::Deep)
 }
 

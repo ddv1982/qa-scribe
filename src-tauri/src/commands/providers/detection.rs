@@ -20,7 +20,13 @@ pub(super) fn provider_readiness_with_runners(
     fast_runner: &impl ProbeRunner,
     deep_runner: &impl ProbeRunner,
 ) -> ProviderReadiness {
-    if let Some(readiness) = cached_readiness(provider, DetectionMode::Deep) {
+    // A cached Deep SUCCESS (Ready) is authoritative for the TTL. A cached
+    // Deep FAILURE (AuthRequired/Error/InstallRequired) is not: it must not
+    // outrank a working Fast result, so it falls through to Fast detection
+    // (or a fresh Deep probe) below instead of being served as truth.
+    if let Some(readiness) = cached_readiness(provider, DetectionMode::Deep)
+        && readiness.descriptor.available
+    {
         return readiness;
     }
     if let Some(readiness) = cached_readiness(provider, DetectionMode::Fast) {
@@ -58,96 +64,72 @@ pub(super) fn detect_capability(
     mode: DetectionMode,
 ) -> ProviderReadiness {
     match capability.id {
-        AiProvider::ClaudeCode => detect_claude(capability, runner, mode),
-        AiProvider::CodexCli => detect_codex(capability, runner, mode),
+        AiProvider::ClaudeCode => detect_cli_provider(&CLAUDE_DESCRIPTOR, capability, runner, mode),
+        AiProvider::CodexCli => detect_cli_provider(&CODEX_DESCRIPTOR, capability, runner, mode),
         AiProvider::CopilotCli => detect_copilot(capability, runner, mode),
     }
 }
 
-fn detect_claude(
-    capability: ProviderCapability,
-    runner: &impl ProbeRunner,
-    mode: DetectionMode,
-) -> ProviderReadiness {
-    if mode == DetectionMode::Fast {
-        let models = claude_static_models();
-        let executable_path = runner.executable_path(capability.executable);
-        if executable_path.is_none() {
-            return not_installed_or_error(
-                capability,
-                CommandProbe::not_found(),
-                "Install Claude Code and ensure `claude` is on PATH.",
-                None,
-            );
-        }
-        return ready(
-            capability,
-            "Claude Code executable was found. Authentication will be verified when generation runs.",
-            "claude -p",
-            executable_path,
-            models,
-            false,
-        );
-    }
-
-    let executable_path = runner.executable_path(capability.executable);
-    let install = runner.run(capability.executable, &capability.version_args);
-    if !install.success {
-        return not_installed_or_error(
-            capability,
-            install,
-            "Install Claude Code and ensure `claude` is on PATH.",
-            executable_path,
-        );
-    }
-    let models = claude_models(runner);
-
-    let auth = runner.run("claude", &["auth", "status", "--json"]);
-    if auth.success {
-        return ready(
-            capability,
-            "Claude Code is installed and authenticated.",
-            "claude -p",
-            executable_path,
-            models,
-            false,
-        );
-    }
-
-    descriptor(
-        capability,
-        ProviderState::AuthRequired,
-        format_auth_reason(
-            "Claude Code is installed, but authentication is not ready. Run `claude auth status` and sign in with Claude Code.",
-            &auth,
-        ),
-        Some("claude auth status --json".to_string()),
-        executable_path,
-        models,
-        false,
-    )
+/// Static shape of a CLI-based provider (Claude Code, Codex CLI) whose
+/// detection only differs in these strings/argv and model lookups.
+/// `detect_copilot` has extra install/help-probing logic and stays bespoke.
+struct CliProviderDescriptor {
+    install_hint: &'static str,
+    ready_command: &'static str,
+    ready_reason_fast: &'static str,
+    ready_reason_deep: &'static str,
+    auth_args: &'static [&'static str],
+    auth_command_display: &'static str,
+    auth_required_reason: &'static str,
+    static_models: fn() -> Vec<ProviderModelDescriptor>,
+    models: fn(&dyn ProbeRunner) -> Vec<ProviderModelDescriptor>,
 }
 
-fn detect_codex(
+const CLAUDE_DESCRIPTOR: CliProviderDescriptor = CliProviderDescriptor {
+    install_hint: "Install Claude Code and ensure `claude` is on PATH.",
+    ready_command: "claude -p",
+    ready_reason_fast: "Claude Code executable was found. Authentication will be verified when generation runs.",
+    ready_reason_deep: "Claude Code is installed and authenticated.",
+    auth_args: &["auth", "status", "--json"],
+    auth_command_display: "claude auth status --json",
+    auth_required_reason: "Claude Code is installed, but authentication is not ready. Run `claude auth status` and sign in with Claude Code.",
+    static_models: claude_static_models,
+    models: claude_models,
+};
+
+const CODEX_DESCRIPTOR: CliProviderDescriptor = CliProviderDescriptor {
+    install_hint: "Install Codex CLI and ensure `codex` is on PATH.",
+    ready_command: "codex exec --skip-git-repo-check -",
+    ready_reason_fast: "Codex CLI executable was found. Authentication will be verified when generation runs.",
+    ready_reason_deep: "Codex CLI is installed and authenticated.",
+    auth_args: &["login", "status"],
+    auth_command_display: "codex login status",
+    auth_required_reason: "Codex CLI is installed, but authentication is not ready. Run `codex login status` or sign in with `codex login`.",
+    static_models: codex_static_models,
+    models: codex_models,
+};
+
+fn detect_cli_provider(
+    descriptor: &CliProviderDescriptor,
     capability: ProviderCapability,
-    runner: &impl ProbeRunner,
+    runner: &dyn ProbeRunner,
     mode: DetectionMode,
 ) -> ProviderReadiness {
     if mode == DetectionMode::Fast {
-        let models = codex_static_models();
+        let models = (descriptor.static_models)();
         let executable_path = runner.executable_path(capability.executable);
         if executable_path.is_none() {
             return not_installed_or_error(
                 capability,
                 CommandProbe::not_found(),
-                "Install Codex CLI and ensure `codex` is on PATH.",
+                descriptor.install_hint,
                 None,
             );
         }
         return ready(
             capability,
-            "Codex CLI executable was found. Authentication will be verified when generation runs.",
-            "codex exec --skip-git-repo-check -",
+            descriptor.ready_reason_fast,
+            descriptor.ready_command,
             executable_path,
             models,
             false,
@@ -160,32 +142,29 @@ fn detect_codex(
         return not_installed_or_error(
             capability,
             install,
-            "Install Codex CLI and ensure `codex` is on PATH.",
+            descriptor.install_hint,
             executable_path,
         );
     }
-    let models = codex_models(runner);
+    let models = (descriptor.models)(runner);
 
-    let auth = runner.run("codex", &["login", "status"]);
+    let auth = runner.run(capability.executable, descriptor.auth_args);
     if auth.success {
         return ready(
             capability,
-            "Codex CLI is installed and authenticated.",
-            "codex exec --skip-git-repo-check -",
+            descriptor.ready_reason_deep,
+            descriptor.ready_command,
             executable_path,
             models,
             false,
         );
     }
 
-    descriptor(
+    descriptor_readiness(
         capability,
         ProviderState::AuthRequired,
-        format_auth_reason(
-            "Codex CLI is installed, but authentication is not ready. Run `codex login status` or sign in with `codex login`.",
-            &auth,
-        ),
-        Some("codex login status".to_string()),
+        format_auth_reason(descriptor.auth_required_reason, &auth),
+        Some(descriptor.auth_command_display.to_string()),
         executable_path,
         models,
         false,
@@ -226,7 +205,7 @@ fn detect_copilot(
 
     let help = runner.run("copilot", &["--help"]);
     if !copilot_supports_prompt_mode(&help) {
-        return descriptor(
+        return descriptor_readiness(
             capability,
             ProviderState::Error,
             format_auth_reason(
@@ -258,7 +237,7 @@ fn ready(
     models: Vec<ProviderModelDescriptor>,
     copilot_direct_cli_ready: bool,
 ) -> ProviderReadiness {
-    descriptor(
+    descriptor_readiness(
         capability,
         ProviderState::Ready,
         reason.to_string(),
@@ -293,7 +272,7 @@ fn not_installed_or_error(
         _ => install_message.to_string(),
     };
 
-    descriptor(
+    descriptor_readiness(
         capability,
         status,
         reason,
@@ -304,7 +283,7 @@ fn not_installed_or_error(
     )
 }
 
-fn descriptor(
+fn descriptor_readiness(
     capability: ProviderCapability,
     status: ProviderState,
     reason: String,

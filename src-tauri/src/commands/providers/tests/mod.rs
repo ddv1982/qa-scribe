@@ -1,92 +1,18 @@
-use std::{
-    cell::RefCell,
-    collections::{HashMap, HashSet},
-    fs,
-    path::PathBuf,
-    process::Command,
-    time::Duration,
-};
+use std::{collections::HashSet, fs, path::PathBuf, process::Command, time::Duration};
 
 use qa_scribe_core::domain::AiProvider;
 
 use super::{
     ProviderModelSource, ProviderState,
-    cache::clear_readiness_cache,
-    detection::{detect_provider, provider_readiness_with_runners},
-    probe::{CommandProbe, DetectionMode, ProbeRunner, run_command_with_timeout},
+    detection::detect_provider,
+    probe::{CommandProbe, DetectionMode, run_command_with_timeout},
     provider_status_with_runner,
 };
 
-#[derive(Default)]
-struct MockRunner {
-    executables: HashSet<String>,
-    probes: HashMap<String, CommandProbe>,
-    calls: RefCell<Vec<String>>,
-}
+mod precedence;
+mod support;
 
-impl MockRunner {
-    fn with_executable(mut self, program: &str) -> Self {
-        self.executables.insert(program.to_string());
-        self
-    }
-
-    fn with(mut self, program: &str, args: &[&str], probe: CommandProbe) -> Self {
-        if probe.success {
-            self.executables.insert(program.to_string());
-        }
-        self.probes.insert(command_key(program, args), probe);
-        self
-    }
-
-    fn calls(&self) -> Vec<String> {
-        self.calls.borrow().clone()
-    }
-}
-
-impl ProbeRunner for MockRunner {
-    fn executable_path(&self, program: &str) -> Option<PathBuf> {
-        self.executables
-            .contains(program)
-            .then(|| PathBuf::from(format!("/mock/bin/{program}")))
-    }
-
-    fn run(&self, program: &str, args: &[&str]) -> CommandProbe {
-        self.calls.borrow_mut().push(command_key(program, args));
-        self.probes
-            .get(&command_key(program, args))
-            .cloned()
-            .unwrap_or_else(CommandProbe::not_found)
-    }
-}
-
-impl CommandProbe {
-    fn success() -> Self {
-        Self {
-            success: true,
-            stdout: String::new(),
-            stderr: String::new(),
-            not_found: false,
-        }
-    }
-
-    fn success_with_stdout(stdout: &str) -> Self {
-        Self {
-            success: true,
-            stdout: stdout.to_string(),
-            stderr: String::new(),
-            not_found: false,
-        }
-    }
-
-    fn failed(stderr: &str) -> Self {
-        Self {
-            success: false,
-            stdout: String::new(),
-            stderr: stderr.to_string(),
-            not_found: false,
-        }
-    }
-}
+use support::{MockRunner, copilot_prompt_help};
 
 #[test]
 fn provider_probe_cleans_temp_files_when_spawn_fails() {
@@ -100,20 +26,6 @@ fn provider_probe_cleans_temp_files_when_spawn_fails() {
 
     assert_eq!(error.kind(), std::io::ErrorKind::NotFound);
     assert_eq!(provider_probe_temp_files(), before);
-}
-
-fn copilot_prompt_help() -> CommandProbe {
-    CommandProbe::success_with_stdout(
-        "Usage: copilot [options]\n  -p, --prompt <prompt> Execute a prompt in non-interactive mode",
-    )
-}
-
-fn command_key(program: &str, args: &[&str]) -> String {
-    if args.is_empty() {
-        program.to_string()
-    } else {
-        format!("{} {}", program, args.join(" "))
-    }
 }
 
 fn provider_probe_temp_files() -> HashSet<PathBuf> {
@@ -157,32 +69,6 @@ fn provider_status_is_local_and_reports_all_providers() {
         Some("/mock/bin/codex")
     );
     assert!(runner.calls().is_empty());
-}
-
-#[test]
-fn provider_readiness_deep_checks_when_fast_detection_misses() {
-    clear_readiness_cache();
-    let fast_runner = MockRunner::default();
-    let deep_runner = MockRunner::default()
-        .with("codex", &["--version"], CommandProbe::success())
-        .with("codex", &["login", "status"], CommandProbe::success());
-
-    let readiness =
-        provider_readiness_with_runners(AiProvider::CodexCli, &fast_runner, &deep_runner);
-
-    assert_eq!(readiness.descriptor.status, ProviderState::Ready);
-    assert_eq!(
-        readiness.descriptor.executable_path.as_deref(),
-        Some("/mock/bin/codex")
-    );
-    assert!(fast_runner.calls().is_empty());
-    assert!(deep_runner.calls().contains(&"codex --version".to_string()));
-    assert!(
-        deep_runner
-            .calls()
-            .contains(&"codex login status".to_string())
-    );
-    clear_readiness_cache();
 }
 
 #[test]

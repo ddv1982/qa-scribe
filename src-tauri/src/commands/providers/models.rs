@@ -78,7 +78,7 @@ pub(super) fn codex_static_models() -> Vec<ProviderModelDescriptor> {
     normalize_models(models)
 }
 
-pub(super) fn codex_models(runner: &impl ProbeRunner) -> Vec<ProviderModelDescriptor> {
+pub(super) fn codex_models(runner: &dyn ProbeRunner) -> Vec<ProviderModelDescriptor> {
     let mut models = codex_static_models();
 
     let catalog = runner.run("codex", &["debug", "models"]);
@@ -98,7 +98,7 @@ pub(super) fn claude_static_models() -> Vec<ProviderModelDescriptor> {
     normalize_models(models)
 }
 
-pub(super) fn claude_models(runner: &impl ProbeRunner) -> Vec<ProviderModelDescriptor> {
+pub(super) fn claude_models(runner: &dyn ProbeRunner) -> Vec<ProviderModelDescriptor> {
     let mut models = claude_static_models();
 
     let help = runner.run("claude", &["--help"]);

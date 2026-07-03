@@ -5,14 +5,32 @@ use std::{
     fs,
     path::{Path, PathBuf},
     process::{Command, Stdio},
-    sync::OnceLock,
+    sync::Mutex,
     thread,
     time::{Duration, Instant},
 };
 
-static PROVIDER_PATH: OnceLock<Option<OsString>> = OnceLock::new();
-static LIGHTWEIGHT_PROVIDER_PATH: OnceLock<Option<OsString>> = OnceLock::new();
+/// Cached PATH snapshots, keyed by mode. `None` means "not computed yet";
+/// the expensive login-shell probe (`Deep`) only runs lazily on first use
+/// after start or after `invalidate_provider_path_cache` clears the cache,
+/// e.g. from the UI's "refresh" action so newly-installed CLIs on a PATH
+/// entry added after app start become discoverable without a restart.
+static PROVIDER_PATH: Mutex<Option<Option<OsString>>> = Mutex::new(None);
+static LIGHTWEIGHT_PROVIDER_PATH: Mutex<Option<Option<OsString>>> = Mutex::new(None);
 const LOGIN_SHELL_PATH_TIMEOUT: Duration = Duration::from_secs(2);
+
+/// Clears the cached PATH snapshots so the next lookup recomputes them
+/// (including a fresh login-shell probe for the Deep snapshot). Called by
+/// `refresh_provider_status` so a CLI installed to a new directory after
+/// app start becomes discoverable without restarting the app.
+pub fn invalidate_provider_path_cache() {
+    if let Ok(mut cache) = PROVIDER_PATH.lock() {
+        *cache = None;
+    }
+    if let Ok(mut cache) = LIGHTWEIGHT_PROVIDER_PATH.lock() {
+        *cache = None;
+    }
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ProviderPathMode {
@@ -31,15 +49,30 @@ pub fn provider_executable_path(program: &str, mode: ProviderPathMode) -> Option
 }
 
 fn provider_command_path() -> Option<OsString> {
-    PROVIDER_PATH
-        .get_or_init(build_provider_command_path)
-        .clone()
+    cached_or_compute(&PROVIDER_PATH, build_provider_command_path)
 }
 
 fn lightweight_provider_path() -> Option<OsString> {
-    LIGHTWEIGHT_PROVIDER_PATH
-        .get_or_init(build_lightweight_provider_path)
-        .clone()
+    cached_or_compute(&LIGHTWEIGHT_PROVIDER_PATH, build_lightweight_provider_path)
+}
+
+/// Returns the cached snapshot, computing and storing it on first use (or
+/// after `invalidate_provider_path_cache` cleared it). Falls back to a
+/// fresh (uncached) computation if the lock is poisoned, so a panic in one
+/// caller can't wedge PATH resolution for the rest of the process.
+fn cached_or_compute(
+    cache: &Mutex<Option<Option<OsString>>>,
+    build: fn() -> Option<OsString>,
+) -> Option<OsString> {
+    let Ok(mut guard) = cache.lock() else {
+        return build();
+    };
+    if let Some(cached) = guard.as_ref() {
+        return cached.clone();
+    }
+    let computed = build();
+    *guard = Some(computed.clone());
+    computed
 }
 
 fn build_provider_command_path() -> Option<OsString> {
@@ -286,12 +319,49 @@ fn executable_extensions() -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
-    use std::{fs, path::PathBuf};
+    use std::{
+        ffi::OsString,
+        fs,
+        path::PathBuf,
+        sync::{
+            Mutex,
+            atomic::{AtomicUsize, Ordering},
+        },
+    };
 
     #[cfg(unix)]
     use std::{os::unix::fs::PermissionsExt, path::Path};
 
-    use super::{append_home_provider_paths, merge_paths, resolve_provider_executable_in_path};
+    use super::{
+        append_home_provider_paths, cached_or_compute, merge_paths,
+        resolve_provider_executable_in_path,
+    };
+
+    static BUILD_CALLS: AtomicUsize = AtomicUsize::new(0);
+
+    fn counting_build() -> Option<OsString> {
+        let call = BUILD_CALLS.fetch_add(1, Ordering::SeqCst) + 1;
+        Some(OsString::from(format!("/snapshot-{call}")))
+    }
+
+    #[test]
+    fn cached_or_compute_reuses_cached_snapshot_until_invalidated() {
+        BUILD_CALLS.store(0, Ordering::SeqCst);
+        let cache: Mutex<Option<Option<OsString>>> = Mutex::new(None);
+
+        let first = cached_or_compute(&cache, counting_build);
+        let second = cached_or_compute(&cache, counting_build);
+        assert_eq!(first, second);
+        assert_eq!(BUILD_CALLS.load(Ordering::SeqCst), 1);
+
+        // Simulate refresh_provider_status invalidating the snapshot: the
+        // next lookup must recompute rather than keep serving stale PATH.
+        *cache.lock().expect("cache lock is not poisoned") = None;
+
+        let third = cached_or_compute(&cache, counting_build);
+        assert_ne!(first, third);
+        assert_eq!(BUILD_CALLS.load(Ordering::SeqCst), 2);
+    }
 
     #[test]
     fn merge_paths_deduplicates_and_drops_empty_segments() {
