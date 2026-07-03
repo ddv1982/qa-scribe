@@ -4,7 +4,7 @@
   min-width: 0;
   min-height: 0;
   overflow: auto;
-  background: var(--shell-bg);
+  background: var(--surface-panel);
 }
 
 .note-workspace {
@@ -29,20 +29,20 @@
 .breadcrumb {
   gap: 9px;
   min-width: 0;
-  color: var(--muted);
+  color: var(--text-secondary);
   font-size: 14px;
 }
 
 .breadcrumb strong {
   overflow: hidden;
-  color: var(--text);
+  color: var(--text-primary);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .document-status {
   gap: 7px;
-  color: var(--muted);
+  color: var(--text-secondary);
   font-size: 13px;
   white-space: nowrap;
 }
@@ -58,43 +58,10 @@
   min-height: 0;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  background: var(--panel-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
   overflow: hidden;
-}
-
-:root[data-theme="dark"] .editor-card,
-:root[data-theme="dark"] .editable-record,
-:root[data-theme="dark"] .template-field,
-:root[data-theme="dark"] .settings-grid section,
-:root[data-theme="dark"] .global-search,
-:root[data-theme="dark"] .select-shell,
-:root[data-theme="dark"] .model-combobox-trigger,
-:root[data-theme="dark"] .model-combobox-popover,
-:root[data-theme="dark"] .model-search {
-  border-color: var(--border);
-}
-
-:root[data-theme="dark"] .editable-record input,
-:root[data-theme="dark"] .editable-record textarea,
-:root[data-theme="dark"] .rich-record-editor-field,
-:root[data-theme="dark"] .template-field textarea,
-:root[data-theme="dark"] .settings-grid textarea,
-:root[data-theme="dark"] .provider-lines article {
-  border-color: var(--border);
-}
-
-:root[data-theme="dark"] .format-toolbar {
-  border-bottom-color: var(--border-strong);
-}
-
-:root[data-theme="dark"] .editor-footer {
-  border-top-color: var(--border-strong);
-}
-
-:root[data-theme="dark"] .model-combobox-popover {
-  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.34);
 }
 
 .format-toolbar {
@@ -103,22 +70,22 @@
   gap: 7px;
   min-height: 54px;
   padding: 8px 16px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-default);
 }
 
 .format-toolbar select {
   height: 34px;
   padding: 0 8px;
-  color: var(--text);
+  color: var(--text-primary);
   background: transparent;
   border: 1px solid transparent;
-  border-radius: var(--radius);
+  border-radius: var(--radius-md);
 }
 
 .toolbar-divider {
   width: 1px;
   height: 24px;
-  background: var(--border);
+  background: var(--border-default);
 }
 
 .toolbar-button {
@@ -126,10 +93,10 @@
   width: 34px;
   height: 34px;
   place-items: center;
-  color: var(--text);
+  color: var(--text-primary);
   background: transparent;
   border: 1px solid transparent;
-  border-radius: var(--radius);
+  border-radius: var(--radius-md);
   cursor: pointer;
 }
 
@@ -137,17 +104,17 @@
 .secondary-button:hover,
 .rail-item:hover,
 .settings-link:hover {
-  background: var(--panel-soft);
+  background: var(--surface-sunken);
 }
 
 .toolbar-button[aria-pressed="true"] {
   color: var(--accent);
-  background: var(--panel-soft);
-  border-color: var(--border);
+  background: var(--surface-sunken);
+  border-color: var(--border-default);
 }
 
 .toolbar-button:disabled {
-  color: var(--faint);
+  color: var(--text-tertiary);
   cursor: not-allowed;
 }
 
@@ -171,14 +138,14 @@
   height: 34px;
   min-width: 240px;
   padding: 0 10px;
-  color: var(--text);
+  color: var(--text-primary);
   background: transparent;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
 }
 
 .link-editor-input[aria-invalid="true"] {
-  border-color: var(--danger, #d64545);
+  border-color: var(--danger);
 }
 
 .link-editor-apply {
@@ -189,7 +156,7 @@
   width: 100%;
   margin: 0;
   font-size: 12px;
-  color: var(--danger, #d64545);
+  color: var(--danger);
 }
 
 .document-body {
@@ -202,7 +169,7 @@
   width: 100%;
   margin: 0 0 20px;
   padding: 0;
-  color: var(--text);
+  color: var(--text-primary);
   background: transparent;
   border: 0;
   outline: 0;
@@ -214,7 +181,7 @@
 
 .rich-editor {
   min-height: 340px;
-  color: var(--text);
+  color: var(--text-primary);
   outline: 0;
   font-size: 15px;
   line-height: 1.68;
@@ -222,7 +189,7 @@
 
 .rich-editor:empty::before,
 .rich-editor p.is-editor-empty:first-child::before {
-  color: var(--faint);
+  color: var(--text-tertiary);
   content: attr(data-placeholder);
   float: left;
   height: 0;
@@ -287,8 +254,8 @@
   max-width: 100%;
   height: auto;
   margin: 14px 0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
 }
 
 .editor-footer {
@@ -298,8 +265,8 @@
   gap: 12px;
   min-height: 56px;
   padding: 0 18px;
-  color: var(--muted);
-  border-top: 1px solid var(--border);
+  color: var(--text-secondary);
+  border-top: 1px solid var(--border-default);
   font-size: 13px;
 }
 
@@ -309,7 +276,7 @@
 }
 
 .status-pill.saved {
-  color: var(--green);
+  color: var(--success);
 }
 
 .status-pill.error {
@@ -317,7 +284,7 @@
 }
 
 .status-pill.busy {
-  color: var(--muted);
+  color: var(--text-secondary);
 }
 
 .bottom-command-bar {
@@ -339,11 +306,11 @@
   max-width: 430px;
   min-height: 40px;
   margin-right: auto;
-  color: var(--muted);
+  color: var(--text-secondary);
 }
 
 .ai-provider-summary svg {
-  color: var(--blue);
+  color: var(--accent);
 }
 
 .ai-provider-summary div {
@@ -359,7 +326,7 @@
 
 .ai-provider-summary strong,
 .ai-provider-model {
-  color: var(--text);
+  color: var(--text-primary);
   font-size: 14px;
   font-weight: 650;
   line-height: 1.25;
@@ -375,20 +342,20 @@
 .ai-provider-state {
   justify-self: end;
   padding: 3px 8px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-default);
   border-radius: 999px;
-  color: var(--muted);
+  color: var(--text-secondary);
 }
 
 .ai-provider-state.ready {
-  border-color: rgba(45, 212, 111, 0.35);
-  color: var(--green);
+  border-color: color-mix(in oklab, var(--success) 40%, transparent);
+  color: var(--success);
 }
 
 .ai-provider-summary p {
   grid-column: 2 / -1;
   margin: -2px 0 0;
-  color: var(--muted);
+  color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.35;
 }
@@ -417,14 +384,14 @@
   gap: 12px;
   min-height: 100%;
   padding: 32px;
-  color: var(--muted);
+  color: var(--text-secondary);
   text-align: center;
 }
 
 .workspace-empty h1,
 .empty-collection h2 {
   margin: 0;
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 .workspace-empty p {

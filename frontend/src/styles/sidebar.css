@@ -10,25 +10,25 @@
   gap: 12px;
   min-height: 42px;
   padding: 0 12px;
-  color: var(--text);
+  color: var(--text-primary);
   background: transparent;
   border: 1px solid transparent;
-  border-radius: var(--radius);
+  border-radius: var(--radius-md);
   cursor: pointer;
 }
 
 .rail-item strong {
   margin-left: auto;
-  color: var(--blue);
+  color: var(--accent);
   font-size: 13px;
   font-weight: 600;
 }
 
 .rail-item.active,
 .settings-link.active {
-  color: var(--blue);
-  background: var(--blue-soft);
-  border-color: color-mix(in srgb, var(--blue) 12%, transparent);
+  color: var(--accent);
+  background: var(--accent-tint);
+  border-color: color-mix(in oklab, var(--accent) 12%, transparent);
 }
 
 .note-picker {
@@ -36,12 +36,12 @@
   gap: 10px;
   padding-top: 24px;
   margin-top: 24px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--border-default);
 }
 
 .rail-heading {
   margin: 0;
-  color: var(--muted);
+  color: var(--text-secondary);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -52,10 +52,10 @@
   gap: 8px;
   height: 40px;
   padding: 0 10px;
-  color: var(--muted);
-  background: var(--panel-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  color: var(--text-secondary);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
 }
 
 .select-shell select {
@@ -63,7 +63,7 @@
   min-width: 0;
   height: auto;
   padding: 0;
-  color: var(--text);
+  color: var(--text-primary);
   border: 0;
   outline: 0;
   background: transparent;
@@ -87,11 +87,11 @@
   width: 100%;
   min-height: 48px;
   padding: 8px 10px;
-  color: var(--text);
+  color: var(--text-primary);
   text-align: left;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: var(--radius);
+  border-radius: var(--radius-md);
   cursor: pointer;
 }
 
@@ -116,19 +116,19 @@
 .model-option small,
 .model-option em,
 .model-options-empty {
-  color: var(--muted);
+  color: var(--text-secondary);
   font-size: 12px;
 }
 
 .note-picker-item.active {
-  color: var(--blue);
-  background: var(--blue-soft);
-  border-color: color-mix(in srgb, var(--blue) 14%, transparent);
+  color: var(--accent);
+  background: var(--accent-tint);
+  border-color: color-mix(in oklab, var(--accent) 14%, transparent);
 }
 
 .note-picker-item:hover,
 .model-option:hover {
-  background: var(--panel-soft);
+  background: var(--surface-sunken);
 }
 
 .note-picker-empty,
@@ -151,11 +151,11 @@
   width: 100%;
   min-height: 50px;
   padding: 8px 10px;
-  color: var(--text);
+  color: var(--text-primary);
   text-align: left;
-  background: var(--panel-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
   cursor: pointer;
 }
 
@@ -172,7 +172,7 @@
 .model-combobox-trigger svg {
   grid-column: 2;
   grid-row: 1 / -1;
-  color: var(--muted);
+  color: var(--text-secondary);
 }
 
 .model-combobox-popover {
@@ -184,10 +184,10 @@
   display: grid;
   gap: 8px;
   padding: 8px;
-  background: var(--panel-bg);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius);
-  box-shadow: 0 16px 32px rgba(22, 32, 51, 0.18);
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
 }
 
 .model-search {
@@ -196,16 +196,16 @@
   gap: 8px;
   height: 36px;
   padding: 0 10px;
-  color: var(--muted);
-  background: var(--panel-soft);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  color: var(--text-secondary);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
 }
 
 .model-search input {
   width: 100%;
   min-width: 0;
-  color: var(--text);
+  color: var(--text-primary);
   background: transparent;
   border: 0;
   outline: 0;
@@ -224,11 +224,11 @@
   width: 100%;
   min-height: 50px;
   padding: 8px 10px;
-  color: var(--text);
+  color: var(--text-primary);
   text-align: left;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: var(--radius);
+  border-radius: var(--radius-md);
   cursor: pointer;
 }
 
@@ -243,13 +243,13 @@
 }
 
 .model-option.active {
-  color: var(--blue);
-  background: var(--blue-soft);
-  border-color: color-mix(in srgb, var(--blue) 14%, transparent);
+  color: var(--accent);
+  background: var(--accent-tint);
+  border-color: color-mix(in oklab, var(--accent) 14%, transparent);
 }
 
 .model-option.custom {
-  border-color: var(--border);
+  border-color: var(--border-default);
 }
 
 .settings-link {

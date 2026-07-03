@@ -64,7 +64,7 @@
     grid-column: 1;
     grid-row: 2;
     border-right: 0;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--border-default);
   }
 
   .section-nav {

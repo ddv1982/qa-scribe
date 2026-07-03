@@ -137,28 +137,6 @@
   background: var(--surface-base);
 }
 
-/* TEMPORARY migration aliases — removed in the color-sweep task.
- * Values resolve per-theme through the semantic tokens above,
- * so this single block serves both themes. */
-:root {
-  --app-bg: var(--surface-base);
-  --shell-bg: var(--surface-panel);
-  --panel-bg: var(--surface-raised);
-  --panel-soft: var(--surface-sunken);
-  --text: var(--text-primary);
-  --muted: var(--text-secondary);
-  --faint: var(--text-tertiary);
-  --border: var(--border-default);
-  --blue: var(--accent);
-  --blue-soft: var(--accent-tint);
-  --green: var(--success);
-  --green-soft: var(--success-tint);
-  --purple: var(--accent-alt);
-  --amber: var(--warning);
-  --shadow: var(--shadow-lg);
-  --radius: var(--radius-md);
-}
-
 * {
   box-sizing: border-box;
 }

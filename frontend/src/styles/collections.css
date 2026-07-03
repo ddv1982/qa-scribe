@@ -37,7 +37,7 @@
 
 .eyebrow {
   margin: 0;
-  color: var(--blue);
+  color: var(--accent);
   font-size: 12px;
   font-weight: 750;
   letter-spacing: 0.08em;
@@ -52,9 +52,9 @@
 .editable-record,
 .template-field,
 .settings-grid section {
-  background: var(--panel-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
 }
 
 .editable-record {
@@ -65,7 +65,7 @@
 
 .record-title {
   margin: 0;
-  color: var(--text);
+  color: var(--text-primary);
   font-size: 19px;
   line-height: 1.3;
 }
@@ -90,9 +90,9 @@
   align-items: center;
   min-height: 24px;
   padding: 3px 8px;
-  color: var(--blue);
-  background: color-mix(in srgb, var(--blue) 11%, transparent);
-  border: 1px solid color-mix(in srgb, var(--blue) 36%, var(--border));
+  color: var(--accent);
+  background: color-mix(in oklab, var(--accent) 11%, transparent);
+  border: 1px solid color-mix(in oklab, var(--accent) 36%, var(--border-default));
   border-radius: 999px;
   font-size: 12px;
   font-weight: 750;
@@ -104,10 +104,10 @@
 .template-field textarea,
 .settings-grid textarea {
   width: 100%;
-  color: var(--text);
-  background: var(--panel-soft);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  color: var(--text-primary);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
   outline: 0;
 }
 
@@ -127,16 +127,16 @@
 .rich-record-editor-field {
   display: grid;
   min-height: 260px;
-  background: var(--panel-soft);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
   overflow: hidden;
 }
 
 .rich-record-editor-field .format-toolbar {
   min-height: 46px;
   padding: 6px 10px;
-  background: var(--panel-bg);
+  background: var(--surface-raised);
 }
 
 .rich-record-editor-field .rich-editor {
@@ -157,7 +157,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  color: var(--purple);
+  color: var(--accent-alt);
   font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
@@ -185,7 +185,7 @@
   align-items: center;
   gap: 8px;
   margin-right: auto;
-  color: var(--muted);
+  color: var(--text-secondary);
   font-size: 13px;
   font-weight: 650;
 }
@@ -208,7 +208,7 @@
 
 .template-field span,
 .settings-grid h2 {
-  color: var(--text);
+  color: var(--text-primary);
   font-size: 14px;
   font-weight: 750;
 }
@@ -233,7 +233,7 @@
 
 .settings-view .settings-grid h2 {
   margin: 0;
-  color: var(--text);
+  color: var(--text-primary);
   font-size: 14px;
   font-weight: 750;
   line-height: 1.25;
@@ -258,7 +258,7 @@
 
 .settings-note {
   margin: -4px 0 2px;
-  color: var(--muted);
+  color: var(--text-secondary);
   font-size: 13px;
   line-height: 1.5;
 }
@@ -270,7 +270,7 @@
 
 .advanced-setting summary {
   width: 100%;
-  color: var(--text);
+  color: var(--text-primary);
   cursor: pointer;
   font-size: 14px;
   font-weight: 750;
@@ -285,7 +285,7 @@
 .settings-view .settings-grid textarea {
   min-height: 150px;
   padding: 12px;
-  color: var(--text);
+  color: var(--text-primary);
   font-size: 13px;
   line-height: 1.5;
   resize: vertical;
@@ -300,9 +300,9 @@
   max-width: 100%;
   gap: 4px;
   padding: 4px;
-  background: var(--panel-soft);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
 }
 
 .theme-toggle button {
@@ -311,7 +311,7 @@
   gap: 7px;
   height: 32px;
   padding: 0 12px;
-  color: var(--muted);
+  color: var(--text-secondary);
   font-size: 14px;
   font-weight: 500;
   background: transparent;
@@ -322,9 +322,9 @@
 }
 
 .theme-toggle button.active {
-  color: var(--text);
+  color: var(--text-primary);
   font-weight: 650;
-  background: var(--panel-bg);
+  background: var(--surface-raised);
 }
 
 .provider-lines {
@@ -339,24 +339,24 @@
 
 .settings-view .select-shell {
   height: 40px;
-  background: var(--panel-soft);
+  background: var(--surface-sunken);
 }
 
 .settings-view .select-shell span {
-  color: var(--muted);
+  color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.2;
 }
 
 .settings-view .select-shell select {
-  color: var(--text);
+  color: var(--text-primary);
   font-size: 14px;
   font-weight: 650;
 }
 
 .settings-view .model-combobox-trigger {
   min-height: 48px;
-  background: var(--panel-soft);
+  background: var(--surface-sunken);
 }
 
 .settings-view .model-combobox-trigger strong {
@@ -369,7 +369,7 @@
 }
 
 .settings-view .template-field span {
-  color: var(--text);
+  color: var(--text-primary);
   font-size: 13px;
   font-weight: 750;
   line-height: 1.25;
@@ -377,16 +377,16 @@
 
 .settings-view .template-field textarea {
   min-height: 230px;
-  background: var(--panel-soft);
+  background: var(--surface-sunken);
 }
 
 .provider-lines article {
   gap: 10px;
   min-width: 0;
   padding: 10px 11px;
-  background: var(--panel-soft);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
 }
 
 .provider-lines article > div {
@@ -397,7 +397,7 @@
   display: block;
   min-width: 0;
   overflow: hidden;
-  color: var(--text);
+  color: var(--text-primary);
   font-size: 14px;
   font-weight: 700;
   line-height: 1.2;
@@ -407,7 +407,7 @@
 
 .provider-lines p {
   margin: 2px 0 0;
-  color: var(--muted);
+  color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.35;
 }
@@ -417,7 +417,7 @@
   min-width: 0;
   margin-top: 5px;
   overflow: hidden;
-  color: var(--muted);
+  color: var(--text-secondary);
   font-size: 11px;
   line-height: 1.25;
   text-overflow: ellipsis;
@@ -428,10 +428,10 @@
   width: 8px;
   height: 8px;
   margin-left: auto;
-  background: var(--faint);
+  background: var(--text-tertiary);
   border-radius: 999px;
 }
 
 .status-dot.ready {
-  background: var(--green);
+  background: var(--success);
 }
