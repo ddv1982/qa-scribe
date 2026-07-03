@@ -74,7 +74,12 @@ export function pastedImageFilename(file: File): string {
 export function readFileAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
-    reader.addEventListener('load', () => resolve(String(reader.result)))
+    reader.addEventListener('load', () => {
+      // `readAsDataURL` always yields a string; guard the union so we never
+      // stringify an ArrayBuffer into "[object ArrayBuffer]".
+      if (typeof reader.result === 'string') resolve(reader.result)
+      else reject(new Error('Image could not be read'))
+    })
     reader.addEventListener('error', () => reject(reader.error ?? new Error('Image could not be read')))
     reader.readAsDataURL(file)
   })

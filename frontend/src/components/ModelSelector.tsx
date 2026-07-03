@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState, type FocusEvent, type KeyboardEvent } from 'react'
 import { Bot, ChevronDown, Command, Search, Sparkles } from 'lucide-react'
-import type { AiProvider, ProviderModelDescriptor } from '../tauri'
+import type { ProviderModelDescriptor } from '../tauri'
 
 // Accepts a plain string because provider descriptors carry `id: string`
-// (the backend's `ProviderDescriptor.id`); unknown values fall through to the
-// default glyph.
-export function ProviderGlyph({ provider }: { provider: AiProvider | string }) {
+// (the backend's `ProviderDescriptor.id`); the known `AiProvider` ids are a
+// subset, and unknown values fall through to the default glyph.
+export function ProviderGlyph({ provider }: { provider: string }) {
   if (provider === 'claude_code') return <Sparkles size={17} />
   if (provider === 'copilot_cli') return <Bot size={17} />
   return <Command size={17} />
