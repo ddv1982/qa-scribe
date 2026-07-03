@@ -1,10 +1,13 @@
 use qa_scribe_core::domain::{Finding, FindingDraft, FindingPatch};
 use tauri::State;
 
-use crate::settings::AppState;
+use crate::{commands::CommandError, settings::AppState};
 
 #[tauri::command]
-pub fn create_finding(state: State<'_, AppState>, draft: FindingDraft) -> Result<Finding, String> {
+pub fn create_finding(
+    state: State<'_, AppState>,
+    draft: FindingDraft,
+) -> Result<Finding, CommandError> {
     state.with_service(|service| service.create_finding(draft))
 }
 
@@ -12,7 +15,7 @@ pub fn create_finding(state: State<'_, AppState>, draft: FindingDraft) -> Result
 pub fn list_findings(
     state: State<'_, AppState>,
     session_id: String,
-) -> Result<Vec<Finding>, String> {
+) -> Result<Vec<Finding>, CommandError> {
     state.with_service(|service| service.list_findings(&session_id))
 }
 
@@ -21,11 +24,11 @@ pub fn update_finding(
     state: State<'_, AppState>,
     id: String,
     patch: FindingPatch,
-) -> Result<Finding, String> {
+) -> Result<Finding, CommandError> {
     state.with_service(|service| service.update_finding(&id, patch))
 }
 
 #[tauri::command]
-pub fn delete_finding(state: State<'_, AppState>, id: String) -> Result<(), String> {
+pub fn delete_finding(state: State<'_, AppState>, id: String) -> Result<(), CommandError> {
     state.with_service(|service| service.delete_finding(&id))
 }

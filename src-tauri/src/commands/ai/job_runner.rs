@@ -14,6 +14,7 @@ use super::{
     provider_execution::execute_provider_generation_streaming,
 };
 use crate::{
+    commands::CommandError,
     jobs::{GenerationJobState, GenerationJobStatus, JobControl, JobStore},
     settings::AppState,
 };
@@ -31,13 +32,15 @@ pub fn start_ai_action_job(
     jobs: State<'_, JobStore>,
     request: GenerateAiActionRequest,
     events: Channel<GenerationJobEvent>,
-) -> Result<StartAiActionJobResult, String> {
+) -> Result<StartAiActionJobResult, CommandError> {
     let job_id = Uuid::new_v4().to_string();
-    let (status, control) = jobs.insert_generation_job(
-        job_id.clone(),
-        request.session_id.clone(),
-        request.action.as_str().to_string(),
-    )?;
+    let (status, control) = jobs
+        .insert_generation_job(
+            job_id.clone(),
+            request.session_id.clone(),
+            request.action.as_str().to_string(),
+        )
+        .map_err(CommandError::internal)?;
     let app_handle = app.clone();
     let worker_job_id = job_id.clone();
 
@@ -52,16 +55,16 @@ pub fn start_ai_action_job(
 pub fn get_ai_action_job_status(
     jobs: State<'_, JobStore>,
     job_id: String,
-) -> Result<GenerationJobStatus, String> {
-    jobs.status(&job_id)
+) -> Result<GenerationJobStatus, CommandError> {
+    jobs.status(&job_id).map_err(CommandError::internal)
 }
 
 #[tauri::command]
 pub fn cancel_ai_action_job(
     jobs: State<'_, JobStore>,
     job_id: String,
-) -> Result<GenerationJobStatus, String> {
-    jobs.cancel(&job_id)
+) -> Result<GenerationJobStatus, CommandError> {
+    jobs.cancel(&job_id).map_err(CommandError::internal)
 }
 
 fn run_ai_action_job(
@@ -80,6 +83,7 @@ fn run_ai_action_job(
         match state.with_service(|service| prepare_ai_action_generation(service, &request)) {
             Ok(prepared) => prepared,
             Err(error) => {
+                let error = error.message;
                 let status = jobs.fail(&job_id, &error).unwrap_or_else(|_| {
                     fallback_status(&job_id, &request, GenerationJobState::Failed, &error)
                 });
@@ -215,6 +219,7 @@ fn run_ai_action_job(
             );
         }
         Err(error) => {
+            let error = error.message;
             let status = jobs.fail(&job_id, &error).unwrap_or_else(|_| {
                 fallback_status(&job_id, &request, GenerationJobState::Failed, &error)
             });

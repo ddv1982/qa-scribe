@@ -1,16 +1,49 @@
-import type { Finding, Session } from '../tauri'
+import type { CommandError, Finding, Session } from '../tauri'
 import type { ResolvedTheme, ThemePreference } from './types'
 
 export function countWords(value: string): number {
   return value.trim().split(/\s+/).filter(Boolean).length
 }
 
-export function formatError(cause: unknown): string {
+const BRIDGE_UNAVAILABLE_MESSAGE =
+  'Desktop bridge unavailable in browser preview. Run the Tauri app for live local data.'
+
+function isCommandError(value: unknown): value is CommandError {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'kind' in value &&
+    'message' in value &&
+    typeof (value as { kind: unknown }).kind === 'string' &&
+    typeof (value as { message: unknown }).message === 'string'
+  )
+}
+
+/**
+ * Normalize a Tauri `invoke` rejection into a `CommandError`. The backend
+ * rejects with the serialized `CommandError` object; the only remaining
+ * string-sniffing lives here, isolated to detecting the "desktop bridge
+ * unavailable" case (browser preview without the Tauri runtime, where
+ * `invoke` itself throws before any command can run).
+ */
+export function toCommandError(cause: unknown): CommandError {
+  if (isCommandError(cause)) return cause
+
   const message = cause instanceof Error ? cause.message : String(cause)
   if (message.includes('Cannot read properties of undefined') && message.includes('invoke')) {
-    return 'Desktop bridge unavailable in browser preview. Run the Tauri app for live local data.'
+    return { kind: 'internal', message: BRIDGE_UNAVAILABLE_MESSAGE }
   }
-  return message
+  return { kind: 'internal', message }
+}
+
+export function formatError(cause: unknown): string {
+  const error = toCommandError(cause)
+  if (error.kind === 'validation' || error.kind === 'provider') return error.message
+  // The bridge-unavailable message is already complete, user-facing copy
+  // (assembled in toCommandError, not raw backend text) — prefixing it would
+  // read as a stutter ("Something went wrong: Desktop bridge unavailable...").
+  if (error.message === BRIDGE_UNAVAILABLE_MESSAGE) return error.message
+  return `Something went wrong: ${error.message}`
 }
 
 export function formatFindingKind(kind: Finding['kind']): string {

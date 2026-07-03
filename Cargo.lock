@@ -2529,6 +2529,7 @@ dependencies = [
  "image",
  "libc",
  "qa-scribe-core",
+ "rusqlite",
  "serde",
  "serde_json",
  "tauri",

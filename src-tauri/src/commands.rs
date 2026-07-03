@@ -1,5 +1,6 @@
 mod ai;
 mod entries;
+pub mod error;
 mod files;
 mod findings;
 mod generation;
@@ -9,6 +10,7 @@ mod settings;
 
 pub use ai::{cancel_ai_action_job, get_ai_action_job_status, start_ai_action_job};
 pub use entries::{create_entry, list_entries, update_entry};
+pub use error::CommandError;
 pub use files::{
     copy_attachment_image_to_clipboard, export_session, get_attachment_preview_data_url,
     import_clipboard_screenshot, read_clipboard_image_data_url,

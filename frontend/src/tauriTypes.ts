@@ -1,3 +1,10 @@
+export type CommandErrorKind = 'validation' | 'notFound' | 'provider' | 'internal'
+
+export type CommandError = {
+  kind: CommandErrorKind
+  message: string
+}
+
 export type Session = {
   id: string
   title: string
