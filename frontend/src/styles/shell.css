@@ -53,8 +53,8 @@
 }
 
 .brand-cluster strong {
-  font-size: 17px;
-  letter-spacing: 0;
+  font-size: var(--font-size-xl);
+  letter-spacing: var(--tracking-tight);
 }
 
 .global-search {
@@ -127,7 +127,7 @@
 .compact-button {
   min-height: 34px;
   padding-inline: 12px;
-  font-size: 13px;
+  font-size: var(--font-size-md);
 }
 
 .icon-button {
@@ -213,14 +213,14 @@
 
 .confirmation-dialog h2 {
   margin: 6px 0 8px;
-  font-size: 20px;
-  line-height: 1.25;
+  font-size: var(--font-size-2xl);
+  line-height: var(--leading-tight);
 }
 
 .confirmation-dialog p:last-child {
   margin: 0;
   color: var(--text-secondary);
-  line-height: 1.55;
+  line-height: var(--leading-normal);
 }
 
 .confirmation-actions {
@@ -247,8 +247,8 @@
 
 .preflight-list dt {
   color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 750;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
   text-transform: uppercase;
 }
 
@@ -279,8 +279,8 @@
 .preflight-textarea-field span {
   margin-bottom: 8px;
   color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 750;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
   text-transform: uppercase;
 }
 
@@ -312,19 +312,19 @@
 
 .preflight-choice span {
   color: var(--accent);
-  font-size: 13px;
-  font-weight: 750;
+  font-size: var(--font-size-md);
+  font-weight: 600;
 }
 
 .preflight-choice strong {
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
 }
 
 .preflight-choice small {
   color: var(--text-secondary);
-  font-size: 12px;
-  line-height: 1.35;
+  font-size: var(--font-size-sm);
+  line-height: var(--leading-tight);
 }
 
 .preflight-control-grid {
@@ -358,7 +358,7 @@
   min-height: 76px;
   padding: 10px;
   resize: vertical;
-  line-height: 1.45;
+  line-height: var(--leading-normal);
 }
 
 .preflight-toggle-grid {
@@ -377,8 +377,8 @@
   background: var(--surface-sunken);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
-  font-size: 13px;
-  font-weight: 650;
+  font-size: var(--font-size-md);
+  font-weight: 600;
 }
 
 .preflight-toggle-grid input {
@@ -397,4 +397,18 @@
   background:
     linear-gradient(180deg, color-mix(in oklab, var(--surface-raised) 72%, transparent), transparent),
     var(--surface-panel);
+}
+
+.top-bar,
+.left-rail,
+.editor-footer,
+.document-status {
+  letter-spacing: var(--tracking-tight);
+}
+
+.rail-item strong,
+.document-status,
+.testware-metadata-badges span,
+.ai-provider-state {
+  font-variant-numeric: tabular-nums;
 }

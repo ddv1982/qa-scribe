@@ -163,7 +163,7 @@
   }
 
   .note-title-input {
-    font-size: 25px;
+    font-size: var(--font-size-2xl);
   }
 
   .format-toolbar {
