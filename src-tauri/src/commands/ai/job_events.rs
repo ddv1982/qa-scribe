@@ -1,8 +1,10 @@
-use qa_scribe_core::domain::{AiRun, GenerationContext};
+use qa_scribe_core::{
+    domain::{AiRun, GenerationContext},
+    generation::{GenerateAiActionRequest, GenerateAiActionResult},
+};
 use serde::Serialize;
 use tauri::ipc::Channel;
 
-use super::types::{GenerateAiActionRequest, GenerateAiActionResult};
 use crate::{
     jobs::{GenerationJobState, GenerationJobStatus, JobStore},
     settings::AppState,

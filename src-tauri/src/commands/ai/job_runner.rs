@@ -1,20 +1,29 @@
 use std::time::Instant;
 
+use qa_scribe_core::generation::{
+    GenerateAiActionRequest, finish_ai_action_generation, prepare_ai_action_generation,
+};
+use serde::Serialize;
 use tauri::{AppHandle, Manager, State, ipc::Channel};
 use uuid::Uuid;
 
 use super::{
-    action::{finish_ai_action_generation, prepare_ai_action_generation},
     job_events::{
         GenerationJobEvent, fallback_status, finish_cancelled_job, send_event, send_progress,
     },
     provider_execution::execute_provider_generation_streaming,
-    types::{GenerateAiActionRequest, StartAiActionJobResult},
 };
 use crate::{
     jobs::{GenerationJobState, GenerationJobStatus, JobControl, JobStore},
     settings::AppState,
 };
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StartAiActionJobResult {
+    pub job_id: String,
+    pub status: GenerationJobStatus,
+}
 
 #[tauri::command]
 pub fn start_ai_action_job(

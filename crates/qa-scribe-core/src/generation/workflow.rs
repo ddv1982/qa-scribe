@@ -1,31 +1,117 @@
-use qa_scribe_core::{
+//! The AI generation workflow: prepare a prompt + AiRun from session
+//! material, then route a provider's output into the right record (testware
+//! Draft, Finding with evidence links, or an updated note Entry).
+//!
+//! Provider execution itself happens between the two steps, behind
+//! [`crate::ai::ProviderExecutor`]; the caller passes the resulting
+//! [`ProviderGenerationOutput`] (or an error string) to the finish step.
+
+use serde::{Deserialize, Serialize};
+
+use crate::{
+    QaScribeError, Result,
+    ai::ProviderGenerationOutput,
     domain::{
-        AiRunCreate, DraftCreate, DraftKind, EntryPatch, EvidenceLinkDraft, FindingDraft,
-        FindingKind,
-    },
-    generation::{
-        managed_attachment_ids_from_html, parse_rich_html_fragment_response,
-        preserve_managed_attachment_images, project_html_to_prompt_text, render_action_prompt,
+        AiProvider, AiRun, AiRunCreate, Attachment, Draft, DraftCreate, DraftKind, Entry,
+        EntryPatch, EntryType, EvidenceLinkDraft, Finding, FindingDraft, FindingKind,
+        GenerationContext,
     },
     services::SessionService,
 };
 
 use super::{
-    preferences::{testware_metadata_json, testware_preferences_prompt},
-    provider_execution::ProviderGenerationOutput,
-    selection::selected_note_entry,
-    types::{
-        GenerateAiActionKind, GenerateAiActionRequest, GenerateAiActionResult, PreparedGeneration,
+    ActionPromptKind, managed_attachment_ids_from_html, parse_rich_html_fragment_response,
+    preferences::{
+        TestwareGenerationPreferences, testware_metadata_json, testware_preferences_prompt,
     },
+    preserve_managed_attachment_images, project_html_to_prompt_text, render_action_prompt,
 };
 
-pub(super) fn prepare_ai_action_generation(
+#[derive(Clone, Copy, Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GenerateAiActionKind {
+    Testware,
+    Finding,
+    Summary,
+}
+
+impl GenerateAiActionKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            GenerateAiActionKind::Testware => "testware",
+            GenerateAiActionKind::Finding => "finding",
+            GenerateAiActionKind::Summary => "summary",
+        }
+    }
+
+    pub fn prompt_version(self) -> &'static str {
+        match self {
+            GenerateAiActionKind::Testware => "testware-v3",
+            GenerateAiActionKind::Finding => "finding-v3",
+            GenerateAiActionKind::Summary => "note-summary-v3",
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            GenerateAiActionKind::Testware => "Generate test cases",
+            GenerateAiActionKind::Finding => "Create finding",
+            GenerateAiActionKind::Summary => "Summarize notes",
+        }
+    }
+
+    fn prompt_kind(self) -> ActionPromptKind {
+        match self {
+            GenerateAiActionKind::Testware => ActionPromptKind::Testware,
+            GenerateAiActionKind::Finding => ActionPromptKind::Finding,
+            GenerateAiActionKind::Summary => ActionPromptKind::Summary,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GenerateAiActionRequest {
+    pub session_id: String,
+    pub provider: AiProvider,
+    pub model: String,
+    pub reasoning_effort: Option<String>,
+    pub action: GenerateAiActionKind,
+    pub note_entry_id: Option<String>,
+    pub testware_preferences: Option<TestwareGenerationPreferences>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GenerateAiActionResult {
+    pub generation_context: GenerationContext,
+    pub ai_run: AiRun,
+    pub draft: Option<Draft>,
+    pub finding: Option<Finding>,
+    pub note_entry: Option<Entry>,
+}
+
+/// Everything the prepare step persisted and derived: the AiRun to complete
+/// or fail, the rendered prompt, and the source material the finish step
+/// needs for evidence preservation.
+pub struct PreparedGeneration {
+    pub session_id: String,
+    pub session_title: String,
+    pub generation_context: GenerationContext,
+    pub ai_run: AiRun,
+    pub prompt: String,
+    pub selected_note_id: Option<String>,
+    pub selected_note_body: Option<String>,
+    pub attachments: Vec<Attachment>,
+}
+
+pub fn prepare_ai_action_generation(
     service: &SessionService,
     request: &GenerateAiActionRequest,
-) -> qa_scribe_core::Result<PreparedGeneration> {
+) -> Result<PreparedGeneration> {
     let session = service
         .get_session(&request.session_id)?
-        .ok_or_else(|| qa_scribe_core::QaScribeError::NotFound(request.session_id.clone()))?;
+        .ok_or_else(|| QaScribeError::NotFound(request.session_id.clone()))?;
     let settings = service.get_settings()?;
     let entries = service.list_entries(&request.session_id)?;
     let note_entry = selected_note_entry(request, &entries)?;
@@ -72,12 +158,12 @@ pub(super) fn prepare_ai_action_generation(
     })
 }
 
-pub(super) fn finish_ai_action_generation(
+pub fn finish_ai_action_generation(
     service: &SessionService,
     request: &GenerateAiActionRequest,
     prepared: PreparedGeneration,
-    output: Result<ProviderGenerationOutput, String>,
-) -> qa_scribe_core::Result<GenerateAiActionResult> {
+    output: std::result::Result<ProviderGenerationOutput, String>,
+) -> Result<GenerateAiActionResult> {
     match output {
         Ok(output) if output.success() => {
             finish_successful_generation(service, request, prepared, output)
@@ -94,12 +180,44 @@ pub(super) fn finish_ai_action_generation(
     }
 }
 
+fn selected_note_entry<'a>(
+    request: &GenerateAiActionRequest,
+    entries: &'a [Entry],
+) -> Result<Option<&'a Entry>> {
+    if let Some(note_entry_id) = request.note_entry_id.as_deref() {
+        let entry = entries
+            .iter()
+            .find(|entry| entry.id == note_entry_id)
+            .ok_or_else(|| {
+                QaScribeError::Validation(
+                    "Selected note entry was not found in this Session.".to_string(),
+                )
+            })?;
+        if entry.entry_type != EntryType::Note {
+            return Err(QaScribeError::Validation(
+                "Selected entry must be a Note.".to_string(),
+            ));
+        }
+        return Ok(Some(entry));
+    }
+
+    if matches!(request.action, GenerateAiActionKind::Summary) {
+        return Err(QaScribeError::Validation(
+            "Summarize notes requires an editable note entry.".to_string(),
+        ));
+    }
+
+    Ok(entries
+        .iter()
+        .find(|entry| entry.entry_type == EntryType::Note))
+}
+
 fn finish_successful_generation(
     service: &SessionService,
     request: &GenerateAiActionRequest,
     prepared: PreparedGeneration,
     output: ProviderGenerationOutput,
-) -> qa_scribe_core::Result<GenerateAiActionResult> {
+) -> Result<GenerateAiActionResult> {
     let response = output.response_text();
     let body = parse_rich_html_fragment_response(&response);
     let completed_run = service.complete_ai_run(&prepared.ai_run.id)?;
@@ -120,9 +238,9 @@ fn finish_testware_generation(
     service: &SessionService,
     request: &GenerateAiActionRequest,
     prepared: PreparedGeneration,
-    completed_run: qa_scribe_core::domain::AiRun,
+    completed_run: AiRun,
     body: String,
-) -> qa_scribe_core::Result<GenerateAiActionResult> {
+) -> Result<GenerateAiActionResult> {
     let body = preserve_managed_attachment_images(
         &body,
         prepared.selected_note_body.as_deref().unwrap_or_default(),
@@ -150,9 +268,9 @@ fn finish_testware_generation(
 fn finish_finding_generation(
     service: &SessionService,
     prepared: PreparedGeneration,
-    completed_run: qa_scribe_core::domain::AiRun,
+    completed_run: AiRun,
     body: String,
-) -> qa_scribe_core::Result<GenerateAiActionResult> {
+) -> Result<GenerateAiActionResult> {
     let body = preserve_managed_attachment_images(
         &body,
         prepared.selected_note_body.as_deref().unwrap_or_default(),
@@ -186,9 +304,9 @@ fn finish_finding_generation(
 fn finish_summary_generation(
     service: &SessionService,
     prepared: PreparedGeneration,
-    completed_run: qa_scribe_core::domain::AiRun,
+    completed_run: AiRun,
     body: String,
-) -> qa_scribe_core::Result<GenerateAiActionResult> {
+) -> Result<GenerateAiActionResult> {
     let Some(note_entry_id) = prepared.selected_note_id.as_deref() else {
         let failed_run = service.fail_ai_run(
             &completed_run.id,
@@ -219,10 +337,7 @@ fn finish_summary_generation(
     })
 }
 
-fn failed_generation_result(
-    prepared: PreparedGeneration,
-    ai_run: qa_scribe_core::domain::AiRun,
-) -> GenerateAiActionResult {
+fn failed_generation_result(prepared: PreparedGeneration, ai_run: AiRun) -> GenerateAiActionResult {
     GenerateAiActionResult {
         generation_context: prepared.generation_context,
         ai_run,
@@ -237,8 +352,8 @@ fn create_generated_finding_evidence_links(
     finding_id: &str,
     selected_note_id: Option<&str>,
     selected_note_body: &str,
-    attachments: &[qa_scribe_core::domain::Attachment],
-) -> qa_scribe_core::Result<()> {
+    attachments: &[Attachment],
+) -> Result<()> {
     if let Some(entry_id) = selected_note_id {
         service.create_evidence_link(EvidenceLinkDraft {
             finding_id: finding_id.to_string(),
@@ -273,3 +388,6 @@ fn derive_title(markdown: &str, fallback: &str) -> String {
         .take(120)
         .collect()
 }
+
+#[cfg(test)]
+mod tests;

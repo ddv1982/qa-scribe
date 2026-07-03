@@ -1,10 +1,12 @@
-//! Streaming provider execution driver.
+//! Streaming provider execution driver — the Tauri-side
+//! [`ProviderExecutor`] implementation.
 //!
 //! This is the process I/O core of a streaming generation: it spawns the
-//! provider CLI, feeds it the prompt on stdin, and streams its stdout through
-//! the [`ProviderStreamParser`]. The ordering of the steps here is load-bearing
-//! and fixes several confirmed process defects; see
-//! [`run_generation_command_streaming_with_timeout`].
+//! provider CLI, feeds it the prompt on stdin, and streams raw stdout lines
+//! to the caller's sink (core layers the per-format stream parsing on top via
+//! [`run_streaming_generation`]). The ordering of the steps here is
+//! load-bearing and fixes several confirmed process defects; see
+//! [`ProcessProviderExecutor::execute`].
 
 use std::{
     io::{BufRead, BufReader, Read, Write},
@@ -18,11 +20,10 @@ use std::{
 };
 
 use qa_scribe_core::ai::{
-    GenerationCommand,
-    stream::{ProviderStreamParser, StreamUpdate},
+    GenerationCommand, ProviderExecution, ProviderExecutor, ProviderGenerationOutput,
+    run_streaming_generation, stream::StreamUpdate,
 };
 
-use super::provider_execution::ProviderGenerationOutput;
 use crate::{
     jobs::JobControl,
     process_io::{configure_process_group, kill_child_group},
@@ -38,164 +39,185 @@ const GENERATION_WATCHDOG_TIMEOUT: Duration = Duration::from_secs(15 * 60);
 /// the read loop has finished.
 const WATCHDOG_POLL_INTERVAL: Duration = Duration::from_millis(250);
 
+/// Run one streaming generation through the real process executor, parsing
+/// the provider's stdout with core's per-format stream parsers.
 pub(super) fn run_generation_command_streaming(
     command: &GenerationCommand,
     control: &JobControl,
     on_update: impl FnMut(StreamUpdate),
 ) -> Result<ProviderGenerationOutput, String> {
-    run_generation_command_streaming_with_timeout(
-        command,
-        control,
-        GENERATION_WATCHDOG_TIMEOUT,
-        on_update,
-    )
+    run_streaming_generation(&ProcessProviderExecutor::new(control), command, on_update)
 }
 
-/// Streaming driver for a provider CLI.
-///
-/// The ordering here is load-bearing and fixes several process defects:
-///
-/// * The child is registered with [`JobControl`] immediately after spawn, so a
-///   cancel arriving during the (potentially large) stdin write or a long
-///   silent "thinking" phase kills it promptly (defect 3).
-/// * stdin is written from its own thread and the stderr drain is spawned
-///   before that write, so a child that floods stderr/stdout before consuming
-///   its (>64KB) prompt cannot deadlock against a blocked stdin write (defect
-///   1).
-/// * Every exit path funnels through [`ChildGuard`], which kills the process
-///   group and reaps the child, so no error path leaks a zombie (defect 2).
-/// * A watchdog thread bounds the whole generation: a fully silent child is
-///   killed after `watchdog_timeout`, which unblocks the reader (defect 4).
-fn run_generation_command_streaming_with_timeout(
-    command: &GenerationCommand,
-    control: &JobControl,
+/// [`ProviderExecutor`] backed by a real child process with watchdog and
+/// process-group kill, wired to a job's [`JobControl`] for cancellation.
+pub(super) struct ProcessProviderExecutor<'a> {
+    control: &'a JobControl,
     watchdog_timeout: Duration,
-    mut on_update: impl FnMut(StreamUpdate),
-) -> Result<ProviderGenerationOutput, String> {
-    if control.is_cancelled() {
-        return Ok(ProviderGenerationOutput::cancelled());
+}
+
+impl<'a> ProcessProviderExecutor<'a> {
+    pub(super) fn new(control: &'a JobControl) -> Self {
+        Self {
+            control,
+            watchdog_timeout: GENERATION_WATCHDOG_TIMEOUT,
+        }
     }
 
-    let mut process = Command::new(&command.program);
-    process
-        .args(&command.args)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
-    apply_provider_path(&mut process);
-    configure_process_group(&mut process);
-
-    let mut child = process.spawn().map_err(|error| error.to_string())?;
-
-    // Take the pipes up front. If any is missing, kill+reap before returning so
-    // we never leak a zombie (defect 2).
-    let stdin = child.stdin.take();
-    let (stdout, stderr) = match (child.stdout.take(), child.stderr.take()) {
-        (Some(stdout), Some(stderr)) => (stdout, stderr),
-        _ => {
-            kill_child_group(&mut child);
-            let _ = child.wait();
-            return Err("provider stdio pipes were not available".to_string());
+    #[cfg(test)]
+    fn with_timeout(control: &'a JobControl, watchdog_timeout: Duration) -> Self {
+        Self {
+            control,
+            watchdog_timeout,
         }
-    };
+    }
+}
 
-    // Register the child before writing stdin so a cancel during the write or a
-    // long silent phase can kill it (defect 3). From here on the child lives in
-    // `control`; the guard funnels every exit through cleanup (defect 2).
-    control.set_child(child)?;
-    let guard = ChildGuard::new(control);
-
-    // Drain stderr on its own thread *before* writing stdin, so a child that
-    // emits >64KB of stderr before reading its prompt cannot deadlock the
-    // stdin write (defect 1).
-    let stderr_reader = thread::spawn(move || {
-        let mut buffer = Vec::new();
-        let mut reader = BufReader::new(stderr);
-        let _ = reader.read_to_end(&mut buffer);
-        buffer
-    });
-
-    // Write stdin from a dedicated thread and drop the handle so the child sees
-    // EOF. A BrokenPipe from an early-exiting CLI is expected and non-fatal here
-    // (the exit status/stderr carry the real error).
-    let stdin_payload = command.stdin.clone().into_bytes();
-    let stdin_writer = thread::spawn(move || {
-        if let Some(mut stdin) = stdin {
-            let _ = stdin.write_all(&stdin_payload);
-            // `stdin` drops here, closing the pipe (EOF for the child).
+impl ProviderExecutor for ProcessProviderExecutor<'_> {
+    /// Streaming driver for a provider CLI.
+    ///
+    /// The ordering here is load-bearing and fixes several process defects:
+    ///
+    /// * The child is registered with [`JobControl`] immediately after spawn,
+    ///   so a cancel arriving during the (potentially large) stdin write or a
+    ///   long silent "thinking" phase kills it promptly (defect 3).
+    /// * stdin is written from its own thread and the stderr drain is spawned
+    ///   before that write, so a child that floods stderr/stdout before
+    ///   consuming its (>64KB) prompt cannot deadlock against a blocked stdin
+    ///   write (defect 1).
+    /// * Every exit path funnels through [`ChildGuard`], which kills the
+    ///   process group and reaps the child, so no error path leaks a zombie
+    ///   (defect 2).
+    /// * A watchdog thread bounds the whole generation: a fully silent child
+    ///   is killed after the watchdog timeout, which unblocks the reader
+    ///   (defect 4).
+    fn execute(
+        &self,
+        command: &GenerationCommand,
+        on_line: &mut dyn FnMut(&[u8]),
+    ) -> Result<ProviderExecution, String> {
+        let control = self.control;
+        if control.is_cancelled() {
+            return Ok(ProviderExecution::cancelled());
         }
-    });
 
-    // Watchdog: a fully silent child blocks the reader forever, so a monitor
-    // thread kills the group after the timeout, which unblocks `read_until`
-    // (defect 4).
-    let reader_finished = Arc::new(AtomicBool::new(false));
-    let watchdog_fired = Arc::new(AtomicBool::new(false));
-    let watchdog = spawn_watchdog(
-        control,
-        watchdog_timeout,
-        Arc::clone(&reader_finished),
-        Arc::clone(&watchdog_fired),
-    );
+        let mut process = Command::new(&command.program);
+        process
+            .args(&command.args)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        apply_provider_path(&mut process);
+        configure_process_group(&mut process);
 
-    let mut stdout_reader = BufReader::new(stdout);
-    let mut stdout_bytes = Vec::new();
-    let mut parser = ProviderStreamParser::new(command.output_format);
-    let mut chunk = Vec::new();
+        let mut child = process.spawn().map_err(|error| error.to_string())?;
 
-    let read_result = loop {
-        chunk.clear();
-        let read = match stdout_reader.read_until(b'\n', &mut chunk) {
-            Ok(read) => read,
-            Err(error) => {
-                // The child may still be alive here (e.g. an EIO/EBADF on the
-                // pipe without the process having exited). `finish()` below
-                // only reaps via `wait()` and does not kill, so without this
-                // the reap would block until the child exits on its own.
-                // Kill in place (no take/wait) so `guard.finish()` remains the
-                // sole reaper and the watchdog join ordering is unchanged.
-                let _ = control.kill_registered_child();
-                break Err(error.to_string());
+        // Take the pipes up front. If any is missing, kill+reap before
+        // returning so we never leak a zombie (defect 2).
+        let stdin = child.stdin.take();
+        let (stdout, stderr) = match (child.stdout.take(), child.stderr.take()) {
+            (Some(stdout), Some(stderr)) => (stdout, stderr),
+            _ => {
+                kill_child_group(&mut child);
+                let _ = child.wait();
+                return Err("provider stdio pipes were not available".to_string());
             }
         };
-        if read == 0 {
-            break Ok(());
-        }
-        stdout_bytes.extend_from_slice(&chunk);
-        for update in parser.push_bytes(&chunk) {
-            on_update(update);
-        }
-        if control.is_cancelled() {
-            let _ = control.kill_registered_child();
-        }
-    };
 
-    // Reader loop is done; stop the watchdog and reap the child via the guard.
-    reader_finished.store(true, Ordering::SeqCst);
-    let _ = watchdog.join();
-    let _ = stdin_writer.join();
-    let status = guard.finish()?;
-    let stderr = stderr_reader
-        .join()
-        .map_err(|_| "provider stderr reader panicked".to_string())?;
+        // Register the child before writing stdin so a cancel during the
+        // write or a long silent phase can kill it (defect 3). From here on
+        // the child lives in `control`; the guard funnels every exit through
+        // cleanup (defect 2).
+        control.set_child(child)?;
+        let guard = ChildGuard::new(control);
 
-    read_result?;
+        // Drain stderr on its own thread *before* writing stdin, so a child
+        // that emits >64KB of stderr before reading its prompt cannot
+        // deadlock the stdin write (defect 1).
+        let stderr_reader = thread::spawn(move || {
+            let mut buffer = Vec::new();
+            let mut reader = BufReader::new(stderr);
+            let _ = reader.read_to_end(&mut buffer);
+            buffer
+        });
 
-    if watchdog_fired.load(Ordering::SeqCst) && !control.is_cancelled() {
-        return Err(format!(
-            "Generation timed out after {} with no response from the provider. \
-             The provider process was stopped. Try again or check the provider CLI.",
-            format_watchdog_duration(watchdog_timeout)
-        ));
+        // Write stdin from a dedicated thread and drop the handle so the
+        // child sees EOF. A BrokenPipe from an early-exiting CLI is expected
+        // and non-fatal here (the exit status/stderr carry the real error).
+        let stdin_payload = command.stdin.clone().into_bytes();
+        let stdin_writer = thread::spawn(move || {
+            if let Some(mut stdin) = stdin {
+                let _ = stdin.write_all(&stdin_payload);
+                // `stdin` drops here, closing the pipe (EOF for the child).
+            }
+        });
+
+        // Watchdog: a fully silent child blocks the reader forever, so a
+        // monitor thread kills the group after the timeout, which unblocks
+        // `read_until` (defect 4).
+        let reader_finished = Arc::new(AtomicBool::new(false));
+        let watchdog_fired = Arc::new(AtomicBool::new(false));
+        let watchdog = spawn_watchdog(
+            control,
+            self.watchdog_timeout,
+            Arc::clone(&reader_finished),
+            Arc::clone(&watchdog_fired),
+        );
+
+        let mut stdout_reader = BufReader::new(stdout);
+        let mut chunk = Vec::new();
+
+        let read_result = loop {
+            chunk.clear();
+            let read = match stdout_reader.read_until(b'\n', &mut chunk) {
+                Ok(read) => read,
+                Err(error) => {
+                    // The child may still be alive here (e.g. an EIO/EBADF on
+                    // the pipe without the process having exited). `finish()`
+                    // below only reaps via `wait()` and does not kill, so
+                    // without this the reap would block until the child exits
+                    // on its own. Kill in place (no take/wait) so
+                    // `guard.finish()` remains the sole reaper and the
+                    // watchdog join ordering is unchanged.
+                    let _ = control.kill_registered_child();
+                    break Err(error.to_string());
+                }
+            };
+            if read == 0 {
+                break Ok(());
+            }
+            on_line(&chunk);
+            if control.is_cancelled() {
+                let _ = control.kill_registered_child();
+            }
+        };
+
+        // Reader loop is done; stop the watchdog and reap the child via the
+        // guard.
+        reader_finished.store(true, Ordering::SeqCst);
+        let _ = watchdog.join();
+        let _ = stdin_writer.join();
+        let status = guard.finish()?;
+        let stderr = stderr_reader
+            .join()
+            .map_err(|_| "provider stderr reader panicked".to_string())?;
+
+        read_result?;
+
+        if watchdog_fired.load(Ordering::SeqCst) && !control.is_cancelled() {
+            return Err(format!(
+                "Generation timed out after {} with no response from the provider. \
+                 The provider process was stopped. Try again or check the provider CLI.",
+                format_watchdog_duration(self.watchdog_timeout)
+            ));
+        }
+
+        Ok(ProviderExecution {
+            exit_success: status.map(|status| status.success()),
+            stderr,
+            cancelled: control.is_cancelled(),
+        })
     }
-
-    Ok(ProviderGenerationOutput {
-        status,
-        stdout: stdout_bytes,
-        stderr,
-        assistant_text: parser.finish(),
-        cancelled: control.is_cancelled(),
-    })
 }
 
 /// Render a watchdog bound for the timeout error message. Whole minutes when
@@ -232,9 +254,9 @@ fn spawn_watchdog(
 }
 
 /// RAII cleanup for the registered child: on any exit (including `?` and
-/// panics) it kills the process group and reaps the child so nothing is left as
-/// a zombie (defect 2). The happy path calls [`ChildGuard::finish`] to reap and
-/// recover the exit status.
+/// panics) it kills the process group and reaps the child so nothing is left
+/// as a zombie (defect 2). The happy path calls [`ChildGuard::finish`] to
+/// reap and recover the exit status.
 struct ChildGuard<'a> {
     control: &'a JobControl,
     active: bool,
@@ -248,8 +270,8 @@ impl<'a> ChildGuard<'a> {
         }
     }
 
-    /// Reap the child normally, returning its exit status. Disarms the guard so
-    /// `Drop` does nothing.
+    /// Reap the child normally, returning its exit status. Disarms the guard
+    /// so `Drop` does nothing.
     fn finish(mut self) -> Result<Option<ExitStatus>, String> {
         self.active = false;
         reap_child(self.control.take_child()?)
@@ -286,12 +308,11 @@ mod tests {
         time::{Duration, Instant},
     };
 
-    use qa_scribe_core::ai::{GenerationCommand, GenerationOutputFormat};
-
-    use super::{
-        StreamUpdate, run_generation_command_streaming,
-        run_generation_command_streaming_with_timeout,
+    use qa_scribe_core::ai::{
+        GenerationCommand, GenerationOutputFormat, run_streaming_generation, stream::StreamUpdate,
     };
+
+    use super::{ProcessProviderExecutor, run_generation_command_streaming};
     use crate::jobs::JobControl;
 
     /// A tiny fake provider CLI written to a temp dir. Each test gets its own
@@ -383,9 +404,9 @@ mod tests {
 
     #[test]
     fn mid_stream_cancel_kills_child_promptly() {
-        // Emit one line, then sleep far longer than the test deadline. A working
-        // cancel must kill the process group and unblock the reader well before
-        // the sleep elapses.
+        // Emit one line, then sleep far longer than the test deadline. A
+        // working cancel must kill the process group and unblock the reader
+        // well before the sleep elapses.
         let cli = FakeCli::new(
             "fake-cancel",
             "#!/bin/sh\ncat >/dev/null\n\
@@ -402,8 +423,8 @@ mod tests {
         let output = run_bounded(Duration::from_secs(15), move || {
             run_generation_command_streaming(&command, &control, move |update| {
                 if let StreamUpdate::Partial(_) = update {
-                    // Simulate the UI requesting cancellation: sets the cancel
-                    // flag and kills the child's process group.
+                    // Simulate the UI requesting cancellation: sets the
+                    // cancel flag and kills the child's process group.
                     let _ = cancel_control.request_cancel();
                 }
             })
@@ -422,9 +443,9 @@ mod tests {
 
     #[test]
     fn early_exit_without_reading_stdin_is_reaped_cleanly() {
-        // Exit immediately without reading the (large) prompt. The stdin writer
-        // will hit BrokenPipe, which must be swallowed; the child must be reaped
-        // (no zombie) and a result returned without hanging.
+        // Exit immediately without reading the (large) prompt. The stdin
+        // writer will hit BrokenPipe, which must be swallowed; the child must
+        // be reaped (no zombie) and a result returned without hanging.
         let cli = FakeCli::new("fake-early-exit", "#!/bin/sh\nexit 3\n");
         let large_prompt = "x".repeat(200_000);
         let command = cli.command(large_prompt, GenerationOutputFormat::CodexJsonl);
@@ -446,10 +467,11 @@ mod tests {
 
     #[test]
     fn large_stderr_before_reading_stdin_does_not_deadlock() {
-        // Regression for defect 1: the child writes ~256KB to stderr (well over
-        // the ~64KB pipe buffer) *before* reading any stdin, then echoes a JSONL
-        // line. With the old ordering (stdin write on the calling thread before
-        // the stderr drain) this deadlocks; with the fix it completes.
+        // Regression for defect 1: the child writes ~256KB to stderr (well
+        // over the ~64KB pipe buffer) *before* reading any stdin, then echoes
+        // a JSONL line. With the old ordering (stdin write on the calling
+        // thread before the stderr drain) this deadlocks; with the fix it
+        // completes.
         let cli = FakeCli::new(
             "fake-stderr-flood",
             "#!/bin/sh\n\
@@ -462,8 +484,8 @@ mod tests {
              printf '%s\\n' '{\"type\":\"item/agentMessage/delta\",\"delta\":\"done\"}'\n\
              exit 0\n",
         );
-        // Supply a >64KB prompt so the child would also block writing stdin if
-        // the reader were not draining concurrently.
+        // Supply a >64KB prompt so the child would also block writing stdin
+        // if the reader were not draining concurrently.
         let large_prompt = "y".repeat(200_000);
         let command = cli.command(large_prompt, GenerationOutputFormat::CodexJsonl);
         let control = JobControl::default();
@@ -479,9 +501,9 @@ mod tests {
 
     #[test]
     fn watchdog_kills_silent_child_and_fails_job() {
-        // A child that never emits output and never exits must be killed by the
-        // watchdog. Use a tiny timeout so the test is fast; the watchdog kill
-        // unblocks the (otherwise infinite) reader.
+        // A child that never emits output and never exits must be killed by
+        // the watchdog. Use a tiny timeout so the test is fast; the watchdog
+        // kill unblocks the (otherwise infinite) reader.
         let cli = FakeCli::new(
             "fake-silent",
             "#!/bin/sh\ncat >/dev/null\nsleep 120\nexit 0\n",
@@ -491,12 +513,9 @@ mod tests {
 
         let started = Instant::now();
         let result = run_bounded(Duration::from_secs(15), move || {
-            run_generation_command_streaming_with_timeout(
-                &command,
-                &control,
-                Duration::from_millis(500),
-                |_| {},
-            )
+            let executor =
+                ProcessProviderExecutor::with_timeout(&control, Duration::from_millis(500));
+            run_streaming_generation(&executor, &command, |_| {})
         });
 
         assert!(

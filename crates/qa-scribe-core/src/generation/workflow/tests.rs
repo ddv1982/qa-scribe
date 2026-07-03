@@ -1,20 +1,18 @@
-use std::{os::unix::process::ExitStatusExt, process::ExitStatus};
-
-use qa_scribe_core::{
+use crate::{
+    ai::ProviderGenerationOutput,
     domain::{
         AiProvider, Attachment, AttachmentDraft, Entry, EntryDraft, EntryPatch, EntryType, Session,
         SessionDraft,
+    },
+    generation::preferences::{
+        TestwareDepth, TestwareGenerationPreferences, TestwareOutputFormat, TestwareTechnique,
     },
     services::SessionService,
 };
 
 use super::{
-    action::{finish_ai_action_generation, prepare_ai_action_generation},
-    provider_execution::ProviderGenerationOutput,
-    types::{
-        GenerateAiActionKind, GenerateAiActionRequest, GenerateAiActionResult, TestwareDepth,
-        TestwareGenerationPreferences, TestwareOutputFormat, TestwareTechnique,
-    },
+    GenerateAiActionKind, GenerateAiActionRequest, GenerateAiActionResult,
+    finish_ai_action_generation, prepare_ai_action_generation,
 };
 
 #[test]
@@ -419,7 +417,7 @@ fn create_note_with_attachment(service: &SessionService, session: &Session) -> (
 
 fn success_generation_output(response: &str) -> ProviderGenerationOutput {
     ProviderGenerationOutput {
-        status: Some(ExitStatus::from_raw(0)),
+        exit_success: Some(true),
         stdout: response.as_bytes().to_vec(),
         stderr: Vec::new(),
         assistant_text: None,

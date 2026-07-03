@@ -1,10 +1,11 @@
-use std::{
-    process::ExitStatus,
-    time::{Duration, Instant},
-};
+//! Tauri-side orchestration of one streaming provider run: readiness check,
+//! command construction, and throttled forwarding of stream updates to the
+//! UI channel and job store. The workflow and stream parsing live in core.
+
+use std::time::{Duration, Instant};
 
 use qa_scribe_core::{
-    ai::{stream::StreamUpdate, streaming_generation_command},
+    ai::{ProviderGenerationOutput, stream::StreamUpdate, streaming_generation_command},
     domain::AiProvider,
 };
 use tauri::ipc::Channel;
@@ -106,133 +107,5 @@ fn truncate_for_log(value: &str, max_chars: usize) -> String {
         "none".to_string()
     } else {
         truncated
-    }
-}
-
-#[derive(Debug)]
-pub(super) struct ProviderGenerationOutput {
-    pub(super) status: Option<ExitStatus>,
-    pub(super) stdout: Vec<u8>,
-    pub(super) stderr: Vec<u8>,
-    pub(super) assistant_text: Option<String>,
-    pub(super) cancelled: bool,
-}
-
-impl ProviderGenerationOutput {
-    pub(super) fn cancelled() -> Self {
-        Self {
-            status: None,
-            stdout: Vec::new(),
-            stderr: Vec::new(),
-            assistant_text: None,
-            cancelled: true,
-        }
-    }
-
-    pub(super) fn success(&self) -> bool {
-        !self.cancelled && self.status.is_some_and(|status| status.success())
-    }
-
-    pub(super) fn response_text(&self) -> String {
-        self.assistant_text
-            .as_ref()
-            .filter(|text| !text.trim().is_empty())
-            .cloned()
-            .unwrap_or_else(|| String::from_utf8_lossy(&self.stdout).to_string())
-    }
-
-    fn failure_message(&self) -> String {
-        if self.cancelled {
-            return "Generation cancelled.".to_string();
-        }
-        let stderr = String::from_utf8_lossy(&self.stderr);
-        if stderr.trim().is_empty() {
-            "provider command failed".to_string()
-        } else {
-            stderr.trim().to_string()
-        }
-    }
-
-    pub(super) fn failure_message_for_provider(&self, provider: AiProvider) -> String {
-        let message = self.failure_message();
-        if provider != AiProvider::CopilotCli {
-            return message;
-        }
-
-        copilot_generation_failure_message(&message).unwrap_or(message)
-    }
-}
-
-fn copilot_generation_failure_message(message: &str) -> Option<String> {
-    let detail = message.to_ascii_lowercase();
-    let auth_required = [
-        "no authentication information found",
-        "authentication failed",
-        "authenticate",
-        "not logged",
-        "unauthorized",
-        "401",
-        "token",
-        "login",
-    ]
-    .iter()
-    .any(|needle| detail.contains(needle));
-    if auth_required {
-        return Some(format!(
-            "GitHub Copilot CLI could not authenticate. Run `copilot login`, or set `COPILOT_GITHUB_TOKEN`, `GH_TOKEN`, or `GITHUB_TOKEN`. Last response: {message}"
-        ));
-    }
-
-    let policy_or_license = ["forbidden", "403", "license", "policy", "copilot requests"]
-        .iter()
-        .any(|needle| detail.contains(needle));
-    if policy_or_license {
-        return Some(format!(
-            "GitHub Copilot CLI was rejected by account, license, or policy settings. Check Copilot CLI access for this GitHub account. Last response: {message}"
-        ));
-    }
-
-    None
-}
-
-#[cfg(test)]
-mod tests {
-    use std::{os::unix::process::ExitStatusExt, process::ExitStatus};
-
-    use qa_scribe_core::domain::AiProvider;
-
-    use super::ProviderGenerationOutput;
-
-    #[test]
-    fn copilot_generation_auth_failure_gets_actionable_message() {
-        let output = ProviderGenerationOutput {
-            status: Some(ExitStatus::from_raw(1)),
-            stdout: Vec::new(),
-            stderr: b"Error: No authentication information found".to_vec(),
-            assistant_text: None,
-            cancelled: false,
-        };
-
-        let message = output.failure_message_for_provider(AiProvider::CopilotCli);
-
-        assert!(message.contains("copilot login"));
-        assert!(message.contains("COPILOT_GITHUB_TOKEN"));
-        assert!(message.contains("No authentication information found"));
-    }
-
-    #[test]
-    fn non_copilot_generation_failure_stays_raw() {
-        let output = ProviderGenerationOutput {
-            status: Some(ExitStatus::from_raw(1)),
-            stdout: Vec::new(),
-            stderr: b"Error: No authentication information found".to_vec(),
-            assistant_text: None,
-            cancelled: false,
-        };
-
-        assert_eq!(
-            output.failure_message_for_provider(AiProvider::CodexCli),
-            "Error: No authentication information found"
-        );
     }
 }

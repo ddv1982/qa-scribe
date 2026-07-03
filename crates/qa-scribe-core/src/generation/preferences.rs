@@ -1,9 +1,56 @@
-use super::types::{
-    TestwareDepth, TestwareGenerationPreferences, TestwareOutputFormat, TestwareTechnique,
-};
+//! Testware generation preferences: user-selected technique, output format,
+//! and depth. These are domain data — the selection is rendered into the
+//! prompt and persisted into `Draft.metadata_json` alongside the result.
+
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TestwareTechnique {
+    Auto,
+    UseCase,
+    EquivalenceBoundary,
+    DecisionTable,
+    StateTransition,
+    Pairwise,
+    RiskBased,
+    Exploratory,
+    Bdd,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TestwareOutputFormat {
+    QaCases,
+    Checklist,
+    Gherkin,
+    Charters,
+    CoverageOutline,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TestwareDepth {
+    Lean,
+    Balanced,
+    Thorough,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TestwareGenerationPreferences {
+    pub technique: TestwareTechnique,
+    pub output_format: TestwareOutputFormat,
+    pub depth: TestwareDepth,
+    pub include_negative_cases: bool,
+    pub include_boundary_cases: bool,
+    pub include_test_data: bool,
+    pub preserve_evidence: bool,
+    pub custom_instructions: Option<String>,
+}
 
 impl TestwareTechnique {
-    pub(super) fn label(self) -> &'static str {
+    fn label(self) -> &'static str {
         match self {
             TestwareTechnique::Auto => "Auto-select",
             TestwareTechnique::UseCase => "Use case flows",
@@ -17,7 +64,7 @@ impl TestwareTechnique {
         }
     }
 
-    pub(super) fn guidance(self) -> &'static str {
+    fn guidance(self) -> &'static str {
         match self {
             TestwareTechnique::Auto => {
                 "Inspect the note and choose the strongest fitting technique. State the chosen technique in the output."
@@ -51,7 +98,7 @@ impl TestwareTechnique {
 }
 
 impl TestwareOutputFormat {
-    pub(super) fn label(self) -> &'static str {
+    fn label(self) -> &'static str {
         match self {
             TestwareOutputFormat::QaCases => "QA test cases",
             TestwareOutputFormat::Checklist => "Checklist",
@@ -61,7 +108,7 @@ impl TestwareOutputFormat {
         }
     }
 
-    pub(super) fn guidance(self) -> &'static str {
+    fn guidance(self) -> &'static str {
         match self {
             TestwareOutputFormat::QaCases => {
                 "Use h2 scenario groups and h3 test cases. For each case include preconditions, test data, steps, expected result, and coverage notes when applicable."
@@ -83,7 +130,7 @@ impl TestwareOutputFormat {
 }
 
 impl TestwareDepth {
-    pub(super) fn label(self) -> &'static str {
+    fn label(self) -> &'static str {
         match self {
             TestwareDepth::Lean => "Lean",
             TestwareDepth::Balanced => "Balanced",
@@ -91,7 +138,7 @@ impl TestwareDepth {
         }
     }
 
-    pub(super) fn guidance(self) -> &'static str {
+    fn guidance(self) -> &'static str {
         match self {
             TestwareDepth::Lean => "Target 3-5 high-value cases or charters.",
             TestwareDepth::Balanced => "Target 6-10 cases or charters when the note supports it.",
@@ -102,7 +149,7 @@ impl TestwareDepth {
     }
 }
 
-pub(super) fn default_testware_preferences() -> TestwareGenerationPreferences {
+fn default_testware_preferences() -> TestwareGenerationPreferences {
     TestwareGenerationPreferences {
         technique: TestwareTechnique::Auto,
         output_format: TestwareOutputFormat::QaCases,
@@ -115,17 +162,18 @@ pub(super) fn default_testware_preferences() -> TestwareGenerationPreferences {
     }
 }
 
+fn preferences_or_default(
+    preferences: Option<&TestwareGenerationPreferences>,
+) -> TestwareGenerationPreferences {
+    preferences
+        .cloned()
+        .unwrap_or_else(default_testware_preferences)
+}
+
 pub(super) fn testware_preferences_prompt(
     preferences: Option<&TestwareGenerationPreferences>,
 ) -> String {
-    let default_preferences;
-    let preferences = match preferences {
-        Some(preferences) => preferences,
-        None => {
-            default_preferences = default_testware_preferences();
-            &default_preferences
-        }
-    };
+    let preferences = preferences_or_default(preferences);
     let custom_instructions = preferences
         .custom_instructions
         .as_deref()
@@ -165,15 +213,7 @@ If the selected technique cannot be applied cleanly, say what was missing and us
 pub(super) fn testware_metadata_json(
     preferences: Option<&TestwareGenerationPreferences>,
 ) -> Option<String> {
-    let default_preferences;
-    let preferences = match preferences {
-        Some(preferences) => preferences,
-        None => {
-            default_preferences = default_testware_preferences();
-            &default_preferences
-        }
-    };
-
+    let preferences = preferences_or_default(preferences);
     serde_json::to_string(&serde_json::json!({
         "testwareGeneration": preferences,
     }))
