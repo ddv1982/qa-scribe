@@ -3,12 +3,14 @@ use std::{
     time::{Duration, Instant},
 };
 
-use qa_scribe_core::{ai::streaming_generation_command, domain::AiProvider};
+use qa_scribe_core::{
+    ai::{stream::StreamUpdate, streaming_generation_command},
+    domain::AiProvider,
+};
 use tauri::ipc::Channel;
 
 use super::{
     job_events::{GenerationJobEvent, send_event, send_progress},
-    stream_parser::StreamUpdate,
     streaming_exec::run_generation_command_streaming,
 };
 use crate::{

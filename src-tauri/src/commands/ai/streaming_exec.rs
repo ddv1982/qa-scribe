@@ -17,12 +17,12 @@ use std::{
     time::{Duration, Instant},
 };
 
-use qa_scribe_core::ai::GenerationCommand;
-
-use super::{
-    provider_execution::ProviderGenerationOutput,
-    stream_parser::{ProviderStreamParser, StreamUpdate},
+use qa_scribe_core::ai::{
+    GenerationCommand,
+    stream::{ProviderStreamParser, StreamUpdate},
 };
+
+use super::provider_execution::ProviderGenerationOutput;
 use crate::{
     jobs::JobControl,
     process_io::{configure_process_group, kill_child_group},

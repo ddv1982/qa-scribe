@@ -4,7 +4,6 @@ mod job_runner;
 mod preferences;
 mod provider_execution;
 mod selection;
-mod stream_parser;
 mod streaming_exec;
 mod types;
 

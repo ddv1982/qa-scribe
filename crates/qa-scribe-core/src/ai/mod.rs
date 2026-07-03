@@ -1,3 +1,5 @@
+pub mod stream;
+
 use serde::Serialize;
 
 use crate::domain::AiProvider;
