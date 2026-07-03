@@ -11,7 +11,6 @@ import {
   type Entry,
   type EntryDraft,
   type EntryPatch,
-  type ExportFormat,
   type Finding,
   type FindingDraft,
   type FindingPatch,
@@ -21,7 +20,6 @@ import {
   type ProviderStatus,
   type Session,
   type SessionDraft,
-  type SessionExport,
   type SessionPatch,
   type StartAiActionJobResult,
   type TestwareGenerationPreferences,
@@ -108,10 +106,6 @@ export function getAttachmentPreviewDataUrl(attachmentId: string): Promise<strin
 
 export function copyAttachmentImageToClipboard(attachmentId: string): Promise<void> {
   return commands.copyAttachmentImageToClipboard(attachmentId).then(() => undefined)
-}
-
-export function exportSession(sessionId: string, format: ExportFormat): Promise<SessionExport> {
-  return commands.exportSession(sessionId, format)
 }
 
 export function createDraft(input: {

@@ -72,7 +72,6 @@ pub fn builder() -> Builder<tauri::Wry> {
             commands::files::import_clipboard_screenshot,
             commands::providers::get_provider_status,
             commands::providers::refresh_provider_status,
-            commands::files::export_session,
             commands::files::get_attachment_preview_data_url,
             commands::files::read_clipboard_image_data_url,
             commands::files::copy_attachment_image_to_clipboard,

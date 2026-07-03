@@ -1,5 +1,5 @@
 #[test]
-fn managed_attachments_preview_generation_context_and_export_flow() {
+fn managed_attachments_preview_generation_context_and_evidence_flow() {
     let service = SessionService::in_memory().expect("in-memory service should open");
     let temp_dir = unique_temp_dir();
     fs::create_dir_all(&temp_dir).expect("temp dir should be created");
@@ -8,7 +8,7 @@ fn managed_attachments_preview_generation_context_and_export_flow() {
 
     let session = service
         .create_session(SessionDraft {
-            title: "Attachment export".to_string(),
+            title: "Attachment evidence".to_string(),
             session_context: Some("Checkout evidence".to_string()),
             ..SessionDraft::default()
         })
@@ -85,21 +85,21 @@ fn managed_attachments_preview_generation_context_and_export_flow() {
         .expect("finding should be created");
     service
         .create_evidence_link(EvidenceLinkDraft {
-            finding_id: finding.id,
+            finding_id: finding.id.clone(),
             entry_id: None,
             attachment_id: Some(attachment.id.clone()),
         })
         .expect("attachment Evidence link should be created");
 
-    let markdown = export_session(&service, &session.id, ExportFormat::Markdown)
-        .expect("markdown export should render");
-    assert!(markdown.filename.ends_with(".md"));
-    assert!(markdown.body.contains("browser_log.txt"));
-    assert!(markdown.body.contains("Evidence Attachment"));
-    let json = export_session(&service, &session.id, ExportFormat::Json)
-        .expect("json export should render");
-    assert!(json.body.contains("browser_log.txt"));
-    assert!(json.body.contains("evidenceLinks"));
+    let evidence_links = service
+        .list_evidence_links(&session.id)
+        .expect("evidence links should list");
+    assert_eq!(evidence_links.len(), 1);
+    assert_eq!(evidence_links[0].finding_id, finding.id);
+    assert_eq!(
+        evidence_links[0].attachment_id.as_deref(),
+        Some(attachment.id.as_str())
+    );
 
     delete_session_attachment_files(&temp_dir, &session.id)
         .expect("managed attachment files should clean up");

@@ -2,7 +2,6 @@ pub mod ai;
 pub mod attachments;
 pub mod domain;
 mod error;
-pub mod export;
 pub mod generation;
 pub mod services;
 pub mod storage;
@@ -32,7 +31,7 @@ pub fn app_status() -> AppStatus {
             "core-domain-storage".to_string(),
             "tauri-command-shell".to_string(),
             "frontend-rebuild".to_string(),
-            "attachments-export".to_string(),
+            "attachments".to_string(),
             "ai-generation".to_string(),
             "packaging-validation-docs".to_string(),
         ],
@@ -57,7 +56,7 @@ mod tests {
                 "core-domain-storage",
                 "tauri-command-shell",
                 "frontend-rebuild",
-                "attachments-export",
+                "attachments",
                 "ai-generation",
                 "packaging-validation-docs"
             ]

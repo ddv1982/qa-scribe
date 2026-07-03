@@ -6,22 +6,11 @@ use qa_scribe_core::{
         attachment_file_bytes, attachment_preview_data_url, import_clipboard_screenshot_data_url,
     },
     domain::Attachment,
-    export::{ExportFormat, SessionExport, export_session as render_session_export},
 };
 use tauri::{AppHandle, State, image::Image};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 
 use crate::{commands::CommandError, settings::AppState};
-
-#[tauri::command]
-#[specta::specta]
-pub fn export_session(
-    state: State<'_, AppState>,
-    session_id: String,
-    format: ExportFormat,
-) -> Result<SessionExport, CommandError> {
-    state.with_service(|service| render_session_export(service, &session_id, format))
-}
 
 #[tauri::command]
 #[specta::specta]

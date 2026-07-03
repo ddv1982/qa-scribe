@@ -13,7 +13,6 @@ use qa_scribe_core::{
     domain::{
         DraftCreate, DraftKind, EntryDraft, EntryType, FindingDraft, FindingKind, SessionDraft,
     },
-    export::{ExportFormat, export_session},
     services::SessionService,
 };
 
@@ -86,9 +85,18 @@ fn run_smoke() -> qa_scribe_core::Result<()> {
     })?;
 
     service.create_generation_context(&session.id)?;
-    let markdown = export_session(&service, &session.id, ExportFormat::Markdown)?;
-    assert!(markdown.body.contains("Checkout returns 500"));
-    assert!(markdown.body.contains("checkout-log.txt"));
+    assert!(
+        service
+            .list_findings(&session.id)?
+            .iter()
+            .any(|finding| finding.title == "Checkout returns 500")
+    );
+    assert!(
+        service
+            .list_attachments(&session.id)?
+            .iter()
+            .any(|attachment| attachment.filename == "checkout-log.txt")
+    );
     let report = reconcile_attachment_files(&service, &temp_dir)?;
     assert!(report.missing_files.is_empty());
     assert!(report.stray_files.is_empty());

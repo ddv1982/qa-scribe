@@ -11,7 +11,6 @@ use qa_scribe_core::{
         SessionDraft, SessionPatch, default_generation_system_prompt,
         legacy_testware_generation_system_prompt,
     },
-    export::{ExportFormat, export_session},
     services::SessionService,
     storage::{Database, SCHEMA_VERSION},
 };

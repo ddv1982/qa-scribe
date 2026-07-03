@@ -38,7 +38,6 @@ describe('Tauri command bridge', () => {
     await expectCommand('read_clipboard_image_data_url', () => tauri.readClipboardImageDataUrl())
     await expectCommand('get_attachment_preview_data_url', () => tauri.getAttachmentPreviewDataUrl('attachment-1'))
     await expectCommand('copy_attachment_image_to_clipboard', () => tauri.copyAttachmentImageToClipboard('attachment-1'))
-    await expectCommand('export_session', () => tauri.exportSession('session-1', 'markdown'))
     await expectCommand('create_draft', () => tauri.createDraft({ sessionId: 'session-1', aiRunId: null, kind: 'testware', title: 'Draft', body: '' }))
     await expectCommand('list_drafts', () => tauri.listDrafts('session-1'))
     await expectCommand('update_draft', () => tauri.updateDraft('draft-1', { title: 'Draft' }))

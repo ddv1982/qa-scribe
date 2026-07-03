@@ -37,7 +37,6 @@ export const commands = {
 	importClipboardScreenshot: (sessionId: string, entryId: string | null, filename: string, dataUrl: string) => __TAURI_INVOKE<Attachment>("import_clipboard_screenshot", { sessionId, entryId, filename, dataUrl }),
 	getProviderStatus: () => __TAURI_INVOKE<ProviderStatus>("get_provider_status"),
 	refreshProviderStatus: () => __TAURI_INVOKE<ProviderStatus>("refresh_provider_status"),
-	exportSession: (sessionId: string, format: ExportFormat) => __TAURI_INVOKE<SessionExport>("export_session", { sessionId, format }),
 	getAttachmentPreviewDataUrl: (attachmentId: string) => __TAURI_INVOKE<string | null>("get_attachment_preview_data_url", { attachmentId }),
 	readClipboardImageDataUrl: () => __TAURI_INVOKE<string | null>("read_clipboard_image_data_url"),
 	copyAttachmentImageToClipboard: (attachmentId: string) => __TAURI_INVOKE<null>("copy_attachment_image_to_clipboard", { attachmentId }),
@@ -186,8 +185,6 @@ export type EntryPatch = {
 
 export type EntryType = "note" | "observation" | "api_response" | "log" | "screenshot" | "finding_candidate";
 
-export type ExportFormat = "markdown" | "json";
-
 export type Finding = {
 	id: string,
 	sessionId: string,
@@ -319,12 +316,6 @@ export type SessionDraft = {
 	environment?: string | null,
 	buildVersion?: string | null,
 	relatedReference?: string | null,
-};
-
-export type SessionExport = {
-	filename: string,
-	body: string,
-	format: ExportFormat,
 };
 
 /**

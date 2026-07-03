@@ -15,7 +15,7 @@ Implemented capabilities include:
 - Session Timeline Entry capture with include/exclude controls for generation.
 - Findings linked to Entry Evidence and managed attachment Evidence, with Finding deletion.
 - Managed attachment import from pasted or uploaded clipboard image data.
-- Attachment preview data URLs and local Markdown/JSON Session export.
+- Attachment preview data URLs.
 - Editable Testware Drafts persisted in local SQLite, with Draft deletion.
 - Explicit user-triggered AI generation through already-authenticated local Claude Code, Codex CLI, or GitHub Copilot CLI commands when available.
 - Local app settings for the generation system prompt.
@@ -102,7 +102,7 @@ bun run package:check
 
 ## AI Providers
 
-AI generation is optional. Capture, persistence, manual review, Draft editing, attachment handling, and export work without AI configuration.
+AI generation is optional. Capture, persistence, manual review, Draft editing, and attachment handling work without AI configuration.
 
 QA Scribe does not manage API keys. It checks local CLI readiness and only starts generation when the user explicitly chooses a ready provider and runs generation.
 
@@ -125,7 +125,7 @@ Provider status can be ready, auth required, install required, or error. Provide
 ## Project Structure
 
 ```text
-crates/qa-scribe-core/  Domain, SQLite storage, attachments, export, generation, tests
+crates/qa-scribe-core/  Domain, SQLite storage, attachments, generation, tests
 crates/qa-scribe-app/   Non-GUI smoke harness
 src-tauri/              Tauri 2 shell and command modules
 frontend/               React/Vite renderer and typed Tauri bridge
