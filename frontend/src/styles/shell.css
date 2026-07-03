@@ -362,6 +362,14 @@ button:disabled:hover {
   background: color-mix(in oklab, var(--accent) 12%, var(--surface-sunken));
 }
 
+/* Integrated ring instead of the offset outline: dialogs auto-focus the
+ * first tile on open, and outline-over-border reads as a double border. */
+.preflight-choice:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-tint);
+}
+
 .preflight-choice span {
   color: var(--accent);
   font-size: var(--font-size-md);
