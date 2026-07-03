@@ -82,10 +82,16 @@ Build the Rust workspace and frontend:
 bun run build
 ```
 
-Run the broad verification gate:
+Run the broad verification gate (typecheck, lint, tests, bindings check, release metadata, frontend build, `cargo fmt`/`clippy`/`test --workspace`, smoke run):
 
 ```bash
 bun run verify
+```
+
+Run the fast local-loop subset (typecheck, lint, frontend tests, `cargo fmt --check`, `cargo clippy` — no build/test/smoke/audit, and it runs offline):
+
+```bash
+bun run verify:fast
 ```
 
 Run the non-GUI smoke harness:
