@@ -627,6 +627,26 @@ jobs:
             --local-user "${expected_fingerprint}" --armor --detach-sign \
             --output "${sums_file}.asc" "${sums_file}"
 
+      - name: Verify release checksum signature
+        env:
+          DEB_SIGNING_PUBLIC_KEY: ${{ secrets.DEB_SIGNING_PUBLIC_KEY }}
+        run: |
+          set -euo pipefail
+
+          verification_home="${RUNNER_TEMP}/release-sums-verify-gnupg"
+          public_key_file="${RUNNER_TEMP}/release-sums-public-key.asc"
+
+          rm -rf "${verification_home}"
+          mkdir -p "${verification_home}"
+          chmod 700 "${verification_home}"
+
+          printf '%s' "${DEB_SIGNING_PUBLIC_KEY}" | base64 --decode > "${public_key_file}"
+
+          GNUPGHOME="${verification_home}" gpg --batch --import "${public_key_file}"
+
+          sums_file="dist/rust/release-assets/SHA256SUMS"
+          GNUPGHOME="${verification_home}" gpg --quiet --batch --trust-model always --verify "${sums_file}.asc" "${sums_file}"
+
       - name: Clean up release checksum signing environment
         if: always()
         run: |
@@ -634,7 +654,9 @@ jobs:
           GNUPGHOME="${RUNNER_TEMP}/release-sums-gnupg" gpgconf --kill gpg-agent || true
           rm -rf \
             "${RUNNER_TEMP}/release-sums-gnupg" \
+            "${RUNNER_TEMP}/release-sums-verify-gnupg" \
             "${RUNNER_TEMP}/release-sums-private-key.asc" \
+            "${RUNNER_TEMP}/release-sums-public-key.asc" \
             "${RUNNER_TEMP}/release-sums-passphrase"
 
       - name: Upload signed SHA256SUMS

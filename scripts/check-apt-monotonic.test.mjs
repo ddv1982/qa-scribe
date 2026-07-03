@@ -88,6 +88,20 @@ test('checkMonotonic fails on a non-404 error response', async () => {
   )
 })
 
+test('checkMonotonic fails closed when the network request rejects', async () => {
+  await assert.rejects(
+    () =>
+      checkMonotonic({
+        publishingVersion: '0.4.24',
+        releaseConstants: { pagesBaseUrl: 'https://example.invalid/apt/', aptRepoPath: 'dists/stable' },
+        fetchImpl: async () => {
+          throw new TypeError('fetch failed')
+        }
+      }),
+    /fetch failed/
+  )
+})
+
 test('checkMonotonic fails when the live index has no qa-scribe stanza', async () => {
   await assert.rejects(
     () =>
