@@ -1,7 +1,7 @@
 import { generateHTML, generateJSON, type JSONContent } from '@tiptap/core'
 import { richTextEditorExtensions } from './editorExtensions'
-import { emptyEditorHtml, managedAttachmentProtocol, normalizeEditorHtml, stripHtml } from './editorHtml'
-import { escapeHtml } from './htmlUtils'
+import { emptyEditorHtml, isSafeEditorImageSource, isSafeEditorLinkUrl, managedAttachmentProtocol, normalizeEditorHtml, stripHtml } from './editorHtml'
+import { escapeHtml, managedAttachmentIdFromSrc } from './htmlUtils'
 
 export type RichEditorDocument = {
   schemaVersion: 1
@@ -80,9 +80,63 @@ export function richEditorDocumentToStoredBody(document: RichEditorDocument): {
 }
 
 export function normalizeRichEditorDocument(document: RichEditorDocument): RichEditorDocument {
-  const doc = isJsonContent(document.doc) && document.doc.type === 'doc' ? document.doc : emptyRichEditorDoc
+  const doc = isJsonContent(document.doc) && document.doc.type === 'doc' ? sanitizeJsonRootDocument(document.doc) : emptyRichEditorDoc
   const normalized: RichEditorDocument = { schemaVersion: 1, doc }
   return isVisuallyEmptyRichEditorDocument(normalized) ? emptyRichEditorDocument : normalized
+}
+
+// Applies the same URL-safety policy as the HTML sanitizer (sanitizeEditorHtmlTree in editorHtml.ts)
+// directly to a TipTap JSON doc. This closes the bypass where stored `bodyJson` is fed straight into
+// `editor.commands.setContent`, which renders link/image attrs into the DOM without ever going through
+// HTML parsing/sanitization. Every entry point for a RichEditorDocument funnels through
+// normalizeRichEditorDocument, so sanitizing here covers both the live editor and derived HTML/plain text.
+function sanitizeJsonRootDocument(node: JSONContent): JSONContent {
+  const sanitized: JSONContent = { ...node }
+  if (sanitized.content) {
+    sanitized.content = sanitized.content.map(sanitizeJsonContent).filter((child): child is JSONContent => child !== null)
+  }
+  return sanitized
+}
+
+function sanitizeJsonContent(node: JSONContent): JSONContent | null {
+  const sanitized: JSONContent = { ...node }
+
+  if (sanitized.marks) {
+    sanitized.marks = sanitized.marks.map(sanitizeJsonMark).filter((mark): mark is NonNullable<typeof mark> => mark !== null)
+  }
+
+  if (sanitized.type === 'image') {
+    return sanitizeJsonImageNode(sanitized)
+  }
+
+  if (sanitized.content) {
+    sanitized.content = sanitized.content.map(sanitizeJsonContent).filter((child): child is JSONContent => child !== null)
+  }
+
+  return sanitized
+}
+
+function sanitizeJsonMark(mark: NonNullable<JSONContent['marks']>[number]): NonNullable<JSONContent['marks']>[number] | null {
+  if (mark.type !== 'link') return mark
+  const href = typeof mark.attrs?.href === 'string' ? mark.attrs.href : ''
+  if (isSafeEditorLinkUrl(href)) return mark
+  const { href: _href, ...rest } = mark.attrs ?? {}
+  return { ...mark, attrs: rest }
+}
+
+function sanitizeJsonImageNode(node: JSONContent): JSONContent | null {
+  const attrs = node.attrs ?? {}
+  const attachmentId = typeof attrs.attachmentId === 'string' && attrs.attachmentId.trim() ? attrs.attachmentId : null
+  if (attachmentId) {
+    return { ...node, attrs: { ...attrs, src: `${managedAttachmentProtocol}${attachmentId}` } }
+  }
+
+  const src = typeof attrs.src === 'string' ? attrs.src : ''
+  const srcAttachmentId = managedAttachmentIdFromSrc(src)
+  if (srcAttachmentId) return node
+  if (isSafeEditorImageSource(src)) return node
+
+  return null
 }
 
 export function parseRichEditorDocument(value: string | null | undefined): RichEditorDocument | null {
