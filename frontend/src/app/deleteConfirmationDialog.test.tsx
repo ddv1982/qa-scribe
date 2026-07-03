@@ -1,7 +1,7 @@
 import { cleanup, render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DeleteConfirmationDialog } from './AppShell'
+import { simulateDialogCancel } from '../test/dialogPolyfill'
 
 const copy = { title: 'Delete this note?', body: 'This cannot be undone.', confirmLabel: 'Delete note' }
 
@@ -11,36 +11,33 @@ describe('DeleteConfirmationDialog accessibility', () => {
     vi.clearAllMocks()
   })
 
-  it('moves focus into the dialog on open', () => {
+  it('opens as a modal dialog and moves focus into it', () => {
     render(<DeleteConfirmationDialog copy={copy} isBusy={false} onCancel={vi.fn()} onConfirm={vi.fn()} />)
-    const dialog = screen.getByRole('dialog')
+    const dialog = screen.getByRole<HTMLDialogElement>('dialog')
+    expect(dialog.open).toBe(true)
     expect(dialog.contains(document.activeElement)).toBe(true)
   })
 
-  it('Escape invokes cancel (not confirm)', async () => {
-    const user = userEvent.setup()
+  it('the native cancel event (Escape) invokes onCancel, not onConfirm', () => {
     const onCancel = vi.fn()
     const onConfirm = vi.fn()
     render(<DeleteConfirmationDialog copy={copy} isBusy={false} onCancel={onCancel} onConfirm={onConfirm} />)
-    await user.keyboard('{Escape}')
+    const dialog = screen.getByRole<HTMLDialogElement>('dialog')
+    simulateDialogCancel(dialog)
     expect(onCancel).toHaveBeenCalledTimes(1)
     expect(onConfirm).not.toHaveBeenCalled()
   })
 
-  it('traps Tab focus within the dialog', async () => {
-    const user = userEvent.setup()
-    render(<DeleteConfirmationDialog copy={copy} isBusy={false} onCancel={vi.fn()} onConfirm={vi.fn()} />)
-    const cancel = screen.getByRole('button', { name: 'Cancel' })
-    const confirm = screen.getByRole('button', { name: 'Delete note' })
+  it('returns focus to the trigger when the dialog unmounts', () => {
+    const trigger = document.createElement('button')
+    document.body.appendChild(trigger)
+    trigger.focus()
+    expect(document.activeElement).toBe(trigger)
 
-    cancel.focus()
-    await user.tab()
-    expect(document.activeElement).toBe(confirm)
-    // Wrapping forward from the last control returns to the first.
-    await user.tab()
-    expect(document.activeElement).toBe(cancel)
-    // Wrapping backward from the first control jumps to the last.
-    await user.tab({ shift: true })
-    expect(document.activeElement).toBe(confirm)
+    const { unmount } = render(<DeleteConfirmationDialog copy={copy} isBusy={false} onCancel={vi.fn()} onConfirm={vi.fn()} />)
+    expect(document.activeElement).not.toBe(trigger)
+    unmount()
+    expect(document.activeElement).toBe(trigger)
+    trigger.remove()
   })
 })

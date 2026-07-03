@@ -221,24 +221,22 @@ export function DeleteConfirmationDialog({
   onCancel: () => void
   onConfirm: () => void
 }) {
-  const dialogRef = useModalDialog<HTMLElement>(onCancel)
+  const dialogRef = useModalDialog(onCancel)
   return (
-    <div className="modal-backdrop" role="presentation">
-      <section ref={dialogRef} className="confirmation-dialog" role="dialog" aria-modal="true" aria-labelledby="delete-dialog-title">
-        <div>
-          <p className="eyebrow">Confirm delete</p>
-          <h2 id="delete-dialog-title">{copy.title}</h2>
-          <p>{copy.body}</p>
-        </div>
-        <div className="confirmation-actions">
-          <button className="secondary-button" type="button" disabled={isBusy} onClick={onCancel}>
-            Cancel
-          </button>
-          <button className="primary-button danger-button" type="button" disabled={isBusy} onClick={onConfirm}>
-            {copy.confirmLabel}
-          </button>
-        </div>
-      </section>
-    </div>
+    <dialog ref={dialogRef} className="confirmation-dialog" aria-labelledby="delete-dialog-title">
+      <div>
+        <p className="eyebrow">Confirm delete</p>
+        <h2 id="delete-dialog-title">{copy.title}</h2>
+        <p>{copy.body}</p>
+      </div>
+      <div className="confirmation-actions">
+        <button className="secondary-button" type="button" disabled={isBusy} onClick={onCancel}>
+          Cancel
+        </button>
+        <button className="primary-button danger-button" type="button" disabled={isBusy} onClick={onConfirm}>
+          {copy.confirmLabel}
+        </button>
+      </div>
+    </dialog>
   )
 }

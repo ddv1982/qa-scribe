@@ -1,7 +1,7 @@
 import { cleanup, render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { GenerationPreflight } from './generationPreflight'
+import { simulateDialogCancel } from '../test/dialogPolyfill'
 
 function renderPreflight(overrides: Partial<Parameters<typeof GenerationPreflight>[0]> = {}) {
   const onCancel = vi.fn()
@@ -30,16 +30,17 @@ describe('GenerationPreflight modal accessibility', () => {
     vi.clearAllMocks()
   })
 
-  it('moves focus into the dialog on open', () => {
+  it('opens as a modal dialog and moves focus into it', () => {
     renderPreflight()
-    const dialog = screen.getByRole('dialog')
+    const dialog = screen.getByRole<HTMLDialogElement>('dialog')
+    expect(dialog.open).toBe(true)
     expect(dialog.contains(document.activeElement)).toBe(true)
   })
 
-  it('Escape invokes cancel', async () => {
-    const user = userEvent.setup()
+  it('the native cancel event (Escape) invokes onCancel', () => {
     const { onCancel } = renderPreflight()
-    await user.keyboard('{Escape}')
+    const dialog = screen.getByRole<HTMLDialogElement>('dialog')
+    simulateDialogCancel(dialog)
     expect(onCancel).toHaveBeenCalledTimes(1)
   })
 
