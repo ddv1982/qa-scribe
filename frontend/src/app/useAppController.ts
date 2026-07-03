@@ -41,7 +41,7 @@ export function useAppController() {
   const noteEntryIdRef = useRef<string | null>(null)
   const copySuccessResetRef = useRef<number | null>(null)
   const bootedRef = useRef(false)
-  const saveNoteNowRef = useRef<() => Promise<boolean>>(async () => true)
+  const saveNoteNowRef = useRef<() => Promise<boolean>>(() => Promise.resolve(true))
   const {
     activeProvider,
     loadProviderStatus,
@@ -59,7 +59,10 @@ export function useAppController() {
     handleSaveSettings: saveSettingsDraft,
   } = useSettingsController({ setError, setNotice })
 
-  const testwareDrafts = drafts.filter((draft) => draft.kind === 'testware')
+  // Memoized so its reference is stable across renders: `draftScreenshotCounts`
+  // depends on it, and an inline `drafts.filter(...)` would produce a fresh array
+  // every keystroke and re-run that DOMParser-backed memo needlessly.
+  const testwareDrafts = useMemo(() => drafts.filter((draft) => draft.kind === 'testware'), [drafts])
   const noteBodyHtml = useMemo(() => richEditorDocumentToHtml(noteBody), [noteBody])
   const noteScreenshotCount = useMemo(
     () => managedAttachmentReferencesForClipboard({ title: noteTitle, bodyHtml: noteBodyHtml }).length,
@@ -90,7 +93,10 @@ export function useAppController() {
     if (!query) return sessions
     return sessions.filter((session) => session.title.toLocaleLowerCase().includes(query))
   }, [sessions, searchQuery])
-  const noteWordCount = countWords(richEditorDocumentToPlainText(noteBody))
+  // Memoized: `richEditorDocumentToPlainText` walks/serializes the document, so
+  // recomputing it on every unrelated render (e.g. a sibling state change) was
+  // wasted work on the keystroke path.
+  const noteWordCount = useMemo(() => countWords(richEditorDocumentToPlainText(noteBody)), [noteBody])
   const noteIsReady = Boolean(activeSession && noteEntry)
   const isBusy = busyAction !== null
   const deleteCopy = deleteConfirmation ? deleteConfirmationCopy(deleteConfirmation) : null
@@ -175,6 +181,9 @@ export function useAppController() {
       } else {
         setNotice('Create a note to start')
       }
+      // Recover any generation jobs the backend is still running from before a
+      // webview reload; the busy/pending UI was lost with the previous webview.
+      void generationActions.reconcileActiveJobs()
       window.setTimeout(() => {
         void loadProviderStatusAfterBoot()
       }, 0)
