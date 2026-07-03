@@ -1,7 +1,7 @@
 use qa_scribe_core::{
     QaScribeError,
     attachments::{
-        attachment_preview_data_url, delete_session_attachment_files,
+        attachment_file_bytes, attachment_preview_data_url, delete_session_attachment_files,
         delete_session_with_attachment_files, import_clipboard_screenshot_data_url,
         import_managed_attachment, reconcile_attachment_files,
     },

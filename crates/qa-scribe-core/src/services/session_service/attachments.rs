@@ -2,7 +2,10 @@ use rusqlite::{OptionalExtension, params};
 
 use crate::{
     QaScribeError, Result,
-    domain::{Attachment, AttachmentDraft, validate_optional_text, validate_required_text},
+    domain::{
+        Attachment, AttachmentDraft, validate_optional_text, validate_required_text,
+        validate_sha256_hex,
+    },
     error::validation,
 };
 
@@ -26,7 +29,7 @@ impl SessionService {
         let now = now();
         let filename = validate_required_text("attachment filename", &draft.filename, 240)?;
         let mime_type = validate_optional_text("attachment MIME type", draft.mime_type, 120)?;
-        let sha256 = validate_required_text("attachment SHA-256", &draft.sha256, 64)?;
+        let sha256 = validate_sha256_hex("attachment SHA-256", &draft.sha256)?;
         let relative_path =
             validate_required_text("attachment relative path", &draft.relative_path, 600)?;
         if draft.size_bytes < 0 {

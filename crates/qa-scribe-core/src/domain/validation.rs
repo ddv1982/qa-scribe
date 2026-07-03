@@ -97,3 +97,27 @@ pub fn validate_body_json(value: Option<String>) -> Result<Option<String>> {
         .map_err(|_| validation("rich body JSON must be valid JSON"))?;
     Ok(Some(value))
 }
+
+/// A SHA-256 digest rendered as lowercase hex is always exactly this many
+/// characters (32 bytes * 2 hex digits per byte).
+pub const SHA256_HEX_LENGTH: usize = 64;
+
+/// Validates that `value` is exactly [`SHA256_HEX_LENGTH`] lowercase hex
+/// characters, i.e. the shape `hex_sha256` in `attachments/mod.rs` always
+/// produces. This is create-time only: rows written before this check
+/// existed (e.g. migrated legacy data) are read back as-is and are not
+/// re-validated, so they keep working even if their stored digest predates
+/// this format.
+pub fn validate_sha256_hex(label: &str, value: &str) -> Result<String> {
+    let trimmed = value.trim();
+    if trimmed.len() != SHA256_HEX_LENGTH
+        || !trimmed
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    {
+        return Err(validation(format!(
+            "{label} must be exactly {SHA256_HEX_LENGTH} lowercase hex characters"
+        )));
+    }
+    Ok(trimmed.to_string())
+}

@@ -17,6 +17,21 @@ use crate::{
 
 const MAX_ATTACHMENT_BYTES: u64 = 25 * 1024 * 1024;
 
+/// A UUIDv4 string is 36 characters; the on-disk basename is
+/// `{attachment_id}_{filename}`, so this plus the `_` separator is the fixed
+/// overhead every stored filename must leave room for.
+const ATTACHMENT_ID_PREFIX_LENGTH: usize = 36 + 1;
+
+/// Most filesystems (ext4, APFS, NTFS) cap a single path component at 255
+/// bytes. `MAX_ATTACHMENT_FILENAME_BYTES` keeps the *stored* filename well
+/// under `255 - ATTACHMENT_ID_PREFIX_LENGTH` so the UUID-prefixed on-disk
+/// name (`{attachment_id}_{filename}`) never approaches that limit, turning
+/// what would otherwise be a raw OS `ENAMETOOLONG` I/O error into a clean
+/// validation error raised before any file is written.
+const MAX_ATTACHMENT_FILENAME_BYTES: usize = 200;
+
+const _: () = assert!(MAX_ATTACHMENT_FILENAME_BYTES + ATTACHMENT_ID_PREFIX_LENGTH <= 255);
+
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct AttachmentReconciliationReport {
     pub missing_files: Vec<String>,
@@ -122,6 +137,11 @@ pub fn import_managed_attachment_bytes(
     let filename = safe_filename(&filename);
     if filename.is_empty() {
         return Err(validation("attachment filename is required"));
+    }
+    if filename.len() > MAX_ATTACHMENT_FILENAME_BYTES {
+        return Err(validation(format!(
+            "attachment filename must be at most {MAX_ATTACHMENT_FILENAME_BYTES} characters"
+        )));
     }
     let sha256 = hex_sha256(&bytes);
     let attachment_id = Uuid::new_v4().to_string();
@@ -257,6 +277,17 @@ pub fn attachment_file_bytes(
         return Err(validation("stored attachment path is invalid"));
     }
     let bytes = fs::read(app_data_dir.as_ref().join(relative_path))?;
+    // Files are small (screenshots and text logs), so re-hashing on every read
+    // is cheap; this catches on-disk corruption or tampering that a bare file
+    // read would silently hand back as if nothing were wrong.
+    if hex_sha256(&bytes) != attachment.sha256 {
+        return Err(crate::QaScribeError::InvalidStoredValue {
+            field: "attachment file bytes",
+            value: format!(
+                "Attachment file failed integrity check (sha256 mismatch for attachment {attachment_id})"
+            ),
+        });
+    }
     Ok(Some((attachment, bytes)))
 }
 

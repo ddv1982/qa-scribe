@@ -298,6 +298,45 @@ fn summary_response_restores_attachment_paths_and_missing_managed_images() {
 }
 
 #[test]
+fn summary_response_leaves_ambiguous_duplicate_filename_images_unrestored() {
+    // Two attachments share a filename (e.g. re-uploaded screenshots both
+    // named "screenshot.png"). If the AI response echoes back the bare
+    // filename instead of the full managed markup with `data-attachment-id`,
+    // there is no reliable way to know which attachment it meant, so neither
+    // should be guessed at: rewriting both references to the first attachment
+    // iterated would silently attribute attachment-2's evidence to
+    // attachment-1's id.
+    let first = test_attachment("attachment-1", Some("entry-selected"), "screenshot.png");
+    let second = test_attachment("attachment-2", Some("entry-selected"), "screenshot.png");
+    let original = "<p>Original evidence.</p>";
+    let response = "<h2>Summary</h2><img src=\"screenshot.png\" alt=\"Ambiguous\" />";
+
+    let preserved = preserve_managed_attachment_images(response, original, &[first, second]);
+
+    assert!(
+        !preserved.contains("qa-scribe-attachment://"),
+        "an ambiguous bare filename must not be rewritten to either attachment's id, got: {preserved}"
+    );
+    assert!(preserved.contains("src=\"screenshot.png\""));
+}
+
+#[test]
+fn summary_response_restores_a_unique_filename_even_when_other_attachments_share_a_different_filename()
+ {
+    let unique = test_attachment("attachment-1", Some("entry-selected"), "unique.png");
+    let other_a = test_attachment("attachment-2", Some("entry-selected"), "shared.png");
+    let other_b = test_attachment("attachment-3", Some("entry-selected"), "shared.png");
+    let original = "<p>Original evidence.</p>";
+    let response = "<h2>Summary</h2><img src=\"unique.png\" alt=\"Unique\" />";
+
+    let preserved =
+        preserve_managed_attachment_images(response, original, &[unique, other_a, other_b]);
+
+    assert!(preserved.contains("src=\"qa-scribe-attachment://attachment-1\""));
+    assert!(preserved.contains("data-attachment-id=\"attachment-1\""));
+}
+
+#[test]
 fn summary_response_restores_multiple_mixed_case_external_images_in_order() {
     // Regression test for the preservable_images_from_html O(n^2) scan
     // migration to the shared find_case_insensitive helper: verifies that

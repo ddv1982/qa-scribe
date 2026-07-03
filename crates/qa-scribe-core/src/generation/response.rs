@@ -62,17 +62,44 @@ fn image_already_present(output: &str, image: &PreservableImage) -> bool {
         .unwrap_or_else(|| output.contains(&image.key))
 }
 
+/// Rewrites `src="..."` references the AI response echoed back in place of
+/// the managed-attachment markup it was given (see `append_managed_images`
+/// in prompt.rs) to the real `qa-scribe-attachment://{id}` form.
+///
+/// `relative_path` is always attachment-unique (it embeds the attachment's
+/// UUID: `attachments/{session}/{id}_{filename}`), so matching on it is
+/// always safe. Bare `filename` is not unique — two attachments can share a
+/// filename (e.g. a screenshot re-uploaded under the same name) — so it is
+/// only used to resolve a `src` when exactly one attachment in the whole set
+/// has that filename. When a filename is ambiguous, any bare-filename
+/// reference to it is left unrestored rather than guessed at: silently
+/// attributing one attachment's evidence to another's id would be worse than
+/// leaving a broken image for a human to notice and fix.
 fn restore_known_attachment_sources(value: &str, attachments: &[Attachment]) -> String {
     let mut output = value.to_string();
     for attachment in attachments {
-        for source in [&attachment.relative_path, &attachment.filename] {
-            if source.trim().is_empty() {
-                continue;
-            }
-            output = replace_image_source(&output, source, &attachment.id);
+        if !attachment.relative_path.trim().is_empty() {
+            output = replace_image_source(&output, &attachment.relative_path, &attachment.id);
         }
     }
+    for attachment in attachments {
+        if attachment.filename.trim().is_empty() {
+            continue;
+        }
+        if !filename_is_unique(attachments, &attachment.filename) {
+            continue;
+        }
+        output = replace_image_source(&output, &attachment.filename, &attachment.id);
+    }
     output
+}
+
+fn filename_is_unique(attachments: &[Attachment], filename: &str) -> bool {
+    attachments
+        .iter()
+        .filter(|attachment| attachment.filename == filename)
+        .count()
+        == 1
 }
 
 fn replace_image_source(value: &str, source: &str, attachment_id: &str) -> String {
