@@ -206,6 +206,64 @@ fn migration_removes_body_length_checks_without_losing_dependents() {
 }
 
 #[test]
+fn opening_a_database_from_a_newer_schema_version_is_rejected() {
+    // A database created by a newer build of the app (user_version >
+    // SCHEMA_VERSION) must not be silently opened and migrated: this build
+    // doesn't know what that schema means, and writing to it could corrupt
+    // data the newer build depends on. Opening it should fail loudly instead.
+    let temp_dir = unique_temp_dir();
+    fs::create_dir_all(&temp_dir).expect("temp dir should be created");
+    let database_path = temp_dir.join("from-the-future.sqlite");
+
+    {
+        let connection =
+            rusqlite::Connection::open(&database_path).expect("database should open for setup");
+        connection
+            .pragma_update(None, "user_version", SCHEMA_VERSION + 1)
+            .expect("future user_version should be settable");
+    }
+
+    match Database::open(&database_path) {
+        Err(QaScribeError::Validation(message)) => {
+            assert!(
+                message.contains("newer version"),
+                "expected the error to explain the database is from a newer app version, got: {message}"
+            );
+        }
+        Err(other) => panic!(
+            "expected opening a newer-schema database to fail with a validation error, got a different error: {other}"
+        ),
+        Ok(_) => panic!("expected opening a newer-schema database to fail, but it opened"),
+    }
+
+    // The rejection must happen before this build touches the file at all:
+    // no DDL from this build's SCHEMA batch (which could resurrect tables or
+    // indices the newer schema dropped or renamed) and no persistent pragma
+    // rewrites like journal_mode.
+    {
+        let connection = rusqlite::Connection::open(&database_path)
+            .expect("future database should reopen for inspection");
+        let object_count: i64 = connection
+            .query_row("SELECT COUNT(*) FROM sqlite_master", [], |row| row.get(0))
+            .expect("sqlite_master should be queryable");
+        assert_eq!(
+            object_count, 0,
+            "rejected newer-schema database must not have this build's schema objects created in it"
+        );
+        let journal_mode: String = connection
+            .query_row("PRAGMA journal_mode", [], |row| row.get(0))
+            .expect("journal_mode should be readable");
+        assert_eq!(
+            journal_mode.to_lowercase(),
+            "delete",
+            "rejected newer-schema database must keep its original journal mode"
+        );
+    }
+
+    fs::remove_dir_all(temp_dir).expect("temp dir should be removed");
+}
+
+#[test]
 fn stale_user_version_five_from_pre_versioning_builds_still_migrates_and_settles() {
     // Every build before schema versioning became real unconditionally set
     // user_version = 5 on every open, whether or not the feature-detecting

@@ -66,12 +66,23 @@ pub fn with_immediate_tx<T>(
 pub const SCHEMA_VERSION: i32 = 7;
 
 fn initialize(connection: &Connection) -> Result<()> {
+    // Reject databases from a newer build before touching the file in any
+    // way: the SCHEMA batch below could resurrect tables or indices a newer
+    // schema dropped or renamed, and even the journal_mode pragma persists.
+    // `PRAGMA user_version` needs no schema and no settings, so it is safe
+    // to read first.
+    let found = current_schema_version(connection)?;
+    if found > SCHEMA_VERSION {
+        return Err(validation(format!(
+            "This database was created by a newer version of QA Scribe (schema {found} > {SCHEMA_VERSION}). Update the app to open it."
+        )));
+    }
     connection.pragma_update(None, "foreign_keys", "ON")?;
     connection.pragma_update(None, "busy_timeout", 5_000)?;
     connection.pragma_update(None, "journal_mode", "WAL")?;
     connection.pragma_update(None, "synchronous", "NORMAL")?;
     connection.execute_batch(SCHEMA)?;
-    if current_schema_version(connection)? < SCHEMA_VERSION {
+    if found < SCHEMA_VERSION {
         migrate(connection)?;
         connection.pragma_update(None, "user_version", SCHEMA_VERSION)?;
     }
