@@ -155,6 +155,13 @@ body {
   background: var(--surface-base);
 }
 
+/* Contain the framed shell's 16px margin: without a block-formatting
+ * context here it collapses through to the page edge, adding 16px of
+ * dead scroll below the viewport (most visible on sparse empty states). */
+#root {
+  display: flow-root;
+}
+
 button,
 input,
 textarea,
