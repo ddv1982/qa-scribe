@@ -403,10 +403,11 @@
   line-height: var(--leading-relaxed);
 }
 
-.workspace-empty > svg,
-.empty-collection > svg {
-  box-sizing: content-box;
-  padding: var(--space-4);
+.empty-icon {
+  display: grid;
+  place-items: center;
+  width: 60px;
+  height: 60px;
   color: var(--accent);
   background: var(--accent-tint);
   border-radius: var(--radius-full);

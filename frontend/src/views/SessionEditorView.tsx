@@ -89,7 +89,9 @@ export function SessionEditorView({
   if (!activeSession) {
     return (
       <section className="workspace-empty">
-        <FileText size={34} />
+        <div className="empty-icon">
+          <FileText size={34} />
+        </div>
         <h1>No note selected</h1>
         <p>Create a note or open an existing one to start writing QA notes.</p>
         {filteredSessions.length > 0 ? (

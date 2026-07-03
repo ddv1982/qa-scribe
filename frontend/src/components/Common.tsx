@@ -4,7 +4,9 @@ import type { BusyAction, SettingsSaveState } from '../ui/types'
 export function EmptyCollection({ icon: Icon, title }: { icon: LucideIcon; title: string }) {
   return (
     <div className="empty-collection">
-      <Icon size={28} />
+      <div className="empty-icon">
+        <Icon size={28} />
+      </div>
       <h2>{title}</h2>
     </div>
   )
