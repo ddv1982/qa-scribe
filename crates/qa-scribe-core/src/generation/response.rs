@@ -10,6 +10,15 @@ const EDITOR_HTML_TAGS: &[&str] = &[
 ];
 const SELF_CLOSING_EDITOR_HTML_TAGS: &[&str] = &["br", "img", "input"];
 
+/// [`EDITOR_HTML_TAGS`] as an owned `Vec<String>`, for exporting as a typed
+/// bindings constant (see `specta_bindings::builder`). The frontend's
+/// `allowedEditorTags`/`editorTagPattern` in `editor/editorHtml.ts` derive
+/// from this instead of restating the literal list, so the two allowlists
+/// can never drift apart.
+pub fn editor_html_tags() -> Vec<String> {
+    EDITOR_HTML_TAGS.iter().map(|tag| tag.to_string()).collect()
+}
+
 pub fn parse_rich_html_fragment_response(response: &str) -> String {
     let stripped = strip_response_fence(response);
     repair_escaped_editor_html(&stripped)

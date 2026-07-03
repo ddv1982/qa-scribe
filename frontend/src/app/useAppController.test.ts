@@ -26,6 +26,8 @@ const tauriMock = vi.hoisted(() => ({
   updateFinding: vi.fn(),
   updateSession: vi.fn(),
   updateSettings: vi.fn(),
+  EDITOR_HTML_TAGS: ['a', 'b', 'br', 'em', 'h2', 'h3', 'i', 'img', 'input', 'li', 'ol', 'p', 'strong', 'ul'],
+  MANAGED_ATTACHMENT_PROTOCOL: 'qa-scribe-attachment://',
 }))
 
 vi.mock('../tauri', () => tauriMock)
@@ -119,7 +121,7 @@ describe('useAppController autosave flush', () => {
     tauriMock.listEntries.mockResolvedValueOnce([entryFixture({ id: 'entry-2', sessionId: 'session-2' })])
 
     await act(async () => {
-      await result.current.openNote(otherSession)
+      await result.current.openSession(otherSession)
     })
 
     expect(tauriMock.updateEntry).toHaveBeenCalledWith(
@@ -141,7 +143,7 @@ describe('useAppController autosave flush', () => {
     const otherSession = sessionFixture({ id: 'session-2', title: 'Other note' })
 
     await act(async () => {
-      await result.current.openNote(otherSession)
+      await result.current.openSession(otherSession)
     })
 
     expect(tauriMock.reopenSession).not.toHaveBeenCalledWith('session-2')
@@ -159,7 +161,7 @@ describe('useAppController autosave flush', () => {
     })
 
     await act(async () => {
-      await result.current.handleNewNote()
+      await result.current.handleNewSession()
     })
 
     expect(tauriMock.updateEntry).toHaveBeenCalledWith(
@@ -182,7 +184,7 @@ describe('useAppController autosave flush', () => {
     tauriMock.listEntries.mockResolvedValueOnce([entryFixture({ id: 'entry-2', sessionId: 'session-2' })])
 
     await act(async () => {
-      await result.current.openNote(otherSession)
+      await result.current.openSession(otherSession)
     })
 
     expect(tauriMock.updateSession).toHaveBeenCalledWith('session-1', { title: 'Renamed before switch' })
@@ -203,7 +205,7 @@ describe('useAppController autosave flush', () => {
 
       const sessionToDelete = sessionFixture({ id: 'session-1' })
       await act(async () => {
-        await result.current.handleDeleteNote(sessionToDelete)
+        await result.current.handleDeleteSession(sessionToDelete)
       })
 
       expect(tauriMock.deleteSession).toHaveBeenCalledWith('session-1')
@@ -232,7 +234,7 @@ describe('useAppController autosave flush', () => {
       const { result } = renderHook(() => useAppController())
 
       // Boot runs on a zero-delay timeout; advance it and let the resulting
-      // promise chain (openNote etc.) settle before proceeding.
+      // promise chain (openSession etc.) settle before proceeding.
       await act(async () => {
         await vi.advanceTimersByTimeAsync(0)
       })

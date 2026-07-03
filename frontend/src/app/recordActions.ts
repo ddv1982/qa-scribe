@@ -20,12 +20,12 @@ import {
 import { formatError, nextUntitledRecordTitle } from '../ui/format'
 import { renderPrefilledFinding, renderPrefilledTestware } from '../workflows/prefillTemplates'
 import type { AppWorkflowContext, RichRecordPatch } from './types'
-import type { BusyAction, WorkspaceView } from '../ui/types'
+import type { BusyAction, MainView } from '../ui/types'
 
 export function createRecordActions(
   ctx: AppWorkflowContext,
   saveNoteNow: (options?: { manageBusy?: boolean }) => Promise<boolean>,
-  handleDeleteNote: (session: Session) => Promise<void>,
+  handleDeleteSession: (session: Session) => Promise<void>,
 ) {
   async function createRecordFromNote(
     busy: BusyAction,
@@ -34,7 +34,7 @@ export function createRecordActions(
     existingTitles: Array<{ title: string }>,
     create: (title: string, body: ReturnType<typeof richEditorDocumentToStoredBody>) => Promise<unknown>,
     refresh: () => Promise<void>,
-    view: WorkspaceView,
+    view: MainView,
     successNotice: string,
   ) {
     try {
@@ -195,7 +195,7 @@ export function createRecordActions(
 
     ctx.setDeleteConfirmation(null)
     if (confirmation.kind === 'note') {
-      await handleDeleteNote(confirmation.session)
+      await handleDeleteSession(confirmation.session)
     } else if (confirmation.kind === 'draft') {
       await handleDeleteDraft(confirmation.draft)
     } else {

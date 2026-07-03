@@ -19,13 +19,13 @@ import {
   serializeRichEditorDocument,
   type RichEditorDocument,
 } from '../editor/editorDocument'
-import { formatError, nextUntitledTitle } from '../ui/format'
+import { formatError, nextUntitledSessionTitle } from '../ui/format'
 import type { AppWorkflowContext } from './types'
 
 const noteBodyMaxLength = 100_000
 
 export function createSessionActions(ctx: AppWorkflowContext, materializeInlineImages: (document: RichEditorDocument) => Promise<RichEditorDocument>) {
-  async function openNote(session: Session, showNotice = true) {
+  async function openSession(session: Session, showNotice = true) {
     try {
       ctx.setBusyAction('open-note')
       ctx.setError(null)
@@ -59,13 +59,13 @@ export function createSessionActions(ctx: AppWorkflowContext, materializeInlineI
     }
   }
 
-  async function handleNewNote() {
+  async function handleNewSession() {
     try {
       ctx.setBusyAction('new-note')
       ctx.setError(null)
       const flushed = await saveNoteNow({ manageBusy: false })
       if (!flushed) return
-      const title = nextUntitledTitle(ctx.sessions)
+      const title = nextUntitledSessionTitle(ctx.sessions)
       const session = await createSession({ title, sessionContext: null, objectiveNotes: null })
       const editableNote = await createEntry({
         sessionId: session.id,
@@ -96,7 +96,7 @@ export function createSessionActions(ctx: AppWorkflowContext, materializeInlineI
     }
   }
 
-  function clearActiveNoteState() {
+  function clearActiveSessionState() {
     ctx.noteBodyWriteVersionRef.current += 1
     ctx.setActiveSession(null)
     ctx.setNoteEntry(null)
@@ -109,12 +109,12 @@ export function createSessionActions(ctx: AppWorkflowContext, materializeInlineI
     ctx.savedBodyRef.current = serializeRichEditorDocument(emptyRichEditorDocument)
   }
 
-  function requestDeleteNote() {
+  function requestDeleteSession() {
     if (!ctx.activeSession) return
     ctx.setDeleteConfirmation({ kind: 'note', session: ctx.activeSession })
   }
 
-  async function handleDeleteNote(sessionToDelete: Session) {
+  async function handleDeleteSession(sessionToDelete: Session) {
     try {
       ctx.deletingSessionIdRef.current = sessionToDelete.id
       ctx.setBusyAction('delete-note')
@@ -123,14 +123,14 @@ export function createSessionActions(ctx: AppWorkflowContext, materializeInlineI
       // Clear active-note state immediately after the delete succeeds, before any
       // follow-up call that could reject. Once cleared, the title/body autosave
       // effects have nothing left to save against the deleted session, so the
-      // guard below no longer needs to keep protecting it if listSessions/openNote fail.
-      if (ctx.activeSession?.id === sessionToDelete.id) clearActiveNoteState()
+      // guard below no longer needs to keep protecting it if listSessions/openSession fail.
+      if (ctx.activeSession?.id === sessionToDelete.id) clearActiveSessionState()
 
       const nextSessions = await listSessions()
       ctx.setSessions(nextSessions)
 
       if (nextSessions[0]) {
-        await openNote(nextSessions[0], false)
+        await openSession(nextSessions[0], false)
       } else {
         ctx.setActiveView('notes')
       }
@@ -209,11 +209,11 @@ export function createSessionActions(ctx: AppWorkflowContext, materializeInlineI
   }
 
   return {
-    clearActiveNoteState,
-    handleDeleteNote,
-    handleNewNote,
-    openNote,
-    requestDeleteNote,
+    clearActiveSessionState,
+    handleDeleteSession,
+    handleNewSession,
+    openSession,
+    requestDeleteSession,
     saveBody,
     saveNoteNow,
     saveTitle,

@@ -35,8 +35,9 @@ pub struct SessionDraft {
 }
 
 /// Partial update for a `Session`. Every field is optional on the wire
-/// (`#[serde(default, skip_serializing_if)]` → generated `field?:`): an absent
-/// field means "no change".
+/// (deserialize-only: a missing field naturally deserializes its `Option` as
+/// `None`, so no `#[serde(default)]` is needed → generated `field?:`): an
+/// absent field means "no change".
 ///
 /// Two distinct null contracts, made explicit in the generated TypeScript:
 /// - `title` is required on a Session and cannot be cleared, so it is typed

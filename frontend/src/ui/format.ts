@@ -76,7 +76,7 @@ export function resolveThemePreference(theme: ThemePreference, systemTheme: Reso
   return theme === 'system' ? systemTheme : theme
 }
 
-export function nextUntitledTitle(sessions: Session[]): string {
+export function nextUntitledSessionTitle(sessions: Session[]): string {
   const highest = sessions.reduce((max, session) => {
     const match = /^Untitled note (\d+)$/.exec(session.title)
     return match ? Math.max(max, Number(match[1])) : max

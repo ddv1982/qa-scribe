@@ -79,3 +79,7 @@ _Avoid_: Report, Summary
 **Jira Bug Draft**:
 A copy-ready bug report Draft shaped for manual creation of a Jira issue.
 _Avoid_: Jira ticket, Jira issue
+
+**Record**:
+A UI umbrella term for a Draft or Finding rendered and edited through the shared rich-record components.
+_Avoid_: Item, Card

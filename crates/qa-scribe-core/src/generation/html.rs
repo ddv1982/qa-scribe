@@ -9,6 +9,14 @@
 /// rather than an external URL or filesystem path.
 pub(super) const MANAGED_ATTACHMENT_PROTOCOL: &str = "qa-scribe-attachment://";
 
+/// [`MANAGED_ATTACHMENT_PROTOCOL`] as an owned `String`, for exporting as a
+/// typed bindings constant (see `specta_bindings::builder`). The frontend's
+/// `managedAttachmentProtocol` in `editor/editorHtml.ts` derives from this
+/// instead of restating the literal, so the two can never drift.
+pub fn managed_attachment_protocol() -> String {
+    MANAGED_ATTACHMENT_PROTOCOL.to_string()
+}
+
 /// Advance `index` past any whitespace in `value`, returning the new index.
 pub(super) fn skip_whitespace(value: &str, mut index: usize) -> usize {
     while index < value.len() {

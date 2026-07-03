@@ -8,7 +8,7 @@ import type { BusyAction } from '../ui/types'
 import type { PendingAiActions } from '../ui/types'
 import { statusLabel } from '../ui/format'
 
-export function NotesView({
+export function SessionEditorView({
   activeProviderAvailable,
   activeSession,
   busyAction,
@@ -32,8 +32,8 @@ export function NotesView({
   onUndoLatestGeneration,
   onCopyNote,
   onCopyNoteScreenshot,
-  onDeleteNote,
-  onOpenNote,
+  onDeleteSession,
+  onOpenSession,
   onSetNoteBody,
   onSetNoteTitle,
   onUploadImage,
@@ -61,13 +61,13 @@ export function NotesView({
   onUndoLatestGeneration: () => Promise<void>
   onCopyNote: () => Promise<void>
   onCopyNoteScreenshot: () => Promise<void>
-  onDeleteNote: () => void
-  onOpenNote: (session: Session) => Promise<void>
+  onDeleteSession: () => void
+  onOpenSession: (session: Session) => Promise<void>
   onSetNoteBody: (value: RichEditorDocument) => void
   onSetNoteTitle: (value: string) => void
   onUploadImage: (input: RichEditorImageUpload) => void | Promise<void>
 }) {
-  const deletingNote = busyAction === 'delete-note'
+  const deletingSession = busyAction === 'delete-note'
   const copyingNote = busyAction === 'copy-note'
   const copyingNoteScreenshot = busyAction === 'copy-note-screenshot'
   const undoingGeneration = busyAction === 'undo-generation'
@@ -95,7 +95,7 @@ export function NotesView({
         {filteredSessions.length > 0 ? (
           <div className="empty-note-actions">
             {filteredSessions.slice(0, 3).map((session) => (
-              <button className="secondary-button" key={session.id} type="button" disabled={isBusy} onClick={() => void onOpenNote(session)}>
+              <button className="secondary-button" key={session.id} type="button" disabled={isBusy} onClick={() => void onOpenSession(session)}>
                 {session.title}
               </button>
             ))}
@@ -147,8 +147,8 @@ export function NotesView({
               {copyingNoteScreenshot ? <Loader2 className="spin" size={16} /> : screenshotCopySucceeded ? <CheckCircle2 size={16} /> : <ImageIcon size={16} />}
             </button>
           ) : null}
-          <button className="icon-button danger" type="button" aria-label="Delete note" title="Delete note" disabled={isBusy} onClick={() => void onDeleteNote()}>
-            {deletingNote ? <Loader2 className="spin" size={16} /> : <Trash2 size={16} />}
+          <button className="icon-button danger" type="button" aria-label="Delete note" title="Delete note" disabled={isBusy} onClick={() => void onDeleteSession()}>
+            {deletingSession ? <Loader2 className="spin" size={16} /> : <Trash2 size={16} />}
           </button>
         </div>
       </header>

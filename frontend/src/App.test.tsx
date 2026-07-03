@@ -32,6 +32,8 @@ const tauriMock = vi.hoisted(() => ({
   updateFinding: vi.fn(),
   updateSession: vi.fn(),
   updateSettings: vi.fn(),
+  EDITOR_HTML_TAGS: ['a', 'b', 'br', 'em', 'h2', 'h3', 'i', 'img', 'input', 'li', 'ol', 'p', 'strong', 'ul'],
+  MANAGED_ATTACHMENT_PROTOCOL: 'qa-scribe-attachment://',
 }))
 
 vi.mock('./tauri', () => tauriMock)

@@ -3,7 +3,7 @@ import { getSettings, listSessions, type Draft, type Entry, type Finding, type G
 import { emptyRichEditorDocument, richEditorDocumentToHtml, richEditorDocumentToPlainText, serializeRichEditorDocument } from '../editor/editorDocument'
 import { managedAttachmentReferencesForClipboard } from '../editor/clipboardExport'
 import { countWords, formatError } from '../ui/format'
-import type { BusyAction, PendingAiActions, WorkspaceView } from '../ui/types'
+import type { BusyAction, PendingAiActions, MainView } from '../ui/types'
 import { useSettingsController } from '../hooks/useSettingsController'
 import { deleteConfirmationCopy, type DeleteConfirmation } from '../workflows/deleteConfirmation'
 import { createAttachmentActions } from './attachmentActions'
@@ -27,7 +27,7 @@ export function useAppController() {
   const [notice, setNotice] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [activeView, setActiveView] = useState<WorkspaceView>('notes')
+  const [activeView, setActiveView] = useState<MainView>('notes')
   const [pendingGenerationAction, setPendingGenerationAction] = useState<GenerateAiActionKind | null>(null)
   const [deleteConfirmation, setDeleteConfirmation] = useState<DeleteConfirmation | null>(null)
   const [latestNoteGenerationUndo, setLatestNoteGenerationUndo] = useState<LatestNoteGenerationUndo | null>(null)
@@ -154,7 +154,7 @@ export function useAppController() {
   // eslint-disable-next-line react-hooks/refs -- factories only close over refs; .current reads happen later in event handlers/effects.
   const generationActions = createGenerationActions(workflowContext, sessionActions.saveNoteNow)
   // eslint-disable-next-line react-hooks/refs -- factories only close over refs; .current reads happen later in event handlers/effects.
-  const recordActions = createRecordActions(workflowContext, sessionActions.saveNoteNow, sessionActions.handleDeleteNote)
+  const recordActions = createRecordActions(workflowContext, sessionActions.saveNoteNow, sessionActions.handleDeleteSession)
   // eslint-disable-next-line react-hooks/refs -- factories only close over refs; .current reads happen later in event handlers/effects.
   const copyActions = createCopyActions(workflowContext)
 
@@ -171,7 +171,7 @@ export function useAppController() {
       setSessions(nextSessions)
       bootedRef.current = true
       if (nextSessions[0]) {
-        await sessionActions.openNote(nextSessions[0], false)
+        await sessionActions.openSession(nextSessions[0], false)
       } else {
         setNotice('Create a note to start')
       }

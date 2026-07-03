@@ -3,7 +3,7 @@ import { RailItem } from '../components/Common'
 import { ThemeToggle } from '../components/ThemeToggle'
 import { formatSessionDate } from '../ui/format'
 import { FindingsView } from '../views/FindingsView'
-import { NotesView } from '../views/NotesView'
+import { SessionEditorView } from '../views/SessionEditorView'
 import { SettingsView } from '../views/SettingsView'
 import { TestwareView } from '../views/TestwareView'
 import { GenerationPreflight } from '../workflows/generationPreflight'
@@ -28,7 +28,7 @@ export function AppShell(c: AppController) {
 
         <div className="top-actions">
           <ThemeToggle theme={c.theme} onThemeChange={c.setTheme} />
-          <button className="primary-button top-new-button" type="button" disabled={c.isBusy} onClick={() => void c.handleNewNote()}>
+          <button className="primary-button top-new-button" type="button" disabled={c.isBusy} onClick={() => void c.handleNewSession()}>
             {c.busyAction === 'new-note' ? <Loader2 className="spin" size={17} /> : <Plus size={17} />}
             New note
           </button>
@@ -53,7 +53,7 @@ export function AppShell(c: AppController) {
                 role="option"
                 aria-selected={c.activeSession?.id === session.id}
                 disabled={c.isBusy && c.activeSession?.id !== session.id}
-                onClick={() => void c.openNote(session)}
+                onClick={() => void c.openSession(session)}
               >
                 <span>{session.title}</span>
                 <small>{formatSessionDate(session.updatedAt)}</small>
@@ -72,7 +72,7 @@ export function AppShell(c: AppController) {
 
       <section className="center-workspace" aria-label="Workspace">
         {c.activeView === 'notes' ? (
-          <NotesView
+          <SessionEditorView
             activeProviderAvailable={Boolean(c.activeProvider?.available)}
             activeSession={c.activeSession}
             busyAction={c.busyAction}
@@ -99,8 +99,8 @@ export function AppShell(c: AppController) {
             }}
             onCopyNote={c.handleCopyNoteForJira}
             onCopyNoteScreenshot={c.handleCopyNoteScreenshotForJira}
-            onDeleteNote={c.requestDeleteNote}
-            onOpenNote={c.openNote}
+            onDeleteSession={c.requestDeleteSession}
+            onOpenSession={c.openSession}
             onSetNoteBody={(value) => {
               c.setLatestNoteGenerationUndo(null)
               c.setNoteBody(value)

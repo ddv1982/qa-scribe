@@ -35,6 +35,10 @@ export const commands = {
 };
 
 /* Constants */
+export const EDITOR_HTML_TAGS = ["a","b","br","em","h2","h3","i","img","input","li","ol","p","strong","ul"] as const;
+
+export const MANAGED_ATTACHMENT_PROTOCOL = "qa-scribe-attachment://" as const;
+
 export const PROVIDER_MODEL_DEFAULTS = {"claude_code":"default","codex_cli":"default","copilot_cli":"auto"} as const;
 
 export const PROVIDER_REASONING_DEFAULTS = {"claude_code":"medium","codex_cli":"low","copilot_cli":null} as const;
@@ -316,8 +320,9 @@ export type SessionExport = {
 
 /**
  *  Partial update for a `Session`. Every field is optional on the wire
- *  (`#[serde(default, skip_serializing_if)]` → generated `field?:`): an absent
- *  field means "no change".
+ *  (deserialize-only: a missing field naturally deserializes its `Option` as
+ *  `None`, so no `#[serde(default)]` is needed → generated `field?:`): an
+ *  absent field means "no change".
  * 
  *  Two distinct null contracts, made explicit in the generated TypeScript:
  *  - `title` is required on a Session and cannot be cleared, so it is typed

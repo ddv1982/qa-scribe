@@ -11,7 +11,7 @@ vi.mock('../editor/RichTextEditor', () => ({
 import type { Draft, Finding, ProviderStatus, Session } from '../tauri'
 import { richEditorDocumentFromHtml } from '../editor/editorDocument'
 import { FindingsView } from './FindingsView'
-import { NotesView } from './NotesView'
+import { SessionEditorView } from './SessionEditorView'
 import { TestwareView } from './TestwareView'
 
 describe('copy success buttons', () => {
@@ -22,7 +22,7 @@ describe('copy success buttons', () => {
 
   it('shows a success state for copied notes', () => {
     render(
-      <NotesView
+      <SessionEditorView
         activeProviderAvailable
         activeSession={session}
         busyAction={null}
@@ -46,8 +46,8 @@ describe('copy success buttons', () => {
         onUndoLatestGeneration={async () => undefined}
         onCopyNote={async () => undefined}
         onCopyNoteScreenshot={async () => undefined}
-        onDeleteNote={() => undefined}
-        onOpenNote={async () => undefined}
+        onDeleteSession={() => undefined}
+        onOpenSession={async () => undefined}
         onSetNoteBody={() => undefined}
         onSetNoteTitle={() => undefined}
         onUploadImage={() => undefined}
@@ -116,7 +116,7 @@ describe('copy success buttons', () => {
 
   it('shows a success state for copied note screenshots', () => {
     render(
-      <NotesView
+      <SessionEditorView
         activeProviderAvailable
         activeSession={session}
         busyAction={null}
@@ -140,8 +140,8 @@ describe('copy success buttons', () => {
         onUndoLatestGeneration={async () => undefined}
         onCopyNote={async () => undefined}
         onCopyNoteScreenshot={async () => undefined}
-        onDeleteNote={() => undefined}
-        onOpenNote={async () => undefined}
+        onDeleteSession={() => undefined}
+        onOpenSession={async () => undefined}
         onSetNoteBody={() => undefined}
         onSetNoteTitle={() => undefined}
         onUploadImage={() => undefined}

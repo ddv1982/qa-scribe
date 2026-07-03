@@ -14,6 +14,7 @@
 use qa_scribe_core::domain::{
     default_selected_ai_models_by_provider, default_selected_ai_reasoning_efforts_by_provider,
 };
+use qa_scribe_core::generation::{editor_html_tags, managed_attachment_protocol};
 use specta_typescript::Typescript;
 use tauri_specta::{Builder, ErrorHandlingMode, collect_commands};
 
@@ -86,6 +87,13 @@ pub fn builder() -> Builder<tauri::Wry> {
             "PROVIDER_REASONING_DEFAULTS",
             default_selected_ai_reasoning_efforts_by_provider(),
         )
+        // Single-source the editor-HTML contract: core owns the managed
+        // attachment protocol and the allowed-tag list, and the frontend
+        // (`editor/editorHtml.ts`) derives its copies from these bindings
+        // constants instead of restating the literals, so the sanitizer and
+        // the response-repair pass can never silently diverge.
+        .constant("MANAGED_ATTACHMENT_PROTOCOL", managed_attachment_protocol())
+        .constant("EDITOR_HTML_TAGS", editor_html_tags())
 }
 
 /// The exporter configuration used everywhere bindings are written, so the

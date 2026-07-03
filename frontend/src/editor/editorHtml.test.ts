@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('../tauri', () => ({
   getAttachmentPreviewDataUrl: vi.fn(),
+  EDITOR_HTML_TAGS: ['a', 'b', 'br', 'em', 'h2', 'h3', 'i', 'img', 'input', 'li', 'ol', 'p', 'strong', 'ul'],
+  MANAGED_ATTACHMENT_PROTOCOL: 'qa-scribe-attachment://',
 }))
 
 import {

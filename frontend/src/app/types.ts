@@ -1,7 +1,7 @@
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 import type { AiProvider, Draft, Entry, Finding, GenerationJobStatus, Session } from '../tauri'
 import type { RichEditorDocument } from '../editor/editorDocument'
-import type { BusyAction, WorkspaceView } from '../ui/types'
+import type { BusyAction, MainView } from '../ui/types'
 import type { DeleteConfirmation } from '../workflows/deleteConfirmation'
 
 export type CopiedTargetAction = 'jira-text' | 'screenshot'
@@ -58,7 +58,7 @@ export type AppWorkflowSetters = {
   setCopiedTarget: Dispatch<SetStateAction<CopiedTarget | null>>
   setNotice: Dispatch<SetStateAction<string | null>>
   setError: Dispatch<SetStateAction<string | null>>
-  setActiveView: Dispatch<SetStateAction<WorkspaceView>>
+  setActiveView: Dispatch<SetStateAction<MainView>>
   setDeleteConfirmation: Dispatch<SetStateAction<DeleteConfirmation | null>>
   setLatestNoteGenerationUndo: Dispatch<SetStateAction<LatestNoteGenerationUndo | null>>
 }
