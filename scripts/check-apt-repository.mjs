@@ -3,14 +3,16 @@ import { spawnSync } from 'node:child_process'
 import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { readReleaseConstants } from './command-utils.mjs'
 
+const releaseConstants = readReleaseConstants()
 const workDir = mkdtempSync(join(tmpdir(), 'qaapt-'))
 const gnupgHome = mkdtempSync(join(tmpdir(), 'qaag-'))
 const verificationHome = mkdtempSync(join(tmpdir(), 'qaav-'))
 const outputDir = join(workDir, 'repository')
 const keyParametersPath = join(workDir, 'key-parameters')
 const publicKeyPath = join(workDir, 'qa-scribe-archive-keyring.pgp')
-const setupPackagePath = join(workDir, 'qa-scribe-repository-setup_1.0_all.deb')
+const setupPackagePath = join(workDir, releaseConstants.setupPackageFilename)
 
 try {
   chmodSync(gnupgHome, 0o700)

@@ -2,87 +2,21 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { basename } from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import {
+  findChangelogRelease,
+  latestMetainfoRelease,
+  readOption as readOptionFrom,
+  readReleaseConstants,
+  readWorkspaceCargoVersion,
+  validateSemver
+} from './command-utils.mjs';
 
 const args = process.argv.slice(2);
 const execFileAsync = promisify(execFile);
+const releaseConstants = readReleaseConstants();
 
 function readOption(name) {
-  const index = args.indexOf(name);
-  if (index === -1) {
-    return undefined;
-  }
-
-  const value = args[index + 1];
-  if (!value || value.startsWith('--')) {
-    throw new Error(`${name} requires a value`);
-  }
-
-  return value;
-}
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-function findChangelogRelease(changelog, tag) {
-  const headingPattern = new RegExp(`^## ${escapeRegExp(tag)} - \\d{4}-\\d{2}-\\d{2}$`);
-  const lines = changelog.split(/\r?\n/);
-  const headingIndex = lines.findIndex(line => headingPattern.test(line));
-
-  if (headingIndex === -1) {
-    return null;
-  }
-
-  const date = lines[headingIndex].replace(new RegExp(`^## ${escapeRegExp(tag)} - `), '');
-  const sectionLines = [];
-  for (const line of lines.slice(headingIndex + 1)) {
-    if (line.startsWith('## ')) {
-      break;
-    }
-    sectionLines.push(line);
-  }
-
-  return {
-    date,
-    notes: sectionLines.join('\n').trim()
-  };
-}
-
-function latestMetainfoRelease(metainfo) {
-  const match = metainfo.match(/<release\s+([^>]*)/);
-  if (!match) {
-    return null;
-  }
-
-  const attrs = new Map();
-  for (const attr of match[1].matchAll(/([A-Za-z_:][-A-Za-z0-9_:.]*)="([^"]*)"/g)) {
-    attrs.set(attr[1], attr[2]);
-  }
-
-  const version = attrs.get('version');
-  const date = attrs.get('date');
-  if (!version || !date) {
-    return null;
-  }
-
-  return {
-    version,
-    date
-  };
-}
-
-function validateSemver(version) {
-  return /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(version);
-}
-
-function readWorkspaceCargoVersion(cargoToml) {
-  const workspacePackageMatch = cargoToml.match(/\[workspace\.package\]([\s\S]*?)(?:\n\[|$)/);
-  if (!workspacePackageMatch) {
-    return null;
-  }
-
-  const versionMatch = workspacePackageMatch[1].match(/^\s*version\s*=\s*"([^"]+)"\s*$/m);
-  return versionMatch?.[1] ?? null;
+  return readOptionFrom(args, name);
 }
 
 async function readTrackedFiles() {
@@ -124,8 +58,8 @@ if (tauriConfig.version !== packageJson.version) {
   throw new Error(`src-tauri/tauri.conf.json version ${tauriConfig.version} does not match package.json version ${packageJson.version}`);
 }
 
-if (tauriConfig.identifier !== 'io.github.ddv1982.qa-scribe') {
-  throw new Error(`src-tauri/tauri.conf.json identifier must stay io.github.ddv1982.qa-scribe, got ${tauriConfig.identifier}`);
+if (tauriConfig.identifier !== releaseConstants.bundleId) {
+  throw new Error(`src-tauri/tauri.conf.json identifier must stay ${releaseConstants.bundleId}, got ${tauriConfig.identifier}`);
 }
 
 if (tauriConfig.productName !== 'QA Scribe') {
@@ -190,7 +124,7 @@ if (!release?.notes) {
   throw new Error(`CHANGELOG.md must contain a non-empty section headed "## ${tag} - YYYY-MM-DD"`);
 }
 
-const metainfoPath = 'build/linux/io.github.ddv1982.qa-scribe.metainfo.xml';
+const metainfoPath = `build/linux/${releaseConstants.bundleId}.metainfo.xml`;
 const metainfo = await readFile(metainfoPath, 'utf-8');
 const metainfoRelease = latestMetainfoRelease(metainfo);
 

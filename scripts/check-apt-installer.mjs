@@ -5,7 +5,9 @@ import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { readOption as readOptionFrom, readReleaseConstants } from './command-utils.mjs'
 
+const releaseConstants = readReleaseConstants()
 const fingerprintVariable = 'QA_SCRIBE_REPOSITORY_SETUP_SIGNING_KEY_FINGERPRINT'
 const placeholder = '__QA_SCRIBE_APT_SIGNING_KEY_FINGERPRINT__'
 const sampleFingerprint = '0123456789ABCDEF0123456789ABCDEF01234567'
@@ -23,6 +25,7 @@ if (!isFingerprint(expectedFingerprint)) {
 
 const template = await readFile('scripts/install-apt-repo.sh', 'utf8')
 await validateTemplate(template)
+validateTemplateDefaultsMatchReleaseConstants(template)
 
 const renderedInstaller = renderedInstallerPath
   ? await readFile(renderedInstallerPath, 'utf8')
@@ -33,17 +36,7 @@ await validateAptInstallStaging(renderedInstaller)
 console.log('APT installer check passed.')
 
 function readOption(name) {
-  const index = args.indexOf(name)
-  if (index === -1) {
-    return undefined
-  }
-
-  const value = args[index + 1]
-  if (!value || value.startsWith('--')) {
-    throw new Error(`${name} requires a value`)
-  }
-
-  return value
+  return readOptionFrom(args, name)
 }
 
 async function validateTemplate(script) {
@@ -61,6 +54,31 @@ async function validateTemplate(script) {
   })
   if (envFingerprint !== overrideFingerprint) {
     throw new Error(`The template installer did not preserve an explicit ${fingerprintVariable} override.`)
+  }
+}
+
+function validateTemplateDefaultsMatchReleaseConstants(script) {
+  // scripts/install-apt-repo.sh is served to end users from GitHub Pages and
+  // cannot read scripts/release-constants.json at runtime, so its defaults
+  // are hardcoded. This drift guard keeps them in sync with the JSON source.
+  const expectedSetupUrl = `${releaseConstants.pagesBaseUrl}${releaseConstants.setupPackageFilename}`
+  if (!script.includes(`QA_SCRIBE_REPOSITORY_SETUP_URL:-${expectedSetupUrl}`)) {
+    throw new Error(
+      `scripts/install-apt-repo.sh default QA_SCRIBE_REPOSITORY_SETUP_URL must match release-constants.json (expected ${expectedSetupUrl})`
+    )
+  }
+
+  const expectedKeyringUrl = `${releaseConstants.pagesBaseUrl}qa-scribe-archive-keyring.pgp`
+  if (!script.includes(`QA_SCRIBE_REPOSITORY_SETUP_SIGNING_KEY_URL:-${expectedKeyringUrl}`)) {
+    throw new Error(
+      `scripts/install-apt-repo.sh default QA_SCRIBE_REPOSITORY_SETUP_SIGNING_KEY_URL must match release-constants.json (expected ${expectedKeyringUrl})`
+    )
+  }
+
+  if (!script.includes(releaseConstants.setupPackageFilename)) {
+    throw new Error(
+      `scripts/install-apt-repo.sh must reference the setup package filename from release-constants.json (${releaseConstants.setupPackageFilename})`
+    )
   }
 }
 

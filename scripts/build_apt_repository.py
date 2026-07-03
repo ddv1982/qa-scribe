@@ -26,20 +26,23 @@ from package_archive import (
     extract_tar_member,
     first_release,
     launchable_desktop_id,
+    load_release_constants,
     parse_desktop_file,
     read_ar_entries,
     strip_ns,
 )
 
 
+_RELEASE_CONSTANTS = load_release_constants()
+
 DEFAULT_SUITE = "stable"
 DEFAULT_COMPONENT = "main"
 DEFAULT_PACKAGE = "qa-scribe"
-DEFAULT_COMPONENT_ID = "io.github.ddv1982.qa-scribe"
+DEFAULT_COMPONENT_ID = _RELEASE_CONSTANTS["bundleId"]
 DEFAULT_ORIGIN = "qa-scribe-stable-main"
 DEFAULT_LABEL = "QA Scribe"
 DEFAULT_DESCRIPTION = "QA Scribe APT repository"
-DEFAULT_REPOSITORY_URL = "https://ddv1982.github.io/qa-scribe/apt/"
+DEFAULT_REPOSITORY_URL = _RELEASE_CONSTANTS["pagesBaseUrl"]
 DEFAULT_SETUP_PACKAGE_NAME = "qa-scribe-repository-setup"
 DEFAULT_SETUP_PACKAGE_VERSION = "1.0"
 DEFAULT_SETUP_MAINTAINER = "qa-scribe contributors <noreply@github.com>"

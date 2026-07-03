@@ -1,8 +1,16 @@
 import { spawnSync } from 'node:child_process'
-import { existsSync } from 'node:fs'
-import { delimiter, join } from 'node:path'
+import { existsSync, readFileSync } from 'node:fs'
+import { delimiter, dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-const MACOS_DMG_BASENAME = 'QA.Scribe'
+const SCRIPTS_DIR = dirname(fileURLToPath(import.meta.url))
+const RELEASE_CONSTANTS = JSON.parse(readFileSync(join(SCRIPTS_DIR, 'release-constants.json'), 'utf8'))
+
+const MACOS_DMG_BASENAME = RELEASE_CONSTANTS.dmgBaseName
+
+export function readReleaseConstants() {
+  return RELEASE_CONSTANTS
+}
 
 export function readOption(args, name) {
   const index = args.indexOf(name)
@@ -85,4 +93,65 @@ export function isCurrentVersionDesktopArtifactName(name, version) {
 
 export function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+export function validateSemver(version) {
+  return /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(version)
+}
+
+export function readWorkspaceCargoVersion(cargoToml) {
+  const workspacePackageMatch = cargoToml.match(/\[workspace\.package\]([\s\S]*?)(?:\n\[|$)/)
+  if (!workspacePackageMatch) {
+    return null
+  }
+
+  const versionMatch = workspacePackageMatch[1].match(/^\s*version\s*=\s*"([^"]+)"\s*$/m)
+  return versionMatch?.[1] ?? null
+}
+
+export function findChangelogRelease(changelog, tag) {
+  const headingPattern = new RegExp(`^## ${escapeRegExp(tag)} - \\d{4}-\\d{2}-\\d{2}$`)
+  const lines = changelog.split(/\r?\n/)
+  const headingIndex = lines.findIndex(line => headingPattern.test(line))
+
+  if (headingIndex === -1) {
+    return null
+  }
+
+  const date = lines[headingIndex].replace(new RegExp(`^## ${escapeRegExp(tag)} - `), '')
+  const sectionLines = []
+  for (const line of lines.slice(headingIndex + 1)) {
+    if (line.startsWith('## ')) {
+      break
+    }
+    sectionLines.push(line)
+  }
+
+  return {
+    date,
+    notes: sectionLines.join('\n').trim()
+  }
+}
+
+export function latestMetainfoRelease(metainfo) {
+  const match = metainfo.match(/<release\s+([^>]*)/)
+  if (!match) {
+    return null
+  }
+
+  const attrs = new Map()
+  for (const attr of match[1].matchAll(/([A-Za-z_:][-A-Za-z0-9_:.]*)="([^"]*)"/g)) {
+    attrs.set(attr[1], attr[2])
+  }
+
+  const version = attrs.get('version')
+  const date = attrs.get('date')
+  if (!version || !date) {
+    return null
+  }
+
+  return {
+    version,
+    date
+  }
 }

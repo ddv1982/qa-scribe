@@ -7,16 +7,37 @@ frontend install/build/test path; Node is used for repository release scripts.
 
 ## Version And Tag
 
-Update `package.json`, `frontend/package.json`, `frontend/bun.lock`,
-`Cargo.toml`, `src-tauri/tauri.conf.json`, `CHANGELOG.md`, and the latest
-`<release>` entry in `build/linux/io.github.ddv1982.qa-scribe.metainfo.xml`
-to the same version and date.
+Bump the version with the single write-path script instead of hand-editing
+files. It updates `package.json`, `frontend/package.json`, `Cargo.toml`
+(`[workspace.package]`), `Cargo.lock` (the `qa-scribe-app`/`qa-scribe-core`/
+`qa-scribe-tauri` entries), `src-tauri/tauri.conf.json`, inserts a
+`## v<version> - <date>` scaffold at the top of `CHANGELOG.md`, and inserts a
+new `<release>` entry in
+`build/linux/io.github.ddv1982.qa-scribe.metainfo.xml`:
 
-Validate metadata before tagging:
+```bash
+bun run bump 1.0.0
+```
+
+Add `--dry-run` to preview the changes without writing anything:
+
+```bash
+bun run bump 1.0.0 --dry-run
+```
+
+The script fails loudly if the tracked files currently disagree on the
+version (a pre-flight consistency check), and it runs
+`scripts/check-release-metadata.mjs` at the end as verification. That
+verification will fail until you replace the `- TODO: describe this
+release.` placeholder it inserts into `CHANGELOG.md` with real release
+notes — fill those in, then re-run the check:
 
 ```bash
 node scripts/check-release-metadata.mjs --expected-tag v1.0.0
 ```
+
+`frontend/bun.lock` does not need updating: it only records third-party
+dependency versions, not the frontend workspace's own `version` field.
 
 The metadata check also gates the Linux Tauri package identity: `src-tauri/tauri.linux.conf.json` keeps the installed desktop file at `qa-scribe.desktop`, while `build/linux/qa-scribe.desktop.hbs` keeps the visible app name as QA Scribe. `src-tauri/tauri.conf.json` must list every generated Linux PNG icon size from `build/icons/16x16.png` through `build/icons/1024x1024.png` so `.deb`/`.rpm` installers provide a desktop-resolvable hicolor icon.
 

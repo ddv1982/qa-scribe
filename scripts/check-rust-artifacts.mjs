@@ -4,10 +4,12 @@ import { basename, join, relative } from 'node:path'
 import {
   isAuxiliaryArtifactName,
   isCurrentVersionDesktopArtifactName,
-  isDesktopArtifactName
+  isDesktopArtifactName,
+  readOption as readOptionFrom
 } from './command-utils.mjs'
 
-const args = new Set(process.argv.slice(2))
+const argv = process.argv.slice(2)
+const args = new Set(argv)
 const platform = readOption('--platform') ?? process.platform
 const requireRpm = args.has('--require-rpm')
 const requireAppImage = args.has('--require-appimage')
@@ -65,13 +67,7 @@ for (const artifact of artifacts) {
 }
 
 function readOption(name) {
-  const index = process.argv.indexOf(name)
-  if (index === -1) return undefined
-  const value = process.argv[index + 1]
-  if (!value || value.startsWith('--')) {
-    throw new Error(`${name} requires a value`)
-  }
-  return value
+  return readOptionFrom(argv, name)
 }
 
 function requireArtifact(predicate, message) {

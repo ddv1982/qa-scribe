@@ -31,6 +31,8 @@
     "apt:repo:check": "node scripts/check-apt-repository.mjs",
     "apt:installer:check": "node scripts/check-apt-installer.mjs",
     "release:check": "node scripts/check-release-metadata.mjs && bun run linux:metadata:test",
+    "bump": "node scripts/bump-version.mjs",
+    "bump:test": "node --test scripts/bump-version.test.mjs",
     "smoke": "cargo run -p qa-scribe-app",
     "package:check": "node -e \"for (const file of ['package.json','frontend/package.json','frontend/tsconfig.json','frontend/tsconfig.node.json','src-tauri/tauri.conf.json','src-tauri/tauri.linux.conf.json']) JSON.parse(require('fs').readFileSync(file,'utf8'))\"",
     "verify": "bun run frontend:typecheck && bun run frontend:lint && bun run frontend:test && bun run frontend:build && cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace && cargo run -p qa-scribe-app"

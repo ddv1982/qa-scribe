@@ -22,12 +22,13 @@ from package_archive import (
     extract_data_archive,
     first_release,
     launchable_desktop_id,
+    load_release_constants,
     parse_desktop_file as parse_desktop_bytes,
     read_ar_entries,
 )
 
 
-DEFAULT_COMPONENT_ID = "io.github.ddv1982.qa-scribe"
+DEFAULT_COMPONENT_ID = load_release_constants()["bundleId"]
 DEFAULT_LICENSE = "MIT"
 DEFAULT_BINARY = "qa-scribe"
 DEFAULT_DESKTOP_ID = "qa-scribe.desktop"

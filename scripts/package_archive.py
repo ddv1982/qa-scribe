@@ -4,12 +4,26 @@
 from __future__ import annotations
 
 import io
+import json
 import pathlib
 import shutil
 import subprocess
 import tarfile
 from collections.abc import Callable
+from functools import lru_cache
+from typing import Any
 import xml.etree.ElementTree as ET
+
+
+@lru_cache(maxsize=1)
+def load_release_constants() -> dict[str, Any]:
+    """Load the single-source release constants shared with the .mjs scripts.
+
+    Path is resolved relative to this file so it works regardless of the
+    caller's current working directory.
+    """
+    constants_path = pathlib.Path(__file__).resolve().parent / "release-constants.json"
+    return json.loads(constants_path.read_text(encoding="utf-8"))
 
 
 def read_ar_entries(deb_path: pathlib.Path) -> dict[str, bytes]:

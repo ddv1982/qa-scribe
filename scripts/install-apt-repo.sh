@@ -1,6 +1,10 @@
 #!/bin/sh
 set -eu
 
+# This script is served to end users from GitHub Pages, so it cannot read
+# scripts/release-constants.json at runtime; the URL/filename defaults below
+# are hardcoded and must stay in sync with that file (drift-checked by
+# scripts/check-apt-installer.mjs).
 setup_url="${QA_SCRIBE_REPOSITORY_SETUP_URL:-https://ddv1982.github.io/qa-scribe/apt/qa-scribe-repository-setup_1.0_all.deb}"
 setup_sha256_url="${QA_SCRIBE_REPOSITORY_SETUP_SHA256_URL:-${setup_url}.sha256}"
 setup_sha256_sig_url="${QA_SCRIBE_REPOSITORY_SETUP_SHA256_SIG_URL:-${setup_sha256_url}.asc}"
