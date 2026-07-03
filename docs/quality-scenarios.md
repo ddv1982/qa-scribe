@@ -19,13 +19,14 @@ Scenario: adding a new AI action for a selected Note should not require editing 
 Measure:
 
 - Public Tauri command names remain covered by `frontend/src/tauri.test.ts`.
-- Selected Entry validation stays isolated in `src-tauri/src/commands/ai/selection.rs`.
-- Provider stream parsing changes stay isolated in `src-tauri/src/commands/ai/stream_parser.rs`.
+- Selected Entry validation stays isolated in `crates/qa-scribe-core/src/generation/workflow.rs`.
+- Provider stream parsing changes stay isolated in the per-format parsers under `crates/qa-scribe-core/src/ai/stream/`.
 
 Validation:
 
 ```bash
 bun run --cwd frontend test
+cargo test -p qa-scribe-core
 cargo test -p qa-scribe-tauri
 ```
 
