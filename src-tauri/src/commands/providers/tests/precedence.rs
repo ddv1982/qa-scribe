@@ -10,10 +10,14 @@ use super::super::{
     detection::{detect_provider, provider_readiness_with_runners},
     probe::{CommandProbe, DetectionMode},
 };
-use super::support::MockRunner;
+use super::support::{MockRunner, readiness_cache_guard};
 
 #[test]
 fn provider_readiness_deep_checks_when_fast_detection_misses() {
+    // Both tests in this module seed/read the process-global readiness
+    // cache for `AiProvider::CodexCli`; hold the shared lock so they can't
+    // interleave (see `readiness_cache_guard` for why).
+    let _guard = readiness_cache_guard();
     clear_readiness_cache();
     let fast_runner = MockRunner::default();
     let deep_runner = MockRunner::default()
@@ -40,6 +44,11 @@ fn provider_readiness_deep_checks_when_fast_detection_misses() {
 
 #[test]
 fn cached_deep_failure_falls_back_to_a_working_fast_result_instead_of_blocking() {
+    // See the lock's doc comment: this test and
+    // `provider_readiness_deep_checks_when_fast_detection_misses` share the
+    // global readiness cache for `AiProvider::CodexCli` and must not run
+    // concurrently.
+    let _guard = readiness_cache_guard();
     clear_readiness_cache();
 
     // Seed a Deep cache entry that failed authentication (e.g. a CLI

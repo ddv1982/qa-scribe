@@ -4,9 +4,31 @@ use std::{
     cell::RefCell,
     collections::{HashMap, HashSet},
     path::PathBuf,
+    sync::{Mutex, MutexGuard, OnceLock},
 };
 
 use super::super::probe::{CommandProbe, ProbeRunner};
+
+/// `READINESS_CACHE` (in `cache.rs`) is a process-global static keyed by
+/// `(AiProvider, DetectionMode)`. Tests that seed/read/clear it for
+/// `AiProvider::CodexCli` run as separate threads in the same test binary,
+/// so without serialization they race on the same cache entries: one test's
+/// Fast-miss (`InstallRequired`) write can be observed by another test's
+/// `provider_readiness_with_runners` call, which short-circuits on any cached
+/// Fast entry instead of consulting the test's own mock runner.
+///
+/// Any test that seeds, reads, or clears `READINESS_CACHE` must hold this
+/// lock for its full body. Recover from poisoning (a prior test panicking
+/// while holding the lock) rather than propagating it, so one failing test
+/// doesn't cascade into unrelated failures.
+static READINESS_CACHE_TEST_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+
+pub(super) fn readiness_cache_guard() -> MutexGuard<'static, ()> {
+    READINESS_CACHE_TEST_LOCK
+        .get_or_init(|| Mutex::new(()))
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
 
 #[derive(Default)]
 pub(super) struct MockRunner {
