@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.6.0 - 2026-07-03
+
+- Rebuild the interface on a semantic design-token system with distinct light and dark palettes, replacing scattered hardcoded colors so both themes are first-class rather than one inverted from the other.
+- Redesign dark mode with a luminance-stepped surface hierarchy and hairline borders for depth, and retune accent and status colors so nothing glares or washes out.
+- Bundle the Inter Variable typeface and move all text onto a consistent type scale, spacing onto a 4px grid, and controls onto standard heights, with a slimmer top bar that gives content more room.
+- Complete interaction states across every control — hover, focus, active, and disabled — with tokenized motion that respects the reduced-motion system preference.
+- Polish surfaces with animated dialogs, blurred backdrops, elevated cards, and designed empty states, and make the top-bar action follow the active view instead of always offering "New note".
+- Enforce the new visual system in CI with checks that forbid raw colors outside the token file and verify WCAG contrast for every text-on-surface pairing in both themes.
+
 ## v0.5.0 - 2026-07-03
 
 - Harden AI generation end-to-end: fix provider process deadlocks, zombie leaks, and cancellation, add a generation watchdog, and recover still-running generation jobs after a window reload.
