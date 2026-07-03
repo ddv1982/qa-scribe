@@ -51,6 +51,8 @@ export const PROVIDER_MODEL_DEFAULTS = {"claude_code":"default","codex_cli":"def
 
 export const PROVIDER_REASONING_DEFAULTS = {"claude_code":"medium","codex_cli":"low","copilot_cli":null} as const;
 
+export const SELF_CLOSING_EDITOR_HTML_TAGS = ["br","img","input"] as const;
+
 /* Types */
 export type AiProvider = "claude_code" | "codex_cli" | "copilot_cli";
 

@@ -33,6 +33,7 @@ const tauriMock = vi.hoisted(() => ({
   updateSession: vi.fn(),
   updateSettings: vi.fn(),
   EDITOR_HTML_TAGS: ['a', 'b', 'br', 'em', 'h2', 'h3', 'i', 'img', 'input', 'li', 'ol', 'p', 'strong', 'ul'],
+  SELF_CLOSING_EDITOR_HTML_TAGS: ['br', 'img', 'input'],
   MANAGED_ATTACHMENT_PROTOCOL: 'qa-scribe-attachment://',
 }))
 

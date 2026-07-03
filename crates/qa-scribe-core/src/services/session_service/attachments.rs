@@ -10,19 +10,13 @@ use crate::{
 };
 
 use super::super::session_rows::map_attachment;
-use super::{SessionService, new_id, now, require_row_in_session, require_session};
+use super::{SessionService, new_id, now, require_session};
 
 impl SessionService {
     pub fn create_attachment(&self, draft: AttachmentDraft) -> Result<Attachment> {
         require_session(self.database.connection(), &draft.session_id)?;
         if let Some(entry_id) = &draft.entry_id {
-            require_row_in_session(
-                self.database.connection(),
-                "entries",
-                entry_id,
-                &draft.session_id,
-                "Attachment Entry must belong to the Session",
-            )?;
+            self.require_entry_in_session(entry_id, &draft.session_id)?;
         }
 
         let id = new_id();

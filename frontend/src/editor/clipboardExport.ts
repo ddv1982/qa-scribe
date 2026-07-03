@@ -1,4 +1,4 @@
-import { managedAttachmentProtocol, normalizeEditorHtml } from './editorHtml'
+import { isSafeEditorLinkUrl, managedAttachmentProtocol, normalizeEditorHtml } from './editorHtml'
 import { isSafeUrlWithProtocols, managedAttachmentIdFromImage } from './htmlUtils'
 
 export type ClipboardRecord = {
@@ -166,9 +166,18 @@ function renderPlainImage(image: HTMLImageElement): string {
 
 function safeLinkHref(link: HTMLAnchorElement): string | null {
   const href = link.getAttribute('href')?.trim() ?? ''
-  return isSafeUrlWithProtocols(href, new Set(['http:', 'https:', 'mailto:'])) ? href : null
+  return isSafeEditorLinkUrl(href) ? href : null
 }
 
+// Not a duplicate of editorHtml.ts's `isSafeEditorImageSource`: that function
+// answers "is this URL acceptable to keep in the editor's sanitized HTML"
+// (where managed-attachment and data: URIs are acceptable). This answers a
+// different question for plain-text clipboard export — "is this a plain
+// remote URL worth emitting as a markdown image link" — where
+// managed-attachment and data: sources are deliberately excluded (they can't
+// render outside the app / would bloat the exported text) and fall back to a
+// text placeholder instead. Only the underlying http(s)-only primitive is
+// shared, via `isSafeUrlWithProtocols`.
 function isSafeImageSource(source: string): boolean {
   return isSafeUrlWithProtocols(source, new Set(['http:', 'https:']))
 }

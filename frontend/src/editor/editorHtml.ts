@@ -1,18 +1,21 @@
-import { EDITOR_HTML_TAGS, MANAGED_ATTACHMENT_PROTOCOL, getAttachmentPreviewDataUrl } from '../tauri'
+import { EDITOR_HTML_TAGS, MANAGED_ATTACHMENT_PROTOCOL, SELF_CLOSING_EDITOR_HTML_TAGS, getAttachmentPreviewDataUrl } from '../tauri'
 import { escapeAttribute, escapeHtml, isSafeUrlWithProtocols, managedAttachmentIdFromImage } from './htmlUtils'
 
 export const emptyEditorHtml = ''
-// Single-sourced from Rust (`core::generation::html`/`response`): both the
-// managed-attachment protocol and the allowed editor tag list are exported
-// as bindings constants so the sanitizer here and the response-repair pass
-// in core can never silently diverge.
+// Single-sourced from Rust (`core::generation::html`/`response`): the
+// managed-attachment protocol, the allowed editor tag list, and its
+// void/self-closing subset are all exported as bindings constants so the
+// sanitizer here and the response-repair pass in core can never silently
+// diverge.
 export const managedAttachmentProtocol: string = MANAGED_ATTACHMENT_PROTOCOL
 const allowedEditorTags = new Set<string>(EDITOR_HTML_TAGS)
+const selfClosingEditorTags = new Set<string>(SELF_CLOSING_EDITOR_HTML_TAGS)
+const nonSelfClosingEditorTags = EDITOR_HTML_TAGS.filter((tag) => !selfClosingEditorTags.has(tag))
 const removedEditorTags = new Set(['embed', 'form', 'iframe', 'math', 'meta', 'object', 'script', 'style', 'svg', 'template'])
 const editorTagPattern = EDITOR_HTML_TAGS.join('|')
 const escapedEditorOpeningTagPattern = new RegExp(`&lt;(?:${editorTagPattern})(?:\\s|/|&gt;)`, 'i')
-const escapedEditorClosingTagPattern = new RegExp(`&lt;/(?:a|b|em|h2|h3|i|li|ol|p|strong|ul)&gt;`, 'i')
-const escapedSelfClosingEditorTagPattern = /&lt;(?:br|img|input)(?:\s|\/|&gt;)/i
+const escapedEditorClosingTagPattern = new RegExp(`&lt;/(?:${nonSelfClosingEditorTags.join('|')})&gt;`, 'i')
+const escapedSelfClosingEditorTagPattern = new RegExp(`&lt;(?:${SELF_CLOSING_EDITOR_HTML_TAGS.join('|')})(?:\\s|/|&gt;)`, 'i')
 const literalEditorTagPattern = new RegExp(`</?(?:${editorTagPattern})(?:\\s|/|>)`, 'i')
 
 export function containsInlineImageData(value: string): boolean {

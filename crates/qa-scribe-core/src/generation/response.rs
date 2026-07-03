@@ -19,6 +19,17 @@ pub fn editor_html_tags() -> Vec<String> {
     EDITOR_HTML_TAGS.iter().map(|tag| tag.to_string()).collect()
 }
 
+/// [`SELF_CLOSING_EDITOR_HTML_TAGS`] as an owned `Vec<String>`, for exporting
+/// as a typed bindings constant alongside [`editor_html_tags`]. The
+/// frontend's void-tag pattern in `editor/editorHtml.ts` derives from this
+/// instead of restating the literal list.
+pub fn self_closing_editor_html_tags() -> Vec<String> {
+    SELF_CLOSING_EDITOR_HTML_TAGS
+        .iter()
+        .map(|tag| tag.to_string())
+        .collect()
+}
+
 pub fn parse_rich_html_fragment_response(response: &str) -> String {
     let stripped = strip_response_fence(response);
     repair_escaped_editor_html(&stripped)
