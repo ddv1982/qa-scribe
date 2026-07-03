@@ -55,6 +55,7 @@
   background: var(--surface-raised);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
 }
 
 .editable-record {

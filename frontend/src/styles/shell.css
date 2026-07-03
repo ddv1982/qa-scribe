@@ -226,14 +226,27 @@ button:disabled:hover {
   overflow-y: auto;
   padding: var(--space-5);
   color: var(--text-primary);
-  background: var(--surface-raised);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
+}
+
+.confirmation-dialog[open] {
+  animation: dialog-in var(--duration-base) var(--ease-out);
 }
 
 .confirmation-dialog::backdrop {
   background: var(--backdrop);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
 }
 
 .generation-preflight {

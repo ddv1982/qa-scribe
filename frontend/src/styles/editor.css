@@ -61,6 +61,7 @@
   background: var(--surface-raised);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
   overflow: hidden;
 }
 
@@ -400,6 +401,15 @@
   max-width: 420px;
   margin: 0;
   line-height: var(--leading-relaxed);
+}
+
+.workspace-empty > svg,
+.empty-collection > svg {
+  box-sizing: content-box;
+  padding: var(--space-4);
+  color: var(--accent);
+  background: var(--accent-tint);
+  border-radius: var(--radius-full);
 }
 
 .empty-note-actions {
