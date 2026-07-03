@@ -11,6 +11,14 @@ import { useModalDialog } from '../hooks/useModalDialog'
 import type { AppController } from './useAppController'
 
 export function AppShell(c: AppController) {
+  const topAction =
+    c.activeView === 'notes'
+      ? { label: 'New note', busy: 'new-note' as const, run: () => void c.handleNewSession() }
+      : c.activeView === 'testware'
+        ? { label: 'New testware', busy: 'manual-testware' as const, run: () => void c.handleManualTestware() }
+        : c.activeView === 'findings'
+          ? { label: 'New finding', busy: 'manual-finding' as const, run: () => void c.handleManualFinding() }
+          : null
   return (
     <main className="app-shell" onPaste={c.handlePaste}>
       <header className="top-bar">
@@ -29,10 +37,12 @@ export function AppShell(c: AppController) {
 
         <div className="top-actions">
           <ThemeToggle theme={c.theme} onThemeChange={c.setTheme} />
-          <button className="primary-button top-new-button" type="button" disabled={c.isBusy} onClick={() => void c.handleNewSession()}>
-            {c.busyAction === 'new-note' ? <Loader2 className="spin" size={17} /> : <Plus size={17} />}
-            New note
-          </button>
+          {topAction ? (
+            <button className="primary-button top-new-button" type="button" disabled={c.isBusy} onClick={topAction.run}>
+              {c.busyAction === topAction.busy ? <Loader2 className="spin" size={17} /> : <Plus size={17} />}
+              {topAction.label}
+            </button>
+          ) : null}
         </div>
       </header>
 
@@ -132,7 +142,6 @@ export function AppShell(c: AppController) {
             onCopyDraft={c.handleCopyDraftForJira}
             onCopyDraftScreenshot={c.handleCopyDraftScreenshotForJira}
             onDeleteDraft={c.requestDeleteDraft}
-            onManualCreate={c.handleManualTestware}
             onPrefillFromNote={c.handlePrefillTestwareFromNote}
             onSaveDraft={c.handleSaveDraft}
             onUploadImage={(input) => c.uploadEditorImage(input, null)}
@@ -155,7 +164,6 @@ export function AppShell(c: AppController) {
             onCopyFinding={c.handleCopyFindingForJira}
             onCopyFindingScreenshot={c.handleCopyFindingScreenshotForJira}
             onDeleteFinding={c.requestDeleteFinding}
-            onManualCreate={c.handleManualFinding}
             onPrefillFromNote={c.handlePrefillFindingFromNote}
             onSaveFinding={c.handleSaveFinding}
             onUploadImage={(input) => c.uploadEditorImage(input, null)}

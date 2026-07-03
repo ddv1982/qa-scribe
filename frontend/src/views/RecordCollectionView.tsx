@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { FileText, Loader2, Plus } from 'lucide-react'
+import { FileText, Loader2 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { EmptyCollection, StatusPill } from '../components/Common'
@@ -22,7 +22,6 @@ export type RecordCollectionLabels = {
   heading: string
   emptyTitle: string
   prefillLabel: string
-  manualLabel: string
   generationTitle: string
   generationTitleAriaLabel: string
   generationPlaceholder: string
@@ -42,7 +41,6 @@ export function RecordCollectionView<T extends CollectionRecord>({
   labels,
   emptyIcon,
   prefillBusyAction,
-  manualBusyAction,
   busyAction,
   busyActionFor,
   copiedRecordId,
@@ -60,7 +58,6 @@ export function RecordCollectionView<T extends CollectionRecord>({
   onCopyRecord,
   onCopyRecordScreenshot,
   onDeleteRecord,
-  onManualCreate,
   onPrefillFromNote,
   onSaveRecord,
   onUploadImage,
@@ -68,7 +65,6 @@ export function RecordCollectionView<T extends CollectionRecord>({
   labels: RecordCollectionLabels
   emptyIcon: LucideIcon
   prefillBusyAction: BusyAction
-  manualBusyAction: BusyAction
   busyAction: BusyAction | null
   busyActionFor: (record: T, kind: RecordBusyActionKind) => BusyAction
   copiedRecordId: string | null
@@ -86,7 +82,6 @@ export function RecordCollectionView<T extends CollectionRecord>({
   onCopyRecord: (record: T) => Promise<void>
   onCopyRecordScreenshot: (record: T) => Promise<void>
   onDeleteRecord: (record: T) => void
-  onManualCreate: () => Promise<void>
   onPrefillFromNote: () => Promise<void>
   onSaveRecord: (record: T) => Promise<boolean>
   onUploadImage: (input: RichEditorImageUpload) => void | Promise<void>
@@ -105,10 +100,6 @@ export function RecordCollectionView<T extends CollectionRecord>({
           <button className="secondary-button" type="button" disabled={isBusy} onClick={() => void onPrefillFromNote()}>
             {busyAction === prefillBusyAction ? <Loader2 className="spin" size={16} /> : <FileText size={16} />}
             {labels.prefillLabel}
-          </button>
-          <button className="primary-button" type="button" disabled={isBusy} onClick={() => void onManualCreate()}>
-            {busyAction === manualBusyAction ? <Loader2 className="spin" size={16} /> : <Plus size={16} />}
-            {labels.manualLabel}
           </button>
         </div>
       </header>

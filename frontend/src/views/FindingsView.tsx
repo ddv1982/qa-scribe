@@ -10,7 +10,6 @@ const findingsLabels: RecordCollectionLabels = {
   heading: 'Issues and risks',
   emptyTitle: 'No findings yet',
   prefillLabel: 'Prefill from note',
-  manualLabel: 'New finding',
   generationTitle: 'Generating finding',
   generationTitleAriaLabel: 'Pending finding title',
   generationPlaceholder: 'Preparing finding...',
@@ -38,7 +37,6 @@ export function FindingsView({
   onCopyFinding,
   onCopyFindingScreenshot,
   onDeleteFinding,
-  onManualCreate,
   onPrefillFromNote,
   onSaveFinding,
   onUploadImage,
@@ -57,7 +55,6 @@ export function FindingsView({
   onCopyFinding: (finding: Finding) => Promise<void>
   onCopyFindingScreenshot: (finding: Finding) => Promise<void>
   onDeleteFinding: (finding: Finding) => void
-  onManualCreate: () => Promise<void>
   onPrefillFromNote: () => Promise<void>
   onSaveFinding: (finding: Finding) => Promise<boolean>
   onUploadImage: (input: RichEditorImageUpload) => void | Promise<void>
@@ -67,7 +64,6 @@ export function FindingsView({
       labels={findingsLabels}
       emptyIcon={Flag}
       prefillBusyAction="prefill-finding"
-      manualBusyAction="manual-finding"
       busyAction={busyAction}
       copiedRecordId={copiedFindingId}
       copiedRecordScreenshotId={copiedFindingScreenshotId}
@@ -100,7 +96,6 @@ export function FindingsView({
       onCopyRecord={onCopyFinding}
       onCopyRecordScreenshot={onCopyFindingScreenshot}
       onDeleteRecord={onDeleteFinding}
-      onManualCreate={onManualCreate}
       onPrefillFromNote={onPrefillFromNote}
       onSaveRecord={onSaveFinding}
       onUploadImage={onUploadImage}

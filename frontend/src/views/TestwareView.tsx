@@ -15,7 +15,6 @@ const testwareLabels: RecordCollectionLabels = {
   heading: 'Test cases',
   emptyTitle: 'No testware yet',
   prefillLabel: 'Prefill from note',
-  manualLabel: 'New testware',
   generationTitle: 'Generating test cases',
   generationTitleAriaLabel: 'Pending testware title',
   generationPlaceholder: 'Preparing testware...',
@@ -43,7 +42,6 @@ export function TestwareView({
   onCopyDraft,
   onCopyDraftScreenshot,
   onDeleteDraft,
-  onManualCreate,
   onPrefillFromNote,
   onSaveDraft,
   onUploadImage,
@@ -62,7 +60,6 @@ export function TestwareView({
   onCopyDraft: (draft: Draft) => Promise<void>
   onCopyDraftScreenshot: (draft: Draft) => Promise<void>
   onDeleteDraft: (draft: Draft) => void
-  onManualCreate: () => Promise<void>
   onPrefillFromNote: () => Promise<void>
   onSaveDraft: (draft: Draft) => Promise<boolean>
   onUploadImage: (input: RichEditorImageUpload) => void | Promise<void>
@@ -72,7 +69,6 @@ export function TestwareView({
       labels={testwareLabels}
       emptyIcon={Box}
       prefillBusyAction="prefill-testware"
-      manualBusyAction="manual-testware"
       busyAction={busyAction}
       copiedRecordId={copiedDraftId}
       copiedRecordScreenshotId={copiedDraftScreenshotId}
@@ -114,7 +110,6 @@ export function TestwareView({
       onCopyRecord={onCopyDraft}
       onCopyRecordScreenshot={onCopyDraftScreenshot}
       onDeleteRecord={onDeleteDraft}
-      onManualCreate={onManualCreate}
       onPrefillFromNote={onPrefillFromNote}
       onSaveRecord={onSaveDraft}
       onUploadImage={onUploadImage}

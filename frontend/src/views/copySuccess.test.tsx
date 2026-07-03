@@ -75,7 +75,6 @@ describe('copy success buttons', () => {
         onCopyDraft={async () => undefined}
         onCopyDraftScreenshot={async () => undefined}
         onDeleteDraft={() => undefined}
-        onManualCreate={async () => undefined}
         onPrefillFromNote={async () => undefined}
         onSaveDraft={async () => true}
         onUploadImage={() => undefined}
@@ -103,7 +102,6 @@ describe('copy success buttons', () => {
         onCopyFinding={async () => undefined}
         onCopyFindingScreenshot={async () => undefined}
         onDeleteFinding={() => undefined}
-        onManualCreate={async () => undefined}
         onPrefillFromNote={async () => undefined}
         onSaveFinding={async () => true}
         onUploadImage={() => undefined}
@@ -169,7 +167,6 @@ describe('copy success buttons', () => {
         onCopyDraft={async () => undefined}
         onCopyDraftScreenshot={async () => undefined}
         onDeleteDraft={() => undefined}
-        onManualCreate={async () => undefined}
         onPrefillFromNote={async () => undefined}
         onSaveDraft={async () => true}
         onUploadImage={() => undefined}
@@ -197,7 +194,6 @@ describe('copy success buttons', () => {
         onCopyFinding={async () => undefined}
         onCopyFindingScreenshot={async () => undefined}
         onDeleteFinding={() => undefined}
-        onManualCreate={async () => undefined}
         onPrefillFromNote={async () => undefined}
         onSaveFinding={async () => true}
         onUploadImage={() => undefined}
@@ -226,7 +222,6 @@ describe('copy success buttons', () => {
         onCopyDraft={async () => undefined}
         onCopyDraftScreenshot={async () => undefined}
         onDeleteDraft={() => undefined}
-        onManualCreate={async () => undefined}
         onPrefillFromNote={async () => undefined}
         onSaveDraft={async () => false}
         onUploadImage={() => undefined}
@@ -257,7 +252,6 @@ describe('copy success buttons', () => {
         onCopyFinding={async () => undefined}
         onCopyFindingScreenshot={async () => undefined}
         onDeleteFinding={() => undefined}
-        onManualCreate={async () => undefined}
         onPrefillFromNote={async () => undefined}
         onSaveFinding={async () => false}
         onUploadImage={() => undefined}

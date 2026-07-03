@@ -219,8 +219,12 @@ button:disabled:hover {
 .confirmation-dialog {
   display: grid;
   gap: var(--space-5);
+  align-content: start;
   width: min(100%, 440px);
   max-width: calc(100vw - 40px);
+  /* Explicit fit-content: some WebKit builds stretch an auto-height
+   * fixed-inset <dialog> to fill the viewport, ballooning grid rows. */
+  height: fit-content;
   max-height: calc(100dvh - 40px);
   margin: auto;
   overflow-y: auto;
