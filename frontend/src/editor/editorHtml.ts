@@ -1,4 +1,5 @@
 import { getAttachmentPreviewDataUrl } from '../tauri'
+import { escapeAttribute, escapeHtml, isSafeUrlWithProtocols, managedAttachmentIdFromImage } from './htmlUtils'
 
 export const emptyEditorHtml = ''
 export const managedAttachmentProtocol = 'qa-scribe-attachment://'
@@ -88,19 +89,6 @@ function dataUrlImageExtension(dataUrl: string): string {
   return 'png'
 }
 
-function escapeAttribute(value: string): string {
-  return escapeHtml(value).replace(/`/g, '&#96;')
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
-}
-
 function repairEscapedEditorHtml(value: string): string {
   if (!shouldDecodeEscapedEditorHtml(value)) return value
   return decodeHtmlEntities(value).trim()
@@ -115,15 +103,6 @@ function decodeHtmlEntities(value: string): string {
   const textarea = document.createElement('textarea')
   textarea.innerHTML = value
   return textarea.value
-}
-
-function managedAttachmentIdFromImage(image: HTMLImageElement): string | null {
-  return image.getAttribute('data-attachment-id') || managedAttachmentIdFromSrc(image.getAttribute('src') ?? '')
-}
-
-function managedAttachmentIdFromSrc(source: string): string | null {
-  if (!source.startsWith(managedAttachmentProtocol)) return null
-  return source.slice(managedAttachmentProtocol.length)
 }
 
 function sanitizeNoteHtml(value: string): string {
@@ -285,12 +264,3 @@ export function isSafeEditorLinkUrl(source: string): boolean {
   return isSafeUrlWithProtocols(source, new Set(['http:', 'https:', 'mailto:']))
 }
 
-function isSafeUrlWithProtocols(source: string, protocols: Set<string>): boolean {
-  if (!source) return false
-  try {
-    const base = window.location.href || 'https://qa-scribe.local/'
-    return protocols.has(new URL(source, base).protocol)
-  } catch {
-    return false
-  }
-}

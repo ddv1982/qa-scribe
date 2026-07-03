@@ -1,14 +1,8 @@
 import type { ReactNode } from 'react'
 import { CheckCircle2, Copy, Image as ImageIcon, Loader2, PencilLine, Save, Trash2, X } from 'lucide-react'
 import { FormatToolbar, RichTextEditor, type RichEditorImageUpload } from '../editor/RichTextEditor'
-import { richEditorDocumentFromHtml, richEditorDocumentFromStoredBody, richEditorDocumentToStoredBody } from '../editor/editorDocument'
+import { richEditorDocumentFromHtml, richEditorDocumentFromStoredBody, richEditorDocumentToStoredBody, type StoredRichBody } from '../editor/editorDocument'
 import type { GenerationJobStatus } from '../tauri'
-
-type StoredRichBody = {
-  body: string
-  bodyJson: string | null
-  bodyFormat: string | null
-}
 
 export function GenerationRecord({
   title,

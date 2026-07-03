@@ -22,51 +22,47 @@ export function createCopyActions(ctx: AppWorkflowContext) {
     }, 1800)
   }
 
-  async function handleCopyNoteForJira() {
-    if (!ctx.activeSession) return
-    const sessionId = ctx.activeSession.id
+  async function copyTextForJira(record: { title: string; bodyHtml: string }, target: CopiedTarget, busy: BusyAction, successNotice: string) {
     try {
       clearCopiedTarget()
-      ctx.setBusyAction('copy-note')
+      ctx.setBusyAction(busy)
       ctx.setError(null)
-      await copyRecordForJira({ title: ctx.noteTitle, bodyHtml: ctx.noteBodyHtml })
-      markCopiedTarget({ kind: 'note', id: sessionId, action: 'jira-text' })
-      ctx.setNotice('Note copied for Jira')
+      await copyRecordForJira(record)
+      markCopiedTarget(target)
+      ctx.setNotice(successNotice)
     } catch (cause) {
       ctx.setError(formatError(cause))
     } finally {
       ctx.setBusyAction(null)
     }
+  }
+
+  async function handleCopyNoteForJira() {
+    if (!ctx.activeSession) return
+    await copyTextForJira(
+      { title: ctx.noteTitle, bodyHtml: ctx.noteBodyHtml },
+      { kind: 'note', id: ctx.activeSession.id, action: 'jira-text' },
+      'copy-note',
+      'Note copied for Jira',
+    )
   }
 
   async function handleCopyDraftForJira(draft: Draft) {
-    try {
-      clearCopiedTarget()
-      ctx.setBusyAction(`copy-draft:${draft.id}`)
-      ctx.setError(null)
-      await copyRecordForJira({ title: draft.title, bodyHtml: draft.body })
-      markCopiedTarget({ kind: 'draft', id: draft.id, action: 'jira-text' })
-      ctx.setNotice('Testware copied for Jira')
-    } catch (cause) {
-      ctx.setError(formatError(cause))
-    } finally {
-      ctx.setBusyAction(null)
-    }
+    await copyTextForJira(
+      { title: draft.title, bodyHtml: draft.body },
+      { kind: 'draft', id: draft.id, action: 'jira-text' },
+      `copy-draft:${draft.id}`,
+      'Testware copied for Jira',
+    )
   }
 
   async function handleCopyFindingForJira(finding: Finding) {
-    try {
-      clearCopiedTarget()
-      ctx.setBusyAction(`copy-finding:${finding.id}`)
-      ctx.setError(null)
-      await copyRecordForJira({ title: finding.title, bodyHtml: finding.body })
-      markCopiedTarget({ kind: 'finding', id: finding.id, action: 'jira-text' })
-      ctx.setNotice('Finding copied for Jira')
-    } catch (cause) {
-      ctx.setError(formatError(cause))
-    } finally {
-      ctx.setBusyAction(null)
-    }
+    await copyTextForJira(
+      { title: finding.title, bodyHtml: finding.body },
+      { kind: 'finding', id: finding.id, action: 'jira-text' },
+      `copy-finding:${finding.id}`,
+      'Finding copied for Jira',
+    )
   }
 
   async function copyFirstScreenshotForJira(

@@ -1,4 +1,5 @@
 import { stripHtml } from '../editor/editorHtml'
+import { escapeHtml } from '../editor/htmlUtils'
 
 export function renderPrefilledTestware(title: string, body: string): string {
   const note = stripHtml(body) || 'Add source note detail.'
@@ -23,13 +24,4 @@ export function renderPrefilledFinding(body: string): string {
     '<h3>Impact</h3>',
     '<p>Describe user impact and risk.</p>',
   ].join('')
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
 }

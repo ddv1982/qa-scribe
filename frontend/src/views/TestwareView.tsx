@@ -1,6 +1,4 @@
-import { useState } from 'react'
-import { Box, FileText, Loader2, Plus } from 'lucide-react'
-import { EmptyCollection, StatusPill } from '../components/Common'
+import { Box } from 'lucide-react'
 import type { RichEditorImageUpload } from '../editor/RichTextEditor'
 import {
   parseTestwareGenerationMetadata,
@@ -10,7 +8,7 @@ import {
 } from '../testware/generationPreferences'
 import type { Draft, GenerationJobStatus } from '../tauri'
 import type { BusyAction } from '../ui/types'
-import { EditableRichRecord, GenerationRecord, RichRecordActions } from './RichRecordView'
+import { RecordCollectionView } from './RecordCollectionView'
 
 export function TestwareView({
   busyAction,
@@ -51,132 +49,63 @@ export function TestwareView({
   onSaveDraft: (draft: Draft) => Promise<boolean>
   onUploadImage: (input: RichEditorImageUpload) => void | Promise<void>
 }) {
-  const [editingDraftIds, setEditingDraftIds] = useState<Record<string, boolean>>({})
-  const setDraftEditing = (id: string, editing: boolean) => setEditingDraftIds((previous) => ({ ...previous, [id]: editing }))
-
   return (
-    <section className="collection-view">
-      <header className="collection-header">
-        <div>
-          <p className="eyebrow">Testware</p>
-          <h1>Test cases</h1>
-        </div>
-        <div className="collection-header-actions">
-          <button className="secondary-button" type="button" disabled={isBusy} onClick={() => void onPrefillFromNote()}>
-            {busyAction === 'prefill-testware' ? <Loader2 className="spin" size={16} /> : <FileText size={16} />}
-            Prefill from note
-          </button>
-          <button className="primary-button" type="button" disabled={isBusy} onClick={() => void onManualCreate()}>
-            {busyAction === 'manual-testware' ? <Loader2 className="spin" size={16} /> : <Plus size={16} />}
-            New testware
-          </button>
-        </div>
-      </header>
-      {notice || error ? (
-        <div className="collection-status">
-          <StatusPill notice={notice} error={error} busyAction={busyAction} />
-        </div>
-      ) : null}
-
-      <div className="collection-stack">
-        {activeGenerationJob ? (
-          <GenerationRecord
-            title="Generating test cases"
-            titleAriaLabel="Pending testware title"
-            job={activeGenerationJob}
-            placeholder="Preparing testware..."
-            bodyAriaLabel="Pending generated testware"
-            onCancelGenerationJob={onCancelGenerationJob}
-          />
-        ) : null}
-        {drafts.map((draft) => {
-          const deletingDraft = busyAction === `delete-draft:${draft.id}`
-          const copyingDraft = busyAction === `copy-draft:${draft.id}`
-          const copyingDraftScreenshot = busyAction === `copy-draft-screenshot:${draft.id}`
-          const draftCopied = copiedDraftId === draft.id
-          const draftScreenshotCopied = copiedDraftScreenshotId === draft.id
-          const draftScreenshotCount = draftScreenshotCounts[draft.id] ?? 0
-          const savingDraft = busyAction === `draft:${draft.id}`
-          const editorId = `testware-editor-${draft.id}`
-          const draftTitle = draft.title.trim()
-          const copyLabel = draftCopyLabel(draftTitle, draftCopied)
-          const screenshotCopyLabel = draftScreenshotCopyLabel(draftTitle, draftScreenshotCopied, draftScreenshotCount)
-          const editingDraft = Boolean(editingDraftIds[draft.id])
-          const generationMetadata = parseTestwareGenerationMetadata(draft)
-          return (
-            <EditableRichRecord
-              key={draft.id}
-              record={draft}
-              editing={editingDraft}
-              editorId={editorId}
-              titleInputLabel="Testware title"
-              bodyAriaLabel={`${draft.title} testware ${editingDraft ? 'body' : 'preview'}`}
-              placeholder="Write test cases..."
-              previewFallbackHtml="<p>No testware detail yet.</p>"
-              previewHeader={
-                <div className="record-heading-row">
-                  <h2 className="record-title">{draft.title}</h2>
-                  {generationMetadata ? (
-                    <div className="testware-metadata-badges" aria-label="Testware generation settings">
-                      <span>{testwareTechniqueLabel(generationMetadata.technique)}</span>
-                      <span>{testwareDepthLabel(generationMetadata.depth)}</span>
-                      <span>{testwareOutputFormatLabel(generationMetadata.outputFormat)}</span>
-                    </div>
-                  ) : null}
-                </div>
-              }
-              onTitleChange={(title) => updateLocalDraft(draft.id, { title })}
-              onBodyChange={(patch) => updateLocalDraft(draft.id, patch)}
-              onUploadImage={onUploadImage}
-              actions={
-                <RichRecordActions
-                  copied={draftCopied}
-                  copying={copyingDraft}
-                  copyLabel={copyLabel}
-                  copyTitle={draftCopied ? 'Copied' : 'Copy for Jira'}
-                  deleting={deletingDraft}
-                  deleteLabel={`Delete ${draft.title}`}
-                  deleteTitle="Delete testware"
-                  editing={editingDraft}
-                  isBusy={isBusy}
-                  saving={savingDraft}
-                  screenshot={{
-                    copied: draftScreenshotCopied,
-                    copying: copyingDraftScreenshot,
-                    count: draftScreenshotCount,
-                    label: screenshotCopyLabel,
-                    title: draftScreenshotCopied ? 'Screenshot copied' : draftScreenshotCount > 1 ? 'Copy first screenshot' : 'Copy screenshot',
-                    onCopy: () => void onCopyDraftScreenshot(draft),
-                  }}
-                  onCopy={() => void onCopyDraft(draft)}
-                  onDelete={() => void onDeleteDraft(draft)}
-                  onToggleEdit={() => {
-                    if (editingDraft) {
-                      void onSaveDraft(draft).then((saved) => {
-                        if (saved) setDraftEditing(draft.id, false)
-                      })
-                    } else {
-                      setDraftEditing(draft.id, true)
-                    }
-                  }}
-                />
-              }
-            />
-          )
-        })}
-        {drafts.length === 0 && !activeGenerationJob ? <EmptyCollection icon={Box} title="No testware yet" /> : null}
-      </div>
-    </section>
+    <RecordCollectionView
+      eyebrow="Testware"
+      heading="Test cases"
+      emptyIcon={Box}
+      emptyTitle="No testware yet"
+      prefillBusyAction="prefill-testware"
+      prefillLabel="Prefill from note"
+      manualBusyAction="manual-testware"
+      manualLabel="New testware"
+      busyAction={busyAction}
+      copiedRecordId={copiedDraftId}
+      copiedRecordScreenshotId={copiedDraftScreenshotId}
+      recordScreenshotCounts={draftScreenshotCounts}
+      records={drafts}
+      notice={notice}
+      error={error}
+      isBusy={isBusy}
+      activeGenerationJob={activeGenerationJob}
+      generationTitle="Generating test cases"
+      generationTitleAriaLabel="Pending testware title"
+      generationPlaceholder="Preparing testware..."
+      generationBodyAriaLabel="Pending generated testware"
+      editorIdPrefix="testware-editor"
+      titleInputLabel="Testware title"
+      recordNounLower="testware"
+      bodyAriaLabelSuffix="testware"
+      placeholder="Write test cases..."
+      previewFallbackHtml="<p>No testware detail yet.</p>"
+      renderPreviewHeader={(draft) => {
+        const generationMetadata = parseTestwareGenerationMetadata(draft)
+        return (
+          <div className="record-heading-row">
+            <h2 className="record-title">{draft.title}</h2>
+            {generationMetadata ? (
+              <div className="testware-metadata-badges" aria-label="Testware generation settings">
+                <span>{testwareTechniqueLabel(generationMetadata.technique)}</span>
+                <span>{testwareDepthLabel(generationMetadata.depth)}</span>
+                <span>{testwareOutputFormatLabel(generationMetadata.outputFormat)}</span>
+              </div>
+            ) : null}
+          </div>
+        )
+      }}
+      deleteBusyAction={(draft) => `delete-draft:${draft.id}`}
+      copyBusyAction={(draft) => `copy-draft:${draft.id}`}
+      copyScreenshotBusyAction={(draft) => `copy-draft-screenshot:${draft.id}`}
+      savingBusyAction={(draft) => `draft:${draft.id}`}
+      updateLocalRecord={updateLocalDraft}
+      onCancelGenerationJob={onCancelGenerationJob}
+      onCopyRecord={onCopyDraft}
+      onCopyRecordScreenshot={onCopyDraftScreenshot}
+      onDeleteRecord={onDeleteDraft}
+      onManualCreate={onManualCreate}
+      onPrefillFromNote={onPrefillFromNote}
+      onSaveRecord={onSaveDraft}
+      onUploadImage={onUploadImage}
+    />
   )
-}
-
-function draftCopyLabel(title: string, copied: boolean): string {
-  if (copied) return title ? `${title} copied for Jira` : 'Testware copied for Jira'
-  return title ? `Copy ${title} for Jira` : 'Copy testware for Jira'
-}
-
-function draftScreenshotCopyLabel(title: string, copied: boolean, count: number): string {
-  if (copied) return title ? `${title} screenshot copied for Jira` : 'Testware screenshot copied for Jira'
-  if (count > 1) return title ? `Copy first ${title} screenshot for Jira` : 'Copy first testware screenshot for Jira'
-  return title ? `Copy ${title} screenshot for Jira` : 'Copy testware screenshot for Jira'
 }

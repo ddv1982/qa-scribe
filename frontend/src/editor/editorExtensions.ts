@@ -6,6 +6,7 @@ import StarterKit from '@tiptap/starter-kit'
 import TaskItem from '@tiptap/extension-task-item'
 import TaskList from '@tiptap/extension-task-list'
 import { managedAttachmentProtocol, isSafeEditorLinkUrl } from './editorHtml'
+import { managedAttachmentIdFromSrc } from './htmlUtils'
 
 export const ManagedImage = Image.extend({
   addAttributes() {
@@ -22,7 +23,7 @@ export const ManagedImage = Image.extend({
       },
       attachmentId: {
         default: null,
-        parseHTML: (element: HTMLElement) => element.getAttribute('data-attachment-id') || managedAttachmentIdFromSource(element.getAttribute('src') ?? ''),
+        parseHTML: (element: HTMLElement) => element.getAttribute('data-attachment-id') || managedAttachmentIdFromSrc(element.getAttribute('src') ?? ''),
         renderHTML: (attributes) => {
           const attachmentId = stringAttribute(attributes.attachmentId)
           return attachmentId ? { 'data-attachment-id': attachmentId } : {}
@@ -85,9 +86,4 @@ export function richTextEditorExtensions(placeholder?: string) {
 
 function stringAttribute(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value : null
-}
-
-function managedAttachmentIdFromSource(source: string): string | null {
-  if (!source.startsWith(managedAttachmentProtocol)) return null
-  return source.slice(managedAttachmentProtocol.length)
 }

@@ -1,6 +1,7 @@
 import { generateHTML, generateJSON, type JSONContent } from '@tiptap/core'
 import { richTextEditorExtensions } from './editorExtensions'
 import { emptyEditorHtml, managedAttachmentProtocol, normalizeEditorHtml, stripHtml } from './editorHtml'
+import { escapeHtml } from './htmlUtils'
 
 export type RichEditorDocument = {
   schemaVersion: 1
@@ -188,13 +189,4 @@ function isPreservableExternalImageSource(source: string): boolean {
   } catch {
     return false
   }
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
 }

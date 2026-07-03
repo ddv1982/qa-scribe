@@ -1,4 +1,5 @@
 import { managedAttachmentProtocol, normalizeEditorHtml } from './editorHtml'
+import { isSafeUrlWithProtocols, managedAttachmentIdFromImage } from './htmlUtils'
 
 export type ClipboardRecord = {
   title: string
@@ -6,7 +7,6 @@ export type ClipboardRecord = {
 }
 
 export type ClipboardPayload = {
-  html: string
   plain: string
 }
 
@@ -28,15 +28,11 @@ function createNormalizedBody(bodyHtml: string): HTMLDivElement {
 function renderClipboardPayload(titleInput: string, body: ParentNode): ClipboardPayload {
   const title = titleInput.trim()
 
-  const htmlParts = [title ? `<h2>${escapeHtml(title)}</h2>` : '']
-    .map((part) => part.trim())
-    .filter(Boolean)
   const plainParts = [title ? `## ${title}` : '', renderPlainChildren(body)]
     .map((part) => trimBlankLines(part))
     .filter(Boolean)
 
   return {
-    html: htmlParts.join('\n'),
     plain: trimBlankLines(plainParts.join('\n\n')),
   }
 }
@@ -70,15 +66,6 @@ export function managedAttachmentReferencesForClipboard(record: ClipboardRecord)
   })
 
   return Array.from(references.values())
-}
-
-function managedAttachmentIdFromImage(image: HTMLImageElement): string | null {
-  return image.getAttribute('data-attachment-id') || managedAttachmentIdFromSrc(image.getAttribute('src') ?? '')
-}
-
-function managedAttachmentIdFromSrc(source: string): string | null {
-  if (!source.startsWith(managedAttachmentProtocol)) return null
-  return source.slice(managedAttachmentProtocol.length)
 }
 
 function renderPlainChildren(parent: ParentNode): string {
@@ -190,16 +177,6 @@ function isDataImageSource(source: string): boolean {
   return /^data:image\//i.test(source)
 }
 
-function isSafeUrlWithProtocols(source: string, protocols: Set<string>): boolean {
-  if (!source) return false
-  try {
-    const base = window.location.href || 'https://qa-scribe.local/'
-    return protocols.has(new URL(source, base).protocol)
-  } catch {
-    return false
-  }
-}
-
 function trimBlankLines(value: string): string {
   return value
     .split('\n')
@@ -211,13 +188,4 @@ function trimBlankLines(value: string): string {
 
 function collapseWhitespace(value: string): string {
   return value.replace(/[ \t\n\r]+/g, ' ').trim()
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
 }

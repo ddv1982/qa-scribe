@@ -15,112 +15,102 @@ import {
   emptyRichEditorDocument,
   richEditorDocumentFromHtml,
   richEditorDocumentToStoredBody,
+  type RichEditorDocument,
 } from '../editor/editorDocument'
 import { formatError, nextUntitledRecordTitle } from '../ui/format'
 import { renderPrefilledFinding, renderPrefilledTestware } from '../workflows/prefillTemplates'
 import type { AppWorkflowContext, RichRecordPatch } from './types'
+import type { BusyAction, WorkspaceView } from '../ui/types'
 
 export function createRecordActions(
   ctx: AppWorkflowContext,
   saveNoteNow: (options?: { manageBusy?: boolean }) => Promise<boolean>,
   handleDeleteNote: (session: Session) => Promise<void>,
 ) {
-  async function handleManualTestware() {
-    if (!ctx.activeSession) return
+  async function createRecordFromNote(
+    busy: BusyAction,
+    bodyDocument: RichEditorDocument,
+    untitledTitle: string,
+    existingTitles: Array<{ title: string }>,
+    create: (title: string, body: ReturnType<typeof richEditorDocumentToStoredBody>) => Promise<unknown>,
+    refresh: () => Promise<void>,
+    view: WorkspaceView,
+    successNotice: string,
+  ) {
     try {
-      ctx.setBusyAction('manual-testware')
+      ctx.setBusyAction(busy)
       ctx.setError(null)
       const saved = await saveNoteNow({ manageBusy: false })
       if (!saved) return
-      await createDraft({
-        sessionId: ctx.activeSession.id,
-        aiRunId: null,
-        kind: 'testware',
-        title: nextUntitledRecordTitle(ctx.testwareDrafts, 'Untitled testware'),
-        ...richEditorDocumentToStoredBody(emptyRichEditorDocument),
-        metadataJson: null,
-      })
-      ctx.setDrafts(await listDrafts(ctx.activeSession.id))
-      ctx.setActiveView('testware')
-      ctx.setNotice('Manual testware created')
+      await create(nextUntitledRecordTitle(existingTitles, untitledTitle), richEditorDocumentToStoredBody(bodyDocument))
+      await refresh()
+      ctx.setActiveView(view)
+      ctx.setNotice(successNotice)
     } catch (cause) {
       ctx.setError(formatError(cause))
     } finally {
       ctx.setBusyAction(null)
     }
+  }
+
+  async function handleManualTestware() {
+    if (!ctx.activeSession) return
+    const session = ctx.activeSession
+    await createRecordFromNote(
+      'manual-testware',
+      emptyRichEditorDocument,
+      'Untitled testware',
+      ctx.testwareDrafts,
+      (title, body) => createDraft({ sessionId: session.id, aiRunId: null, kind: 'testware', title, ...body, metadataJson: null }),
+      async () => ctx.setDrafts(await listDrafts(session.id)),
+      'testware',
+      'Manual testware created',
+    )
   }
 
   async function handlePrefillTestwareFromNote() {
     if (!ctx.activeSession) return
-    try {
-      ctx.setBusyAction('prefill-testware')
-      ctx.setError(null)
-      const saved = await saveNoteNow({ manageBusy: false })
-      if (!saved) return
-      await createDraft({
-        sessionId: ctx.activeSession.id,
-        aiRunId: null,
-        kind: 'testware',
-        title: nextUntitledRecordTitle(ctx.testwareDrafts, 'Untitled testware'),
-        ...richEditorDocumentToStoredBody(richEditorDocumentFromHtml(renderPrefilledTestware(ctx.activeSession.title, ctx.noteBodyHtml))),
-        metadataJson: null,
-      })
-      ctx.setDrafts(await listDrafts(ctx.activeSession.id))
-      ctx.setActiveView('testware')
-      ctx.setNotice('Testware prefilled from note')
-    } catch (cause) {
-      ctx.setError(formatError(cause))
-    } finally {
-      ctx.setBusyAction(null)
-    }
+    const session = ctx.activeSession
+    await createRecordFromNote(
+      'prefill-testware',
+      richEditorDocumentFromHtml(renderPrefilledTestware(session.title, ctx.noteBodyHtml)),
+      'Untitled testware',
+      ctx.testwareDrafts,
+      (title, body) => createDraft({ sessionId: session.id, aiRunId: null, kind: 'testware', title, ...body, metadataJson: null }),
+      async () => ctx.setDrafts(await listDrafts(session.id)),
+      'testware',
+      'Testware prefilled from note',
+    )
   }
 
   async function handleManualFinding() {
     if (!ctx.activeSession) return
-    try {
-      ctx.setBusyAction('manual-finding')
-      ctx.setError(null)
-      const saved = await saveNoteNow({ manageBusy: false })
-      if (!saved) return
-      await createFinding({
-        sessionId: ctx.activeSession.id,
-        title: nextUntitledRecordTitle(ctx.findings, 'Untitled finding'),
-        ...richEditorDocumentToStoredBody(emptyRichEditorDocument),
-        kind: 'bug',
-        metadataJson: null,
-      })
-      ctx.setFindings(await listFindings(ctx.activeSession.id))
-      ctx.setActiveView('findings')
-      ctx.setNotice('Manual finding created')
-    } catch (cause) {
-      ctx.setError(formatError(cause))
-    } finally {
-      ctx.setBusyAction(null)
-    }
+    const session = ctx.activeSession
+    await createRecordFromNote(
+      'manual-finding',
+      emptyRichEditorDocument,
+      'Untitled finding',
+      ctx.findings,
+      (title, body) => createFinding({ sessionId: session.id, title, ...body, kind: 'bug', metadataJson: null }),
+      async () => ctx.setFindings(await listFindings(session.id)),
+      'findings',
+      'Manual finding created',
+    )
   }
 
   async function handlePrefillFindingFromNote() {
     if (!ctx.activeSession) return
-    try {
-      ctx.setBusyAction('prefill-finding')
-      ctx.setError(null)
-      const saved = await saveNoteNow({ manageBusy: false })
-      if (!saved) return
-      await createFinding({
-        sessionId: ctx.activeSession.id,
-        title: nextUntitledRecordTitle(ctx.findings, 'Untitled finding'),
-        ...richEditorDocumentToStoredBody(richEditorDocumentFromHtml(renderPrefilledFinding(ctx.noteBodyHtml))),
-        kind: 'bug',
-        metadataJson: null,
-      })
-      ctx.setFindings(await listFindings(ctx.activeSession.id))
-      ctx.setActiveView('findings')
-      ctx.setNotice('Finding prefilled from note')
-    } catch (cause) {
-      ctx.setError(formatError(cause))
-    } finally {
-      ctx.setBusyAction(null)
-    }
+    const session = ctx.activeSession
+    await createRecordFromNote(
+      'prefill-finding',
+      richEditorDocumentFromHtml(renderPrefilledFinding(ctx.noteBodyHtml)),
+      'Untitled finding',
+      ctx.findings,
+      (title, body) => createFinding({ sessionId: session.id, title, ...body, kind: 'bug', metadataJson: null }),
+      async () => ctx.setFindings(await listFindings(session.id)),
+      'findings',
+      'Finding prefilled from note',
+    )
   }
 
   async function handleSaveDraft(draft: Draft): Promise<boolean> {
