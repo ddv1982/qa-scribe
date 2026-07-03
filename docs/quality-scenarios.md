@@ -56,8 +56,8 @@ Measure:
 Validation:
 
 ```bash
-cargo test -p qa-scribe-tauri commands::ai::tests::summary_generation_rejects_note_id_from_another_session
-cargo test -p qa-scribe-tauri commands::ai::tests::summary_completion_updates_the_selected_note_only
+cargo test -p qa-scribe-core generation::workflow::tests::summary_generation_rejects_note_id_from_another_session
+cargo test -p qa-scribe-core generation::workflow::tests::summary_completion_updates_the_selected_note_only
 ```
 
 ## Usability
