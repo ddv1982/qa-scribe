@@ -15,16 +15,16 @@
     margin: 0;
     border-radius: 0;
     grid-template-columns: 244px minmax(0, 1fr);
-    grid-template-rows: 76px 1fr;
+    grid-template-rows: 56px 1fr;
   }
 
   .top-bar {
     grid-template-columns: 244px minmax(180px, 1fr) minmax(max-content, 1fr);
-    padding-inline: 18px;
+    padding-inline: var(--space-4);
   }
 
   .note-workspace {
-    padding-inline: 18px;
+    padding-inline: var(--space-4);
   }
 }
 
@@ -37,8 +37,8 @@
   .top-bar {
     grid-column: 1;
     grid-template-columns: 1fr;
-    gap: 12px;
-    padding: 16px;
+    gap: var(--space-3);
+    padding: var(--space-4);
   }
 
   .top-new-button {
@@ -72,7 +72,7 @@
   }
 
   .note-picker {
-    margin-top: 18px;
+    margin-top: var(--space-4);
   }
 
   .center-workspace {
@@ -81,7 +81,7 @@
   }
 
   .note-workspace {
-    padding: 18px 14px;
+    padding: var(--space-4) var(--space-3);
   }
 
   .document-topline,
@@ -159,7 +159,7 @@
   }
 
   .document-body {
-    padding: 18px;
+    padding: var(--space-4);
   }
 
   .note-title-input {
