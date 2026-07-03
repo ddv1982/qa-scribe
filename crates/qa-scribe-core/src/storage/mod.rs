@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use rusqlite::Connection;
+use rusqlite::{Connection, Transaction, TransactionBehavior};
 
 use crate::{Result, error::validation};
 
@@ -24,6 +24,29 @@ impl Database {
     pub fn connection(&self) -> &Connection {
         &self.connection
     }
+
+    /// Runs `body` inside a `BEGIN IMMEDIATE` transaction on this database's
+    /// connection. Commits on `Ok`, rolls back on `Err`; if `body` panics or
+    /// otherwise never returns, the transaction's `Drop` impl rolls back for
+    /// us, so a partial write can never be left committed.
+    pub fn with_immediate_tx<T>(
+        &self,
+        body: impl FnOnce(&Transaction<'_>) -> Result<T>,
+    ) -> Result<T> {
+        with_immediate_tx(&self.connection, body)
+    }
+}
+
+/// Free-function form of [`Database::with_immediate_tx`] for callers that
+/// only have a `&Connection` (e.g. inside a migration helper).
+pub fn with_immediate_tx<T>(
+    connection: &Connection,
+    body: impl FnOnce(&Transaction<'_>) -> Result<T>,
+) -> Result<T> {
+    let tx = Transaction::new_unchecked(connection, TransactionBehavior::Immediate)?;
+    let value = body(&tx)?;
+    tx.commit()?;
+    Ok(value)
 }
 
 /// The schema version this build expects `user_version` to read after
@@ -152,9 +175,8 @@ fn ensure_testware_drafts_supported(connection: &Connection) -> Result<()> {
         return Ok(());
     }
 
-    connection.execute_batch("BEGIN IMMEDIATE;")?;
-    let rebuild_result = (|| {
-        connection.execute_batch(
+    with_immediate_tx(connection, |tx| {
+        tx.execute_batch(
             r#"
             ALTER TABLE drafts RENAME TO drafts_old;
 
@@ -177,18 +199,8 @@ fn ensure_testware_drafts_supported(connection: &Connection) -> Result<()> {
             CREATE INDEX IF NOT EXISTS idx_drafts_session_updated ON drafts(session_id, updated_at);
             "#,
         )?;
-        assert_no_foreign_key_violations(connection)
-    })();
-
-    match rebuild_result {
-        Ok(()) => connection.execute_batch("COMMIT;")?,
-        Err(error) => {
-            let _ = connection.execute_batch("ROLLBACK;");
-            return Err(error);
-        }
-    }
-
-    Ok(())
+        assert_no_foreign_key_violations(tx)
+    })
 }
 
 fn ensure_blank_bodies_supported(connection: &Connection) -> Result<()> {
@@ -199,28 +211,15 @@ fn ensure_blank_bodies_supported(connection: &Connection) -> Result<()> {
     }
 
     connection.pragma_update(None, "foreign_keys", "OFF")?;
-    let migration_result = (|| {
-        connection.execute_batch("BEGIN IMMEDIATE;")?;
-        let rebuild_result = (|| {
-            if rebuild_entries {
-                rebuild_entries_without_body_length_check(connection)?;
-            }
-            if rebuild_findings {
-                rebuild_findings_without_body_length_check(connection)?;
-            }
-            assert_no_foreign_key_violations(connection)
-        })();
-
-        match rebuild_result {
-            Ok(()) => connection.execute_batch("COMMIT;")?,
-            Err(error) => {
-                let _ = connection.execute_batch("ROLLBACK;");
-                return Err(error);
-            }
+    let migration_result = with_immediate_tx(connection, |tx| {
+        if rebuild_entries {
+            rebuild_entries_without_body_length_check(tx)?;
         }
-
-        Ok(())
-    })();
+        if rebuild_findings {
+            rebuild_findings_without_body_length_check(tx)?;
+        }
+        assert_no_foreign_key_violations(tx)
+    });
     let foreign_keys_result = connection.pragma_update(None, "foreign_keys", "ON");
 
     match (migration_result, foreign_keys_result) {

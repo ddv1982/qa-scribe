@@ -412,13 +412,14 @@ fn evidence_links_must_stay_within_one_session() {
         .expect("finding should be created");
 
     assert!(
-        service
-            .create_evidence_link(EvidenceLinkDraft {
+        matches!(
+            service.create_evidence_link(EvidenceLinkDraft {
                 finding_id: finding.id,
                 entry_id: Some(entry.id.clone()),
                 attachment_id: None,
-            })
-            .is_err(),
+            }),
+            Err(QaScribeError::Validation(_))
+        ),
         "Evidence links must not cross Session boundaries"
     );
 
@@ -446,13 +447,14 @@ fn evidence_links_must_stay_within_one_session() {
         .expect("finding should be created");
 
     assert!(
-        service
-            .create_evidence_link(EvidenceLinkDraft {
+        matches!(
+            service.create_evidence_link(EvidenceLinkDraft {
                 finding_id: same_session_finding.id,
                 entry_id: None,
                 attachment_id: Some("attachment-1".to_string()),
-            })
-            .is_err(),
+            }),
+            Err(QaScribeError::Validation(_))
+        ),
         "Evidence links must not reference attachments from another Session"
     );
 }

@@ -30,20 +30,10 @@ pub fn import_managed_attachment(
     entry_id: Option<String>,
     source_path: impl AsRef<Path>,
 ) -> Result<Attachment> {
+    // Session/Entry ownership is validated by `import_managed_attachment_bytes`
+    // below, which every caller of this function ultimately goes through; no
+    // need to duplicate that check here before we even touch the filesystem.
     let source_path = source_path.as_ref();
-    service
-        .get_session(session_id)?
-        .ok_or_else(|| crate::QaScribeError::NotFound(session_id.to_string()))?;
-    if let Some(entry_id) = &entry_id {
-        let entry_belongs_to_session = service
-            .list_entries(session_id)?
-            .iter()
-            .any(|entry| entry.id == *entry_id);
-        if !entry_belongs_to_session {
-            return Err(validation("Attachment Entry must belong to the Session"));
-        }
-    }
-
     if !source_path.is_file() {
         return Err(validation("attachment source must be a file"));
     }
@@ -121,13 +111,7 @@ pub fn import_managed_attachment_bytes(
         .get_session(session_id)?
         .ok_or_else(|| crate::QaScribeError::NotFound(session_id.to_string()))?;
     if let Some(entry_id) = &entry_id {
-        let entry_belongs_to_session = service
-            .list_entries(session_id)?
-            .iter()
-            .any(|entry| entry.id == *entry_id);
-        if !entry_belongs_to_session {
-            return Err(validation("Attachment Entry must belong to the Session"));
-        }
+        service.require_entry_in_session(entry_id, session_id)?;
     }
     if bytes.len() as u64 > MAX_ATTACHMENT_BYTES {
         return Err(validation(format!(

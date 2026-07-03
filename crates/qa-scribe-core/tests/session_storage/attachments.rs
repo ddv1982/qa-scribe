@@ -109,6 +109,65 @@ fn managed_attachments_preview_generation_context_and_export_flow() {
 }
 
 #[test]
+fn create_attachment_returns_not_found_for_missing_entry() {
+    let service = SessionService::in_memory().expect("in-memory service should open");
+    let session = service
+        .create_session(SessionDraft {
+            title: "Attachment not-found check".to_string(),
+            ..SessionDraft::default()
+        })
+        .expect("session should be created");
+
+    assert!(
+        matches!(
+            service.create_attachment(qa_scribe_core::domain::AttachmentDraft {
+                session_id: session.id,
+                entry_id: Some("missing-entry".to_string()),
+                filename: "evidence.txt".to_string(),
+                mime_type: None,
+                size_bytes: 4,
+                sha256: "abc123".to_string(),
+                relative_path: "attachments/session/evidence.txt".to_string(),
+            }),
+            Err(QaScribeError::NotFound(id)) if id == "missing-entry"
+        ),
+        "a missing Entry reference must surface as NotFound, not a raw Sqlite error"
+    );
+}
+
+#[test]
+fn import_managed_attachment_returns_not_found_for_missing_entry() {
+    let service = SessionService::in_memory().expect("in-memory service should open");
+    let temp_dir = unique_temp_dir();
+    fs::create_dir_all(&temp_dir).expect("temp dir should be created");
+    let source_path = temp_dir.join("evidence.txt");
+    fs::write(&source_path, "evidence").expect("source attachment should write");
+
+    let session = service
+        .create_session(SessionDraft {
+            title: "Import not-found check".to_string(),
+            ..SessionDraft::default()
+        })
+        .expect("session should be created");
+
+    assert!(
+        matches!(
+            import_managed_attachment(
+                &service,
+                &temp_dir,
+                &session.id,
+                Some("missing-entry".to_string()),
+                &source_path,
+            ),
+            Err(QaScribeError::NotFound(id)) if id == "missing-entry"
+        ),
+        "a missing Entry reference must surface as NotFound, not a raw Sqlite error"
+    );
+
+    fs::remove_dir_all(temp_dir).expect("temp dir should be removed");
+}
+
+#[test]
 fn attachment_reconciliation_reports_missing_and_stray_files() {
     let service = SessionService::in_memory().expect("in-memory service should open");
     let temp_dir = unique_temp_dir();

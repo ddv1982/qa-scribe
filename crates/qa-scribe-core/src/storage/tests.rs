@@ -1,5 +1,60 @@
 use super::*;
 
+#[test]
+fn with_immediate_tx_commits_all_writes_on_success() {
+    let database = Database::in_memory().expect("in-memory database should open");
+
+    database
+        .with_immediate_tx(|tx| {
+            tx.execute(
+                "INSERT INTO sessions (id, title, created_at, updated_at, last_opened_at)
+                 VALUES ('s1', 'First', 't', 't', 't')",
+                [],
+            )?;
+            tx.execute(
+                "INSERT INTO sessions (id, title, created_at, updated_at, last_opened_at)
+                 VALUES ('s2', 'Second', 't', 't', 't')",
+                [],
+            )?;
+            Ok(())
+        })
+        .expect("transaction should commit");
+
+    let count: i64 = database
+        .connection()
+        .query_row("SELECT COUNT(*) FROM sessions", [], |row| row.get(0))
+        .expect("count query should succeed");
+    assert_eq!(
+        count, 2,
+        "both writes made inside the closure should be committed"
+    );
+}
+
+#[test]
+fn with_immediate_tx_rolls_back_all_writes_when_the_closure_fails() {
+    let database = Database::in_memory().expect("in-memory database should open");
+
+    let result = database.with_immediate_tx(|tx| {
+        tx.execute(
+            "INSERT INTO sessions (id, title, created_at, updated_at, last_opened_at)
+             VALUES ('s1', 'First', 't', 't', 't')",
+            [],
+        )?;
+        // Simulate a failure partway through a multi-statement transaction.
+        Err::<(), _>(validation("injected failure after first insert"))
+    });
+
+    assert!(result.is_err(), "closure failure should propagate");
+    let count: i64 = database
+        .connection()
+        .query_row("SELECT COUNT(*) FROM sessions", [], |row| row.get(0))
+        .expect("count query should succeed");
+    assert_eq!(
+        count, 0,
+        "the first insert must be rolled back along with the rest of the transaction"
+    );
+}
+
 fn user_version(connection: &Connection) -> i32 {
     connection
         .query_row("PRAGMA user_version", [], |row| row.get(0))

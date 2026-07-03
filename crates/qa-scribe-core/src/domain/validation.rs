@@ -5,6 +5,26 @@ pub const METADATA_JSON_MAX_LENGTH: usize = 20_000;
 pub const DRAFT_BODY_MAX_LENGTH: usize = 250_000;
 pub const RICH_BODY_JSON_MAX_LENGTH: usize = 500_000;
 
+/// Maximum length for a title: Sessions, Findings, Drafts, and Entries all
+/// share this limit.
+pub const TITLE_MAX_LENGTH: usize = 160;
+
+/// Maximum length for the `body_format` field stored alongside a rich-text
+/// body (Entries, Findings, and Drafts).
+pub const BODY_FORMAT_MAX_LENGTH: usize = 40;
+
+/// Maximum length for a Session's `session_context` and `objective_notes`.
+pub const SESSION_NOTES_MAX_LENGTH: usize = 2_000;
+
+/// Maximum length for a Session's `environment` field.
+pub const SESSION_ENVIRONMENT_MAX_LENGTH: usize = 240;
+
+/// Maximum length for a Session's `build_version` field.
+pub const SESSION_BUILD_VERSION_MAX_LENGTH: usize = 120;
+
+/// Maximum length for a Session's `related_reference` field.
+pub const SESSION_RELATED_REFERENCE_MAX_LENGTH: usize = 500;
+
 pub fn clean_optional(value: Option<String>) -> Option<String> {
     value.and_then(|text| {
         let trimmed = text.trim();
