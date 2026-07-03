@@ -1,3 +1,5 @@
+mod generation_smoke;
+
 use std::{
     fs,
     time::{SystemTime, UNIX_EPOCH},
@@ -55,11 +57,13 @@ fn run_smoke() -> qa_scribe_core::Result<()> {
         &service,
         &temp_dir,
         &session.id,
-        Some(entry.id),
+        Some(entry.id.clone()),
         &source_path,
     )?;
     attachment_preview_data_url(&service, &temp_dir, &attachment.id)?
         .expect("attachment preview should exist");
+
+    generation_smoke::run_generation_smoke(&service, &session.id, &entry, &attachment)?;
 
     service.create_draft(DraftCreate {
         session_id: session.id.clone(),
