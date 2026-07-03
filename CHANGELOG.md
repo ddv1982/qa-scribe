@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.5.0 - 2026-07-03
+
+- Harden AI generation end-to-end: fix provider process deadlocks, zombie leaks, and cancellation, add a generation watchdog, and recover still-running generation jobs after a window reload.
+- Fix Copilot CLI generations by passing the prompt on stdin (the previous invocation silently discarded session content), and fix the link editor on macOS with an inline popover replacing the non-functional browser prompt.
+- Make schema versioning real: gated migrations, cascade foreign-key indices, rejection of databases created by newer app versions, attachment integrity verification on read, and character-based validation limits for multibyte text.
+- Generate frontend command bindings from Rust through tauri-specta with a drift check, replacing hand-maintained types and fixing a silent event-field mismatch.
+- Delete roughly a third of the unused command surface (including unwired session export) plus Electron leftovers, and consolidate duplicated HTML, storage, provider-detection, and view logic.
+- Keep editor keystrokes fast with memoized derivations, make dialogs native and keyboard-accessible, and adopt type-checked linting.
+- Harden release automation with an APT monotonic-version guard, signed checksums for all release assets, an Intel macOS build check, and prebuilt Tauri CLI installs.
+
 ## v0.4.24 - 2026-07-02
 
 - Harden release automation by pinning external GitHub Actions, scoping signing secrets to first-party steps, and preventing published release drafts from being reset.
