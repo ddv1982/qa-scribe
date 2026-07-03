@@ -157,7 +157,10 @@ jobs:
         uses: cargo-bins/cargo-binstall@732870f031d2fb36309d0deaf36abcc704a7be65 # v1.20.1
 
       - name: Install Tauri CLI
-        run: cargo binstall tauri-cli --locked --version "=${TAURI_CLI_VERSION}" --no-confirm
+        # --force: the rust cache restores ~/.cargo/.crates.toml (the install
+        # manifest) without ~/.cargo/bin, so binstall would otherwise skip the
+        # install as "already installed" while the binary is absent.
+        run: cargo binstall tauri-cli --locked --version "=${TAURI_CLI_VERSION}" --no-confirm --force
 
       - name: Build macOS Tauri app bundle
         env:
@@ -370,7 +373,10 @@ jobs:
         uses: cargo-bins/cargo-binstall@732870f031d2fb36309d0deaf36abcc704a7be65 # v1.20.1
 
       - name: Install Tauri CLI
-        run: cargo binstall tauri-cli --locked --version "=${TAURI_CLI_VERSION}" --no-confirm
+        # --force: the rust cache restores ~/.cargo/.crates.toml (the install
+        # manifest) without ~/.cargo/bin, so binstall would otherwise skip the
+        # install as "already installed" while the binary is absent.
+        run: cargo binstall tauri-cli --locked --version "=${TAURI_CLI_VERSION}" --no-confirm --force
 
       - name: Build Linux artifacts
         env:
