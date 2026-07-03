@@ -79,6 +79,11 @@
   background: transparent;
 }
 
+.global-search:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-tint);
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -167,6 +172,36 @@
 .icon-button.danger:hover {
   background: color-mix(in oklab, var(--danger) 10%, var(--surface-raised));
   border-color: color-mix(in oklab, var(--danger) 38%, var(--border-default));
+}
+
+.primary-button:hover {
+  background: var(--accent-hover);
+}
+
+.success-button:hover {
+  background: var(--success-hover);
+}
+
+.danger-button:hover {
+  background: var(--danger-hover);
+}
+
+.secondary-button:hover {
+  background: var(--surface-sunken);
+  border-color: var(--border-strong);
+}
+
+.primary-button:active,
+.secondary-button:active,
+.success-button:active,
+.danger-button:active,
+.icon-button:active,
+.toolbar-button:active {
+  transform: scale(0.98);
+}
+
+button:disabled:hover {
+  transform: none;
 }
 
 .top-new-button {

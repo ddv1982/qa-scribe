@@ -181,8 +181,28 @@ summary:focus-visible,
   outline-offset: 2px;
 }
 
+button,
+select {
+  transition:
+    color var(--duration-fast) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
+
+input,
+textarea {
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+
+/* Text fields show focus persistently (not only keyboard-driven). */
 input:focus,
 textarea:focus,
 select:focus {
   outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-tint);
 }

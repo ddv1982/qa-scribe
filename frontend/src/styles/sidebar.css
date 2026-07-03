@@ -29,6 +29,12 @@
   color: var(--accent);
   background: var(--accent-tint);
   border-color: color-mix(in oklab, var(--accent) 12%, transparent);
+  font-weight: 600;
+}
+
+.rail-item:hover,
+.settings-link:hover {
+  color: var(--text-primary);
 }
 
 .note-picker {
@@ -67,6 +73,12 @@
   border: 0;
   outline: 0;
   background: transparent;
+}
+
+.select-shell:focus-within,
+.model-search:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-tint);
 }
 
 .note-picker-list,
