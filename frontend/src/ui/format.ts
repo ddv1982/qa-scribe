@@ -38,7 +38,7 @@ export function toCommandError(cause: unknown): CommandError {
 
 export function formatError(cause: unknown): string {
   const error = toCommandError(cause)
-  if (error.kind === 'validation' || error.kind === 'provider') return error.message
+  if (error.kind === 'validation') return error.message
   // The bridge-unavailable message is already complete, user-facing copy
   // (assembled in toCommandError, not raw backend text) — prefixing it would
   // read as a stutter ("Something went wrong: Desktop bridge unavailable...").

@@ -60,12 +60,6 @@ describe('formatError', () => {
     expect(formatError(cause)).toBe('title is required')
   })
 
-  it('shows provider messages as-is', () => {
-    const cause = { kind: 'provider', message: 'GitHub Copilot CLI is not ready.' }
-
-    expect(formatError(cause)).toBe('GitHub Copilot CLI is not ready.')
-  })
-
   it('prefixes not-found messages with a generic label', () => {
     const cause = { kind: 'notFound', message: 'not found: session-1' }
 

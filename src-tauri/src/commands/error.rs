@@ -2,11 +2,10 @@
 //!
 //! Tauri serializes a command's `Err` payload as the JS promise's rejection
 //! value, so `CommandError` (rather than a bare `String`) lets the frontend
-//! distinguish user-facing validation copy from opaque internal failures and
-//! provider-CLI failures without parsing prose. Classification happens at the
-//! error's source (see [`CommandError::from`] for [`QaScribeError`] and the
-//! `provider`/`internal` constructors used by the AI command modules), never
-//! by pattern-matching message text after the fact.
+//! distinguish user-facing validation copy from opaque internal failures
+//! without parsing prose. Classification happens at the error's source (see
+//! [`CommandError::from`] for [`QaScribeError`]), never by pattern-matching
+//! message text after the fact.
 
 use qa_scribe_core::QaScribeError;
 use serde::Serialize;
@@ -16,14 +15,6 @@ use serde::Serialize;
 pub enum CommandErrorKind {
     Validation,
     NotFound,
-    // Provider-CLI failures (readiness, command construction, process
-    // failure) currently surface only through `GenerationJobEvent::Failed`,
-    // not a `#[tauri::command]` `Result`, so nothing constructs this variant
-    // today. It stays part of the public shape so a command that reports
-    // provider failures directly (e.g. a future synchronous readiness check)
-    // can classify at the source instead of falling back to `internal`.
-    #[allow(dead_code)]
-    Provider,
     Internal,
 }
 
@@ -44,14 +35,6 @@ impl CommandError {
     pub fn not_found(message: impl Into<String>) -> Self {
         Self {
             kind: CommandErrorKind::NotFound,
-            message: message.into(),
-        }
-    }
-
-    #[allow(dead_code)]
-    pub fn provider(message: impl Into<String>) -> Self {
-        Self {
-            kind: CommandErrorKind::Provider,
             message: message.into(),
         }
     }
@@ -128,14 +111,6 @@ mod tests {
 
         assert_eq!(error.kind, CommandErrorKind::Internal);
         assert_eq!(error.message, "disk full");
-    }
-
-    #[test]
-    fn provider_constructor_sets_provider_kind() {
-        let error = CommandError::provider("GitHub Copilot CLI is not ready.");
-
-        assert_eq!(error.kind, CommandErrorKind::Provider);
-        assert_eq!(error.message, "GitHub Copilot CLI is not ready.");
     }
 
     #[test]

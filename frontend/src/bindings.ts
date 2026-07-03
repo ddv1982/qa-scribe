@@ -99,7 +99,7 @@ export type CommandError = {
 	message: string,
 };
 
-export type CommandErrorKind = "validation" | "notFound" | "provider" | "internal";
+export type CommandErrorKind = "validation" | "notFound" | "internal";
 
 export type Draft = {
 	id: string,
