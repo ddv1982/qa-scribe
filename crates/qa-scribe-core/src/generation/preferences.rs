@@ -4,7 +4,7 @@
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, specta::Type)]
 #[serde(rename_all = "snake_case")]
 pub enum TestwareTechnique {
     Auto,
@@ -18,7 +18,7 @@ pub enum TestwareTechnique {
     Bdd,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, specta::Type)]
 #[serde(rename_all = "snake_case")]
 pub enum TestwareOutputFormat {
     QaCases,
@@ -28,7 +28,7 @@ pub enum TestwareOutputFormat {
     CoverageOutline,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, specta::Type)]
 #[serde(rename_all = "snake_case")]
 pub enum TestwareDepth {
     Lean,
@@ -36,7 +36,7 @@ pub enum TestwareDepth {
     Thorough,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct TestwareGenerationPreferences {
     pub technique: TestwareTechnique,

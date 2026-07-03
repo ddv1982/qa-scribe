@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{QaScribeError, Result};
 
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "snake_case")]
 pub enum EntryType {
     Note,
@@ -41,7 +41,7 @@ impl EntryType {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Entry {
     pub id: String,
@@ -57,26 +57,41 @@ pub struct Entry {
     pub updated_at: String,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct EntryDraft {
     pub session_id: String,
     pub entry_type: EntryType,
+    #[specta(optional)]
     pub title: Option<String>,
     pub body: String,
+    #[specta(optional)]
     pub body_json: Option<String>,
+    #[specta(optional)]
     pub body_format: Option<String>,
+    #[specta(optional)]
     pub metadata_json: Option<String>,
     pub excluded_from_generation: bool,
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+/// Partial update for an `Entry`. Absent field = no change. `body` and
+/// `excluded_from_generation` are non-clearable (typed `?: string` /
+/// `?: boolean`, no `null`); the `Option<Option<String>>` fields are clearable
+/// (`?: string | null`, where `null` clears). See `SessionPatch` for the full
+/// rationale behind this two-tier null contract.
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct EntryPatch {
+    #[specta(optional)]
     pub title: Option<Option<String>>,
+    #[specta(optional, type = String)]
     pub body: Option<String>,
+    #[specta(optional)]
     pub body_json: Option<Option<String>>,
+    #[specta(optional)]
     pub body_format: Option<Option<String>>,
+    #[specta(optional)]
     pub metadata_json: Option<Option<String>>,
+    #[specta(optional, type = bool)]
     pub excluded_from_generation: Option<bool>,
 }

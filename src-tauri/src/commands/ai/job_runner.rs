@@ -19,7 +19,7 @@ use crate::{
     settings::AppState,
 };
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct StartAiActionJobResult {
     pub job_id: String,
@@ -27,6 +27,7 @@ pub struct StartAiActionJobResult {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn start_ai_action_job(
     app: AppHandle,
     jobs: State<'_, JobStore>,
@@ -52,6 +53,7 @@ pub fn start_ai_action_job(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn get_ai_action_job_status(
     jobs: State<'_, JobStore>,
     job_id: String,
@@ -60,6 +62,7 @@ pub fn get_ai_action_job_status(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn cancel_ai_action_job(
     jobs: State<'_, JobStore>,
     job_id: String,

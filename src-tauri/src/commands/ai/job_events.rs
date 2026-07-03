@@ -10,7 +10,7 @@ use crate::{
     settings::AppState,
 };
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase", tag = "type")]
 pub enum GenerationJobEvent {
     Started {

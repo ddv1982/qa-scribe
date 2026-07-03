@@ -1,85 +1,92 @@
-import { Channel, invoke } from '@tauri-apps/api/core'
+import { Channel } from '@tauri-apps/api/core'
 
-import type {
-  AiProvider,
-  AppSettings,
-  Attachment,
-  Draft,
-  DraftKind,
-  DraftPatch,
-  Entry,
-  EntryDraft,
-  EntryPatch,
-  ExportFormat,
-  Finding,
-  FindingDraft,
-  FindingPatch,
-  GenerateAiActionKind,
-  GenerationJobEvent,
-  GenerationJobStatus,
-  ProviderStatus,
-  Session,
-  SessionDraft,
-  SessionExport,
-  SessionPatch,
-  StartAiActionJobResult,
-  TestwareGenerationPreferences,
-} from './tauriTypes'
+import {
+  commands,
+  type AiProvider,
+  type AppSettings,
+  type Attachment,
+  type Draft,
+  type DraftKind,
+  type DraftPatch,
+  type Entry,
+  type EntryDraft,
+  type EntryPatch,
+  type ExportFormat,
+  type Finding,
+  type FindingDraft,
+  type FindingPatch,
+  type GenerateAiActionKind,
+  type GenerationJobEvent,
+  type GenerationJobStatus,
+  type ProviderStatus,
+  type Session,
+  type SessionDraft,
+  type SessionExport,
+  type SessionPatch,
+  type StartAiActionJobResult,
+  type TestwareGenerationPreferences,
+} from './bindings'
+
+// Thin, app-facing wrappers over the Rust-generated `commands` (see
+// `bindings.ts`). The generated functions already own argument marshalling,
+// command names, and — because the builder uses `ErrorHandlingMode::Throw` —
+// throwing `CommandError` on rejection, so these wrappers exist only to keep a
+// stable, ergonomic call surface for the rest of the app.
 
 export function getSettings(): Promise<AppSettings> {
-  return invoke<AppSettings>('get_settings')
+  return commands.getSettings()
 }
 
 export function updateSettings(settings: AppSettings): Promise<AppSettings> {
-  return invoke<AppSettings>('update_settings', { settings })
+  return commands.updateSettings(settings)
 }
 
 export function listSessions(): Promise<Session[]> {
-  return invoke<Session[]>('list_sessions')
+  return commands.listSessions()
 }
 
 export function createSession(draft: SessionDraft): Promise<Session> {
-  return invoke<Session>('create_session', { draft })
+  return commands.createSession(draft)
 }
 
 export function reopenSession(id: string): Promise<Session> {
-  return invoke<Session>('reopen_session', { id })
+  return commands.reopenSession(id)
 }
 
 export function updateSession(id: string, patch: SessionPatch): Promise<Session> {
-  return invoke<Session>('update_session', { id, patch })
+  return commands.updateSession(id, patch)
 }
 
 export function deleteSession(id: string): Promise<void> {
-  return invoke<void>('delete_session', { id })
+  return commands.deleteSession(id).then(() => undefined)
 }
 
 export function createEntry(draft: EntryDraft): Promise<Entry> {
-  return invoke<Entry>('create_entry', { draft })
+  return commands.createEntry(draft)
 }
 
 export function listEntries(sessionId: string): Promise<Entry[]> {
-  return invoke<Entry[]>('list_entries', { sessionId })
+  return commands.listEntries(sessionId)
 }
 
 export function updateEntry(id: string, patch: EntryPatch): Promise<Entry> {
-  return invoke<Entry>('update_entry', { id, patch })
+  return commands.updateEntry(id, patch)
 }
 
 export function createFinding(draft: FindingDraft): Promise<Finding> {
-  return invoke<Finding>('create_finding', { draft })
+  return commands.createFinding(draft)
 }
 
 export function listFindings(sessionId: string): Promise<Finding[]> {
-  return invoke<Finding[]>('list_findings', { sessionId })
+  return commands.listFindings(sessionId)
 }
 
 export function updateFinding(id: string, patch: FindingPatch): Promise<Finding> {
-  return invoke<Finding>('update_finding', { id, patch })
+  return commands.updateFinding(id, patch)
 }
 
 export function deleteFinding(id: string): Promise<void> {
-  return invoke<void>('delete_finding', { id })
+  return commands.deleteFinding(id).then(() => undefined)
 }
 
 export function importClipboardScreenshot(input: {
@@ -88,23 +95,23 @@ export function importClipboardScreenshot(input: {
   filename: string
   dataUrl: string
 }): Promise<Attachment> {
-  return invoke<Attachment>('import_clipboard_screenshot', input)
+  return commands.importClipboardScreenshot(input.sessionId, input.entryId, input.filename, input.dataUrl)
 }
 
 export function readClipboardImageDataUrl(): Promise<string | null> {
-  return invoke<string | null>('read_clipboard_image_data_url')
+  return commands.readClipboardImageDataUrl()
 }
 
 export function getAttachmentPreviewDataUrl(attachmentId: string): Promise<string | null> {
-  return invoke<string | null>('get_attachment_preview_data_url', { attachmentId })
+  return commands.getAttachmentPreviewDataUrl(attachmentId)
 }
 
 export function copyAttachmentImageToClipboard(attachmentId: string): Promise<void> {
-  return invoke<void>('copy_attachment_image_to_clipboard', { attachmentId })
+  return commands.copyAttachmentImageToClipboard(attachmentId).then(() => undefined)
 }
 
 export function exportSession(sessionId: string, format: ExportFormat): Promise<SessionExport> {
-  return invoke<SessionExport>('export_session', { sessionId, format })
+  return commands.exportSession(sessionId, format)
 }
 
 export function createDraft(input: {
@@ -117,27 +124,27 @@ export function createDraft(input: {
   bodyFormat?: string | null
   metadataJson?: string | null
 }): Promise<Draft> {
-  return invoke<Draft>('create_draft', { draft: input })
+  return commands.createDraft(input)
 }
 
 export function listDrafts(sessionId: string): Promise<Draft[]> {
-  return invoke<Draft[]>('list_drafts', { sessionId })
+  return commands.listDrafts(sessionId)
 }
 
 export function updateDraft(id: string, patch: DraftPatch): Promise<Draft> {
-  return invoke<Draft>('update_draft', { id, patch })
+  return commands.updateDraft(id, patch)
 }
 
 export function deleteDraft(id: string): Promise<void> {
-  return invoke<void>('delete_draft', { id })
+  return commands.deleteDraft(id).then(() => undefined)
 }
 
 export function getProviderStatus(): Promise<ProviderStatus> {
-  return invoke<ProviderStatus>('get_provider_status')
+  return commands.getProviderStatus()
 }
 
 export function refreshProviderStatus(): Promise<ProviderStatus> {
-  return invoke<ProviderStatus>('refresh_provider_status')
+  return commands.refreshProviderStatus()
 }
 
 export function startAiActionJob(
@@ -153,13 +160,13 @@ export function startAiActionJob(
   onEvent: (event: GenerationJobEvent) => void,
 ): Promise<StartAiActionJobResult> {
   const events = new Channel<GenerationJobEvent>(onEvent)
-  return invoke<StartAiActionJobResult>('start_ai_action_job', { request: input, events })
+  return commands.startAiActionJob(input, events)
 }
 
 export function getAiActionJobStatus(jobId: string): Promise<GenerationJobStatus> {
-  return invoke<GenerationJobStatus>('get_ai_action_job_status', { jobId })
+  return commands.getAiActionJobStatus(jobId)
 }
 
 export function cancelAiActionJob(jobId: string): Promise<GenerationJobStatus> {
-  return invoke<GenerationJobStatus>('cancel_ai_action_job', { jobId })
+  return commands.cancelAiActionJob(jobId)
 }

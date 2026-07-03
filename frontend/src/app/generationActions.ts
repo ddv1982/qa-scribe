@@ -120,7 +120,7 @@ export function createGenerationActions(ctx: AppWorkflowContext, saveNoteNow: (o
     }
 
     if (event.type === 'failed') {
-      ctx.setError(event.errorMessage)
+      ctx.setError(event.error_message)
       return
     }
 

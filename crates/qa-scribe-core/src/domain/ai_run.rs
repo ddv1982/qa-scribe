@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{QaScribeError, Result};
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct GenerationContext {
     pub id: String,
@@ -10,7 +10,7 @@ pub struct GenerationContext {
     pub created_at: String,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "snake_case")]
 pub enum AiProvider {
     ClaudeCode,
@@ -40,7 +40,7 @@ impl AiProvider {
     }
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "snake_case")]
 pub enum AiRunStatus {
     Running,
@@ -70,7 +70,7 @@ impl AiRunStatus {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct AiRun {
     pub id: String,
@@ -86,7 +86,7 @@ pub struct AiRun {
     pub completed_at: Option<String>,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct AiRunCreate {
     pub session_id: String,

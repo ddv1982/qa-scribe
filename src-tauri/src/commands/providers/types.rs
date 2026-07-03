@@ -1,13 +1,13 @@
 use qa_scribe_core::domain::AiProvider;
 use serde::Serialize;
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ProviderStatus {
     pub providers: Vec<ProviderDescriptor>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ProviderDescriptor {
     pub id: String,
@@ -21,7 +21,7 @@ pub struct ProviderDescriptor {
     pub local_only: bool,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ProviderModelDescriptor {
     pub id: String,
@@ -32,7 +32,7 @@ pub struct ProviderModelDescriptor {
     pub reasoning_efforts: Vec<String>,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub enum ProviderModelSource {
     ProviderDefault,
@@ -41,7 +41,7 @@ pub enum ProviderModelSource {
     Detected,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub enum ProviderState {
     Ready,

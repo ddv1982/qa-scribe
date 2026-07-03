@@ -2,7 +2,10 @@ import { useEffect, useRef, useState, type FocusEvent, type KeyboardEvent } from
 import { Bot, ChevronDown, Command, Search, Sparkles } from 'lucide-react'
 import type { AiProvider, ProviderModelDescriptor } from '../tauri'
 
-export function ProviderGlyph({ provider }: { provider: AiProvider }) {
+// Accepts a plain string because provider descriptors carry `id: string`
+// (the backend's `ProviderDescriptor.id`); unknown values fall through to the
+// default glyph.
+export function ProviderGlyph({ provider }: { provider: AiProvider | string }) {
   if (provider === 'claude_code') return <Sparkles size={17} />
   if (provider === 'copilot_cli') return <Bot size={17} />
   return <Command size={17} />

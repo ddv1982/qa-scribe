@@ -88,7 +88,7 @@ export function useSettingsController({
       setSettingsSaveState('saving')
       const saved = await persistSettings({
         ...settingsDraft,
-        selectedAiModel: modelForProvider(settingsDraft, settingsDraft.selectedAiProvider),
+        selectedAiModel: modelForProvider(settingsDraft, settingsDraft.selectedAiProvider ?? 'codex_cli'),
       })
       setSettingsSaveState(saved ? 'saved' : 'error')
       if (saved) scheduleSettingsSaveReset()

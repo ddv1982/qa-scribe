@@ -100,7 +100,9 @@ export function useAppController() {
   )
   const pendingAiActions = useMemo<PendingAiActions>(() => {
     const pending: PendingAiActions = {}
-    for (const job of activeSessionJobs) pending[job.action] = true
+    // `job.action` is the backend's `GenerationJobStatus.action: String`, which
+    // is always a `GenerateAiActionKind` value.
+    for (const job of activeSessionJobs) pending[job.action as GenerateAiActionKind] = true
     return pending
   }, [activeSessionJobs])
   const activeTestwareJob = activeSessionJobs.find((job) => job.action === 'testware') ?? null

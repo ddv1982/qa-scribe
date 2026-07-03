@@ -4,11 +4,13 @@ use tauri::State;
 use crate::{commands::CommandError, settings::AppState};
 
 #[tauri::command]
+#[specta::specta]
 pub fn create_entry(state: State<'_, AppState>, draft: EntryDraft) -> Result<Entry, CommandError> {
     state.with_service(|service| service.create_entry(draft))
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn list_entries(
     state: State<'_, AppState>,
     session_id: String,
@@ -17,6 +19,7 @@ pub fn list_entries(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn update_entry(
     state: State<'_, AppState>,
     id: String,

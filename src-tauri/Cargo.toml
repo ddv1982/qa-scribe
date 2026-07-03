@@ -15,8 +15,11 @@ image = { version = "0.25.10", default-features = false, features = ["png", "jpe
 qa-scribe-core.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+specta.workspace = true
+specta-typescript.workspace = true
 tauri.workspace = true
 tauri-plugin-clipboard-manager = "2.3.2"
+tauri-specta.workspace = true
 uuid.workspace = true
 
 [target.'cfg(unix)'.dependencies]

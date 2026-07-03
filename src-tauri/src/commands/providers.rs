@@ -22,11 +22,13 @@ use probe::{DetectionMode, SystemProbeRunner};
 use crate::provider_command::{ProviderPathMode, invalidate_provider_path_cache};
 
 #[tauri::command]
+#[specta::specta]
 pub fn get_provider_status() -> ProviderStatus {
     provider_status_with_system_runner()
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn refresh_provider_status() -> ProviderStatus {
     clear_readiness_cache();
     invalidate_provider_path_cache();

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use super::AiProvider;
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct AppSettings {
     pub schema_version: u16,
@@ -65,7 +65,10 @@ fn default_selected_ai_model() -> String {
     "default".to_string()
 }
 
-fn default_selected_ai_models_by_provider() -> HashMap<AiProvider, String> {
+/// Per-provider default model selection. Single source of truth for both the
+/// `AppSettings` default and the frontend's provider-defaults (exported to
+/// TypeScript as a bindings constant), so the two can never drift.
+pub fn default_selected_ai_models_by_provider() -> HashMap<AiProvider, String> {
     HashMap::from([
         (AiProvider::ClaudeCode, "default".to_string()),
         (AiProvider::CodexCli, "default".to_string()),
@@ -73,7 +76,9 @@ fn default_selected_ai_models_by_provider() -> HashMap<AiProvider, String> {
     ])
 }
 
-fn default_selected_ai_reasoning_efforts_by_provider() -> HashMap<AiProvider, Option<String>> {
+/// Per-provider default reasoning effort. Single source of truth shared with
+/// the frontend via a bindings constant (see the models default above).
+pub fn default_selected_ai_reasoning_efforts_by_provider() -> HashMap<AiProvider, Option<String>> {
     HashMap::from([
         (AiProvider::ClaudeCode, Some("medium".to_string())),
         (AiProvider::CodexCli, Some("low".to_string())),

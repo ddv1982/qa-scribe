@@ -14,9 +14,9 @@ export function TemplatesView({
   return (
     <section className="template-view">
       <div className="template-grid">
-        <TemplateField label="Testware output" value={settingsDraft.testwareTemplate} onChange={(value) => updateSettingsDraft({ testwareTemplate: value })} />
-        <TemplateField label="Finding output" value={settingsDraft.findingTemplate} onChange={(value) => updateSettingsDraft({ findingTemplate: value })} />
-        <TemplateField label="Note summary output" value={settingsDraft.noteSummaryTemplate} onChange={(value) => updateSettingsDraft({ noteSummaryTemplate: value })} />
+        <TemplateField label="Testware output" value={settingsDraft.testwareTemplate ?? ''} onChange={(value) => updateSettingsDraft({ testwareTemplate: value })} />
+        <TemplateField label="Finding output" value={settingsDraft.findingTemplate ?? ''} onChange={(value) => updateSettingsDraft({ findingTemplate: value })} />
+        <TemplateField label="Note summary output" value={settingsDraft.noteSummaryTemplate ?? ''} onChange={(value) => updateSettingsDraft({ noteSummaryTemplate: value })} />
       </div>
     </section>
   )

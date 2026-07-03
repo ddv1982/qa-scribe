@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{QaScribeError, Result};
 
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "snake_case")]
 pub enum FindingKind {
     Bug,
@@ -38,7 +38,7 @@ impl FindingKind {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Finding {
     pub id: String,
@@ -53,31 +53,42 @@ pub struct Finding {
     pub updated_at: String,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct FindingDraft {
     pub session_id: String,
     pub title: String,
     pub body: String,
+    #[specta(optional)]
     pub body_json: Option<String>,
+    #[specta(optional)]
     pub body_format: Option<String>,
     pub kind: FindingKind,
+    #[specta(optional)]
     pub metadata_json: Option<String>,
 }
 
 /// Patch for editable `Finding` fields. `metadata_json` and `kind` are
 /// intentionally absent: both are set once at creation (`FindingDraft`) and
 /// are write-once by design, so this patch never needs to change them.
-#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+///
+/// Absent field = no change. `title`/`body` are non-clearable (`?: string`, no
+/// `null`); the `Option<Option<String>>` fields are clearable
+/// (`?: string | null`). See `SessionPatch` for the two-tier null rationale.
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct FindingPatch {
+    #[specta(optional, type = String)]
     pub title: Option<String>,
+    #[specta(optional, type = String)]
     pub body: Option<String>,
+    #[specta(optional)]
     pub body_json: Option<Option<String>>,
+    #[specta(optional)]
     pub body_format: Option<Option<String>>,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct EvidenceLink {
     pub id: String,
@@ -87,7 +98,7 @@ pub struct EvidenceLink {
     pub created_at: String,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct EvidenceLinkDraft {
     pub finding_id: String,

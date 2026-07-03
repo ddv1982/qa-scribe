@@ -4,6 +4,7 @@ use tauri::State;
 use crate::{commands::CommandError, settings::AppState};
 
 #[tauri::command]
+#[specta::specta]
 pub fn create_finding(
     state: State<'_, AppState>,
     draft: FindingDraft,
@@ -12,6 +13,7 @@ pub fn create_finding(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn list_findings(
     state: State<'_, AppState>,
     session_id: String,
@@ -20,6 +22,7 @@ pub fn list_findings(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn update_finding(
     state: State<'_, AppState>,
     id: String,
@@ -29,6 +32,7 @@ pub fn update_finding(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn delete_finding(state: State<'_, AppState>, id: String) -> Result<(), CommandError> {
     state.with_service(|service| service.delete_finding(&id))
 }

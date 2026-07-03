@@ -11,7 +11,7 @@
 use qa_scribe_core::QaScribeError;
 use serde::Serialize;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub enum CommandErrorKind {
     Validation,
@@ -27,7 +27,7 @@ pub enum CommandErrorKind {
     Internal,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, specta::Type)]
 pub struct CommandError {
     pub kind: CommandErrorKind,
     pub message: String,

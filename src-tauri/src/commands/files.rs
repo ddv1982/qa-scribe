@@ -14,6 +14,7 @@ use tauri_plugin_clipboard_manager::ClipboardExt;
 use crate::{commands::CommandError, settings::AppState};
 
 #[tauri::command]
+#[specta::specta]
 pub fn export_session(
     state: State<'_, AppState>,
     session_id: String,
@@ -23,6 +24,7 @@ pub fn export_session(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn import_clipboard_screenshot(
     state: State<'_, AppState>,
     session_id: String,
@@ -44,6 +46,7 @@ pub fn import_clipboard_screenshot(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn read_clipboard_image_data_url(app: AppHandle) -> Result<Option<String>, CommandError> {
     let read_result = tauri::async_runtime::spawn_blocking(move || {
         app.clipboard().read_image().map(|image| image.to_owned())
@@ -63,6 +66,7 @@ pub async fn read_clipboard_image_data_url(app: AppHandle) -> Result<Option<Stri
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn get_attachment_preview_data_url(
     state: State<'_, AppState>,
     attachment_id: String,
@@ -73,6 +77,7 @@ pub fn get_attachment_preview_data_url(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn copy_attachment_image_to_clipboard(
     app: AppHandle,
     state: State<'_, AppState>,

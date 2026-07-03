@@ -12,7 +12,7 @@ use serde::Serialize;
 const PARTIAL_TEXT_LIMIT: usize = 32_000;
 const TERMINAL_JOB_LIMIT: usize = 32;
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct GenerationJobStatus {
     pub job_id: String,
@@ -25,7 +25,7 @@ pub struct GenerationJobStatus {
     pub partial_text: Option<String>,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub enum GenerationJobState {
     Starting,

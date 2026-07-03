@@ -27,7 +27,7 @@ use super::{
     preserve_managed_attachment_images, project_html_to_prompt_text, render_action_prompt,
 };
 
-#[derive(Clone, Copy, Debug, Deserialize)]
+#[derive(Clone, Copy, Debug, Deserialize, specta::Type)]
 #[serde(rename_all = "snake_case")]
 pub enum GenerateAiActionKind {
     Testware,
@@ -69,7 +69,7 @@ impl GenerateAiActionKind {
     }
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct GenerateAiActionRequest {
     pub session_id: String,
@@ -77,11 +77,13 @@ pub struct GenerateAiActionRequest {
     pub model: String,
     pub reasoning_effort: Option<String>,
     pub action: GenerateAiActionKind,
+    #[specta(optional)]
     pub note_entry_id: Option<String>,
+    #[specta(optional)]
     pub testware_preferences: Option<TestwareGenerationPreferences>,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct GenerateAiActionResult {
     pub generation_context: GenerationContext,

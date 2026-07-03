@@ -3,21 +3,24 @@ mod jobs;
 mod process_io;
 mod provider_command;
 mod settings;
+mod specta_bindings;
 
-use commands::{
-    cancel_ai_action_job, copy_attachment_image_to_clipboard, create_draft, create_entry,
-    create_finding, create_session, delete_draft, delete_finding, delete_session, export_session,
-    get_ai_action_job_status, get_attachment_preview_data_url, get_provider_status, get_settings,
-    import_clipboard_screenshot, list_drafts, list_entries, list_findings, list_sessions,
-    read_clipboard_image_data_url, refresh_provider_status, reopen_session, start_ai_action_job,
-    update_draft, update_entry, update_finding, update_session, update_settings,
-};
 use jobs::JobStore;
 use qa_scribe_core::{services::SessionService, storage::Database};
 use settings::AppState;
 use tauri::Manager;
 
 fn main() {
+    let specta_builder = specta_bindings::builder();
+
+    // Rust owns the bridge types: regenerate the frontend bindings on every
+    // debug run so a renamed field surfaces as a frontend compile error. The
+    // committed file is also verified GUI-lessly by `specta_bindings`' test.
+    #[cfg(debug_assertions)]
+    specta_builder
+        .export(specta_bindings::exporter(), specta_bindings::BINDINGS_PATH)
+        .expect("failed to export TypeScript bindings");
+
     tauri::Builder::default()
         .plugin(tauri_plugin_clipboard_manager::init())
         .setup(|app| {
@@ -28,36 +31,7 @@ fn main() {
             app.manage(JobStore::default());
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![
-            get_settings,
-            update_settings,
-            list_sessions,
-            create_session,
-            reopen_session,
-            update_session,
-            delete_session,
-            create_entry,
-            list_entries,
-            update_entry,
-            create_finding,
-            list_findings,
-            update_finding,
-            create_draft,
-            list_drafts,
-            update_draft,
-            delete_draft,
-            delete_finding,
-            start_ai_action_job,
-            get_ai_action_job_status,
-            cancel_ai_action_job,
-            import_clipboard_screenshot,
-            get_provider_status,
-            refresh_provider_status,
-            export_session,
-            get_attachment_preview_data_url,
-            read_clipboard_image_data_url,
-            copy_attachment_image_to_clipboard
-        ])
+        .invoke_handler(specta_builder.invoke_handler())
         .build(tauri::generate_context!())
         .expect("error while building qa-scribe")
         .run(|app, event| {
