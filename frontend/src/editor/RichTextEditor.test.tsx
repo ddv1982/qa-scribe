@@ -77,10 +77,8 @@ describe('RichTextEditor toolbar', () => {
     expect(lastChangeHtml(onChange)).not.toContain('<strong>')
   })
 
-  it('adds a safe link to selected content', async () => {
+  it('adds a safe link to selected content via the inline popover', async () => {
     const onChange = vi.fn()
-    const prompt = vi.spyOn(window, 'prompt').mockReturnValue('https://example.test/evidence')
-    vi.spyOn(window, 'alert').mockImplementation(() => undefined)
 
     render(
       <>
@@ -93,8 +91,65 @@ describe('RichTextEditor toolbar', () => {
     selectText(editor)
     fireEvent.click(screen.getByRole('button', { name: 'Link' }))
 
+    const input = await screen.findByRole('textbox', { name: 'Link URL' })
+    fireEvent.change(input, { target: { value: 'https://example.test/evidence' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Apply link' }))
+
     await waitFor(() => expect(lastChangeHtml(onChange)).toContain('<a href="https://example.test/evidence" target="_blank" rel="noreferrer">Evidence</a>'))
-    expect(prompt).toHaveBeenCalled()
+    // The popover closes on a successful apply.
+    expect(screen.queryByRole('textbox', { name: 'Link URL' })).toBeNull()
+  })
+
+  it('prefills the current href and removes the link on an empty submit', async () => {
+    const onChange = vi.fn()
+
+    render(
+      <>
+        <FormatToolbar editorId="editor-one" onUploadImage={vi.fn()} />
+        <RichTextEditor
+          editorId="editor-one"
+          value={richEditorDocumentFromHtml('<p><a href="https://example.test/old">Evidence</a></p>')}
+          onChange={onChange}
+        />
+      </>,
+    )
+
+    const editor = await screen.findByRole('textbox', { name: 'Note body' })
+    selectText(editor)
+    fireEvent.click(screen.getByRole('button', { name: 'Link' }))
+
+    const input = await screen.findByRole<HTMLInputElement>('textbox', { name: 'Link URL' })
+    // The existing href is prefilled for editing.
+    expect(input.value).toBe('https://example.test/old')
+
+    fireEvent.change(input, { target: { value: '' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Apply link' }))
+
+    await waitFor(() => expect(lastChangeHtml(onChange)).not.toContain('<a '))
+  })
+
+  it('rejects an unsafe link scheme with an inline error and no link mark', async () => {
+    const onChange = vi.fn()
+
+    render(
+      <>
+        <FormatToolbar editorId="editor-one" onUploadImage={vi.fn()} />
+        <RichTextEditor editorId="editor-one" value={richEditorDocumentFromHtml('<p>Evidence</p>')} onChange={onChange} />
+      </>,
+    )
+
+    const editor = await screen.findByRole('textbox', { name: 'Note body' })
+    selectText(editor)
+    fireEvent.click(screen.getByRole('button', { name: 'Link' }))
+
+    const input = await screen.findByRole('textbox', { name: 'Link URL' })
+    fireEvent.change(input, { target: { value: 'javascript:alert(1)' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Apply link' }))
+
+    expect((await screen.findByRole('alert')).textContent).toContain('Use an http, https, or mailto link.')
+    // The popover stays open and no link mark was applied.
+    expect(screen.getByRole('textbox', { name: 'Link URL' })).toBeTruthy()
+    if (onChange.mock.calls.length > 0) expect(lastChangeHtml(onChange)).not.toContain('javascript:')
   })
 
   it('sends image uploads to the toolbar target instead of the previously focused editor', async () => {

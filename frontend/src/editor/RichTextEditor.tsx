@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ChangeEvent } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { EditorContent, useEditor, type Editor } from '@tiptap/react'
 import { Bold, ImageIcon, Italic, Link2, List, ListChecks, type LucideIcon } from 'lucide-react'
 import { isSafeEditorLinkUrl, managedAttachmentProtocol, hydrateManagedAttachmentPreviews } from './editorHtml'
@@ -23,10 +23,50 @@ type FormatToolbarProps = {
 export function FormatToolbar({ editorId, onUploadImage }: FormatToolbarProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const uploadInserterRef = useRef<RichEditorImageInserter | null>(null)
+  const linkInputRef = useRef<HTMLInputElement | null>(null)
   const controller = useRichEditorController(editorId)
   const editor = controller?.editor ?? null
   const disabled = !editor || Boolean(controller?.readOnly)
   const blockValue = editor?.isActive('heading', { level: 2 }) ? 'h2' : editor?.isActive('heading', { level: 3 }) ? 'h3' : 'p'
+
+  // Inline link editor. `window.prompt`/`window.alert` are no-ops on macOS wry
+  // (WKWebView returns null without a WKUIDelegate), so we edit links in an
+  // inline popover instead. Behaviour parity with the old prompt flow: the
+  // current href is prefilled, an empty submit removes the link, and an unsafe
+  // scheme is rejected with an inline message.
+  const [linkPopover, setLinkPopover] = useState<{ value: string; error: string | null } | null>(null)
+
+  function openLinkEditor() {
+    if (!editor) return
+    const currentHref: unknown = editor.getAttributes('link').href
+    setLinkPopover({ value: typeof currentHref === 'string' ? currentHref : '', error: null })
+  }
+
+  function closeLinkEditor() {
+    setLinkPopover(null)
+    editor?.chain().focus().run()
+  }
+
+  function submitLinkEditor(event: FormEvent) {
+    event.preventDefault()
+    if (!editor || !linkPopover) return
+    const trimmedUrl = linkPopover.value.trim()
+    if (!trimmedUrl) {
+      editor.chain().focus().extendMarkRange('link').unsetLink().run()
+      setLinkPopover(null)
+      return
+    }
+    if (!isSafeEditorLinkUrl(trimmedUrl)) {
+      setLinkPopover({ value: linkPopover.value, error: 'Use an http, https, or mailto link.' })
+      return
+    }
+    editor.chain().focus().extendMarkRange('link').setLink({ href: trimmedUrl }).run()
+    setLinkPopover(null)
+  }
+
+  useEffect(() => {
+    if (linkPopover) linkInputRef.current?.focus()
+  }, [linkPopover])
 
   function requestImageUpload() {
     if (!controller || !onUploadImage) return
@@ -75,9 +115,37 @@ export function FormatToolbar({ editorId, onUploadImage }: FormatToolbarProps) {
         disabled={disabled}
         command={() => editor?.chain().focus().toggleTaskList().run()}
       />
-      <ToolbarButton label="Link" icon={Link2} active={editor?.isActive('link')} disabled={disabled} command={() => editLink(editor)} />
+      <ToolbarButton label="Link" icon={Link2} active={editor?.isActive('link')} disabled={disabled} command={openLinkEditor} />
       <ToolbarButton label="Upload image" icon={ImageIcon} command={requestImageUpload} disabled={disabled || !onUploadImage} />
       <input ref={fileInputRef} className="toolbar-file-input" type="file" accept="image/*" aria-label="Upload image file" onChange={handleImageSelected} />
+      {linkPopover ? (
+        <form className="link-editor-popover" onSubmit={submitLinkEditor}>
+          <input
+            ref={linkInputRef}
+            className="link-editor-input"
+            type="text"
+            value={linkPopover.value}
+            placeholder="https://example.com — leave blank to remove"
+            aria-label="Link URL"
+            aria-invalid={linkPopover.error ? true : undefined}
+            onChange={(event) => setLinkPopover({ value: event.target.value, error: null })}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') {
+                event.preventDefault()
+                closeLinkEditor()
+              }
+            }}
+          />
+          <button className="secondary-button link-editor-apply" type="submit" aria-label="Apply link">
+            Apply
+          </button>
+          {linkPopover.error ? (
+            <p className="link-editor-error" role="alert">
+              {linkPopover.error}
+            </p>
+          ) : null}
+        </form>
+      ) : null}
     </div>
   )
 }
@@ -217,26 +285,6 @@ function setBlockStyle(editor: Editor | null, value: string) {
   editor.chain().focus().setParagraph().run()
 }
 
-function editLink(editor: Editor | null) {
-  if (!editor) return
-  const previousUrl = typeof editor.getAttributes('link').href === 'string' ? editor.getAttributes('link').href : ''
-  const nextUrl = window.prompt(previousUrl ? 'Edit link URL. Leave blank to remove it.' : 'Link URL', previousUrl)
-  if (nextUrl === null) return
-
-  const trimmedUrl = nextUrl.trim()
-  if (!trimmedUrl) {
-    editor.chain().focus().extendMarkRange('link').unsetLink().run()
-    return
-  }
-
-  if (!isSafeEditorLinkUrl(trimmedUrl)) {
-    window.alert('Use an http, https, or mailto link.')
-    return
-  }
-
-  editor.chain().focus().extendMarkRange('link').setLink({ href: trimmedUrl }).run()
-}
-
 function editorAttributes({
   editorId,
   className,
@@ -267,6 +315,6 @@ function queueManagedPreviewHydration(editor: Editor, previewLoadRef: { current:
   const loadId = previewLoadRef.current + 1
   previewLoadRef.current = loadId
   window.queueMicrotask(() => {
-    void hydrateManagedAttachmentPreviews(editor.view.dom as HTMLElement, () => previewLoadRef.current === loadId)
+    void hydrateManagedAttachmentPreviews(editor.view.dom, () => previewLoadRef.current === loadId)
   })
 }
