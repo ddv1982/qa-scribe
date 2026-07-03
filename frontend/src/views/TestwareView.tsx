@@ -8,7 +8,25 @@ import {
 } from '../testware/generationPreferences'
 import type { Draft, GenerationJobStatus } from '../tauri'
 import type { BusyAction } from '../ui/types'
-import { RecordCollectionView } from './RecordCollectionView'
+import { RecordCollectionView, type RecordCollectionLabels } from './RecordCollectionView'
+
+const testwareLabels: RecordCollectionLabels = {
+  eyebrow: 'Testware',
+  heading: 'Test cases',
+  emptyTitle: 'No testware yet',
+  prefillLabel: 'Prefill from note',
+  manualLabel: 'New testware',
+  generationTitle: 'Generating test cases',
+  generationTitleAriaLabel: 'Pending testware title',
+  generationPlaceholder: 'Preparing testware...',
+  generationBodyAriaLabel: 'Pending generated testware',
+  editorIdPrefix: 'testware-editor',
+  titleInputLabel: 'Testware title',
+  recordNounLower: 'testware',
+  bodyAriaLabelSuffix: 'testware',
+  placeholder: 'Write test cases...',
+  previewFallbackHtml: '<p>No testware detail yet.</p>',
+}
 
 export function TestwareView({
   busyAction,
@@ -51,14 +69,10 @@ export function TestwareView({
 }) {
   return (
     <RecordCollectionView
-      eyebrow="Testware"
-      heading="Test cases"
+      labels={testwareLabels}
       emptyIcon={Box}
-      emptyTitle="No testware yet"
       prefillBusyAction="prefill-testware"
-      prefillLabel="Prefill from note"
       manualBusyAction="manual-testware"
-      manualLabel="New testware"
       busyAction={busyAction}
       copiedRecordId={copiedDraftId}
       copiedRecordScreenshotId={copiedDraftScreenshotId}
@@ -68,16 +82,6 @@ export function TestwareView({
       error={error}
       isBusy={isBusy}
       activeGenerationJob={activeGenerationJob}
-      generationTitle="Generating test cases"
-      generationTitleAriaLabel="Pending testware title"
-      generationPlaceholder="Preparing testware..."
-      generationBodyAriaLabel="Pending generated testware"
-      editorIdPrefix="testware-editor"
-      titleInputLabel="Testware title"
-      recordNounLower="testware"
-      bodyAriaLabelSuffix="testware"
-      placeholder="Write test cases..."
-      previewFallbackHtml="<p>No testware detail yet.</p>"
       renderPreviewHeader={(draft) => {
         const generationMetadata = parseTestwareGenerationMetadata(draft)
         return (
@@ -93,10 +97,18 @@ export function TestwareView({
           </div>
         )
       }}
-      deleteBusyAction={(draft) => `delete-draft:${draft.id}`}
-      copyBusyAction={(draft) => `copy-draft:${draft.id}`}
-      copyScreenshotBusyAction={(draft) => `copy-draft-screenshot:${draft.id}`}
-      savingBusyAction={(draft) => `draft:${draft.id}`}
+      busyActionFor={(draft, kind) => {
+        switch (kind) {
+          case 'delete':
+            return `delete-draft:${draft.id}`
+          case 'copy':
+            return `copy-draft:${draft.id}`
+          case 'copyScreenshot':
+            return `copy-draft-screenshot:${draft.id}`
+          case 'saving':
+            return `draft:${draft.id}`
+        }
+      }}
       updateLocalRecord={updateLocalDraft}
       onCancelGenerationJob={onCancelGenerationJob}
       onCopyRecord={onCopyDraft}

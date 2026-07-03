@@ -3,7 +3,25 @@ import type { RichEditorImageUpload } from '../editor/RichTextEditor'
 import type { Finding, GenerationJobStatus } from '../tauri'
 import { formatFindingKind } from '../ui/format'
 import type { BusyAction } from '../ui/types'
-import { RecordCollectionView } from './RecordCollectionView'
+import { RecordCollectionView, type RecordCollectionLabels } from './RecordCollectionView'
+
+const findingsLabels: RecordCollectionLabels = {
+  eyebrow: 'Findings',
+  heading: 'Issues and risks',
+  emptyTitle: 'No findings yet',
+  prefillLabel: 'Prefill from note',
+  manualLabel: 'New finding',
+  generationTitle: 'Generating finding',
+  generationTitleAriaLabel: 'Pending finding title',
+  generationPlaceholder: 'Preparing finding...',
+  generationBodyAriaLabel: 'Pending generated finding',
+  editorIdPrefix: 'finding-editor',
+  titleInputLabel: 'Finding title',
+  recordNounLower: 'finding',
+  bodyAriaLabelSuffix: 'finding',
+  placeholder: 'Write finding detail...',
+  previewFallbackHtml: '<p>No finding detail yet.</p>',
+}
 
 export function FindingsView({
   busyAction,
@@ -46,14 +64,10 @@ export function FindingsView({
 }) {
   return (
     <RecordCollectionView
-      eyebrow="Findings"
-      heading="Issues and risks"
+      labels={findingsLabels}
       emptyIcon={Flag}
-      emptyTitle="No findings yet"
       prefillBusyAction="prefill-finding"
-      prefillLabel="Prefill from note"
       manualBusyAction="manual-finding"
-      manualLabel="New finding"
       busyAction={busyAction}
       copiedRecordId={copiedFindingId}
       copiedRecordScreenshotId={copiedFindingScreenshotId}
@@ -63,26 +77,24 @@ export function FindingsView({
       error={error}
       isBusy={isBusy}
       activeGenerationJob={activeGenerationJob}
-      generationTitle="Generating finding"
-      generationTitleAriaLabel="Pending finding title"
-      generationPlaceholder="Preparing finding..."
-      generationBodyAriaLabel="Pending generated finding"
-      editorIdPrefix="finding-editor"
-      titleInputLabel="Finding title"
-      recordNounLower="finding"
-      bodyAriaLabelSuffix="finding"
-      placeholder="Write finding detail..."
-      previewFallbackHtml="<p>No finding detail yet.</p>"
       renderMeta={(finding) => (
         <div className="finding-meta-row">
           <span>{formatFindingKind(finding.kind)}</span>
         </div>
       )}
       renderPreviewHeader={(finding) => <h2 className="record-title">{finding.title}</h2>}
-      deleteBusyAction={(finding) => `delete-finding:${finding.id}`}
-      copyBusyAction={(finding) => `copy-finding:${finding.id}`}
-      copyScreenshotBusyAction={(finding) => `copy-finding-screenshot:${finding.id}`}
-      savingBusyAction={(finding) => `finding:${finding.id}`}
+      busyActionFor={(finding, kind) => {
+        switch (kind) {
+          case 'delete':
+            return `delete-finding:${finding.id}`
+          case 'copy':
+            return `copy-finding:${finding.id}`
+          case 'copyScreenshot':
+            return `copy-finding-screenshot:${finding.id}`
+          case 'saving':
+            return `finding:${finding.id}`
+        }
+      }}
       updateLocalRecord={updateLocalFinding}
       onCancelGenerationJob={onCancelGenerationJob}
       onCopyRecord={onCopyFinding}

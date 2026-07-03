@@ -16,67 +16,13 @@ type CollectionRecord = {
   bodyFormat: string | null
 }
 
-export function RecordCollectionView<T extends CollectionRecord>({
-  eyebrow,
-  heading,
-  emptyIcon,
-  emptyTitle,
-  prefillBusyAction,
-  prefillLabel,
-  manualBusyAction,
-  manualLabel,
-  busyAction,
-  copiedRecordId,
-  copiedRecordScreenshotId,
-  recordScreenshotCounts,
-  records,
-  notice,
-  error,
-  isBusy,
-  activeGenerationJob,
-  generationTitle,
-  generationTitleAriaLabel,
-  generationPlaceholder,
-  generationBodyAriaLabel,
-  editorIdPrefix,
-  titleInputLabel,
-  recordNounLower,
-  bodyAriaLabelSuffix,
-  placeholder,
-  previewFallbackHtml,
-  renderMeta,
-  renderPreviewHeader,
-  deleteBusyAction,
-  copyBusyAction,
-  copyScreenshotBusyAction,
-  savingBusyAction,
-  updateLocalRecord,
-  onCancelGenerationJob,
-  onCopyRecord,
-  onCopyRecordScreenshot,
-  onDeleteRecord,
-  onManualCreate,
-  onPrefillFromNote,
-  onSaveRecord,
-  onUploadImage,
-}: {
+/** Static per-consumer copy: identical for every record, set once by the caller. */
+export type RecordCollectionLabels = {
   eyebrow: string
   heading: string
-  emptyIcon: LucideIcon
   emptyTitle: string
-  prefillBusyAction: BusyAction
   prefillLabel: string
-  manualBusyAction: BusyAction
   manualLabel: string
-  busyAction: BusyAction | null
-  copiedRecordId: string | null
-  copiedRecordScreenshotId: string | null
-  recordScreenshotCounts: Record<string, number>
-  records: T[]
-  notice: string | null
-  error: string | null
-  isBusy: boolean
-  activeGenerationJob: GenerationJobStatus | null
   generationTitle: string
   generationTitleAriaLabel: string
   generationPlaceholder: string
@@ -87,12 +33,54 @@ export function RecordCollectionView<T extends CollectionRecord>({
   bodyAriaLabelSuffix: string
   placeholder: string
   previewFallbackHtml: string
+}
+
+/** Which per-record action's busy state to look up. */
+export type RecordBusyActionKind = 'delete' | 'copy' | 'copyScreenshot' | 'saving'
+
+export function RecordCollectionView<T extends CollectionRecord>({
+  labels,
+  emptyIcon,
+  prefillBusyAction,
+  manualBusyAction,
+  busyAction,
+  busyActionFor,
+  copiedRecordId,
+  copiedRecordScreenshotId,
+  recordScreenshotCounts,
+  records,
+  notice,
+  error,
+  isBusy,
+  activeGenerationJob,
+  renderMeta,
+  renderPreviewHeader,
+  updateLocalRecord,
+  onCancelGenerationJob,
+  onCopyRecord,
+  onCopyRecordScreenshot,
+  onDeleteRecord,
+  onManualCreate,
+  onPrefillFromNote,
+  onSaveRecord,
+  onUploadImage,
+}: {
+  labels: RecordCollectionLabels
+  emptyIcon: LucideIcon
+  prefillBusyAction: BusyAction
+  manualBusyAction: BusyAction
+  busyAction: BusyAction | null
+  busyActionFor: (record: T, kind: RecordBusyActionKind) => BusyAction
+  copiedRecordId: string | null
+  copiedRecordScreenshotId: string | null
+  recordScreenshotCounts: Record<string, number>
+  records: T[]
+  notice: string | null
+  error: string | null
+  isBusy: boolean
+  activeGenerationJob: GenerationJobStatus | null
   renderMeta?: (record: T) => ReactNode
   renderPreviewHeader: (record: T) => ReactNode
-  deleteBusyAction: (record: T) => BusyAction
-  copyBusyAction: (record: T) => BusyAction
-  copyScreenshotBusyAction: (record: T) => BusyAction
-  savingBusyAction: (record: T) => BusyAction
   updateLocalRecord: (id: string, patch: Partial<Pick<T, 'title' | 'body' | 'bodyJson' | 'bodyFormat'>>) => void
   onCancelGenerationJob: (jobId: string) => Promise<void>
   onCopyRecord: (record: T) => Promise<void>
@@ -110,17 +98,17 @@ export function RecordCollectionView<T extends CollectionRecord>({
     <section className="collection-view">
       <header className="collection-header">
         <div>
-          <p className="eyebrow">{eyebrow}</p>
-          <h1>{heading}</h1>
+          <p className="eyebrow">{labels.eyebrow}</p>
+          <h1>{labels.heading}</h1>
         </div>
         <div className="collection-header-actions">
           <button className="secondary-button" type="button" disabled={isBusy} onClick={() => void onPrefillFromNote()}>
             {busyAction === prefillBusyAction ? <Loader2 className="spin" size={16} /> : <FileText size={16} />}
-            {prefillLabel}
+            {labels.prefillLabel}
           </button>
           <button className="primary-button" type="button" disabled={isBusy} onClick={() => void onManualCreate()}>
             {busyAction === manualBusyAction ? <Loader2 className="spin" size={16} /> : <Plus size={16} />}
-            {manualLabel}
+            {labels.manualLabel}
           </button>
         </div>
       </header>
@@ -133,26 +121,26 @@ export function RecordCollectionView<T extends CollectionRecord>({
       <div className="collection-stack">
         {activeGenerationJob ? (
           <GenerationRecord
-            title={generationTitle}
-            titleAriaLabel={generationTitleAriaLabel}
+            title={labels.generationTitle}
+            titleAriaLabel={labels.generationTitleAriaLabel}
             job={activeGenerationJob}
-            placeholder={generationPlaceholder}
-            bodyAriaLabel={generationBodyAriaLabel}
+            placeholder={labels.generationPlaceholder}
+            bodyAriaLabel={labels.generationBodyAriaLabel}
             onCancelGenerationJob={onCancelGenerationJob}
           />
         ) : null}
         {records.map((record) => {
-          const deleting = busyAction === deleteBusyAction(record)
-          const copying = busyAction === copyBusyAction(record)
-          const copyingScreenshot = busyAction === copyScreenshotBusyAction(record)
+          const deleting = busyAction === busyActionFor(record, 'delete')
+          const copying = busyAction === busyActionFor(record, 'copy')
+          const copyingScreenshot = busyAction === busyActionFor(record, 'copyScreenshot')
           const copied = copiedRecordId === record.id
           const screenshotCopied = copiedRecordScreenshotId === record.id
           const screenshotCount = recordScreenshotCounts[record.id] ?? 0
-          const saving = busyAction === savingBusyAction(record)
-          const editorId = `${editorIdPrefix}-${record.id}`
+          const saving = busyAction === busyActionFor(record, 'saving')
+          const editorId = `${labels.editorIdPrefix}-${record.id}`
           const recordTitle = record.title.trim()
-          const copyLabel = recordCopyLabel(recordNounLower, recordTitle, copied)
-          const screenshotCopyLabel = recordScreenshotCopyLabel(recordNounLower, recordTitle, screenshotCopied, screenshotCount)
+          const copyLabel = recordCopyLabel(labels.recordNounLower, recordTitle, copied)
+          const screenshotCopyLabel = recordScreenshotCopyLabel(labels.recordNounLower, recordTitle, screenshotCopied, screenshotCount)
           const editing = Boolean(editingRecordIds[record.id])
           return (
             <EditableRichRecord
@@ -160,10 +148,10 @@ export function RecordCollectionView<T extends CollectionRecord>({
               record={record}
               editing={editing}
               editorId={editorId}
-              titleInputLabel={titleInputLabel}
-              bodyAriaLabel={`${record.title} ${bodyAriaLabelSuffix} ${editing ? 'body' : 'preview'}`}
-              placeholder={placeholder}
-              previewFallbackHtml={previewFallbackHtml}
+              titleInputLabel={labels.titleInputLabel}
+              bodyAriaLabel={`${record.title} ${labels.bodyAriaLabelSuffix} ${editing ? 'body' : 'preview'}`}
+              placeholder={labels.placeholder}
+              previewFallbackHtml={labels.previewFallbackHtml}
               meta={renderMeta?.(record)}
               previewHeader={renderPreviewHeader(record)}
               onTitleChange={(title) => updateLocalRecord(record.id, { title })}
@@ -177,7 +165,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
                   copyTitle={copied ? 'Copied' : 'Copy for Jira'}
                   deleting={deleting}
                   deleteLabel={`Delete ${record.title}`}
-                  deleteTitle={`Delete ${recordNounLower}`}
+                  deleteTitle={`Delete ${labels.recordNounLower}`}
                   editing={editing}
                   isBusy={isBusy}
                   saving={saving}
@@ -205,7 +193,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
             />
           )
         })}
-        {records.length === 0 && !activeGenerationJob ? <EmptyCollection icon={emptyIcon} title={emptyTitle} /> : null}
+        {records.length === 0 && !activeGenerationJob ? <EmptyCollection icon={emptyIcon} title={labels.emptyTitle} /> : null}
       </div>
     </section>
   )
