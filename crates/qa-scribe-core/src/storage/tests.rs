@@ -111,6 +111,53 @@ fn reopen_at_current_version_skips_migrations() {
     std::fs::remove_dir_all(temp_dir).expect("temp dir should be removed");
 }
 
+fn index_exists(connection: &Connection, table: &str, index: &str) -> bool {
+    let mut statement = connection
+        .prepare("SELECT 1 FROM sqlite_master WHERE type = 'index' AND tbl_name = ?1 AND name = ?2")
+        .expect("sqlite_master query should prepare");
+    statement
+        .exists([table, index])
+        .expect("sqlite_master query should run")
+}
+
+#[test]
+fn fresh_database_has_indices_on_cascade_fk_columns() {
+    let connection = Connection::open_in_memory().expect("in-memory database should open");
+    initialize(&connection).expect("fresh database should initialize");
+
+    let expected = [
+        ("evidence_links", "idx_evidence_links_finding_id"),
+        ("evidence_links", "idx_evidence_links_entry_id"),
+        ("evidence_links", "idx_evidence_links_attachment_id"),
+        (
+            "generation_context_entries",
+            "idx_generation_context_entries_generation_context_id",
+        ),
+        (
+            "generation_context_entries",
+            "idx_generation_context_entries_entry_id",
+        ),
+        (
+            "generation_context_attachments",
+            "idx_generation_context_attachments_generation_context_id",
+        ),
+        (
+            "generation_context_attachments",
+            "idx_generation_context_attachments_attachment_id",
+        ),
+        ("drafts", "idx_drafts_ai_run_id"),
+        ("attachments", "idx_attachments_entry_id"),
+        ("generation_contexts", "idx_generation_contexts_session_id"),
+        ("ai_runs", "idx_ai_runs_generation_context_id"),
+    ];
+    for (table, index) in expected {
+        assert!(
+            index_exists(&connection, table, index),
+            "expected index {index} on {table} to exist on a fresh database"
+        );
+    }
+}
+
 #[test]
 fn stale_current_era_user_version_still_triggers_one_more_migration_pass() {
     // Databases produced by the pre-versioning code always ended up with

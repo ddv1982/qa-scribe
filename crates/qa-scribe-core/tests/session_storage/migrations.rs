@@ -370,3 +370,4 @@ fn stale_user_version_five_from_pre_versioning_builds_still_migrates_and_settles
     drop(service);
     fs::remove_dir_all(temp_dir).expect("temp dir should be removed");
 }
+

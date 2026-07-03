@@ -25,6 +25,7 @@ use helpers::{assert_no_foreign_key_violations, count_rows, unique_temp_dir};
 include!("session_storage/lifecycle_and_validation.rs");
 include!("session_storage/generation_and_relationships.rs");
 include!("session_storage/migrations.rs");
+include!("session_storage/migrations_indices.rs");
 include!("session_storage/attachments.rs");
 include!("session_storage/ai_run_lifecycle.rs");
 include!("session_storage/not_found_references.rs");

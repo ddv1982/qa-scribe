@@ -140,7 +140,7 @@ pub fn import_managed_attachment_bytes(
     }
     if filename.len() > MAX_ATTACHMENT_FILENAME_BYTES {
         return Err(validation(format!(
-            "attachment filename must be at most {MAX_ATTACHMENT_FILENAME_BYTES} characters"
+            "attachment filename must be at most {MAX_ATTACHMENT_FILENAME_BYTES} bytes"
         )));
     }
     let sha256 = hex_sha256(&bytes);

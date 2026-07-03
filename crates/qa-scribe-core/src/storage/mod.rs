@@ -63,7 +63,7 @@ pub fn with_immediate_tx<T>(
 /// final time, and settles on a `user_version` this build can trust from then
 /// on. Once every database in the wild has passed through this once, future
 /// bumps can go strictly by increment again.
-pub const SCHEMA_VERSION: i32 = 6;
+pub const SCHEMA_VERSION: i32 = 7;
 
 fn initialize(connection: &Connection) -> Result<()> {
     connection.pragma_update(None, "foreign_keys", "ON")?;
@@ -88,6 +88,33 @@ fn migrate(connection: &Connection) -> Result<()> {
     ensure_blank_bodies_supported(connection)?;
     ensure_rich_body_columns_supported(connection)?;
     ensure_draft_metadata_supported(connection)?;
+    ensure_cascade_fk_indices_supported(connection)?;
+    Ok(())
+}
+
+/// Adds indices on every child-side foreign-key column that participates in
+/// an `ON DELETE CASCADE`/`SET NULL` relationship (plus a couple of
+/// frequently-filtered FK columns), so cascading a session delete — or any
+/// other delete that ripples through these relationships — doesn't force a
+/// full table scan of each child table. The `session_id`-keyed indices
+/// created by earlier schema versions already cover the top of each cascade
+/// chain; this only fills in the columns that were still missing an index.
+fn ensure_cascade_fk_indices_supported(connection: &Connection) -> Result<()> {
+    connection.execute_batch(
+        r#"
+        CREATE INDEX IF NOT EXISTS idx_evidence_links_finding_id ON evidence_links(finding_id);
+        CREATE INDEX IF NOT EXISTS idx_evidence_links_entry_id ON evidence_links(entry_id);
+        CREATE INDEX IF NOT EXISTS idx_evidence_links_attachment_id ON evidence_links(attachment_id);
+        CREATE INDEX IF NOT EXISTS idx_generation_context_entries_generation_context_id ON generation_context_entries(generation_context_id);
+        CREATE INDEX IF NOT EXISTS idx_generation_context_entries_entry_id ON generation_context_entries(entry_id);
+        CREATE INDEX IF NOT EXISTS idx_generation_context_attachments_generation_context_id ON generation_context_attachments(generation_context_id);
+        CREATE INDEX IF NOT EXISTS idx_generation_context_attachments_attachment_id ON generation_context_attachments(attachment_id);
+        CREATE INDEX IF NOT EXISTS idx_drafts_ai_run_id ON drafts(ai_run_id);
+        CREATE INDEX IF NOT EXISTS idx_attachments_entry_id ON attachments(entry_id);
+        CREATE INDEX IF NOT EXISTS idx_generation_contexts_session_id ON generation_contexts(session_id);
+        CREATE INDEX IF NOT EXISTS idx_ai_runs_generation_context_id ON ai_runs(generation_context_id);
+        "#,
+    )?;
     Ok(())
 }
 
@@ -435,6 +462,17 @@ CREATE INDEX IF NOT EXISTS idx_attachments_session_created ON attachments(sessio
 CREATE INDEX IF NOT EXISTS idx_findings_session_created ON findings(session_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_drafts_session_updated ON drafts(session_id, updated_at);
 CREATE INDEX IF NOT EXISTS idx_ai_runs_session_created ON ai_runs(session_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_evidence_links_finding_id ON evidence_links(finding_id);
+CREATE INDEX IF NOT EXISTS idx_evidence_links_entry_id ON evidence_links(entry_id);
+CREATE INDEX IF NOT EXISTS idx_evidence_links_attachment_id ON evidence_links(attachment_id);
+CREATE INDEX IF NOT EXISTS idx_generation_context_entries_generation_context_id ON generation_context_entries(generation_context_id);
+CREATE INDEX IF NOT EXISTS idx_generation_context_entries_entry_id ON generation_context_entries(entry_id);
+CREATE INDEX IF NOT EXISTS idx_generation_context_attachments_generation_context_id ON generation_context_attachments(generation_context_id);
+CREATE INDEX IF NOT EXISTS idx_generation_context_attachments_attachment_id ON generation_context_attachments(attachment_id);
+CREATE INDEX IF NOT EXISTS idx_drafts_ai_run_id ON drafts(ai_run_id);
+CREATE INDEX IF NOT EXISTS idx_attachments_entry_id ON attachments(entry_id);
+CREATE INDEX IF NOT EXISTS idx_generation_contexts_session_id ON generation_contexts(session_id);
+CREATE INDEX IF NOT EXISTS idx_ai_runs_generation_context_id ON ai_runs(generation_context_id);
 "#;
 
 #[cfg(test)]
