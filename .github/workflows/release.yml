@@ -629,7 +629,9 @@ jobs:
 
       - name: Verify release checksum signature
         env:
-          DEB_SIGNING_PUBLIC_KEY: ${{ secrets.DEB_SIGNING_PUBLIC_KEY }}
+          # The public key is a repository *variable*, not a secret (it is
+          # public by definition) — same source as the APT publish job above.
+          DEB_SIGNING_PUBLIC_KEY: ${{ vars.DEB_SIGNING_PUBLIC_KEY }}
         run: |
           set -euo pipefail
 
