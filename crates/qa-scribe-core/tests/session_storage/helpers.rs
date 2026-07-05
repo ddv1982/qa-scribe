@@ -1,4 +1,9 @@
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::{
+    sync::atomic::{AtomicU64, Ordering},
+    time::{SystemTime, UNIX_EPOCH},
+};
+
+static TEMP_DIR_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 pub(crate) fn count_rows(connection: &rusqlite::Connection, table: &str) -> i64 {
     let sql = format!("SELECT COUNT(*) FROM {table}");
@@ -25,5 +30,9 @@ pub(crate) fn unique_temp_dir() -> std::path::PathBuf {
         .duration_since(UNIX_EPOCH)
         .expect("system time should be after epoch")
         .as_nanos();
-    std::env::temp_dir().join(format!("qa-scribe-test-{nanos}"))
+    let sequence = TEMP_DIR_COUNTER.fetch_add(1, Ordering::Relaxed);
+    std::env::temp_dir().join(format!(
+        "qa-scribe-test-{}-{nanos}-{sequence}",
+        std::process::id()
+    ))
 }
