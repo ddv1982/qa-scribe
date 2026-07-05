@@ -12,15 +12,15 @@ export function ThemeToggle({
 }) {
   return (
     <div className="theme-toggle" role="group" aria-label={label}>
-      <button className={theme === 'light' ? 'active' : ''} type="button" onClick={() => onThemeChange('light')}>
+      <button className={theme === 'light' ? 'active' : ''} type="button" aria-pressed={theme === 'light'} onClick={() => onThemeChange('light')}>
         <Sun size={15} />
         Light
       </button>
-      <button className={theme === 'dark' ? 'active' : ''} type="button" onClick={() => onThemeChange('dark')}>
+      <button className={theme === 'dark' ? 'active' : ''} type="button" aria-pressed={theme === 'dark'} onClick={() => onThemeChange('dark')}>
         <Moon size={15} />
         Dark
       </button>
-      <button className={theme === 'system' ? 'active' : ''} type="button" onClick={() => onThemeChange('system')}>
+      <button className={theme === 'system' ? 'active' : ''} type="button" aria-pressed={theme === 'system'} onClick={() => onThemeChange('system')}>
         <Monitor size={15} />
         System
       </button>

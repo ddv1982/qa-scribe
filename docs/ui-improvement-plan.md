@@ -1,7 +1,7 @@
 # UI Improvement Plan — Professional Visual Upgrade (Light + Dark)
 
 Date: 2026-07-03
-Status: Draft for review
+Status: Historical plan; the visual token and polish work shipped in v0.6.0. Keep this document as implementation background, not as an active task list.
 
 ## Goal
 
@@ -21,7 +21,7 @@ Findings from studying Linear, Raycast, Vercel, Stripe design-system teardowns a
 
 Key sources: Linear design-system teardowns (weight, borders at 6%, luminance stacking), Raycast token analyses (surface ladder #07080a→#121212, hairline borders, Inter ss03), dark-mode token guides (three-layer token architecture, contrast per pairing, halation avoidance), interaction-state coverage references (state matrix + motion durations).
 
-## Current state (from codebase audit)
+## Historical current state (from the 2026-07-03 codebase audit)
 
 - Tokens live in `frontend/src/styles/base.css`: ~16 color variables with light + dark values — a good start, but they are *primitive-ish* (`--blue`, `--panel-bg`) rather than a full semantic set. Single `--radius: 8px`, single huge `--shadow: 0 22px 55px …` used broadly.
 - Dark mode exists via `:root[data-theme="dark"]` + ThemeToggle (light/dark/system) — mechanism is right, values need redesign (dark shadows are near-invisible; no surface ladder; accents not re-tuned).

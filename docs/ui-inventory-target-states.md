@@ -1,6 +1,6 @@
 # UI Inventory And Target States
 
-This note anchors the UI cleanup work against the product direction in `docs/initial-phased-plan.md`: qa-scribe should be calm, local-native, capture-first, and minimal by default, with dense testing details available only when they are relevant.
+This note anchors the UI cleanup work against the product direction captured in `CONTEXT.md` and the historical visual upgrade plan in `docs/ui-improvement-plan.md`: qa-scribe should be calm, local-native, capture-first, and minimal by default, with dense testing details available only when they are relevant.
 
 ## Current Clutter Inventory
 

@@ -165,16 +165,16 @@ The release workflow:
 Before pushing a release tag, run on the host platform:
 
 ```bash
-cargo fmt --all --check
 bun install --cwd frontend --frozen-lockfile
-bun run frontend:audit
-bun run frontend:build
-QA_SCRIBE_USE_PREBUILT_FRONTEND=1 scripts/build_frontend_for_tauri.sh
-bun run test
-bun run lint
-bun run smoke
+bun run verify
 node scripts/check-release-metadata.mjs --expected-tag v1.0.0
 ```
+
+`bun run verify` is the broad local gate: frontend audit, typecheck, lint,
+tests, bindings check, release metadata, frontend build, Rust fmt/clippy/tests,
+and the smoke harness. Use the explicit release metadata check with the expected
+tag before tagging so the changelog/package versions match the release being
+prepared.
 
 On macOS, validate app packaging:
 

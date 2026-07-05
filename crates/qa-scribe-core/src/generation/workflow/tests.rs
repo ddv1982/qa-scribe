@@ -127,6 +127,99 @@ fn testware_completion_preserves_managed_screenshots() {
 }
 
 #[test]
+fn testware_persistence_failure_marks_ai_run_failed_not_completed() {
+    let service = SessionService::in_memory().expect("service should open");
+    let session = create_session(&service, "Oversized output");
+    let note = create_note(
+        &service,
+        &session.id,
+        "Input note",
+        "<p>Generate too much output.</p>",
+    );
+    let request = request_for(&session.id, GenerateAiActionKind::Testware, Some(&note.id));
+    let prepared =
+        prepare_ai_action_generation(&service, &request).expect("generation should prepare");
+    let ai_run_id = prepared.ai_run.id.clone();
+    let oversized_response = format!("<p>{}</p>", "x".repeat(300_000));
+
+    let error = finish_ai_action_generation(
+        &service,
+        &request,
+        prepared,
+        Ok(success_generation_output(&oversized_response)),
+    )
+    .expect_err("oversized generated body should fail persistence");
+
+    assert!(
+        error.to_string().contains("Draft body"),
+        "expected draft body validation error, got: {error}"
+    );
+    assert_eq!(count_table_rows(&service, "drafts"), 0);
+    assert_eq!(
+        service
+            .get_ai_run(&ai_run_id)
+            .expect("AI Run should read")
+            .expect("AI Run should exist")
+            .status
+            .as_str(),
+        "failed"
+    );
+}
+
+#[test]
+fn action_generation_context_contains_only_prompt_material() {
+    let service = SessionService::in_memory().expect("service should open");
+    let session = create_session(&service, "Selected context");
+    let (selected_note, selected_attachment) = create_note_with_attachment(&service, &session);
+    create_note(
+        &service,
+        &session.id,
+        "Unselected note",
+        "<p>This note is not part of the prompt.</p>",
+    );
+    service
+        .create_attachment(AttachmentDraft {
+            session_id: session.id.clone(),
+            entry_id: None,
+            filename: "unreferenced.png".to_string(),
+            mime_type: Some("image/png".to_string()),
+            size_bytes: 456,
+            sha256: "b".repeat(64),
+            relative_path: "attachments/session/unreferenced.png".to_string(),
+        })
+        .expect("unreferenced attachment should create");
+    let request = request_for(
+        &session.id,
+        GenerateAiActionKind::Finding,
+        Some(&selected_note.id),
+    );
+
+    let prepared =
+        prepare_ai_action_generation(&service, &request).expect("generation should prepare");
+
+    assert!(prepared.prompt.contains("Gmail login fails."));
+    assert!(prepared.prompt.contains(&selected_attachment.id));
+    assert_eq!(
+        count_context_rows(
+            &service,
+            "generation_context_entries",
+            "generation_context_id",
+            &prepared.generation_context.id,
+        ),
+        1
+    );
+    assert_eq!(
+        count_context_rows(
+            &service,
+            "generation_context_attachments",
+            "generation_context_id",
+            &prepared.generation_context.id,
+        ),
+        1
+    );
+}
+
+#[test]
 fn testware_preferences_are_added_to_prompt_and_draft_metadata() {
     let service = SessionService::in_memory().expect("service should open");
     let session = create_session(&service, "Checkout rules");
@@ -433,4 +526,16 @@ fn count_table_rows(service: &SessionService, table: &str) -> i64 {
             row.get(0)
         })
         .expect("table row count")
+}
+
+fn count_context_rows(service: &SessionService, table: &str, column: &str, id: &str) -> i64 {
+    service
+        .database()
+        .connection()
+        .query_row(
+            &format!("SELECT COUNT(*) FROM {table} WHERE {column} = ?1"),
+            [id],
+            |row| row.get(0),
+        )
+        .expect("context row count")
 }

@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.6.3 - 2026-07-05
+
+- Harden AI generation records so successful provider output cannot leave a completed AI Run without its generated Draft, Finding, or Note update, and make AI action Generation Contexts reflect only the selected prompt material.
+- Close provider-process edge cases by killing children registered after cancellation and creating provider-probe output files exclusively instead of truncating existing temp paths.
+- Guard late generated Draft/Finding saves after Session switches, protect dirty notes during window close, and expose selected theme/navigation state to assistive technology.
+- Fix APT prerelease version ordering and refresh release/UI documentation so current validation and release automation are accurately described.
+
 ## v0.6.2 - 2026-07-05
 
 - Replace the app icon with a cleaner QA Scribe notebook-and-pencil mark, regenerating the macOS dock and Linux launcher icon assets from the new 1024px source.

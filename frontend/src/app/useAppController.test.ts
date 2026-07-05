@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { draftFixture, entryFixture, generationStatusFixture, sessionFixture } from '../test/fixtures'
+import { draftFixture, entryFixture, findingFixture, generationStatusFixture, sessionFixture } from '../test/fixtures'
 import { richEditorDocumentFromPlainText } from '../editor/editorDocument'
 
 const tauriMock = vi.hoisted(() => ({
@@ -64,6 +64,20 @@ describe('useAppController autosave flush', () => {
     tauriMock.updateEntry.mockImplementation(async (_id: string, patch: { body?: string | null; bodyJson?: string | null; bodyFormat?: string | null }) =>
       entryFixture({
         body: patch.body ?? '<p>Checkout fails after payment.</p>',
+        bodyJson: patch.bodyJson ?? null,
+        bodyFormat: patch.bodyFormat ?? 'html',
+      }),
+    )
+    tauriMock.updateDraft.mockImplementation(async (_id: string, patch: { body?: string | null; bodyJson?: string | null; bodyFormat?: string | null }) =>
+      draftFixture({
+        body: patch.body ?? '<ol><li>Submit payment.</li></ol>',
+        bodyJson: patch.bodyJson ?? null,
+        bodyFormat: patch.bodyFormat ?? 'html',
+      }),
+    )
+    tauriMock.updateFinding.mockImplementation(async (_id: string, patch: { body?: string | null; bodyJson?: string | null; bodyFormat?: string | null }) =>
+      findingFixture({
+        body: patch.body ?? '<p>Payment submission returns a server error.</p>',
         bodyJson: patch.bodyJson ?? null,
         bodyFormat: patch.bodyFormat ?? 'html',
       }),
@@ -255,13 +269,15 @@ describe('useAppController autosave flush', () => {
       })
       expect(tauriMock.updateEntry).not.toHaveBeenCalledWith('entry-1', expect.objectContaining({ body: expect.stringContaining('typed before quit') }))
 
+      const event = new Event('beforeunload', { cancelable: true })
       await act(async () => {
-        window.dispatchEvent(new Event('beforeunload'))
+        window.dispatchEvent(event)
         // Flush the microtask queue triggered by the listener without advancing fake timers.
         await Promise.resolve()
         await Promise.resolve()
       })
 
+      expect(event.defaultPrevented).toBe(true)
       expect(tauriMock.updateEntry).toHaveBeenCalledWith(
         'entry-1',
         expect.objectContaining({ body: expect.stringContaining('typed before quit') }),
@@ -269,6 +285,70 @@ describe('useAppController autosave flush', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('does not merge a generated draft canonicalization after switching notes', async () => {
+    const { result } = renderHook(() => useAppController())
+
+    await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
+
+    let resolveUpdateDraft: (draft: ReturnType<typeof draftFixture>) => void = () => {}
+    tauriMock.updateDraft.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveUpdateDraft = resolve
+      }),
+    )
+    tauriMock.startAiActionJob.mockImplementationOnce(async (_request: unknown, onEvent: (event: unknown) => void) => {
+      onEvent({
+        type: 'completed',
+        job_id: 'job-1',
+        status: generationStatusFixture({ state: 'completed' }),
+        result: {
+          generationContext: { id: 'context-1', sessionId: 'session-1', createdAt: '2026-06-24T10:00:00.000Z' },
+          aiRun: {
+            id: 'run-1',
+            sessionId: 'session-1',
+            generationContextId: 'context-1',
+            provider: 'codex_cli',
+            model: 'default',
+            reasoningEffort: null,
+            promptVersion: 'testware-v3',
+            status: 'completed',
+            errorMessage: null,
+            createdAt: '2026-06-24T10:00:00.000Z',
+            completedAt: '2026-06-24T10:00:00.000Z',
+          },
+          draft: draftFixture({ id: 'draft-from-session-1', sessionId: 'session-1' }),
+          finding: null,
+          noteEntry: null,
+        },
+      })
+      return { jobId: 'job-1', status: generationStatusFixture({ jobId: 'job-1', state: 'completed' }) }
+    })
+
+    await act(async () => {
+      await result.current.handleAiAction('testware')
+    })
+    expect(result.current.testwareDrafts.map((draft) => draft.id)).toContain('draft-from-session-1')
+
+    const otherSession = sessionFixture({ id: 'session-2', title: 'Other note' })
+    tauriMock.reopenSession.mockResolvedValueOnce(otherSession)
+    tauriMock.listEntries.mockResolvedValueOnce([entryFixture({ id: 'entry-2', sessionId: 'session-2' })])
+    tauriMock.listDrafts.mockResolvedValueOnce([])
+    tauriMock.listFindings.mockResolvedValueOnce([])
+    await act(async () => {
+      await result.current.openSession(otherSession)
+    })
+
+    act(() => {
+      resolveUpdateDraft(draftFixture({ id: 'draft-from-session-1', sessionId: 'session-1' }))
+    })
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(result.current.activeSession?.id).toBe('session-2')
+    expect(result.current.testwareDrafts).toEqual([])
   })
 })
 

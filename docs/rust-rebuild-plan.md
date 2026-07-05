@@ -110,6 +110,6 @@ Validation should be added early and become stricter with each phase:
 ## Follow-Up Decisions
 
 - The CLI smoke harness currently remains development-only.
-- Signed/notarized release automation is not configured yet.
+- Signed/notarized release automation and signed APT publication are configured; see `docs/releasing.md` for the current workflow.
 - A native file dialog can replace path-based attachment import in a later UI polish pass.
 - Local Ollama support remains out of scope for this rebuild.

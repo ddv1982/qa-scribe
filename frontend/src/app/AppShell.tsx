@@ -75,7 +75,7 @@ export function AppShell(c: AppController) {
           {c.filteredSessions.length > 8 ? <p className="note-picker-more">Showing 8 of {c.filteredSessions.length}. Search to narrow.</p> : null}
         </section>
 
-        <button className={c.activeView === 'settings' ? 'settings-link active' : 'settings-link'} type="button" onClick={() => c.setActiveView('settings')}>
+        <button className={c.activeView === 'settings' ? 'settings-link active' : 'settings-link'} type="button" aria-current={c.activeView === 'settings' ? 'page' : undefined} onClick={() => c.setActiveView('settings')}>
           <Settings size={17} />
           Settings
         </button>

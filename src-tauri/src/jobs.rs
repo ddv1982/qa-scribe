@@ -68,11 +68,14 @@ impl JobControl {
         self.cancel_requested.load(Ordering::SeqCst)
     }
 
-    pub fn set_child(&self, child: Child) -> Result<(), String> {
+    pub fn set_child(&self, mut child: Child) -> Result<(), String> {
         let mut slot = self
             .child
             .lock()
             .map_err(|_| "Generation process lock was poisoned".to_string())?;
+        if self.is_cancelled() {
+            crate::process_io::kill_child_group(&mut child);
+        }
         *slot = Some(child);
         Ok(())
     }

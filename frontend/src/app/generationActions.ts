@@ -182,8 +182,12 @@ export function createGenerationActions(ctx: AppWorkflowContext, saveNoteNow: (o
       const richDraft = { ...result.draft, ...storedBody }
       mergeDraft(richDraft)
       void updateDraft(richDraft.id, storedBody)
-        .then(mergeDraft)
-        .catch((cause) => ctx.setError(formatError(cause)))
+        .then((saved) => {
+          if (ctx.activeSessionIdRef.current === saved.sessionId) mergeDraft(saved)
+        })
+        .catch((cause) => {
+          if (ctx.activeSessionIdRef.current === richDraft.sessionId) ctx.setError(formatError(cause))
+        })
       ctx.setActiveView('testware')
       ctx.setNotice('Testware generated')
     } else if (result.finding && ctx.activeSessionIdRef.current === result.finding.sessionId) {
@@ -192,8 +196,12 @@ export function createGenerationActions(ctx: AppWorkflowContext, saveNoteNow: (o
       const richFinding = { ...result.finding, ...storedBody }
       mergeFinding(richFinding)
       void updateFinding(richFinding.id, storedBody)
-        .then(mergeFinding)
-        .catch((cause) => ctx.setError(formatError(cause)))
+        .then((saved) => {
+          if (ctx.activeSessionIdRef.current === saved.sessionId) mergeFinding(saved)
+        })
+        .catch((cause) => {
+          if (ctx.activeSessionIdRef.current === richFinding.sessionId) ctx.setError(formatError(cause))
+        })
       ctx.setActiveView('findings')
       ctx.setNotice('Finding created')
     } else if (result.noteEntry && ctx.noteEntryIdRef.current === result.noteEntry.id) {

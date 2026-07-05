@@ -42,6 +42,7 @@ export function useAppController() {
   const copySuccessResetRef = useRef<number | null>(null)
   const bootedRef = useRef(false)
   const saveNoteNowRef = useRef<() => Promise<boolean>>(() => Promise.resolve(true))
+  const hasPendingNoteChangesRef = useRef(false)
   const {
     activeProvider,
     loadProviderStatus,
@@ -235,6 +236,12 @@ export function useAppController() {
   }, [noteBody])
 
   useEffect(() => {
+    const titleDirty = Boolean(activeSession && noteTitle.trim() && noteTitle.trim() !== savedTitleRef.current)
+    const bodyDirty = Boolean(noteEntry && serializeRichEditorDocument(noteBody) !== savedBodyRef.current)
+    hasPendingNoteChangesRef.current = titleDirty || bodyDirty
+  }, [activeSession, noteEntry, noteTitle, noteBody])
+
+  useEffect(() => {
     return () => {
       // eslint-disable-next-line react-hooks/exhaustive-deps -- cleanup must clear the latest copy-success timeout.
       const resetTimeout = copySuccessResetRef.current
@@ -272,7 +279,10 @@ export function useAppController() {
   }, [noteEntry, noteBody]) // eslint-disable-line react-hooks/exhaustive-deps -- debounce is keyed to note identity and body
 
   useEffect(() => {
-    function handleBeforeUnload() {
+    function handleBeforeUnload(event: BeforeUnloadEvent) {
+      if (!hasPendingNoteChangesRef.current) return
+      event.preventDefault()
+      event.returnValue = ''
       void saveNoteNowRef.current()
     }
     window.addEventListener('beforeunload', handleBeforeUnload)

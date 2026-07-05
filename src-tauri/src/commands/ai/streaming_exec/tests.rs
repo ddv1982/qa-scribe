@@ -2,6 +2,7 @@ use std::{
     fs,
     os::unix::fs::PermissionsExt,
     path::PathBuf,
+    process::{Command, Stdio},
     sync::mpsc,
     thread,
     time::{Duration, Instant},
@@ -13,6 +14,7 @@ use qa_scribe_core::ai::{
 
 use super::{ProcessProviderExecutor, run_generation_command_streaming};
 use crate::jobs::JobControl;
+use crate::process_io::configure_process_group;
 
 /// A tiny fake provider CLI written to a temp dir. Each test gets its own
 /// directory so parallel test runs do not collide.
@@ -130,6 +132,38 @@ fn mid_stream_cancel_kills_child_promptly() {
     assert!(
         output.cancelled,
         "expected cancelled output, got {output:?}"
+    );
+}
+
+#[test]
+fn already_requested_cancel_kills_child_when_registered() {
+    let control = JobControl::default();
+    control
+        .request_cancel()
+        .expect("cancel request should be recorded before spawn registration");
+    let mut command = Command::new("sh");
+    command
+        .arg("-c")
+        .arg("sleep 120")
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+    configure_process_group(&mut command);
+    let child = command.spawn().expect("sleeping child should spawn");
+
+    let started = Instant::now();
+    control
+        .set_child(child)
+        .expect("child should register after cancel");
+    let mut child = control
+        .take_child()
+        .expect("registered child should be readable")
+        .expect("registered child should exist");
+    let _ = child.wait();
+
+    assert!(
+        started.elapsed() < Duration::from_secs(10),
+        "registration should kill an already-cancelled child promptly"
     );
 }
 

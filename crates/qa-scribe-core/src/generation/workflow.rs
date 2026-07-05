@@ -118,7 +118,8 @@ pub fn prepare_ai_action_generation(
     let entries = service.list_entries(&request.session_id)?;
     let note_entry = selected_note_entry(request, &entries)?;
     let attachments = service.list_attachments(&request.session_id)?;
-    let generation_context = service.create_generation_context(&request.session_id)?;
+    let generation_context =
+        create_action_generation_context(service, &request.session_id, note_entry, &attachments)?;
     let ai_run = service.create_ai_run(AiRunCreate {
         session_id: request.session_id.clone(),
         generation_context_id: Some(generation_context.id.clone()),
@@ -222,25 +223,51 @@ fn finish_successful_generation(
 ) -> Result<GenerateAiActionResult> {
     let response = output.response_text();
     let body = parse_rich_html_fragment_response(&response);
-    let completed_run = service.complete_ai_run(&prepared.ai_run.id)?;
-    match request.action {
+    let ai_run_id = prepared.ai_run.id.clone();
+    let result = match request.action {
         GenerateAiActionKind::Testware => {
-            finish_testware_generation(service, request, prepared, completed_run, body)
+            finish_testware_generation(service, request, prepared, body)
         }
-        GenerateAiActionKind::Finding => {
-            finish_finding_generation(service, prepared, completed_run, body)
+        GenerateAiActionKind::Finding => finish_finding_generation(service, prepared, body),
+        GenerateAiActionKind::Summary => finish_summary_generation(service, prepared, body),
+    };
+
+    match result {
+        Ok(mut result) => {
+            result.ai_run = service.complete_ai_run(&ai_run_id)?;
+            Ok(result)
         }
-        GenerateAiActionKind::Summary => {
-            finish_summary_generation(service, prepared, completed_run, body)
+        Err(error) => {
+            let _ = service.fail_ai_run(&ai_run_id, &error.to_string());
+            Err(error)
         }
     }
+}
+
+fn create_action_generation_context(
+    service: &SessionService,
+    session_id: &str,
+    note_entry: Option<&Entry>,
+    attachments: &[Attachment],
+) -> Result<GenerationContext> {
+    let entry_ids = note_entry
+        .map(|entry| vec![entry.id.clone()])
+        .unwrap_or_default();
+    let managed_attachment_ids = note_entry
+        .map(|entry| managed_attachment_ids_from_html(&entry.body))
+        .unwrap_or_default();
+    let attachment_ids = attachments
+        .iter()
+        .filter(|attachment| managed_attachment_ids.iter().any(|id| id == &attachment.id))
+        .map(|attachment| attachment.id.clone())
+        .collect::<Vec<_>>();
+    service.create_generation_context_from_material(session_id, &entry_ids, &attachment_ids)
 }
 
 fn finish_testware_generation(
     service: &SessionService,
     request: &GenerateAiActionRequest,
     prepared: PreparedGeneration,
-    completed_run: AiRun,
     body: String,
 ) -> Result<GenerateAiActionResult> {
     let body = preserve_managed_attachment_images(
@@ -250,7 +277,7 @@ fn finish_testware_generation(
     );
     let draft = service.create_draft(DraftCreate {
         session_id: prepared.session_id,
-        ai_run_id: Some(completed_run.id.clone()),
+        ai_run_id: Some(prepared.ai_run.id.clone()),
         kind: DraftKind::Testware,
         title: format!("{} Test Cases", prepared.session_title),
         body,
@@ -260,7 +287,7 @@ fn finish_testware_generation(
     })?;
     Ok(GenerateAiActionResult {
         generation_context: prepared.generation_context,
-        ai_run: completed_run,
+        ai_run: prepared.ai_run,
         draft: Some(draft),
         finding: None,
         note_entry: None,
@@ -270,7 +297,6 @@ fn finish_testware_generation(
 fn finish_finding_generation(
     service: &SessionService,
     prepared: PreparedGeneration,
-    completed_run: AiRun,
     body: String,
 ) -> Result<GenerateAiActionResult> {
     let body = preserve_managed_attachment_images(
@@ -296,7 +322,7 @@ fn finish_finding_generation(
     )?;
     Ok(GenerateAiActionResult {
         generation_context: prepared.generation_context,
-        ai_run: completed_run,
+        ai_run: prepared.ai_run,
         draft: None,
         finding: Some(finding),
         note_entry: None,
@@ -306,12 +332,11 @@ fn finish_finding_generation(
 fn finish_summary_generation(
     service: &SessionService,
     prepared: PreparedGeneration,
-    completed_run: AiRun,
     body: String,
 ) -> Result<GenerateAiActionResult> {
     let Some(note_entry_id) = prepared.selected_note_id.as_deref() else {
         let failed_run = service.fail_ai_run(
-            &completed_run.id,
+            &prepared.ai_run.id,
             "Summarize notes requires an editable note entry.",
         )?;
         return Ok(failed_generation_result(prepared, failed_run));
@@ -332,7 +357,7 @@ fn finish_summary_generation(
     )?;
     Ok(GenerateAiActionResult {
         generation_context: prepared.generation_context,
-        ai_run: completed_run,
+        ai_run: prepared.ai_run,
         draft: None,
         finding: None,
         note_entry: Some(note_entry),

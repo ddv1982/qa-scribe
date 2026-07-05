@@ -1,7 +1,7 @@
 use std::{
-    fs::{self, File},
+    fs::{self, File, OpenOptions},
     io::ErrorKind,
-    path::PathBuf,
+    path::{Path, PathBuf},
     process::{Command, Output, Stdio},
     sync::atomic::{AtomicU64, Ordering},
     thread,
@@ -113,13 +113,13 @@ pub(super) fn run_command_with_timeout(
     }
 }
 
-struct ProbeOutputFiles {
-    stdout_path: PathBuf,
-    stderr_path: PathBuf,
+pub(super) struct ProbeOutputFiles {
+    pub(super) stdout_path: PathBuf,
+    pub(super) stderr_path: PathBuf,
 }
 
 impl ProbeOutputFiles {
-    fn new(output_id: u64) -> Self {
+    pub(super) fn new(output_id: u64) -> Self {
         Self {
             stdout_path: std::env::temp_dir().join(format!(
                 "qa-scribe-provider-probe-{}-{output_id}.stdout",
@@ -132,9 +132,9 @@ impl ProbeOutputFiles {
         }
     }
 
-    fn create(&self) -> std::io::Result<(File, File)> {
-        let stdout = File::create(&self.stdout_path)?;
-        let stderr = match File::create(&self.stderr_path) {
+    pub(super) fn create(&self) -> std::io::Result<(File, File)> {
+        let stdout = exclusive_output_file(&self.stdout_path)?;
+        let stderr = match exclusive_output_file(&self.stderr_path) {
             Ok(stderr) => stderr,
             Err(error) => {
                 let _ = fs::remove_file(&self.stdout_path);
@@ -143,6 +143,10 @@ impl ProbeOutputFiles {
         };
         Ok((stdout, stderr))
     }
+}
+
+fn exclusive_output_file(path: &Path) -> std::io::Result<File> {
+    OpenOptions::new().write(true).create_new(true).open(path)
 }
 
 impl Drop for ProbeOutputFiles {

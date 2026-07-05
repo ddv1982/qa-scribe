@@ -26,7 +26,7 @@ export function RailItem({
   onClick: () => void
 }) {
   return (
-    <button className={active ? 'rail-item active' : 'rail-item'} type="button" onClick={onClick}>
+    <button className={active ? 'rail-item active' : 'rail-item'} type="button" aria-current={active ? 'page' : undefined} onClick={onClick}>
       <Icon size={18} />
       <span>{label}</span>
       {typeof count === 'number' ? <strong>{count}</strong> : null}

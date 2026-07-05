@@ -9,6 +9,18 @@ test('compareVersions orders X.Y.Z numerically, not lexically', () => {
   assert.equal(compareVersions('2.0.0', '1.9.9'), 1)
 })
 
+test('compareVersions follows semver prerelease precedence', () => {
+  assert.equal(compareVersions('1.0.0-alpha', '1.0.0'), -1)
+  assert.equal(compareVersions('1.0.0', '1.0.0-alpha'), 1)
+  assert.equal(compareVersions('1.0.0-alpha.1', '1.0.0-alpha.beta'), -1)
+  assert.equal(compareVersions('1.0.0-beta.2', '1.0.0-beta.11'), -1)
+})
+
+test('compareVersions ignores build metadata for precedence', () => {
+  assert.equal(compareVersions('1.0.0+build.1', '1.0.0+build.2'), 0)
+  assert.equal(compareVersions('1.0.0-alpha+build.1', '1.0.0-alpha+build.2'), 0)
+})
+
 test('extractPackageVersion reads the Version field from the matching stanza', () => {
   const packages = [
     'Package: qa-scribe-repository-setup',

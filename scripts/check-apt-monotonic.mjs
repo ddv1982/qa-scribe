@@ -14,13 +14,46 @@ const ARCHITECTURE = 'amd64'
 const COMPONENT = 'main'
 
 export function compareVersions(a, b) {
-  const partsA = a.split('.').map(Number)
-  const partsB = b.split('.').map(Number)
-  const length = Math.max(partsA.length, partsB.length)
-  for (let index = 0; index < length; index += 1) {
-    const partA = partsA[index] ?? 0
-    const partB = partsB[index] ?? 0
+  const versionA = parseSemver(a)
+  const versionB = parseSemver(b)
+  for (let index = 0; index < 3; index += 1) {
+    const partA = versionA.core[index]
+    const partB = versionB.core[index]
     if (partA !== partB) return partA < partB ? -1 : 1
+  }
+  return comparePrerelease(versionA.prerelease, versionB.prerelease)
+}
+
+function parseSemver(version) {
+  const match = version.match(/^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/)
+  if (!match) throw new Error(`Invalid semver version: ${version}`)
+  return {
+    core: [Number(match[1]), Number(match[2]), Number(match[3])],
+    prerelease: match[4]?.split('.') ?? []
+  }
+}
+
+function comparePrerelease(a, b) {
+  if (a.length === 0 && b.length === 0) return 0
+  if (a.length === 0) return 1
+  if (b.length === 0) return -1
+  const length = Math.max(a.length, b.length)
+  for (let index = 0; index < length; index += 1) {
+    const partA = a[index]
+    const partB = b[index]
+    if (partA === undefined) return -1
+    if (partB === undefined) return 1
+    const numericA = /^\d+$/.test(partA)
+    const numericB = /^\d+$/.test(partB)
+    if (numericA && numericB) {
+      const numberA = Number(partA)
+      const numberB = Number(partB)
+      if (numberA !== numberB) return numberA < numberB ? -1 : 1
+    } else if (numericA !== numericB) {
+      return numericA ? -1 : 1
+    } else if (partA !== partB) {
+      return partA < partB ? -1 : 1
+    }
   }
   return 0
 }

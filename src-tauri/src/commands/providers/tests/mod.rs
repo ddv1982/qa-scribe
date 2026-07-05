@@ -5,7 +5,7 @@ use qa_scribe_core::domain::AiProvider;
 use super::{
     ProviderModelSource, ProviderState,
     detection::detect_provider,
-    probe::{CommandProbe, DetectionMode, run_command_with_timeout},
+    probe::{CommandProbe, DetectionMode, ProbeOutputFiles, run_command_with_timeout},
     provider_status_with_runner,
 };
 
@@ -26,6 +26,22 @@ fn provider_probe_cleans_temp_files_when_spawn_fails() {
 
     assert_eq!(error.kind(), std::io::ErrorKind::NotFound);
     assert_eq!(provider_probe_temp_files(), before);
+}
+
+#[test]
+fn provider_probe_output_files_are_created_exclusively() {
+    let output_files = ProbeOutputFiles::new(9_999_999);
+    fs::write(&output_files.stdout_path, b"do not truncate").expect("sentinel file should write");
+
+    let error = output_files
+        .create()
+        .expect_err("existing probe output file must not be truncated");
+
+    assert_eq!(error.kind(), std::io::ErrorKind::AlreadyExists);
+    assert_eq!(
+        fs::read(&output_files.stdout_path).expect("sentinel should still read"),
+        b"do not truncate"
+    );
 }
 
 fn provider_probe_temp_files() -> HashSet<PathBuf> {
