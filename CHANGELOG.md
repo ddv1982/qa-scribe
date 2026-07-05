@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.6.2 - 2026-07-05
+
+- Replace the app icon with a cleaner QA Scribe notebook-and-pencil mark, regenerating the macOS dock and Linux launcher icon assets from the new 1024px source.
+
 ## v0.6.1 - 2026-07-03
 
 - Remove a strip of dead vertical scroll below the window by containing the framed layout's margin, so empty states and short views no longer scroll past their content.
