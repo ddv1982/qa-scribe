@@ -140,6 +140,7 @@ docs/                   Rebuild plan and architecture decisions
 
 ## Documentation
 
+- [Project wiki](https://github.com/ddv1982/qa-scribe/wiki)
 - [Rust rebuild plan](docs/rust-rebuild-plan.md)
 - [Rebuild ADR](docs/adr/0009-rebuild-with-rust-tauri.md)
 - [Project language](CONTEXT.md)
