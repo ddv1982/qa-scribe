@@ -35,6 +35,7 @@ export function useAppController() {
   const savedTitleRef = useRef('')
   const savedBodyRef = useRef(serializeRichEditorDocument(emptyRichEditorDocument))
   const noteBodyRef = useRef(emptyRichEditorDocument)
+  const noteTitleWriteVersionRef = useRef(0)
   const noteBodyWriteVersionRef = useRef(0)
   const deletingSessionIdRef = useRef<string | null>(null)
   const activeSessionIdRef = useRef<string | null>(null)
@@ -133,6 +134,7 @@ export function useAppController() {
     savedTitleRef,
     savedBodyRef,
     noteBodyRef,
+    noteTitleWriteVersionRef,
     noteBodyWriteVersionRef,
     deletingSessionIdRef,
     activeSessionIdRef,

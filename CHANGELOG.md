@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.7.2 - 2026-07-06
+
+- Close the remaining review findings on current main: enforce safe attachment relative paths for all core callers, keep note title autosave from applying stale saves, and allow Finding kind and metadata edits after creation.
+- Surface Finding type and metadata JSON controls in the shared rich-record editor while preserving failed-save retry behavior for Drafts and Findings.
+- Regenerate Tauri command bindings, update release metadata to 0.7.2, and keep the Linux release metadata in sync.
+
 ## v0.7.1 - 2026-07-06
 
 - Protect in-progress note edits from late AI summary completions, keep failed generation undo saves dirty so they can retry, and cover active AI job recovery in the Tauri bridge tests.

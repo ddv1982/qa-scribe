@@ -77,12 +77,17 @@ impl SessionService {
                 )?,
                 None => existing.body_format,
             };
+            let kind = patch.kind.unwrap_or(existing.kind);
+            let metadata_json = match patch.metadata_json {
+                Some(metadata_json) => validate_metadata_json(metadata_json)?,
+                None => existing.metadata_json,
+            };
 
             tx.execute(
                 "UPDATE findings
-                 SET title = ?1, body = ?2, body_json = ?3, body_format = COALESCE(?4, 'html'), updated_at = ?5
-                 WHERE id = ?6",
-                params![title, body, body_json, body_format, now, id],
+                 SET title = ?1, body = ?2, body_json = ?3, body_format = COALESCE(?4, 'html'), kind = ?5, metadata_json = ?6, updated_at = ?7
+                 WHERE id = ?8",
+                params![title, body, body_json, body_format, kind.as_str(), metadata_json, now, id],
             )?;
 
             finding(tx, id)?.ok_or_else(|| QaScribeError::NotFound(id.to_string()))

@@ -52,6 +52,7 @@ export function EditableRichRecord({
   bodyAriaLabel,
   placeholder,
   previewFallbackHtml,
+  editFields,
   meta,
   previewHeader,
   actions,
@@ -66,6 +67,7 @@ export function EditableRichRecord({
   bodyAriaLabel: string
   placeholder: string
   previewFallbackHtml: string
+  editFields?: ReactNode
   meta?: ReactNode
   previewHeader: ReactNode
   actions: ReactNode
@@ -81,6 +83,7 @@ export function EditableRichRecord({
       {editing ? (
         <>
           <input value={record.title} aria-label={titleInputLabel} onChange={(event) => onTitleChange(event.target.value)} />
+          {editFields}
           <div className="rich-record-editor-field">
             <FormatToolbar editorId={editorId} onUploadImage={onUploadImage} />
             <RichTextEditor editorId={editorId} value={document} onChange={(body) => onBodyChange(richEditorDocumentToStoredBody(body))} ariaLabel={bodyAriaLabel} placeholder={placeholder} />

@@ -39,6 +39,7 @@ export function createSessionActions(ctx: AppWorkflowContext, materializeInlineI
       ])
       const editableNote = await ensureNoteEntry(reopened.id, nextEntries)
 
+      ctx.noteTitleWriteVersionRef.current += 1
       ctx.noteBodyWriteVersionRef.current += 1
       ctx.setActiveSession(reopened)
       ctx.setNoteEntry(editableNote)
@@ -76,6 +77,7 @@ export function createSessionActions(ctx: AppWorkflowContext, materializeInlineI
         excludedFromGeneration: false,
       })
       const nextSessions = await listSessions()
+      ctx.noteTitleWriteVersionRef.current += 1
       ctx.noteBodyWriteVersionRef.current += 1
       ctx.setSessions(nextSessions)
       ctx.setActiveSession(session)
@@ -97,6 +99,7 @@ export function createSessionActions(ctx: AppWorkflowContext, materializeInlineI
   }
 
   function clearActiveSessionState() {
+    ctx.noteTitleWriteVersionRef.current += 1
     ctx.noteBodyWriteVersionRef.current += 1
     ctx.setActiveSession(null)
     ctx.setNoteEntry(null)
@@ -146,19 +149,23 @@ export function createSessionActions(ctx: AppWorkflowContext, materializeInlineI
   async function saveTitle(title: string, options: { manageBusy?: boolean } = {}): Promise<boolean> {
     const { manageBusy = true } = options
     if (!ctx.activeSession || ctx.deletingSessionIdRef.current === ctx.activeSession.id) return false
+    const sessionId = ctx.activeSession.id
+    const writeVersion = ++ctx.noteTitleWriteVersionRef.current
     try {
       if (manageBusy) ctx.setBusyAction('save-title')
-      const saved = await updateSession(ctx.activeSession.id, { title })
+      const saved = await updateSession(sessionId, { title })
+      if (writeVersion !== ctx.noteTitleWriteVersionRef.current || ctx.activeSessionIdRef.current !== saved.id) return true
       ctx.savedTitleRef.current = saved.title
       ctx.setActiveSession(saved)
       ctx.setSessions((previous) => previous.map((session) => (session.id === saved.id ? saved : session)))
       ctx.setNotice('Note saved')
       return true
     } catch (cause) {
+      if (writeVersion !== ctx.noteTitleWriteVersionRef.current) return true
       ctx.setError(formatError(cause))
       return false
     } finally {
-      if (manageBusy) ctx.setBusyAction(null)
+      if (manageBusy && writeVersion === ctx.noteTitleWriteVersionRef.current) ctx.setBusyAction(null)
     }
   }
 

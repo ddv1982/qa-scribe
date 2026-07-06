@@ -19,7 +19,7 @@ import {
 } from '../editor/editorDocument'
 import { formatError, nextUntitledRecordTitle } from '../ui/format'
 import { renderPrefilledFinding, renderPrefilledTestware } from '../workflows/prefillTemplates'
-import type { AppWorkflowContext, RichRecordPatch } from './types'
+import type { AppWorkflowContext, FindingRecordPatch, RichRecordPatch } from './types'
 import type { BusyAction, MainView } from '../ui/types'
 
 export function createRecordActions(
@@ -137,7 +137,14 @@ export function createRecordActions(
     try {
       ctx.setBusyAction(`finding:${finding.id}`)
       ctx.setError(null)
-      const saved = await updateFinding(finding.id, { title: finding.title, body: finding.body, bodyJson: finding.bodyJson, bodyFormat: finding.bodyFormat })
+      const saved = await updateFinding(finding.id, {
+        title: finding.title,
+        body: finding.body,
+        bodyJson: finding.bodyJson,
+        bodyFormat: finding.bodyFormat,
+        kind: finding.kind,
+        metadataJson: finding.metadataJson,
+      })
       ctx.setFindings((previous) => previous.map((item) => (item.id === saved.id ? saved : item)))
       ctx.setNotice('Finding saved')
       return true
@@ -149,7 +156,7 @@ export function createRecordActions(
     }
   }
 
-  function updateLocalFinding(id: string, patch: RichRecordPatch) {
+  function updateLocalFinding(id: string, patch: FindingRecordPatch) {
     ctx.setFindings((previous) => previous.map((finding) => (finding.id === id ? { ...finding, ...patch } : finding)))
   }
 

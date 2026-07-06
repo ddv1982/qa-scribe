@@ -16,6 +16,8 @@ type CollectionRecord = {
   bodyFormat: string | null
 }
 
+type CollectionRecordPatch = Partial<Pick<CollectionRecord, 'title' | 'body' | 'bodyJson' | 'bodyFormat'>>
+
 /** Static per-consumer copy: identical for every record, set once by the caller. */
 export type RecordCollectionLabels = {
   eyebrow: string
@@ -52,6 +54,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
   isBusy,
   activeGenerationJob,
   renderMeta,
+  renderEditFields,
   renderPreviewHeader,
   updateLocalRecord,
   onCancelGenerationJob,
@@ -77,7 +80,8 @@ export function RecordCollectionView<T extends CollectionRecord>({
   activeGenerationJob: GenerationJobStatus | null
   renderMeta?: (record: T) => ReactNode
   renderPreviewHeader: (record: T) => ReactNode
-  updateLocalRecord: (id: string, patch: Partial<Pick<T, 'title' | 'body' | 'bodyJson' | 'bodyFormat'>>) => void
+  renderEditFields?: (record: T) => ReactNode
+  updateLocalRecord: (id: string, patch: CollectionRecordPatch) => void
   onCancelGenerationJob: (jobId: string) => Promise<void>
   onCopyRecord: (record: T) => Promise<void>
   onCopyRecordScreenshot: (record: T) => Promise<void>
@@ -143,6 +147,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
               bodyAriaLabel={`${record.title} ${labels.bodyAriaLabelSuffix} ${editing ? 'body' : 'preview'}`}
               placeholder={labels.placeholder}
               previewFallbackHtml={labels.previewFallbackHtml}
+              editFields={renderEditFields?.(record)}
               meta={renderMeta?.(record)}
               previewHeader={renderPreviewHeader(record)}
               onTitleChange={(title) => updateLocalRecord(record.id, { title })}

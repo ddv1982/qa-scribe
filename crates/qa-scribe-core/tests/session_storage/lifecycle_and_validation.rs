@@ -107,11 +107,15 @@ fn rich_body_json_round_trips_for_entries_findings_and_drafts() {
                 body: Some("<p>Updated JSON</p>".to_string()),
                 body_json: Some(Some(updated_body_json.to_string())),
                 body_format: Some(Some("tiptap_json".to_string())),
+                kind: Some(FindingKind::Risk),
+                metadata_json: Some(Some(r#"{"severity":"high"}"#.to_string())),
                 ..FindingPatch::default()
             },
         )
         .expect("finding should update rich body JSON");
     assert_eq!(finding.body_json.as_deref(), Some(updated_body_json));
+    assert_eq!(finding.kind, FindingKind::Risk);
+    assert_eq!(finding.metadata_json.as_deref(), Some(r#"{"severity":"high"}"#));
 
     let draft = service
         .create_draft(DraftCreate {

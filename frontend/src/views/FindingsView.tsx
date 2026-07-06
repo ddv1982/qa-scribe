@@ -1,6 +1,6 @@
 import { Flag } from 'lucide-react'
 import type { RichEditorImageUpload } from '../editor/RichTextEditor'
-import type { Finding, GenerationJobStatus } from '../tauri'
+import type { Finding, FindingKind, GenerationJobStatus } from '../tauri'
 import { formatFindingKind } from '../ui/format'
 import type { BusyAction } from '../ui/types'
 import { RecordCollectionView, type RecordCollectionLabels } from './RecordCollectionView'
@@ -21,6 +21,8 @@ const findingsLabels: RecordCollectionLabels = {
   placeholder: 'Write finding detail...',
   previewFallbackHtml: '<p>No finding detail yet.</p>',
 }
+
+const findingKindOptions: FindingKind[] = ['bug', 'question', 'risk', 'follow_up', 'note']
 
 export function FindingsView({
   busyAction,
@@ -50,7 +52,7 @@ export function FindingsView({
   error: string | null
   isBusy: boolean
   activeGenerationJob: GenerationJobStatus | null
-  updateLocalFinding: (id: string, patch: Partial<Pick<Finding, 'title' | 'body' | 'bodyJson' | 'bodyFormat'>>) => void
+  updateLocalFinding: (id: string, patch: Partial<Pick<Finding, 'title' | 'body' | 'bodyJson' | 'bodyFormat' | 'kind' | 'metadataJson'>>) => void
   onCancelGenerationJob: (jobId: string) => Promise<void>
   onCopyFinding: (finding: Finding) => Promise<void>
   onCopyFindingScreenshot: (finding: Finding) => Promise<void>
@@ -77,6 +79,28 @@ export function FindingsView({
         <div className="finding-meta-row">
           <span>{formatFindingKind(finding.kind)}</span>
         </div>
+      )}
+      renderEditFields={(finding) => (
+        <>
+          <label className="field-stack">
+            <span>Finding type</span>
+            <select value={finding.kind} onChange={(event) => updateLocalFinding(finding.id, { kind: event.target.value as FindingKind })}>
+              {findingKindOptions.map((option) => (
+                <option key={option} value={option}>
+                  {formatFindingKind(option)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field-stack">
+            <span>Metadata JSON</span>
+            <textarea
+              value={finding.metadataJson ?? ''}
+              onChange={(event) => updateLocalFinding(finding.id, { metadataJson: event.target.value.trim() ? event.target.value : null })}
+              placeholder={'{"severity":"high"}'}
+            />
+          </label>
+        </>
       )}
       renderPreviewHeader={(finding) => <h2 className="record-title">{finding.title}</h2>}
       busyActionFor={(finding, kind) => {

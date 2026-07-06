@@ -259,6 +259,7 @@ describe('copy success buttons', () => {
     )
 
     await user.click(screen.getByRole('button', { name: 'Edit' }))
+    expect(screen.getByLabelText('Finding type')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
     await waitFor(() => expect(screen.getByLabelText('Finding title')).toBeInTheDocument())

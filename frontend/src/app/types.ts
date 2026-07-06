@@ -16,6 +16,7 @@ export type LatestNoteGenerationUndo = {
 }
 
 export type RichRecordPatch = Partial<Pick<Draft, 'title' | 'body' | 'bodyJson' | 'bodyFormat'>>
+export type FindingRecordPatch = RichRecordPatch & Partial<Pick<Finding, 'kind' | 'metadataJson'>>
 
 export type AppWorkflowState = {
   activeSession: Session | null
@@ -38,6 +39,7 @@ export type AppWorkflowRefs = {
   savedTitleRef: MutableRefObject<string>
   savedBodyRef: MutableRefObject<string>
   noteBodyRef: MutableRefObject<RichEditorDocument>
+  noteTitleWriteVersionRef: MutableRefObject<number>
   noteBodyWriteVersionRef: MutableRefObject<number>
   deletingSessionIdRef: MutableRefObject<string | null>
   activeSessionIdRef: MutableRefObject<string | null>

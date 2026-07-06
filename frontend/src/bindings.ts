@@ -213,10 +213,6 @@ export type FindingDraft = {
 export type FindingKind = "bug" | "question" | "risk" | "follow_up" | "note";
 
 /**
- *  Patch for editable `Finding` fields. `metadata_json` and `kind` are
- *  intentionally absent: both are set once at creation (`FindingDraft`) and
- *  are write-once by design, so this patch never needs to change them.
- * 
  *  Absent field = no change. `title`/`body` are non-clearable (`?: string`, no
  *  `null`); the `Option<Option<String>>` fields are clearable
  *  (`?: string | null`). See `SessionPatch` for the two-tier null rationale.
@@ -226,6 +222,8 @@ export type FindingPatch = {
 	body?: string,
 	bodyJson?: string | null,
 	bodyFormat?: string | null,
+	kind?: FindingKind | null,
+	metadataJson?: string | null,
 };
 
 export type GenerateAiActionKind = "testware" | "finding" | "summary";

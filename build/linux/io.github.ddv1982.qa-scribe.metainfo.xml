@@ -18,6 +18,15 @@
     <category>ProjectManagement</category>
   </categories>
   <releases>
+    <release version="0.7.2" date="2026-07-06">
+      <description>
+        <ul>
+          <li>Enforce safe attachment relative paths for all core callers.</li>
+          <li>Keep note title autosave from applying stale saves.</li>
+          <li>Allow Finding kind and metadata edits after creation.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.7.1" date="2026-07-06" />
     <release version="0.7.0" date="2026-07-06" />
     <release version="0.6.3" date="2026-07-05" />

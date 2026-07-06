@@ -68,10 +68,6 @@ pub struct FindingDraft {
     pub metadata_json: Option<String>,
 }
 
-/// Patch for editable `Finding` fields. `metadata_json` and `kind` are
-/// intentionally absent: both are set once at creation (`FindingDraft`) and
-/// are write-once by design, so this patch never needs to change them.
-///
 /// Absent field = no change. `title`/`body` are non-clearable (`?: string`, no
 /// `null`); the `Option<Option<String>>` fields are clearable
 /// (`?: string | null`). See `SessionPatch` for the two-tier null rationale.
@@ -86,6 +82,10 @@ pub struct FindingPatch {
     pub body_json: Option<Option<String>>,
     #[specta(optional)]
     pub body_format: Option<Option<String>>,
+    #[specta(optional)]
+    pub kind: Option<FindingKind>,
+    #[specta(optional)]
+    pub metadata_json: Option<Option<String>>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]

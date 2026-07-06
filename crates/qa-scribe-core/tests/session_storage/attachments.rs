@@ -152,6 +152,29 @@ fn create_attachment_rejects_sha256_that_is_not_exactly_64_lowercase_hex_chars()
 }
 
 #[test]
+fn create_attachment_rejects_unsafe_relative_paths() {
+    let service = SessionService::in_memory().expect("in-memory service should open");
+    let session = service
+        .create_session(SessionDraft {
+            title: "Attachment path validation".to_string(),
+            ..SessionDraft::default()
+        })
+        .expect("session should be created");
+
+    let result = service.create_attachment(qa_scribe_core::domain::AttachmentDraft {
+        session_id: session.id,
+        entry_id: None,
+        filename: "evidence.txt".to_string(),
+        mime_type: None,
+        size_bytes: 4,
+        sha256: "a".repeat(64),
+        relative_path: "attachments/../secret.txt".to_string(),
+    });
+
+    assert!(result.is_err(), "unsafe relative paths must be rejected for every core caller");
+}
+
+#[test]
 fn create_attachment_returns_not_found_for_missing_entry() {
     let service = SessionService::in_memory().expect("in-memory service should open");
     let session = service

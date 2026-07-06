@@ -1,3 +1,5 @@
+use std::path::{Component, Path};
+
 use rusqlite::{OptionalExtension, params};
 
 use crate::{
@@ -26,6 +28,9 @@ impl SessionService {
         let sha256 = validate_sha256_hex("attachment SHA-256", &draft.sha256)?;
         let relative_path =
             validate_required_text("attachment relative path", &draft.relative_path, 600)?;
+        if !is_safe_relative_path(Path::new(&relative_path)) {
+            return Err(validation("attachment relative path is invalid"));
+        }
         if draft.size_bytes < 0 {
             return Err(validation("attachment size must not be negative"));
         }
@@ -77,4 +82,15 @@ impl SessionService {
             .optional()
             .map_err(Into::into)
     }
+}
+
+fn is_safe_relative_path(path: &Path) -> bool {
+    !path.as_os_str().is_empty()
+        && !path.is_absolute()
+        && path.components().all(|component| {
+            matches!(
+                component,
+                Component::Normal(value) if !value.to_string_lossy().is_empty()
+            )
+        })
 }
