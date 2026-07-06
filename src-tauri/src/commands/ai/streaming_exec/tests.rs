@@ -3,7 +3,10 @@ use std::{
     os::unix::fs::PermissionsExt,
     path::PathBuf,
     process::{Command, Stdio},
-    sync::mpsc,
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        mpsc,
+    },
     thread,
     time::{Duration, Instant},
 };
@@ -16,7 +19,14 @@ use super::{ProcessProviderExecutor, run_generation_command_streaming};
 use crate::jobs::JobControl;
 use crate::process_io::configure_process_group;
 
-/// A tiny fake provider CLI written to a temp dir. Each test gets its own
+/// Monotonic counter making every [`FakeCli`] path globally unique, so two
+/// instances built with the same `name` on the same thread never collide on
+/// one path. Reusing a path means writing an executable to a location a
+/// just-dropped instance removed and immediately exec'ing it, which races the
+/// write and returns `ETXTBSY` ("Text file busy") on Linux.
+static FAKE_CLI_SEQ: AtomicU64 = AtomicU64::new(0);
+
+/// A tiny fake provider CLI written to a temp dir. Each instance gets its own
 /// directory so parallel test runs do not collide.
 struct FakeCli {
     dir: PathBuf,
@@ -26,10 +36,11 @@ struct FakeCli {
 impl FakeCli {
     fn new(name: &str, script: &str) -> Self {
         let dir = std::env::temp_dir().join(format!(
-            "qa-scribe-fake-cli-{}-{}-{:?}",
+            "qa-scribe-fake-cli-{}-{}-{:?}-{}",
             name,
             std::process::id(),
-            thread::current().id()
+            thread::current().id(),
+            FAKE_CLI_SEQ.fetch_add(1, Ordering::Relaxed)
         ));
         fs::create_dir_all(&dir).expect("fake cli dir is created");
         let path = dir.join(name);
@@ -77,18 +88,34 @@ fn run_bounded<T: Send + 'static>(deadline: Duration, f: impl FnOnce() -> T + Se
 
 /// Run the pwd-reporting fake CLI once and return the working directory the
 /// child observed.
+///
+/// Spawning a freshly written executable can transiently fail with `ETXTBSY`
+/// ("Text file busy") when a concurrent test's `fork` momentarily holds a
+/// write handle to it — an environmental race unrelated to the cwd behavior
+/// under test. Retry a bounded number of times on that specific error with a
+/// fresh binary each attempt.
 fn reported_provider_cwd() -> PathBuf {
-    let cli = FakeCli::new("fake-pwd", "#!/bin/sh\ncat >/dev/null\npwd\n");
-    let command = cli.command("prompt".to_string(), GenerationOutputFormat::PlainText);
-    let control = JobControl::default();
+    for attempt in 0.. {
+        let cli = FakeCli::new("fake-pwd", "#!/bin/sh\ncat >/dev/null\npwd\n");
+        let command = cli.command("prompt".to_string(), GenerationOutputFormat::PlainText);
+        let control = JobControl::default();
 
-    let output = run_bounded(Duration::from_secs(10), move || {
-        run_generation_command_streaming(&command, &control, |_| {})
-    })
-    .expect("streaming completes");
+        let output = run_bounded(Duration::from_secs(10), move || {
+            run_generation_command_streaming(&command, &control, |_| {})
+        });
 
-    assert!(output.success(), "expected success, got {output:?}");
-    PathBuf::from(output.response_text().trim())
+        match output {
+            Ok(output) => {
+                assert!(output.success(), "expected success, got {output:?}");
+                return PathBuf::from(output.response_text().trim());
+            }
+            Err(error) if error.contains("Text file busy") && attempt < 5 => {
+                thread::sleep(Duration::from_millis(50));
+            }
+            Err(error) => panic!("streaming completes: {error:?}"),
+        }
+    }
+    unreachable!("retry loop returns or panics")
 }
 
 #[test]
