@@ -15,6 +15,13 @@ qa-scribe uses file size as a maintainability signal, not as a mechanical rewrit
 - Rust Clippy's `too_many_lines` configuration defaults to 100 lines for a function or method, which supports watching long routines even when a file remains cohesive.
 - External maintainability guidance commonly treats files around 400-500 lines as worth reconsidering, while also warning against splitting cohesive modules into overly small fragments.
 
+## Rust Unit Test Placement
+
+- Inline `#[cfg(test)] mod tests` blocks are idiomatic for small Rust unit tests that document nearby private behavior.
+- Move larger inline unit-test blocks into sibling child modules such as `mod tests;` plus `tests.rs` when the test block is the reason a maintained source file enters the watch range or crosses the split threshold.
+- Keep these as unit tests, not integration tests, when they need private access through `use super::*` or focused `use super::{...}` imports.
+- Do not move every inline test module mechanically; prefer the smallest change that improves the production file's readability without changing public exports, command names, storage schemas, or behavior.
+
 ## Initial Audit
 
 Line counts were measured with tracked plus untracked workspace files that exist on disk. The implementation target is maintained source and test files above 500 physical lines.

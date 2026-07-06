@@ -94,6 +94,11 @@ pub fn import_clipboard_screenshot_data_url(
             "clipboard screenshot must be a base64 image data URL",
         ));
     }
+    if base64_encoded_len_exceeds_decoded_limit(encoded.len(), MAX_ATTACHMENT_BYTES) {
+        return Err(validation(format!(
+            "attachment must be at most {MAX_ATTACHMENT_BYTES} bytes"
+        )));
+    }
     let bytes = STANDARD
         .decode(encoded)
         .map_err(|_| validation("clipboard screenshot data URL could not decode"))?;
@@ -308,6 +313,14 @@ fn safe_filename(filename: &str) -> String {
         .to_string()
 }
 
+fn base64_encoded_len_exceeds_decoded_limit(encoded_len: usize, decoded_limit: u64) -> bool {
+    encoded_len > max_base64_encoded_len(decoded_limit)
+}
+
+fn max_base64_encoded_len(decoded_limit: u64) -> usize {
+    ((decoded_limit as usize).saturating_add(2) / 3) * 4
+}
+
 fn is_safe_relative_path(path: &Path) -> bool {
     path.components()
         .all(|component| matches!(component, Component::Normal(_)))
@@ -367,21 +380,4 @@ fn guess_mime_type(path: &Path) -> Option<&'static str> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn safe_filename_removes_path_control_characters() {
-        assert_eq!(safe_filename("../screen shot.png"), "_screen_shot.png");
-    }
-
-    #[test]
-    fn safe_relative_path_rejects_parent_segments() {
-        assert!(!is_safe_relative_path(Path::new(
-            "attachments/../secret.txt"
-        )));
-        assert!(is_safe_relative_path(Path::new(
-            "attachments/session/file.txt"
-        )));
-    }
-}
+mod tests;

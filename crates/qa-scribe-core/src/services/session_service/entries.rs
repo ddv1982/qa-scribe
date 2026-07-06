@@ -105,6 +105,60 @@ impl SessionService {
         })
     }
 
+    pub fn update_entry_if_body_matches(
+        &self,
+        id: &str,
+        expected_body: &str,
+        patch: EntryPatch,
+    ) -> Result<Entry> {
+        let now = now();
+
+        self.database.with_immediate_tx(|tx| {
+            let existing =
+                entry(tx, id)?.ok_or_else(|| QaScribeError::NotFound(id.to_string()))?;
+            if existing.body != expected_body {
+                return Err(QaScribeError::Validation(
+                    "Selected Note changed while generation was running. Review the latest Note and run the summary again."
+                        .to_string(),
+                ));
+            }
+            let title = match patch.title {
+                Some(title) => validate_optional_text("Entry title", title, TITLE_MAX_LENGTH)?,
+                None => existing.title,
+            };
+            let body = match patch.body {
+                Some(body) => validate_body_text("Entry body", &body, TEXT_BODY_MAX_LENGTH)?,
+                None => existing.body,
+            };
+            let body_json = match patch.body_json {
+                Some(body_json) => validate_body_json(body_json)?,
+                None => existing.body_json,
+            };
+            let body_format = match patch.body_format {
+                Some(body_format) => validate_optional_text(
+                    "Entry body format",
+                    body_format,
+                    BODY_FORMAT_MAX_LENGTH,
+                )?,
+                None => existing.body_format,
+            };
+            let metadata_json = match patch.metadata_json {
+                Some(metadata_json) => validate_metadata_json(metadata_json)?,
+                None => existing.metadata_json,
+            };
+            let excluded = patch
+                .excluded_from_generation
+                .unwrap_or(existing.excluded_from_generation);
+            tx.execute(
+                "UPDATE entries
+                 SET title = ?1, body = ?2, body_json = ?3, body_format = COALESCE(?4, 'html'), metadata_json = ?5, excluded_from_generation = ?6, updated_at = ?7
+                 WHERE id = ?8",
+                params![title, body, body_json, body_format, metadata_json, excluded, now, id],
+            )?;
+            entry(tx, id)?.ok_or_else(|| QaScribeError::NotFound(id.to_string()))
+        })
+    }
+
     /// Confirms Entry `entry_id` exists and belongs to `session_id`. Used by
     /// callers outside this module (e.g. the attachment import pipeline) that
     /// need the same "referenced Entry must belong to the Session" check

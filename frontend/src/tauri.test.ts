@@ -48,6 +48,7 @@ describe('Tauri command bridge', () => {
       tauri.startAiActionJob({ sessionId: 'session-1', provider: 'codex_cli', model: 'default', reasoningEffort: null, action: 'summary', noteEntryId: 'entry-1' }, () => undefined),
     )
     await expectCommand('get_ai_action_job_status', () => tauri.getAiActionJobStatus('job-1'))
+    await expectCommand('list_active_ai_action_jobs', () => tauri.listActiveAiActionJobs())
     await expectCommand('cancel_ai_action_job', () => tauri.cancelAiActionJob('job-1'))
   })
 })

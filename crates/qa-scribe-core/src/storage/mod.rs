@@ -213,8 +213,14 @@ fn ensure_testware_drafts_supported(connection: &Connection) -> Result<()> {
         return Ok(());
     }
 
+    let body_json_expr = optional_column_select_expr(connection, "drafts", "body_json", "NULL")?;
+    let body_format_expr =
+        optional_column_select_expr(connection, "drafts", "body_format", "'html'")?;
+    let metadata_json_expr =
+        optional_column_select_expr(connection, "drafts", "metadata_json", "NULL")?;
+
     with_immediate_tx(connection, |tx| {
-        tx.execute_batch(
+        tx.execute_batch(&format!(
             r#"
             ALTER TABLE drafts RENAME TO drafts_old;
 
@@ -225,18 +231,21 @@ fn ensure_testware_drafts_supported(connection: &Connection) -> Result<()> {
               kind TEXT NOT NULL CHECK (kind IN ('session_report', 'testware')),
               title TEXT NOT NULL CHECK (length(trim(title)) > 0),
               body TEXT NOT NULL,
+              body_json TEXT,
+              body_format TEXT NOT NULL DEFAULT 'html',
+              metadata_json TEXT,
               created_at TEXT NOT NULL,
               updated_at TEXT NOT NULL
             );
 
-            INSERT INTO drafts (id, session_id, ai_run_id, kind, title, body, created_at, updated_at)
-            SELECT id, session_id, ai_run_id, kind, title, body, created_at, updated_at
+            INSERT INTO drafts (id, session_id, ai_run_id, kind, title, body, body_json, body_format, metadata_json, created_at, updated_at)
+            SELECT id, session_id, ai_run_id, kind, title, body, {body_json_expr}, {body_format_expr}, {metadata_json_expr}, created_at, updated_at
             FROM drafts_old;
 
             DROP TABLE drafts_old;
             CREATE INDEX IF NOT EXISTS idx_drafts_session_updated ON drafts(session_id, updated_at);
             "#,
-        )?;
+        ))?;
         assert_no_foreign_key_violations(tx)
     })
 }
@@ -278,7 +287,11 @@ fn body_has_required_length_check(connection: &Connection, table: &str) -> Resul
 }
 
 fn rebuild_entries_without_body_length_check(connection: &Connection) -> Result<()> {
-    connection.execute_batch(
+    let body_json_expr = optional_column_select_expr(connection, "entries", "body_json", "NULL")?;
+    let body_format_expr =
+        optional_column_select_expr(connection, "entries", "body_format", "'html'")?;
+
+    connection.execute_batch(&format!(
         r#"
         DROP TABLE IF EXISTS entries_new;
 
@@ -297,21 +310,25 @@ fn rebuild_entries_without_body_length_check(connection: &Connection) -> Result<
         );
 
         INSERT INTO entries_new (
-          id, session_id, type, title, body, metadata_json, excluded_from_generation, created_at, updated_at
+          id, session_id, type, title, body, body_json, body_format, metadata_json, excluded_from_generation, created_at, updated_at
         )
-        SELECT id, session_id, type, title, body, metadata_json, excluded_from_generation, created_at, updated_at
+        SELECT id, session_id, type, title, body, {body_json_expr}, {body_format_expr}, metadata_json, excluded_from_generation, created_at, updated_at
         FROM entries;
 
         DROP TABLE entries;
         ALTER TABLE entries_new RENAME TO entries;
         CREATE INDEX IF NOT EXISTS idx_entries_session_created ON entries(session_id, created_at);
         "#,
-    )?;
+    ))?;
     Ok(())
 }
 
 fn rebuild_findings_without_body_length_check(connection: &Connection) -> Result<()> {
-    connection.execute_batch(
+    let body_json_expr = optional_column_select_expr(connection, "findings", "body_json", "NULL")?;
+    let body_format_expr =
+        optional_column_select_expr(connection, "findings", "body_format", "'html'")?;
+
+    connection.execute_batch(&format!(
         r#"
         DROP TABLE IF EXISTS findings_new;
 
@@ -320,22 +337,37 @@ fn rebuild_findings_without_body_length_check(connection: &Connection) -> Result
           session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
           title TEXT NOT NULL CHECK (length(trim(title)) > 0),
           body TEXT NOT NULL,
+          body_json TEXT,
+          body_format TEXT NOT NULL DEFAULT 'html',
           kind TEXT NOT NULL CHECK (kind IN ('bug', 'question', 'risk', 'follow_up', 'note')),
           metadata_json TEXT,
           created_at TEXT NOT NULL,
           updated_at TEXT NOT NULL
         );
 
-        INSERT INTO findings_new (id, session_id, title, body, kind, metadata_json, created_at, updated_at)
-        SELECT id, session_id, title, body, kind, metadata_json, created_at, updated_at
+        INSERT INTO findings_new (id, session_id, title, body, body_json, body_format, kind, metadata_json, created_at, updated_at)
+        SELECT id, session_id, title, body, {body_json_expr}, {body_format_expr}, kind, metadata_json, created_at, updated_at
         FROM findings;
 
         DROP TABLE findings;
         ALTER TABLE findings_new RENAME TO findings;
         CREATE INDEX IF NOT EXISTS idx_findings_session_created ON findings(session_id, created_at);
         "#,
-    )?;
+    ))?;
     Ok(())
+}
+
+fn optional_column_select_expr(
+    connection: &Connection,
+    table: &str,
+    column: &str,
+    fallback: &str,
+) -> Result<String> {
+    if table_has_column(connection, table, column)? {
+        Ok(column.to_string())
+    } else {
+        Ok(fallback.to_string())
+    }
 }
 
 fn assert_no_foreign_key_violations(connection: &Connection) -> Result<()> {

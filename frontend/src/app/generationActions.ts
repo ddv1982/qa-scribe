@@ -132,7 +132,6 @@ export function createGenerationActions(ctx: AppWorkflowContext, saveNoteNow: (o
       ctx.setError(null)
       ctx.setLatestNoteGenerationUndo(null)
       ctx.setNoteBody(undo.before)
-      ctx.savedBodyRef.current = serializeRichEditorDocument(undo.before)
       const saved = await updateEntry(undo.entryId, storedBody)
       if (writeVersion !== ctx.noteBodyWriteVersionRef.current) return
       ctx.setNoteEntry(saved)

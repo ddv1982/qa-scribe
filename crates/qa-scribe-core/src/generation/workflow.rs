@@ -350,8 +350,9 @@ fn finish_summary_generation(
         prepared.selected_note_body.as_deref().unwrap_or_default(),
         &prepared.attachments,
     );
-    let note_entry = service.update_entry(
+    let note_entry = service.update_entry_if_body_matches(
         note_entry_id,
+        prepared.selected_note_body.as_deref().unwrap_or_default(),
         EntryPatch {
             body: Some(body),
             body_json: Some(None),

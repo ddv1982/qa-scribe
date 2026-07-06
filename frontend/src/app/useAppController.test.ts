@@ -287,6 +287,64 @@ describe('useAppController autosave flush', () => {
     }
   })
 
+  it('keeps failed generation undo dirty so beforeunload can retry the save', async () => {
+    const { result } = renderHook(() => useAppController())
+
+    await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
+    tauriMock.startAiActionJob.mockImplementationOnce(async (_request: unknown, onEvent: (event: unknown) => void) => {
+      onEvent({
+        type: 'completed',
+        job_id: 'job-summary',
+        status: generationStatusFixture({ jobId: 'job-summary', action: 'summary', state: 'completed' }),
+        result: {
+          generationContext: { id: 'context-1', sessionId: 'session-1', createdAt: '2026-06-24T10:00:00.000Z' },
+          aiRun: {
+            id: 'run-1',
+            sessionId: 'session-1',
+            generationContextId: 'context-1',
+            provider: 'codex_cli',
+            model: 'default',
+            reasoningEffort: null,
+            promptVersion: 'summary-v1',
+            status: 'completed',
+            errorMessage: null,
+            createdAt: '2026-06-24T10:00:00.000Z',
+            completedAt: '2026-06-24T10:00:00.000Z',
+          },
+          draft: null,
+          finding: null,
+          noteEntry: entryFixture({ body: '<p>Generated summary.</p>' }),
+        },
+      })
+      return { jobId: 'job-summary', status: generationStatusFixture({ jobId: 'job-summary', action: 'summary', state: 'completed' }) }
+    })
+
+    await act(async () => {
+      await result.current.handleAiAction('summary')
+    })
+    await waitFor(() => expect(result.current.notice).toBe('Summarizing note'))
+    await waitFor(() => expect(tauriMock.updateEntry).toHaveBeenCalledWith('entry-1', expect.objectContaining({ body: expect.stringContaining('Generated summary') })))
+
+    tauriMock.updateEntry.mockRejectedValueOnce(new Error('offline'))
+    await act(async () => {
+      await result.current.handleUndoLatestNoteGeneration()
+    })
+    await waitFor(() => expect(result.current.error).toBeTruthy())
+
+    const event = new Event('beforeunload', { cancelable: true })
+    await act(async () => {
+      window.dispatchEvent(event)
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(event.defaultPrevented).toBe(true)
+    expect(tauriMock.updateEntry).toHaveBeenLastCalledWith(
+      'entry-1',
+      expect.objectContaining({ body: expect.stringContaining('Checkout fails after payment') }),
+    )
+  })
+
   it('does not merge a generated draft canonicalization after switching notes', async () => {
     const { result } = renderHook(() => useAppController())
 

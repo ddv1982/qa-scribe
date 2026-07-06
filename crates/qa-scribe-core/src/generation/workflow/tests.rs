@@ -410,6 +410,63 @@ fn summary_completion_updates_the_selected_note_only() {
     assert_eq!(first_note.body, "<p>First note.</p>");
 }
 
+#[test]
+fn summary_completion_rejects_stale_note_overwrite() {
+    let service = SessionService::in_memory().expect("service should open");
+    let session = create_session(&service, "Gmail login");
+    let note = create_note(
+        &service,
+        &session.id,
+        "Selected note",
+        "<p>Original note.</p>",
+    );
+    let request = request_for(&session.id, GenerateAiActionKind::Summary, Some(&note.id));
+    let prepared =
+        prepare_ai_action_generation(&service, &request).expect("generation should prepare");
+    let ai_run_id = prepared.ai_run.id.clone();
+    service
+        .update_entry(
+            &note.id,
+            EntryPatch {
+                body: Some("<p>User edited while generation ran.</p>".to_string()),
+                ..EntryPatch::default()
+            },
+        )
+        .expect("user edit should persist");
+
+    let error = finish_ai_action_generation(
+        &service,
+        &request,
+        prepared,
+        Ok(success_generation_output("<p>Generated summary.</p>")),
+    )
+    .expect_err("stale summary should not overwrite a newer note edit");
+
+    assert!(
+        error.to_string().contains("Selected Note changed"),
+        "expected stale-note validation error, got: {error}"
+    );
+    let current_note = service
+        .list_entries(&session.id)
+        .expect("entries should list")
+        .into_iter()
+        .find(|entry| entry.id == note.id)
+        .expect("note still exists");
+    assert_eq!(
+        current_note.body,
+        "<p>User edited while generation ran.</p>"
+    );
+    assert_eq!(
+        service
+            .get_ai_run(&ai_run_id)
+            .expect("AI Run should read")
+            .expect("AI Run should exist")
+            .status
+            .as_str(),
+        "failed"
+    );
+}
+
 fn finish_action_with_output(
     action: GenerateAiActionKind,
     response: &str,

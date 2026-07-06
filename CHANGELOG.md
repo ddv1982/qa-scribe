@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.7.1 - 2026-07-06
+
+- Protect in-progress note edits from late AI summary completions, keep failed generation undo saves dirty so they can retry, and cover active AI job recovery in the Tauri bridge tests.
+- Preserve rich editor bodies while older databases migrate through rebuilt Entry, Finding, and Draft tables, and reject oversized clipboard image data URLs before decoding them into memory.
+- Move the largest inline Rust unit-test blocks into sibling unit-test modules, document when to keep tests inline versus split them, and align the broad verify gate with frontend check and release metadata coverage.
+
 ## v0.7.0 - 2026-07-06
 
 - Rework the AI generation prompts for testware, findings, and note summaries around current prompt-engineering best practices: the selected note is now clearly separated from the instructions as source data, the required output format is stated as rules the model cannot override, each action shows a worked example of the shape to produce, and the critical constraints are restated after the note so they are not lost behind a long note.
