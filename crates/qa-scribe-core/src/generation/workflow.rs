@@ -20,7 +20,8 @@ use crate::{
 };
 
 use super::{
-    ActionPromptKind, managed_attachment_ids_from_html, parse_rich_html_fragment_response,
+    ActionPromptKind, OutputMarker, managed_attachment_ids_from_html,
+    parse_rich_html_fragment_response,
     preferences::{
         TestwareGenerationPreferences, testware_metadata_json, testware_preferences_prompt,
     },
@@ -46,9 +47,9 @@ impl GenerateAiActionKind {
 
     pub fn prompt_version(self) -> &'static str {
         match self {
-            GenerateAiActionKind::Testware => "testware-v3",
-            GenerateAiActionKind::Finding => "finding-v3",
-            GenerateAiActionKind::Summary => "note-summary-v3",
+            GenerateAiActionKind::Testware => "testware-v4",
+            GenerateAiActionKind::Finding => "finding-v4",
+            GenerateAiActionKind::Summary => "note-summary-v4",
         }
     }
 
@@ -95,13 +96,16 @@ pub struct GenerateAiActionResult {
 
 /// Everything the prepare step persisted and derived: the AiRun to complete
 /// or fail, the rendered prompt, and the source material the finish step
-/// needs for evidence preservation.
+/// needs for evidence preservation. `output_marker` is the per-generation
+/// sentinel the prompt asked the model to wrap its fragment in; the finish
+/// step needs the same marker to extract the fragment from the response.
 pub struct PreparedGeneration {
     pub session_id: String,
     pub session_title: String,
     pub generation_context: GenerationContext,
     pub ai_run: AiRun,
     pub prompt: String,
+    pub output_marker: OutputMarker,
     pub selected_note_id: Option<String>,
     pub selected_note_body: Option<String>,
     pub attachments: Vec<Attachment>,
@@ -129,25 +133,24 @@ pub fn prepare_ai_action_generation(
         prompt_version: request.action.prompt_version().to_string(),
     })?;
 
-    let mut prompt = render_action_prompt(
+    // Testware preferences are instructions, so they render inside the
+    // prompt's instruction section (before the source material and the final
+    // reminder) instead of being appended after the whole prompt.
+    let extra_instructions = if matches!(request.action, GenerateAiActionKind::Testware) {
+        testware_preferences_prompt(request.testware_preferences.as_ref())
+    } else {
+        String::new()
+    };
+    let output_marker = OutputMarker::new();
+    let prompt = render_action_prompt(
         &settings,
         &session.title,
         note_entry,
         &attachments,
         request.action.prompt_kind(),
+        &extra_instructions,
+        &output_marker,
     );
-    if matches!(request.action, GenerateAiActionKind::Testware) {
-        prompt.push_str(&testware_preferences_prompt(
-            request.testware_preferences.as_ref(),
-        ));
-    }
-    prompt.push_str(&format!(
-        "\n# Provider Request\nAction: {}\nProvider: {}\nModel: {}\nReasoning Effort: {}\n",
-        request.action.label(),
-        request.provider.as_str(),
-        request.model,
-        request.reasoning_effort.as_deref().unwrap_or("unspecified")
-    ));
 
     Ok(PreparedGeneration {
         session_id: request.session_id.clone(),
@@ -155,6 +158,7 @@ pub fn prepare_ai_action_generation(
         generation_context,
         ai_run,
         prompt,
+        output_marker,
         selected_note_id: note_entry.map(|entry| entry.id.clone()),
         selected_note_body: note_entry.map(|entry| entry.body.clone()),
         attachments,
@@ -222,7 +226,7 @@ fn finish_successful_generation(
     output: ProviderGenerationOutput,
 ) -> Result<GenerateAiActionResult> {
     let response = output.response_text();
-    let body = parse_rich_html_fragment_response(&response);
+    let body = parse_rich_html_fragment_response(&response, &prepared.output_marker);
     let ai_run_id = prepared.ai_run.id.clone();
     let result = match request.action {
         GenerateAiActionKind::Testware => {

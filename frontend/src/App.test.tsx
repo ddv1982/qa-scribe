@@ -254,7 +254,7 @@ describe('App workflows', () => {
           provider: 'codex_cli',
           model: 'default',
           reasoningEffort: 'low',
-          promptVersion: 'note-summary-v3',
+          promptVersion: 'note-summary-v4',
           status: 'completed',
           errorMessage: null,
           createdAt: '2026-06-24T10:00:00.000Z',

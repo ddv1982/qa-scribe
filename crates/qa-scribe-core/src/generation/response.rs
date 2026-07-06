@@ -30,9 +30,107 @@ pub fn self_closing_editor_html_tags() -> Vec<String> {
         .collect()
 }
 
-pub fn parse_rich_html_fragment_response(response: &str) -> String {
-    let stripped = strip_response_fence(response);
+const HTML_FRAGMENT_OPEN: &str = "<html_fragment>";
+const HTML_FRAGMENT_CLOSE: &str = "</html_fragment>";
+const ESCAPED_HTML_FRAGMENT_OPEN: &str = "&lt;html_fragment&gt;";
+const ESCAPED_HTML_FRAGMENT_CLOSE: &str = "&lt;/html_fragment&gt;";
+
+/// The per-generation output sentinel: `html_fragment_` plus a random hex
+/// suffix. Because the suffix exists only in the one prompt that asked for
+/// it, note content echoed into the output or narration mentioning the
+/// generic marker can never collide with the real extraction boundaries.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct OutputMarker {
+    tag_name: String,
+}
+
+impl OutputMarker {
+    pub fn new() -> Self {
+        Self::from_tag_name(&format!("html_fragment_{}", random_marker_suffix()))
+    }
+
+    /// Fixed tag name, for tests and any future persistence.
+    pub fn from_tag_name(tag_name: &str) -> Self {
+        Self {
+            tag_name: tag_name.to_string(),
+        }
+    }
+
+    pub fn tag_name(&self) -> &str {
+        &self.tag_name
+    }
+
+    pub fn open_tag(&self) -> String {
+        format!("<{}>", self.tag_name)
+    }
+
+    pub fn close_tag(&self) -> String {
+        format!("</{}>", self.tag_name)
+    }
+
+    fn escaped_open_tag(&self) -> String {
+        format!("&lt;{}&gt;", self.tag_name)
+    }
+
+    fn escaped_close_tag(&self) -> String {
+        format!("&lt;/{}&gt;", self.tag_name)
+    }
+}
+
+impl Default for OutputMarker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+fn random_marker_suffix() -> String {
+    let hex = uuid::Uuid::new_v4().simple().to_string();
+    hex[..8].to_string()
+}
+
+pub fn parse_rich_html_fragment_response(response: &str, marker: &OutputMarker) -> String {
+    let unwrapped = extract_sentinel_fragment(response, marker);
+    let stripped = strip_response_fence(unwrapped);
     repair_escaped_editor_html(&stripped)
+}
+
+/// The prompt asks the model to wrap its fragment in this generation's
+/// [`OutputMarker`] so that preamble/postamble narration from chatty
+/// providers can be dropped deterministically instead of relying on "return
+/// only the fragment" compliance. Content between the first opening and last
+/// closing marker wins; a missing closing marker (e.g. a truncated stream)
+/// keeps everything after the opener. Fallbacks, in order: the escaped
+/// marker form (a model that escapes its HTML is exactly the one the
+/// downstream repair pass guards against), the generic `<html_fragment>`
+/// marker (a model that drops the random suffix), its escaped form, and
+/// finally the whole response for providers that ignore the instruction.
+fn extract_sentinel_fragment<'a>(response: &'a str, marker: &OutputMarker) -> &'a str {
+    extract_between(response, &marker.open_tag(), &marker.close_tag())
+        .or_else(|| {
+            extract_between(
+                response,
+                &marker.escaped_open_tag(),
+                &marker.escaped_close_tag(),
+            )
+        })
+        .or_else(|| extract_between(response, HTML_FRAGMENT_OPEN, HTML_FRAGMENT_CLOSE))
+        .or_else(|| {
+            extract_between(
+                response,
+                ESCAPED_HTML_FRAGMENT_OPEN,
+                ESCAPED_HTML_FRAGMENT_CLOSE,
+            )
+        })
+        .unwrap_or(response)
+}
+
+fn extract_between<'a>(response: &'a str, open: &str, close: &str) -> Option<&'a str> {
+    let start = response.find(open)? + open.len();
+    let end = response[start..]
+        .rfind(close)
+        .map(|relative| start + relative)
+        .unwrap_or(response.len());
+    Some(&response[start..end])
 }
 
 pub fn preserve_managed_attachment_images(

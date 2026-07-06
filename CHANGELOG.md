@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.7.0 - 2026-07-06
+
+- Rework the AI generation prompts for testware, findings, and note summaries around current prompt-engineering best practices: the selected note is now clearly separated from the instructions as source data, the required output format is stated as rules the model cannot override, each action shows a worked example of the shape to produce, and the critical constraints are restated after the note so they are not lost behind a long note.
+- Treat the selected note strictly as material to transform rather than as instructions, so text inside a note can no longer redirect what the AI produces.
+- Wrap each generation's output in a unique per-run marker and extract only what is inside it, so any preamble or sign-off the provider adds around the result is dropped cleanly instead of ending up in the note.
+- Run each provider CLI in its own throwaway working directory that is created fresh and removed afterward, so unrelated project files in whatever folder the app was launched from can no longer influence a generation and concurrent generations cannot collide.
+
 ## v0.6.3 - 2026-07-05
 
 - Harden AI generation records so successful provider output cannot leave a completed AI Run without its generated Draft, Finding, or Note update, and make AI action Generation Contexts reflect only the selected prompt material.

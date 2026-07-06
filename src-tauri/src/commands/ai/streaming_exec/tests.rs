@@ -75,6 +75,75 @@ fn run_bounded<T: Send + 'static>(deadline: Duration, f: impl FnOnce() -> T + Se
     }
 }
 
+/// Run the pwd-reporting fake CLI once and return the working directory the
+/// child observed.
+fn reported_provider_cwd() -> PathBuf {
+    let cli = FakeCli::new("fake-pwd", "#!/bin/sh\ncat >/dev/null\npwd\n");
+    let command = cli.command("prompt".to_string(), GenerationOutputFormat::PlainText);
+    let control = JobControl::default();
+
+    let output = run_bounded(Duration::from_secs(10), move || {
+        run_generation_command_streaming(&command, &control, |_| {})
+    })
+    .expect("streaming completes");
+
+    assert!(output.success(), "expected success, got {output:?}");
+    PathBuf::from(output.response_text().trim())
+}
+
+#[test]
+fn provider_process_runs_in_a_neutral_working_directory() {
+    // Providers are coding-agent CLIs that auto-load project context
+    // (CLAUDE.md, .mcp.json, hooks) from their working directory. If the
+    // child inherited the app's cwd, whatever directory QA Scribe happened
+    // to be launched from would silently contaminate every generation. The
+    // per-run directory is already removed by the time we inspect it, so we
+    // reason about the reported path itself (which `pwd` resolved) rather
+    // than re-canonicalizing a directory that no longer exists.
+    let reported = reported_provider_cwd();
+
+    // `pwd` resolves symlinks, so compare against the canonical temp dir
+    // (macOS temp is under a /var -> /private/var symlink).
+    let temp = std::env::temp_dir()
+        .canonicalize()
+        .expect("temp dir resolves");
+
+    let parent = reported.parent().expect("provider cwd has a parent");
+    assert_eq!(
+        parent, temp,
+        "provider cwd {reported:?} should sit directly under the temp dir {temp:?}"
+    );
+    assert!(
+        reported
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| name.starts_with("qa-scribe-provider-cwd-")),
+        "provider cwd {reported:?} should use the per-run prefix"
+    );
+}
+
+#[test]
+fn each_generation_gets_a_fresh_provider_cwd_that_is_cleaned_up() {
+    // A single shared, persistent cwd would re-introduce contamination if any
+    // run ever wrote a CLAUDE.md there, and would let concurrent runs collide.
+    // Each generation must get its own directory, removed after it completes.
+    let first = reported_provider_cwd();
+    let second = reported_provider_cwd();
+
+    assert_ne!(
+        first, second,
+        "each generation must get its own working directory"
+    );
+    assert!(
+        !first.exists(),
+        "the per-run cwd {first:?} should be removed after the generation completes"
+    );
+    assert!(
+        !second.exists(),
+        "the per-run cwd {second:?} should be removed after the generation completes"
+    );
+}
+
 #[test]
 fn normal_completion_accumulates_events() {
     let cli = FakeCli::new(

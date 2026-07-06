@@ -312,7 +312,7 @@ describe('useAppController autosave flush', () => {
             provider: 'codex_cli',
             model: 'default',
             reasoningEffort: null,
-            promptVersion: 'testware-v3',
+            promptVersion: 'testware-v4',
             status: 'completed',
             errorMessage: null,
             createdAt: '2026-06-24T10:00:00.000Z',

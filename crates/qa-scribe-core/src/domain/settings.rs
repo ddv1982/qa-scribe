@@ -42,13 +42,16 @@ impl Default for AppSettings {
     }
 }
 
+// The grounding and HTML-fragment format rules that used to live in this
+// default (and the template defaults below) are now hardcoded in the prompt
+// renderer's output contract (`generation/prompt.rs`), which applies even
+// when a user edits these settings. The defaults keep only the role and the
+// action-specific content guidance.
 pub fn default_generation_system_prompt() -> String {
     [
         "You help QA practitioners transform selected QA Scribe material into the requested output.",
         "Follow the action-specific instructions exactly.",
         "Use only supplied note material and managed image references.",
-        "Do not invent facts, environment details, severity, steps, expected results, or test data.",
-        "Return the requested clean HTML fragment unless the action explicitly asks otherwise.",
     ]
     .join("\n")
 }
@@ -88,24 +91,19 @@ pub fn default_selected_ai_reasoning_efforts_by_provider() -> HashMap<AiProvider
 
 fn default_testware_template() -> String {
     [
-        "Create test scenarios with test cases from the selected note only.",
+        "Create test scenarios with test cases from the selected note.",
         "Group related cases under scenario headings.",
         "For each test case include purpose, preconditions, test data, steps, expected result, and coverage notes when supported.",
         "Use checkboxes only for executable test steps.",
-        "Do not create a bug finding, severity field, Jira issue, or impact section.",
-        "Do not wrap the response in a code fence.",
     ]
     .join("\n")
 }
 
 fn default_finding_template() -> String {
     [
-        "Create exactly one QA finding from the selected note only.",
-        "Use the first h2 as the concise finding title.",
+        "Create exactly one QA finding from the selected note.",
         "Include sections for severity, environment, steps to reproduce, expected result, actual result, evidence, and impact.",
         "If a field is not supported by the note, write \"Unknown\".",
-        "Do not create test scenarios or test cases.",
-        "Do not wrap the response in a code fence.",
     ]
     .join("\n")
 }
@@ -116,8 +114,6 @@ fn default_note_summary_template() -> String {
         "Keep it as a note, not a finding and not testware.",
         "Preserve the original meaning, relevant checkboxes, links, and managed images.",
         "Remove duplication and tighten wording.",
-        "Do not add severity, expected/actual result sections, test cases, Jira fields, or new facts.",
-        "Do not wrap the response in a code fence.",
     ]
     .join("\n")
 }
