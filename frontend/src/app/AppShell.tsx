@@ -49,8 +49,8 @@ export function AppShell(c: AppController) {
       <aside className="left-rail" aria-label="Workspace navigation">
         <nav className="section-nav" aria-label="Primary">
           <RailItem icon={FileText} label="Notes" count={c.sessions.length} active={c.activeView === 'notes'} onClick={() => c.setActiveView('notes')} />
-          <RailItem icon={Box} label="Testware" count={c.testwareDrafts.length} active={c.activeView === 'testware'} onClick={() => c.setActiveView('testware')} />
-          <RailItem icon={Flag} label="Findings" count={c.findings.length} active={c.activeView === 'findings'} onClick={() => c.setActiveView('findings')} />
+          <RailItem icon={Box} label="Testware" count={c.testwareDraftCount} active={c.activeView === 'testware'} onClick={() => c.setActiveView('testware')} />
+          <RailItem icon={Flag} label="Findings" count={c.findingCount} active={c.activeView === 'findings'} onClick={() => c.setActiveView('findings')} />
         </nav>
 
         <section className="note-picker" aria-label="Choose note">
@@ -73,6 +73,12 @@ export function AppShell(c: AppController) {
             {c.filteredSessions.length === 0 ? <p className="note-picker-empty">No matching notes</p> : null}
           </div>
           {c.filteredSessions.length > 8 ? <p className="note-picker-more">Showing 8 of {c.filteredSessions.length}. Search to narrow.</p> : null}
+          {!c.sessionLibraryComplete ? (
+            <button className="secondary-button" type="button" disabled={c.isBusy} onClick={() => void c.handleLoadSessionLibrary()}>
+              {c.busyAction === 'load-session-library' ? <Loader2 className="spin" size={16} /> : null}
+              Load all notes
+            </button>
+          ) : null}
         </section>
 
         <button className={c.activeView === 'settings' ? 'settings-link active' : 'settings-link'} type="button" aria-current={c.activeView === 'settings' ? 'page' : undefined} onClick={() => c.setActiveView('settings')}>

@@ -181,6 +181,7 @@ fn migration_adds_indices_on_cascade_fk_columns_for_legacy_databases() {
         ("attachments", "idx_attachments_entry_id"),
         ("generation_contexts", "idx_generation_contexts_session_id"),
         ("ai_runs", "idx_ai_runs_generation_context_id"),
+        ("ai_runs", "idx_ai_runs_running_status"),
     ];
     for (table, index) in expected_indices {
         let exists: bool = connection

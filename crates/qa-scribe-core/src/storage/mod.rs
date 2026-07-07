@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{path::Path, time::Instant};
 
 use rusqlite::{Connection, Transaction, TransactionBehavior};
 
@@ -63,30 +63,65 @@ pub fn with_immediate_tx<T>(
 /// final time, and settles on a `user_version` this build can trust from then
 /// on. Once every database in the wild has passed through this once, future
 /// bumps can go strictly by increment again.
-pub const SCHEMA_VERSION: i32 = 7;
+pub const SCHEMA_VERSION: i32 = 8;
 
 fn initialize(connection: &Connection) -> Result<()> {
+    let initialize_started = Instant::now();
     // Reject databases from a newer build before touching the file in any
     // way: the SCHEMA batch below could resurrect tables or indices a newer
     // schema dropped or renamed, and even the journal_mode pragma persists.
     // `PRAGMA user_version` needs no schema and no settings, so it is safe
     // to read first.
+    let span_started = Instant::now();
     let found = current_schema_version(connection)?;
+    eprintln!(
+        "qa-scribe startup storage schema version read: version={}, elapsed_ms={}",
+        found,
+        span_started.elapsed().as_millis()
+    );
     if found > SCHEMA_VERSION {
         return Err(validation(format!(
             "This database was created by a newer version of QA Scribe (schema {found} > {SCHEMA_VERSION}). Update the app to open it."
         )));
     }
+    let span_started = Instant::now();
     connection.pragma_update(None, "foreign_keys", "ON")?;
     connection.pragma_update(None, "busy_timeout", 5_000)?;
     connection.pragma_update(None, "journal_mode", "WAL")?;
     connection.pragma_update(None, "synchronous", "NORMAL")?;
+    eprintln!(
+        "qa-scribe startup storage pragmas applied: elapsed_ms={}",
+        span_started.elapsed().as_millis()
+    );
+
+    let span_started = Instant::now();
     connection.execute_batch(SCHEMA)?;
-    if found < SCHEMA_VERSION {
+    eprintln!(
+        "qa-scribe startup storage schema ensured: elapsed_ms={}",
+        span_started.elapsed().as_millis()
+    );
+
+    let migrations_run = found < SCHEMA_VERSION;
+    if migrations_run {
+        let span_started = Instant::now();
         migrate(connection)?;
+        assert_no_foreign_key_violations(connection)?;
         connection.pragma_update(None, "user_version", SCHEMA_VERSION)?;
+        eprintln!(
+            "qa-scribe startup storage migrations complete: from_version={}, to_version={}, elapsed_ms={}",
+            found,
+            SCHEMA_VERSION,
+            span_started.elapsed().as_millis()
+        );
+    } else {
+        eprintln!("qa-scribe startup storage foreign key check skipped: reason=current_schema");
     }
-    assert_no_foreign_key_violations(connection)?;
+    eprintln!(
+        "qa-scribe startup storage initialize complete: schema_version={}, migrations_run={}, elapsed_ms={}",
+        SCHEMA_VERSION,
+        migrations_run,
+        initialize_started.elapsed().as_millis()
+    );
     Ok(())
 }
 
@@ -100,6 +135,16 @@ fn migrate(connection: &Connection) -> Result<()> {
     ensure_rich_body_columns_supported(connection)?;
     ensure_draft_metadata_supported(connection)?;
     ensure_cascade_fk_indices_supported(connection)?;
+    ensure_running_ai_run_index_supported(connection)?;
+    Ok(())
+}
+
+fn ensure_running_ai_run_index_supported(connection: &Connection) -> Result<()> {
+    connection.execute_batch(
+        r#"
+        CREATE INDEX IF NOT EXISTS idx_ai_runs_running_status ON ai_runs(status) WHERE status = 'running';
+        "#,
+    )?;
     Ok(())
 }
 
@@ -371,6 +416,7 @@ fn optional_column_select_expr(
 }
 
 fn assert_no_foreign_key_violations(connection: &Connection) -> Result<()> {
+    let started = Instant::now();
     let mut statement = connection.prepare("PRAGMA foreign_key_check")?;
     let mut rows = statement.query([])?;
     if let Some(row) = rows.next()? {
@@ -380,6 +426,10 @@ fn assert_no_foreign_key_violations(connection: &Connection) -> Result<()> {
             "database migration left a foreign key violation in {table} row {rowid}"
         )));
     }
+    eprintln!(
+        "qa-scribe startup storage foreign key check complete: elapsed_ms={}",
+        started.elapsed().as_millis()
+    );
     Ok(())
 }
 
@@ -516,6 +566,7 @@ CREATE INDEX IF NOT EXISTS idx_drafts_ai_run_id ON drafts(ai_run_id);
 CREATE INDEX IF NOT EXISTS idx_attachments_entry_id ON attachments(entry_id);
 CREATE INDEX IF NOT EXISTS idx_generation_contexts_session_id ON generation_contexts(session_id);
 CREATE INDEX IF NOT EXISTS idx_ai_runs_generation_context_id ON ai_runs(generation_context_id);
+CREATE INDEX IF NOT EXISTS idx_ai_runs_running_status ON ai_runs(status) WHERE status = 'running';
 "#;
 
 #[cfg(test)]

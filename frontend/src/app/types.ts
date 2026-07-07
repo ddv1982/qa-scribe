@@ -23,6 +23,8 @@ export type AppWorkflowState = {
   noteEntry: Entry | null
   drafts: Draft[]
   findings: Finding[]
+  testwareDraftCount: number
+  findingCount: number
   sessions: Session[]
   testwareDrafts: Draft[]
   noteTitle: string
@@ -53,6 +55,8 @@ export type AppWorkflowSetters = {
   setNoteEntry: Dispatch<SetStateAction<Entry | null>>
   setDrafts: Dispatch<SetStateAction<Draft[]>>
   setFindings: Dispatch<SetStateAction<Finding[]>>
+  setTestwareDraftCount: Dispatch<SetStateAction<number>>
+  setFindingCount: Dispatch<SetStateAction<number>>
   setNoteTitle: Dispatch<SetStateAction<string>>
   setNoteBody: Dispatch<SetStateAction<RichEditorDocument>>
   setGenerationJobs: Dispatch<SetStateAction<Record<string, GenerationJobStatus>>>

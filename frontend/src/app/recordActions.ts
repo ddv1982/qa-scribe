@@ -3,8 +3,6 @@ import {
   createFinding,
   deleteDraft,
   deleteFinding,
-  listDrafts,
-  listFindings,
   updateDraft,
   updateFinding,
   type Draft,
@@ -22,16 +20,22 @@ import { renderPrefilledFinding, renderPrefilledTestware } from '../workflows/pr
 import type { AppWorkflowContext, FindingRecordPatch, RichRecordPatch } from './types'
 import type { BusyAction, MainView } from '../ui/types'
 
+type RecordLoaders = {
+  loadDraftsForSession: (sessionId: string, options?: { force?: boolean; replace?: boolean }) => Promise<Draft[]>
+  loadFindingsForSession: (sessionId: string, options?: { force?: boolean; replace?: boolean }) => Promise<Finding[]>
+}
+
 export function createRecordActions(
   ctx: AppWorkflowContext,
   saveNoteNow: (options?: { manageBusy?: boolean }) => Promise<boolean>,
   handleDeleteSession: (session: Session) => Promise<void>,
+  loaders: RecordLoaders,
 ) {
   async function createRecordFromNote(
     busy: BusyAction,
     bodyDocument: RichEditorDocument,
     untitledTitle: string,
-    existingTitles: Array<{ title: string }>,
+    loadExistingTitles: () => Promise<Array<{ title: string }>>,
     create: (title: string, body: ReturnType<typeof richEditorDocumentToStoredBody>) => Promise<unknown>,
     refresh: () => Promise<void>,
     view: MainView,
@@ -42,6 +46,7 @@ export function createRecordActions(
       ctx.setError(null)
       const saved = await saveNoteNow({ manageBusy: false })
       if (!saved) return
+      const existingTitles = await loadExistingTitles()
       await create(nextUntitledRecordTitle(existingTitles, untitledTitle), richEditorDocumentToStoredBody(bodyDocument))
       await refresh()
       ctx.setActiveView(view)
@@ -60,9 +65,11 @@ export function createRecordActions(
       'manual-testware',
       emptyRichEditorDocument,
       'Untitled testware',
-      ctx.testwareDrafts,
+      async () => (await loaders.loadDraftsForSession(session.id)).filter((draft) => draft.kind === 'testware'),
       (title, body) => createDraft({ sessionId: session.id, aiRunId: null, kind: 'testware', title, ...body, metadataJson: null }),
-      async () => ctx.setDrafts(await listDrafts(session.id)),
+      async () => {
+        await loaders.loadDraftsForSession(session.id, { force: true, replace: true })
+      },
       'testware',
       'Manual testware created',
     )
@@ -75,9 +82,11 @@ export function createRecordActions(
       'prefill-testware',
       richEditorDocumentFromHtml(renderPrefilledTestware(session.title, ctx.noteBodyHtml)),
       'Untitled testware',
-      ctx.testwareDrafts,
+      async () => (await loaders.loadDraftsForSession(session.id)).filter((draft) => draft.kind === 'testware'),
       (title, body) => createDraft({ sessionId: session.id, aiRunId: null, kind: 'testware', title, ...body, metadataJson: null }),
-      async () => ctx.setDrafts(await listDrafts(session.id)),
+      async () => {
+        await loaders.loadDraftsForSession(session.id, { force: true, replace: true })
+      },
       'testware',
       'Testware prefilled from note',
     )
@@ -90,9 +99,11 @@ export function createRecordActions(
       'manual-finding',
       emptyRichEditorDocument,
       'Untitled finding',
-      ctx.findings,
+      async () => loaders.loadFindingsForSession(session.id),
       (title, body) => createFinding({ sessionId: session.id, title, ...body, kind: 'bug', metadataJson: null }),
-      async () => ctx.setFindings(await listFindings(session.id)),
+      async () => {
+        await loaders.loadFindingsForSession(session.id, { force: true, replace: true })
+      },
       'findings',
       'Manual finding created',
     )
@@ -105,9 +116,11 @@ export function createRecordActions(
       'prefill-finding',
       richEditorDocumentFromHtml(renderPrefilledFinding(ctx.noteBodyHtml)),
       'Untitled finding',
-      ctx.findings,
+      async () => loaders.loadFindingsForSession(session.id),
       (title, body) => createFinding({ sessionId: session.id, title, ...body, kind: 'bug', metadataJson: null }),
-      async () => ctx.setFindings(await listFindings(session.id)),
+      async () => {
+        await loaders.loadFindingsForSession(session.id, { force: true, replace: true })
+      },
       'findings',
       'Finding prefilled from note',
     )
@@ -169,7 +182,7 @@ export function createRecordActions(
       ctx.setBusyAction(`delete-draft:${draft.id}`)
       ctx.setError(null)
       await deleteDraft(draft.id)
-      ctx.setDrafts(await listDrafts(draft.sessionId))
+      await loaders.loadDraftsForSession(draft.sessionId, { force: true, replace: true })
       ctx.setNotice('Testware deleted')
     } catch (cause) {
       ctx.setError(formatError(cause))
@@ -187,7 +200,7 @@ export function createRecordActions(
       ctx.setBusyAction(`delete-finding:${finding.id}`)
       ctx.setError(null)
       await deleteFinding(finding.id)
-      ctx.setFindings(await listFindings(finding.sessionId))
+      await loaders.loadFindingsForSession(finding.sessionId, { force: true, replace: true })
       ctx.setNotice('Finding deleted')
     } catch (cause) {
       ctx.setError(formatError(cause))

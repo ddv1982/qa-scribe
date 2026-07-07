@@ -20,6 +20,7 @@ import {
   type ProviderStatus,
   type Session,
   type SessionDraft,
+  type SessionNoteState,
   type SessionPatch,
   type StartAiActionJobResult,
   type TestwareGenerationPreferences,
@@ -43,12 +44,20 @@ export function listSessions(): Promise<Session[]> {
   return commands.listSessions()
 }
 
+export function listRecentSessions(limit: number): Promise<Session[]> {
+  return commands.listRecentSessions(limit)
+}
+
 export function createSession(draft: SessionDraft): Promise<Session> {
   return commands.createSession(draft)
 }
 
 export function reopenSession(id: string): Promise<Session> {
   return commands.reopenSession(id)
+}
+
+export function openSessionNoteState(id: string): Promise<SessionNoteState> {
+  return commands.openSessionNoteState(id)
 }
 
 export function updateSession(id: string, patch: SessionPatch): Promise<Session> {

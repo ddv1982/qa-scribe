@@ -264,3 +264,45 @@ fn reopening_the_database_sweeps_ai_runs_left_running_by_a_crash() {
 
     fs::remove_dir_all(temp_dir).expect("temp dir should be removed");
 }
+
+#[test]
+fn orphan_ai_run_sweep_uses_running_status_index() {
+    let service = SessionService::in_memory().expect("in-memory service should open");
+    let connection = service.database().connection();
+
+    let index_sql: String = connection
+        .query_row(
+            "SELECT sql FROM sqlite_master WHERE type = 'index' AND name = 'idx_ai_runs_running_status'",
+            [],
+            |row| row.get(0),
+        )
+        .expect("running AI Run index should exist");
+    assert!(
+        index_sql.contains("WHERE status = 'running'"),
+        "running AI Run index should be partial, got {index_sql}"
+    );
+
+    let plan = explain_query_plan(
+        connection,
+        "EXPLAIN QUERY PLAN
+         UPDATE ai_runs
+         SET status = 'failed', error_message = 'Interrupted', completed_at = '2026-06-24T10:00:00.000Z'
+         WHERE status = 'running'",
+    );
+    assert!(
+        plan.iter()
+            .any(|detail| detail.contains("idx_ai_runs_running_status")),
+        "orphan AI Run sweep should use the running-status index, got {plan:?}"
+    );
+}
+
+fn explain_query_plan(connection: &rusqlite::Connection, sql: &str) -> Vec<String> {
+    let mut statement = connection
+        .prepare(sql)
+        .expect("EXPLAIN QUERY PLAN should prepare");
+    statement
+        .query_map([], |row| row.get::<_, String>(3))
+        .expect("EXPLAIN QUERY PLAN should run")
+        .collect::<std::result::Result<Vec<_>, _>>()
+        .expect("EXPLAIN QUERY PLAN rows should read")
+}

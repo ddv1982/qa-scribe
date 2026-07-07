@@ -19,7 +19,9 @@ const tauriMock = vi.hoisted(() => ({
   listDrafts: vi.fn(),
   listEntries: vi.fn(),
   listFindings: vi.fn(),
+  listRecentSessions: vi.fn(),
   listSessions: vi.fn(),
+  openSessionNoteState: vi.fn(),
   reopenSession: vi.fn(),
   refreshProviderStatus: vi.fn(),
   startAiActionJob: vi.fn(),
@@ -52,8 +54,10 @@ describe('useAppController autosave flush', () => {
     tauriMock.getSettings.mockResolvedValue(settingsFixture())
     tauriMock.getProviderStatus.mockResolvedValue(providerStatusFixture())
     tauriMock.refreshProviderStatus.mockResolvedValue(providerStatusFixture())
+    tauriMock.listRecentSessions.mockResolvedValue([sessionFixture()])
     tauriMock.listSessions.mockResolvedValue([sessionFixture()])
     tauriMock.listActiveAiActionJobs.mockResolvedValue([])
+    tauriMock.openSessionNoteState.mockResolvedValue(sessionNoteStateFixture())
     tauriMock.reopenSession.mockResolvedValue(sessionFixture())
     tauriMock.listEntries.mockResolvedValue([entryFixture()])
     tauriMock.listDrafts.mockResolvedValue([])
@@ -124,6 +128,237 @@ describe('useAppController autosave flush', () => {
     expect(result.current.isBusy).toBe(false)
   })
 
+  it('records startup timing marks and leaves Deep provider refresh explicit', async () => {
+    const marks: string[] = []
+    const measures: string[] = []
+    const markSpy = vi.spyOn(performance, 'mark').mockImplementation((name) => {
+      marks.push(String(name))
+      return undefined as unknown as PerformanceMark
+    })
+    const measureSpy = vi.spyOn(performance, 'measure').mockImplementation((name) => {
+      measures.push(String(name))
+      return undefined as unknown as PerformanceMeasure
+    })
+
+    try {
+      const { result } = renderHook(() => useAppController())
+
+      await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
+      await waitFor(() => expect(tauriMock.getProviderStatus).toHaveBeenCalled())
+
+      expect(result.current.busyAction).toBeNull()
+      expect(tauriMock.listRecentSessions).toHaveBeenCalledWith(50)
+      expect(tauriMock.openSessionNoteState).toHaveBeenCalledWith('session-1')
+      expect(tauriMock.listSessions).not.toHaveBeenCalled()
+      expect(tauriMock.listEntries).not.toHaveBeenCalled()
+      expect(tauriMock.listDrafts).not.toHaveBeenCalled()
+      expect(tauriMock.listFindings).not.toHaveBeenCalled()
+      expect(tauriMock.refreshProviderStatus).not.toHaveBeenCalled()
+      expect(marks).toEqual(
+        expect.arrayContaining([
+          'qa-scribe:startup:boot-start',
+          'qa-scribe:startup:settings-loaded',
+          'qa-scribe:startup:sessions-loaded',
+          'qa-scribe:startup:first-session-opened',
+          'qa-scribe:startup:boot-busy-cleared',
+          'qa-scribe:startup:provider-fast-status-complete',
+        ]),
+      )
+      expect(measures).toEqual(
+        expect.arrayContaining([
+          'qa-scribe startup boot-to-settings-loaded',
+          'qa-scribe startup boot-to-sessions-loaded',
+          'qa-scribe startup boot-to-first-session-opened',
+          'qa-scribe startup boot-to-busy-cleared',
+          'qa-scribe startup boot-to-provider-fast-status',
+        ]),
+      )
+
+      await act(async () => {
+        await result.current.handleRefreshProviderStatus()
+      })
+
+      expect(tauriMock.refreshProviderStatus).toHaveBeenCalledTimes(1)
+      expect(marks).toContain('qa-scribe:startup:provider-deep-refresh-complete')
+      expect(measures).toContain('qa-scribe startup boot-to-provider-deep-refresh')
+    } finally {
+      markSpy.mockRestore()
+      measureSpy.mockRestore()
+    }
+  })
+
+  it('keeps full Session Library loading explicit after bounded boot', async () => {
+    const recentSessions = Array.from({ length: 50 }, (_, index) => sessionFixture({ id: `session-${index + 1}`, title: `Recent ${index + 1}` }))
+    const fullSessions = [...recentSessions, sessionFixture({ id: 'session-older', title: 'Older note' })]
+    tauriMock.listRecentSessions.mockResolvedValueOnce(recentSessions)
+    tauriMock.listSessions.mockResolvedValueOnce(fullSessions)
+    tauriMock.openSessionNoteState.mockResolvedValueOnce(
+      sessionNoteStateFixture({
+        session: recentSessions[0],
+        noteEntry: entryFixture({ sessionId: recentSessions[0].id }),
+      }),
+    )
+
+    const { result } = renderHook(() => useAppController())
+
+    await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
+    expect(result.current.sessionLibraryComplete).toBe(false)
+    expect(tauriMock.listSessions).not.toHaveBeenCalled()
+
+    await act(async () => {
+      await result.current.handleLoadSessionLibrary()
+    })
+
+    expect(tauriMock.listSessions).toHaveBeenCalledTimes(1)
+    expect(result.current.sessions).toHaveLength(51)
+    expect(result.current.sessionLibraryComplete).toBe(true)
+  })
+
+  it('loads Drafts and Findings lazily when their views are opened', async () => {
+    tauriMock.openSessionNoteState.mockResolvedValueOnce(
+      sessionNoteStateFixture({
+        testwareDraftCount: 1,
+        findingCount: 1,
+      }),
+    )
+    tauriMock.listDrafts.mockResolvedValueOnce([draftFixture({ id: 'draft-lazy' })])
+    tauriMock.listFindings.mockResolvedValueOnce([findingFixture({ id: 'finding-lazy' })])
+
+    const { result } = renderHook(() => useAppController())
+
+    await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
+    expect(tauriMock.listDrafts).not.toHaveBeenCalled()
+    expect(tauriMock.listFindings).not.toHaveBeenCalled()
+    expect(result.current.testwareDraftCount).toBe(1)
+    expect(result.current.findingCount).toBe(1)
+
+    act(() => {
+      result.current.setActiveView('testware')
+    })
+    await waitFor(() => expect(result.current.testwareDrafts.map((draft) => draft.id)).toEqual(['draft-lazy']))
+    expect(tauriMock.listDrafts).toHaveBeenCalledWith('session-1')
+
+    act(() => {
+      result.current.setActiveView('findings')
+    })
+    await waitFor(() => expect(result.current.findings.map((finding) => finding.id)).toEqual(['finding-lazy']))
+    expect(tauriMock.listFindings).toHaveBeenCalledWith('session-1')
+  })
+
+  it('loads existing Drafts before choosing a manual testware title', async () => {
+    tauriMock.listDrafts
+      .mockResolvedValueOnce([draftFixture({ id: 'draft-existing', title: 'Untitled testware' })])
+      .mockResolvedValueOnce([
+        draftFixture({ id: 'draft-new', title: 'Untitled testware 2' }),
+        draftFixture({ id: 'draft-existing', title: 'Untitled testware' }),
+      ])
+    tauriMock.createDraft.mockResolvedValueOnce(draftFixture({ id: 'draft-new', title: 'Untitled testware 2' }))
+
+    const { result } = renderHook(() => useAppController())
+
+    await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
+    await act(async () => {
+      await result.current.handleManualTestware()
+    })
+
+    expect(tauriMock.listDrafts).toHaveBeenCalledWith('session-1')
+    expect(tauriMock.createDraft).toHaveBeenCalledWith(expect.objectContaining({ title: 'Untitled testware 2' }))
+    expect(result.current.testwareDraftCount).toBe(2)
+  })
+
+  it('does not clobber a generated Draft when a stale lazy load resolves', async () => {
+    const pendingDrafts = deferred<ReturnType<typeof draftFixture>[]>()
+    tauriMock.listDrafts.mockReturnValueOnce(pendingDrafts.promise)
+    tauriMock.startAiActionJob.mockImplementationOnce(async (_request: unknown, onEvent: (event: unknown) => void) => {
+      onEvent({
+        type: 'completed',
+        job_id: 'job-1',
+        status: generationStatusFixture({ jobId: 'job-1', action: 'testware', state: 'completed' }),
+        result: {
+          generationContext: { id: 'context-1', sessionId: 'session-1', createdAt: '2026-06-24T10:00:00.000Z' },
+          aiRun: {
+            id: 'run-1',
+            sessionId: 'session-1',
+            generationContextId: 'context-1',
+            provider: 'codex_cli',
+            model: 'default',
+            reasoningEffort: null,
+            promptVersion: 'testware-v4',
+            status: 'completed',
+            errorMessage: null,
+            createdAt: '2026-06-24T10:00:00.000Z',
+            completedAt: '2026-06-24T10:00:00.000Z',
+          },
+          draft: draftFixture({ id: 'draft-generated', sessionId: 'session-1' }),
+          finding: null,
+          noteEntry: null,
+        },
+      })
+      return { jobId: 'job-1', status: generationStatusFixture({ jobId: 'job-1', action: 'testware', state: 'completed' }) }
+    })
+
+    const { result } = renderHook(() => useAppController())
+
+    await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
+    act(() => {
+      result.current.setActiveView('testware')
+    })
+    await waitFor(() => expect(tauriMock.listDrafts).toHaveBeenCalledWith('session-1'))
+
+    await act(async () => {
+      await result.current.handleAiAction('testware')
+    })
+    expect(result.current.testwareDrafts.map((draft) => draft.id)).toContain('draft-generated')
+
+    await act(async () => {
+      pendingDrafts.resolve([draftFixture({ id: 'draft-from-stale-load', sessionId: 'session-1' })])
+      await pendingDrafts.promise
+    })
+
+    expect(result.current.testwareDrafts.map((draft) => draft.id)).toEqual(expect.arrayContaining(['draft-generated', 'draft-from-stale-load']))
+  })
+
+  it('ignores an old Session Draft load that resolves while another Session is opening', async () => {
+    const pendingDrafts = deferred<ReturnType<typeof draftFixture>[]>()
+    const pendingOpen = deferred<ReturnType<typeof sessionNoteStateFixture>>()
+    const otherSession = sessionFixture({ id: 'session-2', title: 'Other note' })
+    tauriMock.listDrafts.mockReturnValueOnce(pendingDrafts.promise)
+    tauriMock.openSessionNoteState.mockResolvedValueOnce(sessionNoteStateFixture()).mockReturnValueOnce(pendingOpen.promise)
+
+    const { result } = renderHook(() => useAppController())
+
+    await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
+    act(() => {
+      result.current.setActiveView('testware')
+    })
+    await waitFor(() => expect(tauriMock.listDrafts).toHaveBeenCalledWith('session-1'))
+
+    let openPromise!: Promise<void>
+    act(() => {
+      openPromise = result.current.openSession(otherSession)
+    })
+    await waitFor(() => expect(tauriMock.openSessionNoteState).toHaveBeenCalledWith('session-2'))
+
+    await act(async () => {
+      pendingDrafts.resolve([draftFixture({ id: 'draft-from-session-1', sessionId: 'session-1' })])
+      await pendingDrafts.promise
+    })
+    expect(result.current.testwareDrafts).toEqual([])
+
+    await act(async () => {
+      pendingOpen.resolve(
+        sessionNoteStateFixture({
+          session: otherSession,
+          noteEntry: entryFixture({ id: 'entry-2', sessionId: 'session-2' }),
+        }),
+      )
+      await openPromise
+    })
+
+    expect(result.current.activeSession?.id).toBe('session-2')
+    expect(result.current.testwareDrafts).toEqual([])
+  })
+
   it('flushes a pending body edit before switching to another note', async () => {
     const { result } = renderHook(() => useAppController())
 
@@ -135,8 +370,12 @@ describe('useAppController autosave flush', () => {
 
     // Switch before the 850ms body debounce would have fired.
     const otherSession = sessionFixture({ id: 'session-2', title: 'Other note' })
-    tauriMock.reopenSession.mockResolvedValueOnce(otherSession)
-    tauriMock.listEntries.mockResolvedValueOnce([entryFixture({ id: 'entry-2', sessionId: 'session-2' })])
+    tauriMock.openSessionNoteState.mockResolvedValueOnce(
+      sessionNoteStateFixture({
+        session: otherSession,
+        noteEntry: entryFixture({ id: 'entry-2', sessionId: 'session-2' }),
+      }),
+    )
 
     await act(async () => {
       await result.current.openSession(otherSession)
@@ -164,7 +403,7 @@ describe('useAppController autosave flush', () => {
       await result.current.openSession(otherSession)
     })
 
-    expect(tauriMock.reopenSession).not.toHaveBeenCalledWith('session-2')
+    expect(tauriMock.openSessionNoteState).not.toHaveBeenCalledWith('session-2')
     expect(result.current.activeSession?.id).toBe('session-1')
     expect(result.current.error).toBeTruthy()
   })
@@ -198,8 +437,12 @@ describe('useAppController autosave flush', () => {
     })
 
     const otherSession = sessionFixture({ id: 'session-2', title: 'Other note' })
-    tauriMock.reopenSession.mockResolvedValueOnce(otherSession)
-    tauriMock.listEntries.mockResolvedValueOnce([entryFixture({ id: 'entry-2', sessionId: 'session-2' })])
+    tauriMock.openSessionNoteState.mockResolvedValueOnce(
+      sessionNoteStateFixture({
+        session: otherSession,
+        noteEntry: entryFixture({ id: 'entry-2', sessionId: 'session-2' }),
+      }),
+    )
 
     await act(async () => {
       await result.current.openSession(otherSession)
@@ -390,10 +633,12 @@ describe('useAppController autosave flush', () => {
     expect(result.current.testwareDrafts.map((draft) => draft.id)).toContain('draft-from-session-1')
 
     const otherSession = sessionFixture({ id: 'session-2', title: 'Other note' })
-    tauriMock.reopenSession.mockResolvedValueOnce(otherSession)
-    tauriMock.listEntries.mockResolvedValueOnce([entryFixture({ id: 'entry-2', sessionId: 'session-2' })])
-    tauriMock.listDrafts.mockResolvedValueOnce([])
-    tauriMock.listFindings.mockResolvedValueOnce([])
+    tauriMock.openSessionNoteState.mockResolvedValueOnce(
+      sessionNoteStateFixture({
+        session: otherSession,
+        noteEntry: entryFixture({ id: 'entry-2', sessionId: 'session-2' }),
+      }),
+    )
     await act(async () => {
       await result.current.openSession(otherSession)
     })
@@ -424,22 +669,28 @@ describe('useAppController render-hot-path memoization', () => {
     tauriMock.getSettings.mockResolvedValue(settingsFixture())
     tauriMock.getProviderStatus.mockResolvedValue(providerStatusFixture())
     tauriMock.refreshProviderStatus.mockResolvedValue(providerStatusFixture())
+    tauriMock.listRecentSessions.mockResolvedValue([sessionFixture()])
     tauriMock.listSessions.mockResolvedValue([sessionFixture()])
     tauriMock.listActiveAiActionJobs.mockResolvedValue([])
+    tauriMock.openSessionNoteState.mockResolvedValue(sessionNoteStateFixture())
     tauriMock.reopenSession.mockResolvedValue(sessionFixture())
     tauriMock.listEntries.mockResolvedValue([entryFixture()])
     tauriMock.listDrafts.mockResolvedValue([draftFixture({ id: 'draft-1' })])
     tauriMock.listFindings.mockResolvedValue([])
+    tauriMock.createDraft.mockResolvedValue(draftFixture({ id: 'draft-1' }))
   })
 
   afterEach(() => {
     vi.useRealTimers()
   })
 
-  it('keeps testwareDrafts and draftScreenshotCounts referentially stable across a keystroke that only touches noteBody', async () => {
+  it('keeps testwareDrafts and draftScreenshotCounts referentially stable across a keystroke after Drafts load', async () => {
     const { result } = renderHook(() => useAppController())
 
     await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
+    await act(async () => {
+      await result.current.handleManualTestware()
+    })
     await waitFor(() => expect(result.current.testwareDrafts.length).toBe(1))
 
     // Capture the memoized references, then re-render via a note-body change
@@ -472,7 +723,9 @@ describe('useAppController generation-job reconciliation on boot', () => {
     tauriMock.getSettings.mockResolvedValue(settingsFixture())
     tauriMock.getProviderStatus.mockResolvedValue(providerStatusFixture())
     tauriMock.refreshProviderStatus.mockResolvedValue(providerStatusFixture())
+    tauriMock.listRecentSessions.mockResolvedValue([sessionFixture()])
     tauriMock.listSessions.mockResolvedValue([sessionFixture()])
+    tauriMock.openSessionNoteState.mockResolvedValue(sessionNoteStateFixture())
     tauriMock.reopenSession.mockResolvedValue(sessionFixture())
     tauriMock.listEntries.mockResolvedValue([entryFixture()])
     tauriMock.listDrafts.mockResolvedValue([])
@@ -550,4 +803,22 @@ function ensureTestLocalStorage() {
     configurable: true,
     value: localStorage,
   })
+}
+
+function sessionNoteStateFixture(overrides: Partial<{ session: ReturnType<typeof sessionFixture>; noteEntry: ReturnType<typeof entryFixture>; testwareDraftCount: number; findingCount: number }> = {}) {
+  return {
+    session: sessionFixture(),
+    noteEntry: entryFixture(),
+    testwareDraftCount: 0,
+    findingCount: 0,
+    ...overrides,
+  }
+}
+
+function deferred<T>() {
+  let resolve: (value: T) => void = () => {}
+  const promise = new Promise<T>((nextResolve) => {
+    resolve = nextResolve
+  })
+  return { promise, resolve }
 }

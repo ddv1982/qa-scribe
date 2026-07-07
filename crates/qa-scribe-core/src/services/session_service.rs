@@ -1,5 +1,6 @@
 use chrono::{SecondsFormat, Utc};
 use rusqlite::OptionalExtension;
+use std::time::Instant;
 use uuid::Uuid;
 
 use crate::{QaScribeError, Result, storage::Database};
@@ -22,8 +23,13 @@ impl SessionService {
     /// generation), so every consumer that constructs a `SessionService` gets
     /// crash recovery for free without having to remember to call it.
     pub fn new(database: Database) -> Result<Self> {
+        let started = Instant::now();
         let service = Self { database };
         service.fail_orphaned_running_ai_runs()?;
+        eprintln!(
+            "qa-scribe startup session service initialized: elapsed_ms={}",
+            started.elapsed().as_millis()
+        );
         Ok(service)
     }
 

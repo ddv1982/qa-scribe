@@ -18,6 +18,15 @@
     <category>ProjectManagement</category>
   </categories>
   <releases>
+    <release version="0.7.3" date="2026-07-07">
+      <description>
+        <ul>
+          <li>Keep startup bounded by skipping full current-schema foreign-key scans while still validating migrations.</li>
+          <li>Boot from a bounded recent Session list and minimal active Note state.</li>
+          <li>Load Draft and Finding bodies lazily when their views or creation flows need them.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.7.2" date="2026-07-06">
       <description>
         <ul>

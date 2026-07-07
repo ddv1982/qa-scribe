@@ -4,8 +4,8 @@ use crate::{
     QaScribeError, Result,
     domain::{
         SESSION_BUILD_VERSION_MAX_LENGTH, SESSION_ENVIRONMENT_MAX_LENGTH, SESSION_NOTES_MAX_LENGTH,
-        SESSION_RELATED_REFERENCE_MAX_LENGTH, Session, SessionDraft, SessionPatch,
-        TITLE_MAX_LENGTH, validate_optional_text, validate_required_text,
+        SESSION_RELATED_REFERENCE_MAX_LENGTH, Session, SessionDraft, SessionNoteState,
+        SessionPatch, TITLE_MAX_LENGTH, validate_optional_text, validate_required_text,
     },
 };
 
@@ -76,6 +76,24 @@ impl SessionService {
         Ok(sessions)
     }
 
+    pub fn list_recent_sessions(&self, limit: u32) -> Result<Vec<Session>> {
+        if limit == 0 {
+            return Ok(Vec::new());
+        }
+
+        let mut statement = self.database.connection().prepare(
+            "SELECT id, title, session_context, objective_notes, environment, build_version,
+                related_reference, created_at, updated_at, last_opened_at
+             FROM sessions
+             ORDER BY last_opened_at DESC, updated_at DESC, id ASC
+             LIMIT ?1",
+        )?;
+        let sessions = statement
+            .query_map([i64::from(limit)], map_session)?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        Ok(sessions)
+    }
+
     pub fn get_session(&self, id: &str) -> Result<Option<Session>> {
         session(self.database.connection(), id)
     }
@@ -91,6 +109,17 @@ impl SessionService {
         }
         self.get_session(id)?
             .ok_or(QaScribeError::NotFound(id.to_string()))
+    }
+
+    pub fn open_session_note_state(&self, id: &str) -> Result<SessionNoteState> {
+        let session = self.reopen_session(id)?;
+        let note_entry = self.get_or_create_note_entry(&session.id)?;
+        Ok(SessionNoteState {
+            testware_draft_count: count_testware_drafts(self.database.connection(), &session.id)?,
+            finding_count: count_findings(self.database.connection(), &session.id)?,
+            session,
+            note_entry,
+        })
     }
 
     pub fn update_session(&self, id: &str, patch: SessionPatch) -> Result<Session> {
@@ -180,5 +209,25 @@ fn session(connection: &Connection, id: &str) -> Result<Option<Session>> {
             map_session,
         )
         .optional()
+        .map_err(Into::into)
+}
+
+fn count_testware_drafts(connection: &Connection, session_id: &str) -> Result<i64> {
+    connection
+        .query_row(
+            "SELECT COUNT(*) FROM drafts WHERE session_id = ?1 AND kind = 'testware'",
+            [session_id],
+            |row| row.get(0),
+        )
+        .map_err(Into::into)
+}
+
+fn count_findings(connection: &Connection, session_id: &str) -> Result<i64> {
+    connection
+        .query_row(
+            "SELECT COUNT(*) FROM findings WHERE session_id = ?1",
+            [session_id],
+            |row| row.get(0),
+        )
         .map_err(Into::into)
 }

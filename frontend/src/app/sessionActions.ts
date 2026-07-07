@@ -2,14 +2,10 @@ import {
   createEntry,
   createSession,
   deleteSession,
-  listDrafts,
-  listEntries,
-  listFindings,
   listSessions,
-  reopenSession,
+  openSessionNoteState,
   updateEntry,
   updateSession,
-  type Entry,
   type Session,
 } from '../tauri'
 import {
@@ -24,28 +20,32 @@ import type { AppWorkflowContext } from './types'
 
 const noteBodyMaxLength = 100_000
 
-export function createSessionActions(ctx: AppWorkflowContext, materializeInlineImages: (document: RichEditorDocument) => Promise<RichEditorDocument>) {
+export function createSessionActions(
+  ctx: AppWorkflowContext,
+  materializeInlineImages: (document: RichEditorDocument) => Promise<RichEditorDocument>,
+  invalidateRecordLoads: () => void,
+  resetRecordHydration: () => void,
+) {
   async function openSession(session: Session, showNotice = true) {
     try {
       ctx.setBusyAction('open-note')
       ctx.setError(null)
       const flushed = await saveNoteNow({ manageBusy: false })
       if (!flushed) return
-      const reopened = await reopenSession(session.id)
-      const [nextEntries, nextDrafts, nextFindings] = await Promise.all([
-        listEntries(session.id),
-        listDrafts(session.id),
-        listFindings(session.id),
-      ])
-      const editableNote = await ensureNoteEntry(reopened.id, nextEntries)
+      invalidateRecordLoads()
+      const opened = await openSessionNoteState(session.id)
+      const { session: reopened, noteEntry: editableNote } = opened
 
       ctx.noteTitleWriteVersionRef.current += 1
       ctx.noteBodyWriteVersionRef.current += 1
+      resetRecordHydration()
       ctx.setActiveSession(reopened)
       ctx.setNoteEntry(editableNote)
       ctx.setLatestNoteGenerationUndo(null)
-      ctx.setDrafts(nextDrafts)
-      ctx.setFindings(nextFindings)
+      ctx.setDrafts([])
+      ctx.setFindings([])
+      ctx.setTestwareDraftCount(opened.testwareDraftCount)
+      ctx.setFindingCount(opened.findingCount)
       ctx.setNoteTitle(reopened.title)
       const noteDocument = richEditorDocumentFromStoredBody(editableNote)
       ctx.setNoteBody(noteDocument)
@@ -66,6 +66,7 @@ export function createSessionActions(ctx: AppWorkflowContext, materializeInlineI
       ctx.setError(null)
       const flushed = await saveNoteNow({ manageBusy: false })
       if (!flushed) return
+      invalidateRecordLoads()
       const title = nextUntitledSessionTitle(ctx.sessions)
       const session = await createSession({ title, sessionContext: null, objectiveNotes: null })
       const editableNote = await createEntry({
@@ -77,6 +78,7 @@ export function createSessionActions(ctx: AppWorkflowContext, materializeInlineI
         excludedFromGeneration: false,
       })
       const nextSessions = await listSessions()
+      resetRecordHydration()
       ctx.noteTitleWriteVersionRef.current += 1
       ctx.noteBodyWriteVersionRef.current += 1
       ctx.setSessions(nextSessions)
@@ -85,6 +87,8 @@ export function createSessionActions(ctx: AppWorkflowContext, materializeInlineI
       ctx.setLatestNoteGenerationUndo(null)
       ctx.setDrafts([])
       ctx.setFindings([])
+      ctx.setTestwareDraftCount(0)
+      ctx.setFindingCount(0)
       ctx.setNoteTitle(session.title)
       ctx.setNoteBody(emptyRichEditorDocument)
       ctx.savedTitleRef.current = session.title
@@ -99,6 +103,7 @@ export function createSessionActions(ctx: AppWorkflowContext, materializeInlineI
   }
 
   function clearActiveSessionState() {
+    resetRecordHydration()
     ctx.noteTitleWriteVersionRef.current += 1
     ctx.noteBodyWriteVersionRef.current += 1
     ctx.setActiveSession(null)
@@ -106,6 +111,8 @@ export function createSessionActions(ctx: AppWorkflowContext, materializeInlineI
     ctx.setLatestNoteGenerationUndo(null)
     ctx.setDrafts([])
     ctx.setFindings([])
+    ctx.setTestwareDraftCount(0)
+    ctx.setFindingCount(0)
     ctx.setNoteTitle('')
     ctx.setNoteBody(emptyRichEditorDocument)
     ctx.savedTitleRef.current = ''
@@ -225,17 +232,4 @@ export function createSessionActions(ctx: AppWorkflowContext, materializeInlineI
     saveNoteNow,
     saveTitle,
   }
-}
-
-async function ensureNoteEntry(sessionId: string, currentEntries: Entry[]): Promise<Entry> {
-  const existing = currentEntries.find((entry) => entry.entryType === 'note')
-  if (existing) return existing
-  return createEntry({
-    sessionId,
-    entryType: 'note',
-    title: 'Note body',
-    ...richEditorDocumentToStoredBody(emptyRichEditorDocument),
-    metadataJson: null,
-    excludedFromGeneration: false,
-  })
 }

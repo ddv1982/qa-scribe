@@ -8,6 +8,7 @@ mod specta_bindings;
 use jobs::JobStore;
 use qa_scribe_core::{services::SessionService, storage::Database};
 use settings::AppState;
+use std::time::Instant;
 use tauri::Manager;
 
 fn main() {
@@ -24,11 +25,35 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_clipboard_manager::init())
         .setup(|app| {
+            let setup_started = Instant::now();
+            let span_started = Instant::now();
             let app_data_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&app_data_dir)?;
+            eprintln!(
+                "qa-scribe startup app data ready: elapsed_ms={}",
+                span_started.elapsed().as_millis()
+            );
+
+            let span_started = Instant::now();
             let database = Database::open(app_data_dir.join("qa-scribe.sqlite"))?;
-            app.manage(AppState::new(SessionService::new(database)?, app_data_dir));
+            eprintln!(
+                "qa-scribe startup database open complete: elapsed_ms={}",
+                span_started.elapsed().as_millis()
+            );
+
+            let span_started = Instant::now();
+            let session_service = SessionService::new(database)?;
+            eprintln!(
+                "qa-scribe startup session service ready: elapsed_ms={}",
+                span_started.elapsed().as_millis()
+            );
+
+            app.manage(AppState::new(session_service, app_data_dir));
             app.manage(JobStore::default());
+            eprintln!(
+                "qa-scribe startup backend setup complete: elapsed_ms={}",
+                setup_started.elapsed().as_millis()
+            );
             Ok(())
         })
         .invoke_handler(specta_builder.invoke_handler())

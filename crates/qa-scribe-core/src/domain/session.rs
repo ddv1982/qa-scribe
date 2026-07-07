@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use super::Entry;
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Session {
@@ -13,6 +15,15 @@ pub struct Session {
     pub created_at: String,
     pub updated_at: String,
     pub last_opened_at: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionNoteState {
+    pub session: Session,
+    pub note_entry: Entry,
+    pub testware_draft_count: i64,
+    pub finding_count: i64,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, specta::Type)]

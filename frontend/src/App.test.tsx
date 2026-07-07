@@ -23,7 +23,9 @@ const tauriMock = vi.hoisted(() => ({
   listDrafts: vi.fn(),
   listEntries: vi.fn(),
   listFindings: vi.fn(),
+  listRecentSessions: vi.fn(),
   listSessions: vi.fn(),
+  openSessionNoteState: vi.fn(),
   reopenSession: vi.fn(),
   refreshProviderStatus: vi.fn(),
   startAiActionJob: vi.fn(),
@@ -82,7 +84,9 @@ describe('App workflows', () => {
     tauriMock.getSettings.mockResolvedValue(settingsFixture())
     tauriMock.getProviderStatus.mockResolvedValue(providerStatusFixture())
     tauriMock.refreshProviderStatus.mockResolvedValue(providerStatusFixture())
+    tauriMock.listRecentSessions.mockResolvedValue([sessionFixture()])
     tauriMock.listSessions.mockResolvedValue([sessionFixture()])
+    tauriMock.openSessionNoteState.mockResolvedValue(sessionNoteStateFixture())
     tauriMock.reopenSession.mockResolvedValue(sessionFixture())
     tauriMock.listEntries.mockResolvedValue([entryFixture()])
     tauriMock.listDrafts.mockResolvedValue([])
@@ -108,22 +112,15 @@ describe('App workflows', () => {
     cleanup()
   })
 
-  it('boots the first note and creates a missing editable note entry', async () => {
-    tauriMock.listEntries.mockResolvedValueOnce([])
+  it('boots the first note from bounded Session Note state', async () => {
     render(<App />)
 
     await waitFor(() => expect(screen.getByDisplayValue('Checkout note')).toBeInTheDocument())
 
-    expect(tauriMock.createEntry).toHaveBeenCalledWith({
-      sessionId: 'session-1',
-      entryType: 'note',
-      title: 'Note body',
-      body: '',
-      bodyJson: expect.any(String),
-      bodyFormat: 'tiptap_json',
-      metadataJson: null,
-      excludedFromGeneration: false,
-    })
+    expect(tauriMock.listRecentSessions).toHaveBeenCalledWith(50)
+    expect(tauriMock.openSessionNoteState).toHaveBeenCalledWith('session-1')
+    expect(tauriMock.listEntries).not.toHaveBeenCalled()
+    expect(tauriMock.createEntry).not.toHaveBeenCalled()
   })
 
   it('opens the first note before provider status resolves', async () => {
@@ -230,7 +227,11 @@ describe('App workflows', () => {
     const originalBody = `<p>Original note.</p>${managedAttachmentImageHtml('attachment-1', 'gmail-error.png')}`
     const originalStoredBody = richEditorDocumentToStoredBody(richEditorDocumentFromHtml(originalBody))
     const generatedEntry = entryFixture({ body: '<p>Generated summary.</p>', bodyJson: null, bodyFormat: 'html' })
-    tauriMock.listEntries.mockResolvedValue([entryFixture(originalStoredBody)])
+    tauriMock.openSessionNoteState.mockResolvedValueOnce(
+      sessionNoteStateFixture({
+        noteEntry: entryFixture(originalStoredBody),
+      }),
+    )
 
     render(<App />)
 
@@ -335,4 +336,14 @@ function ensureTestLocalStorage() {
     configurable: true,
     value: localStorage,
   })
+}
+
+function sessionNoteStateFixture(overrides: Partial<{ session: ReturnType<typeof sessionFixture>; noteEntry: ReturnType<typeof entryFixture>; testwareDraftCount: number; findingCount: number }> = {}) {
+  return {
+    session: sessionFixture(),
+    noteEntry: entryFixture(),
+    testwareDraftCount: 0,
+    findingCount: 0,
+    ...overrides,
+  }
 }

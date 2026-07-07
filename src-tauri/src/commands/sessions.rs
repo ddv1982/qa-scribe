@@ -1,6 +1,6 @@
 use qa_scribe_core::{
     attachments::delete_session_with_attachment_files,
-    domain::{Session, SessionDraft, SessionPatch},
+    domain::{Session, SessionDraft, SessionNoteState, SessionPatch},
 };
 use tauri::State;
 
@@ -10,6 +10,15 @@ use crate::{commands::CommandError, settings::AppState};
 #[specta::specta]
 pub fn list_sessions(state: State<'_, AppState>) -> Result<Vec<Session>, CommandError> {
     state.with_service(|service| service.list_sessions())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn list_recent_sessions(
+    state: State<'_, AppState>,
+    limit: u32,
+) -> Result<Vec<Session>, CommandError> {
+    state.with_service(|service| service.list_recent_sessions(limit))
 }
 
 #[tauri::command]
@@ -25,6 +34,15 @@ pub fn create_session(
 #[specta::specta]
 pub fn reopen_session(state: State<'_, AppState>, id: String) -> Result<Session, CommandError> {
     state.with_service(|service| service.reopen_session(&id))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn open_session_note_state(
+    state: State<'_, AppState>,
+    id: String,
+) -> Result<SessionNoteState, CommandError> {
+    state.with_service(|service| service.open_session_note_state(&id))
 }
 
 #[tauri::command]

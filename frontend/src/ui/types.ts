@@ -7,6 +7,7 @@ export type SettingsSaveState = 'idle' | 'saving' | 'saved' | 'error'
 export type PendingAiActions = Partial<Record<GenerateAiActionKind, boolean>>
 export type BusyAction =
   | 'boot'
+  | 'load-session-library'
   | 'open-note'
   | 'new-note'
   | 'save-title'

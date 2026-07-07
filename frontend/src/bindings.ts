@@ -7,8 +7,10 @@ export const commands = {
 	getSettings: () => __TAURI_INVOKE<AppSettings>("get_settings"),
 	updateSettings: (settings: AppSettings) => __TAURI_INVOKE<AppSettings>("update_settings", { settings }),
 	listSessions: () => __TAURI_INVOKE<Session[]>("list_sessions"),
+	listRecentSessions: (limit: number) => __TAURI_INVOKE<Session[]>("list_recent_sessions", { limit }),
 	createSession: (draft: SessionDraft) => __TAURI_INVOKE<Session>("create_session", { draft }),
 	reopenSession: (id: string) => __TAURI_INVOKE<Session>("reopen_session", { id }),
+	openSessionNoteState: (id: string) => __TAURI_INVOKE<SessionNoteState>("open_session_note_state", { id }),
 	updateSession: (id: string, patch: SessionPatch) => __TAURI_INVOKE<Session>("update_session", { id, patch }),
 	deleteSession: (id: string) => __TAURI_INVOKE<null>("delete_session", { id }),
 	createEntry: (draft: EntryDraft) => __TAURI_INVOKE<Entry>("create_entry", { draft }),
@@ -316,6 +318,13 @@ export type SessionDraft = {
 	environment?: string | null,
 	buildVersion?: string | null,
 	relatedReference?: string | null,
+};
+
+export type SessionNoteState = {
+	session: Session,
+	noteEntry: Entry,
+	testwareDraftCount: number,
+	findingCount: number,
 };
 
 /**

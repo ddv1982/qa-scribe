@@ -50,6 +50,191 @@ fn session_library_create_reopen_update_delete_flow() {
 }
 
 #[test]
+fn recent_session_listing_is_bounded_and_ordered_by_last_opened() {
+    let service = SessionService::in_memory().expect("in-memory service should open");
+    let older = service
+        .create_session(SessionDraft {
+            title: "Older".to_string(),
+            ..SessionDraft::default()
+        })
+        .expect("older Session should create");
+    let middle = service
+        .create_session(SessionDraft {
+            title: "Middle".to_string(),
+            ..SessionDraft::default()
+        })
+        .expect("middle Session should create");
+    let newest = service
+        .create_session(SessionDraft {
+            title: "Newest".to_string(),
+            ..SessionDraft::default()
+        })
+        .expect("newest Session should create");
+
+    service
+        .database()
+        .connection()
+        .execute(
+            "UPDATE sessions SET last_opened_at = ?1 WHERE id = ?2",
+            rusqlite::params!["2026-06-22T00:00:00.000Z", older.id],
+        )
+        .expect("older timestamp should update");
+    service
+        .database()
+        .connection()
+        .execute(
+            "UPDATE sessions SET last_opened_at = ?1 WHERE id = ?2",
+            rusqlite::params!["2026-06-23T00:00:00.000Z", middle.id],
+        )
+        .expect("middle timestamp should update");
+    service
+        .database()
+        .connection()
+        .execute(
+            "UPDATE sessions SET last_opened_at = ?1 WHERE id = ?2",
+            rusqlite::params!["2026-06-24T00:00:00.000Z", newest.id],
+        )
+        .expect("newest timestamp should update");
+
+    let recent = service
+        .list_recent_sessions(2)
+        .expect("recent Sessions should list");
+    assert_eq!(
+        recent
+            .iter()
+            .map(|session| session.title.as_str())
+            .collect::<Vec<_>>(),
+        vec!["Newest", "Middle"]
+    );
+    assert!(
+        service
+            .list_recent_sessions(0)
+            .expect("zero-limit recent Sessions should list")
+            .is_empty()
+    );
+    assert_eq!(
+        service
+            .list_sessions()
+            .expect("full Sessions should still list")
+            .len(),
+        3
+    );
+}
+
+#[test]
+fn open_session_note_state_returns_note_and_active_record_counts() {
+    let service = SessionService::in_memory().expect("in-memory service should open");
+    let session = service
+        .create_session(SessionDraft {
+            title: "Hydration split".to_string(),
+            ..SessionDraft::default()
+        })
+        .expect("Session should create");
+    let existing_note = service
+        .create_entry(EntryDraft {
+            session_id: session.id.clone(),
+            entry_type: EntryType::Note,
+            title: Some("Existing note".to_string()),
+            body: "<p>Existing note body</p>".to_string(),
+            body_json: None,
+            body_format: Some("html".to_string()),
+            metadata_json: None,
+            excluded_from_generation: false,
+        })
+        .expect("existing Note Entry should create");
+    service
+        .create_entry(EntryDraft {
+            session_id: session.id.clone(),
+            entry_type: EntryType::Observation,
+            title: Some("Observation".to_string()),
+            body: "Observed behavior".to_string(),
+            body_json: None,
+            body_format: Some("html".to_string()),
+            metadata_json: None,
+            excluded_from_generation: false,
+        })
+        .expect("non-note Entry should create");
+    service
+        .create_draft(DraftCreate {
+            session_id: session.id.clone(),
+            ai_run_id: None,
+            kind: DraftKind::Testware,
+            title: "Testware".to_string(),
+            body: "<p>Check</p>".to_string(),
+            body_json: None,
+            body_format: Some("html".to_string()),
+            metadata_json: None,
+        })
+        .expect("testware Draft should create");
+    service
+        .create_draft(DraftCreate {
+            session_id: session.id.clone(),
+            ai_run_id: None,
+            kind: DraftKind::SessionReport,
+            title: "Session report".to_string(),
+            body: "<p>Report</p>".to_string(),
+            body_json: None,
+            body_format: Some("html".to_string()),
+            metadata_json: None,
+        })
+        .expect("session report Draft should create");
+    service
+        .create_finding(FindingDraft {
+            session_id: session.id.clone(),
+            title: "Finding".to_string(),
+            body: "<p>Finding body</p>".to_string(),
+            body_json: None,
+            body_format: Some("html".to_string()),
+            kind: FindingKind::Bug,
+            metadata_json: None,
+        })
+        .expect("Finding should create");
+
+    let opened = service
+        .open_session_note_state(&session.id)
+        .expect("Session note state should open");
+
+    assert_eq!(opened.session.id, session.id);
+    assert!(opened.session.last_opened_at >= session.last_opened_at);
+    assert_eq!(opened.note_entry.id, existing_note.id);
+    assert_eq!(opened.testware_draft_count, 1);
+    assert_eq!(opened.finding_count, 1);
+    let note_count: i64 = service
+        .database()
+        .connection()
+        .query_row(
+            "SELECT COUNT(*) FROM entries WHERE session_id = ?1 AND type = 'note'",
+            [session.id],
+            |row| row.get(0),
+        )
+        .expect("note count should read");
+    assert_eq!(note_count, 1, "opening should not create a duplicate Note Entry");
+}
+
+#[test]
+fn open_session_note_state_creates_missing_note_entry() {
+    let service = SessionService::in_memory().expect("in-memory service should open");
+    let session = service
+        .create_session(SessionDraft {
+            title: "No note yet".to_string(),
+            ..SessionDraft::default()
+        })
+        .expect("Session should create");
+
+    let opened = service
+        .open_session_note_state(&session.id)
+        .expect("Session note state should open");
+
+    assert_eq!(opened.session.id, session.id);
+    assert_eq!(opened.note_entry.session_id, session.id);
+    assert_eq!(opened.note_entry.entry_type, EntryType::Note);
+    assert_eq!(opened.note_entry.title.as_deref(), Some("Note body"));
+    assert_eq!(opened.note_entry.body, "");
+    assert_eq!(opened.testware_draft_count, 0);
+    assert_eq!(opened.finding_count, 0);
+}
+
+#[test]
 fn rich_body_json_round_trips_for_entries_findings_and_drafts() {
     let service = SessionService::in_memory().expect("in-memory service should open");
     let session = service

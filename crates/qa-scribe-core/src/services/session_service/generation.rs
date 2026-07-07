@@ -1,4 +1,5 @@
 use rusqlite::{OptionalExtension, params};
+use std::time::Instant;
 
 use crate::{
     QaScribeError, Result,
@@ -195,6 +196,7 @@ impl SessionService {
     /// this is meant to be called once at startup to recover from that state;
     /// it is safe to call repeatedly since it only touches `running` rows.
     pub fn fail_orphaned_running_ai_runs(&self) -> Result<usize> {
+        let started = Instant::now();
         let now = now();
         let changed = self.database.connection().execute(
             "UPDATE ai_runs
@@ -202,6 +204,11 @@ impl SessionService {
              WHERE status = 'running'",
             params![ORPHANED_AI_RUN_ERROR_MESSAGE, now],
         )?;
+        eprintln!(
+            "qa-scribe startup orphan AI Run sweep complete: rows_changed={}, elapsed_ms={}",
+            changed,
+            started.elapsed().as_millis()
+        );
         Ok(changed)
     }
 

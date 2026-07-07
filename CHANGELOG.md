@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.7.3 - 2026-07-07
+
+- Keep startup bounded as data grows by skipping full current-schema foreign-key scans while still validating migrations before stamping the schema current.
+- Add bounded startup commands for recent Sessions and active Note state, then boot from `listRecentSessions(50)` and `openSessionNoteState` instead of hydrating the full Session Library.
+- Load Draft and Finding bodies only when their views or creation flows need them, with stale-load guards that preserve generated records and safe Session switching.
+
 ## v0.7.2 - 2026-07-06
 
 - Close the remaining review findings on current main: enforce safe attachment relative paths for all core callers, keep note title autosave from applying stale saves, and allow Finding kind and metadata edits after creation.

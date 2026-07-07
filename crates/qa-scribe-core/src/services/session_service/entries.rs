@@ -3,7 +3,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 use crate::{
     QaScribeError, Result,
     domain::{
-        BODY_FORMAT_MAX_LENGTH, Entry, EntryDraft, EntryPatch, TEXT_BODY_MAX_LENGTH,
+        BODY_FORMAT_MAX_LENGTH, Entry, EntryDraft, EntryPatch, EntryType, TEXT_BODY_MAX_LENGTH,
         TITLE_MAX_LENGTH, validate_body_json, validate_body_text, validate_metadata_json,
         validate_optional_text,
     },
@@ -60,6 +60,24 @@ impl SessionService {
             .query_map([session_id], map_entry)?
             .collect::<std::result::Result<Vec<_>, _>>()?;
         Ok(entries)
+    }
+
+    pub fn get_or_create_note_entry(&self, session_id: &str) -> Result<Entry> {
+        require_session(self.database.connection(), session_id)?;
+        if let Some(existing) = note_entry(self.database.connection(), session_id)? {
+            return Ok(existing);
+        }
+
+        self.create_entry(EntryDraft {
+            session_id: session_id.to_string(),
+            entry_type: EntryType::Note,
+            title: Some("Note body".to_string()),
+            body: String::new(),
+            body_json: None,
+            body_format: Some("html".to_string()),
+            metadata_json: None,
+            excluded_from_generation: false,
+        })
     }
 
     pub fn update_entry(&self, id: &str, patch: EntryPatch) -> Result<Entry> {
@@ -183,6 +201,21 @@ fn entry(connection: &Connection, id: &str) -> Result<Option<Entry>> {
              FROM entries
              WHERE id = ?1",
             [id],
+            map_entry,
+        )
+        .optional()
+        .map_err(Into::into)
+}
+
+fn note_entry(connection: &Connection, session_id: &str) -> Result<Option<Entry>> {
+    connection
+        .query_row(
+            "SELECT id, session_id, type, title, body, body_json, body_format, metadata_json, excluded_from_generation, created_at, updated_at
+             FROM entries
+             WHERE session_id = ?1 AND type = 'note'
+             ORDER BY created_at ASC
+             LIMIT 1",
+            [session_id],
             map_entry,
         )
         .optional()

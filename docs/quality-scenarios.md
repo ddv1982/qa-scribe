@@ -93,6 +93,27 @@ bun run --cwd frontend build
 bun run --cwd frontend test
 ```
 
+Scenario: startup remains bounded as the Session Library and latest Session grow.
+
+Measure:
+
+- Backend startup logs include elapsed milliseconds for app-data setup, SQLite open/initialization, schema DDL, migrations, `PRAGMA foreign_key_check`, orphan AI Run recovery, SessionService setup, and total backend setup.
+- Frontend startup marks use the `qa-scribe:startup:` prefix for boot start, settings loaded, Sessions loaded, first Session or empty library ready, boot busy cleared, first paint after boot, provider Fast status complete, and provider Deep refresh complete when it runs.
+- Normal current-schema startup does not run the full unqualified `PRAGMA foreign_key_check`; migration startup still validates foreign keys before stamping the schema current.
+- Boot loads a bounded recent Session list with `listRecentSessions(50)` and opens only the active Session Note state with `openSessionNoteState` before clearing boot busy state.
+- Full Session Library loading is explicit after readiness through `Load all notes`; Draft and Finding bodies load only when their views or creation flows need them.
+- Warm startup should keep the shell visible within a small local budget for the active fixture: target <= 1.5s for an empty database and <= 3s for the large startup fixture once that fixture exists on the same development machine.
+- Provider Deep refresh must not be part of the boot busy-state budget; it is tracked separately as provider readiness work.
+
+Validation:
+
+```bash
+cargo test -p qa-scribe-core --test session_storage
+bun run --cwd frontend test src/app/useAppController.test.ts
+bun run --cwd frontend test src/App.test.tsx
+bun run verify:fast
+```
+
 ## Review Expectations
 
 - Correctness and privacy scenarios are blocking when touched.
