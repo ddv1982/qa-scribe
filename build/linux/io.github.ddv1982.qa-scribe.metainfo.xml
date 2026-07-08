@@ -18,6 +18,16 @@
     <category>ProjectManagement</category>
   </categories>
   <releases>
+    <release version="0.7.8" date="2026-07-08">
+      <description>
+        <ul>
+          <li>Copy notes for Jira with a rich HTML clipboard flavor alongside the plain Markdown fallback.</li>
+          <li>Replace the custom editor HTML sanitizer core with DOMPurify under the same allowlist and URL policy.</li>
+          <li>Serialize Jira clipboard Markdown via TipTap's static renderer with pinned, unchanged output.</li>
+          <li>Add characterization and golden tests for sanitizer and clipboard behavior.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.7.7" date="2026-07-08">
       <description>
         <ul>

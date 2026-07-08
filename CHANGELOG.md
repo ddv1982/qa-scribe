@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.7.8 - 2026-07-08
+
+- Copy notes for Jira with rich formatting: the clipboard now carries an HTML flavor alongside the plain Markdown fallback, so pasting into Jira keeps headings, bold, links, and lists.
+- Replace the hand-rolled editor HTML sanitizer core with DOMPurify while keeping the app's tag allowlist, URL policy, managed-attachment handling, and task-list normalization.
+- Serialize Jira clipboard Markdown from the editor document via TipTap's static renderer instead of a custom HTML walker, with pinned output and no format changes.
+- Pin sanitizer and clipboard behavior with characterization and golden tests covering XSS vectors, task lists, managed images, and link handling.
+
 ## v0.7.7 - 2026-07-08
 
 - Add Rust dependency auditing to the broad local release gate and document it in the release workflow.
