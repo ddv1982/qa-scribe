@@ -117,6 +117,10 @@ export function copyAttachmentImageToClipboard(attachmentId: string): Promise<vo
   return commands.copyAttachmentImageToClipboard(attachmentId).then(() => undefined)
 }
 
+export function copyHtmlToClipboard(html: string, altText: string): Promise<void> {
+  return commands.copyHtmlToClipboard(html, altText).then(() => undefined)
+}
+
 export function createDraft(input: {
   sessionId: string
   aiRunId: string | null

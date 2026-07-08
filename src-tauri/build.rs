@@ -30,6 +30,7 @@ fn main() {
         "get_attachment_preview_data_url",
         "read_clipboard_image_data_url",
         "copy_attachment_image_to_clipboard",
+        "copy_html_to_clipboard",
     ];
 
     tauri_build::try_build(

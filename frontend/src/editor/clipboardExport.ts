@@ -1,5 +1,6 @@
 import type { Mark, Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { renderToMarkdown } from '@tiptap/static-renderer/pm/markdown'
+import { copyHtmlToClipboard } from '../tauri'
 import { managedAttachmentImagesInDocument, richEditorDocumentFromHtml, richEditorDocumentToHtml, type RichEditorDocument } from './editorDocument'
 import { richTextEditorExtensions } from './editorExtensions'
 import { managedAttachmentProtocol } from './editorHtml'
@@ -51,8 +52,18 @@ function renderClipboardHtml(title: string, editorDocument: RichEditorDocument):
   return `${heading}${container.innerHTML}`
 }
 
+// Preferred order: the native command (macOS WKWebView has no ClipboardItem,
+// so the web path cannot write text/html there), then the web clipboard API,
+// then plain text as the last resort.
 export async function copyRecordForJira(record: ClipboardRecord): Promise<void> {
   const payload = formatRecordForClipboard(record)
+  try {
+    await copyHtmlToClipboard(payload.html, payload.plain)
+    return
+  } catch {
+    // Not running inside Tauri (tests, storybook-style harnesses) or the
+    // command failed; fall through to the web clipboard API.
+  }
   const clipboard = navigator.clipboard
   if (clipboard && typeof clipboard.write === 'function' && typeof ClipboardItem !== 'undefined') {
     await clipboard.write([

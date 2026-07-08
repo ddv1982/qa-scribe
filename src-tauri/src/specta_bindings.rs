@@ -79,6 +79,7 @@ pub fn builder() -> Builder<tauri::Wry> {
             commands::files::get_attachment_preview_data_url,
             commands::files::read_clipboard_image_data_url,
             commands::files::copy_attachment_image_to_clipboard,
+            commands::files::copy_html_to_clipboard,
         ])
         // Single-source the provider defaults: core owns these maps and they
         // reach the frontend as typed constants instead of a duplicated

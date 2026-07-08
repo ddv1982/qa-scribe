@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-copy-html-to-clipboard"
+description = "Enables the copy_html_to_clipboard command without any pre-configured scope."
+commands.allow = ["copy_html_to_clipboard"]
+
+[[permission]]
+identifier = "deny-copy-html-to-clipboard"
+description = "Denies the copy_html_to_clipboard command without any pre-configured scope."
+commands.deny = ["copy_html_to_clipboard"]

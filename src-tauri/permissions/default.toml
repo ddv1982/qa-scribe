@@ -33,4 +33,5 @@ permissions = [
   "allow-get-attachment-preview-data-url",
   "allow-read-clipboard-image-data-url",
   "allow-copy-attachment-image-to-clipboard",
+  "allow-copy-html-to-clipboard",
 ]

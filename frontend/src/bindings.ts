@@ -42,6 +42,7 @@ export const commands = {
 	getAttachmentPreviewDataUrl: (attachmentId: string) => __TAURI_INVOKE<string | null>("get_attachment_preview_data_url", { attachmentId }),
 	readClipboardImageDataUrl: () => __TAURI_INVOKE<string | null>("read_clipboard_image_data_url"),
 	copyAttachmentImageToClipboard: (attachmentId: string) => __TAURI_INVOKE<null>("copy_attachment_image_to_clipboard", { attachmentId }),
+	copyHtmlToClipboard: (html: string, altText: string) => __TAURI_INVOKE<null>("copy_html_to_clipboard", { html, altText }),
 };
 
 /* Constants */

@@ -100,6 +100,24 @@ pub fn copy_attachment_image_to_clipboard(
     })
 }
 
+// The WKWebView used on macOS does not expose `ClipboardItem`, so the
+// frontend cannot write a text/html clipboard flavor through the web API.
+// This command writes both flavors natively; `alt_text` is the plain-text
+// fallback pasted into targets that do not accept HTML.
+#[tauri::command]
+#[specta::specta]
+pub fn copy_html_to_clipboard(
+    app: AppHandle,
+    html: String,
+    alt_text: String,
+) -> Result<(), CommandError> {
+    app.clipboard()
+        .write_html(html, Some(alt_text))
+        .map_err(|error| {
+            CommandError::internal(format!("Rich content could not be copied: {error}"))
+        })
+}
+
 fn clipboard_image_to_png_data_url(image: &Image<'_>) -> Result<String, CommandError> {
     validate_image_bounds(image.width(), image.height())?;
     let rgba_bytes = image.rgba();
