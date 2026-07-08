@@ -85,11 +85,12 @@ export function normalizeRichEditorDocument(document: RichEditorDocument): RichE
   return isVisuallyEmptyRichEditorDocument(normalized) ? emptyRichEditorDocument : normalized
 }
 
-// Applies the same URL-safety policy as the HTML sanitizer (sanitizeEditorHtmlTree in editorHtml.ts)
-// directly to a TipTap JSON doc. This closes the bypass where stored `bodyJson` is fed straight into
-// `editor.commands.setContent`, which renders link/image attrs into the DOM without ever going through
-// HTML parsing/sanitization. Every entry point for a RichEditorDocument funnels through
-// normalizeRichEditorDocument, so sanitizing here covers both the live editor and derived HTML/plain text.
+// Applies the same URL-safety policy as the HTML sanitizer (DOMPurify + applyEditorAttributePolicy in
+// editorHtml.ts) directly to a TipTap JSON doc. This layer is retained on purpose alongside DOMPurify:
+// it closes the bypass where stored `bodyJson` is fed straight into `editor.commands.setContent`, which
+// renders link/image attrs into the DOM without ever going through HTML parsing/sanitization. Every
+// entry point for a RichEditorDocument funnels through normalizeRichEditorDocument, so sanitizing here
+// covers both the live editor and derived HTML/plain text.
 function sanitizeJsonRootDocument(node: JSONContent): JSONContent {
   const sanitized: JSONContent = { ...node }
   if (sanitized.content) {
