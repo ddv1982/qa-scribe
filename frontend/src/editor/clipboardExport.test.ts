@@ -125,6 +125,62 @@ describe('clipboardExport', () => {
     ])
   })
 
+  it('renders a kitchen-sink document to markdown (golden)', () => {
+    const payload = formatRecordForClipboard({
+      title: 'Release check',
+      bodyHtml: [
+        '<h2>Summary</h2>',
+        '<p><strong>Gmail</strong> sign-in <em>fails</em> for <a href="https://example.test/t/1">the ticket</a>.</p>',
+        '<p>Line one<br />line two</p>',
+        '<ul><li>alpha</li><li>beta<ul><li>nested</li></ul></li></ul>',
+        '<ol><li>first</li><li>second</li></ol>',
+        '<ul data-type="taskList"><li data-type="taskItem" data-checked="true"><input type="checkbox" checked />done</li><li data-type="taskItem" data-checked="false"><input type="checkbox" />open</li></ul>',
+        '<p><img src="qa-scribe-attachment://abc" alt="screenshot" /></p>',
+        '<p><img src="https://example.test/ext.png" alt="external" /></p>',
+        '<h3>Notes</h3>',
+        '<p>literal *stars* and _underscores_ and # hash</p>',
+      ].join(''),
+    })
+
+    expect(payload.plain).toMatchInlineSnapshot(`
+      "## Release check
+
+      ## Summary
+
+      **Gmail** sign-in *fails* for [the ticket](https://example.test/t/1).
+
+      Line one
+      line two
+
+      - alpha
+      - beta
+        - nested
+
+      1. first
+      2. second
+
+      - [x] done
+      - [ ] open
+
+      Image: screenshot
+
+      ![external](https://example.test/ext.png)
+
+      ### Notes
+
+      literal *stars* and _underscores_ and # hash"
+    `)
+  })
+
+  it('renders label-equals-href links as bare URLs (golden)', () => {
+    const payload = formatRecordForClipboard({
+      title: '',
+      bodyHtml: '<p>See <a href="https://example.test/x">https://example.test/x</a> now</p>',
+    })
+
+    expect(payload.plain).toMatchInlineSnapshot(`"See https://example.test/x now"`)
+  })
+
   it('keeps direct data images as placeholders in portable exports', () => {
     const payload = formatRecordForClipboard({
       title: 'Inline evidence',
