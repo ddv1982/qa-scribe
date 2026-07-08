@@ -181,6 +181,15 @@ describe('clipboardExport', () => {
     expect(payload.plain).toMatchInlineSnapshot(`"See https://example.test/x now"`)
   })
 
+  it('does not HTML-entity-escape plain text', () => {
+    const payload = formatRecordForClipboard({
+      title: 'Q&A',
+      bodyHtml: '<p>Fish &amp; chips &lt; more</p>',
+    })
+
+    expect(payload.plain).toBe('## Q&A\n\nFish & chips < more')
+  })
+
   it('keeps direct data images as placeholders in portable exports', () => {
     const payload = formatRecordForClipboard({
       title: 'Inline evidence',

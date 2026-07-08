@@ -139,6 +139,20 @@ function sanitizeJsonImageNode(node: JSONContent): JSONContent | null {
   return null
 }
 
+export function managedAttachmentImagesInDocument(document: RichEditorDocument): Array<{ attachmentId: string; alt: string }> {
+  const references = new Map<string, { attachmentId: string; alt: string }>()
+  walkJsonContent(normalizeRichEditorDocument(document).doc, (node) => {
+    if (node.type !== 'image') return
+    const attachmentId = stringAttribute(node.attrs?.attachmentId) ?? managedAttachmentIdFromSrc(stringAttribute(node.attrs?.src) ?? '')
+    if (!attachmentId || references.has(attachmentId)) return
+    references.set(attachmentId, {
+      attachmentId,
+      alt: stringAttribute(node.attrs?.alt)?.trim() || 'Attached image',
+    })
+  })
+  return Array.from(references.values())
+}
+
 export function parseRichEditorDocument(value: string | null | undefined): RichEditorDocument | null {
   if (!value?.trim()) return null
   try {
