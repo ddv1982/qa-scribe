@@ -32,10 +32,6 @@ runs:
       shell: bash
       run: bun run frontend:test
 
-    - name: Check Tauri command bindings
-      shell: bash
-      run: bun run bindings:check
-
     - name: Validate release metadata
       shell: bash
       env:
@@ -58,6 +54,10 @@ runs:
     - name: Validate Tauri prebuilt frontend contract
       shell: bash
       run: bash scripts/check-tauri-prebuilt-frontend.sh
+
+    - name: Check Tauri command bindings
+      shell: bash
+      run: bun run bindings:check
 
     - name: Check Rust formatting
       shell: bash
