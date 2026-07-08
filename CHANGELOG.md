@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.7.5 - 2026-07-08
+
+- Preserve pending Note, Draft, and Finding edits across Session switches, new Session creation, and desktop window close.
+- Sanitize AI-generated rich HTML before storage and persist generated Drafts, Findings, note summaries, evidence links, and AI Run completion atomically.
+- Bound concurrent AI jobs, clean up provider probe and login-shell child process groups, and keep release validation working on fresh runners by building the frontend before checking Tauri command bindings.
+- Polish rich editor accessibility semantics and keep record badge colors on semantic CSS tokens.
+
 ## v0.7.4 - 2026-07-08
 
 - Preserve pending Note, Draft, and Finding edits across Session switches, new Session creation, and desktop window close.
