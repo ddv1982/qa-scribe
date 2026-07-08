@@ -260,7 +260,7 @@ fn action_generation_context_contains_only_prompt_material() {
             mime_type: Some("image/png".to_string()),
             size_bytes: 456,
             sha256: "b".repeat(64),
-            relative_path: "attachments/session/unreferenced.png".to_string(),
+            relative_path: format!("attachments/{}/unreferenced.png", session.id),
         })
         .expect("unreferenced attachment should create");
     let request = request_for(
@@ -622,7 +622,7 @@ fn create_note_with_attachment(service: &SessionService, session: &Session) -> (
             mime_type: Some("image/png".to_string()),
             size_bytes: 123,
             sha256: "a".repeat(64),
-            relative_path: "attachments/session/gmail-error.png".to_string(),
+            relative_path: format!("attachments/{}/gmail-error.png", session.id),
         })
         .expect("attachment should create");
     let note = service

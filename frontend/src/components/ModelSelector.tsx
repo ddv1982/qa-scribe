@@ -24,7 +24,9 @@ export function ModelCombobox({
 }) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
+  const triggerRef = useRef<HTMLButtonElement | null>(null)
   const searchRef = useRef<HTMLInputElement | null>(null)
+  const listboxRef = useRef<HTMLDivElement | null>(null)
   const options = models.length > 0 ? models : [defaultProviderModel()]
   const currentValue = value.trim() || 'default'
   const selected = options.find((model) => model.id === currentValue)
@@ -67,6 +69,15 @@ export function ModelCombobox({
   function handleSearchKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key === 'Escape') {
       setOpen(false)
+      triggerRef.current?.focus()
+      return
+    }
+
+    if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+      const optionCount = filteredOptions.length + (showCustomOption ? 1 : 0)
+      if (optionCount === 0) return
+      event.preventDefault()
+      focusModelOption(event.key === 'ArrowUp' || event.key === 'End' ? optionCount - 1 : 0)
       return
     }
 
@@ -89,9 +100,29 @@ export function ModelCombobox({
     setOpen(true)
   }
 
+  function focusModelOption(index: number) {
+    const options = Array.from(listboxRef.current?.querySelectorAll<HTMLButtonElement>('button[role="option"]:not(:disabled)') ?? [])
+    options[index]?.focus()
+  }
+
+  function handleOptionKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
+    if (event.key === 'Escape') {
+      setOpen(false)
+      triggerRef.current?.focus()
+      return
+    }
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
+
+    const optionCount = filteredOptions.length + (showCustomOption ? 1 : 0)
+    if (optionCount === 0) return
+    event.preventDefault()
+    focusModelOption(optionIndexForKey(event.key, index, optionCount))
+  }
+
   return (
     <div className="model-combobox" onBlur={handleBlur}>
       <button
+        ref={triggerRef}
         className="model-combobox-trigger"
         type="button"
         aria-haspopup="listbox"
@@ -110,8 +141,8 @@ export function ModelCombobox({
             <span className="sr-only">Search AI models</span>
             <input ref={searchRef} value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={handleSearchKeyDown} placeholder="Search models..." />
           </label>
-          <div className="model-options" role="listbox" aria-label="AI models">
-            {filteredOptions.map((model) => (
+          <div ref={listboxRef} className="model-options" role="listbox" aria-label="AI models">
+            {filteredOptions.map((model, index) => (
               <button
                 key={model.id}
                 className={model.id === currentValue ? 'model-option active' : 'model-option'}
@@ -120,6 +151,7 @@ export function ModelCombobox({
                 aria-selected={model.id === currentValue}
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => chooseModel(model.id)}
+                onKeyDown={(event) => handleOptionKeyDown(event, index)}
               >
                 <span>
                   <strong>{model.label}</strong>
@@ -136,6 +168,7 @@ export function ModelCombobox({
                 aria-selected={false}
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => chooseModel(customModel)}
+                onKeyDown={(event) => handleOptionKeyDown(event, filteredOptions.length)}
               >
                 <span>
                   <strong>Use custom model</strong>
@@ -150,6 +183,13 @@ export function ModelCombobox({
       ) : null}
     </div>
   )
+}
+
+function optionIndexForKey(key: string, currentIndex: number, optionCount: number): number {
+  if (key === 'Home') return 0
+  if (key === 'End') return optionCount - 1
+  if (key === 'ArrowUp') return Math.max(0, currentIndex - 1)
+  return Math.min(optionCount - 1, currentIndex + 1)
 }
 
 function defaultProviderModel(): ProviderModelDescriptor {

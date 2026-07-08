@@ -297,6 +297,33 @@ describe('App workflows', () => {
     )
   })
 
+  it('moves note picker focus with arrow keys and opens the focused note', async () => {
+    const user = userEvent.setup()
+    const firstSession = sessionFixture({ id: 'session-1', title: 'Alpha note' })
+    const secondSession = sessionFixture({ id: 'session-2', title: 'Beta note' })
+    tauriMock.listRecentSessions.mockResolvedValueOnce([firstSession, secondSession])
+    tauriMock.openSessionNoteState.mockImplementation(async (sessionId: string) =>
+      sessionNoteStateFixture({
+        session: sessionId === secondSession.id ? secondSession : firstSession,
+        noteEntry: entryFixture({ sessionId }),
+      }),
+    )
+    render(<App />)
+
+    await screen.findByDisplayValue('Alpha note')
+    const alphaOption = screen.getByRole('option', { name: /alpha note/i })
+    const betaOption = screen.getByRole('option', { name: /beta note/i })
+
+    alphaOption.focus()
+    await user.keyboard('{ArrowDown}')
+    expect(betaOption).toHaveFocus()
+
+    await user.keyboard('{Enter}')
+
+    await waitFor(() => expect(tauriMock.openSessionNoteState).toHaveBeenLastCalledWith('session-2'))
+    expect(await screen.findByDisplayValue('Beta note')).toBeInTheDocument()
+  })
+
   it('creates manual testware after saving pending note edits', async () => {
     const user = userEvent.setup()
     render(<App />)

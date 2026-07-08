@@ -18,6 +18,16 @@
     <category>ProjectManagement</category>
   </categories>
   <releases>
+    <release version="0.7.7" date="2026-07-08">
+      <description>
+        <ul>
+          <li>Add Rust dependency auditing to the broad local release gate and release workflow documentation.</li>
+          <li>Prevent provider-process cleanup hangs and reject oversized clipboard image transforms before allocation.</li>
+          <li>Enforce Session-managed attachment paths and clarify rich-record body format reset behavior.</li>
+          <li>Add keyboard focus navigation for note and AI model listboxes.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.7.6" date="2026-07-08">
       <description>
         <ul>

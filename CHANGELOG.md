@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.7.7 - 2026-07-08
+
+- Add Rust dependency auditing to the broad local release gate and document it in the release workflow.
+- Prevent provider-process cleanup from hanging on blocked stdin writers and reject oversized clipboard image transforms before allocating RGBA buffers.
+- Enforce managed attachment paths inside each Session and document/test that `body_format: null` resets rich records to HTML.
+- Add keyboard focus navigation for the note picker and AI model listboxes, with regression coverage for keyboard selection.
+
 ## v0.7.6 - 2026-07-08
 
 - Preserve dirty Draft and Finding edits during Session refreshes and make Note, Draft, and Finding inline image saves materialize through managed attachments before persistence.

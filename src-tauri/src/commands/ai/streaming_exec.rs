@@ -248,8 +248,13 @@ impl ProviderExecutor for ProcessProviderExecutor<'_> {
             }
         };
 
-        // Reader loop is done; stop the watchdog and reap the child via the
-        // guard.
+        // Reader loop is done. If stdout closed while the process stayed alive
+        // and stopped reading stdin, the writer thread can still be blocked on
+        // a full pipe. Kill first so joining the writer cannot deadlock; the
+        // guard remains the sole reaper.
+        if read_result.is_ok() {
+            let _ = control.kill_registered_child();
+        }
         reader_finished.store(true, Ordering::SeqCst);
         let _ = watchdog.join();
         let _ = stdin_writer.join();

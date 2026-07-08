@@ -134,9 +134,9 @@ export type DraftKind = "session_report" | "testware";
 
 /**
  *  Partial update for a `Draft`. Absent field = no change. `title`/`body` are
- *  non-clearable (`?: string`, no `null`); the `Option<Option<String>>` fields
- *  are clearable (`?: string | null`). See `SessionPatch` for the two-tier
- *  null rationale.
+ *  non-clearable (`?: string`, no `null`); clearable rich text fields use
+ *  `Option<Option<String>>` (`?: string | null`). `body_format` is non-null in
+ *  storage, so `null` resets it to the default `html` format.
  */
 export type DraftPatch = {
 	title?: string,
@@ -174,9 +174,9 @@ export type EntryDraft = {
 /**
  *  Partial update for an `Entry`. Absent field = no change. `body` and
  *  `excluded_from_generation` are non-clearable (typed `?: string` /
- *  `?: boolean`, no `null`); the `Option<Option<String>>` fields are clearable
- *  (`?: string | null`, where `null` clears). See `SessionPatch` for the full
- *  rationale behind this two-tier null contract.
+ *  `?: boolean`, no `null`); clearable rich text fields use
+ *  `Option<Option<String>>` (`?: string | null`). `body_format` is non-null in
+ *  storage, so `null` resets it to the default `html` format.
  */
 export type EntryPatch = {
 	title?: string | null,
@@ -216,8 +216,9 @@ export type FindingKind = "bug" | "question" | "risk" | "follow_up" | "note";
 
 /**
  *  Absent field = no change. `title`/`body` are non-clearable (`?: string`, no
- *  `null`); the `Option<Option<String>>` fields are clearable
- *  (`?: string | null`). See `SessionPatch` for the two-tier null rationale.
+ *  `null`); clearable rich text fields use `Option<Option<String>>`
+ *  (`?: string | null`). `body_format` is non-null in storage, so `null` resets
+ *  it to the default `html` format.
  */
 export type FindingPatch = {
 	title?: string,

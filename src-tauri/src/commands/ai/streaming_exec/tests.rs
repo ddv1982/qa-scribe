@@ -288,6 +288,30 @@ fn early_exit_without_reading_stdin_is_reaped_cleanly() {
 }
 
 #[test]
+fn stdout_closed_live_child_does_not_deadlock_stdin_writer() {
+    // Regression for a child that closes stdout, keeps stdin open, and never
+    // drains the prompt. The read loop sees EOF immediately; cleanup must kill
+    // the still-live child before joining the stdin writer.
+    let cli = FakeCli::new(
+        "fake-closed-stdout",
+        "#!/bin/sh\nexec 1>&-\nsleep 120\nexit 0\n",
+    );
+    let large_prompt = "z".repeat(200_000);
+    let command = cli.command(large_prompt, GenerationOutputFormat::CodexJsonl);
+    let control = JobControl::default();
+
+    let output = run_bounded(Duration::from_secs(10), move || {
+        run_generation_command_streaming(&command, &control, |_| {})
+    })
+    .expect("streaming returns after stdout EOF cleanup");
+
+    assert!(
+        !output.success(),
+        "closed-stdout child should be terminated rather than treated as success"
+    );
+}
+
+#[test]
 fn large_stderr_before_reading_stdin_does_not_deadlock() {
     // Regression for defect 1: the child writes ~256KB to stderr (well
     // over the ~64KB pipe buffer) *before* reading any stdin, then echoes

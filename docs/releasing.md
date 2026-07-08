@@ -179,10 +179,10 @@ bun run verify
 node scripts/check-release-metadata.mjs --expected-tag v1.0.0
 ```
 
-`bun run verify` is the broad local gate: frontend audit, typecheck, lint,
-CSS color and contrast checks, tests, bindings check, release metadata and Linux
-package metadata unit tests, frontend build, prebuilt frontend contract check,
-Rust fmt/clippy/tests/build, and the smoke harness. Use the explicit release
+`bun run verify` is the broad local gate: frontend audit, Rust dependency audit,
+typecheck, lint, CSS color and contrast checks, tests, bindings check, release
+metadata and Linux package metadata unit tests, frontend build, prebuilt frontend
+contract check, Rust fmt/clippy/tests/build, and the smoke harness. Use the explicit release
 metadata check with the expected tag before tagging so the changelog/package
 versions match the release being prepared.
 

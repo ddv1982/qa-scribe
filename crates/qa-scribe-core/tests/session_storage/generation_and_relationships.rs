@@ -172,6 +172,85 @@ fn settings_generation_context_ai_run_and_draft_round_trip() {
 }
 
 #[test]
+fn body_format_null_resets_to_default_html_for_rich_records() {
+    let service = SessionService::in_memory().expect("in-memory service should open");
+    let session = service
+        .create_session(SessionDraft {
+            title: "Body format reset".to_string(),
+            ..SessionDraft::default()
+        })
+        .expect("session should be created");
+
+    let entry = service
+        .create_entry(EntryDraft {
+            session_id: session.id.clone(),
+            entry_type: EntryType::Note,
+            title: Some("Entry".to_string()),
+            body: "<p>Entry</p>".to_string(),
+            body_json: Some(r#"{"type":"doc"}"#.to_string()),
+            body_format: Some("tiptap_json".to_string()),
+            metadata_json: None,
+            excluded_from_generation: false,
+        })
+        .expect("entry should create");
+    let entry = service
+        .update_entry(
+            &entry.id,
+            EntryPatch {
+                body_format: Some(None),
+                ..EntryPatch::default()
+            },
+        )
+        .expect("entry body format should reset");
+    assert_eq!(entry.body_format.as_deref(), Some("html"));
+
+    let finding = service
+        .create_finding(FindingDraft {
+            session_id: session.id.clone(),
+            title: "Finding".to_string(),
+            body: "<p>Finding</p>".to_string(),
+            body_json: Some(r#"{"type":"doc"}"#.to_string()),
+            body_format: Some("tiptap_json".to_string()),
+            kind: FindingKind::Bug,
+            metadata_json: None,
+        })
+        .expect("finding should create");
+    let finding = service
+        .update_finding(
+            &finding.id,
+            FindingPatch {
+                body_format: Some(None),
+                ..FindingPatch::default()
+            },
+        )
+        .expect("finding body format should reset");
+    assert_eq!(finding.body_format.as_deref(), Some("html"));
+
+    let draft = service
+        .create_draft(DraftCreate {
+            session_id: session.id,
+            ai_run_id: None,
+            kind: DraftKind::SessionReport,
+            title: "Draft".to_string(),
+            body: "<p>Draft</p>".to_string(),
+            body_json: Some(r#"{"type":"doc"}"#.to_string()),
+            body_format: Some("tiptap_json".to_string()),
+            metadata_json: None,
+        })
+        .expect("draft should create");
+    let draft = service
+        .update_draft(
+            &draft.id,
+            DraftPatch {
+                body_format: Some(None),
+                ..DraftPatch::default()
+            },
+        )
+        .expect("draft body format should reset");
+    assert_eq!(draft.body_format.as_deref(), Some("html"));
+}
+
+#[test]
 fn entries_findings_and_evidence_links_cascade_with_session() {
     let service = SessionService::in_memory().expect("in-memory service should open");
     let session = service

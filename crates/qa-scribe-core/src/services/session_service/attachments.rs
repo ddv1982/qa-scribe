@@ -28,8 +28,14 @@ impl SessionService {
         let sha256 = validate_sha256_hex("attachment SHA-256", &draft.sha256)?;
         let relative_path =
             validate_required_text("attachment relative path", &draft.relative_path, 600)?;
-        if !is_safe_relative_path(Path::new(&relative_path)) {
+        let relative_path_value = Path::new(&relative_path);
+        if !is_safe_relative_path(relative_path_value) {
             return Err(validation("attachment relative path is invalid"));
+        }
+        if !is_managed_attachment_path(relative_path_value, &draft.session_id) {
+            return Err(validation(
+                "attachment relative path must be under the Session attachment directory",
+            ));
         }
         if draft.size_bytes < 0 {
             return Err(validation("attachment size must not be negative"));
@@ -93,4 +99,10 @@ fn is_safe_relative_path(path: &Path) -> bool {
                 Component::Normal(value) if !value.to_string_lossy().is_empty()
             )
         })
+}
+
+fn is_managed_attachment_path(path: &Path, session_id: &str) -> bool {
+    let expected_parent = Path::new("attachments").join(session_id);
+    path.parent()
+        .is_some_and(|parent| parent == expected_parent.as_path())
 }

@@ -69,8 +69,9 @@ pub struct FindingDraft {
 }
 
 /// Absent field = no change. `title`/`body` are non-clearable (`?: string`, no
-/// `null`); the `Option<Option<String>>` fields are clearable
-/// (`?: string | null`). See `SessionPatch` for the two-tier null rationale.
+/// `null`); clearable rich text fields use `Option<Option<String>>`
+/// (`?: string | null`). `body_format` is non-null in storage, so `null` resets
+/// it to the default `html` format.
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct FindingPatch {

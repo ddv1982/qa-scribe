@@ -1,3 +1,4 @@
+import type { KeyboardEvent } from 'react'
 import { Box, FileText, Flag, Loader2, PencilLine, Plus, Search, Settings } from 'lucide-react'
 import { RailItem } from '../components/Common'
 import { ThemeToggle } from '../components/ThemeToggle'
@@ -19,6 +20,12 @@ export function AppShell(c: AppController) {
         : c.activeView === 'findings'
           ? { label: 'New finding', busy: 'manual-finding' as const, run: () => void c.handleManualFinding() }
           : null
+  const visibleSessions = c.filteredSessions.slice(0, 8)
+
+  function handleNoteOptionKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
+    focusListboxOption(event)
+  }
+
   return (
     <main className="app-shell" onPaste={c.handlePaste}>
       <header className="top-bar">
@@ -56,7 +63,7 @@ export function AppShell(c: AppController) {
         <section className="note-picker" aria-label="Choose note">
           <p className="rail-heading">Choose note</p>
           <div className="note-picker-list" role="listbox" aria-label="Notes">
-            {c.filteredSessions.slice(0, 8).map((session) => (
+            {visibleSessions.map((session) => (
               <button
                 key={session.id}
                 className={c.activeSession?.id === session.id ? 'note-picker-item active' : 'note-picker-item'}
@@ -65,6 +72,7 @@ export function AppShell(c: AppController) {
                 aria-selected={c.activeSession?.id === session.id}
                 disabled={c.isBusy && c.activeSession?.id !== session.id}
                 onClick={() => void c.openSession(session)}
+                onKeyDown={handleNoteOptionKeyDown}
               >
                 <span>{session.title}</span>
                 <small>{formatSessionDate(session.updatedAt)}</small>
@@ -222,6 +230,25 @@ export function AppShell(c: AppController) {
       ) : null}
     </main>
   )
+}
+
+function focusListboxOption(event: KeyboardEvent<HTMLButtonElement>) {
+  if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
+  const listbox = event.currentTarget.closest('[role="listbox"]')
+  const options = Array.from(listbox?.querySelectorAll<HTMLButtonElement>('button[role="option"]:not(:disabled)') ?? [])
+  if (options.length === 0) return
+
+  const currentIndex = Math.max(0, options.indexOf(event.currentTarget))
+  const nextIndex = optionIndexForKey(event.key, currentIndex, options.length)
+  event.preventDefault()
+  options[nextIndex]?.focus()
+}
+
+function optionIndexForKey(key: string, currentIndex: number, optionCount: number): number {
+  if (key === 'Home') return 0
+  if (key === 'End') return optionCount - 1
+  if (key === 'ArrowUp') return Math.max(0, currentIndex - 1)
+  return Math.min(optionCount - 1, currentIndex + 1)
 }
 
 export function DeleteConfirmationDialog({

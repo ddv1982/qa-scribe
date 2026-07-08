@@ -1,6 +1,6 @@
 {
   "name": "qa-scribe",
-  "version": "0.7.6",
+  "version": "0.7.7",
   "description": "Local-first desktop testing notepad for turning testing sessions into structured testware.",
   "desktopName": "qa-scribe.desktop",
   "homepage": "https://github.com/ddv1982/qa-scribe",
@@ -40,7 +40,7 @@
     "bump:test": "node --test scripts/bump-version.test.mjs",
     "smoke": "cargo run -p qa-scribe-app",
     "package:check": "node -e \"for (const file of ['package.json','frontend/package.json','frontend/tsconfig.json','frontend/tsconfig.node.json','src-tauri/tauri.conf.json','src-tauri/tauri.linux.conf.json','src-tauri/capabilities/default.json']) JSON.parse(require('fs').readFileSync(file,'utf8'))\"",
-    "verify": "bun run frontend:audit && bun run frontend:check && bun run frontend:test && bun run release:check && bun run frontend:build && bash scripts/check-tauri-prebuilt-frontend.sh && bun run bindings:check && cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace && cargo build --workspace && cargo run -p qa-scribe-app",
+    "verify": "bun run frontend:audit && bun run rust:audit && bun run frontend:check && bun run frontend:test && bun run release:check && bun run frontend:build && bash scripts/check-tauri-prebuilt-frontend.sh && bun run bindings:check && cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace && cargo build --workspace && cargo run -p qa-scribe-app",
     "verify:fast": "bun run frontend:check && bun run frontend:test && node scripts/ensure-frontend-dist.mjs && cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings"
   }
 }

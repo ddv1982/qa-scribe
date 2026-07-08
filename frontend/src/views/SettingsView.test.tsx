@@ -75,6 +75,29 @@ describe('SettingsView AI defaults', () => {
     )
   })
 
+  it('moves model options with arrow keys and selects the focused option', async () => {
+    const user = userEvent.setup()
+    const { updateSettingsDraft } = renderSettingsView({
+      providerStatus: providerStatusWith([
+        providerDescriptor('codex_cli', 'Codex CLI', true, [modelDescriptor('default', 'Provider default', ['low']), modelDescriptor('gpt-4.1', 'GPT-4.1')]),
+      ]),
+    })
+
+    await user.click(screen.getByRole('button', { name: /model/i }))
+    expect(screen.getByRole('textbox', { name: /search ai models/i })).toHaveFocus()
+
+    await user.keyboard('{ArrowDown}')
+    const options = within(screen.getByRole('listbox', { name: /ai models/i })).getAllByRole('option')
+    expect(options[0]).toHaveFocus()
+
+    await user.keyboard('{ArrowDown}')
+    expect(options[1]).toHaveFocus()
+
+    await user.keyboard('{Enter}')
+
+    expect(updateSettingsDraft).toHaveBeenCalledWith(expect.objectContaining({ selectedAiModel: 'gpt-4.1' }))
+  })
+
   it('disables AI default controls when no providers are available', () => {
     renderSettingsView({
       providerStatus: providerStatusWith([codexProvider(false), claudeProvider(false), copilotProvider(false)]),

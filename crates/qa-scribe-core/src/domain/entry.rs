@@ -76,9 +76,9 @@ pub struct EntryDraft {
 
 /// Partial update for an `Entry`. Absent field = no change. `body` and
 /// `excluded_from_generation` are non-clearable (typed `?: string` /
-/// `?: boolean`, no `null`); the `Option<Option<String>>` fields are clearable
-/// (`?: string | null`, where `null` clears). See `SessionPatch` for the full
-/// rationale behind this two-tier null contract.
+/// `?: boolean`, no `null`); clearable rich text fields use
+/// `Option<Option<String>>` (`?: string | null`). `body_format` is non-null in
+/// storage, so `null` resets it to the default `html` format.
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct EntryPatch {

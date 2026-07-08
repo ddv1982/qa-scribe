@@ -125,7 +125,7 @@ fn create_attachment_rejects_sha256_that_is_not_exactly_64_lowercase_hex_chars()
         mime_type: None,
         size_bytes: 4,
         sha256: String::new(),
-        relative_path: "attachments/session/evidence.txt".to_string(),
+        relative_path: format!("attachments/{}/evidence.txt", session.id),
     };
 
     let too_short = "a".repeat(63);
@@ -175,6 +175,32 @@ fn create_attachment_rejects_unsafe_relative_paths() {
 }
 
 #[test]
+fn create_attachment_rejects_paths_outside_the_session_attachment_directory() {
+    let service = SessionService::in_memory().expect("in-memory service should open");
+    let session = service
+        .create_session(SessionDraft {
+            title: "Attachment path ownership".to_string(),
+            ..SessionDraft::default()
+        })
+        .expect("session should be created");
+
+    let result = service.create_attachment(qa_scribe_core::domain::AttachmentDraft {
+        session_id: session.id.clone(),
+        entry_id: None,
+        filename: "evidence.txt".to_string(),
+        mime_type: None,
+        size_bytes: 4,
+        sha256: "a".repeat(64),
+        relative_path: "attachments/other-session/evidence.txt".to_string(),
+    });
+
+    assert!(
+        result.is_err(),
+        "core callers must use the managed attachments/<session-id>/ path"
+    );
+}
+
+#[test]
 fn create_attachment_returns_not_found_for_missing_entry() {
     let service = SessionService::in_memory().expect("in-memory service should open");
     let session = service
@@ -187,13 +213,13 @@ fn create_attachment_returns_not_found_for_missing_entry() {
     assert!(
         matches!(
             service.create_attachment(qa_scribe_core::domain::AttachmentDraft {
-                session_id: session.id,
+                session_id: session.id.clone(),
                 entry_id: Some("missing-entry".to_string()),
                 filename: "evidence.txt".to_string(),
                 mime_type: None,
                 size_bytes: 4,
                 sha256: "abc123".to_string(),
-                relative_path: "attachments/session/evidence.txt".to_string(),
+                relative_path: format!("attachments/{}/evidence.txt", session.id),
             }),
             Err(QaScribeError::NotFound(id)) if id == "missing-entry"
         ),
