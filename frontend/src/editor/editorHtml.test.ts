@@ -98,6 +98,77 @@ describe('editorHtml', () => {
     expect(html).not.toContain('class=')
   })
 
+  describe('sanitizer characterization (pins behavior for DOMPurify swap)', () => {
+    it('strips javascript: hrefs but keeps the link text', () => {
+      expect(normalizeEditorHtml('<p><a href="javascript:alert(1)">x</a></p>')).toBe('<p><a>x</a></p>')
+    })
+
+    it('removes event handler attributes', () => {
+      expect(normalizeEditorHtml('<p><img src="https://a.test/i.png" onerror="alert(1)" /></p>')).toBe(
+        '<p><img src="https://a.test/i.png"></p>',
+      )
+    })
+
+    it('drops script/style/svg/math/iframe including their content', () => {
+      for (const html of [
+        '<p>a</p><script>alert(1)</script>',
+        '<p>a</p><style>p{color:red}</style>',
+        '<p>a</p><svg><animate onbegin="alert(1)" /></svg>',
+        '<p>a</p><math><mtext>x</mtext></math>',
+        '<p>a</p><iframe src="https://a.test"></iframe>',
+      ]) {
+        expect(normalizeEditorHtml(html)).toBe('<p>a</p>')
+      }
+    })
+
+    it('unwraps unknown tags but keeps their content', () => {
+      expect(normalizeEditorHtml('<div><p>a <span>b</span></p></div>')).toBe('<p>a b</p>')
+    })
+
+    it('removes HTML comments', () => {
+      expect(normalizeEditorHtml('<p>a<!-- evil --></p>')).toBe('<p>a</p>')
+    })
+
+    it('strips id/name attributes (DOM clobbering)', () => {
+      expect(normalizeEditorHtml('<p id="location" name="body">a</p>')).toBe('<p>a</p>')
+    })
+
+    it('strips per-tag-invalid attributes from allowed tags', () => {
+      expect(normalizeEditorHtml('<p href="https://a.test" data-checked="true">a</p>')).toBe('<p>a</p>')
+      expect(normalizeEditorHtml('<ol data-type="taskList"><li>a</li></ol>')).toBe('<ol><li>a</li></ol>')
+    })
+
+    it('neutralizes mXSS-style nesting', () => {
+      const html = normalizeEditorHtml('<p><svg><p><img src="x" onerror="alert(1)"></p></svg></p>')
+      expect(html).not.toContain('onerror')
+      expect(html).not.toContain('<svg')
+    })
+
+    it('removes non-checkbox inputs entirely', () => {
+      expect(normalizeEditorHtml('<p><input type="text" value="x" /></p>')).toBe(emptyEditorHtml)
+    })
+
+    it('derives task item data-checked from the checkbox when the attribute is missing', () => {
+      expect(
+        normalizeEditorHtml('<ul data-type="taskList"><li data-type="taskItem"><input type="checkbox" checked />done</li></ul>'),
+      ).toBe(
+        '<ul data-type="taskList"><li data-type="taskItem" data-checked="true"><input type="checkbox" checked="">done</li></ul>',
+      )
+    })
+
+    it('canonicalizes managed attachment images to an exact shape', () => {
+      expect(normalizeEditorHtml('<p><img src="qa-scribe-attachment://abc" class="x" alt="shot" /></p>')).toBe(
+        '<p><img data-attachment-id="abc" src="qa-scribe-attachment://abc" alt="shot"></p>',
+      )
+    })
+
+    it('keeps relative link hrefs (resolved against an http(s) base)', () => {
+      expect(normalizeEditorHtml('<p><a href="/tickets/1">t</a></p>')).toBe(
+        '<p><a href="/tickets/1" target="_blank" rel="noreferrer">t</a></p>',
+      )
+    })
+  })
+
   it('accepts only safe rich editor links and images', () => {
     expect(isSafeEditorLinkUrl('https://example.test')).toBe(true)
     expect(isSafeEditorLinkUrl('mailto:qa@example.test')).toBe(true)
