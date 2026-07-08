@@ -81,6 +81,60 @@ describe('RichTextEditor toolbar', () => {
     expect(lastChangeHtml(onChange)).not.toContain('<strong>')
   })
 
+  it('formats selected content as italic', async () => {
+    const onChange = vi.fn()
+    render(
+      <>
+        <FormatToolbar editorId="editor-one" onUploadImage={vi.fn()} />
+        <RichTextEditor editorId="editor-one" value={richEditorDocumentFromHtml('<p>Gmail login fails</p>')} onChange={onChange} />
+      </>,
+    )
+
+    const editor = await screen.findByRole('textbox', { name: 'Note body' })
+    selectText(editor)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Italic' }))
+
+    await waitFor(() => expect(lastChangeHtml(onChange)).toContain('<em>Gmail login fails</em>'))
+  })
+
+  it('prevents command toolbar button mousedown from stealing editor focus', async () => {
+    render(
+      <>
+        <FormatToolbar editorId="editor-one" onUploadImage={vi.fn()} />
+        <RichTextEditor editorId="editor-one" value={richEditorDocumentFromHtml('<p>Evidence</p>')} />
+      </>,
+    )
+
+    await waitFor(() => expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Bold' }).disabled).toBe(false))
+
+    for (const label of ['Bold', 'Italic', 'Bulleted list', 'Checklist', 'Link', 'Upload image']) {
+      const event = new MouseEvent('mousedown', { bubbles: true, cancelable: true })
+      screen.getByRole('button', { name: label }).dispatchEvent(event)
+      expect(event.defaultPrevented, `${label} mousedown should preserve the editor selection`).toBe(true)
+    }
+  })
+
+  it('applies block style after the native select receives focus', async () => {
+    const onChange = vi.fn()
+    render(
+      <>
+        <FormatToolbar editorId="editor-one" onUploadImage={vi.fn()} />
+        <RichTextEditor editorId="editor-one" value={richEditorDocumentFromHtml('<p>Evidence</p>')} onChange={onChange} />
+      </>,
+    )
+
+    const editor = await screen.findByRole('textbox', { name: 'Note body' })
+    selectText(editor)
+
+    const blockSelect = screen.getByRole('combobox', { name: 'Block style' })
+    fireEvent.mouseDown(blockSelect)
+    fireEvent.focus(blockSelect)
+    fireEvent.change(blockSelect, { target: { value: 'h2' } })
+
+    await waitFor(() => expect(lastChangeHtml(onChange)).toContain('<h2>Evidence</h2>'))
+  })
+
   it('adds a safe link to selected content via the inline popover', async () => {
     const onChange = vi.fn()
 
@@ -96,6 +150,8 @@ describe('RichTextEditor toolbar', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Link' }))
 
     const input = await screen.findByRole('textbox', { name: 'Link URL' })
+    input.focus()
+    clearSelection()
     fireEvent.change(input, { target: { value: 'https://example.test/evidence' } })
     fireEvent.click(screen.getByRole('button', { name: 'Apply link' }))
 
@@ -126,10 +182,60 @@ describe('RichTextEditor toolbar', () => {
     // The existing href is prefilled for editing.
     expect(input.value).toBe('https://example.test/old')
 
+    input.focus()
+    clearSelection()
     fireEvent.change(input, { target: { value: '' } })
     fireEvent.click(screen.getByRole('button', { name: 'Apply link' }))
 
     await waitFor(() => expect(lastChangeHtml(onChange)).not.toContain('<a '))
+  })
+
+  it('does not reuse a cancelled link selection for a later block-style change', async () => {
+    const onChange = vi.fn()
+
+    render(
+      <>
+        <FormatToolbar editorId="editor-one" onUploadImage={vi.fn()} />
+        <RichTextEditor editorId="editor-one" value={richEditorDocumentFromHtml('<p>First</p><p>Second</p>')} onChange={onChange} />
+      </>,
+    )
+
+    const editor = await screen.findByRole('textbox', { name: 'Note body' })
+    selectText(editor, 0)
+    fireEvent.click(screen.getByRole('button', { name: 'Link' }))
+
+    const input = await screen.findByRole('textbox', { name: 'Link URL' })
+    fireEvent.keyDown(input, { key: 'Escape' })
+
+    placeCursorAtEnd(editor, 1)
+    fireEvent.change(screen.getByRole('combobox', { name: 'Block style' }), { target: { value: 'h2' } })
+
+    await waitFor(() => expect(lastChangeHtml(onChange)).toContain('<p>First</p><h2>Second</h2>'))
+  })
+
+  it('does not reuse an unchanged block-style select selection for a later collapsed-cursor change', async () => {
+    const onChange = vi.fn()
+
+    render(
+      <>
+        <FormatToolbar editorId="editor-one" onUploadImage={vi.fn()} />
+        <RichTextEditor editorId="editor-one" value={richEditorDocumentFromHtml('<p>First</p><p>Second</p>')} onChange={onChange} />
+      </>,
+    )
+
+    const editor = await screen.findByRole('textbox', { name: 'Note body' })
+    const blockSelect = screen.getByRole('combobox', { name: 'Block style' })
+
+    selectText(editor, 0)
+    fireEvent.mouseDown(blockSelect)
+    fireEvent.focus(blockSelect)
+
+    placeCursorAtEnd(editor, 1)
+    fireEvent.mouseDown(blockSelect)
+    fireEvent.focus(blockSelect)
+    fireEvent.change(blockSelect, { target: { value: 'h2' } })
+
+    await waitFor(() => expect(lastChangeHtml(onChange)).toContain('<p>First</p><h2>Second</h2>'))
   })
 
   it('rejects an unsafe link scheme with an inline error and no link mark', async () => {
@@ -191,9 +297,9 @@ describe('RichTextEditor toolbar', () => {
   })
 })
 
-function selectText(editor: HTMLElement) {
+function selectText(editor: HTMLElement, paragraphIndex = 0) {
   editor.focus()
-  const textNode = editor.querySelector('p')?.firstChild
+  const textNode = editor.querySelectorAll('p')[paragraphIndex]?.firstChild
   if (!textNode) throw new Error('editor text missing')
 
   const range = document.createRange()
@@ -203,6 +309,26 @@ function selectText(editor: HTMLElement) {
   selection?.addRange(range)
   document.dispatchEvent(new Event('selectionchange'))
   fireEvent.mouseUp(editor)
+}
+
+function placeCursorAtEnd(editor: HTMLElement, paragraphIndex = 0) {
+  editor.focus()
+  const textNode = editor.querySelectorAll('p')[paragraphIndex]?.firstChild
+  if (!textNode?.textContent) throw new Error('editor text missing')
+
+  const range = document.createRange()
+  range.setStart(textNode, textNode.textContent.length)
+  range.collapse(true)
+  const selection = window.getSelection()
+  selection?.removeAllRanges()
+  selection?.addRange(range)
+  document.dispatchEvent(new Event('selectionchange'))
+  fireEvent.mouseUp(editor)
+}
+
+function clearSelection() {
+  window.getSelection()?.removeAllRanges()
+  document.dispatchEvent(new Event('selectionchange'))
 }
 
 function lastChange(onChange: ReturnType<typeof vi.fn>): RichEditorDocument {

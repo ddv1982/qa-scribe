@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.7.9 - 2026-07-08
+
+- Fix rich editor toolbar buttons so mouse clicks preserve the selected text before TipTap formatting commands run, restoring reliable Italic, Bold, list, checklist, link, and image-upload actions.
+- Keep block-style and link editing controls usable while safely restoring editor selections after their native inputs receive focus.
+- Add regression coverage for Italic output, toolbar focus preservation, block-style changes, link apply/remove flows, and stale selection cancellation paths.
+
 ## v0.7.8 - 2026-07-08
 
 - Copy notes for Jira with rich formatting: the clipboard now carries an HTML flavor alongside the plain Markdown fallback, so pasting into Jira keeps headings, bold, links, and lists.

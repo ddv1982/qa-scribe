@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
+import { useEffect, useId, useRef, useState, type ChangeEvent, type FormEvent, type MouseEvent } from 'react'
 import { EditorContent, useEditor, type Editor } from '@tiptap/react'
 import { Bold, ImageIcon, Italic, Link2, List, ListChecks, type LucideIcon } from 'lucide-react'
 import { isSafeEditorLinkUrl, managedAttachmentProtocol, hydrateManagedAttachmentPreviews } from './editorHtml'
@@ -20,16 +20,44 @@ type FormatToolbarProps = {
   onUploadImage?: (input: RichEditorImageUpload) => void | Promise<void>
 }
 
+type EditorSelection = Editor['state']['selection']
+
 export function FormatToolbar({ editorId, onUploadImage }: FormatToolbarProps) {
   const generatedId = useId()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const uploadInserterRef = useRef<RichEditorImageInserter | null>(null)
   const linkInputRef = useRef<HTMLInputElement | null>(null)
+  const savedSelectionRef = useRef<EditorSelection | null>(null)
   const controller = useRichEditorController(editorId)
   const editor = controller?.editor ?? null
   const disabled = !editor || Boolean(controller?.readOnly)
   const blockValue = editor?.isActive('heading', { level: 2 }) ? 'h2' : editor?.isActive('heading', { level: 3 }) ? 'h3' : 'p'
   const linkErrorId = `${editorId ?? generatedId}-link-error`
+
+  function saveEditorSelection() {
+    if (!editor || editor.state.selection.empty) {
+      savedSelectionRef.current = null
+      return
+    }
+    savedSelectionRef.current = editor.state.selection
+  }
+
+  function restoreSavedSelection() {
+    const selection = savedSelectionRef.current
+    savedSelectionRef.current = null
+    if (!editor || !selection) return
+
+    try {
+      editor.view.dispatch(editor.state.tr.setSelection(selection))
+    } catch {
+      // The document changed after the selection was captured; let TipTap use its current selection.
+    }
+  }
+
+  function applyBlockStyle(value: string) {
+    restoreSavedSelection()
+    setBlockStyle(editor, value)
+  }
 
   // Inline link editor. `window.prompt`/`window.alert` are no-ops on macOS wry
   // (WKWebView returns null without a WKUIDelegate), so we edit links in an
@@ -40,11 +68,13 @@ export function FormatToolbar({ editorId, onUploadImage }: FormatToolbarProps) {
 
   function openLinkEditor() {
     if (!editor) return
+    saveEditorSelection()
     const currentHref: unknown = editor.getAttributes('link').href
     setLinkPopover({ value: typeof currentHref === 'string' ? currentHref : '', error: null })
   }
 
   function closeLinkEditor() {
+    savedSelectionRef.current = null
     setLinkPopover(null)
     editor?.chain().focus().run()
   }
@@ -54,6 +84,7 @@ export function FormatToolbar({ editorId, onUploadImage }: FormatToolbarProps) {
     if (!editor || !linkPopover) return
     const trimmedUrl = linkPopover.value.trim()
     if (!trimmedUrl) {
+      restoreSavedSelection()
       editor.chain().focus().extendMarkRange('link').unsetLink().run()
       setLinkPopover(null)
       return
@@ -62,6 +93,7 @@ export function FormatToolbar({ editorId, onUploadImage }: FormatToolbarProps) {
       setLinkPopover({ value: linkPopover.value, error: 'Use an http, https, or mailto link.' })
       return
     }
+    restoreSavedSelection()
     editor.chain().focus().extendMarkRange('link').setLink({ href: trimmedUrl }).run()
     setLinkPopover(null)
   }
@@ -93,8 +125,10 @@ export function FormatToolbar({ editorId, onUploadImage }: FormatToolbarProps) {
         aria-label="Block style"
         aria-controls={editorId}
         disabled={disabled}
+        onMouseDown={saveEditorSelection}
+        onFocus={saveEditorSelection}
         onChange={(event) => {
-          setBlockStyle(editor, event.target.value)
+          applyBlockStyle(event.target.value)
         }}
       >
         <option value="p">Paragraph</option>
@@ -274,8 +308,22 @@ function ToolbarButton({
   disabled?: boolean
   controlsId?: string
 }) {
+  function preserveEditorSelection(event: MouseEvent<HTMLButtonElement>) {
+    event.preventDefault()
+  }
+
   return (
-    <button className="toolbar-button" type="button" aria-label={label} title={label} disabled={disabled} aria-pressed={active} aria-controls={controlsId} onClick={command}>
+    <button
+      className="toolbar-button"
+      type="button"
+      aria-label={label}
+      title={label}
+      disabled={disabled}
+      aria-pressed={active}
+      aria-controls={controlsId}
+      onMouseDown={preserveEditorSelection}
+      onClick={command}
+    >
       <Icon size={16} />
     </button>
   )

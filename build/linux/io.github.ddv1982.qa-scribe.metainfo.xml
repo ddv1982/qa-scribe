@@ -18,6 +18,15 @@
     <category>ProjectManagement</category>
   </categories>
   <releases>
+    <release version="0.7.9" date="2026-07-08">
+      <description>
+        <ul>
+          <li>Fix rich editor toolbar buttons so mouse clicks preserve selected text before TipTap formatting commands run.</li>
+          <li>Keep block-style and link editing controls usable while safely restoring editor selections after native controls receive focus.</li>
+          <li>Add regression coverage for toolbar focus preservation, link workflows, and stale selection cancellation paths.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.7.8" date="2026-07-08">
       <description>
         <ul>
