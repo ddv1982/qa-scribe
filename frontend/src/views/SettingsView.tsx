@@ -164,9 +164,16 @@ export function SettingsView({
 
         {settingsDraft ? (
           <section className="wide-setting">
-            <h2>Global AI instructions</h2>
-            <p className="settings-note">Keep these neutral across summaries, findings, and testware. Output shape belongs in the action templates below.</p>
-            <textarea value={settingsDraft.generationSystemPrompt} onChange={(event) => updateSettingsDraft({ generationSystemPrompt: event.target.value })} />
+            <h2 id="global-ai-instructions-label">Global AI instructions</h2>
+            <p className="settings-note" id="global-ai-instructions-note">
+              Keep these neutral across summaries, findings, and testware. Output shape belongs in the action templates below.
+            </p>
+            <textarea
+              aria-describedby="global-ai-instructions-note"
+              aria-labelledby="global-ai-instructions-label"
+              value={settingsDraft.generationSystemPrompt}
+              onChange={(event) => updateSettingsDraft({ generationSystemPrompt: event.target.value })}
+            />
           </section>
         ) : null}
 

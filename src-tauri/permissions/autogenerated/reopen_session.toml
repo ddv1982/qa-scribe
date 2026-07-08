@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-reopen-session"
+description = "Enables the reopen_session command without any pre-configured scope."
+commands.allow = ["reopen_session"]
+
+[[permission]]
+identifier = "deny-reopen-session"
+description = "Denies the reopen_session command without any pre-configured scope."
+commands.deny = ["reopen_session"]

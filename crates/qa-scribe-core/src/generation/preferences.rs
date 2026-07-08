@@ -2,6 +2,8 @@
 //! and depth. These are domain data — the selection is rendered into the
 //! prompt and persisted into `Draft.metadata_json` alongside the result.
 
+use crate::domain::TESTWARE_CUSTOM_INSTRUCTIONS_MAX_LENGTH;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, specta::Type)]
@@ -165,9 +167,31 @@ fn default_testware_preferences() -> TestwareGenerationPreferences {
 fn preferences_or_default(
     preferences: Option<&TestwareGenerationPreferences>,
 ) -> TestwareGenerationPreferences {
+    normalize_testware_preferences(
+        preferences
+            .cloned()
+            .unwrap_or_else(default_testware_preferences),
+    )
+}
+
+fn normalize_testware_preferences(
+    mut preferences: TestwareGenerationPreferences,
+) -> TestwareGenerationPreferences {
+    preferences.custom_instructions = clean_custom_instructions(preferences.custom_instructions);
     preferences
-        .cloned()
-        .unwrap_or_else(default_testware_preferences)
+}
+
+fn clean_custom_instructions(value: Option<String>) -> Option<String> {
+    let value = value?.trim().to_string();
+    if value.is_empty() {
+        return None;
+    }
+    Some(
+        value
+            .chars()
+            .take(TESTWARE_CUSTOM_INSTRUCTIONS_MAX_LENGTH)
+            .collect(),
+    )
 }
 
 pub(super) fn testware_preferences_prompt(
@@ -222,4 +246,64 @@ pub(super) fn testware_metadata_json(
 
 fn yes_no(value: bool) -> &'static str {
     if value { "yes" } else { "no" }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn custom_instructions_are_trimmed_and_capped_for_prompt_and_metadata() {
+        let over_limit = format!(
+            "  {}tail  ",
+            "x".repeat(TESTWARE_CUSTOM_INSTRUCTIONS_MAX_LENGTH)
+        );
+        let preferences = TestwareGenerationPreferences {
+            technique: TestwareTechnique::DecisionTable,
+            output_format: TestwareOutputFormat::CoverageOutline,
+            depth: TestwareDepth::Thorough,
+            include_negative_cases: true,
+            include_boundary_cases: true,
+            include_test_data: false,
+            preserve_evidence: true,
+            custom_instructions: Some(over_limit),
+        };
+
+        let prompt = testware_preferences_prompt(Some(&preferences));
+        assert!(prompt.contains(&"x".repeat(TESTWARE_CUSTOM_INSTRUCTIONS_MAX_LENGTH)));
+        assert!(!prompt.contains("tail"));
+
+        let metadata = testware_metadata_json(Some(&preferences)).expect("metadata JSON");
+        let parsed: serde_json::Value = serde_json::from_str(&metadata).expect("valid metadata");
+        let stored = parsed["testwareGeneration"]["customInstructions"]
+            .as_str()
+            .expect("stored custom instructions");
+        assert_eq!(
+            stored.chars().count(),
+            TESTWARE_CUSTOM_INSTRUCTIONS_MAX_LENGTH
+        );
+        assert!(!stored.contains("tail"));
+    }
+
+    #[test]
+    fn blank_custom_instructions_normalize_to_none() {
+        let preferences = TestwareGenerationPreferences {
+            technique: TestwareTechnique::Auto,
+            output_format: TestwareOutputFormat::QaCases,
+            depth: TestwareDepth::Balanced,
+            include_negative_cases: true,
+            include_boundary_cases: true,
+            include_test_data: true,
+            preserve_evidence: true,
+            custom_instructions: Some("   \n\t  ".to_string()),
+        };
+
+        assert!(
+            testware_preferences_prompt(Some(&preferences))
+                .contains("Additional user guidance: None")
+        );
+        let metadata = testware_metadata_json(Some(&preferences)).expect("metadata JSON");
+        let parsed: serde_json::Value = serde_json::from_str(&metadata).expect("valid metadata");
+        assert!(parsed["testwareGeneration"]["customInstructions"].is_null());
+    }
 }

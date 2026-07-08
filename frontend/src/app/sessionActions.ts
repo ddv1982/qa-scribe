@@ -22,7 +22,10 @@ const noteBodyMaxLength = 100_000
 
 export function createSessionActions(
   ctx: AppWorkflowContext,
-  materializeInlineImages: (document: RichEditorDocument) => Promise<RichEditorDocument>,
+  materializeInlineImages: (
+    document: RichEditorDocument,
+    options?: { entryId?: string | null; updateNoteBody?: boolean },
+  ) => Promise<RichEditorDocument>,
   invalidateRecordLoads: () => void,
   resetRecordHydration: () => void,
   saveDirtyRecordsNow: () => Promise<boolean>,
@@ -233,7 +236,7 @@ export function createSessionActions(
     const title = ctx.noteTitle.trim()
     let body: RichEditorDocument
     try {
-      body = await materializeInlineImages(ctx.noteBody)
+      body = await materializeInlineImages(ctx.noteBody, { entryId: ctx.noteEntry?.id, updateNoteBody: true })
     } catch (cause) {
       ctx.setError(formatError(cause))
       return false

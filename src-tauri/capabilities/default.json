@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Default qa-scribe desktop permissions.",
+  "description": "Default qa-scribe desktop permissions for the main window. Custom command access is limited to the app default permission set generated from build.rs, with only the core event/window permissions needed for close handling.",
   "windows": ["main"],
-  "permissions": []
+  "permissions": ["default", "core:event:allow-listen", "core:event:allow-unlisten", "core:window:allow-close"]
 }

@@ -85,8 +85,11 @@ export function createGenerationActions(ctx: AppWorkflowContext, saveNoteNow: (o
     ctx.setDrafts((previous) => {
       const exists = previous.some((item) => item.id === draft.id)
       if (!exists && draft.kind === 'testware') ctx.setTestwareDraftCount((count) => count + 1)
-      if (exists) return previous.map((item) => (item.id === draft.id ? draft : item))
-      return [draft, ...previous]
+      const nextDrafts = exists
+        ? previous.map((item) => (item.id === draft.id && !ctx.dirtyDraftIdsRef.current.has(item.id) ? draft : item))
+        : [draft, ...previous]
+      ctx.draftsRef.current = nextDrafts
+      return nextDrafts
     })
   }
 
@@ -94,8 +97,11 @@ export function createGenerationActions(ctx: AppWorkflowContext, saveNoteNow: (o
     ctx.setFindings((previous) => {
       const exists = previous.some((item) => item.id === finding.id)
       if (!exists) ctx.setFindingCount((count) => count + 1)
-      if (exists) return previous.map((item) => (item.id === finding.id ? finding : item))
-      return [finding, ...previous]
+      const nextFindings = exists
+        ? previous.map((item) => (item.id === finding.id && !ctx.dirtyFindingIdsRef.current.has(item.id) ? finding : item))
+        : [finding, ...previous]
+      ctx.findingsRef.current = nextFindings
+      return nextFindings
     })
   }
 

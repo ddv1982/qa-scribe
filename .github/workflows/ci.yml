@@ -216,10 +216,9 @@ jobs:
       - name: Install frontend dependencies
         run: bun install --cwd frontend --frozen-lockfile
 
-      # Runs the Python unittest suite (linux:metadata:test) alongside release
-      # metadata validation; ubuntu-24.04 ships python3, so no setup-python
-      # step is needed. Previously this suite was never executed by CI.
-      - name: Check release metadata and Python unit tests
+      # Runs release metadata validation plus the release Node/Python test
+      # suites; ubuntu-24.04 ships python3, so no setup-python step is needed.
+      - name: Check release metadata and release test suites
         run: bun run release:check
 
       - name: Build frontend

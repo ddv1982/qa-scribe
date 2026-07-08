@@ -658,6 +658,34 @@ fn rich_html_parser_repair_path_leaves_typographic_entities_literal() {
 }
 
 #[test]
+fn generated_rich_html_drops_malformed_managed_attachment_ids() {
+    let sanitized = sanitize_generated_rich_html(
+        r#"
+        <p>Evidence.</p>
+        <img data-attachment-id="attachment-1&quot; onerror=&quot;alert(1)" alt="Injected" />
+        <img src="qa-scribe-attachment://attachment-2&quot; onerror=&quot;alert(1)" alt="Injected" />
+        "#,
+    );
+
+    assert!(sanitized.contains("<p>Evidence.</p>"));
+    assert!(!sanitized.contains("onerror"));
+    assert!(!sanitized.contains("qa-scribe-attachment://attachment-1"));
+    assert!(!sanitized.contains("qa-scribe-attachment://attachment-2"));
+    assert!(!sanitized.contains("<img"));
+}
+
+#[test]
+fn generated_rich_html_uses_valid_managed_src_when_attachment_id_attribute_is_malformed() {
+    let sanitized = sanitize_generated_rich_html(
+        r#"<img data-attachment-id="bad&quot; onerror=&quot;alert(1)" src="qa-scribe-attachment://attachment-2" alt="Evidence" />"#,
+    );
+
+    assert!(sanitized.contains("src=\"qa-scribe-attachment://attachment-2\""));
+    assert!(sanitized.contains("data-attachment-id=\"attachment-2\""));
+    assert!(!sanitized.contains("onerror"));
+}
+
+#[test]
 fn project_html_to_prompt_text_still_decodes_typographic_entities() {
     // In contrast to the repair path above, projecting stored HTML into
     // plain prompt text for the model should decode as much as possible,

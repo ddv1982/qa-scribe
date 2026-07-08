@@ -101,6 +101,16 @@ export function validateSemver(version) {
   return /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(version)
 }
 
+export function validateStableSemver(version) {
+  return /^\d+\.\d+\.\d+$/.test(version)
+}
+
+export function releaseNotesContainPlaceholder(notes) {
+  return notes
+    .split(/\r?\n/)
+    .some(line => line.trim().toLowerCase() === '- todo: describe this release.')
+}
+
 export function readWorkspaceCargoVersion(cargoToml) {
   const workspacePackageMatch = cargoToml.match(/\[workspace\.package\]([\s\S]*?)(?:\n\[|$)/)
   if (!workspacePackageMatch) {

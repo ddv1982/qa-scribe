@@ -1,0 +1,36 @@
+"$schema" = "schemas/schema.json"
+
+[default]
+description = "Allows the main qa-scribe window to invoke the app's explicit custom command surface."
+permissions = [
+  "allow-get-settings",
+  "allow-update-settings",
+  "allow-list-sessions",
+  "allow-list-recent-sessions",
+  "allow-create-session",
+  "allow-reopen-session",
+  "allow-open-session-note-state",
+  "allow-update-session",
+  "allow-delete-session",
+  "allow-create-entry",
+  "allow-list-entries",
+  "allow-update-entry",
+  "allow-create-finding",
+  "allow-list-findings",
+  "allow-update-finding",
+  "allow-create-draft",
+  "allow-list-drafts",
+  "allow-update-draft",
+  "allow-delete-draft",
+  "allow-delete-finding",
+  "allow-start-ai-action-job",
+  "allow-get-ai-action-job-status",
+  "allow-list-active-ai-action-jobs",
+  "allow-cancel-ai-action-job",
+  "allow-import-clipboard-screenshot",
+  "allow-get-provider-status",
+  "allow-refresh-provider-status",
+  "allow-get-attachment-preview-data-url",
+  "allow-read-clipboard-image-data-url",
+  "allow-copy-attachment-image-to-clipboard",
+]

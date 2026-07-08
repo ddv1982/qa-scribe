@@ -147,10 +147,22 @@ export function createAttachmentActions(ctx: AppWorkflowContext) {
     }
   }
 
-  async function materializeInlineImages(document: RichEditorDocument): Promise<RichEditorDocument> {
+  async function materializeInlineImages(
+    document: RichEditorDocument,
+    options: { entryId?: string | null; updateNoteBody?: boolean } = {},
+  ): Promise<RichEditorDocument> {
     const html = richEditorDocumentToHtml(document)
-    if (!ctx.activeSession || !ctx.noteEntry || !containsInlineImageData(html)) {
+    if (!containsInlineImageData(html)) {
       return document
+    }
+
+    if (!ctx.activeSession) {
+      throw new Error('Open a note before storing embedded images.')
+    }
+
+    const entryId = Object.prototype.hasOwnProperty.call(options, 'entryId') ? options.entryId : ctx.noteEntry?.id
+    if (entryId === undefined) {
+      throw new Error('Open an editable note before storing embedded note images.')
     }
 
     const documentFragment = new DOMParser().parseFromString(html, 'text/html')
@@ -166,7 +178,7 @@ export function createAttachmentActions(ctx: AppWorkflowContext) {
       const filename = inlineImageFilename(image, index, dataUrl)
       const attachment = await importClipboardScreenshot({
         sessionId: ctx.activeSession.id,
-        entryId: ctx.noteEntry.id,
+        entryId,
         filename,
         dataUrl,
       })
@@ -177,7 +189,7 @@ export function createAttachmentActions(ctx: AppWorkflowContext) {
     }
 
     const body = richEditorDocumentFromHtml(documentFragment.body.innerHTML)
-    ctx.setNoteBody(body)
+    if (options.updateNoteBody) ctx.setNoteBody(body)
     return body
   }
 

@@ -31,7 +31,7 @@ import {
   cargoLockPackageVersions,
   readReleaseConstants,
   readWorkspaceCargoVersion,
-  validateSemver
+  validateStableSemver
 } from './command-utils.mjs'
 
 const PACKAGE_JSON_PATH = 'package.json'
@@ -51,8 +51,8 @@ async function main() {
   if (!newVersion) {
     throw new Error('Usage: node scripts/bump-version.mjs <new-version> [--dry-run]')
   }
-  if (!validateSemver(newVersion)) {
-    throw new Error(`<new-version> must be semver-compatible, got ${newVersion}`)
+  if (!validateStableSemver(newVersion)) {
+    throw new Error(`<new-version> must be a stable semver release (X.Y.Z), got ${newVersion}`)
   }
 
   const releaseConstants = readReleaseConstants()
@@ -141,8 +141,8 @@ function preflightConsistencyCheck(files) {
   }
 
   const [currentVersion] = distinct
-  if (!validateSemver(currentVersion)) {
-    throw new Error(`Current version ${currentVersion} is not semver-compatible`)
+  if (!validateStableSemver(currentVersion)) {
+    throw new Error(`Current version ${currentVersion} is not a stable semver release (X.Y.Z)`)
   }
 
   return currentVersion

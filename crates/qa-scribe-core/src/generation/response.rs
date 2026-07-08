@@ -378,18 +378,17 @@ fn sanitize_link_tag(raw_tag: &str) -> String {
 
 fn sanitize_image_tag(raw_tag: &str) -> Option<String> {
     let attachment_id = attribute_value(raw_tag, "data-attachment-id")
-        .filter(|id| !id.trim().is_empty())
+        .and_then(|id| clean_managed_attachment_id(&id))
         .or_else(|| {
             attribute_value(raw_tag, "src").and_then(|src| {
                 src.trim()
                     .strip_prefix(MANAGED_ATTACHMENT_PROTOCOL)
-                    .filter(|id| !id.trim().is_empty())
-                    .map(ToOwned::to_owned)
+                    .and_then(clean_managed_attachment_id)
             })
         });
     let alt = attribute_value(raw_tag, "alt").unwrap_or_default();
     if let Some(id) = attachment_id {
-        return Some(managed_image_html(id.trim(), alt.trim()));
+        return Some(managed_image_html(&id, alt.trim()));
     }
 
     let source = attribute_value(raw_tag, "src")?;
@@ -443,9 +442,23 @@ fn is_safe_editor_link_url(source: &str) -> bool {
 }
 
 fn is_safe_editor_image_source(source: &str) -> bool {
-    source.starts_with(MANAGED_ATTACHMENT_PROTOCOL)
-        || source.to_ascii_lowercase().starts_with("data:image/")
+    if let Some(id) = source.strip_prefix(MANAGED_ATTACHMENT_PROTOCOL) {
+        return clean_managed_attachment_id(id).is_some();
+    }
+    source.to_ascii_lowercase().starts_with("data:image/")
         || is_safe_url_with_protocols(source, &["http", "https"])
+}
+
+fn clean_managed_attachment_id(value: &str) -> Option<String> {
+    let id = value.trim();
+    if id.is_empty()
+        || id.chars().any(|character| {
+            !(character.is_ascii_alphanumeric() || matches!(character, '-' | '_' | '.'))
+        })
+    {
+        return None;
+    }
+    Some(id.to_string())
 }
 
 fn is_safe_url_with_protocols(source: &str, protocols: &[&str]) -> bool {
@@ -617,14 +630,13 @@ fn image_alt_from_tag(tag: &str) -> Option<String> {
 
 fn managed_attachment_id_from_img_tag(tag: &str, attachments: &[Attachment]) -> Option<String> {
     attribute_value(tag, "data-attachment-id")
-        .filter(|id| !id.trim().is_empty())
+        .and_then(|id| clean_managed_attachment_id(&id))
         .or_else(|| {
             attribute_value(tag, "src").and_then(|src| {
                 let source = src.trim();
                 source
                     .strip_prefix(MANAGED_ATTACHMENT_PROTOCOL)
-                    .filter(|id| !id.trim().is_empty())
-                    .map(ToOwned::to_owned)
+                    .and_then(clean_managed_attachment_id)
                     .or_else(|| {
                         attachments
                             .iter()
@@ -644,9 +656,10 @@ fn contains_managed_attachment(value: &str, attachment_id: &str) -> bool {
 }
 
 fn managed_image_html(attachment_id: &str, alt: &str) -> String {
+    let source = format!("{MANAGED_ATTACHMENT_PROTOCOL}{attachment_id}");
     format!(
-        "<img src=\"{}{attachment_id}\" data-attachment-id=\"{}\" alt=\"{}\" />",
-        MANAGED_ATTACHMENT_PROTOCOL,
+        "<img src=\"{}\" data-attachment-id=\"{}\" alt=\"{}\" />",
+        escape_html_attribute(&source),
         escape_html_attribute(attachment_id),
         escape_html_attribute(alt)
     )

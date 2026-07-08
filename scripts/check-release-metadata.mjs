@@ -10,7 +10,8 @@ import {
   readOption as readOptionFrom,
   readReleaseConstants,
   readWorkspaceCargoVersion,
-  validateSemver
+  releaseNotesContainPlaceholder,
+  validateStableSemver
 } from './command-utils.mjs';
 
 const args = process.argv.slice(2);
@@ -37,8 +38,8 @@ const cargoToml = await readFile('Cargo.toml', 'utf-8');
 const cargoLock = await readFile('Cargo.lock', 'utf-8');
 const cargoVersion = readWorkspaceCargoVersion(cargoToml);
 
-if (!validateSemver(packageJson.version)) {
-  throw new Error(`package.json version must be semver-compatible, got ${packageJson.version}`);
+if (!validateStableSemver(packageJson.version)) {
+  throw new Error(`package.json version must be a stable semver release (X.Y.Z), got ${packageJson.version}`);
 }
 
 if (!cargoVersion) {
@@ -136,6 +137,10 @@ const release = findChangelogRelease(changelog, tag);
 
 if (!release?.notes) {
   throw new Error(`CHANGELOG.md must contain a non-empty section headed "## ${tag} - YYYY-MM-DD"`);
+}
+
+if (releaseNotesContainPlaceholder(release.notes)) {
+  throw new Error(`CHANGELOG.md section "## ${tag} - YYYY-MM-DD" must replace the release TODO placeholder with real notes`);
 }
 
 const metainfoPath = `build/linux/${releaseConstants.bundleId}.metainfo.xml`;

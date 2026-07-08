@@ -18,6 +18,16 @@
     <category>ProjectManagement</category>
   </categories>
   <releases>
+    <release version="0.7.6" date="2026-07-08">
+      <description>
+        <ul>
+          <li>Preserve dirty Draft and Finding edits and materialize inline images through managed attachments before persistence.</li>
+          <li>Validate generated managed image references and cap custom Testware instructions before AI prompts and metadata are built.</li>
+          <li>Tighten release validation, Tauri command permissions, Rust dependency auditing, and Windows provider-process cleanup.</li>
+          <li>Improve Settings accessibility, CSS token checks, and production frontend bundle splitting.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.7.5" date="2026-07-08">
       <description>
         <ul>

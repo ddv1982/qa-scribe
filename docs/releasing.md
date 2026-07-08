@@ -7,6 +7,11 @@ frontend install/build/test path; Node is used for repository release scripts.
 
 ## Version And Tag
 
+The stable release workflow accepts only stable SemVer versions and tags in the
+`X.Y.Z` / `vX.Y.Z` shape. Prerelease or build-metadata versions such as
+`1.0.0-beta.1` and `1.0.0+build.1` are rejected instead of being published as
+stable/latest artifacts.
+
 Bump the version with the single write-path script instead of hand-editing
 files. It updates `package.json`, `frontend/package.json`, `Cargo.toml`
 (`[workspace.package]`), `Cargo.lock` (the `qa-scribe-app`/`qa-scribe-core`/

@@ -1,6 +1,6 @@
 {
   "name": "qa-scribe",
-  "version": "0.7.5",
+  "version": "0.7.6",
   "description": "Local-first desktop testing notepad for turning testing sessions into structured testware.",
   "desktopName": "qa-scribe.desktop",
   "homepage": "https://github.com/ddv1982/qa-scribe",
@@ -17,6 +17,7 @@
     "frontend:lint": "bun run --cwd frontend lint",
     "frontend:test": "bun run --cwd frontend test",
     "frontend:typecheck": "bun run --cwd frontend typecheck",
+    "rust:audit": "cargo audit --deny warnings --ignore RUSTSEC-2024-0370 --ignore RUSTSEC-2024-0411 --ignore RUSTSEC-2024-0412 --ignore RUSTSEC-2024-0413 --ignore RUSTSEC-2024-0414 --ignore RUSTSEC-2024-0415 --ignore RUSTSEC-2024-0416 --ignore RUSTSEC-2024-0417 --ignore RUSTSEC-2024-0418 --ignore RUSTSEC-2024-0419 --ignore RUSTSEC-2024-0420 --ignore RUSTSEC-2024-0429 --ignore RUSTSEC-2024-0436 --ignore RUSTSEC-2025-0075 --ignore RUSTSEC-2025-0080 --ignore RUSTSEC-2025-0081 --ignore RUSTSEC-2025-0098 --ignore RUSTSEC-2025-0100 --ignore RUSTSEC-2026-0190 --ignore RUSTSEC-2026-0194 --ignore RUSTSEC-2026-0195",
     "fmt": "cargo fmt --all --check",
     "bindings:generate": "cd src-tauri && UPDATE_BINDINGS=1 cargo test --bin qa-scribe-tauri bindings_are_up_to_date",
     "bindings:check": "cd src-tauri && cargo test --bin qa-scribe-tauri bindings_are_up_to_date",
@@ -33,11 +34,12 @@
     "linux:package-manager:check": "node scripts/package-tauri-linux.mjs && bun run linux:metadata:check -- --skip-external-tools && bun run apt:repo:check && bun run apt:installer:check",
     "apt:repo:check": "node scripts/check-apt-repository.mjs",
     "apt:installer:check": "node scripts/check-apt-installer.mjs",
-    "release:check": "node scripts/check-release-metadata.mjs && bun run linux:metadata:test",
+    "release:script-tests": "node --test scripts/*.test.mjs",
+    "release:check": "node scripts/check-release-metadata.mjs && bun run linux:metadata:test && bun run release:script-tests",
     "bump": "node scripts/bump-version.mjs",
     "bump:test": "node --test scripts/bump-version.test.mjs",
     "smoke": "cargo run -p qa-scribe-app",
-    "package:check": "node -e \"for (const file of ['package.json','frontend/package.json','frontend/tsconfig.json','frontend/tsconfig.node.json','src-tauri/tauri.conf.json','src-tauri/tauri.linux.conf.json']) JSON.parse(require('fs').readFileSync(file,'utf8'))\"",
+    "package:check": "node -e \"for (const file of ['package.json','frontend/package.json','frontend/tsconfig.json','frontend/tsconfig.node.json','src-tauri/tauri.conf.json','src-tauri/tauri.linux.conf.json','src-tauri/capabilities/default.json']) JSON.parse(require('fs').readFileSync(file,'utf8'))\"",
     "verify": "bun run frontend:audit && bun run frontend:check && bun run frontend:test && bun run release:check && bun run frontend:build && bash scripts/check-tauri-prebuilt-frontend.sh && bun run bindings:check && cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace && cargo build --workspace && cargo run -p qa-scribe-app",
     "verify:fast": "bun run frontend:check && bun run frontend:test && node scripts/ensure-frontend-dist.mjs && cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings"
   }

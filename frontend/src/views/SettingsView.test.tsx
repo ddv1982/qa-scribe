@@ -86,6 +86,14 @@ describe('SettingsView AI defaults', () => {
     expect(screen.getByRole('button', { name: /model/i })).toBeDisabled()
     expect(screen.getByLabelText('Reasoning')).toBeDisabled()
   })
+
+  it('labels the global AI instructions textarea', () => {
+    renderSettingsView()
+
+    const textarea = screen.getByRole('textbox', { name: 'Global AI instructions' })
+
+    expect(textarea).toHaveAccessibleDescription(/Keep these neutral across summaries, findings, and testware/i)
+  })
 })
 
 function renderSettingsView({

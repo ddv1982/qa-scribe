@@ -137,7 +137,7 @@
 }
 
 .field-stack span {
-  color: var(--text-muted);
+  color: var(--text-secondary);
   font-size: var(--font-size-xs);
   font-weight: 600;
   letter-spacing: 0.08em;

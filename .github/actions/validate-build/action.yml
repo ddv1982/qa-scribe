@@ -47,6 +47,10 @@ runs:
       shell: bash
       run: bun run linux:metadata:test
 
+    - name: Run release script tests
+      shell: bash
+      run: bun run release:script-tests
+
     - name: Build frontend
       shell: bash
       run: bun run frontend:build
@@ -62,6 +66,14 @@ runs:
     - name: Check Rust formatting
       shell: bash
       run: cargo fmt --all --check
+
+    - name: Install cargo-audit
+      shell: bash
+      run: cargo install cargo-audit --locked
+
+    - name: Audit Rust dependencies
+      shell: bash
+      run: bun run rust:audit
 
     - name: Run Rust tests
       shell: bash

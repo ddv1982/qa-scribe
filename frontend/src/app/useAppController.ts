@@ -185,7 +185,7 @@ export function useAppController() {
     const loaded = await listDrafts(sessionId)
     if (recordLoadVersionRef.current !== loadVersion || activeSessionIdRef.current !== sessionId) return draftsRef.current
 
-    const nextDrafts = replace ? loaded : mergeRecordLists(loaded, draftsRef.current, sessionId)
+    const nextDrafts = mergeRecordLists(loaded, draftsRef.current, sessionId, { dirtyIds: dirtyDraftIdsRef.current, replace })
     draftsSessionIdRef.current = sessionId
     draftsRef.current = nextDrafts
     setDrafts(nextDrafts)
@@ -201,7 +201,7 @@ export function useAppController() {
     const loaded = await listFindings(sessionId)
     if (recordLoadVersionRef.current !== loadVersion || activeSessionIdRef.current !== sessionId) return findingsRef.current
 
-    const nextFindings = replace ? loaded : mergeRecordLists(loaded, findingsRef.current, sessionId)
+    const nextFindings = mergeRecordLists(loaded, findingsRef.current, sessionId, { dirtyIds: dirtyFindingIdsRef.current, replace })
     findingsSessionIdRef.current = sessionId
     findingsRef.current = nextFindings
     setFindings(nextFindings)
@@ -267,11 +267,18 @@ export function useAppController() {
   )
   // eslint-disable-next-line react-hooks/refs -- factories only close over refs; .current reads happen later in event handlers/effects.
   const generationActions = createGenerationActions(workflowContext, sessionActions.saveNoteNow)
-  // eslint-disable-next-line react-hooks/refs -- factories only close over refs; .current reads happen later in event handlers/effects.
-  const recordActions = createRecordActions(workflowContext, sessionActions.saveNoteNow, sessionActions.handleDeleteSession, {
-    loadDraftsForSession,
-    loadFindingsForSession,
-  })
+  /* eslint-disable react-hooks/refs -- factories only close over refs; .current reads happen later in event handlers/effects. */
+  const recordActions = createRecordActions(
+    workflowContext,
+    sessionActions.saveNoteNow,
+    sessionActions.handleDeleteSession,
+    attachmentActions.materializeInlineImages,
+    {
+      loadDraftsForSession,
+      loadFindingsForSession,
+    },
+  )
+  /* eslint-enable react-hooks/refs */
   // eslint-disable-next-line react-hooks/refs -- factories only close over refs; .current reads happen later in event handlers/effects.
   const copyActions = createCopyActions(workflowContext)
 
@@ -553,8 +560,18 @@ export function useAppController() {
 
 export type AppController = ReturnType<typeof useAppController>
 
-function mergeRecordLists<T extends { id: string; sessionId: string }>(loaded: T[], previous: T[], sessionId: string): T[] {
+export function mergeRecordLists<T extends { id: string; sessionId: string }>(
+  loaded: T[],
+  previous: T[],
+  sessionId: string,
+  options: { dirtyIds?: Set<string>; replace?: boolean } = {},
+): T[] {
   const loadedIds = new Set(loaded.map((record) => record.id))
-  const localOnly = previous.filter((record) => record.sessionId === sessionId && !loadedIds.has(record.id))
-  return [...localOnly, ...loaded]
+  const dirtyRecords = new Map(
+    previous.filter((record) => record.sessionId === sessionId && options.dirtyIds?.has(record.id)).map((record) => [record.id, record]),
+  )
+  const localOnly = previous.filter(
+    (record) => record.sessionId === sessionId && !loadedIds.has(record.id) && (!options.replace || options.dirtyIds?.has(record.id)),
+  )
+  return [...localOnly, ...loaded.map((record) => dirtyRecords.get(record.id) ?? record)]
 }

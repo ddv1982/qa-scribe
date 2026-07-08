@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.7.6 - 2026-07-08
+
+- Preserve dirty Draft and Finding edits during Session refreshes and make Note, Draft, and Finding inline image saves materialize through managed attachments before persistence.
+- Harden generated Testware and Findings by validating managed image references, dropping malformed attachment IDs, and capping custom Testware instructions before prompts and metadata are built.
+- Tighten release and desktop validation with stable-only release metadata checks, placeholder changelog rejection, explicit Tauri command permissions, Rust dependency auditing, and Windows provider-process tree cleanup.
+- Polish Settings accessibility, enforce CSS token resolution, and split frontend bundles so production builds no longer warn about an oversized app chunk.
+
 ## v0.7.5 - 2026-07-08
 
 - Preserve pending Note, Draft, and Finding edits across Session switches, new Session creation, and desktop window close.

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-create-finding"
+description = "Enables the create_finding command without any pre-configured scope."
+commands.allow = ["create_finding"]
+
+[[permission]]
+identifier = "deny-create-finding"
+description = "Denies the create_finding command without any pre-configured scope."
+commands.deny = ["create_finding"]

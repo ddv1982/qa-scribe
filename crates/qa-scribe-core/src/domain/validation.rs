@@ -4,6 +4,7 @@ pub const TEXT_BODY_MAX_LENGTH: usize = 100_000;
 pub const METADATA_JSON_MAX_LENGTH: usize = 20_000;
 pub const DRAFT_BODY_MAX_LENGTH: usize = 250_000;
 pub const RICH_BODY_JSON_MAX_LENGTH: usize = 500_000;
+pub const TESTWARE_CUSTOM_INSTRUCTIONS_MAX_LENGTH: usize = 4_000;
 
 /// Maximum length for a title: Sessions, Findings, Drafts, and Entries all
 /// share this limit.

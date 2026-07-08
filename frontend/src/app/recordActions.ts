@@ -12,7 +12,9 @@ import {
 import {
   emptyRichEditorDocument,
   richEditorDocumentFromHtml,
+  richEditorDocumentFromStoredBody,
   richEditorDocumentToStoredBody,
+  type StoredRichBody,
   type RichEditorDocument,
 } from '../editor/editorDocument'
 import { formatError, nextUntitledRecordTitle } from '../ui/format'
@@ -25,10 +27,16 @@ type RecordLoaders = {
   loadFindingsForSession: (sessionId: string, options?: { force?: boolean; replace?: boolean }) => Promise<Finding[]>
 }
 
+type InlineImageMaterializer = (
+  document: RichEditorDocument,
+  options?: { entryId?: string | null; updateNoteBody?: boolean },
+) => Promise<RichEditorDocument>
+
 export function createRecordActions(
   ctx: AppWorkflowContext,
   saveNoteNow: (options?: { manageBusy?: boolean }) => Promise<boolean>,
   handleDeleteSession: (session: Session) => Promise<void>,
+  materializeInlineImages: InlineImageMaterializer,
   loaders: RecordLoaders,
 ) {
   async function createRecordFromNote(
@@ -129,7 +137,10 @@ export function createRecordActions(
   async function persistDraft(draft: Draft): Promise<boolean> {
     try {
       ctx.setError(null)
-      const saved = await updateDraft(draft.id, { title: draft.title, body: draft.body, bodyJson: draft.bodyJson, bodyFormat: draft.bodyFormat })
+      const storedBody = await materializeRecordBody(draft, materializeInlineImages)
+      const saved = await updateDraft(draft.id, { title: draft.title, ...storedBody })
+      const current = ctx.draftsRef.current.find((item) => item.id === draft.id)
+      if (!current || !draftEditableFieldsMatch(current, draft)) return false
       ctx.dirtyDraftIdsRef.current.delete(saved.id)
       if (ctx.activeSessionIdRef.current === saved.sessionId) {
         ctx.setDrafts((previous) => {
@@ -168,14 +179,15 @@ export function createRecordActions(
   async function persistFinding(finding: Finding): Promise<boolean> {
     try {
       ctx.setError(null)
+      const storedBody = await materializeRecordBody(finding, materializeInlineImages)
       const saved = await updateFinding(finding.id, {
         title: finding.title,
-        body: finding.body,
-        bodyJson: finding.bodyJson,
-        bodyFormat: finding.bodyFormat,
+        ...storedBody,
         kind: finding.kind,
         metadataJson: finding.metadataJson,
       })
+      const current = ctx.findingsRef.current.find((item) => item.id === finding.id)
+      if (!current || !findingEditableFieldsMatch(current, finding)) return false
       ctx.dirtyFindingIdsRef.current.delete(saved.id)
       if (ctx.activeSessionIdRef.current === saved.sessionId) {
         ctx.setFindings((previous) => {
@@ -293,4 +305,33 @@ export function createRecordActions(
     updateLocalDraft,
     updateLocalFinding,
   }
+}
+
+export async function materializeRecordBody(
+  record: StoredRichBody,
+  materializeInlineImages: InlineImageMaterializer,
+): Promise<StoredRichBody> {
+  const document = richEditorDocumentFromStoredBody(record)
+  const materialized = await materializeInlineImages(document, { entryId: null })
+  return richEditorDocumentToStoredBody(materialized)
+}
+
+function draftEditableFieldsMatch(left: Draft, right: Draft): boolean {
+  return (
+    left.title === right.title &&
+    left.body === right.body &&
+    left.bodyJson === right.bodyJson &&
+    left.bodyFormat === right.bodyFormat
+  )
+}
+
+function findingEditableFieldsMatch(left: Finding, right: Finding): boolean {
+  return (
+    left.title === right.title &&
+    left.body === right.body &&
+    left.bodyJson === right.bodyJson &&
+    left.bodyFormat === right.bodyFormat &&
+    left.kind === right.kind &&
+    left.metadataJson === right.metadataJson
+  )
 }
