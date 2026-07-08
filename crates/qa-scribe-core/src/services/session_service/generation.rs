@@ -1,15 +1,18 @@
-use rusqlite::{OptionalExtension, params};
+use rusqlite::{Connection, OptionalExtension, Transaction, params};
 use std::time::Instant;
 
 use crate::{
     QaScribeError, Result,
     domain::{
-        AiRun, AiRunCreate, GenerationContext, validate_optional_text, validate_required_text,
+        AiRun, AiRunCreate, BODY_FORMAT_MAX_LENGTH, DRAFT_BODY_MAX_LENGTH, Draft, DraftCreate,
+        Entry, EntryPatch, Finding, FindingDraft, GenerationContext, TEXT_BODY_MAX_LENGTH,
+        TITLE_MAX_LENGTH, validate_body_json, validate_body_text, validate_metadata_json,
+        validate_optional_text, validate_required_text,
     },
     error::validation,
 };
 
-use super::super::session_rows::map_ai_run;
+use super::super::session_rows::{map_ai_run, map_draft, map_entry, map_finding};
 use super::{SessionService, new_id, now, require_row_in_session, require_session};
 
 impl SessionService {
@@ -175,6 +178,207 @@ impl SessionService {
             .ok_or_else(|| QaScribeError::NotFound(id.to_string()))
     }
 
+    pub fn complete_ai_run_with_generated_draft(
+        &self,
+        ai_run_id: &str,
+        draft: DraftCreate,
+    ) -> Result<(AiRun, Draft)> {
+        let now = now();
+        self.database.with_immediate_tx(|tx| {
+            require_session(tx, &draft.session_id)?;
+            require_row_in_session(
+                tx,
+                "ai_runs",
+                ai_run_id,
+                &draft.session_id,
+                "Draft AI Run must belong to the Session",
+            )?;
+
+            let draft_id = new_id();
+            let title = validate_required_text("Draft title", &draft.title, TITLE_MAX_LENGTH)?;
+            let body = validate_body_text("Draft body", &draft.body, DRAFT_BODY_MAX_LENGTH)?;
+            let body_json = validate_body_json(draft.body_json)?;
+            let body_format = validate_optional_text(
+                "Draft body format",
+                draft.body_format,
+                BODY_FORMAT_MAX_LENGTH,
+            )?;
+            let metadata_json = validate_metadata_json(draft.metadata_json)?;
+
+            tx.execute(
+                "INSERT INTO drafts (id, session_id, ai_run_id, kind, title, body, body_json, body_format, metadata_json, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, COALESCE(?8, 'html'), ?9, ?10, ?10)",
+                params![
+                    draft_id,
+                    draft.session_id,
+                    ai_run_id,
+                    draft.kind.as_str(),
+                    title,
+                    body,
+                    body_json,
+                    body_format,
+                    metadata_json,
+                    now,
+                ],
+            )?;
+
+            let ai_run = complete_running_ai_run_tx(tx, ai_run_id, &now)?;
+            let draft = draft_by_id(tx, &draft_id)?.ok_or(QaScribeError::NotFound(draft_id))?;
+            Ok((ai_run, draft))
+        })
+    }
+
+    pub fn complete_ai_run_with_generated_finding(
+        &self,
+        ai_run_id: &str,
+        draft: FindingDraft,
+        selected_note_id: Option<&str>,
+        attachment_ids: &[String],
+    ) -> Result<(AiRun, Finding)> {
+        let now = now();
+        self.database.with_immediate_tx(|tx| {
+            require_session(tx, &draft.session_id)?;
+            require_row_in_session(
+                tx,
+                "ai_runs",
+                ai_run_id,
+                &draft.session_id,
+                "Finding AI Run must belong to the Session",
+            )?;
+            if let Some(entry_id) = selected_note_id {
+                require_row_in_session(
+                    tx,
+                    "entries",
+                    entry_id,
+                    &draft.session_id,
+                    "Generated Finding evidence Entry must belong to the Session",
+                )?;
+            }
+            for attachment_id in attachment_ids {
+                require_row_in_session(
+                    tx,
+                    "attachments",
+                    attachment_id,
+                    &draft.session_id,
+                    "Generated Finding evidence attachment must belong to the Session",
+                )?;
+            }
+
+            let finding_id = new_id();
+            let title = validate_required_text("Finding title", &draft.title, TITLE_MAX_LENGTH)?;
+            let body = validate_body_text("Finding body", &draft.body, TEXT_BODY_MAX_LENGTH)?;
+            let body_json = validate_body_json(draft.body_json)?;
+            let body_format = validate_optional_text(
+                "Finding body format",
+                draft.body_format,
+                BODY_FORMAT_MAX_LENGTH,
+            )?;
+            let metadata_json = validate_metadata_json(draft.metadata_json)?;
+
+            tx.execute(
+                "INSERT INTO findings (id, session_id, title, body, body_json, body_format, kind, metadata_json, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, COALESCE(?6, 'html'), ?7, ?8, ?9, ?9)",
+                params![
+                    finding_id,
+                    draft.session_id,
+                    title,
+                    body,
+                    body_json,
+                    body_format,
+                    draft.kind.as_str(),
+                    metadata_json,
+                    now,
+                ],
+            )?;
+
+            if let Some(entry_id) = selected_note_id {
+                tx.execute(
+                    "INSERT INTO evidence_links (id, finding_id, entry_id, attachment_id, created_at)
+                     VALUES (?1, ?2, ?3, NULL, ?4)",
+                    params![new_id(), finding_id, entry_id, now],
+                )?;
+            }
+            for attachment_id in attachment_ids {
+                tx.execute(
+                    "INSERT INTO evidence_links (id, finding_id, entry_id, attachment_id, created_at)
+                     VALUES (?1, ?2, NULL, ?3, ?4)",
+                    params![new_id(), finding_id, attachment_id, now],
+                )?;
+            }
+
+            let ai_run = complete_running_ai_run_tx(tx, ai_run_id, &now)?;
+            let finding = finding_by_id(tx, &finding_id)?.ok_or(QaScribeError::NotFound(finding_id))?;
+            Ok((ai_run, finding))
+        })
+    }
+
+    pub fn complete_ai_run_with_generated_note_update(
+        &self,
+        ai_run_id: &str,
+        entry_id: &str,
+        expected_body: &str,
+        patch: EntryPatch,
+    ) -> Result<(AiRun, Entry)> {
+        let now = now();
+        self.database.with_immediate_tx(|tx| {
+            let existing = entry_by_id(tx, entry_id)?
+                .ok_or_else(|| QaScribeError::NotFound(entry_id.to_string()))?;
+            require_row_in_session(
+                tx,
+                "ai_runs",
+                ai_run_id,
+                &existing.session_id,
+                "Summary AI Run must belong to the Session",
+            )?;
+            if existing.body != expected_body {
+                return Err(QaScribeError::Validation(
+                    "Selected Note changed while generation was running. Review the latest Note and run the summary again."
+                        .to_string(),
+                ));
+            }
+
+            let title = match patch.title {
+                Some(title) => validate_optional_text("Entry title", title, TITLE_MAX_LENGTH)?,
+                None => existing.title,
+            };
+            let body = match patch.body {
+                Some(body) => validate_body_text("Entry body", &body, TEXT_BODY_MAX_LENGTH)?,
+                None => existing.body,
+            };
+            let body_json = match patch.body_json {
+                Some(body_json) => validate_body_json(body_json)?,
+                None => existing.body_json,
+            };
+            let body_format = match patch.body_format {
+                Some(body_format) => validate_optional_text(
+                    "Entry body format",
+                    body_format,
+                    BODY_FORMAT_MAX_LENGTH,
+                )?,
+                None => existing.body_format,
+            };
+            let metadata_json = match patch.metadata_json {
+                Some(metadata_json) => validate_metadata_json(metadata_json)?,
+                None => existing.metadata_json,
+            };
+            let excluded = patch
+                .excluded_from_generation
+                .unwrap_or(existing.excluded_from_generation);
+
+            tx.execute(
+                "UPDATE entries
+                 SET title = ?1, body = ?2, body_json = ?3, body_format = COALESCE(?4, 'html'), metadata_json = ?5, excluded_from_generation = ?6, updated_at = ?7
+                 WHERE id = ?8",
+                params![title, body, body_json, body_format, metadata_json, excluded, now, entry_id],
+            )?;
+
+            let ai_run = complete_running_ai_run_tx(tx, ai_run_id, &now)?;
+            let entry = entry_by_id(tx, entry_id)?
+                .ok_or_else(|| QaScribeError::NotFound(entry_id.to_string()))?;
+            Ok((ai_run, entry))
+        })
+    }
+
     pub fn fail_ai_run(&self, id: &str, message: &str) -> Result<AiRun> {
         let now = now();
         let error_message = normalize_ai_run_error_message(message);
@@ -221,10 +425,7 @@ impl SessionService {
     /// AI Run exists but is not running" (Validation), matching how the rest
     /// of the service reports failed state transitions.
     fn ai_run_transition_error(&self, id: &str) -> Result<QaScribeError> {
-        match self.ai_run(id)? {
-            Some(_) => Ok(validation("AI Run is not running")),
-            None => Ok(QaScribeError::NotFound(id.to_string())),
-        }
+        ai_run_transition_error_on(self.database.connection(), id)
     }
 
     fn ai_run(&self, id: &str) -> Result<Option<AiRun>> {
@@ -241,6 +442,79 @@ impl SessionService {
             .optional()
             .map_err(Into::into)
     }
+}
+
+fn complete_running_ai_run_tx(tx: &Transaction<'_>, id: &str, now: &str) -> Result<AiRun> {
+    let changed = tx.execute(
+        "UPDATE ai_runs
+         SET status = 'completed', error_message = NULL, completed_at = ?1
+         WHERE id = ?2 AND status = 'running'",
+        params![now, id],
+    )?;
+    if changed == 0 {
+        return Err(ai_run_transition_error_on(tx, id)?);
+    }
+    ai_run_by_id(tx, id)?.ok_or_else(|| QaScribeError::NotFound(id.to_string()))
+}
+
+fn ai_run_transition_error_on(connection: &Connection, id: &str) -> Result<QaScribeError> {
+    match ai_run_by_id(connection, id)? {
+        Some(_) => Ok(validation("AI Run is not running")),
+        None => Ok(QaScribeError::NotFound(id.to_string())),
+    }
+}
+
+fn ai_run_by_id(connection: &Connection, id: &str) -> Result<Option<AiRun>> {
+    connection
+        .query_row(
+            "SELECT id, session_id, generation_context_id, provider, model, reasoning_effort,
+                prompt_version, status, error_message, created_at, completed_at
+             FROM ai_runs
+             WHERE id = ?1",
+            [id],
+            map_ai_run,
+        )
+        .optional()
+        .map_err(Into::into)
+}
+
+fn draft_by_id(connection: &Connection, id: &str) -> Result<Option<Draft>> {
+    connection
+        .query_row(
+            "SELECT id, session_id, ai_run_id, kind, title, body, body_json, body_format, metadata_json, created_at, updated_at
+             FROM drafts
+             WHERE id = ?1",
+            [id],
+            map_draft,
+        )
+        .optional()
+        .map_err(Into::into)
+}
+
+fn finding_by_id(connection: &Connection, id: &str) -> Result<Option<Finding>> {
+    connection
+        .query_row(
+            "SELECT id, session_id, title, body, body_json, body_format, kind, metadata_json, created_at, updated_at
+             FROM findings
+             WHERE id = ?1",
+            [id],
+            map_finding,
+        )
+        .optional()
+        .map_err(Into::into)
+}
+
+fn entry_by_id(connection: &Connection, id: &str) -> Result<Option<Entry>> {
+    connection
+        .query_row(
+            "SELECT id, session_id, type, title, body, body_json, body_format, metadata_json, excluded_from_generation, created_at, updated_at
+             FROM entries
+             WHERE id = ?1",
+            [id],
+            map_entry,
+        )
+        .optional()
+        .map_err(Into::into)
 }
 
 /// Maximum length (in bytes, on a char boundary) for a stored AI Run error message.

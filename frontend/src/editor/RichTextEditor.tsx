@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
+import { useEffect, useId, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { EditorContent, useEditor, type Editor } from '@tiptap/react'
 import { Bold, ImageIcon, Italic, Link2, List, ListChecks, type LucideIcon } from 'lucide-react'
 import { isSafeEditorLinkUrl, managedAttachmentProtocol, hydrateManagedAttachmentPreviews } from './editorHtml'
@@ -21,6 +21,7 @@ type FormatToolbarProps = {
 }
 
 export function FormatToolbar({ editorId, onUploadImage }: FormatToolbarProps) {
+  const generatedId = useId()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const uploadInserterRef = useRef<RichEditorImageInserter | null>(null)
   const linkInputRef = useRef<HTMLInputElement | null>(null)
@@ -28,6 +29,7 @@ export function FormatToolbar({ editorId, onUploadImage }: FormatToolbarProps) {
   const editor = controller?.editor ?? null
   const disabled = !editor || Boolean(controller?.readOnly)
   const blockValue = editor?.isActive('heading', { level: 2 }) ? 'h2' : editor?.isActive('heading', { level: 3 }) ? 'h3' : 'p'
+  const linkErrorId = `${editorId ?? generatedId}-link-error`
 
   // Inline link editor. `window.prompt`/`window.alert` are no-ops on macOS wry
   // (WKWebView returns null without a WKUIDelegate), so we edit links in an
@@ -85,10 +87,11 @@ export function FormatToolbar({ editorId, onUploadImage }: FormatToolbarProps) {
   }
 
   return (
-    <div className="format-toolbar" aria-label="Formatting toolbar">
+    <div className="format-toolbar" role="toolbar" aria-label="Formatting toolbar">
       <select
         value={blockValue}
         aria-label="Block style"
+        aria-controls={editorId}
         disabled={disabled}
         onChange={(event) => {
           setBlockStyle(editor, event.target.value)
@@ -98,14 +101,15 @@ export function FormatToolbar({ editorId, onUploadImage }: FormatToolbarProps) {
         <option value="h2">Heading</option>
         <option value="h3">Subheading</option>
       </select>
-      <span className="toolbar-divider" />
-      <ToolbarButton label="Bold" icon={Bold} active={editor?.isActive('bold')} disabled={disabled} command={() => editor?.chain().focus().toggleBold().run()} />
-      <ToolbarButton label="Italic" icon={Italic} active={editor?.isActive('italic')} disabled={disabled} command={() => editor?.chain().focus().toggleItalic().run()} />
+      <span className="toolbar-divider" aria-hidden="true" />
+      <ToolbarButton label="Bold" icon={Bold} active={editor?.isActive('bold')} disabled={disabled} controlsId={editorId} command={() => editor?.chain().focus().toggleBold().run()} />
+      <ToolbarButton label="Italic" icon={Italic} active={editor?.isActive('italic')} disabled={disabled} controlsId={editorId} command={() => editor?.chain().focus().toggleItalic().run()} />
       <ToolbarButton
         label="Bulleted list"
         icon={List}
         active={editor?.isActive('bulletList')}
         disabled={disabled}
+        controlsId={editorId}
         command={() => editor?.chain().focus().toggleBulletList().run()}
       />
       <ToolbarButton
@@ -113,21 +117,24 @@ export function FormatToolbar({ editorId, onUploadImage }: FormatToolbarProps) {
         icon={ListChecks}
         active={editor?.isActive('taskList')}
         disabled={disabled}
+        controlsId={editorId}
         command={() => editor?.chain().focus().toggleTaskList().run()}
       />
-      <ToolbarButton label="Link" icon={Link2} active={editor?.isActive('link')} disabled={disabled} command={openLinkEditor} />
-      <ToolbarButton label="Upload image" icon={ImageIcon} command={requestImageUpload} disabled={disabled || !onUploadImage} />
+      <ToolbarButton label="Link" icon={Link2} active={editor?.isActive('link')} disabled={disabled} controlsId={editorId} command={openLinkEditor} />
+      <ToolbarButton label="Upload image" icon={ImageIcon} command={requestImageUpload} disabled={disabled || !onUploadImage} controlsId={editorId} />
       <input ref={fileInputRef} className="toolbar-file-input" type="file" accept="image/*" aria-label="Upload image file" onChange={handleImageSelected} />
       {linkPopover ? (
-        <form className="link-editor-popover" onSubmit={submitLinkEditor}>
+        <form className="link-editor-popover" aria-label="Edit link" onSubmit={submitLinkEditor}>
           <input
             ref={linkInputRef}
             className="link-editor-input"
             type="text"
+            inputMode="url"
             value={linkPopover.value}
             placeholder="https://example.com — leave blank to remove"
             aria-label="Link URL"
             aria-invalid={linkPopover.error ? true : undefined}
+            aria-describedby={linkPopover.error ? linkErrorId : undefined}
             onChange={(event) => setLinkPopover({ value: event.target.value, error: null })}
             onKeyDown={(event) => {
               if (event.key === 'Escape') {
@@ -140,7 +147,7 @@ export function FormatToolbar({ editorId, onUploadImage }: FormatToolbarProps) {
             Apply
           </button>
           {linkPopover.error ? (
-            <p className="link-editor-error" role="alert">
+            <p id={linkErrorId} className="link-editor-error" role="alert">
               {linkPopover.error}
             </p>
           ) : null}
@@ -246,7 +253,7 @@ export function RichTextEditor({
   }, [editor, editorId, readOnly])
 
   if (!editor) {
-    return <div id={editorId} className={['rich-editor', className].filter(Boolean).join(' ')} role="textbox" aria-label={ariaLabel} data-placeholder={placeholder} />
+    return <div id={editorId} className={['rich-editor', className].filter(Boolean).join(' ')} role="textbox" aria-label={ariaLabel} aria-multiline="true" data-placeholder={placeholder} />
   }
 
   return <EditorContent editor={editor} />
@@ -258,15 +265,17 @@ function ToolbarButton({
   command,
   active = false,
   disabled = false,
+  controlsId,
 }: {
   label: string
   icon: LucideIcon
   command: () => void
   active?: boolean
   disabled?: boolean
+  controlsId?: string
 }) {
   return (
-    <button className="toolbar-button" type="button" aria-label={label} title={label} disabled={disabled} aria-pressed={active} onClick={command}>
+    <button className="toolbar-button" type="button" aria-label={label} title={label} disabled={disabled} aria-pressed={active} aria-controls={controlsId} onClick={command}>
       <Icon size={16} />
     </button>
   )
@@ -302,6 +311,7 @@ function editorAttributes({
     class: ['rich-editor', className].filter(Boolean).join(' '),
     role: 'textbox',
     'aria-label': ariaLabel,
+    'aria-multiline': 'true',
     'data-placeholder': placeholder,
     spellcheck: String(!readOnly),
   }

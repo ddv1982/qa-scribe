@@ -8,7 +8,10 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::provider_command::{ProviderPathMode, apply_provider_path, provider_executable_path};
+use crate::{
+    process_io::{configure_process_group, kill_child_group},
+    provider_command::{ProviderPathMode, apply_provider_path, provider_executable_path},
+};
 
 const PROVIDER_PROBE_TIMEOUT: Duration = Duration::from_secs(4);
 static PROVIDER_PROBE_OUTPUT_COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -83,6 +86,7 @@ pub(super) fn run_command_with_timeout(
     let output_id = PROVIDER_PROBE_OUTPUT_COUNTER.fetch_add(1, Ordering::Relaxed);
     let output_files = ProbeOutputFiles::new(output_id);
     let (stdout, stderr) = output_files.create()?;
+    configure_process_group(&mut command);
     let mut child = command
         .stdout(Stdio::from(stdout))
         .stderr(Stdio::from(stderr))
@@ -101,7 +105,7 @@ pub(super) fn run_command_with_timeout(
         }
 
         if started_at.elapsed() >= timeout {
-            let _ = child.kill();
+            kill_child_group(&mut child);
             let _ = child.wait();
             return Err(std::io::Error::new(
                 ErrorKind::TimedOut,

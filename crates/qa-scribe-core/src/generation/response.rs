@@ -9,6 +9,9 @@ const EDITOR_HTML_TAGS: &[&str] = &[
     "a", "b", "br", "em", "h2", "h3", "i", "img", "input", "li", "ol", "p", "strong", "ul",
 ];
 const SELF_CLOSING_EDITOR_HTML_TAGS: &[&str] = &["br", "img", "input"];
+const REMOVED_EDITOR_HTML_TAGS: &[&str] = &[
+    "embed", "form", "iframe", "math", "meta", "object", "script", "style", "svg", "template",
+];
 
 /// [`EDITOR_HTML_TAGS`] as an owned `Vec<String>`, for exporting as a typed
 /// bindings constant (see `specta_bindings::builder`). The frontend's
@@ -92,6 +95,10 @@ pub fn parse_rich_html_fragment_response(response: &str, marker: &OutputMarker) 
     let unwrapped = extract_sentinel_fragment(response, marker);
     let stripped = strip_response_fence(unwrapped);
     repair_escaped_editor_html(&stripped)
+}
+
+pub fn sanitize_generated_rich_html(value: &str) -> String {
+    sanitize_editor_html_fragment(value).trim().to_string()
 }
 
 /// The prompt asks the model to wrap its fragment in this generation's
@@ -246,6 +253,223 @@ fn repair_escaped_editor_html(value: &str) -> String {
     } else {
         trimmed.to_string()
     }
+}
+
+fn sanitize_editor_html_fragment(value: &str) -> String {
+    let mut output = String::with_capacity(value.len());
+    let mut index = 0usize;
+
+    while let Some(relative_start) = value[index..].find('<') {
+        let tag_start = index + relative_start;
+        output.push_str(&value[index..tag_start]);
+
+        if value[tag_start..].starts_with("<!--") {
+            if let Some(relative_end) = value[tag_start + 4..].find("-->") {
+                index = tag_start + 4 + relative_end + 3;
+            } else {
+                break;
+            }
+            continue;
+        }
+
+        let Some(relative_end) = value[tag_start..].find('>') else {
+            output.push_str("&lt;");
+            index = tag_start + 1;
+            continue;
+        };
+        let tag_end = tag_start + relative_end;
+        let raw_tag = &value[tag_start + 1..tag_end];
+        match sanitize_editor_tag(raw_tag) {
+            SanitizedTag::Keep(html) => output.push_str(&html),
+            SanitizedTag::SkipTag => {}
+            SanitizedTag::SkipElement(tag_name) => {
+                if let Some(after_close) = find_closing_tag_end(value, tag_end + 1, &tag_name) {
+                    index = after_close;
+                    continue;
+                }
+            }
+        }
+        index = tag_end + 1;
+    }
+
+    output.push_str(&value[index..]);
+    output
+}
+
+enum SanitizedTag {
+    Keep(String),
+    SkipTag,
+    SkipElement(String),
+}
+
+fn sanitize_editor_tag(raw_tag: &str) -> SanitizedTag {
+    let trimmed = raw_tag.trim();
+    if trimmed.is_empty() || trimmed.starts_with('!') || trimmed.starts_with('?') {
+        return SanitizedTag::SkipTag;
+    }
+
+    let closing = trimmed.starts_with('/');
+    let tag_body = if closing {
+        trimmed[1..].trim_start()
+    } else {
+        trimmed
+    };
+    let tag_name = tag_name(tag_body).to_ascii_lowercase();
+    if tag_name.is_empty() {
+        return SanitizedTag::SkipTag;
+    }
+
+    if REMOVED_EDITOR_HTML_TAGS.contains(&tag_name.as_str()) {
+        return if closing {
+            SanitizedTag::SkipTag
+        } else {
+            SanitizedTag::SkipElement(tag_name)
+        };
+    }
+
+    if !EDITOR_HTML_TAGS.contains(&tag_name.as_str()) {
+        return SanitizedTag::SkipTag;
+    }
+
+    if closing {
+        if SELF_CLOSING_EDITOR_HTML_TAGS.contains(&tag_name.as_str()) {
+            return SanitizedTag::SkipTag;
+        }
+        return SanitizedTag::Keep(format!("</{tag_name}>"));
+    }
+
+    sanitize_opening_editor_tag(&tag_name, tag_body)
+        .map(SanitizedTag::Keep)
+        .unwrap_or(SanitizedTag::SkipTag)
+}
+
+fn tag_name(raw_tag: &str) -> &str {
+    let end = raw_tag
+        .find(|character: char| character.is_whitespace() || character == '/')
+        .unwrap_or(raw_tag.len());
+    &raw_tag[..end]
+}
+
+fn sanitize_opening_editor_tag(tag_name: &str, raw_tag: &str) -> Option<String> {
+    match tag_name {
+        "a" => Some(sanitize_link_tag(raw_tag)),
+        "img" => sanitize_image_tag(raw_tag),
+        "input" => sanitize_input_tag(raw_tag),
+        "ul" => Some(sanitize_unordered_list_tag(raw_tag)),
+        "li" => Some(sanitize_list_item_tag(raw_tag)),
+        "br" => Some("<br>".to_string()),
+        _ => Some(format!("<{tag_name}>")),
+    }
+}
+
+fn sanitize_link_tag(raw_tag: &str) -> String {
+    let Some(href) = attribute_value(raw_tag, "href") else {
+        return "<a>".to_string();
+    };
+    let href = href.trim();
+    if !is_safe_editor_link_url(href) {
+        return "<a>".to_string();
+    }
+    format!(
+        "<a href=\"{}\" target=\"_blank\" rel=\"noreferrer\">",
+        escape_html_attribute(href)
+    )
+}
+
+fn sanitize_image_tag(raw_tag: &str) -> Option<String> {
+    let attachment_id = attribute_value(raw_tag, "data-attachment-id")
+        .filter(|id| !id.trim().is_empty())
+        .or_else(|| {
+            attribute_value(raw_tag, "src").and_then(|src| {
+                src.trim()
+                    .strip_prefix(MANAGED_ATTACHMENT_PROTOCOL)
+                    .filter(|id| !id.trim().is_empty())
+                    .map(ToOwned::to_owned)
+            })
+        });
+    let alt = attribute_value(raw_tag, "alt").unwrap_or_default();
+    if let Some(id) = attachment_id {
+        return Some(managed_image_html(id.trim(), alt.trim()));
+    }
+
+    let source = attribute_value(raw_tag, "src")?;
+    let source = source.trim();
+    if !is_safe_editor_image_source(source) {
+        return None;
+    }
+    Some(image_html(source, alt.trim()))
+}
+
+fn sanitize_input_tag(raw_tag: &str) -> Option<String> {
+    let input_type = attribute_value(raw_tag, "type")?
+        .trim()
+        .to_ascii_lowercase();
+    if input_type != "checkbox" {
+        return None;
+    }
+    let checked = attribute_value(raw_tag, "checked").is_some()
+        || raw_tag.to_ascii_lowercase().contains(" checked");
+    Some(if checked {
+        "<input type=\"checkbox\" checked />".to_string()
+    } else {
+        "<input type=\"checkbox\" />".to_string()
+    })
+}
+
+fn sanitize_unordered_list_tag(raw_tag: &str) -> String {
+    if attribute_value(raw_tag, "data-type").as_deref() == Some("taskList") {
+        "<ul data-type=\"taskList\">".to_string()
+    } else {
+        "<ul>".to_string()
+    }
+}
+
+fn sanitize_list_item_tag(raw_tag: &str) -> String {
+    if attribute_value(raw_tag, "data-type").as_deref() != Some("taskItem") {
+        return "<li>".to_string();
+    }
+    let checked = matches!(
+        attribute_value(raw_tag, "data-checked").as_deref(),
+        Some("true")
+    );
+    format!(
+        "<li data-type=\"taskItem\" data-checked=\"{}\">",
+        if checked { "true" } else { "false" }
+    )
+}
+
+fn is_safe_editor_link_url(source: &str) -> bool {
+    is_safe_url_with_protocols(source, &["http", "https", "mailto"])
+}
+
+fn is_safe_editor_image_source(source: &str) -> bool {
+    source.starts_with(MANAGED_ATTACHMENT_PROTOCOL)
+        || source.to_ascii_lowercase().starts_with("data:image/")
+        || is_safe_url_with_protocols(source, &["http", "https"])
+}
+
+fn is_safe_url_with_protocols(source: &str, protocols: &[&str]) -> bool {
+    let source = source.trim();
+    if source.is_empty() || source.chars().any(|character| character.is_control()) {
+        return false;
+    }
+    let protocol_end = source.find(':');
+    let first_path_separator = source
+        .find(|character| ['/', '?', '#'].contains(&character))
+        .unwrap_or(source.len());
+    let Some(protocol_end) = protocol_end.filter(|end| *end < first_path_separator) else {
+        return true;
+    };
+    let protocol = source[..protocol_end].to_ascii_lowercase();
+    protocols.contains(&protocol.as_str())
+}
+
+fn find_closing_tag_end(value: &str, start: usize, tag_name: &str) -> Option<usize> {
+    let needle = format!("</{tag_name}");
+    let relative_start = find_case_insensitive(&value[start..], &needle)?;
+    let close_start = start + relative_start;
+    let close_end = value[close_start..].find('>')?;
+    Some(close_start + close_end + 1)
 }
 
 fn should_decode_escaped_editor_html(value: &str) -> bool {

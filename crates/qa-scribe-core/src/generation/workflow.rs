@@ -13,8 +13,7 @@ use crate::{
     ai::ProviderGenerationOutput,
     domain::{
         AiProvider, AiRun, AiRunCreate, Attachment, Draft, DraftCreate, DraftKind, Entry,
-        EntryPatch, EntryType, EvidenceLinkDraft, Finding, FindingDraft, FindingKind,
-        GenerationContext,
+        EntryPatch, EntryType, Finding, FindingDraft, FindingKind, GenerationContext,
     },
     services::SessionService,
 };
@@ -26,6 +25,7 @@ use super::{
         TestwareGenerationPreferences, testware_metadata_json, testware_preferences_prompt,
     },
     preserve_managed_attachment_images, project_html_to_prompt_text, render_action_prompt,
+    sanitize_generated_rich_html,
 };
 
 #[derive(Clone, Copy, Debug, Deserialize, specta::Type)]
@@ -237,10 +237,7 @@ fn finish_successful_generation(
     };
 
     match result {
-        Ok(mut result) => {
-            result.ai_run = service.complete_ai_run(&ai_run_id)?;
-            Ok(result)
-        }
+        Ok(result) => Ok(result),
         Err(error) => {
             let _ = service.fail_ai_run(&ai_run_id, &error.to_string());
             Err(error)
@@ -279,19 +276,23 @@ fn finish_testware_generation(
         prepared.selected_note_body.as_deref().unwrap_or_default(),
         &prepared.attachments,
     );
-    let draft = service.create_draft(DraftCreate {
-        session_id: prepared.session_id,
-        ai_run_id: Some(prepared.ai_run.id.clone()),
-        kind: DraftKind::Testware,
-        title: format!("{} Test Cases", prepared.session_title),
-        body,
-        body_json: None,
-        body_format: Some("html".to_string()),
-        metadata_json: testware_metadata_json(request.testware_preferences.as_ref()),
-    })?;
+    let body = sanitize_generated_rich_html(&body);
+    let (ai_run, draft) = service.complete_ai_run_with_generated_draft(
+        &prepared.ai_run.id,
+        DraftCreate {
+            session_id: prepared.session_id,
+            ai_run_id: Some(prepared.ai_run.id.clone()),
+            kind: DraftKind::Testware,
+            title: format!("{} Test Cases", prepared.session_title),
+            body,
+            body_json: None,
+            body_format: Some("html".to_string()),
+            metadata_json: testware_metadata_json(request.testware_preferences.as_ref()),
+        },
+    )?;
     Ok(GenerateAiActionResult {
         generation_context: prepared.generation_context,
-        ai_run: prepared.ai_run,
+        ai_run,
         draft: Some(draft),
         finding: None,
         note_entry: None,
@@ -308,25 +309,28 @@ fn finish_finding_generation(
         prepared.selected_note_body.as_deref().unwrap_or_default(),
         &prepared.attachments,
     );
-    let finding = service.create_finding(FindingDraft {
-        session_id: prepared.session_id.clone(),
-        title: derive_title(&body, "AI Finding"),
-        body,
-        body_json: None,
-        body_format: Some("html".to_string()),
-        kind: FindingKind::Bug,
-        metadata_json: None,
-    })?;
-    create_generated_finding_evidence_links(
-        service,
-        &finding.id,
-        prepared.selected_note_id.as_deref(),
+    let body = sanitize_generated_rich_html(&body);
+    let evidence_attachment_ids = generated_finding_evidence_attachment_ids(
         prepared.selected_note_body.as_deref().unwrap_or_default(),
         &prepared.attachments,
+    );
+    let (ai_run, finding) = service.complete_ai_run_with_generated_finding(
+        &prepared.ai_run.id,
+        FindingDraft {
+            session_id: prepared.session_id.clone(),
+            title: derive_title(&body, "AI Finding"),
+            body,
+            body_json: None,
+            body_format: Some("html".to_string()),
+            kind: FindingKind::Bug,
+            metadata_json: None,
+        },
+        prepared.selected_note_id.as_deref(),
+        &evidence_attachment_ids,
     )?;
     Ok(GenerateAiActionResult {
         generation_context: prepared.generation_context,
-        ai_run: prepared.ai_run,
+        ai_run,
         draft: None,
         finding: Some(finding),
         note_entry: None,
@@ -350,7 +354,9 @@ fn finish_summary_generation(
         prepared.selected_note_body.as_deref().unwrap_or_default(),
         &prepared.attachments,
     );
-    let note_entry = service.update_entry_if_body_matches(
+    let body = sanitize_generated_rich_html(&body);
+    let (ai_run, note_entry) = service.complete_ai_run_with_generated_note_update(
+        &prepared.ai_run.id,
         note_entry_id,
         prepared.selected_note_body.as_deref().unwrap_or_default(),
         EntryPatch {
@@ -362,7 +368,7 @@ fn finish_summary_generation(
     )?;
     Ok(GenerateAiActionResult {
         generation_context: prepared.generation_context,
-        ai_run: prepared.ai_run,
+        ai_run,
         draft: None,
         finding: None,
         note_entry: Some(note_entry),
@@ -379,34 +385,16 @@ fn failed_generation_result(prepared: PreparedGeneration, ai_run: AiRun) -> Gene
     }
 }
 
-fn create_generated_finding_evidence_links(
-    service: &SessionService,
-    finding_id: &str,
-    selected_note_id: Option<&str>,
+fn generated_finding_evidence_attachment_ids(
     selected_note_body: &str,
     attachments: &[Attachment],
-) -> Result<()> {
-    if let Some(entry_id) = selected_note_id {
-        service.create_evidence_link(EvidenceLinkDraft {
-            finding_id: finding_id.to_string(),
-            entry_id: Some(entry_id.to_string()),
-            attachment_id: None,
-        })?;
-    }
-
+) -> Vec<String> {
     let managed_attachment_ids = managed_attachment_ids_from_html(selected_note_body);
-    for attachment in attachments
+    attachments
         .iter()
         .filter(|attachment| managed_attachment_ids.iter().any(|id| id == &attachment.id))
-    {
-        service.create_evidence_link(EvidenceLinkDraft {
-            finding_id: finding_id.to_string(),
-            entry_id: None,
-            attachment_id: Some(attachment.id.clone()),
-        })?;
-    }
-
-    Ok(())
+        .map(|attachment| attachment.id.clone())
+        .collect()
 }
 
 fn derive_title(markdown: &str, fallback: &str) -> String {

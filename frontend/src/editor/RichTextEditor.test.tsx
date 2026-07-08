@@ -49,6 +49,7 @@ describe('RichTextEditor toolbar', () => {
 
     const editor = await screen.findByRole('textbox', { name: 'Note body' })
     expect(editor.textContent).toBe('')
+    expect(editor.getAttribute('aria-multiline')).toBe('true')
 
     rerender(<RichTextEditor value={richEditorDocumentFromHtml('<p>Gmail login fails</p>')} onChange={onChange} />)
     await waitFor(() => expect(editor.textContent).toContain('Gmail login fails'))
@@ -67,6 +68,8 @@ describe('RichTextEditor toolbar', () => {
     )
 
     const editor = await screen.findByRole('textbox', { name: 'Note body' })
+    expect(screen.getByRole('toolbar', { name: 'Formatting toolbar' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Bold' }).getAttribute('aria-controls')).toBe('editor-one')
     selectText(editor)
 
     fireEvent.click(screen.getByRole('button', { name: 'Bold' }))
@@ -148,6 +151,7 @@ describe('RichTextEditor toolbar', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Apply link' }))
 
     expect((await screen.findByRole('alert')).textContent).toContain('Use an http, https, or mailto link.')
+    expect(screen.getByRole('textbox', { name: 'Link URL' }).getAttribute('aria-describedby')).toBe(screen.getByRole('alert').id)
     // The popover stays open and no link mark was applied.
     expect(screen.getByRole('textbox', { name: 'Link URL' })).toBeTruthy()
     if (onChange.mock.calls.length > 0) expect(lastChangeHtml(onChange)).not.toContain('javascript:')

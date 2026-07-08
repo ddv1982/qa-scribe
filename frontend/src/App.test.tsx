@@ -39,7 +39,15 @@ const tauriMock = vi.hoisted(() => ({
   MANAGED_ATTACHMENT_PROTOCOL: 'qa-scribe-attachment://',
 }))
 
+const tauriWindowMock = vi.hoisted(() => ({
+  currentWindow: {
+    onCloseRequested: vi.fn(async () => vi.fn()),
+    close: vi.fn(async () => undefined),
+  },
+}))
+
 vi.mock('./tauri', () => tauriMock)
+vi.mock('@tauri-apps/api/window', () => ({ getCurrentWindow: () => tauriWindowMock.currentWindow }))
 
 vi.mock('./editor/RichTextEditor', () => ({
   FormatToolbar: () => <div data-testid="format-toolbar" />,

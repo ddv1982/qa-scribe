@@ -1,4 +1,4 @@
-use super::{GenerationJobState, JobStore};
+use super::{GenerationJobState, JobStore, MAX_ACTIVE_GENERATION_JOBS};
 
 #[test]
 fn job_store_tracks_active_lifecycle() {
@@ -94,4 +94,38 @@ fn terminal_jobs_are_bounded_but_recent_status_is_available() {
     assert!(store.status("job-0").is_err());
     let recent = store.status("job-39").expect("recent terminal job remains");
     assert_eq!(recent.state, GenerationJobState::Completed);
+}
+
+#[test]
+fn active_generation_jobs_are_bounded() {
+    let store = JobStore::default();
+    for index in 0..MAX_ACTIVE_GENERATION_JOBS {
+        store
+            .insert_generation_job(
+                format!("job-{index}"),
+                "session-1".to_string(),
+                "summary".to_string(),
+            )
+            .expect("job under active limit inserts");
+    }
+
+    let error = store
+        .insert_generation_job(
+            "job-over-limit".to_string(),
+            "session-1".to_string(),
+            "summary".to_string(),
+        )
+        .err()
+        .expect("job over active limit should be rejected");
+
+    assert!(error.contains("At most 3 AI generation jobs"));
+
+    store.complete("job-0").expect("one active job completes");
+    store
+        .insert_generation_job(
+            "job-after-complete".to_string(),
+            "session-1".to_string(),
+            "summary".to_string(),
+        )
+        .expect("new job inserts after active slot opens");
 }

@@ -25,12 +25,36 @@ export function createSessionActions(
   materializeInlineImages: (document: RichEditorDocument) => Promise<RichEditorDocument>,
   invalidateRecordLoads: () => void,
   resetRecordHydration: () => void,
+  saveDirtyRecordsNow: () => Promise<boolean>,
 ) {
+  async function savePendingSessionEdits(): Promise<boolean> {
+    if (ctx.forcedPendingSaveRef.current) return ctx.forcedPendingSaveRef.current
+
+    const pending = flushPendingSessionEdits().finally(() => {
+      if (ctx.forcedPendingSaveRef.current === pending) {
+        ctx.forcedPendingSaveRef.current = null
+      }
+    })
+    ctx.forcedPendingSaveRef.current = pending
+    return pending
+  }
+
+  async function flushPendingSessionEdits(): Promise<boolean> {
+    ctx.suppressAmbientNoteSaveRef.current = true
+    try {
+      const flushedNote = await saveNoteNow({ manageBusy: false })
+      if (!flushedNote) return false
+      return saveDirtyRecordsNow()
+    } finally {
+      ctx.suppressAmbientNoteSaveRef.current = false
+    }
+  }
+
   async function openSession(session: Session, showNotice = true) {
     try {
       ctx.setBusyAction('open-note')
       ctx.setError(null)
-      const flushed = await saveNoteNow({ manageBusy: false })
+      const flushed = await savePendingSessionEdits()
       if (!flushed) return
       invalidateRecordLoads()
       const opened = await openSessionNoteState(session.id)
@@ -64,7 +88,7 @@ export function createSessionActions(
     try {
       ctx.setBusyAction('new-note')
       ctx.setError(null)
-      const flushed = await saveNoteNow({ manageBusy: false })
+      const flushed = await savePendingSessionEdits()
       if (!flushed) return
       invalidateRecordLoads()
       const title = nextUntitledSessionTitle(ctx.sessions)
@@ -104,6 +128,8 @@ export function createSessionActions(
 
   function clearActiveSessionState() {
     resetRecordHydration()
+    ctx.dirtyDraftIdsRef.current.clear()
+    ctx.dirtyFindingIdsRef.current.clear()
     ctx.noteTitleWriteVersionRef.current += 1
     ctx.noteBodyWriteVersionRef.current += 1
     ctx.setActiveSession(null)
@@ -230,6 +256,7 @@ export function createSessionActions(
     requestDeleteSession,
     saveBody,
     saveNoteNow,
+    savePendingSessionEdits,
     saveTitle,
   }
 }

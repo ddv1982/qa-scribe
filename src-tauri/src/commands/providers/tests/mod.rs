@@ -1,4 +1,7 @@
-use std::{collections::HashSet, fs, path::PathBuf, process::Command, time::Duration};
+use std::{collections::HashSet, fs, path::PathBuf, process::Command, sync::Mutex, time::Duration};
+
+#[cfg(unix)]
+use std::thread;
 
 use qa_scribe_core::domain::AiProvider;
 
@@ -14,8 +17,13 @@ mod support;
 
 use support::{MockRunner, copilot_prompt_help};
 
+static PROVIDER_PROBE_TEMP_FILE_TEST_LOCK: Mutex<()> = Mutex::new(());
+
 #[test]
 fn provider_probe_cleans_temp_files_when_spawn_fails() {
+    let _probe_lock = PROVIDER_PROBE_TEMP_FILE_TEST_LOCK
+        .lock()
+        .expect("probe temp-file tests should serialize");
     let before = provider_probe_temp_files();
 
     let error = run_command_with_timeout(
@@ -26,6 +34,38 @@ fn provider_probe_cleans_temp_files_when_spawn_fails() {
 
     assert_eq!(error.kind(), std::io::ErrorKind::NotFound);
     assert_eq!(provider_probe_temp_files(), before);
+}
+
+#[cfg(unix)]
+#[test]
+fn provider_probe_timeout_kills_descendant_processes() {
+    let _probe_lock = PROVIDER_PROBE_TEMP_FILE_TEST_LOCK
+        .lock()
+        .expect("probe temp-file tests should serialize");
+    let marker = std::env::temp_dir().join(format!(
+        "qa-scribe-provider-probe-descendant-{}-{}",
+        std::process::id(),
+        "marker"
+    ));
+    let _ = fs::remove_file(&marker);
+
+    let mut command = Command::new("sh");
+    command
+        .arg("-c")
+        .arg("(sleep 1; printf alive > \"$1\") & sleep 120")
+        .arg("sh")
+        .arg(&marker);
+
+    let error = run_command_with_timeout(command, Duration::from_millis(250))
+        .expect_err("probe should time out");
+    assert_eq!(error.kind(), std::io::ErrorKind::TimedOut);
+
+    thread::sleep(Duration::from_millis(1_500));
+    assert!(
+        !marker.exists(),
+        "timed-out provider probe should kill background descendants"
+    );
+    let _ = fs::remove_file(marker);
 }
 
 #[test]

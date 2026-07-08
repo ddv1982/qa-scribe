@@ -11,6 +11,7 @@ use serde::Serialize;
 
 const PARTIAL_TEXT_LIMIT: usize = 32_000;
 const TERMINAL_JOB_LIMIT: usize = 32;
+const MAX_ACTIVE_GENERATION_JOBS: usize = 3;
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
@@ -37,7 +38,6 @@ pub enum GenerationJobState {
 }
 
 impl GenerationJobState {
-    #[cfg(test)]
     fn is_active(self) -> bool {
         matches!(
             self,
@@ -182,11 +182,21 @@ impl JobStore {
             control: control.clone(),
             terminal_sequence: None,
         };
-        self.inner
+        let mut inner = self
+            .inner
             .lock()
-            .map_err(|_| "Job store lock was poisoned".to_string())?
+            .map_err(|_| "Job store lock was poisoned".to_string())?;
+        let active_count = inner
             .jobs
-            .insert(job_id, record);
+            .values()
+            .filter(|record| record.status.state.is_active())
+            .count();
+        if active_count >= MAX_ACTIVE_GENERATION_JOBS {
+            return Err(format!(
+                "At most {MAX_ACTIVE_GENERATION_JOBS} AI generation jobs can run at once. Wait for a generation to finish or cancel one before starting another."
+            ));
+        }
+        inner.jobs.insert(job_id, record);
         Ok((status, control))
     }
 

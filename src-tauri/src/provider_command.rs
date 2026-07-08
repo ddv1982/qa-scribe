@@ -10,6 +10,8 @@ use std::{
     time::{Duration, Instant},
 };
 
+use crate::process_io::{configure_process_group, kill_child_group};
+
 /// Cached PATH snapshots, keyed by mode. `None` means "not computed yet";
 /// the expensive login-shell probe (`Deep`) only runs lazily on first use
 /// after start or after `invalidate_provider_path_cache` clears the cache,
@@ -97,12 +99,13 @@ fn build_lightweight_provider_path() -> Option<OsString> {
 
 fn read_login_shell_path() -> Option<OsString> {
     let shell = resolve_login_shell()?;
-    let mut child = Command::new(shell)
+    let mut command = Command::new(shell);
+    command
         .args(["-ilc", "printf %s \"$PATH\""])
         .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()
-        .ok()?;
+        .stderr(Stdio::null());
+    configure_process_group(&mut command);
+    let mut child = command.spawn().ok()?;
     let started_at = Instant::now();
 
     loop {
@@ -124,12 +127,12 @@ fn read_login_shell_path() -> Option<OsString> {
                 thread::sleep(Duration::from_millis(25));
             }
             Ok(None) => {
-                let _ = child.kill();
+                kill_child_group(&mut child);
                 let _ = child.wait();
                 return None;
             }
             Err(_) => {
-                let _ = child.kill();
+                kill_child_group(&mut child);
                 let _ = child.wait();
                 return None;
             }

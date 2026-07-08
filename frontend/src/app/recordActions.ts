@@ -126,29 +126,47 @@ export function createRecordActions(
     )
   }
 
-  async function handleSaveDraft(draft: Draft): Promise<boolean> {
+  async function persistDraft(draft: Draft): Promise<boolean> {
     try {
-      ctx.setBusyAction(`draft:${draft.id}`)
       ctx.setError(null)
       const saved = await updateDraft(draft.id, { title: draft.title, body: draft.body, bodyJson: draft.bodyJson, bodyFormat: draft.bodyFormat })
-      ctx.setDrafts((previous) => previous.map((item) => (item.id === saved.id ? saved : item)))
-      ctx.setNotice('Testware saved')
+      ctx.dirtyDraftIdsRef.current.delete(saved.id)
+      if (ctx.activeSessionIdRef.current === saved.sessionId) {
+        ctx.setDrafts((previous) => {
+          const nextDrafts = previous.map((item) => (item.id === saved.id ? saved : item))
+          ctx.draftsRef.current = nextDrafts
+          return nextDrafts
+        })
+      }
       return true
     } catch (cause) {
       ctx.setError(formatError(cause))
       return false
+    }
+  }
+
+  async function handleSaveDraft(draft: Draft): Promise<boolean> {
+    try {
+      ctx.setBusyAction(`draft:${draft.id}`)
+      const saved = await persistDraft(draft)
+      if (saved) ctx.setNotice('Testware saved')
+      return saved
     } finally {
       ctx.setBusyAction(null)
     }
   }
 
   function updateLocalDraft(id: string, patch: RichRecordPatch) {
-    ctx.setDrafts((previous) => previous.map((draft) => (draft.id === id ? { ...draft, ...patch } : draft)))
+    ctx.dirtyDraftIdsRef.current.add(id)
+    ctx.setDrafts((previous) => {
+      const nextDrafts = previous.map((draft) => (draft.id === id ? { ...draft, ...patch } : draft))
+      ctx.draftsRef.current = nextDrafts
+      return nextDrafts
+    })
   }
 
-  async function handleSaveFinding(finding: Finding): Promise<boolean> {
+  async function persistFinding(finding: Finding): Promise<boolean> {
     try {
-      ctx.setBusyAction(`finding:${finding.id}`)
       ctx.setError(null)
       const saved = await updateFinding(finding.id, {
         title: finding.title,
@@ -158,19 +176,55 @@ export function createRecordActions(
         kind: finding.kind,
         metadataJson: finding.metadataJson,
       })
-      ctx.setFindings((previous) => previous.map((item) => (item.id === saved.id ? saved : item)))
-      ctx.setNotice('Finding saved')
+      ctx.dirtyFindingIdsRef.current.delete(saved.id)
+      if (ctx.activeSessionIdRef.current === saved.sessionId) {
+        ctx.setFindings((previous) => {
+          const nextFindings = previous.map((item) => (item.id === saved.id ? saved : item))
+          ctx.findingsRef.current = nextFindings
+          return nextFindings
+        })
+      }
       return true
     } catch (cause) {
       ctx.setError(formatError(cause))
       return false
+    }
+  }
+
+  async function handleSaveFinding(finding: Finding): Promise<boolean> {
+    try {
+      ctx.setBusyAction(`finding:${finding.id}`)
+      const saved = await persistFinding(finding)
+      if (saved) ctx.setNotice('Finding saved')
+      return saved
     } finally {
       ctx.setBusyAction(null)
     }
   }
 
   function updateLocalFinding(id: string, patch: FindingRecordPatch) {
-    ctx.setFindings((previous) => previous.map((finding) => (finding.id === id ? { ...finding, ...patch } : finding)))
+    ctx.dirtyFindingIdsRef.current.add(id)
+    ctx.setFindings((previous) => {
+      const nextFindings = previous.map((finding) => (finding.id === id ? { ...finding, ...patch } : finding))
+      ctx.findingsRef.current = nextFindings
+      return nextFindings
+    })
+  }
+
+  async function saveDirtyRecordsNow(): Promise<boolean> {
+    const dirtyDrafts = ctx.draftsRef.current.filter((draft) => ctx.dirtyDraftIdsRef.current.has(draft.id))
+    const dirtyFindings = ctx.findingsRef.current.filter((finding) => ctx.dirtyFindingIdsRef.current.has(finding.id))
+    if (dirtyDrafts.length === 0 && dirtyFindings.length === 0) return true
+
+    let saved = true
+    for (const draft of dirtyDrafts) {
+      saved = (await persistDraft(draft)) && saved
+    }
+    for (const finding of dirtyFindings) {
+      saved = (await persistFinding(finding)) && saved
+    }
+    if (saved) ctx.setNotice('Pending record edits saved')
+    return saved
   }
 
   function requestDeleteDraft(draft: Draft) {
@@ -182,6 +236,7 @@ export function createRecordActions(
       ctx.setBusyAction(`delete-draft:${draft.id}`)
       ctx.setError(null)
       await deleteDraft(draft.id)
+      ctx.dirtyDraftIdsRef.current.delete(draft.id)
       await loaders.loadDraftsForSession(draft.sessionId, { force: true, replace: true })
       ctx.setNotice('Testware deleted')
     } catch (cause) {
@@ -200,6 +255,7 @@ export function createRecordActions(
       ctx.setBusyAction(`delete-finding:${finding.id}`)
       ctx.setError(null)
       await deleteFinding(finding.id)
+      ctx.dirtyFindingIdsRef.current.delete(finding.id)
       await loaders.loadFindingsForSession(finding.sessionId, { force: true, replace: true })
       ctx.setNotice('Finding deleted')
     } catch (cause) {
@@ -229,6 +285,7 @@ export function createRecordActions(
     handleManualTestware,
     handlePrefillFindingFromNote,
     handlePrefillTestwareFromNote,
+    saveDirtyRecordsNow,
     handleSaveDraft,
     handleSaveFinding,
     requestDeleteDraft,

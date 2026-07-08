@@ -65,6 +65,7 @@
   --accent: #2563eb;
   --accent-hover: color-mix(in oklab, var(--accent) 88%, #000);
   --accent-tint: color-mix(in oklab, var(--accent) 9%, var(--surface-raised));
+  --accent-border: color-mix(in oklab, var(--accent) 36%, var(--border-default));
   --accent-alt: #6d28d9;
   --on-accent: #ffffff;
 
@@ -111,6 +112,7 @@
   --accent: #5b93ff;
   --accent-hover: color-mix(in oklab, var(--accent) 88%, #fff);
   --accent-tint: color-mix(in oklab, var(--accent) 15%, var(--surface-panel));
+  --accent-border: color-mix(in oklab, var(--accent) 36%, var(--border-default));
   --accent-alt: #a88fff;
   --on-accent: #0d1219;
 

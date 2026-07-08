@@ -1,3 +1,4 @@
+import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { getSettings, listDrafts, listFindings, listRecentSessions, listSessions, type Draft, type Entry, type Finding, type GenerateAiActionKind, type GenerationJobStatus, type Session } from '../tauri'
 import { emptyRichEditorDocument, richEditorDocumentToHtml, richEditorDocumentToPlainText, serializeRichEditorDocument } from '../editor/editorDocument'
@@ -81,11 +82,17 @@ export function useAppController() {
   const findingsSessionIdRef = useRef<string | null>(null)
   const draftsRef = useRef<Draft[]>([])
   const findingsRef = useRef<Finding[]>([])
+  const dirtyDraftIdsRef = useRef<Set<string>>(new Set())
+  const dirtyFindingIdsRef = useRef<Set<string>>(new Set())
   const recordLoadVersionRef = useRef(0)
   const copySuccessResetRef = useRef<number | null>(null)
   const bootedRef = useRef(false)
-  const saveNoteNowRef = useRef<() => Promise<boolean>>(() => Promise.resolve(true))
+  const saveAllPendingChangesRef = useRef<() => Promise<boolean>>(() => Promise.resolve(true))
   const hasPendingNoteChangesRef = useRef(false)
+  const closingAfterSaveRef = useRef(false)
+  const suppressAmbientNoteSaveRef = useRef(false)
+  const forcedPendingSaveRef = useRef<Promise<boolean> | null>(null)
+  const saveDirtyRecordsNowRef = useRef<() => Promise<boolean>>(() => Promise.resolve(true))
   const {
     activeProvider,
     loadProviderStatus,
@@ -227,6 +234,12 @@ export function useAppController() {
     deletingSessionIdRef,
     activeSessionIdRef,
     noteEntryIdRef,
+    dirtyDraftIdsRef,
+    dirtyFindingIdsRef,
+    draftsRef,
+    findingsRef,
+    suppressAmbientNoteSaveRef,
+    forcedPendingSaveRef,
     copySuccessResetRef,
     setSessions,
     setActiveSession,
@@ -249,7 +262,9 @@ export function useAppController() {
   // eslint-disable-next-line react-hooks/refs -- factories only close over refs; .current reads happen later in event handlers/effects.
   const attachmentActions = createAttachmentActions(workflowContext)
   // eslint-disable-next-line react-hooks/refs -- factories only close over refs; .current reads happen later in event handlers/effects.
-  const sessionActions = createSessionActions(workflowContext, attachmentActions.materializeInlineImages, invalidateRecordLoads, resetRecordHydration)
+  const sessionActions = createSessionActions(workflowContext, attachmentActions.materializeInlineImages, invalidateRecordLoads, resetRecordHydration, () =>
+    saveDirtyRecordsNowRef.current(),
+  )
   // eslint-disable-next-line react-hooks/refs -- factories only close over refs; .current reads happen later in event handlers/effects.
   const generationActions = createGenerationActions(workflowContext, sessionActions.saveNoteNow)
   // eslint-disable-next-line react-hooks/refs -- factories only close over refs; .current reads happen later in event handlers/effects.
@@ -261,8 +276,13 @@ export function useAppController() {
   const copyActions = createCopyActions(workflowContext)
 
   useEffect(() => {
-    saveNoteNowRef.current = sessionActions.saveNoteNow
+    saveDirtyRecordsNowRef.current = recordActions.saveDirtyRecordsNow
+    saveAllPendingChangesRef.current = sessionActions.savePendingSessionEdits
   })
+
+  function hasPendingChanges() {
+    return hasPendingNoteChangesRef.current || dirtyDraftIdsRef.current.size > 0 || dirtyFindingIdsRef.current.size > 0
+  }
 
   async function boot() {
     try {
@@ -412,6 +432,7 @@ export function useAppController() {
     if (!trimmedTitle || trimmedTitle === savedTitleRef.current) return
 
     const timeout = window.setTimeout(() => {
+      if (suppressAmbientNoteSaveRef.current) return
       void sessionActions.saveTitle(trimmedTitle)
     }, 700)
     return () => window.clearTimeout(timeout)
@@ -423,6 +444,7 @@ export function useAppController() {
     if (nextBody === savedBodyRef.current) return
 
     const timeout = window.setTimeout(() => {
+      if (suppressAmbientNoteSaveRef.current) return
       void sessionActions.saveNoteNow()
     }, 850)
     return () => window.clearTimeout(timeout)
@@ -430,13 +452,43 @@ export function useAppController() {
 
   useEffect(() => {
     function handleBeforeUnload(event: BeforeUnloadEvent) {
-      if (!hasPendingNoteChangesRef.current) return
+      if (!hasPendingChanges()) return
       event.preventDefault()
       event.returnValue = ''
-      void saveNoteNowRef.current()
+      void saveAllPendingChangesRef.current()
     }
     window.addEventListener('beforeunload', handleBeforeUnload)
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [])
+
+  useEffect(() => {
+    let disposed = false
+    let removeListener: (() => void) | null = null
+
+    void getCurrentWindow()
+      .onCloseRequested(async (event) => {
+        if (closingAfterSaveRef.current || !hasPendingChanges()) return
+        event.preventDefault()
+        const saved = await saveAllPendingChangesRef.current()
+        if (!saved) return
+        closingAfterSaveRef.current = true
+        await getCurrentWindow().close()
+      })
+      .then((unlisten) => {
+        if (disposed) {
+          unlisten()
+        } else {
+          removeListener = unlisten
+        }
+      })
+      .catch(() => {
+        // The beforeunload fallback still protects browser/dev-preview usage.
+      })
+
+    return () => {
+      disposed = true
+      removeListener?.()
+    }
   }, [])
 
   return {

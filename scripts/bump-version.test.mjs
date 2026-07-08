@@ -107,6 +107,12 @@ test('preflightConsistencyCheck throws loudly when files disagree', () => {
   assert.throws(() => preflightConsistencyCheck(files), /disagree/)
 })
 
+test('preflightConsistencyCheck throws loudly when Cargo.lock versions drift', () => {
+  const files = sampleFiles('0.4.24')
+  files.cargoLock = SAMPLE_CARGO_LOCK.replace('name = "qa-scribe-core"\nversion = "0.4.24"', 'name = "qa-scribe-core"\nversion = "9.9.9"')
+  assert.throws(() => preflightConsistencyCheck(files), /Cargo\.lock \(qa-scribe-core\): 9\.9\.9/)
+})
+
 test('preflightConsistencyCheck throws when a version is missing entirely', () => {
   const files = sampleFiles('0.4.24')
   files.cargoToml = SAMPLE_CARGO_TOML.replace('[workspace.package]', '[not.workspace.package]')

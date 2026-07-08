@@ -5,6 +5,8 @@ import { promisify } from 'node:util';
 import {
   findChangelogRelease,
   latestMetainfoRelease,
+  QA_SCRIBE_CARGO_LOCK_PACKAGES,
+  cargoLockPackageVersions,
   readOption as readOptionFrom,
   readReleaseConstants,
   readWorkspaceCargoVersion,
@@ -32,6 +34,7 @@ const frontendBunLock = await readFile('frontend/bun.lock', 'utf-8');
 const tauriConfig = JSON.parse(await readFile('src-tauri/tauri.conf.json', 'utf-8'));
 const linuxTauriConfig = JSON.parse(await readFile('src-tauri/tauri.linux.conf.json', 'utf-8'));
 const cargoToml = await readFile('Cargo.toml', 'utf-8');
+const cargoLock = await readFile('Cargo.lock', 'utf-8');
 const cargoVersion = readWorkspaceCargoVersion(cargoToml);
 
 if (!validateSemver(packageJson.version)) {
@@ -44,6 +47,17 @@ if (!cargoVersion) {
 
 if (cargoVersion !== packageJson.version) {
   throw new Error(`Cargo.toml workspace package version ${cargoVersion} does not match package.json version ${packageJson.version}`);
+}
+
+const cargoLockVersions = cargoLockPackageVersions(cargoLock);
+for (const packageName of QA_SCRIBE_CARGO_LOCK_PACKAGES) {
+  const cargoLockVersion = cargoLockVersions[packageName];
+  if (!cargoLockVersion) {
+    throw new Error(`Cargo.lock is missing a package entry for ${packageName}`);
+  }
+  if (cargoLockVersion !== packageJson.version) {
+    throw new Error(`Cargo.lock package ${packageName} version ${cargoLockVersion} does not match package.json version ${packageJson.version}`);
+  }
 }
 
 if (frontendPackageJson.version !== packageJson.version) {

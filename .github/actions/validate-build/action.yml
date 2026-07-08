@@ -24,13 +24,17 @@ runs:
       shell: bash
       run: bun run frontend:audit
 
-    - name: Run frontend lint
+    - name: Run frontend check
       shell: bash
-      run: bun run frontend:lint
+      run: bun run frontend:check
 
     - name: Run frontend tests
       shell: bash
       run: bun run frontend:test
+
+    - name: Check Tauri command bindings
+      shell: bash
+      run: bun run bindings:check
 
     - name: Validate release metadata
       shell: bash
@@ -42,6 +46,10 @@ runs:
         else
           node scripts/check-release-metadata.mjs
         fi
+
+    - name: Run release package metadata tests
+      shell: bash
+      run: bun run linux:metadata:test
 
     - name: Build frontend
       shell: bash

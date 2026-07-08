@@ -13,7 +13,8 @@ pub use preferences::{
 pub use prompt::{ActionPromptKind, managed_attachment_ids_from_html, render_action_prompt};
 pub use response::{
     OutputMarker, editor_html_tags, parse_rich_html_fragment_response,
-    preserve_managed_attachment_images, self_closing_editor_html_tags,
+    preserve_managed_attachment_images, sanitize_generated_rich_html,
+    self_closing_editor_html_tags,
 };
 pub use workflow::{
     GenerateAiActionKind, GenerateAiActionRequest, GenerateAiActionResult, PreparedGeneration,

@@ -26,7 +26,8 @@ bun run bump 1.0.0 --dry-run
 ```
 
 The script fails loudly if the tracked files currently disagree on the
-version (a pre-flight consistency check), and it runs
+version, including the `Cargo.lock` package entries for `qa-scribe-app`,
+`qa-scribe-core`, and `qa-scribe-tauri` (a pre-flight consistency check), and it runs
 `scripts/check-release-metadata.mjs` at the end as verification. That
 verification will fail until you replace the `- TODO: describe this
 release.` placeholder it inserts into `CHANGELOG.md` with real release
@@ -38,6 +39,9 @@ node scripts/check-release-metadata.mjs --expected-tag v1.0.0
 
 `frontend/bun.lock` does not need updating: it only records third-party
 dependency versions, not the frontend workspace's own `version` field.
+`Cargo.lock` does need to stay in sync with the app version because the Rust
+workspace packages are released from that lockfile; both `bun run bump` and the
+release metadata check enforce this.
 
 The metadata check also gates the Linux Tauri package identity: `src-tauri/tauri.linux.conf.json` keeps the installed desktop file at `qa-scribe.desktop`, while `build/linux/qa-scribe.desktop.hbs` keeps the visible app name as QA Scribe. `src-tauri/tauri.conf.json` must list every generated Linux PNG icon size from `build/icons/16x16.png` through `build/icons/1024x1024.png` so `.deb`/`.rpm` installers provide a desktop-resolvable hicolor icon.
 
@@ -171,10 +175,11 @@ node scripts/check-release-metadata.mjs --expected-tag v1.0.0
 ```
 
 `bun run verify` is the broad local gate: frontend audit, typecheck, lint,
-tests, bindings check, release metadata, frontend build, Rust fmt/clippy/tests,
-and the smoke harness. Use the explicit release metadata check with the expected
-tag before tagging so the changelog/package versions match the release being
-prepared.
+CSS color and contrast checks, tests, bindings check, release metadata and Linux
+package metadata unit tests, frontend build, prebuilt frontend contract check,
+Rust fmt/clippy/tests/build, and the smoke harness. Use the explicit release
+metadata check with the expected tag before tagging so the changelog/package
+versions match the release being prepared.
 
 On macOS, validate app packaging:
 

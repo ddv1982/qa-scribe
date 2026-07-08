@@ -44,6 +44,39 @@ fn action_completion_repairs_escaped_rich_html_before_persistence() {
 }
 
 #[test]
+fn action_completion_sanitizes_generated_rich_html_before_persistence() {
+    for action in [
+        GenerateAiActionKind::Testware,
+        GenerateAiActionKind::Finding,
+        GenerateAiActionKind::Summary,
+    ] {
+        let result = finish_action_with_output(
+            action,
+            r#"<script>alert(1)</script><h2 onclick="steal()">Safe Title</h2><p><a href="javascript:alert(1)" onclick="steal()">bad link</a> <a href="https://example.test/evidence" onclick="steal()">good link</a></p><img src="javascript:alert(1)" alt="bad image" /><img src="data:image/png;base64,abc" onerror="steal()" alt="inline image" /><ul data-type="taskList" onclick="steal()"><li data-type="taskItem" data-checked="true" onclick="steal()"><input type="checkbox" checked onclick="steal()" />Task</li></ul>"#,
+        );
+        let body = match action {
+            GenerateAiActionKind::Testware => result.draft.expect("draft").body,
+            GenerateAiActionKind::Finding => result.finding.expect("finding").body,
+            GenerateAiActionKind::Summary => result.note_entry.expect("note entry").body,
+        };
+
+        assert!(body.contains("<h2>Safe Title</h2>"));
+        assert!(body.contains("<a>bad link</a>"));
+        assert!(body.contains(
+            "<a href=\"https://example.test/evidence\" target=\"_blank\" rel=\"noreferrer\">good link</a>"
+        ));
+        assert!(body.contains("<img src=\"data:image/png;base64,abc\" alt=\"inline image\" />"));
+        assert!(body.contains("<ul data-type=\"taskList\"><li data-type=\"taskItem\" data-checked=\"true\"><input type=\"checkbox\" checked />Task</li></ul>"));
+        assert!(!body.contains("script"));
+        assert!(!body.contains("alert"));
+        assert!(!body.contains("onclick"));
+        assert!(!body.contains("onerror"));
+        assert!(!body.contains("javascript:"));
+        assert!(!body.contains("bad image"));
+    }
+}
+
+#[test]
 fn finding_completion_preserves_managed_screenshots_and_links_evidence() {
     let service = SessionService::in_memory().expect("service should open");
     let session = create_session(&service, "Gmail login");
@@ -153,6 +186,48 @@ fn testware_persistence_failure_marks_ai_run_failed_not_completed() {
     assert!(
         error.to_string().contains("Draft body"),
         "expected draft body validation error, got: {error}"
+    );
+    assert_eq!(count_table_rows(&service, "drafts"), 0);
+    assert_eq!(
+        service
+            .get_ai_run(&ai_run_id)
+            .expect("AI Run should read")
+            .expect("AI Run should exist")
+            .status
+            .as_str(),
+        "failed"
+    );
+}
+
+#[test]
+fn testware_output_rolls_back_when_ai_run_completion_cannot_transition() {
+    let service = SessionService::in_memory().expect("service should open");
+    let session = create_session(&service, "Already failed run");
+    let note = create_note(
+        &service,
+        &session.id,
+        "Input note",
+        "<p>Generate output.</p>",
+    );
+    let request = request_for(&session.id, GenerateAiActionKind::Testware, Some(&note.id));
+    let prepared =
+        prepare_ai_action_generation(&service, &request).expect("generation should prepare");
+    let ai_run_id = prepared.ai_run.id.clone();
+    service
+        .fail_ai_run(&ai_run_id, "cancelled before provider returned")
+        .expect("run should fail before finish");
+
+    let error = finish_ai_action_generation(
+        &service,
+        &request,
+        prepared,
+        Ok(success_generation_output("<h2>Generated</h2><p>Body.</p>")),
+    )
+    .expect_err("completed run transition should fail and roll back output");
+
+    assert!(
+        error.to_string().contains("AI Run is not running"),
+        "expected AI Run transition error, got: {error}"
     );
     assert_eq!(count_table_rows(&service, "drafts"), 0);
     assert_eq!(

@@ -18,6 +18,16 @@
     <category>ProjectManagement</category>
   </categories>
   <releases>
+    <release version="0.7.4" date="2026-07-08">
+      <description>
+        <ul>
+          <li>Preserve pending Note, Draft, and Finding edits across Session switches and window close.</li>
+          <li>Sanitize generated rich HTML and persist generated outputs with AI Run completion atomically.</li>
+          <li>Bound concurrent AI jobs and clean up provider probe child process groups.</li>
+          <li>Strengthen release validation and rich editor accessibility semantics.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.7.3" date="2026-07-07">
       <description>
         <ul>

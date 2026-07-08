@@ -8,6 +8,8 @@ const RELEASE_CONSTANTS = JSON.parse(readFileSync(join(SCRIPTS_DIR, 'release-con
 
 const MACOS_DMG_BASENAME = RELEASE_CONSTANTS.dmgBaseName
 
+export const QA_SCRIBE_CARGO_LOCK_PACKAGES = ['qa-scribe-app', 'qa-scribe-core', 'qa-scribe-tauri']
+
 export function readReleaseConstants() {
   return RELEASE_CONSTANTS
 }
@@ -107,6 +109,19 @@ export function readWorkspaceCargoVersion(cargoToml) {
 
   const versionMatch = workspacePackageMatch[1].match(/^\s*version\s*=\s*"([^"]+)"\s*$/m)
   return versionMatch?.[1] ?? null
+}
+
+export function cargoLockPackageVersions(cargoLock, packageNames = QA_SCRIBE_CARGO_LOCK_PACKAGES) {
+  const wanted = new Set(packageNames)
+  const versions = Object.fromEntries(packageNames.map(packageName => [packageName, null]))
+  for (const block of cargoLock.split(/\n(?=\[\[package\]\]\n)/)) {
+    const name = block.match(/^name = "([^"]+)"$/m)?.[1]
+    if (!wanted.has(name)) {
+      continue
+    }
+    versions[name] = block.match(/^version = "([^"]+)"$/m)?.[1] ?? null
+  }
+  return versions
 }
 
 export function findChangelogRelease(changelog, tag) {

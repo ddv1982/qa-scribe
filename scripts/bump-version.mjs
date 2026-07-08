@@ -27,6 +27,8 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import {
+  QA_SCRIBE_CARGO_LOCK_PACKAGES,
+  cargoLockPackageVersions,
   readReleaseConstants,
   readWorkspaceCargoVersion,
   validateSemver
@@ -38,7 +40,7 @@ const CARGO_TOML_PATH = 'Cargo.toml'
 const CARGO_LOCK_PATH = 'Cargo.lock'
 const TAURI_CONF_PATH = 'src-tauri/tauri.conf.json'
 const CHANGELOG_PATH = 'CHANGELOG.md'
-const CARGO_LOCK_CRATES = ['qa-scribe-app', 'qa-scribe-core', 'qa-scribe-tauri']
+const CARGO_LOCK_CRATES = QA_SCRIBE_CARGO_LOCK_PACKAGES
 
 async function main() {
   const args = process.argv.slice(2)
@@ -147,13 +149,7 @@ function preflightConsistencyCheck(files) {
 }
 
 function cargoLockCrateVersions(cargoLock) {
-  const versions = {}
-  for (const crate of CARGO_LOCK_CRATES) {
-    const pattern = new RegExp(`\\[\\[package\\]\\]\\nname = "${crate}"\\nversion = "([^"]+)"`)
-    const match = cargoLock.match(pattern)
-    versions[crate] = match?.[1] ?? null
-  }
-  return versions
+  return cargoLockPackageVersions(cargoLock, CARGO_LOCK_CRATES)
 }
 
 function buildPlan(files, { newVersion, today, metainfoPath }) {

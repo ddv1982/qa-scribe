@@ -46,6 +46,12 @@ export type AppWorkflowRefs = {
   deletingSessionIdRef: MutableRefObject<string | null>
   activeSessionIdRef: MutableRefObject<string | null>
   noteEntryIdRef: MutableRefObject<string | null>
+  dirtyDraftIdsRef: MutableRefObject<Set<string>>
+  dirtyFindingIdsRef: MutableRefObject<Set<string>>
+  draftsRef: MutableRefObject<Draft[]>
+  findingsRef: MutableRefObject<Finding[]>
+  suppressAmbientNoteSaveRef: MutableRefObject<boolean>
+  forcedPendingSaveRef: MutableRefObject<Promise<boolean> | null>
   copySuccessResetRef: MutableRefObject<number | null>
 }
 

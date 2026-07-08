@@ -35,7 +35,28 @@ const tauriMock = vi.hoisted(() => ({
   MANAGED_ATTACHMENT_PROTOCOL: 'qa-scribe-attachment://',
 }))
 
+const tauriWindowMock = vi.hoisted(() => {
+  let closeRequestedHandler: ((event: { preventDefault: () => void }) => void | Promise<void>) | null = null
+  const currentWindow = {
+    onCloseRequested: vi.fn(async (handler: (event: { preventDefault: () => void }) => void | Promise<void>) => {
+      closeRequestedHandler = handler
+      return vi.fn()
+    }),
+    close: vi.fn(async () => undefined),
+  }
+  return {
+    currentWindow,
+    closeRequestedHandler: () => closeRequestedHandler,
+    reset: () => {
+      closeRequestedHandler = null
+      currentWindow.onCloseRequested.mockClear()
+      currentWindow.close.mockClear()
+    },
+  }
+})
+
 vi.mock('../tauri', () => tauriMock)
+vi.mock('@tauri-apps/api/window', () => ({ getCurrentWindow: () => tauriWindowMock.currentWindow }))
 
 import { useAppController } from './useAppController'
 import { settingsFixture, providerStatusFixture } from '../test/fixtures'
@@ -43,6 +64,7 @@ import { settingsFixture, providerStatusFixture } from '../test/fixtures'
 describe('useAppController autosave flush', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    tauriWindowMock.reset()
     ensureTestLocalStorage()
     window.localStorage.clear()
     window.matchMedia = vi.fn().mockReturnValue({
@@ -408,6 +430,56 @@ describe('useAppController autosave flush', () => {
     expect(result.current.error).toBeTruthy()
   })
 
+  it('does not let a queued body debounce make a failed forced switch flush look successful', async () => {
+    vi.useFakeTimers()
+    try {
+      const { result } = renderHook(() => useAppController())
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0)
+      })
+      expect(result.current.activeSession?.id).toBe('session-1')
+
+      act(() => {
+        result.current.setNoteBody(richEditorDocumentFromPlainText('typed before overlapping saves'))
+      })
+
+      let rejectForcedSave: (error: Error) => void = () => {}
+      tauriMock.updateEntry.mockReturnValueOnce(
+        new Promise((_resolve, reject) => {
+          rejectForcedSave = reject
+        }),
+      )
+      const otherSession = sessionFixture({ id: 'session-2', title: 'Other note' })
+
+      let openPromise!: Promise<void>
+      act(() => {
+        openPromise = result.current.openSession(otherSession)
+      })
+      await act(async () => {
+        await Promise.resolve()
+        await Promise.resolve()
+      })
+      expect(tauriMock.updateEntry).toHaveBeenCalledTimes(1)
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1000)
+      })
+      expect(tauriMock.updateEntry).toHaveBeenCalledTimes(1)
+
+      await act(async () => {
+        rejectForcedSave(new Error('offline'))
+        await openPromise
+      })
+
+      expect(tauriMock.openSessionNoteState).not.toHaveBeenCalledWith('session-2')
+      expect(result.current.activeSession?.id).toBe('session-1')
+      expect(result.current.error).toBeTruthy()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('flushes a pending body edit before creating a new note', async () => {
     const { result } = renderHook(() => useAppController())
 
@@ -425,6 +497,82 @@ describe('useAppController autosave flush', () => {
       'entry-1',
       expect.objectContaining({ body: expect.stringContaining('typed before new note') }),
     )
+  })
+
+  it('flushes dirty Draft and Finding edits before switching to another note', async () => {
+    tauriMock.openSessionNoteState.mockResolvedValueOnce(
+      sessionNoteStateFixture({
+        testwareDraftCount: 1,
+        findingCount: 1,
+      }),
+    )
+    tauriMock.listDrafts.mockResolvedValueOnce([draftFixture({ id: 'draft-dirty', sessionId: 'session-1', body: '<p>Persisted draft.</p>' })])
+    tauriMock.listFindings.mockResolvedValueOnce([findingFixture({ id: 'finding-dirty', sessionId: 'session-1', body: '<p>Persisted finding.</p>' })])
+
+    const { result } = renderHook(() => useAppController())
+
+    await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
+    act(() => {
+      result.current.setActiveView('testware')
+    })
+    await waitFor(() => expect(result.current.testwareDrafts.map((draft) => draft.id)).toEqual(['draft-dirty']))
+    act(() => {
+      result.current.setActiveView('findings')
+    })
+    await waitFor(() => expect(result.current.findings.map((finding) => finding.id)).toEqual(['finding-dirty']))
+
+    act(() => {
+      result.current.updateLocalDraft('draft-dirty', { body: '<p>Unsaved draft edit.</p>' })
+      result.current.updateLocalFinding('finding-dirty', { body: '<p>Unsaved finding edit.</p>' })
+    })
+
+    const otherSession = sessionFixture({ id: 'session-2', title: 'Other note' })
+    tauriMock.openSessionNoteState.mockResolvedValueOnce(
+      sessionNoteStateFixture({
+        session: otherSession,
+        noteEntry: entryFixture({ id: 'entry-2', sessionId: 'session-2' }),
+      }),
+    )
+
+    await act(async () => {
+      await result.current.openSession(otherSession)
+    })
+
+    expect(tauriMock.updateDraft).toHaveBeenCalledWith('draft-dirty', expect.objectContaining({ body: '<p>Unsaved draft edit.</p>' }))
+    expect(tauriMock.updateFinding).toHaveBeenCalledWith('finding-dirty', expect.objectContaining({ body: '<p>Unsaved finding edit.</p>' }))
+    expect(tauriMock.openSessionNoteState).toHaveBeenCalledWith('session-2')
+    expect(result.current.activeSession?.id).toBe('session-2')
+  })
+
+  it('does not switch notes when a dirty record flush fails', async () => {
+    tauriMock.openSessionNoteState.mockResolvedValueOnce(
+      sessionNoteStateFixture({
+        testwareDraftCount: 1,
+      }),
+    )
+    tauriMock.listDrafts.mockResolvedValueOnce([draftFixture({ id: 'draft-dirty', sessionId: 'session-1' })])
+
+    const { result } = renderHook(() => useAppController())
+
+    await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
+    act(() => {
+      result.current.setActiveView('testware')
+    })
+    await waitFor(() => expect(result.current.testwareDrafts.map((draft) => draft.id)).toEqual(['draft-dirty']))
+
+    act(() => {
+      result.current.updateLocalDraft('draft-dirty', { body: '<p>Flush will fail.</p>' })
+    })
+    tauriMock.updateDraft.mockRejectedValueOnce(new Error('offline'))
+
+    const otherSession = sessionFixture({ id: 'session-2', title: 'Other note' })
+    await act(async () => {
+      await result.current.openSession(otherSession)
+    })
+
+    expect(tauriMock.openSessionNoteState).not.toHaveBeenCalledWith('session-2')
+    expect(result.current.activeSession?.id).toBe('session-1')
+    expect(result.current.error).toBeTruthy()
   })
 
   it('flushes a pending title edit before switching to another note', async () => {
@@ -528,6 +676,79 @@ describe('useAppController autosave flush', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('prevents Tauri window close until pending edits flush, then closes explicitly', async () => {
+    const { result } = renderHook(() => useAppController())
+
+    await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
+    await waitFor(() => expect(tauriWindowMock.closeRequestedHandler()).toBeTruthy())
+
+    act(() => {
+      result.current.setNoteBody(richEditorDocumentFromPlainText('typed before desktop close'))
+    })
+
+    const closeEvent = { preventDefault: vi.fn() }
+    await act(async () => {
+      await tauriWindowMock.closeRequestedHandler()?.(closeEvent)
+    })
+
+    expect(closeEvent.preventDefault).toHaveBeenCalled()
+    expect(tauriMock.updateEntry).toHaveBeenCalledWith(
+      'entry-1',
+      expect.objectContaining({ body: expect.stringContaining('typed before desktop close') }),
+    )
+    expect(tauriWindowMock.currentWindow.close).toHaveBeenCalledTimes(1)
+  })
+
+  it('shares one forced flush when Session switch and Tauri close overlap', async () => {
+    const { result } = renderHook(() => useAppController())
+
+    await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
+    await waitFor(() => expect(tauriWindowMock.closeRequestedHandler()).toBeTruthy())
+
+    act(() => {
+      result.current.setNoteBody(richEditorDocumentFromPlainText('typed before overlapping forced saves'))
+    })
+
+    let rejectForcedSave: (error: Error) => void = () => {}
+    tauriMock.updateEntry.mockReturnValueOnce(
+      new Promise((_resolve, reject) => {
+        rejectForcedSave = reject
+      }),
+    )
+    const otherSession = sessionFixture({ id: 'session-2', title: 'Other note' })
+
+    let openPromise!: Promise<void>
+    act(() => {
+      openPromise = result.current.openSession(otherSession)
+    })
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(tauriMock.updateEntry).toHaveBeenCalledTimes(1)
+
+    const closeEvent = { preventDefault: vi.fn() }
+    let closePromise!: Promise<void>
+    act(() => {
+      closePromise = Promise.resolve(tauriWindowMock.closeRequestedHandler()?.(closeEvent))
+    })
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(closeEvent.preventDefault).toHaveBeenCalled()
+    expect(tauriMock.updateEntry).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      rejectForcedSave(new Error('offline'))
+      await Promise.all([openPromise, closePromise])
+    })
+
+    expect(tauriMock.openSessionNoteState).not.toHaveBeenCalledWith('session-2')
+    expect(result.current.activeSession?.id).toBe('session-1')
+    expect(tauriWindowMock.currentWindow.close).not.toHaveBeenCalled()
   })
 
   it('keeps failed generation undo dirty so beforeunload can retry the save', async () => {
@@ -658,6 +879,7 @@ describe('useAppController autosave flush', () => {
 describe('useAppController render-hot-path memoization', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    tauriWindowMock.reset()
     ensureTestLocalStorage()
     window.localStorage.clear()
     window.matchMedia = vi.fn().mockReturnValue({
@@ -712,6 +934,7 @@ describe('useAppController render-hot-path memoization', () => {
 describe('useAppController generation-job reconciliation on boot', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    tauriWindowMock.reset()
     ensureTestLocalStorage()
     window.localStorage.clear()
     window.matchMedia = vi.fn().mockReturnValue({
