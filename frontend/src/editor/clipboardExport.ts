@@ -1,9 +1,9 @@
 import type { Mark, Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { renderToMarkdown } from '@tiptap/static-renderer/pm/markdown'
-import { managedAttachmentImagesInDocument, richEditorDocumentFromHtml, type RichEditorDocument } from './editorDocument'
+import { managedAttachmentImagesInDocument, richEditorDocumentFromHtml, richEditorDocumentToHtml, type RichEditorDocument } from './editorDocument'
 import { richTextEditorExtensions } from './editorExtensions'
 import { managedAttachmentProtocol } from './editorHtml'
-import { isSafeUrlWithProtocols, managedAttachmentIdFromSrc } from './htmlUtils'
+import { escapeHtml, isSafeUrlWithProtocols, managedAttachmentIdFromSrc } from './htmlUtils'
 
 export type ClipboardRecord = {
   title: string
@@ -12,6 +12,7 @@ export type ClipboardRecord = {
 
 export type ClipboardPayload = {
   plain: string
+  html: string
 }
 
 export type ClipboardImageReference = {
@@ -28,11 +29,40 @@ export function formatRecordForClipboard(record: ClipboardRecord): ClipboardPayl
 
   return {
     plain: trimBlankLines(plainParts.join('\n\n')),
+    html: renderClipboardHtml(title, editorDocument),
   }
+}
+
+// Semantic tags only, no inline styles — Jira applies its own theme (keeps
+// the intent of the old plain-text-only decision). The innerHTML assignment
+// is safe: richEditorDocumentToHtml output is DOMPurify-sanitized, and the
+// container stays detached from the live document.
+function renderClipboardHtml(title: string, editorDocument: RichEditorDocument): string {
+  const container = document.createElement('div')
+  container.innerHTML = richEditorDocumentToHtml(editorDocument)
+  container.querySelectorAll('img').forEach((image) => {
+    const src = image.getAttribute('src') ?? ''
+    if (src.startsWith(managedAttachmentProtocol) || /^data:image\//i.test(src)) {
+      const alt = image.getAttribute('alt')?.trim() || 'Attached image'
+      image.replaceWith(document.createTextNode(`Image: ${alt}`))
+    }
+  })
+  const heading = title ? `<h2>${escapeHtml(title)}</h2>` : ''
+  return `${heading}${container.innerHTML}`
 }
 
 export async function copyRecordForJira(record: ClipboardRecord): Promise<void> {
   const payload = formatRecordForClipboard(record)
+  const clipboard = navigator.clipboard
+  if (clipboard && typeof clipboard.write === 'function' && typeof ClipboardItem !== 'undefined') {
+    await clipboard.write([
+      new ClipboardItem({
+        'text/html': new Blob([payload.html], { type: 'text/html' }),
+        'text/plain': new Blob([payload.plain], { type: 'text/plain' }),
+      }),
+    ])
+    return
+  }
   await writePlainClipboard(payload.plain)
 }
 

@@ -65,7 +65,7 @@ describe('clipboardExport', () => {
     expect(payload.plain).not.toContain('qa-scribe-attachment://')
   })
 
-  it('copies Jira records as plain Markdown-style text so Jira owns theme colors', async () => {
+  it('copies Jira records as plain Markdown-style text when ClipboardItem is unavailable', async () => {
     const write = vi.fn().mockResolvedValue(undefined)
     const writeText = vi.fn().mockResolvedValue(undefined)
     vi.stubGlobal('navigator', { clipboard: { write, writeText } })
@@ -79,7 +79,7 @@ describe('clipboardExport', () => {
     expect(writeText).toHaveBeenCalledWith(['## Gmail sign-in issue', '**Login** fails', '- Open Gmail'].join('\n\n'))
   })
 
-  it('copies Jira records with managed screenshots as plain text only', async () => {
+  it('copies Jira records with managed screenshots as plain text in the fallback path', async () => {
     const write = vi.fn().mockResolvedValue(undefined)
     const writeText = vi.fn().mockResolvedValue(undefined)
     vi.stubGlobal('navigator', { clipboard: { write, writeText } })
@@ -93,7 +93,7 @@ describe('clipboardExport', () => {
     expect(writeText).toHaveBeenCalledWith(['## Screenshot evidence', 'Image: gmail-error.png'].join('\n\n'))
   })
 
-  it('copies Jira records with direct data images as plain text only', async () => {
+  it('copies Jira records with direct data images as plain text in the fallback path', async () => {
     const write = vi.fn().mockResolvedValue(undefined)
     const writeText = vi.fn().mockResolvedValue(undefined)
     vi.stubGlobal('navigator', { clipboard: { write, writeText } })
@@ -179,6 +179,46 @@ describe('clipboardExport', () => {
     })
 
     expect(payload.plain).toMatchInlineSnapshot(`"See https://example.test/x now"`)
+  })
+
+  describe('rich clipboard payload', () => {
+    it('builds an html flavor with an escaped heading and placeholders for managed images', () => {
+      const payload = formatRecordForClipboard({
+        title: 'Bug <one>',
+        bodyHtml: '<p><strong>bold</strong></p><p><img src="qa-scribe-attachment://abc" alt="shot" /></p><p><img src="https://a.test/i.png" alt="ext" /></p>',
+      })
+
+      expect(payload.html).toContain('<h2>Bug &lt;one&gt;</h2>')
+      expect(payload.html).toContain('<strong>bold</strong>')
+      expect(payload.html).not.toContain('qa-scribe-attachment://')
+      expect(payload.html).toContain('Image: shot')
+      expect(payload.html).toContain('<img src="https://a.test/i.png"')
+    })
+
+    it('writes text/html and text/plain flavors when ClipboardItem is available', async () => {
+      const write = vi.fn().mockResolvedValue(undefined)
+      const writeText = vi.fn().mockResolvedValue(undefined)
+      vi.stubGlobal('navigator', { clipboard: { write, writeText } })
+      vi.stubGlobal(
+        'ClipboardItem',
+        class {
+          items: Record<string, Blob>
+          constructor(items: Record<string, Blob>) {
+            this.items = items
+          }
+        },
+      )
+
+      await copyRecordForJira({ title: 'T', bodyHtml: '<p>a</p>' })
+
+      expect(writeText).not.toHaveBeenCalled()
+      expect(write).toHaveBeenCalledTimes(1)
+      const calls = write.mock.calls as unknown as [[Array<{ items: Record<string, Blob> }>]]
+      const item = calls[0][0][0]
+      expect(Object.keys(item.items)).toEqual(['text/html', 'text/plain'])
+      expect(await item.items['text/html'].text()).toBe('<h2>T</h2><p>a</p>')
+      expect(await item.items['text/plain'].text()).toBe('## T\n\na')
+    })
   })
 
   it('does not HTML-entity-escape plain text', () => {
