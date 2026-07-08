@@ -1,3 +1,4 @@
+import DOMPurify, { type Config } from 'dompurify'
 import { EDITOR_HTML_TAGS, MANAGED_ATTACHMENT_PROTOCOL, SELF_CLOSING_EDITOR_HTML_TAGS, getAttachmentPreviewDataUrl } from '../tauri'
 import { escapeAttribute, escapeHtml, isSafeUrlWithProtocols, managedAttachmentIdFromImage } from './htmlUtils'
 
@@ -8,10 +9,8 @@ export const emptyEditorHtml = ''
 // sanitizer here and the response-repair pass in core can never silently
 // diverge.
 export const managedAttachmentProtocol: string = MANAGED_ATTACHMENT_PROTOCOL
-const allowedEditorTags = new Set<string>(EDITOR_HTML_TAGS)
 const selfClosingEditorTags = new Set<string>(SELF_CLOSING_EDITOR_HTML_TAGS)
 const nonSelfClosingEditorTags = EDITOR_HTML_TAGS.filter((tag) => !selfClosingEditorTags.has(tag))
-const removedEditorTags = new Set(['embed', 'form', 'iframe', 'math', 'meta', 'object', 'script', 'style', 'svg', 'template'])
 const editorTagPattern = EDITOR_HTML_TAGS.join('|')
 const escapedEditorOpeningTagPattern = new RegExp(`&lt;(?:${editorTagPattern})(?:\\s|/|&gt;)`, 'i')
 const escapedEditorClosingTagPattern = new RegExp(`&lt;/(?:${nonSelfClosingEditorTags.join('|')})&gt;`, 'i')
@@ -117,9 +116,46 @@ function decodeHtmlEntities(value: string): string {
   return textarea.value
 }
 
+// DOMPurify owns dangerous-markup removal (mXSS, namespace confusion, event
+// handlers, comments, DOM clobbering). The post-pass below only enforces app
+// semantics: per-tag attribute allowlists, URL policy, managed-attachment
+// canonicalization, and task-list normalization.
+const editorPurifyConfig = {
+  ALLOWED_TAGS: [...EDITOR_HTML_TAGS],
+  ALLOWED_ATTR: ['href', 'target', 'rel', 'src', 'alt', 'data-attachment-id', 'type', 'checked', 'data-type', 'data-checked'],
+  ALLOW_DATA_ATTR: false,
+  ALLOW_ARIA_ATTR: false,
+  // DOMPurify's default URI policy rejects the qa-scribe-attachment: scheme;
+  // extend it. Per-context tightening (http/https/mailto only for links, and
+  // so on) still happens in the post-pass helpers.
+  ALLOWED_URI_REGEXP: managedProtocolAwareUriRegexp(),
+  // These drop their CONTENT too; all other disallowed tags unwrap via
+  // DOMPurify's default KEEP_CONTENT behavior.
+  FORBID_CONTENTS: ['embed', 'form', 'iframe', 'math', 'meta', 'object', 'script', 'style', 'svg', 'template'],
+  RETURN_DOM: true,
+} satisfies Config & { RETURN_DOM: true }
+
+function managedProtocolAwareUriRegexp(): RegExp {
+  const scheme = managedAttachmentProtocol.replace(/:\/\/$/, '')
+  return new RegExp(`^(?:(?:(?:f|ht)tps?|mailto|${scheme}):|[^a-z]|[a-z+.\\-]+(?:[^a-z+.\\-:]|$))`, 'i')
+}
+
 function sanitizeNoteHtml(value: string): string {
-  const documentFragment = new DOMParser().parseFromString(value, 'text/html')
-  return sanitizeEditorHtmlTree(documentFragment.body)
+  // With RETURN_DOM the runtime value is always the sanitized <body> element,
+  // but the type declarations only promise Node.
+  const body = DOMPurify.sanitize(value, editorPurifyConfig) as HTMLElement
+  applyEditorAttributePolicy(body)
+  return body.innerHTML.trim()
+}
+
+function applyEditorAttributePolicy(root: HTMLElement) {
+  // Inputs before list items: taskItem normalization reads checkbox state.
+  root.querySelectorAll('input').forEach((input) => sanitizeInputElement(input))
+  root.querySelectorAll('a').forEach((link) => sanitizeLinkElement(link))
+  root.querySelectorAll('img').forEach((image) => sanitizeImageElement(image))
+  root.querySelectorAll('ul').forEach((list) => sanitizeUnorderedListElement(list))
+  root.querySelectorAll('li').forEach((item) => sanitizeListItemElement(item))
+  root.querySelectorAll('b, br, em, h2, h3, i, ol, p, strong').forEach(removeAllAttributes)
 }
 
 function isVisuallyEmptyEditorHtml(value: string): boolean {
@@ -127,67 +163,6 @@ function isVisuallyEmptyEditorHtml(value: string): boolean {
   const documentFragment = new DOMParser().parseFromString(value, 'text/html')
   if (documentFragment.body.querySelector('img, input')) return false
   return !(documentFragment.body.textContent ?? '').replace(/\u00a0/g, ' ').trim()
-}
-
-function sanitizeEditorHtmlTree(root: Element): string {
-  sanitizeEditorChildren(root)
-  return root.innerHTML.trim()
-}
-
-function sanitizeEditorChildren(parent: Element) {
-  Array.from(parent.childNodes).forEach((node) => {
-    if (node.nodeType === Node.COMMENT_NODE) {
-      node.remove()
-      return
-    }
-
-    if (node.nodeType === Node.ELEMENT_NODE) {
-      sanitizeEditorElement(node as HTMLElement)
-    }
-  })
-}
-
-function sanitizeEditorElement(element: HTMLElement) {
-  const tagName = element.tagName.toLowerCase()
-  if (removedEditorTags.has(tagName)) {
-    element.remove()
-    return
-  }
-
-  if (!allowedEditorTags.has(tagName)) {
-    sanitizeEditorChildren(element)
-    unwrapElement(element)
-    return
-  }
-
-  sanitizeEditorChildren(element)
-
-  if (tagName === 'a') {
-    sanitizeLinkElement(element as HTMLAnchorElement)
-    return
-  }
-
-  if (tagName === 'img') {
-    sanitizeImageElement(element as HTMLImageElement)
-    return
-  }
-
-  if (tagName === 'input') {
-    sanitizeInputElement(element as HTMLInputElement)
-    return
-  }
-
-  if (tagName === 'ul') {
-    sanitizeUnorderedListElement(element as HTMLUListElement)
-    return
-  }
-
-  if (tagName === 'li') {
-    sanitizeListItemElement(element as HTMLLIElement)
-    return
-  }
-
-  removeAllAttributes(element)
 }
 
 function removeAllAttributes(element: Element) {
@@ -255,15 +230,6 @@ function sanitizeListItemElement(item: HTMLLIElement) {
 
   item.setAttribute('data-type', 'taskItem')
   item.setAttribute('data-checked', dataChecked === 'true' || checkbox?.checked || checkbox?.hasAttribute('checked') ? 'true' : 'false')
-}
-
-function unwrapElement(element: Element) {
-  const parent = element.parentNode
-  if (!parent) return
-  while (element.firstChild) {
-    parent.insertBefore(element.firstChild, element)
-  }
-  element.remove()
 }
 
 export function isSafeEditorImageSource(source: string): boolean {
