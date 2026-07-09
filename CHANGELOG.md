@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.7.10 - 2026-07-09
+
+- Give debug Tauri builds their own `.dev` app identifier, product name, and window title so development runs no longer share the installed app's data directory or look identical in the window switcher.
+- Make the Rust build script watch every prebuilt `frontend/dist` file, forcing Tauri binaries to re-embed freshly rebuilt frontend assets instead of shipping a stale UI.
+- Bundle the Inter Variable italic face so rich-editor Italic formatting renders slanted with `font-synthesis: none`, and tighten the closed-stdout streaming regression fixture.
+
 ## v0.7.9 - 2026-07-08
 
 - Fix rich editor toolbar buttons so mouse clicks preserve the selected text before TipTap formatting commands run, restoring reliable Italic, Bold, list, checklist, link, and image-upload actions.

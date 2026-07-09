@@ -1,4 +1,10 @@
 fn main() {
+    // `tauri::generate_context!` embeds `frontend/dist` at macro-expansion
+    // time, but cargo does not watch those files on its own — a rebuilt
+    // frontend would otherwise ship inside a stale binary until something
+    // else forces this crate to recompile.
+    emit_rerun_if_changed_recursive(std::path::Path::new("../frontend/dist"));
+
     const COMMANDS: &[&str] = &[
         "get_settings",
         "update_settings",
@@ -38,4 +44,22 @@ fn main() {
             .app_manifest(tauri_build::AppManifest::new().commands(COMMANDS)),
     )
     .expect("Tauri build should register the explicit command manifest");
+}
+
+/// Watching the directory itself only catches added/removed entries, so every
+/// file is emitted individually; content edits to an existing file (e.g. a
+/// regenerated `index.html`) must also trigger a rebuild.
+fn emit_rerun_if_changed_recursive(path: &std::path::Path) {
+    println!("cargo:rerun-if-changed={}", path.display());
+    let Ok(entries) = std::fs::read_dir(path) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let entry_path = entry.path();
+        if entry_path.is_dir() {
+            emit_rerun_if_changed_recursive(&entry_path);
+        } else {
+            println!("cargo:rerun-if-changed={}", entry_path.display());
+        }
+    }
 }

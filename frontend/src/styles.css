@@ -1,4 +1,7 @@
 @import '@fontsource-variable/inter';
+/* The default import registers only upright faces; with `font-synthesis: none`
+   the italic mark renders upright without this italic companion file. */
+@import '@fontsource-variable/inter/wght-italic.css';
 
 @import './styles/base.css';
 @import './styles/shell.css';

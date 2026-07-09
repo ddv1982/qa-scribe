@@ -18,6 +18,15 @@
     <category>ProjectManagement</category>
   </categories>
   <releases>
+    <release version="0.7.10" date="2026-07-09">
+      <description>
+        <ul>
+          <li>Give debug Tauri builds their own app identity and visible dev window title.</li>
+          <li>Make Rust builds re-embed changed prebuilt frontend assets instead of shipping stale UI files.</li>
+          <li>Bundle the Inter Variable italic face and tighten closed-stdout streaming regression coverage.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.7.9" date="2026-07-08">
       <description>
         <ul>

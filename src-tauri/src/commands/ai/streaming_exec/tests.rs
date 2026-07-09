@@ -294,7 +294,7 @@ fn stdout_closed_live_child_does_not_deadlock_stdin_writer() {
     // the still-live child before joining the stdin writer.
     let cli = FakeCli::new(
         "fake-closed-stdout",
-        "#!/bin/sh\nexec 1>&-\nsleep 120\nexit 0\n",
+        "#!/bin/sh\nexec 1>&-\nexec sleep 120\n",
     );
     let large_prompt = "z".repeat(200_000);
     let command = cli.command(large_prompt, GenerationOutputFormat::CodexJsonl);

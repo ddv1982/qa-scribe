@@ -12,6 +12,22 @@ use std::time::Instant;
 use tauri::Manager;
 
 fn main() {
+    let mut context = tauri::generate_context!();
+
+    // Debug builds get their own identity: a dev instance must never share a
+    // data directory (and thus the SQLite database) with the installed app,
+    // and the "(dev)" title makes the two otherwise identical windows
+    // distinguishable when both are running.
+    #[cfg(debug_assertions)]
+    {
+        let config = context.config_mut();
+        config.identifier = format!("{}.dev", config.identifier);
+        config.product_name = Some("QA Scribe Dev".into());
+        for window in &mut config.app.windows {
+            window.title = format!("{} (dev)", window.title);
+        }
+    }
+
     let specta_builder = specta_bindings::builder();
 
     // Rust owns the bridge types: regenerate the frontend bindings on every
@@ -57,7 +73,7 @@ fn main() {
             Ok(())
         })
         .invoke_handler(specta_builder.invoke_handler())
-        .build(tauri::generate_context!())
+        .build(context)
         .expect("error while building qa-scribe")
         .run(|app, event| {
             // Both events can fire during a single shutdown; that's fine since
