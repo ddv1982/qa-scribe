@@ -1,0 +1,55 @@
+name: Setup project
+description: >-
+  Installs the repository's pinned Node, Bun, and Rust toolchains, restores the
+  Rust cache, and installs the frozen frontend dependency graph. Callers must
+  check out the repository first.
+
+inputs:
+  cache-key:
+    description: Stable cache partition for the caller's platform and purpose.
+    required: true
+  rust-targets:
+    description: Optional comma-separated Rust targets to install.
+    required: false
+    default: ''
+  install-frontend-dependencies:
+    description: Whether to install frontend dependencies from the frozen lockfile.
+    required: false
+    default: 'true'
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+      with:
+        node-version: '24'
+        package-manager-cache: false
+
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+      with:
+        bun-version-file: package.json
+
+    - name: Install Rust
+      if: inputs.rust-targets == ''
+      uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable branch (2026-06-30)
+
+    - name: Install Rust with additional targets
+      if: inputs.rust-targets != ''
+      uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable branch (2026-06-30)
+      with:
+        targets: ${{ inputs.rust-targets }}
+
+    - name: Restore Rust cache
+      uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2 (2026-03-12)
+      with:
+        workspaces: |
+          . -> target
+          src-tauri -> src-tauri/target
+        shared-key: ${{ inputs.cache-key }}
+
+    - name: Install frontend dependencies
+      if: inputs.install-frontend-dependencies == 'true'
+      shell: bash
+      run: bun install --cwd frontend --frozen-lockfile

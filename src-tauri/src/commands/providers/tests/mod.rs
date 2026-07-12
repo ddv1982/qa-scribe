@@ -21,9 +21,7 @@ static PROVIDER_PROBE_TEMP_FILE_TEST_LOCK: Mutex<()> = Mutex::new(());
 
 #[test]
 fn provider_probe_cleans_temp_files_when_spawn_fails() {
-    let _probe_lock = PROVIDER_PROBE_TEMP_FILE_TEST_LOCK
-        .lock()
-        .expect("probe temp-file tests should serialize");
+    let _probe_lock = lock_provider_probe_temp_file_tests();
     let before = provider_probe_temp_files();
 
     let error = run_command_with_timeout(
@@ -39,9 +37,7 @@ fn provider_probe_cleans_temp_files_when_spawn_fails() {
 #[cfg(unix)]
 #[test]
 fn provider_probe_timeout_kills_descendant_processes() {
-    let _probe_lock = PROVIDER_PROBE_TEMP_FILE_TEST_LOCK
-        .lock()
-        .expect("probe temp-file tests should serialize");
+    let _probe_lock = lock_provider_probe_temp_file_tests();
     let marker = std::env::temp_dir().join(format!(
         "qa-scribe-provider-probe-descendant-{}-{}",
         std::process::id(),
@@ -70,6 +66,7 @@ fn provider_probe_timeout_kills_descendant_processes() {
 
 #[test]
 fn provider_probe_output_files_are_created_exclusively() {
+    let _probe_lock = lock_provider_probe_temp_file_tests();
     let output_files = ProbeOutputFiles::new(9_999_999);
     fs::write(&output_files.stdout_path, b"do not truncate").expect("sentinel file should write");
 
@@ -82,6 +79,12 @@ fn provider_probe_output_files_are_created_exclusively() {
         fs::read(&output_files.stdout_path).expect("sentinel should still read"),
         b"do not truncate"
     );
+}
+
+fn lock_provider_probe_temp_file_tests() -> std::sync::MutexGuard<'static, ()> {
+    PROVIDER_PROBE_TEMP_FILE_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
 fn provider_probe_temp_files() -> HashSet<PathBuf> {
