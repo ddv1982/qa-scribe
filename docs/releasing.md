@@ -12,7 +12,8 @@ The stable release workflow accepts only stable SemVer versions and tags in the
 `1.0.0-beta.1` and `1.0.0+build.1` are rejected instead of being published as
 stable/latest artifacts.
 
-Bump the version with the single write-path script instead of hand-editing
+Create a release branch from the current protected `main`, then bump the version
+with the single write-path script instead of hand-editing
 files. It updates `package.json`, `frontend/package.json`, `Cargo.toml`
 (`[workspace.package]`), `Cargo.lock` (the `qa-scribe-app`/`qa-scribe-core`/
 `qa-scribe-tauri` entries), `src-tauri/tauri.conf.json`, inserts a
@@ -21,6 +22,8 @@ new `<release>` entry in
 `build/linux/io.github.ddv1982.qa-scribe.metainfo.xml`:
 
 ```bash
+git fetch origin main
+git switch -c release/v1.0.0 origin/main
 bun run bump 1.0.0
 ```
 
@@ -52,13 +55,24 @@ The metadata check also gates the Linux Tauri package identity: `src-tauri/tauri
 
 The release metadata check also rejects tracked Local AI model/runtime artifacts such as `.gguf` files, model caches, Ollama caches, and `llama-server` binaries. Local AI model download remains an in-app/Ollama setup step, not a bundled release asset.
 
-Then commit, tag, and push:
+Commit the release metadata, push the branch, and merge it through a pull
+request after the required checks pass:
 
 ```bash
 git add -A
 git commit -m "lore(release): v1.0.0"
-git tag v1.0.0
-git push origin main
+git push -u origin release/v1.0.0
+gh pr create --base main --head release/v1.0.0 --title "lore(release): v1.0.0"
+gh pr checks --watch
+gh pr merge --merge --delete-branch
+```
+
+Tag the exact merge commit, rather than whichever commit happens to be at the
+tip of `main` later, and push the tag to start the Release workflow:
+
+```bash
+release_commit="$(gh pr view release/v1.0.0 --json mergeCommit --jq '.mergeCommit.oid')"
+git tag v1.0.0 "${release_commit}"
 git push origin v1.0.0
 ```
 

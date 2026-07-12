@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.7.11 - 2026-07-12
+
+- Split the frontend app controller into focused startup, record-hydration, and pending-change hooks while preserving autosave, Session switching, generation, and lifecycle behavior with smaller targeted test suites.
+- Extract cohesive generation response, prompt-context, and storage-schema modules from the Rust core without changing Tauri command names, database schemas, or product behavior.
+- Add an automated contract check that keeps all 31 Tauri commands aligned across the build manifest, handler registration, generated bindings, and permissions.
+- Harden CI and releases with reproducible Rust 1.97 tooling, stable aggregate checks, focused cross-platform coverage, read-only release builds, staged artifact publishing, workflow security analysis, and protected-branch release guidance.
+
 ## v0.7.10 - 2026-07-09
 
 - Give debug Tauri builds their own `.dev` app identifier, product name, and window title so development runs no longer share the installed app's data directory or look identical in the window switcher.
