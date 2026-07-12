@@ -183,7 +183,7 @@ export function GenerationPreflight({
         <button
           className="primary-button"
           type="button"
-          disabled={isBusy || !activeProviderAvailable}
+          disabled={isBusy || !activeProviderAvailable || Boolean(selectionWarning)}
           onClick={() => onConfirm(isTestware ? testwarePreferences : undefined)}
         >
           {copy.confirmLabel}

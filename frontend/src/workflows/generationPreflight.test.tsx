@@ -44,6 +44,15 @@ describe('GenerationPreflight modal accessibility', () => {
     expect(onCancel).toHaveBeenCalledTimes(1)
   })
 
+  it('blocks generation when provider discovery reports an incompatible default', () => {
+    renderPreflight({
+      selectionWarning: 'Configured model requires a newer Codex CLI. Upgrade it or choose an override.',
+    })
+
+    expect(screen.getByRole('alert').textContent).toContain('requires a newer Codex CLI')
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Summarize note' }).disabled).toBe(true)
+  })
+
   it('returns focus to the trigger when the dialog unmounts', async () => {
     const trigger = document.createElement('button')
     document.body.appendChild(trigger)

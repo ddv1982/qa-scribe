@@ -6,6 +6,7 @@
 - Add nullable settings migration, automatic provider refresh, compatibility preflight checks, custom model support, and resolved-model recording for structured provider runs.
 - Read Codex defaults through its app-server protocol, support current Copilot JSONC settings and reasoning flags, and preserve honest provider-managed states when a CLI cannot expose its account default.
 - Create the version tag and run the signed release pipeline automatically when a version-bumped feature branch is merged into `main`, while retaining tagged release reruns.
+- Keep “Use CLI default” transparent during generation, and stop unsupported configured Codex defaults before a doomed provider run with actionable upgrade or override guidance.
 
 ## v0.7.11 - 2026-07-12
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { effectiveSelection } from './defaults'
+import { effectiveSelection, reasoningOverrideForProvider } from './defaults'
 import { providerStatusFixture, settingsFixture } from '../test/fixtures'
 
 describe('effectiveSelection', () => {
@@ -11,6 +11,13 @@ describe('effectiveSelection', () => {
       reasoning: 'medium',
       warning: null,
     })
+  })
+
+  it('does not turn a discovered CLI reasoning default into a QA Scribe override', () => {
+    const settings = settingsFixture()
+
+    expect(effectiveSelection(settings, providerStatusFixture().providers[0]).reasoning).toBe('medium')
+    expect(reasoningOverrideForProvider(settings, 'codex_cli')).toBeNull()
   })
 
   it('keeps model and reasoning overrides independent and warns on incompatibility', () => {

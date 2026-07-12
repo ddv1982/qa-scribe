@@ -188,7 +188,7 @@ describe('App workflows', () => {
           sessionId: 'session-1',
           provider: 'codex_cli',
           model: 'default',
-          reasoningEffort: 'medium',
+          reasoningEffort: null,
           action: 'testware',
           noteEntryId: 'entry-1',
           testwarePreferences: expect.objectContaining({

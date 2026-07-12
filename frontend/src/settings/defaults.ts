@@ -27,13 +27,17 @@ export function modelOverrideForProvider(settings: AppSettings, provider: AiProv
     ?? null
 }
 
+export function reasoningOverrideForProvider(settings: AppSettings, provider: AiProvider): string | null {
+  return settings.selectedAiReasoningEffortsByProvider?.[provider] ?? null
+}
+
 export function effectiveSelection(
   settings: AppSettings,
   provider: ProviderStatus['providers'][number] | null,
 ): { model: string; reasoning: string | null; warning: string | null } {
   const providerId = (provider?.id ?? settings.selectedAiProvider) as AiProvider
   const modelOverride = modelOverrideForProvider(settings, providerId)
-  const reasoningOverride = settings.selectedAiReasoningEffortsByProvider?.[providerId] ?? null
+  const reasoningOverride = reasoningOverrideForProvider(settings, providerId)
   const model = modelOverride ?? provider?.defaultSnapshot.model ?? 'Provider managed'
   const descriptor = provider?.models.find((candidate) => candidate.id === model)
   const modelRecommendation = descriptor?.defaultReasoningEffort

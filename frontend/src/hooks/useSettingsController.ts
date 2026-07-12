@@ -7,7 +7,7 @@ import {
   type AppSettings,
   type ProviderStatus,
 } from '../tauri'
-import { effectiveSelection, modelForProvider, modelOverrideForProvider } from '../settings/defaults'
+import { effectiveSelection, modelForProvider, modelOverrideForProvider, reasoningOverrideForProvider } from '../settings/defaults'
 import { currentSystemTheme, formatError, initialTheme, resolveThemePreference } from '../ui/format'
 import type { SettingsSaveState, ThemePreference } from '../ui/types'
 
@@ -30,7 +30,10 @@ export function useSettingsController({
   const selectedModel = settings ? modelForProvider(settings, selectedProvider) : 'default'
   const providerOptions = providerStatus?.providers ?? []
   const activeProvider = providerOptions.find((provider) => provider.id === selectedProvider) ?? providerOptions[0] ?? null
-  const selectedReasoningEffort = settings ? effectiveSelection(settings, activeProvider).reasoning : null
+  // Generation must receive only the QA Scribe override. Passing the visible
+  // CLI default back as an override makes "Use CLI default" depend on a stale
+  // discovery snapshot instead of letting the CLI resolve its own settings.
+  const selectedReasoningEffort = settings ? reasoningOverrideForProvider(settings, selectedProvider) : null
   const effectiveAiSelection = settings ? effectiveSelection(settings, activeProvider) : { model: 'Provider managed', reasoning: null, warning: null }
   const resolvedTheme = resolveThemePreference(theme, systemTheme)
 
