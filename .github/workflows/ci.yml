@@ -5,6 +5,8 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  merge_group:
+    types: [checks_requested]
 
 permissions:
   contents: read
@@ -18,31 +20,29 @@ env:
   CARGO_TERM_COLOR: always
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   TAURI_TARGET: x86_64-unknown-linux-gnu
-  # Kept in sync by hand with the identical TAURI_CLI_VERSION entry in
-  # release.yml's env block (no cheap single-source available without adding
-  # a repo variable out-of-band of this diff) - bump both together.
-  TAURI_CLI_VERSION: 2.11.3
 
 jobs:
   changes:
     name: Detect changed files
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
     outputs:
+      run_macos_ci: ${{ steps.filter.outputs.run_macos_ci }}
       run_package_ci: ${{ steps.filter.outputs.run_package_ci }}
-      run_rust_ci: ${{ steps.filter.outputs.run_rust_ci }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           fetch-depth: 0
+          persist-credentials: false
 
-      - name: Detect code changes
+      - name: Detect platform and package changes
         id: filter
         uses: dorny/paths-filter@d1c1ffe0248fe513906c8e24db8ea791d46f8590 # v3.0.3
         with:
           filters: |
-            run_rust_ci:
+            run_macos_ci:
               - '.github/workflows/**'
               - '.github/actions/**'
               - 'Cargo.toml'
@@ -50,11 +50,10 @@ jobs:
               - 'crates/**'
               - 'src-tauri/**'
               - 'frontend/**'
-              - 'tests/**'
               - 'build/icons/**'
               - 'package.json'
-              - 'scripts/check-release-metadata.mjs'
               - 'scripts/build_frontend_for_tauri.sh'
+              - 'scripts/check-tauri-prebuilt-frontend.sh'
             run_package_ci:
               - '.github/workflows/**'
               - '.github/actions/**'
@@ -71,28 +70,21 @@ jobs:
               - 'CHANGELOG.md'
               - 'package.json'
 
-  rust-linux:
-    name: Rust ubuntu-24.04
-    needs: changes
-    if: needs.changes.outputs.run_rust_ci == 'true' || needs.changes.outputs.run_package_ci == 'true'
+  quality-linux:
+    name: Quality gate (Linux)
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-
-      - name: Setup Node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: '24'
+          persist-credentials: false
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+      - name: Setup project
+        uses: ./.github/actions/setup-project
         with:
-          bun-version: '1.3.5'
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable branch (2026-06-30)
+          cache-key: quality-linux
 
       - name: Install Linux Tauri desktop dependencies
         run: |
@@ -104,97 +96,63 @@ jobs:
             libssl-dev \
             libwebkit2gtk-4.1-dev
 
-      - name: Setup Rust cache
-        uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2 (post-v2.9.1, 2026-03-12)
-        with:
-          workspaces: |
-            . -> target
-            src-tauri -> src-tauri/target
-          key: rust-Linux
-
-      - name: Validate frontend and Rust build
+      - name: Validate project
         uses: ./.github/actions/validate-build
 
   rust-macos:
-    name: Rust macos-26
+    name: Platform tests (macOS arm64 + Intel check)
     needs: changes
-    if: needs.changes.outputs.run_rust_ci == 'true' || needs.changes.outputs.run_package_ci == 'true'
+    if: needs.changes.outputs.run_macos_ci == 'true'
     runs-on: macos-26
+    timeout-minutes: 30
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-
-      - name: Setup Node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: '24'
+          persist-credentials: false
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+      - name: Setup project
+        uses: ./.github/actions/setup-project
         with:
-          bun-version: '1.3.5'
+          cache-key: platform-macos
+          rust-targets: x86_64-apple-darwin
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable branch (2026-06-30)
+      - name: Build frontend
+        run: bun run frontend:build
 
-      - name: Setup Rust cache
-        uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2 (post-v2.9.1, 2026-03-12)
-        with:
-          workspaces: |
-            . -> target
-            src-tauri -> src-tauri/target
-          key: rust-macOS
+      - name: Validate Tauri prebuilt frontend contract
+        run: bash scripts/check-tauri-prebuilt-frontend.sh
 
-      - name: Validate frontend and Rust build
-        uses: ./.github/actions/validate-build
-
-      # Cheap compile-only guard for the macos-26-intel release leg: a full
-      # Intel runner leg in CI is not worth the cost (slow, expensive
-      # macOS runners), but a cross-target `cargo check` on the arm64 leg
-      # catches x86_64-only compile breaks before they surface for the
-      # first time during a release build.
-      - name: Install Intel macOS Rust target
-        run: rustup target add x86_64-apple-darwin
+      - name: Run native macOS Rust tests
+        run: cargo test --workspace
 
       - name: Check Intel macOS cross-compile
         run: cargo check --workspace --target x86_64-apple-darwin
 
   package-linux:
-    name: Package Linux Rust
-    needs: [changes, rust-linux]
-    if: |
-      always() &&
+    name: Package test (Linux x64)
+    needs: [changes, quality-linux]
+    if: >-
+      !cancelled() &&
       needs.changes.outputs.run_package_ci == 'true' &&
-      needs['rust-linux'].result == 'success'
+      needs.quality-linux.result == 'success'
     runs-on: ubuntu-24.04
+    timeout-minutes: 40
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-
-      - name: Setup Node.js
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: '24'
+          persist-credentials: false
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+      - name: Setup project
+        uses: ./.github/actions/setup-project
         with:
-          bun-version: '1.3.5'
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable branch (2026-06-30)
-        with:
-          targets: ${{ env.TAURI_TARGET }}
-
-      - name: Setup Rust cache
-        uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2 (post-v2.9.1, 2026-03-12)
-        with:
-          workspaces: |
-            . -> target
-            src-tauri -> src-tauri/target
-          key: rust-linux-package
+          # This job starts after quality-linux, so it can reuse that job's
+          # dependency cache instead of creating a second cache silo.
+          cache-key: quality-linux
+          rust-targets: ${{ env.TAURI_TARGET }}
 
       - name: Install Linux Tauri and packaging dependencies
         run: |
@@ -213,14 +171,6 @@ jobs:
             desktop-file-utils \
             appstream
 
-      - name: Install frontend dependencies
-        run: bun install --cwd frontend --frozen-lockfile
-
-      # Runs release metadata validation plus the release Node/Python test
-      # suites; ubuntu-24.04 ships python3, so no setup-python step is needed.
-      - name: Check release metadata and release test suites
-        run: bun run release:check
-
       - name: Build frontend
         run: bun run frontend:build
 
@@ -228,10 +178,7 @@ jobs:
         uses: cargo-bins/cargo-binstall@732870f031d2fb36309d0deaf36abcc704a7be65 # v1.20.1
 
       - name: Install Tauri CLI
-        # --force: the rust cache restores ~/.cargo/.crates.toml (the install
-        # manifest) without ~/.cargo/bin, so binstall would otherwise skip the
-        # install as "already installed" while the binary is absent.
-        run: cargo binstall tauri-cli --locked --version "=${TAURI_CLI_VERSION}" --no-confirm --force
+        run: bun run tauri:cli:install
 
       - name: Build Linux artifacts
         env:
@@ -260,3 +207,25 @@ jobs:
 
       - name: Validate APT installer rendering
         run: node scripts/check-apt-installer.mjs
+
+  ci-success:
+    name: CI success
+    needs: [changes, quality-linux, rust-macos, package-linux]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+
+    steps:
+      - name: Require every applicable CI job to pass
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          QUALITY_RESULT: ${{ needs.quality-linux.result }}
+          MACOS_RESULT: ${{ needs.rust-macos.result }}
+          PACKAGE_RESULT: ${{ needs.package-linux.result }}
+        run: |
+          for result in "$CHANGES_RESULT" "$QUALITY_RESULT" "$MACOS_RESULT" "$PACKAGE_RESULT"; do
+            if [ "$result" != success ] && [ "$result" != skipped ]; then
+              echo "An applicable CI job did not pass (result: $result)." >&2
+              exit 1
+            fi
+          done

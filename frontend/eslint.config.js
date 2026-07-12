@@ -46,7 +46,7 @@ export default tseslint.config(
     //   to match the async wrapper's signature even when the body has no `await`.
     // - `no-unsafe-*`: reading `mock.calls[i]` (typed `any`) to assert on captured
     //   arguments is standard and safe. Production code keeps both rules strict.
-    files: ['src/**/*.test.{ts,tsx}'],
+    files: ['src/**/*.test.{ts,tsx}', 'src/**/*.testHarness.ts'],
     rules: {
       '@typescript-eslint/require-await': 'off',
       '@typescript-eslint/no-unsafe-assignment': 'off',
