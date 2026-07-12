@@ -18,7 +18,45 @@ pub struct ProviderDescriptor {
     pub command: Option<String>,
     pub executable_path: Option<String>,
     pub models: Vec<ProviderModelDescriptor>,
+    pub default_snapshot: ProviderDefaultSnapshot,
     pub local_only: bool,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderDefaultSnapshot {
+    pub model: Option<String>,
+    pub reasoning_effort: Option<String>,
+    pub model_origin: Option<String>,
+    pub reasoning_origin: Option<String>,
+    pub resolution: ProviderDefaultResolution,
+    pub recommended_model: Option<String>,
+    pub recommended_reasoning_effort: Option<String>,
+    pub warnings: Vec<String>,
+}
+
+impl ProviderDefaultSnapshot {
+    pub fn provider_managed() -> Self {
+        Self {
+            model: None,
+            reasoning_effort: None,
+            model_origin: None,
+            reasoning_origin: None,
+            resolution: ProviderDefaultResolution::ProviderManaged,
+            recommended_model: None,
+            recommended_reasoning_effort: None,
+            warnings: Vec::new(),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub enum ProviderDefaultResolution {
+    Configured,
+    Recommended,
+    ProviderManaged,
+    Unavailable,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, specta::Type)]
@@ -30,6 +68,7 @@ pub struct ProviderModelDescriptor {
     pub source: ProviderModelSource,
     pub is_default: bool,
     pub reasoning_efforts: Vec<String>,
+    pub default_reasoning_effort: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, specta::Type)]

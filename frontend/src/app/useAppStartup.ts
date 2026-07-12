@@ -29,11 +29,19 @@ export function useAppStartup(options: UseAppStartupOptions) {
   }, [options])
 
   const loadProviderStatusAfterBoot = useCallback(async () => {
-    const { loadProviderStatus, setError } = optionsRef.current
+    const { loadProviderStatus, refreshProviderStatus, setError } = optionsRef.current
     try {
       await loadProviderStatus()
       startupMark('provider-fast-status-complete')
       startupMeasure('boot-to-provider-fast-status', 'boot-start', 'provider-fast-status-complete')
+      window.setTimeout(() => {
+        void refreshProviderStatus()
+          .then(() => {
+            startupMark('provider-deep-refresh-complete')
+            startupMeasure('boot-to-provider-deep-refresh', 'boot-start', 'provider-deep-refresh-complete')
+          })
+          .catch((cause) => setError(formatError(cause)))
+      }, 0)
     } catch (cause) {
       setError(formatError(cause))
     }

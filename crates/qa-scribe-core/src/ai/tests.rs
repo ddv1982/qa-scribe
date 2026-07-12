@@ -111,6 +111,25 @@ fn copilot_generation_uses_selected_model() {
 }
 
 #[test]
+fn copilot_generation_uses_reasoning_override() {
+    let command = generation_command(
+        AiProvider::CopilotCli,
+        "draft this",
+        "gpt-5.4",
+        Some("max"),
+        true,
+    )
+    .unwrap();
+
+    assert!(
+        command
+            .args
+            .windows(2)
+            .any(|args| { args == ["--reasoning-effort".to_string(), "max".to_string()] })
+    );
+}
+
+#[test]
 fn copilot_generation_does_not_leak_prompt_into_argv() {
     let command = generation_command(
         AiProvider::CopilotCli,
@@ -267,18 +286,15 @@ fn reasoning_effort_rejects_toml_injection() {
 }
 
 #[test]
-fn reasoning_effort_rejects_unknown_value_for_claude() {
-    let error = generation_command(
+fn reasoning_effort_accepts_future_safe_value_for_claude() {
+    let command = generation_command(
         AiProvider::ClaudeCode,
         "draft this",
         "sonnet",
         Some("extreme"),
         false,
     )
-    .unwrap_err();
+    .unwrap();
 
-    assert!(
-        error.contains("reasoning effort"),
-        "unexpected error: {error}"
-    );
+    assert!(command.args.contains(&"extreme".to_string()));
 }

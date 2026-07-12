@@ -7,11 +7,12 @@ use super::{ProbeRunner, ProviderModelDescriptor, ProviderModelSource};
 pub(super) fn provider_default_model() -> ProviderModelDescriptor {
     ProviderModelDescriptor {
         id: "default".to_string(),
-        label: "Provider default".to_string(),
+        label: "Use CLI default".to_string(),
         description: Some("Use the model configured by the local provider CLI.".to_string()),
         source: ProviderModelSource::ProviderDefault,
         is_default: true,
         reasoning_efforts: Vec::new(),
+        default_reasoning_effort: None,
     }
 }
 
@@ -28,13 +29,14 @@ fn environment_model(key: &str) -> Option<ProviderModelDescriptor> {
         source: ProviderModelSource::Environment,
         is_default: false,
         reasoning_efforts: Vec::new(),
+        default_reasoning_effort: None,
     })
 }
 
 fn copilot_settings_model() -> Option<ProviderModelDescriptor> {
     let path = copilot_settings_path()?;
     let settings = fs::read_to_string(path).ok()?;
-    let settings = serde_json::from_str::<CopilotSettings>(&settings).ok()?;
+    let settings = json5::from_str::<CopilotSettings>(&settings).ok()?;
     let model = settings.model?.trim().to_string();
     if model.is_empty()
         || model.eq_ignore_ascii_case("default")
@@ -50,18 +52,28 @@ fn copilot_settings_model() -> Option<ProviderModelDescriptor> {
         source: ProviderModelSource::Detected,
         is_default: false,
         reasoning_efforts: Vec::new(),
+        default_reasoning_effort: None,
     })
 }
 
 fn copilot_settings_path() -> Option<PathBuf> {
     if let Some(home) = env::var_os("COPILOT_HOME").filter(|value| !value.is_empty()) {
-        return Some(PathBuf::from(home).join("settings.json"));
+        return Some(preferred_copilot_settings_path(PathBuf::from(home)));
     }
 
     env::var_os("HOME")
         .filter(|value| !value.is_empty())
         .map(PathBuf::from)
-        .map(|home| home.join(".copilot").join("settings.json"))
+        .map(|home| preferred_copilot_settings_path(home.join(".copilot")))
+}
+
+fn preferred_copilot_settings_path(home: PathBuf) -> PathBuf {
+    let settings = home.join("settings.json");
+    if settings.exists() {
+        settings
+    } else {
+        home.join("config.json")
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -91,7 +103,7 @@ pub(super) fn codex_models(runner: &dyn ProbeRunner) -> Vec<ProviderModelDescrip
 
 pub(super) fn claude_static_models() -> Vec<ProviderModelDescriptor> {
     let mut models = vec![provider_default_model()];
-    if let Some(model) = environment_model("CLAUDE_MODEL") {
+    if let Some(model) = environment_model("ANTHROPIC_MODEL") {
         models.push(model);
     }
     models.extend(preset_models(&CLAUDE_PRESET_MODELS));
@@ -120,7 +132,7 @@ pub(super) fn copilot_models_with_config_help(
 ) -> Vec<ProviderModelDescriptor> {
     let mut models = copilot_base_models();
 
-    let help = runner.run("copilot", &["help", "config"]);
+    let help = runner.run("copilot", &["--help"]);
     if help.success {
         let detected_models = parse_copilot_config_help(&help.stdout);
         if detected_models.is_empty() {
@@ -197,6 +209,7 @@ fn preset_models(models: &[&str]) -> Vec<ProviderModelDescriptor> {
             source: ProviderModelSource::Preset,
             is_default: false,
             reasoning_efforts: Vec::new(),
+            default_reasoning_effort: None,
         })
         .collect()
 }
@@ -217,6 +230,8 @@ struct CodexModel {
     description: Option<String>,
     visibility: Option<String>,
     supported_reasoning_levels: Option<Vec<CodexReasoningLevel>>,
+    #[serde(alias = "default_reasoning_effort")]
+    default_reasoning_level: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -249,6 +264,7 @@ fn parse_codex_models(json: &str) -> Vec<ProviderModelDescriptor> {
                 source: ProviderModelSource::Detected,
                 is_default: false,
                 reasoning_efforts,
+                default_reasoning_effort: model.default_reasoning_level,
             }
         })
         .collect()
@@ -266,11 +282,23 @@ fn parse_claude_model_help(help: &str) -> Vec<ProviderModelDescriptor> {
             source: ProviderModelSource::Detected,
             is_default: false,
             reasoning_efforts: Vec::new(),
+            default_reasoning_effort: None,
         })
         .collect()
 }
 
 fn parse_copilot_config_help(help: &str) -> Vec<ProviderModelDescriptor> {
+    let option_models: Vec<_> = help
+        .lines()
+        .filter(|line| line.contains("--model"))
+        .flat_map(quoted_tokens)
+        .filter(|model| model == "auto" || model.contains('-'))
+        .map(detected_copilot_model)
+        .collect();
+    if !option_models.is_empty() {
+        return option_models;
+    }
+
     let mut in_model_section = false;
     let mut models = Vec::new();
 
@@ -294,18 +322,23 @@ fn parse_copilot_config_help(help: &str) -> Vec<ProviderModelDescriptor> {
         }
 
         if let Some(model) = copilot_model_from_help_line(trimmed) {
-            models.push(ProviderModelDescriptor {
-                id: model.clone(),
-                label: model,
-                description: Some("Detected from GitHub Copilot CLI config help.".to_string()),
-                source: ProviderModelSource::Detected,
-                is_default: false,
-                reasoning_efforts: Vec::new(),
-            });
+            models.push(detected_copilot_model(model));
         }
     }
 
     models
+}
+
+fn detected_copilot_model(model: String) -> ProviderModelDescriptor {
+    ProviderModelDescriptor {
+        id: model.clone(),
+        label: model,
+        description: Some("Detected from GitHub Copilot CLI help.".to_string()),
+        source: ProviderModelSource::Detected,
+        is_default: false,
+        reasoning_efforts: Vec::new(),
+        default_reasoning_effort: None,
+    }
 }
 
 fn starts_model_section(line: &str) -> bool {
@@ -377,15 +410,34 @@ pub(super) fn normalize_models(
     models: Vec<ProviderModelDescriptor>,
 ) -> Vec<ProviderModelDescriptor> {
     let mut seen = HashSet::new();
-    let mut normalized: Vec<ProviderModelDescriptor> = models
+    let mut normalized: Vec<ProviderModelDescriptor> = Vec::new();
+    for model in models
         .into_iter()
         .filter(|model| !model.id.trim().is_empty())
-        .filter(|model| seen.insert(model.id.clone()))
-        .collect();
+    {
+        if seen.insert(model.id.clone()) {
+            normalized.push(model);
+            continue;
+        }
+        if let Some(existing) = normalized.iter_mut().find(|entry| entry.id == model.id)
+            && model_source_priority(model.source) > model_source_priority(existing.source)
+        {
+            *existing = model;
+        }
+    }
 
     if normalized.is_empty() {
         normalized.push(provider_default_model());
     }
 
     normalized
+}
+
+fn model_source_priority(source: ProviderModelSource) -> u8 {
+    match source {
+        ProviderModelSource::ProviderDefault => 0,
+        ProviderModelSource::Preset => 1,
+        ProviderModelSource::Environment => 2,
+        ProviderModelSource::Detected => 3,
+    }
 }

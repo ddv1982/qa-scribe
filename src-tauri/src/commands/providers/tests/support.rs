@@ -103,7 +103,7 @@ impl CommandProbe {
 
 pub(super) fn copilot_prompt_help() -> CommandProbe {
     CommandProbe::success_with_stdout(
-        "Usage: copilot [options]\n  -p, --prompt <prompt> Execute a prompt in non-interactive mode",
+        "Usage: copilot [options]\n  -p, --prompt <prompt> Execute a prompt in non-interactive mode\n  --model <model> Use 'claude-sonnet-4.6', 'gpt-5.5', 'gpt-5.3-codex', 'claude-opus-4.6-fast', or 'gemini-3.5-flash'",
     )
 }
 

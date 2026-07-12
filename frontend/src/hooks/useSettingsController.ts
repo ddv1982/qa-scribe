@@ -7,7 +7,7 @@ import {
   type AppSettings,
   type ProviderStatus,
 } from '../tauri'
-import { modelForProvider } from '../settings/defaults'
+import { effectiveSelection, modelForProvider, modelOverrideForProvider } from '../settings/defaults'
 import { currentSystemTheme, formatError, initialTheme, resolveThemePreference } from '../ui/format'
 import type { SettingsSaveState, ThemePreference } from '../ui/types'
 
@@ -30,7 +30,8 @@ export function useSettingsController({
   const selectedModel = settings ? modelForProvider(settings, selectedProvider) : 'default'
   const providerOptions = providerStatus?.providers ?? []
   const activeProvider = providerOptions.find((provider) => provider.id === selectedProvider) ?? providerOptions[0] ?? null
-  const selectedReasoningEffort = settings?.selectedAiReasoningEffortsByProvider?.[selectedProvider] ?? null
+  const selectedReasoningEffort = settings ? effectiveSelection(settings, activeProvider).reasoning : null
+  const effectiveAiSelection = settings ? effectiveSelection(settings, activeProvider) : { model: 'Provider managed', reasoning: null, warning: null }
   const resolvedTheme = resolveThemePreference(theme, systemTheme)
 
   useEffect(() => {
@@ -88,7 +89,7 @@ export function useSettingsController({
       setSettingsSaveState('saving')
       const saved = await persistSettings({
         ...settingsDraft,
-        selectedAiModel: modelForProvider(settingsDraft, settingsDraft.selectedAiProvider ?? 'codex_cli'),
+        selectedAiModel: modelOverrideForProvider(settingsDraft, settingsDraft.selectedAiProvider ?? 'codex_cli'),
       })
       setSettingsSaveState(saved ? 'saved' : 'error')
       if (saved) scheduleSettingsSaveReset()
@@ -112,6 +113,7 @@ export function useSettingsController({
 
   return {
     activeProvider,
+    effectiveAiSelection,
     handleSaveSettings,
     loadProviderStatus,
     loadSettings,

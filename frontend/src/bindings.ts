@@ -50,9 +50,9 @@ export const EDITOR_HTML_TAGS = ["a","b","br","em","h2","h3","i","img","input","
 
 export const MANAGED_ATTACHMENT_PROTOCOL = "qa-scribe-attachment://" as const;
 
-export const PROVIDER_MODEL_DEFAULTS = {"claude_code":"default","codex_cli":"default","copilot_cli":"auto"} as const;
+export const PROVIDER_MODEL_DEFAULTS = {"claude_code":null,"codex_cli":null,"copilot_cli":null} as const;
 
-export const PROVIDER_REASONING_DEFAULTS = {"claude_code":"medium","codex_cli":"low","copilot_cli":null} as const;
+export const PROVIDER_REASONING_DEFAULTS = {"claude_code":null,"codex_cli":null,"copilot_cli":null} as const;
 
 export const SELF_CLOSING_EDITOR_HTML_TAGS = ["br","img","input"] as const;
 
@@ -79,8 +79,8 @@ export type AppSettings = {
 	schemaVersion: number,
 	generationSystemPrompt: string,
 	selectedAiProvider?: AiProvider,
-	selectedAiModel?: string,
-	selectedAiModelsByProvider?: Partial<{ [key in AiProvider]: string }>,
+	selectedAiModel?: string | null,
+	selectedAiModelsByProvider?: Partial<{ [key in AiProvider]: string | null }>,
 	selectedAiReasoningEffortsByProvider?: Partial<{ [key in AiProvider]: string | null }>,
 	testwareTemplate?: string,
 	findingTemplate?: string,
@@ -271,6 +271,19 @@ export type GenerationJobStatus = {
 	partialText: string | null,
 };
 
+export type ProviderDefaultResolution = "configured" | "recommended" | "providerManaged" | "unavailable";
+
+export type ProviderDefaultSnapshot = {
+	model: string | null,
+	reasoningEffort: string | null,
+	modelOrigin: string | null,
+	reasoningOrigin: string | null,
+	resolution: ProviderDefaultResolution,
+	recommendedModel: string | null,
+	recommendedReasoningEffort: string | null,
+	warnings: string[],
+};
+
 export type ProviderDescriptor = {
 	id: string,
 	label: string,
@@ -280,6 +293,7 @@ export type ProviderDescriptor = {
 	command: string | null,
 	executablePath: string | null,
 	models: ProviderModelDescriptor[],
+	defaultSnapshot: ProviderDefaultSnapshot,
 	localOnly: boolean,
 };
 
@@ -290,6 +304,7 @@ export type ProviderModelDescriptor = {
 	source: ProviderModelSource,
 	isDefault: boolean,
 	reasoningEfforts: string[],
+	defaultReasoningEffort: string | null,
 };
 
 export type ProviderModelSource = "providerDefault" | "environment" | "preset" | "detected";

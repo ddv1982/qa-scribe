@@ -1,6 +1,7 @@
 use qa_scribe_core::{ai::provider_capabilities, domain::AiProvider};
 
 mod cache;
+mod defaults;
 mod detection;
 mod models;
 mod probe;
@@ -10,8 +11,8 @@ mod types;
 
 #[allow(unused_imports)]
 pub use types::{
-    ProviderDescriptor, ProviderModelDescriptor, ProviderModelSource, ProviderReadiness,
-    ProviderState, ProviderStatus,
+    ProviderDefaultResolution, ProviderDefaultSnapshot, ProviderDescriptor,
+    ProviderModelDescriptor, ProviderModelSource, ProviderReadiness, ProviderState, ProviderStatus,
 };
 
 use cache::{cache_readinesses, clear_readiness_cache};

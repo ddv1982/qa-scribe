@@ -195,6 +195,16 @@ function providerDescriptor(
     command: label.toLocaleLowerCase().replaceAll(' ', '-'),
     executablePath: available ? `/mock/bin/${providerExecutable(id)}` : null,
     localOnly: true,
+    defaultSnapshot: {
+      model: null,
+      reasoningEffort: null,
+      modelOrigin: null,
+      reasoningOrigin: null,
+      resolution: 'providerManaged',
+      recommendedModel: null,
+      recommendedReasoningEffort: null,
+      warnings: [],
+    },
     models,
   }
 }
@@ -213,5 +223,6 @@ function modelDescriptor(id: string, label: string, reasoningEfforts: string[] =
     source: id === 'default' ? 'providerDefault' : 'preset',
     isDefault: id === 'default',
     reasoningEfforts,
+    defaultReasoningEffort: null,
   }
 }

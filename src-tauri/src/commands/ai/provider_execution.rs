@@ -39,6 +39,8 @@ pub(super) fn execute_provider_generation_streaming(
         return Err(readiness.descriptor.reason);
     }
 
+    validate_effective_selection(&readiness.descriptor, model, reasoning_effort)?;
+
     let command = streaming_generation_command(
         provider,
         prompt,
@@ -87,6 +89,44 @@ pub(super) fn execute_provider_generation_streaming(
         output_failure_for_log(&output)
     );
     output
+}
+
+fn validate_effective_selection(
+    provider: &crate::commands::providers::ProviderDescriptor,
+    model_override: &str,
+    reasoning_override: Option<&str>,
+) -> Result<(), String> {
+    let model = if model_override.trim().is_empty()
+        || model_override.eq_ignore_ascii_case("default")
+        || model_override.eq_ignore_ascii_case("auto")
+    {
+        provider.default_snapshot.model.as_deref()
+    } else {
+        Some(model_override.trim())
+    };
+    let reasoning = reasoning_override.or(provider.default_snapshot.reasoning_effort.as_deref());
+    let Some((model, reasoning)) = model.zip(reasoning) else {
+        return Ok(());
+    };
+    let Some(descriptor) = provider
+        .models
+        .iter()
+        .find(|candidate| candidate.id == model)
+    else {
+        return Ok(());
+    };
+    if !descriptor.reasoning_efforts.is_empty()
+        && !descriptor
+            .reasoning_efforts
+            .iter()
+            .any(|candidate| candidate == reasoning)
+    {
+        return Err(format!(
+            "Reasoning `{reasoning}` is not supported by model `{model}`. Choose one of: {}.",
+            descriptor.reasoning_efforts.join(", ")
+        ));
+    }
+    Ok(())
 }
 
 fn output_failure_for_log(output: &Result<ProviderGenerationOutput, String>) -> String {

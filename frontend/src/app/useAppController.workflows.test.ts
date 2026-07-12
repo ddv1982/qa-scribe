@@ -45,7 +45,7 @@ describe('useAppController workflows and record hydration', () => {
     expect(result.current.isBusy).toBe(false)
   })
 
-  it('records startup timing marks and leaves Deep provider refresh explicit', async () => {
+  it('records startup timing marks and refreshes provider discovery in the background', async () => {
     const marks: string[] = []
     const measures: string[] = []
     const markSpy = vi.spyOn(performance, 'mark').mockImplementation((name) => {
@@ -62,6 +62,7 @@ describe('useAppController workflows and record hydration', () => {
 
       await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
       await waitFor(() => expect(tauriMock.getProviderStatus).toHaveBeenCalled())
+      await waitFor(() => expect(tauriMock.refreshProviderStatus).toHaveBeenCalledTimes(1))
 
       expect(result.current.busyAction).toBeNull()
       expect(tauriMock.listRecentSessions).toHaveBeenCalledWith(50)
@@ -70,7 +71,6 @@ describe('useAppController workflows and record hydration', () => {
       expect(tauriMock.listEntries).not.toHaveBeenCalled()
       expect(tauriMock.listDrafts).not.toHaveBeenCalled()
       expect(tauriMock.listFindings).not.toHaveBeenCalled()
-      expect(tauriMock.refreshProviderStatus).not.toHaveBeenCalled()
       expect(marks).toEqual(
         expect.arrayContaining([
           'qa-scribe:startup:boot-start',
@@ -79,6 +79,7 @@ describe('useAppController workflows and record hydration', () => {
           'qa-scribe:startup:first-session-opened',
           'qa-scribe:startup:boot-busy-cleared',
           'qa-scribe:startup:provider-fast-status-complete',
+          'qa-scribe:startup:provider-deep-refresh-complete',
         ]),
       )
       expect(measures).toEqual(
@@ -88,6 +89,7 @@ describe('useAppController workflows and record hydration', () => {
           'qa-scribe startup boot-to-first-session-opened',
           'qa-scribe startup boot-to-busy-cleared',
           'qa-scribe startup boot-to-provider-fast-status',
+          'qa-scribe startup boot-to-provider-deep-refresh',
         ]),
       )
 
@@ -95,7 +97,7 @@ describe('useAppController workflows and record hydration', () => {
         await result.current.handleRefreshProviderStatus()
       })
 
-      expect(tauriMock.refreshProviderStatus).toHaveBeenCalledTimes(1)
+      expect(tauriMock.refreshProviderStatus).toHaveBeenCalledTimes(2)
       expect(marks).toContain('qa-scribe:startup:provider-deep-refresh-complete')
       expect(measures).toContain('qa-scribe startup boot-to-provider-deep-refresh')
     } finally {

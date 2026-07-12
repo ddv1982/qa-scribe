@@ -2,6 +2,8 @@ name: Release
 
 on:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
 
@@ -9,7 +11,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.ref_name }}
+  group: release-${{ github.ref }}
   cancel-in-progress: false
 
 env:
@@ -17,8 +19,81 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  release-context:
+    name: Resolve Release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+      should-release: ${{ steps.release.outputs.should-release }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '24'
+          package-manager-cache: false
+
+      - name: Resolve version and create missing merge tag
+        id: release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          version="$(node -p "require('./package.json').version")"
+          tag="v${version}"
+          echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
+
+          node scripts/check-release-metadata.mjs --expected-tag "${tag}"
+
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            if [ "${GITHUB_REF_NAME}" != "${tag}" ]; then
+              echo "Pushed tag ${GITHUB_REF_NAME} does not match package version ${tag}." >&2
+              exit 1
+            fi
+            echo "should-release=true" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          if git rev-parse --verify --quiet "refs/tags/${tag}" >/dev/null; then
+            tagged_commit="$(git rev-list -n 1 "${tag}")"
+            if [ "${tagged_commit}" != "${GITHUB_SHA}" ]; then
+              echo "${tag} already belongs to ${tagged_commit}; this merge did not bump the release version."
+              echo "should-release=false" >> "${GITHUB_OUTPUT}"
+              exit 0
+            fi
+          else
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/git/refs" \
+              --field ref="refs/tags/${tag}" \
+              --field sha="${GITHUB_SHA}" >/dev/null
+          fi
+
+          if gh release view "${tag}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            is_draft="$(gh release view "${tag}" --repo "${GITHUB_REPOSITORY}" --json isDraft --jq '.isDraft')"
+            if [ "${is_draft}" = "true" ]; then
+              echo "Draft release ${tag} exists; resuming the release pipeline."
+              echo "should-release=true" >> "${GITHUB_OUTPUT}"
+            else
+              echo "Release ${tag} is already published; no new release is needed."
+              echo "should-release=false" >> "${GITHUB_OUTPUT}"
+            fi
+          else
+            echo "should-release=true" >> "${GITHUB_OUTPUT}"
+          fi
+
   validate-release:
     name: Validate Release
+    needs: release-context
+    if: needs.release-context.outputs.should-release == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
@@ -48,11 +123,11 @@ jobs:
       - name: Validate frontend and Rust build
         uses: ./.github/actions/validate-build
         with:
-          expected-tag: ${{ github.ref_name }}
+          expected-tag: ${{ needs.release-context.outputs.tag }}
 
   create-release:
     name: Create Draft Release
-    needs: validate-release
+    needs: [release-context, validate-release]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
@@ -71,28 +146,31 @@ jobs:
           package-manager-cache: false
 
       - name: Extract changelog notes
-        run: node scripts/check-release-metadata.mjs --expected-tag "${GITHUB_REF_NAME}" --write-notes release-notes.md
+        env:
+          RELEASE_TAG: ${{ needs.release-context.outputs.tag }}
+        run: node scripts/check-release-metadata.mjs --expected-tag "${RELEASE_TAG}" --write-notes release-notes.md
 
       - name: Create or refresh draft release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.release-context.outputs.tag }}
         run: |
-          if gh release view "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
-            is_draft="$(gh release view "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --json isDraft --jq '.isDraft')"
+          if gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            is_draft="$(gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" --json isDraft --jq '.isDraft')"
             if [ "${is_draft}" != "true" ]; then
-              echo "Release ${GITHUB_REF_NAME} is already published; refusing to flip it back to draft." >&2
+              echo "Release ${RELEASE_TAG} is already published; refusing to flip it back to draft." >&2
               exit 1
             fi
-            gh release edit "${GITHUB_REF_NAME}" \
+            gh release edit "${RELEASE_TAG}" \
               --repo "${GITHUB_REPOSITORY}" \
-              --title "QA Scribe ${GITHUB_REF_NAME}" \
+              --title "QA Scribe ${RELEASE_TAG}" \
               --notes-file release-notes.md \
               --draft=true \
               --prerelease=false
           else
-            gh release create "${GITHUB_REF_NAME}" \
+            gh release create "${RELEASE_TAG}" \
               --repo "${GITHUB_REPOSITORY}" \
-              --title "QA Scribe ${GITHUB_REF_NAME}" \
+              --title "QA Scribe ${RELEASE_TAG}" \
               --notes-file release-notes.md \
               --draft \
               --verify-tag \
@@ -101,7 +179,7 @@ jobs:
 
   build-macos-release:
     name: Build macOS ${{ matrix.arch }}
-    needs: create-release
+    needs: [release-context, create-release]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     permissions:
@@ -275,7 +353,7 @@ jobs:
 
   build-linux-release:
     name: Build Linux x64
-    needs: create-release
+    needs: [release-context, create-release]
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     permissions:
@@ -491,7 +569,7 @@ jobs:
 
   publish-release-assets:
     name: Publish Release Assets
-    needs: [build-macos-release, build-linux-release]
+    needs: [release-context, build-macos-release, build-linux-release]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -508,6 +586,7 @@ jobs:
       - name: Upload release assets to the draft release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.release-context.outputs.tag }}
         run: |
           set -euo pipefail
           shopt -s nullglob
@@ -518,13 +597,13 @@ jobs:
             exit 1
           fi
 
-          gh release upload "${GITHUB_REF_NAME}" "${assets[@]}" \
+          gh release upload "${RELEASE_TAG}" "${assets[@]}" \
             --repo "${GITHUB_REPOSITORY}" \
             --clobber
 
   sign-release-checksums:
     name: Sign Release Checksums
-    needs: publish-release-assets
+    needs: [release-context, publish-release-assets]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -539,10 +618,11 @@ jobs:
       - name: Download all release assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.release-context.outputs.tag }}
         run: |
           set -euo pipefail
           mkdir -p dist/rust/release-assets
-          gh release download "${GITHUB_REF_NAME}" \
+          gh release download "${RELEASE_TAG}" \
             --repo "${GITHUB_REPOSITORY}" \
             --dir dist/rust/release-assets \
             --clobber
@@ -641,9 +721,10 @@ jobs:
       - name: Upload signed SHA256SUMS
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.release-context.outputs.tag }}
         run: |
           set -euo pipefail
-          gh release upload "${GITHUB_REF_NAME}" \
+          gh release upload "${RELEASE_TAG}" \
             dist/rust/release-assets/SHA256SUMS \
             dist/rust/release-assets/SHA256SUMS.asc \
             --repo "${GITHUB_REPOSITORY}" \
@@ -651,7 +732,7 @@ jobs:
 
   publish-apt-repository:
     name: Publish APT Repository
-    needs: publish-release-assets
+    needs: [release-context, publish-release-assets]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -688,7 +769,7 @@ jobs:
 
   publish-release:
     name: Publish Release
-    needs: [create-release, publish-release-assets, sign-release-checksums, publish-apt-repository]
+    needs: [release-context, create-release, publish-release-assets, sign-release-checksums, publish-apt-repository]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
@@ -698,4 +779,5 @@ jobs:
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release edit "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --draft=false --prerelease=false
+          RELEASE_TAG: ${{ needs.release-context.outputs.tag }}
+        run: gh release edit "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" --draft=false --prerelease=false

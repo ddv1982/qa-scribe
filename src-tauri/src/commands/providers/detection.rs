@@ -7,12 +7,16 @@ use qa_scribe_core::{
 
 use super::{
     cache::{cache_readiness, cached_readiness},
+    defaults::{claude_default_snapshot, codex_default_snapshot, copilot_default_snapshot},
     models::{
         claude_models, claude_static_models, codex_models, codex_static_models, copilot_models,
         copilot_models_with_config_help, normalize_models, provider_default_model,
     },
     probe::{CommandProbe, DetectionMode, ProbeRunner},
-    types::{ProviderDescriptor, ProviderModelDescriptor, ProviderReadiness, ProviderState},
+    types::{
+        ProviderDefaultResolution, ProviderDefaultSnapshot, ProviderDescriptor,
+        ProviderModelDescriptor, ProviderReadiness, ProviderState,
+    },
 };
 
 pub(super) fn provider_readiness_with_runners(
@@ -20,30 +24,29 @@ pub(super) fn provider_readiness_with_runners(
     fast_runner: &impl ProbeRunner,
     deep_runner: &impl ProbeRunner,
 ) -> ProviderReadiness {
-    // A cached Deep SUCCESS (Ready) is authoritative for the TTL. A cached
-    // Deep FAILURE (AuthRequired/Error/InstallRequired) is not: it must not
-    // outrank a working Fast result, so it falls through to Fast detection
-    // (or a fresh Deep probe) below instead of being served as truth.
+    // A cached Deep SUCCESS is authoritative for the TTL. Once it expires,
+    // generation performs a fresh Deep probe so changed CLI defaults and
+    // catalogs are reconciled immediately before a run.
     if let Some(readiness) = cached_readiness(provider, DetectionMode::Deep)
         && readiness.descriptor.available
     {
         return readiness;
     }
-    if let Some(readiness) = cached_readiness(provider, DetectionMode::Fast) {
-        if readiness.descriptor.available {
-            return readiness;
-        }
+    let fast_readiness = if let Some(readiness) = cached_readiness(provider, DetectionMode::Fast) {
+        readiness
     } else {
         let readiness = detect_provider(provider, fast_runner, DetectionMode::Fast);
         cache_readiness(provider, DetectionMode::Fast, &readiness);
-        if readiness.descriptor.available {
-            return readiness;
-        }
-    }
+        readiness
+    };
 
-    let readiness = detect_provider(provider, deep_runner, DetectionMode::Deep);
-    cache_readiness(provider, DetectionMode::Deep, &readiness);
-    readiness
+    let deep_readiness = detect_provider(provider, deep_runner, DetectionMode::Deep);
+    cache_readiness(provider, DetectionMode::Deep, &deep_readiness);
+    if deep_readiness.descriptor.available || !fast_readiness.descriptor.available {
+        deep_readiness
+    } else {
+        fast_readiness
+    }
 }
 
 pub(super) fn detect_provider(
@@ -126,12 +129,14 @@ fn detect_cli_provider(
                 None,
             );
         }
+        let snapshot = default_snapshot(capability.id, runner, &models);
         return ready(
             capability,
             descriptor.ready_reason_fast,
             descriptor.ready_command,
             executable_path,
             models,
+            snapshot,
             false,
         );
     }
@@ -147,6 +152,7 @@ fn detect_cli_provider(
         );
     }
     let models = (descriptor.models)(runner);
+    let snapshot = default_snapshot(capability.id, runner, &models);
 
     let auth = runner.run(capability.executable, descriptor.auth_args);
     if auth.success {
@@ -156,6 +162,7 @@ fn detect_cli_provider(
             descriptor.ready_command,
             executable_path,
             models,
+            snapshot,
             false,
         );
     }
@@ -167,6 +174,7 @@ fn detect_cli_provider(
         Some(descriptor.auth_command_display.to_string()),
         executable_path,
         models,
+        snapshot,
         false,
     )
 }
@@ -199,6 +207,7 @@ fn detect_copilot(
             "copilot -s --no-ask-user (prompt on stdin)",
             executable_path,
             models,
+            copilot_default_snapshot(),
             true,
         );
     }
@@ -215,6 +224,7 @@ fn detect_copilot(
             Some("copilot update".to_string()),
             executable_path,
             models,
+            copilot_default_snapshot(),
             false,
         );
     }
@@ -225,6 +235,7 @@ fn detect_copilot(
         "copilot -s --no-ask-user (prompt on stdin)",
         executable_path,
         models,
+        copilot_default_snapshot(),
         true,
     )
 }
@@ -235,6 +246,7 @@ fn ready(
     command: &str,
     executable_path: Option<PathBuf>,
     models: Vec<ProviderModelDescriptor>,
+    default_snapshot: ProviderDefaultSnapshot,
     copilot_direct_cli_ready: bool,
 ) -> ProviderReadiness {
     descriptor_readiness(
@@ -244,6 +256,7 @@ fn ready(
         Some(command.to_string()),
         executable_path,
         models,
+        default_snapshot,
         copilot_direct_cli_ready,
     )
 }
@@ -279,10 +292,15 @@ fn not_installed_or_error(
         None,
         executable_path,
         vec![provider_default_model()],
+        ProviderDefaultSnapshot {
+            resolution: ProviderDefaultResolution::Unavailable,
+            ..ProviderDefaultSnapshot::provider_managed()
+        },
         false,
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn descriptor_readiness(
     capability: ProviderCapability,
     status: ProviderState,
@@ -290,6 +308,7 @@ fn descriptor_readiness(
     command: Option<String>,
     executable_path: Option<PathBuf>,
     models: Vec<ProviderModelDescriptor>,
+    default_snapshot: ProviderDefaultSnapshot,
     copilot_direct_cli_ready: bool,
 ) -> ProviderReadiness {
     ProviderReadiness {
@@ -302,9 +321,22 @@ fn descriptor_readiness(
             command,
             executable_path: executable_path.map(|path| path.to_string_lossy().into_owned()),
             models: normalize_models(models),
+            default_snapshot,
             local_only: true,
         },
         copilot_direct_cli_ready,
+    }
+}
+
+fn default_snapshot(
+    provider: AiProvider,
+    runner: &dyn ProbeRunner,
+    models: &[ProviderModelDescriptor],
+) -> ProviderDefaultSnapshot {
+    match provider {
+        AiProvider::ClaudeCode => claude_default_snapshot(),
+        AiProvider::CodexCli => codex_default_snapshot(runner, models),
+        AiProvider::CopilotCli => copilot_default_snapshot(),
     }
 }
 

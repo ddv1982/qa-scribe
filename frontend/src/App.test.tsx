@@ -188,7 +188,7 @@ describe('App workflows', () => {
           sessionId: 'session-1',
           provider: 'codex_cli',
           model: 'default',
-          reasoningEffort: 'low',
+          reasoningEffort: 'medium',
           action: 'testware',
           noteEntryId: 'entry-1',
           testwarePreferences: expect.objectContaining({
@@ -262,7 +262,7 @@ describe('App workflows', () => {
           generationContextId: 'context-1',
           provider: 'codex_cli',
           model: 'default',
-          reasoningEffort: 'low',
+          reasoningEffort: 'medium',
           promptVersion: 'note-summary-v4',
           status: 'completed',
           errorMessage: null,

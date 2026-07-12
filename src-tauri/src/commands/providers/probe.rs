@@ -1,12 +1,17 @@
 use std::{
     fs::{self, File, OpenOptions},
-    io::ErrorKind,
+    io::{BufRead, BufReader, ErrorKind, Write},
     path::{Path, PathBuf},
     process::{Command, Output, Stdio},
-    sync::atomic::{AtomicU64, Ordering},
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        mpsc,
+    },
     thread,
     time::{Duration, Instant},
 };
+
+use serde_json::{Value, json};
 
 use crate::{
     process_io::{configure_process_group, kill_child_group},
@@ -42,6 +47,9 @@ pub(super) struct CommandProbe {
 pub(super) trait ProbeRunner {
     fn executable_path(&self, program: &str) -> Option<PathBuf>;
     fn run(&self, program: &str, args: &[&str]) -> CommandProbe;
+    fn codex_app_server_defaults(&self) -> Option<(Value, Value)> {
+        None
+    }
 }
 
 pub(super) struct SystemProbeRunner {
@@ -75,6 +83,86 @@ impl ProbeRunner for SystemProbeRunner {
                 stderr: error.to_string(),
                 not_found: error.kind() == ErrorKind::NotFound,
             },
+        }
+    }
+
+    fn codex_app_server_defaults(&self) -> Option<(Value, Value)> {
+        (self.path_mode == ProviderPathMode::Deep)
+            .then(read_codex_app_server_defaults)
+            .flatten()
+    }
+}
+
+fn read_codex_app_server_defaults() -> Option<(Value, Value)> {
+    let mut command = Command::new("codex");
+    command.arg("app-server");
+    apply_provider_path(&mut command);
+    configure_process_group(&mut command);
+    let mut child = command
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .ok()?;
+    let mut stdin = child.stdin.take()?;
+    let stdout = child.stdout.take()?;
+    let (sender, receiver) = mpsc::channel();
+    let reader = thread::spawn(move || {
+        for line in BufReader::new(stdout).lines().map_while(Result::ok) {
+            if let Ok(value) = serde_json::from_str::<Value>(&line) {
+                let _ = sender.send(value);
+            }
+        }
+    });
+
+    let initialize = json!({
+        "method": "initialize",
+        "id": 0,
+        "params": {
+            "clientInfo": {"name": "qa-scribe", "version": env!("CARGO_PKG_VERSION")},
+            "capabilities": {}
+        }
+    });
+    if writeln!(stdin, "{initialize}").is_err()
+        || receive_response(&receiver, 0, PROVIDER_PROBE_TIMEOUT).is_none()
+    {
+        kill_child_group(&mut child);
+        let _ = child.wait();
+        let _ = reader.join();
+        return None;
+    }
+
+    let requests = [
+        json!({"method": "initialized", "params": {}}),
+        json!({"method": "config/read", "id": 1, "params": {"includeLayers": true}}),
+        json!({"method": "model/list", "id": 2, "params": {"limit": 100}}),
+    ];
+    if requests
+        .iter()
+        .any(|request| writeln!(stdin, "{request}").is_err())
+    {
+        kill_child_group(&mut child);
+        let _ = child.wait();
+        let _ = reader.join();
+        return None;
+    }
+    drop(stdin);
+
+    let config = receive_response(&receiver, 1, PROVIDER_PROBE_TIMEOUT);
+    let models = receive_response(&receiver, 2, PROVIDER_PROBE_TIMEOUT);
+    kill_child_group(&mut child);
+    let _ = child.wait();
+    let _ = reader.join();
+    Some((config?, models?))
+}
+
+fn receive_response(receiver: &mpsc::Receiver<Value>, id: i64, timeout: Duration) -> Option<Value> {
+    let started_at = Instant::now();
+    loop {
+        let remaining = timeout.checked_sub(started_at.elapsed())?;
+        let value = receiver.recv_timeout(remaining).ok()?;
+        if value.get("id").and_then(Value::as_i64) == Some(id) {
+            return value.get("result").cloned();
         }
     }
 }
