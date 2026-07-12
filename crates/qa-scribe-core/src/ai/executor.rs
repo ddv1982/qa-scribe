@@ -94,6 +94,29 @@ impl ProviderGenerationOutput {
             .unwrap_or_else(|| String::from_utf8_lossy(&self.stdout).to_string())
     }
 
+    /// Structured CLIs such as Claude include the resolved model in their
+    /// initialization event. Keep this deliberately narrow so arbitrary
+    /// model-like fields in generated content are never treated as metadata.
+    pub fn reported_model(&self) -> Option<String> {
+        String::from_utf8_lossy(&self.stdout)
+            .lines()
+            .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
+            .find_map(|event| {
+                let is_init = event.get("type").and_then(serde_json::Value::as_str)
+                    == Some("system")
+                    && event.get("subtype").and_then(serde_json::Value::as_str) == Some("init");
+                if !is_init {
+                    return None;
+                }
+                event
+                    .get("model")?
+                    .as_str()
+                    .map(str::trim)
+                    .filter(|model| !model.is_empty())
+                    .map(str::to_string)
+            })
+    }
+
     pub fn failure_message(&self) -> String {
         if self.cancelled {
             return "Generation cancelled.".to_string();
@@ -231,6 +254,25 @@ mod tests {
         assert!(
             String::from_utf8_lossy(&output.stdout).contains("agentMessage"),
             "raw stdout is preserved for diagnostics"
+        );
+    }
+
+    #[test]
+    fn structured_init_event_reports_the_resolved_model() {
+        let output = ProviderGenerationOutput {
+            exit_success: Some(true),
+            stdout: br#"{"type":"system","subtype":"init","model":"claude-sonnet-4-6"}
+{"type":"result","result":"done"}
+"#
+            .to_vec(),
+            stderr: Vec::new(),
+            assistant_text: Some("done".to_string()),
+            cancelled: false,
+        };
+
+        assert_eq!(
+            output.reported_model().as_deref(),
+            Some("claude-sonnet-4-6")
         );
     }
 }

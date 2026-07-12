@@ -12,6 +12,7 @@ tauri-build.workspace = true
 [dependencies]
 base64.workspace = true
 image = { version = "0.25.10", default-features = false, features = ["png", "jpeg", "gif", "webp"] }
+json5 = "0.4"
 qa-scribe-core.workspace = true
 serde.workspace = true
 serde_json.workspace = true

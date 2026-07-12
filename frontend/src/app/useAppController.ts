@@ -50,6 +50,7 @@ export function useAppController() {
   const saveDirtyRecordsNowRef = useRef<() => Promise<boolean>>(() => Promise.resolve(true))
   const {
     activeProvider,
+    effectiveAiSelection,
     loadProviderStatus,
     loadSettings,
     providerStatus,
@@ -290,6 +291,7 @@ export function useAppController() {
     ...sessionActions,
     activeFindingJob,
     activeProvider,
+    effectiveAiSelection,
     activeTestwareJob,
     activeSession,
     activeView,

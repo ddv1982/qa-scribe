@@ -11,10 +11,10 @@ pub struct AppSettings {
     pub generation_system_prompt: String,
     #[serde(default = "default_selected_ai_provider")]
     pub selected_ai_provider: AiProvider,
-    #[serde(default = "default_selected_ai_model")]
-    pub selected_ai_model: String,
+    #[serde(default)]
+    pub selected_ai_model: Option<String>,
     #[serde(default = "default_selected_ai_models_by_provider")]
-    pub selected_ai_models_by_provider: HashMap<AiProvider, String>,
+    pub selected_ai_models_by_provider: HashMap<AiProvider, Option<String>>,
     #[serde(default = "default_selected_ai_reasoning_efforts_by_provider")]
     pub selected_ai_reasoning_efforts_by_provider: HashMap<AiProvider, Option<String>>,
     #[serde(default = "default_testware_template")]
@@ -31,7 +31,7 @@ impl Default for AppSettings {
             schema_version: 1,
             generation_system_prompt: default_generation_system_prompt(),
             selected_ai_provider: default_selected_ai_provider(),
-            selected_ai_model: default_selected_ai_model(),
+            selected_ai_model: None,
             selected_ai_models_by_provider: default_selected_ai_models_by_provider(),
             selected_ai_reasoning_efforts_by_provider:
                 default_selected_ai_reasoning_efforts_by_provider(),
@@ -64,18 +64,14 @@ fn default_selected_ai_provider() -> AiProvider {
     AiProvider::CodexCli
 }
 
-fn default_selected_ai_model() -> String {
-    "default".to_string()
-}
-
 /// Per-provider default model selection. Single source of truth for both the
 /// `AppSettings` default and the frontend's provider-defaults (exported to
 /// TypeScript as a bindings constant), so the two can never drift.
-pub fn default_selected_ai_models_by_provider() -> HashMap<AiProvider, String> {
+pub fn default_selected_ai_models_by_provider() -> HashMap<AiProvider, Option<String>> {
     HashMap::from([
-        (AiProvider::ClaudeCode, "default".to_string()),
-        (AiProvider::CodexCli, "default".to_string()),
-        (AiProvider::CopilotCli, "auto".to_string()),
+        (AiProvider::ClaudeCode, None),
+        (AiProvider::CodexCli, None),
+        (AiProvider::CopilotCli, None),
     ])
 }
 
@@ -83,8 +79,8 @@ pub fn default_selected_ai_models_by_provider() -> HashMap<AiProvider, String> {
 /// the frontend via a bindings constant (see the models default above).
 pub fn default_selected_ai_reasoning_efforts_by_provider() -> HashMap<AiProvider, Option<String>> {
     HashMap::from([
-        (AiProvider::ClaudeCode, Some("medium".to_string())),
-        (AiProvider::CodexCli, Some("low".to_string())),
+        (AiProvider::ClaudeCode, None),
+        (AiProvider::CodexCli, None),
         (AiProvider::CopilotCli, None),
     ])
 }

@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.7.12 - 2026-07-13
+
+- Discover and display effective model and reasoning defaults from Codex, Claude Code, and GitHub Copilot CLI configuration while keeping QA Scribe overrides independent and explicit.
+- Add nullable settings migration, automatic provider refresh, compatibility preflight checks, custom model support, and resolved-model recording for structured provider runs.
+- Read Codex defaults through its app-server protocol, support current Copilot JSONC settings and reasoning flags, and preserve honest provider-managed states when a CLI cannot expose its account default.
+- Create the version tag and run the signed release pipeline automatically when a version-bumped feature branch is merged into `main`, while retaining tagged release reruns.
+
 ## v0.7.11 - 2026-07-12
 
 - Split the frontend app controller into focused startup, record-hydration, and pending-change hooks while preserving autosave, Session switching, generation, and lifecycle behavior with smaller targeted test suites.

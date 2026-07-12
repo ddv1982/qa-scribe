@@ -218,7 +218,9 @@ export function AppShell(c: AppController) {
           noteScreenshotCount={c.noteScreenshotCount}
           activeProviderLabel={c.activeProvider?.label ?? c.selectedProvider}
           activeProviderAvailable={Boolean(c.activeProvider?.available)}
-          selectedModel={c.selectedModel.trim() || 'default'}
+          selectedModel={c.effectiveAiSelection.model}
+          selectedReasoning={c.effectiveAiSelection.reasoning}
+          selectionWarning={c.effectiveAiSelection.warning ?? c.activeProvider?.defaultSnapshot.warnings.join(' ') ?? null}
           onCancel={() => c.setPendingGenerationAction(null)}
           onConfirm={(testwarePreferences) => {
             const action = c.pendingGenerationAction

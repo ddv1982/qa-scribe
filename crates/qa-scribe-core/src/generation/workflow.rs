@@ -225,6 +225,9 @@ fn finish_successful_generation(
     prepared: PreparedGeneration,
     output: ProviderGenerationOutput,
 ) -> Result<GenerateAiActionResult> {
+    if let Some(model) = output.reported_model() {
+        service.record_running_ai_run_model(&prepared.ai_run.id, &model)?;
+    }
     let response = output.response_text();
     let body = parse_rich_html_fragment_response(&response, &prepared.output_marker);
     let ai_run_id = prepared.ai_run.id.clone();

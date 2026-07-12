@@ -289,7 +289,6 @@ fn copilot_deep_detection_checks_prompt_support_without_prompt_probe() {
     assert_eq!(readiness.descriptor.status, ProviderState::Ready);
     assert!(readiness.descriptor.available);
     assert!(readiness.copilot_direct_cli_ready);
-    assert!(runner.calls().contains(&"copilot help config".to_string()));
     assert!(runner.calls().contains(&"copilot --help".to_string()));
     assert!(!runner.calls().contains(&"copilot version".to_string()));
     assert!(
@@ -322,27 +321,11 @@ fn copilot_direct_cli_without_prompt_mode_is_not_ready() {
 
 #[test]
 fn copilot_models_merge_presets_and_detected_config_help() {
-    let runner = MockRunner::default()
-        .with_executable("copilot")
-        .with("copilot", &["--help"], copilot_prompt_help())
-        .with(
-            "copilot",
-            &["help", "config"],
-            CommandProbe::success_with_stdout(
-                r#"
-`model`: AI model to use for Copilot CLI; can be changed with /model command or --model flag option.
-  - "claude-sonnet-4.6"
-  - "gpt-5.5"
-  - "gpt-5.3-codex"
-  - "claude-opus-4.6-fast"
-  - "gemini-3.5-flash"
-
-`contextTier`: context window tier for tiered-pricing models.
-  - "default"
-  - "long_context"
-"#,
-            ),
-        );
+    let runner = MockRunner::default().with_executable("copilot").with(
+        "copilot",
+        &["--help"],
+        copilot_prompt_help(),
+    );
 
     let readiness = detect_provider(AiProvider::CopilotCli, &runner, DetectionMode::Deep);
     let models = &readiness.descriptor.models;

@@ -317,6 +317,10 @@ const providerStatus: ProviderStatus = {
       command: 'codex',
       executablePath: '/mock/bin/codex',
       localOnly: true,
+      defaultSnapshot: {
+        model: 'gpt-5.5', reasoningEffort: 'low', modelOrigin: null, reasoningOrigin: null,
+        resolution: 'configured', recommendedModel: 'gpt-5.5', recommendedReasoningEffort: 'medium', warnings: [],
+      },
       models: [
         {
           id: 'default',
@@ -325,6 +329,7 @@ const providerStatus: ProviderStatus = {
           source: 'providerDefault',
           isDefault: true,
           reasoningEfforts: ['low'],
+          defaultReasoningEffort: null,
         },
       ],
     },

@@ -177,6 +177,9 @@ fn generation_command_for_mode(
                 if let Some(model) = copilot_model_arg {
                     args.extend(["--model".to_string(), model]);
                 }
+                if let Some(effort) = reasoning_effort_arg {
+                    args.extend(["--reasoning-effort".to_string(), effort]);
+                }
                 Ok(GenerationCommand {
                     program: "copilot".to_string(),
                     args,
@@ -211,12 +214,6 @@ fn selected_copilot_model_arg(model: &str) -> Option<String> {
     }
 }
 
-/// Reasoning-effort values the app allows through to provider CLIs. Frontend
-/// selection is constrained to this set; anything else (e.g. a value crafted
-/// to break out of the quoted TOML string Codex receives via `--config`) is
-/// rejected rather than interpolated.
-const ALLOWED_REASONING_EFFORTS: [&str; 5] = ["minimal", "low", "medium", "high", "xhigh"];
-
 fn selected_reasoning_effort_arg(reasoning_effort: Option<&str>) -> Result<Option<String>, String> {
     let Some(raw) = reasoning_effort else {
         return Ok(None);
@@ -228,15 +225,15 @@ fn selected_reasoning_effort_arg(reasoning_effort: Option<&str>) -> Result<Optio
     {
         return Ok(None);
     }
-    if ALLOWED_REASONING_EFFORTS
-        .iter()
-        .any(|allowed| trimmed.eq_ignore_ascii_case(allowed))
+    if trimmed.len() <= 40
+        && trimmed
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric() || matches!(character, '-' | '_'))
     {
         Ok(Some(trimmed.to_string()))
     } else {
         Err(format!(
-            "Unsupported reasoning effort \"{trimmed}\"; expected one of: {}",
-            ALLOWED_REASONING_EFFORTS.join(", ")
+            "Unsupported reasoning effort \"{trimmed}\"; use a detected provider value or a safe alphanumeric identifier"
         ))
     }
 }

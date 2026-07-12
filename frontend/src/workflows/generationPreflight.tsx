@@ -17,6 +17,8 @@ export function GenerationPreflight({
   noteTitle,
   noteWordCount,
   selectedModel,
+  selectedReasoning = null,
+  selectionWarning = null,
   onCancel,
   onConfirm,
 }: {
@@ -28,6 +30,8 @@ export function GenerationPreflight({
   noteTitle: string
   noteWordCount: number
   selectedModel: string
+  selectedReasoning?: string | null
+  selectionWarning?: string | null
   onCancel: () => void
   onConfirm: (testwarePreferences?: TestwareGenerationPreferences) => void
 }) {
@@ -68,7 +72,12 @@ export function GenerationPreflight({
           <dt>Model</dt>
           <dd>{selectedModel}</dd>
         </div>
+        <div>
+          <dt>Reasoning</dt>
+          <dd>{selectedReasoning ?? 'Provider default'}</dd>
+        </div>
       </dl>
+      {selectionWarning ? <p role="alert">{selectionWarning}</p> : null}
       {isTestware ? (
         <div className="preflight-testware-options">
           <fieldset className="preflight-fieldset">

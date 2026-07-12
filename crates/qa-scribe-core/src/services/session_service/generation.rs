@@ -18,6 +18,18 @@ use super::{SessionService, new_id, now, require_row_in_session, require_session
 mod context;
 
 impl SessionService {
+    pub fn record_running_ai_run_model(&self, id: &str, model: &str) -> Result<()> {
+        let model = validate_required_text("resolved AI model", model, 240)?;
+        let changed = self.database.connection().execute(
+            "UPDATE ai_runs SET model = ?1 WHERE id = ?2 AND status = 'running'",
+            params![model, id],
+        )?;
+        if changed == 0 {
+            return Err(self.ai_run_transition_error(id)?);
+        }
+        Ok(())
+    }
+
     pub fn create_ai_run(&self, draft: AiRunCreate) -> Result<AiRun> {
         require_session(self.database.connection(), &draft.session_id)?;
         if let Some(context_id) = &draft.generation_context_id {

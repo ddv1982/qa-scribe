@@ -195,11 +195,12 @@ function optionIndexForKey(key: string, currentIndex: number, optionCount: numbe
 function defaultProviderModel(): ProviderModelDescriptor {
   return {
     id: 'default',
-    label: 'Provider default',
+    label: 'Use CLI default',
     description: 'Use the model configured by the local provider CLI.',
     source: 'providerDefault',
     isDefault: true,
     reasoningEfforts: [],
+    defaultReasoningEffort: null,
   }
 }
 
