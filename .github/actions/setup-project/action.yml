@@ -31,15 +31,31 @@ runs:
       with:
         bun-version-file: package.json
 
+    - name: Read pinned Rust toolchain
+      id: rust-toolchain
+      shell: bash
+      run: |
+        channel="$(sed -n 's/^channel = "\([^"]*\)"/\1/p' rust-toolchain.toml)"
+        if [ -z "$channel" ]; then
+          echo "rust-toolchain.toml does not declare a channel." >&2
+          exit 1
+        fi
+        echo "channel=$channel" >> "$GITHUB_OUTPUT"
+
     - name: Install Rust
       if: inputs.rust-targets == ''
       uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable branch (2026-06-30)
+      with:
+        toolchain: ${{ steps.rust-toolchain.outputs.channel }}
+        components: clippy,rustfmt
 
     - name: Install Rust with additional targets
       if: inputs.rust-targets != ''
       uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable branch (2026-06-30)
       with:
+        toolchain: ${{ steps.rust-toolchain.outputs.channel }}
         targets: ${{ inputs.rust-targets }}
+        components: clippy,rustfmt
 
     - name: Restore Rust cache
       uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2 (2026-03-12)

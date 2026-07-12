@@ -24,8 +24,9 @@ check and keeps a stable final check for branch protection.
 
 `.github/actions/setup-project/action.yml` owns Node, Bun, Rust, Rust-cache, and
 frozen frontend dependency setup. Bun is resolved from the root
-`packageManager` field. Release and packaging jobs install the Tauri CLI version
-resolved for the `tauri` crate in `Cargo.lock` through
+`packageManager` field, while Rust is resolved from `rust-toolchain.toml` so
+local and CI lint behavior cannot drift. Release and packaging jobs install the
+Tauri CLI version resolved for the `tauri` crate in `Cargo.lock` through
 `scripts/install-tauri-cli.mjs`; workflow files do not carry a second version.
 
 `.github/actions/validate-build/action.yml` is shared by CI and tag validation.
