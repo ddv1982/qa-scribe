@@ -12,6 +12,10 @@ async function rail(label) {
   return (await $('nav[aria-label="Primary"]')).$(`button*=${label}`)
 }
 
+async function sessionTab(label) {
+  return (await $('[role="tablist"]')).$(`[role="tab"]*=${label}`)
+}
+
 async function sessionOption(title) {
   return $(`[role="option"]*=${title}`)
 }
@@ -31,11 +35,22 @@ async function waitForNoteAutosave() {
   )
 }
 
-async function createSessionFixture(titleValue, noteValue) {
+async function openSessionNote() {
+  const noteTab = await $('[role="tab"]*=Note')
+  if (await noteTab.isExisting()) {
+    await noteTab.waitForClickable()
+    await noteTab.click()
+    return
+  }
+
   const sessions = await rail('Sessions')
   await sessions.waitForClickable()
   await sessions.click()
-  const newSession = await button('New session')
+}
+
+async function createSessionFixture(titleValue, noteValue) {
+  await openSessionNote()
+  const newSession = await button('New Session')
   await newSession.waitForClickable()
   await newSession.click()
   const title = await $('[aria-label="Session title"]')
@@ -80,8 +95,8 @@ describe('QA Scribe built application', () => {
 
   it('creates and deletes manual testware through the native persistence boundary', async () => {
     await createSessionFixture('E2E manual testware session', 'Manual testware source note.')
-    await (await rail('Testware')).click()
-    const create = await button('New testware')
+    await (await sessionTab('Testware')).click()
+    const create = await button('New Testware')
     await create.waitForClickable()
     await create.click()
 
@@ -96,7 +111,7 @@ describe('QA Scribe built application', () => {
 
   it('copies a Note through the native clipboard command', async () => {
     await createSessionFixture('E2E clipboard session', 'Clipboard boundary source note.')
-    await (await rail('Sessions')).click()
+    await (await sessionTab('Note')).click()
     const copy = await $('[aria-label="Copy note for Jira"]')
     await copy.waitForClickable()
     await copy.click()
@@ -120,7 +135,7 @@ describe('QA Scribe built application', () => {
     )
     await (await $('p=Testware generated')).waitForDisplayed({ timeout: 15_000 })
 
-    await (await rail('Sessions')).click()
+    await (await sessionTab('Note')).click()
     const secondGenerate = await button('Generate test cases')
     await secondGenerate.waitForClickable()
     await secondGenerate.click()
