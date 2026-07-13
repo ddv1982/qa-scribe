@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.7.15 - 2026-07-13
+
+- Overhaul the Session workspace with dedicated Testware and Findings libraries, clearer navigation, a command palette, responsive layouts, and more consistent typography and spacing.
+- Make CLI-managed model and reasoning defaults visible and trustworthy with live provenance, cached last-known status, searchable model selection, concise execution previews, and refresh-before-generation safeguards.
+- Keep startup fast by deferring deep provider discovery until Settings or generation needs it, while preserving readiness and the last detected CLI configuration across restarts.
+- Improve record editing and library navigation, preserve Finding metadata and evidence relationships, and keep long Session titles readable with a clean two-line clamp.
+
 ## v0.7.14 - 2026-07-13
 
 - Run the real built-application suite observationally on macOS arm64 through the same isolated, production-restoring CI action used by the required Linux gate.
