@@ -56,21 +56,38 @@ cargo test -p qa-scribe-tauri
 
 ## Reliability
 
-Scenario: the built-application Linux gate is stable enough to justify adding another required platform.
+Scenario: the built-application gates are stable enough to remain useful and to justify promoting another required platform.
 
 Measure:
 
-- Every required E2E execution retains a passed or failed marker for 90 days.
+- Every required Linux and observational macOS E2E execution retains a passed or failed marker for 90 days.
 - A rerun is evidence of instability even when the rerun passes.
-- macOS E2E must not become required until the most recent 20 retained executions are consecutive first-attempt passes.
+- Linux and macOS evidence is tracked independently.
+- The observational macOS arm64 job must not become required until the most recent 20 retained executions on both Linux and macOS are consecutive first-attempt passes.
 
 Validation before platform promotion:
 
 ```bash
 GITHUB_REPOSITORY=ddv1982/qa-scribe GH_TOKEN=... bun run e2e:reliability:check
+GITHUB_REPOSITORY=ddv1982/qa-scribe GH_TOKEN=... bun run e2e:reliability:check:macos
 ```
 
-CI writes E2E duration, result, runner class, and workflow attempt to the job summary. Failure artifacts include the WebdriverIO log, run metadata, and screenshots.
+CI writes E2E duration, result, runner class, and workflow attempt to the job summary. Linux uses the `qa-scribe-e2e-*` marker namespace; macOS uses `qa-scribe-e2e-macos-*`. Failure artifacts include the WebdriverIO log, run metadata, and screenshots.
+
+Scenario: closing the desktop window preserves pending work and exits without recursively requesting another close.
+
+Measure:
+
+- A clean window close is not intercepted.
+- A dirty window close is prevented only while one shared save is in flight.
+- Successful saving force-destroys the main window; failed saving leaves it open and retryable.
+- Autosaved edits no longer leave the browser fallback permanently dirty.
+
+Validation:
+
+```bash
+bun run --cwd frontend test -- src/app/useAppController.closeProtection.test.ts
+```
 
 Scenario: AI action jobs do not grow process memory indefinitely after jobs complete, fail, or are cancelled.
 

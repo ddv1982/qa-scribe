@@ -27,7 +27,7 @@
             "default",
             "core:event:allow-listen",
             "core:event:allow-unlisten",
-            "core:window:allow-close",
+            "core:window:allow-destroy",
             "wdio:default"
           ]
         }

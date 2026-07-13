@@ -10,7 +10,7 @@ The application does not render remote application code, create remote windows, 
 
 ## Existing controls
 
-- The main window receives one named capability. It grants the application `default` permission set plus only event listen/unlisten and window close.
+- The main window receives one named capability. It grants the application `default` permission set plus only event listen/unlisten and window destroy. Destroy is reserved for completing a user-initiated close after pending edits save successfully, without recursively emitting another close-request event.
 - `build.rs` supplies an explicit `AppManifest::commands` allowlist.
 - The Specta builder is the runtime invoke handler and the source of generated TypeScript bindings.
 - Structured command errors cross the IPC boundary instead of backend strings being interpreted as error types.
@@ -34,6 +34,37 @@ The built-application suite deliberately adds a more privileged automation bound
 
 `bun run e2e:isolation` checks the independent Rust, frontend, configuration, capability, and compiled-bundle switches. This defense-in-depth is required because the WDIO plugin can execute scripts inside the WebView. Adding E2E to another platform requires rerunning this review; it does not justify broadening the production command or capability surface.
 
+## macOS E2E expansion reassessment
+
+The 2026-07-13 macOS expansion reuses the same embedded WebDriver provider and
+the same opt-in E2E binary on the `macos-26` GitHub-hosted arm64 runner. It does
+not use a native external driver, a paid remote driver, signing/notarization
+credentials, a provider account, or a network service. The job has read-only
+repository permissions and receives no release secrets.
+
+The platform change introduces no new application command, plugin, environment
+override, or frontend guest. Separately, the save-before-close fix replaces the
+unused close permission with `core:window:allow-destroy`, allowing the handler
+to complete a user-initiated close without recursively emitting another close
+request. It does not expose data or execution authority; its availability
+impact is limited to terminating the same main window. The explicit temporary
+app-data directory remains authoritative on macOS; isolated `HOME` and `TMPDIR`
+values also keep provider and temporary state away from runner defaults. The
+runner restores the production frontend and reruns `bun run e2e:isolation`
+before retaining evidence.
+
+macOS evidence uses a separate `qa-scribe-e2e-macos-*` artifact namespace. The
+job is observational: GitHub Actions marks its failures as non-blocking, and
+`CI success` neither depends on nor evaluates it. It must not become required
+until both the Linux audit and the platform-specific macOS audit report 20
+consecutive first-attempt passes. A different macOS driver provider, runner
+architecture, or broader test capability requires another reassessment.
+
+**Decision:** enabling the existing test-only boundary on the ephemeral macOS
+runner is acceptable. Production isolation is unchanged, and early
+observational execution provides platform evidence without weakening the
+required Linux gate.
+
 ## Isolation Pattern decision
 
 Do not enable Tauri's Isolation Pattern in the current single-window release.
@@ -56,8 +87,11 @@ Revisit this decision before any of the following:
 4. HTML/provider/clipboard inputs are treated as hostile at the Rust boundary even when the frontend sanitizes them.
 5. New remote-content or multi-window behavior requires a renewed threat review and Isolation Pattern decision.
 6. WebDriver plugins, the WDIO guest, `withGlobalTauri`, test permissions, and test data-path overrides remain impossible to enable in a production build.
+7. Platform E2E jobs use the embedded local driver unless a renewed threat review explicitly approves another provider.
+8. Force-destroy remains scoped to the main window and is called only after the close guard successfully saves pending edits.
 
 References:
 
 - <https://v2.tauri.app/security/>
 - <https://v2.tauri.app/security/capabilities/>
+- <https://v2.tauri.app/develop/tests/webdriver/>

@@ -132,6 +132,30 @@ jobs:
       - name: Check Intel macOS cross-compile
         run: cargo check --workspace --target x86_64-apple-darwin
 
+  e2e-macos:
+    name: Built application E2E (macOS arm64, observational)
+    runs-on: macos-26
+    continue-on-error: true
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: Setup project
+        uses: ./.github/actions/setup-project
+        with:
+          cache-key: e2e-macos-arm64
+
+      - name: Run observational macOS built-application gate
+        uses: ./.github/actions/run-built-app-e2e
+        with:
+          artifact_prefix: qa-scribe-e2e-macos
+          failure_artifact_prefix: qa-scribe-macos-e2e-failure
+          runner_class: macos-26-github-arm64
+
   package-linux:
     name: Package test (Linux x64)
     needs: [changes, quality-linux]

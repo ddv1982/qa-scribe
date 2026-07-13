@@ -23,6 +23,7 @@ const tauriWindowMock = vi.hoisted(() => {
       return vi.fn()
     }),
     close: vi.fn(async () => undefined),
+    destroy: vi.fn(async () => undefined),
   }
   return {
     currentWindow,
@@ -31,6 +32,7 @@ const tauriWindowMock = vi.hoisted(() => {
       closeRequestedHandler = null
       currentWindow.onCloseRequested.mockClear()
       currentWindow.close.mockClear()
+      currentWindow.destroy.mockClear()
     },
   }
 })

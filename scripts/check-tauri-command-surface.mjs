@@ -9,6 +9,12 @@ const spectaSource = read('src-tauri/src/specta_bindings.rs')
 const bindingsSource = read('frontend/src/bindings.ts')
 const permissionSource = read('src-tauri/permissions/default.toml')
 const capabilitySource = JSON.parse(read('src-tauri/capabilities/default.json'))
+const expectedCapabilityPermissions = [
+  'core:event:allow-listen',
+  'core:event:allow-unlisten',
+  'core:window:allow-destroy',
+  'default',
+].sort()
 
 const buildBlock = requiredMatch(buildSource, /const COMMANDS: &\[&str\] = &\[([\s\S]*?)\];/, 'build.rs COMMANDS')[1]
 const buildCommands = matches(buildBlock, /"([a-z0-9_]+)"/g)
@@ -40,14 +46,20 @@ for (const [label, commands] of Object.entries(surfaces)) {
   }
 }
 
-if (!Array.isArray(capabilitySource.permissions) || !capabilitySource.permissions.includes('default')) {
-  fail('main-window capability must include the app default permission set')
+if (!Array.isArray(capabilitySource.permissions)) {
+  fail('main-window capability must declare its permissions')
+}
+const capabilityPermissions = sortedUnique(capabilitySource.permissions, 'main-window capability permissions')
+if (!sameValues(expectedCapabilityPermissions, capabilityPermissions)) {
+  const missing = expectedCapabilityPermissions.filter((permission) => !capabilityPermissions.includes(permission))
+  const extra = capabilityPermissions.filter((permission) => !expectedCapabilityPermissions.includes(permission))
+  fail(`main-window capability permissions differ\n  missing: ${missing.join(', ') || 'none'}\n  extra: ${extra.join(', ') || 'none'}`)
 }
 if (!Array.isArray(capabilitySource.windows) || !capabilitySource.windows.includes('main')) {
   fail('default capability must be scoped to the main window')
 }
 
-console.log(`tauri command surface: OK — ${expected.length} commands agree across manifest, handler, bindings, and permissions`)
+console.log(`tauri command surface: OK — ${expected.length} commands and the main-window core permissions agree`)
 
 function read(path) {
   return readFileSync(join(root, path), 'utf8')

@@ -35,7 +35,7 @@ As of 2026-07-13:
 
 - Phases 1–5 are implemented. The built-app suite passes all four critical workflows locally and is wired into the shared Linux CI/release action; terminology, capability boundaries, file-size policy, and reviewed RustSec exceptions are automated gates.
 - Phase 6 measurement infrastructure is implemented. CI retains success/failure/rerun evidence, enforces the large-fixture first-paint budget on `ubuntu-24.04-github-x64`, records bundle size, and provides a promotion audit command.
-- Phase 6 is intentionally not declared complete yet. The repository must accumulate 20 consecutive first-attempt remote E2E passes. macOS E2E remains deferred and non-required until `bun run e2e:reliability:check` reports readiness.
+- Phase 6 is intentionally not declared complete yet. The repository must accumulate 20 consecutive first-attempt remote E2E passes. macOS arm64 now runs the same suite observationally with separate evidence, but it remains non-required until both platform audits report readiness.
 
 ### Completion Evidence Map
 
@@ -46,7 +46,7 @@ As of 2026-07-13:
 | 3 | Capability workspaces and stable action APIs; autosave, lifecycle, stale-load, generation, and close-protection regression tests | Complete |
 | 4 | Four Rust test splits plus `bun run code-size:check`, including expiring exception/exclusion metadata | Complete |
 | 5 | Exact 20-record RustSec registry, compatible lockfile updates, upgrade-spike evidence, and `bun run rust:audit` | Complete |
-| 6 | Retained pass/fail/attempt markers, promotion audit, versioned large fixture, named-runner budget/reporting, and reviewed bundle delta | Infrastructure complete; 20 remote first-attempt passes and later macOS expansion remain |
+| 6 | Retained platform-scoped pass/fail/attempt markers, promotion audits, versioned large fixture, named-runner budget/reporting, reviewed bundle delta, and non-blocking macOS arm64 E2E | Implementation complete; Linux and macOS reliability windows must still reach 20 first-attempt passes before macOS promotion |
 
 ## Phase 1 — Baseline and Required Linux End-to-End Gate
 
@@ -127,10 +127,10 @@ As of 2026-07-13:
 **Outcome:** the new controls remain useful rather than becoming flaky or ceremonial.
 
 1. Track Linux end-to-end duration, failures, and reruns. Fix or quarantine infrastructure defects immediately; do not normalize rerunning a required gate until it passes.
-2. Require 20 consecutive green required-gate executions without an infrastructure rerun before using the suite as the basis for platform expansion.
+2. Require 20 consecutive green required-gate executions without an infrastructure rerun before using the suite as the basis for platform promotion. Non-blocking evidence collection may begin earlier because it cannot weaken the required Linux gate.
 3. Add the large-data startup fixture, record cold/warm baselines, and make the existing startup budgets enforceable only after the fixture is reproducible on a named runner class.
 4. Review Vite bundle output and editor-heavy interaction timing against the Phase 1 baseline.
-5. Add macOS end-to-end coverage after the Linux suite is stable. Keep Linux required while macOS is introduced non-blocking; promote macOS only after it meets the same reliability standard.
+5. Add macOS end-to-end coverage observationally while Linux reliability evidence accumulates. Keep Linux required and promote macOS only after both platforms meet the same reliability standard.
 6. Reassess the test-only Tauri plugin configuration against `docs/tauri-threat-model.md` before enabling it on another platform.
 
 **Exit criteria:** Linux remains a dependable required gate, performance budgets are fixture-backed, and any macOS gate has demonstrated the same reproducibility before becoming required.

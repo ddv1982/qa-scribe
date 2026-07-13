@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.7.14 - 2026-07-13
+
+- Run the real built-application suite observationally on macOS arm64 through the same isolated, production-restoring CI action used by the required Linux gate.
+- Track Linux and macOS reliability evidence independently, require 20 first-attempt passes before macOS promotion, and document the expanded test-only Tauri trust boundary.
+- Fix Ubuntu title-bar close requests getting trapped in a recursive close/unload guard after edits, while still saving pending work before exit.
+
 ## v0.7.13 - 2026-07-13
 
 - Keep “Use CLI default” transparent during generation instead of re-sending discovered reasoning as a QA Scribe override.
