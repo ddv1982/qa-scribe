@@ -82,8 +82,29 @@ fn run_bounded<T: Send + 'static>(deadline: Duration, f: impl FnOnce() -> T + Se
             let _ = handle.join();
             value
         }
-        Err(_) => panic!("operation did not finish within {deadline:?} (possible deadlock)"),
+        Err(mpsc::RecvTimeoutError::Timeout) => {
+            panic!("operation did not finish within {deadline:?} (possible deadlock)")
+        }
+        Err(mpsc::RecvTimeoutError::Disconnected) => match handle.join() {
+            Err(payload) => std::panic::resume_unwind(payload),
+            Ok(()) => panic!("bounded worker disconnected without returning a value"),
+        },
     }
+}
+
+#[test]
+fn bounded_worker_panics_are_preserved() {
+    let panic = std::panic::catch_unwind(|| {
+        let _: () = run_bounded(Duration::from_secs(1), || {
+            panic!("bounded worker failed");
+        });
+    })
+    .expect_err("the worker panic should reach the calling test");
+
+    assert_eq!(
+        panic.downcast_ref::<&str>().copied(),
+        Some("bounded worker failed")
+    );
 }
 
 /// Run the pwd-reporting fake CLI once and return the working directory the
@@ -194,14 +215,18 @@ fn normal_completion_accumulates_events() {
 
 #[test]
 fn mid_stream_cancel_kills_child_promptly() {
-    // Emit one line, then sleep far longer than the test deadline. A
-    // working cancel must kill the process group and unblock the reader
-    // well before the sleep elapses.
+    // Start a long-lived descendant before emitting the first line, then wait
+    // for it. This makes the process-group boundary deterministic: cancellation
+    // cannot race the shell's transition from `printf` to spawning `sleep`.
+    // A working cancel must kill both processes and unblock the reader well
+    // before the sleep elapses.
     let cli = FakeCli::new(
         "fake-cancel",
         "#!/bin/sh\ncat >/dev/null\n\
+         sleep 120 &\n\
+         sleeper=$!\n\
          printf '%s\\n' '{\"type\":\"item/agentMessage/delta\",\"delta\":\"partial\"}'\n\
-         sleep 120\n\
+         wait \"$sleeper\"\n\
          exit 0\n",
     );
     let command = cli.command("prompt".to_string(), GenerationOutputFormat::CodexJsonl);
@@ -215,7 +240,9 @@ fn mid_stream_cancel_kills_child_promptly() {
             if let StreamUpdate::Partial(_) = update {
                 // Simulate the UI requesting cancellation: sets the
                 // cancel flag and kills the child's process group.
-                let _ = cancel_control.request_cancel();
+                cancel_control
+                    .request_cancel()
+                    .expect("cancel request succeeds");
             }
         })
     })
