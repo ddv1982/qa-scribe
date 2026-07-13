@@ -116,7 +116,9 @@ export function RichRecordActions({
   screenshot,
   onCopy,
   onDelete,
-  onToggleEdit,
+  onEdit,
+  onSave,
+  onCancelEdit,
 }: {
   copied: boolean
   copying: boolean
@@ -138,21 +140,25 @@ export function RichRecordActions({
   }
   onCopy: () => void
   onDelete: () => void
-  onToggleEdit: () => void
+  onEdit: () => void
+  onSave: () => void
+  onCancelEdit: () => void
 }) {
   return (
     <>
-      <button
-        className={copied ? 'icon-button success' : 'icon-button'}
-        type="button"
-        aria-label={copyLabel}
-        title={copyTitle}
-        disabled={isBusy}
-        onClick={onCopy}
-      >
-        {copying ? <Loader2 className="spin" size={16} /> : copied ? <CheckCircle2 size={16} /> : <Copy size={16} />}
-      </button>
-      {screenshot && screenshot.count > 0 ? (
+      {!editing ? (
+        <button
+          className={copied ? 'icon-button success' : 'icon-button'}
+          type="button"
+          aria-label={copyLabel}
+          title={copyTitle}
+          disabled={isBusy}
+          onClick={onCopy}
+        >
+          {copying ? <Loader2 className="spin" size={16} /> : copied ? <CheckCircle2 size={16} /> : <Copy size={16} />}
+        </button>
+      ) : null}
+      {!editing && screenshot && screenshot.count > 0 ? (
         <button
           className={screenshot.copied ? 'icon-button success' : 'icon-button'}
           type="button"
@@ -164,13 +170,20 @@ export function RichRecordActions({
           {screenshot.copying ? <Loader2 className="spin" size={16} /> : screenshot.copied ? <CheckCircle2 size={16} /> : <ImageIcon size={16} />}
         </button>
       ) : null}
-      <button className="secondary-button" type="button" disabled={isBusy} onClick={onToggleEdit}>
+      <button className={editing ? 'primary-button' : 'secondary-button'} type="button" disabled={isBusy} onClick={editing ? onSave : onEdit}>
         {saving ? <Loader2 className="spin" size={16} /> : editing ? <Save size={16} /> : <PencilLine size={16} />}
         {editing ? 'Save' : 'Edit'}
       </button>
-      <button className="icon-button danger" type="button" aria-label={deleteLabel} title={deleteTitle} disabled={isBusy} onClick={onDelete}>
-        {deleting ? <Loader2 className="spin" size={16} /> : <Trash2 size={16} />}
-      </button>
+      {editing ? (
+        <button className="secondary-button" type="button" disabled={isBusy} onClick={onCancelEdit}>
+          <X size={16} />
+          Discard
+        </button>
+      ) : (
+        <button className="icon-button danger" type="button" aria-label={deleteLabel} title={deleteTitle} disabled={isBusy} onClick={onDelete}>
+          {deleting ? <Loader2 className="spin" size={16} /> : <Trash2 size={16} />}
+        </button>
+      )}
     </>
   )
 }

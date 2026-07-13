@@ -41,6 +41,8 @@ export type RecordActionsContext = {
     | 'dirtyFindingIdsRef'
     | 'draftsRef'
     | 'findingsRef'
+    | 'savedDraftsRef'
+    | 'savedFindingsRef'
     | 'setDrafts'
     | 'setFindings'
   >
@@ -157,6 +159,7 @@ export function createRecordActions(ctx: RecordActionsContext) {
       const current = ctx.records.draftsRef.current.find((item) => item.id === draft.id)
       if (!current || !draftEditableFieldsMatch(current, draft)) return false
       ctx.records.dirtyDraftIdsRef.current.delete(saved.id)
+      ctx.records.savedDraftsRef.current = replaceRecord(ctx.records.savedDraftsRef.current, saved)
       if (ctx.session.activeSessionIdRef.current === saved.sessionId) {
         ctx.records.setDrafts((previous) => {
           const nextDrafts = previous.map((item) => (item.id === saved.id ? saved : item))
@@ -191,6 +194,16 @@ export function createRecordActions(ctx: RecordActionsContext) {
     })
   }
 
+  function discardLocalDraft(original: Draft) {
+    ctx.records.dirtyDraftIdsRef.current.delete(original.id)
+    ctx.records.setDrafts((previous) => {
+      const nextDrafts = previous.map((draft) => (draft.id === original.id ? original : draft))
+      ctx.records.draftsRef.current = nextDrafts
+      return nextDrafts
+    })
+    ctx.feedback.setNotice('Testware changes discarded')
+  }
+
   async function persistFinding(finding: Finding): Promise<boolean> {
     try {
       ctx.feedback.setError(null)
@@ -204,6 +217,7 @@ export function createRecordActions(ctx: RecordActionsContext) {
       const current = ctx.records.findingsRef.current.find((item) => item.id === finding.id)
       if (!current || !findingEditableFieldsMatch(current, finding)) return false
       ctx.records.dirtyFindingIdsRef.current.delete(saved.id)
+      ctx.records.savedFindingsRef.current = replaceRecord(ctx.records.savedFindingsRef.current, saved)
       if (ctx.session.activeSessionIdRef.current === saved.sessionId) {
         ctx.records.setFindings((previous) => {
           const nextFindings = previous.map((item) => (item.id === saved.id ? saved : item))
@@ -236,6 +250,40 @@ export function createRecordActions(ctx: RecordActionsContext) {
       ctx.records.findingsRef.current = nextFindings
       return nextFindings
     })
+  }
+
+  function discardLocalFinding(original: Finding) {
+    ctx.records.dirtyFindingIdsRef.current.delete(original.id)
+    ctx.records.setFindings((previous) => {
+      const nextFindings = previous.map((finding) => (finding.id === original.id ? original : finding))
+      ctx.records.findingsRef.current = nextFindings
+      return nextFindings
+    })
+    ctx.feedback.setNotice('Finding changes discarded')
+  }
+
+  function discardAllDirtyRecords() {
+    const dirtyDraftIds = new Set(ctx.records.dirtyDraftIdsRef.current)
+    const dirtyFindingIds = new Set(ctx.records.dirtyFindingIdsRef.current)
+    const savedDrafts = new Map(ctx.records.savedDraftsRef.current.map((draft) => [draft.id, draft]))
+    const savedFindings = new Map(ctx.records.savedFindingsRef.current.map((finding) => [finding.id, finding]))
+    ctx.records.dirtyDraftIdsRef.current.clear()
+    ctx.records.dirtyFindingIdsRef.current.clear()
+    ctx.records.setDrafts((previous) => {
+      const next = previous
+        .filter((draft) => !dirtyDraftIds.has(draft.id) || savedDrafts.has(draft.id))
+        .map((draft) => dirtyDraftIds.has(draft.id) ? savedDrafts.get(draft.id) ?? draft : draft)
+      ctx.records.draftsRef.current = next
+      return next
+    })
+    ctx.records.setFindings((previous) => {
+      const next = previous
+        .filter((finding) => !dirtyFindingIds.has(finding.id) || savedFindings.has(finding.id))
+        .map((finding) => dirtyFindingIds.has(finding.id) ? savedFindings.get(finding.id) ?? finding : finding)
+      ctx.records.findingsRef.current = next
+      return next
+    })
+    ctx.feedback.setNotice('Pending record changes discarded')
   }
 
   async function saveDirtyRecordsNow(): Promise<boolean> {
@@ -308,6 +356,9 @@ export function createRecordActions(ctx: RecordActionsContext) {
 
   return {
     confirmDelete,
+    discardLocalDraft,
+    discardLocalFinding,
+    discardAllDirtyRecords,
     handleManualFinding,
     handleManualTestware,
     handlePrefillFindingFromNote,
@@ -320,6 +371,12 @@ export function createRecordActions(ctx: RecordActionsContext) {
     updateLocalDraft,
     updateLocalFinding,
   }
+}
+
+function replaceRecord<T extends { id: string }>(records: T[], saved: T): T[] {
+  return records.some((record) => record.id === saved.id)
+    ? records.map((record) => record.id === saved.id ? saved : record)
+    : [saved, ...records]
 }
 
 export function useRecordActions(ctx: RecordActionsContext) {

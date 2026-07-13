@@ -1,15 +1,41 @@
 import { Bug, Check, CheckCircle2, Loader2, Save, type LucideIcon } from 'lucide-react'
 import type { BusyAction, SettingsSaveState } from '../ui/types'
 
-export function EmptyCollection({ icon: Icon, title }: { icon: LucideIcon; title: string }) {
+export function StatePanel({
+  icon: Icon,
+  title,
+  description,
+  action,
+}: {
+  icon: LucideIcon
+  title: string
+  description: string
+  action?: { label: string; onClick: () => void }
+}) {
   return (
-    <div className="empty-collection">
+    <div className="empty-collection state-panel">
       <div className="empty-icon">
         <Icon size={28} />
       </div>
       <h2>{title}</h2>
+      <p>{description}</p>
+      {action ? <button className="secondary-button" type="button" onClick={action.onClick}>{action.label}</button> : null}
     </div>
   )
+}
+
+export function EmptyCollection({
+  icon,
+  title,
+  description = 'There is nothing to show yet.',
+  action,
+}: {
+  icon: LucideIcon
+  title: string
+  description?: string
+  action?: { label: string; onClick: () => void }
+}) {
+  return <StatePanel icon={icon} title={title} description={description} action={action} />
 }
 
 export function RailItem({
@@ -45,7 +71,7 @@ export function SaveSettingsButton({
   busyAction: BusyAction | null
   disabled: boolean
   state: SettingsSaveState
-  onSave: () => Promise<void>
+  onSave: () => Promise<unknown>
 }) {
   const saving = busyAction === 'save-settings' || state === 'saving'
   const saved = state === 'saved' && !saving

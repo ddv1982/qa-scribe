@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useState } from 'react'
 import { SettingsView } from './SettingsView'
-import { settingsFixture } from '../test/fixtures'
+import { providerDefaultSnapshotFixture, settingsFixture } from '../test/fixtures'
 import type { AiProvider, AppSettings, ProviderModelDescriptor, ProviderStatus } from '../tauri'
 
 describe('SettingsView AI defaults', () => {
@@ -83,19 +83,86 @@ describe('SettingsView AI defaults', () => {
       ]),
     })
 
-    await user.click(screen.getByRole('button', { name: /model/i }))
-    expect(screen.getByRole('textbox', { name: /search ai models/i })).toHaveFocus()
+    const combobox = screen.getByRole('combobox', { name: 'Model' })
+    await user.click(combobox)
+    expect(combobox).toHaveFocus()
 
     await user.keyboard('{ArrowDown}')
     const options = within(screen.getByRole('listbox', { name: /ai models/i })).getAllByRole('option')
-    expect(options[0]).toHaveFocus()
+    expect(combobox).toHaveAttribute('aria-activedescendant', options[0].id)
 
     await user.keyboard('{ArrowDown}')
-    expect(options[1]).toHaveFocus()
+    expect(combobox).toHaveAttribute('aria-activedescendant', options[1].id)
 
     await user.keyboard('{Enter}')
 
     expect(updateSettingsDraft).toHaveBeenCalledWith(expect.objectContaining({ selectedAiModel: 'gpt-4.1' }))
+  })
+
+  it('shows the resolved CLI default and labels a live CLI model catalog', async () => {
+    const user = userEvent.setup()
+    const provider = providerDescriptor('codex_cli', 'Codex CLI', true, [
+      modelDescriptor('default', 'Use CLI default'),
+      {
+        ...modelDescriptor('gpt-live', 'GPT Live', ['low', 'medium']),
+        description: 'Reported by the installed CLI.',
+        source: 'detected',
+      },
+    ])
+    provider.defaultSnapshot = providerDefaultSnapshotFixture({
+      model: {
+        value: 'gpt-live',
+        resolution: 'configured',
+        origin: {
+          kind: 'userConfig',
+          label: 'User configuration',
+          displayPath: '~/.codex/config.toml',
+          technicalPath: '/mock/.codex/config.toml',
+        },
+        recommendedValue: 'gpt-live',
+      },
+    })
+    renderSettingsView({ providerStatus: providerStatusWith([provider]) })
+
+    const combobox = screen.getByRole('combobox', { name: 'Model' })
+    expect(combobox).toHaveValue('CLI default · GPT Live')
+    expect(screen.getByText('1 model from Codex CLI')).toBeInTheDocument()
+
+    await user.click(combobox)
+
+    const listbox = screen.getByRole('listbox', { name: /ai models/i })
+    expect(screen.getByText('1 model reported by Codex CLI')).toBeInTheDocument()
+    expect(within(listbox).getByText('Current: GPT Live · ~/.codex/config.toml')).toBeInTheDocument()
+    expect(within(listbox).getByText('Reported by the installed CLI.')).toBeInTheDocument()
+  })
+
+  it('renders a fixed status dot for every provider state', () => {
+    const ready = codexProvider()
+    const authRequired = claudeProvider(false)
+    const installRequired = { ...copilotProvider(false), status: 'installRequired' as const }
+    renderSettingsView({ providerStatus: providerStatusWith([ready, authRequired, installRequired]) })
+
+    expect(screen.getByRole('img', { name: 'Codex CLI: Ready' })).toHaveClass('status-dot', 'ready')
+    expect(screen.getByRole('img', { name: 'Claude Code: Sign-in needed' })).toHaveClass('status-dot', 'warning')
+    expect(screen.getByRole('img', { name: 'GitHub Copilot CLI: Not installed' })).toHaveClass('status-dot', 'unavailable')
+  })
+
+  it('groups the three execution choices and presents the resolved next run as distinct values', () => {
+    const detectedProvider = {
+      ...codexProvider(),
+      defaultSnapshot: providerDefaultSnapshotFixture(),
+    }
+    renderSettingsView({ providerStatus: providerStatusWith([detectedProvider]) })
+
+    const choices = screen.getByRole('group', { name: 'AI execution choices' })
+    expect(within(choices).getByText('Provider')).toBeInTheDocument()
+    expect(within(choices).getByText('Model')).toBeInTheDocument()
+    expect(within(choices).getByText('Reasoning')).toBeInTheDocument()
+
+    const nextRun = screen.getByLabelText('Next run')
+    expect(within(nextRun).getByText('Codex CLI')).toBeInTheDocument()
+    expect(within(nextRun).getByText('gpt-5.5')).toBeInTheDocument()
+    expect(within(nextRun).getByText('medium')).toBeInTheDocument()
   })
 
   it('disables AI default controls when no providers are available', () => {
@@ -106,7 +173,7 @@ describe('SettingsView AI defaults', () => {
     const providerSelect = screen.getByLabelText('Default AI provider')
     expect(providerSelect).toBeDisabled()
     expect(within(providerSelect).getByRole('option', { name: 'Codex CLI (unavailable)' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: /model/i })).toBeDisabled()
+    expect(screen.getByRole('combobox', { name: 'Model' })).toBeDisabled()
     expect(screen.getByLabelText('Reasoning')).toBeDisabled()
   })
 
@@ -115,7 +182,7 @@ describe('SettingsView AI defaults', () => {
 
     const textarea = screen.getByRole('textbox', { name: 'Global AI instructions' })
 
-    expect(textarea).toHaveAccessibleDescription(/Keep these neutral across summaries, findings, and testware/i)
+    expect(textarea).toHaveAccessibleDescription(/Shared instructions for summaries, Findings, and Testware/i)
   })
 })
 
@@ -153,13 +220,17 @@ function SettingsViewHarness({
     <SettingsView
       busyAction={null}
       providerStatus={providerStatus}
+      providerDiscoveryState="ready"
       settingsDraft={settingsDraft}
+      settingsDirty={false}
       settingsSaveState="idle"
       theme="system"
       updateSettingsDraft={updateSettingsDraft}
       setTheme={vi.fn()}
       onSaveSettings={vi.fn()}
+      onDiscardSettings={vi.fn()}
       onRefreshProviderStatus={vi.fn()}
+      onBack={vi.fn()}
     />
   )
 }
@@ -195,16 +266,11 @@ function providerDescriptor(
     command: label.toLocaleLowerCase().replaceAll(' ', '-'),
     executablePath: available ? `/mock/bin/${providerExecutable(id)}` : null,
     localOnly: true,
-    defaultSnapshot: {
-      model: null,
-      reasoningEffort: null,
-      modelOrigin: null,
-      reasoningOrigin: null,
-      resolution: 'providerManaged',
-      recommendedModel: null,
-      recommendedReasoningEffort: null,
-      warnings: [],
-    },
+    defaultSnapshot: providerDefaultSnapshotFixture({
+      state: 'providerManaged',
+      model: { value: null, resolution: 'providerManaged', origin: null, recommendedValue: null },
+      reasoningEffort: { value: null, resolution: 'providerManaged', origin: null, recommendedValue: null },
+    }),
     models,
   }
 }

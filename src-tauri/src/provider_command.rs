@@ -40,6 +40,52 @@ pub enum ProviderPathMode {
     Deep,
 }
 
+/// Fresh, empty working directory used for every provider inspection and
+/// generation. Coding-agent CLIs discover project configuration from their
+/// working directory, so both paths must use the same neutral-scope policy.
+pub struct NeutralProviderCwd {
+    path: PathBuf,
+    owned: bool,
+}
+
+impl NeutralProviderCwd {
+    pub fn new() -> Self {
+        let unique = env::temp_dir().join(format!(
+            "qa-scribe-provider-cwd-{}",
+            uuid::Uuid::new_v4().simple()
+        ));
+        if fs::create_dir_all(&unique).is_ok() {
+            Self {
+                path: unique,
+                owned: true,
+            }
+        } else {
+            Self {
+                path: env::temp_dir(),
+                owned: false,
+            }
+        }
+    }
+
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+}
+
+impl Default for NeutralProviderCwd {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Drop for NeutralProviderCwd {
+    fn drop(&mut self) {
+        if self.owned {
+            let _ = fs::remove_dir_all(&self.path);
+        }
+    }
+}
+
 pub fn apply_provider_path(command: &mut Command) {
     if let Some(path) = provider_command_path() {
         command.env("PATH", path);

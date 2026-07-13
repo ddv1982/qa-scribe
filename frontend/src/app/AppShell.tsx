@@ -1,26 +1,50 @@
-import type { KeyboardEvent } from 'react'
-import { Box, FileText, Flag, Loader2, PencilLine, Plus, Search, Settings } from 'lucide-react'
+import { useEffect, useState, type KeyboardEvent } from 'react'
+import { BookOpen, Box, ChevronRight, Command as CommandIcon, FileText, Flag, Loader2, PencilLine, Plus, Search, Settings } from 'lucide-react'
 import { RailItem } from '../components/Common'
-import { ThemeToggle } from '../components/ThemeToggle'
 import { formatSessionDate } from '../ui/format'
 import { FindingsView } from '../views/FindingsView'
 import { SessionEditorView } from '../views/SessionEditorView'
 import { SettingsView } from '../views/SettingsView'
 import { TestwareView } from '../views/TestwareView'
+import { OutputLibraryView } from '../views/OutputLibraryView'
 import { GenerationPreflight } from '../workflows/generationPreflight'
-import { useModalDialog } from '../hooks/useModalDialog'
 import type { AppController } from './useAppController'
+import { createCommandRegistry, type AppCommandId } from './commandRegistry'
+import { CommandPalette, DeleteConfirmationDialog, PendingChangesDialog } from './AppOverlays'
+import { primaryModifierPressed, primaryShortcutLabel } from './platformShortcuts'
+
+export { DeleteConfirmationDialog } from './AppOverlays'
 
 export function AppShell(c: AppController) {
-  const topAction =
-    c.activeView === 'sessions'
-      ? { label: 'New session', busy: 'new-session' as const, run: () => void c.handleNewSession() }
-      : c.activeView === 'testware'
-        ? { label: 'New testware', busy: 'manual-testware' as const, run: () => void c.handleManualTestware() }
-        : c.activeView === 'findings'
-          ? { label: 'New finding', busy: 'manual-finding' as const, run: () => void c.handleManualFinding() }
-          : null
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
+  const commands = createCommandRegistry(c)
+  const commandById = (id: AppCommandId) => commands.find((command) => command.id === id)
+  const runCommand = (id: AppCommandId) => commandById(id)?.run()
+  const topAction = c.activeView === 'sessions'
+    ? { command: commandById('session.new'), busy: 'new-session' as const }
+    : c.activeView === 'testware'
+      ? { command: commandById('testware.new'), busy: 'manual-testware' as const }
+      : c.activeView === 'findings'
+        ? { command: commandById('finding.new'), busy: 'manual-finding' as const }
+        : null
   const visibleSessions = c.filteredSessions.slice(0, 8)
+
+  useEffect(() => {
+    function handleShortcut(event: globalThis.KeyboardEvent) {
+      if (!primaryModifierPressed(event)) return
+      if (event.key.toLocaleLowerCase() === 'k') {
+        event.preventDefault()
+        setCommandPaletteOpen(true)
+        return
+      }
+      const matched = commands.find((command) => command.shortcut?.key === event.key.toLocaleLowerCase())
+      if (!matched?.available) return
+      event.preventDefault()
+      matched.run()
+    }
+    window.addEventListener('keydown', handleShortcut)
+    return () => window.removeEventListener('keydown', handleShortcut)
+  }, [commands])
 
   function handleSessionOptionKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
     focusListboxOption(event)
@@ -36,18 +60,32 @@ export function AppShell(c: AppController) {
           <strong>QA Scribe</strong>
         </div>
 
-        <label className="global-search">
-          <Search size={17} />
-          <span className="sr-only">Search sessions</span>
-          <input value={c.searchQuery} onChange={(event) => c.setSearchQuery(event.target.value)} placeholder="Search sessions..." />
-        </label>
+        {c.activeView === 'sessions' ? (
+          <label className="global-search">
+            <Search size={17} />
+            <span className="sr-only">Search Sessions</span>
+            <input value={c.searchQuery} onChange={(event) => c.setSearchQuery(event.target.value)} placeholder="Search Sessions…" />
+          </label>
+        ) : c.activeView === 'testware' || c.activeView === 'findings' ? (
+          <div className="top-context-label" aria-label="Current search scope">
+            <span>{c.activeSession?.title}</span>
+            <ChevronRight size={14} />
+            <strong>{c.activeView === 'testware' ? 'Testware' : 'Findings'}</strong>
+          </div>
+        ) : c.activeView === 'testware-library' || c.activeView === 'findings-library' ? (
+          <div className="top-context-label" aria-label="Current search scope"><strong>{c.activeView === 'testware-library' ? 'Testware library' : 'Findings library'}</strong></div>
+        ) : <div className="top-context-label"><strong>Settings</strong></div>}
 
         <div className="top-actions">
-          <ThemeToggle theme={c.theme} onThemeChange={c.setTheme} />
-          {topAction ? (
-            <button className="primary-button top-new-button" type="button" disabled={c.isBusy} onClick={topAction.run}>
+          <button className="secondary-button command-palette-trigger" type="button" aria-label="Open command palette" onClick={() => setCommandPaletteOpen(true)}>
+            <CommandIcon size={16} />
+            Commands
+            <kbd>{primaryShortcutLabel('k')}</kbd>
+          </button>
+          {topAction?.command ? (
+            <button className="primary-button top-new-button" type="button" disabled={!topAction.command.available} onClick={topAction.command.run}>
               {c.busyAction === topAction.busy ? <Loader2 className="spin" size={17} /> : <Plus size={17} />}
-              {topAction.label}
+              {topAction.command.label}
             </button>
           ) : null}
         </div>
@@ -55,9 +93,7 @@ export function AppShell(c: AppController) {
 
       <aside className="left-rail" aria-label="Workspace navigation">
         <nav className="section-nav" aria-label="Primary">
-          <RailItem icon={FileText} label="Sessions" count={c.sessions.length} active={c.activeView === 'sessions'} onClick={() => c.setActiveView('sessions')} />
-          <RailItem icon={Box} label="Testware" count={c.testwareDraftCount} active={c.activeView === 'testware'} onClick={() => c.setActiveView('testware')} />
-          <RailItem icon={Flag} label="Findings" count={c.findingCount} active={c.activeView === 'findings'} onClick={() => c.setActiveView('findings')} />
+          <RailItem icon={FileText} label={c.activeSession ? 'Session note' : 'Sessions'} count={c.sessions.length} active={c.activeView === 'sessions'} onClick={() => runCommand('view.note')} />
         </nav>
 
         <section className="session-picker" aria-label="Choose session">
@@ -74,28 +110,69 @@ export function AppShell(c: AppController) {
                 onClick={() => void c.openSession(session)}
                 onKeyDown={handleSessionOptionKeyDown}
               >
-                <span>{session.title}</span>
-                <small>{formatSessionDate(session.updatedAt)}</small>
+                <span className="session-picker-title" title={session.title}>{session.title}</span>
+                <small className="session-picker-date">{formatSessionDate(session.updatedAt)}</small>
               </button>
             ))}
             {c.filteredSessions.length === 0 ? <p className="session-picker-empty">No matching sessions</p> : null}
           </div>
           {c.filteredSessions.length > 8 ? <p className="session-picker-more">Showing 8 of {c.filteredSessions.length}. Search to narrow.</p> : null}
           {!c.sessionLibraryComplete ? (
-            <button className="secondary-button" type="button" disabled={c.isBusy} onClick={() => void c.handleLoadSessionLibrary()}>
+            <button className="secondary-button" type="button" disabled={!commandById('sessions.load-all')?.available} onClick={() => runCommand('sessions.load-all')}>
               {c.busyAction === 'load-session-library' ? <Loader2 className="spin" size={16} /> : null}
-              Load all sessions
+              {commandById('sessions.load-all')?.label}
             </button>
           ) : null}
         </section>
 
-        <button className={c.activeView === 'settings' ? 'settings-link active' : 'settings-link'} type="button" aria-current={c.activeView === 'settings' ? 'page' : undefined} onClick={() => c.setActiveView('settings')}>
+        <nav className="library-nav" aria-label="Libraries">
+          <p className="rail-heading">Libraries</p>
+          <RailItem icon={BookOpen} label="Testware library" active={c.activeView === 'testware-library'} onClick={() => runCommand('library.testware')} />
+          <RailItem icon={Flag} label="Findings library" active={c.activeView === 'findings-library'} onClick={() => runCommand('library.findings')} />
+        </nav>
+
+        <label className="compact-session-select">
+          <span>Session</span>
+          <select
+            value={c.activeSession?.id ?? ''}
+            disabled={c.isBusy || c.sessions.length === 0}
+            onChange={(event) => {
+              const session = c.sessions.find((candidate) => candidate.id === event.target.value)
+              if (session) void c.openSession(session)
+            }}
+          >
+            {c.sessions.length === 0 ? <option value="">No Sessions yet</option> : null}
+            {c.sessions.map((session) => <option key={session.id} value={session.id}>{session.title}</option>)}
+          </select>
+        </label>
+
+        <button className={c.activeView === 'settings' ? 'settings-link active' : 'settings-link'} type="button" aria-current={c.activeView === 'settings' ? 'page' : undefined} onClick={() => runCommand('settings.open')}>
           <Settings size={17} />
           Settings
         </button>
       </aside>
 
       <section className="center-workspace" aria-label="Workspace">
+        {c.activeSession && ['sessions', 'testware', 'findings'].includes(c.activeView) ? (
+          <header className="session-context-header">
+            <div className="session-breadcrumb" aria-label="Breadcrumb">
+              <button type="button" onClick={() => runCommand('view.note')}>Sessions</button>
+              <ChevronRight size={14} />
+              <strong>{c.activeSession.title}</strong>
+            </div>
+            <nav className="session-workspace-tabs" role="tablist" aria-label={`${c.activeSession.title} workspace`}>
+              <button type="button" role="tab" className={c.activeView === 'sessions' ? 'active' : ''} aria-selected={c.activeView === 'sessions'} onClick={() => runCommand('view.note')} onKeyDown={activateAdjacentTab}>
+                <FileText size={16} /> Note
+              </button>
+              <button type="button" role="tab" className={c.activeView === 'testware' ? 'active' : ''} aria-selected={c.activeView === 'testware'} onClick={() => runCommand('view.testware')} onKeyDown={activateAdjacentTab}>
+                <Box size={16} /> Testware <span>{c.testwareDraftCount}</span>
+              </button>
+              <button type="button" role="tab" className={c.activeView === 'findings' ? 'active' : ''} aria-selected={c.activeView === 'findings'} onClick={() => runCommand('view.findings')} onKeyDown={activateAdjacentTab}>
+                <Flag size={16} /> Findings <span>{c.findingCount}</span>
+              </button>
+            </nav>
+          </header>
+        ) : null}
         {c.activeView === 'sessions' ? (
           <SessionEditorView
             activeProviderAvailable={Boolean(c.activeProvider?.available)}
@@ -116,12 +193,11 @@ export function AppShell(c: AppController) {
             pendingAiActions={c.pendingAiActions}
             selectedProvider={c.selectedProvider}
             selectedModel={c.selectedModel}
+            effectiveSelection={c.effectiveAiSelection}
             activeProvider={c.activeProvider}
+            onConfigureAi={() => runCommand('ai.configure')}
             onUndoLatestGeneration={c.handleUndoLatestNoteGeneration}
-            onAiAction={(action) => {
-              c.setPendingGenerationAction(action)
-              return Promise.resolve()
-            }}
+            onAiAction={c.openGenerationPreflight}
             onCopyNote={c.handleCopyNoteForJira}
             onCopyNoteScreenshot={c.handleCopyNoteScreenshotForJira}
             onDeleteSession={c.requestDeleteSession}
@@ -148,16 +224,24 @@ export function AppShell(c: AppController) {
             copiedDraftScreenshotId={c.copiedTarget?.kind === 'draft' && c.copiedTarget.action === 'screenshot' ? c.copiedTarget.id : null}
             draftScreenshotCounts={c.draftScreenshotCounts}
             drafts={c.testwareDrafts}
+            sessionTitle={c.activeSession?.title ?? null}
             notice={c.notice}
             error={c.error}
             isBusy={c.isBusy}
             activeGenerationJob={c.activeTestwareJob}
+            initialSelectedRecordId={c.focusedRecordId}
+            loadState={c.draftLoadState}
+            loadError={c.draftLoadError}
+            onRetryLoad={() => {
+              if (c.activeSession) void c.loadDraftsForSession(c.activeSession.id, { force: true }).catch(() => undefined)
+            }}
             onCancelGenerationJob={c.handleCancelGenerationJob}
             onCopyDraft={c.handleCopyDraftForJira}
             onCopyDraftScreenshot={c.handleCopyDraftScreenshotForJira}
             onDeleteDraft={c.requestDeleteDraft}
             onPrefillFromNote={c.handlePrefillTestwareFromNote}
             onSaveDraft={c.handleSaveDraft}
+            onDiscardDraft={c.discardLocalDraft}
             onUploadImage={(input) => c.uploadEditorImage(input, null)}
             updateLocalDraft={c.updateLocalDraft}
           />
@@ -170,18 +254,48 @@ export function AppShell(c: AppController) {
             copiedFindingScreenshotId={c.copiedTarget?.kind === 'finding' && c.copiedTarget.action === 'screenshot' ? c.copiedTarget.id : null}
             findingScreenshotCounts={c.findingScreenshotCounts}
             findings={c.findings}
+            sessionTitle={c.activeSession?.title ?? null}
             notice={c.notice}
             error={c.error}
             isBusy={c.isBusy}
             activeGenerationJob={c.activeFindingJob}
+            initialSelectedRecordId={c.focusedRecordId}
+            loadState={c.findingLoadState}
+            loadError={c.findingLoadError}
+            onRetryLoad={() => {
+              if (c.activeSession) void c.loadFindingsForSession(c.activeSession.id, { force: true }).catch(() => undefined)
+            }}
             onCancelGenerationJob={c.handleCancelGenerationJob}
             onCopyFinding={c.handleCopyFindingForJira}
             onCopyFindingScreenshot={c.handleCopyFindingScreenshotForJira}
             onDeleteFinding={c.requestDeleteFinding}
             onPrefillFromNote={c.handlePrefillFindingFromNote}
             onSaveFinding={c.handleSaveFinding}
+            onDiscardFinding={c.discardLocalFinding}
             onUploadImage={(input) => c.uploadEditorImage(input, null)}
             updateLocalFinding={c.updateLocalFinding}
+          />
+        ) : null}
+
+        {c.activeView === 'testware-library' ? (
+          <OutputLibraryView
+            kind="testware"
+            draftItems={c.draftLibrary}
+            loadState={c.draftLibraryState}
+            loadError={c.draftLibraryError}
+            onRetry={() => void c.loadDraftLibrary()}
+            onOpenRecord={(sessionId, recordId) => void c.openLibraryRecord(sessionId, 'testware', recordId)}
+          />
+        ) : null}
+
+        {c.activeView === 'findings-library' ? (
+          <OutputLibraryView
+            kind="findings"
+            findingItems={c.findingLibrary}
+            loadState={c.findingLibraryState}
+            loadError={c.findingLibraryError}
+            onRetry={() => void c.loadFindingLibrary()}
+            onOpenRecord={(sessionId, recordId) => void c.openLibraryRecord(sessionId, 'findings', recordId)}
           />
         ) : null}
 
@@ -189,13 +303,17 @@ export function AppShell(c: AppController) {
           <SettingsView
             busyAction={c.busyAction}
             providerStatus={c.providerStatus}
+            providerDiscoveryState={c.providerDiscoveryState}
             settingsDraft={c.settingsDraft}
+            settingsDirty={c.settingsDirty}
             settingsSaveState={c.settingsSaveState}
             theme={c.theme}
             updateSettingsDraft={c.updateSettingsDraft}
             setTheme={c.setTheme}
             onSaveSettings={c.handleSaveSettings}
+            onDiscardSettings={c.discardSettingsDraft}
             onRefreshProviderStatus={c.handleRefreshProviderStatus}
+            onBack={c.closeSettings}
           />
         ) : null}
       </section>
@@ -209,6 +327,19 @@ export function AppShell(c: AppController) {
         />
       ) : null}
 
+      {c.pendingNavigationView ? (
+        <PendingChangesDialog
+          isBusy={c.isBusy}
+          onCancel={c.cancelPendingNavigation}
+          onDiscard={c.discardPendingNavigationChanges}
+          onSave={() => void c.savePendingNavigationChanges()}
+        />
+      ) : null}
+
+      {commandPaletteOpen ? (
+        <CommandPalette commands={commands} onClose={() => setCommandPaletteOpen(false)} />
+      ) : null}
+
       {c.pendingGenerationAction ? (
         <GenerationPreflight
           action={c.pendingGenerationAction}
@@ -218,9 +349,20 @@ export function AppShell(c: AppController) {
           noteScreenshotCount={c.noteScreenshotCount}
           activeProviderLabel={c.activeProvider?.label ?? c.selectedProvider}
           activeProviderAvailable={Boolean(c.activeProvider?.available)}
-          selectedModel={c.effectiveAiSelection.model}
-          selectedReasoning={c.effectiveAiSelection.reasoning}
-          selectionWarning={c.effectiveAiSelection.warning ?? c.activeProvider?.defaultSnapshot.warnings.join(' ') ?? null}
+          selectedModel={c.effectiveAiSelection?.model ?? 'CLI resolves at run time'}
+          selectedReasoning={c.effectiveAiSelection?.reasoning ?? null}
+          modelOrigin={c.effectiveAiSelection?.modelOrigin ?? null}
+          reasoningOrigin={c.effectiveAiSelection?.reasoningOrigin ?? null}
+          delegatesModel={c.effectiveAiSelection?.delegatesModel ?? true}
+          delegatesReasoning={c.effectiveAiSelection?.delegatesReasoning ?? true}
+          executionSummary={c.effectiveAiSelection?.runtimeSummary}
+          checkedAt={c.effectiveAiSelection?.checkedAt ?? null}
+          selectionWarning={c.effectiveAiSelection?.warning ?? c.activeProvider?.defaultSnapshot.warnings.find((warning) => warning.severity === 'blocking')?.message ?? null}
+          selectionAdvisories={c.effectiveAiSelection?.advisories.map((warning) => warning.message) ?? []}
+          onConfigureAi={() => {
+            c.setPendingGenerationAction(null)
+            runCommand('ai.configure')
+          }}
           onCancel={() => c.setPendingGenerationAction(null)}
           onConfirm={(testwarePreferences) => {
             const action = c.pendingGenerationAction
@@ -253,33 +395,19 @@ function optionIndexForKey(key: string, currentIndex: number, optionCount: numbe
   return Math.min(optionCount - 1, currentIndex + 1)
 }
 
-export function DeleteConfirmationDialog({
-  copy,
-  isBusy,
-  onCancel,
-  onConfirm,
-}: {
-  copy: { title: string; body: string; confirmLabel: string }
-  isBusy: boolean
-  onCancel: () => void
-  onConfirm: () => void
-}) {
-  const dialogRef = useModalDialog(onCancel)
-  return (
-    <dialog ref={dialogRef} className="confirmation-dialog" aria-labelledby="delete-dialog-title">
-      <div>
-        <p className="eyebrow">Confirm delete</p>
-        <h2 id="delete-dialog-title">{copy.title}</h2>
-        <p>{copy.body}</p>
-      </div>
-      <div className="confirmation-actions">
-        <button className="secondary-button" type="button" disabled={isBusy} onClick={onCancel}>
-          Cancel
-        </button>
-        <button className="primary-button danger-button" type="button" disabled={isBusy} onClick={onConfirm}>
-          {copy.confirmLabel}
-        </button>
-      </div>
-    </dialog>
-  )
+function activateAdjacentTab(event: KeyboardEvent<HTMLButtonElement>) {
+  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+  const tabs = Array.from(event.currentTarget.closest('[role="tablist"]')?.querySelectorAll<HTMLButtonElement>('[role="tab"]:not(:disabled)') ?? [])
+  if (tabs.length === 0) return
+  const currentIndex = Math.max(0, tabs.indexOf(event.currentTarget))
+  const nextIndex = event.key === 'Home'
+    ? 0
+    : event.key === 'End'
+      ? tabs.length - 1
+      : event.key === 'ArrowLeft'
+        ? (currentIndex - 1 + tabs.length) % tabs.length
+        : (currentIndex + 1) % tabs.length
+  event.preventDefault()
+  tabs[nextIndex]?.focus()
+  tabs[nextIndex]?.click()
 }

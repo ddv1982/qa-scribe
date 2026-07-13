@@ -10,7 +10,6 @@
 
 use std::{
     io::{BufRead, BufReader, Read, Write},
-    path::{Path, PathBuf},
     process::{Child, Command, ExitStatus, Stdio},
     sync::{
         Arc,
@@ -28,7 +27,7 @@ use qa_scribe_core::ai::{
 use crate::{
     jobs::JobControl,
     process_io::{configure_process_group, kill_child_group},
-    provider_command::apply_provider_path,
+    provider_command::{NeutralProviderCwd, apply_provider_path},
 };
 
 /// Overall watchdog bound for a single streaming generation. A CLI that emits
@@ -39,56 +38,6 @@ const GENERATION_WATCHDOG_TIMEOUT: Duration = Duration::from_secs(15 * 60);
 /// How often the watchdog thread wakes to check the elapsed time and whether
 /// the read loop has finished.
 const WATCHDOG_POLL_INTERVAL: Duration = Duration::from_millis(250);
-
-/// A per-generation working directory for the provider process, removed when
-/// this guard drops.
-///
-/// Providers are coding-agent CLIs that auto-load project context (CLAUDE.md,
-/// AGENTS.md, .mcp.json, hooks) from their working directory. Spawning them in
-/// the app's inherited cwd would let whatever directory QA Scribe happened to
-/// be launched from silently contaminate generations. A *shared* neutral
-/// directory would still let one run that writes such a file re-contaminate
-/// every later run, and would let concurrent runs collide — so each
-/// generation gets its own fresh, empty directory that is torn down
-/// afterward. If the unique directory cannot be created, it falls back to the
-/// temp-dir root and owns nothing (spawning must not fail over an unwritable
-/// path); the fallback is not removed on drop.
-struct ProviderCwd {
-    path: PathBuf,
-    owned: bool,
-}
-
-impl ProviderCwd {
-    fn new() -> Self {
-        let unique = std::env::temp_dir().join(format!(
-            "qa-scribe-provider-cwd-{}",
-            uuid::Uuid::new_v4().simple()
-        ));
-        if std::fs::create_dir_all(&unique).is_ok() {
-            Self {
-                path: unique,
-                owned: true,
-            }
-        } else {
-            Self {
-                path: std::env::temp_dir(),
-                owned: false,
-            }
-        }
-    }
-
-    fn path(&self) -> &Path {
-        &self.path
-    }
-}
-
-impl Drop for ProviderCwd {
-    fn drop(&mut self) {
-        if self.owned {
-            let _ = std::fs::remove_dir_all(&self.path);
-        }
-    }
-}
 
 /// Run one streaming generation through the real process executor, parsing
 /// the provider's stdout with core's per-format stream parsers.
@@ -154,7 +103,7 @@ impl ProviderExecutor for ProcessProviderExecutor<'_> {
 
         // Owned for the whole call; its directory is removed when this drops
         // at function exit (every return path, including `?` and panics).
-        let provider_cwd = ProviderCwd::new();
+        let provider_cwd = NeutralProviderCwd::new();
 
         let mut process = Command::new(&command.program);
         process

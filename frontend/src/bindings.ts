@@ -18,9 +18,11 @@ export const commands = {
 	updateEntry: (id: string, patch: EntryPatch) => __TAURI_INVOKE<Entry>("update_entry", { id, patch }),
 	createFinding: (draft: FindingDraft) => __TAURI_INVOKE<Finding>("create_finding", { draft }),
 	listFindings: (sessionId: string) => __TAURI_INVOKE<Finding[]>("list_findings", { sessionId }),
+	listFindingLibrary: () => __TAURI_INVOKE<FindingLibraryItem[]>("list_finding_library"),
 	updateFinding: (id: string, patch: FindingPatch) => __TAURI_INVOKE<Finding>("update_finding", { id, patch }),
 	createDraft: (draft: DraftCreate) => __TAURI_INVOKE<Draft>("create_draft", { draft }),
 	listDrafts: (sessionId: string) => __TAURI_INVOKE<Draft[]>("list_drafts", { sessionId }),
+	listDraftLibrary: () => __TAURI_INVOKE<DraftLibraryItem[]>("list_draft_library"),
 	updateDraft: (id: string, patch: DraftPatch) => __TAURI_INVOKE<Draft>("update_draft", { id, patch }),
 	deleteDraft: (id: string) => __TAURI_INVOKE<null>("delete_draft", { id }),
 	deleteFinding: (id: string) => __TAURI_INVOKE<null>("delete_finding", { id }),
@@ -133,6 +135,11 @@ export type DraftCreate = {
 
 export type DraftKind = "session_report" | "testware";
 
+export type DraftLibraryItem = {
+	draft: Draft,
+	sessionTitle: string,
+};
+
 /**
  *  Partial update for a `Draft`. Absent field = no change. `title`/`body` are
  *  non-clearable (`?: string`, no `null`); clearable rich text fields use
@@ -215,6 +222,11 @@ export type FindingDraft = {
 
 export type FindingKind = "bug" | "question" | "risk" | "follow_up" | "note";
 
+export type FindingLibraryItem = {
+	finding: Finding,
+	sessionTitle: string,
+};
+
 /**
  *  Absent field = no change. `title`/`body` are non-clearable (`?: string`, no
  *  `null`); clearable rich text fields use `Option<Option<String>>`
@@ -271,17 +283,33 @@ export type GenerationJobStatus = {
 	partialText: string | null,
 };
 
-export type ProviderDefaultResolution = "configured" | "recommended" | "providerManaged" | "unavailable";
+export type ProviderDefaultOrigin = {
+	kind: ProviderDefaultOriginKind,
+	label: string,
+	displayPath: string | null,
+	technicalPath: string | null,
+};
+
+export type ProviderDefaultOriginKind = "userConfig" | "projectConfig" | "profile" | "managedConfig" | "runtimeFlag" | "environment" | "cliRecommendation" | "configFile" | "unknown";
+
+export type ProviderDefaultResolution = "configured" | "recommended" | "providerManaged" | "unresolved" | "unavailable";
 
 export type ProviderDefaultSnapshot = {
-	model: string | null,
-	reasoningEffort: string | null,
-	modelOrigin: string | null,
-	reasoningOrigin: string | null,
+	state: ProviderDiscoveryState,
+	model: ProviderDefaultValue,
+	reasoningEffort: ProviderDefaultValue,
+	checkedAt: string | null,
+	cliVersion: string | null,
+	resolutionScope: ProviderResolutionScope,
+	error: ProviderDiscoveryError | null,
+	warnings: ProviderWarning[],
+};
+
+export type ProviderDefaultValue = {
+	value: string | null,
 	resolution: ProviderDefaultResolution,
-	recommendedModel: string | null,
-	recommendedReasoningEffort: string | null,
-	warnings: string[],
+	origin: ProviderDefaultOrigin | null,
+	recommendedValue: string | null,
 };
 
 export type ProviderDescriptor = {
@@ -297,6 +325,16 @@ export type ProviderDescriptor = {
 	localOnly: boolean,
 };
 
+export type ProviderDiscoveryError = {
+	code: ProviderDiscoveryErrorCode,
+	message: string,
+	retryable: boolean,
+};
+
+export type ProviderDiscoveryErrorCode = "spawnFailed" | "handshakeFailed" | "timedOut" | "unsupported" | "invalidResponse" | "unavailable";
+
+export type ProviderDiscoveryState = "unchecked" | "detected" | "providerManaged" | "stale" | "unresolved" | "unavailable";
+
 export type ProviderModelDescriptor = {
 	id: string,
 	label: string,
@@ -309,11 +347,26 @@ export type ProviderModelDescriptor = {
 
 export type ProviderModelSource = "providerDefault" | "environment" | "preset" | "detected";
 
+export type ProviderResolutionScope = {
+	kind: ProviderResolutionScopeKind,
+	label: string,
+};
+
+export type ProviderResolutionScopeKind = "neutral";
+
 export type ProviderState = "ready" | "authRequired" | "installRequired" | "error";
 
 export type ProviderStatus = {
 	providers: ProviderDescriptor[],
 };
+
+export type ProviderWarning = {
+	code: string,
+	severity: ProviderWarningSeverity,
+	message: string,
+};
+
+export type ProviderWarningSeverity = "advisory" | "blocking";
 
 export type Session = {
 	id: string,

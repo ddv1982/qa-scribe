@@ -1,9 +1,11 @@
 use std::{
+    collections::HashMap,
     fs::{self, File, OpenOptions},
     io::{BufRead, BufReader, ErrorKind, Write},
     path::{Path, PathBuf},
     process::{Command, Output, Stdio},
     sync::{
+        OnceLock,
         atomic::{AtomicU64, Ordering},
         mpsc,
     },
@@ -14,8 +16,11 @@ use std::{
 use serde_json::{Value, json};
 
 use crate::{
+    commands::providers::{ProviderDiscoveryError, ProviderDiscoveryErrorCode},
     process_io::{configure_process_group, kill_child_group},
-    provider_command::{ProviderPathMode, apply_provider_path, provider_executable_path},
+    provider_command::{
+        NeutralProviderCwd, ProviderPathMode, apply_provider_path, provider_executable_path,
+    },
 };
 
 const PROVIDER_PROBE_TIMEOUT: Duration = Duration::from_secs(4);
@@ -47,18 +52,22 @@ pub(super) struct CommandProbe {
 pub(super) trait ProbeRunner {
     fn executable_path(&self, program: &str) -> Option<PathBuf>;
     fn run(&self, program: &str, args: &[&str]) -> CommandProbe;
-    fn codex_app_server_defaults(&self) -> Option<(Value, Value)> {
-        None
+    fn codex_app_server_defaults(&self) -> CodexDefaultsProbe {
+        CodexDefaultsProbe::NotAttempted
     }
 }
 
 pub(super) struct SystemProbeRunner {
     path_mode: ProviderPathMode,
+    codex_defaults: OnceLock<CodexDefaultsProbe>,
 }
 
 impl SystemProbeRunner {
     pub(super) fn new(path_mode: ProviderPathMode) -> Self {
-        Self { path_mode }
+        Self {
+            path_mode,
+            codex_defaults: OnceLock::new(),
+        }
     }
 }
 
@@ -86,16 +95,36 @@ impl ProbeRunner for SystemProbeRunner {
         }
     }
 
-    fn codex_app_server_defaults(&self) -> Option<(Value, Value)> {
-        (self.path_mode == ProviderPathMode::Deep)
-            .then(read_codex_app_server_defaults)
-            .flatten()
+    fn codex_app_server_defaults(&self) -> CodexDefaultsProbe {
+        if self.path_mode != ProviderPathMode::Deep {
+            return CodexDefaultsProbe::NotAttempted;
+        }
+        self.codex_defaults
+            .get_or_init(|| match read_codex_app_server_defaults() {
+                Ok(defaults) => CodexDefaultsProbe::Success(defaults),
+                Err(error) => CodexDefaultsProbe::Failed(error),
+            })
+            .clone()
     }
 }
 
-fn read_codex_app_server_defaults() -> Option<(Value, Value)> {
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) struct CodexAppServerDefaults {
+    pub(super) config: Value,
+    pub(super) models: Vec<Value>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) enum CodexDefaultsProbe {
+    NotAttempted,
+    Success(CodexAppServerDefaults),
+    Failed(ProviderDiscoveryError),
+}
+
+fn read_codex_app_server_defaults() -> Result<CodexAppServerDefaults, ProviderDiscoveryError> {
+    let provider_cwd = NeutralProviderCwd::new();
     let mut command = Command::new("codex");
-    command.arg("app-server");
+    command.arg("app-server").current_dir(provider_cwd.path());
     apply_provider_path(&mut command);
     configure_process_group(&mut command);
     let mut child = command
@@ -103,9 +132,23 @@ fn read_codex_app_server_defaults() -> Option<(Value, Value)> {
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()
-        .ok()?;
-    let mut stdin = child.stdin.take()?;
-    let stdout = child.stdout.take()?;
+        .map_err(|error| discovery_error(ProviderDiscoveryErrorCode::SpawnFailed, error))?;
+    let Some(mut stdin) = child.stdin.take() else {
+        kill_child_group(&mut child);
+        let _ = child.wait();
+        return Err(discovery_error(
+            ProviderDiscoveryErrorCode::HandshakeFailed,
+            "Codex app-server stdin was unavailable",
+        ));
+    };
+    let Some(stdout) = child.stdout.take() else {
+        kill_child_group(&mut child);
+        let _ = child.wait();
+        return Err(discovery_error(
+            ProviderDiscoveryErrorCode::HandshakeFailed,
+            "Codex app-server stdout was unavailable",
+        ));
+    };
     let (sender, receiver) = mpsc::channel();
     let reader = thread::spawn(move || {
         for line in BufReader::new(stdout).lines().map_while(Result::ok) {
@@ -115,55 +158,190 @@ fn read_codex_app_server_defaults() -> Option<(Value, Value)> {
         }
     });
 
-    let initialize = json!({
-        "method": "initialize",
-        "id": 0,
-        "params": {
-            "clientInfo": {"name": "qa-scribe", "version": env!("CARGO_PKG_VERSION")},
-            "capabilities": {}
-        }
-    });
-    if writeln!(stdin, "{initialize}").is_err()
-        || receive_response(&receiver, 0, PROVIDER_PROBE_TIMEOUT).is_none()
-    {
-        kill_child_group(&mut child);
-        let _ = child.wait();
-        let _ = reader.join();
-        return None;
-    }
+    let result = (|| {
+        let mut responses = ResponseRouter::new(&receiver);
+        send_request(
+            &mut stdin,
+            &json!({
+                "method": "initialize",
+                "id": 0,
+                "params": {
+                    "clientInfo": {"name": "qa-scribe", "version": env!("CARGO_PKG_VERSION")},
+                    "capabilities": {}
+                }
+            }),
+        )?;
+        responses.receive(0, PROVIDER_PROBE_TIMEOUT)?;
 
-    let requests = [
-        json!({"method": "initialized", "params": {}}),
-        json!({"method": "config/read", "id": 1, "params": {"includeLayers": true}}),
-        json!({"method": "model/list", "id": 2, "params": {"limit": 100}}),
-    ];
-    if requests
-        .iter()
-        .any(|request| writeln!(stdin, "{request}").is_err())
-    {
-        kill_child_group(&mut child);
-        let _ = child.wait();
-        let _ = reader.join();
-        return None;
-    }
+        send_request(&mut stdin, &json!({"method": "initialized", "params": {}}))?;
+        send_request(
+            &mut stdin,
+            &json!({
+                "method": "config/read",
+                "id": 1,
+                "params": {
+                    "cwd": provider_cwd.path().to_string_lossy(),
+                    "includeLayers": false
+                }
+            }),
+        )?;
+        send_request(
+            &mut stdin,
+            &json!({"method": "model/list", "id": 2, "params": {"limit": 100}}),
+        )?;
+
+        // Responses are deliberately requested together. The router keeps
+        // out-of-order responses instead of discarding the one for the other
+        // request ID.
+        let config = responses.receive(1, PROVIDER_PROBE_TIMEOUT)?;
+        let page = responses.receive(2, PROVIDER_PROBE_TIMEOUT)?;
+        let models = collect_model_pages(page, |request_id, cursor| {
+            send_request(
+                &mut stdin,
+                &json!({
+                    "method": "model/list",
+                    "id": request_id,
+                    "params": {"limit": 100, "cursor": cursor}
+                }),
+            )?;
+            responses.receive(request_id, PROVIDER_PROBE_TIMEOUT)
+        })?;
+        Ok(CodexAppServerDefaults { config, models })
+    })();
+
     drop(stdin);
-
-    let config = receive_response(&receiver, 1, PROVIDER_PROBE_TIMEOUT);
-    let models = receive_response(&receiver, 2, PROVIDER_PROBE_TIMEOUT);
     kill_child_group(&mut child);
     let _ = child.wait();
     let _ = reader.join();
-    Some((config?, models?))
+    result
 }
 
-fn receive_response(receiver: &mpsc::Receiver<Value>, id: i64, timeout: Duration) -> Option<Value> {
-    let started_at = Instant::now();
-    loop {
-        let remaining = timeout.checked_sub(started_at.elapsed())?;
-        let value = receiver.recv_timeout(remaining).ok()?;
-        if value.get("id").and_then(Value::as_i64) == Some(id) {
-            return value.get("result").cloned();
+struct ResponseRouter<'a> {
+    receiver: &'a mpsc::Receiver<Value>,
+    pending: HashMap<i64, Value>,
+}
+
+impl<'a> ResponseRouter<'a> {
+    fn new(receiver: &'a mpsc::Receiver<Value>) -> Self {
+        Self {
+            receiver,
+            pending: HashMap::new(),
         }
+    }
+
+    fn receive(&mut self, id: i64, timeout: Duration) -> Result<Value, ProviderDiscoveryError> {
+        if let Some(value) = self.pending.remove(&id) {
+            return response_result(value);
+        }
+        let started_at = Instant::now();
+        loop {
+            let remaining = timeout.checked_sub(started_at.elapsed()).ok_or_else(|| {
+                discovery_error(
+                    ProviderDiscoveryErrorCode::TimedOut,
+                    format!("Codex app-server request {id} timed out"),
+                )
+            })?;
+            let value = self.receiver.recv_timeout(remaining).map_err(|error| {
+                let code = match error {
+                    mpsc::RecvTimeoutError::Timeout => ProviderDiscoveryErrorCode::TimedOut,
+                    mpsc::RecvTimeoutError::Disconnected => {
+                        ProviderDiscoveryErrorCode::InvalidResponse
+                    }
+                };
+                discovery_error(
+                    code,
+                    format!("Codex app-server request {id} failed: {error}"),
+                )
+            })?;
+            let Some(response_id) = value.get("id").and_then(Value::as_i64) else {
+                continue;
+            };
+            if response_id == id {
+                return response_result(value);
+            }
+            self.pending.insert(response_id, value);
+        }
+    }
+}
+
+fn response_result(value: Value) -> Result<Value, ProviderDiscoveryError> {
+    if let Some(error) = value.get("error") {
+        let code = if error.get("code").and_then(Value::as_i64) == Some(-32601) {
+            ProviderDiscoveryErrorCode::Unsupported
+        } else {
+            ProviderDiscoveryErrorCode::InvalidResponse
+        };
+        return Err(discovery_error(
+            code,
+            format!("Codex app-server returned an error: {error}"),
+        ));
+    }
+    value.get("result").cloned().ok_or_else(|| {
+        discovery_error(
+            ProviderDiscoveryErrorCode::InvalidResponse,
+            "Codex app-server response did not include a result",
+        )
+    })
+}
+
+fn send_request(stdin: &mut impl Write, request: &Value) -> Result<(), ProviderDiscoveryError> {
+    writeln!(stdin, "{request}").map_err(|error| {
+        discovery_error(
+            ProviderDiscoveryErrorCode::HandshakeFailed,
+            format!("Could not write to Codex app-server: {error}"),
+        )
+    })
+}
+
+fn model_page_data(page: &Value) -> Result<Vec<Value>, ProviderDiscoveryError> {
+    page.get("data")
+        .and_then(Value::as_array)
+        .cloned()
+        .ok_or_else(|| {
+            discovery_error(
+                ProviderDiscoveryErrorCode::InvalidResponse,
+                "Codex model catalog response did not include a data array",
+            )
+        })
+}
+
+fn next_cursor(page: &Value) -> Option<&str> {
+    page.get("nextCursor")
+        .or_else(|| page.get("next_cursor"))
+        .and_then(Value::as_str)
+        .filter(|cursor| !cursor.is_empty())
+}
+
+fn collect_model_pages(
+    mut page: Value,
+    mut fetch: impl FnMut(i64, &str) -> Result<Value, ProviderDiscoveryError>,
+) -> Result<Vec<Value>, ProviderDiscoveryError> {
+    let mut models = model_page_data(&page)?;
+    let mut request_id = 3_i64;
+    let mut page_count = 1_u16;
+    while let Some(cursor) = next_cursor(&page).map(str::to_string) {
+        if page_count >= 100 {
+            return Err(discovery_error(
+                ProviderDiscoveryErrorCode::InvalidResponse,
+                "Codex returned more than 100 model catalog pages",
+            ));
+        }
+        page = fetch(request_id, &cursor)?;
+        models.extend(model_page_data(&page)?);
+        request_id += 1;
+        page_count += 1;
+    }
+    Ok(models)
+}
+
+fn discovery_error(
+    code: ProviderDiscoveryErrorCode,
+    message: impl std::fmt::Display,
+) -> ProviderDiscoveryError {
+    ProviderDiscoveryError {
+        code,
+        message: message.to_string(),
+        retryable: true,
     }
 }
 
@@ -277,3 +455,6 @@ impl CommandProbe {
         }
     }
 }
+
+#[cfg(test)]
+mod protocol_tests;

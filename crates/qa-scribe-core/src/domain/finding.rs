@@ -55,6 +55,13 @@ pub struct Finding {
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
+pub struct FindingLibraryItem {
+    pub finding: Finding,
+    pub session_title: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
 pub struct FindingDraft {
     pub session_id: String,
     pub title: String,

@@ -6,7 +6,7 @@ use qa_scribe_core::{
 };
 
 use super::{
-    cache::{cache_readiness, cached_readiness},
+    cache::{cache_readiness, cached_readiness, retain_last_successful_defaults},
     defaults::{claude_default_snapshot, codex_default_snapshot, copilot_default_snapshot},
     models::{
         claude_models, claude_static_models, codex_models, codex_static_models, copilot_models,
@@ -14,8 +14,8 @@ use super::{
     },
     probe::{CommandProbe, DetectionMode, ProbeRunner},
     types::{
-        ProviderDefaultResolution, ProviderDefaultSnapshot, ProviderDescriptor,
-        ProviderModelDescriptor, ProviderReadiness, ProviderState,
+        ProviderDefaultSnapshot, ProviderDescriptor, ProviderModelDescriptor, ProviderReadiness,
+        ProviderState,
     },
 };
 
@@ -40,7 +40,10 @@ pub(super) fn provider_readiness_with_runners(
         readiness
     };
 
-    let deep_readiness = detect_provider(provider, deep_runner, DetectionMode::Deep);
+    let deep_readiness = retain_last_successful_defaults(
+        provider,
+        detect_provider(provider, deep_runner, DetectionMode::Deep),
+    );
     cache_readiness(provider, DetectionMode::Deep, &deep_readiness);
     if deep_readiness.descriptor.available || !fast_readiness.descriptor.available {
         deep_readiness
@@ -129,7 +132,7 @@ fn detect_cli_provider(
                 None,
             );
         }
-        let snapshot = default_snapshot(capability.id, runner, &models);
+        let snapshot = default_snapshot(capability.id, runner, &models, None);
         return ready(
             capability,
             descriptor.ready_reason_fast,
@@ -151,8 +154,10 @@ fn detect_cli_provider(
             executable_path,
         );
     }
+    let cli_version =
+        (!install.stdout.trim().is_empty()).then(|| install.stdout.trim().to_string());
     let models = (descriptor.models)(runner);
-    let snapshot = default_snapshot(capability.id, runner, &models);
+    let snapshot = default_snapshot(capability.id, runner, &models, cli_version);
 
     let auth = runner.run(capability.executable, descriptor.auth_args);
     if auth.success {
@@ -288,14 +293,11 @@ fn not_installed_or_error(
     descriptor_readiness(
         capability,
         status,
-        reason,
+        reason.clone(),
         None,
         executable_path,
         vec![provider_default_model()],
-        ProviderDefaultSnapshot {
-            resolution: ProviderDefaultResolution::Unavailable,
-            ..ProviderDefaultSnapshot::provider_managed()
-        },
+        ProviderDefaultSnapshot::unavailable(reason),
         false,
     )
 }
@@ -332,10 +334,11 @@ fn default_snapshot(
     provider: AiProvider,
     runner: &dyn ProbeRunner,
     models: &[ProviderModelDescriptor],
+    cli_version: Option<String>,
 ) -> ProviderDefaultSnapshot {
     match provider {
         AiProvider::ClaudeCode => claude_default_snapshot(),
-        AiProvider::CodexCli => codex_default_snapshot(runner, models),
+        AiProvider::CodexCli => codex_default_snapshot(runner, models, cli_version),
         AiProvider::CopilotCli => copilot_default_snapshot(),
     }
 }

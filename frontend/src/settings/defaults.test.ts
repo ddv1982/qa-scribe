@@ -6,11 +6,13 @@ describe('effectiveSelection', () => {
   it('inherits visible CLI defaults when overrides are empty', () => {
     const provider = providerStatusFixture().providers[0]
 
-    expect(effectiveSelection(settingsFixture(), provider)).toEqual({
+    expect(effectiveSelection(settingsFixture(), provider)).toEqual(expect.objectContaining({
       model: 'gpt-5.5',
       reasoning: 'medium',
+      delegatesModel: true,
+      delegatesReasoning: true,
       warning: null,
-    })
+    }))
   })
 
   it('does not turn a discovered CLI reasoning default into a QA Scribe override', () => {
@@ -36,10 +38,12 @@ describe('effectiveSelection', () => {
       selectedAiModelsByProvider: { codex_cli: 'custom-model' },
     })
 
-    expect(effectiveSelection(settings, provider)).toEqual({
+    expect(effectiveSelection(settings, provider)).toEqual(expect.objectContaining({
       model: 'custom-model',
       reasoning: 'medium',
+      delegatesModel: false,
+      delegatesReasoning: true,
       warning: 'Reasoning “medium” is not advertised for custom-model. Choose a compatible value before generation.',
-    })
+    }))
   })
 })

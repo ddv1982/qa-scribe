@@ -11,11 +11,14 @@ mod types;
 
 #[allow(unused_imports)]
 pub use types::{
-    ProviderDefaultResolution, ProviderDefaultSnapshot, ProviderDescriptor,
-    ProviderModelDescriptor, ProviderModelSource, ProviderReadiness, ProviderState, ProviderStatus,
+    ProviderDefaultOrigin, ProviderDefaultOriginKind, ProviderDefaultResolution,
+    ProviderDefaultSnapshot, ProviderDefaultValue, ProviderDescriptor, ProviderDiscoveryError,
+    ProviderDiscoveryErrorCode, ProviderDiscoveryState, ProviderModelDescriptor,
+    ProviderModelSource, ProviderReadiness, ProviderResolutionScope, ProviderState, ProviderStatus,
+    ProviderWarning, ProviderWarningSeverity,
 };
 
-use cache::{cache_readinesses, clear_readiness_cache};
+use cache::{cache_readinesses, clear_readiness_cache, retain_last_successful_defaults};
 use detection::{detect_capability, provider_readiness_with_runners};
 use probe::ProbeRunner;
 use probe::{DetectionMode, SystemProbeRunner};
@@ -64,7 +67,13 @@ fn provider_status_with_system_runner_for_mode(mode: DetectionMode) -> ProviderS
         .into_iter()
         .map(|capability| {
             let provider = capability.id;
-            (provider, detect_capability(capability, &runner, mode))
+            let readiness = detect_capability(capability, &runner, mode);
+            let readiness = if mode == DetectionMode::Deep {
+                retain_last_successful_defaults(provider, readiness)
+            } else {
+                readiness
+            };
+            (provider, readiness)
         })
         .collect();
     cache_readinesses(mode, &readinesses);

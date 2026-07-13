@@ -6,6 +6,7 @@ import {
   type AppSettings,
   type Attachment,
   type Draft,
+  type DraftLibraryItem,
   type DraftKind,
   type DraftPatch,
   type Entry,
@@ -13,6 +14,7 @@ import {
   type EntryPatch,
   type Finding,
   type FindingDraft,
+  type FindingLibraryItem,
   type FindingPatch,
   type GenerateAiActionKind,
   type GenerationJobEvent,
@@ -88,6 +90,10 @@ export function listFindings(sessionId: string): Promise<Finding[]> {
   return commands.listFindings(sessionId)
 }
 
+export function listFindingLibrary(): Promise<FindingLibraryItem[]> {
+  return commands.listFindingLibrary()
+}
+
 export function updateFinding(id: string, patch: FindingPatch): Promise<Finding> {
   return commands.updateFinding(id, patch)
 }
@@ -136,6 +142,10 @@ export function createDraft(input: {
 
 export function listDrafts(sessionId: string): Promise<Draft[]> {
   return commands.listDrafts(sessionId)
+}
+
+export function listDraftLibrary(): Promise<DraftLibraryItem[]> {
+  return commands.listDraftLibrary()
 }
 
 export function updateDraft(id: string, patch: DraftPatch): Promise<Draft> {

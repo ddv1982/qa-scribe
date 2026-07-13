@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { type GenerateAiActionKind } from '../tauri'
+import { reopenSession, type GenerateAiActionKind } from '../tauri'
 import { richEditorDocumentToPlainText, serializeRichEditorDocument } from '../editor/editorDocument'
 import { managedAttachmentReferencesForClipboard } from '../editor/clipboardExport'
-import { countWords } from '../ui/format'
+import { countWords, formatError } from '../ui/format'
 import type { PendingAiActions, MainView } from '../ui/types'
 import { useSettingsController } from '../hooks/useSettingsController'
 import { deleteConfirmationCopy } from '../workflows/deleteConfirmation'
@@ -23,6 +23,10 @@ import { useSessionWorkspace } from './useSessionWorkspace'
 import { useWorkflowFeedback } from './useWorkflowFeedback'
 import { useGenerationWorkspace } from './useGenerationWorkspace'
 import { useDeletionWorkspace } from './useDeletionWorkspace'
+import { useOutputLibraries } from './useOutputLibraries'
+import { navigationHash, parseNavigationRoute, type AppNavigationRoute } from './navigationRoute'
+import { createOpenGenerationPreflight } from './generationPreflightAction'
+import { useSettingsDiscovery } from './useSettingsDiscovery'
 
 export { mergeRecordLists } from './useRecordHydration'
 
@@ -56,12 +60,23 @@ export function useAppController() {
   const { deleteConfirmation, setDeleteConfirmation, workspace: deletion } = useDeletionWorkspace()
   const [searchQuery, setSearchQuery] = useState('')
   const [activeView, setActiveView] = useState<MainView>('sessions')
+  const [pendingNavigationView, setPendingNavigationView] = useState<MainView | null>(null)
+  const [pendingSettingsSection, setPendingSettingsSection] = useState<string | null>(null)
+  const [settingsSection, setSettingsSection] = useState<string | null>(null)
+  const [focusedRecordId, setFocusedRecordId] = useState<string | null>(null)
+  const initialNavigationRouteRef = useRef(parseNavigationRoute(window.location.hash))
+  const navigationRouteHydratedRef = useRef(false)
+  const settingsReturnViewRef = useRef<MainView>('sessions')
+  const outputLibraries = useOutputLibraries(activeView)
   const saveDirtyRecordsNowRef = useRef<() => Promise<boolean>>(() => Promise.resolve(true))
   const {
     activeProvider,
+    discoverProviderDefaults,
+    discardSettingsDraft,
     effectiveAiSelection,
     loadProviderStatus,
     loadSettings,
+    providerDiscoveryState,
     providerStatus,
     refreshProviderStatus,
     selectedModel,
@@ -69,6 +84,7 @@ export function useAppController() {
     selectedReasoningEffort,
     setTheme,
     settingsDraft,
+    settingsDirty,
     settingsSaveState,
     theme,
     updateSettingsDraft,
@@ -79,8 +95,14 @@ export function useAppController() {
     findings,
     testwareDraftCount,
     findingCount,
+    draftLoadError,
+    draftLoadState,
+    findingLoadError,
+    findingLoadState,
     draftsRef,
     findingsRef,
+    savedDraftsRef,
+    savedFindingsRef,
     dirtyDraftIdsRef,
     dirtyFindingIdsRef,
     setDrafts,
@@ -91,7 +113,7 @@ export function useAppController() {
     resetRecordHydration,
     loadDraftsForSession,
     loadFindingsForSession,
-  } = useRecordHydration({ activeSessionId: activeSession?.id ?? null, activeView, setError })
+  } = useRecordHydration({ activeSessionId: activeSession?.id ?? null, activeView })
 
   // Memoized so its reference is stable across renders: `draftScreenshotCounts`
   // depends on it, and an inline `drafts.filter(...)` would produce a fresh array
@@ -130,6 +152,9 @@ export function useAppController() {
   // recomputing it on every unrelated render (e.g. a sibling state change) was
   // wasted work on the keystroke path.
   const noteWordCount = useMemo(() => countWords(richEditorDocumentToPlainText(noteBody)), [noteBody])
+  const openGenerationPreflight = createOpenGenerationPreflight(
+    activeProvider, refreshProviderStatus, setBusyAction, setPendingGenerationAction,
+  )
   const noteIsReady = Boolean(activeSession && noteEntry)
   const isBusy = busyAction !== null
   const deleteCopy = deleteConfirmation ? deleteConfirmationCopy(deleteConfirmation) : null
@@ -154,6 +179,8 @@ export function useAppController() {
     dirtyFindingIdsRef,
     draftsRef,
     findingsRef,
+    savedDraftsRef,
+    savedFindingsRef,
     setDrafts,
     setFindings,
     setTestwareDraftCount,
@@ -204,10 +231,108 @@ export function useAppController() {
     },
   })
   const copyActions = useCopyActions({ source: sessionWorkspace, feedback, copy: copyFeedback })
+  function requestActiveView(view: MainView) {
+    if (view === activeView) return
+    if (settingsDirty || dirtyDraftIdsRef.current.size > 0 || dirtyFindingIdsRef.current.size > 0) {
+      setPendingNavigationView(view)
+      return
+    }
+    setActiveView(view)
+  }
+
+  function openSettingsSection(sectionId?: string) {
+    if (activeView !== 'settings') settingsReturnViewRef.current = activeView
+    const nextSection = sectionId ?? null
+    setSettingsSection(nextSection)
+    setPendingSettingsSection(nextSection)
+    requestActiveView('settings')
+  }
+
+  function closeSettings() {
+    requestActiveView(settingsReturnViewRef.current)
+  }
+
+  async function openLibraryRecord(sessionId: string, view: 'testware' | 'findings', recordId: string) {
+    const session = sessions.find((candidate) => candidate.id === sessionId) ?? await reopenSession(sessionId)
+    await sessionActions.openSession(session, false, () => {
+      setFocusedRecordId(recordId)
+      setActiveView(view)
+    })
+  }
+
+  async function applyNavigationRoute(route: AppNavigationRoute) {
+    if (route.kind === 'settings') {
+      if (activeView !== 'settings') settingsReturnViewRef.current = activeView
+      setSettingsSection(route.sectionId)
+      setPendingSettingsSection(route.sectionId)
+      requestActiveView('settings')
+      return
+    }
+    if (route.kind === 'library') {
+      requestActiveView(route.view)
+      return
+    }
+    setFocusedRecordId(route.recordId)
+    if (!route.sessionId || activeSession?.id === route.sessionId) {
+      requestActiveView(route.view)
+      return
+    }
+    try {
+      const session = sessions.find((candidate) => candidate.id === route.sessionId) ?? await reopenSession(route.sessionId)
+      await sessionActions.openSession(session, false, () => setActiveView(route.view))
+    } catch (cause) {
+      setError(`Could not open the linked workspace. ${formatError(cause)}`)
+    }
+  }
+
+  async function savePendingNavigationChanges() {
+    const recordsSaved = await recordActions.saveDirtyRecordsNow()
+    const settingsSaved = !settingsDirty || await saveSettingsDraft()
+    if (!recordsSaved || !settingsSaved || !pendingNavigationView) return
+    setActiveView(pendingNavigationView)
+    setPendingNavigationView(null)
+  }
+
+  function discardPendingNavigationChanges() {
+    if (!pendingNavigationView) return
+    recordActions.discardAllDirtyRecords()
+    if (settingsDirty) discardSettingsDraft()
+    setActiveView(pendingNavigationView)
+    setPendingNavigationView(null)
+  }
+
+  function cancelPendingNavigation() {
+    setPendingNavigationView(null)
+    window.history.replaceState(null, '', navigationHash({
+      activeView,
+      sessionId: activeSession?.id ?? null,
+      focusedRecordId,
+      settingsSectionId: settingsSection,
+    }))
+  }
+
+  async function saveAllPendingChanges(): Promise<boolean> {
+    const sessionSaved = await sessionActions.savePendingSessionEdits()
+    if (!sessionSaved) return false
+    return !settingsDirty || saveSettingsDraft()
+  }
 
   useEffect(() => {
     saveDirtyRecordsNowRef.current = recordActions.saveDirtyRecordsNow
   })
+
+  useEffect(() => {
+    if (activeView !== 'settings' || !pendingSettingsSection) return
+    const timeout = window.setTimeout(() => {
+      const section = document.getElementById(pendingSettingsSection)
+      section?.scrollIntoView?.({ block: 'start' })
+      section?.focus({ preventScroll: true })
+      setPendingSettingsSection(null)
+    }, 0)
+    return () => window.clearTimeout(timeout)
+  }, [activeView, pendingSettingsSection])
+
+  useSettingsDiscovery(activeView, activeProvider, discoverProviderDefaults)
 
   usePendingChangeProtection({
     hasActiveSession: Boolean(activeSession),
@@ -218,7 +343,8 @@ export function useAppController() {
     savedBodyRef,
     dirtyDraftIdsRef,
     dirtyFindingIdsRef,
-    savePendingChanges: sessionActions.savePendingSessionEdits,
+    settingsDirty,
+    savePendingChanges: saveAllPendingChanges,
   })
 
   const { bootedRef, handleLoadSessionLibrary, handleRefreshProviderStatus, handleSaveSettings } = useAppStartup({
@@ -234,6 +360,35 @@ export function useAppController() {
     setNotice,
     setError,
   })
+
+  useEffect(() => {
+    if (navigationRouteHydratedRef.current || !bootedRef.current || busyAction !== null) return
+    const route = initialNavigationRouteRef.current
+    navigationRouteHydratedRef.current = true
+    if (!route) return
+    const timeout = window.setTimeout(() => void applyNavigationRoute(route), 0)
+    return () => window.clearTimeout(timeout)
+  }, [activeSession, busyAction]) // eslint-disable-line react-hooks/exhaustive-deps -- hydrate the immutable launch route once after startup
+
+  useEffect(() => {
+    function handleHistoryNavigation() {
+      const route = parseNavigationRoute(window.location.hash)
+      if (route) void applyNavigationRoute(route)
+    }
+    window.addEventListener('hashchange', handleHistoryNavigation)
+    return () => window.removeEventListener('hashchange', handleHistoryNavigation)
+  })
+
+  useEffect(() => {
+    if (!navigationRouteHydratedRef.current) return
+    const nextHash = navigationHash({
+      activeView,
+      sessionId: activeSession?.id ?? null,
+      focusedRecordId,
+      settingsSectionId: settingsSection,
+    })
+    if (window.location.hash !== nextHash) window.history.pushState(null, '', nextHash)
+  }, [activeSession?.id, activeView, focusedRecordId, settingsSection])
 
   useEffect(() => {
     if (!activeSession || !bootedRef.current) return
@@ -265,8 +420,10 @@ export function useAppController() {
     ...generationActions,
     ...recordActions,
     ...sessionActions,
+    ...outputLibraries,
     activeFindingJob,
     activeProvider,
+    discardSettingsDraft,
     effectiveAiSelection,
     activeTestwareJob,
     activeSession,
@@ -276,22 +433,35 @@ export function useAppController() {
     deleteConfirmation,
     deleteCopy,
     draftScreenshotCounts,
+    draftLoadError,
+    draftLoadState,
     error,
     filteredSessions,
     findingCount,
     findingScreenshotCounts,
+    findingLoadError,
+    findingLoadState,
     findings,
+    focusedRecordId,
     isBusy,
     latestNoteGenerationUndo,
+    loadDraftsForSession,
+    loadFindingsForSession,
     noteBody,
     noteEntry,
     noteIsReady,
     noteScreenshotCount,
     sessionTitle,
     noteWordCount,
+    closeSettings,
+    openSettingsSection,
+    openLibraryRecord,
+    openGenerationPreflight,
     notice,
     pendingAiActions,
     pendingGenerationAction,
+    pendingNavigationView,
+    providerDiscoveryState,
     providerStatus,
     searchQuery,
     selectedModel,
@@ -299,8 +469,9 @@ export function useAppController() {
     sessionLibraryComplete,
     sessions,
     settingsDraft,
+    settingsDirty,
     settingsSaveState,
-    setActiveView,
+    setActiveView: requestActiveView,
     setDeleteConfirmation,
     setError,
     setLatestNoteGenerationUndo,
@@ -309,6 +480,9 @@ export function useAppController() {
     setPendingGenerationAction,
     setSearchQuery,
     setTheme,
+    savePendingNavigationChanges,
+    discardPendingNavigationChanges,
+    cancelPendingNavigation,
     testwareDrafts,
     testwareDraftCount,
     theme,

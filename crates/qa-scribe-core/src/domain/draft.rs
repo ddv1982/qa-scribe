@@ -47,6 +47,13 @@ pub struct Draft {
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
+pub struct DraftLibraryItem {
+    pub draft: Draft,
+    pub session_title: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
 pub struct DraftCreate {
     pub session_id: String,
     pub ai_run_id: Option<String>,

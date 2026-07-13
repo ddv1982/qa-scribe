@@ -4,8 +4,9 @@ use crate::{
     QaScribeError, Result,
     domain::{
         BODY_FORMAT_MAX_LENGTH, EvidenceLink, EvidenceLinkDraft, Finding, FindingDraft,
-        FindingPatch, TEXT_BODY_MAX_LENGTH, TITLE_MAX_LENGTH, validate_body_json,
-        validate_body_text, validate_metadata_json, validate_optional_text, validate_required_text,
+        FindingLibraryItem, FindingPatch, TEXT_BODY_MAX_LENGTH, TITLE_MAX_LENGTH,
+        validate_body_json, validate_body_text, validate_metadata_json, validate_optional_text,
+        validate_required_text,
     },
     error::validation,
 };
@@ -49,6 +50,27 @@ impl SessionService {
             .query_map([session_id], map_finding)?
             .collect::<std::result::Result<Vec<_>, _>>()?;
         Ok(findings)
+    }
+
+    pub fn list_finding_library(&self) -> Result<Vec<FindingLibraryItem>> {
+        let mut statement = self.database.connection().prepare(
+            "SELECT findings.id, findings.session_id, findings.title, findings.body,
+                    findings.body_json, findings.body_format, findings.kind,
+                    findings.metadata_json, findings.created_at, findings.updated_at,
+                    sessions.title
+             FROM findings
+             INNER JOIN sessions ON sessions.id = findings.session_id
+             ORDER BY findings.updated_at DESC, findings.created_at DESC",
+        )?;
+        let items = statement
+            .query_map([], |row| {
+                Ok(FindingLibraryItem {
+                    finding: map_finding(row)?,
+                    session_title: row.get(10)?,
+                })
+            })?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        Ok(items)
     }
 
     pub fn update_finding(&self, id: &str, patch: FindingPatch) -> Result<Finding> {

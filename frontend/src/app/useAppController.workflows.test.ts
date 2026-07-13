@@ -1,7 +1,8 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { draftFixture, entryFixture, findingFixture, generationStatusFixture, sessionFixture } from '../test/fixtures'
+import { draftFixture, entryFixture, findingFixture, generationStatusFixture, providerStatusFixture, sessionFixture } from '../test/fixtures'
 import { richEditorDocumentFromPlainText } from '../editor/editorDocument'
+import { writeCachedProviderStatus } from '../settings/providerStatusCache'
 import { cleanupControllerTest, deferred, getTauriMock, sessionNoteStateFixture, setupControllerTest, useAppController } from './useAppController.testHarness'
 
 const tauriMock = getTauriMock()
@@ -45,7 +46,7 @@ describe('useAppController workflows and record hydration', () => {
     expect(result.current.isBusy).toBe(false)
   })
 
-  it('records startup timing marks and keeps Deep provider discovery user-driven', async () => {
+  it('records startup timing marks and keeps deep CLI discovery outside boot', async () => {
     const marks: string[] = []
     const measures: string[] = []
     const markSpy = vi.spyOn(performance, 'mark').mockImplementation((name) => {
@@ -58,10 +59,18 @@ describe('useAppController workflows and record hydration', () => {
     })
 
     try {
+      const fastStatus = providerStatusFixture()
+      fastStatus.providers[0].defaultSnapshot = {
+        ...fastStatus.providers[0].defaultSnapshot,
+        state: 'unchecked',
+        checkedAt: null,
+      }
+      tauriMock.getProviderStatus.mockResolvedValueOnce(fastStatus)
       const { result } = renderHook(() => useAppController())
 
       await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
       await waitFor(() => expect(tauriMock.getProviderStatus).toHaveBeenCalled())
+      await act(async () => Promise.resolve())
 
       expect(result.current.busyAction).toBeNull()
       expect(tauriMock.refreshProviderStatus).not.toHaveBeenCalled()
@@ -81,7 +90,6 @@ describe('useAppController workflows and record hydration', () => {
           'qa-scribe:startup:provider-fast-status-complete',
         ]),
       )
-      expect(marks).not.toContain('qa-scribe:startup:provider-deep-refresh-complete')
       expect(measures).toEqual(
         expect.arrayContaining([
           'qa-scribe startup boot-to-settings-loaded',
@@ -91,19 +99,42 @@ describe('useAppController workflows and record hydration', () => {
           'qa-scribe startup boot-to-provider-fast-status',
         ]),
       )
+      expect(marks).not.toContain('qa-scribe:startup:provider-deep-refresh-complete')
       expect(measures).not.toContain('qa-scribe startup boot-to-provider-deep-refresh')
+
+      act(() => result.current.openSettingsSection('ai-execution-settings'))
+      await waitFor(() => expect(tauriMock.refreshProviderStatus).toHaveBeenCalledTimes(1))
 
       await act(async () => {
         await result.current.handleRefreshProviderStatus()
       })
 
-      expect(tauriMock.refreshProviderStatus).toHaveBeenCalledTimes(1)
+      expect(tauriMock.refreshProviderStatus).toHaveBeenCalledTimes(2)
       expect(marks).toContain('qa-scribe:startup:provider-deep-refresh-complete')
       expect(measures).toContain('qa-scribe startup boot-to-provider-deep-refresh')
     } finally {
       markSpy.mockRestore()
       measureSpy.mockRestore()
     }
+  })
+
+  it('shows the cached CLI default after restart without deep discovery during boot', async () => {
+    writeCachedProviderStatus(providerStatusFixture())
+    const fastStatus = providerStatusFixture()
+    fastStatus.providers[0].defaultSnapshot = {
+      ...fastStatus.providers[0].defaultSnapshot,
+      state: 'unchecked',
+      checkedAt: null,
+    }
+    fastStatus.providers[0].models = fastStatus.providers[0].models.slice(0, 1)
+    tauriMock.getProviderStatus.mockResolvedValueOnce(fastStatus)
+
+    const { result } = renderHook(() => useAppController())
+
+    await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
+    await waitFor(() => expect(result.current.providerDiscoveryState).toBe('stale'))
+    expect(result.current.effectiveAiSelection?.model).toBe('gpt-5.5')
+    expect(tauriMock.refreshProviderStatus).not.toHaveBeenCalled()
   })
 
   it('keeps full Session Library loading explicit after bounded boot', async () => {

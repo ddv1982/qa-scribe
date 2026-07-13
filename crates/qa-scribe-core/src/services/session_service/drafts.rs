@@ -3,9 +3,9 @@ use rusqlite::{Connection, OptionalExtension, params};
 use crate::{
     QaScribeError, Result,
     domain::{
-        BODY_FORMAT_MAX_LENGTH, DRAFT_BODY_MAX_LENGTH, Draft, DraftCreate, DraftPatch,
-        TITLE_MAX_LENGTH, validate_body_json, validate_body_text, validate_metadata_json,
-        validate_optional_text, validate_required_text,
+        BODY_FORMAT_MAX_LENGTH, DRAFT_BODY_MAX_LENGTH, Draft, DraftCreate, DraftLibraryItem,
+        DraftPatch, TITLE_MAX_LENGTH, validate_body_json, validate_body_text,
+        validate_metadata_json, validate_optional_text, validate_required_text,
     },
 };
 
@@ -57,6 +57,26 @@ impl SessionService {
             .query_map([session_id], map_draft)?
             .collect::<std::result::Result<Vec<_>, _>>()?;
         Ok(drafts)
+    }
+
+    pub fn list_draft_library(&self) -> Result<Vec<DraftLibraryItem>> {
+        let mut statement = self.database.connection().prepare(
+            "SELECT drafts.id, drafts.session_id, drafts.ai_run_id, drafts.kind, drafts.title,
+                    drafts.body, drafts.body_json, drafts.body_format, drafts.metadata_json,
+                    drafts.created_at, drafts.updated_at, sessions.title
+             FROM drafts
+             INNER JOIN sessions ON sessions.id = drafts.session_id
+             ORDER BY drafts.updated_at DESC, drafts.created_at DESC",
+        )?;
+        let items = statement
+            .query_map([], |row| {
+                Ok(DraftLibraryItem {
+                    draft: map_draft(row)?,
+                    session_title: row.get(11)?,
+                })
+            })?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        Ok(items)
     }
 
     pub fn update_draft(&self, id: &str, patch: DraftPatch) -> Result<Draft> {

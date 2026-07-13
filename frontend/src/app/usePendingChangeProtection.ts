@@ -11,6 +11,7 @@ type UsePendingChangeProtectionOptions = {
   savedBodyRef: MutableRefObject<string>
   dirtyDraftIdsRef: MutableRefObject<Set<string>>
   dirtyFindingIdsRef: MutableRefObject<Set<string>>
+  settingsDirty: boolean
   savePendingChanges: () => Promise<boolean>
 }
 
@@ -23,6 +24,7 @@ export function usePendingChangeProtection({
   savedBodyRef,
   dirtyDraftIdsRef,
   dirtyFindingIdsRef,
+  settingsDirty,
   savePendingChanges,
 }: UsePendingChangeProtectionOptions) {
   const pendingNoteStateRef = useRef({ hasActiveSession, hasNoteEntry, sessionTitle, noteBody })
@@ -42,8 +44,8 @@ export function usePendingChangeProtection({
     const trimmedTitle = current.sessionTitle.trim()
     const titleDirty = Boolean(current.hasActiveSession && trimmedTitle && trimmedTitle !== savedTitleRef.current)
     const bodyDirty = Boolean(current.hasNoteEntry && serializeRichEditorDocument(current.noteBody) !== savedBodyRef.current)
-    return titleDirty || bodyDirty || dirtyDraftIdsRef.current.size > 0 || dirtyFindingIdsRef.current.size > 0
-  }, [dirtyDraftIdsRef, dirtyFindingIdsRef, savedBodyRef, savedTitleRef])
+    return titleDirty || bodyDirty || settingsDirty || dirtyDraftIdsRef.current.size > 0 || dirtyFindingIdsRef.current.size > 0
+  }, [dirtyDraftIdsRef, dirtyFindingIdsRef, savedBodyRef, savedTitleRef, settingsDirty])
 
   useEffect(() => {
     function handleBeforeUnload(event: BeforeUnloadEvent) {

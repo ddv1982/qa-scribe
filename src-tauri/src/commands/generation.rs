@@ -1,7 +1,8 @@
-use qa_scribe_core::domain::{Draft, DraftCreate, DraftPatch};
+use qa_scribe_core::domain::{Draft, DraftCreate, DraftLibraryItem, DraftPatch};
 use tauri::State;
 
 use crate::{commands::CommandError, settings::AppState};
+use qa_scribe_core::services::SessionService;
 
 #[tauri::command]
 #[specta::specta]
@@ -16,6 +17,14 @@ pub fn list_drafts(
     session_id: String,
 ) -> Result<Vec<Draft>, CommandError> {
     state.with_service(|service| service.list_drafts(&session_id))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn list_draft_library(
+    state: State<'_, AppState>,
+) -> Result<Vec<DraftLibraryItem>, CommandError> {
+    state.with_service(SessionService::list_draft_library)
 }
 
 #[tauri::command]
