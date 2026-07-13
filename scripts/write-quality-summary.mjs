@@ -3,6 +3,8 @@
 import { appendFileSync, existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
+import { formatStartupBudgets } from './startup-benchmark-budget.mjs'
+
 const root = resolve('.')
 const sections = ['## QA Scribe quality evidence']
 const e2ePath = resolve(root, 'artifacts/e2e/latest-run.json')
@@ -29,7 +31,7 @@ if (existsSync(startupPath)) {
     `- Warm first paint p50 / p95: ${report.summary.warmFirstPaintP50Ms.toFixed(1)}ms / ${report.summary.warmFirstPaintP95Ms.toFixed(1)}ms`,
     `- Large-Note editor input p50 / p95: ${report.summary.editorInputP50Ms.toFixed(1)}ms / ${report.summary.editorInputP95Ms.toFixed(1)}ms`,
     `- Production JavaScript: ${(report.productionBundle.javascriptBytes / 1_024).toFixed(1)} KiB raw / ${(report.productionBundle.javascriptGzipBytes / 1_024).toFixed(1)} KiB gzip`,
-    `- Budget: ${report.budgetMs ? `${report.budgetMs}ms` : 'observational'}`,
+    `- Budget: ${formatStartupBudgets(report)}`,
   )
 }
 

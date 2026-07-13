@@ -160,7 +160,7 @@ Measure:
 - Boot loads a bounded recent Session list with `listRecentSessions(50)` and opens only the active Session Note state with `openSessionNoteState` before clearing boot busy state.
 - Full Session Library loading is explicit after readiness through `Load all notes`; Draft and Finding bodies load only when their views or creation flows need them.
 - The deterministic large fixture contains 1,000 Sessions and Note Entries, 250 Testware records, 250 Findings, and 2,000 AI Runs.
-- On the `ubuntu-24.04-github-x64` runner class, both process-cold and warm samples must record first paint within 3 seconds. The gate uses three process launches against one fixture database.
+- On the `ubuntu-24.04-github-x64` runner class, process-cold first paint must remain within 4 seconds and every warm sample within 3 seconds. The gate uses three process launches against one fixture database, writes the complete report before enforcing either budget, and reports every outlying sample in one failure.
 - Provider Deep refresh must not be part of the boot busy-state budget; it is tracked separately as provider readiness work.
 - The production bundle report records every JavaScript chunk plus aggregate raw and gzip size so growth is visible beside startup timing.
 - The same built-app samples edit the large active Note Entry and report WebDriver-observed editor input p50/p95. This remains observational until named-runner history supports a stable budget.

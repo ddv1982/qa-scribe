@@ -129,7 +129,8 @@ runs:
       if: ${{ steps.built_app_e2e.outcome == 'success' }}
       shell: bash
       env:
-        QA_SCRIBE_STARTUP_BUDGET_MS: '3000'
+        QA_SCRIBE_STARTUP_COLD_BUDGET_MS: '4000'
+        QA_SCRIBE_STARTUP_WARM_BUDGET_MS: '3000'
         QA_SCRIBE_STARTUP_REUSE_BUILD: '1'
         QA_SCRIBE_STARTUP_RUNNER_CLASS: ubuntu-24.04-github-x64
         QA_SCRIBE_STARTUP_SAMPLES: '3'

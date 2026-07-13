@@ -7,13 +7,23 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { assertStartupBudgets, firstPaintDuration, parseOptionalBudget } from './startup-benchmark-budget.mjs'
+
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const artifacts = join(root, 'artifacts', 'startup')
 const temporaryRoot = mkdtempSync(join(tmpdir(), 'qa-scribe-startup-'))
 const appData = join(temporaryRoot, 'app-data')
 const database = join(appData, 'qa-scribe.sqlite')
 const sampleCount = readSampleCount(process.argv.slice(2))
-const budgetMs = process.env.QA_SCRIBE_STARTUP_BUDGET_MS || ''
+const legacyBudget = process.env.QA_SCRIBE_STARTUP_BUDGET_MS
+const coldBudgetMs = parseOptionalBudget(
+  process.env.QA_SCRIBE_STARTUP_COLD_BUDGET_MS ?? legacyBudget,
+  'QA_SCRIBE_STARTUP_COLD_BUDGET_MS',
+)
+const warmBudgetMs = parseOptionalBudget(
+  process.env.QA_SCRIBE_STARTUP_WARM_BUDGET_MS ?? legacyBudget,
+  'QA_SCRIBE_STARTUP_WARM_BUDGET_MS',
+)
 const runnerClass = process.env.QA_SCRIBE_STARTUP_RUNNER_CLASS || `${process.platform}-${process.arch}-local`
 const reuseBuild = process.env.QA_SCRIBE_STARTUP_REUSE_BUILD === '1'
 const startedAt = Date.now()
@@ -33,6 +43,7 @@ try {
 
   for (let index = 0; index < sampleCount; index += 1) {
     const runKind = index === 0 ? 'cold-process' : 'warm-process'
+    const sampleBudgetMs = index === 0 ? coldBudgetMs : warmBudgetMs
     const runArtifacts = join(artifacts, `${index + 1}-${runKind}`)
     const samplePath = join(runArtifacts, 'startup-sample.json')
     run('node', ['scripts/run-e2e.mjs'], {
@@ -44,7 +55,7 @@ try {
       QA_SCRIBE_STARTUP_SAMPLE: samplePath,
       QA_SCRIBE_STARTUP_RUN_KIND: runKind,
       QA_SCRIBE_STARTUP_RUNNER_CLASS: runnerClass,
-      QA_SCRIBE_STARTUP_BUDGET_MS: budgetMs,
+      QA_SCRIBE_STARTUP_BUDGET_MS: sampleBudgetMs ? String(sampleBudgetMs) : '',
     })
     samples.push(JSON.parse(readFileSync(samplePath, 'utf8')))
   }
@@ -60,7 +71,11 @@ try {
       activeFindings: 250,
       aiRuns: 2_000,
     },
-    budgetMs: budgetMs ? Number(budgetMs) : null,
+    budgetMs: coldBudgetMs === warmBudgetMs ? coldBudgetMs : null,
+    budgets: {
+      coldFirstPaintMs: coldBudgetMs,
+      warmFirstPaintMs: warmBudgetMs,
+    },
     durationMs: Date.now() - startedAt,
     samples,
     summary: summarize(samples),
@@ -68,6 +83,7 @@ try {
   }
   writeFileSync(join(artifacts, 'startup-report.json'), `${JSON.stringify(report, null, 2)}\n`)
   console.log(`Startup benchmark: cold=${report.summary.coldFirstPaintMs.toFixed(1)}ms warm_p50=${report.summary.warmFirstPaintP50Ms.toFixed(1)}ms`)
+  assertStartupBudgets(report)
 } finally {
   rmSync(temporaryRoot, { recursive: true, force: true })
 }
@@ -79,20 +95,14 @@ function readSampleCount(argv) {
   return value
 }
 
-function firstPaint(sample) {
-  const measure = sample.measures.find((entry) => entry.name === 'qa-scribe startup boot-to-first-paint-after-boot')
-  if (!measure) throw new Error('startup sample is missing first-paint duration')
-  return measure.durationMs
-}
-
 function percentile(values, percentileValue) {
   const ordered = [...values].sort((left, right) => left - right)
   return ordered[Math.min(ordered.length - 1, Math.ceil((percentileValue / 100) * ordered.length) - 1)]
 }
 
 function summarize(allSamples) {
-  const cold = firstPaint(allSamples[0])
-  const warm = allSamples.slice(1).map(firstPaint)
+  const cold = firstPaintDuration(allSamples[0])
+  const warm = allSamples.slice(1).map(firstPaintDuration)
   return {
     coldFirstPaintMs: cold,
     warmFirstPaintP50Ms: percentile(warm, 50),

@@ -27,8 +27,10 @@ check and keeps a stable final check for branch protection.
 frozen frontend dependency setup. Bun is resolved from the root
 `packageManager` field, while Rust is resolved from `rust-toolchain.toml` so
 local and CI lint behavior cannot drift. Release and packaging jobs install the
-Tauri CLI version resolved for the `tauri` crate in `Cargo.lock` through
-`scripts/install-tauri-cli.mjs`; workflow files do not carry a second version.
+exact Tauri CLI tool version from `scripts/tool-versions.json` through
+`scripts/install-tauri-cli.mjs`. The installer rejects a pin whose major/minor
+does not match the `tauri` runtime resolved in `Cargo.lock`; patch versions are
+allowed to differ because the runtime and CLI are published independently.
 
 `.github/actions/validate-build/action.yml` is shared by CI and tag validation.
 Any new repository-wide contract added to `bun run verify` should also be added

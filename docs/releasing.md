@@ -85,9 +85,11 @@ The release workflow builds Tauri desktop artifacts:
 
 Artifacts are written to `dist/rust/artifacts/`. The GitHub Release intentionally publishes only user-facing installers and APT bootstrap files; the archive keyring stays on GitHub Pages because it is consumed by `install-apt-repo.sh`.
 
-CI and release jobs install the Tauri CLI at the Tauri crate version resolved in
-`Cargo.lock`. `scripts/install-tauri-cli.mjs` is the single read path, so there
-is no separate workflow version to keep synchronized.
+CI and release jobs install the exact Tauri CLI version pinned in
+`scripts/tool-versions.json`. `scripts/install-tauri-cli.mjs` validates that the
+pin shares the locked `tauri` runtime's major/minor version before invoking
+`cargo binstall`; patch versions may differ because the two crates are not
+published in lockstep. Workflow files do not carry another CLI version.
 
 ## macOS Prerequisites
 
