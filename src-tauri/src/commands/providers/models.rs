@@ -2,7 +2,10 @@ use std::{collections::HashSet, env, fs, path::PathBuf};
 
 use serde::Deserialize;
 
-use super::{ProbeRunner, ProviderModelDescriptor, ProviderModelSource};
+use super::{ProbeRunner, ProviderModelDescriptor, ProviderModelSource, probe::CodexDefaultsProbe};
+use presets::{CLAUDE_PRESET_MODELS, CODEX_PRESET_MODELS, COPILOT_PRESET_MODELS};
+
+mod presets;
 
 pub(super) fn provider_default_model() -> ProviderModelDescriptor {
     ProviderModelDescriptor {
@@ -83,22 +86,90 @@ struct CopilotSettings {
 
 pub(super) fn codex_static_models() -> Vec<ProviderModelDescriptor> {
     let mut models = vec![provider_default_model()];
-    if let Some(model) = environment_model("CODEX_MODEL") {
-        models.push(model);
-    }
     models.extend(preset_models(&CODEX_PRESET_MODELS));
     normalize_models(models)
 }
 
 pub(super) fn codex_models(runner: &dyn ProbeRunner) -> Vec<ProviderModelDescriptor> {
-    let mut models = codex_static_models();
+    let app_server_models = match runner.codex_app_server_defaults() {
+        CodexDefaultsProbe::Success(defaults) => parse_codex_app_server_models(&defaults.models),
+        CodexDefaultsProbe::NotAttempted | CodexDefaultsProbe::Failed(_) => Vec::new(),
+    };
 
+    if !app_server_models.is_empty() {
+        // A live app-server catalog is authoritative. Mixing curated presets
+        // into this result makes the picker imply that unadvertised models are
+        // available to the signed-in CLI.
+        let mut models = vec![provider_default_model()];
+        models.extend(app_server_models);
+        return normalize_models(models);
+    }
+
+    // Compatibility fallback for Codex versions that predate model/list or
+    // expose an incompatible app-server schema.
+    let mut models = codex_static_models();
     let catalog = runner.run("codex", &["debug", "models"]);
     if catalog.success {
-        models.extend(parse_codex_models(&catalog.stdout));
+        let detected = parse_codex_models(&catalog.stdout);
+        if !detected.is_empty() {
+            models = vec![provider_default_model()];
+            models.extend(detected);
+        }
     }
 
     normalize_models(models)
+}
+
+fn parse_codex_app_server_models(models: &[serde_json::Value]) -> Vec<ProviderModelDescriptor> {
+    models
+        .iter()
+        .filter(|model| model.get("hidden").and_then(serde_json::Value::as_bool) != Some(true))
+        .filter_map(|model| {
+            let id = model
+                .get("model")
+                .or_else(|| model.get("id"))
+                .and_then(serde_json::Value::as_str)?
+                .trim();
+            if id.is_empty() {
+                return None;
+            }
+            let reasoning_efforts = model
+                .get("supportedReasoningEfforts")
+                .and_then(serde_json::Value::as_array)
+                .into_iter()
+                .flatten()
+                .filter_map(|effort| {
+                    effort
+                        .get("reasoningEffort")
+                        .and_then(serde_json::Value::as_str)
+                        .map(str::trim)
+                        .filter(|effort| !effort.is_empty())
+                        .map(str::to_string)
+                })
+                .collect();
+            Some(ProviderModelDescriptor {
+                id: id.to_string(),
+                label: model
+                    .get("displayName")
+                    .or_else(|| model.get("name"))
+                    .and_then(serde_json::Value::as_str)
+                    .unwrap_or(id)
+                    .to_string(),
+                description: model
+                    .get("description")
+                    .and_then(serde_json::Value::as_str)
+                    .map(str::to_string),
+                source: ProviderModelSource::Detected,
+                is_default: model.get("isDefault").and_then(serde_json::Value::as_bool)
+                    == Some(true),
+                reasoning_efforts,
+                default_reasoning_effort: model
+                    .get("defaultReasoningEffort")
+                    .and_then(serde_json::Value::as_str)
+                    .map(str::to_string),
+            })
+        })
+        .collect()
 }
 
 pub(super) fn claude_static_models() -> Vec<ProviderModelDescriptor> {
@@ -159,44 +230,6 @@ fn copilot_base_models() -> Vec<ProviderModelDescriptor> {
 
     models
 }
-
-const CODEX_PRESET_MODELS: [&str; 5] = [
-    "gpt-5.5",
-    "gpt-5.4",
-    "gpt-5.4-mini",
-    "gpt-5.2",
-    "gpt-5-mini",
-];
-
-const CLAUDE_PRESET_MODELS: [&str; 9] = [
-    "sonnet",
-    "haiku",
-    "claude-sonnet-4-6",
-    "claude-sonnet-4-5",
-    "claude-haiku-4-5",
-    "claude-opus-4-8",
-    "claude-opus-4-7",
-    "claude-opus-4-6",
-    "claude-opus-4-5",
-];
-
-const COPILOT_PRESET_MODELS: [&str; 15] = [
-    "auto",
-    "gpt-5.5",
-    "gpt-5.4",
-    "gpt-5.2",
-    "gpt-5.4-mini",
-    "gpt-5-mini",
-    "claude-sonnet-4.6",
-    "claude-sonnet-4.5",
-    "claude-haiku-4.5",
-    "claude-opus-4.8",
-    "claude-opus-4.7",
-    "claude-opus-4.6",
-    "claude-opus-4.5",
-    "gemini-3.1-pro-preview",
-    "gemini-3.5-flash",
-];
 
 fn preset_models(models: &[&str]) -> Vec<ProviderModelDescriptor> {
     models
@@ -441,3 +474,6 @@ fn model_source_priority(source: ProviderModelSource) -> u8 {
         ProviderModelSource::Detected => 3,
     }
 }
+
+#[cfg(test)]
+mod tests;

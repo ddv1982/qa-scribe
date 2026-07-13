@@ -25,28 +25,70 @@ pub struct ProviderDescriptor {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ProviderDefaultSnapshot {
-    pub model: Option<String>,
-    pub reasoning_effort: Option<String>,
-    pub model_origin: Option<String>,
-    pub reasoning_origin: Option<String>,
-    pub resolution: ProviderDefaultResolution,
-    pub recommended_model: Option<String>,
-    pub recommended_reasoning_effort: Option<String>,
-    pub warnings: Vec<String>,
+    pub state: ProviderDiscoveryState,
+    pub model: ProviderDefaultValue,
+    pub reasoning_effort: ProviderDefaultValue,
+    pub checked_at: Option<String>,
+    pub cli_version: Option<String>,
+    pub resolution_scope: ProviderResolutionScope,
+    pub error: Option<ProviderDiscoveryError>,
+    pub warnings: Vec<ProviderWarning>,
 }
 
 impl ProviderDefaultSnapshot {
-    pub fn provider_managed() -> Self {
+    pub fn unchecked() -> Self {
         Self {
-            model: None,
-            reasoning_effort: None,
-            model_origin: None,
-            reasoning_origin: None,
-            resolution: ProviderDefaultResolution::ProviderManaged,
-            recommended_model: None,
-            recommended_reasoning_effort: None,
+            state: ProviderDiscoveryState::Unchecked,
+            model: ProviderDefaultValue::provider_managed(),
+            reasoning_effort: ProviderDefaultValue::provider_managed(),
+            checked_at: None,
+            cli_version: None,
+            resolution_scope: ProviderResolutionScope::neutral(),
+            error: None,
             warnings: Vec::new(),
         }
+    }
+
+    pub fn unavailable(message: impl Into<String>) -> Self {
+        let message = message.into();
+        Self {
+            state: ProviderDiscoveryState::Unavailable,
+            model: ProviderDefaultValue::unavailable(),
+            reasoning_effort: ProviderDefaultValue::unavailable(),
+            checked_at: Some(checked_at_now()),
+            cli_version: None,
+            resolution_scope: ProviderResolutionScope::neutral(),
+            error: Some(ProviderDiscoveryError {
+                code: ProviderDiscoveryErrorCode::Unavailable,
+                message: message.clone(),
+                retryable: true,
+            }),
+            warnings: vec![ProviderWarning {
+                code: "provider-unavailable".to_string(),
+                severity: ProviderWarningSeverity::Blocking,
+                message,
+            }],
+        }
+    }
+
+    pub fn unresolved(error: ProviderDiscoveryError, cli_version: Option<String>) -> Self {
+        Self {
+            state: ProviderDiscoveryState::Unresolved,
+            model: ProviderDefaultValue::unresolved(),
+            reasoning_effort: ProviderDefaultValue::unresolved(),
+            checked_at: Some(checked_at_now()),
+            cli_version,
+            resolution_scope: ProviderResolutionScope::neutral(),
+            error: Some(error),
+            warnings: Vec::new(),
+        }
+    }
+
+    pub fn has_successful_observation(&self) -> bool {
+        matches!(
+            self.state,
+            ProviderDiscoveryState::Detected | ProviderDiscoveryState::ProviderManaged
+        )
     }
 }
 
@@ -56,7 +98,139 @@ pub enum ProviderDefaultResolution {
     Configured,
     Recommended,
     ProviderManaged,
+    Unresolved,
     Unavailable,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub enum ProviderDiscoveryState {
+    Unchecked,
+    Detected,
+    ProviderManaged,
+    Stale,
+    Unresolved,
+    Unavailable,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderDefaultValue {
+    pub value: Option<String>,
+    pub resolution: ProviderDefaultResolution,
+    pub origin: Option<ProviderDefaultOrigin>,
+    pub recommended_value: Option<String>,
+}
+
+impl ProviderDefaultValue {
+    pub fn new(
+        value: Option<String>,
+        resolution: ProviderDefaultResolution,
+        origin: Option<ProviderDefaultOrigin>,
+        recommended_value: Option<String>,
+    ) -> Self {
+        Self {
+            value,
+            resolution,
+            origin,
+            recommended_value,
+        }
+    }
+
+    pub fn provider_managed() -> Self {
+        Self::new(None, ProviderDefaultResolution::ProviderManaged, None, None)
+    }
+
+    pub fn unresolved() -> Self {
+        Self::new(None, ProviderDefaultResolution::Unresolved, None, None)
+    }
+
+    pub fn unavailable() -> Self {
+        Self::new(None, ProviderDefaultResolution::Unavailable, None, None)
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderDefaultOrigin {
+    pub kind: ProviderDefaultOriginKind,
+    pub label: String,
+    pub display_path: Option<String>,
+    pub technical_path: Option<String>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub enum ProviderDefaultOriginKind {
+    UserConfig,
+    ProjectConfig,
+    Profile,
+    ManagedConfig,
+    RuntimeFlag,
+    Environment,
+    CliRecommendation,
+    ConfigFile,
+    Unknown,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderResolutionScope {
+    pub kind: ProviderResolutionScopeKind,
+    pub label: String,
+}
+
+impl ProviderResolutionScope {
+    pub fn neutral() -> Self {
+        Self {
+            kind: ProviderResolutionScopeKind::Neutral,
+            label: "Neutral QA Scribe runtime scope".to_string(),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub enum ProviderResolutionScopeKind {
+    Neutral,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderDiscoveryError {
+    pub code: ProviderDiscoveryErrorCode,
+    pub message: String,
+    pub retryable: bool,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub enum ProviderDiscoveryErrorCode {
+    SpawnFailed,
+    HandshakeFailed,
+    TimedOut,
+    Unsupported,
+    InvalidResponse,
+    Unavailable,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderWarning {
+    pub code: String,
+    pub severity: ProviderWarningSeverity,
+    pub message: String,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub enum ProviderWarningSeverity {
+    Advisory,
+    Blocking,
+}
+
+pub(super) fn checked_at_now() -> String {
+    chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, specta::Type)]

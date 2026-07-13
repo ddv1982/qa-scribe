@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, type FocusEvent, type KeyboardEvent } from 'react'
-import { Bot, ChevronDown, Command, Search, Sparkles } from 'lucide-react'
+import { useEffect, useId, useRef, useState, type FocusEvent, type KeyboardEvent } from 'react'
+import { Bot, Check, ChevronDown, Command, Cpu, Search, Sparkles } from 'lucide-react'
 import type { ProviderModelDescriptor } from '../tauri'
 
 // Accepts a plain string because provider descriptors carry `id: string`
@@ -15,22 +15,38 @@ export function ModelCombobox({
   disabled = false,
   models,
   value,
+  describedBy,
+  providerLabel = 'CLI',
+  resolvedDefaultModel = null,
+  resolvedDefaultOrigin = null,
   onChange,
 }: {
   disabled?: boolean
   models: ProviderModelDescriptor[]
   value: string
+  describedBy?: string
+  providerLabel?: string
+  resolvedDefaultModel?: string | null
+  resolvedDefaultOrigin?: string | null
   onChange: (value: string) => void
 }) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
-  const triggerRef = useRef<HTMLButtonElement | null>(null)
-  const searchRef = useRef<HTMLInputElement | null>(null)
-  const listboxRef = useRef<HTMLDivElement | null>(null)
+  const [activeIndex, setActiveIndex] = useState(-1)
+  const inputRef = useRef<HTMLInputElement | null>(null)
+  const listboxId = useId()
   const options = models.length > 0 ? models : [defaultProviderModel()]
   const currentValue = value.trim() || 'default'
   const selected = options.find((model) => model.id === currentValue)
-  const selectedLabel = selected?.label ?? currentValue
+  const resolvedDefaultDescriptor = resolvedDefaultModel
+    ? options.find((model) => model.id === resolvedDefaultModel)
+    : null
+  const resolvedDefaultLabel = resolvedDefaultDescriptor?.label ?? resolvedDefaultModel
+  const selectedLabel = selected?.id === 'default'
+    ? resolvedDefaultLabel ? `CLI default · ${resolvedDefaultLabel}` : 'CLI default'
+    : selected?.label ?? currentValue
+  const detectedModelCount = options.filter((model) => model.source === 'detected').length
+  const selectableModelCount = options.filter((model) => model.id !== 'default').length
   const filteredOptions = options.filter((model) => {
     const normalizedQuery = query.trim().toLocaleLowerCase()
     if (!normalizedQuery) return true
@@ -40,6 +56,10 @@ export function ModelCombobox({
   const exactMatch = options.some((model) => model.id.toLocaleLowerCase() === customModel.toLocaleLowerCase())
   const showCustomOption = customModel.length > 0 && !exactMatch
   const popoverOpen = open && !disabled
+  const optionCount = filteredOptions.length + (showCustomOption ? 1 : 0)
+  const activeOptionId = popoverOpen && optionCount > 0 && activeIndex >= 0
+    ? `${listboxId}-option-${Math.min(activeIndex, optionCount - 1)}`
+    : undefined
 
   useEffect(() => {
     if (!disabled || !open) return
@@ -47,16 +67,12 @@ export function ModelCombobox({
     return () => window.clearTimeout(timeout)
   }, [disabled, open])
 
-  useEffect(() => {
-    if (!popoverOpen) return
-    const timeout = window.setTimeout(() => searchRef.current?.focus(), 0)
-    return () => window.clearTimeout(timeout)
-  }, [popoverOpen])
-
   function chooseModel(modelId: string) {
     if (disabled) return
     onChange(modelId)
+    setQuery('')
     setOpen(false)
+    window.setTimeout(() => inputRef.current?.focus(), 0)
   }
 
   function handleBlur(event: FocusEvent<HTMLDivElement>) {
@@ -66,116 +82,128 @@ export function ModelCombobox({
     }
   }
 
-  function handleSearchKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+  function handleInputKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key === 'Escape') {
       setOpen(false)
-      triggerRef.current?.focus()
+      setQuery('')
       return
     }
 
     if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
-      const optionCount = filteredOptions.length + (showCustomOption ? 1 : 0)
       if (optionCount === 0) return
       event.preventDefault()
-      focusModelOption(event.key === 'ArrowUp' || event.key === 'End' ? optionCount - 1 : 0)
+      setOpen(true)
+      setActiveIndex((current) => optionIndexForKey(event.key, current, optionCount))
       return
     }
 
     if (event.key !== 'Enter') return
     event.preventDefault()
-    if (showCustomOption) {
-      chooseModel(customModel)
-    } else if (filteredOptions[0]) {
-      chooseModel(filteredOptions[0].id)
-    }
+    const active = Math.min(activeIndex, Math.max(0, optionCount - 1))
+    if (filteredOptions[active]) chooseModel(filteredOptions[active].id)
+    else if (showCustomOption) chooseModel(customModel)
   }
 
-  function toggleOpen() {
+  function openPicker() {
     if (disabled) return
-    if (open) {
-      setOpen(false)
-      return
-    }
     setQuery('')
+    setActiveIndex(-1)
     setOpen(true)
   }
 
-  function focusModelOption(index: number) {
-    const options = Array.from(listboxRef.current?.querySelectorAll<HTMLButtonElement>('button[role="option"]:not(:disabled)') ?? [])
-    options[index]?.focus()
-  }
-
-  function handleOptionKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
-    if (event.key === 'Escape') {
-      setOpen(false)
-      triggerRef.current?.focus()
-      return
-    }
-    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
-
-    const optionCount = filteredOptions.length + (showCustomOption ? 1 : 0)
-    if (optionCount === 0) return
-    event.preventDefault()
-    focusModelOption(optionIndexForKey(event.key, index, optionCount))
+  function updateQuery(nextQuery: string) {
+    setQuery(nextQuery)
+    setActiveIndex(-1)
+    setOpen(true)
   }
 
   return (
     <div className="model-combobox" onBlur={handleBlur}>
-      <button
-        ref={triggerRef}
-        className="model-combobox-trigger"
-        type="button"
-        aria-haspopup="listbox"
-        aria-expanded={popoverOpen}
-        disabled={disabled}
-        onClick={toggleOpen}
-      >
-        <span>Model</span>
-        <strong>{selectedLabel}</strong>
-        <ChevronDown size={15} />
-      </button>
+      <label className="model-combobox-trigger">
+        <span className="model-combobox-label">
+          <span className="ai-choice-icon"><Cpu size={17} /></span>
+          <span>
+            <strong>Model</strong>
+            <small>{detectedModelCount > 0 ? `${modelCountLabel(detectedModelCount)} from ${providerLabel}` : 'CLI default or custom override'}</small>
+          </span>
+        </span>
+        <span className="model-combobox-control">
+          <input
+            ref={inputRef}
+            role="combobox"
+            aria-autocomplete="list"
+            aria-controls={popoverOpen ? listboxId : undefined}
+            aria-activedescendant={activeOptionId}
+            aria-describedby={describedBy}
+            aria-expanded={popoverOpen}
+            aria-haspopup="listbox"
+            aria-label="Model"
+            disabled={disabled}
+            placeholder={popoverOpen ? 'Search models…' : undefined}
+            value={popoverOpen ? query : selectedLabel}
+            onFocus={openPicker}
+            onChange={(event) => updateQuery(event.target.value)}
+            onKeyDown={handleInputKeyDown}
+          />
+          <button type="button" aria-label="Open model choices" disabled={disabled} tabIndex={-1} onMouseDown={(event) => event.preventDefault()} onClick={() => {
+            if (popoverOpen) setOpen(false)
+            else {
+              openPicker()
+              inputRef.current?.focus()
+            }
+          }}>
+            <ChevronDown size={15} />
+          </button>
+        </span>
+      </label>
       {popoverOpen ? (
         <div className="model-combobox-popover">
-          <label className="model-search">
-            <Search size={15} />
-            <span className="sr-only">Search AI models</span>
-            <input ref={searchRef} value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={handleSearchKeyDown} placeholder="Search models..." />
-          </label>
-          <div ref={listboxRef} className="model-options" role="listbox" aria-label="AI models">
+          <div className="model-search-hint">
+            <Search size={14} />
+            {detectedModelCount > 0
+              ? `${modelCountLabel(detectedModelCount)} reported by ${providerLabel}`
+              : `${modelCountLabel(selectableModelCount, 'suggested model')} · custom IDs supported`}
+          </div>
+          <div id={listboxId} className="model-options" role="listbox" aria-label="AI models">
             {filteredOptions.map((model, index) => (
-              <button
+              <div
+                id={`${listboxId}-option-${index}`}
                 key={model.id}
-                className={model.id === currentValue ? 'model-option active' : 'model-option'}
-                type="button"
+                className={`${model.id === currentValue ? 'model-option selected' : 'model-option'}${index === activeIndex ? ' active' : ''}`}
                 role="option"
                 aria-selected={model.id === currentValue}
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => chooseModel(model.id)}
-                onKeyDown={(event) => handleOptionKeyDown(event, index)}
+                onMouseEnter={() => setActiveIndex(index)}
               >
-                <span>
-                  <strong>{model.label}</strong>
-                  <small>{model.id}</small>
+                <span className="model-option-copy">
+                  <strong>{model.id === 'default' ? 'CLI default' : model.label}</strong>
+                  <small>{model.id === 'default'
+                    ? defaultOptionDescription(resolvedDefaultLabel, resolvedDefaultOrigin)
+                    : model.description ?? model.id}</small>
                 </span>
-                <em>{modelSourceLabel(model.source)}</em>
-              </button>
+                <span className="model-option-meta">
+                  <em>{modelSourceLabel(model.source)}</em>
+                  {model.id === currentValue ? <Check aria-hidden="true" size={15} /> : null}
+                </span>
+              </div>
             ))}
             {showCustomOption ? (
-              <button
-                className="model-option custom"
-                type="button"
+              <div
+                id={`${listboxId}-option-${filteredOptions.length}`}
+                className={`model-option custom${activeIndex === filteredOptions.length ? ' active' : ''}`}
                 role="option"
                 aria-selected={false}
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => chooseModel(customModel)}
-                onKeyDown={(event) => handleOptionKeyDown(event, filteredOptions.length)}
+                onMouseEnter={() => setActiveIndex(filteredOptions.length)}
               >
-                <span>
+                <span className="model-option-copy">
                   <strong>Use custom model</strong>
                   <small>{customModel}</small>
                 </span>
-                <em>Custom</em>
-              </button>
+                <span className="model-option-meta"><em>Custom</em></span>
+              </div>
             ) : null}
             {filteredOptions.length === 0 && !showCustomOption ? <p className="model-options-empty">No matching models</p> : null}
           </div>
@@ -188,6 +216,7 @@ export function ModelCombobox({
 function optionIndexForKey(key: string, currentIndex: number, optionCount: number): number {
   if (key === 'Home') return 0
   if (key === 'End') return optionCount - 1
+  if (currentIndex < 0) return key === 'ArrowUp' ? optionCount - 1 : 0
   if (key === 'ArrowUp') return Math.max(0, currentIndex - 1)
   return Math.min(optionCount - 1, currentIndex + 1)
 }
@@ -205,8 +234,17 @@ function defaultProviderModel(): ProviderModelDescriptor {
 }
 
 function modelSourceLabel(source: ProviderModelDescriptor['source']): string {
-  if (source === 'detected') return 'Detected'
-  if (source === 'environment') return 'Env'
-  if (source === 'preset') return 'Preset'
+  if (source === 'detected') return 'CLI'
+  if (source === 'environment') return 'Config'
+  if (source === 'preset') return 'Suggested'
   return 'Default'
+}
+
+function defaultOptionDescription(model: string | null | undefined, origin: string | null): string {
+  if (!model) return 'Let the CLI choose when generation starts.'
+  return `Current: ${model}${origin ? ` · ${origin}` : ''}`
+}
+
+function modelCountLabel(count: number, noun = 'model'): string {
+  return `${count} ${noun}${count === 1 ? '' : 's'}`
 }

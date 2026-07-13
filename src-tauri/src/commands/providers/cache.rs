@@ -8,11 +8,13 @@ use qa_scribe_core::domain::AiProvider;
 
 use super::{
     probe::DetectionMode,
-    types::{ProviderReadiness, ReadinessCacheKey},
+    types::{ProviderDiscoveryState, ProviderReadiness, ReadinessCacheKey},
 };
 
 const READINESS_CACHE_TTL: Duration = Duration::from_secs(30);
 static READINESS_CACHE: OnceLock<Mutex<HashMap<ReadinessCacheKey, CachedProviderReadiness>>> =
+    OnceLock::new();
+static LAST_SUCCESSFUL_DEFAULTS: OnceLock<Mutex<HashMap<AiProvider, ProviderReadiness>>> =
     OnceLock::new();
 
 #[derive(Clone, Debug)]
@@ -67,4 +69,42 @@ pub(super) fn cache_readiness(
             },
         );
     }
+    if mode == DetectionMode::Deep
+        && readiness
+            .descriptor
+            .default_snapshot
+            .has_successful_observation()
+    {
+        let successes = LAST_SUCCESSFUL_DEFAULTS.get_or_init(|| Mutex::new(HashMap::new()));
+        if let Ok(mut successes) = successes.lock() {
+            successes.insert(provider, readiness.clone());
+        }
+    }
+}
+
+pub(super) fn retain_last_successful_defaults(
+    provider: AiProvider,
+    mut readiness: ProviderReadiness,
+) -> ProviderReadiness {
+    if readiness.descriptor.default_snapshot.state != ProviderDiscoveryState::Unresolved {
+        return readiness;
+    }
+    let current_error = readiness.descriptor.default_snapshot.error.clone();
+    let current_warnings = readiness.descriptor.default_snapshot.warnings.clone();
+    let Some(successes) = LAST_SUCCESSFUL_DEFAULTS.get() else {
+        return readiness;
+    };
+    let Ok(successes) = successes.lock() else {
+        return readiness;
+    };
+    let Some(previous) = successes.get(&provider) else {
+        return readiness;
+    };
+
+    let mut snapshot = previous.descriptor.default_snapshot.clone();
+    snapshot.state = ProviderDiscoveryState::Stale;
+    snapshot.error = current_error;
+    snapshot.warnings.extend(current_warnings);
+    readiness.descriptor.default_snapshot = snapshot;
+    readiness
 }

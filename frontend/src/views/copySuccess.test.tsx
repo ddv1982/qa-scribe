@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -10,6 +10,7 @@ vi.mock('../editor/RichTextEditor', () => ({
 
 import type { Draft, Finding, ProviderStatus, Session } from '../tauri'
 import { richEditorDocumentFromHtml } from '../editor/editorDocument'
+import { providerDefaultSnapshotFixture } from '../test/fixtures'
 import { FindingsView } from './FindingsView'
 import { SessionEditorView } from './SessionEditorView'
 import { TestwareView } from './TestwareView'
@@ -58,6 +59,69 @@ describe('copy success buttons', () => {
     expect(button.className).toContain('success')
   })
 
+  it('makes the effective model prominent and exposes a clear configuration action', async () => {
+    const user = userEvent.setup()
+    const onConfigureAi = vi.fn()
+    render(
+      <SessionEditorView
+        activeProviderAvailable
+        activeSession={session}
+        busyAction={null}
+        canUndoLatestGeneration={false}
+        copySucceeded={false}
+        screenshotCopySucceeded={false}
+        filteredSessions={[session]}
+        isBusy={false}
+        noteBody={richEditorDocumentFromHtml('<p>Body</p>')}
+        noteIsReady
+        noteScreenshotCount={0}
+        sessionTitle="Login session"
+        noteWordCount={1}
+        notice={null}
+        error={null}
+        pendingAiActions={{}}
+        selectedProvider="codex_cli"
+        selectedModel="default"
+        effectiveSelection={{
+          model: 'gpt-5.5',
+          reasoning: 'xhigh',
+          modelOverride: null,
+          reasoningOverride: null,
+          delegatesModel: true,
+          delegatesReasoning: true,
+          modelOrigin: providerStatus.providers[0]?.defaultSnapshot.model.origin ?? null,
+          reasoningOrigin: null,
+          discoveryState: 'detected',
+          checkedAt: providerStatus.providers[0]?.defaultSnapshot.checkedAt ?? null,
+          runtimeSummary: 'The CLI resolves its live configuration.',
+          warning: null,
+          advisories: [],
+        }}
+        activeProvider={providerStatus.providers[0]}
+        onConfigureAi={onConfigureAi}
+        onAiAction={async () => undefined}
+        onUndoLatestGeneration={async () => undefined}
+        onCopyNote={async () => undefined}
+        onCopyNoteScreenshot={async () => undefined}
+        onDeleteSession={() => undefined}
+        onOpenSession={async () => undefined}
+        onSetNoteBody={() => undefined}
+        onSetSessionTitle={() => undefined}
+        onUploadImage={() => undefined}
+      />,
+    )
+
+    const configureButton = screen.getByRole('button', { name: 'Configure AI execution' })
+    const summary = configureButton.closest('.ai-provider-summary')
+    expect(summary).not.toBeNull()
+    expect(within(summary as HTMLElement).getByText('gpt-5.5')).toBeInTheDocument()
+    expect(within(summary as HTMLElement).getByText('CLI default')).toBeInTheDocument()
+    expect(within(summary as HTMLElement).getByText('Reasoning xhigh')).toBeInTheDocument()
+
+    await user.click(configureButton)
+    expect(onConfigureAi).toHaveBeenCalledOnce()
+  })
+
   it('shows a success state for the copied testware record only', () => {
     render(
       <TestwareView
@@ -77,6 +141,7 @@ describe('copy success buttons', () => {
         onDeleteDraft={() => undefined}
         onPrefillFromNote={async () => undefined}
         onSaveDraft={async () => true}
+        onDiscardDraft={vi.fn()}
         onUploadImage={() => undefined}
       />,
     )
@@ -104,6 +169,7 @@ describe('copy success buttons', () => {
         onDeleteFinding={() => undefined}
         onPrefillFromNote={async () => undefined}
         onSaveFinding={async () => true}
+        onDiscardFinding={vi.fn()}
         onUploadImage={() => undefined}
       />,
     )
@@ -169,6 +235,7 @@ describe('copy success buttons', () => {
         onDeleteDraft={() => undefined}
         onPrefillFromNote={async () => undefined}
         onSaveDraft={async () => true}
+        onDiscardDraft={vi.fn()}
         onUploadImage={() => undefined}
       />,
     )
@@ -196,6 +263,7 @@ describe('copy success buttons', () => {
         onDeleteFinding={() => undefined}
         onPrefillFromNote={async () => undefined}
         onSaveFinding={async () => true}
+        onDiscardFinding={vi.fn()}
         onUploadImage={() => undefined}
       />,
     )
@@ -224,6 +292,7 @@ describe('copy success buttons', () => {
         onDeleteDraft={() => undefined}
         onPrefillFromNote={async () => undefined}
         onSaveDraft={async () => false}
+        onDiscardDraft={vi.fn()}
         onUploadImage={() => undefined}
       />,
     )
@@ -254,6 +323,7 @@ describe('copy success buttons', () => {
         onDeleteFinding={() => undefined}
         onPrefillFromNote={async () => undefined}
         onSaveFinding={async () => false}
+        onDiscardFinding={vi.fn()}
         onUploadImage={() => undefined}
       />,
     )
@@ -317,10 +387,9 @@ const providerStatus: ProviderStatus = {
       command: 'codex',
       executablePath: '/mock/bin/codex',
       localOnly: true,
-      defaultSnapshot: {
-        model: 'gpt-5.5', reasoningEffort: 'low', modelOrigin: null, reasoningOrigin: null,
-        resolution: 'configured', recommendedModel: 'gpt-5.5', recommendedReasoningEffort: 'medium', warnings: [],
-      },
+      defaultSnapshot: providerDefaultSnapshotFixture({
+        reasoningEffort: { value: 'low', resolution: 'configured', origin: null, recommendedValue: 'medium' },
+      }),
       models: [
         {
           id: 'default',

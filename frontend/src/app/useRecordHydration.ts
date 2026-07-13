@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { listDrafts, listFindings, type Draft, type Finding } from '../tauri'
 import { formatError } from '../ui/format'
 import type { MainView } from '../ui/types'
@@ -6,19 +6,26 @@ import type { MainView } from '../ui/types'
 type UseRecordHydrationOptions = {
   activeSessionId: string | null
   activeView: MainView
-  setError: Dispatch<SetStateAction<string | null>>
 }
 
-export function useRecordHydration({ activeSessionId, activeView, setError }: UseRecordHydrationOptions) {
+export type RecordLoadState = 'idle' | 'loading' | 'ready' | 'error'
+
+export function useRecordHydration({ activeSessionId, activeView }: UseRecordHydrationOptions) {
   const [drafts, setDrafts] = useState<Draft[]>([])
   const [findings, setFindings] = useState<Finding[]>([])
   const [testwareDraftCount, setTestwareDraftCount] = useState(0)
   const [findingCount, setFindingCount] = useState(0)
+  const [draftLoadState, setDraftLoadState] = useState<RecordLoadState>('idle')
+  const [findingLoadState, setFindingLoadState] = useState<RecordLoadState>('idle')
+  const [draftLoadError, setDraftLoadError] = useState<string | null>(null)
+  const [findingLoadError, setFindingLoadError] = useState<string | null>(null)
 
   const draftsSessionIdRef = useRef<string | null>(null)
   const findingsSessionIdRef = useRef<string | null>(null)
   const draftsRef = useRef<Draft[]>([])
   const findingsRef = useRef<Finding[]>([])
+  const savedDraftsRef = useRef<Draft[]>([])
+  const savedFindingsRef = useRef<Finding[]>([])
   const dirtyDraftIdsRef = useRef<Set<string>>(new Set())
   const dirtyFindingIdsRef = useRef<Set<string>>(new Set())
   const recordLoadVersionRef = useRef(0)
@@ -34,21 +41,38 @@ export function useRecordHydration({ activeSessionId, activeView, setError }: Us
     findingsSessionIdRef.current = null
     draftsRef.current = []
     findingsRef.current = []
+    savedDraftsRef.current = []
+    savedFindingsRef.current = []
+    setDraftLoadState('idle')
+    setFindingLoadState('idle')
+    setDraftLoadError(null)
+    setFindingLoadError(null)
   }, [invalidateRecordLoads])
 
   const loadDraftsForSession = useCallback(async (sessionId: string, options: { force?: boolean; replace?: boolean } = {}): Promise<Draft[]> => {
     const { force = false, replace = false } = options
     if (!force && draftsSessionIdRef.current === sessionId) return draftsRef.current
 
+    setDraftLoadState('loading')
+    setDraftLoadError(null)
     const loadVersion = recordLoadVersionRef.current
-    const loaded = await listDrafts(sessionId)
+    let loaded: Draft[]
+    try {
+      loaded = await listDrafts(sessionId)
+    } catch (cause) {
+      setDraftLoadError(formatError(cause))
+      setDraftLoadState('error')
+      throw cause
+    }
     if (recordLoadVersionRef.current !== loadVersion || activeSessionIdRef.current !== sessionId) return draftsRef.current
 
+    savedDraftsRef.current = loaded
     const nextDrafts = mergeRecordLists(loaded, draftsRef.current, sessionId, { dirtyIds: dirtyDraftIdsRef.current, replace })
     draftsSessionIdRef.current = sessionId
     draftsRef.current = nextDrafts
     setDrafts(nextDrafts)
     setTestwareDraftCount(nextDrafts.filter((draft) => draft.kind === 'testware').length)
+    setDraftLoadState('ready')
     return nextDrafts
   }, [])
 
@@ -56,15 +80,26 @@ export function useRecordHydration({ activeSessionId, activeView, setError }: Us
     const { force = false, replace = false } = options
     if (!force && findingsSessionIdRef.current === sessionId) return findingsRef.current
 
+    setFindingLoadState('loading')
+    setFindingLoadError(null)
     const loadVersion = recordLoadVersionRef.current
-    const loaded = await listFindings(sessionId)
+    let loaded: Finding[]
+    try {
+      loaded = await listFindings(sessionId)
+    } catch (cause) {
+      setFindingLoadError(formatError(cause))
+      setFindingLoadState('error')
+      throw cause
+    }
     if (recordLoadVersionRef.current !== loadVersion || activeSessionIdRef.current !== sessionId) return findingsRef.current
 
+    savedFindingsRef.current = loaded
     const nextFindings = mergeRecordLists(loaded, findingsRef.current, sessionId, { dirtyIds: dirtyFindingIdsRef.current, replace })
     findingsSessionIdRef.current = sessionId
     findingsRef.current = nextFindings
     setFindings(nextFindings)
     setFindingCount(nextFindings.length)
+    setFindingLoadState('ready')
     return nextFindings
   }, [])
 
@@ -82,21 +117,29 @@ export function useRecordHydration({ activeSessionId, activeView, setError }: Us
 
   useEffect(() => {
     if (!activeSessionId || activeView !== 'testware') return
-    void loadDraftsForSession(activeSessionId).catch((cause: unknown) => setError(formatError(cause)))
-  }, [activeSessionId, activeView, loadDraftsForSession, setError])
+    const timeout = window.setTimeout(() => void loadDraftsForSession(activeSessionId).catch(() => undefined), 0)
+    return () => window.clearTimeout(timeout)
+  }, [activeSessionId, activeView, loadDraftsForSession])
 
   useEffect(() => {
     if (!activeSessionId || activeView !== 'findings') return
-    void loadFindingsForSession(activeSessionId).catch((cause: unknown) => setError(formatError(cause)))
-  }, [activeSessionId, activeView, loadFindingsForSession, setError])
+    const timeout = window.setTimeout(() => void loadFindingsForSession(activeSessionId).catch(() => undefined), 0)
+    return () => window.clearTimeout(timeout)
+  }, [activeSessionId, activeView, loadFindingsForSession])
 
   return {
     drafts,
     findings,
     testwareDraftCount,
     findingCount,
+    draftLoadError,
+    draftLoadState,
+    findingLoadError,
+    findingLoadState,
     draftsRef,
     findingsRef,
+    savedDraftsRef,
+    savedFindingsRef,
     dirtyDraftIdsRef,
     dirtyFindingIdsRef,
     setDrafts,

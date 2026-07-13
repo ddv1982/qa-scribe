@@ -2,8 +2,9 @@ import type { GenerateAiActionKind } from '../tauri'
 
 export type ResolvedTheme = 'light' | 'dark'
 export type ThemePreference = ResolvedTheme | 'system'
-export type MainView = 'sessions' | 'testware' | 'findings' | 'settings'
+export type MainView = 'sessions' | 'testware' | 'findings' | 'testware-library' | 'findings-library' | 'settings'
 export type SettingsSaveState = 'idle' | 'saving' | 'saved' | 'error'
+export type ProviderDiscoveryUiState = 'checking' | 'refreshing' | 'ready' | 'stale' | 'error'
 export type PendingAiActions = Partial<Record<GenerateAiActionKind, boolean>>
 export type BusyAction =
   | 'boot'

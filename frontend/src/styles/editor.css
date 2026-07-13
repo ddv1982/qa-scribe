@@ -7,6 +7,18 @@
   background: var(--surface-panel);
 }
 
+.center-workspace:has(.session-context-header) {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.center-workspace:has(.session-context-header) > :not(.session-context-header) {
+  grid-row: 2;
+  min-height: 0;
+  overflow: auto;
+}
+
 .session-workspace {
   width: min(100%, 980px);
   height: 100%;
@@ -24,6 +36,16 @@
   justify-content: space-between;
   gap: var(--space-4);
   min-width: 0;
+}
+
+.document-mode {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
 }
 
 .breadcrumb {
@@ -301,66 +323,139 @@
 
 .ai-provider-summary {
   display: grid;
-  grid-template-columns: auto minmax(86px, max-content) minmax(70px, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: var(--space-1) var(--space-2);
-  flex: 1 1 280px;
-  min-width: 230px;
-  max-width: 430px;
-  min-height: 40px;
+  gap: var(--space-2);
+  flex: 1 1 320px;
+  min-width: 280px;
+  max-width: 470px;
+  min-height: 48px;
   margin-right: auto;
+  padding: var(--space-1) 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+.ai-provider-icon {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
   color: var(--text-secondary);
 }
 
-.ai-provider-summary svg {
-  color: var(--accent);
-}
-
-.ai-provider-summary div {
+.ai-provider-selection {
   display: grid;
-  gap: 1px;
+  gap: 3px;
   min-width: 0;
 }
 
-.ai-provider-summary span {
+.ai-provider-heading,
+.ai-provider-value,
+.ai-provider-meta,
+.ai-provider-state,
+.ai-configure-button {
+  display: flex;
+  align-items: center;
+}
+
+.ai-provider-heading {
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.ai-provider-heading > span:first-child {
+  color: var(--text-secondary);
   font-size: var(--font-size-sm);
-  line-height: var(--leading-tight);
-}
-
-.ai-provider-summary strong,
-.ai-provider-model {
-  color: var(--text-primary);
-  font-size: var(--font-size-md);
   font-weight: 600;
+  letter-spacing: 0.04em;
   line-height: var(--leading-tight);
+  text-transform: uppercase;
 }
 
-.ai-provider-model {
+.ai-provider-value {
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.ai-provider-value strong {
   min-width: 0;
   overflow: hidden;
+  color: var(--text-primary);
+  font-size: var(--font-size-md);
+  font-weight: 650;
+  line-height: var(--leading-tight);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.ai-selection-mode {
+  flex: 0 0 auto;
+  padding: 0;
+  color: var(--accent);
+  font-size: var(--font-size-xs);
+  font-weight: 650;
+  line-height: var(--leading-normal);
+  background: transparent;
+}
+
 .ai-provider-state {
-  justify-self: end;
-  padding: var(--space-1) var(--space-2);
-  border: 1px solid var(--border-default);
-  border-radius: 999px;
+  margin-left: auto;
+  gap: 6px;
   color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 550;
+  line-height: var(--leading-tight);
 }
 
 .ai-provider-state.ready {
-  border-color: color-mix(in oklab, var(--success) 40%, transparent);
   color: var(--success);
 }
 
+.ai-provider-state .status-dot,
+.ai-choice-note .status-dot {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  margin: 0;
+}
+
 .ai-provider-summary p {
-  grid-column: 2 / -1;
-  margin: -2px 0 0;
+  margin: var(--space-1) 0 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: var(--leading-normal);
+}
+
+.ai-provider-meta {
+  gap: var(--space-2);
+  min-width: 0;
+  overflow: hidden;
   color: var(--text-secondary);
   font-size: var(--font-size-sm);
   line-height: var(--leading-tight);
+  white-space: nowrap;
+}
+
+.ai-provider-meta > span:not(:first-child)::before {
+  margin-right: var(--space-2);
+  color: var(--text-tertiary);
+  content: "·";
+}
+
+.ai-configure-button {
+  justify-content: center;
+  width: 32px;
+  min-height: 32px;
+  padding: 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 650;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  cursor: pointer;
 }
 
 .ai-action-buttons {
@@ -397,7 +492,8 @@
   color: var(--text-primary);
 }
 
-.workspace-empty p {
+.workspace-empty p,
+.state-panel p {
   max-width: 420px;
   margin: 0;
   line-height: var(--leading-relaxed);

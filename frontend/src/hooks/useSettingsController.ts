@@ -7,9 +7,15 @@ import {
   type AppSettings,
   type ProviderStatus,
 } from '../tauri'
-import { effectiveSelection, modelForProvider, modelOverrideForProvider, reasoningOverrideForProvider } from '../settings/defaults'
+import {
+  effectiveSelection,
+  executionReasoningOverride,
+  modelForProvider,
+  modelOverrideForProvider,
+} from '../settings/defaults'
 import { currentSystemTheme, formatError, initialTheme, resolveThemePreference } from '../ui/format'
-import type { SettingsSaveState, ThemePreference } from '../ui/types'
+import type { ProviderDiscoveryUiState, SettingsSaveState, ThemePreference } from '../ui/types'
+import { mergeFastProviderStatus, readCachedProviderStatus, writeCachedProviderStatus } from '../settings/providerStatusCache'
 
 export function useSettingsController({
   setError,
@@ -18,10 +24,13 @@ export function useSettingsController({
   setError: (message: string | null) => void
   setNotice: (message: string | null) => void
 }) {
+  const [initialCachedProviderStatus] = useState<ProviderStatus | null>(() => readCachedProviderStatus())
+  const cachedProviderStatusRef = useRef<ProviderStatus | null>(initialCachedProviderStatus)
   const [settings, setSettings] = useState<AppSettings | null>(null)
-  const [providerStatus, setProviderStatus] = useState<ProviderStatus | null>(null)
+  const [providerStatus, setProviderStatus] = useState<ProviderStatus | null>(initialCachedProviderStatus)
   const [settingsDraft, setSettingsDraft] = useState<AppSettings | null>(null)
   const [settingsSaveState, setSettingsSaveState] = useState<SettingsSaveState>('idle')
+  const [providerDiscoveryState, setProviderDiscoveryState] = useState<ProviderDiscoveryUiState>(initialCachedProviderStatus ? 'stale' : 'checking')
   const [theme, setTheme] = useState<ThemePreference>(() => initialTheme())
   const [systemTheme, setSystemTheme] = useState(() => currentSystemTheme())
   const settingsSaveResetRef = useRef<number | null>(null)
@@ -33,8 +42,9 @@ export function useSettingsController({
   // Generation must receive only the QA Scribe override. Passing the visible
   // CLI default back as an override makes "Use CLI default" depend on a stale
   // discovery snapshot instead of letting the CLI resolve its own settings.
-  const selectedReasoningEffort = settings ? reasoningOverrideForProvider(settings, selectedProvider) : null
-  const effectiveAiSelection = settings ? effectiveSelection(settings, activeProvider) : { model: 'Provider managed', reasoning: null, warning: null }
+  const selectedReasoningEffort = settings ? executionReasoningOverride(settings, activeProvider) : null
+  const effectiveAiSelection = settings ? effectiveSelection(settings, activeProvider) : null
+  const settingsDirty = Boolean(settings && settingsDraft && JSON.stringify(settings) !== JSON.stringify(settingsDraft))
   const resolvedTheme = resolveThemePreference(theme, systemTheme)
 
   useEffect(() => {
@@ -61,15 +71,44 @@ export function useSettingsController({
   function loadSettings(nextSettings: AppSettings, nextProviderStatus: ProviderStatus | null = null) {
     setSettings(nextSettings)
     setSettingsDraft(nextSettings)
-    setProviderStatus(nextProviderStatus)
+    if (nextProviderStatus) {
+      cachedProviderStatusRef.current = null
+      setProviderStatus(nextProviderStatus)
+    }
   }
 
   async function refreshProviderStatus() {
-    setProviderStatus(await refreshProviderStatusCommand())
+    setProviderDiscoveryState('refreshing')
+    try {
+      const status = await refreshProviderStatusCommand()
+      writeCachedProviderStatus(status)
+      setProviderStatus(status)
+      setProviderDiscoveryState(discoveryUiState(status))
+    } catch (cause) {
+      setProviderDiscoveryState((previous) => previous === 'ready' || previous === 'stale' ? 'stale' : 'error')
+      throw cause
+    }
   }
 
   async function loadProviderStatus() {
-    setProviderStatus(await getProviderStatus())
+    setProviderDiscoveryState('checking')
+    const fastStatus = await getProviderStatus()
+    const status = mergeFastProviderStatus(fastStatus, cachedProviderStatusRef.current)
+    cachedProviderStatusRef.current = null
+    setProviderStatus(status)
+    setProviderDiscoveryState(discoveryUiState(status))
+  }
+
+  async function discoverProviderDefaults() {
+    setProviderDiscoveryState('checking')
+    try {
+      const deepStatus = await refreshProviderStatusCommand()
+      writeCachedProviderStatus(deepStatus)
+      setProviderStatus(deepStatus)
+      setProviderDiscoveryState(discoveryUiState(deepStatus))
+    } catch {
+      setProviderDiscoveryState('error')
+    }
   }
 
   async function persistSettings(nextSettings: AppSettings): Promise<AppSettings | null> {
@@ -86,8 +125,8 @@ export function useSettingsController({
     }
   }
 
-  async function handleSaveSettings() {
-    if (!settingsDraft) return
+  async function handleSaveSettings(): Promise<boolean> {
+    if (!settingsDraft) return false
     try {
       setSettingsSaveState('saving')
       const saved = await persistSettings({
@@ -96,6 +135,7 @@ export function useSettingsController({
       })
       setSettingsSaveState(saved ? 'saved' : 'error')
       if (saved) scheduleSettingsSaveReset()
+      return Boolean(saved)
     } finally {
       // The caller owns busyAction so saving can share the app-wide spinner contract.
     }
@@ -104,6 +144,11 @@ export function useSettingsController({
   function updateSettingsDraft(patch: Partial<AppSettings>) {
     setSettingsSaveState('idle')
     setSettingsDraft((previous) => (previous ? { ...previous, ...patch } : previous))
+  }
+
+  function discardSettingsDraft() {
+    setSettingsDraft(settings)
+    setSettingsSaveState('idle')
   }
 
   function scheduleSettingsSaveReset() {
@@ -118,8 +163,11 @@ export function useSettingsController({
     activeProvider,
     effectiveAiSelection,
     handleSaveSettings,
+    discoverProviderDefaults,
     loadProviderStatus,
     loadSettings,
+    discardSettingsDraft,
+    providerDiscoveryState,
     providerStatus,
     refreshProviderStatus,
     selectedModel,
@@ -128,8 +176,17 @@ export function useSettingsController({
     setTheme,
     settings,
     settingsDraft,
+    settingsDirty,
     settingsSaveState,
     theme,
     updateSettingsDraft,
   }
+}
+
+function discoveryUiState(status: ProviderStatus): ProviderDiscoveryUiState {
+  const states = status.providers.map((provider) => provider.defaultSnapshot.state)
+  if (states.some((state) => state === 'stale')) return 'stale'
+  if (states.some((state) => state === 'unresolved')) return 'error'
+  if (states.some((state) => state === 'unchecked')) return 'checking'
+  return 'ready'
 }

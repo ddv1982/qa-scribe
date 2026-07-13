@@ -12,7 +12,7 @@ type UseAppStartupOptions = {
   reconcileActiveJobs: () => Promise<void>
   loadProviderStatus: () => Promise<void>
   refreshProviderStatus: () => Promise<void>
-  saveSettingsDraft: () => Promise<void>
+  saveSettingsDraft: () => Promise<boolean>
   setSessions: Dispatch<SetStateAction<Session[]>>
   setSessionLibraryComplete: Dispatch<SetStateAction<boolean>>
   setBusyAction: Dispatch<SetStateAction<BusyAction | null>>

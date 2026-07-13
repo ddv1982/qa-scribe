@@ -104,29 +104,16 @@ fn validate_effective_selection(
     // display snapshot and can be stale or merely recommended; it must never
     // turn a valid CLI-default invocation into a blocked preflight.
     if uses_default_model && reasoning_override.is_none() {
-        if provider.id == "codex_cli"
-            && provider.default_snapshot.resolution
-                == crate::commands::providers::ProviderDefaultResolution::Configured
-            && let Some(model) = provider.default_snapshot.model.as_deref()
-            && !provider.models.is_empty()
-            && !provider
-                .models
-                .iter()
-                .any(|candidate| candidate.id == model)
-        {
-            return Err(format!(
-                "Configured Codex CLI default model `{model}` is not advertised by the installed CLI. Upgrade Codex CLI or choose an explicit QA Scribe model override."
-            ));
-        }
         return Ok(());
     }
 
     let model = if uses_default_model {
-        provider.default_snapshot.model.as_deref()
+        provider.default_snapshot.model.value.as_deref()
     } else {
         Some(model_override.trim())
     };
-    let reasoning = reasoning_override.or(provider.default_snapshot.reasoning_effort.as_deref());
+    let reasoning =
+        reasoning_override.or(provider.default_snapshot.reasoning_effort.value.as_deref());
     let Some((model, reasoning)) = model.zip(reasoning) else {
         return Ok(());
     };
@@ -175,8 +162,9 @@ fn truncate_for_log(value: &str, max_chars: usize) -> String {
 #[cfg(test)]
 mod tests {
     use crate::commands::providers::{
-        ProviderDefaultResolution, ProviderDefaultSnapshot, ProviderDescriptor,
-        ProviderModelDescriptor, ProviderModelSource, ProviderState,
+        ProviderDefaultOrigin, ProviderDefaultOriginKind, ProviderDefaultResolution,
+        ProviderDefaultSnapshot, ProviderDefaultValue, ProviderDescriptor, ProviderDiscoveryState,
+        ProviderModelDescriptor, ProviderModelSource, ProviderResolutionScope, ProviderState,
     };
 
     use super::validate_effective_selection;
@@ -200,13 +188,28 @@ mod tests {
                 default_reasoning_effort: Some("low".to_string()),
             }],
             default_snapshot: ProviderDefaultSnapshot {
-                model: Some("gpt-codex".to_string()),
-                reasoning_effort: Some("stale-value".to_string()),
-                model_origin: None,
-                reasoning_origin: None,
-                resolution: ProviderDefaultResolution::Configured,
-                recommended_model: None,
-                recommended_reasoning_effort: None,
+                state: ProviderDiscoveryState::Detected,
+                model: ProviderDefaultValue::new(
+                    Some("gpt-codex".to_string()),
+                    ProviderDefaultResolution::Configured,
+                    Some(ProviderDefaultOrigin {
+                        kind: ProviderDefaultOriginKind::UserConfig,
+                        label: "User configuration".to_string(),
+                        display_path: Some("~/.codex/config.toml".to_string()),
+                        technical_path: None,
+                    }),
+                    None,
+                ),
+                reasoning_effort: ProviderDefaultValue::new(
+                    Some("stale-value".to_string()),
+                    ProviderDefaultResolution::Configured,
+                    None,
+                    None,
+                ),
+                checked_at: Some("2026-07-13T10:00:00Z".to_string()),
+                cli_version: Some("codex-cli 0.144.1".to_string()),
+                resolution_scope: ProviderResolutionScope::neutral(),
+                error: None,
                 warnings: Vec::new(),
             },
             local_only: true,
@@ -231,12 +234,13 @@ mod tests {
     }
 
     #[test]
-    fn unadvertised_configured_codex_default_is_rejected_before_generation() {
+    fn unadvertised_configured_codex_default_is_delegated_to_cli() {
         let mut provider = codex_descriptor();
-        provider.default_snapshot.model = Some("requires-newer-cli".to_string());
+        provider.default_snapshot.model.value = Some("requires-newer-cli".to_string());
 
-        let error = validate_effective_selection(&provider, "default", None).unwrap_err();
-        assert!(error.contains("Upgrade Codex CLI"));
-        assert!(error.contains("model override"));
+        assert_eq!(
+            validate_effective_selection(&provider, "default", None),
+            Ok(())
+        );
     }
 }

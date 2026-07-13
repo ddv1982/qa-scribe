@@ -69,7 +69,7 @@ export function createSessionActions(ctx: SessionActionsContext) {
     }
   }
 
-  async function openSession(session: Session, showNotice = true) {
+  async function openSession(session: Session, showNotice = true, onOpened?: () => void) {
     try {
       ctx.feedback.setBusyAction('open-session')
       ctx.feedback.setError(null)
@@ -96,6 +96,7 @@ export function createSessionActions(ctx: SessionActionsContext) {
       ctx.session.savedBodyRef.current = serializeRichEditorDocument(noteDocument)
       ctx.navigation.setActiveView('sessions')
       if (showNotice) ctx.feedback.setNotice(`Opened ${reopened.title}`)
+      onOpened?.()
     } catch (cause) {
       ctx.feedback.setError(formatError(cause))
     } finally {

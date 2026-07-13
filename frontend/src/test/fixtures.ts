@@ -1,4 +1,4 @@
-import type { AppSettings, Draft, Entry, Finding, GenerationJobStatus, ProviderStatus, Session } from '../tauri'
+import type { AppSettings, Draft, Entry, Finding, GenerationJobStatus, ProviderDefaultSnapshot, ProviderStatus, Session } from '../tauri'
 
 const now = '2026-06-24T10:00:00.000Z'
 
@@ -103,16 +103,7 @@ export function providerStatusFixture(): ProviderStatus {
         command: 'codex',
         executablePath: '/mock/bin/codex',
         localOnly: true,
-        defaultSnapshot: {
-          model: 'gpt-5.5',
-          reasoningEffort: 'medium',
-          modelOrigin: '/mock/.codex/config.toml',
-          reasoningOrigin: '/mock/.codex/config.toml',
-          resolution: 'configured',
-          recommendedModel: 'gpt-5.5',
-          recommendedReasoningEffort: 'medium',
-          warnings: [],
-        },
+        defaultSnapshot: providerDefaultSnapshotFixture(),
         models: [
           {
             id: 'default',
@@ -126,6 +117,40 @@ export function providerStatusFixture(): ProviderStatus {
         ],
       },
     ],
+  }
+}
+
+export function providerDefaultSnapshotFixture(patch: Partial<ProviderDefaultSnapshot> = {}): ProviderDefaultSnapshot {
+  return {
+    state: 'detected',
+    model: {
+      value: 'gpt-5.5',
+      resolution: 'configured',
+      origin: {
+        kind: 'userConfig',
+        label: 'User configuration',
+        displayPath: '~/.codex/config.toml',
+        technicalPath: '/mock/.codex/config.toml',
+      },
+      recommendedValue: 'gpt-5.5',
+    },
+    reasoningEffort: {
+      value: 'medium',
+      resolution: 'configured',
+      origin: {
+        kind: 'userConfig',
+        label: 'User configuration',
+        displayPath: '~/.codex/config.toml',
+        technicalPath: '/mock/.codex/config.toml',
+      },
+      recommendedValue: 'medium',
+    },
+    checkedAt: now,
+    cliVersion: 'codex-cli 0.144.1',
+    resolutionScope: { kind: 'neutral', label: 'Neutral QA Scribe runtime scope' },
+    error: null,
+    warnings: [],
+    ...patch,
   }
 }
 

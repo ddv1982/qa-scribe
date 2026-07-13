@@ -20,9 +20,11 @@ const tauriMock = vi.hoisted(() => ({
   getProviderStatus: vi.fn(),
   getSettings: vi.fn(),
   importClipboardScreenshot: vi.fn(),
+  listDraftLibrary: vi.fn(),
   listDrafts: vi.fn(),
   listEntries: vi.fn(),
   listFindings: vi.fn(),
+  listFindingLibrary: vi.fn(),
   listRecentSessions: vi.fn(),
   listSessions: vi.fn(),
   openSessionNoteState: vi.fn(),
@@ -83,6 +85,7 @@ describe('App workflows', () => {
     vi.clearAllMocks()
     ensureTestLocalStorage()
     window.localStorage.clear()
+    window.history.replaceState(null, '', '/')
     window.matchMedia = vi.fn().mockReturnValue({
       matches: true,
       addEventListener: vi.fn(),
@@ -98,7 +101,9 @@ describe('App workflows', () => {
     tauriMock.reopenSession.mockResolvedValue(sessionFixture())
     tauriMock.listEntries.mockResolvedValue([entryFixture()])
     tauriMock.listDrafts.mockResolvedValue([])
+    tauriMock.listDraftLibrary.mockResolvedValue([])
     tauriMock.listFindings.mockResolvedValue([])
+    tauriMock.listFindingLibrary.mockResolvedValue([])
     tauriMock.createEntry.mockResolvedValue(entryFixture())
     tauriMock.createSession.mockResolvedValue(sessionFixture({ id: 'session-2', title: 'Untitled session 2' }))
     tauriMock.updateSession.mockImplementation(async (_id: string, patch: { title?: string | null }) => sessionFixture({ title: patch.title ?? 'Checkout session' }))
@@ -123,12 +128,25 @@ describe('App workflows', () => {
   it('boots the first Session from bounded Session Note state', async () => {
     render(<App />)
 
-    await waitFor(() => expect(screen.getByDisplayValue('Checkout session')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Session title' })).toHaveValue('Checkout session'))
 
     expect(tauriMock.listRecentSessions).toHaveBeenCalledWith(50)
     expect(tauriMock.openSessionNoteState).toHaveBeenCalledWith('session-1')
     expect(tauriMock.listEntries).not.toHaveBeenCalled()
     expect(tauriMock.createEntry).not.toHaveBeenCalled()
+  })
+
+  it('keeps the full Session title available when the sidebar visually clamps it', async () => {
+    const title = 'Checkout validation across a deliberately long multi-step payment journey'
+    const session = sessionFixture({ title })
+    tauriMock.listRecentSessions.mockResolvedValueOnce([session])
+    tauriMock.openSessionNoteState.mockResolvedValueOnce(sessionNoteStateFixture({ session }))
+
+    render(<App />)
+
+    const sidebarTitle = await screen.findByText(title, { selector: '.session-picker-title' })
+    expect(sidebarTitle).toHaveAttribute('title', title)
+    expect(sidebarTitle.closest('[role="option"]')).toHaveAccessibleName(expect.stringContaining(title))
   })
 
   it('opens the first Session before provider status resolves', async () => {
@@ -140,7 +158,7 @@ describe('App workflows', () => {
     )
     render(<App />)
 
-    await screen.findByDisplayValue('Checkout session')
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Session title' })).toHaveValue('Checkout session'))
     const generateButton = screen.getByRole('button', { name: /generate test cases/i })
     expect(generateButton).toBeDisabled()
 
@@ -154,7 +172,7 @@ describe('App workflows', () => {
     tauriMock.listSessions.mockResolvedValueOnce([sessionFixture()]).mockResolvedValueOnce([sessionFixture({ id: 'session-2', title: 'Untitled session 2' })])
     render(<App />)
 
-    await screen.findByDisplayValue('Checkout session')
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Session title' })).toHaveValue('Checkout session'))
     await user.click(screen.getByRole('button', { name: /^new session$/i }))
 
     await waitFor(() => expect(tauriMock.createSession).toHaveBeenCalledWith({ title: 'Untitled session 1', sessionContext: null, objectiveNotes: null }))
@@ -174,7 +192,7 @@ describe('App workflows', () => {
     const user = userEvent.setup()
     render(<App />)
 
-    await screen.findByDisplayValue('Checkout session')
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Session title' })).toHaveValue('Checkout session'))
     await user.click(screen.getByRole('button', { name: /generate test cases/i }))
     const dialog = screen.getByRole('dialog', { name: /generate test cases/i })
     expect(dialog).toBeInTheDocument()
@@ -211,7 +229,7 @@ describe('App workflows', () => {
     const user = userEvent.setup()
     render(<App />)
 
-    await screen.findByDisplayValue('Checkout session')
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Session title' })).toHaveValue('Checkout session'))
     await user.click(screen.getByRole('button', { name: /generate test cases/i }))
     const dialog = screen.getByRole('dialog', { name: /generate test cases/i })
     await user.click(within(dialog).getByRole('button', { name: /boundaries/i }))
@@ -310,9 +328,10 @@ describe('App workflows', () => {
     )
     render(<App />)
 
-    await screen.findByDisplayValue('Alpha session')
-    const alphaOption = screen.getByRole('option', { name: /alpha session/i })
-    const betaOption = screen.getByRole('option', { name: /beta session/i })
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Session title' })).toHaveValue('Alpha session'))
+    const sessionListbox = screen.getByRole('listbox', { name: 'Sessions' })
+    const alphaOption = within(sessionListbox).getByRole('option', { name: /alpha session/i })
+    const betaOption = within(sessionListbox).getByRole('option', { name: /beta session/i })
 
     alphaOption.focus()
     await user.keyboard('{ArrowDown}')
@@ -321,15 +340,15 @@ describe('App workflows', () => {
     await user.keyboard('{Enter}')
 
     await waitFor(() => expect(tauriMock.openSessionNoteState).toHaveBeenLastCalledWith('session-2'))
-    expect(await screen.findByDisplayValue('Beta session')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Session title' })).toHaveValue('Beta session'))
   })
 
   it('creates manual testware after saving pending note edits', async () => {
     const user = userEvent.setup()
     render(<App />)
 
-    await screen.findByDisplayValue('Checkout session')
-    await user.click(screen.getByRole('button', { name: /testware/i }))
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Session title' })).toHaveValue('Checkout session'))
+    await user.click(screen.getByRole('tab', { name: /testware/i }))
     await user.click(screen.getByRole('button', { name: /new testware/i }))
 
     await waitFor(() => expect(tauriMock.createDraft).toHaveBeenCalled())
@@ -339,6 +358,66 @@ describe('App workflows', () => {
       kind: 'testware',
       metadataJson: null,
     })
+  })
+
+  it('opens the command palette from the keyboard and runs its canonical navigation command', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Session title' })).toHaveValue('Checkout session'))
+    await user.keyboard('{Control>}k{/Control}')
+
+    const palette = screen.getByRole('dialog', { name: 'Command palette' })
+    await user.type(within(palette).getByRole('searchbox'), 'session findings')
+    await user.click(within(palette).getByRole('option', { name: /open session findings/i }))
+
+    expect(screen.getByRole('tab', { name: /findings/i })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.queryByRole('dialog', { name: 'Command palette' })).not.toBeInTheDocument()
+  })
+
+  it('hydrates a record deep link outside the recent Session set and follows history navigation', async () => {
+    const secondSession = sessionFixture({ id: 'session-2', title: 'Account recovery' })
+    const linkedFinding = findingFixture({ id: 'finding-2', sessionId: 'session-2', title: 'Reset email delayed' })
+    window.history.replaceState(null, '', '#/sessions/session-2/findings/finding-2')
+    tauriMock.reopenSession.mockResolvedValue(secondSession)
+    tauriMock.openSessionNoteState.mockImplementation(async (id: string) => sessionNoteStateFixture({
+      session: id === 'session-2' ? secondSession : sessionFixture(),
+      noteEntry: entryFixture({ sessionId: id }),
+      findingCount: id === 'session-2' ? 1 : 0,
+    }))
+    tauriMock.listFindings.mockImplementation(async (id: string) => id === 'session-2' ? [linkedFinding] : [])
+    render(<App />)
+
+    await waitFor(() => expect(screen.getByRole('tab', { name: /findings/i })).toHaveAttribute('aria-selected', 'true'))
+    expect(screen.getByLabelText('Current search scope')).toHaveTextContent('Account recovery')
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Reset email delayed' })).toBeInTheDocument())
+    expect(window.location.hash).toBe('#/sessions/session-2/findings/finding-2')
+
+    window.history.pushState(null, '', '#/libraries/testware')
+    window.dispatchEvent(new HashChangeEvent('hashchange'))
+    expect(await screen.findByRole('heading', { name: 'Testware library' })).toBeInTheDocument()
+  })
+
+  it('deep-links directly to the AI execution Settings section', async () => {
+    window.history.replaceState(null, '', '#/settings/ai-execution-settings')
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Generation defaults' })).toBeInTheDocument()
+    await waitFor(() => expect(document.getElementById('ai-execution-settings')).toHaveFocus())
+    expect(window.location.hash).toBe('#/settings/ai-execution-settings')
+  })
+
+  it('returns from Settings to the workspace view that opened it', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Session title' })).toHaveValue('Checkout session'))
+    await user.click(screen.getByRole('tab', { name: /findings/i }))
+    await user.click(screen.getByRole('button', { name: 'Settings' }))
+    expect(await screen.findByRole('heading', { name: 'Preferences' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Back' }))
+    expect(screen.getByRole('tab', { name: /findings/i })).toHaveAttribute('aria-selected', 'true')
   })
 })
 

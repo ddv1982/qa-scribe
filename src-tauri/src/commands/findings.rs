@@ -1,4 +1,7 @@
-use qa_scribe_core::domain::{Finding, FindingDraft, FindingPatch};
+use qa_scribe_core::{
+    domain::{Finding, FindingDraft, FindingLibraryItem, FindingPatch},
+    services::SessionService,
+};
 use tauri::State;
 
 use crate::{commands::CommandError, settings::AppState};
@@ -19,6 +22,14 @@ pub fn list_findings(
     session_id: String,
 ) -> Result<Vec<Finding>, CommandError> {
     state.with_service(|service| service.list_findings(&session_id))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn list_finding_library(
+    state: State<'_, AppState>,
+) -> Result<Vec<FindingLibraryItem>, CommandError> {
+    state.with_service(SessionService::list_finding_library)
 }
 
 #[tauri::command]

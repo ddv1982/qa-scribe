@@ -6,8 +6,8 @@ const tauriMock = vi.hoisted(() => ({
   cancelAiActionJob: vi.fn(), getAiActionJobStatus: vi.fn(), listActiveAiActionJobs: vi.fn(),
   createDraft: vi.fn(), createEntry: vi.fn(), createFinding: vi.fn(), createSession: vi.fn(),
   deleteDraft: vi.fn(), deleteFinding: vi.fn(), deleteSession: vi.fn(), getProviderStatus: vi.fn(),
-  getSettings: vi.fn(), importClipboardScreenshot: vi.fn(), listDrafts: vi.fn(), listEntries: vi.fn(),
-  listFindings: vi.fn(), listRecentSessions: vi.fn(), listSessions: vi.fn(), openSessionNoteState: vi.fn(),
+  getSettings: vi.fn(), importClipboardScreenshot: vi.fn(), listDraftLibrary: vi.fn(), listDrafts: vi.fn(), listEntries: vi.fn(),
+  listFindingLibrary: vi.fn(), listFindings: vi.fn(), listRecentSessions: vi.fn(), listSessions: vi.fn(), openSessionNoteState: vi.fn(),
   reopenSession: vi.fn(), refreshProviderStatus: vi.fn(), startAiActionJob: vi.fn(), updateDraft: vi.fn(),
   updateEntry: vi.fn(), updateFinding: vi.fn(), updateSession: vi.fn(), updateSettings: vi.fn(),
   EDITOR_HTML_TAGS: ['a', 'b', 'br', 'em', 'h2', 'h3', 'i', 'img', 'input', 'li', 'ol', 'p', 'strong', 'ul'],
@@ -58,6 +58,7 @@ export function setupControllerTest() {
   tauriWindowMock.reset()
   ensureTestLocalStorage()
   window.localStorage.clear()
+  window.history.replaceState(null, '', '/')
   window.matchMedia = vi.fn().mockReturnValue({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() })
 
   tauriMock.getSettings.mockResolvedValue(settingsFixture())
@@ -71,7 +72,9 @@ export function setupControllerTest() {
   tauriMock.reopenSession.mockResolvedValue(sessionFixture())
   tauriMock.listEntries.mockResolvedValue([entryFixture()])
   tauriMock.listDrafts.mockResolvedValue([])
+  tauriMock.listDraftLibrary.mockResolvedValue([])
   tauriMock.listFindings.mockResolvedValue([])
+  tauriMock.listFindingLibrary.mockResolvedValue([])
   tauriMock.createEntry.mockResolvedValue(entryFixture())
   tauriMock.createSession.mockResolvedValue(sessionFixture({ id: 'session-2', title: 'Untitled session 2' }))
   tauriMock.updateSession.mockImplementation(async (_id: string, patch: { title?: string | null }) => sessionFixture({ title: patch.title ?? 'Checkout session' }))

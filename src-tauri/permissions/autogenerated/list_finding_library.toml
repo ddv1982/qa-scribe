@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-list-finding-library"
+description = "Enables the list_finding_library command without any pre-configured scope."
+commands.allow = ["list_finding_library"]
+
+[[permission]]
+identifier = "deny-list-finding-library"
+description = "Denies the list_finding_library command without any pre-configured scope."
+commands.deny = ["list_finding_library"]

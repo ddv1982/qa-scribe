@@ -1,4 +1,4 @@
-import { Box, CheckCircle2, ChevronDown, Copy, FileText, Flag, Image as ImageIcon, Loader2, Sparkles, Trash2, Undo2 } from 'lucide-react'
+import { Box, CheckCircle2, Copy, FileText, Flag, Image as ImageIcon, Loader2, Settings2, Sparkles, Trash2, Undo2 } from 'lucide-react'
 import { ProviderGlyph } from '../components/ModelSelector'
 import { FormatToolbar, RichTextEditor, type RichEditorImageUpload } from '../editor/RichTextEditor'
 import type { AiProvider, GenerateAiActionKind, ProviderStatus, Session } from '../tauri'
@@ -7,6 +7,7 @@ import { StatusPill } from '../components/Common'
 import type { BusyAction } from '../ui/types'
 import type { PendingAiActions } from '../ui/types'
 import { statusLabel } from '../ui/format'
+import { originSummary, type EffectiveAiSelection } from '../settings/defaults'
 
 export function SessionEditorView({
   activeProviderAvailable,
@@ -27,7 +28,9 @@ export function SessionEditorView({
   pendingAiActions,
   selectedProvider,
   selectedModel,
+  effectiveSelection,
   activeProvider,
+  onConfigureAi,
   onAiAction,
   onUndoLatestGeneration,
   onCopyNote,
@@ -56,7 +59,9 @@ export function SessionEditorView({
   pendingAiActions: PendingAiActions
   selectedProvider: AiProvider
   selectedModel: string
+  effectiveSelection?: EffectiveAiSelection | null
   activeProvider: ProviderStatus['providers'][number] | null
+  onConfigureAi?: () => void
   onAiAction: (action: GenerateAiActionKind) => Promise<void>
   onUndoLatestGeneration: () => Promise<void>
   onCopyNote: () => Promise<void>
@@ -84,7 +89,11 @@ export function SessionEditorView({
   const selectedModelLabel = activeProvider?.models.find((model) => model.id === (selectedModel.trim() || 'default'))?.label ?? (selectedModel.trim() || 'Provider default')
   const selectedProviderLabel = activeProvider?.label ?? selectedProvider
   const providerReadinessLabel = activeProvider ? (activeProvider.available ? 'Ready' : statusLabel(activeProvider.status)) : 'Loading'
-  const providerSummaryLabel = `AI default: ${selectedProviderLabel}, ${selectedModelLabel}, ${providerReadinessLabel}`
+  const effectiveModelLabel = effectiveSelection?.model ?? selectedModelLabel
+  const effectiveReasoningLabel = effectiveSelection?.reasoning ?? 'CLI default'
+  const effectiveOrigin = originSummary(effectiveSelection?.modelOrigin ?? null)
+  const selectionModeLabel = effectiveSelection?.delegatesModel === false ? 'QA Scribe override' : 'CLI default'
+  const providerSummaryLabel = `AI execution: ${selectedProviderLabel}, ${selectionModeLabel} ${effectiveModelLabel}, reasoning ${effectiveReasoningLabel}${effectiveOrigin ? ` from ${effectiveOrigin}` : ''}, ${providerReadinessLabel}`
 
   if (!activeSession) {
     return (
@@ -110,12 +119,7 @@ export function SessionEditorView({
   return (
     <div className="session-workspace">
       <header className="document-topline">
-        <div className="breadcrumb">
-          <FileText size={18} />
-          <span>All Sessions</span>
-          <ChevronDown size={14} />
-          <strong>{activeSession.title}</strong>
-        </div>
+        <p className="document-mode"><FileText size={16} /> Session note</p>
         <div className="document-actions">
           {canUndoLatestGeneration ? (
             <button className="secondary-button compact-button" type="button" disabled={isBusy} onClick={() => void onUndoLatestGeneration()}>
@@ -174,15 +178,28 @@ export function SessionEditorView({
       </section>
 
       <footer className="bottom-command-bar" aria-label="AI note actions">
-        <div className={activeProvider?.available ? 'ai-provider-summary ready' : 'ai-provider-summary'} aria-label={providerSummaryLabel} title={activeProvider?.reason}>
-          <ProviderGlyph provider={selectedProvider} />
-          <div>
-            <span>AI default</span>
-            <strong>{selectedProviderLabel}</strong>
+        <div className={activeProvider?.available ? 'ai-provider-summary ready' : 'ai-provider-summary'} aria-label={providerSummaryLabel} title={providerSummaryLabel}>
+          <span className="ai-provider-icon"><ProviderGlyph provider={selectedProvider} /></span>
+          <div className="ai-provider-selection">
+            <div className="ai-provider-value">
+              <strong>{effectiveModelLabel}</strong>
+              <span className="ai-selection-mode">{selectionModeLabel}</span>
+              <span className={activeProvider?.available ? 'ai-provider-state ready' : 'ai-provider-state'}>
+                <span className={activeProvider?.available ? 'status-dot ready' : 'status-dot unavailable'} />
+                {providerReadinessLabel}
+              </span>
+            </div>
+            <div className="ai-provider-meta">
+              <span>{selectedProviderLabel}</span>
+              <span>Reasoning {effectiveReasoningLabel}</span>
+            </div>
+            {!activeProvider?.available ? <p>{activeProvider ? activeProvider.reason : 'Loading provider status'}</p> : null}
           </div>
-          <span className="ai-provider-model">{selectedModelLabel}</span>
-          <span className={activeProvider?.available ? 'ai-provider-state ready' : 'ai-provider-state'}>{providerReadinessLabel}</span>
-          {!activeProvider?.available ? <p>{activeProvider ? activeProvider.reason : 'Loading provider status'}</p> : null}
+          {onConfigureAi ? (
+            <button className="ai-configure-button" type="button" aria-label="Configure AI execution" title="Configure AI execution" onClick={onConfigureAi}>
+              <Settings2 size={15} />
+            </button>
+          ) : null}
         </div>
         <div className="ai-action-buttons">
           <button className="secondary-button" type="button" disabled={isBusy || testwarePending || !noteIsReady || !activeProviderAvailable} onClick={() => void onAiAction('testware')}>

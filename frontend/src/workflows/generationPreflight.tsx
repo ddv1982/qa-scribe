@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { GenerateAiActionKind, TestwareDepth, TestwareGenerationPreferences, TestwareOutputFormat } from '../tauri'
+import type { GenerateAiActionKind, ProviderDefaultOrigin, TestwareDepth, TestwareGenerationPreferences, TestwareOutputFormat } from '../tauri'
 import { useModalDialog } from '../hooks/useModalDialog'
 import {
   defaultTestwareGenerationPreferences,
@@ -7,6 +7,7 @@ import {
   testwareOutputFormatOptions,
   testwareTechniquePresets,
 } from '../testware/generationPreferences'
+import { originSummary } from '../settings/defaults'
 
 export function GenerationPreflight({
   action,
@@ -18,7 +19,15 @@ export function GenerationPreflight({
   noteWordCount,
   selectedModel,
   selectedReasoning = null,
+  modelOrigin = null,
+  reasoningOrigin = null,
+  delegatesModel = false,
+  delegatesReasoning = false,
+  executionSummary,
+  checkedAt = null,
   selectionWarning = null,
+  selectionAdvisories = [],
+  onConfigureAi,
   onCancel,
   onConfirm,
 }: {
@@ -31,7 +40,15 @@ export function GenerationPreflight({
   noteWordCount: number
   selectedModel: string
   selectedReasoning?: string | null
+  modelOrigin?: ProviderDefaultOrigin | null
+  reasoningOrigin?: ProviderDefaultOrigin | null
+  delegatesModel?: boolean
+  delegatesReasoning?: boolean
+  executionSummary?: string
+  checkedAt?: string | null
   selectionWarning?: string | null
+  selectionAdvisories?: string[]
+  onConfigureAi?: () => void
   onCancel: () => void
   onConfirm: (testwarePreferences?: TestwareGenerationPreferences) => void
 }) {
@@ -70,14 +87,22 @@ export function GenerationPreflight({
         </div>
         <div>
           <dt>Model</dt>
-          <dd>{selectedModel}</dd>
+          <dd>
+            {selectedModel} {delegatesModel ? <small>CLI default</small> : <small>QA Scribe override</small>}
+            {modelOrigin ? <span>{originSummary(modelOrigin)}</span> : null}
+          </dd>
         </div>
         <div>
           <dt>Reasoning</dt>
-          <dd>{selectedReasoning ?? 'Provider default'}</dd>
+          <dd>
+            {selectedReasoning ?? 'CLI resolves at run time'} {delegatesReasoning ? <small>CLI default</small> : <small>QA Scribe override</small>}
+            {reasoningOrigin ? <span>{originSummary(reasoningOrigin)}</span> : null}
+          </dd>
         </div>
       </dl>
-      {selectionWarning ? <p role="alert">{selectionWarning}</p> : null}
+      {executionSummary ? <p className="preflight-execution-summary">{executionSummary}{checkedAt ? ` Last checked ${formatCheckedAt(checkedAt)}.` : ''}</p> : null}
+      {selectionWarning ? <p className="inline-message blocking" role="alert">{selectionWarning}</p> : null}
+      {selectionAdvisories.map((advisory) => <p className="inline-message advisory" role="status" key={advisory}>{advisory}</p>)}
       {isTestware ? (
         <div className="preflight-testware-options">
           <fieldset className="preflight-fieldset">
@@ -177,6 +202,7 @@ export function GenerationPreflight({
         </div>
       ) : null}
       <div className="confirmation-actions">
+        {onConfigureAi ? <button className="text-button" type="button" disabled={isBusy} onClick={onConfigureAi}>Configure AI execution…</button> : null}
         <button className="secondary-button" type="button" disabled={isBusy} onClick={onCancel}>
           Cancel
         </button>
@@ -191,6 +217,12 @@ export function GenerationPreflight({
       </div>
     </dialog>
   )
+}
+
+function formatCheckedAt(value: string): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
 }
 
 function generationPreflightCopy(action: GenerateAiActionKind) {

@@ -133,6 +133,61 @@ fn deleting_finding_removes_evidence_links_but_keeps_entries() {
     ));
 }
 
+#[test]
+fn cross_session_libraries_include_session_provenance() {
+    let service = SessionService::in_memory().expect("in-memory service should open");
+    let first = service
+        .create_session(SessionDraft {
+            title: "Checkout exploratory".to_string(),
+            ..SessionDraft::default()
+        })
+        .expect("first Session should be created");
+    let second = service
+        .create_session(SessionDraft {
+            title: "Account recovery".to_string(),
+            ..SessionDraft::default()
+        })
+        .expect("second Session should be created");
+
+    service
+        .create_draft(DraftCreate {
+            session_id: first.id.clone(),
+            ai_run_id: None,
+            kind: DraftKind::Testware,
+            title: "Checkout cases".to_string(),
+            body: "Verify a completed card payment.".to_string(),
+            body_json: None,
+            body_format: Some("html".to_string()),
+            metadata_json: None,
+        })
+        .expect("Draft should be created");
+    service
+        .create_finding(FindingDraft {
+            session_id: second.id.clone(),
+            title: "Reset email delayed".to_string(),
+            body: "The recovery email arrived after ten minutes.".to_string(),
+            body_json: None,
+            body_format: Some("html".to_string()),
+            kind: FindingKind::Risk,
+            metadata_json: None,
+        })
+        .expect("Finding should be created");
+
+    let draft_library = service
+        .list_draft_library()
+        .expect("Draft library should list");
+    assert_eq!(draft_library.len(), 1);
+    assert_eq!(draft_library[0].draft.session_id, first.id);
+    assert_eq!(draft_library[0].session_title, "Checkout exploratory");
+
+    let finding_library = service
+        .list_finding_library()
+        .expect("Finding library should list");
+    assert_eq!(finding_library.len(), 1);
+    assert_eq!(finding_library[0].finding.session_id, second.id);
+    assert_eq!(finding_library[0].session_title, "Account recovery");
+}
+
 
 #[test]
 fn evidence_links_must_stay_within_one_session() {

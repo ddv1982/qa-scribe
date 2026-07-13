@@ -49,6 +49,8 @@ export type RecordWorkspace = {
   dirtyFindingIdsRef: MutableRefObject<Set<string>>
   draftsRef: MutableRefObject<Draft[]>
   findingsRef: MutableRefObject<Finding[]>
+  savedDraftsRef: MutableRefObject<Draft[]>
+  savedFindingsRef: MutableRefObject<Finding[]>
   setDrafts: Dispatch<SetStateAction<Draft[]>>
   setFindings: Dispatch<SetStateAction<Finding[]>>
   setTestwareDraftCount: Dispatch<SetStateAction<number>>
