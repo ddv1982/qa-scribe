@@ -20,7 +20,7 @@ describe('useAppController autosave and close protection', () => {
     })
 
     // Switch before the 850ms body debounce would have fired.
-    const otherSession = sessionFixture({ id: 'session-2', title: 'Other note' })
+    const otherSession = sessionFixture({ id: 'session-2', title: 'Other session' })
     tauriMock.openSessionNoteState.mockResolvedValueOnce(
       sessionNoteStateFixture({
         session: otherSession,
@@ -38,7 +38,7 @@ describe('useAppController autosave and close protection', () => {
     )
   })
 
-  it('does not switch notes when the flush of a pending edit fails', async () => {
+  it('does not switch sessions when the flush of a pending edit fails', async () => {
     const { result } = renderHook(() => useAppController())
 
     await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
@@ -48,7 +48,7 @@ describe('useAppController autosave and close protection', () => {
     })
 
     tauriMock.updateEntry.mockRejectedValueOnce(new Error('offline'))
-    const otherSession = sessionFixture({ id: 'session-2', title: 'Other note' })
+    const otherSession = sessionFixture({ id: 'session-2', title: 'Other session' })
 
     await act(async () => {
       await result.current.openSession(otherSession)
@@ -79,7 +79,7 @@ describe('useAppController autosave and close protection', () => {
           rejectForcedSave = reject
         }),
       )
-      const otherSession = sessionFixture({ id: 'session-2', title: 'Other note' })
+      const otherSession = sessionFixture({ id: 'session-2', title: 'Other session' })
 
       let openPromise!: Promise<void>
       act(() => {
@@ -109,13 +109,13 @@ describe('useAppController autosave and close protection', () => {
     }
   })
 
-  it('flushes a pending body edit before creating a new note', async () => {
+  it('flushes a pending body edit before creating a new session', async () => {
     const { result } = renderHook(() => useAppController())
 
     await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
 
     act(() => {
-      result.current.setNoteBody(richEditorDocumentFromPlainText('typed before new note'))
+      result.current.setNoteBody(richEditorDocumentFromPlainText('typed before new session'))
     })
 
     await act(async () => {
@@ -124,7 +124,7 @@ describe('useAppController autosave and close protection', () => {
 
     expect(tauriMock.updateEntry).toHaveBeenCalledWith(
       'entry-1',
-      expect.objectContaining({ body: expect.stringContaining('typed before new note') }),
+      expect.objectContaining({ body: expect.stringContaining('typed before new session') }),
     )
   })
 
@@ -155,7 +155,7 @@ describe('useAppController autosave and close protection', () => {
       result.current.updateLocalFinding('finding-dirty', { body: '<p>Unsaved finding edit.</p>' })
     })
 
-    const otherSession = sessionFixture({ id: 'session-2', title: 'Other note' })
+    const otherSession = sessionFixture({ id: 'session-2', title: 'Other session' })
     tauriMock.openSessionNoteState.mockResolvedValueOnce(
       sessionNoteStateFixture({
         session: otherSession,
@@ -173,7 +173,7 @@ describe('useAppController autosave and close protection', () => {
     expect(result.current.activeSession?.id).toBe('session-2')
   })
 
-  it('does not switch notes when a dirty record flush fails', async () => {
+  it('does not switch sessions when a dirty record flush fails', async () => {
     tauriMock.openSessionNoteState.mockResolvedValueOnce(
       sessionNoteStateFixture({
         testwareDraftCount: 1,
@@ -194,7 +194,7 @@ describe('useAppController autosave and close protection', () => {
     })
     tauriMock.updateDraft.mockRejectedValueOnce(new Error('offline'))
 
-    const otherSession = sessionFixture({ id: 'session-2', title: 'Other note' })
+    const otherSession = sessionFixture({ id: 'session-2', title: 'Other session' })
     await act(async () => {
       await result.current.openSession(otherSession)
     })
@@ -210,10 +210,10 @@ describe('useAppController autosave and close protection', () => {
     await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
 
     act(() => {
-      result.current.setNoteTitle('Renamed before switch')
+      result.current.setSessionTitle('Renamed before switch')
     })
 
-    const otherSession = sessionFixture({ id: 'session-2', title: 'Other note' })
+    const otherSession = sessionFixture({ id: 'session-2', title: 'Other session' })
     tauriMock.openSessionNoteState.mockResolvedValueOnce(
       sessionNoteStateFixture({
         session: otherSession,
@@ -248,10 +248,10 @@ describe('useAppController autosave and close protection', () => {
 
       expect(tauriMock.deleteSession).toHaveBeenCalledWith('session-1')
 
-      // If active-note state (or the guard) were cleared incorrectly, a leftover
+      // If active-Session state (or the guard) were cleared incorrectly, a leftover
       // title/body debounce could still fire an autosave against the deleted session.
       act(() => {
-        result.current.setNoteTitle('Edit after failed refresh')
+        result.current.setSessionTitle('Edit after failed refresh')
         result.current.setNoteBody(richEditorDocumentFromPlainText('Body edit after failed refresh'))
       })
 
@@ -346,7 +346,7 @@ describe('useAppController autosave and close protection', () => {
         rejectForcedSave = reject
       }),
     )
-    const otherSession = sessionFixture({ id: 'session-2', title: 'Other note' })
+    const otherSession = sessionFixture({ id: 'session-2', title: 'Other session' })
 
     let openPromise!: Promise<void>
     act(() => {

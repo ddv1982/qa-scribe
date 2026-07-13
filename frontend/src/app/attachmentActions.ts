@@ -15,7 +15,8 @@ import {
 import type { RichEditorImageUpload } from '../editor/RichTextEditor'
 import { richEditorImageInserterForElement, type RichEditorImageInserter } from '../editor/richEditorRegistry'
 import { formatError } from '../ui/format'
-import type { AppWorkflowContext } from './types'
+import type { SessionWorkspace, WorkflowFeedback } from './types'
+import { useStableCapability } from './useStableCapability'
 
 const imageFilenamePattern = /\.(?:png|jpe?g|gif|webp|bmp|tiff?|heic|heif)$/i
 
@@ -39,7 +40,12 @@ export function shouldReadNativeClipboardImage(clipboardData: DataTransfer): boo
   return !clipboardHasTextData(clipboardData) && clipboardHasNoDomPayload(clipboardData)
 }
 
-export function createAttachmentActions(ctx: AppWorkflowContext) {
+export type AttachmentActionsContext = {
+  session: Pick<SessionWorkspace, 'activeSession' | 'noteEntry' | 'setNoteBody'>
+  feedback: WorkflowFeedback
+}
+
+export function createAttachmentActions(ctx: AttachmentActionsContext) {
   function handlePaste(event: ClipboardEvent<HTMLElement>) {
     const target = event.target as HTMLElement | null
     const editor = target?.closest<HTMLElement>('.rich-editor')
@@ -62,88 +68,88 @@ export function createAttachmentActions(ctx: AppWorkflowContext) {
   }
 
   async function importPastedImage(file: File, insertImage: RichEditorImageInserter) {
-    if (!ctx.activeSession || !ctx.noteEntry) {
-      ctx.setError('Open a note before pasting images.')
+    if (!ctx.session.activeSession || !ctx.session.noteEntry) {
+      ctx.feedback.setError('Open a Session before pasting images.')
       return
     }
 
     try {
-      ctx.setBusyAction('attach-image')
-      ctx.setError(null)
+      ctx.feedback.setBusyAction('attach-image')
+      ctx.feedback.setError(null)
       const dataUrl = await readFileAsDataUrl(file)
       const filename = pastedImageFilename(file)
       const attachment = await importClipboardScreenshot({
-        sessionId: ctx.activeSession.id,
-        entryId: ctx.noteEntry.id,
+        sessionId: ctx.session.activeSession.id,
+        entryId: ctx.session.noteEntry.id,
         filename,
         dataUrl,
       })
       insertImage(attachment.id, attachment.filename, dataUrl)
-      ctx.setNotice('Image attached')
+      ctx.feedback.setNotice('Image attached')
     } catch (cause) {
-      ctx.setError(formatError(cause))
+      ctx.feedback.setError(formatError(cause))
     } finally {
-      ctx.setBusyAction(null)
+      ctx.feedback.setBusyAction(null)
     }
   }
 
   async function importNativeClipboardImage(insertImage: RichEditorImageInserter) {
-    if (!ctx.activeSession || !ctx.noteEntry) {
-      ctx.setError('Open a note before pasting images.')
+    if (!ctx.session.activeSession || !ctx.session.noteEntry) {
+      ctx.feedback.setError('Open a Session before pasting images.')
       return
     }
 
     try {
-      ctx.setBusyAction('attach-image')
-      ctx.setError(null)
+      ctx.feedback.setBusyAction('attach-image')
+      ctx.feedback.setError(null)
       const dataUrl = await readClipboardImageDataUrl()
       if (!dataUrl) {
-        ctx.setError('Clipboard image could not be read.')
+        ctx.feedback.setError('Clipboard image could not be read.')
         return
       }
       const attachment = await importClipboardScreenshot({
-        sessionId: ctx.activeSession.id,
-        entryId: ctx.noteEntry.id,
+        sessionId: ctx.session.activeSession.id,
+        entryId: ctx.session.noteEntry.id,
         filename: `pasted-image-${Date.now()}.png`,
         dataUrl,
       })
       insertImage(attachment.id, attachment.filename, dataUrl)
-      ctx.setNotice('Image attached')
+      ctx.feedback.setNotice('Image attached')
     } catch (cause) {
-      ctx.setError(formatError(cause))
+      ctx.feedback.setError(formatError(cause))
     } finally {
-      ctx.setBusyAction(null)
+      ctx.feedback.setBusyAction(null)
     }
   }
 
   async function uploadEditorImage({ file, insertImage }: RichEditorImageUpload, entryId: string | null) {
-    if (!ctx.activeSession) {
-      ctx.setError('Open a note before uploading images.')
+    if (!ctx.session.activeSession) {
+      ctx.feedback.setError('Open a Session before uploading images.')
       return
     }
 
-    if (entryId && !ctx.noteEntry) {
-      ctx.setError('Open an editable note before uploading note images.')
+    if (entryId && !ctx.session.noteEntry) {
+      ctx.feedback.setError('Open a Session with an editable Note Entry before uploading images.')
       return
     }
 
     try {
-      ctx.setBusyAction('attach-image')
-      ctx.setError(null)
+      ctx.feedback.setBusyAction('attach-image')
+      ctx.feedback.setError(null)
       const dataUrl = await readFileAsDataUrl(file)
       const filename = pastedImageFilename(file)
       const attachment = await importClipboardScreenshot({
-        sessionId: ctx.activeSession.id,
+        sessionId: ctx.session.activeSession.id,
         entryId,
         filename,
         dataUrl,
       })
       insertImage(attachment.id, attachment.filename, dataUrl)
-      ctx.setNotice('Image attached')
+      ctx.feedback.setNotice('Image attached')
     } catch (cause) {
-      ctx.setError(formatError(cause))
+      ctx.feedback.setError(formatError(cause))
     } finally {
-      ctx.setBusyAction(null)
+      ctx.feedback.setBusyAction(null)
     }
   }
 
@@ -156,13 +162,13 @@ export function createAttachmentActions(ctx: AppWorkflowContext) {
       return document
     }
 
-    if (!ctx.activeSession) {
-      throw new Error('Open a note before storing embedded images.')
+    if (!ctx.session.activeSession) {
+      throw new Error('Open a Session before storing embedded images.')
     }
 
-    const entryId = Object.prototype.hasOwnProperty.call(options, 'entryId') ? options.entryId : ctx.noteEntry?.id
+    const entryId = Object.prototype.hasOwnProperty.call(options, 'entryId') ? options.entryId : ctx.session.noteEntry?.id
     if (entryId === undefined) {
-      throw new Error('Open an editable note before storing embedded note images.')
+      throw new Error('Open a Session with an editable Note Entry before storing embedded images.')
     }
 
     const documentFragment = new DOMParser().parseFromString(html, 'text/html')
@@ -177,7 +183,7 @@ export function createAttachmentActions(ctx: AppWorkflowContext) {
 
       const filename = inlineImageFilename(image, index, dataUrl)
       const attachment = await importClipboardScreenshot({
-        sessionId: ctx.activeSession.id,
+        sessionId: ctx.session.activeSession.id,
         entryId,
         filename,
         dataUrl,
@@ -189,11 +195,15 @@ export function createAttachmentActions(ctx: AppWorkflowContext) {
     }
 
     const body = richEditorDocumentFromHtml(documentFragment.body.innerHTML)
-    if (options.updateNoteBody) ctx.setNoteBody(body)
+    if (options.updateNoteBody) ctx.session.setNoteBody(body)
     return body
   }
 
   return { handlePaste, materializeInlineImages, uploadEditorImage }
+}
+
+export function useAttachmentActions(ctx: AttachmentActionsContext) {
+  return useStableCapability(ctx, createAttachmentActions)
 }
 
 function fileLooksLikeImage(file: File): boolean {

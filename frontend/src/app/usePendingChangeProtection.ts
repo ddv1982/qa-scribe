@@ -5,7 +5,7 @@ import { serializeRichEditorDocument, type RichEditorDocument } from '../editor/
 type UsePendingChangeProtectionOptions = {
   hasActiveSession: boolean
   hasNoteEntry: boolean
-  noteTitle: string
+  sessionTitle: string
   noteBody: RichEditorDocument
   savedTitleRef: MutableRefObject<string>
   savedBodyRef: MutableRefObject<string>
@@ -17,7 +17,7 @@ type UsePendingChangeProtectionOptions = {
 export function usePendingChangeProtection({
   hasActiveSession,
   hasNoteEntry,
-  noteTitle,
+  sessionTitle,
   noteBody,
   savedTitleRef,
   savedBodyRef,
@@ -34,10 +34,10 @@ export function usePendingChangeProtection({
   }, [savePendingChanges])
 
   useEffect(() => {
-    const titleDirty = Boolean(hasActiveSession && noteTitle.trim() && noteTitle.trim() !== savedTitleRef.current)
+    const titleDirty = Boolean(hasActiveSession && sessionTitle.trim() && sessionTitle.trim() !== savedTitleRef.current)
     const bodyDirty = Boolean(hasNoteEntry && serializeRichEditorDocument(noteBody) !== savedBodyRef.current)
     hasPendingNoteChangesRef.current = titleDirty || bodyDirty
-  }, [hasActiveSession, hasNoteEntry, noteTitle, noteBody, savedTitleRef, savedBodyRef])
+  }, [hasActiveSession, hasNoteEntry, sessionTitle, noteBody, savedTitleRef, savedBodyRef])
 
   const hasPendingChanges = useCallback(() => {
     return hasPendingNoteChangesRef.current || dirtyDraftIdsRef.current.size > 0 || dirtyFindingIdsRef.current.size > 0

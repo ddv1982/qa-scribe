@@ -13,8 +13,8 @@ import type { AppController } from './useAppController'
 
 export function AppShell(c: AppController) {
   const topAction =
-    c.activeView === 'notes'
-      ? { label: 'New note', busy: 'new-note' as const, run: () => void c.handleNewSession() }
+    c.activeView === 'sessions'
+      ? { label: 'New session', busy: 'new-session' as const, run: () => void c.handleNewSession() }
       : c.activeView === 'testware'
         ? { label: 'New testware', busy: 'manual-testware' as const, run: () => void c.handleManualTestware() }
         : c.activeView === 'findings'
@@ -22,7 +22,7 @@ export function AppShell(c: AppController) {
           : null
   const visibleSessions = c.filteredSessions.slice(0, 8)
 
-  function handleNoteOptionKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
+  function handleSessionOptionKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
     focusListboxOption(event)
   }
 
@@ -38,8 +38,8 @@ export function AppShell(c: AppController) {
 
         <label className="global-search">
           <Search size={17} />
-          <span className="sr-only">Search notes</span>
-          <input value={c.searchQuery} onChange={(event) => c.setSearchQuery(event.target.value)} placeholder="Search notes..." />
+          <span className="sr-only">Search sessions</span>
+          <input value={c.searchQuery} onChange={(event) => c.setSearchQuery(event.target.value)} placeholder="Search sessions..." />
         </label>
 
         <div className="top-actions">
@@ -55,36 +55,36 @@ export function AppShell(c: AppController) {
 
       <aside className="left-rail" aria-label="Workspace navigation">
         <nav className="section-nav" aria-label="Primary">
-          <RailItem icon={FileText} label="Notes" count={c.sessions.length} active={c.activeView === 'notes'} onClick={() => c.setActiveView('notes')} />
+          <RailItem icon={FileText} label="Sessions" count={c.sessions.length} active={c.activeView === 'sessions'} onClick={() => c.setActiveView('sessions')} />
           <RailItem icon={Box} label="Testware" count={c.testwareDraftCount} active={c.activeView === 'testware'} onClick={() => c.setActiveView('testware')} />
           <RailItem icon={Flag} label="Findings" count={c.findingCount} active={c.activeView === 'findings'} onClick={() => c.setActiveView('findings')} />
         </nav>
 
-        <section className="note-picker" aria-label="Choose note">
-          <p className="rail-heading">Choose note</p>
-          <div className="note-picker-list" role="listbox" aria-label="Notes">
+        <section className="session-picker" aria-label="Choose session">
+          <p className="rail-heading">Choose session</p>
+          <div className="session-picker-list" role="listbox" aria-label="Sessions">
             {visibleSessions.map((session) => (
               <button
                 key={session.id}
-                className={c.activeSession?.id === session.id ? 'note-picker-item active' : 'note-picker-item'}
+                className={c.activeSession?.id === session.id ? 'session-picker-item active' : 'session-picker-item'}
                 type="button"
                 role="option"
                 aria-selected={c.activeSession?.id === session.id}
                 disabled={c.isBusy && c.activeSession?.id !== session.id}
                 onClick={() => void c.openSession(session)}
-                onKeyDown={handleNoteOptionKeyDown}
+                onKeyDown={handleSessionOptionKeyDown}
               >
                 <span>{session.title}</span>
                 <small>{formatSessionDate(session.updatedAt)}</small>
               </button>
             ))}
-            {c.filteredSessions.length === 0 ? <p className="note-picker-empty">No matching notes</p> : null}
+            {c.filteredSessions.length === 0 ? <p className="session-picker-empty">No matching sessions</p> : null}
           </div>
-          {c.filteredSessions.length > 8 ? <p className="note-picker-more">Showing 8 of {c.filteredSessions.length}. Search to narrow.</p> : null}
+          {c.filteredSessions.length > 8 ? <p className="session-picker-more">Showing 8 of {c.filteredSessions.length}. Search to narrow.</p> : null}
           {!c.sessionLibraryComplete ? (
             <button className="secondary-button" type="button" disabled={c.isBusy} onClick={() => void c.handleLoadSessionLibrary()}>
               {c.busyAction === 'load-session-library' ? <Loader2 className="spin" size={16} /> : null}
-              Load all notes
+              Load all sessions
             </button>
           ) : null}
         </section>
@@ -96,7 +96,7 @@ export function AppShell(c: AppController) {
       </aside>
 
       <section className="center-workspace" aria-label="Workspace">
-        {c.activeView === 'notes' ? (
+        {c.activeView === 'sessions' ? (
           <SessionEditorView
             activeProviderAvailable={Boolean(c.activeProvider?.available)}
             activeSession={c.activeSession}
@@ -108,7 +108,7 @@ export function AppShell(c: AppController) {
             isBusy={c.isBusy}
             noteBody={c.noteBody}
             noteIsReady={c.noteIsReady}
-            noteTitle={c.noteTitle}
+            sessionTitle={c.sessionTitle}
             noteScreenshotCount={c.noteScreenshotCount}
             noteWordCount={c.noteWordCount}
             notice={c.notice}
@@ -130,10 +130,10 @@ export function AppShell(c: AppController) {
               c.setLatestNoteGenerationUndo(null)
               c.setNoteBody(value)
             }}
-            onSetNoteTitle={c.setNoteTitle}
+            onSetSessionTitle={c.setSessionTitle}
             onUploadImage={(input) => {
               if (!c.noteEntry) {
-                c.setError('Open an editable note before uploading note images.')
+                c.setError('Open a Session with an editable Note Entry before uploading images.')
                 return
               }
               return c.uploadEditorImage(input, c.noteEntry.id)
@@ -213,7 +213,7 @@ export function AppShell(c: AppController) {
         <GenerationPreflight
           action={c.pendingGenerationAction}
           isBusy={c.isBusy}
-          noteTitle={c.noteTitle}
+          sessionTitle={c.sessionTitle}
           noteWordCount={c.noteWordCount}
           noteScreenshotCount={c.noteScreenshotCount}
           activeProviderLabel={c.activeProvider?.label ?? c.selectedProvider}

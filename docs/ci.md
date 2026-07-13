@@ -4,9 +4,10 @@ The CI workflow is deliberately divided by responsibility:
 
 - **Quality gate (Linux)** is the authoritative repository gate. It runs the
   frontend and dependency audits, static checks, tests, release-script tests,
-  production build, Tauri contracts, Rust formatting, clippy, tests, build, and
-  smoke harness. This job always runs so changes cannot accidentally fall
-  outside a path filter.
+  production build, Tauri contracts, Rust formatting, clippy, tests, build,
+  smoke harness, a built-application WebdriverIO suite, and the deterministic
+  large-fixture startup budget. This job always runs so changes cannot
+  accidentally fall outside a path filter.
 - **Platform tests (macOS)** run native Rust tests and an Intel cross-compile
   when Rust, Tauri, frontend, icon, or workflow inputs change. Platform-neutral
   frontend checks and dependency audits are not repeated here.
@@ -41,6 +42,34 @@ uvx zizmor .github
 ```
 
 The shared validation gate runs both checks in CI and before tag releases.
+
+## Built-application and startup evidence
+
+The Linux quality and release-validation jobs install Xvfb and run the same
+shared built-app gate. `bun run e2e` uses an isolated temporary application-data
+directory and a deterministic local provider fixture; it does not use accounts,
+network calls, or user data. The gate restores the production frontend and
+reruns `bun run e2e:isolation` after the test binary completes.
+
+Every execution uploads a 90-day `qa-scribe-e2e-passed-*` or
+`qa-scribe-e2e-failed-*` marker containing its machine-readable metadata.
+Marker retention follows the E2E step outcome even when a later startup or
+quality step fails, so reliability evidence measures the built-app suite rather
+than the rest of the job.
+`bun run e2e:reliability:check` audits those markers and refuses platform
+promotion until the latest 20 runs all passed on attempt one. The audit pages
+past unrelated build/package artifacts until it finds those 20 distinct E2E
+runs or exhausts the retained artifact history. Full logs,
+screenshots, and startup reports are uploaded for 14 days when validation
+fails.
+
+The startup step reuses the E2E binary, creates the versioned synthetic fixture,
+and launches the app three times against the same database. It enforces the
+3-second first-paint budget on `ubuntu-24.04-github-x64`, proves initial Session
+hydration remains bounded, rejects an automatic Deep provider refresh, and
+records production JavaScript raw/gzip sizes. E2E and startup measurements are
+also written to the GitHub job summary, together with observational p50/p95
+latency for an edit in the large active Note Entry.
 
 ## Release privilege boundaries
 

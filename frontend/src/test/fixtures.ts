@@ -5,7 +5,7 @@ const now = '2026-06-24T10:00:00.000Z'
 export function sessionFixture(patch: Partial<Session> = {}): Session {
   return {
     id: 'session-1',
-    title: 'Checkout note',
+    title: 'Checkout session',
     sessionContext: null,
     objectiveNotes: null,
     environment: null,

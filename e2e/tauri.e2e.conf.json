@@ -1,0 +1,40 @@
+{
+  "productName": "QA Scribe E2E",
+  "identifier": "io.github.ddv1982.qa-scribe.e2e",
+  "build": {
+    "beforeBuildCommand": "",
+    "frontendDist": "../frontend/dist"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "QA Scribe E2E",
+        "width": 1280,
+        "height": 860,
+        "minWidth": 640,
+        "minHeight": 520
+      }
+    ],
+    "security": {
+      "capabilities": [
+        {
+          "identifier": "e2e",
+          "description": "Test-only permissions for the isolated built-app WebDriver suite.",
+          "windows": ["main"],
+          "permissions": [
+            "default",
+            "core:event:allow-listen",
+            "core:event:allow-unlisten",
+            "core:window:allow-close",
+            "wdio:default"
+          ]
+        }
+      ]
+    }
+  },
+  "bundle": {
+    "active": false
+  }
+}

@@ -34,7 +34,7 @@ describe('copy success buttons', () => {
         noteBody={richEditorDocumentFromHtml('<p>Body</p>')}
         noteIsReady
         noteScreenshotCount={0}
-        noteTitle="Login note"
+        sessionTitle="Login session"
         noteWordCount={1}
         notice={null}
         error={null}
@@ -49,7 +49,7 @@ describe('copy success buttons', () => {
         onDeleteSession={() => undefined}
         onOpenSession={async () => undefined}
         onSetNoteBody={() => undefined}
-        onSetNoteTitle={() => undefined}
+        onSetSessionTitle={() => undefined}
         onUploadImage={() => undefined}
       />,
     )
@@ -126,7 +126,7 @@ describe('copy success buttons', () => {
         noteBody={richEditorDocumentFromHtml('<p>Body</p>')}
         noteIsReady
         noteScreenshotCount={1}
-        noteTitle="Login note"
+        sessionTitle="Login session"
         noteWordCount={1}
         notice={null}
         error={null}
@@ -141,7 +141,7 @@ describe('copy success buttons', () => {
         onDeleteSession={() => undefined}
         onOpenSession={async () => undefined}
         onSetNoteBody={() => undefined}
-        onSetNoteTitle={() => undefined}
+        onSetSessionTitle={() => undefined}
         onUploadImage={() => undefined}
       />,
     )
@@ -268,7 +268,7 @@ describe('copy success buttons', () => {
 
 const session: Session = {
   id: 'session-1',
-  title: 'Login note',
+  title: 'Login session',
   sessionContext: null,
   objectiveNotes: null,
   environment: null,

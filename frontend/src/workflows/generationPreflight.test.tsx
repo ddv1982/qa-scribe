@@ -13,7 +13,7 @@ function renderPreflight(overrides: Partial<Parameters<typeof GenerationPrefligh
       activeProviderLabel="Codex CLI"
       isBusy={false}
       noteScreenshotCount={0}
-      noteTitle="Checkout"
+      sessionTitle="Checkout"
       noteWordCount={12}
       selectedModel="default"
       onCancel={onCancel}
@@ -66,7 +66,7 @@ describe('GenerationPreflight modal accessibility', () => {
         activeProviderLabel="Codex CLI"
         isBusy={false}
         noteScreenshotCount={0}
-        noteTitle="Checkout"
+        sessionTitle="Checkout"
         noteWordCount={12}
         selectedModel="default"
         onCancel={vi.fn()}

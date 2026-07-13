@@ -34,7 +34,7 @@
 .status-pill,
 .provider-lines article,
 .theme-toggle,
-.empty-note-actions {
+.empty-session-actions {
   display: flex;
   align-items: center;
 }

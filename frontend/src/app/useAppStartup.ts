@@ -29,19 +29,11 @@ export function useAppStartup(options: UseAppStartupOptions) {
   }, [options])
 
   const loadProviderStatusAfterBoot = useCallback(async () => {
-    const { loadProviderStatus, refreshProviderStatus, setError } = optionsRef.current
+    const { loadProviderStatus, setError } = optionsRef.current
     try {
       await loadProviderStatus()
       startupMark('provider-fast-status-complete')
       startupMeasure('boot-to-provider-fast-status', 'boot-start', 'provider-fast-status-complete')
-      window.setTimeout(() => {
-        void refreshProviderStatus()
-          .then(() => {
-            startupMark('provider-deep-refresh-complete')
-            startupMeasure('boot-to-provider-deep-refresh', 'boot-start', 'provider-deep-refresh-complete')
-          })
-          .catch((cause) => setError(formatError(cause)))
-      }, 0)
     } catch (cause) {
       setError(formatError(cause))
     }
@@ -83,7 +75,7 @@ export function useAppStartup(options: UseAppStartupOptions) {
         startupMark('first-session-opened')
         startupMeasure('boot-to-first-session-opened', 'boot-start', 'first-session-opened')
       } else {
-        setNotice('Create a note to start')
+        setNotice('Create a Session to start')
         startupMark('empty-session-library-ready')
         startupMeasure('boot-to-empty-session-library-ready', 'boot-start', 'empty-session-library-ready')
       }

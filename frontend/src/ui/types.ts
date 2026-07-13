@@ -2,14 +2,14 @@ import type { GenerateAiActionKind } from '../tauri'
 
 export type ResolvedTheme = 'light' | 'dark'
 export type ThemePreference = ResolvedTheme | 'system'
-export type MainView = 'notes' | 'testware' | 'findings' | 'settings'
+export type MainView = 'sessions' | 'testware' | 'findings' | 'settings'
 export type SettingsSaveState = 'idle' | 'saving' | 'saved' | 'error'
 export type PendingAiActions = Partial<Record<GenerateAiActionKind, boolean>>
 export type BusyAction =
   | 'boot'
   | 'load-session-library'
-  | 'open-note'
-  | 'new-note'
+  | 'open-session'
+  | 'new-session'
   | 'save-title'
   | 'save-body'
   | 'save-settings'
@@ -25,7 +25,7 @@ export type BusyAction =
   | 'ai-summary'
   | 'undo-generation'
   | 'attach-image'
-  | 'delete-note'
+  | 'delete-session'
   | `copy-draft:${string}`
   | `copy-draft-screenshot:${string}`
   | `copy-finding:${string}`

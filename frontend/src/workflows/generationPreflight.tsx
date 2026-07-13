@@ -14,7 +14,7 @@ export function GenerationPreflight({
   activeProviderLabel,
   isBusy,
   noteScreenshotCount,
-  noteTitle,
+  sessionTitle,
   noteWordCount,
   selectedModel,
   selectedReasoning = null,
@@ -27,7 +27,7 @@ export function GenerationPreflight({
   activeProviderLabel: string
   isBusy: boolean
   noteScreenshotCount: number
-  noteTitle: string
+  sessionTitle: string
   noteWordCount: number
   selectedModel: string
   selectedReasoning?: string | null
@@ -55,8 +55,8 @@ export function GenerationPreflight({
       </div>
       <dl className="preflight-list">
         <div>
-          <dt>Source note</dt>
-          <dd>{noteTitle.trim() || 'Untitled note'}</dd>
+          <dt>Session</dt>
+          <dd>{sessionTitle.trim() || 'Untitled session'}</dd>
         </div>
         <div>
           <dt>Material</dt>

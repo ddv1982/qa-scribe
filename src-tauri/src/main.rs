@@ -38,11 +38,26 @@ fn main() {
         .export(specta_bindings::exporter(), specta_bindings::BINDINGS_PATH)
         .expect("failed to export TypeScript bindings");
 
-    tauri::Builder::default()
-        .plugin(tauri_plugin_clipboard_manager::init())
+    let builder = tauri::Builder::default().plugin(tauri_plugin_clipboard_manager::init());
+
+    // These plugins expose script execution and an embedded WebDriver server.
+    // They are deliberately impossible to register without the opt-in E2E
+    // feature; production and ordinary development binaries never include
+    // either plugin.
+    #[cfg(feature = "e2e")]
+    let builder = builder
+        .plugin(tauri_plugin_wdio::init())
+        .plugin(tauri_plugin_wdio_webdriver::init());
+
+    builder
         .setup(|app| {
             let setup_started = Instant::now();
             let span_started = Instant::now();
+            #[cfg(feature = "e2e")]
+            let app_data_dir = std::env::var_os("QA_SCRIBE_E2E_APP_DATA_DIR")
+                .map(std::path::PathBuf::from)
+                .unwrap_or(app.path().app_data_dir()?);
+            #[cfg(not(feature = "e2e"))]
             let app_data_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&app_data_dir)?;
             eprintln!(

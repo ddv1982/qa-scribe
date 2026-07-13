@@ -21,7 +21,8 @@ import {
   serializeRichEditorDocument,
 } from '../editor/editorDocument'
 import { formatError } from '../ui/format'
-import type { AppWorkflowContext } from './types'
+import type { AiSelection, GenerationWorkspace, RecordWorkspace, SessionWorkspace, WorkflowFeedback, WorkflowNavigation } from './types'
+import { useStableCapability } from './useStableCapability'
 
 export function generationIsActive(job: GenerationJobStatus): boolean {
   return job.state === 'starting' || job.state === 'running' || job.state === 'cancelling'
@@ -33,9 +34,40 @@ export function generationIsActive(job: GenerationJobStatus): boolean {
 // the simplest way to drive the recovered job to a terminal UI state.
 const RECONCILE_POLL_INTERVAL_MS = 1000
 
-export function createGenerationActions(ctx: AppWorkflowContext, saveNoteNow: (options?: { manageBusy?: boolean }) => Promise<boolean>) {
+export type GenerationActionsContext = {
+  session: Pick<
+    SessionWorkspace,
+    | 'activeSession'
+    | 'activeSessionIdRef'
+    | 'noteBodyRef'
+    | 'noteBodyWriteVersionRef'
+    | 'noteEntry'
+    | 'noteEntryIdRef'
+    | 'savedBodyRef'
+    | 'setNoteBody'
+    | 'setNoteEntry'
+  >
+  records: Pick<
+    RecordWorkspace,
+    | 'dirtyDraftIdsRef'
+    | 'dirtyFindingIdsRef'
+    | 'draftsRef'
+    | 'findingsRef'
+    | 'setDrafts'
+    | 'setFindings'
+    | 'setFindingCount'
+    | 'setTestwareDraftCount'
+  >
+  generation: GenerationWorkspace
+  selection: AiSelection
+  feedback: WorkflowFeedback
+  navigation: WorkflowNavigation
+  saveNoteNow: (options?: { manageBusy?: boolean }) => Promise<boolean>
+}
+
+export function createGenerationActions(ctx: GenerationActionsContext) {
   function storeGenerationStatus(status: GenerationJobStatus) {
-    ctx.setGenerationJobs((previous) => ({ ...previous, [status.jobId]: status }))
+    ctx.generation.setGenerationJobs((previous) => ({ ...previous, [status.jobId]: status }))
   }
 
   // Backend jobs keep running when the webview reloads, but the frontend loses
@@ -50,7 +82,7 @@ export function createGenerationActions(ctx: AppWorkflowContext, saveNoteNow: (o
       active = await listActiveAiActionJobs()
     } catch (cause) {
       // A reconciliation failure must never block boot; surface it quietly.
-      ctx.setError(formatError(cause))
+      ctx.feedback.setError(formatError(cause))
       return
     }
     for (const status of active) {
@@ -73,84 +105,84 @@ export function createGenerationActions(ctx: AppWorkflowContext, saveNoteNow: (o
       }
       storeGenerationStatus(status)
       if (!generationIsActive(status)) {
-        if (status.state === 'failed' && status.errorMessage) ctx.setError(status.errorMessage)
-        else if (status.state === 'cancelled') ctx.setNotice('Generation cancelled')
-        else if (status.state === 'completed') ctx.setNotice('Generation finished')
+        if (status.state === 'failed' && status.errorMessage) ctx.feedback.setError(status.errorMessage)
+        else if (status.state === 'cancelled') ctx.feedback.setNotice('Generation cancelled')
+        else if (status.state === 'completed') ctx.feedback.setNotice('Generation finished')
         return
       }
     }
   }
 
   function mergeDraft(draft: Draft) {
-    ctx.setDrafts((previous) => {
+    ctx.records.setDrafts((previous) => {
       const exists = previous.some((item) => item.id === draft.id)
-      if (!exists && draft.kind === 'testware') ctx.setTestwareDraftCount((count) => count + 1)
+      if (!exists && draft.kind === 'testware') ctx.records.setTestwareDraftCount((count) => count + 1)
       const nextDrafts = exists
-        ? previous.map((item) => (item.id === draft.id && !ctx.dirtyDraftIdsRef.current.has(item.id) ? draft : item))
+        ? previous.map((item) => (item.id === draft.id && !ctx.records.dirtyDraftIdsRef.current.has(item.id) ? draft : item))
         : [draft, ...previous]
-      ctx.draftsRef.current = nextDrafts
+      ctx.records.draftsRef.current = nextDrafts
       return nextDrafts
     })
   }
 
   function mergeFinding(finding: Finding) {
-    ctx.setFindings((previous) => {
+    ctx.records.setFindings((previous) => {
       const exists = previous.some((item) => item.id === finding.id)
-      if (!exists) ctx.setFindingCount((count) => count + 1)
+      if (!exists) ctx.records.setFindingCount((count) => count + 1)
       const nextFindings = exists
-        ? previous.map((item) => (item.id === finding.id && !ctx.dirtyFindingIdsRef.current.has(item.id) ? finding : item))
+        ? previous.map((item) => (item.id === finding.id && !ctx.records.dirtyFindingIdsRef.current.has(item.id) ? finding : item))
         : [finding, ...previous]
-      ctx.findingsRef.current = nextFindings
+      ctx.records.findingsRef.current = nextFindings
       return nextFindings
     })
   }
 
   function applyGeneratedNoteEntry(generatedEntry: Entry) {
-    const previousBody = ctx.noteBodyRef.current
+    const previousBody = ctx.session.noteBodyRef.current
     const generatedBody = richEditorDocumentFromStoredBody(generatedEntry)
     const nextBody = preserveManagedImageNodes(previousBody, generatedBody)
     const storedBody = richEditorDocumentToStoredBody(nextBody)
     const richNoteEntry = { ...generatedEntry, ...storedBody }
-    const writeVersion = ++ctx.noteBodyWriteVersionRef.current
+    const writeVersion = ++ctx.session.noteBodyWriteVersionRef.current
 
-    ctx.setLatestNoteGenerationUndo({ entryId: richNoteEntry.id, before: previousBody })
-    ctx.setNoteEntry(richNoteEntry)
-    ctx.setNoteBody(nextBody)
-    ctx.savedBodyRef.current = serializeRichEditorDocument(nextBody)
+    ctx.generation.setLatestNoteGenerationUndo({ entryId: richNoteEntry.id, before: previousBody })
+    ctx.session.setNoteEntry(richNoteEntry)
+    ctx.session.setNoteBody(nextBody)
+    ctx.session.savedBodyRef.current = serializeRichEditorDocument(nextBody)
     void updateEntry(richNoteEntry.id, storedBody)
       .then((saved) => {
-        if (writeVersion !== ctx.noteBodyWriteVersionRef.current) return
-        ctx.setNoteEntry(saved)
-        ctx.savedBodyRef.current = serializeRichEditorDocument(richEditorDocumentFromStoredBody(saved))
+        if (writeVersion !== ctx.session.noteBodyWriteVersionRef.current) return
+        ctx.session.setNoteEntry(saved)
+        ctx.session.savedBodyRef.current = serializeRichEditorDocument(richEditorDocumentFromStoredBody(saved))
       })
       .catch((cause) => {
-        if (writeVersion === ctx.noteBodyWriteVersionRef.current) ctx.setError(formatError(cause))
+        if (writeVersion === ctx.session.noteBodyWriteVersionRef.current) ctx.feedback.setError(formatError(cause))
       })
-    ctx.setNotice('Note summarized')
+    ctx.feedback.setNotice('Note summarized')
   }
 
   async function handleUndoLatestNoteGeneration() {
-    if (!ctx.latestNoteGenerationUndo || ctx.noteEntry?.id !== ctx.latestNoteGenerationUndo.entryId) return
-    const undo = ctx.latestNoteGenerationUndo
+    if (!ctx.generation.latestNoteGenerationUndo || ctx.session.noteEntry?.id !== ctx.generation.latestNoteGenerationUndo.entryId) return
+    const undo = ctx.generation.latestNoteGenerationUndo
     const storedBody = richEditorDocumentToStoredBody(undo.before)
-    const writeVersion = ++ctx.noteBodyWriteVersionRef.current
+    const writeVersion = ++ctx.session.noteBodyWriteVersionRef.current
 
     try {
-      ctx.setBusyAction('undo-generation')
-      ctx.setError(null)
-      ctx.setLatestNoteGenerationUndo(null)
-      ctx.setNoteBody(undo.before)
+      ctx.feedback.setBusyAction('undo-generation')
+      ctx.feedback.setError(null)
+      ctx.generation.setLatestNoteGenerationUndo(null)
+      ctx.session.setNoteBody(undo.before)
       const saved = await updateEntry(undo.entryId, storedBody)
-      if (writeVersion !== ctx.noteBodyWriteVersionRef.current) return
-      ctx.setNoteEntry(saved)
-      ctx.savedBodyRef.current = serializeRichEditorDocument(richEditorDocumentFromStoredBody(saved))
-      ctx.setNotice('Generation undone')
+      if (writeVersion !== ctx.session.noteBodyWriteVersionRef.current) return
+      ctx.session.setNoteEntry(saved)
+      ctx.session.savedBodyRef.current = serializeRichEditorDocument(richEditorDocumentFromStoredBody(saved))
+      ctx.feedback.setNotice('Generation undone')
     } catch (cause) {
-      if (writeVersion !== ctx.noteBodyWriteVersionRef.current) return
-      ctx.setError(formatError(cause))
-      ctx.setLatestNoteGenerationUndo(undo)
+      if (writeVersion !== ctx.session.noteBodyWriteVersionRef.current) return
+      ctx.feedback.setError(formatError(cause))
+      ctx.generation.setLatestNoteGenerationUndo(undo)
     } finally {
-      if (writeVersion === ctx.noteBodyWriteVersionRef.current) ctx.setBusyAction(null)
+      if (writeVersion === ctx.session.noteBodyWriteVersionRef.current) ctx.feedback.setBusyAction(null)
     }
   }
 
@@ -158,115 +190,119 @@ export function createGenerationActions(ctx: AppWorkflowContext, saveNoteNow: (o
     storeGenerationStatus(event.status)
 
     if (event.type === 'progress') {
-      ctx.setNotice(event.message)
+      ctx.feedback.setNotice(event.message)
       return
     }
 
     if (event.type === 'partial') {
-      ctx.setNotice(event.status.progressMessage || 'Generating')
+      ctx.feedback.setNotice(event.status.progressMessage || 'Generating')
       return
     }
 
     if (event.type === 'started') {
-      ctx.setNotice(event.status.progressMessage || 'Generation started')
+      ctx.feedback.setNotice(event.status.progressMessage || 'Generation started')
       return
     }
 
     if (event.type === 'cancelled') {
-      ctx.setNotice('Generation cancelled')
+      ctx.feedback.setNotice('Generation cancelled')
       return
     }
 
     if (event.type === 'failed') {
-      ctx.setError(event.error_message)
+      ctx.feedback.setError(event.error_message)
       return
     }
 
     const { result } = event
-    if (result.draft && ctx.activeSessionIdRef.current === result.draft.sessionId) {
+    if (result.draft && ctx.session.activeSessionIdRef.current === result.draft.sessionId) {
       const draftDocument = richEditorDocumentFromStoredBody(result.draft)
       const storedBody = richEditorDocumentToStoredBody(draftDocument)
       const richDraft = { ...result.draft, ...storedBody }
       mergeDraft(richDraft)
       void updateDraft(richDraft.id, storedBody)
         .then((saved) => {
-          if (ctx.activeSessionIdRef.current === saved.sessionId) mergeDraft(saved)
+          if (ctx.session.activeSessionIdRef.current === saved.sessionId) mergeDraft(saved)
         })
         .catch((cause) => {
-          if (ctx.activeSessionIdRef.current === richDraft.sessionId) ctx.setError(formatError(cause))
+          if (ctx.session.activeSessionIdRef.current === richDraft.sessionId) ctx.feedback.setError(formatError(cause))
         })
-      ctx.setActiveView('testware')
-      ctx.setNotice('Testware generated')
-    } else if (result.finding && ctx.activeSessionIdRef.current === result.finding.sessionId) {
+      ctx.navigation.setActiveView('testware')
+      ctx.feedback.setNotice('Testware generated')
+    } else if (result.finding && ctx.session.activeSessionIdRef.current === result.finding.sessionId) {
       const findingDocument = richEditorDocumentFromStoredBody(result.finding)
       const storedBody = richEditorDocumentToStoredBody(findingDocument)
       const richFinding = { ...result.finding, ...storedBody }
       mergeFinding(richFinding)
       void updateFinding(richFinding.id, storedBody)
         .then((saved) => {
-          if (ctx.activeSessionIdRef.current === saved.sessionId) mergeFinding(saved)
+          if (ctx.session.activeSessionIdRef.current === saved.sessionId) mergeFinding(saved)
         })
         .catch((cause) => {
-          if (ctx.activeSessionIdRef.current === richFinding.sessionId) ctx.setError(formatError(cause))
+          if (ctx.session.activeSessionIdRef.current === richFinding.sessionId) ctx.feedback.setError(formatError(cause))
         })
-      ctx.setActiveView('findings')
-      ctx.setNotice('Finding created')
-    } else if (result.noteEntry && ctx.noteEntryIdRef.current === result.noteEntry.id) {
+      ctx.navigation.setActiveView('findings')
+      ctx.feedback.setNotice('Finding created')
+    } else if (result.noteEntry && ctx.session.noteEntryIdRef.current === result.noteEntry.id) {
       applyGeneratedNoteEntry(result.noteEntry)
     } else {
-      ctx.setNotice(result.aiRun.errorMessage ?? 'AI action finished')
+      ctx.feedback.setNotice(result.aiRun.errorMessage ?? 'AI action finished')
     }
   }
 
   async function handleAiAction(action: GenerateAiActionKind, testwarePreferences?: TestwareGenerationPreferences) {
-    if (!ctx.activeSession || !ctx.noteEntry) return
+    if (!ctx.session.activeSession || !ctx.session.noteEntry) return
     const busy = action === 'testware' ? 'ai-testware' : action === 'finding' ? 'ai-finding' : 'ai-summary'
     try {
-      ctx.setBusyAction(busy)
-      ctx.setError(null)
-      ctx.setLatestNoteGenerationUndo(null)
-      const saved = await saveNoteNow({ manageBusy: false })
+      ctx.feedback.setBusyAction(busy)
+      ctx.feedback.setError(null)
+      ctx.generation.setLatestNoteGenerationUndo(null)
+      const saved = await ctx.saveNoteNow({ manageBusy: false })
       if (!saved) return
       const started = await startAiActionJob(
         {
-          sessionId: ctx.activeSession.id,
-          provider: ctx.selectedProvider,
-          model: ctx.selectedModel.trim() || 'default',
-          reasoningEffort: ctx.selectedReasoningEffort,
+          sessionId: ctx.session.activeSession.id,
+          provider: ctx.selection.selectedProvider,
+          model: ctx.selection.selectedModel.trim() || 'default',
+          reasoningEffort: ctx.selection.selectedReasoningEffort,
           action,
-          noteEntryId: ctx.noteEntry.id,
+          noteEntryId: ctx.session.noteEntry.id,
           testwarePreferences: action === 'testware' ? testwarePreferences ?? null : null,
         },
         applyGenerationEvent,
       )
       storeGenerationStatus(started.status)
       if (action === 'testware') {
-        ctx.setActiveView('testware')
-        ctx.setNotice('Generating testware')
+        ctx.navigation.setActiveView('testware')
+        ctx.feedback.setNotice('Generating testware')
       } else if (action === 'finding') {
-        ctx.setNotice('Generating finding')
+        ctx.feedback.setNotice('Generating finding')
       } else {
-        ctx.setNotice('Summarizing note')
+        ctx.feedback.setNotice('Summarizing note')
       }
     } catch (cause) {
-      ctx.setError(formatError(cause))
+      ctx.feedback.setError(formatError(cause))
     } finally {
-      ctx.setBusyAction(null)
+      ctx.feedback.setBusyAction(null)
     }
   }
 
   async function handleCancelGenerationJob(jobId: string) {
     try {
-      ctx.setError(null)
+      ctx.feedback.setError(null)
       const status = await cancelAiActionJob(jobId)
       storeGenerationStatus(status)
-      ctx.setNotice('Cancelling generation')
+      ctx.feedback.setNotice('Cancelling generation')
     } catch (cause) {
-      ctx.setError(formatError(cause))
+      ctx.feedback.setError(formatError(cause))
     }
   }
 
   return { handleAiAction, handleCancelGenerationJob, handleUndoLatestNoteGeneration, reconcileActiveJobs, storeGenerationStatus }
+}
+
+export function useGenerationActions(ctx: GenerationActionsContext) {
+  return useStableCapability(ctx, createGenerationActions)
 }
 
 function delay(ms: number): Promise<void> {

@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ClipboardEvent } from 'react'
 import type { Editor } from '@tiptap/react'
 import { entryFixture, sessionFixture } from '../test/fixtures'
-import type { AppWorkflowContext } from './types'
 import { registerRichEditor } from '../editor/richEditorRegistry'
 
 const tauriMock = vi.hoisted(() => ({
@@ -16,7 +15,7 @@ const tauriMock = vi.hoisted(() => ({
 
 vi.mock('../tauri', () => tauriMock)
 
-import { createAttachmentActions, imageFileFromClipboardData, shouldReadNativeClipboardImage } from './attachmentActions'
+import { createAttachmentActions, imageFileFromClipboardData, shouldReadNativeClipboardImage, type AttachmentActionsContext } from './attachmentActions'
 
 describe('attachment paste actions', () => {
   beforeEach(() => {
@@ -110,15 +109,19 @@ describe('attachment paste actions', () => {
   })
 })
 
-function workflowContext(): AppWorkflowContext {
+function workflowContext(): AttachmentActionsContext {
   return {
-    activeSession: sessionFixture(),
-    noteEntry: entryFixture(),
-    setBusyAction: vi.fn(),
-    setError: vi.fn(),
-    setNotice: vi.fn(),
-    setNoteBody: vi.fn(),
-  } as unknown as AppWorkflowContext
+    session: {
+      activeSession: sessionFixture(),
+      noteEntry: entryFixture(),
+      setNoteBody: vi.fn(),
+    },
+    feedback: {
+      setBusyAction: vi.fn(),
+      setError: vi.fn(),
+      setNotice: vi.fn(),
+    },
+  }
 }
 
 function mountEditor() {

@@ -78,10 +78,10 @@ export function resolveThemePreference(theme: ThemePreference, systemTheme: Reso
 
 export function nextUntitledSessionTitle(sessions: Session[]): string {
   const highest = sessions.reduce((max, session) => {
-    const match = /^Untitled note (\d+)$/.exec(session.title)
+    const match = /^Untitled session (\d+)$/.exec(session.title)
     return match ? Math.max(max, Number(match[1])) : max
   }, 0)
-  return `Untitled note ${highest + 1}`
+  return `Untitled session ${highest + 1}`
 }
 
 export function nextUntitledRecordTitle(records: Array<{ title: string }>, baseTitle: string): string {

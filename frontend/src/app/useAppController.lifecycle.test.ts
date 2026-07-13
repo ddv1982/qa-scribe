@@ -9,7 +9,7 @@ const tauriMock = getTauriMock()
 describe('useAppController lifecycle and memoization', () => {
   beforeEach(setupControllerTest)
   afterEach(cleanupControllerTest)
-  it('does not merge a generated draft canonicalization after switching notes', async () => {
+  it('does not merge a generated draft canonicalization after switching sessions', async () => {
     const { result } = renderHook(() => useAppController())
 
     await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
@@ -53,7 +53,7 @@ describe('useAppController lifecycle and memoization', () => {
     })
     expect(result.current.testwareDrafts.map((draft) => draft.id)).toContain('draft-from-session-1')
 
-    const otherSession = sessionFixture({ id: 'session-2', title: 'Other note' })
+    const otherSession = sessionFixture({ id: 'session-2', title: 'Other session' })
     tauriMock.openSessionNoteState.mockResolvedValueOnce(
       sessionNoteStateFixture({
         session: otherSession,
