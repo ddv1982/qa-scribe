@@ -114,56 +114,11 @@ runs:
       shell: bash
       run: bun run smoke
 
-    - name: Run built application E2E workflows
-      id: built_app_e2e
-      shell: bash
-      run: xvfb-run -a bun run e2e
-
-    - name: Recheck production build after E2E
-      shell: bash
-      if: ${{ steps.built_app_e2e.outcome == 'success' }}
-      run: bun run e2e:isolation
-
-    - name: Measure large-fixture startup
-      id: startup_benchmark
-      if: ${{ steps.built_app_e2e.outcome == 'success' }}
-      shell: bash
-      env:
-        QA_SCRIBE_STARTUP_COLD_BUDGET_MS: '4000'
-        QA_SCRIBE_STARTUP_WARM_BUDGET_MS: '3000'
-        QA_SCRIBE_STARTUP_REUSE_BUILD: '1'
-        QA_SCRIBE_STARTUP_RUNNER_CLASS: ubuntu-24.04-github-x64
-        QA_SCRIBE_STARTUP_SAMPLES: '3'
-      run: xvfb-run -a bun run startup:benchmark
-
-    - name: Write E2E and startup summary
-      if: ${{ always() }}
-      shell: bash
-      run: node scripts/write-quality-summary.mjs
-
-    - name: Retain successful E2E reliability marker
-      if: ${{ always() && steps.built_app_e2e.outcome == 'success' }}
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+    - name: Run Linux built-application quality gate
+      uses: ./.github/actions/run-built-app-e2e
       with:
-        name: qa-scribe-e2e-passed-${{ github.run_id }}-${{ github.run_attempt }}
-        path: artifacts/e2e/latest-run.json
-        retention-days: 90
-
-    - name: Retain failed E2E reliability marker
-      if: ${{ always() && steps.built_app_e2e.outcome == 'failure' }}
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-      with:
-        name: qa-scribe-e2e-failed-${{ github.run_id }}-${{ github.run_attempt }}
-        path: artifacts/e2e/latest-run.json
-        retention-days: 90
-
-    - name: Upload quality failure evidence
-      if: ${{ failure() }}
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-      with:
-        name: qa-scribe-quality-failure-${{ github.run_id }}-${{ github.run_attempt }}
-        path: |
-          artifacts/e2e
-          artifacts/startup
-        if-no-files-found: ignore
-        retention-days: 14
+        artifact_prefix: qa-scribe-e2e
+        failure_artifact_prefix: qa-scribe-quality-failure
+        runner_class: ubuntu-24.04-github-x64
+        use_xvfb: 'true'
+        run_startup_benchmark: 'true'

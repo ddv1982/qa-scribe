@@ -11,6 +11,10 @@ The CI workflow is deliberately divided by responsibility:
 - **Platform tests (macOS)** run native Rust tests and an Intel cross-compile
   when Rust, Tauri, frontend, icon, or workflow inputs change. Platform-neutral
   frontend checks and dependency audits are not repeated here.
+- **Built application E2E (macOS arm64, observational)** runs the same isolated
+  critical workflows through the embedded WebDriver provider on every CI
+  execution. The job is non-blocking and deliberately excluded from the
+  `CI success` dependency graph while it accumulates promotion evidence.
 - **Package test (Linux)** builds and validates distributable Linux artifacts
   only when a packaging input changes. It starts only after the quality gate
   succeeds.
@@ -33,8 +37,11 @@ does not match the `tauri` runtime resolved in `Cargo.lock`; patch versions are
 allowed to differ because the runtime and CLI are published independently.
 
 `.github/actions/validate-build/action.yml` is shared by CI and tag validation.
-Any new repository-wide contract added to `bun run verify` should also be added
-to this action when it benefits from a separately named CI step.
+`.github/actions/run-built-app-e2e/action.yml` owns built-app execution,
+production restoration, summaries, and reliability artifacts for Linux and
+macOS so their safety and evidence behavior cannot drift. Any new
+repository-wide contract added to `bun run verify` should also be added to the
+validation action when it benefits from a separately named CI step.
 
 Run workflow linting locally after editing Actions configuration:
 
@@ -47,21 +54,26 @@ The shared validation gate runs both checks in CI and before tag releases.
 
 ## Built-application and startup evidence
 
-The Linux quality and release-validation jobs install Xvfb and run the same
-shared built-app gate. `bun run e2e` uses an isolated temporary application-data
-directory and a deterministic local provider fixture; it does not use accounts,
-network calls, or user data. The gate restores the production frontend and
-reruns `bun run e2e:isolation` after the test binary completes.
+The Linux quality and release-validation jobs install Xvfb and run the shared
+built-app gate as a required control. The observational macOS arm64 job invokes
+the same shared action without Xvfb. `bun run e2e` uses an isolated temporary
+application-data directory and a deterministic local provider fixture; it does
+not use accounts, network calls, or user data. Every gate restores the
+production frontend and reruns `bun run e2e:isolation` after the test binary
+completes.
 
-Every execution uploads a 90-day `qa-scribe-e2e-passed-*` or
-`qa-scribe-e2e-failed-*` marker containing its machine-readable metadata.
+Every Linux execution uploads a 90-day `qa-scribe-e2e-passed-*` or
+`qa-scribe-e2e-failed-*` marker containing its machine-readable metadata. macOS
+uses the separate `qa-scribe-e2e-macos-passed-*` and
+`qa-scribe-e2e-macos-failed-*` namespaces.
 Marker retention follows the E2E step outcome even when a later startup or
 quality step fails, so reliability evidence measures the built-app suite rather
 than the rest of the job.
-`bun run e2e:reliability:check` audits those markers and refuses platform
-promotion until the latest 20 runs all passed on attempt one. The audit pages
-past unrelated build/package artifacts until it finds those 20 distinct E2E
-runs or exhausts the retained artifact history. Full logs,
+`bun run e2e:reliability:check` audits Linux markers, while
+`bun run e2e:reliability:check:macos` audits macOS markers. Promotion is refused
+until the latest 20 platform-specific runs all passed on attempt one. Each audit
+pages past unrelated and other-platform artifacts until it finds those 20
+distinct E2E runs or exhausts the retained artifact history. Full logs,
 screenshots, and startup reports are uploaded for 14 days when validation
 fails.
 

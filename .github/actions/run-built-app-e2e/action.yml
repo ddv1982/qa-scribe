@@ -1,0 +1,97 @@
+name: Run built application E2E
+description: >-
+  Runs the isolated built-application suite, restores and verifies the
+  production frontend, records optional startup measurements, and retains
+  platform-scoped reliability evidence.
+
+inputs:
+  artifact_prefix:
+    description: Prefix for passed and failed E2E reliability markers.
+    required: true
+  failure_artifact_prefix:
+    description: Prefix for detailed failure evidence.
+    required: true
+  runner_class:
+    description: Stable runner identifier written to E2E and startup metadata.
+    required: true
+  use_xvfb:
+    description: Whether to launch the suite through Xvfb.
+    required: false
+    default: 'false'
+  run_startup_benchmark:
+    description: Whether to run the deterministic large-fixture startup budget.
+    required: false
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    - name: Run built application E2E workflows
+      id: built_app_e2e
+      shell: bash
+      env:
+        QA_SCRIBE_STARTUP_RUNNER_CLASS: ${{ inputs.runner_class }}
+        USE_XVFB: ${{ inputs.use_xvfb }}
+      run: |
+        if [ "${USE_XVFB}" = 'true' ]; then
+          xvfb-run -a bun run e2e
+        else
+          bun run e2e
+        fi
+
+    - name: Recheck production build after E2E
+      shell: bash
+      if: ${{ always() }}
+      run: bun run e2e:isolation
+
+    - name: Measure large-fixture startup
+      id: startup_benchmark
+      if: ${{ steps.built_app_e2e.outcome == 'success' && inputs.run_startup_benchmark == 'true' }}
+      shell: bash
+      env:
+        QA_SCRIBE_STARTUP_COLD_BUDGET_MS: '4000'
+        QA_SCRIBE_STARTUP_WARM_BUDGET_MS: '3000'
+        QA_SCRIBE_STARTUP_REUSE_BUILD: '1'
+        QA_SCRIBE_STARTUP_RUNNER_CLASS: ${{ inputs.runner_class }}
+        QA_SCRIBE_STARTUP_SAMPLES: '3'
+        USE_XVFB: ${{ inputs.use_xvfb }}
+      run: |
+        if [ "${USE_XVFB}" = 'true' ]; then
+          xvfb-run -a bun run startup:benchmark
+        else
+          bun run startup:benchmark
+        fi
+
+    - name: Write E2E and startup summary
+      if: ${{ always() }}
+      shell: bash
+      run: node scripts/write-quality-summary.mjs
+
+    - name: Retain successful E2E reliability marker
+      if: ${{ always() && steps.built_app_e2e.outcome == 'success' }}
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: ${{ inputs.artifact_prefix }}-passed-${{ github.run_id }}-${{ github.run_attempt }}
+        path: artifacts/e2e/latest-run.json
+        if-no-files-found: error
+        retention-days: 90
+
+    - name: Retain failed E2E reliability marker
+      if: ${{ always() && steps.built_app_e2e.outcome == 'failure' }}
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: ${{ inputs.artifact_prefix }}-failed-${{ github.run_id }}-${{ github.run_attempt }}
+        path: artifacts/e2e/latest-run.json
+        if-no-files-found: error
+        retention-days: 90
+
+    - name: Upload quality failure evidence
+      if: ${{ failure() }}
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: ${{ inputs.failure_artifact_prefix }}-${{ github.run_id }}-${{ github.run_attempt }}
+        path: |
+          artifacts/e2e
+          artifacts/startup
+        if-no-files-found: ignore
+        retention-days: 14

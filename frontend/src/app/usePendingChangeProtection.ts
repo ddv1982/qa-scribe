@@ -25,23 +25,25 @@ export function usePendingChangeProtection({
   dirtyFindingIdsRef,
   savePendingChanges,
 }: UsePendingChangeProtectionOptions) {
-  const hasPendingNoteChangesRef = useRef(false)
+  const pendingNoteStateRef = useRef({ hasActiveSession, hasNoteEntry, sessionTitle, noteBody })
   const savePendingChangesRef = useRef(savePendingChanges)
-  const closingAfterSaveRef = useRef(false)
+  const closeRequestInFlightRef = useRef(false)
 
   useEffect(() => {
     savePendingChangesRef.current = savePendingChanges
   }, [savePendingChanges])
 
   useEffect(() => {
-    const titleDirty = Boolean(hasActiveSession && sessionTitle.trim() && sessionTitle.trim() !== savedTitleRef.current)
-    const bodyDirty = Boolean(hasNoteEntry && serializeRichEditorDocument(noteBody) !== savedBodyRef.current)
-    hasPendingNoteChangesRef.current = titleDirty || bodyDirty
-  }, [hasActiveSession, hasNoteEntry, sessionTitle, noteBody, savedTitleRef, savedBodyRef])
+    pendingNoteStateRef.current = { hasActiveSession, hasNoteEntry, sessionTitle, noteBody }
+  }, [hasActiveSession, hasNoteEntry, sessionTitle, noteBody])
 
   const hasPendingChanges = useCallback(() => {
-    return hasPendingNoteChangesRef.current || dirtyDraftIdsRef.current.size > 0 || dirtyFindingIdsRef.current.size > 0
-  }, [dirtyDraftIdsRef, dirtyFindingIdsRef])
+    const current = pendingNoteStateRef.current
+    const trimmedTitle = current.sessionTitle.trim()
+    const titleDirty = Boolean(current.hasActiveSession && trimmedTitle && trimmedTitle !== savedTitleRef.current)
+    const bodyDirty = Boolean(current.hasNoteEntry && serializeRichEditorDocument(current.noteBody) !== savedBodyRef.current)
+    return titleDirty || bodyDirty || dirtyDraftIdsRef.current.size > 0 || dirtyFindingIdsRef.current.size > 0
+  }, [dirtyDraftIdsRef, dirtyFindingIdsRef, savedBodyRef, savedTitleRef])
 
   useEffect(() => {
     function handleBeforeUnload(event: BeforeUnloadEvent) {
@@ -57,15 +59,23 @@ export function usePendingChangeProtection({
   useEffect(() => {
     let disposed = false
     let removeListener: (() => void) | null = null
+    const currentWindow = getCurrentWindow()
 
-    void getCurrentWindow()
+    void currentWindow
       .onCloseRequested(async (event) => {
-        if (closingAfterSaveRef.current || !hasPendingChanges()) return
+        if (closeRequestInFlightRef.current) {
+          event.preventDefault()
+          return
+        }
+        if (!hasPendingChanges()) return
         event.preventDefault()
-        const saved = await savePendingChangesRef.current()
-        if (!saved) return
-        closingAfterSaveRef.current = true
-        await getCurrentWindow().close()
+        closeRequestInFlightRef.current = true
+        try {
+          const saved = await savePendingChangesRef.current()
+          if (saved) await currentWindow.destroy()
+        } finally {
+          closeRequestInFlightRef.current = false
+        }
       })
       .then((unlisten) => {
         if (disposed) {

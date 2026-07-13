@@ -2765,7 +2765,7 @@ checksum = "d55d956fa96f5ec02be2e13af0e20391a5aa83d6a074e3ad368959d0fab299ea"
 
 [[package]]
 name = "qa-scribe-app"
-version = "0.7.13"
+version = "0.7.14"
 dependencies = [
  "qa-scribe-core",
  "serde_json",
@@ -2773,7 +2773,7 @@ dependencies = [
 
 [[package]]
 name = "qa-scribe-core"
-version = "0.7.13"
+version = "0.7.14"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -2788,7 +2788,7 @@ dependencies = [
 
 [[package]]
 name = "qa-scribe-tauri"
-version = "0.7.13"
+version = "0.7.14"
 dependencies = [
  "base64 0.22.1",
  "image",
