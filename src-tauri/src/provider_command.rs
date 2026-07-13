@@ -79,6 +79,14 @@ fn cached_or_compute(
 
 fn build_provider_command_path() -> Option<OsString> {
     let mut paths = Vec::new();
+    // A feature-gated override makes the built-app E2E provider deterministic
+    // even on developer machines that have a real authenticated CLI installed.
+    // The variable has no effect in production builds.
+    #[cfg(feature = "e2e")]
+    if let Some(path) = env::var_os("QA_SCRIBE_E2E_PROVIDER_PATH").filter(|value| !value.is_empty())
+    {
+        paths.push(path);
+    }
     if let Some(path) = read_login_shell_path() {
         paths.push(path);
     }

@@ -1,6 +1,6 @@
 # Startup Performance Review
 
-Date: 2026-07-07. Source: Flow startup audit covering Tauri startup, SQLite storage, frontend boot/session hydration, provider CLI checks, and external Tauri/SQLite/Rust process documentation.
+Date: 2026-07-13. Source: startup audit plus built-application large-fixture measurement covering Tauri startup, SQLite storage, frontend boot/session hydration, provider CLI checks, and production bundle output.
 
 Deployment context: qa-scribe is a local-first, single-user Tauri desktop app. The performance risk is local startup latency and perceived readiness as the Session Library grows, not shared-service throughput.
 
@@ -13,7 +13,7 @@ Startup can get slower with database growth. The original strongest cause was no
 3. Draft and Finding bodies are loaded only when their views or creation flows need them. Stale lazy loads are invalidated across Session transitions so old record data cannot repopulate the new active Session.
 4. Provider CLI probing is deferred until after boot, and automatic boot provider work remains Fast status only. Deep refresh remains available through explicit provider refresh (`frontend/src/app/useAppController.ts`, `src-tauri/src/commands/providers.rs:24-36`).
 
-The remaining improvement direction is measurement: keep the lightweight startup logs/marks, add larger captured baselines, and use the regression tests to prevent startup from drifting back to unbounded boot work.
+The remaining improvement direction is evidence accumulation: keep the lightweight startup logs/marks, retain named-runner reports, and use the required regression gate to prevent startup from drifting back to unbounded boot work.
 
 ## Implementation Status
 
@@ -33,9 +33,23 @@ Implemented in the full-resolution follow-up:
 4. Full Session Library loading is explicit through the `Load all notes` action after the shell is ready.
 5. Drafts and Findings hydrate lazily on view entry or creation flows, with stale-load invalidation across Session transitions and generated-record merge protection.
 
+Implemented in the reproducible measurement follow-up:
+
+1. A versioned fixture generator creates 1,000 Sessions and Note Entries, a large active Note, 250 active Testware records, 250 Findings, and 2,000 completed AI Runs with foreign-key validation.
+2. `bun run startup:benchmark` launches the built Tauri application repeatedly against one fixture database and captures process-cold and warm frontend performance measures.
+3. The benchmark proves boot hydration remains bounded and rejects any automatic Deep provider refresh.
+4. CI records all three samples before enforcing a 4-second process-cold and 3-second warm first-paint budget on `ubuntu-24.04-github-x64`, then publishes cold/warm timing and production JavaScript raw/gzip totals in the job summary. The separate cold budget was calibrated after the first two named-runner measurements recorded 2,439ms and 3,141ms; the original single 3-second threshold had insufficient headroom for observed cold-runner variance.
+5. A local `darwin-arm64-local` three-sample validation recorded 21ms process-cold and 23ms/23ms warm first-paint p50/p95, 181ms/332ms editor input p50/p95 for the 80,000-character Note, and 776,738 raw / 241,220 gzip JavaScript bytes. These local numbers are evidence that the harness works, not the Linux release baseline.
+
+## Phase 6 Baseline Comparison
+
+The v0.7.13 production baseline was 771.81 kB raw and 240.57 kB gzip across JavaScript chunks. The current exact report is 776,738 raw bytes and 241,220 gzip bytes: approximately +4.93 kB raw (+0.64%) and +0.65 kB gzip (+0.27%). Vendor, editor, and icon chunks are effectively unchanged; the increase is in the application chunk that contains the new capability boundaries and measurement hooks. This sub-one-percent aggregate increase is accepted because the structural refactor removes the global workflow context, the build emits no chunk-size warning, and the production-isolation check proves the WDIO bridge is absent.
+
+The Phase 1 baseline did not contain a reproducible large-fixture startup or editor-input measurement, so it cannot support an honest before/after latency percentage. The current versioned fixture and three-sample runner report establish the forward comparison point. Linux timing acceptance remains provisional until reports exist from `ubuntu-24.04-github-x64`; editor input remains observational until that history supports a stable budget.
+
 Deferred follow-up work:
 
-1. Synthetic large-data startup fixture and cold/warm captured baselines.
+1. Accumulate comparable Linux reports and reassess the 3-second budget after enough named-runner history exists.
 2. Pagination or virtualization inside Testware/Finding views if real Sessions become too large after the user explicitly opens those views.
 3. A formal startup state machine if future startup phases become harder to reason about than the current refs/tests.
 
@@ -106,8 +120,8 @@ Goal: turn startup concerns into repeatable numbers before optimizing.
 
 1. Add lightweight timing logs around backend setup: app data directory creation, `Database::open`, schema DDL, migration, `foreign_key_check`, orphan AI-run sweep, and state registration. Implemented in the first startup-performance slice with `qa-scribe startup ... elapsed_ms=...` backend log lines.
 2. Add frontend timing marks for boot start, settings loaded, Sessions loaded, first Session opened, first paint after boot, provider Fast status complete, and provider Deep refresh complete. Implemented in the first startup-performance slice with `qa-scribe:startup:` performance marks and `qa-scribe startup ...` measures.
-3. Add a synthetic large-data fixture or integration helper with many Sessions, a large latest Session, many Drafts/Findings, and many AI Runs. Deferred follow-up.
-4. Capture cold and warm startup numbers on an empty database, medium database, and large database. Deferred follow-up until the fixture exists.
+3. Add a synthetic large-data fixture or integration helper with many Sessions, a large latest Session, many Drafts/Findings, and many AI Runs. Implemented by `generate_startup_fixture` and the built-app benchmark profile.
+4. Capture process-cold and warm startup numbers for the large fixture. Implemented locally and wired as a named-runner CI report; the Linux history begins with the first workflow execution carrying this change.
 5. Define budgets in `docs/quality-scenarios.md`, for example: shell visible within a small fixed budget, initial Session Library bounded by recent-session limit, and provider Deep refresh not blocking boot. Implemented in the first startup-performance slice.
 
 Validation:
@@ -199,7 +213,7 @@ The completed startup fix includes:
 6. Full Session Library, Draft bodies, and Finding bodies load only after explicit user action or view/action need.
 7. Regression tests cover the bounded boot path, autosave preservation, lazy record loads, stale-load invalidation, generated-record merge preservation, bindings, and storage startup contracts.
 
-The main remaining work is measurement, not startup-bounding behavior: add a synthetic large-data startup fixture and capture cold/warm baselines on target machines.
+The startup path is now fixture-backed and budgeted, and the first bundle comparison is reviewed above. The remaining work is to accumulate the named Linux timing history and add pagination, virtualization, or a formal startup state machine only if measured data justifies that complexity.
 
 ## Evidence Sources
 

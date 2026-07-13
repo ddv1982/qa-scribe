@@ -1,0 +1,54 @@
+#!/usr/bin/env node
+
+import process from 'node:process'
+
+const args = process.argv.slice(2)
+
+if (args[0] === 'app-server') {
+  let buffered = ''
+  process.stdin.setEncoding('utf8')
+  process.stdin.on('data', (chunk) => {
+    buffered += chunk
+    const lines = buffered.split('\n')
+    buffered = lines.pop() ?? ''
+    for (const line of lines) {
+      if (!line.trim()) continue
+      const request = JSON.parse(line)
+      if (request.id === 0) process.stdout.write(`${JSON.stringify({ id: 0, result: {} })}\n`)
+      if (request.id === 1) process.stdout.write(`${JSON.stringify({ id: 1, result: { config: {}, layers: [] } })}\n`)
+      if (request.id === 2) process.stdout.write(`${JSON.stringify({ id: 2, result: { data: [] } })}\n`)
+    }
+  })
+} else if (args[0] === 'exec') {
+  let prompt = ''
+  process.stdin.setEncoding('utf8')
+  process.stdin.on('data', (chunk) => {
+    prompt += chunk
+  })
+  process.stdin.on('end', () => {
+    const isTestware = /Create test scenarios with test cases from the selected note only/i.test(prompt)
+    const isSummary = /Keep the output as a summarized QA note/i.test(prompt)
+    const html = isTestware
+      ? '<h2>E2E test cases</h2><ul><li>Deterministic generated case</li></ul>'
+      : isSummary
+        ? '<p>E2E generated summary.</p>'
+        : '<h2>E2E finding</h2><p>Deterministic provider output.</p>'
+    const marker = prompt.match(/<html_fragment_[a-f0-9]+>/i)?.[0]?.slice(1, -1)
+    const response = marker ? `<${marker}>${html}</${marker}>` : html
+
+    process.stdout.write(`${JSON.stringify({ type: 'turn.started' })}\n`)
+    setTimeout(() => {
+      process.stdout.write(`${JSON.stringify({ type: 'item/agentMessage/delta', delta: response.slice(0, Math.ceil(response.length / 2)) })}\n`)
+    }, 350)
+    setTimeout(() => {
+      process.stdout.write(`${JSON.stringify({ type: 'item/agentMessage/delta', delta: response.slice(Math.ceil(response.length / 2)) })}\n`)
+    }, 700)
+    setTimeout(() => {
+      process.stdout.write(`${JSON.stringify({ type: 'item.completed', item: { type: 'agent_message', text: response } })}\n`)
+    }, 1_050)
+  })
+} else if (args[0] === 'debug' && args[1] === 'models') {
+  process.stdout.write('{"models":[]}\n')
+} else {
+  process.stdout.write('qa-scribe deterministic codex fixture 1.0.0\n')
+}

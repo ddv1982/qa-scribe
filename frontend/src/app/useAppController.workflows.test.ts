@@ -45,7 +45,7 @@ describe('useAppController workflows and record hydration', () => {
     expect(result.current.isBusy).toBe(false)
   })
 
-  it('records startup timing marks and refreshes provider discovery in the background', async () => {
+  it('records startup timing marks and keeps Deep provider discovery user-driven', async () => {
     const marks: string[] = []
     const measures: string[] = []
     const markSpy = vi.spyOn(performance, 'mark').mockImplementation((name) => {
@@ -62,9 +62,9 @@ describe('useAppController workflows and record hydration', () => {
 
       await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
       await waitFor(() => expect(tauriMock.getProviderStatus).toHaveBeenCalled())
-      await waitFor(() => expect(tauriMock.refreshProviderStatus).toHaveBeenCalledTimes(1))
 
       expect(result.current.busyAction).toBeNull()
+      expect(tauriMock.refreshProviderStatus).not.toHaveBeenCalled()
       expect(tauriMock.listRecentSessions).toHaveBeenCalledWith(50)
       expect(tauriMock.openSessionNoteState).toHaveBeenCalledWith('session-1')
       expect(tauriMock.listSessions).not.toHaveBeenCalled()
@@ -79,9 +79,9 @@ describe('useAppController workflows and record hydration', () => {
           'qa-scribe:startup:first-session-opened',
           'qa-scribe:startup:boot-busy-cleared',
           'qa-scribe:startup:provider-fast-status-complete',
-          'qa-scribe:startup:provider-deep-refresh-complete',
         ]),
       )
+      expect(marks).not.toContain('qa-scribe:startup:provider-deep-refresh-complete')
       expect(measures).toEqual(
         expect.arrayContaining([
           'qa-scribe startup boot-to-settings-loaded',
@@ -89,15 +89,15 @@ describe('useAppController workflows and record hydration', () => {
           'qa-scribe startup boot-to-first-session-opened',
           'qa-scribe startup boot-to-busy-cleared',
           'qa-scribe startup boot-to-provider-fast-status',
-          'qa-scribe startup boot-to-provider-deep-refresh',
         ]),
       )
+      expect(measures).not.toContain('qa-scribe startup boot-to-provider-deep-refresh')
 
       await act(async () => {
         await result.current.handleRefreshProviderStatus()
       })
 
-      expect(tauriMock.refreshProviderStatus).toHaveBeenCalledTimes(2)
+      expect(tauriMock.refreshProviderStatus).toHaveBeenCalledTimes(1)
       expect(marks).toContain('qa-scribe:startup:provider-deep-refresh-complete')
       expect(measures).toContain('qa-scribe startup boot-to-provider-deep-refresh')
     } finally {
@@ -108,7 +108,7 @@ describe('useAppController workflows and record hydration', () => {
 
   it('keeps full Session Library loading explicit after bounded boot', async () => {
     const recentSessions = Array.from({ length: 50 }, (_, index) => sessionFixture({ id: `session-${index + 1}`, title: `Recent ${index + 1}` }))
-    const fullSessions = [...recentSessions, sessionFixture({ id: 'session-older', title: 'Older note' })]
+    const fullSessions = [...recentSessions, sessionFixture({ id: 'session-older', title: 'Older session' })]
     tauriMock.listRecentSessions.mockResolvedValueOnce(recentSessions)
     tauriMock.listSessions.mockResolvedValueOnce(fullSessions)
     tauriMock.openSessionNoteState.mockResolvedValueOnce(
@@ -404,7 +404,7 @@ describe('useAppController workflows and record hydration', () => {
 
     expect(result.current.testwareDrafts.find((draft) => draft.id === 'draft-race')?.body).toBe('<p>Edit typed while saving.</p>')
 
-    const otherSession = sessionFixture({ id: 'session-2', title: 'Other note' })
+    const otherSession = sessionFixture({ id: 'session-2', title: 'Other session' })
     tauriMock.openSessionNoteState.mockResolvedValueOnce(
       sessionNoteStateFixture({
         session: otherSession,
@@ -422,7 +422,7 @@ describe('useAppController workflows and record hydration', () => {
   it('ignores an old Session Draft load that resolves while another Session is opening', async () => {
     const pendingDrafts = deferred<ReturnType<typeof draftFixture>[]>()
     const pendingOpen = deferred<ReturnType<typeof sessionNoteStateFixture>>()
-    const otherSession = sessionFixture({ id: 'session-2', title: 'Other note' })
+    const otherSession = sessionFixture({ id: 'session-2', title: 'Other session' })
     tauriMock.listDrafts.mockReturnValueOnce(pendingDrafts.promise)
     tauriMock.openSessionNoteState.mockResolvedValueOnce(sessionNoteStateFixture()).mockReturnValueOnce(pendingOpen.promise)
 

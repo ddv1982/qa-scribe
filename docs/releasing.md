@@ -85,9 +85,11 @@ The release workflow builds Tauri desktop artifacts:
 
 Artifacts are written to `dist/rust/artifacts/`. The GitHub Release intentionally publishes only user-facing installers and APT bootstrap files; the archive keyring stays on GitHub Pages because it is consumed by `install-apt-repo.sh`.
 
-CI and release jobs install the Tauri CLI at the Tauri crate version resolved in
-`Cargo.lock`. `scripts/install-tauri-cli.mjs` is the single read path, so there
-is no separate workflow version to keep synchronized.
+CI and release jobs install the exact Tauri CLI version pinned in
+`scripts/tool-versions.json`. `scripts/install-tauri-cli.mjs` validates that the
+pin shares the locked `tauri` runtime's major/minor version before invoking
+`cargo binstall`; patch versions may differ because the two crates are not
+published in lockstep. Workflow files do not carry another CLI version.
 
 ## macOS Prerequisites
 
@@ -201,6 +203,18 @@ metadata and Linux package metadata unit tests, frontend build, prebuilt fronten
 contract check, Rust fmt/clippy/tests/build, and the smoke harness. Use the explicit release
 metadata check with the expected tag before tagging so the changelog/package
 versions match the release being prepared.
+
+### Optional Authenticated-Provider Smoke
+
+Real Claude Code, Codex CLI, or GitHub Copilot CLI checks are manual and optional. They are never part of the required E2E or release gate because they depend on a local account, network service, model response, and usage allowance. When a release changes provider detection or generation execution, test each provider affected by that release on a developer machine after `bun run verify`:
+
+1. Use an already-authenticated provider CLI; do not copy credentials into qa-scribe.
+2. Launch the candidate app, refresh provider status in Settings, and confirm the provider reports ready.
+3. Create a disposable Session with non-sensitive text and explicitly generate one Testware Draft or Finding; verify streaming completes and the generated record persists after switching Sessions.
+4. Start a second disposable generation and cancel it; verify the UI leaves no running job.
+5. Delete the disposable Session and record the app version, provider CLI version, platform, and result in the release notes or release checklist.
+
+A real-provider failure is investigated separately from deterministic E2E. Do not add retries or credentials to the required gate to make this optional smoke pass.
 
 On macOS, validate app packaging:
 

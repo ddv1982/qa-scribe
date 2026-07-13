@@ -118,7 +118,9 @@ jobs:
             libayatana-appindicator3-dev \
             librsvg2-dev \
             libssl-dev \
-            libwebkit2gtk-4.1-dev
+            libwebkit2gtk-4.1-dev \
+            xauth \
+            xvfb
 
       - name: Validate frontend and Rust build
         uses: ./.github/actions/validate-build

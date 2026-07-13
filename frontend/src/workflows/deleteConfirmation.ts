@@ -1,16 +1,16 @@
 import type { Draft, Finding, Session } from '../tauri'
 
 export type DeleteConfirmation =
-  | { kind: 'note'; session: Session }
+  | { kind: 'session'; session: Session }
   | { kind: 'draft'; draft: Draft }
   | { kind: 'finding'; finding: Finding }
 
 export function deleteConfirmationCopy(confirmation: DeleteConfirmation) {
-  if (confirmation.kind === 'note') {
+  if (confirmation.kind === 'session') {
     return {
-      title: `Delete "${confirmation.session.title}"?`,
-      body: 'This removes the note, its testware, findings, and attachments. This cannot be undone.',
-      confirmLabel: 'Delete note permanently',
+      title: `Delete “${confirmation.session.title}”?`,
+      body: 'This removes the Session, its Note Entry, testware, findings, and attachments. This cannot be undone.',
+      confirmLabel: 'Delete Session permanently',
     }
   }
 

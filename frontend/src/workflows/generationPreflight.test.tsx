@@ -13,7 +13,7 @@ function renderPreflight(overrides: Partial<Parameters<typeof GenerationPrefligh
       activeProviderLabel="Codex CLI"
       isBusy={false}
       noteScreenshotCount={0}
-      noteTitle="Checkout"
+      sessionTitle="Checkout"
       noteWordCount={12}
       selectedModel="default"
       onCancel={onCancel}
@@ -44,6 +44,15 @@ describe('GenerationPreflight modal accessibility', () => {
     expect(onCancel).toHaveBeenCalledTimes(1)
   })
 
+  it('blocks generation when provider discovery reports an incompatible default', () => {
+    renderPreflight({
+      selectionWarning: 'Configured model requires a newer Codex CLI. Upgrade it or choose an override.',
+    })
+
+    expect(screen.getByRole('alert').textContent).toContain('requires a newer Codex CLI')
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Summarize note' }).disabled).toBe(true)
+  })
+
   it('returns focus to the trigger when the dialog unmounts', async () => {
     const trigger = document.createElement('button')
     document.body.appendChild(trigger)
@@ -57,7 +66,7 @@ describe('GenerationPreflight modal accessibility', () => {
         activeProviderLabel="Codex CLI"
         isBusy={false}
         noteScreenshotCount={0}
-        noteTitle="Checkout"
+        sessionTitle="Checkout"
         noteWordCount={12}
         selectedModel="default"
         onCancel={vi.fn()}

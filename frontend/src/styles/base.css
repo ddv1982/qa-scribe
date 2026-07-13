@@ -14,7 +14,7 @@
   --font-size-lg: 15px; /* editor body */
   --font-size-xl: 17px;
   --font-size-2xl: 20px;
-  --font-size-3xl: 24px; /* page + note titles */
+  --font-size-3xl: 24px; /* page + Session titles */
   --leading-tight: 1.25;
   --leading-normal: 1.45;
   --leading-relaxed: 1.6;
@@ -184,7 +184,7 @@ button:focus-visible,
 summary:focus-visible,
 .model-combobox-trigger:focus-visible,
 .model-option:focus-visible,
-.note-picker-item:focus-visible,
+.session-picker-item:focus-visible,
 .toolbar-button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;

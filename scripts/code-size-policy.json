@@ -1,0 +1,21 @@
+{
+  "maxLines": 500,
+  "watchLines": 300,
+  "exceptions": [],
+  "excludedFiles": [
+    {
+      "path": "scripts/build_apt_repository.py",
+      "reason": "Cohesive operational packaging script with tightly coupled repository metadata rendering.",
+      "splitCost": "Separating renderers would duplicate or obscure the shared repository metadata and signing contract.",
+      "reviewDate": "2026-10-13",
+      "reviewTrigger": "Review when APT publishing or repository metadata responsibilities change."
+    },
+    {
+      "path": "scripts/validate_linux_package_metadata.py",
+      "reason": "Cohesive package-validation command whose parsers share one reporting and CLI contract.",
+      "splitCost": "Separating parsers would weaken the single validation-report contract without creating an independent responsibility.",
+      "reviewDate": "2026-10-13",
+      "reviewTrigger": "Review when validation gains another package format or separate invocation surface."
+    }
+  ]
+}

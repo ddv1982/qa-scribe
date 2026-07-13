@@ -37,7 +37,7 @@
   color: var(--text-primary);
 }
 
-.note-picker {
+.session-picker {
   display: grid;
   gap: var(--space-2);
   padding-top: var(--space-6);
@@ -81,19 +81,19 @@
   box-shadow: 0 0 0 3px var(--accent-tint);
 }
 
-.note-picker-list,
+.session-picker-list,
 .model-options {
   display: grid;
   gap: var(--space-2);
 }
 
-.note-picker-list {
+.session-picker-list {
   max-height: 278px;
   overflow: auto;
   padding-right: 2px;
 }
 
-.note-picker-item {
+.session-picker-item {
   display: grid;
   gap: var(--space-1);
   width: 100%;
@@ -107,7 +107,7 @@
   cursor: pointer;
 }
 
-.note-picker-item span,
+.session-picker-item span,
 .model-combobox-trigger strong,
 .model-option strong,
 .model-option small {
@@ -117,13 +117,13 @@
   white-space: nowrap;
 }
 
-.note-picker-item span {
+.session-picker-item span {
   font-size: var(--font-size-md);
 }
 
-.note-picker-item small,
-.note-picker-empty,
-.note-picker-more,
+.session-picker-item small,
+.session-picker-empty,
+.session-picker-more,
 .model-combobox-trigger span,
 .model-option small,
 .model-option em,
@@ -132,19 +132,19 @@
   font-size: var(--font-size-sm);
 }
 
-.note-picker-item.active {
+.session-picker-item.active {
   color: var(--accent);
   background: var(--accent-tint);
   border-color: color-mix(in oklab, var(--accent) 14%, transparent);
 }
 
-.note-picker-item:hover,
+.session-picker-item:hover,
 .model-option:hover {
   background: var(--surface-sunken);
 }
 
-.note-picker-empty,
-.note-picker-more,
+.session-picker-empty,
+.session-picker-more,
 .model-options-empty {
   margin: 0;
   line-height: var(--leading-normal);

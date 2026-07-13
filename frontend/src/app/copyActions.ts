@@ -2,46 +2,53 @@ import { copyAttachmentImageToClipboard, type Draft, type Finding } from '../tau
 import { copyRecordForJira, managedAttachmentReferencesForClipboard } from '../editor/clipboardExport'
 import type { BusyAction } from '../ui/types'
 import { formatError } from '../ui/format'
-import type { AppWorkflowContext, CopiedTarget } from './types'
+import type { CopiedTarget, CopyFeedback, SessionWorkspace, WorkflowFeedback } from './types'
+import { useStableCapability } from './useStableCapability'
 
-export function createCopyActions(ctx: AppWorkflowContext) {
+export type CopyActionsContext = {
+  source: Pick<SessionWorkspace, 'activeSession' | 'sessionTitle' | 'noteBodyHtml'>
+  feedback: WorkflowFeedback
+  copy: CopyFeedback
+}
+
+export function createCopyActions(ctx: CopyActionsContext) {
   function clearCopiedTarget() {
-    if (ctx.copySuccessResetRef.current) {
-      window.clearTimeout(ctx.copySuccessResetRef.current)
-      ctx.copySuccessResetRef.current = null
+    if (ctx.copy.copySuccessResetRef.current) {
+      window.clearTimeout(ctx.copy.copySuccessResetRef.current)
+      ctx.copy.copySuccessResetRef.current = null
     }
-    ctx.setCopiedTarget(null)
+    ctx.copy.setCopiedTarget(null)
   }
 
   function markCopiedTarget(target: CopiedTarget) {
-    if (ctx.copySuccessResetRef.current) window.clearTimeout(ctx.copySuccessResetRef.current)
-    ctx.setCopiedTarget(target)
-    ctx.copySuccessResetRef.current = window.setTimeout(() => {
-      ctx.setCopiedTarget(null)
-      ctx.copySuccessResetRef.current = null
+    if (ctx.copy.copySuccessResetRef.current) window.clearTimeout(ctx.copy.copySuccessResetRef.current)
+    ctx.copy.setCopiedTarget(target)
+    ctx.copy.copySuccessResetRef.current = window.setTimeout(() => {
+      ctx.copy.setCopiedTarget(null)
+      ctx.copy.copySuccessResetRef.current = null
     }, 1800)
   }
 
   async function copyTextForJira(record: { title: string; bodyHtml: string }, target: CopiedTarget, busy: BusyAction, successNotice: string) {
     try {
       clearCopiedTarget()
-      ctx.setBusyAction(busy)
-      ctx.setError(null)
+      ctx.feedback.setBusyAction(busy)
+      ctx.feedback.setError(null)
       await copyRecordForJira(record)
       markCopiedTarget(target)
-      ctx.setNotice(successNotice)
+      ctx.feedback.setNotice(successNotice)
     } catch (cause) {
-      ctx.setError(formatError(cause))
+      ctx.feedback.setError(formatError(cause))
     } finally {
-      ctx.setBusyAction(null)
+      ctx.feedback.setBusyAction(null)
     }
   }
 
   async function handleCopyNoteForJira() {
-    if (!ctx.activeSession) return
+    if (!ctx.source.activeSession) return
     await copyTextForJira(
-      { title: ctx.noteTitle, bodyHtml: ctx.noteBodyHtml },
-      { kind: 'note', id: ctx.activeSession.id, action: 'jira-text' },
+      { title: ctx.source.sessionTitle, bodyHtml: ctx.source.noteBodyHtml },
+      { kind: 'note', id: ctx.source.activeSession.id, action: 'jira-text' },
       'copy-note',
       'Note copied for Jira',
     )
@@ -73,29 +80,29 @@ export function createCopyActions(ctx: AppWorkflowContext) {
   ) {
     const [screenshot] = managedAttachmentReferencesForClipboard(record)
     if (!screenshot) {
-      ctx.setError('No screenshot found in this record.')
+      ctx.feedback.setError('No screenshot found in this record.')
       return
     }
 
     try {
       clearCopiedTarget()
-      ctx.setBusyAction(busy)
-      ctx.setError(null)
+      ctx.feedback.setBusyAction(busy)
+      ctx.feedback.setError(null)
       await copyAttachmentImageToClipboard(screenshot.attachmentId)
       markCopiedTarget(target)
-      ctx.setNotice(successNotice)
+      ctx.feedback.setNotice(successNotice)
     } catch (cause) {
-      ctx.setError(formatError(cause))
+      ctx.feedback.setError(formatError(cause))
     } finally {
-      ctx.setBusyAction(null)
+      ctx.feedback.setBusyAction(null)
     }
   }
 
   async function handleCopyNoteScreenshotForJira() {
-    if (!ctx.activeSession) return
+    if (!ctx.source.activeSession) return
     await copyFirstScreenshotForJira(
-      { title: ctx.noteTitle, bodyHtml: ctx.noteBodyHtml },
-      { kind: 'note', id: ctx.activeSession.id, action: 'screenshot' },
+      { title: ctx.source.sessionTitle, bodyHtml: ctx.source.noteBodyHtml },
+      { kind: 'note', id: ctx.source.activeSession.id, action: 'screenshot' },
       'copy-note-screenshot',
       'Note screenshot copied',
     )
@@ -129,4 +136,8 @@ export function createCopyActions(ctx: AppWorkflowContext) {
     handleCopyNoteScreenshotForJira,
     markCopiedTarget,
   }
+}
+
+export function useCopyActions(ctx: CopyActionsContext) {
+  return useStableCapability(ctx, createCopyActions)
 }

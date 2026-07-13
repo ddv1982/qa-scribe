@@ -100,6 +100,18 @@ Run the non-GUI smoke harness:
 bun run smoke
 ```
 
+Run the built desktop application against deterministic end-to-end workflows:
+
+```bash
+bun run e2e
+```
+
+Run the reproducible large-data startup measurement (five launches by default):
+
+```bash
+bun run startup:benchmark
+```
+
 Validate package metadata JSON:
 
 ```bash
@@ -145,6 +157,7 @@ docs/                   Rebuild plan and architecture decisions
 - [Rebuild ADR](docs/adr/0009-rebuild-with-rust-tauri.md)
 - [Project language](CONTEXT.md)
 - [Quality scenarios](docs/quality-scenarios.md)
+- [v0.7.13 code quality baseline](docs/code-quality-baseline.md)
 - [Code size guidelines](docs/code-size-guidelines.md)
 - [Architecture decisions](docs/adr)
 - [Release workflow](docs/releasing.md)

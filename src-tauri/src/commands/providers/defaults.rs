@@ -53,7 +53,7 @@ pub(super) fn codex_default_snapshot(
             .any(|candidate| candidate.id == selected)
     {
         warnings.push(format!(
-            "Configured model `{selected}` is not in the CLI's advertised catalog."
+            "Configured model `{selected}` is not advertised by the installed Codex CLI. Upgrade Codex CLI or choose an explicit QA Scribe model override."
         ));
     }
     if let Some(effort) = reasoning_effort.as_deref()
@@ -300,7 +300,7 @@ mod tests {
             snapshot
                 .warnings
                 .iter()
-                .any(|warning| warning.contains("not in the CLI"))
+                .any(|warning| warning.contains("Upgrade Codex CLI"))
         );
     }
 }

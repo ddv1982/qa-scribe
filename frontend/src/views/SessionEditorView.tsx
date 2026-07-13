@@ -20,7 +20,7 @@ export function SessionEditorView({
   noteBody,
   noteIsReady,
   noteScreenshotCount,
-  noteTitle,
+  sessionTitle,
   noteWordCount,
   notice,
   error,
@@ -35,7 +35,7 @@ export function SessionEditorView({
   onDeleteSession,
   onOpenSession,
   onSetNoteBody,
-  onSetNoteTitle,
+  onSetSessionTitle,
   onUploadImage,
 }: {
   activeProviderAvailable: boolean
@@ -49,7 +49,7 @@ export function SessionEditorView({
   noteBody: RichEditorDocument
   noteIsReady: boolean
   noteScreenshotCount: number
-  noteTitle: string
+  sessionTitle: string
   noteWordCount: number
   notice: string | null
   error: string | null
@@ -64,10 +64,10 @@ export function SessionEditorView({
   onDeleteSession: () => void
   onOpenSession: (session: Session) => Promise<void>
   onSetNoteBody: (value: RichEditorDocument) => void
-  onSetNoteTitle: (value: string) => void
+  onSetSessionTitle: (value: string) => void
   onUploadImage: (input: RichEditorImageUpload) => void | Promise<void>
 }) {
-  const deletingSession = busyAction === 'delete-note'
+  const deletingSession = busyAction === 'delete-session'
   const copyingNote = busyAction === 'copy-note'
   const copyingNoteScreenshot = busyAction === 'copy-note-screenshot'
   const undoingGeneration = busyAction === 'undo-generation'
@@ -92,10 +92,10 @@ export function SessionEditorView({
         <div className="empty-icon">
           <FileText size={34} />
         </div>
-        <h1>No note selected</h1>
-        <p>Create a note or open an existing one to start writing QA notes.</p>
+        <h1>No Session selected</h1>
+        <p>Create a Session or open an existing one to start writing QA notes.</p>
         {filteredSessions.length > 0 ? (
-          <div className="empty-note-actions">
+          <div className="empty-session-actions">
             {filteredSessions.slice(0, 3).map((session) => (
               <button className="secondary-button" key={session.id} type="button" disabled={isBusy} onClick={() => void onOpenSession(session)}>
                 {session.title}
@@ -108,11 +108,11 @@ export function SessionEditorView({
   }
 
   return (
-    <div className="note-workspace">
+    <div className="session-workspace">
       <header className="document-topline">
         <div className="breadcrumb">
           <FileText size={18} />
-          <span>All notes</span>
+          <span>All Sessions</span>
           <ChevronDown size={14} />
           <strong>{activeSession.title}</strong>
         </div>
@@ -149,21 +149,21 @@ export function SessionEditorView({
               {copyingNoteScreenshot ? <Loader2 className="spin" size={16} /> : screenshotCopySucceeded ? <CheckCircle2 size={16} /> : <ImageIcon size={16} />}
             </button>
           ) : null}
-          <button className="icon-button danger" type="button" aria-label="Delete note" title="Delete note" disabled={isBusy} onClick={() => void onDeleteSession()}>
+          <button className="icon-button danger" type="button" aria-label="Delete Session" title="Delete Session" disabled={isBusy} onClick={() => void onDeleteSession()}>
             {deletingSession ? <Loader2 className="spin" size={16} /> : <Trash2 size={16} />}
           </button>
         </div>
       </header>
 
-      <section className="editor-card" aria-label="Note editor">
+      <section className="editor-card" aria-label="Session editor">
         <FormatToolbar editorId={editorId} onUploadImage={onUploadImage} />
         <div className="document-body">
           <input
-            className="note-title-input"
-            value={noteTitle}
-            onChange={(event) => onSetNoteTitle(event.target.value)}
-            placeholder="Untitled note"
-            aria-label="Note title"
+            className="session-title-input"
+            value={sessionTitle}
+            onChange={(event) => onSetSessionTitle(event.target.value)}
+            placeholder="Untitled session"
+            aria-label="Session title"
           />
           <RichTextEditor editorId={editorId} value={noteBody} onChange={onSetNoteBody} className="note-rich-editor" />
         </div>

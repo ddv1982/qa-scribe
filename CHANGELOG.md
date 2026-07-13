@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.7.13 - 2026-07-13
+
+- Keep “Use CLI default” transparent during generation instead of re-sending discovered reasoning as a QA Scribe override.
+- Stop unsupported configured Codex defaults before a doomed provider run, with actionable guidance to upgrade the CLI or choose an explicit model override.
+
 ## v0.7.12 - 2026-07-13
 
 - Discover and display effective model and reasoning defaults from Codex, Claude Code, and GitHub Copilot CLI configuration while keeping QA Scribe overrides independent and explicit.

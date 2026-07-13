@@ -96,10 +96,32 @@ fn validate_effective_selection(
     model_override: &str,
     reasoning_override: Option<&str>,
 ) -> Result<(), String> {
-    let model = if model_override.trim().is_empty()
+    let uses_default_model = model_override.trim().is_empty()
         || model_override.eq_ignore_ascii_case("default")
-        || model_override.eq_ignore_ascii_case("auto")
-    {
+        || model_override.eq_ignore_ascii_case("auto");
+
+    // With no QA Scribe overrides, Codex is authoritative. Discovery is a
+    // display snapshot and can be stale or merely recommended; it must never
+    // turn a valid CLI-default invocation into a blocked preflight.
+    if uses_default_model && reasoning_override.is_none() {
+        if provider.id == "codex_cli"
+            && provider.default_snapshot.resolution
+                == crate::commands::providers::ProviderDefaultResolution::Configured
+            && let Some(model) = provider.default_snapshot.model.as_deref()
+            && !provider.models.is_empty()
+            && !provider
+                .models
+                .iter()
+                .any(|candidate| candidate.id == model)
+        {
+            return Err(format!(
+                "Configured Codex CLI default model `{model}` is not advertised by the installed CLI. Upgrade Codex CLI or choose an explicit QA Scribe model override."
+            ));
+        }
+        return Ok(());
+    }
+
+    let model = if uses_default_model {
         provider.default_snapshot.model.as_deref()
     } else {
         Some(model_override.trim())
@@ -147,5 +169,74 @@ fn truncate_for_log(value: &str, max_chars: usize) -> String {
         "none".to_string()
     } else {
         truncated
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::commands::providers::{
+        ProviderDefaultResolution, ProviderDefaultSnapshot, ProviderDescriptor,
+        ProviderModelDescriptor, ProviderModelSource, ProviderState,
+    };
+
+    use super::validate_effective_selection;
+
+    fn codex_descriptor() -> ProviderDescriptor {
+        ProviderDescriptor {
+            id: "codex_cli".to_string(),
+            label: "Codex CLI",
+            status: ProviderState::Ready,
+            available: true,
+            reason: "ready".to_string(),
+            command: Some("codex".to_string()),
+            executable_path: Some("/mock/bin/codex".to_string()),
+            models: vec![ProviderModelDescriptor {
+                id: "gpt-codex".to_string(),
+                label: "gpt-codex".to_string(),
+                description: None,
+                source: ProviderModelSource::Detected,
+                is_default: true,
+                reasoning_efforts: vec!["low".to_string()],
+                default_reasoning_effort: Some("low".to_string()),
+            }],
+            default_snapshot: ProviderDefaultSnapshot {
+                model: Some("gpt-codex".to_string()),
+                reasoning_effort: Some("stale-value".to_string()),
+                model_origin: None,
+                reasoning_origin: None,
+                resolution: ProviderDefaultResolution::Configured,
+                recommended_model: None,
+                recommended_reasoning_effort: None,
+                warnings: Vec::new(),
+            },
+            local_only: true,
+        }
+    }
+
+    #[test]
+    fn cli_defaults_are_not_blocked_by_a_stale_discovery_snapshot() {
+        assert_eq!(
+            validate_effective_selection(&codex_descriptor(), "default", None),
+            Ok(())
+        );
+    }
+
+    #[test]
+    fn explicit_reasoning_override_is_still_checked_against_the_cli_model() {
+        assert!(
+            validate_effective_selection(&codex_descriptor(), "default", Some("high"))
+                .unwrap_err()
+                .contains("not supported")
+        );
+    }
+
+    #[test]
+    fn unadvertised_configured_codex_default_is_rejected_before_generation() {
+        let mut provider = codex_descriptor();
+        provider.default_snapshot.model = Some("requires-newer-cli".to_string());
+
+        let error = validate_effective_selection(&provider, "default", None).unwrap_err();
+        assert!(error.contains("Upgrade Codex CLI"));
+        assert!(error.contains("model override"));
     }
 }

@@ -100,8 +100,8 @@ describe('App workflows', () => {
     tauriMock.listDrafts.mockResolvedValue([])
     tauriMock.listFindings.mockResolvedValue([])
     tauriMock.createEntry.mockResolvedValue(entryFixture())
-    tauriMock.createSession.mockResolvedValue(sessionFixture({ id: 'session-2', title: 'Untitled note 2' }))
-    tauriMock.updateSession.mockImplementation(async (_id: string, patch: { title?: string | null }) => sessionFixture({ title: patch.title ?? 'Checkout note' }))
+    tauriMock.createSession.mockResolvedValue(sessionFixture({ id: 'session-2', title: 'Untitled session 2' }))
+    tauriMock.updateSession.mockImplementation(async (_id: string, patch: { title?: string | null }) => sessionFixture({ title: patch.title ?? 'Checkout session' }))
     tauriMock.updateEntry.mockImplementation(async (_id: string, patch: { body?: string | null; bodyJson?: string | null; bodyFormat?: string | null }) =>
       entryFixture({
         body: patch.body ?? '<p>Checkout fails after payment.</p>',
@@ -120,10 +120,10 @@ describe('App workflows', () => {
     cleanup()
   })
 
-  it('boots the first note from bounded Session Note state', async () => {
+  it('boots the first Session from bounded Session Note state', async () => {
     render(<App />)
 
-    await waitFor(() => expect(screen.getByDisplayValue('Checkout note')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByDisplayValue('Checkout session')).toBeInTheDocument())
 
     expect(tauriMock.listRecentSessions).toHaveBeenCalledWith(50)
     expect(tauriMock.openSessionNoteState).toHaveBeenCalledWith('session-1')
@@ -131,7 +131,7 @@ describe('App workflows', () => {
     expect(tauriMock.createEntry).not.toHaveBeenCalled()
   })
 
-  it('opens the first note before provider status resolves', async () => {
+  it('opens the first Session before provider status resolves', async () => {
     let resolveProviderStatus: (status: ReturnType<typeof providerStatusFixture>) => void = () => {}
     tauriMock.getProviderStatus.mockReturnValueOnce(
       new Promise((resolve) => {
@@ -140,7 +140,7 @@ describe('App workflows', () => {
     )
     render(<App />)
 
-    await screen.findByDisplayValue('Checkout note')
+    await screen.findByDisplayValue('Checkout session')
     const generateButton = screen.getByRole('button', { name: /generate test cases/i })
     expect(generateButton).toBeDisabled()
 
@@ -149,15 +149,15 @@ describe('App workflows', () => {
     await waitFor(() => expect(generateButton).toBeEnabled())
   })
 
-  it('creates a new note from the top action', async () => {
+  it('creates a new session from the top action', async () => {
     const user = userEvent.setup()
-    tauriMock.listSessions.mockResolvedValueOnce([sessionFixture()]).mockResolvedValueOnce([sessionFixture({ id: 'session-2', title: 'Untitled note 2' })])
+    tauriMock.listSessions.mockResolvedValueOnce([sessionFixture()]).mockResolvedValueOnce([sessionFixture({ id: 'session-2', title: 'Untitled session 2' })])
     render(<App />)
 
-    await screen.findByDisplayValue('Checkout note')
-    await user.click(screen.getByRole('button', { name: /^new note$/i }))
+    await screen.findByDisplayValue('Checkout session')
+    await user.click(screen.getByRole('button', { name: /^new session$/i }))
 
-    await waitFor(() => expect(tauriMock.createSession).toHaveBeenCalledWith({ title: 'Untitled note 1', sessionContext: null, objectiveNotes: null }))
+    await waitFor(() => expect(tauriMock.createSession).toHaveBeenCalledWith({ title: 'Untitled session 1', sessionContext: null, objectiveNotes: null }))
     expect(tauriMock.createEntry).toHaveBeenLastCalledWith({
       sessionId: 'session-2',
       entryType: 'note',
@@ -174,7 +174,7 @@ describe('App workflows', () => {
     const user = userEvent.setup()
     render(<App />)
 
-    await screen.findByDisplayValue('Checkout note')
+    await screen.findByDisplayValue('Checkout session')
     await user.click(screen.getByRole('button', { name: /generate test cases/i }))
     const dialog = screen.getByRole('dialog', { name: /generate test cases/i })
     expect(dialog).toBeInTheDocument()
@@ -188,7 +188,7 @@ describe('App workflows', () => {
           sessionId: 'session-1',
           provider: 'codex_cli',
           model: 'default',
-          reasoningEffort: 'medium',
+          reasoningEffort: null,
           action: 'testware',
           noteEntryId: 'entry-1',
           testwarePreferences: expect.objectContaining({
@@ -211,7 +211,7 @@ describe('App workflows', () => {
     const user = userEvent.setup()
     render(<App />)
 
-    await screen.findByDisplayValue('Checkout note')
+    await screen.findByDisplayValue('Checkout session')
     await user.click(screen.getByRole('button', { name: /generate test cases/i }))
     const dialog = screen.getByRole('dialog', { name: /generate test cases/i })
     await user.click(within(dialog).getByRole('button', { name: /boundaries/i }))
@@ -297,10 +297,10 @@ describe('App workflows', () => {
     )
   })
 
-  it('moves note picker focus with arrow keys and opens the focused note', async () => {
+  it('moves session picker focus with arrow keys and opens the focused Session', async () => {
     const user = userEvent.setup()
-    const firstSession = sessionFixture({ id: 'session-1', title: 'Alpha note' })
-    const secondSession = sessionFixture({ id: 'session-2', title: 'Beta note' })
+    const firstSession = sessionFixture({ id: 'session-1', title: 'Alpha session' })
+    const secondSession = sessionFixture({ id: 'session-2', title: 'Beta session' })
     tauriMock.listRecentSessions.mockResolvedValueOnce([firstSession, secondSession])
     tauriMock.openSessionNoteState.mockImplementation(async (sessionId: string) =>
       sessionNoteStateFixture({
@@ -310,9 +310,9 @@ describe('App workflows', () => {
     )
     render(<App />)
 
-    await screen.findByDisplayValue('Alpha note')
-    const alphaOption = screen.getByRole('option', { name: /alpha note/i })
-    const betaOption = screen.getByRole('option', { name: /beta note/i })
+    await screen.findByDisplayValue('Alpha session')
+    const alphaOption = screen.getByRole('option', { name: /alpha session/i })
+    const betaOption = screen.getByRole('option', { name: /beta session/i })
 
     alphaOption.focus()
     await user.keyboard('{ArrowDown}')
@@ -321,14 +321,14 @@ describe('App workflows', () => {
     await user.keyboard('{Enter}')
 
     await waitFor(() => expect(tauriMock.openSessionNoteState).toHaveBeenLastCalledWith('session-2'))
-    expect(await screen.findByDisplayValue('Beta note')).toBeInTheDocument()
+    expect(await screen.findByDisplayValue('Beta session')).toBeInTheDocument()
   })
 
   it('creates manual testware after saving pending note edits', async () => {
     const user = userEvent.setup()
     render(<App />)
 
-    await screen.findByDisplayValue('Checkout note')
+    await screen.findByDisplayValue('Checkout session')
     await user.click(screen.getByRole('button', { name: /testware/i }))
     await user.click(screen.getByRole('button', { name: /new testware/i }))
 
