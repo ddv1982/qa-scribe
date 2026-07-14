@@ -1,0 +1,3 @@
+{"type":"system","subtype":"init","account":{"subscriptionType":"privateNoise","credential":"discarded"}}
+{"type":"control_response","response":{"subtype":"error","request_id":"different-request","account":{"privateNoise":"discarded"}}}
+{"type":"control_response","response":{"subtype":"success","request_id":"qa-scribe-model-catalog","response":{"account":{"subscriptionType":"discarded"},"models":[{"value":"safe","displayName":"Safe","account":{"privateNoise":"discarded"},"credential":"discarded","privateMetadata":"discarded"}]}}}

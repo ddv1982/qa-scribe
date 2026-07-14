@@ -1,0 +1,1 @@
+{"type":"control_response","response":{"subtype":"error","request_id":"qa-scribe-model-catalog","error":{"code":"authentication_required","message":"synthetic-private-detail"}}}

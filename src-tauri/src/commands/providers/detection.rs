@@ -6,16 +6,15 @@ use qa_scribe_core::{
 };
 
 use super::{
-    cache::{cache_readiness, cached_readiness, retain_last_successful_defaults},
+    cache::{cache_readiness, cached_readiness, retain_last_successful_discovery},
     defaults::{claude_default_snapshot, codex_default_snapshot, copilot_default_snapshot},
-    models::{
-        claude_models, claude_static_models, codex_models, codex_static_models, copilot_models,
-        copilot_models_with_config_help, normalize_models, provider_default_model,
-    },
+    models::{compatibility_models, normalize_models, provider_catalog, provider_default_model},
     probe::{CommandProbe, DetectionMode, ProbeRunner},
+    rollout::provider_catalog_rollout,
     types::{
-        ProviderDefaultSnapshot, ProviderDescriptor, ProviderModelDescriptor, ProviderReadiness,
-        ProviderState,
+        ProviderCatalogRollout, ProviderDefaultSnapshot, ProviderDescriptor,
+        ProviderDiscoveryErrorCode, ProviderModelCatalogSnapshot, ProviderModelDescriptor,
+        ProviderReadiness, ProviderState,
     },
 };
 
@@ -27,24 +26,34 @@ pub(super) fn provider_readiness_with_runners(
     // A cached Deep SUCCESS is authoritative for the TTL. Once it expires,
     // generation performs a fresh Deep probe so changed CLI defaults and
     // catalogs are reconciled immediately before a run.
-    if let Some(readiness) = cached_readiness(provider, DetectionMode::Deep)
+    let deep_fingerprint = deep_runner.cache_fingerprint(provider);
+    if let Some(readiness) = cached_readiness(provider, DetectionMode::Deep, deep_fingerprint)
         && readiness.descriptor.available
     {
         return readiness;
     }
-    let fast_readiness = if let Some(readiness) = cached_readiness(provider, DetectionMode::Fast) {
+    let fast_fingerprint = fast_runner.cache_fingerprint(provider);
+    let fast_readiness = if let Some(readiness) =
+        cached_readiness(provider, DetectionMode::Fast, fast_fingerprint)
+    {
         readiness
     } else {
         let readiness = detect_provider(provider, fast_runner, DetectionMode::Fast);
-        cache_readiness(provider, DetectionMode::Fast, &readiness);
+        cache_readiness(provider, DetectionMode::Fast, fast_fingerprint, &readiness);
         readiness
     };
 
-    let deep_readiness = retain_last_successful_defaults(
+    let deep_readiness = retain_last_successful_discovery(
         provider,
+        deep_fingerprint,
         detect_provider(provider, deep_runner, DetectionMode::Deep),
     );
-    cache_readiness(provider, DetectionMode::Deep, &deep_readiness);
+    cache_readiness(
+        provider,
+        DetectionMode::Deep,
+        deep_fingerprint,
+        &deep_readiness,
+    );
     if deep_readiness.descriptor.available || !fast_readiness.descriptor.available {
         deep_readiness
     } else {
@@ -87,8 +96,6 @@ struct CliProviderDescriptor {
     auth_args: &'static [&'static str],
     auth_command_display: &'static str,
     auth_required_reason: &'static str,
-    static_models: fn() -> Vec<ProviderModelDescriptor>,
-    models: fn(&dyn ProbeRunner) -> Vec<ProviderModelDescriptor>,
 }
 
 const CLAUDE_DESCRIPTOR: CliProviderDescriptor = CliProviderDescriptor {
@@ -99,8 +106,6 @@ const CLAUDE_DESCRIPTOR: CliProviderDescriptor = CliProviderDescriptor {
     auth_args: &["auth", "status", "--json"],
     auth_command_display: "claude auth status --json",
     auth_required_reason: "Claude Code is installed, but authentication is not ready. Run `claude auth status` and sign in with Claude Code.",
-    static_models: claude_static_models,
-    models: claude_models,
 };
 
 const CODEX_DESCRIPTOR: CliProviderDescriptor = CliProviderDescriptor {
@@ -111,8 +116,6 @@ const CODEX_DESCRIPTOR: CliProviderDescriptor = CliProviderDescriptor {
     auth_args: &["login", "status"],
     auth_command_display: "codex login status",
     auth_required_reason: "Codex CLI is installed, but authentication is not ready. Run `codex login status` or sign in with `codex login`.",
-    static_models: codex_static_models,
-    models: codex_models,
 };
 
 fn detect_cli_provider(
@@ -122,7 +125,8 @@ fn detect_cli_provider(
     mode: DetectionMode,
 ) -> ProviderReadiness {
     if mode == DetectionMode::Fast {
-        let models = (descriptor.static_models)();
+        let catalog_snapshot = provider_catalog(capability.id, runner, mode, None);
+        let models = catalog_snapshot.models.clone();
         let executable_path = runner.executable_path(capability.executable);
         if executable_path.is_none() {
             return not_installed_or_error(
@@ -139,6 +143,7 @@ fn detect_cli_provider(
             descriptor.ready_command,
             executable_path,
             models,
+            catalog_snapshot,
             snapshot,
             false,
         );
@@ -156,7 +161,8 @@ fn detect_cli_provider(
     }
     let cli_version =
         (!install.stdout.trim().is_empty()).then(|| install.stdout.trim().to_string());
-    let models = (descriptor.models)(runner);
+    let catalog_snapshot = provider_catalog(capability.id, runner, mode, cli_version.clone());
+    let models = catalog_snapshot.models.clone();
     let snapshot = default_snapshot(capability.id, runner, &models, cli_version);
 
     let auth = runner.run(capability.executable, descriptor.auth_args);
@@ -167,6 +173,7 @@ fn detect_cli_provider(
             descriptor.ready_command,
             executable_path,
             models,
+            catalog_snapshot,
             snapshot,
             false,
         );
@@ -179,6 +186,7 @@ fn detect_cli_provider(
         Some(descriptor.auth_command_display.to_string()),
         executable_path,
         models,
+        catalog_snapshot,
         snapshot,
         false,
     )
@@ -199,11 +207,22 @@ fn detect_copilot(
         );
     }
 
-    let models = if mode == DetectionMode::Deep {
-        copilot_models_with_config_help(runner)
+    let cli_version = if mode == DetectionMode::Deep {
+        let version = runner.run(capability.executable, &capability.version_args);
+        if !version.success {
+            return not_installed_or_error(
+                capability,
+                version,
+                "Install or update GitHub Copilot CLI and ensure `copilot` is on PATH.",
+                executable_path,
+            );
+        }
+        (!version.stdout.trim().is_empty()).then(|| version.stdout.trim().to_string())
     } else {
-        copilot_models()
+        None
     };
+    let catalog_snapshot = provider_catalog(capability.id, runner, mode, cli_version.clone());
+    let models = catalog_snapshot.models.clone();
 
     if mode == DetectionMode::Fast {
         return ready(
@@ -212,7 +231,8 @@ fn detect_copilot(
             "copilot -s --no-ask-user (prompt on stdin)",
             executable_path,
             models,
-            copilot_default_snapshot(),
+            catalog_snapshot,
+            copilot_default_snapshot(cli_version),
             true,
         );
     }
@@ -229,7 +249,27 @@ fn detect_copilot(
             Some("copilot update".to_string()),
             executable_path,
             models,
-            copilot_default_snapshot(),
+            catalog_snapshot,
+            copilot_default_snapshot(cli_version),
+            false,
+        );
+    }
+
+    if catalog_snapshot
+        .error
+        .as_ref()
+        .is_some_and(|error| error.code == ProviderDiscoveryErrorCode::AuthRequired)
+    {
+        return descriptor_readiness(
+            capability,
+            ProviderState::AuthRequired,
+            "GitHub Copilot CLI is installed, but authentication is not ready. Sign in with `copilot login` and retry."
+                .to_string(),
+            Some("copilot login".to_string()),
+            executable_path,
+            models,
+            catalog_snapshot,
+            copilot_default_snapshot(cli_version),
             false,
         );
     }
@@ -240,17 +280,20 @@ fn detect_copilot(
         "copilot -s --no-ask-user (prompt on stdin)",
         executable_path,
         models,
-        copilot_default_snapshot(),
+        catalog_snapshot,
+        copilot_default_snapshot(cli_version),
         true,
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn ready(
     capability: ProviderCapability,
     reason: &str,
     command: &str,
     executable_path: Option<PathBuf>,
     models: Vec<ProviderModelDescriptor>,
+    catalog_snapshot: ProviderModelCatalogSnapshot,
     default_snapshot: ProviderDefaultSnapshot,
     copilot_direct_cli_ready: bool,
 ) -> ProviderReadiness {
@@ -261,6 +304,7 @@ fn ready(
         Some(command.to_string()),
         executable_path,
         models,
+        catalog_snapshot,
         default_snapshot,
         copilot_direct_cli_ready,
     )
@@ -285,10 +329,7 @@ fn not_installed_or_error(
     } else {
         ProviderState::Error
     };
-    let reason = match probe.failure_detail() {
-        Some(detail) if !probe.not_found => format!("{install_message} Last error: {detail}"),
-        _ => install_message.to_string(),
-    };
+    let reason = install_message.to_string();
 
     descriptor_readiness(
         capability,
@@ -297,6 +338,7 @@ fn not_installed_or_error(
         None,
         executable_path,
         vec![provider_default_model()],
+        ProviderModelCatalogSnapshot::unavailable(reason.clone()),
         ProviderDefaultSnapshot::unavailable(reason),
         false,
     )
@@ -308,11 +350,22 @@ fn descriptor_readiness(
     status: ProviderState,
     reason: String,
     command: Option<String>,
-    executable_path: Option<PathBuf>,
-    models: Vec<ProviderModelDescriptor>,
-    default_snapshot: ProviderDefaultSnapshot,
+    _executable_path: Option<PathBuf>,
+    _models: Vec<ProviderModelDescriptor>,
+    mut catalog_snapshot: ProviderModelCatalogSnapshot,
+    mut default_snapshot: ProviderDefaultSnapshot,
     copilot_direct_cli_ready: bool,
 ) -> ProviderReadiness {
+    catalog_snapshot.cli_version = sanitize_cli_version(catalog_snapshot.cli_version);
+    default_snapshot.cli_version = sanitize_cli_version(default_snapshot.cli_version);
+    let models = if capability.id == AiProvider::CodexCli
+        || provider_catalog_rollout() == ProviderCatalogRollout::Selector
+        || catalog_snapshot.source != super::ProviderCatalogSource::CliCatalog
+    {
+        normalize_models(catalog_snapshot.models.clone())
+    } else {
+        compatibility_models(capability.id)
+    };
     ProviderReadiness {
         descriptor: ProviderDescriptor {
             id: capability.id.as_str().to_string(),
@@ -321,8 +374,8 @@ fn descriptor_readiness(
             available: status.is_ready(),
             reason,
             command,
-            executable_path: executable_path.map(|path| path.to_string_lossy().into_owned()),
-            models: normalize_models(models),
+            models,
+            catalog_snapshot,
             default_snapshot,
             local_only: true,
         },
@@ -337,15 +390,50 @@ fn default_snapshot(
     cli_version: Option<String>,
 ) -> ProviderDefaultSnapshot {
     match provider {
-        AiProvider::ClaudeCode => claude_default_snapshot(),
+        AiProvider::ClaudeCode => claude_default_snapshot(cli_version),
         AiProvider::CodexCli => codex_default_snapshot(runner, models, cli_version),
-        AiProvider::CopilotCli => copilot_default_snapshot(),
+        AiProvider::CopilotCli => copilot_default_snapshot(cli_version),
     }
 }
 
 fn format_auth_reason(prefix: &str, probe: &CommandProbe) -> String {
-    match probe.failure_detail() {
-        Some(detail) => format!("{prefix} Last response: {detail}"),
-        None => prefix.to_string(),
+    let _ = probe;
+    prefix.to_string()
+}
+
+fn sanitize_cli_version(version: Option<String>) -> Option<String> {
+    let value = version?;
+    value
+        .split_whitespace()
+        .map(|part| {
+            part.trim_matches(|character: char| {
+                !character.is_ascii_alphanumeric() && !matches!(character, '.' | '-' | '_' | '+')
+            })
+        })
+        .find(|part| {
+            !part.is_empty()
+                && part.len() <= 64
+                && part.contains('.')
+                && part.chars().any(|character| character.is_ascii_digit())
+                && part.chars().all(|character| {
+                    character.is_ascii_alphanumeric() || matches!(character, '.' | '-' | '_' | '+')
+                })
+        })
+        .map(str::to_string)
+}
+
+#[cfg(test)]
+mod privacy_tests {
+    use super::sanitize_cli_version;
+
+    #[test]
+    fn cli_versions_are_reduced_to_a_bounded_version_token() {
+        assert_eq!(
+            sanitize_cli_version(Some(
+                "GitHub Copilot CLI /private/path 1.0.7-preview.2 token=secret".to_string()
+            )),
+            Some("1.0.7-preview.2".to_string())
+        );
+        assert_eq!(sanitize_cli_version(Some("token=secret".to_string())), None);
     }
 }

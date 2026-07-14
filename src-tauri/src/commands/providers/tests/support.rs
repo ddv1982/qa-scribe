@@ -7,7 +7,7 @@ use std::{
     sync::{Mutex, MutexGuard, OnceLock},
 };
 
-use super::super::probe::{CommandProbe, ProbeRunner};
+use super::super::probe::{CommandProbe, ProbeRunner, StructuredCatalogProbe};
 
 /// `READINESS_CACHE` (in `cache.rs`) is a process-global static keyed by
 /// `(AiProvider, DetectionMode)`. Tests that seed/read/clear it for
@@ -35,6 +35,8 @@ pub(super) struct MockRunner {
     executables: HashSet<String>,
     probes: HashMap<String, CommandProbe>,
     calls: RefCell<Vec<String>>,
+    copilot_catalog: Option<StructuredCatalogProbe>,
+    copilot_catalog_calls: std::cell::Cell<usize>,
 }
 
 impl MockRunner {
@@ -54,6 +56,15 @@ impl MockRunner {
     pub(super) fn calls(&self) -> Vec<String> {
         self.calls.borrow().clone()
     }
+
+    pub(super) fn with_copilot_catalog(mut self, probe: StructuredCatalogProbe) -> Self {
+        self.copilot_catalog = Some(probe);
+        self
+    }
+
+    pub(super) fn copilot_catalog_calls(&self) -> usize {
+        self.copilot_catalog_calls.get()
+    }
 }
 
 impl ProbeRunner for MockRunner {
@@ -69,6 +80,14 @@ impl ProbeRunner for MockRunner {
             .get(&command_key(program, args))
             .cloned()
             .unwrap_or_else(CommandProbe::not_found)
+    }
+
+    fn copilot_structured_catalog(&self) -> StructuredCatalogProbe {
+        self.copilot_catalog_calls
+            .set(self.copilot_catalog_calls.get() + 1);
+        self.copilot_catalog
+            .clone()
+            .unwrap_or(StructuredCatalogProbe::NotAttempted)
     }
 }
 

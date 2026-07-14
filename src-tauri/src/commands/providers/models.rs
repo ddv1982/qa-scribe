@@ -1,11 +1,21 @@
 use std::{collections::HashSet, env, fs, path::PathBuf};
 
+use qa_scribe_core::domain::AiProvider;
 use serde::Deserialize;
 
-use super::{ProbeRunner, ProviderModelDescriptor, ProviderModelSource, probe::CodexDefaultsProbe};
+use super::{
+    ProviderEvidenceConfidence, ProviderModelAvailability, ProviderModelCapabilities,
+    ProviderModelDescriptor, ProviderModelSource,
+};
 use presets::{CLAUDE_PRESET_MODELS, CODEX_PRESET_MODELS, COPILOT_PRESET_MODELS};
 
 mod presets;
+
+mod catalog;
+mod structured;
+
+pub(super) use catalog::provider_catalog;
+use structured::*;
 
 pub(super) fn provider_default_model() -> ProviderModelDescriptor {
     ProviderModelDescriptor {
@@ -13,9 +23,32 @@ pub(super) fn provider_default_model() -> ProviderModelDescriptor {
         label: "Use CLI default".to_string(),
         description: Some("Use the model configured by the local provider CLI.".to_string()),
         source: ProviderModelSource::ProviderDefault,
+        availability: ProviderModelAvailability::Available,
+        confidence: ProviderEvidenceConfidence::Authoritative,
         is_default: true,
         reasoning_efforts: Vec::new(),
         default_reasoning_effort: None,
+        capabilities: ProviderModelCapabilities::default(),
+        resolved_model: None,
+    }
+}
+
+fn copilot_auto_model() -> ProviderModelDescriptor {
+    ProviderModelDescriptor {
+        id: "auto".to_string(),
+        label: "Automatic model selection".to_string(),
+        description: Some("Let GitHub Copilot choose an available model at run time.".to_string()),
+        source: ProviderModelSource::ProviderDefault,
+        availability: ProviderModelAvailability::Available,
+        confidence: ProviderEvidenceConfidence::Authoritative,
+        is_default: false,
+        reasoning_efforts: Vec::new(),
+        default_reasoning_effort: None,
+        capabilities: ProviderModelCapabilities {
+            auto_mode: Some(true),
+            ..ProviderModelCapabilities::default()
+        },
+        resolved_model: None,
     }
 }
 
@@ -30,9 +63,13 @@ fn environment_model(key: &str) -> Option<ProviderModelDescriptor> {
         label: model,
         description: Some(format!("Detected from `{key}`.")),
         source: ProviderModelSource::Environment,
+        availability: ProviderModelAvailability::SupportedByBinary,
+        confidence: ProviderEvidenceConfidence::Observed,
         is_default: false,
         reasoning_efforts: Vec::new(),
         default_reasoning_effort: None,
+        capabilities: ProviderModelCapabilities::default(),
+        resolved_model: None,
     })
 }
 
@@ -52,10 +89,14 @@ fn copilot_settings_model() -> Option<ProviderModelDescriptor> {
         id: model.clone(),
         label: model,
         description: Some("Detected from GitHub Copilot CLI settings.".to_string()),
-        source: ProviderModelSource::Detected,
+        source: ProviderModelSource::Config,
+        availability: ProviderModelAvailability::SupportedByBinary,
+        confidence: ProviderEvidenceConfidence::Observed,
         is_default: false,
         reasoning_efforts: Vec::new(),
         default_reasoning_effort: None,
+        capabilities: ProviderModelCapabilities::default(),
+        resolved_model: None,
     })
 }
 
@@ -87,36 +128,6 @@ struct CopilotSettings {
 pub(super) fn codex_static_models() -> Vec<ProviderModelDescriptor> {
     let mut models = vec![provider_default_model()];
     models.extend(preset_models(&CODEX_PRESET_MODELS));
-    normalize_models(models)
-}
-
-pub(super) fn codex_models(runner: &dyn ProbeRunner) -> Vec<ProviderModelDescriptor> {
-    let app_server_models = match runner.codex_app_server_defaults() {
-        CodexDefaultsProbe::Success(defaults) => parse_codex_app_server_models(&defaults.models),
-        CodexDefaultsProbe::NotAttempted | CodexDefaultsProbe::Failed(_) => Vec::new(),
-    };
-
-    if !app_server_models.is_empty() {
-        // A live app-server catalog is authoritative. Mixing curated presets
-        // into this result makes the picker imply that unadvertised models are
-        // available to the signed-in CLI.
-        let mut models = vec![provider_default_model()];
-        models.extend(app_server_models);
-        return normalize_models(models);
-    }
-
-    // Compatibility fallback for Codex versions that predate model/list or
-    // expose an incompatible app-server schema.
-    let mut models = codex_static_models();
-    let catalog = runner.run("codex", &["debug", "models"]);
-    if catalog.success {
-        let detected = parse_codex_models(&catalog.stdout);
-        if !detected.is_empty() {
-            models = vec![provider_default_model()];
-            models.extend(detected);
-        }
-    }
-
     normalize_models(models)
 }
 
@@ -159,7 +170,9 @@ fn parse_codex_app_server_models(models: &[serde_json::Value]) -> Vec<ProviderMo
                     .get("description")
                     .and_then(serde_json::Value::as_str)
                     .map(str::to_string),
-                source: ProviderModelSource::Detected,
+                source: ProviderModelSource::CliCatalog,
+                availability: ProviderModelAvailability::Available,
+                confidence: ProviderEvidenceConfidence::Authoritative,
                 is_default: model.get("isDefault").and_then(serde_json::Value::as_bool)
                     == Some(true),
                 reasoning_efforts,
@@ -167,6 +180,8 @@ fn parse_codex_app_server_models(models: &[serde_json::Value]) -> Vec<ProviderMo
                     .get("defaultReasoningEffort")
                     .and_then(serde_json::Value::as_str)
                     .map(str::to_string),
+                capabilities: ProviderModelCapabilities::default(),
+                resolved_model: None,
             })
         })
         .collect()
@@ -181,46 +196,22 @@ pub(super) fn claude_static_models() -> Vec<ProviderModelDescriptor> {
     normalize_models(models)
 }
 
-pub(super) fn claude_models(runner: &dyn ProbeRunner) -> Vec<ProviderModelDescriptor> {
-    let mut models = claude_static_models();
-
-    let help = runner.run("claude", &["--help"]);
-    if help.success {
-        models.extend(parse_claude_model_help(&help.stdout));
-    }
-
-    normalize_models(models)
-}
-
 pub(super) fn copilot_models() -> Vec<ProviderModelDescriptor> {
     let mut models = copilot_base_models();
     models.extend(preset_models(&COPILOT_PRESET_MODELS));
     normalize_models(models)
 }
 
-pub(super) fn copilot_models_with_config_help(
-    runner: &impl ProbeRunner,
-) -> Vec<ProviderModelDescriptor> {
-    let mut models = copilot_base_models();
-
-    let help = runner.run("copilot", &["--help"]);
-    if help.success {
-        let detected_models = parse_copilot_config_help(&help.stdout);
-        if detected_models.is_empty() {
-            models.extend(preset_models(&COPILOT_PRESET_MODELS));
-        } else {
-            models.extend(detected_models);
-        }
-    } else {
-        models.extend(preset_models(&COPILOT_PRESET_MODELS));
+pub(super) fn compatibility_models(provider: AiProvider) -> Vec<ProviderModelDescriptor> {
+    match provider {
+        AiProvider::ClaudeCode => claude_static_models(),
+        AiProvider::CodexCli => codex_static_models(),
+        AiProvider::CopilotCli => copilot_models(),
     }
-
-    normalize_models(models)
 }
 
 fn copilot_base_models() -> Vec<ProviderModelDescriptor> {
-    let mut models = vec![provider_default_model()];
-    models.extend(preset_models(&["auto"]));
+    let mut models = vec![provider_default_model(), copilot_auto_model()];
     if let Some(model) = environment_model("COPILOT_MODEL") {
         models.push(model);
     }
@@ -240,9 +231,13 @@ fn preset_models(models: &[&str]) -> Vec<ProviderModelDescriptor> {
             label: (*model).to_string(),
             description: Some("Curated QA Scribe preset.".to_string()),
             source: ProviderModelSource::Preset,
+            availability: ProviderModelAvailability::StaticHint,
+            confidence: ProviderEvidenceConfidence::Static,
             is_default: false,
             reasoning_efforts: Vec::new(),
             default_reasoning_effort: None,
+            capabilities: ProviderModelCapabilities::default(),
+            resolved_model: None,
         })
         .collect()
 }
@@ -294,10 +289,14 @@ fn parse_codex_models(json: &str) -> Vec<ProviderModelDescriptor> {
                 id: model.slug.clone(),
                 label: model.display_name.unwrap_or_else(|| model.slug.clone()),
                 description: model.description,
-                source: ProviderModelSource::Detected,
+                source: ProviderModelSource::CliHelp,
+                availability: ProviderModelAvailability::SupportedByBinary,
+                confidence: ProviderEvidenceConfidence::Heuristic,
                 is_default: false,
                 reasoning_efforts,
                 default_reasoning_effort: model.default_reasoning_level,
+                capabilities: ProviderModelCapabilities::default(),
+                resolved_model: None,
             }
         })
         .collect()
@@ -312,10 +311,14 @@ fn parse_claude_model_help(help: &str) -> Vec<ProviderModelDescriptor> {
             id: token.clone(),
             label: token,
             description: Some("Detected from Claude Code help.".to_string()),
-            source: ProviderModelSource::Detected,
+            source: ProviderModelSource::CliHelp,
+            availability: ProviderModelAvailability::SupportedByBinary,
+            confidence: ProviderEvidenceConfidence::Heuristic,
             is_default: false,
             reasoning_efforts: Vec::new(),
             default_reasoning_effort: None,
+            capabilities: ProviderModelCapabilities::default(),
+            resolved_model: None,
         })
         .collect()
 }
@@ -367,10 +370,14 @@ fn detected_copilot_model(model: String) -> ProviderModelDescriptor {
         id: model.clone(),
         label: model,
         description: Some("Detected from GitHub Copilot CLI help.".to_string()),
-        source: ProviderModelSource::Detected,
+        source: ProviderModelSource::CliHelp,
+        availability: ProviderModelAvailability::SupportedByBinary,
+        confidence: ProviderEvidenceConfidence::Heuristic,
         is_default: false,
         reasoning_efforts: Vec::new(),
         default_reasoning_effort: None,
+        capabilities: ProviderModelCapabilities::default(),
+        resolved_model: None,
     }
 }
 
@@ -468,10 +475,11 @@ pub(super) fn normalize_models(
 
 fn model_source_priority(source: ProviderModelSource) -> u8 {
     match source {
-        ProviderModelSource::ProviderDefault => 0,
+        ProviderModelSource::ProviderDefault => 5,
         ProviderModelSource::Preset => 1,
-        ProviderModelSource::Environment => 2,
-        ProviderModelSource::Detected => 3,
+        ProviderModelSource::Environment | ProviderModelSource::Config => 2,
+        ProviderModelSource::Detected | ProviderModelSource::CliHelp => 3,
+        ProviderModelSource::CliCatalog => 4,
     }
 }
 

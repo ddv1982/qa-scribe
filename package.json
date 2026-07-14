@@ -1,6 +1,6 @@
 {
   "name": "qa-scribe",
-  "version": "0.7.15",
+  "version": "0.7.16",
   "description": "Local-first desktop testing notepad for turning testing sessions into structured testware.",
   "desktopName": "qa-scribe.desktop",
   "homepage": "https://github.com/ddv1982/qa-scribe",

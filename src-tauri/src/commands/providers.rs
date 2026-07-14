@@ -5,25 +5,32 @@ mod defaults;
 mod detection;
 mod models;
 mod probe;
+mod rollout;
 #[cfg(test)]
 mod tests;
 mod types;
 
 #[allow(unused_imports)]
 pub use types::{
-    ProviderDefaultOrigin, ProviderDefaultOriginKind, ProviderDefaultResolution,
-    ProviderDefaultSnapshot, ProviderDefaultValue, ProviderDescriptor, ProviderDiscoveryError,
-    ProviderDiscoveryErrorCode, ProviderDiscoveryState, ProviderModelDescriptor,
+    ProviderCatalogRollout, ProviderCatalogSource, ProviderCatalogState, ProviderDefaultOrigin,
+    ProviderDefaultOriginKind, ProviderDefaultResolution, ProviderDefaultSnapshot,
+    ProviderDefaultValue, ProviderDescriptor, ProviderDiscoveryError, ProviderDiscoveryErrorCode,
+    ProviderDiscoveryState, ProviderEvidenceConfidence, ProviderModelAvailability,
+    ProviderModelCapabilities, ProviderModelCatalogSnapshot, ProviderModelDescriptor,
     ProviderModelSource, ProviderReadiness, ProviderResolutionScope, ProviderState, ProviderStatus,
     ProviderWarning, ProviderWarningSeverity,
 };
 
-use cache::{cache_readinesses, clear_readiness_cache, retain_last_successful_defaults};
+use cache::{cache_readiness, clear_readiness_cache, retain_last_successful_discovery};
 use detection::{detect_capability, provider_readiness_with_runners};
 use probe::ProbeRunner;
 use probe::{DetectionMode, SystemProbeRunner};
 
 use crate::provider_command::{ProviderPathMode, invalidate_provider_path_cache};
+
+pub fn cancel_active_provider_discovery() {
+    probe::cancel_all_provider_discovery();
+}
 
 #[tauri::command]
 #[specta::specta]
@@ -54,6 +61,7 @@ fn provider_status_with_runner(runner: &impl ProbeRunner, mode: DetectionMode) -
             .into_iter()
             .map(|capability| detect_capability(capability, runner, mode).descriptor)
             .collect(),
+        catalog_rollout: rollout::provider_catalog_rollout(),
     }
 }
 
@@ -62,26 +70,30 @@ fn provider_status_with_system_runner() -> ProviderStatus {
 }
 
 fn provider_status_with_system_runner_for_mode(mode: DetectionMode) -> ProviderStatus {
-    let runner = SystemProbeRunner::new(mode.into());
     let readinesses: Vec<_> = provider_capabilities()
         .into_iter()
         .map(|capability| {
             let provider = capability.id;
+            // A fresh runner gives every provider its own absolute transaction
+            // deadline. One slow CLI cannot consume another provider's budget.
+            let runner = SystemProbeRunner::new(mode.into());
             let readiness = detect_capability(capability, &runner, mode);
+            let fingerprint = runner.cache_fingerprint(provider);
             let readiness = if mode == DetectionMode::Deep {
-                retain_last_successful_defaults(provider, readiness)
+                retain_last_successful_discovery(provider, fingerprint, readiness)
             } else {
                 readiness
             };
+            cache_readiness(provider, mode, fingerprint, &readiness);
             (provider, readiness)
         })
         .collect();
-    cache_readinesses(mode, &readinesses);
 
     ProviderStatus {
         providers: readinesses
             .into_iter()
             .map(|(_, readiness)| readiness.descriptor)
             .collect(),
+        catalog_rollout: rollout::provider_catalog_rollout(),
     }
 }

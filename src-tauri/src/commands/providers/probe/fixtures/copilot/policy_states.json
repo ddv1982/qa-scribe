@@ -1,0 +1,16 @@
+{
+  "models": [
+    {
+      "id": "disabled-model",
+      "name": "Disabled Model",
+      "capabilities": {},
+      "policy": {"state": "disabled"}
+    },
+    {
+      "id": "unconfigured-model",
+      "name": "Unconfigured Model",
+      "capabilities": {},
+      "policy": {"state": "unconfigured"}
+    }
+  ]
+}

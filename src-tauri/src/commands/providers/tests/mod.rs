@@ -6,9 +6,12 @@ use std::thread;
 use qa_scribe_core::domain::AiProvider;
 
 use super::{
-    ProviderModelSource, ProviderState,
+    ProviderDiscoveryError, ProviderDiscoveryErrorCode, ProviderModelSource, ProviderState,
     detection::detect_provider,
-    probe::{CommandProbe, DetectionMode, ProbeOutputFiles, run_command_with_timeout},
+    probe::{
+        CommandProbe, DetectionMode, ProbeOutputFiles, ProbeRunner, StructuredCatalogProbe,
+        SystemProbeRunner, run_command_with_timeout,
+    },
     provider_status_with_runner,
 };
 
@@ -81,6 +84,20 @@ fn provider_probe_output_files_are_created_exclusively() {
     );
 }
 
+#[test]
+fn generic_provider_probes_run_outside_the_repository() {
+    let runner = SystemProbeRunner::new(crate::provider_command::ProviderPathMode::Deep);
+    let probe = runner.run("sh", &["-c", "pwd"]);
+
+    assert!(probe.success);
+    let probe_directory = PathBuf::from(probe.stdout);
+    assert_ne!(probe_directory, std::env::current_dir().unwrap());
+    assert!(
+        !probe_directory.exists(),
+        "the neutral provider directory should be removed after the probe"
+    );
+}
+
 fn lock_provider_probe_temp_file_tests() -> std::sync::MutexGuard<'static, ()> {
     PROVIDER_PROBE_TEMP_FILE_TEST_LOCK
         .lock()
@@ -119,15 +136,21 @@ fn provider_status_is_local_and_reports_all_providers() {
             .iter()
             .all(|provider| provider.models[0].id == "default")
     );
-    assert_eq!(
-        status
-            .providers
-            .iter()
-            .find(|provider| provider.id == "codex_cli")
-            .and_then(|provider| provider.executable_path.as_deref()),
-        Some("/mock/bin/codex")
-    );
     assert!(runner.calls().is_empty());
+}
+
+#[test]
+fn provider_status_dto_omits_local_path_fields() {
+    let runner = MockRunner::default()
+        .with_executable("claude")
+        .with_executable("codex")
+        .with_executable("copilot");
+    let status = provider_status_with_runner(&runner, DetectionMode::Fast);
+    let serialized = serde_json::to_string(&status).expect("provider status should serialize");
+
+    assert!(!serialized.contains("executablePath"));
+    assert!(!serialized.contains("technicalPath"));
+    assert!(!serialized.contains("/mock/bin"));
 }
 
 #[test]
@@ -173,7 +196,7 @@ fn codex_models_are_detected_from_debug_catalog() {
         .find(|model| model.id == "gpt-6-test")
         .expect("listed Codex model is detected");
     assert_eq!(detected.label, "GPT-6 Test");
-    assert_eq!(detected.source, ProviderModelSource::Detected);
+    assert_eq!(detected.source, ProviderModelSource::CliHelp);
     assert_eq!(detected.reasoning_efforts, vec!["low", "medium", "high"]);
     assert!(
         !readiness
@@ -278,11 +301,13 @@ fn copilot_fast_detection_is_ready_without_cli_process() {
 
 #[test]
 fn copilot_deep_detection_checks_prompt_support_without_prompt_probe() {
-    let runner = MockRunner::default().with_executable("copilot").with(
-        "copilot",
-        &["--help"],
-        copilot_prompt_help(),
-    );
+    let runner = MockRunner::default()
+        .with(
+            "copilot",
+            &["version"],
+            CommandProbe::success_with_stdout("1.0.70"),
+        )
+        .with("copilot", &["--help"], copilot_prompt_help());
 
     let readiness = detect_provider(AiProvider::CopilotCli, &runner, DetectionMode::Deep);
 
@@ -290,7 +315,7 @@ fn copilot_deep_detection_checks_prompt_support_without_prompt_probe() {
     assert!(readiness.descriptor.available);
     assert!(readiness.copilot_direct_cli_ready);
     assert!(runner.calls().contains(&"copilot --help".to_string()));
-    assert!(!runner.calls().contains(&"copilot version".to_string()));
+    assert!(runner.calls().contains(&"copilot version".to_string()));
     assert!(
         !runner
             .calls()
@@ -301,12 +326,40 @@ fn copilot_deep_detection_checks_prompt_support_without_prompt_probe() {
 }
 
 #[test]
+fn copilot_readiness_reuses_the_catalog_auth_observation() {
+    let runner = MockRunner::default()
+        .with(
+            "copilot",
+            &["version"],
+            CommandProbe::success_with_stdout("1.0.70"),
+        )
+        .with("copilot", &["--help"], copilot_prompt_help())
+        .with_copilot_catalog(StructuredCatalogProbe::Failed(ProviderDiscoveryError {
+            code: ProviderDiscoveryErrorCode::AuthRequired,
+            message: "synthetic auth detail that must not escape".to_string(),
+            retryable: false,
+        }));
+
+    let readiness = detect_provider(AiProvider::CopilotCli, &runner, DetectionMode::Deep);
+
+    assert_eq!(readiness.descriptor.status, ProviderState::AuthRequired);
+    assert_eq!(runner.copilot_catalog_calls(), 1);
+    assert!(!readiness.descriptor.reason.contains("synthetic"));
+}
+
+#[test]
 fn copilot_direct_cli_without_prompt_mode_is_not_ready() {
-    let runner = MockRunner::default().with_executable("copilot").with(
-        "copilot",
-        &["--help"],
-        CommandProbe::success_with_stdout("Usage: copilot [options]\n  --interactive <prompt>"),
-    );
+    let runner = MockRunner::default()
+        .with(
+            "copilot",
+            &["version"],
+            CommandProbe::success_with_stdout("1.0.70"),
+        )
+        .with(
+            "copilot",
+            &["--help"],
+            CommandProbe::success_with_stdout("Usage: copilot [options]\n  --interactive <prompt>"),
+        );
 
     let readiness = detect_provider(AiProvider::CopilotCli, &runner, DetectionMode::Deep);
 
@@ -321,25 +374,27 @@ fn copilot_direct_cli_without_prompt_mode_is_not_ready() {
 
 #[test]
 fn copilot_models_merge_presets_and_detected_config_help() {
-    let runner = MockRunner::default().with_executable("copilot").with(
-        "copilot",
-        &["--help"],
-        copilot_prompt_help(),
-    );
+    let runner = MockRunner::default()
+        .with(
+            "copilot",
+            &["version"],
+            CommandProbe::success_with_stdout("1.0.70"),
+        )
+        .with("copilot", &["--help"], copilot_prompt_help());
 
     let readiness = detect_provider(AiProvider::CopilotCli, &runner, DetectionMode::Deep);
     let models = &readiness.descriptor.models;
 
     assert_eq!(models[0].id, "default");
     assert_eq!(models[1].id, "auto");
-    assert_eq!(models[1].source, ProviderModelSource::Preset);
+    assert_eq!(models[1].source, ProviderModelSource::ProviderDefault);
     assert_eq!(
         models
             .iter()
             .find(|model| model.id == "gpt-5.5")
             .expect("detected GPT model remains available")
             .source,
-        ProviderModelSource::Detected
+        ProviderModelSource::CliHelp
     );
     assert_eq!(
         models
@@ -347,7 +402,7 @@ fn copilot_models_merge_presets_and_detected_config_help() {
             .find(|model| model.id == "gpt-5.3-codex")
             .expect("detected codex variant remains available")
             .source,
-        ProviderModelSource::Detected
+        ProviderModelSource::CliHelp
     );
     assert_eq!(
         models
@@ -355,9 +410,9 @@ fn copilot_models_merge_presets_and_detected_config_help() {
             .find(|model| model.id == "claude-opus-4.6-fast")
             .expect("detected fast variant remains available")
             .source,
-        ProviderModelSource::Detected
+        ProviderModelSource::CliHelp
     );
-    assert!(!runner.calls().contains(&"copilot version".to_string()));
+    assert!(runner.calls().contains(&"copilot version".to_string()));
     assert!(
         !runner
             .calls()

@@ -162,14 +162,29 @@ fn truncate_for_log(value: &str, max_chars: usize) -> String {
 #[cfg(test)]
 mod tests {
     use crate::commands::providers::{
-        ProviderDefaultOrigin, ProviderDefaultOriginKind, ProviderDefaultResolution,
-        ProviderDefaultSnapshot, ProviderDefaultValue, ProviderDescriptor, ProviderDiscoveryState,
+        ProviderCatalogSource, ProviderDefaultOrigin, ProviderDefaultOriginKind,
+        ProviderDefaultResolution, ProviderDefaultSnapshot, ProviderDefaultValue,
+        ProviderDescriptor, ProviderDiscoveryState, ProviderEvidenceConfidence,
+        ProviderModelAvailability, ProviderModelCapabilities, ProviderModelCatalogSnapshot,
         ProviderModelDescriptor, ProviderModelSource, ProviderResolutionScope, ProviderState,
     };
 
     use super::validate_effective_selection;
 
     fn codex_descriptor() -> ProviderDescriptor {
+        let models = vec![ProviderModelDescriptor {
+            id: "gpt-codex".to_string(),
+            label: "gpt-codex".to_string(),
+            description: None,
+            source: ProviderModelSource::CliCatalog,
+            availability: ProviderModelAvailability::Available,
+            confidence: ProviderEvidenceConfidence::Authoritative,
+            is_default: true,
+            reasoning_efforts: vec!["low".to_string()],
+            default_reasoning_effort: Some("low".to_string()),
+            capabilities: ProviderModelCapabilities::default(),
+            resolved_model: None,
+        }];
         ProviderDescriptor {
             id: "codex_cli".to_string(),
             label: "Codex CLI",
@@ -177,16 +192,13 @@ mod tests {
             available: true,
             reason: "ready".to_string(),
             command: Some("codex".to_string()),
-            executable_path: Some("/mock/bin/codex".to_string()),
-            models: vec![ProviderModelDescriptor {
-                id: "gpt-codex".to_string(),
-                label: "gpt-codex".to_string(),
-                description: None,
-                source: ProviderModelSource::Detected,
-                is_default: true,
-                reasoning_efforts: vec!["low".to_string()],
-                default_reasoning_effort: Some("low".to_string()),
-            }],
+            models: models.clone(),
+            catalog_snapshot: ProviderModelCatalogSnapshot::fresh(
+                ProviderCatalogSource::CliCatalog,
+                models,
+                Some("codex-cli 0.144.1".to_string()),
+                Vec::new(),
+            ),
             default_snapshot: ProviderDefaultSnapshot {
                 state: ProviderDiscoveryState::Detected,
                 model: ProviderDefaultValue::new(
@@ -196,7 +208,6 @@ mod tests {
                         kind: ProviderDefaultOriginKind::UserConfig,
                         label: "User configuration".to_string(),
                         display_path: Some("~/.codex/config.toml".to_string()),
-                        technical_path: None,
                     }),
                     None,
                 ),

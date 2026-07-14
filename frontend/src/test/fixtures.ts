@@ -1,4 +1,15 @@
-import type { AppSettings, Draft, Entry, Finding, GenerationJobStatus, ProviderDefaultSnapshot, ProviderStatus, Session } from '../tauri'
+import type {
+  AppSettings,
+  Draft,
+  Entry,
+  Finding,
+  GenerationJobStatus,
+  ProviderDefaultSnapshot,
+  ProviderModelCatalogSnapshot,
+  ProviderModelDescriptor,
+  ProviderStatus,
+  Session,
+} from '../tauri'
 
 const now = '2026-06-24T10:00:00.000Z'
 
@@ -92,7 +103,9 @@ export function settingsFixture(patch: Partial<AppSettings> = {}): AppSettings {
 }
 
 export function providerStatusFixture(): ProviderStatus {
+  const models = [providerModelDescriptorFixture()]
   return {
+    catalogRollout: 'selector',
     providers: [
       {
         id: 'codex_cli',
@@ -101,22 +114,55 @@ export function providerStatusFixture(): ProviderStatus {
         available: true,
         reason: 'Codex CLI is installed and authenticated.',
         command: 'codex',
-        executablePath: '/mock/bin/codex',
         localOnly: true,
         defaultSnapshot: providerDefaultSnapshotFixture(),
-        models: [
-          {
-            id: 'default',
-            label: 'Provider default',
-            description: null,
-            source: 'providerDefault',
-            isDefault: true,
-            reasoningEfforts: ['low'],
-            defaultReasoningEffort: null,
-          },
-        ],
+        models,
+        catalogSnapshot: providerModelCatalogSnapshotFixture({ models }),
       },
     ],
+  }
+}
+
+export function providerModelDescriptorFixture(
+  patch: Partial<ProviderModelDescriptor> = {},
+): ProviderModelDescriptor {
+  return {
+    id: 'default',
+    label: 'Provider default',
+    description: null,
+    source: 'providerDefault',
+    availability: 'available',
+    confidence: 'observed',
+    isDefault: true,
+    reasoningEfforts: ['low'],
+    defaultReasoningEffort: null,
+    capabilities: {
+      vision: null,
+      reasoning: null,
+      adaptiveThinking: null,
+      fastMode: null,
+      autoMode: null,
+      contextWindowTokens: null,
+      maxOutputTokens: null,
+    },
+    resolvedModel: null,
+    ...patch,
+  }
+}
+
+export function providerModelCatalogSnapshotFixture(
+  patch: Partial<ProviderModelCatalogSnapshot> = {},
+): ProviderModelCatalogSnapshot {
+  return {
+    state: 'idle',
+    source: 'preset',
+    models: [providerModelDescriptorFixture()],
+    checkedAt: null,
+    cliVersion: null,
+    resolutionScope: { kind: 'neutral', label: 'Neutral QA Scribe runtime scope' },
+    error: null,
+    warnings: [],
+    ...patch,
   }
 }
 
@@ -130,7 +176,6 @@ export function providerDefaultSnapshotFixture(patch: Partial<ProviderDefaultSna
         kind: 'userConfig',
         label: 'User configuration',
         displayPath: '~/.codex/config.toml',
-        technicalPath: '/mock/.codex/config.toml',
       },
       recommendedValue: 'gpt-5.5',
     },
@@ -141,7 +186,6 @@ export function providerDefaultSnapshotFixture(patch: Partial<ProviderDefaultSna
         kind: 'userConfig',
         label: 'User configuration',
         displayPath: '~/.codex/config.toml',
-        technicalPath: '/mock/.codex/config.toml',
       },
       recommendedValue: 'medium',
     },

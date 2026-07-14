@@ -1,27 +1,38 @@
-use std::{sync::mpsc, time::Duration};
+use std::{
+    sync::mpsc,
+    time::{Duration, Instant},
+};
 
 use serde_json::json;
 
-use super::{ResponseRouter, collect_model_pages, response_result};
+use super::{JsonLineEvent, ResponseRouter, collect_model_pages, response_result};
 use crate::commands::providers::ProviderDiscoveryErrorCode;
 
 #[test]
 fn response_router_preserves_out_of_order_results() {
     let (sender, receiver) = mpsc::channel();
     sender
-        .send(json!({"id": 2, "result": {"value": "models"}}))
+        .send(JsonLineEvent::Value(
+            json!({"id": 2, "result": {"value": "models"}}),
+        ))
         .unwrap();
     sender
-        .send(json!({"id": 1, "result": {"value": "config"}}))
+        .send(JsonLineEvent::Value(
+            json!({"id": 1, "result": {"value": "config"}}),
+        ))
         .unwrap();
     let mut router = ResponseRouter::new(&receiver);
 
     assert_eq!(
-        router.receive(1, Duration::from_millis(50)).unwrap(),
+        router
+            .receive(1, Instant::now() + Duration::from_millis(50))
+            .unwrap(),
         json!({"value": "config"})
     );
     assert_eq!(
-        router.receive(2, Duration::from_millis(50)).unwrap(),
+        router
+            .receive(2, Instant::now() + Duration::from_millis(50))
+            .unwrap(),
         json!({"value": "models"})
     );
 }
@@ -30,7 +41,7 @@ fn response_router_preserves_out_of_order_results() {
 fn response_router_reports_timeout_explicitly() {
     let (_sender, receiver) = mpsc::channel();
     let error = ResponseRouter::new(&receiver)
-        .receive(7, Duration::from_millis(1))
+        .receive(7, Instant::now() + Duration::from_millis(1))
         .unwrap_err();
 
     assert_eq!(error.code, ProviderDiscoveryErrorCode::TimedOut);
@@ -45,6 +56,22 @@ fn unsupported_app_server_method_is_not_provider_managed() {
     .unwrap_err();
 
     assert_eq!(error.code, ProviderDiscoveryErrorCode::Unsupported);
+    assert!(!error.message.contains("Method not found"));
+}
+
+#[test]
+fn app_server_error_payloads_are_not_copied_into_discovery_errors() {
+    let error = response_result(json!({
+        "id": 1,
+        "error": {
+            "code": -32000,
+            "message": "token ghp_private at /Users/private/repository"
+        }
+    }))
+    .unwrap_err();
+
+    assert_eq!(error.code, ProviderDiscoveryErrorCode::InvalidResponse);
+    assert_eq!(error.message, "Codex app-server returned an error response");
 }
 
 #[test]

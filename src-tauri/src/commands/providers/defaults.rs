@@ -131,12 +131,26 @@ pub(super) fn codex_default_snapshot(
     }
 }
 
-pub(super) fn claude_default_snapshot() -> ProviderDefaultSnapshot {
+pub(super) fn claude_default_snapshot(cli_version: Option<String>) -> ProviderDefaultSnapshot {
+    claude_default_snapshot_from_sources(
+        claude_settings_paths(),
+        env::var("ANTHROPIC_MODEL").ok(),
+        env::var("CLAUDE_CODE_EFFORT_LEVEL").ok(),
+        cli_version,
+    )
+}
+
+fn claude_default_snapshot_from_sources(
+    settings_paths: impl IntoIterator<Item = PathBuf>,
+    environment_model: Option<String>,
+    environment_reasoning: Option<String>,
+    cli_version: Option<String>,
+) -> ProviderDefaultSnapshot {
     let mut model = None;
     let mut reasoning = None;
     let mut model_origin = None;
     let mut reasoning_origin = None;
-    for path in claude_settings_paths() {
+    for path in settings_paths {
         let Ok(contents) = fs::read_to_string(&path) else {
             continue;
         };
@@ -145,20 +159,24 @@ pub(super) fn claude_default_snapshot() -> ProviderDefaultSnapshot {
         };
         if let Some(value) = json_string(&settings, "model") {
             model = configured_value(value);
-            model_origin = Some(origin_from_path(&path));
+            model_origin = model.as_ref().map(|_| origin_from_path(&path));
         }
         if let Some(value) = json_string(&settings, "effortLevel") {
             reasoning = configured_value(value);
-            reasoning_origin = Some(origin_from_path(&path));
+            reasoning_origin = reasoning.as_ref().map(|_| origin_from_path(&path));
         }
     }
-    if let Ok(value) = env::var("ANTHROPIC_MODEL") {
+    if let Some(value) = environment_model {
         model = configured_value(value);
-        model_origin = Some(environment_origin("ANTHROPIC_MODEL"));
+        model_origin = model
+            .as_ref()
+            .map(|_| environment_origin("ANTHROPIC_MODEL"));
     }
-    if let Ok(value) = env::var("CLAUDE_CODE_EFFORT_LEVEL") {
+    if let Some(value) = environment_reasoning {
         reasoning = configured_value(value);
-        reasoning_origin = Some(environment_origin("CLAUDE_CODE_EFFORT_LEVEL"));
+        reasoning_origin = reasoning
+            .as_ref()
+            .map(|_| environment_origin("CLAUDE_CODE_EFFORT_LEVEL"));
     }
     let detected = model.is_some() || reasoning.is_some();
     ProviderDefaultSnapshot {
@@ -170,59 +188,73 @@ pub(super) fn claude_default_snapshot() -> ProviderDefaultSnapshot {
         model: observed_value(model, model_origin),
         reasoning_effort: observed_value(reasoning, reasoning_origin),
         checked_at: Some(checked_at_now()),
-        cli_version: None,
+        cli_version,
         resolution_scope: ProviderResolutionScope::neutral(),
         error: None,
         warnings: Vec::new(),
     }
 }
 
-pub(super) fn copilot_default_snapshot() -> ProviderDefaultSnapshot {
-    let path = copilot_config_path();
+pub(super) fn copilot_default_snapshot(cli_version: Option<String>) -> ProviderDefaultSnapshot {
+    copilot_default_snapshot_from_sources(
+        copilot_config_path(),
+        env::var("COPILOT_MODEL").ok(),
+        cli_version,
+    )
+}
+
+fn copilot_default_snapshot_from_sources(
+    path: Option<PathBuf>,
+    environment_model: Option<String>,
+    cli_version: Option<String>,
+) -> ProviderDefaultSnapshot {
     let settings = path
         .as_ref()
         .and_then(|path| fs::read_to_string(path).ok())
         .and_then(|contents| json5::from_str::<Value>(&contents).ok());
     let mut model = settings
         .as_ref()
-        .and_then(|value| json_string(value, "model"));
+        .and_then(|value| json_string(value, "model"))
+        .and_then(configured_copilot_value);
     let reasoning_effort = settings
         .as_ref()
         .and_then(|value| json_string(value, "effortLevel"));
     let origin = path.as_deref().map(origin_from_path);
     let mut model_origin = model.as_ref().and(origin.clone());
     let reasoning_origin = reasoning_effort.as_ref().and(origin);
-    if let Ok(value) = env::var("COPILOT_MODEL") {
-        model = configured_value(value);
-        model_origin = Some(environment_origin("COPILOT_MODEL"));
+    if let Some(value) = environment_model {
+        model = configured_copilot_value(value);
+        model_origin = model.as_ref().map(|_| environment_origin("COPILOT_MODEL"));
     }
-    let effective_model = model.or_else(|| Some("auto".to_string()));
-    let effective_reasoning = reasoning_effort.or_else(|| Some("medium".to_string()));
+    let detected = model.is_some() || reasoning_effort.is_some();
     ProviderDefaultSnapshot {
-        state: ProviderDiscoveryState::Detected,
+        state: if detected {
+            ProviderDiscoveryState::Detected
+        } else {
+            ProviderDiscoveryState::ProviderManaged
+        },
         model: ProviderDefaultValue::new(
-            effective_model,
+            model,
             if model_origin.is_some() {
                 ProviderDefaultResolution::Configured
             } else {
-                ProviderDefaultResolution::Recommended
+                ProviderDefaultResolution::ProviderManaged
             },
-            model_origin.or_else(|| Some(recommendation_origin("Copilot automatic selection"))),
+            model_origin,
             Some("auto".to_string()),
         ),
         reasoning_effort: ProviderDefaultValue::new(
-            effective_reasoning,
+            reasoning_effort,
             if reasoning_origin.is_some() {
                 ProviderDefaultResolution::Configured
             } else {
-                ProviderDefaultResolution::Recommended
+                ProviderDefaultResolution::ProviderManaged
             },
-            reasoning_origin
-                .or_else(|| Some(recommendation_origin("Copilot reasoning recommendation"))),
-            Some("medium".to_string()),
+            reasoning_origin,
+            None,
         ),
         checked_at: Some(checked_at_now()),
-        cli_version: None,
+        cli_version,
         resolution_scope: ProviderResolutionScope::neutral(),
         error: None,
         warnings: Vec::new(),
@@ -262,6 +294,10 @@ fn configured_value(value: String) -> Option<String> {
     }
 }
 
+fn configured_copilot_value(value: String) -> Option<String> {
+    configured_value(value).filter(|value| !value.eq_ignore_ascii_case("auto"))
+}
+
 fn json_string(value: &Value, key: &str) -> Option<String> {
     value.get(key)?.as_str().map(str::to_string)
 }
@@ -294,9 +330,13 @@ fn configured_origin(config_result: &Value, key: &str) -> Option<ProviderDefault
     };
     Some(ProviderDefaultOrigin {
         kind,
-        label: name.to_string(),
+        label: match kind {
+            ProviderDefaultOriginKind::Profile => "Codex profile".to_string(),
+            ProviderDefaultOriginKind::ManagedConfig => "Managed configuration".to_string(),
+            ProviderDefaultOriginKind::RuntimeFlag => "Runtime override".to_string(),
+            _ => "Codex configuration".to_string(),
+        },
         display_path: None,
-        technical_path: None,
     })
 }
 
@@ -313,7 +353,15 @@ fn origin_from_path(path: &Path) -> ProviderDefaultOrigin {
             || path.starts_with("~/.claude/")
             || path.starts_with("~/.copilot/")
     });
-    let kind = if is_user_config {
+    let is_managed_config = technical_path.contains("managed-settings.json")
+        || technical_path.contains("/etc/claude-code/")
+        || technical_path.contains("/Library/Application Support/ClaudeCode/")
+        || technical_path
+            .to_ascii_lowercase()
+            .contains("programdata\\claudecode\\");
+    let kind = if is_managed_config {
+        ProviderDefaultOriginKind::ManagedConfig
+    } else if is_user_config {
         ProviderDefaultOriginKind::UserConfig
     } else if technical_path.contains("/.codex/")
         || technical_path.contains("/.claude/")
@@ -326,6 +374,7 @@ fn origin_from_path(path: &Path) -> ProviderDefaultOrigin {
     ProviderDefaultOrigin {
         kind,
         label: match kind {
+            ProviderDefaultOriginKind::ManagedConfig => "Managed configuration".to_string(),
             ProviderDefaultOriginKind::UserConfig => "User configuration".to_string(),
             ProviderDefaultOriginKind::ProjectConfig => "Project configuration".to_string(),
             _ => "CLI configuration file".to_string(),
@@ -336,7 +385,6 @@ fn origin_from_path(path: &Path) -> ProviderDefaultOrigin {
                 .unwrap_or("configuration file")
                 .to_string()
         })),
-        technical_path: Some(technical_path),
     }
 }
 
@@ -345,7 +393,6 @@ fn environment_origin(key: &str) -> ProviderDefaultOrigin {
         kind: ProviderDefaultOriginKind::Environment,
         label: format!("Environment variable {key}"),
         display_path: None,
-        technical_path: None,
     }
 }
 
@@ -354,20 +401,34 @@ fn recommendation_origin(label: &str) -> ProviderDefaultOrigin {
         kind: ProviderDefaultOriginKind::CliRecommendation,
         label: label.to_string(),
         display_path: None,
-        technical_path: None,
     }
 }
 
 fn claude_settings_paths() -> Vec<PathBuf> {
     let mut paths = Vec::new();
-    if let Some(home) = env::var_os("HOME") {
+    if let Some(config_dir) = env::var_os("CLAUDE_CONFIG_DIR").filter(|value| !value.is_empty()) {
+        paths.push(PathBuf::from(config_dir).join("settings.json"));
+    } else if let Some(home) = env::var_os("HOME") {
         paths.push(PathBuf::from(home).join(".claude/settings.json"));
     }
-    if let Ok(cwd) = env::current_dir() {
-        paths.push(cwd.join(".claude/settings.json"));
-        paths.push(cwd.join(".claude/settings.local.json"));
-    }
+    paths.extend(claude_managed_settings_paths());
     paths
+}
+
+fn claude_managed_settings_paths() -> Vec<PathBuf> {
+    if cfg!(target_os = "macos") {
+        vec![PathBuf::from(
+            "/Library/Application Support/ClaudeCode/managed-settings.json",
+        )]
+    } else if cfg!(windows) {
+        env::var_os("PROGRAMDATA")
+            .map(PathBuf::from)
+            .map(|path| path.join("ClaudeCode/managed-settings.json"))
+            .into_iter()
+            .collect()
+    } else {
+        vec![PathBuf::from("/etc/claude-code/managed-settings.json")]
+    }
 }
 
 fn copilot_config_path() -> Option<PathBuf> {
@@ -389,79 +450,4 @@ fn preferred_copilot_config_path(home: PathBuf) -> PathBuf {
 }
 
 #[cfg(test)]
-mod tests {
-    use std::path::PathBuf;
-
-    use serde_json::{Value, json};
-
-    use super::codex_default_snapshot;
-    use crate::commands::providers::{
-        ProviderDefaultOriginKind, ProviderDefaultResolution, ProviderWarningSeverity,
-        probe::{CodexAppServerDefaults, CodexDefaultsProbe, CommandProbe, ProbeRunner},
-    };
-
-    struct CodexAppServerRunner {
-        config: Value,
-        models: Vec<Value>,
-    }
-
-    impl ProbeRunner for CodexAppServerRunner {
-        fn executable_path(&self, _program: &str) -> Option<PathBuf> {
-            None
-        }
-
-        fn run(&self, _program: &str, _args: &[&str]) -> CommandProbe {
-            CommandProbe::not_found()
-        }
-
-        fn codex_app_server_defaults(&self) -> CodexDefaultsProbe {
-            CodexDefaultsProbe::Success(CodexAppServerDefaults {
-                config: self.config.clone(),
-                models: self.models.clone(),
-            })
-        }
-    }
-
-    #[test]
-    fn codex_snapshot_keeps_configured_values_origins_and_catalog_warning() {
-        let runner = CodexAppServerRunner {
-            config: json!({
-                "config": {"model": "gpt-private", "model_reasoning_effort": "high"},
-                "origins": {
-                    "model": {"name": {"file": "/home/test/.codex/config.toml"}},
-                    "model_reasoning_effort": {"name": {"file": "/home/test/.codex/config.toml"}}
-                }
-            }),
-            models: vec![json!({
-                "id": "gpt-5.5", "model": "gpt-5.5", "isDefault": true,
-                "defaultReasoningEffort": "medium",
-                "supportedReasoningEfforts": [{"reasoningEffort": "low"}, {"reasoningEffort": "medium"}]
-            })],
-        };
-
-        let snapshot = codex_default_snapshot(&runner, &[], Some("codex-cli 0.144.1".to_string()));
-
-        assert_eq!(snapshot.model.value.as_deref(), Some("gpt-private"));
-        assert_eq!(snapshot.reasoning_effort.value.as_deref(), Some("high"));
-        assert_eq!(
-            snapshot.model.origin.as_ref().map(|origin| origin.kind),
-            Some(ProviderDefaultOriginKind::ProjectConfig)
-        );
-        assert_eq!(
-            snapshot.model.resolution,
-            ProviderDefaultResolution::Configured
-        );
-        assert_eq!(snapshot.model.recommended_value.as_deref(), Some("gpt-5.5"));
-        assert_eq!(
-            snapshot.reasoning_effort.resolution,
-            ProviderDefaultResolution::Configured
-        );
-        assert!(
-            snapshot
-                .warnings
-                .iter()
-                .any(|warning| warning.code == "unlisted-configured-model"
-                    && warning.severity == ProviderWarningSeverity::Advisory)
-        );
-    }
-}
+mod tests;
