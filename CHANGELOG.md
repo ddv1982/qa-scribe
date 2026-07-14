@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.7.19 - 2026-07-14
+
+- Consolidate workspace destinations and contextual Session or library records into one left rail, removing the duplicate library master-list column and returning that space to the active detail.
+- Preserve the active Note, Testware, or Findings workspace when switching Sessions so the selected Session updates the current task instead of forcing a return to the Note.
+- Adapt library records to a horizontal master strip on narrow windows, retain visible selection and keyboard focus behavior, and cover the unified navigation with interaction and responsive visual checks.
+
 ## v0.7.18 - 2026-07-14
 
 - Keep the rich-text editor instance stable while switching between read-only record previews, preventing a destroyed TipTap view from crashing React and leaving the application blank.

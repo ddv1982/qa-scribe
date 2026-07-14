@@ -252,6 +252,11 @@ export function useAppController() {
     requestActiveView(settingsReturnViewRef.current)
   }
 
+  async function openSessionInCurrentView(session: (typeof sessions)[number]) {
+    const destination = activeView === 'testware' || activeView === 'findings' ? activeView : 'sessions'
+    await sessionActions.openSession(session, true, () => setActiveView(destination))
+  }
+
   async function openLibraryRecord(sessionId: string, view: 'testware' | 'findings', recordId: string) {
     const session = sessions.find((candidate) => candidate.id === sessionId) ?? await reopenSession(sessionId)
     await sessionActions.openSession(session, false, () => {
@@ -455,6 +460,7 @@ export function useAppController() {
     noteWordCount,
     closeSettings,
     openSettingsSection,
+    openSessionInCurrentView,
     openLibraryRecord,
     openGenerationPreflight,
     notice,

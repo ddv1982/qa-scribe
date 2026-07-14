@@ -17,6 +17,7 @@ export { DeleteConfirmationDialog } from './AppOverlays'
 
 export function AppShell(c: AppController) {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
+  const [librarySidebarTarget, setLibrarySidebarTarget] = useState<HTMLDivElement | null>(null)
   const commands = createCommandRegistry(c)
   const commandById = (id: AppCommandId) => commands.find((command) => command.id === id)
   const runCommand = (id: AppCommandId) => commandById(id)?.run()
@@ -28,6 +29,8 @@ export function AppShell(c: AppController) {
         ? { command: commandById('finding.new'), busy: 'manual-finding' as const }
         : null
   const visibleSessions = c.filteredSessions.slice(0, 8)
+  const sessionScopedView = c.activeView === 'sessions' || c.activeView === 'testware' || c.activeView === 'findings'
+  const libraryView = c.activeView === 'testware-library' || c.activeView === 'findings-library'
 
   useEffect(() => {
     function handleShortcut(event: globalThis.KeyboardEvent) {
@@ -92,12 +95,14 @@ export function AppShell(c: AppController) {
       </header>
 
       <aside className="left-rail" aria-label="Workspace navigation">
-        <nav className="section-nav" aria-label="Primary">
-          <RailItem icon={FileText} label={c.activeSession ? 'Session note' : 'Sessions'} count={c.sessions.length} active={c.activeView === 'sessions'} onClick={() => runCommand('view.note')} />
+        <nav className="workspace-nav" aria-label="Workspace sections">
+          <RailItem icon={FileText} label="Sessions" count={c.sessions.length} active={sessionScopedView} onClick={() => runCommand('view.note')} />
+          <RailItem icon={BookOpen} label="Testware library" active={c.activeView === 'testware-library'} onClick={() => runCommand('library.testware')} />
+          <RailItem icon={Flag} label="Findings library" active={c.activeView === 'findings-library'} onClick={() => runCommand('library.findings')} />
         </nav>
 
-        <section className="session-picker" aria-label="Choose session">
-          <p className="rail-heading">Choose session</p>
+        {sessionScopedView ? <section className="session-picker contextual-rail" aria-label="Sessions">
+          <p className="rail-heading">Recent sessions</p>
           <div className="session-picker-list" role="listbox" aria-label="Sessions">
             {visibleSessions.map((session) => (
               <button
@@ -106,8 +111,9 @@ export function AppShell(c: AppController) {
                 type="button"
                 role="option"
                 aria-selected={c.activeSession?.id === session.id}
+                tabIndex={c.activeSession?.id === session.id ? 0 : -1}
                 disabled={c.isBusy && c.activeSession?.id !== session.id}
-                onClick={() => void c.openSession(session)}
+                onClick={() => void c.openSessionInCurrentView(session)}
                 onKeyDown={handleSessionOptionKeyDown}
               >
                 <span className="session-picker-title" title={session.title}>{session.title}</span>
@@ -123,28 +129,29 @@ export function AppShell(c: AppController) {
               {commandById('sessions.load-all')?.label}
             </button>
           ) : null}
-        </section>
+        </section> : null}
 
-        <nav className="library-nav" aria-label="Libraries">
-          <p className="rail-heading">Libraries</p>
-          <RailItem icon={BookOpen} label="Testware library" active={c.activeView === 'testware-library'} onClick={() => runCommand('library.testware')} />
-          <RailItem icon={Flag} label="Findings library" active={c.activeView === 'findings-library'} onClick={() => runCommand('library.findings')} />
-        </nav>
+        {libraryView ? (
+          <section className="library-sidebar contextual-rail" aria-label={c.activeView === 'testware-library' ? 'Testware library records' : 'Findings library records'}>
+            <p className="rail-heading">{c.activeView === 'testware-library' ? 'Testware' : 'Findings'}</p>
+            <div className="library-sidebar-slot" ref={setLibrarySidebarTarget} />
+          </section>
+        ) : null}
 
-        <label className="compact-session-select">
+        {sessionScopedView ? <label className="compact-session-select">
           <span>Session</span>
           <select
             value={c.activeSession?.id ?? ''}
             disabled={c.isBusy || c.sessions.length === 0}
             onChange={(event) => {
               const session = c.sessions.find((candidate) => candidate.id === event.target.value)
-              if (session) void c.openSession(session)
+              if (session) void c.openSessionInCurrentView(session)
             }}
           >
             {c.sessions.length === 0 ? <option value="">No Sessions yet</option> : null}
             {c.sessions.map((session) => <option key={session.id} value={session.id}>{session.title}</option>)}
           </select>
-        </label>
+        </label> : null}
 
         <button className={c.activeView === 'settings' ? 'settings-link active' : 'settings-link'} type="button" aria-current={c.activeView === 'settings' ? 'page' : undefined} onClick={() => runCommand('settings.open')}>
           <Settings size={17} />
@@ -285,6 +292,7 @@ export function AppShell(c: AppController) {
             loadError={c.draftLibraryError}
             onRetry={() => void c.loadDraftLibrary()}
             onOpenRecord={(sessionId, recordId) => void c.openLibraryRecord(sessionId, 'testware', recordId)}
+            sidebarTarget={librarySidebarTarget}
           />
         ) : null}
 
@@ -296,6 +304,7 @@ export function AppShell(c: AppController) {
             loadError={c.findingLibraryError}
             onRetry={() => void c.loadFindingLibrary()}
             onOpenRecord={(sessionId, recordId) => void c.openLibraryRecord(sessionId, 'findings', recordId)}
+            sidebarTarget={librarySidebarTarget}
           />
         ) : null}
 

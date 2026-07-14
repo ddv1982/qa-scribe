@@ -343,6 +343,47 @@ describe('App workflows', () => {
     await waitFor(() => expect(screen.getByRole('textbox', { name: 'Session title' })).toHaveValue('Beta session'))
   })
 
+  it('keeps the active Session workspace tab when switching Sessions', async () => {
+    const user = userEvent.setup()
+    const firstSession = sessionFixture({ id: 'session-1', title: 'Alpha session' })
+    const secondSession = sessionFixture({ id: 'session-2', title: 'Beta session' })
+    tauriMock.listRecentSessions.mockResolvedValueOnce([firstSession, secondSession])
+    tauriMock.openSessionNoteState.mockImplementation(async (sessionId: string) =>
+      sessionNoteStateFixture({
+        session: sessionId === secondSession.id ? secondSession : firstSession,
+        noteEntry: entryFixture({ sessionId }),
+      }),
+    )
+    render(<App />)
+
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Session title' })).toHaveValue('Alpha session'))
+    await user.click(screen.getByRole('tab', { name: /testware/i }))
+    await user.click(within(screen.getByRole('listbox', { name: 'Sessions' })).getByRole('option', { name: /beta session/i }))
+
+    await waitFor(() => expect(tauriMock.openSessionNoteState).toHaveBeenLastCalledWith('session-2'))
+    await waitFor(() => expect(screen.getByRole('tab', { name: /testware/i })).toHaveAttribute('aria-selected', 'true'))
+    expect(screen.getByLabelText('Current search scope')).toHaveTextContent('Beta session')
+  })
+
+  it('uses the single left rail as the master list for library records', async () => {
+    const user = userEvent.setup()
+    tauriMock.listDraftLibrary.mockResolvedValueOnce([
+      {
+        draft: draftFixture({ id: 'draft-library', title: 'Checkout coverage' }),
+        sessionTitle: 'Checkout session',
+      },
+    ])
+    render(<App />)
+
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Session title' })).toHaveValue('Checkout session'))
+    const workspaceNavigation = screen.getByRole('navigation', { name: 'Workspace sections' })
+    await user.click(within(workspaceNavigation).getByRole('button', { name: 'Testware library' }))
+
+    const libraryList = await screen.findByRole('complementary', { name: 'Testware library records' })
+    expect(libraryList.closest('.left-rail')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Checkout coverage' })).toBeInTheDocument()
+  })
+
   it('creates manual testware after saving pending note edits', async () => {
     const user = userEvent.setup()
     render(<App />)

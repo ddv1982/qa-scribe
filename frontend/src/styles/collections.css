@@ -135,6 +135,10 @@
   min-height: 520px;
 }
 
+.collection-workspace--single-sidebar {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .collection-load-advisory {
   display: flex;
   align-items: center;

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { BookOpen, Flag, Loader2, Search, SearchX } from 'lucide-react'
 import { EmptyCollection, StatePanel } from '../components/Common'
 import { richEditorDocumentFromStoredBody } from '../editor/editorDocument'
@@ -37,6 +38,7 @@ export function OutputLibraryView({
   loadError,
   onRetry,
   onOpenRecord,
+  sidebarTarget = null,
 }: {
   kind: LibraryKind
   draftItems?: DraftLibraryItem[]
@@ -45,6 +47,7 @@ export function OutputLibraryView({
   loadError: string | null
   onRetry: () => void
   onOpenRecord: (sessionId: string, recordId: string) => void
+  sidebarTarget?: HTMLElement | null
 }) {
   const [query, setQuery] = useState('')
   const [sessionFilter, setSessionFilter] = useState('all')
@@ -103,6 +106,17 @@ export function OutputLibraryView({
           : right.updatedAt.localeCompare(left.updatedAt))
   }, [kindFilter, query, records, sessionFilter, sort])
   const selected = visibleRecords.find((record) => record.id === selectedId) ?? visibleRecords[0] ?? null
+  const recordList = visibleRecords.length > 0 ? (
+    <aside className="record-master-list" aria-label={`${heading} records`}>
+      {visibleRecords.map((record) => (
+        <button key={record.id} type="button" className={selected?.id === record.id ? 'active' : ''} aria-current={selected?.id === record.id ? 'true' : undefined} onClick={() => setSelectedId(record.id)}>
+          <strong>{record.title}</strong>
+          <span>{record.sessionTitle}</span>
+          <span>{[record.kindLabel, ...record.metadata, `Updated ${formatLibraryDate(record.updatedAt)}`].join(' · ')}</span>
+        </button>
+      ))}
+    </aside>
+  ) : null
 
   if (loadState === 'idle' || loadState === 'loading') {
     return <StatePanel icon={Loader2} title={`Loading ${heading.toLocaleLowerCase()}`} description="Collecting Session-owned output and its provenance." />
@@ -112,7 +126,8 @@ export function OutputLibraryView({
   }
 
   return (
-    <section className="collection-view output-library">
+    <section className={sidebarTarget ? 'collection-view output-library output-library--single-sidebar' : 'collection-view output-library'}>
+      {sidebarTarget && recordList ? createPortal(recordList, sidebarTarget) : null}
       <header className="collection-header">
         <div>
           <p className="eyebrow">Cross-session library</p>
@@ -154,18 +169,8 @@ export function OutputLibraryView({
           <p role="status" aria-live="polite">{visibleRecords.length} of {records.length} records</p>
         </div>
       ) : null}
-      <div className="collection-workspace">
-        {visibleRecords.length > 0 ? (
-          <aside className="record-master-list" aria-label={`${heading} records`}>
-            {visibleRecords.map((record) => (
-              <button key={record.id} type="button" className={selected?.id === record.id ? 'active' : ''} aria-current={selected?.id === record.id ? 'true' : undefined} onClick={() => setSelectedId(record.id)}>
-                <strong>{record.title}</strong>
-                <span>{record.sessionTitle}</span>
-                <span>{[record.kindLabel, ...record.metadata, `Updated ${formatLibraryDate(record.updatedAt)}`].join(' · ')}</span>
-              </button>
-            ))}
-          </aside>
-        ) : null}
+      <div className={sidebarTarget ? 'collection-workspace collection-workspace--single-sidebar' : 'collection-workspace'}>
+        {!sidebarTarget ? recordList : null}
         {selected ? (
           <article className="editable-record record-detail-pane library-record-detail">
             <p className="record-provenance">Session: <strong>{selected.sessionTitle}</strong></p>
