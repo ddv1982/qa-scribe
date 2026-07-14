@@ -9,7 +9,7 @@ async function button(label) {
 }
 
 async function rail(label) {
-  return (await $('nav[aria-label="Primary"]')).$(`button*=${label}`)
+  return (await $('nav[aria-label="Workspace sections"]')).$(`button*=${label}`)
 }
 
 async function sessionTab(label) {

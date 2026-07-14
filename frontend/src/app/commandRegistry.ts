@@ -33,7 +33,7 @@ export function createCommandRegistry(controller: AppController): AppCommand[] {
     command('session.new', 'New Session', 'Create a blank testing Session.', ['create', 'capture'], 'n', !controller.isBusy, () => void controller.handleNewSession()),
     command('testware.new', 'New Testware', 'Create Testware in the active Session.', ['test cases', 'draft'], undefined, hasSession && !controller.isBusy, () => void controller.handleManualTestware()),
     command('finding.new', 'New Finding', 'Create a Finding in the active Session.', ['bug', 'risk', 'issue'], undefined, hasSession && !controller.isBusy, () => void controller.handleManualFinding()),
-    command('view.note', 'Open Session Note', 'Show the active Session note.', ['capture', 'editor'], '1', hasSession, () => controller.setActiveView('sessions')),
+    command('view.note', 'Open Sessions', 'Browse Sessions and show the active Session note.', ['capture', 'editor'], '1', true, () => controller.setActiveView('sessions')),
     command('view.testware', 'Open Session Testware', 'Show Testware owned by the active Session.', ['test cases', 'output'], '2', hasSession, () => controller.setActiveView('testware')),
     command('view.findings', 'Open Session Findings', 'Show Findings owned by the active Session.', ['bugs', 'risks', 'output'], '3', hasSession, () => controller.setActiveView('findings')),
     command('library.testware', 'Open Testware Library', 'Browse Testware across all Sessions.', ['cross-session', 'test cases', 'output'], undefined, true, () => controller.setActiveView('testware-library')),

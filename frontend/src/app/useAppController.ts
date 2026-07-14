@@ -248,8 +248,10 @@ export function useAppController() {
     requestActiveView('settings')
   }
 
-  function closeSettings() {
-    requestActiveView(settingsReturnViewRef.current)
+  function closeSettings() { requestActiveView(settingsReturnViewRef.current) }
+  function openSessionInCurrentView(session: (typeof sessions)[number]) {
+    const destination = activeView === 'testware' || activeView === 'findings' ? activeView : 'sessions'
+    return sessionActions.openSession(session, true, () => setActiveView(destination))
   }
 
   async function openLibraryRecord(sessionId: string, view: 'testware' | 'findings', recordId: string) {
@@ -455,6 +457,7 @@ export function useAppController() {
     noteWordCount,
     closeSettings,
     openSettingsSection,
+    openSessionInCurrentView,
     openLibraryRecord,
     openGenerationPreflight,
     notice,
