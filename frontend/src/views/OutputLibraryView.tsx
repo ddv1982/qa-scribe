@@ -4,6 +4,12 @@ import { EmptyCollection, StatePanel } from '../components/Common'
 import { richEditorDocumentFromStoredBody } from '../editor/editorDocument'
 import { RichTextEditor } from '../editor/RichTextEditor'
 import { parseFindingMetadata, findingSeverityLabel, findingStatusLabel } from '../findings/metadata'
+import {
+  parseTestwareGenerationMetadata,
+  testwareDepthLabel,
+  testwareOutputFormatLabel,
+  testwareTechniqueLabel,
+} from '../testware/generationPreferences'
 import type { DraftLibraryItem, FindingLibraryItem, FindingKind } from '../tauri'
 import { formatFindingKind } from '../ui/format'
 import type { LibraryLoadState } from '../app/useOutputLibraries'
@@ -48,19 +54,24 @@ export function OutputLibraryView({
   const isTestware = kind === 'testware'
   const heading = isTestware ? 'Testware library' : 'Findings library'
   const records = useMemo<NormalizedLibraryRecord[]>(() => isTestware
-    ? draftItems.filter((item) => item.draft.kind === 'testware').map((item) => ({
-      id: item.draft.id,
-      sessionId: item.draft.sessionId,
-      sessionTitle: item.sessionTitle,
-      title: item.draft.title,
-      body: item.draft.body,
-      bodyJson: item.draft.bodyJson,
-      bodyFormat: item.draft.bodyFormat,
-      updatedAt: item.draft.updatedAt,
-      kindLabel: 'Testware',
-      kindValue: item.draft.kind,
-      metadata: [],
-    }))
+    ? draftItems.filter((item) => item.draft.kind === 'testware').map((item) => {
+      const metadata = parseTestwareGenerationMetadata(item.draft)
+      return {
+        id: item.draft.id,
+        sessionId: item.draft.sessionId,
+        sessionTitle: item.sessionTitle,
+        title: item.draft.title,
+        body: item.draft.body,
+        bodyJson: item.draft.bodyJson,
+        bodyFormat: item.draft.bodyFormat,
+        updatedAt: item.draft.updatedAt,
+        kindLabel: 'Testware',
+        kindValue: item.draft.kind,
+        metadata: metadata
+          ? [testwareTechniqueLabel(metadata.technique), testwareDepthLabel(metadata.depth), testwareOutputFormatLabel(metadata.outputFormat)]
+          : [],
+      }
+    })
     : findingItems.map((item) => {
       const metadata = parseFindingMetadata(item.finding.metadataJson)
       return {
@@ -150,7 +161,7 @@ export function OutputLibraryView({
               <button key={record.id} type="button" className={selected?.id === record.id ? 'active' : ''} aria-current={selected?.id === record.id ? 'true' : undefined} onClick={() => setSelectedId(record.id)}>
                 <strong>{record.title}</strong>
                 <span>{record.sessionTitle}</span>
-                <span>{record.kindLabel} · Updated {formatLibraryDate(record.updatedAt)}</span>
+                <span>{[record.kindLabel, ...record.metadata, `Updated ${formatLibraryDate(record.updatedAt)}`].join(' · ')}</span>
               </button>
             ))}
           </aside>
@@ -179,5 +190,7 @@ export function OutputLibraryView({
 
 function formatLibraryDate(value: string): string {
   const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString([], { month: 'short', day: 'numeric' })
+  return Number.isNaN(date.getTime())
+    ? value
+    : date.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 }

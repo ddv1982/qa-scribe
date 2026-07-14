@@ -38,6 +38,65 @@ describe('cross-session output libraries', () => {
     expect(onOpenRecord).toHaveBeenCalledWith('session-recovery', 'draft-recovery')
   })
 
+  it('distinguishes and opens duplicate-titled Testware records independently', async () => {
+    const user = userEvent.setup()
+    const onOpenRecord = vi.fn()
+    const generationMetadata = (depth: 'lean' | 'balanced') => JSON.stringify({
+      testwareGeneration: {
+        technique: 'auto',
+        outputFormat: 'qa_cases',
+        depth,
+        includeNegativeCases: true,
+        includeBoundaryCases: true,
+        includeTestData: false,
+        preserveEvidence: true,
+        customInstructions: null,
+      },
+    })
+    render(
+      <OutputLibraryView
+        kind="testware"
+        draftItems={[
+          {
+            draft: draftFixture({
+              id: 'draft-newer',
+              title: 'Gmail login cases',
+              updatedAt: '2026-06-24T20:26:01.255Z',
+              metadataJson: generationMetadata('balanced'),
+            }),
+            sessionTitle: 'Gmail login',
+          },
+          {
+            draft: draftFixture({
+              id: 'draft-older',
+              title: 'Gmail login cases',
+              updatedAt: '2026-06-24T19:19:50.281Z',
+              metadataJson: generationMetadata('lean'),
+            }),
+            sessionTitle: 'Gmail login',
+          },
+        ]}
+        loadState="ready"
+        loadError={null}
+        onRetry={vi.fn()}
+        onOpenRecord={onOpenRecord}
+      />,
+    )
+
+    const list = screen.getByRole('complementary', { name: 'Testware library records' })
+    const balancedRecord = within(list).getByRole('button', { name: /gmail login cases.*balanced/i })
+    const leanRecord = within(list).getByRole('button', { name: /gmail login cases.*lean/i })
+    expect(balancedRecord).not.toHaveAccessibleName(leanRecord.getAttribute('aria-label') ?? leanRecord.textContent ?? '')
+
+    await user.click(leanRecord)
+    await user.click(screen.getByRole('button', { name: 'Open in Session' }))
+    expect(onOpenRecord).toHaveBeenLastCalledWith('session-1', 'draft-older')
+
+    await user.click(balancedRecord)
+    await user.click(screen.getByRole('button', { name: 'Open in Session' }))
+    expect(onOpenRecord).toHaveBeenLastCalledWith('session-1', 'draft-newer')
+  })
+
   it('filters Finding types and offers recovery after a load error', async () => {
     const user = userEvent.setup()
     const onRetry = vi.fn()
