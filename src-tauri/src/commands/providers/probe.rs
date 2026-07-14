@@ -1,18 +1,14 @@
 use std::{
     collections::HashMap,
-    fs::{self, File, OpenOptions},
-    io::{BufRead, BufReader, ErrorKind, Write},
-    path::{Path, PathBuf},
-    process::{Command, Output, Stdio},
-    sync::{
-        OnceLock,
-        atomic::{AtomicU64, Ordering},
-        mpsc,
-    },
+    io::{BufRead, BufReader, ErrorKind, Read, Write},
+    path::PathBuf,
+    process::{Command, Stdio},
+    sync::{OnceLock, mpsc},
     thread,
     time::{Duration, Instant},
 };
 
+use qa_scribe_core::domain::AiProvider;
 use serde_json::{Value, json};
 
 use crate::{
@@ -23,8 +19,22 @@ use crate::{
     },
 };
 
+mod cancel;
+mod claude;
+mod command;
+mod copilot;
+mod identity;
+
+pub(super) use cancel::cancel_all_provider_discovery;
+use cancel::{CANCELLATION_POLL_INTERVAL, DiscoveryCancellation};
+#[cfg(test)]
+pub(super) use command::ProbeOutputFiles;
+pub(super) use command::{MAX_PROVIDER_OUTPUT_BYTES, run_command_with_timeout};
+use identity::{discovery_cache_fingerprint, provider_executable};
+
 const PROVIDER_PROBE_TIMEOUT: Duration = Duration::from_secs(4);
-static PROVIDER_PROBE_OUTPUT_COUNTER: AtomicU64 = AtomicU64::new(0);
+const PROVIDER_TRANSACTION_TIMEOUT: Duration = Duration::from_secs(12);
+pub(super) const MAX_PROVIDER_MODELS: usize = 1_000;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(super) enum DetectionMode {
@@ -52,22 +62,43 @@ pub(super) struct CommandProbe {
 pub(super) trait ProbeRunner {
     fn executable_path(&self, program: &str) -> Option<PathBuf>;
     fn run(&self, program: &str, args: &[&str]) -> CommandProbe;
+    fn cache_fingerprint(&self, _provider: AiProvider) -> u64 {
+        0
+    }
     fn codex_app_server_defaults(&self) -> CodexDefaultsProbe {
         CodexDefaultsProbe::NotAttempted
+    }
+    fn claude_structured_catalog(&self) -> StructuredCatalogProbe {
+        StructuredCatalogProbe::NotAttempted
+    }
+    fn copilot_structured_catalog(&self) -> StructuredCatalogProbe {
+        StructuredCatalogProbe::NotAttempted
     }
 }
 
 pub(super) struct SystemProbeRunner {
     path_mode: ProviderPathMode,
+    deadline: Instant,
     codex_defaults: OnceLock<CodexDefaultsProbe>,
+    claude_catalog: OnceLock<StructuredCatalogProbe>,
+    copilot_catalog: OnceLock<StructuredCatalogProbe>,
 }
 
 impl SystemProbeRunner {
     pub(super) fn new(path_mode: ProviderPathMode) -> Self {
         Self {
             path_mode,
+            deadline: Instant::now() + PROVIDER_TRANSACTION_TIMEOUT,
             codex_defaults: OnceLock::new(),
+            claude_catalog: OnceLock::new(),
+            copilot_catalog: OnceLock::new(),
         }
+    }
+
+    fn remaining(&self) -> Duration {
+        self.deadline
+            .saturating_duration_since(Instant::now())
+            .min(PROVIDER_PROBE_TIMEOUT)
     }
 }
 
@@ -77,14 +108,18 @@ impl ProbeRunner for SystemProbeRunner {
     }
 
     fn run(&self, program: &str, args: &[&str]) -> CommandProbe {
-        let mut command = Command::new(program);
+        let executable = provider_executable_path(program, self.path_mode)
+            .unwrap_or_else(|| PathBuf::from(program));
+        let provider_cwd = NeutralProviderCwd::new();
+        let mut command = Command::new(executable);
         command.args(args);
+        command.current_dir(provider_cwd.path());
         apply_provider_path(&mut command);
         if program == "copilot" {
             command.env("COPILOT_AUTO_UPDATE", "false");
         }
 
-        match run_command_with_timeout(command, PROVIDER_PROBE_TIMEOUT) {
+        match run_command_with_timeout(command, self.remaining()) {
             Ok(output) => CommandProbe::from_output(output),
             Err(error) => CommandProbe {
                 success: false,
@@ -95,14 +130,70 @@ impl ProbeRunner for SystemProbeRunner {
         }
     }
 
+    fn cache_fingerprint(&self, provider: AiProvider) -> u64 {
+        discovery_cache_fingerprint(
+            provider,
+            provider_executable_path(provider_executable(provider), self.path_mode).as_deref(),
+        )
+    }
+
     fn codex_app_server_defaults(&self) -> CodexDefaultsProbe {
         if self.path_mode != ProviderPathMode::Deep {
             return CodexDefaultsProbe::NotAttempted;
         }
         self.codex_defaults
-            .get_or_init(|| match read_codex_app_server_defaults() {
+            .get_or_init(|| match read_codex_app_server_defaults(self.deadline) {
                 Ok(defaults) => CodexDefaultsProbe::Success(defaults),
                 Err(error) => CodexDefaultsProbe::Failed(error),
+            })
+            .clone()
+    }
+
+    fn claude_structured_catalog(&self) -> StructuredCatalogProbe {
+        if self.path_mode != ProviderPathMode::Deep {
+            return StructuredCatalogProbe::NotAttempted;
+        }
+        self.claude_catalog
+            .get_or_init(|| {
+                let Some(executable) = provider_executable_path("claude", self.path_mode) else {
+                    return StructuredCatalogProbe::NotAttempted;
+                };
+                let version = self.run("claude", &["--version"]);
+                if !version.success || !claude::version_is_supported(&version.stdout) {
+                    return StructuredCatalogProbe::Failed(ProviderDiscoveryError {
+                        code: ProviderDiscoveryErrorCode::Unsupported,
+                        message: "This Claude Code version does not support safe model discovery."
+                            .to_string(),
+                        retryable: false,
+                    });
+                }
+                match claude::discover(&executable, self.deadline) {
+                    Ok(result) => StructuredCatalogProbe::Success(StructuredCatalog {
+                        models: result.models,
+                        cli_version: Some(version.stdout),
+                    }),
+                    Err(error) => StructuredCatalogProbe::Failed(error),
+                }
+            })
+            .clone()
+    }
+
+    fn copilot_structured_catalog(&self) -> StructuredCatalogProbe {
+        if self.path_mode != ProviderPathMode::Deep {
+            return StructuredCatalogProbe::NotAttempted;
+        }
+        self.copilot_catalog
+            .get_or_init(|| {
+                let Some(executable) = provider_executable_path("copilot", self.path_mode) else {
+                    return StructuredCatalogProbe::NotAttempted;
+                };
+                match copilot::discover(&executable, self.deadline) {
+                    Ok(result) => StructuredCatalogProbe::Success(StructuredCatalog {
+                        models: result.models,
+                        cli_version: result.cli_version,
+                    }),
+                    Err(error) => StructuredCatalogProbe::Failed(error),
+                }
             })
             .clone()
     }
@@ -121,7 +212,23 @@ pub(super) enum CodexDefaultsProbe {
     Failed(ProviderDiscoveryError),
 }
 
-fn read_codex_app_server_defaults() -> Result<CodexAppServerDefaults, ProviderDiscoveryError> {
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) struct StructuredCatalog {
+    pub(super) models: Vec<Value>,
+    pub(super) cli_version: Option<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) enum StructuredCatalogProbe {
+    NotAttempted,
+    Success(StructuredCatalog),
+    Failed(ProviderDiscoveryError),
+}
+
+fn read_codex_app_server_defaults(
+    deadline: Instant,
+) -> Result<CodexAppServerDefaults, ProviderDiscoveryError> {
+    DiscoveryCancellation::capture().check("Codex")?;
     let provider_cwd = NeutralProviderCwd::new();
     let mut command = Command::new("codex");
     command.arg("app-server").current_dir(provider_cwd.path());
@@ -150,13 +257,7 @@ fn read_codex_app_server_defaults() -> Result<CodexAppServerDefaults, ProviderDi
         ));
     };
     let (sender, receiver) = mpsc::channel();
-    let reader = thread::spawn(move || {
-        for line in BufReader::new(stdout).lines().map_while(Result::ok) {
-            if let Ok(value) = serde_json::from_str::<Value>(&line) {
-                let _ = sender.send(value);
-            }
-        }
-    });
+    let reader = thread::spawn(move || read_bounded_json_lines(stdout, sender));
 
     let result = (|| {
         let mut responses = ResponseRouter::new(&receiver);
@@ -171,7 +272,7 @@ fn read_codex_app_server_defaults() -> Result<CodexAppServerDefaults, ProviderDi
                 }
             }),
         )?;
-        responses.receive(0, PROVIDER_PROBE_TIMEOUT)?;
+        responses.receive(0, deadline)?;
 
         send_request(&mut stdin, &json!({"method": "initialized", "params": {}}))?;
         send_request(
@@ -190,11 +291,8 @@ fn read_codex_app_server_defaults() -> Result<CodexAppServerDefaults, ProviderDi
             &json!({"method": "model/list", "id": 2, "params": {"limit": 100}}),
         )?;
 
-        // Responses are deliberately requested together. The router keeps
-        // out-of-order responses instead of discarding the one for the other
-        // request ID.
-        let config = responses.receive(1, PROVIDER_PROBE_TIMEOUT)?;
-        let page = responses.receive(2, PROVIDER_PROBE_TIMEOUT)?;
+        let config = responses.receive(1, deadline)?;
+        let page = responses.receive(2, deadline)?;
         let models = collect_model_pages(page, |request_id, cursor| {
             send_request(
                 &mut stdin,
@@ -204,7 +302,7 @@ fn read_codex_app_server_defaults() -> Result<CodexAppServerDefaults, ProviderDi
                     "params": {"limit": 100, "cursor": cursor}
                 }),
             )?;
-            responses.receive(request_id, PROVIDER_PROBE_TIMEOUT)
+            responses.receive(request_id, deadline)
         })?;
         Ok(CodexAppServerDefaults { config, models })
     })();
@@ -217,42 +315,64 @@ fn read_codex_app_server_defaults() -> Result<CodexAppServerDefaults, ProviderDi
 }
 
 struct ResponseRouter<'a> {
-    receiver: &'a mpsc::Receiver<Value>,
+    receiver: &'a mpsc::Receiver<JsonLineEvent>,
     pending: HashMap<i64, Value>,
+    cancellation: DiscoveryCancellation,
 }
 
 impl<'a> ResponseRouter<'a> {
-    fn new(receiver: &'a mpsc::Receiver<Value>) -> Self {
+    fn new(receiver: &'a mpsc::Receiver<JsonLineEvent>) -> Self {
         Self {
             receiver,
             pending: HashMap::new(),
+            cancellation: DiscoveryCancellation::capture(),
         }
     }
 
-    fn receive(&mut self, id: i64, timeout: Duration) -> Result<Value, ProviderDiscoveryError> {
+    fn receive(&mut self, id: i64, deadline: Instant) -> Result<Value, ProviderDiscoveryError> {
         if let Some(value) = self.pending.remove(&id) {
             return response_result(value);
         }
-        let started_at = Instant::now();
         loop {
-            let remaining = timeout.checked_sub(started_at.elapsed()).ok_or_else(|| {
-                discovery_error(
-                    ProviderDiscoveryErrorCode::TimedOut,
-                    format!("Codex app-server request {id} timed out"),
-                )
-            })?;
-            let value = self.receiver.recv_timeout(remaining).map_err(|error| {
-                let code = match error {
-                    mpsc::RecvTimeoutError::Timeout => ProviderDiscoveryErrorCode::TimedOut,
-                    mpsc::RecvTimeoutError::Disconnected => {
-                        ProviderDiscoveryErrorCode::InvalidResponse
-                    }
-                };
-                discovery_error(
-                    code,
-                    format!("Codex app-server request {id} failed: {error}"),
-                )
-            })?;
+            self.cancellation.check("Codex")?;
+            let remaining = deadline
+                .checked_duration_since(Instant::now())
+                .ok_or_else(|| {
+                    discovery_error(
+                        ProviderDiscoveryErrorCode::TimedOut,
+                        format!("Codex app-server request {id} timed out"),
+                    )
+                })?;
+            let event = match self
+                .receiver
+                .recv_timeout(remaining.min(CANCELLATION_POLL_INTERVAL))
+            {
+                Ok(event) => event,
+                Err(mpsc::RecvTimeoutError::Timeout) if remaining > CANCELLATION_POLL_INTERVAL => {
+                    continue;
+                }
+                Err(error) => {
+                    let code = match error {
+                        mpsc::RecvTimeoutError::Timeout => ProviderDiscoveryErrorCode::TimedOut,
+                        mpsc::RecvTimeoutError::Disconnected => {
+                            ProviderDiscoveryErrorCode::InvalidResponse
+                        }
+                    };
+                    return Err(discovery_error(
+                        code,
+                        format!("Codex app-server request {id} failed: {error}"),
+                    ));
+                }
+            };
+            let value = match event {
+                JsonLineEvent::Value(value) => value,
+                JsonLineEvent::OutputLimit => {
+                    return Err(discovery_error(
+                        ProviderDiscoveryErrorCode::OutputLimit,
+                        "Codex app-server output exceeded the safety limit",
+                    ));
+                }
+            };
             let Some(response_id) = value.get("id").and_then(Value::as_i64) else {
                 continue;
             };
@@ -260,6 +380,28 @@ impl<'a> ResponseRouter<'a> {
                 return response_result(value);
             }
             self.pending.insert(response_id, value);
+        }
+    }
+}
+
+enum JsonLineEvent {
+    Value(Value),
+    OutputLimit,
+}
+
+fn read_bounded_json_lines(stdout: impl Read, sender: mpsc::Sender<JsonLineEvent>) {
+    let mut total = 0_u64;
+    let reader = BufReader::new(stdout).take(MAX_PROVIDER_OUTPUT_BYTES + 1);
+    for line in reader.lines().map_while(Result::ok) {
+        total = total.saturating_add(line.len() as u64 + 1);
+        if total > MAX_PROVIDER_OUTPUT_BYTES {
+            let _ = sender.send(JsonLineEvent::OutputLimit);
+            return;
+        }
+        if let Ok(value) = serde_json::from_str::<Value>(&line)
+            && sender.send(JsonLineEvent::Value(value)).is_err()
+        {
+            return;
         }
     }
 }
@@ -273,7 +415,7 @@ fn response_result(value: Value) -> Result<Value, ProviderDiscoveryError> {
         };
         return Err(discovery_error(
             code,
-            format!("Codex app-server returned an error: {error}"),
+            "Codex app-server returned an error response",
         ));
     }
     value.get("result").cloned().ok_or_else(|| {
@@ -319,11 +461,20 @@ fn collect_model_pages(
     let mut models = model_page_data(&page)?;
     let mut request_id = 3_i64;
     let mut page_count = 1_u16;
-    while let Some(cursor) = next_cursor(&page).map(str::to_string) {
-        if page_count >= 100 {
+    loop {
+        if models.len() > MAX_PROVIDER_MODELS {
+            return Err(discovery_error(
+                ProviderDiscoveryErrorCode::OutputLimit,
+                "Codex returned too many model catalog entries",
+            ));
+        }
+        let Some(cursor) = next_cursor(&page).map(str::to_string) else {
+            break;
+        };
+        if page_count >= 32 {
             return Err(discovery_error(
                 ProviderDiscoveryErrorCode::InvalidResponse,
-                "Codex returned more than 100 model catalog pages",
+                "Codex returned too many model catalog pages",
             ));
         }
         page = fetch(request_id, &cursor)?;
@@ -342,117 +493,6 @@ fn discovery_error(
         code,
         message: message.to_string(),
         retryable: true,
-    }
-}
-
-pub(super) fn run_command_with_timeout(
-    mut command: Command,
-    timeout: Duration,
-) -> std::io::Result<Output> {
-    let output_id = PROVIDER_PROBE_OUTPUT_COUNTER.fetch_add(1, Ordering::Relaxed);
-    let output_files = ProbeOutputFiles::new(output_id);
-    let (stdout, stderr) = output_files.create()?;
-    configure_process_group(&mut command);
-    let mut child = command
-        .stdout(Stdio::from(stdout))
-        .stderr(Stdio::from(stderr))
-        .spawn()?;
-    let started_at = Instant::now();
-
-    loop {
-        if let Some(status) = child.try_wait()? {
-            let stdout = fs::read(&output_files.stdout_path)?;
-            let stderr = fs::read(&output_files.stderr_path)?;
-            return Ok(Output {
-                status,
-                stdout,
-                stderr,
-            });
-        }
-
-        if started_at.elapsed() >= timeout {
-            kill_child_group(&mut child);
-            let _ = child.wait();
-            return Err(std::io::Error::new(
-                ErrorKind::TimedOut,
-                format!("provider probe timed out after {}s", timeout.as_secs()),
-            ));
-        }
-
-        thread::sleep(Duration::from_millis(25));
-    }
-}
-
-pub(super) struct ProbeOutputFiles {
-    pub(super) stdout_path: PathBuf,
-    pub(super) stderr_path: PathBuf,
-}
-
-impl ProbeOutputFiles {
-    pub(super) fn new(output_id: u64) -> Self {
-        Self {
-            stdout_path: std::env::temp_dir().join(format!(
-                "qa-scribe-provider-probe-{}-{output_id}.stdout",
-                std::process::id()
-            )),
-            stderr_path: std::env::temp_dir().join(format!(
-                "qa-scribe-provider-probe-{}-{output_id}.stderr",
-                std::process::id()
-            )),
-        }
-    }
-
-    pub(super) fn create(&self) -> std::io::Result<(File, File)> {
-        let stdout = exclusive_output_file(&self.stdout_path)?;
-        let stderr = match exclusive_output_file(&self.stderr_path) {
-            Ok(stderr) => stderr,
-            Err(error) => {
-                let _ = fs::remove_file(&self.stdout_path);
-                return Err(error);
-            }
-        };
-        Ok((stdout, stderr))
-    }
-}
-
-fn exclusive_output_file(path: &Path) -> std::io::Result<File> {
-    OpenOptions::new().write(true).create_new(true).open(path)
-}
-
-impl Drop for ProbeOutputFiles {
-    fn drop(&mut self) {
-        let _ = fs::remove_file(&self.stdout_path);
-        let _ = fs::remove_file(&self.stderr_path);
-    }
-}
-
-impl CommandProbe {
-    fn from_output(output: Output) -> Self {
-        Self {
-            success: output.status.success(),
-            stdout: String::from_utf8_lossy(&output.stdout).trim().to_string(),
-            stderr: String::from_utf8_lossy(&output.stderr).trim().to_string(),
-            not_found: false,
-        }
-    }
-
-    pub(super) fn not_found() -> Self {
-        Self {
-            success: false,
-            stdout: String::new(),
-            stderr: "command not found".to_string(),
-            not_found: true,
-        }
-    }
-
-    pub(super) fn failure_detail(&self) -> Option<&str> {
-        if !self.stderr.is_empty() {
-            Some(self.stderr.as_str())
-        } else if !self.stdout.is_empty() {
-            Some(self.stdout.as_str())
-        } else {
-            None
-        }
     }
 }
 

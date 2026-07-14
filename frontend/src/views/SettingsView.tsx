@@ -1,4 +1,4 @@
-import { AlertCircle, ArrowLeft, BrainCircuit, CheckCircle2, Clock3, Cpu, Loader2, RefreshCw, RotateCcw } from 'lucide-react'
+import { ArrowLeft, BrainCircuit, Cpu, Loader2, RefreshCw, RotateCcw } from 'lucide-react'
 import { SaveSettingsButton } from '../components/Common'
 import { ModelCombobox, ProviderGlyph } from '../components/ModelSelector'
 import { ThemeToggle } from '../components/ThemeToggle'
@@ -11,9 +11,27 @@ import {
   providerReasoningDefaults,
   reasoningEffortsFor,
 } from '../settings/defaults'
-import type { AiProvider, AppSettings, ProviderDefaultOrigin, ProviderDefaultSnapshot, ProviderDiscoveryState, ProviderState, ProviderStatus } from '../tauri'
+import type { AiProvider, AppSettings, ProviderStatus } from '../tauri'
 import type { BusyAction, ProviderDiscoveryUiState, SettingsSaveState, ThemePreference } from '../ui/types'
 import { TemplatesView } from './TemplatesView'
+import {
+  catalogSourceDescription,
+  catalogStatusDescription,
+  defaultProviderLabel,
+  defaultValueDescription,
+  discoveryStatusBody,
+  discoveryStatusIcon,
+  discoveryStatusTitle,
+  effectiveCommand,
+  formatCheckedAt,
+  providerCatalogSnapshot,
+  providerStateClass,
+  providerStateLabel,
+  reasoningLabel,
+  sanitizedDiscoveryRecovery,
+  sanitizedProviderReason,
+  originDetail,
+} from './SettingsViewSupport'
 
 export function SettingsView({
   busyAction,
@@ -55,6 +73,8 @@ export function SettingsView({
   const aiDefaultControlsDisabled = providerStatusLoaded && !defaultProviderAvailable
   const defaultModel = settingsDraft ? modelForProvider(settingsDraft, defaultProvider) : 'default'
   const reasoningEffort = settingsDraft?.selectedAiReasoningEffortsByProvider?.[defaultProvider] ?? ''
+  const catalog = providerCatalogSnapshot(defaultProviderStatus)
+  const modelOptions = defaultProviderStatus?.models ?? []
   const reasoningOptions = reasoningEffortsFor(defaultProviderStatus)
   const effective = settingsDraft ? effectiveSelection(settingsDraft, defaultProviderStatus) : null
   const snapshot = defaultProviderStatus?.defaultSnapshot ?? null
@@ -176,17 +196,21 @@ export function SettingsView({
 
               <div className="ai-execution-field ai-choice-card">
                 <ModelCombobox
-                  models={defaultProviderStatus?.models ?? []}
+                  models={modelOptions}
                   value={defaultModel}
                   disabled={aiDefaultControlsDisabled}
-                  describedBy="model-default-description"
+                  describedBy="model-default-description model-catalog-description"
                   providerLabel={defaultProviderLabel(defaultProvider, defaultProviderStatus)}
                   resolvedDefaultModel={snapshot?.model.value ?? null}
                   resolvedDefaultOrigin={originSummary(snapshot?.model.origin ?? null)}
+                  catalogChecked={providerStatus?.catalogRollout === 'selector' && (catalog?.state === 'fresh' || catalog?.state === 'stale')}
                   onChange={updateDefaultModel}
                 />
                 <p className="field-description" id="model-default-description">
                   {defaultValueDescription('model', defaultModel !== 'default', snapshot, providerDiscoveryState)}
+                </p>
+                <p className="field-description" id="model-catalog-description">
+                  {catalogStatusDescription(defaultProviderStatus, catalog, providerStatus?.catalogRollout ?? null)}
                 </p>
                 {modelOverrideForProvider(settingsDraft, defaultProvider) ? (
                   <button className="text-button" type="button" onClick={() => updateDefaultModel('default')}><RotateCcw size={12} /> Reset to CLI default</button>
@@ -273,10 +297,11 @@ export function SettingsView({
                   <div><dt>CLI version</dt><dd>{snapshot.cliVersion ?? 'Not reported'}</dd></div>
                   <div><dt>Resolution scope</dt><dd>{snapshot.resolutionScope.label}</dd></div>
                   <div><dt>Checked</dt><dd>{formatCheckedAt(snapshot.checkedAt)}</dd></div>
-                  <div><dt>Model source</dt><dd>{technicalOrigin(snapshot.model.origin)}</dd></div>
-                  <div><dt>Reasoning source</dt><dd>{technicalOrigin(snapshot.reasoningEffort.origin)}</dd></div>
+                  <div><dt>Model source</dt><dd>{originDetail(snapshot.model.origin)}</dd></div>
+                  <div><dt>Reasoning source</dt><dd>{originDetail(snapshot.reasoningEffort.origin)}</dd></div>
+                  {catalog ? <div><dt>Model catalog</dt><dd>{catalogSourceDescription(catalog.source)} · {formatCheckedAt(catalog.checkedAt)}</dd></div> : null}
                 </dl>
-                {snapshot.error ? <p>{snapshot.error.message}</p> : null}
+                {snapshot.error ? <p>{sanitizedDiscoveryRecovery(snapshot.error.code, defaultProviderStatus?.label ?? 'the CLI')}</p> : null}
                 <code>{effective ? effectiveCommand(defaultProvider, effective.modelOverride ?? 'default', effective.reasoningOverride) : ''}</code>
               </details>
             ) : null}
@@ -301,8 +326,7 @@ export function SettingsView({
                     <strong>{provider.label}</strong>
                     <span>{providerStateLabel(provider.status)}</span>
                   </div>
-                  <p>{provider.reason}</p>
-                  {provider.executablePath ? <details><summary>Executable details</summary><code>{provider.executablePath}</code></details> : null}
+                  <p>{sanitizedProviderReason(provider)}</p>
                 </div>
                 <span
                   className={`status-dot ${providerStateClass(provider.status)}`}
@@ -338,111 +362,4 @@ export function SettingsView({
       </div>
     </section>
   )
-}
-
-function defaultProviderLabel(defaultProvider: AiProvider, providerStatus?: ProviderStatus['providers'][number] | null): string {
-  if (providerStatus) return providerStatus.label
-  if (defaultProvider === 'claude_code') return 'Claude Code'
-  if (defaultProvider === 'copilot_cli') return 'GitHub Copilot CLI'
-  return 'Codex CLI'
-}
-
-function reasoningLabel(effort: string): string {
-  if (effort === 'xhigh') return 'Extra high'
-  return effort.charAt(0).toUpperCase() + effort.slice(1)
-}
-
-function providerStateClass(status?: ProviderState): string {
-  if (status === 'ready') return 'ready'
-  if (status === 'authRequired') return 'warning'
-  if (status === 'error') return 'error'
-  return 'unavailable'
-}
-
-function providerStateLabel(status: ProviderState): string {
-  if (status === 'ready') return 'Ready'
-  if (status === 'authRequired') return 'Sign-in needed'
-  if (status === 'installRequired') return 'Not installed'
-  return 'Needs attention'
-}
-
-function effectiveCommand(provider: AiProvider, model: string, reasoning: string | null): string {
-  const modelPart = model === 'default' ? '(CLI resolves model)' : model
-  if (provider === 'claude_code') return `claude -p · model ${modelPart} · effort ${reasoning ?? '(CLI default)'}`
-  if (provider === 'copilot_cli') return `copilot -s --no-ask-user · model ${modelPart}`
-  return `codex exec · model ${modelPart} · reasoning ${reasoning ?? '(CLI default)'}`
-}
-
-function defaultValueDescription(
-  field: 'model' | 'reasoning',
-  overridden: boolean,
-  snapshot: ProviderDefaultSnapshot | null,
-  uiState: ProviderDiscoveryUiState,
-): string {
-  const observation = field === 'model' ? snapshot?.model : snapshot?.reasoningEffort
-  const label = observation?.value
-  const source = originSummary(observation?.origin ?? null)
-  const detected = label ? `${label}${source ? ` from ${source}` : ''}` : null
-  if (overridden) {
-    return detected
-      ? `Override active · CLI default is ${detected}.`
-      : 'Override active · no CLI default detected.'
-  }
-  if (uiState === 'checking') return 'Checking the CLI default…'
-  if (uiState === 'refreshing') {
-    return detected
-      ? `Refreshing · previously ${detected}.`
-      : 'Refreshing the CLI default…'
-  }
-  if (snapshot?.state === 'stale' && detected) {
-    return `Last detected ${detected} · refresh failed.`
-  }
-  if (detected) return source ? `CLI default from ${source}.` : 'CLI default detected.'
-  if (snapshot?.state === 'providerManaged') return 'The CLI chooses this when generation starts.'
-  if (snapshot?.state === 'unavailable') return 'Provider unavailable · CLI-default intent preserved.'
-  return 'The CLI chooses this at run time; the current value could not be inspected.'
-}
-
-function discoveryStatusIcon(state: ProviderDiscoveryUiState) {
-  if (state === 'checking' || state === 'refreshing') return <Loader2 className="spin" size={17} />
-  if (state === 'ready') return <CheckCircle2 size={17} />
-  if (state === 'stale') return <Clock3 size={17} />
-  return <AlertCircle size={17} />
-}
-
-function discoveryStatusTitle(state: ProviderDiscoveryUiState, snapshotState?: ProviderDiscoveryState): string {
-  if (state === 'checking') return 'Checking CLI configuration'
-  if (state === 'refreshing') return 'Refreshing CLI configuration'
-  if (state === 'stale' || snapshotState === 'stale') return 'Showing the last successful detection'
-  if (snapshotState === 'providerManaged') return 'Configuration is provider-managed'
-  if (snapshotState === 'unavailable') return 'Provider unavailable'
-  if (state === 'error') return 'CLI configuration could not be inspected'
-  return 'Configuration detected'
-}
-
-function discoveryStatusBody(
-  state: ProviderDiscoveryUiState,
-  snapshot: ProviderDefaultSnapshot | null,
-): string {
-  if (state === 'checking') return 'Your saved selection remains active while QA Scribe checks the local CLI.'
-  if (state === 'refreshing') return 'The previous observation stays visible until this refresh finishes.'
-  if (snapshot?.state === 'stale') {
-    return `${formatCheckedAt(snapshot.checkedAt)}. The CLI will still resolve its live configuration when a run starts.`
-  }
-  if (snapshot?.state === 'providerManaged') return 'No explicit values were exposed. The CLI will choose them when a run starts.'
-  if (snapshot?.state === 'unavailable') return snapshot.error?.message ?? 'Set up this provider, then retry discovery.'
-  if (snapshot?.state === 'unresolved') return `${snapshot.error?.message ?? 'Inspection failed.'} CLI-default execution remains available once the provider is ready.`
-  return `Checked ${formatCheckedAt(snapshot?.checkedAt ?? null)}.`
-}
-
-function formatCheckedAt(value: string | null): string {
-  if (!value) return 'Not checked yet'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
-}
-
-function technicalOrigin(origin: ProviderDefaultOrigin | null): string {
-  if (!origin) return 'Not reported'
-  return origin.technicalPath ?? origin.displayPath ?? origin.label
 }

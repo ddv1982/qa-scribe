@@ -5,7 +5,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useState } from 'react'
 import { SettingsView } from './SettingsView'
 import { providerDefaultSnapshotFixture, settingsFixture } from '../test/fixtures'
-import type { AiProvider, AppSettings, ProviderModelDescriptor, ProviderStatus } from '../tauri'
+import type { ModelCatalogEntry } from '../components/ModelSelector'
+import type { AiProvider, AppSettings, ProviderCatalogRollout, ProviderModelCatalogSnapshot, ProviderStatus } from '../tauri'
 
 describe('SettingsView AI defaults', () => {
   afterEach(() => {
@@ -24,12 +25,15 @@ describe('SettingsView AI defaults', () => {
     expect(screen.getByText('Claude Code')).toBeInTheDocument()
   })
 
-  it('shows the resolved executable path for detected providers', () => {
+  it('never renders a local executable path from a legacy provider snapshot', () => {
+    const status = providerStatusWith([codexProvider(), claudeProvider(false), copilotProvider(true)])
+    const legacyProvider = status.providers[0] as ProviderStatus['providers'][number] & { executablePath?: string }
+    legacyProvider.executablePath = '/mock/bin/codex'
     renderSettingsView({
-      providerStatus: providerStatusWith([codexProvider(), claudeProvider(false), copilotProvider(true)]),
+      providerStatus: status,
     })
 
-    expect(screen.getByText('/mock/bin/codex')).toBeInTheDocument()
+    expect(screen.queryByText('/mock/bin/codex')).not.toBeInTheDocument()
     expect(screen.queryByText('/mock/bin/claude')).not.toBeInTheDocument()
   })
 
@@ -106,9 +110,12 @@ describe('SettingsView AI defaults', () => {
       {
         ...modelDescriptor('gpt-live', 'GPT Live', ['low', 'medium']),
         description: 'Reported by the installed CLI.',
-        source: 'detected',
+        source: 'cliCatalog',
+        availability: 'available',
+        confidence: 'authoritative',
       },
     ])
+    setCatalogSnapshot(provider, { source: 'cliCatalog', models: providerModels(provider) })
     provider.defaultSnapshot = providerDefaultSnapshotFixture({
       model: {
         value: 'gpt-live',
@@ -117,7 +124,6 @@ describe('SettingsView AI defaults', () => {
           kind: 'userConfig',
           label: 'User configuration',
           displayPath: '~/.codex/config.toml',
-          technicalPath: '/mock/.codex/config.toml',
         },
         recommendedValue: 'gpt-live',
       },
@@ -126,14 +132,126 @@ describe('SettingsView AI defaults', () => {
 
     const combobox = screen.getByRole('combobox', { name: 'Model' })
     expect(combobox).toHaveValue('CLI default · GPT Live')
-    expect(screen.getByText('1 model from Codex CLI')).toBeInTheDocument()
+    expect(screen.getByText('1 model available for this account')).toBeInTheDocument()
+    expect(screen.getByText(/Available for this account · checked/i)).toBeInTheDocument()
 
     await user.click(combobox)
 
     const listbox = screen.getByRole('listbox', { name: /ai models/i })
-    expect(screen.getByText('1 model reported by Codex CLI')).toBeInTheDocument()
+    expect(screen.getByText('1 model available for this account · custom IDs supported')).toBeInTheDocument()
     expect(within(listbox).getByText('Current: GPT Live · ~/.codex/config.toml')).toBeInTheDocument()
     expect(within(listbox).getByText('Reported by the installed CLI.')).toBeInTheDocument()
+    expect(within(listbox).getByText('Account')).toBeInTheDocument()
+  })
+
+  it('keeps policy-disabled models visible but unselectable', async () => {
+    const user = userEvent.setup()
+    const provider = providerDescriptor('copilot_cli', 'GitHub Copilot CLI', true, [
+      modelDescriptor('default', 'Use CLI default'),
+      { ...modelDescriptor('gpt-account', 'GPT Account'), source: 'cliCatalog', availability: 'available', confidence: 'authoritative' },
+      { ...modelDescriptor('gpt-policy', 'GPT Policy'), source: 'cliCatalog', availability: 'policyDisabled', confidence: 'authoritative' },
+    ])
+    setCatalogSnapshot(provider, { source: 'cliCatalog', models: providerModels(provider) })
+    const { updateSettingsDraft } = renderSettingsView({
+      settings: settingsFixture({ selectedAiProvider: 'copilot_cli' }),
+      providerStatus: providerStatusWith([provider]),
+    })
+
+    expect(screen.getByText('1 model available for this account')).toBeInTheDocument()
+    await user.click(screen.getByRole('combobox', { name: 'Model' }))
+
+    const listbox = screen.getByRole('listbox', { name: /ai models/i })
+    const policyOption = within(listbox).getByRole('option', { name: /GPT Policy/i })
+    expect(policyOption).toHaveAttribute('aria-disabled', 'true')
+    expect(within(policyOption).getByText('Policy')).toBeInTheDocument()
+    expect(within(policyOption).getByText('Disabled by account or organization policy.')).toBeInTheDocument()
+
+    await user.click(policyOption)
+    expect(updateSettingsDraft).not.toHaveBeenCalled()
+  })
+
+  it('distinguishes CLI-recognized and static fallback models from account availability', async () => {
+    const user = userEvent.setup()
+    const provider = providerDescriptor('claude_code', 'Claude Code', true, [
+      modelDescriptor('default', 'Use CLI default'),
+      { ...modelDescriptor('opus', 'Opus'), source: 'cliHelp', availability: 'supportedByBinary', confidence: 'heuristic' },
+      { ...modelDescriptor('haiku-static', 'Haiku static'), source: 'preset', availability: 'staticHint', confidence: 'static' },
+    ])
+    setCatalogSnapshot(provider, { source: 'cliHelp', models: providerModels(provider) })
+    renderSettingsView({
+      settings: settingsFixture({ selectedAiProvider: 'claude_code' }),
+      providerStatus: providerStatusWith([provider]),
+    })
+
+    expect(screen.getByText('1 model recognized by CLI')).toBeInTheDocument()
+    expect(screen.getByText(/Recognized by the installed CLI · checked/i)).toBeInTheDocument()
+    expect(screen.queryByText(/available for this account/i)).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('combobox', { name: 'Model' }))
+    const listbox = screen.getByRole('listbox', { name: /ai models/i })
+    expect(within(within(listbox).getByRole('option', { name: /Opus/i })).getByText('CLI')).toBeInTheDocument()
+    expect(within(within(listbox).getByRole('option', { name: /Haiku static/i })).getByText('Suggested')).toBeInTheDocument()
+  })
+
+  it('preserves an absent custom model as a warning instead of blocking it', () => {
+    const provider = providerDescriptor('codex_cli', 'Codex CLI', true, [
+      modelDescriptor('default', 'Use CLI default'),
+      { ...modelDescriptor('gpt-account', 'GPT Account'), source: 'cliCatalog', availability: 'available', confidence: 'authoritative' },
+    ])
+    setCatalogSnapshot(provider, { source: 'cliCatalog', models: providerModels(provider) })
+    renderSettingsView({
+      settings: settingsFixture({
+        selectedAiModel: 'gpt-private',
+        selectedAiModelsByProvider: { claude_code: null, codex_cli: 'gpt-private', copilot_cli: null },
+      }),
+      providerStatus: providerStatusWith([provider]),
+    })
+
+    expect(screen.getByRole('combobox', { name: 'Model' })).toHaveValue('gpt-private')
+    expect(screen.getByText(/Custom model “gpt-private” is not in the current catalog/i)).toBeInTheDocument()
+    expect(screen.getByText(/The CLI will validate it at run time/i)).toBeInTheDocument()
+  })
+
+  it('uses the backend selector projection during catalog diagnostics', async () => {
+    const user = userEvent.setup()
+    const provider = providerDescriptor('claude_code', 'Claude Code', true, [
+      modelDescriptor('default', 'Use CLI default'),
+      { ...modelDescriptor('sonnet-compat', 'Sonnet compatibility'), source: 'preset', availability: 'staticHint', confidence: 'static' },
+    ])
+    setCatalogSnapshot(provider, {
+      source: 'cliCatalog',
+      models: [
+        modelDescriptor('default', 'Use CLI default'),
+        { ...modelDescriptor('opus-account', 'Opus account'), source: 'cliCatalog', availability: 'available', confidence: 'authoritative' },
+      ],
+    })
+    renderSettingsView({
+      settings: settingsFixture({ selectedAiProvider: 'claude_code' }),
+      providerStatus: providerStatusWith([provider], 'diagnostics'),
+    })
+
+    expect(screen.getByText(/Compatibility model choices remain active while catalog diagnostics run/i)).toBeInTheDocument()
+    expect(screen.getByText('1 model in static fallback')).toBeInTheDocument()
+    await user.click(screen.getByRole('combobox', { name: 'Model' }))
+    const listbox = screen.getByRole('listbox', { name: /ai models/i })
+    expect(within(listbox).getByRole('option', { name: /Sonnet compatibility/i })).toBeInTheDocument()
+    expect(within(listbox).queryByRole('option', { name: /Opus account/i })).not.toBeInTheDocument()
+  })
+
+  it('shows sanitized sign-in and network recovery without raw diagnostics', () => {
+    const provider = providerDescriptor('copilot_cli', 'GitHub Copilot CLI', true, [modelDescriptor('default', 'Use CLI default')])
+    setCatalogSnapshot(provider, {
+      state: 'failed',
+      error: { code: 'network', message: 'token ghp_secret failed at /Users/private/repository', retryable: true },
+      models: [],
+    })
+    renderSettingsView({
+      settings: settingsFixture({ selectedAiProvider: 'copilot_cli' }),
+      providerStatus: providerStatusWith([provider]),
+    })
+
+    expect(screen.getByText('The account catalog is unavailable. Check sign-in and network access, then retry.')).toBeInTheDocument()
+    expect(screen.queryByText(/ghp_secret|\/Users\/private/)).not.toBeInTheDocument()
   })
 
   it('renders a fixed status dot for every provider state', () => {
@@ -235,8 +353,11 @@ function SettingsViewHarness({
   )
 }
 
-function providerStatusWith(providers: ProviderStatus['providers']): ProviderStatus {
-  return { providers }
+function providerStatusWith(
+  providers: ProviderStatus['providers'],
+  catalogRollout: ProviderCatalogRollout = 'selector',
+): ProviderStatus {
+  return { providers, catalogRollout }
 }
 
 function codexProvider(available = true): ProviderStatus['providers'][number] {
@@ -255,7 +376,7 @@ function providerDescriptor(
   id: AiProvider,
   label: string,
   available: boolean,
-  models: ProviderModelDescriptor[],
+  models: ModelCatalogEntry[],
 ): ProviderStatus['providers'][number] {
   return {
     id,
@@ -264,7 +385,6 @@ function providerDescriptor(
     available,
     reason: available ? `${label} is ready.` : `${label} needs setup.`,
     command: label.toLocaleLowerCase().replaceAll(' ', '-'),
-    executablePath: available ? `/mock/bin/${providerExecutable(id)}` : null,
     localOnly: true,
     defaultSnapshot: providerDefaultSnapshotFixture({
       state: 'providerManaged',
@@ -272,23 +392,60 @@ function providerDescriptor(
       reasoningEffort: { value: null, resolution: 'providerManaged', origin: null, recommendedValue: null },
     }),
     models,
+    catalogSnapshot: catalogSnapshot({ models }),
   }
 }
 
-function providerExecutable(id: AiProvider): string {
-  if (id === 'claude_code') return 'claude'
-  if (id === 'copilot_cli') return 'copilot'
-  return 'codex'
-}
-
-function modelDescriptor(id: string, label: string, reasoningEfforts: string[] = []): ProviderModelDescriptor {
+function modelDescriptor(id: string, label: string, reasoningEfforts: string[] = []): ModelCatalogEntry {
   return {
     id,
     label,
     description: null,
     source: id === 'default' ? 'providerDefault' : 'preset',
+    availability: id === 'default' ? 'available' : 'staticHint',
+    confidence: id === 'default' ? 'observed' : 'static',
     isDefault: id === 'default',
     reasoningEfforts,
     defaultReasoningEffort: null,
+    capabilities: {
+      vision: null,
+      reasoning: null,
+      adaptiveThinking: null,
+      fastMode: null,
+      autoMode: null,
+      contextWindowTokens: null,
+      maxOutputTokens: null,
+    },
+    resolvedModel: null,
   }
+}
+
+function setCatalogSnapshot(
+  provider: ProviderStatus['providers'][number],
+  patch: Partial<ProviderModelCatalogSnapshot> = {},
+) {
+  provider.catalogSnapshot = catalogSnapshot({
+    models: provider.models,
+    ...patch,
+  })
+}
+
+function catalogSnapshot(
+  patch: Partial<ProviderModelCatalogSnapshot> = {},
+): ProviderModelCatalogSnapshot {
+  return {
+    state: 'fresh',
+    source: 'preset',
+    models: [],
+    checkedAt: '2026-07-13T10:00:00Z',
+    cliVersion: 'test-cli 1.0.0',
+    resolutionScope: { kind: 'neutral', label: 'Neutral QA Scribe runtime scope' },
+    error: null,
+    warnings: [],
+    ...patch,
+  }
+}
+
+function providerModels(provider: ProviderStatus['providers'][number]): ModelCatalogEntry[] {
+  return provider.models
 }

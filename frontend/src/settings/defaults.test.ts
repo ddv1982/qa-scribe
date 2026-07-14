@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { effectiveSelection, reasoningOverrideForProvider } from './defaults'
-import { providerStatusFixture, settingsFixture } from '../test/fixtures'
+import { providerModelDescriptorFixture, providerStatusFixture, settingsFixture } from '../test/fixtures'
 
 describe('effectiveSelection', () => {
   it('inherits visible CLI defaults when overrides are empty', () => {
@@ -24,15 +24,14 @@ describe('effectiveSelection', () => {
 
   it('keeps model and reasoning overrides independent and warns on incompatibility', () => {
     const provider = providerStatusFixture().providers[0]
-    provider.models.push({
+    provider.models.push(providerModelDescriptorFixture({
       id: 'custom-model',
       label: 'Custom model',
-      description: null,
       source: 'detected',
       isDefault: false,
       reasoningEfforts: ['low'],
       defaultReasoningEffort: 'low',
-    })
+    }))
     const settings = settingsFixture({
       selectedAiModel: 'custom-model',
       selectedAiModelsByProvider: { codex_cli: 'custom-model' },

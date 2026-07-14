@@ -5,6 +5,15 @@ use serde::Serialize;
 #[serde(rename_all = "camelCase")]
 pub struct ProviderStatus {
     pub providers: Vec<ProviderDescriptor>,
+    pub catalog_rollout: ProviderCatalogRollout,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub enum ProviderCatalogRollout {
+    Disabled,
+    Diagnostics,
+    Selector,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, specta::Type)]
@@ -16,10 +25,149 @@ pub struct ProviderDescriptor {
     pub available: bool,
     pub reason: String,
     pub command: Option<String>,
-    pub executable_path: Option<String>,
+    /// Selector projection retained while callers migrate to
+    /// `catalog_snapshot.models`. During diagnostic rollout this deliberately
+    /// remains the compatibility list while the richer catalog is observed.
     pub models: Vec<ProviderModelDescriptor>,
+    pub catalog_snapshot: ProviderModelCatalogSnapshot,
     pub default_snapshot: ProviderDefaultSnapshot,
     pub local_only: bool,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderModelCatalogSnapshot {
+    pub state: ProviderCatalogState,
+    pub source: ProviderCatalogSource,
+    pub models: Vec<ProviderModelDescriptor>,
+    pub checked_at: Option<String>,
+    pub cli_version: Option<String>,
+    pub resolution_scope: ProviderResolutionScope,
+    pub error: Option<ProviderDiscoveryError>,
+    pub warnings: Vec<ProviderWarning>,
+}
+
+impl ProviderModelCatalogSnapshot {
+    pub fn idle(models: Vec<ProviderModelDescriptor>, source: ProviderCatalogSource) -> Self {
+        Self {
+            state: ProviderCatalogState::Idle,
+            source,
+            models,
+            checked_at: None,
+            cli_version: None,
+            resolution_scope: ProviderResolutionScope::neutral(),
+            error: None,
+            warnings: Vec::new(),
+        }
+    }
+
+    pub fn fresh(
+        source: ProviderCatalogSource,
+        models: Vec<ProviderModelDescriptor>,
+        cli_version: Option<String>,
+        warnings: Vec<ProviderWarning>,
+    ) -> Self {
+        Self {
+            state: ProviderCatalogState::Fresh,
+            source,
+            models,
+            checked_at: Some(checked_at_now()),
+            cli_version,
+            resolution_scope: ProviderResolutionScope::neutral(),
+            error: None,
+            warnings,
+        }
+    }
+
+    pub fn failed(
+        source: ProviderCatalogSource,
+        models: Vec<ProviderModelDescriptor>,
+        cli_version: Option<String>,
+        error: ProviderDiscoveryError,
+        warnings: Vec<ProviderWarning>,
+    ) -> Self {
+        Self {
+            state: ProviderCatalogState::Failed,
+            source,
+            models,
+            checked_at: Some(checked_at_now()),
+            cli_version,
+            resolution_scope: ProviderResolutionScope::neutral(),
+            error: Some(error),
+            warnings,
+        }
+    }
+
+    pub fn unavailable(message: impl Into<String>) -> Self {
+        let message = message.into();
+        Self {
+            state: ProviderCatalogState::Unavailable,
+            source: ProviderCatalogSource::Preset,
+            models: Vec::new(),
+            checked_at: Some(checked_at_now()),
+            cli_version: None,
+            resolution_scope: ProviderResolutionScope::neutral(),
+            error: Some(ProviderDiscoveryError {
+                code: ProviderDiscoveryErrorCode::Unavailable,
+                message: message.clone(),
+                retryable: true,
+            }),
+            warnings: vec![ProviderWarning {
+                code: "catalog-unavailable".to_string(),
+                severity: ProviderWarningSeverity::Blocking,
+                message,
+            }],
+        }
+    }
+
+    pub fn disabled(models: Vec<ProviderModelDescriptor>) -> Self {
+        Self {
+            state: ProviderCatalogState::Unavailable,
+            source: ProviderCatalogSource::Preset,
+            models,
+            checked_at: Some(checked_at_now()),
+            cli_version: None,
+            resolution_scope: ProviderResolutionScope::neutral(),
+            error: Some(ProviderDiscoveryError {
+                code: ProviderDiscoveryErrorCode::Unavailable,
+                message: "Structured provider catalogs are disabled by the rollout setting."
+                    .to_string(),
+                retryable: false,
+            }),
+            warnings: vec![ProviderWarning {
+                code: "catalog-rollout-disabled".to_string(),
+                severity: ProviderWarningSeverity::Advisory,
+                message: "QA Scribe is using compatibility model choices.".to_string(),
+            }],
+        }
+    }
+
+    pub fn has_successful_observation(&self) -> bool {
+        self.state == ProviderCatalogState::Fresh
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+pub enum ProviderCatalogState {
+    Idle,
+    Loading,
+    Fresh,
+    Stale,
+    Unavailable,
+    Failed,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+pub enum ProviderCatalogSource {
+    CliCatalog,
+    CliHelp,
+    Config,
+    Environment,
+    Preset,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, specta::Type)]
@@ -156,7 +304,6 @@ pub struct ProviderDefaultOrigin {
     pub kind: ProviderDefaultOriginKind,
     pub label: String,
     pub display_path: Option<String>,
-    pub technical_path: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, specta::Type)]
@@ -205,12 +352,20 @@ pub struct ProviderDiscoveryError {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
 pub enum ProviderDiscoveryErrorCode {
     SpawnFailed,
     HandshakeFailed,
     TimedOut,
+    Cancelled,
     Unsupported,
+    ProtocolIncompatible,
     InvalidResponse,
+    OutputLimit,
+    AuthRequired,
+    PolicyDenied,
+    Network,
+    RateLimited,
     Unavailable,
 }
 
@@ -240,18 +395,57 @@ pub struct ProviderModelDescriptor {
     pub label: String,
     pub description: Option<String>,
     pub source: ProviderModelSource,
+    pub availability: ProviderModelAvailability,
+    pub confidence: ProviderEvidenceConfidence,
     pub is_default: bool,
     pub reasoning_efforts: Vec<String>,
     pub default_reasoning_effort: Option<String>,
+    pub capabilities: ProviderModelCapabilities,
+    pub resolved_model: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
 pub enum ProviderModelSource {
     ProviderDefault,
     Environment,
     Preset,
+    Config,
+    CliCatalog,
+    CliHelp,
     Detected,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub enum ProviderModelAvailability {
+    Available,
+    PolicyDisabled,
+    Unconfigured,
+    SupportedByBinary,
+    StaticHint,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub enum ProviderEvidenceConfidence {
+    Authoritative,
+    Observed,
+    Heuristic,
+    Static,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ProviderModelCapabilities {
+    pub vision: Option<bool>,
+    pub reasoning: Option<bool>,
+    pub adaptive_thinking: Option<bool>,
+    pub fast_mode: Option<bool>,
+    pub auto_mode: Option<bool>,
+    pub context_window_tokens: Option<u64>,
+    pub max_output_tokens: Option<u64>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, specta::Type)]
@@ -279,4 +473,5 @@ pub struct ProviderReadiness {
 pub(super) struct ReadinessCacheKey {
     pub(super) provider: AiProvider,
     pub(super) mode: super::probe::DetectionMode,
+    pub(super) fingerprint: u64,
 }

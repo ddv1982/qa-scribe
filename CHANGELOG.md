@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.7.16 - 2026-07-14
+
+- Discover signed-in Claude Code and GitHub Copilot model catalogs through bounded, no-prompt structured probes, while retaining help-derived and curated fallback choices when a CLI is unavailable or incompatible.
+- Add provider-neutral catalog lifecycle, authority, capability, rollout, cache-identity, cancellation, and sanitized-error contracts without turning a discovered provider default into an explicit execution override.
+- Surface catalog health and richer model metadata in Settings, preserve custom model entry, and harden the persisted provider cache so paths, credentials, raw diagnostics, and account-specific live catalogs are never replayed across app restarts.
+- Document the compatibility matrix and external release gates, with Claude and Copilot selector promotion remaining in diagnostics mode until live account/platform coverage and provider-policy checks are complete.
+
 ## v0.7.15 - 2026-07-13
 
 - Overhaul the Session workspace with dedicated Testware and Findings libraries, clearer navigation, a command palette, responsive layouts, and more consistent typography and spacing.

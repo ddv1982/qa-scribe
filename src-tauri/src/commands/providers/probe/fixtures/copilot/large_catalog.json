@@ -1,0 +1,7 @@
+{
+  "models": [
+    {"id": "first", "name": "First", "capabilities": {}},
+    {"id": "second", "name": "Second", "capabilities": {}},
+    {"id": "third", "name": "Third", "capabilities": {}}
+  ]
+}

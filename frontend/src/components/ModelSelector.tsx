@@ -2,6 +2,8 @@ import { useEffect, useId, useRef, useState, type FocusEvent, type KeyboardEvent
 import { Bot, Check, ChevronDown, Command, Cpu, Search, Sparkles } from 'lucide-react'
 import type { ProviderModelDescriptor } from '../tauri'
 
+export type ModelCatalogEntry = ProviderModelDescriptor
+
 // Accepts a plain string because provider descriptors carry `id: string`
 // (the backend's `ProviderDescriptor.id`); the known `AiProvider` ids are a
 // subset, and unknown values fall through to the default glyph.
@@ -19,15 +21,17 @@ export function ModelCombobox({
   providerLabel = 'CLI',
   resolvedDefaultModel = null,
   resolvedDefaultOrigin = null,
+  catalogChecked = false,
   onChange,
 }: {
   disabled?: boolean
-  models: ProviderModelDescriptor[]
+  models: ModelCatalogEntry[]
   value: string
   describedBy?: string
   providerLabel?: string
   resolvedDefaultModel?: string | null
   resolvedDefaultOrigin?: string | null
+  catalogChecked?: boolean
   onChange: (value: string) => void
 }) {
   const [open, setOpen] = useState(false)
@@ -43,10 +47,11 @@ export function ModelCombobox({
     : null
   const resolvedDefaultLabel = resolvedDefaultDescriptor?.label ?? resolvedDefaultModel
   const selectedLabel = selected?.id === 'default'
-    ? resolvedDefaultLabel ? `CLI default · ${resolvedDefaultLabel}` : 'CLI default'
+    ? resolvedDefaultLabel ? `CLI default · ${resolvedDefaultLabel}` : providerManagedModelLabel('default')
+    : selected?.id === 'auto'
+      ? providerManagedModelLabel('auto')
     : selected?.label ?? currentValue
-  const detectedModelCount = options.filter((model) => model.source === 'detected').length
-  const selectableModelCount = options.filter((model) => model.id !== 'default').length
+  const authoritySummary = modelAuthoritySummary(options)
   const filteredOptions = options.filter((model) => {
     const normalizedQuery = query.trim().toLocaleLowerCase()
     if (!normalizedQuery) return true
@@ -55,8 +60,14 @@ export function ModelCombobox({
   const customModel = query.trim()
   const exactMatch = options.some((model) => model.id.toLocaleLowerCase() === customModel.toLocaleLowerCase())
   const showCustomOption = customModel.length > 0 && !exactMatch
+  const customSelectionAbsent = catalogChecked
+    && !isProviderManagedModel(currentValue)
+    && !options.some((model) => model.id === currentValue)
   const popoverOpen = open && !disabled
   const optionCount = filteredOptions.length + (showCustomOption ? 1 : 0)
+  const disabledOptionIndexes = new Set(filteredOptions
+    .map((model, index) => isModelSelectable(model) ? null : index)
+    .filter((index): index is number => index !== null))
   const activeOptionId = popoverOpen && optionCount > 0 && activeIndex >= 0
     ? `${listboxId}-option-${Math.min(activeIndex, optionCount - 1)}`
     : undefined
@@ -93,15 +104,15 @@ export function ModelCombobox({
       if (optionCount === 0) return
       event.preventDefault()
       setOpen(true)
-      setActiveIndex((current) => optionIndexForKey(event.key, current, optionCount))
+      setActiveIndex((current) => optionIndexForKey(event.key, current, optionCount, disabledOptionIndexes))
       return
     }
 
     if (event.key !== 'Enter') return
     event.preventDefault()
     const active = Math.min(activeIndex, Math.max(0, optionCount - 1))
-    if (filteredOptions[active]) chooseModel(filteredOptions[active].id)
-    else if (showCustomOption) chooseModel(customModel)
+    if (filteredOptions[active] && isModelSelectable(filteredOptions[active])) chooseModel(filteredOptions[active].id)
+    else if (showCustomOption && active === filteredOptions.length) chooseModel(customModel)
   }
 
   function openPicker() {
@@ -124,7 +135,7 @@ export function ModelCombobox({
           <span className="ai-choice-icon"><Cpu size={17} /></span>
           <span>
             <strong>Model</strong>
-            <small>{detectedModelCount > 0 ? `${modelCountLabel(detectedModelCount)} from ${providerLabel}` : 'CLI default or custom override'}</small>
+            <small>{authoritySummary ?? 'CLI default or custom override'}</small>
           </span>
         </span>
         <span className="model-combobox-control">
@@ -156,38 +167,47 @@ export function ModelCombobox({
           </button>
         </span>
       </label>
+      {customSelectionAbsent ? (
+        <p className="field-description" role="status">
+          Custom model “{currentValue}” is not in the current catalog. The CLI will validate it at run time.
+        </p>
+      ) : null}
       {popoverOpen ? (
         <div className="model-combobox-popover">
           <div className="model-search-hint">
             <Search size={14} />
-            {detectedModelCount > 0
-              ? `${modelCountLabel(detectedModelCount)} reported by ${providerLabel}`
-              : `${modelCountLabel(selectableModelCount, 'suggested model')} · custom IDs supported`}
+            {authoritySummary
+              ? `${authoritySummary} · custom IDs supported`
+              : `${providerLabel} default · custom IDs supported`}
           </div>
           <div id={listboxId} className="model-options" role="listbox" aria-label="AI models">
-            {filteredOptions.map((model, index) => (
-              <div
-                id={`${listboxId}-option-${index}`}
-                key={model.id}
-                className={`${model.id === currentValue ? 'model-option selected' : 'model-option'}${index === activeIndex ? ' active' : ''}`}
-                role="option"
-                aria-selected={model.id === currentValue}
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => chooseModel(model.id)}
-                onMouseEnter={() => setActiveIndex(index)}
-              >
-                <span className="model-option-copy">
-                  <strong>{model.id === 'default' ? 'CLI default' : model.label}</strong>
-                  <small>{model.id === 'default'
-                    ? defaultOptionDescription(resolvedDefaultLabel, resolvedDefaultOrigin)
-                    : model.description ?? model.id}</small>
-                </span>
-                <span className="model-option-meta">
-                  <em>{modelSourceLabel(model.source)}</em>
-                  {model.id === currentValue ? <Check aria-hidden="true" size={15} /> : null}
-                </span>
-              </div>
-            ))}
+            {filteredOptions.map((model, index) => {
+              const selectable = isModelSelectable(model)
+              return (
+                <div
+                  id={`${listboxId}-option-${index}`}
+                  key={model.id}
+                  className={`${model.id === currentValue ? 'model-option selected' : 'model-option'}${index === activeIndex ? ' active' : ''}${selectable ? '' : ' disabled'}`}
+                  role="option"
+                  aria-disabled={!selectable}
+                  aria-selected={model.id === currentValue}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => { if (selectable) chooseModel(model.id) }}
+                  onMouseEnter={() => { if (selectable) setActiveIndex(index) }}
+                >
+                  <span className="model-option-copy">
+                    <strong>{isProviderManagedModel(model.id) ? providerManagedModelLabel(model.id) : model.label}</strong>
+                    <small>{model.id === 'default'
+                      ? defaultOptionDescription(resolvedDefaultLabel, resolvedDefaultOrigin)
+                      : modelOptionDescription(model)}</small>
+                  </span>
+                  <span className="model-option-meta">
+                    <em>{modelSourceLabel(model)}</em>
+                    {model.id === currentValue ? <Check aria-hidden="true" size={15} /> : null}
+                  </span>
+                </div>
+              )
+            })}
             {showCustomOption ? (
               <div
                 id={`${listboxId}-option-${filteredOptions.length}`}
@@ -213,31 +233,96 @@ export function ModelCombobox({
   )
 }
 
-function optionIndexForKey(key: string, currentIndex: number, optionCount: number): number {
-  if (key === 'Home') return 0
-  if (key === 'End') return optionCount - 1
-  if (currentIndex < 0) return key === 'ArrowUp' ? optionCount - 1 : 0
-  if (key === 'ArrowUp') return Math.max(0, currentIndex - 1)
-  return Math.min(optionCount - 1, currentIndex + 1)
+function optionIndexForKey(
+  key: string,
+  currentIndex: number,
+  optionCount: number,
+  disabledIndexes: Set<number>,
+): number {
+  const selectable = Array.from({ length: optionCount }, (_, index) => index)
+    .filter((index) => !disabledIndexes.has(index))
+  if (selectable.length === 0) return -1
+  if (key === 'Home') return selectable[0]
+  if (key === 'End') return selectable.at(-1) ?? selectable[0]
+  if (currentIndex < 0) return key === 'ArrowUp' ? selectable.at(-1) ?? selectable[0] : selectable[0]
+  if (key === 'ArrowUp') {
+    return selectable.filter((index) => index < currentIndex).at(-1) ?? selectable[0]
+  }
+  return selectable.find((index) => index > currentIndex) ?? selectable.at(-1) ?? selectable[0]
 }
 
-function defaultProviderModel(): ProviderModelDescriptor {
+function defaultProviderModel(): ModelCatalogEntry {
   return {
     id: 'default',
     label: 'Use CLI default',
     description: 'Use the model configured by the local provider CLI.',
     source: 'providerDefault',
+    availability: 'available',
+    confidence: 'observed',
     isDefault: true,
     reasoningEfforts: [],
     defaultReasoningEffort: null,
+    capabilities: {
+      vision: null,
+      reasoning: null,
+      adaptiveThinking: null,
+      fastMode: null,
+      autoMode: null,
+      contextWindowTokens: null,
+      maxOutputTokens: null,
+    },
+    resolvedModel: null,
   }
 }
 
-function modelSourceLabel(source: ProviderModelDescriptor['source']): string {
-  if (source === 'detected') return 'CLI'
-  if (source === 'environment') return 'Config'
-  if (source === 'preset') return 'Suggested'
+function modelSourceLabel(model: ModelCatalogEntry): string {
+  if (isProviderManagedModel(model.id) || model.source === 'providerDefault') return 'Default'
+  if (['policyDisabled', 'unconfigured'].includes(model.availability)) return 'Policy'
+  if (['config', 'environment'].includes(model.source)) return 'Config'
+  if (model.availability === 'staticHint' || model.source === 'preset') return 'Suggested'
+  if (model.availability === 'supportedByBinary' || ['cliHelp', 'detected'].includes(model.source)) return 'CLI'
+  if (model.availability === 'available' || model.source === 'cliCatalog') return 'Account'
   return 'Default'
+}
+
+function modelAuthoritySummary(models: ModelCatalogEntry[]): string | null {
+  const explicitModels = models.filter((model) => !isProviderManagedModel(model.id))
+  const accountCount = explicitModels.filter((model) => !['policyDisabled', 'unconfigured'].includes(model.availability)
+    && (model.source === 'cliCatalog'
+      || (model.availability === 'available' && !['config', 'environment'].includes(model.source)))).length
+  if (accountCount > 0) return `${modelCountLabel(accountCount)} available for this account`
+  const cliCount = explicitModels.filter((model) => model.availability === 'supportedByBinary'
+    || ['cliHelp', 'detected'].includes(model.source)).length
+  if (cliCount > 0) return `${modelCountLabel(cliCount)} recognized by CLI`
+  const suggestedCount = explicitModels.filter((model) => model.availability === 'staticHint'
+    || model.source === 'preset').length
+  if (suggestedCount > 0) return `${modelCountLabel(suggestedCount)} in static fallback`
+  const configCount = explicitModels.filter((model) => ['config', 'environment'].includes(model.source)).length
+  if (configCount > 0) return `${modelCountLabel(configCount)} from CLI configuration`
+  return null
+}
+
+function modelOptionDescription(model: ModelCatalogEntry): string {
+  if (model.availability === 'policyDisabled') return 'Disabled by account or organization policy.'
+  if (model.availability === 'unconfigured') return 'Model access is not configured for this account.'
+  if (model.availability === 'supportedByBinary') return model.description ?? 'Recognized by the installed CLI; account availability is not confirmed.'
+  if (model.availability === 'staticHint') return model.description ?? 'Static fallback; the CLI validates availability at run time.'
+  const resolution = model.resolvedModel && model.resolvedModel !== model.id
+    ? `Resolves to ${model.resolvedModel}.`
+    : null
+  return [model.description, resolution].filter(Boolean).join(' ') || model.id
+}
+
+function isModelSelectable(model: ModelCatalogEntry): boolean {
+  return !['policyDisabled', 'unconfigured'].includes(model.availability)
+}
+
+function isProviderManagedModel(modelId: string): boolean {
+  return modelId.toLocaleLowerCase() === 'default' || modelId.toLocaleLowerCase() === 'auto'
+}
+
+function providerManagedModelLabel(modelId: string): string {
+  return modelId.toLocaleLowerCase() === 'auto' ? 'CLI automatic' : 'CLI default'
 }
 
 function defaultOptionDescription(model: string | null | undefined, origin: string | null): string {

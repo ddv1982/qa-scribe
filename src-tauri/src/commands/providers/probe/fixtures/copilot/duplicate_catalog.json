@@ -1,0 +1,6 @@
+{
+  "models": [
+    {"id": "same", "name": "First", "capabilities": {}},
+    {"id": "same", "name": "Second", "capabilities": {}}
+  ]
+}

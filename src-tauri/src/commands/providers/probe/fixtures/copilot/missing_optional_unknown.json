@@ -1,0 +1,10 @@
+{
+  "models": [
+    {
+      "id": "minimal",
+      "name": "Minimal",
+      "capabilities": {},
+      "unknown": {"nested": true}
+    }
+  ]
+}

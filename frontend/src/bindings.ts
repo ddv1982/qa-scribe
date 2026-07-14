@@ -283,11 +283,16 @@ export type GenerationJobStatus = {
 	partialText: string | null,
 };
 
+export type ProviderCatalogRollout = "disabled" | "diagnostics" | "selector";
+
+export type ProviderCatalogSource = "cliCatalog" | "cliHelp" | "config" | "environment" | "preset";
+
+export type ProviderCatalogState = "idle" | "loading" | "fresh" | "stale" | "unavailable" | "failed";
+
 export type ProviderDefaultOrigin = {
 	kind: ProviderDefaultOriginKind,
 	label: string,
 	displayPath: string | null,
-	technicalPath: string | null,
 };
 
 export type ProviderDefaultOriginKind = "userConfig" | "projectConfig" | "profile" | "managedConfig" | "runtimeFlag" | "environment" | "cliRecommendation" | "configFile" | "unknown";
@@ -319,8 +324,13 @@ export type ProviderDescriptor = {
 	available: boolean,
 	reason: string,
 	command: string | null,
-	executablePath: string | null,
+	/**
+	 *  Selector projection retained while callers migrate to
+	 *  `catalog_snapshot.models`. During diagnostic rollout this deliberately
+	 *  remains the compatibility list while the richer catalog is observed.
+	 */
 	models: ProviderModelDescriptor[],
+	catalogSnapshot: ProviderModelCatalogSnapshot,
 	defaultSnapshot: ProviderDefaultSnapshot,
 	localOnly: boolean,
 };
@@ -331,21 +341,50 @@ export type ProviderDiscoveryError = {
 	retryable: boolean,
 };
 
-export type ProviderDiscoveryErrorCode = "spawnFailed" | "handshakeFailed" | "timedOut" | "unsupported" | "invalidResponse" | "unavailable";
+export type ProviderDiscoveryErrorCode = "spawnFailed" | "handshakeFailed" | "timedOut" | "cancelled" | "unsupported" | "protocolIncompatible" | "invalidResponse" | "outputLimit" | "authRequired" | "policyDenied" | "network" | "rateLimited" | "unavailable";
 
 export type ProviderDiscoveryState = "unchecked" | "detected" | "providerManaged" | "stale" | "unresolved" | "unavailable";
+
+export type ProviderEvidenceConfidence = "authoritative" | "observed" | "heuristic" | "static";
+
+export type ProviderModelAvailability = "available" | "policyDisabled" | "unconfigured" | "supportedByBinary" | "staticHint";
+
+export type ProviderModelCapabilities = {
+	vision: boolean | null,
+	reasoning: boolean | null,
+	adaptiveThinking: boolean | null,
+	fastMode: boolean | null,
+	autoMode: boolean | null,
+	contextWindowTokens: number | null,
+	maxOutputTokens: number | null,
+};
+
+export type ProviderModelCatalogSnapshot = {
+	state: ProviderCatalogState,
+	source: ProviderCatalogSource,
+	models: ProviderModelDescriptor[],
+	checkedAt: string | null,
+	cliVersion: string | null,
+	resolutionScope: ProviderResolutionScope,
+	error: ProviderDiscoveryError | null,
+	warnings: ProviderWarning[],
+};
 
 export type ProviderModelDescriptor = {
 	id: string,
 	label: string,
 	description: string | null,
 	source: ProviderModelSource,
+	availability: ProviderModelAvailability,
+	confidence: ProviderEvidenceConfidence,
 	isDefault: boolean,
 	reasoningEfforts: string[],
 	defaultReasoningEffort: string | null,
+	capabilities: ProviderModelCapabilities,
+	resolvedModel: string | null,
 };
 
-export type ProviderModelSource = "providerDefault" | "environment" | "preset" | "detected";
+export type ProviderModelSource = "providerDefault" | "environment" | "preset" | "config" | "cliCatalog" | "cliHelp" | "detected";
 
 export type ProviderResolutionScope = {
 	kind: ProviderResolutionScopeKind,
@@ -358,6 +397,7 @@ export type ProviderState = "ready" | "authRequired" | "installRequired" | "erro
 
 export type ProviderStatus = {
 	providers: ProviderDescriptor[],
+	catalogRollout: ProviderCatalogRollout,
 };
 
 export type ProviderWarning = {

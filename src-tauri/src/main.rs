@@ -94,6 +94,7 @@ fn main() {
             // Both events can fire during a single shutdown; that's fine since
             // killing an already-killed/reaped child is a no-op in place.
             if let tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit = event {
+                commands::providers::cancel_active_provider_discovery();
                 app.state::<JobStore>().kill_all_children();
             }
         });

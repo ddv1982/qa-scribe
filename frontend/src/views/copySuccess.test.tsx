@@ -10,7 +10,7 @@ vi.mock('../editor/RichTextEditor', () => ({
 
 import type { Draft, Finding, ProviderStatus, Session } from '../tauri'
 import { richEditorDocumentFromHtml } from '../editor/editorDocument'
-import { providerDefaultSnapshotFixture } from '../test/fixtures'
+import { providerDefaultSnapshotFixture, providerStatusFixture } from '../test/fixtures'
 import { FindingsView } from './FindingsView'
 import { SessionEditorView } from './SessionEditorView'
 import { TestwareView } from './TestwareView'
@@ -376,31 +376,13 @@ const finding: Finding = {
   updatedAt: '2026-06-24T08:00:00Z',
 }
 
+const baseProviderStatus = providerStatusFixture()
 const providerStatus: ProviderStatus = {
-  providers: [
-    {
-      id: 'codex_cli',
-      label: 'Codex CLI',
-      status: 'ready',
-      available: true,
-      reason: 'Codex CLI is installed and authenticated.',
-      command: 'codex',
-      executablePath: '/mock/bin/codex',
-      localOnly: true,
-      defaultSnapshot: providerDefaultSnapshotFixture({
-        reasoningEffort: { value: 'low', resolution: 'configured', origin: null, recommendedValue: 'medium' },
-      }),
-      models: [
-        {
-          id: 'default',
-          label: 'Provider default',
-          description: null,
-          source: 'providerDefault',
-          isDefault: true,
-          reasoningEfforts: ['low'],
-          defaultReasoningEffort: null,
-        },
-      ],
-    },
-  ],
+  ...baseProviderStatus,
+  providers: baseProviderStatus.providers.map((provider) => ({
+    ...provider,
+    defaultSnapshot: providerDefaultSnapshotFixture({
+      reasoningEffort: { value: 'low', resolution: 'configured', origin: null, recommendedValue: 'medium' },
+    }),
+  })),
 }

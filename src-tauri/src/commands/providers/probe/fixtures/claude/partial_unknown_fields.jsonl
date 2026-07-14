@@ -1,0 +1,1 @@
+{"type":"control_response","response":{"subtype":"success","request_id":"qa-scribe-model-catalog","response":{"models":[{"value":"minimal","unknownField":{"nested":"ignored"}},{"value":"mixed","displayName":"Mixed","description":{"invalid":"type"},"supportedEffortLevels":["low",7,"","high"],"supportsFastMode":false},{"displayName":"Missing value"},"not-an-object"]}}}
