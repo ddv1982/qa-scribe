@@ -98,21 +98,13 @@ export function TestwareView({
       loadState={loadState}
       loadError={loadError}
       onRetryLoad={onRetryLoad}
-      renderPreviewHeader={(draft) => {
-        const generationMetadata = parseTestwareGenerationMetadata(draft)
-        return (
-          <div className="record-heading-row">
-            <h2 className="record-title">{draft.title}</h2>
-            {generationMetadata ? (
-              <div className="testware-metadata-badges" aria-label="Testware generation settings">
-                <span>{testwareTechniqueLabel(generationMetadata.technique)}</span>
-                <span>{testwareDepthLabel(generationMetadata.depth)}</span>
-                <span>{testwareOutputFormatLabel(generationMetadata.outputFormat)}</span>
-              </div>
-            ) : null}
-          </div>
-        )
-      }}
+      renderListMeta={(draft) => <TestwareGenerationBadges draft={draft} />}
+      renderPreviewHeader={(draft) => (
+        <div className="record-heading-row">
+          <h2 className="record-title">{draft.title}</h2>
+          <TestwareGenerationBadges draft={draft} />
+        </div>
+      )}
       busyActionFor={(draft, kind) => {
         switch (kind) {
           case 'delete':
@@ -135,5 +127,18 @@ export function TestwareView({
       onDiscardRecord={onDiscardDraft}
       onUploadImage={onUploadImage}
     />
+  )
+}
+
+function TestwareGenerationBadges({ draft }: { draft: Draft }) {
+  const metadata = parseTestwareGenerationMetadata(draft)
+  if (!metadata) return null
+
+  return (
+    <div className="testware-metadata-badges" aria-label="Testware generation settings">
+      <span>{testwareTechniqueLabel(metadata.technique)}</span>
+      <span>{testwareDepthLabel(metadata.depth)}</span>
+      <span>{testwareOutputFormatLabel(metadata.outputFormat)}</span>
+    </div>
   )
 }

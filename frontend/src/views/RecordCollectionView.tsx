@@ -63,6 +63,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
   loadError = null,
   onRetryLoad,
   renderMeta,
+  renderListMeta,
   filter,
   renderEditFields,
   renderPreviewHeader,
@@ -95,6 +96,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
   loadError?: string | null
   onRetryLoad?: () => void
   renderMeta?: (record: T) => ReactNode
+  renderListMeta?: (record: T) => ReactNode
   filter?: {
     label: string
     options: Array<{ id: string; label: string }>
@@ -239,7 +241,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
               >
                 <strong>{record.title.trim() || `Untitled ${labels.recordNounLower}`}</strong>
                 <span>Updated {formatRecordDate(record.updatedAt)}</span>
-                {renderMeta?.(record)}
+                {renderListMeta?.(record) ?? renderMeta?.(record)}
               </button>
             ))}
           </aside>
@@ -348,7 +350,13 @@ export function RecordCollectionView<T extends CollectionRecord>({
 function formatRecordDate(value: string): string {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: date.getFullYear() === new Date().getFullYear() ? undefined : 'numeric' })
+  return date.toLocaleString([], {
+    month: 'short',
+    day: 'numeric',
+    year: date.getFullYear() === new Date().getFullYear() ? undefined : 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
 }
 
 function recordCopyLabel(nounLower: string, title: string, copied: boolean): string {

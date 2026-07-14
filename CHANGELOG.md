@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.7.17 - 2026-07-14
+
+- Distinguish duplicate-titled Testware records with exact update times and generation technique, depth, and output-format context in both Session-owned and cross-session libraries.
+- Keep each duplicate record independently selectable and route “Open in Session” to the correct owning Draft, with regression coverage based on the two-record library failure.
+- Remove narrow-window horizontal overflow by sizing the responsive application shell to its container instead of the scrollbar-inclusive viewport width.
+
 ## v0.7.16 - 2026-07-14
 
 - Discover signed-in Claude Code and GitHub Copilot model catalogs through bounded, no-prompt structured probes, while retaining help-derived and curated fallback choices when a CLI is unavailable or incompatible.
