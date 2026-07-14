@@ -327,20 +327,18 @@ describe('App workflows', () => {
       }),
     )
     render(<App />)
-
     await waitFor(() => expect(screen.getByRole('textbox', { name: 'Session title' })).toHaveValue('Alpha session'))
     const sessionListbox = screen.getByRole('listbox', { name: 'Sessions' })
     const alphaOption = within(sessionListbox).getByRole('option', { name: /alpha session/i })
     const betaOption = within(sessionListbox).getByRole('option', { name: /beta session/i })
-
     alphaOption.focus()
     await user.keyboard('{ArrowDown}')
     expect(betaOption).toHaveFocus()
-
     await user.keyboard('{Enter}')
-
     await waitFor(() => expect(tauriMock.openSessionNoteState).toHaveBeenLastCalledWith('session-2'))
     await waitFor(() => expect(screen.getByRole('textbox', { name: 'Session title' })).toHaveValue('Beta session'))
+    await user.type(screen.getByRole('textbox', { name: 'Search Sessions' }), 'Alpha')
+    expect(alphaOption).toHaveAttribute('tabindex', '0')
   })
 
   it('keeps the active Session workspace tab when switching Sessions', async () => {
@@ -355,11 +353,9 @@ describe('App workflows', () => {
       }),
     )
     render(<App />)
-
     await waitFor(() => expect(screen.getByRole('textbox', { name: 'Session title' })).toHaveValue('Alpha session'))
     await user.click(screen.getByRole('tab', { name: /testware/i }))
     await user.click(within(screen.getByRole('listbox', { name: 'Sessions' })).getByRole('option', { name: /beta session/i }))
-
     await waitFor(() => expect(tauriMock.openSessionNoteState).toHaveBeenLastCalledWith('session-2'))
     await waitFor(() => expect(screen.getByRole('tab', { name: /testware/i })).toHaveAttribute('aria-selected', 'true'))
     expect(screen.getByLabelText('Current search scope')).toHaveTextContent('Beta session')
@@ -374,7 +370,6 @@ describe('App workflows', () => {
       },
     ])
     render(<App />)
-
     await waitFor(() => expect(screen.getByRole('textbox', { name: 'Session title' })).toHaveValue('Checkout session'))
     const workspaceNavigation = screen.getByRole('navigation', { name: 'Workspace sections' })
     await user.click(within(workspaceNavigation).getByRole('button', { name: 'Testware library' }))

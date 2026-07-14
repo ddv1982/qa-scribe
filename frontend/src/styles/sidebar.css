@@ -65,8 +65,10 @@
 }
 
 .library-sidebar-slot {
+  flex: 1 1 auto;
   min-height: 0;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .library-sidebar-slot .record-master-list {

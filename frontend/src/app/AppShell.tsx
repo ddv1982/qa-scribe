@@ -29,6 +29,7 @@ export function AppShell(c: AppController) {
         ? { command: commandById('finding.new'), busy: 'manual-finding' as const }
         : null
   const visibleSessions = c.filteredSessions.slice(0, 8)
+  const tabbableSessionId = visibleSessions.some((session) => session.id === c.activeSession?.id) ? c.activeSession?.id : visibleSessions[0]?.id
   const sessionScopedView = c.activeView === 'sessions' || c.activeView === 'testware' || c.activeView === 'findings'
   const libraryView = c.activeView === 'testware-library' || c.activeView === 'findings-library'
 
@@ -111,7 +112,7 @@ export function AppShell(c: AppController) {
                 type="button"
                 role="option"
                 aria-selected={c.activeSession?.id === session.id}
-                tabIndex={c.activeSession?.id === session.id ? 0 : -1}
+                tabIndex={tabbableSessionId === session.id ? 0 : -1}
                 disabled={c.isBusy && c.activeSession?.id !== session.id}
                 onClick={() => void c.openSessionInCurrentView(session)}
                 onKeyDown={handleSessionOptionKeyDown}

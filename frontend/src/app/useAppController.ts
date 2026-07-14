@@ -248,13 +248,10 @@ export function useAppController() {
     requestActiveView('settings')
   }
 
-  function closeSettings() {
-    requestActiveView(settingsReturnViewRef.current)
-  }
-
-  async function openSessionInCurrentView(session: (typeof sessions)[number]) {
+  function closeSettings() { requestActiveView(settingsReturnViewRef.current) }
+  function openSessionInCurrentView(session: (typeof sessions)[number]) {
     const destination = activeView === 'testware' || activeView === 'findings' ? activeView : 'sessions'
-    await sessionActions.openSession(session, true, () => setActiveView(destination))
+    return sessionActions.openSession(session, true, () => setActiveView(destination))
   }
 
   async function openLibraryRecord(sessionId: string, view: 'testware' | 'findings', recordId: string) {
