@@ -58,6 +58,31 @@ describe('RichTextEditor toolbar', () => {
     await waitFor(() => expect(editor.textContent).toBe(''))
   })
 
+  it('switches between read-only records with different preview labels without crashing', async () => {
+    const { rerender } = render(
+      <RichTextEditor
+        value={richEditorDocumentFromHtml('<h2>First record</h2><p>IRIS coverage</p>')}
+        ariaLabel="IRIS testware preview"
+        readOnly
+      />,
+    )
+
+    expect((await screen.findByRole('textbox', { name: 'IRIS testware preview' })).textContent).toContain('IRIS coverage')
+
+    rerender(
+      <RichTextEditor
+        value={richEditorDocumentFromHtml('<h2>Second record</h2><ol><li>Breeding coverage</li></ol>')}
+        ariaLabel="Breeding testware preview"
+        readOnly
+      />,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByRole('textbox', { name: 'Breeding testware preview' }).textContent).toContain('Breeding coverage')
+    })
+    expect(screen.queryByRole('textbox', { name: 'IRIS testware preview' })).toBeNull()
+  })
+
   it('formats selected content and can toggle the mark off again', async () => {
     const onChange = vi.fn()
     render(

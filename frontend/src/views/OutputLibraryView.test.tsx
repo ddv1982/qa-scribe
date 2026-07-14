@@ -3,10 +3,6 @@ import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('../editor/RichTextEditor', () => ({
-  RichTextEditor: ({ ariaLabel }: { ariaLabel?: string }) => <div role="textbox" aria-label={ariaLabel} />,
-}))
-
 import { draftFixture, findingFixture } from '../test/fixtures'
 import { OutputLibraryView } from './OutputLibraryView'
 
@@ -20,8 +16,14 @@ describe('cross-session output libraries', () => {
       <OutputLibraryView
         kind="testware"
         draftItems={[
-          { draft: draftFixture({ id: 'draft-checkout', sessionId: 'session-checkout', title: 'Checkout cases' }), sessionTitle: 'Checkout exploratory' },
-          { draft: draftFixture({ id: 'draft-recovery', sessionId: 'session-recovery', title: 'Recovery cases' }), sessionTitle: 'Account recovery' },
+          {
+            draft: draftFixture({ id: 'draft-checkout', sessionId: 'session-checkout', title: 'Checkout cases', body: '<p>Checkout coverage.</p>' }),
+            sessionTitle: 'Checkout exploratory',
+          },
+          {
+            draft: draftFixture({ id: 'draft-recovery', sessionId: 'session-recovery', title: 'Recovery cases', body: '<p>Recovery coverage.</p>' }),
+            sessionTitle: 'Account recovery',
+          },
         ]}
         loadState="ready"
         loadError={null}
@@ -34,6 +36,7 @@ describe('cross-session output libraries', () => {
     expect(within(list).getByRole('button', { name: /checkout cases.*checkout exploratory/i })).toBeInTheDocument()
     await user.selectOptions(screen.getByRole('combobox', { name: 'Session' }), 'session-recovery')
     expect(within(list).getAllByRole('button')).toHaveLength(1)
+    expect(await screen.findByRole('textbox', { name: 'Recovery cases preview' })).toHaveTextContent('Recovery coverage.')
     await user.click(screen.getByRole('button', { name: 'Open in Session' }))
     expect(onOpenRecord).toHaveBeenCalledWith('session-recovery', 'draft-recovery')
   })

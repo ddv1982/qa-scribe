@@ -243,16 +243,19 @@ export function RichTextEditor({
       onSelectionUpdate: () => notifyRichEditorRegistry(),
       onTransaction: () => notifyRichEditorRegistry(),
     },
-    [ariaLabel, className, editorId, placeholder, readOnly],
+    // TipTap updates changed options in place when this list is empty. Recreating
+    // the editor for presentation-only props leaves the previous instance briefly
+    // observable by React effects after TipTap has destroyed its view.
+    [],
   )
 
   useEffect(() => {
-    if (!editor) return
+    if (!editor || editor.isDestroyed) return
     editor.setEditable(!readOnly)
   }, [editor, readOnly])
 
   useEffect(() => {
-    if (!editor) return
+    if (!editor || editor.isDestroyed) return
     const normalizedValue = normalizeRichEditorDocument(value)
     const currentValue = normalizeRichEditorDocument({ schemaVersion: 1, doc: editor.getJSON() })
     if (!richEditorDocumentsEqual(currentValue, normalizedValue)) {
@@ -262,8 +265,9 @@ export function RichTextEditor({
   }, [editor, value])
 
   useEffect(() => {
-    if (!editor || !editorId) return
+    if (!editor || editor.isDestroyed || !editorId) return
     const insertImage: RichEditorImageInserter = (attachmentId, filename, previewSrc) => {
+      if (editor.isDestroyed) return
       const source = `${managedAttachmentProtocol}${attachmentId}`
       editor
         .chain()
@@ -370,9 +374,11 @@ function editorAttributes({
 }
 
 function queueManagedPreviewHydration(editor: Editor, previewLoadRef: { current: number }) {
+  if (editor.isDestroyed) return
   const loadId = previewLoadRef.current + 1
   previewLoadRef.current = loadId
   window.queueMicrotask(() => {
-    void hydrateManagedAttachmentPreviews(editor.view.dom, () => previewLoadRef.current === loadId)
+    if (editor.isDestroyed || previewLoadRef.current !== loadId) return
+    void hydrateManagedAttachmentPreviews(editor.view.dom, () => !editor.isDestroyed && previewLoadRef.current === loadId)
   })
 }
