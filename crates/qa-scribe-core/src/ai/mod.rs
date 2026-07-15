@@ -2,7 +2,8 @@ mod executor;
 pub mod stream;
 
 pub use executor::{
-    ProviderExecution, ProviderExecutor, ProviderGenerationOutput, run_streaming_generation,
+    MAX_PROVIDER_STDOUT_BYTES, ProviderExecution, ProviderExecutor, ProviderGenerationOutput,
+    run_streaming_generation,
 };
 
 use serde::Serialize;

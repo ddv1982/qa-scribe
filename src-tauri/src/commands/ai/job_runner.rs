@@ -41,7 +41,7 @@ pub fn start_ai_action_job(
             request.session_id.clone(),
             request.action.as_str().to_string(),
         )
-        .map_err(CommandError::internal)?;
+        .map_err(CommandError::from)?;
     let app_handle = app.clone();
     let worker_job_id = job_id.clone();
 
@@ -58,7 +58,7 @@ pub fn get_ai_action_job_status(
     jobs: State<'_, JobStore>,
     job_id: String,
 ) -> Result<GenerationJobStatus, CommandError> {
-    jobs.status(&job_id).map_err(CommandError::internal)
+    jobs.status(&job_id).map_err(CommandError::from)
 }
 
 /// Enumerate the AI-action jobs still running in the backend.
@@ -72,7 +72,7 @@ pub fn get_ai_action_job_status(
 pub fn list_active_ai_action_jobs(
     jobs: State<'_, JobStore>,
 ) -> Result<Vec<GenerationJobStatus>, CommandError> {
-    jobs.active_jobs().map_err(CommandError::internal)
+    jobs.active_jobs().map_err(CommandError::from)
 }
 
 #[tauri::command]
@@ -81,7 +81,7 @@ pub fn cancel_ai_action_job(
     jobs: State<'_, JobStore>,
     job_id: String,
 ) -> Result<GenerationJobStatus, CommandError> {
-    jobs.cancel(&job_id).map_err(CommandError::internal)
+    jobs.cancel(&job_id).map_err(CommandError::from)
 }
 
 fn run_ai_action_job(
@@ -117,10 +117,9 @@ fn run_ai_action_job(
             }
         };
     eprintln!(
-        "qa-scribe AI action job prompt prepared: action={}, provider={}, model={}, prompt_bytes={}, prompt_chars={}, elapsed_ms={}",
+        "qa-scribe AI action job prompt prepared: action={}, provider={}, prompt_bytes={}, prompt_chars={}, elapsed_ms={}",
         request.action.label(),
         request.provider.as_str(),
-        request.model,
         prepared.prompt.len(),
         prepared.prompt.chars().count(),
         prepare_started.elapsed().as_millis()
@@ -133,6 +132,7 @@ fn run_ai_action_job(
     ) {
         Ok(status) => status,
         Err(error) => {
+            let error = error.to_string();
             send_event(
                 &events,
                 GenerationJobEvent::Failed {

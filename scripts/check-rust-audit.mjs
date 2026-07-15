@@ -77,7 +77,7 @@ function isIsoDate(value) {
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value
 }
 
-export function auditSummaryLine(findings) {
+export function auditSummaryLine(findings, reviewedAt) {
   const counts = findings.reduce((result, finding) => {
     result[finding.classification] = (result[finding.classification] ?? 0) + 1
     return result
@@ -85,7 +85,7 @@ export function auditSummaryLine(findings) {
   const vulnerabilities = counts.vulnerability ?? 0
   const unsound = counts.unsound ?? 0
   const unmaintained = counts.unmaintained ?? 0
-  return `A raw \`cargo audit --json\` run on 2026-07-13 reports ${findings.length} reviewed advisories: ${vulnerabilities} ${vulnerabilities === 1 ? 'vulnerability' : 'vulnerabilities'}, ${unsound} unsoundness ${unsound === 1 ? 'warning' : 'warnings'}, and ${unmaintained} unmaintained ${unmaintained === 1 ? 'warning' : 'warnings'}.`
+  return `A raw \`cargo audit --json\` run on ${reviewedAt} reports ${findings.length} reviewed advisories: ${vulnerabilities} ${vulnerabilities === 1 ? 'vulnerability' : 'vulnerabilities'}, ${unsound} unsoundness ${unsound === 1 ? 'warning' : 'warnings'}, and ${unmaintained} unmaintained ${unmaintained === 1 ? 'warning' : 'warnings'}.`
 }
 
 export function run() {
@@ -100,7 +100,7 @@ export function run() {
   const report = JSON.parse(audit.stdout)
   const { errors, findings } = compareAudit(report, registry)
   const auditDocumentation = readFileSync('docs/rust-dependency-audit.md', 'utf8')
-  const expectedSummary = auditSummaryLine(findings)
+  const expectedSummary = auditSummaryLine(findings, registry.reviewedAt)
   if (!auditDocumentation.includes(expectedSummary)) errors.push('docs/rust-dependency-audit.md summary does not match cargo-audit')
   if (errors.length > 0) {
     for (const error of errors) console.error(`FAIL ${error}`)

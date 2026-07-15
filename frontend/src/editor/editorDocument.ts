@@ -14,7 +14,7 @@ export type StoredRichBody = {
   bodyFormat?: string | null
 }
 
-export const emptyRichEditorDoc: JSONContent = {
+const emptyRichEditorDoc: JSONContent = {
   type: 'doc',
   content: [],
 }

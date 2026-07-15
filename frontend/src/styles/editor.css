@@ -48,20 +48,6 @@
   font-weight: 600;
 }
 
-.breadcrumb {
-  gap: var(--space-2);
-  min-width: 0;
-  color: var(--text-secondary);
-  font-size: var(--font-size-md);
-}
-
-.breadcrumb strong {
-  overflow: hidden;
-  color: var(--text-primary);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .document-status {
   gap: var(--space-2);
   color: var(--text-secondary);
@@ -351,27 +337,12 @@
   min-width: 0;
 }
 
-.ai-provider-heading,
 .ai-provider-value,
 .ai-provider-meta,
 .ai-provider-state,
 .ai-configure-button {
   display: flex;
   align-items: center;
-}
-
-.ai-provider-heading {
-  justify-content: space-between;
-  gap: var(--space-2);
-}
-
-.ai-provider-heading > span:first-child {
-  color: var(--text-secondary);
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  line-height: var(--leading-tight);
-  text-transform: uppercase;
 }
 
 .ai-provider-value {

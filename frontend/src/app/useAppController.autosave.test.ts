@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { draftFixture, entryFixture, findingFixture, sessionFixture } from '../test/fixtures'
 import { richEditorDocumentFromPlainText } from '../editor/editorDocument'
-import { cleanupControllerTest, getTauriMock, sessionNoteStateFixture, setupControllerTest, useAppController } from './useAppController.testHarness'
+import { cleanupControllerTest, deferred, getTauriMock, sessionNoteStateFixture, setupControllerTest, useAppController } from './useAppController.testHarness'
 
 const tauriMock = getTauriMock()
 
@@ -108,6 +108,46 @@ describe('useAppController autosave and close protection', () => {
     }
   })
 
+  it('flushes an edit typed while a forced Session save is in flight before switching', async () => {
+    const { result } = renderHook(() => useAppController())
+
+    await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
+
+    const firstBody = richEditorDocumentFromPlainText('first edit')
+    const secondBody = richEditorDocumentFromPlainText('edit typed while saving')
+    act(() => result.current.setNoteBody(firstBody))
+
+    const firstSave = deferred<ReturnType<typeof entryFixture>>()
+    tauriMock.updateEntry.mockReturnValueOnce(firstSave.promise)
+    const otherSession = sessionFixture({ id: 'session-2', title: 'Other session' })
+    tauriMock.openSessionNoteState.mockResolvedValueOnce(
+      sessionNoteStateFixture({
+        session: otherSession,
+        noteEntry: entryFixture({ id: 'entry-2', sessionId: 'session-2' }),
+      }),
+    )
+
+    let openPromise!: Promise<void>
+    act(() => {
+      openPromise = result.current.openSession(otherSession)
+    })
+    await waitFor(() => expect(tauriMock.updateEntry).toHaveBeenCalledTimes(1))
+
+    act(() => {
+      result.current.setNoteBody(secondBody)
+      firstSave.resolve(entryFixture({ body: '<p>first edit</p>' }))
+    })
+
+    await waitFor(() => expect(tauriMock.updateEntry).toHaveBeenCalledTimes(2))
+    expect(tauriMock.updateEntry).toHaveBeenLastCalledWith(
+      'entry-1',
+      expect.objectContaining({ body: expect.stringContaining('edit typed while saving') }),
+    )
+
+    await act(async () => openPromise)
+    expect(result.current.activeSession?.id).toBe('session-2')
+  })
+
   it('flushes a pending body edit before creating a new session', async () => {
     const { result } = renderHook(() => useAppController())
 
@@ -169,6 +209,92 @@ describe('useAppController autosave and close protection', () => {
     expect(tauriMock.updateDraft).toHaveBeenCalledWith('draft-dirty', expect.objectContaining({ body: '<p>Unsaved draft edit.</p>' }))
     expect(tauriMock.updateFinding).toHaveBeenCalledWith('finding-dirty', expect.objectContaining({ body: '<p>Unsaved finding edit.</p>' }))
     expect(tauriMock.openSessionNoteState).toHaveBeenCalledWith('session-2')
+    expect(result.current.activeSession?.id).toBe('session-2')
+  })
+
+  it('retries a Draft edit made while a forced record save is in flight', async () => {
+    tauriMock.openSessionNoteState.mockResolvedValueOnce(
+      sessionNoteStateFixture({ testwareDraftCount: 1 }),
+    )
+    tauriMock.listDrafts.mockResolvedValueOnce([
+      draftFixture({ id: 'draft-dirty', sessionId: 'session-1', body: '<p>Persisted draft.</p>' }),
+    ])
+    const { result } = renderHook(() => useAppController())
+
+    await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
+    act(() => result.current.setActiveView('testware'))
+    await waitFor(() => expect(result.current.testwareDrafts.map((draft) => draft.id)).toEqual(['draft-dirty']))
+    act(() => result.current.updateLocalDraft('draft-dirty', { body: '<p>First draft edit.</p>' }))
+
+    const firstSave = deferred<ReturnType<typeof draftFixture>>()
+    tauriMock.updateDraft
+      .mockReturnValueOnce(firstSave.promise)
+      .mockResolvedValueOnce(draftFixture({ id: 'draft-dirty', body: '<p>Latest draft edit.</p>' }))
+    const otherSession = sessionFixture({ id: 'session-2', title: 'Other session' })
+    tauriMock.openSessionNoteState.mockResolvedValueOnce(
+      sessionNoteStateFixture({
+        session: otherSession,
+        noteEntry: entryFixture({ id: 'entry-2', sessionId: 'session-2' }),
+      }),
+    )
+
+    let openPromise!: Promise<void>
+    act(() => { openPromise = result.current.openSession(otherSession) })
+    await waitFor(() => expect(tauriMock.updateDraft).toHaveBeenCalledTimes(1))
+    act(() => {
+      result.current.updateLocalDraft('draft-dirty', { body: '<p>Latest draft edit.</p>' })
+      firstSave.resolve(draftFixture({ id: 'draft-dirty', body: '<p>First draft edit.</p>' }))
+    })
+
+    await waitFor(() => expect(tauriMock.updateDraft).toHaveBeenCalledTimes(2))
+    expect(tauriMock.updateDraft).toHaveBeenLastCalledWith(
+      'draft-dirty',
+      expect.objectContaining({ body: '<p>Latest draft edit.</p>' }),
+    )
+    await act(async () => openPromise)
+    expect(result.current.activeSession?.id).toBe('session-2')
+  })
+
+  it('retries a Finding edit made while a forced record save is in flight', async () => {
+    tauriMock.openSessionNoteState.mockResolvedValueOnce(
+      sessionNoteStateFixture({ findingCount: 1 }),
+    )
+    tauriMock.listFindings.mockResolvedValueOnce([
+      findingFixture({ id: 'finding-dirty', sessionId: 'session-1', body: '<p>Persisted finding.</p>' }),
+    ])
+    const { result } = renderHook(() => useAppController())
+
+    await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
+    act(() => result.current.setActiveView('findings'))
+    await waitFor(() => expect(result.current.findings.map((finding) => finding.id)).toEqual(['finding-dirty']))
+    act(() => result.current.updateLocalFinding('finding-dirty', { body: '<p>First finding edit.</p>' }))
+
+    const firstSave = deferred<ReturnType<typeof findingFixture>>()
+    tauriMock.updateFinding
+      .mockReturnValueOnce(firstSave.promise)
+      .mockResolvedValueOnce(findingFixture({ id: 'finding-dirty', body: '<p>Latest finding edit.</p>' }))
+    const otherSession = sessionFixture({ id: 'session-2', title: 'Other session' })
+    tauriMock.openSessionNoteState.mockResolvedValueOnce(
+      sessionNoteStateFixture({
+        session: otherSession,
+        noteEntry: entryFixture({ id: 'entry-2', sessionId: 'session-2' }),
+      }),
+    )
+
+    let openPromise!: Promise<void>
+    act(() => { openPromise = result.current.openSession(otherSession) })
+    await waitFor(() => expect(tauriMock.updateFinding).toHaveBeenCalledTimes(1))
+    act(() => {
+      result.current.updateLocalFinding('finding-dirty', { body: '<p>Latest finding edit.</p>' })
+      firstSave.resolve(findingFixture({ id: 'finding-dirty', body: '<p>First finding edit.</p>' }))
+    })
+
+    await waitFor(() => expect(tauriMock.updateFinding).toHaveBeenCalledTimes(2))
+    expect(tauriMock.updateFinding).toHaveBeenLastCalledWith(
+      'finding-dirty',
+      expect.objectContaining({ body: '<p>Latest finding edit.</p>' }),
+    )
+    await act(async () => openPromise)
     expect(result.current.activeSession?.id).toBe('session-2')
   })
 

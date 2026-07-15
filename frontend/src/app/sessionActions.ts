@@ -61,12 +61,29 @@ export function createSessionActions(ctx: SessionActionsContext) {
   async function flushPendingSessionEdits(): Promise<boolean> {
     ctx.session.suppressAmbientNoteSaveRef.current = true
     try {
-      const flushedNote = await saveNoteNow({ manageBusy: false })
-      if (!flushedNote) return false
-      return ctx.saveDirtyRecordsNow()
+      do {
+        const flushedNote = await saveNoteNow({ manageBusy: false })
+        if (!flushedNote) return false
+        const flushedRecords = await ctx.saveDirtyRecordsNow()
+        if (!flushedRecords) return false
+      } while (hasPendingSessionEdits())
+      return true
     } finally {
       ctx.session.suppressAmbientNoteSaveRef.current = false
     }
+  }
+
+  function hasPendingSessionEdits(): boolean {
+    const title = ctx.session.sessionTitleRef.current.trim()
+    const titleDirty = Boolean(ctx.session.activeSession && title && title !== ctx.session.savedTitleRef.current)
+    const bodyDirty = Boolean(
+      ctx.session.noteEntry
+      && serializeRichEditorDocument(ctx.session.noteBodyRef.current) !== ctx.session.savedBodyRef.current,
+    )
+    return titleDirty
+      || bodyDirty
+      || ctx.records.dirtyDraftIdsRef.current.size > 0
+      || ctx.records.dirtyFindingIdsRef.current.size > 0
   }
 
   async function openSession(session: Session, showNotice = true, onOpened?: () => void) {
@@ -250,10 +267,10 @@ export function createSessionActions(ctx: SessionActionsContext) {
 
   async function saveNoteNow(options: { manageBusy?: boolean } = {}): Promise<boolean> {
     const { manageBusy = true } = options
-    const title = ctx.session.sessionTitle.trim()
+    const title = ctx.session.sessionTitleRef.current.trim()
     let body: RichEditorDocument
     try {
-      body = await ctx.materializeInlineImages(ctx.session.noteBody, { entryId: ctx.session.noteEntry?.id, updateNoteBody: true })
+      body = await ctx.materializeInlineImages(ctx.session.noteBodyRef.current, { entryId: ctx.session.noteEntry?.id, updateNoteBody: true })
     } catch (cause) {
       ctx.feedback.setError(formatError(cause))
       return false

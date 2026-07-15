@@ -89,10 +89,14 @@ fn smoke_testware_generation(
     };
     let command = scripted_command(&prepared.prompt);
     let mut partials = Vec::new();
+    let mut partial = String::new();
     let output = run_streaming_generation(&executor, &command, |update| {
-        if let StreamUpdate::Partial(body) = update {
-            partials.push(body);
+        match update {
+            StreamUpdate::PartialDelta(delta) => partial.push_str(&delta),
+            StreamUpdate::PartialSnapshot(body) => partial = body,
+            StreamUpdate::Progress(_) => return,
         }
+        partials.push(partial.clone());
     });
     assert_eq!(
         partials.last().map(String::as_str),

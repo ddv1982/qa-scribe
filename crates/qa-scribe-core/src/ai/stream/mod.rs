@@ -21,8 +21,10 @@ use plain::PlainTextParser;
 pub enum StreamUpdate {
     /// A short status message describing what the provider is doing.
     Progress(String),
-    /// The accumulated assistant text so far.
-    Partial(String),
+    /// Text appended to the accumulated assistant response.
+    PartialDelta(String),
+    /// A provider-supplied snapshot that replaces the accumulated response.
+    PartialSnapshot(String),
 }
 
 /// Streaming parser for provider CLI stdout, dispatching per output format.
@@ -97,13 +99,13 @@ struct AssistantText(String);
 impl AssistantText {
     fn append(&mut self, delta: &str) -> StreamUpdate {
         self.0.push_str(delta);
-        StreamUpdate::Partial(self.0.clone())
+        StreamUpdate::PartialDelta(delta.to_string())
     }
 
     fn replace_if_not_shorter(&mut self, candidate: String) -> Option<StreamUpdate> {
         if self.0.is_empty() || candidate.len() >= self.0.len() {
             self.0 = candidate;
-            Some(StreamUpdate::Partial(self.0.clone()))
+            Some(StreamUpdate::PartialSnapshot(self.0.clone()))
         } else {
             None
         }

@@ -1,4 +1,6 @@
-import { managedAttachmentProtocol } from './editorHtml'
+import { MANAGED_ATTACHMENT_PROTOCOL } from '../tauri'
+
+export const managedAttachmentProtocol: string = MANAGED_ATTACHMENT_PROTOCOL
 
 export function escapeHtml(value: string): string {
   return value

@@ -110,6 +110,7 @@ pub fn render_action_prompt(
     marker: &OutputMarker,
 ) -> String {
     let spec = action_spec(action, settings);
+    let selected_note_marker = selected_note_marker(marker, session_title, note_entry);
     let mut budget = PromptMaterialBudget::with_limit(spec.total_limit);
     let mut prompt = String::new();
     prompt.push_str(&settings.generation_system_prompt);
@@ -122,7 +123,11 @@ pub fn render_action_prompt(
         prompt.push_str(extra_instructions);
         prompt.push('\n');
     }
-    prompt.push_str(&with_output_marker(OUTPUT_CONTRACT, marker));
+    prompt.push_str(&with_prompt_markers(
+        OUTPUT_CONTRACT,
+        marker,
+        &selected_note_marker,
+    ));
     if let Some(rule) = spec.allowed_tags_rule {
         prompt.push_str(rule);
         prompt.push('\n');
@@ -136,17 +141,26 @@ pub fn render_action_prompt(
         prompt.push('\n');
     }
     prompt.push_str(EXAMPLE_LEAD_IN);
-    prompt.push_str(&with_output_marker(spec.example, marker));
+    prompt.push_str(&with_prompt_markers(
+        spec.example,
+        marker,
+        &selected_note_marker,
+    ));
     append_selected_note(
         &mut prompt,
         &mut budget,
         session_title,
         note_entry,
         spec.note_limit,
+        &selected_note_marker,
     );
     append_managed_images(&mut prompt, note_entry, attachments);
     budget.append_omissions(&mut prompt);
-    prompt.push_str(&with_output_marker(FINAL_REMINDER, marker));
+    prompt.push_str(&with_prompt_markers(
+        FINAL_REMINDER,
+        marker,
+        &selected_note_marker,
+    ));
     prompt
 }
 
@@ -154,9 +168,57 @@ pub fn render_action_prompt(
 /// marker for readability; every rendering substitutes this generation's
 /// random marker. Only instruction text goes through this — note material is
 /// data and must never be rewritten.
-fn with_output_marker(text: &str, marker: &OutputMarker) -> String {
+fn with_prompt_markers(
+    text: &str,
+    marker: &OutputMarker,
+    selected_note_marker: &SelectedNoteMarker,
+) -> String {
     text.replace("<html_fragment>", &marker.open_tag())
         .replace("</html_fragment>", &marker.close_tag())
+        .replace("<selected_note>", &selected_note_marker.open_tag())
+        .replace("</selected_note>", &selected_note_marker.close_tag())
+}
+
+struct SelectedNoteMarker {
+    tag_name: String,
+}
+
+impl SelectedNoteMarker {
+    fn open_tag(&self) -> String {
+        format!("<{}>", self.tag_name)
+    }
+
+    fn close_tag(&self) -> String {
+        format!("</{}>", self.tag_name)
+    }
+}
+
+fn selected_note_marker(
+    output_marker: &OutputMarker,
+    session_title: &str,
+    note_entry: Option<&Entry>,
+) -> SelectedNoteMarker {
+    let note_material = note_entry
+        .map(|entry| project_html_to_prompt_text(&entry.body))
+        .unwrap_or_default();
+    let base = format!("selected_note_{}", output_marker.tag_name());
+    for suffix in 0usize.. {
+        let tag_name = if suffix == 0 {
+            base.clone()
+        } else {
+            format!("{base}_{suffix}")
+        };
+        let open_tag = format!("<{tag_name}>");
+        let close_tag = format!("</{tag_name}>");
+        if !session_title.contains(&open_tag)
+            && !session_title.contains(&close_tag)
+            && !note_material.contains(&open_tag)
+            && !note_material.contains(&close_tag)
+        {
+            return SelectedNoteMarker { tag_name };
+        }
+    }
+    unreachable!("finite prompt material always permits a collision-free marker")
 }
 
 fn append_managed_images(
@@ -191,8 +253,12 @@ fn append_selected_note(
     session_title: &str,
     note_entry: Option<&Entry>,
     item_limit: usize,
+    marker: &SelectedNoteMarker,
 ) {
-    prompt.push_str(&format!("\n<selected_note>\nTitle: {session_title}\n"));
+    prompt.push_str(&format!(
+        "\n{}\nTitle: {session_title}\n",
+        marker.open_tag()
+    ));
     match note_entry {
         Some(entry) => {
             let note = budget.take("selected note", &entry.body, item_limit);
@@ -205,7 +271,8 @@ fn append_selected_note(
         }
         None => prompt.push_str("(No note selected.)\n"),
     }
-    prompt.push_str("</selected_note>\n");
+    prompt.push_str(&marker.close_tag());
+    prompt.push('\n');
 }
 
 struct PromptMaterialBudget {

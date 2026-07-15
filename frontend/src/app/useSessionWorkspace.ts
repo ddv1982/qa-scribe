@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import type { Entry, Session } from '../tauri'
 import {
   emptyRichEditorDocument,
@@ -12,11 +12,12 @@ export function useSessionWorkspace() {
   const [activeSession, setActiveSession] = useState<Session | null>(null)
   const [noteEntry, setNoteEntry] = useState<Entry | null>(null)
   const [sessionLibraryComplete, setSessionLibraryComplete] = useState(false)
-  const [sessionTitle, setSessionTitle] = useState('')
-  const [noteBody, setNoteBody] = useState(emptyRichEditorDocument)
+  const [sessionTitle, setSessionTitleState] = useState('')
+  const [noteBody, setNoteBodyState] = useState(emptyRichEditorDocument)
 
   const savedTitleRef = useRef('')
   const savedBodyRef = useRef(serializeRichEditorDocument(emptyRichEditorDocument))
+  const sessionTitleRef = useRef('')
   const noteBodyRef = useRef(emptyRichEditorDocument)
   const sessionTitleWriteVersionRef = useRef(0)
   const noteBodyWriteVersionRef = useRef(0)
@@ -32,9 +33,17 @@ export function useSessionWorkspace() {
     noteEntryIdRef.current = noteEntry?.id ?? null
   }, [activeSession?.id, noteEntry?.id])
 
-  useEffect(() => {
-    noteBodyRef.current = noteBody
-  }, [noteBody])
+  const setSessionTitle = useCallback<Dispatch<SetStateAction<string>>>((value) => {
+    const next = typeof value === 'function' ? value(sessionTitleRef.current) : value
+    sessionTitleRef.current = next
+    setSessionTitleState(next)
+  }, [])
+
+  const setNoteBody = useCallback<Dispatch<SetStateAction<typeof emptyRichEditorDocument>>>((value) => {
+    const next = typeof value === 'function' ? value(noteBodyRef.current) : value
+    noteBodyRef.current = next
+    setNoteBodyState(next)
+  }, [])
 
   const workspace: SessionWorkspace = {
     activeSession,
@@ -45,6 +54,7 @@ export function useSessionWorkspace() {
     noteBodyHtml,
     savedTitleRef,
     savedBodyRef,
+    sessionTitleRef,
     noteBodyRef,
     sessionTitleWriteVersionRef,
     noteBodyWriteVersionRef,

@@ -10,6 +10,8 @@
 use qa_scribe_core::QaScribeError;
 use serde::Serialize;
 
+use crate::jobs::JobStoreError;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub enum CommandErrorKind {
@@ -51,7 +53,7 @@ impl From<QaScribeError> for CommandError {
     fn from(error: QaScribeError) -> Self {
         match error {
             QaScribeError::Validation(message) => CommandError::validation(message),
-            QaScribeError::NotFound(ref id) => CommandError::not_found(error_message(&error, id)),
+            QaScribeError::NotFound(_) => CommandError::not_found(error.to_string()),
             QaScribeError::InvalidStoredValue { .. }
             | QaScribeError::Sqlite(_)
             | QaScribeError::Io(_) => CommandError::internal(error.to_string()),
@@ -59,10 +61,15 @@ impl From<QaScribeError> for CommandError {
     }
 }
 
-/// `QaScribeError::NotFound`'s `Display` renders `"not found: {id}"`; reuse
-/// it rather than duplicating the format string here.
-fn error_message(error: &QaScribeError, _id: &str) -> String {
-    error.to_string()
+impl From<JobStoreError> for CommandError {
+    fn from(error: JobStoreError) -> Self {
+        let message = error.to_string();
+        match error {
+            JobStoreError::Capacity { .. } => CommandError::validation(message),
+            JobStoreError::NotFound { .. } => CommandError::not_found(message),
+            JobStoreError::Internal(_) => CommandError::internal(message),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -118,6 +125,19 @@ mod tests {
         let error = CommandError::internal("Session service lock was poisoned");
 
         assert_eq!(error.kind, CommandErrorKind::Internal);
+    }
+
+    #[test]
+    fn job_capacity_maps_to_validation_and_missing_job_maps_to_not_found() {
+        let capacity = CommandError::from(JobStoreError::Capacity { limit: 3 });
+        let missing = CommandError::from(JobStoreError::NotFound {
+            job_id: "job-1".to_string(),
+        });
+
+        assert_eq!(capacity.kind, CommandErrorKind::Validation);
+        assert!(capacity.message.contains("At most 3"));
+        assert_eq!(missing.kind, CommandErrorKind::NotFound);
+        assert_eq!(missing.message, "Generation job job-1 was not found.");
     }
 
     #[test]

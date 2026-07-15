@@ -1,4 +1,4 @@
-use super::{GenerationJobState, JobStore, MAX_ACTIVE_GENERATION_JOBS};
+use super::{GenerationJobState, JobStore, JobStoreError, MAX_ACTIVE_GENERATION_JOBS};
 
 #[test]
 fn job_store_tracks_active_lifecycle() {
@@ -118,7 +118,7 @@ fn active_generation_jobs_are_bounded() {
         .err()
         .expect("job over active limit should be rejected");
 
-    assert!(error.contains("At most 3 AI generation jobs"));
+    assert_eq!(error, JobStoreError::Capacity { limit: 3 });
 
     store.complete("job-0").expect("one active job completes");
     store

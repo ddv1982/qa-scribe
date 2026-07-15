@@ -12,7 +12,8 @@ use std::{
 use std::{os::unix::fs::PermissionsExt, path::Path};
 
 use super::{
-    append_home_provider_paths, cached_or_compute, merge_paths, resolve_provider_executable_in_path,
+    NeutralProviderCwd, append_home_provider_paths, append_nvm_node_bins, cached_or_compute,
+    merge_paths, resolve_provider_executable_in_path,
 };
 
 static BUILD_CALLS: AtomicUsize = AtomicUsize::new(0);
@@ -61,6 +62,43 @@ fn home_provider_paths_cover_common_cli_installers() {
     assert!(paths.contains(&PathBuf::from("/home/tester/.local/share/mise/shims")));
     assert!(paths.contains(&PathBuf::from("/home/tester/.cargo/bin")));
     assert!(paths.contains(&PathBuf::from("/home/tester/.volta/bin")));
+}
+
+#[test]
+fn nvm_fallback_prefers_numeric_node_versions_over_lexical_order() {
+    let home = std::env::temp_dir().join(format!(
+        "qa-scribe-nvm-order-test-{}",
+        uuid::Uuid::new_v4().simple()
+    ));
+    for version in ["v9.99.0", "v20.1.0", "v100.0.0"] {
+        fs::create_dir_all(home.join(".nvm/versions/node").join(version).join("bin"))
+            .expect("fake NVM version should create");
+    }
+    let mut paths = Vec::new();
+
+    append_nvm_node_bins(&mut paths, &home);
+
+    assert_eq!(
+        paths,
+        ["v100.0.0", "v20.1.0", "v9.99.0"]
+            .map(|version| home.join(".nvm/versions/node").join(version).join("bin"))
+    );
+    let _ = fs::remove_dir_all(home);
+}
+
+#[cfg(unix)]
+#[test]
+fn neutral_provider_directory_is_private() {
+    let directory = NeutralProviderCwd::new();
+
+    assert_eq!(
+        fs::metadata(directory.path())
+            .expect("provider directory metadata")
+            .permissions()
+            .mode()
+            & 0o777,
+        0o700
+    );
 }
 
 #[test]

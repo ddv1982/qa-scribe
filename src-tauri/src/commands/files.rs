@@ -87,16 +87,37 @@ pub fn copy_attachment_image_to_clipboard(
         ));
     }
 
-    let decoded = image::load_from_memory(&bytes).map_err(|_| {
-        CommandError::internal("Attachment image could not be decoded for the clipboard")
-    })?;
-    validate_image_bounds(decoded.width(), decoded.height())?;
+    let decoded = decode_attachment_image(&bytes)?;
     let decoded = decoded.to_rgba8();
     let width = decoded.width();
     let height = decoded.height();
     let image = Image::new_owned(decoded.into_raw(), width, height);
     app.clipboard().write_image(&image).map_err(|error| {
         CommandError::internal(format!("Attachment image could not be copied: {error}"))
+    })
+}
+
+fn decode_attachment_image(bytes: &[u8]) -> Result<image::DynamicImage, CommandError> {
+    let dimension_reader = image::ImageReader::new(Cursor::new(bytes))
+        .with_guessed_format()
+        .map_err(|_| {
+            CommandError::internal("Attachment image could not be decoded for the clipboard")
+        })?;
+    let dimensions = dimension_reader.into_dimensions().map_err(|_| {
+        CommandError::internal("Attachment image could not be decoded for the clipboard")
+    })?;
+    validate_image_bounds(dimensions.0, dimensions.1)?;
+
+    let mut reader = image::ImageReader::new(Cursor::new(bytes))
+        .with_guessed_format()
+        .map_err(|_| {
+            CommandError::internal("Attachment image could not be decoded for the clipboard")
+        })?;
+    let mut limits = image::Limits::default();
+    limits.max_alloc = Some(MAX_CLIPBOARD_IMAGE_RGBA_BYTES * 2);
+    reader.limits(limits);
+    reader.decode().map_err(|_| {
+        CommandError::internal("Attachment image could not be decoded for the clipboard")
     })
 }
 
@@ -210,6 +231,19 @@ mod tests {
     fn rejects_clipboard_image_over_rgba_byte_bound_before_copying_pixels() {
         let error = validate_rgba_byte_len(MAX_CLIPBOARD_IMAGE_RGBA_BYTES + 1)
             .expect_err("oversized buffer");
+
+        assert_eq!(error.kind, CommandErrorKind::Validation);
+        assert!(error.message.contains("Clipboard image must be at most"));
+    }
+
+    #[test]
+    fn rejects_oversized_attachment_dimensions_from_header_before_full_decode() {
+        let mut oversized_gif = b"GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x01\x4c\x00\x3b".to_vec();
+        oversized_gif[6..10].fill(0xff);
+        oversized_gif[24..28].fill(0xff);
+
+        let error = decode_attachment_image(&oversized_gif)
+            .expect_err("oversized image header should be rejected");
 
         assert_eq!(error.kind, CommandErrorKind::Validation);
         assert!(error.message.contains("Clipboard image must be at most"));

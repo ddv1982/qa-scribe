@@ -57,11 +57,6 @@
   text-transform: uppercase;
 }
 
-.collection-stack {
-  display: grid;
-  gap: var(--space-3);
-}
-
 .collection-toolbar {
   display: grid;
   grid-template-columns: minmax(220px, 1fr) repeat(2, auto) auto;
@@ -549,7 +544,6 @@
   border-radius: var(--radius-md);
 }
 
-.ai-defaults-stack,
 .ai-execution-settings {
   display: grid;
   gap: var(--space-2);

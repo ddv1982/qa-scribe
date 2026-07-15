@@ -3,7 +3,6 @@ use std::{
     io::ErrorKind,
     path::{Path, PathBuf},
     process::{Command, Output, Stdio},
-    sync::atomic::{AtomicU64, Ordering},
     thread,
     time::{Duration, Instant},
 };
@@ -14,7 +13,6 @@ use super::CommandProbe;
 use super::cancel::DiscoveryCancellation;
 
 pub(in crate::commands::providers) const MAX_PROVIDER_OUTPUT_BYTES: u64 = 1024 * 1024;
-static PROVIDER_PROBE_OUTPUT_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 pub(in crate::commands::providers) fn run_command_with_timeout(
     command: Command,
@@ -35,8 +33,7 @@ fn run_command_with_cancellation_check(
             "provider probe was cancelled",
         ));
     }
-    let output_id = PROVIDER_PROBE_OUTPUT_COUNTER.fetch_add(1, Ordering::Relaxed);
-    let output_files = ProbeOutputFiles::new(output_id);
+    let output_files = ProbeOutputFiles::new();
     let (stdout, stderr) = output_files.create()?;
     configure_process_group(&mut command);
     let mut child = command
@@ -93,25 +90,27 @@ fn run_command_with_cancellation_check(
 }
 
 pub(in crate::commands::providers) struct ProbeOutputFiles {
+    directory_path: PathBuf,
     pub(in crate::commands::providers) stdout_path: PathBuf,
     pub(in crate::commands::providers) stderr_path: PathBuf,
 }
 
 impl ProbeOutputFiles {
-    pub(in crate::commands::providers) fn new(output_id: u64) -> Self {
+    pub(in crate::commands::providers) fn new() -> Self {
+        let directory_path = std::env::temp_dir().join(format!(
+            "qa-scribe-provider-probe-{}-{}",
+            std::process::id(),
+            uuid::Uuid::new_v4().simple()
+        ));
         Self {
-            stdout_path: std::env::temp_dir().join(format!(
-                "qa-scribe-provider-probe-{}-{output_id}.stdout",
-                std::process::id()
-            )),
-            stderr_path: std::env::temp_dir().join(format!(
-                "qa-scribe-provider-probe-{}-{output_id}.stderr",
-                std::process::id()
-            )),
+            stdout_path: directory_path.join("stdout"),
+            stderr_path: directory_path.join("stderr"),
+            directory_path,
         }
     }
 
     pub(in crate::commands::providers) fn create(&self) -> std::io::Result<(File, File)> {
+        create_private_directory(&self.directory_path)?;
         let stdout = exclusive_output_file(&self.stdout_path)?;
         let stderr = match exclusive_output_file(&self.stderr_path) {
             Ok(stderr) => stderr,
@@ -135,13 +134,29 @@ impl ProbeOutputFiles {
 }
 
 fn exclusive_output_file(path: &Path) -> std::io::Result<File> {
-    OpenOptions::new().write(true).create_new(true).open(path)
+    let mut options = OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    options.open(path)
+}
+
+fn create_private_directory(path: &Path) -> std::io::Result<()> {
+    let mut builder = fs::DirBuilder::new();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::DirBuilderExt;
+        builder.mode(0o700);
+    }
+    builder.create(path)
 }
 
 impl Drop for ProbeOutputFiles {
     fn drop(&mut self) {
-        let _ = fs::remove_file(&self.stdout_path);
-        let _ = fs::remove_file(&self.stderr_path);
+        let _ = fs::remove_dir_all(&self.directory_path);
     }
 }
 
@@ -176,8 +191,7 @@ mod tests {
 
     #[test]
     fn stdout_and_stderr_share_one_output_budget() {
-        let output_id = PROVIDER_PROBE_OUTPUT_COUNTER.fetch_add(1, Ordering::Relaxed);
-        let output_files = ProbeOutputFiles::new(output_id);
+        let output_files = ProbeOutputFiles::new();
         let handles = output_files
             .create()
             .expect("probe files should be created");
@@ -187,6 +201,37 @@ mod tests {
 
         assert!(output_files.exceeds_limit(1_000));
         assert!(!output_files.exceeds_limit(1_200));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn probe_output_directory_and_files_are_private() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let output_files = ProbeOutputFiles::new();
+        let handles = output_files
+            .create()
+            .expect("probe files should be created");
+        drop(handles);
+
+        assert_eq!(
+            fs::metadata(&output_files.directory_path)
+                .expect("directory metadata")
+                .permissions()
+                .mode()
+                & 0o777,
+            0o700
+        );
+        for path in [&output_files.stdout_path, &output_files.stderr_path] {
+            assert_eq!(
+                fs::metadata(path)
+                    .expect("file metadata")
+                    .permissions()
+                    .mode()
+                    & 0o777,
+                0o600
+            );
+        }
     }
 
     #[cfg(unix)]

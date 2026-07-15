@@ -8,7 +8,7 @@ import TaskList from '@tiptap/extension-task-list'
 import { managedAttachmentProtocol, isSafeEditorLinkUrl } from './editorHtml'
 import { managedAttachmentIdFromSrc } from './htmlUtils'
 
-export const ManagedImage = Image.extend({
+const ManagedImage = Image.extend({
   addAttributes() {
     return {
       ...this.parent?.(),

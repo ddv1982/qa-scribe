@@ -6,7 +6,12 @@ export type AppNavigationRoute =
   | { kind: 'settings'; sectionId: string | null }
 
 export function parseNavigationRoute(hash: string): AppNavigationRoute | null {
-  const parts = hash.replace(/^#\/?/, '').split('/').filter(Boolean).map(decodeURIComponent)
+  let parts: string[]
+  try {
+    parts = hash.replace(/^#\/?/, '').split('/').filter(Boolean).map(decodeURIComponent)
+  } catch {
+    return null
+  }
   if (parts[0] === 'settings') return { kind: 'settings', sectionId: parts[1] ?? null }
   if (parts[0] === 'libraries' && parts[1] === 'testware') return { kind: 'library', view: 'testware-library' }
   if (parts[0] === 'libraries' && parts[1] === 'findings') return { kind: 'library', view: 'findings-library' }

@@ -14,6 +14,7 @@ use crate::{
     domain::{
         AiProvider, AiRun, AiRunCreate, Attachment, Draft, DraftCreate, DraftKind, Entry,
         EntryPatch, EntryType, Finding, FindingDraft, FindingKind, GenerationContext,
+        TITLE_MAX_LENGTH,
     },
     services::SessionService,
 };
@@ -225,19 +226,22 @@ fn finish_successful_generation(
     prepared: PreparedGeneration,
     output: ProviderGenerationOutput,
 ) -> Result<GenerateAiActionResult> {
-    if let Some(model) = output.reported_model() {
-        service.record_running_ai_run_model(&prepared.ai_run.id, &model)?;
-    }
-    let response = output.response_text();
-    let body = parse_rich_html_fragment_response(&response, &prepared.output_marker);
     let ai_run_id = prepared.ai_run.id.clone();
-    let result = match request.action {
-        GenerateAiActionKind::Testware => {
-            finish_testware_generation(service, request, prepared, body)
+    let result = (|| {
+        if let Some(model) = output.reported_model() {
+            service.record_running_ai_run_model(&prepared.ai_run.id, &model)?;
         }
-        GenerateAiActionKind::Finding => finish_finding_generation(service, prepared, body),
-        GenerateAiActionKind::Summary => finish_summary_generation(service, prepared, body),
-    };
+        let response = output.response_text();
+        let body = parse_rich_html_fragment_response(&response, &prepared.output_marker);
+        validate_generated_body(&body)?;
+        match request.action {
+            GenerateAiActionKind::Testware => {
+                finish_testware_generation(service, request, prepared, body)
+            }
+            GenerateAiActionKind::Finding => finish_finding_generation(service, prepared, body),
+            GenerateAiActionKind::Summary => finish_summary_generation(service, prepared, body),
+        }
+    })();
 
     match result {
         Ok(result) => Ok(result),
@@ -246,6 +250,18 @@ fn finish_successful_generation(
             Err(error)
         }
     }
+}
+
+fn validate_generated_body(body: &str) -> Result<()> {
+    // Validate provider-produced content before managed images from the source
+    // note are restored. Otherwise an empty response could appear nonempty
+    // after restoration and still replace the note's authored content.
+    if sanitize_generated_rich_html(body).is_empty() {
+        return Err(QaScribeError::Validation(
+            "Provider returned no generated content.".to_string(),
+        ));
+    }
+    Ok(())
 }
 
 fn create_action_generation_context(
@@ -286,7 +302,7 @@ fn finish_testware_generation(
             session_id: prepared.session_id,
             ai_run_id: Some(prepared.ai_run.id.clone()),
             kind: DraftKind::Testware,
-            title: format!("{} Test Cases", prepared.session_title),
+            title: generated_testware_title(&prepared.session_title),
             body,
             body_json: None,
             body_format: Some("html".to_string()),
@@ -410,6 +426,16 @@ fn derive_title(markdown: &str, fallback: &str) -> String {
         .chars()
         .take(120)
         .collect()
+}
+
+fn generated_testware_title(session_title: &str) -> String {
+    const SUFFIX: &str = " Test Cases";
+    let prefix_length = TITLE_MAX_LENGTH.saturating_sub(SUFFIX.chars().count());
+    let prefix = session_title
+        .chars()
+        .take(prefix_length)
+        .collect::<String>();
+    format!("{prefix}{SUFFIX}")
 }
 
 #[cfg(test)]

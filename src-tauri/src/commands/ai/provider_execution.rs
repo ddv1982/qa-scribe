@@ -50,43 +50,47 @@ pub(super) fn execute_provider_generation_streaming(
     )?;
     let started = Instant::now();
     let mut last_partial_len = 0usize;
+    let mut partial_body = String::new();
     let mut last_partial_emit = Instant::now()
         .checked_sub(PARTIAL_UPDATE_INTERVAL)
         .unwrap_or_else(Instant::now);
+    let mut forward_partial = |body: &str| {
+        let body_len = body.len();
+        let enough_new_text = body_len < last_partial_len
+            || body_len.saturating_sub(last_partial_len) >= PARTIAL_UPDATE_MIN_BYTES;
+        if !enough_new_text && last_partial_emit.elapsed() < PARTIAL_UPDATE_INTERVAL {
+            return;
+        }
+        last_partial_len = body_len;
+        last_partial_emit = Instant::now();
+        if let Ok(status) = jobs.update_partial(job_id, body) {
+            send_event(
+                events,
+                GenerationJobEvent::Partial {
+                    job_id: job_id.to_string(),
+                    status,
+                    body: body.to_string(),
+                },
+            );
+        }
+    };
     let output = run_generation_command_streaming(&command, control, |update| match update {
         StreamUpdate::Progress(message) => {
             let _ = send_progress(events, jobs, job_id, &message);
         }
-        StreamUpdate::Partial(body) => {
-            let body_len = body.len();
-            let enough_new_text = body_len < last_partial_len
-                || body_len.saturating_sub(last_partial_len) >= PARTIAL_UPDATE_MIN_BYTES;
-            if !enough_new_text && last_partial_emit.elapsed() < PARTIAL_UPDATE_INTERVAL {
-                return;
-            }
-            last_partial_len = body_len;
-            last_partial_emit = Instant::now();
-            let status = jobs.update_partial(job_id, &body);
-            if let Ok(status) = status {
-                send_event(
-                    events,
-                    GenerationJobEvent::Partial {
-                        job_id: job_id.to_string(),
-                        status,
-                        body,
-                    },
-                );
-            }
+        StreamUpdate::PartialDelta(delta) => {
+            partial_body.push_str(&delta);
+            forward_partial(&partial_body);
+        }
+        StreamUpdate::PartialSnapshot(body) => {
+            partial_body = body;
+            forward_partial(&partial_body);
         }
     });
     eprintln!(
-        "qa-scribe {log_context} provider stream finished: elapsed_ms={}, success={}, failure={}",
+        "qa-scribe {log_context} provider stream finished: elapsed_ms={}, outcome={}",
         started.elapsed().as_millis(),
-        output
-            .as_ref()
-            .map(ProviderGenerationOutput::success)
-            .unwrap_or(false),
-        output_failure_for_log(&output)
+        output_outcome_for_log(&output)
     );
     output
 }
@@ -138,24 +142,12 @@ fn validate_effective_selection(
     Ok(())
 }
 
-fn output_failure_for_log(output: &Result<ProviderGenerationOutput, String>) -> String {
+fn output_outcome_for_log(output: &Result<ProviderGenerationOutput, String>) -> &'static str {
     match output {
-        Ok(output) if output.success() => "none".to_string(),
-        Ok(output) => truncate_for_log(&output.failure_message(), 500),
-        Err(error) => truncate_for_log(error, 500),
-    }
-}
-
-fn truncate_for_log(value: &str, max_chars: usize) -> String {
-    let trimmed = value.trim();
-    let mut chars = trimmed.chars();
-    let truncated: String = chars.by_ref().take(max_chars).collect();
-    if chars.next().is_some() {
-        format!("{truncated}...")
-    } else if truncated.is_empty() {
-        "none".to_string()
-    } else {
-        truncated
+        Ok(output) if output.success() => "success",
+        Ok(output) if output.cancelled => "cancelled",
+        Ok(_) => "provider_failed",
+        Err(_) => "execution_failed",
     }
 }
 
