@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.7.20 - 2026-07-15
+
+- Preserve the latest Testware and Finding edits across overlapping saves, Session changes, and hydration, while rejecting malformed navigation routes and empty AI-generated content before it can replace authored work.
+- Harden local provider execution with bounded output capture, private temporary files, safer diagnostics, concurrent provider refresh, and stricter generated-content and title handling.
+- Remove confirmed unused scripts, exports, editor helpers, and styles; simplify audit and command plumbing; and expand regression coverage for the corrected race, provider, and generation paths.
+
 ## v0.7.19 - 2026-07-14
 
 - Consolidate workspace destinations and contextual Session or library records into one left rail, removing the duplicate library master-list column and returning that space to the active detail.

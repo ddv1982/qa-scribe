@@ -15,6 +15,15 @@ use super::{
     stream::{ProviderStreamParser, StreamUpdate},
 };
 
+/// Maximum raw stdout accepted from one provider generation. The desktop
+/// process driver enforces this while reading so it can stop the child early;
+/// core repeats the bound because custom [`ProviderExecutor`] implementations
+/// are also allowed.
+pub const MAX_PROVIDER_STDOUT_BYTES: usize = 2 * 1024 * 1024;
+/// Keep provider failure text below the persisted AI-run error bound, with
+/// room for provider-specific guidance such as the Copilot auth prefix.
+const MAX_PROVIDER_FAILURE_MESSAGE_BYTES: usize = 1_600;
+
 /// Executes a [`GenerationCommand`], feeding each raw stdout line (or chunk)
 /// to `on_line`. Cancellation is owned by the implementation: a cancelled run
 /// simply returns with [`ProviderExecution::cancelled`] set.
@@ -55,12 +64,25 @@ pub fn run_streaming_generation(
 ) -> Result<ProviderGenerationOutput, String> {
     let mut parser = ProviderStreamParser::new(command.output_format);
     let mut stdout = Vec::new();
+    let mut output_limit_exceeded = false;
     let execution = executor.execute(command, &mut |line| {
+        if output_limit_exceeded {
+            return;
+        }
+        if stdout.len().saturating_add(line.len()) > MAX_PROVIDER_STDOUT_BYTES {
+            output_limit_exceeded = true;
+            return;
+        }
         stdout.extend_from_slice(line);
         for update in parser.push_bytes(line) {
             on_update(update);
         }
     })?;
+    if output_limit_exceeded {
+        return Err(format!(
+            "Provider output exceeded the {MAX_PROVIDER_STDOUT_BYTES} byte safety limit."
+        ));
+    }
     Ok(ProviderGenerationOutput {
         exit_success: execution.exit_success,
         stdout,
@@ -122,10 +144,11 @@ impl ProviderGenerationOutput {
             return "Generation cancelled.".to_string();
         }
         let stderr = String::from_utf8_lossy(&self.stderr);
-        if stderr.trim().is_empty() {
+        let stderr = stderr.trim();
+        if stderr.is_empty() {
             "provider command failed".to_string()
         } else {
-            stderr.trim().to_string()
+            bounded_text_tail(stderr, MAX_PROVIDER_FAILURE_MESSAGE_BYTES)
         }
     }
 
@@ -137,6 +160,17 @@ impl ProviderGenerationOutput {
 
         copilot_generation_failure_message(&message).unwrap_or(message)
     }
+}
+
+fn bounded_text_tail(value: &str, limit: usize) -> String {
+    if value.len() <= limit {
+        return value.to_string();
+    }
+    let mut start = value.len().saturating_sub(limit);
+    while start < value.len() && !value.is_char_boundary(start) {
+        start += 1;
+    }
+    value[start..].to_string()
 }
 
 fn copilot_generation_failure_message(message: &str) -> Option<String> {
@@ -177,8 +211,8 @@ mod tests {
     use crate::domain::AiProvider;
 
     use super::{
-        GenerationCommand, ProviderExecution, ProviderExecutor, ProviderGenerationOutput,
-        run_streaming_generation,
+        GenerationCommand, MAX_PROVIDER_FAILURE_MESSAGE_BYTES, MAX_PROVIDER_STDOUT_BYTES,
+        ProviderExecution, ProviderExecutor, ProviderGenerationOutput, run_streaming_generation,
     };
 
     fn failed_output(stderr: &[u8]) -> ProviderGenerationOutput {
@@ -274,5 +308,54 @@ mod tests {
             output.reported_model().as_deref(),
             Some("claude-sonnet-4-6")
         );
+    }
+
+    #[test]
+    fn core_rejects_output_over_the_shared_safety_limit() {
+        struct OversizedExecutor;
+
+        impl ProviderExecutor for OversizedExecutor {
+            fn execute(
+                &self,
+                _command: &GenerationCommand,
+                on_line: &mut dyn FnMut(&[u8]),
+            ) -> Result<ProviderExecution, String> {
+                on_line(&vec![b'x'; MAX_PROVIDER_STDOUT_BYTES]);
+                on_line(b"x");
+                Ok(ProviderExecution {
+                    exit_success: Some(true),
+                    stderr: Vec::new(),
+                    cancelled: false,
+                })
+            }
+        }
+
+        let command = GenerationCommand {
+            program: "oversized".to_string(),
+            args: Vec::new(),
+            stdin: String::new(),
+            output_format: GenerationOutputFormat::PlainText,
+        };
+
+        let error = run_streaming_generation(&OversizedExecutor, &command, |_| {})
+            .expect_err("oversized output should fail");
+
+        assert!(error.contains("output exceeded"));
+    }
+
+    #[test]
+    fn provider_failure_message_keeps_a_bounded_actionable_tail() {
+        let mut stderr = vec![b'x'; MAX_PROVIDER_FAILURE_MESSAGE_BYTES * 2];
+        stderr.extend_from_slice(b"unauthorized final actionable diagnostic");
+
+        let message = failed_output(&stderr).failure_message();
+        let copilot_message =
+            failed_output(&stderr).failure_message_for_provider(AiProvider::CopilotCli);
+
+        assert!(message.len() <= MAX_PROVIDER_FAILURE_MESSAGE_BYTES);
+        assert!(message.ends_with("final actionable diagnostic"));
+        assert!(copilot_message.len() <= 2_000);
+        assert!(copilot_message.contains("copilot login"));
+        assert!(copilot_message.ends_with("final actionable diagnostic"));
     }
 }

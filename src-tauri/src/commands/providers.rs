@@ -1,4 +1,7 @@
-use qa_scribe_core::{ai::provider_capabilities, domain::AiProvider};
+use qa_scribe_core::{
+    ai::{ProviderCapability, provider_capabilities},
+    domain::AiProvider,
+};
 
 mod cache;
 mod defaults;
@@ -40,10 +43,14 @@ pub fn get_provider_status() -> ProviderStatus {
 
 #[tauri::command]
 #[specta::specta]
-pub fn refresh_provider_status() -> ProviderStatus {
+pub async fn refresh_provider_status() -> ProviderStatus {
     clear_readiness_cache();
     invalidate_provider_path_cache();
-    provider_status_with_system_runner_for_mode(DetectionMode::Deep)
+    tauri::async_runtime::spawn_blocking(|| {
+        provider_status_with_system_runner_for_mode(DetectionMode::Deep)
+    })
+    .await
+    .expect("provider discovery worker should complete")
 }
 
 pub fn provider_readiness(provider: AiProvider) -> ProviderReadiness {
@@ -70,24 +77,27 @@ fn provider_status_with_system_runner() -> ProviderStatus {
 }
 
 fn provider_status_with_system_runner_for_mode(mode: DetectionMode) -> ProviderStatus {
-    let readinesses: Vec<_> = provider_capabilities()
-        .into_iter()
-        .map(|capability| {
-            let provider = capability.id;
-            // A fresh runner gives every provider its own absolute transaction
-            // deadline. One slow CLI cannot consume another provider's budget.
-            let runner = SystemProbeRunner::new(mode.into());
-            let readiness = detect_capability(capability, &runner, mode);
-            let fingerprint = runner.cache_fingerprint(provider);
-            let readiness = if mode == DetectionMode::Deep {
-                retain_last_successful_discovery(provider, fingerprint, readiness)
-            } else {
-                readiness
-            };
-            cache_readiness(provider, mode, fingerprint, &readiness);
-            (provider, readiness)
+    let capabilities = provider_capabilities();
+    let readinesses = if mode == DetectionMode::Deep {
+        std::thread::scope(|scope| {
+            capabilities
+                .into_iter()
+                .map(|capability| scope.spawn(move || detect_system_capability(capability, mode)))
+                .collect::<Vec<_>>()
+                .into_iter()
+                .map(|worker| {
+                    worker
+                        .join()
+                        .expect("provider detection worker should complete")
+                })
+                .collect::<Vec<_>>()
         })
-        .collect();
+    } else {
+        capabilities
+            .into_iter()
+            .map(|capability| detect_system_capability(capability, mode))
+            .collect()
+    };
 
     ProviderStatus {
         providers: readinesses
@@ -96,4 +106,24 @@ fn provider_status_with_system_runner_for_mode(mode: DetectionMode) -> ProviderS
             .collect(),
         catalog_rollout: rollout::provider_catalog_rollout(),
     }
+}
+
+fn detect_system_capability(
+    capability: ProviderCapability,
+    mode: DetectionMode,
+) -> (AiProvider, ProviderReadiness) {
+    let provider = capability.id;
+    // A fresh runner gives every provider its own absolute transaction
+    // deadline. Deep detection runs providers concurrently, so one slow CLI
+    // cannot consume another provider's budget or add its timeout serially.
+    let runner = SystemProbeRunner::new(mode.into());
+    let readiness = detect_capability(capability, &runner, mode);
+    let fingerprint = runner.cache_fingerprint(provider);
+    let readiness = if mode == DetectionMode::Deep {
+        retain_last_successful_discovery(provider, fingerprint, readiness)
+    } else {
+        readiness
+    };
+    cache_readiness(provider, mode, fingerprint, &readiness);
+    (provider, readiness)
 }

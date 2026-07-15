@@ -1,6 +1,6 @@
 //! Single source of truth for the Tauri command bridge's TypeScript bindings.
 //!
-//! Rust owns the ~27-command surface; [`builder`] collects every command and
+//! Rust owns the command surface; [`builder`] collects every command and
 //! the event type carried over `start_ai_action_job`'s [`tauri::ipc::Channel`],
 //! and the generated `frontend/src/bindings.ts` is what the frontend imports.
 //! A renamed Rust field becomes a frontend compile error instead of a silent

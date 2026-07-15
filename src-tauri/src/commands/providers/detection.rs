@@ -182,7 +182,7 @@ fn detect_cli_provider(
     descriptor_readiness(
         capability,
         ProviderState::AuthRequired,
-        format_auth_reason(descriptor.auth_required_reason, &auth),
+        descriptor.auth_required_reason.to_string(),
         Some(descriptor.auth_command_display.to_string()),
         executable_path,
         models,
@@ -242,10 +242,8 @@ fn detect_copilot(
         return descriptor_readiness(
             capability,
             ProviderState::Error,
-            format_auth_reason(
-                "GitHub Copilot CLI is installed, but this version does not expose noninteractive prompt mode. Update the standalone `copilot` CLI.",
-                &help,
-            ),
+            "GitHub Copilot CLI is installed, but this version does not expose noninteractive prompt mode. Update the standalone `copilot` CLI."
+                .to_string(),
             Some("copilot update".to_string()),
             executable_path,
             models,
@@ -394,11 +392,6 @@ fn default_snapshot(
         AiProvider::CodexCli => codex_default_snapshot(runner, models, cli_version),
         AiProvider::CopilotCli => copilot_default_snapshot(cli_version),
     }
-}
-
-fn format_auth_reason(prefix: &str, probe: &CommandProbe) -> String {
-    let _ = probe;
-    prefix.to_string()
 }
 
 fn sanitize_cli_version(version: Option<String>) -> Option<String> {

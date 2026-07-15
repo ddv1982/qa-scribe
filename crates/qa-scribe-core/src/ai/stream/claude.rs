@@ -116,7 +116,7 @@ mod tests {
 
         assert!(matches!(
             updates.last(),
-            Some(StreamUpdate::Partial(body)) if body == "<p>ok</p>"
+            Some(StreamUpdate::PartialDelta(body)) if body == "<p>ok</p>"
         ));
         assert_eq!(parser.finish().as_deref(), Some("<p>ok</p>"));
     }

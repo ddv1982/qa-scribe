@@ -35,7 +35,7 @@ mod tests {
 
         assert!(matches!(
             updates.last(),
-            Some(StreamUpdate::Partial(body)) if body == "line one\nline two\n"
+            Some(StreamUpdate::PartialDelta(body)) if body == "line two\n"
         ));
         assert_eq!(parser.finish().as_deref(), Some("line one\nline two"));
     }

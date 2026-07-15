@@ -1,6 +1,8 @@
 import DOMPurify, { type Config } from 'dompurify'
-import { EDITOR_HTML_TAGS, MANAGED_ATTACHMENT_PROTOCOL, SELF_CLOSING_EDITOR_HTML_TAGS, getAttachmentPreviewDataUrl } from '../tauri'
-import { escapeAttribute, escapeHtml, isSafeUrlWithProtocols, managedAttachmentIdFromImage } from './htmlUtils'
+import { EDITOR_HTML_TAGS, SELF_CLOSING_EDITOR_HTML_TAGS, getAttachmentPreviewDataUrl } from '../tauri'
+import { escapeAttribute, escapeHtml, isSafeUrlWithProtocols, managedAttachmentIdFromImage, managedAttachmentProtocol } from './htmlUtils'
+
+export { managedAttachmentProtocol } from './htmlUtils'
 
 export const emptyEditorHtml = ''
 // Single-sourced from Rust (`core::generation::html`/`response`): the
@@ -8,7 +10,6 @@ export const emptyEditorHtml = ''
 // void/self-closing subset are all exported as bindings constants so the
 // sanitizer here and the response-repair pass in core can never silently
 // diverge.
-export const managedAttachmentProtocol: string = MANAGED_ATTACHMENT_PROTOCOL
 const selfClosingEditorTags = new Set<string>(SELF_CLOSING_EDITOR_HTML_TAGS)
 const nonSelfClosingEditorTags = EDITOR_HTML_TAGS.filter((tag) => !selfClosingEditorTags.has(tag))
 const editorTagPattern = EDITOR_HTML_TAGS.join('|')
@@ -241,4 +242,3 @@ export function isSafeEditorImageSource(source: string): boolean {
 export function isSafeEditorLinkUrl(source: string): boolean {
   return isSafeUrlWithProtocols(source, new Set(['http:', 'https:', 'mailto:']))
 }
-

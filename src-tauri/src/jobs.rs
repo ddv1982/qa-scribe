@@ -13,6 +13,36 @@ const PARTIAL_TEXT_LIMIT: usize = 32_000;
 const TERMINAL_JOB_LIMIT: usize = 32;
 const MAX_ACTIVE_GENERATION_JOBS: usize = 3;
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum JobStoreError {
+    Capacity { limit: usize },
+    NotFound { job_id: String },
+    Internal(String),
+}
+
+impl JobStoreError {
+    fn internal(message: impl Into<String>) -> Self {
+        Self::Internal(message.into())
+    }
+}
+
+impl std::fmt::Display for JobStoreError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            JobStoreError::Capacity { limit } => write!(
+                formatter,
+                "At most {limit} AI generation jobs can run at once. Wait for a generation to finish or cancel one before starting another."
+            ),
+            JobStoreError::NotFound { job_id } => {
+                write!(formatter, "Generation job {job_id} was not found.")
+            }
+            JobStoreError::Internal(message) => formatter.write_str(message),
+        }
+    }
+}
+
+impl std::error::Error for JobStoreError {}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct GenerationJobStatus {
@@ -165,7 +195,7 @@ impl JobStore {
         job_id: String,
         session_id: String,
         action: String,
-    ) -> Result<(GenerationJobStatus, JobControl), String> {
+    ) -> Result<(GenerationJobStatus, JobControl), JobStoreError> {
         let status = GenerationJobStatus {
             job_id: job_id.clone(),
             session_id,
@@ -185,16 +215,16 @@ impl JobStore {
         let mut inner = self
             .inner
             .lock()
-            .map_err(|_| "Job store lock was poisoned".to_string())?;
+            .map_err(|_| JobStoreError::internal("Job store lock was poisoned"))?;
         let active_count = inner
             .jobs
             .values()
             .filter(|record| record.status.state.is_active())
             .count();
         if active_count >= MAX_ACTIVE_GENERATION_JOBS {
-            return Err(format!(
-                "At most {MAX_ACTIVE_GENERATION_JOBS} AI generation jobs can run at once. Wait for a generation to finish or cancel one before starting another."
-            ));
+            return Err(JobStoreError::Capacity {
+                limit: MAX_ACTIVE_GENERATION_JOBS,
+            });
         }
         inner.jobs.insert(job_id, record);
         Ok((status, control))
@@ -218,11 +248,11 @@ impl JobStore {
     /// running across a reload, but the frontend loses its in-memory job map
     /// and the original invoke `Channel`, so on boot it enumerates the survivors
     /// here and re-subscribes to them by polling [`Self::status`].
-    pub fn active_jobs(&self) -> Result<Vec<GenerationJobStatus>, String> {
+    pub fn active_jobs(&self) -> Result<Vec<GenerationJobStatus>, JobStoreError> {
         Ok(self
             .inner
             .lock()
-            .map_err(|_| "Job store lock was poisoned".to_string())?
+            .map_err(|_| JobStoreError::internal("Job store lock was poisoned"))?
             .jobs
             .values()
             .filter(|record| !record.status.state.is_terminal())
@@ -230,14 +260,16 @@ impl JobStore {
             .collect())
     }
 
-    pub fn status(&self, job_id: &str) -> Result<GenerationJobStatus, String> {
+    pub fn status(&self, job_id: &str) -> Result<GenerationJobStatus, JobStoreError> {
         self.inner
             .lock()
-            .map_err(|_| "Job store lock was poisoned".to_string())?
+            .map_err(|_| JobStoreError::internal("Job store lock was poisoned"))?
             .jobs
             .get(job_id)
             .map(|record| record.status.clone())
-            .ok_or_else(|| format!("Generation job {job_id} was not found."))
+            .ok_or_else(|| JobStoreError::NotFound {
+                job_id: job_id.to_string(),
+            })
     }
 
     pub fn mark_running(
@@ -245,7 +277,7 @@ impl JobStore {
         job_id: &str,
         ai_run_id: String,
         progress_message: &str,
-    ) -> Result<GenerationJobStatus, String> {
+    ) -> Result<GenerationJobStatus, JobStoreError> {
         self.update(job_id, |status| {
             status.state = GenerationJobState::Running;
             status.ai_run_id = Some(ai_run_id);
@@ -258,7 +290,7 @@ impl JobStore {
         &self,
         job_id: &str,
         progress_message: &str,
-    ) -> Result<GenerationJobStatus, String> {
+    ) -> Result<GenerationJobStatus, JobStoreError> {
         self.update(job_id, |status| {
             if status.state != GenerationJobState::Cancelling {
                 status.progress_message = progress_message.to_string();
@@ -270,13 +302,13 @@ impl JobStore {
         &self,
         job_id: &str,
         partial_text: &str,
-    ) -> Result<GenerationJobStatus, String> {
+    ) -> Result<GenerationJobStatus, JobStoreError> {
         self.update(job_id, |status| {
             status.partial_text = Some(tail(partial_text, PARTIAL_TEXT_LIMIT));
         })
     }
 
-    pub fn complete(&self, job_id: &str) -> Result<GenerationJobStatus, String> {
+    pub fn complete(&self, job_id: &str) -> Result<GenerationJobStatus, JobStoreError> {
         self.finish(job_id, |status| {
             status.state = GenerationJobState::Completed;
             status.progress_message = "Generation completed".to_string();
@@ -284,7 +316,11 @@ impl JobStore {
         })
     }
 
-    pub fn fail(&self, job_id: &str, error_message: &str) -> Result<GenerationJobStatus, String> {
+    pub fn fail(
+        &self,
+        job_id: &str,
+        error_message: &str,
+    ) -> Result<GenerationJobStatus, JobStoreError> {
         self.finish(job_id, |status| {
             status.state = GenerationJobState::Failed;
             status.progress_message = "Generation failed".to_string();
@@ -292,16 +328,18 @@ impl JobStore {
         })
     }
 
-    pub fn cancel(&self, job_id: &str) -> Result<GenerationJobStatus, String> {
+    pub fn cancel(&self, job_id: &str) -> Result<GenerationJobStatus, JobStoreError> {
         let record_control = {
             let mut inner = self
                 .inner
                 .lock()
-                .map_err(|_| "Job store lock was poisoned".to_string())?;
+                .map_err(|_| JobStoreError::internal("Job store lock was poisoned"))?;
             let record = inner
                 .jobs
                 .get_mut(job_id)
-                .ok_or_else(|| format!("Generation job {job_id} was not found."))?;
+                .ok_or_else(|| JobStoreError::NotFound {
+                    job_id: job_id.to_string(),
+                })?;
             if matches!(
                 record.status.state,
                 GenerationJobState::Completed
@@ -314,11 +352,13 @@ impl JobStore {
             record.status.progress_message = "Cancelling generation".to_string();
             record.control.clone()
         };
-        record_control.request_cancel()?;
+        record_control
+            .request_cancel()
+            .map_err(JobStoreError::internal)?;
         self.status(job_id)
     }
 
-    pub fn mark_cancelled(&self, job_id: &str) -> Result<GenerationJobStatus, String> {
+    pub fn mark_cancelled(&self, job_id: &str) -> Result<GenerationJobStatus, JobStoreError> {
         self.finish(job_id, |status| {
             status.state = GenerationJobState::Cancelled;
             status.progress_message = "Generation cancelled".to_string();
@@ -330,15 +370,17 @@ impl JobStore {
         &self,
         job_id: &str,
         apply: impl FnOnce(&mut GenerationJobStatus),
-    ) -> Result<GenerationJobStatus, String> {
+    ) -> Result<GenerationJobStatus, JobStoreError> {
         let mut inner = self
             .inner
             .lock()
-            .map_err(|_| "Job store lock was poisoned".to_string())?;
+            .map_err(|_| JobStoreError::internal("Job store lock was poisoned"))?;
         let record = inner
             .jobs
             .get_mut(job_id)
-            .ok_or_else(|| format!("Generation job {job_id} was not found."))?;
+            .ok_or_else(|| JobStoreError::NotFound {
+                job_id: job_id.to_string(),
+            })?;
         apply(&mut record.status);
         Ok(record.status.clone())
     }
@@ -347,17 +389,19 @@ impl JobStore {
         &self,
         job_id: &str,
         apply: impl FnOnce(&mut GenerationJobStatus),
-    ) -> Result<GenerationJobStatus, String> {
+    ) -> Result<GenerationJobStatus, JobStoreError> {
         let mut inner = self
             .inner
             .lock()
-            .map_err(|_| "Job store lock was poisoned".to_string())?;
+            .map_err(|_| JobStoreError::internal("Job store lock was poisoned"))?;
         let next_terminal_sequence = inner.next_terminal_sequence;
         let (status, assigned_terminal_sequence) = {
             let record = inner
                 .jobs
                 .get_mut(job_id)
-                .ok_or_else(|| format!("Generation job {job_id} was not found."))?;
+                .ok_or_else(|| JobStoreError::NotFound {
+                    job_id: job_id.to_string(),
+                })?;
             apply(&mut record.status);
             let needs_terminal_sequence =
                 record.status.state.is_terminal() && record.terminal_sequence.is_none();

@@ -9,6 +9,7 @@
 //! [`ProcessProviderExecutor::execute`].
 
 use std::{
+    collections::VecDeque,
     io::{BufRead, BufReader, Read, Write},
     process::{Child, Command, ExitStatus, Stdio},
     sync::{
@@ -20,8 +21,8 @@ use std::{
 };
 
 use qa_scribe_core::ai::{
-    GenerationCommand, ProviderExecution, ProviderExecutor, ProviderGenerationOutput,
-    run_streaming_generation, stream::StreamUpdate,
+    GenerationCommand, MAX_PROVIDER_STDOUT_BYTES, ProviderExecution, ProviderExecutor,
+    ProviderGenerationOutput, run_streaming_generation, stream::StreamUpdate,
 };
 
 use crate::{
@@ -38,6 +39,15 @@ const GENERATION_WATCHDOG_TIMEOUT: Duration = Duration::from_secs(15 * 60);
 /// How often the watchdog thread wakes to check the elapsed time and whether
 /// the read loop has finished.
 const WATCHDOG_POLL_INTERVAL: Duration = Duration::from_millis(250);
+/// Raw provider output is diagnostic and parser input, not an unbounded log.
+/// This comfortably exceeds the largest persisted generated body while
+/// bounding both process-reader and core aggregation memory.
+/// JSONL providers normally emit one small event per line. Allow a full large
+/// response in one event, but reject a process that never terminates a line.
+const MAX_PROVIDER_STDOUT_LINE_BYTES: usize = 1024 * 1024;
+/// Keep enough stderr for an actionable failure without retaining an
+/// arbitrary amount of provider diagnostics in memory.
+const MAX_PROVIDER_STDERR_BYTES: usize = 256 * 1024;
 
 /// Run one streaming generation through the real process executor, parsing
 /// the provider's stdout with core's per-format stream parsers.
@@ -139,12 +149,8 @@ impl ProviderExecutor for ProcessProviderExecutor<'_> {
         // Drain stderr on its own thread *before* writing stdin, so a child
         // that emits >64KB of stderr before reading its prompt cannot
         // deadlock the stdin write (defect 1).
-        let stderr_reader = thread::spawn(move || {
-            let mut buffer = Vec::new();
-            let mut reader = BufReader::new(stderr);
-            let _ = reader.read_to_end(&mut buffer);
-            buffer
-        });
+        let stderr_reader =
+            thread::spawn(move || read_bounded_tail(stderr, MAX_PROVIDER_STDERR_BYTES));
 
         // Write stdin from a dedicated thread and drop the handle so the
         // child sees EOF. A BrokenPipe from an early-exiting CLI is expected
@@ -171,10 +177,14 @@ impl ProviderExecutor for ProcessProviderExecutor<'_> {
 
         let mut stdout_reader = BufReader::new(stdout);
         let mut chunk = Vec::new();
+        let mut stdout_bytes = 0usize;
 
         let read_result = loop {
             chunk.clear();
-            let read = match stdout_reader.read_until(b'\n', &mut chunk) {
+            let read = match (&mut stdout_reader)
+                .take((MAX_PROVIDER_STDOUT_LINE_BYTES + 1) as u64)
+                .read_until(b'\n', &mut chunk)
+            {
                 Ok(read) => read,
                 Err(error) => {
                     // The child may still be alive here (e.g. an EIO/EBADF on
@@ -191,6 +201,23 @@ impl ProviderExecutor for ProcessProviderExecutor<'_> {
             if read == 0 {
                 break Ok(());
             }
+            if chunk.len() > MAX_PROVIDER_STDOUT_LINE_BYTES {
+                let _ = control.kill_registered_child();
+                break Err(format!(
+                    "Provider output line exceeded the {} byte safety limit.",
+                    MAX_PROVIDER_STDOUT_LINE_BYTES
+                ));
+            }
+            stdout_bytes = match stdout_bytes.checked_add(read) {
+                Some(total) if total <= MAX_PROVIDER_STDOUT_BYTES => total,
+                _ => {
+                    let _ = control.kill_registered_child();
+                    break Err(format!(
+                        "Provider output exceeded the {} byte safety limit.",
+                        MAX_PROVIDER_STDOUT_BYTES
+                    ));
+                }
+            };
             on_line(&chunk);
             if control.is_cancelled() {
                 let _ = control.kill_registered_child();
@@ -228,6 +255,31 @@ impl ProviderExecutor for ProcessProviderExecutor<'_> {
             cancelled: control.is_cancelled(),
         })
     }
+}
+
+fn read_bounded_tail(mut reader: impl Read, limit: usize) -> Vec<u8> {
+    let mut captured = VecDeque::with_capacity(limit.min(8 * 1024));
+    let mut chunk = [0u8; 8 * 1024];
+    loop {
+        let read = match reader.read(&mut chunk) {
+            Ok(0) | Err(_) => break,
+            Ok(read) => read,
+        };
+        if limit == 0 {
+            continue;
+        }
+        if read >= limit {
+            captured.clear();
+            captured.extend(&chunk[read - limit..read]);
+            continue;
+        }
+        let overflow = captured.len().saturating_add(read).saturating_sub(limit);
+        if overflow > 0 {
+            captured.drain(..overflow);
+        }
+        captured.extend(&chunk[..read]);
+    }
+    captured.into_iter().collect()
 }
 
 /// Render a watchdog bound for the timeout error message. Whole minutes when

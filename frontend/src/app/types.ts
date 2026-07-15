@@ -27,6 +27,7 @@ export type SessionWorkspace = {
   noteBodyHtml: string
   savedTitleRef: MutableRefObject<string>
   savedBodyRef: MutableRefObject<string>
+  sessionTitleRef: MutableRefObject<string>
   noteBodyRef: MutableRefObject<RichEditorDocument>
   sessionTitleWriteVersionRef: MutableRefObject<number>
   noteBodyWriteVersionRef: MutableRefObject<number>

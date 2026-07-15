@@ -15,4 +15,9 @@ describe('navigation routes', () => {
   it('returns null for unknown routes', () => {
     expect(parseNavigationRoute('#/unknown')).toBeNull()
   })
+
+  it('returns null for malformed percent-encoded routes', () => {
+    expect(parseNavigationRoute('#/sessions/%ZZ')).toBeNull()
+    expect(parseNavigationRoute('#/sessions/%E0%A4%A')).toBeNull()
+  })
 })

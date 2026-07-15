@@ -1,4 +1,5 @@
 use super::*;
+use crate::domain::TITLE_MAX_LENGTH;
 
 #[test]
 fn action_completion_repairs_escaped_rich_html_before_persistence() {
@@ -224,4 +225,144 @@ fn testware_output_rolls_back_when_ai_run_completion_cannot_transition() {
             .as_str(),
         "failed"
     );
+}
+
+#[test]
+fn successful_unusable_provider_output_fails_the_run_without_changing_records() {
+    for output_kind in ["whitespace", "empty fragment", "sanitizer-empty fragment"] {
+        for action in [
+            GenerateAiActionKind::Testware,
+            GenerateAiActionKind::Finding,
+            GenerateAiActionKind::Summary,
+        ] {
+            let service = SessionService::in_memory().expect("service should open");
+            let session = create_session(&service, "Empty output");
+            let note = create_note(
+                &service,
+                &session.id,
+                "Input note",
+                "<p>Keep this note unchanged.</p>",
+            );
+            let request = request_for(&session.id, action, Some(&note.id));
+            let prepared = prepare_ai_action_generation(&service, &request)
+                .expect("generation should prepare");
+            let ai_run_id = prepared.ai_run.id.clone();
+            let response = match output_kind {
+                "whitespace" => " \n\t ".to_string(),
+                "empty fragment" => format!(
+                    "{}{}",
+                    prepared.output_marker.open_tag(),
+                    prepared.output_marker.close_tag()
+                ),
+                "sanitizer-empty fragment" => format!(
+                    "{}<!-- no usable generated content -->{}",
+                    prepared.output_marker.open_tag(),
+                    prepared.output_marker.close_tag()
+                ),
+                _ => unreachable!("all output kinds are covered"),
+            };
+
+            let error = finish_ai_action_generation(
+                &service,
+                &request,
+                prepared,
+                Ok(success_generation_output(&response)),
+            )
+            .expect_err("unusable provider output should fail");
+
+            assert!(
+                error.to_string().contains("no generated content"),
+                "unexpected {output_kind} error: {error}"
+            );
+            assert_eq!(count_table_rows(&service, "drafts"), 0);
+            assert_eq!(count_table_rows(&service, "findings"), 0);
+            assert_eq!(
+                service
+                    .get_ai_run(&ai_run_id)
+                    .expect("AI Run should read")
+                    .expect("AI Run should exist")
+                    .status
+                    .as_str(),
+                "failed"
+            );
+            assert_eq!(
+                service
+                    .list_entries(&session.id)
+                    .expect("entries should list")
+                    .into_iter()
+                    .find(|entry| entry.id == note.id)
+                    .expect("note should remain")
+                    .body,
+                "<p>Keep this note unchanged.</p>"
+            );
+        }
+    }
+}
+
+#[test]
+fn invalid_reported_model_fails_the_run_instead_of_leaving_it_running() {
+    let service = SessionService::in_memory().expect("service should open");
+    let session = create_session(&service, "Reported model");
+    let note = create_note(
+        &service,
+        &session.id,
+        "Input note",
+        "<p>Generate output.</p>",
+    );
+    let request = request_for(&session.id, GenerateAiActionKind::Testware, Some(&note.id));
+    let prepared =
+        prepare_ai_action_generation(&service, &request).expect("generation should prepare");
+    let ai_run_id = prepared.ai_run.id.clone();
+    let output = ProviderGenerationOutput {
+        exit_success: Some(true),
+        stdout: format!(
+            "{{\"type\":\"system\",\"subtype\":\"init\",\"model\":\"{}\"}}\n",
+            "m".repeat(241)
+        )
+        .into_bytes(),
+        stderr: Vec::new(),
+        assistant_text: Some("<p>Generated output.</p>".to_string()),
+        cancelled: false,
+    };
+
+    let error = finish_ai_action_generation(&service, &request, prepared, Ok(output))
+        .expect_err("oversized reported model should fail");
+
+    assert!(error.to_string().contains("resolved AI model"));
+    assert_eq!(
+        service
+            .get_ai_run(&ai_run_id)
+            .expect("AI Run should read")
+            .expect("AI Run should exist")
+            .status
+            .as_str(),
+        "failed"
+    );
+}
+
+#[test]
+fn generated_testware_title_stays_within_the_shared_title_limit() {
+    let service = SessionService::in_memory().expect("service should open");
+    let session = create_session(&service, &"S".repeat(TITLE_MAX_LENGTH));
+    let note = create_note(
+        &service,
+        &session.id,
+        "Input note",
+        "<p>Generate output.</p>",
+    );
+    let request = request_for(&session.id, GenerateAiActionKind::Testware, Some(&note.id));
+    let prepared =
+        prepare_ai_action_generation(&service, &request).expect("generation should prepare");
+
+    let result = finish_ai_action_generation(
+        &service,
+        &request,
+        prepared,
+        Ok(success_generation_output("<p>Generated output.</p>")),
+    )
+    .expect("generation should finish");
+    let title = result.draft.expect("draft should exist").title;
+
+    assert_eq!(title.chars().count(), TITLE_MAX_LENGTH);
+    assert!(title.ends_with(" Test Cases"));
 }

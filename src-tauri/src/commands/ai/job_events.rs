@@ -6,7 +6,7 @@ use serde::Serialize;
 use tauri::ipc::Channel;
 
 use crate::{
-    jobs::{GenerationJobState, GenerationJobStatus, JobStore},
+    jobs::{GenerationJobState, GenerationJobStatus, JobStore, JobStoreError},
     settings::AppState,
 };
 
@@ -56,7 +56,7 @@ pub(super) fn send_progress(
     jobs: &JobStore,
     job_id: &str,
     message: &str,
-) -> Result<GenerationJobStatus, String> {
+) -> Result<GenerationJobStatus, JobStoreError> {
     let status = jobs.update_progress(job_id, message)?;
     send_event(
         events,

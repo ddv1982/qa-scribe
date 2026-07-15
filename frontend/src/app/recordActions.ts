@@ -33,6 +33,8 @@ type InlineImageMaterializer = (
   options?: { entryId?: string | null; updateNoteBody?: boolean },
 ) => Promise<RichEditorDocument>
 
+type RecordPersistResult = 'saved' | 'superseded' | 'failed'
+
 export type RecordActionsContext = {
   session: Pick<SessionWorkspace, 'activeSession' | 'activeSessionIdRef' | 'noteBodyHtml'>
   records: Pick<
@@ -151,14 +153,15 @@ export function createRecordActions(ctx: RecordActionsContext) {
     )
   }
 
-  async function persistDraft(draft: Draft): Promise<boolean> {
+  async function persistDraft(draft: Draft): Promise<RecordPersistResult> {
     try {
       ctx.feedback.setError(null)
       const storedBody = await materializeRecordBody(draft, ctx.materializeInlineImages)
       const saved = await updateDraft(draft.id, { title: draft.title, ...storedBody })
       const current = ctx.records.draftsRef.current.find((item) => item.id === draft.id)
-      if (!current || !draftEditableFieldsMatch(current, draft)) return false
-      ctx.records.dirtyDraftIdsRef.current.delete(saved.id)
+      if (!current) return 'failed'
+      if (!draftEditableFieldsMatch(current, draft)) return 'superseded'
+      ctx.records.dirtyDraftIdsRef.current.delete(draft.id)
       ctx.records.savedDraftsRef.current = replaceRecord(ctx.records.savedDraftsRef.current, saved)
       if (ctx.session.activeSessionIdRef.current === saved.sessionId) {
         ctx.records.setDrafts((previous) => {
@@ -167,19 +170,19 @@ export function createRecordActions(ctx: RecordActionsContext) {
           return nextDrafts
         })
       }
-      return true
+      return 'saved'
     } catch (cause) {
       ctx.feedback.setError(formatError(cause))
-      return false
+      return 'failed'
     }
   }
 
   async function handleSaveDraft(draft: Draft): Promise<boolean> {
     try {
       ctx.feedback.setBusyAction(`draft:${draft.id}`)
-      const saved = await persistDraft(draft)
-      if (saved) ctx.feedback.setNotice('Testware saved')
-      return saved
+      const result = await persistDraft(draft)
+      if (result === 'saved') ctx.feedback.setNotice('Testware saved')
+      return result === 'saved'
     } finally {
       ctx.feedback.setBusyAction(null)
     }
@@ -204,7 +207,7 @@ export function createRecordActions(ctx: RecordActionsContext) {
     ctx.feedback.setNotice('Testware changes discarded')
   }
 
-  async function persistFinding(finding: Finding): Promise<boolean> {
+  async function persistFinding(finding: Finding): Promise<RecordPersistResult> {
     try {
       ctx.feedback.setError(null)
       const storedBody = await materializeRecordBody(finding, ctx.materializeInlineImages)
@@ -215,8 +218,9 @@ export function createRecordActions(ctx: RecordActionsContext) {
         metadataJson: finding.metadataJson,
       })
       const current = ctx.records.findingsRef.current.find((item) => item.id === finding.id)
-      if (!current || !findingEditableFieldsMatch(current, finding)) return false
-      ctx.records.dirtyFindingIdsRef.current.delete(saved.id)
+      if (!current) return 'failed'
+      if (!findingEditableFieldsMatch(current, finding)) return 'superseded'
+      ctx.records.dirtyFindingIdsRef.current.delete(finding.id)
       ctx.records.savedFindingsRef.current = replaceRecord(ctx.records.savedFindingsRef.current, saved)
       if (ctx.session.activeSessionIdRef.current === saved.sessionId) {
         ctx.records.setFindings((previous) => {
@@ -225,19 +229,19 @@ export function createRecordActions(ctx: RecordActionsContext) {
           return nextFindings
         })
       }
-      return true
+      return 'saved'
     } catch (cause) {
       ctx.feedback.setError(formatError(cause))
-      return false
+      return 'failed'
     }
   }
 
   async function handleSaveFinding(finding: Finding): Promise<boolean> {
     try {
       ctx.feedback.setBusyAction(`finding:${finding.id}`)
-      const saved = await persistFinding(finding)
-      if (saved) ctx.feedback.setNotice('Finding saved')
-      return saved
+      const result = await persistFinding(finding)
+      if (result === 'saved') ctx.feedback.setNotice('Finding saved')
+      return result === 'saved'
     } finally {
       ctx.feedback.setBusyAction(null)
     }
@@ -291,15 +295,21 @@ export function createRecordActions(ctx: RecordActionsContext) {
     const dirtyFindings = ctx.records.findingsRef.current.filter((finding) => ctx.records.dirtyFindingIdsRef.current.has(finding.id))
     if (dirtyDrafts.length === 0 && dirtyFindings.length === 0) return true
 
-    let saved = true
+    let failed = false
+    let allSaved = true
     for (const draft of dirtyDrafts) {
-      saved = (await persistDraft(draft)) && saved
+      const result = await persistDraft(draft)
+      failed = result === 'failed' || failed
+      allSaved = result === 'saved' && allSaved
     }
     for (const finding of dirtyFindings) {
-      saved = (await persistFinding(finding)) && saved
+      const result = await persistFinding(finding)
+      failed = result === 'failed' || failed
+      allSaved = result === 'saved' && allSaved
     }
-    if (saved) ctx.feedback.setNotice('Pending record edits saved')
-    return saved
+    if (failed) return false
+    if (allSaved) ctx.feedback.setNotice('Pending record edits saved')
+    return true
   }
 
   function requestDeleteDraft(draft: Draft) {
@@ -383,7 +393,7 @@ export function useRecordActions(ctx: RecordActionsContext) {
   return useStableCapability(ctx, createRecordActions)
 }
 
-export async function materializeRecordBody(
+async function materializeRecordBody(
   record: StoredRichBody,
   materializeInlineImages: InlineImageMaterializer,
 ): Promise<StoredRichBody> {

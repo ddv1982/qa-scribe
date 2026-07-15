@@ -70,7 +70,14 @@ fn provider_probe_timeout_kills_descendant_processes() {
 #[test]
 fn provider_probe_output_files_are_created_exclusively() {
     let _probe_lock = lock_provider_probe_temp_file_tests();
-    let output_files = ProbeOutputFiles::new(9_999_999);
+    let output_files = ProbeOutputFiles::new();
+    fs::create_dir(
+        output_files
+            .stdout_path
+            .parent()
+            .expect("probe output should have a parent directory"),
+    )
+    .expect("sentinel directory should create");
     fs::write(&output_files.stdout_path, b"do not truncate").expect("sentinel file should write");
 
     let error = output_files

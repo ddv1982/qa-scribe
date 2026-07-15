@@ -54,7 +54,7 @@ impl NeutralProviderCwd {
             "qa-scribe-provider-cwd-{}",
             uuid::Uuid::new_v4().simple()
         ));
-        if fs::create_dir_all(&unique).is_ok() {
+        if create_private_provider_directory(&unique).is_ok() {
             Self {
                 path: unique,
                 owned: true,
@@ -70,6 +70,16 @@ impl NeutralProviderCwd {
     pub fn path(&self) -> &Path {
         &self.path
     }
+}
+
+fn create_private_provider_directory(path: &Path) -> std::io::Result<()> {
+    let mut builder = fs::DirBuilder::new();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::DirBuilderExt;
+        builder.mode(0o700);
+    }
+    builder.create(path)
 }
 
 impl Default for NeutralProviderCwd {
@@ -279,9 +289,29 @@ fn append_nvm_node_bins(paths: &mut Vec<PathBuf>, home: &Path) {
         .filter(|path| path.is_dir())
         .map(|path| path.join("bin"))
         .collect();
-    node_bins.sort();
+    node_bins.sort_by(
+        |left, right| match (nvm_version(left), nvm_version(right)) {
+            (Some(left), Some(right)) => left.cmp(&right),
+            (Some(_), None) => std::cmp::Ordering::Greater,
+            (None, Some(_)) => std::cmp::Ordering::Less,
+            (None, None) => left.cmp(right),
+        },
+    );
     node_bins.reverse();
     paths.extend(node_bins);
+}
+
+fn nvm_version(bin_path: &Path) -> Option<Vec<u64>> {
+    let version = bin_path.parent()?.file_name()?.to_str()?;
+    let version = version.strip_prefix('v').unwrap_or(version);
+    if version.is_empty() {
+        return None;
+    }
+    version
+        .split('.')
+        .map(str::parse)
+        .collect::<Result<_, _>>()
+        .ok()
 }
 
 fn provider_path_for_mode(mode: ProviderPathMode) -> Option<OsString> {

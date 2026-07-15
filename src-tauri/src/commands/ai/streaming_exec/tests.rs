@@ -15,7 +15,10 @@ use qa_scribe_core::ai::{
     GenerationCommand, GenerationOutputFormat, run_streaming_generation, stream::StreamUpdate,
 };
 
-use super::{ProcessProviderExecutor, run_generation_command_streaming};
+use super::{
+    MAX_PROVIDER_STDERR_BYTES, MAX_PROVIDER_STDOUT_BYTES, MAX_PROVIDER_STDOUT_LINE_BYTES,
+    ProcessProviderExecutor, run_generation_command_streaming,
+};
 use crate::jobs::JobControl;
 use crate::process_io::configure_process_group;
 
@@ -237,7 +240,10 @@ fn mid_stream_cancel_kills_child_promptly() {
     let started = Instant::now();
     let output = run_bounded(Duration::from_secs(15), move || {
         run_generation_command_streaming(&command, &control, move |update| {
-            if let StreamUpdate::Partial(_) = update {
+            if matches!(
+                update,
+                StreamUpdate::PartialDelta(_) | StreamUpdate::PartialSnapshot(_)
+            ) {
                 // Simulate the UI requesting cancellation: sets the
                 // cancel flag and kills the child's process group.
                 cancel_control
@@ -340,7 +346,7 @@ fn stdout_closed_live_child_does_not_deadlock_stdin_writer() {
 
 #[test]
 fn large_stderr_before_reading_stdin_does_not_deadlock() {
-    // Regression for defect 1: the child writes ~256KB to stderr (well
+    // Regression for defect 1: the child writes ~512KB to stderr (well
     // over the ~64KB pipe buffer) *before* reading any stdin, then echoes
     // a JSONL line. With the old ordering (stdin write on the calling
     // thread before the stderr drain) this deadlocks; with the fix it
@@ -349,10 +355,11 @@ fn large_stderr_before_reading_stdin_does_not_deadlock() {
         "fake-stderr-flood",
         "#!/bin/sh\n\
          i=0\n\
-         while [ $i -lt 256 ]; do\n\
+         while [ $i -lt 512 ]; do\n\
            printf '%1024d' 0 1>&2\n\
            i=$((i + 1))\n\
          done\n\
+         printf 'final actionable diagnostic' 1>&2\n\
          cat >/dev/null\n\
          printf '%s\\n' '{\"type\":\"item/agentMessage/delta\",\"delta\":\"done\"}'\n\
          exit 0\n",
@@ -370,6 +377,57 @@ fn large_stderr_before_reading_stdin_does_not_deadlock() {
 
     assert!(output.success(), "expected success, got {output:?}");
     assert_eq!(output.response_text(), "done");
+    assert_eq!(output.stderr.len(), MAX_PROVIDER_STDERR_BYTES);
+    assert!(
+        output.stderr.ends_with(b"final actionable diagnostic"),
+        "bounded stderr should retain the final diagnostic"
+    );
+}
+
+#[test]
+fn oversized_stdout_line_is_rejected_and_the_child_is_reaped() {
+    let blocks = MAX_PROVIDER_STDOUT_LINE_BYTES / 1024 + 1;
+    let cli = FakeCli::new(
+        "fake-long-line",
+        &format!(
+            "#!/bin/sh\ncat >/dev/null\ni=0\nwhile [ $i -lt {blocks} ]; do\n  printf '%1024d' 0\n  i=$((i + 1))\ndone\nexit 0\n"
+        ),
+    );
+    let command = cli.command("prompt".to_string(), GenerationOutputFormat::PlainText);
+    let control = JobControl::default();
+
+    let error = run_bounded(Duration::from_secs(15), move || {
+        run_generation_command_streaming(&command, &control, |_| {})
+    })
+    .expect_err("oversized line should fail");
+
+    assert!(
+        error.contains("output line exceeded"),
+        "unexpected error: {error}"
+    );
+}
+
+#[test]
+fn oversized_total_stdout_is_rejected_and_the_child_is_reaped() {
+    let lines = MAX_PROVIDER_STDOUT_BYTES / 1024 + 1;
+    let cli = FakeCli::new(
+        "fake-large-stdout",
+        &format!(
+            "#!/bin/sh\ncat >/dev/null\ni=0\nwhile [ $i -lt {lines} ]; do\n  printf '%1023d\\n' 0\n  i=$((i + 1))\ndone\nexit 0\n"
+        ),
+    );
+    let command = cli.command("prompt".to_string(), GenerationOutputFormat::PlainText);
+    let control = JobControl::default();
+
+    let error = run_bounded(Duration::from_secs(15), move || {
+        run_generation_command_streaming(&command, &control, |_| {})
+    })
+    .expect_err("oversized stdout should fail");
+
+    assert!(
+        error.contains("output exceeded"),
+        "unexpected error: {error}"
+    );
 }
 
 #[test]

@@ -28,11 +28,13 @@ export function useRecordHydration({ activeSessionId, activeView }: UseRecordHyd
   const savedFindingsRef = useRef<Finding[]>([])
   const dirtyDraftIdsRef = useRef<Set<string>>(new Set())
   const dirtyFindingIdsRef = useRef<Set<string>>(new Set())
-  const recordLoadVersionRef = useRef(0)
+  const draftLoadVersionRef = useRef(0)
+  const findingLoadVersionRef = useRef(0)
   const activeSessionIdRef = useRef(activeSessionId)
 
   const invalidateRecordLoads = useCallback(() => {
-    recordLoadVersionRef.current += 1
+    draftLoadVersionRef.current += 1
+    findingLoadVersionRef.current += 1
   }, [])
 
   const resetRecordHydration = useCallback(() => {
@@ -55,16 +57,17 @@ export function useRecordHydration({ activeSessionId, activeView }: UseRecordHyd
 
     setDraftLoadState('loading')
     setDraftLoadError(null)
-    const loadVersion = recordLoadVersionRef.current
+    const loadVersion = ++draftLoadVersionRef.current
     let loaded: Draft[]
     try {
       loaded = await listDrafts(sessionId)
     } catch (cause) {
+      if (draftLoadVersionRef.current !== loadVersion || activeSessionIdRef.current !== sessionId) return draftsRef.current
       setDraftLoadError(formatError(cause))
       setDraftLoadState('error')
       throw cause
     }
-    if (recordLoadVersionRef.current !== loadVersion || activeSessionIdRef.current !== sessionId) return draftsRef.current
+    if (draftLoadVersionRef.current !== loadVersion || activeSessionIdRef.current !== sessionId) return draftsRef.current
 
     savedDraftsRef.current = loaded
     const nextDrafts = mergeRecordLists(loaded, draftsRef.current, sessionId, { dirtyIds: dirtyDraftIdsRef.current, replace })
@@ -82,16 +85,17 @@ export function useRecordHydration({ activeSessionId, activeView }: UseRecordHyd
 
     setFindingLoadState('loading')
     setFindingLoadError(null)
-    const loadVersion = recordLoadVersionRef.current
+    const loadVersion = ++findingLoadVersionRef.current
     let loaded: Finding[]
     try {
       loaded = await listFindings(sessionId)
     } catch (cause) {
+      if (findingLoadVersionRef.current !== loadVersion || activeSessionIdRef.current !== sessionId) return findingsRef.current
       setFindingLoadError(formatError(cause))
       setFindingLoadState('error')
       throw cause
     }
-    if (recordLoadVersionRef.current !== loadVersion || activeSessionIdRef.current !== sessionId) return findingsRef.current
+    if (findingLoadVersionRef.current !== loadVersion || activeSessionIdRef.current !== sessionId) return findingsRef.current
 
     savedFindingsRef.current = loaded
     const nextFindings = mergeRecordLists(loaded, findingsRef.current, sessionId, { dirtyIds: dirtyFindingIdsRef.current, replace })

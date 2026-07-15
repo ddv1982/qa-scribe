@@ -68,7 +68,7 @@ test('auditSummaryLine produces the documentation contract', () => {
     { classification: 'unmaintained' },
   ]
   assert.equal(
-    auditSummaryLine(findings),
+    auditSummaryLine(findings, '2026-07-13'),
     'A raw `cargo audit --json` run on 2026-07-13 reports 4 reviewed advisories: 2 vulnerabilities, 1 unsoundness warning, and 1 unmaintained warning.',
   )
 })

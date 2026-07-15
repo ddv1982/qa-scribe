@@ -34,6 +34,7 @@ export function useSettingsController({
   const [theme, setTheme] = useState<ThemePreference>(() => initialTheme())
   const [systemTheme, setSystemTheme] = useState(() => currentSystemTheme())
   const settingsSaveResetRef = useRef<number | null>(null)
+  const settingsDraftVersionRef = useRef(0)
 
   const selectedProvider: AiProvider = settings?.selectedAiProvider ?? 'codex_cli'
   const selectedModel = settings ? modelForProvider(settings, selectedProvider) : 'default'
@@ -69,6 +70,7 @@ export function useSettingsController({
   }, [])
 
   function loadSettings(nextSettings: AppSettings, nextProviderStatus: ProviderStatus | null = null) {
+    settingsDraftVersionRef.current += 1
     setSettings(nextSettings)
     setSettingsDraft(nextSettings)
     if (nextProviderStatus) {
@@ -111,12 +113,12 @@ export function useSettingsController({
     }
   }
 
-  async function persistSettings(nextSettings: AppSettings): Promise<AppSettings | null> {
+  async function persistSettings(nextSettings: AppSettings, draftVersion: number): Promise<AppSettings | null> {
     try {
       setError(null)
       const saved = await updateSettings(nextSettings)
       setSettings(saved)
-      setSettingsDraft(saved)
+      if (settingsDraftVersionRef.current === draftVersion) setSettingsDraft(saved)
       setNotice('Settings saved')
       return saved
     } catch (cause) {
@@ -127,26 +129,26 @@ export function useSettingsController({
 
   async function handleSaveSettings(): Promise<boolean> {
     if (!settingsDraft) return false
-    try {
-      setSettingsSaveState('saving')
-      const saved = await persistSettings({
-        ...settingsDraft,
-        selectedAiModel: modelOverrideForProvider(settingsDraft, settingsDraft.selectedAiProvider ?? 'codex_cli'),
-      })
-      setSettingsSaveState(saved ? 'saved' : 'error')
-      if (saved) scheduleSettingsSaveReset()
-      return Boolean(saved)
-    } finally {
-      // The caller owns busyAction so saving can share the app-wide spinner contract.
-    }
+    const draftVersion = settingsDraftVersionRef.current
+    setSettingsSaveState('saving')
+    const saved = await persistSettings({
+      ...settingsDraft,
+      selectedAiModel: modelOverrideForProvider(settingsDraft, settingsDraft.selectedAiProvider ?? 'codex_cli'),
+    }, draftVersion)
+    const draftUnchanged = settingsDraftVersionRef.current === draftVersion
+    setSettingsSaveState(saved ? (draftUnchanged ? 'saved' : 'idle') : 'error')
+    if (saved && draftUnchanged) scheduleSettingsSaveReset()
+    return Boolean(saved)
   }
 
   function updateSettingsDraft(patch: Partial<AppSettings>) {
+    settingsDraftVersionRef.current += 1
     setSettingsSaveState('idle')
     setSettingsDraft((previous) => (previous ? { ...previous, ...patch } : previous))
   }
 
   function discardSettingsDraft() {
+    settingsDraftVersionRef.current += 1
     setSettingsDraft(settings)
     setSettingsSaveState('idle')
   }

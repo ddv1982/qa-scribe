@@ -111,7 +111,7 @@ mod tests {
 
         assert!(matches!(
             updates.last(),
-            Some(StreamUpdate::Partial(body)) if body == "Hello world"
+            Some(StreamUpdate::PartialDelta(body)) if body == "world"
         ));
         assert_eq!(parser.finish().as_deref(), Some("Hello world"));
     }
@@ -134,7 +134,9 @@ mod tests {
             updates.is_empty()
                 || matches!(
                     updates.last(),
-                    Some(StreamUpdate::Progress(_)) | Some(StreamUpdate::Partial(_))
+                    Some(StreamUpdate::Progress(_))
+                        | Some(StreamUpdate::PartialDelta(_))
+                        | Some(StreamUpdate::PartialSnapshot(_))
                 )
         );
         assert_eq!(parser.finish().as_deref(), Some(long_answer));
@@ -152,7 +154,7 @@ mod tests {
 
         assert!(matches!(
             updates.last(),
-            Some(StreamUpdate::Partial(body)) if body == full_answer
+            Some(StreamUpdate::PartialSnapshot(body)) if body == full_answer
         ));
         assert_eq!(parser.finish().as_deref(), Some(full_answer));
     }
@@ -167,7 +169,7 @@ mod tests {
 
         assert!(matches!(
             updates.last(),
-            Some(StreamUpdate::Partial(body)) if body == "<h2>Cases</h2>"
+            Some(StreamUpdate::PartialSnapshot(body)) if body == "<h2>Cases</h2>"
         ));
         assert_eq!(parser.finish().as_deref(), Some("<h2>Cases</h2>"));
     }
@@ -182,7 +184,7 @@ mod tests {
 
         assert!(matches!(
             updates.last(),
-            Some(StreamUpdate::Partial(body)) if body == "Hi there"
+            Some(StreamUpdate::PartialDelta(body)) if body == "there"
         ));
         assert_eq!(parser.finish().as_deref(), Some("Hi there"));
     }
