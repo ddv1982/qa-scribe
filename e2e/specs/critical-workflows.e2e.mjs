@@ -147,6 +147,7 @@ const workflows = {
     title: 'streams generation to completion and cancels a second deterministic provider job',
     run: async () => {
       await createSessionFixture('E2E generation session', 'Generate deterministic test cases from this note.')
+      const body = await $('body')
       const generate = await button('Generate test cases')
       await generate.waitForClickable()
       await generate.click()
@@ -155,13 +156,13 @@ const workflows = {
       await confirm.click()
       await releaseFixtureInvocation(1)
 
-      const generated = await $('h2=E2E test cases')
-      await generated.waitForDisplayed({ timeout: 15_000 })
       await browser.waitUntil(
-        async () => /Deterministic generated case/.test(await (await $('body')).getText()),
+        async () => {
+          const text = await body.getText()
+          return /E2E test cases/.test(text) && /Deterministic generated case/.test(text) && /Testware generated/.test(text)
+        },
         { timeout: 15_000, timeoutMsg: 'generated testware never reached its completed state' },
       )
-      await (await $('p=Testware generated')).waitForDisplayed({ timeout: 15_000 })
 
       await (await sessionTab('Note')).click()
       const secondGenerate = await button('Generate test cases')
@@ -211,8 +212,6 @@ const selectedWorkflow = workflows[scenario]
 assert.ok(selectedWorkflow, `Unknown or missing QA_SCRIBE_E2E_SCENARIO: ${scenario ?? '(missing)'}`)
 
 describe(`QA Scribe built application: ${scenario}`, () => {
-  before(async () => browser.tauri.switchWindow('main'))
-
   it(selectedWorkflow.title, async () => {
     assert.notEqual(
       process.env.QA_SCRIBE_E2E_FORCE_FAILURE,
