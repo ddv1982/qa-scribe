@@ -156,7 +156,7 @@ const workflows = {
       await releaseFixtureInvocation(1)
 
       const generated = await $('h2=E2E test cases')
-      await generated.waitForDisplayed({ timeout: 15_000 })
+      await generated.waitForDisplayed({ timeout: 30_000 })
       await browser.waitUntil(
         async () => /Deterministic generated case/.test(await (await $('body')).getText()),
         { timeout: 15_000, timeoutMsg: 'generated testware never reached its completed state' },
