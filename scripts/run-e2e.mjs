@@ -9,6 +9,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const fixtureBin = join(root, 'e2e', 'fixtures', 'bin')
 const criticalSpec = 'critical-workflows.e2e.mjs'
+const wdioMaxBuffer = 64 * 1024 * 1024
 
 export const criticalScenarios = Object.freeze([
   'session-lifecycle',
@@ -161,6 +162,7 @@ export function runE2e(environment = process.env, { spawnSyncImpl = spawnSync } 
         cwd: root,
         env: invocationEnvironment,
         encoding: 'utf8',
+        maxBuffer: wdioMaxBuffer,
         shell: process.platform === 'win32',
       })
       const stdout = completed.stdout ?? ''

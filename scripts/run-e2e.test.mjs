@@ -92,7 +92,7 @@ for (const [label, wdioStatus] of [['successful', 0], ['failed', 4]]) {
         },
         {
           spawnSyncImpl(command, args, options) {
-            calls.push({ command, args, environment: options.env })
+            calls.push({ command, args, environment: options.env, maxBuffer: options.maxBuffer })
             return { status: command.includes('wdio') ? wdioStatus : 0, signal: null, stdout: '', stderr: '' }
           },
         },
@@ -102,8 +102,10 @@ for (const [label, wdioStatus] of [['successful', 0], ['failed', 4]]) {
       assert.equal(calls.filter(({ command }) => command === 'bun').length, 1)
       assert.equal(calls.filter(({ command }) => command === 'cargo').length, 1)
       const frontendBuild = calls.find(({ command }) => command === 'bun')
+      const wdioRun = calls.find(({ command }) => command.includes('wdio'))
       const outputIndex = frontendBuild.args.indexOf('--outDir')
       assert.equal(frontendBuild.args[outputIndex + 1], join(temporaryRoot, 'isolated', 'frontend-dist'))
+      assert.equal(wdioRun.maxBuffer, 64 * 1024 * 1024)
       assert.ok(calls.every(({ args }) => !args.includes(resolve('frontend/dist'))))
     } finally {
       rmSync(temporaryRoot, { recursive: true, force: true })
