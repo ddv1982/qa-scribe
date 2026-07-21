@@ -1,8 +1,39 @@
 #!/usr/bin/env node
 
 import process from 'node:process'
+import { existsSync, mkdirSync, watch, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 
 const args = process.argv.slice(2)
+
+function reserveInvocation(controlDirectory) {
+  for (let index = 1; index <= 100; index += 1) {
+    try {
+      mkdirSync(join(controlDirectory, `codex-exec-${index}.lock`))
+      return index
+    } catch (error) {
+      if (error?.code !== 'EEXIST') throw error
+    }
+  }
+  throw new Error('Codex fixture exceeded its coordinated invocation limit')
+}
+
+function waitForFile(path) {
+  if (existsSync(path)) return Promise.resolve()
+  return new Promise((resolve, reject) => {
+    const watcher = watch(dirname(path), () => {
+      if (existsSync(path)) {
+        watcher.close()
+        resolve()
+      }
+    })
+    watcher.on('error', reject)
+    if (existsSync(path)) {
+      watcher.close()
+      resolve()
+    }
+  })
+}
 
 if (args[0] === 'app-server') {
   let buffered = ''
@@ -25,27 +56,38 @@ if (args[0] === 'app-server') {
   process.stdin.on('data', (chunk) => {
     prompt += chunk
   })
-  process.stdin.on('end', () => {
-    const isTestware = /Create test scenarios with test cases from the selected note only/i.test(prompt)
-    const isSummary = /Keep the output as a summarized QA note/i.test(prompt)
-    const html = isTestware
-      ? '<h2>E2E test cases</h2><ul><li>Deterministic generated case</li></ul>'
-      : isSummary
-        ? '<p>E2E generated summary.</p>'
-        : '<h2>E2E finding</h2><p>Deterministic provider output.</p>'
-    const marker = prompt.match(/<html_fragment_[a-f0-9]+>/i)?.[0]?.slice(1, -1)
-    const response = marker ? `<${marker}>${html}</${marker}>` : html
+  process.stdin.on('end', async () => {
+    try {
+      const controlDirectory = process.env.QA_SCRIBE_E2E_FIXTURE_DIR
+      if (!controlDirectory) throw new Error('QA_SCRIBE_E2E_FIXTURE_DIR is required by the deterministic Codex fixture')
+      mkdirSync(controlDirectory, { recursive: true })
+      const invocation = reserveInvocation(controlDirectory)
+      const startedPath = join(controlDirectory, `codex-exec-${invocation}.started`)
+      const releasePath = join(controlDirectory, `codex-exec-${invocation}.release`)
 
-    process.stdout.write(`${JSON.stringify({ type: 'turn.started' })}\n`)
-    setTimeout(() => {
-      process.stdout.write(`${JSON.stringify({ type: 'item/agentMessage/delta', delta: response.slice(0, Math.ceil(response.length / 2)) })}\n`)
-    }, 350)
-    setTimeout(() => {
-      process.stdout.write(`${JSON.stringify({ type: 'item/agentMessage/delta', delta: response.slice(Math.ceil(response.length / 2)) })}\n`)
-    }, 700)
-    setTimeout(() => {
-      process.stdout.write(`${JSON.stringify({ type: 'item.completed', item: { type: 'agent_message', text: response } })}\n`)
-    }, 1_050)
+      const isTestware = /Create test scenarios with test cases from the selected note only/i.test(prompt)
+      const isSummary = /Keep the output as a summarized QA note/i.test(prompt)
+      const html = isTestware
+        ? '<h2>E2E test cases</h2><ul><li>Deterministic generated case</li></ul>'
+        : isSummary
+          ? '<p>E2E generated summary.</p>'
+          : '<h2>E2E finding</h2><p>Deterministic provider output.</p>'
+      const marker = prompt.match(/<html_fragment_[a-f0-9]+>/i)?.[0]?.slice(1, -1)
+      const response = marker ? `<${marker}>${html}</${marker}>` : html
+      const midpoint = Math.ceil(response.length / 2)
+
+      writeFileSync(startedPath, `${process.pid}\n`, { flag: 'wx' })
+      process.stdout.write(`${JSON.stringify({ type: 'turn.started' })}\n`)
+      await waitForFile(releasePath)
+      process.stdout.write(`${JSON.stringify({ type: 'item/agentMessage/delta', delta: response.slice(0, midpoint) })}\n`)
+      setImmediate(() => {
+        process.stdout.write(`${JSON.stringify({ type: 'item/agentMessage/delta', delta: response.slice(midpoint) })}\n`)
+        process.stdout.write(`${JSON.stringify({ type: 'item.completed', item: { type: 'agent_message', text: response } })}\n`)
+      })
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : error)
+      process.exitCode = 1
+    }
   })
 } else if (args[0] === 'debug' && args[1] === 'models') {
   process.stdout.write('{"models":[]}\n')

@@ -2,10 +2,8 @@ import {
   cancelAiActionJob,
   getAiActionJobStatus,
   listActiveAiActionJobs,
+  openSessionNoteState,
   startAiActionJob,
-  updateDraft,
-  updateEntry,
-  updateFinding,
   type Draft,
   type Entry,
   type Finding,
@@ -21,8 +19,10 @@ import {
   serializeRichEditorDocument,
 } from '../editor/editorDocument'
 import { formatError } from '../ui/format'
-import type { AiSelection, GenerationWorkspace, RecordWorkspace, SessionWorkspace, WorkflowFeedback, WorkflowNavigation } from './types'
+import type { GenerationActionsContext } from './generationActions.types'
 import { useStableCapability } from './useStableCapability'
+
+export type { GenerationActionsContext } from './generationActions.types'
 
 export function generationIsActive(job: GenerationJobStatus): boolean {
   return job.state === 'starting' || job.state === 'running' || job.state === 'cancelling'
@@ -33,84 +33,174 @@ export function generationIsActive(job: GenerationJobStatus): boolean {
 // re-subscribe to the streaming events; polling `get_ai_action_job_status` is
 // the simplest way to drive the recovered job to a terminal UI state.
 const RECONCILE_POLL_INTERVAL_MS = 1000
-
-export type GenerationActionsContext = {
-  session: Pick<
-    SessionWorkspace,
-    | 'activeSession'
-    | 'activeSessionIdRef'
-    | 'noteBodyRef'
-    | 'noteBodyWriteVersionRef'
-    | 'noteEntry'
-    | 'noteEntryIdRef'
-    | 'savedBodyRef'
-    | 'setNoteBody'
-    | 'setNoteEntry'
-  >
-  records: Pick<
-    RecordWorkspace,
-    | 'dirtyDraftIdsRef'
-    | 'dirtyFindingIdsRef'
-    | 'draftsRef'
-    | 'findingsRef'
-    | 'setDrafts'
-    | 'setFindings'
-    | 'setFindingCount'
-    | 'setTestwareDraftCount'
-  >
-  generation: GenerationWorkspace
-  selection: AiSelection
-  feedback: WorkflowFeedback
-  navigation: WorkflowNavigation
-  saveNoteNow: (options?: { manageBusy?: boolean }) => Promise<boolean>
-}
+const RECOVERY_COMMAND_MAX_ATTEMPTS = 3
 
 export function createGenerationActions(ctx: GenerationActionsContext) {
+  let reconciliationStarted = false
+  const recoveredSummaryReloadVersions = new Map<string, number>()
+
   function storeGenerationStatus(status: GenerationJobStatus) {
     ctx.generation.setGenerationJobs((previous) => ({ ...previous, [status.jobId]: status }))
   }
 
-  // Backend jobs keep running when the webview reloads, but the frontend loses
-  // its job map and the streaming `Channel`. On boot we ask the backend which
-  // jobs are still active, restore their busy/pending UI state, and poll each to
-  // completion so the spinner/cancel affordance and the terminal notice recover.
-  // The generated artifact itself was already persisted by the backend worker;
-  // reopening the session surfaces it, so reconciliation only owns the UI state.
-  async function reconcileActiveJobs() {
-    let active: GenerationJobStatus[]
+  // This capture is a distinct startup phase so recovered Summary jobs can
+  // block Note saves before the startup Session is hydrated. Polling starts
+  // only after hydration, when a completed Summary can be applied safely.
+  async function captureActiveJobs() {
+    let activeJobsCommand: typeof listActiveAiActionJobs
     try {
-      active = await listActiveAiActionJobs()
-    } catch (cause) {
-      // A reconciliation failure must never block boot; surface it quietly.
-      ctx.feedback.setError(formatError(cause))
+      activeJobsCommand = listActiveAiActionJobs
+    } catch {
+      // Generated Tauri bindings always provide this function. Lightweight
+      // non-Tauri hosts may intentionally omit recovery commands.
+      ctx.summaryRecovery.discoveryPendingRef.current = false
       return
     }
+    if (typeof activeJobsCommand !== 'function') {
+      ctx.summaryRecovery.discoveryPendingRef.current = false
+      return
+    }
+    ctx.summaryRecovery.discoveryPendingRef.current = true
+    let active: GenerationJobStatus[]
+    try {
+      active = await runRecoveryCommand(activeJobsCommand)
+    } catch (cause) {
+      // Do not hydrate a Note from an uncertain startup. A restart can retry
+      // after the bounded transient-error budget is exhausted.
+      ctx.feedback.setError(formatError(cause))
+      throw cause
+    }
+
+    ctx.summaryRecovery.recoveredJobsRef.current.clear()
+    ctx.summaryRecovery.unresolvedSummaryJobsRef.current.clear()
     for (const status of active) {
+      ctx.summaryRecovery.recoveredJobsRef.current.set(status.jobId, status)
+      if (status.action === 'summary') {
+        ctx.summaryRecovery.unresolvedSummaryJobsRef.current.set(status.jobId, status.sessionId)
+      }
       storeGenerationStatus(status)
+    }
+    ctx.summaryRecovery.discoveryPendingRef.current = false
+    if (reconciliationStarted) startCapturedJobPolls()
+  }
+
+  function reconcileActiveJobs(): Promise<void> {
+    reconciliationStarted = true
+    startCapturedJobPolls()
+    return Promise.resolve()
+  }
+
+  function startCapturedJobPolls() {
+    const active = Array.from(ctx.summaryRecovery.recoveredJobsRef.current.values())
+    ctx.summaryRecovery.recoveredJobsRef.current.clear()
+    for (const status of active) {
       void pollJobToTerminal(status.jobId)
     }
   }
 
+  function summaryRecoveryBlocksSession(sessionId: string): boolean {
+    return ctx.summaryRecovery.discoveryPendingRef.current
+      || Array.from(ctx.summaryRecovery.unresolvedSummaryJobsRef.current.values()).includes(sessionId)
+  }
+
+  function flushBlockedNoteSave(sessionId: string | null) {
+    if (
+      !sessionId
+      || ctx.session.activeSessionIdRef.current !== sessionId
+      || summaryRecoveryBlocksSession(sessionId)
+      || !ctx.summaryRecovery.blockedSaveSessionIdsRef.current.delete(sessionId)
+    ) return
+    void ctx.saveNoteNow({ manageBusy: false })
+  }
+
+  function finishSummaryReconciliation(jobId: string, sessionId: string, flushDirtyNote: boolean) {
+    ctx.summaryRecovery.unresolvedSummaryJobsRef.current.delete(jobId)
+    if (summaryRecoveryBlocksSession(sessionId)) return
+    if (flushDirtyNote) flushBlockedNoteSave(sessionId)
+    else ctx.summaryRecovery.blockedSaveSessionIdsRef.current.delete(sessionId)
+  }
+
+  async function reloadRecoveredSummary(sessionId: string): Promise<Entry | null> {
+    try {
+      const canonical = await runRecoveryCommand(() => openSessionNoteState(sessionId))
+      if (
+        canonical.session.id !== sessionId
+        || canonical.noteEntry.sessionId !== sessionId
+      ) {
+        ctx.feedback.setError('Recovered Summary returned an unexpected Session or Note Entry.')
+        return null
+      }
+      return canonical.noteEntry
+    } catch (cause) {
+      ctx.feedback.setError(formatError(cause))
+      return null
+    }
+  }
+
   async function pollJobToTerminal(jobId: string) {
-    // Loop until the job reports a terminal state (or vanishes from the store,
-    // which also counts as terminal). Errors surface once and stop the poll.
+    let consecutiveStatusErrors = 0
     for (;;) {
       await delay(RECONCILE_POLL_INTERVAL_MS)
       let status: GenerationJobStatus
       try {
         status = await getAiActionJobStatus(jobId)
-      } catch {
-        // The job left the store (pruned/unknown); nothing more to reconcile.
+      } catch (cause) {
+        consecutiveStatusErrors += 1
+        if (consecutiveStatusErrors < RECOVERY_COMMAND_MAX_ATTEMPTS) continue
+        // Keep Summary protection in place, but stop the bounded retry loop.
+        // Restarting the app starts a fresh discovery/reconciliation attempt.
+        ctx.feedback.setError(formatError(cause))
         return
       }
+      consecutiveStatusErrors = 0
       storeGenerationStatus(status)
       if (!generationIsActive(status)) {
+        const summarySessionId = ctx.summaryRecovery.unresolvedSummaryJobsRef.current.get(jobId)
+        if (summarySessionId && status.state === 'completed') {
+          const reloadVersion = (recoveredSummaryReloadVersions.get(summarySessionId) ?? 0) + 1
+          recoveredSummaryReloadVersions.set(summarySessionId, reloadVersion)
+          const canonicalEntry = await reloadRecoveredSummary(summarySessionId)
+          if (!canonicalEntry) return
+
+          if (recoveredSummaryReloadVersions.get(summarySessionId) !== reloadVersion) {
+            // A later reload started for this Session, so this response cannot
+            // be the freshest canonical Summary even if it resolved last.
+          } else if (
+            ctx.session.activeSessionIdRef.current === summarySessionId
+            && ctx.session.noteEntryIdRef.current === canonicalEntry.id
+          ) {
+            applyRecoveredGeneratedNoteEntry(canonicalEntry)
+            ctx.summaryRecovery.completedSummaryEntriesRef.current.delete(summarySessionId)
+          } else if (ctx.summaryRecovery.openingSessionIdRef.current === summarySessionId) {
+            // An in-flight open may have captured the pre-completion Note. Let
+            // Session hydration consume this canonical result instead.
+            ctx.summaryRecovery.completedSummaryEntriesRef.current.set(summarySessionId, canonicalEntry)
+          }
+        }
+        if (summarySessionId) {
+          finishSummaryReconciliation(jobId, summarySessionId, status.state !== 'completed')
+        }
         if (status.state === 'failed' && status.errorMessage) ctx.feedback.setError(status.errorMessage)
         else if (status.state === 'cancelled') ctx.feedback.setNotice('Generation cancelled')
         else if (status.state === 'completed') ctx.feedback.setNotice('Generation finished')
         return
       }
     }
+  }
+
+  async function runRecoveryCommand<T>(command: () => Promise<T>): Promise<T> {
+    let lastCause: unknown
+    for (let attempt = 1; attempt <= RECOVERY_COMMAND_MAX_ATTEMPTS; attempt += 1) {
+      try {
+        return await command()
+      } catch (cause) {
+        lastCause = cause
+        if (attempt < RECOVERY_COMMAND_MAX_ATTEMPTS) {
+          await delay(RECONCILE_POLL_INTERVAL_MS)
+        }
+      }
+    }
+    throw lastCause
   }
 
   function mergeDraft(draft: Draft) {
@@ -141,48 +231,125 @@ export function createGenerationActions(ctx: GenerationActionsContext) {
     const previousBody = ctx.session.noteBodyRef.current
     const generatedBody = richEditorDocumentFromStoredBody(generatedEntry)
     const nextBody = preserveManagedImageNodes(previousBody, generatedBody)
+    const generatedSerialized = serializeRichEditorDocument(generatedBody)
+    const nextSerialized = serializeRichEditorDocument(nextBody)
     const storedBody = richEditorDocumentToStoredBody(nextBody)
     const richNoteEntry = { ...generatedEntry, ...storedBody }
-    const writeVersion = ++ctx.session.noteBodyWriteVersionRef.current
-
+    ctx.adoptCanonicalNoteBody(generatedBody, richNoteEntry.id, richNoteEntry.sessionId)
     ctx.generation.setLatestNoteGenerationUndo({ entryId: richNoteEntry.id, before: previousBody })
     ctx.session.setNoteEntry(richNoteEntry)
     ctx.session.setNoteBody(nextBody)
-    ctx.session.savedBodyRef.current = serializeRichEditorDocument(nextBody)
-    void updateEntry(richNoteEntry.id, storedBody)
-      .then((saved) => {
-        if (writeVersion !== ctx.session.noteBodyWriteVersionRef.current) return
-        ctx.session.setNoteEntry(saved)
-        ctx.session.savedBodyRef.current = serializeRichEditorDocument(richEditorDocumentFromStoredBody(saved))
-      })
-      .catch((cause) => {
-        if (writeVersion === ctx.session.noteBodyWriteVersionRef.current) ctx.feedback.setError(formatError(cause))
-      })
+    // The provider result is already canonical in the backend. Any preserved
+    // images remain visibly dirty until their compensating write succeeds.
+    ctx.session.savedBodyRef.current = generatedSerialized
+    if (generatedSerialized === nextSerialized) {
+      ctx.feedback.setNotice('Note summarized')
+      return
+    }
+    void ctx.saveNoteBody(nextBody, {
+      manageBusy: false,
+      entryId: richNoteEntry.id,
+      sessionId: richNoteEntry.sessionId,
+      expectedCurrentBody: nextSerialized,
+      allowRecoveryWrite: true,
+    })
     ctx.feedback.setNotice('Note summarized')
   }
 
-  async function handleUndoLatestNoteGeneration() {
-    if (!ctx.generation.latestNoteGenerationUndo || ctx.session.noteEntry?.id !== ctx.generation.latestNoteGenerationUndo.entryId) return
-    const undo = ctx.generation.latestNoteGenerationUndo
-    const storedBody = richEditorDocumentToStoredBody(undo.before)
-    const writeVersion = ++ctx.session.noteBodyWriteVersionRef.current
+  function applyRecoveredGeneratedNoteEntry(generatedEntry: Entry) {
+    const previousBody = ctx.session.noteBodyRef.current
+    const priorRecoveryDecision = ctx.latestNoteGenerationUndoRef.current?.pendingRecoveryDecision
+      && ctx.latestNoteGenerationUndoRef.current.entryId === generatedEntry.id
+      ? ctx.latestNoteGenerationUndoRef.current
+      : null
+    const authoredBody = priorRecoveryDecision?.pendingRecoveryChoice === 'generated'
+      ? previousBody
+      : priorRecoveryDecision?.before ?? previousBody
+    const generatedBody = richEditorDocumentFromStoredBody(generatedEntry)
+    const nextBody = preserveManagedImageNodes(previousBody, generatedBody)
+    const previousSerialized = serializeRichEditorDocument(previousBody)
+    const authoredSerialized = serializeRichEditorDocument(authoredBody)
+    const generatedSerialized = serializeRichEditorDocument(generatedBody)
+    const nextSerialized = serializeRichEditorDocument(nextBody)
+    const storedBody = richEditorDocumentToStoredBody(nextBody)
+    const richNoteEntry = { ...generatedEntry, ...storedBody }
+    ctx.adoptCanonicalNoteBody(generatedBody, richNoteEntry.id, richNoteEntry.sessionId)
 
+    const hasDirtyAuthoredBody = (
+      Boolean(priorRecoveryDecision)
+      || previousSerialized !== ctx.session.savedBodyRef.current
+    ) && authoredSerialized !== nextSerialized
+
+    // Dirty authored text and a recovered backend completion are two valid,
+    // conflicting outcomes. Keep that choice explicit instead of silently
+    // treating the generated body as saved or reducing it to ordinary undo.
+    if (hasDirtyAuthoredBody) {
+      ctx.generation.setLatestNoteGenerationUndo({
+        entryId: richNoteEntry.id,
+        before: authoredBody,
+        pendingRecoveryDecision: true,
+        generated: nextBody,
+        generatedCanonical: generatedBody,
+      })
+    } else if (previousSerialized !== nextSerialized) {
+      ctx.generation.setLatestNoteGenerationUndo({ entryId: richNoteEntry.id, before: previousBody })
+    }
+
+    ctx.session.setNoteEntry(richNoteEntry)
+    ctx.session.setNoteBody(nextBody)
+    // While the recovery choice is unresolved, comparing the generated editor
+    // body with the authored value keeps save-state and close protection
+    // truthful. Discard installs the generated value as the saved baseline;
+    // save persists the authored value.
+    ctx.session.savedBodyRef.current = hasDirtyAuthoredBody ? authoredSerialized : generatedSerialized
+
+    // The backend already persisted the generated Note. Only write again when
+    // frontend image preservation actually changed that canonical document.
+    if (hasDirtyAuthoredBody || generatedSerialized === nextSerialized) return
+    void ctx.saveNoteBody(nextBody, {
+      manageBusy: false,
+      entryId: richNoteEntry.id,
+      sessionId: richNoteEntry.sessionId,
+      expectedCurrentBody: nextSerialized,
+      allowRecoveryWrite: true,
+    })
+  }
+
+  async function handleUndoLatestNoteGeneration() {
+    if (!ctx.latestNoteGenerationUndoRef.current || ctx.session.noteEntry?.id !== ctx.latestNoteGenerationUndoRef.current.entryId) return
+    const undo = ctx.latestNoteGenerationUndoRef.current
+    if (undo.pendingRecoveryDecision) {
+      const authoredUndo = { ...undo, pendingRecoveryChoice: 'authored' as const }
+      ctx.latestNoteGenerationUndoRef.current = authoredUndo
+      ctx.generation.setLatestNoteGenerationUndo(authoredUndo)
+      const saved = await ctx.saveNoteNow()
+      if (saved && ctx.latestNoteGenerationUndoRef.current !== authoredUndo) {
+        ctx.feedback.setNotice('Generation undone')
+      }
+      return
+    }
     try {
       ctx.feedback.setBusyAction('undo-generation')
       ctx.feedback.setError(null)
       ctx.generation.setLatestNoteGenerationUndo(null)
       ctx.session.setNoteBody(undo.before)
-      const saved = await updateEntry(undo.entryId, storedBody)
-      if (writeVersion !== ctx.session.noteBodyWriteVersionRef.current) return
-      ctx.session.setNoteEntry(saved)
-      ctx.session.savedBodyRef.current = serializeRichEditorDocument(richEditorDocumentFromStoredBody(saved))
+      const saved = await ctx.saveNoteBody(undo.before, {
+        manageBusy: false,
+        entryId: undo.entryId,
+        sessionId: ctx.session.noteEntry.sessionId,
+        expectedCurrentBody: serializeRichEditorDocument(undo.before),
+      })
+      if (!saved) {
+        ctx.generation.setLatestNoteGenerationUndo(undo)
+        return
+      }
+      if (serializeRichEditorDocument(ctx.session.noteBodyRef.current) !== serializeRichEditorDocument(undo.before)) return
       ctx.feedback.setNotice('Generation undone')
     } catch (cause) {
-      if (writeVersion !== ctx.session.noteBodyWriteVersionRef.current) return
       ctx.feedback.setError(formatError(cause))
       ctx.generation.setLatestNoteGenerationUndo(undo)
     } finally {
-      if (writeVersion === ctx.session.noteBodyWriteVersionRef.current) ctx.feedback.setBusyAction(null)
+      ctx.feedback.setBusyAction(null)
     }
   }
 
@@ -220,13 +387,7 @@ export function createGenerationActions(ctx: GenerationActionsContext) {
       const storedBody = richEditorDocumentToStoredBody(draftDocument)
       const richDraft = { ...result.draft, ...storedBody }
       mergeDraft(richDraft)
-      void updateDraft(richDraft.id, storedBody)
-        .then((saved) => {
-          if (ctx.session.activeSessionIdRef.current === saved.sessionId) mergeDraft(saved)
-        })
-        .catch((cause) => {
-          if (ctx.session.activeSessionIdRef.current === richDraft.sessionId) ctx.feedback.setError(formatError(cause))
-        })
+      void ctx.canonicalizeGeneratedDraft(richDraft)
       ctx.navigation.setActiveView('testware')
       ctx.feedback.setNotice('Testware generated')
     } else if (result.finding && ctx.session.activeSessionIdRef.current === result.finding.sessionId) {
@@ -234,13 +395,7 @@ export function createGenerationActions(ctx: GenerationActionsContext) {
       const storedBody = richEditorDocumentToStoredBody(findingDocument)
       const richFinding = { ...result.finding, ...storedBody }
       mergeFinding(richFinding)
-      void updateFinding(richFinding.id, storedBody)
-        .then((saved) => {
-          if (ctx.session.activeSessionIdRef.current === saved.sessionId) mergeFinding(saved)
-        })
-        .catch((cause) => {
-          if (ctx.session.activeSessionIdRef.current === richFinding.sessionId) ctx.feedback.setError(formatError(cause))
-        })
+      void ctx.canonicalizeGeneratedFinding(richFinding)
       ctx.navigation.setActiveView('findings')
       ctx.feedback.setNotice('Finding created')
     } else if (result.noteEntry && ctx.session.noteEntryIdRef.current === result.noteEntry.id) {
@@ -298,7 +453,7 @@ export function createGenerationActions(ctx: GenerationActionsContext) {
     }
   }
 
-  return { handleAiAction, handleCancelGenerationJob, handleUndoLatestNoteGeneration, reconcileActiveJobs, storeGenerationStatus }
+  return { captureActiveJobs, handleAiAction, handleCancelGenerationJob, handleUndoLatestNoteGeneration, reconcileActiveJobs, storeGenerationStatus }
 }
 
 export function useGenerationActions(ctx: GenerationActionsContext) {

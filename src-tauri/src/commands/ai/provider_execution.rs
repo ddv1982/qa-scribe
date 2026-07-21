@@ -15,7 +15,7 @@ use super::{
     streaming_exec::run_generation_command_streaming,
 };
 use crate::{
-    commands::providers::provider_readiness,
+    commands::providers::provider_readiness_for_job,
     jobs::{JobControl, JobStore},
 };
 
@@ -34,7 +34,13 @@ pub(super) fn execute_provider_generation_streaming(
     events: &Channel<GenerationJobEvent>,
     control: &JobControl,
 ) -> Result<ProviderGenerationOutput, String> {
-    let readiness = provider_readiness(provider);
+    if control.is_cancelled() {
+        return Err("Generation cancelled.".to_string());
+    }
+    let readiness = provider_readiness_for_job(provider, control);
+    if control.is_cancelled() {
+        return Err("Generation cancelled.".to_string());
+    }
     if !readiness.descriptor.status.is_ready() {
         return Err(readiness.descriptor.reason);
     }

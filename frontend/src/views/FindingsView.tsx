@@ -82,7 +82,7 @@ export function FindingsView({
   onPrefillFromNote: () => Promise<void>
   onSaveFinding: (finding: Finding) => Promise<boolean>
   onDiscardFinding: (finding: Finding) => void
-  onUploadImage: (input: RichEditorImageUpload) => void | Promise<void>
+  onUploadImage: (input: RichEditorImageUpload, recordId: string) => void | Promise<void>
 }) {
   return (
     <RecordCollectionView

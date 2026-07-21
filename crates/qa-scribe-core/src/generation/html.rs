@@ -31,6 +31,35 @@ pub(super) fn skip_whitespace(value: &str, mut index: usize) -> usize {
     index
 }
 
+/// Find the `>` that closes an HTML tag whose body starts at `start`,
+/// ignoring greater-than characters inside single- or double-quoted
+/// attribute values.
+///
+/// HTML does not use backslash escapes for attribute quotes, so quote state
+/// changes only on the matching literal quote. An unclosed quote therefore
+/// means the tag has no trustworthy boundary and returns `None`. Callers can
+/// then treat the leading `<` as text instead of splitting a malformed tag at
+/// an attribute delimiter. Byte indices are accepted and returned so callers
+/// can slice the original fragment without allocation; invalid UTF-8
+/// boundaries are rejected rather than panicking.
+pub(super) fn find_html_tag_end(value: &str, start: usize) -> Option<usize> {
+    if start > value.len() || !value.is_char_boundary(start) {
+        return None;
+    }
+
+    let mut quote = None;
+    for (relative_index, character) in value[start..].char_indices() {
+        match quote {
+            Some(open_quote) if character == open_quote => quote = None,
+            Some(_) => {}
+            None if character == '"' || character == '\'' => quote = Some(character),
+            None if character == '>' => return Some(start + relative_index),
+            None => {}
+        }
+    }
+    None
+}
+
 /// Extract the value of `attribute` from a raw (already `<`/`>`-stripped)
 /// tag body, e.g. `img src="foo.png" alt="bar"`. Attribute values are
 /// entity-decoded (using the wide [`decode_html_entities`] decoder) before

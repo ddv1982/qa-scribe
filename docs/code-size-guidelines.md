@@ -4,7 +4,7 @@ qa-scribe uses file size as a maintainability signal, not as a mechanical rewrit
 
 ## Threshold
 
-- Split maintained source and test files above 500 physical lines when there is a cohesive module seam. After Phase 4 of `docs/refactoring-roadmap.md`, exceeding this threshold requires an explicit exception.
+- Split maintained source, test, and workflow files above 500 physical lines when there is a cohesive module seam. After Phase 4 of `docs/refactoring-roadmap.md`, exceeding this threshold requires an explicit exception.
 - Treat 300-500 physical lines as a watch range. Leave cohesive files alone until a real responsibility split appears.
 - Exclude generated files, binary assets, lockfiles, packaged icon outputs, and release metadata where splitting would reduce clarity.
 - Prefer behavior-preserving extractions with unchanged public exports, Tauri command names, storage schemas, and product language.
@@ -60,7 +60,10 @@ At v0.7.10, no maintained app source or test file remained above 500 physical li
 - `scripts/validate_linux_package_metadata.py`
 - `.github/workflows/release.yml`
 
-These remained watch-list items rather than automatic split targets because they are operational packaging/release code, not primary app source, and no low-risk cohesive split seam was identified.
+The Python packaging commands remain reviewed operational exclusions. YAML
+workflows are now scanned as maintained files; the cohesive release workflow
+uses the same dated exception model because no low-risk responsibility seam has
+yet been demonstrated.
 
 ## Current Audit
 
@@ -79,7 +82,7 @@ This is documentation and test-organization drift, not a production-source regre
 
 Phase 4 adds a repository check with these semantics:
 
-- fail on a maintained source or test file above 500 physical lines unless it has a current exception;
+- fail on a maintained source, test, or YAML workflow file above 500 physical lines unless it has a current exception;
 - report, but do not fail, maintained files in the 300-500 watch range;
 - ignore generated files, binary assets, lockfiles, packaged icons, and release metadata;
 - include explicitly reviewed operational-script exclusions;

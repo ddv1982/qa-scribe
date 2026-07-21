@@ -56,6 +56,51 @@ fn skip_whitespace_is_a_no_op_when_not_on_whitespace() {
 }
 
 #[test]
+fn html_tag_end_ignores_greater_than_inside_both_quote_styles() {
+    let value = r#"<img alt="A > B" title='C > D'>tail"#;
+    let tag_end = find_html_tag_end(value, 1).expect("quoted tag should close");
+
+    assert_eq!(&value[tag_end..], ">tail");
+}
+
+#[test]
+fn html_tag_end_rejects_unclosed_quotes_and_invalid_utf8_boundaries() {
+    assert_eq!(find_html_tag_end(r#"<img alt="A > B"#, 1), None);
+    assert_eq!(find_html_tag_end("<p without an end", 1), None);
+
+    let multibyte = "é>";
+    assert_eq!(find_html_tag_end(multibyte, 1), None);
+    assert_eq!(find_html_tag_end(multibyte, "é".len()), Some("é".len()));
+    assert_eq!(find_html_tag_end(multibyte, multibyte.len() + 1), None);
+}
+
+#[test]
+fn html_tag_end_handles_generated_quoted_payload_matrix() {
+    let payloads = [
+        "A > B",
+        "café > naïve",
+        "日本語 > ✅",
+        "nested-looking <em>value</em> > threshold",
+        "entity &gt; plus literal > delimiter",
+    ];
+
+    for quote in ['"', '\''] {
+        for payload in payloads {
+            let value = format!(
+                "<img alt={quote}{payload}{quote} data-note={quote}still > quoted{quote}>tail"
+            );
+            let expected = value.rfind(">tail").expect("fixture has final tag end");
+
+            assert_eq!(
+                find_html_tag_end(&value, 1),
+                Some(expected),
+                "failed quote={quote:?}, payload={payload:?}"
+            );
+        }
+    }
+}
+
+#[test]
 fn decode_html_entities_covers_the_union_of_known_entities() {
     assert_eq!(decode_html_entities("&amp;&lt;&gt;&quot;"), "&<>\"");
     assert_eq!(decode_html_entities("&apos;&#39;"), "''");

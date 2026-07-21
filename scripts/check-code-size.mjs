@@ -4,7 +4,19 @@ import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { extname, join, relative, resolve, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-const SOURCE_EXTENSIONS = new Set(['.cjs', '.js', '.jsx', '.mjs', '.py', '.rs', '.sh', '.ts', '.tsx'])
+const SOURCE_EXTENSIONS = new Set([
+  '.cjs',
+  '.js',
+  '.jsx',
+  '.mjs',
+  '.py',
+  '.rs',
+  '.sh',
+  '.ts',
+  '.tsx',
+  '.yaml',
+  '.yml',
+])
 const EXCLUDED_DIRECTORIES = new Set(['.git', 'build', 'dist', 'node_modules', 'out', 'target'])
 const GENERATED_FILES = new Set(['frontend/src/bindings.ts'])
 const REQUIRED_REVIEW_FIELDS = ['reason', 'splitCost', 'reviewTrigger']

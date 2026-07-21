@@ -9,6 +9,7 @@ const STARTUP_SESSION_LIMIT = 50
 type UseAppStartupOptions = {
   loadSettings: (settings: AppSettings) => void
   openSession: (session: Session, showNotice?: boolean) => Promise<void>
+  captureActiveJobs: () => Promise<void>
   reconcileActiveJobs: () => Promise<void>
   loadProviderStatus: () => Promise<void>
   refreshProviderStatus: () => Promise<void>
@@ -43,6 +44,7 @@ export function useAppStartup(options: UseAppStartupOptions) {
     const {
       loadSettings,
       openSession,
+      captureActiveJobs,
       reconcileActiveJobs,
       setSessions,
       setSessionLibraryComplete,
@@ -65,7 +67,11 @@ export function useAppStartup(options: UseAppStartupOptions) {
         startupMeasure('boot-to-sessions-loaded', 'boot-start', 'sessions-loaded')
         return sessions
       })
-      const [settings, sessions] = await Promise.all([settingsRequest, sessionsRequest])
+      // Capture recovered Summary jobs before hydrating the startup Session.
+      // Otherwise a completion can leave the just-opened stale Note eligible for
+      // autosave before the frontend learns that reconciliation is required.
+      const activeJobsRequest = captureActiveJobs()
+      const [settings, sessions] = await Promise.all([settingsRequest, sessionsRequest, activeJobsRequest])
       loadSettings(settings)
       setSessions(sessions)
       setSessionLibraryComplete(sessions.length < STARTUP_SESSION_LIMIT)

@@ -19,6 +19,7 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  RPM_SMOKE_IMAGE: fedora:43@sha256:781b7642e8bf256e9cf75d2aa58d86f5cc695fd2df113517614e181a5eee9138
   TAURI_TARGET: x86_64-unknown-linux-gnu
 
 jobs:
@@ -195,7 +196,9 @@ jobs:
             rpm2cpio \
             libarchive-tools \
             desktop-file-utils \
-            appstream
+            appstream \
+            xauth \
+            xvfb
 
       - name: Build frontend
         run: bun run frontend:build
@@ -227,6 +230,18 @@ jobs:
             node scripts/write-linux-metadata-summary.mjs linux-package-metadata-report.json
           fi
           exit "${validator_status}"
+
+      - name: Install deb and launch deb and AppImage on Ubuntu
+        run: node scripts/smoke-release-artifacts.mjs --linux-deb-appimage dist/rust/artifacts
+
+      - name: Install and launch RPM with dependency resolution on Fedora
+        run: |
+          docker run --rm \
+            --volume "${PWD}:/workspace:ro" \
+            --volume "$(command -v bun):/usr/local/bin/bun:ro" \
+            --workdir /workspace \
+            "${RPM_SMOKE_IMAGE}" \
+            bun scripts/smoke-release-artifacts.mjs --linux-rpm dist/rust/artifacts
 
       - name: Validate APT repository generation
         run: node scripts/check-apt-repository.mjs

@@ -23,3 +23,5 @@ __pycache__/
 *.pyc
 qa-scribe.sqlite
 qa-scribe.sqlite-*
+.qa-scribe-version-transaction.json*
+**/.*.qa-scribe-bump-*

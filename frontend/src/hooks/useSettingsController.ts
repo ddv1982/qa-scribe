@@ -26,6 +26,12 @@ export function useSettingsController({
 }) {
   const [initialCachedProviderStatus] = useState<ProviderStatus | null>(() => readCachedProviderStatus())
   const cachedProviderStatusRef = useRef<ProviderStatus | null>(initialCachedProviderStatus)
+  const providerStatusRef = useRef<ProviderStatus | null>(initialCachedProviderStatus)
+  const providerObservationRef = useRef<ProviderObservationCoordinator>({
+    nextSequence: 0,
+    accepted: null,
+    leading: null,
+  })
   const [settings, setSettings] = useState<AppSettings | null>(null)
   const [providerStatus, setProviderStatus] = useState<ProviderStatus | null>(initialCachedProviderStatus)
   const [settingsDraft, setSettingsDraft] = useState<AppSettings | null>(null)
@@ -69,48 +75,83 @@ export function useSettingsController({
     }
   }, [])
 
-  function loadSettings(nextSettings: AppSettings, nextProviderStatus: ProviderStatus | null = null) {
+  function loadSettings(nextSettings: AppSettings) {
     settingsDraftVersionRef.current += 1
     setSettings(nextSettings)
     setSettingsDraft(nextSettings)
-    if (nextProviderStatus) {
-      cachedProviderStatusRef.current = null
-      setProviderStatus(nextProviderStatus)
-    }
   }
 
   async function refreshProviderStatus() {
-    setProviderDiscoveryState('refreshing')
+    const observation = beginProviderObservation('deep', 'refreshing')
     try {
       const status = await refreshProviderStatusCommand()
-      writeCachedProviderStatus(status)
-      setProviderStatus(status)
-      setProviderDiscoveryState(discoveryUiState(status))
+      acceptProviderObservation(observation, status, true)
     } catch (cause) {
-      setProviderDiscoveryState((previous) => previous === 'ready' || previous === 'stale' ? 'stale' : 'error')
-      throw cause
+      if (failProviderObservation(observation)) throw cause
     }
   }
 
   async function loadProviderStatus() {
-    setProviderDiscoveryState('checking')
-    const fastStatus = await getProviderStatus()
-    const status = mergeFastProviderStatus(fastStatus, cachedProviderStatusRef.current)
-    cachedProviderStatusRef.current = null
-    setProviderStatus(status)
-    setProviderDiscoveryState(discoveryUiState(status))
+    const observation = beginProviderObservation('fast', 'checking')
+    try {
+      const fastStatus = await getProviderStatus()
+      const status = mergeFastProviderStatus(fastStatus, cachedProviderStatusRef.current)
+      acceptProviderObservation(observation, status, false)
+    } catch (cause) {
+      if (failProviderObservation(observation)) throw cause
+    }
   }
 
   async function discoverProviderDefaults() {
-    setProviderDiscoveryState('checking')
+    const observation = beginProviderObservation('deep', 'checking')
     try {
       const deepStatus = await refreshProviderStatusCommand()
-      writeCachedProviderStatus(deepStatus)
-      setProviderStatus(deepStatus)
-      setProviderDiscoveryState(discoveryUiState(deepStatus))
+      acceptProviderObservation(observation, deepStatus, true)
     } catch {
-      setProviderDiscoveryState('error')
+      failProviderObservation(observation)
     }
+  }
+
+  function beginProviderObservation(
+    depth: ProviderObservationDepth,
+    pendingState: ProviderDiscoveryUiState,
+  ): ProviderObservation {
+    const coordinator = providerObservationRef.current
+    const observation = { sequence: ++coordinator.nextSequence, depth }
+    const boundary = coordinator.leading ?? coordinator.accepted
+    if (!boundary || compareProviderObservations(observation, boundary) > 0) {
+      coordinator.leading = observation
+      setProviderDiscoveryState(pendingState)
+    }
+    return observation
+  }
+
+  function acceptProviderObservation(
+    observation: ProviderObservation,
+    status: ProviderStatus,
+    cache: boolean,
+  ): boolean {
+    const coordinator = providerObservationRef.current
+    if (coordinator.accepted && compareProviderObservations(observation, coordinator.accepted) < 0) return false
+    const isLeading = !coordinator.leading
+      || compareProviderObservations(observation, coordinator.leading) >= 0
+
+    coordinator.accepted = observation
+    if (isLeading) coordinator.leading = observation
+    cachedProviderStatusRef.current = null
+    providerStatusRef.current = status
+    if (cache) writeCachedProviderStatus(status)
+    setProviderStatus(status)
+    if (isLeading) setProviderDiscoveryState(discoveryUiState(status))
+    return true
+  }
+
+  function failProviderObservation(observation: ProviderObservation): boolean {
+    const coordinator = providerObservationRef.current
+    if (!sameProviderObservation(observation, coordinator.leading)) return false
+    coordinator.leading = coordinator.accepted
+    setProviderDiscoveryState(providerStatusRef.current ? 'stale' : 'error')
+    return true
   }
 
   async function persistSettings(nextSettings: AppSettings, draftVersion: number): Promise<AppSettings | null> {
@@ -183,6 +224,36 @@ export function useSettingsController({
     theme,
     updateSettingsDraft,
   }
+}
+
+type ProviderObservationDepth = 'fast' | 'deep'
+
+type ProviderObservation = {
+  sequence: number
+  depth: ProviderObservationDepth
+}
+
+type ProviderObservationCoordinator = {
+  nextSequence: number
+  accepted: ProviderObservation | null
+  leading: ProviderObservation | null
+}
+
+const PROVIDER_OBSERVATION_DEPTH: Record<ProviderObservationDepth, number> = {
+  fast: 0,
+  deep: 1,
+}
+
+function compareProviderObservations(left: ProviderObservation, right: ProviderObservation): number {
+  return PROVIDER_OBSERVATION_DEPTH[left.depth] - PROVIDER_OBSERVATION_DEPTH[right.depth]
+    || left.sequence - right.sequence
+}
+
+function sameProviderObservation(
+  left: ProviderObservation,
+  right: ProviderObservation | null,
+): boolean {
+  return Boolean(right && left.sequence === right.sequence && left.depth === right.depth)
 }
 
 function discoveryUiState(status: ProviderStatus): ProviderDiscoveryUiState {

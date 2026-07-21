@@ -1,5 +1,6 @@
 use super::html::{
     MANAGED_ATTACHMENT_PROTOCOL, attribute_value, decode_html_entities, find_case_insensitive,
+    find_html_tag_end,
 };
 
 pub fn project_html_to_prompt_text(value: &str) -> String {
@@ -28,13 +29,12 @@ impl<'a> HtmlPromptProjector<'a> {
             let tag_start = index + relative_tag_start;
             self.push_text(&self.source[index..tag_start]);
 
-            let Some(relative_tag_end) = self.source[tag_start..].find('>') else {
+            let Some(tag_end) = find_html_tag_end(self.source, tag_start + 1) else {
                 self.push_text(&self.source[tag_start..]);
                 index = self.source.len();
                 break;
             };
 
-            let tag_end = tag_start + relative_tag_end;
             let raw_tag = &self.source[tag_start + 1..tag_end];
             let tag = Tag::parse(raw_tag);
             index = tag_end + 1;

@@ -55,6 +55,88 @@ fn summary_response_leaves_ambiguous_duplicate_filename_images_unrestored() {
 }
 
 #[test]
+fn summary_response_does_not_treat_variant_or_ambiguous_paths_as_managed_evidence() {
+    let first = test_attachment("attachment-1", Some("entry-selected"), "screenshot.png");
+    let second = test_attachment("attachment-2", Some("entry-selected"), "screenshot.png");
+    let original = r#"<img src="qa-scribe-attachment://attachment-2" data-attachment-id="attachment-2" alt="Evidence" />"#;
+    let response = r#"<IMG SRC = "screenshot.png" alt="Ambiguous" />"#;
+
+    let preserved = preserve_managed_attachment_images(response, original, &[first, second]);
+
+    assert!(preserved.contains("src=\"screenshot.png\""));
+    assert!(preserved.contains("data-attachment-id=\"attachment-2\""));
+    assert!(!preserved.contains("data-attachment-id=\"attachment-1\""));
+    assert_eq!(preserved.matches("<img").count(), 2);
+}
+
+#[test]
+fn summary_response_does_not_rewrite_non_source_attributes_as_evidence() {
+    let attachment = test_attachment("attachment-1", Some("entry-selected"), "evidence.png");
+    let original = r#"<img src="qa-scribe-attachment://attachment-1" data-attachment-id="attachment-1" alt="Evidence" />"#;
+    let response = r#"<img data-src="evidence.png" alt="Lazy provider image" />"#;
+
+    let preserved =
+        preserve_managed_attachment_images(response, original, std::slice::from_ref(&attachment));
+
+    assert!(!preserved.contains("data-src"));
+    assert_eq!(
+        preserved
+            .matches("data-attachment-id=\"attachment-1\"")
+            .count(),
+        1
+    );
+    assert_eq!(preserved.matches("<img").count(), 1);
+}
+
+#[test]
+fn summary_response_does_not_attribute_ambiguous_original_filenames() {
+    let first = test_attachment("attachment-1", Some("entry-selected"), "screenshot.png");
+    let second = test_attachment("attachment-2", Some("entry-selected"), "screenshot.png");
+    let original = r#"<img src="screenshot.png" alt="Ambiguous original" />"#;
+
+    let preserved =
+        preserve_managed_attachment_images("<p>Summary.</p>", original, &[first, second]);
+
+    assert!(!preserved.contains("qa-scribe-attachment://"));
+    assert!(!preserved.contains("data-attachment-id"));
+}
+
+#[test]
+fn summary_response_restores_only_cross_field_unique_attachment_sources() {
+    let mut first = test_attachment("attachment-1", Some("entry-selected"), "first.png");
+    first.relative_path = "shared.png".to_string();
+    let second = test_attachment("attachment-2", Some("entry-selected"), "shared.png");
+    let original = r#"<img src="qa-scribe-attachment://attachment-1" data-attachment-id="attachment-1" alt="Evidence" />"#;
+
+    let preserved = preserve_managed_attachment_images(
+        r#"<img src="shared.png" alt="Ambiguous provider path" />"#,
+        original,
+        &[first, second],
+    );
+
+    assert!(preserved.contains("src=\"shared.png\""));
+    assert_eq!(
+        preserved
+            .matches("data-attachment-id=\"attachment-1\"")
+            .count(),
+        1
+    );
+    assert!(!preserved.contains("data-attachment-id=\"attachment-2\""));
+    assert_eq!(preserved.matches("<img").count(), 2);
+}
+
+#[test]
+fn summary_response_does_not_rewrite_source_like_text() {
+    let attachment = test_attachment("attachment-1", Some("entry-selected"), "evidence.png");
+    let response = r#"<p>Literal src="evidence.png" text.</p>"#;
+
+    let preserved =
+        preserve_managed_attachment_images(response, "", std::slice::from_ref(&attachment));
+
+    assert_eq!(preserved, response);
+}
+
+#[test]
 fn summary_response_restores_a_unique_filename_even_when_other_attachments_share_a_different_filename()
  {
     let unique = test_attachment("attachment-1", Some("entry-selected"), "unique.png");
@@ -113,4 +195,151 @@ fn summary_response_restores_missing_external_images() {
             .count(),
         1
     );
+}
+
+#[test]
+fn summary_response_preserves_quoted_tag_delimiters_in_image_attributes() {
+    let original =
+        r#"<p>Evidence.</p><img src="https://example.com/comparison.png" alt="Before > after" />"#;
+
+    let preserved = preserve_managed_attachment_images("<p>Summary.</p>", original, &[]);
+
+    assert!(preserved.contains("src=\"https://example.com/comparison.png\""));
+    assert!(preserved.contains("alt=\"Before &gt; after\""));
+    assert_eq!(preserved.matches("<img").count(), 1);
+}
+
+#[test]
+fn summary_response_deduplicates_only_exact_managed_img_identities() {
+    let attachment = test_attachment("attachment-1", Some("entry-selected"), "evidence.png");
+    let original = r#"<p>Evidence.</p><img src="qa-scribe-attachment://attachment-1" data-attachment-id="attachment-1" alt="Evidence" />"#;
+
+    for (response, expected_image_count) in [
+        (
+            r#"<p>Mentions qa-scribe-attachment://attachment-1 in text.</p>"#,
+            1,
+        ),
+        (
+            r#"<a href="qa-scribe-attachment://attachment-1">Evidence link</a>"#,
+            1,
+        ),
+        (
+            r#"<p data-attachment-id="attachment-1">Removed attribute</p>"#,
+            1,
+        ),
+        (
+            r#"<img src="qa-scribe-attachment://attachment-10" data-attachment-id="attachment-10" alt="Different image" />"#,
+            2,
+        ),
+    ] {
+        let preserved = preserve_managed_attachment_images(
+            response,
+            original,
+            std::slice::from_ref(&attachment),
+        );
+        assert!(
+            preserved.contains("data-attachment-id=\"attachment-1\""),
+            "missing exact Evidence image for {response:?}: {preserved:?}"
+        );
+        assert_eq!(
+            preserved.matches("<img").count(),
+            expected_image_count,
+            "unexpected exact Evidence identity count for {response:?}: {preserved:?}"
+        );
+    }
+
+    let exact = preserve_managed_attachment_images(
+        r#"<p>Summary.</p><img src="qa-scribe-attachment://attachment-1" data-attachment-id="attachment-1" alt="Updated" />"#,
+        original,
+        &[attachment],
+    );
+    assert_eq!(
+        exact
+            .match_indices("data-attachment-id=\"attachment-1\"")
+            .count(),
+        1
+    );
+    assert_eq!(exact.matches("<img").count(), 1);
+}
+
+#[test]
+fn summary_response_deduplicates_only_exact_external_img_sources() {
+    let source = "https://example.com/evidence.png";
+    let original = format!(r#"<p>Evidence.</p><img src="{source}" alt="Evidence" />"#);
+
+    for response in [
+        format!("<p>Mentions {source} in text.</p>"),
+        format!(r#"<a href="{source}">Evidence link</a>"#),
+        format!(r#"<p data-source="{source}">Removed attribute</p>"#),
+        format!(r#"<img src="{source}.backup" alt="Different image" />"#),
+    ] {
+        let preserved = preserve_managed_attachment_images(&response, &original, &[]);
+        assert!(
+            preserved.contains(&format!("src=\"{source}\"")),
+            "missing exact external Evidence image for {response:?}: {preserved:?}"
+        );
+    }
+
+    let exact = preserve_managed_attachment_images(
+        &format!(r#"<p>Summary.</p><img src="{source}" alt="Updated" />"#),
+        &original,
+        &[],
+    );
+    assert_eq!(exact.matches("<img").count(), 1);
+}
+
+#[test]
+fn summary_response_ignores_img_prefixes_and_comments_when_deduplicating() {
+    let source = "https://example.com/evidence.png";
+    let original = format!(r#"<img src="{source}" alt="Evidence" />"#);
+
+    for response in [
+        format!(r#"<image src="{source}">Not an img tag</image>"#),
+        format!(r#"<img-placeholder src="{source}"></img-placeholder>"#),
+        format!(r#"<!-- <img src="{source}" alt="Comment only" /> -->"#),
+    ] {
+        let preserved = preserve_managed_attachment_images(&response, &original, &[]);
+        assert_eq!(
+            preserved.matches(&format!("src=\"{source}\"")).count(),
+            1,
+            "the original image should be restored for {response:?}: {preserved:?}"
+        );
+        assert!(preserved.contains(&format!("<p><img src=\"{source}\" alt=\"Evidence\" /></p>")));
+        assert_eq!(preserved.matches("<p><img src=").count(), 1);
+    }
+}
+
+#[test]
+fn summary_response_does_not_deduplicate_images_removed_by_sanitization() {
+    let attachment = test_attachment("attachment-1", Some("entry-selected"), "evidence.png");
+    let original = r#"<img src="qa-scribe-attachment://attachment-1" data-attachment-id="attachment-1" alt="Evidence" />"#;
+    let response = r#"<script><img src="qa-scribe-attachment://attachment-1" data-attachment-id="attachment-1" /></script>"#;
+
+    let preserved =
+        preserve_managed_attachment_images(response, original, std::slice::from_ref(&attachment));
+
+    assert!(!preserved.contains("script"));
+    assert_eq!(
+        preserved
+            .matches("data-attachment-id=\"attachment-1\"")
+            .count(),
+        1
+    );
+    assert_eq!(preserved.matches("<img").count(), 1);
+}
+
+#[test]
+fn summary_response_recovers_after_non_ascii_and_malformed_image_prefixes() {
+    let first_source = "https://example.com/first.png";
+    let second_source = "https://example.com/second.png";
+    let original = format!(
+        "<\u{1F600}><img src=\"{first_source}\" alt=\"First\" />\
+         <img alt=\"unterminated <img src=\"{second_source}\" alt=\"Second\" />"
+    );
+
+    let preserved = preserve_managed_attachment_images("<p>Summary.</p>", &original, &[]);
+
+    assert!(preserved.contains(&format!("src=\"{first_source}\"")));
+    assert!(preserved.contains(&format!("src=\"{second_source}\"")));
+    assert_eq!(preserved.matches("<img").count(), 2);
 }

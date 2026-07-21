@@ -1,27 +1,25 @@
-import {
-  createDraft,
-  createFinding,
-  deleteDraft,
-  deleteFinding,
-  updateDraft,
-  updateFinding,
-  type Draft,
-  type Finding,
-  type Session,
-} from '../tauri'
+import { createDraft, createFinding, type Draft, type Finding, type Session } from '../tauri'
 import {
   emptyRichEditorDocument,
   richEditorDocumentFromHtml,
-  richEditorDocumentFromStoredBody,
   richEditorDocumentToStoredBody,
-  type StoredRichBody,
   type RichEditorDocument,
 } from '../editor/editorDocument'
 import { formatError, nextUntitledRecordTitle } from '../ui/format'
-import { renderPrefilledFinding, renderPrefilledTestware } from '../workflows/prefillTemplates'
-import type { DeletionWorkspace, FindingRecordPatch, RecordWorkspace, RichRecordPatch, SessionWorkspace, WorkflowFeedback, WorkflowNavigation } from './types'
-import { useStableCapability } from './useStableCapability'
 import type { BusyAction, MainView } from '../ui/types'
+import { renderPrefilledFinding, renderPrefilledTestware } from '../workflows/prefillTemplates'
+import type { InlineImageMaterialization } from './attachmentActions'
+import { createRecordActionCoordination } from './recordActions.coordination'
+import { createDraftRecordActions } from './recordActions.drafts'
+import { createFindingRecordActions } from './recordActions.findings'
+import type {
+  DeletionWorkspace,
+  RecordWorkspace,
+  SessionWorkspace,
+  WorkflowFeedback,
+  WorkflowNavigation,
+} from './types'
+import { useStableCapability } from './useStableCapability'
 
 export type RecordLoaders = {
   loadDraftsForSession: (sessionId: string, options?: { force?: boolean; replace?: boolean }) => Promise<Draft[]>
@@ -30,10 +28,8 @@ export type RecordLoaders = {
 
 type InlineImageMaterializer = (
   document: RichEditorDocument,
-  options?: { entryId?: string | null; updateNoteBody?: boolean },
-) => Promise<RichEditorDocument>
-
-type RecordPersistResult = 'saved' | 'superseded' | 'failed'
+  options?: { entryId?: string | null; isCurrent?: () => boolean },
+) => Promise<InlineImageMaterialization>
 
 export type RecordActionsContext = {
   session: Pick<SessionWorkspace, 'activeSession' | 'activeSessionIdRef' | 'noteBodyHtml'>
@@ -47,17 +43,27 @@ export type RecordActionsContext = {
     | 'savedFindingsRef'
     | 'setDrafts'
     | 'setFindings'
+    | 'setTestwareDraftCount'
+    | 'setFindingCount'
   >
   feedback: WorkflowFeedback
   navigation: WorkflowNavigation
   deletion: DeletionWorkspace
   saveNoteNow: (options?: { manageBusy?: boolean }) => Promise<boolean>
+  registerRecordEditIntent: () => void
   handleDeleteSession: (session: Session) => Promise<void>
   materializeInlineImages: InlineImageMaterializer
+  cleanupMaterializedAttachments: (attachmentIds: string[]) => Promise<boolean>
+  invalidateDraftLoads: () => void
+  invalidateFindingLoads: () => void
   loaders: RecordLoaders
 }
 
 export function createRecordActions(ctx: RecordActionsContext) {
+  const coordination = createRecordActionCoordination(ctx)
+  const draftActions = createDraftRecordActions(ctx, coordination)
+  const findingActions = createFindingRecordActions(ctx, coordination)
+
   async function createRecordFromNote(
     busy: BusyAction,
     bodyDocument: RichEditorDocument,
@@ -153,126 +159,25 @@ export function createRecordActions(ctx: RecordActionsContext) {
     )
   }
 
-  async function persistDraft(draft: Draft): Promise<RecordPersistResult> {
-    try {
-      ctx.feedback.setError(null)
-      const storedBody = await materializeRecordBody(draft, ctx.materializeInlineImages)
-      const saved = await updateDraft(draft.id, { title: draft.title, ...storedBody })
-      const current = ctx.records.draftsRef.current.find((item) => item.id === draft.id)
-      if (!current) return 'failed'
-      if (!draftEditableFieldsMatch(current, draft)) return 'superseded'
-      ctx.records.dirtyDraftIdsRef.current.delete(draft.id)
-      ctx.records.savedDraftsRef.current = replaceRecord(ctx.records.savedDraftsRef.current, saved)
-      if (ctx.session.activeSessionIdRef.current === saved.sessionId) {
-        ctx.records.setDrafts((previous) => {
-          const nextDrafts = previous.map((item) => (item.id === saved.id ? saved : item))
-          ctx.records.draftsRef.current = nextDrafts
-          return nextDrafts
-        })
-      }
-      return 'saved'
-    } catch (cause) {
-      ctx.feedback.setError(formatError(cause))
-      return 'failed'
-    }
-  }
-
-  async function handleSaveDraft(draft: Draft): Promise<boolean> {
-    try {
-      ctx.feedback.setBusyAction(`draft:${draft.id}`)
-      const result = await persistDraft(draft)
-      if (result === 'saved') ctx.feedback.setNotice('Testware saved')
-      return result === 'saved'
-    } finally {
-      ctx.feedback.setBusyAction(null)
-    }
-  }
-
-  function updateLocalDraft(id: string, patch: RichRecordPatch) {
-    ctx.records.dirtyDraftIdsRef.current.add(id)
-    ctx.records.setDrafts((previous) => {
-      const nextDrafts = previous.map((draft) => (draft.id === id ? { ...draft, ...patch } : draft))
-      ctx.records.draftsRef.current = nextDrafts
-      return nextDrafts
-    })
-  }
-
-  function discardLocalDraft(original: Draft) {
-    ctx.records.dirtyDraftIdsRef.current.delete(original.id)
-    ctx.records.setDrafts((previous) => {
-      const nextDrafts = previous.map((draft) => (draft.id === original.id ? original : draft))
-      ctx.records.draftsRef.current = nextDrafts
-      return nextDrafts
-    })
-    ctx.feedback.setNotice('Testware changes discarded')
-  }
-
-  async function persistFinding(finding: Finding): Promise<RecordPersistResult> {
-    try {
-      ctx.feedback.setError(null)
-      const storedBody = await materializeRecordBody(finding, ctx.materializeInlineImages)
-      const saved = await updateFinding(finding.id, {
-        title: finding.title,
-        ...storedBody,
-        kind: finding.kind,
-        metadataJson: finding.metadataJson,
-      })
-      const current = ctx.records.findingsRef.current.find((item) => item.id === finding.id)
-      if (!current) return 'failed'
-      if (!findingEditableFieldsMatch(current, finding)) return 'superseded'
-      ctx.records.dirtyFindingIdsRef.current.delete(finding.id)
-      ctx.records.savedFindingsRef.current = replaceRecord(ctx.records.savedFindingsRef.current, saved)
-      if (ctx.session.activeSessionIdRef.current === saved.sessionId) {
-        ctx.records.setFindings((previous) => {
-          const nextFindings = previous.map((item) => (item.id === saved.id ? saved : item))
-          ctx.records.findingsRef.current = nextFindings
-          return nextFindings
-        })
-      }
-      return 'saved'
-    } catch (cause) {
-      ctx.feedback.setError(formatError(cause))
-      return 'failed'
-    }
-  }
-
-  async function handleSaveFinding(finding: Finding): Promise<boolean> {
-    try {
-      ctx.feedback.setBusyAction(`finding:${finding.id}`)
-      const result = await persistFinding(finding)
-      if (result === 'saved') ctx.feedback.setNotice('Finding saved')
-      return result === 'saved'
-    } finally {
-      ctx.feedback.setBusyAction(null)
-    }
-  }
-
-  function updateLocalFinding(id: string, patch: FindingRecordPatch) {
-    ctx.records.dirtyFindingIdsRef.current.add(id)
-    ctx.records.setFindings((previous) => {
-      const nextFindings = previous.map((finding) => (finding.id === id ? { ...finding, ...patch } : finding))
-      ctx.records.findingsRef.current = nextFindings
-      return nextFindings
-    })
-  }
-
-  function discardLocalFinding(original: Finding) {
-    ctx.records.dirtyFindingIdsRef.current.delete(original.id)
-    ctx.records.setFindings((previous) => {
-      const nextFindings = previous.map((finding) => (finding.id === original.id ? original : finding))
-      ctx.records.findingsRef.current = nextFindings
-      return nextFindings
-    })
-    ctx.feedback.setNotice('Finding changes discarded')
-  }
-
   function discardAllDirtyRecords() {
     const dirtyDraftIds = new Set(ctx.records.dirtyDraftIdsRef.current)
     const dirtyFindingIds = new Set(ctx.records.dirtyFindingIdsRef.current)
     const savedDrafts = new Map(ctx.records.savedDraftsRef.current.map((draft) => [draft.id, draft]))
     const savedFindings = new Map(ctx.records.savedFindingsRef.current.map((finding) => [finding.id, finding]))
+    const pendingDraftIds = new Set(Array.from(dirtyDraftIds).filter((id) => coordination.draftIntents.get(id)?.compensationPending))
+    const pendingFindingIds = new Set(Array.from(dirtyFindingIds).filter((id) => coordination.findingIntents.get(id)?.compensationPending))
+    for (const id of dirtyDraftIds) if (!pendingDraftIds.has(id)) coordination.reserveDraftIntent(id, 'discard', savedDrafts.get(id) ?? null)
+    for (const id of dirtyFindingIds) if (!pendingFindingIds.has(id)) coordination.reserveFindingIntent(id, 'discard', savedFindings.get(id) ?? null)
     ctx.records.dirtyDraftIdsRef.current.clear()
     ctx.records.dirtyFindingIdsRef.current.clear()
+    for (const id of pendingDraftIds) ctx.records.dirtyDraftIdsRef.current.add(id)
+    for (const id of pendingFindingIds) ctx.records.dirtyFindingIdsRef.current.add(id)
+    for (const id of dirtyDraftIds) {
+      void coordination.settleImportedRecordAttachments({ kind: 'draft', id }, savedDrafts.get(id) ?? null)
+    }
+    for (const id of dirtyFindingIds) {
+      void coordination.settleImportedRecordAttachments({ kind: 'finding', id }, savedFindings.get(id) ?? null)
+    }
     ctx.records.setDrafts((previous) => {
       const next = previous
         .filter((draft) => !dirtyDraftIds.has(draft.id) || savedDrafts.has(draft.id))
@@ -287,6 +192,10 @@ export function createRecordActions(ctx: RecordActionsContext) {
       ctx.records.findingsRef.current = next
       return next
     })
+    if (pendingDraftIds.size > 0 || pendingFindingIds.size > 0) {
+      ctx.feedback.setError('A failed Record reconciliation must be saved again before leaving.')
+      return
+    }
     ctx.feedback.setNotice('Pending record changes discarded')
   }
 
@@ -298,56 +207,18 @@ export function createRecordActions(ctx: RecordActionsContext) {
     let failed = false
     let allSaved = true
     for (const draft of dirtyDrafts) {
-      const result = await persistDraft(draft)
+      const result = await draftActions.persistDraft(draft)
       failed = result === 'failed' || failed
       allSaved = result === 'saved' && allSaved
     }
     for (const finding of dirtyFindings) {
-      const result = await persistFinding(finding)
+      const result = await findingActions.persistFinding(finding)
       failed = result === 'failed' || failed
       allSaved = result === 'saved' && allSaved
     }
     if (failed) return false
     if (allSaved) ctx.feedback.setNotice('Pending record edits saved')
     return true
-  }
-
-  function requestDeleteDraft(draft: Draft) {
-    ctx.deletion.setDeleteConfirmation({ kind: 'draft', draft })
-  }
-
-  async function handleDeleteDraft(draft: Draft) {
-    try {
-      ctx.feedback.setBusyAction(`delete-draft:${draft.id}`)
-      ctx.feedback.setError(null)
-      await deleteDraft(draft.id)
-      ctx.records.dirtyDraftIdsRef.current.delete(draft.id)
-      await ctx.loaders.loadDraftsForSession(draft.sessionId, { force: true, replace: true })
-      ctx.feedback.setNotice('Testware deleted')
-    } catch (cause) {
-      ctx.feedback.setError(formatError(cause))
-    } finally {
-      ctx.feedback.setBusyAction(null)
-    }
-  }
-
-  function requestDeleteFinding(finding: Finding) {
-    ctx.deletion.setDeleteConfirmation({ kind: 'finding', finding })
-  }
-
-  async function handleDeleteFinding(finding: Finding) {
-    try {
-      ctx.feedback.setBusyAction(`delete-finding:${finding.id}`)
-      ctx.feedback.setError(null)
-      await deleteFinding(finding.id)
-      ctx.records.dirtyFindingIdsRef.current.delete(finding.id)
-      await ctx.loaders.loadFindingsForSession(finding.sessionId, { force: true, replace: true })
-      ctx.feedback.setNotice('Finding deleted')
-    } catch (cause) {
-      ctx.feedback.setError(formatError(cause))
-    } finally {
-      ctx.feedback.setBusyAction(null)
-    }
   }
 
   async function confirmDelete() {
@@ -358,66 +229,38 @@ export function createRecordActions(ctx: RecordActionsContext) {
     if (confirmation.kind === 'session') {
       await ctx.handleDeleteSession(confirmation.session)
     } else if (confirmation.kind === 'draft') {
-      await handleDeleteDraft(confirmation.draft)
+      await draftActions.handleDeleteDraft(confirmation.draft)
     } else {
-      await handleDeleteFinding(confirmation.finding)
+      await findingActions.handleDeleteFinding(confirmation.finding)
     }
   }
 
   return {
     confirmDelete,
-    discardLocalDraft,
-    discardLocalFinding,
+    canonicalizeGeneratedDraft: draftActions.canonicalizeGeneratedDraft,
+    canonicalizeGeneratedFinding: findingActions.canonicalizeGeneratedFinding,
+    discardLocalDraft: draftActions.discardLocalDraft,
+    discardLocalFinding: findingActions.discardLocalFinding,
     discardAllDirtyRecords,
     handleManualFinding,
     handleManualTestware,
     handlePrefillFindingFromNote,
     handlePrefillTestwareFromNote,
+    hasPendingRecordCompensations: coordination.hasPendingRecordCompensations,
     saveDirtyRecordsNow,
-    handleSaveDraft,
-    handleSaveFinding,
-    requestDeleteDraft,
-    requestDeleteFinding,
-    updateLocalDraft,
-    updateLocalFinding,
+    handleSaveDraft: draftActions.handleSaveDraft,
+    handleSaveFinding: findingActions.handleSaveFinding,
+    requestDeleteDraft: draftActions.requestDeleteDraft,
+    requestDeleteFinding: findingActions.requestDeleteFinding,
+    registerImportedRecordAttachment: coordination.registerImportedRecordAttachment,
+    retryAllPendingRecordCompensations: coordination.retryAllPendingRecordCompensations,
+    retryPendingRecordCompensations: coordination.retryPendingRecordCompensations,
+    updateLocalDraft: draftActions.updateLocalDraft,
+    updateLocalFinding: findingActions.updateLocalFinding,
+    waitForPendingRecordWrites: coordination.waitForPendingRecordWrites,
   }
-}
-
-function replaceRecord<T extends { id: string }>(records: T[], saved: T): T[] {
-  return records.some((record) => record.id === saved.id)
-    ? records.map((record) => record.id === saved.id ? saved : record)
-    : [saved, ...records]
 }
 
 export function useRecordActions(ctx: RecordActionsContext) {
   return useStableCapability(ctx, createRecordActions)
-}
-
-async function materializeRecordBody(
-  record: StoredRichBody,
-  materializeInlineImages: InlineImageMaterializer,
-): Promise<StoredRichBody> {
-  const document = richEditorDocumentFromStoredBody(record)
-  const materialized = await materializeInlineImages(document, { entryId: null })
-  return richEditorDocumentToStoredBody(materialized)
-}
-
-function draftEditableFieldsMatch(left: Draft, right: Draft): boolean {
-  return (
-    left.title === right.title &&
-    left.body === right.body &&
-    left.bodyJson === right.bodyJson &&
-    left.bodyFormat === right.bodyFormat
-  )
-}
-
-function findingEditableFieldsMatch(left: Finding, right: Finding): boolean {
-  return (
-    left.title === right.title &&
-    left.body === right.body &&
-    left.bodyJson === right.bodyJson &&
-    left.bodyFormat === right.bodyFormat &&
-    left.kind === right.kind &&
-    left.metadataJson === right.metadataJson
-  )
 }

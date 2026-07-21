@@ -1,3 +1,4 @@
 {
-  "tauriCli": "2.11.4"
+  "tauriCli": "2.11.4",
+  "cargoAudit": "0.22.2"
 }

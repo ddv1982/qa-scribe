@@ -131,7 +131,12 @@ fn reported_provider_cwd() -> PathBuf {
         match output {
             Ok(output) => {
                 assert!(output.success(), "expected success, got {output:?}");
-                return PathBuf::from(output.response_text().trim());
+                return PathBuf::from(
+                    output
+                        .response_text()
+                        .expect("plain provider output is compatible")
+                        .trim(),
+                );
             }
             Err(error) if error.contains("Text file busy") && attempt < 5 => {
                 thread::sleep(Duration::from_millis(50));
@@ -175,9 +180,6 @@ fn provider_process_runs_in_a_neutral_working_directory() {
 
 #[test]
 fn each_generation_gets_a_fresh_provider_cwd_that_is_cleaned_up() {
-    // A single shared, persistent cwd would re-introduce contamination if any
-    // run ever wrote a CLAUDE.md there, and would let concurrent runs collide.
-    // Each generation must get its own directory, removed after it completes.
     let first = reported_provider_cwd();
     let second = reported_provider_cwd();
 
@@ -192,6 +194,34 @@ fn each_generation_gets_a_fresh_provider_cwd_that_is_cleaned_up() {
     assert!(
         !second.exists(),
         "the per-run cwd {second:?} should be removed after the generation completes"
+    );
+}
+
+#[test]
+fn private_provider_cwd_failure_prevents_generation_spawn() {
+    let marker = std::env::temp_dir().join(format!(
+        "qa-scribe-provider-spawn-marker-{}",
+        uuid::Uuid::new_v4().simple()
+    ));
+    let script = format!("#!/bin/sh\ntouch '{}'\n", marker.display());
+    let cli = FakeCli::new("fake-must-not-run", &script);
+    let blocked_parent = cli.dir.join("blocked-parent");
+    fs::write(&blocked_parent, b"not a directory").expect("blocking file should create");
+    let command = cli.command("prompt".to_string(), GenerationOutputFormat::PlainText);
+    let control = JobControl::default();
+    let executor = ProcessProviderExecutor::with_provider_cwd_parent(&control, blocked_parent);
+
+    let error = run_streaming_generation(&executor, &command, |_| {})
+        .expect_err("generation must fail before spawning without a private cwd");
+
+    assert!(
+        error.contains("Could not create a private working directory for the provider"),
+        "unexpected error: {error}"
+    );
+    assert!(error.contains("provider was not started"));
+    assert!(
+        !marker.exists(),
+        "provider subprocess must not have spawned"
     );
 }
 
@@ -213,7 +243,12 @@ fn normal_completion_accumulates_events() {
     .expect("streaming completes");
 
     assert!(output.success(), "expected success, got {output:?}");
-    assert_eq!(output.response_text(), "Hello world");
+    assert_eq!(
+        output
+            .response_text()
+            .expect("Codex JSONL contains assistant text"),
+        "Hello world"
+    );
 }
 
 #[test]
@@ -376,7 +411,12 @@ fn large_stderr_before_reading_stdin_does_not_deadlock() {
     .expect("streaming completes without deadlock");
 
     assert!(output.success(), "expected success, got {output:?}");
-    assert_eq!(output.response_text(), "done");
+    assert_eq!(
+        output
+            .response_text()
+            .expect("Codex JSONL contains assistant text"),
+        "done"
+    );
     assert_eq!(output.stderr.len(), MAX_PROVIDER_STDERR_BYTES);
     assert!(
         output.stderr.ends_with(b"final actionable diagnostic"),

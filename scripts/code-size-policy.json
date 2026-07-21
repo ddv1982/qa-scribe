@@ -1,7 +1,15 @@
 {
   "maxLines": 500,
   "watchLines": 300,
-  "exceptions": [],
+  "exceptions": [
+    {
+      "path": ".github/workflows/release.yml",
+      "reason": "The release workflow is one dependency-ordered packaging, signing, validation, and publication pipeline whose platform jobs share artifact contracts.",
+      "splitCost": "Extracting jobs without a proven responsibility seam would move coupling into reusable-workflow inputs and obscure permissions, conditions, and artifact provenance.",
+      "reviewDate": "2026-10-20",
+      "reviewTrigger": "Review when a packaging platform gains an independent release cadence or the workflow adds another separately invocable responsibility."
+    }
+  ],
   "excludedFiles": [
     {
       "path": "scripts/build_apt_repository.py",

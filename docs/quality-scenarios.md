@@ -34,7 +34,7 @@ Validation:
 bun run e2e
 ```
 
-The command builds the opt-in E2E binary, restores a production frontend build before running it, writes run metadata and failure evidence under `artifacts/e2e/`, and removes its temporary application data. Run `bun run e2e:isolation` after a production frontend build to prove the WDIO guest, permissions, and plugins are absent from production.
+The command builds the opt-in E2E frontend into its temporary root, points the E2E Tauri config at that isolated output, writes run metadata and failure evidence under `artifacts/e2e/`, and removes its temporary application data. It never replaces `frontend/dist`. Run `bun run e2e:isolation` after a production frontend build to prove the WDIO guest, permissions, and plugins are absent from production.
 
 ## Maintainability
 

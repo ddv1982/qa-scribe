@@ -146,6 +146,97 @@ fn testware_completion_preserves_managed_screenshots() {
 }
 
 #[test]
+fn testware_preserve_evidence_true_restores_omitted_managed_and_external_images() {
+    let service = SessionService::in_memory().expect("service should open");
+    let session = create_session(&service, "Mixed evidence");
+    let (note, attachment) = create_note_with_attachment(&service, &session);
+    let external_source = "https://evidence.example/source.png";
+    let note = service
+        .update_entry(
+            &note.id,
+            EntryPatch {
+                body: Some(format!(
+                    "{}<p><img src=\"{external_source}\" alt=\"External evidence\" onerror=\"unsafe()\" /></p>",
+                    note.body
+                )),
+                ..EntryPatch::default()
+            },
+        )
+        .expect("mixed evidence note should update");
+    let mut request = request_for(&session.id, GenerateAiActionKind::Testware, Some(&note.id));
+    request.testware_preferences = Some(testware_preferences_with_preserve_evidence(true));
+    let prepared =
+        prepare_ai_action_generation(&service, &request).expect("generation should prepare");
+
+    let result = finish_ai_action_generation(
+        &service,
+        &request,
+        prepared,
+        Ok(success_generation_output(
+            "<h2>Generated cases</h2><p>No image echoed by provider.</p>",
+        )),
+    )
+    .expect("generation should finish");
+    let body = result.draft.expect("testware draft").body;
+
+    assert!(body.contains(&format!("src=\"qa-scribe-attachment://{}\"", attachment.id)));
+    assert!(body.contains(&format!("data-attachment-id=\"{}\"", attachment.id)));
+    assert!(body.contains(&format!("src=\"{external_source}\"")));
+    assert!(!body.contains("onerror"));
+}
+
+#[test]
+fn testware_preserve_evidence_false_omits_source_images_but_sanitizes_provider_images() {
+    let service = SessionService::in_memory().expect("service should open");
+    let session = create_session(&service, "Mixed evidence");
+    let (note, attachment) = create_note_with_attachment(&service, &session);
+    let external_source = "https://evidence.example/source.png";
+    let note = service
+        .update_entry(
+            &note.id,
+            EntryPatch {
+                body: Some(format!(
+                    "{}<p><img src=\"{external_source}\" alt=\"External evidence\" /></p>",
+                    note.body
+                )),
+                ..EntryPatch::default()
+            },
+        )
+        .expect("mixed evidence note should update");
+    let mut request = request_for(&session.id, GenerateAiActionKind::Testware, Some(&note.id));
+    request.testware_preferences = Some(testware_preferences_with_preserve_evidence(false));
+    let prepared =
+        prepare_ai_action_generation(&service, &request).expect("generation should prepare");
+
+    let result = finish_ai_action_generation(
+        &service,
+        &request,
+        prepared,
+        Ok(success_generation_output(
+            r#"<h2 onclick="unsafe()">Generated cases</h2>
+<img src="qa-scribe-attachment://provider-returned" data-attachment-id="provider-returned" alt="Provider managed" onerror="unsafe()" />
+<img src="https://provider.example/returned.png" alt="Provider external" onerror="unsafe()" />
+<img src="javascript:unsafe()" alt="Unsafe provider image" />"#,
+        )),
+    )
+    .expect("generation should finish");
+    let body = result.draft.expect("testware draft").body;
+
+    assert!(!body.contains(&attachment.id));
+    assert!(!body.contains(external_source));
+    assert!(body.contains(
+        "<img src=\"qa-scribe-attachment://provider-returned\" data-attachment-id=\"provider-returned\" alt=\"Provider managed\" />"
+    ));
+    assert!(body.contains(
+        "<img src=\"https://provider.example/returned.png\" alt=\"Provider external\" />"
+    ));
+    assert!(!body.contains("onclick"));
+    assert!(!body.contains("onerror"));
+    assert!(!body.contains("javascript:"));
+    assert!(!body.contains("Unsafe provider image"));
+}
+
+#[test]
 fn testware_persistence_failure_marks_ai_run_failed_not_completed() {
     let service = SessionService::in_memory().expect("service should open");
     let session = create_session(&service, "Oversized output");
@@ -322,6 +413,7 @@ fn invalid_reported_model_fails_the_run_instead_of_leaving_it_running() {
         .into_bytes(),
         stderr: Vec::new(),
         assistant_text: Some("<p>Generated output.</p>".to_string()),
+        output_format: GenerationOutputFormat::ClaudeStreamJson,
         cancelled: false,
     };
 

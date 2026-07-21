@@ -1,4 +1,4 @@
-use std::{collections::HashSet, fs, path::PathBuf, process::Command, sync::Mutex, time::Duration};
+use std::{fs, path::PathBuf, process::Command, time::Duration};
 
 #[cfg(unix)]
 use std::thread;
@@ -20,27 +20,9 @@ mod support;
 
 use support::{MockRunner, copilot_prompt_help};
 
-static PROVIDER_PROBE_TEMP_FILE_TEST_LOCK: Mutex<()> = Mutex::new(());
-
-#[test]
-fn provider_probe_cleans_temp_files_when_spawn_fails() {
-    let _probe_lock = lock_provider_probe_temp_file_tests();
-    let before = provider_probe_temp_files();
-
-    let error = run_command_with_timeout(
-        Command::new("qa-scribe-provider-probe-command-that-does-not-exist"),
-        Duration::from_millis(10),
-    )
-    .expect_err("missing command should fail to spawn");
-
-    assert_eq!(error.kind(), std::io::ErrorKind::NotFound);
-    assert_eq!(provider_probe_temp_files(), before);
-}
-
 #[cfg(unix)]
 #[test]
 fn provider_probe_timeout_kills_descendant_processes() {
-    let _probe_lock = lock_provider_probe_temp_file_tests();
     let marker = std::env::temp_dir().join(format!(
         "qa-scribe-provider-probe-descendant-{}-{}",
         std::process::id(),
@@ -69,7 +51,6 @@ fn provider_probe_timeout_kills_descendant_processes() {
 
 #[test]
 fn provider_probe_output_files_are_created_exclusively() {
-    let _probe_lock = lock_provider_probe_temp_file_tests();
     let output_files = ProbeOutputFiles::new();
     fs::create_dir(
         output_files
@@ -103,26 +84,6 @@ fn generic_provider_probes_run_outside_the_repository() {
         !probe_directory.exists(),
         "the neutral provider directory should be removed after the probe"
     );
-}
-
-fn lock_provider_probe_temp_file_tests() -> std::sync::MutexGuard<'static, ()> {
-    PROVIDER_PROBE_TEMP_FILE_TEST_LOCK
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
-}
-
-fn provider_probe_temp_files() -> HashSet<PathBuf> {
-    let prefix = format!("qa-scribe-provider-probe-{}-", std::process::id());
-    fs::read_dir(std::env::temp_dir())
-        .expect("temp dir should be readable")
-        .filter_map(Result::ok)
-        .map(|entry| entry.path())
-        .filter(|path| {
-            path.file_name()
-                .and_then(|name| name.to_str())
-                .is_some_and(|name| name.starts_with(&prefix))
-        })
-        .collect()
 }
 
 #[test]

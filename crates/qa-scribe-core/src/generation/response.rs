@@ -1,6 +1,6 @@
 use super::html::{
     MANAGED_ATTACHMENT_PROTOCOL, attribute_value_with_decoder, decode_basic_html_entities,
-    escape_html_attribute, find_case_insensitive,
+    escape_html_attribute, find_case_insensitive, find_html_tag_end,
 };
 
 mod images;
@@ -184,12 +184,11 @@ fn sanitize_editor_html_fragment(value: &str) -> String {
             continue;
         }
 
-        let Some(relative_end) = value[tag_start..].find('>') else {
+        let Some(tag_end) = find_html_tag_end(value, tag_start + 1) else {
             output.push_str("&lt;");
             index = tag_start + 1;
             continue;
         };
-        let tag_end = tag_start + relative_end;
         let raw_tag = &value[tag_start + 1..tag_end];
         match sanitize_editor_tag(raw_tag) {
             SanitizedTag::Keep(html) => output.push_str(&html),
@@ -393,8 +392,7 @@ fn find_closing_tag_end(value: &str, start: usize, tag_name: &str) -> Option<usi
     let needle = format!("</{tag_name}");
     let relative_start = find_case_insensitive(&value[start..], &needle)?;
     let close_start = start + relative_start;
-    let close_end = value[close_start..].find('>')?;
-    Some(close_start + close_end + 1)
+    find_html_tag_end(value, close_start + 2).map(|close_end| close_end + 1)
 }
 
 fn should_decode_escaped_editor_html(value: &str) -> bool {

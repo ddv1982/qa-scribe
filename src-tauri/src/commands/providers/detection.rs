@@ -178,6 +178,14 @@ fn detect_cli_provider(
             false,
         );
     }
+    if auth.scope_error.is_some() {
+        return not_installed_or_error(
+            capability,
+            auth,
+            descriptor.auth_required_reason,
+            executable_path,
+        );
+    }
 
     descriptor_readiness(
         capability,
@@ -238,6 +246,14 @@ fn detect_copilot(
     }
 
     let help = runner.run("copilot", &["--help"]);
+    if help.scope_error.is_some() {
+        return not_installed_or_error(
+            capability,
+            help,
+            "Could not inspect GitHub Copilot CLI readiness.",
+            executable_path,
+        );
+    }
     if !copilot_supports_prompt_mode(&help) {
         return descriptor_readiness(
             capability,
@@ -327,7 +343,9 @@ fn not_installed_or_error(
     } else {
         ProviderState::Error
     };
-    let reason = install_message.to_string();
+    let reason = probe
+        .scope_error
+        .unwrap_or_else(|| install_message.to_string());
 
     descriptor_readiness(
         capability,
@@ -417,7 +435,9 @@ fn sanitize_cli_version(version: Option<String>) -> Option<String> {
 
 #[cfg(test)]
 mod privacy_tests {
-    use super::sanitize_cli_version;
+    use qa_scribe_core::{ai::provider_capabilities, domain::AiProvider};
+
+    use super::{CommandProbe, ProviderState, not_installed_or_error, sanitize_cli_version};
 
     #[test]
     fn cli_versions_are_reduced_to_a_bounded_version_token() {
@@ -428,5 +448,24 @@ mod privacy_tests {
             Some("1.0.7-preview.2".to_string())
         );
         assert_eq!(sanitize_cli_version(Some("token=secret".to_string())), None);
+    }
+
+    #[test]
+    fn private_scope_failure_is_the_actionable_readiness_reason() {
+        let capability = provider_capabilities()
+            .into_iter()
+            .find(|capability| capability.id == AiProvider::CodexCli)
+            .expect("Codex capability exists");
+        let message = "Could not create a private working directory for the provider. The provider was not started.";
+
+        let readiness = not_installed_or_error(
+            capability,
+            CommandProbe::scope_unavailable(message.to_string()),
+            "Install Codex CLI.",
+            None,
+        );
+
+        assert_eq!(readiness.descriptor.status, ProviderState::Error);
+        assert_eq!(readiness.descriptor.reason, message);
     }
 }

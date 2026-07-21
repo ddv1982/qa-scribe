@@ -112,7 +112,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
   onPrefillFromNote: () => Promise<void>
   onDiscardRecord: (record: T) => void
   onSaveRecord: (record: T) => Promise<boolean>
-  onUploadImage: (input: RichEditorImageUpload) => void | Promise<void>
+  onUploadImage: (input: RichEditorImageUpload, recordId: string) => void | Promise<void>
 }) {
   const [editingRecordIds, setEditingRecordIds] = useState<Record<string, boolean>>({})
   const [editingOriginals, setEditingOriginals] = useState<Record<string, T>>({})
@@ -275,7 +275,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
               previewHeader={renderPreviewHeader(record)}
               onTitleChange={(title) => updateLocalRecord(record.id, { title })}
               onBodyChange={(patch) => updateLocalRecord(record.id, patch)}
-              onUploadImage={onUploadImage}
+              onUploadImage={(input) => onUploadImage(input, record.id)}
               actions={
                 <RichRecordActions
                   copied={copied}

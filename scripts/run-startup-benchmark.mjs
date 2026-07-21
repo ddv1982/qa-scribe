@@ -2,7 +2,7 @@
 
 import { spawnSync } from 'node:child_process'
 import { gzipSync } from 'node:zlib'
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -40,6 +40,9 @@ function run(command, args, environment = process.env) {
 
 try {
   run('cargo', ['run', '--quiet', '-p', 'qa-scribe-core', '--example', 'generate_startup_fixture', '--', database])
+  if (!existsSync(join(root, 'frontend', 'dist', 'assets'))) {
+    run('bun', ['run', 'frontend:build'])
+  }
 
   for (let index = 0; index < sampleCount; index += 1) {
     const runKind = index === 0 ? 'cold-process' : 'warm-process'

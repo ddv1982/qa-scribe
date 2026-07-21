@@ -76,6 +76,7 @@ pub fn builder() -> Builder<tauri::Wry> {
             commands::ai::job_runner::list_active_ai_action_jobs,
             commands::ai::job_runner::cancel_ai_action_job,
             commands::files::import_clipboard_screenshot,
+            commands::files::delete_attachment,
             commands::providers::get_provider_status,
             commands::providers::refresh_provider_status,
             commands::files::get_attachment_preview_data_url,

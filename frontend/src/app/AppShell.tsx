@@ -194,6 +194,8 @@ export function AppShell(c: AppController) {
             noteBody={c.noteBody}
             noteIsReady={c.noteIsReady}
             sessionTitle={c.sessionTitle}
+            sessionTitleValidationError={c.sessionTitleValidationError}
+            sessionSaveState={c.sessionSaveState}
             noteScreenshotCount={c.noteScreenshotCount}
             noteWordCount={c.noteWordCount}
             notice={c.notice}
@@ -210,17 +212,14 @@ export function AppShell(c: AppController) {
             onCopyNoteScreenshot={c.handleCopyNoteScreenshotForJira}
             onDeleteSession={c.requestDeleteSession}
             onOpenSession={c.openSession}
-            onSetNoteBody={(value) => {
-              c.setLatestNoteGenerationUndo(null)
-              c.setNoteBody(value)
-            }}
+            onSetNoteBody={c.setNoteBody}
             onSetSessionTitle={c.setSessionTitle}
             onUploadImage={(input) => {
               if (!c.noteEntry) {
                 c.setError('Open a Session with an editable Note Entry before uploading images.')
                 return
               }
-              return c.uploadEditorImage(input, c.noteEntry.id)
+              return c.uploadEditorImage(input, { kind: 'note', id: c.noteEntry.id })
             }}
           />
         ) : null}
@@ -250,7 +249,7 @@ export function AppShell(c: AppController) {
             onPrefillFromNote={c.handlePrefillTestwareFromNote}
             onSaveDraft={c.handleSaveDraft}
             onDiscardDraft={c.discardLocalDraft}
-            onUploadImage={(input) => c.uploadEditorImage(input, null)}
+            onUploadImage={(input, recordId) => c.uploadEditorImage(input, { kind: 'draft', id: recordId })}
             updateLocalDraft={c.updateLocalDraft}
           />
         ) : null}
@@ -280,7 +279,7 @@ export function AppShell(c: AppController) {
             onPrefillFromNote={c.handlePrefillFindingFromNote}
             onSaveFinding={c.handleSaveFinding}
             onDiscardFinding={c.discardLocalFinding}
-            onUploadImage={(input) => c.uploadEditorImage(input, null)}
+            onUploadImage={(input, recordId) => c.uploadEditorImage(input, { kind: 'finding', id: recordId })}
             updateLocalFinding={c.updateLocalFinding}
           />
         ) : null}
@@ -339,9 +338,10 @@ export function AppShell(c: AppController) {
 
       {c.pendingNavigationView ? (
         <PendingChangesDialog
+          recoveredSummaryConflict={c.pendingRecoveredSummaryDecision}
           isBusy={c.isBusy}
           onCancel={c.cancelPendingNavigation}
-          onDiscard={c.discardPendingNavigationChanges}
+          onDiscard={() => void c.discardPendingNavigationChanges()}
           onSave={() => void c.savePendingNavigationChanges()}
         />
       ) : null}

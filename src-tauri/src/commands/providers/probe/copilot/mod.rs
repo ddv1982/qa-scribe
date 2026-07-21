@@ -56,14 +56,37 @@ pub(super) struct CopilotCatalogResult {
 /// client. It never creates a session or sends prompt-bearing data, and every
 /// provider value is rebuilt from an explicit allowlist before it leaves this
 /// module.
+#[cfg(test)]
 pub(super) fn discover(
     executable: &Path,
     deadline: Instant,
 ) -> Result<CopilotCatalogResult, ProviderDiscoveryError> {
-    super::cancel::DiscoveryCancellation::capture().check("GitHub Copilot")?;
+    discover_with_cancellation(
+        executable,
+        deadline,
+        super::cancel::DiscoveryCancellation::capture(),
+        None,
+    )
+}
+
+pub(super) fn discover_with_cancellation(
+    executable: &Path,
+    deadline: Instant,
+    cancellation: super::cancel::DiscoveryCancellation,
+    provider_cwd_parent: Option<&Path>,
+) -> Result<CopilotCatalogResult, ProviderDiscoveryError> {
+    cancellation.check("GitHub Copilot")?;
     ensure_before_deadline(deadline)?;
 
-    let provider_cwd = NeutralProviderCwd::new();
+    let provider_cwd = match provider_cwd_parent {
+        Some(parent) => NeutralProviderCwd::new_in(parent),
+        None => NeutralProviderCwd::new(),
+    }
+    .map_err(|error| ProviderDiscoveryError {
+        code: ProviderDiscoveryErrorCode::SpawnFailed,
+        message: error.to_string(),
+        retryable: true,
+    })?;
     let mut command = Command::new(executable);
     command
         .args(["--server", "--stdio", "--no-auto-update"])
@@ -100,7 +123,7 @@ pub(super) fn discover(
     let reader = thread::spawn(move || read_stdout_frames(stdout, sender));
 
     let result = (|| {
-        let mut responses = ResponseRouter::new(&receiver);
+        let mut responses = ResponseRouter::new_with_cancellation(&receiver, cancellation);
 
         ensure_before_deadline(deadline)?;
         send_request(&mut stdin, CONNECT_REQUEST_ID, DISCOVERY_METHODS[0])?;

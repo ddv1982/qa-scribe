@@ -1,7 +1,7 @@
 name: Run built application E2E
 description: >-
-  Runs the isolated built-application suite, restores and verifies the
-  production frontend, records optional startup measurements, and retains
+  Runs the isolated built-application suite, builds and verifies the
+  production frontend independently, records optional startup measurements, and retains
   platform-scoped reliability evidence.
 
 inputs:
@@ -39,10 +39,10 @@ runs:
           bun run e2e
         fi
 
-    - name: Recheck production build after E2E
+    - name: Build and check production frontend independently
       shell: bash
       if: ${{ always() }}
-      run: bun run e2e:isolation
+      run: bun run frontend:build && bun run e2e:isolation
 
     - name: Measure large-fixture startup
       id: startup_benchmark

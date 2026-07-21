@@ -98,6 +98,7 @@ impl CommandProbe {
             stdout: String::new(),
             stderr: String::new(),
             not_found: false,
+            scope_error: None,
         }
     }
 
@@ -107,6 +108,7 @@ impl CommandProbe {
             stdout: stdout.to_string(),
             stderr: String::new(),
             not_found: false,
+            scope_error: None,
         }
     }
 
@@ -116,6 +118,7 @@ impl CommandProbe {
             stdout: String::new(),
             stderr: stderr.to_string(),
             not_found: false,
+            scope_error: None,
         }
     }
 }

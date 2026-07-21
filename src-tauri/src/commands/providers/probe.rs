@@ -1,11 +1,11 @@
 use std::{
     collections::HashMap,
-    io::{BufRead, BufReader, ErrorKind, Read, Write},
-    path::PathBuf,
+    io::{BufRead, BufReader, Read, Write},
+    path::{Path, PathBuf},
     process::{Command, Stdio},
-    sync::{OnceLock, mpsc},
+    sync::mpsc,
     thread,
-    time::{Duration, Instant},
+    time::Instant,
 };
 
 use qa_scribe_core::domain::AiProvider;
@@ -14,9 +14,7 @@ use serde_json::{Value, json};
 use crate::{
     commands::providers::{ProviderDiscoveryError, ProviderDiscoveryErrorCode},
     process_io::{configure_process_group, kill_child_group},
-    provider_command::{
-        NeutralProviderCwd, ProviderPathMode, apply_provider_path, provider_executable_path,
-    },
+    provider_command::{NeutralProviderCwd, ProviderPathMode, apply_provider_path},
 };
 
 mod cancel;
@@ -24,16 +22,17 @@ mod claude;
 mod command;
 mod copilot;
 mod identity;
+mod system;
 
 pub(super) use cancel::cancel_all_provider_discovery;
 use cancel::{CANCELLATION_POLL_INTERVAL, DiscoveryCancellation};
+pub(super) use command::MAX_PROVIDER_OUTPUT_BYTES;
 #[cfg(test)]
 pub(super) use command::ProbeOutputFiles;
-pub(super) use command::{MAX_PROVIDER_OUTPUT_BYTES, run_command_with_timeout};
-use identity::{discovery_cache_fingerprint, provider_executable};
+#[cfg(test)]
+pub(super) use command::run_command_with_timeout;
+pub(super) use system::SystemProbeRunner;
 
-const PROVIDER_PROBE_TIMEOUT: Duration = Duration::from_secs(4);
-const PROVIDER_TRANSACTION_TIMEOUT: Duration = Duration::from_secs(12);
 pub(super) const MAX_PROVIDER_MODELS: usize = 1_000;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -57,6 +56,7 @@ pub(super) struct CommandProbe {
     pub(super) stdout: String,
     pub(super) stderr: String,
     pub(super) not_found: bool,
+    pub(super) scope_error: Option<String>,
 }
 
 pub(super) trait ProbeRunner {
@@ -73,129 +73,6 @@ pub(super) trait ProbeRunner {
     }
     fn copilot_structured_catalog(&self) -> StructuredCatalogProbe {
         StructuredCatalogProbe::NotAttempted
-    }
-}
-
-pub(super) struct SystemProbeRunner {
-    path_mode: ProviderPathMode,
-    deadline: Instant,
-    codex_defaults: OnceLock<CodexDefaultsProbe>,
-    claude_catalog: OnceLock<StructuredCatalogProbe>,
-    copilot_catalog: OnceLock<StructuredCatalogProbe>,
-}
-
-impl SystemProbeRunner {
-    pub(super) fn new(path_mode: ProviderPathMode) -> Self {
-        Self {
-            path_mode,
-            deadline: Instant::now() + PROVIDER_TRANSACTION_TIMEOUT,
-            codex_defaults: OnceLock::new(),
-            claude_catalog: OnceLock::new(),
-            copilot_catalog: OnceLock::new(),
-        }
-    }
-
-    fn remaining(&self) -> Duration {
-        self.deadline
-            .saturating_duration_since(Instant::now())
-            .min(PROVIDER_PROBE_TIMEOUT)
-    }
-}
-
-impl ProbeRunner for SystemProbeRunner {
-    fn executable_path(&self, program: &str) -> Option<PathBuf> {
-        provider_executable_path(program, self.path_mode)
-    }
-
-    fn run(&self, program: &str, args: &[&str]) -> CommandProbe {
-        let executable = provider_executable_path(program, self.path_mode)
-            .unwrap_or_else(|| PathBuf::from(program));
-        let provider_cwd = NeutralProviderCwd::new();
-        let mut command = Command::new(executable);
-        command.args(args);
-        command.current_dir(provider_cwd.path());
-        apply_provider_path(&mut command);
-        if program == "copilot" {
-            command.env("COPILOT_AUTO_UPDATE", "false");
-        }
-
-        match run_command_with_timeout(command, self.remaining()) {
-            Ok(output) => CommandProbe::from_output(output),
-            Err(error) => CommandProbe {
-                success: false,
-                stdout: String::new(),
-                stderr: error.to_string(),
-                not_found: error.kind() == ErrorKind::NotFound,
-            },
-        }
-    }
-
-    fn cache_fingerprint(&self, provider: AiProvider) -> u64 {
-        discovery_cache_fingerprint(
-            provider,
-            provider_executable_path(provider_executable(provider), self.path_mode).as_deref(),
-        )
-    }
-
-    fn codex_app_server_defaults(&self) -> CodexDefaultsProbe {
-        if self.path_mode != ProviderPathMode::Deep {
-            return CodexDefaultsProbe::NotAttempted;
-        }
-        self.codex_defaults
-            .get_or_init(|| match read_codex_app_server_defaults(self.deadline) {
-                Ok(defaults) => CodexDefaultsProbe::Success(defaults),
-                Err(error) => CodexDefaultsProbe::Failed(error),
-            })
-            .clone()
-    }
-
-    fn claude_structured_catalog(&self) -> StructuredCatalogProbe {
-        if self.path_mode != ProviderPathMode::Deep {
-            return StructuredCatalogProbe::NotAttempted;
-        }
-        self.claude_catalog
-            .get_or_init(|| {
-                let Some(executable) = provider_executable_path("claude", self.path_mode) else {
-                    return StructuredCatalogProbe::NotAttempted;
-                };
-                let version = self.run("claude", &["--version"]);
-                if !version.success || !claude::version_is_supported(&version.stdout) {
-                    return StructuredCatalogProbe::Failed(ProviderDiscoveryError {
-                        code: ProviderDiscoveryErrorCode::Unsupported,
-                        message: "This Claude Code version does not support safe model discovery."
-                            .to_string(),
-                        retryable: false,
-                    });
-                }
-                match claude::discover(&executable, self.deadline) {
-                    Ok(result) => StructuredCatalogProbe::Success(StructuredCatalog {
-                        models: result.models,
-                        cli_version: Some(version.stdout),
-                    }),
-                    Err(error) => StructuredCatalogProbe::Failed(error),
-                }
-            })
-            .clone()
-    }
-
-    fn copilot_structured_catalog(&self) -> StructuredCatalogProbe {
-        if self.path_mode != ProviderPathMode::Deep {
-            return StructuredCatalogProbe::NotAttempted;
-        }
-        self.copilot_catalog
-            .get_or_init(|| {
-                let Some(executable) = provider_executable_path("copilot", self.path_mode) else {
-                    return StructuredCatalogProbe::NotAttempted;
-                };
-                match copilot::discover(&executable, self.deadline) {
-                    Ok(result) => StructuredCatalogProbe::Success(StructuredCatalog {
-                        models: result.models,
-                        cli_version: result.cli_version,
-                    }),
-                    Err(error) => StructuredCatalogProbe::Failed(error),
-                }
-            })
-            .clone()
     }
 }
 
@@ -227,9 +104,15 @@ pub(super) enum StructuredCatalogProbe {
 
 fn read_codex_app_server_defaults(
     deadline: Instant,
+    cancellation: DiscoveryCancellation,
+    provider_cwd_parent: Option<&Path>,
 ) -> Result<CodexAppServerDefaults, ProviderDiscoveryError> {
-    DiscoveryCancellation::capture().check("Codex")?;
-    let provider_cwd = NeutralProviderCwd::new();
+    cancellation.check("Codex")?;
+    let provider_cwd = match provider_cwd_parent {
+        Some(parent) => NeutralProviderCwd::new_in(parent),
+        None => NeutralProviderCwd::new(),
+    }
+    .map_err(|error| discovery_error(ProviderDiscoveryErrorCode::SpawnFailed, error))?;
     let mut command = Command::new("codex");
     command.arg("app-server").current_dir(provider_cwd.path());
     apply_provider_path(&mut command);
@@ -260,7 +143,7 @@ fn read_codex_app_server_defaults(
     let reader = thread::spawn(move || read_bounded_json_lines(stdout, sender));
 
     let result = (|| {
-        let mut responses = ResponseRouter::new(&receiver);
+        let mut responses = ResponseRouter::new_with_cancellation(&receiver, cancellation);
         send_request(
             &mut stdin,
             &json!({
@@ -321,11 +204,19 @@ struct ResponseRouter<'a> {
 }
 
 impl<'a> ResponseRouter<'a> {
+    #[cfg(test)]
     fn new(receiver: &'a mpsc::Receiver<JsonLineEvent>) -> Self {
+        Self::new_with_cancellation(receiver, DiscoveryCancellation::capture())
+    }
+
+    fn new_with_cancellation(
+        receiver: &'a mpsc::Receiver<JsonLineEvent>,
+        cancellation: DiscoveryCancellation,
+    ) -> Self {
         Self {
             receiver,
             pending: HashMap::new(),
-            cancellation: DiscoveryCancellation::capture(),
+            cancellation,
         }
     }
 
@@ -496,5 +387,7 @@ fn discovery_error(
     }
 }
 
+#[cfg(all(test, unix))]
+mod lifecycle_tests;
 #[cfg(test)]
 mod protocol_tests;

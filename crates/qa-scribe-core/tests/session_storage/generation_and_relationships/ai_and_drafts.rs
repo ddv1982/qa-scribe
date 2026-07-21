@@ -9,7 +9,11 @@ fn settings_generation_context_ai_run_and_draft_round_trip() {
         default_settings.generation_system_prompt,
         default_generation_system_prompt()
     );
-    assert!(!default_settings.generation_system_prompt.contains("Testware"));
+    assert!(
+        !default_settings
+            .generation_system_prompt
+            .contains("Testware")
+    );
 
     let updated_settings = service
         .update_settings(AppSettings {
@@ -83,7 +87,10 @@ fn settings_generation_context_ai_run_and_draft_round_trip() {
         .expect("generation context should be created");
     assert_eq!(context.session_id, session.id);
     assert_eq!(
-        count_rows(service.database().connection(), "generation_context_entries"),
+        count_rows(
+            service.database().connection(),
+            "generation_context_entries"
+        ),
         1
     );
 
@@ -196,11 +203,13 @@ fn body_format_null_resets_to_default_html_for_rich_records() {
         .update_entry(
             &entry.id,
             EntryPatch {
+                body_json: Some(None),
                 body_format: Some(None),
                 ..EntryPatch::default()
             },
         )
         .expect("entry body format should reset");
+    assert_eq!(entry.body_json, None);
     assert_eq!(entry.body_format.as_deref(), Some("html"));
 
     let finding = service
@@ -218,16 +227,18 @@ fn body_format_null_resets_to_default_html_for_rich_records() {
         .update_finding(
             &finding.id,
             FindingPatch {
+                body_json: Some(None),
                 body_format: Some(None),
                 ..FindingPatch::default()
             },
         )
         .expect("finding body format should reset");
+    assert_eq!(finding.body_json, None);
     assert_eq!(finding.body_format.as_deref(), Some("html"));
 
     let draft = service
         .create_draft(DraftCreate {
-            session_id: session.id,
+            session_id: session.id.clone(),
             ai_run_id: None,
             kind: DraftKind::SessionReport,
             title: "Draft".to_string(),
@@ -241,14 +252,52 @@ fn body_format_null_resets_to_default_html_for_rich_records() {
         .update_draft(
             &draft.id,
             DraftPatch {
+                body_json: Some(None),
                 body_format: Some(None),
                 ..DraftPatch::default()
             },
         )
         .expect("draft body format should reset");
+    assert_eq!(draft.body_json, None);
     assert_eq!(draft.body_format.as_deref(), Some("html"));
-}
 
+    let entry = service
+        .update_entry(
+            &entry.id,
+            EntryPatch {
+                body_json: Some(Some(r#"{"type":"doc"}"#.to_string())),
+                body_format: Some(Some("tiptap_json".to_string())),
+                ..EntryPatch::default()
+            },
+        )
+        .expect("entry rich body should prepare generated update");
+    let ai_run = service
+        .create_ai_run(AiRunCreate {
+            session_id: session.id,
+            generation_context_id: None,
+            provider: AiProvider::CodexCli,
+            model: "gpt-test".to_string(),
+            reasoning_effort: None,
+            prompt_version: "summary-v1".to_string(),
+        })
+        .expect("Summary AI Run should create");
+    let (_, generated_entry) = service
+        .complete_ai_run_with_generated_note_update(
+            &ai_run.id,
+            &entry.id,
+            &entry.body,
+            EntryPatch {
+                body: Some("<p>Generated Summary</p>".to_string()),
+                body_json: Some(None),
+                body_format: Some(None),
+                ..EntryPatch::default()
+            },
+        )
+        .expect("generated Summary update should reset rich body columns");
+    assert_eq!(generated_entry.body, "<p>Generated Summary</p>");
+    assert_eq!(generated_entry.body_json, None);
+    assert_eq!(generated_entry.body_format.as_deref(), Some("html"));
+}
 
 #[test]
 fn deleting_draft_preserves_ai_run_and_other_drafts() {

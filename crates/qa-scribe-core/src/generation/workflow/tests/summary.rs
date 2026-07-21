@@ -197,3 +197,117 @@ fn summary_completion_rejects_stale_note_overwrite() {
         "failed"
     );
 }
+
+#[test]
+fn summary_unknown_structured_output_fails_without_replacing_unchanged_note() {
+    let service = SessionService::in_memory().expect("service should open");
+    let session = create_session(&service, "Protocol compatibility");
+    let original_body = "<p>Keep this authored note.</p>";
+    let note = create_note(&service, &session.id, "Selected note", original_body);
+    let request = request_for(&session.id, GenerateAiActionKind::Summary, Some(&note.id));
+    let prepared =
+        prepare_ai_action_generation(&service, &request).expect("generation should prepare");
+    let ai_run_id = prepared.ai_run.id.clone();
+    let raw_protocol =
+        r#"{"type":"future.response","payload":"<p>Raw JSON must not become the note.</p>"}"#;
+
+    let error = finish_ai_action_generation(
+        &service,
+        &request,
+        prepared,
+        Ok(successful_structured_output(
+            GenerationOutputFormat::CodexJsonl,
+            raw_protocol,
+        )),
+    )
+    .expect_err("unknown structured output should fail");
+
+    assert!(
+        error
+            .to_string()
+            .contains("no recognized assistant content")
+    );
+    assert!(error.to_string().contains("unsupported event format"));
+    let current_note = service
+        .list_entries(&session.id)
+        .expect("entries should list")
+        .into_iter()
+        .find(|entry| entry.id == note.id)
+        .expect("note still exists");
+    assert_eq!(current_note.body, original_body);
+    let ai_run = service
+        .get_ai_run(&ai_run_id)
+        .expect("AI Run should read")
+        .expect("AI Run should exist");
+    assert_eq!(ai_run.status.as_str(), "failed");
+    assert!(
+        !ai_run
+            .error_message
+            .as_deref()
+            .unwrap_or_default()
+            .contains("Raw JSON")
+    );
+}
+
+#[test]
+fn summary_malformed_structured_output_reports_compatibility_before_stale_note_error() {
+    let service = SessionService::in_memory().expect("service should open");
+    let session = create_session(&service, "Protocol compatibility");
+    let note = create_note(
+        &service,
+        &session.id,
+        "Selected note",
+        "<p>Original note.</p>",
+    );
+    let request = request_for(&session.id, GenerateAiActionKind::Summary, Some(&note.id));
+    let prepared =
+        prepare_ai_action_generation(&service, &request).expect("generation should prepare");
+    let ai_run_id = prepared.ai_run.id.clone();
+    service
+        .update_entry(
+            &note.id,
+            EntryPatch {
+                body: Some("<p>User edited while generation ran.</p>".to_string()),
+                ..EntryPatch::default()
+            },
+        )
+        .expect("user edit should persist");
+
+    let error = finish_ai_action_generation(
+        &service,
+        &request,
+        prepared,
+        Ok(successful_structured_output(
+            GenerationOutputFormat::ClaudeStreamJson,
+            r#"{"type":"assistant","message":"unterminated"#,
+        )),
+    )
+    .expect_err("malformed structured output should fail");
+
+    assert!(
+        error
+            .to_string()
+            .contains("no recognized assistant content")
+    );
+    assert!(error.to_string().contains("Claude stream-json"));
+    assert!(!error.to_string().contains("Selected Note changed"));
+    let current_note = service
+        .list_entries(&session.id)
+        .expect("entries should list")
+        .into_iter()
+        .find(|entry| entry.id == note.id)
+        .expect("note still exists");
+    assert_eq!(
+        current_note.body,
+        "<p>User edited while generation ran.</p>"
+    );
+    assert_eq!(
+        service
+            .get_ai_run(&ai_run_id)
+            .expect("AI Run should read")
+            .expect("AI Run should exist")
+            .status
+            .as_str(),
+        "failed"
+    );
+}

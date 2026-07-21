@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('../tauri', () => ({
   getAttachmentPreviewDataUrl: vi.fn(),
@@ -7,13 +7,19 @@ vi.mock('../tauri', () => ({
   MANAGED_ATTACHMENT_PROTOCOL: 'qa-scribe-attachment://',
 }))
 
+import { getAttachmentPreviewDataUrl } from '../tauri'
 import {
+  createManagedAttachmentPreviewCache,
   emptyEditorHtml,
+  hydrateManagedAttachmentPreviews,
   isSafeEditorImageSource,
   isSafeEditorLinkUrl,
   managedAttachmentImageHtml,
+  managedAttachmentProtocol,
   normalizeEditorHtml,
 } from './editorHtml'
+
+const getAttachmentPreviewDataUrlMock = vi.mocked(getAttachmentPreviewDataUrl)
 
 describe('editorHtml', () => {
   it('normalizes blank and TipTap-empty documents to a true blank value', () => {
@@ -178,3 +184,204 @@ describe('editorHtml', () => {
     expect(isSafeEditorImageSource('file:///tmp/secret.png')).toBe(false)
   })
 })
+
+describe('managed attachment preview hydration', () => {
+  beforeEach(() => {
+    getAttachmentPreviewDataUrlMock.mockReset()
+  })
+
+  afterEach(() => {
+    document.body.replaceChildren()
+  })
+
+  it('loads duplicate images once and reuses the preview across text-only editor updates', async () => {
+    getAttachmentPreviewDataUrlMock.mockResolvedValue('data:image/png;base64,AAAA')
+    const editor = mountEditor(`
+      <p>Before typing</p>
+      ${managedAttachmentImageHtml('attachment-1', 'first.png')}
+      ${managedAttachmentImageHtml('attachment-1', 'duplicate.png')}
+    `)
+    const cache = createManagedAttachmentPreviewCache()
+
+    await hydrateManagedAttachmentPreviews(editor, () => true, cache)
+
+    expect(getAttachmentPreviewDataUrlMock).toHaveBeenCalledTimes(1)
+    expect(getAttachmentPreviewDataUrlMock).toHaveBeenCalledWith('attachment-1')
+    expect(Array.from(editor.querySelectorAll('img')).map((image) => image.getAttribute('src'))).toEqual([
+      'data:image/png;base64,AAAA',
+      'data:image/png;base64,AAAA',
+    ])
+
+    editor.querySelector('p')?.append(' and after typing')
+    await hydrateManagedAttachmentPreviews(editor, () => true, cache)
+
+    expect(getAttachmentPreviewDataUrlMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('deduplicates reads that are already in flight', async () => {
+    const preview = deferred<string | null>()
+    getAttachmentPreviewDataUrlMock.mockReturnValue(preview.promise)
+    const editor = mountEditor(managedAttachmentImageHtml('attachment-1', 'evidence.png'))
+    const cache = createManagedAttachmentPreviewCache()
+
+    const firstHydration = hydrateManagedAttachmentPreviews(editor, () => true, cache)
+    const secondHydration = hydrateManagedAttachmentPreviews(editor, () => true, cache)
+    await Promise.resolve()
+
+    expect(getAttachmentPreviewDataUrlMock).toHaveBeenCalledTimes(1)
+
+    preview.resolve('data:image/png;base64,AAAA')
+    await Promise.all([firstHydration, secondHydration])
+
+    expect(editor.querySelector('img')?.getAttribute('src')).toBe('data:image/png;base64,AAAA')
+  })
+
+  it('rejects a stale response after an attachment is replaced', async () => {
+    const firstPreview = deferred<string | null>()
+    const replacementPreview = deferred<string | null>()
+    getAttachmentPreviewDataUrlMock.mockImplementation((attachmentId) =>
+      attachmentId === 'attachment-1' ? firstPreview.promise : replacementPreview.promise,
+    )
+    const editor = mountEditor(managedAttachmentImageHtml('attachment-1', 'first.png'))
+    const image = editor.querySelector('img')
+    if (!image) throw new Error('managed image missing')
+    const cache = createManagedAttachmentPreviewCache()
+
+    const firstHydration = hydrateManagedAttachmentPreviews(editor, () => true, cache)
+    await Promise.resolve()
+    image.setAttribute('data-attachment-id', 'attachment-2')
+    image.setAttribute('src', `${managedAttachmentProtocol}attachment-2`)
+    const replacementHydration = hydrateManagedAttachmentPreviews(editor, () => true, cache)
+    await Promise.resolve()
+
+    replacementPreview.resolve('data:image/png;base64,BBBB')
+    await replacementHydration
+    firstPreview.resolve('data:image/png;base64,AAAA')
+    await firstHydration
+
+    expect(getAttachmentPreviewDataUrlMock.mock.calls.map(([attachmentId]) => attachmentId)).toEqual(['attachment-1', 'attachment-2'])
+    expect(image.getAttribute('data-attachment-id')).toBe('attachment-2')
+    expect(image.getAttribute('src')).toBe('data:image/png;base64,BBBB')
+  })
+
+  it('drops removed identities so re-adding one starts a fresh read', async () => {
+    const removedPreview = deferred<string | null>()
+    getAttachmentPreviewDataUrlMock.mockReturnValueOnce(removedPreview.promise).mockResolvedValueOnce('data:image/png;base64,BBBB')
+    const editor = mountEditor(managedAttachmentImageHtml('attachment-1', 'first.png'))
+    const image = editor.querySelector('img')
+    if (!image) throw new Error('managed image missing')
+    const cache = createManagedAttachmentPreviewCache()
+
+    const removedHydration = hydrateManagedAttachmentPreviews(editor, () => true, cache)
+    await Promise.resolve()
+    image.remove()
+    await hydrateManagedAttachmentPreviews(editor, () => true, cache)
+    removedPreview.resolve('data:image/png;base64,AAAA')
+    await removedHydration
+
+    expect(image.getAttribute('src')).toBe(`${managedAttachmentProtocol}attachment-1`)
+
+    editor.append(image)
+    await hydrateManagedAttachmentPreviews(editor, () => true, cache)
+
+    expect(getAttachmentPreviewDataUrlMock).toHaveBeenCalledTimes(2)
+    expect(image.getAttribute('src')).toBe('data:image/png;base64,BBBB')
+  })
+
+  it('waits for backoff before retrying a failed read and caches success', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(0)
+    getAttachmentPreviewDataUrlMock.mockRejectedValueOnce(new Error('temporarily unavailable')).mockResolvedValueOnce('data:image/png;base64,AAAA')
+    const editor = mountEditor(managedAttachmentImageHtml('attachment-1', ''))
+    const cache = createManagedAttachmentPreviewCache()
+
+    try {
+      expect(await hydrateManagedAttachmentPreviews(editor, () => true, cache)).toBe(250)
+      expect(editor.querySelector('img')?.getAttribute('alt')).toBe('Attached image')
+
+      expect(await hydrateManagedAttachmentPreviews(editor, () => true, cache)).toBe(250)
+      expect(getAttachmentPreviewDataUrlMock).toHaveBeenCalledTimes(1)
+
+      vi.advanceTimersByTime(250)
+      expect(await hydrateManagedAttachmentPreviews(editor, () => true, cache)).toBeNull()
+      await hydrateManagedAttachmentPreviews(editor, () => true, cache)
+
+      expect(getAttachmentPreviewDataUrlMock).toHaveBeenCalledTimes(2)
+      expect(editor.querySelector('img')?.getAttribute('src')).toBe('data:image/png;base64,AAAA')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('bounds repeated failures to three reads for an unchanged identity', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(0)
+    getAttachmentPreviewDataUrlMock.mockRejectedValue(new Error('unavailable'))
+    const editor = mountEditor(managedAttachmentImageHtml('attachment-1', 'evidence.png'))
+    const cache = createManagedAttachmentPreviewCache()
+
+    try {
+      await hydrateManagedAttachmentPreviews(editor, () => true, cache)
+      await hydrateManagedAttachmentPreviews(editor, () => true, cache)
+      expect(getAttachmentPreviewDataUrlMock).toHaveBeenCalledTimes(1)
+
+      vi.advanceTimersByTime(250)
+      await hydrateManagedAttachmentPreviews(editor, () => true, cache)
+      await hydrateManagedAttachmentPreviews(editor, () => true, cache)
+      expect(getAttachmentPreviewDataUrlMock).toHaveBeenCalledTimes(2)
+
+      vi.advanceTimersByTime(1_000)
+      await hydrateManagedAttachmentPreviews(editor, () => true, cache)
+      await hydrateManagedAttachmentPreviews(editor, () => true, cache)
+
+      expect(getAttachmentPreviewDataUrlMock).toHaveBeenCalledTimes(3)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('reports a retry without waiting for a slower sibling preview', async () => {
+    const failedPreview = deferred<string | null>()
+    const slowPreview = deferred<string | null>()
+    getAttachmentPreviewDataUrlMock.mockImplementation((attachmentId) => (
+      attachmentId === 'attachment-1' ? failedPreview.promise : slowPreview.promise
+    ))
+    const editor = mountEditor(`
+      ${managedAttachmentImageHtml('attachment-1', 'failed.png')}
+      ${managedAttachmentImageHtml('attachment-2', 'slow.png')}
+    `)
+    const cache = createManagedAttachmentPreviewCache()
+    let retryAfterMs: number | null | undefined
+    const hydration = hydrateManagedAttachmentPreviews(editor, () => true, cache)
+    void hydration.then((value) => { retryAfterMs = value })
+    await vi.waitFor(() => expect(getAttachmentPreviewDataUrlMock).toHaveBeenCalledTimes(2))
+
+    failedPreview.reject(new Error('temporarily unavailable'))
+    await vi.waitFor(() => expect(retryAfterMs).toBe(250))
+    expect(editor.querySelector('img[data-attachment-id="attachment-2"]')?.getAttribute('src')).toBe(
+      `${managedAttachmentProtocol}attachment-2`,
+    )
+
+    slowPreview.resolve('data:image/png;base64,BBBB')
+    await vi.waitFor(() => {
+      expect(editor.querySelector('img[data-attachment-id="attachment-2"]')?.getAttribute('src')).toBe('data:image/png;base64,BBBB')
+    })
+  })
+})
+
+function mountEditor(html: string): HTMLElement {
+  const editor = document.createElement('div')
+  editor.innerHTML = html
+  document.body.append(editor)
+  return editor
+}
+
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve
+    reject = promiseReject
+  })
+  return { promise, reject, resolve }
+}

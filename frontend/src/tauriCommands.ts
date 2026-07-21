@@ -111,6 +111,10 @@ export function importClipboardScreenshot(input: {
   return commands.importClipboardScreenshot(input.sessionId, input.entryId, input.filename, input.dataUrl)
 }
 
+export function deleteAttachment(attachmentId: string): Promise<boolean> {
+  return commands.deleteAttachment(attachmentId)
+}
+
 export function readClipboardImageDataUrl(): Promise<string | null> {
   return commands.readClipboardImageDataUrl()
 }

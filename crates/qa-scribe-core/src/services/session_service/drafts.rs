@@ -10,7 +10,10 @@ use crate::{
 };
 
 use super::super::session_rows::map_draft;
-use super::{SessionService, new_id, now, require_row_in_session, require_session};
+use super::{
+    SessionService, new_id, now, require_row_in_session, require_session,
+    rich_body::{ExistingRichBody, ResolvedRichBody, RichBodyPatch, resolve_rich_body_patch},
+};
 
 impl SessionService {
     pub fn create_draft(&self, draft: DraftCreate) -> Result<Draft> {
@@ -85,25 +88,23 @@ impl SessionService {
         self.database.with_immediate_tx(|tx| {
             let existing =
                 draft_by_id(tx, id)?.ok_or_else(|| QaScribeError::NotFound(id.to_string()))?;
+            let ResolvedRichBody {
+                body,
+                body_json,
+                body_format,
+            } = resolve_rich_body_patch(
+                "Draft body",
+                DRAFT_BODY_MAX_LENGTH,
+                ExistingRichBody::from(&existing),
+                RichBodyPatch {
+                    body: patch.body,
+                    body_json: patch.body_json,
+                    body_format: patch.body_format,
+                },
+            )?;
             let title = match patch.title {
                 Some(title) => validate_required_text("Draft title", &title, TITLE_MAX_LENGTH)?,
                 None => existing.title,
-            };
-            let body = match patch.body {
-                Some(body) => validate_body_text("Draft body", &body, DRAFT_BODY_MAX_LENGTH)?,
-                None => existing.body,
-            };
-            let body_json = match patch.body_json {
-                Some(body_json) => validate_body_json(body_json)?,
-                None => existing.body_json,
-            };
-            let body_format = match patch.body_format {
-                Some(body_format) => validate_optional_text(
-                    "Draft body format",
-                    body_format,
-                    BODY_FORMAT_MAX_LENGTH,
-                )?,
-                None => existing.body_format,
             };
             let metadata_json = match patch.metadata_json {
                 Some(metadata_json) => validate_metadata_json(metadata_json)?,

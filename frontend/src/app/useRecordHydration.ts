@@ -9,6 +9,7 @@ type UseRecordHydrationOptions = {
 }
 
 export type RecordLoadState = 'idle' | 'loading' | 'ready' | 'error'
+export type RecordLoadSuspension = { draftVersion: number; findingVersion: number }
 
 export function useRecordHydration({ activeSessionId, activeView }: UseRecordHydrationOptions) {
   const [drafts, setDrafts] = useState<Draft[]>([])
@@ -32,10 +33,20 @@ export function useRecordHydration({ activeSessionId, activeView }: UseRecordHyd
   const findingLoadVersionRef = useRef(0)
   const activeSessionIdRef = useRef(activeSessionId)
 
-  const invalidateRecordLoads = useCallback(() => {
+  const invalidateDraftLoads = useCallback(() => {
     draftLoadVersionRef.current += 1
-    findingLoadVersionRef.current += 1
+    setDraftLoadState((current) => current === 'loading' ? 'ready' : current)
   }, [])
+
+  const invalidateFindingLoads = useCallback(() => {
+    findingLoadVersionRef.current += 1
+    setFindingLoadState((current) => current === 'loading' ? 'ready' : current)
+  }, [])
+
+  const invalidateRecordLoads = useCallback(() => {
+    invalidateDraftLoads()
+    invalidateFindingLoads()
+  }, [invalidateDraftLoads, invalidateFindingLoads])
 
   const resetRecordHydration = useCallback(() => {
     invalidateRecordLoads()
@@ -107,6 +118,31 @@ export function useRecordHydration({ activeSessionId, activeView }: UseRecordHyd
     return nextFindings
   }, [])
 
+  const suspendRecordLoads = useCallback((): RecordLoadSuspension => {
+    invalidateRecordLoads()
+    return {
+      draftVersion: draftLoadVersionRef.current,
+      findingVersion: findingLoadVersionRef.current,
+    }
+  }, [invalidateRecordLoads])
+
+  const restoreRecordLoads = useCallback(async (suspension: RecordLoadSuspension): Promise<void> => {
+    if (
+      draftLoadVersionRef.current !== suspension.draftVersion
+      || findingLoadVersionRef.current !== suspension.findingVersion
+      || !activeSessionId
+    ) return
+    try {
+      if (activeView === 'testware') {
+        await loadDraftsForSession(activeSessionId, { force: true })
+      } else if (activeView === 'findings') {
+        await loadFindingsForSession(activeSessionId, { force: true })
+      }
+    } catch {
+      // The loader owns its error state and retry UI.
+    }
+  }, [activeSessionId, activeView, loadDraftsForSession, loadFindingsForSession])
+
   useEffect(() => {
     activeSessionIdRef.current = activeSessionId
   }, [activeSessionId])
@@ -150,8 +186,11 @@ export function useRecordHydration({ activeSessionId, activeView }: UseRecordHyd
     setFindings,
     setTestwareDraftCount,
     setFindingCount,
-    invalidateRecordLoads,
+    invalidateDraftLoads,
+    invalidateFindingLoads,
     resetRecordHydration,
+    suspendRecordLoads,
+    restoreRecordLoads,
     loadDraftsForSession,
     loadFindingsForSession,
   }

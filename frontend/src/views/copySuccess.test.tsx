@@ -59,6 +59,48 @@ describe('copy success buttons', () => {
     expect(button.className).toContain('success')
   })
 
+  it('shows required-title validation instead of claiming the Session is autosaved', () => {
+    render(
+      <SessionEditorView
+        activeProviderAvailable
+        activeSession={session}
+        busyAction={null}
+        canUndoLatestGeneration={false}
+        copySucceeded={false}
+        screenshotCopySucceeded={false}
+        filteredSessions={[session]}
+        isBusy={false}
+        noteBody={richEditorDocumentFromHtml('<p>Body</p>')}
+        noteIsReady
+        noteScreenshotCount={0}
+        sessionTitle="   "
+        sessionTitleValidationError="Session title is required."
+        sessionSaveState="invalid"
+        noteWordCount={1}
+        notice={null}
+        error={null}
+        pendingAiActions={{}}
+        selectedProvider="codex_cli"
+        selectedModel="default"
+        activeProvider={providerStatus.providers[0]}
+        onAiAction={async () => undefined}
+        onUndoLatestGeneration={async () => undefined}
+        onCopyNote={async () => undefined}
+        onCopyNoteScreenshot={async () => undefined}
+        onDeleteSession={() => undefined}
+        onOpenSession={async () => undefined}
+        onSetNoteBody={() => undefined}
+        onSetSessionTitle={() => undefined}
+        onUploadImage={() => undefined}
+      />,
+    )
+
+    expect(screen.getByRole('textbox', { name: 'Session title' })).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByRole('alert')).toHaveTextContent('Session title is required.')
+    expect(screen.getByText('Title required').closest('[role="status"]')).toHaveTextContent('Title required')
+    expect(screen.queryByText('Autosaved')).not.toBeInTheDocument()
+  })
+
   it('makes the effective model prominent and exposes a clear configuration action', async () => {
     const user = userEvent.setup()
     const onConfigureAi = vi.fn()

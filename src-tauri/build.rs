@@ -33,6 +33,7 @@ fn main() {
         "list_active_ai_action_jobs",
         "cancel_ai_action_job",
         "import_clipboard_screenshot",
+        "delete_attachment",
         "get_provider_status",
         "refresh_provider_status",
         "get_attachment_preview_data_url",

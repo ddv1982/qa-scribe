@@ -67,7 +67,9 @@ impl From<JobStoreError> for CommandError {
         match error {
             JobStoreError::Capacity { .. } => CommandError::validation(message),
             JobStoreError::NotFound { .. } => CommandError::not_found(message),
-            JobStoreError::Internal(_) => CommandError::internal(message),
+            JobStoreError::InvalidTransition { .. } | JobStoreError::Internal(_) => {
+                CommandError::internal(message)
+            }
         }
     }
 }
@@ -138,6 +140,18 @@ mod tests {
         assert!(capacity.message.contains("At most 3"));
         assert_eq!(missing.kind, CommandErrorKind::NotFound);
         assert_eq!(missing.message, "Generation job job-1 was not found.");
+    }
+
+    #[test]
+    fn illegal_job_transition_maps_to_internal_error() {
+        let error = CommandError::from(JobStoreError::InvalidTransition {
+            job_id: "job-1".to_string(),
+            from: crate::jobs::GenerationJobState::Cancelling,
+            to: crate::jobs::GenerationJobState::Completed,
+        });
+
+        assert_eq!(error.kind, CommandErrorKind::Internal);
+        assert!(error.message.contains("cannot transition"));
     }
 
     #[test]

@@ -9,9 +9,11 @@ type UsePendingChangeProtectionOptions = {
   noteBody: RichEditorDocument
   savedTitleRef: MutableRefObject<string>
   savedBodyRef: MutableRefObject<string>
+  pendingRecoveredSummaryDecision: boolean
   dirtyDraftIdsRef: MutableRefObject<Set<string>>
   dirtyFindingIdsRef: MutableRefObject<Set<string>>
   settingsDirty: boolean
+  hasPendingCompensations: () => boolean
   savePendingChanges: () => Promise<boolean>
 }
 
@@ -22,12 +24,14 @@ export function usePendingChangeProtection({
   noteBody,
   savedTitleRef,
   savedBodyRef,
+  pendingRecoveredSummaryDecision,
   dirtyDraftIdsRef,
   dirtyFindingIdsRef,
   settingsDirty,
+  hasPendingCompensations,
   savePendingChanges,
 }: UsePendingChangeProtectionOptions) {
-  const pendingNoteStateRef = useRef({ hasActiveSession, hasNoteEntry, sessionTitle, noteBody })
+  const pendingNoteStateRef = useRef({ hasActiveSession, hasNoteEntry, sessionTitle, noteBody, pendingRecoveredSummaryDecision })
   const savePendingChangesRef = useRef(savePendingChanges)
   const closeRequestInFlightRef = useRef(false)
 
@@ -36,16 +40,18 @@ export function usePendingChangeProtection({
   }, [savePendingChanges])
 
   useEffect(() => {
-    pendingNoteStateRef.current = { hasActiveSession, hasNoteEntry, sessionTitle, noteBody }
-  }, [hasActiveSession, hasNoteEntry, sessionTitle, noteBody])
+    pendingNoteStateRef.current = { hasActiveSession, hasNoteEntry, sessionTitle, noteBody, pendingRecoveredSummaryDecision }
+  }, [hasActiveSession, hasNoteEntry, sessionTitle, noteBody, pendingRecoveredSummaryDecision])
 
   const hasPendingChanges = useCallback(() => {
     const current = pendingNoteStateRef.current
-    const trimmedTitle = current.sessionTitle.trim()
-    const titleDirty = Boolean(current.hasActiveSession && trimmedTitle && trimmedTitle !== savedTitleRef.current)
+    const titleDirty = Boolean(
+      current.hasActiveSession
+      && current.sessionTitle !== savedTitleRef.current,
+    )
     const bodyDirty = Boolean(current.hasNoteEntry && serializeRichEditorDocument(current.noteBody) !== savedBodyRef.current)
-    return titleDirty || bodyDirty || settingsDirty || dirtyDraftIdsRef.current.size > 0 || dirtyFindingIdsRef.current.size > 0
-  }, [dirtyDraftIdsRef, dirtyFindingIdsRef, savedBodyRef, savedTitleRef, settingsDirty])
+    return current.pendingRecoveredSummaryDecision || titleDirty || bodyDirty || settingsDirty || hasPendingCompensations() || dirtyDraftIdsRef.current.size > 0 || dirtyFindingIdsRef.current.size > 0
+  }, [dirtyDraftIdsRef, dirtyFindingIdsRef, hasPendingCompensations, savedBodyRef, savedTitleRef, settingsDirty])
 
   useEffect(() => {
     function handleBeforeUnload(event: BeforeUnloadEvent) {

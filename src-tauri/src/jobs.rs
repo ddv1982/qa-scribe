@@ -1,13 +1,9 @@
-use std::{
-    collections::HashMap,
-    process::Child,
-    sync::{
-        Arc, Mutex,
-        atomic::{AtomicBool, Ordering},
-    },
-};
+use std::{collections::HashMap, sync::Mutex};
 
 use serde::Serialize;
+
+mod control;
+pub use control::JobControl;
 
 const PARTIAL_TEXT_LIMIT: usize = 32_000;
 const TERMINAL_JOB_LIMIT: usize = 32;
@@ -15,8 +11,17 @@ const MAX_ACTIVE_GENERATION_JOBS: usize = 3;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum JobStoreError {
-    Capacity { limit: usize },
-    NotFound { job_id: String },
+    Capacity {
+        limit: usize,
+    },
+    NotFound {
+        job_id: String,
+    },
+    InvalidTransition {
+        job_id: String,
+        from: GenerationJobState,
+        to: GenerationJobState,
+    },
     Internal(String),
 }
 
@@ -36,6 +41,10 @@ impl std::fmt::Display for JobStoreError {
             JobStoreError::NotFound { job_id } => {
                 write!(formatter, "Generation job {job_id} was not found.")
             }
+            JobStoreError::InvalidTransition { job_id, from, to } => write!(
+                formatter,
+                "Generation job {job_id} cannot transition from {from:?} to {to:?}."
+            ),
             JobStoreError::Internal(message) => formatter.write_str(message),
         }
     }
@@ -84,77 +93,6 @@ impl GenerationJobState {
                 | GenerationJobState::Failed
                 | GenerationJobState::Cancelled
         )
-    }
-}
-
-#[derive(Clone, Default)]
-pub struct JobControl {
-    cancel_requested: Arc<AtomicBool>,
-    child: Arc<Mutex<Option<Child>>>,
-}
-
-impl JobControl {
-    pub fn is_cancelled(&self) -> bool {
-        self.cancel_requested.load(Ordering::SeqCst)
-    }
-
-    pub fn set_child(&self, mut child: Child) -> Result<(), String> {
-        let mut slot = self
-            .child
-            .lock()
-            .map_err(|_| "Generation process lock was poisoned".to_string())?;
-        if self.is_cancelled() {
-            crate::process_io::kill_child_group(&mut child);
-        }
-        *slot = Some(child);
-        Ok(())
-    }
-
-    pub fn take_child(&self) -> Result<Option<Child>, String> {
-        self.child
-            .lock()
-            .map(|mut child| child.take())
-            .map_err(|_| "Generation process lock was poisoned".to_string())
-    }
-
-    /// Kill the registered child (and its process group on unix) in place,
-    /// without removing or reaping it. Used by the cancellation and watchdog
-    /// paths so the owning worker thread can still `wait()` on it afterwards.
-    pub fn kill_registered_child(&self) -> Result<(), String> {
-        if let Some(child) = self
-            .child
-            .lock()
-            .map_err(|_| "Generation process lock was poisoned".to_string())?
-            .as_mut()
-        {
-            crate::process_io::kill_child_group(child);
-        }
-        Ok(())
-    }
-
-    pub(crate) fn request_cancel(&self) -> Result<(), String> {
-        self.cancel_requested.store(true, Ordering::SeqCst);
-        if let Some(child) = self
-            .child
-            .lock()
-            .map_err(|_| "Generation process lock was poisoned".to_string())?
-            .as_mut()
-        {
-            crate::process_io::kill_child_group(child);
-        }
-        Ok(())
-    }
-
-    /// Kill the registered child (and its process group on unix) without
-    /// reaping it. Used on app exit to make sure spawned CLIs and their
-    /// grandchildren do not outlive the app. The owning worker thread is
-    /// still responsible for `wait()`ing on its own child.
-    fn kill_child_for_exit(&self) {
-        if let Ok(mut slot) = self.child.lock()
-            && let Some(child) = slot.as_mut()
-        {
-            crate::process_io::kill_child_group(child);
-        }
     }
 }
 
@@ -230,15 +168,30 @@ impl JobStore {
         Ok((status, control))
     }
 
-    /// Kill every live child process (and its process group on unix).
-    /// Called on app exit so provider CLIs and their grandchildren
-    /// (node, MCP servers) are not orphaned.
+    /// Accept cancellation for every active job and kill its live child process
+    /// (and process group on unix). Called on app exit so provider CLIs and
+    /// their grandchildren (node, MCP servers) are not orphaned and workers
+    /// cannot continue into persistence while shutdown is in progress.
     pub fn kill_all_children(&self) {
-        let Ok(inner) = self.inner.lock() else {
-            return;
+        let jobs = match self.inner.lock() {
+            Ok(inner) => inner
+                .jobs
+                .iter()
+                .filter(|(_, record)| record.status.state.is_active())
+                .map(|(job_id, record)| (job_id.clone(), record.control.clone()))
+                .collect::<Vec<_>>(),
+            Err(_) => return,
         };
-        for record in inner.jobs.values() {
-            record.control.kill_child_for_exit();
+
+        // A finalizer may own one job's serialization gate. Signal and kill
+        // every process before status reconciliation can wait on that gate.
+        for (_, control) in &jobs {
+            let _ = control.request_cancel();
+        }
+        for (job_id, control) in jobs {
+            if self.cancel(&job_id).is_err() {
+                control.kill_child_for_exit();
+            }
         }
     }
 
@@ -278,12 +231,17 @@ impl JobStore {
         ai_run_id: String,
         progress_message: &str,
     ) -> Result<GenerationJobStatus, JobStoreError> {
-        self.update(job_id, |status| {
-            status.state = GenerationJobState::Running;
-            status.ai_run_id = Some(ai_run_id);
-            status.progress_message = progress_message.to_string();
-            status.error_message = None;
-        })
+        self.transition(
+            job_id,
+            &[GenerationJobState::Starting],
+            GenerationJobState::Running,
+            |status| {
+                status.state = GenerationJobState::Running;
+                status.ai_run_id = Some(ai_run_id);
+                status.progress_message = progress_message.to_string();
+                status.error_message = None;
+            },
+        )
     }
 
     pub fn update_progress(
@@ -292,7 +250,10 @@ impl JobStore {
         progress_message: &str,
     ) -> Result<GenerationJobStatus, JobStoreError> {
         self.update(job_id, |status| {
-            if status.state != GenerationJobState::Cancelling {
+            if matches!(
+                status.state,
+                GenerationJobState::Starting | GenerationJobState::Running
+            ) {
                 status.progress_message = progress_message.to_string();
             }
         })
@@ -304,16 +265,23 @@ impl JobStore {
         partial_text: &str,
     ) -> Result<GenerationJobStatus, JobStoreError> {
         self.update(job_id, |status| {
-            status.partial_text = Some(tail(partial_text, PARTIAL_TEXT_LIMIT));
+            if status.state == GenerationJobState::Running {
+                status.partial_text = Some(tail(partial_text, PARTIAL_TEXT_LIMIT));
+            }
         })
     }
 
     pub fn complete(&self, job_id: &str) -> Result<GenerationJobStatus, JobStoreError> {
-        self.finish(job_id, |status| {
-            status.state = GenerationJobState::Completed;
-            status.progress_message = "Generation completed".to_string();
-            status.error_message = None;
-        })
+        self.finish(
+            job_id,
+            &[GenerationJobState::Running],
+            GenerationJobState::Completed,
+            |status| {
+                status.state = GenerationJobState::Completed;
+                status.progress_message = "Generation completed".to_string();
+                status.error_message = None;
+            },
+        )
     }
 
     pub fn fail(
@@ -321,49 +289,107 @@ impl JobStore {
         job_id: &str,
         error_message: &str,
     ) -> Result<GenerationJobStatus, JobStoreError> {
-        self.finish(job_id, |status| {
-            status.state = GenerationJobState::Failed;
-            status.progress_message = "Generation failed".to_string();
-            status.error_message = Some(error_message.to_string());
-        })
+        self.finish(
+            job_id,
+            &[GenerationJobState::Starting, GenerationJobState::Running],
+            GenerationJobState::Failed,
+            |status| {
+                status.state = GenerationJobState::Failed;
+                status.progress_message = "Generation failed".to_string();
+                status.error_message = Some(error_message.to_string());
+            },
+        )
     }
 
     pub fn cancel(&self, job_id: &str) -> Result<GenerationJobStatus, JobStoreError> {
-        let record_control = {
-            let mut inner = self
-                .inner
-                .lock()
-                .map_err(|_| JobStoreError::internal("Job store lock was poisoned"))?;
-            let record = inner
-                .jobs
-                .get_mut(job_id)
-                .ok_or_else(|| JobStoreError::NotFound {
-                    job_id: job_id.to_string(),
-                })?;
-            if matches!(
-                record.status.state,
-                GenerationJobState::Completed
-                    | GenerationJobState::Failed
-                    | GenerationJobState::Cancelled
-            ) {
-                return Ok(record.status.clone());
-            }
-            record.status.state = GenerationJobState::Cancelling;
-            record.status.progress_message = "Cancelling generation".to_string();
-            record.control.clone()
-        };
-        record_control
-            .request_cancel()
-            .map_err(JobStoreError::internal)?;
-        self.status(job_id)
+        let control = self
+            .inner
+            .lock()
+            .map_err(|_| JobStoreError::internal("Job store lock was poisoned"))?
+            .jobs
+            .get(job_id)
+            .map(|record| record.control.clone())
+            .ok_or_else(|| JobStoreError::NotFound {
+                job_id: job_id.to_string(),
+            })?;
+
+        control
+            .run_serialized(|| {
+                let (status, accepted) = {
+                    let mut inner = self
+                        .inner
+                        .lock()
+                        .map_err(|_| JobStoreError::internal("Job store lock was poisoned"))?;
+                    let record =
+                        inner
+                            .jobs
+                            .get_mut(job_id)
+                            .ok_or_else(|| JobStoreError::NotFound {
+                                job_id: job_id.to_string(),
+                            })?;
+                    if matches!(
+                        record.status.state,
+                        GenerationJobState::Completed
+                            | GenerationJobState::Failed
+                            | GenerationJobState::Cancelled
+                    ) {
+                        return Ok(record.status.clone());
+                    }
+                    if record.status.state == GenerationJobState::Cancelling {
+                        (record.status.clone(), false)
+                    } else {
+                        record.status.state = GenerationJobState::Cancelling;
+                        record.status.progress_message = "Cancelling generation".to_string();
+                        (record.status.clone(), true)
+                    }
+                };
+                if accepted {
+                    control.request_cancel().map_err(JobStoreError::internal)?;
+                }
+                Ok(status)
+            })
+            .map_err(JobStoreError::internal)?
     }
 
     pub fn mark_cancelled(&self, job_id: &str) -> Result<GenerationJobStatus, JobStoreError> {
-        self.finish(job_id, |status| {
-            status.state = GenerationJobState::Cancelled;
-            status.progress_message = "Generation cancelled".to_string();
-            status.error_message = Some("Generation cancelled.".to_string());
-        })
+        self.finish(
+            job_id,
+            &[GenerationJobState::Cancelling],
+            GenerationJobState::Cancelled,
+            |status| {
+                status.state = GenerationJobState::Cancelled;
+                status.progress_message = "Generation cancelled".to_string();
+                status.error_message = Some("Generation cancelled.".to_string());
+            },
+        )
+    }
+
+    fn transition(
+        &self,
+        job_id: &str,
+        allowed_from: &[GenerationJobState],
+        target: GenerationJobState,
+        apply: impl FnOnce(&mut GenerationJobStatus),
+    ) -> Result<GenerationJobStatus, JobStoreError> {
+        let mut inner = self
+            .inner
+            .lock()
+            .map_err(|_| JobStoreError::internal("Job store lock was poisoned"))?;
+        let record = inner
+            .jobs
+            .get_mut(job_id)
+            .ok_or_else(|| JobStoreError::NotFound {
+                job_id: job_id.to_string(),
+            })?;
+        if !allowed_from.contains(&record.status.state) {
+            return Err(JobStoreError::InvalidTransition {
+                job_id: job_id.to_string(),
+                from: record.status.state,
+                to: target,
+            });
+        }
+        apply(&mut record.status);
+        Ok(record.status.clone())
     }
 
     fn update(
@@ -388,6 +414,8 @@ impl JobStore {
     fn finish(
         &self,
         job_id: &str,
+        allowed_from: &[GenerationJobState],
+        target: GenerationJobState,
         apply: impl FnOnce(&mut GenerationJobStatus),
     ) -> Result<GenerationJobStatus, JobStoreError> {
         let mut inner = self
@@ -402,6 +430,13 @@ impl JobStore {
                 .ok_or_else(|| JobStoreError::NotFound {
                     job_id: job_id.to_string(),
                 })?;
+            if !allowed_from.contains(&record.status.state) {
+                return Err(JobStoreError::InvalidTransition {
+                    job_id: job_id.to_string(),
+                    from: record.status.state,
+                    to: target,
+                });
+            }
             apply(&mut record.status);
             let needs_terminal_sequence =
                 record.status.state.is_terminal() && record.terminal_sequence.is_none();

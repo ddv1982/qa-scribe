@@ -88,6 +88,41 @@ impl SessionService {
             .optional()
             .map_err(Into::into)
     }
+
+    pub fn delete_attachment(&self, id: &str) -> Result<()> {
+        let deleted = self
+            .database
+            .connection()
+            .execute("DELETE FROM attachments WHERE id = ?1", [id])?;
+        if deleted == 0 {
+            return Err(QaScribeError::NotFound(id.to_string()));
+        }
+        Ok(())
+    }
+
+    pub fn attachment_is_referenced(&self, id: &str) -> Result<bool> {
+        self.database
+            .connection()
+            .query_row(
+                "SELECT EXISTS(
+                    SELECT 1 FROM entries
+                     WHERE instr(body, ?1) > 0 OR instr(COALESCE(body_json, ''), ?1) > 0
+                    UNION ALL
+                    SELECT 1 FROM drafts
+                     WHERE instr(body, ?1) > 0 OR instr(COALESCE(body_json, ''), ?1) > 0
+                    UNION ALL
+                    SELECT 1 FROM findings
+                     WHERE instr(body, ?1) > 0 OR instr(COALESCE(body_json, ''), ?1) > 0
+                    UNION ALL
+                    SELECT 1 FROM evidence_links WHERE attachment_id = ?1
+                    UNION ALL
+                    SELECT 1 FROM generation_context_attachments WHERE attachment_id = ?1
+                )",
+                [id],
+                |row| row.get::<_, bool>(0),
+            )
+            .map_err(Into::into)
+    }
 }
 
 fn is_safe_relative_path(path: &Path) -> bool {

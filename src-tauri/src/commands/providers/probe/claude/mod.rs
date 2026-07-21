@@ -60,15 +60,32 @@ pub(super) struct ClaudeCatalogResult {
 /// The child receives exactly one Agent SDK `initialize` control frame. Its
 /// account payload and all non-model events are ignored; returned model values
 /// are rebuilt from a small allowlist before leaving this module.
+#[cfg(test)]
 pub(super) fn discover(
     executable: &Path,
     deadline: Instant,
 ) -> Result<ClaudeCatalogResult, ProviderDiscoveryError> {
-    let cancellation = DiscoveryCancellation::capture();
+    discover_with_cancellation(executable, deadline, DiscoveryCancellation::capture(), None)
+}
+
+pub(super) fn discover_with_cancellation(
+    executable: &Path,
+    deadline: Instant,
+    cancellation: DiscoveryCancellation,
+    provider_cwd_parent: Option<&Path>,
+) -> Result<ClaudeCatalogResult, ProviderDiscoveryError> {
     cancellation.check("Claude Code")?;
     ensure_before_deadline(deadline)?;
 
-    let provider_cwd = NeutralProviderCwd::new();
+    let provider_cwd = match provider_cwd_parent {
+        Some(parent) => NeutralProviderCwd::new_in(parent),
+        None => NeutralProviderCwd::new(),
+    }
+    .map_err(|error| ProviderDiscoveryError {
+        code: ProviderDiscoveryErrorCode::SpawnFailed,
+        message: error.to_string(),
+        retryable: true,
+    })?;
     let mut command = Command::new(executable);
     command
         .args(CLAUDE_DISCOVERY_ARGS)

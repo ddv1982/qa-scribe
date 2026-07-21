@@ -194,7 +194,34 @@ pub fn delete_session_with_attachment_files(
     // stray files behind, which reconcile_attachment_files already detects
     // and reports without treating them as data loss.
     service.delete_session(session_id)?;
-    delete_session_attachment_files(app_data_dir, session_id)
+    let _ = delete_session_attachment_files(app_data_dir, session_id);
+    Ok(())
+}
+
+pub fn delete_attachment_with_file(
+    service: &SessionService,
+    app_data_dir: impl AsRef<Path>,
+    attachment_id: &str,
+) -> Result<bool> {
+    let Some(attachment) = service.get_attachment(attachment_id)? else {
+        return Ok(true);
+    };
+    let relative_path = Path::new(&attachment.relative_path);
+    if !is_safe_relative_path(relative_path) {
+        return Err(validation("attachment path is invalid"));
+    }
+    if service.attachment_is_referenced(attachment_id)? {
+        return Ok(false);
+    }
+    let path = app_data_dir.as_ref().join(relative_path);
+    if path.exists() {
+        // Remove the file first so a filesystem failure leaves the row intact
+        // and the cleanup can be retried. If the later row delete fails, the
+        // same retry can finish deleting the now-fileless, unreferenced row.
+        fs::remove_file(path)?;
+    }
+    service.delete_attachment(attachment_id)?;
+    Ok(true)
 }
 
 pub fn delete_session_attachment_files(

@@ -11,6 +11,7 @@
 use std::{
     collections::VecDeque,
     io::{BufRead, BufReader, Read, Write},
+    path::PathBuf,
     process::{Child, Command, ExitStatus, Stdio},
     sync::{
         Arc,
@@ -64,6 +65,7 @@ pub(super) fn run_generation_command_streaming(
 pub(super) struct ProcessProviderExecutor<'a> {
     control: &'a JobControl,
     watchdog_timeout: Duration,
+    provider_cwd_parent: Option<PathBuf>,
 }
 
 impl<'a> ProcessProviderExecutor<'a> {
@@ -71,6 +73,7 @@ impl<'a> ProcessProviderExecutor<'a> {
         Self {
             control,
             watchdog_timeout: GENERATION_WATCHDOG_TIMEOUT,
+            provider_cwd_parent: None,
         }
     }
 
@@ -79,7 +82,25 @@ impl<'a> ProcessProviderExecutor<'a> {
         Self {
             control,
             watchdog_timeout,
+            provider_cwd_parent: None,
         }
+    }
+
+    #[cfg(test)]
+    fn with_provider_cwd_parent(control: &'a JobControl, parent: PathBuf) -> Self {
+        Self {
+            control,
+            watchdog_timeout: GENERATION_WATCHDOG_TIMEOUT,
+            provider_cwd_parent: Some(parent),
+        }
+    }
+
+    fn provider_cwd(&self) -> Result<NeutralProviderCwd, String> {
+        match self.provider_cwd_parent.as_deref() {
+            Some(parent) => NeutralProviderCwd::new_in(parent),
+            None => NeutralProviderCwd::new(),
+        }
+        .map_err(|error| error.to_string())
     }
 }
 
@@ -113,7 +134,10 @@ impl ProviderExecutor for ProcessProviderExecutor<'_> {
 
         // Owned for the whole call; its directory is removed when this drops
         // at function exit (every return path, including `?` and panics).
-        let provider_cwd = NeutralProviderCwd::new();
+        let provider_cwd = self.provider_cwd()?;
+        if control.is_cancelled() {
+            return Ok(ProviderExecution::cancelled());
+        }
 
         let mut process = Command::new(&command.program);
         process
