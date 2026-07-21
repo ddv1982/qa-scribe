@@ -77,7 +77,7 @@ export function TestwareView({
   onPrefillFromNote: () => Promise<void>
   onSaveDraft: (draft: Draft) => Promise<boolean>
   onDiscardDraft: (draft: Draft) => void
-  onUploadImage: (input: RichEditorImageUpload) => void | Promise<void>
+  onUploadImage: (input: RichEditorImageUpload, recordId: string) => void | Promise<void>
 }) {
   return (
     <RecordCollectionView

@@ -28,6 +28,26 @@ test('inspectCodeSize reports watch files and fails unapproved oversized files',
   }
 })
 
+test('collects maintained YAML workflows under the same size policy', () => {
+  const root = mkdtempSync(join(tmpdir(), 'qa-scribe-code-size-'))
+  try {
+    mkdirSync(join(root, '.github'), { recursive: true })
+    mkdirSync(join(root, '.github/workflows'), { recursive: true })
+    writeFileSync(join(root, '.github/workflows/ci.yml'), 'step:\n'.repeat(300))
+    writeFileSync(join(root, '.github/workflows/release.yaml'), 'step:\n'.repeat(501))
+
+    const result = inspectCodeSize(root, policy, '2026-07-20')
+    assert.deepEqual(result.watched, [{ path: '.github/workflows/ci.yml', lineCount: 300 }])
+    assert.deepEqual(result.failures, [{
+      path: '.github/workflows/release.yaml',
+      lineCount: 501,
+      reason: 'no approved exception',
+    }])
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
 test('inspectCodeSize accepts a current exception and rejects it after review date', () => {
   const root = mkdtempSync(join(tmpdir(), 'qa-scribe-code-size-'))
   try {

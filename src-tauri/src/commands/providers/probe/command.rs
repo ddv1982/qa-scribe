@@ -14,6 +14,7 @@ use super::cancel::DiscoveryCancellation;
 
 pub(in crate::commands::providers) const MAX_PROVIDER_OUTPUT_BYTES: u64 = 1024 * 1024;
 
+#[cfg(test)]
 pub(in crate::commands::providers) fn run_command_with_timeout(
     command: Command,
     timeout: Duration,
@@ -22,10 +23,27 @@ pub(in crate::commands::providers) fn run_command_with_timeout(
     run_command_with_cancellation_check(command, timeout, || cancellation.is_cancelled())
 }
 
+pub(super) fn run_command_with_cancellation(
+    command: Command,
+    timeout: Duration,
+    cancellation: &DiscoveryCancellation,
+) -> std::io::Result<Output> {
+    run_command_with_cancellation_check(command, timeout, || cancellation.is_cancelled())
+}
+
 fn run_command_with_cancellation_check(
+    command: Command,
+    timeout: Duration,
+    is_cancelled: impl Fn() -> bool,
+) -> std::io::Result<Output> {
+    run_command_with_output_files(command, timeout, is_cancelled, ProbeOutputFiles::new())
+}
+
+fn run_command_with_output_files(
     mut command: Command,
     timeout: Duration,
     is_cancelled: impl Fn() -> bool,
+    output_files: ProbeOutputFiles,
 ) -> std::io::Result<Output> {
     if is_cancelled() {
         return Err(std::io::Error::new(
@@ -33,7 +51,6 @@ fn run_command_with_cancellation_check(
             "provider probe was cancelled",
         ));
     }
-    let output_files = ProbeOutputFiles::new();
     let (stdout, stderr) = output_files.create()?;
     configure_process_group(&mut command);
     let mut child = command
@@ -167,6 +184,7 @@ impl CommandProbe {
             stdout: String::from_utf8_lossy(&output.stdout).trim().to_string(),
             stderr: String::from_utf8_lossy(&output.stderr).trim().to_string(),
             not_found: false,
+            scope_error: None,
         }
     }
 
@@ -176,6 +194,17 @@ impl CommandProbe {
             stdout: String::new(),
             stderr: "command not found".to_string(),
             not_found: true,
+            scope_error: None,
+        }
+    }
+
+    pub(in crate::commands::providers) fn scope_unavailable(message: String) -> Self {
+        Self {
+            success: false,
+            stdout: String::new(),
+            stderr: message.clone(),
+            not_found: false,
+            scope_error: Some(message),
         }
     }
 }
@@ -201,6 +230,31 @@ mod tests {
 
         assert!(output_files.exceeds_limit(1_000));
         assert!(!output_files.exceeds_limit(1_200));
+    }
+
+    #[test]
+    fn spawn_failure_removes_only_its_owned_output_directory() {
+        let output_files = ProbeOutputFiles::new();
+        let owned_directory = output_files.directory_path.clone();
+        let ambient_output_files = ProbeOutputFiles::new();
+        let ambient_directory = ambient_output_files.directory_path.clone();
+        drop(
+            ambient_output_files
+                .create()
+                .expect("ambient probe files should be created"),
+        );
+
+        let error = run_command_with_output_files(
+            Command::new("qa-scribe-provider-probe-command-that-does-not-exist"),
+            Duration::from_millis(10),
+            || false,
+            output_files,
+        )
+        .expect_err("missing command should fail to spawn");
+
+        assert_eq!(error.kind(), ErrorKind::NotFound);
+        assert!(!owned_directory.exists());
+        assert!(ambient_directory.exists());
     }
 
     #[cfg(unix)]

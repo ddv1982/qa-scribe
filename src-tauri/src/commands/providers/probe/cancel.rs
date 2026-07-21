@@ -4,29 +4,43 @@ use std::{
 };
 
 use crate::commands::providers::{ProviderDiscoveryError, ProviderDiscoveryErrorCode};
+use crate::jobs::JobControl;
 
 pub(super) const CANCELLATION_POLL_INTERVAL: Duration = Duration::from_millis(25);
 static DISCOVERY_CANCELLATION_EPOCH: AtomicU64 = AtomicU64::new(0);
 static PROVIDER_DISCOVERY_SHUTTING_DOWN: AtomicBool = AtomicBool::new(false);
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub(super) struct DiscoveryCancellation {
     epoch: u64,
+    job_control: Option<JobControl>,
 }
 
 impl DiscoveryCancellation {
     pub(super) fn capture() -> Self {
         Self {
             epoch: DISCOVERY_CANCELLATION_EPOCH.load(Ordering::Acquire),
+            job_control: None,
         }
     }
 
-    pub(super) fn is_cancelled(self) -> bool {
-        PROVIDER_DISCOVERY_SHUTTING_DOWN.load(Ordering::Acquire)
-            || self.epoch != DISCOVERY_CANCELLATION_EPOCH.load(Ordering::Acquire)
+    pub(super) fn for_job(job_control: &JobControl) -> Self {
+        Self {
+            epoch: DISCOVERY_CANCELLATION_EPOCH.load(Ordering::Acquire),
+            job_control: Some(job_control.clone()),
+        }
     }
 
-    pub(super) fn check(self, provider_label: &str) -> Result<(), ProviderDiscoveryError> {
+    pub(super) fn is_cancelled(&self) -> bool {
+        PROVIDER_DISCOVERY_SHUTTING_DOWN.load(Ordering::Acquire)
+            || self.epoch != DISCOVERY_CANCELLATION_EPOCH.load(Ordering::Acquire)
+            || self
+                .job_control
+                .as_ref()
+                .is_some_and(JobControl::is_cancelled)
+    }
+
+    pub(super) fn check(&self, provider_label: &str) -> Result<(), ProviderDiscoveryError> {
         if self.is_cancelled() {
             Err(ProviderDiscoveryError {
                 code: ProviderDiscoveryErrorCode::Cancelled,
@@ -53,6 +67,7 @@ mod tests {
         let current = DISCOVERY_CANCELLATION_EPOCH.load(Ordering::Acquire);
         let cancellation = DiscoveryCancellation {
             epoch: current.wrapping_sub(1),
+            job_control: None,
         };
 
         let error = cancellation.check("Provider").unwrap_err();

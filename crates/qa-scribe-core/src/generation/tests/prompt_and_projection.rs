@@ -26,6 +26,70 @@ fn projection_turns_editor_html_into_prompt_text() {
 }
 
 #[test]
+fn projection_keeps_single_and_double_quoted_delimiters_inside_attributes() {
+    let html = r#"
+        <p>Before café.</p>
+        <img src="qa-scribe-attachment://attachment-1" data-attachment-id="attachment-1" alt="Evidence A > B 日本語" />
+        <a href='https://example.test/compare?left=5>3&amp;mode=full'>Comparison</a>
+        <p>After.</p>
+    "#;
+
+    let projected = project_html_to_prompt_text(html);
+
+    assert!(projected.contains("Before café."));
+    assert!(projected.contains("[Image: Evidence A > B 日本語]"));
+    assert!(projected.contains("Comparison (https://example.test/compare?left=5>3&mode=full)"));
+    assert!(projected.contains("After."));
+    assert!(!projected.contains("data-attachment-id"));
+}
+
+#[test]
+fn projection_handles_nested_looking_quoted_content_and_unclosed_tags_without_panicking() {
+    let nested = project_html_to_prompt_text(
+        r#"<img src="evidence.png" alt="Nested <strong>value > threshold</strong>" /><p>After</p>"#,
+    );
+    assert!(nested.contains("[Image: Nested value > threshold]"));
+    assert!(nested.contains("After"));
+
+    let malformed = project_html_to_prompt_text(
+        r#"<p>Before</p><img alt="unterminated > <script>literal</script><p>After</p>"#,
+    );
+    assert!(malformed.contains("Before"));
+    assert!(malformed.contains("unterminated >"));
+    assert!(malformed.contains("literal"));
+    assert!(malformed.contains("After"));
+}
+
+#[test]
+fn projection_quote_scanner_handles_generated_payload_matrix() {
+    let cases = [
+        ("A > B", "A > B"),
+        ("café > naïve", "café > naïve"),
+        ("日本語 > ✅", "日本語 > ✅"),
+        (
+            "Nested <em>value > threshold</em>",
+            "Nested value > threshold",
+        ),
+        ("A &gt; B > C", "A > B > C"),
+    ];
+
+    for quote in ['"', '\''] {
+        for (payload, expected) in cases {
+            let html = format!(
+                "<img src={quote}evidence.png{quote} alt={quote}{payload}{quote}><p>After</p>"
+            );
+            let projected = project_html_to_prompt_text(&html);
+
+            assert!(
+                projected.contains(&format!("[Image: {expected}]")),
+                "quote={quote:?}, payload={payload:?}, projected={projected:?}"
+            );
+            assert!(projected.ends_with("After"));
+        }
+    }
+}
+
+#[test]
 fn projection_preserves_tiptap_task_list_state() {
     let html = r#"
             <ul data-type="taskList">

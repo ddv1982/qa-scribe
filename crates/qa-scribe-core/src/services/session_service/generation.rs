@@ -13,7 +13,10 @@ use crate::{
 };
 
 use super::super::session_rows::{map_ai_run, map_draft, map_entry, map_finding};
-use super::{SessionService, new_id, now, require_row_in_session, require_session};
+use super::{
+    SessionService, new_id, now, require_row_in_session, require_session,
+    rich_body::{ExistingRichBody, ResolvedRichBody, RichBodyPatch, resolve_rich_body_patch},
+};
 
 mod context;
 
@@ -242,25 +245,23 @@ impl SessionService {
                 ));
             }
 
+            let ResolvedRichBody {
+                body,
+                body_json,
+                body_format,
+            } = resolve_rich_body_patch(
+                "Entry body",
+                TEXT_BODY_MAX_LENGTH,
+                ExistingRichBody::from(&existing),
+                RichBodyPatch {
+                    body: patch.body,
+                    body_json: patch.body_json,
+                    body_format: patch.body_format,
+                },
+            )?;
             let title = match patch.title {
                 Some(title) => validate_optional_text("Entry title", title, TITLE_MAX_LENGTH)?,
                 None => existing.title,
-            };
-            let body = match patch.body {
-                Some(body) => validate_body_text("Entry body", &body, TEXT_BODY_MAX_LENGTH)?,
-                None => existing.body,
-            };
-            let body_json = match patch.body_json {
-                Some(body_json) => validate_body_json(body_json)?,
-                None => existing.body_json,
-            };
-            let body_format = match patch.body_format {
-                Some(body_format) => validate_optional_text(
-                    "Entry body format",
-                    body_format,
-                    BODY_FORMAT_MAX_LENGTH,
-                )?,
-                None => existing.body_format,
             };
             let metadata_json = match patch.metadata_json {
                 Some(metadata_json) => validate_metadata_json(metadata_json)?,

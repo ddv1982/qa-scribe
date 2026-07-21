@@ -17,6 +17,7 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  RPM_SMOKE_IMAGE: fedora:43@sha256:781b7642e8bf256e9cf75d2aa58d86f5cc695fd2df113517614e181a5eee9138
 
 jobs:
   release-context:
@@ -257,20 +258,33 @@ jobs:
 
           certificate_path="${RUNNER_TEMP}/developer-id.p12"
           keychain_path="${RUNNER_TEMP}/qa-scribe-signing.keychain-db"
+          previous_keychains_path="${RUNNER_TEMP}/qa-scribe-previous-keychains.txt"
+          previous_keychains_staging_path="${previous_keychains_path}.next"
           keychain_password="$(uuidgen)"
           api_key_path="${RUNNER_TEMP}/AuthKey_${APPLE_API_KEY_ID}.p8"
           MACOS_DEVELOPER_ID="${MACOS_DEVELOPER_ID_INPUT}"
           MACOS_TEAM_ID="${MACOS_TEAM_ID_INPUT}"
+          echo "APPLE_API_KEY_PATH=${api_key_path}" >> "$GITHUB_ENV"
 
           printf '%s' "$CSC_LINK" | base64 --decode > "$certificate_path"
           printf '%s' "$APPLE_API_KEY_BASE64" | base64 --decode > "$api_key_path"
+
+          security list-keychains -d user | awk -F'"' 'NF >= 2 { print $2 }' > "$previous_keychains_staging_path"
+          mv "$previous_keychains_staging_path" "$previous_keychains_path"
+          previous_keychains=()
+          while IFS= read -r previous_keychain; do
+            [ -n "$previous_keychain" ] && previous_keychains+=("$previous_keychain")
+          done < "$previous_keychains_path"
 
           security create-keychain -p "$keychain_password" "$keychain_path"
           security set-keychain-settings -lut 21600 "$keychain_path"
           security unlock-keychain -p "$keychain_password" "$keychain_path"
           security import "$certificate_path" -k "$keychain_path" -P "$CSC_KEY_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
-          security list-keychains -d user -s "$keychain_path"
-          security default-keychain -d user -s "$keychain_path"
+          if [ ${#previous_keychains[@]} -gt 0 ]; then
+            security list-keychains -d user -s "$keychain_path" "${previous_keychains[@]}"
+          else
+            security list-keychains -d user -s "$keychain_path"
+          fi
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain_path"
 
           if [ -z "${MACOS_DEVELOPER_ID}" ]; then
@@ -296,7 +310,6 @@ jobs:
           if [ -n "${MACOS_TEAM_ID}" ]; then
             echo "MACOS_TEAM_ID=${MACOS_TEAM_ID}" >> "$GITHUB_ENV"
           fi
-          echo "APPLE_API_KEY_PATH=${api_key_path}" >> "$GITHUB_ENV"
 
       - name: Sign and notarize macOS app bundle
         env:
@@ -345,6 +358,57 @@ jobs:
       - name: Validate macOS artifacts
         run: node scripts/check-rust-artifacts.mjs --platform macos --require-dmg
 
+      - name: Clean up Apple signing environment
+        if: always()
+        run: |
+          set -euo pipefail
+
+          keychain_path="${RUNNER_TEMP}/qa-scribe-signing.keychain-db"
+          certificate_path="${RUNNER_TEMP}/developer-id.p12"
+          previous_keychains_path="${RUNNER_TEMP}/qa-scribe-previous-keychains.txt"
+          previous_keychains_staging_path="${previous_keychains_path}.next"
+          api_key_path="${APPLE_API_KEY_PATH:-}"
+          if [ -n "${api_key_path}" ] && [[ "${api_key_path}" != "${RUNNER_TEMP}"/AuthKey_*.p8 ]]; then
+            echo "Refusing to remove unexpected Apple API key path: ${api_key_path}" >&2
+            exit 1
+          fi
+
+          cleanup_failed=0
+          if [ -f "${previous_keychains_path}" ]; then
+            previous_keychains=()
+            while IFS= read -r previous_keychain; do
+              [ -n "$previous_keychain" ] && previous_keychains+=("$previous_keychain")
+            done < "$previous_keychains_path"
+            if [ ${#previous_keychains[@]} -gt 0 ]; then
+              security list-keychains -d user -s "${previous_keychains[@]}" || cleanup_failed=1
+            else
+              security list-keychains -d user -s || cleanup_failed=1
+            fi
+          fi
+
+          security delete-keychain "${keychain_path}" >/dev/null 2>&1 || true
+          rm -f "${keychain_path}" "${certificate_path}" "${previous_keychains_path}" "${previous_keychains_staging_path}"
+          if [ -n "${api_key_path}" ]; then
+            rm -f "${api_key_path}"
+          fi
+
+          for sensitive_path in "${keychain_path}" "${certificate_path}" "${api_key_path}"; do
+            [ -n "${sensitive_path}" ] || continue
+            if [ -e "${sensitive_path}" ]; then
+              echo "Could not remove temporary Apple signing material: ${sensitive_path}" >&2
+              exit 1
+            fi
+          done
+
+          echo 'APPLE_API_KEY_PATH=' >> "${GITHUB_ENV}"
+          if [ "${cleanup_failed}" -ne 0 ]; then
+            echo 'Could not restore the original user keychain search list.' >&2
+            exit 1
+          fi
+
+      - name: Mount, copy, and launch final macOS DMG
+        run: node scripts/smoke-release-artifacts.mjs --macos-dmg dist/rust/artifacts
+
       - name: Stage macOS release assets
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -389,7 +453,9 @@ jobs:
             libarchive-tools \
             desktop-file-utils \
             appstream \
-            gnupg
+            gnupg \
+            xauth \
+            xvfb
 
       - name: Build frontend
         run: bun run frontend:build
@@ -425,6 +491,18 @@ jobs:
             node scripts/write-linux-metadata-summary.mjs linux-package-metadata-report.json
           fi
           exit "${validator_status}"
+
+      - name: Install deb and launch deb and AppImage on Ubuntu
+        run: node scripts/smoke-release-artifacts.mjs --linux-deb-appimage dist/rust/artifacts
+
+      - name: Install and launch RPM with dependency resolution on Fedora
+        run: |
+          docker run --rm \
+            --volume "${PWD}:/workspace:ro" \
+            --volume "$(command -v bun):/usr/local/bin/bun:ro" \
+            --workdir /workspace \
+            "${RPM_SMOKE_IMAGE}" \
+            bun scripts/smoke-release-artifacts.mjs --linux-rpm dist/rust/artifacts
 
       - name: Build signed APT repository and checksums
         env:
@@ -510,6 +588,9 @@ jobs:
             "${RUNNER_TEMP}/linux-signing-private-key.asc" \
             "${RUNNER_TEMP}/linux-signing-public-key.asc" \
             "${RUNNER_TEMP}/linux-signing-passphrase"
+
+      - name: Install and verify final APT setup package
+        run: node scripts/smoke-release-artifacts.mjs --apt-setup dist/rust/artifacts/qa-scribe-repository-setup_1.0_all.deb --expected-keyring dist/rust/artifacts/qa-scribe-archive-keyring.pgp
 
       - name: Stage APT repository installer
         env:

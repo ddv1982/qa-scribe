@@ -22,26 +22,134 @@ export function containsInlineImageData(value: string): boolean {
   return /<img\b[^>]*\bsrc=["']data:image\//i.test(value)
 }
 
-export async function hydrateManagedAttachmentPreviews(editor: HTMLElement, shouldApply: () => boolean) {
-  const images = Array.from(editor.querySelectorAll<HTMLImageElement>('img[data-attachment-id], img[src^="qa-scribe-attachment://"]'))
-  await Promise.all(
-    images.map(async (image) => {
-      const attachmentId = managedAttachmentIdFromImage(image)
-      if (!attachmentId) return
+type ManagedAttachmentPreviewLoadResult =
+  | { status: 'resolved'; preview: string | null }
+  | { status: 'failed'; retryAfterMs: number | null }
+  | { status: 'stale' }
 
-      image.setAttribute('data-attachment-id', attachmentId)
-      try {
-        const preview = await getAttachmentPreviewDataUrl(attachmentId)
-        if (preview && shouldApply() && image.isConnected) {
-          image.src = preview
-        }
-      } catch {
-        if (shouldApply() && image.isConnected) {
-          image.alt = image.alt || 'Attached image'
-        }
+type ManagedAttachmentPreviewCacheEntry = {
+  attempts: number
+  status: 'loading' | 'resolved' | 'failed'
+  preview?: string | null
+  promise?: Promise<ManagedAttachmentPreviewLoadResult>
+  retryAt?: number
+}
+
+export type ManagedAttachmentPreviewCache = {
+  clear: () => void
+  load: (attachmentId: string) => Promise<ManagedAttachmentPreviewLoadResult>
+  retain: (attachmentIds: ReadonlySet<string>) => void
+  seed: (attachmentId: string, preview: string) => void
+}
+
+const managedAttachmentPreviewRetryDelays = [250, 1_000] as const
+const maxManagedAttachmentPreviewAttempts = managedAttachmentPreviewRetryDelays.length + 1
+
+export function createManagedAttachmentPreviewCache(
+  loadPreview: (attachmentId: string) => Promise<string | null> = getAttachmentPreviewDataUrl,
+): ManagedAttachmentPreviewCache {
+  const entries = new Map<string, ManagedAttachmentPreviewCacheEntry>()
+
+  function startLoad(attachmentId: string, attempts: number): Promise<ManagedAttachmentPreviewLoadResult> {
+    const entry: ManagedAttachmentPreviewCacheEntry = { attempts, status: 'loading' }
+    const promise = Promise.resolve()
+      .then(() => loadPreview(attachmentId))
+      .then(
+        (preview): ManagedAttachmentPreviewLoadResult => {
+          if (entries.get(attachmentId) !== entry) return { status: 'stale' }
+          entry.status = 'resolved'
+          entry.preview = preview
+          return { status: 'resolved', preview }
+        },
+        (): ManagedAttachmentPreviewLoadResult => {
+          if (entries.get(attachmentId) !== entry) return { status: 'stale' }
+          entry.status = 'failed'
+          const retryAfterMs = managedAttachmentPreviewRetryDelays[attempts - 1] ?? null
+          entry.retryAt = retryAfterMs === null ? undefined : Date.now() + retryAfterMs
+          return { status: 'failed', retryAfterMs }
+        },
+      )
+
+    entry.promise = promise
+    entries.set(attachmentId, entry)
+    return promise
+  }
+
+  return {
+    clear() {
+      entries.clear()
+    },
+    load(attachmentId) {
+      const entry = entries.get(attachmentId)
+      if (!entry) return startLoad(attachmentId, 1)
+      if (entry.status === 'loading') return entry.promise ?? Promise.resolve({ status: 'failed', retryAfterMs: null })
+      if (entry.status === 'resolved') return Promise.resolve({ status: 'resolved', preview: entry.preview ?? null })
+      if (entry.attempts >= maxManagedAttachmentPreviewAttempts) return Promise.resolve({ status: 'failed', retryAfterMs: null })
+      const retryAfterMs = Math.max(0, (entry.retryAt ?? 0) - Date.now())
+      if (retryAfterMs > 0) return Promise.resolve({ status: 'failed', retryAfterMs })
+      return startLoad(attachmentId, entry.attempts + 1)
+    },
+    retain(attachmentIds) {
+      entries.forEach((_entry, attachmentId) => {
+        if (!attachmentIds.has(attachmentId)) entries.delete(attachmentId)
+      })
+    },
+    seed(attachmentId, preview) {
+      entries.set(attachmentId, { attempts: 0, status: 'resolved', preview })
+    },
+  }
+}
+
+export async function hydrateManagedAttachmentPreviews(
+  editor: HTMLElement,
+  shouldApply: () => boolean,
+  cache: ManagedAttachmentPreviewCache,
+): Promise<number | null> {
+  const images = Array.from(editor.querySelectorAll<HTMLImageElement>('img[data-attachment-id], img[src^="qa-scribe-attachment://"]'))
+  const imagesByAttachmentId = new Map<string, HTMLImageElement[]>()
+
+  images.forEach((image) => {
+    const attachmentId = managedAttachmentIdFromImage(image)
+    if (!attachmentId) return
+    image.setAttribute('data-attachment-id', attachmentId)
+    const matchingImages = imagesByAttachmentId.get(attachmentId) ?? []
+    matchingImages.push(image)
+    imagesByAttachmentId.set(attachmentId, matchingImages)
+  })
+
+  cache.retain(new Set(imagesByAttachmentId.keys()))
+  const loads = Array.from(imagesByAttachmentId, async ([attachmentId, matchingImages]) => {
+    const result = await cache.load(attachmentId)
+    if (result.status === 'stale' || !shouldApply()) return null
+
+    matchingImages.forEach((image) => {
+      if (!image.isConnected || managedAttachmentIdFromImage(image) !== attachmentId) return
+      if (result.status === 'resolved') {
+        if (result.preview && image.getAttribute('src') !== result.preview) image.src = result.preview
+      } else {
+        image.alt = image.alt || 'Attached image'
       }
-    }),
-  )
+    })
+
+    return result.status === 'failed' ? result.retryAfterMs : null
+  })
+
+  if (loads.length === 0) return null
+  return new Promise((resolve) => {
+    let pending = loads.length
+    let resolved = false
+    loads.forEach((load) => {
+      void load.then((retryAfterMs) => {
+        pending -= 1
+        if (!resolved && retryAfterMs !== null) {
+          resolved = true
+          resolve(retryAfterMs)
+        } else if (!resolved && pending === 0) {
+          resolve(null)
+        }
+      })
+    })
+  })
 }
 
 export function inlineImageFilename(image: HTMLImageElement, index: number, dataUrl: string): string {

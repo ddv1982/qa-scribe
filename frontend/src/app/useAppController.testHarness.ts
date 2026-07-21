@@ -5,7 +5,7 @@ import { draftFixture, entryFixture, findingFixture, providerStatusFixture, sess
 const tauriMock = vi.hoisted(() => ({
   cancelAiActionJob: vi.fn(), getAiActionJobStatus: vi.fn(), listActiveAiActionJobs: vi.fn(),
   createDraft: vi.fn(), createEntry: vi.fn(), createFinding: vi.fn(), createSession: vi.fn(),
-  deleteDraft: vi.fn(), deleteFinding: vi.fn(), deleteSession: vi.fn(), getProviderStatus: vi.fn(),
+  deleteAttachment: vi.fn(), deleteDraft: vi.fn(), deleteFinding: vi.fn(), deleteSession: vi.fn(), getProviderStatus: vi.fn(),
   getSettings: vi.fn(), importClipboardScreenshot: vi.fn(), listDraftLibrary: vi.fn(), listDrafts: vi.fn(), listEntries: vi.fn(),
   listFindingLibrary: vi.fn(), listFindings: vi.fn(), listRecentSessions: vi.fn(), listSessions: vi.fn(), openSessionNoteState: vi.fn(),
   reopenSession: vi.fn(), refreshProviderStatus: vi.fn(), startAiActionJob: vi.fn(), updateDraft: vi.fn(),
@@ -63,6 +63,7 @@ export function setupControllerTest() {
 
   tauriMock.getSettings.mockResolvedValue(settingsFixture())
   tauriMock.importClipboardScreenshot.mockResolvedValue({ id: 'attachment-1', filename: 'inline-image.png' })
+  tauriMock.deleteAttachment.mockResolvedValue(true)
   tauriMock.getProviderStatus.mockResolvedValue(providerStatusFixture())
   tauriMock.refreshProviderStatus.mockResolvedValue(providerStatusFixture())
   tauriMock.listRecentSessions.mockResolvedValue([sessionFixture()])

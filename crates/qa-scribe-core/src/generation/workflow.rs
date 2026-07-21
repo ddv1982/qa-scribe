@@ -231,7 +231,7 @@ fn finish_successful_generation(
         if let Some(model) = output.reported_model() {
             service.record_running_ai_run_model(&prepared.ai_run.id, &model)?;
         }
-        let response = output.response_text();
+        let response = output.response_text().map_err(QaScribeError::Validation)?;
         let body = parse_rich_html_fragment_response(&response, &prepared.output_marker);
         validate_generated_body(&body)?;
         match request.action {
@@ -290,11 +290,19 @@ fn finish_testware_generation(
     prepared: PreparedGeneration,
     body: String,
 ) -> Result<GenerateAiActionResult> {
-    let body = preserve_managed_attachment_images(
-        &body,
-        prepared.selected_note_body.as_deref().unwrap_or_default(),
-        &prepared.attachments,
-    );
+    let body = if request
+        .testware_preferences
+        .as_ref()
+        .is_none_or(|preferences| preferences.preserve_evidence)
+    {
+        preserve_managed_attachment_images(
+            &body,
+            prepared.selected_note_body.as_deref().unwrap_or_default(),
+            &prepared.attachments,
+        )
+    } else {
+        body
+    };
     let body = sanitize_generated_rich_html(&body);
     let (ai_run, draft) = service.complete_ai_run_with_generated_draft(
         &prepared.ai_run.id,

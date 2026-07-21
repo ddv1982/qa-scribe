@@ -1,5 +1,6 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('../tauri', () => ({
   getAttachmentPreviewDataUrl: vi.fn(),
@@ -8,8 +9,12 @@ vi.mock('../tauri', () => ({
   MANAGED_ATTACHMENT_PROTOCOL: 'qa-scribe-attachment://',
 }))
 
+import { getAttachmentPreviewDataUrl } from '../tauri'
 import { FormatToolbar, RichTextEditor, type RichEditorImageUpload } from './RichTextEditor'
 import { emptyRichEditorDocument, richEditorDocumentFromHtml, richEditorDocumentToHtml, type RichEditorDocument } from './editorDocument'
+import { managedAttachmentImageHtml } from './editorHtml'
+
+const getAttachmentPreviewDataUrlMock = vi.mocked(getAttachmentPreviewDataUrl)
 
 beforeAll(() => {
   const rect = {
@@ -38,6 +43,10 @@ beforeAll(() => {
 })
 
 describe('RichTextEditor toolbar', () => {
+  beforeEach(() => {
+    getAttachmentPreviewDataUrlMock.mockReset()
+  })
+
   afterEach(() => {
     cleanup()
     vi.restoreAllMocks()
@@ -81,6 +90,104 @@ describe('RichTextEditor toolbar', () => {
       expect(screen.getByRole('textbox', { name: 'Breeding testware preview' }).textContent).toContain('Breeding coverage')
     })
     expect(screen.queryByRole('textbox', { name: 'IRIS testware preview' })).toBeNull()
+  })
+
+  it('does not re-read a managed preview while the user types', async () => {
+    getAttachmentPreviewDataUrlMock.mockResolvedValue('data:image/png;base64,AAAA')
+    const onChange = vi.fn()
+    const user = userEvent.setup()
+    render(
+      <RichTextEditor
+        value={richEditorDocumentFromHtml(`<p>Before</p><p>${managedAttachmentImageHtml('attachment-1', 'evidence.png')}</p>`)}
+        onChange={onChange}
+      />,
+    )
+
+    const editor = await screen.findByRole('textbox', { name: 'Note body' })
+    await waitFor(() => expect(getAttachmentPreviewDataUrlMock).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(editor.querySelector('img')?.getAttribute('src')).toBe('data:image/png;base64,AAAA'))
+
+    placeCursorAtEnd(editor)
+    await user.keyboard(' typed')
+    await waitFor(() => expect(lastChangeHtml(onChange)).toContain('Before typed'))
+    await Promise.resolve()
+
+    expect(getAttachmentPreviewDataUrlMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('retries failed previews on backoff without using editor updates as retries', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(0)
+    getAttachmentPreviewDataUrlMock
+      .mockRejectedValueOnce(new Error('first transient failure'))
+      .mockRejectedValueOnce(new Error('second transient failure'))
+      .mockResolvedValueOnce('data:image/png;base64,AAAA')
+    const initialValue = richEditorDocumentFromHtml(`<p>Before</p><p>${managedAttachmentImageHtml('attachment-1', 'evidence.png')}</p>`)
+    const { rerender } = render(<RichTextEditor value={initialValue} />)
+
+    try {
+      await act(async () => {
+        await Promise.resolve()
+        await Promise.resolve()
+      })
+      const editor = screen.getByRole('textbox', { name: 'Note body' })
+      expect(getAttachmentPreviewDataUrlMock).toHaveBeenCalledTimes(1)
+
+      rerender(
+        <RichTextEditor
+          value={richEditorDocumentFromHtml(`<p>After typing</p><p>${managedAttachmentImageHtml('attachment-1', 'evidence.png')}</p>`)}
+        />,
+      )
+      await act(async () => {
+        await Promise.resolve()
+      })
+      expect(getAttachmentPreviewDataUrlMock).toHaveBeenCalledTimes(1)
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(250)
+      })
+      expect(getAttachmentPreviewDataUrlMock).toHaveBeenCalledTimes(2)
+
+      rerender(<RichTextEditor value={initialValue} />)
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(999)
+      })
+      expect(getAttachmentPreviewDataUrlMock).toHaveBeenCalledTimes(2)
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1)
+      })
+      expect(getAttachmentPreviewDataUrlMock).toHaveBeenCalledTimes(3)
+      expect(editor.querySelector('img')?.getAttribute('src')).toBe('data:image/png;base64,AAAA')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('cancels scheduled preview retries when the editor unmounts', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(0)
+    getAttachmentPreviewDataUrlMock.mockRejectedValue(new Error('transient failure'))
+    const { unmount } = render(
+      <RichTextEditor value={richEditorDocumentFromHtml(`<p>${managedAttachmentImageHtml('attachment-1', 'evidence.png')}</p>`)} />,
+    )
+
+    try {
+      await act(async () => {
+        await Promise.resolve()
+        await Promise.resolve()
+      })
+      expect(getAttachmentPreviewDataUrlMock).toHaveBeenCalledTimes(1)
+
+      unmount()
+      await act(async () => {
+        await vi.runAllTimersAsync()
+      })
+
+      expect(getAttachmentPreviewDataUrlMock).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('formats selected content and can toggle the mark off again', async () => {
@@ -312,6 +419,7 @@ describe('RichTextEditor toolbar', () => {
 
     expect(onUploadImage).toHaveBeenCalledTimes(1)
     const upload = onUploadImage.mock.calls[0]?.[0]
+    expect(upload?.editorId).toBe('second-editor')
     expect(upload?.file).toBe(file)
     expect(upload?.insertImage).toEqual(expect.any(Function))
 

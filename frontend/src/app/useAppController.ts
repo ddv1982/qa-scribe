@@ -1,21 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { reopenSession, type GenerateAiActionKind } from '../tauri'
-import { richEditorDocumentToPlainText, serializeRichEditorDocument } from '../editor/editorDocument'
-import { managedAttachmentReferencesForClipboard } from '../editor/clipboardExport'
-import { countWords, formatError } from '../ui/format'
-import type { PendingAiActions, MainView } from '../ui/types'
+import { useEffect, useRef, useState } from 'react'
+import { serializeRichEditorDocument } from '../editor/editorDocument'
+import type { MainView } from '../ui/types'
 import { useSettingsController } from '../hooks/useSettingsController'
 import { deleteConfirmationCopy } from '../workflows/deleteConfirmation'
-import { useAttachmentActions } from './attachmentActions'
+import { useAttachmentActions, type AttachmentUploadOwner } from './attachmentActions'
 import { useCopyActions } from './copyActions'
-import { generationIsActive, useGenerationActions } from './generationActions'
+import { useGenerationActions } from './generationActions'
 import { useRecordActions } from './recordActions'
 import { useSessionActions } from './sessionActions'
-import type {
-  AiSelection,
-  RecordWorkspace,
-  WorkflowNavigation,
-} from './types'
+import type { AiSelection, RecordWorkspace, WorkflowNavigation } from './types'
 import { useAppStartup } from './useAppStartup'
 import { usePendingChangeProtection } from './usePendingChangeProtection'
 import { useRecordHydration } from './useRecordHydration'
@@ -24,9 +17,14 @@ import { useWorkflowFeedback } from './useWorkflowFeedback'
 import { useGenerationWorkspace } from './useGenerationWorkspace'
 import { useDeletionWorkspace } from './useDeletionWorkspace'
 import { useOutputLibraries } from './useOutputLibraries'
-import { navigationHash, parseNavigationRoute, type AppNavigationRoute } from './navigationRoute'
+import { navigationHash, parseNavigationRoute } from './navigationRoute'
 import { createOpenGenerationPreflight } from './generationPreflightAction'
 import { useSettingsDiscovery } from './useSettingsDiscovery'
+import {
+  useAppControllerGenerationState,
+  useAppControllerPresentationState,
+} from './useAppController.derivedState'
+import { useAppControllerNavigation } from './useAppController.navigation'
 
 export { mergeRecordLists } from './useRecordHydration'
 
@@ -54,13 +52,26 @@ export function useAppController() {
     pendingGenerationAction,
     latestNoteGenerationUndo,
     setPendingGenerationAction,
-    setLatestNoteGenerationUndo,
+    setLatestNoteGenerationUndo: setLatestNoteGenerationUndoState,
     workspace: generationWorkspace,
   } = useGenerationWorkspace()
+  const latestNoteGenerationUndoRef = useRef(latestNoteGenerationUndo)
+  function setLatestNoteGenerationUndo(value: Parameters<typeof setLatestNoteGenerationUndoState>[0]) {
+    const next = typeof value === 'function' ? value(latestNoteGenerationUndoRef.current) : value
+    latestNoteGenerationUndoRef.current = next
+    setLatestNoteGenerationUndoState(next)
+  }
+  const coordinatedGenerationWorkspace = {
+    ...generationWorkspace,
+    latestNoteGenerationUndo,
+    setLatestNoteGenerationUndo,
+  }
   const { deleteConfirmation, setDeleteConfirmation, workspace: deletion } = useDeletionWorkspace()
   const [searchQuery, setSearchQuery] = useState('')
   const [activeView, setActiveView] = useState<MainView>('sessions')
   const [pendingNavigationView, setPendingNavigationView] = useState<MainView | null>(null)
+  const pendingNavigationContinuationRef = useRef<(() => void | Promise<void>) | null>(null)
+  const pendingNavigationEpochRef = useRef(0)
   const [pendingSettingsSection, setPendingSettingsSection] = useState<string | null>(null)
   const [settingsSection, setSettingsSection] = useState<string | null>(null)
   const [focusedRecordId, setFocusedRecordId] = useState<string | null>(null)
@@ -69,6 +80,15 @@ export function useAppController() {
   const settingsReturnViewRef = useRef<MainView>('sessions')
   const outputLibraries = useOutputLibraries(activeView)
   const saveDirtyRecordsNowRef = useRef<() => Promise<boolean>>(() => Promise.resolve(true))
+  const retryPendingRecordCompensationsRef = useRef<(sessionId: string) => Promise<boolean>>(() => Promise.resolve(true))
+  const summaryRecovery = {
+    recoveredJobsRef: useRef(new Map<string, (typeof generationJobs)[string]>()),
+    unresolvedSummaryJobsRef: useRef(new Map<string, string>()),
+    completedSummaryEntriesRef: useRef(new Map<string, NonNullable<typeof noteEntry>>()),
+    openingSessionIdRef: useRef<string | null>(null),
+    discoveryPendingRef: useRef(true),
+    blockedSaveSessionIdsRef: useRef(new Set<string>()),
+  }
   const {
     activeProvider,
     discoverProviderDefaults,
@@ -109,68 +129,50 @@ export function useAppController() {
     setFindings,
     setTestwareDraftCount,
     setFindingCount,
-    invalidateRecordLoads,
+    invalidateDraftLoads,
+    invalidateFindingLoads,
     resetRecordHydration,
+    suspendRecordLoads,
+    restoreRecordLoads,
     loadDraftsForSession,
     loadFindingsForSession,
   } = useRecordHydration({ activeSessionId: activeSession?.id ?? null, activeView })
-
-  // Memoized so its reference is stable across renders: `draftScreenshotCounts`
-  // depends on it, and an inline `drafts.filter(...)` would produce a fresh array
-  // every keystroke and re-run that DOMParser-backed memo needlessly.
-  const testwareDrafts = useMemo(() => drafts.filter((draft) => draft.kind === 'testware'), [drafts])
-  const noteScreenshotCount = useMemo(
-    () => managedAttachmentReferencesForClipboard({ title: sessionTitle, bodyHtml: noteBodyHtml }).length,
-    [noteBodyHtml, sessionTitle],
-  )
-  const draftScreenshotCounts = useMemo(
-    () =>
-      Object.fromEntries(
-        testwareDrafts.map((draft) => [
-          draft.id,
-          managedAttachmentReferencesForClipboard({ title: draft.title, bodyHtml: draft.body }).length,
-        ]),
-      ),
-    [testwareDrafts],
-  )
-  const findingScreenshotCounts = useMemo(
-    () =>
-      Object.fromEntries(
-        findings.map((finding) => [
-          finding.id,
-          managedAttachmentReferencesForClipboard({ title: finding.title, bodyHtml: finding.body }).length,
-        ]),
-      ),
-    [findings],
-  )
-  const filteredSessions = useMemo(() => {
-    const query = searchQuery.trim().toLocaleLowerCase()
-    if (!query) return sessions
-    return sessions.filter((session) => session.title.toLocaleLowerCase().includes(query))
-  }, [sessions, searchQuery])
-  // Memoized: `richEditorDocumentToPlainText` walks/serializes the document, so
-  // recomputing it on every unrelated render (e.g. a sibling state change) was
-  // wasted work on the keystroke path.
-  const noteWordCount = useMemo(() => countWords(richEditorDocumentToPlainText(noteBody)), [noteBody])
+  const {
+    draftScreenshotCounts, filteredSessions, findingScreenshotCounts,
+    noteScreenshotCount, noteWordCount, testwareDrafts,
+  } = useAppControllerPresentationState({
+    drafts, findings, noteBody, noteBodyHtml, searchQuery, sessionTitle, sessions,
+  })
   const openGenerationPreflight = createOpenGenerationPreflight(
     activeProvider, refreshProviderStatus, setBusyAction, setPendingGenerationAction,
   )
   const noteIsReady = Boolean(activeSession && noteEntry)
+  const sessionTitleValidationError = activeSession && !sessionTitle.trim()
+    ? 'Session title is required.'
+    : null
+  const pendingRecoveredSummaryDecision = Boolean(
+    latestNoteGenerationUndo?.pendingRecoveryDecision
+    && latestNoteGenerationUndo.entryId === noteEntry?.id,
+  )
+  /* eslint-disable react-hooks/refs -- these write-through refs are the authoritative retry baselines; every mutation is paired with state that schedules a render. */
+  const sessionHasPendingChanges = Boolean(
+    pendingRecoveredSummaryDecision
+    || (activeSession && sessionTitle !== savedTitleRef.current)
+    || (noteEntry && serializeRichEditorDocument(noteBody) !== savedBodyRef.current),
+  )
+  /* eslint-enable react-hooks/refs */
+  const sessionSaveState = sessionTitleValidationError
+    ? 'invalid' as const
+    : busyAction === 'save-title' || busyAction === 'save-body'
+      ? 'saving' as const
+      : sessionHasPendingChanges
+        ? 'unsaved' as const
+        : 'saved' as const
   const isBusy = busyAction !== null
   const deleteCopy = deleteConfirmation ? deleteConfirmationCopy(deleteConfirmation) : null
-  const activeSessionJobs = useMemo(
-    () => Object.values(generationJobs).filter((job) => activeSession && job.sessionId === activeSession.id && generationIsActive(job)),
-    [generationJobs, activeSession],
-  )
-  const pendingAiActions = useMemo<PendingAiActions>(() => {
-    const pending: PendingAiActions = {}
-    // `job.action` is the backend's `GenerationJobStatus.action: String`, which
-    // is always a `GenerateAiActionKind` value.
-    for (const job of activeSessionJobs) pending[job.action as GenerateAiActionKind] = true
-    return pending
-  }, [activeSessionJobs])
-  const activeTestwareJob = activeSessionJobs.find((job) => job.action === 'testware') ?? null
-  const activeFindingJob = activeSessionJobs.find((job) => job.action === 'finding') ?? null
+  const { activeFindingJob, activeTestwareJob, pendingAiActions } = useAppControllerGenerationState({
+    activeSession, generationJobs,
+  })
 
   const recordWorkspace: RecordWorkspace = {
     drafts,
@@ -194,28 +196,48 @@ export function useAppController() {
   const navigation: WorkflowNavigation = {
     setActiveView,
   }
-  const attachmentActions = useAttachmentActions({ session: sessionWorkspace, feedback })
+  const registerImportedAttachmentRef = useRef<(owner: AttachmentUploadOwner, attachmentId: string) => void>(() => {})
+  const attachmentActions = useAttachmentActions({
+    session: sessionWorkspace,
+    feedback,
+    registerImportedAttachment: (owner, attachmentId) => {
+      registerImportedAttachmentRef.current(owner, attachmentId)
+    },
+  })
   const sessionActions = useSessionActions({
     session: sessionWorkspace,
     records: recordWorkspace,
-    generation: generationWorkspace,
+    generation: coordinatedGenerationWorkspace, latestNoteGenerationUndoRef, summaryRecovery,
     feedback,
     navigation,
     deletion,
     materializeInlineImages: attachmentActions.materializeInlineImages,
-    invalidateRecordLoads,
+    cleanupMaterializedAttachments: attachmentActions.cleanupMaterializedAttachments,
+    suspendRecordLoads,
+    restoreRecordLoads,
     resetRecordHydration,
     saveDirtyRecordsNow: () => saveDirtyRecordsNowRef.current(),
+    retryPendingRecordCompensations: (sessionId) => retryPendingRecordCompensationsRef.current(sessionId),
   })
-  const generationActions = useGenerationActions({
-    session: sessionWorkspace,
-    records: recordWorkspace,
-    generation: generationWorkspace,
-    selection,
-    feedback,
-    navigation,
-    saveNoteNow: sessionActions.saveNoteNow,
-  })
+  function setEditedSessionTitle(value: Parameters<typeof setSessionTitle>[0]) {
+    const next = typeof value === 'function' ? value(sessionWorkspace.sessionTitleRef.current) : value
+    if (next === sessionWorkspace.sessionTitleRef.current) return
+    sessionActions.registerTitleEditIntent()
+    setSessionTitle(next)
+  }
+  function setEditedNoteBody(value: Parameters<typeof setNoteBody>[0]) {
+    const next = typeof value === 'function' ? value(sessionWorkspace.noteBodyRef.current) : value
+    sessionActions.registerNoteEditIntent(next)
+    const recoveryDecision = latestNoteGenerationUndoRef.current
+    if (recoveryDecision?.pendingRecoveryDecision) {
+      setLatestNoteGenerationUndo(recoveryDecision.pendingRecoveryChoice === 'authored'
+        ? { ...recoveryDecision, before: next }
+        : { ...recoveryDecision, generated: next, pendingRecoveryChoice: 'generated' })
+    } else {
+      setLatestNoteGenerationUndo(null)
+    }
+    setNoteBody(next)
+  }
   const recordActions = useRecordActions({
     session: sessionWorkspace,
     records: recordWorkspace,
@@ -223,104 +245,51 @@ export function useAppController() {
     navigation,
     deletion,
     saveNoteNow: sessionActions.saveNoteNow,
+    registerRecordEditIntent: sessionActions.registerRecordEditIntent,
     handleDeleteSession: sessionActions.handleDeleteSession,
     materializeInlineImages: attachmentActions.materializeInlineImages,
+    cleanupMaterializedAttachments: attachmentActions.cleanupMaterializedAttachments,
+    invalidateDraftLoads,
+    invalidateFindingLoads,
     loaders: {
       loadDraftsForSession,
       loadFindingsForSession,
     },
   })
+  const generationActions = useGenerationActions({
+    session: sessionWorkspace,
+    records: recordWorkspace,
+    generation: coordinatedGenerationWorkspace, latestNoteGenerationUndoRef, summaryRecovery,
+    selection,
+    feedback,
+    navigation,
+    saveNoteNow: sessionActions.saveNoteNow,
+    saveNoteBody: sessionActions.saveBody,
+    adoptCanonicalNoteBody: sessionActions.adoptCanonicalNoteBody,
+    canonicalizeGeneratedDraft: recordActions.canonicalizeGeneratedDraft,
+    canonicalizeGeneratedFinding: recordActions.canonicalizeGeneratedFinding,
+  })
   const copyActions = useCopyActions({ source: sessionWorkspace, feedback, copy: copyFeedback })
-  function requestActiveView(view: MainView) {
-    if (view === activeView) return
-    if (settingsDirty || dirtyDraftIdsRef.current.size > 0 || dirtyFindingIdsRef.current.size > 0) {
-      setPendingNavigationView(view)
-      return
-    }
-    setActiveView(view)
-  }
-
-  function openSettingsSection(sectionId?: string) {
-    if (activeView !== 'settings') settingsReturnViewRef.current = activeView
-    const nextSection = sectionId ?? null
-    setSettingsSection(nextSection)
-    setPendingSettingsSection(nextSection)
-    requestActiveView('settings')
-  }
-
-  function closeSettings() { requestActiveView(settingsReturnViewRef.current) }
-  function openSessionInCurrentView(session: (typeof sessions)[number]) {
-    const destination = activeView === 'testware' || activeView === 'findings' ? activeView : 'sessions'
-    return sessionActions.openSession(session, true, () => setActiveView(destination))
-  }
-
-  async function openLibraryRecord(sessionId: string, view: 'testware' | 'findings', recordId: string) {
-    const session = sessions.find((candidate) => candidate.id === sessionId) ?? await reopenSession(sessionId)
-    await sessionActions.openSession(session, false, () => {
-      setFocusedRecordId(recordId)
-      setActiveView(view)
-    })
-  }
-
-  async function applyNavigationRoute(route: AppNavigationRoute) {
-    if (route.kind === 'settings') {
-      if (activeView !== 'settings') settingsReturnViewRef.current = activeView
-      setSettingsSection(route.sectionId)
-      setPendingSettingsSection(route.sectionId)
-      requestActiveView('settings')
-      return
-    }
-    if (route.kind === 'library') {
-      requestActiveView(route.view)
-      return
-    }
-    setFocusedRecordId(route.recordId)
-    if (!route.sessionId || activeSession?.id === route.sessionId) {
-      requestActiveView(route.view)
-      return
-    }
-    try {
-      const session = sessions.find((candidate) => candidate.id === route.sessionId) ?? await reopenSession(route.sessionId)
-      await sessionActions.openSession(session, false, () => setActiveView(route.view))
-    } catch (cause) {
-      setError(`Could not open the linked workspace. ${formatError(cause)}`)
-    }
-  }
-
-  async function savePendingNavigationChanges() {
-    const recordsSaved = await recordActions.saveDirtyRecordsNow()
-    const settingsSaved = !settingsDirty || await saveSettingsDraft()
-    if (!recordsSaved || !settingsSaved || !pendingNavigationView) return
-    setActiveView(pendingNavigationView)
-    setPendingNavigationView(null)
-  }
-
-  function discardPendingNavigationChanges() {
-    if (!pendingNavigationView) return
-    recordActions.discardAllDirtyRecords()
-    if (settingsDirty) discardSettingsDraft()
-    setActiveView(pendingNavigationView)
-    setPendingNavigationView(null)
-  }
-
-  function cancelPendingNavigation() {
-    setPendingNavigationView(null)
-    window.history.replaceState(null, '', navigationHash({
-      activeView,
-      sessionId: activeSession?.id ?? null,
-      focusedRecordId,
-      settingsSectionId: settingsSection,
-    }))
-  }
-
-  async function saveAllPendingChanges(): Promise<boolean> {
-    const sessionSaved = await sessionActions.savePendingSessionEdits()
-    if (!sessionSaved) return false
-    return !settingsDirty || saveSettingsDraft()
-  }
+  const {
+    applyNavigationRoute, cancelPendingNavigation, closeSettings, discardPendingNavigationChanges,
+    hasPendingCompensations, openLibraryRecord, openSessionInCurrentView, openSettingsSection,
+    requestActiveView, requestNewSession, requestOpenSession, saveAllPendingChanges,
+    savePendingNavigationChanges,
+  } = useAppControllerNavigation({
+    activeSession, activeView, attachmentActions, dirtyDraftIdsRef, dirtyFindingIdsRef,
+    discardSettingsDraft, focusedRecordId, pendingNavigationContinuationRef, pendingNavigationEpochRef,
+    pendingNavigationView, pendingRecoveredSummaryDecision, recordActions, savedTitleRef, saveSettingsDraft,
+    sessionActions, sessions, sessionTitle, sessionWorkspace, settingsDirty, settingsReturnViewRef, settingsSection,
+    setActiveView, setError, setFocusedRecordId, setPendingNavigationView, setPendingSettingsSection, setSettingsSection,
+  })
 
   useEffect(() => {
+    registerImportedAttachmentRef.current = (owner, attachmentId) => {
+      if (owner.kind === 'note') sessionActions.registerImportedNoteAttachment(owner.id, attachmentId)
+      else recordActions.registerImportedRecordAttachment({ kind: owner.kind, id: owner.id }, attachmentId)
+    }
     saveDirtyRecordsNowRef.current = recordActions.saveDirtyRecordsNow
+    retryPendingRecordCompensationsRef.current = recordActions.retryPendingRecordCompensations
   })
 
   useEffect(() => {
@@ -343,15 +312,17 @@ export function useAppController() {
     noteBody,
     savedTitleRef,
     savedBodyRef,
+    pendingRecoveredSummaryDecision,
     dirtyDraftIdsRef,
     dirtyFindingIdsRef,
     settingsDirty,
+    hasPendingCompensations,
     savePendingChanges: saveAllPendingChanges,
   })
 
   const { bootedRef, handleLoadSessionLibrary, handleRefreshProviderStatus, handleSaveSettings } = useAppStartup({
     loadSettings,
-    openSession: sessionActions.openSession,
+    openSession: sessionActions.openSession, captureActiveJobs: generationActions.captureActiveJobs,
     reconcileActiveJobs: generationActions.reconcileActiveJobs,
     loadProviderStatus,
     refreshProviderStatus,
@@ -395,11 +366,11 @@ export function useAppController() {
   useEffect(() => {
     if (!activeSession || !bootedRef.current) return
     const trimmedTitle = sessionTitle.trim()
-    if (!trimmedTitle || trimmedTitle === savedTitleRef.current) return
+    if (!trimmedTitle || sessionTitle === savedTitleRef.current) return
 
     const timeout = window.setTimeout(() => {
       if (suppressAmbientNoteSaveRef.current) return
-      void sessionActions.saveTitle(trimmedTitle)
+      void sessionActions.saveTitle(sessionTitle)
     }, 700)
     return () => window.clearTimeout(timeout)
   }, [activeSession, sessionTitle]) // eslint-disable-line react-hooks/exhaustive-deps -- debounce is keyed to Session identity and title
@@ -408,13 +379,16 @@ export function useAppController() {
     if (!noteEntry || !bootedRef.current) return
     const nextBody = serializeRichEditorDocument(noteBody)
     if (nextBody === savedBodyRef.current) return
+    // Recovery conflicts require an explicit save/discard choice. Ambient
+    // autosave must not silently choose the authored side of that decision.
+    if (pendingRecoveredSummaryDecision) return
 
     const timeout = window.setTimeout(() => {
       if (suppressAmbientNoteSaveRef.current) return
       void sessionActions.saveNoteNow()
     }, 850)
     return () => window.clearTimeout(timeout)
-  }, [noteEntry, noteBody]) // eslint-disable-line react-hooks/exhaustive-deps -- debounce is keyed to note identity and body
+  }, [noteEntry, noteBody, pendingRecoveredSummaryDecision]) // eslint-disable-line react-hooks/exhaustive-deps -- debounce is keyed to note identity, body, and recovery decision
 
   return {
     ...attachmentActions,
@@ -454,16 +428,21 @@ export function useAppController() {
     noteIsReady,
     noteScreenshotCount,
     sessionTitle,
+    sessionTitleValidationError,
+    sessionSaveState,
     noteWordCount,
     closeSettings,
     openSettingsSection,
     openSessionInCurrentView,
+    openSession: requestOpenSession,
+    handleNewSession: requestNewSession,
     openLibraryRecord,
     openGenerationPreflight,
     notice,
     pendingAiActions,
     pendingGenerationAction,
     pendingNavigationView,
+    pendingRecoveredSummaryDecision,
     providerDiscoveryState,
     providerStatus,
     searchQuery,
@@ -478,8 +457,8 @@ export function useAppController() {
     setDeleteConfirmation,
     setError,
     setLatestNoteGenerationUndo,
-    setNoteBody,
-    setSessionTitle,
+    setNoteBody: setEditedNoteBody,
+    setSessionTitle: setEditedSessionTitle,
     setPendingGenerationAction,
     setSearchQuery,
     setTheme,

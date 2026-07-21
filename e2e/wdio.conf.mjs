@@ -4,7 +4,12 @@ import { fileURLToPath } from 'node:url'
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const artifacts = process.env.QA_SCRIBE_E2E_ARTIFACTS ?? path.join(root, 'artifacts', 'e2e')
 const binary = process.env.QA_SCRIBE_E2E_BINARY ?? path.join(root, 'target', 'debug', process.platform === 'win32' ? 'qa-scribe-tauri.exe' : 'qa-scribe-tauri')
-const spec = process.env.QA_SCRIBE_E2E_SPEC ?? '*.e2e.mjs'
+const spec = process.env.QA_SCRIBE_E2E_SPEC ?? 'critical-workflows.e2e.mjs'
+const criticalScenarios = new Set(['session-lifecycle', 'manual-testware', 'clipboard', 'generation-cancellation', 'summary-recovery'])
+
+if (spec === 'critical-workflows.e2e.mjs' && !criticalScenarios.has(process.env.QA_SCRIBE_E2E_SCENARIO)) {
+  throw new Error('Run critical-workflows.e2e.mjs through scripts/run-e2e.mjs or set a valid QA_SCRIBE_E2E_SCENARIO')
+}
 
 export const config = {
   runner: 'local',

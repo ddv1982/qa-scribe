@@ -1,7 +1,13 @@
 import { useEffect, useId, useRef, useState, type ChangeEvent, type FormEvent, type MouseEvent } from 'react'
 import { EditorContent, useEditor, type Editor } from '@tiptap/react'
 import { Bold, ImageIcon, Italic, Link2, List, ListChecks, type LucideIcon } from 'lucide-react'
-import { isSafeEditorLinkUrl, managedAttachmentProtocol, hydrateManagedAttachmentPreviews } from './editorHtml'
+import {
+  createManagedAttachmentPreviewCache,
+  hydrateManagedAttachmentPreviews,
+  isSafeEditorLinkUrl,
+  managedAttachmentProtocol,
+  type ManagedAttachmentPreviewCache,
+} from './editorHtml'
 import { richTextEditorExtensions } from './editorExtensions'
 import { normalizeRichEditorDocument, richEditorDocumentsEqual, type RichEditorDocument } from './editorDocument'
 import {
@@ -114,8 +120,8 @@ export function FormatToolbar({ editorId, onUploadImage }: FormatToolbarProps) {
     event.currentTarget.value = ''
     const insertImage = uploadInserterRef.current
     uploadInserterRef.current = null
-    if (!file || !insertImage || !onUploadImage) return
-    void onUploadImage({ file, insertImage })
+    if (!file || !insertImage || !onUploadImage || !editorId) return
+    void onUploadImage({ editorId, file, insertImage })
   }
 
   return (
@@ -211,11 +217,22 @@ export function RichTextEditor({
   editorId,
 }: RichTextEditorProps) {
   const previewLoadRef = useRef(0)
+  const previewRetryTimerRef = useRef<number | null>(null)
+  const [previewCache] = useState(() => createManagedAttachmentPreviewCache())
   const onChangeRef = useRef(onChange)
 
   useEffect(() => {
     onChangeRef.current = onChange
   }, [onChange])
+
+  useEffect(
+    () => () => {
+      previewLoadRef.current += 1
+      if (previewRetryTimerRef.current !== null) window.clearTimeout(previewRetryTimerRef.current)
+      previewCache.clear()
+    },
+    [previewCache],
+  )
 
   const editor = useEditor(
     {
@@ -237,7 +254,7 @@ export function RichTextEditor({
       onUpdate: ({ editor: updatedEditor }) => {
         const nextValue = normalizeRichEditorDocument({ schemaVersion: 1, doc: updatedEditor.getJSON() })
         onChangeRef.current?.(nextValue)
-        queueManagedPreviewHydration(updatedEditor, previewLoadRef)
+        queueManagedPreviewHydration(updatedEditor, previewLoadRef, previewRetryTimerRef, previewCache)
         notifyRichEditorRegistry()
       },
       onSelectionUpdate: () => notifyRichEditorRegistry(),
@@ -261,15 +278,16 @@ export function RichTextEditor({
     if (!richEditorDocumentsEqual(currentValue, normalizedValue)) {
       editor.commands.setContent(normalizedValue.doc, { emitUpdate: false })
     }
-    queueManagedPreviewHydration(editor, previewLoadRef)
-  }, [editor, value])
+    queueManagedPreviewHydration(editor, previewLoadRef, previewRetryTimerRef, previewCache)
+  }, [editor, previewCache, value])
 
   useEffect(() => {
     if (!editor || editor.isDestroyed || !editorId) return
     const insertImage: RichEditorImageInserter = (attachmentId, filename, previewSrc) => {
-      if (editor.isDestroyed) return
+      if (editor.isDestroyed) return false
       const source = `${managedAttachmentProtocol}${attachmentId}`
-      editor
+      if (previewSrc) previewCache.seed(attachmentId, previewSrc)
+      const inserted = editor
         .chain()
         .focus(undefined, { scrollIntoView: false })
         .insertContent({
@@ -282,13 +300,14 @@ export function RichTextEditor({
         })
         .run()
 
-      if (previewSrc) {
-        queueManagedPreviewHydration(editor, previewLoadRef)
+      if (inserted && previewSrc) {
+        queueManagedPreviewHydration(editor, previewLoadRef, previewRetryTimerRef, previewCache)
       }
+      return inserted
     }
 
     return registerRichEditor(editorId, { editor, insertImage, readOnly })
-  }, [editor, editorId, readOnly])
+  }, [editor, editorId, previewCache, readOnly])
 
   if (!editor) {
     return <div id={editorId} className={['rich-editor', className].filter(Boolean).join(' ')} role="textbox" aria-label={ariaLabel} aria-multiline="true" data-placeholder={placeholder} />
@@ -373,12 +392,32 @@ function editorAttributes({
   return attributes
 }
 
-function queueManagedPreviewHydration(editor: Editor, previewLoadRef: { current: number }) {
+function queueManagedPreviewHydration(
+  editor: Editor,
+  previewLoadRef: { current: number },
+  previewRetryTimerRef: { current: number | null },
+  previewCache: ManagedAttachmentPreviewCache,
+) {
   if (editor.isDestroyed) return
   const loadId = previewLoadRef.current + 1
   previewLoadRef.current = loadId
+  if (previewRetryTimerRef.current !== null) {
+    window.clearTimeout(previewRetryTimerRef.current)
+    previewRetryTimerRef.current = null
+  }
   window.queueMicrotask(() => {
     if (editor.isDestroyed || previewLoadRef.current !== loadId) return
-    void hydrateManagedAttachmentPreviews(editor.view.dom, () => !editor.isDestroyed && previewLoadRef.current === loadId)
+    void hydrateManagedAttachmentPreviews(
+      editor.view.dom,
+      () => !editor.isDestroyed && previewLoadRef.current === loadId,
+      previewCache,
+    ).then((retryAfterMs) => {
+      if (retryAfterMs === null || editor.isDestroyed || previewLoadRef.current !== loadId) return
+      previewRetryTimerRef.current = window.setTimeout(() => {
+        previewRetryTimerRef.current = null
+        if (editor.isDestroyed || previewLoadRef.current !== loadId) return
+        queueManagedPreviewHydration(editor, previewLoadRef, previewRetryTimerRef, previewCache)
+      }, retryAfterMs)
+    })
   })
 }

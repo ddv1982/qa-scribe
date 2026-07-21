@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   listDraftLibrary,
   listFindingLibrary,
@@ -17,41 +17,63 @@ export function useOutputLibraries(activeView: MainView) {
   const [findingLibraryState, setFindingLibraryState] = useState<LibraryLoadState>('idle')
   const [draftLibraryError, setDraftLibraryError] = useState<string | null>(null)
   const [findingLibraryError, setFindingLibraryError] = useState<string | null>(null)
+  const draftLoadEpochRef = useRef(0)
+  const findingLoadEpochRef = useRef(0)
 
   const loadDraftLibrary = useCallback(async () => {
+    const loadEpoch = ++draftLoadEpochRef.current
     setDraftLibraryState('loading')
     setDraftLibraryError(null)
     try {
-      setDraftLibrary(await listDraftLibrary())
+      const loaded = await listDraftLibrary()
+      if (draftLoadEpochRef.current !== loadEpoch) return
+      setDraftLibrary(loaded)
       setDraftLibraryState('ready')
     } catch (cause) {
+      if (draftLoadEpochRef.current !== loadEpoch) return
       setDraftLibraryError(formatError(cause))
       setDraftLibraryState('error')
     }
   }, [])
 
   const loadFindingLibrary = useCallback(async () => {
+    const loadEpoch = ++findingLoadEpochRef.current
     setFindingLibraryState('loading')
     setFindingLibraryError(null)
     try {
-      setFindingLibrary(await listFindingLibrary())
+      const loaded = await listFindingLibrary()
+      if (findingLoadEpochRef.current !== loadEpoch) return
+      setFindingLibrary(loaded)
       setFindingLibraryState('ready')
     } catch (cause) {
+      if (findingLoadEpochRef.current !== loadEpoch) return
       setFindingLibraryError(formatError(cause))
       setFindingLibraryState('error')
     }
   }, [])
 
   useEffect(() => {
-    if (activeView !== 'testware-library') return
+    if (activeView !== 'testware-library') {
+      draftLoadEpochRef.current += 1
+      return
+    }
     const timeout = window.setTimeout(() => void loadDraftLibrary(), 0)
-    return () => window.clearTimeout(timeout)
+    return () => {
+      window.clearTimeout(timeout)
+      draftLoadEpochRef.current += 1
+    }
   }, [activeView, loadDraftLibrary])
 
   useEffect(() => {
-    if (activeView !== 'findings-library') return
+    if (activeView !== 'findings-library') {
+      findingLoadEpochRef.current += 1
+      return
+    }
     const timeout = window.setTimeout(() => void loadFindingLibrary(), 0)
-    return () => window.clearTimeout(timeout)
+    return () => {
+      window.clearTimeout(timeout)
+      findingLoadEpochRef.current += 1
+    }
   }, [activeView, loadFindingLibrary])
 
   return {

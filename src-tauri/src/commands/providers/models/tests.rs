@@ -168,6 +168,7 @@ fn structured_failure_category_survives_a_help_fallback() {
             stdout: "--model use 'gpt-fallback'".to_string(),
             stderr: String::new(),
             not_found: false,
+            scope_error: None,
         },
     };
 

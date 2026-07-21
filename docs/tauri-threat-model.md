@@ -32,7 +32,7 @@ The built-application suite deliberately adds a more privileged automation bound
 - production configuration keeps `withGlobalTauri` disabled and the production capability contains no WDIO permission;
 - the feature-gated application-data override points tests at an explicit temporary directory, while normal binaries always use Tauri's application-data path;
 - the provider fixture is local and deterministic, leads the isolated E2E process PATH for Fast readiness, also has a feature-gated Deep-resolution override, and requires no credentials or network access;
-- the runner restores a production frontend build, deletes temporary data, and retains only test logs/measurements under the ignored `artifacts/` directory.
+- the runner keeps E2E assets in its temporary root, deletes temporary data, and retains only test logs/measurements under the ignored `artifacts/` directory; the shared action builds and checks production assets independently.
 
 `bun run e2e:isolation` checks the independent Rust, frontend, configuration, capability, and compiled-bundle switches. This defense-in-depth is required because the WDIO plugin can execute scripts inside the WebView. Adding E2E to another platform requires rerunning this review; it does not justify broadening the production command or capability surface.
 
@@ -52,8 +52,9 @@ request. It does not expose data or execution authority; its availability
 impact is limited to terminating the same main window. The explicit temporary
 app-data directory remains authoritative on macOS; isolated `HOME` and `TMPDIR`
 values also keep provider and temporary state away from runner defaults. The
-runner restores the production frontend and reruns `bun run e2e:isolation`
-before retaining evidence.
+runner builds the E2E frontend in an isolated temporary directory. The shared
+action independently builds the production frontend and reruns
+`bun run e2e:isolation` before retaining evidence.
 
 macOS evidence uses a separate `qa-scribe-e2e-macos-*` artifact namespace. The
 job is observational: GitHub Actions marks its failures as non-blocking, and

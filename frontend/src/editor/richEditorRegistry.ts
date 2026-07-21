@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import type { Editor } from '@tiptap/react'
 
-export type RichEditorImageInserter = (attachmentId: string, filename: string, previewSrc?: string) => void
+export type RichEditorImageInserter = (attachmentId: string, filename: string, previewSrc?: string) => boolean
 
 export type RichEditorImageUpload = {
+  editorId: string
   file: File
   insertImage: RichEditorImageInserter
 }
@@ -59,4 +60,8 @@ export function richEditorImageInserterForElement(element: HTMLElement): RichEdi
   const editor = element.closest<HTMLElement>('.rich-editor')
   if (!editor?.id) return null
   return editorRegistry.get(editor.id)?.insertImage ?? null
+}
+
+export function richEditorImageInserterForId(editorId: string): RichEditorImageInserter | null {
+  return editorRegistry.get(editorId)?.insertImage ?? null
 }

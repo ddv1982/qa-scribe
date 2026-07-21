@@ -2,21 +2,15 @@
 //!
 //! One JSON object per line. The events this parser keys on:
 //!
-//! * explicit final-text keys (`result`, `final`, `finalMessage`,
-//!   `lastMessage`, `output`) — the full answer, subject to the final-text
-//!   guard (Codex does not guarantee such an event, so a genuine final may
-//!   replace but never shrink the accumulated text);
 //! * delta events (`item/agentMessage/delta`, legacy `agent_message_delta`
 //!   inside a `msg` wrapper) — appended assistant text;
-//! * `item.*` lifecycle events — only agent-message items carry assistant
-//!   text; reasoning/command items must never clobber the answer and are
-//!   reported as progress instead.
+//! * completed `agent_message` items — the assistant response snapshot;
+//! * every other lifecycle, reasoning, command, tool, or unknown event —
+//!   progress only, regardless of any text-like fields it contains.
 
 use serde_json::Value;
 
-use super::{AssistantText, StreamUpdate, joined_text, progress_for_event};
-
-const FINAL_TEXT_KEYS: [&str; 5] = ["result", "final", "finalMessage", "lastMessage", "output"];
+use super::{AssistantText, StreamUpdate, progress_for_event};
 
 #[derive(Default)]
 pub(super) struct CodexJsonlParser {
@@ -25,30 +19,40 @@ pub(super) struct CodexJsonlParser {
 
 impl CodexJsonlParser {
     pub(super) fn push_event(&mut self, value: &Value) -> Vec<StreamUpdate> {
-        let event_name = event_name(value);
-        let name = event_name.as_deref().unwrap_or_default();
+        let modern_event = value.get("type").and_then(Value::as_str);
+        let legacy_message = value.get("msg");
+        let legacy_event = legacy_message
+            .and_then(|message| message.get("type"))
+            .and_then(Value::as_str);
 
-        if let Some(final_text) = explicit_final_text(value)
-            && let Some(update) = self.assistant_text.replace_if_not_shorter(final_text)
+        if legacy_message.is_none() {
+            match modern_event {
+                Some("item/agentMessage/delta") => {
+                    if let Some(delta) = value.get("delta").and_then(non_empty_string) {
+                        return vec![self.assistant_text.append(delta)];
+                    }
+                }
+                Some("item.completed") => {
+                    if let Some(snapshot) = completed_agent_message_text(value)
+                        && let Some(update) = self
+                            .assistant_text
+                            .replace_if_not_shorter(snapshot.to_string())
+                    {
+                        return vec![update];
+                    }
+                }
+                _ => {}
+            }
+        } else if modern_event.is_none()
+            && legacy_event == Some("agent_message_delta")
+            && let Some(delta) = legacy_message
+                .and_then(|message| message.get("delta"))
+                .and_then(non_empty_string)
         {
-            return vec![update];
+            return vec![self.assistant_text.append(delta)];
         }
 
-        if (name.contains("delta") || name.contains("partial"))
-            && let Some(delta) = delta_text(value)
-        {
-            return vec![self.assistant_text.append(&delta)];
-        }
-
-        if let Some(item) = value.get("item")
-            && item_kind(item).is_some_and(|kind| kind.contains("message"))
-            && let Some(snapshot) = joined_text(item)
-            && let Some(update) = self.assistant_text.replace_if_not_shorter(snapshot)
-        {
-            return vec![update];
-        }
-
-        progress_for_event(event_name.as_deref())
+        progress_for_event(modern_event.or(legacy_event))
     }
 
     pub(super) fn finish(self) -> Option<String> {
@@ -56,39 +60,16 @@ impl CodexJsonlParser {
     }
 }
 
-/// Event name from the modern `type` key, the legacy `msg.type` wrapper, or a
-/// JSON-RPC style `method` key.
-fn event_name(value: &Value) -> Option<String> {
-    value
-        .get("msg")
-        .and_then(|msg| msg.get("type"))
-        .or_else(|| value.get("type"))
-        .or_else(|| value.get("method"))
-        .and_then(Value::as_str)
-        .map(ToString::to_string)
+fn non_empty_string(value: &Value) -> Option<&str> {
+    value.as_str().filter(|text| !text.trim().is_empty())
 }
 
-fn explicit_final_text(value: &Value) -> Option<String> {
-    FINAL_TEXT_KEYS.iter().find_map(|key| {
-        value
-            .get(*key)
-            .and_then(Value::as_str)
-            .filter(|text| !text.trim().is_empty())
-            .map(ToString::to_string)
-    })
-}
-
-fn delta_text(value: &Value) -> Option<String> {
-    value
-        .get("delta")
-        .or_else(|| value.get("msg").and_then(|msg| msg.get("delta")))
-        .and_then(joined_text)
-}
-
-fn item_kind(item: &Value) -> Option<&str> {
-    item.get("type")
-        .or_else(|| item.get("item_type"))
-        .and_then(Value::as_str)
+fn completed_agent_message_text(value: &Value) -> Option<&str> {
+    let item = value.get("item")?;
+    if item.get("type").and_then(Value::as_str) != Some("agent_message") {
+        return None;
+    }
+    item.get("text").and_then(non_empty_string)
 }
 
 #[cfg(test)]
@@ -143,20 +124,14 @@ mod tests {
     }
 
     #[test]
-    fn stream_parser_genuine_final_result_still_replaces_streamed_partials() {
+    fn unknown_result_event_cannot_replace_streamed_assistant_text() {
         let mut parser = parser();
 
         parser.push_bytes(br#"{"type":"item/agentMessage/delta","delta":"partial"}"#);
+        parser
+            .push_bytes(br#"{"type":"result","result":"The complete but unknown response shape"}"#);
 
-        let full_answer = "The complete final answer, longer than the partial streamed text.";
-        let updates = parser
-            .push_bytes(format!(r#"{{"type":"result","result":"{full_answer}"}}"#).as_bytes());
-
-        assert!(matches!(
-            updates.last(),
-            Some(StreamUpdate::PartialSnapshot(body)) if body == full_answer
-        ));
-        assert_eq!(parser.finish().as_deref(), Some(full_answer));
+        assert_eq!(parser.finish().as_deref(), Some("partial"));
     }
 
     #[test]
@@ -187,5 +162,70 @@ mod tests {
             Some(StreamUpdate::PartialDelta(body)) if body == "there"
         ));
         assert_eq!(parser.finish().as_deref(), Some("Hi there"));
+    }
+
+    #[test]
+    fn unknown_text_like_fields_never_become_assistant_content() {
+        let mut parser = parser();
+
+        for event in [
+            br#"{"type":"future.response","output":"unknown output"}"#.as_slice(),
+            br#"{"type":"turn.completed","result":"unknown result"}"#.as_slice(),
+            br#"{"method":"item/agentMessage/delta","delta":"json-rpc text"}"#.as_slice(),
+            br#"{"type":"item/agentMessage/partial","delta":"unknown partial"}"#.as_slice(),
+        ] {
+            parser.push_bytes(event);
+        }
+
+        assert_eq!(parser.finish(), None);
+    }
+
+    #[test]
+    fn reasoning_and_tool_deltas_never_become_assistant_content() {
+        let mut parser = parser();
+
+        for event in [
+            br#"{"type":"item/reasoning/delta","delta":"private reasoning"}"#.as_slice(),
+            br#"{"type":"item/tool/delta","delta":"tool output"}"#.as_slice(),
+            br#"{"type":"item/command/delta","delta":"command output"}"#.as_slice(),
+            br#"{"type":"item/agentMessage/delta","delta":{"text":"nested unknown delta"}}"#
+                .as_slice(),
+        ] {
+            parser.push_bytes(event);
+        }
+
+        assert_eq!(parser.finish(), None);
+    }
+
+    #[test]
+    fn non_agent_completed_items_never_become_assistant_content() {
+        let mut parser = parser();
+
+        for event in [
+            br#"{"type":"item.completed","item":{"type":"reasoning","text":"reasoning"}}"#.as_slice(),
+            br#"{"type":"item.completed","item":{"type":"tool_message","text":"tool"}}"#.as_slice(),
+            br#"{"type":"item.completed","item":{"type":"user_message","text":"user"}}"#.as_slice(),
+            br#"{"type":"item.completed","item":{"item_type":"agent_message","text":"legacy guess"}}"#.as_slice(),
+        ] {
+            parser.push_bytes(event);
+        }
+
+        assert_eq!(parser.finish(), None);
+    }
+
+    #[test]
+    fn modern_and_legacy_envelopes_cannot_be_spliced() {
+        let mut parser = parser();
+
+        for event in [
+            br#"{"type":"future.event","delta":"spliced top delta","msg":{"type":"item/agentMessage/delta"}}"#.as_slice(),
+            br#"{"type":"item/agentMessage/delta","delta":"modern delta","msg":{"type":"progress"}}"#.as_slice(),
+            br#"{"type":"future.event","msg":{"type":"agent_message_delta","delta":"legacy delta"}}"#.as_slice(),
+            br#"{"type":"item.completed","item":{"type":"agent_message","text":"modern snapshot"},"msg":{"type":"progress"}}"#.as_slice(),
+        ] {
+            parser.push_bytes(event);
+        }
+
+        assert_eq!(parser.finish(), None);
     }
 }

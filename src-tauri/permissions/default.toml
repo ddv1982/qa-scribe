@@ -30,6 +30,7 @@ permissions = [
   "allow-list-active-ai-action-jobs",
   "allow-cancel-ai-action-job",
   "allow-import-clipboard-screenshot",
+  "allow-delete-attachment",
   "allow-get-provider-status",
   "allow-refresh-provider-status",
   "allow-get-attachment-preview-data-url",

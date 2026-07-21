@@ -89,7 +89,7 @@ fn nvm_fallback_prefers_numeric_node_versions_over_lexical_order() {
 #[cfg(unix)]
 #[test]
 fn neutral_provider_directory_is_private() {
-    let directory = NeutralProviderCwd::new();
+    let directory = NeutralProviderCwd::new().expect("private provider directory should create");
 
     assert_eq!(
         fs::metadata(directory.path())
@@ -99,6 +99,27 @@ fn neutral_provider_directory_is_private() {
             & 0o777,
         0o700
     );
+}
+
+#[test]
+fn neutral_provider_directory_creation_fails_closed() {
+    let blocked_parent = std::env::temp_dir().join(format!(
+        "qa-scribe-provider-cwd-blocked-{}",
+        uuid::Uuid::new_v4().simple()
+    ));
+    fs::write(&blocked_parent, b"not a directory").expect("blocking file should create");
+
+    let error = NeutralProviderCwd::new_in(&blocked_parent)
+        .err()
+        .expect("a file cannot own a child provider directory");
+
+    assert!(
+        error
+            .to_string()
+            .contains("Could not create a private working directory for the provider")
+    );
+    assert!(error.to_string().contains("provider was not started"));
+    let _ = fs::remove_file(blocked_parent);
 }
 
 #[test]

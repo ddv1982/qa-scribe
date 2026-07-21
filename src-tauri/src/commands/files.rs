@@ -3,7 +3,8 @@ use std::io::Cursor;
 use base64::{Engine, engine::general_purpose::STANDARD};
 use qa_scribe_core::{
     attachments::{
-        attachment_file_bytes, attachment_preview_data_url, import_clipboard_screenshot_data_url,
+        attachment_file_bytes, attachment_preview_data_url, delete_attachment_with_file,
+        import_clipboard_screenshot_data_url,
     },
     domain::Attachment,
 };
@@ -34,6 +35,17 @@ pub fn import_clipboard_screenshot(
             &data_url,
         )
     })
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn delete_attachment(
+    state: State<'_, AppState>,
+    attachment_id: String,
+) -> Result<bool, CommandError> {
+    let app_data_dir = state.app_data_dir().clone();
+    state
+        .with_service(|service| delete_attachment_with_file(service, &app_data_dir, &attachment_id))
 }
 
 #[tauri::command]

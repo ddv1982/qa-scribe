@@ -11,7 +11,7 @@
 use crate::domain::AiProvider;
 
 use super::{
-    GenerationCommand,
+    GenerationCommand, GenerationOutputFormat,
     stream::{ProviderStreamParser, StreamUpdate},
 };
 
@@ -88,6 +88,7 @@ pub fn run_streaming_generation(
         stdout,
         stderr: execution.stderr,
         assistant_text: parser.finish(),
+        output_format: command.output_format,
         cancelled: execution.cancelled,
     })
 }
@@ -100,6 +101,7 @@ pub struct ProviderGenerationOutput {
     pub stdout: Vec<u8>,
     pub stderr: Vec<u8>,
     pub assistant_text: Option<String>,
+    pub output_format: GenerationOutputFormat,
     pub cancelled: bool,
 }
 
@@ -108,12 +110,33 @@ impl ProviderGenerationOutput {
         !self.cancelled && self.exit_success == Some(true)
     }
 
-    pub fn response_text(&self) -> String {
-        self.assistant_text
+    /// Return the provider's assistant response without confusing structured
+    /// protocol envelopes for generated content.
+    ///
+    /// Plain-text providers may use their raw stdout as a compatibility
+    /// fallback. Structured providers must produce assistant content through
+    /// their format-specific parser; falling back to JSONL/stdout would make
+    /// an unknown or malformed event look like a valid generated response.
+    pub fn response_text(&self) -> Result<String, String> {
+        if let Some(text) = self
+            .assistant_text
             .as_ref()
             .filter(|text| !text.trim().is_empty())
-            .cloned()
-            .unwrap_or_else(|| String::from_utf8_lossy(&self.stdout).to_string())
+        {
+            return Ok(text.clone());
+        }
+
+        match self.output_format {
+            GenerationOutputFormat::PlainText => {
+                Ok(String::from_utf8_lossy(&self.stdout).to_string())
+            }
+            GenerationOutputFormat::CodexJsonl => {
+                Err(structured_output_compatibility_error("Codex JSONL"))
+            }
+            GenerationOutputFormat::ClaudeStreamJson => {
+                Err(structured_output_compatibility_error("Claude stream-json"))
+            }
+        }
     }
 
     /// Structured CLIs such as Claude include the resolved model in their
@@ -160,6 +183,12 @@ impl ProviderGenerationOutput {
 
         copilot_generation_failure_message(&message).unwrap_or(message)
     }
+}
+
+fn structured_output_compatibility_error(format: &str) -> String {
+    format!(
+        "Provider completed successfully, but QA Scribe found no recognized assistant content in its {format} output. The installed provider CLI may use an unsupported event format; update QA Scribe or use a compatible provider CLI version, then try again."
+    )
 }
 
 fn bounded_text_tail(value: &str, limit: usize) -> String {
@@ -221,6 +250,7 @@ mod tests {
             stdout: Vec::new(),
             stderr: stderr.to_vec(),
             assistant_text: None,
+            output_format: GenerationOutputFormat::PlainText,
             cancelled: false,
         }
     }
@@ -283,7 +313,10 @@ mod tests {
             .expect("scripted run succeeds");
 
         assert!(output.success());
-        assert_eq!(output.response_text(), "Hello world");
+        assert_eq!(
+            output.response_text().expect("recognized Codex response"),
+            "Hello world"
+        );
         assert!(updates >= 2, "each delta should surface an update");
         assert!(
             String::from_utf8_lossy(&output.stdout).contains("agentMessage"),
@@ -301,12 +334,102 @@ mod tests {
             .to_vec(),
             stderr: Vec::new(),
             assistant_text: Some("done".to_string()),
+            output_format: GenerationOutputFormat::ClaudeStreamJson,
             cancelled: false,
         };
 
         assert_eq!(
             output.reported_model().as_deref(),
             Some("claude-sonnet-4-6")
+        );
+    }
+
+    #[test]
+    fn current_structured_provider_fixtures_return_only_assistant_content() {
+        let fixtures = [
+            (
+                GenerationOutputFormat::CodexJsonl,
+                vec![
+                    r#"{"type":"thread.started","thread_id":"thread-1"}"#,
+                    r#"{"type":"item.completed","item":{"type":"agent_message","text":"<h2>Codex cases</h2>"}}"#,
+                    r#"{"type":"turn.completed","usage":{"input_tokens":10}}"#,
+                ],
+                "<h2>Codex cases</h2>",
+            ),
+            (
+                GenerationOutputFormat::ClaudeStreamJson,
+                vec![
+                    r#"{"type":"system","subtype":"init","model":"claude-sonnet"}"#,
+                    r#"{"type":"stream_event","event":{"type":"content_block_delta","delta":{"type":"text_delta","text":"<h2>Claude cases</h2>"}}}"#,
+                    r#"{"type":"result","result":"<h2>Claude cases</h2>"}"#,
+                ],
+                "<h2>Claude cases</h2>",
+            ),
+        ];
+
+        for (output_format, lines, expected) in fixtures {
+            let command = GenerationCommand {
+                program: "scripted".to_string(),
+                args: Vec::new(),
+                stdin: "prompt".to_string(),
+                output_format,
+            };
+            let output = run_streaming_generation(&ScriptedExecutor(lines), &command, |_| {})
+                .expect("fixture execution succeeds");
+
+            assert_eq!(
+                output.response_text().expect("fixture assistant content"),
+                expected
+            );
+        }
+    }
+
+    #[test]
+    fn structured_unknown_or_malformed_events_return_compatibility_error_not_raw_stdout() {
+        for (output_format, lines, format_label) in [
+            (
+                GenerationOutputFormat::CodexJsonl,
+                vec![r#"{"type":"future.response","payload":"<p>raw Codex protocol</p>"}"#],
+                "Codex JSONL",
+            ),
+            (
+                GenerationOutputFormat::ClaudeStreamJson,
+                vec![r#"{"type":"assistant","message":"#],
+                "Claude stream-json",
+            ),
+        ] {
+            let command = GenerationCommand {
+                program: "scripted".to_string(),
+                args: Vec::new(),
+                stdin: "prompt".to_string(),
+                output_format,
+            };
+            let output = run_streaming_generation(&ScriptedExecutor(lines), &command, |_| {})
+                .expect("zero-exit provider execution remains classifiable");
+
+            let error = output
+                .response_text()
+                .expect_err("unrecognized structured output must fail");
+            assert!(error.contains(format_label), "unexpected error: {error}");
+            assert!(error.contains("unsupported event format"));
+            assert!(!error.contains("raw Codex protocol"));
+        }
+    }
+
+    #[test]
+    fn plain_text_response_keeps_raw_stdout_fallback() {
+        let output = ProviderGenerationOutput {
+            exit_success: Some(true),
+            stdout: b"<h2>Plain provider response</h2>\n".to_vec(),
+            stderr: Vec::new(),
+            assistant_text: None,
+            output_format: GenerationOutputFormat::PlainText,
+            cancelled: false,
+        };
+
+        assert_eq!(
+            output.response_text().expect("plain stdout fallback"),
+            "<h2>Plain provider response</h2>\n"
         );
     }
 

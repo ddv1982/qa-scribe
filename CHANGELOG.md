@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.7.21 - 2026-07-21
+
+- Preserve authored Session work across recovered Summary completion, overlapping saves, blank-title validation, discard, navigation, active-Session reselection, and application close.
+- Clean up abandoned image imports, add safe attachment deletion, and recover managed attachment previews with deduplicated reads and bounded automatic retries.
+- Harden local AI execution with broadcast-first cancellation, private neutral working directories, bounded diagnostics, stricter structured-response parsing, and exact Evidence image identity.
+- Make validation and releases more deterministic with isolated E2E builds, pinned audit tooling, recoverable version transactions, and dependency-resolving final-package installation and launch smokes.
+- Split oversized persistence, controller, action, and regression-test modules along cohesive boundaries, backed by a traceable codebase audit and expanded race coverage.
+
 ## v0.7.20 - 2026-07-15
 
 - Preserve the latest Testware and Finding edits across overlapping saves, Session changes, and hydration, while rejecting malformed navigation routes and empty AI-generated content before it can replace authored work.

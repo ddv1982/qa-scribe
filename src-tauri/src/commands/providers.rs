@@ -29,6 +29,7 @@ use detection::{detect_capability, provider_readiness_with_runners};
 use probe::ProbeRunner;
 use probe::{DetectionMode, SystemProbeRunner};
 
+use crate::jobs::JobControl;
 use crate::provider_command::{ProviderPathMode, invalidate_provider_path_cache};
 
 pub fn cancel_active_provider_discovery() {
@@ -53,11 +54,11 @@ pub async fn refresh_provider_status() -> ProviderStatus {
     .expect("provider discovery worker should complete")
 }
 
-pub fn provider_readiness(provider: AiProvider) -> ProviderReadiness {
+pub fn provider_readiness_for_job(provider: AiProvider, control: &JobControl) -> ProviderReadiness {
     provider_readiness_with_runners(
         provider,
-        &SystemProbeRunner::new(ProviderPathMode::Fast),
-        &SystemProbeRunner::new(ProviderPathMode::Deep),
+        &SystemProbeRunner::for_job(ProviderPathMode::Fast, control),
+        &SystemProbeRunner::for_job(ProviderPathMode::Deep, control),
     )
 }
 

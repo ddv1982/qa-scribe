@@ -1,4 +1,4 @@
-import { Box, CheckCircle2, Copy, FileText, Flag, Image as ImageIcon, Loader2, Settings2, Sparkles, Trash2, Undo2 } from 'lucide-react'
+import { AlertCircle, Box, CheckCircle2, Copy, FileText, Flag, Image as ImageIcon, Loader2, Settings2, Sparkles, Trash2, Undo2 } from 'lucide-react'
 import { ProviderGlyph } from '../components/ModelSelector'
 import { FormatToolbar, RichTextEditor, type RichEditorImageUpload } from '../editor/RichTextEditor'
 import type { AiProvider, GenerateAiActionKind, ProviderStatus, Session } from '../tauri'
@@ -22,6 +22,8 @@ export function SessionEditorView({
   noteIsReady,
   noteScreenshotCount,
   sessionTitle,
+  sessionTitleValidationError = null,
+  sessionSaveState = 'saved',
   noteWordCount,
   notice,
   error,
@@ -53,6 +55,8 @@ export function SessionEditorView({
   noteIsReady: boolean
   noteScreenshotCount: number
   sessionTitle: string
+  sessionTitleValidationError?: string | null
+  sessionSaveState?: 'invalid' | 'saving' | 'unsaved' | 'saved'
   noteWordCount: number
   notice: string | null
   error: string | null
@@ -94,6 +98,13 @@ export function SessionEditorView({
   const effectiveOrigin = originSummary(effectiveSelection?.modelOrigin ?? null)
   const selectionModeLabel = effectiveSelection?.delegatesModel === false ? 'QA Scribe override' : 'CLI default'
   const providerSummaryLabel = `AI execution: ${selectedProviderLabel}, ${selectionModeLabel} ${effectiveModelLabel}, reasoning ${effectiveReasoningLabel}${effectiveOrigin ? ` from ${effectiveOrigin}` : ''}, ${providerReadinessLabel}`
+  const saveStatusLabel = sessionSaveState === 'invalid'
+    ? 'Title required'
+    : sessionSaveState === 'saving'
+      ? 'Saving...'
+      : sessionSaveState === 'unsaved'
+        ? 'Unsaved changes'
+        : 'Autosaved'
 
   if (!activeSession) {
     return (
@@ -127,9 +138,11 @@ export function SessionEditorView({
               Undo generation
             </button>
           ) : null}
-          <div className="document-status">
-            <CheckCircle2 size={15} />
-            <span>{busyAction === 'save-title' || busyAction === 'save-body' ? 'Saving...' : 'Autosaved'}</span>
+          <div className="document-status" role="status">
+            {sessionSaveState === 'invalid' || sessionSaveState === 'unsaved'
+              ? <AlertCircle size={15} />
+              : <CheckCircle2 size={15} />}
+            <span>{saveStatusLabel}</span>
           </div>
           <button
             className={copySucceeded ? 'icon-button success' : 'icon-button'}
@@ -168,11 +181,16 @@ export function SessionEditorView({
             onChange={(event) => onSetSessionTitle(event.target.value)}
             placeholder="Untitled session"
             aria-label="Session title"
+            aria-invalid={sessionTitleValidationError ? true : undefined}
+            aria-describedby={sessionTitleValidationError ? 'session-title-error' : undefined}
           />
+          {sessionTitleValidationError ? (
+            <p id="session-title-error">{sessionTitleValidationError}</p>
+          ) : null}
           <RichTextEditor editorId={editorId} value={noteBody} onChange={onSetNoteBody} className="note-rich-editor" />
         </div>
         <footer className="editor-footer">
-          <StatusPill notice={notice} error={error} busyAction={busyAction} />
+          <StatusPill notice={notice} error={sessionTitleValidationError ?? error} busyAction={busyAction} />
           <span>{noteWordCount} words</span>
         </footer>
       </section>

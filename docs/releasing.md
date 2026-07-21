@@ -45,6 +45,22 @@ notes — fill those in, then re-run the check:
 node scripts/check-release-metadata.mjs --expected-tag v1.0.0
 ```
 
+Before replacing anything, the bump script writes an on-disk
+`.qa-scribe-version-transaction.json` manifest, then stages all seven new
+outputs and a rollback copy beside each destination. Same-directory renames
+make each file replacement atomic on the supported release hosts. If the
+process is terminated between replacements, the next invocation, including a
+dry run, reads the manifest before preflight and restores the prior consistent
+version. If the committed phase was recorded before termination, it keeps the
+new version and finishes transaction-file cleanup instead. Synchronous replacement failures still roll
+back immediately; an incomplete rollback leaves the manifest and copies for
+automatic retry on the next invocation. The script also refuses to overwrite a
+destination changed during staging, immediately before replacement, or after an
+interrupted replacement. Run the
+bump only in a dedicated checkout with no concurrent repository writers:
+ordinary filesystem renames do not provide compare-and-swap coordination with
+another process editing between system calls.
+
 `frontend/bun.lock` does not need updating: it only records third-party
 dependency versions, not the frontend workspace's own `version` field.
 `Cargo.lock` does need to stay in sync with the app version because the Rust
@@ -181,6 +197,15 @@ The release workflow:
 - validates the prebuilt frontend contains `index.html` and non-empty CSS assets before Tauri consumes it
 - builds Linux output as `.deb`, `.rpm`, and AppImage through Tauri
 - validates Linux package metadata and builds a signed APT repository
+- installs and launches the final deb and executes the AppImage on the
+  disposable Ubuntu runner
+- mounts the final artifacts read-only in a digest-pinned Fedora 43 container,
+  installs the RPM through dependency-resolving `dnf` before adding the Xvfb
+  launch harness, and launches it there
+- installs the actual generated APT setup deb, checks its installed keyring and
+  source content/permissions/ownership, and purges it
+- mounts each final DMG, copies the app bundle out, and launches the copied app
+  after signing/notarization and before upload
 - stages `install-apt-repo.sh` with the pinned APT signing key fingerprint and validates the rendered installer keeps that effective fingerprint
 - publishes public APT bootstrap assets in the APT Pages artifact for installer-side signature verification
 - uploads macOS and Linux release assets
@@ -230,4 +255,22 @@ node scripts/package-tauri-linux.mjs
 python3 scripts/validate_linux_package_metadata.py "dist/rust/artifacts/*.deb" "dist/rust/artifacts/*.rpm"
 node scripts/check-apt-repository.mjs
 node scripts/check-apt-installer.mjs
+node scripts/smoke-release-artifacts.mjs --linux-deb-appimage dist/rust/artifacts
+docker run --rm \
+  --volume "${PWD}:/workspace:ro" \
+  --volume "$(command -v bun):/usr/local/bin/bun:ro" \
+  --workdir /workspace \
+  fedora:43@sha256:781b7642e8bf256e9cf75d2aa58d86f5cc695fd2df113517614e181a5eee9138 \
+  bun scripts/smoke-release-artifacts.mjs --linux-rpm dist/rust/artifacts
+```
+
+The Ubuntu smoke installs and purges the deb with `sudo`; use it only on a
+disposable Linux machine where `qa-scribe` is not already installed. The RPM
+smoke installs inside its disposable Fedora container. The APT setup mode is run by the release workflow after the signed
+repository builder creates the real setup package and exported keyring.
+
+After producing a signed/notarized DMG on a disposable macOS host, run:
+
+```bash
+node scripts/smoke-release-artifacts.mjs --macos-dmg dist/rust/artifacts
 ```

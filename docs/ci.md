@@ -17,7 +17,10 @@ The CI workflow is deliberately divided by responsibility:
   `CI success` dependency graph while it accumulates promotion evidence.
 - **Package test (Linux)** builds and validates distributable Linux artifacts
   only when a packaging input changes. It starts only after the quality gate
-  succeeds.
+  succeeds. After metadata validation it installs and launches the final deb
+  and executes the AppImage on Ubuntu, then mounts the same artifact directory
+  into a digest-pinned Fedora 43 container where `dnf` resolves the final RPM's
+  dependencies before launch. Each smoke uses isolated XDG state under Xvfb.
 - **CI success** is the stable branch-protection check. It fails when any
   applicable job fails and accepts intentionally skipped platform/package jobs.
 
@@ -34,11 +37,13 @@ local and CI lint behavior cannot drift. Release and packaging jobs install the
 exact Tauri CLI tool version from `scripts/tool-versions.json` through
 `scripts/install-tauri-cli.mjs`. The installer rejects a pin whose major/minor
 does not match the `tauri` runtime resolved in `Cargo.lock`; patch versions are
-allowed to differ because the runtime and CLI are published independently.
+allowed to differ because the runtime and CLI are published independently. The
+same tool-version source pins `cargo-audit`, and the shared CI/release validation
+action installs that exact version through `scripts/install-cargo-audit.mjs`.
 
 `.github/actions/validate-build/action.yml` is shared by CI and tag validation.
 `.github/actions/run-built-app-e2e/action.yml` owns built-app execution,
-production restoration, summaries, and reliability artifacts for Linux and
+independent production-frontend verification, summaries, and reliability artifacts for Linux and
 macOS so their safety and evidence behavior cannot drift. Any new
 repository-wide contract added to `bun run verify` should also be added to the
 validation action when it benefits from a separately named CI step.
@@ -58,9 +63,10 @@ The Linux quality and release-validation jobs install Xvfb and run the shared
 built-app gate as a required control. The observational macOS arm64 job invokes
 the same shared action without Xvfb. `bun run e2e` uses an isolated temporary
 application-data directory and a deterministic local provider fixture; it does
-not use accounts, network calls, or user data. Every gate restores the
-production frontend and reruns `bun run e2e:isolation` after the test binary
-completes.
+not use accounts, network calls, or user data. The E2E frontend is built into
+that temporary root and never replaces `frontend/dist`. Every gate reruns
+an independent production frontend build and `bun run e2e:isolation` after the
+test binary completes.
 
 Every Linux execution uploads a 90-day `qa-scribe-e2e-passed-*` or
 `qa-scribe-e2e-failed-*` marker containing its machine-readable metadata. macOS
@@ -96,6 +102,19 @@ holding a repository write token.
 The Pages deployment job alone receives `pages: write` and `id-token: write`.
 Signing jobs receive only the secrets they use. All third-party actions are
 pinned to full commit SHAs, and Dependabot checks GitHub Actions updates weekly.
+
+Release artifact smoke does not change those privilege boundaries. Linux
+package installation uses the disposable runner's existing `sudo` access, and
+the build job remains `contents: read`. RPM installation instead runs as root
+inside a disposable, digest-pinned Fedora 43 container and uses `dnf` without
+`--nodeps` before installing the Xvfb launch harness; the repository, final
+artifacts, and host Bun executable are mounted read-only. The release job also installs the exact
+generated APT setup deb, verifies the installed keyring and Deb822 source bytes,
+mode, and ownership, then purges it. macOS mounts each signed/notarized DMG,
+copies its app bundle to a temporary directory, and launches the copied
+executable only after the temporary signing keychain, certificate, and API key
+have been removed, and before the artifact is staged for publication. Signing,
+notarization, checksum, and Gatekeeper checks still run independently.
 
 ## Repository settings
 

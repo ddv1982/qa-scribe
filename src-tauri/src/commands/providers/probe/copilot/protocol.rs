@@ -29,11 +29,14 @@ pub(super) struct ResponseRouter<'a> {
 }
 
 impl<'a> ResponseRouter<'a> {
-    pub(super) fn new(receiver: &'a mpsc::Receiver<ReaderEvent>) -> Self {
+    pub(super) fn new_with_cancellation(
+        receiver: &'a mpsc::Receiver<ReaderEvent>,
+        cancellation: DiscoveryCancellation,
+    ) -> Self {
         Self {
             receiver,
             pending: HashMap::new(),
-            cancellation: DiscoveryCancellation::capture(),
+            cancellation,
         }
     }
 

@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // Single write-path for bumping the qa-scribe release version.
 //
-// Updates, atomically (all files staged in memory, then written together)
-// and idempotently (safe to re-run with the same target version):
+// Updates recoverably (all outputs and rollback copies are staged before any
+// same-directory replacement) and idempotently (safe to re-run with the same
+// target version):
 //   - package.json `version`
 //   - frontend/package.json `version`
 //   - Cargo.toml `[workspace.package]` version
@@ -23,7 +24,7 @@
 // Usage:
 //   node scripts/bump-version.mjs <new-version> [--dry-run]
 
-import { readFile, writeFile } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import {
@@ -33,6 +34,7 @@ import {
   readWorkspaceCargoVersion,
   validateStableSemver
 } from './command-utils.mjs'
+import { applyPlanTransaction, recoverInterruptedVersionTransaction } from './version-transaction.mjs'
 
 const PACKAGE_JSON_PATH = 'package.json'
 const FRONTEND_PACKAGE_JSON_PATH = 'frontend/package.json'
@@ -43,6 +45,9 @@ const CHANGELOG_PATH = 'CHANGELOG.md'
 const CARGO_LOCK_CRATES = QA_SCRIBE_CARGO_LOCK_PACKAGES
 
 async function main() {
+  if (await recoverInterruptedVersionTransaction()) {
+    console.log('Recovered an interrupted version bump before preflight.')
+  }
   const args = process.argv.slice(2)
   const dryRun = args.includes('--dry-run')
   const positional = args.filter(arg => !arg.startsWith('--'))
@@ -74,9 +79,7 @@ async function main() {
     return
   }
 
-  for (const change of plan) {
-    await writeFile(change.path, change.nextContent, 'utf8')
-  }
+  await applyPlanTransaction(plan)
 
   console.log(`\nBumped version ${currentVersion} -> ${newVersion}.`)
   console.log(`Reminder: fill in the CHANGELOG.md entry for ## v${newVersion} - ${today} with real release notes before tagging.`)
@@ -159,6 +162,7 @@ function buildPlan(files, { newVersion, today, metainfoPath }) {
   plan.push({
     path: PACKAGE_JSON_PATH,
     description: `version -> ${newVersion}`,
+    previousContent: files.packageJsonRaw ?? `${JSON.stringify(files.packageJson, null, 2)}\n`,
     nextContent: `${JSON.stringify(nextPackageJson, null, 2)}\n`
   })
 
@@ -166,18 +170,21 @@ function buildPlan(files, { newVersion, today, metainfoPath }) {
   plan.push({
     path: FRONTEND_PACKAGE_JSON_PATH,
     description: `version -> ${newVersion}`,
+    previousContent: files.frontendPackageJsonRaw ?? `${JSON.stringify(files.frontendPackageJson, null, 2)}\n`,
     nextContent: `${JSON.stringify(nextFrontendPackageJson, null, 2)}\n`
   })
 
   plan.push({
     path: CARGO_TOML_PATH,
     description: `[workspace.package] version -> ${newVersion}`,
+    previousContent: files.cargoToml,
     nextContent: bumpCargoTomlVersion(files.cargoToml, newVersion)
   })
 
   plan.push({
     path: CARGO_LOCK_PATH,
     description: `${CARGO_LOCK_CRATES.join(', ')} version -> ${newVersion}`,
+    previousContent: files.cargoLock,
     nextContent: bumpCargoLockVersions(files.cargoLock, newVersion)
   })
 
@@ -185,6 +192,7 @@ function buildPlan(files, { newVersion, today, metainfoPath }) {
   plan.push({
     path: TAURI_CONF_PATH,
     description: `version -> ${newVersion}`,
+    previousContent: files.tauriConfRaw ?? `${JSON.stringify(files.tauriConf, null, 2)}\n`,
     nextContent: `${JSON.stringify(nextTauriConf, null, 2)}\n`
   })
 
@@ -192,12 +200,14 @@ function buildPlan(files, { newVersion, today, metainfoPath }) {
   plan.push({
     path: CHANGELOG_PATH,
     description: `insert ## ${changelogTag} - ${today} scaffold`,
+    previousContent: files.changelog,
     nextContent: insertChangelogScaffold(files.changelog, changelogTag, today)
   })
 
   plan.push({
     path: metainfoPath,
     description: `insert <release version="${newVersion}" date="${today}" />`,
+    previousContent: files.metainfo,
     nextContent: insertMetainfoRelease(files.metainfo, newVersion, today)
   })
 
@@ -232,7 +242,8 @@ function bumpCargoLockVersions(cargoLock, newVersion) {
 
 function insertChangelogScaffold(changelog, tag, today) {
   const heading = `## ${tag} - ${today}`
-  if (changelog.includes(`\n${heading}\n`) || changelog.startsWith(`${heading}\n`)) {
+  const existingVersionHeading = new RegExp(`(?:^|\\n)## ${escapeRegExpLocal(tag)} - \\d{4}-\\d{2}-\\d{2}(?:\\n|$)`)
+  if (existingVersionHeading.test(changelog)) {
     return changelog
   }
 
@@ -279,11 +290,13 @@ if (isMainModule) {
 }
 
 export {
+  applyPlanTransaction,
   buildPlan,
   bumpCargoLockVersions,
   bumpCargoTomlVersion,
   cargoLockCrateVersions,
   insertChangelogScaffold,
   insertMetainfoRelease,
-  preflightConsistencyCheck
+  preflightConsistencyCheck,
+  recoverInterruptedVersionTransaction
 }

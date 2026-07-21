@@ -75,11 +75,13 @@ pub(super) fn finish_cancelled_job(
     state: &AppState,
     job_id: &str,
     request: &GenerateAiActionRequest,
-    ai_run_id: &str,
+    ai_run_id: Option<&str>,
 ) {
-    let ai_run = state
-        .with_service(|service| service.fail_ai_run(ai_run_id, "Generation cancelled."))
-        .ok();
+    let ai_run = ai_run_id.and_then(|ai_run_id| {
+        state
+            .with_service(|service| service.fail_ai_run(ai_run_id, "Generation cancelled."))
+            .ok()
+    });
     let status = jobs.mark_cancelled(job_id).unwrap_or_else(|_| {
         fallback_status(
             job_id,

@@ -1,6 +1,7 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DeleteConfirmationDialog } from './AppShell'
+import { PendingChangesDialog } from './AppOverlays'
 import { simulateDialogCancel } from '../test/dialogPolyfill'
 
 const copy = { title: 'Delete this note?', body: 'This cannot be undone.', confirmLabel: 'Delete note' }
@@ -39,5 +40,29 @@ describe('DeleteConfirmationDialog accessibility', () => {
     unmount()
     expect(document.activeElement).toBe(trigger)
     trigger.remove()
+  })
+})
+
+describe('PendingChangesDialog recovery conflict', () => {
+  afterEach(() => {
+    cleanup()
+    vi.clearAllMocks()
+  })
+
+  it('explains the recovered Summary outcomes with explicit actions', () => {
+    render(
+      <PendingChangesDialog
+        recoveredSummaryConflict
+        isBusy={false}
+        onCancel={vi.fn()}
+        onDiscard={vi.fn()}
+        onSave={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByRole('heading', { name: 'Choose which Note to keep' })).toBeTruthy()
+    expect(screen.getByText(/recovered Summary replaced locally authored text/i)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Keep generated Summary' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Restore authored text' })).toBeTruthy()
   })
 })

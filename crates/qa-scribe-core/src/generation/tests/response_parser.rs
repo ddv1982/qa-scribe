@@ -177,6 +177,116 @@ fn generated_rich_html_uses_valid_managed_src_when_attachment_id_attribute_is_ma
 }
 
 #[test]
+fn generated_rich_html_preserves_quoted_delimiters_and_sanitizes_attributes() {
+    let sanitized = sanitize_generated_rich_html(
+        r#"<h2 onclick="if (a > b) unsafe()">café 比較</h2>
+<a href='https://example.test/compare?left=5>3&amp;mode=full' onmouseover='unsafe("x > y")'>Comparison</a>
+<img src="qa-scribe-attachment://attachment-1" data-attachment-id="attachment-1" alt="Evidence A > B <script>marker</script>" onerror="unsafe()" />"#,
+    );
+
+    assert!(sanitized.contains("<h2>café 比較</h2>"));
+    assert!(sanitized.contains(
+        "<a href=\"https://example.test/compare?left=5&gt;3&amp;mode=full\" target=\"_blank\" rel=\"noreferrer\">Comparison</a>"
+    ));
+    assert!(sanitized.contains(
+        "<img src=\"qa-scribe-attachment://attachment-1\" data-attachment-id=\"attachment-1\" alt=\"Evidence A &gt; B &lt;script&gt;marker&lt;/script&gt;\" />"
+    ));
+    assert!(!sanitized.contains("onclick"));
+    assert!(!sanitized.contains("onmouseover"));
+    assert!(!sanitized.contains("onerror"));
+    assert_eq!(sanitized.matches("<img").count(), 1);
+}
+
+#[test]
+fn generated_rich_html_keeps_existing_url_scheme_allowlist_with_quoted_delimiters() {
+    let cases = [
+        (
+            r#"<a href="https://example.test/a>b">link</a>"#,
+            "href=\"https://example.test/a&gt;b\"",
+            true,
+        ),
+        (
+            r#"<a href='mailto:qa@example.test?subject=A>B'>link</a>"#,
+            "href=\"mailto:qa@example.test?subject=A&gt;B\"",
+            true,
+        ),
+        (
+            r#"<a href="/relative/a>b">link</a>"#,
+            "href=\"/relative/a&gt;b\"",
+            true,
+        ),
+        (
+            r#"<a href="javascript:alert('A>B')">link</a>"#,
+            "href=",
+            false,
+        ),
+        (r#"<a href="data:text/html,A>B">link</a>"#, "href=", false),
+    ];
+
+    for (input, expected, allowed) in cases {
+        let sanitized = sanitize_generated_rich_html(input);
+        assert_eq!(
+            sanitized.contains(expected),
+            allowed,
+            "unexpected link sanitization for {input:?}: {sanitized:?}"
+        );
+        assert!(sanitized.ends_with("link</a>"));
+    }
+
+    let images = sanitize_generated_rich_html(
+        r#"<img src="https://example.test/a>b.png" alt="https" />
+<img src='data:image/png;base64,AA>BB' alt='inline' />
+<img src="/relative/a>b.png" alt="relative" />
+<img src="javascript:alert('A>B')" alt="unsafe" />
+<img src="data:text/html,A>B" alt="unsafe data" />"#,
+    );
+    assert!(images.contains("src=\"https://example.test/a&gt;b.png\""));
+    assert!(images.contains("src=\"data:image/png;base64,AA&gt;BB\""));
+    assert!(images.contains("src=\"/relative/a&gt;b.png\""));
+    assert!(!images.contains("javascript:"));
+    assert!(!images.contains("data:text/html"));
+    assert_eq!(images.matches("<img").count(), 3);
+}
+
+#[test]
+fn generated_rich_html_treats_unclosed_quoted_tag_as_text_and_removes_nested_script() {
+    let sanitized = sanitize_generated_rich_html(
+        r#"<p>Before</p><img src="https://example.test/evidence.png" alt="unclosed > <script>alert(1)</script><p>After</p>"#,
+    );
+
+    assert!(sanitized.starts_with("<p>Before</p>&lt;img"));
+    assert!(sanitized.contains("alt=\"unclosed > "));
+    assert!(sanitized.contains("<p>After</p>"));
+    assert!(!sanitized.contains("<script"));
+    assert!(!sanitized.contains("alert(1)"));
+}
+
+#[test]
+fn generated_rich_html_quote_scanner_handles_payload_matrix_without_attribute_escape() {
+    let payloads = [
+        "A > B",
+        "café > naïve",
+        "日本語 > ✅",
+        "nested <strong>value</strong> > boundary",
+        "&gt; and >",
+    ];
+
+    for quote in ['"', '\''] {
+        for payload in payloads {
+            let input = format!(
+                "<img src={quote}https://example.test/evidence.png{quote} alt={quote}{payload}{quote} onerror={quote}unsafe > call{quote}>"
+            );
+            let sanitized = sanitize_generated_rich_html(&input);
+
+            assert_eq!(sanitized.matches("<img").count(), 1, "input: {input}");
+            assert!(!sanitized.contains("onerror"), "input: {input}");
+            assert!(!sanitized.contains("unsafe"), "input: {input}");
+            assert!(sanitized.ends_with(" />"), "input: {input}");
+        }
+    }
+}
+
+#[test]
 fn project_html_to_prompt_text_still_decodes_typographic_entities() {
     // In contrast to the repair path above, projecting stored HTML into
     // plain prompt text for the model should decode as much as possible,

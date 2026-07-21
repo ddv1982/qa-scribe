@@ -13,6 +13,10 @@ export type CopiedTarget =
 export type LatestNoteGenerationUndo = {
   entryId: string
   before: RichEditorDocument
+  pendingRecoveryDecision?: boolean
+  generated?: RichEditorDocument
+  generatedCanonical?: RichEditorDocument
+  pendingRecoveryChoice?: 'authored' | 'generated'
 }
 
 export type RichRecordPatch = Partial<Pick<Draft, 'title' | 'body' | 'bodyJson' | 'bodyFormat'>>
@@ -62,6 +66,15 @@ export type GenerationWorkspace = {
   latestNoteGenerationUndo: LatestNoteGenerationUndo | null
   setGenerationJobs: Dispatch<SetStateAction<Record<string, GenerationJobStatus>>>
   setLatestNoteGenerationUndo: Dispatch<SetStateAction<LatestNoteGenerationUndo | null>>
+}
+
+export type SummaryRecoveryCoordinator = {
+  recoveredJobsRef: MutableRefObject<Map<string, GenerationJobStatus>>
+  unresolvedSummaryJobsRef: MutableRefObject<Map<string, string>>
+  completedSummaryEntriesRef: MutableRefObject<Map<string, Entry>>
+  openingSessionIdRef: MutableRefObject<string | null>
+  discoveryPendingRef: MutableRefObject<boolean>
+  blockedSaveSessionIdsRef: MutableRefObject<Set<string>>
 }
 
 export type AiSelection = {

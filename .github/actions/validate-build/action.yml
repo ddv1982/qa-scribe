@@ -92,7 +92,7 @@ runs:
 
     - name: Install cargo-audit
       shell: bash
-      run: cargo install cargo-audit --locked
+      run: node scripts/install-cargo-audit.mjs
 
     - name: Audit Rust dependencies
       shell: bash

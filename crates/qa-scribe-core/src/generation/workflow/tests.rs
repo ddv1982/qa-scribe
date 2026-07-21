@@ -1,5 +1,5 @@
 use crate::{
-    ai::ProviderGenerationOutput,
+    ai::{GenerationOutputFormat, ProviderGenerationOutput},
     domain::{
         AiProvider, Attachment, AttachmentDraft, Entry, EntryDraft, EntryPatch, EntryType, Session,
         SessionDraft,
@@ -60,6 +60,21 @@ fn request_for(
         action,
         note_entry_id: note_entry_id.map(ToString::to_string),
         testware_preferences: None,
+    }
+}
+
+fn testware_preferences_with_preserve_evidence(
+    preserve_evidence: bool,
+) -> TestwareGenerationPreferences {
+    TestwareGenerationPreferences {
+        technique: TestwareTechnique::Auto,
+        output_format: TestwareOutputFormat::QaCases,
+        depth: TestwareDepth::Balanced,
+        include_negative_cases: true,
+        include_boundary_cases: true,
+        include_test_data: true,
+        preserve_evidence,
+        custom_instructions: None,
     }
 }
 
@@ -126,6 +141,21 @@ fn success_generation_output(response: &str) -> ProviderGenerationOutput {
         stdout: response.as_bytes().to_vec(),
         stderr: Vec::new(),
         assistant_text: None,
+        output_format: GenerationOutputFormat::PlainText,
+        cancelled: false,
+    }
+}
+
+fn successful_structured_output(
+    output_format: GenerationOutputFormat,
+    stdout: &str,
+) -> ProviderGenerationOutput {
+    ProviderGenerationOutput {
+        exit_success: Some(true),
+        stdout: stdout.as_bytes().to_vec(),
+        stderr: Vec::new(),
+        assistant_text: None,
+        output_format,
         cancelled: false,
     }
 }

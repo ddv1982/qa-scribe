@@ -10,6 +10,7 @@ mod drafts;
 mod entries;
 mod findings;
 mod generation;
+mod rich_body;
 mod sessions;
 mod settings;
 

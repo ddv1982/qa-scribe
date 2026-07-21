@@ -34,6 +34,12 @@ export function inspectE2eIsolation(root, { sourceOnly = false } = {}) {
   if (!/PATH:\s*\[fixtureBin, process\.env\.PATH\][\s\S]*QA_SCRIBE_E2E_PROVIDER_PATH:\s*fixtureBin/.test(runner)) {
     failures.push('the deterministic provider fixture must lead E2E Fast and Deep PATH resolution')
   }
+  if (!/--outDir',\s*frontendDist,\s*'--emptyOutDir/.test(runner) || !/tauriConfig\.build\.frontendDist\s*=\s*frontendDist/.test(runner)) {
+    failures.push('the E2E frontend and Tauri config must use the isolated temporary output directory')
+  }
+  if (/restoreProductionFrontend/.test(runner)) {
+    failures.push('the E2E runner must not rely on rebuilding frontend/dist after tests')
+  }
 
   const parsedProductionConfig = JSON.parse(productionConfig)
   if (parsedProductionConfig.app?.withGlobalTauri !== false) failures.push('production withGlobalTauri must remain false')

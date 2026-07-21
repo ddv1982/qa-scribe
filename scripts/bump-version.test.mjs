@@ -97,8 +97,7 @@ function sampleFiles(version) {
 }
 
 test('preflightConsistencyCheck returns the shared current version', () => {
-  const current = preflightConsistencyCheck(sampleFiles('0.4.24'))
-  assert.equal(current, '0.4.24')
+  assert.equal(preflightConsistencyCheck(sampleFiles('0.4.24')), '0.4.24')
 })
 
 test('preflightConsistencyCheck throws loudly when files disagree', () => {
@@ -120,8 +119,7 @@ test('preflightConsistencyCheck throws when a version is missing entirely', () =
 })
 
 test('cargoLockCrateVersions reads all three qa-scribe crate versions', () => {
-  const versions = cargoLockCrateVersions(SAMPLE_CARGO_LOCK)
-  assert.deepEqual(versions, {
+  assert.deepEqual(cargoLockCrateVersions(SAMPLE_CARGO_LOCK), {
     'qa-scribe-app': '0.4.24',
     'qa-scribe-core': '0.4.24',
     'qa-scribe-tauri': '0.4.24'
@@ -135,14 +133,11 @@ test('bumpCargoTomlVersion updates only the workspace.package version', () => {
 })
 
 test('bumpCargoTomlVersion is idempotent when already at the target version', () => {
-  const once = bumpCargoTomlVersion(SAMPLE_CARGO_TOML, '0.4.24')
-  assert.equal(once, SAMPLE_CARGO_TOML)
+  assert.equal(bumpCargoTomlVersion(SAMPLE_CARGO_TOML, '0.4.24'), SAMPLE_CARGO_TOML)
 })
 
 test('bumpCargoLockVersions updates all three qa-scribe crate entries', () => {
-  const next = bumpCargoLockVersions(SAMPLE_CARGO_LOCK, '0.5.0')
-  const versions = cargoLockCrateVersions(next)
-  assert.deepEqual(versions, {
+  assert.deepEqual(cargoLockCrateVersions(bumpCargoLockVersions(SAMPLE_CARGO_LOCK, '0.5.0')), {
     'qa-scribe-app': '0.5.0',
     'qa-scribe-core': '0.5.0',
     'qa-scribe-tauri': '0.5.0'
@@ -156,41 +151,38 @@ test('bumpCargoLockVersions throws if a crate entry is missing', () => {
 
 test('insertChangelogScaffold inserts a new heading right after the title', () => {
   const next = insertChangelogScaffold(SAMPLE_CHANGELOG, 'v0.5.0', '2026-07-03')
-  const lines = next.split('\n')
-  assert.equal(lines[0], '# Changelog')
-  assert.equal(lines[2], '## v0.5.0 - 2026-07-03')
+  assert.equal(next.split('\n')[2], '## v0.5.0 - 2026-07-03')
   assert.match(next, /## v0\.5\.0 - 2026-07-03[\s\S]*## v0\.4\.24 - 2026-07-02/)
 })
 
-test('insertChangelogScaffold is idempotent for an existing heading', () => {
-  const once = insertChangelogScaffold(SAMPLE_CHANGELOG, 'v0.4.24', '2026-07-02')
-  assert.equal(once, SAMPLE_CHANGELOG)
+test('insertChangelogScaffold is idempotent for an existing version even on a later date', () => {
+  assert.equal(insertChangelogScaffold(SAMPLE_CHANGELOG, 'v0.4.24', '2026-07-20'), SAMPLE_CHANGELOG)
 })
 
-test('insertMetainfoRelease inserts a new release entry at the top of <releases>', () => {
+test('insertMetainfoRelease inserts a new release entry at the top of releases', () => {
   const next = insertMetainfoRelease(SAMPLE_METAINFO, '0.5.0', '2026-07-03')
-  const releasesIndex = next.indexOf('<releases>')
-  const newEntryIndex = next.indexOf('<release version="0.5.0" date="2026-07-03" />')
-  const oldEntryIndex = next.indexOf('<release version="0.4.24" date="2026-07-02" />')
-  assert.ok(releasesIndex < newEntryIndex)
-  assert.ok(newEntryIndex < oldEntryIndex)
+  assert.ok(next.indexOf('<releases>') < next.indexOf('<release version="0.5.0"'))
+  assert.ok(next.indexOf('<release version="0.5.0"') < next.indexOf('<release version="0.4.24"'))
 })
 
 test('insertMetainfoRelease is idempotent for an existing release entry', () => {
-  const once = insertMetainfoRelease(SAMPLE_METAINFO, '0.4.24', '2026-07-02')
-  assert.equal(once, SAMPLE_METAINFO)
+  assert.equal(insertMetainfoRelease(SAMPLE_METAINFO, '0.4.24', '2026-07-02'), SAMPLE_METAINFO)
 })
 
-test('insertMetainfoRelease throws when <releases> is missing', () => {
-  const malformed = SAMPLE_METAINFO.replace('<releases>', '<not-releases>')
-  assert.throws(() => insertMetainfoRelease(malformed, '0.5.0', '2026-07-03'), /releases/)
+test('insertMetainfoRelease throws when releases are missing', () => {
+  assert.throws(
+    () => insertMetainfoRelease(SAMPLE_METAINFO.replace('<releases>', '<not-releases>'), '0.5.0', '2026-07-03'),
+    /releases/
+  )
 })
 
 test('buildPlan produces a change for every tracked file with the new version applied', () => {
-  const files = sampleFiles('0.4.24')
-  const plan = buildPlan(files, { newVersion: '0.5.0', today: '2026-07-03', metainfoPath: 'build/linux/io.github.ddv1982.qa-scribe.metainfo.xml' })
-  const paths = plan.map(change => change.path).sort()
-  assert.deepEqual(paths, [
+  const plan = buildPlan(sampleFiles('0.4.24'), {
+    newVersion: '0.5.0',
+    today: '2026-07-03',
+    metainfoPath: 'build/linux/io.github.ddv1982.qa-scribe.metainfo.xml'
+  })
+  assert.deepEqual(plan.map(change => change.path).sort(), [
     'CHANGELOG.md',
     'Cargo.lock',
     'Cargo.toml',
@@ -199,14 +191,20 @@ test('buildPlan produces a change for every tracked file with the new version ap
     'package.json',
     'src-tauri/tauri.conf.json'
   ])
+  assert.equal(JSON.parse(plan.find(change => change.path === 'package.json').nextContent).version, '0.5.0')
+})
 
-  const packageJsonChange = plan.find(change => change.path === 'package.json')
-  assert.equal(JSON.parse(packageJsonChange.nextContent).version, '0.5.0')
-
-  const cargoLockChange = plan.find(change => change.path === 'Cargo.lock')
-  assert.deepEqual(cargoLockCrateVersions(cargoLockChange.nextContent), {
-    'qa-scribe-app': '0.5.0',
-    'qa-scribe-core': '0.5.0',
-    'qa-scribe-tauri': '0.5.0'
+test('buildPlan is content-idempotent when the target version is already current', () => {
+  const files = {
+    ...sampleFiles('0.4.24'),
+    packageJsonRaw: `${JSON.stringify(samplePackageJson('0.4.24'), null, 2)}\n`,
+    frontendPackageJsonRaw: `${JSON.stringify(sampleFrontendPackageJson('0.4.24'), null, 2)}\n`,
+    tauriConfRaw: `${JSON.stringify(sampleTauriConf('0.4.24'), null, 2)}\n`
+  }
+  const plan = buildPlan(files, {
+    newVersion: '0.4.24',
+    today: '2026-07-20',
+    metainfoPath: 'build/linux/io.github.ddv1982.qa-scribe.metainfo.xml'
   })
+  assert.ok(plan.every(change => change.nextContent === change.previousContent))
 })

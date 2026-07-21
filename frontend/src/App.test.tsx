@@ -19,7 +19,7 @@ const tauriMock = vi.hoisted(() => ({
   deleteSession: vi.fn(),
   getProviderStatus: vi.fn(),
   getSettings: vi.fn(),
-  importClipboardScreenshot: vi.fn(),
+  importClipboardScreenshot: vi.fn(), deleteAttachment: vi.fn(),
   listDraftLibrary: vi.fn(),
   listDrafts: vi.fn(),
   listEntries: vi.fn(),

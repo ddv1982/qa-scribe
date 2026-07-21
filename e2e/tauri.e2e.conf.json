@@ -3,7 +3,7 @@
   "identifier": "io.github.ddv1982.qa-scribe.e2e",
   "build": {
     "beforeBuildCommand": "",
-    "frontendDist": "../frontend/dist"
+    "frontendDist": "../target/e2e/frontend-dist"
   },
   "app": {
     "withGlobalTauri": true,

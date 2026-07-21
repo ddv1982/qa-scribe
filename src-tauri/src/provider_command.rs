@@ -45,26 +45,27 @@ pub enum ProviderPathMode {
 /// working directory, so both paths must use the same neutral-scope policy.
 pub struct NeutralProviderCwd {
     path: PathBuf,
-    owned: bool,
 }
 
 impl NeutralProviderCwd {
-    pub fn new() -> Self {
-        let unique = env::temp_dir().join(format!(
+    pub fn new() -> std::io::Result<Self> {
+        Self::new_in(&env::temp_dir())
+    }
+
+    pub(crate) fn new_in(parent: &Path) -> std::io::Result<Self> {
+        let unique = parent.join(format!(
             "qa-scribe-provider-cwd-{}",
             uuid::Uuid::new_v4().simple()
         ));
-        if create_private_provider_directory(&unique).is_ok() {
-            Self {
-                path: unique,
-                owned: true,
-            }
-        } else {
-            Self {
-                path: env::temp_dir(),
-                owned: false,
-            }
-        }
+        create_private_provider_directory(&unique).map_err(|error| {
+            std::io::Error::new(
+                error.kind(),
+                format!(
+                    "Could not create a private working directory for the provider. The provider was not started: {error}"
+                ),
+            )
+        })?;
+        Ok(Self { path: unique })
     }
 
     pub fn path(&self) -> &Path {
@@ -82,17 +83,9 @@ fn create_private_provider_directory(path: &Path) -> std::io::Result<()> {
     builder.create(path)
 }
 
-impl Default for NeutralProviderCwd {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Drop for NeutralProviderCwd {
     fn drop(&mut self) {
-        if self.owned {
-            let _ = fs::remove_dir_all(&self.path);
-        }
+        let _ = fs::remove_dir_all(&self.path);
     }
 }
 

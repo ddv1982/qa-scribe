@@ -39,6 +39,7 @@ export const commands = {
 	listActiveAiActionJobs: () => __TAURI_INVOKE<GenerationJobStatus[]>("list_active_ai_action_jobs"),
 	cancelAiActionJob: (jobId: string) => __TAURI_INVOKE<GenerationJobStatus>("cancel_ai_action_job", { jobId }),
 	importClipboardScreenshot: (sessionId: string, entryId: string | null, filename: string, dataUrl: string) => __TAURI_INVOKE<Attachment>("import_clipboard_screenshot", { sessionId, entryId, filename, dataUrl }),
+	deleteAttachment: (attachmentId: string) => __TAURI_INVOKE<boolean>("delete_attachment", { attachmentId }),
 	getProviderStatus: () => __TAURI_INVOKE<ProviderStatus>("get_provider_status"),
 	refreshProviderStatus: () => __TAURI_INVOKE<ProviderStatus>("refresh_provider_status"),
 	getAttachmentPreviewDataUrl: (attachmentId: string) => __TAURI_INVOKE<string | null>("get_attachment_preview_data_url", { attachmentId }),

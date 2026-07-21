@@ -94,6 +94,10 @@ fn run_ai_action_job(
     let jobs = app.state::<JobStore>();
     let state = app.state::<AppState>();
     let _ = send_progress(&events, &jobs, &job_id, "Preparing prompt");
+    if control.is_cancelled() {
+        finish_cancelled_job(&events, &jobs, &state, &job_id, &request, None);
+        return;
+    }
 
     let prepare_started = Instant::now();
     let prepared =
@@ -101,7 +105,12 @@ fn run_ai_action_job(
             Ok(prepared) => prepared,
             Err(error) => {
                 let error = error.message;
-                let status = jobs.fail(&job_id, &error).unwrap_or_else(|_| {
+                let failed_status = control.run_if_not_cancelled(|| jobs.fail(&job_id, &error));
+                let Ok(Some(failed_status)) = failed_status else {
+                    finish_cancelled_job(&events, &jobs, &state, &job_id, &request, None);
+                    return;
+                };
+                let status = failed_status.unwrap_or_else(|_| {
                     fallback_status(&job_id, &request, GenerationJobState::Failed, &error)
                 });
                 send_event(
@@ -125,14 +134,40 @@ fn run_ai_action_job(
         prepare_started.elapsed().as_millis()
     );
 
-    let running_status = match jobs.mark_running(
-        &job_id,
-        prepared.ai_run.id.clone(),
-        "Provider process starting",
-    ) {
-        Ok(status) => status,
-        Err(error) => {
+    let running_status = control.run_if_not_cancelled(|| {
+        jobs.mark_running(
+            &job_id,
+            prepared.ai_run.id.clone(),
+            "Provider process starting",
+        )
+    });
+    let running_status = match running_status {
+        Ok(Some(Ok(status))) => status,
+        Ok(None) => {
+            finish_cancelled_job(
+                &events,
+                &jobs,
+                &state,
+                &job_id,
+                &request,
+                Some(&prepared.ai_run.id),
+            );
+            return;
+        }
+        Ok(Some(Err(error))) => {
             let error = error.to_string();
+            send_event(
+                &events,
+                GenerationJobEvent::Failed {
+                    job_id: job_id.clone(),
+                    status: fallback_status(&job_id, &request, GenerationJobState::Failed, &error),
+                    error_message: error,
+                    ai_run: Some(prepared.ai_run),
+                },
+            );
+            return;
+        }
+        Err(error) => {
             send_event(
                 &events,
                 GenerationJobEvent::Failed {
@@ -162,7 +197,7 @@ fn run_ai_action_job(
             &state,
             &job_id,
             &request,
-            &prepared.ai_run.id,
+            Some(&prepared.ai_run.id),
         );
         return;
     }
@@ -183,6 +218,7 @@ fn run_ai_action_job(
         .as_ref()
         .map(|output| output.cancelled)
         .unwrap_or_else(|error| error == "Generation cancelled.")
+        || control.is_cancelled()
     {
         finish_cancelled_job(
             &events,
@@ -190,16 +226,55 @@ fn run_ai_action_job(
             &state,
             &job_id,
             &request,
-            &prepared.ai_run.id,
+            Some(&prepared.ai_run.id),
         );
         return;
     }
 
-    let result = state
-        .with_service(|service| finish_ai_action_generation(service, &request, prepared, output));
+    let ai_run_id = prepared.ai_run.id.clone();
+    let finalization = control.run_if_not_cancelled(|| {
+        let result = state.with_service(|service| {
+            finish_ai_action_generation(service, &request, prepared, output)
+        });
+        let status = match &result {
+            Ok(result) if result.ai_run.error_message.is_none() => jobs.complete(&job_id),
+            Ok(result) => jobs.fail(
+                &job_id,
+                result
+                    .ai_run
+                    .error_message
+                    .as_deref()
+                    .unwrap_or("Generation failed"),
+            ),
+            Err(error) => jobs.fail(&job_id, &error.message),
+        };
+        (result, status)
+    });
+    let (result, terminal_status) = match finalization {
+        Ok(Some(finalization)) => finalization,
+        Ok(None) => {
+            finish_cancelled_job(&events, &jobs, &state, &job_id, &request, Some(&ai_run_id));
+            return;
+        }
+        Err(error) => {
+            let status = jobs.fail(&job_id, &error).unwrap_or_else(|_| {
+                fallback_status(&job_id, &request, GenerationJobState::Failed, &error)
+            });
+            send_event(
+                &events,
+                GenerationJobEvent::Failed {
+                    job_id,
+                    status,
+                    error_message: error,
+                    ai_run: None,
+                },
+            );
+            return;
+        }
+    };
     match result {
         Ok(result) if result.ai_run.error_message.is_none() => {
-            let status = jobs.complete(&job_id).unwrap_or_else(|_| {
+            let status = terminal_status.unwrap_or_else(|_| {
                 fallback_status(&job_id, &request, GenerationJobState::Completed, "")
             });
             send_event(
@@ -217,7 +292,7 @@ fn run_ai_action_job(
                 .error_message
                 .clone()
                 .unwrap_or_else(|| "Generation failed".to_string());
-            let status = jobs.fail(&job_id, &error_message).unwrap_or_else(|_| {
+            let status = terminal_status.unwrap_or_else(|_| {
                 fallback_status(
                     &job_id,
                     &request,
@@ -237,7 +312,7 @@ fn run_ai_action_job(
         }
         Err(error) => {
             let error = error.message;
-            let status = jobs.fail(&job_id, &error).unwrap_or_else(|_| {
+            let status = terminal_status.unwrap_or_else(|_| {
                 fallback_status(&job_id, &request, GenerationJobState::Failed, &error)
             });
             send_event(
