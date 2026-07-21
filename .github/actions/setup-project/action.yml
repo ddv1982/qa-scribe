@@ -44,14 +44,14 @@ runs:
 
     - name: Install Rust
       if: inputs.rust-targets == ''
-      uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable branch (2026-06-30)
+      uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable branch (2026-07-16)
       with:
         toolchain: ${{ steps.rust-toolchain.outputs.channel }}
         components: clippy,rustfmt
 
     - name: Install Rust with additional targets
       if: inputs.rust-targets != ''
-      uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable branch (2026-06-30)
+      uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable branch (2026-07-16)
       with:
         toolchain: ${{ steps.rust-toolchain.outputs.channel }}
         targets: ${{ inputs.rust-targets }}
