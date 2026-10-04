@@ -16,7 +16,7 @@ const tauriMock = vi.hoisted(() => ({
   createSession: vi.fn(),
   deleteDraft: vi.fn(),
   deleteFinding: vi.fn(),
-  deleteSession: vi.fn(),
+  deleteSession: vi.fn(), retryAttachmentCleanup: vi.fn(),
   getProviderStatus: vi.fn(),
   getSettings: vi.fn(),
   importClipboardScreenshot: vi.fn(), deleteAttachment: vi.fn(),
@@ -93,6 +93,7 @@ describe('App workflows', () => {
     })
 
     tauriMock.getSettings.mockResolvedValue(settingsFixture())
+    for (const command of [tauriMock.deleteSession, tauriMock.retryAttachmentCleanup]) command.mockResolvedValue({ pendingFiles: 0 })
     tauriMock.getProviderStatus.mockResolvedValue(providerStatusFixture())
     tauriMock.refreshProviderStatus.mockResolvedValue(providerStatusFixture())
     tauriMock.listRecentSessions.mockResolvedValue([sessionFixture()])

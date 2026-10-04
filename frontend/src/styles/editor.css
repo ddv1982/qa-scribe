@@ -7,13 +7,19 @@
   background: var(--surface-panel);
 }
 
-.center-workspace:has(.session-context-header) {
+.center-workspace:has(> .session-context-header) {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
 }
 
-.center-workspace:has(.session-context-header) > :not(.session-context-header) {
+.center-workspace:has(> .session-context-header) > * { grid-column: 1; }
+.center-workspace:has(> .session-context-header):has(> section[aria-label="Attachment cleanup"]) { grid-template-rows: auto auto minmax(0, 1fr); }
+.center-workspace:has(> .session-context-header) > section[aria-label="Attachment cleanup"] { grid-row: 1; }
+.center-workspace:has(> section[aria-label="Attachment cleanup"]) > .session-context-header { grid-row: 2; }
+.center-workspace:has(> .session-context-header):has(> section[aria-label="Attachment cleanup"]) > :not(.session-context-header):not(section[aria-label="Attachment cleanup"]) { grid-row: 3; }
+.center-workspace:has(> .session-context-header) > :not(.session-context-header):not(section[aria-label="Attachment cleanup"]) {
   grid-row: 2;
   min-height: 0;
   overflow: auto;
@@ -227,23 +233,29 @@
   list-style: none;
 }
 
-.rich-editor li[data-type="taskItem"] {
+.rich-editor ul[data-type="taskList"] > li {
   display: flex;
   gap: var(--space-2);
   align-items: flex-start;
 }
 
-.rich-editor li[data-type="taskItem"] > label {
+.rich-editor ul[data-type="taskList"] > li > label {
   display: inline-flex;
   padding-top: 2px;
 }
 
-.rich-editor li[data-type="taskItem"] > div {
+.rich-editor ul[data-type="taskList"] > li > label > input[type="checkbox"] {
+  width: auto;
+  height: auto;
+  padding: 0;
+}
+
+.rich-editor ul[data-type="taskList"] > li > div {
   flex: 1;
   min-width: 0;
 }
 
-.rich-editor li[data-type="taskItem"] p {
+.rich-editor ul[data-type="taskList"] > li p {
   margin-bottom: var(--space-2);
 }
 

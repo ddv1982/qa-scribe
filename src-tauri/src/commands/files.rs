@@ -8,7 +8,7 @@ use qa_scribe_core::{
     },
     domain::Attachment,
 };
-use tauri::{AppHandle, State, image::Image};
+use tauri::{AppHandle, Manager, State, image::Image};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 
 use crate::{commands::CommandError, settings::AppState};
@@ -17,24 +17,27 @@ const MAX_CLIPBOARD_IMAGE_RGBA_BYTES: u64 = 25 * 1024 * 1024;
 
 #[tauri::command]
 #[specta::specta]
-pub fn import_clipboard_screenshot(
-    state: State<'_, AppState>,
+pub async fn import_clipboard_screenshot(
+    app: AppHandle,
     session_id: String,
     entry_id: Option<String>,
     filename: String,
     data_url: String,
 ) -> Result<Attachment, CommandError> {
-    let app_data_dir = state.app_data_dir().clone();
-    state.with_service(|service| {
-        import_clipboard_screenshot_data_url(
-            service,
-            &app_data_dir,
-            &session_id,
-            entry_id,
-            filename,
-            &data_url,
-        )
+    attachment_task("Attachment import", move || {
+        let state = app.state::<AppState>();
+        state.with_service(|service| {
+            import_clipboard_screenshot_data_url(
+                service,
+                state.app_data_dir(),
+                &session_id,
+                entry_id,
+                filename,
+                &data_url,
+            )
+        })
     })
+    .await
 }
 
 #[tauri::command]
@@ -51,62 +54,74 @@ pub fn delete_attachment(
 #[tauri::command]
 #[specta::specta]
 pub async fn read_clipboard_image_data_url(app: AppHandle) -> Result<Option<String>, CommandError> {
-    let read_result = tauri::async_runtime::spawn_blocking(move || {
-        app.clipboard().read_image().map(|image| image.to_owned())
+    attachment_task("Clipboard image read", move || {
+        match app.clipboard().read_image() {
+            Ok(image) => clipboard_image_to_png_data_url(&image).map(Some),
+            Err(error) if clipboard_image_is_unavailable(&error) => Ok(None),
+            Err(error) => Err(CommandError::internal(format!(
+                "Clipboard image could not be read: {error}"
+            ))),
+        }
     })
     .await
-    .map_err(|error| {
-        CommandError::internal(format!("Clipboard image read task failed: {error}"))
-    })?;
-
-    match read_result {
-        Ok(image) => clipboard_image_to_png_data_url(&image).map(Some),
-        Err(error) if clipboard_image_is_unavailable(&error) => Ok(None),
-        Err(error) => Err(CommandError::internal(format!(
-            "Clipboard image could not be read: {error}"
-        ))),
-    }
 }
 
 #[tauri::command]
 #[specta::specta]
-pub fn get_attachment_preview_data_url(
-    state: State<'_, AppState>,
+pub async fn get_attachment_preview_data_url(
+    app: AppHandle,
     attachment_id: String,
 ) -> Result<Option<String>, CommandError> {
-    let app_data_dir = state.app_data_dir().clone();
-    state
-        .with_service(|service| attachment_preview_data_url(service, &app_data_dir, &attachment_id))
+    attachment_task("Attachment preview", move || {
+        let state = app.state::<AppState>();
+        state.with_service(|service| {
+            attachment_preview_data_url(service, state.app_data_dir(), &attachment_id)
+        })
+    })
+    .await
 }
 
 #[tauri::command]
 #[specta::specta]
-pub fn copy_attachment_image_to_clipboard(
+pub async fn copy_attachment_image_to_clipboard(
     app: AppHandle,
-    state: State<'_, AppState>,
     attachment_id: String,
 ) -> Result<(), CommandError> {
-    let app_data_dir = state.app_data_dir().clone();
-    let (attachment, bytes) = state
-        .with_service(|service| attachment_file_bytes(service, &app_data_dir, &attachment_id))?
-        .ok_or_else(|| CommandError::not_found("Attachment was not found"))?;
+    attachment_task("Attachment clipboard copy", move || {
+        let state = app.state::<AppState>();
+        let (attachment, bytes) = state
+            .with_service(|service| {
+                attachment_file_bytes(service, state.app_data_dir(), &attachment_id)
+            })?
+            .ok_or_else(|| CommandError::not_found("Attachment was not found"))?;
 
-    if let Some(mime_type) = &attachment.mime_type
-        && !mime_type.starts_with("image/")
-    {
-        return Err(CommandError::validation(
-            "Only image attachments can be copied as screenshots",
-        ));
-    }
+        if let Some(mime_type) = &attachment.mime_type
+            && !mime_type.starts_with("image/")
+        {
+            return Err(CommandError::validation(
+                "Only image attachments can be copied as screenshots",
+            ));
+        }
 
-    let decoded = decode_attachment_image(&bytes)?;
-    let decoded = decoded.to_rgba8();
-    let width = decoded.width();
-    let height = decoded.height();
-    let image = Image::new_owned(decoded.into_raw(), width, height);
-    app.clipboard().write_image(&image).map_err(|error| {
-        CommandError::internal(format!("Attachment image could not be copied: {error}"))
+        let decoded = decode_attachment_image(&bytes)?;
+        let decoded = decoded.to_rgba8();
+        let width = decoded.width();
+        let height = decoded.height();
+        let image = Image::new_owned(decoded.into_raw(), width, height);
+        app.clipboard().write_image(&image).map_err(|error| {
+            CommandError::internal(format!("Attachment image could not be copied: {error}"))
+        })
     })
+    .await
+}
+
+async fn attachment_task<T: Send + 'static>(
+    operation: &'static str,
+    action: impl FnOnce() -> Result<T, CommandError> + Send + 'static,
+) -> Result<T, CommandError> {
+    tauri::async_runtime::spawn_blocking(action)
+        .await
+        .map_err(|error| CommandError::internal(format!("{operation} task failed: {error}")))?
 }
 
 fn decode_attachment_image(bytes: &[u8]) -> Result<image::DynamicImage, CommandError> {
@@ -204,6 +219,62 @@ fn clipboard_image_is_unavailable(error: &tauri_plugin_clipboard_manager::Error)
 mod tests {
     use super::*;
     use crate::commands::error::CommandErrorKind;
+
+    #[test]
+    fn attachment_worker_runs_import_preview_and_image_encoding_off_caller_thread() {
+        let caller = std::thread::current().id();
+        let directory =
+            std::env::temp_dir().join(format!("attachment-worker-{}", uuid::Uuid::new_v4()));
+        let worker_directory = directory.clone();
+        let result =
+            tauri::async_runtime::block_on(attachment_task("Attachment workflow", move || {
+                assert_ne!(std::thread::current().id(), caller);
+                let service = qa_scribe_core::services::SessionService::in_memory()?;
+                let session = service.create_session(qa_scribe_core::domain::SessionDraft {
+                    title: "Worker image".into(),
+                    ..Default::default()
+                })?;
+                let source = clipboard_image_to_png_data_url(&Image::new(&[255, 0, 0, 255], 1, 1))?;
+                let attachment = import_clipboard_screenshot_data_url(
+                    &service,
+                    &worker_directory,
+                    &session.id,
+                    None,
+                    "pixel.png".into(),
+                    &source,
+                )?;
+                let preview =
+                    attachment_preview_data_url(&service, &worker_directory, &attachment.id)?
+                        .expect("preview is present");
+                assert_eq!(preview, source);
+                let (_, bytes) =
+                    attachment_file_bytes(&service, &worker_directory, &attachment.id)?
+                        .expect("managed bytes are present");
+                let image = decode_attachment_image(&bytes)?.to_rgba8();
+                assert_eq!(image.as_raw(), &[255, 0, 0, 255]);
+                Ok(())
+            }));
+        let _ = std::fs::remove_dir_all(directory);
+        result.expect("real attachment workflow succeeds on the blocking worker");
+    }
+
+    #[test]
+    fn attachment_worker_propagates_action_and_join_errors() {
+        let action_error = tauri::async_runtime::block_on(attachment_task("Import", || {
+            Err::<(), _>(CommandError::validation("invalid screenshot"))
+        }))
+        .expect_err("action error is preserved");
+        assert_eq!(action_error.kind, CommandErrorKind::Validation);
+        let join_error = tauri::async_runtime::block_on(attachment_task(
+            "Preview",
+            || -> Result<(), CommandError> {
+                panic!("injected worker failure");
+            },
+        ))
+        .expect_err("join error becomes an internal command error");
+        assert_eq!(join_error.kind, CommandErrorKind::Internal);
+        assert!(join_error.message.contains("Preview task failed"));
+    }
 
     #[test]
     fn converts_clipboard_image_to_png_data_url() {

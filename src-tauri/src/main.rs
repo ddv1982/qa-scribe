@@ -79,6 +79,24 @@ fn main() {
                 span_started.elapsed().as_millis()
             );
 
+            let span_started = Instant::now();
+            // Retry only the durable exact-path queue. Cleanup failure must not
+            // prevent an otherwise usable Session Library from opening.
+            match qa_scribe_core::attachments::retry_attachment_cleanup(
+                &session_service,
+                &app_data_dir,
+            ) {
+                Ok(status) => eprintln!(
+                    "qa-scribe startup attachment cleanup: pending_files={:?}, elapsed_ms={}",
+                    status.pending_files,
+                    span_started.elapsed().as_millis()
+                ),
+                Err(error) => eprintln!(
+                    "qa-scribe startup attachment cleanup unavailable: {error}, elapsed_ms={}",
+                    span_started.elapsed().as_millis()
+                ),
+            }
+
             app.manage(AppState::new(session_service, app_data_dir));
             app.manage(JobStore::default());
             eprintln!(

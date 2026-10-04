@@ -101,7 +101,7 @@ fn managed_attachments_preview_generation_context_and_evidence_flow() {
         Some(attachment.id.as_str())
     );
 
-    delete_session_attachment_files(&temp_dir, &session.id)
+    delete_session_with_attachment_files(&service, &temp_dir, &session.id)
         .expect("managed attachment files should clean up");
     assert!(!temp_dir.join("attachments").join(&session.id).exists());
 

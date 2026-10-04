@@ -263,6 +263,64 @@ async function writeCliFixture(rootDir) {
   })
 }
 
+async function pendingCliTransaction(rootDir) {
+  await writeCliFixture(rootDir)
+  const previous = await readFile(join(rootDir, PATHS[0]), 'utf8')
+  const next = `${JSON.stringify({ name: 'qa-scribe', version: '0.5.0' }, null, 2)}\n`
+  const stagedPath = '.package.json.qa-scribe-bump-preview-0.next'
+  const rollbackPath = '.package.json.qa-scribe-bump-preview-0.rollback'
+  await writeFile(join(rootDir, PATHS[0]), next)
+  await writeFile(join(rootDir, stagedPath), next)
+  await writeFile(join(rootDir, rollbackPath), previous)
+  await writeFile(join(rootDir, '.qa-scribe-version-transaction.json'), JSON.stringify({
+    version: 2, transactionId: 'preview', phase: 'committing', items: [{
+      path: PATHS[0], targetPath: PATHS[0], stagedPath, rollbackPath,
+      previousDigest: createHash('sha256').update(previous).digest('hex'),
+      nextDigest: createHash('sha256').update(next).digest('hex'),
+    }],
+  }))
+  await writeFile(join(rootDir, '.qa-scribe-version-transaction.json.next'), 'interrupted manifest staging')
+}
+
+async function snapshotTree(rootDir) {
+  const files = {}
+  async function visit(directory, prefix = '') {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name)
+      const key = prefix ? `${prefix}/${entry.name}` : entry.name
+      if (entry.isDirectory()) await visit(path, key)
+      else files[key] = (await readFile(path)).toString('base64')
+    }
+  }
+  await visit(rootDir)
+  return files
+}
+
+test('CLI dry-run preserves all interrupted transaction files and target bytes', async () => {
+  const { rootDir } = await makeFixture()
+  try {
+    await pendingCliTransaction(rootDir)
+    const before = await snapshotTree(rootDir)
+    const result = spawnSync(process.execPath, [BUMP_SCRIPT_PATH, '0.5.0', '--dry-run'], { cwd: rootDir, encoding: 'utf8' })
+    assert.deepEqual(await snapshotTree(rootDir), before, 'preview must never recover or clean interrupted state')
+    assert.notEqual(result.status, 0, 'pending recovery must refuse the preview')
+    assert.match(result.stderr, /recover/i)
+  } finally { await rm(rootDir, { recursive: true, force: true }) }
+})
+
+test('invalid CLI arguments preserve interrupted transaction files and targets', async () => {
+  for (const args of [[], ['invalid'], ['--dry-run'], ['0.5.0', '--unknown'], ['0.5.0', '0.6.0'], ['0.5.0', '--dry-run', '--dry-run']]) {
+    const { rootDir } = await makeFixture()
+    try {
+      await pendingCliTransaction(rootDir)
+      const before = await snapshotTree(rootDir)
+      const result = spawnSync(process.execPath, [BUMP_SCRIPT_PATH, ...args], { cwd: rootDir, encoding: 'utf8' })
+      assert.deepEqual(await snapshotTree(rootDir), before, `invalid invocation ${JSON.stringify(args)} must not mutate`)
+      assert.notEqual(result.status, 0)
+    } finally { await rm(rootDir, { recursive: true, force: true }) }
+  }
+})
+
 test('CLI dry-run leaves every version-bearing file unchanged', async () => {
   const { rootDir } = await makeFixture()
   try {
@@ -303,7 +361,11 @@ test('the next CLI invocation rolls back a process killed between replacements',
     })
     assert.equal(interrupted.signal, 'SIGKILL', interrupted.stderr)
 
-    const recovery = spawnSync(process.execPath, [BUMP_SCRIPT_PATH, '0.5.0', '--dry-run'], { cwd: rootDir, encoding: 'utf8' })
+    // Isolate recovery from the separate release-metadata validator. The real
+    // repository gate exercises that validator; this fixture checks CLI writes.
+    await mkdir(join(rootDir, 'scripts'))
+    await writeFile(join(rootDir, 'scripts/check-release-metadata.mjs'), 'process.exitCode = 0\n')
+    const recovery = spawnSync(process.execPath, [BUMP_SCRIPT_PATH, '0.4.24'], { cwd: rootDir, encoding: 'utf8' })
     assert.equal(recovery.status, 0, recovery.stderr)
     assert.match(recovery.stdout, /Recovered an interrupted version bump before preflight/)
     assert.equal(JSON.parse(await readFile(join(rootDir, 'package.json'), 'utf8')).version, '0.4.24')

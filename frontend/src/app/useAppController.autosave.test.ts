@@ -201,7 +201,7 @@ describe('useAppController autosave and close protection', () => {
       })
       expect(result.current.activeSession?.id).toBe('session-1')
 
-      tauriMock.deleteSession.mockResolvedValueOnce(undefined)
+      tauriMock.deleteSession.mockResolvedValueOnce({ pendingFiles: 0 })
       tauriMock.listSessions.mockRejectedValueOnce(new Error('listSessions unavailable'))
 
       const sessionToDelete = sessionFixture({ id: 'session-1' })

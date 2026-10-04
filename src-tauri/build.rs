@@ -15,6 +15,7 @@ fn main() {
         "open_session_note_state",
         "update_session",
         "delete_session",
+        "retry_attachment_cleanup",
         "create_entry",
         "list_entries",
         "update_entry",

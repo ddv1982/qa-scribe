@@ -1,6 +1,7 @@
 use std::{
     collections::HashSet,
     fs,
+    io::Read,
     path::{Component, Path, PathBuf},
 };
 
@@ -16,6 +17,12 @@ use crate::{
 };
 
 const MAX_ATTACHMENT_BYTES: u64 = 25 * 1024 * 1024;
+
+mod cleanup;
+pub(crate) use cleanup::is_exact_attachment_path;
+pub use cleanup::{
+    delete_session_attachment_files, delete_session_with_attachment_files, retry_attachment_cleanup,
+};
 
 /// A UUIDv4 string is 36 characters; the on-disk basename is
 /// `{attachment_id}_{filename}`, so this plus the `_` separator is the fixed
@@ -66,7 +73,7 @@ pub fn import_managed_attachment(
         .map(safe_filename)
         .filter(|value| !value.is_empty())
         .ok_or_else(|| validation("attachment filename is required"))?;
-    let bytes = fs::read(source_path)?;
+    let bytes = read_attachment_bytes(source_path)?;
     import_managed_attachment_bytes(
         service,
         app_data_dir,
@@ -182,22 +189,6 @@ pub fn import_managed_attachment_bytes(
     result
 }
 
-pub fn delete_session_with_attachment_files(
-    service: &SessionService,
-    app_data_dir: impl AsRef<Path>,
-    session_id: &str,
-) -> Result<()> {
-    // Delete the DB row first. If it fails (SQLITE_BUSY, I/O error, etc.),
-    // nothing has been touched on disk yet, so the evidence files survive.
-    // Only after the row is gone do we remove its files; if that cleanup
-    // fails, the session is already gone from the DB, so it just leaves
-    // stray files behind, which reconcile_attachment_files already detects
-    // and reports without treating them as data loss.
-    service.delete_session(session_id)?;
-    let _ = delete_session_attachment_files(app_data_dir, session_id);
-    Ok(())
-}
-
 pub fn delete_attachment_with_file(
     service: &SessionService,
     app_data_dir: impl AsRef<Path>,
@@ -222,20 +213,6 @@ pub fn delete_attachment_with_file(
     }
     service.delete_attachment(attachment_id)?;
     Ok(true)
-}
-
-pub fn delete_session_attachment_files(
-    app_data_dir: impl AsRef<Path>,
-    session_id: &str,
-) -> Result<()> {
-    if !is_safe_path_component(session_id) {
-        return Err(validation("session attachment directory is invalid"));
-    }
-    let path = app_data_dir.as_ref().join("attachments").join(session_id);
-    if path.exists() {
-        fs::remove_dir_all(path)?;
-    }
-    Ok(())
 }
 
 pub fn reconcile_attachment_files(
@@ -308,7 +285,15 @@ pub fn attachment_file_bytes(
     if !is_safe_relative_path(&relative_path) {
         return Err(validation("stored attachment path is invalid"));
     }
-    let bytes = fs::read(app_data_dir.as_ref().join(relative_path))?;
+    let bytes = read_attachment_bytes(&app_data_dir.as_ref().join(relative_path))?;
+    if bytes.len() as i64 != attachment.size_bytes {
+        return Err(crate::QaScribeError::InvalidStoredValue {
+            field: "attachment file bytes",
+            value: format!(
+                "Attachment file failed integrity check (size mismatch for attachment {attachment_id})"
+            ),
+        });
+    }
     // Files are small (screenshots and text logs), so re-hashing on every read
     // is cheap; this catches on-disk corruption or tampering that a bare file
     // read would silently hand back as if nothing were wrong.
@@ -321,6 +306,39 @@ pub fn attachment_file_bytes(
         });
     }
     Ok(Some((attachment, bytes)))
+}
+
+fn read_attachment_bytes(path: &Path) -> Result<Vec<u8>> {
+    // Reject stationary special files before open (a FIFO open can block).
+    if !fs::metadata(path)?.is_file() {
+        return Err(validation("attachment source must be a regular file"));
+    }
+    let file = fs::File::open(path)?;
+    let metadata = file.metadata()?;
+    if !metadata.is_file() {
+        return Err(validation("attachment source must be a regular file"));
+    }
+    if metadata.len() > MAX_ATTACHMENT_BYTES {
+        return Err(validation(format!(
+            "attachment must be at most {MAX_ATTACHMENT_BYTES} bytes"
+        )));
+    }
+    read_attachment_stream(file)
+}
+
+fn read_attachment_stream(reader: impl Read) -> Result<Vec<u8>> {
+    // Metadata is only an early rejection. A growing/replaced file is still
+    // bounded during reading; one sentinel byte distinguishes the exact limit.
+    let mut bytes = Vec::new();
+    reader
+        .take(MAX_ATTACHMENT_BYTES + 1)
+        .read_to_end(&mut bytes)?;
+    if bytes.len() as u64 > MAX_ATTACHMENT_BYTES {
+        return Err(validation(format!(
+            "attachment must be at most {MAX_ATTACHMENT_BYTES} bytes"
+        )));
+    }
+    Ok(bytes)
 }
 
 fn hex_sha256(bytes: &[u8]) -> String {
@@ -351,13 +369,6 @@ fn max_base64_encoded_len(decoded_limit: u64) -> usize {
 fn is_safe_relative_path(path: &Path) -> bool {
     path.components()
         .all(|component| matches!(component, Component::Normal(_)))
-}
-
-fn is_safe_path_component(value: &str) -> bool {
-    !value.is_empty()
-        && Path::new(value)
-            .components()
-            .all(|component| matches!(component, Component::Normal(_)))
 }
 
 fn collect_stray_attachment_files(

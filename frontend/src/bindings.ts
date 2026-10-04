@@ -12,7 +12,8 @@ export const commands = {
 	reopenSession: (id: string) => __TAURI_INVOKE<Session>("reopen_session", { id }),
 	openSessionNoteState: (id: string) => __TAURI_INVOKE<SessionNoteState>("open_session_note_state", { id }),
 	updateSession: (id: string, patch: SessionPatch) => __TAURI_INVOKE<Session>("update_session", { id, patch }),
-	deleteSession: (id: string) => __TAURI_INVOKE<null>("delete_session", { id }),
+	deleteSession: (id: string) => __TAURI_INVOKE<AttachmentCleanupStatus>("delete_session", { id }),
+	retryAttachmentCleanup: () => __TAURI_INVOKE<AttachmentCleanupStatus>("retry_attachment_cleanup"),
 	createEntry: (draft: EntryDraft) => __TAURI_INVOKE<Entry>("create_entry", { draft }),
 	listEntries: (sessionId: string) => __TAURI_INVOKE<Entry[]>("list_entries", { sessionId }),
 	updateEntry: (id: string, patch: EntryPatch) => __TAURI_INVOKE<Entry>("update_entry", { id, patch }),
@@ -100,6 +101,11 @@ export type Attachment = {
 	sha256: string,
 	relativePath: string,
 	createdAt: string,
+};
+
+/**  Durable deletion has succeeded; `None` means cleanup status is unavailable. */
+export type AttachmentCleanupStatus = {
+	pendingFiles: number | null,
 };
 
 export type CommandError = {

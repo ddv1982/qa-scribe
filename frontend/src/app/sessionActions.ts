@@ -27,6 +27,7 @@ import type {
 } from './types'
 import { useStableCapability } from './useStableCapability'
 import type { RecordLoadSuspension } from './useRecordHydration'
+import type { AttachmentCleanupController } from './useAttachmentCleanup'
 
 export type SessionActionsContext = {
   session: SessionWorkspace
@@ -45,6 +46,7 @@ export type SessionActionsContext = {
   feedback: WorkflowFeedback
   navigation: WorkflowNavigation
   deletion: Pick<DeletionWorkspace, 'setDeleteConfirmation'>
+  attachmentCleanup: Pick<AttachmentCleanupController, 'acceptStatus'>
   materializeInlineImages: (
     document: RichEditorDocument,
     options?: { entryId?: string | null; isCurrent?: () => boolean },
@@ -228,7 +230,8 @@ export function createSessionActions(ctx: SessionActionsContext) {
       ctx.session.deletingSessionIdRef.current = sessionToDelete.id
       ctx.feedback.setBusyAction('delete-session')
       ctx.feedback.setError(null)
-      await deleteSession(sessionToDelete.id)
+      const cleanupStatus = await deleteSession(sessionToDelete.id)
+      ctx.attachmentCleanup.acceptStatus(cleanupStatus)
       ctx.session.setSessions((previous) => previous.filter((session) => session.id !== sessionToDelete.id))
       // Clear active-Session state immediately after the delete succeeds, before any
       // follow-up call that could reject. Once cleared, the title/body autosave

@@ -44,6 +44,15 @@ CREATE TABLE IF NOT EXISTS attachments (
   created_at TEXT NOT NULL
 );
 
+-- No Session FK: cleanup intent must survive the Session cascade.
+CREATE TABLE IF NOT EXISTS attachment_cleanup (
+  relative_path TEXT PRIMARY KEY NOT NULL,
+  session_id TEXT NOT NULL,
+  attempt_count INTEGER NOT NULL DEFAULT 0 CHECK (attempt_count >= 0)
+);
+CREATE INDEX IF NOT EXISTS idx_attachment_cleanup_attempt_order
+  ON attachment_cleanup(attempt_count, relative_path);
+
 CREATE TABLE IF NOT EXISTS findings (
   id TEXT PRIMARY KEY,
   session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,

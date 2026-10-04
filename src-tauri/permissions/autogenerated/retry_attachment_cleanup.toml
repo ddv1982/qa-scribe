@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-retry-attachment-cleanup"
+description = "Enables the retry_attachment_cleanup command without any pre-configured scope."
+commands.allow = ["retry_attachment_cleanup"]
+
+[[permission]]
+identifier = "deny-retry-attachment-cleanup"
+description = "Denies the retry_attachment_cleanup command without any pre-configured scope."
+commands.deny = ["retry_attachment_cleanup"]
