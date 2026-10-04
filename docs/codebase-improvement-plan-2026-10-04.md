@@ -338,7 +338,7 @@ preserving the dirty tree. Explicitly stage intended files, not `git add -A`.
 
 - [x] release-prep-01: Capture online audit failure, repair reachable Rust pins and current validator compatibility, update instructions, pass focused/canonical checks and independent review.
 - [x] release-prep-02: Run existing seven-file 0.7.22 bump transaction, fill factual notes, verify complete accepted candidate with pinned Bun/frozen install/metadata/workflow/standard and owned native gates, and obtain review before commit.
-- [ ] release-prep-03: Screen and stage exact reviewed candidate paths, commit/push only release branch, open PR, require green exact-head CI, obtain delivery review, and stop before merge/publication.
+- [x] release-prep-03: Screen and stage exact reviewed candidate paths, commit/push only release branch, open PR, require green exact-head CI, obtain delivery review, and stop before merge/publication.
 
 Canonical gate: `bunx --package bun@1.3.5 bun run verify`, using the unchanged
 whole-repository script under CI's Bun pin. Probe verified runner and child Bun
@@ -450,4 +450,41 @@ structure, toolbar and persistence assertions. The other four observational
 native workflows passed. These are actual same-goal installer/test-glue repairs,
 not waived gates or application behavior changes.
 
-- [ ] Verify the current Zizmor action pin and platform-correct native undo event, independently inspect the scoped follow-up, and commit/push the repair without weakening gates.
+- [x] Verify the current Zizmor action pin and platform-correct native undo event, independently inspect the scoped follow-up, and commit/push the repair without weakening gates.
+
+## Replacement delivery closeout
+
+Delivery acceptance is satisfied by `closeout-01` in replacement session
+`fe19362a-2d11-4e1b-abec-9b6a219af6e3`, independently PASSED at revision 9
+by assignment review `77c1a6c5-3139-4c7d-bd87-c8ea0b75420e`. The prior
+session `9832fca0-ff7e-4450-bcac-e20a2af230a7` was explicitly user-authorized
+deferred at revision 59 because
+completed-feature reopening/path ownership was unsupported. This does not
+assert completion of that session's `release-prep-03` ledger. The revision-47
+acceptance of the complete 73-file candidate remains preserved history.
+
+Actual pushed repair commit `1950ee6c889517ae03b1325416536d947571a45e`
+contains only the installer pin, platform test and this log relative to
+`81848130660435acca38c7a7577c83f0aa78a105`. Fresh canonical capture
+`af789ab8-79c4-4933-99cb-2a294fee1e1f` passed; authenticated audit
+`72fb7bdc-4cd5-422b-937d-47f7e429f807` reported zero findings with all 33
+existing suppressions unchanged. Required CI
+`5f35fd42-9af6-4243-b7d5-bde4b7a58583` passed; authoritative head/all-six-jobs
+identity capture `be6acfdf-45bf-4a29-ab8d-d8101a598772` confirmed green
+run `37235563161` on the repair head, including Linux and macOS checks.
+Owned undo-isolation/checklist native spec acceptance remains Linux-specific;
+hosted macOS evidence covers the critical workflows, not those custom specs.
+
+PR https://github.com/ddv1982/qa-scribe/pull/26 remains OPEN, targeting main
+from `release/v0.7.22`, with no auto-merge and `mergedAt: null`. Main remains
+`c2a283310b6f43c489a1ed6bf24057e150e709e8`; `v0.7.22` remains absent.
+No merge, tag or publication is claimed.
+
+- [x] closeout-01: Verify the repair head, canonical/audit gates, exact-head hosted CI and release boundary; obtain independent delivery review.
+- [x] closeout-02: Record the accepted review and reconcile the repository checklist, verified by documentation readback only.
+
+The second box records only this documentation bookkeeping, not future commit,
+CI or Flow acceptance. Final new-head canonical/audit/CI evidence and final
+Flow review must be captured AFTER the documentation commit in Flow host
+evidence, without circular source edits. Those future checks are not yet claimed
+complete by either this bookkeeping box or the earlier repair-head captures.
