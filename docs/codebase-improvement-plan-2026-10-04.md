@@ -432,3 +432,22 @@ Real restart `c6ffb53b-de3b-4789-af31-fd0d076b1c39` preserves pending intent,
 then manual retry removes only the queued file and retains unknown siblings.
 This completion bookkeeping follows approval. Delivery begins at revision 48;
 the PR and its required hosted checks are still pending.
+
+Release branch commit `81848130660435acca38c7a7577c83f0aa78a105` is pushed;
+PR https://github.com/ddv1982/qa-scribe/pull/26 targets main and remains open
+with no auto-merge. Initial required-check watch ran before the aggregate
+`CI success` existed. Run `37234432845` then failed Linux quality because the
+old Zizmor action rejected pinned tool 1.30.1 before auditing. Reachable released
+action v0.6.4 SHA `cc914d7f3750a2d13d75c7f184a1060aa0e9d482` includes that
+tool's immutable container digest; update only the installer action pin.
+Actual actionlint installation and adapted lint passed on the hosted runner.
+
+The same run passed macOS ARM64 Rust tests and Intel cross-check. Its
+observational native Session-lifecycle spec failed the synthetic undo handler:
+Control+Z was hardcoded, but Tiptap uses Command+Z on macOS. Select Meta/Ctrl
+using the browser platform exactly as ProseMirror does, preserving handled-event,
+structure, toolbar and persistence assertions. The other four observational
+native workflows passed. These are actual same-goal installer/test-glue repairs,
+not waived gates or application behavior changes.
+
+- [ ] Verify the current Zizmor action pin and platform-correct native undo event, independently inspect the scoped follow-up, and commit/push the repair without weakening gates.

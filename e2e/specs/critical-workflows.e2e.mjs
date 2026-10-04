@@ -107,7 +107,8 @@ async function convertNoteAndUndo(label, kind, previousKind, text) {
   assert.ok(await browser.execute(() => {
     const editor = document.querySelector('[aria-label="Note body"][contenteditable="true"]')
     editor.focus()
-    const event = new KeyboardEvent('keydown', { key: 'z', code: 'KeyZ', ctrlKey: true, bubbles: true, cancelable: true })
+    const mac = /Mac|iP(hone|[oa]d)/.test(navigator.platform)
+    const event = new KeyboardEvent('keydown', { key: 'z', code: 'KeyZ', metaKey: mac, ctrlKey: !mac, bubbles: true, cancelable: true })
     editor.dispatchEvent(event)
     return event.defaultPrevented
   }), 'Editor must handle the undo shortcut')
