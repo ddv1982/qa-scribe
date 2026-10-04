@@ -1,5 +1,12 @@
 use serde::{Deserialize, Serialize};
 
+/// Durable deletion has succeeded; `None` means cleanup status is unavailable.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct AttachmentCleanupStatus {
+    pub pending_files: Option<u32>,
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Attachment {

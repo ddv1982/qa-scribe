@@ -58,6 +58,7 @@ pub fn builder() -> Builder<tauri::Wry> {
             commands::sessions::open_session_note_state,
             commands::sessions::update_session,
             commands::sessions::delete_session,
+            commands::sessions::retry_attachment_cleanup,
             commands::entries::create_entry,
             commands::entries::list_entries,
             commands::entries::update_entry,

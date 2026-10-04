@@ -16,14 +16,26 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Validate GitHub Actions workflows
+    - name: Read workflow tool versions
+      id: workflow-tools
+      shell: bash
+      run: node scripts/check-workflows.mjs --github-output >> "$GITHUB_OUTPUT"
+
+    - name: Install pinned actionlint
       uses: raven-actions/actionlint@3d39aea434753780c3b3d4a1a31c854b4dbf49d7 # v2.2.0
       with:
-        version: 1.7.12
+        version: ${{ steps.workflow-tools.outputs.actionlint }}
+        flags: '-version'
+
+    - name: Lint Workflows
+      shell: bash
+      run: node scripts/check-workflows.mjs
 
     - name: Audit GitHub Actions security
       uses: zizmorcore/zizmor-action@5f14fd08f7cf1cb1609c1e344975f152c7ee938d # v0.5.6
       with:
+        version: ${{ steps.workflow-tools.outputs.zizmor }}
+        online-audits: true
         advanced-security: false
         inputs: .github
 
@@ -115,7 +127,7 @@ runs:
       run: bun run smoke
 
     - name: Run Linux built-application quality gate
-      uses: ./.github/actions/run-built-app-e2e
+      uses: $/.github/actions/run-built-app-e2e
       with:
         artifact_prefix: qa-scribe-e2e
         failure_artifact_prefix: qa-scribe-quality-failure

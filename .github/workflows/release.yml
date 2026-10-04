@@ -107,7 +107,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup project
-        uses: ./.github/actions/setup-project
+        uses: $/.github/actions/setup-project
         with:
           cache-key: release-validation-linux
 
@@ -124,7 +124,7 @@ jobs:
             xvfb
 
       - name: Validate frontend and Rust build
-        uses: ./.github/actions/validate-build
+        uses: $/.github/actions/validate-build
         with:
           expected-tag: ${{ needs.release-context.outputs.tag }}
 
@@ -203,7 +203,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup project
-        uses: ./.github/actions/setup-project
+        uses: $/.github/actions/setup-project
         with:
           cache-key: release-macos-${{ matrix.arch }}
 
@@ -432,7 +432,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup project
-        uses: ./.github/actions/setup-project
+        uses: $/.github/actions/setup-project
         with:
           cache-key: release-linux
           rust-targets: x86_64-unknown-linux-gnu
@@ -817,6 +817,10 @@ jobs:
     name: Publish APT Repository
     needs: [release-context, publish-release-assets]
     runs-on: ubuntu-24.04
+    # Serialize the live-version check and deploy together across all tags.
+    concurrency:
+      group: qa-scribe-apt-publication
+      cancel-in-progress: false
     timeout-minutes: 10
     permissions:
       pages: write

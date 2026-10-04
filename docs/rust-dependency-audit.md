@@ -19,7 +19,9 @@ Every ignore must record:
 
 ## Current Registry
 
-A raw `cargo audit --json` run on 2026-07-13 reports 20 reviewed advisories: 2 vulnerabilities, 1 unsoundness warning, and 17 unmaintained warnings.
+A raw `cargo audit --json` run on 2026-10-04 reports 10 reviewed advisories: 2 vulnerabilities, 1 unsoundness warning, and 7 unmaintained warnings.
+
+Registry reconciliation on 2026-10-04 removed ten GTK3 unmaintained advisory entries no longer reported by the current advisory database. Retained exception exposure assessments remain from July and are due for review on October 13. No new exceptions or extended review deadlines were introduced.
 
 ### Vulnerabilities
 
@@ -33,9 +35,9 @@ A raw `cargo audit --json` run on 2026-07-13 reports 20 reviewed advisories: 2 v
 | --- | --- | --- | --- |
 | `RUSTSEC-2024-0429` | `glib 0.18.5` | Transitive Linux GTK3 runtime stack. The affected `VariantStrIter` implementation is patched in `glib >=0.20.0`, but Tauri's current Linux GTK3 graph remains on the 0.18 line. | Remove when the Tauri/Linux webview graph moves to a patched `glib`; recheck during every Tauri upgrade review. |
 
-### Unmaintained GTK3 bindings
+### Previously reported GTK3 binding advisories
 
-`RUSTSEC-2024-0411` through `RUSTSEC-2024-0420` cover `gdkwayland-sys`, `gdk`, `atk`, `gdkx11-sys`, `gtk`, `atk-sys`, `gdkx11`, `gdk-sys`, `gtk3-macros`, and `gtk-sys` 0.18.x. They are transitive Linux dependencies in Tauri's current GTK3 webview stack and have no patched GTK3 releases.
+`RUSTSEC-2024-0411` through `RUSTSEC-2024-0420` previously covered `gdkwayland-sys`, `gdk`, `atk`, `gdkx11-sys`, `gtk`, `atk-sys`, `gdkx11`, `gdk-sys`, `gtk3-macros`, and `gtk-sys` 0.18.x. The 2026-10-04 audit no longer reports these IDs, so they are not current exceptions. The packages still exist in the Linux dependency graph; removal of an advisory is not evidence of a runtime package replacement.
 
 Removal trigger: upgrade the upstream Tauri/Linux webview stack away from the unmaintained GTK3 bindings. Recheck every Tauri release considered by the project and during the Phase 5 upgrade spike.
 
@@ -59,7 +61,7 @@ The direct constrained packages were then checked against the current crates.io 
 - `cargo tree --target x86_64-unknown-linux-gnu -i quick-xml@0.39.4` confirms the remaining path is clipboard manager → arboard → wl-clipboard-rs → Wayland protocols/scanner;
 - `cargo tree --target x86_64-unknown-linux-gnu -i glib@0.18.5` confirms Tauri, wry, tao, and WebKit still converge on the GTK3 0.18 family even though newer standalone `glib` releases exist.
 
-Therefore no compatible current Tauri/clipboard/Wayland upgrade removes the 20 retained findings. Re-run this spike when any direct version above changes or at the scheduled review date.
+At that July review, no compatible current Tauri/clipboard/Wayland upgrade removed the 20 retained findings. The October reconciliation leaves ten current exceptions without changing the dependency graph. Re-run the upgrade spike when a direct version above changes or at the scheduled review date.
 
 ## Review Procedure
 

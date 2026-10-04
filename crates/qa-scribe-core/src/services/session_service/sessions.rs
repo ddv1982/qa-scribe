@@ -187,14 +187,41 @@ impl SessionService {
     }
 
     pub fn delete_session(&self, id: &str) -> Result<()> {
-        let changed = self
-            .database
-            .connection()
-            .execute("DELETE FROM sessions WHERE id = ?1", [id])?;
-        if changed == 0 {
-            return Err(QaScribeError::NotFound(id.to_string()));
-        }
-        Ok(())
+        self.database.with_immediate_tx(|tx| {
+            super::require_session(tx, id)?;
+            let mut statement =
+                tx.prepare("SELECT relative_path FROM attachments WHERE session_id = ?1")?;
+            let paths = statement
+                .query_map([id], |row| row.get::<_, String>(0))?
+                .collect::<std::result::Result<Vec<_>, _>>()?;
+            for path in paths {
+                if !crate::attachments::is_exact_attachment_path(&path, id) {
+                    return Err(crate::error::validation(
+                        "stored attachment cleanup path is invalid",
+                    ));
+                }
+                tx.execute(
+                    "INSERT INTO attachment_cleanup (relative_path, session_id) VALUES (?1, ?2)
+                     ON CONFLICT(relative_path) DO NOTHING",
+                    params![path, id],
+                )?;
+                let queued: bool = tx.query_row(
+                    "SELECT EXISTS(SELECT 1 FROM attachment_cleanup
+                     WHERE relative_path = ?1 AND session_id = ?2)",
+                    params![path, id],
+                    |row| row.get(0),
+                )?;
+                if !queued {
+                    return Err(crate::error::validation(
+                        "attachment cleanup intent could not be stored",
+                    ));
+                }
+            }
+            if tx.execute("DELETE FROM sessions WHERE id = ?1", [id])? == 0 {
+                return Err(QaScribeError::NotFound(id.to_string()));
+            }
+            Ok(())
+        })
     }
 }
 

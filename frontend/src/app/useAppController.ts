@@ -25,6 +25,7 @@ import {
   useAppControllerPresentationState,
 } from './useAppController.derivedState'
 import { useAppControllerNavigation } from './useAppController.navigation'
+import { useAttachmentCleanup } from './useAttachmentCleanup'
 
 export { mergeRecordLists } from './useRecordHydration'
 
@@ -169,6 +170,7 @@ export function useAppController() {
         ? 'unsaved' as const
         : 'saved' as const
   const isBusy = busyAction !== null
+  const attachmentCleanup = useAttachmentCleanup(isBusy)
   const deleteCopy = deleteConfirmation ? deleteConfirmationCopy(deleteConfirmation) : null
   const { activeFindingJob, activeTestwareJob, pendingAiActions } = useAppControllerGenerationState({
     activeSession, generationJobs,
@@ -211,6 +213,7 @@ export function useAppController() {
     feedback,
     navigation,
     deletion,
+    attachmentCleanup,
     materializeInlineImages: attachmentActions.materializeInlineImages,
     cleanupMaterializedAttachments: attachmentActions.cleanupMaterializedAttachments,
     suspendRecordLoads,
@@ -391,6 +394,7 @@ export function useAppController() {
   }, [noteEntry, noteBody, pendingRecoveredSummaryDecision]) // eslint-disable-line react-hooks/exhaustive-deps -- debounce is keyed to note identity, body, and recovery decision
 
   return {
+    attachmentCleanup,
     ...attachmentActions,
     ...copyActions,
     ...generationActions,

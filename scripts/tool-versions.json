@@ -1,4 +1,6 @@
 {
   "tauriCli": "2.11.4",
-  "cargoAudit": "0.22.2"
+  "cargoAudit": "0.22.2",
+  "actionlint": "1.7.12",
+  "zizmor": "1.30.1"
 }

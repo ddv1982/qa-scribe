@@ -40,6 +40,9 @@ const GENERATION_WATCHDOG_TIMEOUT: Duration = Duration::from_secs(15 * 60);
 /// How often the watchdog thread wakes to check the elapsed time and whether
 /// the read loop has finished.
 const WATCHDOG_POLL_INTERVAL: Duration = Duration::from_millis(250);
+/// Closing stdout may precede normal shutdown. Bound that grace period so a
+/// process which keeps stdin open without reading cannot strand the writer.
+const EOF_SHUTDOWN_GRACE: Duration = Duration::from_secs(2);
 /// Raw provider output is diagnostic and parser input, not an unbounded log.
 /// This comfortably exceeds the largest persisted generated body while
 /// bounding both process-reader and core aggregation memory.
@@ -248,22 +251,39 @@ impl ProviderExecutor for ProcessProviderExecutor<'_> {
             }
         };
 
-        // Reader loop is done. If stdout closed while the process stayed alive
-        // and stopped reading stdin, the writer thread can still be blocked on
-        // a full pipe. Kill first so joining the writer cannot deadlock; the
-        // guard remains the sole reaper.
-        if read_result.is_ok() {
-            let _ = control.kill_registered_child();
-        }
-        reader_finished.store(true, Ordering::SeqCst);
-        let _ = watchdog.join();
+        // EOF is a pipe event, not process completion. Keep the child registered
+        // and the watchdog active while allowing a bounded normal shutdown.
+        let shutdown_result = if read_result.is_ok() {
+            let deadline = Instant::now() + EOF_SHUTDOWN_GRACE;
+            loop {
+                match control.child_exit_status() {
+                    Ok(Some(_)) => break Ok(()),
+                    Ok(None) if Instant::now() < deadline => {
+                        thread::sleep(Duration::from_millis(10));
+                    }
+                    Ok(None) => break Ok(()),
+                    Err(error) => break Err(error),
+                }
+            }
+        } else {
+            Ok(())
+        };
+        // Stop remaining group members before joining pipes. try_wait caches
+        // an exited parent's actual status; terminating descendants preserves it.
+        // A live parent after the grace period is killed to unblock stalled stdin.
+        let _ = control.kill_registered_child();
         let _ = stdin_writer.join();
-        let status = guard.finish()?;
+        let status = guard.finish();
         let stderr = stderr_reader
             .join()
-            .map_err(|_| "provider stderr reader panicked".to_string())?;
+            .map_err(|_| "provider stderr reader panicked".to_string());
+        reader_finished.store(true, Ordering::SeqCst);
+        let _ = watchdog.join();
 
         read_result?;
+        shutdown_result?;
+        let status = status?;
+        let stderr = stderr?;
 
         if watchdog_fired.load(Ordering::SeqCst) && !control.is_cancelled() {
             return Err(format!(

@@ -12,6 +12,7 @@ permissions = [
   "allow-open-session-note-state",
   "allow-update-session",
   "allow-delete-session",
+  "allow-retry-attachment-cleanup",
   "allow-create-entry",
   "allow-list-entries",
   "allow-update-entry",
