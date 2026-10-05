@@ -12,6 +12,7 @@ import type { AppController } from './useAppController'
 import { createCommandRegistry, type AppCommandId } from './commandRegistry'
 import { CommandPalette, DeleteConfirmationDialog, PendingChangesDialog } from './AppOverlays'
 import { primaryModifierPressed, primaryShortcutLabel } from './platformShortcuts'
+import { AttachmentCleanupWarning } from './AttachmentCleanupWarning'
 
 export { DeleteConfirmationDialog } from './AppOverlays'
 
@@ -161,6 +162,7 @@ export function AppShell(c: AppController) {
       </aside>
 
       <section className="center-workspace" aria-label="Workspace">
+        <AttachmentCleanupWarning cleanup={c.attachmentCleanup} />
         {c.activeSession && ['sessions', 'testware', 'findings'].includes(c.activeView) ? (
           <header className="session-context-header">
             <div className="session-breadcrumb" aria-label="Breadcrumb">

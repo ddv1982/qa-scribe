@@ -5,6 +5,8 @@ import { join } from 'node:path'
 const primaryTitle = 'E2E primary session'
 const secondaryTitle = 'E2E secondary session'
 const primaryNote = 'Primary note persisted across Session switching.'
+const editedBulletNote = `${primaryNote} Bullet edit persisted.`
+const editedChecklistNote = `${editedBulletNote} Checklist edit persisted.`
 const scenario = process.env.QA_SCRIBE_E2E_SCENARIO
 const fixtureDirectory = process.env.QA_SCRIBE_E2E_FIXTURE_DIR
 
@@ -37,6 +39,109 @@ async function waitForNoteAutosave() {
       }),
     { timeout: 5_000, timeoutMsg: 'Note autosave did not reach its saved state' },
   )
+}
+
+async function assertNoteStructure(kind, text, checked = false) {
+  const expected = { kind, text, items: kind === 'paragraph' ? 0 : 1, checked, listText: kind === 'paragraph' ? null : text }
+  const readStructure = () => browser.execute(() => {
+    const note = document.querySelector('[aria-label="Note body"][contenteditable="true"]')
+    if (!note) return null
+    const lists = note.querySelectorAll('ul')
+    const list = lists[0]
+    const checkbox = note.querySelector('input[type="checkbox"]')
+    const structure = {
+      kind: lists.length === 0 && note.querySelector('p') ? 'paragraph'
+        : lists.length === 1 ? (list.dataset.type === 'taskList' ? 'checklist' : 'bullet') : 'unexpected',
+      text: Array.from(note.querySelectorAll('p'), (p) => p.textContent.trim()).filter(Boolean).join('\n'),
+      items: note.querySelectorAll('li').length,
+      checked: Boolean(checkbox?.checked),
+      listText: list ? Array.from(list.querySelectorAll('p'), (p) => p.textContent.trim()).filter(Boolean).join('\n') : null,
+    }
+    return { structure, html: note.innerHTML }
+  })
+  let actual = null
+  try {
+    await browser.waitUntil(async () => {
+      actual = await readStructure()
+      return actual?.structure != null && Object.entries(expected).every(([key, value]) => actual.structure[key] === value)
+    }, { timeout: 5_000, timeoutMsg: `Note did not become ${JSON.stringify(expected)}` })
+  } catch (error) {
+    throw new Error(`Note structure timeout: expected ${JSON.stringify(expected)}; actual ${JSON.stringify(actual)}`, { cause: error })
+  }
+  assert.deepEqual((await readStructure())?.structure, expected)
+  if (kind === 'checklist') {
+    assert.equal(await (await $('[aria-label="Note body"] ul[data-type="taskList"] > li')).getAttribute('data-checked'), String(checked))
+  }
+}
+
+async function convertNoteAndUndo(label, kind, previousKind, text) {
+  const target = await $(previousKind === 'paragraph'
+    ? '[aria-label="Note body"][contenteditable="true"] > p'
+    : '[aria-label="Note body"][contenteditable="true"] li p')
+  await target.click()
+  await browser.execute((selector) => {
+    const paragraph = document.querySelector(selector)
+    paragraph.closest('[contenteditable="true"]').focus()
+    const range = document.createRange()
+    range.selectNodeContents(paragraph)
+    range.collapse(false)
+    const selection = window.getSelection()
+    selection.removeAllRanges()
+    selection.addRange(range)
+    document.dispatchEvent(new Event('selectionchange'))
+  }, previousKind === 'paragraph'
+    ? '[aria-label="Note body"][contenteditable="true"] > p'
+    : '[aria-label="Note body"][contenteditable="true"] li p')
+  if (previousKind === 'bullet') {
+    const bullet = await $('[role="toolbar"] button[aria-label="Bulleted list"]')
+    await bullet.waitUntil(async () => (await bullet.getAttribute('aria-pressed')) === 'true')
+  }
+  const toggle = await $(`[role="toolbar"][aria-label="Formatting toolbar"] button[aria-label="${label}"]`)
+  await toggle.waitForClickable()
+  await toggle.click()
+  await assertNoteStructure(kind, text)
+  assert.equal(await toggle.getAttribute('aria-pressed'), 'true')
+
+  // Embedded-driver keys do not insert text or reliably dispatch modifiers.
+  // Exercise the real editor keyboard handler, not an editor command or mock.
+  assert.ok(await browser.execute(() => {
+    const editor = document.querySelector('[aria-label="Note body"][contenteditable="true"]')
+    editor.focus()
+    const mac = /Mac|iP(hone|[oa]d)/.test(navigator.platform)
+    const event = new KeyboardEvent('keydown', { key: 'z', code: 'KeyZ', metaKey: mac, ctrlKey: !mac, bubbles: true, cancelable: true })
+    editor.dispatchEvent(event)
+    return event.defaultPrevented
+  }), 'Editor must handle the undo shortcut')
+  await assertNoteStructure(previousKind, text)
+  assert.equal(await toggle.getAttribute('aria-pressed'), 'false')
+  await toggle.click()
+  await assertNoteStructure(kind, text)
+}
+
+async function appendNoteText(text) {
+  const paragraph = await $('[aria-label="Note body"][contenteditable="true"] li p')
+  await paragraph.waitForClickable()
+  await paragraph.click()
+  // Select the item paragraph's end, not StarterKit's trailing empty paragraph.
+  // DOM selection changes only the caret; insertion uses the WebView's editing command.
+  await browser.execute(() => {
+    const paragraph = document.querySelector('[aria-label="Note body"][contenteditable="true"] li p')
+    const range = document.createRange()
+    range.selectNodeContents(paragraph)
+    range.collapse(false)
+    const selection = window.getSelection()
+    selection.removeAllRanges()
+    selection.addRange(range)
+  })
+  await browser.keys('End')
+  assert.ok(await browser.execute(() => {
+    const paragraph = document.querySelector('[aria-label="Note body"][contenteditable="true"] li p')
+    const selection = window.getSelection()
+    return selection?.isCollapsed && paragraph.contains(selection.anchorNode)
+      && paragraph.contains(selection.focusNode)
+  }), 'Append caret must remain inside the list item paragraph')
+  assert.ok(await browser.execute((value) => document.execCommand('insertText', false, value), text),
+    'WebView editing command must insert text in the focused list item')
 }
 
 async function openSessionNote() {
@@ -83,11 +188,17 @@ async function releaseFixtureInvocation(index) {
 
 const workflows = {
   'session-lifecycle': {
-    title: 'creates, edits, switches, reopens, and deletes Sessions with persisted Note Entries',
+    title: 'creates, edits, converts and undoes lists, switches, reopens, and deletes Sessions with persisted Note Entries',
     run: async () => {
       const { newSession, note, title } = await createSessionFixture(primaryTitle, primaryNote)
       assert.equal(await title.getValue(), primaryTitle)
       assert.match(await note.getText(), /Primary note persisted/)
+
+      await assertNoteStructure('paragraph', primaryNote)
+      await convertNoteAndUndo('Bulleted list', 'bullet', 'paragraph', primaryNote)
+      await appendNoteText(' Bullet edit persisted.')
+      await assertNoteStructure('bullet', editedBulletNote)
+      await waitForNoteAutosave()
 
       await newSession.click()
       await replaceValue(await $('[aria-label="Session title"]'), secondaryTitle)
@@ -100,8 +211,26 @@ const workflows = {
       const reopenedTitle = await $('[aria-label="Session title"]')
       await reopenedTitle.waitUntil(async () => (await reopenedTitle.getValue()) === primaryTitle)
       assert.match(await (await $('[aria-label="Note body"]')).getText(), /Primary note persisted/)
+      await assertNoteStructure('bullet', editedBulletNote)
+
+      // Reopen the Note view with a fresh editor history before checklist undo.
+      await (await sessionTab('Testware')).click()
+      await (await sessionTab('Note')).click()
+      await assertNoteStructure('bullet', editedBulletNote)
+      await convertNoteAndUndo('Checklist', 'checklist', 'bullet', editedBulletNote)
+      await appendNoteText(' Checklist edit persisted.')
+      await assertNoteStructure('checklist', editedChecklistNote)
+      const checkbox = await $('[aria-label="Note body"] ul[data-type="taskList"] > li input[type="checkbox"]')
+      await checkbox.click()
+      await assertNoteStructure('checklist', editedChecklistNote, true)
+      await waitForNoteAutosave()
 
       const secondary = await sessionOption(secondaryTitle)
+      await secondary.click()
+      await (await sessionOption(primaryTitle)).click()
+      await browser.waitUntil(async () => (await (await $('[aria-label="Session title"]')).getValue()) === primaryTitle)
+      await assertNoteStructure('checklist', editedChecklistNote, true)
+
       await secondary.click()
       await (await $('[aria-label="Delete Session"]')).click()
       const confirmDelete = await button('Delete Session permanently')
@@ -109,9 +238,10 @@ const workflows = {
       await confirmDelete.click()
       await secondary.waitForExist({ reverse: true })
 
-      await primary.click()
+      await (await sessionOption(primaryTitle)).click()
       assert.equal(await (await $('[aria-label="Session title"]')).getValue(), primaryTitle)
       assert.match(await (await $('[aria-label="Note body"]')).getText(), /Primary note persisted/)
+      await assertNoteStructure('checklist', editedChecklistNote, true)
     },
   },
   'manual-testware': {

@@ -1,8 +1,8 @@
 use qa_scribe_core::{
     attachments::delete_session_with_attachment_files,
-    domain::{Session, SessionDraft, SessionNoteState, SessionPatch},
+    domain::{AttachmentCleanupStatus, Session, SessionDraft, SessionNoteState, SessionPatch},
 };
-use tauri::State;
+use tauri::{AppHandle, Manager, State};
 
 use crate::{commands::CommandError, settings::AppState};
 
@@ -57,7 +57,31 @@ pub fn update_session(
 
 #[tauri::command]
 #[specta::specta]
-pub fn delete_session(state: State<'_, AppState>, id: String) -> Result<(), CommandError> {
-    let app_data_dir = state.app_data_dir().clone();
-    state.with_service(|service| delete_session_with_attachment_files(service, app_data_dir, &id))
+pub async fn delete_session(
+    app: AppHandle,
+    id: String,
+) -> Result<AttachmentCleanupStatus, CommandError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<AppState>();
+        state.with_service(|service| {
+            delete_session_with_attachment_files(service, state.app_data_dir(), &id)
+        })
+    })
+    .await
+    .map_err(|error| CommandError::internal(format!("Session deletion task failed: {error}")))?
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn retry_attachment_cleanup(
+    app: AppHandle,
+) -> Result<AttachmentCleanupStatus, CommandError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<AppState>();
+        state.with_service(|service| {
+            qa_scribe_core::attachments::retry_attachment_cleanup(service, state.app_data_dir())
+        })
+    })
+    .await
+    .map_err(|error| CommandError::internal(format!("Attachment cleanup task failed: {error}")))?
 }

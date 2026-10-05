@@ -5,6 +5,7 @@ import {
   type AiProvider,
   type AppSettings,
   type Attachment,
+  type AttachmentCleanupStatus,
   type Draft,
   type DraftLibraryItem,
   type DraftKind,
@@ -66,8 +67,12 @@ export function updateSession(id: string, patch: SessionPatch): Promise<Session>
   return commands.updateSession(id, patch)
 }
 
-export function deleteSession(id: string): Promise<void> {
-  return commands.deleteSession(id).then(() => undefined)
+export function deleteSession(id: string): Promise<AttachmentCleanupStatus> {
+  return commands.deleteSession(id)
+}
+
+export function retryAttachmentCleanup(): Promise<AttachmentCleanupStatus> {
+  return commands.retryAttachmentCleanup()
 }
 
 export function createEntry(draft: EntryDraft): Promise<Entry> {

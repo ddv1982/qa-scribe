@@ -4,6 +4,20 @@ import { basename, dirname, isAbsolute, relative, resolve, sep } from 'node:path
 
 const VERSION_TRANSACTION_MANIFEST = '.qa-scribe-version-transaction.json'
 
+/** Read-only discovery for callers which must not perform recovery writes. */
+export async function hasInterruptedVersionTransaction(options = {}) {
+  const rootDir = resolve(options.rootDir ?? process.cwd())
+  for (const suffix of ['', '.next']) {
+    try {
+      await lstat(resolve(rootDir, `${VERSION_TRANSACTION_MANIFEST}${suffix}`))
+      return true
+    } catch (error) {
+      if (error?.code !== 'ENOENT') throw error
+    }
+  }
+  return false
+}
+
 /**
  * Apply a complete version plan as a process-interruption-safe transaction.
  * The phase manifest is written before staging and atomically replaced before

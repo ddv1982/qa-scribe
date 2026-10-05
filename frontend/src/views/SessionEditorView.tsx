@@ -172,7 +172,7 @@ export function SessionEditorView({
         </div>
       </header>
 
-      <section className="editor-card" aria-label="Session editor">
+      <section key={activeSession.id} className="editor-card" aria-label="Session editor">
         <FormatToolbar editorId={editorId} onUploadImage={onUploadImage} />
         <div className="document-body">
           <input
