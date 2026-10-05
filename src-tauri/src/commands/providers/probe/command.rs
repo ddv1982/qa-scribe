@@ -2,7 +2,7 @@ use std::{
     fs::{self, File, OpenOptions},
     io::ErrorKind,
     path::{Path, PathBuf},
-    process::{Command, Output, Stdio},
+    process::{Child, Command, Output, Stdio},
     thread,
     time::{Duration, Instant},
 };
@@ -53,22 +53,26 @@ fn run_command_with_output_files(
     }
     let (stdout, stderr) = output_files.create()?;
     configure_process_group(&mut command);
-    let mut child = command
-        .stdout(Stdio::from(stdout))
-        .stderr(Stdio::from(stderr))
-        .spawn()?;
+    let mut child = ProbeChild {
+        child: command
+            .stdout(Stdio::from(stdout))
+            .stderr(Stdio::from(stderr))
+            .spawn()?,
+        cleanup_needed: true,
+    };
     let started_at = Instant::now();
 
     loop {
         if is_cancelled() {
-            kill_child_group(&mut child);
-            let _ = child.wait();
             return Err(std::io::Error::new(
                 ErrorKind::Interrupted,
                 "provider probe was cancelled",
             ));
         }
-        if let Some(status) = child.try_wait()? {
+        if let Some(status) = child.child.try_wait()? {
+            // Stop descendants before inspecting output files. The parent's
+            // cached exit status remains the result, including nonzero exits.
+            child.cleanup();
             if output_files.exceeds_limit(MAX_PROVIDER_OUTPUT_BYTES) {
                 return Err(std::io::Error::new(
                     ErrorKind::InvalidData,
@@ -85,8 +89,6 @@ fn run_command_with_output_files(
         }
 
         if output_files.exceeds_limit(MAX_PROVIDER_OUTPUT_BYTES) {
-            kill_child_group(&mut child);
-            let _ = child.wait();
             return Err(std::io::Error::new(
                 ErrorKind::InvalidData,
                 "provider probe exceeded the output limit",
@@ -94,8 +96,6 @@ fn run_command_with_output_files(
         }
 
         if started_at.elapsed() >= timeout {
-            kill_child_group(&mut child);
-            let _ = child.wait();
             return Err(std::io::Error::new(
                 ErrorKind::TimedOut,
                 format!("provider probe timed out after {}s", timeout.as_secs()),
@@ -103,6 +103,28 @@ fn run_command_with_output_files(
         }
 
         thread::sleep(Duration::from_millis(25));
+    }
+}
+
+/// Every post-spawn return, I/O error and unwind owns termination and reaping.
+struct ProbeChild {
+    child: Child,
+    cleanup_needed: bool,
+}
+
+impl ProbeChild {
+    fn cleanup(&mut self) {
+        if self.cleanup_needed {
+            kill_child_group(&mut self.child);
+            let _ = self.child.wait();
+            self.cleanup_needed = false;
+        }
+    }
+}
+
+impl Drop for ProbeChild {
+    fn drop(&mut self) {
+        self.cleanup();
     }
 }
 
@@ -217,6 +239,85 @@ mod tests {
     };
 
     use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn completed_probe_terminates_descendants_and_preserves_parent_result() {
+        for exit in [0, 7] {
+            let mut command = Command::new("sh");
+            command.args([
+                "-c",
+                &format!(
+                    "sleep 120 &\nprintf '%s' \"$!\" >&2\nprintf 'parent output'\nexit {exit}"
+                ),
+            ]);
+            let output =
+                run_command_with_cancellation_check(command, Duration::from_secs(5), || false)
+                    .expect("completed probe returns its result");
+            assert_eq!(output.status.code(), Some(exit));
+            assert_eq!(output.stdout, b"parent output");
+            let pid: i32 = String::from_utf8(output.stderr).unwrap().parse().unwrap();
+            let deadline = Instant::now() + Duration::from_secs(1);
+            let mut running = true;
+            while running && Instant::now() < deadline {
+                let status = Command::new("ps")
+                    .args(["-p", &pid.to_string(), "-o", "stat="])
+                    .output()
+                    .unwrap();
+                let state = String::from_utf8_lossy(&status.stdout);
+                running = !state.trim().is_empty() && !state.trim().starts_with('Z');
+                if running {
+                    thread::sleep(Duration::from_millis(10));
+                }
+            }
+            // Clean up even the failing regression, so the original leak does
+            // not leave a live process behind in the test environment.
+            unsafe {
+                libc::kill(pid, libc::SIGKILL);
+            }
+            assert!(
+                !running,
+                "probe descendant {pid} survived parent exit {exit}"
+            );
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn post_spawn_error_reaps_probe_and_descendants() {
+        let marker = std::env::temp_dir().join(format!("probe-error-{}", uuid::Uuid::new_v4()));
+        let mut command = Command::new("sh");
+        command.args([
+            "-c",
+            "sleep 120 &\nprintf '%s %s' \"$$\" \"$!\" >\"$1.tmp\"\nmv \"$1.tmp\" \"$1\"\nwait",
+            "probe",
+        ]);
+        command.arg(&marker);
+        let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            run_command_with_cancellation_check(command, Duration::from_secs(5), || {
+                if marker.exists() {
+                    panic!("injected post-spawn failure");
+                }
+                false
+            })
+        }));
+        let pids = fs::read_to_string(&marker).expect("probe signaled readiness");
+        let mut alive = false;
+        for pid in pids.split_whitespace() {
+            let status = Command::new("ps")
+                .args(["-p", pid, "-o", "stat="])
+                .output()
+                .unwrap();
+            let state = String::from_utf8_lossy(&status.stdout);
+            alive |= !state.trim().is_empty() && !state.trim().starts_with('Z');
+            unsafe {
+                libc::kill(pid.parse().unwrap(), libc::SIGKILL);
+            }
+        }
+        let _ = fs::remove_file(marker);
+        assert!(outcome.is_err());
+        assert!(!alive, "post-spawn error leaked a live probe process");
+    }
 
     #[test]
     fn stdout_and_stderr_share_one_output_budget() {

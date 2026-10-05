@@ -8,7 +8,7 @@ const tauriMock = vi.hoisted(() => ({
   deleteAttachment: vi.fn(), deleteDraft: vi.fn(), deleteFinding: vi.fn(), deleteSession: vi.fn(), getProviderStatus: vi.fn(),
   getSettings: vi.fn(), importClipboardScreenshot: vi.fn(), listDraftLibrary: vi.fn(), listDrafts: vi.fn(), listEntries: vi.fn(),
   listFindingLibrary: vi.fn(), listFindings: vi.fn(), listRecentSessions: vi.fn(), listSessions: vi.fn(), openSessionNoteState: vi.fn(),
-  reopenSession: vi.fn(), refreshProviderStatus: vi.fn(), startAiActionJob: vi.fn(), updateDraft: vi.fn(),
+  reopenSession: vi.fn(), refreshProviderStatus: vi.fn(), retryAttachmentCleanup: vi.fn(), startAiActionJob: vi.fn(), updateDraft: vi.fn(),
   updateEntry: vi.fn(), updateFinding: vi.fn(), updateSession: vi.fn(), updateSettings: vi.fn(),
   EDITOR_HTML_TAGS: ['a', 'b', 'br', 'em', 'h2', 'h3', 'i', 'img', 'input', 'li', 'ol', 'p', 'strong', 'ul'],
   SELF_CLOSING_EDITOR_HTML_TAGS: ['br', 'img', 'input'],
@@ -62,6 +62,8 @@ export function setupControllerTest() {
   window.matchMedia = vi.fn().mockReturnValue({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() })
 
   tauriMock.getSettings.mockResolvedValue(settingsFixture())
+  tauriMock.deleteSession.mockResolvedValue({ pendingFiles: 0 })
+  tauriMock.retryAttachmentCleanup.mockResolvedValue({ pendingFiles: 0 })
   tauriMock.importClipboardScreenshot.mockResolvedValue({ id: 'attachment-1', filename: 'inline-image.png' })
   tauriMock.deleteAttachment.mockResolvedValue(true)
   tauriMock.getProviderStatus.mockResolvedValue(providerStatusFixture())

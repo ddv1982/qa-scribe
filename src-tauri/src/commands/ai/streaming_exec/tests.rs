@@ -22,10 +22,10 @@ use super::{
 use crate::jobs::JobControl;
 use crate::process_io::configure_process_group;
 
-/// Monotonic counter making every [`FakeCli`] path globally unique, so two
-/// instances built with the same `name` on the same thread never collide on
-/// one path. Reusing a path means writing an executable to a location a
-/// just-dropped instance removed and immediately exec'ing it, which races the
+mod eof;
+
+/// Monotonic counter making every [`FakeCli`] path unique. Reusing a path
+/// means writing to a just-removed executable and exec'ing it, which races the
 /// write and returns `ETXTBSY` ("Text file busy") on Linux.
 static FAKE_CLI_SEQ: AtomicU64 = AtomicU64::new(0);
 

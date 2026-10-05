@@ -40,7 +40,7 @@ jobs:
 
       - name: Detect platform and package changes
         id: filter
-        uses: dorny/paths-filter@d1c1ffe0248fe513906c8e24db8ea791d46f8590 # v3.0.3
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         with:
           filters: |
             run_macos_ci:
@@ -83,7 +83,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup project
-        uses: ./.github/actions/setup-project
+        uses: $/.github/actions/setup-project
         with:
           cache-key: quality-linux
 
@@ -100,7 +100,7 @@ jobs:
             xvfb
 
       - name: Validate project
-        uses: ./.github/actions/validate-build
+        uses: $/.github/actions/validate-build
 
   rust-macos:
     name: Platform tests (macOS arm64 + Intel check)
@@ -116,7 +116,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup project
-        uses: ./.github/actions/setup-project
+        uses: $/.github/actions/setup-project
         with:
           cache-key: platform-macos
           rust-targets: x86_64-apple-darwin
@@ -146,12 +146,12 @@ jobs:
           persist-credentials: false
 
       - name: Setup project
-        uses: ./.github/actions/setup-project
+        uses: $/.github/actions/setup-project
         with:
           cache-key: e2e-macos-arm64
 
       - name: Run observational macOS built-application gate
-        uses: ./.github/actions/run-built-app-e2e
+        uses: $/.github/actions/run-built-app-e2e
         with:
           artifact_prefix: qa-scribe-e2e-macos
           failure_artifact_prefix: qa-scribe-macos-e2e-failure
@@ -174,7 +174,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup project
-        uses: ./.github/actions/setup-project
+        uses: $/.github/actions/setup-project
         with:
           # This job starts after quality-linux, so it can reuse that job's
           # dependency cache instead of creating a second cache silo.
@@ -204,7 +204,7 @@ jobs:
         run: bun run frontend:build
 
       - name: Install cargo-binstall
-        uses: cargo-bins/cargo-binstall@732870f031d2fb36309d0deaf36abcc704a7be65 # v1.20.1
+        uses: cargo-bins/cargo-binstall@422f3094be6a0843857aa008b499caaf6bce0da8 # v1.24.0
 
       - name: Install Tauri CLI
         run: bun run tauri:cli:install

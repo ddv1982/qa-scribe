@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const coreMock = vi.hoisted(() => ({
-  invoke: vi.fn(() => Promise.resolve(null)),
+  invoke: vi.fn(async (): Promise<unknown> => null),
   Channel: vi.fn(function Channel(onEvent: unknown) {
     return { onEvent }
   }),
@@ -27,6 +27,7 @@ describe('Tauri command bridge', () => {
     await expectCommand('open_session_note_state', () => tauri.openSessionNoteState('session-1'))
     await expectCommand('update_session', () => tauri.updateSession('session-1', { title: 'Session' }))
     await expectCommand('delete_session', () => tauri.deleteSession('session-1'))
+    await expectCommand('retry_attachment_cleanup', () => tauri.retryAttachmentCleanup())
     await expectCommand('create_entry', () => tauri.createEntry({} as tauri.EntryDraft))
     await expectCommand('list_entries', () => tauri.listEntries('session-1'))
     await expectCommand('update_entry', () => tauri.updateEntry('entry-1', { title: 'Entry' }))
@@ -54,6 +55,17 @@ describe('Tauri command bridge', () => {
     await expectCommand('get_ai_action_job_status', () => tauri.getAiActionJobStatus('job-1'))
     await expectCommand('list_active_ai_action_jobs', () => tauri.listActiveAiActionJobs())
     await expectCommand('cancel_ai_action_job', () => tauri.cancelAiActionJob('job-1'))
+  })
+
+  it('preserves deletion and retry cleanup status over the bridge', async () => {
+    coreMock.invoke.mockResolvedValueOnce({ pendingFiles: 2 })
+    await expect(tauri.deleteSession('session-1')).resolves.toEqual({ pendingFiles: 2 })
+    expect(coreMock.invoke).toHaveBeenLastCalledWith('delete_session', { id: 'session-1' })
+    coreMock.invoke.mockResolvedValueOnce({ pendingFiles: null })
+    await expect(tauri.deleteSession('session-2')).resolves.toEqual({ pendingFiles: null })
+    coreMock.invoke.mockResolvedValueOnce({ pendingFiles: 0 })
+    await expect(tauri.retryAttachmentCleanup()).resolves.toEqual({ pendingFiles: 0 })
+    expect(coreMock.invoke).toHaveBeenLastCalledWith('retry_attachment_cleanup')
   })
 })
 

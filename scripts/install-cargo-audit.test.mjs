@@ -41,7 +41,7 @@ test('the shared CI and release gate installs cargo-audit through the pinned ins
 
   assert.match(action, /run: node scripts\/install-cargo-audit\.mjs/)
   for (const workflow of workflows) {
-    assert.equal((workflow.match(/uses:\s*\.\/\.github\/actions\/validate-build/g) ?? []).length, 1)
+    assert.equal((workflow.match(/uses:\s*\$\/\.github\/actions\/validate-build/g) ?? []).length, 1)
   }
   for (const source of [action, ...workflows]) {
     assert.doesNotMatch(source, /cargo\s+install\s+cargo-audit\b/)

@@ -49,9 +49,12 @@ Before replacing anything, the bump script writes an on-disk
 `.qa-scribe-version-transaction.json` manifest, then stages all seven new
 outputs and a rollback copy beside each destination. Same-directory renames
 make each file replacement atomic on the supported release hosts. If the
-process is terminated between replacements, the next invocation, including a
-dry run, reads the manifest before preflight and restores the prior consistent
-version. If the committed phase was recorded before termination, it keeps the
+process is terminated between replacements, the next valid mutating invocation
+reads the manifest before preflight and restores the prior consistent version.
+A dry run refuses pending recovery without changing targets, rollback copies,
+or manifest files, including interrupted manifest staging. Invalid arguments
+are rejected before any recovery mutation. If the committed phase was recorded
+before termination, a mutating invocation keeps the
 new version and finishes transaction-file cleanup instead. Synchronous replacement failures still roll
 back immediately; an incomplete rollback leaves the manifest and copies for
 automatic retry on the next invocation. The script also refuses to overwrite a
@@ -71,28 +74,56 @@ The metadata check also gates the Linux Tauri package identity: `src-tauri/tauri
 
 The release metadata check also rejects tracked Local AI model/runtime artifacts such as `.gguf` files, model caches, Ollama caches, and `llama-server` binaries. Local AI model download remains an in-app/Ollama setup step, not a bundled release asset.
 
-Commit the release metadata, push the branch, and merge it through a pull
-request after the required checks pass:
+Commit only the intended release files, push the branch, and open a pull request.
+Review the explicit staged diff rather than using `git add -A`, which could
+include unrelated work:
 
 ```bash
-git add -A
+git add -- package.json frontend/package.json Cargo.toml Cargo.lock \
+  src-tauri/tauri.conf.json CHANGELOG.md \
+  build/linux/io.github.ddv1982.qa-scribe.metainfo.xml
+git diff --cached
 git commit -m "lore(release): v1.0.0"
 git push -u origin release/v1.0.0
 gh pr create --base main --head release/v1.0.0 --title "lore(release): v1.0.0"
 gh pr checks --watch
-gh pr merge --merge --delete-branch
 ```
 
-Tag the exact merge commit, rather than whichever commit happens to be at the
-tip of `main` later, and push the tag to start the Release workflow:
+Release preparation stops at the reviewed PR, before merge, tagging, or
+publication. Require the protected branch's **CI success** check to be green
+before a separately authorized merge. Local checks alone do not authorize a
+release or prove the hosted pipeline succeeded.
+
+After that authorized merge, the push to `main` starts the Release workflow.
+It resolves the package version and creates a missing `v<version>` tag at that
+exact merge SHA. Do not routinely create or push a tag manually. If the workflow
+did not create the tag, a manual fallback needs separate authorization and must
+target the exact intended merge commit, never a later tip of `main`.
+
+Watch the actual merge-triggered run and verify publication, not just tag
+existence (replace the run ID and tag with the intended release):
 
 ```bash
-release_commit="$(gh pr view release/v1.0.0 --json mergeCommit --jq '.mergeCommit.oid')"
-git tag v1.0.0 "${release_commit}"
-git push origin v1.0.0
+gh run list --workflow release.yml --branch main
+gh run watch RELEASE_RUN_ID --exit-status
+gh release view v1.0.0 --json tagName,isDraft,assets,url
 ```
 
 ## Artifact Model
+
+APT publication uses the repository-wide `qa-scribe-apt-publication` job
+concurrency group. The live-version check and Pages deployment run inside the
+same serialized job, with `cancel-in-progress: false`. Platform builds remain
+parallel across release tags. An older job that starts after a newer deployment
+must recheck the live index and refuse a downgrade.
+
+GitHub's default concurrency queue retains one pending job and replaces it when
+another job is queued; disabling cancellation protects the running publication,
+not every waiting job. Dispatch/tag order is not a version-order guarantee.
+See [GitHub concurrency documentation](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency#using-concurrency-in-different-scenarios).
+The newer optional `queue: max` setting is not used because released actionlint
+1.7.12 does not validate it. Local workflow-contract and scheduling-model tests
+do not claim that production deployment was exercised.
 
 The release workflow builds Tauri desktop artifacts:
 
@@ -109,7 +140,7 @@ published in lockstep. Workflow files do not carry another CLI version.
 
 ## macOS Prerequisites
 
-Configure these GitHub Actions secrets before pushing a release tag:
+Configure these GitHub Actions secrets before the authorized release merge:
 
 - `CSC_LINK`: base64-encoded Developer ID Application `.p12` certificate
 - `CSC_KEY_PASSWORD`: password for the `.p12` certificate
@@ -185,7 +216,12 @@ The release workflow exports the archive keyring, repository setup package, setu
 
 ## Release Behavior
 
-Pushing a `v*` tag triggers `.github/workflows/release.yml`.
+Pushing to `main` triggers `.github/workflows/release.yml`, which creates a
+missing version tag at the triggering commit. If that version already belongs
+to another commit, it skips publication because this merge did not bump the
+release version. It also skips an already published release and can resume an
+existing draft. An explicitly authorized `v*` tag push is supported as a
+fallback trigger, but is not the normal release sequence.
 
 The release workflow:
 
@@ -214,10 +250,12 @@ The release workflow:
 
 ## Local Validation
 
-Before pushing a release tag, run on the host platform:
+Before opening the release PR, run on the host platform:
 
 ```bash
 bun install --cwd frontend --frozen-lockfile
+node scripts/check-workflows.mjs
+GH_TOKEN="$(gh auth token)" uvx --from zizmor==1.30.1 zizmor .github
 bun run verify
 node scripts/check-release-metadata.mjs --expected-tag v1.0.0
 ```
@@ -226,8 +264,14 @@ node scripts/check-release-metadata.mjs --expected-tag v1.0.0
 typecheck, lint, CSS color and contrast checks, tests, bindings check, release
 metadata and Linux package metadata unit tests, frontend build, prebuilt frontend
 contract check, Rust fmt/clippy/tests/build, and the smoke harness. Use the explicit release
-metadata check with the expected tag before tagging so the changelog/package
+metadata check with the expected tag before merge so the changelog/package
 versions match the release being prepared.
+Workflow tools are pinned in `scripts/tool-versions.json`; install its actionlint
+version locally and use the authenticated online Zizmor profile above. See
+[CI workflow validation](ci.md#shared-setup-and-source-of-truth-rules) for the
+narrow `$/` compatibility view and its removal condition. Final release evidence
+requires green hosted CI for the intended revision and a successful actual
+Release run with a non-draft GitHub Release and its expected assets.
 
 ### Optional Authenticated-Provider Smoke
 

@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.7.22 - 2026-10-04
+
+- Keep Note undo/redo history through same-Session autosave, title changes, and save rerenders; reset history and toolbar state on Session navigation so undo cannot persist another Session's Note.
+- Keep checklist text beside compact checkboxes, with aligned wrapped-text columns in both Note and Record editors.
+- Update frontend and test-tooling dependencies, align Tiptap/ProseMirror constructor identity, and preserve bullet-list and checklist editing compatibility.
+- Allow bounded normal provider exit after stdout closes while preserving exit status, cancellation, and watchdog protection; clean up owned probe-group descendants on every outcome.
+- Bound actual attachment reads to 25 MiB, verify stored size and hash, and move expensive native attachment operations to blocking workers.
+- Add schema-9 durable exact-path cleanup intent atomically with Session deletion, show pending or unavailable cleanup status, and retry bounded cleanup at startup or manually while preserving live files and unknown siblings.
+- Make version-bump dry runs read-only around interrupted transactions, validate arguments before recovery, and serialize APT version checks and deployment across release tags.
+- Pin a reachable upstream Rust setup action and current official workflow validators, preserve GitHub's `$/` action references through a source-preserving actionlint compatibility view without suppressing new audits, and correct main-merge release documentation.
+
 ## v0.7.21 - 2026-07-21
 
 - Preserve authored Session work across recovered Summary completion, overlapping saves, blank-title validation, discard, navigation, active-Session reselection, and application close.

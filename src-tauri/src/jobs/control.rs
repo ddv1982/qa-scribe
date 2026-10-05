@@ -1,5 +1,5 @@
 use std::{
-    process::Child,
+    process::{Child, ExitStatus},
     sync::{
         Arc, Mutex,
         atomic::{AtomicBool, Ordering},
@@ -35,6 +35,18 @@ impl JobControl {
             .lock()
             .map(|mut child| child.take())
             .map_err(|_| "Generation process lock was poisoned".to_string())
+    }
+
+    /// Poll without holding the process lock across a blocking wait, so
+    /// cancellation and the watchdog can still terminate a live process.
+    pub(crate) fn child_exit_status(&self) -> Result<Option<ExitStatus>, String> {
+        self.child
+            .lock()
+            .map_err(|_| "Generation process lock was poisoned".to_string())?
+            .as_mut()
+            .ok_or_else(|| "Generation process was not registered".to_string())?
+            .try_wait()
+            .map_err(|error| error.to_string())
     }
 
     /// Kill the registered child (and its process group on unix) in place,

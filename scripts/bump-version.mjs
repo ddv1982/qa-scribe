@@ -34,7 +34,7 @@ import {
   readWorkspaceCargoVersion,
   validateStableSemver
 } from './command-utils.mjs'
-import { applyPlanTransaction, recoverInterruptedVersionTransaction } from './version-transaction.mjs'
+import { applyPlanTransaction, hasInterruptedVersionTransaction, recoverInterruptedVersionTransaction } from './version-transaction.mjs'
 
 const PACKAGE_JSON_PATH = 'package.json'
 const FRONTEND_PACKAGE_JSON_PATH = 'frontend/package.json'
@@ -45,19 +45,24 @@ const CHANGELOG_PATH = 'CHANGELOG.md'
 const CARGO_LOCK_CRATES = QA_SCRIBE_CARGO_LOCK_PACKAGES
 
 async function main() {
-  if (await recoverInterruptedVersionTransaction()) {
-    console.log('Recovered an interrupted version bump before preflight.')
-  }
   const args = process.argv.slice(2)
   const dryRun = args.includes('--dry-run')
   const positional = args.filter(arg => !arg.startsWith('--'))
   const newVersion = positional[0]
 
-  if (!newVersion) {
+  if (positional.length !== 1 || args.some(arg => arg.startsWith('--') && arg !== '--dry-run') || args.filter(arg => arg === '--dry-run').length > 1) {
     throw new Error('Usage: node scripts/bump-version.mjs <new-version> [--dry-run]')
   }
   if (!validateStableSemver(newVersion)) {
     throw new Error(`<new-version> must be a stable semver release (X.Y.Z), got ${newVersion}`)
+  }
+
+  if (dryRun) {
+    if (await hasInterruptedVersionTransaction()) {
+      throw new Error('Dry-run preview requires recovery of an interrupted version bump. Run a valid mutating invocation to recover it first.')
+    }
+  } else if (await recoverInterruptedVersionTransaction()) {
+    console.log('Recovered an interrupted version bump before preflight.')
   }
 
   const releaseConstants = readReleaseConstants()

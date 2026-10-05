@@ -172,7 +172,8 @@ fn attachment_file_bytes_fails_integrity_check_when_file_is_corrupted_on_disk() 
         .expect("attachment should exist");
     assert_eq!(bytes, b"original evidence bytes");
 
-    fs::write(temp_dir.join(&attachment.relative_path), "corrupted bytes on disk")
+    // Keep the length unchanged so a size check cannot mask the hash regression.
+    fs::write(temp_dir.join(&attachment.relative_path), "Original evidence bytes")
         .expect("attachment file should be overwritten to simulate corruption");
 
     let result = attachment_file_bytes(&service, &temp_dir, &attachment.id);
@@ -188,6 +189,91 @@ fn attachment_file_bytes_fails_integrity_check_when_file_is_corrupted_on_disk() 
     );
 
     fs::remove_dir_all(temp_dir).expect("temp dir should be removed");
+}
+
+// Build stored attachments directly so import-time validation cannot mask read-time defects.
+// The fixture allocation is dropped before attachment_file_bytes allocates its read buffer.
+fn attachment_file_bytes_size_fixture(
+    actual_size: usize,
+    stored_size: i64,
+) -> (SessionService, std::path::PathBuf, qa_scribe_core::domain::Attachment) {
+    use sha2::{Digest, Sha256};
+
+    let service = SessionService::in_memory().expect("in-memory service should open");
+    let temp_dir = unique_temp_dir();
+    let session = service
+        .create_session(SessionDraft {
+            title: "Attachment read size validation".to_string(),
+            ..SessionDraft::default()
+        })
+        .expect("session should be created");
+    let relative_path = format!("attachments/{}/evidence.bin", session.id);
+    fs::create_dir_all(temp_dir.join("attachments").join(&session.id))
+        .expect("managed attachment directory should be created");
+    let bytes = vec![0x5a; actual_size];
+    fs::write(temp_dir.join(&relative_path), &bytes).expect("attachment file should write");
+    let sha256 = format!("{:x}", Sha256::digest(&bytes));
+    let attachment = service
+        .create_attachment(qa_scribe_core::domain::AttachmentDraft {
+            session_id: session.id,
+            entry_id: None,
+            filename: "evidence.bin".to_string(),
+            mime_type: Some("application/octet-stream".to_string()),
+            size_bytes: stored_size,
+            sha256,
+            relative_path,
+        })
+        .expect("attachment metadata should be stored");
+    (service, temp_dir, attachment)
+}
+
+#[test]
+fn attachment_file_bytes_rejects_over_25_mib_with_matching_size_and_hash() {
+    let actual_size = 25 * 1024 * 1024 + 1;
+    let (service, temp_dir, attachment) =
+        attachment_file_bytes_size_fixture(actual_size, actual_size as i64);
+
+    let result = attachment_file_bytes(&service, &temp_dir, &attachment.id);
+    fs::remove_dir_all(temp_dir).expect("temp dir should be removed");
+
+    assert!(
+        result.is_err(),
+        "read must reject content above 25 MiB even with matching stored size and SHA-256"
+    );
+}
+
+#[test]
+fn attachment_file_bytes_rejects_stored_size_mismatch_with_valid_hash() {
+    // Cover both underreported and overreported sizes without exceeding the read bound.
+    for stored_size in [31, 33] {
+        let (service, temp_dir, attachment) =
+            attachment_file_bytes_size_fixture(32, stored_size);
+
+        let result = attachment_file_bytes(&service, &temp_dir, &attachment.id);
+        fs::remove_dir_all(temp_dir).expect("temp dir should be removed");
+
+        assert!(
+            result.is_err(),
+            "read must reject stored size {stored_size} for 32 valid bytes with matching SHA-256"
+        );
+    }
+}
+
+#[test]
+fn attachment_file_bytes_accepts_exactly_25_mib_with_matching_size_and_hash() {
+    let actual_size = 25 * 1024 * 1024;
+    let (service, temp_dir, attachment) =
+        attachment_file_bytes_size_fixture(actual_size, actual_size as i64);
+
+    let result = attachment_file_bytes(&service, &temp_dir, &attachment.id);
+    fs::remove_dir_all(temp_dir).expect("temp dir should be removed");
+    let (read_attachment, bytes) = result
+        .expect("exactly 25 MiB must remain readable")
+        .expect("attachment should exist");
+    assert_eq!(read_attachment.id, attachment.id);
+    assert_eq!(read_attachment.size_bytes, actual_size as i64);
+    assert_eq!(bytes.len(), actual_size);
+    assert!(bytes.iter().all(|byte| *byte == 0x5a));
 }
 
 #[test]

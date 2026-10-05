@@ -40,6 +40,15 @@ does not match the `tauri` runtime resolved in `Cargo.lock`; patch versions are
 allowed to differ because the runtime and CLI are published independently. The
 same tool-version source pins `cargo-audit`, and the shared CI/release validation
 action installs that exact version through `scripts/install-cargo-audit.mjs`.
+It also pins actionlint 1.7.12 and Zizmor 1.30.1 in the same tool-version source.
+`scripts/check-workflows.mjs --github-output` validates those pins before emitting
+the `actionlint` and `zizmor` outputs consumed by the shared validation action.
+
+Both Rust setup steps pin the upstream `dtolnay/rust-toolchain` master commit
+`7e38f4b43b4db5c8dd498af069a4f6196df1d067` (2026-10-01). Its reachability from
+upstream master was verified, unlike the previous stable-branch SHA flagged by
+the authenticated online audit. This changes the action implementation pin,
+not the Rust channel, components, or additional targets.
 
 `.github/actions/validate-build/action.yml` is shared by CI and tag validation.
 `.github/actions/run-built-app-e2e/action.yml` owns built-app execution,
@@ -51,11 +60,40 @@ validation action when it benefits from a separately named CI step.
 Run workflow linting locally after editing Actions configuration:
 
 ```sh
-actionlint .github/workflows/*.yml
-uvx zizmor .github
+node scripts/check-workflows.mjs
+GH_TOKEN="$(gh auth token)" uvx --from zizmor==1.30.1 zizmor .github
 ```
 
-The shared validation gate runs both checks in CI and before tag releases.
+Install actionlint at the pinned version before running the checker locally.
+The Zizmor command uses authenticated online audits, not an offline or older
+compatible profile. CI explicitly enables online audits and disables only SARIF
+upload (`advanced-security: false`), not security checks.
+
+All eleven same-repository `uses` references now use GitHub's `$/` syntax.
+GitHub supports it in workflows and composite actions on runner 2.336.0 or newer
+(the reviewed hosted runner was 2.337.0). Released actionlint 1.7.12 does not yet
+understand that syntax. The mandatory `Lint Workflows` step therefore runs the
+repository checker after Raven installs the pinned binary and dependencies with
+`flags: '-version'`. The install step is not workflow validation.
+
+The checker parses YAML and gives actionlint a temporary stdin view that changes
+only actual same-repository `uses` values from `$/` to `./`. It retains original
+filenames for diagnostics and all other fields and lint checks. It never rewrites
+source files or adapts away reported failures. YAML anchors and aliases are
+unsupported by this compatibility view and fail closed. Remove the view only
+after an official actionlint release supports `$/` natively and passes the
+repository's checker contracts; an unreleased upstream change is insufficient.
+Upstream tracking: [issue 711](https://github.com/rhysd/actionlint/issues/711) and
+[PR 732](https://github.com/rhysd/actionlint/pull/732).
+
+The earlier actionlint 1.7.12 / Zizmor 1.29.0 local review was historical evidence
+only. The later authenticated audit `d1efc80d-3320-4eab-9046-ab017ed1e399` exited
+14 with two HIGH Rust SHA findings and eleven LOW `self-repository` findings.
+The reachable Rust pin, eleven `$/` references, and narrow lint view resolve the
+configuration causes, without new ignores, severity thresholds, or downgrades.
+A passing current authenticated audit and hosted gate must still be recorded
+for the integrated revision. See the [1.30 release notes](https://github.com/zizmorcore/zizmor/releases/tag/v1.30.0)
+and [GitHub self-repository announcement](https://github.blog/changelog/2026-07-30-reference-same-repository-actions-with-self-repository-syntax/).
 
 ## Built-application and startup evidence
 
@@ -102,6 +140,15 @@ holding a repository write token.
 The Pages deployment job alone receives `pages: write` and `id-token: write`.
 Signing jobs receive only the secrets they use. All third-party actions are
 pinned to full commit SHAs, and Dependabot checks GitHub Actions updates weekly.
+
+The APT publication job holds the fixed `qa-scribe-apt-publication` concurrency
+group across both the live-version monotonicity check and Pages deployment.
+`cancel-in-progress: false` protects a running publication; GitHub's default
+single pending slot can still be replaced by a later queued job. Each job must
+recheck the live index after acquiring the group because tag dispatch order
+does not establish version order. Expensive platform builds retain their
+separate per-tag concurrency. This configuration uses supported actionlint
+syntax without suppressing workflow checks.
 
 Release artifact smoke does not change those privilege boundaries. Linux
 package installation uses the disposable runner's existing `sudo` access, and

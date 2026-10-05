@@ -107,7 +107,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup project
-        uses: ./.github/actions/setup-project
+        uses: $/.github/actions/setup-project
         with:
           cache-key: release-validation-linux
 
@@ -124,7 +124,7 @@ jobs:
             xvfb
 
       - name: Validate frontend and Rust build
-        uses: ./.github/actions/validate-build
+        uses: $/.github/actions/validate-build
         with:
           expected-tag: ${{ needs.release-context.outputs.tag }}
 
@@ -203,7 +203,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup project
-        uses: ./.github/actions/setup-project
+        uses: $/.github/actions/setup-project
         with:
           cache-key: release-macos-${{ matrix.arch }}
 
@@ -211,7 +211,7 @@ jobs:
         run: bun run frontend:build
 
       - name: Install cargo-binstall
-        uses: cargo-bins/cargo-binstall@732870f031d2fb36309d0deaf36abcc704a7be65 # v1.20.1
+        uses: cargo-bins/cargo-binstall@422f3094be6a0843857aa008b499caaf6bce0da8 # v1.24.0
 
       - name: Install Tauri CLI
         # --force: the rust cache restores ~/.cargo/.crates.toml (the install
@@ -432,7 +432,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup project
-        uses: ./.github/actions/setup-project
+        uses: $/.github/actions/setup-project
         with:
           cache-key: release-linux
           rust-targets: x86_64-unknown-linux-gnu
@@ -461,7 +461,7 @@ jobs:
         run: bun run frontend:build
 
       - name: Install cargo-binstall
-        uses: cargo-bins/cargo-binstall@732870f031d2fb36309d0deaf36abcc704a7be65 # v1.20.1
+        uses: cargo-bins/cargo-binstall@422f3094be6a0843857aa008b499caaf6bce0da8 # v1.24.0
 
       - name: Install Tauri CLI
         # --force: the rust cache restores ~/.cargo/.crates.toml (the install
@@ -817,6 +817,10 @@ jobs:
     name: Publish APT Repository
     needs: [release-context, publish-release-assets]
     runs-on: ubuntu-24.04
+    # Serialize the live-version check and deploy together across all tags.
+    concurrency:
+      group: qa-scribe-apt-publication
+      cancel-in-progress: false
     timeout-minutes: 10
     permissions:
       pages: write
@@ -848,7 +852,7 @@ jobs:
 
       - name: Deploy APT repository to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
 
   publish-release:
     name: Publish Release
