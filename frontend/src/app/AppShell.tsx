@@ -84,7 +84,7 @@ export function AppShell(c: AppController) {
         <div className="top-actions">
           <button className="secondary-button command-palette-trigger" type="button" aria-label="Open command palette" onClick={() => setCommandPaletteOpen(true)}>
             <CommandIcon size={16} />
-            Commands
+            <span className="command-trigger-label">Commands</span>
             <kbd>{primaryShortcutLabel('k')}</kbd>
           </button>
           {topAction?.command ? (

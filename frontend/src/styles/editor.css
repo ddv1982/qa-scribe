@@ -75,7 +75,6 @@
   background: var(--surface-raised);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
   overflow: hidden;
 }
 
@@ -86,6 +85,7 @@
   min-height: 48px;
   padding: var(--space-2) var(--space-4);
   border-bottom: 1px solid var(--border-default);
+  background: var(--surface-panel);
 }
 
 .format-toolbar select {
@@ -124,8 +124,8 @@
 
 .toolbar-button[aria-pressed="true"] {
   color: var(--accent);
-  background: var(--surface-sunken);
-  border-color: var(--border-default);
+  background: var(--accent-tint);
+  border-color: var(--accent-border);
 }
 
 .toolbar-button:disabled {

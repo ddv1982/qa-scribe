@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Gate: WCAG contrast for token pairings, both themes, parsed from base.css.
-// Pairs resolving to color-mix() are skipped (backgrounds tuned visually).
+// color-mix() is unsupported: those pairs are skipped, not contrast-verified.
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
@@ -74,7 +74,12 @@ const PAIRS = [
   ['text-secondary', 'surface-raised', 4.5],
   ['text-secondary', 'surface-sunken', 4.5],
   ['text-secondary', 'surface-overlay', 4.5],
-  ['text-tertiary', 'surface-raised', 3.0], // placeholders/disabled only
+  // Normal text and placeholders require 4.5:1, including tertiary text.
+  ['text-tertiary', 'surface-base', 4.5],
+  ['text-tertiary', 'surface-panel', 4.5],
+  ['text-tertiary', 'surface-raised', 4.5],
+  ['text-tertiary', 'surface-sunken', 4.5],
+  ['text-tertiary', 'surface-overlay', 4.5],
   ['accent', 'surface-raised', 4.5], // accent-as-text (rail counts, eyebrows)
   ['accent', 'surface-panel', 4.5],
   ['accent', 'surface-sunken', 4.5],

@@ -1,6 +1,6 @@
 .workspace-nav {
   display: grid;
-  gap: var(--space-2);
+  gap: var(--space-1);
 }
 
 .contextual-rail {
@@ -36,7 +36,7 @@
 .settings-link.active {
   color: var(--accent);
   background: var(--accent-tint);
-  border-color: color-mix(in oklab, var(--accent) 12%, transparent);
+  box-shadow: inset 3px 0 var(--accent);
   font-weight: 600;
 }
 
@@ -180,9 +180,15 @@
 }
 
 .session-picker-item.active {
-  color: var(--accent);
+  color: var(--text-primary);
   background: var(--accent-tint);
-  border-color: color-mix(in oklab, var(--accent) 14%, transparent);
+  border-color: var(--accent-border);
+}
+
+.rail-item.active:hover,
+.settings-link.active:hover,
+.session-picker-item.active:hover {
+  background: var(--accent-tint);
 }
 
 .session-picker-item:hover,

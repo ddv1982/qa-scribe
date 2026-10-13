@@ -1,26 +1,23 @@
 .app-shell {
-  width: min(1780px, calc(100vw - 32px));
-  min-height: calc(100vh - 32px);
-  margin: var(--space-4) auto;
+  width: 100%;
+  min-height: 100dvh;
+  margin: 0;
   display: grid;
-  grid-template-columns: 272px minmax(0, 1fr);
-  grid-template-rows: 60px 1fr;
+  grid-template-columns: 248px minmax(0, 1fr);
+  grid-template-rows: 64px 1fr;
   overflow: hidden;
   background: var(--surface-panel);
-  border: 1px solid var(--border-default);
-  border-radius: 10px;
-  box-shadow: var(--shadow-lg);
 }
 
 .top-bar {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: 272px minmax(260px, 560px) minmax(max-content, 1fr);
+  grid-template-columns: 208px minmax(0, 560px) minmax(max-content, 1fr);
   align-items: center;
   gap: var(--space-6);
   padding: 0 var(--space-5);
   border-bottom: 1px solid var(--border-default);
-  background: color-mix(in oklab, var(--surface-panel) 92%, transparent);
+  background: var(--surface-raised);
 }
 
 .brand-cluster,
@@ -60,7 +57,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  min-width: 260px;
+  min-width: 0;
   height: var(--control-lg);
   padding: 0 var(--space-4);
   color: var(--text-secondary);
@@ -99,7 +96,12 @@
 }
 
 .top-context-label strong {
+  flex: 0 0 auto;
   color: var(--text-primary);
+}
+
+.top-context-label > span {
+  flex: 1 1 auto;
 }
 
 .sr-only {
@@ -127,6 +129,7 @@
 }
 
 .primary-button {
+  font-weight: 600;
   color: var(--on-accent);
   background: var(--accent);
 }
@@ -592,9 +595,7 @@ button:disabled:hover {
   position: relative;
   padding: var(--space-4);
   border-right: 1px solid var(--border-default);
-  background:
-    linear-gradient(180deg, color-mix(in oklab, var(--surface-raised) 72%, transparent), transparent),
-    var(--surface-panel);
+  background: var(--surface-panel);
 }
 
 .session-context-header {
@@ -613,6 +614,7 @@ button:disabled:hover {
   align-items: center;
   gap: var(--space-1);
   min-width: 0;
+  flex: 1 1 0;
   color: var(--text-secondary);
   font-size: var(--font-size-sm);
 }
@@ -634,6 +636,7 @@ button:disabled:hover {
 
 .session-workspace-tabs {
   display: flex;
+  flex: 0 0 auto;
   align-self: end;
   gap: var(--space-1);
   overflow-x: auto;
@@ -654,8 +657,14 @@ button:disabled:hover {
 }
 
 .session-workspace-tabs button.active {
+  font-weight: 600;
   color: var(--accent);
   border-bottom-color: var(--accent);
+}
+
+.session-workspace-tabs button:hover:not(.active) {
+  color: var(--text-primary);
+  background: var(--surface-sunken);
 }
 
 .session-workspace-tabs button span {

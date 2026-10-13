@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.7.23 - 2026-10-13
+
+- Refine the desktop UI with neutral light and dark surfaces, restrained elevation, consistent typography, clearer selection states and more readable muted text.
+- Keep Session workspace tabs visible beside long titles, compact the narrow-window header and retain primary creation actions in responsive layouts.
+- Strengthen the contrast gate and add native UI coverage for both themes, persisted Note and Testware editing, creation actions and command-palette focus.
+- Update compatible frontend dependencies, including coordinated React and Tiptap packages, and patch transitive ProseMirror paste-XSS and source-map-js denial-of-service advisories while preserving existing security overrides.
+- Bound frontend test-worker concurrency to reduce resource-contention timeouts, preserve the full test suite and refresh the cargo-binstall action used by CI and releases.
+
 ## v0.7.22 - 2026-10-04
 
 - Keep Note undo/redo history through same-Session autosave, title changes, and save rerenders; reset history and toolbar state on Session navigation so undo cannot persist another Session's Note.

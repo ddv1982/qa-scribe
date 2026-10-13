@@ -18,6 +18,7 @@
   --leading-tight: 1.25;
   --leading-normal: 1.45;
   --leading-relaxed: 1.6;
+  font-size: var(--font-size-md);
   --tracking-tight: -0.01em;
   --tracking-wide: 0.08em;
 
@@ -48,21 +49,21 @@
   --ease-out: cubic-bezier(0.2, 0, 0, 1);
 
   /* ---- light theme ---- */
-  --surface-base: #eef1f6;
-  --surface-panel: #f7f9fc;
+  --surface-base: #f3f4f6;
+  --surface-panel: #f8f9fb;
   --surface-raised: #ffffff;
-  --surface-sunken: #eff3f9;
+  --surface-sunken: #f0f2f5;
   --surface-overlay: #ffffff;
 
-  --text-primary: #1a2334;
-  --text-secondary: #55617a;
-  --text-tertiary: #8390a6;
+  --text-primary: #202631;
+  --text-secondary: #535e70;
+  --text-tertiary: #626e80;
 
   --border-subtle: rgba(26, 35, 52, 0.08);
   --border-default: rgba(26, 35, 52, 0.14);
   --border-strong: rgba(26, 35, 52, 0.24);
 
-  --accent: #2563eb;
+  --accent: #2456c4;
   --accent-hover: color-mix(in oklab, var(--accent) 88%, #000);
   --accent-tint: color-mix(in oklab, var(--accent) 9%, var(--surface-raised));
   --accent-border: color-mix(in oklab, var(--accent) 36%, var(--border-default));
@@ -95,15 +96,15 @@
 }
 
 :root[data-theme="dark"] {
-  --surface-base: #0d1219;
-  --surface-panel: #10161f;
-  --surface-raised: #161d28;
-  --surface-sunken: #0f141c;
-  --surface-overlay: #1c2532;
+  --surface-base: #15171c;
+  --surface-panel: #1a1d23;
+  --surface-raised: #20242c;
+  --surface-sunken: #171a20;
+  --surface-overlay: #252a33;
 
   --text-primary: #e4eaf3;
-  --text-secondary: #9aa6ba;
-  --text-tertiary: #6e7b90;
+  --text-secondary: #b0bac9;
+  --text-tertiary: #9ca8ba;
 
   --border-subtle: rgba(255, 255, 255, 0.07);
   --border-default: rgba(255, 255, 255, 0.11);
@@ -157,11 +158,17 @@ body {
   background: var(--surface-base);
 }
 
-/* Contain the framed shell's 16px margin: without a block-formatting
- * context here it collapses through to the page edge, adding 16px of
- * dead scroll below the viewport (most visible on sparse empty states). */
 #root {
   display: flow-root;
+}
+
+:root { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-tertiary);
+  opacity: 1;
 }
 
 button,
