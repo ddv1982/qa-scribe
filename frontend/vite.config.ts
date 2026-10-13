@@ -22,6 +22,8 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
+    // Bound JSDOM contention on developer desktops and shared CI hosts.
+    maxWorkers: 2,
     setupFiles: ['./src/test/dialogPolyfill.ts']
   }
 })

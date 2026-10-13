@@ -50,7 +50,7 @@
 
 .eyebrow {
   margin: 0;
-  color: var(--accent);
+  color: var(--text-secondary);
   font-size: var(--font-size-sm);
   font-weight: 600;
   letter-spacing: var(--tracking-wide);
@@ -158,8 +158,8 @@
   max-height: min(66vh, 720px);
   padding: var(--space-2);
   overflow-y: auto;
-  background: var(--surface-raised);
-  border: 1px solid var(--border-default);
+  background: transparent;
+  border: 1px solid transparent;
   border-radius: var(--radius-md);
 }
 
@@ -182,9 +182,10 @@
 }
 
 .record-master-list > button.active {
-  color: var(--accent);
+  color: var(--text-primary);
   background: var(--accent-tint);
   border-color: var(--accent-border);
+  box-shadow: inset 3px 0 var(--accent);
 }
 
 .record-master-list strong {
@@ -216,7 +217,6 @@
   background: var(--surface-raised);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
 }
 
 .editable-record {
