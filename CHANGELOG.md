@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.7.24 - 2026-10-13
+
+- Update the cargo-binstall GitHub Action source pin from v1.25.1 to v1.25.2 in CI and both release installation paths, incorporating the upstream patch release for `sparse+` Cargo-source parsing.
+- Preserve the existing installer defaults, application behavior and dependency locks; publish refreshed desktop installers through the protected CI and signed release pipeline.
+
 ## v0.7.23 - 2026-10-13
 
 - Refine the desktop UI with neutral light and dark surfaces, restrained elevation, consistent typography, clearer selection states and more readable muted text.
