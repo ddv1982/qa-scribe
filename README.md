@@ -141,6 +141,8 @@ Messages, unsent composer text, and mode are stored locally per Session. Complet
 
 Chat is text-only and bounded to 16 KiB per sent message, 128 KiB of transcript text, and 128 messages including unsuccessful turns. Oversized sends retain the unsent composer text. If submission succeeds but its response or Note reload fails, the Note is write-protected until **Recover Session Note** safely reads its canonical state. Authentication remains in the existing CLIs; QA Scribe does not add direct provider APIs or store API keys.
 
+Chat can use tools and connectors already configured in Claude Code, Codex CLI, or GitHub Copilot CLI, subject to that provider's permissions. For example, a configured Jira connector can retrieve a user story on request. QA Scribe adds no tool allowlist, tool denial, MCP override, or permission bypass. Each turn runs noninteractively in a fresh neutral directory, so user-scoped CLI configuration is inherited; project-local configuration is not loaded from the app's launch directory. Tools requiring interactive approval must be configured with suitable permissions in the CLI first. Tool access does not automatically submit or modify the Session Note.
+
 ## Data And Privacy
 
 - Storage is local SQLite under the Tauri app-data directory.

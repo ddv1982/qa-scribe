@@ -22,6 +22,7 @@ use super::{
 use crate::jobs::JobControl;
 use crate::process_io::configure_process_group;
 
+mod chat_tools;
 mod eof;
 
 /// Monotonic counter making every [`FakeCli`] path unique. Reusing a path
@@ -29,8 +30,7 @@ mod eof;
 /// write and returns `ETXTBSY` ("Text file busy") on Linux.
 static FAKE_CLI_SEQ: AtomicU64 = AtomicU64::new(0);
 
-/// A tiny fake provider CLI written to a temp dir. Each instance gets its own
-/// directory so parallel test runs do not collide.
+/// Fake provider CLI with a unique temp directory to isolate parallel tests.
 struct FakeCli {
     dir: PathBuf,
     path: PathBuf,

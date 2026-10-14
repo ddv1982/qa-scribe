@@ -117,6 +117,32 @@ fn finalizer_preserves_composer_and_mode_changed_during_execution_without_testwa
 }
 
 #[test]
+fn chat_tools_codex_persists_final_answer_after_tool_turns() {
+    use qa_scribe_core::ai::stream::ProviderStreamParser;
+    let (service, mut request) = setup();
+    request.provider = AiProvider::CodexCli;
+    let prepared = prepare(&service, &request).unwrap();
+    let mut parser = ProviderStreamParser::new(GenerationOutputFormat::CodexJsonl);
+    for line in [
+        r#"{"type":"item.completed","item":{"type":"agent_message","text":"I will query the connector to gather resource details."}}"#,
+        r#"{"type":"item.completed","item":{"type":"mcp_tool_call","result":"private tool result"}}"#,
+        r#"{"type":"item.completed","item":{"type":"agent_message","text":"Connected."}}"#,
+    ] {
+        parser.push_bytes(line.as_bytes());
+    }
+    let mut result = output("unused");
+    result.output_format = GenerationOutputFormat::CodexJsonl;
+    result.assistant_text = parser.finish();
+    finish(&service, &prepared, result).unwrap();
+    let stored = service.load_chat(&request.scope.session_id).unwrap();
+    assert_eq!(stored.messages.last().unwrap().text, "Connected.");
+    assert_eq!(
+        stored.messages.last().unwrap().status,
+        ChatTurnStatus::Completed
+    );
+}
+
+#[test]
 fn oversized_send_preserves_composer_without_persisting_user() {
     let (service, request) = setup();
     let chat = service.load_chat(&request.scope.session_id).unwrap();

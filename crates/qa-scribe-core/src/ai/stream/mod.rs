@@ -90,9 +90,8 @@ fn push_json_line<P>(
     }
 }
 
-/// Accumulated assistant text with the final-text guard: replacement text may
-/// never shrink already-accumulated output, so a short trailing event (e.g. a
-/// completed reasoning item) cannot clobber the real answer.
+/// Accumulated assistant text. Only validated assistant snapshots may replace
+/// it; reasoning and tool events are excluded by the format-specific parser.
 #[derive(Default)]
 struct AssistantText(String);
 
@@ -102,13 +101,9 @@ impl AssistantText {
         StreamUpdate::PartialDelta(delta.to_string())
     }
 
-    fn replace_if_not_shorter(&mut self, candidate: String) -> Option<StreamUpdate> {
-        if self.0.is_empty() || candidate.len() >= self.0.len() {
-            self.0 = candidate;
-            Some(StreamUpdate::PartialSnapshot(self.0.clone()))
-        } else {
-            None
-        }
+    fn replace(&mut self, candidate: String) -> StreamUpdate {
+        self.0 = candidate;
+        StreamUpdate::PartialSnapshot(self.0.clone())
     }
 
     fn finish(self) -> Option<String> {
