@@ -154,9 +154,31 @@ test('the Codex fixture completes only released invocations and leaves cancellat
   }
 })
 
-function startFixture(fixture, controlDirectory) {
+test('the Codex fixture accepts the current production Chat prompt and inherited tools', { timeout: 5_000 }, async () => {
+  const controlDirectory = mkdtempSync(join(tmpdir(), 'qa-scribe-chat-fixture-'))
+  const version = readFileSync('crates/qa-scribe-core/src/chat/mod.rs', 'utf8')
+    .match(/CHAT_PROMPT_VERSION: &str = "([^"]+)"/)?.[1]
+  assert.ok(version)
+  const running = startFixture(resolve('e2e/fixtures/bin/codex'), controlDirectory, ['exec', '--json', '--ephemeral', '-'])
+  try {
+    const closed = once(running.child, 'close')
+    running.child.stdin.end(`${version}\nTRANSCRIPT_JSON\n${JSON.stringify({ sessionContext: '', messages: [{ role: 'user', text: 'Checkout failed' }] })}`)
+    await waitForPath(join(controlDirectory, 'codex-exec-1.started'))
+    writeFileSync(join(controlDirectory, 'codex-exec-1.release'), 'release\n')
+    const [code] = await closed
+    assert.equal(code, 0, running.output())
+    assert.match(running.output(), /Which build and environment did you test/)
+    assert.ok(existsSync(join(controlDirectory, 'codex-exec-1.chat.json')))
+    assert.doesNotMatch(running.output(), /E2E finding/)
+  } finally {
+    if (running.child.exitCode === null && running.child.signalCode === null) running.child.kill('SIGKILL')
+    rmSync(controlDirectory, { recursive: true, force: true })
+  }
+})
+
+function startFixture(fixture, controlDirectory, args = ['exec', '--json']) {
   let output = ''
-  const child = spawn(process.execPath, [fixture, 'exec', '--json'], {
+  const child = spawn(process.execPath, [fixture, ...args], {
     env: { ...process.env, QA_SCRIBE_E2E_FIXTURE_DIR: controlDirectory },
     stdio: ['pipe', 'pipe', 'pipe'],
   })

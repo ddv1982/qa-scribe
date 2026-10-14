@@ -8,18 +8,17 @@
 //!   `content_block_delta` events carrying `delta.text`. Older CLI builds
 //!   emitted the inner event unwrapped, which is also accepted.
 //! * `{"type":"assistant","message":{...}}` — a full assistant message
-//!   snapshot; replaces the accumulated text when not shorter.
+//!   snapshot; replaces the current assistant message's accumulated text.
 //! * `{"type":"result","result":"..."}` — the final result. The final-text
-//!   guard still applies: multi-turn runs stream more text than the last
-//!   turn's result, and the longer accumulation wins.
+//!   result is authoritative, even when shorter than a tool-call preamble.
 
 use serde_json::Value;
 
-use super::{AssistantText, StreamUpdate, joined_text, progress_for_event};
+use super::{StreamUpdate, joined_text, progress_for_event};
 
 #[derive(Default)]
 pub(super) struct ClaudeStreamJsonParser {
-    assistant_text: AssistantText,
+    assistant_text: String,
 }
 
 impl ClaudeStreamJsonParser {
@@ -57,10 +56,15 @@ impl ClaudeStreamJsonParser {
     /// everything else is progress.
     fn push_api_event(&mut self, event: &Value) -> Vec<StreamUpdate> {
         let event_type = event.get("type").and_then(Value::as_str);
+        if event_type == Some("message_start") {
+            self.assistant_text.clear();
+            return vec![StreamUpdate::PartialSnapshot(String::new())];
+        }
         if event_type == Some("content_block_delta")
             && let Some(delta) = event.get("delta").and_then(joined_text)
         {
-            return vec![self.assistant_text.append(&delta)];
+            self.assistant_text.push_str(&delta);
+            return vec![StreamUpdate::PartialDelta(delta)];
         }
         progress_for_event(event_type)
     }
@@ -71,13 +75,16 @@ impl ClaudeStreamJsonParser {
         event_type: Option<&str>,
     ) -> Vec<StreamUpdate> {
         candidate
-            .and_then(|text| self.assistant_text.replace_if_not_shorter(text))
-            .map(|update| vec![update])
+            .map(|text| {
+                self.assistant_text = text.clone();
+                vec![StreamUpdate::PartialSnapshot(text)]
+            })
             .unwrap_or_else(|| progress_for_event(event_type))
     }
 
     pub(super) fn finish(self) -> Option<String> {
-        self.assistant_text.finish()
+        let text = self.assistant_text.trim().to_string();
+        if text.is_empty() { None } else { Some(text) }
     }
 }
 
@@ -122,7 +129,7 @@ mod tests {
     }
 
     #[test]
-    fn assistant_message_snapshot_cannot_shrink_accumulated_text() {
+    fn chat_tools_final_result_replaces_long_tool_preamble() {
         let mut parser = parser();
 
         let long_answer = "The full answer streamed across two turns with detail.";
@@ -136,7 +143,8 @@ mod tests {
             br#"{"type":"assistant","message":{"content":[{"type":"text","text":"short"}]}}"#,
         );
 
-        assert_eq!(parser.finish().as_deref(), Some(long_answer));
+        parser.push_bytes(br#"{"type":"result","subtype":"success","result":"Done."}"#);
+        assert_eq!(parser.finish().as_deref(), Some("Done."));
     }
 
     #[test]

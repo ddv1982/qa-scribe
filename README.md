@@ -141,6 +141,10 @@ Messages, unsent composer text, and mode are stored locally per Session. Complet
 
 Chat is text-only and bounded to 16 KiB per sent message, 128 KiB of transcript text, and 128 messages including unsuccessful turns. Oversized sends retain the unsent composer text. If submission succeeds but its response or Note reload fails, the Note is write-protected until **Recover Session Note** safely reads its canonical state. Authentication remains in the existing CLIs; QA Scribe does not add direct provider APIs or store API keys.
 
+Chat can use tools and connectors already configured in Claude Code, Codex CLI, or GitHub Copilot CLI, subject to that provider's permissions. For example, a configured Jira connector can retrieve a user story on request. QA Scribe adds no tool allowlist, tool denial, MCP override, or permission bypass. Turns run noninteractively in neutral directories, so user-scoped CLI configuration is inherited; project-local configuration is not loaded from the app's launch directory. Tools requiring interactive approval must be configured with suitable permissions in the CLI first. Tool access does not automatically submit or modify the Session Note.
+
+Claude and Codex Chat use a fresh temporary directory each turn. Copilot Chat uses the stable private `copilot-chat` directory inside qa-scribe's Tauri app-data directory, because Copilot saves approvals by directory. After the first Copilot Chat attempt creates it, open an interactive Copilot CLI there and approve the specific tools you want to use. Those approvals remain CLI-owned and apply to later Chat turns. On Linux the default scope is `~/.local/share/io.github.ddv1982.qa-scribe/copilot-chat` (or the equivalent under `$XDG_DATA_HOME`); on macOS it is `~/Library/Application Support/io.github.ddv1982.qa-scribe/copilot-chat`. This directory persists across turns and app restarts; files created there by permitted tools also remain. Ordinary generation and readiness probes continue using fresh temporary directories.
+
 ## Data And Privacy
 
 - Storage is local SQLite under the Tauri app-data directory.

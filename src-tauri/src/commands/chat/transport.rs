@@ -10,7 +10,7 @@ use crate::{
     commands::{
         ai::{
             provider_execution::validate_effective_selection,
-            streaming_exec::run_generation_command_streaming,
+            streaming_exec::run_chat_command_streaming,
         },
         providers::provider_readiness_for_job,
     },
@@ -22,6 +22,7 @@ pub(super) struct ChatTransport<'a> {
     pub jobs: &'a JobStore,
     pub events: &'a Channel<GenerationJobStatus>,
     pub control: &'a JobControl,
+    pub app_data_dir: &'a std::path::Path,
 }
 
 impl ChatTransport<'_> {
@@ -55,30 +56,36 @@ impl ChatTransport<'_> {
         let mut partial = String::new();
         let mut last_emit = Instant::now();
         let mut last_len = 0usize;
-        run_generation_command_streaming(&command, self.control, |update| {
-            if self.control.is_cancelled() {
-                return;
-            }
-            match update {
-                StreamUpdate::Progress(message) => {
-                    if let Ok(status) = self.jobs.update_progress(self.job_id, &message) {
-                        let _ = self.events.send(status);
-                    }
+        run_chat_command_streaming(
+            &command,
+            self.control,
+            request.provider,
+            self.app_data_dir,
+            |update| {
+                if self.control.is_cancelled() {
                     return;
                 }
-                StreamUpdate::PartialDelta(delta) => partial.push_str(&delta),
-                StreamUpdate::PartialSnapshot(body) => partial = body,
-            }
-            if partial.len() < last_len
-                || partial.len().saturating_sub(last_len) >= 512
-                || last_emit.elapsed() >= Duration::from_millis(250)
-            {
-                last_emit = Instant::now();
-                last_len = partial.len();
-                if let Ok(status) = self.jobs.update_partial(self.job_id, &partial) {
-                    let _ = self.events.send(status);
+                match update {
+                    StreamUpdate::Progress(message) => {
+                        if let Ok(status) = self.jobs.update_progress(self.job_id, &message) {
+                            let _ = self.events.send(status);
+                        }
+                        return;
+                    }
+                    StreamUpdate::PartialDelta(delta) => partial.push_str(&delta),
+                    StreamUpdate::PartialSnapshot(body) => partial = body,
                 }
-            }
-        })
+                if partial.len() < last_len
+                    || partial.len().saturating_sub(last_len) >= 512
+                    || last_emit.elapsed() >= Duration::from_millis(250)
+                {
+                    last_emit = Instant::now();
+                    last_len = partial.len();
+                    if let Ok(status) = self.jobs.update_partial(self.job_id, &partial) {
+                        let _ = self.events.send(status);
+                    }
+                }
+            },
+        )
     }
 }

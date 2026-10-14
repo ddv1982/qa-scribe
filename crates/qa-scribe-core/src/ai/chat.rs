@@ -1,8 +1,8 @@
 use super::{GenerationCommand, streaming_generation_command};
 use crate::domain::AiProvider;
 
-/// Reuses streaming generation transport with documented chat-only restrictions.
-/// These argv restrictions are not a blanket process or MCP isolation guarantee.
+/// Reuses provider defaults, including configured tools and permissions.
+/// Only provider-session persistence is disabled because the app owns replay.
 pub fn streaming_chat_command(
     provider: AiProvider,
     prompt: &str,
@@ -17,43 +17,13 @@ pub fn streaming_chat_command(
         reasoning_effort,
         copilot_direct_cli_ready,
     )?;
-    let restrictions: &[&str] = match provider {
+    let replay_options: &[&str] = match provider {
         // https://code.claude.com/docs/en/cli-reference
-        AiProvider::ClaudeCode => &[
-            "--tools",
-            "",
-            "--no-session-persistence",
-            "--strict-mcp-config",
-            "--mcp-config",
-            "{\"mcpServers\":{}}",
-            "--disallowedTools",
-            "mcp__*",
-            "--disable-slash-commands",
-        ],
+        AiProvider::ClaudeCode => &["--no-session-persistence"],
         // https://developers.openai.com/codex/cli/reference
-        // https://developers.openai.com/codex/config-reference
-        // shell_tool disables execution tools; unified_exec=false alone does not.
-        // MCP servers require named per-server settings. This DTO has no server
-        // inventory, so it deliberately makes no all-server disable claim.
-        AiProvider::CodexCli => &[
-            "--sandbox",
-            "read-only",
-            "--ephemeral",
-            "--config",
-            "features.shell_tool=false",
-        ],
+        AiProvider::CodexCli => &["--ephemeral"],
         // https://docs.github.com/en/copilot/reference/cli-command-reference
-        // https://docs.github.com/en/copilot/how-tos/copilot-cli/use-copilot-cli/allowing-tools
-        // Empty allowlist requests no model tools; explicit permission-kind
-        // denials also override saved approvals. Built-in MCP disable does not
-        // disable arbitrary user-configured MCP server processes.
-        AiProvider::CopilotCli => &[
-            "--available-tools",
-            "",
-            "--deny-tool",
-            "shell,read,write,url,memory",
-            "--disable-builtin-mcps",
-        ],
+        AiProvider::CopilotCli => &[],
     };
     // Keep Codex's stdin positional marker last, after all added options.
     let insertion = if provider == AiProvider::CodexCli {
@@ -63,7 +33,7 @@ pub fn streaming_chat_command(
     };
     command.args.splice(
         insertion..insertion,
-        restrictions.iter().map(|arg| (*arg).to_owned()),
+        replay_options.iter().map(|arg| (*arg).to_owned()),
     );
     Ok(command)
 }
@@ -74,7 +44,7 @@ mod tests {
     use crate::ai::streaming_generation_command;
 
     #[test]
-    fn chat_claude_adds_exact_restrictions_without_changing_transport() {
+    fn chat_claude_inherits_tools_and_permissions_without_changing_transport() {
         let baseline = streaming_generation_command(
             AiProvider::ClaudeCode,
             "private transcript",
@@ -92,20 +62,7 @@ mod tests {
         )
         .unwrap();
         let mut expected = baseline.args.clone();
-        expected.extend(
-            [
-                "--tools",
-                "",
-                "--no-session-persistence",
-                "--strict-mcp-config",
-                "--mcp-config",
-                "{\"mcpServers\":{}}",
-                "--disallowedTools",
-                "mcp__*",
-                "--disable-slash-commands",
-            ]
-            .map(str::to_owned),
-        );
+        expected.push("--no-session-persistence".into());
         assert_eq!(chat.args, expected);
         assert_eq!(chat.program, baseline.program);
         assert_eq!(chat.stdin, baseline.stdin);
@@ -120,9 +77,7 @@ mod tests {
     }
 
     #[test]
-    fn chat_ready_providers_add_supported_restrictions_without_changing_defaults() {
-        // R1 supports every existing ready provider. Replace the initial
-        // speculative fail-closed requirement with documented best-effort argv.
+    fn chat_ready_providers_inherit_tools_and_permissions_without_changing_defaults() {
         for provider in [AiProvider::CodexCli, AiProvider::CopilotCli] {
             let baseline = streaming_generation_command(
                 provider,
@@ -137,27 +92,9 @@ mod tests {
                     .unwrap();
             let mut expected = baseline.args.clone();
             let (insertion, restrictions) = if provider == AiProvider::CodexCli {
-                (
-                    expected.len() - 1,
-                    vec![
-                        "--sandbox",
-                        "read-only",
-                        "--ephemeral",
-                        "--config",
-                        "features.shell_tool=false",
-                    ],
-                )
+                (expected.len() - 1, vec!["--ephemeral"])
             } else {
-                (
-                    expected.len(),
-                    vec![
-                        "--available-tools",
-                        "",
-                        "--deny-tool",
-                        "shell,read,write,url,memory",
-                        "--disable-builtin-mcps",
-                    ],
-                )
+                (expected.len(), vec![])
             };
             expected.splice(
                 insertion..insertion,

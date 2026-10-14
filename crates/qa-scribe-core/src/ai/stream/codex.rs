@@ -33,12 +33,8 @@ impl CodexJsonlParser {
                     }
                 }
                 Some("item.completed") => {
-                    if let Some(snapshot) = completed_agent_message_text(value)
-                        && let Some(update) = self
-                            .assistant_text
-                            .replace_if_not_shorter(snapshot.to_string())
-                    {
-                        return vec![update];
+                    if let Some(snapshot) = completed_agent_message_text(value) {
+                        return vec![self.assistant_text.replace(snapshot.to_string())];
                     }
                 }
                 _ => {}

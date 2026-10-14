@@ -53,13 +53,22 @@ fn chat_prompt_is_an_interview_not_automatic_testware_generation() {
         "reproduction",
         "text-only",
         "Do not generate Testware",
-        "untrusted data",
+        "conversation data",
     ] {
         assert!(
             prompt.contains(requirement),
             "missing interview contract: {requirement}"
         );
     }
+}
+
+#[test]
+fn chat_tools_prompt_allows_configured_connectors_without_bypassing_permissions() {
+    let prompt =
+        build_chat_prompt("", &[message(ChatPromptRole::User, "Look up a Jira story")]).unwrap();
+    assert!(!prompt.contains("Do not use tools"));
+    assert!(prompt.contains("configured tools"));
+    assert!(prompt.contains("permissions"));
 }
 
 #[test]

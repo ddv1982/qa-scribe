@@ -14,9 +14,9 @@ function chatResponse(turn) {
 
 function parseChat(prompt) {
   const hasArgumentPair = (flag, value) => args.some((arg, index) => arg === flag && args[index + 1] === value)
-  if (!hasArgumentPair('--sandbox', 'read-only') || !args.includes('--ephemeral')
-    || !hasArgumentPair('--config', 'features.shell_tool=false') || args.at(-1) !== '-') {
-    throw new Error('Chat requires read-only sandbox, ephemeral mode, disabled shell tools and stdin prompt')
+  if (!args.includes('--ephemeral') || args.at(-1) !== '-'
+    || args.includes('--sandbox') || hasArgumentPair('--config', 'features.shell_tool=false')) {
+    throw new Error('Chat requires ephemeral stdin transport and inherited tool permissions')
   }
   const separator = '\nTRANSCRIPT_JSON\n'
   const dataStart = prompt.indexOf(separator)
@@ -97,7 +97,7 @@ if (args[0] === 'app-server') {
       const startedPath = join(controlDirectory, `codex-exec-${invocation}.started`)
       const releasePath = join(controlDirectory, `codex-exec-${invocation}.release`)
 
-      const chat = prompt.startsWith('QA_SCRIBE_CHAT_V1\n') ? parseChat(prompt) : null
+      const chat = prompt.startsWith('QA_SCRIBE_CHAT_V2\n') ? parseChat(prompt) : null
       const isTestware = !chat && /Create test scenarios with test cases from the selected note only/i.test(prompt)
       const isSummary = /Keep the output as a summarized QA note/i.test(prompt)
       const html = isTestware
