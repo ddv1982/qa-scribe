@@ -26,6 +26,8 @@ import {
 } from './useAppController.derivedState'
 import { useAppControllerNavigation } from './useAppController.navigation'
 import { useAttachmentCleanup } from './useAttachmentCleanup'
+import { useSessionChat } from './useSessionChat'
+import { useChatNoteRecovery } from './useChatNoteRecovery'
 
 export { mergeRecordLists } from './useRecordHydration'
 
@@ -206,8 +208,9 @@ export function useAppController() {
       registerImportedAttachmentRef.current(owner, attachmentId)
     },
   })
+  const noteRecovery = useChatNoteRecovery()
   const sessionActions = useSessionActions({
-    session: sessionWorkspace,
+    session: sessionWorkspace, noteRecovery,
     records: recordWorkspace,
     generation: coordinatedGenerationWorkspace, latestNoteGenerationUndoRef, summaryRecovery,
     feedback,
@@ -222,6 +225,11 @@ export function useAppController() {
     saveDirtyRecordsNow: () => saveDirtyRecordsNowRef.current(),
     retryPendingRecordCompensations: (sessionId) => retryPendingRecordCompensationsRef.current(sessionId),
   })
+  const { sessionChat, sessionMode, setSessionMode, noteReadOnly, ...chatProtection } = useSessionChat({
+    session: sessionWorkspace, noteRecovery, sessionActions, generation: coordinatedGenerationWorkspace,
+    selection, provider: activeProvider, providerWarning: effectiveAiSelection?.warning ?? null,
+    feedback, jobs: generationJobs,
+  })
   function setEditedSessionTitle(value: Parameters<typeof setSessionTitle>[0]) {
     const next = typeof value === 'function' ? value(sessionWorkspace.sessionTitleRef.current) : value
     if (next === sessionWorkspace.sessionTitleRef.current) return
@@ -230,7 +238,7 @@ export function useAppController() {
   }
   function setEditedNoteBody(value: Parameters<typeof setNoteBody>[0]) {
     const next = typeof value === 'function' ? value(sessionWorkspace.noteBodyRef.current) : value
-    sessionActions.registerNoteEditIntent(next)
+    if (!sessionActions.registerNoteEditIntent(next)) return
     const recoveryDecision = latestNoteGenerationUndoRef.current
     if (recoveryDecision?.pendingRecoveryDecision) {
       setLatestNoteGenerationUndo(recoveryDecision.pendingRecoveryChoice === 'authored'
@@ -266,7 +274,7 @@ export function useAppController() {
     selection,
     feedback,
     navigation,
-    saveNoteNow: sessionActions.saveNoteNow,
+    saveNoteNow: sessionActions.saveNoteNow, isNoteWriteBlocked: (id) => noteRecovery.has(id) || noteRecovery.isRetired(id),
     saveNoteBody: sessionActions.saveBody,
     adoptCanonicalNoteBody: sessionActions.adoptCanonicalNoteBody,
     canonicalizeGeneratedDraft: recordActions.canonicalizeGeneratedDraft,
@@ -279,6 +287,7 @@ export function useAppController() {
     requestActiveView, requestNewSession, requestOpenSession, saveAllPendingChanges,
     savePendingNavigationChanges,
   } = useAppControllerNavigation({
+    chat: chatProtection,
     activeSession, activeView, attachmentActions, dirtyDraftIdsRef, dirtyFindingIdsRef,
     discardSettingsDraft, focusedRecordId, pendingNavigationContinuationRef, pendingNavigationEpochRef,
     pendingNavigationView, pendingRecoveredSummaryDecision, recordActions, savedTitleRef, saveSettingsDraft,
@@ -309,6 +318,7 @@ export function useAppController() {
   useSettingsDiscovery(activeView, activeProvider, discoverProviderDefaults)
 
   usePendingChangeProtection({
+    hasPendingChatChanges: chatProtection.hasPendingChanges,
     hasActiveSession: Boolean(activeSession),
     hasNoteEntry: Boolean(noteEntry),
     sessionTitle,
@@ -394,6 +404,7 @@ export function useAppController() {
   }, [noteEntry, noteBody, pendingRecoveredSummaryDecision]) // eslint-disable-line react-hooks/exhaustive-deps -- debounce is keyed to note identity, body, and recovery decision
 
   return {
+    sessionChat, sessionMode, setSessionMode, saveAllPendingChanges, noteReadOnly,
     attachmentCleanup,
     ...attachmentActions,
     ...copyActions,

@@ -1,0 +1,93 @@
+import type { ChatMode, ChatState, GenerationJobStatus, ProviderDescriptor } from '../bindings'
+import type { Dispatch, SetStateAction } from 'react'
+import type { AiSelection, GenerationWorkspace, SessionWorkspace, WorkflowFeedback } from './types'
+import type { useSessionActions } from './sessionActions'
+import type { ChatNoteRecovery } from './useChatNoteRecovery'
+
+export interface SessionChatViewState {
+  chat: ChatState | null
+  composer: string
+  job: GenerationJobStatus | null
+  loading: boolean
+  saving: boolean
+  working: boolean
+  error: string | null
+  dirty: boolean
+  recoveryPending?: boolean
+  onSetComposer: (text: string) => void
+  onSend: () => Promise<void>
+  onRetry: () => Promise<void>
+  onCancel: () => Promise<void>
+  onSubmit: () => Promise<void>
+  onRestart: () => Promise<void>
+}
+
+export type ChatSnapshot = Pick<SessionChatViewState, 'chat' | 'composer' | 'job' | 'loading' | 'saving' | 'working' | 'error' | 'dirty'> & {
+  sessionId: string | null
+  mode: ChatMode
+}
+
+export const emptyChatSnapshot: ChatSnapshot = {
+  sessionId: null, chat: null, composer: '', job: null, loading: false,
+  saving: false, working: false, error: null, dirty: false, mode: 'write_note',
+}
+
+export type SessionChatContext = {
+  noteRecovery: ChatNoteRecovery
+  session: SessionWorkspace
+  sessionActions: ReturnType<typeof useSessionActions>
+  generation: GenerationWorkspace
+  selection: AiSelection
+  provider: ProviderDescriptor | null
+  providerWarning: string | null
+  feedback: WorkflowFeedback
+  publish: Dispatch<SetStateAction<ChatSnapshot>>
+}
+
+export type ChatWorkspace = {
+  retired: boolean
+  retirement: Promise<void>
+  resolveRetirement: () => void
+  recovery: Promise<boolean> | null
+  sessionId: string
+  chat: ChatState | null
+  composer: string
+  mode: ChatMode
+  inputVersion: number
+  modeVersion: number
+  refreshEpoch: number
+  loading: boolean
+  error: string | null
+  job: GenerationJobStatus | null
+  hydration: Promise<void> | null
+  save: Promise<boolean> | null
+  operation: Promise<void> | null
+  operationKind: string | null
+  autosaveTimer: ReturnType<typeof setTimeout> | null
+}
+
+export function chatIsWorking(job: GenerationJobStatus | null): boolean {
+  return Boolean(job && ['starting', 'running', 'cancelling'].includes(job.state))
+}
+
+export function chatIsDirty(workspace: ChatWorkspace): boolean {
+  if (workspace.retired) return false
+  if (workspace.chat?.submission) return false
+  if (!workspace.chat) return workspace.inputVersion > 0 || workspace.modeVersion > 0
+  return workspace.composer !== workspace.chat.composer || workspace.mode !== workspace.chat.mode
+}
+
+export function chatScope(chat: ChatState) {
+  return { sessionId: chat.sessionId, draftId: chat.draftId, expectedRevision: chat.revision }
+}
+
+export function unresolvedChatReason(chat: ChatState, retry: boolean): string | null {
+  const unresolved = chat.messages.filter((message) => message.status !== 'completed')
+  if (!unresolved.length) return retry ? 'There is no failed turn to retry.' : null
+  const latestTurn = chat.messages.at(-1)?.turnId
+  if (unresolved.some((message) => message.turnId !== latestTurn)) {
+    return 'An earlier turn did not complete. Start a new conversation to continue.'
+  }
+  if (unresolved.some((message) => message.status === 'running')) return 'Wait for the active turn or cancel it.'
+  return retry ? null : 'The latest turn did not complete. Retry that turn explicitly before sending a new message.'
+}

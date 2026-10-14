@@ -1,3 +1,4 @@
+pub mod chat;
 mod executor;
 pub mod stream;
 

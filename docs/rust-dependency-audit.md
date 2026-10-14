@@ -1,6 +1,6 @@
 # Rust Dependency Audit
 
-Last reviewed: 2026-07-13 at v0.7.13. Next scheduled review: 2026-10-13, or earlier when a removal trigger below occurs.
+Last reviewed: 2026-10-14 against the locked v0.7.24 graph during Session Chat implementation. Next scheduled review: 2026-11-14, or earlier when a removal trigger below occurs.
 
 ## Gate
 
@@ -19,15 +19,17 @@ Every ignore must record:
 
 ## Current Registry
 
-A raw `cargo audit --json` run on 2026-10-04 reports 10 reviewed advisories: 2 vulnerabilities, 1 unsoundness warning, and 7 unmaintained warnings.
+A raw `cargo audit --json` run on 2026-10-14 reports 10 reviewed advisories: 2 vulnerabilities, 1 unsoundness warning, and 7 unmaintained warnings.
 
-Registry reconciliation on 2026-10-04 removed ten GTK3 unmaintained advisory entries no longer reported by the current advisory database. Retained exception exposure assessments remain from July and are due for review on October 13. No new exceptions or extended review deadlines were introduced.
+Registry reconciliation on 2026-10-04 removed ten GTK3 unmaintained advisory entries no longer reported by the current advisory database. The 2026-10-14 raw audit (database commit `6aed84668c23d7f535077a9fe918bf1fa0f6a5bc`) still reports the same ten IDs and classifications. Linux inverse dependency trees for quick-xml, glib, proc-macro-error, paste and unic-char-range confirm the locked paths and exposures below. No new advisory exceptions were added.
+
+`cargo update --dry-run` on 2026-10-14 proposes 192 package changes, including wayland-scanner 0.31.11 with quick-xml 0.42.0, Tauri 2.12.3, and removal of the unic family. These are available upgrade paths, not an unavailable-upstream blocker. This feature release temporarily retains the audited lockfile pending targeted dependency upgrade and platform validation, with a one-month review deadline rather than a quarterly extension. The dry run did not mutate Cargo.lock or demonstrate upgrade behavior. In particular, the broader Tauri upgrade requires revalidating the pinned CLI/runtime major-minor contract. The two quick-xml vulnerabilities are build-only on static protocol XML; glib remains runtime-transitively reachable and is not claimed to be fixed.
 
 ### Vulnerabilities
 
 | Advisories | Package | Exposure and blocker | Removal trigger |
 | --- | --- | --- | --- |
-| `RUSTSEC-2026-0194`, `RUSTSEC-2026-0195` | `quick-xml 0.39.4` | The remaining constrained path is `wayland-scanner`, used by the transitive Linux Wayland build stack. The advisories are patched in `quick-xml >=0.41.0`; the published Wayland dependency constraint does not currently permit it. | Remove when the Wayland/Tauri graph accepts `quick-xml >=0.41.0`; recheck on every Wayland, Tauri, or clipboard-plugin upgrade. |
+| `RUSTSEC-2026-0194`, `RUSTSEC-2026-0195` | `quick-xml 0.39.4` | Build-only static XML through locked wayland-scanner 0.31.10. A scanner upgrade resolving patched quick-xml is now available but not yet validated in this release. | Validate the targeted scanner upgrade and remove these exceptions; recheck on every Wayland, Tauri, or clipboard-plugin upgrade. |
 
 ### Unsoundness
 

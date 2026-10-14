@@ -6,6 +6,38 @@ import { dirname, join } from 'node:path'
 
 const args = process.argv.slice(2)
 
+function chatResponse(turn) {
+  if (turn === 1) return 'Which build and environment did you test?'
+  if (turn === 2) return 'What did you expect, and what happened instead?'
+  return 'Your testing context is ready to submit as a Session Note.'
+}
+
+function parseChat(prompt) {
+  const hasArgumentPair = (flag, value) => args.some((arg, index) => arg === flag && args[index + 1] === value)
+  if (!hasArgumentPair('--sandbox', 'read-only') || !args.includes('--ephemeral')
+    || !hasArgumentPair('--config', 'features.shell_tool=false') || args.at(-1) !== '-') {
+    throw new Error('Chat requires read-only sandbox, ephemeral mode, disabled shell tools and stdin prompt')
+  }
+  const separator = '\nTRANSCRIPT_JSON\n'
+  const dataStart = prompt.indexOf(separator)
+  if (dataStart < 0) throw new Error('Chat prompt is missing TRANSCRIPT_JSON data')
+  const transcript = JSON.parse(prompt.slice(dataStart + separator.length))
+  const messages = transcript?.messages
+  if (!Array.isArray(messages) || messages.length === 0 || messages.length % 2 !== 1) {
+    throw new Error('Chat transcript requires completed pairs followed by the latest user message')
+  }
+  for (const [index, message] of messages.entries()) {
+    const role = index % 2 === 0 ? 'user' : 'assistant'
+    if (message?.role !== role || typeof message.text !== 'string' || !message.text.trim()) {
+      throw new Error(`Chat message ${index + 1} has invalid role order or text`)
+    }
+    if (role === 'assistant' && message.text !== chatResponse((index + 1) / 2)) {
+      throw new Error(`Chat message ${index + 1} does not replay the deterministic assistant response`)
+    }
+  }
+  return { messages, response: chatResponse((messages.length + 1) / 2), argv: args }
+}
+
 function reserveInvocation(controlDirectory) {
   for (let index = 1; index <= 100; index += 1) {
     try {
@@ -65,7 +97,8 @@ if (args[0] === 'app-server') {
       const startedPath = join(controlDirectory, `codex-exec-${invocation}.started`)
       const releasePath = join(controlDirectory, `codex-exec-${invocation}.release`)
 
-      const isTestware = /Create test scenarios with test cases from the selected note only/i.test(prompt)
+      const chat = prompt.startsWith('QA_SCRIBE_CHAT_V1\n') ? parseChat(prompt) : null
+      const isTestware = !chat && /Create test scenarios with test cases from the selected note only/i.test(prompt)
       const isSummary = /Keep the output as a summarized QA note/i.test(prompt)
       const html = isTestware
         ? '<h2>E2E test cases</h2><ul><li>Deterministic generated case</li></ul>'
@@ -73,9 +106,15 @@ if (args[0] === 'app-server') {
           ? '<p>E2E generated summary.</p>'
           : '<h2>E2E finding</h2><p>Deterministic provider output.</p>'
       const marker = prompt.match(/<html_fragment_[a-f0-9]+>/i)?.[0]?.slice(1, -1)
-      const response = marker ? `<${marker}>${html}</${marker}>` : html
+      const response = chat ? chat.response : marker ? `<${marker}>${html}</${marker}>` : html
       const midpoint = Math.ceil(response.length / 2)
 
+      if (chat) {
+        writeFileSync(join(controlDirectory, `codex-exec-${invocation}.chat.json`), `${JSON.stringify(chat, null, 2)}\n`, { flag: 'wx' })
+      }
+      if (isTestware) {
+        writeFileSync(join(controlDirectory, `codex-exec-${invocation}.prompt.txt`), prompt, { flag: 'wx' })
+      }
       writeFileSync(startedPath, `${process.pid}\n`, { flag: 'wx' })
       process.stdout.write(`${JSON.stringify({ type: 'turn.started' })}\n`)
       await waitForFile(releasePath)

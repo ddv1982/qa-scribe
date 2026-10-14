@@ -1,0 +1,133 @@
+use serde::{Deserialize, Serialize};
+
+macro_rules! chat_enum {
+    ($name:ident { $($variant:ident => $stored:literal),+ $(,)? }) => {
+        #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
+        #[serde(rename_all = "snake_case")]
+        pub enum $name { $($variant),+ }
+        impl $name {
+            pub fn as_str(self) -> &'static str {
+                match self { $(Self::$variant => $stored),+ }
+            }
+            pub fn from_stored(value: &str) -> crate::Result<Self> {
+                match value {
+                    $($stored => Ok(Self::$variant),)+
+                    _ => Err(crate::QaScribeError::InvalidStoredValue {
+                        field: stringify!($name), value: value.into(),
+                    }),
+                }
+            }
+        }
+    };
+}
+
+chat_enum!(ChatMode { WriteNote => "write_note", Chat => "chat" });
+chat_enum!(ChatRole { User => "user", Assistant => "assistant" });
+chat_enum!(ChatTurnStatus {
+    Running => "running", Completed => "completed", Failed => "failed",
+    Cancelled => "cancelled", Interrupted => "interrupted",
+});
+chat_enum!(ChatFailureKind { Failed => "failed", Cancelled => "cancelled" });
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ChatMessage {
+    pub id: String,
+    pub turn_id: String,
+    pub role: ChatRole,
+    pub text: String,
+    pub status: ChatTurnStatus,
+    pub error_message: Option<String>,
+    pub ai_run_id: Option<String>,
+    pub created_at: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ChatSubmissionReceipt {
+    pub draft_id: String,
+    pub note_id: String,
+    pub submitted_at: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ChatState {
+    pub session_id: String,
+    pub draft_id: String,
+    pub revision: i32,
+    pub composer: String,
+    pub mode: ChatMode,
+    pub messages: Vec<ChatMessage>,
+    pub submission: Option<ChatSubmissionReceipt>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ChatRevision {
+    pub session_id: String,
+    pub draft_id: String,
+    pub expected_revision: i32,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ChatComposerRequest {
+    pub scope: ChatRevision,
+    pub composer: String,
+    pub mode: ChatMode,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ChatStartRequest {
+    pub scope: ChatRevision,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ChatAssociateRunRequest {
+    pub scope: ChatRevision,
+    pub turn_id: String,
+    pub ai_run_id: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ChatRestartRequest {
+    pub scope: ChatRevision,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ChatTurnStarted {
+    pub chat: ChatState,
+    pub turn_id: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ChatFinishRequest {
+    pub scope: ChatRevision,
+    pub turn_id: String,
+    pub assistant_text: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ChatFailRequest {
+    pub scope: ChatRevision,
+    pub turn_id: String,
+    pub kind: ChatFailureKind,
+    pub error_message: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct ChatSubmitRequest {
+    pub scope: ChatRevision,
+    pub note_id: String,
+    pub expected_note_body: String,
+    pub expected_note_body_json: Option<String>,
+    pub expected_note_body_format: Option<String>,
+}

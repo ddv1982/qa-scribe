@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { existsSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { runChatToNoteWorkflow } from './chat-to-note.workflow.mjs'
 
 const primaryTitle = 'E2E primary session'
 const secondaryTitle = 'E2E secondary session'
@@ -350,4 +351,9 @@ describe(`QA Scribe built application: ${scenario}`, () => {
     )
     await selectedWorkflow.run()
   })
+  if (scenario === 'session-lifecycle') {
+    it('persists isolated Chat turns, retries cancellation, submits once into a rich Note, and explicitly generates Testware', async () => {
+      await runChatToNoteWorkflow()
+    }).timeout(120_000)
+  }
 })

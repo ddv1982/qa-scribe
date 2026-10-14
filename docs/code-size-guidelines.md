@@ -11,6 +11,8 @@ qa-scribe uses file size as a maintainability signal, not as a mechanical rewrit
 
 ## Exception Policy
 
+The two existing operational Python exclusions were re-reviewed on 2026-10-14: `build_apt_repository.py` is 569 lines with one metadata/signing/build CLI, and `validate_linux_package_metadata.py` is 549 lines with shared package extraction, validation and reporting. Archive safety already has a separate helper/test contract. No new independent invocation surface or packaging responsibility was introduced by Session Chat, so the current exclusions are retained until 2026-11-14. The 500-line limit and scanned file set are unchanged.
+
 An exception above 500 lines must record:
 
 - the exact file;

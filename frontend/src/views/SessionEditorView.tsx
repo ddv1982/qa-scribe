@@ -8,6 +8,8 @@ import type { BusyAction } from '../ui/types'
 import type { PendingAiActions } from '../ui/types'
 import { statusLabel } from '../ui/format'
 import { originSummary, type EffectiveAiSelection } from '../settings/defaults'
+import type { ReactNode } from 'react'
+import type { ChatMode } from '../bindings'
 
 export function SessionEditorView({
   activeProviderAvailable,
@@ -19,6 +21,8 @@ export function SessionEditorView({
   filteredSessions,
   isBusy,
   noteBody,
+  noteReadOnly = false,
+  onRecoverNote,
   noteIsReady,
   noteScreenshotCount,
   sessionTitle,
@@ -42,6 +46,9 @@ export function SessionEditorView({
   onSetNoteBody,
   onSetSessionTitle,
   onUploadImage,
+  sessionMode = 'write_note',
+  onSetSessionMode,
+  chatContent,
 }: {
   activeProviderAvailable: boolean
   activeSession: Session | null
@@ -52,6 +59,8 @@ export function SessionEditorView({
   filteredSessions: Session[]
   isBusy: boolean
   noteBody: RichEditorDocument
+  noteReadOnly?: boolean
+  onRecoverNote?: () => Promise<void>
   noteIsReady: boolean
   noteScreenshotCount: number
   sessionTitle: string
@@ -75,6 +84,9 @@ export function SessionEditorView({
   onSetNoteBody: (value: RichEditorDocument) => void
   onSetSessionTitle: (value: string) => void
   onUploadImage: (input: RichEditorImageUpload) => void | Promise<void>
+  sessionMode?: ChatMode
+  onSetSessionMode?: (mode: ChatMode) => void
+  chatContent?: ReactNode
 }) {
   const deletingSession = busyAction === 'delete-session'
   const copyingNote = busyAction === 'copy-note'
@@ -130,21 +142,26 @@ export function SessionEditorView({
   return (
     <div className="session-workspace">
       <header className="document-topline">
-        <p className="document-mode"><FileText size={16} /> Session note</p>
+        {onSetSessionMode ? (
+          <div className="document-mode" role="group" aria-label="Session input mode">
+            <button className="secondary-button compact-button" type="button" aria-pressed={sessionMode === 'write_note'} onClick={() => onSetSessionMode('write_note')}>Write note</button>
+            <button className="secondary-button compact-button" type="button" aria-pressed={sessionMode === 'chat'} onClick={() => onSetSessionMode('chat')}>Chat</button>
+          </div>
+        ) : <p className="document-mode"><FileText size={16} /> Session note</p>}
         <div className="document-actions">
-          {canUndoLatestGeneration ? (
-            <button className="secondary-button compact-button" type="button" disabled={isBusy} onClick={() => void onUndoLatestGeneration()}>
+          {sessionMode === 'write_note' && canUndoLatestGeneration ? (
+            <button className="secondary-button compact-button" type="button" disabled={isBusy || noteReadOnly} onClick={() => void onUndoLatestGeneration()}>
               {undoingGeneration ? <Loader2 className="spin" size={16} /> : <Undo2 size={16} />}
               Undo generation
             </button>
           ) : null}
-          <div className="document-status" role="status">
+          {sessionMode === 'write_note' ? <div className="document-status" role="status">
             {sessionSaveState === 'invalid' || sessionSaveState === 'unsaved'
               ? <AlertCircle size={15} />
               : <CheckCircle2 size={15} />}
             <span>{saveStatusLabel}</span>
-          </div>
-          <button
+          </div> : null}
+          {sessionMode === 'write_note' ? <button
             className={copySucceeded ? 'icon-button success' : 'icon-button'}
             type="button"
             aria-label={copyNoteLabel}
@@ -153,8 +170,8 @@ export function SessionEditorView({
             onClick={() => void onCopyNote()}
           >
             {copyingNote ? <Loader2 className="spin" size={16} /> : copySucceeded ? <CheckCircle2 size={16} /> : <Copy size={16} />}
-          </button>
-          {noteScreenshotCount > 0 ? (
+          </button> : null}
+          {sessionMode === 'write_note' && noteScreenshotCount > 0 ? (
             <button
               className={screenshotCopySucceeded ? 'icon-button success' : 'icon-button'}
               type="button"
@@ -172,8 +189,8 @@ export function SessionEditorView({
         </div>
       </header>
 
-      <section key={activeSession.id} className="editor-card" aria-label="Session editor">
-        <FormatToolbar editorId={editorId} onUploadImage={onUploadImage} />
+      <section key={activeSession.id} className={sessionMode === 'chat' ? 'editor-card editor-card--chat' : 'editor-card'} aria-label="Session editor">
+        {sessionMode === 'write_note' && !noteReadOnly ? <FormatToolbar editorId={editorId} onUploadImage={onUploadImage} /> : null}
         <div className="document-body">
           <input
             className="session-title-input"
@@ -187,15 +204,20 @@ export function SessionEditorView({
           {sessionTitleValidationError ? (
             <p id="session-title-error">{sessionTitleValidationError}</p>
           ) : null}
-          <RichTextEditor editorId={editorId} value={noteBody} onChange={onSetNoteBody} className="note-rich-editor" />
+          {noteReadOnly && sessionMode === 'write_note' ? <div role="status">
+            <p>Chat submission needs canonical Note recovery. The Note is read-only until recovery succeeds.</p>
+            {onRecoverNote ? <button className="secondary-button" type="button" disabled={isBusy} onClick={() => void onRecoverNote()}>Recover Session Note</button> : null}
+          </div> : null}
+          {sessionMode === 'write_note' ? <RichTextEditor editorId={editorId} value={noteBody} readOnly={noteReadOnly} onChange={onSetNoteBody} className="note-rich-editor" /> : null}
+          {sessionMode === 'chat' ? chatContent : null}
         </div>
-        <footer className="editor-footer">
+        {sessionMode === 'write_note' ? <footer className="editor-footer">
           <StatusPill notice={notice} error={sessionTitleValidationError ?? error} busyAction={busyAction} />
           <span>{noteWordCount} words</span>
-        </footer>
+        </footer> : null}
       </section>
 
-      <footer className="bottom-command-bar" aria-label="AI note actions">
+      {sessionMode === 'write_note' ? <footer className="bottom-command-bar" aria-label="AI note actions">
         <div className={activeProvider?.available ? 'ai-provider-summary ready' : 'ai-provider-summary'} aria-label={providerSummaryLabel} title={providerSummaryLabel}>
           <span className="ai-provider-icon"><ProviderGlyph provider={selectedProvider} /></span>
           <div className="ai-provider-selection">
@@ -233,7 +255,7 @@ export function SessionEditorView({
             {summaryPending ? 'Summarizing notes' : 'Summarize notes'}
           </button>
         </div>
-      </footer>
+      </footer> : null}
     </div>
   )
 }

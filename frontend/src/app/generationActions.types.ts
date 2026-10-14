@@ -11,6 +11,7 @@ import type {
 } from './types'
 
 export type GenerationActionsContext = {
+  isNoteWriteBlocked?: (sessionId: string) => boolean
   session: Pick<
     SessionWorkspace,
     | 'activeSession'

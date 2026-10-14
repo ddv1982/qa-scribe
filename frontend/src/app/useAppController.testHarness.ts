@@ -1,6 +1,8 @@
 import { cleanup } from '@testing-library/react'
 import { vi } from 'vitest'
 import { draftFixture, entryFixture, findingFixture, providerStatusFixture, sessionFixture, settingsFixture } from '../test/fixtures'
+import { chatFixture } from './useSessionChat.testSupport'
+import type { ChatComposerRequest } from '../bindings'
 
 const tauriMock = vi.hoisted(() => ({
   cancelAiActionJob: vi.fn(), getAiActionJobStatus: vi.fn(), listActiveAiActionJobs: vi.fn(),
@@ -10,6 +12,7 @@ const tauriMock = vi.hoisted(() => ({
   listFindingLibrary: vi.fn(), listFindings: vi.fn(), listRecentSessions: vi.fn(), listSessions: vi.fn(), openSessionNoteState: vi.fn(),
   reopenSession: vi.fn(), refreshProviderStatus: vi.fn(), retryAttachmentCleanup: vi.fn(), startAiActionJob: vi.fn(), updateDraft: vi.fn(),
   updateEntry: vi.fn(), updateFinding: vi.fn(), updateSession: vi.fn(), updateSettings: vi.fn(),
+  getChat: vi.fn(), saveChatComposer: vi.fn(), startChatJob: vi.fn(), submitChat: vi.fn(), restartChat: vi.fn(),
   EDITOR_HTML_TAGS: ['a', 'b', 'br', 'em', 'h2', 'h3', 'i', 'img', 'input', 'li', 'ol', 'p', 'strong', 'ul'],
   SELF_CLOSING_EDITOR_HTML_TAGS: ['br', 'img', 'input'],
   MANAGED_ATTACHMENT_PROTOCOL: 'qa-scribe-attachment://',
@@ -71,6 +74,14 @@ export function setupControllerTest() {
   tauriMock.listRecentSessions.mockResolvedValue([sessionFixture()])
   tauriMock.listSessions.mockResolvedValue([sessionFixture()])
   tauriMock.listActiveAiActionJobs.mockResolvedValue([])
+  tauriMock.getChat.mockReset().mockImplementation(async (sessionId: string) => chatFixture({ sessionId, draftId: `chat-${sessionId}` }))
+  tauriMock.saveChatComposer.mockReset().mockImplementation(async (request: ChatComposerRequest) => chatFixture({
+    sessionId: request.scope.sessionId, draftId: request.scope.draftId,
+    revision: request.scope.expectedRevision + 1, composer: request.composer, mode: request.mode,
+  }))
+  tauriMock.startChatJob.mockReset()
+  tauriMock.submitChat.mockReset()
+  tauriMock.restartChat.mockReset()
   tauriMock.openSessionNoteState.mockResolvedValue(sessionNoteStateFixture())
   tauriMock.reopenSession.mockResolvedValue(sessionFixture())
   tauriMock.listEntries.mockResolvedValue([entryFixture()])

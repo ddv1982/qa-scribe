@@ -4,6 +4,8 @@ import { RailItem } from '../components/Common'
 import { formatSessionDate } from '../ui/format'
 import { FindingsView } from '../views/FindingsView'
 import { SessionEditorView } from '../views/SessionEditorView'
+import { SessionChatView } from '../views/SessionChatView'
+import type { SessionChatViewState } from './useSessionChat'
 import { SettingsView } from '../views/SettingsView'
 import { TestwareView } from '../views/TestwareView'
 import { OutputLibraryView } from '../views/OutputLibraryView'
@@ -17,6 +19,7 @@ import { AttachmentCleanupWarning } from './AttachmentCleanupWarning'
 export { DeleteConfirmationDialog } from './AppOverlays'
 
 export function AppShell(c: AppController) {
+  const chatState: SessionChatViewState = c.sessionChat
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [librarySidebarTarget, setLibrarySidebarTarget] = useState<HTMLDivElement | null>(null)
   const commands = createCommandRegistry(c)
@@ -185,6 +188,16 @@ export function AppShell(c: AppController) {
         ) : null}
         {c.activeView === 'sessions' ? (
           <SessionEditorView
+            noteReadOnly={c.noteReadOnly}
+            onRecoverNote={c.sessionChat.onSubmit}
+            sessionMode={c.sessionMode}
+            onSetSessionMode={c.setSessionMode}
+            chatContent={<SessionChatView {...chatState}
+              providerLabel={c.activeProvider?.label ?? c.selectedProvider}
+              modelLabel={c.effectiveAiSelection?.model ?? c.selectedModel}
+              providerAvailable={Boolean(c.activeProvider?.available) && !c.effectiveAiSelection?.warning}
+              providerReason={c.effectiveAiSelection?.warning ?? c.activeProvider?.reason ?? 'Loading provider status'}
+              onConfigureAi={() => runCommand('ai.configure')} />}
             activeProviderAvailable={Boolean(c.activeProvider?.available)}
             activeSession={c.activeSession}
             busyAction={c.busyAction}
@@ -194,7 +207,7 @@ export function AppShell(c: AppController) {
             filteredSessions={c.filteredSessions}
             isBusy={c.isBusy}
             noteBody={c.noteBody}
-            noteIsReady={c.noteIsReady}
+            noteIsReady={c.noteIsReady && !c.noteReadOnly}
             sessionTitle={c.sessionTitle}
             sessionTitleValidationError={c.sessionTitleValidationError}
             sessionSaveState={c.sessionSaveState}

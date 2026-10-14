@@ -67,7 +67,7 @@ pub fn with_immediate_tx<T>(
 /// final time, and settles on a `user_version` this build can trust from then
 /// on. Once every database in the wild has passed through this once, future
 /// bumps can go strictly by increment again.
-pub const SCHEMA_VERSION: i32 = 9;
+pub const SCHEMA_VERSION: i32 = 10;
 
 fn initialize(connection: &Connection) -> Result<()> {
     let initialize_started = Instant::now();
@@ -100,6 +100,7 @@ fn initialize(connection: &Connection) -> Result<()> {
 
     let span_started = Instant::now();
     connection.execute_batch(SCHEMA)?;
+    ensure_chat_run_association_supported(connection)?;
     eprintln!(
         "qa-scribe startup storage schema ensured: elapsed_ms={}",
         span_started.elapsed().as_millis()
@@ -140,6 +141,21 @@ fn migrate(connection: &Connection) -> Result<()> {
     ensure_draft_metadata_supported(connection)?;
     ensure_cascade_fk_indices_supported(connection)?;
     ensure_running_ai_run_index_supported(connection)?;
+    Ok(())
+}
+
+// Also converges databases created by an earlier development build of schema 10.
+fn ensure_chat_run_association_supported(connection: &Connection) -> Result<()> {
+    ensure_column(
+        connection,
+        "chat_messages",
+        "ai_run_id",
+        "ALTER TABLE chat_messages ADD COLUMN ai_run_id TEXT REFERENCES ai_runs(id)",
+    )?;
+    connection.execute_batch(
+        "CREATE INDEX IF NOT EXISTS idx_chat_messages_ai_run ON chat_messages(ai_run_id);
+         CREATE UNIQUE INDEX IF NOT EXISTS idx_chat_run_user ON chat_messages(ai_run_id) WHERE role = 'user' AND ai_run_id IS NOT NULL;"
+    )?;
     Ok(())
 }
 

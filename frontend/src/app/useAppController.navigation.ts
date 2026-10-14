@@ -8,8 +8,10 @@ import type { SessionWorkspace } from './types'
 import type { useAttachmentActions } from './attachmentActions'
 import type { useRecordActions } from './recordActions'
 import type { useSessionActions } from './sessionActions'
+import type { useSessionChat } from './useSessionChat'
 
 type AppControllerNavigationContext = {
+  chat: Pick<ReturnType<typeof useSessionChat>, 'flush' | 'hasPendingChanges' | 'recoverSession'>
   activeSession: Session | null
   activeView: MainView
   attachmentActions: ReturnType<typeof useAttachmentActions>
@@ -41,8 +43,18 @@ type AppControllerNavigationContext = {
 
 export function useAppControllerNavigation(ctx: AppControllerNavigationContext) {
   function requestActiveView(view: MainView) {
-    ctx.sessionActions.beginSessionNavigation()
+    const epoch = ctx.sessionActions.beginSessionNavigation()
     if (view === ctx.activeView) return
+    if (ctx.chat.hasPendingChanges()) {
+      void ctx.chat.flush().then((saved) => {
+        if (saved && ctx.sessionActions.sessionNavigationIsCurrent(epoch)) finishActiveViewNavigation(view)
+      })
+      return
+    }
+    finishActiveViewNavigation(view)
+  }
+
+  function finishActiveViewNavigation(view: MainView) {
     const titlePending = Boolean(ctx.activeSession && ctx.sessionTitle !== ctx.savedTitleRef.current)
     if (
       titlePending
@@ -69,20 +81,25 @@ export function useAppControllerNavigation(ctx: AppControllerNavigationContext) 
 
   function closeSettings() { requestActiveView(ctx.settingsReturnViewRef.current) }
 
-  function requestSessionNavigation(view: MainView, navigate: () => Promise<void>): Promise<void> {
+  async function requestSessionNavigation(view: MainView, navigate: () => Promise<void>): Promise<void> {
+    const epoch = ctx.sessionActions.beginSessionNavigation()
+    if (!await ctx.chat.flush() || !ctx.sessionActions.sessionNavigationIsCurrent(epoch)) return
     // A recovered Summary represents two valid canonical outcomes and must not
     // be silently selected by the ordinary Session-switch flush.
     if (ctx.pendingRecoveredSummaryDecision) {
       ctx.pendingNavigationEpochRef.current += 1
       ctx.pendingNavigationContinuationRef.current = navigate
       ctx.setPendingNavigationView(view)
-      return Promise.resolve()
+      return
     }
-    return navigate()
+    await navigate()
   }
 
   function requestOpenSession(session: Session, showNotice = true, onOpened?: () => void): Promise<void> {
-    if (ctx.activeSession?.id === session.id) return Promise.resolve()
+    if (ctx.activeSession?.id === session.id) {
+      ctx.sessionActions.beginSessionNavigation()
+      return ctx.chat.recoverSession(session.id).then(() => undefined)
+    }
     const destination = ctx.activeView === 'testware' || ctx.activeView === 'findings' ? ctx.activeView : 'sessions'
     return requestSessionNavigation(destination, () => ctx.sessionActions.openSession(session, showNotice, onOpened))
   }
@@ -121,6 +138,13 @@ export function useAppControllerNavigation(ctx: AppControllerNavigationContext) 
   }
 
   function discardPendingNavigationChanges(): void | Promise<void> {
+    if (ctx.chat.hasPendingChanges()) {
+      return ctx.chat.flush().then((saved) => saved ? discardOtherPendingNavigationChanges() : undefined)
+    }
+    return discardOtherPendingNavigationChanges()
+  }
+
+  function discardOtherPendingNavigationChanges(): void | Promise<void> {
     const navigationEpoch = ctx.pendingNavigationEpochRef.current
     const destination = ctx.pendingNavigationView
     if (!destination) return
@@ -153,6 +177,7 @@ export function useAppControllerNavigation(ctx: AppControllerNavigationContext) 
   }
 
   async function saveAllPendingChanges(): Promise<boolean> {
+    if (!await ctx.chat.flush()) return false
     let sessionSaved = true
     for (;;) {
       await ctx.attachmentActions.waitForPendingAttachmentMutations()
@@ -195,7 +220,7 @@ export function useAppControllerNavigation(ctx: AppControllerNavigationContext) 
       ) break
     }
     const settingsSaved = !ctx.settingsDirty || await ctx.saveSettingsDraft()
-    return sessionSaved && settingsSaved
+    return sessionSaved && settingsSaved && await ctx.chat.flush()
   }
 
   function hasPendingCompensations() {
@@ -206,6 +231,14 @@ export function useAppControllerNavigation(ctx: AppControllerNavigationContext) 
 
   return {
     ...sessionNavigationActions,
+    openSessionInCurrentView: async (session: Session) => {
+      if (ctx.activeSession?.id === session.id) {
+        ctx.sessionActions.beginSessionNavigation()
+        await ctx.chat.recoverSession(session.id)
+        return
+      }
+      await sessionNavigationActions.openSessionInCurrentView(session)
+    },
     cancelPendingNavigation,
     closeSettings,
     discardPendingNavigationChanges,

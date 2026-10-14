@@ -101,7 +101,7 @@ pub(super) fn execute_provider_generation_streaming(
     output
 }
 
-fn validate_effective_selection(
+pub(crate) fn validate_effective_selection(
     provider: &crate::commands::providers::ProviderDescriptor,
     model_override: &str,
     reasoning_override: Option<&str>,

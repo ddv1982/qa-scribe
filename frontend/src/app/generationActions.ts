@@ -74,6 +74,7 @@ export function createGenerationActions(ctx: GenerationActionsContext) {
     ctx.summaryRecovery.recoveredJobsRef.current.clear()
     ctx.summaryRecovery.unresolvedSummaryJobsRef.current.clear()
     for (const status of active) {
+      if (status.action === 'chat') { storeGenerationStatus(status); continue }
       ctx.summaryRecovery.recoveredJobsRef.current.set(status.jobId, status)
       if (status.action === 'summary') {
         ctx.summaryRecovery.unresolvedSummaryJobsRef.current.set(status.jobId, status.sessionId)
@@ -228,6 +229,7 @@ export function createGenerationActions(ctx: GenerationActionsContext) {
   }
 
   function applyGeneratedNoteEntry(generatedEntry: Entry) {
+    if (ctx.isNoteWriteBlocked?.(generatedEntry.sessionId)) return
     const previousBody = ctx.session.noteBodyRef.current
     const generatedBody = richEditorDocumentFromStoredBody(generatedEntry)
     const nextBody = preserveManagedImageNodes(previousBody, generatedBody)
@@ -257,6 +259,7 @@ export function createGenerationActions(ctx: GenerationActionsContext) {
   }
 
   function applyRecoveredGeneratedNoteEntry(generatedEntry: Entry) {
+    if (ctx.isNoteWriteBlocked?.(generatedEntry.sessionId)) return
     const previousBody = ctx.session.noteBodyRef.current
     const priorRecoveryDecision = ctx.latestNoteGenerationUndoRef.current?.pendingRecoveryDecision
       && ctx.latestNoteGenerationUndoRef.current.entryId === generatedEntry.id
@@ -316,6 +319,7 @@ export function createGenerationActions(ctx: GenerationActionsContext) {
   }
 
   async function handleUndoLatestNoteGeneration() {
+    if (ctx.session.noteEntry && ctx.isNoteWriteBlocked?.(ctx.session.noteEntry.sessionId)) return
     if (!ctx.latestNoteGenerationUndoRef.current || ctx.session.noteEntry?.id !== ctx.latestNoteGenerationUndoRef.current.entryId) return
     const undo = ctx.latestNoteGenerationUndoRef.current
     if (undo.pendingRecoveryDecision) {

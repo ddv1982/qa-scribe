@@ -6,6 +6,10 @@ use uuid::Uuid;
 use crate::{QaScribeError, Result, storage::Database};
 
 mod attachments;
+mod chat;
+mod chat_rows;
+mod chat_submission;
+mod chat_turns;
 mod drafts;
 mod entries;
 mod findings;
@@ -27,6 +31,7 @@ impl SessionService {
         let started = Instant::now();
         let service = Self { database };
         service.fail_orphaned_running_ai_runs()?;
+        service.interrupt_orphaned_chat_turns()?;
         eprintln!(
             "qa-scribe startup session service initialized: elapsed_ms={}",
             started.elapsed().as_millis()

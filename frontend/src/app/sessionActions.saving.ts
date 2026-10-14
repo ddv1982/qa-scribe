@@ -88,6 +88,8 @@ export function createSessionSaveActions(ctx: SessionActionsContext, writes: Ses
   }
 
   function discardPendingSessionEdits(): boolean | Promise<boolean> {
+    const activeId = ctx.session.activeSessionIdRef.current
+    if (activeId && writes.chatRecoveryBlocksNoteSave(activeId)) return false
     ctx.session.sessionTitleWriteVersionRef.current += 1
     const activeSessionId = ctx.session.activeSessionIdRef.current
     if (activeSessionId) {
@@ -132,6 +134,8 @@ export function createSessionSaveActions(ctx: SessionActionsContext, writes: Ses
   }
 
   async function saveNoteNow(options: { manageBusy?: boolean } = {}): Promise<boolean> {
+    const activeId = ctx.session.activeSessionIdRef.current
+    if (activeId && writes.chatRecoveryBlocksNoteSave(activeId)) return false
     const { manageBusy = true } = options
     const title = ctx.session.sessionTitleRef.current
     const titleDirty = Boolean(ctx.session.activeSession && title !== ctx.session.savedTitleRef.current)
@@ -177,7 +181,8 @@ export function createSessionSaveActions(ctx: SessionActionsContext, writes: Ses
         const materialized = await ctx.materializeInlineImages(sourceBody, {
           entryId,
           isCurrent: () => (
-            writeVersion === ctx.session.noteBodyWriteVersionRef.current
+            !writes.chatRecoveryBlocksNoteSave(sessionId)
+            && writeVersion === ctx.session.noteBodyWriteVersionRef.current
             && entryId === ctx.session.noteEntryIdRef.current
             && sessionId === ctx.session.activeSessionIdRef.current
             && serializeRichEditorDocument(ctx.session.noteBodyRef.current) === visibleBodySerialized
@@ -193,7 +198,8 @@ export function createSessionSaveActions(ctx: SessionActionsContext, writes: Ses
         return false
       }
       if (
-        writeVersion !== ctx.session.noteBodyWriteVersionRef.current
+        writes.chatRecoveryBlocksNoteSave(sessionId)
+        || writeVersion !== ctx.session.noteBodyWriteVersionRef.current
         || entryId !== ctx.session.noteEntryIdRef.current
         || sessionId !== ctx.session.activeSessionIdRef.current
         || serializeRichEditorDocument(ctx.session.noteBodyRef.current) !== visibleBodySerialized

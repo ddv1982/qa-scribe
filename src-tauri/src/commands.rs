@@ -3,6 +3,7 @@
 // which is how `collect_commands!` finds the hidden `__cmd__*` macros that the
 // `pub use` re-exports below do not carry.
 pub(crate) mod ai;
+pub(crate) mod chat;
 pub(crate) mod entries;
 pub mod error;
 pub(crate) mod files;

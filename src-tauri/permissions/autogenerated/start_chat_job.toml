@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-start-chat-job"
+description = "Enables the start_chat_job command without any pre-configured scope."
+commands.allow = ["start_chat_job"]
+
+[[permission]]
+identifier = "deny-start-chat-job"
+description = "Denies the start_chat_job command without any pre-configured scope."
+commands.deny = ["start_chat_job"]

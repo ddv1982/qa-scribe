@@ -13,6 +13,7 @@ Implemented capabilities include:
 - Session Library create/reopen/delete flows.
 - Session Context and Objective Notes.
 - Session Timeline Entry capture with include/exclude controls for generation.
+- Optional persistent Session Chat through the detected local AI CLIs, with explicit submission into the editable Session Note.
 - Findings linked to Entry Evidence and managed attachment Evidence, with Finding deletion.
 - Managed attachment import from pasted or uploaded clipboard image data.
 - Attachment preview data URLs.
@@ -129,6 +130,16 @@ QA Scribe does not manage API keys. It checks local CLI readiness and only start
 - GitHub Copilot CLI: checks the real `copilot version` command. If the standalone CLI is not present, qa-scribe only treats `gh copilot` as ready when `gh copilot -- --help` confirms the Copilot CLI bridge is installed. Plain `gh copilot --help` does not mark Copilot ready.
 
 Provider status can be ready, auth required, install required, or error. Provider model and reasoning choices are recorded on each AI Run, included in the provider prompt, and passed to provider CLIs where supported. Provider authentication remains the responsibility of the local CLI.
+
+## Session Chat
+
+Create or open a Session, then choose **Write note** or **Chat**. Chat uses the same detected, authenticated local provider and model selection as existing Note actions. Send messages explicitly, exchange testing details, and choose **Submit to Session Note** when every turn is complete and the composer is empty.
+
+Submission appends the role-labelled conversation to the primary Note, preserves its existing rich content, and returns to Write note. You can edit it and use **Generate test cases**, **Create finding**, or **Summarize notes** afterward. Submission itself makes no AI request.
+
+Messages, unsent composer text, and mode are stored locally per Session. Completed turns are replayed to the CLI on each request; provider-native resume files are not required. Cancelled, failed, or interrupted latest turns can be retried explicitly without duplicating the user message. An earlier unresolved turn requires a new conversation; starting one archives the old conversation locally. Submitted conversations remain readable until you explicitly start another conversation.
+
+Chat is text-only and bounded to 16 KiB per sent message, 128 KiB of transcript text, and 128 messages including unsuccessful turns. Oversized sends retain the unsent composer text. If submission succeeds but its response or Note reload fails, the Note is write-protected until **Recover Session Note** safely reads its canonical state. Authentication remains in the existing CLIs; QA Scribe does not add direct provider APIs or store API keys.
 
 ## Data And Privacy
 
