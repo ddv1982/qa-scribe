@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { existsSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { runChatToNoteWorkflow } from './chat-to-note.workflow.mjs'
+import { runChatDeletionWorkflow } from './chat-deletion.workflow.mjs'
 
 const primaryTitle = 'E2E primary session'
 const secondaryTitle = 'E2E secondary session'
@@ -355,5 +356,8 @@ describe(`QA Scribe built application: ${scenario}`, () => {
     it('persists isolated Chat turns, retries cancellation, submits once into a rich Note, and explicitly generates Testware', async () => {
       await runChatToNoteWorkflow()
     }).timeout(120_000)
+    it('deletes a Session with running Chat, cancels its real provider process, and preserves subsequent Note persistence', async () => {
+      await runChatDeletionWorkflow()
+    }).timeout(60_000)
   }
 })

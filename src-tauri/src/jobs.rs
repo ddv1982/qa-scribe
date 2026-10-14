@@ -1,9 +1,17 @@
-use std::{collections::HashMap, sync::Mutex};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Mutex,
+};
 
 use serde::Serialize;
 
 mod control;
+mod registration;
+mod session_deletion;
 pub use control::JobControl;
+pub use session_deletion::SessionDeletionGuard;
+#[cfg(test)]
+pub(crate) use session_deletion::TestChildCleanup;
 
 const PARTIAL_TEXT_LIMIT: usize = 32_000;
 const TERMINAL_JOB_LIMIT: usize = 32;
@@ -13,6 +21,9 @@ const MAX_ACTIVE_GENERATION_JOBS: usize = 3;
 pub enum JobStoreError {
     Capacity {
         limit: usize,
+    },
+    SessionDeleting {
+        session_id: String,
     },
     NotFound {
         job_id: String,
@@ -40,6 +51,12 @@ impl std::fmt::Display for JobStoreError {
             ),
             JobStoreError::NotFound { job_id } => {
                 write!(formatter, "Generation job {job_id} was not found.")
+            }
+            JobStoreError::SessionDeleting { session_id } => {
+                write!(
+                    formatter,
+                    "Session {session_id} is being deleted. Wait for deletion to finish before starting another AI job."
+                )
             }
             JobStoreError::InvalidTransition { job_id, from, to } => write!(
                 formatter,
@@ -110,6 +127,7 @@ pub struct JobStore {
 #[derive(Default)]
 struct JobStoreInner {
     jobs: HashMap<String, JobRecord>,
+    deleting_sessions: HashSet<String>,
     next_terminal_sequence: u64,
 }
 
@@ -126,46 +144,6 @@ impl JobStore {
                     .count()
             })
             .unwrap_or_default()
-    }
-
-    pub fn insert_generation_job(
-        &self,
-        job_id: String,
-        session_id: String,
-        action: String,
-    ) -> Result<(GenerationJobStatus, JobControl), JobStoreError> {
-        let status = GenerationJobStatus {
-            job_id: job_id.clone(),
-            session_id,
-            action,
-            state: GenerationJobState::Starting,
-            progress_message: "Preparing generation".to_string(),
-            ai_run_id: None,
-            error_message: None,
-            partial_text: None,
-        };
-        let control = JobControl::default();
-        let record = JobRecord {
-            status: status.clone(),
-            control: control.clone(),
-            terminal_sequence: None,
-        };
-        let mut inner = self
-            .inner
-            .lock()
-            .map_err(|_| JobStoreError::internal("Job store lock was poisoned"))?;
-        let active_count = inner
-            .jobs
-            .values()
-            .filter(|record| record.status.state.is_active())
-            .count();
-        if active_count >= MAX_ACTIVE_GENERATION_JOBS {
-            return Err(JobStoreError::Capacity {
-                limit: MAX_ACTIVE_GENERATION_JOBS,
-            });
-        }
-        inner.jobs.insert(job_id, record);
-        Ok((status, control))
     }
 
     /// Accept cancellation for every active job and kill its live child process

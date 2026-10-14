@@ -6,6 +6,7 @@
 - Persist Session-scoped conversations, unsent messages, mode selection, and AI Run attribution locally; recover interrupted turns without automatic provider requests and enforce bounded transcript replay.
 - Submit completed conversations once into the editable Session Note, preserving existing rich content and enabling the existing Testware, Finding, and summary actions afterward.
 - Protect Note content across uncertain submission outcomes, reload failures, overlapping recovery, autosave, Session navigation, deletion, and application close.
+- Cancel active Session-owned provider jobs before deleting the Session, prevent concurrent starts from escaping deletion, and verify actual CLI process exit without affecting other Sessions.
 - Add deterministic native Chat-to-Note-to-Testware coverage and frontend/storage recovery regressions; retain CLI-only authentication with no direct provider APIs or stored API keys.
 - Re-review the existing Rust advisory registry and operational code-size exclusions with a November 14 follow-up deadline, and wait for deferred TipTap destruction during test cleanup.
 

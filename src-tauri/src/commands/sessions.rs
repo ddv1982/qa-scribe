@@ -1,10 +1,28 @@
-use qa_scribe_core::{
-    attachments::delete_session_with_attachment_files,
-    domain::{AttachmentCleanupStatus, Session, SessionDraft, SessionNoteState, SessionPatch},
+use qa_scribe_core::domain::{
+    AttachmentCleanupStatus, Session, SessionDraft, SessionNoteState, SessionPatch,
 };
 use tauri::{AppHandle, Manager, State};
 
 use crate::{commands::CommandError, settings::AppState};
+
+/// Shared command boundary, callable without constructing a Tauri AppHandle.
+pub fn delete_session_with_jobs(
+    state: &AppState,
+    jobs: &crate::jobs::JobStore,
+    id: &str,
+) -> Result<AttachmentCleanupStatus, CommandError> {
+    let guard = jobs.begin_session_deletion(id)?;
+    // Never wait on a finalization gate while holding the service mutex.
+    // Any cancellation error fails closed, leaving durable Session data intact.
+    guard.cancel_jobs()?;
+    state.with_service(|service| {
+        qa_scribe_core::attachments::delete_session_with_attachment_files(
+            service,
+            state.app_data_dir(),
+            id,
+        )
+    })
+}
 
 #[tauri::command]
 #[specta::specta]
@@ -63,13 +81,15 @@ pub async fn delete_session(
 ) -> Result<AttachmentCleanupStatus, CommandError> {
     tauri::async_runtime::spawn_blocking(move || {
         let state = app.state::<AppState>();
-        state.with_service(|service| {
-            delete_session_with_attachment_files(service, state.app_data_dir(), &id)
-        })
+        let jobs = app.state::<crate::jobs::JobStore>();
+        delete_session_with_jobs(&state, &jobs, &id)
     })
     .await
     .map_err(|error| CommandError::internal(format!("Session deletion task failed: {error}")))?
 }
+
+#[cfg(test)]
+mod tests;
 
 #[tauri::command]
 #[specta::specta]
