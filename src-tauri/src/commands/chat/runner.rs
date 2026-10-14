@@ -42,6 +42,7 @@ pub(super) fn run(
             jobs: &jobs,
             events: &events,
             control: &control,
+            app_data_dir: state.app_data_dir(),
         }
         .execute(&request, &prepared.prompt)?;
         if output.cancelled || control.is_cancelled() {

@@ -4,7 +4,7 @@
 
 - Session Chat now uses tools and connectors configured in Claude Code, Codex CLI and GitHub Copilot CLI, subject to each CLI's existing permissions. Chat no longer disables built-in tools or MCP servers and can retrieve external context such as Jira user stories on request.
 - Preserve the final assistant answer after tool turns, including shorter answers following longer lookup preambles in Claude and Codex. Claude structured execution errors are reported as failures even when the process exits successfully.
-- Keep bounded app-owned conversation replay, cancellation and explicit Session Note submission. Provider execution remains noninteractive in a neutral directory; user-scoped configuration is inherited, and tools requiring approval need suitable CLI permissions.
+- Keep bounded app-owned conversation replay, cancellation and explicit Session Note submission. Provider execution remains noninteractive in neutral directories; user-scoped configuration is inherited, and tools requiring approval need suitable CLI permissions. Copilot Chat retains a private app-data directory so its CLI-owned, directory-scoped approvals can survive across turns and restarts.
 
 ## v0.8.0 - 2026-10-14
 

@@ -1,6 +1,137 @@
 use super::{FakeCli, JobControl, StreamUpdate, run_generation_command_streaming};
 
 #[test]
+fn chat_tools_copilot_preserves_private_permission_scope_across_turns() {
+    let cli = FakeCli::new(
+        "fake-copilot-scope",
+        r#"#!/usr/bin/env python3
+import sys, os
+sys.stdin.read()
+assert not {'--allow-all-tools','--deny-tool','--available-tools'}.intersection(sys.argv[1:])
+marker = 'saved-approval-scope'
+print('approved' if os.path.exists(marker) else 'needs-approval')
+open(marker, 'a').close()
+print(os.getcwd())
+"#,
+    );
+    let command = cli.command(
+        "scope probe".into(),
+        qa_scribe_core::ai::GenerationOutputFormat::PlainText,
+    );
+    let run = |provider| {
+        super::super::run_chat_command_streaming(
+            &command,
+            &JobControl::default(),
+            provider,
+            &cli.dir,
+            |_| {},
+        )
+        .unwrap()
+        .response_text()
+        .unwrap()
+    };
+    let first = run(qa_scribe_core::domain::AiProvider::CopilotCli);
+    let second = run(qa_scribe_core::domain::AiProvider::CopilotCli);
+    let third = run(qa_scribe_core::domain::AiProvider::CopilotCli);
+    let expected = cli
+        .dir
+        .join("copilot-chat")
+        .canonicalize()
+        .expect("stable scope still exists after each process exits");
+    assert_eq!(first.lines().next(), Some("needs-approval"));
+    for output in [second, third] {
+        assert_eq!(output.lines().next(), Some("approved"));
+        assert_eq!(
+            std::path::Path::new(output.lines().nth(1).unwrap()),
+            expected
+        );
+    }
+    use std::os::unix::fs::PermissionsExt;
+    assert_eq!(
+        std::fs::metadata(&expected).unwrap().permissions().mode() & 0o777,
+        0o700
+    );
+    for provider in [
+        qa_scribe_core::domain::AiProvider::ClaudeCode,
+        qa_scribe_core::domain::AiProvider::CodexCli,
+    ] {
+        let output = run(provider);
+        assert_eq!(output.lines().next(), Some("needs-approval"));
+        assert!(!std::path::Path::new(output.lines().nth(1).unwrap()).exists());
+    }
+}
+
+#[test]
+fn chat_tools_copilot_rejects_invalid_scope_before_spawning() {
+    use std::os::unix::fs::{PermissionsExt, symlink};
+    for kind in ["file", "symlink", "public"] {
+        let cli = FakeCli::new(
+            "fake-invalid-copilot",
+            "#!/bin/sh\ncat >/dev/null\ntouch spawned\n",
+        );
+        let scope = cli.dir.join("copilot-chat");
+        match kind {
+            "file" => std::fs::write(&scope, "preserve").unwrap(),
+            "symlink" => symlink(&cli.dir, &scope).unwrap(),
+            _ => {
+                std::fs::create_dir(&scope).unwrap();
+                std::fs::set_permissions(&scope, std::fs::Permissions::from_mode(0o755)).unwrap();
+            }
+        }
+        let command = cli.command(
+            "probe".into(),
+            qa_scribe_core::ai::GenerationOutputFormat::PlainText,
+        );
+        let error = super::super::run_chat_command_streaming(
+            &command,
+            &JobControl::default(),
+            qa_scribe_core::domain::AiProvider::CopilotCli,
+            &cli.dir,
+            |_| {},
+        )
+        .unwrap_err();
+        assert!(
+            error.contains("provider was not started"),
+            "{kind}: {error}"
+        );
+        assert!(!cli.dir.join("spawned").exists());
+        assert!(!scope.join("spawned").exists());
+        assert!(
+            std::fs::symlink_metadata(&scope).is_ok(),
+            "invalid scope must be preserved"
+        );
+    }
+}
+
+#[test]
+fn chat_tools_copilot_scope_does_not_override_permission_denial() {
+    let cli = FakeCli::new(
+        "fake-copilot-denial",
+        "#!/bin/sh\ncat >/dev/null\nprintf '%s' 'Permission denied by configured Copilot policy' >&2\nexit 1\n",
+    );
+    let mut command = qa_scribe_core::ai::chat::streaming_chat_command(
+        qa_scribe_core::domain::AiProvider::CopilotCli,
+        "probe",
+        "default",
+        None,
+        true,
+    )
+    .unwrap();
+    command.program = cli.path.to_string_lossy().into_owned();
+    let output = super::super::run_chat_command_streaming(
+        &command,
+        &JobControl::default(),
+        qa_scribe_core::domain::AiProvider::CopilotCli,
+        &cli.dir,
+        |_| {},
+    )
+    .unwrap();
+    assert!(!output.success());
+    assert!(output.failure_message().contains("Permission denied"));
+    assert!(cli.dir.join("copilot-chat").exists());
+}
+
+#[test]
 fn chat_tools_all_providers_preserve_configured_tool_policy_at_process_boundary() {
     use qa_scribe_core::{ai::chat::streaming_chat_command, domain::AiProvider};
     for provider in [

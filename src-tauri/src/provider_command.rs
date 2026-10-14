@@ -40,11 +40,11 @@ pub enum ProviderPathMode {
     Deep,
 }
 
-/// Fresh, empty working directory used for every provider inspection and
-/// generation. Coding-agent CLIs discover project configuration from their
-/// working directory, so both paths must use the same neutral-scope policy.
+/// Neutral CLI scope, temporary by default. Copilot Chat retains a private
+/// app-owned scope because Copilot keys saved tool approvals by directory.
 pub struct NeutralProviderCwd {
     path: PathBuf,
+    remove_on_drop: bool,
 }
 
 impl NeutralProviderCwd {
@@ -65,7 +65,38 @@ impl NeutralProviderCwd {
                 ),
             )
         })?;
-        Ok(Self { path: unique })
+        Ok(Self {
+            path: unique,
+            remove_on_drop: true,
+        })
+    }
+
+    pub(crate) fn persistent(path: &Path) -> std::io::Result<Self> {
+        match create_private_provider_directory(path) {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
+            Err(error) => return Err(error),
+        }
+        let metadata = fs::symlink_metadata(path)?;
+        if !metadata.is_dir() || metadata.file_type().is_symlink() {
+            return Err(std::io::Error::other(
+                "Copilot Chat scope must be a private directory, not a file or symlink.",
+            ));
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::MetadataExt;
+            // SAFETY: geteuid has no preconditions and returns this process's UID.
+            if metadata.uid() != unsafe { libc::geteuid() } || metadata.mode() & 0o777 != 0o700 {
+                return Err(std::io::Error::other(
+                    "Copilot Chat scope must be owned by the current user with mode 0700.",
+                ));
+            }
+        }
+        Ok(Self {
+            path: path.canonicalize()?,
+            remove_on_drop: false,
+        })
     }
 
     pub fn path(&self) -> &Path {
@@ -85,7 +116,9 @@ fn create_private_provider_directory(path: &Path) -> std::io::Result<()> {
 
 impl Drop for NeutralProviderCwd {
     fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.path);
+        if self.remove_on_drop {
+            let _ = fs::remove_dir_all(&self.path);
+        }
     }
 }
 

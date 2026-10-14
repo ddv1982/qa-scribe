@@ -63,12 +63,27 @@ pub(crate) fn run_generation_command_streaming(
     run_streaming_generation(&ProcessProviderExecutor::new(control), command, on_update)
 }
 
+pub(crate) fn run_chat_command_streaming(
+    command: &GenerationCommand,
+    control: &JobControl,
+    provider: qa_scribe_core::domain::AiProvider,
+    app_data_dir: &std::path::Path,
+    on_update: impl FnMut(StreamUpdate),
+) -> Result<ProviderGenerationOutput, String> {
+    let mut executor = ProcessProviderExecutor::new(control);
+    if provider == qa_scribe_core::domain::AiProvider::CopilotCli {
+        executor.stable_provider_cwd = Some(app_data_dir.join("copilot-chat"));
+    }
+    run_streaming_generation(&executor, command, on_update)
+}
+
 /// [`ProviderExecutor`] backed by a real child process with watchdog and
 /// process-group kill, wired to a job's [`JobControl`] for cancellation.
 pub(super) struct ProcessProviderExecutor<'a> {
     control: &'a JobControl,
     watchdog_timeout: Duration,
     provider_cwd_parent: Option<PathBuf>,
+    stable_provider_cwd: Option<PathBuf>,
 }
 
 impl<'a> ProcessProviderExecutor<'a> {
@@ -77,6 +92,7 @@ impl<'a> ProcessProviderExecutor<'a> {
             control,
             watchdog_timeout: GENERATION_WATCHDOG_TIMEOUT,
             provider_cwd_parent: None,
+            stable_provider_cwd: None,
         }
     }
 
@@ -86,6 +102,7 @@ impl<'a> ProcessProviderExecutor<'a> {
             control,
             watchdog_timeout,
             provider_cwd_parent: None,
+            stable_provider_cwd: None,
         }
     }
 
@@ -95,10 +112,16 @@ impl<'a> ProcessProviderExecutor<'a> {
             control,
             watchdog_timeout: GENERATION_WATCHDOG_TIMEOUT,
             provider_cwd_parent: Some(parent),
+            stable_provider_cwd: None,
         }
     }
 
     fn provider_cwd(&self) -> Result<NeutralProviderCwd, String> {
+        if let Some(path) = &self.stable_provider_cwd {
+            return NeutralProviderCwd::persistent(path).map_err(|error| format!(
+                "Could not open the private Copilot Chat directory. The provider was not started: {error}"
+            ));
+        }
         match self.provider_cwd_parent.as_deref() {
             Some(parent) => NeutralProviderCwd::new_in(parent),
             None => NeutralProviderCwd::new(),
@@ -135,8 +158,8 @@ impl ProviderExecutor for ProcessProviderExecutor<'_> {
             return Ok(ProviderExecution::cancelled());
         }
 
-        // Owned for the whole call; its directory is removed when this drops
-        // at function exit (every return path, including `?` and panics).
+        // Owned for the whole call. Temporary scopes are cleaned on every exit;
+        // Copilot Chat's stable permission scope survives without storing replay.
         let provider_cwd = self.provider_cwd()?;
         if control.is_cancelled() {
             return Ok(ProviderExecution::cancelled());
