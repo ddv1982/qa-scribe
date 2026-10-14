@@ -38,6 +38,7 @@ impl JobStore {
             ai_run_id: None,
             error_message: None,
             partial_text: None,
+            pending_permission: None,
         };
         let control = JobControl::default();
         inner.jobs.insert(
@@ -46,6 +47,7 @@ impl JobStore {
                 status: status.clone(),
                 control: control.clone(),
                 terminal_sequence: None,
+                permission_reply: None,
             },
         );
         Ok((status, control))

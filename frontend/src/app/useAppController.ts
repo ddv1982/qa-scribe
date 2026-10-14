@@ -228,7 +228,7 @@ export function useAppController() {
   const { sessionChat, sessionMode, setSessionMode, noteReadOnly, ...chatProtection } = useSessionChat({
     session: sessionWorkspace, noteRecovery, sessionActions, generation: coordinatedGenerationWorkspace,
     selection, provider: activeProvider, providerWarning: effectiveAiSelection?.warning ?? null,
-    feedback, jobs: generationJobs,
+    feedback, jobs: generationJobs, refreshProviderStatus,
   })
   function setEditedSessionTitle(value: Parameters<typeof setSessionTitle>[0]) {
     const next = typeof value === 'function' ? value(sessionWorkspace.sessionTitleRef.current) : value

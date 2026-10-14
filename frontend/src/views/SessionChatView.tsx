@@ -1,5 +1,6 @@
-import { useId } from 'react'
-import type { ChatState, GenerationJobStatus } from '../bindings'
+import { useId, useState } from 'react'
+import '../styles/chat-permissions.css'
+import type { AiProvider, ChatPermissionDecision, ChatState, GenerationJobStatus } from '../bindings'
 
 export type SessionChatViewProps = {
   chat: ChatState | null
@@ -10,6 +11,8 @@ export type SessionChatViewProps = {
   dirty?: boolean
   recoveryPending?: boolean
   working: boolean
+  permissionWorking?: boolean
+  permissionRecoveryPending?: boolean
   error: string | null
   providerLabel: string
   modelLabel: string
@@ -22,19 +25,30 @@ export type SessionChatViewProps = {
   onSubmit: () => Promise<void>
   onRestart: () => Promise<void>
   onConfigureAi: () => void
+  onDecidePermission?: (requestId: string, decision: ChatPermissionDecision) => Promise<void>
+  onRecheck?: () => Promise<void>
 }
 
 const messageLimit = 16 * 1024
 const transcriptLimit = 128 * 1024
 const maxMessages = 128
+const permissionPreviewLimit = 4096
+const permissionProviderLabels: Record<AiProvider, string> = {
+  claude_code: 'Claude Code',
+  codex_cli: 'Codex',
+  copilot_cli: 'GitHub Copilot',
+}
 const byteLength = (text: string) => new TextEncoder().encode(text).length
 
 export function SessionChatView({
   chat, composer, job, loading, saving, working, error, dirty = false, recoveryPending = false,
+  permissionWorking = false, permissionRecoveryPending = false,
   providerLabel, modelLabel, providerAvailable, providerReason,
   onSetComposer, onSend, onRetry, onCancel, onSubmit, onRestart, onConfigureAi,
+  onDecidePermission, onRecheck,
 }: SessionChatViewProps) {
   const id = useId()
+  const [expandedPermissionKey, setExpandedPermissionKey] = useState<string | null>(null)
   const messages = chat?.messages ?? []
   const latest = messages.at(-1)
   const submitted = Boolean(chat?.submission)
@@ -42,6 +56,18 @@ export function SessionChatView({
   const activeJob = job?.state === 'starting' || job?.state === 'running' || job?.state === 'cancelling'
   const running = messages.some((message) => message.status === 'running')
   const busy = loading || saving || working || activeJob || running
+  const recheckDisabled = loading || saving || permissionWorking || recoveryPending
+    || job?.state === 'cancelling' || (working && !activeJob)
+  const pendingPermission = chat && job?.sessionId === chat.sessionId
+    && job.action === 'chat' && job.state === 'running' ? job.pendingPermission : null
+  const permissionDisabled = permissionWorking || !onDecidePermission
+  const permissionKey = pendingPermission && job
+    ? JSON.stringify([job.sessionId, job.jobId, pendingPermission.requestId]) : null
+  const permissionExpanded = permissionKey !== null && expandedPermissionKey === permissionKey
+  const permissionInput = pendingPermission?.inputJson
+  const permissionPreview = permissionExpanded ? permissionInput : permissionInput?.slice(0, permissionPreviewLimit)
+  const permissionTruncated = !permissionExpanded && Boolean(permissionInput && permissionInput.length > permissionPreviewLimit)
+  const needsProviderRecovery = permissionRecoveryPending || !providerAvailable || Boolean(error || job?.errorMessage)
   const locked = !chat || busy || submitted || recovering
   const unresolved = messages.filter((message) => message.status !== 'completed')
   const retryable = latest?.role === 'user'
@@ -79,8 +105,10 @@ export function SessionChatView({
     : messages.length === 0 ? 'Complete a conversation before submitting.' : ''
   const status = loading ? 'Loading conversation…' : saving ? 'Saving conversation…'
     : recovering ? 'Session Note recovery required'
+    : permissionRecoveryPending ? 'Permission status recovery required'
     : dirty && error ? 'Save failed' : dirty ? 'Unsaved changes'
     : job?.state === 'cancelling' ? 'Cancelling response…'
+    : pendingPermission ? 'Waiting for tool permission'
     : activeJob ? job?.progressMessage || 'Waiting for a response…'
     : working || running ? 'Working…' : !chat ? 'Conversation unavailable' : 'Conversation saved'
 
@@ -114,6 +142,50 @@ export function SessionChatView({
         </button>
       </div>
       {error || job?.errorMessage ? <p className="chat-error" role="alert">{error || job?.errorMessage}</p> : null}
+      {needsProviderRecovery ? (
+        <div className="chat-provider-recovery">
+          <p className="chat-help">
+            {permissionRecoveryPending
+              ? 'The permission decision could not be confirmed. Recheck status to recover its current state without repeating the decision.'
+              : 'Configure AI to review provider setup or sign-in. Rechecking status does not send a message or retry a response.'}
+          </p>
+          {onRecheck ? <button className="secondary-button compact-button" type="button" disabled={recheckDisabled} onClick={() => { if (!recheckDisabled) void onRecheck() }}>Recheck status</button> : null}
+        </div>
+      ) : null}
+
+      {pendingPermission ? (
+        <section className="chat-permission" aria-label="Tool permission" aria-describedby={`${id}-permission-scope`}>
+          <h3>Tool permission</h3>
+          <p className="chat-help">{permissionProviderLabels[pendingPermission.provider]} is waiting for your decision.</p>
+          <div className="chat-permission-details">
+            <p className="chat-help">{pendingPermission.toolName == null ? 'Provider description' : 'Request'}</p>
+            <p className="chat-message-text">{pendingPermission.title}</p>
+            {pendingPermission.serverName != null ? <>
+              <p className="chat-help">Server</p>
+              <p className="chat-message-text">{pendingPermission.serverName}</p>
+            </> : null}
+            {pendingPermission.toolName != null ? <>
+              <p className="chat-help">Tool</p>
+              <p className="chat-message-text">{pendingPermission.toolName}</p>
+            </> : <p className="chat-help">The provider did not supply a named tool identity.</p>}
+            {permissionInput != null ? <>
+              <p className="chat-help">{permissionExpanded ? 'Complete arguments' : 'Arguments preview'}</p>
+              <p id={`${id}-permission-input`} className="chat-message-text chat-permission-input" tabIndex={0} aria-label={permissionExpanded ? 'Complete arguments' : 'Arguments preview'}>{permissionPreview}</p>
+              {permissionTruncated ? <>
+                <p className="chat-help">Arguments preview truncated to the first {permissionPreviewLimit.toLocaleString('en-US')} characters.</p>
+                <button className="secondary-button compact-button" type="button" aria-controls={`${id}-permission-input`} onClick={() => setExpandedPermissionKey(permissionKey)}>Show complete arguments</button>
+              </> : null}
+            </> : null}
+          </div>
+          <p className="chat-help" id={`${id}-permission-scope`}>This approval applies to this tool call only.</p>
+          <div className="chat-buttons">
+            <button className="primary-button" type="button" disabled={permissionDisabled} onClick={() => { if (!permissionDisabled) void onDecidePermission?.(pendingPermission.requestId, 'approve') }}>Approve once</button>
+            <button className="secondary-button" type="button" disabled={permissionDisabled} onClick={() => { if (!permissionDisabled) void onDecidePermission?.(pendingPermission.requestId, 'deny') }}>Deny</button>
+          </div>
+          {permissionWorking ? <p className="chat-help">Sending permission decision… You can still cancel the response.</p>
+            : !onDecidePermission ? <p className="chat-help">Permission decisions are unavailable. You can cancel the response.</p> : null}
+        </section>
+      ) : null}
 
       <section className="chat-transcript" aria-label="Conversation transcript" tabIndex={0}>
         {messages.length === 0 ? <p className="chat-help">{loading ? 'Loading saved messages…' : 'No messages yet. Describe what you are testing or ask a question.'}</p> : (

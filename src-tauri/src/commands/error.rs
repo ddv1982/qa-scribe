@@ -65,9 +65,9 @@ impl From<JobStoreError> for CommandError {
     fn from(error: JobStoreError) -> Self {
         let message = error.to_string();
         match error {
-            JobStoreError::Capacity { .. } | JobStoreError::SessionDeleting { .. } => {
-                CommandError::validation(message)
-            }
+            JobStoreError::Capacity { .. }
+            | JobStoreError::SessionDeleting { .. }
+            | JobStoreError::InvalidPermission(_) => CommandError::validation(message),
             JobStoreError::NotFound { .. } => CommandError::not_found(message),
             JobStoreError::InvalidTransition { .. } | JobStoreError::Internal(_) => {
                 CommandError::internal(message)

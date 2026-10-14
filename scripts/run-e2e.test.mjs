@@ -6,17 +6,66 @@ import { dirname, join, resolve } from 'node:path'
 import test from 'node:test'
 import { once } from 'node:events'
 
-import { createWdioInvocationPlan, criticalScenarios, executeWdioInvocations, runE2e } from './run-e2e.mjs'
+import { createWdioInvocationPlan, criticalScenarios, executeWdioInvocations, readExecutionEvidence, runE2e } from './run-e2e.mjs'
 
 test('critical workflows use separate WDIO processes, app data, fixtures, and artifacts', () => {
   const plan = createWdioInvocationPlan({}, '/tmp/e2e-root', '/tmp/e2e-artifacts')
 
-  assert.deepEqual(plan.map(({ id }) => id), criticalScenarios)
+  assert.deepEqual(plan.slice(0, criticalScenarios.length).map(({ id }) => id), criticalScenarios)
+  assert.deepEqual(plan.slice(criticalScenarios.length).map(({ id }) => id), [
+    'chat-to-note', 'chat-tool-authorization-codex', 'chat-tool-authorization-claude', 'chat-tool-authorization-copilot',
+  ])
   for (const key of ['QA_SCRIBE_E2E_APP_DATA_DIR', 'QA_SCRIBE_E2E_ARTIFACTS', 'QA_SCRIBE_E2E_FIXTURE_DIR']) {
-    assert.equal(new Set(plan.map(({ environment }) => environment[key])).size, criticalScenarios.length)
+    assert.equal(new Set(plan.map(({ environment }) => environment[key])).size, criticalScenarios.length + 4)
   }
-  assert.ok(plan.every(({ environment }) => environment.QA_SCRIBE_E2E_SPEC === 'critical-workflows.e2e.mjs'))
+  assert.ok(plan.slice(0, criticalScenarios.length).every(({ environment }) => environment.QA_SCRIBE_E2E_SPEC === 'critical-workflows.e2e.mjs'))
+  assert.equal(plan[criticalScenarios.length].environment.QA_SCRIBE_E2E_SPEC, 'chat-to-note.e2e.mjs')
+  for (const [index, provider] of ['codex', 'claude', 'copilot'].entries()) {
+    const environment = plan[criticalScenarios.length + 1 + index].environment
+    assert.equal(environment.QA_SCRIBE_E2E_SPEC, 'chat-tool-authorization.workflow.mjs')
+    assert.equal(environment.QA_SCRIBE_E2E_AUTH_PROVIDER, provider)
+  }
 })
+
+test('machine execution evidence rejects skipped, failed, empty, incomplete and mismatched runs', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'qa-scribe-execution-evidence-'))
+  const path = join(directory, 'wdio-execution.json')
+  const valid = { version: 1, spec: 'workflow.e2e.mjs', completed: true, passed: 1, failed: 0, skipped: 0 }
+  try {
+    assert.equal(readExecutionEvidence(path, valid.spec), null)
+    for (const patch of [{ passed: 0 }, { skipped: 1 }, { failed: 1 }, { completed: false }, { spec: 'other.mjs' }, { passed: '1' }]) {
+      writeFileSync(path, JSON.stringify({ ...valid, ...patch }))
+      assert.equal(readExecutionEvidence(path, valid.spec), null)
+    }
+    writeFileSync(path, JSON.stringify(valid))
+    assert.deepEqual(readExecutionEvidence(path, valid.spec), valid)
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+for (const output of ['', '1 passing (1s)\n', '0 passing\n1 pending\n']) {
+  test(`zero-exit WDIO without trusted execution evidence fails (${JSON.stringify(output)})`, () => {
+    const temporaryRoot = mkdtempSync(join(tmpdir(), 'qa-scribe-no-coverage-'))
+    try {
+      const status = runE2e({
+        ...process.env,
+        QA_SCRIBE_E2E_SKIP_BUILD: '1',
+        QA_SCRIBE_E2E_TEMP_ROOT: join(temporaryRoot, 'isolated'),
+        QA_SCRIBE_E2E_ARTIFACTS: join(temporaryRoot, 'artifacts'),
+        QA_SCRIBE_E2E_SPEC: 'chat-tool-authorization.workflow.mjs',
+      }, {
+        spawnSyncImpl() { return { status: 0, signal: null, stdout: output, stderr: '' } },
+      })
+      assert.notEqual(status, 0, 'A successful process exit or human-readable passing text does not prove spec execution')
+      const metadata = JSON.parse(readFileSync(join(temporaryRoot, 'artifacts/latest-run.json'), 'utf8'))
+      assert.equal(metadata.status, 'failed')
+      assert.notEqual(metadata.invocations[0].status, 0)
+    } finally {
+      rmSync(temporaryRoot, { recursive: true, force: true })
+    }
+  })
+}
 
 test('an explicit non-critical spec runs once with the supplied app-data root', () => {
   const plan = createWdioInvocationPlan(
@@ -93,6 +142,11 @@ for (const [label, wdioStatus] of [['successful', 0], ['failed', 4]]) {
         {
           spawnSyncImpl(command, args, options) {
             calls.push({ command, args, environment: options.env, maxBuffer: options.maxBuffer })
+            if (command.includes('wdio') && wdioStatus === 0) {
+              writeFileSync(options.env.QA_SCRIBE_E2E_EXECUTION_EVIDENCE, JSON.stringify({
+                version: 1, spec: options.env.QA_SCRIBE_E2E_SPEC, completed: true, passed: 1, failed: 0, skipped: 0,
+              }))
+            }
             return { status: command.includes('wdio') ? wdioStatus : 0, signal: null, stdout: '', stderr: '' }
           },
         },

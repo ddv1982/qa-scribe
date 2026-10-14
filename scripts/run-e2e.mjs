@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { spawnSync } from 'node:child_process'
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { delimiter, dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -43,7 +43,7 @@ export function createWdioInvocationPlan(environment, temporaryRoot, artifacts) 
     if (!criticalScenarios.includes(scenario)) throw new Error(`Unknown critical E2E scenario: ${scenario}`)
   }
 
-  return scenarios.map((scenario) => ({
+  const plan = scenarios.map((scenario) => ({
     id: scenario,
     environment: {
       QA_SCRIBE_E2E_SPEC: criticalSpec,
@@ -53,6 +53,30 @@ export function createWdioInvocationPlan(environment, temporaryRoot, artifacts) 
       QA_SCRIBE_E2E_FIXTURE_DIR: join(temporaryRoot, 'fixtures', scenario),
     },
   }))
+  if (!requestedSpec && !requestedScenario) {
+    for (const id of ['chat-to-note', ...['codex', 'claude', 'copilot'].map((provider) => `chat-tool-authorization-${provider}`)]) {
+      const provider = id.startsWith('chat-tool-authorization-') ? id.slice('chat-tool-authorization-'.length) : null
+      plan.push({ id, environment: {
+        QA_SCRIBE_E2E_SPEC: provider ? 'chat-tool-authorization.workflow.mjs' : 'chat-to-note.e2e.mjs',
+        ...(provider ? { QA_SCRIBE_E2E_AUTH_PROVIDER: provider } : {}),
+        QA_SCRIBE_E2E_APP_DATA_DIR: join(temporaryRoot, 'app-data', id),
+        QA_SCRIBE_E2E_ARTIFACTS: join(artifacts, id),
+        QA_SCRIBE_E2E_FIXTURE_DIR: join(temporaryRoot, 'fixtures', id),
+      } })
+    }
+  }
+  return plan
+}
+
+// Written only by the WDIO Mocha lifecycle hook, never inferred from console output.
+export function readExecutionEvidence(path, spec) {
+  try {
+    const evidence = JSON.parse(readFileSync(path, 'utf8'))
+    if (evidence.version !== 1 || evidence.spec !== spec || evidence.completed !== true
+      || !Number.isInteger(evidence.passed) || evidence.passed < 1
+      || evidence.failed !== 0 || evidence.skipped !== 0) return null
+    return evidence
+  } catch { return null }
 }
 
 export function executeWdioInvocations(invocations, execute) {
@@ -97,7 +121,7 @@ export function runE2e(environment = process.env, { spawnSyncImpl = spawnSync } 
 
   if (environment.QA_SCRIBE_E2E_PRESERVE_ARTIFACTS !== '1') rmSync(artifacts, { recursive: true, force: true })
   mkdirSync(artifacts, { recursive: true })
-  chmodSync(join(fixtureBin, 'codex'), 0o755)
+  for (const provider of ['codex', 'claude', 'copilot']) chmodSync(join(fixtureBin, provider), 0o755)
 
   const tauriConfig = JSON.parse(readFileSync(join(root, 'e2e', 'tauri.e2e.conf.json'), 'utf8'))
   tauriConfig.build.frontendDist = frontendDist
@@ -151,13 +175,30 @@ export function runE2e(environment = process.env, { spawnSyncImpl = spawnSync } 
     const invocations = createWdioInvocationPlan(environment, temporaryRoot, artifacts)
     result = executeWdioInvocations(invocations, (invocation) => {
       const invocationEnvironment = { ...isolatedEnvironment, ...invocation.environment }
-      if (invocation.environment.QA_SCRIBE_E2E_SCENARIO) {
+      if (invocation.environment.QA_SCRIBE_E2E_SCENARIO
+        || (!environment.QA_SCRIBE_E2E_SPEC?.trim() && !environment.QA_SCRIBE_E2E_SCENARIO?.trim())) {
         rmSync(invocation.environment.QA_SCRIBE_E2E_APP_DATA_DIR, { recursive: true, force: true })
         rmSync(invocation.environment.QA_SCRIBE_E2E_FIXTURE_DIR, { recursive: true, force: true })
       }
       mkdirSync(invocation.environment.QA_SCRIBE_E2E_APP_DATA_DIR, { recursive: true })
       mkdirSync(invocation.environment.QA_SCRIBE_E2E_ARTIFACTS, { recursive: true })
       mkdirSync(invocation.environment.QA_SCRIBE_E2E_FIXTURE_DIR, { recursive: true })
+      // Fast readiness checks executable presence. Keep non-Codex fixtures out
+      // of the default provider PATH, not merely returning an unavailable version.
+      const providerBin = join(invocation.environment.QA_SCRIBE_E2E_FIXTURE_DIR, 'bin')
+      mkdirSync(providerBin, { recursive: true })
+      const authorization = invocationEnvironment.QA_SCRIBE_E2E_SPEC === 'chat-tool-authorization.workflow.mjs'
+      for (const provider of ['codex', 'claude', 'copilot']) rmSync(join(providerBin, provider), { force: true })
+      for (const provider of authorization ? ['codex', 'claude', 'copilot'] : ['codex']) {
+        const link = join(providerBin, provider)
+        symlinkSync(join(fixtureBin, provider), link)
+      }
+      invocationEnvironment.PATH = [providerBin, process.env.PATH].filter(Boolean).join(delimiter)
+      invocationEnvironment.QA_SCRIBE_E2E_PROVIDER_PATH = providerBin
+      if (!authorization) delete invocationEnvironment.QA_SCRIBE_E2E_AUTH_PROVIDER
+      const evidencePath = join(invocation.environment.QA_SCRIBE_E2E_ARTIFACTS, 'wdio-execution.json')
+      rmSync(evidencePath, { force: true })
+      invocationEnvironment.QA_SCRIBE_E2E_EXECUTION_EVIDENCE = evidencePath
       const completed = spawnSyncImpl(wdio, ['run', join(root, 'e2e', 'wdio.conf.mjs')], {
         cwd: root,
         env: invocationEnvironment,
@@ -170,7 +211,10 @@ export function runE2e(environment = process.env, { spawnSyncImpl = spawnSync } 
       process.stdout.write(stdout)
       process.stderr.write(stderr)
       writeFileSync(join(invocation.environment.QA_SCRIBE_E2E_ARTIFACTS, 'wdio-run.log'), `${stdout}${stderr}`)
-      return { ...completed, stdout, stderr }
+      const evidence = readExecutionEvidence(evidencePath, invocationEnvironment.QA_SCRIBE_E2E_SPEC)
+      const missingCoverage = completed.status === 0 && !evidence
+      return { ...completed, status: missingCoverage ? 1 : completed.status, stdout,
+        stderr: `${stderr}${missingCoverage ? 'WDIO did not produce complete, unskipped machine execution evidence.\n' : ''}` }
     })
 
     const aggregateLog = result.results

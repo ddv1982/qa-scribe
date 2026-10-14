@@ -1,6 +1,69 @@
 use super::{GenerationCommand, streaming_generation_command};
 use crate::domain::AiProvider;
 
+/// Duplex commands produce normalized text through the chat protocol driver.
+pub fn duplex_chat_command(
+    provider: AiProvider,
+    prompt: &str,
+    model: &str,
+    reasoning_effort: Option<&str>,
+    copilot_direct_cli_ready: bool,
+) -> Result<GenerationCommand, String> {
+    let effort = super::selected_reasoning_effort_arg(reasoning_effort)?;
+    let mut command = match provider {
+        AiProvider::ClaudeCode => streaming_generation_command(
+            provider,
+            prompt,
+            model,
+            reasoning_effort,
+            copilot_direct_cli_ready,
+        )?,
+        AiProvider::CodexCli => GenerationCommand {
+            program: "codex".into(),
+            args: vec![
+                "app-server".into(),
+                "--enable".into(),
+                "tool_call_mcp_elicitation".into(),
+            ],
+            stdin: prompt.into(),
+            output_format: super::GenerationOutputFormat::PlainText,
+        },
+        AiProvider::CopilotCli => {
+            if !copilot_direct_cli_ready {
+                return Err("GitHub Copilot CLI is not ready.".into());
+            }
+            let mut args = vec!["--acp".into()];
+            if let Some(model) = super::selected_copilot_model_arg(model) {
+                args.extend(["--model".into(), model]);
+            }
+            if let Some(effort) = effort {
+                args.extend(["--reasoning-effort".into(), effort]);
+            }
+            GenerationCommand {
+                program: "copilot".into(),
+                args,
+                stdin: prompt.into(),
+                output_format: super::GenerationOutputFormat::PlainText,
+            }
+        }
+    };
+    if provider == AiProvider::ClaudeCode {
+        command.args.extend(
+            [
+                "--input-format",
+                "stream-json",
+                "--permission-prompt-tool",
+                "stdio",
+                "--no-session-persistence",
+            ]
+            .into_iter()
+            .map(str::to_owned),
+        );
+    }
+    command.output_format = super::GenerationOutputFormat::PlainText;
+    Ok(command)
+}
+
 /// Reuses provider defaults, including configured tools and permissions.
 /// Only provider-session persistence is disabled because the app owns replay.
 pub fn streaming_chat_command(

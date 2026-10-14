@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-decide-chat-permission"
+description = "Enables the decide_chat_permission command without any pre-configured scope."
+commands.allow = ["decide_chat_permission"]
+
+[[permission]]
+identifier = "deny-decide-chat-permission"
+description = "Denies the decide_chat_permission command without any pre-configured scope."
+commands.deny = ["decide_chat_permission"]

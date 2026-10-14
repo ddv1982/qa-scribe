@@ -1,4 +1,5 @@
 pub mod chat;
+pub mod chat_protocol;
 mod executor;
 pub mod stream;
 

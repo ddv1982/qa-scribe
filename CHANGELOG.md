@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.8.2 - 2026-10-14
+
+- Add shared Session Chat tool approval, denial, cancellation and explicit status recheck using native Claude Code, Codex CLI and GitHub Copilot CLI transports, while respecting existing provider policy.
+- Keep pending decisions single-use and attempt-bound, revoke them on cancellation or completion, and preserve transcripts across reload and Session reopen without persisting reusable app grants. Exact-tool process allowances are not single-call grants.
+- Verify deterministic native workflows for all three providers and six authenticated Claude/Codex cases on Linux. Authenticated Copilot remains deferred, Jira remains unverified, and hosted macOS validation is required before publication.
+
 ## v0.8.1 - 2026-10-14
 
 - Session Chat now uses tools and connectors configured in Claude Code, Codex CLI and GitHub Copilot CLI, subject to each CLI's existing permissions. Chat no longer disables built-in tools or MCP servers and can retrieve external context such as Jira user stories on request.

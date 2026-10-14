@@ -255,7 +255,8 @@ export async function runChatToNoteWorkflow() {
     { role: 'user', text: user1 }, { role: 'assistant', text: assistant1 }, { role: 'user', text: user2 },
   ], 'Retry prompt must contain completed previous pair and exactly one current user message')
   assert.equal(replay.response, assistant3)
-  assert.ok(Array.isArray(replay.argv) && replay.argv.includes('exec'))
+  assert.ok(Array.isArray(replay.argv) && replay.argv[0] === 'app-server', 'Chat uses native duplex transport')
+  assert.ok(!replay.argv.includes('--dangerously-bypass-approvals-and-sandbox'), 'Chat retains CLI permission policy')
   await release(directory, 3)
   await completed(primaryId, 4)
   await assertTranscript(transcriptRows('Completed'))

@@ -1,3 +1,4 @@
+pub(crate) mod chat_duplex;
 mod job_events;
 // Commands are registered by module path in `specta_bindings::builder`, so no
 // re-export is needed here.
