@@ -18,6 +18,55 @@ CREATE TABLE IF NOT EXISTS app_settings (
   updated_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS chat_drafts (
+  id TEXT PRIMARY KEY,
+  session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  revision INTEGER NOT NULL DEFAULT 0 CHECK (revision >= 0),
+  composer TEXT NOT NULL DEFAULT '',
+  mode TEXT NOT NULL DEFAULT 'write_note' CHECK (mode IN ('write_note', 'chat')),
+  archived INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0, 1)),
+  submitted_note_id TEXT,
+  submitted_at TEXT,
+  created_at TEXT NOT NULL,
+  CHECK ((submitted_note_id IS NULL) = (submitted_at IS NULL))
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_chat_active_session ON chat_drafts(session_id) WHERE archived = 0;
+CREATE INDEX IF NOT EXISTS idx_chat_drafts_session ON chat_drafts(session_id);
+CREATE TABLE IF NOT EXISTS chat_messages (
+  id TEXT PRIMARY KEY,
+  draft_id TEXT NOT NULL REFERENCES chat_drafts(id) ON DELETE CASCADE,
+  turn_id TEXT NOT NULL,
+  sequence INTEGER NOT NULL CHECK (sequence >= 0),
+  role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
+  text TEXT NOT NULL CHECK (length(trim(text)) > 0),
+  status TEXT NOT NULL CHECK (status IN ('running', 'completed', 'failed', 'cancelled', 'interrupted')),
+  error_message TEXT,
+  ai_run_id TEXT REFERENCES ai_runs(id),
+  created_at TEXT NOT NULL,
+  UNIQUE (draft_id, sequence),
+  UNIQUE (draft_id, turn_id, role),
+  CHECK (role = 'user' OR status = 'completed')
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_chat_one_running_turn ON chat_messages(draft_id) WHERE status = 'running';
+CREATE TRIGGER IF NOT EXISTS chat_receipt_immutable BEFORE UPDATE ON chat_drafts
+WHEN OLD.submitted_at IS NOT NULL AND (
+  NEW.submitted_at IS NOT OLD.submitted_at OR NEW.submitted_note_id IS NOT OLD.submitted_note_id
+  OR NEW.composer IS NOT OLD.composer OR NEW.revision IS NOT OLD.revision
+  OR NEW.mode IS NOT OLD.mode
+  OR NEW.id IS NOT OLD.id OR NEW.session_id IS NOT OLD.session_id
+)
+BEGIN SELECT RAISE(ABORT, 'Submitted chat is immutable'); END;
+CREATE TRIGGER IF NOT EXISTS chat_submitted_messages_no_delete BEFORE DELETE ON chat_messages
+WHEN (SELECT submitted_at FROM chat_drafts WHERE id = OLD.draft_id) IS NOT NULL
+BEGIN SELECT RAISE(ABORT, 'Submitted chat is immutable'); END;
+CREATE TRIGGER IF NOT EXISTS chat_submitted_messages_no_insert BEFORE INSERT ON chat_messages
+WHEN (SELECT submitted_at FROM chat_drafts WHERE id = NEW.draft_id) IS NOT NULL
+BEGIN SELECT RAISE(ABORT, 'Submitted chat is immutable'); END;
+CREATE TRIGGER IF NOT EXISTS chat_submitted_messages_no_update BEFORE UPDATE ON chat_messages
+WHEN (SELECT submitted_at FROM chat_drafts WHERE id = OLD.draft_id) IS NOT NULL
+  OR (SELECT submitted_at FROM chat_drafts WHERE id = NEW.draft_id) IS NOT NULL
+BEGIN SELECT RAISE(ABORT, 'Submitted chat is immutable'); END;
+
 CREATE TABLE IF NOT EXISTS entries (
   id TEXT PRIMARY KEY,
   session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,

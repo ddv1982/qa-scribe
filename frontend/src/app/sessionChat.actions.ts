@@ -1,0 +1,365 @@
+import {
+  cancelAiActionJob, getChat, restartChat, saveChatComposer, startChatJob,
+  type ChatMode, type ChatState, type ChatSubmissionReceipt, type GenerationJobStatus, type StartChatJobResult,
+} from '../tauri'
+import { formatError } from '../ui/format'
+import {
+  chatIsDirty, chatIsWorking, chatScope, emptyChatSnapshot, unresolvedChatReason,
+  type ChatWorkspace, type SessionChatContext,
+} from './sessionChat.types'
+import { createChatPolling } from './sessionChat.polling'
+import { submitChatToCanonicalNote } from './sessionChat.noteHandoff'
+import { recoverChatCanonicalNote } from './sessionChat.noteRecovery'
+
+export function createSessionChatActions(ctx: SessionChatContext) {
+  const workspaces = new Map<string, ChatWorkspace>()
+  let disposed = false
+  function workspace(sessionId: string): ChatWorkspace {
+    let value = workspaces.get(sessionId)
+    if (!value) {
+      let resolveRetirement: () => void = () => {}
+      const retirement = new Promise<void>((resolve) => { resolveRetirement = resolve })
+      value = { sessionId, chat: null, composer: '', mode: 'write_note', inputVersion: 0,
+        modeVersion: 0, refreshEpoch: 0, loading: false, error: null, job: null,
+        hydration: null, save: null, operation: null, operationKind: null, autosaveTimer: null,
+        retired: false, retirement, resolveRetirement, recovery: null }
+      workspaces.set(sessionId, value)
+    }
+    return value
+  }
+  function active() {
+    const id = ctx.session.activeSessionIdRef.current
+    return id && !ctx.noteRecovery.isRetired(id) ? workspace(id) : null
+  }
+  function publish(entry: ChatWorkspace) {
+    if (disposed || entry.retired || ctx.session.activeSessionIdRef.current !== entry.sessionId) return
+    ctx.publish({ sessionId: entry.sessionId, chat: entry.chat, composer: entry.composer,
+      mode: entry.mode, job: entry.job, loading: entry.loading, saving: Boolean(entry.save),
+      working: Boolean(entry.operationKind) || chatIsWorking(entry.job), error: entry.error, dirty: chatIsDirty(entry) })
+  }
+  function report(entry: ChatWorkspace, cause: unknown) {
+    if (entry.retired || disposed) return
+    entry.error = formatError(cause)
+    publish(entry)
+    if (ctx.session.activeSessionIdRef.current === entry.sessionId) ctx.feedback.setError(entry.error)
+  }
+  function acceptChat(entry: ChatWorkspace, chat: ChatState, inputVersion: number, modeVersion: number) {
+    if (entry.retired) return
+    if (chat.sessionId !== entry.sessionId) throw new Error('Chat returned an unexpected Session.')
+    if (entry.chat?.draftId === chat.draftId && chat.revision < entry.chat.revision) return
+    entry.chat = chat
+    if (inputVersion === entry.inputVersion) entry.composer = chat.composer
+    if (modeVersion === entry.modeVersion) entry.mode = chat.mode
+    const reason = unresolvedChatReason(chat, true)
+    if (reason?.includes('earlier turn')) entry.error = reason
+    publish(entry)
+  }
+  async function refresh(sessionId: string, preserveMode = false) {
+    if (ctx.noteRecovery.isRetired(sessionId)) return
+    const entry = workspace(sessionId)
+    const epoch = ++entry.refreshEpoch
+    // Already-dirty input is authored intent too, even when no edit happens
+    // during this particular refresh (for example a terminal-job reload).
+    const inputDirty = entry.chat ? entry.composer !== entry.chat.composer : entry.inputVersion > 0
+    const modeDirty = entry.chat ? entry.mode !== entry.chat.mode : entry.modeVersion > 0
+    const inputVersion = inputDirty ? -1 : entry.inputVersion
+    const modeVersion = modeDirty || preserveMode ? -1 : entry.modeVersion
+    entry.loading = !entry.chat
+    publish(entry)
+    try {
+      const chat = await Promise.race([getChat(sessionId), entry.retirement.then(() => null)])
+      if (!chat || disposed || entry.retired || epoch !== entry.refreshEpoch) return
+      acceptChat(entry, chat, inputVersion, modeVersion)
+    } catch (cause) {
+      if (!disposed && epoch === entry.refreshEpoch) report(entry, cause)
+    } finally {
+      if (epoch === entry.refreshEpoch) { entry.loading = false; publish(entry) }
+    }
+  }
+  function hydrate(entry: ChatWorkspace) {
+    if (entry.hydration) return entry.hydration
+    const pending = refresh(entry.sessionId).finally(() => {
+      if (entry.hydration === pending) entry.hydration = null
+    })
+    entry.hydration = pending
+    return pending
+  }
+  function acceptStatus(status: GenerationJobStatus) {
+    if (status.action !== 'chat' || disposed || ctx.noteRecovery.isRetired(status.sessionId)) return
+    const entry = workspace(status.sessionId)
+    if (entry.job?.jobId === status.jobId && !chatIsWorking(entry.job) && chatIsWorking(status)) return
+    if (entry.job && entry.job.jobId !== status.jobId && chatIsWorking(entry.job)) return
+    entry.job = status
+    if (status.errorMessage) entry.error = status.errorMessage
+    publish(entry)
+  }
+  const polling = createChatPolling(acceptStatus, refresh, (sessionId, error) => report(workspace(sessionId), error))
+  function observeJob(status: GenerationJobStatus) {
+    if (status.action !== 'chat' || ctx.noteRecovery.isRetired(status.sessionId)) return
+    acceptStatus(status)
+    const current = workspace(status.sessionId).job
+    if (current?.jobId === status.jobId && chatIsWorking(current)) polling.watch(current)
+  }
+  function receiveStatus(entry: ChatWorkspace, status: GenerationJobStatus) {
+    if (entry.retired || status.sessionId !== entry.sessionId || status.action !== 'chat') return
+    observeJob(status)
+    if (!chatIsWorking(status)) {
+      polling.stop(status.jobId)
+      void refresh(entry.sessionId)
+    }
+  }
+  function clearAutosave(entry: ChatWorkspace) {
+    if (entry.autosaveTimer) clearTimeout(entry.autosaveTimer)
+    entry.autosaveTimer = null
+  }
+  async function saveComposer(entry: ChatWorkspace): Promise<boolean> {
+    if (entry.retired) return true
+    if (ctx.noteRecovery.has(entry.sessionId)) return false
+    clearAutosave(entry)
+    if (entry.save) return entry.save
+    if (!chatIsDirty(entry)) return true
+    const pending = (async () => {
+      if (!entry.chat) await hydrate(entry)
+      if (entry.retired) return true
+      if (!entry.chat) return false
+      while (chatIsDirty(entry)) {
+        const chat = entry.chat
+        const inputVersion = entry.inputVersion
+        const modeVersion = entry.modeVersion
+        const composer = entry.composer
+        const mode = entry.mode
+        try {
+          const saved = await Promise.race([
+            saveChatComposer({ scope: chatScope(chat), composer, mode }), entry.retirement.then(() => null),
+          ])
+          if (!saved || entry.retired) return true
+          if (saved.sessionId !== chat.sessionId || saved.draftId !== chat.draftId) {
+            throw new Error('Composer save returned an unexpected conversation.')
+          }
+          // A save establishes a new revision, not permission to replace newer input.
+          ++entry.refreshEpoch
+          const priorError = entry.error
+          entry.error = null
+          acceptChat(entry, saved, inputVersion, modeVersion)
+          if (priorError && ctx.session.activeSessionIdRef.current === entry.sessionId) {
+            ctx.feedback.setError((current) => current === priorError ? null : current)
+          }
+        } catch (cause) { report(entry, cause); return false }
+      }
+      return true
+    })().finally(() => { entry.save = null; publish(entry) })
+    entry.save = pending
+    publish(entry)
+    return pending
+  }
+  function scheduleAutosave(entry: ChatWorkspace) {
+    if (entry.retired) return
+    clearAutosave(entry)
+    entry.autosaveTimer = setTimeout(() => {
+      entry.autosaveTimer = null
+      if (!entry.operationKind) void saveComposer(entry)
+    }, 500)
+  }
+  function onSetComposer(text: string) {
+    const entry = active()
+    if (!entry || ctx.noteRecovery.has(entry.sessionId) || entry.chat?.submission || ['submit', 'restart'].includes(entry.operationKind ?? '')) return
+    if (text === entry.composer) return
+    entry.composer = text
+    ++entry.inputVersion
+    entry.error = null
+    publish(entry)
+    scheduleAutosave(entry)
+  }
+  function setMode(mode: ChatMode) {
+    const entry = active()
+    if (!entry || entry.operationKind === 'submit' || mode === entry.mode) return
+    entry.mode = mode
+    ++entry.modeVersion
+    publish(entry)
+    if (!entry.chat?.submission) scheduleAutosave(entry)
+  }
+  function run(kind: string, action: (entry: ChatWorkspace) => Promise<void>): Promise<void> {
+    const entry = active()
+    if (!entry || entry.operationKind) return Promise.resolve()
+    entry.operationKind = kind
+    entry.error = null
+    ctx.feedback.setError(null)
+    clearAutosave(entry)
+    const operation = Promise.race([action(entry), entry.retirement]).catch((cause: unknown) => report(entry, cause)).finally(() => {
+      entry.operation = null
+      entry.operationKind = null
+      publish(entry)
+      if (!entry.retired && chatIsDirty(entry) && !entry.error) scheduleAutosave(entry)
+    })
+    entry.operation = operation
+    publish(entry)
+    return operation
+  }
+  async function send(entry: ChatWorkspace, retry: boolean) {
+    if (ctx.noteRecovery.has(entry.sessionId)) throw new Error('Recover the canonical Note before continuing Chat.')
+    if (chatIsWorking(entry.job)) throw new Error('Wait for the active turn or cancel it.')
+    if (!ctx.provider?.available) throw new Error(ctx.provider?.reason ?? 'AI provider readiness is unavailable.')
+    if (ctx.providerWarning) throw new Error(ctx.providerWarning)
+    if (!entry.chat) await hydrate(entry)
+    if (entry.retired) return
+    if (!entry.chat) throw new Error('Chat could not be loaded. Reopen the Session to try again.')
+    if (entry.chat.submission) throw new Error('Start a new conversation to continue after submission.')
+    const reason = unresolvedChatReason(entry.chat, retry)
+    if (reason) throw new Error(reason)
+    if (retry && entry.composer.length > 0) throw new Error('Clear the composer before retrying the failed turn.')
+    if (!retry && !entry.composer.trim()) throw new Error('Enter a message before sending.')
+    if (!await saveComposer(entry)) return
+    if (entry.retired) return
+    const chat = entry.chat
+    const inputVersion = entry.inputVersion
+    const modeVersion = entry.modeVersion
+    let result: StartChatJobResult
+    try {
+      result = await startChatJob({ scope: chatScope(chat), retry,
+        provider: ctx.selection.selectedProvider, model: ctx.selection.selectedModel,
+        reasoningEffort: ctx.selection.selectedReasoningEffort }, (status) => receiveStatus(entry, status))
+    } catch (cause) {
+      if (entry.retired) return
+      // Preparation may have durably consumed the composer before spawning
+      // failed. Recover that failed turn, never turn a second click into billing.
+      await refresh(entry.sessionId)
+      throw cause
+    }
+    if (entry.retired) return
+    if (result.chat.sessionId !== entry.sessionId || result.chat.draftId !== chat.draftId
+      || result.status.sessionId !== entry.sessionId || result.status.action !== 'chat') {
+      throw new Error('Chat start returned an unexpected conversation.')
+    }
+    ++entry.refreshEpoch
+    acceptChat(entry, result.chat, inputVersion, modeVersion)
+    observeJob(result.status)
+    if (entry.job && !chatIsWorking(entry.job)) await refresh(entry.sessionId)
+  }
+  const onSend = () => run('send', (entry) => send(entry, false))
+  const onRetry = () => run('retry', (entry) => send(entry, true))
+  const onCancel = () => run('cancel', async (entry) => {
+    if (!entry.job || !chatIsWorking(entry.job)) return
+    const status = await cancelAiActionJob(entry.job.jobId)
+    if (entry.retired) return
+    if (status.sessionId !== entry.sessionId || status.action !== 'chat') throw new Error('Cancellation returned an unexpected Chat job.')
+    observeJob(status)
+    if (!chatIsWorking(status)) { polling.stop(status.jobId); await refresh(entry.sessionId) }
+  })
+  const onSubmit = () => run('submit', async (entry) => {
+    if (ctx.noteRecovery.has(entry.sessionId)) { await recoverNote(entry); return }
+    if (!entry.chat) await hydrate(entry)
+    if (!entry.chat) throw new Error('Load Chat before submitting it.')
+    if (entry.chat.submission) { entry.mode = 'write_note'; publish(entry); return }
+    if (chatIsWorking(entry.job) || entry.chat.messages.some((message) => message.status !== 'completed')) {
+      throw new Error(unresolvedChatReason(entry.chat, false) ?? 'Complete every turn before submitting Chat.')
+    }
+    if (entry.composer.length > 0) throw new Error('Send or clear the composer before submitting Chat.')
+    if (!entry.chat.messages.length) throw new Error('Complete a conversation before submitting Chat.')
+    if (!await saveComposer(entry)) return
+    if (entry.retired) return
+    let receipt: ChatSubmissionReceipt
+    try {
+      receipt = await submitChatToCanonicalNote(ctx, entry.chat)
+    } catch (cause) {
+      if (entry.retired) return
+      // The transaction may have committed even if its response or the Note
+      // reload failed. Recover immutable history without pretending adoption succeeded.
+      await refresh(entry.sessionId, true)
+      throw cause
+    }
+    if (entry.retired) return
+    ++entry.refreshEpoch
+    entry.chat = { ...entry.chat, submission: receipt, mode: 'write_note' }
+    entry.mode = 'write_note'
+    ++entry.modeVersion
+    publish(entry)
+    await refresh(entry.sessionId)
+  })
+  const onRestart = () => run('restart', async (entry) => {
+    if (ctx.noteRecovery.has(entry.sessionId)) throw new Error('Recover the canonical Note before starting a new conversation.')
+    if (chatIsWorking(entry.job)) throw new Error('Cancel or finish the active turn before starting a new conversation.')
+    if (!entry.chat) await hydrate(entry)
+    if (!entry.chat || !await saveComposer(entry)) return
+    if (entry.retired) return
+    const next = await restartChat({ scope: chatScope(entry.chat) })
+    if (entry.retired) return
+    ++entry.refreshEpoch
+    entry.job = null
+    entry.composer = ''
+    ++entry.inputVersion
+    acceptChat(entry, next, entry.inputVersion, entry.modeVersion)
+    entry.mode = 'chat'
+    ++entry.modeVersion
+    publish(entry)
+    await saveComposer(entry)
+  })
+  async function flush(): Promise<boolean> {
+    for (const entry of workspaces.values()) {
+      if (entry.operation) await entry.operation
+      if (entry.retired) continue
+      if (ctx.noteRecovery.has(entry.sessionId) && !await recoverNote(entry)) return false
+      if (!await saveComposer(entry)) return false
+    }
+    return !hasPendingChanges()
+  }
+  function hasPendingChanges() {
+    return ctx.noteRecovery.hasPending()
+      || Array.from(workspaces.values()).some((entry) => !entry.retired && (
+        ctx.noteRecovery.has(entry.sessionId) || chatIsDirty(entry) || Boolean(entry.save || entry.operationKind)))
+  }
+  function activate(sessionId: string | null) {
+    disposed = false
+    if (!sessionId || ctx.noteRecovery.isRetired(sessionId)) { ctx.publish(emptyChatSnapshot); return }
+    const entry = workspace(sessionId)
+    publish(entry)
+    void hydrate(entry)
+    if (entry.job) polling.watch(entry.job)
+  }
+  function dispose() {
+    disposed = true
+    polling.dispose()
+    for (const entry of workspaces.values()) clearAutosave(entry)
+  }
+  function retire(sessionId: string) {
+    const entry = workspaces.get(sessionId)
+    if (!entry) return
+    entry.retired = true
+    ++entry.refreshEpoch
+    clearAutosave(entry)
+    if (entry.job) polling.stop(entry.job.jobId)
+    entry.resolveRetirement()
+    workspaces.delete(sessionId)
+  }
+  function recoverNote(entry: ChatWorkspace): Promise<boolean> {
+    if (entry.retired || !ctx.noteRecovery.has(entry.sessionId)) return Promise.resolve(true)
+    if (entry.recovery) return entry.recovery
+    const inputVersion = entry.chat && entry.composer === entry.chat.composer ? entry.inputVersion : -1
+    const pending = Promise.race([(async () => {
+      try {
+        const chat = await recoverChatCanonicalNote(ctx, entry.sessionId)
+        if (entry.retired || !chat) return true
+        ++entry.refreshEpoch
+        acceptChat(entry, chat, inputVersion, -1)
+        if (chat.submission) { entry.mode = 'write_note'; ++entry.modeVersion }
+        entry.error = null
+        ctx.feedback.setError(null)
+        ctx.feedback.setNotice(chat.submission ? 'Submitted Chat Note recovered' : 'Canonical Note recovered. Submission was not recorded; review before submitting again.')
+        publish(entry)
+        return true
+      } catch (cause) { report(entry, cause); return false }
+    })(), entry.retirement.then(() => true)]).finally(() => { entry.recovery = null })
+    entry.recovery = pending
+    return pending
+  }
+  async function recoverSession(sessionId: string): Promise<boolean> {
+    if (ctx.noteRecovery.isRetired(sessionId)) return true
+    const entry = workspace(sessionId)
+    // Session re-selection is a public recovery path. It must share the
+    // handoff's operation boundary rather than unlock a still-pending submit.
+    if (entry.operation) await entry.operation
+    if (entry.retired) return true
+    return recoverNote(entry)
+  }
+  return { activate, dispose, observeJob, flush, hasPendingChanges, setMode, retire, recoverSession,
+    onSetComposer, onSend, onRetry, onCancel, onSubmit, onRestart }
+}

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, type MutableRefObject } from 'react'
 import { serializeRichEditorDocument, type RichEditorDocument } from '../editor/editorDocument'
 
 type UsePendingChangeProtectionOptions = {
+  hasPendingChatChanges: () => boolean
   hasActiveSession: boolean
   hasNoteEntry: boolean
   sessionTitle: string
@@ -18,6 +19,7 @@ type UsePendingChangeProtectionOptions = {
 }
 
 export function usePendingChangeProtection({
+  hasPendingChatChanges,
   hasActiveSession,
   hasNoteEntry,
   sessionTitle,
@@ -50,8 +52,8 @@ export function usePendingChangeProtection({
       && current.sessionTitle !== savedTitleRef.current,
     )
     const bodyDirty = Boolean(current.hasNoteEntry && serializeRichEditorDocument(current.noteBody) !== savedBodyRef.current)
-    return current.pendingRecoveredSummaryDecision || titleDirty || bodyDirty || settingsDirty || hasPendingCompensations() || dirtyDraftIdsRef.current.size > 0 || dirtyFindingIdsRef.current.size > 0
-  }, [dirtyDraftIdsRef, dirtyFindingIdsRef, hasPendingCompensations, savedBodyRef, savedTitleRef, settingsDirty])
+    return hasPendingChatChanges() || current.pendingRecoveredSummaryDecision || titleDirty || bodyDirty || settingsDirty || hasPendingCompensations() || dirtyDraftIdsRef.current.size > 0 || dirtyFindingIdsRef.current.size > 0
+  }, [dirtyDraftIdsRef, dirtyFindingIdsRef, hasPendingChatChanges, hasPendingCompensations, savedBodyRef, savedTitleRef, settingsDirty])
 
   useEffect(() => {
     function handleBeforeUnload(event: BeforeUnloadEvent) {

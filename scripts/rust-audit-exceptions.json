@@ -1,6 +1,6 @@
 {
-  "reviewedAt": "2026-10-04",
-  "nextReviewDate": "2026-10-13",
+  "reviewedAt": "2026-10-14",
+  "nextReviewDate": "2026-11-14",
   "exceptions": [
     {
       "id": "RUSTSEC-2026-0194",
@@ -10,9 +10,9 @@
       "targets": ["linux"],
       "exposure": "Build-time parsing of static Wayland protocol XML through wayland-scanner; application and provider data do not reach this parser at runtime.",
       "dependencyPath": "qa-scribe-tauri -> tauri-plugin-clipboard-manager 2.3.2 -> arboard 3.6.1 -> wl-clipboard-rs 0.9.3 -> wayland-protocols 0.32.13 -> wayland-scanner 0.31.10 -> quick-xml 0.39.4",
-      "blocker": "wayland-scanner 0.31.10 constrains quick-xml below the patched 0.41 line.",
+      "blocker": "The locked wayland-scanner 0.31.10 constrains quick-xml below 0.41. A 2026-10-14 update dry run resolves scanner 0.31.11 and quick-xml 0.42.0; this build-only exposure is temporarily retained pending targeted upgrade validation.",
       "patchedVersions": [">=0.41.0"],
-      "reviewDate": "2026-10-13",
+      "reviewDate": "2026-11-14",
       "removalTrigger": "A Wayland or clipboard dependency permits quick-xml >=0.41.0."
     },
     {
@@ -23,9 +23,9 @@
       "targets": ["linux"],
       "exposure": "Build-time parsing of static Wayland protocol XML through wayland-scanner; application and provider data do not reach this parser at runtime.",
       "dependencyPath": "qa-scribe-tauri -> tauri-plugin-clipboard-manager 2.3.2 -> arboard 3.6.1 -> wl-clipboard-rs 0.9.3 -> wayland-protocols 0.32.13 -> wayland-scanner 0.31.10 -> quick-xml 0.39.4",
-      "blocker": "wayland-scanner 0.31.10 constrains quick-xml below the patched 0.41 line.",
+      "blocker": "The locked wayland-scanner 0.31.10 constrains quick-xml below 0.41. A 2026-10-14 update dry run resolves scanner 0.31.11 and quick-xml 0.42.0; this build-only exposure is temporarily retained pending targeted upgrade validation.",
       "patchedVersions": [">=0.41.0"],
-      "reviewDate": "2026-10-13",
+      "reviewDate": "2026-11-14",
       "removalTrigger": "A Wayland or clipboard dependency permits quick-xml >=0.41.0."
     },
     {
@@ -38,7 +38,7 @@
       "dependencyPath": "qa-scribe-tauri -> tauri 2.11.5 -> tauri-runtime-wry 2.11.4 -> gtk 0.18.2 -> glib 0.18.5",
       "blocker": "Tauri's Linux WebKit/GTK graph remains on gtk-rs 0.18; the fix requires glib >=0.20.0.",
       "patchedVersions": [">=0.20.0"],
-      "reviewDate": "2026-10-13",
+      "reviewDate": "2026-11-14",
       "removalTrigger": "Tauri's Linux runtime moves to a gtk-rs line using glib >=0.20.0."
     },
     {
@@ -51,7 +51,7 @@
       "dependencyPath": "qa-scribe-tauri -> tauri 2.11.5 -> tauri-runtime-wry 2.11.4 -> gtk 0.18.2 -> glib 0.18.5 -> glib-macros 0.18.5 -> proc-macro-error 1.0.4",
       "blocker": "glib-macros and gtk3-macros 0.18 depend on this discontinued crate.",
       "patchedVersions": [],
-      "reviewDate": "2026-10-13",
+      "reviewDate": "2026-11-14",
       "removalTrigger": "The Tauri Linux GTK graph leaves gtk-rs 0.18."
     },
     {
@@ -64,7 +64,7 @@
       "dependencyPath": "qa-scribe-core/qa-scribe-tauri -> specta 2.0.0-rc.25 -> paste 1.0.15",
       "blocker": "The pinned Specta release candidate still depends on paste and no maintained paste release exists.",
       "patchedVersions": [],
-      "reviewDate": "2026-10-13",
+      "reviewDate": "2026-11-14",
       "removalTrigger": "Specta removes paste or the project upgrades to a Specta release without it."
     },
     {
@@ -75,9 +75,9 @@
       "targets": ["linux", "macos", "windows"],
       "exposure": "Transitive character-table code used by Tauri URL-pattern parsing.",
       "dependencyPath": "qa-scribe-tauri -> tauri 2.11.5 -> tauri-utils 2.9.3 -> urlpattern 0.3.0 -> unic-ucd-ident 0.9.0 -> unic-char-range 0.9.0",
-      "blocker": "urlpattern 0.3.0 depends on the discontinued unic 0.9 family.",
+      "blocker": "The locked urlpattern 0.3.0 uses unic 0.9. A 2026-10-14 dry run removes unic through newer Tauri utilities; retained pending validation of that broader runtime/build upgrade and its CLI pin compatibility.",
       "patchedVersions": [],
-      "reviewDate": "2026-10-13",
+      "reviewDate": "2026-11-14",
       "removalTrigger": "Tauri/urlpattern migrate to maintained Unicode crates."
     },
     {
@@ -88,9 +88,9 @@
       "targets": ["linux", "macos", "windows"],
       "exposure": "Transitive character-table code used by Tauri URL-pattern parsing.",
       "dependencyPath": "qa-scribe-tauri -> tauri 2.11.5 -> tauri-utils 2.9.3 -> urlpattern 0.3.0 -> unic-ucd-ident 0.9.0 -> unic-ucd-version 0.9.0 -> unic-common 0.9.0",
-      "blocker": "urlpattern 0.3.0 depends on the discontinued unic 0.9 family.",
+      "blocker": "The locked urlpattern 0.3.0 uses unic 0.9. A 2026-10-14 dry run removes unic through newer Tauri utilities; retained pending validation of that broader runtime/build upgrade and its CLI pin compatibility.",
       "patchedVersions": [],
-      "reviewDate": "2026-10-13",
+      "reviewDate": "2026-11-14",
       "removalTrigger": "Tauri/urlpattern migrate to maintained Unicode crates."
     },
     {
@@ -101,9 +101,9 @@
       "targets": ["linux", "macos", "windows"],
       "exposure": "Transitive character-property code used by Tauri URL-pattern parsing.",
       "dependencyPath": "qa-scribe-tauri -> tauri 2.11.5 -> tauri-utils 2.9.3 -> urlpattern 0.3.0 -> unic-ucd-ident 0.9.0 -> unic-char-property 0.9.0",
-      "blocker": "urlpattern 0.3.0 depends on the discontinued unic 0.9 family.",
+      "blocker": "The locked urlpattern 0.3.0 uses unic 0.9. A 2026-10-14 dry run removes unic through newer Tauri utilities; retained pending validation of that broader runtime/build upgrade and its CLI pin compatibility.",
       "patchedVersions": [],
-      "reviewDate": "2026-10-13",
+      "reviewDate": "2026-11-14",
       "removalTrigger": "Tauri/urlpattern migrate to maintained Unicode crates."
     },
     {
@@ -114,9 +114,9 @@
       "targets": ["linux", "macos", "windows"],
       "exposure": "Transitive Unicode-version data used by Tauri URL-pattern parsing.",
       "dependencyPath": "qa-scribe-tauri -> tauri 2.11.5 -> tauri-utils 2.9.3 -> urlpattern 0.3.0 -> unic-ucd-ident 0.9.0 -> unic-ucd-version 0.9.0",
-      "blocker": "urlpattern 0.3.0 depends on the discontinued unic 0.9 family.",
+      "blocker": "The locked urlpattern 0.3.0 uses unic 0.9. A 2026-10-14 dry run removes unic through newer Tauri utilities; retained pending validation of that broader runtime/build upgrade and its CLI pin compatibility.",
       "patchedVersions": [],
-      "reviewDate": "2026-10-13",
+      "reviewDate": "2026-11-14",
       "removalTrigger": "Tauri/urlpattern migrate to maintained Unicode crates."
     },
     {
@@ -127,9 +127,9 @@
       "targets": ["linux", "macos", "windows"],
       "exposure": "Transitive Unicode identifier validation used by Tauri URL-pattern parsing.",
       "dependencyPath": "qa-scribe-tauri -> tauri 2.11.5 -> tauri-utils 2.9.3 -> urlpattern 0.3.0 -> unic-ucd-ident 0.9.0",
-      "blocker": "urlpattern 0.3.0 depends on the discontinued unic 0.9 family.",
+      "blocker": "The locked urlpattern 0.3.0 uses unic 0.9. A 2026-10-14 dry run removes unic through newer Tauri utilities; retained pending validation of that broader runtime/build upgrade and its CLI pin compatibility.",
       "patchedVersions": [],
-      "reviewDate": "2026-10-13",
+      "reviewDate": "2026-11-14",
       "removalTrigger": "Tauri/urlpattern migrate to maintained Unicode crates."
     }
   ]

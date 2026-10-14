@@ -14,6 +14,15 @@ export const commands = {
 	updateSession: (id: string, patch: SessionPatch) => __TAURI_INVOKE<Session>("update_session", { id, patch }),
 	deleteSession: (id: string) => __TAURI_INVOKE<AttachmentCleanupStatus>("delete_session", { id }),
 	retryAttachmentCleanup: () => __TAURI_INVOKE<AttachmentCleanupStatus>("retry_attachment_cleanup"),
+	getChat: (sessionId: string) => __TAURI_INVOKE<ChatState>("get_chat", { sessionId }),
+	saveChatComposer: (request: ChatComposerRequest) => __TAURI_INVOKE<ChatState>("save_chat_composer", { request }),
+	restartChat: (request: ChatRestartRequest) => __TAURI_INVOKE<ChatState>("restart_chat", { request }),
+	submitChat: (request: ChatSubmitRequest) => __TAURI_INVOKE<ChatSubmissionReceipt>("submit_chat", { request }),
+	/**
+	 *  The status channel deliberately shares polling/cancellation with AI actions.
+	 *  Reload the canonical ChatState when the job reaches a terminal status.
+	 */
+	startChatJob: (request: StartChatJobRequest, events: Channel<GenerationJobStatus>) => __TAURI_INVOKE<StartChatJobResult>("start_chat_job", { request, events }),
 	createEntry: (draft: EntryDraft) => __TAURI_INVOKE<Entry>("create_entry", { draft }),
 	listEntries: (sessionId: string) => __TAURI_INVOKE<Entry[]>("list_entries", { sessionId }),
 	updateEntry: (id: string, patch: EntryPatch) => __TAURI_INVOKE<Entry>("update_entry", { id, patch }),
@@ -107,6 +116,63 @@ export type Attachment = {
 export type AttachmentCleanupStatus = {
 	pendingFiles: number | null,
 };
+
+export type ChatComposerRequest = {
+	scope: ChatRevision,
+	composer: string,
+	mode: ChatMode,
+};
+
+export type ChatMessage = {
+	id: string,
+	turnId: string,
+	role: ChatRole,
+	text: string,
+	status: ChatTurnStatus,
+	errorMessage: string | null,
+	aiRunId: string | null,
+	createdAt: string,
+};
+
+export type ChatMode = "write_note" | "chat";
+
+export type ChatRestartRequest = {
+	scope: ChatRevision,
+};
+
+export type ChatRevision = {
+	sessionId: string,
+	draftId: string,
+	expectedRevision: number,
+};
+
+export type ChatRole = "user" | "assistant";
+
+export type ChatState = {
+	sessionId: string,
+	draftId: string,
+	revision: number,
+	composer: string,
+	mode: ChatMode,
+	messages: ChatMessage[],
+	submission: ChatSubmissionReceipt | null,
+};
+
+export type ChatSubmissionReceipt = {
+	draftId: string,
+	noteId: string,
+	submittedAt: string,
+};
+
+export type ChatSubmitRequest = {
+	scope: ChatRevision,
+	noteId: string,
+	expectedNoteBody: string,
+	expectedNoteBodyJson: string | null,
+	expectedNoteBodyFormat: string | null,
+};
+
+export type ChatTurnStatus = "running" | "completed" | "failed" | "cancelled" | "interrupted";
 
 export type CommandError = {
 	kind: CommandErrorKind,
@@ -470,6 +536,21 @@ export type SessionPatch = {
 
 export type StartAiActionJobResult = {
 	jobId: string,
+	status: GenerationJobStatus,
+};
+
+export type StartChatJobRequest = {
+	scope: ChatRevision,
+	retry?: boolean,
+	provider: AiProvider,
+	model: string,
+	reasoningEffort: string | null,
+};
+
+export type StartChatJobResult = {
+	jobId: string,
+	turnId: string,
+	chat: ChatState,
 	status: GenerationJobStatus,
 };
 

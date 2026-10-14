@@ -143,6 +143,7 @@ export function createSessionWriteActions(ctx: SessionActionsContext) {
   function supersedeNoteWritesWithCurrentSavedBody() {
     const entryId = ctx.session.noteEntryIdRef.current
     const sessionId = ctx.session.activeSessionIdRef.current
+    if (sessionId && chatRecoveryBlocksNoteSave(sessionId)) return
     if (!entryId || !sessionId) {
       ctx.session.noteBodyWriteVersionRef.current += 1
       return
@@ -179,6 +180,8 @@ export function createSessionWriteActions(ctx: SessionActionsContext) {
   }
 
   function registerNoteEditIntent(_body: RichEditorDocument) {
+    const activeId = ctx.session.activeSessionIdRef.current
+    if (activeId && chatRecoveryBlocksNoteSave(activeId)) return false
     const version = ++ctx.session.noteBodyWriteVersionRef.current
     const entryId = ctx.session.noteEntryIdRef.current
     const sessionId = ctx.session.activeSessionIdRef.current
@@ -189,6 +192,7 @@ export function createSessionWriteActions(ctx: SessionActionsContext) {
     // contain inline images, or represent the generated side of a recovered
     // Summary decision rather than the authored body that Save will choose.
     invalidateSessionNavigationForEdit()
+    return true
   }
 
   function registerRecordEditIntent() {
@@ -206,6 +210,7 @@ export function createSessionWriteActions(ctx: SessionActionsContext) {
   async function reconcileNoteAfterStaleWrite(entryId: string, staleEntry: Awaited<ReturnType<typeof updateEntry>>): Promise<boolean> {
     const intent = noteWriteIntents.get(entryId)
     if (!intent) return true
+    if (chatRecoveryBlocksNoteSave(intent.sessionId)) return false
     if (intent.kind === 'editor' || !intent.body) {
       if (
         ctx.session.activeSessionIdRef.current === intent.sessionId
@@ -219,6 +224,7 @@ export function createSessionWriteActions(ctx: SessionActionsContext) {
     intent.compensationPending = true
     try {
       const restored = await trackWrite(updateEntry(entryId, richEditorDocumentToStoredBody(intent.body)))
+      if (chatRecoveryBlocksNoteSave(intent.sessionId)) return false
       if (noteWriteIntents.get(entryId) !== intent) return reconcileNoteAfterStaleWrite(entryId, restored)
       intent.compensationPending = false
       if (
@@ -230,6 +236,7 @@ export function createSessionWriteActions(ctx: SessionActionsContext) {
       }
       return true
     } catch (cause) {
+      if (chatRecoveryBlocksNoteSave(intent.sessionId)) return false
       if (noteWriteIntents.get(entryId) !== intent) return reconcileNoteAfterStaleWrite(entryId, staleEntry)
       intent.compensationPending = true
       if (
@@ -249,11 +256,13 @@ export function createSessionWriteActions(ctx: SessionActionsContext) {
   }
 
   async function retryPendingNoteCompensation(sessionId: string): Promise<boolean> {
+    if (chatRecoveryBlocksNoteSave(sessionId)) return false
     for (const intent of noteWriteIntents.values()) {
       if (intent.sessionId !== sessionId || !intent.compensationPending) continue
       if (!intent.body) return false
       try {
         const restored = await trackWrite(updateEntry(intent.entryId, richEditorDocumentToStoredBody(intent.body)))
+        if (chatRecoveryBlocksNoteSave(sessionId)) return false
         if (noteWriteIntents.get(intent.entryId) !== intent) {
           if (!await retryPendingNoteCompensation(sessionId)) return false
           continue
@@ -267,6 +276,7 @@ export function createSessionWriteActions(ctx: SessionActionsContext) {
           ctx.session.savedBodyRef.current = serializeRichEditorDocument(intent.body)
         }
       } catch (cause) {
+        if (chatRecoveryBlocksNoteSave(sessionId)) return false
         intent.compensationPending = true
         ctx.feedback.setError(formatError(cause))
         return false
@@ -316,9 +326,14 @@ export function createSessionWriteActions(ctx: SessionActionsContext) {
   }
 
   function noteSaveIsBlocked(sessionId: string): boolean {
+    if (chatRecoveryBlocksNoteSave(sessionId)) return true
     if (!summaryRecoveryBlocksNoteSave(sessionId)) return false
     ctx.summaryRecovery.blockedSaveSessionIdsRef.current.add(sessionId)
     return true
+  }
+
+  function chatRecoveryBlocksNoteSave(sessionId: string): boolean {
+    return Boolean(ctx.noteRecovery?.has(sessionId) || ctx.noteRecovery?.isRetired(sessionId))
   }
 
   function recoveryDiscoveryAllowsNoteHydration(): boolean {
@@ -373,6 +388,7 @@ export function createSessionWriteActions(ctx: SessionActionsContext) {
   ): Promise<boolean> {
     const { manageBusy = true } = options
     if (!ctx.session.noteEntry || ctx.session.deletingSessionIdRef.current === ctx.session.noteEntry.sessionId) return false
+    if (chatRecoveryBlocksNoteSave(options.sessionId ?? ctx.session.noteEntry.sessionId)) return false
     if (!options.allowRecoveryWrite && noteSaveIsBlocked(ctx.session.noteEntry.sessionId)) return false
     const storedBody = richEditorDocumentToStoredBody(body)
     if (storedBody.body.length > noteBodyMaxLength) {
@@ -394,6 +410,7 @@ export function createSessionWriteActions(ctx: SessionActionsContext) {
     try {
       if (manageBusy) ctx.feedback.setBusyAction('save-body')
       const saved = await trackWrite(updateEntry(entryId, storedBody))
+      if (chatRecoveryBlocksNoteSave(sessionId)) return false
       if (
         writeVersion !== ctx.session.noteBodyWriteVersionRef.current
         || noteWriteIntents.get(entryId) !== intent
@@ -422,6 +439,7 @@ export function createSessionWriteActions(ctx: SessionActionsContext) {
   }
 
   return {
+    chatRecoveryBlocksNoteSave,
     adoptCanonicalNoteBody,
     beginSessionNavigation,
     clearTitleIntent,

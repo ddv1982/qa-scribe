@@ -47,8 +47,10 @@ describe('RichTextEditor toolbar', () => {
     getAttachmentPreviewDataUrlMock.mockReset()
   })
 
-  afterEach(() => {
+  afterEach(async () => {
     cleanup()
+    // TipTap defers destruction by 1ms to tolerate React remounts.
+    await new Promise((resolve) => setTimeout(resolve, 1))
     vi.restoreAllMocks()
   })
 

@@ -1,5 +1,6 @@
 pub mod ai;
 pub mod attachments;
+pub mod chat;
 pub mod domain;
 mod error;
 pub mod generation;

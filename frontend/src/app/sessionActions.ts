@@ -28,8 +28,10 @@ import type {
 import { useStableCapability } from './useStableCapability'
 import type { RecordLoadSuspension } from './useRecordHydration'
 import type { AttachmentCleanupController } from './useAttachmentCleanup'
+import type { ChatNoteRecovery } from './useChatNoteRecovery'
 
 export type SessionActionsContext = {
+  noteRecovery?: ChatNoteRecovery
   session: SessionWorkspace
   records: Pick<
     RecordWorkspace,
@@ -231,6 +233,7 @@ export function createSessionActions(ctx: SessionActionsContext) {
       ctx.feedback.setBusyAction('delete-session')
       ctx.feedback.setError(null)
       const cleanupStatus = await deleteSession(sessionToDelete.id)
+      ctx.noteRecovery?.retire(sessionToDelete.id)
       ctx.attachmentCleanup.acceptStatus(cleanupStatus)
       ctx.session.setSessions((previous) => previous.filter((session) => session.id !== sessionToDelete.id))
       // Clear active-Session state immediately after the delete succeeds, before any

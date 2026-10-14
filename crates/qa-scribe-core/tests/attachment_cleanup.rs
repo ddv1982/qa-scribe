@@ -281,14 +281,14 @@ fn schema_eight_upgrade_and_current_reopen_preserve_data_and_pending_intent() {
         .unwrap();
     drop(service);
     let upgraded = SessionService::new(Database::open(&db).unwrap()).unwrap();
-    assert_eq!(SCHEMA_VERSION, 9);
+    assert_eq!(SCHEMA_VERSION, 10);
     assert_eq!(
         upgraded
             .database()
             .connection()
             .query_row("PRAGMA user_version", [], |row| row.get::<_, i32>(0))
             .unwrap(),
-        9
+        SCHEMA_VERSION
     );
     assert!(upgraded.get_attachment(&a.id).unwrap().is_some());
     assert_eq!(

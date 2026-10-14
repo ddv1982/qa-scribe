@@ -6,6 +6,13 @@ import {
   type AppSettings,
   type Attachment,
   type AttachmentCleanupStatus,
+  type ChatComposerRequest,
+  type ChatRestartRequest,
+  type ChatState,
+  type ChatSubmissionReceipt,
+  type ChatSubmitRequest,
+  type StartChatJobRequest,
+  type StartChatJobResult,
   type Draft,
   type DraftLibraryItem,
   type DraftKind,
@@ -37,6 +44,29 @@ import {
 
 export function getSettings(): Promise<AppSettings> {
   return commands.getSettings()
+}
+
+export function getChat(sessionId: string): Promise<ChatState> {
+  return commands.getChat(sessionId)
+}
+
+export function saveChatComposer(request: ChatComposerRequest): Promise<ChatState> {
+  return commands.saveChatComposer(request)
+}
+
+export function restartChat(request: ChatRestartRequest): Promise<ChatState> {
+  return commands.restartChat(request)
+}
+
+export function submitChat(request: ChatSubmitRequest): Promise<ChatSubmissionReceipt> {
+  return commands.submitChat(request)
+}
+
+export function startChatJob(
+  request: StartChatJobRequest,
+  onStatus: (status: GenerationJobStatus) => void,
+): Promise<StartChatJobResult> {
+  return commands.startChatJob(request, new Channel<GenerationJobStatus>(onStatus))
 }
 
 export function updateSettings(settings: AppSettings): Promise<AppSettings> {

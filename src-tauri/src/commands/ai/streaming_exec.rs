@@ -55,7 +55,7 @@ const MAX_PROVIDER_STDERR_BYTES: usize = 256 * 1024;
 
 /// Run one streaming generation through the real process executor, parsing
 /// the provider's stdout with core's per-format stream parsers.
-pub(super) fn run_generation_command_streaming(
+pub(crate) fn run_generation_command_streaming(
     command: &GenerationCommand,
     control: &JobControl,
     on_update: impl FnMut(StreamUpdate),
