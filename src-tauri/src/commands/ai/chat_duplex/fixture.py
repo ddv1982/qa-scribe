@@ -129,7 +129,7 @@ else:
         new = receive()
         assert new["method"] == "thread/start"
         assert new["params"]["ephemeral"] is True
-        assert new["params"]["cwd"] == os.getcwd()
+        assert os.path.samefile(new["params"]["cwd"], os.getcwd())
         for forbidden in ("approvalPolicy", "sandbox", "sandboxPolicy"):
             assert forbidden not in new["params"]
         rpc_result(new, {"thread": {"id": "thread-1"}, "model": "actualmodel"})
@@ -139,7 +139,9 @@ else:
         rpc_result(prompt, {"turn": {"id": "turn-1", "status": "inProgress"}})
     else:
         assert new["method"] == "session/new"
-        assert new["params"] == {"cwd": os.getcwd(), "mcpServers": []}
+        assert set(new["params"]) == {"cwd", "mcpServers"}
+        assert new["params"]["mcpServers"] == []
+        assert os.path.samefile(new["params"]["cwd"], os.getcwd())
         rpc_result(new, {"sessionId": "session-1"})
         prompt = receive()
         assert prompt["method"] == "session/prompt"

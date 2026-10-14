@@ -1,3 +1,162 @@
+// Exercise fixture cwd validation independently of production cwd selection.
+// Frames come from the real adapter, including all protocol/session fields.
+#[cfg(unix)]
+fn fixture_cwd_policy_handshake(provider: AiProvider, equivalent: bool) {
+    use std::os::unix::fs::symlink;
+
+    let fixture = Fixture::new(provider);
+    let actual = fixture.dir.join("actual");
+    let distinct = fixture.dir.join("distinct");
+    let alias = fixture.dir.join("cwd-alias");
+    fs::create_dir(&actual).unwrap();
+    fs::create_dir(&distinct).unwrap();
+    let actual = actual.canonicalize().unwrap();
+    symlink(&actual, &alias).unwrap();
+    let transmitted = if equivalent { &alias } else { &distinct };
+    assert_ne!(transmitted, &actual, "must not test raw string equality");
+    assert_eq!(transmitted.canonicalize().unwrap() == actual, equivalent);
+
+    let mut protocol = ChatProtocol::new(
+        provider,
+        "fixture prompt",
+        "chosen-model",
+        Some("high"),
+        transmitted.to_str().unwrap(),
+    );
+    let initial = protocol.initial_message();
+    let initialized = match provider {
+        AiProvider::CodexCli => json!({"id":initial["id"],"result":{}}),
+        AiProvider::CopilotCli => json!({"jsonrpc":"2.0","id":initial["id"],
+            "result":{"protocolVersion":1}}),
+        _ => unreachable!(),
+    };
+    let mut frames = vec![initial];
+    for event in protocol.handle(&initialized).unwrap() {
+        if let ChatProtocolEvent::Send(frame) = event {
+            frames.push(frame);
+        }
+    }
+    let new = frames.last().unwrap();
+    assert_eq!(new["params"]["cwd"], transmitted.to_str().unwrap());
+    let created = match provider {
+        AiProvider::CodexCli => {
+            assert_eq!(new["method"], "thread/start");
+            assert_eq!(new["params"]["ephemeral"], true);
+            for key in ["approvalPolicy", "sandbox", "sandboxPolicy"] {
+                assert!(new["params"].get(key).is_none());
+            }
+            json!({"id":new["id"],"result":{"thread":{"id":"thread-1"},"model":"actualmodel"}})
+        }
+        AiProvider::CopilotCli => {
+            assert_eq!(new["method"], "session/new");
+            assert_eq!(new["params"], json!({"cwd":transmitted,"mcpServers":[]}));
+            json!({"jsonrpc":"2.0","id":new["id"],"result":{"sessionId":"session-1"}})
+        }
+        _ => unreachable!(),
+    };
+    let cwd_frame_count = frames.len();
+    for event in protocol.handle(&created).unwrap() {
+        if let ChatProtocolEvent::Send(frame) = event {
+            frames.push(frame);
+        }
+    }
+    assert_eq!(frames.len(), cwd_frame_count + 1);
+    let prompt = frames.last().unwrap();
+    match provider {
+        AiProvider::CodexCli => {
+            assert_eq!(prompt["method"], "turn/start");
+            assert_eq!(prompt["params"]["threadId"], "thread-1");
+            assert_eq!(prompt["params"]["input"][0]["text"], "fixture prompt");
+        }
+        AiProvider::CopilotCli => {
+            assert_eq!(prompt["method"], "session/prompt");
+            assert_eq!(prompt["params"]["sessionId"], "session-1");
+            assert_eq!(prompt["params"]["prompt"], json!([{"type":"text","text":"fixture prompt"}]));
+        }
+        _ => unreachable!(),
+    }
+
+    let command = fixture.command("policy", "string");
+    let mut child = Command::new(&command.program)
+        .args(&command.args)
+        .current_dir(&actual)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    // Policy mode exits after the prompt, so it never needs a permission reply
+    // or the cleanup of a long-lived server. Close stdin to bound malformed input.
+    let mut stdin = child.stdin.take().unwrap();
+    let input: String = frames.iter().map(|frame| format!("{frame}\n")).collect();
+    // One sub-PIPE_BUF write avoids racing a rejection against later writes.
+    assert!(input.len() < 4096);
+    stdin.write_all(input.as_bytes()).unwrap();
+    drop(stdin);
+    let started = Instant::now();
+    while child.try_wait().unwrap().is_none() {
+        if started.elapsed() > Duration::from_secs(3) {
+            child.kill().unwrap();
+            child.wait().unwrap();
+            panic!("{provider:?}: fixture handshake timed out");
+        }
+        thread::sleep(Duration::from_millis(5));
+    }
+    let output = child.wait_with_output().unwrap();
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    let records = fixture.records();
+    assert_eq!(records[0]["cwd"], actual.to_str().unwrap());
+    assert!(!fixture.dir.join("tool-marker").exists());
+    let received: Vec<_> = records.iter().filter_map(|r| r.get("received")).cloned().collect();
+    if equivalent {
+        assert_eq!(output.status.code(), Some(7),
+            "{provider:?}: equivalent cwd must reach policy denial, not a handshake assertion: {stderr}");
+        assert_eq!(stderr, "Permission denied by configured policy\n");
+        assert_eq!(received, frames, "the entire valid handshake must reach the child");
+        let replies: Vec<Value> = String::from_utf8(output.stdout).unwrap().lines()
+            .map(|line| serde_json::from_str(line).unwrap()).collect();
+        let expected = match provider {
+            AiProvider::CodexCli => vec![
+                json!({"id":"qa-scribe-init","result":{}}),
+                json!({"id":"qa-scribe-thread","result":{"thread":{"id":"thread-1"},"model":"actualmodel"}}),
+                json!({"id":"qa-scribe-turn","result":{"turn":{"id":"turn-1","status":"inProgress"}}}),
+            ],
+            AiProvider::CopilotCli => vec![
+                json!({"jsonrpc":"2.0","id":"qa-scribe-init","result":{"protocolVersion":1}}),
+                json!({"jsonrpc":"2.0","id":"qa-scribe-session","result":{"sessionId":"session-1"}}),
+            ],
+            _ => unreachable!(),
+        };
+        assert_eq!(replies, expected);
+    } else {
+        assert_eq!(output.status.code(), Some(1), "{provider:?}: {stderr}");
+        assert!(stderr.contains("AssertionError") && stderr.contains("cwd"), "{stderr}");
+        assert!(!stderr.contains("Permission denied by configured policy"));
+        assert_eq!(received, frames[..cwd_frame_count],
+            "a distinct directory must be rejected before accepting the prompt");
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn chat_duplex_fixture_codex_symlink_cwd_reaches_policy_denial() {
+    fixture_cwd_policy_handshake(AiProvider::CodexCli, true);
+}
+
+#[cfg(unix)]
+#[test]
+fn chat_duplex_fixture_copilot_symlink_cwd_reaches_policy_denial() {
+    fixture_cwd_policy_handshake(AiProvider::CopilotCli, true);
+}
+
+#[cfg(unix)]
+#[test]
+fn chat_duplex_fixture_distinct_cwd_rejected_before_policy_denial() {
+    for provider in [AiProvider::CodexCli, AiProvider::CopilotCli] {
+        fixture_cwd_policy_handshake(provider, false);
+    }
+}
+
 #[test]
 fn chat_duplex_process_output_line_total_bounds_and_silent_watchdog() {
     for mode in ["line", "total", "silent"] {

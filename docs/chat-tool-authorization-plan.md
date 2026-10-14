@@ -289,6 +289,12 @@ authorize F7 publication.
 - [x] Re-read this plan and run `bun run bump 0.8.2 --dry-run`, then `bun run bump 0.8.2`; record observed version facts and expected TODO verification failure.
 - [x] Replace the generated TODO with concise release notes covering shared approval/deny/cancel/recheck, native Claude/Codex/Copilot Chat support, single-use pending decisions, persistence and live-validation limitations.
 - [x] Run `node scripts/check-release-metadata.mjs --expected-tag v0.8.2` and `git diff --check`; record actual outputs.
+- [x] Record explicit user approval for a bounded test-fixture filesystem-equivalence repair outside F6 metadata targets, preserving actual cwd isolation, protocol/session assertions and all tests.
+- [x] Reproduction: add deterministic Unix real-child Codex/Copilot symlink-alias regressions and distinct-directory rejection controls; manager observes RED before fixture comparisons change.
+- [x] Repair implementation: after observed RED, replace only fixture cwd string equality with filesystem equivalence, preserving exact non-cwd fields and actual cwd isolation.
+- [x] Targeted local verification: manager observes GREEN for all three new regressions and 13 existing process checks, plus no diff errors (`a24c753c`, revision 103).
+- [x] Canonical rerun: manager observes successful `bun run verify` after the repair without weakening tests (`6925aace`, revision 104).
+- [ ] Hosted verification: obtain successful protected macOS Rust and remaining CI gates before F6 acceptance.
 
 On 2026-10-14, the manager observed `bun run bump 0.8.2 --dry-run` report
 0.8.1 -> 0.8.2 across all seven release targets. The manager then ran
@@ -307,6 +313,54 @@ node scripts/check-release-metadata.mjs --expected-tag v0.8.2 && git diff --chec
 
 Observed output: `Release metadata ok for v0.8.2 (qa-scribe)`; actionlint 1.7.12
 installed release build, go1.26.1, linux/amd64. The command exited 0 with no diff
-errors. F6 overall remains unchecked: canonical validation, release PR and
-hosted CI are still pending. Hosted macOS coverage remains required before
-publication; F7 remains unchecked.
+errors.
+
+Canonical `bun run verify` validation `2546ea62` passed at revision 97:
+204 core, 98 storage and 198 Tauri tests passed, with three pre-existing tests
+ignored; build and smoke passed. Validation `66ad26da` at revision 98 confirmed
+the frozen install was unchanged and authenticated Zizmor reported no findings,
+with 33 suppressed.
+
+Release commit `a4fb9acc0bd6508f077a38cf28ea4fea9a790026` is on
+`release/v0.8.2`, with release PR <https://github.com/ddv1982/qa-scribe/pull/33>.
+Hosted run <https://github.com/ddv1982/qa-scribe/actions/runs/38642572638>
+passed Linux quality/package checks and native macOS E2E. Native macOS Rust
+tests failed: 187 passed, 11 failed and three ignored, at the raw
+`cwd == os.getcwd()` assertion in `fixture.py:132`. The Intel crosscheck was
+skipped. Protected CI success was not achieved. Validation `10afe2f4` at
+revision 99 ran `gh pr checks 33` and failed as expected against the actual gate.
+
+The user explicitly authorized a bounded test-fixture filesystem-equivalence
+repair for the failed F6 hosted macOS Rust gate. The initial RED-only slice added
+Unix real-child regressions transmitting a symlink cwd alias for Codex and
+Copilot while the child runs in the equivalent actual directory, plus rejection
+of a distinct directory. These require valid complete handshake fields and policy
+denial without a tool marker. Manager RED `a63321d6` compiled all three new tests:
+both alias-positive cases failed at `fixture.py:132/142` with exit 1 instead of
+policy-denial exit 7; the distinct-directory negative passed. Canonical
+`63b5bffe` failed exactly those two cases (199 passed, two failed, three ignored).
+
+The bounded same-goal amendment `repair-macos-fixture-cwd-identity`, recorded at
+revision 102, authorizes the fixture repair after that observed RED. Both cwd
+comparisons now use `os.path.samefile(requested_cwd, os.getcwd())`. Copilot still
+requires exactly the `cwd` and `mcpServers` params keys and an empty `mcpServers`
+list, accepting no optional extras. All regressions remain intact; no production
+path or global environment changes were made.
+
+Manager GREEN `a24c753c` at revision 103 passed the exact command:
+
+```text
+cargo test -p qa-scribe-tauri chat_duplex_ -- --nocapture && git diff --check
+```
+
+Observed output: 16 tests passed, zero failed and zero ignored, including all
+three new alias/distinct-directory cases and 13 existing process checks. No diff
+errors were reported. Targeted local behavior is verified.
+
+Manager canonical `6925aace` at revision 104 passed the entire post-repair
+`bun run verify` gate: 201 Tauri tests passed with three pre-existing tests
+ignored, 204 core and 98 storage tests passed, and frontend, build and smoke
+checks all passed. Hosted verification remains unchecked. The exact hosted path
+alias is not confirmed by the supplied evidence.
+F6 acceptance and green protected CI remain unfinished, so F6 overall remains
+unchecked. F7's separately authorized merge and publication also remain unfinished.
