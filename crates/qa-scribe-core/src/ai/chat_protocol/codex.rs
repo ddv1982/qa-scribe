@@ -62,6 +62,7 @@ impl ChatProtocol {
                     Some(json!({"id":id,"result":{"action":"accept","content":{}}})),
                     Some(json!({"id":id,"result":{"action":"decline","content":{}}})),
                     ChatProtocolPermission {
+                        can_approve: true,
                         title,
                         tool_name: None,
                         server_name: Some(server),

@@ -73,11 +73,17 @@ impl ChatProtocol {
                     if allow.is_none() && deny.is_none() {
                         return Err("Copilot permission offers no once-only decision".into());
                     }
+                    let can_approve = allow.is_some();
+                    let deny = Some(deny.unwrap_or_else(|| {
+                        json!({"jsonrpc":"2.0","id":event["id"],
+                            "result":{"outcome":{"outcome":"cancelled"}}})
+                    }));
                     self.permission(
                         &event["id"],
                         allow,
                         deny,
                         ChatProtocolPermission {
+                            can_approve,
                             title,
                             tool_name: None,
                             server_name: None,

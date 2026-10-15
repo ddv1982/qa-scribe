@@ -147,7 +147,20 @@ export type ChatPermissionDecisionRequest = {
 	decision: ChatPermissionDecision,
 };
 
-export type ChatPermissionRequest = {
+export type ChatPermissionRequest = ChatPermissionRequest_Serialize | ChatPermissionRequest_Deserialize;
+
+export type ChatPermissionRequest_Deserialize = {
+	canApprove?: boolean,
+	requestId: string,
+	provider: AiProvider,
+	title: string,
+	toolName: string | null,
+	serverName: string | null,
+	inputJson: string | null,
+};
+
+export type ChatPermissionRequest_Serialize = {
+	canApprove?: boolean,
 	requestId: string,
 	provider: AiProvider,
 	title: string,
@@ -380,7 +393,7 @@ export type GenerationJobStatus_Deserialize = {
 	aiRunId: string | null,
 	errorMessage: string | null,
 	partialText: string | null,
-	pendingPermission?: ChatPermissionRequest | null,
+	pendingPermission?: ChatPermissionRequest_Deserialize | null,
 };
 
 export type GenerationJobStatus_Serialize = {
@@ -392,7 +405,7 @@ export type GenerationJobStatus_Serialize = {
 	aiRunId: string | null,
 	errorMessage: string | null,
 	partialText: string | null,
-	pendingPermission?: ChatPermissionRequest | null,
+	pendingPermission?: ChatPermissionRequest_Serialize | null,
 };
 
 export type ProviderCatalogRollout = "disabled" | "diagnostics" | "selector";

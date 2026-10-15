@@ -20,6 +20,7 @@ pub enum ChatProtocolEvent {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ChatProtocolPermission {
+    pub can_approve: bool,
     pub title: String,
     pub tool_name: Option<String>,
     pub server_name: Option<String>,
@@ -123,6 +124,16 @@ impl ChatProtocol {
     pub fn permission_reply(&mut self, approved: bool) -> Result<Value, String> {
         if let Some(error) = &self.failure {
             return Err(error.clone());
+        }
+        // An unavailable approval is a rejected local choice, not a provider
+        // protocol failure. Keep the request available for an explicit denial.
+        if approved
+            && self
+                .pending
+                .as_ref()
+                .is_some_and(|pending| pending.allow.is_none())
+        {
+            return Err("Permission decision has no offered once-only option".into());
         }
         let Some(pending) = self.pending.take() else {
             return Err("No pending permission request".into());

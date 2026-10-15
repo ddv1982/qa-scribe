@@ -89,6 +89,42 @@ describe('SessionChatView tool permission contract (F4auth-ui)', () => {
     expect(props.onCancel).toHaveBeenCalledTimes(1)
   })
 
+  it('disables approval with an explicit help reason for a reject-only Copilot request (discussion_r4276620738)', () => {
+    const request = Object.assign(permission({ provider: 'copilot_cli' }), { canApprove: false })
+    const { props } = mount({ job: job({ pendingPermission: request }) })
+    const approve = choice('Approve once')
+    expect(approve).toBeDisabled()
+    expect(within(panel()).getByText(/provider does not offer one-time approval/i)).toBeInTheDocument()
+    expect(approve).toHaveAccessibleDescription(/provider does not offer one-time approval/i)
+    fireEvent.click(approve)
+    expect(props.onDecidePermission).not.toHaveBeenCalled()
+    expect(props.onSend).not.toHaveBeenCalled()
+    expect(props.onRetry).not.toHaveBeenCalled()
+  })
+
+  it('keeps explicit Deny and Cancel available for a reject-only Copilot request (discussion_r4276620738)', () => {
+    const request = Object.assign(permission({ provider: 'copilot_cli' }), { canApprove: false })
+    const { props } = mount({ job: job({ pendingPermission: request }) })
+    expect(choice('Deny')).toBeEnabled()
+    fireEvent.click(choice('Deny'))
+    expect(props.onDecidePermission).toHaveBeenCalledExactlyOnceWith('opaque-request-token', 'deny')
+    const cancel = screen.getByRole('button', { name: 'Cancel response' })
+    expect(cancel).toBeEnabled()
+    fireEvent.click(cancel)
+    expect(props.onCancel).toHaveBeenCalledTimes(1)
+    expect(props.onSend).not.toHaveBeenCalled()
+    expect(props.onRetry).not.toHaveBeenCalled()
+  })
+
+  it('defaults legacy Copilot requests without canApprove to approval being available', () => {
+    const request = permission({ provider: 'copilot_cli' })
+    expect(request).not.toHaveProperty('canApprove')
+    const { props } = mount({ job: job({ pendingPermission: request }) })
+    expect(choice('Approve once')).toBeEnabled()
+    fireEvent.click(choice('Approve once'))
+    expect(props.onDecidePermission).toHaveBeenCalledExactlyOnceWith('opaque-request-token', 'approve')
+  })
+
   it('does not use ordinary active-job working state to disable permission choices', () => {
     mount({ working: true })
     expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled()

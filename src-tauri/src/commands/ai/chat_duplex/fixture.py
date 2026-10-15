@@ -179,7 +179,11 @@ else:
         "options": [{"optionId": "opaque-yes/481", "kind": "allow_once", "name": "Once"},
                     {"optionId": "opaque-no/481", "kind": "reject_once", "name": "No"}]}}
 
-if mode == "bad_metadata":
+if mode in ("allow_only_deny", "reject_only_deny"):
+    assert provider == "copilot"
+    offered = 0 if mode == "allow_only_deny" else 1
+    request["params"]["options"] = [request["params"]["options"][offered]]
+elif mode == "bad_metadata":
     if provider == "claude":
         request["request"]["tool_name"] = "x" * 513
     elif provider == "codex":
@@ -252,8 +256,15 @@ elif provider == "codex":
 else:
     assert reply["id"] == wire_id
     outcome = reply["result"]["outcome"]
-    approved = outcome["optionId"] == "opaque-yes/481"
-    assert outcome == {"outcome": "selected", "optionId": "opaque-yes/481" if approved else "opaque-no/481"}
+    if mode == "allow_only_deny":
+        assert reply == {"jsonrpc": "2.0", "id": wire_id, "result": {
+            "outcome": {"outcome": "cancelled"}}}
+        approved = False
+    else:
+        approved = outcome["optionId"] == "opaque-yes/481"
+        assert outcome == {"outcome": "selected", "optionId": "opaque-yes/481" if approved else "opaque-no/481"}
+        if mode == "reject_only_deny":
+            assert approved is False
 record({"verified_reply": True, "approved": approved})
 if approved:
     with (root / "tool-marker").open("a") as stream:

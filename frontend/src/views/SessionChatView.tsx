@@ -61,6 +61,7 @@ export function SessionChatView({
   const pendingPermission = chat && job?.sessionId === chat.sessionId
     && job.action === 'chat' && job.state === 'running' ? job.pendingPermission : null
   const permissionDisabled = permissionWorking || !onDecidePermission
+  const approvalUnavailable = pendingPermission?.canApprove === false
   const permissionKey = pendingPermission && job
     ? JSON.stringify([job.sessionId, job.jobId, pendingPermission.requestId]) : null
   const permissionExpanded = permissionKey !== null && expandedPermissionKey === permissionKey
@@ -178,8 +179,9 @@ export function SessionChatView({
             </> : null}
           </div>
           <p className="chat-help" id={`${id}-permission-scope`}>This approval applies to this tool call only.</p>
+          {approvalUnavailable ? <p className="chat-help" id={`${id}-permission-approval-reason`}>The provider does not offer one-time approval.</p> : null}
           <div className="chat-buttons">
-            <button className="primary-button" type="button" disabled={permissionDisabled} onClick={() => { if (!permissionDisabled) void onDecidePermission?.(pendingPermission.requestId, 'approve') }}>Approve once</button>
+            <button className="primary-button" type="button" disabled={permissionDisabled || approvalUnavailable} aria-describedby={approvalUnavailable ? `${id}-permission-approval-reason` : undefined} onClick={() => { if (!permissionDisabled && !approvalUnavailable) void onDecidePermission?.(pendingPermission.requestId, 'approve') }}>Approve once</button>
             <button className="secondary-button" type="button" disabled={permissionDisabled} onClick={() => { if (!permissionDisabled) void onDecidePermission?.(pendingPermission.requestId, 'deny') }}>Deny</button>
           </div>
           {permissionWorking ? <p className="chat-help">Sending permission decision… You can still cancel the response.</p>

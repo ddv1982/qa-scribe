@@ -22,6 +22,7 @@ fn pending_decision(
         .publish_chat_permission(
             "job",
             ChatPermissionDetails {
+                can_approve: true,
                 provider: AiProvider::ClaudeCode,
                 title: "Read a file".into(),
                 tool_name: Some("read_file".into()),

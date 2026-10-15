@@ -51,6 +51,7 @@ impl ChatProtocol {
                     Some(allow),
                     Some(deny),
                     ChatProtocolPermission {
+                        can_approve: true,
                         title: format!("Claude requests permission to use {tool}"),
                         tool_name: Some(tool.into()),
                         server_name: None,

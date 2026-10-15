@@ -98,6 +98,53 @@ describe('Session Chat explicit permission authority', () => {
     expect(h.snapshot.permissionWorking).toBe(false)
   })
 
+  it('refuses forged reject-only Copilot approval before mutating local permission state, then allows explicit deny (discussion_r4276620738)', async () => {
+    const status = pending('copilot_cli')
+    const request = Object.assign(status.pendingPermission!, { canApprove: false })
+    const h = setup('copilot_cli')
+    await Promise.resolve()
+    h.actions.observeJob(status)
+    const forgedApproval = h.actions.onDecidePermission(request.requestId, 'approve')
+
+    // Check synchronously: even a transient invoke/operation or token suppression
+    // is forbidden, not merely an eventual recovery after the backend refuses it.
+    expect(api.decideChatPermission).not.toHaveBeenCalled()
+    expect(h.snapshot.permissionWorking).toBe(false)
+    expect(h.snapshot.job?.pendingPermission).toEqual(request)
+    h.actions.observeJob(status)
+    expect(h.snapshot.job?.pendingPermission).toEqual(request)
+    await forgedApproval
+    expect(api.getAiActionJobStatus).not.toHaveBeenCalled()
+
+    const gate = deferred<GenerationJobStatus>()
+    api.decideChatPermission.mockReturnValue(gate.promise)
+    const denying = h.actions.onDecidePermission(request.requestId, 'deny')
+    expect(api.decideChatPermission).toHaveBeenCalledExactlyOnceWith({
+      jobId: 'job-chat', sessionId: 'session-1', provider: 'copilot_cli',
+      requestId: request.requestId, decision: 'deny',
+    })
+    expect(h.snapshot.permissionWorking).toBe(true)
+    gate.resolve(clean)
+    await denying
+    expect(h.snapshot.permissionWorking).toBe(false)
+    expect(h.snapshot.job?.pendingPermission).toBeFalsy()
+    expect(api.startChatJob).not.toHaveBeenCalled()
+    expect(api.saveChatComposer).not.toHaveBeenCalled()
+  })
+
+  it('allows approval for a legacy Copilot payload without canApprove', async () => {
+    const status = pending('copilot_cli')
+    expect(status.pendingPermission).not.toHaveProperty('canApprove')
+    const h = setup('copilot_cli')
+    h.actions.observeJob(status)
+    await h.actions.onDecidePermission('permission-1', 'approve')
+    expect(api.decideChatPermission).toHaveBeenCalledExactlyOnceWith({
+      jobId: 'job-chat', sessionId: 'session-1', provider: 'copilot_cli',
+      requestId: 'permission-1', decision: 'approve',
+    })
+    expect(h.snapshot.job?.pendingPermission).toBeFalsy()
+  })
+
   it('allows Cancel while a permission invoke is awaiting and ignores its late running response', async () => {
     const gate = deferred<GenerationJobStatus>()
     api.decideChatPermission.mockReturnValue(gate.promise)

@@ -7,6 +7,7 @@ fn chat_duplex_claude_opaque_ids_original_input_no_updated_permissions() {
             let mut p = ready(AiProvider::ClaudeCode);
             let request = claude_request(id.clone());
             let events = p.handle(&request).unwrap();
+            assert!(permission(&events).can_approve);
             assert_eq!(
                 permission(&events).tool_name.as_deref(),
                 Some("mcp__local__write")
@@ -34,6 +35,7 @@ fn chat_duplex_codex_mcp_opaque_ids_exact_form_reply_and_identity() {
             let mut p = ready(AiProvider::CodexCli);
             let events = p.handle(&codex_request(id.clone())).unwrap();
             let detail = permission(&events);
+            assert!(detail.can_approve);
             assert_eq!(detail.title, "Allow local.write?");
             assert_eq!(detail.tool_name, None);
             assert_eq!(detail.server_name.as_deref(), Some("local"));
@@ -94,6 +96,12 @@ fn chat_duplex_copilot_rejects_malformed_options_and_wrong_session() {
         json!([{"kind":"allow_once"}]),
         json!([{"optionId":"a","kind":"allow_always"}]),
         json!([{"optionId":"a","kind":"unknown"}]),
+        json!([{"optionId":"a","kind":"allow_always","name":"Always allow"}]),
+        json!([{"optionId":"r","kind":"reject_always","name":"Always reject"}]),
+        json!([
+            {"optionId":"a","kind":"allow_always","name":"Always allow"},
+            {"optionId":"r","kind":"reject_always","name":"Always reject"}
+        ]),
     ] {
         let mut p = ready(AiProvider::CopilotCli);
         let mut request = copilot_request(json!(1));
@@ -124,7 +132,57 @@ fn chat_duplex_copilot_only_selects_available_once_options() {
         );
         let mut p = ready(AiProvider::CopilotCli);
         permission(&p.handle(&request).unwrap());
-        assert!(p.permission_reply(!approved).is_err());
+        if approved {
+            assert_eq!(
+                p.permission_reply(false).unwrap(),
+                json!({"jsonrpc":"2.0","id":10,"result":{"outcome":{"outcome":"cancelled"}}})
+            );
+        } else {
+            assert!(p.permission_reply(true).is_err());
+        }
+    }
+}
+
+#[test]
+fn chat_duplex_copilot_allow_only_denial_is_correlated_cancelled_and_completes() {
+    for id in [json!(99), json!("opaque:99")] {
+        let mut p = ready(AiProvider::CopilotCli);
+        let mut request = copilot_request(id.clone());
+        request["params"]["options"] = json!([
+            {"kind":"allow_once","optionId":"only-allow","name":"Once"},
+            {"kind":"reject_always","optionId":"never-use-broad-deny","name":"Always"}
+        ]);
+        assert!(permission(&p.handle(&request).unwrap()).can_approve);
+        assert_eq!(
+            p.permission_reply(false).unwrap(),
+            json!({"jsonrpc":"2.0","id":id,"result":{"outcome":{"outcome":"cancelled"}}})
+        );
+        p.handle(&json!({"method":"session/update","params":{"sessionId":"session-1",
+            "update":{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":"Permission denied."}}}})).unwrap();
+        p.handle(&json!({"id":"qa-scribe-prompt","result":{"stopReason":"end_turn"}}))
+            .unwrap();
+        assert_eq!(p.finish().unwrap(), "Permission denied.");
+        assert!(p.permission_reply(false).is_err());
+    }
+}
+
+#[test]
+fn chat_duplex_copilot_reject_only_cannot_approve_but_can_still_deny() {
+    for id in [json!(99), json!("opaque:99")] {
+        let mut p = ready(AiProvider::CopilotCli);
+        let mut request = copilot_request(id.clone());
+        request["params"]["options"] = json!([
+            {"kind":"reject_once","optionId":"only-reject","name":"No"},
+            {"kind":"allow_always","optionId":"never-use-broad-allow","name":"Always"}
+        ]);
+        let events = p.handle(&request).unwrap();
+        assert!(!permission(&events).can_approve);
+        assert!(p.permission_reply(true).is_err());
+        assert_eq!(
+            p.permission_reply(false).unwrap(),
+            json!({"jsonrpc":"2.0","id":id,"result":{"outcome":{"outcome":"selected","optionId":"only-reject"}}})
+        );
+        assert!(p.permission_reply(false).is_err());
     }
 }
 

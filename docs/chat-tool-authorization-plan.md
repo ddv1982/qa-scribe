@@ -294,7 +294,15 @@ authorize F7 publication.
 - [x] Repair implementation: after observed RED, replace only fixture cwd string equality with filesystem equivalence, preserving exact non-cwd fields and actual cwd isolation.
 - [x] Targeted local verification: manager observes GREEN for all three new regressions and 13 existing process checks, plus no diff errors (`a24c753c`, revision 103).
 - [x] Canonical rerun: manager observes successful `bun run verify` after the repair without weakening tests (`6925aace`, revision 104).
-- [ ] Hosted verification: obtain successful protected macOS Rust and remaining CI gates before F6 acceptance.
+- [x] Hosted fixture verification: successful protected macOS Rust and all remaining CI gates for fixture repair commit `cce67132312ef85673bbdbe3878a25edb168bc09` (run `38655113491`).
+- [x] Obtain user direction for a bounded Copilot adapter/decision-capability repair for unresolved review discussion `discussion_r4276620738`: user authorized "yes lets go". This stage is RED-only; repair waits for manager-observed failure.
+- [x] Reproduction: add one-sided Copilot protocol/backend and real-child checks, preserving exact offered IDs and unsupported malformed/empty/always-only policy. Manager observed RED `edc32609`, `434c875a` and `95544af2` before repair.
+- [x] Repair after observed RED: expose trusted `can_approve`, reject unavailable approval without consuming pending state, and deny through offered `reject_once` or correlated ACP `cancelled`, never broad grants. Amendment `repair-copilot-one-sided-permission-decisions` at revision 112 authorized backend repair and separately owned UI/bindings integration; focused GREEN `a2dc58e5` at revision 113 verifies the bounded repair.
+- [x] Focused verification: manager observed RED before repair, generated optional bindings through `bun run bindings:generate` (test passed), then observed GREEN `a2dc58e5` at revision 113: 30 core protocol, 12 permission/backend, 18 real-child and 74 UI/controller/recovery tests passed; frontend type, lint and color/contrast checks passed (54 pairs).
+- [x] Canonical verification: manager observed successful fresh `bun run verify` after the Copilot decision repair, `2f63c159` at revision 115, following formatting-only failure `ab6672f3` and `cargo fmt`.
+- [x] Native verification: manager observed `xvfb-run -a bun run e2e` pass on the fresh 0.8.2 candidate, `3d448fac` at revision 116: nine invocations, 23 tests. These are original-flow native regressions, not new one-sided native UI cases or authenticated Copilot execution.
+- [ ] Independent review: obtain acceptance of the bounded Copilot decision repair for `discussion_r4276620738`.
+- [ ] Fresh hosted verification: observe protected CI success for the Copilot decision repair before F6 acceptance.
 
 On 2026-10-14, the manager observed `bun run bump 0.8.2 --dry-run` report
 0.8.1 -> 0.8.2 across all seven release targets. The manager then ran
@@ -360,7 +368,119 @@ errors were reported. Targeted local behavior is verified.
 Manager canonical `6925aace` at revision 104 passed the entire post-repair
 `bun run verify` gate: 201 Tauri tests passed with three pre-existing tests
 ignored, 204 core and 98 storage tests passed, and frontend, build and smoke
-checks all passed. Hosted verification remains unchecked. The exact hosted path
-alias is not confirmed by the supplied evidence.
-F6 acceptance and green protected CI remain unfinished, so F6 overall remains
-unchecked. F7's separately authorized merge and publication also remain unfinished.
+checks all passed. The exact original hosted path alias is not confirmed by the
+supplied evidence.
+
+For fixture repair commit `cce67132312ef85673bbdbe3878a25edb168bc09`, manager
+`gh run watch 38655113491 --exit-status` succeeded. Hosted run
+<https://github.com/ddv1982/qa-scribe/actions/runs/38655113491> and manager
+`gh pr checks 33` confirm all six jobs passed: Linux quality (12m28s), Linux
+package (8m45s), macOS Rust plus Intel crosscheck (1m44s), native macOS E2E
+(3m32s), detect (6s), and CI success (3s). Hosted verification of the bounded
+fixture repair is complete, not acceptance of all production behavior.
+
+A separate production blocker remains unresolved in hosted review:
+<https://github.com/ddv1982/qa-scribe/pull/33#discussion_r4276620738>.
+The manager inspected code and the official ACP example at
+<https://docs.github.com/en/copilot/reference/copilot-cli-reference/acp-server#example-integrating-with-the-acp-server>,
+which documents a `cancelled` refusal. Copilot permission requests can offer only
+`allow_once` or only `reject_once`, but the UI always renders both decisions;
+choosing an unavailable reply fails Chat with
+`Permission decision has no offered once-only option`.
+The user subsequently authorized the bounded adapter/decision-capability repair
+("yes lets go"). The initial implementation slice was RED-only: add reproduction
+and schema propagation, then stop until the manager observed failure. Independent
+review and fresh CI remain required after repair.
+This production issue is separate from the completed fixture repair and does not
+change the deferred authenticated Copilot or unverified Jira boundaries.
+
+F6 remains unchecked pending independent review and resolution of this production
+blocker. F7's separately authorized merge and publication also remain unfinished.
+
+### Copilot one-sided decision RED staging
+
+For `discussion_r4276620738`, added protocol checks for allow-only denial as an
+exact correlated ACP `{"outcome":{"outcome":"cancelled"}}`, successful final
+text, reject-only `can_approve: false`, and unavailable approval followed by an
+explicit denial selecting the original offered ID. Existing offered selections
+remain checked; empty/malformed and valid always-only options stay unsupported.
+Backend coverage requires forged approval rejection before token/channel
+consumption, unchanged pending status, then successful explicit denial. Local
+Python child modes cover both one-sided shapes with numeric/string wire IDs,
+exact replies, completed final text and no execution marker. Only the allow-only
+denial mode accepts ACP cancellation; existing modes still require selected IDs.
+
+RED scaffolding added `can_approve` to core permission metadata and backend
+details/pending status, propagating it through the production duplex driver.
+At that stage all adapters still reported `true`; no backend decision guard or
+Copilot fallback was implemented. These checks intentionally targeted that
+unchanged behavior. No executable checks were run by the bounded worker. The
+manager subsequently observed the RED evidence recorded below. Focused commands:
+
+```text
+cargo test -p qa-scribe-core chat_duplex_ -- --nocapture
+cargo test -p qa-scribe-tauri chat_permission_ -- --nocapture
+cargo test -p qa-scribe-tauri chat_duplex_ -- --nocapture
+```
+
+Authenticated Copilot remains deferred, Jira remains unverified, and this stage
+does not resolve retained F5 advisories `R93-01` or `R93-02`.
+
+### Copilot bounded repair after observed RED
+
+Manager evidence before implementation: real-child RED `edc32609`; core RED
+`434c875a` (three failed, seven passed); backend RED `95544af2` (missing approval
+guard); UI RED `b46b9e52` (two failed, 63 passed); canonical RED `6142ac3b`
+(two UI failures, 463 passed). `d549efe3` printed Bun help with exit zero and
+did not execute tests, so it is not test evidence. Amendment
+`repair-copilot-one-sided-permission-decisions`, revision 112, authorizes the
+bounded repair after those observed failures, superseding the RED-only stop.
+
+Backend implementation now derives Copilot `can_approve` only from a validated
+offered `allow_once`. Explicit denial preserves the offered `reject_once` reply
+and its original option ID, or returns correlated ACP `cancelled` when absent.
+Validation still rejects malformed, empty and always-only option sets before
+constructing any fallback. Unavailable local approval returns an error without
+consuming pending/seen protocol state or failing the protocol. JobStore validates
+identity and capability before taking the sender or clearing pending metadata.
+Other providers still expose approval capability as true.
+
+Pending metadata and details omit `canApprove` when true and serialize false
+explicitly, using Serde default/skip attributes for optional generated bindings.
+Pending request deserialization defaults an absent field to true; focused wire
+checks cover omission, false emission and both round trips. Existing real-child
+reject-only coverage already verifies forged approval rejection, unchanged
+pending state, later explicit denial and zero execution markers, so no fixture
+assertions were weakened or duplicated. Frontend/bindings repair is separately
+owned and was not edited by the backend worker.
+
+The manager generated bindings through `bun run bindings:generate`; its test
+passed. Generated `canApprove` is optional in the serializer/deserializer,
+preserving compatibility with old payloads that omit the field.
+
+Manager focused GREEN `a2dc58e5` at revision 113 passed 30 core protocol tests,
+12 permission/backend tests, 18 real-child tests and 74 UI/controller/recovery
+tests. Frontend type and lint checks passed, as did color/contrast checks covering
+54 pairs. This verifies the bounded implementation semantics described above;
+the real-child checks use deterministic local fixtures, not authenticated Copilot.
+
+Manager canonical validation `ab6672f3` failed on formatting only; it was not a
+successful canonical gate. After `cargo fmt` addressed the formatting, canonical
+`2f63c159` at revision 115 passed `bun run verify`: 465 frontend, 206 core,
+98 storage and 204 Tauri tests passed, with three pre-existing tests ignored.
+All 151 Node script tests and metadata, build and smoke checks passed.
+
+Manager native validation `3d448fac` at revision 116 passed
+`xvfb-run -a bun run e2e` against the fresh 0.8.2 candidate: all nine invocations
+and 23 tests passed, comprising 15 provider authorization tests and eight
+critical/Chat tests. This default native suite exercises the original flows as
+regressions. It does not add one-sided native UI cases; the new one-sided cases
+are covered separately by the focused real-child and UI tests recorded above.
+The native fixtures are deterministic and do not establish authenticated Copilot
+execution.
+
+No executable checks were run by the backend worker. Independent review and
+fresh hosted CI remain unchecked for this repair; prior fixture-repair CI does
+not establish those gates. F6 acceptance and F7 merge/publication remain
+unfinished. Authenticated Copilot stays deferred, Jira stays unverified, and
+retained advisories `R93-01` and `R93-02` are unchanged.

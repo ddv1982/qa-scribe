@@ -132,6 +132,90 @@ impl Drop for Fixture {
 }
 
 #[test]
+fn chat_duplex_process_copilot_one_sided_deny_completes_without_markers() {
+    assert_copilot_one_sided_deny("allow_only_deny");
+}
+
+#[test]
+fn chat_duplex_process_copilot_reject_only_forged_approve_then_deny() {
+    assert_copilot_one_sided_deny("reject_only_deny");
+}
+
+fn assert_copilot_one_sided_deny(mode: &str) {
+    for id in ["number", "string"] {
+        let fixture = Fixture::new(AiProvider::CopilotCli);
+        let mut permissions = 0;
+        let output = fixture
+            .run(
+                mode,
+                id,
+                |_| {},
+                |status| {
+                    let Some(pending) = status.pending_permission.as_ref() else {
+                        return;
+                    };
+                    permissions += 1;
+                    assert_eq!(pending.can_approve, mode == "allow_only_deny");
+                    if mode == "reject_only_deny" {
+                        let forged = ChatPermissionDecisionRequest {
+                            job_id: "job".into(),
+                            session_id: "session".into(),
+                            request_id: pending.request_id.clone(),
+                            provider: AiProvider::CopilotCli,
+                            decision: ChatPermissionDecision::Approve,
+                        };
+                        assert!(fixture.jobs.decide_chat_permission(forged).is_err());
+                        assert_eq!(fixture.jobs.status("job").unwrap(), status);
+                    }
+                    fixture.decide(status, ChatPermissionDecision::Deny);
+                },
+            )
+            .expect("one-sided refusal must complete the provider turn");
+        assert!(output.success(), "{}", output.failure_message());
+        assert_eq!(output.response_text().unwrap(), "Permission denied.");
+        assert_eq!(permissions, 1);
+        assert!(!fixture.dir.join("tool-marker").exists());
+        assert!(
+            fixture
+                .jobs
+                .status("job")
+                .unwrap()
+                .pending_permission
+                .is_none()
+        );
+        let records = fixture.records();
+        assert!(
+            records
+                .iter()
+                .any(|r| r["verified_reply"] == true && r["approved"] == false)
+        );
+        let wire_id = if id == "number" {
+            json!(481)
+        } else {
+            json!("opaque:permission/481")
+        };
+        let replies: Vec<_> = records
+            .iter()
+            .filter_map(|r| r.get("received"))
+            .filter(|r| r["id"] == wire_id)
+            .collect();
+        assert_eq!(
+            replies.len(),
+            1,
+            "forged approval must never reach the child"
+        );
+        assert_eq!(
+            replies[0]["result"]["outcome"],
+            if mode == "allow_only_deny" {
+                json!({"outcome":"cancelled"})
+            } else {
+                json!({"outcome":"selected","optionId":"opaque-no/481"})
+            }
+        );
+    }
+}
+
+#[test]
 fn chat_duplex_process_approve_executes_once_and_persists_final_text_all_providers() {
     for provider in PROVIDERS {
         for id in ["number", "string"] {

@@ -277,6 +277,7 @@ fn execute_chat_duplex(
                             .publish_chat_permission(
                                 context.job_id,
                                 ChatPermissionDetails {
+                                    can_approve: details.can_approve,
                                     provider: context.provider,
                                     title: details.title,
                                     tool_name: details.tool_name,

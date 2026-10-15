@@ -66,6 +66,7 @@ export function createChatPermissions(ctx: SessionChatContext, host: {
       || !request || request.requestId !== requestId || request.provider !== ctx.selection.selectedProvider) {
       return Promise.resolve()
     }
+    if (decision === 'approve' && request.canApprove === false) return Promise.resolve()
     const state = ledger(entry, job.jobId)
     if (state.attempted.has(requestId) || state.resolved.has(requestId)) return Promise.resolve()
     const epoch = host.epoch()

@@ -10,6 +10,8 @@ use super::{
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ChatPermissionDetails {
+    #[serde(default = "default_can_approve", skip_serializing_if = "is_true")]
+    pub can_approve: bool,
     pub provider: AiProvider,
     pub title: String,
     pub tool_name: Option<String>,
@@ -17,9 +19,11 @@ pub struct ChatPermissionDetails {
     pub input_json: Option<String>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, specta::Type)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ChatPermissionRequest {
+    #[serde(default = "default_can_approve", skip_serializing_if = "is_true")]
+    pub can_approve: bool,
     pub request_id: String,
     pub provider: AiProvider,
     pub title: String,
@@ -58,6 +62,7 @@ impl JobStore {
             }
             let (sender, receiver) = mpsc::channel();
             record.status.pending_permission = Some(ChatPermissionRequest {
+                can_approve: details.can_approve,
                 request_id: uuid::Uuid::new_v4().to_string(),
                 provider: details.provider,
                 title: details.title,
@@ -85,6 +90,9 @@ impl JobStore {
                 || pending.request_id != request.request_id
             {
                 return Err(invalid("Chat permission request identity does not match"));
+            }
+            if request.decision == ChatPermissionDecision::Approve && !pending.can_approve {
+                return Err(invalid("Chat permission request does not offer approval"));
             }
             let sender = record
                 .permission_reply
@@ -178,6 +186,14 @@ impl JobRecord {
 
 fn invalid(message: &str) -> JobStoreError {
     JobStoreError::InvalidPermission(message.to_string())
+}
+
+fn default_can_approve() -> bool {
+    true
+}
+
+fn is_true(value: &bool) -> bool {
+    *value
 }
 
 fn validate_details(details: &ChatPermissionDetails) -> Result<(), JobStoreError> {

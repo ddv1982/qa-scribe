@@ -15,6 +15,7 @@ use super::{
 
 fn details() -> ChatPermissionDetails {
     ChatPermissionDetails {
+        can_approve: true,
         provider: AiProvider::ClaudeCode,
         title: "Read a file".into(),
         tool_name: Some("read_file".into()),
@@ -56,6 +57,39 @@ fn assert_cleared(store: &JobStore, receiver: &Receiver<ChatPermissionDecision>)
 }
 
 #[test]
+fn chat_permission_unavailable_approve_keeps_token_for_explicit_deny() {
+    let store = JobStore::default();
+    insert(&store, "chat", true);
+    let mut metadata = details();
+    metadata.provider = AiProvider::CopilotCli;
+    metadata.can_approve = false;
+    let (status, receiver) = store.publish_chat_permission("job", metadata).unwrap();
+    assert!(!status.pending_permission.as_ref().unwrap().can_approve);
+    assert_eq!(
+        serde_json::to_value(&status).unwrap()["pendingPermission"]["canApprove"],
+        false
+    );
+    let pending_json = serde_json::to_value(status.pending_permission.as_ref().unwrap()).unwrap();
+    let roundtrip: super::ChatPermissionRequest = serde_json::from_value(pending_json).unwrap();
+    assert!(!roundtrip.can_approve);
+    let mut request = decision(&status);
+    assert!(store.decide_chat_permission(request.clone()).is_err());
+    assert_eq!(store.status("job").unwrap(), status);
+    assert_eq!(receiver.try_recv(), Err(TryRecvError::Empty));
+    request.decision = ChatPermissionDecision::Deny;
+    assert!(
+        store
+            .decide_chat_permission(request.clone())
+            .unwrap()
+            .pending_permission
+            .is_none()
+    );
+    assert_eq!(receiver.try_recv(), Ok(ChatPermissionDecision::Deny));
+    assert_eq!(receiver.try_recv(), Err(TryRecvError::Disconnected));
+    assert!(store.decide_chat_permission(request).is_err());
+}
+
+#[test]
 fn chat_permission_publish_exposes_metadata_and_opaque_uuid() {
     let store = JobStore::default();
     insert(&store, "chat", true);
@@ -64,6 +98,7 @@ fn chat_permission_publish_exposes_metadata_and_opaque_uuid() {
     let pending = status.pending_permission.as_ref().unwrap();
     assert!(uuid::Uuid::parse_str(&pending.request_id).is_ok());
     assert_eq!(pending.provider, details().provider);
+    assert!(pending.can_approve);
     assert_eq!(pending.title, details().title);
     assert_eq!(pending.tool_name, details().tool_name);
     assert_eq!(pending.server_name, details().server_name);
@@ -74,6 +109,16 @@ fn chat_permission_publish_exposes_metadata_and_opaque_uuid() {
     let json = serde_json::to_value(status).unwrap();
     assert_eq!(json["pendingPermission"]["toolName"], "read_file");
     assert!(json["pendingPermission"]["requestId"].is_string());
+    assert!(json["pendingPermission"].get("canApprove").is_none());
+    assert!(
+        serde_json::to_value(details())
+            .unwrap()
+            .get("canApprove")
+            .is_none()
+    );
+    let legacy: super::ChatPermissionRequest =
+        serde_json::from_value(json["pendingPermission"].clone()).unwrap();
+    assert!(legacy.can_approve);
 }
 
 #[test]
