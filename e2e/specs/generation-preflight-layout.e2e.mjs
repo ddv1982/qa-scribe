@@ -369,9 +369,12 @@ export async function runGenerationPreflightLayoutWorkflow({ button }) {
     await (await $(dialog)).$('button=Cancel').click()
     await $(dialog).waitForExist({ reverse: true })
   }
-  const captureAndCheck = async (name, width, height, theme) => {
+  const captureAndCheck = async (name, width, height, theme, plannedHeight = height) => {
     const geometry = await inspect()
     const layout = { name, requested: { width, height, theme }, geometry }
+    if (process.platform === 'darwin') {
+      layout.heightAvailability = { plannedHeight, availableHeight: height, actualHeight: geometry?.viewport.height }
+    }
     evidence.layouts.push(layout)
     persist()
     await browser.saveScreenshot(join(artifacts, `generation-preflight-${name}.png`))
@@ -400,10 +403,19 @@ export async function runGenerationPreflightLayoutWorkflow({ button }) {
     await $(dialog).waitForDisplayed()
     evidence.originalTheme = await browser.execute(() => document.documentElement.dataset.theme)
     const scale = await calibrateWindow(evidence, persist)
-    await resize(1280, 720, scale, evidence, persist)
+    // Hosted macOS may clamp every native height request to the initial logical
+    // height. Keep exact viewport assertions, but do not claim unavailable 720px.
+    const macOSHostHeightCeiling = process.platform === 'darwin' ? evidence.calibration.actual.height : null
+    const heightFor = (plannedHeight) => macOSHostHeightCeiling === null
+      ? plannedHeight : Math.min(plannedHeight, macOSHostHeightCeiling)
+    if (macOSHostHeightCeiling !== null) {
+      evidence.macOSHostHeightCeiling = macOSHostHeightCeiling
+      persist()
+    }
+    await resize(1280, heightFor(720), scale, evidence, persist)
     // First checkpoint is deliberately the reported laptop defect, before any
     // optional theme/matrix work. Artifacts exist even when this assertion fails.
-    await captureAndCheck('initial-1280x720', 1280, 720)
+    await captureAndCheck(`initial-1280x${heightFor(720)}`, 1280, heightFor(720), undefined, 720)
     await cancel()
     const longTitle = 'E2E generation preflight: extended Session context, boundary checks and recovery scenarios '.repeat(2).slice(0, 150).trim()
     const title = await $('[aria-label="Session title"]')
@@ -416,7 +428,7 @@ export async function runGenerationPreflightLayoutWorkflow({ button }) {
     { timeout: 5_000, timeoutMsg: 'Long valid Session title must save before leaving for Settings' })
     evidence.sessionTitle = longTitle
     for (const theme of ['light', 'dark']) {
-      await resize(1280, 720, scale, evidence, persist)
+      await resize(1280, heightFor(720), scale, evidence, persist)
       await click('Settings')
       // Session title edits use the app's explicit navigation-save guard.
       const saveBeforeLeaving = await $('button=Save and continue')
@@ -427,10 +439,11 @@ export async function runGenerationPreflightLayoutWorkflow({ button }) {
       await themeButton.waitForClickable()
       await themeButton.click()
       await click('Back')
-      for (const [width, height] of [[1366, 768], [1280, 720], [640, 720]]) {
+      for (const [width, plannedHeight] of [[1366, 768], [1280, 720], [640, 720]]) {
+        const height = heightFor(plannedHeight)
         await resize(width, height, scale, evidence, persist)
         await open()
-        const layout = await captureAndCheck(`${theme}-${width}x${height}`, width, height, theme)
+        const layout = await captureAndCheck(`${theme}-${width}x${height}`, width, height, theme, plannedHeight)
         assert.equal(await $(`${dialog} .preflight-list dd`).getText(), longTitle,
           'Long Session title must come from the real Session input, not fabricated native DOM')
         if (theme === 'dark' && width === 640) {
