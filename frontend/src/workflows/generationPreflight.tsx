@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { GenerateAiActionKind, ProviderDefaultOrigin, TestwareDepth, TestwareGenerationPreferences, TestwareOutputFormat } from '../tauri'
 import { useModalDialog } from '../hooks/useModalDialog'
 import {
@@ -58,6 +58,13 @@ export function GenerationPreflight({
   const updateTestwarePreferences = (patch: Partial<TestwareGenerationPreferences>) =>
     setTestwarePreferences((previous) => ({ ...previous, ...patch }))
   const dialogRef = useModalDialog(onCancel)
+  useEffect(() => {
+    const dialog = dialogRef.current
+    if (!dialog) return
+    dialog.querySelector<HTMLElement>('#generation-preflight-title')?.focus({ preventScroll: true })
+    const body = dialog.querySelector<HTMLElement>('.preflight-body')
+    if (body) body.scrollTop = 0
+  }, [dialogRef])
 
   return (
     <dialog
@@ -71,7 +78,8 @@ export function GenerationPreflight({
         const first = focusable[0]
         const last = focusable[focusable.length - 1]
         const activeElement = event.currentTarget.ownerDocument.activeElement
-        const target = event.shiftKey ? (activeElement === first ? last : null) : (activeElement === last ? first : null)
+        const atStart = activeElement === first || activeElement?.id === 'generation-preflight-title'
+        const target = event.shiftKey ? (atStart ? last : null) : (activeElement === last ? first : null)
         if (target) {
           event.preventDefault()
           target.focus()
@@ -80,7 +88,7 @@ export function GenerationPreflight({
     >
       <div className="preflight-header">
         <p className="eyebrow">Generation preflight</p>
-        <h2 id="generation-preflight-title">{copy.title}</h2>
+        <h2 id="generation-preflight-title" tabIndex={-1}>{copy.title}</h2>
         <p>{copy.body}</p>
       </div>
       <div className="preflight-body">

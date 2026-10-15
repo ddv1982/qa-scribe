@@ -91,6 +91,20 @@ describe('GenerationPreflight behavior and modal accessibility', () => {
     expect(onConfirm).not.toHaveBeenCalled()
   })
 
+  // PR37 PRRT_kwDOS4n2jc6s_qKH: focusing a technique can scroll notices out of view.
+  it('initially focuses the noninteractive Testware heading when warning and advisory notices are present', () => {
+    const warning = 'Configured model requires a newer Codex CLI. Upgrade it or choose an override.'
+    const advisory = 'Provider discovery used cached metadata. Review the configuration if it changed.'
+    renderPreflight({ action: 'testware', selectionWarning: warning, selectionAdvisories: [advisory] })
+
+    const dialog = screen.getByRole('dialog', { name: 'Generate test cases?' })
+    const heading = within(dialog).getByRole('heading', { name: 'Generate test cases?' })
+    expect(within(dialog).getByRole('alert').textContent).toBe(warning)
+    expect(within(dialog).getByRole('status').textContent).toBe(advisory)
+    expect(within(dialog).getByRole<HTMLButtonElement>('button', { name: 'Generate test cases' }).disabled).toBe(true)
+    expect(document.activeElement).toBe(heading)
+  })
+
   it('confirms all default Testware preferences without implicit changes', () => {
     const { onConfirm } = renderPreflight({ action: 'testware' })
 

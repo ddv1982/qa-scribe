@@ -149,6 +149,7 @@ async function inspect() {
     return {
       viewport: { width: innerWidth, height: innerHeight, devicePixelRatio },
       theme: document.documentElement.dataset.theme,
+      focusedTag: document.activeElement?.tagName, focusedId: document.activeElement?.id,
       dialog: box(root), summary: box(summary), summaryText: summary?.textContent,
       summaryTextRects: textRects(summary), options: box(options), testDesign: box(legend),
       header: box(root.querySelector('.preflight-header')),
@@ -190,14 +191,6 @@ function assertStructure(value, initial = value) {
   }
   assert.deepEqual(value.horizontalOverflow, [], 'No horizontal overflow in preflight body, metadata, choices or actions')
   assertNoOverlap(value)
-}
-
-async function resetBodyScroll() {
-  // Native showModal autofocus may scroll to the first choice. Reset only the
-  // real scroll position for consistent initial screenshots, never layout/DOM.
-  await browser.execute((selector) => {
-    document.querySelector(`${selector} .preflight-body`).scrollTop = 0
-  }, dialog)
 }
 
 async function assertReachable(layout, persist) {
@@ -245,7 +238,7 @@ async function focusState() {
     // separately while scrolling every option above.
     const hit = document.elementFromPoint((r.left + r.right) / 2, (top + bottom) / 2)
     return { contained: root.contains(active), index: controls.indexOf(active), count: controls.length,
-      tag: active.tagName, text: active.textContent?.trim(),
+      tag: active.tagName, id: active.id, text: active.textContent?.trim(),
       focusVisible: active.matches(':focus-visible'),
       outline: getComputedStyle(active).outline, boxShadow: getComputedStyle(active).boxShadow,
       selectIndex: Array.from(root.querySelectorAll('select')).indexOf(active),
@@ -274,14 +267,19 @@ async function assertKeyboard(layout, persist, sendKey) {
     const state = await focusState()
     layout.keyboard.push({ key, ...state })
     persist()
-    assert.ok(state.contained && state.index >= 0, `Native ${key} focus must stay inside the modal`)
+    assert.ok(state.contained && (state.index >= 0 || key === 'open'), `Native ${key} focus must stay inside the modal`)
     return state
   }
-  const initial = await sample('open')
-  assert.equal(initial.index, 0, 'Real dialog autofocus must start at the first choice')
+  const opening = await sample('open')
+  assert.equal(opening.tag, 'H2', 'Opening focus must start on the heading')
+  assert.equal(opening.id, 'generation-preflight-title', 'Opening focus must identify the preflight heading')
+  assert.equal(opening.scrollTop, 0, 'Opening body scroll must start at the top')
+  await sendKey(Key.Tab)
+  const initial = await sample('Tab')
+  assert.equal(initial.index, 0, 'Actual Tab from the heading must reach the first choice')
   // A focused choice's normal PageDown/PageUp must scroll its ancestor body.
   // Do not synthesize key events, focus(), or scrollIntoView for this check.
-  // Normalize using an OS key only, leaving the real autofocus target intact.
+  // Normalize using an OS key only, leaving the Tab-selected control focused.
   await sendKey(Key.PageUp)
   await browser.pause(200)
   const beforeDown = await sample('PageUp-initial')
@@ -372,13 +370,15 @@ export async function runGenerationPreflightLayoutWorkflow({ button }) {
     await $(dialog).waitForExist({ reverse: true })
   }
   const captureAndCheck = async (name, width, height, theme) => {
-    await resetBodyScroll()
     const geometry = await inspect()
     const layout = { name, requested: { width, height, theme }, geometry }
     evidence.layouts.push(layout)
     persist()
     await browser.saveScreenshot(join(artifacts, `generation-preflight-${name}.png`))
     assert.ok(geometry, 'Generation preflight must be mounted')
+    assert.equal(geometry.focusedTag, 'H2', 'Opening focus must start on the heading')
+    assert.equal(geometry.focusedId, 'generation-preflight-title', 'Opening focus must identify the preflight heading')
+    assert.equal(geometry.bodyScrollTop, 0, 'Opening body scroll must start at the top without helper normalization')
     assert.ok(Math.abs(geometry.viewport.width - width) <= 2 && Math.abs(geometry.viewport.height - height) <= 2,
       `Preflight harness: actual logical viewport must be ${width}x${height}, got ${JSON.stringify(geometry.viewport)}`)
     if (theme) assert.equal(geometry.theme, theme, 'Theme must change through actual Settings controls')
