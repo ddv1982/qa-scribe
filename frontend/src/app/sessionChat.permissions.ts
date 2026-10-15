@@ -58,7 +58,7 @@ export function createChatPermissions(ctx: SessionChatContext, host: {
   }
   function onDecidePermission(requestId: string, decision: ChatPermissionDecision): Promise<void> {
     const entry = host.active()
-    if (!entry || !host.current(entry) || !['approve', 'deny'].includes(decision)) return Promise.resolve()
+    if (!entry || !host.current(entry) || !['approve', 'approveAll', 'deny'].includes(decision)) return Promise.resolve()
     if (entry.permissionOperation) return entry.permissionOperation
     const job = entry.job
     const request = job?.pendingPermission
@@ -66,7 +66,7 @@ export function createChatPermissions(ctx: SessionChatContext, host: {
       || !request || request.requestId !== requestId || request.provider !== ctx.selection.selectedProvider) {
       return Promise.resolve()
     }
-    if (decision === 'approve' && request.canApprove === false) return Promise.resolve()
+    if ((decision === 'approve' || decision === 'approveAll') && request.canApprove === false) return Promise.resolve()
     const state = ledger(entry, job.jobId)
     if (state.attempted.has(requestId) || state.resolved.has(requestId)) return Promise.resolve()
     const epoch = host.epoch()

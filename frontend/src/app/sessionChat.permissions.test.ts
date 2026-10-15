@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { AiProvider, GenerationJobStatus } from '../bindings'
+import type { AiProvider, ChatPermissionDecision, GenerationJobStatus } from '../bindings'
 import { createSessionChatActions } from './sessionChat.actions'
 import { emptyChatSnapshot, type ChatSnapshot, type SessionChatContext } from './sessionChat.types'
 import { chatFixture, chatJobFixture } from './useSessionChat.testSupport'
@@ -27,6 +27,8 @@ function pending(provider: AiProvider = 'claude_code', patch: Partial<Generation
 }
 const stopped: GenerationJobStatus = chatJobFixture({ state: 'cancelled', pendingPermission: null })
 const clean: GenerationJobStatus = chatJobFixture({ pendingPermission: null })
+// Temporary compatibility until the backend regenerates ChatPermissionDecision.
+const approveAll: ChatPermissionDecision = 'approveAll'
 
 function harness(provider: AiProvider = 'claude_code') {
   let snapshot: ChatSnapshot = emptyChatSnapshot
@@ -78,6 +80,62 @@ describe('Session Chat explicit permission authority', () => {
       jobId: 'job-chat', sessionId: 'session-1', provider, requestId: 'permission-1', decision: 'approve',
     })
     expect(h.snapshot.job?.pendingPermission).toBeFalsy()
+    expect(api.startChatJob).not.toHaveBeenCalled()
+    expect(api.saveChatComposer).not.toHaveBeenCalled()
+  })
+
+  it.each(['claude_code', 'codex_cli', 'copilot_cli'] as const)('dispatches bulk approval with the exact %s response identity only once', async (provider) => {
+    const gate = deferred<GenerationJobStatus>()
+    api.decideChatPermission.mockReturnValue(gate.promise)
+    const h = setup(provider)
+    const first = h.actions.onDecidePermission('permission-1', approveAll)
+    const duplicate = h.actions.onDecidePermission('permission-1', approveAll)
+    expect(h.snapshot.permissionWorking).toBe(true)
+    expect(api.decideChatPermission).toHaveBeenCalledExactlyOnceWith({
+      jobId: 'job-chat', sessionId: 'session-1', provider, requestId: 'permission-1', decision: 'approveAll',
+    })
+    gate.resolve(clean)
+    await Promise.all([first, duplicate])
+    h.actions.observeJob(pending(provider))
+    await h.actions.onDecidePermission('permission-1', approveAll)
+    expect(h.snapshot.job?.pendingPermission).toBeFalsy()
+    expect(h.snapshot.permissionWorking).toBe(false)
+    expect(api.decideChatPermission).toHaveBeenCalledTimes(1)
+    expect(api.startChatJob).not.toHaveBeenCalled()
+    expect(api.saveChatComposer).not.toHaveBeenCalled()
+  })
+
+  it.each(['claude_code', 'codex_cli', 'copilot_cli'] as const)('refuses unavailable %s bulk approval before invoking or suppressing the token', async (provider) => {
+    const status = pending(provider)
+    const request = Object.assign(status.pendingPermission!, { canApprove: false })
+    const h = setup(provider)
+    await Promise.resolve()
+    h.actions.observeJob(status)
+    const forged = h.actions.onDecidePermission(request.requestId, approveAll)
+    expect(api.decideChatPermission).not.toHaveBeenCalled()
+    expect(h.snapshot.permissionWorking).toBe(false)
+    expect(h.snapshot.job?.pendingPermission).toEqual(request)
+    h.actions.observeJob(status)
+    expect(h.snapshot.job?.pendingPermission).toEqual(request)
+    await forged
+    expect(api.getAiActionJobStatus).not.toHaveBeenCalled()
+    await h.actions.onDecidePermission(request.requestId, 'deny')
+    expect(api.decideChatPermission).toHaveBeenCalledExactlyOnceWith({
+      jobId: 'job-chat', sessionId: 'session-1', provider, requestId: request.requestId, decision: 'deny',
+    })
+  })
+
+  it.each(['forged', 'stale', 'provider', 'session', 'disposed', 'retired', 'terminal'] as const)('refuses %s bulk authority before invoke', async (change) => {
+    const h = setup()
+    if (change === 'stale') h.actions.observeJob(pending('claude_code', { pendingPermission: { ...pending().pendingPermission!, requestId: 'permission-2' } }))
+    if (change === 'provider') h.ctx.selection.selectedProvider = 'codex_cli'
+    if (change === 'session') h.ctx.session.activeSessionIdRef.current = 'session-2'
+    if (change === 'disposed') h.actions.dispose()
+    if (change === 'retired') { h.retired.add('session-1'); h.actions.retire('session-1') }
+    if (change === 'terminal') h.actions.observeJob(stopped)
+    await h.actions.onDecidePermission(change === 'forged' ? 'forged-token' : 'permission-1', approveAll)
+    expect(api.decideChatPermission).not.toHaveBeenCalled()
+    expect(h.snapshot.permissionWorking).toBe(false)
     expect(api.startChatJob).not.toHaveBeenCalled()
     expect(api.saveChatComposer).not.toHaveBeenCalled()
   })

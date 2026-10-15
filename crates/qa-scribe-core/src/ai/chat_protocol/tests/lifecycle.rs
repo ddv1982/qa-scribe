@@ -2,18 +2,43 @@ use super::*;
 
 #[test]
 fn chat_duplex_pending_duplicate_and_stale_requests_fail_visibly() {
-    for (provider, request) in [
-        (AiProvider::ClaudeCode, claude_request(json!(8))),
-        (AiProvider::CodexCli, codex_request(json!(8))),
-        (AiProvider::CopilotCli, copilot_request(json!(8))),
+    for (provider, first, second) in [
+        (
+            AiProvider::ClaudeCode,
+            claude_request(json!(8)),
+            claude_request(json!(9)),
+        ),
+        (
+            AiProvider::CodexCli,
+            codex_request(json!(8)),
+            codex_request(json!(9)),
+        ),
+        (
+            AiProvider::CopilotCli,
+            copilot_request(json!(8)),
+            copilot_request(json!(9)),
+        ),
     ] {
-        let mut p = ready(provider);
-        permission(&p.handle(&request).unwrap());
-        assert!(p.handle(&request).is_err());
-        let mut p = ready(provider);
-        permission(&p.handle(&request).unwrap());
-        p.permission_reply(false).unwrap();
-        assert!(p.handle(&request).is_err());
+        for duplicate in [&first, &second] {
+            let mut p = ready(provider);
+            permission(&p.handle(&first).unwrap());
+            assert!(p.handle(&second).unwrap().is_empty());
+            assert!(p.handle(duplicate).is_err());
+            assert!(p.take_queued_permission().is_none());
+            assert!(p.permission_reply(true).is_err());
+            assert!(p.permission_reply(false).is_err());
+            assert!(p.finish().is_err());
+        }
+        for approved in [false, true] {
+            let mut p = ready(provider);
+            permission(&p.handle(&first).unwrap());
+            assert!(p.handle(&second).unwrap().is_empty());
+            p.permission_reply(approved).unwrap();
+            assert!(p.handle(&first).is_err());
+            assert!(p.take_queued_permission().is_none());
+            assert!(p.permission_reply(false).is_err());
+            assert!(p.finish().is_err());
+        }
     }
 }
 

@@ -146,11 +146,7 @@ impl ChatProtocol {
                     "serverRequest/resolved" => {
                         self.codex_scope(params)?;
                         let id = &params["requestId"];
-                        if self
-                            .pending
-                            .as_ref()
-                            .is_some_and(|pending| pending.id == *id)
-                        {
+                        if self.pending.iter().any(|pending| pending.id == *id) {
                             return Err(
                                 "Codex pending permission resolved/cancelled by provider".into()
                             );
@@ -161,7 +157,7 @@ impl ChatProtocol {
                         Ok(vec![])
                     }
                     "mcpServer/elicitation/completed" | "mcpServer/elicitation/cancelled"
-                        if self.pending.is_some() =>
+                        if !self.pending.is_empty() =>
                     {
                         Err("Codex pending permission resolved/cancelled by provider".into())
                     }

@@ -36,6 +36,7 @@ pub struct ChatPermissionRequest {
 #[serde(rename_all = "camelCase")]
 pub enum ChatPermissionDecision {
     Approve,
+    ApproveAll,
     Deny,
 }
 
@@ -91,7 +92,7 @@ impl JobStore {
             {
                 return Err(invalid("Chat permission request identity does not match"));
             }
-            if request.decision == ChatPermissionDecision::Approve && !pending.can_approve {
+            if request.decision != ChatPermissionDecision::Deny && !pending.can_approve {
                 return Err(invalid("Chat permission request does not offer approval"));
             }
             let sender = record

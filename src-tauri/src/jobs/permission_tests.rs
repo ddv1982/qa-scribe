@@ -57,6 +57,74 @@ fn assert_cleared(store: &JobStore, receiver: &Receiver<ChatPermissionDecision>)
 }
 
 #[test]
+fn chat_permission_bulk_is_single_use_bound_to_prompt_and_respects_unavailable_approval() {
+    let bulk: ChatPermissionDecision = serde_json::from_str("\"approveAll\"").unwrap();
+    let store = JobStore::default();
+    insert(&store, "chat", true);
+    let (status, receiver) = publish(&store);
+    let mut request = decision(&status);
+    request.decision = bulk;
+    for field in ["job", "session", "token", "provider"] {
+        let mut forged = request.clone();
+        match field {
+            "job" => forged.job_id = "another-job".into(),
+            "session" => forged.session_id = "another-session".into(),
+            "token" => forged.request_id = "another-token".into(),
+            _ => forged.provider = AiProvider::CodexCli,
+        }
+        assert!(store.decide_chat_permission(forged).is_err());
+        assert_eq!(receiver.try_recv(), Err(TryRecvError::Empty));
+    }
+    store.decide_chat_permission(request.clone()).unwrap();
+    assert_eq!(receiver.try_recv(), Ok(bulk));
+    assert!(store.decide_chat_permission(request).is_err());
+
+    let mut metadata = details();
+    metadata.can_approve = false;
+    let (status, receiver) = store.publish_chat_permission("job", metadata).unwrap();
+    let mut request = decision(&status);
+    request.decision = bulk;
+    assert!(store.decide_chat_permission(request.clone()).is_err());
+    assert_eq!(store.status("job").unwrap(), status);
+    assert_eq!(receiver.try_recv(), Err(TryRecvError::Empty));
+    request.decision = ChatPermissionDecision::Deny;
+    store.decide_chat_permission(request).unwrap();
+    assert_eq!(receiver.try_recv(), Ok(ChatPermissionDecision::Deny));
+}
+
+#[test]
+fn chat_permission_bulk_cannot_be_granted_after_cancellation_deletion_or_terminal_state() {
+    for ending in ["cancel", "delete", "fail", "complete"] {
+        let store = JobStore::default();
+        insert(&store, "chat", true);
+        let (status, receiver) = publish(&store);
+        let mut request = decision(&status);
+        request.decision = ChatPermissionDecision::ApproveAll;
+        let deletion = if ending == "delete" {
+            Some(store.begin_session_deletion("session").unwrap())
+        } else {
+            None
+        };
+        match ending {
+            "cancel" => {
+                store.cancel("job").unwrap();
+            }
+            "delete" => {
+                deletion.as_ref().unwrap().cancel_jobs().unwrap();
+            }
+            "fail" => {
+                store.fail("job", "failed").unwrap();
+            }
+            _ => {
+                store.complete("job").unwrap();
+            }
+        }
+        assert!(store.decide_chat_permission(request).is_err());
+        assert_cleared(&store, &receiver);
+    }
+}
+
+#[test]
 fn chat_permission_unavailable_approve_keeps_token_for_explicit_deny() {
     let store = JobStore::default();
     insert(&store, "chat", true);

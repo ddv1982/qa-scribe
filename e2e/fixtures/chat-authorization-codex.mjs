@@ -37,8 +37,8 @@ export function codexAppServer(argv) {
       turnId = `fixture-turn-${process.pid}`
       if (process.env.QA_SCRIBE_E2E_AUTH_PROVIDER) {
         emit({ id: request.id, result: { turn: { id: turnId, status: 'inProgress' } } })
-        authorize = authorizationTurn('codex', prompt, complete, (marker) => {
-          emit({ id: 'fixture-permission', method: 'mcpServer/elicitation/request', params: {
+        authorize = authorizationTurn('codex', prompt, complete, (marker, id) => {
+          emit({ id, method: 'mcpServer/elicitation/request', params: {
             ...scope(), serverName: 'fixture-marker', mode: 'form', message: 'Execute the marker child once',
             requestedSchema: { type: 'object', properties: {} },
             _meta: { codex_approval_kind: 'mcp_tool_call', tool_params: { marker } },
@@ -55,7 +55,7 @@ export function codexAppServer(argv) {
         await waitForFile(join(directory, `codex-exec-${index}.release`))
         complete(chat.response)
       }
-    } else if (request.id === 'fixture-permission' && authorize) {
+    } else if (request.result && authorize) {
       authorize(request.result?.action === 'accept', request)
     } else throw new Error(`Unsupported fixture request: ${JSON.stringify(request)}`)
   })

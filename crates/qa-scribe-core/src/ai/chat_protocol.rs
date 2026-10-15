@@ -8,7 +8,7 @@ mod tests;
 use super::stream::StreamUpdate;
 use crate::domain::AiProvider;
 use serde_json::{Value, json};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, VecDeque};
 
 #[derive(Clone, Debug)]
 pub enum ChatProtocolEvent {
@@ -36,7 +36,7 @@ pub struct ChatProtocol {
     stage: u8,
     scope: Option<String>,
     turn: Option<String>,
-    pending: Option<Pending>,
+    pending: VecDeque<Pending>,
     seen: Vec<Value>,
     copilot_calls: BTreeMap<String, copilot::ToolCallMetadata>,
     text: String,
@@ -49,6 +49,7 @@ struct Pending {
     id: Value,
     allow: Option<Value>,
     deny: Option<Value>,
+    detail: Option<ChatProtocolPermission>,
 }
 
 impl ChatProtocol {
@@ -74,7 +75,7 @@ impl ChatProtocol {
             stage: 0,
             scope: None,
             turn: None,
-            pending: None,
+            pending: VecDeque::new(),
             seen: Vec::new(),
             copilot_calls: BTreeMap::new(),
             text: String::new(),
@@ -130,12 +131,12 @@ impl ChatProtocol {
         if approved
             && self
                 .pending
-                .as_ref()
+                .front()
                 .is_some_and(|pending| pending.allow.is_none())
         {
             return Err("Permission decision has no offered once-only option".into());
         }
-        let Some(pending) = self.pending.take() else {
+        let Some(pending) = self.pending.pop_front() else {
             return Err("No pending permission request".into());
         };
         self.seen.push(pending.id);
@@ -154,7 +155,7 @@ impl ChatProtocol {
         if let Some(error) = &self.failure {
             return Err(error.clone());
         }
-        if !self.complete || self.pending.is_some() {
+        if !self.complete || !self.pending.is_empty() {
             return Err("Chat protocol ended without successful completion".into());
         }
         if self.text.trim().is_empty() {
@@ -167,8 +168,13 @@ impl ChatProtocol {
         self.reported.clone()
     }
 
+    /// Publish the next queued prompt without consuming its correlated reply.
+    pub fn take_queued_permission(&mut self) -> Option<ChatProtocolPermission> {
+        self.pending.front_mut()?.detail.take()
+    }
+
     fn fail<T>(&mut self, error: String) -> Result<T, String> {
-        self.pending = None;
+        self.pending.clear();
         self.copilot_calls.clear();
         self.failure = Some(error.clone());
         Err(error)
@@ -184,19 +190,28 @@ impl ChatProtocol {
         if !(id.is_string() || id.is_number()) || id.as_str() == Some("") {
             return Err("Permission request has invalid opaque ID".into());
         }
-        if self.pending.is_some() || self.seen.contains(id) {
-            return Err("Duplicate, stale, or concurrent permission request".into());
+        if self.pending.iter().any(|pending| pending.id == *id) || self.seen.contains(id) {
+            return Err("Duplicate or stale permission request".into());
         }
-        self.pending = Some(Pending {
+        if self.pending.len() >= 32 {
+            return Err("Too many pending permission requests (maximum 32)".into());
+        }
+        let publish = self.pending.is_empty();
+        self.pending.push_back(Pending {
             id: id.clone(),
             allow,
             deny,
+            detail: if publish { None } else { Some(detail.clone()) },
         });
-        Ok(vec![ChatProtocolEvent::Permission(detail)])
+        Ok(if publish {
+            vec![ChatProtocolEvent::Permission(detail)]
+        } else {
+            vec![]
+        })
     }
 
     fn terminal(&mut self) -> Result<Vec<ChatProtocolEvent>, String> {
-        if self.pending.is_some() {
+        if !self.pending.is_empty() {
             return Err("Permission request cancelled by provider completion".into());
         }
         self.complete = true;

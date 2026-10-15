@@ -200,6 +200,147 @@ elif mode == "schema":
     request["params"]["request"]["requestedSchema"] = {
         "type": "object", "properties": {"password": {"type": "string"}}}
 
+def concurrent_request(index):
+    value = json.loads(json.dumps(request))
+    identity = 481 + index if id_kind == "number" else "opaque:permission/%s" % (481 + index)
+    inputs = {"path": "local-fixture-%s" % index, "nested": {"raw": True, "ordinal": index}}
+    if provider == "claude":
+        value["request_id"] = identity
+        value["request"]["input"] = inputs
+    elif provider == "codex":
+        value["id"] = identity
+        value["params"]["request"]["_meta"]["tool_params"] = inputs
+    else:
+        value["id"] = identity
+        value["params"]["toolCall"]["toolCallId"] = "call-%s" % index
+        value["params"]["toolCall"]["rawInput"] = inputs
+        value["params"]["options"] = [
+            {"optionId": "opaque-yes/%s" % index, "kind": "allow_once", "name": "Once"},
+            {"optionId": "opaque-no/%s" % index, "kind": "reject_once", "name": "No"}]
+    return value, identity, inputs
+
+
+def verify_concurrent_reply(index, approved):
+    _, identity, inputs = concurrent_request(index)
+    reply = receive()
+    if provider == "claude":
+        assert reply["type"] == "control_response"
+        assert reply["response"]["request_id"] == identity
+        result = reply["response"]["response"]
+        assert result["behavior"] == ("allow" if approved else "deny")
+        assert "updatedPermissions" not in result
+        if approved:
+            assert result["updatedInput"] == inputs
+    elif provider == "codex":
+        assert reply["id"] == identity
+        assert reply["result"] == {"action": "accept" if approved else "decline", "content": {}}
+    else:
+        assert reply == {"jsonrpc": "2.0", "id": identity, "result": {"outcome": {
+            "outcome": "selected", "optionId": "opaque-%s/%s" % ("yes" if approved else "no", index)}}}
+    record({"verified_concurrent_reply": index, "wire_id": identity, "input": inputs, "approved": approved})
+    if approved:
+        with (root / "tool-marker").open("a") as stream:
+            stream.write("executed-%s\n" % index)
+
+
+if mode in ("queued_ui_cancel", "queued_session_delete", "queued_bad_publish",
+            "queued_watchdog", "queued_parent_exit"):
+    if mode == "queued_parent_exit":
+        inherited_pipe_descendant()
+    frames = [concurrent_request(index)[0] for index in range(3)]
+    if mode == "queued_bad_publish":
+        # Core accepts these strings. JobStore alone imposes metadata bounds.
+        if provider == "claude":
+            frames[1]["request"]["tool_name"] = "x" * 513
+        elif provider == "codex":
+            frames[1]["params"]["request"]["message"] = "x" * 4097
+        else:
+            frames[1]["params"]["toolCall"]["title"] = "x" * 4097
+    sys.stdout.write("".join(json.dumps(frame) + "\n" for frame in frames))
+    sys.stdout.flush()
+    # Observing this update proves the runner handled every preceding request,
+    # not merely that Python flushed bytes or its stdout reader buffered them.
+    text("Queued requests buffered.")
+    if mode == "queued_parent_exit":
+        deadline = time.monotonic() + 5
+        while not (root / "exit-release").exists():
+            assert time.monotonic() < deadline, "runner did not observe queue marker"
+            time.sleep(.002)
+        record({"parent_exiting_queued": True})
+        os._exit(17)
+    if mode not in ("queued_watchdog",):
+        verify_concurrent_reply(0, False)
+        (root / "head-replied").write_text("denied\n")
+    # Stay alive and record any fabricated reply to an unresolved request.
+    unexpected = receive()
+    raise AssertionError("unexpected unresolved queued reply: %r" % unexpected)
+
+if mode in ("bulk", "bulk_reject_only"):
+    for index in range(3):
+        frame = concurrent_request(index)[0]
+        if mode == "bulk_reject_only" and index == 1:
+            assert provider == "copilot"
+            frame["params"]["options"] = [frame["params"]["options"][1]]
+        send(frame)
+    for index in range(3):
+        verify_concurrent_reply(index, not (mode == "bulk_reject_only" and index == 1))
+    # This request did not exist when the user granted response-local consent.
+    send(concurrent_request(3)[0])
+    verify_concurrent_reply(3, True)
+    answer = "Bulk permissions complete."
+    text(answer, final=True)
+    if provider == "claude":
+        send({"type": "result", "subtype": "success", "is_error": False, "result": answer})
+    elif provider == "codex":
+        send({"method": "turn/completed", "params": {"threadId": "thread-1", "turn": {
+            "id": "turn-1", "status": "completed"}}})
+    else:
+        rpc_result(prompt, {"stopReason": "end_turn"})
+    time.sleep(30)
+    sys.exit(9)
+
+if mode in ("concurrent_fifo", "queued_cancel", "queued_overflow"):
+    if mode == "concurrent_fifo":
+        # Each of the first two requests must resolve before the next is sent.
+        for index in range(2):
+            send(concurrent_request(index)[0])
+            verify_concurrent_reply(index, True)
+        # One flush publishes three distinct requests before reading any reply.
+        frames = [concurrent_request(index)[0] for index in range(2, 5)]
+    else:
+        # 34 exceeds max32 whether the visible prompt counts toward the bound.
+        count = 34 if mode == "queued_overflow" else 3
+        frames = [concurrent_request(index)[0] for index in range(count)]
+    if mode == "queued_cancel":
+        if provider == "claude":
+            frames.append({"type": "control_cancel_request", "request_id": concurrent_request(0)[1]})
+        elif provider == "codex":
+            frames.append({"method": "turn/completed", "params": {"threadId": "thread-1", "turn": {
+                "id": "turn-1", "status": "interrupted"}}})
+        else:
+            frames.append({"method": "session/cancel", "params": {"sessionId": "session-1"}})
+    sys.stdout.write("".join(json.dumps(frame) + "\n" for frame in frames))
+    sys.stdout.flush()
+    if mode != "concurrent_fifo":
+        # Stay alive, waiting on stdin, so failure must come from cancellation
+        # or overflow, not EOF. Record and reject any fabricated decision.
+        unexpected = receive()
+        raise AssertionError("unexpected queued permission reply: %r" % unexpected)
+    for index, approved in [(2, False), (3, True), (4, False)]:
+        verify_concurrent_reply(index, approved)
+    answer = "Concurrent permissions complete."
+    text(answer, final=True)
+    if provider == "claude":
+        send({"type": "result", "subtype": "success", "is_error": False, "result": answer})
+    elif provider == "codex":
+        send({"method": "turn/completed", "params": {"threadId": "thread-1", "turn": {
+            "id": "turn-1", "status": "completed"}}})
+    else:
+        rpc_result(prompt, {"stopReason": "end_turn"})
+    record({"complete_sent": True})
+    time.sleep(30)
+    sys.exit(9)
+
 if mode == "cancel":
     # A descendant holding the pipe open will write a marker if group kill is
     # missing, even when the direct peer was killed correctly.

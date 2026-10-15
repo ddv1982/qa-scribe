@@ -73,14 +73,15 @@ for (const provider of ['codex', 'claude', 'copilot']) {
       try {
         await beginAuthorization(running, provider, prompt)
         if (decision !== 'policy') {
-          await running.receive((event) => event.id === 'fixture-permission' || event.request_id === 'fixture-permission', 'native permission request')
+          const request = await running.receive((event) => event.id === 'fixture-permission' || event.request_id === 'fixture-permission', 'native permission request')
           assert.equal(existsSync(markerPath), false, 'The child must not execute before a decision')
           if (decision === 'cancel') {
             running.child.kill('SIGTERM')
             await new Promise((resolvePromise) => running.child.once('close', resolvePromise))
           } else if (provider === 'claude') {
             running.send({ type: 'control_response', response: { subtype: 'success', request_id: 'fixture-permission',
-              response: { behavior: decision === 'approve' ? 'allow' : 'deny' } } })
+              response: decision === 'approve' ? { behavior: 'allow', updatedInput: request.request.input }
+                : { behavior: 'deny', message: 'User denied permission' } } })
           } else if (provider === 'codex') {
             running.send({ id: 'fixture-permission', result: { action: decision === 'approve' ? 'accept' : 'decline', content: {} } })
           } else {
@@ -112,6 +113,44 @@ for (const provider of ['codex', 'claude', 'copilot']) {
       }
     })
   }
+}
+
+for (const provider of ['codex', 'claude', 'copilot']) {
+  test(`${provider} bulk fixture correlates a burst and emits a later permission after three once replies`, { timeout: 7_000 }, async () => {
+    const directory = mkdtempSync(join(tmpdir(), `qa-scribe-${provider}-bulk-`))
+    writeFileSync(join(directory, 'authorization-case.json'), JSON.stringify({ mode: 'bulk' }))
+    const running = appServer(directory, provider, true)
+    try {
+      await beginAuthorization(running, provider, 'Bulk authorization fixture evidence')
+      await running.receive((event) => (event.request_id ?? event.id) === 'fixture-permission-1-3', 'initial burst')
+      assert.equal(existsSync(join(directory, `${provider}-auth-1.request-4.json`)), false)
+      for (let ordinal = 1; ordinal <= 4; ordinal += 1) {
+        const id = `fixture-permission-1-${ordinal}`
+        const request = await running.receive((event) => (event.request_id ?? event.id) === id, `permission ${ordinal}`)
+        const marker = join(directory, `${provider}-auth-1.tool-${ordinal}.executed.json`)
+        assert.equal(existsSync(marker), false)
+        running.send(provider === 'claude'
+          ? { type: 'control_response', response: { subtype: 'success', request_id: id,
+            response: { behavior: 'allow', updatedInput: request.request.input } } }
+          : provider === 'codex' ? { id, result: { action: 'accept', content: {} } }
+            : { jsonrpc: '2.0', id, result: { outcome: { outcome: 'selected', optionId: `approve-marker-${id}` } } })
+        const deadline = Date.now() + 1_500
+        while (!existsSync(marker) && Date.now() < deadline) await new Promise((resolvePromise) => setTimeout(resolvePromise, 10))
+        const child = JSON.parse(readFileSync(marker, 'utf8'))
+        assert.equal(child.parent, running.child.pid)
+        assert.notEqual(child.pid, running.child.pid)
+        if (ordinal < 3) assert.equal(existsSync(join(directory, `${provider}-auth-1.request-4.json`)), false)
+      }
+      await running.receive((event) => event.method === 'turn/completed' || event.type === 'result'
+        || (provider === 'copilot' && event.id === 'fixture-turn'), 'bulk completion')
+    } finally {
+      if (running.child.exitCode === null && running.child.signalCode === null) {
+        running.child.kill('SIGKILL')
+        await new Promise((resolvePromise) => running.child.once('close', resolvePromise))
+      }
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
 }
 
 for (const ids of [

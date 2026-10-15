@@ -78,6 +78,55 @@ describe('controller-to-view permission recovery (F4retry2, R57-01)', () => {
     vi.useRealTimers()
   })
 
+  it.each(['claude_code', 'codex_cli', 'copilot_cli'] as const)('does not replay a %s bulk grant after a lost decision response or explicit recheck', async (provider) => {
+    const canonical = pending(provider)
+    const accepted = chatJobFixture({ pendingPermission: null })
+    api.decideChatPermission.mockRejectedValueOnce(new Error('Bulk approval response lost'))
+    api.getAiActionJobStatus.mockRejectedValueOnce(new Error('Status unavailable')).mockResolvedValue(accepted)
+    const h = await mountControllerView(provider)
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Approve all for this response' }))
+    })
+    expect(api.decideChatPermission).toHaveBeenCalledExactlyOnceWith({
+      jobId: canonical.jobId, sessionId: canonical.sessionId, provider,
+      requestId: canonical.pendingPermission!.requestId, decision: 'approveAll',
+    })
+    expect(screen.getByRole('alert')).toHaveTextContent('Bulk approval response lost')
+    expect(screen.queryByRole('region', { name: 'Tool permission' })).not.toBeInTheDocument()
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Recheck status' })) })
+    expect(api.getAiActionJobStatus).toHaveBeenCalledTimes(3)
+    expect(h.refreshProviderStatus).toHaveBeenCalledTimes(1)
+    expect(h.snapshot.job?.pendingPermission).toBeFalsy()
+    expect(api.decideChatPermission).toHaveBeenCalledTimes(1)
+    expect(api.startChatJob).not.toHaveBeenCalled()
+    expect(api.saveChatComposer).not.toHaveBeenCalled()
+    expect(screen.getByRole('textbox', { name: 'Message' })).toHaveValue(composer)
+  })
+
+  it('requires a new explicit choice after recovering an unresolved bulk decision', async () => {
+    const canonical = pending('codex_cli')
+    api.decideChatPermission.mockRejectedValueOnce(new Error('Bulk approval response lost'))
+      .mockResolvedValueOnce(chatJobFixture({ pendingPermission: null }))
+    api.getAiActionJobStatus.mockRejectedValueOnce(new Error('Status unavailable')).mockResolvedValue(canonical)
+    await mountControllerView('codex_cli')
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Approve all for this response' })) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+    expect(screen.queryByRole('region', { name: 'Tool permission' })).not.toBeInTheDocument()
+    expect(api.decideChatPermission).toHaveBeenCalledTimes(1)
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Recheck status' })) })
+    expect(screen.getByRole('button', { name: 'Approve all for this response' })).toBeEnabled()
+    expect(api.decideChatPermission).toHaveBeenCalledTimes(1)
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Deny' })) })
+    expect(api.decideChatPermission).toHaveBeenCalledTimes(2)
+    expect(api.decideChatPermission).toHaveBeenLastCalledWith({
+      jobId: canonical.jobId, sessionId: canonical.sessionId, provider: 'codex_cli',
+      requestId: canonical.pendingPermission!.requestId, decision: 'deny',
+    })
+    expect(api.startChatJob).not.toHaveBeenCalled()
+    expect(api.saveChatComposer).not.toHaveBeenCalled()
+  })
+
   it.each((['claude_code', 'codex_cli', 'copilot_cli'] as const).flatMap((provider) =>
     (['untouched', 'edited', 'autosaved'] as const).map((draftState) => [provider, draftState] as const)))(
     'recovers the suppressed %s token with an %s composer without replaying a decision',
