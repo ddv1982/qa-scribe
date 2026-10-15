@@ -370,6 +370,12 @@ export async function runGenerationPreflightLayoutWorkflow({ button }) {
     await $(dialog).waitForExist({ reverse: true })
   }
   const captureAndCheck = async (name, width, height, theme, plannedHeight = height) => {
+    // Await the real entrance animation rather than assuming a fixed pause has
+    // painted it on a loaded hosted runner before measuring scroll invariance.
+    await browser.executeAsync((selector, done) => {
+      Promise.all(document.querySelector(selector).getAnimations().map((animation) => animation.finished.catch(() => {})))
+        .then(() => done())
+    }, dialog)
     const geometry = await inspect()
     const layout = { name, requested: { width, height, theme }, geometry }
     if (process.platform === 'darwin') {
