@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import process from 'node:process'
-import { existsSync, mkdirSync, watch, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, watch, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { codexAppServer } from '../chat-authorization-codex.mjs'
 
@@ -88,7 +88,25 @@ if (args[0] === 'app-server') {
       const chat = prompt.startsWith('QA_SCRIBE_CHAT_V2\n') ? parseChat(prompt) : null
       const isTestware = !chat && /Create test scenarios with test cases from the selected note only/i.test(prompt)
       const isSummary = /Keep the output as a summarized QA note/i.test(prompt)
-      const html = isTestware
+      const streamConfigPath = join(controlDirectory, 'testware-streamdown.json')
+      const streamConfig = isTestware && existsSync(streamConfigPath)
+        ? JSON.parse(readFileSync(streamConfigPath, 'utf8'))
+        : null
+      const escapeAttribute = (value) => String(value).replace(/[&<>"']/g, (character) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+      })[character])
+      const html = streamConfig
+        ? '<h2>E2E test cases</h2><h3>Scenario</h3>'
+          + '<p><strong>Important</strong> <em>context</em> **literal** _name_ `code` [label](url) &amp; entities &lt;example&gt;</p>'
+          + '<p>Deterministic generated case</p>'
+          + '<ol start="7"><li>Seventh</li></ol><ul><li>Parent<ul><li>Nested</li></ul></li></ul>'
+          + '<ul data-type="taskList"><li data-type="taskItem" data-checked="true"><label><input type="checkbox" checked="checked"><span></span></label><div><p>Verified</p></div></li>'
+          + '<li data-type="taskItem" data-checked="false"><label><input type="checkbox"><span></span></label><div><p>Pending</p></div></li></ul>'
+          + `<img src="qa-scribe-attachment://${escapeAttribute(streamConfig.attachmentId)}" alt="Managed evidence">`
+          + `<img src="${escapeAttribute(streamConfig.remoteUrl)}" alt="Remote evidence" onclick="window.__streamdownHostile=true">`
+          + '<script>window.__streamdownHostile=true</script>'
+          + `<!--${' '.repeat(4096)}-->`
+        : isTestware
         ? '<h2>E2E test cases</h2><ul><li>Deterministic generated case</li></ul>'
         : isSummary
           ? '<p>E2E generated summary.</p>'
@@ -105,6 +123,21 @@ if (args[0] === 'app-server') {
       }
       writeFileSync(startedPath, `${process.pid}\n`, { flag: 'wx' })
       process.stdout.write(`${JSON.stringify({ type: 'turn.started' })}\n`)
+      if (streamConfig) {
+        const finalDelta = marker ? `</${marker}>` : ''
+        const firstDelta = marker ? `<${marker}>${html}` : html
+        await new Promise((resolve, reject) => {
+          process.stdout.write(`${JSON.stringify({ type: 'item/agentMessage/delta', delta: firstDelta })}\n`, (error) => {
+            if (error) reject(error)
+            else resolve()
+          })
+        })
+        writeFileSync(join(controlDirectory, `codex-exec-${invocation}.partial`), `${process.pid}\n`, { flag: 'wx' })
+        await waitForFile(releasePath)
+        process.stdout.write(`${JSON.stringify({ type: 'item/agentMessage/delta', delta: finalDelta })}\n`)
+        process.stdout.write(`${JSON.stringify({ type: 'item.completed', item: { type: 'agent_message', text: response } })}\n`)
+        return
+      }
       await waitForFile(releasePath)
       process.stdout.write(`${JSON.stringify({ type: 'item/agentMessage/delta', delta: response.slice(0, midpoint) })}\n`)
       setImmediate(() => {

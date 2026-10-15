@@ -1,7 +1,7 @@
 {
   "name": "qa-scribe-frontend",
   "private": true,
-  "version": "0.8.4",
+  "version": "0.8.5",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -32,7 +32,8 @@
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-markdown": "10.1.0",
-    "remark-gfm": "4.0.1"
+    "remark-gfm": "4.0.1",
+    "streamdown": "2.7.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

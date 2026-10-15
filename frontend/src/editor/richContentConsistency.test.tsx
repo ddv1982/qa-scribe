@@ -24,16 +24,17 @@ describe('shared rich-content surfaces', () => {
       <GenerationRecord title="Generated preview" titleAriaLabel="Generated title" bodyAriaLabel="Generated content"
         placeholder="" job={{ jobId: 'job', sessionId: 'session', action: 'testware', state: 'running', aiRunId: null, errorMessage: null, progressMessage: 'Generating', partialText: html }} onCancelGenerationJob={vi.fn(async () => {})} />
     </>)
-    await waitFor(() => expect(container.querySelectorAll('.rich-editor h2')).toHaveLength(7))
+    await waitFor(() => expect(container.querySelectorAll('.rich-editor h2')).toHaveLength(6))
     const editors = Array.from(container.querySelectorAll('.rich-editor'))
-    expect(editors).toHaveLength(7)
-    for (const editor of editors) {
+    expect(editors).toHaveLength(6)
+    const preview = container.querySelector('[data-renderer="streamdown"]')!
+    for (const editor of [...editors, preview]) {
       expect(editor.querySelector('h2')).toHaveTextContent('Requirements')
       expect(editor.querySelector('strong')).toHaveTextContent('Important')
       expect(editor.querySelector('em')).toHaveTextContent('context')
       expect(editor.querySelector('a')).toHaveAttribute('href', 'https://example.test/check')
       expect(editor.querySelector('ul ul')).toHaveTextContent('Nested')
-      expect(editor.innerHTML).toContain('data-checked="true"')
+      expect(editor.querySelector('input[type="checkbox"]')).toBeChecked()
     }
     expect(new Set(editors.map((editor) => editor.innerHTML)).size).toBe(1)
   })

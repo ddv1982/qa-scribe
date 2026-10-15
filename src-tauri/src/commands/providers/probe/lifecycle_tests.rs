@@ -42,7 +42,9 @@ impl Drop for FakeProbeCli {
 }
 
 fn run(runner: &SystemProbeRunner, executable: &Path) -> super::CommandProbe {
-    runner.run(&executable.to_string_lossy(), &[])
+    // Read the temporary fixture as script data, avoiding ETXTBSY when parallel
+    // test processes briefly inherit its write descriptor during creation.
+    runner.run("/bin/sh", &[&executable.to_string_lossy()])
 }
 
 #[test]

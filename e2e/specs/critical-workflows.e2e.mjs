@@ -3,6 +3,7 @@ import { existsSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { runChatToNoteWorkflow } from './chat-to-note.workflow.mjs'
 import { runChatDeletionWorkflow } from './chat-deletion.workflow.mjs'
+import { runTestwareStreamdownWorkflow } from './testware-streamdown.e2e.mjs'
 
 const primaryTitle = 'E2E primary session'
 const secondaryTitle = 'E2E secondary session'
@@ -276,42 +277,10 @@ const workflows = {
     },
   },
   'generation-cancellation': {
-    title: 'streams generation to completion and cancels a second deterministic provider job',
+    title: 'streams rich Testware safely across themes, saves and reopens edits, and cancels a held second generation',
     run: async () => {
-      await createSessionFixture('E2E generation session', 'Generate deterministic test cases from this note.')
-      const body = await $('body')
-      const generate = await button('Generate test cases')
-      await generate.waitForClickable()
-      await generate.click()
-      const confirm = await (await $('dialog')).$('button=Generate test cases')
-      await confirm.waitForClickable()
-      await confirm.click()
-      await releaseFixtureInvocation(1)
-
-      await browser.waitUntil(
-        async () => {
-          const text = await body.getText()
-          return /E2E test cases/.test(text) && /Deterministic generated case/.test(text) && /Testware generated/.test(text)
-        },
-        { timeout: 15_000, timeoutMsg: 'generated testware never reached its completed state' },
-      )
-
-      await (await sessionTab('Note')).click()
-      const secondGenerate = await button('Generate test cases')
-      await secondGenerate.waitForClickable()
-      await secondGenerate.click()
-      const secondConfirm = await (await $('dialog')).$('button=Generate test cases')
-      await secondConfirm.waitForClickable()
-      await secondConfirm.click()
-
-      const pending = await $('[aria-label="Pending testware title"]')
-      await pending.waitForDisplayed()
-      await waitForFixtureFile('codex-exec-2.started')
-      const cancel = await button('Cancel')
-      await cancel.waitForClickable()
-      await cancel.click()
-      await pending.waitForExist({ reverse: true, timeout: 10_000 })
-      assert.match(await browser.$('body').getText(), /Generation cancelled/)
+      await runTestwareStreamdownWorkflow({ createSessionFixture, sessionTab, sessionOption, button,
+        waitForFixtureFile, releaseFixtureInvocation })
     },
   },
   'summary-recovery': {
@@ -344,7 +313,7 @@ const selectedWorkflow = workflows[scenario]
 assert.ok(selectedWorkflow, `Unknown or missing QA_SCRIBE_E2E_SCENARIO: ${scenario ?? '(missing)'}`)
 
 describe(`QA Scribe built application: ${scenario}`, () => {
-  it(selectedWorkflow.title, async () => {
+  const workflowTest = it(selectedWorkflow.title, async () => {
     assert.notEqual(
       process.env.QA_SCRIBE_E2E_FORCE_FAILURE,
       scenario,
@@ -352,6 +321,7 @@ describe(`QA Scribe built application: ${scenario}`, () => {
     )
     await selectedWorkflow.run()
   })
+  if (scenario === 'generation-cancellation') workflowTest.timeout(120_000)
   if (scenario === 'session-lifecycle') {
     it('persists isolated Chat turns, retries cancellation, submits once into a rich Note, and explicitly generates Testware', async () => {
       await runChatToNoteWorkflow()

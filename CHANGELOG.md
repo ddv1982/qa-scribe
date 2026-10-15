@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.8.5 - 2026-10-15
+
+- Use Streamdown for live testcase/Testware generation previews, preserving headings, emphasis, nested lists, numbered starts, checklists and literal Markdown text while the provider streams its existing HTML response.
+- Resolve managed Evidence imagery through the native attachment boundary, keep progress text literal, and prevent automatic remote-image loading in the transient preview. Saved Testware remains editable through the existing rich-record editor.
+- Preserve safe non-default ordered-list starts when sanitizing generated HTML so numbering survives completion, editing, saving and Session reopen.
+- Verify held streaming, completion to one Draft, edit/save/reopen, cancellation, managed image identity and hostile-content handling through deterministic native desktop checks in light/dark themes at desktop and narrow widths. All nine maintained desktop workflow invocations pass locally; authenticated-provider smoke remains optional.
+
 ## v0.8.4 - 2026-10-15
 
 - Format saved and streaming assistant Chat responses as Markdown, including headings, emphasis, nested lists, tasks, links, code, quotes and tables. Share rich-content typography across Chat, Notes, Drafts and Findings, with bounded scrolling for wide code and tables.

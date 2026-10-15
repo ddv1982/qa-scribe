@@ -3,6 +3,7 @@ import { CheckCircle2, Copy, Image as ImageIcon, Loader2, PencilLine, Save, Tras
 import { FormatToolbar, RichTextEditor, type RichEditorImageUpload } from '../editor/RichTextEditor'
 import { richEditorDocumentFromHtml, richEditorDocumentFromStoredBody, richEditorDocumentToStoredBody, type StoredRichBody } from '../editor/editorDocument'
 import type { GenerationJobStatus } from '../tauri'
+import { TestwareGenerationPreview } from '../content/TestwareGenerationPreview'
 
 export function GenerationRecord({
   title,
@@ -23,12 +24,18 @@ export function GenerationRecord({
     <article className="editable-record generation-record">
       <input readOnly value={title} aria-label={titleAriaLabel} />
       <div className="rich-record-editor-field rich-record-preview-field">
-        <RichTextEditor
+        {job.action === 'testware' ? <TestwareGenerationPreview
+          key={`${job.sessionId}:${job.jobId}`}
+          text={job.partialText || ''}
+          fallback={job.progressMessage || placeholder}
+          ariaLabel={bodyAriaLabel}
+          running={job.state === 'running'}
+        /> : <RichTextEditor
           value={richEditorDocumentFromHtml(job.partialText || job.progressMessage || placeholder)}
           ariaLabel={bodyAriaLabel}
           placeholder={placeholder}
           readOnly
-        />
+        />}
       </div>
       <div className="record-actions">
         <span className="generation-progress">
