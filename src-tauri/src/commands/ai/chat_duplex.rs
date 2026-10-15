@@ -13,7 +13,7 @@ use std::{
 use qa_scribe_core::{
     ai::{
         GenerationCommand, GenerationOutputFormat, ProviderGenerationOutput,
-        chat_protocol::{ChatProtocol, ChatProtocolEvent},
+        chat_protocol::{ChatProtocol, ChatProtocolEvent, ChatProtocolPermission},
         stream::StreamUpdate,
     },
     domain::AiProvider,
@@ -159,6 +159,8 @@ fn execute_chat_duplex(
     peer.stderr = Some(thread::spawn(move || read_stderr(stderr)));
     let started = Instant::now();
     let mut pending: Option<Receiver<ChatPermissionDecision>> = None;
+    // Consent expires with this execution, including cancellation and retries.
+    let mut approve_all = false;
     let mut exited_at: Option<Instant> = None;
     let mut writer_failure: Option<(String, Instant)> = None;
     let mut frames_since_service = 0usize;
@@ -217,8 +219,9 @@ fn execute_chat_duplex(
                                     "Provider exited before the chat permission decision".into()
                                 );
                             }
+                            approve_all |= decision == ChatPermissionDecision::ApproveAll;
                             let reply = protocol
-                                .permission_reply(decision == ChatPermissionDecision::Approve)?;
+                                .permission_reply(decision != ChatPermissionDecision::Deny)?;
                             peer.send(&reply, limits.line_bytes)?;
                             pending = None;
                             on_status(
@@ -227,6 +230,14 @@ fn execute_chat_duplex(
                                     .status(context.job_id)
                                     .map_err(|error| error.to_string())?,
                             );
+                            if let Some(details) = protocol.take_queued_permission() {
+                                pending = Some(publish_permission(
+                                    context,
+                                    details,
+                                    approve_all,
+                                    &mut on_status,
+                                )?);
+                            }
                         }
                         Err(TryRecvError::Empty) => {}
                         Err(TryRecvError::Disconnected) => {
@@ -266,28 +277,15 @@ fn execute_chat_duplex(
                     ChatProtocolEvent::Send(message) => peer.send(&message, limits.line_bytes)?,
                     ChatProtocolEvent::Update(update) => on_update(update),
                     ChatProtocolEvent::Permission(details) => {
-                        if context.control.child_exit_status()?.is_some() {
-                            return Err("Provider exited before publishing chat permission".into());
-                        }
                         if pending.is_some() {
                             return Err("A chat permission request is already pending".into());
                         }
-                        let (status, decision) = context
-                            .jobs
-                            .publish_chat_permission(
-                                context.job_id,
-                                ChatPermissionDetails {
-                                    can_approve: details.can_approve,
-                                    provider: context.provider,
-                                    title: details.title,
-                                    tool_name: details.tool_name,
-                                    server_name: details.server_name,
-                                    input_json: details.input_json,
-                                },
-                            )
-                            .map_err(|error| error.to_string())?;
-                        pending = Some(decision);
-                        on_status(status);
+                        pending = Some(publish_permission(
+                            context,
+                            details,
+                            approve_all,
+                            &mut on_status,
+                        )?);
                     }
                     ChatProtocolEvent::Complete => {
                         if pending.is_some() {
@@ -338,6 +336,52 @@ fn execute_chat_duplex(
             }
         }
     }
+}
+
+fn publish_permission(
+    context: &ChatDuplexContext<'_>,
+    details: ChatProtocolPermission,
+    approve_all: bool,
+    on_status: &mut impl FnMut(GenerationJobStatus),
+) -> Result<Receiver<ChatPermissionDecision>, String> {
+    if context.control.child_exit_status()?.is_some() {
+        return Err("Provider exited before publishing chat permission".into());
+    }
+    let auto_approve = approve_all && details.can_approve;
+    let (mut status, decision) = context
+        .jobs
+        .publish_chat_permission(
+            context.job_id,
+            ChatPermissionDetails {
+                can_approve: details.can_approve,
+                provider: context.provider,
+                title: details.title,
+                tool_name: details.tool_name,
+                server_name: details.server_name,
+                input_json: details.input_json,
+            },
+        )
+        .map_err(|error| error.to_string())?;
+    if auto_approve {
+        let pending = status
+            .pending_permission
+            .as_ref()
+            .ok_or("Missing chat permission")?;
+        // Reuse click validation, including cancellation and Session deletion.
+        // The peer still receives its original correlated once-only reply.
+        status = context
+            .jobs
+            .decide_chat_permission(ChatPermissionDecisionRequest {
+                job_id: status.job_id.clone(),
+                session_id: status.session_id.clone(),
+                request_id: pending.request_id.clone(),
+                provider: pending.provider,
+                decision: ChatPermissionDecision::Approve,
+            })
+            .map_err(|error| error.to_string())?;
+    }
+    on_status(status);
+    Ok(decision)
 }
 
 fn output(text: Option<String>, cancelled: bool) -> ProviderGenerationOutput {

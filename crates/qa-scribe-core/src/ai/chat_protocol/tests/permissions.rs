@@ -1,5 +1,136 @@
 use super::*;
 
+fn queued_request(provider: AiProvider, id: Value, index: usize) -> Value {
+    let input = json!({"path":format!("/tmp/queued-{index}"),"nested":{"index":index}});
+    match provider {
+        AiProvider::ClaudeCode => {
+            let mut request = claude_request(id);
+            request["request"]["input"] = input;
+            request
+        }
+        AiProvider::CodexCli => {
+            let mut request = codex_request(id);
+            request["params"]["request"]["message"] = json!(format!("Allow write {index}?"));
+            request["params"]["request"]["_meta"]["tool_params"] = input;
+            request
+        }
+        AiProvider::CopilotCli => {
+            let mut request = copilot_request(id);
+            request["params"]["toolCall"] = json!({
+                "toolCallId":format!("queued-call-{index}"),
+                "title":format!("Write {index}"),"rawInput":input
+            });
+            request["params"]["options"] = json!([
+                {"optionId":format!("allow-{index}"),"name":"Once","kind":"allow_once"},
+                {"optionId":format!("deny-{index}"),"name":"No","kind":"reject_once"}
+            ]);
+            request
+        }
+    }
+}
+
+fn queued_reply(provider: AiProvider, request: &Value, approved: bool) -> Value {
+    match provider {
+        AiProvider::ClaudeCode => {
+            let response = if approved {
+                json!({"behavior":"allow","updatedInput":request["request"]["input"]})
+            } else {
+                json!({"behavior":"deny","message":"User denied permission"})
+            };
+            json!({"type":"control_response","response":{"subtype":"success",
+                "request_id":request["request_id"],"response":response}})
+        }
+        AiProvider::CodexCli => json!({"id":request["id"],"result":{
+            "action":if approved {"accept"} else {"decline"},"content":{}}}),
+        AiProvider::CopilotCli => json!({"jsonrpc":"2.0","id":request["id"],
+            "result":{"outcome":{"outcome":"selected",
+                "optionId":request["params"]["options"][if approved {0} else {1}]["optionId"]}}}),
+    }
+}
+
+#[test]
+fn chat_duplex_two_sequential_approvals_then_overlapping_requests_reply_fifo() {
+    for provider in [
+        AiProvider::ClaudeCode,
+        AiProvider::CodexCli,
+        AiProvider::CopilotCli,
+    ] {
+        let mut p = ready(provider);
+        for index in 0..2 {
+            let request = queued_request(provider, json!(format!("sequential-{index}")), index);
+            let events = p.handle(&request).unwrap();
+            assert_eq!(events.len(), 1);
+            assert!(permission(&events).can_approve);
+            assert_eq!(
+                p.permission_reply(true).unwrap(),
+                queued_reply(provider, &request, true)
+            );
+            assert!(p.take_queued_permission().is_none());
+        }
+
+        // Numeric and string IDs with the same spelling must remain distinct.
+        let requests = [json!(42), json!("42"), json!("opaque:last")]
+            .into_iter()
+            .enumerate()
+            .map(|(index, id)| queued_request(provider, id, index + 2))
+            .collect::<Vec<_>>();
+        let expected_details = requests
+            .iter()
+            .map(|request| {
+                let mut isolated = ready(provider);
+                permission(&isolated.handle(request).unwrap()).clone()
+            })
+            .collect::<Vec<_>>();
+
+        let events = p.handle(&requests[0]).unwrap();
+        assert_eq!(events.len(), 1);
+        assert_eq!(permission(&events), &expected_details[0]);
+        for request in &requests[1..] {
+            assert!(p.handle(request).unwrap().is_empty());
+        }
+        for (index, approved) in [false, true, false].into_iter().enumerate() {
+            assert_eq!(
+                p.permission_reply(approved).unwrap(),
+                queued_reply(provider, &requests[index], approved)
+            );
+            // Fetching the next detail must not consume its internal reply target.
+            assert_eq!(
+                p.take_queued_permission(),
+                expected_details.get(index + 1).cloned()
+            );
+        }
+        assert!(p.permission_reply(true).is_err());
+        assert!(p.take_queued_permission().is_none());
+    }
+}
+
+#[test]
+fn chat_duplex_permission_queue_allows_32_pending_but_33rd_revokes_every_reply() {
+    for provider in [
+        AiProvider::ClaudeCode,
+        AiProvider::CodexCli,
+        AiProvider::CopilotCli,
+    ] {
+        let mut p = ready(provider);
+        for index in 0..32 {
+            let request = queued_request(provider, json!(index), index);
+            let events = p.handle(&request).unwrap();
+            if index == 0 {
+                assert_eq!(events.len(), 1);
+                permission(&events);
+            } else {
+                assert!(events.is_empty());
+            }
+        }
+        assert!(p.handle(&queued_request(provider, json!(32), 32)).is_err());
+        assert!(p.take_queued_permission().is_none());
+        assert!(p.permission_reply(true).is_err());
+        assert!(p.permission_reply(false).is_err());
+        assert!(p.finish().is_err());
+        assert!(p.handle(&queued_request(provider, json!(33), 33)).is_err());
+    }
+}
+
 #[test]
 fn chat_duplex_claude_opaque_ids_original_input_no_updated_permissions() {
     for id in [json!(42), json!("opaque:42")] {

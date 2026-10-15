@@ -263,3 +263,138 @@ fn chat_duplex_process_huge_failure_diagnostics_are_bounded_and_utf8_safe() {
         assert!(fixture.jobs.status("job").unwrap().pending_permission.is_none());
     }
 }
+
+#[test]
+fn chat_duplex_process_successive_then_burst_permissions_fifo_all_providers() {
+    for provider in PROVIDERS {
+        for id_kind in ["number", "string"] {
+            let fixture = Fixture::new(provider);
+            let mut public_ids = Vec::new();
+            let output = fixture.run("concurrent_fifo", id_kind, |_| {}, |status| {
+                let Some(pending) = status.pending_permission else { return; };
+                if public_ids.contains(&pending.request_id) {
+                    return; // A status refresh is not a second publication.
+                }
+                let index = public_ids.len();
+                assert!(index < 5, "unexpected extra permission prompt");
+                assert_eq!(pending.provider, provider);
+                assert!(pending.can_approve);
+                assert!(!pending.title.trim().is_empty());
+                assert_eq!(
+                    serde_json::from_str::<Value>(pending.input_json.as_ref().unwrap()).unwrap(),
+                    json!({"path":format!("local-fixture-{index}"),
+                        "nested":{"raw":true,"ordinal":index}}),
+                    "{provider:?}/{id_kind}: prompts must be published in wire FIFO order"
+                );
+                assert_eq!(fixture.jobs.status("job").unwrap().pending_permission
+                    .as_ref().unwrap().request_id, pending.request_id);
+                for wire_index in 0..5 {
+                    assert_ne!(pending.request_id, format!("opaque:permission/{}", 481 + wire_index));
+                }
+                public_ids.push(pending.request_id.clone());
+                fixture.jobs.decide_chat_permission(ChatPermissionDecisionRequest {
+                    job_id: "job".into(),
+                    session_id: "session".into(),
+                    request_id: pending.request_id,
+                    provider,
+                    decision: if [0, 1, 3].contains(&index) {
+                        ChatPermissionDecision::Approve
+                    } else {
+                        ChatPermissionDecision::Deny
+                    },
+                }).unwrap();
+            }).unwrap_or_else(|error| panic!("{provider:?}/{id_kind}: {error}"));
+            assert!(output.success(), "{provider:?}: {}", output.failure_message());
+            assert_eq!(output.response_text().unwrap(), "Concurrent permissions complete.");
+            assert_eq!(public_ids.len(), 5, "every distinct request needs its own UI identity");
+            assert!(fixture.jobs.status("job").unwrap().pending_permission.is_none());
+            assert_eq!(fs::read_to_string(fixture.dir.join("tool-marker")).unwrap(),
+                "executed-0\nexecuted-1\nexecuted-3\n");
+            let records = fixture.records();
+            let verified: Vec<_> = records.iter()
+                .filter(|r| r.get("verified_concurrent_reply").is_some()).collect();
+            assert_eq!(verified.len(), 5, "child must validate all five replies");
+            for (index, record) in verified.iter().enumerate() {
+                assert_eq!(record["verified_concurrent_reply"], json!(index));
+                assert_eq!(record["approved"], json!([0, 1, 3].contains(&index)));
+                assert_eq!(record["wire_id"], if id_kind == "number" {
+                    json!(481 + index)
+                } else {
+                    json!(format!("opaque:permission/{}", 481 + index))
+                });
+            }
+            let reply_count = records.iter().filter_map(|r| r.get("received"))
+                .filter(|r| r["type"] == "control_response" || r.get("result").is_some())
+                .count();
+            assert_eq!(reply_count, 5, "no extra permission replies may reach the child");
+        }
+    }
+}
+
+#[test]
+fn chat_duplex_process_queued_provider_cancel_revokes_without_replies() {
+    for provider in PROVIDERS {
+        let fixture = Fixture::new(provider);
+        let mut public_ids = Vec::new();
+        let mut final_pending = false;
+        let started = Instant::now();
+        let error = fixture.run("queued_cancel", "string", |_| {}, |status| {
+            final_pending = status.pending_permission.is_some();
+            // Deliberately withhold the first decision while two more queue.
+            if let Some(pending) = status.pending_permission
+                && !public_ids.contains(&pending.request_id) {
+                public_ids.push(pending.request_id);
+            }
+        }).expect_err("provider cancellation must invalidate the queued turn");
+        assert!(error.to_lowercase().contains("cancel") || error.to_lowercase().contains("interrupt"),
+            "{provider:?}: must reach cancellation, not reject distinct queued requests: {error}");
+        assert!(started.elapsed() < Duration::from_secs(2));
+        assert_eq!(public_ids.len(), 1, "queued prompts must not replace the visible prompt");
+        assert!(!final_pending, "observer must receive permission revocation");
+        assert!(fixture.jobs.status("job").unwrap().pending_permission.is_none());
+        assert!(!fixture.dir.join("tool-marker").exists());
+        assert_no_queued_permission_replies(&fixture);
+    }
+}
+
+#[test]
+fn chat_duplex_process_queued_permission_overflow_fails_closed() {
+    for provider in PROVIDERS {
+        let fixture = Fixture::new(provider);
+        let mut public_ids = Vec::new();
+        let mut final_pending = false;
+        let started = Instant::now();
+        // This fixture sends 34 requests. Raise only the byte budget so queue
+        // capacity, rather than the unrelated 8KiB output cap, is exercised.
+        let error = run_chat_duplex_with_limits(
+            &fixture.command("queued_overflow", "number"), &fixture.context(), |_| {},
+            |status| {
+                final_pending = status.pending_permission.is_some();
+                if let Some(pending) = status.pending_permission
+                    && !public_ids.contains(&pending.request_id) {
+                    public_ids.push(pending.request_id);
+                }
+            },
+            DuplexLimits { watchdog: Duration::from_secs(3), line_bytes: 4096,
+                total_bytes: 128 * 1024 },
+        ).expect_err("permission queue overflow must fail closed");
+        let lower = error.to_lowercase();
+        assert!(lower.contains("permission") &&
+            ["overflow", "capacity", "limit", "too many"].iter().any(|word| lower.contains(word)),
+            "{provider:?}: must reach queue capacity, not reject request two: {error}");
+        assert!(started.elapsed() < Duration::from_secs(2));
+        assert_eq!(public_ids.len(), 1, "only the undecided head may be published");
+        assert!(!final_pending);
+        assert!(fixture.jobs.status("job").unwrap().pending_permission.is_none());
+        assert!(!fixture.dir.join("tool-marker").exists());
+        assert_no_queued_permission_replies(&fixture);
+    }
+}
+
+fn assert_no_queued_permission_replies(fixture: &Fixture) {
+    let records = fixture.records();
+    assert!(records.iter().any(|r| r.get("pid").is_some()), "real child must start");
+    assert!(!records.iter().filter_map(|r| r.get("received"))
+        .any(|r| r["type"] == "control_response" || r.get("result").is_some()),
+        "cancellation/overflow must not synthesize replies for queued requests");
+}

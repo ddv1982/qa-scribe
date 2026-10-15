@@ -43,6 +43,48 @@ const choice = (name: string) => within(panel()).getByRole('button', { name })
 const noPanel = () => expect(screen.queryByRole('region', { name: 'Tool permission' })).not.toBeInTheDocument()
 
 describe('SessionChatView tool permission contract (F4auth-ui)', () => {
+  it('offers explicit response bulk approval with future-request scope, not a saved preference', () => {
+    const { props } = mount()
+    const bulk = choice('Approve all for this response')
+    expect(bulk).toBeEnabled()
+    expect(bulk).toHaveAccessibleName('Approve all for this response')
+    expect(panel()).toHaveTextContent(/future (tool )?(permission )?requests/i)
+    expect(panel()).toHaveTextContent(/(current|this) response/i)
+    expect(panel()).toHaveTextContent(/(not saved|not (a )?saved|does not save|isn't saved|does not change saved permissions)/i)
+    fireEvent.click(bulk)
+    expect(props.onDecidePermission).toHaveBeenCalledExactlyOnceWith('opaque-request-token', 'approveAll')
+    expect(props.onSend).not.toHaveBeenCalled()
+    expect(props.onRetry).not.toHaveBeenCalled()
+    expect(props.onSetComposer).not.toHaveBeenCalled()
+  })
+
+  it.each(['claude_code', 'codex_cli', 'copilot_cli'] as const)('disables bulk approval for a reject-only %s request', (provider) => {
+    const request = Object.assign(permission({ provider }), { canApprove: false })
+    const { props } = mount({ job: job({ pendingPermission: request }) })
+    expect(choice('Approve all for this response')).toBeDisabled()
+    fireEvent.click(choice('Approve all for this response'))
+    expect(props.onDecidePermission).not.toHaveBeenCalled()
+    expect(choice('Deny')).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Cancel response' })).toBeEnabled()
+  })
+
+  it('disables bulk approval during any permission decision without disabling Cancel', () => {
+    const { props, rerender } = mount()
+    fireEvent.click(choice('Approve all for this response'))
+    rerender(<SessionChatView {...props} permissionWorking />)
+    expect(choice('Approve all for this response')).toBeDisabled()
+    expect(choice('Approve once')).toBeDisabled()
+    expect(choice('Deny')).toBeDisabled()
+    fireEvent.click(choice('Approve all for this response'))
+    expect(props.onDecidePermission).toHaveBeenCalledExactlyOnceWith('opaque-request-token', 'approveAll')
+    expect(screen.getByRole('button', { name: 'Cancel response' })).toBeEnabled()
+  })
+
+  it('disables bulk approval without a decision callback', () => {
+    mount({ onDecidePermission: undefined })
+    expect(choice('Approve all for this response')).toBeDisabled()
+  })
+
   it('shows an accessible backend permission request with exact structured identity and one-call scope', () => {
     mount()
     expect(within(panel()).getByRole('heading')).toBeInTheDocument()
@@ -50,7 +92,7 @@ describe('SessionChatView tool permission contract (F4auth-ui)', () => {
     expect(within(panel()).getByText('read_resource', { exact: true })).toBeInTheDocument()
     expect(within(panel()).getByText('qa-mcp', { exact: true })).toBeInTheDocument()
     expect(within(panel()).getByText('{"resource":"test-plan"}', { exact: true })).toBeInTheDocument()
-    expect(within(panel()).getByText('This approval applies to this tool call only.')).toBeInTheDocument()
+    expect(within(panel()).getByText(/Approve once applies to this tool call only\./)).toBeInTheDocument()
     expect(choice('Approve once')).toBeEnabled()
     expect(choice('Deny')).toBeEnabled()
     expect(screen.getAllByRole('button', { name: 'Cancel response' })).toHaveLength(1)
@@ -204,7 +246,7 @@ describe('SessionChatView tool permission contract (F4auth-ui)', () => {
     expect(panel()).toHaveTextContent(/Provider (description|title)/i)
     expect(panel()).not.toHaveTextContent('read_resource')
     expect(panel()).not.toHaveTextContent('qa-mcp')
-    expect(within(panel()).getByText('This approval applies to this tool call only.')).toBeInTheDocument()
+    expect(within(panel()).getByText(/Approve once applies to this tool call only\./)).toBeInTheDocument()
   })
 
   it('retains a supplied server but does not turn it into a tool name when the tool identity is unknown', () => {
@@ -225,7 +267,7 @@ describe('SessionChatView tool permission contract (F4auth-ui)', () => {
     expect(preview).toHaveClass('chat-message-text')
     expect(preview.querySelector('unsafe')).toBeNull()
     expect(within(panel()).getByText(/Arguments preview truncated/i)).toBeInTheDocument()
-    expect(within(panel()).getByText('This approval applies to this tool call only.')).toBeInTheDocument()
+    expect(within(panel()).getByText(/Approve once applies to this tool call only\./)).toBeInTheDocument()
   })
 
   it('lets the tester inspect complete bounded arguments without granting permission', () => {
@@ -243,7 +285,7 @@ describe('SessionChatView tool permission contract (F4auth-ui)', () => {
     expect(complete).toHaveAttribute('tabindex', '0')
     expect(complete.querySelector('unsafe')).toBeNull()
     expect(within(panel()).queryByText(/Arguments preview truncated/i)).not.toBeInTheDocument()
-    expect(within(panel()).getByText('This approval applies to this tool call only.')).toBeInTheDocument()
+    expect(within(panel()).getByText(/Approve once applies to this tool call only\./)).toBeInTheDocument()
     expect(props.onDecidePermission).not.toHaveBeenCalled()
     expect(props.onSend).not.toHaveBeenCalled()
     expect(props.onRetry).not.toHaveBeenCalled()
@@ -261,7 +303,7 @@ describe('SessionChatView tool permission contract (F4auth-ui)', () => {
     expect(preview.textContent.length).toBeLessThan(inputJson.length)
     expect(within(panel()).getByText(/Arguments preview truncated/i)).toBeInTheDocument()
     expect(choice('Show complete arguments')).toBeEnabled()
-    expect(within(panel()).getByText('This approval applies to this tool call only.')).toBeInTheDocument()
+    expect(within(panel()).getByText(/Approve once applies to this tool call only\./)).toBeInTheDocument()
     expect(props.onDecidePermission).not.toHaveBeenCalled()
   })
 

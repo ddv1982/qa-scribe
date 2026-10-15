@@ -182,6 +182,61 @@ describe(`Built application native ${provider} Chat tool authorization`, () => {
     assertChild(current.index, 1)
   }).timeout(60_000)
 
+  it('approves a burst and later request for only this response, with independent child executions', async () => {
+    const current = await start('bulk', 'bulk')
+    await markerFile(current.index, 'request-3.json')
+    const bulkMarkers = () => files('.executed.json')
+      .filter((name) => name.startsWith(`${provider}-auth-${current.index}.tool-`))
+    assert.equal(bulkMarkers().length, 0, 'The initial burst cannot execute before consent')
+    assert.equal(existsSync(join(directory, `${provider}-auth-${current.index}.request-4.json`)), false,
+      'The later request must not be emitted with the initial burst')
+    // This real UI action deliberately fails against the previous once-only UI.
+    await click('Approve all for this response')
+    const chat = await settled(current.sessionId, 'completed', 2)
+    assert.equal(chat.messages[1].text, 'Four independent marker children executed after response approval.')
+    assert.equal(bulkMarkers().length, 4, 'One click must execute all three queued children and the later child')
+    assert.equal(files('.executed.json').length, current.before + 4)
+    const parent = Number(readFileSync(await markerFile(current.index, 'started'), 'utf8').trim())
+    const children = []
+    const ids = []
+    for (let ordinal = 1; ordinal <= 4; ordinal += 1) {
+      const request = JSON.parse(readFileSync(await markerFile(current.index, `request-${ordinal}.json`), 'utf8'))
+      const decision = JSON.parse(readFileSync(await markerFile(current.index, `decision-${ordinal}.json`), 'utf8'))
+      const marker = JSON.parse(readFileSync(request.marker, 'utf8'))
+      assert.equal(request.id, `fixture-permission-${current.index}-${ordinal}`)
+      assert.equal(decision.approved, true)
+      assert.equal(provider === 'claude' ? decision.wire.response.request_id : decision.wire.id, request.id)
+      // The fixture rejects any reply differing from its full, ordinary once-only wire payload.
+      assert.equal(marker.parent, parent)
+      assert.notEqual(marker.pid, parent, 'Each side effect must run in an actual child process')
+      children.push(marker.pid)
+      ids.push(request.id)
+    }
+    assert.equal(new Set(children).size, 4, 'Four separate marker child processes must execute')
+    assert.equal(new Set(ids).size, 4, 'Every permission must retain its distinct provider request ID')
+
+    // A new prompt in the same Session must not inherit the completed response's consent.
+    writeFileSync(join(directory, 'authorization-case.json'), JSON.stringify({ mode: 'permission', caseName: 'after-bulk' }))
+    const text = 'Check a new marker tool request after the bulk-approved response.'
+    await $(composer).setValue(text)
+    await click('Send')
+    await markerFile(current.index + 1, 'started')
+    await $(permission).waitForDisplayed()
+    await $('button=Approve all for this response').waitForDisplayed()
+    const followUpPrompt = JSON.parse(readFileSync(await markerFile(current.index + 1, 'prompt.json'), 'utf8'))
+    assert.ok(followUpPrompt.prompt.includes(text), 'The new response must receive the follow-up user prompt')
+    assertChild(current.index + 1, 0)
+    assert.equal(files('.executed.json').length, current.before + 4,
+      'Response-wide approval must not authorize the next response')
+    await click('Deny')
+    const followUp = await settled(current.sessionId, 'completed', 4)
+    assert.equal(followUp.messages[2].text, text)
+    assert.equal(followUp.messages[3].text, 'Marker tool denied. No child executed.')
+    assertChild(current.index + 1, 0)
+    assert.equal(files('.executed.json').length, current.before + 4)
+    await assertReopened(current.title, current.sessionId, followUp)
+  }).timeout(60_000)
+
   it('denies the tool without executing a child and persists the completed denial', async () => {
     const current = await start('permission', 'deny')
     await click('Deny')

@@ -1,26 +1,54 @@
 import { readFileSync } from 'node:fs'
+import assert from 'node:assert/strict'
 import { join } from 'node:path'
 import { emit, executeMarker, jsonLines, record, reserveInvocation } from './chat-authorization-common.mjs'
 import { catalogObservation, copilotCatalog } from './chat-authorization-catalog.mjs'
+
+const optionId = (approved, id) => `${approved ? 'approve' : 'deny'}-marker${id === 'fixture-permission' ? '' : `-${id}`}`
 
 export function authorizationTurn(provider, prompt, complete, requestPermission) {
   const directory = process.env.QA_SCRIBE_E2E_FIXTURE_DIR
   const configuration = JSON.parse(readFileSync(join(directory, 'authorization-case.json'), 'utf8'))
   const index = reserveInvocation(directory, `${provider}-auth`)
   const marker = join(directory, `${provider}-auth-${index}.executed.json`)
+  const bulk = configuration.mode === 'bulk'
+  const pending = new Map()
+  let resolved = 0
+  const issue = (ordinal) => {
+    const id = bulk ? `fixture-permission-${index}-${ordinal}` : 'fixture-permission'
+    const path = bulk ? join(directory, `${provider}-auth-${index}.tool-${ordinal}.executed.json`) : marker
+    pending.set(id, { path, ordinal })
+    record(directory, `${provider}-auth-${index}.request-${ordinal}.json`, { id, marker: path })
+    requestPermission(path, id)
+  }
   record(directory, `${provider}-auth-${index}.prompt.json`, { prompt, configuration })
   record(directory, `${provider}-auth-${index}.started`, process.pid)
   if (configuration.mode === 'policy') {
     record(directory, `${provider}-auth-${index}.policy.json`, { decision: 'deny', source: 'provider-policy' })
     complete('Provider policy denied the marker tool. No child executed.')
-  } else requestPermission(marker)
-  let resolved = false
+  } else if (bulk) {
+    for (let ordinal = 1; ordinal <= 3; ordinal += 1) issue(ordinal)
+  } else issue(1)
   return (approved, wire) => {
-    if (resolved) throw new Error('Permission was resolved twice')
-    resolved = true
-    record(directory, `${provider}-auth-${index}.decision.json`, { approved, wire })
-    if (approved) executeMarker(marker)
-    complete(approved ? 'Marker child executed once after approval.' : 'Marker tool denied. No child executed.')
+    const id = provider === 'claude' ? wire.response?.request_id : wire.id
+    const request = pending.get(id)
+    assert.ok(request, `Unknown or duplicate permission correlation: ${id}`)
+    const expected = provider === 'claude'
+      ? { type: 'control_response', response: { subtype: 'success', request_id: id, response: approved
+        ? { behavior: 'allow', updatedInput: { command: 'fixture-marker-child', marker: request.path } }
+        : { behavior: 'deny', message: 'User denied permission' } } }
+      : provider === 'copilot'
+        ? { jsonrpc: '2.0', id, result: { outcome: { outcome: 'selected', optionId: optionId(approved, id) } } }
+        : { id, result: { action: approved ? 'accept' : 'decline', content: {} } }
+    assert.deepEqual(wire, expected, 'Permission replies must retain exact correlation and ordinary once-only semantics')
+    if (bulk) assert.equal(approved, true, 'Every bulk permission must receive its normal once-only approval')
+    pending.delete(id)
+    resolved += 1
+    record(directory, `${provider}-auth-${index}.${bulk ? `decision-${request.ordinal}` : 'decision'}.json`, { approved, wire })
+    if (approved) executeMarker(request.path)
+    if (bulk && resolved === 3) issue(4)
+    else if (!pending.size) complete(bulk ? 'Four independent marker children executed after response approval.'
+      : approved ? 'Marker child executed once after approval.' : 'Marker tool denied. No child executed.')
   }
 }
 
@@ -60,7 +88,7 @@ function claude(argv) {
     } else if (message.type === 'user') {
       authorize = authorizationTurn('claude', message.message.content,
         (text) => emit({ type: 'result', subtype: 'success', is_error: false, result: text }),
-        (marker) => emit({ type: 'control_request', request_id: 'fixture-permission',
+        (marker, id) => emit({ type: 'control_request', request_id: id,
           request: { subtype: 'can_use_tool', tool_name: 'Bash', input: { command: 'fixture-marker-child', marker } } }))
     } else if (message.type === 'control_response' && authorize) {
       authorize(message.response?.response?.behavior === 'allow', message)
@@ -85,12 +113,12 @@ function copilot() {
         emit({ jsonrpc: '2.0', method: 'session/update', params: { sessionId,
           update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } } } })
         rpc(promptId, { stopReason: 'end_turn' })
-      }, (marker) => emit({ jsonrpc: '2.0', id: 'fixture-permission', method: 'session/request_permission',
-        params: { sessionId, toolCall: { toolCallId: 'marker-child', title: 'Execute the marker child once', rawInput: { marker } },
-          options: [{ optionId: 'approve-marker', name: 'Approve once', kind: 'allow_once' },
-            { optionId: 'deny-marker', name: 'Deny', kind: 'reject_once' }] } }))
-    } else if (message.id === 'fixture-permission' && authorize) {
-      authorize(message.result?.outcome?.optionId === 'approve-marker', message)
+       }, (marker, id) => emit({ jsonrpc: '2.0', id, method: 'session/request_permission',
+         params: { sessionId, toolCall: { toolCallId: `marker-child-${id}`, title: 'Execute the marker child once', rawInput: { marker } },
+           options: [{ optionId: optionId(true, id), name: 'Approve once', kind: 'allow_once' },
+             { optionId: optionId(false, id), name: 'Deny', kind: 'reject_once' }] } }))
+    } else if (message.result && authorize) {
+      authorize(message.result?.outcome?.optionId === optionId(true, message.id), message)
     } else throw new Error(`Unexpected Copilot message: ${JSON.stringify(message)}`)
   })
 }

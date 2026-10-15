@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.8.3 - 2026-10-15
+
+- Fix Session Chat failing after multiple approvals when providers request tools in parallel. Queue distinct permission requests with correctly correlated replies while continuing to reject duplicate or stale requests.
+- Add **Approve all for this response** for queued and later supported tool requests in the current response only. Keep Approve once and Deny, respect unavailable approvals and existing provider policy, and require fresh consent for subsequent responses and retries.
+- Verify concurrent and bulk approval, cancellation, cleanup and persistence with deterministic Claude Code, Codex CLI and Copilot CLI desktop workflows. Live Jira and authenticated Copilot testing remain unverified.
+
 ## v0.8.2 - 2026-10-14
 
 - Add shared Session Chat tool approval, denial, cancellation and explicit status recheck using native Claude Code, Codex CLI and GitHub Copilot CLI transports, while respecting existing provider policy.

@@ -454,3 +454,4 @@ fn chat_duplex_process_policy_blocked_has_no_pending_permission() {
 // after rustfmt expands the process-contract assertions.
 include!("tests/regressions.rs");
 include!("tests/lifecycle.rs");
+include!("tests/bulk.rs");

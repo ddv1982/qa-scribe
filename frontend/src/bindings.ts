@@ -137,7 +137,7 @@ export type ChatMessage = {
 
 export type ChatMode = "write_note" | "chat";
 
-export type ChatPermissionDecision = "approve" | "deny";
+export type ChatPermissionDecision = "approve" | "approveAll" | "deny";
 
 export type ChatPermissionDecisionRequest = {
 	jobId: string,
