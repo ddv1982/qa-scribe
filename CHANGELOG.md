@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.8.4 - 2026-10-15
+
+- Format saved and streaming assistant Chat responses as Markdown, including headings, emphasis, nested lists, tasks, links, code, quotes and tables. Share rich-content typography across Chat, Notes, Drafts and Findings, with bounded scrolling for wide code and tables.
+- Preserve supported assistant formatting when submitting Chat to the Session Note. Keep readable text and line boundaries for structures outside the current editor schema, while retaining prior Note content and single-submission receipts.
+- Keep raw HTML and code examples literal through editing, saving and copying, prevent automatic Chat image loading, and preserve non-default ordered-list numbering in HTML and clipboard output.
+- Verify generic-data rendering, safety, persistence and cross-surface consistency with component checks and deterministic native desktop workflows in light/dark themes and narrow windows.
+
 ## v0.8.3 - 2026-10-15
 
 - Fix Session Chat failing after multiple approvals when providers request tools in parallel. Queue distinct permission requests with correctly correlated replies while continuing to reject duplicate or stale requests.
