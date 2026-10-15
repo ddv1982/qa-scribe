@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.8.6 - 2026-10-15
+
+- Fix generation preflight notices overlapping Test design options on laptop-sized windows. Keep the header and actions stable around one scrollable body so every generation option remains reachable.
+- Compact grouped metadata and technique choices while preserving descriptions and readable font sizes, with responsive columns and actions for narrow windows.
+- Keep Tab and Shift+Tab focus within generation preflight, preserving native interior navigation, Escape cancellation and focus restoration.
+- Verify light/dark layouts at 1366×768, 1280×720 and 640×720, long Session titles, preference changes and actual OS-keyboard navigation. All nine maintained deterministic desktop workflow invocations pass locally.
+
 ## v0.8.5 - 2026-10-15
 
 - Use Streamdown for live testcase/Testware generation previews, preserving headings, emphasis, nested lists, numbered starts, checklists and literal Markdown text while the provider streams its existing HTML response.
