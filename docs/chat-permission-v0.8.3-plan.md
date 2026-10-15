@@ -121,3 +121,13 @@ findings at replacement revision 8. Fresh focused validation
 Canonical `b3b2823a-c08b-4727-a770-352e6c523819` passed. Complete 23-path
 immutable-base diff reviewed; historical findings verified fixed. R1/R2/R3/R4/R6
 accepted for this feature; release preparation and publication remain pending.
+
+### Release candidate
+
+Integrated implementation committed as `5c9e6a4` on `release/v0.8.3` before
+starting the release feature, avoiding dirty shared-path carryover. `origin/main`
+remained `1320395`; latest published release remained v0.8.2 and no v0.8.3 tag
+existed at version selection. `bun run bump 0.8.3 --dry-run` previewed all seven
+canonical outputs, then `bun run bump 0.8.3` wrote them. Its expected metadata
+failure named the generated changelog TODO, now replaced with scoped release
+notes. No manual version edits, dependency updates or workflow changes.
