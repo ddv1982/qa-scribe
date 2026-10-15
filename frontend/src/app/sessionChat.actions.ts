@@ -10,10 +10,14 @@ import {
 import { createChatPolling } from './sessionChat.polling'
 import { submitChatToCanonicalNote } from './sessionChat.noteHandoff'
 import { recoverChatCanonicalNote } from './sessionChat.noteRecovery'
+import { createChatPermissions } from './sessionChat.permissions'
 
 export function createSessionChatActions(ctx: SessionChatContext) {
   const workspaces = new Map<string, ChatWorkspace>()
   let disposed = false
+  let activationEpoch = 0
+  let activatedSessionId: string | null = null
+  const supersededJobs = new WeakMap<ChatWorkspace, Set<string>>()
   function workspace(sessionId: string): ChatWorkspace {
     let value = workspaces.get(sessionId)
     if (!value) {
@@ -21,7 +25,7 @@ export function createSessionChatActions(ctx: SessionChatContext) {
       const retirement = new Promise<void>((resolve) => { resolveRetirement = resolve })
       value = { sessionId, chat: null, composer: '', mode: 'write_note', inputVersion: 0,
         modeVersion: 0, refreshEpoch: 0, loading: false, error: null, job: null,
-        hydration: null, save: null, operation: null, operationKind: null, autosaveTimer: null,
+        hydration: null, save: null, operation: null, operationKind: null, permissionOperation: null, autosaveTimer: null,
         retired: false, retirement, resolveRetirement, recovery: null }
       workspaces.set(sessionId, value)
     }
@@ -31,10 +35,18 @@ export function createSessionChatActions(ctx: SessionChatContext) {
     const id = ctx.session.activeSessionIdRef.current
     return id && !ctx.noteRecovery.isRetired(id) ? workspace(id) : null
   }
+  function isCurrentPermissionScope(sessionId: string | null, jobId: string | null, provider: SessionChatContext['selection']['selectedProvider']) {
+    if (disposed || !sessionId || ctx.session.activeSessionIdRef.current !== sessionId
+      || ctx.noteRecovery.isRetired(sessionId) || ctx.selection.selectedProvider !== provider) return false
+    const entry = workspaces.get(sessionId)
+    return Boolean(entry && !entry.retired && (entry.job?.jobId ?? null) === jobId)
+  }
   function publish(entry: ChatWorkspace) {
     if (disposed || entry.retired || ctx.session.activeSessionIdRef.current !== entry.sessionId) return
     ctx.publish({ sessionId: entry.sessionId, chat: entry.chat, composer: entry.composer,
       mode: entry.mode, job: entry.job, loading: entry.loading, saving: Boolean(entry.save),
+      permissionWorking: Boolean(entry.permissionOperation),
+      permissionRecoveryPending: permissions.needsRecovery(entry),
       working: Boolean(entry.operationKind) || chatIsWorking(entry.job), error: entry.error, dirty: chatIsDirty(entry) })
   }
   function report(entry: ChatWorkspace, cause: unknown) {
@@ -54,7 +66,7 @@ export function createSessionChatActions(ctx: SessionChatContext) {
     if (reason?.includes('earlier turn')) entry.error = reason
     publish(entry)
   }
-  async function refresh(sessionId: string, preserveMode = false) {
+  async function refresh(sessionId: string, preserveMode = false, rethrow = false, current = () => true) {
     if (ctx.noteRecovery.isRetired(sessionId)) return
     const entry = workspace(sessionId)
     const epoch = ++entry.refreshEpoch
@@ -68,12 +80,13 @@ export function createSessionChatActions(ctx: SessionChatContext) {
     publish(entry)
     try {
       const chat = await Promise.race([getChat(sessionId), entry.retirement.then(() => null)])
-      if (!chat || disposed || entry.retired || epoch !== entry.refreshEpoch) return
+      if (!chat || disposed || entry.retired || epoch !== entry.refreshEpoch || !current()) return
       acceptChat(entry, chat, inputVersion, modeVersion)
     } catch (cause) {
-      if (!disposed && epoch === entry.refreshEpoch) report(entry, cause)
+      if (!disposed && epoch === entry.refreshEpoch && current()) report(entry, cause)
+      if (rethrow) throw cause
     } finally {
-      if (epoch === entry.refreshEpoch) { entry.loading = false; publish(entry) }
+      if (epoch === entry.refreshEpoch) { entry.loading = false; if (current()) publish(entry) }
     }
   }
   function hydrate(entry: ChatWorkspace) {
@@ -84,26 +97,43 @@ export function createSessionChatActions(ctx: SessionChatContext) {
     entry.hydration = pending
     return pending
   }
-  function acceptStatus(status: GenerationJobStatus) {
+  function acceptStatus(status: GenerationJobStatus, newJob = false) {
     if (status.action !== 'chat' || disposed || ctx.noteRecovery.isRetired(status.sessionId)) return
     const entry = workspace(status.sessionId)
+    if (entry.retired || supersededJobs.get(entry)?.has(status.jobId)) return
     if (entry.job?.jobId === status.jobId && !chatIsWorking(entry.job) && chatIsWorking(status)) return
+    if (entry.job?.jobId === status.jobId && !chatIsWorking(entry.job) && entry.job.state !== status.state) return
     if (entry.job && entry.job.jobId !== status.jobId && chatIsWorking(entry.job)) return
-    entry.job = status
+    if (entry.job && entry.job.jobId !== status.jobId) {
+      // Foreign terminal events cannot replace the current job. Remember jobs
+      // displaced by a new active job so their late events cannot resurrect them.
+      if (!newJob && !chatIsWorking(status)) return
+      const previous = supersededJobs.get(entry) ?? new Set<string>()
+      previous.add(entry.job.jobId)
+      supersededJobs.set(entry, previous)
+      polling.stop(entry.job.jobId)
+    }
+    entry.job = permissions.filterStatus(entry, status)
     if (status.errorMessage) entry.error = status.errorMessage
     publish(entry)
   }
   const polling = createChatPolling(acceptStatus, refresh, (sessionId, error) => report(workspace(sessionId), error))
-  function observeJob(status: GenerationJobStatus) {
-    if (status.action !== 'chat' || ctx.noteRecovery.isRetired(status.sessionId)) return
-    acceptStatus(status)
+  const permissions = createChatPermissions(ctx, {
+    active, current: (entry) => !disposed && !entry.retired && !ctx.noteRecovery.isRetired(entry.sessionId)
+      && ctx.session.activeSessionIdRef.current === entry.sessionId && workspaces.get(entry.sessionId) === entry,
+    epoch: () => activationEpoch, publish, report, observe: observeJob,
+    refresh: (sessionId, current) => refresh(sessionId, false, true, current),
+  })
+  function observeJob(status: GenerationJobStatus, newJob = false) {
+    if (disposed || status.action !== 'chat' || ctx.noteRecovery.isRetired(status.sessionId)) return
+    acceptStatus(status, newJob)
     const current = workspace(status.sessionId).job
     if (current?.jobId === status.jobId && chatIsWorking(current)) polling.watch(current)
   }
   function receiveStatus(entry: ChatWorkspace, status: GenerationJobStatus) {
     if (entry.retired || status.sessionId !== entry.sessionId || status.action !== 'chat') return
     observeJob(status)
-    if (!chatIsWorking(status)) {
+    if (entry.job?.jobId === status.jobId && !chatIsWorking(status)) {
       polling.stop(status.jobId)
       void refresh(entry.sessionId)
     }
@@ -232,11 +262,12 @@ export function createSessionChatActions(ctx: SessionChatContext) {
     }
     ++entry.refreshEpoch
     acceptChat(entry, result.chat, inputVersion, modeVersion)
-    observeJob(result.status)
+    observeJob(result.status, true)
     if (entry.job && !chatIsWorking(entry.job)) await refresh(entry.sessionId)
   }
   const onSend = () => run('send', (entry) => send(entry, false))
   const onRetry = () => run('retry', (entry) => send(entry, true))
+  const { onDecidePermission, onRecheck } = permissions
   const onCancel = () => run('cancel', async (entry) => {
     if (!entry.job || !chatIsWorking(entry.job)) return
     const status = await cancelAiActionJob(entry.job.jobId)
@@ -284,6 +315,11 @@ export function createSessionChatActions(ctx: SessionChatContext) {
     const next = await restartChat({ scope: chatScope(entry.chat) })
     if (entry.retired) return
     ++entry.refreshEpoch
+    if (entry.job) {
+      const previous = supersededJobs.get(entry) ?? new Set<string>()
+      previous.add(entry.job.jobId)
+      supersededJobs.set(entry, previous)
+    }
     entry.job = null
     entry.composer = ''
     ++entry.inputVersion
@@ -308,6 +344,10 @@ export function createSessionChatActions(ctx: SessionChatContext) {
         ctx.noteRecovery.has(entry.sessionId) || chatIsDirty(entry) || Boolean(entry.save || entry.operationKind)))
   }
   function activate(sessionId: string | null) {
+    if (disposed || activatedSessionId !== sessionId) {
+      ++activationEpoch
+    }
+    activatedSessionId = sessionId
     disposed = false
     if (!sessionId || ctx.noteRecovery.isRetired(sessionId)) { ctx.publish(emptyChatSnapshot); return }
     const entry = workspace(sessionId)
@@ -316,14 +356,19 @@ export function createSessionChatActions(ctx: SessionChatContext) {
     if (entry.job) polling.watch(entry.job)
   }
   function dispose() {
+    ++activationEpoch
     disposed = true
     polling.dispose()
-    for (const entry of workspaces.values()) clearAutosave(entry)
+    for (const entry of workspaces.values()) {
+      entry.permissionOperation = null
+      clearAutosave(entry)
+    }
   }
   function retire(sessionId: string) {
     const entry = workspaces.get(sessionId)
     if (!entry) return
     entry.retired = true
+    entry.permissionOperation = null
     ++entry.refreshEpoch
     clearAutosave(entry)
     if (entry.job) polling.stop(entry.job.jobId)
@@ -361,5 +406,5 @@ export function createSessionChatActions(ctx: SessionChatContext) {
     return recoverNote(entry)
   }
   return { activate, dispose, observeJob, flush, hasPendingChanges, setMode, retire, recoverSession,
-    onSetComposer, onSend, onRetry, onCancel, onSubmit, onRestart }
+    onSetComposer, onSend, onRetry, onCancel, onSubmit, onRestart, onDecidePermission, onRecheck, isCurrentPermissionScope }
 }

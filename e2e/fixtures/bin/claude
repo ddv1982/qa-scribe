@@ -1,0 +1,3 @@
+#!/usr/bin/env node
+import { providerFixture } from '../chat-authorization-providers.mjs'
+providerFixture('claude', process.argv.slice(2))

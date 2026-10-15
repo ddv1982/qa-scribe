@@ -21,10 +21,18 @@ export function useSessionChat(context: Omit<SessionChatContext, 'publish'> & {
   useEffect(() => () => actions.dispose(), [actions])
   const current = snapshot.sessionId === sessionId ? snapshot : { ...emptyChatSnapshot, loading: Boolean(sessionId) }
   const noteReadOnly = Boolean(sessionId && context.noteRecovery.pendingSessionIds.includes(sessionId))
+  const permissionJobId = current.job?.jobId ?? null
+  const permissionProvider = context.selection.selectedProvider
   const sessionChat: SessionChatViewState = {
     chat: current.chat, composer: current.composer, job: current.job,
     loading: current.loading, saving: current.saving, working: current.working, error: current.error,
     dirty: current.dirty, recoveryPending: noteReadOnly,
+    permissionWorking: current.permissionWorking,
+    permissionRecoveryPending: current.permissionRecoveryPending,
+    onDecidePermission: (requestId, decision) => actions.isCurrentPermissionScope(sessionId, permissionJobId, permissionProvider)
+      ? actions.onDecidePermission(requestId, decision) : Promise.resolve(),
+    onRecheck: () => actions.isCurrentPermissionScope(sessionId, permissionJobId, permissionProvider)
+      ? actions.onRecheck() : Promise.resolve(),
     onSetComposer: actions.onSetComposer, onSend: actions.onSend, onRetry: actions.onRetry,
     onCancel: actions.onCancel, onSubmit: actions.onSubmit, onRestart: actions.onRestart,
   }

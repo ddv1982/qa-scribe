@@ -35,6 +35,7 @@ permissions = [
   "allow-restart-chat",
   "allow-submit-chat",
   "allow-start-chat-job",
+  "allow-decide-chat-permission",
   "allow-import-clipboard-screenshot",
   "allow-delete-attachment",
   "allow-get-provider-status",

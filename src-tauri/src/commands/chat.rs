@@ -4,13 +4,35 @@ use tauri::{AppHandle, State, ipc::Channel};
 
 use crate::{
     commands::CommandError,
-    jobs::{GenerationJobState, GenerationJobStatus, JobControl, JobStore},
+    jobs::{
+        ChatPermissionDecisionRequest, GenerationJobState, GenerationJobStatus, JobControl,
+        JobStore,
+    },
     settings::AppState,
 };
 
 mod lifecycle;
+#[cfg(test)]
+mod permission_tests;
 mod runner;
 mod transport;
+
+fn apply_chat_permission_decision(
+    jobs: &JobStore,
+    request: ChatPermissionDecisionRequest,
+) -> Result<GenerationJobStatus, CommandError> {
+    jobs.decide_chat_permission(request)
+        .map_err(CommandError::from)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn decide_chat_permission(
+    jobs: State<'_, JobStore>,
+    request: ChatPermissionDecisionRequest,
+) -> Result<GenerationJobStatus, CommandError> {
+    apply_chat_permission_decision(&jobs, request)
+}
 
 fn prepare_chat_job(
     state: &AppState,

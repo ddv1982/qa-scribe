@@ -38,6 +38,7 @@ fn main() {
         "restart_chat",
         "submit_chat",
         "start_chat_job",
+        "decide_chat_permission",
         "import_clipboard_screenshot",
         "delete_attachment",
         "get_provider_status",

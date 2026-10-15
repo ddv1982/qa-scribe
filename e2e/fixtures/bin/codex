@@ -3,6 +3,7 @@
 import process from 'node:process'
 import { existsSync, mkdirSync, watch, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { codexAppServer } from '../chat-authorization-codex.mjs'
 
 const args = process.argv.slice(2)
 
@@ -68,20 +69,7 @@ function waitForFile(path) {
 }
 
 if (args[0] === 'app-server') {
-  let buffered = ''
-  process.stdin.setEncoding('utf8')
-  process.stdin.on('data', (chunk) => {
-    buffered += chunk
-    const lines = buffered.split('\n')
-    buffered = lines.pop() ?? ''
-    for (const line of lines) {
-      if (!line.trim()) continue
-      const request = JSON.parse(line)
-      if (request.id === 0) process.stdout.write(`${JSON.stringify({ id: 0, result: {} })}\n`)
-      if (request.id === 1) process.stdout.write(`${JSON.stringify({ id: 1, result: { config: {}, layers: [] } })}\n`)
-      if (request.id === 2) process.stdout.write(`${JSON.stringify({ id: 2, result: { data: [] } })}\n`)
-    }
-  })
+  codexAppServer(args)
 } else if (args[0] === 'exec') {
   let prompt = ''
   process.stdin.setEncoding('utf8')

@@ -1,7 +1,7 @@
 use std::time::{Duration, Instant};
 
 use qa_scribe_core::ai::{
-    ProviderGenerationOutput, chat::streaming_chat_command, stream::StreamUpdate,
+    ProviderGenerationOutput, chat::duplex_chat_command, stream::StreamUpdate,
 };
 use tauri::ipc::Channel;
 
@@ -9,8 +9,8 @@ use super::StartChatJobRequest;
 use crate::{
     commands::{
         ai::{
+            chat_duplex::{ChatDuplexContext, run_chat_duplex},
             provider_execution::validate_effective_selection,
-            streaming_exec::run_chat_command_streaming,
         },
         providers::provider_readiness_for_job,
     },
@@ -46,7 +46,7 @@ impl ChatTransport<'_> {
             &request.model,
             request.reasoning_effort.as_deref(),
         )?;
-        let command = streaming_chat_command(
+        let command = duplex_chat_command(
             request.provider,
             prompt,
             &request.model,
@@ -56,11 +56,17 @@ impl ChatTransport<'_> {
         let mut partial = String::new();
         let mut last_emit = Instant::now();
         let mut last_len = 0usize;
-        run_chat_command_streaming(
+        run_chat_duplex(
             &command,
-            self.control,
-            request.provider,
-            self.app_data_dir,
+            &ChatDuplexContext {
+                job_id: self.job_id,
+                jobs: self.jobs,
+                control: self.control,
+                provider: request.provider,
+                app_data_dir: self.app_data_dir,
+                model: &request.model,
+                reasoning_effort: request.reasoning_effort.as_deref(),
+            },
             |update| {
                 if self.control.is_cancelled() {
                     return;
@@ -85,6 +91,9 @@ impl ChatTransport<'_> {
                         let _ = self.events.send(status);
                     }
                 }
+            },
+            |status| {
+                let _ = self.events.send(status);
             },
         )
     }

@@ -1,4 +1,4 @@
-import type { ChatMode, ChatState, GenerationJobStatus, ProviderDescriptor } from '../bindings'
+import type { ChatMode, ChatPermissionDecision, ChatState, GenerationJobStatus, ProviderDescriptor } from '../bindings'
 import type { Dispatch, SetStateAction } from 'react'
 import type { AiSelection, GenerationWorkspace, SessionWorkspace, WorkflowFeedback } from './types'
 import type { useSessionActions } from './sessionActions'
@@ -14,6 +14,10 @@ export interface SessionChatViewState {
   error: string | null
   dirty: boolean
   recoveryPending?: boolean
+  permissionWorking?: boolean
+  permissionRecoveryPending?: boolean
+  onDecidePermission?: (requestId: string, decision: ChatPermissionDecision) => Promise<void>
+  onRecheck?: () => Promise<void>
   onSetComposer: (text: string) => void
   onSend: () => Promise<void>
   onRetry: () => Promise<void>
@@ -22,14 +26,14 @@ export interface SessionChatViewState {
   onRestart: () => Promise<void>
 }
 
-export type ChatSnapshot = Pick<SessionChatViewState, 'chat' | 'composer' | 'job' | 'loading' | 'saving' | 'working' | 'error' | 'dirty'> & {
+export type ChatSnapshot = Pick<SessionChatViewState, 'chat' | 'composer' | 'job' | 'loading' | 'saving' | 'working' | 'error' | 'dirty' | 'permissionWorking' | 'permissionRecoveryPending'> & {
   sessionId: string | null
   mode: ChatMode
 }
 
 export const emptyChatSnapshot: ChatSnapshot = {
   sessionId: null, chat: null, composer: '', job: null, loading: false,
-  saving: false, working: false, error: null, dirty: false, mode: 'write_note',
+  saving: false, working: false, permissionWorking: false, permissionRecoveryPending: false, error: null, dirty: false, mode: 'write_note',
 }
 
 export type SessionChatContext = {
@@ -40,6 +44,7 @@ export type SessionChatContext = {
   selection: AiSelection
   provider: ProviderDescriptor | null
   providerWarning: string | null
+  refreshProviderStatus?: () => Promise<void>
   feedback: WorkflowFeedback
   publish: Dispatch<SetStateAction<ChatSnapshot>>
 }
@@ -63,6 +68,7 @@ export type ChatWorkspace = {
   save: Promise<boolean> | null
   operation: Promise<void> | null
   operationKind: string | null
+  permissionOperation?: Promise<void> | null
   autosaveTimer: ReturnType<typeof setTimeout> | null
 }
 

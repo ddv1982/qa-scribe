@@ -64,6 +64,7 @@ pub fn builder() -> Builder<tauri::Wry> {
             commands::chat::restart_chat,
             commands::chat::submit_chat,
             commands::chat::start_chat_job,
+            commands::chat::decide_chat_permission,
             commands::entries::create_entry,
             commands::entries::list_entries,
             commands::entries::update_entry,

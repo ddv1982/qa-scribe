@@ -6,9 +6,16 @@ use std::{
 use serde::Serialize;
 
 mod control;
+mod permission;
+#[cfg(test)]
+mod permission_tests;
 mod registration;
 mod session_deletion;
 pub use control::JobControl;
+pub use permission::ChatPermissionDetails;
+pub use permission::{
+    ChatPermissionDecision, ChatPermissionDecisionRequest, ChatPermissionRequest,
+};
 pub use session_deletion::SessionDeletionGuard;
 #[cfg(test)]
 pub(crate) use session_deletion::TestChildCleanup;
@@ -33,6 +40,7 @@ pub enum JobStoreError {
         from: GenerationJobState,
         to: GenerationJobState,
     },
+    InvalidPermission(String),
     Internal(String),
 }
 
@@ -62,7 +70,9 @@ impl std::fmt::Display for JobStoreError {
                 formatter,
                 "Generation job {job_id} cannot transition from {from:?} to {to:?}."
             ),
-            JobStoreError::Internal(message) => formatter.write_str(message),
+            JobStoreError::InvalidPermission(message) | JobStoreError::Internal(message) => {
+                formatter.write_str(message)
+            }
         }
     }
 }
@@ -80,6 +90,8 @@ pub struct GenerationJobStatus {
     pub ai_run_id: Option<String>,
     pub error_message: Option<String>,
     pub partial_text: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pending_permission: Option<ChatPermissionRequest>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, specta::Type)]
@@ -117,6 +129,7 @@ struct JobRecord {
     status: GenerationJobStatus,
     control: JobControl,
     terminal_sequence: Option<u64>,
+    permission_reply: Option<std::sync::mpsc::Sender<ChatPermissionDecision>>,
 }
 
 #[derive(Default)]
@@ -305,6 +318,7 @@ impl JobStore {
                             .ok_or_else(|| JobStoreError::NotFound {
                                 job_id: job_id.to_string(),
                             })?;
+                    record.clear_permission();
                     if matches!(
                         record.status.state,
                         GenerationJobState::Completed
@@ -416,6 +430,7 @@ impl JobStore {
                 });
             }
             apply(&mut record.status);
+            record.clear_permission();
             let needs_terminal_sequence =
                 record.status.state.is_terminal() && record.terminal_sequence.is_none();
             if needs_terminal_sequence {

@@ -63,6 +63,7 @@ pub(crate) fn run_generation_command_streaming(
     run_streaming_generation(&ProcessProviderExecutor::new(control), command, on_update)
 }
 
+#[cfg(test)]
 pub(crate) fn run_chat_command_streaming(
     command: &GenerationCommand,
     control: &JobControl,

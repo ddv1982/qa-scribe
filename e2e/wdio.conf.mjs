@@ -1,5 +1,6 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import ExecutionReporter from './execution-reporter.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const artifacts = process.env.QA_SCRIBE_E2E_ARTIFACTS ?? path.join(root, 'artifacts', 'e2e')
@@ -22,7 +23,7 @@ export const config = {
   connectionRetryTimeout: 30_000,
   connectionRetryCount: 1,
   framework: 'mocha',
-  reporters: [['spec', { addConsoleLogs: true }]],
+  reporters: [['spec', { addConsoleLogs: true }], ExecutionReporter],
   mochaOpts: {
     timeout: 60_000,
   },

@@ -22,7 +22,8 @@ export const commands = {
 	 *  The status channel deliberately shares polling/cancellation with AI actions.
 	 *  Reload the canonical ChatState when the job reaches a terminal status.
 	 */
-	startChatJob: (request: StartChatJobRequest, events: Channel<GenerationJobStatus>) => __TAURI_INVOKE<StartChatJobResult>("start_chat_job", { request, events }),
+	startChatJob: (request: StartChatJobRequest, events: Channel<GenerationJobStatus_Deserialize>) => __TAURI_INVOKE<StartChatJobResult_Serialize>("start_chat_job", { request, events }),
+	decideChatPermission: (request: ChatPermissionDecisionRequest) => __TAURI_INVOKE<GenerationJobStatus_Serialize>("decide_chat_permission", { request }),
 	createEntry: (draft: EntryDraft) => __TAURI_INVOKE<Entry>("create_entry", { draft }),
 	listEntries: (sessionId: string) => __TAURI_INVOKE<Entry[]>("list_entries", { sessionId }),
 	updateEntry: (id: string, patch: EntryPatch) => __TAURI_INVOKE<Entry>("update_entry", { id, patch }),
@@ -36,8 +37,8 @@ export const commands = {
 	updateDraft: (id: string, patch: DraftPatch) => __TAURI_INVOKE<Draft>("update_draft", { id, patch }),
 	deleteDraft: (id: string) => __TAURI_INVOKE<null>("delete_draft", { id }),
 	deleteFinding: (id: string) => __TAURI_INVOKE<null>("delete_finding", { id }),
-	startAiActionJob: (request: GenerateAiActionRequest, events: Channel<GenerationJobEvent>) => __TAURI_INVOKE<StartAiActionJobResult>("start_ai_action_job", { request, events }),
-	getAiActionJobStatus: (jobId: string) => __TAURI_INVOKE<GenerationJobStatus>("get_ai_action_job_status", { jobId }),
+	startAiActionJob: (request: GenerateAiActionRequest, events: Channel<GenerationJobEvent_Deserialize>) => __TAURI_INVOKE<StartAiActionJobResult_Serialize>("start_ai_action_job", { request, events }),
+	getAiActionJobStatus: (jobId: string) => __TAURI_INVOKE<GenerationJobStatus_Serialize>("get_ai_action_job_status", { jobId }),
 	/**
 	 *  Enumerate the AI-action jobs still running in the backend.
 	 * 
@@ -46,8 +47,8 @@ export const commands = {
 	 *  has lost its job map and the original invoke `Channel`. On boot it calls this
 	 *  to recover the survivors and re-subscribe by polling `get_ai_action_job_status`.
 	 */
-	listActiveAiActionJobs: () => __TAURI_INVOKE<GenerationJobStatus[]>("list_active_ai_action_jobs"),
-	cancelAiActionJob: (jobId: string) => __TAURI_INVOKE<GenerationJobStatus>("cancel_ai_action_job", { jobId }),
+	listActiveAiActionJobs: () => __TAURI_INVOKE<GenerationJobStatus_Serialize[]>("list_active_ai_action_jobs"),
+	cancelAiActionJob: (jobId: string) => __TAURI_INVOKE<GenerationJobStatus_Serialize>("cancel_ai_action_job", { jobId }),
 	importClipboardScreenshot: (sessionId: string, entryId: string | null, filename: string, dataUrl: string) => __TAURI_INVOKE<Attachment>("import_clipboard_screenshot", { sessionId, entryId, filename, dataUrl }),
 	deleteAttachment: (attachmentId: string) => __TAURI_INVOKE<boolean>("delete_attachment", { attachmentId }),
 	getProviderStatus: () => __TAURI_INVOKE<ProviderStatus>("get_provider_status"),
@@ -135,6 +136,38 @@ export type ChatMessage = {
 };
 
 export type ChatMode = "write_note" | "chat";
+
+export type ChatPermissionDecision = "approve" | "deny";
+
+export type ChatPermissionDecisionRequest = {
+	jobId: string,
+	sessionId: string,
+	requestId: string,
+	provider: AiProvider,
+	decision: ChatPermissionDecision,
+};
+
+export type ChatPermissionRequest = ChatPermissionRequest_Serialize | ChatPermissionRequest_Deserialize;
+
+export type ChatPermissionRequest_Deserialize = {
+	canApprove?: boolean,
+	requestId: string,
+	provider: AiProvider,
+	title: string,
+	toolName: string | null,
+	serverName: string | null,
+	inputJson: string | null,
+};
+
+export type ChatPermissionRequest_Serialize = {
+	canApprove?: boolean,
+	requestId: string,
+	provider: AiProvider,
+	title: string,
+	toolName: string | null,
+	serverName: string | null,
+	inputJson: string | null,
+};
 
 export type ChatRestartRequest = {
 	scope: ChatRevision,
@@ -341,11 +374,17 @@ export type GenerationContext = {
 	createdAt: string,
 };
 
-export type GenerationJobEvent = { type: "started"; job_id: string; status: GenerationJobStatus; generation_context: GenerationContext; ai_run: AiRun } | { type: "progress"; job_id: string; status: GenerationJobStatus; message: string } | { type: "partial"; job_id: string; status: GenerationJobStatus; body: string } | { type: "completed"; job_id: string; status: GenerationJobStatus; result: GenerateAiActionResult } | { type: "failed"; job_id: string; status: GenerationJobStatus; error_message: string; ai_run: AiRun | null } | { type: "cancelled"; job_id: string; status: GenerationJobStatus; ai_run: AiRun | null };
+export type GenerationJobEvent = GenerationJobEvent_Serialize | GenerationJobEvent_Deserialize;
+
+export type GenerationJobEvent_Deserialize = ({ type: "started"; job_id: string; status: GenerationJobStatus_Deserialize; generation_context: GenerationContext; ai_run: AiRun }) & { body?: never; error_message?: never; message?: never; result?: never } | ({ type: "progress"; job_id: string; status: GenerationJobStatus_Deserialize; message: string }) & { ai_run?: never; body?: never; error_message?: never; generation_context?: never; result?: never } | ({ type: "partial"; job_id: string; status: GenerationJobStatus_Deserialize; body: string }) & { ai_run?: never; error_message?: never; generation_context?: never; message?: never; result?: never } | ({ type: "completed"; job_id: string; status: GenerationJobStatus_Deserialize; result: GenerateAiActionResult }) & { ai_run?: never; body?: never; error_message?: never; generation_context?: never; message?: never } | ({ type: "failed"; job_id: string; status: GenerationJobStatus_Deserialize; error_message: string; ai_run: AiRun | null }) & { body?: never; generation_context?: never; message?: never; result?: never } | ({ type: "cancelled"; job_id: string; status: GenerationJobStatus_Deserialize; ai_run: AiRun | null }) & { body?: never; error_message?: never; generation_context?: never; message?: never; result?: never };
+
+export type GenerationJobEvent_Serialize = ({ type: "started"; job_id: string; status: GenerationJobStatus_Serialize; generation_context: GenerationContext; ai_run: AiRun }) & { body?: never; error_message?: never; message?: never; result?: never } | ({ type: "progress"; job_id: string; status: GenerationJobStatus_Serialize; message: string }) & { ai_run?: never; body?: never; error_message?: never; generation_context?: never; result?: never } | ({ type: "partial"; job_id: string; status: GenerationJobStatus_Serialize; body: string }) & { ai_run?: never; error_message?: never; generation_context?: never; message?: never; result?: never } | ({ type: "completed"; job_id: string; status: GenerationJobStatus_Serialize; result: GenerateAiActionResult }) & { ai_run?: never; body?: never; error_message?: never; generation_context?: never; message?: never } | ({ type: "failed"; job_id: string; status: GenerationJobStatus_Serialize; error_message: string; ai_run: AiRun | null }) & { body?: never; generation_context?: never; message?: never; result?: never } | ({ type: "cancelled"; job_id: string; status: GenerationJobStatus_Serialize; ai_run: AiRun | null }) & { body?: never; error_message?: never; generation_context?: never; message?: never; result?: never };
 
 export type GenerationJobState = "starting" | "running" | "cancelling" | "completed" | "failed" | "cancelled";
 
-export type GenerationJobStatus = {
+export type GenerationJobStatus = GenerationJobStatus_Serialize | GenerationJobStatus_Deserialize;
+
+export type GenerationJobStatus_Deserialize = {
 	jobId: string,
 	sessionId: string,
 	action: string,
@@ -354,6 +393,19 @@ export type GenerationJobStatus = {
 	aiRunId: string | null,
 	errorMessage: string | null,
 	partialText: string | null,
+	pendingPermission?: ChatPermissionRequest_Deserialize | null,
+};
+
+export type GenerationJobStatus_Serialize = {
+	jobId: string,
+	sessionId: string,
+	action: string,
+	state: GenerationJobState,
+	progressMessage: string,
+	aiRunId: string | null,
+	errorMessage: string | null,
+	partialText: string | null,
+	pendingPermission?: ChatPermissionRequest_Serialize | null,
 };
 
 export type ProviderCatalogRollout = "disabled" | "diagnostics" | "selector";
@@ -534,9 +586,16 @@ export type SessionPatch = {
 	relatedReference?: string | null,
 };
 
-export type StartAiActionJobResult = {
+export type StartAiActionJobResult = StartAiActionJobResult_Serialize | StartAiActionJobResult_Deserialize;
+
+export type StartAiActionJobResult_Deserialize = {
 	jobId: string,
-	status: GenerationJobStatus,
+	status: GenerationJobStatus_Deserialize,
+};
+
+export type StartAiActionJobResult_Serialize = {
+	jobId: string,
+	status: GenerationJobStatus_Serialize,
 };
 
 export type StartChatJobRequest = {
@@ -547,11 +606,20 @@ export type StartChatJobRequest = {
 	reasoningEffort: string | null,
 };
 
-export type StartChatJobResult = {
+export type StartChatJobResult = StartChatJobResult_Serialize | StartChatJobResult_Deserialize;
+
+export type StartChatJobResult_Deserialize = {
 	jobId: string,
 	turnId: string,
 	chat: ChatState,
-	status: GenerationJobStatus,
+	status: GenerationJobStatus_Deserialize,
+};
+
+export type StartChatJobResult_Serialize = {
+	jobId: string,
+	turnId: string,
+	chat: ChatState,
+	status: GenerationJobStatus_Serialize,
 };
 
 export type TestwareDepth = "lean" | "balanced" | "thorough";
