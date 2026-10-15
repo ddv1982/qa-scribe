@@ -75,7 +75,7 @@
 ## v0.7.18 - 2026-07-14
 
 - Keep the rich-text editor instance stable while switching between read-only record previews, preventing a destroyed TipTap view from crashing React and leaving the application blank.
-- Make every Testware library result renderable and openable in its owning Session, including the previously failing Breeding overview record from the production database.
+- Make every Testware library result renderable and openable in its owning Session, including a previously failing record from the production database.
 - Exercise cross-session preview changes with the real editor in regression tests instead of replacing the editor with a test stub.
 
 ## v0.7.17 - 2026-07-14

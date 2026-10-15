@@ -146,9 +146,10 @@ function listItemMarkdown(node: ProseMirrorNode, children: string | string[] | u
 }
 
 function orderedListPosition(node: ProseMirrorNode, parent: ProseMirrorNode): number {
-  let position = Number(parent.attrs.start) || 1
+  const start = Number.isInteger(parent.attrs.start) ? Number(parent.attrs.start) : 1
+  let position = start
   parent.forEach((child, _offset, index) => {
-    if (child === node) position = index + 1
+    if (child === node) position = start + index
   })
   return position
 }

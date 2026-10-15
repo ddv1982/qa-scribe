@@ -215,8 +215,11 @@ function repairEscapedEditorHtml(value: string): string {
 }
 
 function shouldDecodeEscapedEditorHtml(value: string): boolean {
+  // Genuine HTML already has an encoding boundary. Escapes inside it are text,
+  // including submitted code samples, not legacy markup to decode again.
+  if (literalEditorTagPattern.test(value)) return false
   if (!escapedEditorOpeningTagPattern.test(value)) return false
-  return escapedEditorClosingTagPattern.test(value) || literalEditorTagPattern.test(value) || escapedSelfClosingEditorTagPattern.test(value)
+  return escapedEditorClosingTagPattern.test(value) || escapedSelfClosingEditorTagPattern.test(value)
 }
 
 function decodeHtmlEntities(value: string): string {
@@ -231,7 +234,7 @@ function decodeHtmlEntities(value: string): string {
 // canonicalization, and task-list normalization.
 const editorPurifyConfig = {
   ALLOWED_TAGS: [...EDITOR_HTML_TAGS],
-  ALLOWED_ATTR: ['href', 'target', 'rel', 'src', 'alt', 'data-attachment-id', 'type', 'checked', 'data-type', 'data-checked'],
+  ALLOWED_ATTR: ['href', 'target', 'rel', 'src', 'alt', 'start', 'data-attachment-id', 'type', 'checked', 'data-type', 'data-checked'],
   ALLOW_DATA_ATTR: false,
   ALLOW_ARIA_ATTR: false,
   // DOMPurify's default URI policy rejects the qa-scribe-attachment: scheme;
@@ -264,7 +267,15 @@ function applyEditorAttributePolicy(root: HTMLElement) {
   root.querySelectorAll('img').forEach((image) => sanitizeImageElement(image))
   root.querySelectorAll('ul').forEach((list) => sanitizeUnorderedListElement(list))
   root.querySelectorAll('li').forEach((item) => sanitizeListItemElement(item))
-  root.querySelectorAll('b, br, em, h2, h3, i, ol, p, strong').forEach(removeAllAttributes)
+  root.querySelectorAll('ol').forEach((list) => {
+    const raw = list.getAttribute('start') ?? ''
+    const start = Number(raw)
+    removeAllAttributes(list)
+    if (/^-?\d+$/.test(raw) && Number.isSafeInteger(start) && start >= -2147483648 && start <= 2147483647) {
+      list.setAttribute('start', String(start))
+    }
+  })
+  root.querySelectorAll('b, br, em, h2, h3, i, p, strong').forEach(removeAllAttributes)
 }
 
 function isVisuallyEmptyEditorHtml(value: string): boolean {

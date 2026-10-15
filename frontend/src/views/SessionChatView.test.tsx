@@ -30,6 +30,31 @@ function mount(patch: Partial<Props> = {}) {
 const button = (name: string) => screen.getByRole('button', { name })
 
 describe('SessionChatView', () => {
+  it('formats assistant Markdown while keeping user syntax literal', () => {
+    const text = '## Requirements\n\n**Important** and `record_id`\n\n- Parent\n  - Nested\n- [x] Verified\n\n> Context\n\n```sql\nselect 1;\n```\n\n| Check | Result |\n| --- | --- |\n| Linking | Pass |'
+    const { container } = mount({ chat: chat([message('user', '**Keep literal**'), message('assistant', text)]) })
+    expect(screen.getByRole('heading', { name: 'Requirements', level: 2 })).toBeInTheDocument()
+    expect(screen.getByText('Important').tagName).toBe('STRONG')
+    expect(screen.getByText('record_id').tagName).toBe('CODE')
+    expect(container.querySelector('.chat-message-assistant ul ul')).not.toBeNull()
+    expect(screen.getByRole('checkbox')).toBeChecked()
+    expect(screen.getByRole('checkbox')).toBeDisabled()
+    expect(container.querySelector('blockquote')).toHaveTextContent('Context')
+    expect(container.querySelector('pre code')).toHaveTextContent('select 1;')
+    expect(screen.getByRole('table')).toHaveTextContent('Linking')
+    expect(screen.getByText('**Keep literal**')).toHaveClass('chat-message-text')
+  })
+
+  it('formats partial Markdown and settles to one hydrated final response', () => {
+    const { props, rerender } = mount({ job: job({ partialText: '## Partial\n\n```js\nlet x = 1' }) })
+    expect(screen.getByRole('heading', { name: 'Partial', level: 2 })).toBeInTheDocument()
+    expect(screen.getByText('let x = 1').tagName).toBe('CODE')
+    const text = '## Partial\n\n```js\nlet x = 1\n```'
+    rerender(<SessionChatView {...props} chat={chat([{ ...message('assistant', text), aiRunId: 'run-1' }])} job={job({ state: 'completed', aiRunId: 'run-1', partialText: text })} />)
+    expect(screen.getAllByRole('heading', { name: 'Partial', level: 2 })).toHaveLength(1)
+    expect(screen.queryByRole('region', { name: 'Final response pending save' })).not.toBeInTheDocument()
+  })
+
   it('presents recovery without a receipt as an uncertain outcome and disables editing (R46-01)', () => {
     const { props } = mount({ recoveryPending: true, chat: chat(), composer: 'Retained draft' })
     expect(screen.getByRole('status')).toHaveTextContent('Session Note recovery required')

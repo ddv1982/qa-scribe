@@ -4,6 +4,37 @@ import { copyRecordForJira, formatRecordForClipboard, managedAttachmentReference
 import { managedAttachmentImageHtml } from './editorHtml'
 
 describe('clipboardExport', () => {
+  it('keeps escaped allowed-tag examples literal in both clipboard flavors', () => {
+    const payload = formatRecordForClipboard({ title: '', bodyHtml: '<p>Assistant:</p><p>&lt;img src="https://example.test/tracker"&gt;&lt;strong&gt;literal&lt;/strong&gt;</p>' })
+    expect(payload.html).not.toContain('<img')
+    expect(payload.html).not.toContain('<strong>literal</strong>')
+    expect(payload.html).toContain('&lt;img')
+    expect(payload.plain).toContain('<img src="https://example.test/tracker">')
+    expect(payload.plain).toContain('<strong>literal</strong>')
+  })
+
+  it('preserves non-default ordered numbering around separate task lists', () => {
+    const payload = formatRecordForClipboard({ title: '', bodyHtml: '<ol start="7"><li><p>Seventh</p></li><li><p>Eighth</p></li></ol><ul data-type="taskList"><li data-type="taskItem" data-checked="true"><p>Done</p></li></ul><ol start="10"><li><p>Tenth</p></li></ol>' })
+    expect(payload.plain).toContain('7. Seventh')
+    expect(payload.plain).toContain('8. Eighth')
+    expect(payload.plain).toContain('- [x] Done')
+    expect(payload.plain).toContain('10. Tenth')
+    expect(payload.html).toContain('<ol start="7">')
+    expect(payload.html).toContain('<ol start="10">')
+  })
+
+  it('exports submitted Markdown fallbacks with hard breaks and table cell text intact', () => {
+    const payload = formatRecordForClipboard({
+      title: '',
+      bodyHtml: '<p>Assistant:</p><h2>Requirements</h2><p><strong>Important</strong></p><p>select 1;<br>second line</p><p>Name | Result</p><p>α | Pass</p>',
+    })
+    expect(payload.plain).toContain('## Requirements')
+    expect(payload.plain).toContain('**Important**')
+    expect(payload.plain).toMatch(/select 1;.*\nsecond line/)
+    expect(payload.plain).toContain('α | Pass')
+    expect(payload.html).toMatch(/select 1;<br\s*\/?>second line/)
+  })
+
   afterEach(() => {
     vi.unstubAllGlobals()
     vi.clearAllMocks()

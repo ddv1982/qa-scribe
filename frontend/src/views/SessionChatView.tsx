@@ -1,6 +1,7 @@
 import { useId, useState } from 'react'
 import '../styles/chat-permissions.css'
 import type { AiProvider, ChatPermissionDecision, ChatState, GenerationJobStatus } from '../bindings'
+import { MarkdownContent } from '../content/MarkdownContent'
 
 export type SessionChatViewProps = {
   chat: ChatState | null
@@ -199,7 +200,9 @@ export function SessionChatView({
                   <strong>{message.role === 'user' ? 'You' : 'Assistant'}</strong>
                   {message.status !== 'completed' ? <span className="chat-turn-status">{message.status[0].toUpperCase() + message.status.slice(1)}</span> : null}
                 </header>
-                {message.text ? <p className="chat-message-text">{message.text}</p> : null}
+                {message.text ? message.role === 'assistant'
+                  ? <MarkdownContent text={message.text} />
+                  : <p className="chat-message-text">{message.text}</p> : null}
                 {message.errorMessage ? <p className="chat-error">{message.errorMessage}</p> : null}
               </li>
             ))}
@@ -209,7 +212,7 @@ export function SessionChatView({
           <section className="chat-partial" aria-label={responseLabel}>
             <h3>{responseLabel}</h3>
             <p className="chat-help">{job.state === 'completed' ? 'Waiting for the saved transcript to refresh.' : 'Not a completed transcript message.'}</p>
-            <p className="chat-message-text">{job.partialText}</p>
+            <MarkdownContent text={job.partialText} />
           </section>
         ) : null}
       </section>
