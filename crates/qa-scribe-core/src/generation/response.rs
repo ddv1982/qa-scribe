@@ -4,6 +4,7 @@ use super::html::{
 };
 
 mod images;
+mod lists;
 
 pub use images::preserve_managed_attachment_images;
 
@@ -267,6 +268,7 @@ fn sanitize_opening_editor_tag(tag_name: &str, raw_tag: &str) -> Option<String> 
         "img" => sanitize_image_tag(raw_tag),
         "input" => sanitize_input_tag(raw_tag),
         "ul" => Some(sanitize_unordered_list_tag(raw_tag)),
+        "ol" => Some(lists::sanitize_ordered_list_tag(raw_tag)),
         "li" => Some(sanitize_list_item_tag(raw_tag)),
         "br" => Some("<br>".to_string()),
         _ => Some(format!("<{tag_name}>")),

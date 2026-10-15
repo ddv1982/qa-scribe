@@ -1,6 +1,24 @@
 use super::*;
 
 #[test]
+fn generated_ordered_lists_preserve_safe_starts_without_other_attributes() {
+    for (input, expected) in [("7", "7"), ("-2", "-2"), ("0", "0")] {
+        let html = format!("<ol start=\"{input}\" onclick=\"unsafe()\"><li>Case</li></ol>");
+        assert_eq!(
+            sanitize_generated_rich_html(&html),
+            format!("<ol start=\"{expected}\"><li>Case</li></ol>")
+        );
+    }
+    for input in ["bad", "1 onmouseover=unsafe()", "9007199254740992"] {
+        let html = format!("<ol start=\"{input}\"><li>Case</li></ol>");
+        assert_eq!(
+            sanitize_generated_rich_html(&html),
+            "<ol><li>Case</li></ol>"
+        );
+    }
+}
+
+#[test]
 fn output_marker_uses_random_suffixes() {
     let first = OutputMarker::new();
     let second = OutputMarker::new();
