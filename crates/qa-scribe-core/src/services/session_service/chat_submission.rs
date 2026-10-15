@@ -3,6 +3,8 @@ use crate::{Result, domain::*, error::validation};
 use rusqlite::{OptionalExtension, params};
 use serde_json::{Value, json};
 
+mod markdown;
+
 impl SessionService {
     /// Appends the canonical conversation and receipt in one transaction. Does not invoke AI.
     pub fn submit_chat(&self, request: ChatSubmitRequest) -> Result<ChatSubmissionReceipt> {
@@ -58,25 +60,29 @@ fn append_transcript(
             ChatRole::User => "User:",
             ChatRole::Assistant => "Assistant:",
         };
-        html.push_str("<p>");
-        html.push_str(label);
-        html.push_str("<br>");
-        let mut content = vec![
-            json!({"type":"text", "text":label}),
-            json!({"type":"hardBreak"}),
-        ];
-        for (index, line) in message.text.split('\n').enumerate() {
-            if index > 0 {
-                html.push_str("<br>");
-                content.push(json!({"type":"hardBreak"}));
-            }
-            html.push_str(&escape(line));
-            if !line.is_empty() {
-                content.push(json!({"type":"text", "text":line}));
-            }
+        let mut nodes = match message.role {
+            ChatRole::User => markdown::literal(&message.text),
+            ChatRole::Assistant => markdown::parse(&message.text),
+        };
+        let mut label_content = vec![json!({"type":"text", "text":label})];
+        if nodes
+            .first()
+            .is_some_and(|node| node["type"] == "paragraph")
+        {
+            label_content.push(json!({"type":"hardBreak"}));
+            label_content.extend(
+                nodes[0]["content"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .cloned(),
+            );
+            nodes[0]["content"] = json!(label_content);
+        } else {
+            nodes.insert(0, json!({"type":"paragraph", "content":label_content}));
         }
-        html.push_str("</p>");
-        added.push(json!({"type":"paragraph", "content":content}));
+        html.push_str(&markdown::to_html(&nodes));
+        added.extend(nodes);
     }
     let Some(raw) = body_json else {
         if format != "html" {
@@ -106,7 +112,7 @@ fn append_transcript(
     ))
 }
 
-fn escape(text: &str) -> String {
+pub(super) fn escape(text: &str) -> String {
     let mut escaped = String::new();
     for character in text.chars() {
         match character {

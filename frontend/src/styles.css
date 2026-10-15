@@ -7,6 +7,7 @@
 @import './styles/shell.css';
 @import './styles/sidebar.css';
 @import './styles/editor.css';
+@import './styles/content.css';
 @import './styles/collections.css';
 @import './styles/responsive.css';
 
@@ -43,7 +44,7 @@
 }
 
 .chat-topline h2,
-.chat-partial h3 {
+.chat-partial > h3 {
   margin: 0 0 var(--space-1);
   font-size: var(--font-size-lg);
   font-weight: 600;

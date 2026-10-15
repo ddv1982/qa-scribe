@@ -13,6 +13,57 @@ import {
 import { managedAttachmentImageHtml } from './editorHtml'
 
 describe('editorDocument', () => {
+  it.each(['html', 'tiptap_json'])('keeps submitted allowed HTML tags literal through %s import, save and reopen', (bodyFormat) => {
+    const literal = '<img src="https://example.test/tracker" alt="Example"><strong>literal</strong>'
+    const escaped = '&lt;img src="https://example.test/tracker" alt="Example"&gt;&lt;strong&gt;literal&lt;/strong&gt;'
+    const bodyJson = bodyFormat === 'tiptap_json' ? JSON.stringify({ schemaVersion: 1, doc: { type: 'doc', content: [
+      { type: 'paragraph', content: [{ type: 'text', text: 'Assistant:' }] },
+      { type: 'paragraph', content: [{ type: 'text', text: literal }] },
+    ] } }) : null
+    const imported = richEditorDocumentFromStoredBody({ body: `<p>Assistant:</p><p>${escaped}</p>`, bodyJson, bodyFormat })
+    for (const document of [imported, richEditorDocumentFromStoredBody(richEditorDocumentToStoredBody(imported))]) {
+      const html = richEditorDocumentToHtml(document)
+      expect(html).not.toContain('<img')
+      expect(html).not.toContain('<strong>literal</strong>')
+      expect(html).toContain('&lt;img')
+      expect(html).toContain('&lt;strong&gt;literal&lt;/strong&gt;')
+      expect(JSON.stringify(document.doc)).not.toContain('"type":"image"')
+      expect(richEditorDocumentToPlainText(document)).toContain(literal)
+    }
+  })
+
+  it('retains a non-default ordered list start through HTML and stored JSON', () => {
+    const document = richEditorDocumentFromHtml('<ol start="7"><li><p>Seventh</p></li><li><p>Eighth</p></li></ol>')
+    const stored = richEditorDocumentToStoredBody(document)
+    expect(stored.body).toContain('<ol start="7">')
+    expect(richEditorDocumentFromStoredBody(stored).doc.content?.[0].attrs?.start).toBe(7)
+  })
+
+  it('round-trips submitted Markdown nodes without losing supported marks or fallback lines', () => {
+    const bodyJson = JSON.stringify({ schemaVersion: 1, doc: { type: 'doc', content: [
+      { type: 'paragraph', content: [{ type: 'text', text: 'Assistant:' }] },
+      { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Requirements' }] },
+      { type: 'paragraph', content: [{ type: 'text', text: 'Important', marks: [{ type: 'bold' }] }] },
+      { type: 'taskList', content: [{ type: 'taskItem', attrs: { checked: true }, content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Verified' }] }] }] },
+      { type: 'paragraph', content: [{ type: 'text', text: "select '<x>';" }, { type: 'hardBreak' }, { type: 'text', text: 'second line' }] },
+      { type: 'paragraph', content: [{ type: 'text', text: 'Name | Result' }] },
+      { type: 'paragraph', content: [{ type: 'text', text: 'α | Pass' }] },
+    ] } })
+    const fromJson = richEditorDocumentFromStoredBody({ body: '', bodyJson, bodyFormat: 'tiptap_json' })
+    const html = richEditorDocumentToHtml(fromJson)
+    expect(html).toContain('<h2>Requirements</h2>')
+    expect(html).toContain('<strong>Important</strong>')
+    expect(html).toContain('data-type="taskList"')
+    expect(html).toContain('data-checked="true"')
+    const fromHtml = richEditorDocumentFromHtml(html)
+    expect(richEditorDocumentToPlainText(fromHtml)).toBe(richEditorDocumentToPlainText(fromJson))
+    const stored = richEditorDocumentToStoredBody(fromJson)
+    const reopened = richEditorDocumentFromStoredBody(stored)
+    expect(JSON.stringify(reopened.doc)).toContain('"type":"hardBreak"')
+    expect(richEditorDocumentToHtml(reopened)).toMatch(/select .*<br\s*\/?>second line/)
+    expect(richEditorDocumentToPlainText(fromHtml)).toContain('α | Pass')
+  })
+
   it('imports legacy escaped HTML into a Tiptap document and projects pretty HTML', () => {
     const document = richEditorDocumentFromHtml(`
       Cannot Log In to Gmail

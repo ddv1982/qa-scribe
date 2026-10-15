@@ -2758,6 +2758,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "pulldown-cmark"
+version = "0.13.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e9f068eba8e7071c5f9511831b44f32c740d5adf574e990f946ddb53db2f314e"
+dependencies = [
+ "bitflags 2.13.0",
+ "memchr",
+ "unicase",
+]
+
+[[package]]
 name = "pxfm"
 version = "0.1.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2765,7 +2776,7 @@ checksum = "d55d956fa96f5ec02be2e13af0e20391a5aa83d6a074e3ad368959d0fab299ea"
 
 [[package]]
 name = "qa-scribe-app"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "qa-scribe-core",
  "serde_json",
@@ -2773,22 +2784,24 @@ dependencies = [
 
 [[package]]
 name = "qa-scribe-core"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "base64 0.22.1",
  "chrono",
+ "pulldown-cmark",
  "rusqlite",
  "serde",
  "serde_json",
  "sha2",
  "specta",
  "thiserror 2.0.18",
+ "url",
  "uuid",
 ]
 
 [[package]]
 name = "qa-scribe-tauri"
-version = "0.8.3"
+version = "0.8.4"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -4412,6 +4425,12 @@ checksum = "96bd2f2237fe450fcd0a1d2f5f4e91711124f7857ba2e964247776ebeeb7b0c4"
 dependencies = [
  "unic-common",
 ]
+
+[[package]]
+name = "unicase"
+version = "2.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "357cc3acc6a036009fd6c973ed009037c732d60d0b4f6c673e9041497482a28f"
 
 [[package]]
 name = "unicode-ident"

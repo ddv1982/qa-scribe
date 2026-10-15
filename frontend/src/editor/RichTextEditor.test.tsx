@@ -82,14 +82,14 @@ describe('RichTextEditor toolbar', () => {
 
     rerender(
       <RichTextEditor
-        value={richEditorDocumentFromHtml('<h2>Second record</h2><ol><li>Breeding coverage</li></ol>')}
-        ariaLabel="Breeding testware preview"
+        value={richEditorDocumentFromHtml('<h2>Second record</h2><ol><li>Checkout coverage</li></ol>')}
+        ariaLabel="Checkout testware preview"
         readOnly
       />,
     )
 
     await waitFor(() => {
-      expect(screen.getByRole('textbox', { name: 'Breeding testware preview' }).textContent).toContain('Breeding coverage')
+      expect(screen.getByRole('textbox', { name: 'Checkout testware preview' }).textContent).toContain('Checkout coverage')
     })
     expect(screen.queryByRole('textbox', { name: 'IRIS testware preview' })).toBeNull()
   })

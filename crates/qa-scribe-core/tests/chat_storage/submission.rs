@@ -1,6 +1,194 @@
 use super::*;
 
 #[test]
+fn assistant_markdown_submission_formats_html_and_json_and_preserves_user_literals() {
+    for rich in [false, true] {
+        let service = SessionService::in_memory().unwrap();
+        let id = session(&service);
+        let note = service.get_or_create_note_entry(&id).unwrap();
+        let original = json!({"schemaVersion":1,"doc":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Existing"}]}]}});
+        let note = service
+            .update_entry(
+                &note.id,
+                EntryPatch {
+                    body: Some("<p>Existing</p>".into()),
+                    body_json: Some(rich.then(|| original.to_string())),
+                    body_format: Some(Some(if rich { "tiptap_json" } else { "html" }.into())),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        let assistant = "# Requirements\n\n**Important** and *context*\n\n- Parent\n  - Nested\n\n- [x] Verified\n\n[Reference](https://example.com)\n\n<img src=\"https://example.test/literal-raw\"><strong>raw example</strong>\n\n```html\n<img src=\"https://example.test/literal-code\"><strong>code example</strong>\n```\n\n7. Seventh\n8. Eighth";
+        let chat = complete(
+            &service,
+            &service.load_chat(&id).unwrap(),
+            "**Keep literal**",
+            assistant,
+        );
+        let receipt = service.submit_chat(submit_request(&chat, &note)).unwrap();
+        let result = service.get_or_create_note_entry(&id).unwrap();
+        assert!(result.body.starts_with("<p>Existing</p>"));
+        assert!(
+            result.body.contains("<h2>Requirements</h2>"),
+            "{}",
+            result.body
+        );
+        assert!(result.body.contains("<strong>Important</strong>"));
+        assert!(result.body.contains("<em>context</em>"));
+        assert!(result.body.contains("<ul>"));
+        assert!(result.body.contains("data-type=\"taskList\""));
+        assert!(result.body.contains("href=\"https://example.com\""));
+        assert!(result.body.contains("**Keep literal**"));
+        assert!(!result.body.contains("<img"));
+        assert!(result.body.contains("&lt;img"));
+        assert!(
+            result
+                .body
+                .contains("&lt;strong&gt;code example&lt;/strong&gt;")
+        );
+        assert!(result.body.contains("<ol start=\"7\">"));
+        if rich {
+            let parsed: Value = serde_json::from_str(result.body_json.as_ref().unwrap()).unwrap();
+            let nodes = parsed["doc"]["content"].as_array().unwrap();
+            assert_eq!(nodes[0], original["doc"]["content"][0]);
+            assert!(
+                nodes
+                    .iter()
+                    .any(|node| node["type"] == "heading" && node["attrs"]["level"] == 2)
+            );
+            let serialized = parsed.to_string();
+            for kind in [
+                "bold",
+                "italic",
+                "bulletList",
+                "taskList",
+                "taskItem",
+                "link",
+            ] {
+                assert!(
+                    serialized.contains(&format!("\"type\":\"{kind}\"")),
+                    "missing {kind}"
+                );
+            }
+        } else {
+            assert!(result.body_json.is_none());
+        }
+        assert_eq!(
+            service.submit_chat(submit_request(&chat, &note)).unwrap(),
+            receipt
+        );
+        assert_eq!(service.get_or_create_note_entry(&id).unwrap(), result);
+        assert_eq!(service.load_chat(&id).unwrap().messages, chat.messages);
+    }
+}
+
+#[test]
+fn markdown_fallbacks_keep_text_boundaries_and_block_unsafe_resources() {
+    let service = SessionService::in_memory().unwrap();
+    let id = session(&service);
+    let note = service.get_or_create_note_entry(&id).unwrap();
+    let note = service
+        .update_entry(
+            &note.id,
+            EntryPatch {
+                body_json: Some(Some(
+                    json!({"schemaVersion":1,"doc":{"type":"doc","content":[]}}).to_string(),
+                )),
+                body_format: Some(Some("tiptap_json".into())),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    let text = "###### Deep heading\n\n`inline` and ~~retained~~\n\n> Quote α\n> next β\n\n```sql\nselect '<x>';\nsecond line\n```\n\n| Name | Result |\n| --- | --- |\n| α | Pass |\n\n![Evidence](https://example.com/tracker)\n\n[Bad](javascript:alert%281%29) [Local](file:///tmp/private) [Relative](/settings)\n\n[Good](https://example.com?a=1&b=2)\n\n<script>alert(1)</script>\n\n1. First\n2. Second";
+    let chat = complete(&service, &service.load_chat(&id).unwrap(), "Literal", text);
+    service.submit_chat(submit_request(&chat, &note)).unwrap();
+    let result = service.get_or_create_note_entry(&id).unwrap();
+    for fragment in [
+        "<h3>Deep heading</h3>",
+        "inline",
+        "retained",
+        "Quote α<br>next β",
+        "select &#39;&lt;x&gt;&#39;;<br>second line",
+        "Name | Result",
+        "α | Pass",
+        "Evidence",
+        "&lt;script&gt;alert(1)&lt;/script&gt;",
+        "<ol start=\"1\">",
+    ] {
+        assert!(
+            result.body.contains(fragment),
+            "missing {fragment}: {}",
+            result.body
+        );
+    }
+    for forbidden in [
+        "<script",
+        "<img",
+        "href=\"javascript:",
+        "href=\"file:",
+        "href=\"/settings",
+        "<table",
+        "<code",
+        "<blockquote",
+    ] {
+        assert!(!result.body.contains(forbidden), "unexpected {forbidden}");
+    }
+    let document: Value = serde_json::from_str(result.body_json.as_ref().unwrap()).unwrap();
+    let serialized = document.to_string();
+    assert!(!serialized.contains("tracker"));
+    assert!(!serialized.contains("javascript:"));
+    for text in [
+        "Deep heading",
+        "Quote α",
+        "next β",
+        "second line",
+        "Evidence",
+        "Bad",
+        "Local",
+        "Relative",
+        "Good",
+        "First",
+        "Second",
+    ] {
+        assert!(serialized.contains(text), "JSON lost {text}");
+    }
+}
+
+#[test]
+fn markdown_expansion_overflow_rolls_back_note_and_receipt() {
+    let service = SessionService::in_memory().unwrap();
+    let id = session(&service);
+    let note = service.get_or_create_note_entry(&id).unwrap();
+    let note = service
+        .update_entry(
+            &note.id,
+            EntryPatch {
+                body: Some(format!("<p>{}</p>", "x".repeat(70_000))),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    let text = "*x* ".repeat(3000);
+    let chat = complete(&service, &service.load_chat(&id).unwrap(), "Q", &text);
+    validation(service.submit_chat(submit_request(&chat, &note)));
+    assert_eq!(service.get_or_create_note_entry(&id).unwrap(), note);
+    assert_eq!(service.load_chat(&id).unwrap(), chat);
+}
+
+#[test]
+fn deep_markdown_nesting_falls_back_to_readable_literal_content() {
+    let service = SessionService::in_memory().unwrap();
+    let id = session(&service);
+    let note = service.get_or_create_note_entry(&id).unwrap();
+    let text = format!("{}Deep content", "> ".repeat(64));
+    let chat = complete(&service, &service.load_chat(&id).unwrap(), "Q", &text);
+    service.submit_chat(submit_request(&chat, &note)).unwrap();
+    let result = service.get_or_create_note_entry(&id).unwrap();
+    assert!(result.body.contains("Deep content"));
+    assert!(result.body.contains("&gt; &gt;"));
+}
+
+#[test]
 fn submission_preserves_rich_document_and_escapes_faithful_role_labelled_transcript() {
     let service = SessionService::in_memory().unwrap();
     let id = session(&service);
