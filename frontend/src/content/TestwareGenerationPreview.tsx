@@ -1,24 +1,29 @@
-import { useEffect, useMemo, useState } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { Streamdown, type Components } from 'streamdown'
-import { createManagedAttachmentPreviewCache } from '../editor/editorHtml'
+import { createManagedAttachmentPreviewCache, type ManagedAttachmentPreviewCache } from '../editor/editorHtml'
 import { isSafeEditorLinkUrl } from '../editor/editorHtml'
 import { testwarePreviewHtml } from './testwarePreviewHtml'
+import { getAttachmentPreviewDataUrl } from '../tauri'
+
+const EvidencePreviewCache = createContext<ManagedAttachmentPreviewCache | null>(null)
 
 function EvidenceImage({ id, alt }: { id: string; alt: string }) {
+  const cache = useContext(EvidencePreviewCache)
   const [preview, setPreview] = useState<string | null>(null)
   useEffect(() => {
-    const cache = createManagedAttachmentPreviewCache()
+    if (!cache) return
+    const sharedCache = cache
     let active = true
     let timer: ReturnType<typeof setTimeout> | undefined
     async function load() {
-      const result = await cache.load(id)
+      const result = await sharedCache.load(id)
       if (!active) return
       if (result.status === 'resolved') setPreview(result.preview)
       else if (result.status === 'failed' && result.retryAfterMs !== null) timer = setTimeout(() => void load(), result.retryAfterMs)
     }
     void load()
-    return () => { active = false; clearTimeout(timer); cache.clear() }
-  }, [id])
+    return () => { active = false; clearTimeout(timer) }
+  }, [id, cache])
   // Only the native attachment command supplies a displayed source, never the
   // model's HTML. Identity is retained for inspection, not saved from this view.
   return preview
@@ -50,11 +55,13 @@ export function TestwareGenerationPreview({ text, fallback, ariaLabel, running }
   running: boolean
 }) {
   const html = useMemo(() => testwarePreviewHtml(text), [text])
+  const [cache] = useState(() => createManagedAttachmentPreviewCache((id) => getAttachmentPreviewDataUrl(id)))
+  useEffect(() => () => cache.clear(), [cache])
   return <section role="region" aria-label={ariaLabel} data-renderer="streamdown" className="testware-generation-preview markdown-content">
-    {text ? <Streamdown mode="streaming" isAnimating={running} controls={false} parseIncompleteMarkdown={false}
+    {text ? <EvidencePreviewCache.Provider value={cache}><Streamdown mode="streaming" isAnimating={running} controls={false} parseIncompleteMarkdown={false}
       parseMarkdownIntoBlocksFn={oneHtmlBlock} components={components} allowedTags={allowedTags}
       urlTransform={(url, key) => key === 'href' && isSafeEditorLinkUrl(url) ? url : ''}>
       {html}
-    </Streamdown> : <p>{fallback}</p>}
+    </Streamdown></EvidencePreviewCache.Provider> : <p>{fallback}</p>}
   </section>
 }

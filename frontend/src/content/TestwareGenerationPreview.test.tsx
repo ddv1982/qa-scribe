@@ -77,4 +77,16 @@ describe('Testware generation Streamdown preview', () => {
     expect(load).toHaveBeenCalledTimes(2)
     expect(screen.getByAltText('New evidence')).toHaveAttribute('data-attachment-id', 'new-image')
   })
+
+  it('coalesces repeated managed Evidence reads within one streaming preview', async () => {
+    const load = vi.spyOn(tauri, 'getAttachmentPreviewDataUrl').mockResolvedValue('data:image/png;base64,evidence')
+    const partialText = '<p>Case one</p><img src="qa-scribe-attachment://shared-image" alt="First evidence"><p>Case two</p><img src="qa-scribe-attachment://shared-image" alt="Second evidence">'
+    const { rerender } = render(preview({ ...job, partialText }))
+    await waitFor(() => expect(screen.getByAltText('Second evidence')).toHaveAttribute('src', 'data:image/png;base64,evidence'))
+    expect(screen.getByAltText('First evidence')).toHaveAttribute('src', 'data:image/png;base64,evidence')
+    expect(load).toHaveBeenCalledTimes(1)
+    rerender(preview({ ...job, partialText: `${partialText}<p>Next streamed check</p>` }))
+    await waitFor(() => expect(screen.getByText('Next streamed check')).toBeVisible())
+    expect(load).toHaveBeenCalledTimes(1)
+  })
 })
