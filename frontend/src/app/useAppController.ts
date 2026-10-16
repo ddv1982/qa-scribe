@@ -3,9 +3,10 @@ import { serializeRichEditorDocument } from '../editor/editorDocument'
 import type { MainView } from '../ui/types'
 import { useSettingsController } from '../hooks/useSettingsController'
 import { deleteConfirmationCopy } from '../workflows/deleteConfirmation'
-import { useAttachmentActions, type AttachmentUploadOwner } from './attachmentActions'
+import { useAttachmentActions } from './attachmentActions'
 import { useCopyActions } from './copyActions'
 import { useGenerationActions } from './generationActions'
+import { useRecordPersistence } from './recordPersistence'
 import { useRecordActions } from './recordActions'
 import { useSessionActions } from './sessionActions'
 import type { AiSelection, RecordWorkspace, WorkflowNavigation } from './types'
@@ -24,9 +25,11 @@ import {
   useAppControllerGenerationState,
   useAppControllerPresentationState,
 } from './useAppController.derivedState'
+import { useAppSettlement } from './appSettlement'
 import { useAppControllerNavigation } from './useAppController.navigation'
 import { useAttachmentCleanup } from './useAttachmentCleanup'
 import { useSessionChat } from './useSessionChat'
+import { useImportedAttachments } from './importedAttachments'
 import { useStableCapability } from './useStableCapability'
 import { createNoteEligibility } from './noteEligibility'
 import { useChatNoteRecovery } from './useChatNoteRecovery'
@@ -84,8 +87,6 @@ export function useAppController() {
   const navigationRouteHydratedRef = useRef(false)
   const settingsReturnViewRef = useRef<MainView>('sessions')
   const outputLibraries = useOutputLibraries(activeView)
-  const saveDirtyRecordsNowRef = useRef<() => Promise<boolean>>(() => Promise.resolve(true))
-  const retryPendingRecordCompensationsRef = useRef<(sessionId: string) => Promise<boolean>>(() => Promise.resolve(true))
   const summaryRecovery = {
     recoveredJobsRef: useRef(new Map<string, (typeof generationJobs)[string]>()),
     unresolvedSummaryJobsRef: useRef(new Map<string, string>()),
@@ -202,18 +203,19 @@ export function useAppController() {
   const navigation: WorkflowNavigation = {
     setActiveView,
   }
-  const registerImportedAttachmentRef = useRef<(owner: AttachmentUploadOwner, attachmentId: string) => void>(() => {})
+  const importedAttachments = useImportedAttachments()
   const attachmentActions = useAttachmentActions({
-    session: sessionWorkspace,
-    feedback,
-    registerImportedAttachment: (owner, attachmentId) => {
-      registerImportedAttachmentRef.current(owner, attachmentId)
-    },
+    session: sessionWorkspace, feedback, registerImportedAttachment: importedAttachments.register,
+  })
+  const recordPersistence = useRecordPersistence({
+    importedAttachments, session: sessionWorkspace, records: recordWorkspace, feedback,
+    materializeInlineImages: attachmentActions.materializeInlineImages,
+    cleanupMaterializedAttachments: attachmentActions.cleanupMaterializedAttachments,
   })
   const noteRecovery = useChatNoteRecovery()
   const noteEligibility = useStableCapability({ summary: summaryRecovery, chat: noteRecovery }, createNoteEligibility)
   const sessionActions = useSessionActions({
-    session: sessionWorkspace, noteRecovery, noteEligibility,
+    session: sessionWorkspace, noteRecovery, noteEligibility, importedAttachments,
     records: recordWorkspace,
     generation: coordinatedGenerationWorkspace, latestNoteGenerationUndoRef, summaryRecovery,
     feedback,
@@ -225,8 +227,8 @@ export function useAppController() {
     suspendRecordLoads,
     restoreRecordLoads,
     resetRecordHydration,
-    saveDirtyRecordsNow: () => saveDirtyRecordsNowRef.current(),
-    retryPendingRecordCompensations: (sessionId) => retryPendingRecordCompensationsRef.current(sessionId),
+    saveDirtyRecordsNow: recordPersistence.saveDirtyRecordsNow,
+    retryPendingRecordCompensations: recordPersistence.retryPendingRecordCompensations,
   })
   const { sessionChat, sessionMode, setSessionMode, noteReadOnly, ...chatProtection } = useSessionChat({
     session: sessionWorkspace, noteRecovery, noteEligibility, sessionActions, generation: coordinatedGenerationWorkspace,
@@ -253,6 +255,7 @@ export function useAppController() {
     setNoteBody(next)
   }
   const recordActions = useRecordActions({
+    importedAttachments,
     session: sessionWorkspace,
     records: recordWorkspace,
     feedback,
@@ -269,7 +272,7 @@ export function useAppController() {
       loadDraftsForSession,
       loadFindingsForSession,
     },
-  })
+  }, recordPersistence)
   const generationActions = useGenerationActions({
     session: sessionWorkspace,
     records: recordWorkspace,
@@ -284,28 +287,24 @@ export function useAppController() {
     canonicalizeGeneratedFinding: recordActions.canonicalizeGeneratedFinding,
   })
   const copyActions = useCopyActions({ source: sessionWorkspace, feedback, copy: copyFeedback })
+  const settlement = useAppSettlement({
+    chat: chatProtection, sessionActions, recordActions, attachmentActions,
+    dirtyDraftIdsRef, dirtyFindingIdsRef, settingsDirty, saveSettingsDraft,
+  })
   const {
     applyNavigationRoute, cancelPendingNavigation, closeSettings, discardPendingNavigationChanges,
-    hasPendingCompensations, openLibraryRecord, openSessionInCurrentView, openSettingsSection,
-    requestActiveView, requestNewSession, requestOpenSession, saveAllPendingChanges,
+    openLibraryRecord, openSessionInCurrentView, openSettingsSection,
+    requestActiveView, requestNewSession, requestOpenSession,
     savePendingNavigationChanges,
   } = useAppControllerNavigation({
     chat: chatProtection,
-    activeSession, activeView, attachmentActions, dirtyDraftIdsRef, dirtyFindingIdsRef,
+    activeSession, activeView, settlement, dirtyDraftIdsRef, dirtyFindingIdsRef,
     discardSettingsDraft, focusedRecordId, pendingNavigationContinuationRef, pendingNavigationEpochRef,
-    pendingNavigationView, pendingRecoveredSummaryDecision, recordActions, savedTitleRef, saveSettingsDraft,
-    sessionActions, sessions, sessionTitle, sessionWorkspace, settingsDirty, settingsReturnViewRef, settingsSection,
+    pendingNavigationView, recordActions,
+    sessionActions, sessions, settingsDirty, settingsReturnViewRef, settingsSection,
     setActiveView, setError, setFocusedRecordId, setPendingNavigationView, setPendingSettingsSection, setSettingsSection,
   })
 
-  useEffect(() => {
-    registerImportedAttachmentRef.current = (owner, attachmentId) => {
-      if (owner.kind === 'note') sessionActions.registerImportedNoteAttachment(owner.id, attachmentId)
-      else recordActions.registerImportedRecordAttachment({ kind: owner.kind, id: owner.id }, attachmentId)
-    }
-    saveDirtyRecordsNowRef.current = recordActions.saveDirtyRecordsNow
-    retryPendingRecordCompensationsRef.current = recordActions.retryPendingRecordCompensations
-  })
 
   useEffect(() => {
     if (activeView !== 'settings' || !pendingSettingsSection) return
@@ -321,19 +320,8 @@ export function useAppController() {
   useSettingsDiscovery(activeView, activeProvider, discoverProviderDefaults)
 
   usePendingChangeProtection({
-    hasPendingChatChanges: chatProtection.hasPendingChanges,
-    hasActiveSession: Boolean(activeSession),
-    hasNoteEntry: Boolean(noteEntry),
-    sessionTitle,
-    noteBody,
-    savedTitleRef,
-    savedBodyRef,
-    pendingRecoveredSummaryDecision,
-    dirtyDraftIdsRef,
-    dirtyFindingIdsRef,
-    settingsDirty,
-    hasPendingCompensations,
-    savePendingChanges: saveAllPendingChanges,
+    hasPendingChanges: settlement.hasPendingChanges,
+    savePendingChanges: settlement.flush,
   })
 
   const { bootedRef, handleLoadSessionLibrary, handleRefreshProviderStatus, handleSaveSettings } = useAppStartup({
@@ -407,7 +395,7 @@ export function useAppController() {
   }, [noteEntry, noteBody, pendingRecoveredSummaryDecision]) // eslint-disable-line react-hooks/exhaustive-deps -- debounce is keyed to note identity, body, and recovery decision
 
   return {
-    sessionChat, sessionMode, setSessionMode, saveAllPendingChanges, noteReadOnly,
+    sessionChat, sessionMode, setSessionMode, saveAllPendingChanges: settlement.flush, noteReadOnly,
     attachmentCleanup,
     ...attachmentActions,
     ...copyActions,

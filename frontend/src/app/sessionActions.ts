@@ -28,12 +28,14 @@ import type {
 import { useStableCapability } from './useStableCapability'
 import type { RecordLoadSuspension } from './useRecordHydration'
 import type { AttachmentCleanupController } from './useAttachmentCleanup'
+import type { ImportedAttachments } from './importedAttachments'
 import type { NoteEligibility } from './noteEligibility'
 import type { ChatNoteRecovery } from './useChatNoteRecovery'
 
 export type SessionActionsContext = {
   noteRecovery?: ChatNoteRecovery
   noteEligibility: NoteEligibility
+  importedAttachments: ImportedAttachments
   session: SessionWorkspace
   records: Pick<
     RecordWorkspace,
@@ -269,9 +271,9 @@ export function createSessionActions(ctx: SessionActionsContext) {
     handleDeleteSession,
     handleNewSession,
     hasPendingSessionCompensations: writes.hasPendingSessionCompensations,
+    settlement: writes.settlement,
     hasPendingSessionEdits: saving.hasPendingSessionEdits,
     openSession,
-    registerImportedNoteAttachment: saving.registerImportedNoteAttachment,
     registerNoteEditIntent: writes.registerNoteEditIntent,
     registerRecordEditIntent: writes.registerRecordEditIntent,
     registerTitleEditIntent: writes.registerTitleEditIntent,
