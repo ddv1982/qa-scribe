@@ -132,16 +132,16 @@ describe('SettingsView AI defaults', () => {
 
     const combobox = screen.getByRole('combobox', { name: 'Model' })
     expect(combobox).toHaveValue('CLI default · GPT Live')
-    expect(screen.getByText('1 model available for this account')).toBeInTheDocument()
-    expect(screen.getByText(/Available for this account · checked/i)).toBeInTheDocument()
+    expect(screen.getByText('1 model reported by CLI catalog')).toBeInTheDocument()
+    expect(screen.getByText(/Reported by CLI catalog · checked/i)).toBeInTheDocument()
 
     await user.click(combobox)
 
     const listbox = screen.getByRole('listbox', { name: /ai models/i })
-    expect(screen.getByText('1 model available for this account · custom IDs supported')).toBeInTheDocument()
+    expect(screen.getByText('1 model reported by CLI catalog · custom IDs supported')).toBeInTheDocument()
     expect(within(listbox).getByText('Current: GPT Live · ~/.codex/config.toml')).toBeInTheDocument()
     expect(within(listbox).getByText('Reported by the installed CLI.')).toBeInTheDocument()
-    expect(within(listbox).getByText('Account')).toBeInTheDocument()
+    expect(within(listbox).getByText('CLI catalog')).toBeInTheDocument()
   })
 
   it('keeps policy-disabled models visible but unselectable', async () => {
@@ -157,14 +157,14 @@ describe('SettingsView AI defaults', () => {
       providerStatus: providerStatusWith([provider]),
     })
 
-    expect(screen.getByText('1 model available for this account')).toBeInTheDocument()
+    expect(screen.getByText('1 model reported by CLI catalog')).toBeInTheDocument()
     await user.click(screen.getByRole('combobox', { name: 'Model' }))
 
     const listbox = screen.getByRole('listbox', { name: /ai models/i })
     const policyOption = within(listbox).getByRole('option', { name: /GPT Policy/i })
     expect(policyOption).toHaveAttribute('aria-disabled', 'true')
     expect(within(policyOption).getByText('Policy')).toBeInTheDocument()
-    expect(within(policyOption).getByText('Disabled by account or organization policy.')).toBeInTheDocument()
+    expect(within(policyOption).getByText('The CLI marks this model as disabled.')).toBeInTheDocument()
 
     await user.click(policyOption)
     expect(updateSettingsDraft).not.toHaveBeenCalled()
@@ -238,6 +238,31 @@ describe('SettingsView AI defaults', () => {
     expect(within(listbox).queryByRole('option', { name: /Opus account/i })).not.toBeInTheDocument()
   })
 
+  it('labels CLI-recognized rows by their source instead of inferring structured catalog authority', () => {
+    const provider = providerDescriptor('codex_cli', 'Codex CLI', true, [
+      modelDescriptor('default', 'Use CLI default'),
+      { ...modelDescriptor('recognized', 'Recognized model'), source: 'detected', availability: 'available', confidence: 'observed' },
+    ])
+    renderSettingsView({ providerStatus: providerStatusWith([provider]) })
+    expect(screen.getByText('1 model recognized by CLI')).toBeInTheDocument()
+    expect(screen.queryByText('1 model reported by CLI catalog')).not.toBeInTheDocument()
+  })
+
+  const codexRollouts: ProviderCatalogRollout[] = ['disabled', 'diagnostics']
+  it.each(codexRollouts)('keeps Codex catalog authority in %s mode', (rollout) => {
+    const provider = codexProvider()
+    setCatalogSnapshot(provider, { source: 'cliCatalog', models: providerModels(provider) })
+    renderSettingsView({
+      settings: settingsFixture({ selectedAiModel: 'gpt-unlisted',
+        selectedAiModelsByProvider: { codex_cli: 'gpt-unlisted', claude_code: null, copilot_cli: null } }),
+      providerStatus: providerStatusWith([provider], rollout),
+    })
+    expect(screen.getByText(/Custom model “gpt-unlisted” is not in the current catalog/i)).toBeInTheDocument()
+    expect(screen.queryByText(/Structured catalog discovery is disabled/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Compatibility model choices remain active while catalog diagnostics run/i)).not.toBeInTheDocument()
+    expect(screen.getByText(/Reported by CLI catalog · checked/i)).toBeInTheDocument()
+  })
+
   it('shows sanitized sign-in and network recovery without raw diagnostics', () => {
     const provider = providerDescriptor('copilot_cli', 'GitHub Copilot CLI', true, [modelDescriptor('default', 'Use CLI default')])
     setCatalogSnapshot(provider, {
@@ -250,7 +275,7 @@ describe('SettingsView AI defaults', () => {
       providerStatus: providerStatusWith([provider]),
     })
 
-    expect(screen.getByText('The account catalog is unavailable. Check sign-in and network access, then retry.')).toBeInTheDocument()
+    expect(screen.getByText('The CLI catalog is unavailable. Check sign-in and network access, then retry.')).toBeInTheDocument()
     expect(screen.queryByText(/ghp_secret|\/Users\/private/)).not.toBeInTheDocument()
   })
 

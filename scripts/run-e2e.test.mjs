@@ -6,18 +6,19 @@ import { dirname, join, resolve } from 'node:path'
 import test from 'node:test'
 import { once } from 'node:events'
 
-import { createWdioInvocationPlan, criticalScenarios, executeWdioInvocations, readExecutionEvidence, runE2e } from './run-e2e.mjs'
+import { createWdioInvocationPlan, criticalScenarios, executeWdioInvocations, readExecutionEvidence, readModelLaneEvidence, readQualificationEvidence, runE2e } from './run-e2e.mjs'
 
 test('critical workflows use separate WDIO processes, app data, fixtures, and artifacts', () => {
   const plan = createWdioInvocationPlan({}, '/tmp/e2e-root', '/tmp/e2e-artifacts')
 
   assert.deepEqual(plan.slice(0, criticalScenarios.length).map(({ id }) => id), criticalScenarios)
-  assert.deepEqual(plan.slice(criticalScenarios.length).map(({ id }) => id), [
+  const legacy = plan.slice(0, criticalScenarios.length + 4 + (process.platform === 'linux' ? 1 : 0))
+  assert.deepEqual(legacy.slice(criticalScenarios.length).map(({ id }) => id), [
     'chat-to-note', 'chat-tool-authorization-codex', 'chat-tool-authorization-claude', 'chat-tool-authorization-copilot',
     ...(process.platform === 'linux' ? ['native-close'] : []),
   ])
   for (const key of ['QA_SCRIBE_E2E_APP_DATA_DIR', 'QA_SCRIBE_E2E_ARTIFACTS', 'QA_SCRIBE_E2E_FIXTURE_DIR']) {
-    assert.equal(new Set(plan.map(({ environment }) => environment[key])).size, criticalScenarios.length + 4 + (process.platform === 'linux' ? 1 : 0))
+    assert.equal(new Set(legacy.map(({ environment }) => environment[key])).size, criticalScenarios.length + 4 + (process.platform === 'linux' ? 1 : 0))
   }
   assert.ok(plan.slice(0, criticalScenarios.length).every(({ environment }) => environment.QA_SCRIBE_E2E_SPEC === 'critical-workflows.e2e.mjs'))
   assert.equal(plan[criticalScenarios.length].environment.QA_SCRIBE_E2E_SPEC, 'chat-to-note.e2e.mjs')
@@ -30,9 +31,9 @@ test('critical workflows use separate WDIO processes, app data, fixtures, and ar
 
 test('native close is a required Linux default workflow and excluded on other platforms', () => {
   const linux = createWdioInvocationPlan({}, '/tmp/root', '/tmp/artifacts', 'linux')
-  assert.equal(linux.at(-1).id, 'native-close')
-  assert.equal(linux.at(-1).environment.QA_SCRIBE_E2E_SPEC, 'native-close.e2e.mjs')
-  assert.equal(linux.at(-1).environment.GDK_BACKEND, 'x11')
+  const nativeClose = linux.find(({ id }) => id === 'native-close')
+  assert.equal(nativeClose.environment.QA_SCRIBE_E2E_SPEC, 'native-close.e2e.mjs')
+  assert.equal(nativeClose.environment.GDK_BACKEND, 'x11')
   const explicit = createWdioInvocationPlan({ QA_SCRIBE_E2E_SPEC: 'native-close.e2e.mjs' }, '/tmp/root', '/tmp/artifacts', 'linux')
   assert.equal(explicit[0].environment.GDK_BACKEND, 'x11')
   for (const platform of ['darwin', 'win32']) {
@@ -43,12 +44,80 @@ test('native close is a required Linux default workflow and excluded on other pl
   assert.deepEqual(selected.map(({ id }) => id), ['clipboard'])
 })
 
-test('explicit model selection uses X11 for real native keyboard input without changing the default suite', () => {
+test('explicit model selection uses X11 and remains exactly one invocation', () => {
   const plan = createWdioInvocationPlan({ QA_SCRIBE_E2E_SPEC: 'model-selection.e2e.mjs' }, '/tmp/root', '/tmp/artifacts', 'linux')
   assert.equal(plan.length, 1)
   assert.equal(plan[0].environment.GDK_BACKEND, 'x11')
   assert.equal(plan[0].environment.QA_SCRIBE_E2E_SPEC, 'model-selection.e2e.mjs')
-  assert.equal(createWdioInvocationPlan({}, '/tmp/root', '/tmp/artifacts', 'linux').some(({ id }) => id === 'model-selection'), false)
+})
+
+test('Linux defaults require the complete model proof chain while non-Linux defaults retain their supported workflows', () => {
+  const linux = createWdioInvocationPlan({}, '/tmp/root', '/tmp/artifacts', 'linux')
+  assert.deepEqual(linux.map(({ id }) => id), [
+    ...criticalScenarios, 'chat-to-note', 'chat-tool-authorization-codex', 'chat-tool-authorization-claude',
+    'chat-tool-authorization-copilot', 'native-close', 'model-management', 'model-evidence', 'model-evidence-restart',
+    'model-selection', 'model-selection-restart', 'provider-qualification-disabled', 'provider-qualification-diagnostics',
+    'provider-qualification-selector',
+  ])
+  assert.equal(linux.find(({ id }) => id === 'model-selection').environment.GDK_BACKEND, 'x11')
+  for (const platform of ['darwin', 'win32']) {
+    assert.deepEqual(createWdioInvocationPlan({}, '/tmp/root', '/tmp/artifacts', platform).map(({ id }) => id), [
+      ...criticalScenarios, 'chat-to-note', 'chat-tool-authorization-codex', 'chat-tool-authorization-claude', 'chat-tool-authorization-copilot',
+    ])
+  }
+})
+
+test('only each evidence and selection restart shares its own proof state and every invocation has separate runner artifacts', () => {
+  const plan = createWdioInvocationPlan({}, '/tmp/root', '/tmp/artifacts', 'linux')
+  assert.equal(new Set(plan.map(({ environment }) => environment.QA_SCRIBE_E2E_ARTIFACTS)).size, plan.length)
+  for (const [id, flag] of [['model-evidence', 'QA_SCRIBE_E2E_EVIDENCE_RESTART'], ['model-selection', 'QA_SCRIBE_E2E_SELECTION_RESTART']]) {
+    const initial = plan.find((entry) => entry.id === id)
+    const restart = plan.find((entry) => entry.id === `${id}-restart`)
+    assert.equal(restart.restartOf, id)
+    assert.equal(initial.environment[flag], '0')
+    assert.equal(restart.environment[flag], '1')
+    for (const key of ['QA_SCRIBE_E2E_APP_DATA_DIR', 'QA_SCRIBE_E2E_FIXTURE_DIR', 'QA_SCRIBE_E2E_MODEL_EVIDENCE']) {
+      assert.equal(restart.environment[key], initial.environment[key])
+      assert.ok(plan.filter((entry) => ![id, `${id}-restart`].includes(entry.id)).every((entry) => entry.environment[key] !== initial.environment[key]))
+    }
+  }
+  for (const entry of plan.filter(({ id }) => id.startsWith('model-') || id.startsWith('provider-qualification-'))) {
+    assert.ok(entry.environment.QA_SCRIBE_E2E_MODEL_EVIDENCE.startsWith('/tmp/artifacts/'))
+  }
+})
+
+test('model proof receipts require ten ordered successful lanes and actual completed restart evidence', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'qa-scribe-model-receipt-'))
+  const path = join(directory, 'lanes.json')
+  const initial = { phase: 'M02', passed: 10, completed: false, nativeRestartVerified: false,
+    results: Array.from({ length: 10 }, (_, index) => ({ lane: index + 1, status: 'passed' })) }
+  try {
+    writeFileSync(path, JSON.stringify(initial))
+    assert.deepEqual(readModelLaneEvidence(path, 'M02', false), initial)
+    assert.equal(readModelLaneEvidence(path, 'M02', true), null)
+    const complete = { ...initial, completed: true, nativeRestartVerified: true }
+    writeFileSync(path, JSON.stringify(complete))
+    assert.deepEqual(readModelLaneEvidence(path, 'M02', true), complete)
+    for (const patch of [{ passed: 9 }, { phase: 'M03' }, { nativeRestartVerified: false },
+      { results: initial.results.slice(0, 9) }, { results: initial.results.map((lane) => lane.lane === 8 ? { ...lane, status: 'failed' } : lane) }]) {
+      writeFileSync(path, JSON.stringify({ ...complete, ...patch }))
+      assert.equal(readModelLaneEvidence(path, 'M02', true), null)
+    }
+  } finally { rmSync(directory, { recursive: true, force: true }) }
+})
+
+test('qualification receipts cover only the actual mode-specific deterministic lanes', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'qa-scribe-qualification-receipt-'))
+  const path = join(directory, 'qualification.json')
+  try {
+    for (const [mode, lanes] of [['disabled', [4]], ['diagnostics', [5]], ['selector', [6, 7, 8]]]) {
+      const complete = { phase: 'M04', mode, completed: true, results: lanes.map((lane) => ({ lane, status: 'passed' })) }
+      writeFileSync(path, JSON.stringify(complete))
+      assert.deepEqual(readQualificationEvidence(path, mode), complete)
+      writeFileSync(path, JSON.stringify({ ...complete, completed: false }))
+      assert.equal(readQualificationEvidence(path, mode), null)
+    }
+  } finally { rmSync(directory, { recursive: true, force: true }) }
 })
 
 test('machine execution evidence rejects skipped, failed, empty, incomplete and mismatched runs', () => {
@@ -190,6 +259,88 @@ for (const [label, wdioStatus] of [['successful', 0], ['failed', 4]]) {
     }
   })
 }
+
+test('inherited provider home overrides never escape the isolated fixture home', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'qa-scribe-hostile-provider-env-'))
+  let applicationEnvironment
+  try {
+    const status = runE2e({ ...process.env, QA_SCRIBE_E2E_SKIP_BUILD: '1', QA_SCRIBE_E2E_SPEC: 'single-workflow.e2e.mjs',
+      QA_SCRIBE_E2E_TEMP_ROOT: join(directory, 'native'), QA_SCRIBE_E2E_ARTIFACTS: join(directory, 'artifacts'),
+      CODEX_HOME: '/untrusted-host/codex', CLAUDE_CONFIG_DIR: '/untrusted-host/claude', COPILOT_HOME: '/untrusted-host/copilot' }, {
+      spawnSyncImpl(_command, _args, options) {
+        applicationEnvironment = options.env
+        writeFileSync(options.env.QA_SCRIBE_E2E_EXECUTION_EVIDENCE, JSON.stringify({ version: 1,
+          spec: options.env.QA_SCRIBE_E2E_SPEC, completed: true, passed: 1, failed: 0, skipped: 0 }))
+        return { status: 0, stdout: '', stderr: '' }
+      },
+    })
+    assert.equal(status, 0)
+    assert.equal(applicationEnvironment.CODEX_HOME, join(directory, 'native', 'home', '.codex'))
+    assert.equal(applicationEnvironment.CLAUDE_CONFIG_DIR, join(directory, 'native', 'home', '.claude'))
+    assert.equal(applicationEnvironment.COPILOT_HOME, join(directory, 'native', 'home', '.copilot'))
+  } finally { rmSync(directory, { recursive: true, force: true }) }
+})
+
+test('default execution preserves migrated pair state through restart and isolates all unrelated workflow homes', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'qa-scribe-default-model-pairs-'))
+  const homes = new Map()
+  const seeds = []
+  const restartChecks = []
+  try {
+    const status = runE2e({ ...process.env, QA_SCRIBE_E2E_SKIP_BUILD: '1', QA_SCRIBE_E2E_TEMP_ROOT: join(directory, 'native'),
+      QA_SCRIBE_E2E_ARTIFACTS: join(directory, 'artifacts') }, {
+      spawnSyncImpl(command, args, options) {
+        const env = options.env
+        if (command === 'python3') {
+          if (args[1] === 'seed') {
+            assert.equal(existsSync(args[2]), false, 'A real restart must never reseed the migrated database')
+            writeFileSync(args[2], 'schema-10-seed')
+            seeds.push(env.QA_SCRIBE_E2E_APP_DATA_DIR)
+          }
+          return { status: 0, stdout: '', stderr: '' }
+        }
+        const spec = env.QA_SCRIBE_E2E_SPEC
+        const restarting = env.QA_SCRIBE_E2E_EVIDENCE_RESTART === '1' || env.QA_SCRIBE_E2E_SELECTION_RESTART === '1'
+        const state = join(env.QA_SCRIBE_E2E_APP_DATA_DIR, 'retained-model-state')
+        const peer = join(env.QA_SCRIBE_E2E_FIXTURE_DIR, 'retained-model-peer')
+        const modelPhase = { 'model-management.e2e.mjs': 'M01', 'model-evidence.e2e.mjs': 'M02', 'model-selection.e2e.mjs': 'M03' }[spec]
+        const pair = ['model-evidence.e2e.mjs', 'model-selection.e2e.mjs'].includes(spec)
+        if (restarting) {
+          assert.equal(readFileSync(state, 'utf8'), spec)
+          assert.equal(readFileSync(peer, 'utf8'), spec)
+          assert.equal(readFileSync(join(env.QA_SCRIBE_E2E_APP_DATA_DIR, 'qa-scribe.sqlite'), 'utf8'), 'migrated-schema-11')
+          assert.equal(env.HOME, homes.get(env.QA_SCRIBE_E2E_APP_DATA_DIR))
+          restartChecks.push(spec)
+        } else {
+          assert.equal(existsSync(state), false)
+          writeFileSync(state, spec)
+          writeFileSync(peer, spec)
+          homes.set(env.QA_SCRIBE_E2E_APP_DATA_DIR, env.HOME)
+          if (pair) {
+            assert.equal(readFileSync(join(env.QA_SCRIBE_E2E_APP_DATA_DIR, 'qa-scribe.sqlite'), 'utf8'), 'schema-10-seed')
+            writeFileSync(join(env.QA_SCRIBE_E2E_APP_DATA_DIR, 'qa-scribe.sqlite'), 'migrated-schema-11')
+          }
+        }
+        if (modelPhase) writeFileSync(join(env.QA_SCRIBE_E2E_MODEL_EVIDENCE, 'lane-results.json'), JSON.stringify({
+          phase: modelPhase, passed: 10, completed: modelPhase === 'M01' || restarting, nativeRestartVerified: restarting,
+          results: Array.from({ length: 10 }, (_, index) => ({ lane: index + 1, status: 'passed' })),
+        }))
+        if (spec === 'provider-qualification.e2e.mjs') writeFileSync(join(env.QA_SCRIBE_E2E_MODEL_EVIDENCE, 'qualification-results.json'), JSON.stringify({
+          phase: 'M04', mode: env.QA_SCRIBE_PROVIDER_CATALOG_MODE, completed: true,
+          results: { disabled: [4], diagnostics: [5], selector: [6, 7, 8] }[env.QA_SCRIBE_PROVIDER_CATALOG_MODE].map((lane) => ({ lane, status: 'passed' })),
+        }))
+        writeFileSync(env.QA_SCRIBE_E2E_EXECUTION_EVIDENCE, JSON.stringify({ version: 1, spec,
+          completed: true, passed: 1, failed: 0, skipped: 0 }))
+        return { status: 0, stdout: '', stderr: '' }
+      },
+    })
+    assert.equal(status, 0)
+    assert.equal(new Set(homes.values()).size, homes.size, 'Only intentional restart pairs share one fixture HOME')
+    assert.equal(new Set(seeds).size, seeds.length)
+    assert.deepEqual(restartChecks, process.platform === 'linux' ? ['model-evidence.e2e.mjs', 'model-selection.e2e.mjs'] : [])
+    assert.equal(seeds.length, process.platform === 'linux' ? 2 : 0)
+  } finally { rmSync(directory, { recursive: true, force: true }) }
+})
 
 test('shared and standalone callers build production assets independently when needed', () => {
   const action = readFileSync('.github/actions/run-built-app-e2e/action.yml', 'utf8')

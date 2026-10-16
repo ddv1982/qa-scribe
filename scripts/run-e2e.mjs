@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { spawnSync } from 'node:child_process'
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { chmodSync, cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { delimiter, dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -30,6 +30,9 @@ export function createWdioInvocationPlan(environment, temporaryRoot, artifacts, 
         id: requestedSpec,
         environment: {
           QA_SCRIBE_E2E_SPEC: requestedSpec,
+          ...(/^(model-(management|evidence|selection)|provider-qualification)\.e2e\.mjs$/.test(requestedSpec) ? {
+            QA_SCRIBE_E2E_MODEL_EVIDENCE: environment.QA_SCRIBE_E2E_MODEL_EVIDENCE ?? artifacts,
+          } : {}),
           ...(['native-close.e2e.mjs', 'model-selection.e2e.mjs'].includes(requestedSpec) ? { GDK_BACKEND: 'x11' } : {}),
           QA_SCRIBE_E2E_APP_DATA_DIR: join(temporaryRoot, 'app-data'),
           QA_SCRIBE_E2E_ARTIFACTS: artifacts,
@@ -66,6 +69,29 @@ export function createWdioInvocationPlan(environment, temporaryRoot, artifacts, 
         QA_SCRIBE_E2E_FIXTURE_DIR: join(temporaryRoot, 'fixtures', id),
       } })
     }
+    if (platform === 'linux') {
+      const modelRuns = [
+        ['model-management', 'model-management', null, {}],
+        ['model-evidence', 'model-evidence', null, { QA_SCRIBE_E2E_EVIDENCE_RESTART: '0' }],
+        ['model-evidence-restart', 'model-evidence', 'model-evidence', { QA_SCRIBE_E2E_EVIDENCE_RESTART: '1' }],
+        ['model-selection', 'model-selection', null, { GDK_BACKEND: 'x11', QA_SCRIBE_E2E_SELECTION_RESTART: '0' }],
+        ['model-selection-restart', 'model-selection', 'model-selection', { GDK_BACKEND: 'x11', QA_SCRIBE_E2E_SELECTION_RESTART: '1' }],
+        ...['disabled', 'diagnostics', 'selector'].map((mode) => [`provider-qualification-${mode}`, 'provider-qualification', null,
+          { QA_SCRIBE_E2E_CATALOG_MODE: mode }]),
+      ]
+      for (const [id, spec, restartOf, extra] of modelRuns) {
+        const stateId = restartOf ?? id
+        const evidenceRoot = join(artifacts, restartOf ?? id)
+        plan.push({ id, ...(restartOf ? { restartOf } : {}), environment: {
+          QA_SCRIBE_E2E_SPEC: `${spec}.e2e.mjs`,
+          QA_SCRIBE_E2E_APP_DATA_DIR: join(temporaryRoot, 'app-data', stateId),
+          QA_SCRIBE_E2E_FIXTURE_DIR: join(temporaryRoot, 'fixtures', stateId),
+          QA_SCRIBE_E2E_ARTIFACTS: join(evidenceRoot, restartOf ? 'restart-runner' : 'runner'),
+          QA_SCRIBE_E2E_MODEL_EVIDENCE: evidenceRoot,
+          ...extra,
+        } })
+      }
+    }
   }
   return plan
 }
@@ -77,6 +103,29 @@ export function readExecutionEvidence(path, spec) {
     if (evidence.version !== 1 || evidence.spec !== spec || evidence.completed !== true
       || !Number.isInteger(evidence.passed) || evidence.passed < 1
       || evidence.failed !== 0 || evidence.skipped !== 0) return null
+    return evidence
+  } catch { return null }
+}
+
+export function readModelLaneEvidence(path, phase, restartRequired) {
+  try {
+    const evidence = JSON.parse(readFileSync(path, 'utf8'))
+    if (evidence.phase !== phase || evidence.passed !== 10 || evidence.results?.length !== 10
+      || evidence.results.some((lane, index) => lane.lane !== index + 1 || lane.status !== 'passed')) return null
+    if (restartRequired && (evidence.completed !== true || evidence.nativeRestartVerified !== true)) return null
+    if (phase === 'M01' && evidence.completed !== true) return null
+    if (phase !== 'M01' && !restartRequired && (evidence.completed !== false || evidence.nativeRestartVerified !== false)) return null
+    return evidence
+  } catch { return null }
+}
+
+export function readQualificationEvidence(path, mode) {
+  try {
+    const evidence = JSON.parse(readFileSync(path, 'utf8'))
+    const lanes = { disabled: [4], diagnostics: [5], selector: [6, 7, 8] }[mode]
+    if (!lanes || evidence.phase !== 'M04' || evidence.mode !== mode || evidence.completed !== true
+      || evidence.results?.length !== lanes.length
+      || evidence.results.some((result, index) => result.lane !== lanes[index] || result.status !== 'passed')) return null
     return evidence
   } catch { return null }
 }
@@ -130,6 +179,9 @@ export function runE2e(environment = process.env, { spawnSyncImpl = spawnSync } 
   const isolatedEnvironment = {
     ...environment,
     HOME: join(temporaryRoot, 'home'),
+    CODEX_HOME: join(temporaryRoot, 'home', '.codex'),
+    CLAUDE_CONFIG_DIR: join(temporaryRoot, 'home', '.claude'),
+    COPILOT_HOME: join(temporaryRoot, 'home', '.copilot'),
     XDG_CONFIG_HOME: join(temporaryRoot, 'config'),
     XDG_DATA_HOME: join(temporaryRoot, 'data'),
     XDG_CACHE_HOME: join(temporaryRoot, 'cache'),
@@ -177,8 +229,24 @@ export function runE2e(environment = process.env, { spawnSyncImpl = spawnSync } 
     const invocations = createWdioInvocationPlan(environment, temporaryRoot, artifacts)
     result = executeWdioInvocations(invocations, (invocation) => {
       const invocationEnvironment = { ...isolatedEnvironment, ...invocation.environment }
-      if (invocation.environment.QA_SCRIBE_E2E_SCENARIO
-        || (!environment.QA_SCRIBE_E2E_SPEC?.trim() && !environment.QA_SCRIBE_E2E_SCENARIO?.trim())) {
+      const defaultRun = !environment.QA_SCRIBE_E2E_SPEC?.trim() && !environment.QA_SCRIBE_E2E_SCENARIO?.trim()
+      if (defaultRun) {
+        const stateId = invocation.restartOf ?? invocation.id
+        invocationEnvironment.HOME = join(temporaryRoot, 'home', stateId)
+        invocationEnvironment.XDG_CONFIG_HOME = join(temporaryRoot, 'config', stateId)
+        invocationEnvironment.XDG_DATA_HOME = join(temporaryRoot, 'data', stateId)
+        invocationEnvironment.XDG_CACHE_HOME = join(temporaryRoot, 'cache', stateId)
+        if (!invocation.environment.QA_SCRIBE_E2E_EVIDENCE_RESTART) delete invocationEnvironment.QA_SCRIBE_E2E_EVIDENCE_RESTART
+        if (!invocation.environment.QA_SCRIBE_E2E_SELECTION_RESTART) delete invocationEnvironment.QA_SCRIBE_E2E_SELECTION_RESTART
+      }
+      invocationEnvironment.CODEX_HOME = join(invocationEnvironment.HOME,
+        invocationEnvironment.QA_SCRIBE_E2E_SPEC === 'provider-qualification.e2e.mjs' ? 'codex-override' : '.codex')
+      invocationEnvironment.CLAUDE_CONFIG_DIR = join(invocationEnvironment.HOME, '.claude')
+      invocationEnvironment.COPILOT_HOME = join(invocationEnvironment.HOME, '.copilot')
+      for (const key of ['HOME', 'XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'XDG_CACHE_HOME', 'CODEX_HOME', 'CLAUDE_CONFIG_DIR', 'COPILOT_HOME']) {
+        mkdirSync(invocationEnvironment[key], { recursive: true })
+      }
+      if (!invocation.restartOf && (invocation.environment.QA_SCRIBE_E2E_SCENARIO || defaultRun)) {
         rmSync(invocation.environment.QA_SCRIBE_E2E_APP_DATA_DIR, { recursive: true, force: true })
         rmSync(invocation.environment.QA_SCRIBE_E2E_FIXTURE_DIR, { recursive: true, force: true })
       }
@@ -192,19 +260,23 @@ export function runE2e(environment = process.env, { spawnSyncImpl = spawnSync } 
       const authorization = invocationEnvironment.QA_SCRIBE_E2E_SPEC === 'chat-tool-authorization.workflow.mjs'
       const modelSelection = invocationEnvironment.QA_SCRIBE_E2E_SPEC === 'model-selection.e2e.mjs'
       const modelPickerPerformance = invocationEnvironment.QA_SCRIBE_E2E_SPEC === 'model-picker-performance.e2e.mjs'
+      const qualification = invocationEnvironment.QA_SCRIBE_E2E_SPEC === 'provider-qualification.e2e.mjs'
       const modelEvidence = invocationEnvironment.QA_SCRIBE_E2E_SPEC === 'model-evidence.e2e.mjs'
-      const modelManagement = modelEvidence || modelSelection || modelPickerPerformance || invocationEnvironment.QA_SCRIBE_E2E_SPEC === 'model-management.e2e.mjs'
+      const modelManagement = modelEvidence || modelSelection || modelPickerPerformance || qualification || invocationEnvironment.QA_SCRIBE_E2E_SPEC === 'model-management.e2e.mjs'
+      const sourceBin = qualification ? join(invocation.environment.QA_SCRIBE_E2E_FIXTURE_DIR, 'provider-copy', 'bin') : fixtureBin
+      if (qualification) cpSync(join(root, 'e2e', 'fixtures'), join(invocation.environment.QA_SCRIBE_E2E_FIXTURE_DIR, 'provider-copy'), { recursive: true })
       for (const provider of ['codex', 'claude', 'copilot']) rmSync(join(providerBin, provider), { force: true })
       for (const provider of authorization || modelManagement ? ['codex', 'claude', 'copilot'] : ['codex']) {
         const link = join(providerBin, provider)
-        symlinkSync(join(fixtureBin, provider), link)
+        symlinkSync(join(sourceBin, provider), link)
       }
       invocationEnvironment.PATH = [providerBin, process.env.PATH].filter(Boolean).join(delimiter)
       invocationEnvironment.QA_SCRIBE_E2E_PROVIDER_PATH = providerBin
       if (!authorization) delete invocationEnvironment.QA_SCRIBE_E2E_AUTH_PROVIDER
       if (modelManagement) {
         invocationEnvironment.QA_SCRIBE_E2E_MODEL_MANAGEMENT = '1'
-        invocationEnvironment.QA_SCRIBE_PROVIDER_CATALOG_MODE = 'selector'
+        invocationEnvironment.QA_SCRIBE_PROVIDER_CATALOG_MODE = qualification
+          ? invocationEnvironment.QA_SCRIBE_E2E_CATALOG_MODE ?? 'selector' : 'selector'
         writeFileSync(join(invocation.environment.QA_SCRIBE_E2E_FIXTURE_DIR, 'model-management.json'),
           JSON.stringify(modelSelection && invocationEnvironment.QA_SCRIBE_E2E_SELECTION_RESTART === '1'
             ? { claude: 'unavailable', codex: 'unavailable', copilot: 'unavailable' }
@@ -236,7 +308,12 @@ export function runE2e(environment = process.env, { spawnSyncImpl = spawnSync } 
       process.stderr.write(stderr)
       writeFileSync(join(invocation.environment.QA_SCRIBE_E2E_ARTIFACTS, 'wdio-run.log'), `${stdout}${stderr}`)
       const evidence = readExecutionEvidence(evidencePath, invocationEnvironment.QA_SCRIBE_E2E_SPEC)
-      const missingCoverage = completed.status === 0 && !evidence
+      const modelPhase = { 'model-management.e2e.mjs': 'M01', 'model-evidence.e2e.mjs': 'M02', 'model-selection.e2e.mjs': 'M03' }[invocationEnvironment.QA_SCRIBE_E2E_SPEC]
+      const restartRequired = invocationEnvironment.QA_SCRIBE_E2E_EVIDENCE_RESTART === '1' || invocationEnvironment.QA_SCRIBE_E2E_SELECTION_RESTART === '1'
+      const modelEvidenceReceipt = modelPhase ? readModelLaneEvidence(join(invocationEnvironment.QA_SCRIBE_E2E_MODEL_EVIDENCE, 'lane-results.json'), modelPhase, restartRequired) : true
+      const qualificationEvidenceReceipt = qualification
+        ? readQualificationEvidence(join(invocationEnvironment.QA_SCRIBE_E2E_MODEL_EVIDENCE, 'qualification-results.json'), invocationEnvironment.QA_SCRIBE_PROVIDER_CATALOG_MODE) : true
+      const missingCoverage = completed.status === 0 && (!evidence || !modelEvidenceReceipt || !qualificationEvidenceReceipt)
       return { ...completed, status: missingCoverage ? 1 : completed.status, stdout,
         stderr: `${stderr}${missingCoverage ? 'WDIO did not produce complete, unskipped machine execution evidence.\n' : ''}` }
     })

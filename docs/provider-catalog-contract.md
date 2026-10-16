@@ -2,7 +2,7 @@
 
 Status: implemented, release-gated
 Owner: QA Scribe maintainers
-Last verified: 2026-07-14
+Implementation qualification: 2026-10-16. Transport cost figures below remain the July Phase 0 measurements.
 
 This document records the Phase 0 transport decisions, compatibility floor,
 fixture workflow, rollout controls, and release evidence for Claude Code and
@@ -11,6 +11,9 @@ GitHub Copilot model discovery. The implementation is in
 
 ## Transport decision and measured cost
 
+The measurements in this section are the historical Phase 0 baseline, not the October 2026 model-management qualification.
+Current installed CLI results and release limits are recorded in [CLI model management qualification](verification/cli-model-management-qualification.md).
+
 Both integrations use small Rust transports against the exact CLI executable
 already resolved by QA Scribe. Neither transport sends a prompt, creates a
 conversation, reads credential values, or uses an SDK-bundled CLI.
@@ -18,7 +21,7 @@ conversation, reads credential values, or uses an SDK-bundled CLI.
 | Provider | Decision | Why | Measured implementation cost |
 | --- | --- | --- | --- |
 | Claude Code | Initialization-only stream-JSON transport compatible with the Agent SDK semantic surface | Anthropic has no Rust Agent SDK. A JavaScript sidecar would add a second packaged runtime and would not improve process-group cleanup. The control transport is therefore isolated, version-gated, and fixture-tested. | Zero Cargo dependencies and zero packaged sidecars. Live Claude Code 2.1.50 returned 3 sanitized models in 298–554 ms across three macOS arm64 runs. |
-| GitHub Copilot | Minimal protocol-3 `--server --stdio --no-auto-update` adapter | The official Rust SDK was still `1.0.7-preview.2` during evaluation, adds an HTTP/WebSocket dependency surface, and owns a Tokio child that QA Scribe cannot place in its process group. The adapter implements only `connect`, `status.get`, `auth.getStatus`, `models.list`, and best-effort `runtime.shutdown`. | Zero Cargo dependencies and zero bundled runtime. Live latency is not yet measured because Copilot was not installed on the verification host. |
+| GitHub Copilot | Minimal protocol-3 `--server --stdio --no-auto-update` adapter | The official Rust SDK was still `1.0.7-preview.2` during evaluation, adds an HTTP/WebSocket dependency surface, and owns a Tokio child that QA Scribe cannot place in its process group. The adapter implements only `connect`, `status.get`, `auth.getStatus`, `models.list`, and best-effort `runtime.shutdown`. | Zero Cargo dependencies and zero bundled runtime. At the July Phase 0 measurement, live latency was not measured because Copilot was not installed on that host. October results are recorded below. |
 
 An isolated optimized build against `origin/main` used the same frontend assets
 and Rust 1.97.0. The baseline `qa-scribe-tauri` binary was 16,181,728 bytes; the
@@ -51,14 +54,17 @@ version disables a same-family wildcard, and an empty list hides named choices
 while retaining the provider-managed Default row. Setting
 `enforceAvailableModels` to `false` does not disable the named-model allowlist.
 
-The cache key hashes the discovery schema, provider, exact executable metadata,
-relevant settings/credential-file metadata, and only the presence of auth-mode
-environment variables. It never stores environment-variable values. A failed
-refresh may reuse a last-good catalog only when that fingerprint still matches,
-so an account or auth-mode switch cannot inherit the previous account's stale
-catalog.
+The cache key hashes the discovery schema, provider, executable path and metadata,
+relevant settings/credential-file paths and metadata, and the presence of auth-mode
+environment variables. Selected nonsecret provider-class and host values also
+contribute to this in-memory hash. Credential contents and token values do not.
+Codex identity files follow nonempty `CODEX_HOME`, falling back to `HOME/.codex`.
+A failed refresh may reuse a last-good catalog only when the fingerprint matches.
+The covered path, size, modification-time and auth-mode changes invalidate that
+catalog. This metadata check does not attest every possible account, token or
+keychain change.
 
-That identity proof exists only in the backend process. The persisted frontend
+That fingerprint exists only in the backend process. The persisted frontend
 startup cache therefore never stores `cliCatalog` entries and never replays a
 catalog across an app restart; it restarts catalog discovery as `idle` while it
 may still reuse separately sanitized default observations. The cache rebuilds
@@ -125,8 +131,11 @@ QA_SCRIBE_LIVE_COPILOT_PATH=/absolute/path/to/copilot \
 
 Two 2026-07-13 Claude runs and a 2026-07-14 follow-up passed on macOS arm64 with
 Claude Code 2.1.50; the follow-up returned 3 models in 359 ms. Copilot was not
-installed and remains unverified live. Do not install or authenticate a provider
-as an application behavior or required deterministic CI step.
+installed on that historical host.
+On 2026-10-16 Linux, Claude Code 2.1.301 returned 13 models and Codex CLI 0.163.0 returned seven visible paginated models.
+Copilot 1.0.69 was installed; its live contract failed with the app classification `PolicyDenied`, whose underlying cause remains unidentified.
+The current [qualification record](verification/cli-model-management-qualification.md) retains exact receipts and optional generation results.
+Do not install or authenticate a provider as an application behavior or required deterministic CI step.
 
 ## Release evidence checklist
 
@@ -150,6 +159,17 @@ The last two items and the multi-platform/account matrix are external release
 gates. They are intentionally not claimed by fixture tests. Until they are
 complete, keep the default in diagnostics and do not market subscription-backed
 Claude discovery as generally released.
+
+The October CLI model-management work retains those gates. Its qualification
+record distinguishes no-prompt contracts, deterministic native behavior and
+optional authenticated generation. See the
+[current qualification record](verification/cli-model-management-qualification.md).
+CLI catalog labels describe returned choices rather than independently verified
+account entitlement. Codex retains its existing catalog authority in disabled and
+diagnostic modes; the new rollout switch gates Claude and Copilot.
+Deep Claude/Codex detection captures authentication before catalog inspection can
+consume the shared deadline, preserving a real readiness observation when the
+catalog times out.
 
 ## Duplex Chat request capabilities
 

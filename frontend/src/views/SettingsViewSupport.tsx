@@ -1,4 +1,5 @@
 import { AlertCircle, CheckCircle2, Clock3, Loader2 } from 'lucide-react'
+import { catalogSelectorEnabled } from '../settings/catalog'
 import { originSummary } from '../settings/defaults'
 import type {
   AiProvider,
@@ -30,10 +31,10 @@ export function catalogStatusDescription(
   catalog: ProviderModelCatalogSnapshot | null,
   rollout: ProviderCatalogRollout | null,
 ): string {
-  if (rollout === 'disabled') return 'Using compatibility model choices. Structured catalog discovery is disabled.'
+  if (!catalogSelectorEnabled(provider, rollout) && rollout === 'disabled') return 'Using compatibility model choices. Structured catalog discovery is disabled.'
   if (!catalog || catalog.state === 'idle') return 'Model catalog not checked yet.'
   if (catalog.state === 'loading') return 'Checking the model catalog…'
-  const rolloutSuffix = rollout === 'diagnostics'
+  const rolloutSuffix = !catalogSelectorEnabled(provider, rollout) && rollout === 'diagnostics'
     ? ' Compatibility model choices remain active while catalog diagnostics run.'
     : ''
   if (catalog.state === 'fresh') {
@@ -47,7 +48,7 @@ export function catalogStatusDescription(
 }
 
 export function catalogSourceDescription(source: ProviderModelCatalogSnapshot['source']): string {
-  if (source === 'cliCatalog') return 'Available for this account'
+  if (source === 'cliCatalog') return 'Reported by CLI catalog'
   if (source === 'cliHelp') return 'Recognized by the installed CLI'
   if (source === 'config' || source === 'environment') return 'Found in CLI configuration'
   return 'Static fallback'
@@ -59,16 +60,16 @@ function catalogRecoveryDescription(
 ): string {
   const providerLabel = provider?.label ?? 'the provider CLI'
   if (provider?.status === 'authRequired') return `Sign in with ${providerLabel}, then retry model discovery.`
-  if (catalogContainsPolicyEntries(catalog) || catalog.warnings.some((warning) => warning.code.toLocaleLowerCase().includes('policy'))) {
-    return 'Model access is controlled by account or organization policy. Refresh after policy changes.'
-  }
   if (catalog.error?.code === 'authRequired') return `Sign in with ${providerLabel}, then retry model discovery.`
-  if (catalog.error?.code === 'policyDenied') return 'Model access is controlled by account or organization policy. Refresh after policy changes.'
+  if (catalog.error?.code === 'policyDenied') return 'The CLI denied catalog access. Check CLI sign-in, account access, and organization settings, then retry.'
+  if (catalogContainsPolicyEntries(catalog) || catalog.warnings.some((warning) => warning.code.toLocaleLowerCase().includes('policy'))) {
+    return 'The CLI reports restricted model choices. Review CLI access and configuration, then refresh.'
+  }
   if (catalog.error?.code === 'unsupported' || catalog.error?.code === 'protocolIncompatible') {
-    return `Update ${providerLabel} to inspect account models. Custom model IDs remain available.`
+    return `Update ${providerLabel} to inspect CLI catalog models. Custom model IDs remain available.`
   }
   if (['timedOut', 'unavailable', 'network'].includes(catalog.error?.code ?? '')) {
-    return 'The account catalog is unavailable. Check sign-in and network access, then retry.'
+    return 'The CLI catalog is unavailable. Check sign-in and network access, then retry.'
   }
   if (catalog.error?.code === 'rateLimited') return 'Model discovery is temporarily rate limited. Retry later.'
   if (provider?.status === 'installRequired') return `Install or update ${providerLabel}, then retry.`
@@ -88,7 +89,7 @@ export function sanitizedProviderReason(provider: ProviderStatus['providers'][nu
 
 export function sanitizedDiscoveryRecovery(code: string, providerLabel: string): string {
   if (code === 'authRequired') return `Sign in with ${providerLabel}, then retry.`
-  if (code === 'policyDenied') return 'Check account or organization model policy, then retry.'
+  if (code === 'policyDenied') return 'The CLI denied catalog access. Check CLI sign-in, account access, and organization settings, then retry.'
   if (['timedOut', 'unavailable', 'network'].includes(code)) return 'Check sign-in and network access, then retry.'
   if (code === 'rateLimited') return 'Retry later; model discovery is temporarily rate limited.'
   if (code === 'unsupported' || code === 'protocolIncompatible') return `Update ${providerLabel}, then retry.`

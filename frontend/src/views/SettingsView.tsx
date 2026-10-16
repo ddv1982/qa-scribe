@@ -13,6 +13,7 @@ import {
 } from '../settings/defaults'
 import type { AiProvider, AppSettings, ProviderStatus } from '../tauri'
 import type { BusyAction, ProviderDiscoveryUiState, SettingsSaveState, ThemePreference } from '../ui/types'
+import { catalogSelectorEnabled } from '../settings/catalog'
 import { TemplatesView } from './TemplatesView'
 import {
   catalogSourceDescription,
@@ -205,7 +206,7 @@ export function SettingsView({
                   providerLabel={defaultProviderLabel(defaultProvider, defaultProviderStatus)}
                   resolvedDefaultModel={snapshot?.model.value ?? null}
                   resolvedDefaultOrigin={originSummary(snapshot?.model.origin ?? null)}
-                  catalogChecked={providerStatus?.catalogRollout === 'selector' && (catalog?.state === 'fresh' || catalog?.state === 'stale')}
+                  catalogChecked={catalogSelectorEnabled(defaultProviderStatus, providerStatus?.catalogRollout ?? null) && (catalog?.state === 'fresh' || catalog?.state === 'stale')}
                   onChange={updateDefaultModel}
                 />
                 <p className="field-description" id="model-default-description">

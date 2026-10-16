@@ -3,7 +3,8 @@
 The operator authorized implementation of the model-management plan and publication of a new release after success on 2026-10-16.
 The baseline is protected main `ac96962daf935f2e5ba187a81dc1c8fd52331626`, released as v0.8.9.
 The original checkout remains on its existing branch with its unrelated local edits untouched.
-M01 remains frozen in `/tmp/qa-scribe-model-management`. M02 runs in `/tmp/qa-scribe-model-evidence` and owned verification directories.
+M01 remains frozen in `/tmp/qa-scribe-model-management`. M04 is committed in `/tmp/qa-scribe-model-evidence`.
+Parent-managed integration checkouts retain the M02 and M03 branches separately.
 
 ## Execution contract
 
@@ -15,7 +16,9 @@ Keep requested selection, neutral default observation, and provider-reported evi
 
 The later implementation-and-release instruction supplies execution, merge, and publication authority.
 The planning document's earlier statement that execution is not authorized is historical.
-The proposed operator interaction checkpoints are satisfied with reviewable screenshots and video plus independent review under the autonomy instruction.
+The parent interprets the standing autonomy instruction and the explicit continuation through release as superseding the proposed human interaction checkpoints.
+The parent substitutes reviewable native screenshots and video plus independent visual and shipping review.
+This is an autonomous workflow decision, not evidence that a human review occurred.
 Do not claim human visual approval. Record each actual review and its exact revision.
 
 Provider catalog promotion has separate existing external gates.
@@ -34,10 +37,10 @@ Authenticated smokes remain separate from deterministic CI and do not alter cred
 
 | Phase | State | Evidence |
 | --- | --- | --- |
-| M01 | Verified locally | 10 native scenarios, 547 Rust tests, 18 fixture and runner tests, frontend checks, and independent audits |
-| M02 | Verified locally | Typed storage and transport tests, 10 native lanes, and actual native restart |
-| M03 | Verified functionally | Shared Settings ownership, ten native lanes and actual restart pass; matched performance and independent shipping review remain |
-| M04 | Pending | Provider qualification remains explicit |
+| M01 | Merged PR47 | Exact independent verdict, protected CI and merge `64e2a8fe78df24bbfa923f06585101898ca36c33` |
+| M02 | Merged PR48 | Exact independent verdict, protected CI and merge `f0d3f4b314d3773abbd4481eb31487a025433fbe` |
+| M03 | Merged PR49 | Independent final verdict, protected CI run `38964642310`, merge `ddd4099d034012d2a3c42508d29f67b93a3eb806` |
+| M04 | Revised harness verification in progress | PR50 production source `786a424`; prior independent head `cbb7b0a` passed. Hosted integration found fixture ordering; corrected patch needs fresh independent and protected checks |
 | Release | Pending | Starts after verified implementation and protected CI |
 
 ## Decisions and limits
@@ -199,7 +202,7 @@ The observed startup and picker medians remained within the proposed larger-of-1
 These observations are inconclusive for production latency. They use warm OS caches and an animation-frame DOM observation rather than physical paint.
 Raw samples, machine load, executable hashes and the comparison script are under `/tmp/qa-models/M03/performance/` and `/tmp/qa-models/M03/compare-native.py`.
 The measured source commit is retained as `5a2b4a00ee124ecc37e3a0c50c508ac12b73b480`.
-An exact-commit independent native shipping review remains before landing.
+The subsequent exact-commit independent native shipping review is recorded below.
 
 ## M03 provenance-label review correction
 
@@ -209,10 +212,196 @@ The correction labels the three typed sources separately as Initialization metad
 It preserves unknown and legacy evidence and makes no serving-backend claim.
 Two source-label regressions failed before the correction. All 83 rendered history and permission tests then passed, including live historical DOM assertions after the next preference changes.
 The narrow independent source re-review passed. Receipts are under `/tmp/qa-models/M03/review-label-fix/`.
-The parent retains the earlier native and timing revisions and will verify a fresh executable for this display correction before landing.
+The parent retained the earlier native and timing revisions, then verified a fresh executable for this display correction.
+The final independent r2 verdict below binds that executable to the corrected source.
 
 ## Forge and integration
 
 Origin is unavailable in this environment, so the parent uses GitHub CLI for host operations.
 The existing repository merges retain stack ancestry. Preserve that history when landing this linear program and revalidate each resulting base-to-head patch.
 Protected CI at each actual head remains required. Local or independent verification does not replace it.
+
+## Protected integration and final M03 review
+
+PR47 merged at `64e2a8fe78df24bbfa923f06585101898ca36c33` after protected CI and independent verification.
+PR48 merged at `f0d3f4b314d3773abbd4481eb31487a025433fbe` after protected CI run `38961202384` passed on `1b819c129dbf30fde1b1e4fcb71f48853fa336ee`.
+Its stable base-to-head patch remained `bb2c795cba0a420ae46f36035748e765b609ab82`.
+No review threads remained at the final readiness read.
+
+The final M03 independent review passed at `3ff36227295bfb6eef5b417e713452b0899f713f`.
+All 31 source hashes matched. Candidate ten scenarios and restart, baseline ten scenarios, four geometry checks, Codex thread-source proof and 102 frontend tests passed.
+The first restart read helper timed out. A direct read matched the stored rows, and an unchanged sequential retry passed. The cause remains unproven.
+The report preserves that failed attempt under `/tmp/qa-models/M03/shipping-review-r2/`.
+The parent merged current main into M03 without content changes and pushed `80f05defc2245063f004052c8b90cda0659a19b3`.
+The stable patch remains `dfc56ee6465fc73bfb4eda26f18fb4f63624df5d`. Fresh protected CI is pending.
+
+## M04 native qualification
+
+The first expanded native run passed 17 of 18 invocations and exposed a false Codex sign-in warning.
+Catalog discovery consumed the shared deadline before the auth probe ran.
+Moving the existing auth check before catalog discovery preserves the same 12-second transaction bound and command limits.
+A direct regression failed before the fix. Signed-out behavior and catalog timeout evidence remain distinct.
+The focused provider suite passed 90 tests with two optional account tests ignored.
+
+The final parent Linux run passed all 18 default invocations, with complete machine receipts and no skipped tests.
+The model evidence and selection suites each include a second-process restart.
+Disabled, diagnostics and selector qualification cover policy updates, CODEX_HOME metadata changes and executable replacement.
+Receipts are under `/tmp/qa-models/M04/final/`.
+The immutable E2E binary is `/tmp/qa-models/M04/candidate-binary`, SHA256 `6141a2d31feee03e061a38360bd3ed5c66a2dd8527dbb5559042c4b99091da00`.
+The default Linux suite now includes these model tests. Other platforms retain their existing invocation plan until equivalent native coverage is qualified.
+
+Five alternating baseline and candidate pairs passed all 40 resource-bound invocations.
+They check probe lifecycle, expired deadlines, snapshot reuse and oversized output rejection.
+The baseline source tree matches released main `ac96962daf935f2e5ba187a81dc1c8fd52331626`.
+The receipt is `/tmp/qa-models/M04/resource-bounds/receipt.json`. This is bounded-resource evidence, not a latency improvement claim.
+
+Authenticated checks are optional and retain unsuccessful attempts separately.
+Claude Code 2.1.301 completed Default and explicit `sonnet` generation through real app controls.
+Actual model arguments, typed requested and reported metadata, persisted rows and Session reopen all matched.
+Codex CLI 0.163.0 completed Default and a catalog-selected explicit model, with unknown reported model and persisted reopen proof.
+Three prior explicit-selection attempts stopped in the harness before invocation. The first two read fast presets; the third raced Session hydration.
+The final corrected run passed both paths, as recorded below.
+Copilot catalog discovery was classified `PolicyDenied`; the underlying cause remains unidentified. No credentials or external CLI configuration were changed.
+
+## M04 final local evidence
+
+The broad gate passed with 572 frontend tests and 566 Rust workspace tests, with three optional tests ignored.
+The 27 runner and fixture tests passed. The authenticated online Zizmor audit reported no findings and 33 suppressions.
+This patch added no suppression directive; the baseline suppression count was not independently measured.
+The optimized Linux size comparison uses identical version, lockfile, compiler and default production features.
+The executable grows by 0.788 percent. Frontend production gzip grows by 1889 bytes. Both remain below the proposed review thresholds.
+No build-time or production latency improvement is claimed.
+
+The corrected optional Codex harness completed both Default and the catalog-selected explicit `gpt-6.1-sol`.
+The exact successful receipt is `/tmp/qa-models/M04/authenticated-generation/evidence-1792183839478.json`.
+The third prior attempt had already saved the explicit choice, but raced new Session hydration before invocation.
+The final harness waits for the newly created ID, selected Session and matching title before editing its empty Note.
+Every completed request matches actual child arguments, persisted typed evidence and Session reopen.
+A Copilot setup attempt stopped before opening the app because its version line ends with a period.
+The bounded parser now accepts only that observed Copilot version-line grammar. Actual optional generation remains pending.
+
+The native diagnostics video is 45 seconds with exact candidate hash and inspected positive frames.
+Artifacts and cleanup evidence are under `/tmp/qa-models/M04/review/`.
+The independent comment audit accepted eight narration deletions in the disposable harness and confirmed no residual flags.
+Production comments and suppressions did not change. The independent source reviewer did not author the implementation.
+
+## Copilot authenticated limit
+
+Copilot 1.0.69 completed Settings selection and reached an actual Default invocation without a model override.
+The native job and typed AI Run both failed. The smoke stopped before Auto and explicit requests, preserving the unsuccessful receipt.
+A separate bounded direct invocation with synthetic input also failed with an access-denial pattern.
+No argument, auth, model-unavailable, network or usage pattern was established, and raw provider output was discarded.
+The available evidence does not identify the underlying account or service cause.
+Receipts are `/tmp/qa-models/M04/authenticated-generation/evidence-1792183914358.json` and `/tmp/qa-models/M04/live/copilot-failure-category.json`.
+No credentials, external CLI configuration or installed provider were changed to make this optional smoke pass.
+Claude and Codex authenticated paths passed. Copilot remains a recorded external qualification limit while deterministic arguments, failures and persistence are covered by fixtures.
+
+## Decision-trail review response
+
+An independent read-only review requested `claude-sonnet-5-5` through the Claude provider. Serving-model identity is unverified.
+Its report is `/tmp/qa-models/M04/trail-review-r1.md`. It returned PASS+NOTES with authority, release-rule and workflow-evidence objections to close before merge.
+The reviewer did not build, test, mutate the host or attest real-provider behavior.
+The parent accepts the documentation and provenance gaps and records the responses here.
+
+The current user-supplied AGENTS instruction says, verbatim, "YOU ARE AN AUTONOMOUS CODING AGENT. EXECUTE TASKS TO COMPLETION WITHOUT ASKING FOR PERMISSION."
+The handoff also says, "Continue the authorized CLI model-management implementation through release in Poteto mode."
+The original release instruction says, "Once we are fully successful then we can push a new release with a new tag at the end following the existing release process."
+These instructions supply the authority to continue through independent visual review, protected integration and publication without another approval request.
+Their original precise message timestamps are not available in this workspace handoff. The TSV timestamp records when the parent logged this reconciliation.
+No human review or approval is inferred.
+
+The parent interprets release success, consistently with the plan's diagnostic fallback, as passing deterministic implementation gates, an independent passing verdict for each unchanged patch, no unresolved blocking source finding, and fresh protected CI at each actual integration head.
+The release PR must pass `docs/releasing.md`, then the actual release workflow must publish and verify its signed assets and APT metadata.
+The external account and platform matrix governs catalog promotion. It stays open and does not authorize promotion in this release.
+Claude and Copilot therefore retain diagnostics defaults. Their real-provider limits must remain in release evidence.
+An uninvestigated application defect blocks release. The failed Copilot app invocation is not shown to be an application defect. Separate catalog and direct checks are consistent with an account or service denial, but do not establish the app-run cause. It remains an unresolved qualification failure, not a passing provider result.
+
+The workflow addition installs `xdotool` only in Linux test/validation jobs so the native suites can exercise actual OS keyboard behavior.
+It adds no packaged application dependency. The expanded default native plan took 388334 ms on the local host.
+That duration is not hosted-runner evidence or a baseline performance comparison.
+Both Linux quality and release validation retain a 30-minute job timeout. M04 hosted CI must pass this expanded plan before integration.
+`workflow-lint-r2.json` records the exact actionlint invocations and exit codes. Silent successful lint explains the earlier version-only log.
+The authenticated Zizmor command and exit code are recorded in `zizmor-r2.json`; token contents are not retained.
+The audit reports 33 suppressions. No suppression directive was added in this patch; the baseline count was not independently measured.
+
+The TSV is append-only. Its `ts` column means record time, which can follow the event or group several related decisions.
+It is not a claim that every event happened at that instant. Later rows supersede stale queue or pending-state observations.
+The M03 r1 verdict, label correction, visual-review amendment, M04 scope and workflow decisions are reconstructed explicitly in new rows.
+Source tree identity also confirms that the reviewed M01 and M02 trees equal their merged trees and that M03 `3ff3622` equals integrated `80f05de`.
+
+Authenticated checks used the already-authenticated local CLI account. Account identities and credentials are not recorded.
+Claude completed two real turns. Codex completed five real turns, including four Default invocations repeated while correcting the harness and one explicit invocation.
+Copilot made one app-owned failed Default attempt and one separate failed direct diagnostic invocation.
+Provider-owned history and usage side effects follow normal CLI behavior. The parent did not delete provider-owned history or infer billing totals.
+The app's disposable data and owned process groups were cleaned up.
+The parent tool invocations name the immutable executable. Its retained hash and creation time corroborate that association.
+No per-run before/after hash receipt was captured; the later binding sidecar is retrospective.
+Original per-run harness hashes were not captured for the earliest attempts and cannot be reconstructed faithfully. This limit is explicit in the binding sidecar.
+Current harness hashes describe the retained final artifact, not an invented historical revision.
+The shared local dependency tree uses the same frontend lockfile; installed versions are recorded separately. Clean hosted installs remain required.
+
+The auth-first trade-off preserves a bounded auth observation before potentially slow catalog work.
+An auth timeout can still yield the existing auth-required state and reduce the remaining catalog budget. Per-command slices remain four seconds within the shared 12-second deadline.
+This patch does not introduce an auth-unknown state or widen timeouts. The direct unit regression and real native stalled-catalog lane cover the defect being fixed.
+The resource comparisons cover unchanged program-wide lifecycle limits and do not substitute for that regression.
+
+The small frontend `catalogSelectorEnabled` predicate centralizes the existing Codex exemption across UI consumers.
+Rendered tests and native disabled/diagnostic modes check that backend catalog choices and frontend authority agree.
+A new backend per-provider rollout DTO would widen this qualification fix and is not required for the current stable rule.
+The native runner deliberately fails closed against a fixed spec-to-receipt contract, including expected lane counts.
+Its model specs are permanent regression suites despite their original phase identifiers. A generic orchestration registry is deferred until another suite needs that abstraction.
+
+## Release review corrections
+
+The second decision-trail review returned PASS+NOTES with no hard integration blocker.
+Its residual documentation corrections are incorporated here before publication.
+The parent interpretation replaces the proposed program interaction checkpoint and the M01, M03 and M04 operator-preview stops.
+Native screenshots, 30-to-60-second media and independent shipping/visual review supply the substitute assertions.
+Those original human-review boxes remain unfulfilled as written. No human review is claimed.
+
+The apparent lint discrepancy is reproduced and reconciled in `/tmp/qa-models/M04/lint-reconciliation.json`.
+Raw and committed workflow hashes match. Raw actionlint1.7.12 rejects the existing `$/` local-action syntax.
+The repository's documented compatibility view changes only those references to `./` on stdin, and both normalized workflows pass.
+The workflow files remain unchanged. This is the existing rule in `docs/ci.md`, not a newly invented lint exception.
+
+If a hosted native key or display test fails, first inspect that exact failure and classify the cause.
+Only demonstrated infrastructure failure permits one fresh build of the same head. Do not retry a job against a stale snapshot.
+A repeated failure blocks integration or publication until fixed and verified. The policy does not authorize retries for code defects.
+
+The Copilot app attempt reached a failed native job and a typed failed row. Its raw error category was not captured.
+A separate direct invocation matched the bounded access-denial classifier, which includes the substring `403`.
+That result supports a possible access failure but cannot prove the app invocation's cause. Raw provider output was discarded.
+Copilot Auto and explicit completion, the signed-in picker matrix, and Claude's external authorization and billing gates remain open.
+
+## First hosted M04 integration failure
+
+Protected CI run `38967689175` failed at integration head `f156677ed885e2c50033a83d57b32a9f0c71df7d`.
+Linux unit, type, lint and build checks passed. The model-evidence native lane completed Codex Chat with the expected requested ID and thread-configuration report, but its fixture readiness file was absent.
+The fixture published terminal completion before writing that file. The app can terminate a completed child between those operations.
+The later restart failure was a consequence of the missing first-run receipt, not separate migration evidence.
+This is classified as a fixture ordering defect. No infrastructure retry was requested.
+The correction publishes readiness before terminal completion. All 18 fixture tests pass, including five deterministic scheduler-preemption checks.
+The normal required script-test command now includes both fixture test files and passes all 180 tests.
+A native RED run with the original fixture and a post-terminal pause reproduced the same missing Codex marker and dependent restart failure.
+The corrected full native rerun, fresh independent review and fresh protected build remain pending.
+The production app executable and source remain unchanged by that fixture correction.
+
+The earlier independent verdict and protected failures remain retained. A fresh independent verdict must describe the revised fixture patch before integration.
+The current source and visual evidence continues to distinguish the failed Copilot app attempt from the separate direct access-denial classifier.
+
+## Second hosted M04 integration failure
+
+Protected CI run `38970818207` passed the corrected model-evidence and restart scenarios.
+The unrelated maintained generation-cancellation scenario failed before theme selection, while its actual dirty-navigation guard remained open.
+The layout helper checked for that guard once immediately after clicking Settings and could miss its asynchronous appearance or click it before it became actionable.
+The correction waits for either the destination or visible save guard, waits for a clickable save action when needed, then confirms the Settings destination.
+This is a native harness synchronization defect, not a demonstrated application regression or an infrastructure retry.
+The original cloud screenshot and log remain under `/tmp/qa-models/M04/ci-failure-38970818207/`.
+A fresh focused native run, independent review and protected CI remain required for the corrected patch.
+
+The corrected focused generation-cancellation invocation passed without skipped tests.
+Its actual navigation trace recorded a save guard in light mode and direct Settings navigation in dark mode, both reaching the destination.
+The scenario also completed the generation, edit, reopen and cancellation checks.
+The passing receipt and verified runtime source-copy hashes are under `/tmp/qa-models/M04/ci-navigation-fix/green-focused/`.
+An old-helper local baseline passed, so the hosted asynchronous failure is not claimed as locally reproduced.
+The 180 required script tests, frontend checks, syntax, plan and file-size checks pass. The helper remains within the 500-line policy at 498 lines.

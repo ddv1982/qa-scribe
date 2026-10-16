@@ -55,8 +55,8 @@ export function modelEvidenceExecution(provider, argv, configuration, record) {
     emit({ type: 'assistant', message: { ...(mode === 'alias' ? { model: 'claude-alias-resolved' } : {}),
       content: [{ type: 'text', text }] } })
     if (mode === 'alias') emit({ type: 'system', subtype: 'init', model: 'claude-late-initialization' })
-    emit({ type: 'result', subtype: 'success', is_error: false, result: text })
     ready()
+    emit({ type: 'result', subtype: 'success', is_error: false, result: text })
   }
   if (provider === 'claude' && chat) {
     jsonLines(async (request) => {
@@ -96,8 +96,8 @@ export function modelEvidenceExecution(provider, argv, configuration, record) {
         const text = 'Model evidence fixture completed.'
         emit({ method: 'item/agentMessage/delta', params: { threadId, turnId, itemId: 'assistant', delta: text } })
         emit({ method: 'item/completed', params: { threadId, turnId, item: { type: 'agentMessage', id: 'assistant', text } } })
-        emit({ method: 'turn/completed', params: { threadId, turnId, turn: { id: turnId, status: 'completed' } } })
         ready()
+        emit({ method: 'turn/completed', params: { threadId, turnId, turn: { id: turnId, status: 'completed' } } })
       } else throw new Error(`Unexpected evidence Chat request ${request.method}`)
     })
     return true
@@ -114,8 +114,8 @@ export function modelEvidenceExecution(provider, argv, configuration, record) {
         record({ event: 'prompt', prompt: request.params.prompt.map((part) => part.text).join('') })
         emit({ jsonrpc: '2.0', method: 'session/update', params: { sessionId,
           update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Model evidence fixture completed.' } } } })
-        rpc(request.id, { stopReason: 'end_turn' })
         ready()
+        rpc(request.id, { stopReason: 'end_turn' })
       } else throw new Error(`Unexpected Copilot evidence execution request ${request.method}`)
     })
     return true

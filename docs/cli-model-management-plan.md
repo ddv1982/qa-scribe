@@ -18,6 +18,28 @@ No release is included in this plan. Follow `docs/releasing.md` only under a lat
 
 Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
+## Execution reconciliation
+
+The operator subsequently authorized full implementation and a release after successful verification.
+The execution record is [CLI model-management execution](verification/cli-model-management-execution.md).
+The original checklist below remains the proposed acceptance plan. This reconciliation records completed work, explicit workflow amendments, and open external gates.
+
+| Phase | Implemented and verified | Evidence and remaining work |
+| --- | --- | --- |
+| M01, PR47 | Copilot Default and Auto, Settings round trip, narrow denial grammar, Claude Default and policy filtering | Merged at `64e2a8fe78df24bbfa923f06585101898ca36c33`; ten native scenarios, independent review and protected CI |
+| M02, PR48 | Typed requested and reported evidence, schema-10 migration, parser trust boundaries, failure and cancellation settlement | Merged at `f0d3f4b314d3773abbd4481eb31487a025433fbe`; ten native scenarios, restart, literal SQLite, independent review and protected CI |
+| M03, PR49 | Shared next-invocation selection, serialized Settings writes, captured launch values and immutable history | Independent final PASS+NOTES at `3ff36227295bfb6eef5b417e713452b0899f713f`; ten native scenarios and restart; merged at `ddd4099d034012d2a3c42508d29f67b93a3eb806` after protected CI |
+| M04 | Provider-aware authority, CODEX_HOME invalidation, auth before catalog within the same deadline, expanded required Linux native suite | Final parent native suite passed all 18 invocations. Independent shipping and size comparison passed. Hosted CI exposed a fixture ordering defect; its corrected patch requires fresh independent and protected verification |
+| External promotion | Diagnostics remains the default for Claude and Copilot | Full platform and account matrix, signed-in picker parity, Claude authorization and billing evidence, and Copilot catalog access remain open |
+| Release | Authorized after successful deterministic qualification and integration | Follow `docs/releasing.md`; no release or new tag has been published by this program yet |
+
+The same bounded Poteto owner continued the linear implementation phases. Independent design, source, comment and native shipping reviewers remained separate from the author.
+The parent retained integration and publication authority. The execution record explains the autonomous visual-review amendment. No human approval is claimed.
+M03 timing evidence uses debug-native artifacts and remains inconclusive for production latency.
+M04 account-dependent checks stay separate from deterministic CI. A recorded provider denial does not pass an external promotion gate.
+Unused file-list entries in the proposed checklist are scope options, not requirements to edit files without a behavioral reason.
+No goal, scheduled audit or credential/configuration workaround was created.
+
 ## Program checklist
 
 ### Arm the program
@@ -36,7 +58,7 @@ Tests alone are not sufficient verification. A PR is verified only when its unit
 - [ ] Keep research read-only. Keep the parent responsible for integration, commits, pushes, PR linking, and final verification.
 - [ ] Run independent design exploration before code crosses boundaries. Resolve contested choices before implementation.
 - [ ] Keep model changes global per provider for this first version, matching existing Settings behavior. Label that scope in the UI.
-- [ ] Stop M03 at merge-ready for operator review of screenshots and video. M01 and M04 also require review if they alter user-visible diagnostics or catalogs.
+- [ ] Stop M03 at merge-ready for operator review of screenshots and video. M01 and M04 also require review if they alter user-visible diagnostics or catalogs. Execution amendment. The parent interprets the later autonomous continuation as substituting independent visual and shipping review; no human review is claimed.
 
 ### PR mechanics, for every PR
 
@@ -119,7 +141,7 @@ Tests alone are not sufficient verification. A PR is verified only when its unit
 
 - [ ] Post the relevant positive screenshots under `/tmp/qa-models/M01/review/`.
 - [ ] Record a 30 to 60 second video of model selection or diagnostics. Save `/tmp/qa-models/M01/review/demo.mp4`.
-- [ ] Present screenshots and video to the operator. Stop at merge-ready until that interaction receives review.
+- [ ] Present screenshots and video to the operator. Stop at merge-ready until that interaction receives review. Execution amendment. Independent visual and shipping review substitutes under the parent's recorded autonomy interpretation; this human-review box remains unfulfilled as written.
 
 **Merge.**
 
@@ -243,7 +265,7 @@ Tests alone are not sufficient verification. A PR is verified only when its unit
 
 - [ ] Post the relevant positive screenshots under `/tmp/qa-models/M03/review/`.
 - [ ] Record a 30 to 60 second video of model selection or diagnostics. Save `/tmp/qa-models/M03/review/demo.mp4`.
-- [ ] Present screenshots and video to the operator. Stop at merge-ready until that interaction receives review.
+- [ ] Present screenshots and video to the operator. Stop at merge-ready until that interaction receives review. Execution amendment. Independent visual and shipping review substitutes under the parent's recorded autonomy interpretation; this human-review box remains unfulfilled as written.
 
 **Merge.**
 
@@ -306,7 +328,7 @@ Tests alone are not sufficient verification. A PR is verified only when its unit
 
 - [ ] Post the relevant positive screenshots under `/tmp/qa-models/M04/review/`.
 - [ ] Record a 30 to 60 second video of model selection or diagnostics. Save `/tmp/qa-models/M04/review/demo.mp4`.
-- [ ] Present screenshots and video to the operator. Stop at merge-ready until that interaction receives review.
+- [ ] Present screenshots and video to the operator. Stop at merge-ready until that interaction receives review. Execution amendment. Independent visual and shipping review substitutes under the parent's recorded autonomy interpretation; this human-review box remains unfulfilled as written.
 
 **Merge.**
 

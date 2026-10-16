@@ -46,8 +46,11 @@ export function modelManagementFixture(provider, argv) {
         emit({ type: 'control_response', response: { subtype: 'error', request_id: request.request_id, error: { code: 'unavailable' } } })
         return
       }
-      emit({ type: 'control_response', response: { subtype: 'success', request_id: request.request_id,
-        response: { models: [{ value: 'claude-fixture', displayName: 'Claude Fixture', description: 'Synthetic account catalog' }] } } })
+      const models = mode === 'qualification'
+        ? [{ value: 'qualification-claude-model', displayName: 'qualification-claude-model' }]
+        : [{ value: 'claude-fixture', displayName: 'Claude Fixture', description: 'Synthetic account catalog' }]
+      record({ event: 'catalog-response', ids: models.map((model) => model.value) })
+      emit({ type: 'control_response', response: { subtype: 'success', request_id: request.request_id, response: { models } } })
     })
     return
   }
@@ -59,11 +62,18 @@ export function modelManagementFixture(provider, argv) {
         case 'initialized': break
         case 'config/read': rpc(request.id, { config: { model: 'codex-page-one' }, layers: [] }); break
         case 'model/list': {
+          if (mode === 'timeout') { record({ event: 'catalog-stalled' }); break }
           if (mode === 'delayed' && !request.params.cursor) {
             record({ event: 'catalog-held' })
             await waitForFile(join(directory, 'model-selection-catalog.release'))
           }
           if (mode === 'unavailable') { rpc(request.id, undefined, { code: -32000, message: 'Synthetic catalog unavailable', data: { statusCode: 503 } }); break }
+          if (mode === 'qualification') {
+            const data = [{ model: 'qualification-codex-model', displayName: 'qualification-codex-model', hidden: false }]
+            record({ event: 'catalog-response', ids: ['qualification-codex-model'] })
+            rpc(request.id, { data, nextCursor: null })
+            break
+          }
           assert.deepEqual(request.params, request.params.cursor
             ? { limit: 100, cursor: 'fixture-page-2' } : { limit: 100 })
           rpc(request.id, request.params.cursor
@@ -95,11 +105,15 @@ export function modelManagementFixture(provider, argv) {
           } else if (mode === 'unavailable') {
             respond(undefined, { code: -32000, message: 'Request unavailable', data: { statusCode: 503 } })
           } else {
-            respond({ models: [{ id: 'copilot-fixture', name: 'Copilot Fixture', policy: { state: 'enabled' } },
-              ...(mode === 'policy' ? [
-                { id: 'copilot-blocked', name: 'Copilot Blocked', policy: { state: 'disabled' } },
-                { id: 'copilot-unconfigured', name: 'Copilot Unconfigured', policy: { state: 'unconfigured' } },
-              ] : [])] })
+            const models = mode === 'qualification'
+              ? [{ id: 'qualification-copilot-model', name: 'qualification-copilot-model', policy: { state: 'enabled' } }]
+              : [{ id: 'copilot-fixture', name: 'Copilot Fixture', policy: { state: mode === 'policy-update' ? 'disabled' : 'enabled' } },
+                ...(mode === 'policy' ? [
+                  { id: 'copilot-blocked', name: 'Copilot Blocked', policy: { state: 'disabled' } },
+                  { id: 'copilot-unconfigured', name: 'Copilot Unconfigured', policy: { state: 'unconfigured' } },
+                ] : [])]
+            record({ event: 'catalog-response', ids: models.map((model) => model.id) })
+            respond({ models })
           }
           break
         case 'runtime.shutdown': respond({}); break

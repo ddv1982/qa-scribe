@@ -298,7 +298,7 @@ export async function runGenerationPreflightLayoutWorkflow({ button }) {
   assert.ok(artifacts, 'Preflight layout workflow requires a configured artifact directory')
   mkdirSync(artifacts, { recursive: true })
   const nativeKeys = process.env.QA_SCRIBE_E2E_NATIVE_KEYS === '1'
-  const evidence = { resizes: [], layouts: [], nativeKeyboard: { status: nativeKeys ? 'pending' : 'not-requested' } }
+  const evidence = { resizes: [], layouts: [], settingsNavigation: [], nativeKeyboard: { status: nativeKeys ? 'pending' : 'not-requested' } }
   const persist = () => writeFileSync(join(artifacts, 'generation-preflight-geometry.json'), JSON.stringify(evidence, null, 2))
   const click = async (label) => {
     const target = await button(label)
@@ -367,14 +367,11 @@ export async function runGenerationPreflightLayoutWorkflow({ button }) {
       persist()
     }
     await resize(1280, heightFor(720), scale, evidence, persist)
-    // First checkpoint is deliberately the reported laptop defect, before any
-    // optional theme/matrix work. Artifacts exist even when this assertion fails.
     await captureAndCheck(`initial-1280x${heightFor(720)}`, 1280, heightFor(720), undefined, 720)
     await cancel()
     const longTitle = 'E2E generation preflight: extended Session context, boundary checks and recovery scenarios '.repeat(2).slice(0, 150).trim()
     const title = await $('[aria-label="Session title"]')
     await title.setValue(longTitle)
-    // Blur through the actual UI so title persistence follows the normal path.
     await $('[aria-label="Note body"]').click()
     assert.equal(await title.getValue(), longTitle)
     await browser.waitUntil(async () => browser.execute(() =>
@@ -383,11 +380,21 @@ export async function runGenerationPreflightLayoutWorkflow({ button }) {
     evidence.sessionTitle = longTitle
     for (const theme of ['light', 'dark']) {
       await resize(1280, heightFor(720), scale, evidence, persist)
+      let navigationOutcome = null
       await click('Settings')
-      // Session title edits use the app's explicit navigation-save guard.
-      const saveBeforeLeaving = await $('button=Save and continue')
-      if (await saveBeforeLeaving.isExisting()) await saveBeforeLeaving.click()
+      await browser.waitUntil(async () => {
+        if (await $('#appearance-settings').isExisting()) { navigationOutcome = 'settings'; return true }
+        if (await $('button=Save and continue').isDisplayed()) { navigationOutcome = 'saveGuard'; return true }
+        return false
+      }, { timeout: 10_000, timeoutMsg: 'Settings navigation must reach Preferences or display its save guard' })
+      if (navigationOutcome === 'saveGuard') {
+        const saveBeforeLeaving = await $('button=Save and continue')
+        await saveBeforeLeaving.waitForClickable()
+        await saveBeforeLeaving.click()
+      }
       await $('#appearance-settings').waitForExist()
+      evidence.settingsNavigation.push({ theme, outcome: navigationOutcome, destinationReached: true })
+      persist()
       const themeButton = await (await $('#appearance-settings')).$(`button=${theme === 'light' ? 'Light' : 'Dark'}`)
       await themeButton.scrollIntoView()
       await themeButton.waitForClickable()

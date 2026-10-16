@@ -161,11 +161,11 @@ fn detect_cli_provider(
     }
     let cli_version =
         (!install.stdout.trim().is_empty()).then(|| install.stdout.trim().to_string());
+    let auth = runner.run(capability.executable, descriptor.auth_args);
     let catalog_snapshot = provider_catalog(capability.id, runner, mode, cli_version.clone());
     let models = catalog_snapshot.models.clone();
     let snapshot = default_snapshot(capability.id, runner, &models, cli_version);
 
-    let auth = runner.run(capability.executable, descriptor.auth_args);
     if auth.success {
         return ready(
             capability,
