@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.8.8 - 2026-10-16
+
+- Align generated Testware with Chat's supported document typography across live previews, saved records, editing and Session reopen. Remove surplus first-heading space and keep checkboxes beside the first line of their labels.
+- Consolidate shared checklist and Evidence-image presentation so nested lists, wrapped text, long safe links and managed images retain a consistent, bounded layout.
+- Extend native regression coverage to all four Testware lifecycle states in light/dark themes at desktop and narrow widths, including multiline tasks, safe links, real edit/save/reopen, no read-only persistence writes, hostile-image observation and cancellation.
+
 ## v0.8.7 - 2026-10-16
 
 - Fix Recent sessions titles being vertically clipped by compressed sidebar rows. Size each row to its content, keep long titles bounded to two readable lines, and preserve date spacing and list scrolling.
