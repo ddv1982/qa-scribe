@@ -86,7 +86,7 @@ Publication verification remains pending until that workflow finishes.
 
 `bun run verify` passed with 572 frontend tests and 566 Rust workspace tests. Three optional Rust tests remained ignored.
 Frontend audit, Rust audit, typecheck, lint, contrast, bindings, release metadata, fmt, clippy, build and the smoke harness passed.
-The authenticated online Zizmor 1.30.1 audit reported no findings. The existing 33 suppressions were unchanged.
+The authenticated online Zizmor 1.30.1 audit reported no findings. The audit reported 33 suppressions. This patch adds no suppression directive; the baseline count was not independently measured.
 Five alternating baseline and candidate pairs passed 40 resource-bound checks for process lifecycle, deadlines, cache reuse and oversized output.
 The final native app and fixture processes were absent after teardown. Isolated data remains for read-only audit.
 
@@ -129,3 +129,22 @@ This failure remains separate from deterministic CI and prevents any Copilot cat
 The 45-second native diagnostics walkthrough is `/tmp/qa-models/M04/review/demo.mp4`.
 The exact binary hash, positive screenshots, inspected frames and teardown receipt are in `review/inspection.json`.
 It shows synthetic policy, timeout, identity and executable replacement behavior. No human review or live-account proof is implied.
+
+## M04 lane disposition
+
+| Planned lane | Actual disposition |
+| --- | --- |
+| 1, Claude signed-in picker parity | Open. No-prompt catalog and authenticated generation passed, but full picker/account/platform parity was not established |
+| 2, Codex picker parity | Partial. Paginated live catalog and explicit generation passed; the full signed-in picker matrix remains open |
+| 3, Copilot catalog and ACP options | Blocked by catalog denial. No ACP session was created solely for discovery |
+| 4, disabled | Passed in `final/provider-qualification-disabled/qualification-results.json` |
+| 5, diagnostics | Passed in `final/provider-qualification-diagnostics/qualification-results.json` |
+| 6, policy change | Passed as selector lane 6 |
+| 7, identity change | Passed as selector lane 7 using isolated CODEX_HOME metadata; no universal account-change guarantee |
+| 8, CLI replacement | Passed as selector lane 8 with an owned executable and incompatible protocol |
+| 9, offline restart | Reuses `final/model-selection/lane-results.json` and the separate restart execution receipt. The saved model map survives while prior catalogs are absent |
+| 10, authenticated round trip | Claude and Codex passed. Copilot Default failed; Auto and explicit completion remain open |
+
+Paths in this table are under `/tmp/qa-models/M04/`.
+The lane-9 substitution exercises the same retained preference and absent-catalog invariant in a second native process, without duplicating the M03 suite.
+The source-only review does not replace hosted macOS validation or the open cross-platform CLI qualification.

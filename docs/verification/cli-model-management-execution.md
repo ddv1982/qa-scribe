@@ -3,7 +3,8 @@
 The operator authorized implementation of the model-management plan and publication of a new release after success on 2026-10-16.
 The baseline is protected main `ac96962daf935f2e5ba187a81dc1c8fd52331626`, released as v0.8.9.
 The original checkout remains on its existing branch with its unrelated local edits untouched.
-M01 remains frozen in `/tmp/qa-scribe-model-management`. M02 runs in `/tmp/qa-scribe-model-evidence` and owned verification directories.
+M01 remains frozen in `/tmp/qa-scribe-model-management`. M04 is committed in `/tmp/qa-scribe-model-evidence`.
+Parent-managed integration checkouts retain the M02 and M03 branches separately.
 
 ## Execution contract
 
@@ -15,7 +16,9 @@ Keep requested selection, neutral default observation, and provider-reported evi
 
 The later implementation-and-release instruction supplies execution, merge, and publication authority.
 The planning document's earlier statement that execution is not authorized is historical.
-The proposed operator interaction checkpoints are satisfied with reviewable screenshots and video plus independent review under the autonomy instruction.
+The later explicit autonomy instruction amends the proposed human interaction checkpoints.
+The parent substitutes reviewable native screenshots and video plus independent visual and shipping review.
+This is an autonomous workflow decision, not evidence that a human review occurred.
 Do not claim human visual approval. Record each actual review and its exact revision.
 
 Provider catalog promotion has separate existing external gates.
@@ -34,10 +37,10 @@ Authenticated smokes remain separate from deterministic CI and do not alter cred
 
 | Phase | State | Evidence |
 | --- | --- | --- |
-| M01 | Verified locally | 10 native scenarios, 547 Rust tests, 18 fixture and runner tests, frontend checks, and independent audits |
-| M02 | Verified locally | Typed storage and transport tests, 10 native lanes, and actual native restart |
-| M03 | Verified functionally | Shared Settings ownership, ten native lanes and actual restart pass; matched performance and independent shipping review remain |
-| M04 | Pending | Provider qualification remains explicit |
+| M01 | Merged PR47 | Exact independent verdict, protected CI and merge `64e2a8fe78df24bbfa923f06585101898ca36c33` |
+| M02 | Merged PR48 | Exact independent verdict, protected CI and merge `f0d3f4b314d3773abbd4481eb31487a025433fbe` |
+| M03 | Independent PASS+NOTES; protected integration pending | Final review at `3ff3622`; identical tree at `80f05de`; PR49 watches fresh CI |
+| M04 | Parent gates passed; independent shipping pending | PR50 at `786a424`; all 18 native invocations, broad gate, resource and size checks pass; external promotion stays open |
 | Release | Pending | Starts after verified implementation and protected CI |
 
 ## Decisions and limits
@@ -199,7 +202,7 @@ The observed startup and picker medians remained within the proposed larger-of-1
 These observations are inconclusive for production latency. They use warm OS caches and an animation-frame DOM observation rather than physical paint.
 Raw samples, machine load, executable hashes and the comparison script are under `/tmp/qa-models/M03/performance/` and `/tmp/qa-models/M03/compare-native.py`.
 The measured source commit is retained as `5a2b4a00ee124ecc37e3a0c50c508ac12b73b480`.
-An exact-commit independent native shipping review remains before landing.
+The subsequent exact-commit independent native shipping review is recorded below.
 
 ## M03 provenance-label review correction
 
@@ -209,7 +212,8 @@ The correction labels the three typed sources separately as Initialization metad
 It preserves unknown and legacy evidence and makes no serving-backend claim.
 Two source-label regressions failed before the correction. All 83 rendered history and permission tests then passed, including live historical DOM assertions after the next preference changes.
 The narrow independent source re-review passed. Receipts are under `/tmp/qa-models/M03/review-label-fix/`.
-The parent retains the earlier native and timing revisions and will verify a fresh executable for this display correction before landing.
+The parent retained the earlier native and timing revisions, then verified a fresh executable for this display correction.
+The final independent r2 verdict below binds that executable to the corrected source.
 
 ## Forge and integration
 
@@ -291,3 +295,57 @@ The available evidence does not identify the underlying account or service cause
 Receipts are `/tmp/qa-models/M04/authenticated-generation/evidence-1792183914358.json` and `/tmp/qa-models/M04/live/copilot-failure-category.json`.
 No credentials, external CLI configuration or installed provider were changed to make this optional smoke pass.
 Claude and Codex authenticated paths passed. Copilot remains a recorded external qualification limit while deterministic arguments, failures and persistence are covered by fixtures.
+
+## Decision-trail review response
+
+An independent read-only review requested `claude-sonnet-5-5` through the Claude provider. Serving-model identity is unverified.
+Its report is `/tmp/qa-models/M04/trail-review-r1.md`. It returned PASS+NOTES with authority, release-rule and workflow-evidence objections to close before merge.
+The reviewer did not build, test, mutate the host or attest real-provider behavior.
+The parent accepts the documentation and provenance gaps and records the responses here.
+
+The current user-supplied AGENTS instruction says, verbatim, "YOU ARE AN AUTONOMOUS CODING AGENT. EXECUTE TASKS TO COMPLETION WITHOUT ASKING FOR PERMISSION."
+The handoff also says, "Continue the authorized CLI model-management implementation through release in Poteto mode."
+The original release instruction says, "Once we are fully successful then we can push a new release with a new tag at the end following the existing release process."
+These instructions supply the authority to continue through independent visual review, protected integration and publication without another approval request.
+Their original precise message timestamps are not available in this workspace handoff. The TSV timestamp records when the parent logged this reconciliation.
+No human review or approval is inferred.
+
+Release go/no-go requires passing deterministic implementation gates, an independent passing verdict for each unchanged patch, no unresolved blocking source finding, and fresh protected CI at each actual integration head.
+The release PR must pass `docs/releasing.md`, then the actual release workflow must publish and verify its signed assets and APT metadata.
+The external account and platform matrix governs catalog promotion. It stays open and does not authorize promotion in this release.
+Claude and Copilot therefore retain diagnostics defaults. Their real-provider limits must remain in release evidence.
+An uninvestigated application defect blocks release. The observed Copilot access denial is an external limit, not a passing provider result or a proven account-policy cause.
+
+The workflow addition installs `xdotool` only in Linux test/validation jobs so the native suites can exercise actual OS keyboard behavior.
+It adds no packaged application dependency. The expanded default native plan took 388334 ms on the local host.
+That duration is not hosted-runner evidence or a baseline performance comparison.
+Both Linux quality and release validation retain a 30-minute job timeout. M04 hosted CI must pass this expanded plan before integration.
+`workflow-lint-r2.json` records the exact actionlint invocations and exit codes. Silent successful lint explains the earlier version-only log.
+The authenticated Zizmor command and exit code are recorded in `zizmor-r2.json`; token contents are not retained.
+The audit reports 33 suppressions. No suppression directive was added in this patch; the baseline count was not independently measured.
+
+The TSV is append-only. Its `ts` column means record time, which can follow the event or group several related decisions.
+It is not a claim that every event happened at that instant. Later rows supersede stale queue or pending-state observations.
+The M03 r1 verdict, label correction, visual-review amendment, M04 scope and workflow decisions are reconstructed explicitly in new rows.
+Source tree identity also confirms that the reviewed M01 and M02 trees equal their merged trees and that M03 `3ff3622` equals integrated `80f05de`.
+
+Authenticated checks used the already-authenticated local CLI account. Account identities and credentials are not recorded.
+Claude completed two real turns. Codex completed five real turns, including four Default invocations repeated while correcting the harness and one explicit invocation.
+Copilot made one app-owned failed Default attempt and one separate failed direct diagnostic invocation.
+Provider-owned history and usage side effects follow normal CLI behavior. The parent did not delete provider-owned history or infer billing totals.
+The app's disposable data and owned process groups were cleaned up.
+Successful evidence is bound to the immutable executable through the parent invocation and before/after hash receipts.
+Original per-run harness hashes were not captured for the earliest attempts and cannot be reconstructed faithfully. This limit is explicit in the binding sidecar.
+Current harness hashes describe the retained final artifact, not an invented historical revision.
+The shared local dependency tree uses the same frontend lockfile; installed versions are recorded separately. Clean hosted installs remain required.
+
+The auth-first trade-off preserves a bounded auth observation before potentially slow catalog work.
+An auth timeout can still yield the existing auth-required state and reduce the remaining catalog budget. Per-command slices remain four seconds within the shared 12-second deadline.
+This patch does not introduce an auth-unknown state or widen timeouts. The direct unit regression and real native stalled-catalog lane cover the defect being fixed.
+The resource comparisons cover unchanged program-wide lifecycle limits and do not substitute for that regression.
+
+The small frontend `catalogSelectorEnabled` predicate centralizes the existing Codex exemption across UI consumers.
+Rendered tests and native disabled/diagnostic modes check that backend catalog choices and frontend authority agree.
+A new backend per-provider rollout DTO would widen this qualification fix and is not required for the current stable rule.
+The native runner deliberately fails closed against a fixed spec-to-receipt contract, including expected lane counts.
+Its model specs are permanent regression suites despite their original phase identifiers. A generic orchestration registry is deferred until another suite needs that abstraction.

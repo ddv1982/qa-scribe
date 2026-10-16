@@ -131,8 +131,11 @@ QA_SCRIBE_LIVE_COPILOT_PATH=/absolute/path/to/copilot \
 
 Two 2026-07-13 Claude runs and a 2026-07-14 follow-up passed on macOS arm64 with
 Claude Code 2.1.50; the follow-up returned 3 models in 359 ms. Copilot was not
-installed and remains unverified live. Do not install or authenticate a provider
-as an application behavior or required deterministic CI step.
+installed on that historical host.
+On 2026-10-16 Linux, Claude Code 2.1.301 returned 13 models and Codex CLI 0.163.0 returned seven visible paginated models.
+Copilot 1.0.69 was installed; its live contract failed with the app classification `PolicyDenied`, whose underlying cause remains unidentified.
+The current [qualification record](verification/cli-model-management-qualification.md) retains exact receipts and optional generation results.
+Do not install or authenticate a provider as an application behavior or required deterministic CI step.
 
 ## Release evidence checklist
 
