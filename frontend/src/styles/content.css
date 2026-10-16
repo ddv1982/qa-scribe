@@ -10,6 +10,11 @@
   font-size: var(--font-size-md);
 }
 
+/* Records retain the same reading scale when generation becomes an editor. */
+.rich-record-editor-field .rich-editor {
+  font-size: var(--font-size-md);
+}
+
 .chat-message-text.markdown-content {
   white-space: normal;
 }
@@ -50,7 +55,7 @@
   text-underline-offset: 0.15em;
 }
 
-.markdown-content li > :is(ul, ol) {
+:is(.rich-editor, .markdown-content) li > :is(ul, ol) {
   margin-top: var(--space-1);
   margin-bottom: var(--space-1);
 }
@@ -131,27 +136,61 @@
   padding: var(--space-3);
 }
 
-.testware-generation-preview img {
+:is(.rich-editor, .testware-generation-preview) img {
   display: block;
   max-width: 100%;
   height: auto;
-  border-radius: var(--radius-sm);
+  margin: var(--space-3) 0;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
 }
 
-.testware-generation-preview li:has(> label > input[type="checkbox"]) {
+:is(.rich-editor, .markdown-content) li:has(> label > input[type="checkbox"]),
+.testware-generation-preview li:has(> input[type="checkbox"]) {
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
   gap: var(--space-2);
   list-style: none;
 }
 
-.testware-generation-preview input[type="checkbox"] {
+:is(.rich-editor, .markdown-content) li > label:has(> input[type="checkbox"]) {
+  display: inline-flex;
+  padding-top: 2px;
+}
+
+:is(.rich-editor, .markdown-content) input[type="checkbox"] {
+  flex: 0 0 auto;
   width: auto;
+  height: auto;
+  min-height: 0;
+  padding: 0;
+  margin: 2px 0 0;
   accent-color: var(--accent);
 }
 
-.testware-generation-preview [data-streamdown] > :first-child {
+:is(.rich-editor, .markdown-content) li:has(input[type="checkbox"]) > div {
+  flex: 1;
+  min-width: 0;
+}
+
+:is(.rich-editor, .markdown-content) li:has(input[type="checkbox"]) p {
+  margin-bottom: var(--space-2);
+}
+
+:is(.rich-editor, .markdown-content) ul:has(> li > input[type="checkbox"]),
+:is(.rich-editor, .markdown-content) ul:has(> li > label > input[type="checkbox"]) {
+  padding-left: 0;
+  list-style: none;
+}
+
+/* Streamdown receives one canonical HTML block inside its own wrappers. */
+.testware-generation-preview [data-streamdown] > :first-child,
+.testware-generation-preview > div > div > :first-child {
   margin-top: 0;
+}
+
+.testware-generation-preview > div > div > :last-child {
+  margin-bottom: 0;
 }
 
 .markdown-content :is(a, pre, .markdown-table-scroll):focus-visible {
