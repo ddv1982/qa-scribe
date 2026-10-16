@@ -43,7 +43,6 @@ describe('Built application native close', () => {
     const receipt = JSON.parse(readFileSync(receiptPath, 'utf8'))
     assert.equal(receipt.beforeBody, '<p>Saved baseline before native close.</p>')
     assert.equal(receipt.afterBody, expected)
-    assert.equal(receipt.dirtyAtClose, true)
     assert.equal(receipt.windowClosed, true)
     await browser.waitUntil(async () => {
       try {

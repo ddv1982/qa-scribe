@@ -80,13 +80,11 @@ def main():
         x11.XSync(display, 0)
         deadline = time.monotonic() + 10
         while True:
-            receipt = {"beforeBody": before, "afterBody": body(), "windowClosed": window not in windows(root),
-                       "dirtyAtClose": True}
-            if receipt["windowClosed"] and receipt["afterBody"] == expected:
-                break
-            if time.monotonic() >= deadline:
+            window_closed = window not in windows(root)
+            if window_closed or time.monotonic() >= deadline:
                 break
             time.sleep(0.025)
+        receipt = {"beforeBody": before, "afterBody": body(), "windowClosed": window_closed}
         Path(receipt_path).write_text(json.dumps(receipt, indent=2) + "\n")
         assert receipt["afterBody"] == expected, f"Native close did not persist dirty Note: {receipt}"
         assert receipt["windowClosed"], "Native close did not destroy the actual X11 window"
