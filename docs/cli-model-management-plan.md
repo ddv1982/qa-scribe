@@ -29,7 +29,7 @@ The original checklist below remains the proposed acceptance plan. This reconcil
 | M01, PR47 | Copilot Default and Auto, Settings round trip, narrow denial grammar, Claude Default and policy filtering | Merged at `64e2a8fe78df24bbfa923f06585101898ca36c33`; ten native scenarios, independent review and protected CI |
 | M02, PR48 | Typed requested and reported evidence, schema-10 migration, parser trust boundaries, failure and cancellation settlement | Merged at `f0d3f4b314d3773abbd4481eb31487a025433fbe`; ten native scenarios, restart, literal SQLite, independent review and protected CI |
 | M03, PR49 | Shared next-invocation selection, serialized Settings writes, captured launch values and immutable history | Independent final PASS+NOTES at `3ff36227295bfb6eef5b417e713452b0899f713f`; ten native scenarios and restart; merged at `ddd4099d034012d2a3c42508d29f67b93a3eb806` after protected CI |
-| M04 | Provider-aware authority, CODEX_HOME invalidation, auth before catalog within the same deadline, expanded required Linux native suite | Final parent native suite passed all 18 invocations. Independent shipping and size comparison passed. Hosted CI exposed a fixture ordering defect; its corrected patch requires fresh independent and protected verification |
+| M04 | Provider-aware authority, CODEX_HOME invalidation, auth before catalog within the same deadline, expanded required Linux native suite | Final independent 18-invocation suite, size/resource checks and protected CI passed at `e1af04a`. Merged PR50 as `9b91d54262ec0220b763dcedabf281a3d76a9dd5`; earlier harness failures are retained |
 | External promotion | Diagnostics remains the default for Claude and Copilot | Full platform and account matrix, signed-in picker parity, Claude authorization and billing evidence, and Copilot catalog access remain open |
 | Release | Authorized after successful deterministic qualification and integration | Follow `docs/releasing.md`; no release or new tag has been published by this program yet |
 
@@ -39,6 +39,19 @@ M03 timing evidence uses debug-native artifacts and remains inconclusive for pro
 M04 account-dependent checks stay separate from deterministic CI. A recorded provider denial does not pass an external promotion gate.
 Unused file-list entries in the proposed checklist are scope options, not requirements to edit files without a behavioral reason.
 No goal, scheduled audit or credential/configuration workaround was created.
+
+## Completion ledger
+
+The following ledger summarizes the implemented contract. The original proposed checklist remains below for the historical acceptance design.
+
+- [x] M01 catalog/default/Auto compatibility, literal regressions, native proof, independent review and protected merge.
+- [x] M02 typed storage, trusted reports, failure/cancellation, real schema-10 migration, restart and protected merge.
+- [x] M03 next-invocation UI, one preference owner, captured launches, immutable history, native restart and protected merge.
+- [x] M04 provider-aware authority, metadata invalidation, bounded discovery, required Linux coverage, independent review and protected merge.
+- [x] Retain separate real-provider results, failed attempts and explicit unknown model reports.
+- [ ] Complete the external account/platform/picker matrix and Claude authorization/billing gates before any gated catalog promotion.
+- [ ] Obtain human visual approval. This original checkpoint was replaced by the parent's disclosed autonomy interpretation and independent visual review; no human approval is claimed.
+- [ ] Publish and verify v0.8.10 through the release process. Release preparation is authorized and in progress.
 
 ## Program checklist
 

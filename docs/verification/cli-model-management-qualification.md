@@ -1,6 +1,6 @@
 # CLI model management qualification
 
-Status: deterministic parent qualification passed. Independent shipping and protected integration remain in progress.
+Status: implementation, independent native verification and protected integration passed. Release publication is pending.
 
 The implementation separates an app preference, an observed CLI default and a run's provider report.
 A catalog entry describes what the CLI returned. It does not independently establish account entitlement or serving-backend identity.
@@ -149,3 +149,19 @@ It shows synthetic policy, timeout, identity and executable replacement behavior
 Paths in this table are under `/tmp/qa-models/M04/`.
 The lane-9 substitution exercises the same retained preference and absent-catalog invariant in a second native process, without duplicating the M03 suite.
 The source-only review does not replace hosted macOS validation or the open cross-platform CLI qualification.
+
+## Final implementation revision
+
+PR50 merged as `9b91d54262ec0220b763dcedabf281a3d76a9dd5` after independent verification of `e1af04a9003a1ef8934590079b1d5518e8a584c6` and green protected CI run `38973728061`.
+The final independent default native suite passed 18 invocations and 64 tests without failures or skips, including both restarts.
+All 180 required script tests passed. Its 557 source hashes and actual executable hash matched.
+The earlier fixture readiness race and asynchronous save-guard probe were corrected and independently reverified.
+
+The optional preflight keyboard helper has a disclosed pre-existing assertion that counts a negative-tabIndex toggle as a Tab stop.
+Its optional run is not accepted as passing; observed focus stayed inside the dialog. Default coverage and the M03 OS-keyboard lane passed.
+No new production-code claim is made from that optional failure.
+
+The optional real-provider results above qualify the implementation candidate at version 0.8.9.
+The release bump to 0.8.10 changes version metadata and documentation. Authenticated providers are not called again solely for that bump.
+The final release executable requires its own deterministic validation and actual publication proof.
+The workflow, published tag and public assets remain the authority for release completion.

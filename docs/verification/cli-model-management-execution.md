@@ -3,7 +3,8 @@
 The operator authorized implementation of the model-management plan and publication of a new release after success on 2026-10-16.
 The baseline is protected main `ac96962daf935f2e5ba187a81dc1c8fd52331626`, released as v0.8.9.
 The original checkout remains on its existing branch with its unrelated local edits untouched.
-M01 remains frozen in `/tmp/qa-scribe-model-management`. M04 is committed in `/tmp/qa-scribe-model-evidence`.
+All four implementation phases are merged. The dedicated release checkout is `/tmp/qa-scribe-model-release`.
+M01 remains frozen in `/tmp/qa-scribe-model-management`; its source and receipts are retained.
 Parent-managed integration checkouts retain the M02 and M03 branches separately.
 
 ## Execution contract
@@ -40,8 +41,8 @@ Authenticated smokes remain separate from deterministic CI and do not alter cred
 | M01 | Merged PR47 | Exact independent verdict, protected CI and merge `64e2a8fe78df24bbfa923f06585101898ca36c33` |
 | M02 | Merged PR48 | Exact independent verdict, protected CI and merge `f0d3f4b314d3773abbd4481eb31487a025433fbe` |
 | M03 | Merged PR49 | Independent final verdict, protected CI run `38964642310`, merge `ddd4099d034012d2a3c42508d29f67b93a3eb806` |
-| M04 | Revised harness verification in progress | PR50 production source `786a424`; prior independent head `cbb7b0a` passed. Hosted integration found fixture ordering; corrected patch needs fresh independent and protected checks |
-| Release | Pending | Starts after verified implementation and protected CI |
+| M04 | Merged PR50 | Final independent head `e1af04a`, patch `f4e664d5f60964227f4c8bf47aaa50d713707c63`, protected CI `38973728061`, merge `9b91d54262ec0220b763dcedabf281a3d76a9dd5` |
+| Release | Preparing v0.8.10 | Dedicated branch from protected main `9b91d54262ec0220b763dcedabf281a3d76a9dd5`; publication remains pending |
 
 ## Decisions and limits
 
@@ -405,3 +406,38 @@ The scenario also completed the generation, edit, reopen and cancellation checks
 The passing receipt and verified runtime source-copy hashes are under `/tmp/qa-models/M04/ci-navigation-fix/green-focused/`.
 An old-helper local baseline passed, so the hosted asynchronous failure is not claimed as locally reproduced.
 The 180 required script tests, frontend checks, syntax, plan and file-size checks pass. The helper remains within the 500-line policy at 498 lines.
+
+## Final M04 integration
+
+The final independent shipping verdict passed at `e1af04a9003a1ef8934590079b1d5518e8a584c6`.
+All 557 source hashes matched. The independent default suite passed all 18 invocations and 64 tests, with both actual restarts and both navigation outcomes.
+All 180 required script tests passed. Source, plan and file-size checks passed.
+The final report and cleanup receipt are under `/tmp/qa-models/M04/shipping-review-r3/`.
+
+Protected CI run `38973728061` then passed Linux quality and package checks, macOS platform tests, observational native checks and required CI success.
+The parent checked the exact head, unchanged patch, clean mergeability and absence of unresolved review threads before merging PR50.
+Main merge `9b91d54262ec0220b763dcedabf281a3d76a9dd5` preserves every reviewed phase commit.
+The two earlier hosted failures remain disclosed. Neither was hidden by a job retry or skipped scenario.
+
+The independent reviewer also tried an optional preflight OS-keyboard mode outside the default suite.
+Its existing focus enumerator counted a negative-tabIndex toggle as a Tab stop. The observed Tab movement stayed contained, but the helper expected the wrong next index.
+That optional assertion remains unqualified and is not presented as a passing test or an application focus escape.
+The required default suite and the M03 native keyboard lane passed.
+
+## Release preparation
+
+The release branch starts from the actual protected main merge, following `docs/releasing.md`.
+`bun run bump 0.8.10` updated the seven versioned outputs through the repository's single write path.
+Its expected TODO-scaffold check failed until real changelog notes replaced the placeholder.
+No manual version tag was created. The Release workflow must create it at the actual release merge after protected CI and independent release review.
+
+All implementation gates are complete. Account and catalog-promotion gates remain open and explicitly do not become green through version metadata or fixtures.
+The optional authenticated code qualification used the final implementation with version 0.8.9 before the version-only release bump.
+It is not claimed as a repeated authenticated test of the final 0.8.10 executable.
+Final native release verification, protected release-PR checks, publication and signed-asset/APT verification remain pending until their actual receipts exist.
+
+The local 0.8.10 broad release gate passed with 572 frontend tests, 566 Rust workspace tests and 180 required script tests. Three optional Rust tests remain ignored.
+Frozen dependency installation, repository workflow lint, authenticated Zizmor and expected-tag metadata validation passed.
+Zizmor reported no findings and 33 existing suppressions. The production dependency graph did not change.
+The structured local preflight and logs are under `/tmp/qa-models/release/`.
+The final native version candidate and independent release verdict remain separate requirements before the protected release PR can merge.

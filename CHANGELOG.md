@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.8.10 - 2026-10-16
+
+- Choose the next CLI model beside Chat Send and generation confirmation. Save one choice per provider and preserve active runs when that preference changes.
+- Keep requested model choices separate from scoped CLI reports in saved run history. Preserve unknown and legacy provenance rather than inferring a model from generated text.
+- Preserve Copilot Automatic through save and restart, keep Claude Default available after policy filtering, and prevent catalog timeouts from causing false sign-in warnings.
+- Clarify catalog authority and invalidation, with deterministic Linux coverage for model arguments, cancellation, migration, restart, policy changes and CLI replacement. Claude and Copilot structured catalogs remain diagnostic by default while external qualification is incomplete.
+
 ## v0.8.9 - 2026-10-16
 
 - Preserve unsaved Notes and newer Settings edits during application close, and keep generation recovery observers attached to their owning session.
