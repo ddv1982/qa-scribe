@@ -66,6 +66,7 @@ impl Fixture {
                 mode.into(),
                 self.dir.to_string_lossy().into_owned(),
                 id.into(),
+                env!("CARGO_PKG_VERSION").into(),
             ],
             // Internal prompt transport only, never copied to process argv.
             stdin: "fixture prompt".into(),
@@ -455,3 +456,5 @@ fn chat_duplex_process_policy_blocked_has_no_pending_permission() {
 include!("tests/regressions.rs");
 include!("tests/lifecycle.rs");
 include!("tests/bulk.rs");
+
+include!("tests/replay.rs");

@@ -1,0 +1,195 @@
+{
+  "version": 1,
+  "provider": "claude",
+  "protocol": "stream-json",
+  "cli_version": "synthetic",
+  "scenario": "queued-allow-deny",
+  "process": true,
+  "constructor": {
+    "prompt": "fixture prompt",
+    "model": "chosen-model",
+    "effort": "high",
+    "cwd": "$CWD"
+  },
+  "initial": {
+    "type": "control_request",
+    "request_id": "qa-scribe-init",
+    "request": {
+      "subtype": "initialize"
+    }
+  },
+  "steps": [
+    {
+      "op": "receive",
+      "release": "initialized",
+      "frame": {
+        "type": "control_response",
+        "response": {
+          "subtype": "success",
+          "request_id": "qa-scribe-init",
+          "response": {}
+        }
+      },
+      "events": [
+        {
+          "send": {
+            "type": "user",
+            "session_id": "",
+            "message": {
+              "role": "user",
+              "content": "fixture prompt"
+            },
+            "parent_tool_use_id": null
+          }
+        }
+      ]
+    },
+    {
+      "op": "receive",
+      "release": "first-permission",
+      "frame": {
+        "type": "control_request",
+        "request_id": "opaque:permission/481",
+        "request": {
+          "subtype": "can_use_tool",
+          "tool_name": "mcp__local__write",
+          "input": {
+            "path": "local-fixture-only",
+            "nested": {
+              "raw": true
+            }
+          }
+        },
+        "future_field": {
+          "ignored": true
+        }
+      },
+      "events": [
+        {
+          "permission": {
+            "can_approve": true,
+            "title": "Claude requests permission to use mcp__local__write",
+            "tool_name": "mcp__local__write",
+            "server_name": null,
+            "input_json": "{\"nested\":{\"raw\":true},\"path\":\"local-fixture-only\"}"
+          }
+        }
+      ]
+    },
+    {
+      "op": "receive",
+      "release": "queued-permission",
+      "frame": {
+        "type": "control_request",
+        "request_id": 482,
+        "request": {
+          "subtype": "can_use_tool",
+          "tool_name": "mcp__local__write",
+          "input": {
+            "path": "local-fixture-only",
+            "nested": {
+              "raw": true
+            }
+          }
+        },
+        "future_field": {
+          "ignored": true
+        }
+      },
+      "events": []
+    },
+    {
+      "op": "decide",
+      "release": "approve-head",
+      "approved": true,
+      "reply": {
+        "type": "control_response",
+        "response": {
+          "subtype": "success",
+          "request_id": "opaque:permission/481",
+          "response": {
+            "behavior": "allow",
+            "updatedInput": {
+              "path": "local-fixture-only",
+              "nested": {
+                "raw": true
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "op": "next_permission",
+      "release": "publish-next",
+      "permission": {
+        "can_approve": true,
+        "title": "Claude requests permission to use mcp__local__write",
+        "tool_name": "mcp__local__write",
+        "server_name": null,
+        "input_json": "{\"nested\":{\"raw\":true},\"path\":\"local-fixture-only\"}"
+      }
+    },
+    {
+      "op": "decide",
+      "release": "deny-next",
+      "approved": false,
+      "reply": {
+        "type": "control_response",
+        "response": {
+          "subtype": "success",
+          "request_id": 482,
+          "response": {
+            "behavior": "deny",
+            "message": "User denied permission"
+          }
+        }
+      }
+    },
+    {
+      "op": "next_permission",
+      "release": "queue-empty",
+      "permission": null
+    },
+    {
+      "op": "receive",
+      "release": "partial",
+      "frame": {
+        "type": "stream_event",
+        "event": {
+          "type": "content_block_delta",
+          "delta": {
+            "type": "text_delta",
+            "text": "Partial"
+          }
+        }
+      },
+      "events": [
+        {
+          "delta": "Partial"
+        }
+      ]
+    },
+    {
+      "op": "receive",
+      "release": "terminal",
+      "frame": {
+        "type": "result",
+        "subtype": "success",
+        "is_error": false,
+        "result": "Connected."
+      },
+      "events": [
+        {
+          "snapshot": "Connected."
+        },
+        {
+          "complete": true
+        }
+      ]
+    }
+  ],
+  "finish": {
+    "ok": "Connected."
+  }
+}

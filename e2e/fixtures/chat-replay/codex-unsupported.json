@@ -1,0 +1,165 @@
+{
+  "version": 1,
+  "provider": "codex",
+  "protocol": "app-server-jsonl",
+  "cli_version": "synthetic",
+  "scenario": "unsupported",
+  "process": false,
+  "constructor": {
+    "prompt": "fixture prompt",
+    "model": "chosen-model",
+    "effort": "high",
+    "cwd": "$CWD"
+  },
+  "initial": {
+    "id": "qa-scribe-init",
+    "method": "initialize",
+    "params": {
+      "clientInfo": {
+        "name": "qa-scribe",
+        "version": "$APP_VERSION"
+      },
+      "capabilities": {
+        "experimentalApi": true
+      }
+    }
+  },
+  "steps": [
+    {
+      "op": "receive",
+      "release": "initialized",
+      "frame": {
+        "id": "qa-scribe-init",
+        "result": {}
+      },
+      "events": [
+        {
+          "send": {
+            "method": "initialized"
+          }
+        },
+        {
+          "send": {
+            "id": "qa-scribe-thread",
+            "method": "thread/start",
+            "params": {
+              "ephemeral": true,
+              "cwd": "$CWD",
+              "model": "chosen-model"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "op": "receive",
+      "release": "thread-announced",
+      "frame": {
+        "method": "thread/started",
+        "params": {
+          "thread": {
+            "id": "thread-1"
+          }
+        }
+      },
+      "events": []
+    },
+    {
+      "op": "receive",
+      "release": "thread-response",
+      "frame": {
+        "id": "qa-scribe-thread",
+        "result": {
+          "thread": {
+            "id": "thread-1"
+          },
+          "model": "reported-model"
+        }
+      },
+      "events": [
+        {
+          "send": {
+            "id": "qa-scribe-turn",
+            "method": "turn/start",
+            "params": {
+              "threadId": "thread-1",
+              "input": [
+                {
+                  "type": "text",
+                  "text": "fixture prompt"
+                }
+              ],
+              "model": "chosen-model",
+              "effort": "high"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "op": "receive",
+      "release": "turn-announced",
+      "frame": {
+        "method": "turn/started",
+        "params": {
+          "threadId": "thread-1",
+          "turn": {
+            "id": "turn-1",
+            "status": "inProgress"
+          }
+        }
+      },
+      "events": []
+    },
+    {
+      "op": "receive",
+      "release": "text-before-turn-response",
+      "frame": {
+        "method": "item/agentMessage/delta",
+        "params": {
+          "threadId": "thread-1",
+          "turnId": "turn-1",
+          "delta": "Preamble"
+        }
+      },
+      "events": [
+        {
+          "delta": "Preamble"
+        }
+      ]
+    },
+    {
+      "op": "receive",
+      "release": "turn-response",
+      "frame": {
+        "id": "qa-scribe-turn",
+        "result": {
+          "turn": {
+            "id": "turn-1",
+            "status": "inProgress"
+          }
+        }
+      },
+      "events": []
+    },
+    {
+      "op": "receive",
+      "release": "unsupported",
+      "frame": {
+        "id": "foreign/request",
+        "method": "item/commandExecution/requestApproval",
+        "params": {}
+      },
+      "error": "Unsupported Codex permission/server request: item/commandExecution/requestApproval"
+    },
+    {
+      "op": "receive",
+      "release": "sticky-failure",
+      "frame": {},
+      "error": "Unsupported Codex permission/server request: item/commandExecution/requestApproval"
+    }
+  ],
+  "finish": {
+    "error": "Unsupported Codex permission/server request: item/commandExecution/requestApproval"
+  }
+}
