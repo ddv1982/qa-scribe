@@ -1,17 +1,54 @@
 use super::*;
+use std::collections::BTreeMap;
 
 const MAX_TOOL_CALL_METADATA: usize = 64;
 
 /// Display-only metadata, never a permission grant or executable tool payload.
 #[derive(Clone, Default)]
-pub(super) struct ToolCallMetadata {
+struct ToolCallMetadata {
     title: Option<String>,
     raw_input: Option<Value>,
 }
 
-impl ChatProtocol {
-    pub(super) fn copilot_handle(
+pub(super) struct CopilotProtocol {
+    phase: Phase,
+    prompt: String,
+    cwd: String,
+}
+
+enum Phase {
+    Initializing,
+    CreatingSession,
+    Prompting {
+        session: String,
+        calls: BTreeMap<String, ToolCallMetadata>,
+    },
+}
+
+impl CopilotProtocol {
+    pub(super) fn new(prompt: &str, cwd: &str) -> Self {
+        Self {
+            phase: Phase::Initializing,
+            prompt: prompt.into(),
+            cwd: cwd.into(),
+        }
+    }
+    pub(super) fn initial_message(&self) -> Value {
+        rpc(
+            "qa-scribe-init",
+            "initialize",
+            json!({"protocolVersion":1,"clientCapabilities":{},"clientInfo":{"name":"qa-scribe","version":env!("CARGO_PKG_VERSION")}}),
+        )
+    }
+    pub(super) fn clear_metadata(&mut self) {
+        if let Phase::Prompting { calls, .. } = &mut self.phase {
+            calls.clear();
+        }
+    }
+
+    pub(super) fn handle(
         &mut self,
+        output: &mut TurnData,
         event: &Value,
     ) -> Result<Vec<ChatProtocolEvent>, String> {
         if let Some(method) = event["method"].as_str() {
@@ -19,7 +56,7 @@ impl ChatProtocol {
             // ACP can publish command metadata while session/new is pending.
             // Ignore only this benign notification, without binding a session
             // or accepting early assistant/tool/permission authority.
-            if self.stage == 1
+            if matches!(self.phase, Phase::CreatingSession)
                 && method == "session/update"
                 && event.get("id").is_none()
                 && params["update"]["sessionUpdate"] == "available_commands_update"
@@ -30,16 +67,18 @@ impl ChatProtocol {
                 }
                 return Ok(vec![]);
             }
-            if method.starts_with("session/") {
-                self.match_scope(params, "sessionId")?;
+            if method.starts_with("session/")
+                && (self.session() != params["sessionId"].as_str() || self.session().is_none())
+            {
+                return Err("Protocol sessionId does not match active session/thread".into());
             }
             match method {
                 "session/request_permission" => {
-                    if self.stage != 2 {
+                    let Phase::Prompting { calls, .. } = &mut self.phase else {
                         return Err("Copilot permission outside active prompt".into());
-                    }
+                    };
                     let call = &params["toolCall"];
-                    let metadata = self.copilot_metadata(call)?;
+                    let metadata = tool_metadata(calls, call)?;
                     let title = metadata
                         .title
                         .ok_or("Copilot permission has no established tool title")?;
@@ -78,7 +117,7 @@ impl ChatProtocol {
                         json!({"jsonrpc":"2.0","id":event["id"],
                             "result":{"outcome":{"outcome":"cancelled"}}})
                     }));
-                    self.permission(
+                    output.permission(
                         &event["id"],
                         allow,
                         deny,
@@ -99,14 +138,14 @@ impl ChatProtocol {
                     if event.get("id").is_some() {
                         return Err("Unexpected Copilot server request: session/update".into());
                     }
-                    if self.stage != 2 {
+                    let Phase::Prompting { calls, .. } = &mut self.phase else {
                         return Err("Copilot update outside active prompt".into());
-                    }
+                    };
                     let update = &params["update"];
                     match required(update, "sessionUpdate")? {
                         "agent_message_chunk" => {
                             if update["content"]["type"] == "text" {
-                                Ok(self.delta(
+                                Ok(output.delta(
                                     update["content"]["text"]
                                         .as_str()
                                         .ok_or("Invalid Copilot text delta")?,
@@ -116,7 +155,7 @@ impl ChatProtocol {
                             }
                         }
                         "tool_call" | "tool_call_update" => {
-                            let metadata = self.copilot_metadata(update)?;
+                            let metadata = tool_metadata(calls, update)?;
                             if let Some(title) = metadata.title {
                                 Ok(vec![ChatProtocolEvent::Update(StreamUpdate::Progress(
                                     title,
@@ -140,30 +179,31 @@ impl ChatProtocol {
             let result = event
                 .get("result")
                 .ok_or("Copilot response missing result")?;
-            match (self.stage, event["id"].as_str()) {
-                (0, Some("qa-scribe-init")) => {
+            match (&self.phase, event["id"].as_str()) {
+                (Phase::Initializing, Some("qa-scribe-init")) => {
                     if result["protocolVersion"] != 1 {
                         return Err("Unsupported Copilot ACP protocol version".into());
                     }
-                    self.copilot_calls.clear();
-                    self.stage = 1;
+                    self.phase = Phase::CreatingSession;
                     Ok(vec![ChatProtocolEvent::Send(rpc(
                         "qa-scribe-session",
                         "session/new",
                         json!({"cwd":self.cwd,"mcpServers":[]}),
                     ))])
                 }
-                (1, Some("qa-scribe-session")) => {
-                    self.copilot_calls.clear();
-                    self.scope = Some(required(result, "sessionId")?.into());
-                    self.stage = 2;
+                (Phase::CreatingSession, Some("qa-scribe-session")) => {
+                    let session = required(result, "sessionId")?;
+                    self.phase = Phase::Prompting {
+                        session: session.into(),
+                        calls: BTreeMap::new(),
+                    };
                     Ok(vec![ChatProtocolEvent::Send(rpc(
                         "qa-scribe-prompt",
                         "session/prompt",
-                        json!({"sessionId":self.scope,"prompt":[{"type":"text","text":self.prompt}]}),
+                        json!({"sessionId":session,"prompt":[{"type":"text","text":self.prompt}]}),
                     ))])
                 }
-                (2, Some("qa-scribe-prompt")) => {
+                (Phase::Prompting { .. }, Some("qa-scribe-prompt")) => {
                     if result["stopReason"] != "end_turn"
                         || result.get("error").is_some_and(|error| !error.is_null())
                         || matches!(
@@ -173,7 +213,7 @@ impl ChatProtocol {
                     {
                         return Err(format!("Copilot prompt failed/stopped: {result}"));
                     }
-                    self.terminal()
+                    output.terminal()
                 }
                 _ => Err("Unexpected Copilot response or pending permission resolution".into()),
             }
@@ -182,28 +222,35 @@ impl ChatProtocol {
         }
     }
 
-    // Called only after active-session correlation and stage validation.
-    // Absent fields preserve prior metadata; explicitly present fields replace
-    // it. In particular, null rawInput is not treated as an absent field.
-    fn copilot_metadata(&mut self, call: &Value) -> Result<ToolCallMetadata, String> {
-        let id = required(call, "toolCallId")?;
-        let title = if call.get("title").is_some() {
-            Some(required(call, "title")?.to_owned())
-        } else {
-            None
-        };
-        if !self.copilot_calls.contains_key(id)
-            && self.copilot_calls.len() >= MAX_TOOL_CALL_METADATA
-        {
-            return Err("Copilot tool-call metadata limit exceeded (64 distinct calls)".into());
+    fn session(&self) -> Option<&str> {
+        match &self.phase {
+            Phase::Prompting { session, .. } => Some(session),
+            _ => None,
         }
-        let metadata = self.copilot_calls.entry(id.to_owned()).or_default();
-        if let Some(title) = title {
-            metadata.title = Some(title);
-        }
-        if let Some(input) = call.get("rawInput") {
-            metadata.raw_input = Some(input.clone());
-        }
-        Ok(metadata.clone())
     }
+}
+
+// Absent fields preserve prior metadata; explicitly present fields replace
+// it. In particular, null rawInput is not treated as an absent field.
+fn tool_metadata(
+    calls: &mut BTreeMap<String, ToolCallMetadata>,
+    call: &Value,
+) -> Result<ToolCallMetadata, String> {
+    let id = required(call, "toolCallId")?;
+    let title = if call.get("title").is_some() {
+        Some(required(call, "title")?.to_owned())
+    } else {
+        None
+    };
+    if !calls.contains_key(id) && calls.len() >= MAX_TOOL_CALL_METADATA {
+        return Err("Copilot tool-call metadata limit exceeded (64 distinct calls)".into());
+    }
+    let metadata = calls.entry(id.to_owned()).or_default();
+    if let Some(title) = title {
+        metadata.title = Some(title);
+    }
+    if let Some(input) = call.get("rawInput") {
+        metadata.raw_input = Some(input.clone());
+    }
+    Ok(metadata.clone())
 }

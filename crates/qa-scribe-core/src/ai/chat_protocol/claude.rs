@@ -1,14 +1,35 @@
 use super::*;
 
-impl ChatProtocol {
-    pub(super) fn claude_handle(
+pub(super) struct ClaudeProtocol {
+    phase: Phase,
+    prompt: String,
+}
+#[derive(PartialEq)]
+enum Phase {
+    Initializing,
+    Active,
+}
+
+impl ClaudeProtocol {
+    pub(super) fn new(prompt: &str) -> Self {
+        Self {
+            phase: Phase::Initializing,
+            prompt: prompt.into(),
+        }
+    }
+    pub(super) fn initial_message(&self) -> Value {
+        json!({"type":"control_request","request_id":"qa-scribe-init","request":{"subtype":"initialize"}})
+    }
+
+    pub(super) fn handle(
         &mut self,
+        output: &mut TurnData,
         event: &Value,
     ) -> Result<Vec<ChatProtocolEvent>, String> {
         match required(event, "type")? {
             "control_response" => {
                 let response = &event["response"];
-                if self.stage != 0 || response["request_id"] != "qa-scribe-init" {
+                if self.phase != Phase::Initializing || response["request_id"] != "qa-scribe-init" {
                     return Err(
                         "Unexpected Claude control response or permission resolution".into(),
                     );
@@ -16,7 +37,7 @@ impl ChatProtocol {
                 if response["subtype"] != "success" {
                     return Err(format!("Claude initialization failed: {response}"));
                 }
-                self.stage = 1;
+                self.phase = Phase::Active;
                 Ok(vec![ChatProtocolEvent::Send(
                     json!({"type":"user","session_id":"",
                     "message":{"role":"user","content":self.prompt},"parent_tool_use_id":null}),
@@ -24,7 +45,7 @@ impl ChatProtocol {
             }
             "control_cancel_request" => Err("Claude permission request cancelled".into()),
             "control_request" => {
-                if self.stage != 1 {
+                if self.phase != Phase::Active {
                     return Err("Claude permission before initialization".into());
                 }
                 let request = &event["request"];
@@ -46,7 +67,7 @@ impl ChatProtocol {
                     "request_id":id,"response":{"behavior":"allow","updatedInput":input}}});
                 let deny = json!({"type":"control_response","response":{"subtype":"success",
                     "request_id":id,"response":{"behavior":"deny","message":"User denied permission"}}});
-                self.permission(
+                output.permission(
                     id,
                     Some(allow),
                     Some(deny),
@@ -60,7 +81,7 @@ impl ChatProtocol {
                 )
             }
             "result" => {
-                if self.stage != 1 {
+                if self.phase != Phase::Active {
                     return Err("Claude result before initialization".into());
                 }
                 if event["is_error"].as_bool() != Some(false)
@@ -72,15 +93,15 @@ impl ChatProtocol {
                 {
                     return Err(format!("Claude generation failed: {event}"));
                 }
-                self.text = required(event, "result")?.into();
-                self.terminal()
+                output.text = required(event, "result")?.into();
+                output.terminal()
             }
             "assistant" => {
-                if self.stage != 1 {
+                if self.phase != Phase::Active {
                     return Err("Claude assistant message before initialization".into());
                 }
                 if let Some(model) = event["message"]["model"].as_str() {
-                    self.reported = Some(model.into());
+                    output.reported = Some(model.into());
                 }
                 let content = event["message"]["content"]
                     .as_array()
@@ -93,22 +114,22 @@ impl ChatProtocol {
                 if text.is_empty() {
                     Ok(vec![])
                 } else {
-                    Ok(self.snapshot(text))
+                    Ok(output.snapshot(text))
                 }
             }
             "stream_event" => {
-                if self.stage != 1 {
+                if self.phase != Phase::Active {
                     return Err("Claude stream before initialization".into());
                 }
                 let wire = &event["event"];
                 if wire["type"] == "message_start" {
                     if let Some(model) = wire["message"]["model"].as_str() {
-                        self.reported = Some(model.into());
+                        output.reported = Some(model.into());
                     }
-                    return Ok(self.snapshot(String::new()));
+                    return Ok(output.snapshot(String::new()));
                 }
                 if wire["type"] == "content_block_delta" && wire["delta"]["type"] == "text_delta" {
-                    return Ok(self.delta(
+                    return Ok(output.delta(
                         wire["delta"]["text"]
                             .as_str()
                             .ok_or("Invalid Claude text delta")?,
@@ -118,7 +139,7 @@ impl ChatProtocol {
             }
             "system" => {
                 if let Some(model) = event["model"].as_str() {
-                    self.reported = Some(model.into());
+                    output.reported = Some(model.into());
                 }
                 Ok(vec![])
             }

@@ -8,7 +8,7 @@ mod tests;
 use super::stream::StreamUpdate;
 use crate::domain::AiProvider;
 use serde_json::{Value, json};
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::VecDeque;
 
 #[derive(Clone, Debug)]
 pub enum ChatProtocolEvent {
@@ -28,17 +28,19 @@ pub struct ChatProtocolPermission {
 }
 
 pub struct ChatProtocol {
-    provider: AiProvider,
-    prompt: String,
-    model: Option<String>,
-    effort: Option<String>,
-    cwd: String,
-    stage: u8,
-    scope: Option<String>,
-    turn: Option<String>,
+    provider: ProviderProtocol,
+    output: TurnData,
+}
+
+enum ProviderProtocol {
+    Claude(claude::ClaudeProtocol),
+    Codex(codex::CodexProtocol),
+    Copilot(copilot::CopilotProtocol),
+}
+
+struct TurnData {
     pending: VecDeque<Pending>,
     seen: Vec<Value>,
-    copilot_calls: BTreeMap<String, copilot::ToolCallMetadata>,
     text: String,
     reported: Option<String>,
     complete: bool,
@@ -62,67 +64,81 @@ impl ChatProtocol {
     ) -> Self {
         let effort = super::selected_reasoning_effort_arg(effort);
         let failure = effort.as_ref().err().cloned();
+        let provider = match provider {
+            AiProvider::ClaudeCode => ProviderProtocol::Claude(claude::ClaudeProtocol::new(prompt)),
+            AiProvider::CodexCli => ProviderProtocol::Codex(codex::CodexProtocol::new(
+                prompt,
+                model,
+                effort.ok().flatten(),
+                cwd,
+            )),
+            AiProvider::CopilotCli => {
+                ProviderProtocol::Copilot(copilot::CopilotProtocol::new(prompt, cwd))
+            }
+        };
         Self {
             provider,
-            prompt: prompt.into(),
-            model: if provider == AiProvider::CopilotCli {
-                super::selected_copilot_model_arg(model)
-            } else {
-                super::selected_model_arg(model)
+            output: TurnData {
+                pending: VecDeque::new(),
+                seen: Vec::new(),
+                text: String::new(),
+                reported: None,
+                complete: false,
+                failure,
             },
-            effort: effort.ok().flatten(),
-            cwd: cwd.into(),
-            stage: 0,
-            scope: None,
-            turn: None,
-            pending: VecDeque::new(),
-            seen: Vec::new(),
-            copilot_calls: BTreeMap::new(),
-            text: String::new(),
-            reported: None,
-            complete: false,
-            failure,
         }
     }
 
     pub fn initial_message(&self) -> Value {
-        match self.provider {
-            AiProvider::ClaudeCode => {
-                json!({"type":"control_request","request_id":"qa-scribe-init",
-                "request":{"subtype":"initialize"}})
-            }
-            AiProvider::CodexCli => json!({"id":"qa-scribe-init","method":"initialize","params":{
-                "clientInfo":{"name":"qa-scribe","version":env!("CARGO_PKG_VERSION")},
-                "capabilities":{"experimentalApi":true}}}),
-            AiProvider::CopilotCli => rpc(
-                "qa-scribe-init",
-                "initialize",
-                json!({
-                "protocolVersion":1,"clientCapabilities":{},
-                "clientInfo":{"name":"qa-scribe","version":env!("CARGO_PKG_VERSION")}}),
-            ),
+        match &self.provider {
+            ProviderProtocol::Claude(provider) => provider.initial_message(),
+            ProviderProtocol::Codex(provider) => provider.initial_message(),
+            ProviderProtocol::Copilot(provider) => provider.initial_message(),
         }
     }
 
     pub fn handle(&mut self, event: &Value) -> Result<Vec<ChatProtocolEvent>, String> {
-        if let Some(error) = &self.failure {
+        if let Some(error) = &self.output.failure {
             return Err(error.clone());
         }
-        if self.complete {
-            return self.fail("Protocol event received after completion".into());
+        if self.output.complete {
+            return self
+                .output
+                .fail("Protocol event received after completion".into());
         }
-        let result = match self.provider {
-            AiProvider::ClaudeCode => self.claude_handle(event),
-            AiProvider::CodexCli => self.codex_handle(event),
-            AiProvider::CopilotCli => self.copilot_handle(event),
+        let result = match &mut self.provider {
+            ProviderProtocol::Claude(provider) => provider.handle(&mut self.output, event),
+            ProviderProtocol::Codex(provider) => provider.handle(&mut self.output, event),
+            ProviderProtocol::Copilot(provider) => provider.handle(&mut self.output, event),
         };
-        match result {
-            Ok(events) => Ok(events),
-            Err(error) => self.fail(error),
+        if (result.is_err() || self.output.complete)
+            && let ProviderProtocol::Copilot(provider) = &mut self.provider
+        {
+            provider.clear_metadata();
         }
+        result.or_else(|error| self.output.fail(error))
     }
 
     pub fn permission_reply(&mut self, approved: bool) -> Result<Value, String> {
+        self.output.permission_reply(approved)
+    }
+
+    pub fn finish(&self) -> Result<String, String> {
+        self.output.finish()
+    }
+
+    pub fn reported_model(&self) -> Option<String> {
+        self.output.reported.clone()
+    }
+
+    /// Publish the next queued prompt without consuming its correlated reply.
+    pub fn take_queued_permission(&mut self) -> Option<ChatProtocolPermission> {
+        self.output.pending.front_mut()?.detail.take()
+    }
+}
+
+impl TurnData {
+    fn permission_reply(&mut self, approved: bool) -> Result<Value, String> {
         if let Some(error) = &self.failure {
             return Err(error.clone());
         }
@@ -151,7 +167,7 @@ impl ChatProtocol {
         }
     }
 
-    pub fn finish(&self) -> Result<String, String> {
+    fn finish(&self) -> Result<String, String> {
         if let Some(error) = &self.failure {
             return Err(error.clone());
         }
@@ -164,18 +180,8 @@ impl ChatProtocol {
         Ok(self.text.clone())
     }
 
-    pub fn reported_model(&self) -> Option<String> {
-        self.reported.clone()
-    }
-
-    /// Publish the next queued prompt without consuming its correlated reply.
-    pub fn take_queued_permission(&mut self) -> Option<ChatProtocolPermission> {
-        self.pending.front_mut()?.detail.take()
-    }
-
     fn fail<T>(&mut self, error: String) -> Result<T, String> {
         self.pending.clear();
-        self.copilot_calls.clear();
         self.failure = Some(error.clone());
         Err(error)
     }
@@ -215,7 +221,6 @@ impl ChatProtocol {
             return Err("Permission request cancelled by provider completion".into());
         }
         self.complete = true;
-        self.copilot_calls.clear();
         Ok(vec![
             ChatProtocolEvent::Update(StreamUpdate::PartialSnapshot(self.text.clone())),
             ChatProtocolEvent::Complete,
@@ -234,15 +239,6 @@ impl ChatProtocol {
         vec![ChatProtocolEvent::Update(StreamUpdate::PartialSnapshot(
             self.text.clone(),
         ))]
-    }
-
-    fn match_scope(&self, value: &Value, key: &str) -> Result<(), String> {
-        if self.scope.as_deref() != value[key].as_str() || self.scope.is_none() {
-            return Err(format!(
-                "Protocol {key} does not match active session/thread"
-            ));
-        }
-        Ok(())
     }
 }
 

@@ -171,7 +171,7 @@ fn chat_duplex_claude_message_start_resets_previous_streamed_snapshot() {
     let events = p.handle(&json!({"type":"stream_event","event":{"type":"content_block_delta","delta":{"type":"text_delta","text":"final answer"}}})).unwrap();
     assert!(events.iter().any(|e| matches!(e, ChatProtocolEvent::Update(StreamUpdate::PartialDelta(text)) if text == "final answer")));
     assert_eq!(
-        p.text, "final answer",
+        p.output.text, "final answer",
         "new message must not append to the earlier preamble"
     );
 }

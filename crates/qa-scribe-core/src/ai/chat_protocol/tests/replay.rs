@@ -167,3 +167,13 @@ fn chat_duplex_replay_negative_control_detects_changed_permission_reply() {
     assert!(error.starts_with("approve-head:"), "{error}");
     assert!(error.contains("wrong-option"), "{error}");
 }
+
+#[test]
+fn chat_duplex_codex_replay_completes_before_turn_start_response() {
+    let mut transcript = corpus("codex-queued.json");
+    transcript["steps"]
+        .as_array_mut()
+        .unwrap()
+        .retain(|step| step["release"] != "turn-response");
+    replay(transcript).expect("announced turn may complete before its start response");
+}
