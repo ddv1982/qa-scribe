@@ -1,5 +1,6 @@
 import { useEffect, useState, type KeyboardEvent } from 'react'
 import { BookOpen, Box, ChevronRight, Command as CommandIcon, FileText, Flag, Loader2, PencilLine, Plus, Search, Settings } from 'lucide-react'
+import { catalogSelectorEnabled } from '../settings/catalog'
 import { NextModelSelection } from '../components/NextModelSelection'
 import { RailItem } from '../components/Common'
 import { formatSessionDate } from '../ui/format'
@@ -23,7 +24,7 @@ export function AppShell(c: AppController) {
   const chatState: SessionChatViewState = c.sessionChat
   const modelSelectionControl = <NextModelSelection provider={c.activeProvider} value={c.selectedModel}
     pending={c.settingsWritePending} disabled={!c.modelSelectionReady || !c.activeProvider}
-    catalogEnabled={c.providerStatus?.catalogRollout === 'selector'}
+    catalogEnabled={catalogSelectorEnabled(c.activeProvider, c.providerStatus?.catalogRollout ?? null)}
     onChange={(model) => { void c.persistModelChoice(c.selectedProvider, model) }} />
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [librarySidebarTarget, setLibrarySidebarTarget] = useState<HTMLDivElement | null>(null)

@@ -25,7 +25,10 @@ export function execution(provider, mode, lane) {
 export function database(sessionId) {
   const completed = spawnSync('python3', [join(process.cwd(), 'e2e/fixtures/model-evidence-database.py'), 'read',
     join(dataDirectory, 'qa-scribe.sqlite'), sessionId], { encoding: 'utf8', timeout: 5_000 })
-  assert.equal(completed.status, 0, completed.stderr)
+  assert.equal(completed.status, 0, `SQLite diagnostic helper failed ${JSON.stringify({
+    status: completed.status, signal: completed.signal ?? null, errorCode: completed.error?.code ?? null,
+    stderr: String(completed.stderr ?? '').slice(0, 4096),
+  })}`)
   return JSON.parse(completed.stdout)
 }
 

@@ -216,3 +216,78 @@ The parent retains the earlier native and timing revisions and will verify a fre
 Origin is unavailable in this environment, so the parent uses GitHub CLI for host operations.
 The existing repository merges retain stack ancestry. Preserve that history when landing this linear program and revalidate each resulting base-to-head patch.
 Protected CI at each actual head remains required. Local or independent verification does not replace it.
+
+## Protected integration and final M03 review
+
+PR47 merged at `64e2a8fe78df24bbfa923f06585101898ca36c33` after protected CI and independent verification.
+PR48 merged at `f0d3f4b314d3773abbd4481eb31487a025433fbe` after protected CI run `38961202384` passed on `1b819c129dbf30fde1b1e4fcb71f48853fa336ee`.
+Its stable base-to-head patch remained `bb2c795cba0a420ae46f36035748e765b609ab82`.
+No review threads remained at the final readiness read.
+
+The final M03 independent review passed at `3ff36227295bfb6eef5b417e713452b0899f713f`.
+All 31 source hashes matched. Candidate ten scenarios and restart, baseline ten scenarios, four geometry checks, Codex thread-source proof and 102 frontend tests passed.
+The first restart read helper timed out. A direct read matched the stored rows, and an unchanged sequential retry passed. The cause remains unproven.
+The report preserves that failed attempt under `/tmp/qa-models/M03/shipping-review-r2/`.
+The parent merged current main into M03 without content changes and pushed `80f05defc2245063f004052c8b90cda0659a19b3`.
+The stable patch remains `dfc56ee6465fc73bfb4eda26f18fb4f63624df5d`. Fresh protected CI is pending.
+
+## M04 native qualification
+
+The first expanded native run passed 17 of 18 invocations and exposed a false Codex sign-in warning.
+Catalog discovery consumed the shared deadline before the auth probe ran.
+Moving the existing auth check before catalog discovery preserves the same 12-second transaction bound and command limits.
+A direct regression failed before the fix. Signed-out behavior and catalog timeout evidence remain distinct.
+The focused provider suite passed 90 tests with two optional account tests ignored.
+
+The final parent Linux run passed all 18 default invocations, with complete machine receipts and no skipped tests.
+The model evidence and selection suites each include a second-process restart.
+Disabled, diagnostics and selector qualification cover policy updates, CODEX_HOME metadata changes and executable replacement.
+Receipts are under `/tmp/qa-models/M04/final/`.
+The immutable E2E binary is `/tmp/qa-models/M04/candidate-binary`, SHA256 `6141a2d31feee03e061a38360bd3ed5c66a2dd8527dbb5559042c4b99091da00`.
+The default Linux suite now includes these model tests. Other platforms retain their existing invocation plan until equivalent native coverage is qualified.
+
+Five alternating baseline and candidate pairs passed all 40 resource-bound invocations.
+They check probe lifecycle, expired deadlines, snapshot reuse and oversized output rejection.
+The baseline source tree matches released main `ac96962daf935f2e5ba187a81dc1c8fd52331626`.
+The receipt is `/tmp/qa-models/M04/resource-bounds/receipt.json`. This is bounded-resource evidence, not a latency improvement claim.
+
+Authenticated checks are optional and retain unsuccessful attempts separately.
+Claude Code 2.1.301 completed Default and explicit `sonnet` generation through real app controls.
+Actual model arguments, typed requested and reported metadata, persisted rows and Session reopen all matched.
+Codex CLI 0.163.0 completed Default, with explicit unknown reported model and persisted reopen proof.
+Two explicit-selection attempts stopped in the harness before launching a provider. They do not establish a provider execution failure.
+The latest diagnosis identifies the harness reading fast preset status after the frontend accepted a deep catalog refresh.
+The correction must read the visible choices before another optional explicit-model attempt.
+Copilot catalog discovery remains PolicyDenied. No credentials or external CLI configuration were changed.
+
+## M04 final local evidence
+
+The broad gate passed with 572 frontend tests and 566 Rust workspace tests, with three optional tests ignored.
+The 27 runner and fixture tests passed. The authenticated online Zizmor audit reported no findings.
+The optimized Linux size comparison uses identical version, lockfile, compiler and default production features.
+The executable grows by 0.788 percent. Frontend production gzip grows by 1889 bytes. Both remain below the proposed review thresholds.
+No build-time or production latency improvement is claimed.
+
+The corrected optional Codex harness completed both Default and the catalog-selected explicit `gpt-6.1-sol`.
+The exact successful receipt is `/tmp/qa-models/M04/authenticated-generation/evidence-1792183839478.json`.
+The third prior attempt had already saved the explicit choice, but raced new Session hydration before invocation.
+The final harness waits for the newly created ID, selected Session and matching title before editing its empty Note.
+Every completed request matches actual child arguments, persisted typed evidence and Session reopen.
+A Copilot setup attempt stopped before opening the app because its version line ends with a period.
+The bounded parser now accepts only that observed Copilot version-line grammar. Actual optional generation remains pending.
+
+The native diagnostics video is 45 seconds with exact candidate hash and inspected positive frames.
+Artifacts and cleanup evidence are under `/tmp/qa-models/M04/review/`.
+The independent comment audit accepted eight narration deletions in the disposable harness and confirmed no residual flags.
+Production comments and suppressions did not change. The independent source reviewer did not author the implementation.
+
+## Copilot authenticated limit
+
+Copilot 1.0.69 completed Settings selection and reached an actual Default invocation without a model override.
+The native job and typed AI Run both failed. The smoke stopped before Auto and explicit requests, preserving the unsuccessful receipt.
+A separate bounded direct invocation with synthetic input also failed with an access-denial pattern.
+No argument, auth, model-unavailable, network or usage pattern was established, and raw provider output was discarded.
+The available evidence does not identify the underlying account or service cause.
+Receipts are `/tmp/qa-models/M04/authenticated-generation/evidence-1792183914358.json` and `/tmp/qa-models/M04/live/copilot-failure-category.json`.
+No credentials, external CLI configuration or installed provider were changed to make this optional smoke pass.
+Claude and Codex authenticated paths passed. Copilot remains a recorded external qualification limit while deterministic arguments, failures and persistence are covered by fixtures.

@@ -299,16 +299,15 @@ function modelSourceLabel(model: ModelCatalogEntry): string {
   if (['config', 'environment'].includes(model.source)) return 'Config'
   if (model.availability === 'staticHint' || model.source === 'preset') return 'Suggested'
   if (model.availability === 'supportedByBinary' || ['cliHelp', 'detected'].includes(model.source)) return 'CLI'
-  if (model.availability === 'available' || model.source === 'cliCatalog') return 'Account'
+  if (model.source === 'cliCatalog') return 'CLI catalog'
   return 'Default'
 }
 
 function modelAuthoritySummary(models: ModelCatalogEntry[]): string | null {
   const explicitModels = models.filter((model) => !isProviderManagedModel(model.id))
-  const accountCount = explicitModels.filter((model) => !['policyDisabled', 'unconfigured'].includes(model.availability)
-    && (model.source === 'cliCatalog'
-      || (model.availability === 'available' && !['config', 'environment'].includes(model.source)))).length
-  if (accountCount > 0) return `${modelCountLabel(accountCount)} available for this account`
+  const catalogCount = explicitModels.filter((model) => !['policyDisabled', 'unconfigured'].includes(model.availability)
+    && model.source === 'cliCatalog').length
+  if (catalogCount > 0) return `${modelCountLabel(catalogCount)} reported by CLI catalog`
   const cliCount = explicitModels.filter((model) => model.availability === 'supportedByBinary'
     || ['cliHelp', 'detected'].includes(model.source)).length
   if (cliCount > 0) return `${modelCountLabel(cliCount)} recognized by CLI`
@@ -321,8 +320,8 @@ function modelAuthoritySummary(models: ModelCatalogEntry[]): string | null {
 }
 
 function modelOptionDescription(model: ModelCatalogEntry): string {
-  if (model.availability === 'policyDisabled') return 'Disabled by account or organization policy.'
-  if (model.availability === 'unconfigured') return 'Model access is not configured for this account.'
+  if (model.availability === 'policyDisabled') return 'The CLI marks this model as disabled.'
+  if (model.availability === 'unconfigured') return 'The CLI marks model access as unconfigured.'
   if (model.availability === 'supportedByBinary') return model.description ?? 'Recognized by the installed CLI; account availability is not confirmed.'
   if (model.availability === 'staticHint') return model.description ?? 'Static fallback; the CLI validates availability at run time.'
   const resolution = model.resolvedModel && model.resolvedModel !== model.id

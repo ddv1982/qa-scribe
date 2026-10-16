@@ -212,13 +212,13 @@ describe('Built application native model management M01', () => {
     await refresh('claude')
   })
 
-  it('shows the structured Claude account source without sending a prompt', () => lane(1, 'claude-catalog', async () => {
+  it('shows the structured Claude CLI source without sending a prompt', () => lane(1, 'claude-catalog', async () => {
     await selectProvider('claude')
     const observations = await refresh('claude')
-    assert.match(await $(catalogDescription).getText(), /^Available for this account · checked /)
+    assert.match(await $(catalogDescription).getText(), /^Reported by CLI catalog · checked /)
     const rows = await choices()
     assert.deepEqual(rows.map(({ label, source }) => ({ label, source })),
-      [{ label: 'CLI default', source: 'Default' }, { label: 'Claude Fixture', source: 'Account' }])
+      [{ label: 'CLI default', source: 'Default' }, { label: 'Claude Fixture', source: 'CLI catalog' }])
     await closeChoices()
     assertCatalogOnly(observations)
     return { rows }
@@ -241,7 +241,7 @@ describe('Built application native model management M01', () => {
     await selectProvider('copilot')
     configure('copilot', 'denial')
     const observations = await refresh('copilot')
-    assert.equal(await $(catalogDescription).getText(), 'Model access is controlled by account or organization policy. Refresh after policy changes.')
+    assert.equal(await $(catalogDescription).getText(), 'The CLI denied catalog access. Check CLI sign-in, account access, and organization settings, then retry.')
     assert.ok(await $('[aria-label="GitHub Copilot CLI: Ready"]').isExisting())
     assertCatalogOnly(observations)
   }))
@@ -258,7 +258,7 @@ describe('Built application native model management M01', () => {
   it('retains compatibility choices for an incompatible protocol', () => lane(5, 'unsupported', async () => {
     configure('copilot', 'unsupported')
     const observations = await refresh('copilot', 'connect')
-    assert.equal(await $(catalogDescription).getText(), 'Update GitHub Copilot CLI to inspect account models. Custom model IDs remain available.')
+    assert.equal(await $(catalogDescription).getText(), 'Update GitHub Copilot CLI to inspect CLI catalog models. Custom model IDs remain available.')
     const rows = await choices()
     assert.ok(rows.some((row) => row.label === 'CLI default'))
     assert.ok(rows.some((row) => row.label === 'CLI automatic'))
@@ -277,7 +277,7 @@ describe('Built application native model management M01', () => {
         try { process.kill(pid, 0); return false } catch (error) { assert.equal(error.code, 'ESRCH'); return true }
       }, { timeout: 3_000, timeoutMsg: `Catalog process ${pid} survived its transaction` })
     }
-    assert.match(await $(catalogDescription).getText(), /Refresh to confirm current access\.|account catalog is unavailable/)
+    assert.match(await $(catalogDescription).getText(), /Refresh to confirm current access\.|CLI catalog is unavailable/)
     assertCatalogOnly(observations)
     return { terminatedPids: [stalled.pid, stalled.childPid] }
   })).timeout(35_000)
@@ -289,7 +289,7 @@ describe('Built application native model management M01', () => {
     await save('copilot', 'copilot-fixture')
     configure('copilot', 'unavailable')
     const observations = await refresh('copilot')
-    assert.match(await $(catalogDescription).getText(), /^Available for this account · last checked /)
+    assert.match(await $(catalogDescription).getText(), /^Reported by CLI catalog · last checked /)
     assert.equal(await $(picker).getValue(), 'Copilot Fixture')
     assert.equal((await read('get_settings')).selectedAiModelsByProvider.copilot_cli, 'copilot-fixture')
     assertCatalogOnly(observations)
@@ -301,7 +301,7 @@ describe('Built application native model management M01', () => {
     mkdirSync(identity, { recursive: true })
     writeFileSync(join(identity, 'config.json'), JSON.stringify({ model: 'external-fixed', fixtureIdentity: 'account-two' }))
     const observations = await refresh('copilot')
-    assert.equal(await $(catalogDescription).getText(), 'The account catalog is unavailable. Check sign-in and network access, then retry.')
+    assert.equal(await $(catalogDescription).getText(), 'The CLI catalog is unavailable. Check sign-in and network access, then retry.')
     const rows = await choices()
     assert.equal(rows.some((row) => row.label === 'Copilot Fixture'), false)
     await closeChoices()
@@ -350,7 +350,7 @@ describe('Built application native model management M01', () => {
     await browser.saveScreenshot(join(evidenceRoot, 'lane-10', 'copilot-policy.png'))
     await closeChoices()
     await selectProvider('claude')
-    assert.equal(process.env.CLAUDE_CONFIG_DIR, undefined, 'Policy proof requires its isolated HOME settings source')
+    assert.equal(process.env.CLAUDE_CONFIG_DIR, join(process.env.HOME, '.claude'), 'Policy proof requires its isolated HOME settings source')
     const settingsDirectory = join(process.env.HOME, '.claude')
     mkdirSync(settingsDirectory, { recursive: true })
     const policyPath = join(settingsDirectory, 'settings.json')
@@ -360,7 +360,7 @@ describe('Built application native model management M01', () => {
       for (const [name, availableModels] of [['empty', []], ['nonmatching', ['not-the-fixture-model']]]) {
         writeFileSync(policyPath, JSON.stringify({ availableModels }), { mode: 0o600 })
         const observations = await refresh('claude')
-        assert.match(await $(catalogDescription).getText(), /^Available for this account · checked /)
+        assert.match(await $(catalogDescription).getText(), /^Reported by CLI catalog · checked /)
         const restrictedRows = await choices()
         assert.deepEqual(restrictedRows.map(({ label, source, disabled }) => ({ label, source, disabled })),
           [{ label: 'CLI default', source: 'Default', disabled: false }])

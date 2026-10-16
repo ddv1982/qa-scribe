@@ -2,7 +2,7 @@
 
 Status: implemented, release-gated
 Owner: QA Scribe maintainers
-Last verified: 2026-07-14
+Last verified: 2026-10-16
 
 This document records the Phase 0 transport decisions, compatibility floor,
 fixture workflow, rollout controls, and release evidence for Claude Code and
@@ -10,6 +10,9 @@ GitHub Copilot model discovery. The implementation is in
 `src-tauri/src/commands/providers/probe/`.
 
 ## Transport decision and measured cost
+
+The measurements in this section are the historical Phase 0 baseline, not the October 2026 model-management qualification.
+Current installed CLI results and release limits are recorded in [CLI model management qualification](verification/cli-model-management-qualification.md).
 
 Both integrations use small Rust transports against the exact CLI executable
 already resolved by QA Scribe. Neither transport sends a prompt, creates a
@@ -51,14 +54,17 @@ version disables a same-family wildcard, and an empty list hides named choices
 while retaining the provider-managed Default row. Setting
 `enforceAvailableModels` to `false` does not disable the named-model allowlist.
 
-The cache key hashes the discovery schema, provider, exact executable metadata,
-relevant settings/credential-file metadata, and only the presence of auth-mode
-environment variables. It never stores environment-variable values. A failed
-refresh may reuse a last-good catalog only when that fingerprint still matches,
-so an account or auth-mode switch cannot inherit the previous account's stale
-catalog.
+The cache key hashes the discovery schema, provider, executable path and metadata,
+relevant settings/credential-file paths and metadata, and the presence of auth-mode
+environment variables. Selected nonsecret provider-class and host values also
+contribute to this in-memory hash. Credential contents and token values do not.
+Codex identity files follow nonempty `CODEX_HOME`, falling back to `HOME/.codex`.
+A failed refresh may reuse a last-good catalog only when the fingerprint matches.
+The covered path, size, modification-time and auth-mode changes invalidate that
+catalog. This metadata check does not attest every possible account, token or
+keychain change.
 
-That identity proof exists only in the backend process. The persisted frontend
+That fingerprint exists only in the backend process. The persisted frontend
 startup cache therefore never stores `cliCatalog` entries and never replays a
 catalog across an app restart; it restarts catalog discovery as `idle` while it
 may still reuse separately sanitized default observations. The cache rebuilds
@@ -150,6 +156,17 @@ The last two items and the multi-platform/account matrix are external release
 gates. They are intentionally not claimed by fixture tests. Until they are
 complete, keep the default in diagnostics and do not market subscription-backed
 Claude discovery as generally released.
+
+The October CLI model-management work retains those gates. Its qualification
+record distinguishes no-prompt contracts, deterministic native behavior and
+optional authenticated generation. See the
+[current qualification record](verification/cli-model-management-qualification.md).
+CLI catalog labels describe returned choices rather than independently verified
+account entitlement. Codex retains its existing catalog authority in disabled and
+diagnostic modes; the new rollout switch gates Claude and Copilot.
+Deep Claude/Codex detection captures authentication before catalog inspection can
+consume the shared deadline, preserving a real readiness observation when the
+catalog times out.
 
 ## Duplex Chat request capabilities
 

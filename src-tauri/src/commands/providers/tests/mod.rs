@@ -15,6 +15,7 @@ use super::{
     provider_status_with_runner,
 };
 
+mod auth_budget;
 mod precedence;
 mod support;
 

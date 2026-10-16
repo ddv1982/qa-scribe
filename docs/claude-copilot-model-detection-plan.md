@@ -10,6 +10,15 @@ gates are recorded in
 [`provider-catalog-contract.md`](provider-catalog-contract.md). The code defaults
 to diagnostic rollout until those gates are satisfied.
 
+## October 2026 reconciliation
+
+The later [CLI model-management plan](cli-model-management-plan.md) implements per-provider requested choices and typed invocation evidence.
+Its [qualification record](verification/cli-model-management-qualification.md) distinguishes CLI catalogs from account entitlement and backend routing.
+The original July measurements and account assumptions below remain historical research.
+Current no-prompt probes returned Claude and Codex catalogs. Copilot denied catalog access in the available environment.
+The full platform and account matrix, Claude authorization and billing evidence, and Copilot catalog access remain open.
+Claude and Copilot therefore keep diagnostics mode by default. This work does not promote either catalog into the default selector.
+
 ## Decision
 
 QA Scribe can technically discover Claude Code and GitHub Copilot models with roughly the same authority as its current Codex integration.

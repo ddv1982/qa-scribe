@@ -65,3 +65,29 @@ test('Copilot policy rows retain their exact disabled and unconfigured states', 
     { id: 'copilot-unconfigured', name: 'Copilot Unconfigured', policy: { state: 'unconfigured' } },
   ])
 })
+
+test('qualification catalogs return unique literal IDs and journal the actual response inventory', () => {
+  const claude = run('claude', 'qualification', ['--input-format', 'stream-json'], [
+    { type: 'control_request', request_id: 'qa-scribe-model-catalog', request: { subtype: 'initialize' } },
+  ])
+  assert.deepEqual(JSON.parse(claude.stdout).response.response.models,
+    [{ value: 'qualification-claude-model', displayName: 'qualification-claude-model' }])
+  assert.deepEqual(claude.observations.find((entry) => entry.event === 'catalog-response').ids, ['qualification-claude-model'])
+  const codex = run('codex', 'qualification', ['app-server'], [{ id: 2, method: 'model/list', params: { limit: 100 } }])
+  assert.deepEqual(JSON.parse(codex.stdout).result,
+    { data: [{ model: 'qualification-codex-model', displayName: 'qualification-codex-model', hidden: false }], nextCursor: null })
+  assert.deepEqual(codex.observations.find((entry) => entry.event === 'catalog-response').ids, ['qualification-codex-model'])
+  const copilot = run('copilot', 'qualification', ['--server'], [{ id: 4, method: 'models.list' }], true)
+  assert.deepEqual(JSON.parse(copilot.stdout.split('\r\n\r\n')[1]).result.models,
+    [{ id: 'qualification-copilot-model', name: 'qualification-copilot-model', policy: { state: 'enabled' } }])
+  assert.deepEqual(copilot.observations.find((entry) => entry.event === 'catalog-response').ids, ['qualification-copilot-model'])
+})
+
+test('policy refresh changes the same Copilot model from enabled to disabled', () => {
+  const initial = run('copilot', 'fresh', ['--server'], [{ id: 4, method: 'models.list' }], true)
+  const changed = run('copilot', 'policy-update', ['--server'], [{ id: 4, method: 'models.list' }], true)
+  assert.deepEqual(JSON.parse(initial.stdout.split('\r\n\r\n')[1]).result.models,
+    [{ id: 'copilot-fixture', name: 'Copilot Fixture', policy: { state: 'enabled' } }])
+  assert.deepEqual(JSON.parse(changed.stdout.split('\r\n\r\n')[1]).result.models,
+    [{ id: 'copilot-fixture', name: 'Copilot Fixture', policy: { state: 'disabled' } }])
+})
