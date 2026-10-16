@@ -100,7 +100,7 @@ fn replay(mut transcript: Value) -> Result<(), String> {
                     json!(events.expect("successful step needs exact events")),
                     &release,
                 )?,
-                Err(actual) => exact(json!(actual), json!(error), &release)?,
+                Err(actual) => exact(json!(actual.to_string()), json!(error), &release)?,
             },
             Step::Decide {
                 release,
@@ -131,7 +131,7 @@ fn replay(mut transcript: Value) -> Result<(), String> {
     }
     let finish = match protocol.finish() {
         Ok(text) => json!({"ok":text}),
-        Err(error) => json!({"error":error}),
+        Err(error) => json!({"error":error.to_string()}),
     };
     exact(finish, transcript["finish"].clone(), "finish")
 }

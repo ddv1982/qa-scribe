@@ -25,17 +25,19 @@ impl ClaudeProtocol {
         &mut self,
         output: &mut TurnData,
         event: &Value,
-    ) -> Result<Vec<ChatProtocolEvent>, String> {
+    ) -> Result<Vec<ChatProtocolEvent>, ProtocolError> {
         match required(event, "type")? {
             "control_response" => {
                 let response = &event["response"];
                 if self.phase != Phase::Initializing || response["request_id"] != "qa-scribe-init" {
-                    return Err(
+                    return Err(ProtocolError::InvalidFrame(
                         "Unexpected Claude control response or permission resolution".into(),
-                    );
+                    ));
                 }
                 if response["subtype"] != "success" {
-                    return Err(format!("Claude initialization failed: {response}"));
+                    return Err(ProtocolError::ProviderFailure(format!(
+                        "Claude initialization failed: {response}"
+                    )));
                 }
                 self.phase = Phase::Active;
                 Ok(vec![ChatProtocolEvent::Send(
@@ -43,25 +45,35 @@ impl ClaudeProtocol {
                     "message":{"role":"user","content":self.prompt},"parent_tool_use_id":null}),
                 )])
             }
-            "control_cancel_request" => Err("Claude permission request cancelled".into()),
+            "control_cancel_request" => Err(ProtocolError::ProviderFailure(
+                "Claude permission request cancelled".into(),
+            )),
             "control_request" => {
                 if self.phase != Phase::Active {
-                    return Err("Claude permission before initialization".into());
+                    return Err(ProtocolError::InvalidFrame(
+                        "Claude permission before initialization".into(),
+                    ));
                 }
                 let request = &event["request"];
                 if request["subtype"] != "can_use_tool" {
-                    return Err(format!(
+                    return Err(ProtocolError::UnsupportedRequest(format!(
                         "Unsupported Claude permission/control request: {request}"
-                    ));
+                    )));
                 }
                 let tool = required(request, "tool_name")?;
                 if matches!(tool, "AskUserQuestion" | "ask_user_question") {
-                    return Err("Unsupported Claude user-question permission request".into());
+                    return Err(ProtocolError::UnsupportedRequest(
+                        "Unsupported Claude user-question permission request".into(),
+                    ));
                 }
                 let input = request
                     .get("input")
                     .filter(|value| value.is_object())
-                    .ok_or("Claude permission input must be an object")?;
+                    .ok_or_else(|| {
+                        ProtocolError::InvalidFrame(
+                            "Claude permission input must be an object".into(),
+                        )
+                    })?;
                 let id = &event["request_id"];
                 let allow = json!({"type":"control_response","response":{"subtype":"success",
                     "request_id":id,"response":{"behavior":"allow","updatedInput":input}}});
@@ -82,7 +94,9 @@ impl ClaudeProtocol {
             }
             "result" => {
                 if self.phase != Phase::Active {
-                    return Err("Claude result before initialization".into());
+                    return Err(ProtocolError::InvalidFrame(
+                        "Claude result before initialization".into(),
+                    ));
                 }
                 if event["is_error"].as_bool() != Some(false)
                     || event["subtype"] != "success"
@@ -91,21 +105,25 @@ impl ClaudeProtocol {
                         !errors.as_array().is_some_and(|errors| errors.is_empty())
                     })
                 {
-                    return Err(format!("Claude generation failed: {event}"));
+                    return Err(ProtocolError::ProviderFailure(format!(
+                        "Claude generation failed: {event}"
+                    )));
                 }
                 output.text = required(event, "result")?.into();
                 output.terminal()
             }
             "assistant" => {
                 if self.phase != Phase::Active {
-                    return Err("Claude assistant message before initialization".into());
+                    return Err(ProtocolError::InvalidFrame(
+                        "Claude assistant message before initialization".into(),
+                    ));
                 }
                 if let Some(model) = event["message"]["model"].as_str() {
                     output.reported = Some(model.into());
                 }
-                let content = event["message"]["content"]
-                    .as_array()
-                    .ok_or("Invalid Claude assistant content")?;
+                let content = event["message"]["content"].as_array().ok_or_else(|| {
+                    ProtocolError::InvalidFrame("Invalid Claude assistant content".into())
+                })?;
                 let text: String = content
                     .iter()
                     .filter(|block| block["type"] == "text")
@@ -119,7 +137,9 @@ impl ClaudeProtocol {
             }
             "stream_event" => {
                 if self.phase != Phase::Active {
-                    return Err("Claude stream before initialization".into());
+                    return Err(ProtocolError::InvalidFrame(
+                        "Claude stream before initialization".into(),
+                    ));
                 }
                 let wire = &event["event"];
                 if wire["type"] == "message_start" {
@@ -129,11 +149,9 @@ impl ClaudeProtocol {
                     return Ok(output.snapshot(String::new()));
                 }
                 if wire["type"] == "content_block_delta" && wire["delta"]["type"] == "text_delta" {
-                    return Ok(output.delta(
-                        wire["delta"]["text"]
-                            .as_str()
-                            .ok_or("Invalid Claude text delta")?,
-                    ));
+                    return Ok(output.delta(wire["delta"]["text"].as_str().ok_or(
+                        ProtocolError::InvalidFrame("Invalid Claude text delta".into()),
+                    )?));
                 }
                 Ok(vec![])
             }
@@ -143,9 +161,13 @@ impl ClaudeProtocol {
                 }
                 Ok(vec![])
             }
-            "error" => Err(format!("Claude protocol error: {event}")),
+            "error" => Err(ProtocolError::ProviderFailure(format!(
+                "Claude protocol error: {event}"
+            ))),
             "user" | "tool_progress" | "tool_use_summary" | "rate_limit_event" => Ok(vec![]),
-            other => Err(format!("Unsupported Claude protocol event: {other}")),
+            other => Err(ProtocolError::UnsupportedRequest(format!(
+                "Unsupported Claude protocol event: {other}"
+            ))),
         }
     }
 }

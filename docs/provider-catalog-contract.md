@@ -150,3 +150,59 @@ The last two items and the multi-platform/account matrix are external release
 gates. They are intentionally not claimed by fixture tests. Until they are
 complete, keep the default in diagnostics and do not market subscription-backed
 Claude discovery as generally released.
+
+## Duplex Chat request capabilities
+
+Catalog discovery, one-way generation, and duplex Chat have separate compatibility contracts.
+A catalog probe does not prove that a CLI supports Chat permissions or completion.
+The [synthetic Chat corpus](../e2e/fixtures/chat-replay/README.md) verifies adapter behavior without asserting an authenticated CLI compatibility floor.
+Missing live Chat compatibility cells remain unverified.
+
+| Provider and protocol | Accepted permission request | Correlation and decision |
+| --- | --- | --- |
+| Claude Code stream JSON | `control_request` with `request.subtype` equal to `can_use_tool`, a nonempty tool name, and object input. `AskUserQuestion` and `ask_user_question` are rejected. | The original string or numeric `request_id` is preserved. Approval returns the original input as `updatedInput`. Denial returns `behavior: deny`. No persistent permission update is sent. |
+| Codex app-server JSONL | `mcpServer/elicitation/request` with `mode: form`, `_meta.codex_approval_kind: mcp_tool_call`, and an empty object schema. Both the nested `request` form and flattened fields are accepted. | The thread must match. A local turn must already be established. A supplied non-null `turnId` must match. The original request ID receives `action: accept` or `action: decline` with empty content. |
+| Copilot ACP protocol 1 | `session/request_permission` with a known tool title and at least one `allow_once` or `reject_once` option. Prior correlated tool-call metadata may supply the title and raw input. | The Session must match. The original request ID and offered option ID are preserved. Approval selects `allow_once`. Denial selects `reject_once`, or returns the ACP `cancelled` outcome if no rejection option exists. |
+
+Codex schemas may omit `properties` and `required`, or provide empty values of their correct types.
+Only `type`, `properties`, `required`, `title`, `description`, `additionalProperties`, and `$schema` are accepted schema keys.
+`additionalProperties`, when present, must be boolean. The description fields must be strings.
+Command approval, file-change approval, user-input requests, URL elicitation, and nonempty form schemas are unsupported.
+
+Copilot persistent choices, `allow_always` and `reject_always`, never grant authority.
+Duplicate option IDs and ambiguous once-only choices are rejected.
+A local approval attempt against a rejection-only request returns an error but leaves the request available for denial.
+Early available-command metadata during Session creation grants no permission authority.
+Copilot catalog discovery continues to use server protocol 3, independently of ACP Chat.
+
+All adapters keep one FIFO permission queue and reject duplicate or stale opaque request IDs.
+Unknown server request families fail closed. Assistant prose never creates a permission request.
+The Tauri job owner validates displayed permission metadata and owns cancellation, process lifetime, and attempt-scoped consent.
+
+### Chat failure categories
+
+Core `ChatProtocol` operations return `ProtocolError` with a category selected at the failure site.
+No category is inferred from diagnostic text.
+
+| Category | Meaning |
+| --- | --- |
+| `InvalidFrame` | A required field, identity, phase, queue invariant, or local permission choice is invalid. |
+| `UnsupportedRequest` | The adapter cannot handle the request family, permission form, or protocol version. |
+| `ProviderFailure` | The provider reports failure or cancellation, or completes while permission remains unresolved. |
+| `IncompleteStream` | `finish` has no successful terminal outcome or no assistant text. |
+
+`Display` preserves the existing diagnostic strings.
+`chat_duplex.rs` converts typed core failures to the existing String result at its executor boundary.
+The executor retains its bounded error-tail handling. Transport decoding, timeouts, process exit, and user cancellation remain executor concerns.
+A provider protocol failure stays sticky and revokes queued permission authority.
+Rejected local choices remain nonsticky.
+Catalog discovery retains its existing discovery categories, provenance, confidence, custom models, and provider-managed Default.
+
+### Process cleanup ownership
+
+Duplex Chat owns `Peer` shutdown in `src-tauri/src/commands/ai/chat_duplex/process.rs` and permission revocation in `chat_duplex.rs`.
+One-way generation owns `ChildGuard` and its exit policy in `src-tauri/src/commands/ai/streaming_exec.rs`.
+Catalog probes own their child guard and bounded transaction in `src-tauri/src/commands/providers/probe/command.rs`.
+Each path drains pipes and terminates provider process groups, but their success conditions differ.
+Chat accepts its correlated terminal event without waiting for the server to exit. One-way generation and catalog transactions retain their existing completion policies.
+The maintainability changes leave these owners separate. Any shared cleanup extraction requires a separately scoped change with equivalent resource and completion evidence.
