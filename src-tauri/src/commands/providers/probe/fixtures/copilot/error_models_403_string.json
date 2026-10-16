@@ -1,0 +1,4 @@
+{
+  "code": -32603,
+  "message": "Request models.list failed with message: 403 \"unauthorized: not authorized to use this copilot feature\\n\""
+}

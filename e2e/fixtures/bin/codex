@@ -3,6 +3,7 @@
 import process from 'node:process'
 import { existsSync, mkdirSync, readFileSync, watch, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { modelManagementEnabled, modelManagementFixture } from '../model-management-provider.mjs'
 import { codexAppServer } from '../chat-authorization-codex.mjs'
 
 const args = process.argv.slice(2)
@@ -68,7 +69,9 @@ function waitForFile(path) {
   })
 }
 
-if (args[0] === 'app-server') {
+if (modelManagementEnabled) {
+  modelManagementFixture('codex', args)
+} else if (args[0] === 'app-server') {
   codexAppServer(args)
 } else if (args[0] === 'exec') {
   let prompt = ''

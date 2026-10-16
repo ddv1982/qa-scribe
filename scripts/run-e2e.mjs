@@ -190,14 +190,21 @@ export function runE2e(environment = process.env, { spawnSyncImpl = spawnSync } 
       const providerBin = join(invocation.environment.QA_SCRIBE_E2E_FIXTURE_DIR, 'bin')
       mkdirSync(providerBin, { recursive: true })
       const authorization = invocationEnvironment.QA_SCRIBE_E2E_SPEC === 'chat-tool-authorization.workflow.mjs'
+      const modelManagement = invocationEnvironment.QA_SCRIBE_E2E_SPEC === 'model-management.e2e.mjs'
       for (const provider of ['codex', 'claude', 'copilot']) rmSync(join(providerBin, provider), { force: true })
-      for (const provider of authorization ? ['codex', 'claude', 'copilot'] : ['codex']) {
+      for (const provider of authorization || modelManagement ? ['codex', 'claude', 'copilot'] : ['codex']) {
         const link = join(providerBin, provider)
         symlinkSync(join(fixtureBin, provider), link)
       }
       invocationEnvironment.PATH = [providerBin, process.env.PATH].filter(Boolean).join(delimiter)
       invocationEnvironment.QA_SCRIBE_E2E_PROVIDER_PATH = providerBin
       if (!authorization) delete invocationEnvironment.QA_SCRIBE_E2E_AUTH_PROVIDER
+      if (modelManagement) {
+        invocationEnvironment.QA_SCRIBE_E2E_MODEL_MANAGEMENT = '1'
+        invocationEnvironment.QA_SCRIBE_PROVIDER_CATALOG_MODE = 'selector'
+        writeFileSync(join(invocation.environment.QA_SCRIBE_E2E_FIXTURE_DIR, 'model-management.json'),
+          JSON.stringify({ claude: 'fresh', codex: 'fresh', copilot: 'fresh' }))
+      }
       const evidencePath = join(invocation.environment.QA_SCRIBE_E2E_ARTIFACTS, 'wdio-execution.json')
       rmSync(evidencePath, { force: true })
       invocationEnvironment.QA_SCRIBE_E2E_EXECUTION_EVIDENCE = evidencePath

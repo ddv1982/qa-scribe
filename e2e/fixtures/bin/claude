@@ -1,3 +1,5 @@
 #!/usr/bin/env node
 import { providerFixture } from '../chat-authorization-providers.mjs'
-providerFixture('claude', process.argv.slice(2))
+import { modelManagementEnabled, modelManagementFixture } from '../model-management-provider.mjs'
+if (modelManagementEnabled) modelManagementFixture('claude', process.argv.slice(2))
+else providerFixture('claude', process.argv.slice(2))

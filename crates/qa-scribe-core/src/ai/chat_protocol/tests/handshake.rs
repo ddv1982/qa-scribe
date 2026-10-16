@@ -133,5 +133,5 @@ fn chat_duplex_builders_preserve_validation_and_default_selection() {
             .contains("not ready")
     );
     let command = duplex_chat_command(AiProvider::CopilotCli, "x", "auto", None, true).unwrap();
-    assert_eq!(command.args, ["--acp"]);
+    assert_eq!(command.args, ["--acp", "--model", "auto"]);
 }

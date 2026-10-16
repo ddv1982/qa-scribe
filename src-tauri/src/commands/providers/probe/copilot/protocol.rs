@@ -167,7 +167,17 @@ pub(super) fn require_authenticated(result: Value) -> Result<(), ProviderDiscove
 
 pub(super) fn classify_rpc_error(error: &Value, stage: RpcStage) -> ProviderDiscoveryError {
     let rpc_code = error.get("code").and_then(Value::as_i64);
-    let status = http_status(error).or_else(|| rpc_code.filter(|code| (400..=599).contains(code)));
+    let status = http_status(error)
+        .or_else(|| rpc_code.filter(|code| (400..=599).contains(code)))
+        .or_else(|| {
+            let message = error.get("message").and_then(Value::as_str)?;
+            (matches!(stage, RpcStage::Models)
+                && rpc_code == Some(-32603)
+                && message.eq_ignore_ascii_case(
+                    r#"Request models.list failed with message: 403 "unauthorized: not authorized to use this copilot feature\n""#,
+                ))
+            .then_some(403)
+        });
     match status {
         Some(401) => discovery_error(
             ProviderDiscoveryErrorCode::AuthRequired,

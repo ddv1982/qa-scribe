@@ -101,6 +101,83 @@ fn claude_structured_catalog_maps_authoritative_capabilities() {
 }
 
 #[test]
+fn claude_structured_catalog_adds_missing_provider_default() {
+    let runner = StructuredRunner {
+        claude: StructuredCatalogProbe::Success(StructuredCatalog {
+            models: vec![json!({"id": "opus", "label": "Opus"})],
+            cli_version: Some("2.1.50".into()),
+        }),
+        copilot: unattempted_catalog(),
+        help: CommandProbe::not_found(),
+    };
+    let snapshot = provider_catalog(AiProvider::ClaudeCode, &runner, DetectionMode::Deep, None);
+    assert_eq!(snapshot.state, ProviderCatalogState::Fresh);
+    assert_eq!(
+        snapshot
+            .models
+            .iter()
+            .map(|model| model.id.as_str())
+            .collect::<Vec<_>>(),
+        ["default", "opus"]
+    );
+    assert_eq!(
+        snapshot.models[0].source,
+        ProviderModelSource::ProviderDefault
+    );
+    assert_eq!(snapshot.models[0].label, "Use CLI default");
+    assert_eq!(snapshot.models[0].resolved_model, None);
+}
+
+#[test]
+fn claude_structured_catalog_retains_provider_reported_default_metadata() {
+    let runner = StructuredRunner {
+        claude: StructuredCatalogProbe::Success(StructuredCatalog {
+            models: vec![json!({
+                "id": "default",
+                "label": "Account default",
+                "resolvedModel": "claude-opus-current",
+                "reasoningEfforts": ["low", "high"],
+                "defaultReasoningEffort": "high"
+            })],
+            cli_version: Some("2.1.50".into()),
+        }),
+        copilot: unattempted_catalog(),
+        help: CommandProbe::not_found(),
+    };
+    let snapshot = provider_catalog(AiProvider::ClaudeCode, &runner, DetectionMode::Deep, None);
+    assert_eq!(snapshot.state, ProviderCatalogState::Fresh);
+    assert_eq!(snapshot.models.len(), 1);
+    let model = &snapshot.models[0];
+    assert_eq!(model.id, "default");
+    assert_eq!(model.label, "Account default");
+    assert_eq!(model.source, ProviderModelSource::CliCatalog);
+    assert_eq!(model.resolved_model.as_deref(), Some("claude-opus-current"));
+    assert_eq!(model.reasoning_efforts, ["low", "high"]);
+    assert_eq!(model.default_reasoning_effort.as_deref(), Some("high"));
+}
+
+#[test]
+fn claude_empty_or_malformed_structured_catalog_keeps_failure_fallback() {
+    for models in [Vec::new(), vec![json!({"label": "Missing model ID"})]] {
+        let runner = StructuredRunner {
+            claude: StructuredCatalogProbe::Success(StructuredCatalog {
+                models,
+                cli_version: Some("2.1.50".into()),
+            }),
+            copilot: unattempted_catalog(),
+            help: CommandProbe::not_found(),
+        };
+        let snapshot = provider_catalog(AiProvider::ClaudeCode, &runner, DetectionMode::Deep, None);
+        assert_eq!(snapshot.state, ProviderCatalogState::Failed);
+        assert_eq!(snapshot.source, ProviderCatalogSource::Preset);
+        assert_eq!(
+            snapshot.error.unwrap().code,
+            ProviderDiscoveryErrorCode::InvalidResponse
+        );
+    }
+}
+
+#[test]
 fn copilot_structured_catalog_preserves_policy_and_limits() {
     let runner = StructuredRunner {
         claude: unattempted_catalog(),

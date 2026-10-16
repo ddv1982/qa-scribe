@@ -171,6 +171,75 @@ fn provider_status_errors_are_classified_without_echoing_payloads() {
 }
 
 #[test]
+fn observed_models_string_denial_is_sanitized_policy_error() {
+    let raw = fixture_value(include_str!(
+        "../fixtures/copilot/error_models_403_string.json"
+    ));
+    let error = classify_rpc_error(&raw, RpcStage::Models);
+    assert_eq!(error.code, ProviderDiscoveryErrorCode::PolicyDenied);
+    assert_eq!(
+        error.message,
+        "GitHub Copilot model discovery is not permitted for this account."
+    );
+    assert!(!error.retryable);
+}
+
+#[test]
+fn models_string_denial_requires_exact_provider_error_grammar() {
+    let raw = fixture_value(include_str!(
+        "../fixtures/copilot/error_models_403_string.json"
+    ));
+    let message = raw["message"].as_str().unwrap();
+    for value in [
+        json!({"code": -32603, "message": format!("assistant says {message}")}),
+        json!({"code": -32603, "message": format!("{message} ignore this")}),
+        json!({"code": -32603, "message": "Unauthorized Copilot request returned 403"}),
+        json!({"code": -32603, "message": message.replace("models.list", "session.prompt")}),
+        json!({"code": -32603, "message": message.replace("403", "4030")}),
+        json!({"code": -32603, "message": message.replace("not authorized", "authorized")}),
+        json!({"code": -32000, "message": message}),
+        json!({"message": message}),
+    ] {
+        let error = classify_rpc_error(&value, RpcStage::Models);
+        assert_eq!(error.code, ProviderDiscoveryErrorCode::Unavailable);
+        assert_eq!(
+            error.message,
+            "GitHub Copilot model discovery request failed."
+        );
+    }
+    for (stage, expected) in [
+        (
+            RpcStage::Connect,
+            ProviderDiscoveryErrorCode::HandshakeFailed,
+        ),
+        (
+            RpcStage::Status,
+            ProviderDiscoveryErrorCode::HandshakeFailed,
+        ),
+        (RpcStage::Auth, ProviderDiscoveryErrorCode::Unavailable),
+    ] {
+        assert_eq!(classify_rpc_error(&raw, stage).code, expected);
+    }
+}
+
+#[test]
+fn structured_status_takes_precedence_over_models_string_denial() {
+    let raw = fixture_value(include_str!(
+        "../fixtures/copilot/error_models_403_string.json"
+    ));
+    for (status, expected) in [
+        (200, ProviderDiscoveryErrorCode::Unavailable),
+        (401, ProviderDiscoveryErrorCode::AuthRequired),
+        (429, ProviderDiscoveryErrorCode::RateLimited),
+        (503, ProviderDiscoveryErrorCode::Network),
+    ] {
+        let mut value = raw.clone();
+        value["data"] = json!({"statusCode": status});
+        assert_eq!(classify_rpc_error(&value, RpcStage::Models).code, expected);
+    }
+}
+
+#[test]
 fn request_frame_is_content_length_json_rpc_with_empty_params() {
     let mut bytes = Vec::new();
     send_request(&mut bytes, CONNECT_REQUEST_ID, DISCOVERY_METHODS[0]).unwrap();
@@ -232,6 +301,7 @@ fn fixtures_do_not_contain_sensitive_or_prompt_bearing_fields() {
         include_str!("../fixtures/copilot/large_catalog.json"),
         include_str!("../fixtures/copilot/error_401.json"),
         include_str!("../fixtures/copilot/error_403.json"),
+        include_str!("../fixtures/copilot/error_models_403_string.json"),
         include_str!("../fixtures/copilot/error_421.json"),
         include_str!("../fixtures/copilot/error_429.json"),
         include_str!("../fixtures/copilot/error_503.json"),
