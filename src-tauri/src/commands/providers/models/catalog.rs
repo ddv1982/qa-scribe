@@ -115,9 +115,9 @@ fn claude_catalog(
 ) -> ProviderModelCatalogSnapshot {
     let structured_error = match runner.claude_structured_catalog() {
         StructuredCatalogProbe::Success(catalog) => {
-            let mut models =
-                apply_claude_declarative_allowlist(parse_claude_structured_models(&catalog.models));
+            let models = parse_claude_structured_models(&catalog.models);
             if !models.is_empty() {
+                let mut models = apply_claude_declarative_allowlist(models);
                 if !models
                     .iter()
                     .any(|model| model.id.eq_ignore_ascii_case("default"))

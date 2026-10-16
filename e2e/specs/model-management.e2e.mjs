@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const directory = process.env.QA_SCRIBE_E2E_FIXTURE_DIR
@@ -347,6 +347,38 @@ describe('Built application native model management M01', () => {
     await save('copilot', null)
     assert.equal((await read('get_settings')).selectedAiModelsByProvider.copilot_cli, null)
     await choices()
-    return { rows }
+    await browser.saveScreenshot(join(evidenceRoot, 'lane-10', 'copilot-policy.png'))
+    await closeChoices()
+    await selectProvider('claude')
+    assert.equal(process.env.CLAUDE_CONFIG_DIR, undefined, 'Policy proof requires its isolated HOME settings source')
+    const settingsDirectory = join(process.env.HOME, '.claude')
+    mkdirSync(settingsDirectory, { recursive: true })
+    const policyPath = join(settingsDirectory, 'settings.json')
+    const previous = existsSync(policyPath) ? { bytes: readFileSync(policyPath), mode: statSync(policyPath).mode & 0o777 } : null
+    const claudePolicy = []
+    try {
+      for (const [name, availableModels] of [['empty', []], ['nonmatching', ['not-the-fixture-model']]]) {
+        writeFileSync(policyPath, JSON.stringify({ availableModels }), { mode: 0o600 })
+        const observations = await refresh('claude')
+        assert.match(await $(catalogDescription).getText(), /^Available for this account · checked /)
+        const restrictedRows = await choices()
+        assert.deepEqual(restrictedRows.map(({ label, source, disabled }) => ({ label, source, disabled })),
+          [{ label: 'CLI default', source: 'Default', disabled: false }])
+        assertCatalogOnly(observations)
+        const screenshot = join(evidenceRoot, 'lane-10', `claude-${name}-allowlist.png`)
+        await browser.saveScreenshot(screenshot)
+        claudePolicy.push({ availableModels, rows: restrictedRows, screenshot })
+        await closeChoices()
+      }
+    } finally {
+      if (previous) {
+        writeFileSync(policyPath, previous.bytes)
+        chmodSync(policyPath, previous.mode)
+      } else rmSync(policyPath)
+    }
+    await refresh('claude')
+    await selectProvider('copilot')
+    await choices()
+    return { rows, claudePolicy }
   }))
 })
