@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict'
-import { spawnSync } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
+import { once } from 'node:events'
+import { createInterface } from 'node:readline'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -109,3 +111,89 @@ test('held Claude permission keeps its correlation and runs one actual marker ch
   assert.notEqual(result.marker.pid, peer.pid)
   assert.equal(result.observations.filter((entry) => entry.event === 'permission-decision').length, 1)
 })
+
+
+const terminalCases = [
+  { name: 'Claude generation', provider: 'claude', mode: 'init', argv: ['-p'], input: 'Synthetic scheduling source.',
+    terminal: { type: 'result', subtype: 'success', is_error: false, result: '<p>Model evidence fixture completed.</p>' } },
+  { name: 'Claude Chat', provider: 'claude', mode: 'init', argv: ['-p', '--permission-prompt-tool', 'stdio'], input: lines(
+    { type: 'control_request', request_id: 'qa-scribe-init', request: { subtype: 'initialize' } },
+    { type: 'user', message: { content: 'Synthetic scheduling Chat prompt.' } },
+  ), terminal: { type: 'result', subtype: 'success', is_error: false, result: 'Model evidence fixture completed.' } },
+  { name: 'Codex Chat', provider: 'codex', mode: 'thread', argv: ['app-server', '--enable', 'tool_call_mcp_elicitation'], input: lines(
+    { id: 'qa-scribe-init', method: 'initialize' }, { method: 'initialized' },
+    { id: 'qa-scribe-thread', method: 'thread/start', params: { model: 'codex-model-literal' } },
+    { id: 'qa-scribe-turn', method: 'turn/start', params: { threadId: 'evidence-thread-1', input: [{ type: 'text', text: 'Synthetic scheduling prompt.' }] } },
+  ), terminal: { method: 'turn/completed', params: { threadId: 'evidence-thread-1', turnId: 'evidence-turn-1',
+    turn: { id: 'evidence-turn-1', status: 'completed' } } } },
+  { name: 'Copilot Chat', provider: 'copilot', mode: 'missing', argv: ['--acp', '--model', 'auto'], input: lines(
+    { id: 'init', method: 'initialize' }, { id: 'session', method: 'session/new' },
+    { id: 'prompt', method: 'session/prompt', params: { sessionId: 'model-selection-copilot-1', prompt: [{ text: 'Synthetic scheduling prompt.' }] } },
+  ), terminal: { jsonrpc: '2.0', id: 'prompt', result: { stopReason: 'end_turn' } } },
+  { name: 'Claude failed Chat', provider: 'claude', mode: 'failure', argv: ['-p', '--permission-prompt-tool', 'stdio'], input: lines(
+    { type: 'control_request', request_id: 'qa-scribe-init', request: { subtype: 'initialize' } },
+    { type: 'user', message: { content: 'Synthetic scheduling failure.' } },
+  ), terminal: { type: 'result', subtype: 'error_during_execution', is_error: true, errors: ['Synthetic evidence failure.'], result: '' } },
+]
+
+for (const scenario of terminalCases) {
+  test(`terminal readiness is committed before ${scenario.name} can be terminated`, { timeout: 5_000 }, async (context) => {
+    const directory = mkdtempSync(join(tmpdir(), 'qa-model-evidence-terminal-'))
+    const hook = join(directory, 'pause-after-terminal.cjs')
+    writeFileSync(hook, `const { writeSync } = require('node:fs')
+const original = process.stdout.write.bind(process.stdout)
+process.stdout.write = function(chunk, ...args) {
+  let frame
+  try { frame = JSON.parse(String(chunk)) } catch { return original(chunk, ...args) }
+  if (frame.type === 'result' || frame.method === 'turn/completed' || frame.result?.stopReason === 'end_turn') {
+    writeSync(1, chunk)
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0)
+  }
+  return original(chunk, ...args)
+}
+`)
+    writeFileSync(join(directory, 'model-management.json'), JSON.stringify({ execution: {
+      provider: scenario.provider, case: scenario.mode, lane: 1,
+    } }))
+    const child = spawn(process.execPath, ['--require', hook,
+      fileURLToPath(new URL(`./bin/${scenario.provider}`, import.meta.url)), ...scenario.argv], {
+      env: { ...process.env, QA_SCRIBE_E2E_MODEL_MANAGEMENT: '1', QA_SCRIBE_E2E_FIXTURE_DIR: directory },
+      stdio: ['pipe', 'pipe', 'pipe'],
+    })
+    const closed = once(child, 'close')
+    const output = createInterface({ input: child.stdout })
+    let diagnostic = ''
+    child.stderr.on('data', (chunk) => { diagnostic = (diagnostic + chunk).slice(0, 4096) })
+    const terminal = new Promise((resolve, reject) => {
+      context.signal.addEventListener('abort', () => reject(context.signal.reason), { once: true })
+      child.once('error', reject)
+      output.on('line', (line) => {
+        try {
+          const frame = JSON.parse(line)
+          if (frame.type === 'result' || frame.method === 'turn/completed' || frame.result?.stopReason === 'end_turn') resolve(frame)
+        } catch (error) { reject(error) }
+      })
+      child.once('close', () => reject(new Error(`Fixture exited before terminal frame: ${diagnostic}`)))
+    })
+    try {
+      child.stdin.end(scenario.input)
+      const received = await terminal
+      const markerPath = join(directory, 'model-evidence-1.ready')
+      const markerAtTerminal = existsSync(markerPath)
+      child.kill('SIGKILL')
+      const [code, signal] = await closed
+      const marker = existsSync(markerPath) ? JSON.parse(readFileSync(markerPath, 'utf8')) : null
+      context.diagnostic(JSON.stringify({ provider: scenario.provider, case: scenario.name, received,
+        markerAtTerminal, marker, childPid: child.pid, code, signal }))
+      assert.deepEqual(received, scenario.terminal)
+      assert.equal(signal, 'SIGKILL', 'The parent must terminate the real blocked fixture at terminal receipt')
+      assert.equal(markerAtTerminal, true, 'Readiness must exist when the parent receives the terminal frame')
+      assert.deepEqual(marker, { pid: child.pid, parentPid: process.pid, argv: scenario.argv })
+    } finally {
+      if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL')
+      await closed
+      output.close()
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+}

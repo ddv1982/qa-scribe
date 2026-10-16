@@ -16,7 +16,7 @@ Keep requested selection, neutral default observation, and provider-reported evi
 
 The later implementation-and-release instruction supplies execution, merge, and publication authority.
 The planning document's earlier statement that execution is not authorized is historical.
-The later explicit autonomy instruction amends the proposed human interaction checkpoints.
+The parent interprets the standing autonomy instruction and the explicit continuation through release as superseding the proposed human interaction checkpoints.
 The parent substitutes reviewable native screenshots and video plus independent visual and shipping review.
 This is an autonomous workflow decision, not evidence that a human review occurred.
 Do not claim human visual approval. Record each actual review and its exact revision.
@@ -39,8 +39,8 @@ Authenticated smokes remain separate from deterministic CI and do not alter cred
 | --- | --- | --- |
 | M01 | Merged PR47 | Exact independent verdict, protected CI and merge `64e2a8fe78df24bbfa923f06585101898ca36c33` |
 | M02 | Merged PR48 | Exact independent verdict, protected CI and merge `f0d3f4b314d3773abbd4481eb31487a025433fbe` |
-| M03 | Independent PASS+NOTES; protected integration pending | Final review at `3ff3622`; identical tree at `80f05de`; PR49 watches fresh CI |
-| M04 | Parent gates passed; independent shipping pending | PR50 at `786a424`; all 18 native invocations, broad gate, resource and size checks pass; external promotion stays open |
+| M03 | Merged PR49 | Independent final verdict, protected CI run `38964642310`, merge `ddd4099d034012d2a3c42508d29f67b93a3eb806` |
+| M04 | Revised fixture verification in progress | PR50 production source `786a424`; prior independent head `cbb7b0a` passed. Hosted integration found fixture ordering; corrected patch needs fresh independent and protected checks |
 | Release | Pending | Starts after verified implementation and protected CI |
 
 ## Decisions and limits
@@ -258,16 +258,16 @@ The receipt is `/tmp/qa-models/M04/resource-bounds/receipt.json`. This is bounde
 Authenticated checks are optional and retain unsuccessful attempts separately.
 Claude Code 2.1.301 completed Default and explicit `sonnet` generation through real app controls.
 Actual model arguments, typed requested and reported metadata, persisted rows and Session reopen all matched.
-Codex CLI 0.163.0 completed Default, with explicit unknown reported model and persisted reopen proof.
-Two explicit-selection attempts stopped in the harness before launching a provider. They do not establish a provider execution failure.
-The latest diagnosis identifies the harness reading fast preset status after the frontend accepted a deep catalog refresh.
-The correction must read the visible choices before another optional explicit-model attempt.
-Copilot catalog discovery remains PolicyDenied. No credentials or external CLI configuration were changed.
+Codex CLI 0.163.0 completed Default and a catalog-selected explicit model, with unknown reported model and persisted reopen proof.
+Three prior explicit-selection attempts stopped in the harness before invocation. The first two read fast presets; the third raced Session hydration.
+The final corrected run passed both paths, as recorded below.
+Copilot catalog discovery was classified `PolicyDenied`; the underlying cause remains unidentified. No credentials or external CLI configuration were changed.
 
 ## M04 final local evidence
 
 The broad gate passed with 572 frontend tests and 566 Rust workspace tests, with three optional tests ignored.
-The 27 runner and fixture tests passed. The authenticated online Zizmor audit reported no findings.
+The 27 runner and fixture tests passed. The authenticated online Zizmor audit reported no findings and 33 suppressions.
+This patch added no suppression directive; the baseline suppression count was not independently measured.
 The optimized Linux size comparison uses identical version, lockfile, compiler and default production features.
 The executable grows by 0.788 percent. Frontend production gzip grows by 1889 bytes. Both remain below the proposed review thresholds.
 No build-time or production latency improvement is claimed.
@@ -310,11 +310,11 @@ These instructions supply the authority to continue through independent visual r
 Their original precise message timestamps are not available in this workspace handoff. The TSV timestamp records when the parent logged this reconciliation.
 No human review or approval is inferred.
 
-Release go/no-go requires passing deterministic implementation gates, an independent passing verdict for each unchanged patch, no unresolved blocking source finding, and fresh protected CI at each actual integration head.
+The parent interprets release success, consistently with the plan's diagnostic fallback, as passing deterministic implementation gates, an independent passing verdict for each unchanged patch, no unresolved blocking source finding, and fresh protected CI at each actual integration head.
 The release PR must pass `docs/releasing.md`, then the actual release workflow must publish and verify its signed assets and APT metadata.
 The external account and platform matrix governs catalog promotion. It stays open and does not authorize promotion in this release.
 Claude and Copilot therefore retain diagnostics defaults. Their real-provider limits must remain in release evidence.
-An uninvestigated application defect blocks release. The observed Copilot access denial is an external limit, not a passing provider result or a proven account-policy cause.
+An uninvestigated application defect blocks release. The failed Copilot app invocation is not shown to be an application defect. Separate catalog and direct checks are consistent with an account or service denial, but do not establish the app-run cause. It remains an unresolved qualification failure, not a passing provider result.
 
 The workflow addition installs `xdotool` only in Linux test/validation jobs so the native suites can exercise actual OS keyboard behavior.
 It adds no packaged application dependency. The expanded default native plan took 388334 ms on the local host.
@@ -334,7 +334,8 @@ Claude completed two real turns. Codex completed five real turns, including four
 Copilot made one app-owned failed Default attempt and one separate failed direct diagnostic invocation.
 Provider-owned history and usage side effects follow normal CLI behavior. The parent did not delete provider-owned history or infer billing totals.
 The app's disposable data and owned process groups were cleaned up.
-Successful evidence is bound to the immutable executable through the parent invocation and before/after hash receipts.
+The parent tool invocations name the immutable executable. Its retained hash and creation time corroborate that association.
+No per-run before/after hash receipt was captured; the later binding sidecar is retrospective.
 Original per-run harness hashes were not captured for the earliest attempts and cannot be reconstructed faithfully. This limit is explicit in the binding sidecar.
 Current harness hashes describe the retained final artifact, not an invented historical revision.
 The shared local dependency tree uses the same frontend lockfile; installed versions are recorded separately. Clean hosted installs remain required.
@@ -349,3 +350,41 @@ Rendered tests and native disabled/diagnostic modes check that backend catalog c
 A new backend per-provider rollout DTO would widen this qualification fix and is not required for the current stable rule.
 The native runner deliberately fails closed against a fixed spec-to-receipt contract, including expected lane counts.
 Its model specs are permanent regression suites despite their original phase identifiers. A generic orchestration registry is deferred until another suite needs that abstraction.
+
+## Release review corrections
+
+The second decision-trail review returned PASS+NOTES with no hard integration blocker.
+Its residual documentation corrections are incorporated here before publication.
+The parent interpretation replaces the proposed program interaction checkpoint and the M01, M03 and M04 operator-preview stops.
+Native screenshots, 30-to-60-second media and independent shipping/visual review supply the substitute assertions.
+Those original human-review boxes remain unfulfilled as written. No human review is claimed.
+
+The apparent lint discrepancy is reproduced and reconciled in `/tmp/qa-models/M04/lint-reconciliation.json`.
+Raw and committed workflow hashes match. Raw actionlint1.7.12 rejects the existing `$/` local-action syntax.
+The repository's documented compatibility view changes only those references to `./` on stdin, and both normalized workflows pass.
+The workflow files remain unchanged. This is the existing rule in `docs/ci.md`, not a newly invented lint exception.
+
+If a hosted native key or display test fails, first inspect that exact failure and classify the cause.
+Only demonstrated infrastructure failure permits one fresh build of the same head. Do not retry a job against a stale snapshot.
+A repeated failure blocks integration or publication until fixed and verified. The policy does not authorize retries for code defects.
+
+The Copilot app attempt reached a failed native job and a typed failed row. Its raw error category was not captured.
+A separate direct invocation matched the bounded access-denial classifier, which includes the substring `403`.
+That result supports a possible access failure but cannot prove the app invocation's cause. Raw provider output was discarded.
+Copilot Auto and explicit completion, the signed-in picker matrix, and Claude's external authorization and billing gates remain open.
+
+## First hosted M04 integration failure
+
+Protected CI run `38967689175` failed at integration head `f156677ed885e2c50033a83d57b32a9f0c71df7d`.
+Linux unit, type, lint and build checks passed. The model-evidence native lane completed Codex Chat with the expected requested ID and thread-configuration report, but its fixture readiness file was absent.
+The fixture published terminal completion before writing that file. The app can terminate a completed child between those operations.
+The later restart failure was a consequence of the missing first-run receipt, not separate migration evidence.
+This is classified as a fixture ordering defect. No infrastructure retry was requested.
+The correction publishes readiness before terminal completion. All 18 fixture tests pass, including five deterministic scheduler-preemption checks.
+The normal required script-test command now includes both fixture test files and passes all 180 tests.
+A native RED run with the original fixture and a post-terminal pause reproduced the same missing Codex marker and dependent restart failure.
+The corrected full native rerun, fresh independent review and fresh protected build remain pending.
+The production app executable and source remain unchanged by that fixture correction.
+
+The earlier independent verdict and protected failures remain retained. A fresh independent verdict must describe the revised fixture patch before integration.
+The current source and visual evidence continues to distinguish the failed Copilot app attempt from the separate direct access-denial classifier.

@@ -43,7 +43,7 @@
     "linux:package-manager:check": "node scripts/package-tauri-linux.mjs && bun run linux:metadata:check -- --skip-external-tools && bun run apt:repo:check && bun run apt:installer:check",
     "apt:repo:check": "node scripts/check-apt-repository.mjs",
     "apt:installer:check": "node scripts/check-apt-installer.mjs",
-    "release:script-tests": "node --test scripts/*.test.mjs",
+    "release:script-tests": "node --test scripts/*.test.mjs e2e/fixtures/*.test.mjs",
     "release:check": "node scripts/check-release-metadata.mjs && bun run linux:metadata:test && bun run release:script-tests",
     "bump": "node scripts/bump-version.mjs",
     "bump:test": "node --test scripts/bump-version.test.mjs",

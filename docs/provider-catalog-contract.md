@@ -2,7 +2,7 @@
 
 Status: implemented, release-gated
 Owner: QA Scribe maintainers
-Last verified: 2026-10-16
+Implementation qualification: 2026-10-16. Transport cost figures below remain the July Phase 0 measurements.
 
 This document records the Phase 0 transport decisions, compatibility floor,
 fixture workflow, rollout controls, and release evidence for Claude Code and
@@ -21,7 +21,7 @@ conversation, reads credential values, or uses an SDK-bundled CLI.
 | Provider | Decision | Why | Measured implementation cost |
 | --- | --- | --- | --- |
 | Claude Code | Initialization-only stream-JSON transport compatible with the Agent SDK semantic surface | Anthropic has no Rust Agent SDK. A JavaScript sidecar would add a second packaged runtime and would not improve process-group cleanup. The control transport is therefore isolated, version-gated, and fixture-tested. | Zero Cargo dependencies and zero packaged sidecars. Live Claude Code 2.1.50 returned 3 sanitized models in 298–554 ms across three macOS arm64 runs. |
-| GitHub Copilot | Minimal protocol-3 `--server --stdio --no-auto-update` adapter | The official Rust SDK was still `1.0.7-preview.2` during evaluation, adds an HTTP/WebSocket dependency surface, and owns a Tokio child that QA Scribe cannot place in its process group. The adapter implements only `connect`, `status.get`, `auth.getStatus`, `models.list`, and best-effort `runtime.shutdown`. | Zero Cargo dependencies and zero bundled runtime. Live latency is not yet measured because Copilot was not installed on the verification host. |
+| GitHub Copilot | Minimal protocol-3 `--server --stdio --no-auto-update` adapter | The official Rust SDK was still `1.0.7-preview.2` during evaluation, adds an HTTP/WebSocket dependency surface, and owns a Tokio child that QA Scribe cannot place in its process group. The adapter implements only `connect`, `status.get`, `auth.getStatus`, `models.list`, and best-effort `runtime.shutdown`. | Zero Cargo dependencies and zero bundled runtime. At the July Phase 0 measurement, live latency was not measured because Copilot was not installed on that host. October results are recorded below. |
 
 An isolated optimized build against `origin/main` used the same frontend assets
 and Rust 1.97.0. The baseline `qa-scribe-tauri` binary was 16,181,728 bytes; the

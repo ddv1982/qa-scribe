@@ -70,7 +70,7 @@ They do not establish a live account or a provider's actual model routing.
 - [ ] Signed-in provider picker comparisons across the required account and policy cases.
 - [ ] Claude discovery billing telemetry and the existing written-authorization gate.
 - [ ] A resolved Copilot catalog denial in an authorized account environment.
-- [x] Exact final-candidate optional authenticated smokes attempted and recorded separately. Claude and Codex completed; Copilot Default failed with access denied. Auto and explicit Copilot completion remain unverified.
+- [x] Exact final-candidate optional authenticated smokes attempted and recorded separately. Claude and Codex completed; Copilot app Default failed without a captured error classification. A separate direct run matched an access-denial pattern. Auto and explicit Copilot completion remain unverified.
 
 These open cells prevent catalog promotion. They do not become green through fixtures or a successful package build.
 No credentials, provider installation or CLI configuration workaround is part of this release.
@@ -124,7 +124,8 @@ The harness stopped before Auto and explicit execution, so neither path has auth
 A separate bounded direct invocation also exited with an access-denial match. No auth, argument, network or usage-pattern match was established.
 The output classifier retained categories only, not raw provider text. The underlying account or service cause remains unknown.
 Receipts are `evidence-1792183914358.json` and `/tmp/qa-models/M04/live/copilot-failure-category.json`.
-This failure remains separate from deterministic CI and prevents any Copilot catalog promotion claim.
+The direct result is consistent with an account or service denial but does not establish the app-run cause.
+This unresolved qualification failure remains separate from deterministic CI and prevents any Copilot catalog promotion claim.
 
 The 45-second native diagnostics walkthrough is `/tmp/qa-models/M04/review/demo.mp4`.
 The exact binary hash, positive screenshots, inspected frames and teardown receipt are in `review/inspection.json`.
