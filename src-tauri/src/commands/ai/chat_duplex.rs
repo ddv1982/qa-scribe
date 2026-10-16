@@ -12,7 +12,8 @@ use std::{
 
 use qa_scribe_core::{
     ai::{
-        GenerationCommand, GenerationOutputFormat, ProviderGenerationOutput,
+        GenerationCommand, GenerationOutputFormat, ProviderExecutionError,
+        ProviderGenerationOutput,
         chat_protocol::{ChatProtocol, ChatProtocolEvent, ChatProtocolPermission},
         stream::StreamUpdate,
     },
@@ -54,7 +55,7 @@ pub(crate) fn run_chat_duplex(
     context: &ChatDuplexContext<'_>,
     on_update: impl FnMut(StreamUpdate),
     on_status: impl FnMut(GenerationJobStatus),
-) -> Result<ProviderGenerationOutput, String> {
+) -> Result<ProviderGenerationOutput, ProviderExecutionError> {
     run_chat_duplex_with_limits(
         command,
         context,
@@ -74,9 +75,11 @@ fn run_chat_duplex_with_limits(
     on_update: impl FnMut(StreamUpdate),
     on_status: impl FnMut(GenerationJobStatus),
     limits: DuplexLimits,
-) -> Result<ProviderGenerationOutput, String> {
-    execute_chat_duplex(command, context, on_update, on_status, limits)
-        .map_err(|error| bounded_error_tail(&error))
+) -> Result<ProviderGenerationOutput, ProviderExecutionError> {
+    execute_chat_duplex(command, context, on_update, on_status, limits).map_err(|mut error| {
+        error.message = bounded_error_tail(&error.message);
+        error
+    })
 }
 
 // One outer boundary bounds every returned error, including setup failures and
@@ -95,7 +98,7 @@ fn execute_chat_duplex(
     mut on_update: impl FnMut(StreamUpdate),
     mut on_status: impl FnMut(GenerationJobStatus),
     limits: DuplexLimits,
-) -> Result<ProviderGenerationOutput, String> {
+) -> Result<ProviderGenerationOutput, ProviderExecutionError> {
     if context.control.is_cancelled() {
         return Ok(output(None, true));
     }
@@ -273,7 +276,13 @@ fn execute_chat_duplex(
             frames_since_service += 1;
             let frame: serde_json::Value = serde_json::from_slice(&frame)
                 .map_err(|error| format!("Invalid provider protocol JSON: {error}"))?;
-            for event in protocol.handle(&frame).map_err(|error| error.to_string())? {
+            let handled = context
+                .control
+                .run_if_not_cancelled(|| protocol.handle(&frame))?;
+            let Some(handled) = handled else {
+                return Ok(None);
+            };
+            for event in handled.map_err(|error| error.to_string())? {
                 match event {
                     ChatProtocolEvent::Send(message) => peer.send(&message, limits.line_bytes)?,
                     ChatProtocolEvent::Update(update) => on_update(update),
@@ -309,35 +318,31 @@ fn execute_chat_duplex(
     if let Ok(status) = context.jobs.status(context.job_id) {
         on_status(status);
     }
+    let model_report = protocol.model_report();
     let stderr = peer.shutdown();
     if context.control.is_cancelled() {
-        return Ok(output(None, true));
+        let mut output = output(None, true);
+        output.model_report = model_report;
+        return Ok(output);
     }
     match result {
         Ok(text) => {
             let mut output = output(text, false);
-            // Only trusted adapter metadata enters stdout. Native wire logs and
-            // tool content never become persisted assistant text or metadata.
-            if output.success()
-                && let Some(model) = protocol.reported_model()
-            {
-                output.stdout = serde_json::json!({
-                    "type": "system", "subtype": "init", "model": model,
-                })
-                .to_string()
-                .into_bytes();
-                output.stdout.push(b'\n');
-            }
+            output.model_report = model_report;
             output.stderr = stderr;
             Ok(output)
         }
         Err(error) => {
             let diagnostic = String::from_utf8_lossy(&stderr);
-            if diagnostic.trim().is_empty() {
-                Err(error)
+            let message = if diagnostic.trim().is_empty() {
+                error
             } else {
-                Err(format!("{error}: {}", diagnostic.trim()))
-            }
+                format!("{error}: {}", diagnostic.trim())
+            };
+            Err(ProviderExecutionError {
+                message,
+                model_report,
+            })
         }
     }
 }
@@ -396,6 +401,7 @@ fn output(text: Option<String>, cancelled: bool) -> ProviderGenerationOutput {
         assistant_text: text,
         output_format: GenerationOutputFormat::PlainText,
         cancelled,
+        model_report: None,
     }
 }
 

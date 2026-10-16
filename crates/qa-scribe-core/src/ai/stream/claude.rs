@@ -19,10 +19,14 @@ use super::{StreamUpdate, joined_text, progress_for_event};
 #[derive(Default)]
 pub(super) struct ClaudeStreamJsonParser {
     assistant_text: String,
+    pub(super) model_report: Option<crate::domain::ReportedModel>,
 }
 
 impl ClaudeStreamJsonParser {
     pub(super) fn push_event(&mut self, value: &Value) -> Vec<StreamUpdate> {
+        if let Some(report) = crate::ai::model_report::claude_model_report(value) {
+            report.retain_in(&mut self.model_report);
+        }
         let event_type = value.get("type").and_then(Value::as_str);
         match event_type {
             Some("stream_event") => {

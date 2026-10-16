@@ -1,11 +1,12 @@
 pub mod chat;
 pub mod chat_protocol;
 mod executor;
+mod model_report;
 pub mod stream;
 
 pub use executor::{
-    MAX_PROVIDER_STDOUT_BYTES, ProviderExecution, ProviderExecutor, ProviderGenerationOutput,
-    run_streaming_generation,
+    MAX_PROVIDER_STDOUT_BYTES, ProviderExecution, ProviderExecutionError, ProviderExecutor,
+    ProviderGenerationOutput, run_streaming_generation,
 };
 
 use serde::Serialize;

@@ -170,8 +170,16 @@ pub fn finish_ai_action_generation(
     service: &SessionService,
     request: &GenerateAiActionRequest,
     prepared: PreparedGeneration,
-    output: std::result::Result<ProviderGenerationOutput, String>,
+    output: std::result::Result<ProviderGenerationOutput, crate::ai::ProviderExecutionError>,
 ) -> Result<GenerateAiActionResult> {
+    let report = match &output {
+        Ok(output) => output.model_report.as_ref(),
+        Err(error) => error.model_report.as_ref(),
+    };
+    if let Err(error) = service.record_running_ai_run_model_report(&prepared.ai_run.id, report) {
+        let _ = service.fail_ai_run(&prepared.ai_run.id, &error.to_string());
+        return Err(error);
+    }
     match output {
         Ok(output) if output.success() => {
             finish_successful_generation(service, request, prepared, output)
@@ -182,7 +190,7 @@ pub fn finish_ai_action_generation(
             Ok(failed_generation_result(prepared, failed_run))
         }
         Err(error) => {
-            let failed_run = service.fail_ai_run(&prepared.ai_run.id, &error)?;
+            let failed_run = service.fail_ai_run(&prepared.ai_run.id, &error.message)?;
             Ok(failed_generation_result(prepared, failed_run))
         }
     }
@@ -228,9 +236,6 @@ fn finish_successful_generation(
 ) -> Result<GenerateAiActionResult> {
     let ai_run_id = prepared.ai_run.id.clone();
     let result = (|| {
-        if let Some(model) = output.reported_model() {
-            service.record_running_ai_run_model(&prepared.ai_run.id, &model)?;
-        }
         let response = output.response_text().map_err(QaScribeError::Validation)?;
         let body = parse_rich_html_fragment_response(&response, &prepared.output_marker);
         validate_generated_body(&body)?;

@@ -22,8 +22,8 @@ use std::{
 };
 
 use qa_scribe_core::ai::{
-    GenerationCommand, MAX_PROVIDER_STDOUT_BYTES, ProviderExecution, ProviderExecutor,
-    ProviderGenerationOutput, run_streaming_generation, stream::StreamUpdate,
+    GenerationCommand, MAX_PROVIDER_STDOUT_BYTES, ProviderExecution, ProviderExecutionError,
+    ProviderExecutor, ProviderGenerationOutput, run_streaming_generation, stream::StreamUpdate,
 };
 
 use crate::{
@@ -59,7 +59,7 @@ pub(crate) fn run_generation_command_streaming(
     command: &GenerationCommand,
     control: &JobControl,
     on_update: impl FnMut(StreamUpdate),
-) -> Result<ProviderGenerationOutput, String> {
+) -> Result<ProviderGenerationOutput, ProviderExecutionError> {
     run_streaming_generation(&ProcessProviderExecutor::new(control), command, on_update)
 }
 
@@ -70,7 +70,7 @@ pub(crate) fn run_chat_command_streaming(
     provider: qa_scribe_core::domain::AiProvider,
     app_data_dir: &std::path::Path,
     on_update: impl FnMut(StreamUpdate),
-) -> Result<ProviderGenerationOutput, String> {
+) -> Result<ProviderGenerationOutput, ProviderExecutionError> {
     let mut executor = ProcessProviderExecutor::new(control);
     if provider == qa_scribe_core::domain::AiProvider::CopilotCli {
         executor.stable_provider_cwd = Some(app_data_dir.join("copilot-chat"));
@@ -132,6 +132,12 @@ impl<'a> ProcessProviderExecutor<'a> {
 }
 
 impl ProviderExecutor for ProcessProviderExecutor<'_> {
+    fn collect_output(&self, collect: &mut dyn FnMut()) -> Result<bool, String> {
+        self.control
+            .run_if_not_cancelled(collect)
+            .map(|result| result.is_some())
+    }
+
     /// Streaming driver for a provider CLI.
     ///
     /// The ordering here is load-bearing and fixes several process defects:

@@ -263,7 +263,8 @@ impl CodexProtocol {
                             "Codex thread response ID mismatch".into(),
                         ));
                     }
-                    output.reported = result["model"].as_str().map(str::to_owned);
+                    output.reported = crate::ai::model_report::report_id(&result["model"])
+                        .map(|id| ReportedModel::CodexThreadConfiguration { id });
                     self.phase = Phase::StartingTurn {
                         thread: id.into(),
                         announced_turn: None,

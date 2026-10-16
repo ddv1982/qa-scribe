@@ -77,7 +77,7 @@ pub struct AiRun {
     pub session_id: String,
     pub generation_context_id: Option<String>,
     pub provider: AiProvider,
-    pub model: String,
+    pub model_selection: super::RunModelSelection,
     pub reasoning_effort: Option<String>,
     pub prompt_version: String,
     pub status: AiRunStatus,

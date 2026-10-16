@@ -190,7 +190,8 @@ export function runE2e(environment = process.env, { spawnSyncImpl = spawnSync } 
       const providerBin = join(invocation.environment.QA_SCRIBE_E2E_FIXTURE_DIR, 'bin')
       mkdirSync(providerBin, { recursive: true })
       const authorization = invocationEnvironment.QA_SCRIBE_E2E_SPEC === 'chat-tool-authorization.workflow.mjs'
-      const modelManagement = invocationEnvironment.QA_SCRIBE_E2E_SPEC === 'model-management.e2e.mjs'
+      const modelEvidence = invocationEnvironment.QA_SCRIBE_E2E_SPEC === 'model-evidence.e2e.mjs'
+      const modelManagement = modelEvidence || invocationEnvironment.QA_SCRIBE_E2E_SPEC === 'model-management.e2e.mjs'
       for (const provider of ['codex', 'claude', 'copilot']) rmSync(join(providerBin, provider), { force: true })
       for (const provider of authorization || modelManagement ? ['codex', 'claude', 'copilot'] : ['codex']) {
         const link = join(providerBin, provider)
@@ -204,6 +205,14 @@ export function runE2e(environment = process.env, { spawnSyncImpl = spawnSync } 
         invocationEnvironment.QA_SCRIBE_PROVIDER_CATALOG_MODE = 'selector'
         writeFileSync(join(invocation.environment.QA_SCRIBE_E2E_FIXTURE_DIR, 'model-management.json'),
           JSON.stringify({ claude: 'fresh', codex: 'fresh', copilot: 'fresh' }))
+      }
+      if (modelEvidence) {
+        const legacyDatabase = join(invocation.environment.QA_SCRIBE_E2E_APP_DATA_DIR, 'qa-scribe.sqlite')
+        if (invocationEnvironment.QA_SCRIBE_E2E_EVIDENCE_RESTART !== '1') {
+          run('python3', [join(root, 'e2e/fixtures/model-evidence-database.py'), 'seed', legacyDatabase,
+            join(root, 'crates/qa-scribe-core/tests/fixtures/schema_v10.sql'),
+            join(invocation.environment.QA_SCRIBE_E2E_FIXTURE_DIR, 'model-evidence-legacy-seed.json')], invocationEnvironment)
+        }
       }
       const evidencePath = join(invocation.environment.QA_SCRIBE_E2E_ARTIFACTS, 'wdio-execution.json')
       rmSync(evidencePath, { force: true })

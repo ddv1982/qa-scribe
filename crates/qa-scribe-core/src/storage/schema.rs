@@ -150,6 +150,7 @@ CREATE TABLE IF NOT EXISTS ai_runs (
   generation_context_id TEXT REFERENCES generation_contexts(id) ON DELETE SET NULL,
   provider TEXT NOT NULL CHECK (provider IN ('claude_code', 'codex_cli', 'copilot_cli')),
   model TEXT NOT NULL,
+  model_selection_json TEXT,
   reasoning_effort TEXT,
   prompt_version TEXT NOT NULL,
   status TEXT NOT NULL CHECK (status IN ('running', 'completed', 'failed')),

@@ -88,7 +88,12 @@ pub(super) fn map_ai_run(row: &Row<'_>) -> rusqlite::Result<AiRun> {
         session_id: row.get(1)?,
         generation_context_id: row.get(2)?,
         provider: AiProvider::from_stored(&provider).map_err(to_sql_error)?,
-        model: row.get(4)?,
+        model_selection: crate::domain::RunModelSelection::from_stored(
+            AiProvider::from_stored(&provider).map_err(to_sql_error)?,
+            row.get(4)?,
+            row.get(11)?,
+        )
+        .map_err(to_sql_error)?,
         reasoning_effort: row.get(5)?,
         prompt_version: row.get(6)?,
         status: AiRunStatus::from_stored(&status).map_err(to_sql_error)?,

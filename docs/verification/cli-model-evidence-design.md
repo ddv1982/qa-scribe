@@ -58,3 +58,19 @@ A generic Settings mutation queue would change more Save semantics than the requ
 Cover a real schema-10 migration, fresh run insertion, malformed evidence, forged plaintext metadata, wrong Claude system envelopes, report precedence, failed and cancelled runs, and stale report writes.
 Cover dirty Settings drafts, pending writes, save failure, per-provider isolation, and launch capture across asynchronous Note or composer persistence.
 The M01 red regressions also established that preserving Copilot Auto requires both argument handling and Settings normalization.
+
+## M03 integration checkpoints
+
+Read prior-turn runs through the existing Chat read owner in one query.
+Prefer `ChatState.aiRuns` containing distinct existing AiRun values linked by the current draft's `chat_messages.ai_run_id`.
+Do not load every unrelated Session generation or add a per-message network request.
+Use each message's existing aiRunId to select its historical evidence.
+
+Allow a quick model preference change while a response is active, since it targets the next invocation.
+Disable the picker only for conflicting settings persistence or unavailable controller state.
+The active turn keeps its captured provider, model, effort, and permissions.
+
+Include pending quick writes in the existing settlement checkpoint.
+A clean draft does not prove that a model preference write has completed.
+Closing or navigation must not pass its final checkpoint while a write is pending.
+Preserve the existing settings draft-version guards and add a rendered-controller regression for this case.

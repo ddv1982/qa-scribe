@@ -148,7 +148,6 @@ pub(super) fn finish(
             "Provider returned an empty Chat response".into(),
         ));
     }
-    let reported_model = output.reported_model();
     service.finish_chat_turn_with_ai_run(
         ChatFinishRequest {
             scope: current_scope(service, prepared)?,
@@ -156,7 +155,6 @@ pub(super) fn finish(
             assistant_text: text,
         },
         &prepared.ai_run.id,
-        reported_model.as_deref(),
     )
 }
 

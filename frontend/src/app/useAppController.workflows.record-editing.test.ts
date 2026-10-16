@@ -30,7 +30,7 @@ describe('useAppController workflows and record hydration', () => {
             sessionId: 'session-1',
             generationContextId: 'context-1',
             provider: 'codex_cli',
-            model: 'default',
+            modelSelection: { kind: 'recorded', requested: { kind: 'default' }, reported: null },
             reasoningEffort: null,
             promptVersion: 'testware-v4',
             status: 'completed',

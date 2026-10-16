@@ -152,6 +152,19 @@ else:
         assert prompt["method"] == "session/prompt"
         assert prompt["params"]["prompt"] == [{"type": "text", "text": "fixture prompt"}]
 
+if mode in ("report_eof", "report_invalid", "report_timeout", "report_cancel"):
+    text("collected before exit")
+    if mode == "report_eof":
+        sys.exit(7)
+    if mode == "report_invalid":
+        print("{invalid", flush=True)
+        time.sleep(30)
+        sys.exit(9)
+    if mode == "report_cancel" and provider == "claude":
+        send({"type": "assistant", "message": {"model": "after-cancel", "content": []}})
+    time.sleep(30)
+    sys.exit(9)
+
 if mode == "total":
     for _ in range(100):
         text("padding" * 30)

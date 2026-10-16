@@ -37,6 +37,7 @@ fn composer(service: &SessionService, chat: &ChatState, text: &str) -> ChatState
 
 fn output(text: &str) -> ProviderGenerationOutput {
     ProviderGenerationOutput {
+        model_report: None,
         exit_success: Some(true),
         stdout: Vec::new(),
         stderr: Vec::new(),

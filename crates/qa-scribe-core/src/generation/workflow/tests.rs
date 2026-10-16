@@ -137,6 +137,7 @@ fn create_note_with_attachment(service: &SessionService, session: &Session) -> (
 
 fn success_generation_output(response: &str) -> ProviderGenerationOutput {
     ProviderGenerationOutput {
+        model_report: None,
         exit_success: Some(true),
         stdout: response.as_bytes().to_vec(),
         stderr: Vec::new(),
@@ -151,6 +152,7 @@ fn successful_structured_output(
     stdout: &str,
 ) -> ProviderGenerationOutput {
     ProviderGenerationOutput {
+        model_report: None,
         exit_success: Some(true),
         stdout: stdout.as_bytes().to_vec(),
         stderr: Vec::new(),

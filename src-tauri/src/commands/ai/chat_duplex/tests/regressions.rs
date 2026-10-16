@@ -167,7 +167,7 @@ fn chat_duplex_process_output_line_total_bounds_and_silent_watchdog() {
         let expected = match mode {
             "line" => "line exceeded", "total" => "output exceeded", _ => "timed out",
         };
-        assert!(error.to_lowercase().contains(expected), "{mode}: {error}");
+        assert!(error.message.to_lowercase().contains(expected), "{mode}: {error}");
         assert!(started.elapsed() < Duration::from_secs(5));
         assert!(!fixture.dir.join("tool-marker").exists());
     }
@@ -216,7 +216,7 @@ fn chat_duplex_process_pending_provider_cancel_duplicate_and_live_eof_cleanup() 
             });
             assert!(!fixture.records().is_empty());
             let error = result.expect_err("invalidated turn must fail");
-            assert!(!error.contains("timed out"), "{provider:?}/{mode}: {error}");
+            assert!(!error.message.contains("timed out"), "{provider:?}/{mode}: {error}");
             assert!(started.elapsed() < Duration::from_secs(2));
             assert_eq!(pending_seen, mode != "eof_live");
             assert!(!final_pending, "observer must receive permission revocation");
@@ -238,7 +238,7 @@ fn chat_duplex_process_reported_model_preserves_trusted_protocol_metadata() {
         assert_eq!(output.response_text().unwrap(), "Connected.");
         // Selection is chosen-model. The child reports actualmodel through
         // Claude assistant.model or Codex thread/start result.model instead.
-        assert_eq!(output.reported_model().as_deref(), Some("actualmodel"),
+        assert_eq!(output.model_report.as_ref().map(|report| report.id()), Some("actualmodel"),
             "{provider:?}: AI Run must retain the trusted resolved model");
     }
 }
@@ -254,10 +254,10 @@ fn chat_duplex_process_huge_failure_diagnostics_are_bounded_and_utf8_safe() {
         assert!(fixture.records().iter().any(|record|
             record["huge_failure_bytes"].as_u64().is_some_and(|bytes| bytes > 256 * 1024)),
             "must exercise real child diagnostics beyond the capture tail");
-        assert!(error.len() <= 1600,
-            "{provider:?}: persisted Chat error exceeds 1600 bytes: {}", error.len());
-        assert!(!error.contains('\u{fffd}'), "must not split valid UTF-8 diagnostics");
-        assert!(error.ends_with("diagnostic-tail-🧪"), "must retain actionable diagnostic tail");
+        assert!(error.message.len() <= 1600,
+            "{provider:?}: persisted Chat error exceeds 1600 bytes: {}", error.message.len());
+        assert!(!error.message.contains('\u{fffd}'), "must not split valid UTF-8 diagnostics");
+        assert!(error.message.ends_with("diagnostic-tail-🧪"), "must retain actionable diagnostic tail");
         assert!(!pending);
         assert!(!fixture.dir.join("tool-marker").exists());
         assert!(fixture.jobs.status("job").unwrap().pending_permission.is_none());
@@ -346,7 +346,7 @@ fn chat_duplex_process_queued_provider_cancel_revokes_without_replies() {
                 public_ids.push(pending.request_id);
             }
         }).expect_err("provider cancellation must invalidate the queued turn");
-        assert!(error.to_lowercase().contains("cancel") || error.to_lowercase().contains("interrupt"),
+        assert!(error.message.to_lowercase().contains("cancel") || error.message.to_lowercase().contains("interrupt"),
             "{provider:?}: must reach cancellation, not reject distinct queued requests: {error}");
         assert!(started.elapsed() < Duration::from_secs(2));
         assert_eq!(public_ids.len(), 1, "queued prompts must not replace the visible prompt");
@@ -378,7 +378,7 @@ fn chat_duplex_process_queued_permission_overflow_fails_closed() {
             DuplexLimits { watchdog: Duration::from_secs(3), line_bytes: 4096,
                 total_bytes: 128 * 1024 },
         ).expect_err("permission queue overflow must fail closed");
-        let lower = error.to_lowercase();
+        let lower = error.message.to_lowercase();
         assert!(lower.contains("permission") &&
             ["overflow", "capacity", "limit", "too many"].iter().any(|word| lower.contains(word)),
             "{provider:?}: must reach queue capacity, not reject request two: {error}");

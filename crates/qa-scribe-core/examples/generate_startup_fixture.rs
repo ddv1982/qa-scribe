@@ -72,10 +72,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             tx.execute(
                 "INSERT INTO ai_runs (
                     id, session_id, generation_context_id, provider, model, reasoning_effort,
-                    prompt_version, status, error_message, created_at, completed_at
+                    prompt_version, status, error_message, created_at, completed_at, model_selection_json
                  ) VALUES (?1, ?2, NULL, 'codex_cli', 'fixture-model', NULL,
-                    'startup-fixture-v1', 'completed', NULL, ?3, ?3)",
-                params![format!("ai-run-{index:04}"), active_session_id, timestamp],
+                    'startup-fixture-v1', 'completed', NULL, ?3, ?3, ?4)",
+                params![format!("ai-run-{index:04}"), active_session_id, timestamp, serde_json::to_string(&qa_scribe_core::domain::RunModelSelection::Recorded { requested: qa_scribe_core::domain::RequestedModel::Explicit { id: "fixture-model".into() }, reported: None }).expect("fixture model selection serializes")],
             )?;
         }
 

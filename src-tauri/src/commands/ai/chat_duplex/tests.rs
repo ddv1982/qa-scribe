@@ -88,7 +88,7 @@ impl Fixture {
         id: &str,
         updates: impl FnMut(StreamUpdate),
         statuses: impl FnMut(GenerationJobStatus),
-    ) -> Result<ProviderGenerationOutput, String> {
+    ) -> Result<ProviderGenerationOutput, qa_scribe_core::ai::ProviderExecutionError> {
         run_chat_duplex_with_limits(
             &self.command(mode, id),
             &self.context(),
@@ -346,13 +346,13 @@ fn chat_duplex_process_bad_metadata_unsupported_method_and_schema_fail_visibly()
             );
             assert!(!fixture.records().is_empty());
             let error = result.expect_err("unsupported permission must visibly fail");
-            assert!(!error.trim().is_empty());
+            assert!(!error.message.trim().is_empty());
             assert!(
-                !error.contains("not implemented"),
+                !error.message.contains("not implemented"),
                 "must reach real protocol validation"
             );
             assert!(
-                !error.contains("timed out"),
+                !error.message.contains("timed out"),
                 "must reject immediately, not hang: {error}"
             );
             assert!(!pending);
@@ -436,7 +436,7 @@ fn chat_duplex_process_policy_blocked_has_no_pending_permission() {
         );
         assert!(!fixture.records().is_empty());
         let failure = match result {
-            Err(error) => error,
+            Err(error) => error.message,
             Ok(output) => {
                 assert!(!output.success());
                 output.failure_message()
@@ -458,3 +458,5 @@ include!("tests/lifecycle.rs");
 include!("tests/bulk.rs");
 
 include!("tests/replay.rs");
+
+mod model_evidence;
