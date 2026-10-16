@@ -111,6 +111,11 @@ if mode == "line":
     time.sleep(30)
     sys.exit(9)
 
+if mode.startswith("replay:"):
+    import replay
+    replay.run(mode.removeprefix("replay:"), os.getcwd(), sys.argv[5], receive, send, record)
+    sys.exit(0)
+
 initial = receive()
 if provider == "claude":
     assert initial["type"] == "control_request"
