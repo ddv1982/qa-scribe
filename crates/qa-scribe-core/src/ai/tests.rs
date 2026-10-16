@@ -88,13 +88,23 @@ fn claude_generation_uses_reasoning_effort() {
 }
 
 #[test]
-fn copilot_auto_omits_model_argument() {
-    let command =
-        generation_command(AiProvider::CopilotCli, "draft this", "auto", None, true).unwrap();
-
-    assert_eq!(command.program, "copilot");
-    assert_eq!(command.args, vec!["-s", "--no-ask-user"]);
-    assert_eq!(command.stdin, "draft this");
+fn copilot_default_omits_and_auto_sends_model_argument() {
+    for build in [generation_command, streaming_generation_command] {
+        for selection in ["default", " Default ", ""] {
+            let command =
+                build(AiProvider::CopilotCli, "draft this", selection, None, true).unwrap();
+            assert_eq!(command.program, "copilot");
+            assert_eq!(command.args, ["-s", "--no-ask-user"]);
+            assert_eq!(command.stdin, "draft this");
+        }
+        for selection in ["auto", " Auto "] {
+            let command =
+                build(AiProvider::CopilotCli, "draft this", selection, None, true).unwrap();
+            assert_eq!(command.program, "copilot");
+            assert_eq!(command.args, ["-s", "--no-ask-user", "--model", "auto"]);
+            assert_eq!(command.stdin, "draft this");
+        }
+    }
 }
 
 #[test]

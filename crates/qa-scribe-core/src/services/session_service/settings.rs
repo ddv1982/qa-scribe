@@ -3,8 +3,8 @@ use rusqlite::{OptionalExtension, params};
 use crate::{
     Result,
     domain::{
-        AppSettings, default_generation_system_prompt, legacy_testware_generation_system_prompt,
-        validate_optional_text, validate_required_text,
+        AiProvider, AppSettings, default_generation_system_prompt,
+        legacy_testware_generation_system_prompt, validate_optional_text, validate_required_text,
     },
     error::validation,
 };
@@ -27,8 +27,11 @@ fn normalize_loaded_settings(mut settings: AppSettings) -> AppSettings {
             .or_else(|| {
                 (settings.selected_ai_provider == provider).then_some(&settings.selected_ai_model)
             });
-        let delegated_model =
-            configured_model.is_none_or(|model| model.as_deref().is_none_or(is_delegated_model));
+        let delegated_model = configured_model.is_none_or(|model| {
+            model
+                .as_deref()
+                .is_none_or(|model| is_delegated_model(provider, model))
+        });
         if delegated_model
             && settings
                 .selected_ai_reasoning_efforts_by_provider
@@ -41,29 +44,32 @@ fn normalize_loaded_settings(mut settings: AppSettings) -> AppSettings {
                 .insert(provider, None);
         }
     }
-    settings.selected_ai_model = normalize_model_override(settings.selected_ai_model);
-    for model in settings.selected_ai_models_by_provider.values_mut() {
-        *model = normalize_model_override(model.take());
+    settings.selected_ai_model =
+        normalize_model_override(settings.selected_ai_provider, settings.selected_ai_model);
+    for (provider, model) in &mut settings.selected_ai_models_by_provider {
+        *model = normalize_model_override(*provider, model.take());
     }
     settings
 }
 
-fn normalize_model_override(model: Option<String>) -> Option<String> {
+fn normalize_model_override(provider: AiProvider, model: Option<String>) -> Option<String> {
     model.and_then(|model| {
         let trimmed = model.trim();
-        if is_delegated_model(trimmed) {
+        if is_delegated_model(provider, trimmed) {
             None
+        } else if provider == AiProvider::CopilotCli && trimmed.eq_ignore_ascii_case("auto") {
+            Some("auto".to_string())
         } else {
             Some(trimmed.to_string())
         }
     })
 }
 
-fn is_delegated_model(model: &str) -> bool {
+fn is_delegated_model(provider: AiProvider, model: &str) -> bool {
     let trimmed = model.trim();
     trimmed.is_empty()
         || trimmed.eq_ignore_ascii_case("default")
-        || trimmed.eq_ignore_ascii_case("auto")
+        || (provider != AiProvider::CopilotCli && trimmed.eq_ignore_ascii_case("auto"))
 }
 
 impl SessionService {
@@ -150,7 +156,7 @@ impl SessionService {
 mod tests {
     use serde_json::json;
 
-    use super::normalize_loaded_settings;
+    use super::{SessionService, normalize_loaded_settings};
     use crate::domain::{AiProvider, AppSettings};
 
     #[test]
@@ -171,11 +177,13 @@ mod tests {
         let settings = normalize_loaded_settings(serde_json::from_value(stored).unwrap());
 
         assert_eq!(settings.selected_ai_model, None);
-        assert!(
-            settings
-                .selected_ai_models_by_provider
-                .values()
-                .all(Option::is_none)
+        assert_eq!(
+            settings.selected_ai_models_by_provider[&AiProvider::ClaudeCode],
+            None
+        );
+        assert_eq!(
+            settings.selected_ai_models_by_provider[&AiProvider::CopilotCli].as_deref(),
+            Some("auto")
         );
         assert_eq!(
             settings.selected_ai_models_by_provider[&AiProvider::CodexCli],
@@ -187,5 +195,69 @@ mod tests {
                 .values()
                 .all(Option::is_none)
         );
+    }
+
+    #[test]
+    fn copilot_auto_survives_scalar_and_provider_settings_round_trip() {
+        let service = SessionService::in_memory().unwrap();
+        let mut settings = AppSettings {
+            selected_ai_provider: AiProvider::CopilotCli,
+            selected_ai_model: Some("auto".into()),
+            ..AppSettings::default()
+        };
+        settings
+            .selected_ai_models_by_provider
+            .insert(AiProvider::CopilotCli, Some("auto".into()));
+        service.update_settings(settings).unwrap();
+        let loaded = service.get_settings().unwrap();
+        assert_eq!(loaded.selected_ai_model.as_deref(), Some("auto"));
+        assert_eq!(
+            loaded.selected_ai_models_by_provider[&AiProvider::CopilotCli].as_deref(),
+            Some("auto")
+        );
+        service.update_settings(loaded).unwrap();
+        let reloaded = service.get_settings().unwrap();
+        assert_eq!(reloaded.selected_ai_model.as_deref(), Some("auto"));
+        assert_eq!(
+            reloaded.selected_ai_models_by_provider[&AiProvider::CopilotCli].as_deref(),
+            Some("auto")
+        );
+    }
+
+    #[test]
+    fn default_stays_delegated_and_other_providers_keep_legacy_auto_migration() {
+        let service = SessionService::in_memory().unwrap();
+        for provider in [
+            AiProvider::ClaudeCode,
+            AiProvider::CodexCli,
+            AiProvider::CopilotCli,
+        ] {
+            let mut settings = AppSettings {
+                selected_ai_provider: provider,
+                selected_ai_model: Some("default".into()),
+                ..AppSettings::default()
+            };
+            settings
+                .selected_ai_models_by_provider
+                .insert(provider, Some("default".into()));
+            service.update_settings(settings).unwrap();
+            let loaded = service.get_settings().unwrap();
+            assert_eq!(loaded.selected_ai_model, None);
+            assert_eq!(loaded.selected_ai_models_by_provider[&provider], None);
+        }
+        for provider in [AiProvider::ClaudeCode, AiProvider::CodexCli] {
+            let mut settings = AppSettings {
+                selected_ai_provider: provider,
+                selected_ai_model: Some("auto".into()),
+                ..AppSettings::default()
+            };
+            settings
+                .selected_ai_models_by_provider
+                .insert(provider, Some("auto".into()));
+            service.update_settings(settings).unwrap();
+            let loaded = service.get_settings().unwrap();
+            assert_eq!(loaded.selected_ai_model, None);
+            assert_eq!(loaded.selected_ai_models_by_provider[&provider], None);
+        }
     }
 }

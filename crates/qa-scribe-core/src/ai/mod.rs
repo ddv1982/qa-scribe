@@ -206,14 +206,10 @@ fn selected_model_arg(model: &str) -> Option<String> {
 }
 
 fn selected_copilot_model_arg(model: &str) -> Option<String> {
-    let trimmed = model.trim();
-    if trimmed.is_empty()
-        || trimmed.eq_ignore_ascii_case("default")
-        || trimmed.eq_ignore_ascii_case("auto")
-    {
-        None
+    if model.trim().eq_ignore_ascii_case("auto") {
+        Some("auto".to_string())
     } else {
-        Some(trimmed.to_string())
+        selected_model_arg(model)
     }
 }
 

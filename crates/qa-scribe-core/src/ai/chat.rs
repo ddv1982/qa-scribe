@@ -107,6 +107,28 @@ mod tests {
     use crate::ai::streaming_generation_command;
 
     #[test]
+    fn chat_copilot_default_omits_and_auto_sends_model_argument() {
+        for selection in ["default", " Default ", ""] {
+            let command =
+                duplex_chat_command(AiProvider::CopilotCli, "private", selection, None, true)
+                    .unwrap();
+            assert_eq!(command.args, ["--acp"]);
+            assert_eq!(command.stdin, "private");
+        }
+        for selection in ["auto", " Auto "] {
+            let command =
+                duplex_chat_command(AiProvider::CopilotCli, "private", selection, None, true)
+                    .unwrap();
+            assert_eq!(command.args, ["--acp", "--model", "auto"]);
+            assert_eq!(command.stdin, "private");
+            let streaming =
+                streaming_chat_command(AiProvider::CopilotCli, "private", selection, None, true)
+                    .unwrap();
+            assert_eq!(streaming.args, ["-s", "--no-ask-user", "--model", "auto"]);
+        }
+    }
+
+    #[test]
     fn chat_claude_inherits_tools_and_permissions_without_changing_transport() {
         let baseline = streaming_generation_command(
             AiProvider::ClaudeCode,
