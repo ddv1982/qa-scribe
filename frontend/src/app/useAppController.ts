@@ -27,6 +27,8 @@ import {
 import { useAppControllerNavigation } from './useAppController.navigation'
 import { useAttachmentCleanup } from './useAttachmentCleanup'
 import { useSessionChat } from './useSessionChat'
+import { useStableCapability } from './useStableCapability'
+import { createNoteEligibility } from './noteEligibility'
 import { useChatNoteRecovery } from './useChatNoteRecovery'
 
 export { mergeRecordLists } from './useRecordHydration'
@@ -154,7 +156,7 @@ export function useAppController() {
     ? 'Session title is required.'
     : null
   const pendingRecoveredSummaryDecision = Boolean(
-    latestNoteGenerationUndo?.pendingRecoveryDecision
+    latestNoteGenerationUndo?.kind === 'recovery-choice'
     && latestNoteGenerationUndo.entryId === noteEntry?.id,
   )
   /* eslint-disable react-hooks/refs -- these write-through refs are the authoritative retry baselines; every mutation is paired with state that schedules a render. */
@@ -209,8 +211,9 @@ export function useAppController() {
     },
   })
   const noteRecovery = useChatNoteRecovery()
+  const noteEligibility = useStableCapability({ summary: summaryRecovery, chat: noteRecovery }, createNoteEligibility)
   const sessionActions = useSessionActions({
-    session: sessionWorkspace, noteRecovery,
+    session: sessionWorkspace, noteRecovery, noteEligibility,
     records: recordWorkspace,
     generation: coordinatedGenerationWorkspace, latestNoteGenerationUndoRef, summaryRecovery,
     feedback,
@@ -226,7 +229,7 @@ export function useAppController() {
     retryPendingRecordCompensations: (sessionId) => retryPendingRecordCompensationsRef.current(sessionId),
   })
   const { sessionChat, sessionMode, setSessionMode, noteReadOnly, ...chatProtection } = useSessionChat({
-    session: sessionWorkspace, noteRecovery, sessionActions, generation: coordinatedGenerationWorkspace,
+    session: sessionWorkspace, noteRecovery, noteEligibility, sessionActions, generation: coordinatedGenerationWorkspace,
     selection, provider: activeProvider, providerWarning: effectiveAiSelection?.warning ?? null,
     feedback, jobs: generationJobs, refreshProviderStatus,
   })
@@ -240,10 +243,10 @@ export function useAppController() {
     const next = typeof value === 'function' ? value(sessionWorkspace.noteBodyRef.current) : value
     if (!sessionActions.registerNoteEditIntent(next)) return
     const recoveryDecision = latestNoteGenerationUndoRef.current
-    if (recoveryDecision?.pendingRecoveryDecision) {
-      setLatestNoteGenerationUndo(recoveryDecision.pendingRecoveryChoice === 'authored'
+    if (recoveryDecision?.kind === 'recovery-choice') {
+      setLatestNoteGenerationUndo(recoveryDecision.choice === 'authored'
         ? { ...recoveryDecision, before: next }
-        : { ...recoveryDecision, generated: next, pendingRecoveryChoice: 'generated' })
+        : { ...recoveryDecision, generated: next, choice: 'generated' })
     } else {
       setLatestNoteGenerationUndo(null)
     }
@@ -274,7 +277,7 @@ export function useAppController() {
     selection,
     feedback,
     navigation,
-    saveNoteNow: sessionActions.saveNoteNow, isNoteWriteBlocked: (id) => noteRecovery.has(id) || noteRecovery.isRetired(id),
+    saveNoteNow: sessionActions.saveNoteNow, noteEligibility,
     saveNoteBody: sessionActions.saveBody,
     adoptCanonicalNoteBody: sessionActions.adoptCanonicalNoteBody,
     canonicalizeGeneratedDraft: recordActions.canonicalizeGeneratedDraft,

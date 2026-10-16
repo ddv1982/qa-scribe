@@ -3,7 +3,7 @@ import { richEditorDocumentFromStoredBody, serializeRichEditorDocument } from '.
 import type { SessionChatContext } from './sessionChat.types'
 
 export function adoptChatCanonicalNote(ctx: SessionChatContext, note: Entry, expectedWriteVersion: number) {
-  if (ctx.noteRecovery.isRetired(note.sessionId)) return false
+  if (!ctx.noteEligibility.canRecoverCanonical(note.sessionId)) return false
   if (ctx.session.activeSessionIdRef.current !== note.sessionId || ctx.session.noteEntryIdRef.current !== note.id) {
     throw new Error('Open the affected Session to recover its canonical Note.')
   }
@@ -23,19 +23,19 @@ export function adoptChatCanonicalNote(ctx: SessionChatContext, note: Entry, exp
 // Recovery is read-only at the backend. It must never resubmit, call AI, or
 // flush the stale visible Note while the transaction outcome is uncertain.
 export async function recoverChatCanonicalNote(ctx: SessionChatContext, sessionId: string) {
-  if (ctx.noteRecovery.isRetired(sessionId)) return null
+  if (!ctx.noteEligibility.canRecoverCanonical(sessionId)) return null
   const noteId = ctx.session.noteEntryIdRef.current
   const writeVersion = ctx.session.noteBodyWriteVersionRef.current
   if (ctx.session.activeSessionIdRef.current !== sessionId || !noteId) {
     throw new Error('Open the affected Session to recover its canonical Note.')
   }
   const chat = await getChat(sessionId)
-  if (ctx.noteRecovery.isRetired(sessionId)) return null
+  if (!ctx.noteEligibility.canRecoverCanonical(sessionId)) return null
   if (chat.sessionId !== sessionId || (chat.submission && chat.submission.noteId !== noteId)) {
     throw new Error('Recovery returned an unexpected Chat or Note. The Note remains read-only.')
   }
   const canonical = await openSessionNoteState(sessionId)
-  if (ctx.noteRecovery.isRetired(sessionId)) return null
+  if (!ctx.noteEligibility.canRecoverCanonical(sessionId)) return null
   if (canonical.session.id !== sessionId || canonical.noteEntry.sessionId !== sessionId || canonical.noteEntry.id !== noteId) {
     throw new Error('Recovery returned an unexpected Session Note. The Note remains read-only.')
   }
@@ -43,7 +43,7 @@ export async function recoverChatCanonicalNote(ctx: SessionChatContext, sessionI
   // not change across the Note read before clearing its independent guard.
   if (!chat.submission) {
     const confirmed = await getChat(sessionId)
-    if (ctx.noteRecovery.isRetired(sessionId)) return null
+    if (!ctx.noteEligibility.canRecoverCanonical(sessionId)) return null
     if (confirmed.sessionId !== sessionId || confirmed.draftId !== chat.draftId
       || confirmed.revision !== chat.revision || confirmed.submission) {
       throw new Error('The submission outcome changed during recovery. Retry canonical recovery; do not edit the Note yet.')

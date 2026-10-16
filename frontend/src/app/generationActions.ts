@@ -56,7 +56,7 @@ export function createGenerationActions(ctx: GenerationActionsContext) {
   }
 
   function applyGeneratedNoteEntry(generatedEntry: Entry) {
-    if (ctx.isNoteWriteBlocked?.(generatedEntry.sessionId)) return
+    if (!ctx.noteEligibility.canAdoptSummary(generatedEntry.sessionId)) return
     const previousBody = ctx.session.noteBodyRef.current
     const generatedBody = richEditorDocumentFromStoredBody(generatedEntry)
     const nextBody = preserveManagedImageNodes(previousBody, generatedBody)
@@ -65,7 +65,7 @@ export function createGenerationActions(ctx: GenerationActionsContext) {
     const storedBody = richEditorDocumentToStoredBody(nextBody)
     const richNoteEntry = { ...generatedEntry, ...storedBody }
     ctx.adoptCanonicalNoteBody(generatedBody, richNoteEntry.id, richNoteEntry.sessionId)
-    ctx.generation.setLatestNoteGenerationUndo({ entryId: richNoteEntry.id, before: previousBody })
+    ctx.generation.setLatestNoteGenerationUndo({ kind: 'undo', entryId: richNoteEntry.id, before: previousBody })
     ctx.session.setNoteEntry(richNoteEntry)
     ctx.session.setNoteBody(nextBody)
     // The provider result is already canonical in the backend. Any preserved
@@ -86,13 +86,13 @@ export function createGenerationActions(ctx: GenerationActionsContext) {
   }
 
   function applyRecoveredGeneratedNoteEntry(generatedEntry: Entry) {
-    if (ctx.isNoteWriteBlocked?.(generatedEntry.sessionId)) return
+    if (!ctx.noteEligibility.canAdoptSummary(generatedEntry.sessionId)) return
     const previousBody = ctx.session.noteBodyRef.current
-    const priorRecoveryDecision = ctx.latestNoteGenerationUndoRef.current?.pendingRecoveryDecision
+    const priorRecoveryDecision = ctx.latestNoteGenerationUndoRef.current?.kind === 'recovery-choice'
       && ctx.latestNoteGenerationUndoRef.current.entryId === generatedEntry.id
       ? ctx.latestNoteGenerationUndoRef.current
       : null
-    const authoredBody = priorRecoveryDecision?.pendingRecoveryChoice === 'generated'
+    const authoredBody = priorRecoveryDecision?.choice === 'generated'
       ? previousBody
       : priorRecoveryDecision?.before ?? previousBody
     const generatedBody = richEditorDocumentFromStoredBody(generatedEntry)
@@ -117,12 +117,13 @@ export function createGenerationActions(ctx: GenerationActionsContext) {
       ctx.generation.setLatestNoteGenerationUndo({
         entryId: richNoteEntry.id,
         before: authoredBody,
-        pendingRecoveryDecision: true,
+        kind: 'recovery-choice',
+        choice: 'unselected',
         generated: nextBody,
         generatedCanonical: generatedBody,
       })
     } else if (previousSerialized !== nextSerialized) {
-      ctx.generation.setLatestNoteGenerationUndo({ entryId: richNoteEntry.id, before: previousBody })
+      ctx.generation.setLatestNoteGenerationUndo({ kind: 'undo', entryId: richNoteEntry.id, before: previousBody })
     }
 
     ctx.session.setNoteEntry(richNoteEntry)
@@ -146,11 +147,11 @@ export function createGenerationActions(ctx: GenerationActionsContext) {
   }
 
   async function handleUndoLatestNoteGeneration() {
-    if (ctx.session.noteEntry && ctx.isNoteWriteBlocked?.(ctx.session.noteEntry.sessionId)) return
+    if (ctx.session.noteEntry && !ctx.noteEligibility.canWrite(ctx.session.noteEntry.sessionId, 'recovery')) return
     if (!ctx.latestNoteGenerationUndoRef.current || ctx.session.noteEntry?.id !== ctx.latestNoteGenerationUndoRef.current.entryId) return
     const undo = ctx.latestNoteGenerationUndoRef.current
-    if (undo.pendingRecoveryDecision) {
-      const authoredUndo = { ...undo, pendingRecoveryChoice: 'authored' as const }
+    if (undo.kind === 'recovery-choice') {
+      const authoredUndo = { ...undo, choice: 'authored' as const }
       ctx.latestNoteGenerationUndoRef.current = authoredUndo
       ctx.generation.setLatestNoteGenerationUndo(authoredUndo)
       const saved = await ctx.saveNoteNow()

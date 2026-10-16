@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ChatSubmissionReceipt, EntryPatch } from '../bindings'
-import { entryFixture } from '../test/fixtures'
+import { entryFixture, generationStatusFixture } from '../test/fixtures'
 import {
   richEditorDocumentFromHtml, richEditorDocumentFromPlainText,
   richEditorDocumentToHtml, richEditorDocumentToPlainText, richEditorDocumentToStoredBody,
@@ -60,6 +60,37 @@ async function failedHandoff(result: { current: ReturnType<typeof useAppControll
 describe('BlockingR37-01: pending canonical Note recovery after durable Chat submission', () => {
   beforeEach(setupControllerTest)
   afterEach(cleanupControllerTest)
+
+  it('keeps Chat recovery authoritative when a recovered Summary completes during uncertain submission', async () => {
+    const model = durableSubmission()
+    const status = deferred<ReturnType<typeof generationStatusFixture>>()
+    api.listActiveAiActionJobs.mockResolvedValue([
+      generationStatusFixture({ jobId: 'summary-intersection', action: 'summary', state: 'running' }),
+    ])
+    api.getAiActionJobStatus.mockReturnValue(status.promise)
+    const { result } = renderHook(() => useAppController())
+    await failedHandoff(result)
+    api.openSessionNoteState.mockResolvedValueOnce(sessionNoteStateFixture({
+      noteEntry: entryFixture({ body: '<p>Concurrent Summary must not replace Chat recovery</p>' }),
+    }))
+    await act(async () => {
+      status.resolve(generationStatusFixture({ jobId: 'summary-intersection', action: 'summary', state: 'completed' }))
+      await status.promise
+    })
+    await waitFor(() => expect(result.current.notice).toBe('Generation finished'), { timeout: 2500 })
+    expect(result.current.noteReadOnly).toBe(true)
+    expect(richEditorDocumentToPlainText(result.current.noteBody)).not.toContain('Concurrent Summary')
+    await act(async () => {
+      expect(await result.current.saveBody(richEditorDocumentFromPlainText('Unsafe recovery write'), { allowRecoveryWrite: true })).toBe(false)
+    })
+    expect(api.updateEntry).not.toHaveBeenCalled()
+    expect(model.durableNote()).toEqual(model.canonical)
+    model.allowRecoveryRead()
+    await act(async () => { await result.current.sessionChat.onSubmit() })
+    expect(result.current.noteEntry).toEqual(model.canonical)
+    expect(result.current.noteReadOnly).toBe(false)
+    expect(api.submitChat).toHaveBeenCalledTimes(1)
+  })
 
   it('serializes active Session recovery behind the original handoff so a late read cannot replace newer edits', async () => {
     const model = durableSubmission()

@@ -1,3 +1,4 @@
+import type { NoteEligibility } from './noteEligibility'
 import type { RichEditorDocument } from '../editor/editorDocument'
 import type { Draft, Finding } from '../tauri'
 import type {
@@ -11,7 +12,7 @@ import type {
 } from './types'
 
 export type GenerationActionsContext = {
-  isNoteWriteBlocked?: (sessionId: string) => boolean
+  noteEligibility: NoteEligibility
   session: Pick<
     SessionWorkspace,
     | 'activeSession'

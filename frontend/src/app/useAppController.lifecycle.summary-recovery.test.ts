@@ -81,7 +81,7 @@ describe('useAppController recovered Summary decisions', () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
 
     expect(richEditorDocumentToPlainText(result.current.noteBody)).toBe('Generated Summary.')
-    expect(result.current.latestNoteGenerationUndo?.entryId).toBe('entry-1')
+    expect(result.current.latestNoteGenerationUndo).toMatchObject({ kind: 'recovery-choice', choice: 'unselected', entryId: 'entry-1' })
     expect(richEditorDocumentToPlainText(result.current.latestNoteGenerationUndo!.before)).toBe('Dirty local edit')
     expect(result.current.pendingRecoveredSummaryDecision).toBe(true)
     expect(result.current.sessionSaveState).toBe('unsaved')
@@ -89,7 +89,8 @@ describe('useAppController recovered Summary decisions', () => {
     act(() => result.current.setNoteBody(richEditorDocumentFromPlainText('Edited generated Summary')))
     expect(result.current.pendingRecoveredSummaryDecision).toBe(true)
     expect(richEditorDocumentToPlainText(result.current.latestNoteGenerationUndo!.before)).toBe('Dirty local edit')
-    expect(richEditorDocumentToPlainText(result.current.latestNoteGenerationUndo!.generated!)).toBe('Edited generated Summary')
+    expect(recoveryChoice(result.current.latestNoteGenerationUndo).choice).toBe('generated')
+    expect(richEditorDocumentToPlainText(recoveryChoice(result.current.latestNoteGenerationUndo).generated)).toBe('Edited generated Summary')
     await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
     expect(result.current.pendingRecoveredSummaryDecision).toBe(true)
     expect(tauriMock.updateEntry).not.toHaveBeenCalled()
@@ -116,7 +117,7 @@ describe('useAppController recovered Summary decisions', () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
 
     await act(async () => { await result.current.handleUndoLatestNoteGeneration() })
-    expect(result.current.latestNoteGenerationUndo?.pendingRecoveryChoice).toBe('authored')
+    expect(result.current.latestNoteGenerationUndo).toMatchObject({ kind: 'recovery-choice', choice: 'authored' })
     expect(result.current.error).toContain('undo offline')
     act(() => result.current.setNoteBody(richEditorDocumentFromPlainText('Authored after failed undo')))
     await act(async () => { await result.current.handleUndoLatestNoteGeneration() })
@@ -249,7 +250,7 @@ describe('useAppController recovered Summary decisions', () => {
       await Promise.resolve()
     })
     expect(richEditorDocumentToPlainText(result.current.noteBody)).toBe('Newer recovered Summary.')
-    expect(richEditorDocumentToPlainText(result.current.latestNoteGenerationUndo!.generated!)).toBe('Newer recovered Summary.')
+    expect(richEditorDocumentToPlainText(recoveryChoice(result.current.latestNoteGenerationUndo).generated)).toBe('Newer recovered Summary.')
   })
 
   it('keeps a recovered Summary decision pending when an older authored write resolves after a generated-side edit', async () => {
@@ -355,3 +356,8 @@ describe('useAppController recovered Summary decisions', () => {
     )
   })
 })
+
+function recoveryChoice(undo: ReturnType<typeof useAppController>['latestNoteGenerationUndo']) {
+  if (undo?.kind !== 'recovery-choice') throw new Error('Expected a recovered Summary choice')
+  return undo
+}

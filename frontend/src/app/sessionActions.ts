@@ -28,10 +28,12 @@ import type {
 import { useStableCapability } from './useStableCapability'
 import type { RecordLoadSuspension } from './useRecordHydration'
 import type { AttachmentCleanupController } from './useAttachmentCleanup'
+import type { NoteEligibility } from './noteEligibility'
 import type { ChatNoteRecovery } from './useChatNoteRecovery'
 
 export type SessionActionsContext = {
   noteRecovery?: ChatNoteRecovery
+  noteEligibility: NoteEligibility
   session: SessionWorkspace
   records: Pick<
     RecordWorkspace,

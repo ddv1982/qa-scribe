@@ -11,6 +11,7 @@ vi.mock('../tauri', async (original) => ({ ...await original<object>(), ...comma
 function context(): GenerationActionsContext {
   const body = richEditorDocumentFromPlainText('Authored Note')
   return {
+    noteEligibility: { canWrite: () => true, canHydrate: () => true, canAdoptSummary: () => true, canRecoverCanonical: () => true },
     session: { activeSession: sessionFixture(), activeSessionIdRef: { current: 'session-1' }, noteEntry: entryFixture(), noteEntryIdRef: { current: 'entry-1' }, noteBodyRef: { current: body }, savedBodyRef: { current: serializeRichEditorDocument(body) }, setNoteEntry: vi.fn(), setNoteBody: vi.fn() },
     records: { dirtyDraftIdsRef: { current: new Set() }, dirtyFindingIdsRef: { current: new Set() }, draftsRef: { current: [] }, findingsRef: { current: [] }, setDrafts: vi.fn(), setFindings: vi.fn(), setFindingCount: vi.fn(), setTestwareDraftCount: vi.fn() },
     generation: { latestNoteGenerationUndo: null, setGenerationJobs: vi.fn(), setLatestNoteGenerationUndo: vi.fn() },

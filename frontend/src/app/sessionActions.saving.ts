@@ -101,14 +101,13 @@ export function createSessionSaveActions(ctx: SessionActionsContext, writes: Ses
     ctx.session.setSessionTitle(ctx.session.savedTitleRef.current)
     const recoveryDecision = ctx.latestNoteGenerationUndoRef.current
     if (
-      recoveryDecision?.pendingRecoveryDecision
-      && recoveryDecision.generated
+      recoveryDecision?.kind === 'recovery-choice'
       && recoveryDecision.entryId === ctx.session.noteEntryIdRef.current
     ) {
       writes.selectRecoveredSummaryChoice('generated')
       const generatedDecision = ctx.latestNoteGenerationUndoRef.current!
       const generated = recoveryDecision.generated
-      const canonicalGenerated = recoveryDecision.generatedCanonical ?? generated
+      const canonicalGenerated = recoveryDecision.generatedCanonical
       ctx.session.savedBodyRef.current = serializeRichEditorDocument(canonicalGenerated)
       writes.reserveNoteWrite(generated, recoveryDecision.entryId, ctx.session.activeSessionIdRef.current!)
       ctx.session.setNoteBody(generated)
@@ -139,12 +138,10 @@ export function createSessionSaveActions(ctx: SessionActionsContext, writes: Ses
     const { manageBusy = true } = options
     const title = ctx.session.sessionTitleRef.current
     const titleDirty = Boolean(ctx.session.activeSession && title !== ctx.session.savedTitleRef.current)
-    let recoveryDecision = ctx.latestNoteGenerationUndoRef.current
-    const pendingRecoveryDecision = Boolean(
-      recoveryDecision?.pendingRecoveryDecision
-      && recoveryDecision.generated
-      && recoveryDecision.entryId === ctx.session.noteEntry?.id,
-    )
+    const latestUndo = ctx.latestNoteGenerationUndoRef.current
+    let recoveryDecision = latestUndo?.kind === 'recovery-choice'
+      && latestUndo.entryId === ctx.session.noteEntry?.id ? latestUndo : null
+    const pendingRecoveryDecision = recoveryDecision !== null
     const bodyDirty = pendingRecoveryDecision || Boolean(
       ctx.session.noteEntry
       && serializeRichEditorDocument(ctx.session.noteBodyRef.current) !== ctx.session.savedBodyRef.current,
@@ -161,8 +158,8 @@ export function createSessionSaveActions(ctx: SessionActionsContext, writes: Ses
       const sessionId = ctx.session.noteEntry.sessionId
       const visibleBodySerialized = serializeRichEditorDocument(ctx.session.noteBodyRef.current)
       const sourceBody = pendingRecoveryDecision
-        ? recoveryDecision!.pendingRecoveryChoice === 'generated'
-          ? recoveryDecision!.generated!
+        ? recoveryDecision!.choice === 'generated'
+          ? recoveryDecision!.generated
           : recoveryDecision!.before
         : ctx.session.noteBodyRef.current
       // Reserve the write before image imports start. Discard, navigation, or a
@@ -216,13 +213,13 @@ export function createSessionSaveActions(ctx: SessionActionsContext, writes: Ses
         if (importedAttachmentIds.length > 0) {
           recoveryDecision = {
             ...recoveryDecision!,
-            [recoveryDecision!.pendingRecoveryChoice === 'generated' ? 'generated' : 'before']: body,
+            [recoveryDecision!.choice === 'generated' ? 'generated' : 'before']: body,
           }
           ctx.latestNoteGenerationUndoRef.current = recoveryDecision
           ctx.generation.setLatestNoteGenerationUndo(recoveryDecision)
         }
         ctx.session.savedBodyRef.current = serializeRichEditorDocument(
-          recoveryDecision!.generatedCanonical ?? recoveryDecision!.generated!,
+          recoveryDecision!.generatedCanonical,
         )
       }
       rememberImportedAttachments(entryId, importedAttachmentIds)
