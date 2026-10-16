@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "provider": "claude",
+  "protocol": "stream-json",
+  "cli_version": "synthetic",
+  "scenario": "unsupported",
+  "process": false,
+  "constructor": {
+    "prompt": "fixture prompt",
+    "model": "chosen-model",
+    "effort": "high",
+    "cwd": "$CWD"
+  },
+  "initial": {
+    "type": "control_request",
+    "request_id": "qa-scribe-init",
+    "request": {
+      "subtype": "initialize"
+    }
+  },
+  "steps": [
+    {
+      "op": "receive",
+      "release": "initialized",
+      "frame": {
+        "type": "control_response",
+        "response": {
+          "subtype": "success",
+          "request_id": "qa-scribe-init",
+          "response": {}
+        }
+      },
+      "events": [
+        {
+          "send": {
+            "type": "user",
+            "session_id": "",
+            "message": {
+              "role": "user",
+              "content": "fixture prompt"
+            },
+            "parent_tool_use_id": null
+          }
+        }
+      ]
+    },
+    {
+      "op": "receive",
+      "release": "unsupported",
+      "frame": {
+        "type": "control_request",
+        "request_id": "foreign/request",
+        "request": {
+          "subtype": "unknown"
+        }
+      },
+      "error": "Unsupported Claude permission/control request: {\"subtype\":\"unknown\"}"
+    },
+    {
+      "op": "receive",
+      "release": "sticky-failure",
+      "frame": {},
+      "error": "Unsupported Claude permission/control request: {\"subtype\":\"unknown\"}"
+    }
+  ],
+  "finish": {
+    "error": "Unsupported Claude permission/control request: {\"subtype\":\"unknown\"}"
+  }
+}
