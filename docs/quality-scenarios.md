@@ -31,7 +31,7 @@ Measure:
 Linux validation:
 
 ```bash
-xvfb-run -a bun run e2e
+GDK_BACKEND=x11 xvfb-run -a bun run e2e
 ```
 
 On macOS and Windows, use `bun run e2e`.
