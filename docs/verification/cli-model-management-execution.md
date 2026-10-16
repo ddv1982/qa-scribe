@@ -187,7 +187,19 @@ The full Rust workspace passed 564 tests with three optional tests ignored. The 
 Frontend checks, clippy, bindings and code-size policy passed. Independent source re-review returned PASS+NOTES after the two fixes.
 The source receipt and review hashes are under `/tmp/qa-models/M03/`.
 Production JavaScript and CSS total 465436 gzip bytes using the same level-9, fixed-time method as baseline, an increase of 1791 bytes.
-Matched timing observations and an exact-commit independent native shipping review remain before PR acceptance.
+The strengthened restart proof reads the initial quick selection before any Settings write and then changes only the provider.
+It verifies the entire saved model map stays unchanged while each restored choice is displayed.
+The restart setup opens an existing persisted Session, avoiding an unrelated duplicate-title autosave race in repeated test runs.
+All 26 fixture and runner tests pass.
+
+Five alternating baseline/candidate pairs exercised the same copied large database, X11 backend and debug-native build mode.
+Each side completed five fresh-process startup observations and 100 picker observations.
+All explicit refreshes started exactly one catalog transaction per provider; warm picker interaction started zero provider processes.
+The observed startup and picker medians remained within the proposed larger-of-10-percent-or-50-ms bounds.
+These observations are inconclusive for production latency. They use warm OS caches and an animation-frame DOM observation rather than physical paint.
+Raw samples, machine load, executable hashes and the comparison script are under `/tmp/qa-models/M03/performance/` and `/tmp/qa-models/M03/compare-native.py`.
+The measured source commit is retained as `5a2b4a00ee124ecc37e3a0c50c508ac12b73b480`.
+An exact-commit independent native shipping review remains before landing.
 
 ## Forge and integration
 
