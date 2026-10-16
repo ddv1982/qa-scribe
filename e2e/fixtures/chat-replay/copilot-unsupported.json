@@ -1,0 +1,116 @@
+{
+  "version": 1,
+  "provider": "copilot",
+  "protocol": "acp-jsonl",
+  "cli_version": "synthetic",
+  "scenario": "unsupported",
+  "process": false,
+  "constructor": {
+    "prompt": "fixture prompt",
+    "model": "chosen-model",
+    "effort": "high",
+    "cwd": "$CWD"
+  },
+  "initial": {
+    "jsonrpc": "2.0",
+    "id": "qa-scribe-init",
+    "method": "initialize",
+    "params": {
+      "protocolVersion": 1,
+      "clientCapabilities": {},
+      "clientInfo": {
+        "name": "qa-scribe",
+        "version": "$APP_VERSION"
+      }
+    }
+  },
+  "steps": [
+    {
+      "op": "receive",
+      "release": "initialized",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": "qa-scribe-init",
+        "result": {
+          "protocolVersion": 1
+        }
+      },
+      "events": [
+        {
+          "send": {
+            "jsonrpc": "2.0",
+            "id": "qa-scribe-session",
+            "method": "session/new",
+            "params": {
+              "cwd": "$CWD",
+              "mcpServers": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "op": "receive",
+      "release": "early-commands",
+      "frame": {
+        "method": "session/update",
+        "params": {
+          "sessionId": "session-1",
+          "update": {
+            "sessionUpdate": "available_commands_update",
+            "availableCommands": []
+          }
+        }
+      },
+      "events": []
+    },
+    {
+      "op": "receive",
+      "release": "session-created",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": "qa-scribe-session",
+        "result": {
+          "sessionId": "session-1"
+        }
+      },
+      "events": [
+        {
+          "send": {
+            "jsonrpc": "2.0",
+            "id": "qa-scribe-prompt",
+            "method": "session/prompt",
+            "params": {
+              "sessionId": "session-1",
+              "prompt": [
+                {
+                  "type": "text",
+                  "text": "fixture prompt"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "op": "receive",
+      "release": "unsupported",
+      "frame": {
+        "id": "foreign/request",
+        "method": "unknown/permission",
+        "params": {}
+      },
+      "error": "Unsupported Copilot permission/server request: unknown/permission"
+    },
+    {
+      "op": "receive",
+      "release": "sticky-failure",
+      "frame": {},
+      "error": "Unsupported Copilot permission/server request: unknown/permission"
+    }
+  ],
+  "finish": {
+    "error": "Unsupported Copilot permission/server request: unknown/permission"
+  }
+}

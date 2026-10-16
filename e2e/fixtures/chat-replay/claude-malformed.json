@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "provider": "claude",
+  "protocol": "stream-json",
+  "cli_version": "synthetic",
+  "scenario": "malformed",
+  "process": false,
+  "constructor": {
+    "prompt": "fixture prompt",
+    "model": "chosen-model",
+    "effort": "high",
+    "cwd": "$CWD"
+  },
+  "initial": {
+    "type": "control_request",
+    "request_id": "qa-scribe-init",
+    "request": {
+      "subtype": "initialize"
+    }
+  },
+  "steps": [
+    {
+      "op": "receive",
+      "release": "initialized",
+      "frame": {
+        "type": "control_response",
+        "response": {
+          "subtype": "success",
+          "request_id": "qa-scribe-init",
+          "response": {}
+        }
+      },
+      "events": [
+        {
+          "send": {
+            "type": "user",
+            "session_id": "",
+            "message": {
+              "role": "user",
+              "content": "fixture prompt"
+            },
+            "parent_tool_use_id": null
+          }
+        }
+      ]
+    },
+    {
+      "op": "receive",
+      "release": "malformed",
+      "frame": {
+        "type": "assistant",
+        "message": {
+          "content": 42
+        }
+      },
+      "error": "Invalid Claude assistant content"
+    },
+    {
+      "op": "receive",
+      "release": "sticky-failure",
+      "frame": {},
+      "error": "Invalid Claude assistant content"
+    }
+  ],
+  "finish": {
+    "error": "Invalid Claude assistant content"
+  }
+}
