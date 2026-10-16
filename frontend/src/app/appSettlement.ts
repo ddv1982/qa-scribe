@@ -13,6 +13,7 @@ type AppSettlementContext = {
   dirtyDraftIdsRef: MutableRefObject<Set<string>>
   dirtyFindingIdsRef: MutableRefObject<Set<string>>
   settingsDirty: boolean
+  modelWritePending?: () => boolean
   saveSettingsDraft: () => Promise<boolean>
   captureSettingsCheckpoint: () => () => boolean
 }
@@ -60,7 +61,7 @@ export function createAppSettlement(ctx: AppSettlementContext) {
 
   function hasPendingChanges() {
     return ctx.chat.hasPendingChanges() || ctx.sessionActions.settlement.snapshot().pending
-      || ctx.settingsDirty || hasPendingCompensations()
+      || ctx.settingsDirty || Boolean(ctx.modelWritePending?.()) || hasPendingCompensations()
       || ctx.dirtyDraftIdsRef.current.size > 0 || ctx.dirtyFindingIdsRef.current.size > 0
   }
   return { flush, hasPendingChanges, hasPendingCompensations }

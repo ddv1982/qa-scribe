@@ -15,6 +15,7 @@ export function ProviderGlyph({ provider }: { provider: string }) {
 
 export function ModelCombobox({
   disabled = false,
+  placement = 'below',
   models,
   value,
   describedBy,
@@ -25,6 +26,7 @@ export function ModelCombobox({
   onChange,
 }: {
   disabled?: boolean
+  placement?: 'above' | 'below'
   models: ModelCatalogEntry[]
   value: string
   describedBy?: string
@@ -38,6 +40,8 @@ export function ModelCombobox({
   const [query, setQuery] = useState('')
   const [activeIndex, setActiveIndex] = useState(-1)
   const inputRef = useRef<HTMLInputElement | null>(null)
+  const restoreChoiceFocusRef = useRef(false)
+  const restoringChoiceFocusRef = useRef(false)
   const listboxId = useId()
   const options = models.length > 0 ? models : [defaultProviderModel()]
   const currentValue = value.trim() || 'default'
@@ -78,12 +82,26 @@ export function ModelCombobox({
     return () => window.clearTimeout(timeout)
   }, [disabled, open])
 
+  useEffect(() => {
+    if (disabled || !restoreChoiceFocusRef.current) return
+    const timeout = window.setTimeout(() => {
+      const input = inputRef.current
+      if (input && (document.activeElement === document.body || document.activeElement === input)) {
+        restoringChoiceFocusRef.current = true
+        input.focus()
+        restoringChoiceFocusRef.current = false
+      }
+      restoreChoiceFocusRef.current = false
+    }, 0)
+    return () => window.clearTimeout(timeout)
+  }, [disabled, value, open])
+
   function chooseModel(modelId: string) {
     if (disabled) return
+    restoreChoiceFocusRef.current = true
     onChange(modelId)
     setQuery('')
     setOpen(false)
-    window.setTimeout(() => inputRef.current?.focus(), 0)
   }
 
   function handleBlur(event: FocusEvent<HTMLDivElement>) {
@@ -129,7 +147,7 @@ export function ModelCombobox({
   }
 
   return (
-    <div className="model-combobox" onBlur={handleBlur}>
+    <div className={`model-combobox model-combobox-${placement}`} onBlur={handleBlur}>
       <label className="model-combobox-trigger">
         <span className="model-combobox-label">
           <span className="ai-choice-icon"><Cpu size={17} /></span>
@@ -152,7 +170,7 @@ export function ModelCombobox({
             disabled={disabled}
             placeholder={popoverOpen ? 'Search models…' : undefined}
             value={popoverOpen ? query : selectedLabel}
-            onFocus={openPicker}
+            onFocus={() => { if (!restoringChoiceFocusRef.current) openPicker() }}
             onChange={(event) => updateQuery(event.target.value)}
             onKeyDown={handleInputKeyDown}
           />

@@ -41,6 +41,11 @@ export function useSettingsController({
   const [systemTheme, setSystemTheme] = useState(() => currentSystemTheme())
   const settingsSaveResetRef = useRef<number | null>(null)
   const settingsDraftVersionRef = useRef(0)
+  const settingsRef = useRef<AppSettings | null>(null)
+  const settingsDraftRef = useRef<AppSettings | null>(null)
+  const settingsWriteRef = useRef(false)
+  const quickWriteVersionRef = useRef(0)
+  const [settingsWritePending, setSettingsWritePending] = useState(false)
 
   const selectedProvider: AiProvider = settings?.selectedAiProvider ?? 'codex_cli'
   const selectedModel = settings ? modelForProvider(settings, selectedProvider) : 'default'
@@ -51,7 +56,7 @@ export function useSettingsController({
   // discovery snapshot instead of letting the CLI resolve its own settings.
   const selectedReasoningEffort = settings ? executionReasoningOverride(settings, activeProvider) : null
   const effectiveAiSelection = settings ? effectiveSelection(settings, activeProvider) : null
-  const settingsDirty = Boolean(settings && settingsDraft && JSON.stringify(settings) !== JSON.stringify(settingsDraft))
+  const settingsDirty = Boolean(settings && settingsDraft && settingsFingerprint(settings) !== settingsFingerprint(settingsDraft))
   const resolvedTheme = resolveThemePreference(theme, systemTheme)
 
   useEffect(() => {
@@ -77,6 +82,8 @@ export function useSettingsController({
 
   function loadSettings(nextSettings: AppSettings) {
     settingsDraftVersionRef.current += 1
+    settingsRef.current = nextSettings
+    settingsDraftRef.current = nextSettings
     setSettings(nextSettings)
     setSettingsDraft(nextSettings)
   }
@@ -158,8 +165,12 @@ export function useSettingsController({
     try {
       setError(null)
       const saved = await updateSettings(nextSettings)
+      settingsRef.current = saved
       setSettings(saved)
-      if (settingsDraftVersionRef.current === draftVersion) setSettingsDraft(saved)
+      if (settingsDraftVersionRef.current === draftVersion) {
+        settingsDraftRef.current = saved
+        setSettingsDraft(saved)
+      }
       setNotice('Settings saved')
       return saved
     } catch (cause) {
@@ -169,33 +180,87 @@ export function useSettingsController({
   }
 
   async function handleSaveSettings(): Promise<boolean> {
-    if (!settingsDraft) return false
+    const draft = settingsDraftRef.current
+    if (!draft || settingsWriteRef.current) return false
+    settingsWriteRef.current = true
+    setSettingsWritePending(true)
     const draftVersion = settingsDraftVersionRef.current
     setSettingsSaveState('saving')
-    const saved = await persistSettings({
-      ...settingsDraft,
-      selectedAiModel: modelOverrideForProvider(settingsDraft, settingsDraft.selectedAiProvider ?? 'codex_cli'),
-    }, draftVersion)
-    const draftUnchanged = settingsDraftVersionRef.current === draftVersion
-    setSettingsSaveState(saved ? (draftUnchanged ? 'saved' : 'idle') : 'error')
-    if (saved && draftUnchanged) scheduleSettingsSaveReset()
-    return Boolean(saved)
+    try {
+      const saved = await persistSettings({
+        ...draft,
+        selectedAiModel: modelOverrideForProvider(draft, draft.selectedAiProvider ?? 'codex_cli'),
+      }, draftVersion)
+      const draftUnchanged = settingsDraftVersionRef.current === draftVersion
+      setSettingsSaveState(saved ? (draftUnchanged ? 'saved' : 'idle') : 'error')
+      if (saved && draftUnchanged) scheduleSettingsSaveReset()
+      return Boolean(saved)
+    } finally {
+      settingsWriteRef.current = false
+      setSettingsWritePending(false)
+    }
   }
+
+  async function persistModelChoice(provider: AiProvider, model: string): Promise<boolean> {
+    const confirmed = settingsRef.current
+    if (!confirmed || settingsWriteRef.current) return false
+    const chosen = model.trim()
+    const override = !chosen || chosen.toLowerCase() === 'default' ? null
+      : provider === 'copilot_cli' && chosen.toLowerCase() === 'auto' ? 'auto' : chosen
+    const previous = modelOverrideForProvider(confirmed, provider)
+    if (previous === override) return true
+    settingsWriteRef.current = true
+    quickWriteVersionRef.current += 1
+    setSettingsWritePending(true)
+    setError(null)
+    const next = { ...confirmed, selectedAiModelsByProvider: { ...confirmed.selectedAiModelsByProvider, [provider]: override } }
+    next.selectedAiModel = modelOverrideForProvider(next, next.selectedAiProvider ?? 'codex_cli')
+    try {
+      const saved = await updateSettings(next)
+      settingsRef.current = saved
+      setSettings(saved)
+      const draft = settingsDraftRef.current
+      if (draft && modelOverrideForProvider(draft, provider) === previous) {
+        const merged = { ...draft, selectedAiModelsByProvider: { ...draft.selectedAiModelsByProvider, [provider]: modelOverrideForProvider(saved, provider) } }
+        merged.selectedAiModel = modelOverrideForProvider(merged, merged.selectedAiProvider ?? 'codex_cli')
+        settingsDraftVersionRef.current += 1
+        settingsDraftRef.current = merged
+        setSettingsDraft(merged)
+      }
+      setNotice('Model preference saved for the next invocation')
+      return true
+    } catch (cause) {
+      setError(formatError(cause))
+      return false
+    } finally {
+      settingsWriteRef.current = false
+      setSettingsWritePending(false)
+    }
+  }
+
+  function modelWritePending() { return settingsWriteRef.current }
 
   function captureSettingsCheckpoint() {
     const version = settingsDraftVersionRef.current
-    return () => version === settingsDraftVersionRef.current
+    const quickVersion = quickWriteVersionRef.current
+    const clear = !settingsWriteRef.current
+    return () => clear && !settingsWriteRef.current && version === settingsDraftVersionRef.current
+      && quickVersion === quickWriteVersionRef.current
   }
 
   function updateSettingsDraft(patch: Partial<AppSettings>) {
     settingsDraftVersionRef.current += 1
     setSettingsSaveState('idle')
-    setSettingsDraft((previous) => (previous ? { ...previous, ...patch } : previous))
+    const previous = settingsDraftRef.current
+    const next = previous ? { ...previous, ...patch } : previous
+    settingsDraftRef.current = next
+    setSettingsDraft(next)
   }
 
   function discardSettingsDraft() {
     settingsDraftVersionRef.current += 1
-    setSettingsDraft(settings)
+    settingsDraftRef.current = settingsRef.current
+    setSettingsDraft(settingsRef.current)
     setSettingsSaveState('idle')
   }
 
@@ -229,6 +294,9 @@ export function useSettingsController({
     theme,
     updateSettingsDraft,
     captureSettingsCheckpoint,
+    persistModelChoice,
+    settingsWritePending,
+    modelWritePending,
   }
 }
 
@@ -268,4 +336,16 @@ function discoveryUiState(status: ProviderStatus): ProviderDiscoveryUiState {
   if (states.some((state) => state === 'unresolved')) return 'error'
   if (states.some((state) => state === 'unchecked')) return 'checking'
   return 'ready'
+}
+
+function settingsFingerprint(settings: AppSettings): string {
+  const models = settings.selectedAiModelsByProvider
+  const efforts = settings.selectedAiReasoningEffortsByProvider
+  return JSON.stringify({
+    ...settings,
+    selectedAiModelsByProvider: models === undefined ? undefined
+      : Object.fromEntries(Object.entries(models).sort(([left], [right]) => left.localeCompare(right))),
+    selectedAiReasoningEffortsByProvider: efforts === undefined ? undefined
+      : Object.fromEntries(Object.entries(efforts).sort(([left], [right]) => left.localeCompare(right))),
+  })
 }

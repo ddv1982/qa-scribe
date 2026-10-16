@@ -3,7 +3,7 @@ import type { ChatState, GenerationJobStatus } from '../bindings'
 export function chatFixture(patch: Partial<ChatState> = {}): ChatState {
   return {
     sessionId: 'session-1', draftId: 'chat-1', revision: 0,
-    composer: '', mode: 'write_note', messages: [], submission: null,
+    composer: '', mode: 'write_note', aiRuns: [], messages: [], submission: null,
     ...patch,
   }
 }

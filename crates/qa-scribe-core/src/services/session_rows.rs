@@ -80,6 +80,10 @@ pub(super) fn map_evidence_link(row: &Row<'_>) -> rusqlite::Result<EvidenceLink>
     })
 }
 
+pub(super) const AI_RUN_COLUMNS: &str =
+    "id, session_id, generation_context_id, provider, model, reasoning_effort,
+    prompt_version, status, error_message, created_at, completed_at, model_selection_json";
+
 pub(super) fn map_ai_run(row: &Row<'_>) -> rusqlite::Result<AiRun> {
     let provider: String = row.get(3)?;
     let status: String = row.get(7)?;

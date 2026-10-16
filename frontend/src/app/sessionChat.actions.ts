@@ -226,6 +226,8 @@ export function createSessionChatActions(ctx: SessionChatContext) {
     return operation
   }
   async function send(entry: ChatWorkspace, retry: boolean) {
+    const selection = { ...ctx.selection }
+    if (selection.modelWritePending?.()) throw new Error('Wait for the model preference to finish saving.')
     if (ctx.noteRecovery.has(entry.sessionId)) throw new Error('Recover the canonical Note before continuing Chat.')
     if (chatIsWorking(entry.job)) throw new Error('Wait for the active turn or cancel it.')
     if (!ctx.provider?.available) throw new Error(ctx.provider?.reason ?? 'AI provider readiness is unavailable.')
@@ -240,14 +242,15 @@ export function createSessionChatActions(ctx: SessionChatContext) {
     if (!retry && !entry.composer.trim()) throw new Error('Enter a message before sending.')
     if (!await saveComposer(entry)) return
     if (entry.retired) return
+    if (selection.modelWritePending?.()) throw new Error('Wait for the model preference to finish saving.')
     const chat = entry.chat
     const inputVersion = entry.inputVersion
     const modeVersion = entry.modeVersion
     let result: StartChatJobResult
     try {
       result = await startChatJob({ scope: chatScope(chat), retry,
-        provider: ctx.selection.selectedProvider, model: ctx.selection.selectedModel,
-        reasoningEffort: ctx.selection.selectedReasoningEffort }, (status) => receiveStatus(entry, status))
+        provider: selection.selectedProvider, model: selection.selectedModel,
+        reasoningEffort: selection.selectedReasoningEffort }, (status) => receiveStatus(entry, status))
     } catch (cause) {
       if (entry.retired) return
       // Preparation may have durably consumed the composer before spawning

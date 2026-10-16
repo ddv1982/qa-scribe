@@ -289,10 +289,10 @@ impl SessionService {
         self.database
             .connection()
             .query_row(
-                "SELECT id, session_id, generation_context_id, provider, model, reasoning_effort,
-                    prompt_version, status, error_message, created_at, completed_at, model_selection_json
-                 FROM ai_runs
-                 WHERE id = ?1",
+                &format!(
+                    "SELECT {} FROM ai_runs WHERE id = ?1",
+                    super::super::session_rows::AI_RUN_COLUMNS
+                ),
                 [id],
                 map_ai_run,
             )
@@ -324,10 +324,10 @@ fn ai_run_transition_error_on(connection: &Connection, id: &str) -> Result<QaScr
 fn ai_run_by_id(connection: &Connection, id: &str) -> Result<Option<AiRun>> {
     connection
         .query_row(
-            "SELECT id, session_id, generation_context_id, provider, model, reasoning_effort,
-                prompt_version, status, error_message, created_at, completed_at, model_selection_json
-             FROM ai_runs
-             WHERE id = ?1",
+            &format!(
+                "SELECT {} FROM ai_runs WHERE id = ?1",
+                super::super::session_rows::AI_RUN_COLUMNS
+            ),
             [id],
             map_ai_run,
         )

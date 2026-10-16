@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import type { GenerateAiActionKind, ProviderDefaultOrigin, TestwareDepth, TestwareGenerationPreferences, TestwareOutputFormat } from '../tauri'
 import { useModalDialog } from '../hooks/useModalDialog'
 import {
@@ -27,6 +27,8 @@ export function GenerationPreflight({
   checkedAt = null,
   selectionWarning = null,
   selectionAdvisories = [],
+  modelSelectionControl,
+  modelSelectionPending = false,
   onConfigureAi,
   onCancel,
   onConfirm,
@@ -48,6 +50,8 @@ export function GenerationPreflight({
   checkedAt?: string | null
   selectionWarning?: string | null
   selectionAdvisories?: string[]
+  modelSelectionControl?: ReactNode
+  modelSelectionPending?: boolean
   onConfigureAi?: () => void
   onCancel: () => void
   onConfirm: (testwarePreferences?: TestwareGenerationPreferences) => void
@@ -224,6 +228,7 @@ export function GenerationPreflight({
           </div>
         ) : null}
       </div>
+      {modelSelectionControl}
       <div className="confirmation-actions">
         {onConfigureAi ? <button className="text-button" type="button" disabled={isBusy} onClick={onConfigureAi}>Configure AI execution…</button> : null}
         <button className="secondary-button" type="button" disabled={isBusy} onClick={onCancel}>
@@ -232,7 +237,7 @@ export function GenerationPreflight({
         <button
           className="primary-button"
           type="button"
-          disabled={isBusy || !activeProviderAvailable || Boolean(selectionWarning)}
+          disabled={isBusy || modelSelectionPending || !activeProviderAvailable || Boolean(selectionWarning)}
           onClick={() => onConfirm(isTestware ? testwarePreferences : undefined)}
         >
           {copy.confirmLabel}

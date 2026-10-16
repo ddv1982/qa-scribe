@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
@@ -14,10 +14,11 @@ function run(provider, mode, argv, input) {
     }))
     const child = spawnSync(process.execPath, [fileURLToPath(new URL(`./bin/${provider}`, import.meta.url)), ...argv], {
       env: { ...process.env, QA_SCRIBE_E2E_MODEL_MANAGEMENT: '1', QA_SCRIBE_E2E_FIXTURE_DIR: directory },
-      input, encoding: 'utf8', timeout: 3_000,
+      input: typeof input === 'function' ? input(directory) : input, encoding: 'utf8', timeout: 3_000,
     })
     assert.equal(child.status, 0, child.stderr)
-    return { stdout: child.stdout, observations: readFileSync(join(directory, 'model-management-journal.jsonl'), 'utf8')
+    const markerPath = join(directory, 'model-evidence-1.executed.json')
+    return { stdout: child.stdout, marker: existsSync(markerPath) ? JSON.parse(readFileSync(markerPath, 'utf8')) : null, observations: readFileSync(join(directory, 'model-management-journal.jsonl'), 'utf8')
       .trim().split('\n').map((line) => JSON.parse(line)) }
   } finally { rmSync(directory, { recursive: true, force: true }) }
 }
@@ -75,4 +76,36 @@ test('execution configuration never turns discovery into a generation turn', () 
   assert.deepEqual(JSON.parse(result.stdout).response.response,
     { models: [{ value: 'claude-fixture', displayName: 'Claude Fixture', description: 'Synthetic account catalog' }] })
   assert.equal(result.observations.some((entry) => entry.event === 'execution'), false)
+})
+
+
+test('Copilot execution peer completes its real ACP session without fabricating model evidence', () => {
+  const result = run('copilot', 'missing', ['--acp', '--model', 'auto'], lines(
+    { id: 'init', method: 'initialize' }, { id: 'session', method: 'session/new' },
+    { id: 'prompt', method: 'session/prompt', params: { sessionId: 'model-selection-copilot-1', prompt: [{ text: 'Synthetic Copilot prompt.' }] } },
+  ))
+  assert.deepEqual(result.stdout.trim().split('\n').map((line) => JSON.parse(line)), [
+    { jsonrpc: '2.0', id: 'init', result: { protocolVersion: 1, agentCapabilities: {} } },
+    { jsonrpc: '2.0', id: 'session', result: { sessionId: 'model-selection-copilot-1' } },
+    { jsonrpc: '2.0', method: 'session/update', params: { sessionId: 'model-selection-copilot-1',
+      update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Model evidence fixture completed.' } } } },
+    { jsonrpc: '2.0', id: 'prompt', result: { stopReason: 'end_turn' } },
+  ])
+})
+
+test('held Claude permission keeps its correlation and runs one actual marker child after approval', () => {
+  const result = run('claude', 'permission', ['-p', '--permission-prompt-tool', 'stdio'], (directory) => lines(
+    { type: 'control_request', request_id: 'qa-scribe-init', request: { subtype: 'initialize' } },
+    { type: 'user', message: { content: 'Synthetic held Chat prompt.' } },
+    { type: 'control_response', response: { subtype: 'success', request_id: 'model-selection-permission-1',
+      response: { behavior: 'allow', updatedInput: { command: 'fixture-marker-child', marker: join(directory, 'model-evidence-1.executed.json') } } } },
+  ))
+  const frames = result.stdout.trim().split('\n').map((line) => JSON.parse(line))
+  assert.equal(frames.find((event) => event.type === 'control_request').request_id, 'model-selection-permission-1')
+  assert.ok(frames.find((event) => event.type === 'stream_event').event.delta.text.length >= 512)
+  assert.equal(frames.find((event) => event.type === 'assistant').message.model, 'claude-active-reported')
+  const peer = result.observations.find((entry) => entry.event === 'execution')
+  assert.equal(result.marker.parent, peer.pid)
+  assert.notEqual(result.marker.pid, peer.pid)
+  assert.equal(result.observations.filter((entry) => entry.event === 'permission-decision').length, 1)
 })

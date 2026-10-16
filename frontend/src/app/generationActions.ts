@@ -17,6 +17,7 @@ import {
   serializeRichEditorDocument,
 } from '../editor/editorDocument'
 import { formatError } from '../ui/format'
+import type { AiSelection } from './types'
 import type { GenerationActionsContext } from './generationActions.types'
 import { useStableCapability } from './useStableCapability'
 import { createGenerationRecovery } from './generationActions.recovery'
@@ -237,7 +238,12 @@ export function createGenerationActions(ctx: GenerationActionsContext) {
     }
   }
 
-  async function handleAiAction(action: GenerateAiActionKind, testwarePreferences?: TestwareGenerationPreferences) {
+  async function handleAiAction(action: GenerateAiActionKind, testwarePreferences?: TestwareGenerationPreferences, displayedSelection?: AiSelection) {
+    const selection = { ...(displayedSelection ?? ctx.selection) }
+    if (ctx.selection.modelWritePending?.()) {
+      ctx.feedback.setError('Wait for the model preference to finish saving, then try again.')
+      return
+    }
     if (!ctx.session.activeSession || !ctx.session.noteEntry) return
     const busy = action === 'testware' ? 'ai-testware' : action === 'finding' ? 'ai-finding' : 'ai-summary'
     try {
@@ -246,12 +252,16 @@ export function createGenerationActions(ctx: GenerationActionsContext) {
       ctx.generation.setLatestNoteGenerationUndo(null)
       const saved = await ctx.saveNoteNow({ manageBusy: false })
       if (!saved) return
+      if (ctx.selection.modelWritePending?.()) {
+        ctx.feedback.setError('Wait for the model preference to finish saving, then try again.')
+        return
+      }
       const started = await startAiActionJob(
         {
           sessionId: ctx.session.activeSession.id,
-          provider: ctx.selection.selectedProvider,
-          model: ctx.selection.selectedModel.trim() || 'default',
-          reasoningEffort: ctx.selection.selectedReasoningEffort,
+          provider: selection.selectedProvider,
+          model: selection.selectedModel.trim() || 'default',
+          reasoningEffort: selection.selectedReasoningEffort,
           action,
           noteEntryId: ctx.session.noteEntry.id,
           testwarePreferences: action === 'testware' ? testwarePreferences ?? null : null,

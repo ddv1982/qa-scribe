@@ -1,5 +1,6 @@
 import { useEffect, useState, type KeyboardEvent } from 'react'
 import { BookOpen, Box, ChevronRight, Command as CommandIcon, FileText, Flag, Loader2, PencilLine, Plus, Search, Settings } from 'lucide-react'
+import { NextModelSelection } from '../components/NextModelSelection'
 import { RailItem } from '../components/Common'
 import { formatSessionDate } from '../ui/format'
 import { FindingsView } from '../views/FindingsView'
@@ -20,6 +21,10 @@ export { DeleteConfirmationDialog } from './AppOverlays'
 
 export function AppShell(c: AppController) {
   const chatState: SessionChatViewState = c.sessionChat
+  const modelSelectionControl = <NextModelSelection provider={c.activeProvider} value={c.selectedModel}
+    pending={c.settingsWritePending} disabled={!c.modelSelectionReady || !c.activeProvider}
+    catalogEnabled={c.providerStatus?.catalogRollout === 'selector'}
+    onChange={(model) => { void c.persistModelChoice(c.selectedProvider, model) }} />
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [librarySidebarTarget, setLibrarySidebarTarget] = useState<HTMLDivElement | null>(null)
   const commands = createCommandRegistry(c)
@@ -194,7 +199,8 @@ export function AppShell(c: AppController) {
             onSetSessionMode={c.setSessionMode}
             chatContent={<SessionChatView {...chatState}
               providerLabel={c.activeProvider?.label ?? c.selectedProvider}
-              modelLabel={c.effectiveAiSelection?.model ?? c.selectedModel}
+              modelLabel={c.selectedModel === 'default' ? 'CLI Default' : c.selectedModel}
+              modelSelectionControl={modelSelectionControl} modelSelectionPending={c.settingsWritePending}
               providerAvailable={Boolean(c.activeProvider?.available) && !c.effectiveAiSelection?.warning}
               providerReason={c.effectiveAiSelection?.warning ?? c.activeProvider?.reason ?? 'Loading provider status'}
               onConfigureAi={() => runCommand('ai.configure')} />}
@@ -331,6 +337,7 @@ export function AppShell(c: AppController) {
             settingsDraft={c.settingsDraft}
             settingsDirty={c.settingsDirty}
             settingsSaveState={c.settingsSaveState}
+            settingsWritePending={c.settingsWritePending}
             theme={c.theme}
             updateSettingsDraft={c.updateSettingsDraft}
             setTheme={c.setTheme}
@@ -383,6 +390,8 @@ export function AppShell(c: AppController) {
           executionSummary={c.effectiveAiSelection?.runtimeSummary}
           checkedAt={c.effectiveAiSelection?.checkedAt ?? null}
           selectionWarning={c.effectiveAiSelection?.warning ?? c.activeProvider?.defaultSnapshot.warnings.find((warning) => warning.severity === 'blocking')?.message ?? null}
+          modelSelectionControl={modelSelectionControl}
+          modelSelectionPending={c.settingsWritePending}
           selectionAdvisories={c.effectiveAiSelection?.advisories.map((warning) => warning.message) ?? []}
           onConfigureAi={() => {
             c.setPendingGenerationAction(null)
@@ -391,9 +400,12 @@ export function AppShell(c: AppController) {
           onCancel={() => c.setPendingGenerationAction(null)}
           onConfirm={(testwarePreferences) => {
             const action = c.pendingGenerationAction
-            if (!action) return
+            if (!action || c.settingsWritePending) return
             c.setPendingGenerationAction(null)
-            void c.handleAiAction(action, testwarePreferences)
+            void c.handleAiAction(action, testwarePreferences, {
+              selectedProvider: c.selectedProvider, selectedModel: c.selectedModel,
+              selectedReasoningEffort: c.selectedReasoningEffort,
+            })
           }}
         />
       ) : null}

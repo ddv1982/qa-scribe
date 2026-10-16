@@ -2,7 +2,7 @@ import '@testing-library/jest-dom/vitest'
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import type { ComponentProps } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { ChatMessage, ChatState, ChatTurnStatus, GenerationJobStatus } from '../bindings'
+import type { AiProvider, ReportedModel, ChatMessage, ChatState, ChatTurnStatus, GenerationJobStatus } from '../bindings'
 import { SessionChatView } from './SessionChatView'
 
 type Props = ComponentProps<typeof SessionChatView>
@@ -12,7 +12,7 @@ function message(role: ChatMessage['role'], text: string, status: ChatTurnStatus
   return { id, turnId: 'turn-1', role, text, status, errorMessage: null, aiRunId: null, createdAt: '2026-10-14T10:00:00Z' }
 }
 function chat(messages: ChatMessage[] = []): ChatState {
-  return { sessionId: 'session-1', draftId: 'chat-1', revision: 1, composer: '', mode: 'chat', messages, submission: null }
+  return { sessionId: 'session-1', draftId: 'chat-1', revision: 1, composer: '', mode: 'chat', aiRuns: [], messages, submission: null }
 }
 function job(patch: Partial<GenerationJobStatus> = {}): GenerationJobStatus {
   return { jobId: 'job-1', sessionId: 'session-1', action: 'chat', state: 'running', progressMessage: 'Gathering information', aiRunId: null, errorMessage: null, partialText: null, ...patch }
@@ -300,4 +300,37 @@ describe('SessionChatView', () => {
     fireEvent.keyDown(screen.getByRole('textbox', { name: 'Message' }), { key: 'Enter', metaKey: true })
     expect(props.onSend).not.toHaveBeenCalled()
   })
+})
+
+const reportCases: { provider: AiProvider; providerLabel: string; report: ReportedModel; label: string }[] = [
+  { provider: 'claude_code', providerLabel: 'Claude Code', report: { source: 'claudeInitialization', id: 'reported-model' }, label: 'Initialization metadata' },
+  { provider: 'claude_code', providerLabel: 'Claude Code', report: { source: 'claudeAssistantMessage', id: 'reported-model' }, label: 'Response metadata' },
+  { provider: 'codex_cli', providerLabel: 'Codex', report: { source: 'codexThreadConfiguration', id: 'reported-model' }, label: 'Thread configuration' },
+]
+
+it.each(reportCases)('preserves saved $label provenance after the next preference changes', ({ provider, providerLabel, report, label }) => {
+  const history = chat([{ ...message('assistant', 'Saved answer'), aiRunId: 'prior-run' }])
+  history.aiRuns = [{ id: 'prior-run', sessionId: 'session-1', generationContextId: null,
+    provider, modelSelection: { kind: 'recorded', requested: { kind: 'explicit', id: 'saved-alias' }, reported: report }, reasoningEffort: null,
+    promptVersion: 'chat-v1', status: 'completed', errorMessage: null, createdAt: 'old', completedAt: 'old' }]
+  const { props, rerender } = mount({ chat: history, providerLabel: 'Codex', modelLabel: 'next-codex' })
+  const evidence = screen.getByText(new RegExp(`${providerLabel} · Requested · saved-alias`))
+  expect(evidence).toHaveTextContent(`${providerLabel} · Requested · saved-alias`)
+  expect(evidence).toHaveTextContent(`CLI report · reported-model · ${label}`)
+  rerender(<SessionChatView {...props} providerLabel="GitHub Copilot" modelLabel="auto" />)
+  const retainedEvidence = screen.getByText(new RegExp(`${providerLabel} · Requested · saved-alias`))
+  expect(retainedEvidence).toHaveTextContent(`CLI report · reported-model · ${label}`)
+  expect(screen.getByText('Next invocation · GitHub Copilot · auto')).toBeInTheDocument()
+})
+
+it('keeps missing and legacy historical model evidence explicit', () => {
+  const history = chat([{ ...message('assistant', 'Saved answer'), aiRunId: 'prior-run' }])
+  history.aiRuns = [{ id: 'prior-run', sessionId: 'session-1', generationContextId: null,
+    provider: 'codex_cli', modelSelection: { kind: 'recorded', requested: { kind: 'default' }, reported: null },
+    reasoningEffort: null, promptVersion: 'chat-v1', status: 'completed', errorMessage: null, createdAt: 'old', completedAt: 'old' }]
+  const { props, rerender } = mount({ chat: history })
+  expect(screen.getByText(/Codex · Requested · CLI Default/)).toHaveTextContent('CLI report · Unknown')
+  history.aiRuns[0] = { ...history.aiRuns[0], modelSelection: { kind: 'legacy', value: 'old-ambiguous' } }
+  rerender(<SessionChatView {...props} chat={history} />)
+  expect(screen.getByText('Codex · Legacy model · old-ambiguous · Source unknown')).toBeInTheDocument()
 })

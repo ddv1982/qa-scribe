@@ -7,7 +7,7 @@ import { SessionChatView, type SessionChatViewProps } from './SessionChatView'
 afterEach(() => { cleanup(); vi.restoreAllMocks() })
 
 function chat(messages: ChatMessage[] = []): ChatState {
-  return { sessionId: 'session-1', draftId: 'chat-1', revision: 1, composer: '', mode: 'chat', messages, submission: null }
+  return { sessionId: 'session-1', draftId: 'chat-1', revision: 1, composer: '', mode: 'chat', aiRuns: [], messages, submission: null }
 }
 
 function permission(patch: Partial<ChatPermissionRequest> = {}): ChatPermissionRequest {

@@ -59,6 +59,7 @@ pub struct ChatState {
     pub composer: String,
     pub mode: ChatMode,
     pub messages: Vec<ChatMessage>,
+    pub ai_runs: Vec<super::AiRun>,
     pub submission: Option<ChatSubmissionReceipt>,
 }
 

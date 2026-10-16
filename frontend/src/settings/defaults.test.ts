@@ -1,3 +1,4 @@
+import { modelForProvider } from './defaults'
 import { describe, expect, it } from 'vitest'
 import { effectiveSelection, reasoningOverrideForProvider } from './defaults'
 import { providerModelDescriptorFixture, providerStatusFixture, settingsFixture } from '../test/fixtures'
@@ -45,4 +46,10 @@ describe('effectiveSelection', () => {
       warning: 'Reasoning “medium” is not advertised for custom-model. Choose a compatible value before generation.',
     }))
   })
+})
+
+it('an explicit null map selection stays Default despite an old scalar mirror', () => {
+  const settings = settingsFixture({ selectedAiProvider: 'codex_cli', selectedAiModel: 'old-explicit',
+    selectedAiModelsByProvider: { claude_code: null, codex_cli: null, copilot_cli: null } })
+  expect(modelForProvider(settings, 'codex_cli')).toBe('default')
 })

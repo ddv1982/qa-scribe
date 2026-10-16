@@ -36,7 +36,7 @@ Authenticated smokes remain separate from deterministic CI and do not alter cred
 | --- | --- | --- |
 | M01 | Verified locally | 10 native scenarios, 547 Rust tests, 18 fixture and runner tests, frontend checks, and independent audits |
 | M02 | Verified locally | Typed storage and transport tests, 10 native lanes, and actual native restart |
-| M03 | Pending | Shared Settings ownership required |
+| M03 | Verified functionally | Shared Settings ownership, ten native lanes and actual restart pass; matched performance and independent shipping review remain |
 | M04 | Pending | Provider qualification remains explicit |
 | Release | Pending | Starts after verified implementation and protected CI |
 
@@ -116,3 +116,103 @@ The corrected migration and reopen checks passed. `workspace-green.log` supersed
 Production JavaScript and CSS remain 463645 gzip bytes with the same five files and the same compression method as baseline.
 No speedup or latency improvement is claimed. Storage tests prove zero writes for absent or rejected reports and one write for the first accepted report.
 History display and its bulk read projection remain M03.
+
+## M01 policy review correction
+
+A valid PR47 review finding exposed the all-filtered Claude catalog path.
+The correction establishes validity from parsed provider rows before applying the declarative allowlist.
+Empty and nonmatching allowlists now yield a fresh Default-only catalog. Invalid raw catalogs still use their existing failure path.
+The first composed native policy regression failed on the old catalog code, then all ten scenarios passed after the correction.
+The red artifact used the preserved M02 executable containing byte-identical M01 catalog source. Its provenance is recorded explicitly.
+A fresh M01 executable supplied the green run.
+The provider suite passed 88 tests. Updated source and comment reviews passed.
+Independent shipping review at `8f085b67dfd24639e7295b6722565305f53bf7d2` passed all ten native scenarios and inspected both settled Default-only screenshots.
+The stable full patch ID is `6e7609b29cd3bdd59267b75483baa06403361298`.
+The review thread was resolved after pushing the verified correction. No external reply message was posted.
+M02 incorporated that ancestor through merge commit `4dce9b302cd3fa96efb51c010f8854394d5f5a08`.
+
+## Build ownership after ancestor integration
+
+M01 native verification now uses a private immutable executable in its owned artifact directory.
+M02 and later implementation use the existing shared dependency cache from one active source checkout.
+Switching project-crate artifacts between worktrees produced an incompatible local core-library reuse during the first post-integration build.
+The parent reset only the three project's crate outputs and rebuilt from the committed M02 source.
+No source change or dependency update was used to resolve that build-cache failure.
+
+## M02 independent shipping verdict
+
+The independent isolated reviewer returned PASS+NOTES at `4dce9b302cd3fa96efb51c010f8854394d5f5a08` against M01 `8f085b67dfd24639e7295b6722565305f53bf7d2`.
+The stable patch ID is `bb2c795cba0a420ae46f36035748e765b609ab82`.
+It verified all 54 Rust source hashes and the fresh executable SHA256 `fcbe25e19ce6184e76aaaff7479df5c9eb00947f1730f9b72046f5814dc2f97d`.
+Its own ten first-run native scenarios and one restart test passed without skips.
+It inspected twelve screenshots, literal child arguments, and eleven SQLite rows through a read-only connection.
+All nine lane Sessions survived a different native application process. All 62 recorded processes were gone at cleanup.
+The fresh post-integration workspace run passed 563 tests with three optional tests ignored and zero failures.
+The verdict and complete artifacts are under `/tmp/qa-models/M02/shipping-review/`.
+PR48 is linked and remains stacked on PR47 until the protected integration frontier advances.
+This proves deterministic Linux behavior. It does not establish real-provider routing or other-platform qualification.
+
+## M03 verification boundaries
+
+The native artifact exercises the ten planned interaction lanes without injecting component state.
+The normal navigation guard prevents leaving a dirty Settings view to reach the Chat composer.
+Rendered controller tests therefore cover quick-save preservation of an unrelated dirty draft and edits during an outstanding save.
+Rendered launch-owner tests cover selection capture across the first asynchronous operation.
+Native tests separately connect the visible next-turn choice, actual child arguments, and stored historical evidence.
+The startup baseline is retained at `/tmp/qa-models/M03/startup-baseline5/` with its exact M02 executable provenance.
+Those five debug-backend startup observations are not a production latency or speedup claim.
+
+## M03 functional verification
+
+The next-invocation picker reuses the existing combobox and Settings controller beside Chat and generation confirmation.
+One synchronous guard serializes full and quick Settings writes. Quick saves use confirmed settings and preserve unrelated draft edits.
+Send and Generate capture provider, model and effort before their first asynchronous operation.
+Pending writes block launches and final close settlement. Active jobs and permission requests keep their original identity.
+Chat reads linked AI Runs in one query and uses each historical run's provider and typed evidence.
+
+The first native run exposed a real false-dirty Settings comparison caused by unordered Rust map serialization.
+An independent review also reproduced focus restoration reopening the picker after a save.
+Both defects have direct red and green regressions. Only provider-map ordering is normalized; missing and explicit-null overrides remain distinct.
+The corrected focus restoration leaves the selected label visible and the menu closed.
+Native harness corrections select X11 for real OS keys, inspect the actual preflight Model row, and await WebDriver collections correctly.
+Those harness failures are retained as failed attempts and are not counted as production regressions.
+
+The final parent run passed ten native scenarios and a second-process restart with all catalogs unavailable.
+It proved exact Claude, Codex and Copilot arguments, active permission identity, immutable historical reports, legacy provenance and retained per-provider choices.
+The final receipt is `/tmp/qa-models/M03/r4/lane-results.json` with both completion and native restart true.
+The 45-second native walkthrough is `/tmp/qa-models/M03/r3/review/demo.mp4`. It shows the same frozen production UI; the subsequent collection correction affects only test code.
+The parent inspected positive screenshots and video frames. No human visual approval is claimed.
+
+The full Rust workspace passed 564 tests with three optional tests ignored. The final frontend suite passed 563 tests.
+Frontend checks, clippy, bindings and code-size policy passed. Independent source re-review returned PASS+NOTES after the two fixes.
+The source receipt and review hashes are under `/tmp/qa-models/M03/`.
+Production JavaScript and CSS total 465436 gzip bytes using the same level-9, fixed-time method as baseline, an increase of 1791 bytes.
+The strengthened restart proof reads the initial quick selection before any Settings write and then changes only the provider.
+It verifies the entire saved model map stays unchanged while each restored choice is displayed.
+The restart setup opens an existing persisted Session, avoiding an unrelated duplicate-title autosave race in repeated test runs.
+All 26 fixture and runner tests pass.
+
+Five alternating baseline/candidate pairs exercised the same copied large database, X11 backend and debug-native build mode.
+Each side completed five fresh-process startup observations and 100 picker observations.
+All explicit refreshes started exactly one catalog transaction per provider; warm picker interaction started zero provider processes.
+The observed startup and picker medians remained within the proposed larger-of-10-percent-or-50-ms bounds.
+These observations are inconclusive for production latency. They use warm OS caches and an animation-frame DOM observation rather than physical paint.
+Raw samples, machine load, executable hashes and the comparison script are under `/tmp/qa-models/M03/performance/` and `/tmp/qa-models/M03/compare-native.py`.
+The measured source commit is retained as `5a2b4a00ee124ecc37e3a0c50c508ac12b73b480`.
+An exact-commit independent native shipping review remains before landing.
+
+## M03 provenance-label review correction
+
+Independent shipping review passed at `64d4786994f13b13c0f3785ccc3771daf9f8e850` with ten candidate scenarios, an actual restart, ten baseline scenarios and popup bounds at both requested sizes.
+A subsequent PR49 finding identified that Claude initialization and Codex thread configuration shared one broad display label.
+The correction labels the three typed sources separately as Initialization metadata, Response metadata and Thread configuration.
+It preserves unknown and legacy evidence and makes no serving-backend claim.
+Two source-label regressions failed before the correction. All 83 rendered history and permission tests then passed, including live historical DOM assertions after the next preference changes.
+The narrow independent source re-review passed. Receipts are under `/tmp/qa-models/M03/review-label-fix/`.
+The parent retains the earlier native and timing revisions and will verify a fresh executable for this display correction before landing.
+
+## Forge and integration
+
+Origin is unavailable in this environment, so the parent uses GitHub CLI for host operations.
+The existing repository merges retain stack ancestry. Preserve that history when landing this linear program and revalidate each resulting base-to-head patch.
+Protected CI at each actual head remains required. Local or independent verification does not replace it.
