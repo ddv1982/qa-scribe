@@ -1,8 +1,6 @@
+import { useEffect } from 'react'
 import {
   cancelAiActionJob,
-  getAiActionJobStatus,
-  listActiveAiActionJobs,
-  openSessionNoteState,
   startAiActionJob,
   type Draft,
   type Entry,
@@ -21,187 +19,16 @@ import {
 import { formatError } from '../ui/format'
 import type { GenerationActionsContext } from './generationActions.types'
 import { useStableCapability } from './useStableCapability'
+import { createGenerationRecovery } from './generationActions.recovery'
+export { generationIsActive } from './generationActions.recovery'
 
 export type { GenerationActionsContext } from './generationActions.types'
 
-export function generationIsActive(job: GenerationJobStatus): boolean {
-  return job.state === 'starting' || job.state === 'running' || job.state === 'cancelling'
-}
-
-// How often boot-time reconciliation re-polls a recovered job's status. The
-// original invoke `Channel` is gone after a webview reload, so we cannot
-// re-subscribe to the streaming events; polling `get_ai_action_job_status` is
-// the simplest way to drive the recovered job to a terminal UI state.
-const RECONCILE_POLL_INTERVAL_MS = 1000
-const RECOVERY_COMMAND_MAX_ATTEMPTS = 3
-
 export function createGenerationActions(ctx: GenerationActionsContext) {
-  let reconciliationStarted = false
-  const recoveredSummaryReloadVersions = new Map<string, number>()
+  const recovery = createGenerationRecovery(ctx, storeGenerationStatus, applyRecoveredGeneratedNoteEntry)
 
   function storeGenerationStatus(status: GenerationJobStatus) {
     ctx.generation.setGenerationJobs((previous) => ({ ...previous, [status.jobId]: status }))
-  }
-
-  // This capture is a distinct startup phase so recovered Summary jobs can
-  // block Note saves before the startup Session is hydrated. Polling starts
-  // only after hydration, when a completed Summary can be applied safely.
-  async function captureActiveJobs() {
-    let activeJobsCommand: typeof listActiveAiActionJobs
-    try {
-      activeJobsCommand = listActiveAiActionJobs
-    } catch {
-      // Generated Tauri bindings always provide this function. Lightweight
-      // non-Tauri hosts may intentionally omit recovery commands.
-      ctx.summaryRecovery.discoveryPendingRef.current = false
-      return
-    }
-    if (typeof activeJobsCommand !== 'function') {
-      ctx.summaryRecovery.discoveryPendingRef.current = false
-      return
-    }
-    ctx.summaryRecovery.discoveryPendingRef.current = true
-    let active: GenerationJobStatus[]
-    try {
-      active = await runRecoveryCommand(activeJobsCommand)
-    } catch (cause) {
-      // Do not hydrate a Note from an uncertain startup. A restart can retry
-      // after the bounded transient-error budget is exhausted.
-      ctx.feedback.setError(formatError(cause))
-      throw cause
-    }
-
-    ctx.summaryRecovery.recoveredJobsRef.current.clear()
-    ctx.summaryRecovery.unresolvedSummaryJobsRef.current.clear()
-    for (const status of active) {
-      if (status.action === 'chat') { storeGenerationStatus(status); continue }
-      ctx.summaryRecovery.recoveredJobsRef.current.set(status.jobId, status)
-      if (status.action === 'summary') {
-        ctx.summaryRecovery.unresolvedSummaryJobsRef.current.set(status.jobId, status.sessionId)
-      }
-      storeGenerationStatus(status)
-    }
-    ctx.summaryRecovery.discoveryPendingRef.current = false
-    if (reconciliationStarted) startCapturedJobPolls()
-  }
-
-  function reconcileActiveJobs(): Promise<void> {
-    reconciliationStarted = true
-    startCapturedJobPolls()
-    return Promise.resolve()
-  }
-
-  function startCapturedJobPolls() {
-    const active = Array.from(ctx.summaryRecovery.recoveredJobsRef.current.values())
-    ctx.summaryRecovery.recoveredJobsRef.current.clear()
-    for (const status of active) {
-      void pollJobToTerminal(status.jobId)
-    }
-  }
-
-  function summaryRecoveryBlocksSession(sessionId: string): boolean {
-    return ctx.summaryRecovery.discoveryPendingRef.current
-      || Array.from(ctx.summaryRecovery.unresolvedSummaryJobsRef.current.values()).includes(sessionId)
-  }
-
-  function flushBlockedNoteSave(sessionId: string | null) {
-    if (
-      !sessionId
-      || ctx.session.activeSessionIdRef.current !== sessionId
-      || summaryRecoveryBlocksSession(sessionId)
-      || !ctx.summaryRecovery.blockedSaveSessionIdsRef.current.delete(sessionId)
-    ) return
-    void ctx.saveNoteNow({ manageBusy: false })
-  }
-
-  function finishSummaryReconciliation(jobId: string, sessionId: string, flushDirtyNote: boolean) {
-    ctx.summaryRecovery.unresolvedSummaryJobsRef.current.delete(jobId)
-    if (summaryRecoveryBlocksSession(sessionId)) return
-    if (flushDirtyNote) flushBlockedNoteSave(sessionId)
-    else ctx.summaryRecovery.blockedSaveSessionIdsRef.current.delete(sessionId)
-  }
-
-  async function reloadRecoveredSummary(sessionId: string): Promise<Entry | null> {
-    try {
-      const canonical = await runRecoveryCommand(() => openSessionNoteState(sessionId))
-      if (
-        canonical.session.id !== sessionId
-        || canonical.noteEntry.sessionId !== sessionId
-      ) {
-        ctx.feedback.setError('Recovered Summary returned an unexpected Session or Note Entry.')
-        return null
-      }
-      return canonical.noteEntry
-    } catch (cause) {
-      ctx.feedback.setError(formatError(cause))
-      return null
-    }
-  }
-
-  async function pollJobToTerminal(jobId: string) {
-    let consecutiveStatusErrors = 0
-    for (;;) {
-      await delay(RECONCILE_POLL_INTERVAL_MS)
-      let status: GenerationJobStatus
-      try {
-        status = await getAiActionJobStatus(jobId)
-      } catch (cause) {
-        consecutiveStatusErrors += 1
-        if (consecutiveStatusErrors < RECOVERY_COMMAND_MAX_ATTEMPTS) continue
-        // Keep Summary protection in place, but stop the bounded retry loop.
-        // Restarting the app starts a fresh discovery/reconciliation attempt.
-        ctx.feedback.setError(formatError(cause))
-        return
-      }
-      consecutiveStatusErrors = 0
-      storeGenerationStatus(status)
-      if (!generationIsActive(status)) {
-        const summarySessionId = ctx.summaryRecovery.unresolvedSummaryJobsRef.current.get(jobId)
-        if (summarySessionId && status.state === 'completed') {
-          const reloadVersion = (recoveredSummaryReloadVersions.get(summarySessionId) ?? 0) + 1
-          recoveredSummaryReloadVersions.set(summarySessionId, reloadVersion)
-          const canonicalEntry = await reloadRecoveredSummary(summarySessionId)
-          if (!canonicalEntry) return
-
-          if (recoveredSummaryReloadVersions.get(summarySessionId) !== reloadVersion) {
-            // A later reload started for this Session, so this response cannot
-            // be the freshest canonical Summary even if it resolved last.
-          } else if (
-            ctx.session.activeSessionIdRef.current === summarySessionId
-            && ctx.session.noteEntryIdRef.current === canonicalEntry.id
-          ) {
-            applyRecoveredGeneratedNoteEntry(canonicalEntry)
-            ctx.summaryRecovery.completedSummaryEntriesRef.current.delete(summarySessionId)
-          } else if (ctx.summaryRecovery.openingSessionIdRef.current === summarySessionId) {
-            // An in-flight open may have captured the pre-completion Note. Let
-            // Session hydration consume this canonical result instead.
-            ctx.summaryRecovery.completedSummaryEntriesRef.current.set(summarySessionId, canonicalEntry)
-          }
-        }
-        if (summarySessionId) {
-          finishSummaryReconciliation(jobId, summarySessionId, status.state !== 'completed')
-        }
-        if (status.state === 'failed' && status.errorMessage) ctx.feedback.setError(status.errorMessage)
-        else if (status.state === 'cancelled') ctx.feedback.setNotice('Generation cancelled')
-        else if (status.state === 'completed') ctx.feedback.setNotice('Generation finished')
-        return
-      }
-    }
-  }
-
-  async function runRecoveryCommand<T>(command: () => Promise<T>): Promise<T> {
-    let lastCause: unknown
-    for (let attempt = 1; attempt <= RECOVERY_COMMAND_MAX_ATTEMPTS; attempt += 1) {
-      try {
-        return await command()
-      } catch (cause) {
-        lastCause = cause
-        if (attempt < RECOVERY_COMMAND_MAX_ATTEMPTS) {
-          await delay(RECONCILE_POLL_INTERVAL_MS)
-        }
-      }
-    }
-    throw lastCause
   }
 
   function mergeDraft(draft: Draft) {
@@ -457,13 +284,14 @@ export function createGenerationActions(ctx: GenerationActionsContext) {
     }
   }
 
-  return { captureActiveJobs, handleAiAction, handleCancelGenerationJob, handleUndoLatestNoteGeneration, reconcileActiveJobs, storeGenerationStatus }
+  return { ...recovery, handleAiAction, handleCancelGenerationJob, handleUndoLatestNoteGeneration, storeGenerationStatus }
 }
 
 export function useGenerationActions(ctx: GenerationActionsContext) {
-  return useStableCapability(ctx, createGenerationActions)
-}
-
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => window.setTimeout(resolve, ms))
+  const actions = useStableCapability(ctx, createGenerationActions)
+  useEffect(() => {
+    actions.activate()
+    return actions.dispose
+  }, [actions])
+  return actions
 }
