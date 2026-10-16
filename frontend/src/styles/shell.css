@@ -392,6 +392,11 @@ button:disabled:hover {
   overflow-wrap: anywhere;
 }
 
+/* Initial focus announces the dialog heading; it is not an editable control. */
+.preflight-header > #generation-preflight-title:focus {
+  outline: none;
+}
+
 .preflight-body {
   display: grid;
   align-content: start;

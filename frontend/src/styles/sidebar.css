@@ -121,6 +121,8 @@
 }
 
 .session-picker-list {
+  grid-auto-rows: max-content;
+  align-content: start;
   max-height: 278px;
   overflow: auto;
   padding-right: 2px;
