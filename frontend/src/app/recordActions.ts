@@ -8,13 +8,11 @@ import {
 import { formatError, nextUntitledRecordTitle } from '../ui/format'
 import type { BusyAction, MainView } from '../ui/types'
 import { renderPrefilledFinding, renderPrefilledTestware } from '../workflows/prefillTemplates'
-import type { InlineImageMaterialization } from './attachmentActions'
-import { createRecordActionCoordination } from './recordActions.coordination'
+import type { RecordPersistence, RecordPersistenceContext } from './recordPersistence'
 import { createDraftRecordActions } from './recordActions.drafts'
 import { createFindingRecordActions } from './recordActions.findings'
 import type {
   DeletionWorkspace,
-  RecordWorkspace,
   SessionWorkspace,
   WorkflowFeedback,
   WorkflowNavigation,
@@ -26,43 +24,23 @@ export type RecordLoaders = {
   loadFindingsForSession: (sessionId: string, options?: { force?: boolean; replace?: boolean }) => Promise<Finding[]>
 }
 
-type InlineImageMaterializer = (
-  document: RichEditorDocument,
-  options?: { entryId?: string | null; isCurrent?: () => boolean },
-) => Promise<InlineImageMaterialization>
-
-export type RecordActionsContext = {
+export type RecordActionsContext = Omit<RecordPersistenceContext, 'session'> & {
   session: Pick<SessionWorkspace, 'activeSession' | 'activeSessionIdRef' | 'noteBodyHtml'>
-  records: Pick<
-    RecordWorkspace,
-    | 'dirtyDraftIdsRef'
-    | 'dirtyFindingIdsRef'
-    | 'draftsRef'
-    | 'findingsRef'
-    | 'savedDraftsRef'
-    | 'savedFindingsRef'
-    | 'setDrafts'
-    | 'setFindings'
-    | 'setTestwareDraftCount'
-    | 'setFindingCount'
-  >
   feedback: WorkflowFeedback
   navigation: WorkflowNavigation
   deletion: DeletionWorkspace
   saveNoteNow: (options?: { manageBusy?: boolean }) => Promise<boolean>
   registerRecordEditIntent: () => void
   handleDeleteSession: (session: Session) => Promise<void>
-  materializeInlineImages: InlineImageMaterializer
-  cleanupMaterializedAttachments: (attachmentIds: string[]) => Promise<boolean>
   invalidateDraftLoads: () => void
   invalidateFindingLoads: () => void
   loaders: RecordLoaders
 }
 
-export function createRecordActions(ctx: RecordActionsContext) {
-  const coordination = createRecordActionCoordination(ctx)
-  const draftActions = createDraftRecordActions(ctx, coordination)
-  const findingActions = createFindingRecordActions(ctx, coordination)
+export function createRecordActions(ctx: RecordActionsContext, persistence: RecordPersistence) {
+  const { coordination, saveDirtyRecordsNow } = persistence
+  const draftActions = createDraftRecordActions(ctx, coordination, persistence.drafts)
+  const findingActions = createFindingRecordActions(ctx, coordination, persistence.findings)
 
   async function createRecordFromNote(
     busy: BusyAction,
@@ -199,28 +177,6 @@ export function createRecordActions(ctx: RecordActionsContext) {
     ctx.feedback.setNotice('Pending record changes discarded')
   }
 
-  async function saveDirtyRecordsNow(): Promise<boolean> {
-    const dirtyDrafts = ctx.records.draftsRef.current.filter((draft) => ctx.records.dirtyDraftIdsRef.current.has(draft.id))
-    const dirtyFindings = ctx.records.findingsRef.current.filter((finding) => ctx.records.dirtyFindingIdsRef.current.has(finding.id))
-    if (dirtyDrafts.length === 0 && dirtyFindings.length === 0) return true
-
-    let failed = false
-    let allSaved = true
-    for (const draft of dirtyDrafts) {
-      const result = await draftActions.persistDraft(draft)
-      failed = result === 'failed' || failed
-      allSaved = result === 'saved' && allSaved
-    }
-    for (const finding of dirtyFindings) {
-      const result = await findingActions.persistFinding(finding)
-      failed = result === 'failed' || failed
-      allSaved = result === 'saved' && allSaved
-    }
-    if (failed) return false
-    if (allSaved) ctx.feedback.setNotice('Pending record edits saved')
-    return true
-  }
-
   async function confirmDelete() {
     const confirmation = ctx.deletion.deleteConfirmation
     if (!confirmation) return
@@ -252,7 +208,6 @@ export function createRecordActions(ctx: RecordActionsContext) {
     handleSaveFinding: findingActions.handleSaveFinding,
     requestDeleteDraft: draftActions.requestDeleteDraft,
     requestDeleteFinding: findingActions.requestDeleteFinding,
-    registerImportedRecordAttachment: coordination.registerImportedRecordAttachment,
     retryAllPendingRecordCompensations: coordination.retryAllPendingRecordCompensations,
     retryPendingRecordCompensations: coordination.retryPendingRecordCompensations,
     updateLocalDraft: draftActions.updateLocalDraft,
@@ -261,6 +216,6 @@ export function createRecordActions(ctx: RecordActionsContext) {
   }
 }
 
-export function useRecordActions(ctx: RecordActionsContext) {
-  return useStableCapability(ctx, createRecordActions)
+export function useRecordActions(ctx: RecordActionsContext, persistence: RecordPersistence) {
+  return useStableCapability(ctx, (current) => createRecordActions(current, persistence))
 }

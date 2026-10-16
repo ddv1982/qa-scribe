@@ -1,59 +1,15 @@
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import { useCallback, useEffect, useRef, type MutableRefObject } from 'react'
-import { serializeRichEditorDocument, type RichEditorDocument } from '../editor/editorDocument'
-
+import { useEffect, useRef } from 'react'
 type UsePendingChangeProtectionOptions = {
-  hasPendingChatChanges: () => boolean
-  hasActiveSession: boolean
-  hasNoteEntry: boolean
-  sessionTitle: string
-  noteBody: RichEditorDocument
-  savedTitleRef: MutableRefObject<string>
-  savedBodyRef: MutableRefObject<string>
-  pendingRecoveredSummaryDecision: boolean
-  dirtyDraftIdsRef: MutableRefObject<Set<string>>
-  dirtyFindingIdsRef: MutableRefObject<Set<string>>
-  settingsDirty: boolean
-  hasPendingCompensations: () => boolean
+  hasPendingChanges: () => boolean
   savePendingChanges: () => Promise<boolean>
 }
 
-export function usePendingChangeProtection({
-  hasPendingChatChanges,
-  hasActiveSession,
-  hasNoteEntry,
-  sessionTitle,
-  noteBody,
-  savedTitleRef,
-  savedBodyRef,
-  pendingRecoveredSummaryDecision,
-  dirtyDraftIdsRef,
-  dirtyFindingIdsRef,
-  settingsDirty,
-  hasPendingCompensations,
-  savePendingChanges,
-}: UsePendingChangeProtectionOptions) {
-  const pendingNoteStateRef = useRef({ hasActiveSession, hasNoteEntry, sessionTitle, noteBody, pendingRecoveredSummaryDecision })
+export function usePendingChangeProtection({ hasPendingChanges, savePendingChanges }: UsePendingChangeProtectionOptions) {
   const savePendingChangesRef = useRef(savePendingChanges)
   const closeRequestInFlightRef = useRef(false)
 
-  useEffect(() => {
-    savePendingChangesRef.current = savePendingChanges
-  }, [savePendingChanges])
-
-  useEffect(() => {
-    pendingNoteStateRef.current = { hasActiveSession, hasNoteEntry, sessionTitle, noteBody, pendingRecoveredSummaryDecision }
-  }, [hasActiveSession, hasNoteEntry, sessionTitle, noteBody, pendingRecoveredSummaryDecision])
-
-  const hasPendingChanges = useCallback(() => {
-    const current = pendingNoteStateRef.current
-    const titleDirty = Boolean(
-      current.hasActiveSession
-      && current.sessionTitle !== savedTitleRef.current,
-    )
-    const bodyDirty = Boolean(current.hasNoteEntry && serializeRichEditorDocument(current.noteBody) !== savedBodyRef.current)
-    return hasPendingChatChanges() || current.pendingRecoveredSummaryDecision || titleDirty || bodyDirty || settingsDirty || hasPendingCompensations() || dirtyDraftIdsRef.current.size > 0 || dirtyFindingIdsRef.current.size > 0
-  }, [dirtyDraftIdsRef, dirtyFindingIdsRef, hasPendingChatChanges, hasPendingCompensations, savedBodyRef, savedTitleRef, settingsDirty])
+  useEffect(() => { savePendingChangesRef.current = savePendingChanges }, [savePendingChanges])
 
   useEffect(() => {
     function handleBeforeUnload(event: BeforeUnloadEvent) {

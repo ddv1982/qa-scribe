@@ -14,9 +14,10 @@ test('critical workflows use separate WDIO processes, app data, fixtures, and ar
   assert.deepEqual(plan.slice(0, criticalScenarios.length).map(({ id }) => id), criticalScenarios)
   assert.deepEqual(plan.slice(criticalScenarios.length).map(({ id }) => id), [
     'chat-to-note', 'chat-tool-authorization-codex', 'chat-tool-authorization-claude', 'chat-tool-authorization-copilot',
+    ...(process.platform === 'linux' ? ['native-close'] : []),
   ])
   for (const key of ['QA_SCRIBE_E2E_APP_DATA_DIR', 'QA_SCRIBE_E2E_ARTIFACTS', 'QA_SCRIBE_E2E_FIXTURE_DIR']) {
-    assert.equal(new Set(plan.map(({ environment }) => environment[key])).size, criticalScenarios.length + 4)
+    assert.equal(new Set(plan.map(({ environment }) => environment[key])).size, criticalScenarios.length + 4 + (process.platform === 'linux' ? 1 : 0))
   }
   assert.ok(plan.slice(0, criticalScenarios.length).every(({ environment }) => environment.QA_SCRIBE_E2E_SPEC === 'critical-workflows.e2e.mjs'))
   assert.equal(plan[criticalScenarios.length].environment.QA_SCRIBE_E2E_SPEC, 'chat-to-note.e2e.mjs')
@@ -25,6 +26,21 @@ test('critical workflows use separate WDIO processes, app data, fixtures, and ar
     assert.equal(environment.QA_SCRIBE_E2E_SPEC, 'chat-tool-authorization.workflow.mjs')
     assert.equal(environment.QA_SCRIBE_E2E_AUTH_PROVIDER, provider)
   }
+})
+
+test('native close is a required Linux default workflow and excluded on other platforms', () => {
+  const linux = createWdioInvocationPlan({}, '/tmp/root', '/tmp/artifacts', 'linux')
+  assert.equal(linux.at(-1).id, 'native-close')
+  assert.equal(linux.at(-1).environment.QA_SCRIBE_E2E_SPEC, 'native-close.e2e.mjs')
+  assert.equal(linux.at(-1).environment.GDK_BACKEND, 'x11')
+  const explicit = createWdioInvocationPlan({ QA_SCRIBE_E2E_SPEC: 'native-close.e2e.mjs' }, '/tmp/root', '/tmp/artifacts', 'linux')
+  assert.equal(explicit[0].environment.GDK_BACKEND, 'x11')
+  for (const platform of ['darwin', 'win32']) {
+    const plan = createWdioInvocationPlan({}, '/tmp/root', '/tmp/artifacts', platform)
+    assert.equal(plan.some(({ id }) => id === 'native-close'), false)
+  }
+  const selected = createWdioInvocationPlan({ QA_SCRIBE_E2E_SCENARIO: 'clipboard' }, '/tmp/root', '/tmp/artifacts', 'linux')
+  assert.deepEqual(selected.map(({ id }) => id), ['clipboard'])
 })
 
 test('machine execution evidence rejects skipped, failed, empty, incomplete and mismatched runs', () => {

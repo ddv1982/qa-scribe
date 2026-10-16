@@ -6,7 +6,7 @@ import {
 } from '../editor/editorDocument'
 import { formatError } from '../ui/format'
 import type { InlineImageMaterialization } from './attachmentActions'
-import type { RecordActionsContext } from './recordActions'
+import type { RecordPersistenceContext } from './recordPersistence'
 
 export type RecordAttachmentOwner = { kind: 'draft' | 'finding'; id: string }
 
@@ -17,35 +17,20 @@ type RecordIntent<T> = {
   compensationPending?: boolean
 }
 
-export function createRecordActionCoordination(ctx: RecordActionsContext) {
+export function createRecordActionCoordination(ctx: RecordPersistenceContext) {
   const draftIntents = new Map<string, RecordIntent<Draft>>()
   const findingIntents = new Map<string, RecordIntent<Finding>>()
-  const pendingImportedAttachmentIds = new Map<string, Set<string>>()
   const pendingWriteOperations = new Set<Promise<unknown>>()
-
-  function attachmentOwnerKey(owner: RecordAttachmentOwner) {
-    return `${owner.kind}:${owner.id}`
-  }
-
-  function registerImportedRecordAttachment(owner: RecordAttachmentOwner, attachmentId: string) {
-    const key = attachmentOwnerKey(owner)
-    const pending = pendingImportedAttachmentIds.get(key) ?? new Set<string>()
-    pending.add(attachmentId)
-    pendingImportedAttachmentIds.set(key, pending)
-  }
 
   async function settleImportedRecordAttachments(
     owner: RecordAttachmentOwner,
     record: StoredRichBody | null,
   ): Promise<boolean> {
-    const key = attachmentOwnerKey(owner)
-    const pending = pendingImportedAttachmentIds.get(key)
-    if (!pending?.size) return true
-    const attachmentIds = Array.from(pending)
+    const attachmentIds = ctx.importedAttachments.pending(owner)
+    if (attachmentIds.length === 0) return true
     const staleIds = attachmentsNotReferencedByRecord(attachmentIds, record)
     if (!await ctx.cleanupMaterializedAttachments(staleIds)) return false
-    for (const attachmentId of attachmentIds) pending.delete(attachmentId)
-    if (pending.size === 0) pendingImportedAttachmentIds.delete(key)
+    ctx.importedAttachments.forget(owner, attachmentIds)
     return true
   }
 
@@ -226,7 +211,6 @@ export function createRecordActionCoordination(ctx: RecordActionsContext) {
     materializeRecordBody,
     reconcileDraftIntent,
     reconcileFindingIntent,
-    registerImportedRecordAttachment,
     replaceRecord,
     reserveDraftIntent,
     reserveFindingIntent,

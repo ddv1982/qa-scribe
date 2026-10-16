@@ -1,11 +1,9 @@
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 import type { Session } from '../tauri'
-import { serializeRichEditorDocument } from '../editor/editorDocument'
 import type { MainView } from '../ui/types'
 import { navigationHash } from './navigationRoute'
 import { createSessionNavigationActions } from './sessionNavigationActions'
-import type { SessionWorkspace } from './types'
-import type { useAttachmentActions } from './attachmentActions'
+import type { AppSettlement } from './appSettlement'
 import type { useRecordActions } from './recordActions'
 import type { useSessionActions } from './sessionActions'
 import type { useSessionChat } from './useSessionChat'
@@ -14,7 +12,7 @@ type AppControllerNavigationContext = {
   chat: Pick<ReturnType<typeof useSessionChat>, 'flush' | 'hasPendingChanges' | 'recoverSession'>
   activeSession: Session | null
   activeView: MainView
-  attachmentActions: ReturnType<typeof useAttachmentActions>
+  settlement: AppSettlement
   dirtyDraftIdsRef: MutableRefObject<Set<string>>
   dirtyFindingIdsRef: MutableRefObject<Set<string>>
   discardSettingsDraft: () => void
@@ -22,14 +20,9 @@ type AppControllerNavigationContext = {
   pendingNavigationContinuationRef: MutableRefObject<(() => void | Promise<void>) | null>
   pendingNavigationEpochRef: MutableRefObject<number>
   pendingNavigationView: MainView | null
-  pendingRecoveredSummaryDecision: boolean
   recordActions: ReturnType<typeof useRecordActions>
-  savedTitleRef: MutableRefObject<string>
-  saveSettingsDraft: () => Promise<boolean>
   sessionActions: ReturnType<typeof useSessionActions>
   sessions: Session[]
-  sessionTitle: string
-  sessionWorkspace: SessionWorkspace
   settingsDirty: boolean
   settingsReturnViewRef: MutableRefObject<MainView>
   settingsSection: string | null
@@ -55,10 +48,10 @@ export function useAppControllerNavigation(ctx: AppControllerNavigationContext) 
   }
 
   function finishActiveViewNavigation(view: MainView) {
-    const titlePending = Boolean(ctx.activeSession && ctx.sessionTitle !== ctx.savedTitleRef.current)
+    const { titleDirty, recoveryChoice } = ctx.sessionActions.settlement.snapshot()
     if (
-      titlePending
-      || ctx.pendingRecoveredSummaryDecision
+      titleDirty
+      || recoveryChoice
       || ctx.settingsDirty
       || ctx.dirtyDraftIdsRef.current.size > 0
       || ctx.dirtyFindingIdsRef.current.size > 0
@@ -86,7 +79,7 @@ export function useAppControllerNavigation(ctx: AppControllerNavigationContext) 
     if (!await ctx.chat.flush() || !ctx.sessionActions.sessionNavigationIsCurrent(epoch)) return
     // A recovered Summary represents two valid canonical outcomes and must not
     // be silently selected by the ordinary Session-switch flush.
-    if (ctx.pendingRecoveredSummaryDecision) {
+    if (ctx.sessionActions.settlement.snapshot().recoveryChoice) {
       ctx.pendingNavigationEpochRef.current += 1
       ctx.pendingNavigationContinuationRef.current = navigate
       ctx.setPendingNavigationView(view)
@@ -126,8 +119,8 @@ export function useAppControllerNavigation(ctx: AppControllerNavigationContext) 
   async function savePendingNavigationChanges() {
     const navigationEpoch = ctx.pendingNavigationEpochRef.current
     const destination = ctx.pendingNavigationView
-    if (ctx.pendingRecoveredSummaryDecision) ctx.sessionActions.selectRecoveredSummaryChoice('authored')
-    const saved = await saveAllPendingChanges()
+    if (ctx.sessionActions.settlement.snapshot().recoveryChoice) ctx.sessionActions.selectRecoveredSummaryChoice('authored')
+    const saved = await ctx.settlement.flush()
     if (!saved || !destination || ctx.pendingNavigationEpochRef.current !== navigationEpoch) return
     ctx.pendingNavigationEpochRef.current += 1
     const continuation = ctx.pendingNavigationContinuationRef.current
@@ -176,58 +169,6 @@ export function useAppControllerNavigation(ctx: AppControllerNavigationContext) 
     }))
   }
 
-  async function saveAllPendingChanges(): Promise<boolean> {
-    if (!await ctx.chat.flush()) return false
-    let sessionSaved = true
-    for (;;) {
-      await ctx.attachmentActions.waitForPendingAttachmentMutations()
-      const flushed = await ctx.sessionActions.savePendingSessionEdits()
-      sessionSaved = flushed && sessionSaved
-      await Promise.all([
-        ctx.sessionActions.waitForPendingSessionWrites(),
-        ctx.recordActions.waitForPendingRecordWrites(),
-        ctx.attachmentActions.waitForPendingAttachmentMutations(),
-      ])
-      const titleWriteVersion = ctx.sessionWorkspace.sessionTitleWriteVersionRef.current
-      const noteWriteVersion = ctx.sessionWorkspace.noteBodyWriteVersionRef.current
-      const sessionCompensated = await ctx.sessionActions.retryAllPendingSessionCompensations()
-      const recordsCompensated = await ctx.recordActions.retryAllPendingRecordCompensations()
-      const attachmentsCleaned = await ctx.attachmentActions.retryPendingAttachmentCleanup()
-      if (!sessionCompensated || !recordsCompensated || !attachmentsCleaned) return false
-      if (!flushed) return false
-      await Promise.all([
-        ctx.sessionActions.waitForPendingSessionWrites(),
-        ctx.recordActions.waitForPendingRecordWrites(),
-        ctx.attachmentActions.waitForPendingAttachmentMutations(),
-      ])
-      const sessionRefsDirty = Boolean(
-        ctx.sessionWorkspace.activeSessionIdRef.current
-        && (
-          ctx.sessionWorkspace.sessionTitleRef.current !== ctx.sessionWorkspace.savedTitleRef.current
-          || (
-            ctx.sessionWorkspace.noteEntryIdRef.current
-            && serializeRichEditorDocument(ctx.sessionWorkspace.noteBodyRef.current) !== ctx.sessionWorkspace.savedBodyRef.current
-          )
-        ),
-      )
-      if (
-        titleWriteVersion === ctx.sessionWorkspace.sessionTitleWriteVersionRef.current
-        && noteWriteVersion === ctx.sessionWorkspace.noteBodyWriteVersionRef.current
-        && !sessionRefsDirty
-        && !ctx.attachmentActions.hasPendingAttachmentOperations()
-        && !ctx.sessionActions.hasPendingSessionEdits()
-        && !hasPendingCompensations()
-      ) break
-    }
-    const settingsSaved = !ctx.settingsDirty || await ctx.saveSettingsDraft()
-    return sessionSaved && settingsSaved && await ctx.chat.flush()
-  }
-
-  function hasPendingCompensations() {
-    return ctx.sessionActions.hasPendingSessionCompensations()
-      || ctx.recordActions.hasPendingRecordCompensations()
-      || ctx.attachmentActions.hasPendingAttachmentMutations()
-  }
 
   return {
     ...sessionNavigationActions,
@@ -242,12 +183,10 @@ export function useAppControllerNavigation(ctx: AppControllerNavigationContext) 
     cancelPendingNavigation,
     closeSettings,
     discardPendingNavigationChanges,
-    hasPendingCompensations,
     openSettingsSection,
     requestActiveView,
     requestNewSession,
     requestOpenSession,
-    saveAllPendingChanges,
     savePendingNavigationChanges,
   }
 }

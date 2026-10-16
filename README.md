@@ -101,11 +101,13 @@ Run the non-GUI smoke harness:
 bun run smoke
 ```
 
-Run the built desktop application against deterministic end-to-end workflows:
+Run the built desktop application against deterministic end-to-end workflows. On Linux, the native-close workflow requires an isolated X11 display:
 
 ```bash
-bun run e2e
+GDK_BACKEND=x11 xvfb-run -a bun run e2e
 ```
+
+On macOS and Windows, run `bun run e2e`.
 
 Run the reproducible large-data startup measurement (five launches by default):
 

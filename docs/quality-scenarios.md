@@ -28,13 +28,15 @@ Measure:
 - No test requires a real provider account, network access, model response, or usage cost.
 - Test-only Tauri plugins and permissions are absent from production bundles.
 
-Validation:
+Linux validation:
 
 ```bash
-bun run e2e
+GDK_BACKEND=x11 xvfb-run -a bun run e2e
 ```
 
-The command builds the opt-in E2E frontend into its temporary root, points the E2E Tauri config at that isolated output, writes run metadata and failure evidence under `artifacts/e2e/`, and removes its temporary application data. It never replaces `frontend/dist`. Run `bun run e2e:isolation` after a production frontend build to prove the WDIO guest, permissions, and plugins are absent from production.
+On macOS and Windows, use `bun run e2e`.
+
+Linux requires the isolated Xvfb display for the native close workflow. The command builds the opt-in E2E frontend into its temporary root, points the E2E Tauri config at that isolated output, writes run metadata and failure evidence under `artifacts/e2e/`, and removes its temporary application data. It never replaces `frontend/dist`. Run `bun run e2e:isolation` after a production frontend build to prove the WDIO guest, permissions, and plugins are absent from production.
 
 ## Maintainability
 

@@ -8,6 +8,7 @@ import {
   type RichEditorDocument,
 } from '../editor/editorDocument'
 import { formatError } from '../ui/format'
+import { createSessionSettlement } from './sessionActions.settlement'
 import type { SessionActionsContext } from './sessionActions'
 
 const noteBodyMaxLength = 100_000
@@ -433,6 +434,7 @@ export function createSessionWriteActions(ctx: SessionActionsContext) {
   }
 
   return {
+    settlement: createSessionSettlement(ctx, hasPendingSessionCompensations),
     chatRecoveryBlocksNoteSave,
     adoptCanonicalNoteBody,
     beginSessionNavigation,

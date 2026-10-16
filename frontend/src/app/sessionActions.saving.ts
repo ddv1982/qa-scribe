@@ -10,38 +10,26 @@ import type { SessionActionsContext } from './sessionActions'
 import type { SessionWriteActions } from './sessionActions.writes'
 
 export function createSessionSaveActions(ctx: SessionActionsContext, writes: SessionWriteActions) {
-  const pendingImportedAttachmentIds = new Map<string, Set<string>>()
-
   function rememberImportedAttachments(entryId: string, attachmentIds: string[]) {
-    if (attachmentIds.length === 0) return
-    const pending = pendingImportedAttachmentIds.get(entryId) ?? new Set<string>()
-    for (const id of attachmentIds) pending.add(id)
-    pendingImportedAttachmentIds.set(entryId, pending)
-  }
-
-  function registerImportedNoteAttachment(entryId: string, attachmentId: string) {
-    rememberImportedAttachments(entryId, [attachmentId])
+    ctx.importedAttachments.remember({ kind: 'note', id: entryId }, attachmentIds)
   }
 
   function clearPendingImportedAttachments(entryId: string) {
-    pendingImportedAttachmentIds.delete(entryId)
+    ctx.importedAttachments.clear({ kind: 'note', id: entryId })
   }
 
   function markReferencedAttachmentsSaved(entryId: string, body: RichEditorDocument) {
-    const pending = pendingImportedAttachmentIds.get(entryId)
-    if (!pending) return
-    for (const image of managedAttachmentImagesInDocument(body)) pending.delete(image.attachmentId)
-    if (pending.size === 0) pendingImportedAttachmentIds.delete(entryId)
+    ctx.importedAttachments.forget({ kind: 'note', id: entryId }, managedAttachmentImagesInDocument(body).map((image) => image.attachmentId))
   }
 
   async function cleanupPendingAttachmentsNotIn(entryId: string, body: RichEditorDocument): Promise<boolean> {
-    const pending = pendingImportedAttachmentIds.get(entryId)
-    if (!pending?.size) return true
+    const owner = { kind: 'note' as const, id: entryId }
+    const pending = ctx.importedAttachments.pending(owner)
+    if (pending.length === 0) return true
     const retained = new Set(managedAttachmentImagesInDocument(body).map((image) => image.attachmentId))
-    const stale = Array.from(pending).filter((id) => !retained.has(id))
+    const stale = pending.filter((id) => !retained.has(id))
     if (!await ctx.cleanupMaterializedAttachments(stale)) return false
-    for (const id of stale) pending.delete(id)
-    if (pending.size === 0) pendingImportedAttachmentIds.delete(entryId)
+    ctx.importedAttachments.forget(owner, stale)
     return true
   }
 
@@ -73,16 +61,7 @@ export function createSessionSaveActions(ctx: SessionActionsContext, writes: Ses
   }
 
   function hasPendingSessionEdits(): boolean {
-    const titleDirty = Boolean(
-      ctx.session.activeSession
-      && ctx.session.sessionTitleRef.current !== ctx.session.savedTitleRef.current,
-    )
-    const bodyDirty = Boolean(
-      ctx.session.noteEntry
-      && serializeRichEditorDocument(ctx.session.noteBodyRef.current) !== ctx.session.savedBodyRef.current,
-    )
-    return titleDirty
-      || bodyDirty
+    return writes.settlement.snapshot().pending
       || ctx.records.dirtyDraftIdsRef.current.size > 0
       || ctx.records.dirtyFindingIdsRef.current.size > 0
   }
@@ -261,7 +240,6 @@ export function createSessionSaveActions(ctx: SessionActionsContext, writes: Ses
     clearPendingImportedAttachments,
     discardPendingSessionEdits,
     hasPendingSessionEdits,
-    registerImportedNoteAttachment,
     saveNoteNow,
     savePendingSessionEdits,
   }
