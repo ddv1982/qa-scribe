@@ -2,7 +2,7 @@ import '@testing-library/jest-dom/vitest'
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import type { ComponentProps } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { ChatMessage, ChatState, ChatTurnStatus, GenerationJobStatus } from '../bindings'
+import type { AiProvider, ReportedModel, ChatMessage, ChatState, ChatTurnStatus, GenerationJobStatus } from '../bindings'
 import { SessionChatView } from './SessionChatView'
 
 type Props = ComponentProps<typeof SessionChatView>
@@ -302,16 +302,24 @@ describe('SessionChatView', () => {
   })
 })
 
-it('uses saved run provenance for historical responses after the next model changes', () => {
+const reportCases: { provider: AiProvider; providerLabel: string; report: ReportedModel; label: string }[] = [
+  { provider: 'claude_code', providerLabel: 'Claude Code', report: { source: 'claudeInitialization', id: 'reported-model' }, label: 'Initialization metadata' },
+  { provider: 'claude_code', providerLabel: 'Claude Code', report: { source: 'claudeAssistantMessage', id: 'reported-model' }, label: 'Response metadata' },
+  { provider: 'codex_cli', providerLabel: 'Codex', report: { source: 'codexThreadConfiguration', id: 'reported-model' }, label: 'Thread configuration' },
+]
+
+it.each(reportCases)('preserves saved $label provenance after the next preference changes', ({ provider, providerLabel, report, label }) => {
   const history = chat([{ ...message('assistant', 'Saved answer'), aiRunId: 'prior-run' }])
   history.aiRuns = [{ id: 'prior-run', sessionId: 'session-1', generationContextId: null,
-    provider: 'claude_code', modelSelection: { kind: 'recorded', requested: { kind: 'explicit', id: 'sonnet-alias' },
-      reported: { source: 'claudeAssistantMessage', id: 'reported-claude-model' } }, reasoningEffort: null,
+    provider, modelSelection: { kind: 'recorded', requested: { kind: 'explicit', id: 'saved-alias' }, reported: report }, reasoningEffort: null,
     promptVersion: 'chat-v1', status: 'completed', errorMessage: null, createdAt: 'old', completedAt: 'old' }]
   const { props, rerender } = mount({ chat: history, providerLabel: 'Codex', modelLabel: 'next-codex' })
-  expect(screen.getByText(/Claude Code · Requested · sonnet-alias/)).toHaveTextContent('CLI report · reported-claude-model · Response metadata')
+  const evidence = screen.getByText(new RegExp(`${providerLabel} · Requested · saved-alias`))
+  expect(evidence).toHaveTextContent(`${providerLabel} · Requested · saved-alias`)
+  expect(evidence).toHaveTextContent(`CLI report · reported-model · ${label}`)
   rerender(<SessionChatView {...props} providerLabel="GitHub Copilot" modelLabel="auto" />)
-  expect(screen.getByText(/Claude Code · Requested · sonnet-alias/)).toHaveTextContent('reported-claude-model')
+  const retainedEvidence = screen.getByText(new RegExp(`${providerLabel} · Requested · saved-alias`))
+  expect(retainedEvidence).toHaveTextContent(`CLI report · reported-model · ${label}`)
   expect(screen.getByText('Next invocation · GitHub Copilot · auto')).toBeInTheDocument()
 })
 

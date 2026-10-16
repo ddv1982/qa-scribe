@@ -1,4 +1,10 @@
-import type { AiRun } from '../tauri'
+import type { AiRun, ReportedModel } from '../tauri'
+
+const reportSourceLabels: Record<ReportedModel['source'], string> = {
+  claudeInitialization: 'Initialization metadata',
+  claudeAssistantMessage: 'Response metadata',
+  codexThreadConfiguration: 'Thread configuration',
+}
 
 const providers = { claude_code: 'Claude Code', codex_cli: 'Codex', copilot_cli: 'GitHub Copilot' }
 
@@ -10,6 +16,6 @@ export function RunModelEvidence({ run }: { run: AiRun | undefined }) {
     : selection.requested.kind === 'copilotAutomatic' ? 'Copilot Automatic' : selection.requested.id
   const report = selection.reported
   return <p className="chat-model-evidence">{providers[run.provider]} · Requested · {requested}<br />
-    {report ? `CLI report · ${report.id} · ${report.source === 'claudeAssistantMessage' ? 'Response metadata' : 'CLI configuration'}` : 'CLI report · Unknown'}
+    {report ? `CLI report · ${report.id} · ${reportSourceLabels[report.source]}` : 'CLI report · Unknown'}
   </p>
 }

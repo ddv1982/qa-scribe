@@ -201,6 +201,16 @@ Raw samples, machine load, executable hashes and the comparison script are under
 The measured source commit is retained as `5a2b4a00ee124ecc37e3a0c50c508ac12b73b480`.
 An exact-commit independent native shipping review remains before landing.
 
+## M03 provenance-label review correction
+
+Independent shipping review passed at `64d4786994f13b13c0f3785ccc3771daf9f8e850` with ten candidate scenarios, an actual restart, ten baseline scenarios and popup bounds at both requested sizes.
+A subsequent PR49 finding identified that Claude initialization and Codex thread configuration shared one broad display label.
+The correction labels the three typed sources separately as Initialization metadata, Response metadata and Thread configuration.
+It preserves unknown and legacy evidence and makes no serving-backend claim.
+Two source-label regressions failed before the correction. All 83 rendered history and permission tests then passed, including live historical DOM assertions after the next preference changes.
+The narrow independent source re-review passed. Receipts are under `/tmp/qa-models/M03/review-label-fix/`.
+The parent retains the earlier native and timing revisions and will verify a fresh executable for this display correction before landing.
+
 ## Forge and integration
 
 Origin is unavailable in this environment, so the parent uses GitHub CLI for host operations.
