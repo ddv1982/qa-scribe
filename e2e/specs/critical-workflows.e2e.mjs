@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { runChatToNoteWorkflow } from './chat-to-note.workflow.mjs'
 import { runChatDeletionWorkflow } from './chat-deletion.workflow.mjs'
 import { runTestwareStreamdownWorkflow } from './testware-streamdown.e2e.mjs'
+import { runGenerationPreflightLayoutWorkflow } from './generation-preflight-layout.e2e.mjs'
 
 const primaryTitle = 'E2E primary session'
 const secondaryTitle = 'E2E secondary session'
@@ -279,6 +280,9 @@ const workflows = {
   'generation-cancellation': {
     title: 'streams rich Testware safely across themes, saves and reopens edits, and cancels a held second generation',
     run: async () => {
+      await createSessionFixture('E2E generation preflight layout', 'Check generation options and execution details before starting Testware.')
+      await (await button('Generate test cases')).click()
+      await runGenerationPreflightLayoutWorkflow({ button })
       await runTestwareStreamdownWorkflow({ createSessionFixture, sessionTab, sessionOption, button,
         waitForFixtureFile, releaseFixtureInvocation })
     },
