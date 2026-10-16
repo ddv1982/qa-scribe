@@ -28,7 +28,7 @@ describe('Session Chat explicit canonical Note handoff', () => {
     const stored = richEditorDocumentToStoredBody(authored)
     act(() => {
       result.current.setNoteBody(authored)
-      result.current.setLatestNoteGenerationUndo({ entryId: 'entry-1', before: authored })
+      result.current.setLatestNoteGenerationUndo({ kind: 'undo', entryId: 'entry-1', before: authored })
     })
     const canonical = entryFixture(richEditorDocumentToStoredBody(
       richEditorDocumentFromPlainText('Authored tester context\nUser: Payment failed\nAssistant: Which build?'),

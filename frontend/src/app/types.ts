@@ -10,14 +10,16 @@ export type CopiedTarget =
   | { kind: 'draft'; id: string; action: CopiedTargetAction }
   | { kind: 'finding'; id: string; action: CopiedTargetAction }
 
-export type LatestNoteGenerationUndo = {
-  entryId: string
-  before: RichEditorDocument
-  pendingRecoveryDecision?: boolean
-  generated?: RichEditorDocument
-  generatedCanonical?: RichEditorDocument
-  pendingRecoveryChoice?: 'authored' | 'generated'
-}
+export type LatestNoteGenerationUndo =
+  | { kind: 'undo'; entryId: string; before: RichEditorDocument }
+  | {
+    kind: 'recovery-choice'
+    entryId: string
+    before: RichEditorDocument
+    generated: RichEditorDocument
+    generatedCanonical: RichEditorDocument
+    choice: 'unselected' | 'authored' | 'generated'
+  }
 
 export type RichRecordPatch = Partial<Pick<Draft, 'title' | 'body' | 'bodyJson' | 'bodyFormat'>>
 export type FindingRecordPatch = RichRecordPatch & Partial<Pick<Finding, 'kind' | 'metadataJson'>>

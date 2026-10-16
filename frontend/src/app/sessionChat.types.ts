@@ -2,6 +2,7 @@ import type { ChatMode, ChatPermissionDecision, ChatState, GenerationJobStatus, 
 import type { Dispatch, SetStateAction } from 'react'
 import type { AiSelection, GenerationWorkspace, SessionWorkspace, WorkflowFeedback } from './types'
 import type { useSessionActions } from './sessionActions'
+import type { NoteEligibility } from './noteEligibility'
 import type { ChatNoteRecovery } from './useChatNoteRecovery'
 
 export interface SessionChatViewState {
@@ -38,6 +39,7 @@ export const emptyChatSnapshot: ChatSnapshot = {
 
 export type SessionChatContext = {
   noteRecovery: ChatNoteRecovery
+  noteEligibility: NoteEligibility
   session: SessionWorkspace
   sessionActions: ReturnType<typeof useSessionActions>
   generation: GenerationWorkspace

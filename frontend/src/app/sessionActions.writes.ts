@@ -201,8 +201,8 @@ export function createSessionWriteActions(ctx: SessionActionsContext) {
 
   function selectRecoveredSummaryChoice(choice: 'authored' | 'generated') {
     const decision = ctx.latestNoteGenerationUndoRef.current
-    if (!decision?.pendingRecoveryDecision) return
-    const next = { ...decision, pendingRecoveryChoice: choice }
+    if (decision?.kind !== 'recovery-choice') return
+    const next = { ...decision, choice }
     ctx.latestNoteGenerationUndoRef.current = next
     ctx.generation.setLatestNoteGenerationUndo(next)
   }
@@ -320,24 +320,18 @@ export function createSessionWriteActions(ctx: SessionActionsContext) {
     return epoch === sessionNavigationEpoch
   }
 
-  function summaryRecoveryBlocksNoteSave(sessionId: string): boolean {
-    return ctx.summaryRecovery.discoveryPendingRef.current
-      || Array.from(ctx.summaryRecovery.unresolvedSummaryJobsRef.current.values()).includes(sessionId)
-  }
-
   function noteSaveIsBlocked(sessionId: string): boolean {
-    if (chatRecoveryBlocksNoteSave(sessionId)) return true
-    if (!summaryRecoveryBlocksNoteSave(sessionId)) return false
-    ctx.summaryRecovery.blockedSaveSessionIdsRef.current.add(sessionId)
+    if (ctx.noteEligibility.canWrite(sessionId, 'ambient')) return false
+    if (ctx.noteEligibility.canWrite(sessionId, 'recovery')) ctx.summaryRecovery.blockedSaveSessionIdsRef.current.add(sessionId)
     return true
   }
 
   function chatRecoveryBlocksNoteSave(sessionId: string): boolean {
-    return Boolean(ctx.noteRecovery?.has(sessionId) || ctx.noteRecovery?.isRetired(sessionId))
+    return !ctx.noteEligibility.canWrite(sessionId, 'recovery')
   }
 
   function recoveryDiscoveryAllowsNoteHydration(): boolean {
-    if (!ctx.summaryRecovery.discoveryPendingRef.current) return true
+    if (ctx.noteEligibility.canHydrate()) return true
     ctx.feedback.setError('Session recovery status is unavailable. Restart QA Scribe before opening an editable Note.')
     return false
   }
