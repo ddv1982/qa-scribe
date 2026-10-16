@@ -14,10 +14,12 @@ type AppSettlementContext = {
   dirtyFindingIdsRef: MutableRefObject<Set<string>>
   settingsDirty: boolean
   saveSettingsDraft: () => Promise<boolean>
+  captureSettingsCheckpoint: () => () => boolean
 }
 
 export function createAppSettlement(ctx: AppSettlementContext) {
   async function flush(): Promise<boolean> {
+    const settingsUnchanged = ctx.captureSettingsCheckpoint()
     if (!await ctx.chat.flush()) return false
     for (;;) {
       await ctx.attachmentActions.waitForPendingAttachmentMutations()
@@ -38,15 +40,16 @@ export function createAppSettlement(ctx: AppSettlementContext) {
         ctx.recordActions.waitForPendingRecordWrites(),
         ctx.attachmentActions.waitForPendingAttachmentMutations(),
       ])
-      if (
-        sessionUnchanged()
+      const sessionSettled = () => sessionUnchanged()
         && !ctx.attachmentActions.hasPendingAttachmentOperations()
         && !ctx.sessionActions.hasPendingSessionEdits()
         && !hasPendingCompensations()
-      ) break
+      if (!sessionSettled()) continue
+      if (ctx.settingsDirty && !await ctx.saveSettingsDraft()) return false
+      if (!await ctx.chat.flush()) return false
+      if (!settingsUnchanged()) return false
+      if (sessionSettled() && !ctx.chat.hasPendingChanges()) return true
     }
-    const settingsSaved = !ctx.settingsDirty || await ctx.saveSettingsDraft()
-    return settingsSaved && await ctx.chat.flush()
   }
 
   function hasPendingCompensations() {

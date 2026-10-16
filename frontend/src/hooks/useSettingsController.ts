@@ -182,6 +182,11 @@ export function useSettingsController({
     return Boolean(saved)
   }
 
+  function captureSettingsCheckpoint() {
+    const version = settingsDraftVersionRef.current
+    return () => version === settingsDraftVersionRef.current
+  }
+
   function updateSettingsDraft(patch: Partial<AppSettings>) {
     settingsDraftVersionRef.current += 1
     setSettingsSaveState('idle')
@@ -223,6 +228,7 @@ export function useSettingsController({
     settingsSaveState,
     theme,
     updateSettingsDraft,
+    captureSettingsCheckpoint,
   }
 }
 

@@ -97,6 +97,7 @@ export function useAppController() {
   }
   const {
     activeProvider,
+    captureSettingsCheckpoint,
     discoverProviderDefaults,
     discardSettingsDraft,
     effectiveAiSelection,
@@ -289,7 +290,7 @@ export function useAppController() {
   const copyActions = useCopyActions({ source: sessionWorkspace, feedback, copy: copyFeedback })
   const settlement = useAppSettlement({
     chat: chatProtection, sessionActions, recordActions, attachmentActions,
-    dirtyDraftIdsRef, dirtyFindingIdsRef, settingsDirty, saveSettingsDraft,
+    dirtyDraftIdsRef, dirtyFindingIdsRef, settingsDirty, saveSettingsDraft, captureSettingsCheckpoint,
   })
   const {
     applyNavigationRoute, cancelPendingNavigation, closeSettings, discardPendingNavigationChanges,
