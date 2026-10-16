@@ -306,6 +306,7 @@ export async function runChatToNoteWorkflow() {
   assertRichNote(edited, originalNodes, true, true)
 
   await click('Generate test cases')
+  await $('dialog').waitForDisplayed()
   const confirm = await (await $('dialog')).$('button=Generate test cases')
   await confirm.waitForClickable()
   await confirm.click()
