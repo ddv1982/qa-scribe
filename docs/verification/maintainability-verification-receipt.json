@@ -1,0 +1,88 @@
+{
+  "capturedAt": "2026-10-16T12:06:25.137063+00:00",
+  "productionCodeRevision": "2017ef647f965a2efe57ea484d4ce8e9fd6e9324",
+  "laterPatchScope": "test fixtures, runner registration, and documentation only",
+  "fullRepositoryGate": {
+    "command": "bun run verify",
+    "exitCode": 0,
+    "frontendTests": 545,
+    "rustTests": 538,
+    "existingAuthenticatedRustTestsIgnored": 3
+  },
+  "nativeGate": {
+    "command": "GDK_BACKEND=x11 QA_SCRIBE_E2E_SKIP_BUILD=1 xvfb-run -a bun run e2e",
+    "platform": "Linux X11",
+    "status": "passed",
+    "invocations": [
+      {
+        "id": "session-lifecycle",
+        "status": 0,
+        "signal": null
+      },
+      {
+        "id": "manual-testware",
+        "status": 0,
+        "signal": null
+      },
+      {
+        "id": "clipboard",
+        "status": 0,
+        "signal": null
+      },
+      {
+        "id": "generation-cancellation",
+        "status": 0,
+        "signal": null
+      },
+      {
+        "id": "summary-recovery",
+        "status": 0,
+        "signal": null
+      },
+      {
+        "id": "chat-to-note",
+        "status": 0,
+        "signal": null
+      },
+      {
+        "id": "chat-tool-authorization-codex",
+        "status": 0,
+        "signal": null
+      },
+      {
+        "id": "chat-tool-authorization-claude",
+        "status": 0,
+        "signal": null
+      },
+      {
+        "id": "chat-tool-authorization-copilot",
+        "status": 0,
+        "signal": null
+      },
+      {
+        "id": "native-close",
+        "status": 0,
+        "signal": null
+      }
+    ],
+    "isolatedDataRemoved": true
+  },
+  "startup": {
+    "samples": 3,
+    "runnerClass": "linux-x64-local",
+    "status": "observational; no speedup claim"
+  },
+  "releaseScriptTests": 155,
+  "productionIsolation": "passed",
+  "authenticatedProviderSmoke": "not run; optional under release process",
+  "publication": "all implementation PRs merged; v0.8.9 release PR and workflow pending",
+  "protectedImplementation": {
+    "main": "ef38240756d1a3620b2df3f0ddc368b49235a9b6",
+    "head": "00b346229e7e0d9284a250e753feca839114179c",
+    "ciRun": "https://github.com/ddv1982/qa-scribe/actions/runs/38937555507",
+    "nativeClose": "passed in hosted Linux quality job",
+    "productionMatches": "2017ef647f965a2efe57ea484d4ce8e9fd6e9324"
+  },
+  "capturedAtScope": "original local verification snapshot",
+  "updatedAt": "2026-10-16T17:35:38Z"
+}

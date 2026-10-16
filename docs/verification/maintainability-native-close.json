@@ -1,0 +1,5 @@
+{
+  "beforeBody": "<p>Saved baseline before native close.</p>",
+  "afterBody": "<p>Native close flushes this unsaved note.</p>",
+  "windowClosed": true
+}

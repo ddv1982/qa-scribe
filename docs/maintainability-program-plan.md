@@ -8,6 +8,8 @@ Deliver P01, then P02 and P03 for providers. Deliver P04 after baseline recovery
 The operator authorized implementation and a final release on 2026-10-16. Record actual phase and release receipts in `docs/verification/maintainability-execution.md`.
 Read the [investigation](investigations/2026-10-16-maintainability-and-t3code.md) for evidence and rejected alternatives.
 
+This is the original proposal. The [execution reconciliation](verification/maintainability-plan-reconciliation.md) records completed work, procedural substitutions, and the remaining release gates. Historical boxes are not claims of completion.
+
 ## How to read this
 
 One box is one unit of work. Every box names the evidence that checks it. Check a box only when its evidence exists, a file, a log line, a screenshot, a test run, or a SHA. A nested box is a sub-step of the box above it. The body is a how-to. The appendices explain and record.

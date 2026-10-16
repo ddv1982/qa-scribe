@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.8.9 - 2026-10-16
+
+- Preserve unsaved Notes and newer Settings edits during application close, and keep generation recovery observers attached to their owning session.
+- Give Claude Code, Codex CLI and Copilot CLI separate protocol state while preserving existing messages, permission decisions and diagnostics. Add shared transcript replay to guard those integrations.
+- Centralize record persistence and attachment ownership, make recovery choices explicit, and extend deterministic desktop coverage with a real Linux X11 close-request workflow.
+
 ## v0.8.8 - 2026-10-16
 
 - Align generated Testware with Chat's supported document typography across live previews, saved records, editing and Session reopen. Remove surplus first-heading space and keep checkboxes beside the first line of their labels.

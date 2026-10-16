@@ -1,0 +1,110 @@
+{
+  "baseline": {
+    "sha": "881cc7a",
+    "javascriptBytes": 1484564,
+    "javascriptGzipBytes": 453003,
+    "chunks": [
+      {
+        "name": "vendor-D3UuTcWh.js",
+        "bytes": 819898,
+        "gzipBytes": 259221
+      },
+      {
+        "name": "editor-BcF_0xQj.js",
+        "bytes": 403370,
+        "gzipBytes": 122624
+      },
+      {
+        "name": "index-BzaczXoO.js",
+        "bytes": 246504,
+        "gzipBytes": 65785
+      },
+      {
+        "name": "icons-txsHJR2R.js",
+        "bytes": 14792,
+        "gzipBytes": 5373
+      }
+    ]
+  },
+  "p04": {
+    "sha": "76280a9",
+    "javascriptBytes": 1485561,
+    "javascriptGzipBytes": 453339,
+    "chunks": [
+      {
+        "name": "vendor-D3UuTcWh.js",
+        "bytes": 819898,
+        "gzipBytes": 259221
+      },
+      {
+        "name": "editor-BcF_0xQj.js",
+        "bytes": 403370,
+        "gzipBytes": 122624
+      },
+      {
+        "name": "index-BXEOWq-s.js",
+        "bytes": 247501,
+        "gzipBytes": 66121
+      },
+      {
+        "name": "icons-txsHJR2R.js",
+        "bytes": 14792,
+        "gzipBytes": 5373
+      }
+    ]
+  },
+  "p05": {
+    "sha": "53d718e",
+    "javascriptBytes": 1485862,
+    "javascriptGzipBytes": 453478,
+    "chunks": [
+      {
+        "name": "editor-BcF_0xQj.js",
+        "bytes": 403370,
+        "gzipBytes": 122624
+      },
+      {
+        "name": "icons-txsHJR2R.js",
+        "bytes": 14792,
+        "gzipBytes": 5373
+      },
+      {
+        "name": "index-riMAr3Js.js",
+        "bytes": 247802,
+        "gzipBytes": 66260
+      },
+      {
+        "name": "vendor-D3UuTcWh.js",
+        "bytes": 819898,
+        "gzipBytes": 259221
+      }
+    ]
+  },
+  "final": {
+    "sha": "2017ef6",
+    "javascriptBytes": 1486056,
+    "javascriptGzipBytes": 453552,
+    "chunks": [
+      {
+        "name": "vendor-D3UuTcWh.js",
+        "bytes": 819898,
+        "gzipBytes": 259221
+      },
+      {
+        "name": "editor-BcF_0xQj.js",
+        "bytes": 403370,
+        "gzipBytes": 122624
+      },
+      {
+        "name": "index-DBpMpFED.js",
+        "bytes": 247996,
+        "gzipBytes": 66334
+      },
+      {
+        "name": "icons-txsHJR2R.js",
+        "bytes": 14792,
+        "gzipBytes": 5373
+      }
+    ]
+  }
+}
