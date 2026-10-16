@@ -40,7 +40,7 @@ Authenticated smokes remain separate from deterministic CI and do not alter cred
 | M01 | Merged PR47 | Exact independent verdict, protected CI and merge `64e2a8fe78df24bbfa923f06585101898ca36c33` |
 | M02 | Merged PR48 | Exact independent verdict, protected CI and merge `f0d3f4b314d3773abbd4481eb31487a025433fbe` |
 | M03 | Merged PR49 | Independent final verdict, protected CI run `38964642310`, merge `ddd4099d034012d2a3c42508d29f67b93a3eb806` |
-| M04 | Revised fixture verification in progress | PR50 production source `786a424`; prior independent head `cbb7b0a` passed. Hosted integration found fixture ordering; corrected patch needs fresh independent and protected checks |
+| M04 | Revised harness verification in progress | PR50 production source `786a424`; prior independent head `cbb7b0a` passed. Hosted integration found fixture ordering; corrected patch needs fresh independent and protected checks |
 | Release | Pending | Starts after verified implementation and protected CI |
 
 ## Decisions and limits
@@ -388,3 +388,20 @@ The production app executable and source remain unchanged by that fixture correc
 
 The earlier independent verdict and protected failures remain retained. A fresh independent verdict must describe the revised fixture patch before integration.
 The current source and visual evidence continues to distinguish the failed Copilot app attempt from the separate direct access-denial classifier.
+
+## Second hosted M04 integration failure
+
+Protected CI run `38970818207` passed the corrected model-evidence and restart scenarios.
+The unrelated maintained generation-cancellation scenario failed before theme selection, while its actual dirty-navigation guard remained open.
+The layout helper checked for that guard once immediately after clicking Settings and could miss its asynchronous appearance or click it before it became actionable.
+The correction waits for either the destination or visible save guard, waits for a clickable save action when needed, then confirms the Settings destination.
+This is a native harness synchronization defect, not a demonstrated application regression or an infrastructure retry.
+The original cloud screenshot and log remain under `/tmp/qa-models/M04/ci-failure-38970818207/`.
+A fresh focused native run, independent review and protected CI remain required for the corrected patch.
+
+The corrected focused generation-cancellation invocation passed without skipped tests.
+Its actual navigation trace recorded a save guard in light mode and direct Settings navigation in dark mode, both reaching the destination.
+The scenario also completed the generation, edit, reopen and cancellation checks.
+The passing receipt and verified runtime source-copy hashes are under `/tmp/qa-models/M04/ci-navigation-fix/green-focused/`.
+An old-helper local baseline passed, so the hosted asynchronous failure is not claimed as locally reproduced.
+The 180 required script tests, frontend checks, syntax, plan and file-size checks pass. The helper remains within the 500-line policy at 498 lines.

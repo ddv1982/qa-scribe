@@ -58,7 +58,7 @@ No goal, scheduled audit or credential/configuration workaround was created.
 - [ ] Keep research read-only. Keep the parent responsible for integration, commits, pushes, PR linking, and final verification.
 - [ ] Run independent design exploration before code crosses boundaries. Resolve contested choices before implementation.
 - [ ] Keep model changes global per provider for this first version, matching existing Settings behavior. Label that scope in the UI.
-- [ ] Stop M03 at merge-ready for operator review of screenshots and video. M01 and M04 also require review if they alter user-visible diagnostics or catalogs. Execution amendment: the parent interprets the later autonomous continuation as substituting independent visual and shipping review; no human review is claimed.
+- [ ] Stop M03 at merge-ready for operator review of screenshots and video. M01 and M04 also require review if they alter user-visible diagnostics or catalogs. Execution amendment. The parent interprets the later autonomous continuation as substituting independent visual and shipping review; no human review is claimed.
 
 ### PR mechanics, for every PR
 
@@ -141,7 +141,7 @@ No goal, scheduled audit or credential/configuration workaround was created.
 
 - [ ] Post the relevant positive screenshots under `/tmp/qa-models/M01/review/`.
 - [ ] Record a 30 to 60 second video of model selection or diagnostics. Save `/tmp/qa-models/M01/review/demo.mp4`.
-- [ ] Present screenshots and video to the operator. Stop at merge-ready until that interaction receives review. Execution amendment: independent visual and shipping review substitutes under the parent's recorded autonomy interpretation; this human-review box remains unfulfilled as written.
+- [ ] Present screenshots and video to the operator. Stop at merge-ready until that interaction receives review. Execution amendment. Independent visual and shipping review substitutes under the parent's recorded autonomy interpretation; this human-review box remains unfulfilled as written.
 
 **Merge.**
 
@@ -265,7 +265,7 @@ No goal, scheduled audit or credential/configuration workaround was created.
 
 - [ ] Post the relevant positive screenshots under `/tmp/qa-models/M03/review/`.
 - [ ] Record a 30 to 60 second video of model selection or diagnostics. Save `/tmp/qa-models/M03/review/demo.mp4`.
-- [ ] Present screenshots and video to the operator. Stop at merge-ready until that interaction receives review. Execution amendment: independent visual and shipping review substitutes under the parent's recorded autonomy interpretation; this human-review box remains unfulfilled as written.
+- [ ] Present screenshots and video to the operator. Stop at merge-ready until that interaction receives review. Execution amendment. Independent visual and shipping review substitutes under the parent's recorded autonomy interpretation; this human-review box remains unfulfilled as written.
 
 **Merge.**
 
@@ -328,7 +328,7 @@ No goal, scheduled audit or credential/configuration workaround was created.
 
 - [ ] Post the relevant positive screenshots under `/tmp/qa-models/M04/review/`.
 - [ ] Record a 30 to 60 second video of model selection or diagnostics. Save `/tmp/qa-models/M04/review/demo.mp4`.
-- [ ] Present screenshots and video to the operator. Stop at merge-ready until that interaction receives review. Execution amendment: independent visual and shipping review substitutes under the parent's recorded autonomy interpretation; this human-review box remains unfulfilled as written.
+- [ ] Present screenshots and video to the operator. Stop at merge-ready until that interaction receives review. Execution amendment. Independent visual and shipping review substitutes under the parent's recorded autonomy interpretation; this human-review box remains unfulfilled as written.
 
 **Merge.**
 
