@@ -89,3 +89,55 @@ fn chat_duplex_process_shared_replay_preserves_exact_frames_and_terminal_output(
         );
     }
 }
+
+#[cfg(unix)]
+#[test]
+fn chat_duplex_replay_cwd_alias_preserves_exact_frame_comparison() {
+    let reader = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("src/commands/ai/chat_duplex/replay.py");
+    let output = std::process::Command::new("python3")
+        .arg("-c")
+        .arg(r#"
+import importlib.util
+import json
+from pathlib import Path
+import sys
+import tempfile
+
+spec = importlib.util.spec_from_file_location('replay', sys.argv[1])
+replay = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(replay)
+with tempfile.TemporaryDirectory() as directory:
+    root = Path(directory)
+    physical = root / 'physical'
+    physical.mkdir()
+    alias = root / 'alias'
+    alias.symlink_to(physical, target_is_directory=True)
+    wrong = root / 'wrong'
+    wrong.mkdir()
+    for method in ['thread/start', 'session/new']:
+        expected = {'method': method, 'params': {'cwd': '$CWD', 'model': 'chosen'}}
+        actual = {'method': method, 'params': {'cwd': str(alias), 'model': 'chosen'}}
+        expanded = replay.expected_cwd_frame(expected, actual, str(physical))
+        assert expanded == actual, (expanded, actual)
+        assert expected['params']['cwd'] == '$CWD'
+        for changed in [
+            {'method': method, 'params': {'cwd': str(wrong), 'model': 'chosen'}},
+            {'method': method, 'params': {'cwd': str(alias), 'model': 'changed'}},
+        ]:
+            assert replay.expected_cwd_frame(expected, changed, str(physical)) != changed
+    literal = {'method': 'thread/start', 'params': {'cwd': str(physical)}}
+    actual = {'method': 'thread/start', 'params': {'cwd': str(alias)}}
+    assert replay.expected_cwd_frame(literal, actual, str(physical)) == literal
+    other = {'method': 'unrelated', 'params': {'cwd': '$CWD'}}
+    actual = {'method': 'unrelated', 'params': {'cwd': str(alias)}}
+    assert replay.expected_cwd_frame(other, actual, str(physical)) == other
+print(json.dumps({'aliases_verified': 2, 'negative_controls': 6}))
+"#)
+        .arg(reader)
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    let result: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(result, json!({"aliases_verified": 2, "negative_controls": 6}));
+}

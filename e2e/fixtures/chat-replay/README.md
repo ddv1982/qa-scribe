@@ -28,6 +28,10 @@ The [process test](../../../src-tauri/src/commands/ai/chat_duplex/tests/replay.r
 The readers replace only whole string values equal to `$APP_VERSION` or `$CWD`.
 `$APP_VERSION` becomes the workspace package version.
 `$CWD` becomes `/work` in core tests and the actual child working directory in process tests.
+The process reader accepts filesystem aliases only for `params.cwd` designated by `$CWD` in `thread/start` and `session/new` expectations.
+Both paths must exist as directories and identify the same filesystem entry.
+Literal paths, all other fields, and all other frames retain exact comparison.
+The process suite verifies a symlink alias and rejects a distinct existing directory and an unrelated field change.
 There is no general template language.
 
 ## Scenario inventory
