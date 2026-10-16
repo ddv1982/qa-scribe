@@ -22,34 +22,56 @@ function save(stage, value) {
   console.log(`checklist-layout ${JSON.stringify({ stage, ...value })}`)
 }
 
-async function select(selector, all = false) {
+async function select(selector) {
   await (await $(selector)).click()
-  await browser.execute((selector, all) => {
+  await browser.execute((selector) => {
     const editor = document.querySelector(selector)
-    editor.focus()
+    editor.focus({ preventScroll: true })
     const range = document.createRange()
     const paragraphs = [...editor.querySelectorAll('p')].filter((p) => p.textContent.trim())
     if (!paragraphs.length) throw new Error('Actual editor has no nonempty paragraph to select')
     // StarterKit appends an empty paragraph after lists. Never convert that trailing node.
     range.selectNodeContents(paragraphs[0])
-    if (all) {
-      const end = document.createRange()
-      end.selectNodeContents(paragraphs[paragraphs.length - 1])
-      range.setEnd(end.endContainer, end.endOffset)
-    } else range.collapse(false)
+    range.collapse(false)
     const selection = window.getSelection()
     selection.removeAllRanges()
     selection.addRange(range)
     document.dispatchEvent(new Event('selectionchange'))
-  }, selector, all)
+  }, selector)
 }
 
 async function format(selector, label) {
-  await select(selector, true)
-  const toolbar = await $('[role="toolbar"][aria-label="Formatting toolbar"]')
-  const toggle = await toolbar.$(`button[aria-label="${label}"]`)
+  const editorId = await (await $(selector)).getAttribute('id')
+  assert.ok(editorId, 'Formatting must target the actual editor identity')
+  const toggle = await $(`[role="toolbar"] button[aria-label="${label}"][aria-controls="${editorId}"]`)
+  await toggle.scrollIntoView()
   await toggle.waitForClickable()
-  await toggle.click()
+  // Keep selection and toolbar activation in one WebView command: the native
+  // driver's inter-command focus recovery can otherwise collapse long selections.
+  assert.ok(await browser.execute(async (selector, label, id) => {
+    const editor = document.querySelector(selector)
+    editor.focus({ preventScroll: true })
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+    // Wait for pending native focus/controlled-content updates before acting.
+    // Only selection setup is retried; the formatting command runs exactly once.
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      const paragraphs = [...editor.querySelectorAll('p')].filter((p) => p.textContent.trim())
+      const range = document.createRange()
+      range.setStart(paragraphs[0], 0)
+      range.setEnd(paragraphs.at(-1), paragraphs.at(-1).childNodes.length)
+      const selection = window.getSelection()
+      selection.removeAllRanges()
+      selection.addRange(range)
+      document.dispatchEvent(new Event('selectionchange'))
+      await new Promise((resolve) => setTimeout(resolve, 100))
+      if (selection.toString().includes(paragraphs[0].textContent)
+        && selection.toString().includes(paragraphs.at(-1).textContent)) {
+        document.querySelector(`[role="toolbar"] button[aria-label="${label}"][aria-controls="${id}"]`).click()
+        return true
+      }
+    }
+    return false
+  }, selector, label, editorId), 'Real DOM selection must cover both rows when the toolbar is activated')
 }
 
 async function buildChecklist(selector, context) {
@@ -76,15 +98,17 @@ async function buildChecklist(selector, context) {
   const paragraph = await styles()
   save(`${context}-ordinary-paragraph`, paragraph)
   assert.equal(paragraph.paragraphs.length, 2)
-  for (const p of paragraph.paragraphs) {
+  for (const [index, p] of paragraph.paragraphs.entries()) {
     assert.equal(p.marginTop, '0px')
-    assert.equal(p.marginBottom, paragraph.space3)
+    assert.equal(p.marginBottom, index === 1 ? '0px' : paragraph.space3,
+      'Only the document-final paragraph removes its trailing margin')
   }
   await format(selector, 'Bulleted list')
   await (await $(`${selector} ul:not([data-type="taskList"]) > li`)).waitForExist()
   const bullet = await styles()
   save(`${context}-ordinary-bullet`, bullet)
-  assert.deepEqual(bullet.paragraphs, paragraph.paragraphs, 'Bullet conversion must preserve ordinary paragraph styles')
+  assert.deepEqual(bullet.paragraphs, paragraph.paragraphs.map((p) => ({ ...p, marginBottom: paragraph.space3 })),
+    'Nested bullet paragraphs retain ordinary spacing; the outer list owns the document boundary')
   assert.equal(bullet.list.marginBottom, paragraph.space3)
   assert.equal(bullet.list.paddingLeft, paragraph.space6)
   await format(selector, 'Checklist')

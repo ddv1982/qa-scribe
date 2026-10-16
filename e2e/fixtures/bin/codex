@@ -101,7 +101,8 @@ if (args[0] === 'app-server') {
           + '<p>Deterministic generated case</p>'
           + '<ol start="7"><li>Seventh</li></ol><ul><li>Parent<ul><li>Nested</li></ul></li></ul>'
           + '<ul data-type="taskList"><li data-type="taskItem" data-checked="true"><label><input type="checkbox" checked="checked"><span></span></label><div><p>Verified</p></div></li>'
-          + '<li data-type="taskItem" data-checked="false"><label><input type="checkbox"><span></span></label><div><p>Pending</p></div></li></ul>'
+          + `<li data-type="taskItem" data-checked="false"><label><input type="checkbox"><span></span></label><div><p>Pending${escapeAttribute(streamConfig.wrappedTask || '')}</p></div></li></ul>`
+          + (streamConfig.safeLink ? `<p><a href="${escapeAttribute(streamConfig.safeLink)}">${escapeAttribute(streamConfig.safeLink)}</a></p>` : '')
           + `<img src="qa-scribe-attachment://${escapeAttribute(streamConfig.attachmentId)}" alt="Managed evidence">`
           + `<img src="${escapeAttribute(streamConfig.remoteUrl)}" alt="Remote evidence" onclick="window.__streamdownHostile=true">`
           + '<script>window.__streamdownHostile=true</script>'

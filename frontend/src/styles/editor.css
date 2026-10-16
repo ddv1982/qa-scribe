@@ -215,45 +215,6 @@
   cursor: default;
 }
 
-.rich-editor ul[data-type="taskList"] {
-  padding-left: 0;
-  list-style: none;
-}
-
-.rich-editor ul[data-type="taskList"] > li {
-  display: flex;
-  gap: var(--space-2);
-  align-items: flex-start;
-}
-
-.rich-editor ul[data-type="taskList"] > li > label {
-  display: inline-flex;
-  padding-top: 2px;
-}
-
-.rich-editor ul[data-type="taskList"] > li > label > input[type="checkbox"] {
-  width: auto;
-  height: auto;
-  padding: 0;
-}
-
-.rich-editor ul[data-type="taskList"] > li > div {
-  flex: 1;
-  min-width: 0;
-}
-
-.rich-editor ul[data-type="taskList"] > li p {
-  margin-bottom: var(--space-2);
-}
-
-.rich-editor img {
-  max-width: 100%;
-  height: auto;
-  margin: var(--space-3) 0;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-}
-
 .editor-footer {
   display: flex;
   align-items: center;
