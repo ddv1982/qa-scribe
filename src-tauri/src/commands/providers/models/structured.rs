@@ -433,6 +433,20 @@ mod tests {
     }
 
     #[test]
+    fn claude_allowlist_can_remove_all_rows_when_cli_omits_default() {
+        let models = parse_claude_structured_models(&[
+            json!({"value": "sonnet"}),
+            json!({"value": "claude-opus-4-6"}),
+        ]);
+        for allowed in [HashSet::new(), ["haiku".to_string()].into_iter().collect()] {
+            assert_eq!(
+                filter_claude_models(models.clone(), Some(allowed)),
+                Vec::new()
+            );
+        }
+    }
+
+    #[test]
     fn claude_specific_version_disables_a_same_family_wildcard() {
         let models = parse_claude_structured_models(&[
             json!({"value": "sonnet"}),
