@@ -221,7 +221,8 @@ fn execute_chat_duplex(
                             }
                             approve_all |= decision == ChatPermissionDecision::ApproveAll;
                             let reply = protocol
-                                .permission_reply(decision != ChatPermissionDecision::Deny)?;
+                                .permission_reply(decision != ChatPermissionDecision::Deny)
+                                .map_err(|error| error.to_string())?;
                             peer.send(&reply, limits.line_bytes)?;
                             pending = None;
                             on_status(
@@ -272,7 +273,7 @@ fn execute_chat_duplex(
             frames_since_service += 1;
             let frame: serde_json::Value = serde_json::from_slice(&frame)
                 .map_err(|error| format!("Invalid provider protocol JSON: {error}"))?;
-            for event in protocol.handle(&frame)? {
+            for event in protocol.handle(&frame).map_err(|error| error.to_string())? {
                 match event {
                     ChatProtocolEvent::Send(message) => peer.send(&message, limits.line_bytes)?,
                     ChatProtocolEvent::Update(update) => on_update(update),
@@ -293,7 +294,10 @@ fn execute_chat_duplex(
                                 "Provider completed with an unresolved permission request".into()
                             );
                         }
-                        return protocol.finish().map(Some);
+                        return protocol
+                            .finish()
+                            .map(Some)
+                            .map_err(|error| error.to_string());
                     }
                 }
             }

@@ -41,18 +41,20 @@ impl CodexProtocol {
         &mut self,
         output: &mut TurnData,
         event: &Value,
-    ) -> Result<Vec<ChatProtocolEvent>, String> {
+    ) -> Result<Vec<ChatProtocolEvent>, ProtocolError> {
         if let Some(method) = event["method"].as_str() {
             let params = &event["params"];
             if event.get("id").is_some() {
                 if method != "mcpServer/elicitation/request" {
-                    return Err(format!(
+                    return Err(ProtocolError::UnsupportedRequest(format!(
                         "Unsupported Codex permission/server request: {method}"
-                    ));
+                    )));
                 }
                 self.codex_scope(params)?;
                 if self.turn().is_none() {
-                    return Err("Codex permission outside active turn".into());
+                    return Err(ProtocolError::InvalidFrame(
+                        "Codex permission outside active turn".into(),
+                    ));
                 }
                 // Installed 0.162.1 flattens the form into params. Preserve
                 // the nested request seam with identical validation for both.
@@ -91,7 +93,7 @@ impl CodexProtocol {
                     || !additional_valid
                     || !descriptions_valid
                 {
-                    return Err("Unsupported Codex permission elicitation form/schema; only native empty MCP tool approval is supported".into());
+                    return Err(ProtocolError::UnsupportedRequest("Unsupported Codex permission elicitation form/schema; only native empty MCP tool approval is supported".into()));
                 }
                 let title = required(request, "message")?.to_owned();
                 let server = required(params, "serverName")?.to_owned();
@@ -120,21 +122,26 @@ impl CodexProtocol {
                     "mcpServer/elicitation/request"
                     | "item/tool/requestUserInput"
                     | "item/commandExecution/requestApproval"
-                    | "item/fileChange/requestApproval" => Err(format!(
-                        "Unsupported or malformed Codex permission request: {method}"
+                    | "item/fileChange/requestApproval" => Err(ProtocolError::UnsupportedRequest(
+                        format!("Unsupported or malformed Codex permission request: {method}"),
                     )),
                     "item/agentMessage/delta" => {
                         self.codex_scope(params)?;
                         if self.turn().is_none() {
-                            return Err("Codex assistant text outside turn".into());
+                            return Err(ProtocolError::InvalidFrame(
+                                "Codex assistant text outside turn".into(),
+                            ));
                         }
-                        Ok(output
-                            .delta(params["delta"].as_str().ok_or("Invalid Codex text delta")?))
+                        Ok(output.delta(params["delta"].as_str().ok_or(
+                            ProtocolError::InvalidFrame("Invalid Codex text delta".into()),
+                        )?))
                     }
                     "item/completed" => {
                         self.codex_scope(params)?;
                         if self.turn().is_none() {
-                            return Err("Codex item outside active turn".into());
+                            return Err(ProtocolError::InvalidFrame(
+                                "Codex item outside active turn".into(),
+                            ));
                         }
                         let item = &params["item"];
                         if item["type"] == "agentMessage" {
@@ -147,12 +154,16 @@ impl CodexProtocol {
                         self.codex_scope(params)?;
                         let turn = &params["turn"];
                         if self.turn() != turn["id"].as_str() || self.turn().is_none() {
-                            return Err("Codex terminal turn ID mismatch".into());
+                            return Err(ProtocolError::InvalidFrame(
+                                "Codex terminal turn ID mismatch".into(),
+                            ));
                         }
                         if turn["status"] != "completed"
                             || turn.get("error").is_some_and(|e| !e.is_null())
                         {
-                            return Err(format!("Codex turn failed/cancelled: {turn}"));
+                            return Err(ProtocolError::ProviderFailure(format!(
+                                "Codex turn failed/cancelled: {turn}"
+                            )));
                         }
                         output.terminal()
                     }
@@ -163,13 +174,15 @@ impl CodexProtocol {
                             Phase::StartingTurn { .. } | Phase::ActiveTurn { .. }
                         ) || params["turn"]["status"] != "inProgress"
                         {
-                            return Err(
-                                "Codex turn/started outside handshake or invalid status".into()
-                            );
+                            return Err(ProtocolError::InvalidFrame(
+                                "Codex turn/started outside handshake or invalid status".into(),
+                            ));
                         }
                         let id = required(&params["turn"], "id")?;
                         if self.turn().is_some_and(|active| active != id) {
-                            return Err("Codex turn ID mismatch".into());
+                            return Err(ProtocolError::InvalidFrame(
+                                "Codex turn ID mismatch".into(),
+                            ));
                         }
                         if let Phase::StartingTurn { announced_turn, .. } = &mut self.phase {
                             *announced_turn = Some(id.into());
@@ -183,37 +196,50 @@ impl CodexProtocol {
                         {
                             *announced_thread = Some(id.into());
                         } else if self.thread() != Some(id) {
-                            return Err("Codex thread/started mismatch".into());
+                            return Err(ProtocolError::InvalidFrame(
+                                "Codex thread/started mismatch".into(),
+                            ));
                         }
                         Ok(vec![])
                     }
-                    "error" => Err(format!("Codex protocol error: {params}")),
+                    "error" => Err(ProtocolError::ProviderFailure(format!(
+                        "Codex protocol error: {params}"
+                    ))),
                     "serverRequest/resolved" => {
                         self.codex_scope(params)?;
                         let id = &params["requestId"];
                         if output.pending.iter().any(|pending| pending.id == *id) {
-                            return Err(
-                                "Codex pending permission resolved/cancelled by provider".into()
-                            );
+                            return Err(ProtocolError::ProviderFailure(
+                                "Codex pending permission resolved/cancelled by provider".into(),
+                            ));
                         }
                         if !output.seen.contains(id) {
-                            return Err("Unknown Codex permission resolution ID".into());
+                            return Err(ProtocolError::InvalidFrame(
+                                "Unknown Codex permission resolution ID".into(),
+                            ));
                         }
                         Ok(vec![])
                     }
                     "mcpServer/elicitation/completed" | "mcpServer/elicitation/cancelled"
                         if !output.pending.is_empty() =>
                     {
-                        Err("Codex pending permission resolved/cancelled by provider".into())
+                        Err(ProtocolError::ProviderFailure(
+                            "Codex pending permission resolved/cancelled by provider".into(),
+                        ))
                     }
                     _ => Ok(vec![]),
                 }
             }
         } else if event.get("id").is_some() {
             if event.get("error").is_some() {
-                return Err(format!("Codex request failed: {}", event["error"]));
+                return Err(ProtocolError::ProviderFailure(format!(
+                    "Codex request failed: {}",
+                    event["error"]
+                )));
             }
-            let result = event.get("result").ok_or("Codex response missing result")?;
+            let result = event.get("result").ok_or_else(|| {
+                ProtocolError::InvalidFrame("Codex response missing result".into())
+            })?;
             match (&self.phase, event["id"].as_str()) {
                 (Phase::Initializing, Some("qa-scribe-init")) => {
                     self.phase = Phase::StartingThread {
@@ -233,7 +259,9 @@ impl CodexProtocol {
                 (Phase::StartingThread { .. }, Some("qa-scribe-thread")) => {
                     let id = required(&result["thread"], "id")?;
                     if self.thread().is_some_and(|active| active != id) {
-                        return Err("Codex thread response ID mismatch".into());
+                        return Err(ProtocolError::InvalidFrame(
+                            "Codex thread response ID mismatch".into(),
+                        ));
                     }
                     output.reported = result["model"].as_str().map(str::to_owned);
                     self.phase = Phase::StartingTurn {
@@ -255,11 +283,15 @@ impl CodexProtocol {
                 (Phase::StartingTurn { thread, .. }, Some("qa-scribe-turn")) => {
                     let turn = &result["turn"];
                     if turn["status"] != "inProgress" {
-                        return Err(format!("Codex turn/start failed: {turn}"));
+                        return Err(ProtocolError::ProviderFailure(format!(
+                            "Codex turn/start failed: {turn}"
+                        )));
                     }
                     let id = required(turn, "id")?;
                     if self.turn().is_some_and(|active| active != id) {
-                        return Err("Codex turn response ID mismatch".into());
+                        return Err(ProtocolError::InvalidFrame(
+                            "Codex turn response ID mismatch".into(),
+                        ));
                     }
                     self.phase = Phase::ActiveTurn {
                         thread: thread.clone(),
@@ -267,10 +299,14 @@ impl CodexProtocol {
                     };
                     Ok(vec![])
                 }
-                _ => Err("Unexpected Codex response or pending permission resolution".into()),
+                _ => Err(ProtocolError::InvalidFrame(
+                    "Unexpected Codex response or pending permission resolution".into(),
+                )),
             }
         } else {
-            Err("Invalid Codex protocol message".into())
+            Err(ProtocolError::InvalidFrame(
+                "Invalid Codex protocol message".into(),
+            ))
         }
     }
 
@@ -290,16 +326,20 @@ impl CodexProtocol {
         }
     }
 
-    fn codex_scope(&self, params: &Value) -> Result<(), String> {
+    fn codex_scope(&self, params: &Value) -> Result<(), ProtocolError> {
         if self.thread() != params["threadId"].as_str() || self.thread().is_none() {
-            return Err("Protocol threadId does not match active session/thread".into());
+            return Err(ProtocolError::InvalidFrame(
+                "Protocol threadId does not match active session/thread".into(),
+            ));
         }
         // MCP elicitation turnId is nullable by protocol. Thread correlation
         // and an active local turn remain mandatory for permission requests.
         if let Some(id) = params.get("turnId").filter(|id| !id.is_null())
             && (self.turn() != id.as_str() || self.turn().is_none())
         {
-            return Err("Codex notification turnId mismatch".into());
+            return Err(ProtocolError::InvalidFrame(
+                "Codex notification turnId mismatch".into(),
+            ));
         }
         Ok(())
     }

@@ -50,7 +50,7 @@ impl CopilotProtocol {
         &mut self,
         output: &mut TurnData,
         event: &Value,
-    ) -> Result<Vec<ChatProtocolEvent>, String> {
+    ) -> Result<Vec<ChatProtocolEvent>, ProtocolError> {
         if let Some(method) = event["method"].as_str() {
             let params = &event["params"];
             // ACP can publish command metadata while session/new is pending.
@@ -63,28 +63,36 @@ impl CopilotProtocol {
             {
                 required(params, "sessionId")?;
                 if !params["update"]["availableCommands"].is_array() {
-                    return Err("Malformed Copilot available commands metadata".into());
+                    return Err(ProtocolError::InvalidFrame(
+                        "Malformed Copilot available commands metadata".into(),
+                    ));
                 }
                 return Ok(vec![]);
             }
             if method.starts_with("session/")
                 && (self.session() != params["sessionId"].as_str() || self.session().is_none())
             {
-                return Err("Protocol sessionId does not match active session/thread".into());
+                return Err(ProtocolError::InvalidFrame(
+                    "Protocol sessionId does not match active session/thread".into(),
+                ));
             }
             match method {
                 "session/request_permission" => {
                     let Phase::Prompting { calls, .. } = &mut self.phase else {
-                        return Err("Copilot permission outside active prompt".into());
+                        return Err(ProtocolError::InvalidFrame(
+                            "Copilot permission outside active prompt".into(),
+                        ));
                     };
                     let call = &params["toolCall"];
                     let metadata = tool_metadata(calls, call)?;
-                    let title = metadata
-                        .title
-                        .ok_or("Copilot permission has no established tool title")?;
-                    let options = params["options"]
-                        .as_array()
-                        .ok_or("Malformed Copilot permission options")?;
+                    let title = metadata.title.ok_or_else(|| {
+                        ProtocolError::InvalidFrame(
+                            "Copilot permission has no established tool title".into(),
+                        )
+                    })?;
+                    let options = params["options"].as_array().ok_or_else(|| {
+                        ProtocolError::InvalidFrame("Malformed Copilot permission options".into())
+                    })?;
                     let mut allow = None;
                     let mut deny = None;
                     let mut ids = Vec::new();
@@ -92,7 +100,9 @@ impl CopilotProtocol {
                         let id = required(option, "optionId")?;
                         required(option, "name")?;
                         if ids.contains(&id) {
-                            return Err("Duplicate Copilot permission option ID".into());
+                            return Err(ProtocolError::InvalidFrame(
+                                "Duplicate Copilot permission option ID".into(),
+                            ));
                         }
                         ids.push(id);
                         let reply = json!({"jsonrpc":"2.0","id":event["id"],"result":{
@@ -102,15 +112,17 @@ impl CopilotProtocol {
                             "reject_once" if deny.is_none() => deny = Some(reply),
                             "allow_always" | "reject_always" => {}
                             _ => {
-                                return Err(
+                                return Err(ProtocolError::UnsupportedRequest(
                                     "Unsupported or ambiguous Copilot permission option kind"
                                         .into(),
-                                );
+                                ));
                             }
                         }
                     }
                     if allow.is_none() && deny.is_none() {
-                        return Err("Copilot permission offers no once-only decision".into());
+                        return Err(ProtocolError::UnsupportedRequest(
+                            "Copilot permission offers no once-only decision".into(),
+                        ));
                     }
                     let can_approve = allow.is_some();
                     let deny = Some(deny.unwrap_or_else(|| {
@@ -133,23 +145,29 @@ impl CopilotProtocol {
                 "session/cancel"
                 | "$/cancel_request"
                 | "$/cancelRequest"
-                | "notifications/cancelled" => Err("Copilot prompt/permission cancelled".into()),
+                | "notifications/cancelled" => Err(ProtocolError::ProviderFailure(
+                    "Copilot prompt/permission cancelled".into(),
+                )),
                 "session/update" => {
                     if event.get("id").is_some() {
-                        return Err("Unexpected Copilot server request: session/update".into());
+                        return Err(ProtocolError::InvalidFrame(
+                            "Unexpected Copilot server request: session/update".into(),
+                        ));
                     }
                     let Phase::Prompting { calls, .. } = &mut self.phase else {
-                        return Err("Copilot update outside active prompt".into());
+                        return Err(ProtocolError::InvalidFrame(
+                            "Copilot update outside active prompt".into(),
+                        ));
                     };
                     let update = &params["update"];
                     match required(update, "sessionUpdate")? {
                         "agent_message_chunk" => {
                             if update["content"]["type"] == "text" {
-                                Ok(output.delta(
-                                    update["content"]["text"]
-                                        .as_str()
-                                        .ok_or("Invalid Copilot text delta")?,
-                                ))
+                                Ok(output.delta(update["content"]["text"].as_str().ok_or(
+                                    ProtocolError::InvalidFrame(
+                                        "Invalid Copilot text delta".into(),
+                                    ),
+                                )?))
                             } else {
                                 Ok(vec![])
                             }
@@ -167,22 +185,27 @@ impl CopilotProtocol {
                         _ => Ok(vec![]),
                     }
                 }
-                _ if event.get("id").is_some() => Err(format!(
+                _ if event.get("id").is_some() => Err(ProtocolError::UnsupportedRequest(format!(
                     "Unsupported Copilot permission/server request: {method}"
-                )),
+                ))),
                 _ => Ok(vec![]),
             }
         } else if event.get("id").is_some() {
             if event.get("error").is_some() {
-                return Err(format!("Copilot request failed: {}", event["error"]));
+                return Err(ProtocolError::ProviderFailure(format!(
+                    "Copilot request failed: {}",
+                    event["error"]
+                )));
             }
-            let result = event
-                .get("result")
-                .ok_or("Copilot response missing result")?;
+            let result = event.get("result").ok_or_else(|| {
+                ProtocolError::InvalidFrame("Copilot response missing result".into())
+            })?;
             match (&self.phase, event["id"].as_str()) {
                 (Phase::Initializing, Some("qa-scribe-init")) => {
                     if result["protocolVersion"] != 1 {
-                        return Err("Unsupported Copilot ACP protocol version".into());
+                        return Err(ProtocolError::UnsupportedRequest(
+                            "Unsupported Copilot ACP protocol version".into(),
+                        ));
                     }
                     self.phase = Phase::CreatingSession;
                     Ok(vec![ChatProtocolEvent::Send(rpc(
@@ -211,14 +234,20 @@ impl CopilotProtocol {
                             Some("failed" | "error" | "cancelled")
                         )
                     {
-                        return Err(format!("Copilot prompt failed/stopped: {result}"));
+                        return Err(ProtocolError::ProviderFailure(format!(
+                            "Copilot prompt failed/stopped: {result}"
+                        )));
                     }
                     output.terminal()
                 }
-                _ => Err("Unexpected Copilot response or pending permission resolution".into()),
+                _ => Err(ProtocolError::InvalidFrame(
+                    "Unexpected Copilot response or pending permission resolution".into(),
+                )),
             }
         } else {
-            Err("Invalid Copilot protocol message".into())
+            Err(ProtocolError::InvalidFrame(
+                "Invalid Copilot protocol message".into(),
+            ))
         }
     }
 
@@ -235,7 +264,7 @@ impl CopilotProtocol {
 fn tool_metadata(
     calls: &mut BTreeMap<String, ToolCallMetadata>,
     call: &Value,
-) -> Result<ToolCallMetadata, String> {
+) -> Result<ToolCallMetadata, ProtocolError> {
     let id = required(call, "toolCallId")?;
     let title = if call.get("title").is_some() {
         Some(required(call, "title")?.to_owned())
@@ -243,7 +272,9 @@ fn tool_metadata(
         None
     };
     if !calls.contains_key(id) && calls.len() >= MAX_TOOL_CALL_METADATA {
-        return Err("Copilot tool-call metadata limit exceeded (64 distinct calls)".into());
+        return Err(ProtocolError::InvalidFrame(
+            "Copilot tool-call metadata limit exceeded (64 distinct calls)".into(),
+        ));
     }
     let metadata = calls.entry(id.to_owned()).or_default();
     if let Some(title) = title {

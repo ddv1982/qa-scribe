@@ -85,3 +85,25 @@ History review traced overlapping-write and imported-image safeguards to `c88736
 The repository remediation rules require local capability ordering, stale-write protection, and authored-data preservation.
 Construction bridges have no identified product requirement. Their replacement must retain one stable compensation owner and the current retry behavior.
 The history evidence supports preserving backend compensation rather than merely suppressing a stale frontend response.
+
+### P03 classifies failures without changing IPC
+
+Core protocol operations now return four explicitly selected error variants. Display preserves the existing messages, and the Tauri executor converts them at the existing String boundary.
+The new checks cover each category, sticky failure, incomplete output, and a rejected local approval followed by a successful denial.
+Focused results passed 40 core protocol tests, 56 Tauri AI tests, and 81 provider tests. Three existing authenticated tests remained ignored.
+Core and Tauri clippy, format, whitespace, and code-size checks passed.
+An independent source audit and an independent 40-test protocol run passed. No process cleanup consolidation or catalog transport change was made.
+
+### P04 native and P05 frontend checkpoints
+
+P04 at `76280a9` passed all nine built-app workflow invocations, production frontend checks, `verify:fast`, and three observational startup samples.
+P05 at `53d718e` passed all 538 frontend tests and frontend checks. Its independent audit passed 43 focused tests and typecheck.
+The recovery union preserves the unselected conflict choice. Eligibility reads current owners within deferred operation closures.
+The parent rejected an eager stable-capability factory read and kept the existing closure-only construction pattern.
+
+### Hosted macOS replay correction
+
+The first P01 macOS test run failed because Python reported `/private/var` while Rust sent `/var` for the same temporary directory.
+The failure was in fixture substitution, not provider transport behavior.
+A focused test-only correction requires filesystem identity for variable working-directory aliases and retains exact checks for all other fields.
+The correction includes a real symlink regression and rejects distinct directories and changed model values. Its final hosted result is recorded after publication.
