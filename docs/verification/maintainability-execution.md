@@ -69,3 +69,19 @@ The corrected owner derives retry identities from the existing unresolved Summar
 A discovery revision also rejects older concurrent capture results.
 The independent lifecycle rerun passed all 13 cases. The reviewer found no remaining defects in this slice.
 Full frontend and native candidate results are recorded after integration.
+
+### P02 gives providers their own legal phases
+
+Claude, Codex, and Copilot now own handshake phases and provider-specific identities. Shared output and permission authority retain one owner behind the existing public facade.
+Each provider migration passed the complete core protocol suite before the next began.
+The final focused runs passed 35 core protocol tests and 30 real subprocess tests. An additional replay covers Codex completion before its turn-start response.
+Independent comparison against P01 found no behavior differences or blocking findings. The comment audit found no introduced suppressions or narration.
+Core clippy, formatting, whitespace, and code-size checks passed. The public event and error contracts remain unchanged.
+A suspected Copilot metadata cleanup gap on a missing denial payload is unreachable through current callers. Every provider supplies a denial reply, so no speculative cleanup path was added.
+
+### Preserve the reasons for write compensation
+
+History review traced overlapping-write and imported-image safeguards to `c88736a` and the v0.7.21 changelog.
+The repository remediation rules require local capability ordering, stale-write protection, and authored-data preservation.
+Construction bridges have no identified product requirement. Their replacement must retain one stable compensation owner and the current retry behavior.
+The history evidence supports preserving backend compensation rather than merely suppressing a stale frontend response.

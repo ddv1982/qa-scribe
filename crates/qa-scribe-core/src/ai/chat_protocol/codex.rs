@@ -1,7 +1,47 @@
 use super::*;
 
-impl ChatProtocol {
-    pub(super) fn codex_handle(&mut self, event: &Value) -> Result<Vec<ChatProtocolEvent>, String> {
+pub(super) struct CodexProtocol {
+    phase: Phase,
+    prompt: String,
+    model: Option<String>,
+    effort: Option<String>,
+    cwd: String,
+}
+
+enum Phase {
+    Initializing,
+    StartingThread {
+        announced_thread: Option<String>,
+    },
+    StartingTurn {
+        thread: String,
+        announced_turn: Option<String>,
+    },
+    ActiveTurn {
+        thread: String,
+        turn: String,
+    },
+}
+
+impl CodexProtocol {
+    pub(super) fn new(prompt: &str, model: &str, effort: Option<String>, cwd: &str) -> Self {
+        Self {
+            phase: Phase::Initializing,
+            prompt: prompt.into(),
+            model: super::super::selected_model_arg(model),
+            effort,
+            cwd: cwd.into(),
+        }
+    }
+    pub(super) fn initial_message(&self) -> Value {
+        json!({"id":"qa-scribe-init","method":"initialize","params":{"clientInfo":{"name":"qa-scribe","version":env!("CARGO_PKG_VERSION")},"capabilities":{"experimentalApi":true}}})
+    }
+
+    pub(super) fn handle(
+        &mut self,
+        output: &mut TurnData,
+        event: &Value,
+    ) -> Result<Vec<ChatProtocolEvent>, String> {
         if let Some(method) = event["method"].as_str() {
             let params = &event["params"];
             if event.get("id").is_some() {
@@ -11,7 +51,7 @@ impl ChatProtocol {
                     ));
                 }
                 self.codex_scope(params)?;
-                if !matches!(self.stage, 2 | 3) || self.turn.is_none() {
+                if self.turn().is_none() {
                     return Err("Codex permission outside active turn".into());
                 }
                 // Installed 0.162.1 flattens the form into params. Preserve
@@ -57,7 +97,7 @@ impl ChatProtocol {
                 let server = required(params, "serverName")?.to_owned();
                 let input = request["_meta"].get("tool_params").map(Value::to_string);
                 let id = &event["id"];
-                self.permission(
+                output.permission(
                     id,
                     Some(json!({"id":id,"result":{"action":"accept","content":{}}})),
                     Some(json!({"id":id,"result":{"action":"decline","content":{}}})),
@@ -85,19 +125,20 @@ impl ChatProtocol {
                     )),
                     "item/agentMessage/delta" => {
                         self.codex_scope(params)?;
-                        if !matches!(self.stage, 2 | 3) || self.turn.is_none() {
+                        if self.turn().is_none() {
                             return Err("Codex assistant text outside turn".into());
                         }
-                        Ok(self.delta(params["delta"].as_str().ok_or("Invalid Codex text delta")?))
+                        Ok(output
+                            .delta(params["delta"].as_str().ok_or("Invalid Codex text delta")?))
                     }
                     "item/completed" => {
                         self.codex_scope(params)?;
-                        if !matches!(self.stage, 2 | 3) || self.turn.is_none() {
+                        if self.turn().is_none() {
                             return Err("Codex item outside active turn".into());
                         }
                         let item = &params["item"];
                         if item["type"] == "agentMessage" {
-                            Ok(self.snapshot(required(item, "text")?.into()))
+                            Ok(output.snapshot(required(item, "text")?.into()))
                         } else {
                             Ok(vec![])
                         }
@@ -105,10 +146,7 @@ impl ChatProtocol {
                     "turn/completed" => {
                         self.codex_scope(params)?;
                         let turn = &params["turn"];
-                        if !matches!(self.stage, 2 | 3)
-                            || self.turn.as_deref() != turn["id"].as_str()
-                            || self.turn.is_none()
-                        {
+                        if self.turn() != turn["id"].as_str() || self.turn().is_none() {
                             return Err("Codex terminal turn ID mismatch".into());
                         }
                         if turn["status"] != "completed"
@@ -116,28 +154,35 @@ impl ChatProtocol {
                         {
                             return Err(format!("Codex turn failed/cancelled: {turn}"));
                         }
-                        self.terminal()
+                        output.terminal()
                     }
                     "turn/started" => {
                         self.codex_scope(params)?;
-                        if !matches!(self.stage, 2 | 3) || params["turn"]["status"] != "inProgress"
+                        if !matches!(
+                            self.phase,
+                            Phase::StartingTurn { .. } | Phase::ActiveTurn { .. }
+                        ) || params["turn"]["status"] != "inProgress"
                         {
                             return Err(
                                 "Codex turn/started outside handshake or invalid status".into()
                             );
                         }
                         let id = required(&params["turn"], "id")?;
-                        if self.turn.as_deref().is_some_and(|active| active != id) {
+                        if self.turn().is_some_and(|active| active != id) {
                             return Err("Codex turn ID mismatch".into());
                         }
-                        self.turn = Some(id.into());
+                        if let Phase::StartingTurn { announced_turn, .. } = &mut self.phase {
+                            *announced_turn = Some(id.into());
+                        }
                         Ok(vec![])
                     }
                     "thread/started" => {
                         let id = required(&params["thread"], "id")?;
-                        if self.stage == 1 && self.scope.is_none() {
-                            self.scope = Some(id.into());
-                        } else if self.scope.as_deref() != Some(id) {
+                        if let Phase::StartingThread { announced_thread } = &mut self.phase
+                            && announced_thread.is_none()
+                        {
+                            *announced_thread = Some(id.into());
+                        } else if self.thread() != Some(id) {
                             return Err("Codex thread/started mismatch".into());
                         }
                         Ok(vec![])
@@ -146,18 +191,18 @@ impl ChatProtocol {
                     "serverRequest/resolved" => {
                         self.codex_scope(params)?;
                         let id = &params["requestId"];
-                        if self.pending.iter().any(|pending| pending.id == *id) {
+                        if output.pending.iter().any(|pending| pending.id == *id) {
                             return Err(
                                 "Codex pending permission resolved/cancelled by provider".into()
                             );
                         }
-                        if !self.seen.contains(id) {
+                        if !output.seen.contains(id) {
                             return Err("Unknown Codex permission resolution ID".into());
                         }
                         Ok(vec![])
                     }
                     "mcpServer/elicitation/completed" | "mcpServer/elicitation/cancelled"
-                        if !self.pending.is_empty() =>
+                        if !output.pending.is_empty() =>
                     {
                         Err("Codex pending permission resolved/cancelled by provider".into())
                     }
@@ -169,9 +214,11 @@ impl ChatProtocol {
                 return Err(format!("Codex request failed: {}", event["error"]));
             }
             let result = event.get("result").ok_or("Codex response missing result")?;
-            match (self.stage, event["id"].as_str()) {
-                (0, Some("qa-scribe-init")) => {
-                    self.stage = 1;
+            match (&self.phase, event["id"].as_str()) {
+                (Phase::Initializing, Some("qa-scribe-init")) => {
+                    self.phase = Phase::StartingThread {
+                        announced_thread: None,
+                    };
                     let mut params = json!({"ephemeral":true,"cwd":self.cwd});
                     if let Some(model) = &self.model {
                         params["model"] = json!(model);
@@ -183,16 +230,18 @@ impl ChatProtocol {
                         ),
                     ])
                 }
-                (1, Some("qa-scribe-thread")) => {
+                (Phase::StartingThread { .. }, Some("qa-scribe-thread")) => {
                     let id = required(&result["thread"], "id")?;
-                    if self.scope.as_deref().is_some_and(|active| active != id) {
+                    if self.thread().is_some_and(|active| active != id) {
                         return Err("Codex thread response ID mismatch".into());
                     }
-                    self.scope = Some(id.into());
-                    self.reported = result["model"].as_str().map(str::to_owned);
-                    self.stage = 2;
+                    output.reported = result["model"].as_str().map(str::to_owned);
+                    self.phase = Phase::StartingTurn {
+                        thread: id.into(),
+                        announced_turn: None,
+                    };
                     let mut params =
-                        json!({"threadId":self.scope,"input":[{"type":"text","text":self.prompt}]});
+                        json!({"threadId":id,"input":[{"type":"text","text":self.prompt}]});
                     if let Some(model) = &self.model {
                         params["model"] = json!(model);
                     }
@@ -203,17 +252,19 @@ impl ChatProtocol {
                         json!({"id":"qa-scribe-turn","method":"turn/start","params":params}),
                     )])
                 }
-                (2, Some("qa-scribe-turn")) => {
+                (Phase::StartingTurn { thread, .. }, Some("qa-scribe-turn")) => {
                     let turn = &result["turn"];
                     if turn["status"] != "inProgress" {
                         return Err(format!("Codex turn/start failed: {turn}"));
                     }
                     let id = required(turn, "id")?;
-                    if self.turn.as_deref().is_some_and(|active| active != id) {
+                    if self.turn().is_some_and(|active| active != id) {
                         return Err("Codex turn response ID mismatch".into());
                     }
-                    self.turn = Some(id.into());
-                    self.stage = 3;
+                    self.phase = Phase::ActiveTurn {
+                        thread: thread.clone(),
+                        turn: id.into(),
+                    };
                     Ok(vec![])
                 }
                 _ => Err("Unexpected Codex response or pending permission resolution".into()),
@@ -223,12 +274,30 @@ impl ChatProtocol {
         }
     }
 
+    fn thread(&self) -> Option<&str> {
+        match &self.phase {
+            Phase::Initializing => None,
+            Phase::StartingThread { announced_thread } => announced_thread.as_deref(),
+            Phase::StartingTurn { thread, .. } | Phase::ActiveTurn { thread, .. } => Some(thread),
+        }
+    }
+
+    fn turn(&self) -> Option<&str> {
+        match &self.phase {
+            Phase::StartingTurn { announced_turn, .. } => announced_turn.as_deref(),
+            Phase::ActiveTurn { turn, .. } => Some(turn),
+            _ => None,
+        }
+    }
+
     fn codex_scope(&self, params: &Value) -> Result<(), String> {
-        self.match_scope(params, "threadId")?;
+        if self.thread() != params["threadId"].as_str() || self.thread().is_none() {
+            return Err("Protocol threadId does not match active session/thread".into());
+        }
         // MCP elicitation turnId is nullable by protocol. Thread correlation
         // and an active local turn remain mandatory for permission requests.
         if let Some(id) = params.get("turnId").filter(|id| !id.is_null())
-            && (self.turn.as_deref() != id.as_str() || self.turn.is_none())
+            && (self.turn() != id.as_str() || self.turn().is_none())
         {
             return Err("Codex notification turnId mismatch".into());
         }
