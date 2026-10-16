@@ -1,3 +1,4 @@
+mod replay;
 use super::*;
 use crate::ai::{GenerationOutputFormat, chat::duplex_chat_command};
 use serde_json::json;
