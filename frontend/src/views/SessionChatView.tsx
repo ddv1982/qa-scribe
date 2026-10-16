@@ -1,4 +1,5 @@
-import { useId, useState } from 'react'
+import { useId, useState, type ReactNode } from 'react'
+import { RunModelEvidence } from '../components/RunModelEvidence'
 import '../styles/chat-permissions.css'
 import type { AiProvider, ChatPermissionDecision, ChatState, GenerationJobStatus } from '../bindings'
 import { MarkdownContent } from '../content/MarkdownContent'
@@ -17,6 +18,8 @@ export type SessionChatViewProps = {
   error: string | null
   providerLabel: string
   modelLabel: string
+  modelSelectionControl?: ReactNode
+  modelSelectionPending?: boolean
   providerAvailable: boolean
   providerReason: string
   onSetComposer: (text: string) => void
@@ -44,7 +47,7 @@ const byteLength = (text: string) => new TextEncoder().encode(text).length
 export function SessionChatView({
   chat, composer, job, loading, saving, working, error, dirty = false, recoveryPending = false,
   permissionWorking = false, permissionRecoveryPending = false,
-  providerLabel, modelLabel, providerAvailable, providerReason,
+  providerLabel, modelLabel, providerAvailable, providerReason, modelSelectionControl, modelSelectionPending = false,
   onSetComposer, onSend, onRetry, onCancel, onSubmit, onRestart, onConfigureAi,
   onDecidePermission, onRecheck,
 }: SessionChatViewProps) {
@@ -82,7 +85,7 @@ export function SessionChatView({
   const completedResponseSaved = job?.state === 'completed' && Boolean(job.aiRunId)
     && messages.some((message) => message.role === 'assistant' && message.status === 'completed' && message.aiRunId === job.aiRunId)
   const responseLabel = job?.state === 'completed' ? 'Final response pending save' : 'Partial response'
-  const sendReason = !chat ? 'Conversation is not ready.'
+  const sendReason = modelSelectionPending ? 'Wait for the model preference to finish saving.' : !chat ? 'Conversation is not ready.'
     : loading ? 'Loading conversation…'
     : saving ? 'Saving conversation…'
     : busy ? 'Wait for the current operation to finish.'
@@ -94,7 +97,7 @@ export function SessionChatView({
     : composerBytes > messageLimit ? 'Message exceeds the 16 KiB limit. Shorten it before sending.'
     : atLimit ? 'Conversation limit reached. Submit completed messages or start a new conversation.'
     : !composer.trim() ? 'Write a message to send.' : ''
-  const retryReason = locked ? 'Wait until the conversation is ready.'
+  const retryReason = modelSelectionPending ? 'Wait for the model preference to finish saving.' : locked ? 'Wait until the conversation is ready.'
     : !providerAvailable ? providerReason || 'Configure an available AI provider to retry.'
     : composer !== '' ? 'Clear the unsent message before retrying. Your text is kept until you clear it.' : ''
   const submitReason = recovering ? (submitted
@@ -137,7 +140,7 @@ export function SessionChatView({
       </header>
 
       <div className="chat-meta">
-        <span>{providerLabel} · {modelLabel}</span>
+        <span>Next invocation · {providerLabel} · {modelLabel}</span>
         <span role="status" aria-live="polite">{status}</span>
         <button className="secondary-button compact-button" type="button" onClick={onConfigureAi} disabled={busy}>
           Configure AI
@@ -203,6 +206,8 @@ export function SessionChatView({
                 {message.text ? message.role === 'assistant'
                   ? <MarkdownContent text={message.text} />
                   : <p className="chat-message-text">{message.text}</p> : null}
+                {message.aiRunId && (message.role === 'assistant' || message.status !== 'completed')
+                  ? <RunModelEvidence run={chat?.aiRuns.find((run) => run.id === message.aiRunId)} /> : null}
                 {message.errorMessage ? <p className="chat-error">{message.errorMessage}</p> : null}
               </li>
             ))}
@@ -232,6 +237,7 @@ export function SessionChatView({
           }}
           placeholder="Describe your testing context or ask a question"
         />
+        {modelSelectionControl}
         <div className="chat-compose-actions">
           <span id={`${id}-shortcut`} className="chat-help">Enter for a new line. Ctrl/Cmd + Enter to send.</span>
           <div className="chat-buttons">

@@ -1,0 +1,19 @@
+.next-model-selection {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.model-combobox-above .model-combobox-popover {
+  top: auto;
+  bottom: calc(100% + 6px);
+  max-height: min(360px, 60vh);
+  overflow-y: auto;
+}
+
+.chat-model-evidence {
+  margin: var(--space-1) 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  overflow-wrap: anywhere;
+}

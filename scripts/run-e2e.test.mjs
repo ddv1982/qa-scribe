@@ -43,6 +43,14 @@ test('native close is a required Linux default workflow and excluded on other pl
   assert.deepEqual(selected.map(({ id }) => id), ['clipboard'])
 })
 
+test('explicit model selection uses X11 for real native keyboard input without changing the default suite', () => {
+  const plan = createWdioInvocationPlan({ QA_SCRIBE_E2E_SPEC: 'model-selection.e2e.mjs' }, '/tmp/root', '/tmp/artifacts', 'linux')
+  assert.equal(plan.length, 1)
+  assert.equal(plan[0].environment.GDK_BACKEND, 'x11')
+  assert.equal(plan[0].environment.QA_SCRIBE_E2E_SPEC, 'model-selection.e2e.mjs')
+  assert.equal(createWdioInvocationPlan({}, '/tmp/root', '/tmp/artifacts', 'linux').some(({ id }) => id === 'model-selection'), false)
+})
+
 test('machine execution evidence rejects skipped, failed, empty, incomplete and mismatched runs', () => {
   const directory = mkdtempSync(join(tmpdir(), 'qa-scribe-execution-evidence-'))
   const path = join(directory, 'wdio-execution.json')

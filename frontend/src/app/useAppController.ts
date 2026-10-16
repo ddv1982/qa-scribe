@@ -98,6 +98,10 @@ export function useAppController() {
   const {
     activeProvider,
     captureSettingsCheckpoint,
+    modelWritePending,
+    persistModelChoice,
+    settingsWritePending,
+    settings,
     discoverProviderDefaults,
     discardSettingsDraft,
     effectiveAiSelection,
@@ -197,6 +201,7 @@ export function useAppController() {
     setFindingCount,
   }
   const selection: AiSelection = {
+    modelWritePending,
     selectedProvider,
     selectedModel,
     selectedReasoningEffort,
@@ -290,7 +295,7 @@ export function useAppController() {
   const copyActions = useCopyActions({ source: sessionWorkspace, feedback, copy: copyFeedback })
   const settlement = useAppSettlement({
     chat: chatProtection, sessionActions, recordActions, attachmentActions,
-    dirtyDraftIdsRef, dirtyFindingIdsRef, settingsDirty, saveSettingsDraft, captureSettingsCheckpoint,
+    dirtyDraftIdsRef, dirtyFindingIdsRef, settingsDirty, saveSettingsDraft, captureSettingsCheckpoint, modelWritePending,
   })
   const {
     applyNavigationRoute, cancelPendingNavigation, closeSettings, discardPendingNavigationChanges,
@@ -480,6 +485,10 @@ export function useAppController() {
     handleLoadSessionLibrary,
     handleRefreshProviderStatus,
     handleSaveSettings,
+    persistModelChoice,
+    settingsWritePending,
+    selectedReasoningEffort,
+    modelSelectionReady: Boolean(settings),
   }
 }
 

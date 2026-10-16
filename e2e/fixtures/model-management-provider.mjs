@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { appendFileSync, existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { jsonLines, emit } from './chat-authorization-common.mjs'
+import { jsonLines, emit, waitForFile } from './chat-authorization-common.mjs'
 import { modelEvidenceExecution } from './model-evidence-execution.mjs'
 
 const directory = process.env.QA_SCRIBE_E2E_FIXTURE_DIR
@@ -42,19 +42,28 @@ export function modelManagementFixture(provider, argv) {
       record({ event: 'request', request })
       assert.deepEqual(request, { type: 'control_request', request_id: 'qa-scribe-model-catalog', request: { subtype: 'initialize' } },
         'Claude discovery cannot send a prompt or create a session')
+      if (mode === 'unavailable') {
+        emit({ type: 'control_response', response: { subtype: 'error', request_id: request.request_id, error: { code: 'unavailable' } } })
+        return
+      }
       emit({ type: 'control_response', response: { subtype: 'success', request_id: request.request_id,
         response: { models: [{ value: 'claude-fixture', displayName: 'Claude Fixture', description: 'Synthetic account catalog' }] } } })
     })
     return
   }
   if (provider === 'codex' && argv[0] === 'app-server') {
-    jsonLines((request) => {
+    jsonLines(async (request) => {
       record({ event: 'request', request })
       switch (request.method) {
         case 'initialize': rpc(request.id, {}); break
         case 'initialized': break
         case 'config/read': rpc(request.id, { config: { model: 'codex-page-one' }, layers: [] }); break
         case 'model/list': {
+          if (mode === 'delayed' && !request.params.cursor) {
+            record({ event: 'catalog-held' })
+            await waitForFile(join(directory, 'model-selection-catalog.release'))
+          }
+          if (mode === 'unavailable') { rpc(request.id, undefined, { code: -32000, message: 'Synthetic catalog unavailable', data: { statusCode: 503 } }); break }
           assert.deepEqual(request.params, request.params.cursor
             ? { limit: 100, cursor: 'fixture-page-2' } : { limit: 100 })
           rpc(request.id, request.params.cursor

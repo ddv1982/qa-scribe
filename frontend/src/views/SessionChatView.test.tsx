@@ -12,7 +12,7 @@ function message(role: ChatMessage['role'], text: string, status: ChatTurnStatus
   return { id, turnId: 'turn-1', role, text, status, errorMessage: null, aiRunId: null, createdAt: '2026-10-14T10:00:00Z' }
 }
 function chat(messages: ChatMessage[] = []): ChatState {
-  return { sessionId: 'session-1', draftId: 'chat-1', revision: 1, composer: '', mode: 'chat', messages, submission: null }
+  return { sessionId: 'session-1', draftId: 'chat-1', revision: 1, composer: '', mode: 'chat', aiRuns: [], messages, submission: null }
 }
 function job(patch: Partial<GenerationJobStatus> = {}): GenerationJobStatus {
   return { jobId: 'job-1', sessionId: 'session-1', action: 'chat', state: 'running', progressMessage: 'Gathering information', aiRunId: null, errorMessage: null, partialText: null, ...patch }
@@ -300,4 +300,29 @@ describe('SessionChatView', () => {
     fireEvent.keyDown(screen.getByRole('textbox', { name: 'Message' }), { key: 'Enter', metaKey: true })
     expect(props.onSend).not.toHaveBeenCalled()
   })
+})
+
+it('uses saved run provenance for historical responses after the next model changes', () => {
+  const history = chat([{ ...message('assistant', 'Saved answer'), aiRunId: 'prior-run' }])
+  history.aiRuns = [{ id: 'prior-run', sessionId: 'session-1', generationContextId: null,
+    provider: 'claude_code', modelSelection: { kind: 'recorded', requested: { kind: 'explicit', id: 'sonnet-alias' },
+      reported: { source: 'claudeAssistantMessage', id: 'reported-claude-model' } }, reasoningEffort: null,
+    promptVersion: 'chat-v1', status: 'completed', errorMessage: null, createdAt: 'old', completedAt: 'old' }]
+  const { props, rerender } = mount({ chat: history, providerLabel: 'Codex', modelLabel: 'next-codex' })
+  expect(screen.getByText(/Claude Code · Requested · sonnet-alias/)).toHaveTextContent('CLI report · reported-claude-model · Response metadata')
+  rerender(<SessionChatView {...props} providerLabel="GitHub Copilot" modelLabel="auto" />)
+  expect(screen.getByText(/Claude Code · Requested · sonnet-alias/)).toHaveTextContent('reported-claude-model')
+  expect(screen.getByText('Next invocation · GitHub Copilot · auto')).toBeInTheDocument()
+})
+
+it('keeps missing and legacy historical model evidence explicit', () => {
+  const history = chat([{ ...message('assistant', 'Saved answer'), aiRunId: 'prior-run' }])
+  history.aiRuns = [{ id: 'prior-run', sessionId: 'session-1', generationContextId: null,
+    provider: 'codex_cli', modelSelection: { kind: 'recorded', requested: { kind: 'default' }, reported: null },
+    reasoningEffort: null, promptVersion: 'chat-v1', status: 'completed', errorMessage: null, createdAt: 'old', completedAt: 'old' }]
+  const { props, rerender } = mount({ chat: history })
+  expect(screen.getByText(/Codex · Requested · CLI Default/)).toHaveTextContent('CLI report · Unknown')
+  history.aiRuns[0] = { ...history.aiRuns[0], modelSelection: { kind: 'legacy', value: 'old-ambiguous' } }
+  rerender(<SessionChatView {...props} chat={history} />)
+  expect(screen.getByText('Codex · Legacy model · old-ambiguous · Source unknown')).toBeInTheDocument()
 })

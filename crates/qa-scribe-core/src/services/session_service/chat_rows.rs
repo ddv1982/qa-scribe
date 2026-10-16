@@ -55,6 +55,13 @@ pub(super) fn read(connection: &Connection, id: &str) -> Result<ChatState> {
         (None, None) => None,
         _ => return Err(validation("Invalid stored chat receipt")),
     };
+    let mut statement = connection.prepare(&format!(
+        "SELECT {} FROM ai_runs WHERE id IN (SELECT ai_run_id FROM chat_messages WHERE draft_id = ?1 AND ai_run_id IS NOT NULL) ORDER BY created_at, id",
+        super::super::session_rows::AI_RUN_COLUMNS,
+    ))?;
+    let ai_runs = statement
+        .query_map([id], super::super::session_rows::map_ai_run)?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
     Ok(ChatState {
         session_id: row.0,
         draft_id: id.into(),
@@ -62,6 +69,7 @@ pub(super) fn read(connection: &Connection, id: &str) -> Result<ChatState> {
         composer: row.2,
         mode: ChatMode::from_stored(&row.3)?,
         messages,
+        ai_runs,
         submission,
     })
 }

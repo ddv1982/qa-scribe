@@ -55,7 +55,7 @@ impl SessionService {
                 params![now(), ai_run_id],
             )?;
             if changed != 1 { return Err(validation("AI Run is no longer running")); }
-            Ok(chat)
+            rows::read(tx, &chat.draft_id)
         })
     }
 
@@ -72,7 +72,7 @@ impl SessionService {
                 params![request.error_message, now(), ai_run_id],
             )?;
             if changed != 1 { return Err(validation("AI Run is no longer running")); }
-            Ok(chat)
+            rows::read(tx, &chat.draft_id)
         })
     }
 }

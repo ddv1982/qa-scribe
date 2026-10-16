@@ -41,7 +41,7 @@ export function nativeKeySender(evidence, persist, Key) {
   return async (key) => {
     const keys = { [Key.PageDown]: 'Next', [Key.PageUp]: 'Prior', [Key.Tab]: 'Tab',
       [Key.Space]: 'space', [Key.Escape]: 'Escape', [Key.Home]: 'Home',
-      [Key.End]: 'End', [Key.ArrowDown]: 'Down', 'Shift+Tab': 'shift+Tab' }
+      [Key.End]: 'End', [Key.ArrowDown]: 'Down', [Key.Enter]: 'Return', 'Shift+Tab': 'shift+Tab' }
     assert.ok(keys[key], `Unsupported native key: ${key}`)
     // Focus the actual application, not the WDIO worker PID. No --window on
     // key: XTEST must deliver real OS events, not XSendEvent to an arbitrary ID.

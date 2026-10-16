@@ -80,6 +80,7 @@ export type SummaryRecoveryCoordinator = {
 }
 
 export type AiSelection = {
+  modelWritePending?: () => boolean
   selectedProvider: AiProvider
   selectedModel: string
   selectedReasoningEffort: string | null

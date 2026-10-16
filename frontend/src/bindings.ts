@@ -188,6 +188,7 @@ export type ChatState = {
 	composer: string,
 	mode: ChatMode,
 	messages: ChatMessage[],
+	aiRuns: AiRun[],
 	submission: ChatSubmissionReceipt | null,
 };
 

@@ -41,9 +41,9 @@ export function modelForProvider(settings: AppSettings, provider: AiProvider): s
 }
 
 export function modelOverrideForProvider(settings: AppSettings, provider: AiProvider): string | null {
-  return settings.selectedAiModelsByProvider?.[provider]
-    ?? (provider === settings.selectedAiProvider ? settings.selectedAiModel : null)
-    ?? null
+  const models = settings.selectedAiModelsByProvider
+  if (models && Object.hasOwn(models, provider)) return models[provider] ?? null
+  return provider === settings.selectedAiProvider ? settings.selectedAiModel ?? null : null
 }
 
 export function reasoningOverrideForProvider(settings: AppSettings, provider: AiProvider): string | null {

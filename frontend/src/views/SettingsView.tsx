@@ -39,6 +39,7 @@ export function SettingsView({
   settingsDraft,
   settingsDirty,
   settingsSaveState,
+  settingsWritePending = false,
   providerDiscoveryState,
   theme,
   updateSettingsDraft,
@@ -53,6 +54,7 @@ export function SettingsView({
   settingsDraft: AppSettings | null
   settingsDirty: boolean
   settingsSaveState: SettingsSaveState
+  settingsWritePending?: boolean
   providerDiscoveryState: ProviderDiscoveryUiState
   theme: ThemePreference
   updateSettingsDraft: (patch: Partial<AppSettings>) => void
@@ -138,7 +140,7 @@ export function SettingsView({
           <SaveSettingsButton
             label="Save settings"
             busyAction={busyAction}
-            disabled={!settingsDraft || !settingsDirty || busyAction !== null}
+            disabled={!settingsDraft || !settingsDirty || busyAction !== null || settingsWritePending}
             state={settingsSaveState}
             onSave={onSaveSettings}
           />

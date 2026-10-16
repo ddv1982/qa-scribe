@@ -30,7 +30,7 @@ export function createWdioInvocationPlan(environment, temporaryRoot, artifacts, 
         id: requestedSpec,
         environment: {
           QA_SCRIBE_E2E_SPEC: requestedSpec,
-          ...(requestedSpec === 'native-close.e2e.mjs' ? { GDK_BACKEND: 'x11' } : {}),
+          ...(['native-close.e2e.mjs', 'model-selection.e2e.mjs'].includes(requestedSpec) ? { GDK_BACKEND: 'x11' } : {}),
           QA_SCRIBE_E2E_APP_DATA_DIR: join(temporaryRoot, 'app-data'),
           QA_SCRIBE_E2E_ARTIFACTS: artifacts,
           QA_SCRIBE_E2E_FIXTURE_DIR: join(temporaryRoot, 'fixtures'),
@@ -190,8 +190,10 @@ export function runE2e(environment = process.env, { spawnSyncImpl = spawnSync } 
       const providerBin = join(invocation.environment.QA_SCRIBE_E2E_FIXTURE_DIR, 'bin')
       mkdirSync(providerBin, { recursive: true })
       const authorization = invocationEnvironment.QA_SCRIBE_E2E_SPEC === 'chat-tool-authorization.workflow.mjs'
+      const modelSelection = invocationEnvironment.QA_SCRIBE_E2E_SPEC === 'model-selection.e2e.mjs'
+      const modelPickerPerformance = invocationEnvironment.QA_SCRIBE_E2E_SPEC === 'model-picker-performance.e2e.mjs'
       const modelEvidence = invocationEnvironment.QA_SCRIBE_E2E_SPEC === 'model-evidence.e2e.mjs'
-      const modelManagement = modelEvidence || invocationEnvironment.QA_SCRIBE_E2E_SPEC === 'model-management.e2e.mjs'
+      const modelManagement = modelEvidence || modelSelection || modelPickerPerformance || invocationEnvironment.QA_SCRIBE_E2E_SPEC === 'model-management.e2e.mjs'
       for (const provider of ['codex', 'claude', 'copilot']) rmSync(join(providerBin, provider), { force: true })
       for (const provider of authorization || modelManagement ? ['codex', 'claude', 'copilot'] : ['codex']) {
         const link = join(providerBin, provider)
@@ -204,14 +206,18 @@ export function runE2e(environment = process.env, { spawnSyncImpl = spawnSync } 
         invocationEnvironment.QA_SCRIBE_E2E_MODEL_MANAGEMENT = '1'
         invocationEnvironment.QA_SCRIBE_PROVIDER_CATALOG_MODE = 'selector'
         writeFileSync(join(invocation.environment.QA_SCRIBE_E2E_FIXTURE_DIR, 'model-management.json'),
-          JSON.stringify({ claude: 'fresh', codex: 'fresh', copilot: 'fresh' }))
+          JSON.stringify(modelSelection && invocationEnvironment.QA_SCRIBE_E2E_SELECTION_RESTART === '1'
+            ? { claude: 'unavailable', codex: 'unavailable', copilot: 'unavailable' }
+            : { claude: 'fresh', codex: 'fresh', copilot: 'fresh' }))
       }
-      if (modelEvidence) {
+      if (modelEvidence || modelSelection) {
         const legacyDatabase = join(invocation.environment.QA_SCRIBE_E2E_APP_DATA_DIR, 'qa-scribe.sqlite')
-        if (invocationEnvironment.QA_SCRIBE_E2E_EVIDENCE_RESTART !== '1') {
+        if (invocationEnvironment.QA_SCRIBE_E2E_EVIDENCE_RESTART !== '1'
+          && invocationEnvironment.QA_SCRIBE_E2E_SELECTION_RESTART !== '1') {
           run('python3', [join(root, 'e2e/fixtures/model-evidence-database.py'), 'seed', legacyDatabase,
             join(root, 'crates/qa-scribe-core/tests/fixtures/schema_v10.sql'),
             join(invocation.environment.QA_SCRIBE_E2E_FIXTURE_DIR, 'model-evidence-legacy-seed.json')], invocationEnvironment)
+          if (modelSelection) run('python3', [join(root, 'e2e/fixtures/model-selection-legacy.py'), legacyDatabase], invocationEnvironment)
         }
       }
       const evidencePath = join(invocation.environment.QA_SCRIBE_E2E_ARTIFACTS, 'wdio-execution.json')

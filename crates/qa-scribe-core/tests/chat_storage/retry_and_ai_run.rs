@@ -182,8 +182,9 @@ fn atomic_finish_rolls_back_chat_and_model_if_ai_run_cannot_complete() {
         })
         .unwrap();
     let run_id = run(&service, &id, &started.turn_id);
-    let associated = associate(&service, &started, &run_id);
+    associate(&service, &started, &run_id);
     service.fail_ai_run(&run_id, "Already terminal").unwrap();
+    let associated = service.load_chat(&id).unwrap();
     validation(
         service
             .finish_chat_turn_with_ai_run(
@@ -347,8 +348,9 @@ fn atomic_failure_rolls_back_if_run_has_already_completed() {
         })
         .unwrap();
     let run_id = run(&service, &id, &started.turn_id);
-    let associated = associate(&service, &started, &run_id);
+    associate(&service, &started, &run_id);
     let completed = service.complete_ai_run(&run_id).unwrap();
+    let associated = service.load_chat(&id).unwrap();
     validation(service.fail_chat_turn_with_ai_run(
         ChatFailRequest {
             scope: scope(&associated),

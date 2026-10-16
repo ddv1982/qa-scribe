@@ -41,7 +41,7 @@ export function createCommandRegistry(controller: AppController): AppCommand[] {
     command('settings.open', 'Open Settings', 'Configure appearance, AI execution, and templates.', ['preferences'], ',', true, () => controller.openSettingsSection()),
     command('settings.close', 'Back to Workspace', 'Return to the view you opened Settings from.', ['close settings', 'return'], undefined, controller.activeView === 'settings', controller.closeSettings),
     command('ai.configure', 'Configure AI Execution', 'Open model, reasoning, and CLI-default Settings.', ['provider', 'Codex', 'model', 'reasoning'], undefined, true, () => controller.openSettingsSection('ai-execution-settings')),
-    command('settings.save', 'Save Settings', 'Save explicit Settings changes.', ['apply'], 's', controller.activeView === 'settings' && controller.settingsDirty && !controller.isBusy, () => void controller.handleSaveSettings()),
+    command('settings.save', 'Save Settings', 'Save explicit Settings changes.', ['apply'], 's', controller.activeView === 'settings' && controller.settingsDirty && !controller.isBusy && !controller.settingsWritePending, () => void controller.handleSaveSettings()),
     command('providers.refresh', 'Refresh CLI Configuration', 'Check provider readiness and default configuration again.', ['AI', 'Codex', 'model'], undefined, !controller.isBusy, () => void controller.handleRefreshProviderStatus()),
     command('sessions.load-all', 'Load All Sessions', 'Load the complete local Session library.', ['older', 'history'], undefined, !controller.sessionLibraryComplete && !controller.isBusy, () => void controller.handleLoadSessionLibrary()),
   ]
