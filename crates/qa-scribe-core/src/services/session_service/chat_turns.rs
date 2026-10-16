@@ -46,17 +46,13 @@ impl SessionService {
         &self,
         request: ChatFinishRequest,
         ai_run_id: &str,
-        reported_model: Option<&str>,
     ) -> Result<ChatState> {
-        let model = reported_model
-            .map(|m| validate_required_text("resolved AI model", m, 240))
-            .transpose()?;
         self.database.with_immediate_tx(|tx| {
             running_run(tx, &request.scope.session_id, ai_run_id)?;
             let chat = finish(tx, &request, Some(ai_run_id))?;
             let changed = tx.execute(
-                "UPDATE ai_runs SET status = 'completed', error_message = NULL, completed_at = ?1, model = COALESCE(?2, model) WHERE id = ?3 AND status = 'running'",
-                params![now(), model, ai_run_id],
+                "UPDATE ai_runs SET status = 'completed', error_message = NULL, completed_at = ?1 WHERE id = ?2 AND status = 'running'",
+                params![now(), ai_run_id],
             )?;
             if changed != 1 { return Err(validation("AI Run is no longer running")); }
             Ok(chat)

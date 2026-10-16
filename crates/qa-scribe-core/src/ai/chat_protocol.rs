@@ -8,7 +8,7 @@ pub use error::{ProtocolError, ProtocolErrorKind};
 mod tests;
 
 use super::stream::StreamUpdate;
-use crate::domain::AiProvider;
+use crate::domain::{AiProvider, ReportedModel};
 use serde_json::{Value, json};
 use std::collections::VecDeque;
 
@@ -44,7 +44,7 @@ struct TurnData {
     pending: VecDeque<Pending>,
     seen: Vec<Value>,
     text: String,
-    reported: Option<String>,
+    reported: Option<ReportedModel>,
     complete: bool,
     failure: Option<ProtocolError>,
 }
@@ -133,7 +133,7 @@ impl ChatProtocol {
         self.output.finish()
     }
 
-    pub fn reported_model(&self) -> Option<String> {
+    pub fn model_report(&self) -> Option<ReportedModel> {
         self.output.reported.clone()
     }
 

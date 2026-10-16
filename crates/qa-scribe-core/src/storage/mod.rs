@@ -67,7 +67,7 @@ pub fn with_immediate_tx<T>(
 /// final time, and settles on a `user_version` this build can trust from then
 /// on. Once every database in the wild has passed through this once, future
 /// bumps can go strictly by increment again.
-pub const SCHEMA_VERSION: i32 = 10;
+pub const SCHEMA_VERSION: i32 = 11;
 
 fn initialize(connection: &Connection) -> Result<()> {
     let initialize_started = Instant::now();
@@ -135,6 +135,12 @@ fn current_schema_version(connection: &Connection) -> Result<i32> {
 }
 
 fn migrate(connection: &Connection) -> Result<()> {
+    ensure_column(
+        connection,
+        "ai_runs",
+        "model_selection_json",
+        "ALTER TABLE ai_runs ADD COLUMN model_selection_json TEXT",
+    )?;
     ensure_testware_drafts_supported(connection)?;
     ensure_blank_bodies_supported(connection)?;
     ensure_rich_body_columns_supported(connection)?;

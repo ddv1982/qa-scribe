@@ -8,6 +8,7 @@ use super::{
 
 fn failed_output(stderr: &[u8]) -> ProviderGenerationOutput {
     ProviderGenerationOutput {
+        model_report: None,
         exit_success: Some(false),
         stdout: Vec::new(),
         stderr: stderr.to_vec(),
@@ -88,22 +89,28 @@ fn run_streaming_generation_parses_lines_and_keeps_raw_stdout() {
 
 #[test]
 fn structured_init_event_reports_the_resolved_model() {
-    let output = ProviderGenerationOutput {
-        exit_success: Some(true),
-        stdout: br#"{"type":"system","subtype":"init","model":"claude-sonnet-4-6"}
-{"type":"result","result":"done"}
-"#
-        .to_vec(),
-        stderr: Vec::new(),
-        assistant_text: Some("done".to_string()),
+    let command = GenerationCommand {
+        program: "scripted".into(),
+        args: Vec::new(),
+        stdin: "prompt".into(),
         output_format: GenerationOutputFormat::ClaudeStreamJson,
-        cancelled: false,
     };
-
+    let output = run_streaming_generation(
+        &ScriptedExecutor(vec![
+            r#"{"type":"system","subtype":"init","model":"claude-sonnet-4-6"}"#,
+            r#"{"type":"result","result":"done"}"#,
+        ]),
+        &command,
+        |_| {},
+    )
+    .unwrap();
     assert_eq!(
-        output.reported_model().as_deref(),
-        Some("claude-sonnet-4-6")
+        output.model_report,
+        Some(crate::domain::ReportedModel::ClaudeInitialization {
+            id: "claude-sonnet-4-6".into()
+        })
     );
+    assert_eq!(output.response_text().unwrap(), "done");
 }
 
 #[test]
@@ -181,6 +188,7 @@ fn structured_unknown_or_malformed_events_return_compatibility_error_not_raw_std
 #[test]
 fn plain_text_response_keeps_raw_stdout_fallback() {
     let output = ProviderGenerationOutput {
+        model_report: None,
         exit_success: Some(true),
         stdout: b"<h2>Plain provider response</h2>\n".to_vec(),
         stderr: Vec::new(),
@@ -225,7 +233,7 @@ fn core_rejects_output_over_the_shared_safety_limit() {
     let error = run_streaming_generation(&OversizedExecutor, &command, |_| {})
         .expect_err("oversized output should fail");
 
-    assert!(error.contains("output exceeded"));
+    assert!(error.message.contains("output exceeded"));
 }
 
 #[test]
@@ -242,4 +250,27 @@ fn provider_failure_message_keeps_a_bounded_actionable_tail() {
     assert!(copilot_message.len() <= 2_000);
     assert!(copilot_message.contains("copilot login"));
     assert!(copilot_message.ends_with("final actionable diagnostic"));
+}
+
+#[test]
+fn plaintext_model_like_content_is_not_provider_metadata() {
+    let command = GenerationCommand {
+        program: "scripted".into(),
+        args: Vec::new(),
+        stdin: "prompt".into(),
+        output_format: GenerationOutputFormat::PlainText,
+    };
+    let output = run_streaming_generation(
+        &ScriptedExecutor(vec![
+            r#"{"type":"system","subtype":"init","model":"forged"}"#,
+        ]),
+        &command,
+        |_| {},
+    )
+    .unwrap();
+    assert_eq!(output.model_report, None);
+    assert_eq!(
+        output.response_text().unwrap(),
+        r#"{"type":"system","subtype":"init","model":"forged"}"#
+    );
 }

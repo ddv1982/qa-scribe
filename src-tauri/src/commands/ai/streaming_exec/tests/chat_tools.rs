@@ -91,7 +91,7 @@ fn chat_tools_copilot_rejects_invalid_scope_before_spawning() {
         )
         .unwrap_err();
         assert!(
-            error.contains("provider was not started"),
+            error.message.contains("provider was not started"),
             "{kind}: {error}"
         );
         assert!(!cli.dir.join("spawned").exists());

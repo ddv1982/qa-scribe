@@ -214,12 +214,19 @@ fn run_ai_action_job(
         &control,
     );
 
+    let model_report = match &output {
+        Ok(output) => output.model_report.clone(),
+        Err(error) => error.model_report.clone(),
+    };
     if output
         .as_ref()
         .map(|output| output.cancelled)
-        .unwrap_or_else(|error| error == "Generation cancelled.")
+        .unwrap_or_else(|error| error.message == "Generation cancelled.")
         || control.is_cancelled()
     {
+        let _ = state.with_service(|service| {
+            service.record_running_ai_run_model_report(&prepared.ai_run.id, model_report.as_ref())
+        });
         finish_cancelled_job(
             &events,
             &jobs,
@@ -253,6 +260,9 @@ fn run_ai_action_job(
     let (result, terminal_status) = match finalization {
         Ok(Some(finalization)) => finalization,
         Ok(None) => {
+            let _ = state.with_service(|service| {
+                service.record_running_ai_run_model_report(&ai_run_id, model_report.as_ref())
+            });
             finish_cancelled_job(&events, &jobs, &state, &job_id, &request, Some(&ai_run_id));
             return;
         }

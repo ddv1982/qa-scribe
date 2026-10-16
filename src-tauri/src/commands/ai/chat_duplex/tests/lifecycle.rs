@@ -36,7 +36,7 @@ fn chat_duplex_process_parent_exit_pending_revokes_permission_and_reaps_group() 
         // SAFETY: signal zero only probes this fixture's already exited parent.
         assert_eq!(unsafe { libc::kill(parent as libc::pid_t, 0) }, -1, "parent zombie was not reaped");
         assert!(!fixture.dir.join("tool-marker").exists());
-        assert!(!error.contains("timed out"), "watchdog failure is not parent-exit detection: {error}");
+        assert!(!error.message.contains("timed out"), "watchdog failure is not parent-exit detection: {error}");
         assert!(elapsed < Duration::from_secs(1), "{provider:?}: exit detection took {elapsed:?}");
     }
 }
@@ -229,7 +229,7 @@ fn assert_queued_authority_boundary(provider: AiProvider, mode: &str) {
             "queued_parent_exit" => "exited",
             _ => unreachable!(),
         };
-        assert!(error.contains(expected), "{provider:?}/{mode}: {error}");
+        assert!(error.message.contains(expected), "{provider:?}/{mode}: {error}");
     }
     let records = fixture.records();
     let replies = records.iter().filter_map(|r| r.get("received"))

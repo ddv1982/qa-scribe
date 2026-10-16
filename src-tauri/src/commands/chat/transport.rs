@@ -1,7 +1,8 @@
 use std::time::{Duration, Instant};
 
 use qa_scribe_core::ai::{
-    ProviderGenerationOutput, chat::duplex_chat_command, stream::StreamUpdate,
+    ProviderExecutionError, ProviderGenerationOutput, chat::duplex_chat_command,
+    stream::StreamUpdate,
 };
 use tauri::ipc::Channel;
 
@@ -30,7 +31,7 @@ impl ChatTransport<'_> {
         &self,
         request: &StartChatJobRequest,
         prompt: &str,
-    ) -> Result<ProviderGenerationOutput, String> {
+    ) -> Result<ProviderGenerationOutput, ProviderExecutionError> {
         if self.control.is_cancelled() {
             return Err("Generation cancelled.".into());
         }
@@ -39,7 +40,7 @@ impl ChatTransport<'_> {
             return Err("Generation cancelled.".into());
         }
         if !readiness.descriptor.status.is_ready() {
-            return Err(readiness.descriptor.reason);
+            return Err(readiness.descriptor.reason.into());
         }
         validate_effective_selection(
             &readiness.descriptor,

@@ -1,5 +1,7 @@
 use super::*;
-use qa_scribe_core::domain::{AiProvider, AiRunCreate, ChatAssociateRunRequest};
+use qa_scribe_core::domain::{
+    AiProvider, AiRunCreate, ChatAssociateRunRequest, RequestedModel, RunModelSelection,
+};
 
 fn run(service: &SessionService, session_id: &str, turn_id: &str) -> String {
     service
@@ -170,60 +172,6 @@ fn restart_interrupted_user_is_explicitly_retryable_without_duplicate() {
 }
 
 #[test]
-fn atomic_finish_records_association_reported_model_and_both_completed_states() {
-    let service = SessionService::in_memory().unwrap();
-    let id = session(&service);
-    let saved = save(&service, &service.load_chat(&id).unwrap(), "Q");
-    let started = service
-        .start_chat_turn(ChatStartRequest {
-            scope: scope(&saved),
-        })
-        .unwrap();
-    let run_id = run(&service, &id, &started.turn_id);
-    let associated = associate(&service, &started, &run_id);
-    assert_eq!(
-        associated.messages[0].ai_run_id.as_deref(),
-        Some(run_id.as_str())
-    );
-    let done = service
-        .finish_chat_turn_with_ai_run(
-            ChatFinishRequest {
-                scope: scope(&associated),
-                turn_id: started.turn_id.clone(),
-                assistant_text: "A".into(),
-            },
-            &run_id,
-            Some("reported-model"),
-        )
-        .unwrap();
-    assert!(
-        done.messages
-            .iter()
-            .all(|m| m.ai_run_id.as_deref() == Some(run_id.as_str()))
-    );
-    assert!(
-        done.messages
-            .iter()
-            .all(|m| m.status == ChatTurnStatus::Completed)
-    );
-    let run = service.get_ai_run(&run_id).unwrap().unwrap();
-    assert_eq!(run.status.as_str(), "completed");
-    assert_eq!(run.model, "reported-model");
-    assert_eq!(run.reasoning_effort.as_deref(), Some("high"));
-    assert!(run.completed_at.is_some());
-    validation(service.finish_chat_turn_with_ai_run(
-        ChatFinishRequest {
-            scope: scope(&done),
-            turn_id: started.turn_id,
-            assistant_text: "Duplicate A".into(),
-        },
-        &run_id,
-        None,
-    ));
-    assert_eq!(service.load_chat(&id).unwrap(), done);
-}
-
-#[test]
 fn atomic_finish_rolls_back_chat_and_model_if_ai_run_cannot_complete() {
     let service = SessionService::in_memory().unwrap();
     let id = session(&service);
@@ -245,14 +193,21 @@ fn atomic_finish_rolls_back_chat_and_model_if_ai_run_cannot_complete() {
                     assistant_text: "Must not persist".into(),
                 },
                 &run_id,
-                Some("must-not-persist"),
             )
             .map(|_| ()),
     );
     assert_eq!(service.load_chat(&id).unwrap(), associated);
     let run = service.get_ai_run(&run_id).unwrap().unwrap();
     assert_eq!(run.status.as_str(), "failed");
-    assert_eq!(run.model, "requested-model");
+    assert_eq!(
+        run.model_selection,
+        RunModelSelection::Recorded {
+            requested: RequestedModel::Explicit {
+                id: "requested-model".into()
+            },
+            reported: None
+        }
+    );
 }
 
 #[test]
@@ -276,7 +231,6 @@ fn atomic_finish_rejects_wrong_run_and_stale_chat_without_touching_run() {
             assistant_text: "Wrong run".into(),
         },
         &wrong_id,
-        None,
     ));
     let edited = save(&service, &associated, "Next composer");
     validation(service.finish_chat_turn_with_ai_run(
@@ -286,13 +240,20 @@ fn atomic_finish_rejects_wrong_run_and_stale_chat_without_touching_run() {
             assistant_text: "Stale response".into(),
         },
         &run_id,
-        Some("must-not-persist"),
     ));
     assert_eq!(service.load_chat(&id).unwrap(), edited);
     for run_id in [run_id, wrong_id] {
         let run = service.get_ai_run(&run_id).unwrap().unwrap();
         assert_eq!(run.status.as_str(), "running");
-        assert_eq!(run.model, "requested-model");
+        assert_eq!(
+            run.model_selection,
+            RunModelSelection::Recorded {
+                requested: RequestedModel::Explicit {
+                    id: "requested-model".into()
+                },
+                reported: None
+            }
+        );
     }
 }
 
@@ -427,7 +388,6 @@ fn ai_run_write_failure_rolls_back_already_written_chat_completion_and_failure()
                     assistant_text: "Must roll back".into(),
                 },
                 &run_id,
-                Some("must-roll-back-model"),
             )
         } else {
             service.fail_chat_turn_with_ai_run(
@@ -478,7 +438,6 @@ fn associated_turn_requires_atomic_lifecycle_and_session_delete_cascades_submitt
                 assistant_text: "A".into(),
             },
             &run_id,
-            None,
         )
         .unwrap();
     let note = service.get_or_create_note_entry(&id).unwrap();
@@ -494,3 +453,6 @@ fn associated_turn_requires_atomic_lifecycle_and_session_delete_cascades_submitt
     }
     helpers::assert_no_foreign_key_violations(service.database().connection());
 }
+
+#[path = "model_evidence.rs"]
+mod model_evidence;

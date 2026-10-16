@@ -427,7 +427,7 @@ function completedRecordGenerationEvent({
       generationContext: { id: `context-${action}-race`, sessionId: 'session-1', createdAt: '2026-06-24T10:00:00.000Z' },
       aiRun: {
         id: `run-${action}-race`, sessionId: 'session-1', generationContextId: `context-${action}-race`,
-        provider: 'codex_cli', model: 'default', reasoningEffort: null, promptVersion: `${action}-v1`,
+        provider: 'codex_cli', modelSelection: { kind: 'recorded', requested: { kind: 'default' }, reported: null }, reasoningEffort: null, promptVersion: `${action}-v1`,
         status: 'completed', errorMessage: null, createdAt: '2026-06-24T10:00:00.000Z', completedAt: '2026-06-24T10:00:00.000Z',
       },
       draft,

@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process'
 import { appendFileSync, existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { jsonLines, emit } from './chat-authorization-common.mjs'
+import { modelEvidenceExecution } from './model-evidence-execution.mjs'
 
 const directory = process.env.QA_SCRIBE_E2E_FIXTURE_DIR
 const configurationPath = directory && join(directory, 'model-management.json')
@@ -14,7 +15,7 @@ export function modelManagementFixture(provider, argv) {
   const configuration = JSON.parse(readFileSync(configurationPath, 'utf8'))
   const mode = configuration[provider] ?? 'fresh'
   const record = (event) => appendFileSync(join(directory, 'model-management-journal.jsonl'),
-    `${JSON.stringify({ provider, mode, pid: process.pid, ...event })}\n`)
+    `${JSON.stringify({ provider, mode, pid: process.pid, parentPid: process.ppid, ...event })}\n`)
   record({ event: 'spawn', argv })
   const rpc = (id, result, error, framed = false) => {
     const response = JSON.stringify({ jsonrpc: '2.0', id, ...(error ? { error } : { result }) })
@@ -35,6 +36,7 @@ export function modelManagementFixture(provider, argv) {
     return
   }
   if (provider === 'codex' && argv[0] === 'debug') { emit({ models: [] }); return }
+  if (modelEvidenceExecution(provider, argv, configuration.execution, record)) return
   if (provider === 'claude') {
     jsonLines((request) => {
       record({ event: 'request', request })

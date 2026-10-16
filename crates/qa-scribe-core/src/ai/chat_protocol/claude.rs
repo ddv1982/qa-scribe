@@ -118,12 +118,12 @@ impl ClaudeProtocol {
                         "Claude assistant message before initialization".into(),
                     ));
                 }
-                if let Some(model) = event["message"]["model"].as_str() {
-                    output.reported = Some(model.into());
-                }
                 let content = event["message"]["content"].as_array().ok_or_else(|| {
                     ProtocolError::InvalidFrame("Invalid Claude assistant content".into())
                 })?;
+                if let Some(report) = crate::ai::model_report::claude_model_report(event) {
+                    report.retain_in(&mut output.reported);
+                }
                 let text: String = content
                     .iter()
                     .filter(|block| block["type"] == "text")
@@ -143,8 +143,8 @@ impl ClaudeProtocol {
                 }
                 let wire = &event["event"];
                 if wire["type"] == "message_start" {
-                    if let Some(model) = wire["message"]["model"].as_str() {
-                        output.reported = Some(model.into());
+                    if let Some(report) = crate::ai::model_report::claude_model_report(event) {
+                        report.retain_in(&mut output.reported);
                     }
                     return Ok(output.snapshot(String::new()));
                 }
@@ -156,8 +156,8 @@ impl ClaudeProtocol {
                 Ok(vec![])
             }
             "system" => {
-                if let Some(model) = event["model"].as_str() {
-                    output.reported = Some(model.into());
+                if let Some(report) = crate::ai::model_report::claude_model_report(event) {
+                    report.retain_in(&mut output.reported);
                 }
                 Ok(vec![])
             }

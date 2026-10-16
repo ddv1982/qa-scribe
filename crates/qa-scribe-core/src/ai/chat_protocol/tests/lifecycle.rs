@@ -111,7 +111,10 @@ fn chat_duplex_claude_full_result_authoritative_and_errors_fail() {
             .any(|e| matches!(e, ChatProtocolEvent::Complete))
     );
     assert_eq!(p.finish().unwrap(), "final answer");
-    assert_eq!(p.reported_model().as_deref(), Some("reported-model"));
+    assert_eq!(
+        p.model_report().as_ref().map(|report| report.id()),
+        Some("reported-model")
+    );
     for result in [
         json!({"type":"result","subtype":"success","is_error":true,"result":"bad"}),
         json!({"type":"result","subtype":"error_during_execution","is_error":false,"errors":["bad"]}),
@@ -134,7 +137,10 @@ fn chat_duplex_codex_final_message_replaces_preamble_and_failed_turn_errors() {
             .any(|e| matches!(e, ChatProtocolEvent::Complete))
     );
     assert_eq!(p.finish().unwrap(), "final answer");
-    assert_eq!(p.reported_model().as_deref(), Some("reported-model"));
+    assert_eq!(
+        p.model_report().as_ref().map(|report| report.id()),
+        Some("reported-model")
+    );
     for status in ["failed", "error"] {
         let mut p = ready(AiProvider::CodexCli);
         assert!(p.handle(&json!({"method":"turn/completed","params":{"threadId":"thread-1","turn":{"id":"turn-1","status":status,"error":{"message":"bad"}}}})).is_err());
@@ -204,4 +210,28 @@ fn chat_duplex_protocol_diagnostics_are_not_assistant_text() {
         )));
         assert!(p.finish().is_err());
     }
+}
+
+#[test]
+fn claude_wrong_system_subtype_does_not_report_model() {
+    let mut protocol = ready(AiProvider::ClaudeCode);
+    protocol
+        .handle(&json!({"type":"system","subtype":"status","model":"forged"}))
+        .unwrap();
+    assert_eq!(protocol.model_report(), None);
+}
+
+#[test]
+fn claude_assistant_report_is_not_overwritten_by_initialization() {
+    let mut protocol = ready(AiProvider::ClaudeCode);
+    protocol
+        .handle(&json!({"type":"assistant","message":{"model":"assistant-model","content":[]}}))
+        .unwrap();
+    protocol
+        .handle(&json!({"type":"system","subtype":"init","model":"configured-model"}))
+        .unwrap();
+    assert_eq!(
+        protocol.model_report().as_ref().map(|report| report.id()),
+        Some("assistant-model")
+    );
 }

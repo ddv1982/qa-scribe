@@ -5,7 +5,10 @@
 use std::time::{Duration, Instant};
 
 use qa_scribe_core::{
-    ai::{ProviderGenerationOutput, stream::StreamUpdate, streaming_generation_command},
+    ai::{
+        ProviderExecutionError, ProviderGenerationOutput, stream::StreamUpdate,
+        streaming_generation_command,
+    },
     domain::AiProvider,
 };
 use tauri::ipc::Channel;
@@ -33,16 +36,16 @@ pub(super) fn execute_provider_generation_streaming(
     jobs: &JobStore,
     events: &Channel<GenerationJobEvent>,
     control: &JobControl,
-) -> Result<ProviderGenerationOutput, String> {
+) -> Result<ProviderGenerationOutput, ProviderExecutionError> {
     if control.is_cancelled() {
-        return Err("Generation cancelled.".to_string());
+        return Err("Generation cancelled.".into());
     }
     let readiness = provider_readiness_for_job(provider, control);
     if control.is_cancelled() {
-        return Err("Generation cancelled.".to_string());
+        return Err("Generation cancelled.".into());
     }
     if !readiness.descriptor.status.is_ready() {
-        return Err(readiness.descriptor.reason);
+        return Err(readiness.descriptor.reason.into());
     }
 
     validate_effective_selection(&readiness.descriptor, model, reasoning_effort)?;
@@ -148,7 +151,9 @@ pub(crate) fn validate_effective_selection(
     Ok(())
 }
 
-fn output_outcome_for_log(output: &Result<ProviderGenerationOutput, String>) -> &'static str {
+fn output_outcome_for_log(
+    output: &Result<ProviderGenerationOutput, ProviderExecutionError>,
+) -> &'static str {
     match output {
         Ok(output) if output.success() => "success",
         Ok(output) if output.cancelled => "cancelled",

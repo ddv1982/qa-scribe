@@ -60,6 +60,13 @@ impl ProviderStreamParser {
         }
     }
 
+    pub fn model_report(&self) -> Option<crate::domain::ReportedModel> {
+        match &self.0 {
+            FormatParser::Claude(parser) => parser.model_report.clone(),
+            FormatParser::Plain(_) | FormatParser::Codex(_) => None,
+        }
+    }
+
     /// Consume the parser, returning the accumulated assistant text if any.
     pub fn finish(self) -> Option<String> {
         match self.0 {

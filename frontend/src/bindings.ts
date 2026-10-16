@@ -78,7 +78,7 @@ export type AiRun = {
 	sessionId: string,
 	generationContextId: string | null,
 	provider: AiProvider,
-	model: string,
+	modelSelection: RunModelSelection,
 	reasoningEffort: string | null,
 	promptVersion: string,
 	status: AiRunStatus,
@@ -532,6 +532,12 @@ export type ProviderWarning = {
 };
 
 export type ProviderWarningSeverity = "advisory" | "blocking";
+
+export type ReportedModel = { source: "claudeInitialization"; id: string } | { source: "claudeAssistantMessage"; id: string } | { source: "codexThreadConfiguration"; id: string };
+
+export type RequestedModel = { kind: "default" } | { kind: "copilotAutomatic" } | { kind: "explicit"; id: string };
+
+export type RunModelSelection = { kind: "legacy"; value: string } | { kind: "recorded"; requested: RequestedModel; reported: ReportedModel | null };
 
 export type Session = {
 	id: string,

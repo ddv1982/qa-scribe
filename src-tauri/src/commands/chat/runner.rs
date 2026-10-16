@@ -37,14 +37,24 @@ pub(super) fn run(
             Ok(Some(Err(error))) => return Err(error.to_string()),
             Err(error) => return Err(error),
         }
-        let output = ChatTransport {
+        let execution = ChatTransport {
             job_id: &job_id,
             jobs: &jobs,
             events: &events,
             control: &control,
             app_data_dir: state.app_data_dir(),
         }
-        .execute(&request, &prepared.prompt)?;
+        .execute(&request, &prepared.prompt);
+        let report = match &execution {
+            Ok(output) => output.model_report.as_ref(),
+            Err(error) => error.model_report.as_ref(),
+        };
+        state
+            .with_service(|service| {
+                service.record_running_ai_run_model_report(&prepared.ai_run.id, report)
+            })
+            .map_err(|error| error.message)?;
+        let output = execution.map_err(|error| error.message)?;
         if output.cancelled || control.is_cancelled() {
             return Err("Generation cancelled.".into());
         }

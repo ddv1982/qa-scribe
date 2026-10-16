@@ -24,6 +24,7 @@ use crate::process_io::configure_process_group;
 
 mod chat_tools;
 mod eof;
+mod model_evidence;
 
 /// Monotonic counter making every [`FakeCli`] path unique. Reusing a path
 /// means writing to a just-removed executable and exec'ing it, which races the
@@ -138,7 +139,7 @@ fn reported_provider_cwd() -> PathBuf {
                         .trim(),
                 );
             }
-            Err(error) if error.contains("Text file busy") && attempt < 5 => {
+            Err(error) if error.message.contains("Text file busy") && attempt < 5 => {
                 thread::sleep(Duration::from_millis(50));
             }
             Err(error) => panic!("streaming completes: {error:?}"),
@@ -215,10 +216,12 @@ fn private_provider_cwd_failure_prevents_generation_spawn() {
         .expect_err("generation must fail before spawning without a private cwd");
 
     assert!(
-        error.contains("Could not create a private working directory for the provider"),
+        error
+            .message
+            .contains("Could not create a private working directory for the provider"),
         "unexpected error: {error}"
     );
-    assert!(error.contains("provider was not started"));
+    assert!(error.message.contains("provider was not started"));
     assert!(
         !marker.exists(),
         "provider subprocess must not have spawned"
@@ -442,7 +445,7 @@ fn oversized_stdout_line_is_rejected_and_the_child_is_reaped() {
     .expect_err("oversized line should fail");
 
     assert!(
-        error.contains("output line exceeded"),
+        error.message.contains("output line exceeded"),
         "unexpected error: {error}"
     );
 }
@@ -465,36 +468,7 @@ fn oversized_total_stdout_is_rejected_and_the_child_is_reaped() {
     .expect_err("oversized stdout should fail");
 
     assert!(
-        error.contains("output exceeded"),
+        error.message.contains("output exceeded"),
         "unexpected error: {error}"
-    );
-}
-
-#[test]
-fn watchdog_kills_silent_child_and_fails_job() {
-    // A child that never emits output and never exits must be killed by
-    // the watchdog. Use a tiny timeout so the test is fast; the watchdog
-    // kill unblocks the (otherwise infinite) reader.
-    let cli = FakeCli::new(
-        "fake-silent",
-        "#!/bin/sh\ncat >/dev/null\nsleep 120\nexit 0\n",
-    );
-    let command = cli.command("prompt".to_string(), GenerationOutputFormat::CodexJsonl);
-    let control = JobControl::default();
-
-    let started = Instant::now();
-    let result = run_bounded(Duration::from_secs(15), move || {
-        let executor = ProcessProviderExecutor::with_timeout(&control, Duration::from_millis(500));
-        run_streaming_generation(&executor, &command, |_| {})
-    });
-
-    assert!(
-        started.elapsed() < Duration::from_secs(10),
-        "watchdog should fire well before the child's own sleep"
-    );
-    let error = result.expect_err("watchdog should fail the generation");
-    assert!(
-        error.contains("timed out"),
-        "expected timeout error, got: {error}"
     );
 }

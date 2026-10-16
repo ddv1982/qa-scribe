@@ -391,48 +391,6 @@ fn successful_unusable_provider_output_fails_the_run_without_changing_records() 
 }
 
 #[test]
-fn invalid_reported_model_fails_the_run_instead_of_leaving_it_running() {
-    let service = SessionService::in_memory().expect("service should open");
-    let session = create_session(&service, "Reported model");
-    let note = create_note(
-        &service,
-        &session.id,
-        "Input note",
-        "<p>Generate output.</p>",
-    );
-    let request = request_for(&session.id, GenerateAiActionKind::Testware, Some(&note.id));
-    let prepared =
-        prepare_ai_action_generation(&service, &request).expect("generation should prepare");
-    let ai_run_id = prepared.ai_run.id.clone();
-    let output = ProviderGenerationOutput {
-        exit_success: Some(true),
-        stdout: format!(
-            "{{\"type\":\"system\",\"subtype\":\"init\",\"model\":\"{}\"}}\n",
-            "m".repeat(241)
-        )
-        .into_bytes(),
-        stderr: Vec::new(),
-        assistant_text: Some("<p>Generated output.</p>".to_string()),
-        output_format: GenerationOutputFormat::ClaudeStreamJson,
-        cancelled: false,
-    };
-
-    let error = finish_ai_action_generation(&service, &request, prepared, Ok(output))
-        .expect_err("oversized reported model should fail");
-
-    assert!(error.to_string().contains("resolved AI model"));
-    assert_eq!(
-        service
-            .get_ai_run(&ai_run_id)
-            .expect("AI Run should read")
-            .expect("AI Run should exist")
-            .status
-            .as_str(),
-        "failed"
-    );
-}
-
-#[test]
 fn generated_testware_title_stays_within_the_shared_title_limit() {
     let service = SessionService::in_memory().expect("service should open");
     let session = create_session(&service, &"S".repeat(TITLE_MAX_LENGTH));

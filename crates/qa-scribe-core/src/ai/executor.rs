@@ -8,7 +8,7 @@
 //! reports a [`ProviderExecution`] summary; [`run_streaming_generation`]
 //! layers the per-format stream parsing on top.
 
-use crate::domain::AiProvider;
+use crate::domain::{AiProvider, ReportedModel};
 
 use super::{
     GenerationCommand, GenerationOutputFormat,
@@ -28,6 +28,11 @@ const MAX_PROVIDER_FAILURE_MESSAGE_BYTES: usize = 1_600;
 /// to `on_line`. Cancellation is owned by the implementation: a cancelled run
 /// simply returns with [`ProviderExecution::cancelled`] set.
 pub trait ProviderExecutor {
+    fn collect_output(&self, collect: &mut dyn FnMut()) -> Result<bool, String> {
+        collect();
+        Ok(true)
+    }
+
     fn execute(
         &self,
         command: &GenerationCommand,
@@ -61,27 +66,54 @@ pub fn run_streaming_generation(
     executor: &dyn ProviderExecutor,
     command: &GenerationCommand,
     mut on_update: impl FnMut(StreamUpdate),
-) -> Result<ProviderGenerationOutput, String> {
+) -> Result<ProviderGenerationOutput, ProviderExecutionError> {
     let mut parser = ProviderStreamParser::new(command.output_format);
     let mut stdout = Vec::new();
     let mut output_limit_exceeded = false;
+    let mut collection_error = None;
     let execution = executor.execute(command, &mut |line| {
-        if output_limit_exceeded {
+        if output_limit_exceeded || collection_error.is_some() {
             return;
         }
-        if stdout.len().saturating_add(line.len()) > MAX_PROVIDER_STDOUT_BYTES {
-            output_limit_exceeded = true;
-            return;
+        let mut updates = Vec::new();
+        let collected = executor.collect_output(&mut || {
+            if stdout.len().saturating_add(line.len()) > MAX_PROVIDER_STDOUT_BYTES {
+                output_limit_exceeded = true;
+                return;
+            }
+            stdout.extend_from_slice(line);
+            updates = parser.push_bytes(line);
+        });
+        match collected {
+            Ok(true) => {}
+            Ok(false) => return,
+            Err(error) => {
+                collection_error = Some(error);
+                return;
+            }
         }
-        stdout.extend_from_slice(line);
-        for update in parser.push_bytes(line) {
+        for update in updates {
             on_update(update);
         }
+    });
+    let model_report = parser.model_report();
+    if let Some(message) = collection_error {
+        return Err(ProviderExecutionError {
+            message,
+            model_report,
+        });
+    }
+    let execution = execution.map_err(|message| ProviderExecutionError {
+        message,
+        model_report: model_report.clone(),
     })?;
     if output_limit_exceeded {
-        return Err(format!(
-            "Provider output exceeded the {MAX_PROVIDER_STDOUT_BYTES} byte safety limit."
-        ));
+        return Err(ProviderExecutionError {
+            message: format!(
+                "Provider output exceeded the {MAX_PROVIDER_STDOUT_BYTES} byte safety limit."
+            ),
+            model_report,
+        });
     }
     Ok(ProviderGenerationOutput {
         exit_success: execution.exit_success,
@@ -90,8 +122,38 @@ pub fn run_streaming_generation(
         assistant_text: parser.finish(),
         output_format: command.output_format,
         cancelled: execution.cancelled,
+        model_report,
     })
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ProviderExecutionError {
+    pub message: String,
+    pub model_report: Option<ReportedModel>,
+}
+
+impl From<String> for ProviderExecutionError {
+    fn from(message: String) -> Self {
+        Self {
+            message,
+            model_report: None,
+        }
+    }
+}
+
+impl From<&str> for ProviderExecutionError {
+    fn from(message: &str) -> Self {
+        message.to_string().into()
+    }
+}
+
+impl std::fmt::Display for ProviderExecutionError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.message.fmt(formatter)
+    }
+}
+
+impl std::error::Error for ProviderExecutionError {}
 
 /// The parsed outcome of a streaming generation, consumed by the workflow's
 /// finish step.
@@ -103,6 +165,7 @@ pub struct ProviderGenerationOutput {
     pub assistant_text: Option<String>,
     pub output_format: GenerationOutputFormat,
     pub cancelled: bool,
+    pub model_report: Option<ReportedModel>,
 }
 
 impl ProviderGenerationOutput {
@@ -176,29 +239,6 @@ impl ProviderGenerationOutput {
                 Err(structured_output_compatibility_error("Claude stream-json"))
             }
         }
-    }
-
-    /// Structured CLIs such as Claude include the resolved model in their
-    /// initialization event. Keep this deliberately narrow so arbitrary
-    /// model-like fields in generated content are never treated as metadata.
-    pub fn reported_model(&self) -> Option<String> {
-        String::from_utf8_lossy(&self.stdout)
-            .lines()
-            .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
-            .find_map(|event| {
-                let is_init = event.get("type").and_then(serde_json::Value::as_str)
-                    == Some("system")
-                    && event.get("subtype").and_then(serde_json::Value::as_str) == Some("init");
-                if !is_init {
-                    return None;
-                }
-                event
-                    .get("model")?
-                    .as_str()
-                    .map(str::trim)
-                    .filter(|model| !model.is_empty())
-                    .map(str::to_string)
-            })
     }
 
     pub fn failure_message(&self) -> String {

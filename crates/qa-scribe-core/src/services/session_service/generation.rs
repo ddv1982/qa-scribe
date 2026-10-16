@@ -19,58 +19,9 @@ use super::{
 };
 
 mod context;
+mod model_evidence;
 
 impl SessionService {
-    pub fn record_running_ai_run_model(&self, id: &str, model: &str) -> Result<()> {
-        let model = validate_required_text("resolved AI model", model, 240)?;
-        let changed = self.database.connection().execute(
-            "UPDATE ai_runs SET model = ?1 WHERE id = ?2 AND status = 'running'",
-            params![model, id],
-        )?;
-        if changed == 0 {
-            return Err(self.ai_run_transition_error(id)?);
-        }
-        Ok(())
-    }
-
-    pub fn create_ai_run(&self, draft: AiRunCreate) -> Result<AiRun> {
-        require_session(self.database.connection(), &draft.session_id)?;
-        if let Some(context_id) = &draft.generation_context_id {
-            require_row_in_session(
-                self.database.connection(),
-                "generation_contexts",
-                context_id,
-                &draft.session_id,
-                "AI Run Generation Context must belong to the Session",
-            )?;
-        }
-        let model = validate_required_text("AI model", &draft.model, 240)?;
-        let prompt_version = validate_required_text("prompt version", &draft.prompt_version, 80)?;
-        let reasoning_effort =
-            validate_optional_text("reasoning effort", draft.reasoning_effort, 40)?;
-        let id = new_id();
-        let now = now();
-
-        self.database.connection().execute(
-            "INSERT INTO ai_runs (
-                id, session_id, generation_context_id, provider, model, reasoning_effort,
-                prompt_version, status, error_message, created_at, completed_at
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 'running', NULL, ?8, NULL)",
-            params![
-                id,
-                draft.session_id,
-                draft.generation_context_id,
-                draft.provider.as_str(),
-                model,
-                reasoning_effort,
-                prompt_version,
-                now
-            ],
-        )?;
-
-        self.ai_run(&id)?.ok_or(QaScribeError::NotFound(id))
-    }
-
     pub fn complete_ai_run(&self, id: &str) -> Result<AiRun> {
         let now = now();
         let changed = self.database.connection().execute(
@@ -339,7 +290,7 @@ impl SessionService {
             .connection()
             .query_row(
                 "SELECT id, session_id, generation_context_id, provider, model, reasoning_effort,
-                    prompt_version, status, error_message, created_at, completed_at
+                    prompt_version, status, error_message, created_at, completed_at, model_selection_json
                  FROM ai_runs
                  WHERE id = ?1",
                 [id],
@@ -374,7 +325,7 @@ fn ai_run_by_id(connection: &Connection, id: &str) -> Result<Option<AiRun>> {
     connection
         .query_row(
             "SELECT id, session_id, generation_context_id, provider, model, reasoning_effort,
-                prompt_version, status, error_message, created_at, completed_at
+                prompt_version, status, error_message, created_at, completed_at, model_selection_json
              FROM ai_runs
              WHERE id = ?1",
             [id],

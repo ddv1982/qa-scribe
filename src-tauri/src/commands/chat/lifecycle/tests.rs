@@ -32,6 +32,7 @@ fn setup() -> (SessionService, StartChatJobRequest) {
 
 fn output(text: &str) -> ProviderGenerationOutput {
     ProviderGenerationOutput {
+        model_report: None,
         exit_success: Some(true),
         stdout: Vec::new(),
         stderr: Vec::new(),
@@ -276,21 +277,31 @@ fn retry_reuses_failed_user_message_and_associates_new_run() {
 }
 
 #[test]
-fn reported_model_validation_failure_does_not_partially_complete_turn() {
+fn invalid_typed_report_is_rejected_without_partially_completing_turn() {
     let (service, request) = setup();
     let prepared = prepare(&service, &request).unwrap();
-    let mut response = output("Assistant answer");
-    response.stdout = serde_json::to_vec(&serde_json::json!({
-        "type": "system", "subtype": "init", "model": "x".repeat(241),
-    }))
-    .unwrap();
-    assert!(finish(&service, &prepared, response).is_err());
+    assert!(
+        service
+            .record_running_ai_run_model_report(
+                &prepared.ai_run.id,
+                Some(&ReportedModel::ClaudeInitialization {
+                    id: "x".repeat(241)
+                })
+            )
+            .is_err()
+    );
     let chat = service.load_chat(&request.scope.session_id).unwrap();
     assert_eq!(chat.messages.len(), 1);
     assert_eq!(chat.messages[0].status, ChatTurnStatus::Running);
     let run = service.get_ai_run(&prepared.ai_run.id).unwrap().unwrap();
     assert_eq!(run.status, AiRunStatus::Running);
-    assert_eq!(run.model, request.model);
+    assert_eq!(
+        run.model_selection,
+        RunModelSelection::Recorded {
+            requested: RequestedModel::Explicit { id: request.model },
+            reported: None
+        }
+    );
     let chat = fail(
         &service,
         &prepared,
