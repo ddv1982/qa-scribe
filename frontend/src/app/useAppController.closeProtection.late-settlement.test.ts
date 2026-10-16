@@ -1,5 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { EntryPatch } from '../bindings'
 import { entryFixture, settingsFixture } from '../test/fixtures'
 import { richEditorDocumentFromPlainText } from '../editor/editorDocument'
 import { chatFixture } from './useSessionChat.testSupport'
@@ -20,9 +21,9 @@ describe('native close settlement after final awaits', () => {
     let durableBody = '<p>Original persisted Note</p>'
     api.updateSettings.mockReturnValue(settings.promise)
     api.saveChatComposer.mockReturnValue(chat.promise)
-    api.updateEntry.mockImplementation(async (_id, patch) => {
+    api.updateEntry.mockImplementation(async (_id: string, patch: EntryPatch) => {
       const saved = await note.promise
-      durableBody = patch.body
+      durableBody = patch.body ?? durableBody
       return saved
     })
     const { result } = renderHook(() => useAppController())
@@ -51,4 +52,39 @@ describe('native close settlement after final awaits', () => {
     expect(desktop.currentWindow.destroy).toHaveBeenCalledOnce()
     expect(result.current.sessionSaveState).toBe('saved')
   })
+
+  it.each(['settings', 'Chat'] as const)('keeps the window open for Settings edits made during the final %s save and persists them on retry', async (lateStep) => {
+    const settings = deferred<ReturnType<typeof settingsFixture>>()
+    const chat = deferred<ReturnType<typeof chatFixture>>()
+    api.updateSettings.mockReturnValueOnce(settings.promise)
+    api.saveChatComposer.mockReturnValue(chat.promise)
+    const { result } = renderHook(() => useAppController())
+    await waitFor(() => expect(result.current.sessionChat.chat?.sessionId).toBe('session-1'))
+    act(() => result.current.updateSettingsDraft({ testwareTemplate: 'Initial close template' }))
+    const firstClose = { preventDefault: vi.fn() }
+    let closing!: Promise<void>
+    act(() => { closing = Promise.resolve(desktop.closeRequestedHandler()?.(firstClose)) })
+    await waitFor(() => expect(api.updateSettings).toHaveBeenCalledOnce())
+    if (lateStep === 'Chat') {
+      act(() => result.current.sessionChat.onSetComposer('Chat edit during Settings save'))
+      await act(async () => { settings.resolve(settingsFixture({ testwareTemplate: 'Initial close template' })); await settings.promise })
+      await waitFor(() => expect(api.saveChatComposer).toHaveBeenCalledOnce())
+    }
+    act(() => result.current.updateSettingsDraft({ testwareTemplate: 'Newer template must survive close' }))
+    await act(async () => {
+      if (lateStep === 'settings') settings.resolve(settingsFixture({ testwareTemplate: 'Initial close template' }))
+      else chat.resolve(chatFixture({ draftId: 'chat-session-1', revision: 1, composer: 'Chat edit during Settings save' }))
+      await closing
+    })
+    expect(desktop.currentWindow.destroy).not.toHaveBeenCalled()
+    expect(result.current.settingsDraft?.testwareTemplate).toBe('Newer template must survive close')
+    expect(result.current.settingsDirty).toBe(true)
+    api.updateSettings.mockResolvedValue(settingsFixture({ testwareTemplate: 'Newer template must survive close' }))
+    const retry = { preventDefault: vi.fn() }
+    await act(async () => { await desktop.closeRequestedHandler()?.(retry) })
+    expect(api.updateSettings).toHaveBeenLastCalledWith(expect.objectContaining({ testwareTemplate: 'Newer template must survive close' }))
+    expect(result.current.settingsDirty).toBe(false)
+    expect(desktop.currentWindow.destroy).toHaveBeenCalledOnce()
+  })
+
 })
