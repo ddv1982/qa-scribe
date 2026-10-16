@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.8.7 - 2026-10-16
+
+- Fix Recent sessions titles being vertically clipped by compressed sidebar rows. Size each row to its content, keep long titles bounded to two readable lines, and preserve date spacing and list scrolling.
+- Make generation preflight headings look like static text rather than editable fields while preserving initial focus, visible context and dialog keyboard behavior.
+- Add deterministic native layout checks for short, multiline and unbroken Session titles, sidebar navigation and compact Session switching, plus focused preflight coverage across light/dark themes and desktop/laptop/narrow windows.
+
 ## v0.8.6 - 2026-10-15
 
 - Fix generation preflight notices overlapping Test design options on laptop-sized windows. Keep the header and actions stable around one scrollable body so every generation option remains reachable.

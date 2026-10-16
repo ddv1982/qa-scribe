@@ -2,67 +2,13 @@ import assert from 'node:assert/strict'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createRequire } from 'node:module'
-import { execFileSync } from 'node:child_process'
+import { nativeKeySender, settledViewport, viewport } from './preflight-native-keys.mjs'
 
 // Dependencies belong to the frontend workspace, as in the maintained runner.
 const frontendRequire = createRequire(new URL('../../frontend/package.json', import.meta.url))
 const { Key } = await import(frontendRequire.resolve('webdriverio'))
 
 const dialog = 'dialog.generation-preflight[open]'
-
-function nativeKeySender(evidence, persist) {
-  assert.equal(process.platform, 'linux', 'Native keyboard evidence requires Linux/X11')
-  assert.ok(process.env.DISPLAY, 'Native keyboard evidence requires DISPLAY (use isolated Xvfb)')
-  const run = (...args) => execFileSync('xdotool', args, {
-    encoding: 'utf8', timeout: 5_000, shell: false,
-  }).trim()
-  const visible = run('search', '--onlyvisible', '--name', '.*').split(/\s+/).filter(Boolean)
-    .map((id) => ({ id, name: run('getwindowname', id) }))
-  evidence.visibleWindows = visible
-  persist()
-  const windows = visible.filter((window) => /^QA Scribe E2E(?: \(dev\))?$/.test(window.name)).map((window) => window.id)
-  evidence.nativeKeyboard = { status: 'running', backend: 'xdotool', display: process.env.DISPLAY, windows, keys: [] }
-  persist()
-  assert.equal(windows.length, 1, `Native keys require exactly one visible QA Scribe E2E window: ${JSON.stringify(visible)}`)
-  const [id] = windows
-  assert.match(id, /^\d+$/, 'xdotool must return a numeric window ID')
-  evidence.nativeKeyboard.window = { id, pid: run('getwindowpid', id), name: run('getwindowname', id) }
-  persist()
-  return async (key) => {
-    const keys = { [Key.PageDown]: 'Next', [Key.PageUp]: 'Prior', [Key.Tab]: 'Tab',
-      [Key.Space]: 'space', [Key.Escape]: 'Escape', [Key.Home]: 'Home',
-      [Key.End]: 'End', [Key.ArrowDown]: 'Down', 'Shift+Tab': 'shift+Tab' }
-    assert.ok(keys[key], `Unsupported native key: ${key}`)
-    // Focus the actual application, not the WDIO worker PID. No --window on
-    // key: XTEST must deliver real OS events, not XSendEvent to an arbitrary ID.
-    assert.equal(run('getwindowname', id), evidence.nativeKeyboard.window.name)
-    run('windowfocus', '--sync', id)
-    assert.equal(run('getwindowfocus'), id, 'Native keys must target the selected application window')
-    run('key', '--clearmodifiers', keys[key])
-    evidence.nativeKeyboard.keys.push({ key: keys[key], window: id })
-    persist()
-    await browser.pause(100)
-  }
-}
-
-async function viewport() {
-  return browser.execute(() => ({ width: innerWidth, height: innerHeight, devicePixelRatio }))
-}
-
-async function settledViewport() {
-  // Use the same native window resizing path as Streamdown, not DOM/CSS emulation.
-  await browser.pause(250)
-  let previous
-  let stable = 0
-  let actual
-  await browser.waitUntil(async () => {
-    actual = await viewport()
-    stable = previous?.width === actual.width && previous?.height === actual.height ? stable + 1 : 0
-    previous = actual
-    return stable >= 3
-  }, { timeout: 5_000, interval: 100, timeoutMsg: 'Preflight harness: native viewport did not settle' })
-  return actual
-}
 
 async function calibrateWindow(evidence, persist) {
   // Calibrate at desktop size before requesting 640px, where minimum native
@@ -149,6 +95,7 @@ async function inspect() {
     return {
       viewport: { width: innerWidth, height: innerHeight, devicePixelRatio },
       theme: document.documentElement.dataset.theme,
+      headingOutline: getComputedStyle(root.querySelector('h2')).outlineStyle,
       focusedTag: document.activeElement?.tagName, focusedId: document.activeElement?.id,
       dialog: box(root), summary: box(summary), summaryText: summary?.textContent,
       summaryTextRects: textRects(summary), options: box(options), testDesign: box(legend),
@@ -387,6 +334,7 @@ export async function runGenerationPreflightLayoutWorkflow({ button }) {
     assert.ok(geometry, 'Generation preflight must be mounted')
     assert.equal(geometry.focusedTag, 'H2', 'Opening focus must start on the heading')
     assert.equal(geometry.focusedId, 'generation-preflight-title', 'Opening focus must identify the preflight heading')
+    assert.equal(geometry.headingOutline, 'none', 'Static preflight heading must not have an input-like focus outline')
     assert.equal(geometry.bodyScrollTop, 0, 'Opening body scroll must start at the top without helper normalization')
     assert.ok(Math.abs(geometry.viewport.width - width) <= 2 && Math.abs(geometry.viewport.height - height) <= 2,
       `Preflight harness: actual logical viewport must be ${width}x${height}, got ${JSON.stringify(geometry.viewport)}`)
@@ -458,7 +406,7 @@ export async function runGenerationPreflightLayoutWorkflow({ button }) {
           await cancel()
           if (nativeKeys) {
             const trigger = await open()
-            const sendKey = nativeKeySender(evidence, persist)
+            const sendKey = nativeKeySender(evidence, persist, Key)
             await assertKeyboard(layout, persist, sendKey)
             await sendKey(Key.Escape)
             await $(dialog).waitForExist({ reverse: true })
@@ -489,4 +437,55 @@ export async function runGenerationPreflightLayoutWorkflow({ button }) {
     evidence.durationMs = Date.now() - startedAt
     persist()
   }
+}
+
+// Keep imports by critical-workflows helper-only, while making this exact spec
+// runnable for focused layout verification through the maintained runner.
+if (process.env.QA_SCRIBE_E2E_SPEC === 'generation-preflight-layout.e2e.mjs') {
+  describe('Generation preflight focused layout', () => {
+    it('keeps its heading static and context visible across responsive layouts', async function () {
+      this.timeout(180_000)
+      const button = async (label) => $(`button=${label}`)
+      await $('h1=No Session selected').waitForDisplayed()
+      await (await button('New Session')).click()
+      await $('[aria-label="Session title"]').setValue('E2E generation preflight layout')
+      await $('[aria-label="Note body"]').setValue('Check generation options and execution details before starting Testware.')
+      await browser.waitUntil(async () => browser.execute(() =>
+        document.querySelector('p.status-pill.saved')?.textContent.includes('Note saved') ?? false))
+      await (await button('Generate test cases')).click()
+      await runGenerationPreflightLayoutWorkflow({ button })
+      const variants = []
+      for (const [triggerLabel, heading] of [['Create finding', 'Create finding?'], ['Summarize notes', 'Summarize note?']]) {
+        const trigger = await button(triggerLabel)
+        await browser.execute((node) => node.focus(), trigger)
+        await trigger.click()
+        await $(dialog).waitForDisplayed()
+        await browser.pause(250)
+        const value = await inspect()
+        variants.push({ triggerLabel, ...value })
+        writeFileSync(join(process.env.QA_SCRIBE_E2E_ARTIFACTS, 'preflight-heading-variants.json'), JSON.stringify(variants, null, 2))
+        await browser.saveScreenshot(join(process.env.QA_SCRIBE_E2E_ARTIFACTS, `preflight-heading-${triggerLabel.replaceAll(' ', '-')}.png`))
+        assert.equal(await $(`${dialog} h2`).getText(), heading)
+        assert.equal(value.headingOutline, 'none')
+        assert.equal(value.focusedId, 'generation-preflight-title')
+        assert.equal(value.bodyScrollTop, 0)
+        assert.ok(await browser.execute(() => {
+          const root = document.querySelector('dialog.generation-preflight[open]')
+          const controls = Array.from(root.querySelectorAll('button, input, select, textarea, a[href], [tabindex]'))
+            .filter((node) => node.tabIndex >= 0 && !node.matches(':disabled, [hidden], input[type="hidden"]'))
+          const heading = root.querySelector('h2')
+          heading.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true }))
+          if (document.activeElement !== controls.at(-1)) return false
+          controls.at(-1).dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }))
+          return document.activeElement === controls[0]
+        }), 'Heading Shift+Tab and final-control Tab must wrap inside the actual dialog')
+        // Native cancel is the browser's Escape contract; the unchanged opt-in
+        // X11 workflow separately verifies OS-level keyboard dispatch.
+        await browser.execute(() => document.querySelector('dialog.generation-preflight[open]')
+          .dispatchEvent(new Event('cancel', { cancelable: true })))
+        await $(dialog).waitForExist({ reverse: true })
+        assert.ok(await browser.execute((node) => document.activeElement === node, trigger), 'Cancel restores the variant trigger')
+      }
+    })
+  })
 }
