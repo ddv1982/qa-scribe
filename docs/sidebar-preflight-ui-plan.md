@@ -62,9 +62,26 @@ metadata validation passed.
 Frozen dependency install made no changes. Workflow validation passed with
 actionlint 1.7.12; authenticated zizmor 1.30.1 reported no findings. Full
 verification passed on the v0.8.7 candidate, including 520 frontend tests,
-Rust workspace tests/build and the smoke harness. Publication remains pending.
-- [ ] Review and commit only intended changes; push a release PR and verify hosted CI success.
-- [ ] Obtain separate merge authorization and merge through the protected branch process.
-- [ ] Watch the merge-triggered Release run; verify exact automatic tag SHA, non-draft release and expected downloadable assets.
+Rust workspace tests/build and the smoke harness.
+- [x] Review and commit only intended changes; push a release PR and verify hosted CI success.
+- [x] Obtain separate merge authorization and merge through the protected branch process.
+- [x] Watch the merge-triggered Release run; verify exact automatic tag SHA, non-draft release and expected downloadable assets.
 
-The release is incomplete until every publication check above is verified.
+PR https://github.com/ddv1982/qa-scribe/pull/38 at commit `7cc0360` passed all
+hosted checks, including CI success, Linux quality/package checks, macOS
+platform tests and observational application E2E (run `38839087213`). The user
+explicitly authorized merge/publication after green CI. Merged at
+`aa6fd4c662353eeff6148c46c0cc036df2c26909`.
+
+Release run https://github.com/ddv1982/qa-scribe/actions/runs/38841039011
+succeeded. The workflow created `v0.8.7` at that exact merge SHA. Verified
+non-draft publication and eleven uploaded assets: arm64/x64 signed/notarized
+macOS DMGs; Linux deb, rpm and AppImage; APT setup deb, checksum and signature;
+APT installer; SHA256SUMS and its signature. Platform installer launch checks,
+checksum signing/verification and APT Pages publication succeeded.
+
+Release: https://github.com/ddv1982/qa-scribe/releases/tag/v0.8.7
+
+All implementation and publication checklist units are verified. This final
+execution record is maintained on the release branch after publication; it
+does not move or replace the published tag.
