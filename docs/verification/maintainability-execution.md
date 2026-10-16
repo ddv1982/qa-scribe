@@ -128,7 +128,7 @@ These races were reproduced through the rendered controller and native-window ad
 
 ### Verify the complete candidate
 
-The combined code is `2017ef647f965a2efe57ea484d4ce8e9fd6e9324`.
+The original combined candidate was a local integration commit. Its retained production-equivalent revision is protected main `ef38240756d1a3620b2df3f0ddc368b49235a9b6`; use that revision for reproduction.
 The first combined verification stopped because the shared build cache disappeared. No application check failure was inferred from that environment error.
 The task moved its build artifacts to a private cache and reran the complete `bun run verify` successfully.
 The complete run passed 545 frontend tests and 538 Rust tests. Three existing authenticated tests remained ignored.

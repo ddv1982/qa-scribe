@@ -1,6 +1,6 @@
 {
   "capturedAt": "2026-10-16T12:06:25.137063+00:00",
-  "productionCodeRevision": "2017ef647f965a2efe57ea484d4ce8e9fd6e9324",
+  "productionCodeRevision": "ef38240756d1a3620b2df3f0ddc368b49235a9b6",
   "laterPatchScope": "test fixtures, runner registration, and documentation only",
   "fullRepositoryGate": {
     "command": "bun run verify",
@@ -81,8 +81,18 @@
     "head": "00b346229e7e0d9284a250e753feca839114179c",
     "ciRun": "https://github.com/ddv1982/qa-scribe/actions/runs/38937555507",
     "nativeClose": "passed in hosted Linux quality job",
-    "productionMatches": "2017ef647f965a2efe57ea484d4ce8e9fd6e9324"
+    "productionEquivalence": "git diff --exit-code of recorded productionSourceObjects paths passed between the original local candidate and this retained main revision"
   },
   "capturedAtScope": "original local verification snapshot",
-  "updatedAt": "2026-10-16T17:35:38Z"
+  "updatedAt": "2026-10-16T17:40:22Z",
+  "productionRevisionScope": "retained protected-main revision with identical production sources to the original local verification candidate",
+  "productionSourceObjects": {
+    "crates": "44acb4adcd7dab3dc5739fcecf286c366b1128f5",
+    "frontend/src": "e95b51a5835b0385eb01b0e97e4204c3a533364c",
+    "src-tauri/src": "378bc0c10faa06e3d62706d227bbcc1ef511c772",
+    "Cargo.toml": "3c3c367387a529088f2a8ed66cec0609d48045fe",
+    "Cargo.lock": "02bc334a721144642aa27149ad83e1f8783aa0f3",
+    "package.json": "ef2ef8e574e54c9b4ded763ea0e56671eed5428c",
+    "frontend/package.json": "a6f9222053a4dd4d3c615e0be82e03bd60cc0a4d"
+  }
 }

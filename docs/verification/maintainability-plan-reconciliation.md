@@ -61,7 +61,7 @@ Exact production measurements are in [the bundle receipt](maintainability-bundle
 | Baseline `881cc7a` | 453003 | 0 | Reference. |
 | P04 `76280a9` | 453339 | 336 | Accepted observer lifetime, identity, and recapture protection. |
 | P05 `53d718e` | 453478 | 475 | Accepted operation eligibility and recovery transitions. |
-| Combined `2017ef6` | 453552 | 549 | Accepted persistence ownership and final-await guards. |
+| Combined, retained equivalent `ef38240` | 453552 | 549 | Accepted persistence ownership and final-await guards. |
 
 Only the application chunk changes. Vendor, editor, and icon counts match the baseline.
 No dependency was added. This satisfies the investigation rule for any positive gzip delta.
@@ -75,3 +75,5 @@ All six implementation PRs merged. Protected main at `ef38240` has identical pro
 Version 0.8.9 is prepared from that protected main using the repository bump script. The release PR still requires its own protected CI and independent audit.
 The existing Release workflow creates the tag at its merge commit. Verify publication and expected assets, not just tag existence.
 Authenticated CLI smokes remain optional under the repository release process and were not run.
+
+The original local integration candidate was not pushed. Reproduction uses retained protected main `ef38240756d1a3620b2df3f0ddc368b49235a9b6`. Its production paths match that candidate exactly. The verification receipt records those Git tree and blob objects; local-only SHAs in the chronological trail are historical provenance.
