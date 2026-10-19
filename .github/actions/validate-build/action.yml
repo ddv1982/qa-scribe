@@ -6,6 +6,10 @@ description: >-
   provided by the calling workflow.
 
 inputs:
+  runner-class:
+    description: Stable runner identifier written to E2E and startup metadata.
+    required: false
+    default: ubuntu-24.04-github-x64
   expected-tag:
     description: >-
       Release tag to validate metadata against. Leave empty to validate metadata
@@ -131,6 +135,6 @@ runs:
       with:
         artifact_prefix: qa-scribe-e2e
         failure_artifact_prefix: qa-scribe-quality-failure
-        runner_class: ubuntu-24.04-github-x64
+        runner_class: ${{ inputs.runner-class }}
         use_xvfb: 'true'
         run_startup_benchmark: 'true'
