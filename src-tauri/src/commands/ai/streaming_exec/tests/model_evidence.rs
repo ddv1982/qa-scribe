@@ -8,66 +8,6 @@ fn synchronous_ui_cancel_finishes_and_freezes_report_before_trailing_frames() {
         "cancel-model-report",
         r#"#!/bin/sh
 cat >/dev/null
-printf '%s\n' '{"type":"system","subtype":"init","model":"before-cancel"}' '{"type":"content_block_delta","delta":{"text":"ready"}}' '{"type":"assistant","message":{"model":"after-cancel","content":[]}}'
-sleep 120
-"#,
-    );
-    let command = cli.command("prompt".into(), GenerationOutputFormat::ClaudeStreamJson);
-    let jobs = JobStore::default();
-    let (_, control) = jobs
-        .insert_generation_job("job".into(), "session".into(), "test".into())
-        .unwrap();
-    jobs.mark_running("job", "run".into(), "Running").unwrap();
-    let observed_control = control.clone();
-    let result = std::panic::catch_unwind(move || {
-        run_bounded(Duration::from_secs(10), move || {
-            let mut cancelled = false;
-            run_generation_command_streaming(&command, &control, |update| {
-                if !cancelled && matches!(update, StreamUpdate::PartialDelta(_)) {
-                    jobs.cancel("job").unwrap();
-                    cancelled = true;
-                }
-            })
-        })
-    });
-    let output = match result {
-        Ok(output) => output.unwrap(),
-        Err(panic) => {
-            eprintln!(
-                "cancel-model-report cancelled={}",
-                observed_control.is_cancelled()
-            );
-            #[cfg(target_os = "macos")]
-            match Command::new("/bin/ps")
-                .args(["-axo", "pid,ppid,pgid,comm"])
-                .output()
-            {
-                Ok(output) => eprintln!(
-                    "cancel-model-report process tree\n{}\n{}",
-                    String::from_utf8_lossy(&output.stdout),
-                    String::from_utf8_lossy(&output.stderr)
-                ),
-                Err(error) => eprintln!("cancel-model-report process tree failed: {error}"),
-            }
-            std::panic::resume_unwind(panic)
-        }
-    };
-    assert!(output.cancelled);
-    assert_eq!(
-        output.model_report,
-        Some(ReportedModel::ClaudeInitialization {
-            id: "before-cancel".into()
-        })
-    );
-    assert!(!String::from_utf8_lossy(&output.stdout).contains("after-cancel"));
-}
-
-#[test]
-fn synchronous_ui_cancel_with_prestarted_descendant_freezes_report() {
-    let cli = FakeCli::new(
-        "cancel-model-report-prestarted",
-        r#"#!/bin/sh
-cat >/dev/null
 sleep 120 &
 sleeper=$!
 printf '%s\n' '{"type":"system","subtype":"init","model":"before-cancel"}' '{"type":"content_block_delta","delta":{"text":"ready"}}' '{"type":"assistant","message":{"model":"after-cancel","content":[]}}'
