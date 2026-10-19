@@ -94,31 +94,16 @@ fn run_bounded<T: Send + 'static>(deadline: Duration, f: impl FnOnce() -> T + Se
                     std::process::id(),
                     thread::current().id()
                 ));
-                match Command::new("/usr/bin/sample")
+                let sampled = Command::new("/usr/bin/sample")
                     .arg(std::process::id().to_string())
                     .args(["1", "1", "-file"])
                     .arg(&report)
-                    .output()
-                {
-                    Ok(output) => {
-                        eprintln!(
-                            "timeout stack sampler exited with {}\n{}\n{}",
-                            output.status,
-                            String::from_utf8_lossy(&output.stdout),
-                            String::from_utf8_lossy(&output.stderr)
-                        );
-                    }
-                    Err(error) => eprintln!("timeout stack sampler failed to start: {error}"),
-                }
-                match fs::read_to_string(&report) {
-                    Ok(contents) => {
-                        eprintln!("timeout stack report {}\n{contents}", report.display());
-                    }
-                    Err(error) => eprintln!(
-                        "could not read timeout stack report {}: {error}",
-                        report.display()
-                    ),
-                }
+                    .stdout(Stdio::null())
+                    .status();
+                eprintln!("timeout stack sampler {sampled:?}");
+                let contents = fs::read_to_string(&report)
+                    .unwrap_or_else(|error| format!("timeout stack report unavailable: {error}"));
+                eprintln!("{contents}");
             }
             panic!("operation did not finish within {deadline:?} (possible deadlock)")
         }
