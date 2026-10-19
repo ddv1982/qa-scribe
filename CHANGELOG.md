@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.8.11 - 2026-10-19
+
+- Update the GitHub Actions pins for cargo-binstall to 1.25.3, setup-node to 7.1.0, upload-artifact to 7.0.2, and download-artifact to 8.0.2.
+- Move Linux CI to Ubuntu 26.04 with an explicit runner class and pinned Fedora 44 RPM smoke tests. Keep release builds on Ubuntu 24.04 and their RPM smoke checks on Fedora 43, and narrowly configure actionlint for the new runner label.
+- Make the model-evidence cancellation regression fixture deterministic on macOS by starting its sleeper before output. Application cancellation behavior and application dependency versions remain unchanged.
+
 ## v0.8.10 - 2026-10-16
 
 - Choose the next CLI model beside Chat Send and generation confirmation. Save one choice per provider and preserve active runs when that preference changes.
