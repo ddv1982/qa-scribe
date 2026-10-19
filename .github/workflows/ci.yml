@@ -131,6 +131,13 @@ jobs:
       - name: Run native macOS Rust tests
         run: cargo test --workspace
 
+      - name: Repeat native macOS Tauri suite for cancellation diagnosis
+        run: |
+          for attempt in 1 2 3 4 5; do
+            echo "macOS Tauri diagnostic suite run ${attempt}/5"
+            cargo test -p qa-scribe-tauri --bin qa-scribe-tauri
+          done
+
       - name: Check Intel macOS cross-compile
         run: cargo check --workspace --target x86_64-apple-darwin
 

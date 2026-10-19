@@ -238,16 +238,12 @@ impl ProviderExecutor for ProcessProviderExecutor<'_> {
 
         let read_result = loop {
             chunk.clear();
-            #[cfg(test)]
-            eprintln!("process-executor stdout read enter");
             let read = match (&mut stdout_reader)
                 .take((MAX_PROVIDER_STDOUT_LINE_BYTES + 1) as u64)
                 .read_until(b'\n', &mut chunk)
             {
                 Ok(read) => read,
                 Err(error) => {
-                    #[cfg(test)]
-                    eprintln!("process-executor stdout read error {error}");
                     // The child may still be alive here (e.g. an EIO/EBADF on
                     // the pipe without the process having exited). `finish()`
                     // below only reaps via `wait()` and does not kill, so
@@ -259,8 +255,6 @@ impl ProviderExecutor for ProcessProviderExecutor<'_> {
                     break Err(error.to_string());
                 }
             };
-            #[cfg(test)]
-            eprintln!("process-executor stdout read returned {read} bytes");
             if read == 0 {
                 break Ok(());
             }
@@ -281,24 +275,14 @@ impl ProviderExecutor for ProcessProviderExecutor<'_> {
                     ));
                 }
             };
-            #[cfg(test)]
-            eprintln!("process-executor on_line enter");
             on_line(&chunk);
-            #[cfg(test)]
-            eprintln!("process-executor on_line returned");
             if control.is_cancelled() {
-                #[cfg(test)]
-                eprintln!("process-executor observed cancel, kill enter");
                 let _ = control.kill_registered_child();
-                #[cfg(test)]
-                eprintln!("process-executor cancel kill returned");
             }
         };
 
         // EOF is a pipe event, not process completion. Keep the child registered
         // and the watchdog active while allowing a bounded normal shutdown.
-        #[cfg(test)]
-        eprintln!("process-executor shutdown enter {read_result:?}");
         let shutdown_result = if read_result.is_ok() {
             let deadline = Instant::now() + EOF_SHUTDOWN_GRACE;
             loop {
@@ -317,26 +301,14 @@ impl ProviderExecutor for ProcessProviderExecutor<'_> {
         // Stop remaining group members before joining pipes. try_wait caches
         // an exited parent's actual status; terminating descendants preserves it.
         // A live parent after the grace period is killed to unblock stalled stdin.
-        #[cfg(test)]
-        eprintln!("process-executor shutdown returned {shutdown_result:?}, kill enter");
         let _ = control.kill_registered_child();
-        #[cfg(test)]
-        eprintln!("process-executor shutdown kill returned, stdin join enter");
         let _ = stdin_writer.join();
-        #[cfg(test)]
-        eprintln!("process-executor stdin join returned, guard finish enter");
         let status = guard.finish();
-        #[cfg(test)]
-        eprintln!("process-executor guard finish returned {status:?}, stderr join enter");
         let stderr = stderr_reader
             .join()
             .map_err(|_| "provider stderr reader panicked".to_string());
-        #[cfg(test)]
-        eprintln!("process-executor stderr join returned, watchdog join enter");
         reader_finished.store(true, Ordering::SeqCst);
         let _ = watchdog.join();
-        #[cfg(test)]
-        eprintln!("process-executor watchdog join returned");
 
         read_result?;
         shutdown_result?;

@@ -87,6 +87,39 @@ fn run_bounded<T: Send + 'static>(deadline: Duration, f: impl FnOnce() -> T + Se
             value
         }
         Err(mpsc::RecvTimeoutError::Timeout) => {
+            #[cfg(target_os = "macos")]
+            {
+                let report = std::env::temp_dir().join(format!(
+                    "qa-scribe-timeout-{}-{:?}.sample.txt",
+                    std::process::id(),
+                    thread::current().id()
+                ));
+                match Command::new("/usr/bin/sample")
+                    .arg(std::process::id().to_string())
+                    .args(["1", "1", "-file"])
+                    .arg(&report)
+                    .output()
+                {
+                    Ok(output) => {
+                        eprintln!(
+                            "timeout stack sampler exited with {}\n{}\n{}",
+                            output.status,
+                            String::from_utf8_lossy(&output.stdout),
+                            String::from_utf8_lossy(&output.stderr)
+                        );
+                    }
+                    Err(error) => eprintln!("timeout stack sampler failed to start: {error}"),
+                }
+                match fs::read_to_string(&report) {
+                    Ok(contents) => {
+                        eprintln!("timeout stack report {}\n{contents}", report.display());
+                    }
+                    Err(error) => eprintln!(
+                        "could not read timeout stack report {}: {error}",
+                        report.display()
+                    ),
+                }
+            }
             panic!("operation did not finish within {deadline:?} (possible deadlock)")
         }
         Err(mpsc::RecvTimeoutError::Disconnected) => match handle.join() {

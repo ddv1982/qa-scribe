@@ -20,28 +20,12 @@ sleep 120
     jobs.mark_running("job", "run".into(), "Running").unwrap();
     let output = run_bounded(Duration::from_secs(10), move || {
         let mut cancelled = false;
-        let started = Instant::now();
-        eprintln!("cancel-model-report {:?} executor enter", started.elapsed());
-        let result = run_generation_command_streaming(&command, &control, |update| {
-            eprintln!(
-                "cancel-model-report {:?} update {update:?}",
-                started.elapsed()
-            );
+        run_generation_command_streaming(&command, &control, |update| {
             if !cancelled && matches!(update, StreamUpdate::PartialDelta(_)) {
-                eprintln!("cancel-model-report {:?} cancel enter", started.elapsed());
                 jobs.cancel("job").unwrap();
-                eprintln!(
-                    "cancel-model-report {:?} cancel returned",
-                    started.elapsed()
-                );
                 cancelled = true;
             }
-        });
-        eprintln!(
-            "cancel-model-report {:?} executor returned {result:?}",
-            started.elapsed()
-        );
-        result
+        })
     })
     .unwrap();
     assert!(output.cancelled);
