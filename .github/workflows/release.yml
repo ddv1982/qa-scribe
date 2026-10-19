@@ -411,7 +411,7 @@ jobs:
         run: node scripts/smoke-release-artifacts.mjs --macos-dmg dist/rust/artifacts
 
       - name: Stage macOS release assets
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-assets-macos-${{ matrix.arch }}
           path: dist/rust/artifacts/*.dmg
@@ -629,7 +629,7 @@ jobs:
           sh -n dist/rust/apt-pages/install-apt-repo.sh
 
       - name: Stage Linux release assets
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-assets-linux-x64
           path: |
