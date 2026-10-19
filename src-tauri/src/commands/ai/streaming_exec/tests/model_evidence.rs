@@ -8,8 +8,10 @@ fn synchronous_ui_cancel_finishes_and_freezes_report_before_trailing_frames() {
         "cancel-model-report",
         r#"#!/bin/sh
 cat >/dev/null
+sleep 120 &
+sleeper=$!
 printf '%s\n' '{"type":"system","subtype":"init","model":"before-cancel"}' '{"type":"content_block_delta","delta":{"text":"ready"}}' '{"type":"assistant","message":{"model":"after-cancel","content":[]}}'
-sleep 120
+wait "$sleeper"
 "#,
     );
     let command = cli.command("prompt".into(), GenerationOutputFormat::ClaudeStreamJson);
