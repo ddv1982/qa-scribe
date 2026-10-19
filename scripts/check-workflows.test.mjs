@@ -48,6 +48,15 @@ test('real pinned actionlint rejects original $/ fixture, accepts stdin adapter,
   }
 })
 
+test('real pinned actionlint accepts the Ubuntu 26.04 hosted label and still rejects typos', () => {
+  for (const [label, status] of [['ubuntu-26.04', 0], ['ubuntu-26.40', 1]]) {
+    const result = lint(normalizeWorkflowSource(fixture.replace('ubuntu-24.04', label)))
+    assert.ifError(result.error)
+    assert.equal(result.status, status, result.stdout + result.stderr)
+    if (status !== 0) assert.match(result.stdout + result.stderr, /runner-label/)
+  }
+})
+
 test('only actual job and step references change, preserving quotes, Unicode, bytes and line offsets', () => {
   const source = `# 🧪 café uses: $/comment\r
 name: 'uses: $/metadata'\r

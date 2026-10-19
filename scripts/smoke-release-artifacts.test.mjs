@@ -359,8 +359,8 @@ test('CI and release workflows separate Ubuntu smoke from pinned Fedora RPM smok
     readFile('.github/workflows/release.yml', 'utf8')
   ])
 
-  for (const workflow of [ci, release]) {
-    assert.match(workflow, /RPM_SMOKE_IMAGE: fedora:43@sha256:[a-f0-9]{64}/)
+  for (const [workflow, fedoraVersion] of [[ci, 44], [release, 43]]) {
+    assert.match(workflow, new RegExp(`RPM_SMOKE_IMAGE: fedora:${fedoraVersion}@sha256:[a-f0-9]{64}`))
     assert.match(workflow, /node scripts\/smoke-release-artifacts\.mjs --linux-deb-appimage dist\/rust\/artifacts/)
     assert.match(workflow, /docker run --rm/)
     assert.match(workflow, /--volume "\$\{PWD\}:\/workspace:ro"/)

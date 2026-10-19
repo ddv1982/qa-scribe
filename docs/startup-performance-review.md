@@ -2,6 +2,8 @@
 
 Date: 2026-07-13. Source: startup audit plus built-application large-fixture measurement covering Tauri startup, SQLite storage, frontend boot/session hydration, provider CLI checks, and production bundle output.
 
+Current CI runs on `ubuntu-26.04-github-x64`; release validation retains `ubuntu-24.04-github-x64`. Both keep the 4-second process-cold and 3-second warm budgets across three launches. Ubuntu 24.04 measurements below remain historical evidence. The migration starts a separate Ubuntu 26.04 runner history and does not establish a performance improvement or recalibrate either budget.
+
 Deployment context: qa-scribe is a local-first, single-user Tauri desktop app. The performance risk is local startup latency and perceived readiness as the Session Library grows, not shared-service throughput.
 
 ## Executive Summary

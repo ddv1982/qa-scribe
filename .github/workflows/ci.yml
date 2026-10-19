@@ -19,13 +19,13 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-  RPM_SMOKE_IMAGE: fedora:43@sha256:781b7642e8bf256e9cf75d2aa58d86f5cc695fd2df113517614e181a5eee9138
+  RPM_SMOKE_IMAGE: fedora:44@sha256:43b29f65a41eb9c35e1cd5323e3bdf3b655c2357a9f4f1ff2f9c2798e5045d80
   TAURI_TARGET: x86_64-unknown-linux-gnu
 
 jobs:
   changes:
     name: Detect changed files
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     outputs:
       run_macos_ci: ${{ steps.filter.outputs.run_macos_ci }}
@@ -73,7 +73,7 @@ jobs:
 
   quality-linux:
     name: Quality gate (Linux)
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
 
     steps:
@@ -102,6 +102,8 @@ jobs:
 
       - name: Validate project
         uses: $/.github/actions/validate-build
+        with:
+          runner-class: ubuntu-26.04-github-x64
 
   rust-macos:
     name: Platform tests (macOS arm64 + Intel check)
@@ -165,7 +167,7 @@ jobs:
       !cancelled() &&
       needs.changes.outputs.run_package_ci == 'true' &&
       needs.quality-linux.result == 'success'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 40
 
     steps:
@@ -235,7 +237,7 @@ jobs:
       - name: Install deb and launch deb and AppImage on Ubuntu
         run: node scripts/smoke-release-artifacts.mjs --linux-deb-appimage dist/rust/artifacts
 
-      - name: Install and launch RPM with dependency resolution on Fedora
+      - name: Install and launch RPM with dependency resolution on Fedora 44
         run: |
           docker run --rm \
             --volume "${PWD}:/workspace:ro" \
@@ -254,7 +256,7 @@ jobs:
     name: CI success
     needs: [changes, quality-linux, rust-macos, package-linux]
     if: ${{ !cancelled() }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
 
     steps:

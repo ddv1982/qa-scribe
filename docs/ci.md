@@ -1,5 +1,8 @@
 # Continuous integration
 
+Linux CI jobs run on `ubuntu-26.04`. Release validation and Linux release builds
+remain on `ubuntu-24.04` to preserve the published installer ABI baseline.
+
 The CI workflow is deliberately divided by responsibility:
 
 - **Quality gate (Linux)** is the authoritative repository gate. It runs the
@@ -19,8 +22,9 @@ The CI workflow is deliberately divided by responsibility:
   only when a packaging input changes. It starts only after the quality gate
   succeeds. After metadata validation it installs and launches the final deb
   and executes the AppImage on Ubuntu, then mounts the same artifact directory
-  into a digest-pinned Fedora 43 container where `dnf` resolves the final RPM's
-  dependencies before launch. Each smoke uses isolated XDG state under Xvfb.
+  into a digest-pinned Fedora 44 container where `dnf` resolves the final RPM's
+  dependencies before launch. Fedora 44 matches the CI build host's glibc 2.43
+  baseline. Each smoke uses isolated XDG state under Xvfb.
 - **CI success** is the stable branch-protection check. It fails when any
   applicable job fails and accepts intentionally skipped platform/package jobs.
 
@@ -50,7 +54,9 @@ upstream master was verified, unlike the previous stable-branch SHA flagged by
 the authenticated online audit. This changes the action implementation pin,
 not the Rust channel, components, or additional targets.
 
-`.github/actions/validate-build/action.yml` is shared by CI and tag validation.
+`.github/actions/validate-build/action.yml` is shared by CI and release validation.
+Its `runner-class` input defaults to `ubuntu-24.04-github-x64` for releases.
+CI passes `ubuntu-26.04-github-x64` so reports identify their actual host.
 `.github/actions/run-built-app-e2e/action.yml` owns built-app execution,
 independent production-frontend verification, summaries, and reliability artifacts for Linux and
 macOS so their safety and evidence behavior cannot drift. Any new
@@ -75,6 +81,13 @@ GitHub supports it in workflows and composite actions on runner 2.336.0 or newer
 understand that syntax. The mandatory `Lint Workflows` step therefore runs the
 repository checker after Raven installs the pinned binary and dependencies with
 `flags: '-version'`. The install step is not workflow validation.
+
+The pinned actionlint release predates the hosted `ubuntu-26.04` label.
+`.github/actionlint.yaml` adds that exact label through actionlint's
+`self-hosted-runner.labels` configuration. This is the tool's label-extension
+mechanism; the workflow still selects GitHub-hosted runners. Other unknown
+labels remain errors. Remove this extension when a released actionlint version
+recognizes the label.
 
 The checker parses YAML and gives actionlint a temporary stdin view that changes
 only actual same-repository `uses` values from `$/` to `./`. It retains original
@@ -122,11 +135,15 @@ screenshots, and startup reports are uploaded for 14 days when validation
 fails.
 
 The startup step reuses the E2E binary, creates the versioned synthetic fixture,
-and launches the app three times against the same database. It enforces the
-3-second first-paint budget on `ubuntu-24.04-github-x64`, proves initial Session
-hydration remains bounded, rejects an automatic Deep provider refresh, and
-records production JavaScript raw/gzip sizes. E2E and startup measurements are
-also written to the GitHub job summary, together with observational p50/p95
+and launches the app three times against the same database. It records all
+samples before enforcing a 4-second process-cold first-paint budget and a
+3-second budget for every warm sample. CI reports use
+`ubuntu-26.04-github-x64`; release-validation reports use
+`ubuntu-24.04-github-x64`. The Ubuntu 26.04 migration starts a new runner history
+without changing either budget or recalibrating earlier measurements. The gate
+proves initial Session hydration remains bounded, rejects an automatic Deep
+provider refresh, and records production JavaScript raw/gzip sizes. The job
+summary includes those measurements and observational p50/p95
 latency for an edit in the large active Note Entry.
 
 ## Release privilege boundaries
