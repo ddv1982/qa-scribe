@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import assert from 'node:assert/strict'
+import { assertNativeChecking } from './native-compiler-policy.mjs'
 import { spawnSync } from 'node:child_process'
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
@@ -15,19 +16,6 @@ const manifest = JSON.parse(readFileSync(join(frontend, 'package.json'), 'utf8')
 assert.equal(manifest.devDependencies['tsc-rs'], '0.7.0', 'Compiler dependency must be pinned')
 assert.equal(compilerPackage.version, '0.7.0', 'Installed compiler must match the pinned release')
 const launcher = join(dirname(packagePath), compilerPackage.bin['tsc-rs'])
-
-function assertNativeChecking(scripts) {
-  const checks = scripts.typecheck.split('&&').map(command => command.trim().split(/\s+/))
-  for (const project of ['tsconfig.json', 'tsconfig.node.json']) {
-    const command = checks.find(tokens => tokens[0] === 'tsc-rs' && tokens[tokens.indexOf('-p') + 1] === project)
-    assert.ok(command, `${project} must use tsc-rs directly`)
-    assert.ok(command.includes('--noEmit'), `${project} must disable compiler output`)
-  }
-  const build = scripts.build.split('&&').map(command => command.trim().split(/\s+/))
-  const checkIndex = build.findIndex(tokens => tokens.length === 3 && tokens[0] === 'bun' && tokens[1] === 'run' && tokens[2] === 'typecheck')
-  const bundleIndex = build.findIndex(tokens => tokens[0] === 'vite' && tokens[1] === 'build')
-  assert.ok(checkIndex >= 0 && bundleIndex > checkIndex, 'Build must run the shared typecheck before Vite')
-}
 
 assertNativeChecking(manifest.scripts)
 
@@ -84,7 +72,7 @@ try {
   writeFileSync(fixtureManifest, JSON.stringify(legacyManifest))
   assert.throws(
     () => assertNativeChecking(JSON.parse(readFileSync(fixtureManifest, 'utf8')).scripts),
-    /tsconfig\.json must use tsc-rs directly/,
+    /must use exact tsc-rs/,
     'Compiler policy must reject a copied manifest reverted to JavaScript tsc',
   )
   copyFileSync(join(frontend, 'package.json'), fixtureManifest)

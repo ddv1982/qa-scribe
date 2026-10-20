@@ -28,6 +28,19 @@ The CI workflow is deliberately divided by responsibility:
 - **CI success** is the stable branch-protection check. It fails when any
   applicable job fails and accepts intentionally skipped platform/package jobs.
 
+The separate `Native TypeScript tooling` workflow runs on pull requests and manual
+dispatches. Linux x64, macOS arm64, and macOS Intel each install from the frozen
+lockfile with an empty lane-owned Bun cache. Each lane validates dependencies,
+typed lint fixtures, native compiler diagnostics, frontend checks, and production
+builds. It saves the populated cache under an exact-head, platform, lockfile,
+run, and attempt key, deletes local packages and cache, then restores that exact
+key and repeats the checks after another fresh installation. A hash verifies
+restored cache bytes before the warm installation. Uploaded receipts name the
+actual host architecture, tested commit and PR source head, cache key, cache-hit
+output, cache file counts and bytes, and command logs.
+This workflow publishes no release and does not replace the protected quality
+gate. All three native lanes must pass before landing a tooling migration.
+
 The `changes` job only controls expensive supplementary jobs. It never controls
 the quality gate. This avoids a broad change silently bypassing the primary
 check and keeps a stable final check for branch protection.
@@ -75,6 +88,15 @@ independent production-frontend verification, summaries, and reliability artifac
 macOS so their safety and evidence behavior cannot drift. Any new
 repository-wide contract added to `bun run verify` should also be added to the
 validation action when it benefits from a separately named CI step.
+
+The shared gate also runs `bun run frontend:tooling:check`. It rejects legacy
+TypeScript dependencies in all lock records and installed packages, including
+aliases and optional records. Installed upstream development-only declarations
+are not runtime dependencies. The guard checks runtime TypeScript peer ranges,
+literal runtime compiler API imports, retained lint rules, options, scopes, and
+behavioral fixtures. Computed dynamic imports cannot be proved absent by a
+static literal-import check. Review new compiler consumers when changing dependencies.
+Historical migration evidence remains in the [TypeScript 7 plan](typescript-7-native-tooling-plan.md).
 
 Run workflow linting locally after editing Actions configuration:
 

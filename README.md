@@ -71,13 +71,14 @@ Install frontend dependencies:
 bun install --cwd frontend
 ```
 
-Frontend type checks use the Rust compiler [`tsc-rs`](https://github.com/pingdotgg/ts-rust), pinned to version `0.7.0`. Both the UI and Vite configuration are checked before production builds. Vite bundles the frontend. The JavaScript `typescript` package remains installed for typed ESLint rules.
+Frontend type checks use the Rust compiler [`tsc-rs`](https://github.com/pingdotgg/ts-rust), pinned to version `0.7.0`. Both the UI and Vite configuration are checked before production builds. Vite bundles the frontend. Microsoft TypeScript `7.0.2` supplies the native editor SDK. Oxlint `1.89.0` and its Go-based `oxlint-tsgolint` `7.0.2004` engine provide typed linting. TypeScript 6 and its compiler API consumers are removed.
 
-Editor and typed ESLint diagnostics from TypeScript 6 can differ from the native TypeScript 7 checker; `bun run frontend:check` requires both native checking and typed lint to pass.
+`tsc-rs` ports TypeScript `7.1.0-dev.20261008.1`, so its revision differs from the stable editor SDK. `bun run frontend:check` requires native checking and typed lint to pass. The Rust compiler remains the authoritative build checker.
 
-Run the compiler behavior probe to verify that valid TypeScript and TSX pass and deliberate type errors fail:
+Run the tooling guard to inspect the entire lock and installed dependency graph, verify lint coverage, and exercise deliberate lint violations. Run the compiler probe to verify that valid TypeScript and TSX pass and deliberate type errors stop builds:
 
 ```bash
+bun run frontend:tooling:check
 bun run frontend:compiler:check
 ```
 

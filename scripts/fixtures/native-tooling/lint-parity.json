@@ -1,0 +1,925 @@
+{
+  "schemaVersion": 1,
+  "baselineCommit": "82f1502aee9c20d481bcd0ae56c45d053e7b9516",
+  "baselineSource": "Static legacy configuration and pinned preset source. No TypeScript 6 execution.",
+  "sourceHashes": {
+    "frontend/node_modules/@eslint/js/src/configs/eslint-recommended.js": "e5d27db4e1af67131f1107461ef8dbbf0ef2f9e5d39c7fcecd5452b58216e7f4",
+    "frontend/node_modules/@typescript-eslint/eslint-plugin/dist/configs/eslint-recommended-raw.js": "5d031416f91a50857cb2a8f7bda7fd6c6c0cf1fa4ef891f114dd8c1639850447",
+    "frontend/node_modules/@typescript-eslint/eslint-plugin/dist/configs/eslintrc/recommended-type-checked.js": "031281ff4d1e6beec45ea7c3569531ec8b569b6e1fab5fd910c8f9243879f510"
+  },
+  "productionFiles": [
+    "src/**/*.{ts,tsx}",
+    "vite.config.ts"
+  ],
+  "testFiles": [
+    "src/**/*.test.{ts,tsx}",
+    "src/**/*.testHarness.ts"
+  ],
+  "testDisabled": [
+    "typescript/require-await",
+    "typescript/no-unsafe-assignment",
+    "typescript/no-unsafe-call",
+    "typescript/no-unsafe-return"
+  ],
+  "ignored": [
+    "dist",
+    "node_modules",
+    "scripts"
+  ],
+  "rules": [
+    {
+      "legacy": "@typescript-eslint/await-thenable",
+      "native": "typescript/await-thenable",
+      "setting": "error",
+      "typeAware": true,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "@typescript-eslint/ban-ts-comment",
+      "native": "typescript/ban-ts-comment",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "@typescript-eslint/no-array-constructor",
+      "native": "no-array-constructor",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "@typescript-eslint/no-array-delete",
+      "native": "typescript/no-array-delete",
+      "setting": "error",
+      "typeAware": true,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "@typescript-eslint/no-base-to-string",
+      "native": "typescript/no-base-to-string",
+      "setting": "error",
+      "typeAware": true,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "@typescript-eslint/no-duplicate-enum-values",
+      "native": "typescript/no-duplicate-enum-values",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "@typescript-eslint/no-duplicate-type-constituents",
+      "native": "typescript/no-duplicate-type-constituents",
+      "setting": "error",
+      "typeAware": true,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "@typescript-eslint/no-empty-object-type",
+      "native": "typescript/no-empty-object-type",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "@typescript-eslint/no-explicit-any",
+      "native": "typescript/no-explicit-any",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "@typescript-eslint/no-extra-non-null-assertion",
+      "native": "typescript/no-extra-non-null-assertion",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "@typescript-eslint/no-floating-promises",
+      "native": "typescript/no-floating-promises",
+      "setting": "error",
+      "typeAware": true,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "@typescript-eslint/no-for-in-array",
+      "native": "typescript/no-for-in-array",
+      "setting": "error",
+      "typeAware": true,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "@typescript-eslint/no-implied-eval",
+      "native": "typescript/no-implied-eval",
+      "setting": "error",
+      "typeAware": true,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "@typescript-eslint/no-misused-new",
+      "native": "typescript/no-misused-new",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "@typescript-eslint/no-misused-promises",
+      "native": "typescript/no-misused-promises",
+      "setting": "error",
+      "typeAware": true,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "@typescript-eslint/no-namespace",
+      "native": "typescript/no-namespace",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "@typescript-eslint/no-non-null-asserted-optional-chain",
+      "native": "typescript/no-non-null-asserted-optional-chain",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "@typescript-eslint/no-redundant-type-constituents",
+      "native": "typescript/no-redundant-type-constituents",
+      "setting": "error",
+      "typeAware": true,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "@typescript-eslint/no-require-imports",
+      "native": "typescript/no-require-imports",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "@typescript-eslint/no-this-alias",
+      "native": "typescript/no-this-alias",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "@typescript-eslint/no-unnecessary-type-assertion",
+      "native": "typescript/no-unnecessary-type-assertion",
+      "setting": "error",
+      "typeAware": true,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "@typescript-eslint/no-unnecessary-type-constraint",
+      "native": "typescript/no-unnecessary-type-constraint",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "@typescript-eslint/no-unsafe-argument",
+      "native": "typescript/no-unsafe-argument",
+      "setting": "error",
+      "typeAware": true,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "@typescript-eslint/no-unsafe-assignment",
+      "native": "typescript/no-unsafe-assignment",
+      "setting": "error",
+      "typeAware": true,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "@typescript-eslint/no-unsafe-call",
+      "native": "typescript/no-unsafe-call",
+      "setting": "error",
+      "typeAware": true,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "@typescript-eslint/no-unsafe-declaration-merging",
+      "native": "typescript/no-unsafe-declaration-merging",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "@typescript-eslint/no-unsafe-enum-comparison",
+      "native": "typescript/no-unsafe-enum-comparison",
+      "setting": "error",
+      "typeAware": true,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "@typescript-eslint/no-unsafe-function-type",
+      "native": "typescript/no-unsafe-function-type",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "@typescript-eslint/no-unsafe-member-access",
+      "native": "typescript/no-unsafe-member-access",
+      "setting": "error",
+      "typeAware": true,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "@typescript-eslint/no-unsafe-return",
+      "native": "typescript/no-unsafe-return",
+      "setting": "error",
+      "typeAware": true,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "@typescript-eslint/no-unsafe-unary-minus",
+      "native": "typescript/no-unsafe-unary-minus",
+      "setting": "error",
+      "typeAware": true,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "@typescript-eslint/no-unused-expressions",
+      "native": "no-unused-expressions",
+      "setting": [
+        "error",
+        {
+          "allowShortCircuit": false,
+          "allowTaggedTemplates": false,
+          "allowTernary": false
+        }
+      ],
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "@typescript-eslint/no-unused-vars",
+      "native": "no-unused-vars",
+      "setting": [
+        "error",
+        {
+          "argsIgnorePattern": "^_",
+          "varsIgnorePattern": "^_",
+          "caughtErrorsIgnorePattern": "^_"
+        }
+      ],
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "@typescript-eslint/no-wrapper-object-types",
+      "native": "typescript/no-wrapper-object-types",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "@typescript-eslint/only-throw-error",
+      "native": "typescript/only-throw-error",
+      "setting": "error",
+      "typeAware": true,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "@typescript-eslint/prefer-as-const",
+      "native": "typescript/prefer-as-const",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "@typescript-eslint/prefer-namespace-keyword",
+      "native": "typescript/prefer-namespace-keyword",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "@typescript-eslint/prefer-promise-reject-errors",
+      "native": "typescript/prefer-promise-reject-errors",
+      "setting": "error",
+      "typeAware": true,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "@typescript-eslint/require-await",
+      "native": "typescript/require-await",
+      "setting": "error",
+      "typeAware": true,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "@typescript-eslint/restrict-plus-operands",
+      "native": "typescript/restrict-plus-operands",
+      "setting": "error",
+      "typeAware": true,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "@typescript-eslint/restrict-template-expressions",
+      "native": "typescript/restrict-template-expressions",
+      "setting": "error",
+      "typeAware": true,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "@typescript-eslint/triple-slash-reference",
+      "native": "typescript/triple-slash-reference",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "@typescript-eslint/unbound-method",
+      "native": "typescript/unbound-method",
+      "setting": "error",
+      "typeAware": true,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "for-direction",
+      "native": "for-direction",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "no-async-promise-executor",
+      "native": "no-async-promise-executor",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "no-case-declarations",
+      "native": "no-case-declarations",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "no-compare-neg-zero",
+      "native": "no-compare-neg-zero",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "no-cond-assign",
+      "native": "no-cond-assign",
+      "setting": [
+        "error",
+        "except-parens"
+      ],
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "no-constant-binary-expression",
+      "native": "no-constant-binary-expression",
+      "setting": [
+        "error",
+        {
+          "checkRelationalComparisons": false
+        }
+      ],
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "no-constant-condition",
+      "native": "no-constant-condition",
+      "setting": [
+        "error",
+        {
+          "checkLoops": "allExceptWhileTrue"
+        }
+      ],
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "no-control-regex",
+      "native": "no-control-regex",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "no-debugger",
+      "native": "no-debugger",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "no-delete-var",
+      "native": "no-delete-var",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "no-dupe-else-if",
+      "native": "no-dupe-else-if",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "no-duplicate-case",
+      "native": "no-duplicate-case",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "no-empty",
+      "native": "no-empty",
+      "setting": [
+        "error",
+        {
+          "allowEmptyCatch": false
+        }
+      ],
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "no-empty-character-class",
+      "native": "no-empty-character-class",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "no-empty-pattern",
+      "native": "no-empty-pattern",
+      "setting": [
+        "error",
+        {
+          "allowObjectPatternsAsParameters": false
+        }
+      ],
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "no-empty-static-block",
+      "native": "no-empty-static-block",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "no-ex-assign",
+      "native": "no-ex-assign",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "no-extra-boolean-cast",
+      "native": "no-extra-boolean-cast",
+      "setting": [
+        "error",
+        {}
+      ],
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "no-fallthrough",
+      "native": "no-fallthrough",
+      "setting": [
+        "error",
+        {
+          "allowEmptyCase": false,
+          "reportUnusedFallthroughComment": false
+        }
+      ],
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "no-global-assign",
+      "native": "no-global-assign",
+      "setting": [
+        "error",
+        {
+          "exceptions": []
+        }
+      ],
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "no-invalid-regexp",
+      "native": "no-invalid-regexp",
+      "setting": [
+        "error",
+        {}
+      ],
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "no-irregular-whitespace",
+      "native": "no-irregular-whitespace",
+      "setting": [
+        "error",
+        {
+          "skipComments": false,
+          "skipJSXText": false,
+          "skipRegExps": false,
+          "skipStrings": true,
+          "skipTemplates": false
+        }
+      ],
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "no-loss-of-precision",
+      "native": "no-loss-of-precision",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "no-misleading-character-class",
+      "native": "no-misleading-character-class",
+      "setting": [
+        "error",
+        {
+          "allowEscape": false
+        }
+      ],
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "no-nonoctal-decimal-escape",
+      "native": "no-nonoctal-decimal-escape",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "no-octal",
+      "native": null,
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "strict-module-parser"
+    },
+    {
+      "legacy": "no-prototype-builtins",
+      "native": "no-prototype-builtins",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "no-regex-spaces",
+      "native": "no-regex-spaces",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "no-self-assign",
+      "native": "no-self-assign",
+      "setting": [
+        "error",
+        {
+          "props": true
+        }
+      ],
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "no-shadow-restricted-names",
+      "native": "no-shadow-restricted-names",
+      "setting": [
+        "error",
+        {
+          "reportGlobalThis": true
+        }
+      ],
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "no-sparse-arrays",
+      "native": "no-sparse-arrays",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "no-unassigned-vars",
+      "native": "no-unassigned-vars",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "no-unexpected-multiline",
+      "native": "no-unexpected-multiline",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "no-unsafe-finally",
+      "native": "no-unsafe-finally",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "no-unsafe-optional-chaining",
+      "native": "no-unsafe-optional-chaining",
+      "setting": [
+        "error",
+        {
+          "disallowArithmeticOperators": false
+        }
+      ],
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "no-unused-labels",
+      "native": "no-unused-labels",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "no-unused-private-class-members",
+      "native": "no-unused-private-class-members",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "no-useless-assignment",
+      "native": "no-useless-assignment",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "no-useless-backreference",
+      "native": "no-useless-backreference",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "no-useless-catch",
+      "native": "no-useless-catch",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "no-useless-escape",
+      "native": "no-useless-escape",
+      "setting": [
+        "error",
+        {
+          "allowRegexCharacters": []
+        }
+      ],
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "no-var",
+      "native": "no-var",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "prefer-const",
+      "native": "prefer-const",
+      "setting": [
+        "error",
+        {
+          "destructuring": "any",
+          "ignoreReadBeforeAssign": false
+        }
+      ],
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "prefer-rest-params",
+      "native": "prefer-rest-params",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "prefer-spread",
+      "native": "prefer-spread",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "preserve-caught-error",
+      "native": "preserve-caught-error",
+      "setting": [
+        "error",
+        {
+          "requireCatchParameter": false,
+          "errorClassNames": []
+        }
+      ],
+      "typeAware": false,
+      "disposition": "native-rule",
+      "nativeSetting": [
+        "error",
+        {
+          "requireCatchParameter": false
+        }
+      ],
+      "optionDisposition": "Oxlint has only built-in Error classes. The legacy errorClassNames list was empty; no custom Error class coverage is removed."
+    },
+    {
+      "legacy": "react-hooks/config",
+      "native": null,
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "fixed-native-compiler-configuration"
+    },
+    {
+      "legacy": "react-hooks/error-boundaries",
+      "native": "react/error-boundaries",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "react-hooks/exhaustive-deps",
+      "native": "react/exhaustive-deps",
+      "setting": "warn",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "react-hooks/gating",
+      "native": null,
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "fixed-native-compiler-configuration"
+    },
+    {
+      "legacy": "react-hooks/globals",
+      "native": "react/globals",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "react-hooks/immutability",
+      "native": "react/immutability",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "react-hooks/incompatible-library",
+      "native": "react/incompatible-library",
+      "setting": "warn",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "react-hooks/preserve-manual-memoization",
+      "native": "react/preserve-manual-memoization",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "react-hooks/purity",
+      "native": "react/purity",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "react-hooks/refs",
+      "native": "react/refs",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "react-hooks/rules-of-hooks",
+      "native": "react/rules-of-hooks",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "react-hooks/set-state-in-effect",
+      "native": "react/set-state-in-effect",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "react-hooks/set-state-in-render",
+      "native": "react/set-state-in-render",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "react-hooks/static-components",
+      "native": "react/static-components",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "react-hooks/unsupported-syntax",
+      "native": "react/unsupported-syntax",
+      "setting": "warn",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "react-hooks/use-memo",
+      "native": "react/use-memo",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "react-refresh/only-export-components",
+      "native": "react/only-export-components",
+      "setting": [
+        "warn",
+        {
+          "allowConstantExport": true
+        }
+      ],
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "require-yield",
+      "native": "require-yield",
+      "setting": "error",
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "use-isnan",
+      "native": "use-isnan",
+      "setting": [
+        "error",
+        {
+          "enforceForIndexOf": false,
+          "enforceForSwitchCase": true
+        }
+      ],
+      "typeAware": false,
+      "disposition": "native-rule"
+    },
+    {
+      "legacy": "valid-typeof",
+      "native": "valid-typeof",
+      "setting": [
+        "error",
+        {
+          "requireStringLiterals": false
+        }
+      ],
+      "typeAware": false,
+      "disposition": "native-rule"
+    }
+  ],
+  "dispositions": {
+    "no-dupe-args": "Already disabled for TypeScript by the legacy preset; strict module parser and compiler reject duplicate parameters.",
+    "no-octal": "Native module parser rejects legacy octal literals.",
+    "react-hooks/config": "Legacy compiler configuration validator has no caller-supplied compiler configuration in Oxlint. Native compiler configuration is fixed.",
+    "react-hooks/gating": "Legacy gating-option validator has no user-configurable gating option in Oxlint. Native compiler configuration is fixed."
+  },
+  "sourceHashesNote": "Historical pinned preset sources were read statically before dependency removal. Paths identify the old installation and are not current file links.",
+  "dispositionSource": "https://github.com/oxc-project/oxlint-migrate/blob/ce9d32e548bb75d77a9034d9b9bb0b5ec5aab907/src/generated/unsupported-rules.json"
+}

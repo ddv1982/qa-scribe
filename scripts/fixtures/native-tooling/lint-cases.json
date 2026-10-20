@@ -1,0 +1,138 @@
+[
+  {
+    "name": "conditional-hook.tsx",
+    "source": "import {useState} from \"react\"; export function Probe({flag}: {flag: boolean}) {if(flag){useState(0)} return null}",
+    "rule": "rules-of-hooks",
+    "severity": "error"
+  },
+  {
+    "name": "valid-hook.tsx",
+    "source": "import {useState} from \"react\"; export function Probe() {const [value]=useState(0); return <span>{value}</span>}",
+    "rule": null,
+    "severity": "error"
+  },
+  {
+    "name": "missing-dependency.tsx",
+    "source": "import {useEffect} from \"react\"; export function Probe({value}: {value: number}) {useEffect(()=>{console.log(value)}, []); return null}",
+    "rule": "exhaustive-deps",
+    "severity": "warning"
+  },
+  {
+    "name": "valid-dependency.tsx",
+    "source": "import {useEffect} from \"react\"; export function Probe({value}: {value: number}) {useEffect(()=>{console.log(value)}, [value]); return null}",
+    "rule": null,
+    "severity": "error"
+  },
+  {
+    "name": "dead-assignment.ts",
+    "source": "export function run(){let result = 0; result = 1; return result}",
+    "rule": "no-useless-assignment",
+    "severity": "error"
+  },
+  {
+    "name": "valid-assignment.ts",
+    "source": "export function run(){let result = 0; console.log(result); result = 1; return result}",
+    "rule": null,
+    "severity": "error"
+  },
+  {
+    "name": "refresh.tsx",
+    "source": "export function Probe(){return <span/>}; export function helper(){return 1}",
+    "rule": "only-export-components",
+    "severity": "warning"
+  },
+  {
+    "name": "refresh-constant.tsx",
+    "source": "export function Probe(){return <span/>}; export const value=1",
+    "rule": null,
+    "severity": "error"
+  },
+  {
+    "name": "underscore-vars.ts",
+    "source": "export function run(_arg: number){const _value=1;try{throw new Error(\"valid\")}catch(_error){return 1}}",
+    "rule": null,
+    "severity": "error"
+  },
+  {
+    "name": "unused-vars.ts",
+    "source": "export function run(){const value=1;return 2}",
+    "rule": "no-unused-vars",
+    "severity": "error"
+  },
+  {
+    "name": "directive.ts",
+    "source": "// oxlint-disable-next-line typescript/no-floating-promises\nPromise.resolve(1);\nPromise.resolve(2); export {}",
+    "rule": "no-floating-promises",
+    "severity": "error"
+  },
+  {
+    "name": "relational-default.ts",
+    "source": "export function run(a:number,b:number){return a < b < 1}",
+    "rule": null,
+    "severity": "error"
+  },
+  {
+    "name": "constant-binary.ts",
+    "source": "export const value = (1 + 2) ?? 3",
+    "rule": "no-constant-binary-expression",
+    "severity": "error"
+  },
+  {
+    "name": "constant-loop-allowed.ts",
+    "source": "export function run(){while(true){console.log(1)}}",
+    "rule": null,
+    "severity": "error"
+  },
+  {
+    "name": "constant-condition.ts",
+    "source": "export function run(){if(true){return 1};return 2}",
+    "rule": "no-constant-condition",
+    "severity": "error"
+  },
+  {
+    "name": "catch-without-parameter.ts",
+    "source": "export function run(){try{throw new Error(\"x\")}catch{throw new Error(\"wrapped\")}}",
+    "rule": null,
+    "severity": "error"
+  },
+  {
+    "name": "catch-preserve.ts",
+    "source": "export function run(){try{throw new Error(\"x\")}catch(error){throw new Error(\"wrapped\",{cause:error})}}",
+    "rule": null,
+    "severity": "error"
+  },
+  {
+    "name": "catch-discard.ts",
+    "source": "export function run(){try{throw new Error(\"x\")}catch(error){console.log(error);throw new Error(\"wrapped\")}}",
+    "rule": "preserve-caught-error",
+    "severity": "error"
+  },
+  {
+    "name": "shadow-global-this.ts",
+    "source": "export function run(globalThis:string){return globalThis}",
+    "rule": "no-shadow-restricted-names",
+    "severity": "error"
+  },
+  {
+    "name": "duplicate-parameters.js",
+    "source": "export function run(value,value){return value}",
+    "rule": null,
+    "parserMessage": "Identifier `value` has already been declared"
+  },
+  {
+    "name": "octal.js",
+    "source": "export const value=0123",
+    "rule": null,
+    "parserMessage": "'0'-prefixed octal literals and octal escape sequences are deprecated"
+  },
+  {
+    "name": "valid-parameters.js",
+    "source": "export function run(first,second){return first===second}",
+    "rule": null
+  },
+  {
+    "name": "valid-octal.js",
+    "source": "export const value=0o123",
+    "rule": null
+  }
+]

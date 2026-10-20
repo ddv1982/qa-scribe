@@ -1,0 +1,183 @@
+{
+  "status": "PLAN_AND_DISPOSABLE_PROTOTYPE_ONLY",
+  "date": "2026-10-20",
+  "source_commit": "82f1502aee9c20d481bcd0ae56c45d053e7b9516",
+  "planning_branch": "plan/ts7-native-tooling",
+  "production_implementation_started": false,
+  "production_files_changed": false,
+  "requested_end_state": "No TypeScript6 package, compatibility alias, fallback, or legacy API consumer anywhere in the project lockfile or installed graph.",
+  "prototype": {
+    "platform": "Linux x64",
+    "versions": {
+      "typescript": "7.0.2",
+      "oxlint": "1.89.0",
+      "oxlint-tsgolint": "7.0.2004",
+      "tsc-rs": "0.7.0",
+      "vite": "7.3.7",
+      "vitest": "4.1.11"
+    },
+    "node": "24.22.0",
+    "bun": "1.3.5",
+    "zero_legacy_checks": [
+      "typescript@6.",
+      "@typescript/typescript6",
+      "@typescript-eslint/",
+      "typescript-eslint@",
+      "ts-api-utils@"
+    ],
+    "zero_legacy_matches": 0,
+    "lockfile_sha256": "c2a400c98edf6c185f3fac87aeeb80bc75548ae052a395e3f83185a82ef2d887",
+    "frontend_tests": {
+      "files": 63,
+      "passed": 572,
+      "failed": 0
+    },
+    "identical_production_assets": 20,
+    "native_lint_representative_cases": [
+      {
+        "case": "valid",
+        "exit": 0,
+        "expected": null,
+        "status": "PASS"
+      },
+      {
+        "case": "floating",
+        "exit": 1,
+        "expected": "no-floating-promises",
+        "status": "PASS"
+      },
+      {
+        "case": "unsafe-assignment",
+        "exit": 1,
+        "expected": "no-unsafe-assignment",
+        "status": "PASS"
+      },
+      {
+        "case": "unsafe-member",
+        "exit": 1,
+        "expected": "no-unsafe-member-access",
+        "status": "PASS"
+      },
+      {
+        "case": "hooks",
+        "exit": 1,
+        "expected": "rules-of-hooks",
+        "status": "PASS"
+      },
+      {
+        "case": "dependencies",
+        "exit": 0,
+        "expected": "exhaustive-deps",
+        "status": "PASS"
+      },
+      {
+        "case": "assignment",
+        "exit": 1,
+        "expected": "no-useless-assignment",
+        "status": "PASS"
+      },
+      {
+        "case": "test-overrides",
+        "exit": 0,
+        "expected": null,
+        "status": "PASS"
+      }
+    ],
+    "microsoft_native_error_cases": [
+      {
+        "project": "tsconfig.json",
+        "exit": 1,
+        "diagnostic": "TS2322",
+        "status": "PASS",
+        "log": "microsoft-ts7-invalid-ui.log"
+      },
+      {
+        "project": "tsconfig.node.json",
+        "exit": 1,
+        "diagnostic": "TS2322",
+        "status": "PASS",
+        "log": "microsoft-ts7-invalid-node.log"
+      }
+    ],
+    "normal_compiler_runs": "Microsoft TypeScript7 and tsc-rs passed both project configs. Successful noEmit output was empty; negative TS2322 probes separately confirmed Microsoft native diagnostics.",
+    "commands": {
+      "fresh-lint": {
+        "exit": 0,
+        "sha256": "f1d30e541b5f23928237696286e2088bf55a190e62d1ae84218ef4455eda3423",
+        "raw_log_committed": false
+      },
+      "native-typecheck": {
+        "exit": 0,
+        "sha256": "641c3b12545ebc2ee03db6fc19429a392412d04af502e5ca0214d835fe07195a",
+        "raw_log_committed": false
+      },
+      "microsoft-ts7-ui": {
+        "exit": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "raw_log_committed": false
+      },
+      "microsoft-ts7-node": {
+        "exit": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "raw_log_committed": false
+      },
+      "frontend-tests": {
+        "exit": 0,
+        "sha256": "85e46a3e55c5102f0ed27905c2bad65c34460b66083e7dd298a46eb8ba8839a0",
+        "raw_log_committed": false
+      },
+      "frontend-build": {
+        "exit": 0,
+        "sha256": "e20dafeecc85e570c4aa7f8f3f8f9bd09fcaaaadf9ff9901ff24f1f4c09b49f1",
+        "raw_log_committed": false
+      }
+    },
+    "receipts": {
+      "native-only-results.json": "4388ac839804c0a19600c2b9fd48c8751fe7b872bc029e149966d46f222e864d",
+      "native-only-probe.json": "1e276c0096dd853aa615e80bb67e5c8b543cd2c9a07825d2282fda02118d3f59",
+      "asset-parity.json": "4b2df8775100ad8819dec5d654780e553f524a7a83f68a26f38b051cdb2a2192",
+      "candidate-complete.oxlintrc.json": "2d5b2c06965ebd9f1742d1bd65bdd480c926d2d96516d832d26b93a307e664c5",
+      "migration-with-nursery.log": "f761fc81f4505b3823c81bb7e993c064209493ab35280852975e73557744f94b",
+      "microsoft-ts7-diagnostics.json": "0413fd9a85dfed2219dbca1c2990552ea2f1f9f699e0cd64ccc03169777d4352",
+      "microsoft-ts7-invalid-ui.log": "e19eccf01fba8a12b9cc0d8721970a927039019077b9f1a183df48c3904ff63e",
+      "microsoft-ts7-invalid-node.log": "734ef72bfc64dddaf8a9c199b72a1b95a71f34c0e19d5ea3e79ff9ca95f87a63",
+      "workflow-platform-receipt.json": "6747f5defcaf414ba51c0d9e72161c472a3c506fdc9ff0aa2b3d4e3e86e6a530",
+      "generation-attempts.json": "b116ef7a59429a1fef2e3038eee66ac3cc2cfbce4d6fc3de098782fa635b8a5b"
+    }
+  },
+  "migration_findings": {
+    "generated_rules": 123,
+    "requires_explicit_enablement": "no-useless-assignment was skipped without --with-nursery; its mutation now fails correctly.",
+    "dispositions_needing_full_implementation_proof": [
+      "no-dupe-args via strict mode",
+      "no-octal via strict mode",
+      "react-hooks/config with fixed native compiler configuration",
+      "react-hooks/gating with fixed native compiler configuration"
+    ],
+    "test_relaxations": [
+      "require-await",
+      "no-unsafe-assignment",
+      "no-unsafe-call",
+      "no-unsafe-return"
+    ]
+  },
+  "review": {
+    "model": "claude-opus-5-5",
+    "rounds": 2,
+    "returned_verdicts": [
+      "ISSUES",
+      "ISSUES"
+    ],
+    "disposition": "Parent corrected accepted plan issues and documented source-backed dismissals. No claim of a third-round PASS.",
+    "comments_audit": "0 findings; read-only pstack-comment-sicko."
+  },
+  "limits": [
+    "Eight native-lint cases do not prove complete effective rule equivalence.",
+    "No real IDE or terminal screenshot session was established during planning.",
+    "Process supervision, long sessions, hosted CI and release publication remain execution gates.",
+    "Performance limits are proposed budgets, not measured native-lint speedups.",
+    "Raw receipts are local and not committed; this portable summary records results and hashes only.",
+    "The failed absolute-path generator attempt has a tool-history summary; its original raw log was overwritten.",
+    "A TS7 development oracle alias was a bootstrap package outside the frontend dependency graph; it contains no TS6 and is not a proposed project dependency."
+  ]
+}
