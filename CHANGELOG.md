@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.8.12 - 2026-10-20
+
+- Use the pinned Rust-based `tsc-rs` compiler for frontend type checking and check both application code and Vite configuration before production builds. Keep the TypeScript package available for typed ESLint.
+- Verify valid TypeScript and TSX, deliberate type errors, compiler ownership, and build failure behavior through a repeatable check shared by local verification, CI, and release validation.
+
 ## v0.8.11 - 2026-10-19
 
 - Update the GitHub Actions pins for cargo-binstall to 1.25.3, setup-node to 7.1.0, upload-artifact to 7.0.2, and download-artifact to 8.0.2.

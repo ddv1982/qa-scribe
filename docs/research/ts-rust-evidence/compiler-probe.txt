@@ -1,0 +1,14 @@
+$ node scripts/check-typescript-compiler.mjs
+PASS tsconfig.json/valid.ts
+PASS tsconfig.json/assignment.ts
+PASS tsconfig.json/property.ts
+PASS tsconfig.json/valid.tsx
+PASS tsconfig.json/invalid.tsx
+PASS tsconfig.node.json/valid.ts
+PASS tsconfig.node.json/invalid.ts
+PASS isolated fixture: legacy JavaScript compiler ownership rejected
+PASS isolated fixture: valid build
+PASS isolated fixture: invalid UI typecheck
+PASS isolated fixture: invalid UI build
+PASS isolated fixture: invalid Vite configuration build
+tsc-rs 0.7.0 accepted valid inputs and rejected deliberate type errors.

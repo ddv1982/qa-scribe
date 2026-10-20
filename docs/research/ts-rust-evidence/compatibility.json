@@ -1,0 +1,95 @@
+{
+  "note": "Replay after migration; application sources and both tsconfigs are unchanged from 3ba0a22. Original pre-change runs appeared in the task transcript.",
+  "results": [
+    {
+      "compiler": "baseline-typescript-6",
+      "command": [
+        "node",
+        "frontend/node_modules/typescript/bin/tsc",
+        "--project",
+        "frontend/tsconfig.json",
+        "--noEmit",
+        "--pretty",
+        "false"
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "compiler": "baseline-typescript-6",
+      "command": [
+        "node",
+        "frontend/node_modules/typescript/bin/tsc",
+        "--project",
+        "frontend/tsconfig.node.json",
+        "--noEmit",
+        "--pretty",
+        "false"
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "compiler": "disposable-tsc-rs-0.7.0",
+      "command": [
+        "node",
+        "/tmp/qa-scribe-tsrust-research/node_modules/tsc-rs/bin/tsc-rs",
+        "--project",
+        "frontend/tsconfig.json",
+        "--noEmit",
+        "--pretty",
+        "false"
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "compiler": "disposable-tsc-rs-0.7.0",
+      "command": [
+        "node",
+        "/tmp/qa-scribe-tsrust-research/node_modules/tsc-rs/bin/tsc-rs",
+        "--project",
+        "frontend/tsconfig.node.json",
+        "--noEmit",
+        "--pretty",
+        "false"
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "compiler": "matching-typescript-7",
+      "command": [
+        "node",
+        "/tmp/qa-scribe-tsrust-research/node_modules/ts7-oracle/bin/tsc",
+        "--project",
+        "frontend/tsconfig.json",
+        "--noEmit",
+        "--pretty",
+        "false"
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "compiler": "matching-typescript-7",
+      "command": [
+        "node",
+        "/tmp/qa-scribe-tsrust-research/node_modules/ts7-oracle/bin/tsc",
+        "--project",
+        "frontend/tsconfig.node.json",
+        "--noEmit",
+        "--pretty",
+        "false"
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ]
+}

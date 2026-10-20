@@ -1,0 +1,43 @@
+{
+  "base": "68b8af3",
+  "candidateVersion": "0.8.12",
+  "sourceAndConfigChanges": false,
+  "results": [
+    {
+      "compiler": "typescript6",
+      "project": "tsconfig.json",
+      "exitCode": 0,
+      "output": ""
+    },
+    {
+      "compiler": "typescript6",
+      "project": "tsconfig.node.json",
+      "exitCode": 0,
+      "output": ""
+    },
+    {
+      "compiler": "tsc-rs",
+      "project": "tsconfig.json",
+      "exitCode": 0,
+      "output": ""
+    },
+    {
+      "compiler": "tsc-rs",
+      "project": "tsconfig.node.json",
+      "exitCode": 0,
+      "output": ""
+    },
+    {
+      "compiler": "matching-typescript7",
+      "project": "tsconfig.json",
+      "exitCode": 0,
+      "output": ""
+    },
+    {
+      "compiler": "matching-typescript7",
+      "project": "tsconfig.node.json",
+      "exitCode": 0,
+      "output": ""
+    }
+  ]
+}

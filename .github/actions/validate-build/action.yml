@@ -55,6 +55,10 @@ runs:
       shell: bash
       run: bun run terminology:check
 
+    - name: Verify native TypeScript compiler behavior
+      shell: bash
+      run: bun run frontend:compiler:check
+
     - name: Run frontend check
       shell: bash
       run: bun run frontend:check
