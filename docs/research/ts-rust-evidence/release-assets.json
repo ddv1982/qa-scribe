@@ -1,0 +1,28 @@
+{
+  "baselineCommit": "68b8af3",
+  "candidateVersion": "0.8.12",
+  "bunVersion": "1.3.5",
+  "allFilesMatch": true,
+  "files": {
+    "assets/editor-CmuHu3p_.js": "20bc23e096c81eaa356ad4c0c337f1e978a7013073e3a20d67604b0e6fa96c81",
+    "assets/icons-C83qs5jj.js": "2eccd545b6f15c4387d0c0872a03314dc87fdbb4bf4d13922165cdd134536b98",
+    "assets/index-CQ3sab5M.css": "a109b5eb2439f6d5b5d79acb04c585bcccceeb0c9365db6a1d41229dada8c409",
+    "assets/index-D6aRwl3D.js": "33d003e88973ab82173b5db03a2f1a66787710d9f4ab36f6b420247864b1e2f4",
+    "assets/inter-cyrillic-ext-wght-italic-B5xAaiFk.woff2": "39689184132e9fba8fb1066f429125d14445352a566f47f4edcae7c3c90e486d",
+    "assets/inter-cyrillic-ext-wght-normal-BOeWTOD4.woff2": "ca157063339ac4ad418f214f3abfed119b0798ab4d377386ce5c9e5a7a435ebd",
+    "assets/inter-cyrillic-wght-italic-DzZdc28x.woff2": "47d42151dff6d13f1c2b9a1f278290f625593c1f01c89612ee4ae7f063167f7a",
+    "assets/inter-cyrillic-wght-normal-DqGufNeO.woff2": "71d5ee93cc1e9f1d520a3a8b66456de18c7879d8df09d57fcd2eaff75fef0075",
+    "assets/inter-greek-ext-wght-italic-DcOpz6Lw.woff2": "787fc783f35c913334445a7c4502bb272f94a8328426578776eac5e4ebd03ba1",
+    "assets/inter-greek-ext-wght-normal-DlzME5K_.woff2": "6e9e020a25f9b56d418f2c085b1d3c09725a4da23fe693a5b463064606732190",
+    "assets/inter-greek-wght-italic-CILZdfAp.woff2": "29e273a42cac8240f37fbdd94c684f8a255e61c8076942d9b8f18a0e2c014991",
+    "assets/inter-greek-wght-normal-CkhJZR-_.woff2": "1be3448e292fbf05ffe176fe1e43f135013d50b1e7d324ad1a558f623d3bb6f6",
+    "assets/inter-latin-ext-wght-italic-0pjOp8NU.woff2": "71254244ccb1ec21e14db3480fef6f6826d1136dc4aca1c7d3ca7ce31294fcce",
+    "assets/inter-latin-ext-wght-normal-DO1Apj_S.woff2": "34b9c504cab7a73e37b746343a449132e56cf7b5481af2cb81dc74dcff25c956",
+    "assets/inter-latin-wght-italic-DpCbqKDY.woff2": "7291b5970da2237441273c03b424a504b70b18f09791473fab99687dcc314720",
+    "assets/inter-latin-wght-normal-Dx4kXJAl.woff2": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62",
+    "assets/inter-vietnamese-wght-italic-K3WlGtc8.woff2": "1991ed5832eb07f7523f22a843ca9a8aa83c51c8e87062ce77794855d2f5dee8",
+    "assets/inter-vietnamese-wght-normal-CBcvBZtf.woff2": "5c66f9e07e90c6d4ac4922cc68d60de26c17b1858e677fb5e603fce3952b3ff2",
+    "assets/vendor-Ct-HZvlc.js": "6a75362c0840587cdd3f138b0d8b0301ba874292da1240c4a6730b34a56cae67",
+    "index.html": "608167a8a5d9d3b71a2f353d32cec9a0cc6b4a231f32ff48a9a7899be8cfd0fc"
+  }
+}

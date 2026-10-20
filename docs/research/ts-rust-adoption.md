@@ -1,6 +1,6 @@
 # ts-rust adoption findings
 
-Research date is 2026-10-20. The implementation plan is [Migrate TypeScript checking to tsc-rs](../ts-rust-migration-plan.md).
+Research date is 2026-10-20. The initial implementation plan is [Migrate TypeScript checking to tsc-rs](../ts-rust-migration-plan.md). Compatibility findings below first used the v0.7.24 checkout. See [v0.8.12 release validation](ts-rust-release-validation.md) for the current-main replay and release evidence.
 
 ## The linked repository provides a compiler
 

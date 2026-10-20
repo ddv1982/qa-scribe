@@ -1,5 +1,7 @@
 # tsc-rs migration validation
 
+This document records the historical v0.7.24 migration checkout. See [v0.8.12 release validation](ts-rust-release-validation.md) for current-main release evidence.
+
 Validation date is 2026-10-20 on Linux x64. The branch is `migration/tsc-rs`, based on `3ba0a22`.
 
 ## The checker migration passes its local checks

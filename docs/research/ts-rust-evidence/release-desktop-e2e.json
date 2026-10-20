@@ -1,0 +1,113 @@
+{
+  "completedAt": "2026-10-20T04:08:15.570Z",
+  "durationMs": 353963,
+  "platform": "linux",
+  "architecture": "x64",
+  "runnerClass": "linux-x64",
+  "runId": null,
+  "runAttempt": 1,
+  "status": "passed",
+  "exitCode": 0,
+  "signal": null,
+  "invocations": [
+    {
+      "id": "session-lifecycle",
+      "status": 0,
+      "signal": null
+    },
+    {
+      "id": "manual-testware",
+      "status": 0,
+      "signal": null
+    },
+    {
+      "id": "clipboard",
+      "status": 0,
+      "signal": null
+    },
+    {
+      "id": "generation-cancellation",
+      "status": 0,
+      "signal": null
+    },
+    {
+      "id": "summary-recovery",
+      "status": 0,
+      "signal": null
+    },
+    {
+      "id": "chat-to-note",
+      "status": 0,
+      "signal": null
+    },
+    {
+      "id": "chat-tool-authorization-codex",
+      "status": 0,
+      "signal": null
+    },
+    {
+      "id": "chat-tool-authorization-claude",
+      "status": 0,
+      "signal": null
+    },
+    {
+      "id": "chat-tool-authorization-copilot",
+      "status": 0,
+      "signal": null
+    },
+    {
+      "id": "native-close",
+      "status": 0,
+      "signal": null
+    },
+    {
+      "id": "model-management",
+      "status": 0,
+      "signal": null
+    },
+    {
+      "id": "model-evidence",
+      "status": 0,
+      "signal": null
+    },
+    {
+      "id": "model-evidence-restart",
+      "status": 0,
+      "signal": null
+    },
+    {
+      "id": "model-selection",
+      "status": 0,
+      "signal": null
+    },
+    {
+      "id": "model-selection-restart",
+      "status": 0,
+      "signal": null
+    },
+    {
+      "id": "provider-qualification-disabled",
+      "status": 0,
+      "signal": null
+    },
+    {
+      "id": "provider-qualification-diagnostics",
+      "status": 0,
+      "signal": null
+    },
+    {
+      "id": "provider-qualification-selector",
+      "status": 0,
+      "signal": null
+    }
+  ],
+  "isolatedDataRemoved": true,
+  "baseCommit": "68b8af3",
+  "candidateVersion": "0.8.12",
+  "executionEvidence": {
+    "completedInvocations": 18,
+    "passedAssertions": 64,
+    "failedAssertions": 0,
+    "skippedAssertions": 0
+  }
+}

@@ -1,5 +1,7 @@
 # Migrate TypeScript checking to tsc-rs
 
+This document records the historical v0.7.24 migration checkout. See [v0.8.12 release validation](research/ts-rust-release-validation.md) for current-main release evidence.
+
 This plan adopts `pingdotgg/ts-rust` through its published `tsc-rs` package. QA Scribe keeps its existing Rust/Tauri application and TypeScript UI. Read the [research findings](research/ts-rust-adoption.md) for the scope decision and primary sources.
 
 ## How to run this plan
