@@ -28,8 +28,11 @@ The CI workflow is deliberately divided by responsibility:
 - **CI success** is the stable branch-protection check. It fails when any
   applicable job fails and accepts intentionally skipped platform/package jobs.
 
-The separate `Native TypeScript tooling` workflow runs on pull requests and manual
-dispatches. Linux x64, macOS arm64, and macOS Intel each install from the frozen
+The separate `Native TypeScript tooling` workflow runs on pull requests that change
+toolchain manifests, lockfiles, lint or TypeScript configuration, native tooling
+checks and fixtures, CI, or editor configuration. Manual dispatch remains available.
+Ordinary application and Rust source changes do not create these isolated cache
+proofs. Linux x64, macOS arm64, and macOS Intel each install from the frozen
 lockfile with an empty lane-owned Bun cache. Each lane validates dependencies,
 typed lint fixtures, native compiler diagnostics, frontend checks, and production
 builds. It saves the populated cache under an exact-head, platform, lockfile,

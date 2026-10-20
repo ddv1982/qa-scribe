@@ -3,6 +3,18 @@ name: Native TypeScript tooling
 on:
   pull_request:
     branches: [main]
+    paths:
+      - 'package.json'
+      - 'frontend/package.json'
+      - 'frontend/bun.lock'
+      - 'frontend/.oxlintrc.json'
+      - 'frontend/tsconfig*.json'
+      - 'scripts/*native*.mjs'
+      - 'scripts/check-typescript-compiler.mjs'
+      - 'scripts/fixtures/native-tooling/**'
+      - '.github/**'
+      - '.vscode/**'
+      - 'frontend/.vscode/**'
   workflow_dispatch:
 
 permissions:

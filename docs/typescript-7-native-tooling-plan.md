@@ -7,6 +7,8 @@ Keep `tsc-rs` as the authoritative build checker. Use Microsoft TypeScript 7 for
 Run T7-1, T7-2, T7-3, and T7-4 in that order. These are planned PR labels, not GitHub PR numbers.
 This document records the approved implementation sequence. Execution started on 2026-10-20 from `82f1502aee9c20d481bcd0ae56c45d053e7b9516`. Publication remains conditional on the final verification gates.
 
+T7-1 is implemented and locally verified. The [implementation evidence](research/typescript-7-implementation-evidence.json) records current results and their limits. Final-head review and hosted checks remain open. T7-2, T7-3, and T7-4 have not started production implementation.
+
 ## How to read this
 
 One box is one unit of work. Every box names the evidence that checks it. Check a box only when its evidence exists, such as a file, a log line, a screenshot, a test run, or a SHA. The body is a how-to. The appendices explain and record.
@@ -74,35 +76,35 @@ Each lane uses the real command, editor, or hosted job at the PR head through a 
 
 **Files.**
 
-- [ ] Edit `frontend/package.json` and `frontend/bun.lock`. Pin `typescript` 7.0.2, `oxlint` 1.89.0, and `oxlint-tsgolint` 7.0.2004, or freshly verified replacements with the same proof. Retain exact `tsc-rs` 0.7.0 unless a separate compiler upgrade is justified.
-- [ ] Create `frontend/.oxlintrc.json`. Delete `frontend/eslint.config.js`, its generated obsolete override, and the direct ESLint, TypeScript ESLint, Hooks, and Refresh dependencies once equivalent native coverage is verified.
-- [ ] Create `scripts/check-native-typescript-tooling.mjs`, its meaningful tests, and `scripts/fixtures/native-tooling/`. Define root script `frontend:tooling:check` as `node scripts/check-native-typescript-tooling.mjs` in `package.json`. Add it to both verification commands and `.github/actions/validate-build/action.yml`.
-- [ ] Create `.github/workflows/native-tooling-validation.yml` with `pull_request` and `workflow_dispatch` triggers and a non-publishing Linux x64, macOS arm64, and macOS x64 matrix. Reuse setup conventions and read-only permissions. Run the new workflow on T7-1's PR before merge; later phases can dispatch its registered definition at an explicit commit.
-- [ ] Update only affected suppression directives in `frontend/src/app/useStableCapability.ts` and `frontend/src/app/useAppController.ts`. Preserve their scoped behavior and explanations.
-- [ ] Update active README and CI guidance. Preserve historical migration records with a link to the new decision, rather than rewriting history.
+- [x] Edit `frontend/package.json` and `frontend/bun.lock`. Pin `typescript` 7.0.2, `oxlint` 1.89.0, and `oxlint-tsgolint` 7.0.2004, or freshly verified replacements with the same proof. Retain exact `tsc-rs` 0.7.0 unless a separate compiler upgrade is justified.
+- [x] Create `frontend/.oxlintrc.json`. Delete `frontend/eslint.config.js`, its generated obsolete override, and the direct ESLint, TypeScript ESLint, Hooks, and Refresh dependencies once equivalent native coverage is verified.
+- [x] Create `scripts/check-native-typescript-tooling.mjs`, its meaningful tests, and `scripts/fixtures/native-tooling/`. Define root script `frontend:tooling:check` as `node scripts/check-native-typescript-tooling.mjs` in `package.json`. Add it to both verification commands and `.github/actions/validate-build/action.yml`.
+- [x] Create `.github/workflows/native-tooling-validation.yml` with `pull_request` and `workflow_dispatch` triggers and a non-publishing Linux x64, macOS arm64, and macOS x64 matrix. Reuse setup conventions and read-only permissions. Run the new workflow on T7-1's PR before merge; later phases can dispatch its registered definition at an explicit commit.
+- [x] Update only affected suppression directives in `frontend/src/app/useStableCapability.ts` and `frontend/src/app/useAppController.ts`. Preserve their scoped behavior and explanations.
+- [x] Update active README and CI guidance. Preserve historical migration records with a link to the new decision, rather than rewriting history.
 
 **Build.**
 
-- [ ] Inventory the effective production, test, harness, Vite, and config rules before deletion. Record each rule's severity, options, file patterns, and replacement in a machine-readable parity manifest.
-- [ ] Replace `lint` with native type-aware Oxlint. Preserve all 23 active typed rules, the four test-only relaxations, unused-variable options, warning severities, React Hooks, and Refresh behavior.
-- [ ] Keep the existing `tsc-rs --noEmit` checks for both projects and their pre-bundle guard. Do not enable Oxlint's separate `--type-check` as a second authoritative build checker.
-- [ ] Include the existing `no-useless-assignment` protection. The migration prototype required `--with-nursery`; do not accept the default migrator's omission.
-- [ ] Account for the four remaining migration dispositions. Prove strict-mode coverage for `no-dupe-args` and `no-octal`. Prove why `react-hooks/config` and `react-hooks/gating` cannot express additional checks under Oxlint's fixed compiler configuration. An unexplained omission blocks T7-1.
-- [ ] Convert suppression prefixes and verify their actual native rule names. Require zero unused suppression warnings. Do not weaken a rule to make the migration green.
-- [ ] Remove all TypeScript 6 versions, `@typescript/typescript6` aliases, TypeScript ESLint packages, `ts-api-utils`, and legacy compiler API imports. Allow no inactive or optional exception in the project's resolved lockfile or installed graph. Check both after a fresh frozen install.
-- [ ] Make the new guard fail for a reintroduced TypeScript 6 dependency or alias, a missing type-aware engine, an omitted project check, or a deliberate lost lint rule. Use structured package metadata, not a bare substring scan as the maintained implementation.
-- [ ] Keep TypeScript 7.0.2 as the editor package. Record that `tsc-rs` ports the separate 7.1.0-dev.20261008.1 revision. Test compatibility; do not pretend their revisions are identical.
+- [x] Inventory the effective production, test, harness, Vite, and config rules before deletion. Record each rule's severity, options, file patterns, and replacement in a machine-readable parity manifest.
+- [x] Replace `lint` with native type-aware Oxlint. Preserve all 23 active typed rules, the four test-only relaxations, unused-variable options, warning severities, React Hooks, and Refresh behavior.
+- [x] Keep the existing `tsc-rs --noEmit` checks for both projects and their pre-bundle guard. Do not enable Oxlint's separate `--type-check` as a second authoritative build checker.
+- [x] Include the existing `no-useless-assignment` protection. The migration prototype required `--with-nursery`; do not accept the default migrator's omission.
+- [x] Account for the four remaining migration dispositions. Prove strict-mode coverage for `no-dupe-args` and `no-octal`. Prove why `react-hooks/config` and `react-hooks/gating` cannot express additional checks under Oxlint's fixed compiler configuration. An unexplained omission blocks T7-1.
+- [x] Convert suppression prefixes and verify their actual native rule names. Require zero unused suppression warnings. Do not weaken a rule to make the migration green.
+- [x] Remove all TypeScript 6 versions, `@typescript/typescript6` aliases, TypeScript ESLint packages, `ts-api-utils`, and legacy compiler API imports. Allow no inactive or optional exception in the project's resolved lockfile or installed graph. Check both after a fresh frozen install.
+- [x] Make the new guard fail for a reintroduced TypeScript 6 dependency or alias, a missing type-aware engine, an omitted project check, or a deliberate lost lint rule. Use structured package metadata, not a bare substring scan as the maintained implementation.
+- [x] Keep TypeScript 7.0.2 as the editor package. Record that `tsc-rs` ports the separate 7.1.0-dev.20261008.1 revision. Test compatibility; do not pretend their revisions are identical.
 
 **You see.**
 
-- [ ] `bun run frontend:check` passes through native checking and native typed lint. A fresh dependency receipt lists zero TypeScript 6 packages and zero compiler API consumers.
-- [ ] Deliberate floating promises, unsafe operations, invalid hooks, stale dependencies, and dead assignments produce the expected diagnostic and severity. Valid counterparts pass.
+- [x] `bun run frontend:check` passes through native checking and native typed lint. A fresh dependency receipt lists zero TypeScript 6 packages and zero compiler API consumers.
+- [x] Deliberate floating promises, unsafe operations, invalid hooks, stale dependencies, and dead assignments produce the expected diagnostic and severity. Valid counterparts pass.
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] Add positive and negative behavioral fixtures for every typed rule and each migration disposition. Cover production, test, harness, Vite, ignored files, and directive scope. Run `bun run frontend:tooling:check`.
-- [ ] Test the dependency guard with metadata-only fixture manifests, lockfiles, and fake package metadata that describe TypeScript 6, a compatibility alias, or a legacy consumer. Each must fail with the named reason. Do not install or execute TypeScript 6 for these tests.
-- [ ] Run `bun run frontend:compiler:check`, `bun run frontend:check`, `bun run frontend:test`, and `bun run frontend:build`. Compare every production asset hash with trunk.
+- [x] Add positive and negative behavioral fixtures for every typed rule and each migration disposition. Cover production, test, harness, Vite, ignored files, and directive scope. Run `bun run frontend:tooling:check`.
+- [x] Test the dependency guard with metadata-only fixture manifests, lockfiles, and fake package metadata that describe TypeScript 6, a compatibility alias, or a legacy consumer. Each must fail with the named reason. Do not install or execute TypeScript 6 for these tests.
+- [x] Run `bun run frontend:compiler:check`, `bun run frontend:check`, `bun run frontend:test`, and `bun run frontend:build`. Compare every production asset hash with trunk.
 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `gpt-6.1-sol` at the PR head, per the boot recipe. Inherit parent effort unless a validated execution profile says otherwise.
 

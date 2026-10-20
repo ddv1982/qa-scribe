@@ -921,5 +921,11 @@
     "react-hooks/gating": "Legacy gating-option validator has no user-configurable gating option in Oxlint. Native compiler configuration is fixed."
   },
   "sourceHashesNote": "Historical pinned preset sources were read statically before dependency removal. Paths identify the old installation and are not current file links.",
-  "dispositionSource": "https://github.com/oxc-project/oxlint-migrate/blob/ce9d32e548bb75d77a9034d9b9bb0b5ec5aab907/src/generated/unsupported-rules.json"
+  "dispositionSource": "https://github.com/oxc-project/oxlint-migrate/blob/ce9d32e548bb75d77a9034d9b9bb0b5ec5aab907/src/generated/unsupported-rules.json",
+  "typescriptFiles": [
+    "**/*.ts",
+    "**/*.tsx",
+    "**/*.mts",
+    "**/*.cts"
+  ]
 }

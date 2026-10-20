@@ -1,0 +1,282 @@
+{
+  "schema_version": 1,
+  "phase": "T7-1",
+  "status": "LOCAL_REVIEW_FIXES_VERIFIED_FINAL_HOSTED_HEAD_PENDING",
+  "base_commit": "82f1502aee9c20d481bcd0ae56c45d053e7b9516",
+  "first_reviewed_commit": "c3fdd71de4463a29141fd81f7072a406d87de2c7",
+  "candidate_code_fingerprint": {
+    "sha256": "aa7061ab6cf60287d7b5bf15253931ecb77feb0d1576f148adbde8f3672c240d",
+    "files": 609,
+    "method": "SHA256 of sorted non-document tracked and untracked repository paths, each followed by NUL, file bytes, and NUL. Ignored build/artifact files are excluded."
+  },
+  "versions": {
+    "node": "24.22.0",
+    "bun": "1.3.5",
+    "rust": "1.99.1",
+    "typescript": "7.0.2",
+    "tsc-rs": "0.7.0",
+    "oxlint": "1.89.0",
+    "oxlint-tsgolint": "7.0.2004"
+  },
+  "local_verification": {
+    "canonical_verify_exit": 0,
+    "frontend_files": 63,
+    "frontend_tests_passed": 572,
+    "rust_tests_passed": 566,
+    "rust_tests_ignored_existing": 3,
+    "script_tests_passed": 241,
+    "python_tests_passed": 5,
+    "metadata_tests_passed": 55,
+    "native_lint_cases_passed": 183,
+    "typed_rules_covered": 23,
+    "locked_packages": 908,
+    "installed_package_roots": 791,
+    "runtime_source_files_inspected": 13756,
+    "legacy_identities": 0,
+    "literal_legacy_api_imports": 0,
+    "desktop_default_invocations_passed": 18,
+    "desktop_environment": "Isolated X11 via xvfb-run; inherited Wayland attempt failed5of18 and is retained in local logs.",
+    "actionlint": "1.7.12 passed",
+    "zizmor": "1.30.1 online passed with zero findings"
+  },
+  "asset_parity": {
+    "files": 20,
+    "identical_to_base": true,
+    "all_eight_measured_builds_identical": true
+  },
+  "native_only_baseline": {
+    "claim": "Establish a native-only local baseline. No TypeScript 6 comparison or CI speedup claim.",
+    "method": "One warmup and seven alternating complete check/build samples. Every build must match all historical production asset hashes.",
+    "host_cores": 20,
+    "load": "14:35:46 up 19:04,  1 user,  load average: 2.31, 2.33, 2.25",
+    "summary": {
+      "check": {
+        "n": 7,
+        "median_seconds": 0.8495587249926757,
+        "min_seconds": 0.7839358890050789,
+        "max_seconds": 0.8958037580014206,
+        "budget_seconds": 5
+      },
+      "build": {
+        "n": 7,
+        "median_seconds": 3.5223606119980104,
+        "min_seconds": 3.3140386560116895,
+        "max_seconds": 3.7468592450022697,
+        "budget_seconds": 10
+      }
+    },
+    "limiter": "Separate wall counters and a Vite CPU profile show typed lint dominates frontend:check and Rollup bundling dominates frontend:build. Profiling is excluded from primary samples.",
+    "limiter_limits": "Rust CPU and RSS are not inferred from launcher counters."
+  },
+  "live_lanes": {
+    "passed": 10,
+    "tested_head": "c3fdd71de4463a29141fd81f7072a406d87de2c7",
+    "artifact_hashes_checked_by_parent": 242,
+    "parent_viewed_each_terminal_png": true,
+    "retention": "180 command and application input files remain byte-identical after guard fixes. Guard lane1 and the independent verdict need fresh final-head verification. Old screenshot SHAs are never relabeled as new runs."
+  },
+  "hosted_native_validation": {
+    "run_url": "https://github.com/ddv1982/qa-scribe/actions/runs/39420123116",
+    "jobs": [
+      {
+        "source_head": "c3fdd71de4463a29141fd81f7072a406d87de2c7",
+        "tested_merge_sha": "d28c77b1a96d90aa430f6fb38e8c44c3104b1687",
+        "platform": "linux-x64",
+        "node": "v24.22.0",
+        "stages": [
+          {
+            "stage": "cold",
+            "status": "passed",
+            "cacheHit": null
+          },
+          {
+            "stage": "discard",
+            "status": "passed",
+            "cacheHit": null
+          },
+          {
+            "stage": "warm",
+            "status": "passed",
+            "cacheHit": "true"
+          }
+        ],
+        "receipt_sha256": "4db640fc553b4d42080b9a2f7568cf022c2187bad7a0b106bba36dc9af267e6a"
+      },
+      {
+        "source_head": "c3fdd71de4463a29141fd81f7072a406d87de2c7",
+        "tested_merge_sha": "d28c77b1a96d90aa430f6fb38e8c44c3104b1687",
+        "platform": "macos-arm64",
+        "node": "v24.21.0",
+        "stages": [
+          {
+            "stage": "cold",
+            "status": "passed",
+            "cacheHit": null
+          },
+          {
+            "stage": "discard",
+            "status": "passed",
+            "cacheHit": null
+          },
+          {
+            "stage": "warm",
+            "status": "passed",
+            "cacheHit": "true"
+          }
+        ],
+        "receipt_sha256": "33c65945dba2ce506ed22eb7b58975270c47e50f3673f5a891a4c3942a6508ee"
+      },
+      {
+        "source_head": "c3fdd71de4463a29141fd81f7072a406d87de2c7",
+        "tested_merge_sha": "d28c77b1a96d90aa430f6fb38e8c44c3104b1687",
+        "platform": "macos-x64",
+        "node": "v24.19.0",
+        "stages": [
+          {
+            "stage": "cold",
+            "status": "passed",
+            "cacheHit": null
+          },
+          {
+            "stage": "discard",
+            "status": "passed",
+            "cacheHit": null
+          },
+          {
+            "stage": "warm",
+            "status": "passed",
+            "cacheHit": "true"
+          }
+        ],
+        "receipt_sha256": "6f90d7470c70a66d81d5b1832ddd04fbaf52ef5893fbcf1341331ab36b4b261c"
+      }
+    ],
+    "final_head_required_before_merge": true,
+    "cache_cost": {
+      "compressed_bytes_three_entries": 289321533,
+      "mitigation": "PR path filters restrict fresh/cached native validation to toolchain, CI, and editor changes. Unique run keys preserve exact cold-save-restore comparisons.",
+      "quota_eviction_observed": "Not measured; no causal eviction claim."
+    }
+  },
+  "compiler_hooks_comparison": {
+    "baseline": {
+      "root": "/tmp/qa-scribe-js-hooks-baseline-9ZnPeCae",
+      "eslint": "10.12.0",
+      "reactHooks": "7.1.1",
+      "espree": "11.2.0",
+      "typescriptPackagesInstalled": 0,
+      "typescriptPackagesLocked": 0,
+      "installedMetadataCount": 135,
+      "compilerHooksSourceSha256": "0804a982675cb73e81b870e29ec3ddcbba959ed722afc2cc42ad14d4a99cd27a",
+      "matchesRemovedOriginalPlugin": true,
+      "parser": "ESLint default Espree, JSX grammar only; no TypeScript ESLint or TypeScript compiler API loaded",
+      "bothFileExtensions": [
+        ".jsx",
+        ".tsx"
+      ]
+    },
+    "matched_categories": [
+      {
+        "name": "globals-assignment.tsx",
+        "rule": "globals",
+        "legacy": [
+          {
+            "code": "react-hooks/globals",
+            "severity": 2
+          }
+        ],
+        "current": [
+          {
+            "code": "react(globals)",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "name": "use-memo-dynamic-deps.tsx",
+        "rule": "use-memo",
+        "legacy": [
+          {
+            "code": "react-hooks/use-memo",
+            "severity": 2
+          }
+        ],
+        "current": [
+          {
+            "code": "react(use-memo)",
+            "severity": "error"
+          },
+          {
+            "code": "react-hooks(exhaustive-deps)",
+            "severity": "warning"
+          },
+          {
+            "code": "typescript(no-unsafe-assignment)",
+            "severity": "error"
+          },
+          {
+            "code": "typescript(no-unsafe-argument)",
+            "severity": "error"
+          },
+          {
+            "code": "typescript(no-unsafe-return)",
+            "severity": "error"
+          }
+        ]
+      },
+      {
+        "name": "use-memo-no-callback.tsx",
+        "rule": "use-memo",
+        "legacy": [
+          {
+            "code": "react-hooks/use-memo",
+            "severity": 2
+          }
+        ],
+        "current": [
+          {
+            "code": "react(use-memo)",
+            "severity": "error"
+          },
+          {
+            "code": "react-hooks(exhaustive-deps)",
+            "severity": "warning"
+          }
+        ]
+      }
+    ],
+    "decision": "Retain all-native implementation. Initial official examples were unsuitable probes for these exact plugin categories. Explicit reassignment and invalid memo arguments match old and native named diagnostics. No demonstrated lost protection requires a JS plugin.",
+    "preserve_manual_memoization": "Configured identically. The selected examples trigger its named diagnostic in neither original JS-only plugin nor native implementation. No complete semantic equivalence claim."
+  },
+  "review": {
+    "model": "claude-opus-5-5",
+    "first_verdict": "PASS+NOTES",
+    "response": "Accepted override-scope, installed-dist scanning, fixture-completeness, maintained-source, and command-obligation fixes. Added native Hooks examples, bounded CI triggers, and this portable receipt. A fresh exact-head verdict remains required."
+  },
+  "raw_receipts": {
+    "committed": false,
+    "policy": "All artifacts/ paths in the decision TSV are local ignored receipts. This committed summary records their results and hashes. Maintained guard and fixture scripts reproduce the native verification.",
+    "sha256": {
+      "artifacts/ts7-implementation/verify-final.log": "8df9def69e65c364418e987920d2230eb5699203370d159aa42d4b894a9bda47",
+      "artifacts/ts7-implementation/metadata-tests-final.log": "5520bcaf132965328ac0d132f4b6a7fa79cc8e2b0d208e521597f2cae8f722ab",
+      "artifacts/ts7-implementation/e2e-x11.log": "be8cf5d2968420cbcf13bdf297c71d2af10031c6b431a4c26fda7bb4c19899fc",
+      "artifacts/ts7-implementation/workflow-lint-final.log": "9d34cdaec053c6005199c08f2bac628bd8c087303faa26fd8ab58c3e22216ff5",
+      "artifacts/ts7-implementation/workflow-security-final.json": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "artifacts/ts7-implementation/baseline-assets.json": "80071b3961c8971e25d68e8d158513b194307e3bbbe09f53a4c394933d3ec262",
+      "artifacts/ts7-implementation/live-lanes-c3fdd71.json": "f0f31e99a1ca2a3333ac352c7e2114b32be3ffeedb0ae3caa16c61dd0c9ec0af",
+      "artifacts/ts7-implementation/live-artifact-verification.json": "bcfc372ee960b8a507f7f726d77941d9c37e222e921f177e1986432a3ef1298f",
+      "artifacts/ts7-implementation/unchanged-cli-inputs.json": "bc62a0c6d65ea06f5578915762a4b189dea187a035d7e6b654b9f864fab77355",
+      "artifacts/ts7-implementation/dependency-audit.md": "4d5ebc4bb6ffa6d94daa9b17af7bcbe975ab30f18cb3e01fc1bca52c687032f8",
+      "artifacts/ts7-implementation/timings/results.json": "c9dde201ee049debf9fb23db644751e6e8b0a7cfc1f53d8949ca70164f1816cb",
+      "artifacts/ts7-implementation/timings/profile-summary.json": "602693a1fcb7b2b44e732755ad632e6ba07d9348f69544a615bb5d65793b4e78",
+      "artifacts/ts7-implementation/toolchain-owner/compiler-hooks-comparison-receipt.json": "31bb866c4fb33c385b991cb915fd7ad658f2fe4d9abb6f1439168367999193f9",
+      "artifacts/ts7-implementation/native-cache-storage.json": "d34e56a5daf4b4310277955a6f39ed3449747e5555009a9c705a46b53f2adbcb"
+    }
+  },
+  "open_gates": [
+    "Fresh independent verdict for the review-fix commit.",
+    "Fresh hosted native jobs and protected CI at the final PR head.",
+    "T7-2 watchers, T7-3 editor proof, and T7-4 final release preparation.",
+    "No new version, manual tag, release or publication from this phase."
+  ]
+}

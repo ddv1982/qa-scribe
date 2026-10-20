@@ -7,7 +7,7 @@ const { parse } = require('@babel/parser')
 const sourceExtensions = new Set(['.js', '.mjs', '.cjs', '.jsx', '.ts', '.tsx', '.mts', '.cts'])
 const excluded = new Set(['node_modules', '.git', 'target', 'dist', 'artifacts', 'vendor'])
 
-export function scanCompilerImports(directories) {
+export function scanCompilerImports({ maintained, installed }) {
   const imports = []
   let scannedFiles = 0
   function inspect(file) {
@@ -33,13 +33,14 @@ export function scanCompilerImports(directories) {
     }
     visit(syntax.program)
   }
-  function walk(directory) {
+  function walk(directory, exclusions) {
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
       const path = join(directory, entry.name)
-      if (entry.isDirectory() && !excluded.has(entry.name)) walk(path)
+      if (entry.isDirectory() && !exclusions.has(entry.name)) walk(path, exclusions)
       else if (entry.isFile()) inspect(path)
     }
   }
-  for (const directory of new Set(directories)) walk(directory)
+  for (const directory of new Set(maintained)) walk(directory, excluded)
+  for (const directory of new Set(installed)) walk(directory, new Set(['node_modules']))
   return { imports, scannedFiles }
 }

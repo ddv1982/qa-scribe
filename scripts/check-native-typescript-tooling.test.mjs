@@ -3,6 +3,7 @@ import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import test from 'node:test'
+import { nativeLintCases } from './native-lint-coverage.mjs'
 import { inspectFrontend, validateNativeTooling } from './check-native-typescript-tooling.mjs'
 
 const frontend = new URL('../frontend/', import.meta.url)
@@ -28,6 +29,7 @@ function fixture(run) {
       } else json(join(directory, 'package.json'), { name, version })
       lock.packages[name] = [`${name}@${version}`, '', {}, 'sha512-fixture']
     }
+    copyFileSync(new URL('../package.json', import.meta.url), join(project, 'package.json'))
     json(join(root, 'package.json'), manifest)
     json(join(root, 'bun.lock'), lock)
     copyFileSync(new URL('.oxlintrc.json', frontend), join(root, '.oxlintrc.json'))
@@ -139,3 +141,91 @@ test('maintained script type-only reexports remain non-runtime', () => fixture(r
   writeFileSync(join(directory, 'types.ts'), "export { type Type } from 'typescript'")
   assert.deepEqual(findings(root), [])
 }))
+
+for (const relative of ['scripts/probe.mjs', 'vite.config.ts']) {
+  test(`maintained frontend runtime compiler import rejected in ${relative}`, () => fixture(root => {
+    const file = join(root, relative)
+    mkdirSync(dirname(file), { recursive: true })
+    writeFileSync(file, "import ts from 'typescript'")
+    const failures = findings(root)
+    assert.ok(failures.some(row => row.code === 'legacy-api-import' && row.location === `${file}:1` && row.message === 'Legacy compiler API import typescript'))
+  }))
+}
+
+test('subdirectory-specific typed lint bypass is rejected from disk', () => fixture(root => {
+  const file = join(root, '.oxlintrc.json')
+  const config = JSON.parse(readFileSync(file))
+  config.overrides.push({ files: ['src/app/**'], rules: { 'typescript/no-floating-promises': 'off' } })
+  json(file, config)
+  assert.ok(findings(root).some(row => row.code === 'lint-scope'))
+}))
+for (const files of [['src/**/*.ts'], ['**/*'], ['src/**/*.test.ts']]) {
+  test(`changed override scope ${files.join(',')} is rejected`, () => fixture(root => {
+    const config = JSON.parse(readFileSync(join(root, '.oxlintrc.json')))
+    config.overrides[1].files = files
+    json(join(root, '.oxlintrc.json'), config)
+    assert.ok(findings(root).some(row => row.code === 'lint-scope'))
+  }))
+}
+for (const [scope, name, replacement] of [
+  ['frontend', 'check', 'bun run typecheck && bun run lint:css && bun run check:contrast'],
+  ['frontend', 'check', 'bun run typecheck && bun run lint || true && bun run lint:css && bun run check:contrast'],
+  ['root', 'verify', 'bun run frontend:compiler:check && bun run frontend:check'],
+  ['root', 'verify:fast', 'bun run frontend:tooling:check || true && bun run frontend:compiler:check && bun run frontend:check'],
+  ['root', 'verify', 'echo "noop && bun run frontend:tooling:check && bun run frontend:compiler:check && bun run frontend:check && done"'],
+]) {
+  test(`validation obligation ${scope}.${name} cannot be omitted or bypassed`, () => fixture(root => {
+    const file = join(scope === 'root' ? dirname(root) : root, 'package.json')
+    const manifest = JSON.parse(readFileSync(file))
+    manifest.scripts[name] = replacement
+    json(file, manifest)
+    assert.ok(findings(root).some(row => row.code === 'command-obligation' && row.location === `${scope === 'root' ? 'root' : 'frontend'}.${name}`))
+  }))
+}
+test('additional unconditional verification commands remain allowed', () => fixture(root => {
+  const file = join(dirname(root), 'package.json')
+  const manifest = JSON.parse(readFileSync(file))
+  manifest.scripts.verify += ' && bun run additional:check'
+  json(file, manifest)
+  assert.deepEqual(findings(root), [])
+}))
+test('installed package distribution imports cannot hide under project exclusions', () => fixture(root => {
+  const directory = join(root, 'node_modules/oxlint/dist')
+  mkdirSync(directory)
+  writeFileSync(join(directory, 'index.js'), "require('typescript')")
+  assert.ok(findings(root).some(row => row.code === 'legacy-api-import' && row.location.endsWith('/oxlint/dist/index.js:1')))
+}))
+
+function coverageFixture(run) {
+  const directory = new URL('./fixtures/native-tooling/', import.meta.url)
+  const read = name => JSON.parse(readFileSync(new URL(name, directory)))
+  run(read('typed-cases.json'), read('lint-cases.json'), read('lint-diagnostics.json'))
+}
+test('missing typed fixture cannot claim complete parity', () => coverageFixture((typed, additional, diagnostics) => {
+  assert.throws(() => nativeLintCases(typed.filter(row => row.rule !== 'await-thenable'), additional, parity, diagnostics), /cover every parity rule exactly once/)
+}))
+test('duplicate typed fixture cannot claim complete parity', () => coverageFixture((typed, additional, diagnostics) => {
+  assert.throws(() => nativeLintCases([...typed, typed[0]], additional, parity, diagnostics), /cover every parity rule exactly once/)
+}))
+test('missing valid typed source cannot claim complete parity', () => coverageFixture((typed, additional, diagnostics) => {
+  delete typed[0].valid
+  assert.throws(() => nativeLintCases(typed, additional, parity, diagnostics), /must have a valid fixture/)
+}))
+test('missing diagnostic expectations cannot claim complete parity', () => coverageFixture((typed, additional, diagnostics) => {
+  delete diagnostics['await-thenable-invalid.ts']
+  assert.throws(() => nativeLintCases(typed, additional, parity, diagnostics), /expectations must cover every fixture exactly once/)
+}))
+test('duplicate source filenames cannot claim complete parity', () => coverageFixture((typed, additional, diagnostics) => {
+  additional.push(additional[0])
+  assert.throws(() => nativeLintCases(typed, additional, parity, diagnostics), /Fixture filenames must be unique/)
+}))
+
+for (const [scope, name] of [['root', 'frontend:tooling:check'], ['root', 'frontend:compiler:check'], ['root', 'frontend:check'], ['frontend', 'lint:css'], ['frontend', 'check:contrast']]) {
+  test(`validation dispatcher ${scope}.${name} must execute its real check`, () => fixture(root => {
+    const file = join(scope === 'root' ? dirname(root) : root, 'package.json')
+    const manifest = JSON.parse(readFileSync(file))
+    manifest.scripts[name] = 'echo skipped'
+    json(file, manifest)
+    assert.ok(findings(root).some(row => row.code === 'command-obligation' && row.location === `${scope}.${name}`))
+  }))
+}

@@ -15,6 +15,19 @@ overrides. Behavioral fixtures independently prove that those overrides apply.
 rule. `lint-cases.json` adds Hooks, Refresh, meaningful default options, directive
 scope, and strict syntax. The harness exercises all typed invalid examples in
 production, both test extensions, test harnesses, and strict test-support files.
+Eleven compiler-Hooks rules have additional invalid and clean valid fixtures:
+refs, error boundaries, immutability, purity, state updates in effects and render,
+static components, unsupported syntax, incompatible library use, globals, and
+use-memo. The library
+fixture uses an inert ambient declaration and never installs or executes it.
+Preserve-manual-memoization remains a configuration-preservation check. Its
+behavior is not claimed to be covered by these fixtures. Official and source-guided
+missing-dependency examples did not trigger that named rule in either the old
+React Hooks 7.1.1 plugin or native lint. The comparison used Espree with no
+TypeScript package installed. Its invalid refs, purity, and Hooks controls fired.
+Explicit global reassignment and invalid useMemo arguments did trigger matching
+old and native rule categories and supply the retained fixtures.
+
 Only the four documented rules relax in tests. Unsafe arguments and member
 access remain errors. The Vite configuration receives a separate typed failure.
 Build output and scripts remain ignored.

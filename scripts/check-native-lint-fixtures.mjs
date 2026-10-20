@@ -4,6 +4,7 @@ import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { nativeLintCases } from './native-lint-coverage.mjs'
 
 const fixtures = new URL('./fixtures/native-tooling/', import.meta.url)
 const readFixture = name => JSON.parse(readFileSync(new URL(name, fixtures), 'utf8'))
@@ -16,25 +17,16 @@ export function checkNativeLintFixtures(frontend) {
     writeFileSync(join(root, 'package.json'), '{"type":"module"}')
     writeFileSync(join(root, 'vite.config.ts'), 'export const value = 1')
     symlinkSync(join(frontend, 'node_modules'), join(root, 'node_modules'), 'dir')
-    const cases = readFixture('typed-cases.json').flatMap(row => [
-      { name: `${row.name}-invalid.ts`, source: row.invalid, rule: row.rule, severity: 'error' },
-      { name: `${row.name}-valid.ts`, source: row.valid, rule: null },
-    ])
-    cases.push(...readFixture('lint-cases.json'))
-    const parity = readFixture('lint-parity.json')
-    for (const row of readFixture('typed-cases.json')) {
-      for (const suffix of ['test.ts', 'test.tsx', 'testHarness.ts', 'testSupport.ts']) {
-        const disabled = suffix !== 'testSupport.ts' && parity.testDisabled.includes(`typescript/${row.rule}`)
-        cases.push({ name: `${row.name}.${suffix}`, source: row.invalid, rule: disabled ? null : row.rule, severity: 'error', absentRule: disabled ? row.rule : null })
-      }
-    }
+    const expectedDiagnostics = readFixture('lint-diagnostics.json')
+    const { cases, typedRuleCount } = nativeLintCases(readFixture('typed-cases.json'), readFixture('lint-cases.json'), readFixture('lint-parity.json'), expectedDiagnostics)
     for (const row of cases) writeFileSync(join(root, 'src', row.name), row.source)
+    const ambient = [...new Set(cases.map(row => row.ambient).filter(Boolean))]
+    if (ambient.length) writeFileSync(join(root, 'src', 'native-libraries.d.ts'), ambient.join('\n'))
     for (const ignored of ['dist', 'scripts']) {
       mkdirSync(join(root, ignored), { recursive: true })
       writeFileSync(join(root, ignored, 'invalid.ts'), 'Promise.resolve(1); export {}')
     }
     writeFileSync(join(root, 'vite.config.ts'), 'Promise.resolve(1); export {}')
-    const expectedDiagnostics = readFixture('lint-diagnostics.json')
     const groups = [
       { name: 'clean', status: 0, accepts: rows => rows.length === 0 },
       { name: 'warnings', status: 0, accepts: rows => rows.length > 0 && rows.every(row => row.severity === 'warning') },
@@ -74,7 +66,7 @@ export function checkNativeLintFixtures(frontend) {
     }
     assert.ok(report.diagnostics.some(item => item.filename === 'vite.config.ts' && item.code === 'typescript(no-floating-promises)'), 'Vite configuration must retain typed lint')
     assert.ok(!report.diagnostics.some(item => item.filename.startsWith('dist/') || item.filename.startsWith('scripts/')), 'Ignored build output and scripts must remain ignored')
-    console.log(`PASS ${cases.length} native lint behavior fixtures, including all 23 typed rules and test scopes`)
+    console.log(`PASS ${cases.length} native lint behavior fixtures, including all ${typedRuleCount} typed rules and test scopes`)
     return { cases: cases.length, diagnostics: report.diagnostics.length, receipts }
   } finally {
     rmSync(root, { recursive: true, force: true })

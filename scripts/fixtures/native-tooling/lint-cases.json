@@ -134,5 +134,128 @@
     "name": "valid-octal.js",
     "source": "export const value=0o123",
     "rule": null
+  },
+  {
+    "name": "compiler-refs-invalid.tsx",
+    "source": "import{useRef}from\"react\";export function Probe(){const ref=useRef(0);return <div>{ref.current}</div>}",
+    "rule": "refs",
+    "severity": "error"
+  },
+  {
+    "name": "compiler-refs-valid.tsx",
+    "source": "import{useRef,useEffect}from\"react\";export function Probe(){const ref=useRef(0);useEffect(()=>{console.log(ref.current)},[]);return <div/>}",
+    "rule": null
+  },
+  {
+    "name": "compiler-error-boundaries-invalid.tsx",
+    "source": "export function Probe(){try{return <div/>}catch{return null}}",
+    "rule": "error-boundaries",
+    "severity": "error"
+  },
+  {
+    "name": "compiler-error-boundaries-valid.tsx",
+    "source": "export function Probe(){return <div/>}",
+    "rule": null
+  },
+  {
+    "name": "compiler-immutability-invalid.tsx",
+    "source": "export function Probe(props:{value:number}){props.value=1;return <div>{props.value}</div>}",
+    "rule": "immutability",
+    "severity": "error"
+  },
+  {
+    "name": "compiler-immutability-valid.tsx",
+    "source": "export function Probe(props:{value:number}){const updated={...props,value:1};return <div>{updated.value}</div>}",
+    "rule": null
+  },
+  {
+    "name": "compiler-purity-invalid.tsx",
+    "source": "export function Probe(){return <div>{Math.random()}</div>}",
+    "rule": "purity",
+    "severity": "error"
+  },
+  {
+    "name": "compiler-purity-valid.tsx",
+    "source": "export function Probe(){return <div>{1}</div>}",
+    "rule": null
+  },
+  {
+    "name": "compiler-set-state-in-effect-invalid.tsx",
+    "source": "import{useState,useEffect}from\"react\";export function Probe(){const[value,setValue]=useState(0);useEffect(()=>{setValue(1)},[]);return <div>{value}</div>}",
+    "rule": "set-state-in-effect",
+    "severity": "error"
+  },
+  {
+    "name": "compiler-set-state-in-effect-valid.tsx",
+    "source": "import{useState,useEffect}from\"react\";export function Probe(){const[value,setValue]=useState(0);useEffect(()=>{const timer=setTimeout(()=>setValue(1),0);return()=>clearTimeout(timer)},[]);return <div>{value}</div>}",
+    "rule": null
+  },
+  {
+    "name": "compiler-set-state-in-render-invalid.tsx",
+    "source": "import{useState}from\"react\";export function Probe(){const[value,setValue]=useState(0);setValue(1);return <div>{value}</div>}",
+    "rule": "set-state-in-render",
+    "severity": "error"
+  },
+  {
+    "name": "compiler-set-state-in-render-valid.tsx",
+    "source": "import{useState}from\"react\";export function Probe(){const[value,setValue]=useState(0);return <button onClick={()=>setValue(value+1)}>{value}</button>}",
+    "rule": null
+  },
+  {
+    "name": "compiler-static-components-invalid.tsx",
+    "source": "export function Probe(){function Inner(){return <div/>};return <Inner/>}",
+    "rule": "static-components",
+    "severity": "error"
+  },
+  {
+    "name": "compiler-static-components-valid.tsx",
+    "source": "function Inner(){return <div/>};export function Probe(){return <Inner/>}",
+    "rule": null
+  },
+  {
+    "name": "compiler-unsupported-syntax-invalid.tsx",
+    "source": "export function Probe(){eval(\"1\");return <div/>}",
+    "rule": "unsupported-syntax",
+    "severity": "warning"
+  },
+  {
+    "name": "compiler-unsupported-syntax-valid.tsx",
+    "source": "export function Probe(){return <div>{1}</div>}",
+    "rule": null
+  },
+  {
+    "name": "compiler-incompatible-library-invalid.tsx",
+    "source": "import{useForm}from\"react-hook-form\";export function Probe(){const{watch}=useForm();const value=watch(\"field\");return <div>{value}</div>}",
+    "rule": "incompatible-library",
+    "severity": "warning",
+    "ambient": "declare module \"react-hook-form\" { export function useForm(): {watch:(name:string)=>string;control:object}; export function useWatch(options:{control:object;name:string}):string; }"
+  },
+  {
+    "name": "compiler-incompatible-library-valid.tsx",
+    "source": "import{useForm,useWatch}from\"react-hook-form\";export function Probe(){const{control}=useForm();const value=useWatch({control,name:\"field\"});return <div>{value}</div>}",
+    "rule": null,
+    "ambient": "declare module \"react-hook-form\" { export function useForm(): {watch:(name:string)=>string;control:object}; export function useWatch(options:{control:object;name:string}):string; }"
+  },
+  {
+    "name": "compiler-globals-invalid.tsx",
+    "source": "let renderCount=0;export function Probe(){renderCount=renderCount+1;return <div>{renderCount}</div>}",
+    "rule": "globals",
+    "severity": "error"
+  },
+  {
+    "name": "compiler-globals-valid.tsx",
+    "source": "import{useEffect}from\"react\";let renderCount=0;export function Probe(){useEffect(()=>{renderCount=renderCount+1},[]);return <div/>}",
+    "rule": null
+  },
+  {
+    "name": "compiler-use-memo-invalid.tsx",
+    "source": "import{useMemo}from\"react\";export function Probe(){const result=useMemo();return <div>{result}</div>}",
+    "rule": "use-memo",
+    "severity": "error"
+  },
+  {
+    "name": "compiler-use-memo-valid.tsx",
+    "source": "import{useMemo}from\"react\";export function Probe(){const result=useMemo(()=>1,[]);return <div>{result}</div>}",
+    "rule": null
   }
 ]
