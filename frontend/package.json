@@ -5,13 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "bun run typecheck && vite build",
     "lint": "eslint .",
     "lint:css": "node scripts/check-css-colors.mjs",
     "check": "bun run typecheck && bun run lint && bun run lint:css && bun run check:contrast",
     "check:contrast": "node scripts/check-contrast.mjs",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc-rs --noEmit -p tsconfig.json && tsc-rs --noEmit -p tsconfig.node.json",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -54,6 +54,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.7",
     "jsdom": "^29.1.1",
+    "tsc-rs": "0.7.0",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.71.2",
     "vite": "^7.3.7",

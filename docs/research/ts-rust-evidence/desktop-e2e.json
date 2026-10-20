@@ -1,0 +1,40 @@
+{
+  "completedAt": "2026-10-20T03:08:44.714Z",
+  "durationMs": 42734,
+  "platform": "linux",
+  "architecture": "x64",
+  "runnerClass": "linux-x64",
+  "runId": null,
+  "runAttempt": 1,
+  "status": "passed",
+  "exitCode": 0,
+  "signal": null,
+  "invocations": [
+    {
+      "id": "session-lifecycle",
+      "status": 0,
+      "signal": null
+    },
+    {
+      "id": "manual-testware",
+      "status": 0,
+      "signal": null
+    },
+    {
+      "id": "clipboard",
+      "status": 0,
+      "signal": null
+    },
+    {
+      "id": "generation-cancellation",
+      "status": 0,
+      "signal": null
+    },
+    {
+      "id": "summary-recovery",
+      "status": 0,
+      "signal": null
+    }
+  ],
+  "isolatedDataRemoved": true
+}

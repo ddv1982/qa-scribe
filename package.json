@@ -17,6 +17,7 @@
     "frontend:lint": "bun run --cwd frontend lint",
     "frontend:test": "bun run --cwd frontend test",
     "frontend:typecheck": "bun run --cwd frontend typecheck",
+    "frontend:compiler:check": "node scripts/check-typescript-compiler.mjs",
     "e2e": "node scripts/run-e2e.mjs",
     "e2e:isolation": "node scripts/check-e2e-isolation.mjs",
     "e2e:isolation:source": "node scripts/check-e2e-isolation.mjs --source-only",
@@ -49,7 +50,7 @@
     "bump:test": "node --test scripts/bump-version.test.mjs",
     "smoke": "cargo run -p qa-scribe-app",
     "package:check": "node -e \"for (const file of ['package.json','frontend/package.json','frontend/tsconfig.json','frontend/tsconfig.node.json','src-tauri/tauri.conf.json','src-tauri/tauri.linux.conf.json','src-tauri/capabilities/default.json','e2e/tauri.e2e.conf.json']) JSON.parse(require('fs').readFileSync(file,'utf8'))\"",
-    "verify": "bun run frontend:audit && bun run rust:audit && bun run code-size:check && bun run terminology:check && bun run frontend:check && bun run frontend:test && bun run release:check && bun run frontend:build && bun run e2e:isolation && bash scripts/check-tauri-prebuilt-frontend.sh && bun run bindings:check && bun run tauri:commands:check && cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace && cargo build --workspace && cargo run -p qa-scribe-app",
-    "verify:fast": "bun run code-size:check && bun run terminology:check && bun run e2e:isolation:source && bun run frontend:check && bun run frontend:test && node scripts/ensure-frontend-dist.mjs && bun run tauri:commands:check && cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings"
+    "verify": "bun run frontend:audit && bun run rust:audit && bun run code-size:check && bun run terminology:check && bun run frontend:compiler:check && bun run frontend:check && bun run frontend:test && bun run release:check && bun run frontend:build && bun run e2e:isolation && bash scripts/check-tauri-prebuilt-frontend.sh && bun run bindings:check && bun run tauri:commands:check && cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace && cargo build --workspace && cargo run -p qa-scribe-app",
+    "verify:fast": "bun run code-size:check && bun run terminology:check && bun run e2e:isolation:source && bun run frontend:compiler:check && bun run frontend:check && bun run frontend:test && node scripts/ensure-frontend-dist.mjs && bun run tauri:commands:check && cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings"
   }
 }
