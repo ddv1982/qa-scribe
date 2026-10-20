@@ -7,7 +7,7 @@ Keep `tsc-rs` as the authoritative build checker. Use Microsoft TypeScript 7 for
 Run T7-1, T7-2, T7-3, and T7-4 in that order. These are planned PR labels, not GitHub PR numbers.
 This document records the approved implementation sequence. Execution started on 2026-10-20 from `82f1502aee9c20d481bcd0ae56c45d053e7b9516`. Publication remains conditional on the final verification gates.
 
-T7-1 merged through [PR #61](https://github.com/ddv1982/qa-scribe/pull/61) at `0496aac81d0b1d6c6c61797e721f827a7420a8bf`. The [implementation evidence](research/typescript-7-implementation-evidence.json) records its results and limits. T7-2 is integrated locally from that main commit. Its live, performance, independent review and hosted checks remain open. T7-3 and T7-4 have not started production implementation.
+T7-1 merged through [PR #61](https://github.com/ddv1982/qa-scribe/pull/61) at `0496aac81d0b1d6c6c61797e721f827a7420a8bf`. The [implementation evidence](research/typescript-7-implementation-evidence.json) records its results and limits. T7-2 is integrated locally from that main commit. Its unit, amended performance and hosted checks pass at the cleanup-fix source. Live terminal proof and independent shipping review remain open. T7-3 and T7-4 have not started production implementation.
 
 ## How to read this
 
@@ -155,8 +155,8 @@ Each lane uses the real command, editor, or hosted job at the PR head through a 
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] Test real child exit, missing compiler, busy port, interrupt, repeated launch, and error recovery. Assert process cleanup and exit codes, not source spelling. Run the new lifecycle tests and the real-project watch fixture.
-- [ ] Run `bun run frontend:tooling:check`, `bun run frontend:check`, and `bun run frontend:build` to prove the optional workflow preserves the production path.
+- [x] Test real child exit, missing compiler, busy port, interrupt, repeated launch, and error recovery. Assert process cleanup and exit codes, not source spelling. Run the new lifecycle tests and the real-project watch fixture.
+- [x] Run `bun run frontend:tooling:check`, `bun run frontend:check`, and `bun run frontend:build` to prove the optional workflow preserves the production path.
 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `gpt-6.1-sol` at the PR head, per the boot recipe. Inherit parent effort unless a validated execution profile says otherwise.
 
@@ -173,10 +173,14 @@ Each lane uses the real command, editor, or hosted job at the PR head through a 
 
 **Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] Metric. Measure ready time, edit-to-diagnostic time, idle CPU, memory growth, and shutdown latency for the checked workflow.
-- [ ] Probe. Compare seven interleaved starts with trunk's Vite start and one-shot checks. Exercise 100 alternating valid/invalid edits. Sample an idle 30-second window after recovery.
-- [ ] Baseline. Record trunk Vite readiness, one-shot checker latency, idle CPU, and memory first. Label continuous-watch latency as new behavior without an old watch baseline.
-- [ ] Rule. Fail startup overhead above 1 second, median edit feedback above 2 seconds, idle CPU above one percent of one core, resident growth above 50 MiB after 100 edits and settling, or cleanup longer than 3 seconds. Explain noise before treating a close result as a regression.
+- [x] Metric. Measure ready time, edit-to-diagnostic time, idle CPU, memory growth, and shutdown latency for the checked workflow.
+- [x] Probe. Compare seven interleaved starts with trunk's Vite start and one-shot checks. Exercise 100 alternating valid/invalid edits. Sample an idle 30-second window after recovery.
+- [x] Baseline. Record trunk Vite readiness, one-shot checker latency, idle CPU, and memory first. Label continuous-watch latency as new behavior without an old watch baseline.
+- [x] Original rule. Fail startup overhead above 1 second, median edit feedback above 2 seconds, idle CPU above one percent of one core, resident growth above 50 MiB after 100 edits and settling, or cleanup longer than 3 seconds. The original absolute memory condition failed at `4c5a0e9`. Its result remains FAIL.
+
+The independently reviewed [memory acceptance amendment](research/typescript-7-watch-memory-amendment.md) replaces only T7-2's absolute memory acceptance requirement. This is a post-failure exception to the program's original no-adjustment rule. The initial baseline had no matching edit workload; three later matched Vite-only runs also exceeded the absolute threshold. The amendment measures added positive growth against that baseline, caps the combined added process set, and checks each added lineage's normalized second-half growth. Both ceilings are 50 MiB. It does not preserve the old absolute guarantee or prove long-term boundedness. The original failed Vite finding remains open.
+
+The proposal text remains immutable at SHA256 `9af3d96919d626c96239537943cb2e7e5ad13b22854fda862295003ca875986d`. Independent review round2 accepted its definitions before fresh sampling. The parent adopts it under the autonomous execution request, with activation recorded in [the registration](research/typescript-7-watch-memory-registration.json). A new performance run and the exact-patch shipping reviewer must assess the results and remaining limitation. All other limits and verification gates remain in force.
 
 **Review gate.** Independent interaction review before merge under the autonomous execution request.
 
