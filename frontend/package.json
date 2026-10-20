@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "bun run typecheck && vite build",
-    "lint": "eslint .",
+    "lint": "oxlint --type-aware --report-unused-disable-directives-severity error .",
     "lint:css": "node scripts/check-css-colors.mjs",
     "check": "bun run typecheck && bun run lint && bun run lint:css && bun run check:contrast",
     "check:contrast": "node scripts/check-contrast.mjs",
@@ -36,7 +36,6 @@
     "streamdown": "2.7.0"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
     "@testing-library/jest-dom": "^6.10.0",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.8",
@@ -50,16 +49,17 @@
     "@wdio/tauri-plugin": "1.2.0",
     "@wdio/tauri-service": "1.2.0",
     "brace-expansion": "5.0.12",
-    "eslint": "^10.12.0",
-    "eslint-plugin-react-hooks": "^7.1.1",
-    "eslint-plugin-react-refresh": "^0.5.7",
     "jsdom": "^29.1.1",
     "tsc-rs": "0.7.0",
-    "typescript": "^6.0.3",
-    "typescript-eslint": "^8.71.2",
+    "typescript": "7.0.2",
     "vite": "^7.3.7",
     "vitest": "^4.1.11",
-    "yaml": "2.9.0"
+    "yaml": "2.9.0",
+    "oxlint": "1.89.0",
+    "oxlint-tsgolint": "7.0.2004",
+    "json5": "2.2.3",
+    "semver": "6.3.1",
+    "@babel/parser": "7.29.9"
   },
   "engines": {
     "node": ">=22.13.0"

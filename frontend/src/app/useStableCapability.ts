@@ -16,7 +16,7 @@ export function useStableCapability<Context extends object, Actions>(
 
   // The initializer only creates closures. The Proxy getter reads `.current`
   // later, when a returned event/effect callback accesses its context.
-  // eslint-disable-next-line react-hooks/refs -- no ref value is read by the initializer or during rendering.
+  // oxlint-disable-next-line react-hooks/refs -- no ref value is read by the initializer or during rendering.
   const [actions] = useState(() => {
     const currentContext = new Proxy({} as Context, {
       get: (_target, property: string | symbol) => contextRef.current[property as keyof Context],

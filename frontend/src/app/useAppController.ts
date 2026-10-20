@@ -165,13 +165,13 @@ export function useAppController() {
     latestNoteGenerationUndo?.kind === 'recovery-choice'
     && latestNoteGenerationUndo.entryId === noteEntry?.id,
   )
-  /* eslint-disable react-hooks/refs -- these write-through refs are the authoritative retry baselines; every mutation is paired with state that schedules a render. */
+  /* oxlint-disable react-hooks/refs -- these write-through refs are the authoritative retry baselines; every mutation is paired with state that schedules a render. */
   const sessionHasPendingChanges = Boolean(
     pendingRecoveredSummaryDecision
     || (activeSession && sessionTitle !== savedTitleRef.current)
     || (noteEntry && serializeRichEditorDocument(noteBody) !== savedBodyRef.current),
   )
-  /* eslint-enable react-hooks/refs */
+  /* oxlint-enable react-hooks/refs */
   const sessionSaveState = sessionTitleValidationError
     ? 'invalid' as const
     : busyAction === 'save-title' || busyAction === 'save-body'
@@ -351,7 +351,7 @@ export function useAppController() {
     if (!route) return
     const timeout = window.setTimeout(() => void applyNavigationRoute(route), 0)
     return () => window.clearTimeout(timeout)
-  }, [activeSession, busyAction]) // eslint-disable-line react-hooks/exhaustive-deps -- hydrate the immutable launch route once after startup
+  }, [activeSession, busyAction]) // oxlint-disable-line react-hooks/exhaustive-deps -- hydrate the immutable launch route once after startup
 
   useEffect(() => {
     function handleHistoryNavigation() {
@@ -383,7 +383,7 @@ export function useAppController() {
       void sessionActions.saveTitle(sessionTitle)
     }, 700)
     return () => window.clearTimeout(timeout)
-  }, [activeSession, sessionTitle]) // eslint-disable-line react-hooks/exhaustive-deps -- debounce is keyed to Session identity and title
+  }, [activeSession, sessionTitle]) // oxlint-disable-line react-hooks/exhaustive-deps -- debounce is keyed to Session identity and title
 
   useEffect(() => {
     if (!noteEntry || !bootedRef.current) return
@@ -398,7 +398,7 @@ export function useAppController() {
       void sessionActions.saveNoteNow()
     }, 850)
     return () => window.clearTimeout(timeout)
-  }, [noteEntry, noteBody, pendingRecoveredSummaryDecision]) // eslint-disable-line react-hooks/exhaustive-deps -- debounce is keyed to note identity, body, and recovery decision
+  }, [noteEntry, noteBody, pendingRecoveredSummaryDecision]) // oxlint-disable-line react-hooks/exhaustive-deps -- debounce is keyed to note identity, body, and recovery decision
 
   return {
     sessionChat, sessionMode, setSessionMode, saveAllPendingChanges: settlement.flush, noteReadOnly,

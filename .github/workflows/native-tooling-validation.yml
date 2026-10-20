@@ -1,0 +1,104 @@
+name: Native TypeScript tooling
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'package.json'
+      - 'frontend/package.json'
+      - 'frontend/bun.lock'
+      - 'frontend/.oxlintrc.json'
+      - 'frontend/tsconfig*.json'
+      - 'scripts/*native*.mjs'
+      - 'scripts/check-typescript-compiler.mjs'
+      - 'scripts/fixtures/native-tooling/**'
+      - '.github/**'
+      - '.vscode/**'
+      - 'frontend/.vscode/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-tooling-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  native-tooling:
+    name: Native tooling (${{ matrix.platform }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux-x64
+            runner: ubuntu-24.04
+          - platform: macos-arm64
+            runner: macos-26
+          - platform: macos-x64
+            runner: macos-26-intel
+    env:
+      NATIVE_TOOLING_PLATFORM: ${{ matrix.platform }}
+      NATIVE_TOOLING_SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: '24'
+          package-manager-cache: false
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+        with:
+          bun-version-file: package.json
+
+      - name: Select isolated cache
+        env:
+          CACHE_KEY: native-tooling-${{ matrix.platform }}-${{ github.sha }}-${{ hashFiles('frontend/bun.lock') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          CACHE_DIRECTORY: ${{ runner.temp }}/qa-scribe-native-tooling-cache
+        run: |
+          echo "NATIVE_TOOLING_CACHE_KEY=$CACHE_KEY" >> "$GITHUB_ENV"
+          echo "BUN_INSTALL_CACHE_DIR=$CACHE_DIRECTORY" >> "$GITHUB_ENV"
+
+      - name: Verify cold native installation
+        run: node scripts/check-native-tooling-installations.mjs cold
+
+      - name: Save exact native package cache
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: ${{ env.BUN_INSTALL_CACHE_DIR }}
+          key: ${{ env.NATIVE_TOOLING_CACHE_KEY }}
+
+      - name: Discard local packages and cache
+        run: node scripts/check-native-tooling-installations.mjs discard
+
+      - name: Restore exact native package cache
+        id: native-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: ${{ env.BUN_INSTALL_CACHE_DIR }}
+          key: ${{ env.NATIVE_TOOLING_CACHE_KEY }}
+          fail-on-cache-miss: true
+
+      - name: Verify warm native installation
+        env:
+          NATIVE_TOOLING_CACHE_HIT: ${{ steps.native-cache.outputs.cache-hit }}
+        run: node scripts/check-native-tooling-installations.mjs warm
+
+      - name: Upload native tooling receipts
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: native-tooling-${{ matrix.platform }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/native-tooling-validation/
+          if-no-files-found: error

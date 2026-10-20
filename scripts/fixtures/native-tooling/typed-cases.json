@@ -1,0 +1,140 @@
+[
+  {
+    "name": "await-thenable",
+    "rule": "await-thenable",
+    "invalid": "export async function run(){await 1}",
+    "valid": "export async function run(){await Promise.resolve(1)}"
+  },
+  {
+    "name": "no-array-delete",
+    "rule": "no-array-delete",
+    "invalid": "export function run(xs: number[]){delete xs[0]}",
+    "valid": "export function run(xs: number[]){xs.splice(0,1)}"
+  },
+  {
+    "name": "no-base-to-string",
+    "rule": "no-base-to-string",
+    "invalid": "export const value = String({})",
+    "valid": "export const value = String(1)"
+  },
+  {
+    "name": "no-duplicate-type-constituents",
+    "rule": "no-duplicate-type-constituents",
+    "invalid": "export type Value = string | string",
+    "valid": "export type Value = string | number"
+  },
+  {
+    "name": "no-floating-promises",
+    "rule": "no-floating-promises",
+    "invalid": "Promise.resolve(1); export {}",
+    "valid": "void Promise.resolve(1); export {}"
+  },
+  {
+    "name": "no-for-in-array",
+    "rule": "no-for-in-array",
+    "invalid": "export function run(xs: number[]){for(const i in xs){console.log(i)}}",
+    "valid": "export function run(xs: number[]){for(const i of xs){console.log(i)}}"
+  },
+  {
+    "name": "no-implied-eval",
+    "rule": "no-implied-eval",
+    "invalid": "export const value = new Function(\"return 1\")",
+    "valid": "export const value = () => 1"
+  },
+  {
+    "name": "no-misused-promises",
+    "rule": "no-misused-promises",
+    "invalid": "export function run(){[1].forEach(async () => {await Promise.resolve(1)})}",
+    "valid": "export async function run(){await Promise.all([1].map(async () => {await Promise.resolve(1)}))}"
+  },
+  {
+    "name": "no-redundant-type-constituents",
+    "rule": "no-redundant-type-constituents",
+    "invalid": "export type Value = unknown | string",
+    "valid": "export type Value = number | string"
+  },
+  {
+    "name": "no-unnecessary-type-assertion",
+    "rule": "no-unnecessary-type-assertion",
+    "invalid": "export function run(value: string){return value as string}",
+    "valid": "export function run(value: string){return value}"
+  },
+  {
+    "name": "no-unsafe-argument",
+    "rule": "no-unsafe-argument",
+    "invalid": "export function run(value: string){return value}; run(JSON.parse(\"{}\"))",
+    "valid": "export function run(value: string){return value}; run(\"valid\")"
+  },
+  {
+    "name": "no-unsafe-assignment",
+    "rule": "no-unsafe-assignment",
+    "invalid": "export const value: string = JSON.parse(\"{}\")",
+    "valid": "export const value: string = \"valid\""
+  },
+  {
+    "name": "no-unsafe-call",
+    "rule": "no-unsafe-call",
+    "invalid": "JSON.parse(\"{}\")(); export {}",
+    "valid": "export const run = () => 1; run()"
+  },
+  {
+    "name": "no-unsafe-enum-comparison",
+    "rule": "no-unsafe-enum-comparison",
+    "invalid": "enum Value {One=1}; export const same = Value.One === 1",
+    "valid": "enum Value {One=1}; export const same = Value.One === Value.One"
+  },
+  {
+    "name": "no-unsafe-member-access",
+    "rule": "no-unsafe-member-access",
+    "invalid": "export const value: unknown = JSON.parse(\"{}\").value",
+    "valid": "export const value: unknown = ({value: 1}).value"
+  },
+  {
+    "name": "no-unsafe-return",
+    "rule": "no-unsafe-return",
+    "invalid": "export function run(): string {return JSON.parse(\"{}\") }",
+    "valid": "export function run(): string {return \"valid\"}"
+  },
+  {
+    "name": "no-unsafe-unary-minus",
+    "rule": "no-unsafe-unary-minus",
+    "invalid": "export function run(value: string){return -value}",
+    "valid": "export const value = -1"
+  },
+  {
+    "name": "only-throw-error",
+    "rule": "only-throw-error",
+    "invalid": "export function run(){throw \"invalid\"}",
+    "valid": "export function run(){throw new Error(\"valid\")}"
+  },
+  {
+    "name": "prefer-promise-reject-errors",
+    "rule": "prefer-promise-reject-errors",
+    "invalid": "export const value = Promise.reject(\"invalid\")",
+    "valid": "export const value = Promise.reject(new Error(\"valid\"))"
+  },
+  {
+    "name": "require-await",
+    "rule": "require-await",
+    "invalid": "export async function run(){return 1}",
+    "valid": "export async function run(){return await Promise.resolve(1)}"
+  },
+  {
+    "name": "restrict-plus-operands",
+    "rule": "restrict-plus-operands",
+    "invalid": "export function run(value: bigint){return value + 1}",
+    "valid": "export function run(value: number){return value + 1}"
+  },
+  {
+    "name": "restrict-template-expressions",
+    "rule": "restrict-template-expressions",
+    "invalid": "export function run(value: object){return `${value}`}",
+    "valid": "export function run(value: string){return `${value}`}"
+  },
+  {
+    "name": "unbound-method",
+    "rule": "unbound-method",
+    "invalid": "export class Value {value=1; read(){return this.value}}; export const read = new Value().read",
+    "valid": "export class Value {value=1; read=()=>this.value}; export const read = new Value().read"
+  }
+]
