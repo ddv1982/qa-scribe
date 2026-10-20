@@ -231,10 +231,12 @@ The proposal text remains immutable at SHA256 `9af3d96919d626c96239537943cb2e7e5
 
 **Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] Metric. Measure file-open diagnostics, completion latency, edit-to-repair diagnostics, and language-server memory over a 30-minute isolated session.
-- [ ] Probe. Take seven repetitions on the same workspace and machine. Compare against the T7-2 state using the same TypeScript 7 server in an isolated manually configured profile. Never install TypeScript 6 to obtain a new baseline.
-- [ ] Baseline. Record the manual TypeScript 7 profile first. Separate extension startup, project loading, and steady-state edits.
-- [ ] Rule. Fail median response above 2 seconds or a regression greater than both 20 percent and 250 ms. Fail a crash or a continuing memory rise above 100 MiB between settled minute-5 and minute-30 samples. Report the host and noise; do not generalize one platform's result.
+- [x] Metric. Measure file-open diagnostics, completion latency, edit-to-repair diagnostics, and language-server memory over a 30-minute isolated session.
+- [x] Probe. Take seven repetitions on the same workspace and machine. Compare against the T7-2 state using the same TypeScript 7 server in an isolated manually configured profile. Never install TypeScript 6 to obtain a new baseline.
+- [x] Baseline. Record the manual TypeScript 7 profile first. Separate extension startup, project loading, and steady-state edits.
+- [x] Rule. Fail median response above 2 seconds or a regression greater than both 20 percent and 250 ms. Fail a crash or a continuing memory rise above 100 MiB between settled minute-5 and minute-30 samples. Report the host and noise; do not generalize one platform's result.
+
+Independent protocol review accepts the original measurements as bounded technical evidence with notes. Strict procedural conformance is FAIL. The baseline UI action generated a duplicate workspace Go-enable flag before t0, and candidate final readiness verification occurred after t0. The [editor evidence](research/typescript-7-editor-evidence.json) preserves both violations, identical server-received settings, every-sample native identities, and the corrected host classification. No limits changed and no primary run was repeated. The Vite timing is a warm reopen observation. Endpoint memory limits do not constrain transient peaks.
 
 **Review gate.** Independent interaction review before merge under the autonomous execution request.
 

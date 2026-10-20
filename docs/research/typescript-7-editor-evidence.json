@@ -1,12 +1,12 @@
 {
   "phase": "T7-3",
-  "status": "INTEGRATED_PARENT_CHECKS_PASS_INDEPENDENT_LANES_AND_PROTOCOL_PENDING",
+  "status": "PARENT_CHECKS_AND_PROTOCOL_EVIDENCE_ACCEPTED_WITH_NOTES_LIVE_REVIEW_PENDING",
   "base_source": "b23b0313fbc2a2c54f02b4f147c2a8b8938002b0",
   "base_merge": "678acfee0535c3bdef35afd181e3b882b119edc1",
   "configuration": "Paired root/frontend workspace JSON selects the local Microsoft Go SDK7.0.2, Oxlint1.89.0, and official local tsgolint7.0.2004 launcher. Runtime identity requires actual editor trust and SDK Allow.",
   "architecture": "A explicit paired layouts, with B actual-provider identity receipts. Automatic SDK discovery and unset typed-engine discovery were rejected after source inspection and actual root failure.",
   "performance": {
-    "status": "RAW_NUMERICAL_GATES_PASS_REVIEW_PENDING",
+    "status": "NUMERICAL_PASS_TECHNICAL_EVIDENCE_ACCEPTED_WITH_NOTES_PROTOCOL_NONCONFORMANT",
     "registration_sha256": "de442573513d4d1349ce21a7c810172ea7846d093329ecba31e7b2c1ae7626ae",
     "driver_sha256": "5c090e43e47b3d63fd3089439986a52acd987ed3749ae2547d04ee37f306c91d",
     "parent_recalculation_sha256": "2be74d649806265ddf706ce5496f0a368eb7efa6811e5d40de0fb3bee37db7be",
@@ -159,7 +159,11 @@
       "Provider readiness final verification happened after start. The local resolution log predates t0 and the same Go process appears in every sample.",
       "Baseline UI selection generated a workspace Go-enable flag identical to the manual-profile flag. Strict no-workspace-settings condition was not met.",
       "RSS sums process RSS and can count shared pages more than once. Five-second samples can miss transient processes.",
-      "Original extension-host role identifies the JSON language server and misses its actual parent host. Parent audit corrects the host gate using stable provider ancestry. Original raw labels remain unchanged."
+      "Original extension-host role identifies the JSON language server and misses its actual parent host. Parent audit corrects the host gate using stable provider ancestry. Original raw labels remain unchanged.",
+      "Warm Vite reopen until diagnostics are visible can include retained diagnostics. It is not cold diagnosis latency.",
+      "Completion popup could include word suggestions. Native logs confirm completion requests were served; language-service-only popup content is not proved.",
+      "Actual same Go and Oxc PID/start identities appear in all362 candidate samples; local SDK selection predates t0 by148.083seconds.",
+      "Independent reviewer did not inspect later HANDOFF and final manifests; parent separately verified all1167 listed proof hashes."
     ],
     "raw_artifact_sha256": {
       "performance-preregistration.json": "de442573513d4d1349ce21a7c810172ea7846d093329ecba31e7b2c1ae7626ae",
@@ -194,21 +198,67 @@
       },
       "cause": "Actual baseline preflight UI chose Use TypeScript7. The integrated version selector created this workspace Go-enable flag despite the same flag already present in disposable User/settings.json. Discovery happened during post-study restoration assertion, not during primary sampling.",
       "effect": "SDK7.0.2, Oxlint1.89, relative official typedGo7.0.2004 launcher and scopes were manually configured in User/settings.json. Generated workspace file duplicated only the true Go-enable flag. Effective backend values stayed equivalent, but the strict no-workspace-settings baseline condition was not met.",
-      "handling": "Preserve both first primary runs and raw data; no reroll, no gate relaxation. Numerical gates PASS; overall independent acceptance remains pending. Original preflight selection is in supported T3 history position219."
+      "handling": "Preserve both first primary runs and raw data; no reroll, no gate relaxation. Numerical gates PASS; overall independent acceptance remains pending. Original preflight selection is in supported T3 history position219.",
+      "parent_clarification": "The generated file existed from17.24seconds before t0 through the entire baseline session. Baseline start.txt explorer lists root .vscode at t0. It duplicated the manual flag, but strict baseline definition was violated. Original saved bytes and receipt remain unchanged."
+    },
+    "effective_configuration_proof": {
+      "baseline_native_log_lines": [
+        1715,
+        1717,
+        1719,
+        1721
+      ],
+      "candidate_native_log_lines": [
+        1117,
+        1119,
+        1121,
+        1123
+      ],
+      "comparison": "Four server-received option records are byte-identical after normalizing export path names. Oxc initialization options also match. Baseline UI flag triggered restarts only before t0.",
+      "review_artifact": "/tmp/qa-scribe-ts7/T7-3/protocol-review-round1/config-equivalence.txt"
+    },
+    "host_identity_proof": {
+      "baseline_console_line": 89,
+      "candidate_console_line": 59,
+      "paths": [
+        "profile-baseline-console.log",
+        "profile-candidate-console.log"
+      ],
+      "proof": "VS Code console explicitly identifies the shared Go/Oxc parent PID as extensionHost, corroborating every-sample ancestry."
+    },
+    "anchor_sensitivity": {
+      "rule": "Owner and parent select retained sample nearest the requested elapsed minute; independent reviewer also checked final explicit sample.",
+      "baseline_total_nearest_minute30_mib": 85.875,
+      "baseline_total_final_sample_mib": 86.19921875,
+      "conclusion": "Both pass. Moving minute5 anchor into the timed workload changes the result substantially, so preserve the original explicit settled anchor.",
+      "transient_total_above_minute5_mib": {
+        "baseline": 463.4,
+        "candidate": 322.3
+      },
+      "limits": "The endpoint gate does not constrain transient peaks or prove long-term memory bounds."
     }
   },
   "pending": [
-    "Independent protocol audit of both original-study deviations.",
     "Ten independent actual IDE scenarios at the committed source.",
     "Independent exact-head interaction and shipping review, protected CI, and normal merge.",
     "T7-4 full validation and release through existing CI."
   ],
   "raw_receipts_committed": false,
   "protocol_review": {
-    "status": "PENDING",
+    "status": "ACCEPT_WITH_NOTES",
     "model": "claude-opus-5-5",
-    "scope": "Independent read-only audit of both protocol deviations and corrected process ancestry. Not a shipping verdict.",
-    "task": "node:delegated-task:command%3Amcp%3Af2877ea0-a0d1-4168-97c4-278172e7b811%3Adelegate-task%3Aqa-scribe-ts7-t73-protocol-opus-review-round1-20261020"
+    "scope": "Independent read-only audit of original raw sessions, effective server options, both protocol deviations and corrected process ancestry. Not a shipping verdict.",
+    "task": "node:delegated-task:command%3Amcp%3Af2877ea0-a0d1-4168-97c4-278172e7b811%3Adelegate-task%3Aqa-scribe-ts7-t73-protocol-opus-review-round1-20261020",
+    "numerical_verdict": "PASS",
+    "procedural_conformance": "FAIL_STRICT_TWO_DEVIATIONS_NOT_WAIVED",
+    "report_sha256": "e3aa498b924bd338861ae45825d0294250932945edf59e6dac5bf58e4f7793be",
+    "parent_decision": "Use these original measurements as bounded technical evidence after disclosure. Retain strict procedural failure. No threshold change or rerun. No claim of protocol conformance or deviation waiver.",
+    "independent_tools": [
+      "tools/memory.py",
+      "tools/churn.py",
+      "tools/latency.py",
+      "tools/config-equivalence.sh"
+    ]
   },
   "source_binding": {
     "delivery_manifest_sha256": "998cf2758dbc981b6fa3b28d6a09065646501d175af4dad93f44312be4f90ba4",
