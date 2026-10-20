@@ -1,7 +1,7 @@
 {
   "phase": "T7-2",
-  "status": "FUNCTIONAL_CI_AND_AMENDED_PERF_PASS_LIVE_REVIEW_PENDING",
-  "candidate_head": "4c5a0e9c1c3e958ed9dd855e355f5e4d65c76938",
+  "status": "MERGED_WITH_DISCLOSED_MEMORY_ACCEPTANCE_AMENDMENT",
+  "candidate_head": "b23b0313fbc2a2c54f02b4f147c2a8b8938002b0",
   "base": "0496aac81d0b1d6c6c61797e721f827a7420a8bf",
   "pr": "https://github.com/ddv1982/qa-scribe/pull/62",
   "local_checks": {
@@ -53,9 +53,8 @@
     "response": "Fresh next-head CI after fixes; preserve exact restoration requirement."
   },
   "pending": [
-    "Ten real terminal live lanes, screenshots/video, and independent exact-patch shipping review.",
-    "Preserve pre-existing Vite memory finding and report the added steady resident cost.",
-    "Editor phase and final release."
+    "T7-3 actual editor integration, interaction and performance proof, independent review, and CI.",
+    "T7-4 final validation and release through existing CI."
   ],
   "raw_receipts_committed": false,
   "memory_strategy_comparison": {
@@ -247,5 +246,230 @@
       "Default owned Vite caches are warmed by one pair and reused without clearing; fresh processes per trial. Allocator settings and cache observation are retained.",
       "Initial baseline warmup observer defect stopped before sample 0; versioned correction and original receipts are retained. No valid sample was rerun."
     ]
+  },
+  "live_terminal": {
+    "status": "ALL_TEN_PASS",
+    "tested_head": "b23b0313fbc2a2c54f02b4f147c2a8b8938002b0",
+    "parent_verified_artifact_hashes": 231,
+    "parent_viewed_each_actual_PNG": true,
+    "lanes": [
+      {
+        "lane": 1,
+        "status": "PASS",
+        "tested_head": "b23b0313fbc2a2c54f02b4f147c2a8b8938002b0",
+        "receipt_sha256": "e0065d5c9d6fcefd862669bfddf40b73606c2a86fa7825223356618390125414",
+        "artifact_hashes_checked": 37,
+        "parent_viewed_actual_terminal_png": true,
+        "raw_receipt_local": "/tmp/qa-scribe-ts7/T7-2/lane-1/receipt.json"
+      },
+      {
+        "lane": 2,
+        "status": "PASS",
+        "tested_head": "b23b0313fbc2a2c54f02b4f147c2a8b8938002b0",
+        "receipt_sha256": "1bdd165cf84fb90605732434be239d1eeb564bb839d5ddf5b49950a34fa26e2e",
+        "artifact_hashes_checked": 22,
+        "parent_viewed_actual_terminal_png": true,
+        "raw_receipt_local": "/tmp/qa-scribe-ts7/T7-2/lane-2/receipt.json"
+      },
+      {
+        "lane": 3,
+        "status": "PASS",
+        "tested_head": "b23b0313fbc2a2c54f02b4f147c2a8b8938002b0",
+        "receipt_sha256": "97640e5a9bf75e921aebccabc6d134d85369c55de5781f6def2abf519e5c387b",
+        "artifact_hashes_checked": 22,
+        "parent_viewed_actual_terminal_png": true,
+        "raw_receipt_local": "/tmp/qa-scribe-ts7/T7-2/lane-3/receipt.json"
+      },
+      {
+        "lane": 4,
+        "status": "PASS",
+        "tested_head": "b23b0313fbc2a2c54f02b4f147c2a8b8938002b0",
+        "receipt_sha256": "c71c9f119c78b3fa0819611de98b496707435a1d9d868eef92b4f9bc533e32b7",
+        "artifact_hashes_checked": 8,
+        "parent_viewed_actual_terminal_png": true,
+        "raw_receipt_local": "/tmp/qa-scribe-ts7/T7-2/lane-4/receipt.json"
+      },
+      {
+        "lane": 5,
+        "status": "PASS",
+        "tested_head": "b23b0313fbc2a2c54f02b4f147c2a8b8938002b0",
+        "receipt_sha256": "aead7edc45ae14274cfc0e443afcf343c0fce2b800633aa039999fde6780d0a9",
+        "artifact_hashes_checked": 14,
+        "parent_viewed_actual_terminal_png": true,
+        "raw_receipt_local": "/tmp/qa-scribe-ts7/T7-2/lane-5/receipt.json"
+      },
+      {
+        "lane": 6,
+        "status": "PASS",
+        "tested_head": "b23b0313fbc2a2c54f02b4f147c2a8b8938002b0",
+        "receipt_sha256": "149abb375a6224fef9cc106435153381e2763dcf686d143ba88d5a3e7fddfce7",
+        "artifact_hashes_checked": 31,
+        "parent_viewed_actual_terminal_png": true,
+        "raw_receipt_local": "/tmp/qa-scribe-ts7/T7-2/lane-6/receipt.json"
+      },
+      {
+        "lane": 7,
+        "status": "PASS",
+        "tested_head": "b23b0313fbc2a2c54f02b4f147c2a8b8938002b0",
+        "receipt_sha256": "8964707e824dfad55971abaf1d131d096cb1c433cf66ff476bb8a705b9d5f930",
+        "artifact_hashes_checked": 18,
+        "parent_viewed_actual_terminal_png": true,
+        "raw_receipt_local": "/tmp/qa-scribe-ts7/T7-2/lane-7/receipt.json"
+      },
+      {
+        "lane": 8,
+        "status": "PASS",
+        "tested_head": "b23b0313fbc2a2c54f02b4f147c2a8b8938002b0",
+        "receipt_sha256": "1215dbe26ac43700cede9b9017c463bf1efad480407c429d156b20e038a005b4",
+        "artifact_hashes_checked": 45,
+        "parent_viewed_actual_terminal_png": true,
+        "raw_receipt_local": "/tmp/qa-scribe-ts7/T7-2/lane-8/receipt.json"
+      },
+      {
+        "lane": 9,
+        "status": "PASS",
+        "tested_head": "b23b0313fbc2a2c54f02b4f147c2a8b8938002b0",
+        "receipt_sha256": "c42da5a86c454818bc3767f901641619c0574f7f1983fd230aa57fd07bd91742",
+        "artifact_hashes_checked": 16,
+        "parent_viewed_actual_terminal_png": true,
+        "raw_receipt_local": "/tmp/qa-scribe-ts7/T7-2/lane-9/receipt.json"
+      },
+      {
+        "lane": 10,
+        "status": "PASS",
+        "tested_head": "b23b0313fbc2a2c54f02b4f147c2a8b8938002b0",
+        "receipt_sha256": "42cbe0fdaaa82ddc95c02469274092af7d5f5d240691243198528efc435d791f",
+        "artifact_hashes_checked": 18,
+        "parent_viewed_actual_terminal_png": true,
+        "raw_receipt_local": "/tmp/qa-scribe-ts7/T7-2/lane-10/receipt.json"
+      }
+    ],
+    "review_video": {
+      "local_path": "/tmp/qa-scribe-ts7/T7-2/review.mp4",
+      "duration_seconds": 45,
+      "sha256": "09086457b64469d920607f6fa0892883557ff9a29fae471222ddb2e736dbf187",
+      "parent_review_method": "ffprobe duration plus extracted actual frames at15s and38s, showing named type error and repair/interrupt/cleanup; startup PNG inspected separately.",
+      "source": "Actual private X11 terminal capture, not a rendered transcript."
+    },
+    "limits": "Lane6 is an explicit missing-bin fault simulation. Other recovery lanes use the real installed compiler. Harness startup/observer corrections remain in receipts. No IDE, platform or release proof is inferred from these local Linux lanes."
+  },
+  "dependency_audit": {
+    "status": "PASS_SCOPED_READ_ONLY",
+    "head": "b23b0313fbc2a2c54f02b4f147c2a8b8938002b0",
+    "production_fingerprint": "07701a638e3200d725c5da84f9ed44af1ea2f576d0d0fdba797131eedebbaa22",
+    "files": 618,
+    "installed_roots": 791,
+    "canonical_identities": 724,
+    "lock_records": 908,
+    "legacy_installed_or_locked_identities": 0,
+    "new_source_files_inspected": 7,
+    "manifest_dependency_maps_and_lock_unchanged_from_base": true,
+    "runtime_compiler_API_imports_in_new_source": 0,
+    "sha256": "cbc79be0f80ccebd80233b1230541d75764650b95e624081fa32d06e2febe7b5",
+    "limits": "Current metadata/new-source audit; prior full installed-source scan is historical. Computed generic loads and native binaries are not proven by this static audit."
+  },
+  "shipping_review": {
+    "status": "PASS+NOTES",
+    "model": "claude-opus-5-5",
+    "head": "b23b0313fbc2a2c54f02b4f147c2a8b8938002b0",
+    "base": "0496aac81d0b1d6c6c61797e721f827a7420a8bf",
+    "stable_patch_id": "1a724bba628152887453334d89cb6ed02c2b616c",
+    "fresh_checks": "23 lifecycle,280scripts,183nativefixtures,metadata/compiler/frontendcheck pass; actualred-to-greenLinuxsubreaper verified.",
+    "actual_terminal": "OwnprivateXvfb/bus, realTS2322andrepair, singleCtrlC130/ownedgroupsgone/portfree. Parentviewed3nonblackPNGs.",
+    "amendment": "Acceptedexplicitpostfailuredeviation;reviewerrecomputedgates1and2,parentrecomputedgate3andRSSoverhead.",
+    "limits": "Reviewer did not recompute production fingerprint; its method exists in T7-1 evidence, and separate independent dependency audit reproduced it twice. No Rust/fullfrontend/build/tenlane rerun by reviewer.",
+    "nonblocking_notes": [
+      "Opt-inresidentcostREADMEadditionqueued.",
+      "Fastrealcleanupdoesnotallowmeaningfulsecondinterrupt;stubbornfixturecoversit.",
+      "SyncandasyncEMFILEpathscoveredbyseparatefixtures.",
+      "Optionalredundantstartupwaitsimplificationdeferred."
+    ],
+    "parent_raw_recalculation_sha256": "813768a0b14b8c097e859e085ea152412831904c8c4fb93eb7f3510b6fb84cce"
+  },
+  "hosted_reviewed_head": {
+    "source": "b23b0313fbc2a2c54f02b4f147c2a8b8938002b0",
+    "ci_run": "https://github.com/ddv1982/qa-scribe/actions/runs/39448168380",
+    "native_run": "https://github.com/ddv1982/qa-scribe/actions/runs/39448168220",
+    "all_nine_checks": "success",
+    "native_receipts": [
+      {
+        "platform": "linux-x64",
+        "source_head": "b23b0313fbc2a2c54f02b4f147c2a8b8938002b0",
+        "tested_merge_sha": "69e4422a912b0c4f63a85486d5f51f7761462698",
+        "stages": [
+          {
+            "stage": "cold",
+            "status": "passed",
+            "cacheHit": null
+          },
+          {
+            "stage": "discard",
+            "status": "passed",
+            "cacheHit": null
+          },
+          {
+            "stage": "warm",
+            "status": "passed",
+            "cacheHit": "true"
+          }
+        ],
+        "sha256": "86e19d878f2d365bd1b2775dd59ea12fd5857bfbc3db892395c8b60eb91920a5"
+      },
+      {
+        "platform": "macos-arm64",
+        "source_head": "b23b0313fbc2a2c54f02b4f147c2a8b8938002b0",
+        "tested_merge_sha": "69e4422a912b0c4f63a85486d5f51f7761462698",
+        "stages": [
+          {
+            "stage": "cold",
+            "status": "passed",
+            "cacheHit": null
+          },
+          {
+            "stage": "discard",
+            "status": "passed",
+            "cacheHit": null
+          },
+          {
+            "stage": "warm",
+            "status": "passed",
+            "cacheHit": "true"
+          }
+        ],
+        "sha256": "936c931caa71a9d520c675c11bc200550976bbf51fa15d0467613daceb87fd15"
+      },
+      {
+        "platform": "macos-x64",
+        "source_head": "b23b0313fbc2a2c54f02b4f147c2a8b8938002b0",
+        "tested_merge_sha": "69e4422a912b0c4f63a85486d5f51f7761462698",
+        "stages": [
+          {
+            "stage": "cold",
+            "status": "passed",
+            "cacheHit": null
+          },
+          {
+            "stage": "discard",
+            "status": "passed",
+            "cacheHit": null
+          },
+          {
+            "stage": "warm",
+            "status": "passed",
+            "cacheHit": "true"
+          }
+        ],
+        "sha256": "1ec24faba831f1abb968a072a12942f5420f18d553c100a66dfa9c1e214b4f43"
+      }
+    ]
+  },
+  "merge": {
+    "sha": "678acfee0535c3bdef35afd181e3b882b119edc1",
+    "merged_at": "2026-10-20T15:59:09Z",
+    "method": "Normal protected squash merge after exact-head independent PASS+NOTES and all nine checks.",
+    "reviewed_and_merged_trees_identical": true,
+    "tree": "d54000ddc39f8f706df2ba05eb65d3e766ed6cd9",
+    "unresolved_review_threads_at_merge": 0,
+    "independent_review_comment": "https://github.com/ddv1982/qa-scribe/pull/62#issuecomment-6295137175"
   }
 }

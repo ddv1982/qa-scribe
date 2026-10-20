@@ -7,7 +7,7 @@ Keep `tsc-rs` as the authoritative build checker. Use Microsoft TypeScript 7 for
 Run T7-1, T7-2, T7-3, and T7-4 in that order. These are planned PR labels, not GitHub PR numbers.
 This document records the approved implementation sequence. Execution started on 2026-10-20 from `82f1502aee9c20d481bcd0ae56c45d053e7b9516`. Publication remains conditional on the final verification gates.
 
-T7-1 merged through [PR #61](https://github.com/ddv1982/qa-scribe/pull/61) at `0496aac81d0b1d6c6c61797e721f827a7420a8bf`. The [implementation evidence](research/typescript-7-implementation-evidence.json) records its results and limits. T7-2 is integrated locally from that main commit. Its unit, amended performance and hosted checks pass at the cleanup-fix source. Live terminal proof and independent shipping review remain open. T7-3 and T7-4 have not started production implementation.
+T7-1 merged through [PR #61](https://github.com/ddv1982/qa-scribe/pull/61) at `0496aac81d0b1d6c6c61797e721f827a7420a8bf`. The [implementation evidence](research/typescript-7-implementation-evidence.json) records its results and limits. T7-2 merged through [PR #62](https://github.com/ddv1982/qa-scribe/pull/62) at `678acfee0535c3bdef35afd181e3b882b119edc1`. All ten terminal scenarios, the amended performance conditions, independent exact-head shipping review, and all nine hosted checks passed. The [watch evidence](research/typescript-7-watch-evidence.json) preserves the original absolute memory failure and the acceptance amendment. T7-3 has an isolated editor implementation owner. Actual SDK selection works, but native typed-lint initialization still needs a proven configuration. T7-4 has not started.
 
 ## How to read this
 
@@ -151,7 +151,7 @@ Each lane uses the real command, editor, or hosted job at the PR head through a 
 
 **You see.**
 
-- [ ] Editing either project shows a native diagnostic without a production build. Fixing the file clears it. Ctrl-C stops Vite and both watchers.
+- [x] Editing either project shows a native diagnostic without a production build. Fixing the file clears it. Ctrl-C stops Vite and both watchers.
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
@@ -160,16 +160,16 @@ Each lane uses the real command, editor, or hosted job at the PR head through a 
 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `gpt-6.1-sol` at the PR head, per the boot recipe. Inherit parent effort unless a validated execution profile says otherwise.
 
-- [ ] Lane 1. Start the checked dev command. Save `startup.png`. Pass when Vite and both native project watchers report ready.
-- [ ] Lane 2. Introduce and repair a UI assignment error. Save `ui-recovery.png`. Pass when TS2322 appears and then clears without restart.
-- [ ] Lane 3. Introduce and repair a Vite configuration error. Save `config-recovery.png`. Pass when its checker detects it and recovers.
-- [ ] Lane 4. Introduce and repair invalid TSX props. Save `tsx-recovery.png`. Pass when native JSX diagnostics update and clear.
-- [ ] Lane 5. Press Ctrl-C at readiness. Save `interrupt.png`. Pass when all owned children exit within three seconds and the port can be reused.
-- [ ] Lane 6. Fail a checker launch deliberately. Save `launch-failure.png`. Pass when the parent exits nonzero with the named failure and no orphan Vite process.
-- [ ] Lane 7. Occupy port 5173 with a lane-owned process. Save `busy-port.png`. Pass when the checked command fails and cleans only its own children.
-- [ ] Lane 8. Force an unexpected watcher exit. Save `child-exit.png`. Pass when the supervisor reports it and cleans the other children.
-- [ ] Lane 9. Edit, interrupt, and restart repeatedly. Save `restart.png`. Pass when each new checked session owns exactly three process groups and no old process or fixture remains. A compiler launcher's fallback can add a native descendant without adding an owned group.
-- [ ] Lane 10. Run the ordinary production build after stopping development. Save `production-build.png`. Pass when the build exits, type errors still block bundling, and no watcher enters the release path.
+- [x] Lane 1. Start the checked dev command. Save `startup.png`. Pass when Vite and both native project watchers report ready.
+- [x] Lane 2. Introduce and repair a UI assignment error. Save `ui-recovery.png`. Pass when TS2322 appears and then clears without restart.
+- [x] Lane 3. Introduce and repair a Vite configuration error. Save `config-recovery.png`. Pass when its checker detects it and recovers.
+- [x] Lane 4. Introduce and repair invalid TSX props. Save `tsx-recovery.png`. Pass when native JSX diagnostics update and clear.
+- [x] Lane 5. Press Ctrl-C at readiness. Save `interrupt.png`. Pass when all owned children exit within three seconds and the port can be reused.
+- [x] Lane 6. Fail a checker launch deliberately. Save `launch-failure.png`. Pass when the parent exits nonzero with the named failure and no orphan Vite process.
+- [x] Lane 7. Occupy port 5173 with a lane-owned process. Save `busy-port.png`. Pass when the checked command fails and cleans only its own children.
+- [x] Lane 8. Force an unexpected watcher exit. Save `child-exit.png`. Pass when the supervisor reports it and cleans the other children.
+- [x] Lane 9. Edit, interrupt, and restart repeatedly. Save `restart.png`. Pass when each new checked session owns exactly three process groups and no old process or fixture remains. A compiler launcher's fallback can add a native descendant without adding an owned group.
+- [x] Lane 10. Run the ordinary production build after stopping development. Save `production-build.png`. Pass when the build exits, type errors still block bundling, and no watcher enters the release path.
 
 **Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
@@ -184,11 +184,11 @@ The proposal text remains immutable at SHA256 `9af3d96919d626c96239537943cb2e7e5
 
 **Review gate.** Independent interaction review before merge under the autonomous execution request.
 
-- [ ] Post real terminal screenshots for readiness, error recovery, and Ctrl-C. Record a 30 to 60 second video as `/tmp/qa-scribe-ts7/T7-2/review.mp4`. Require independent review of the captured interaction before merge.
+- [x] Post real terminal screenshots for readiness, error recovery, and Ctrl-C. Record a 30 to 60 second video as `/tmp/qa-scribe-ts7/T7-2/review.mp4`. Require independent review of the captured interaction before merge.
 
 **Merge.**
 
-- [ ] Require the independent head verdict, protected CI, lifecycle evidence, and independent review of screenshots and video. Merge normally under the execution request's authority.
+- [x] Require the independent head verdict, protected CI, lifecycle evidence, and independent review of screenshots and video. Merge normally under the execution request's authority.
 
 ## Use TypeScript 7 and native lint in the editor (T7-3)
 
