@@ -75,6 +75,10 @@ Frontend type checks use the Rust compiler [`tsc-rs`](https://github.com/pingdot
 
 `tsc-rs` ports TypeScript `7.1.0-dev.20261008.1`, so its revision differs from the stable editor SDK. `bun run frontend:check` requires native checking and typed lint to pass. The Rust compiler remains the authoritative build checker.
 
+For VS Code, open the repository root or `frontend` directly and install the recommended **TypeScript 7** (`TypeScriptTeam.native-preview`) and **Oxc** (`oxc.oxc-vscode`) extensions. Trust your checkout through **Manage Workspace Trust**, then open a TypeScript file and click **Allow** when TypeScript 7 offers the configured `7.0.2` SDK. If the notification is hidden, run **Notifications: Show Notifications**, then click **Allow** on the TypeScript 7 SDK notification. Root settings select `./frontend/node_modules/typescript`. Frontend settings select `./node_modules/typescript`.
+
+Check the **TypeScript 7** output for `Resolved to` inside this checkout's `frontend/node_modules/@typescript/` package. Check **Oxc (Lint)** output for the local Oxlint launcher and version `1.89.0`. Both folder layouts select the local `oxlint-tsgolint` package launcher for typed lint and keep per-file project discovery for UI sources and `vite.config.ts`. If runtime identities differ, inspect the effective `oxc.path.tsgolint` setting and the editor's `OXLINT_TSGOLINT_PATH` environment value. Compiler diagnostics show `ts`; lint diagnostics show `oxc`. The committed settings do not enable the experimental Rust TypeScript language server or change formatting and save actions.
+
 Run the tooling guard to inspect the entire lock and installed dependency graph, verify lint coverage, and exercise deliberate lint violations. Run the compiler probe to verify that valid TypeScript and TSX pass and deliberate type errors stop builds:
 
 ```bash
@@ -85,6 +89,8 @@ bun run frontend:compiler:check
 The probe checks the installed package version and removes its temporary fixtures. Both verification commands and CI run the probe. Read the [migration findings](docs/research/ts-rust-adoption.md) for compatibility evidence and scope.
 
 For continuous native checks on Linux or macOS, run `bun run frontend:typecheck:watch`. To run both checkers with Vite, run `bun run frontend:dev:checked`. From `frontend`, use `bun run typecheck:watch` or `bun run dev:checked`. Both project watchers show type errors and recover after edits. The checked session uses Vite's configured port, defaulting to 5173, and fails if it is occupied.
+
+These opt-in watchers add resident memory. On the probe host, median additional RSS was about 296 to 349 MiB. This [watch measurement](docs/research/typescript-7-watch-evidence.json) is conditional on that host and workload, rather than a universal memory cost.
 
 Ctrl-C stops every owned process group. A second interrupt skips the shutdown grace period. A failed or unexpectedly terminated child stops the session without restarting it. Process-group cleanup does not cover Ctrl-Z, killing the supervisor with SIGKILL, or descendants that create independent sessions. Ordinary `bun run --cwd frontend dev` runs Vite alone. Production builds and CI use their existing one-shot checks.
 

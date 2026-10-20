@@ -7,7 +7,7 @@ Keep `tsc-rs` as the authoritative build checker. Use Microsoft TypeScript 7 for
 Run T7-1, T7-2, T7-3, and T7-4 in that order. These are planned PR labels, not GitHub PR numbers.
 This document records the approved implementation sequence. Execution started on 2026-10-20 from `82f1502aee9c20d481bcd0ae56c45d053e7b9516`. Publication remains conditional on the final verification gates.
 
-T7-1 merged through [PR #61](https://github.com/ddv1982/qa-scribe/pull/61) at `0496aac81d0b1d6c6c61797e721f827a7420a8bf`. The [implementation evidence](research/typescript-7-implementation-evidence.json) records its results and limits. T7-2 merged through [PR #62](https://github.com/ddv1982/qa-scribe/pull/62) at `678acfee0535c3bdef35afd181e3b882b119edc1`. All ten terminal scenarios, the amended performance conditions, independent exact-head shipping review, and all nine hosted checks passed. The [watch evidence](research/typescript-7-watch-evidence.json) preserves the original absolute memory failure and the acceptance amendment. T7-3 has an isolated editor implementation owner. Actual SDK selection works, but native typed-lint initialization still needs a proven configuration. T7-4 has not started.
+T7-1 merged through [PR #61](https://github.com/ddv1982/qa-scribe/pull/61) at `0496aac81d0b1d6c6c61797e721f827a7420a8bf`. The [implementation evidence](research/typescript-7-implementation-evidence.json) records its results and limits. T7-2 merged through [PR #62](https://github.com/ddv1982/qa-scribe/pull/62) at `678acfee0535c3bdef35afd181e3b882b119edc1`. All ten terminal scenarios, the amended performance conditions, independent exact-head shipping review, and all nine hosted checks passed. The [watch evidence](research/typescript-7-watch-evidence.json) preserves the original absolute memory failure and the acceptance amendment. T7-3 is integrated locally. Parent checks pass and all twenty production assets match T7-2. Both actual workspace layouts use the local native SDK and typed-lint engine. The [editor evidence](research/typescript-7-editor-evidence.json) records two measurement protocol deviations, corrected process-role reporting, and the open independent verification gates. T7-4 has not started.
 
 ## How to read this
 
@@ -196,25 +196,25 @@ The proposal text remains immutable at SHA256 `9af3d96919d626c96239537943cb2e7e5
 
 **Files.**
 
-- [ ] Create or update `.vscode/extensions.json`, `.vscode/settings.json`, and README editor instructions. Do not change global user settings or an existing shared IDE profile.
+- [x] Create or update `.vscode/extensions.json`, `.vscode/settings.json`, and README editor instructions. Do not change global user settings or an existing shared IDE profile.
 
 **Build.**
 
-- [ ] Recommend `TypeScriptTeam.native-preview` and `oxc.oxc-vscode`. Use the official TypeScript 7 language server with the pinned local Microsoft package.
-- [ ] For a repository-root workspace, test `js/ts.tsdk.path` as `./frontend/node_modules/typescript` and the extension's `js/ts.experimental.useTsgo` setting. Confirm the effective server path and version through the real editor.
-- [ ] Test a frontend-only workspace separately. Document its relative SDK path. Never commit a Linux-specific Rust executable path or an absolute user-home path.
-- [ ] Enable type-aware Oxlint diagnostics from the project config. Keep compiler and lint providers distinguishable. Do not impose automatic fixes or formatting on save.
-- [ ] Prove that a repository-root workspace resolves the local frontend Oxlint binary, `.oxlintrc.json`, tsconfig, and tsgolint. Discover any required `oxc.path.oxlint`, `oxc.configPath`, `oxc.tsConfigPath`, and `oxc.path.tsgolint` settings from the installed extension. Do not silently use a global binary or untyped defaults.
-- [ ] Keep the Rust LSP out of the default editor path while its documented long-session memory issue remains unresolved. Do not add a TypeScript 6 editor fallback.
+- [x] Recommend `TypeScriptTeam.native-preview` and `oxc.oxc-vscode`. Use the official TypeScript 7 language server with the pinned local Microsoft package.
+- [x] For a repository-root workspace, test `js/ts.tsdk.path` as `./frontend/node_modules/typescript` and the extension's `js/ts.experimental.useTsgo` setting. Confirm the effective server path and version through the real editor.
+- [x] Test a frontend-only workspace separately. Document its relative SDK path. Never commit a Linux-specific Rust executable path or an absolute user-home path.
+- [x] Enable type-aware Oxlint diagnostics from the project config. Keep compiler and lint providers distinguishable. Do not impose automatic fixes or formatting on save.
+- [x] Prove that a repository-root workspace resolves the local frontend Oxlint binary, `.oxlintrc.json`, tsconfig, and tsgolint. Discover any required `oxc.path.oxlint`, `oxc.configPath`, `oxc.tsConfigPath`, and `oxc.path.tsgolint` settings from the installed extension. Do not silently use a global binary or untyped defaults.
+- [x] Keep the Rust LSP out of the default editor path while its documented long-session memory issue remains unresolved. Do not add a TypeScript 6 editor fallback.
 
 **You see.**
 
-- [ ] The editor reports its TypeScript 7 server and project-native typed lint. Completion, hover, navigation, diagnostics, and repair work in both workspace layouts without a legacy API package.
+- [x] The editor reports its TypeScript 7 server and project-native typed lint. Completion, hover, navigation, diagnostics, and repair work in both workspace layouts without a legacy API package.
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] Validate JSON and extension identifiers. Add a portable settings check to the maintained tooling guard where it catches a real path or version regression.
-- [ ] Run compiler and native lint fixtures after the editor setup. Keep LSP protocol smoke evidence separate from proof that the actual extension selected the correct server.
+- [x] Validate JSON and extension identifiers. Add a portable settings check to the maintained tooling guard where it catches a real path or version regression.
+- [x] Run compiler and native lint fixtures after the editor setup. Keep LSP protocol smoke evidence separate from proof that the actual extension selected the correct server.
 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `gpt-6.1-sol` at the PR head, per the boot recipe. Inherit parent effort unless a validated execution profile says otherwise.
 

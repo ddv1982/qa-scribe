@@ -1,0 +1,291 @@
+{
+  "phase": "T7-3",
+  "status": "INTEGRATED_PARENT_CHECKS_PASS_INDEPENDENT_LANES_AND_PROTOCOL_PENDING",
+  "base_source": "b23b0313fbc2a2c54f02b4f147c2a8b8938002b0",
+  "base_merge": "678acfee0535c3bdef35afd181e3b882b119edc1",
+  "configuration": "Paired root/frontend workspace JSON selects the local Microsoft Go SDK7.0.2, Oxlint1.89.0, and official local tsgolint7.0.2004 launcher. Runtime identity requires actual editor trust and SDK Allow.",
+  "architecture": "A explicit paired layouts, with B actual-provider identity receipts. Automatic SDK discovery and unset typed-engine discovery were rejected after source inspection and actual root failure.",
+  "performance": {
+    "status": "RAW_NUMERICAL_GATES_PASS_REVIEW_PENDING",
+    "registration_sha256": "de442573513d4d1349ce21a7c810172ea7846d093329ecba31e7b2c1ae7626ae",
+    "driver_sha256": "5c090e43e47b3d63fd3089439986a52acd987ed3749ae2547d04ee37f306c91d",
+    "parent_recalculation_sha256": "2be74d649806265ddf706ce5496f0a368eb7efa6811e5d40de0fb3bee37db7be",
+    "sessions": {
+      "baseline": {
+        "duration_seconds": 1801.0522151339999,
+        "activity_cycles": 40,
+        "latency": {
+          "ui-open": {
+            "n": 7,
+            "median_ms": 373.5759079999989,
+            "range_ms": [
+              351.27342799998587,
+              398.0030479999841
+            ]
+          },
+          "ui-repair": {
+            "n": 7,
+            "median_ms": 468.3172880000202,
+            "range_ms": [
+              449.6958919999888,
+              481.7369469999685
+            ]
+          },
+          "vite-open": {
+            "n": 7,
+            "median_ms": 321.919133999967,
+            "range_ms": [
+              311.90833700000076,
+              330.06626099999994
+            ]
+          },
+          "vite-repair": {
+            "n": 7,
+            "median_ms": 450.85381299996516,
+            "range_ms": [
+              437.6435019999626,
+              471.13890199997695
+            ]
+          },
+          "completion": {
+            "n": 7,
+            "median_ms": 46.786398000025656,
+            "range_ms": [
+              43.72388200002024,
+              55.18120799999451
+            ]
+          }
+        },
+        "memory_samples": 363,
+        "max_sample_gap_seconds": 5.0197916849999995,
+        "rss_delta_mib_original_role_labels": {
+          "totalIDE": 85.875,
+          "nativeProviders": 24.40625,
+          "extensionHost": -0.3828125
+        },
+        "actual_extension_host": {
+          "pid": 2114594,
+          "start_ticks": "8240842",
+          "rss_delta_mib": 5.76953125,
+          "identification": "Shared direct parent of the verified Go TypeScript and Oxlint processes, with Electron NodeService arguments. Present with stable start ticks in every sample."
+        }
+      },
+      "candidate": {
+        "duration_seconds": 1800.1180051149997,
+        "activity_cycles": 40,
+        "latency": {
+          "ui-open": {
+            "n": 7,
+            "median_ms": 368.07489799999166,
+            "range_ms": [
+              287.77129800000694,
+              375.9608729999745
+            ]
+          },
+          "ui-repair": {
+            "n": 7,
+            "median_ms": 458.98645399999805,
+            "range_ms": [
+              444.53356499999063,
+              499.03356599999825
+            ]
+          },
+          "vite-open": {
+            "n": 7,
+            "median_ms": 323.0073459999985,
+            "range_ms": [
+              310.2126879999996,
+              380.2785659999936
+            ]
+          },
+          "vite-repair": {
+            "n": 7,
+            "median_ms": 443.6833559999941,
+            "range_ms": [
+              438.90570599999046,
+              464.9191390000051
+            ]
+          },
+          "completion": {
+            "n": 7,
+            "median_ms": 45.588322999945376,
+            "range_ms": [
+              40.58818100002827,
+              59.31764100003056
+            ]
+          }
+        },
+        "memory_samples": 362,
+        "max_sample_gap_seconds": 5.0148854609999995,
+        "rss_delta_mib_original_role_labels": {
+          "totalIDE": 82.36328125,
+          "nativeProviders": 9.3515625,
+          "extensionHost": -1.05078125
+        },
+        "actual_extension_host": {
+          "pid": 2177436,
+          "start_ticks": "8439252",
+          "rss_delta_mib": 5.61328125,
+          "identification": "Shared direct parent of the verified Go TypeScript and Oxlint processes, with Electron NodeService arguments. Present with stable start ticks in every sample."
+        }
+      }
+    },
+    "comparison": {
+      "ui-open": {
+        "delta_ms": -5.501010000007227,
+        "regression_failure": false
+      },
+      "ui-repair": {
+        "delta_ms": -9.33083400002215,
+        "regression_failure": false
+      },
+      "vite-open": {
+        "delta_ms": 1.0882120000314899,
+        "regression_failure": false
+      },
+      "vite-repair": {
+        "delta_ms": -7.170456999971066,
+        "regression_failure": false
+      },
+      "completion": {
+        "delta_ms": -1.19807500008028,
+        "regression_failure": false
+      }
+    },
+    "candidate_resolution_seconds_before_t0": 148.083,
+    "protocol_deviation": "Passive verification after primary start. Final preflight shell stopped on unavailable Notifications: Hide Notifications command; owner mistakenly started the first candidate primary before inspecting that result. No reroll or settings/driver change. SDK Allow had succeeded earlier. Earlier native resolution log and initial sampled process prove local SDK was already selected at t0.",
+    "limits": [
+      "Sequential observations on one Linux host. No speedup claim.",
+      "Provider readiness final verification happened after start. The local resolution log predates t0 and the same Go process appears in every sample.",
+      "Baseline UI selection generated a workspace Go-enable flag identical to the manual-profile flag. Strict no-workspace-settings condition was not met.",
+      "RSS sums process RSS and can count shared pages more than once. Five-second samples can miss transient processes.",
+      "Original extension-host role identifies the JSON language server and misses its actual parent host. Parent audit corrects the host gate using stable provider ancestry. Original raw labels remain unchanged."
+    ],
+    "raw_artifact_sha256": {
+      "performance-preregistration.json": "de442573513d4d1349ce21a7c810172ea7846d093329ecba31e7b2c1ae7626ae",
+      "performance-session.cjs": "5c090e43e47b3d63fd3089439986a52acd987ed3749ae2547d04ee37f306c91d",
+      "baseline-performance/session.jsonl": "90eb0357ab7567a9e882b996351cb78762015446deec39e3181b5360121aef09",
+      "baseline-performance/latency.jsonl": "5ee3f39f6247264373c5ea39f51dc6c281a6d83f8b2c1a45015706c99f958155",
+      "baseline-performance/activity.jsonl": "3c9b42d96a657bb413c70a039bf1b4e13e1b6736620952ecdc74dd7f761f6a7b",
+      "baseline-performance/memory.jsonl": "642f09104bcef144081f9890cc6ddd9b2f97e5dc65510302cb92bff81820a64d",
+      "candidate-performance/session.jsonl": "adda349b565ad0d72f98add947ece472649252864e59f97cfcadea072eb5046e",
+      "candidate-performance/latency.jsonl": "89a375faa7e0c23edf279b049bb522e062d34715edeb9a84b12c2176800aa1ab",
+      "candidate-performance/activity.jsonl": "18971deb599eaf0169e5ea4691913b5c9e852aae8fdb9eeda3194b5fd4b0016d",
+      "candidate-performance/memory.jsonl": "3dc918308ef43829734f014268bcded9e9971d62a95616b63bf782a1ca574ad0",
+      "profile-baseline/logs/20261020T182422/window1/exthost/TypeScriptTeam.native-preview/TypeScript 7.log": "41530e0d062f952a6f02fd70160740d8cab82286c79902e6c1ffbddd3e47fb7f",
+      "profile-baseline/logs/20261020T182422/window1/exthost/oxc.oxc-vscode/Oxc (Lint).log": "77433092eb6ee64f69ee281b29957290da04f21130bbe725cc479364df1be037",
+      "profile-candidate/logs/20261020T185726/window1/exthost/TypeScriptTeam.native-preview/TypeScript 7.log": "e5934ede069994bce2a84c248f30f6c7294a533d60f46235386cc24f5dbd9e1f",
+      "profile-candidate/logs/20261020T185726/window1/exthost/oxc.oxc-vscode/Oxc (Lint).log": "fecf0120aef1a157aaa1905c13a4841fb3ebf79f6f39012e9aa46d6582031f46",
+      "baseline-workspace-setting-deviation.json": "c3349ba1508c1b16a8200ed0b50a90b8aed1b44c0c140369fb05d2488eb5cac5",
+      "baseline-autogenerated-workspace/settings.json": "296a38704e93ecf5ac05bb72aaf2b2e9df120715c98a38ca4a2cfcb9f8f11506",
+      "candidate-preflight-helper-failure.txt": "d6111a83b2ebb912d9897f0d824d66822075e0e129d70fd1f26cb6954dce6643",
+      "candidate-preflight-history.json": "b13478e7cc9230d2eacc24da1071f2d57d22a3bc0160ee4b51e8e15ee4110825"
+    },
+    "claims": "The original numerical thresholds pass in these two sequential root-layout sessions on one Linux host. No speedup claim. Frontend direct opening has separate functional proof.",
+    "baseline_workspace_deviation": {
+      "discoveredAt": "2026-10-20T17:43:40.363949+00:00",
+      "originalPath": "/tmp/qa-scribe-ts7/T7-3/owner/baseline/.vscode/settings.json",
+      "preservedPath": "/tmp/qa-scribe-ts7/T7-3/owner/baseline-autogenerated-workspace/settings.json",
+      "mtimeNs": 1792513491992697443,
+      "mtimeUTC": "2026-10-20T16:24:51.992697+00:00",
+      "sha256": "296a38704e93ecf5ac05bb72aaf2b2e9df120715c98a38ca4a2cfcb9f8f11506",
+      "contents": {
+        "js/ts.experimental.useTsgo": true
+      },
+      "cause": "Actual baseline preflight UI chose Use TypeScript7. The integrated version selector created this workspace Go-enable flag despite the same flag already present in disposable User/settings.json. Discovery happened during post-study restoration assertion, not during primary sampling.",
+      "effect": "SDK7.0.2, Oxlint1.89, relative official typedGo7.0.2004 launcher and scopes were manually configured in User/settings.json. Generated workspace file duplicated only the true Go-enable flag. Effective backend values stayed equivalent, but the strict no-workspace-settings baseline condition was not met.",
+      "handling": "Preserve both first primary runs and raw data; no reroll, no gate relaxation. Numerical gates PASS; overall independent acceptance remains pending. Original preflight selection is in supported T3 history position219."
+    }
+  },
+  "pending": [
+    "Independent protocol audit of both original-study deviations.",
+    "Ten independent actual IDE scenarios at the committed source.",
+    "Independent exact-head interaction and shipping review, protected CI, and normal merge.",
+    "T7-4 full validation and release through existing CI."
+  ],
+  "raw_receipts_committed": false,
+  "protocol_review": {
+    "status": "PENDING",
+    "model": "claude-opus-5-5",
+    "scope": "Independent read-only audit of both protocol deviations and corrected process ancestry. Not a shipping verdict.",
+    "task": "node:delegated-task:command%3Amcp%3Af2877ea0-a0d1-4168-97c4-278172e7b811%3Adelegate-task%3Aqa-scribe-ts7-t73-protocol-opus-review-round1-20261020"
+  },
+  "source_binding": {
+    "delivery_manifest_sha256": "998cf2758dbc981b6fa3b28d6a09065646501d175af4dad93f44312be4f90ba4",
+    "patch_sha256": "aafb085977abc10e3c52da9c5de86ba851ff4c723eacf3e9824000e8b043a8d1",
+    "files": {
+      ".vscode/settings.json": {
+        "sha256": "c646ad719f574307a8d3bef3e2dbff778d87c6f06551ed486d93328f008f97c5",
+        "bytes": 350
+      },
+      ".vscode/extensions.json": {
+        "sha256": "0ce43c08fc01a90d5cab02a39737da10b9da350e7aaa3733224a160dcfa0cc70",
+        "bytes": 89
+      },
+      "frontend/.vscode/settings.json": {
+        "sha256": "7c17422e055d6526d5f354d8a029d88e04ed60bd3e098e6c4d832690a97f232a",
+        "bytes": 314
+      },
+      "frontend/.vscode/extensions.json": {
+        "sha256": "0ce43c08fc01a90d5cab02a39737da10b9da350e7aaa3733224a160dcfa0cc70",
+        "bytes": 89
+      },
+      "README.md": {
+        "sha256": "4d4291c8a23a72bdc501cc5b64720005438faa14cda3cde57e4b8a8f3b13cb13",
+        "bytes": 14492
+      },
+      "scripts/native-tooling-editor.mjs": {
+        "sha256": "35a8a47b240422e9ba81db701f76a1151dc8ebb95d3ba9bd85a7d424307cf79e",
+        "bytes": 6308
+      },
+      "scripts/native-tooling-editor.test.mjs": {
+        "sha256": "9e97ad3560968f549a5d3f1666497ef84de1ff2a46b158e93b5be119bdeed653",
+        "bytes": 7096
+      },
+      "scripts/fixtures/native-tooling/editor-layouts.json": {
+        "sha256": "0ab1c8f1c3fd57997f8f0a1b44c00d45add0444baa2f923b484ffcaa9766f4c9",
+        "bytes": 725
+      },
+      "scripts/check-native-typescript-tooling.mjs": {
+        "sha256": "e7aeccaee5bd2881e96249bca15de9694a13a84edcec7d8a6f795c4ed00b4779",
+        "bytes": 2396
+      }
+    },
+    "measurement_binding": {
+      "frozenMeasuredSourceHashes": "owned-source-hashes.json",
+      "frozenMeasuredPatch": "T7-3-measurement-source.patch",
+      "changedAfterBothMeasurements": [
+        "README.md",
+        "scripts/native-tooling-editor.mjs",
+        "scripts/native-tooling-editor.test.mjs"
+      ],
+      "reason": "One platform-native expected path comparison in metadata-only guard; an absolute-but-correct SDK negative metadata fixture; precise already-observed notification recovery prose. All four measured workspace JSON files and all application/toolchain inputs are unchanged."
+    }
+  },
+  "proof_binding": {
+    "manifest_sha256": "9cb9fbfd51c45c2a8262d2592c788df4fdaf5c6d7b0238a87b8e430224a1d1ca",
+    "regular_files_parent_hashed": 1167,
+    "video_sha256": "84fadb7b70f537f5478fb15eaece84e7c987ba23219dbf395106d49e6a85cc0b",
+    "duration_seconds": 45,
+    "parent_viewed_video_frames_seconds": [
+      3,
+      18,
+      32
+    ],
+    "parent_viewed_SDK_runtime_identity_PNG": true,
+    "limits": "Parent viewed extracted video frames and SDK image, not full playback. Independent interaction review remains required."
+  },
+  "parent_checks": {
+    "script_tests": 310,
+    "skipped": 0,
+    "native_lint_fixtures": 183,
+    "compiler_probes": "PASS",
+    "frontend_check": "PASS",
+    "frontend_build": "PASS",
+    "identical_production_assets": 20,
+    "code_size": "PASS",
+    "comment_audit": "Zero deletion targets, zero suppressions. Independent read-only auditor.",
+    "logs": "artifacts/ts7-implementation/editor-parent-checks/results.json",
+    "limits": "No unchanged Rust, full application unit suite, or desktop E2E rerun in this editor-only phase. Full release validation remains T7-4."
+  }
+}
