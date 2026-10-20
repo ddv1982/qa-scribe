@@ -37,7 +37,20 @@ check and keeps a stable final check for branch protection.
 `.github/actions/setup-project/action.yml` owns Node, Bun, Rust, Rust-cache, and
 frozen frontend dependency setup. Bun is resolved from the root
 `packageManager` field, while Rust is resolved from `rust-toolchain.toml` so
-local and CI lint behavior cannot drift. Release and packaging jobs install the
+local and CI lint behavior cannot drift. On disposable GitHub-hosted runners,
+`scripts/normalize-ci-rust-toolchains.sh` retains the exact active pinned
+toolchain and removes unused toolchains before cache restoration. It sets the
+retained toolchain as the default first. Components and cross-compilation targets
+belonging to that toolchain remain installed. Local and self-hosted machines skip
+normalization.
+
+The pinned Rust cache action hashes every installed compiler. Normalization
+prevents an unused preinstalled compiler update from invalidating the cache.
+Compiler identity, operating system, architecture, environment, configuration,
+and dependency hashes remain enabled. Upgrading the project compiler still
+causes a legitimate cold cache.
+
+Release and packaging jobs install the
 exact Tauri CLI tool version from `scripts/tool-versions.json` through
 `scripts/install-tauri-cli.mjs`. The installer rejects a pin whose major/minor
 does not match the `tauri` runtime resolved in `Cargo.lock`; patch versions are

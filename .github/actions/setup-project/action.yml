@@ -57,6 +57,13 @@ runs:
         targets: ${{ inputs.rust-targets }}
         components: clippy,rustfmt
 
+    - name: Normalize hosted Rust toolchains
+      if: runner.environment == 'github-hosted'
+      shell: bash
+      env:
+        PINNED_RUST_TOOLCHAIN: ${{ steps.rust-toolchain.outputs.channel }}
+      run: bash scripts/normalize-ci-rust-toolchains.sh
+
     - name: Restore Rust cache
       uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2 (2026-03-12)
       with:

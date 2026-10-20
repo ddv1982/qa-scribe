@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.8.13 - 2026-10-20
+
+- Build desktop releases with exactly pinned Rust 1.99.1, including upstream compiler and macOS linker fixes.
+- Retain only the verified project Rust toolchain on disposable GitHub-hosted runners before cache restoration. Preserve components, cross-compilation targets, and compiler and dependency cache checks while avoiding misses caused by unused preinstalled compilers. Local and self-hosted installations remain untouched.
+
 ## v0.8.12 - 2026-10-20
 
 - Use the pinned Rust-based `tsc-rs` compiler for frontend type checking and check both application code and Vite configuration before production builds. Keep the TypeScript package available for typed ESLint.
