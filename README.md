@@ -84,6 +84,10 @@ bun run frontend:compiler:check
 
 The probe checks the installed package version and removes its temporary fixtures. Both verification commands and CI run the probe. Read the [migration findings](docs/research/ts-rust-adoption.md) for compatibility evidence and scope.
 
+For continuous native checks on Linux or macOS, run `bun run frontend:typecheck:watch`. To run both checkers with Vite, run `bun run frontend:dev:checked`. From `frontend`, use `bun run typecheck:watch` or `bun run dev:checked`. Both project watchers show type errors and recover after edits. The checked session uses Vite's configured port, defaulting to 5173, and fails if it is occupied.
+
+Ctrl-C stops every owned process group. A second interrupt skips the shutdown grace period. A failed or unexpectedly terminated child stops the session without restarting it. Process-group cleanup does not cover Ctrl-Z, killing the supervisor with SIGKILL, or descendants that create independent sessions. Ordinary `bun run --cwd frontend dev` runs Vite alone. Production builds and CI use their existing one-shot checks.
+
 Run the desktop app in development mode:
 
 ```bash

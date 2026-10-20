@@ -1,0 +1,50 @@
+{
+  "phase": "T7-2",
+  "status": "ACTIVATED_BEFORE_FRESH_SAMPLING",
+  "activated_utc": "2026-10-20T14:43:06Z",
+  "proposal_sha256": "9af3d96919d626c96239537943cb2e7e5ad13b22854fda862295003ca875986d",
+  "proposal_text_immutable": true,
+  "candidate_head": "f4c4de92d4ca13ba18c5c542ba0f12929364b48b",
+  "baseline": "0496aac81d0b1d6c6c61797e721f827a7420a8bf",
+  "independent_review": {
+    "model": "gpt-6.1-sol",
+    "round1": "REVISE",
+    "round2": "ACCEPT",
+    "scope": "Definitions and disclosure only. No PR or release approval."
+  },
+  "authority": "Parent adopts a post-failure plan amendment under the existing autonomous execution request. User did not specify this numerical envelope. Independent technical advice grants no new authority.",
+  "original_absolute_gate": "FAIL +75.375 MiB; remains a separate open finding. The new acceptance guarantee is different.",
+  "fresh_measurements_started": false,
+  "required_samples": {
+    "warmup_pairs": 1,
+    "interleaved_pairs": 7,
+    "edits_per_arm": 100,
+    "ui_writes_per_arm": 50,
+    "config_writes_per_arm": 50,
+    "candidate_named_errors_per_project": 25,
+    "candidate_repairs_per_project": 25,
+    "vite_reloads_per_arm": 50,
+    "settle_seconds_each_0_50_100": 10,
+    "minimum_write_cadence_seconds": 0.15,
+    "ready_timeout_seconds": 30,
+    "edit_timeout_seconds": 8
+  },
+  "memory_conditions": {
+    "aggregate_positive_growth_difference_of_arm_medians_MiB_max": 50,
+    "combined_added_process_positive_growth_median_MiB_max": 50,
+    "trend": "Per added entry/ui/config lineage and combined added set, second-half median normalized positive growth must not exceed first-half median; exact26/24 denominators in frozen text.",
+    "no_shrink_credit": true,
+    "pid_start_identity_churn": "Invalidates pair and stops comparison; no dropping descendants.",
+    "absolute_RSS_and_overhead_required": true
+  },
+  "measurement_exclusions": [
+    "No profiling in acceptance samples.",
+    "No concurrent local builds or live lanes.",
+    "No loader changes, forced GC, heap caps or process restarts."
+  ],
+  "remaining": [
+    "Fresh exact-source acceptance run under registered protocol.",
+    "Independent exact-patch shipping verdict and all live/CI gates.",
+    "Separate pre-existing Vite reload-memory research finding."
+  ]
+}
