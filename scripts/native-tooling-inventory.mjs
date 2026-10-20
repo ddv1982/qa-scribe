@@ -51,8 +51,18 @@ export function inspectFrontend(frontend) {
   modules(join(frontend, 'node_modules'))
   const resolved = Object.fromEntries(['typescript', 'tsc-rs', 'oxlint', 'oxlint-tsgolint'].map(name => [name, readJson(require.resolve(`${name}/package.json`)).version]))
   const config = readJson(join(frontend, '.oxlintrc.json'))
+  const configFiles = []
+  function configurations(directory, prefix = '') {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      if (entry.name === 'node_modules') continue
+      const path = prefix ? `${prefix}/${entry.name}` : entry.name
+      if (entry.isDirectory()) configurations(join(directory, entry.name), path)
+      else if (/^\.oxlintrc(?:\..*)?$/.test(entry.name) || /^oxlint\.config\..+$/.test(entry.name)) configFiles.push(path)
+    }
+  }
+  configurations(frontend)
   const maintained = ['scripts', 'frontend', 'e2e'].map(path => join(dirname(frontend), path)).filter(existsSync)
   const sourceAudit = scanCompilerImports({ maintained, installed: installed.map(row => row.location) })
   const rootManifest = readJson(join(dirname(frontend), 'package.json'))
-  return { sourceAudit, rootManifest, manifest, workspaces: Object.values(lock.workspaces), locked, installed, resolved, config }
+  return { configFiles: configFiles.sort(), sourceAudit, rootManifest, manifest, workspaces: Object.values(lock.workspaces), locked, installed, resolved, config }
 }

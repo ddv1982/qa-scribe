@@ -18,13 +18,17 @@ export function scanCompilerImports({ maintained, installed }) {
     let syntax
     try { syntax = parse(source, { sourceType: 'unambiguous', plugins: ['typescript', 'decorators-legacy', ...(/\.[jt]sx$/.test(file) ? ['jsx'] : [])], createImportExpressions: true }) }
     catch (error) { throw new Error(`Cannot inspect runtime imports in ${file}: ${error.message}`) }
+    const nodeCreateRequire = syntax.program.body.some(node => node.type === 'ImportDeclaration' && node.importKind !== 'type' && ['node:module', 'module'].includes(node.source.value) && node.specifiers.some(specifier => specifier.imported?.name === 'createRequire' && specifier.local.name === 'createRequire'))
+    const literal = node => node?.type === 'TemplateLiteral' && node.expressions.length === 0 ? node.quasis[0].value.cooked : node?.value
     function visit(node) {
       if (!node || typeof node !== 'object') return
       let specifier
       if (node.type === 'ImportDeclaration' && node.importKind !== 'type' && (node.specifiers.length === 0 || !node.specifiers.every(row => row.importKind === 'type'))) specifier = node.source.value
       if (['ExportNamedDeclaration', 'ExportAllDeclaration'].includes(node.type) && node.exportKind !== 'type' && (!node.specifiers?.length || !node.specifiers.every(row => row.exportKind === 'type'))) specifier = node.source?.value
-      if (node.type === 'ImportExpression') specifier = node.source?.value
-      if (node.type === 'CallExpression' && node.callee?.type === 'Identifier' && node.callee.name === 'require') specifier = node.arguments[0]?.value
+      if (node.type === 'TSImportEqualsDeclaration' && node.importKind !== 'type' && !node.isTypeOnly && node.moduleReference.type === 'TSExternalModuleReference') specifier = literal(node.moduleReference.expression)
+      if (node.type === 'ImportExpression') specifier = literal(node.source)
+      if (node.type === 'CallExpression' && node.callee?.type === 'Identifier' && node.callee.name === 'require') specifier = literal(node.arguments[0])
+      if (nodeCreateRequire && node.type === 'CallExpression' && node.callee?.type === 'CallExpression' && node.callee.callee?.type === 'Identifier' && node.callee.callee.name === 'createRequire') specifier = literal(node.arguments[0])
       if (typeof specifier === 'string' && (specifier === 'typescript' || specifier.startsWith('typescript/lib/'))) imports.push({ file, specifier, line: node.loc.start.line })
       for (const value of Object.values(node)) {
         if (Array.isArray(value)) value.forEach(visit)

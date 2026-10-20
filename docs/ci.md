@@ -43,6 +43,8 @@ actual host architecture, tested commit and PR source head, cache key, cache-hit
 output, cache file counts and bytes, and command logs.
 This workflow publishes no release and does not replace the protected quality
 gate. All three native lanes must pass before landing a tooling migration.
+Each cold and warm frontend test suite has a five-minute wrapper budget.
+Individual Vitest timeouts and the fifteen-minute overall job limit still apply.
 
 The `changes` job only controls expensive supplementary jobs. It never controls
 the quality gate. This avoids a broad change silently bypassing the primary

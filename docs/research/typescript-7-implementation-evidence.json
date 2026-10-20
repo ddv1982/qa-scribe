@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "phase": "T7-1",
-  "status": "LOCAL_REVIEW_FIXES_VERIFIED_FINAL_HOSTED_HEAD_PENDING",
+  "status": "ROUND2_FINDINGS_FIXED_LOCALLY_NEW_HOSTED_HEAD_AND_REVIEW_PENDING",
   "base_commit": "82f1502aee9c20d481bcd0ae56c45d053e7b9516",
   "first_reviewed_commit": "c3fdd71de4463a29141fd81f7072a406d87de2c7",
   "candidate_code_fingerprint": {
-    "sha256": "aa7061ab6cf60287d7b5bf15253931ecb77feb0d1576f148adbde8f3672c240d",
+    "sha256": "d2c3a9e45507532d0e19f8446cf2c9ab5a7cf0461bf17261ff870118d9e36ca1",
     "files": 609,
-    "method": "SHA256 of sorted non-document tracked and untracked repository paths, each followed by NUL, file bytes, and NUL. Ignored build/artifact files are excluded."
+    "method": "Obtain relative paths with git ls-files --cached --others --exclude-standard -z; deduplicate and sort. Exclude paths beginning docs/ and names ending .md or .tsv. For each remaining path hash its UTF-8 bytes, NUL, current file bytes, NUL using SHA256. Ignored paths are excluded by git."
   },
   "versions": {
     "node": "24.22.0",
@@ -24,9 +24,9 @@
     "frontend_tests_passed": 572,
     "rust_tests_passed": 566,
     "rust_tests_ignored_existing": 3,
-    "script_tests_passed": 241,
+    "script_tests_passed": 249,
     "python_tests_passed": 5,
-    "metadata_tests_passed": 55,
+    "metadata_tests_passed": 63,
     "native_lint_cases_passed": 183,
     "typed_rules_covered": 23,
     "locked_packages": 908,
@@ -37,7 +37,16 @@
     "desktop_default_invocations_passed": 18,
     "desktop_environment": "Isolated X11 via xvfb-run; inherited Wayland attempt failed5of18 and is retained in local logs.",
     "actionlint": "1.7.12 passed",
-    "zizmor": "1.30.1 online passed with zero findings"
+    "zizmor": "1.30.1 online passed with zero findings",
+    "canonical_verify_scope": "Full canonical run at the prior candidate before round2 fixes. The latest changes affect validation scripts and their tests only; unchanged Rust and application suites were not repeated locally.",
+    "round2_fix_checks": {
+      "script_tests": 249,
+      "metadata_tests": 63,
+      "native_lint_cases": 183,
+      "frontend_check_exit": 0,
+      "workflow_lint_exit": 0,
+      "scope": "Fresh runs after B1/N1/N2 fixes; prior full application, Rust, desktop, and benchmark receipts retain their original scopes."
+    }
   },
   "asset_parity": {
     "files": 20,
@@ -156,6 +165,16 @@
       "compressed_bytes_three_entries": 289321533,
       "mitigation": "PR path filters restrict fresh/cached native validation to toolchain, CI, and editor changes. Unique run keys preserve exact cold-save-restore comparisons.",
       "quota_eviction_observed": "Not measured; no causal eviction claim."
+    },
+    "round2_run": {
+      "run_url": "https://github.com/ddv1982/qa-scribe/actions/runs/39424832479",
+      "source_head": "b2caa33c37469143af19a31bf23ec872071fbf72",
+      "linux_x64": "passed",
+      "macos_arm64": "passed",
+      "macos_x64": "failed",
+      "cause": "Cold frontend suite reached the wrapper 180-second timeout after 561 passing tests across 59 files. No assertion failures observed. Warm stage did not run.",
+      "fix": "Only frontend:test receives a 300-second wrapper budget. Other command budgets, per-test deadlines, both complete suites and the 15-minute job deadline remain unchanged.",
+      "fixed_head_hosted_proof": "pending"
     }
   },
   "compiler_hooks_comparison": {
@@ -251,7 +270,18 @@
   "review": {
     "model": "claude-opus-5-5",
     "first_verdict": "PASS+NOTES",
-    "response": "Accepted override-scope, installed-dist scanning, fixture-completeness, maintained-source, and command-obligation fixes. Added native Hooks examples, bounded CI triggers, and this portable receipt. A fresh exact-head verdict remains required."
+    "response": "Accepted override-scope, installed-dist scanning, fixture-completeness, maintained-source, and command-obligation fixes. Added native Hooks examples, bounded CI triggers, and this portable receipt. A fresh exact-head verdict remains required.",
+    "round2": {
+      "verdict": "FAIL",
+      "head": "b2caa33c37469143af19a31bf23ec872071fbf72",
+      "blocking": "B1 hosted Intel suite timeout",
+      "accepted_nonblocking": [
+        "N1 nested Oxlint config bypass",
+        "N2 literal import forms"
+      ],
+      "response": "Fixed all three findings. Added on-disk nested JSON/JS/vendor/YAML config rejection and runtime import-equals, expression-free template and direct Node createRequire probes. Type-only import-equals remains allowed. A fresh exact-patch review is required."
+    },
+    "scanner_limits": "Computed module expressions and general alias/dataflow resolution are outside the static import check. Package graph policy independently rejects legacy compiler identities."
   },
   "raw_receipts": {
     "committed": false,
@@ -270,7 +300,11 @@
       "artifacts/ts7-implementation/timings/results.json": "c9dde201ee049debf9fb23db644751e6e8b0a7cfc1f53d8949ca70164f1816cb",
       "artifacts/ts7-implementation/timings/profile-summary.json": "602693a1fcb7b2b44e732755ad632e6ba07d9348f69544a615bb5d65793b4e78",
       "artifacts/ts7-implementation/toolchain-owner/compiler-hooks-comparison-receipt.json": "31bb866c4fb33c385b991cb915fd7ad658f2fe4d9abb6f1439168367999193f9",
-      "artifacts/ts7-implementation/native-cache-storage.json": "d34e56a5daf4b4310277955a6f39ed3449747e5555009a9c705a46b53f2adbcb"
+      "artifacts/ts7-implementation/native-cache-storage.json": "d34e56a5daf4b4310277955a6f39ed3449747e5555009a9c705a46b53f2adbcb",
+      "artifacts/ts7-implementation/scripts-round3.log": "9330c1909193cd6bdd3a556308b0bf68ef8280dd0c568f33fde2f886b04aa4be",
+      "artifacts/ts7-implementation/guard-round3.log": "18905778421891e1ae80b4c53293270c58b9f7483ea04d74b901c3cc87dd0703",
+      "artifacts/ts7-implementation/frontend-check-round3.log": "ac9d71d36faf0b97f1beb7004eb24f0998b90987e7dbc9087543bc8c90b605ba",
+      "artifacts/ts7-implementation/ci-timeout-diagnosis.json": "964852a8fea229903a333b98acda62e5080c69b7082549899a9fdb6d4eae697a"
     }
   },
   "open_gates": [

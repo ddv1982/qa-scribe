@@ -16,6 +16,7 @@ const normalize = value => {
 export function validateNativeTooling(inventory, parity) {
   const violations = []
   const fail = (code, location, message) => violations.push({ code, location, message })
+  if (!isDeepStrictEqual(inventory.configFiles, ['.oxlintrc.json'])) fail('lint-policy-config', 'frontend', `Only the canonical root .oxlintrc.json is allowed; found ${JSON.stringify(inventory.configFiles)}`)
   for (const row of inventory.sourceAudit?.imports ?? []) fail('legacy-api-import', `${row.file}:${row.line}`, `Legacy compiler API import ${row.specifier}`)
   if (parity.rules.length !== 109 || parity.rules.filter(row => row.typeAware).length !== 23) fail('parity-inventory', 'lint-parity.json', 'Historical inventory must retain 109 production rules and 23 typed rules')
   const records = [inventory.manifest, ...inventory.workspaces, ...inventory.locked, ...inventory.installed]

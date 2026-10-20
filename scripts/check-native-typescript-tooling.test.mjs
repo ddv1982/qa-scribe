@@ -229,3 +229,28 @@ for (const [scope, name] of [['root', 'frontend:tooling:check'], ['root', 'front
     assert.ok(findings(root).some(row => row.code === 'command-obligation' && row.location === `${scope}.${name}`))
   }))
 }
+
+for (const relative of ['src/workflows/.oxlintrc.json', 'src/workflows/oxlint.config.js', 'vendor/.oxlintrc.jsonc', '.oxlintrc.yml']) {
+  test(`additional Oxlint policy ${relative} is rejected without evaluation`, () => fixture(root => {
+    const file = join(root, relative)
+    mkdirSync(dirname(file), { recursive: true })
+    writeFileSync(file, relative.endsWith('.js') ? 'throw new Error("must never execute")' : '{"rules":{"typescript/no-floating-promises":"off"}}')
+    const inventory = inspectFrontend(root)
+    assert.ok(inventory.configFiles.includes(relative))
+    assert.ok(validateNativeTooling(inventory, parity).some(row => row.code === 'lint-policy-config' && row.message.includes(relative)))
+  }))
+}
+for (const source of [
+  "import ts = require('typescript')",
+  'void import(`typescript`)',
+  "import { createRequire } from 'node:module'; createRequire(import.meta.url)('typescript')",
+]) {
+  test(`additional literal compiler API form is rejected: ${source}`, () => fixture(root => {
+    writeFileSync(join(root, 'consumer.ts'), source)
+    assert.ok(findings(root).some(row => row.code === 'legacy-api-import' && row.location.endsWith('/consumer.ts:1') && row.message === 'Legacy compiler API import typescript'))
+  }))
+}
+test('type-only import-equals remains a non-runtime dependency', () => fixture(root => {
+  writeFileSync(join(root, 'types.ts'), "import type ts = require('typescript'); export type Value = ts.Type")
+  assert.deepEqual(findings(root), [])
+}))
