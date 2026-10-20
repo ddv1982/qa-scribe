@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { inspectFrontend } from './native-tooling-inventory.mjs'
 import { validateNativeTooling } from './native-tooling-policy.mjs'
 import { checkNativeLintFixtures } from './check-native-lint-fixtures.mjs'
+import { inspectLintSelection, validateLintSelection } from './native-tooling-selection.mjs'
 
 export { inspectFrontend, validateNativeTooling }
 
@@ -21,9 +22,14 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     assert.equal(printed.status, 0, `Oxlint must accept the native configuration: ${printed.stdout}${printed.stderr}`)
     inventory.config = JSON.parse(printed.stdout)
     const violations = validateNativeTooling(inventory, parity)
+    let selection
+    if (violations.length === 0) {
+      selection = inspectLintSelection(frontend, inventory.manifest.scripts.lint, parity.ignored)
+      violations.push(...validateLintSelection(selection))
+    }
     if (violations.length) throw new Error(violations.map(row => `${row.code} ${row.location}: ${row.message}`).join('\n'))
     checkNativeLintFixtures(frontend)
-    console.log(`PASS native tooling metadata: ${inventory.locked.length} lock packages, ${inventory.installed.length} installed packages, zero legacy identities; ${inventory.sourceAudit.scannedFiles} runtime source files inspected`)
+    console.log(`PASS native tooling metadata: ${inventory.locked.length} lock packages, ${inventory.installed.length} installed packages, zero legacy identities; ${inventory.sourceAudit.scannedFiles} runtime source files inspected; all ${selection.expected.length} maintained lint sources selected`)
   } catch (error) {
     console.error(error.message)
     process.exitCode = 1

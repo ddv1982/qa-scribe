@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
   "phase": "T7-1",
-  "status": "ROUND2_FINDINGS_FIXED_LOCALLY_NEW_HOSTED_HEAD_AND_REVIEW_PENDING",
+  "status": "LINT_FILE_COVERAGE_FIXED_LOCALLY_FINAL_HEAD_REVIEW_AND_CI_PENDING",
   "base_commit": "82f1502aee9c20d481bcd0ae56c45d053e7b9516",
   "first_reviewed_commit": "c3fdd71de4463a29141fd81f7072a406d87de2c7",
   "candidate_code_fingerprint": {
-    "sha256": "d2c3a9e45507532d0e19f8446cf2c9ab5a7cf0461bf17261ff870118d9e36ca1",
-    "files": 609,
+    "sha256": "890df6503bd640c702fc24b55fe4fc2b6c30bacff45730aae8e4be253eb9bc52",
+    "files": 611,
     "method": "Obtain relative paths with git ls-files --cached --others --exclude-standard -z; deduplicate and sort. Exclude paths beginning docs/ and names ending .md or .tsv. For each remaining path hash its UTF-8 bytes, NUL, current file bytes, NUL using SHA256. Ignored paths are excluded by git."
   },
   "versions": {
@@ -24,14 +24,14 @@
     "frontend_tests_passed": 572,
     "rust_tests_passed": 566,
     "rust_tests_ignored_existing": 3,
-    "script_tests_passed": 249,
+    "script_tests_passed": 257,
     "python_tests_passed": 5,
     "metadata_tests_passed": 63,
     "native_lint_cases_passed": 183,
     "typed_rules_covered": 23,
     "locked_packages": 908,
     "installed_package_roots": 791,
-    "runtime_source_files_inspected": 13756,
+    "runtime_source_files_inspected": 13758,
     "legacy_identities": 0,
     "literal_legacy_api_imports": 0,
     "desktop_default_invocations_passed": 18,
@@ -46,6 +46,16 @@
       "frontend_check_exit": 0,
       "workflow_lint_exit": 0,
       "scope": "Fresh runs after B1/N1/N2 fixes; prior full application, Rust, desktop, and benchmark receipts retain their original scopes."
+    },
+    "selection_tests_passed": 8,
+    "maintained_lint_sources_selected": 162,
+    "round3_selection_checks": {
+      "script_tests": 257,
+      "metadata_tests": 63,
+      "actual_native_selection_tests": 8,
+      "native_lint_cases": 183,
+      "maintained_lint_files_selected": 162,
+      "scope": "Fresh parent runs after actual-file-selection fix. Production commands, application sources, Rust and lint flags are unchanged. Prior full application, Rust, desktop, frontend check and benchmark receipts retain their original scopes."
     }
   },
   "asset_parity": {
@@ -175,6 +185,80 @@
       "cause": "Cold frontend suite reached the wrapper 180-second timeout after 561 passing tests across 59 files. No assertion failures observed. Warm stage did not run.",
       "fix": "Only frontend:test receives a 300-second wrapper budget. Other command budgets, per-test deadlines, both complete suites and the 15-minute job deadline remain unchanged.",
       "fixed_head_hosted_proof": "pending"
+    },
+    "round3_run": {
+      "run_url": "https://github.com/ddv1982/qa-scribe/actions/runs/39427438128",
+      "source_head": "9795619a88dcdf97c70014e5b43ebe8d84b0623b",
+      "tested_merge_sha": "20a93fb7c6caf54683c09b99db92133cbad2f09f",
+      "jobs": [
+        {
+          "platform": "linux-x64",
+          "node": "v24.21.0",
+          "stages": [
+            {
+              "stage": "cold",
+              "status": "passed",
+              "cacheHit": null
+            },
+            {
+              "stage": "discard",
+              "status": "passed",
+              "cacheHit": null
+            },
+            {
+              "stage": "warm",
+              "status": "passed",
+              "cacheHit": "true"
+            }
+          ],
+          "receipt_sha256": "f1cfbd8895c8ce1bffa51c642c0531b776b3eb6d73e45109e434ab24517aad58"
+        },
+        {
+          "platform": "macos-arm64",
+          "node": "v24.21.0",
+          "stages": [
+            {
+              "stage": "cold",
+              "status": "passed",
+              "cacheHit": null
+            },
+            {
+              "stage": "discard",
+              "status": "passed",
+              "cacheHit": null
+            },
+            {
+              "stage": "warm",
+              "status": "passed",
+              "cacheHit": "true"
+            }
+          ],
+          "receipt_sha256": "54c6e8d4230c235f102078e40e1e3d662f5d8147ea30c06db9350328e84663c8"
+        },
+        {
+          "platform": "macos-x64",
+          "node": "v24.19.0",
+          "stages": [
+            {
+              "stage": "cold",
+              "status": "passed",
+              "cacheHit": null
+            },
+            {
+              "stage": "discard",
+              "status": "passed",
+              "cacheHit": null
+            },
+            {
+              "stage": "warm",
+              "status": "passed",
+              "cacheHit": "true"
+            }
+          ],
+          "receipt_sha256": "e4d6ba627481f8c8b82232c0c0768e5de62dcb91331753466f6b72bcfadc046e"
+        }
+      ],
+      "result": "All three hosts passed cold installation, discard, exact remote restoration with cacheHit=true and warm installation. Both full suites ran on Intel with the 300-second wrapper budget. Final selection-fix head needs fresh hosted proof."
     }
   },
   "compiler_hooks_comparison": {
@@ -281,7 +365,15 @@
       ],
       "response": "Fixed all three findings. Added on-disk nested JSON/JS/vendor/YAML config rejection and runtime import-equals, expression-free template and direct Node createRequire probes. Type-only import-equals remains allowed. A fresh exact-patch review is required."
     },
-    "scanner_limits": "Computed module expressions and general alias/dataflow resolution are outside the static import check. Package graph policy independently rejects legacy compiler identities."
+    "scanner_limits": "Computed module expressions and general alias/dataflow resolution are outside the static import check. Package graph policy independently rejects legacy compiler identities.",
+    "round3": {
+      "verdict": "PASS+NOTES",
+      "head": "9795619a88dcdf97c70014e5b43ebe8d84b0623b",
+      "patch_id": "b120f90de6c99f26946fb4e46c514dd6a1cb648f",
+      "fingerprint_reproduced": true,
+      "new_note": "N3 .eslintignore and .gitignore could silently remove maintained source files.",
+      "response": "Accepted. Compare actual native --debug=files output using the maintained lint command against a filesystem source inventory outside the canonical exclusions. Reject missing sources regardless of which ignore mechanism caused them. No new filename blacklist or lint flag change."
+    }
   },
   "raw_receipts": {
     "committed": false,
@@ -304,7 +396,10 @@
       "artifacts/ts7-implementation/scripts-round3.log": "9330c1909193cd6bdd3a556308b0bf68ef8280dd0c568f33fde2f886b04aa4be",
       "artifacts/ts7-implementation/guard-round3.log": "18905778421891e1ae80b4c53293270c58b9f7483ea04d74b901c3cc87dd0703",
       "artifacts/ts7-implementation/frontend-check-round3.log": "ac9d71d36faf0b97f1beb7004eb24f0998b90987e7dbc9087543bc8c90b605ba",
-      "artifacts/ts7-implementation/ci-timeout-diagnosis.json": "964852a8fea229903a333b98acda62e5080c69b7082549899a9fdb6d4eae697a"
+      "artifacts/ts7-implementation/ci-timeout-diagnosis.json": "964852a8fea229903a333b98acda62e5080c69b7082549899a9fdb6d4eae697a",
+      "artifacts/ts7-implementation/scripts-round4.log": "ba21efea5dd0e89477f3b36730661ae442f6fc1605da03f5f99b65faa9d48dac",
+      "artifacts/ts7-implementation/guard-round4.log": "dc8ddbbbb740b5d9b1f139ac54f49af3ca714350a7b380d33dcc955dac0bef57",
+      "artifacts/ts7-implementation/lint-selection-census.json": "4de1d93d49bd03bb0c8372f7a7b1f72c9671d96ba3c0303b8c4764df4600a669"
     }
   },
   "open_gates": [
@@ -312,5 +407,6 @@
     "Fresh hosted native jobs and protected CI at the final PR head.",
     "T7-2 watchers, T7-3 editor proof, and T7-4 final release preparation.",
     "No new version, manual tag, release or publication from this phase."
-  ]
+  ],
+  "lint_selection_limits": "The filesystem inventory requires supported JavaScript and TypeScript file extensions outside the fixed historical dist/node_modules/scripts directory scopes. It does not claim symlink-directory traversal. Global ignore metadata did not exclude files in the observed local probes; tests reject a missing source if that behavior differs on a host."
 }

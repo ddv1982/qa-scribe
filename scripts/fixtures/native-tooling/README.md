@@ -32,6 +32,14 @@ Only the four documented rules relax in tests. Unsafe arguments and member
 access remain errors. The Vite configuration receives a separate typed failure.
 Build output and scripts remain ignored.
 
+The guard separately compares Oxlint's actual `--debug=files` selection with a
+filesystem inventory of maintained JavaScript and TypeScript files. The inventory
+does not consult Git or ignore metadata. Canonical `dist`, `node_modules`, and
+`scripts` directory scopes remain excluded. Any maintained source missing from
+the real command's selection fails with its path, even when an ignore file hides
+it. The comparison uses the same working directory, selection flags, and target
+as the maintained lint command. It does not ban additional ignore filenames.
+
 `lint-diagnostics.json` freezes the reviewed native diagnostic identities,
 severities, and source ranges for those literal fixtures. It is an expectation,
 not generated during verification. Clean and warning-only groups must exit zero;
