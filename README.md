@@ -75,7 +75,7 @@ Frontend type checks use the Rust compiler [`tsc-rs`](https://github.com/pingdot
 
 `tsc-rs` ports TypeScript `7.1.0-dev.20261008.1`, so its revision differs from the stable editor SDK. `bun run frontend:check` requires native checking and typed lint to pass. The Rust compiler remains the authoritative build checker.
 
-For VS Code, open the repository root or `frontend` directly and install the recommended **TypeScript 7** (`TypeScriptTeam.native-preview`) and **Oxc** (`oxc.oxc-vscode`) extensions. Trust your checkout through **Manage Workspace Trust**, then open a TypeScript file and click **Allow** when TypeScript 7 offers the configured `7.0.2` SDK. If the notification is hidden, run **Notifications: Show Notifications**, then click **Allow** on the TypeScript 7 SDK notification. Root settings select `./frontend/node_modules/typescript`. Frontend settings select `./node_modules/typescript`.
+For VS Code on Linux or macOS, open the repository root or `frontend` directly and install the recommended **TypeScript 7** (`TypeScriptTeam.native-preview`) and **Oxc** (`oxc.oxc-vscode`) extensions. Trust your checkout through **Manage Workspace Trust**, then open a TypeScript file and click **Allow** when TypeScript 7 offers the configured `7.0.2` SDK. If the notification is hidden, run **Notifications: Show Notifications**, then click **Allow** on the TypeScript 7 SDK notification. Root settings select `./frontend/node_modules/typescript`. Frontend settings select `./node_modules/typescript`.
 
 Check the **TypeScript 7** output for `Resolved to` inside this checkout's `frontend/node_modules/@typescript/` package. Check **Oxc (Lint)** output for the local Oxlint launcher and version `1.89.0`. Both folder layouts select the local `oxlint-tsgolint` package launcher for typed lint and keep per-file project discovery for UI sources and `vite.config.ts`. If runtime identities differ, inspect the effective `oxc.path.tsgolint` setting and the editor's `OXLINT_TSGOLINT_PATH` environment value. Compiler diagnostics show `ts`; lint diagnostics show `oxc`. The committed settings do not enable the experimental Rust TypeScript language server or change formatting and save actions.
 
@@ -130,7 +130,7 @@ Run the built desktop application against deterministic end-to-end workflows. On
 GDK_BACKEND=x11 xvfb-run -a bun run e2e
 ```
 
-On macOS and Windows, run `bun run e2e`.
+On macOS, run `bun run e2e`.
 
 Run the reproducible large-data startup measurement (five launches by default):
 
