@@ -1,13 +1,59 @@
 #!/usr/bin/env node
 
 import { spawn } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { setTimeout as delay } from 'node:timers/promises'
 
 const frontend = fileURLToPath(new URL('../frontend/', import.meta.url))
+
+function linuxZombieGroup(pgid, deadline) {
+  function state(path, pid) {
+    const stat = readFileSync(path, 'utf8')
+    const end = stat.lastIndexOf(')')
+    const fields = stat.slice(end + 1).trim().split(/\s+/)
+    if (!stat.startsWith(`${pid} (`) || end < pid.length + 2 || fields.length < 20
+      || !/^[A-Za-z]$/.test(fields[0]) || !/^\d+$/.test(fields[2]) || !/^\d+$/.test(fields[19])) return undefined
+    const group = Number(fields[2])
+    if (!Number.isSafeInteger(group)) return undefined
+    return { state: fields[0], group, start: fields[19] }
+  }
+  function snapshot() {
+    const members = []
+    for (const pid of readdirSync('/proc')) {
+      if (!/^[1-9]\d*$/.test(pid)) continue
+      if (performance.now() >= deadline) return undefined
+      let leader
+      try {
+        leader = state(`/proc/${pid}/stat`, pid)
+      } catch (error) {
+        if (error.code === 'ENOENT' || error.code === 'ESRCH') continue
+        throw error
+      }
+      if (leader === undefined) return undefined
+      if (leader.group !== pgid) continue
+      if (leader.state !== 'Z') return undefined
+      const tasks = readdirSync(`/proc/${pid}/task`)
+      if (tasks.length === 0) return undefined
+      for (const tid of tasks) {
+        if (performance.now() >= deadline) return undefined
+        const task = state(`/proc/${pid}/task/${tid}/stat`, tid)
+        if (task === undefined || task.group !== pgid || task.state !== 'Z') return undefined
+        members.push(`${pid}:${leader.start}:${tid}:${task.start}`)
+      }
+    }
+    return members.length === 0 ? undefined : members.sort().join(',')
+  }
+  try {
+    if (state('/proc/self/stat', String(process.pid)) === undefined) return false
+    const before = snapshot()
+    return before !== undefined && before === snapshot()
+  } catch {
+    return false
+  }
+}
 
 function commands(mode) {
   if (!['linux', 'darwin'].includes(process.platform)) {
@@ -119,7 +165,14 @@ async function main() {
       for (const record of owned.values()) signalGroup(record, 'SIGTERM')
       let killed = false
       while (true) {
-        const remaining = [...owned.values()].filter((record) => signalGroup(record, 0))
+        const remaining = [...owned.values()].filter((record) => {
+          if (!signalGroup(record, 0)) return false
+          if (killed && !record.signalError && process.platform === 'linux' && linuxZombieGroup(record.pgid, deadline)) {
+            record.gone = true
+            return false
+          }
+          return true
+        })
         if (remaining.length === 0 && [...owned.values()].every((record) => record.didClose)) break
         if (!killed && (hurry.signal.aborted || performance.now() >= grace)) {
           killed = true

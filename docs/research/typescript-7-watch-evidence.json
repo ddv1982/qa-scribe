@@ -1,0 +1,74 @@
+{
+  "phase": "T7-2",
+  "status": "ZOMBIE_FIX_VERIFIED_MEMORY_GATE_STILL_OPEN",
+  "candidate_head": "4c5a0e9c1c3e958ed9dd855e355f5e4d65c76938",
+  "base": "0496aac81d0b1d6c6c61797e721f827a7420a8bf",
+  "pr": "https://github.com/ddv1982/qa-scribe/pull/62",
+  "local_checks": {
+    "script_tests_passed": 280,
+    "lifecycle_tests_passed": 23,
+    "native_lint_cases_passed": 183,
+    "metadata_tests_passed": 63,
+    "selection_tests_passed": 8,
+    "frontend_check_exit": 0,
+    "frontend_build_exit": 0,
+    "identical_production_assets": 20
+  },
+  "performance": {
+    "status": "FAIL",
+    "startup_paired_samples": 7,
+    "startup_overhead_median_seconds": 0.06388154398882762,
+    "edit_samples": 100,
+    "edit_feedback_median_seconds": 0.05525300750014139,
+    "idle_one_core_percent": 0.0333,
+    "cleanup_primary_samples": 18,
+    "cleanup_median_seconds": 0.0404,
+    "rss_growth_MiB": 75.375,
+    "rss_budget_MiB": 50,
+    "diagnosis": "Separate process-level profile locates retained RSS growth in the unchanged Vite PID during config reloads. This does not prove unbounded growth. Original failed acceptance result remains immutable while equivalent-edit baseline and loader strategies are investigated.",
+    "raw_receipt_local": "/tmp/qa-scribe-ts7/T7-2/perf/results.json",
+    "raw_receipt_sha256": "0afcca872fa4abbdfb1c573a87db19ead3e78992e8c1257f3bb521a38b198b30"
+  },
+  "zombie_defect": {
+    "confirmed_by_parent": true,
+    "expected_sigint_exit": 130,
+    "actual_sigint_exit": 1,
+    "only_zombie_remaining": true,
+    "cleanup_verified": true,
+    "source_sha256": "a963095e0d304696bb438bb79f15f960370b47fe4ec7f30dc79d31a0e93b87e8",
+    "parent_reproduction_local": "/tmp/qa-scribe-ts7/T7-2/perf/zombie-repro/20261020T140555Z/result.json",
+    "proposed_fix": "Linux requires two matching zombie-only process/task snapshots before retiring a group. Direct close waits and lifecycle deadlines remain unchanged. Unknown or live members retain ownership.",
+    "fix_status": "Parent verified all23lifecycle tests,including real deferred-orphan-reaping regression. CtrlCreturns130whileonlyZgroupremains,thenfixturefullyreapsallchildren.",
+    "comment_audit": "Zero findings, read-only audit.",
+    "fixed_supervisor_sha256": "b4f1a85eb801a510b7dc0c2d2a841358743f8ba865cd6de6b94ce0d503186e2b",
+    "runtime_log_sha256": "0a98a406c217a62ab3e5d7799817b82a37788f404cebb1ee97218f0c892c81a5"
+  },
+  "hosted_failure": {
+    "job_url": "https://github.com/ddv1982/qa-scribe/actions/runs/39434726240/job/118668617206",
+    "classification": "Networking infrastructure",
+    "cold_validation": "passed",
+    "cache_save": "passed",
+    "cache_restore": "ETIMEDOUT",
+    "artifact_upload": "ENOTFOUND",
+    "response": "Fresh next-head CI after fixes; preserve exact restoration requirement."
+  },
+  "pending": [
+    "Bounded Vite allocation/RSS diagnosis and independent technical assessment of the pre-existing memory limit. Original50MiBabsoluteFAILremains recorded.",
+    "Final candidate live lanes, performance disposition, independent shipping review and all hosted checks.",
+    "Editor phase and final release."
+  ],
+  "raw_receipts_committed": false,
+  "memory_strategy_comparison": {
+    "prototype_only": true,
+    "selected_flag": null,
+    "status": "FAIL",
+    "baseline_vite_alone_sessions": 3,
+    "baseline_group_growth_median_MiB": 133.66015625,
+    "runner_checked_sessions": 3,
+    "runner_group_growth_median_MiB": 84.91015625,
+    "native_loader": "Rejected for stale imported config modules.",
+    "budget_unchanged_MiB": 50,
+    "decision": "Keep default Vite loader; growth preexists the checked workflow. Bounded allocation diagnosis and independent technical assessment remain pending.",
+    "receipt_sha256": "8e58d87ce8488640a1b8eda0d084030a69a3c2ebe9bb459a0f53fd183b9c90ef"
+  }
+}

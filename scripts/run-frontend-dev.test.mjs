@@ -187,6 +187,39 @@ test('group ownership survives leader exit and kills a stubborn native grandchil
   assert.match(s.output, /ui exited unexpectedly \(SIGKILL\)/)
 })
 
+test('Linux zombie-only groups preserve SIGINT status until a real subreaper reaps them', { skip: process.platform !== 'linux', timeout: 20000 }, async (t) => {
+  const server = await listener(t)
+  const port = server.address().port
+  await new Promise((resolve) => server.close(resolve))
+  const f = fixture(t, { ui: 'grandchild', port })
+  const output = execFileSync('python3', [
+    join(fixtures, 'linux-zombie.py'), process.execPath, join(f.scratch, 'scripts/run-frontend-dev.mjs'),
+  ], {
+    cwd: f.frontend,
+    env: { ...process.env, NODE_OPTIONS: `--require=${join(fixtures, 'observe.cjs')}` },
+    encoding: 'utf8',
+    timeout: 15000,
+    killSignal: 'SIGTERM',
+  })
+  const report = JSON.parse(output)
+  t.diagnostic(report.output)
+  assert.equal(report.entry_exit_code, 130, report.output)
+  assert.ok(report.before_reap.length > 0, 'controlled unreaped descendants must remain observable')
+  assert.deepEqual([...new Set(report.before_reap.map(({ state }) => state))], ['Z'])
+  assert.deepEqual(report.live_members_before_reap, [])
+  assert.ok(report.zombie_groups_still_exist.length > 0, 'killpg zero succeeds for zombie-only groups')
+  assert.equal(report.port_free_before_reap, true)
+  assert.ok(report.reaped_adopted_children.length > 0)
+  assert.equal(report.all_children_reaped, true)
+  assert.deepEqual(report.survivors_after_reap, [])
+  assert.equal(report.all_groups_gone_after_reap, true)
+  assert.equal(report.port_free_after_reap, true)
+  assert.equal(f.groups().length, 3)
+  assert.equal(f.groups().every(({ pid }) => !alive(-pid)), true)
+  assert.equal(f.journal().every(({ pid }) => !alive(pid)), true)
+  assert.equal(await portIsFree(port), true)
+})
+
 test('a second interrupt accelerates SIGKILL and retains the first signal exit code', { skip: !supported, timeout: 15000 }, async (t) => {
   const f = fixture(t, { ui: 'stubborn', config: 'stubborn' })
   const s = f.launch()
