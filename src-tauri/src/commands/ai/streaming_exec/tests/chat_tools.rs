@@ -156,9 +156,18 @@ else:
     print('Tool policy inherited.')
 "#,
         );
+        let fixture_write_handle = std::fs::OpenOptions::new()
+            .write(true)
+            .open(&cli.path)
+            .unwrap();
         let mut command =
             streaming_chat_command(provider, "tool policy probe", "default", None, true).unwrap();
-        command.program = cli.path.to_string_lossy().into_owned();
+        // A concurrent fork can retain a writable fixture FD; executing Python avoids ETXTBSY.
+        command.program = "/usr/bin/env".into();
+        command.args.splice(
+            0..0,
+            ["python3".into(), cli.path.to_string_lossy().into_owned()],
+        );
         let output =
             run_generation_command_streaming(&command, &JobControl::default(), |_| {}).unwrap();
         assert!(
@@ -170,6 +179,7 @@ else:
             output.response_text().unwrap().trim(),
             "Tool policy inherited."
         );
+        drop(fixture_write_handle);
     }
 }
 

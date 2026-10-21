@@ -12,7 +12,7 @@ The supported installation hosts are Linux x64, macOS ARM64, and macOS x64. The 
 
 ## Local editor evidence
 
-The SDK-absent Linux candidate exercised completion, hover, definition navigation, accepted imports, cross-file rename, UI and Vite diagnostics, typed lint, repair, reload, SDK-link repair, and repeated edits. Both layouts used the pinned Rust executable. The source bindings and raw receipts are preserved in the implementation handoff.
+The SDK-absent Linux candidate exercised completion, hover, definition navigation, accepted imports, cross-file rename, UI and Vite diagnostics, typed lint, repair, reload, SDK-link repair, and repeated edits. Both layouts used the pinned Rust executable. The parent checked source bindings and artifact hashes while the original handoff was available.
 
 Independent OpenAI review accepted the bounded candidate evidence and a qualified baseline reference. Original baseline failures remain failures. They concerned a Vite input action that accumulated indentation, a resolution counted after cleanup began, and an overlong disposable IPC path. The corrected reference preserves completed cycles and the unchanged response deadline. It does not establish an unqualified pass of the original procedure.
 
@@ -28,7 +28,7 @@ This requested-shutdown outcome is separate from the active editor's crash and r
 
 ## Evidence and limits
 
-The [implementation PR](https://github.com/ddv1982/qa-scribe/pull/65) records current source checks, hosted results, review, and release readiness. Local raw receipts remain under the task-owned evidence directories rather than being copied into product assets.
+The [implementation PR](https://github.com/ddv1982/qa-scribe/pull/65) records current source checks, hosted results, review, and release readiness. Several original temporary evidence directories subsequently disappeared for an undetermined reason. Their review reports and parent checks remain recorded, but the original raw editor artifacts are no longer available for inspection. Final acceptance therefore requires fresh editor proof at the release candidate. New receipts are retained in workspace artifacts rather than product assets.
 
 The original Intel warm-install test failure at `0748613` occurred while observing initial Chat readiness. A fresh run at `8da800d` passed all nine attached checks without application or test-timing changes. The original failure remains preserved, and its exact cause is unproven.
 
