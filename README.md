@@ -1,49 +1,32 @@
 # QA Scribe
 
-QA Scribe is a local-first desktop testing notepad for capturing testing Sessions and turning raw testing material into structured Testware.
+![Rust](https://img.shields.io/badge/Rust-000000?style=flat&logo=rust&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript&logoColor=white)
+![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=flat&logo=javascript&logoColor=black)
+![Python](https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white)
+![Shell](https://img.shields.io/badge/Shell-4EAA25?style=flat&logo=gnubash&logoColor=white)
 
-During a Session, testers capture Entries such as Notes, Observations, API Responses, Logs, possible Findings, screenshots, and managed attachments in a chronological Session Timeline. QA Scribe can then help review a Generation Context and create editable Session Report Drafts.
+A local-first desktop notepad for exploratory testing. Capture evidence during a Session, track Findings, and turn your notes into editable Testware Drafts.
 
-## Current Status
+[Download](https://github.com/ddv1982/qa-scribe/releases) · [Wiki](https://github.com/ddv1982/qa-scribe/wiki) · [Development](docs/development.md)
 
-QA Scribe has been rebuilt as a Rust/Tauri application with a fresh SQLite schema. The previous Electrobun/Bun MVP remains historical product reference only; existing MVP data, Drizzle artifacts, Bun SQLite migrations, and Electrobun app-data layouts are not migration targets.
+## What you can do
 
-Implemented capabilities include:
+- Organize testing Sessions with context, objectives, and a chronological Timeline.
+- Capture Notes, API responses, logs, screenshots, and attachments.
+- Link Findings to their supporting Evidence.
+- Write and edit Testware Drafts, with optional AI generation and Session Chat.
 
-- Session Library create/reopen/delete flows.
-- Session Context and Objective Notes.
-- Session Timeline Entry capture with include/exclude controls for generation.
-- Optional persistent Session Chat through the detected local AI CLIs, with explicit submission into the editable Session Note.
-- Findings linked to Entry Evidence and managed attachment Evidence, with Finding deletion.
-- Managed attachment import from pasted or uploaded clipboard image data.
-- Attachment preview data URLs.
-- Editable Testware Drafts persisted in local SQLite, with Draft deletion.
-- Explicit user-triggered AI generation through already-authenticated local Claude Code, Codex CLI, or GitHub Copilot CLI commands when available.
-- Local app settings for the generation system prompt.
-
-## Tech Stack
-
-- Desktop shell: Tauri 2
-- Core: Rust Cargo workspace
-- UI: React, TypeScript, and Vite
-- Storage: fresh Rust-owned SQLite schema through `rusqlite`
-- Bridge: typed Tauri commands and serde DTOs
-- AI: local CLI process execution only; QA Scribe does not store provider API keys
+Capture and editing work without AI. Optional AI uses your authenticated local Claude Code, Codex CLI, or GitHub Copilot CLI. QA Scribe does not store provider API keys.
 
 ## Install
 
-Download desktop builds from [GitHub Releases](https://github.com/ddv1982/qa-scribe/releases).
+Get the latest build from [GitHub Releases](https://github.com/ddv1982/qa-scribe/releases).
 
-macOS:
+- **macOS:** Open the `.dmg` and drag QA Scribe into Applications. Choose `aarch64` for Apple Silicon or `x64` for Intel.
+- **Linux:** Install the `.deb` or `.rpm`, or run the `.AppImage`.
 
-- Download the `.dmg` for your Mac.
-- Use `aarch64` for Apple Silicon and `x64` for Intel.
-- Open the DMG and drag QA Scribe into Applications.
-
-Linux:
-
-- Download the `.AppImage`, `.deb`, or `.rpm` from the latest release.
-- Debian/Ubuntu users can enable the signed APT repository:
+For Debian and Ubuntu, enable the signed APT repository:
 
 ```bash
 bash <(curl -fsSL https://ddv1982.github.io/qa-scribe/install-apt-repo.sh)
@@ -51,156 +34,60 @@ sudo apt update
 sudo apt install qa-scribe
 ```
 
-After the repository is enabled, normal `sudo apt update` and `sudo apt upgrade` runs handle updates.
+The bootstrap verifies the repository setup package with the pinned signing key. Later updates use your normal APT workflow.
 
-The APT bootstrap downloads the repository setup package and verifies it with the pinned QA Scribe APT signing key before installing the repository configuration.
+## Tech stack
 
-## Development
+- **Desktop and backend:** Rust and Tauri 2.
+- **Interface:** React 19, TypeScript, Vite, and Tiptap.
+- **Storage:** SQLite through `rusqlite`, with managed attachment files.
+- **Typed bridge:** Tauri commands, Serde, and Specta-generated TypeScript bindings.
+- **Tooling:** Bun, Rust `tsc-rs` build checks, and Oxlint with its Go-based typed-lint engine. Microsoft TypeScript 7 currently supplies the editor SDK.
+- **AI:** Local CLI processes for generation and Chat.
 
-Requirements:
+## Develop
 
-- Rust stable
-- Node.js 22.13 or newer
-- Bun 1.3.5 or newer
-- Platform toolchain for the local Tauri target
-- Optional authenticated local AI CLIs: `claude`, `codex`, or `copilot`
-
-Install frontend dependencies:
-
-```bash
-bun install --cwd frontend
-```
-
-Frontend type checks use the Rust compiler [`tsc-rs`](https://github.com/pingdotgg/ts-rust), pinned to version `0.7.0`. Both the UI and Vite configuration are checked before production builds. Vite bundles the frontend. Microsoft TypeScript `7.0.2` supplies the native editor SDK. Oxlint `1.89.0` and its Go-based `oxlint-tsgolint` `7.0.2004` engine provide typed linting. TypeScript 6 and its compiler API consumers are removed.
-
-`tsc-rs` ports TypeScript `7.1.0-dev.20261008.1`, so its revision differs from the stable editor SDK. `bun run frontend:check` requires native checking and typed lint to pass. The Rust compiler remains the authoritative build checker.
-
-For VS Code on Linux or macOS, open the repository root or `frontend` directly and install the recommended **TypeScript 7** (`TypeScriptTeam.native-preview`) and **Oxc** (`oxc.oxc-vscode`) extensions. Trust your checkout through **Manage Workspace Trust**, then open a TypeScript file and click **Allow** when TypeScript 7 offers the configured `7.0.2` SDK. If the notification is hidden, run **Notifications: Show Notifications**, then click **Allow** on the TypeScript 7 SDK notification. Root settings select `./frontend/node_modules/typescript`. Frontend settings select `./node_modules/typescript`.
-
-Check the **TypeScript 7** output for `Resolved to` inside this checkout's `frontend/node_modules/@typescript/` package. Check **Oxc (Lint)** output for the local Oxlint launcher and version `1.89.0`. Both folder layouts select the local `oxlint-tsgolint` package launcher for typed lint and keep per-file project discovery for UI sources and `vite.config.ts`. If runtime identities differ, inspect the effective `oxc.path.tsgolint` setting and the editor's `OXLINT_TSGOLINT_PATH` environment value. Compiler diagnostics show `ts`; lint diagnostics show `oxc`. The committed settings do not enable the experimental Rust TypeScript language server or change formatting and save actions.
-
-Run the tooling guard to inspect the entire lock and installed dependency graph, verify lint coverage, and exercise deliberate lint violations. Run the compiler probe to verify that valid TypeScript and TSX pass and deliberate type errors stop builds:
+Use the Rust toolchain in [rust-toolchain.toml](rust-toolchain.toml), Node.js 22.13 or newer, Bun 1.3.5, and the [development prerequisites](docs/development.md#requirements).
 
 ```bash
-bun run frontend:tooling:check
-bun run frontend:compiler:check
-```
-
-The probe checks the installed package version and removes its temporary fixtures. Both verification commands and CI run the probe. Read the [migration findings](docs/research/ts-rust-adoption.md) for compatibility evidence and scope.
-
-For continuous native checks on Linux or macOS, run `bun run frontend:typecheck:watch`. To run both checkers with Vite, run `bun run frontend:dev:checked`. From `frontend`, use `bun run typecheck:watch` or `bun run dev:checked`. Both project watchers show type errors and recover after edits. The checked session uses Vite's configured port, defaulting to 5173, and fails if it is occupied.
-
-These opt-in watchers add resident memory. On the probe host, median additional RSS was about 296 to 349 MiB. This [watch measurement](docs/research/typescript-7-watch-evidence.json) is conditional on that host and workload, rather than a universal memory cost.
-
-Ctrl-C stops every owned process group. A second interrupt skips the shutdown grace period. A failed or unexpectedly terminated child stops the session without restarting it. Process-group cleanup does not cover Ctrl-Z, killing the supervisor with SIGKILL, or descendants that create independent sessions. Ordinary `bun run --cwd frontend dev` runs Vite alone. Production builds and CI use their existing one-shot checks.
-
-Run the desktop app in development mode:
-
-```bash
+bun install --cwd frontend --frozen-lockfile
+bun run tauri:cli:install
 bun run dev
 ```
 
-Build the Rust workspace and frontend:
+Common commands:
 
 ```bash
-bun run build
+bun run frontend:dev:checked  # Vite with native compiler watchers
+bun run verify:fast           # Shorter local verification
+bun run verify                # Full verification
+bun run build                 # Build the frontend and Rust workspace
 ```
 
-Run the broad verification gate (typecheck, lint, tests, bindings check, release metadata, frontend build, `cargo fmt`/`clippy`/`test --workspace`, smoke run):
+See the [development guide](docs/development.md) for editor setup, checks, smoke tests, and desktop end-to-end tests. Read [AI providers and Session Chat](docs/ai-providers.md) for authentication, tools, permissions, and recovery.
 
-```bash
-bun run verify
-```
+## Data and privacy
 
-Run the fast local-loop subset (typecheck, lint, frontend tests, `cargo fmt --check`, `cargo clippy` — no build/test/smoke/audit, and it runs offline):
+Sessions and Drafts live in local SQLite. Attachments are managed files in the app-data directory. Deleting a Session removes its database records and attachments. Older Electrobun databases are not migrated.
 
-```bash
-bun run verify:fast
-```
+Deleting a Finding removes its Evidence links. Deleting a Draft preserves its AI Run history.
 
-Run the non-GUI smoke harness:
+AI generation sends the selected context and attachment metadata, without raw attachment binaries. Chat tools and connectors use the selected CLI's permissions. See the [AI guide](docs/ai-providers.md) for the full behavior.
 
-```bash
-bun run smoke
-```
-
-Run the built desktop application against deterministic end-to-end workflows. On Linux, the native-close workflow requires an isolated X11 display:
-
-```bash
-GDK_BACKEND=x11 xvfb-run -a bun run e2e
-```
-
-On macOS, run `bun run e2e`.
-
-Run the reproducible large-data startup measurement (five launches by default):
-
-```bash
-bun run startup:benchmark
-```
-
-Validate package metadata JSON:
-
-```bash
-bun run package:check
-```
-
-## AI Providers
-
-AI generation is optional. Capture, persistence, manual review, Draft editing, and attachment handling work without AI configuration.
-
-QA Scribe does not manage API keys. It checks local CLI readiness and only starts generation when the user explicitly chooses a ready provider and runs generation.
-
-- Claude Code: checks `claude --version` and `claude auth status --json`, detects model aliases from `claude --help`, then runs `claude -p` with the prompt on stdin. When a non-default model is selected, qa-scribe passes `--model <model>`. AI action jobs use `--output-format stream-json --include-partial-messages` so the UI can show progress and partial output.
-- Codex CLI: checks `codex --version` and `codex login status`, detects selectable models from `codex debug models`, then runs `codex exec --skip-git-repo-check -`. When a non-default model is selected, qa-scribe passes `--model <model>`. AI action jobs use `--json` so the UI can show progress and partial output.
-- GitHub Copilot CLI: checks the real `copilot version` command. If the standalone CLI is not present, qa-scribe only treats `gh copilot` as ready when `gh copilot -- --help` confirms the Copilot CLI bridge is installed. Plain `gh copilot --help` does not mark Copilot ready.
-
-Provider status can be ready, auth required, install required, or error. Provider model and reasoning choices are recorded on each AI Run, included in the provider prompt, and passed to provider CLIs where supported. Provider authentication remains the responsibility of the local CLI.
-
-## Session Chat
-
-Create or open a Session, then choose **Write note** or **Chat**. Chat uses the same detected, authenticated local provider and model selection as existing Note actions. Send messages explicitly, exchange testing details, and choose **Submit to Session Note** when every turn is complete and the composer is empty.
-
-Submission appends the role-labelled conversation to the primary Note, preserves its existing rich content, and returns to Write note. You can edit it and use **Generate test cases**, **Create finding**, or **Summarize notes** afterward. Submission itself makes no AI request.
-
-Messages, unsent composer text, and mode are stored locally per Session. Completed turns are replayed to the CLI on each request; provider-native resume files are not required. Cancelled, failed, or interrupted latest turns can be retried explicitly without duplicating the user message. An earlier unresolved turn requires a new conversation; starting one archives the old conversation locally. Submitted conversations remain readable until you explicitly start another conversation.
-
-Chat is text-only and bounded to 16 KiB per sent message, 128 KiB of transcript text, and 128 messages including unsuccessful turns. Oversized sends retain the unsent composer text. If submission succeeds but its response or Note reload fails, the Note is write-protected until **Recover Session Note** safely reads its canonical state. Authentication remains in the existing CLIs; QA Scribe does not add direct provider APIs or store API keys.
-
-Chat can use tools and connectors already configured in Claude Code, Codex CLI, or GitHub Copilot CLI, subject to that provider's permissions. For example, a configured Jira connector can retrieve a user story on request. Native permission requests appear in Chat with **Approve once** and **Deny** actions; **Cancel response** remains available. Decisions apply only to the requested invocation and are not saved as reusable permissions. Existing CLI deny rules and managed policies remain authoritative. QA Scribe adds no tool allowlist, MCP override, or permission bypass. User-scoped CLI configuration is inherited in neutral execution directories; project-local configuration is not loaded from the app's launch directory. Authentication and connector setup remain CLI-owned. Tool access does not automatically submit or modify the Session Note.
-
-Chat uses Claude's bidirectional stream-json control protocol, Codex app-server stdio, and Copilot's ACP stdio interface. Unsupported permission request schemas fail visibly rather than being auto-approved. Where a provider supplies only a description, Chat labels it as a provider description instead of inventing a tool identity. **Recheck status** reloads response and provider readiness without sending a message; **Retry response** is an explicit new attempt. Authenticated Copilot tool execution has not been verified for this change because account access is unavailable; its approval transport is covered by deterministic process and UI checks.
-
-Claude and Codex Chat use a fresh temporary directory each turn. Copilot Chat uses the stable private `copilot-chat` directory inside qa-scribe's Tauri app-data directory, because Copilot saves approvals by directory. After the first Copilot Chat attempt creates it, open an interactive Copilot CLI there and approve the specific tools you want to use. Those approvals remain CLI-owned and apply to later Chat turns. On Linux the default scope is `~/.local/share/io.github.ddv1982.qa-scribe/copilot-chat` (or the equivalent under `$XDG_DATA_HOME`); on macOS it is `~/Library/Application Support/io.github.ddv1982.qa-scribe/copilot-chat`. This directory persists across turns and app restarts; files created there by permitted tools also remain. Ordinary generation and readiness probes continue using fresh temporary directories.
-
-## Data And Privacy
-
-- Storage is local SQLite under the Tauri app-data directory.
-- Managed attachment files are stored under `attachments/<session-id>/` in the app-data directory.
-- SQLite stores attachment metadata, ownership, hashes, and relative paths.
-- Deleting a Session through the Tauri app removes its managed attachment files and cascades database rows.
-- Deleting a Finding removes its Evidence links; deleting a Draft removes only that Draft row and preserves AI Run history.
-- AI calls send only the selected Generation Context text and attachment metadata, not raw attachment binaries.
-- Existing Electrobun/Bun databases are intentionally not read or migrated.
-
-## Project Structure
+## Project layout
 
 ```text
-crates/qa-scribe-core/  Domain, SQLite storage, attachments, generation, tests
+crates/qa-scribe-core/  Domain, SQLite, attachments, and generation
 crates/qa-scribe-app/   Non-GUI smoke harness
-src-tauri/              Tauri 2 shell and command modules
-frontend/               React/Vite renderer and typed Tauri bridge
-docs/                   Rebuild plan and architecture decisions
+src-tauri/             Desktop shell and Tauri commands
+frontend/              React interface and typed bridge
+docs/                  Guides, architecture, and research
 ```
 
-## Documentation
+## More information
 
 - [Project wiki](https://github.com/ddv1982/qa-scribe/wiki)
-- [Rust rebuild plan](docs/rust-rebuild-plan.md)
-- [Rebuild ADR](docs/adr/0009-rebuild-with-rust-tauri.md)
-- [Project language](CONTEXT.md)
-- [Quality scenarios](docs/quality-scenarios.md)
-- [v0.7.13 code quality baseline](docs/code-quality-baseline.md)
-- [Code size guidelines](docs/code-size-guidelines.md)
+- [Product terminology](CONTEXT.md)
 - [Architecture decisions](docs/adr)
-- [Release workflow](docs/releasing.md)
-- Historical planning docs remain in `docs/` for reference.
+- [Quality scenarios](docs/quality-scenarios.md)
+- [Release process](docs/releasing.md)
