@@ -79,6 +79,8 @@ Implementation started from `origin/main` at `efaf81615b9ab2e14b904db2b58d186d44
 - [x] Keep the Chat composer and Send action together. Let the conversation scroll without pushing its primary action below the initial laptop viewport.
 - [x] Keep record Edit, Save, and Discard reachable without scrolling past an empty preview. Preserve useful document space and existing long-content scrolling.
 - [x] Preserve the narrow-window fallback. At 320 by 520, allow document scrolling and compact labelled actions instead of requiring every control on one row.
+- [x] Keep asynchronous tool-permission and uncertain-decision attention outside retained conversation scrolling. Require readable context, reachable decisions and Cancel, unchanged consent semantics, and preserved history.
+- [x] Handle Escape in the command search field so its native search behavior cannot consume the close action. Retain ordinary command-result cancellation and focus return.
 
 **You see.**
 
@@ -112,7 +114,10 @@ Implementation started from `origin/main` at `efaf81615b9ab2e14b904db2b58d186d44
 
 - [ ] Provide the operator with matched screenshot pairs and `UX-1-review.mp4`, a 30 to 60 second video of resize, scroll, and keyboard use. Obtain the independent verdict at the same patch.
 
-Local evidence is `artifacts/ux-improvements/UX-1/UX-1-handoff.json`. Final Linux X11 native proof passed two tests with no skips at all four sizes. Parent frontend checks and 572 tests passed. The 34-second video and matched screenshots are retained locally. Hosted macOS and exact-patch review remain pending.
+The original Linux evidence is `artifacts/ux-improvements/UX-1/UX-1-handoff.json`. The first independent verdict passed that patch, then native reproduction confirmed a permission visibility defect and hosted macOS exposed a 645-pixel height clamp. The old verdict cannot approve the corrective patch.
+The corrective implementation keeps permission context and decisions outside history scrolling. The locally verified Escape fix retains the existing modal hook. Combined source verification passed frontend checks, 578 frontend tests, and 22 runner tests under `artifacts/ux-improvements/UX-1/combined-checks/`. Fresh Linux runs passed three UI cases, seven Codex authorization cases, and the 35-second walkthrough under the matching `combined-*` artifact directories. Hosted macOS and fresh exact-patch review remain required before merge.
+Keep planned, available, and actual viewport dimensions in calibration evidence. Exact assertions use the available target; unavailable 720-pixel macOS coverage is not a pass at 720 pixels. Linux retains exact checks at the planned dimensions.
+Linux keyboard checks use trusted XTEST events. The embedded WebDriver generates JavaScript key events on macOS and cannot establish native Tab traversal. Record that limit explicitly. Hosted macOS checks cover key handlers, dialog cancellation and focus geometry; do not claim physical macOS keyboard proof or a comprehensive accessibility audit.
 
 **Merge.**
 
