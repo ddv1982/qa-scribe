@@ -1,6 +1,6 @@
 {
   "phase": "T7-3",
-  "status": "SHIPPING_FAIL_CORRECTIVE_ISOLATION_AND_SAFE_STRESS_PREPARATION_ACTIVE",
+  "status": "REVISED_RELEASE_SCOPE_FUNCTIONAL_SMOKE_AND_FRESH_REVIEW_PENDING",
   "base_source": "b23b0313fbc2a2c54f02b4f147c2a8b8938002b0",
   "base_merge": "678acfee0535c3bdef35afd181e3b882b119edc1",
   "configuration": "Paired root/frontend workspace JSON selects the local Microsoft Go SDK7.0.2, Oxlint1.89.0, and official local tsgolint7.0.2004 launcher. Runtime identity requires actual editor trust and SDK Allow.",
@@ -186,7 +186,7 @@
       "candidate-preflight-helper-failure.txt": "d6111a83b2ebb912d9897f0d824d66822075e0e129d70fd1f26cb6954dce6643",
       "candidate-preflight-history.json": "b13478e7cc9230d2eacc24da1071f2d57d22a3bc0160ee4b51e8e15ee4110825"
     },
-    "claims": "The original numerical thresholds pass in these two sequential root-layout sessions on one Linux host. No speedup claim. Frontend direct opening has separate functional proof.",
+    "claims": "Protocol-nonconformant observations only. Both original sessions accessed default shared application storage. Their recorded numerical thresholds pass under those actual conditions, but isolated performance acceptance failed. No speedup, performance-equivalence, memory-bound, or long-session stability claim. Frontend direct opening has separate functional proof.",
     "baseline_workspace_deviation": {
       "discoveredAt": "2026-10-20T17:43:40.363949+00:00",
       "originalPath": "/tmp/qa-scribe-ts7/T7-3/owner/baseline/.vscode/settings.json",
@@ -245,9 +245,8 @@
     }
   },
   "pending": [
-    "Reviewed safe cleanup and replacement lane10 proof.",
-    "Separately registered isolated-duration corrective study, unchanged limits and retained original failures.",
-    "Fresh independent shipping verdict and exact-head CI, then normal merge.",
+    "Bounded private functional smoke with reviewed owned cleanup and all distinct IDE scenarios covered or bound to trustworthy unchanged-source evidence.",
+    "Fresh independent shipping judgment assessing the explicit scope amendment, final patch and current CI, then normal merge.",
     "T7-4 final release validation and publication through existing CI."
   ],
   "raw_receipts_committed": false,
@@ -623,18 +622,62 @@
     "blockers": [
       "Lane10 unsafe cleanup attempt leaves whole-lane owned-only cleanup unproved. Replace bounded functional stress with prereviewed cleanup; retain original incident and unknown historical effects.",
       "Original performance sessions accessed default shared storage. A separately registered corrective study with explicit private storage and unchanged numerical limits is required. Original rows stay conditional observations with strict failures."
-    ]
+    ],
+    "supersession": "Historical FAIL retained. A fresh reviewer must assess the scope amendment and the final evidence. This record does not grant a new shipping PASS."
   },
   "corrective_verification": {
-    "status": "STAGE_A_HARNESS_AND_PROTOCOL_PREPARATION",
+    "status": "MEASUREMENT_PROGRAM_SUPERSEDED_BY_BOUNDED_FUNCTIONAL_RELEASE_SCOPE",
     "owner_task": "node:delegated-task:command%3Amcp%3Af2877ea0-a0d1-4168-97c4-278172e7b811%3Adelegate-task%3Aqa-scribe-ts7-t73-corrective-isolation-owner-stage-a-20261020",
     "root": "/tmp/qa-scribe-ts7/T7-3/corrective-isolation-20261020",
-    "stages": [
+    "authority": "The release-scope amendment supersedes the measurement requirement under the autonomous execution request. No historical result is waived or relabeled. Fresh functional proof and independent shipping judgment remain required.",
+    "historical_stages": [
       "Prepare owned-root registry, cleanup safety tests, full-workspace guard, readiness receipt and draft registration. Parent reviews before live launch.",
       "Calibrate separately, run one replacement safe five-minute stress scenario, reset probes and freeze final harness.",
       "Run a new registered isolated manual baseline and candidate for30minutes each under original limits. No original rows replaced, no valid corrective repetitions dropped.",
       "Inspect raw receipts, commit accurate evidence through the program, obtain fresh exact-patch independent shipping verdict and current CI."
     ],
-    "authority": "User-authorized autonomous completion. Corrective studies close independently identified verification gaps; no operator pause or threshold waiver."
+    "stages": [
+      "Preserve all corrective helper versions, tests, preflight failures and cleanup receipts. Do not require the measurement framework to ship the editor configuration.",
+      "Complete a bounded actual IDE smoke pass with private storage, reviewed ownership and safe cleanup. Cover the distinct functional scenarios without ten separate agent sessions.",
+      "Record the deferred performance guarantee and obtain a fresh independent exact-patch shipping verdict and current CI."
+    ],
+    "historical_authority": "User-authorized autonomous completion. Corrective studies close independently identified verification gaps; no operator pause or threshold waiver."
+  },
+  "deferred": [
+    {
+      "requirement": "Separately registered paired 30-minute isolated-duration corrective study under the original numerical limits.",
+      "status": "DEFERRED_NOT_MET",
+      "reason": "Explicit post-failure release-scope amendment on 2026-10-21. The user asked to reassess disproportionate verification work. Existing CI and real functional correctness remain required. The release makes no performance or sustained-memory guarantee.",
+      "historical_result": "Original strict protocol failures, conditional measurements, unsafe cleanup incident and unknown historical effects remain unchanged."
+    }
+  ],
+  "release_scope_amendment": {
+    "date": "2026-10-21",
+    "authority": "Parent decision under the user-authorized autonomous release task after the user asked whether release checks had become a dead end. This is a post-failure scope change, not a passing study or a reviewer waiver.",
+    "critiques": [
+      {
+        "model": "gpt-6.1-sol",
+        "result": "Supports revised scope while preserving distinct functional scenarios and qualifying platform claims."
+      },
+      {
+        "model": "claude-opus-5-5",
+        "task": "node:delegated-task:command%3Amcp%3Af2877ea0-a0d1-4168-97c4-278172e7b811%3Adelegate-task%3Aqa-scribe-release-gate-reassessment-20261021-opus-r1",
+        "result": "Defensible with explicit post-failure disclosure, original failures retained, safe private smoke and fresh independent judgment."
+      }
+    ],
+    "required": [
+      "Existing shared CI and release validation unchanged.",
+      "Actual provider identity, both workspace layouts, compiler and typed-lint diagnostics and repair, completion, hover, navigation, reload and repeated edits.",
+      "Private resources and reviewed owned-only cleanup.",
+      "Fresh exact-patch independent shipping verdict and current protected CI."
+    ],
+    "claims_excluded": [
+      "Speedup",
+      "Performance equivalence",
+      "Bounded memory growth",
+      "Long-session stability",
+      "Actual macOS IDE behavior inferred from Linux IDE or macOS CLI checks"
+    ],
+    "limits": "Historical lane 10 remains ISSUES. Fresh smoke cannot reconstruct its unknown historical effects. Current ordinary trusted-workflow failures remain product blockers."
   }
 }
