@@ -17,6 +17,7 @@ const recordTitle = 'E2E checkout checks'
 const recordText = 'Verify the checkout confirmation and retain supporting Evidence.'
 const note = '[aria-label="Note body"][contenteditable="true"]'
 const trigger = '[aria-label="Open command palette"]'
+const inputBackend = process.platform === 'linux' ? 'linux-x11-xtest' : 'embedded-webdriver-key-events'
 const evidence = []
 const layoutFailures = []
 
@@ -144,7 +145,7 @@ async function palette(stage, width, theme) {
 }
 
 async function paletteEscape() {
-  const keyboard = { platform: process.platform }
+  const keyboard = { platform: process.platform, inputBackend }
   const sendKey = process.platform === 'linux'
     ? nativeKeySender(keyboard, () => save('palette-native-keyboard', keyboard), Key)
     : (key) => browser.keys(key)
@@ -172,23 +173,26 @@ async function paletteEscape() {
       open: Boolean(document.querySelector('dialog.command-palette[open]')),
       focusReturned: document.activeElement === document.querySelector(selector), events: window.__paletteEscape,
     }), trigger)
-    save(`palette-escape-${stage}`, value)
+    save(`palette-escape-${stage}`, { inputBackend, ...value })
     await browser.saveScreenshot(join(artifacts, `palette-escape-${stage}-after.png`))
-    assert.deepEqual(value.events, [{ trusted: true, key: 'Escape' }], `${stage}: use one real native Escape`)
+    assert.deepEqual(value.events, [{ trusted: process.platform === 'linux', key: 'Escape' }],
+      `${stage}: one Escape must match the recorded input backend`)
     assert.equal(value.open, false, `${stage}: first Escape closes the command palette`)
     assert.equal(value.focusReturned, true, `${stage}: Escape restores focus to the opener`)
   }
 }
 
-async function laptopResize(width, height) {
+async function laptopResize(width, plannedHeight) {
   await browser.setWindowSize(1280, 860)
   const calibration = await settledViewport()
   const scale = 1280 / calibration.width
+  const availableHeightCeiling = process.platform === 'darwin' ? calibration.height : null
+  const height = availableHeightCeiling === null ? plannedHeight : Math.min(plannedHeight, availableHeightCeiling)
   let requested = { width: Math.round(width * scale), height: Math.round(height * scale) }
   for (let attempt = 0; attempt < 5; attempt += 1) {
     await browser.setWindowSize(requested.width, requested.height)
     const actual = await settledViewport()
-    save('viewport-calibration', { target: { width, height }, requested, actual })
+    save('viewport-calibration', { plannedTarget: { width, height: plannedHeight }, calibration, availableHeightCeiling, target: { width, height }, requested, actual })
     if (Math.abs(actual.width - width) <= 2 && Math.abs(actual.height - height) <= 2) return
     requested = { width: Math.round(requested.width + (width - actual.width) * scale),
       height: Math.round(requested.height + (height - actual.height) * scale) }
@@ -244,7 +248,7 @@ async function actions(stage, selector, initial = true) {
 }
 
 describe('Native UI polish before/after evidence', () => {
-  it('closes command search and options on the first native Escape and can reopen', async () => {
+  it('closes command search and options on the first Escape and can reopen', async () => {
     await (await $(trigger)).waitForClickable()
     await paletteEscape()
   })
@@ -449,16 +453,24 @@ describe('Native UI polish before/after evidence', () => {
     await click('[aria-label="Apply link"]')
     await (await $('.link-editor-error')).waitForDisplayed()
     await browser.execute(() => document.querySelector('.document-mode button').focus())
-    const keyboard = { platform: process.platform }
+    const keyboard = { platform: process.platform, inputBackend, nativeTabVerified: false }
     const sendKey = process.platform === 'linux'
       ? nativeKeySender(keyboard, () => save('native-keyboard', keyboard), Key)
       : (key) => browser.keys(key)
-    await sendKey(Key.Tab)
+    if (process.platform === 'linux') {
+      await sendKey(Key.Tab)
+    } else {
+      keyboard.unavailableMethodReason = 'Embedded WebDriver dispatches untrusted KeyboardEvent instances and cannot perform native Tab traversal.'
+      keyboard.focusMethod = 'Explicit Chat focus for outline geometry'
+      await browser.execute(() => document.querySelector('.document-mode button:last-child').focus())
+    }
     await browser.waitUntil(async () => browser.execute(() => document.activeElement?.textContent.trim() === 'Chat'))
+    keyboard.nativeTabVerified = process.platform === 'linux'
+    save('keyboard-input', keyboard)
     await actions('keyboard-error', '.ai-action-buttons button')
     const focused = await browser.execute(() => ({ label: document.activeElement.textContent.trim(), outline: getComputedStyle(document.activeElement).outlineStyle }))
     save('keyboard-focus', focused)
-    assert.notEqual(focused.outline, 'none', 'Keyboard action focus must remain visible beside validation errors')
+    assert.notEqual(focused.outline, 'none', 'Focused action outline must remain visible beside validation errors')
     await (await $('[aria-label="Link URL"]')).click()
     await sendKey(Key.Escape)
     await (await $('.link-editor-popover')).waitForExist({ reverse: true })
