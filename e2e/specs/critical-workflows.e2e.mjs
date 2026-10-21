@@ -257,13 +257,35 @@ const workflows = {
       await create.waitForClickable()
       await create.click()
 
-      const record = await $('h2=Untitled testware')
+      const titleInput = await $('[aria-label="Testware title"]')
+      await titleInput.waitForDisplayed()
+      assert.ok(await browser.execute(() => document.activeElement?.matches('[aria-label="Testware title"]')))
+      const created = await browser.tauri.execute(async ({ core }) => {
+        const session = (await core.invoke('list_sessions')).find((item) => item.title === 'E2E manual testware session')
+        return (await core.invoke('list_drafts', { sessionId: session.id }))[0]
+      })
+      assert.equal(await (await $('.editable-record [contenteditable="true"]')).getAttribute('id'), `testware-editor-${created.id}`)
+      await titleInput.setValue('E2E manual saved testware')
+      await (await $('.editable-record [contenteditable="true"]')).setValue('Manual persisted body.')
+      await (await button('Save')).click()
+      const record = await $('h2=E2E manual saved testware')
       await record.waitForDisplayed()
-      await (await $('[aria-label="Delete Untitled testware"]')).click()
+      const saved = await browser.tauri.execute(async ({ core }, sessionId) => core.invoke('list_drafts', { sessionId }), created.sessionId)
+      assert.deepEqual(saved.map(({ id, title, body }) => ({ id, title, body })), [
+        { id: created.id, title: 'E2E manual saved testware', body: '<p>Manual persisted body.</p>' },
+      ])
+      await (await button('Edit')).click()
+      await (await $('[aria-label="Testware title"]')).setValue('Discard this manual edit')
+      await (await button('Discard')).click()
+      await (await $('h2=E2E manual saved testware')).waitForDisplayed()
+      assert.equal((await browser.tauri.execute(async ({ core }, sessionId) => core.invoke('list_drafts', { sessionId }), created.sessionId))[0].title,
+        'E2E manual saved testware')
+      await (await $('[aria-label="Delete E2E manual saved testware"]')).click()
       const confirmDelete = await button('Delete testware permanently')
       await confirmDelete.waitForClickable()
       await confirmDelete.click()
-      await record.waitForExist({ reverse: true })
+      await (await $('h2=E2E manual saved testware')).waitForExist({ reverse: true })
+      assert.deepEqual(await browser.tauri.execute(async ({ core }, sessionId) => core.invoke('list_drafts', { sessionId }), created.sessionId), [])
     },
   },
   clipboard: {

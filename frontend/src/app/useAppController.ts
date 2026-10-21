@@ -9,7 +9,7 @@ import { useGenerationActions } from './generationActions'
 import { useRecordPersistence } from './recordPersistence'
 import { useRecordActions } from './recordActions'
 import { useSessionActions } from './sessionActions'
-import type { AiSelection, RecordWorkspace, WorkflowNavigation } from './types'
+import type { AiSelection, CreatedRecordEditTarget, RecordWorkspace, WorkflowNavigation } from './types'
 import { useAppStartup } from './useAppStartup'
 import { usePendingChangeProtection } from './usePendingChangeProtection'
 import { useRecordHydration } from './useRecordHydration'
@@ -83,6 +83,7 @@ export function useAppController() {
   const [pendingSettingsSection, setPendingSettingsSection] = useState<string | null>(null)
   const [settingsSection, setSettingsSection] = useState<string | null>(null)
   const [focusedRecordId, setFocusedRecordId] = useState<string | null>(null)
+  const [createdRecordEditTarget, setCreatedRecordEditTarget] = useState<CreatedRecordEditTarget | null>(null)
   const initialNavigationRouteRef = useRef(parseNavigationRoute(window.location.hash))
   const navigationRouteHydratedRef = useRef(false)
   const settingsReturnViewRef = useRef<MainView>('sessions')
@@ -207,7 +208,7 @@ export function useAppController() {
     selectedReasoningEffort,
   }
   const navigation: WorkflowNavigation = {
-    setActiveView,
+    setActiveView: (view) => { setCreatedRecordEditTarget(null); setActiveView(view) },
   }
   const importedAttachments = useImportedAttachments()
   const attachmentActions = useAttachmentActions({
@@ -269,6 +270,9 @@ export function useAppController() {
     deletion,
     saveNoteNow: sessionActions.saveNoteNow,
     registerRecordEditIntent: sessionActions.registerRecordEditIntent,
+    beginSessionNavigation: () => beginSessionNavigation(),
+    sessionNavigationIsCurrent: sessionActions.sessionNavigationIsCurrent,
+    openCreatedRecord: (target, epoch) => openCreatedRecord(target, epoch),
     handleDeleteSession: sessionActions.handleDeleteSession,
     materializeInlineImages: attachmentActions.materializeInlineImages,
     cleanupMaterializedAttachments: attachmentActions.cleanupMaterializedAttachments,
@@ -302,15 +306,15 @@ export function useAppController() {
     openLibraryRecord, openSessionInCurrentView, openSettingsSection,
     requestActiveView, requestNewSession, requestOpenSession,
     savePendingNavigationChanges,
+    beginSessionNavigation, consumeCreatedRecordEditTarget, openCreatedRecord,
   } = useAppControllerNavigation({
     chat: chatProtection,
-    activeSession, activeView, settlement, dirtyDraftIdsRef, dirtyFindingIdsRef,
+    activeSession, activeSessionIdRef: sessionWorkspace.activeSessionIdRef, activeView, settlement, dirtyDraftIdsRef, dirtyFindingIdsRef,
     discardSettingsDraft, focusedRecordId, pendingNavigationContinuationRef, pendingNavigationEpochRef,
     pendingNavigationView, recordActions,
     sessionActions, sessions, settingsDirty, settingsReturnViewRef, settingsSection,
-    setActiveView, setError, setFocusedRecordId, setPendingNavigationView, setPendingSettingsSection, setSettingsSection,
+    setActiveView, setError, setFocusedRecordId, setCreatedRecordEditTarget, setPendingNavigationView, setPendingSettingsSection, setSettingsSection,
   })
-
 
   useEffect(() => {
     if (activeView !== 'settings' || !pendingSettingsSection) return
@@ -402,6 +406,7 @@ export function useAppController() {
 
   return {
     sessionChat, sessionMode, setSessionMode, saveAllPendingChanges: settlement.flush, noteReadOnly,
+    createdRecordEditTarget, consumeCreatedRecordEditTarget,
     attachmentCleanup,
     ...attachmentActions,
     ...copyActions,

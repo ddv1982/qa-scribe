@@ -24,6 +24,12 @@ export type LatestNoteGenerationUndo =
 export type RichRecordPatch = Partial<Pick<Draft, 'title' | 'body' | 'bodyJson' | 'bodyFormat'>>
 export type FindingRecordPatch = RichRecordPatch & Partial<Pick<Finding, 'kind' | 'metadataJson'>>
 
+export type CreatedRecordEditTarget = {
+  sessionId: string
+  kind: 'testware' | 'finding'
+  recordId: string
+}
+
 export type SessionWorkspace = {
   activeSession: Session | null
   noteEntry: Entry | null

@@ -248,6 +248,7 @@ export function AppShell(c: AppController) {
 
         {c.activeView === 'testware' ? (
           <TestwareView
+            key={c.activeSession?.id ?? 'no-session'}
             busyAction={c.busyAction}
             copiedDraftId={c.copiedTarget?.kind === 'draft' && c.copiedTarget.action === 'jira-text' ? c.copiedTarget.id : null}
             copiedDraftScreenshotId={c.copiedTarget?.kind === 'draft' && c.copiedTarget.action === 'screenshot' ? c.copiedTarget.id : null}
@@ -259,6 +260,8 @@ export function AppShell(c: AppController) {
             isBusy={c.isBusy}
             activeGenerationJob={c.activeTestwareJob}
             initialSelectedRecordId={c.focusedRecordId}
+            createdRecordEditTarget={c.createdRecordEditTarget?.sessionId === c.activeSession?.id && c.createdRecordEditTarget?.kind === 'testware' ? c.createdRecordEditTarget : null}
+            onCreatedRecordEditTargetConsumed={c.consumeCreatedRecordEditTarget}
             loadState={c.draftLoadState}
             loadError={c.draftLoadError}
             onRetryLoad={() => {
@@ -278,6 +281,7 @@ export function AppShell(c: AppController) {
 
         {c.activeView === 'findings' ? (
           <FindingsView
+            key={c.activeSession?.id ?? 'no-session'}
             busyAction={c.busyAction}
             copiedFindingId={c.copiedTarget?.kind === 'finding' && c.copiedTarget.action === 'jira-text' ? c.copiedTarget.id : null}
             copiedFindingScreenshotId={c.copiedTarget?.kind === 'finding' && c.copiedTarget.action === 'screenshot' ? c.copiedTarget.id : null}
@@ -289,6 +293,8 @@ export function AppShell(c: AppController) {
             isBusy={c.isBusy}
             activeGenerationJob={c.activeFindingJob}
             initialSelectedRecordId={c.focusedRecordId}
+            createdRecordEditTarget={c.createdRecordEditTarget?.sessionId === c.activeSession?.id && c.createdRecordEditTarget?.kind === 'finding' ? c.createdRecordEditTarget : null}
+            onCreatedRecordEditTargetConsumed={c.consumeCreatedRecordEditTarget}
             loadState={c.findingLoadState}
             loadError={c.findingLoadError}
             onRetryLoad={() => {

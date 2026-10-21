@@ -112,16 +112,16 @@ Implementation started from `origin/main` at `efaf81615b9ab2e14b904db2b58d186d44
 
 **Review gate.** Review the interaction before merge.
 
-- [ ] Provide the operator with matched screenshot pairs and `UX-1-review.mp4`, a 30 to 60 second video of resize, scroll, and keyboard use. Obtain the independent verdict at the same patch.
+- [x] Provide the operator with matched screenshot pairs and `UX-1-review.mp4`, a 30 to 60 second video of resize, scroll, and keyboard use. Obtain the independent verdict at the same patch.
 
 The original Linux evidence is `artifacts/ux-improvements/UX-1/UX-1-handoff.json`. The first independent verdict passed that patch, then native reproduction confirmed a permission visibility defect and hosted macOS exposed a 645-pixel height clamp. The old verdict cannot approve the corrective patch.
-The corrective implementation keeps permission context and decisions outside history scrolling. The locally verified Escape fix retains the existing modal hook. Combined source verification passed frontend checks, 578 frontend tests, and 22 runner tests under `artifacts/ux-improvements/UX-1/combined-checks/`. Fresh Linux runs passed three UI cases, seven Codex authorization cases, and the 35-second walkthrough under the matching `combined-*` artifact directories. Hosted macOS and fresh exact-patch review remain required before merge.
+The corrective implementation keeps permission context and decisions outside history scrolling. The locally verified Escape fix retains the existing modal hook. Combined source verification passed frontend checks, 578 frontend tests, and 22 runner tests under `artifacts/ux-improvements/UX-1/combined-checks/`. Fresh Linux runs passed three UI cases, seven Codex authorization cases, and the 35-second walkthrough under the matching `combined-*` artifact directories. Independent OpenAI gpt-6-astra round 2 returned PASS+NOTES at `f9b01c0`. The final commit `f0ae0db` changed only the model-menu test. Two reviewed-head E2E builds and one final-source build produced 20 identical assets, retaining the product verdict under the Shipping test-only rule. Fresh Linux checks, packaging, and every hosted macOS desktop invocation passed in CI run `39674305606`. PR #66 merged normally as `7c84c5f` on 2026-10-21. Local evidence is `artifacts/ux-improvements/UX-1/merge-readiness.json`.
 Keep planned, available, and actual viewport dimensions in calibration evidence. Exact assertions use the available target; unavailable 720-pixel macOS coverage is not a pass at 720 pixels. Linux retains exact checks at the planned dimensions.
 Linux keyboard checks use trusted XTEST events. The embedded WebDriver generates JavaScript key events on macOS and cannot establish native Tab traversal. Record that limit explicitly. Hosted macOS checks cover key handlers, dialog cancellation and focus geometry; do not claim physical macOS keyboard proof or a comprehensive accessibility audit.
 
 **Merge.**
 
-- [ ] Require protected CI, exact-patch review, and applicable user authority. Keep UX-1 independently revertible without data migration.
+- [x] Require protected CI, exact-patch review, and applicable user authority. Keep UX-1 independently revertible without data migration.
 
 ## Open new records directly in the editor (UX-2)
 
@@ -129,48 +129,51 @@ Linux keyboard checks use trusted XTEST events. The embedded WebDriver generates
 
 **Files.**
 
-- [ ] Edit `frontend/src/app/recordActions.ts`, the current controller navigation types, `frontend/src/app/AppShell.tsx`, and `frontend/src/views/RecordCollectionView.tsx`.
-- [ ] Extend `frontend/src/app/useAppController.workflows.record-editing.test.ts`, `frontend/src/app/useAppController.autosave.records.test.ts`, `frontend/src/views/RecordCollectionView.test.tsx`, and the maintained manual-testware E2E scenario.
+- [x] Edit `frontend/src/app/recordActions.ts`, the current controller navigation types, `frontend/src/app/AppShell.tsx`, and `frontend/src/views/RecordCollectionView.tsx`.
+- [x] Extend `frontend/src/app/useAppController.workflows.record-editing.test.ts`, `frontend/src/app/useAppController.autosave.records.test.ts`, `frontend/src/views/RecordCollectionView.test.tsx`, and the maintained manual-testware E2E scenario.
 
 **Build.**
 
-- [ ] Retain the returned created record ID. Pass a single-use edit intent containing session identity, record kind, and record identity through the existing controller boundary.
-- [ ] Select the new record, enter editing mode, and focus its title. Consume the intent once so ordinary library navigation does not reopen editing.
-- [ ] Clear or adjust filters that hide the new record. Do not select the first record by sort order.
-- [ ] Preserve existing persistence and navigation settlement. Describe Note autosave and record saving accurately. Do not claim record edits persist only when Save is clicked because navigation can already flush dirty records.
-- [ ] Keep Discard behavior explicit. Restore the existing saved snapshot without silently deleting the newly created record.
+- [x] Retain the returned created record ID. Pass a single-use edit intent containing session identity, record kind, and record identity through the existing controller boundary.
+- [x] Select the new record, enter editing mode, and focus its title. Consume the intent once so ordinary library navigation does not reopen editing.
+- [x] Clear or adjust filters that hide the new record. Do not select the first record by sort order.
+- [x] Preserve existing persistence and navigation settlement. Describe Note autosave and record saving accurately. Do not claim record edits persist only when Save is clicked because navigation can already flush dirty records.
+- [x] Keep Discard behavior explicit. Restore the existing saved snapshot without silently deleting the newly created record.
 
 **You see.**
 
-- [ ] One New Testware or New Finding action opens the correct editable record with its title focused. No additional Edit click is required.
+- [x] One New Testware or New Finding action opens the correct editable record with its title focused. No additional Edit click is required.
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] Run focused tests for creation identity, one-time intent consumption, stale session completion, active filters, failed Save retaining edits, Discard, and navigation settlement. Run `bun run frontend:test` and the manual-testware E2E scenario.
+- [x] Run focused tests for creation identity, one-time intent consumption, stale session completion, active filters, failed Save retaining edits, Discard, and navigation settlement. Run `bun run frontend:test` and the manual-testware E2E scenario.
 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on the configured fast profile at the PR head are bounded scenario labels under the boot recipe.
 
-- [ ] Lane 1. Create a test case in an empty session collection. Save `new-test-case.png`. Pass when its title is focused in edit mode.
-- [ ] Lane 2. Create a Finding. Save `new-finding.png`. Pass when the correct Finding opens directly in edit mode.
-- [ ] Lane 3. Create among existing records. Save `new-among-existing.png`. Pass when the returned new ID is selected.
-- [ ] Lane 4. Create while a search filter excludes the default title. Save `new-with-filter.png`. Pass when the new editor is visible.
-- [ ] Lane 5. Rename, edit, and Save. Save `record-saved.png`. Pass when reopening shows the exact stored title and content.
-- [ ] Lane 6. Edit and Discard. Save `record-discarded.png`. Pass when the saved snapshot returns.
-- [ ] Lane 7. Inject a fixture persistence failure. Save `record-save-failed.png`. Pass when input remains editable and an actionable error appears.
-- [ ] Lane 8. Navigate while a record is dirty. Save `record-navigation.png`. Pass when current settlement and recovery protections retain the intended content.
-- [ ] Lane 9. Open an existing library record. Save `existing-preview.png`. Pass when the creation intent does not turn ordinary navigation into editing.
-- [ ] Lane 10. Create using the command palette at laptop height. Save `new-keyboard.png`. Pass when one creation action reaches the visible focused editor.
+- [x] Lane 1. Create a test case in an empty session collection. Save `new-test-case.png`. Pass when its title is focused in edit mode.
+- [x] Lane 2. Create a Finding. Save `new-finding.png`. Pass when the correct Finding opens directly in edit mode.
+- [x] Lane 3. Create among existing records. Save `new-among-existing.png`. Pass when the returned new ID is selected.
+- [x] Lane 4. Create while a search filter excludes the default title. Save `new-with-filter.png`. Pass when the new editor is visible.
+- [x] Lane 5. Rename, edit, and Save. Save `record-saved.png`. Pass when reopening shows the exact stored title and content.
+- [x] Lane 6. Edit and Discard. Save `record-discarded.png`. Pass when the saved snapshot returns.
+- [x] Lane 7. Inject a fixture persistence failure. Save `record-save-failed.png`. Pass when input remains editable and an actionable error appears.
+- [x] Lane 8. Navigate while a record is dirty. Save `record-navigation.png`. Pass when current settlement and recovery protections retain the intended content.
+- [x] Lane 9. Open an existing library record. Save `existing-preview.png`. Pass when the creation intent does not turn ordinary navigation into editing.
+- [x] Lane 10. Create using the command palette at laptop height. Save `new-keyboard.png`. Pass when one creation action reaches the visible focused editor.
 
 **Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] Metric. Count user actions from New to a focused title and record persistence outcomes across ten creations.
-- [ ] Probe. Use the maintained creation scenario with the same seeded records on trunk first and head second. Record command and navigation events.
-- [ ] Baseline. Record the current New, scroll, and Edit sequence before implementation.
-- [ ] Rule. Require one creation activation, zero extra Edit activations, no duplicate records, and local settlement within the existing 10-second wait. Do not add network calls or periodic work.
+- [x] Metric. Count user actions from New to a focused title and record persistence outcomes across ten creations.
+- [x] Probe. Use the maintained creation scenario with the same seeded records on trunk first and head second. Record command and navigation events.
+- [x] Baseline. Record the current New, scroll, and Edit sequence before implementation.
+- [x] Rule. Require one creation activation, zero extra Edit activations, no duplicate records, and local settlement within the existing 10-second wait. Do not add network calls or periodic work.
 
 **Review gate.** Review the interaction before merge.
 
 - [ ] Provide the operator with creation and failure screenshots and `UX-2-review.mp4`, a 30 to 60 second video. Obtain the independent verdict at the same patch.
+
+
+The isolated UX-2 implementation starts at `7c84c5f`. Local evidence is `artifacts/ux-improvements/UX-2/delivery.json`, which records the owner handoff and source checks. It binds all 16 changed source files, 597 frontend tests, the ten Linux scenarios, both record kinds at 320 pixels in both themes, and a 40-second actual desktop video. The bounded ten-creation probe changes New-to-focused-title from New, Edit, and title click to one New activation, with zero duplicates. This is an action-count result, with no speed or resource-use claim. Failed observation attempts remain in the handoff. The first independent OpenAI review returned FAIL after confirming a durable-create cache defect. The correction refreshes persisted records independently of superseded navigation while retaining the editor epoch guard. Parent native reproduction covers both kinds, with old-head failures retained. Parent correction checks passed all 605 frontend tests and the unchanged two-case native cache-race probe. The original two failing native assertions now pass without changing the probe. Final corrected-head review and hosted CI remain required.
 
 **Merge.**
 

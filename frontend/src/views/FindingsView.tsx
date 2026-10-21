@@ -4,6 +4,7 @@ import type { Finding, FindingKind, GenerationJobStatus } from '../tauri'
 import { formatFindingKind } from '../ui/format'
 import type { BusyAction } from '../ui/types'
 import type { RecordLoadState } from '../app/useRecordHydration'
+import type { CreatedRecordEditTarget } from '../app/types'
 import { RecordCollectionView, type RecordCollectionLabels } from './RecordCollectionView'
 import {
   findingSeverityLabel,
@@ -47,6 +48,8 @@ export function FindingsView({
   isBusy,
   activeGenerationJob,
   initialSelectedRecordId = null,
+  createdRecordEditTarget = null,
+  onCreatedRecordEditTargetConsumed,
   loadState = 'ready',
   loadError = null,
   onRetryLoad,
@@ -71,6 +74,8 @@ export function FindingsView({
   isBusy: boolean
   activeGenerationJob: GenerationJobStatus | null
   initialSelectedRecordId?: string | null
+  createdRecordEditTarget?: CreatedRecordEditTarget | null
+  onCreatedRecordEditTargetConsumed?: (target: CreatedRecordEditTarget) => void
   loadState?: RecordLoadState
   loadError?: string | null
   onRetryLoad?: () => void
@@ -100,6 +105,8 @@ export function FindingsView({
       isBusy={isBusy}
       activeGenerationJob={activeGenerationJob}
       initialSelectedRecordId={initialSelectedRecordId}
+      createdRecordEditTarget={createdRecordEditTarget}
+      onCreatedRecordEditTargetConsumed={onCreatedRecordEditTargetConsumed}
       loadState={loadState}
       loadError={loadError}
       onRetryLoad={onRetryLoad}
