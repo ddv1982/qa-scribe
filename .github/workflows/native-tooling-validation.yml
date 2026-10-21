@@ -31,7 +31,7 @@ jobs:
   native-tooling:
     name: Native tooling (${{ matrix.platform }})
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 15
+    timeout-minutes: ${{ matrix.platform == 'macos-arm64' && 30 || 15 }}
     strategy:
       fail-fast: false
       matrix:
