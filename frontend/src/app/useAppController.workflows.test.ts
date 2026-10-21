@@ -354,10 +354,11 @@ describe('useAppController workflows and record hydration', () => {
     expect(result.current.focusedRecordId).toBe('sorted-first')
   })
 
-  it.each(['resolve', 'reject'] as const)('does not let stale creation %s clear newer creation busy state or publish feedback', async (completion) => {
+  it.each(['resolve', 'reject', 'refresh-reject'] as const)('does not let stale creation %s clear newer creation busy state or publish feedback', async (completion) => {
+    tauriMock.listDrafts.mockReset().mockResolvedValue([])
     const first = deferred<ReturnType<typeof draftFixture>>()
     const second = deferred<ReturnType<typeof draftFixture>>()
-    tauriMock.createDraft.mockReturnValueOnce(first.promise.then((record) => {
+    tauriMock.createDraft.mockReset().mockReturnValueOnce(first.promise.then((record) => {
       if (completion === 'reject') throw new Error('Stale creation failed')
       return record
     })).mockReturnValueOnce(second.promise)
@@ -369,6 +370,7 @@ describe('useAppController workflows and record hydration', () => {
     await waitFor(() => expect(tauriMock.createDraft).toHaveBeenCalledTimes(1))
     act(() => { secondAction = result.current.handleManualTestware() })
     await waitFor(() => expect(tauriMock.createDraft).toHaveBeenCalledTimes(2))
+    if (completion === 'refresh-reject') tauriMock.listDrafts.mockRejectedValueOnce(new Error('Stale refresh failed'))
     await act(async () => {
       first.resolve(draftFixture({ id: 'stale-created' }))
       await firstAction
@@ -380,6 +382,43 @@ describe('useAppController workflows and record hydration', () => {
     await act(async () => { second.resolve(draftFixture({ id: 'current-created' })); await secondAction })
     expect(result.current.busyAction).toBeNull()
     expect(result.current.createdRecordEditTarget).toEqual({ sessionId: 'session-1', kind: 'testware', recordId: 'current-created' })
+  })
+
+
+  it.each(['draft', 'finding'] as const)('keeps a newer Session %s load current when old-session creation completes', async (kind) => {
+    const late = kind === 'draft' ? draftFixture({ id: 'late-old-session' }) : findingFixture({ id: 'late-old-session' })
+    const current = kind === 'draft' ? draftFixture({ id: 'current-record', sessionId: 'session-2', body: '<p>Current Session body.</p>' })
+      : findingFixture({ id: 'current-record', sessionId: 'session-2', body: '<p>Current Session body.</p>' })
+    const created = deferred<typeof late>()
+    const loaded = deferred<Array<typeof current>>()
+    const list = kind === 'draft' ? tauriMock.listDrafts : tauriMock.listFindings
+    const create = kind === 'draft' ? tauriMock.createDraft : tauriMock.createFinding
+    list.mockReset().mockResolvedValue([]).mockResolvedValueOnce([]).mockReturnValueOnce(loaded.promise)
+    create.mockReset().mockReturnValueOnce(created.promise)
+    const { result } = renderHook(() => useAppController())
+    await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
+    let action!: Promise<void>
+    act(() => { action = kind === 'draft' ? result.current.handleManualTestware() : result.current.handleManualFinding() })
+    await waitFor(() => expect(create).toHaveBeenCalledOnce())
+    const other = sessionFixture({ id: 'session-2' })
+    tauriMock.openSessionNoteState.mockResolvedValueOnce(sessionNoteStateFixture({ session: other,
+      noteEntry: entryFixture({ id: 'entry-2', sessionId: 'session-2' }) }))
+    await act(async () => { await result.current.openSession(other) })
+    const view = kind === 'draft' ? 'testware' : 'findings'
+    act(() => result.current.setActiveView(view))
+    await waitFor(() => expect(list).toHaveBeenCalledTimes(2))
+    await act(async () => { created.resolve(late); await action })
+    expect(kind === 'draft' ? result.current.draftLoadState : result.current.findingLoadState).toBe('loading')
+    await act(async () => { loaded.resolve([current]) })
+    await waitFor(() => expect(kind === 'draft' ? result.current.draftLoadState : result.current.findingLoadState).toBe('ready'))
+    expect((kind === 'draft' ? result.current.testwareDrafts : result.current.findings).map(({ id, body }) => ({ id, body })))
+      .toEqual([{ id: 'current-record', body: '<p>Current Session body.</p>' }])
+    expect(kind === 'draft' ? result.current.testwareDraftCount : result.current.findingCount).toBe(1)
+    expect(result.current.activeSession?.id).toBe('session-2')
+    expect(result.current.activeView).toBe(view)
+    expect(result.current.createdRecordEditTarget).toBeNull()
+    expect(result.current.busyAction).toBeNull()
+    expect(list.mock.calls.map(([sessionId]) => sessionId)).toEqual(['session-1', 'session-2'])
   })
 
 })

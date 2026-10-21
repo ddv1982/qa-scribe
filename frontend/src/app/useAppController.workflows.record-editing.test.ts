@@ -365,6 +365,8 @@ describe('useAppController workflows and record hydration', () => {
   })
 
   it.each(['titles', 'create', 'refresh'] as const)('expires creation during %s when ordinary same-view navigation supersedes it', async (stage) => {
+    tauriMock.listDrafts.mockReset().mockResolvedValue([])
+    tauriMock.createDraft.mockReset()
     const held = deferred<ReturnType<typeof draftFixture>[]>()
     const created = deferred<ReturnType<typeof draftFixture>>()
     if (stage === 'titles') tauriMock.listDrafts.mockReturnValueOnce(held.promise)
@@ -372,6 +374,7 @@ describe('useAppController workflows and record hydration', () => {
       tauriMock.listDrafts.mockResolvedValueOnce([])
       tauriMock.createDraft.mockReturnValueOnce(created.promise)
       if (stage === 'refresh') tauriMock.listDrafts.mockReturnValueOnce(held.promise)
+      else tauriMock.listDrafts.mockResolvedValueOnce([draftFixture({ id: 'durably-created' })])
     }
     const { result } = renderHook(() => useAppController())
     await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
@@ -394,27 +397,95 @@ describe('useAppController workflows and record hydration', () => {
     expect(result.current.busyAction).toBeNull()
     expect(tauriMock.deleteDraft).not.toHaveBeenCalled()
     if (stage === 'titles') expect(tauriMock.createDraft).not.toHaveBeenCalled()
+    expect(result.current.testwareDrafts.map(({ id }) => id)).toEqual(['durably-created'])
+    expect(result.current.draftLoadState).toBe('ready')
   })
 
-  it('rejects a delayed creation after switching A to B to A', async () => {
-    const created = deferred<ReturnType<typeof draftFixture>>()
-    tauriMock.createDraft.mockReturnValueOnce(created.promise)
+  it.each(['draft', 'finding'] as const)('refreshes a delayed %s after A to B to A without replaying navigation', async (kind) => {
+    const late = kind === 'draft' ? draftFixture({ id: 'late-created' }) : findingFixture({ id: 'late-created' })
+    let durable: Array<typeof late> = []
+    const created = deferred<typeof late>()
+    const list = kind === 'draft' ? tauriMock.listDrafts : tauriMock.listFindings
+    const create = kind === 'draft' ? tauriMock.createDraft : tauriMock.createFinding
+    list.mockReset().mockImplementation(async () => [...durable])
+    create.mockReset().mockReturnValueOnce(created.promise)
     const { result } = renderHook(() => useAppController())
     await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
     let action!: Promise<void>
-    act(() => { action = result.current.handleManualTestware() })
-    await waitFor(() => expect(tauriMock.createDraft).toHaveBeenCalledTimes(1))
+    act(() => { action = kind === 'draft' ? result.current.handleManualTestware() : result.current.handleManualFinding() })
+    await waitFor(() => expect(create).toHaveBeenCalledOnce())
     const other = sessionFixture({ id: 'session-2' })
     tauriMock.openSessionNoteState.mockResolvedValueOnce(sessionNoteStateFixture({ session: other,
       noteEntry: entryFixture({ id: 'entry-2', sessionId: 'session-2' }) }))
     await act(async () => { await result.current.openSession(other) })
     tauriMock.openSessionNoteState.mockResolvedValueOnce(sessionNoteStateFixture())
     await act(async () => { await result.current.openSession(sessionFixture()) })
-    await act(async () => { created.resolve(draftFixture({ id: 'late-created' })); await action })
+    await act(async () => {
+      if (kind === 'draft') await result.current.loadDraftsForSession('session-1')
+      else await result.current.loadFindingsForSession('session-1')
+      durable = [late]; created.resolve(late); await action
+    })
     expect(result.current.activeSession?.id).toBe('session-1')
     expect(result.current.activeView).toBe('sessions')
     expect(result.current.createdRecordEditTarget).toBeNull()
+    expect((kind === 'draft' ? result.current.testwareDrafts : result.current.findings).map(({ id }) => id)).toEqual(['late-created'])
+    expect(kind === 'draft' ? result.current.testwareDraftCount : result.current.findingCount).toBe(1)
+    expect(kind === 'draft' ? result.current.draftLoadState : result.current.findingLoadState).toBe('ready')
     expect(tauriMock.deleteDraft).not.toHaveBeenCalled()
+    expect(tauriMock.deleteFinding).not.toHaveBeenCalled()
   })
+
+
+  it.each([['draft', false], ['finding', false], ['draft', true], ['finding', true]] as const)(
+    'hydrates a durably created %s after superseding navigation while preserving dirty=%s', async (kind, dirty) => {
+      const original = kind === 'draft'
+        ? draftFixture({ id: 'existing-record', body: '<p>Saved existing body.</p>' })
+        : findingFixture({ id: 'existing-record', body: '<p>Saved existing body.</p>' })
+      const created = kind === 'draft'
+        ? draftFixture({ id: 'persisted-new-record', title: 'New durable record', body: '<p>Created body.</p>' })
+        : findingFixture({ id: 'persisted-new-record', title: 'New durable record', body: '<p>Created body.</p>' })
+      let durable = [original]
+      const completed = deferred<typeof created>()
+      const list = kind === 'draft' ? tauriMock.listDrafts : tauriMock.listFindings
+      const create = kind === 'draft' ? tauriMock.createDraft : tauriMock.createFinding
+      list.mockReset().mockImplementation(async () => [...durable])
+      create.mockReset().mockReturnValueOnce(completed.promise)
+      const { result } = renderHook(() => useAppController())
+      const view = kind === 'draft' ? 'testware' : 'findings'
+      const visible = () => kind === 'draft' ? result.current.testwareDrafts : result.current.findings
+      await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
+      act(() => result.current.setActiveView(view))
+      await waitFor(() => expect(visible().map((record) => record.id)).toEqual(['existing-record']))
+      let action!: Promise<void>
+      act(() => { action = kind === 'draft' ? result.current.handleManualTestware() : result.current.handleManualFinding() })
+      await waitFor(() => expect(create).toHaveBeenCalledOnce())
+      if (dirty) act(() => {
+        if (kind === 'draft') result.current.updateLocalDraft(original.id, { body: '<p>Unsaved local body.</p>' })
+        else result.current.updateLocalFinding(original.id, { body: '<p>Unsaved local body.</p>' })
+      })
+      act(() => result.current.setActiveView(dirty ? view : 'sessions'))
+      await act(async () => { durable = [original, created]; completed.resolve(created); await action })
+      expect(result.current.activeView).toBe(dirty ? view : 'sessions')
+      expect(result.current.createdRecordEditTarget).toBeNull()
+      expect(result.current.error).toBeNull()
+      expect(result.current.busyAction).toBeNull()
+      act(() => result.current.setActiveView(view))
+      const reads = list.mock.calls.length
+      await act(async () => {
+        if (kind === 'draft') await result.current.loadDraftsForSession('session-1')
+        else await result.current.loadFindingsForSession('session-1')
+      })
+      expect(visible().map(({ id, body }) => ({ id, body }))).toEqual([
+        { id: 'existing-record', body: dirty ? '<p>Unsaved local body.</p>' : '<p>Saved existing body.</p>' },
+        { id: 'persisted-new-record', body: '<p>Created body.</p>' },
+      ])
+      expect(kind === 'draft' ? result.current.testwareDraftCount : result.current.findingCount).toBe(2)
+      expect(durable.map(({ id }) => id)).toEqual(['existing-record', 'persisted-new-record'])
+      expect(list).toHaveBeenCalledTimes(reads)
+      expect(create).toHaveBeenCalledOnce()
+      expect(result.current.createdRecordEditTarget).toBeNull()
+      expect(result.current.activeView).toBe(view)
+    },
+  )
 
 })
