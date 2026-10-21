@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, FileText, Loader2, Search, SearchX } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
@@ -7,6 +7,7 @@ import type { RichEditorImageUpload } from '../editor/RichTextEditor'
 import type { GenerationJobStatus } from '../tauri'
 import type { BusyAction } from '../ui/types'
 import type { RecordLoadState } from '../app/useRecordHydration'
+import type { CreatedRecordEditTarget } from '../app/types'
 import { EditableRichRecord, GenerationRecord, RichRecordActions } from './RichRecordView'
 
 type CollectionRecord = {
@@ -59,6 +60,8 @@ export function RecordCollectionView<T extends CollectionRecord>({
   isBusy,
   activeGenerationJob,
   initialSelectedRecordId = null,
+  createdRecordEditTarget = null,
+  onCreatedRecordEditTargetConsumed,
   loadState = 'ready',
   loadError = null,
   onRetryLoad,
@@ -92,6 +95,8 @@ export function RecordCollectionView<T extends CollectionRecord>({
   isBusy: boolean
   activeGenerationJob: GenerationJobStatus | null
   initialSelectedRecordId?: string | null
+  createdRecordEditTarget?: CreatedRecordEditTarget | null
+  onCreatedRecordEditTargetConsumed?: (target: CreatedRecordEditTarget) => void
   loadState?: RecordLoadState
   loadError?: string | null
   onRetryLoad?: () => void
@@ -120,6 +125,9 @@ export function RecordCollectionView<T extends CollectionRecord>({
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<'updated' | 'title'>('updated')
   const [filterValue, setFilterValue] = useState('all')
+  const titleInputRef = useRef<HTMLInputElement>(null)
+  const [appliedTarget, setAppliedTarget] = useState<CreatedRecordEditTarget | null>(null)
+  const focusedTargetRef = useRef<CreatedRecordEditTarget | null>(null)
   const setRecordEditing = (id: string, editing: boolean) => setEditingRecordIds((previous) => ({ ...previous, [id]: editing }))
   const visibleRecords = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase()
@@ -137,6 +145,27 @@ export function RecordCollectionView<T extends CollectionRecord>({
     ?? visibleRecords[0]
     ?? null
   const selectedEditing = selectedRecord ? Boolean(editingRecordIds[selectedRecord.id]) : false
+
+  const createdRecord = createdRecordEditTarget && records.find((record) => record.id === createdRecordEditTarget.recordId)
+  if (createdRecord && appliedTarget?.recordId !== createdRecord.id) {
+    setAppliedTarget(createdRecordEditTarget)
+    setQuery('')
+    setFilterValue('all')
+    setSelectedRecordId(createdRecord.id)
+    setEditingOriginals({ [createdRecord.id]: createdRecord })
+    setEditingRecordIds({ [createdRecord.id]: true })
+  }
+
+  useEffect(() => {
+    const input = titleInputRef.current
+    if (!appliedTarget || focusedTargetRef.current?.recordId === appliedTarget.recordId || appliedTarget.recordId !== createdRecordEditTarget?.recordId
+      || selectedRecord?.id !== appliedTarget.recordId || !selectedEditing || !input) return
+    input.scrollIntoView({ block: 'center', inline: 'nearest' })
+    input.focus({ preventScroll: true })
+    if (document.activeElement !== input) return
+    focusedTargetRef.current = appliedTarget
+    onCreatedRecordEditTargetConsumed?.(appliedTarget)
+  }, [appliedTarget, createdRecordEditTarget, onCreatedRecordEditTargetConsumed, selectedRecord?.id, selectedEditing])
 
   function startEditing(record: T) {
     setEditingOriginals((previous) => ({ ...previous, [record.id]: record }))
@@ -267,6 +296,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
               editing={editing}
               editorId={editorId}
               titleInputLabel={labels.titleInputLabel}
+              titleInputRef={titleInputRef}
               bodyAriaLabel={`${record.title} ${labels.bodyAriaLabelSuffix} ${editing ? 'body' : 'preview'}`}
               placeholder={labels.placeholder}
               previewFallbackHtml={labels.previewFallbackHtml}

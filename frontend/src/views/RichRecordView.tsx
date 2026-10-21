@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { ReactNode, Ref } from 'react'
 import { CheckCircle2, Copy, Image as ImageIcon, Loader2, PencilLine, Save, Trash2, X } from 'lucide-react'
 import { FormatToolbar, RichTextEditor, type RichEditorImageUpload } from '../editor/RichTextEditor'
 import { richEditorDocumentFromHtml, richEditorDocumentFromStoredBody, richEditorDocumentToStoredBody, type StoredRichBody } from '../editor/editorDocument'
@@ -56,6 +56,7 @@ export function EditableRichRecord({
   editing,
   editorId,
   titleInputLabel,
+  titleInputRef,
   bodyAriaLabel,
   placeholder,
   previewFallbackHtml,
@@ -71,6 +72,7 @@ export function EditableRichRecord({
   editing: boolean
   editorId: string
   titleInputLabel: string
+  titleInputRef?: Ref<HTMLInputElement>
   bodyAriaLabel: string
   placeholder: string
   previewFallbackHtml: string
@@ -90,7 +92,7 @@ export function EditableRichRecord({
       <div className="record-actions">{actions}</div>
       {editing ? (
         <>
-          <input value={record.title} aria-label={titleInputLabel} onChange={(event) => onTitleChange(event.target.value)} />
+          <input ref={titleInputRef} value={record.title} aria-label={titleInputLabel} onChange={(event) => onTitleChange(event.target.value)} />
           {editFields}
           <div className="rich-record-editor-field">
             <FormatToolbar editorId={editorId} onUploadImage={onUploadImage} />

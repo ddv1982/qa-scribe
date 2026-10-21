@@ -363,4 +363,58 @@ describe('useAppController workflows and record hydration', () => {
     await waitFor(() => expect(tauriMock.deleteAttachment).toHaveBeenCalledWith('attachment-newer-finding-direct'))
     unregister()
   })
+
+  it.each(['titles', 'create', 'refresh'] as const)('expires creation during %s when ordinary same-view navigation supersedes it', async (stage) => {
+    const held = deferred<ReturnType<typeof draftFixture>[]>()
+    const created = deferred<ReturnType<typeof draftFixture>>()
+    if (stage === 'titles') tauriMock.listDrafts.mockReturnValueOnce(held.promise)
+    else {
+      tauriMock.listDrafts.mockResolvedValueOnce([])
+      tauriMock.createDraft.mockReturnValueOnce(created.promise)
+      if (stage === 'refresh') tauriMock.listDrafts.mockReturnValueOnce(held.promise)
+    }
+    const { result } = renderHook(() => useAppController())
+    await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
+    let action!: Promise<void>
+    act(() => { action = result.current.handleManualTestware() })
+    if (stage === 'titles') await waitFor(() => expect(tauriMock.listDrafts).toHaveBeenCalledTimes(1))
+    else await waitFor(() => expect(tauriMock.createDraft).toHaveBeenCalledTimes(1))
+    if (stage === 'refresh') {
+      act(() => created.resolve(draftFixture({ id: 'durably-created' })))
+      await waitFor(() => expect(tauriMock.listDrafts).toHaveBeenCalledTimes(2))
+    }
+    act(() => result.current.setActiveView('sessions'))
+    await act(async () => {
+      held.resolve([draftFixture({ id: 'durably-created' })])
+      created.resolve(draftFixture({ id: 'durably-created' }))
+      await action
+    })
+    expect(result.current.activeView).toBe('sessions')
+    expect(result.current.createdRecordEditTarget).toBeNull()
+    expect(result.current.busyAction).toBeNull()
+    expect(tauriMock.deleteDraft).not.toHaveBeenCalled()
+    if (stage === 'titles') expect(tauriMock.createDraft).not.toHaveBeenCalled()
+  })
+
+  it('rejects a delayed creation after switching A to B to A', async () => {
+    const created = deferred<ReturnType<typeof draftFixture>>()
+    tauriMock.createDraft.mockReturnValueOnce(created.promise)
+    const { result } = renderHook(() => useAppController())
+    await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
+    let action!: Promise<void>
+    act(() => { action = result.current.handleManualTestware() })
+    await waitFor(() => expect(tauriMock.createDraft).toHaveBeenCalledTimes(1))
+    const other = sessionFixture({ id: 'session-2' })
+    tauriMock.openSessionNoteState.mockResolvedValueOnce(sessionNoteStateFixture({ session: other,
+      noteEntry: entryFixture({ id: 'entry-2', sessionId: 'session-2' }) }))
+    await act(async () => { await result.current.openSession(other) })
+    tauriMock.openSessionNoteState.mockResolvedValueOnce(sessionNoteStateFixture())
+    await act(async () => { await result.current.openSession(sessionFixture()) })
+    await act(async () => { created.resolve(draftFixture({ id: 'late-created' })); await action })
+    expect(result.current.activeSession?.id).toBe('session-1')
+    expect(result.current.activeView).toBe('sessions')
+    expect(result.current.createdRecordEditTarget).toBeNull()
+    expect(tauriMock.deleteDraft).not.toHaveBeenCalled()
+  })
+
 })

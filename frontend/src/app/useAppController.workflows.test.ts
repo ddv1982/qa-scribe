@@ -322,4 +322,64 @@ describe('useAppController workflows and record hydration', () => {
 
     expect(result.current.testwareDrafts.find((draft) => draft.id === 'draft-dirty')?.body).toBe('<p>Unsaved local draft.</p>')
   })
+
+  it.each([
+    ['handleManualTestware', 'testware', 'testware'],
+    ['handlePrefillTestwareFromNote', 'testware', 'testware'],
+    ['handleManualFinding', 'finding', 'findings'],
+    ['handlePrefillFindingFromNote', 'finding', 'findings'],
+  ] as const)('retains the returned identity for %s without serializing editing', async (handler, kind, view) => {
+    const draft = draftFixture({ id: 'returned-draft', title: 'New testware' })
+    const finding = findingFixture({ id: 'returned-finding', title: 'New finding' })
+    if (kind === 'testware') tauriMock.createDraft.mockResolvedValueOnce(draft)
+    else tauriMock.createFinding.mockResolvedValueOnce(finding)
+    tauriMock.listDrafts.mockResolvedValue([draftFixture({ id: 'sorted-first' }), draft])
+    tauriMock.listFindings.mockResolvedValue([findingFixture({ id: 'sorted-first' }), finding])
+    const { result } = renderHook(() => useAppController())
+    await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
+
+    await act(async () => { await result.current[handler]() })
+
+    const expected = { sessionId: 'session-1', kind, recordId: kind === 'testware' ? 'returned-draft' : 'returned-finding' }
+    expect(result.current.createdRecordEditTarget).toEqual(expected)
+    expect(result.current.activeView).toBe(view)
+    expect(window.location.hash).not.toContain('returned-')
+    const target = result.current.createdRecordEditTarget!
+    act(() => result.current.consumeCreatedRecordEditTarget({ ...target, recordId: 'older-created-record' }))
+    expect(result.current.createdRecordEditTarget).toEqual(expected)
+    act(() => result.current.consumeCreatedRecordEditTarget(target))
+    expect(result.current.createdRecordEditTarget).toBeNull()
+    await act(async () => { await result.current.openLibraryRecord('session-1', view, 'sorted-first') })
+    expect(result.current.createdRecordEditTarget).toBeNull()
+    expect(result.current.focusedRecordId).toBe('sorted-first')
+  })
+
+  it.each(['resolve', 'reject'] as const)('does not let stale creation %s clear newer creation busy state or publish feedback', async (completion) => {
+    const first = deferred<ReturnType<typeof draftFixture>>()
+    const second = deferred<ReturnType<typeof draftFixture>>()
+    tauriMock.createDraft.mockReturnValueOnce(first.promise.then((record) => {
+      if (completion === 'reject') throw new Error('Stale creation failed')
+      return record
+    })).mockReturnValueOnce(second.promise)
+    const { result } = renderHook(() => useAppController())
+    await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
+    let firstAction!: Promise<void>
+    let secondAction!: Promise<void>
+    act(() => { firstAction = result.current.handleManualTestware() })
+    await waitFor(() => expect(tauriMock.createDraft).toHaveBeenCalledTimes(1))
+    act(() => { secondAction = result.current.handleManualTestware() })
+    await waitFor(() => expect(tauriMock.createDraft).toHaveBeenCalledTimes(2))
+    await act(async () => {
+      first.resolve(draftFixture({ id: 'stale-created' }))
+      await firstAction
+    })
+    expect(result.current.busyAction).toBe('manual-testware')
+    expect(result.current.error).toBeNull()
+    expect(result.current.createdRecordEditTarget).toBeNull()
+    expect(result.current.activeView).toBe('sessions')
+    await act(async () => { second.resolve(draftFixture({ id: 'current-created' })); await secondAction })
+    expect(result.current.busyAction).toBeNull()
+    expect(result.current.createdRecordEditTarget).toEqual({ sessionId: 'session-1', kind: 'testware', recordId: 'current-created' })
+  })
+
 })
