@@ -4,8 +4,9 @@ import { matchesGlob } from 'node:path'
 import { assertNativeChecking } from './native-compiler-policy.mjs'
 
 const require = createRequire(new URL('../frontend/package.json', import.meta.url))
-const { valid, validRange, satisfies } = require('semver')
-const pins = { typescript: '7.0.2', 'tsc-rs': '0.7.0', oxlint: '1.89.0', 'oxlint-tsgolint': '7.0.2004' }
+const { valid } = require('semver')
+const pins = { 'tsc-rs': '0.7.0', oxlint: '1.89.0', 'oxlint-tsgolint': '7.0.2004' }
+const compilerSdk = name => name === 'typescript' || name === '@typescript/native-preview' || /^@typescript\/(?:typescript|native-preview)-/.test(name)
 const legacy = name => name === '@typescript/typescript6' || name.startsWith('@typescript-eslint/') || ['typescript-eslint', 'ts-api-utils', 'eslint', '@eslint/js', 'eslint-plugin-react-hooks', 'eslint-plugin-react-refresh'].includes(name)
 const normalize = value => {
   const [severity, ...options] = Array.isArray(value) ? value : [value]
@@ -23,7 +24,8 @@ export function validateNativeTooling(inventory, parity) {
   for (const record of records) {
     const location = record.location ?? 'frontend/package.json'
     if (record.version && !valid(record.version)) fail('package-version', location, `Invalid version ${record.name}@${record.version}`)
-    if (legacy(record.name) || (record.name === 'typescript' && !satisfies(record.version, '7.x'))) fail('legacy-package', location, `Forbidden legacy package ${record.name}@${record.version}`)
+    if (/^@tsc-rs\/(?:linux|darwin|win32)-/.test(record.name) && record.version !== pins['tsc-rs']) fail('native-pin', location, `Rust native package must match tsc-rs@${pins['tsc-rs']}`)
+    if (legacy(record.name) || compilerSdk(record.name)) fail('legacy-package', location, `Forbidden legacy package ${record.name}@${record.version}`)
     for (const kind of ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies']) {
       if (kind === 'devDependencies' && inventory.installed.includes(record)) continue
       for (const [name, specifier] of Object.entries(record[kind] ?? {})) {
@@ -31,9 +33,7 @@ export function validateNativeTooling(inventory, parity) {
         const alias = specifier.startsWith('npm:') ? specifier.slice(4) : null
         const at = alias?.lastIndexOf('@') ?? -1
         const target = alias ? (at > 0 ? alias.slice(0, at) : alias) : name
-        const range = alias && at > 0 ? alias.slice(at + 1) : specifier
-        if (legacy(name) || legacy(target)) fail('legacy-dependency', location, `Forbidden legacy dependency ${name} -> ${specifier}`)
-        if (target === 'typescript' && (!validRange(range) || !satisfies(pins.typescript, range))) fail('legacy-typescript-range', location, `${name} requires TypeScript range ${range}, excluding installed ${pins.typescript}`)
+        if (legacy(name) || legacy(target) || compilerSdk(name) || compilerSdk(target)) fail('legacy-dependency', location, `Forbidden legacy dependency ${name} -> ${specifier}`)
       }
     }
     for (const entry of [record.main, record.module, ...Object.values(record.imports ?? {})]) {
@@ -45,6 +45,8 @@ export function validateNativeTooling(inventory, parity) {
   }
   try { assertNativeChecking(inventory.manifest.scripts) } catch (error) { fail('compiler-ownership', 'scripts', error.message) }
   const dispatchers = [
+    ['frontend.postinstall', inventory.manifest.scripts.postinstall, 'node ../scripts/prepare-rust-typescript-sdk.mjs'],
+    ['frontend.sdk:prepare', inventory.manifest.scripts['sdk:prepare'], 'node ../scripts/prepare-rust-typescript-sdk.mjs'],
     ['frontend.lint:css', inventory.manifest.scripts['lint:css'], 'node scripts/check-css-colors.mjs'],
     ['frontend.check:contrast', inventory.manifest.scripts['check:contrast'], 'node scripts/check-contrast.mjs'],
     ['root.frontend:tooling:check', inventory.rootManifest.scripts['frontend:tooling:check'], 'node scripts/check-native-typescript-tooling.mjs'],

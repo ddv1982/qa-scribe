@@ -8,7 +8,7 @@ import { inspectFrontend, validateNativeTooling } from './check-native-typescrip
 
 const frontend = new URL('../frontend/', import.meta.url)
 const parity = JSON.parse(readFileSync(new URL('./fixtures/native-tooling/lint-parity.json', import.meta.url)))
-const pins = { typescript: '7.0.2', 'tsc-rs': '0.7.0', oxlint: '1.89.0', 'oxlint-tsgolint': '7.0.2004', json5: '2.2.3' }
+const pins = { 'tsc-rs': '0.7.0', oxlint: '1.89.0', 'oxlint-tsgolint': '7.0.2004', json5: '2.2.3' }
 const json = (file, value) => writeFileSync(file, JSON.stringify(value))
 
 function fixture(run) {
@@ -49,7 +49,7 @@ test('nested npm alias declaration is rejected', () => fixture(root => {
   const directory = join(root, 'node_modules/oxlint/node_modules/nested')
   mkdirSync(directory, { recursive: true })
   json(join(directory, 'package.json'), { name: 'nested', version: '1.0.0', optionalDependencies: { hidden: 'npm:typescript@6.0.3' } })
-  rejects(root, /hidden requires TypeScript range 6\.0\.3/)
+  rejects(root, /Forbidden legacy dependency hidden -> npm:typescript@6\.0\.3/)
 }))
 for (const name of ['@typescript/typescript6', '@typescript-eslint/parser', 'typescript-eslint', 'ts-api-utils']) {
   test(`extraneous installed ${name} is rejected`, () => fixture(root => {
@@ -63,12 +63,11 @@ test('legacy compiler API metadata is rejected', () => fixture(root => {
   json(join(root, 'node_modules/oxlint/package.json'), { name: 'oxlint', version: pins.oxlint, imports: { '#compiler': 'typescript/lib/typescript.js' } })
   rejects(root, /Legacy compiler API/)
 }))
-for (const [range, accepted] of [['>=4.8', true], ['>=4.8.4 <6.1.0', false], ['^7.0.0', true], ['^6 || ^7', true]]) {
-  test(`runtime TypeScript peer ${range} accepted=${accepted}`, () => fixture(root => {
+for (const range of ['>=4.8', '>=4.8.4 <6.1.0', '^7.0.0', '^6 || ^7']) {
+  test(`runtime TypeScript peer ${range} is forbidden`, () => fixture(root => {
     json(join(root, 'node_modules/oxlint/package.json'), { name: 'oxlint', version: pins.oxlint, peerDependencies: { typescript: range } })
     const messages = findings(root).map(row => row.message).join('\n')
-    if (accepted) assert.equal(messages, '')
-    else assert.match(messages, /excluding installed 7\.0\.2/)
+    assert.match(messages, /Forbidden legacy dependency typescript/)
   }))
 }
 test('uninstalled upstream development dependencies are outside runtime graph', () => fixture(root => {
@@ -254,3 +253,40 @@ test('type-only import-equals remains a non-runtime dependency', () => fixture(r
   writeFileSync(join(root, 'types.ts'), "import type ts = require('typescript'); export type Value = ts.Type")
   assert.deepEqual(findings(root), [])
 }))
+
+for (const name of ['typescript', '@typescript/native-preview', '@typescript/typescript-linux-x64', '@typescript/native-preview-darwin-arm64']) {
+  for (const kind of ['dependencies', 'optionalDependencies', 'peerDependencies']) {
+    test(`Microsoft SDK ${name} is forbidden in ${kind} including nested aliases`, () => fixture(root => {
+      const directory = join(root, 'node_modules/oxlint/node_modules/nested')
+      mkdirSync(directory, { recursive: true })
+      json(join(directory, 'package.json'), { name: 'nested', version: '1.0.0', [kind]: { hidden: `npm:${name}@7.0.2` } })
+      rejects(root, /Forbidden legacy dependency hidden/)
+    }))
+  }
+  test(`Microsoft SDK locked identity ${name} is forbidden`, () => fixture((root, lock) => {
+    lock.packages['nested/alias'] = [`${name}@7.0.2`, '', {}, 'sha512-fixture']
+    json(join(root, 'bun.lock'), lock)
+    rejects(root, /Forbidden legacy package/)
+  }))
+  test(`Microsoft SDK installed identity ${name} is forbidden`, () => fixture(root => {
+    const directory = join(root, 'node_modules/alias'); mkdirSync(directory)
+    json(join(directory, 'package.json'), { name, version: '7.0.2' })
+    rejects(root, /Forbidden legacy package/)
+  }))
+}
+test('an unrelated @typescript scoped package remains allowed', () => fixture(root => {
+  const directory = join(root, 'node_modules/@typescript/support'); mkdirSync(directory, { recursive: true })
+  json(join(directory, 'package.json'), { name: '@typescript/support', version: '1.0.0' })
+  assert.deepEqual(findings(root), [])
+}))
+test('locked native Rust package must match the compiler pin', () => fixture((root, lock) => {
+  lock.packages['@tsc-rs/linux-x64'] = ['@tsc-rs/linux-x64@0.6.0', '', {}, 'sha512-fixture']
+  json(join(root, 'bun.lock'), lock)
+  rejects(root, /Rust native package must match tsc-rs@0.7.0/)
+}))
+for (const name of ['postinstall', 'sdk:prepare']) {
+  test(`SDK preparation dispatcher ${name} cannot be omitted`, () => fixture(root => {
+    const file = join(root, 'package.json'); const manifest = JSON.parse(readFileSync(file)); delete manifest.scripts[name]; json(file, manifest)
+    assert.ok(findings(root).some(row => row.code === 'command-obligation' && row.location === `frontend.${name}`))
+  }))
+}

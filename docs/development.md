@@ -28,13 +28,21 @@ cargo binstall cargo-audit --locked --version "=$(node -p 'require("./scripts/to
 
 ## Compiler and editor setup
 
-Frontend type checks use the Rust compiler [`tsc-rs`](https://github.com/pingdotgg/ts-rust), pinned to version `0.7.0`. Both the UI and Vite configuration are checked before production builds. Vite bundles the frontend. Microsoft TypeScript `7.0.2` supplies the native editor SDK. Oxlint `1.89.0` and its Go-based `oxlint-tsgolint` `7.0.2004` engine provide typed linting. TypeScript 6 and its compiler API consumers are removed.
+Frontend checks and editor language features use [`tsc-rs`](https://github.com/pingdotgg/ts-rust), pinned to `0.7.0`. Both the UI and Vite configuration are checked before production builds. Vite bundles the frontend. Oxlint `1.89.0` and its Go-based `oxlint-tsgolint` `7.0.2004` engine provide typed linting. The separate Microsoft compiler SDK is not installed.
 
-`tsc-rs` ports TypeScript `7.1.0-dev.20261008.1`, so its revision differs from the stable editor SDK. `bun run frontend:check` requires native checking and typed lint to pass. The Rust compiler remains the authoritative build checker.
+The npm package version identifies the Rust release. Its TypeScript language version, reported by `tsc-rs --version`, is `7.1.0-dev`. Builds and the editor use the same native executable. The Microsoft **TypeScript 7** extension remains the editor client.
 
-For VS Code on Linux or macOS, open the repository root or `frontend` directly and install the recommended **TypeScript 7** (`TypeScriptTeam.native-preview`) and **Oxc** (`oxc.oxc-vscode`) extensions. Trust your checkout through **Manage Workspace Trust**, then open a TypeScript file and click **Allow** when TypeScript 7 offers the configured `7.0.2` SDK. If the notification is hidden, run **Notifications: Show Notifications**, then click **Allow** on the TypeScript 7 SDK notification. Root settings select `./frontend/node_modules/typescript`. Frontend settings select `./node_modules/typescript`.
+On Linux x64, macOS Apple Silicon, or macOS Intel, a frozen frontend install prepares `frontend/node_modules/.tsc-rs-sdk` as a relative link to the installed host package's `lib` directory. Installation does not edit workspace or user settings. If lifecycle scripts were disabled or the link is missing, run the repair command explicitly:
 
-Check the **TypeScript 7** output for `Resolved to` inside this checkout's `frontend/node_modules/@typescript/` package. Check **Oxc (Lint)** output for the local Oxlint launcher and version `1.89.0`. Both folder layouts select the local `oxlint-tsgolint` package launcher for typed lint and keep per-file project discovery for UI sources and `vite.config.ts`. If runtime identities differ, inspect the effective `oxc.path.tsgolint` setting and the editor's `OXLINT_TSGOLINT_PATH` environment value. Compiler diagnostics show `ts`; lint diagnostics show `oxc`. The committed settings do not enable the experimental Rust TypeScript language server or change formatting and save actions.
+```bash
+bun run --cwd frontend sdk:prepare
+```
+
+The helper repairs only recognized helper links. It refuses foreign links, files, or directories at the reserved path. The tooling guard reports missing or stale setup without repairing it.
+
+For VS Code, open the repository root or `frontend` directly and install the recommended **TypeScript 7** (`TypeScriptTeam.native-preview`) and **Oxc** (`oxc.oxc-vscode`) extensions. Trust your checkout through **Manage Workspace Trust**, then open a TypeScript file and click **Allow** when TypeScript 7 offers the configured SDK. Its notification can label this SDK `local`. If hidden, run **Notifications: Show Notifications** to find it.
+
+Root settings select `./frontend/node_modules/.tsc-rs-sdk`. Frontend settings select `./node_modules/.tsc-rs-sdk`. In the **TypeScript 7** output, check that `Resolved to` identifies the checkout's `@tsc-rs/<host>/lib/tsc` executable. A Bun installation can place that package under `node_modules/.bun`. Check **Oxc (Lint)** output for the local Oxlint launcher and version `1.89.0`. Both layouts retain per-file project discovery for UI sources and `vite.config.ts`. Compiler diagnostics show `ts`; lint diagnostics show `oxc`. Formatting and save actions are unchanged.
 
 Run the tooling guard to inspect the entire lock and installed dependency graph, verify lint coverage, and exercise deliberate lint violations. Run the compiler probe to verify that valid TypeScript and TSX pass and deliberate type errors stop builds:
 

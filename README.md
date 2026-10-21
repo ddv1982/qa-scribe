@@ -42,7 +42,7 @@ The bootstrap verifies the repository setup package with the pinned signing key.
 - **Interface:** React 19, TypeScript, Vite, and Tiptap.
 - **Storage:** SQLite through `rusqlite`, with managed attachment files.
 - **Typed bridge:** Tauri commands, Serde, and Specta-generated TypeScript bindings.
-- **Tooling:** Bun, Rust `tsc-rs` build checks, and Oxlint with its Go-based typed-lint engine. Microsoft TypeScript 7 currently supplies the editor SDK.
+- **Tooling:** Bun, the Rust `tsc-rs` compiler and language server, the Microsoft TypeScript 7 extension client, and Oxlint with its Go-based typed-lint engine.
 - **AI:** Local CLI processes for generation and Chat.
 
 ## Develop

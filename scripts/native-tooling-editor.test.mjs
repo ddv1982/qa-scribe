@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { chmodSync, readlinkSync, mkdtempSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { test } from 'node:test'
+import { prepareRustSdk } from './prepare-rust-typescript-sdk.mjs'
 import { inspectEditorTooling, validateEditorTooling } from './native-tooling-editor.mjs'
 
 const layouts = JSON.parse(readFileSync(new URL('./fixtures/native-tooling/editor-layouts.json', import.meta.url), 'utf8'))
@@ -25,12 +26,19 @@ function fixture(t) {
     write(root, `${folder}.vscode/settings.json`, settings)
     write(root, `${folder}.vscode/extensions.json`, { recommendations: ['TypeScriptTeam.native-preview', 'oxc.oxc-vscode'] })
   }
-  const pins = { typescript: '7.0.2', oxlint: '1.89.0', 'oxlint-tsgolint': '7.0.2004' }
+  const pins = { 'tsc-rs': '0.7.0', oxlint: '1.89.0', 'oxlint-tsgolint': '7.0.2004' }
   write(root, 'frontend/package.json', { devDependencies: pins })
-  for (const [name, bin] of [['typescript', { tsc: './bin/tsc' }], ['oxlint', { oxlint: './bin/oxlint' }], ['oxlint-tsgolint', { tsgolint: './bin/tsgolint.js' }]]) {
+  for (const [name, bin] of [['oxlint', { oxlint: './bin/oxlint' }], ['oxlint-tsgolint', { tsgolint: './bin/tsgolint.js' }]]) {
     write(root, `frontend/node_modules/${name}/package.json`, { name, version: pins[name], bin })
     write(root, `frontend/node_modules/${name}/${Object.values(bin)[0]}`, 'metadata fixture only')
   }
+  const native = `@tsc-rs/${process.platform}-${process.arch}`
+  write(root, 'frontend/node_modules/tsc-rs/package.json', { name: 'tsc-rs', version: pins['tsc-rs'], optionalDependencies: { [native]: pins['tsc-rs'] } })
+  write(root, `frontend/node_modules/${native}/package.json`, { name: native, version: pins['tsc-rs'], os: [process.platform], cpu: [process.arch] })
+  write(root, `frontend/node_modules/${native}/lib/tsc`, 'metadata fixture only')
+  chmodSync(join(root, `frontend/node_modules/${native}/lib/tsc`), 0o755)
+  for (const file of ['lib.d.ts', 'lib.es5.d.ts', 'lib.dom.d.ts', 'lib.esnext.full.d.ts']) write(root, `frontend/node_modules/${native}/lib/${file}`, 'metadata fixture only')
+  prepareRustSdk(join(root, 'frontend'))
   write(root, 'frontend/.oxlintrc.json', { options: { typeAware: true } })
   write(root, 'frontend/tsconfig.json', { include: ['src'], references: [{ path: './tsconfig.node.json' }] })
   write(root, 'frontend/tsconfig.node.json', { include: ['vite.config.ts'] })
@@ -46,15 +54,15 @@ test('portable paired layouts survive checkout relocation and JSONC', t => {
 })
 
 const mutations = [
-  ['missing SDK', 'editor-sdk', root => edit(root, '.vscode/settings.json', s => { s['js/ts.tsdk.path'] = './node_modules/typescript' })],
-  ['off by one frontend SDK', 'editor-sdk', root => edit(root, 'frontend/.vscode/settings.json', s => { s['js/ts.tsdk.path'] = './frontend/node_modules/typescript' })],
+  ['missing SDK', 'editor-sdk', root => edit(root, '.vscode/settings.json', s => { s['js/ts.tsdk.path'] = './node_modules/.tsc-rs-sdk' })],
+  ['off by one frontend SDK', 'editor-sdk', root => edit(root, 'frontend/.vscode/settings.json', s => { s['js/ts.tsdk.path'] = './frontend/node_modules/.tsc-rs-sdk' })],
   ['missing Oxlint bin', 'editor-oxlint', root => rmSync(join(root, 'frontend/node_modules/oxlint/bin/oxlint'))],
-  ['wrong SDK identity', 'editor-package', root => edit(root, 'frontend/node_modules/typescript/package.json', p => { p.name = 'unrelated' })],
-  ['wrong SDK pin', 'editor-package', root => edit(root, 'frontend/node_modules/typescript/package.json', p => { p.version = '7.0.1' })],
+  ['wrong SDK identity', 'editor-sdk', root => edit(root, 'frontend/node_modules/tsc-rs/package.json', p => { p.name = 'unrelated' })],
+  ['wrong SDK pin', 'editor-sdk', root => edit(root, 'frontend/node_modules/tsc-rs/package.json', p => { p.version = '0.6.0' })],
   ['wrong typed engine pin', 'editor-package', root => edit(root, 'frontend/node_modules/oxlint-tsgolint/package.json', p => { p.version = '7.0.2003' })],
-  ['missing declared launcher', 'editor-package-bin', root => edit(root, 'frontend/node_modules/typescript/package.json', p => { delete p.bin })],
+  ['missing declared launcher', 'editor-package-bin', root => edit(root, 'frontend/node_modules/oxlint/package.json', p => { delete p.bin })],
   ['wrong lint config', 'editor-lint-config', root => edit(root, '.vscode/settings.json', s => { s['oxc.configPath'] = './.oxlintrc.json' })],
-  ['disabled native Go provider', 'editor-provider', root => edit(root, '.vscode/settings.json', s => { s['js/ts.experimental.useTsgo'] = false })],
+  ['disabled TypeScript 7 client', 'editor-provider', root => edit(root, '.vscode/settings.json', s => { s['js/ts.experimental.useTsgo'] = false })],
   ['disabled typed lint', 'editor-typed-lint', root => edit(root, 'frontend/.vscode/settings.json', s => { s['oxc.typeAware'] = false })],
   ['untyped canonical config', 'editor-typed-lint', root => edit(root, 'frontend/.oxlintrc.json', c => { c.options.typeAware = false })],
   ['forced UI project', 'editor-project-scope', root => edit(root, '.vscode/settings.json', s => { s['oxc.tsConfigPath'] = './frontend/tsconfig.json' })],
@@ -97,6 +105,19 @@ test('missing settings fail at the file boundary', t => {
 
 test('rejects an absolute SDK path even when the installed package is correct', t => {
   const root = fixture(t)
-  edit(root, '.vscode/settings.json', s => { s['js/ts.tsdk.path'] = join(root, 'frontend/node_modules/typescript') })
+  edit(root, '.vscode/settings.json', s => { s['js/ts.tsdk.path'] = join(root, 'frontend/node_modules/.tsc-rs-sdk') })
   assert.ok(validateEditorTooling(inspectEditorTooling(root)).some(row => row.code === 'editor-relative-path'))
+})
+
+test('guard diagnoses a stale SDK without repairing it', t => {
+  const root = fixture(t)
+  const link = join(root, 'frontend/node_modules/.tsc-rs-sdk')
+  rmSync(link); symlinkSync('@tsc-rs/darwin-x64/lib', link)
+  assert.ok(validateEditorTooling(inspectEditorTooling(root)).some(row => row.code === 'editor-sdk'))
+  assert.equal(readlinkSync(link), '@tsc-rs/darwin-x64/lib')
+})
+test('guard requires the stable SDK link rather than a direct platform path', t => {
+  const root = fixture(t)
+  edit(root, '.vscode/settings.json', s => { s['js/ts.tsdk.path'] = `./frontend/node_modules/@tsc-rs/${process.platform}-${process.arch}/lib` })
+  assert.ok(validateEditorTooling(inspectEditorTooling(root)).some(row => row.code === 'editor-sdk'))
 })

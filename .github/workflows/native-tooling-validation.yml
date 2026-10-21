@@ -10,6 +10,7 @@ on:
       - 'frontend/.oxlintrc.json'
       - 'frontend/tsconfig*.json'
       - 'scripts/*native*.mjs'
+      - 'scripts/*rust-typescript*.mjs'
       - 'scripts/check-typescript-compiler.mjs'
       - 'scripts/fixtures/native-tooling/**'
       - '.github/**'

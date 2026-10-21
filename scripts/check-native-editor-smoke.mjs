@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { spawn, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { chmodSync, closeSync, cpSync, existsSync, mkdirSync, openSync, readFileSync, realpathSync, writeFileSync, symlinkSync, lstatSync, readdirSync, createWriteStream } from 'node:fs'
+import { chmodSync, closeSync, cpSync, existsSync, mkdirSync, openSync, readFileSync, realpathSync, writeFileSync, symlinkSync, readdirSync, createWriteStream } from 'node:fs'
 import { createRequire } from 'node:module'
 import { createConnection } from 'node:net'
 import { tmpdir } from 'node:os'
@@ -9,6 +9,10 @@ import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'nod
 import { pipeline } from 'node:stream/promises'
 import { Readable } from 'node:stream'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { assertRustSdkPrepared, resolveRustSdk } from './rust-typescript-sdk.mjs'
+import { inspectEditorTooling, validateEditorTooling } from './native-tooling-editor.mjs'
+import { inspectFrontend } from './native-tooling-inventory.mjs'
+import { validateNativeTooling } from './native-tooling-policy.mjs'
 
 const pins = { editor: '1.142.0', typescript: '1.0.1', oxc: '1.64.1', playwright: '1.64.1' }
 const json = file => JSON.parse(readFileSync(file, 'utf8'))
@@ -133,28 +137,22 @@ export class ProbeChildren {
 }
 
 export function prepareWorkspace(source, project) {
+  const sourceModules = join(source, 'frontend/node_modules')
+  assertRustSdkPrepared(resolveRustSdk(join(source, 'frontend')))
   const modules = join(project, 'frontend/node_modules')
   assert.ok(!existsSync(modules), 'Export must not contain an installation')
-  mkdirSync(modules)
-  for (const name of readdirSync(join(source, 'frontend/node_modules'))) {
-    if (name !== '.tsc-rs-sdk') cpSync(join(source, 'frontend/node_modules', name), join(modules, name), { recursive: true, dereference: true })
+  cpSync(sourceModules, modules, { recursive: true, verbatimSymlinks: true })
+  const checkLinks = directory => {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name)
+      if (entry.isSymbolicLink()) inside(modules, path)
+      else if (entry.isDirectory()) checkLinks(path)
+    }
   }
-  const frontend = join(project, 'frontend')
-  const native = join(modules, `@tsc-rs/${process.platform}-${process.arch}`)
-  const umbrella = json(join(modules, 'tsc-rs/package.json'))
-  const metadata = json(join(native, 'package.json'))
-  assert.equal(json(join(frontend, 'package.json')).devDependencies['tsc-rs'], '0.7.0')
-  assert.equal(umbrella.version, '0.7.0'); assert.equal(metadata.version, umbrella.version)
-  assert.equal(umbrella.name, 'tsc-rs'); assert.equal(metadata.name, `@tsc-rs/${process.platform}-${process.arch}`)
-  assert.ok(metadata.os.includes(process.platform) && metadata.cpu.includes(process.arch))
-  const executable = inside(native, join(native, 'lib/tsc'))
-  assert.ok(lstatSync(executable).mode & 0o111, 'Native server must be executable')
-  for (const file of ['lib.d.ts', 'lib.esnext.full.d.ts']) inside(native, join(native, 'lib', file))
-  const link = join(modules, '.tsc-rs-sdk')
-  assert.ok(!existsSync(link), 'Disposable SDK link must be new')
-  symlinkSync(`@tsc-rs/${process.platform}-${process.arch}/lib`, link)
-  assert.equal(inside(modules, link), realpathSync(join(native, 'lib')))
-  return { executable, sha256: hash(executable), umbrella, native: metadata }
+  checkLinks(modules)
+  const sdk = resolveRustSdk(join(project, 'frontend'))
+  assertRustSdkPrepared(sdk)
+  return { ...sdk, sha256: hash(sdk.executable) }
 }
 
 export async function editorSmoke({ source, output, provision = false, tools = process.env }) {
@@ -174,9 +172,9 @@ export async function editorSmoke({ source, output, provision = false, tools = p
   let page
   const cutoff = setTimeout(() => { void browser?.close().catch(() => {}) }, budget(570_000))
   const receipt = { platform: `${process.platform}-${process.arch}`, pins, cases: [], source, started: new Date(started).toISOString() }
-  const run = async (label, executable, args, commandEnv = env, timeout = 45_000) => {
+  const run = async (label, executable, args, commandEnv = env, timeout = 45_000, cwd = source) => {
     budget()
-    const process = await owner.launch(label, executable, args, commandEnv, source)
+    const process = await owner.launch(label, executable, args, commandEnv, cwd)
     let timer
     try {
       const result = await Promise.race([process.done, new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(`${label} timed out`)), budget(timeout)) })])
@@ -241,16 +239,26 @@ export async function editorSmoke({ source, output, provision = false, tools = p
     const project = join(output, 'project'); mkdirSync(project)
     await run('export-source', '/usr/bin/git', ['archive', '--format=tar', `--output=${join(output, 'source.tar')}`, 'HEAD'])
     await run('extract-source', '/usr/bin/tar', ['-xf', join(output, 'source.tar'), '-C', project])
-    const installation = tools.NATIVE_EDITOR_SMOKE_INSTALLATION_ROOT ? inside(temporary, tools.NATIVE_EDITOR_SMOKE_INSTALLATION_ROOT) : source
-    receipt.sdk = prepareWorkspace(installation, project)
+    if (tools.NATIVE_EDITOR_SMOKE_PATCH) {
+      const patch = inside(temporary, tools.NATIVE_EDITOR_SMOKE_PATCH)
+      receipt.sourcePatchSHA256 = hash(patch)
+      await run('check-source-patch', '/usr/bin/git', ['apply', '--check', patch], env, 45_000, project)
+      await run('apply-source-patch', '/usr/bin/git', ['apply', patch], env, 45_000, project)
+    }
+    const parity = json(new URL('./fixtures/native-tooling/lint-parity.json', import.meta.url))
+    const checkInstallation = root => {
+      assert.deepEqual(validateNativeTooling(inspectFrontend(join(root, 'frontend')), parity), [], 'Microsoft SDK must be absent and native policy must pass')
+      assert.deepEqual(validateEditorTooling(inspectEditorTooling(root)), [], 'Actual workspace SDK settings and prepared link must pass without repair')
+    }
+    checkInstallation(source)
+    receipt.sdk = prepareWorkspace(source, project)
+    checkInstallation(project)
+    for (const file of ['.vscode/settings.json', 'frontend/.vscode/settings.json', 'frontend/package.json', 'frontend/bun.lock']) assert.equal(hash(join(project, file)), hash(join(source, file)), `Export must retain actual source ${file}`)
     const fixtureFile = new URL('./fixtures/native-tooling/editor-smoke.json', import.meta.url)
     const fixture = json(fixtureFile)
     receipt.probeSHA256 = hash(fileURLToPath(import.meta.url)); receipt.fixtureSHA256 = hash(fixtureFile)
     writeFileSync(join(project, 'frontend/src/ReviewTarget.ts'), fixture.target)
     const probe = join(project, 'frontend/src/ReviewProbe.tsx'); writeFileSync(probe, fixture.valid)
-    for (const [folder, sdk] of [[project, './frontend/node_modules/.tsc-rs-sdk'], [join(project, 'frontend'), './node_modules/.tsc-rs-sdk']]) {
-      const settings = join(folder, '.vscode/settings.json'); const value = json(settings); value['js/ts.tsdk.path'] = sdk; save(settings, value)
-    }
     const { chromium } = createRequire(import.meta.url)(playwright)
     for (const [name, workspace] of [['root', project], ['frontend', join(project, 'frontend')]]) {
       const directory = join(output, name); mkdirSync(directory)

@@ -49,7 +49,7 @@ export function inspectFrontend(frontend) {
     }
   }
   modules(join(frontend, 'node_modules'))
-  const resolved = Object.fromEntries(['typescript', 'tsc-rs', 'oxlint', 'oxlint-tsgolint'].map(name => [name, readJson(require.resolve(`${name}/package.json`)).version]))
+  const resolved = Object.fromEntries(['tsc-rs', 'oxlint', 'oxlint-tsgolint'].map(name => [name, readJson(require.resolve(`${name}/package.json`)).version]))
   const config = readJson(join(frontend, '.oxlintrc.json'))
   const configFiles = []
   function configurations(directory, prefix = '') {

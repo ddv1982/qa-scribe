@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
-import { chmodSync, linkSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
+import { chmodSync, linkSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
+import { prepareRustSdk } from './prepare-rust-typescript-sdk.mjs'
 import { inside, prepareWorkspace, privateEnvironment, ProbeChildren, verifyReleased } from './check-native-editor-smoke.mjs'
 
 test('cleanup verification refuses a live debug listener', async () => {
@@ -20,23 +21,27 @@ test('disposable setup copies linked installation bytes before owning its SDK li
   const root = mkdtempSync(join(tmpdir(), 'native-editor-setup-'))
   try {
     const source = join(root, 'source'); const project = join(root, 'project'); const store = join(root, 'store')
-    const modules = join(store, 'modules'); const native = join(modules, `@tsc-rs/${process.platform}-${process.arch}`)
+    const modules = join(source, 'frontend/node_modules'); const native = join(modules, `@tsc-rs/${process.platform}-${process.arch}`)
     for (const directory of [join(source, 'frontend'), join(project, 'frontend'), join(modules, 'tsc-rs'), join(native, 'lib')]) mkdirSync(directory, { recursive: true })
-    symlinkSync(modules, join(source, 'frontend/node_modules'))
-    writeFileSync(join(modules, '.tsc-rs-sdk'), 'foreign source entry')
+    writeFileSync(join(source, 'frontend/package.json'), JSON.stringify({ devDependencies: { 'tsc-rs': '0.7.0' } }))
     writeFileSync(join(project, 'frontend/package.json'), JSON.stringify({ devDependencies: { 'tsc-rs': '0.7.0' } }))
-    writeFileSync(join(modules, 'tsc-rs/package.json'), JSON.stringify({ name: 'tsc-rs', version: '0.7.0' }))
+    writeFileSync(join(modules, 'tsc-rs/package.json'), JSON.stringify({ name: 'tsc-rs', version: '0.7.0', optionalDependencies: { [`@tsc-rs/${process.platform}-${process.arch}`]: '0.7.0' } }))
     writeFileSync(join(native, 'package.json'), JSON.stringify({ name: `@tsc-rs/${process.platform}-${process.arch}`, version: '0.7.0', os: [process.platform], cpu: [process.arch] }))
+    mkdirSync(store)
     const binary = join(store, 'binary'); writeFileSync(binary, 'shared vendor bytes'); chmodSync(binary, 0o755)
     linkSync(binary, join(native, 'lib/tsc'))
-    for (const name of ['lib.d.ts', 'lib.esnext.full.d.ts']) writeFileSync(join(native, 'lib', name), '')
+    for (const name of ['lib.d.ts', 'lib.es5.d.ts', 'lib.dom.d.ts', 'lib.esnext.full.d.ts']) writeFileSync(join(native, 'lib', name), '')
+    assert.throws(() => prepareWorkspace(source, project), /Rust SDK link missing/, 'A missing source SDK link must not be repaired by the smoke')
+    prepareRustSdk(join(source, 'frontend'))
+    const sourceLink = statSync(join(modules, '.tsc-rs-sdk'))
     const result = prepareWorkspace(source, project)
     assert.equal(readlinkSync(join(project, 'frontend/node_modules/.tsc-rs-sdk')), `@tsc-rs/${process.platform}-${process.arch}/lib`)
     assert.equal(realpathSync(join(project, 'frontend/node_modules/.tsc-rs-sdk')), join(project, `frontend/node_modules/@tsc-rs/${process.platform}-${process.arch}/lib`))
     assert.notEqual(statSync(result.executable).ino, statSync(binary).ino)
     writeFileSync(result.executable, 'changed disposable copy')
     assert.equal(readFileSync(binary, 'utf8'), 'shared vendor bytes')
-    assert.equal(readFileSync(join(modules, '.tsc-rs-sdk'), 'utf8'), 'foreign source entry')
+    assert.equal(readlinkSync(join(modules, '.tsc-rs-sdk')), `@tsc-rs/${process.platform}-${process.arch}/lib`)
+    assert.equal(statSync(join(modules, '.tsc-rs-sdk')).ino, sourceLink.ino)
     assert.throws(() => prepareWorkspace(source, project), /must not contain an installation/)
     assert.throws(() => inside(project, store), /escapes/)
   } finally { rmSync(root, { recursive: true, force: true }) }
