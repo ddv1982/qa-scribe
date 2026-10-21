@@ -143,6 +143,43 @@ async function palette(stage, width, theme) {
     'Closing the modal must restore focus to its opener')
 }
 
+async function paletteEscape() {
+  const keyboard = { platform: process.platform }
+  const sendKey = process.platform === 'linux'
+    ? nativeKeySender(keyboard, () => save('palette-native-keyboard', keyboard), Key)
+    : (key) => browser.keys(key)
+  for (const [stage, query, result] of [['empty', '', false], ['typed', 'Settings', false],
+    ['option', 'Settings', true], ['reopened', '', false]]) {
+    await browser.execute((selector) => document.querySelector(selector).focus(), trigger)
+    await click(trigger)
+    const search = await $('[aria-label="Search commands"]')
+    await search.waitForDisplayed()
+    assert.equal(await search.getValue(), '', 'Reopening the palette resets search')
+    if (query) await search.setValue(query)
+    if (result) await sendKey(Key.ArrowDown)
+    assert.ok(await browser.execute((result) => document.activeElement?.matches(result
+      ? '.command-palette-list button:not(:disabled)' : '[aria-label="Search commands"]'), result),
+    `${stage}: Escape starts from the expected control`)
+    await browser.execute(() => {
+      window.__paletteEscape = []
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') window.__paletteEscape.push({ trusted: event.isTrusted, key: event.key })
+      }, { once: true, capture: true })
+    })
+    await browser.saveScreenshot(join(artifacts, `palette-escape-${stage}-before.png`))
+    await sendKey(Key.Escape)
+    const value = await browser.execute((selector) => ({
+      open: Boolean(document.querySelector('dialog.command-palette[open]')),
+      focusReturned: document.activeElement === document.querySelector(selector), events: window.__paletteEscape,
+    }), trigger)
+    save(`palette-escape-${stage}`, value)
+    await browser.saveScreenshot(join(artifacts, `palette-escape-${stage}-after.png`))
+    assert.deepEqual(value.events, [{ trusted: true, key: 'Escape' }], `${stage}: use one real native Escape`)
+    assert.equal(value.open, false, `${stage}: first Escape closes the command palette`)
+    assert.equal(value.focusReturned, true, `${stage}: Escape restores focus to the opener`)
+  }
+}
+
 async function laptopResize(width, height) {
   await browser.setWindowSize(1280, 860)
   const calibration = await settledViewport()
@@ -207,6 +244,11 @@ async function actions(stage, selector, initial = true) {
 }
 
 describe('Native UI polish before/after evidence', () => {
+  it('closes command search and options on the first native Escape and can reopen', async () => {
+    await (await $(trigger)).waitForClickable()
+    await paletteEscape()
+  })
+
   it('captures both themes at desktop and native640, with reachable creation and persisted editing', async function () {
     this.timeout(180_000)
     await (await $('h1=No Session selected')).waitForDisplayed()
