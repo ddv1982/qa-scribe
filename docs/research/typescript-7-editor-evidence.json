@@ -1,6 +1,6 @@
 {
   "phase": "T7-3",
-  "status": "REVISED_RELEASE_SCOPE_FUNCTIONAL_SMOKE_AND_FRESH_REVIEW_PENDING",
+  "status": "AMENDED_SCOPE_PRIVATE_FUNCTIONAL_PASS_FINAL_DOCUMENTATION_CI_PENDING",
   "base_source": "b23b0313fbc2a2c54f02b4f147c2a8b8938002b0",
   "base_merge": "678acfee0535c3bdef35afd181e3b882b119edc1",
   "configuration": "Paired root/frontend workspace JSON selects the local Microsoft Go SDK7.0.2, Oxlint1.89.0, and official local tsgolint7.0.2004 launcher. Runtime identity requires actual editor trust and SDK Allow.",
@@ -245,8 +245,7 @@
     }
   },
   "pending": [
-    "Bounded private functional smoke with reviewed owned cleanup and all distinct IDE scenarios covered or bound to trustworthy unchanged-source evidence.",
-    "Fresh independent shipping judgment assessing the explicit scope amendment, final patch and current CI, then normal merge.",
+    "Independent review of final documentation changes and fresh attached CI at the resulting head, then normal merge.",
     "T7-4 final release validation and publication through existing CI."
   ],
   "raw_receipts_committed": false,
@@ -626,7 +625,7 @@
     "supersession": "Historical FAIL retained. A fresh reviewer must assess the scope amendment and the final evidence. This record does not grant a new shipping PASS."
   },
   "corrective_verification": {
-    "status": "MEASUREMENT_PROGRAM_SUPERSEDED_BY_BOUNDED_FUNCTIONAL_RELEASE_SCOPE",
+    "status": "PRIVATE_FUNCTIONAL_ACCEPTANCE_PASS_LONG_STUDY_DEFERRED_NOT_MET",
     "owner_task": "node:delegated-task:command%3Amcp%3Af2877ea0-a0d1-4168-97c4-278172e7b811%3Adelegate-task%3Aqa-scribe-ts7-t73-corrective-isolation-owner-stage-a-20261020",
     "root": "/tmp/qa-scribe-ts7/T7-3/corrective-isolation-20261020",
     "authority": "The release-scope amendment supersedes the measurement requirement under the autonomous execution request. No historical result is waived or relabeled. Fresh functional proof and independent shipping judgment remain required.",
@@ -679,5 +678,77 @@
       "Actual macOS IDE behavior inferred from Linux IDE or macOS CLI checks"
     ],
     "limits": "Historical lane 10 remains ISSUES. Fresh smoke cannot reconstruct its unknown historical effects. Current ordinary trusted-workflow failures remain product blockers."
+  },
+  "shipping_review_round4": {
+    "verdict": "PASS_WITH_NOTES_UNDER_AMENDED_SCOPE",
+    "head": "6d80007b40a817ceb96da2f9f5123c7407c4e855",
+    "base": "678acfee0535c3bdef35afd181e3b882b119edc1",
+    "stable_patch_id": "5f8f8d7e40bb0cf61611a66efc1329c7d188d405",
+    "current625Digest": "f0ef5e78481cdde765e3e82d50eb43e718e6ca78cc4d94d4fd6aeb18ef12391a",
+    "reviewer": {
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "provider": "OpenAI",
+      "independentNonAuthor": true,
+      "worktree": "/home/vriesd/.t3/worktrees/qa-scribe/t3-5a681551"
+    },
+    "report_sha256": "36996c35418b632769db9fa50c3e2233c45e4e232237a13f8094748ecdd35e1d",
+    "receipt_sha256": "0bf50c2a0f6d08537270afd4e445308102ed4367bb75db82af2da5662cff1f9e",
+    "raw_artifacts_committed": false,
+    "local_report": "/tmp/qa-scribe-ts7/T7-3/shipping-review-round4-private-shell/report.md",
+    "all_ten_scenarios_fresh": true,
+    "root_cycles": 3,
+    "root_cycle_actions": 66,
+    "sampled_environment_audits": 179,
+    "sampled_process_observations": 2960,
+    "credential_named_keys_in_sampled_processes": 0,
+    "cleanup_signals_audited": 35,
+    "tracked_files_restored": 711,
+    "parent_manifest_verification": {
+      "files": 32143,
+      "mismatches": 0
+    },
+    "parent_visually_inspected": [
+      "candidate-root/1792563536915-assert-hover-2-after.png",
+      "candidate-frontend/1792563670224-assert-errors-2-after.png",
+      "candidate-frontend/1792563673023-assert-clean-2-after.png"
+    ],
+    "runtime_boundary": "Separate disposable HOME, /bin/sh, private .profile and controlled PATH with direct pinned Node. Actual Oxc login-shell resolution and owned provider children checked before functional acceptance. Explicit private user/extensions/shared/XDG stores.",
+    "limits": {
+      "scopeAmendmentAfterFailure": true,
+      "t72MemoryAmendmentAfterFailure": true,
+      "originalStrictFailuresRetained": true,
+      "originalLane10WholeLane": "ISSUES",
+      "originalLane10HistoricalEffects": "UNKNOWN",
+      "round2Verdict": "FAIL retained",
+      "round3Verdict": "FAIL retained",
+      "round3FunctionalEnvironment": "conditional, not promoted",
+      "newRound4Environment": "PASS for sampled actual owned processes in two corrected-boundary Linux sessions",
+      "deferredStudies": "NOT MET",
+      "noPerformanceClaims": true,
+      "noMacIDEClaim": true,
+      "originalIntelFailure": "retained; cause unconfirmed",
+      "ciFullyGreenClaim": false,
+      "nestedAgents": 0,
+      "nonOpenAIInvocations": 0,
+      "independentCommentSickoSubAudit": "not run under explicit no-nested-agents constraint",
+      "futureDocumentationHead": "not certified",
+      "oldEvidenceWrites": 0,
+      "forgeWrites": 0,
+      "t3AppLocalPRRegistration": true
+    },
+    "future_head": "The verdict covers 6d80007 only. Final documentation changes need independent review, artifact-equivalence proof and current CI. All earlier FAIL/ISSUES results stay historical and unchanged."
+  },
+  "current_ci_at_reviewed_source": {
+    "head": "6d80007b40a817ceb96da2f9f5123c7407c4e855",
+    "protected_run": 39551234920,
+    "protected_result": "SUCCESS_ALL_SIX_JOBS",
+    "fresh_native_run": 39551841330,
+    "fresh_native_result": "SUCCESS_LINUX_X64_MACOS_ARM64_MACOS_X64_COLD_AND_EXACT_RESTORED_WARM",
+    "original_native_run": 39551235737,
+    "original_intel_result": "FAIL_FOUR_UNCHANGED_SETTLEMENT_TESTS_CAUSE_UNCONFIRMED",
+    "local_focused_result": "13/13 pass",
+    "pr_merge_state_at_read": "UNSTABLE_WITH_ORIGINAL_NONREQUIRED_NATIVE_FAILURE_VISIBLE",
+    "next": "Fresh attached CI at final documentation head required. No assertions or timeouts changed."
   }
 }

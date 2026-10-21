@@ -7,7 +7,7 @@ Keep `tsc-rs` as the authoritative build checker. Use Microsoft TypeScript 7 for
 Run T7-1, T7-2, T7-3, and T7-4 in that order. These are planned PR labels, not GitHub PR numbers.
 This document records the approved implementation sequence. Execution started on 2026-10-20 from `82f1502aee9c20d481bcd0ae56c45d053e7b9516`. Publication remains conditional on the final verification gates.
 
-T7-1 merged through [PR #61](https://github.com/ddv1982/qa-scribe/pull/61) at `0496aac81d0b1d6c6c61797e721f827a7420a8bf`. The [implementation evidence](research/typescript-7-implementation-evidence.json) records its results and limits. T7-2 merged through [PR #62](https://github.com/ddv1982/qa-scribe/pull/62) at `678acfee0535c3bdef35afd181e3b882b119edc1`. All ten terminal scenarios, the amended performance conditions, independent exact-head shipping review, and all nine hosted checks passed. The [watch evidence](research/typescript-7-watch-evidence.json) preserves the original absolute memory failure and the acceptance amendment. T7-3 code and private editor interactions pass, as do all nine hosted checks at the reviewed source. Independent shipping review is FAIL for isolated-duration proof and safe whole-lane stress cleanup. The [editor evidence](research/typescript-7-editor-evidence.json) records all original deviations and the corrective verification sequence. The application and native tooling source remain unchanged. T7-4 has not started. The release-scope amendment below supersedes the additional T7-3 and T7-4 performance requirements.
+T7-1 merged through [PR #61](https://github.com/ddv1982/qa-scribe/pull/61) at `0496aac81d0b1d6c6c61797e721f827a7420a8bf`. The [implementation evidence](research/typescript-7-implementation-evidence.json) records its results and limits. T7-2 merged through [PR #62](https://github.com/ddv1982/qa-scribe/pull/62) at `678acfee0535c3bdef35afd181e3b882b119edc1`. All ten terminal scenarios, the amended performance conditions, independent exact-head shipping review, and all nine hosted checks passed. The [watch evidence](research/typescript-7-watch-evidence.json) preserves the original absolute memory failure and the acceptance amendment. T7-3 has an independent PASS WITH NOTES at `6d80007` under the release-scope amendment. Both private workspace layouts passed all ten functional scenarios and safe cleanup. Earlier shipping FAIL verdicts remain historical. Protected CI and a fresh native matrix passed at that source; the original Intel native failure remains visible and unexplained. Final documentation review and attached CI remain pending. The [editor evidence](research/typescript-7-editor-evidence.json) records all original deviations and the corrective verification sequence. The application and native tooling source remain unchanged. T7-4 has not started. The release-scope amendment below supersedes the additional T7-3 and T7-4 performance requirements.
 
 ## How to read this
 
@@ -232,16 +232,18 @@ The proposal text remains immutable at SHA256 `9af3d96919d626c96239537943cb2e7e5
 
 **Verify, live.** Tests alone are not sufficient verification. Complete the applicable unit and live checks. Performance acceptance follows the phase-specific scope below. The ten entries below name functional scenarios. They may share a bounded private smoke session under the release-scope amendment. Record the actual model and source identity.
 
-- [ ] Lane 1. Open the repository root in an isolated IDE profile. Save `root-workspace.png`. Pass when the running server resolves to the pinned TypeScript 7 package.
-- [ ] Lane 2. Open `frontend` as the workspace. Save `frontend-workspace.png`. Pass when the documented local SDK path works without a global override.
-- [ ] Lane 3. Type a property access in a real TS source. Save `completion.png`. Pass when project-aware completion and hover show the correct type.
-- [ ] Lane 4. Navigate from a component to a project import and back. Save `navigation.png`. Pass when definition and reference locations resolve to actual sources.
-- [ ] Lane 5. Add and repair a TS2322 error. Save `type-diagnostic.png`. Pass when the editor reports and clears it through the TypeScript 7 provider.
-- [ ] Lane 6. Add a floating promise. Save `typed-lint.png`. Pass when the Oxlint provider reports the expected typed rule with the project policy.
-- [ ] Lane 7. Add and repair a conditional hook. Save `editor-hooks.png`. Pass when the expected hook diagnostic appears and clears.
-- [ ] Lane 8. Open and edit `vite.config.ts`. Save `editor-vite.png`. Pass when both its project types and native lint are active.
-- [ ] Lane 9. Reload the isolated editor window. Save `reload.png`. Pass when settings persist and exactly the intended compiler and lint providers restart.
-- [ ] Lane 10. Exercise repeated edits and navigation through a sustained session. Save `long-session.png`. Pass when the bounded repeated-edit session has no crash, legacy API load, or stale diagnostic and its owned resources close safely. This does not establish a memory bound.
+- [x] Scenario 1. Open the repository root in an isolated IDE profile. Pass when the running server resolves to the pinned TypeScript 7 package.
+- [x] Scenario 2. Open `frontend` as the workspace. Pass when the documented local SDK path works without a global override.
+- [x] Scenario 3. Type a property access in a real TS source. Pass when project-aware completion and hover show the correct type.
+- [x] Scenario 4. Navigate from a component to a project import and back. Pass when definition and reference locations resolve to actual sources.
+- [x] Scenario 5. Add and repair a TS2322 error. Pass when the editor reports and clears it through the TypeScript 7 provider.
+- [x] Scenario 6. Add a floating promise. Pass when the Oxlint provider reports the expected typed rule with the project policy.
+- [x] Scenario 7. Add and repair a conditional hook. Pass when the expected hook diagnostic appears and clears.
+- [x] Scenario 8. Open and edit `vite.config.ts`. Pass when both its project types and native lint are active.
+- [x] Scenario 9. Reload the isolated editor window. Pass when settings persist and exactly the intended compiler and lint providers restart.
+- [x] Scenario 10. Exercise repeated edits and navigation through a sustained session. Pass when the bounded repeated-edit session has no crash, legacy API load, or stale diagnostic and its owned resources close safely. This does not establish a memory bound.
+
+Round-4 proof at `6d80007` covers these ten scenarios in two private Linux sessions, including three root cycles. The [editor evidence](research/typescript-7-editor-evidence.json) binds the independent report, captures, sampled environment audits and cleanup. Historical lane 10 remains ISSUES. These checked scenarios refer to the new smoke, not the old lane.
 
 **Verify, perf. Deferred, not met.** The following original requirements remain visible as historical acceptance criteria. They are outside this release under the amendment above.
 
@@ -258,7 +260,7 @@ Run one bounded private functional smoke pass with reviewed cleanup. Repeated ed
 
 **Review gate.** Independent interaction review before merge under the autonomous execution request.
 
-- [ ] Post actual IDE screenshots and a 30 to 60 second video as `/tmp/qa-scribe-ts7/T7-3/review.mp4`. Show server identity, completion, compiler diagnostics, native lint, and repair. Require independent review of the captured interaction before merge.
+- [x] Independent actual-screen review covers the fresh private round-4 screenshots, provider identity, completion, compiler diagnostics, native lint, and repair. The earlier 45-second owner video remains independently inspected historical interaction evidence with its storage qualification. No new video was recorded for round 4. Final documentation must preserve that distinction.
 
 **Merge.**
 
