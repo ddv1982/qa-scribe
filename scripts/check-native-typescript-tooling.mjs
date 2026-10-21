@@ -8,6 +8,7 @@ import { inspectFrontend } from './native-tooling-inventory.mjs'
 import { validateNativeTooling } from './native-tooling-policy.mjs'
 import { checkNativeLintFixtures } from './check-native-lint-fixtures.mjs'
 import { inspectLintSelection, validateLintSelection } from './native-tooling-selection.mjs'
+import { inspectEditorTooling, validateEditorTooling } from './native-tooling-editor.mjs'
 
 export { inspectFrontend, validateNativeTooling }
 
@@ -22,6 +23,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     assert.equal(printed.status, 0, `Oxlint must accept the native configuration: ${printed.stdout}${printed.stderr}`)
     inventory.config = JSON.parse(printed.stdout)
     const violations = validateNativeTooling(inventory, parity)
+    violations.push(...validateEditorTooling(inspectEditorTooling(resolve(frontend, '..'))))
     let selection
     if (violations.length === 0) {
       selection = inspectLintSelection(frontend, inventory.manifest.scripts.lint, parity.ignored)

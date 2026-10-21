@@ -1,0 +1,754 @@
+{
+  "phase": "T7-3",
+  "status": "AMENDED_SCOPE_PRIVATE_FUNCTIONAL_PASS_FINAL_DOCUMENTATION_CI_PENDING",
+  "base_source": "b23b0313fbc2a2c54f02b4f147c2a8b8938002b0",
+  "base_merge": "678acfee0535c3bdef35afd181e3b882b119edc1",
+  "configuration": "Paired root/frontend workspace JSON selects the local Microsoft Go SDK7.0.2, Oxlint1.89.0, and official local tsgolint7.0.2004 launcher. Runtime identity requires actual editor trust and SDK Allow.",
+  "architecture": "A explicit paired layouts, with B actual-provider identity receipts. Automatic SDK discovery and unset typed-engine discovery were rejected after source inspection and actual root failure.",
+  "performance": {
+    "status": "NUMERICAL_PASS_TECHNICAL_EVIDENCE_ACCEPTED_WITH_NOTES_PROTOCOL_NONCONFORMANT",
+    "registration_sha256": "de442573513d4d1349ce21a7c810172ea7846d093329ecba31e7b2c1ae7626ae",
+    "driver_sha256": "5c090e43e47b3d63fd3089439986a52acd987ed3749ae2547d04ee37f306c91d",
+    "parent_recalculation_sha256": "2be74d649806265ddf706ce5496f0a368eb7efa6811e5d40de0fb3bee37db7be",
+    "sessions": {
+      "baseline": {
+        "duration_seconds": 1801.0522151339999,
+        "activity_cycles": 40,
+        "latency": {
+          "ui-open": {
+            "n": 7,
+            "median_ms": 373.5759079999989,
+            "range_ms": [
+              351.27342799998587,
+              398.0030479999841
+            ]
+          },
+          "ui-repair": {
+            "n": 7,
+            "median_ms": 468.3172880000202,
+            "range_ms": [
+              449.6958919999888,
+              481.7369469999685
+            ]
+          },
+          "vite-open": {
+            "n": 7,
+            "median_ms": 321.919133999967,
+            "range_ms": [
+              311.90833700000076,
+              330.06626099999994
+            ]
+          },
+          "vite-repair": {
+            "n": 7,
+            "median_ms": 450.85381299996516,
+            "range_ms": [
+              437.6435019999626,
+              471.13890199997695
+            ]
+          },
+          "completion": {
+            "n": 7,
+            "median_ms": 46.786398000025656,
+            "range_ms": [
+              43.72388200002024,
+              55.18120799999451
+            ]
+          }
+        },
+        "memory_samples": 363,
+        "max_sample_gap_seconds": 5.0197916849999995,
+        "rss_delta_mib_original_role_labels": {
+          "totalIDE": 85.875,
+          "nativeProviders": 24.40625,
+          "extensionHost": -0.3828125
+        },
+        "actual_extension_host": {
+          "pid": 2114594,
+          "start_ticks": "8240842",
+          "rss_delta_mib": 5.76953125,
+          "identification": "Shared direct parent of the verified Go TypeScript and Oxlint processes, with Electron NodeService arguments. Present with stable start ticks in every sample."
+        }
+      },
+      "candidate": {
+        "duration_seconds": 1800.1180051149997,
+        "activity_cycles": 40,
+        "latency": {
+          "ui-open": {
+            "n": 7,
+            "median_ms": 368.07489799999166,
+            "range_ms": [
+              287.77129800000694,
+              375.9608729999745
+            ]
+          },
+          "ui-repair": {
+            "n": 7,
+            "median_ms": 458.98645399999805,
+            "range_ms": [
+              444.53356499999063,
+              499.03356599999825
+            ]
+          },
+          "vite-open": {
+            "n": 7,
+            "median_ms": 323.0073459999985,
+            "range_ms": [
+              310.2126879999996,
+              380.2785659999936
+            ]
+          },
+          "vite-repair": {
+            "n": 7,
+            "median_ms": 443.6833559999941,
+            "range_ms": [
+              438.90570599999046,
+              464.9191390000051
+            ]
+          },
+          "completion": {
+            "n": 7,
+            "median_ms": 45.588322999945376,
+            "range_ms": [
+              40.58818100002827,
+              59.31764100003056
+            ]
+          }
+        },
+        "memory_samples": 362,
+        "max_sample_gap_seconds": 5.0148854609999995,
+        "rss_delta_mib_original_role_labels": {
+          "totalIDE": 82.36328125,
+          "nativeProviders": 9.3515625,
+          "extensionHost": -1.05078125
+        },
+        "actual_extension_host": {
+          "pid": 2177436,
+          "start_ticks": "8439252",
+          "rss_delta_mib": 5.61328125,
+          "identification": "Shared direct parent of the verified Go TypeScript and Oxlint processes, with Electron NodeService arguments. Present with stable start ticks in every sample."
+        }
+      }
+    },
+    "comparison": {
+      "ui-open": {
+        "delta_ms": -5.501010000007227,
+        "regression_failure": false
+      },
+      "ui-repair": {
+        "delta_ms": -9.33083400002215,
+        "regression_failure": false
+      },
+      "vite-open": {
+        "delta_ms": 1.0882120000314899,
+        "regression_failure": false
+      },
+      "vite-repair": {
+        "delta_ms": -7.170456999971066,
+        "regression_failure": false
+      },
+      "completion": {
+        "delta_ms": -1.19807500008028,
+        "regression_failure": false
+      }
+    },
+    "candidate_resolution_seconds_before_t0": 148.083,
+    "protocol_deviation": "Passive verification after primary start. Final preflight shell stopped on unavailable Notifications: Hide Notifications command; owner mistakenly started the first candidate primary before inspecting that result. No reroll or settings/driver change. SDK Allow had succeeded earlier. Earlier native resolution log and initial sampled process prove local SDK was already selected at t0.",
+    "limits": [
+      "Sequential observations on one Linux host. No speedup claim.",
+      "Provider readiness final verification happened after start. The local resolution log predates t0 and the same Go process appears in every sample.",
+      "Baseline UI selection generated a workspace Go-enable flag identical to the manual-profile flag. Strict no-workspace-settings condition was not met.",
+      "RSS sums process RSS and can count shared pages more than once. Five-second samples can miss transient processes.",
+      "Original extension-host role identifies the JSON language server and misses its actual parent host. Parent audit corrects the host gate using stable provider ancestry. Original raw labels remain unchanged.",
+      "Warm Vite reopen until diagnostics are visible can include retained diagnostics. It is not cold diagnosis latency.",
+      "Completion popup could include word suggestions. Native logs confirm completion requests were served; language-service-only popup content is not proved.",
+      "Actual same Go and Oxc PID/start identities appear in all362 candidate samples; local SDK selection predates t0 by148.083seconds.",
+      "Independent reviewer did not inspect later HANDOFF and final manifests; parent separately verified all1167 listed proof hashes.",
+      "Original private profiles still accessed default VS Code shared application storage. Final live verification adds an explicit private shared-data directory. Global-store incidental writes are not known and were not investigated or rolled back."
+    ],
+    "raw_artifact_sha256": {
+      "performance-preregistration.json": "de442573513d4d1349ce21a7c810172ea7846d093329ecba31e7b2c1ae7626ae",
+      "performance-session.cjs": "5c090e43e47b3d63fd3089439986a52acd987ed3749ae2547d04ee37f306c91d",
+      "baseline-performance/session.jsonl": "90eb0357ab7567a9e882b996351cb78762015446deec39e3181b5360121aef09",
+      "baseline-performance/latency.jsonl": "5ee3f39f6247264373c5ea39f51dc6c281a6d83f8b2c1a45015706c99f958155",
+      "baseline-performance/activity.jsonl": "3c9b42d96a657bb413c70a039bf1b4e13e1b6736620952ecdc74dd7f761f6a7b",
+      "baseline-performance/memory.jsonl": "642f09104bcef144081f9890cc6ddd9b2f97e5dc65510302cb92bff81820a64d",
+      "candidate-performance/session.jsonl": "adda349b565ad0d72f98add947ece472649252864e59f97cfcadea072eb5046e",
+      "candidate-performance/latency.jsonl": "89a375faa7e0c23edf279b049bb522e062d34715edeb9a84b12c2176800aa1ab",
+      "candidate-performance/activity.jsonl": "18971deb599eaf0169e5ea4691913b5c9e852aae8fdb9eeda3194b5fd4b0016d",
+      "candidate-performance/memory.jsonl": "3dc918308ef43829734f014268bcded9e9971d62a95616b63bf782a1ca574ad0",
+      "profile-baseline/logs/20261020T182422/window1/exthost/TypeScriptTeam.native-preview/TypeScript 7.log": "41530e0d062f952a6f02fd70160740d8cab82286c79902e6c1ffbddd3e47fb7f",
+      "profile-baseline/logs/20261020T182422/window1/exthost/oxc.oxc-vscode/Oxc (Lint).log": "77433092eb6ee64f69ee281b29957290da04f21130bbe725cc479364df1be037",
+      "profile-candidate/logs/20261020T185726/window1/exthost/TypeScriptTeam.native-preview/TypeScript 7.log": "e5934ede069994bce2a84c248f30f6c7294a533d60f46235386cc24f5dbd9e1f",
+      "profile-candidate/logs/20261020T185726/window1/exthost/oxc.oxc-vscode/Oxc (Lint).log": "fecf0120aef1a157aaa1905c13a4841fb3ebf79f6f39012e9aa46d6582031f46",
+      "baseline-workspace-setting-deviation.json": "c3349ba1508c1b16a8200ed0b50a90b8aed1b44c0c140369fb05d2488eb5cac5",
+      "baseline-autogenerated-workspace/settings.json": "296a38704e93ecf5ac05bb72aaf2b2e9df120715c98a38ca4a2cfcb9f8f11506",
+      "candidate-preflight-helper-failure.txt": "d6111a83b2ebb912d9897f0d824d66822075e0e129d70fd1f26cb6954dce6643",
+      "candidate-preflight-history.json": "b13478e7cc9230d2eacc24da1071f2d57d22a3bc0160ee4b51e8e15ee4110825"
+    },
+    "claims": "Protocol-nonconformant observations only. Both original sessions accessed default shared application storage. Their recorded numerical thresholds pass under those actual conditions, but isolated performance acceptance failed. No speedup, performance-equivalence, memory-bound, or long-session stability claim. Frontend direct opening has separate functional proof.",
+    "baseline_workspace_deviation": {
+      "discoveredAt": "2026-10-20T17:43:40.363949+00:00",
+      "originalPath": "/tmp/qa-scribe-ts7/T7-3/owner/baseline/.vscode/settings.json",
+      "preservedPath": "/tmp/qa-scribe-ts7/T7-3/owner/baseline-autogenerated-workspace/settings.json",
+      "mtimeNs": 1792513491992697443,
+      "mtimeUTC": "2026-10-20T16:24:51.992697+00:00",
+      "sha256": "296a38704e93ecf5ac05bb72aaf2b2e9df120715c98a38ca4a2cfcb9f8f11506",
+      "contents": {
+        "js/ts.experimental.useTsgo": true
+      },
+      "cause": "Actual baseline preflight UI chose Use TypeScript7. The integrated version selector created this workspace Go-enable flag despite the same flag already present in disposable User/settings.json. Discovery happened during post-study restoration assertion, not during primary sampling.",
+      "effect": "SDK7.0.2, Oxlint1.89, relative official typedGo7.0.2004 launcher and scopes were manually configured in User/settings.json. Generated workspace file duplicated only the true Go-enable flag. Effective backend values stayed equivalent, but the strict no-workspace-settings baseline condition was not met.",
+      "handling": "Preserve both first primary runs and raw data; no reroll, no gate relaxation. Numerical gates PASS; overall independent acceptance remains pending. Original preflight selection is in supported T3 history position219.",
+      "parent_clarification": "The generated file existed from17.24seconds before t0 through the entire baseline session. Baseline start.txt explorer lists root .vscode at t0. It duplicated the manual flag, but strict baseline definition was violated. Original saved bytes and receipt remain unchanged."
+    },
+    "effective_configuration_proof": {
+      "baseline_native_log_lines": [
+        1715,
+        1717,
+        1719,
+        1721
+      ],
+      "candidate_native_log_lines": [
+        1117,
+        1119,
+        1121,
+        1123
+      ],
+      "comparison": "Four server-received option records are byte-identical after normalizing export path names. Oxc initialization options also match. Baseline UI flag triggered restarts only before t0.",
+      "review_artifact": "/tmp/qa-scribe-ts7/T7-3/protocol-review-round1/config-equivalence.txt"
+    },
+    "host_identity_proof": {
+      "baseline_console_line": 89,
+      "candidate_console_line": 59,
+      "paths": [
+        "profile-baseline-console.log",
+        "profile-candidate-console.log"
+      ],
+      "proof": "VS Code console explicitly identifies the shared Go/Oxc parent PID as extensionHost, corroborating every-sample ancestry."
+    },
+    "anchor_sensitivity": {
+      "rule": "Owner and parent select retained sample nearest the requested elapsed minute; independent reviewer also checked final explicit sample.",
+      "baseline_total_nearest_minute30_mib": 85.875,
+      "baseline_total_final_sample_mib": 86.19921875,
+      "conclusion": "Both pass. Moving minute5 anchor into the timed workload changes the result substantially, so preserve the original explicit settled anchor.",
+      "transient_total_above_minute5_mib": {
+        "baseline": 463.4,
+        "candidate": 322.3
+      },
+      "limits": "The endpoint gate does not constrain transient peaks or prove long-term memory bounds."
+    },
+    "additional_isolation_limitation": {
+      "source": "Owner primary profile-baseline-console.log line28 and profile-candidate-console.log line28 show default sharedStorage database, wasCreatedfalse.",
+      "finding": "Private user-data profiles did not isolate new VSCode shared-data storage. No deliberate global settings edits; incidental sharedstore writes unproven, do not inspect or rollback privateDB.",
+      "handling": "Preserve original primary runs and earlier Opus verdict as scoped historical result. Final independent exacthead reviewer must assess additional isolation limitation and permissible wording; do not claim fully isolated primarysessions. Futureliveproof uses explicit --shared-data-dir owned path. No performance rerun or codechange."
+    }
+  },
+  "pending": [
+    "Independent review of final documentation changes and fresh attached CI at the resulting head, then normal merge.",
+    "T7-4 final release validation and publication through existing CI."
+  ],
+  "raw_receipts_committed": false,
+  "protocol_review": {
+    "status": "ACCEPT_WITH_NOTES",
+    "model": "claude-opus-5-5",
+    "scope": "Independent read-only audit of original raw sessions, effective server options, both protocol deviations and corrected process ancestry. Not a shipping verdict.",
+    "task": "node:delegated-task:command%3Amcp%3Af2877ea0-a0d1-4168-97c4-278172e7b811%3Adelegate-task%3Aqa-scribe-ts7-t73-protocol-opus-review-round1-20261020",
+    "numerical_verdict": "PASS",
+    "procedural_conformance": "FAIL_STRICT_TWO_DEVIATIONS_NOT_WAIVED",
+    "report_sha256": "e3aa498b924bd338861ae45825d0294250932945edf59e6dac5bf58e4f7793be",
+    "parent_decision": "Use these original measurements as bounded technical evidence after disclosure. Retain strict procedural failure. No threshold change or rerun. No claim of protocol conformance or deviation waiver.",
+    "independent_tools": [
+      "tools/memory.py",
+      "tools/churn.py",
+      "tools/latency.py",
+      "tools/config-equivalence.sh"
+    ],
+    "additional_note_after_review": "Default shared-data access discovered in later lane audit also appears in both original primary-session console logs. Previous numerical/protocol verdict retained with its examined scope; final independent shipping review must assess this additional isolation limitation. Do not claim complete storage isolation."
+  },
+  "source_binding": {
+    "delivery_manifest_sha256": "998cf2758dbc981b6fa3b28d6a09065646501d175af4dad93f44312be4f90ba4",
+    "patch_sha256": "aafb085977abc10e3c52da9c5de86ba851ff4c723eacf3e9824000e8b043a8d1",
+    "files": {
+      ".vscode/settings.json": {
+        "sha256": "c646ad719f574307a8d3bef3e2dbff778d87c6f06551ed486d93328f008f97c5",
+        "bytes": 350
+      },
+      ".vscode/extensions.json": {
+        "sha256": "0ce43c08fc01a90d5cab02a39737da10b9da350e7aaa3733224a160dcfa0cc70",
+        "bytes": 89
+      },
+      "frontend/.vscode/settings.json": {
+        "sha256": "7c17422e055d6526d5f354d8a029d88e04ed60bd3e098e6c4d832690a97f232a",
+        "bytes": 314
+      },
+      "frontend/.vscode/extensions.json": {
+        "sha256": "0ce43c08fc01a90d5cab02a39737da10b9da350e7aaa3733224a160dcfa0cc70",
+        "bytes": 89
+      },
+      "README.md": {
+        "sha256": "4d4291c8a23a72bdc501cc5b64720005438faa14cda3cde57e4b8a8f3b13cb13",
+        "bytes": 14492
+      },
+      "scripts/native-tooling-editor.mjs": {
+        "sha256": "35a8a47b240422e9ba81db701f76a1151dc8ebb95d3ba9bd85a7d424307cf79e",
+        "bytes": 6308
+      },
+      "scripts/native-tooling-editor.test.mjs": {
+        "sha256": "9e97ad3560968f549a5d3f1666497ef84de1ff2a46b158e93b5be119bdeed653",
+        "bytes": 7096
+      },
+      "scripts/fixtures/native-tooling/editor-layouts.json": {
+        "sha256": "0ab1c8f1c3fd57997f8f0a1b44c00d45add0444baa2f923b484ffcaa9766f4c9",
+        "bytes": 725
+      },
+      "scripts/check-native-typescript-tooling.mjs": {
+        "sha256": "e7aeccaee5bd2881e96249bca15de9694a13a84edcec7d8a6f795c4ed00b4779",
+        "bytes": 2396
+      }
+    },
+    "measurement_binding": {
+      "frozenMeasuredSourceHashes": "owned-source-hashes.json",
+      "frozenMeasuredPatch": "T7-3-measurement-source.patch",
+      "changedAfterBothMeasurements": [
+        "README.md",
+        "scripts/native-tooling-editor.mjs",
+        "scripts/native-tooling-editor.test.mjs"
+      ],
+      "reason": "One platform-native expected path comparison in metadata-only guard; an absolute-but-correct SDK negative metadata fixture; precise already-observed notification recovery prose. All four measured workspace JSON files and all application/toolchain inputs are unchanged."
+    }
+  },
+  "proof_binding": {
+    "manifest_sha256": "9cb9fbfd51c45c2a8262d2592c788df4fdaf5c6d7b0238a87b8e430224a1d1ca",
+    "regular_files_parent_hashed": 1167,
+    "video_sha256": "84fadb7b70f537f5478fb15eaece84e7c987ba23219dbf395106d49e6a85cc0b",
+    "duration_seconds": 45,
+    "parent_viewed_video_frames_seconds": [
+      3,
+      18,
+      32
+    ],
+    "parent_viewed_SDK_runtime_identity_PNG": true,
+    "limits": "Parent viewed extracted video frames and SDK image, not full playback. Independent interaction review remains required."
+  },
+  "parent_checks": {
+    "script_tests": 310,
+    "skipped": 0,
+    "native_lint_fixtures": 183,
+    "compiler_probes": "PASS",
+    "frontend_check": "PASS",
+    "frontend_build": "PASS",
+    "identical_production_assets": 20,
+    "code_size": "PASS",
+    "comment_audit": "Zero deletion targets, zero suppressions. Independent read-only auditor.",
+    "logs": "artifacts/ts7-implementation/editor-parent-checks/results.json",
+    "limits": "No unchanged Rust, full application unit suite, or desktop E2E rerun in this editor-only phase. Full release validation remains T7-4."
+  },
+  "independent_live_IDE": {
+    "status": "NINE_PRIVATE_ACCEPTED_SUSTAINED_FUNCTIONAL_PASS_CLEANUP_INCIDENT_OPEN",
+    "tested_head": "14f9176a495def0f31c7d184be518d93cf45d544",
+    "accepted_lanes": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+    ],
+    "pending_lanes": [],
+    "results": {
+      "1": {
+        "status": "PASS_FINAL_PRIVATE_SCENARIO",
+        "tested_head": "14f9176a495def0f31c7d184be518d93cf45d544",
+        "receipt": "/tmp/qa-scribe-ts7/T7-3/lane-1/isolation-reproof/receipt.json",
+        "receipt_sha256": "8e9b7d9106b5654e0cc9d78bb105d110db2872563ee130db4461452140f8c925",
+        "parent_verified_artifact_hashes": 120,
+        "required_actual_PNG_parent_viewed": true,
+        "port_display_parent_rechecked": true,
+        "historical_flags": "Earlierdefaultsharedstoreaccess remainsdisclosed; finalproof explicitlyprivate. Rootoriginal107hashesunchanged."
+      },
+      "3": {
+        "status": "PASS_FINAL_PRIVATE_SCENARIO",
+        "tested_head": "14f9176a495def0f31c7d184be518d93cf45d544",
+        "receipt": "/tmp/qa-scribe-ts7/T7-3/lane-3/isolation-reproof/receipt.json",
+        "receipt_sha256": "12e69a2b939132d43a6241788d3e64eb7918973f67f01c050dc07a37e83dbaf5",
+        "parent_verified_original_hashes": 308,
+        "parent_verified_new_audit_hashes": 0,
+        "parent_viewed_required_actual_PNG": true,
+        "private_port_display_parent_rechecked": true,
+        "historical_flag": "Abandoned bootstrap defaultsharedstore exposure retained; PASS covers finalexplicitprivate scenario, notallattempts."
+      },
+      "4": {
+        "status": "PASS_FINAL_PRIVATE_SCENARIO",
+        "tested_head": "14f9176a495def0f31c7d184be518d93cf45d544",
+        "receipt": "/tmp/qa-scribe-ts7/T7-3/lane-4/isolation-reproof/receipt.json",
+        "receipt_sha256": "f2fce0c61e2a5ef3cc22b2211ab62e57468c28ba63062fbad0a0da9a2531d478",
+        "parent_verified_original_hashes": 154,
+        "parent_verified_new_audit_hashes": 4,
+        "parent_viewed_required_actual_PNG": true,
+        "private_port_display_parent_rechecked": true,
+        "historical_flag": "Abandoned bootstrap defaultsharedstore exposure retained; PASS covers finalexplicitprivate scenario, notallattempts."
+      },
+      "5": {
+        "status": "PASS_FINAL_PRIVATE_SCENARIO",
+        "tested_head": "14f9176a495def0f31c7d184be518d93cf45d544",
+        "receipt": "/tmp/qa-scribe-ts7/T7-3/lane-5/isolation-reproof/receipt.json",
+        "receipt_sha256": "7109d80afb769621e7354a85469aa752cf054aeda31edc5787c9e70dad204139",
+        "parent_verified_original_hashes": 215,
+        "parent_verified_new_audit_hashes": 4,
+        "parent_viewed_required_actual_PNG": true,
+        "private_port_display_parent_rechecked": true,
+        "historical_flag": "Abandoned bootstrap defaultsharedstore exposure retained; PASS covers finalexplicitprivate scenario, notallattempts."
+      },
+      "6": {
+        "status": "PASS_FINAL_PRIVATE_SCENARIO",
+        "tested_head": "14f9176a495def0f31c7d184be518d93cf45d544",
+        "receipt": "/tmp/qa-scribe-ts7/T7-3/lane-6/receipt.json",
+        "receipt_sha256": "11551ebc39dd7649631e54ab6169b33617a1a8dfb58e79ef8ce7bd7ad656cb69",
+        "parent_verified_original_hashes": 253,
+        "parent_verified_new_audit_hashes": 0,
+        "parent_viewed_required_actual_PNG": true,
+        "private_port_display_parent_rechecked": true,
+        "historical_flag": "Abandoned bootstrap defaultsharedstore exposure retained; PASS covers finalexplicitprivate scenario, notallattempts."
+      },
+      "2": {
+        "status": "PASS_FINAL_PRIVATE_SCENARIO",
+        "tested_head": "14f9176a495def0f31c7d184be518d93cf45d544",
+        "receipt": "/tmp/qa-scribe-ts7/T7-3/lane-2/receipt.json",
+        "receipt_sha256": "4e65def880b631dbbba0eabf0bcbc1067623e8b007799f3b14aa6afdb5c173d0",
+        "parent_verified_artifact_hashes": 291,
+        "required_and_Vite_actual_PNG_parent_viewed": true,
+        "port_display_parent_rechecked": true,
+        "historical_flags": [
+          "Bounded functional IDE lane only. No shipping verdict or performance claim.",
+          "First launch accessed existing default shared storage before private shared-data-dir was discovered. No initial evidence is counted as final proof. No direct shared-store inspection or modification was done. Incidental writes are unproven.",
+          "first-window.png predates head fast-forward and is blank startup preflight. Other profile/profile-final captures are also preflight only. Counted proof JSONs all carry final tested_head and profile-proof used private shared data.",
+          "Launcher code.log was overwritten during relaunches; original per-profile main.log/exthost logs and screenshots remain.",
+          "No TypeScript 6 installation, command execution, or API fallback was performed. A preflight version menu displayed built-in 6.0.3 but it was not selected. Installed TypeScript metadata found only 7.0.2.",
+          "No full Rust, desktop, frontend build, or unrelated test suite was run.",
+          "No nested agents or independent trail review were used because this lane forbade nested delegation. Parent must inspect actual artifacts.",
+          "Final app startup logs contain EMFILE watcher warnings. Open-editor diagnostic/repair behavior passed; broader watcher behavior is outside this scenario.",
+          "A server-exited-code-1 line adjacent to the workspace SDK restart is preserved. Live local SDK process and subsequent source/Vite diagnostic/repair assertions prove the active server remained functional."
+        ]
+      },
+      "7": {
+        "status": "PASS_FINAL_PRIVATE_SCENARIO",
+        "tested_head": "14f9176a495def0f31c7d184be518d93cf45d544",
+        "receipt": "/tmp/qa-scribe-ts7/T7-3/lane-7/receipt.json",
+        "receipt_sha256": "5ac9db0e8084ef746af501e96f0e090004d8a36574c4524f7a719598d907a145",
+        "parent_verified_artifact_hashes": 224,
+        "required_actual_PNG_parent_viewed": true,
+        "port_display_parent_rechecked": true,
+        "historical_flags": "Earlierdefaultsharedstoreaccess remainsdisclosed; finalproof explicitlyprivate. Rootoriginal107hashesunchanged."
+      },
+      "8": {
+        "status": "PASS_FINAL_PRIVATE_SCENARIO",
+        "tested_head": "14f9176a495def0f31c7d184be518d93cf45d544",
+        "receipt": "/tmp/qa-scribe-ts7/T7-3/lane-8/receipt.json",
+        "receipt_sha256": "35f98abd482206c5813b3b700785ea1642f564691f58c06b6eab8ccab3c58532",
+        "parent_verified_artifact_hashes": 110,
+        "required_actual_PNG_parent_viewed": true,
+        "port_display_parent_rechecked": true,
+        "limits": [
+          "Only this Linux actual IDE Vite scenario was tested. No release or shipping verdict.",
+          "No TS6 installation, execution, or API fallback. Installed package census found only TypeScript 7.0.2.",
+          "No full frontend, Rust, desktop, or build suites were run. No causal performance claims.",
+          "Before trust, Oxc emitted a missing-tsgolint warning while restricted workspace settings were ignored. It recovered after real trust. Native extension bundle started before actual SDK Allow, then switched to verified local 7.0.2.",
+          "Startup includes host EMFILE watcher warnings. Required editor diagnostics and repair assertions passed.",
+          "Verbose startup printed inherited shell environment values. Those blocks and credential-shaped values were redacted from own logs. Diagnostic and exec logs remain evidence.",
+          "Initial CDP readiness retry and optional harness lookup failure are retained in failures.json. No scenario failures occurred.",
+          "Parent-supplied code fingerprint was not recalculated because its algorithm was not supplied. Exact committed head, initial clean status and restored tracked-file bytes were verified.",
+          "No nested or cross-model audit was performed because the lane brief forbids additional agents. Parent must inspect artifacts."
+        ]
+      },
+      "9": {
+        "status": "PASS_FINAL_PRIVATE_SCENARIO",
+        "tested_head": "14f9176a495def0f31c7d184be518d93cf45d544",
+        "receipt": "/tmp/qa-scribe-ts7/T7-3/lane-9/receipt.json",
+        "receipt_sha256": "59d3505ad8a34c23546619fc21aa0a99460054ff7a7d8f39ddf5fa109c8e54cd",
+        "parent_verified_artifact_hashes": 86,
+        "required_actual_PNG_parent_viewed": true,
+        "port_display_parent_rechecked": true,
+        "limits": [
+          "This is the assigned bounded IDE scenario only. No full build, Rust, desktop suite or performance benchmark.",
+          "Process counts are direct bounded live snapshots and sampled descendants, not an exhaustive syscall trace. Optional ptrace was denied.",
+          "Unsupported typed-engine --version probe retained. Version is established by local package metadata, captured actual process chain and native binary hashes.",
+          "Restricted Mode initially emitted lint initialization failure before Trust. Trusted post-reload compiler and typed lint behavior passed."
+        ]
+      },
+      "10": {
+        "status": "ISSUES_FUNCTIONAL_PASS_CLEANUP_INCIDENT_OPEN",
+        "tested_head": "14f9176a495def0f31c7d184be518d93cf45d544",
+        "receipt": "/tmp/qa-scribe-ts7/T7-3/lane-10/receipt.json",
+        "receipt_sha256": "704aa73e737b0a11d6c9d3377d562529250bb0a9eb8964e67bf6ad6c8ee74d67",
+        "parent_verified_artifact_hashes": 446,
+        "parent_viewed_actual_sustained_PNG": true,
+        "literal_assertions": 98,
+        "cycles": 12,
+        "seconds": 300.12531456899995,
+        "private_port_display_parent_rechecked": true,
+        "incident": {
+          "status": "ISSUES",
+          "functionalScenario": "PASS",
+          "incident": "Unsafe cleanup prototype admitted full provider ancestry including systemd user PID 5598 and init PID 1, then expanded descendant closure. It exited 143 before an action receipt was written. Exact terminating signal target is not known. No claim of absence of effects on unowned processes.",
+          "observedAfterIncident": {
+            "privateIDELeader2406966": "still alive",
+            "privateCode2406968": "still alive",
+            "privateXvfb2406917": "still alive",
+            "native2411975": "still alive",
+            "Oxc2411135": "still alive",
+            "userSystemd5598": "still alive"
+          },
+          "response": "Preserve unsafe script. Restrict subsequent cleanup to launcher/sample descendants and explicitly owned scratch runners, PID/start checked and signals logged before issuance. Overall lane ISSUES for parent review."
+        }
+      }
+    },
+    "scope": "PASS covers final explicit private sessions. Earlier abandoned launches accessed default VS Code shared storage and remain disclosed. Private-session reproof receipts preserve original ISSUES receipts unchanged.",
+    "open_acceptance": "Unsafe lane10 cleanup prototype may have signaled unowned processes. Exact effects are unknown; original script and incident preserved, never rerun. Final functional scene and later own-only cleanup separately evidenced. Final independent shipping review must assess."
+  },
+  "dependency_audit": {
+    "status": "PASS",
+    "head": "14f9176a495def0f31c7d184be518d93cf45d544",
+    "code_fingerprint": "80bba878c5e742848ed407953c9bd82c1aab4a12f45163c66c1bc3db83389ae8",
+    "stable_patch_id": "a9f02ca5564633ae974b1a855c533956029d9c8f",
+    "package_roots": 791,
+    "canonical_identities": 724,
+    "lock_records": 908,
+    "legacy_compiler_identities": 0,
+    "artifact": "artifacts/ts7-implementation/editor-dependency-audit.md",
+    "limit": "Incremental changed-source and fresh installed metadata audit, not a repeated full installed-source scan."
+  },
+  "hosted_native": {
+    "run": "https://github.com/ddv1982/qa-scribe/actions/runs/39470085246",
+    "source_head": "14f9176a495def0f31c7d184be518d93cf45d544",
+    "receipts": [
+      {
+        "platform": "linux-x64",
+        "source_head": "14f9176a495def0f31c7d184be518d93cf45d544",
+        "tested_merge_sha": "245003bf2d176ab5fc78c49b923dffaced43fbdf",
+        "stages": [
+          {
+            "stage": "cold",
+            "status": "passed",
+            "cacheHit": null
+          },
+          {
+            "stage": "discard",
+            "status": "passed",
+            "cacheHit": null
+          },
+          {
+            "stage": "warm",
+            "status": "passed",
+            "cacheHit": "true"
+          }
+        ],
+        "sha256": "7343cd11c6ed8a88282be7be4d10a1b5960ba28ff41d6b852cf385e813c7cbc9"
+      },
+      {
+        "platform": "macos-arm64",
+        "source_head": "14f9176a495def0f31c7d184be518d93cf45d544",
+        "tested_merge_sha": "245003bf2d176ab5fc78c49b923dffaced43fbdf",
+        "stages": [
+          {
+            "stage": "cold",
+            "status": "passed",
+            "cacheHit": null
+          },
+          {
+            "stage": "discard",
+            "status": "passed",
+            "cacheHit": null
+          },
+          {
+            "stage": "warm",
+            "status": "passed",
+            "cacheHit": "true"
+          }
+        ],
+        "sha256": "ecd2780617691d7e8a05d0723f3ef40b5f5ba0c187dedeb87a11f90a234014a8"
+      },
+      {
+        "platform": "macos-x64",
+        "source_head": "14f9176a495def0f31c7d184be518d93cf45d544",
+        "tested_merge_sha": "245003bf2d176ab5fc78c49b923dffaced43fbdf",
+        "stages": [
+          {
+            "stage": "cold",
+            "status": "passed",
+            "cacheHit": null
+          },
+          {
+            "stage": "discard",
+            "status": "passed",
+            "cacheHit": null
+          },
+          {
+            "stage": "warm",
+            "status": "passed",
+            "cacheHit": "true"
+          }
+        ],
+        "sha256": "2431e7fcc4a08a31ae992dcba73f6f76744b7c8db71d810402213250b191a950"
+      }
+    ],
+    "actual_Actions_screenshot": "/home/vriesd/.t3/userdata/browser-artifacts/browser-screenshot-github-com-mvh06dlf-8452a978.png"
+  },
+  "shipping_review": {
+    "status": "FAIL",
+    "head": "14f9176a495def0f31c7d184be518d93cf45d544",
+    "base": "678acfee0535c3bdef35afd181e3b882b119edc1",
+    "stable_patch_id": "a9f02ca5564633ae974b1a855c533956029d9c8f",
+    "first_attempt": {
+      "model": "claude-opus-5-5",
+      "status": "PROVIDER_RATE_LIMIT_BEFORE_WORK",
+      "verdict": null
+    },
+    "active_attempt": {
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "task": "node:delegated-task:command%3Amcp%3Af2877ea0-a0d1-4168-97c4-278172e7b811%3Adelegate-task%3Aqa-scribe-ts7-t73-shipping-review-round2-codex-20261020",
+      "role": "Fresh independent non-writer in isolated worktree, full original brief and all known protocol/storage/cleanup findings.",
+      "status": "COMPLETED_FAIL"
+    },
+    "limit": "No completed full cross-model shipping verdict. Earlier Opus performance-protocol review has its narrower recorded scope.",
+    "report_sha256": "a156a1c4dbcf6a347a8d291dcafc0c22ba7d17daa737bc1ed4db3f09d1bbbc6b",
+    "parent_verified_review_artifact_hashes": 830,
+    "code_correctness": "PASS",
+    "blockers": [
+      "Lane10 unsafe cleanup attempt leaves whole-lane owned-only cleanup unproved. Replace bounded functional stress with prereviewed cleanup; retain original incident and unknown historical effects.",
+      "Original performance sessions accessed default shared storage. A separately registered corrective study with explicit private storage and unchanged numerical limits is required. Original rows stay conditional observations with strict failures."
+    ],
+    "supersession": "Historical FAIL retained. A fresh reviewer must assess the scope amendment and the final evidence. This record does not grant a new shipping PASS."
+  },
+  "corrective_verification": {
+    "status": "PRIVATE_FUNCTIONAL_ACCEPTANCE_PASS_LONG_STUDY_DEFERRED_NOT_MET",
+    "owner_task": "node:delegated-task:command%3Amcp%3Af2877ea0-a0d1-4168-97c4-278172e7b811%3Adelegate-task%3Aqa-scribe-ts7-t73-corrective-isolation-owner-stage-a-20261020",
+    "root": "/tmp/qa-scribe-ts7/T7-3/corrective-isolation-20261020",
+    "authority": "The release-scope amendment supersedes the measurement requirement under the autonomous execution request. No historical result is waived or relabeled. Fresh functional proof and independent shipping judgment remain required.",
+    "historical_stages": [
+      "Prepare owned-root registry, cleanup safety tests, full-workspace guard, readiness receipt and draft registration. Parent reviews before live launch.",
+      "Calibrate separately, run one replacement safe five-minute stress scenario, reset probes and freeze final harness.",
+      "Run a new registered isolated manual baseline and candidate for30minutes each under original limits. No original rows replaced, no valid corrective repetitions dropped.",
+      "Inspect raw receipts, commit accurate evidence through the program, obtain fresh exact-patch independent shipping verdict and current CI."
+    ],
+    "stages": [
+      "Preserve all corrective helper versions, tests, preflight failures and cleanup receipts. Do not require the measurement framework to ship the editor configuration.",
+      "Complete a bounded actual IDE smoke pass with private storage, reviewed ownership and safe cleanup. Cover the distinct functional scenarios without ten separate agent sessions.",
+      "Record the deferred performance guarantee and obtain a fresh independent exact-patch shipping verdict and current CI."
+    ],
+    "historical_authority": "User-authorized autonomous completion. Corrective studies close independently identified verification gaps; no operator pause or threshold waiver."
+  },
+  "deferred": [
+    {
+      "requirement": "Separately registered paired 30-minute isolated-duration corrective study under the original numerical limits.",
+      "status": "DEFERRED_NOT_MET",
+      "reason": "Explicit post-failure release-scope amendment on 2026-10-21. The user asked to reassess disproportionate verification work. Existing CI and real functional correctness remain required. The release makes no performance or sustained-memory guarantee.",
+      "historical_result": "Original strict protocol failures, conditional measurements, unsafe cleanup incident and unknown historical effects remain unchanged."
+    }
+  ],
+  "release_scope_amendment": {
+    "date": "2026-10-21",
+    "authority": "Parent decision under the user-authorized autonomous release task after the user asked whether release checks had become a dead end. This is a post-failure scope change, not a passing study or a reviewer waiver.",
+    "critiques": [
+      {
+        "model": "gpt-6.1-sol",
+        "result": "Supports revised scope while preserving distinct functional scenarios and qualifying platform claims."
+      },
+      {
+        "model": "claude-opus-5-5",
+        "task": "node:delegated-task:command%3Amcp%3Af2877ea0-a0d1-4168-97c4-278172e7b811%3Adelegate-task%3Aqa-scribe-release-gate-reassessment-20261021-opus-r1",
+        "result": "Defensible with explicit post-failure disclosure, original failures retained, safe private smoke and fresh independent judgment."
+      }
+    ],
+    "required": [
+      "Existing shared CI and release validation unchanged.",
+      "Actual provider identity, both workspace layouts, compiler and typed-lint diagnostics and repair, completion, hover, navigation, reload and repeated edits.",
+      "Private resources and reviewed owned-only cleanup.",
+      "Fresh exact-patch independent shipping verdict and current protected CI."
+    ],
+    "claims_excluded": [
+      "Speedup",
+      "Performance equivalence",
+      "Bounded memory growth",
+      "Long-session stability",
+      "Actual macOS IDE behavior inferred from Linux IDE or macOS CLI checks"
+    ],
+    "limits": "Historical lane 10 remains ISSUES. Fresh smoke cannot reconstruct its unknown historical effects. Current ordinary trusted-workflow failures remain product blockers."
+  },
+  "shipping_review_round4": {
+    "verdict": "PASS_WITH_NOTES_UNDER_AMENDED_SCOPE",
+    "head": "6d80007b40a817ceb96da2f9f5123c7407c4e855",
+    "base": "678acfee0535c3bdef35afd181e3b882b119edc1",
+    "stable_patch_id": "5f8f8d7e40bb0cf61611a66efc1329c7d188d405",
+    "current625Digest": "f0ef5e78481cdde765e3e82d50eb43e718e6ca78cc4d94d4fd6aeb18ef12391a",
+    "reviewer": {
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "provider": "OpenAI",
+      "independentNonAuthor": true,
+      "worktree": "/home/vriesd/.t3/worktrees/qa-scribe/t3-5a681551"
+    },
+    "report_sha256": "36996c35418b632769db9fa50c3e2233c45e4e232237a13f8094748ecdd35e1d",
+    "receipt_sha256": "0bf50c2a0f6d08537270afd4e445308102ed4367bb75db82af2da5662cff1f9e",
+    "raw_artifacts_committed": false,
+    "local_report": "/tmp/qa-scribe-ts7/T7-3/shipping-review-round4-private-shell/report.md",
+    "all_ten_scenarios_fresh": true,
+    "root_cycles": 3,
+    "root_cycle_actions": 66,
+    "sampled_environment_audits": 179,
+    "sampled_process_observations": 2960,
+    "credential_named_keys_in_sampled_processes": 0,
+    "cleanup_signals_audited": 35,
+    "tracked_files_restored": 711,
+    "parent_manifest_verification": {
+      "files": 32143,
+      "mismatches": 0
+    },
+    "parent_visually_inspected": [
+      "candidate-root/1792563536915-assert-hover-2-after.png",
+      "candidate-frontend/1792563670224-assert-errors-2-after.png",
+      "candidate-frontend/1792563673023-assert-clean-2-after.png"
+    ],
+    "runtime_boundary": "Separate disposable HOME, /bin/sh, private .profile and controlled PATH with direct pinned Node. Actual Oxc login-shell resolution and owned provider children checked before functional acceptance. Explicit private user/extensions/shared/XDG stores.",
+    "limits": {
+      "scopeAmendmentAfterFailure": true,
+      "t72MemoryAmendmentAfterFailure": true,
+      "originalStrictFailuresRetained": true,
+      "originalLane10WholeLane": "ISSUES",
+      "originalLane10HistoricalEffects": "UNKNOWN",
+      "round2Verdict": "FAIL retained",
+      "round3Verdict": "FAIL retained",
+      "round3FunctionalEnvironment": "conditional, not promoted",
+      "newRound4Environment": "PASS for sampled actual owned processes in two corrected-boundary Linux sessions",
+      "deferredStudies": "NOT MET",
+      "noPerformanceClaims": true,
+      "noMacIDEClaim": true,
+      "originalIntelFailure": "retained; cause unconfirmed",
+      "ciFullyGreenClaim": false,
+      "nestedAgents": 0,
+      "nonOpenAIInvocations": 0,
+      "independentCommentSickoSubAudit": "not run under explicit no-nested-agents constraint",
+      "futureDocumentationHead": "not certified",
+      "oldEvidenceWrites": 0,
+      "forgeWrites": 0,
+      "t3AppLocalPRRegistration": true
+    },
+    "future_head": "The verdict covers 6d80007 only. Final documentation changes need independent review, artifact-equivalence proof and current CI. All earlier FAIL/ISSUES results stay historical and unchanged."
+  },
+  "current_ci_at_reviewed_source": {
+    "head": "6d80007b40a817ceb96da2f9f5123c7407c4e855",
+    "protected_run": 39551234920,
+    "protected_result": "SUCCESS_ALL_SIX_JOBS",
+    "fresh_native_run": 39551841330,
+    "fresh_native_result": "SUCCESS_LINUX_X64_MACOS_ARM64_MACOS_X64_COLD_AND_EXACT_RESTORED_WARM",
+    "original_native_run": 39551235737,
+    "original_intel_result": "FAIL_FOUR_UNCHANGED_SETTLEMENT_TESTS_CAUSE_UNCONFIRMED",
+    "local_focused_result": "13/13 pass",
+    "pr_merge_state_at_read": "UNSTABLE_WITH_ORIGINAL_NONREQUIRED_NATIVE_FAILURE_VISIBLE",
+    "next": "Fresh attached CI at final documentation head required. No assertions or timeouts changed."
+  }
+}

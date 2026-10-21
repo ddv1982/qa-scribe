@@ -1,0 +1,9 @@
+{
+  "js/ts.experimental.useTsgo": true,
+  "js/ts.tsdk.path": "./frontend/node_modules/typescript",
+  "oxc.path.oxlint": "./frontend/node_modules/oxlint/bin/oxlint",
+  "oxc.path.tsgolint": "./frontend/node_modules/oxlint-tsgolint/bin/tsgolint.js",
+  "oxc.configPath": "./frontend/.oxlintrc.json",
+  "oxc.tsConfigPath": null,
+  "oxc.typeAware": true
+}
