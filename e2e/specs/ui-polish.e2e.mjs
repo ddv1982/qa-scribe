@@ -350,8 +350,13 @@ describe('Native UI polish before/after evidence', () => {
     await scroll('.next-model-selection', 'end')
     await click('[aria-label="Open model choices"]')
     await (await $('.model-combobox-popover')).waitForDisplayed()
-    await scroll('.model-combobox-popover')
-    await actions('chat-model-menu', '.model-combobox-popover', false)
+    save('chat-model-menu-size', await browser.execute(() => ({
+      menuHeight: document.querySelector('.model-combobox-popover').getBoundingClientRect().height,
+      historyHeight: document.querySelector('.chat-scroll-region').clientHeight,
+      viewport: { width: innerWidth, height: innerHeight },
+    })))
+    await scroll('.model-options [role="option"]:first-child')
+    await actions('chat-model-menu', '.model-options [role="option"]:first-child', false)
     const model = await $('.model-options [role="option"]:last-child')
     await scroll('.model-options [role="option"]:last-child')
     await actions('chat-last-model', '.model-options [role="option"]:last-child', false)
