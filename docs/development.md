@@ -53,6 +53,8 @@ bun run frontend:compiler:check
 
 The probe checks the installed package version and removes its temporary fixtures. Both verification commands and CI run the probe. Read the [migration findings](research/ts-rust-adoption.md) for compatibility evidence and scope.
 
+Read the [Rust SDK validation record](research/tsc-rs-only-validation.md) for editor coverage, the pinned shutdown qualification, and current limits.
+
 ## Continuous checks
 
 For continuous native checks on Linux or macOS, run `bun run frontend:typecheck:watch`. To run both checkers with Vite, run `bun run frontend:dev:checked`. From `frontend`, use `bun run typecheck:watch` or `bun run dev:checked`. Both project watchers show type errors and recover after edits. The checked session uses Vite's configured port, defaulting to 5173, and fails if it is occupied.

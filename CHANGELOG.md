@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.8.15 - 2026-10-21
+
+- Use the pinned Rust `tsc-rs` compiler for frontend checks and VS Code language features, and remove the separate Microsoft compiler SDK.
+- Prepare the local Rust SDK link during frontend installation and enforce compiler, editor, and native protocol checks.
+- Add actual macOS ARM64 editor checks for both workspace layouts to CI.
+- Shorten the README, update the tech stack and language badges, and move detailed development and AI guidance into linked guides.
+
 ## v0.8.14 - 2026-10-21
 
 - Replace TypeScript 6 and ESLint compiler-API dependencies with the pinned TypeScript 7 SDK and native type-aware Oxlint. Preserve typed rules, React Hooks checks, test overrides, and the Rust-based `tsc-rs` build checker.
