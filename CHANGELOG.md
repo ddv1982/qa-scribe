@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.8.14 - 2026-10-21
+
+- Replace TypeScript 6 and ESLint compiler-API dependencies with the pinned TypeScript 7 SDK and native type-aware Oxlint. Preserve typed rules, React Hooks checks, test overrides, and the Rust-based `tsc-rs` build checker.
+- Add checked development watchers for both application and Vite configuration, with diagnostic recovery and coordinated child-process shutdown.
+- Configure repository-root and frontend-only VS Code workspaces to select the local TypeScript 7 server and typed lint engine. Document SDK approval, recovery, and the current Linux/macOS support boundary.
+
 ## v0.8.13 - 2026-10-20
 
 - Build desktop releases with exactly pinned Rust 1.99.1, including upstream compiler and macOS linker fixes.
