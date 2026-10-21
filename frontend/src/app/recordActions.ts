@@ -69,7 +69,7 @@ export function createRecordActions(ctx: RecordActionsContext, persistence: Reco
       const existingTitles = await loadExistingTitles()
       if (!isCurrent()) return
       const created = await create(nextUntitledRecordTitle(existingTitles, untitledTitle), richEditorDocumentToStoredBody(bodyDocument))
-      if (!isCurrent()) return
+      if (ctx.session.activeSessionIdRef.current !== sessionId) return
       await refresh()
       if (!isCurrent()) return
       await ctx.openCreatedRecord({ sessionId, kind, recordId: created.id }, epoch)
