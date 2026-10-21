@@ -1,4 +1,4 @@
-import { useId, useState, type ReactNode } from 'react'
+import { useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { RunModelEvidence } from '../components/RunModelEvidence'
 import '../styles/chat-permissions.css'
 import type { AiProvider, ChatPermissionDecision, ChatState, GenerationJobStatus } from '../bindings'
@@ -53,6 +53,9 @@ export function SessionChatView({
 }: SessionChatViewProps) {
   const id = useId()
   const [expandedPermissionKey, setExpandedPermissionKey] = useState<string | null>(null)
+  const attentionRef = useRef<HTMLElement>(null)
+  const permissionContextRef = useRef<HTMLDivElement>(null)
+  const permissionHeadingRef = useRef<HTMLHeadingElement>(null)
   const messages = chat?.messages ?? []
   const latest = messages.at(-1)
   const submitted = Boolean(chat?.submission)
@@ -72,6 +75,7 @@ export function SessionChatView({
   const permissionInput = pendingPermission?.inputJson
   const permissionPreview = permissionExpanded ? permissionInput : permissionInput?.slice(0, permissionPreviewLimit)
   const permissionTruncated = !permissionExpanded && Boolean(permissionInput && permissionInput.length > permissionPreviewLimit)
+  const permissionAttention = Boolean(pendingPermission || permissionRecoveryPending)
   const needsProviderRecovery = permissionRecoveryPending || !providerAvailable || Boolean(error || job?.errorMessage)
   const locked = !chat || busy || submitted || recovering
   const unresolved = messages.filter((message) => message.status !== 'completed')
@@ -117,6 +121,26 @@ export function SessionChatView({
     : activeJob ? job?.progressMessage || 'Waiting for a response…'
     : working || running ? 'Working…' : !chat ? 'Conversation unavailable' : 'Conversation saved'
 
+  function revealPermission() {
+    const panel = attentionRef.current
+    if (!panel) return
+    const bounds = panel.getBoundingClientRect()
+    let top = 0
+    let bottom = window.innerHeight
+    for (let parent = panel.parentElement; parent; parent = parent.parentElement) {
+      if (!/(auto|scroll|hidden|clip)/.test(getComputedStyle(parent).overflowY)) continue
+      const rect = parent.getBoundingClientRect()
+      top = Math.max(top, rect.top + parent.clientTop)
+      bottom = Math.min(bottom, rect.top + parent.clientTop + parent.clientHeight)
+    }
+    if (bounds.top < top || bounds.bottom > bottom) panel.scrollIntoView({ block: 'start', inline: 'nearest' })
+  }
+
+  useLayoutEffect(() => {
+    if (permissionContextRef.current) permissionContextRef.current.scrollTop = 0
+    revealPermission()
+  }, [permissionKey, permissionRecoveryPending])
+
   function restart() {
     if (!chat || busy || recoveryPending) return
     if ((composer !== '' || messages.length > 0) && !window.confirm(
@@ -129,100 +153,135 @@ export function SessionChatView({
 
   return (
     <section className="session-chat" aria-label="Session chat">
-      <header className="chat-topline">
-        <div>
-          <h2>Conversation</h2>
-          <p className="chat-help">Gather testing information, then submit it to your Session Note.</p>
-        </div>
-        <button className="secondary-button compact-button" type="button" disabled={!chat || busy || recoveryPending} aria-describedby={recovering ? `${id}-submit-reason` : undefined} onClick={restart}>
-          New conversation
-        </button>
-      </header>
-
-      <div className="chat-meta">
-        <span>Next invocation · {providerLabel} · {modelLabel}</span>
-        <span role="status" aria-live="polite">{status}</span>
-        <button className="secondary-button compact-button" type="button" onClick={onConfigureAi} disabled={busy}>
-          Configure AI
-        </button>
-      </div>
-      {error || job?.errorMessage ? <p className="chat-error" role="alert">{error || job?.errorMessage}</p> : null}
-      {needsProviderRecovery ? (
-        <div className="chat-provider-recovery">
-          <p className="chat-help">
-            {permissionRecoveryPending
-              ? 'The permission decision could not be confirmed. Recheck status to recover its current state without repeating the decision.'
-              : 'Configure AI to review provider setup or sign-in. Rechecking status does not send a message or retry a response.'}
-          </p>
-          {onRecheck ? <button className="secondary-button compact-button" type="button" disabled={recheckDisabled} onClick={() => { if (!recheckDisabled) void onRecheck() }}>Recheck status</button> : null}
-        </div>
-      ) : null}
-
-      {pendingPermission ? (
-        <section className="chat-permission" aria-label="Tool permission" aria-describedby={`${id}-permission-scope`}>
-          <h3>Tool permission</h3>
-          <p className="chat-help">{permissionProviderLabels[pendingPermission.provider]} is waiting for your decision.</p>
-          <div className="chat-permission-details">
-            <p className="chat-help">{pendingPermission.toolName == null ? 'Provider description' : 'Request'}</p>
-            <p className="chat-message-text">{pendingPermission.title}</p>
-            {pendingPermission.serverName != null ? <>
-              <p className="chat-help">Server</p>
-              <p className="chat-message-text">{pendingPermission.serverName}</p>
-            </> : null}
-            {pendingPermission.toolName != null ? <>
-              <p className="chat-help">Tool</p>
-              <p className="chat-message-text">{pendingPermission.toolName}</p>
-            </> : <p className="chat-help">The provider did not supply a named tool identity.</p>}
-            {permissionInput != null ? <>
-              <p className="chat-help">{permissionExpanded ? 'Complete arguments' : 'Arguments preview'}</p>
-              <p id={`${id}-permission-input`} className="chat-message-text chat-permission-input" tabIndex={0} aria-label={permissionExpanded ? 'Complete arguments' : 'Arguments preview'}>{permissionPreview}</p>
-              {permissionTruncated ? <>
-                <p className="chat-help">Arguments preview truncated to the first {permissionPreviewLimit.toLocaleString('en-US')} characters.</p>
-                <button className="secondary-button compact-button" type="button" aria-controls={`${id}-permission-input`} onClick={() => setExpandedPermissionKey(permissionKey)}>Show complete arguments</button>
-              </> : null}
+      {permissionAttention ? (
+        <section ref={attentionRef} className="chat-permission" aria-label={pendingPermission ? 'Tool permission' : 'Permission status recovery'} aria-describedby={pendingPermission ? `${id}-permission-scope` : undefined}>
+          <header className="chat-permission-identity">
+            <h3 ref={permissionHeadingRef} tabIndex={-1}>{permissionRecoveryPending ? 'Permission status recovery' : 'Tool permission'}</h3>
+            {pendingPermission ? <p className="chat-help" aria-live="polite">{permissionProviderLabels[pendingPermission.provider]} is waiting for your decision.{pendingPermission.toolName ? ` · ${pendingPermission.toolName}` : ''}</p> : null}
+          </header>
+          <div ref={permissionContextRef} className="chat-permission-context" role="region" aria-label="Permission context" tabIndex={0}>
+            {error || job?.errorMessage ? <p className="chat-error" role="alert">{error || job?.errorMessage}</p> : null}
+            {needsProviderRecovery ? (
+              <div className="chat-provider-recovery">
+                <p className="chat-help">
+                  {permissionRecoveryPending
+                    ? 'The permission decision could not be confirmed. Recheck status to recover its current state without repeating the decision.'
+                    : 'Configure AI to review provider setup or sign-in. Rechecking status does not send a message or retry a response.'}
+                </p>
+              </div>
+            ) : null}
+            {pendingPermission ? <>
+              <div className="chat-permission-details">
+                <p className="chat-help">{pendingPermission.toolName == null ? 'Provider description' : 'Request'}</p>
+                <p className="chat-message-text">{pendingPermission.title}</p>
+                {pendingPermission.serverName != null ? <>
+                  <p className="chat-help">Server</p>
+                  <p className="chat-message-text">{pendingPermission.serverName}</p>
+                </> : null}
+                {pendingPermission.toolName != null ? <>
+                  <p className="chat-help">Tool</p>
+                  <p className="chat-message-text">{pendingPermission.toolName}</p>
+                </> : <p className="chat-help">The provider did not supply a named tool identity.</p>}
+                {permissionInput != null ? <>
+                  <p className="chat-help">{permissionExpanded ? 'Complete arguments' : 'Arguments preview'}</p>
+                  <p id={`${id}-permission-input`} className="chat-message-text chat-permission-input" tabIndex={0} aria-label={permissionExpanded ? 'Complete arguments' : 'Arguments preview'}>{permissionPreview}</p>
+                  {permissionTruncated ? <>
+                    <p className="chat-help">Arguments preview truncated to the first {permissionPreviewLimit.toLocaleString('en-US')} characters.</p>
+                    <button className="secondary-button compact-button" type="button" aria-controls={`${id}-permission-input`} onClick={() => setExpandedPermissionKey(permissionKey)}>Show complete arguments</button>
+                  </> : null}
+                </> : null}
+              </div>
+              <p className="chat-help" id={`${id}-permission-scope`}>Approve once applies to this tool call only. Approve all for this response approves this and remaining supported tool requests, including future tool requests in this response. Does not change saved permissions.</p>
+              {approvalUnavailable ? <p className="chat-help" id={`${id}-permission-approval-reason`}>The provider does not offer one-time approval.</p> : null}
+              {permissionWorking ? <p className="chat-help">Sending permission decision… You can still cancel the response.</p>
+                : !onDecidePermission ? <p className="chat-help">Permission decisions are unavailable. You can cancel the response.</p> : null}
             </> : null}
           </div>
-          <p className="chat-help" id={`${id}-permission-scope`}>Approve once applies to this tool call only. Approve all for this response approves this and remaining supported tool requests, including future tool requests in this response. Does not change saved permissions.</p>
-          {approvalUnavailable ? <p className="chat-help" id={`${id}-permission-approval-reason`}>The provider does not offer one-time approval.</p> : null}
-          <div className="chat-buttons">
-            <button className="primary-button" type="button" disabled={permissionDisabled || approvalUnavailable} aria-describedby={approvalUnavailable ? `${id}-permission-approval-reason` : undefined} onClick={() => { if (!permissionDisabled && !approvalUnavailable) void onDecidePermission?.(pendingPermission.requestId, 'approve') }}>Approve once</button>
-            <button className="secondary-button" type="button" disabled={permissionDisabled || approvalUnavailable} aria-describedby={approvalUnavailable ? `${id}-permission-approval-reason` : undefined} onClick={() => { if (!permissionDisabled && !approvalUnavailable) void onDecidePermission?.(pendingPermission.requestId, 'approveAll') }}>Approve all for this response</button>
-            <button className="secondary-button" type="button" disabled={permissionDisabled} onClick={() => { if (!permissionDisabled) void onDecidePermission?.(pendingPermission.requestId, 'deny') }}>Deny</button>
-          </div>
-          {permissionWorking ? <p className="chat-help">Sending permission decision… You can still cancel the response.</p>
-            : !onDecidePermission ? <p className="chat-help">Permission decisions are unavailable. You can cancel the response.</p> : null}
+          <footer className="chat-permission-decisions">
+            {pendingPermission ? (
+              <div className="chat-buttons" key={permissionKey}>
+                <button className="primary-button" type="button" disabled={permissionDisabled || approvalUnavailable} aria-describedby={approvalUnavailable ? `${id}-permission-approval-reason` : undefined} onClick={() => { if (!permissionDisabled && !approvalUnavailable) void onDecidePermission?.(pendingPermission.requestId, 'approve') }}>Approve once</button>
+                <button className="secondary-button" type="button" disabled={permissionDisabled || approvalUnavailable} aria-describedby={approvalUnavailable ? `${id}-permission-approval-reason` : undefined} onClick={() => { if (!permissionDisabled && !approvalUnavailable) void onDecidePermission?.(pendingPermission.requestId, 'approveAll') }}>Approve all for this response</button>
+                <button className="secondary-button" type="button" disabled={permissionDisabled} onClick={() => { if (!permissionDisabled) void onDecidePermission?.(pendingPermission.requestId, 'deny') }}>Deny</button>
+              </div>
+            ) : null}
+            <div className="chat-buttons">
+              {needsProviderRecovery && onRecheck ? <button className="secondary-button compact-button" type="button" disabled={recheckDisabled} onClick={() => { if (!recheckDisabled) void onRecheck() }}>Recheck status</button> : null}
+              {activeJob ? <button className="secondary-button" type="button" disabled={job?.state === 'cancelling'} onClick={() => void onCancel()}>Cancel response</button> : null}
+            </div>
+          </footer>
         </section>
       ) : null}
+      <div className="chat-scroll-region" role="region" aria-label="Conversation and actions" tabIndex={0}>
+        <header className="chat-topline">
+          <div>
+            <h2>Conversation</h2>
+            <p className="chat-help">Gather testing information, then submit it to your Session Note.</p>
+          </div>
+          <button className="secondary-button compact-button" type="button" disabled={!chat || busy || recoveryPending} aria-describedby={recovering ? `${id}-submit-reason` : undefined} onClick={restart}>
+            New conversation
+          </button>
+        </header>
 
-      <section className="chat-transcript" aria-label="Conversation transcript" tabIndex={0}>
-        {messages.length === 0 ? <p className="chat-help">{loading ? 'Loading saved messages…' : 'No messages yet. Describe what you are testing or ask a question.'}</p> : (
-          <ol className="chat-messages">
-            {messages.map((message) => (
-              <li key={message.id} className={`chat-message chat-message-${message.role}`}>
-                <header>
-                  <strong>{message.role === 'user' ? 'You' : 'Assistant'}</strong>
-                  {message.status !== 'completed' ? <span className="chat-turn-status">{message.status[0].toUpperCase() + message.status.slice(1)}</span> : null}
-                </header>
-                {message.text ? message.role === 'assistant'
-                  ? <MarkdownContent text={message.text} />
-                  : <p className="chat-message-text">{message.text}</p> : null}
-                {message.aiRunId && (message.role === 'assistant' || message.status !== 'completed')
-                  ? <RunModelEvidence run={chat?.aiRuns.find((run) => run.id === message.aiRunId)} /> : null}
-                {message.errorMessage ? <p className="chat-error">{message.errorMessage}</p> : null}
-              </li>
-            ))}
-          </ol>
-        )}
-        {job?.partialText && !completedResponseSaved ? (
-          <section className="chat-partial" aria-label={responseLabel}>
-            <h3>{responseLabel}</h3>
-            <p className="chat-help">{job.state === 'completed' ? 'Waiting for the saved transcript to refresh.' : 'Not a completed transcript message.'}</p>
-            <MarkdownContent text={job.partialText} />
-          </section>
+        <div className="chat-meta">
+          <span>Next invocation · {providerLabel} · {modelLabel}</span>
+          <span role="status" aria-live="polite">{status}</span>
+          <button className="secondary-button compact-button" type="button" onClick={onConfigureAi} disabled={busy}>
+            Configure AI
+          </button>
+        </div>
+        {!permissionAttention && (error || job?.errorMessage) ? <p className="chat-error" role="alert">{error || job?.errorMessage}</p> : null}
+        {needsProviderRecovery && !permissionAttention ? (
+          <div className="chat-provider-recovery">
+            <p className="chat-help">
+              {permissionRecoveryPending
+                ? 'The permission decision could not be confirmed. Recheck status to recover its current state without repeating the decision.'
+                : 'Configure AI to review provider setup or sign-in. Rechecking status does not send a message or retry a response.'}
+            </p>
+            {onRecheck ? <button className="secondary-button compact-button" type="button" disabled={recheckDisabled} onClick={() => { if (!recheckDisabled) void onRecheck() }}>Recheck status</button> : null}
+          </div>
         ) : null}
-      </section>
 
-      <p className="chat-counts">{messages.length} / 128 messages · {(transcriptBytes / 1024).toFixed(1)} / 128 KiB transcript</p>
+        <section className="chat-transcript" aria-label="Conversation transcript" tabIndex={0}>
+          {messages.length === 0 ? <p className="chat-help">{loading ? 'Loading saved messages…' : 'No messages yet. Describe what you are testing or ask a question.'}</p> : (
+            <ol className="chat-messages">
+              {messages.map((message) => (
+                <li key={message.id} className={`chat-message chat-message-${message.role}`}>
+                  <header>
+                    <strong>{message.role === 'user' ? 'You' : 'Assistant'}</strong>
+                    {message.status !== 'completed' ? <span className="chat-turn-status">{message.status[0].toUpperCase() + message.status.slice(1)}</span> : null}
+                  </header>
+                  {message.text ? message.role === 'assistant'
+                    ? <MarkdownContent text={message.text} />
+                    : <p className="chat-message-text">{message.text}</p> : null}
+                  {message.aiRunId && (message.role === 'assistant' || message.status !== 'completed')
+                    ? <RunModelEvidence run={chat?.aiRuns.find((run) => run.id === message.aiRunId)} /> : null}
+                  {message.errorMessage ? <p className="chat-error">{message.errorMessage}</p> : null}
+                </li>
+              ))}
+            </ol>
+          )}
+          {job?.partialText && !completedResponseSaved ? (
+            <section className="chat-partial" aria-label={responseLabel}>
+              <h3>{responseLabel}</h3>
+              <p className="chat-help">{job.state === 'completed' ? 'Waiting for the saved transcript to refresh.' : 'Not a completed transcript message.'}</p>
+              <MarkdownContent text={job.partialText} />
+            </section>
+          ) : null}
+        </section>
+
+        <p className="chat-counts">{messages.length} / 128 messages · {(transcriptBytes / 1024).toFixed(1)} / 128 KiB transcript</p>
+        {modelSelectionControl}
+        <footer className="chat-handoff">
+          <div>
+            <p className="chat-help">Submission appends the role-labelled transcript to your editable Session Note. It does not generate Testware.</p>
+            {submitReason ? <p className="chat-help" id={`${id}-submit-reason`}>{submitReason}</p> : null}
+          </div>
+          <button className="secondary-button" type="button" disabled={recovering ? busy : Boolean(submitReason)} aria-describedby={submitReason ? `${id}-submit-reason` : undefined} onClick={() => { if (recovering ? !busy : !submitReason) void onSubmit() }}>
+            {recovering ? 'Recover Session Note' : 'Submit to Session Note'}
+          </button>
+        </footer>
+      </div>
       <div className="chat-composer">
         <label htmlFor={`${id}-message`}>Message</label>
         <textarea
@@ -237,11 +296,10 @@ export function SessionChatView({
           }}
           placeholder="Describe your testing context or ask a question"
         />
-        {modelSelectionControl}
         <div className="chat-compose-actions">
           <span id={`${id}-shortcut`} className="chat-help">Enter for a new line. Ctrl/Cmd + Enter to send.</span>
           <div className="chat-buttons">
-            {activeJob ? <button className="secondary-button" type="button" disabled={job?.state === 'cancelling'} onClick={() => void onCancel()}>Cancel response</button> : null}
+            {permissionAttention ? <button className="secondary-button" type="button" onClick={() => { revealPermission(); permissionHeadingRef.current?.focus({ preventScroll: true }) }}>Review permission</button> : activeJob ? <button className="secondary-button" type="button" disabled={job?.state === 'cancelling'} onClick={() => void onCancel()}>Cancel response</button> : null}
             {retryable && !submitted ? <button className="secondary-button" type="button" disabled={Boolean(retryReason)} aria-describedby={`${id}-retry-reason`} onClick={() => { if (!retryReason) void onRetry() }}>Retry response</button> : null}
             <button className="primary-button" type="button" disabled={Boolean(sendReason)} aria-describedby={`${id}-send-reason`} onClick={() => { if (!sendReason) void onSend() }}>Send</button>
           </div>
@@ -249,16 +307,6 @@ export function SessionChatView({
         <p className="chat-help" id={`${id}-send-reason`}>{sendReason || 'Send this message to the selected AI provider.'}</p>
         {retryable && !submitted ? <p className="chat-help" id={`${id}-retry-reason`}>{retryReason || 'Retry sends the previous message again and may incur another AI usage charge.'}</p> : null}
       </div>
-
-      <footer className="chat-handoff">
-        <div>
-          <p className="chat-help">Submission appends the role-labelled transcript to your editable Session Note. It does not generate Testware.</p>
-          {submitReason ? <p className="chat-help" id={`${id}-submit-reason`}>{submitReason}</p> : null}
-        </div>
-        <button className="secondary-button" type="button" disabled={recovering ? busy : Boolean(submitReason)} aria-describedby={submitReason ? `${id}-submit-reason` : undefined} onClick={() => { if (recovering ? !busy : !submitReason) void onSubmit() }}>
-          {recovering ? 'Recover Session Note' : 'Submit to Session Note'}
-        </button>
-      </footer>
     </section>
   )
 }

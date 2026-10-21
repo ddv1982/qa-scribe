@@ -307,6 +307,67 @@ describe('SessionChatView tool permission contract (F4auth-ui)', () => {
     expect(props.onDecidePermission).not.toHaveBeenCalled()
   })
 
+  it('keeps attention outside history, preserves reading on polling, and reviews without consent', () => {
+    const inputJson = 'x'.repeat(8000)
+    const current = job({ pendingPermission: permission({ inputJson }) })
+    const { props, rerender } = mount({ job: current, composer: 'Retained draft' })
+    const history = screen.getByRole('region', { name: 'Conversation and actions' })
+    const context = screen.getByRole('region', { name: 'Permission context' })
+    expect(history).not.toContainElement(panel())
+    expect(context).not.toContainElement(choice('Deny'))
+    fireEvent.click(choice('Show complete arguments'))
+    context.scrollTop = 180
+    history.scrollTop = 400
+    const composer = screen.getByRole('textbox', { name: 'Message' })
+    composer.focus()
+    rerender(<SessionChatView {...props} job={{ ...current }} />)
+    expect(context.scrollTop).toBe(180)
+    expect(history.scrollTop).toBe(400)
+    expect(within(panel()).getByText(inputJson, { exact: true })).toBeInTheDocument()
+    expect(composer).toHaveValue('Retained draft')
+    expect(composer).toHaveFocus()
+    fireEvent.click(screen.getByRole('button', { name: 'Review permission' }))
+    expect(within(panel()).getByRole('heading', { name: 'Tool permission' })).toHaveFocus()
+    expect(context.scrollTop).toBe(180)
+    expect(props.onDecidePermission).not.toHaveBeenCalled()
+  })
+
+  it('resets context for a queued identity without transferring decision focus', () => {
+    const { props, rerender } = mount()
+    const context = screen.getByRole('region', { name: 'Permission context' })
+    context.scrollTop = 180
+    choice('Approve once').focus()
+    rerender(<SessionChatView {...props} job={job({ pendingPermission: permission({ requestId: 'queued-request' }) })} />)
+    expect(context.scrollTop).toBe(0)
+    expect(choice('Approve once')).not.toHaveFocus()
+    fireEvent.click(choice('Deny'))
+    expect(props.onDecidePermission).toHaveBeenCalledExactlyOnceWith('queued-request', 'deny')
+  })
+
+  it('reveals recovery after the request disappears and keeps Recheck and Cancel outside context', () => {
+    const { props, rerender } = mount()
+    const context = screen.getByRole('region', { name: 'Permission context' })
+    context.scrollTop = 180
+    rerender(<SessionChatView {...props} job={job({ pendingPermission: null })} permissionRecoveryPending error="Decision outcome unknown" />)
+    expect(context.scrollTop).toBe(0)
+    const recoveryPanel = screen.getByRole('region', { name: 'Permission status recovery' })
+    expect(recoveryPanel).toHaveTextContent('The permission decision could not be confirmed. Recheck status to recover its current state without repeating the decision.')
+    expect(within(recoveryPanel).getByRole('alert')).toHaveTextContent('Decision outcome unknown')
+    expect(within(recoveryPanel).queryByRole('button', { name: 'Approve once' })).not.toBeInTheDocument()
+    const recheck = within(recoveryPanel).getByRole('button', { name: 'Recheck status' })
+    const cancel = within(recoveryPanel).getByRole('button', { name: 'Cancel response' })
+    expect(context).not.toContainElement(recheck)
+    expect(context).not.toContainElement(cancel)
+    context.scrollTop = 90
+    rerender(<SessionChatView {...props} job={job({ pendingPermission: null })} permissionRecoveryPending error="Decision outcome unknown" />)
+    expect(context.scrollTop).toBe(90)
+    fireEvent.click(recheck)
+    fireEvent.click(cancel)
+    expect(props.onRecheck).toHaveBeenCalledTimes(1)
+    expect(props.onCancel).toHaveBeenCalledTimes(1)
+    expect(props.onDecidePermission).not.toHaveBeenCalled()
+  })
+
   it('prioritizes pending tool permission status over stale provider startup progress', () => {
     mount({ job: job({ progressMessage: 'Provider process starting' }) })
     expect(screen.getByRole('status')).toHaveTextContent('Waiting for tool permission')

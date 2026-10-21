@@ -51,6 +51,11 @@ export function CommandPalette({ commands, onClose }: { commands: AppCommand[]; 
   }
 
   function handleSearchKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      onClose()
+      return
+    }
     if (!['ArrowDown', 'ArrowUp'].includes(event.key)) return
     const options = Array.from(dialogRef.current?.querySelectorAll<HTMLButtonElement>('.command-palette-list button:not(:disabled)') ?? [])
     if (options.length === 0) return

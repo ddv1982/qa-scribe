@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { permissionGeometry, reviewPermission } from './chat-permission-geometry.mjs'
 
 const provider = process.env.QA_SCRIBE_E2E_AUTH_PROVIDER
 const providerIds = { codex: 'codex_cli', claude: 'claude_code', copilot: 'copilot_cli' }
@@ -88,7 +89,7 @@ async function assertReopened(title, sessionId, expected) {
     'Canonical messages, IDs, statuses and text must survive Session reopen and WebView reload')
 }
 
-async function start(mode, caseName) {
+async function start(mode, caseName, text = `Check the marker tool authorization for ${caseName}. Retain this testing context.`) {
   writeFileSync(join(directory, 'authorization-case.json'), JSON.stringify({ mode, caseName }))
   const title = `E2E ${provider} ${caseName} ${Date.now()}`
   const sessionId = await create(title)
@@ -96,7 +97,6 @@ async function start(mode, caseName) {
     'Every authorization case must use the provider saved through Settings')
   const index = files('.started').length + 1
   const before = files('.executed.json').length
-  const text = `Check the marker tool authorization for ${caseName}. Retain this testing context.`
   await $(composer).setValue(text)
   await click('Send')
   await markerFile(index, 'started')
@@ -235,6 +235,61 @@ describe(`Built application native ${provider} Chat tool authorization`, () => {
     assertChild(current.index + 1, 0)
     assert.equal(files('.executed.json').length, current.before + 4)
     await assertReopened(current.title, current.sessionId, followUp)
+  }).timeout(60_000)
+
+  it('reveals a new permission above long scrolled history with reachable context and decisions', async () => {
+    await browser.setWindowSize(1280, 720)
+    const longText = 'Checkout history: preserve cart and discount after declined payment. '.repeat(100)
+    const current = await start('policy', 'scrolled-history', longText)
+    const history = await settled(current.sessionId, 'completed', 2)
+    assert.equal(history.messages[0].text, longText)
+    assert.equal(history.messages[1].text, 'Provider policy denied the marker tool. No child executed.')
+    assertChild(current.index, 0)
+    const text = 'Request the marker tool permission while I read the latest response.'
+    await $(composer).setValue(text)
+    await browser.execute(() => { const region = document.querySelector('.chat-scroll-region'); region.scrollTop = region.scrollHeight })
+    const before = await browser.execute(() => {
+      const region = document.querySelector('.chat-scroll-region')
+      return { top: region.scrollTop, height: region.clientHeight, total: region.scrollHeight }
+    })
+    assert.ok(before.top > before.height, 'The actual completed transcript must already be scrolled beyond its first viewport')
+    writeFileSync(join(directory, 'authorization-case.json'), JSON.stringify({ mode: 'permission', caseName: 'scrolled-permission' }))
+    await click('Send')
+    await markerFile(current.index + 1, 'started')
+    await $(permission).waitForDisplayed()
+    assertChild(current.index + 1, 0)
+    const prompt = JSON.parse(readFileSync(await markerFile(current.index + 1, 'prompt.json'), 'utf8'))
+    assert.ok(prompt.prompt.includes(text))
+    const geometry = []
+    for (const [width, height] of [[1280, 720], [640, 520]]) {
+      await browser.setWindowSize(width, height)
+      if (width === 640) {
+        await $('button=Review permission').scrollIntoView()
+        await reviewPermission()
+        assert.ok(await browser.execute(() => document.activeElement?.matches('.chat-permission h3')), 'Explicit review must focus the non-interactive permission heading')
+      }
+      const actual = await permissionGeometry()
+      geometry.push({ requested: { width, height }, ...actual })
+      writeFileSync(join(process.env.QA_SCRIBE_E2E_ARTIFACTS, 'permission-geometry.json'), JSON.stringify({ before, geometry }, null, 2))
+      await browser.saveScreenshot(join(process.env.QA_SCRIBE_E2E_ARTIFACTS, `permission-${width}.png`))
+      assert.ok(actual.panel.visible && actual.identity.visible && actual.identity.hit, 'Permission identity and full panel must remain visible')
+      assert.ok(actual.context.visible && actual.context.hit, 'Permission context must be visible and unobstructed')
+      assert.deepEqual(actual.controls.map((control) => control.label), ['Approve once', 'Approve all for this response', 'Deny', 'Cancel response'])
+      for (const control of actual.controls) assert.ok(control.visible && control.hit, `Permission control must be reachable: ${JSON.stringify(control)}`)
+      assert.equal(actual.historyOwnsPermission, false, 'Permission attention must not share the transcript scroller')
+      assert.equal(actual.approvalFocused, false, 'Arrival or review must never focus approval')
+      assert.ok(actual.contextText.includes('Approve once applies to this tool call only.'))
+      assert.ok(actual.contextText.includes(`${provider}-auth-${current.index + 1}.executed.json`), 'Full native request arguments must remain readable')
+      assertChild(current.index + 1, 0)
+    }
+    await click('Deny')
+    const denied = await settled(current.sessionId, 'completed', 4)
+    assert.deepEqual(denied.messages.slice(0, 2), history.messages)
+    assert.equal(denied.messages[2].text, text)
+    assert.equal(denied.messages[3].text, 'Marker tool denied. No child executed.')
+    assertChild(current.index + 1, 0)
+    assert.equal(files('.executed.json').length, current.before)
+    await browser.setWindowSize(1280, 860)
   }).timeout(60_000)
 
   it('denies the tool without executing a child and persists the completed denial', async () => {

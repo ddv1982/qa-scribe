@@ -12,13 +12,14 @@ test('critical workflows use separate WDIO processes, app data, fixtures, and ar
   const plan = createWdioInvocationPlan({}, '/tmp/e2e-root', '/tmp/e2e-artifacts')
 
   assert.deepEqual(plan.slice(0, criticalScenarios.length).map(({ id }) => id), criticalScenarios)
-  const legacy = plan.slice(0, criticalScenarios.length + 4 + (process.platform === 'linux' ? 1 : 0))
+  const legacy = plan.slice(0, criticalScenarios.length + 4 + (['linux', 'darwin'].includes(process.platform) ? 1 : 0) + (process.platform === 'linux' ? 1 : 0))
   assert.deepEqual(legacy.slice(criticalScenarios.length).map(({ id }) => id), [
     'chat-to-note', 'chat-tool-authorization-codex', 'chat-tool-authorization-claude', 'chat-tool-authorization-copilot',
+    ...(['linux', 'darwin'].includes(process.platform) ? ['ui-polish'] : []),
     ...(process.platform === 'linux' ? ['native-close'] : []),
   ])
   for (const key of ['QA_SCRIBE_E2E_APP_DATA_DIR', 'QA_SCRIBE_E2E_ARTIFACTS', 'QA_SCRIBE_E2E_FIXTURE_DIR']) {
-    assert.equal(new Set(legacy.map(({ environment }) => environment[key])).size, criticalScenarios.length + 4 + (process.platform === 'linux' ? 1 : 0))
+    assert.equal(new Set(legacy.map(({ environment }) => environment[key])).size, criticalScenarios.length + 4 + (['linux', 'darwin'].includes(process.platform) ? 1 : 0) + (process.platform === 'linux' ? 1 : 0))
   }
   assert.ok(plan.slice(0, criticalScenarios.length).every(({ environment }) => environment.QA_SCRIBE_E2E_SPEC === 'critical-workflows.e2e.mjs'))
   assert.equal(plan[criticalScenarios.length].environment.QA_SCRIBE_E2E_SPEC, 'chat-to-note.e2e.mjs')
@@ -26,6 +27,24 @@ test('critical workflows use separate WDIO processes, app data, fixtures, and ar
     const environment = plan[criticalScenarios.length + 1 + index].environment
     assert.equal(environment.QA_SCRIBE_E2E_SPEC, 'chat-tool-authorization.workflow.mjs')
     assert.equal(environment.QA_SCRIBE_E2E_AUTH_PROVIDER, provider)
+  }
+})
+
+test('UI polish runs with isolated artifacts in supported desktop defaults', () => {
+  for (const platform of ['linux', 'darwin']) {
+    const plan = createWdioInvocationPlan({}, '/tmp/root', '/tmp/artifacts', platform)
+    const polish = plan.find(({ id }) => id === 'ui-polish')
+    assert.deepEqual(polish.environment, {
+      QA_SCRIBE_E2E_SPEC: 'ui-polish.e2e.mjs',
+      ...(platform === 'linux' ? { GDK_BACKEND: 'x11' } : {}),
+      QA_SCRIBE_E2E_APP_DATA_DIR: '/tmp/root/app-data/ui-polish',
+      QA_SCRIBE_E2E_ARTIFACTS: '/tmp/artifacts/ui-polish',
+      QA_SCRIBE_E2E_FIXTURE_DIR: '/tmp/root/fixtures/ui-polish',
+    })
+    const selected = createWdioInvocationPlan({ QA_SCRIBE_E2E_SPEC: 'ui-polish.e2e.mjs' }, '/tmp/root', '/tmp/artifacts', platform)
+    assert.equal(selected[0].environment.GDK_BACKEND, platform === 'linux' ? 'x11' : undefined)
+    assert.ok(plan.filter(({ id }) => id !== 'ui-polish').every(({ environment }) =>
+      environment.QA_SCRIBE_E2E_APP_DATA_DIR !== polish.environment.QA_SCRIBE_E2E_APP_DATA_DIR))
   }
 })
 
@@ -55,7 +74,7 @@ test('Linux defaults require the complete model proof chain while non-Linux defa
   const linux = createWdioInvocationPlan({}, '/tmp/root', '/tmp/artifacts', 'linux')
   assert.deepEqual(linux.map(({ id }) => id), [
     ...criticalScenarios, 'chat-to-note', 'chat-tool-authorization-codex', 'chat-tool-authorization-claude',
-    'chat-tool-authorization-copilot', 'native-close', 'model-management', 'model-evidence', 'model-evidence-restart',
+    'chat-tool-authorization-copilot', 'ui-polish', 'native-close', 'model-management', 'model-evidence', 'model-evidence-restart',
     'model-selection', 'model-selection-restart', 'provider-qualification-disabled', 'provider-qualification-diagnostics',
     'provider-qualification-selector',
   ])
@@ -63,6 +82,7 @@ test('Linux defaults require the complete model proof chain while non-Linux defa
   for (const platform of ['darwin', 'win32']) {
     assert.deepEqual(createWdioInvocationPlan({}, '/tmp/root', '/tmp/artifacts', platform).map(({ id }) => id), [
       ...criticalScenarios, 'chat-to-note', 'chat-tool-authorization-codex', 'chat-tool-authorization-claude', 'chat-tool-authorization-copilot',
+      ...(platform === 'darwin' ? ['ui-polish'] : []),
     ])
   }
 })
