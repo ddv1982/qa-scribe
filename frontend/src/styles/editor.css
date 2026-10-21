@@ -63,6 +63,7 @@
 
 .document-actions {
   display: flex;
+  flex-wrap: wrap;
   flex: 0 0 auto;
   align-items: center;
   gap: var(--space-2);
@@ -247,7 +248,7 @@
 .bottom-command-bar {
   display: flex;
   align-items: center;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: var(--space-3);
   padding-bottom: 2px;
@@ -259,7 +260,7 @@
   align-items: center;
   gap: var(--space-2);
   flex: 1 1 320px;
-  min-width: 280px;
+  min-width: min(280px, 100%);
   max-width: 470px;
   min-height: 48px;
   margin-right: auto;
@@ -378,6 +379,7 @@
 .ai-action-buttons {
   display: grid;
   grid-template-columns: repeat(3, max-content);
+  max-width: 100%;
   align-items: center;
   justify-content: end;
   gap: var(--space-2);
@@ -431,4 +433,10 @@
   flex-wrap: wrap;
   gap: var(--space-2);
   margin-top: var(--space-2);
+}
+
+@media (min-width: 761px) {
+  .app-shell:has(.session-context-header) {
+    height: 100dvh;
+  }
 }

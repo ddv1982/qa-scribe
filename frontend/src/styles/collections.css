@@ -221,6 +221,8 @@
 
 .editable-record {
   display: grid;
+  align-content: start;
+  min-width: 0;
   gap: var(--space-3);
   padding: var(--space-4);
 }
@@ -349,7 +351,13 @@
 }
 
 .record-actions {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   display: flex;
+  flex-wrap: wrap;
+  padding-block: var(--space-2);
+  background: var(--surface-raised);
   align-items: center;
   justify-content: flex-end;
   gap: var(--space-2);

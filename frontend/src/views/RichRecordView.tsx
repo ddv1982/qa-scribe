@@ -87,6 +87,7 @@ export function EditableRichRecord({
   return (
     <article className="editable-record">
       {meta}
+      <div className="record-actions">{actions}</div>
       {editing ? (
         <>
           <input value={record.title} aria-label={titleInputLabel} onChange={(event) => onTitleChange(event.target.value)} />
@@ -104,7 +105,6 @@ export function EditableRichRecord({
           </div>
         </>
       )}
-      <div className="record-actions">{actions}</div>
     </article>
   )
 }

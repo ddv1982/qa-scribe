@@ -33,7 +33,7 @@ export function createWdioInvocationPlan(environment, temporaryRoot, artifacts, 
           ...(/^(model-(management|evidence|selection)|provider-qualification)\.e2e\.mjs$/.test(requestedSpec) ? {
             QA_SCRIBE_E2E_MODEL_EVIDENCE: environment.QA_SCRIBE_E2E_MODEL_EVIDENCE ?? artifacts,
           } : {}),
-          ...(['native-close.e2e.mjs', 'model-selection.e2e.mjs'].includes(requestedSpec) ? { GDK_BACKEND: 'x11' } : {}),
+          ...(['native-close.e2e.mjs', 'model-selection.e2e.mjs'].includes(requestedSpec) || (requestedSpec === 'ui-polish.e2e.mjs' && platform === 'linux') ? { GDK_BACKEND: 'x11' } : {}),
           QA_SCRIBE_E2E_APP_DATA_DIR: join(temporaryRoot, 'app-data'),
           QA_SCRIBE_E2E_ARTIFACTS: artifacts,
           QA_SCRIBE_E2E_FIXTURE_DIR: join(temporaryRoot, 'fixtures'),
@@ -58,12 +58,12 @@ export function createWdioInvocationPlan(environment, temporaryRoot, artifacts, 
     },
   }))
   if (!requestedSpec && !requestedScenario) {
-    for (const id of ['chat-to-note', ...['codex', 'claude', 'copilot'].map((provider) => `chat-tool-authorization-${provider}`), ...(platform === 'linux' ? ['native-close'] : [])]) {
+    for (const id of ['chat-to-note', ...['codex', 'claude', 'copilot'].map((provider) => `chat-tool-authorization-${provider}`), ...(['linux', 'darwin'].includes(platform) ? ['ui-polish'] : []), ...(platform === 'linux' ? ['native-close'] : [])]) {
       const provider = id.startsWith('chat-tool-authorization-') ? id.slice('chat-tool-authorization-'.length) : null
       plan.push({ id, environment: {
         QA_SCRIBE_E2E_SPEC: provider ? 'chat-tool-authorization.workflow.mjs' : `${id}.e2e.mjs`,
         ...(provider ? { QA_SCRIBE_E2E_AUTH_PROVIDER: provider } : {}),
-        ...(id === 'native-close' ? { GDK_BACKEND: 'x11' } : {}),
+        ...(id === 'native-close' || (id === 'ui-polish' && platform === 'linux') ? { GDK_BACKEND: 'x11' } : {}),
         QA_SCRIBE_E2E_APP_DATA_DIR: join(temporaryRoot, 'app-data', id),
         QA_SCRIBE_E2E_ARTIFACTS: join(artifacts, id),
         QA_SCRIBE_E2E_FIXTURE_DIR: join(temporaryRoot, 'fixtures', id),
