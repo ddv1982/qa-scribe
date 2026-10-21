@@ -18,6 +18,7 @@ const receiptPath = join(output, 'receipt.json')
 const receipt = existsSync(receiptPath) ? JSON.parse(readFileSync(receiptPath, 'utf8')) : {
   head: process.env.GITHUB_SHA, sourceHead: process.env.NATIVE_TOOLING_SOURCE_HEAD, platform, node: process.version, cacheKey: process.env.NATIVE_TOOLING_CACHE_KEY, stages: [],
 }
+let sdkReceipt
 function cacheHash(directory) {
   const hash = createHash('sha256')
   let files = 0
@@ -54,6 +55,9 @@ if (stage === 'discard') {
   }
   command('bun-version', 'bun', ['--version'])
   command('install', 'bun', ['install', '--cwd', 'frontend', '--frozen-lockfile'])
+  const sdkPath = join(output, `${stage}-rust-sdk.json`)
+  command('rust-sdk', process.execPath, ['scripts/check-rust-typescript-lsp.mjs', sdkPath])
+  sdkReceipt = JSON.parse(readFileSync(sdkPath, 'utf8'))
   command('tooling', process.execPath, ['scripts/check-native-typescript-tooling.mjs'])
   command('compiler', process.execPath, ['scripts/check-typescript-compiler.mjs'])
   command('check', 'bun', ['run', 'frontend:check'])
@@ -63,6 +67,6 @@ if (stage === 'discard') {
   command('isolation', 'bun', ['run', 'e2e:isolation'])
   if (stage === 'cold') receipt.savedCache = cacheHash(cache)
 }
-receipt.stages.push({ stage, status: 'passed', cacheHit: stage === 'warm' ? process.env.NATIVE_TOOLING_CACHE_HIT : null })
+receipt.stages.push({ stage, status: 'passed', cacheHit: stage === 'warm' ? process.env.NATIVE_TOOLING_CACHE_HIT : null, ...(sdkReceipt ? { rustSdk: sdkReceipt } : {}) })
 writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`)
 console.log(`PASS ${platform} ${stage} at ${receipt.head}, cache key ${receipt.cacheKey}`)

@@ -1,0 +1,7 @@
+{
+  "target": "export const reviewRecord = { count: 1, title: \"editor smoke\" };\n",
+  "valid": "import { reviewRecord } from \"./ReviewTarget\"; export const reviewValue: number = 1; void Promise.resolve(); export const reviewCount = reviewRecord.count;",
+  "invalid": "import { reviewRecord } from \"./ReviewTarget\"; export const reviewValue: number = \"bad\"; Promise.resolve(); export const reviewCount = reviewRecord.count;",
+  "completionPosition": "1:150",
+  "completions": ["count", "title"]
+}

@@ -1,7 +1,7 @@
 {
   "root": {
     "js/ts.experimental.useTsgo": true,
-    "js/ts.tsdk.path": "./frontend/node_modules/typescript",
+    "js/ts.tsdk.path": "./frontend/node_modules/.tsc-rs-sdk",
     "oxc.path.oxlint": "./frontend/node_modules/oxlint/bin/oxlint",
     "oxc.path.tsgolint": "./frontend/node_modules/oxlint-tsgolint/bin/tsgolint.js",
     "oxc.configPath": "./frontend/.oxlintrc.json",
@@ -10,7 +10,7 @@
   },
   "frontend": {
     "js/ts.experimental.useTsgo": true,
-    "js/ts.tsdk.path": "./node_modules/typescript",
+    "js/ts.tsdk.path": "./node_modules/.tsc-rs-sdk",
     "oxc.path.oxlint": "./node_modules/oxlint/bin/oxlint",
     "oxc.path.tsgolint": "./node_modules/oxlint-tsgolint/bin/tsgolint.js",
     "oxc.configPath": "./.oxlintrc.json",

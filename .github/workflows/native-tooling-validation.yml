@@ -10,6 +10,7 @@ on:
       - 'frontend/.oxlintrc.json'
       - 'frontend/tsconfig*.json'
       - 'scripts/*native*.mjs'
+      - 'scripts/*rust-typescript*.mjs'
       - 'scripts/check-typescript-compiler.mjs'
       - 'scripts/fixtures/native-tooling/**'
       - '.github/**'
@@ -31,7 +32,7 @@ jobs:
   native-tooling:
     name: Native tooling (${{ matrix.platform }})
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 15
+    timeout-minutes: ${{ matrix.platform == 'macos-arm64' && 30 || 15 }}
     strategy:
       fail-fast: false
       matrix:
@@ -94,6 +95,34 @@ jobs:
         env:
           NATIVE_TOOLING_CACHE_HIT: ${{ steps.native-cache.outputs.cache-hit }}
         run: node scripts/check-native-tooling-installations.mjs warm
+
+      - name: Verify actual macOS Rust editor selection
+        if: matrix.platform == 'macos-arm64'
+        timeout-minutes: 10
+        env:
+          NATIVE_EDITOR_SMOKE_OUTPUT: ${{ runner.temp }}/qa-scribe-editor-smoke
+        run: node scripts/check-native-editor-smoke.mjs --provision
+
+      - name: Upload actual editor smoke receipts
+        if: always() && matrix.platform == 'macos-arm64'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: native-editor-smoke-${{ matrix.platform }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/qa-scribe-editor-smoke/*.json
+            ${{ runner.temp }}/qa-scribe-editor-smoke/*.jsonl
+            ${{ runner.temp }}/qa-scribe-editor-smoke/*.log
+            ${{ runner.temp }}/qa-scribe-editor-smoke/*.png
+            ${{ runner.temp }}/qa-scribe-editor-smoke/*.txt
+            ${{ runner.temp }}/qa-scribe-editor-smoke/root/*.json
+            ${{ runner.temp }}/qa-scribe-editor-smoke/root/*.txt
+            ${{ runner.temp }}/qa-scribe-editor-smoke/root/*.png
+            ${{ runner.temp }}/qa-scribe-editor-smoke/root/profile/logs/**
+            ${{ runner.temp }}/qa-scribe-editor-smoke/frontend/*.json
+            ${{ runner.temp }}/qa-scribe-editor-smoke/frontend/*.txt
+            ${{ runner.temp }}/qa-scribe-editor-smoke/frontend/*.png
+            ${{ runner.temp }}/qa-scribe-editor-smoke/frontend/profile/logs/**
+          if-no-files-found: error
 
       - name: Upload native tooling receipts
         if: always()
