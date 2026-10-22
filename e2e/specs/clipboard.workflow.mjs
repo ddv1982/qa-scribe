@@ -121,7 +121,10 @@ export async function runClipboardWorkflow() {
   save('Lane 6. Copy while another Session has dirty edits', { qualification: 'Single-window library navigation is guarded. This native lane proves the guard. The real-controller test separately proves direct Copy preserves dirty Note, Draft and Finding state and causes zero writes.' })
   await capture('copy-dirty-other-session')
   await (await $('dialog')).$('button=Discard changes').click()
-  await $('h1=Test cases library').waitForDisplayed()
+  await browser.waitUntil(async () => {
+    const heading = await $('h1=Test cases library')
+    return heading.isDisplayed()
+  }, { timeout: 10_000, timeoutMsg: 'Discard must reveal the Test cases library' })
 
   const images = await browser.execute(() => [
     [255, 0, 0, 255], [0, 255, 0, 255],
