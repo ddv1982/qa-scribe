@@ -9,10 +9,46 @@ import {
   richEditorDocumentToHtml,
   richEditorDocumentToPlainText,
   richEditorDocumentToStoredBody,
+  richEditorDocumentsEqual,
+  serializeRichEditorDocument,
+  type RichEditorDocument,
 } from './editorDocument'
 import { managedAttachmentImageHtml } from './editorHtml'
 
 describe('editorDocument', () => {
+  const ordered: RichEditorDocument = { schemaVersion: 1, doc: { type: 'doc', content: [
+    { type: 'paragraph', content: [{ type: 'text', text: 'Evidence', marks: [
+      { type: 'link', attrs: { href: 'https://example.test', target: '_blank', rel: 'noreferrer' } },
+      { type: 'bold' },
+    ] }] },
+    { type: 'image', attrs: { attachmentId: 'attachment-1', src: 'qa-scribe-attachment://attachment-1', alt: 'Screenshot', title: null } },
+  ] } }
+
+  it('uses the same document identity for stored and editor object key orders', () => {
+    const reordered = JSON.parse(JSON.stringify(ordered, (_key, value: unknown) =>
+      value && typeof value === 'object' && !Array.isArray(value)
+        ? Object.fromEntries(Object.entries(value).sort(([left], [right]) => right.localeCompare(left))) : value)) as RichEditorDocument
+    expect(JSON.stringify(reordered)).not.toBe(JSON.stringify(ordered))
+    expect(richEditorDocumentsEqual(ordered, reordered)).toBe(true)
+    expect(serializeRichEditorDocument(reordered)).toBe(serializeRichEditorDocument(ordered))
+    expect(JSON.parse(serializeRichEditorDocument(reordered))).toEqual(ordered)
+  })
+
+  it.each(['text', 'node order', 'mark order', 'mark type', 'link attribute', 'image attribute', 'attachment ID'])('keeps %s changes distinct from the saved document', (change) => {
+    const changed = structuredClone(ordered)
+    const text = changed.doc.content![0].content![0]
+    const image = changed.doc.content![1]
+    if (change === 'text') text.text = 'Changed evidence'
+    if (change === 'node order') changed.doc.content!.reverse()
+    if (change === 'mark order') text.marks!.reverse()
+    if (change === 'mark type') text.marks![1].type = 'italic'
+    if (change === 'link attribute') text.marks![0].attrs!.href = 'https://example.test/changed'
+    if (change === 'image attribute') image.attrs!.alt = 'Changed screenshot'
+    if (change === 'attachment ID') image.attrs!.attachmentId = 'attachment-2'
+    expect(richEditorDocumentsEqual(ordered, changed)).toBe(false)
+    expect(serializeRichEditorDocument(changed)).not.toBe(serializeRichEditorDocument(ordered))
+  })
+
   it.each(['html', 'tiptap_json'])('keeps submitted allowed HTML tags literal through %s import, save and reopen', (bodyFormat) => {
     const literal = '<img src="https://example.test/tracker" alt="Example"><strong>literal</strong>'
     const escaped = '&lt;img src="https://example.test/tracker" alt="Example"&gt;&lt;strong&gt;literal&lt;/strong&gt;'
