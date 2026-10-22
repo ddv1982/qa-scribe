@@ -197,6 +197,26 @@
 }
 
 @media (max-width: 760px) {
-  .editor-card--chat .document-body { display: block; overflow: visible; }
-  .editor-card--chat .chat-scroll-region { overflow: visible; }
+  .editor-card--chat .document-body { display: block; }
+  .editor-card--chat .chat-scroll-region { flex: 0 0 auto; overflow: visible; }
+}
+
+.chat-review { display: grid; gap: var(--space-3); }
+.chat-review > [role="region"] {
+  padding: var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}
+.chat-handoff > .chat-buttons { flex-wrap: wrap; flex-shrink: 0; }
+.chat-added {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-3);
 }

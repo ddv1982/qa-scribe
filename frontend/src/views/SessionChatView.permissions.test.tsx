@@ -2,7 +2,7 @@ import '@testing-library/jest-dom/vitest'
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AiProvider, ChatMessage, ChatPermissionDecision, ChatPermissionRequest, ChatState, GenerationJobStatus } from '../bindings'
-import { SessionChatView, type SessionChatViewProps } from './SessionChatView'
+import { SessionChatView, type SessionChatViewProps } from './SessionChatView.testSupport'
 
 afterEach(() => { cleanup(); vi.restoreAllMocks() })
 

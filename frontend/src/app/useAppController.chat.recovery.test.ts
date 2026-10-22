@@ -55,6 +55,10 @@ async function failedHandoff(result: { current: ReturnType<typeof useAppControll
   expect(api.submitChat).toHaveBeenCalledTimes(1)
   expect(result.current.sessionChat.chat?.submission).toEqual(receipt)
   expect(result.current.sessionChat.error).toContain('updated Note could not be loaded')
+  expect(result.current.sessionChat.handoff.kind).toBe('recover')
+  expect(result.current.sessionChat.handoff.reviewAvailable).toBe(false)
+  expect(api.startChatJob).not.toHaveBeenCalled()
+  expect(api.startAiActionJob).not.toHaveBeenCalled()
 }
 
 describe('BlockingR37-01: pending canonical Note recovery after durable Chat submission', () => {
@@ -89,6 +93,7 @@ describe('BlockingR37-01: pending canonical Note recovery after durable Chat sub
     await act(async () => { await result.current.sessionChat.onSubmit() })
     expect(result.current.noteEntry).toEqual(model.canonical)
     expect(result.current.noteReadOnly).toBe(false)
+    expect(result.current.sessionChat.handoff.kind).toBe('added')
     expect(api.submitChat).toHaveBeenCalledTimes(1)
   })
 
@@ -121,6 +126,7 @@ describe('BlockingR37-01: pending canonical Note recovery after durable Chat sub
       await reopen
     })
     expect(result.current.noteReadOnly).toBe(false)
+    expect(result.current.sessionChat.handoff.kind).toBe('added')
     const newer = richEditorDocumentFromHtml(model.canonical.body + '<p>Newer tester edit</p>')
     act(() => result.current.setNoteBody(newer))
     await act(async () => { await result.current.sessionChat.onSubmit() })
@@ -198,6 +204,7 @@ describe('BlockingR37-01: pending canonical Note recovery after durable Chat sub
     expect(richEditorDocumentToPlainText(result.current.noteBody).match(/User: Payment failed/g)).toHaveLength(1)
     expect(model.durableNote()).toEqual(model.canonical)
     expect(result.current.noteReadOnly).toBe(false)
+    expect(result.current.sessionChat.handoff.kind).toBe('added')
     expect(result.current.sessionMode).toBe('write_note')
     expect(result.current.sessionSaveState).toBe('saved')
     await act(async () => { await result.current.sessionChat.onSubmit() })
@@ -222,6 +229,7 @@ describe('BlockingR37-01: pending canonical Note recovery after durable Chat sub
     expect(result.current.noteEntry).toEqual(model.canonical)
     expect(richEditorDocumentToPlainText(result.current.noteBody).match(/User: Payment failed/g)).toHaveLength(1)
     expect(result.current.noteReadOnly).toBe(false)
+    expect(result.current.sessionChat.handoff.kind).toBe('added')
     expect(api.submitChat).toHaveBeenCalledTimes(1)
     expect(api.updateEntry).not.toHaveBeenCalled()
   })
@@ -273,6 +281,9 @@ describe('BlockingR37-01: pending canonical Note recovery after durable Chat sub
     await waitFor(() => expect(result.current.sessionChat.chat?.revision).toBe(3))
     await act(async () => { await result.current.sessionChat.onSubmit() })
     expect(result.current.sessionChat.error).toContain('Invoke acknowledgement lost')
+    expect(result.current.sessionChat.handoff.kind).toBe('recover')
+    expect(api.startChatJob).not.toHaveBeenCalled()
+    expect(api.startAiActionJob).not.toHaveBeenCalled()
     expect(result.current.noteReadOnly).toBe(true)
     expect(model.durableNote()).toEqual(model.canonical)
     const unsafe = richEditorDocumentFromPlainText('Unknown outcome must not permit a stale overwrite')
@@ -281,6 +292,7 @@ describe('BlockingR37-01: pending canonical Note recovery after durable Chat sub
     await act(async () => { await result.current.sessionChat.onSubmit() })
     expect(result.current.noteEntry).toEqual(model.canonical)
     expect(result.current.noteReadOnly).toBe(false)
+    expect(result.current.sessionChat.handoff.kind).toBe('added')
     expect(richEditorDocumentToPlainText(result.current.noteBody).match(/User: Payment failed/g)).toHaveLength(1)
     expect(api.submitChat).toHaveBeenCalledTimes(1)
     expect(api.updateEntry).not.toHaveBeenCalled()
@@ -298,6 +310,7 @@ describe('BlockingR37-01: pending canonical Note recovery after durable Chat sub
     expect(result.current.noteEntry).toEqual(model.original)
     expect(model.durableNote()).toEqual(model.original)
     expect(result.current.noteReadOnly).toBe(false)
+    expect(result.current.sessionChat.handoff.kind).toBe('conversation')
     expect(result.current.notice).toContain('Submission was not recorded')
     expect(api.submitChat).toHaveBeenCalledTimes(1)
     expect(api.updateEntry).not.toHaveBeenCalled()
