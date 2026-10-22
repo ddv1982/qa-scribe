@@ -10,6 +10,7 @@
 @import './styles/content.css';
 @import './styles/collections.css';
 @import './styles/responsive.css';
+@import './styles/first-use.css';
 
 /* Session Chat uses the same document surfaces and controls as Write note. */
 .document-mode button[aria-pressed="true"] {

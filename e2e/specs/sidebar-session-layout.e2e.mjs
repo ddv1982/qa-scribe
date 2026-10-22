@@ -59,7 +59,7 @@ function assertRows(value) {
 describe('Recent sessions native layout', () => {
   it('keeps complete title lines above dates with scrolling and keyboard navigation', async function () {
     this.timeout(180_000)
-    await (await $('h1=No Session selected')).waitForDisplayed()
+    await (await $('h1=Turn testing evidence into useful output')).waitForDisplayed()
     for (const title of titles) {
       const create = await $('button=New Session')
       await create.waitForClickable()

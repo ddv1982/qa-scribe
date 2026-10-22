@@ -372,7 +372,7 @@ if (process.env.QA_SCRIBE_E2E_SPEC === 'generation-preflight-layout.e2e.mjs') {
     it('keeps its heading static and context visible across responsive layouts', async function () {
       this.timeout(180_000)
       const button = async (label) => $(`button=${label}`)
-      await $('h1=No Session selected').waitForDisplayed()
+      await $('h1=Turn testing evidence into useful output').waitForDisplayed()
       await (await button('New Session')).click()
       await $('[aria-label="Session title"]').setValue('E2E generation preflight layout')
       await $('[aria-label="Note body"]').setValue('Check generation options and execution details before starting Testware.')

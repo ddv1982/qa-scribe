@@ -45,6 +45,8 @@ export function SessionEditorView({
   onCopy,
   onCreateSession,
   canCreateSession,
+  hasSavedSessions = false,
+  onExploreExample,
   onDeleteSession,
   onOpenSession,
   onSetNoteBody,
@@ -86,6 +88,8 @@ export function SessionEditorView({
   onCopy: (snapshot: ClipboardSnapshot) => Promise<void>
   onCreateSession: () => void
   canCreateSession: boolean
+  hasSavedSessions?: boolean
+  onExploreExample?: () => void
   onDeleteSession: () => void
   onOpenSession: (session: Session) => Promise<void>
   onSetNoteBody: (value: RichEditorDocument) => void
@@ -122,11 +126,17 @@ export function SessionEditorView({
         <div className="empty-icon">
           <FileText size={34} />
         </div>
-        <h1>No Session selected</h1>
-        <p>Create a Session or open an existing one to start writing QA notes.</p>
-        <button className="primary-button" type="button" disabled={!canCreateSession} onClick={onCreateSession}>
-          <Plus size={17} /> Create Session
-        </button>
+        <h1>{busyAction === 'boot' ? 'Loading Sessions…' : hasSavedSessions ? 'No Session selected' : 'Turn testing evidence into useful output'}</h1>
+        {busyAction !== 'boot' ? <p>{hasSavedSessions
+          ? 'Open a Session to continue your work, or start another.'
+          : 'Capture testing evidence, create a Finding or test cases, and copy useful output into your reporting tool. No AI account needed.'}</p> : null}
+        {error ? <p role="alert">{error}</p> : null}
+        <div className="empty-session-actions">
+          <button className="primary-button" type="button" disabled={!canCreateSession} onClick={onCreateSession}>
+            <Plus size={17} /> Start a Session
+          </button>
+          {onExploreExample ? <button className="secondary-button" type="button" disabled={isBusy} onClick={onExploreExample}>Explore an example</button> : null}
+        </div>
         {filteredSessions.length > 0 ? (
           <div className="empty-session-actions">
             {filteredSessions.slice(0, 3).map((session) => (
