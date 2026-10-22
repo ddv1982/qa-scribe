@@ -18,6 +18,7 @@
     <category>ProjectManagement</category>
   </categories>
   <releases>
+    <release version="0.8.16" date="2026-10-22" />
     <release version="0.8.15" date="2026-10-21" />
     <release version="0.8.14" date="2026-10-21" />
     <release version="0.8.13" date="2026-10-20" />

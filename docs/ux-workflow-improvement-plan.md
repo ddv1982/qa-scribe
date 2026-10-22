@@ -23,7 +23,7 @@ Use existing tests and the maintained native desktop harness. Do not add another
 
 - [x] Record the observed UX problems and compare two disposable dialog layouts. Evidence is Appendix A and `artifacts/ux-plan-v0815/prototype/`.
 - [x] At implementation start, fetch current `origin/main`, record the SHA, and create a fresh branch.
-- [ ] Reproduce each phase's relevant baseline before editing production files. UX-1 is captured; later phase baselines remain pending.
+- [x] Reproduce each phase's relevant baseline before editing production files. Baseline and candidate receipts are retained under each phase's artifact directory.
 - [x] Do not create a goal, schedule, heartbeat, or hourly audit for this bounded task without a separate user request. Keep the queue table and throughput checkpoint in `artifacts/ux-improvements/decisions.tsv`.
 - [x] Read the installed Feature, Control UI, Opening a PR, and applicable review skills. Use `git show origin/main:package.json` for current repository commands. Skills are installed outside this repository.
 - [x] Keep Windows, new AI providers, database migrations, dependency upgrades, compiler changes, a new UI framework, and a visual rebrand outside this program.
@@ -32,36 +32,36 @@ Implementation started from `origin/main` at `efaf81615b9ab2e14b904db2b58d186d44
 
 ### Spawn owners
 
-- [ ] Use one OpenAI implementation owner at a time. Use one independent OpenAI review for each final PR patch. Do not use Claude.
-- [ ] Follow the dependency order `UX-1 -> UX-2 -> UX-3 -> UX-4 -> UX-5`. Branch each successor from current main after its predecessor merges within the active authority.
-- [ ] Hold each phase to its file list. Shared views, controller wiring, CSS, and E2E fixtures have one writer.
+- [x] Use one OpenAI implementation owner at a time. Use one independent OpenAI review for each final PR patch. Do not use Claude.
+- [x] Follow the dependency order `UX-1 -> UX-2 -> UX-3 -> UX-4 -> UX-5`. Branch each successor from current main after its predecessor merges within the active authority.
+- [x] Hold each phase to its file list. Shared views, controller wiring, CSS, and E2E fixtures have one writer.
 - [x] Record the throughput checkpoint. Shared UI and controller files prevent useful parallel implementation. Run source review separately from the sole desktop and Cargo writer. Do not duplicate independent review after a clean verdict without a changed patch or new defect.
-- [ ] Review real screenshots and a short interaction video for every phase. Stop at merge-ready when the active authority does not include merge.
+- [x] Review real screenshots and a short interaction video for every phase. Stop at merge-ready when the active authority does not include merge.
 
 ### PR mechanics, for every PR
 
-- [ ] Use normal repository branch protection and the available forge, normally `gh`. Open and link each PR to the T3 thread. Record its actual number beside the UX label.
-- [ ] Run `bun run frontend:check`, `bun run frontend:test`, and the phase's focused checks before the PR-facing push. Keep hooks enabled.
-- [ ] Run deslop before commits and no-comments before independent review. Keep code changes specific to the observed problem.
-- [ ] Record head, base, stable patch-id, test receipts, and source-bound screenshots. Triage automated comments against real behavior.
-- [ ] Preserve existing CI. Extend relevant native scenarios rather than adding a duplicate matrix. Do not bump the version or publish a release for each phase.
+- [x] Use normal repository branch protection and the available forge, normally `gh`. Open and link each PR to the T3 thread. Record its actual number beside the UX label.
+- [x] Run `bun run frontend:check`, `bun run frontend:test`, and the phase's focused checks before the PR-facing push. Keep hooks enabled.
+- [x] Run deslop before commits and no-comments before independent review. Keep code changes specific to the observed problem.
+- [x] Record head, base, stable patch-id, test receipts, and source-bound screenshots. Triage automated comments against real behavior.
+- [x] Preserve existing CI. Extend relevant native scenarios rather than adding a duplicate matrix. Do not bump the version or publish a release for each phase.
 
 ### Verdict and merge, for every PR
 
-- [ ] Require an independent exact-patch OpenAI verdict, all protected checks, and completed review triage. Reuse unchanged evidence only within Shipping's patch retention rules.
-- [ ] Provide actual native screenshots and a 30 to 60 second video. Label operating system, theme, viewport, fixture scope, and any missing platform proof.
-- [ ] On a verification failure, retain the receipt and diagnose the observation method and feature once. Fix a proven cause. Do not rerun until green, add retry loops, or relax the pass rule.
-- [ ] Merge only within current authorization. Do not infer new release authority from the earlier compiler release task.
+- [x] Require an independent exact-patch OpenAI verdict, all protected checks, and completed review triage. Reuse unchanged evidence only within Shipping's patch retention rules.
+- [x] Provide actual native screenshots and a 30 to 60 second video. Label operating system, theme, viewport, fixture scope, and any missing platform proof.
+- [x] On a verification failure, retain the receipt and diagnose the observation method and feature once. Fix a proven cause. Do not rerun until green, add retry loops, or relax the pass rule.
+- [x] Merge only within current authorization. Do not infer new release authority from the earlier compiler release task.
 
 ### Boot recipe, for every live lane
 
-- [ ] Use the exact candidate head, pinned tools, a frozen frontend install, and task-owned application data. Use deterministic fixture providers and no real service requests.
-- [ ] Drive the real Tauri desktop through the installed `cursor-team-kit:control-ui` skill and maintained `e2e/wdio.conf.mjs` harness. Use the collaborative T3 preview for web prototypes when applicable.
-- [ ] Record actual `innerWidth` and `innerHeight` after resize settles. Wait for committed UI state and dialog animation before capture. Reset scroll origin for initial visibility checks.
-- [ ] Check geometry, clipping ancestors, keyboard focus, and hit targets. A control below the viewport is reachable by scroll, but does not pass an initial-visibility requirement.
-- [ ] Save proof under `artifacts/ux-improvements/<UX-id>/`. Use the file names below. Preserve failures separately and stop only processes owned by the launch receipt.
-- [ ] Capture laptop layouts at 1280 by 720 and 1024 by 768. Check 640 by 520 and the production minimum 320 by 520 through an isolated E2E configuration that permits those sizes. The current E2E configuration has a 640-pixel minimum. Do not change production window limits silently.
-- [ ] Verify affected flows on Linux and macOS before claiming support on both. Use one supported macOS desktop host for UI proof, plus existing CI for packaging. Missing access remains an explicit gap.
+- [ ] Use the exact candidate head, pinned tools, a frozen frontend install, and task-owned application data. Use deterministic fixture providers and no real service requests. Early UX-3 probes reached installed CLI status/catalog paths before strict isolation was corrected; no generation was requested, but historical external traffic was not captured. Later controlled runs use strict fixture binding.
+- [x] Drive the real Tauri desktop through the installed `cursor-team-kit:control-ui` skill and maintained `e2e/wdio.conf.mjs` harness. Use the collaborative T3 preview for web prototypes when applicable.
+- [x] Record actual `innerWidth` and `innerHeight` after resize settles. Wait for committed UI state and dialog animation before capture. Reset scroll origin for initial visibility checks.
+- [x] Check geometry, clipping ancestors, keyboard focus, and hit targets. A control below the viewport is reachable by scroll, but does not pass an initial-visibility requirement.
+- [x] Save proof under `artifacts/ux-improvements/<UX-id>/`. Use the file names below. Preserve failures separately and stop only processes owned by the launch receipt.
+- [x] Capture laptop layouts at 1280 by 720 and 1024 by 768. Check 640 by 520 and the production minimum 320 by 520 through an isolated E2E configuration that permits those sizes. The current E2E configuration has a 640-pixel minimum. Do not change production window limits silently.
+- [ ] Verify affected flows on Linux and macOS before claiming support on both. Linux has the full theme/size matrix. Hosted macOS has the maintained native workflow and calibrated available height, with physical keyboard and full matrix coverage qualified. No complete macOS matrix claim is made.
 
 ## Keep actions reachable in laptop windows (UX-1)
 
@@ -322,7 +322,7 @@ Early original test runs probed installed CLI status and catalogs through a fall
 
 - [x] Run SessionChatView, chat-submission, and chat-recovery tests plus `cargo test -p qa-scribe-core --test chat_storage`. Assert literal message content, preserved existing Note, uncertain-result recovery, and no duplicate append.
 
-**Evidence and qualification.** Parent checks passed 684 frontend tests and 38 Rust storage tests. Maintained native handoff records one Add, one Note update, no ordinary confirmation, and zero extra review/handoff provider starts. Parent corrected reproduced explanation/button and history/composer overlap, then passed all four planned sizes in both themes with trusted Linux keyboard traversal and frozen before/after probes. Native lost-acknowledgement and canonical-read-failure injection have no established effective seam. Lanes 8 and 9 remain unavailable natively; real-controller and Rust transaction tests cover those faults. Lane 10 is qualified for unavailable native recovery controls and macOS physical keyboard. No private state was fabricated. Independent review and hosted macOS CI are pending.
+**Evidence and qualification.** Parent checks passed 684 frontend tests and 38 Rust storage tests. Maintained native handoff records one Add, one Note update, no ordinary confirmation, and zero extra review/handoff provider starts. Parent corrected reproduced explanation/button and history/composer overlap, then passed all four planned sizes in both themes with trusted Linux keyboard traversal and frozen before/after probes. Native lost-acknowledgement and canonical-read-failure injection have no established effective seam. Lanes 8 and 9 remain unavailable natively; real-controller and Rust transaction tests cover those faults. Lane 10 is qualified for unavailable native recovery controls and macOS physical keyboard. No private state was fabricated. Independent OpenAI R2 returned PASS+NOTES at `2c27abb`, with one fresh successful maintained Chat workflow and the unchanged passing R1 lanes retained. R1's initial title timeout remains unexplained and preserved after one bounded diagnostic. Hosted Linux passed all 19 maintained native invocations and macOS all 10. All six applicable CI jobs passed, and PR #70 merged normally at `d313e3f`.
 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on the configured fast profile at the PR head are bounded scenario labels under the boot recipe.
 
@@ -346,12 +346,18 @@ Early original test runs probed installed CLI status and catalogs through a fall
 
 **Review gate.** Review the interaction before merge.
 
-- [ ] Provide the operator with before, after, and recovery screenshots plus `UX-5-review.mp4`, a 30 to 60 second video. Obtain the independent verdict at the same patch.
+- [x] Provide the operator with before/after screenshots and `UX-5-review.mp4`, a 45-second video. The exact-patch independent verdict passed. Native recovery screenshots remain unavailable under the fault-lane qualification above.
 
 **Merge.**
 
-- [ ] Require protected CI, exact-patch review, and applicable user authority. Stop if a proposed UI change requires weakening canonical submission or recovery guarantees.
+- [x] Require protected CI, exact-patch review, and applicable user authority. Stop if a proposed UI change requires weakening canonical submission or recovery guarantees.
 
+
+## Integrated delivery status
+
+All five phases merged through protected CI with independent OpenAI review. UX-1 is PR #66 at `7c84c5f`; UX-2 is PR #67 at `c19e58a`; UX-3 is PR #68 at `26eb17b`; UX-4 is PR #69 at `d448fbd`; UX-5 is PR #70 at `d313e3f`.
+The next release candidate is v0.8.16. It collects those changes without a dependency, compiler, schema, or provider-protocol upgrade. Full integrated verification, final release review, and publication remain release gates.
+Unchecked native lanes remain explicit qualifications. UX-4 Lane 6 is prevented by the navigation guard and covered separately at the controller boundary. UX-5 Lanes 8 and 9 lack effective native fault seams; Lane 10 is partial for recovery and physical macOS keyboard. Controller and transaction coverage remain in place. No performance, battery, or comprehensive accessibility improvement is claimed.
 
 ## Close the program
 
