@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.8.18 - 2026-10-22
+
+- Make Create finding and Create test cases open ordinary editors from Notes and collections, with AI creation available as a separate option.
+- Simplify clipboard controls to Copy and include visible unsaved edits without implicitly saving them. Keep screenshot copying separate.
+- Add a first-use welcome, a read-only synthetic example, visible Help, a task-focused getting-started guide, and a qualitative pilot guide.
+- Keep saved-conversation review and expansion stable during composer autosave while preserving Add, Send, and restart safety gates.
+- Avoid unnecessary Note saves when equivalent rich content arrives with a different JSON object key order. Preserve real edits and exact Chat submission replay checks.
+- Cover missing CI tooling inputs, bound validation commands, and retain partial failure receipts. Keep frontend behavior tests in quality and release validation while native cold/warm jobs focus on installation provenance.
+- Select Ubuntu's main archive over HTTPS for default archive sources on GitHub-hosted Linux runners. Preserve repository trust, package lists, and validation gates.
+
 ## v0.8.17 - 2026-10-22
 
 - Make Create finding and Create test cases open ordinary editors from Notes and collections, with AI creation available as a separate option.
