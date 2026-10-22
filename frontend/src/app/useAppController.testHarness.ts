@@ -1,4 +1,4 @@
-import { cleanup } from '@testing-library/react'
+import { act, cleanup } from '@testing-library/react'
 import { vi } from 'vitest'
 import { draftFixture, entryFixture, findingFixture, providerStatusFixture, sessionFixture, settingsFixture } from '../test/fixtures'
 import { chatFixture } from './useSessionChat.testSupport'
@@ -97,6 +97,17 @@ export function setupControllerTest() {
   tauriMock.updateEntry.mockImplementation(async (_id: string, patch: { body?: string | null; bodyJson?: string | null; bodyFormat?: string | null }) => entryFixture({ body: patch.body ?? '<p>Checkout fails after payment.</p>', bodyJson: patch.bodyJson ?? null, bodyFormat: patch.bodyFormat ?? 'html' }))
   tauriMock.updateDraft.mockImplementation(async (_id: string, patch: { body?: string | null; bodyJson?: string | null; bodyFormat?: string | null }) => draftFixture({ body: patch.body ?? '<ol><li>Submit payment.</li></ol>', bodyJson: patch.bodyJson ?? null, bodyFormat: patch.bodyFormat ?? 'html' }))
   tauriMock.updateFinding.mockImplementation(async (_id: string, patch: { body?: string | null; bodyJson?: string | null; bodyFormat?: string | null }) => findingFixture({ body: patch.body ?? '<p>Payment submission returns a server error.</p>', bodyJson: patch.bodyJson ?? null, bodyFormat: patch.bodyFormat ?? 'html' }))
+}
+
+export async function renderWithControllerStartup<T>(renderSubject: () => T): Promise<T> {
+  vi.useFakeTimers()
+  try {
+    const subject = renderSubject()
+    await act(async () => { await vi.advanceTimersByTimeAsync(1) })
+    return subject
+  } finally {
+    vi.useRealTimers()
+  }
 }
 
 export function cleanupControllerTest() {

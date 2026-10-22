@@ -5,7 +5,7 @@ import { AppShell } from './AppShell'
 import { completedChatFixture, chatFixture } from './useSessionChat.testSupport'
 import { entryFixture } from '../test/fixtures'
 import { richEditorDocumentFromPlainText, richEditorDocumentToStoredBody } from '../editor/editorDocument'
-import { cleanupControllerTest, getTauriMock, sessionNoteStateFixture, setupControllerTest, useAppController } from './useAppController.testHarness'
+import { cleanupControllerTest, getTauriMock, sessionNoteStateFixture, setupControllerTest, renderWithControllerStartup, useAppController } from './useAppController.testHarness'
 
 const api = getTauriMock()
 const receipt = { draftId: 'chat-1', noteId: 'entry-1', submittedAt: 'saved' }
@@ -29,8 +29,8 @@ it('reviews without writes, adds once, opens the actual updated Note, and restar
     return chat
   })
   const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
-  render(<Subject />)
-  await waitFor(() => expect(screen.getByRole('button', { name: 'Review saved conversation' })).toBeEnabled())
+  await renderWithControllerStartup(() => render(<Subject />))
+  expect(screen.getByRole('button', { name: 'Review saved conversation' })).toBeEnabled()
   fireEvent.click(screen.getByRole('button', { name: 'Review saved conversation' }))
   expect(screen.getByRole('region', { name: 'Saved conversation' })).toHaveTextContent('Which build?')
   fireEvent.click(screen.getByRole('button', { name: 'Review saved conversation' }))

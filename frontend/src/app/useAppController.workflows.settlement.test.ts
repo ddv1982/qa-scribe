@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { draftFixture, entryFixture, findingFixture, generationStatusFixture } from '../test/fixtures'
-import { cleanupControllerTest, deferred, getTauriMock, sessionNoteStateFixture, setupControllerTest, useAppController } from './useAppController.testHarness'
+import { cleanupControllerTest, deferred, getTauriMock, sessionNoteStateFixture, setupControllerTest, renderWithControllerStartup, useAppController } from './useAppController.testHarness'
 
 const tauriMock = getTauriMock()
 
@@ -16,8 +16,8 @@ describe('useAppController workflows and record hydration', () => {
     tauriMock.listDrafts.mockResolvedValueOnce([original])
     tauriMock.updateDraft.mockReturnValueOnce(pendingUpdate.promise)
 
-    const { result } = renderHook(() => useAppController())
-    await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
+    const { result } = await renderWithControllerStartup(() => renderHook(() => useAppController()))
+    expect(result.current.activeSession?.id).toBe('session-1')
     act(() => result.current.setActiveView('testware'))
     await waitFor(() => expect(result.current.testwareDrafts).toEqual([original]))
 
@@ -49,8 +49,8 @@ describe('useAppController workflows and record hydration', () => {
     tauriMock.listFindings.mockResolvedValueOnce([original])
     tauriMock.updateFinding.mockReturnValueOnce(pendingUpdate.promise)
 
-    const { result } = renderHook(() => useAppController())
-    await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
+    const { result } = await renderWithControllerStartup(() => renderHook(() => useAppController()))
+    expect(result.current.activeSession?.id).toBe('session-1')
     act(() => result.current.setActiveView('findings'))
     await waitFor(() => expect(result.current.findings).toEqual([original]))
 
@@ -85,8 +85,8 @@ describe('useAppController workflows and record hydration', () => {
       .mockRejectedValueOnce(new Error('newer save failed'))
       .mockRejectedValueOnce(new Error('restore failed'))
 
-    const { result } = renderHook(() => useAppController())
-    await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
+    const { result } = await renderWithControllerStartup(() => renderHook(() => useAppController()))
+    expect(result.current.activeSession?.id).toBe('session-1')
     act(() => result.current.setActiveView('testware'))
     await waitFor(() => expect(result.current.testwareDrafts).toEqual([original]))
 
@@ -124,8 +124,8 @@ describe('useAppController workflows and record hydration', () => {
       .mockRejectedValueOnce(new Error('newer save failed'))
       .mockRejectedValueOnce(new Error('restore failed'))
 
-    const { result } = renderHook(() => useAppController())
-    await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
+    const { result } = await renderWithControllerStartup(() => renderHook(() => useAppController()))
+    expect(result.current.activeSession?.id).toBe('session-1')
     act(() => result.current.setActiveView('findings'))
     await waitFor(() => expect(result.current.findings).toEqual([original]))
 
@@ -160,8 +160,8 @@ describe('useAppController workflows and record hydration', () => {
     tauriMock.listDrafts.mockResolvedValueOnce([original])
     tauriMock.updateDraft.mockReturnValueOnce(pendingUpdate.promise)
 
-    const { result } = renderHook(() => useAppController())
-    await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
+    const { result } = await renderWithControllerStartup(() => renderHook(() => useAppController()))
+    expect(result.current.activeSession?.id).toBe('session-1')
     act(() => result.current.setActiveView('testware'))
     await waitFor(() => expect(result.current.testwareDrafts).toEqual([original]))
 
@@ -190,8 +190,8 @@ describe('useAppController workflows and record hydration', () => {
     tauriMock.listFindings.mockResolvedValueOnce([original])
     tauriMock.updateFinding.mockReturnValueOnce(pendingUpdate.promise)
 
-    const { result } = renderHook(() => useAppController())
-    await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
+    const { result } = await renderWithControllerStartup(() => renderHook(() => useAppController()))
+    expect(result.current.activeSession?.id).toBe('session-1')
     act(() => result.current.setActiveView('findings'))
     await waitFor(() => expect(result.current.findings).toEqual([original]))
 
@@ -220,8 +220,8 @@ describe('useAppController workflows and record hydration', () => {
     tauriMock.listDrafts.mockResolvedValueOnce([original])
     tauriMock.importClipboardScreenshot.mockReturnValueOnce(pendingImport.promise)
 
-    const { result } = renderHook(() => useAppController())
-    await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
+    const { result } = await renderWithControllerStartup(() => renderHook(() => useAppController()))
+    expect(result.current.activeSession?.id).toBe('session-1')
     act(() => result.current.setActiveView('testware'))
     await waitFor(() => expect(result.current.testwareDrafts).toEqual([original]))
 
@@ -250,8 +250,8 @@ describe('useAppController workflows and record hydration', () => {
     tauriMock.listFindings.mockResolvedValueOnce([original])
     tauriMock.importClipboardScreenshot.mockReturnValueOnce(pendingImport.promise)
 
-    const { result } = renderHook(() => useAppController())
-    await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
+    const { result } = await renderWithControllerStartup(() => renderHook(() => useAppController()))
+    expect(result.current.activeSession?.id).toBe('session-1')
     act(() => result.current.setActiveView('findings'))
     await waitFor(() => expect(result.current.findings).toEqual([original]))
 
@@ -280,8 +280,8 @@ describe('useAppController workflows and record hydration', () => {
     tauriMock.importClipboardScreenshot.mockResolvedValueOnce({ id: 'attachment-retained', filename: 'retained.png' })
     const olderWrite = deferred<ReturnType<typeof draftFixture>>()
     tauriMock.updateDraft.mockReturnValueOnce(olderWrite.promise)
-    const { result } = renderHook(() => useAppController())
-    await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
+    const { result } = await renderWithControllerStartup(() => renderHook(() => useAppController()))
+    expect(result.current.activeSession?.id).toBe('session-1')
     act(() => result.current.setActiveView('testware'))
     await waitFor(() => expect(result.current.testwareDrafts).toEqual([original]))
     act(() => result.current.updateLocalDraft(original.id, {
@@ -333,8 +333,8 @@ describe('useAppController workflows and record hydration', () => {
       return { jobId: 'job-summary-race', status: generationStatusFixture({ jobId: 'job-summary-race', action: 'summary', state: 'completed' }) }
     })
 
-    const { result } = renderHook(() => useAppController())
-    await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
+    const { result } = await renderWithControllerStartup(() => renderHook(() => useAppController()))
+    expect(result.current.activeSession?.id).toBe('session-1')
     await act(async () => { await result.current.handleAiAction('summary') })
     await waitFor(() => expect(tauriMock.updateEntry).toHaveBeenCalledTimes(1))
 
@@ -363,8 +363,8 @@ describe('useAppController workflows and record hydration', () => {
       return { jobId: 'job-draft-canonical-failure', status: generationStatusFixture({ jobId: 'job-draft-canonical-failure', action: 'testware', state: 'completed' }) }
     })
 
-    const { result } = renderHook(() => useAppController())
-    await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
+    const { result } = await renderWithControllerStartup(() => renderHook(() => useAppController()))
+    expect(result.current.activeSession?.id).toBe('session-1')
     await act(async () => { await result.current.handleAiAction('testware') })
     act(() => result.current.updateLocalDraft(generated.id, { body: '<p>Newer dirty Draft.</p>' }))
     act(() => rejectCanonicalization(new Error('canonicalization failed')))
@@ -387,8 +387,8 @@ describe('useAppController workflows and record hydration', () => {
       return { jobId: 'job-draft-race', status: generationStatusFixture({ jobId: 'job-draft-race', action: 'testware', state: 'completed' }) }
     })
 
-    const { result } = renderHook(() => useAppController())
-    await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
+    const { result } = await renderWithControllerStartup(() => renderHook(() => useAppController()))
+    expect(result.current.activeSession?.id).toBe('session-1')
     await act(async () => { await result.current.handleAiAction('testware') })
     act(() => result.current.updateLocalDraft(generated.id, { body: newer.body }))
     await act(async () => { await result.current.handleSaveDraft(result.current.testwareDrafts[0]) })
@@ -419,8 +419,8 @@ describe('useAppController workflows and record hydration', () => {
       return { jobId: 'job-finding-race', status: generationStatusFixture({ jobId: 'job-finding-race', action: 'finding', state: 'completed' }) }
     })
 
-    const { result } = renderHook(() => useAppController())
-    await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
+    const { result } = await renderWithControllerStartup(() => renderHook(() => useAppController()))
+    expect(result.current.activeSession?.id).toBe('session-1')
     await act(async () => { await result.current.handleAiAction('finding') })
     act(() => result.current.updateLocalFinding(generated.id, { body: newer.body }))
     await act(async () => { await result.current.handleSaveFinding(result.current.findings[0]) })
