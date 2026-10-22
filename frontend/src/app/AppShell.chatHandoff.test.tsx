@@ -28,6 +28,13 @@ it('reviews without writes, adds once, opens the actual updated Note, and restar
     chat = chatFixture({ draftId: 'chat-next', mode: 'chat' })
     return chat
   })
+  const expectSavedNote = async () => {
+    await waitFor(() => {
+      const note = screen.getByLabelText('Note body')
+      expect(note).toHaveTextContent('Existing Note')
+      expect(note).toHaveTextContent('Assistant: Which build?')
+    })
+  }
   const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
   await renderWithControllerStartup(() => render(<Subject />))
   expect(screen.getByRole('button', { name: 'Review saved conversation' })).toBeEnabled()
@@ -39,13 +46,12 @@ it('reviews without writes, adds once, opens the actual updated Note, and restar
   fireEvent.click(screen.getByRole('button', { name: 'Add conversation to note' }))
   await waitFor(() => expect(screen.getByLabelText('Conversation added')).toBeVisible())
   expect(screen.getByRole('button', { name: 'Write note' })).toHaveAttribute('aria-pressed', 'true')
-  expect(screen.getByLabelText('Note body')).toHaveTextContent('Existing Note')
-  expect(screen.getByLabelText('Note body')).toHaveTextContent('Assistant: Which build?')
+  await expectSavedNote()
   expect(confirm).not.toHaveBeenCalled()
   fireEvent.click(screen.getByRole('button', { name: 'Chat' }))
   await waitFor(() => expect(screen.getByRole('button', { name: 'Open updated Note' })).toBeVisible())
   fireEvent.click(screen.getByRole('button', { name: 'Open updated Note' }))
-  expect(screen.getByLabelText('Note body')).toHaveTextContent('Assistant: Which build?')
+  await expectSavedNote()
   fireEvent.click(screen.getByRole('button', { name: 'Start new conversation' }))
   expect(api.restartChat).not.toHaveBeenCalled()
   confirm.mockReturnValue(true)
@@ -54,7 +60,7 @@ it('reviews without writes, adds once, opens the actual updated Note, and restar
   await waitFor(() => expect(screen.getByRole('textbox', { name: 'Message' })).toBeEnabled())
   expect(screen.getByRole('region', { name: 'Conversation transcript' })).toHaveTextContent('No messages yet')
   fireEvent.click(screen.getByRole('button', { name: 'Write note' }))
-  expect(screen.getByLabelText('Note body')).toHaveTextContent('Assistant: Which build?')
+  await expectSavedNote()
   expect(api.submitChat).toHaveBeenCalledTimes(1)
   expect(api.updateEntry).not.toHaveBeenCalled()
   expect(api.startChatJob).not.toHaveBeenCalled()
