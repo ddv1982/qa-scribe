@@ -317,6 +317,25 @@ export async function runChatToNoteWorkflow() {
   const submitted = await chat(primaryId)
   assert.ok(submitted.submission)
   const handoff = await canonicalNote(primaryId)
+  let hydration = null
+  if (process.env.QA_SCRIBE_E2E_NOTE_HYDRATION_PROBE === '1') {
+    hydration = await browser.execute((selector) => {
+      const editor = document.querySelector(selector).editor
+      const before = JSON.stringify(editor.getJSON())
+      const updates = []
+      const observe = ({ editor }) => updates.push({ documentJson: JSON.stringify(editor.getJSON()), stack: new Error().stack })
+      editor.on('update', observe)
+      editor.setEditable(editor.isEditable)
+      editor.off('update', observe)
+      const after = JSON.stringify(editor.getJSON())
+      if (after !== before) throw new Error('Editability hydration must not change content')
+      return { before, after, updates }
+    }, noteSelector)
+    assert.equal(hydration.updates.length, 1, 'Hydration probe must exercise the real editor update callback')
+    await browser.waitUntil(async () => browser.execute(() =>
+      document.querySelector('.document-status[role="status"]')?.textContent === 'Autosaved'),
+    { timeout: 5_000, timeoutMsg: 'Hydration must leave the Note saved without a content edit' })
+  }
   assert.equal(handoff.id, original.id)
   assertRichNote(handoff, originalNodes)
   assert.equal(invocationCount(directory), 3, 'Submit must not invoke AI')
@@ -328,6 +347,8 @@ export async function runChatToNoteWorkflow() {
   assert.equal(await $('button=Open updated Note').isEnabled(), true)
   assert.equal(await $('button=Review saved conversation').isEnabled(), true)
   assert.equal(await $(composerSelector).isEnabled(), false)
+  const beforeReplay = await canonicalNote(primaryId)
+  const updatesBeforeReplay = noteAudit('read')
   // Repeat only the public idempotent command after the UI completed the handoff.
   const receipt = await publicRead('submit_chat', { request: {
     scope: { sessionId: primaryId, draftId: submitted.draftId, expectedRevision: submitted.revision },
@@ -335,7 +356,10 @@ export async function runChatToNoteWorkflow() {
     expectedNoteBodyJson: handoff.bodyJson, expectedNoteBodyFormat: handoff.bodyFormat,
   } })
   assert.deepEqual(receipt, submitted.submission)
-  assert.deepEqual(await canonicalNote(primaryId), handoff, 'Repeated public submission must not change the Note')
+  const replayed = await canonicalNote(primaryId)
+  writeFileSync(join(artifacts, 'note-rewrite-proof.json'), JSON.stringify({ handoff, hydration, beforeReplay,
+    updatesBeforeReplay, replayed, updates: noteAudit('read') }, null, 2))
+  assert.deepEqual(replayed, handoff, 'Repeated public submission must not change the Note')
   assert.equal(invocationCount(directory), 3)
 
   await click('Open updated Note')

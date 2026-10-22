@@ -63,7 +63,8 @@ export function richEditorDocumentToPlainText(document: RichEditorDocument): str
 }
 
 export function serializeRichEditorDocument(document: RichEditorDocument): string {
-  return JSON.stringify(normalizeRichEditorDocument(document))
+  return JSON.stringify(normalizeRichEditorDocument(document), (_key, value: unknown) =>
+    isRecord(value) ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, value[key]])) : value)
 }
 
 export function richEditorDocumentToStoredBody(document: RichEditorDocument): {
