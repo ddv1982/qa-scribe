@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createRequire } from 'node:module'
+import { pendingComposerSave } from './chat-autosave-proof.mjs'
 import { nativeKeySender, settledViewport, viewport } from './preflight-native-keys.mjs'
 
 const require = createRequire(new URL('../../frontend/package.json', import.meta.url))
@@ -247,92 +248,6 @@ async function actions(stage, selector, initial = true) {
     `${stage}: required control is clipped or obscured: ${JSON.stringify(control)}`)
 }
 
-async function savedReviewSnapshot(stage) {
-  const value = await browser.execute(() => {
-    const rect = (selector) => {
-      const r = document.querySelector(selector).getBoundingClientRect()
-      return { x: r.x, y: r.y, width: r.width, height: r.height, bottom: r.bottom }
-    }
-    const button = (label) => [...document.querySelectorAll('button')].find(node => node.textContent.trim() === label)
-    const review = document.querySelector('.chat-review')
-    return {
-      viewport: { width: innerWidth, height: innerHeight },
-      review: review ? { text: review.querySelector('.chat-help').textContent, messages: [...review.querySelectorAll('.chat-message-text')].map(node => node.textContent), expanded: review.querySelector('button').getAttribute('aria-expanded') } : null,
-      reason: document.querySelector('.chat-handoff [id$="-reason"]')?.textContent ?? '',
-      counts: document.querySelector('.chat-counts').textContent,
-      model: document.querySelector('.next-model-selection').textContent,
-      composer: rect('.chat-composer textarea'), send: rect('.chat-compose-actions .primary-button'),
-      disabled: {
-        add: button('Add conversation to note').disabled,
-        send: document.querySelector('.chat-compose-actions .primary-button').disabled,
-        restart: button('Start new conversation').disabled,
-      },
-    }
-  })
-  save(stage, value)
-  await browser.saveScreenshot(join(artifacts, `${stage}.png`))
-  return value
-}
-
-async function pendingComposerSave(theme, sessionId) {
-  const failures = []
-  await (await $('.chat-compose-actions .primary-button')).scrollIntoView()
-  const before = await savedReviewSnapshot(`save-${theme}-before`)
-  const composer = `Controlled ${theme} unsent message`
-  await browser.execute((sessionId, composer) => {
-    const callbacks = window.__TAURI_INTERNALS__.callbacks
-    const original = callbacks.get
-    let release
-    const pending = new Promise(resolve => { release = resolve })
-    const gate = { held: false, released: false, acknowledgment: null, release, restore: () => { callbacks.get = original } }
-    window.__ac4SaveGate = gate
-    callbacks.get = function (id) {
-      const callback = original.call(this, id)
-      if (!callback) return callback
-      return (saved) => {
-        if (saved?.sessionId === sessionId && saved.composer === composer && saved.mode === 'chat'
-          && Array.isArray(saved.messages) && !gate.held) {
-          gate.held = true
-          gate.acknowledgment = { sessionId: saved.sessionId, draftId: saved.draftId, revision: saved.revision, composer: saved.composer, mode: saved.mode }
-          pending.then(() => { gate.released = true; callback(saved) })
-        } else callback(saved)
-      }
-    }
-  }, sessionId, composer)
-  try {
-    await (await $('.chat-composer textarea')).setValue(composer)
-    await browser.waitUntil(() => browser.execute(() => window.__ac4SaveGate.held))
-    const during = await savedReviewSnapshot(`save-${theme}-pending`)
-    await browser.execute(() => window.__ac4SaveGate.release())
-    await (await $('.chat-compose-actions .primary-button')).waitForEnabled()
-    const after = await savedReviewSnapshot(`save-${theme}-completed`)
-    for (const [stage, value] of [['pending', during], ['completed', after]]) {
-      if (JSON.stringify(value.review) !== JSON.stringify(before.review)) failures.push(`${theme} ${stage}: saved review or expansion changed`)
-      if (value.reason !== before.reason) failures.push(`${theme} ${stage}: unsent-message explanation changed`)
-      assert.equal(value.counts, before.counts)
-      assert.equal(value.model, before.model)
-      assert.equal(value.disabled.add, true)
-    }
-    assert.deepEqual(during.disabled, { add: true, send: true, restart: true })
-    assert.deepEqual(after.disabled, { add: true, send: false, restart: false })
-    for (const control of ['composer', 'send']) {
-      if (JSON.stringify(before[control]) !== JSON.stringify(during[control])
-        || JSON.stringify(during[control]) !== JSON.stringify(after[control])) failures.push(`${theme}: ${control} moved across acknowledgment`)
-    }
-    if (after.send.bottom > after.viewport.height || after.send.y < 0) failures.push(`${theme}: Send is clipped after acknowledgment`)
-    save(`save-${theme}-result`, { failures, gate: await browser.execute(() => ({
-      released: window.__ac4SaveGate.released, acknowledgment: window.__ac4SaveGate.acknowledgment,
-    })) })
-    return failures
-  } finally {
-    await browser.execute(() => {
-      window.__ac4SaveGate.release()
-      window.__ac4SaveGate.restore()
-      delete window.__ac4SaveGate
-    })
-  }
-}
-
 describe('Native UI polish before/after evidence', () => {
   it('closes command search and options on the first Escape and can reopen', async () => {
     await (await $(trigger)).waitForClickable()
@@ -345,7 +260,6 @@ describe('Native UI polish before/after evidence', () => {
     assert.equal(await browser.tauri.execute(async ({ core }) => (await core.invoke('list_sessions')).length), 0,
       'Run through the isolated E2E runner with a fresh Session Library')
 
-    // Capture every empty-state variant before creating data. No theme injection.
     for (const width of [1280, 640]) {
       await laptopResize(width, 860)
       for (const theme of ['light', 'dark']) {
@@ -356,7 +270,6 @@ describe('Native UI polish before/after evidence', () => {
       }
     }
 
-    // Creation is exercised at the actual supported minimum, not phone emulation.
     await click('button=New Session')
     await (await $('[aria-label="Session title"]')).waitForDisplayed()
     await snapshot('created-640-dark', 640, 'dark', '.top-new-button')
@@ -539,8 +452,7 @@ describe('Native UI polish before/after evidence', () => {
         await click('button=Chat')
         await (await $('.chat-compose-actions .primary-button')).waitForEnabled()
         await click('button=Review saved conversation')
-        const saveFailures = await pendingComposerSave(theme, sessionId)
-        layoutFailures.push(...saveFailures)
+        layoutFailures.push(...await pendingComposerSave(theme, sessionId, artifacts, save))
         if (await (await $('button=Review saved conversation')).getAttribute('aria-expanded') === 'true') {
           await click('button=Review saved conversation')
         }
