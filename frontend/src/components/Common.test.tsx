@@ -1,7 +1,6 @@
 import '@testing-library/jest-dom/vitest'
 import { act, cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { useState } from 'react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { SaveSettingsButton } from './Common'
 import { useSettingsController } from '../hooks/useSettingsController'
@@ -19,12 +18,11 @@ beforeEach(() => {
 afterEach(cleanup)
 
 function SettingsSaveHarness() {
-  const [error, setError] = useState<string | null>(null)
-  const settings = useSettingsController({ setError, setNotice: () => {} })
+  const settings = useSettingsController({ setError: () => {}, setNotice: () => {} })
   return <>
     <button type="button" onClick={() => settings.loadSettings(settingsFixture())}>Load settings</button>
     <label>Instructions<input value={settings.settingsDraft?.generationSystemPrompt ?? ''} onChange={(event) => settings.updateSettingsDraft({ generationSystemPrompt: event.target.value })} /></label>
-    <SaveSettingsButton label="Save settings" disabled={!settings.settingsDirty} state={settings.settingsSaveState} error={error} busyAction={null} onSave={settings.handleSaveSettings} />
+    <SaveSettingsButton label="Save settings" disabled={!settings.settingsDirty} state={settings.settingsSaveState} error={settings.settingsSaveError} busyAction={null} onSave={settings.handleSaveSettings} />
   </>
 }
 
