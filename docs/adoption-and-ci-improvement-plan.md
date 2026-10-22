@@ -18,7 +18,8 @@ AC-1 through AC-4 landed through protected CI and independent OpenAI review:
 | AC-3 | [PR #74](https://github.com/ddv1982/qa-scribe/pull/74) adds the read-only example, Help, quick start, and pilot guide. |
 | AC-4 | [PR #75](https://github.com/ddv1982/qa-scribe/pull/75) adds bounded diagnostics, fixes autosave layout movement, and separates behavior tests from native installation proof. |
 
-AC-5 prepares v0.8.17 through the maintained version script and release CI.
+AC-5 first merged [PR #76](https://github.com/ddv1982/qa-scribe/pull/76), which created the v0.8.17 tag but did not publish an installer release. Two main CI attempts exhausted Linux job budgets during slow Ubuntu package downloads. The Intel release build also timed out; its precise cause remains unproved.
+The next candidate is v0.8.18. It carries the same product improvements and a focused hosted Ubuntu archive-selection correction. The v0.8.17 tag remains unchanged. Fresh protected CI and complete release publication are still required.
 The checklist below retains the original verification scope. Human recruitment,
 repeat-use outcomes, and actual reporting-tool paste remain unverified. The
 public wiki draft is held until the new app release succeeds. The example stays

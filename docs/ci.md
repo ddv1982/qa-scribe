@@ -76,6 +76,30 @@ retained toolchain as the default first. Components and cross-compilation target
 belonging to that toolchain remain installed. Local and self-hosted machines skip
 normalization.
 
+After Node setup, `scripts/normalize-ci-apt-sources.mjs` selects
+`https://archive.ubuntu.com/ubuntu` for GitHub-hosted Linux runners. Both the
+shared action and helper require explicit `Linux` and `github-hosted` context.
+The action resolves Node before invoking it through `sudo` with `/etc/apt` as the
+explicit root. Local, self-hosted, and macOS runs skip this step.
+
+The helper replaces only `http://azure.archive.ubuntu.com/ubuntu` and
+`https://azure.archive.ubuntu.com/ubuntu`, with an optional trailing slash, and the
+default `mirror+file:/etc/apt/apt-mirrors.txt` selector, including its triple-slash spelling.
+It inspects `sources.list` and immediate `.list` and `.sources` files in
+`sources.list.d`. Only active legacy source URI positions and enabled Deb822
+`URIs` values change. Suites, components, architectures, signing keys, comments,
+file modes, and ownership remain intact. Security and ports hosts, third-party
+repositories, and other mirror-list references remain unchanged. An eligible
+Azure archive URI retains its security suite when normalized.
+
+This selects the official archive after slow Azure HTTP package downloads
+exhausted Linux CI budgets. It adds no retry, probe, or APT trust override.
+Existing TLS, signature, hash, and expiry checks still apply. Logs report changed
+file and URI counts without source contents. Hosted package throughput remains
+unproved until the fixed source completes the existing CI and release jobs.
+The current affected Linux callers use x64. This does not establish archive
+compatibility for future Ubuntu ports or ARM runners.
+
 The pinned Rust cache action hashes every installed compiler. Normalization
 prevents an unused preinstalled compiler update from invalidating the cache.
 Compiler identity, operating system, architecture, environment, configuration,
