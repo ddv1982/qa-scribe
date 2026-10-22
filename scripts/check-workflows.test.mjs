@@ -193,6 +193,8 @@ test('changed paths select the applicable CI and native tooling jobs from workfl
   assert.equal(native.jobs['native-tooling']['continue-on-error'], undefined)
   const cases = [
     ['rust-toolchain.toml', ['changes', 'quality-linux', 'rust-macos', 'e2e-macos', 'package-linux', 'ci-success']],
+    ['scripts/normalize-ci-apt-sources.mjs', ['changes', 'quality-linux', 'e2e-macos', 'package-linux', 'ci-success']],
+    ['scripts/normalize-ci-apt-sources.test.mjs', ['changes', 'quality-linux', 'e2e-macos', 'package-linux', 'ci-success']],
     ['scripts/normalize-ci-rust-toolchains.sh', ['changes', 'quality-linux', 'rust-macos', 'e2e-macos', 'package-linux', 'ci-success']],
     ['scripts/prepare-rust-typescript-sdk.mjs', ['changes', 'quality-linux', 'rust-macos', 'e2e-macos', 'package-linux', 'ci-success', 'native-tooling']],
     ['scripts/rust-typescript-sdk.mjs', ['changes', 'quality-linux', 'rust-macos', 'e2e-macos', 'package-linux', 'ci-success', 'native-tooling']],
@@ -280,4 +282,47 @@ test('Linux quality stays unconditional, macOS E2E observational, and CI success
     assert.ifError(result.error)
     assert.equal(result.status, expected, JSON.stringify(results) + result.stdout + result.stderr)
   }
+})
+
+test('shared setup normalizes APT once after Node with trusted hosted Linux context', () => {
+  const { runs } = parse(readFileSync(resolve(root, '.github/actions/setup-project/action.yml'), 'utf8'))
+  const matches = runs.steps.filter(step => step.run?.includes('scripts/normalize-ci-apt-sources.mjs'))
+  assert.equal(matches.length, 1)
+  const step = matches[0]
+  const nodeIndex = runs.steps.findIndex(step => step.uses?.startsWith('actions/setup-node@'))
+  assert.ok(nodeIndex >= 0 && runs.steps.indexOf(step) > nodeIndex)
+  assert.equal(step.if, "runner.os == 'Linux' && runner.environment == 'github-hosted'")
+  assert.equal(step.shell, 'bash')
+  assert.equal(step['continue-on-error'], undefined)
+  assert.deepEqual(step.env, {
+    APT_RUNNER_OS: '${{ runner.os }}',
+    APT_RUNNER_ENVIRONMENT: '${{ runner.environment }}',
+  })
+  assert.equal(step.run, `node_path="$(command -v node)"
+sudo "$node_path" scripts/normalize-ci-apt-sources.mjs --root /etc/apt \\
+  --runner-os "$APT_RUNNER_OS" --runner-environment "$APT_RUNNER_ENVIRONMENT"
+`)
+})
+
+test('all four APT callers complete shared setup before APT with existing job budgets', () => {
+  const callers = []
+  for (const file of ['ci.yml', 'release.yml']) {
+    const { jobs } = parse(readFileSync(resolve(root, '.github/workflows', file), 'utf8'))
+    for (const [id, job] of Object.entries(jobs)) {
+      const aptIndex = job.steps?.findIndex(step => /\bapt-get\b/.test(step.run ?? '')) ?? -1
+      if (aptIndex < 0) continue
+      const setup = job.steps.filter(step => step.uses === '$/.github/actions/setup-project')
+      assert.equal(setup.length, 1)
+      assert.ok(job.steps.indexOf(setup[0]) < aptIndex)
+      assert.equal(setup[0].if, undefined)
+      assert.equal(setup[0]['continue-on-error'], undefined)
+      callers.push([file, id, job['runs-on'], job['timeout-minutes']])
+    }
+  }
+  assert.deepEqual(callers, [
+    ['ci.yml', 'quality-linux', 'ubuntu-26.04', 30],
+    ['ci.yml', 'package-linux', 'ubuntu-26.04', 40],
+    ['release.yml', 'validate-release', 'ubuntu-24.04', 30],
+    ['release.yml', 'build-linux-release', 'ubuntu-24.04', 45],
+  ])
 })

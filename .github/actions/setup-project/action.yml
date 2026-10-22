@@ -26,6 +26,17 @@ runs:
         node-version: '24'
         package-manager-cache: false
 
+    - name: Normalize hosted Ubuntu APT sources
+      if: runner.os == 'Linux' && runner.environment == 'github-hosted'
+      shell: bash
+      env:
+        APT_RUNNER_OS: ${{ runner.os }}
+        APT_RUNNER_ENVIRONMENT: ${{ runner.environment }}
+      run: |
+        node_path="$(command -v node)"
+        sudo "$node_path" scripts/normalize-ci-apt-sources.mjs --root /etc/apt \
+          --runner-os "$APT_RUNNER_OS" --runner-environment "$APT_RUNNER_ENVIRONMENT"
+
     - name: Setup Bun
       uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
       with:
