@@ -36,13 +36,13 @@ export function AppShell(c: AppController) {
   const commands = createCommandRegistry(c)
   const commandById = (id: AppCommandId) => commands.find((command) => command.id === id)
   const runCommand = (id: AppCommandId) => commandById(id)?.run()
+  const creationCommands = (kind: 'testware' | 'finding') => ({
+    create: commands.find((command) => command.id === `${kind}.new`)!,
+    generate: commands.find((command) => command.id === `${kind}.ai`)!,
+  })
   const topAction = c.activeView === 'sessions'
     ? { command: commandById('session.new'), busy: 'new-session' as const }
-    : c.activeView === 'testware'
-      ? { command: commandById('testware.new'), busy: 'manual-testware' as const }
-      : c.activeView === 'findings'
-        ? { command: commandById('finding.new'), busy: 'manual-finding' as const }
-        : null
+    : null
   const visibleSessions = c.filteredSessions.slice(0, 8)
   const tabbableSessionId = visibleSessions.some((session) => session.id === c.activeSession?.id) ? c.activeSession?.id : visibleSessions[0]?.id
   const sessionScopedView = c.activeView === 'sessions' || c.activeView === 'testware' || c.activeView === 'findings'
@@ -199,6 +199,7 @@ export function AppShell(c: AppController) {
         ) : null}
         {c.activeView === 'sessions' ? (
           <SessionEditorView
+            creationCommands={{ testware: creationCommands('testware'), finding: creationCommands('finding') }}
             noteReadOnly={c.noteReadOnly}
             onRecoverNote={c.sessionChat.onSubmit}
             sessionMode={c.sessionMode}
@@ -256,6 +257,8 @@ export function AppShell(c: AppController) {
 
         {c.activeView === 'testware' ? (
           <TestwareView
+            creationCommands={creationCommands('testware')}
+            aiUnavailableReason={c.activeProvider?.available ? null : 'Configure AI execution in Settings to enable AI creation.'}
             key={c.activeSession?.id ?? 'no-session'}
             busyAction={c.busyAction}
             copyState={c.copyState}
@@ -287,6 +290,8 @@ export function AppShell(c: AppController) {
 
         {c.activeView === 'findings' ? (
           <FindingsView
+            creationCommands={creationCommands('finding')}
+            aiUnavailableReason={c.activeProvider?.available ? null : 'Configure AI execution in Settings to enable AI creation.'}
             key={c.activeSession?.id ?? 'no-session'}
             busyAction={c.busyAction}
             copyState={c.copyState}

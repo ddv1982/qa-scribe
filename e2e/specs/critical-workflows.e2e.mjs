@@ -1,6 +1,6 @@
 import { runClipboardWorkflow } from './clipboard.workflow.mjs'
 import assert from 'node:assert/strict'
-import { existsSync, writeFileSync } from 'node:fs'
+import { existsSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { runChatToNoteWorkflow } from './chat-to-note.workflow.mjs'
 import { runChatDeletionWorkflow } from './chat-deletion.workflow.mjs'
@@ -250,43 +250,58 @@ const workflows = {
     },
   },
   'manual-testware': {
-    title: 'creates and deletes manual testware through the native persistence boundary',
+    title: 'creates, edits and deletes findings and test cases from Note and collection without generation',
     run: async () => {
-      await createSessionFixture('E2E manual testware session', 'Manual testware source note.')
-      await (await sessionTab('Test cases')).click()
-      const create = await button('New Test case')
-      await create.waitForClickable()
-      await create.click()
-
-      const titleInput = await $('[aria-label="Test case title"]')
-      await titleInput.waitForDisplayed()
-      assert.ok(await browser.execute(() => document.activeElement?.matches('[aria-label="Test case title"]')))
-      const created = await browser.tauri.execute(async ({ core }) => {
-        const session = (await core.invoke('list_sessions')).find((item) => item.title === 'E2E manual testware session')
-        return (await core.invoke('list_drafts', { sessionId: session.id }))[0]
-      })
-      assert.equal(await (await $('.editable-record [contenteditable="true"]')).getAttribute('id'), `testware-editor-${created.id}`)
-      await titleInput.setValue('E2E manual saved testware')
-      await (await $('.editable-record [contenteditable="true"]')).setValue('Manual persisted body.')
-      await (await button('Save')).click()
-      const record = await $('h2=E2E manual saved testware')
-      await record.waitForDisplayed()
-      const saved = await browser.tauri.execute(async ({ core }, sessionId) => core.invoke('list_drafts', { sessionId }), created.sessionId)
-      assert.deepEqual(saved.map(({ id, title, body }) => ({ id, title, body })), [
-        { id: created.id, title: 'E2E manual saved testware', body: '<p>Manual persisted body.</p>' },
-      ])
-      await (await button('Edit')).click()
-      await (await $('[aria-label="Test case title"]')).setValue('Discard this manual edit')
-      await (await button('Discard')).click()
-      await (await $('h2=E2E manual saved testware')).waitForDisplayed()
-      assert.equal((await browser.tauri.execute(async ({ core }, sessionId) => core.invoke('list_drafts', { sessionId }), created.sessionId))[0].title,
-        'E2E manual saved testware')
-      await (await $('[aria-label="Delete E2E manual saved testware"]')).click()
-      const confirmDelete = await button('Delete testware permanently')
-      await confirmDelete.waitForClickable()
-      await confirmDelete.click()
-      await (await $('h2=E2E manual saved testware')).waitForExist({ reverse: true })
-      assert.deepEqual(await browser.tauri.execute(async ({ core }, sessionId) => core.invoke('list_drafts', { sessionId }), created.sessionId), [])
+      const title = 'E2E ordinary creation'
+      await createSessionFixture(title, 'Ordinary creation source note.')
+      const session = await browser.tauri.execute(async ({ core }, title) => (await core.invoke('list_sessions')).find((item) => item.title === title), title)
+      const status = await browser.tauri.execute(({ core }) => core.invoke('get_provider_status'))
+      const outcomes = []
+      for (const route of ['Note', 'collection']) {
+        for (const kind of ['testware', 'finding']) {
+          const collection = kind === 'testware' ? 'Test cases' : 'Findings'
+          await (await sessionTab(route === 'Note' ? 'Note' : collection)).click()
+          const list = () => browser.tauri.execute(({ core }, input) => core.invoke(input.kind === 'testware' ? 'list_drafts' : 'list_findings', { sessionId: input.sessionId }), { kind, sessionId: session.id })
+          assert.deepEqual(await list(), [], 'Opening a tab must not create a record')
+          const create = await button(kind === 'testware' ? 'Create test cases' : 'Create finding')
+          await create.waitForClickable()
+          await create.click()
+          const titleInput = await $(`[aria-label="${kind === 'testware' ? 'Test case' : 'Finding'} title"]`)
+          await titleInput.waitForDisplayed()
+          assert.ok(await browser.execute((label) => document.activeElement?.getAttribute('aria-label') === label,
+            kind === 'testware' ? 'Test case title' : 'Finding title'))
+          const records = await list()
+          assert.equal(records.length, 1, 'One ordinary activation creates exactly one record')
+          const [created] = records
+          assert.equal(created.sessionId, session.id)
+          assert.equal(created.body, '')
+          assert.equal(await (await $('.editable-record [contenteditable="true"]')).getAttribute('id'), `${kind === 'testware' ? 'testware' : 'finding'}-editor-${created.id}`)
+          if (kind === 'testware') assert.equal(created.aiRunId, null)
+          await browser.saveScreenshot(join(process.env.QA_SCRIBE_E2E_ARTIFACTS, `creation-${route}-${kind}.png`))
+          const savedTitle = `${route} ${kind} saved`
+          await titleInput.setValue(savedTitle)
+          await (await $('.editable-record [contenteditable="true"]')).setValue('Authored current body.')
+          await (await button('Save')).click()
+          await $(`h2=${savedTitle}`).waitForDisplayed()
+          assert.deepEqual((await list()).map(({ id, title, body }) => ({ id, title, body })), [
+            { id: created.id, title: savedTitle, body: '<p>Authored current body.</p>' },
+          ])
+          await (await button('Edit')).click()
+          await titleInput.setValue('Discard this edit')
+          await (await button('Discard')).click()
+          await $(`h2=${savedTitle}`).waitForDisplayed()
+          assert.equal((await list())[0].title, savedTitle)
+          await (await $(`[aria-label="Delete ${savedTitle}"]`)).click()
+          const confirmDelete = await button(kind === 'testware' ? 'Delete testware permanently' : 'Delete finding permanently')
+          await confirmDelete.waitForClickable()
+          await confirmDelete.click()
+          await $(`h2=${savedTitle}`).waitForExist({ reverse: true })
+          assert.deepEqual(await list(), [])
+          outcomes.push({ route, kind, id: created.id, sessionId: created.sessionId, createdCount: records.length, savedTitle, deleted: true })
+          writeFileSync(join(process.env.QA_SCRIBE_E2E_ARTIFACTS, 'creation-outcomes.json'), JSON.stringify({ providers: status.providers.map(({ id, available }) => ({ id, available })), outcomes }, null, 2))
+        }
+      }
+      assert.deepEqual(readdirSync(fixtureDirectory).filter((file) => /exec-.*started|auth-.*started/.test(file)), [], 'Ordinary actions must not invoke AI')
     },
   },
   clipboard: {
@@ -297,7 +312,23 @@ const workflows = {
     title: 'streams rich Testware safely across themes, saves and reopens edits, and cancels a held second generation',
     run: async () => {
       await createSessionFixture('E2E generation preflight layout', 'Check generation options and execution details before starting Testware.')
-      await (await button('Generate test cases')).click()
+      const beforePreflight = await browser.tauri.execute(async ({ core }) => {
+        const sessions = await core.invoke('list_sessions')
+        return Promise.all(sessions.map(async ({ id }) => ({ id, drafts: await core.invoke('list_drafts', { sessionId: id }), findings: await core.invoke('list_findings', { sessionId: id }) })))
+      })
+      for (const [tab, label] of [['Note', 'Create finding with AI'], ['Test cases', 'Create test cases with AI'], ['Findings', 'Create finding with AI']]) {
+        await (await sessionTab(tab)).click()
+        await (await button(label)).click()
+        await $('dialog.generation-preflight[open]').waitForDisplayed()
+        await browser.saveScreenshot(join(process.env.QA_SCRIBE_E2E_ARTIFACTS, `optional-ai-${tab}.png`))
+        await (await $('dialog.generation-preflight')).$('button=Cancel').click()
+        await $('dialog.generation-preflight[open]').waitForExist({ reverse: true })
+        const after = await browser.tauri.execute(async ({ core }, ids) => Promise.all(ids.map(async (id) => ({ id, drafts: await core.invoke('list_drafts', { sessionId: id }), findings: await core.invoke('list_findings', { sessionId: id }) }))), beforePreflight.map(({ id }) => id))
+        assert.deepEqual(after, beforePreflight, 'Opening and cancelling AI must create no blank record')
+      }
+      writeFileSync(join(process.env.QA_SCRIBE_E2E_ARTIFACTS, 'optional-ai-cancel.json'), JSON.stringify({ before: beforePreflight, cancelledSurfaces: ['Note', 'Test cases', 'Findings'], unchanged: true }, null, 2))
+      await (await sessionTab('Note')).click()
+      await (await button('Create test cases with AI')).click()
       await runGenerationPreflightLayoutWorkflow({ button })
       await runTestwareStreamdownWorkflow({ createSessionFixture, sessionTab, sessionOption, button,
         waitForFixtureFile, releaseFixtureInvocation })

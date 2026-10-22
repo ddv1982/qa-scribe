@@ -1,5 +1,6 @@
-import { AlertCircle, Box, CheckCircle2, FileText, Flag, Loader2, Plus, Settings2, Sparkles, Trash2, Undo2 } from 'lucide-react'
+import { AlertCircle, CheckCircle2, FileText, Loader2, Plus, Settings2, Sparkles, Trash2, Undo2 } from 'lucide-react'
 import type { ClipboardSnapshot, CopyState } from '../app/copyActions'
+import { RecordCreationActions, type RecordCreationCommands } from './RecordCreationActions'
 import { CopyControls } from './RichRecordView'
 import { ProviderGlyph } from '../components/ModelSelector'
 import { FormatToolbar, RichTextEditor, type RichEditorImageUpload } from '../editor/RichTextEditor'
@@ -14,6 +15,7 @@ import type { ReactNode } from 'react'
 import type { ChatMode } from '../bindings'
 
 export function SessionEditorView({
+  creationCommands,
   activeProviderAvailable,
   activeSession,
   busyAction,
@@ -53,6 +55,7 @@ export function SessionEditorView({
   chatContent,
   noteHandoffContent,
 }: {
+  creationCommands: Record<'testware' | 'finding', RecordCreationCommands>
   activeProviderAvailable: boolean
   activeSession: Session | null
   busyAction: BusyAction | null
@@ -95,8 +98,6 @@ export function SessionEditorView({
 }) {
   const deletingSession = busyAction === 'delete-session'
   const undoingGeneration = busyAction === 'undo-generation'
-  const testwarePending = Boolean(pendingAiActions.testware)
-  const findingPending = Boolean(pendingAiActions.finding)
   const summaryPending = Boolean(pendingAiActions.summary)
   const editorId = 'note-body-editor'
   const selectedModelLabel = activeProvider?.models.find((model) => model.id === (selectedModel.trim() || 'default'))?.label ?? (selectedModel.trim() || 'Provider default')
@@ -199,7 +200,7 @@ export function SessionEditorView({
         </footer> : null}
       </section>
 
-      {sessionMode === 'write_note' ? <footer className="bottom-command-bar" aria-label="AI note actions">
+      {sessionMode === 'write_note' ? <footer className="bottom-command-bar" aria-label="Note actions">
         <div className={activeProvider?.available ? 'ai-provider-summary ready' : 'ai-provider-summary'} aria-label={providerSummaryLabel} title={providerSummaryLabel}>
           <span className="ai-provider-icon"><ProviderGlyph provider={selectedProvider} /></span>
           <div className="ai-provider-selection">
@@ -215,7 +216,7 @@ export function SessionEditorView({
               <span>{selectedProviderLabel}</span>
               <span>Reasoning {effectiveReasoningLabel}</span>
             </div>
-            {!activeProvider?.available ? <p>{activeProvider ? activeProvider.reason : 'Loading provider status'}</p> : null}
+            {!activeProvider?.available ? <p>{activeProvider ? `${activeProvider.reason} Configure AI execution in Settings to enable AI creation.` : 'Loading provider status'}</p> : null}
           </div>
           {onConfigureAi ? (
             <button className="ai-configure-button" type="button" aria-label="Configure AI execution" title="Configure AI execution" onClick={onConfigureAi}>
@@ -224,15 +225,9 @@ export function SessionEditorView({
           ) : null}
         </div>
         <div className="ai-action-buttons">
-          <button className="secondary-button" type="button" disabled={isBusy || testwarePending || !noteIsReady || !activeProviderAvailable} onClick={() => void onAiAction('testware')}>
-            {busyAction === 'ai-testware' || testwarePending ? <Loader2 className="spin" size={16} /> : <Box size={16} />}
-            {testwarePending ? 'Generating test cases' : 'Generate test cases'}
-          </button>
-          <button className="secondary-button" type="button" disabled={isBusy || findingPending || !noteIsReady || !activeProviderAvailable} onClick={() => void onAiAction('finding')}>
-            {busyAction === 'ai-finding' || findingPending ? <Loader2 className="spin" size={16} /> : <Flag size={16} />}
-            {findingPending ? 'Creating finding' : 'Create finding'}
-          </button>
-          <button className="primary-button" type="button" disabled={isBusy || summaryPending || !noteIsReady || !activeProviderAvailable} onClick={() => void onAiAction('summary')}>
+          <RecordCreationActions commands={creationCommands.finding} />
+          <RecordCreationActions commands={creationCommands.testware} />
+          <button className="secondary-button" type="button" disabled={isBusy || summaryPending || !noteIsReady || !activeProviderAvailable} onClick={() => void onAiAction('summary')}>
             {busyAction === 'ai-summary' || summaryPending ? <Loader2 className="spin" size={16} /> : <Sparkles size={16} />}
             {summaryPending ? 'Summarizing notes' : 'Summarize notes'}
           </button>

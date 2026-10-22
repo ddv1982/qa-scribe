@@ -1,3 +1,4 @@
+import { recordCreationCommandsFixture } from '../test/fixtures'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useEffect, type ComponentProps } from 'react'
@@ -72,7 +73,7 @@ function mountSession(initialBody = doc('A original'), onUploadImage: ViewProps[
     if (!richEditorDocumentsEqual(body, next)) changed(next)
   }
   const view = () => <>
-    <SessionEditorView noteBodyHtml="<p>Body</p>"
+    <SessionEditorView creationCommands={{ finding: recordCreationCommandsFixture('finding'), testware: recordCreationCommandsFixture('testware') }} noteBodyHtml="<p>Body</p>"
       activeProviderAvailable activeSession={session} busyAction={null} canUndoLatestGeneration={false} copyState={{ status: 'idle' }} filteredSessions={[sessionA, sessionB]}
       isBusy={false} noteBody={body} noteIsReady noteScreenshotCount={0} sessionTitle={session.title}
       noteWordCount={2} notice={null} error={null} pendingAiActions={{}} selectedProvider="codex_cli"

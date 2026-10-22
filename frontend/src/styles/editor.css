@@ -380,7 +380,7 @@
 
 .ai-action-buttons {
   display: grid;
-  grid-template-columns: repeat(3, max-content);
+  grid-template-columns: repeat(2, max-content);
   max-width: 100%;
   align-items: center;
   justify-content: end;

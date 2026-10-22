@@ -94,7 +94,7 @@ export function createRecordActions(ctx: RecordActionsContext, persistence: Reco
       async () => {
         await ctx.loaders.loadDraftsForSession(session.id, { force: true, replace: true })
       },
-      'Manual test case created',
+      'Test case created',
     )
   }
 
@@ -128,7 +128,7 @@ export function createRecordActions(ctx: RecordActionsContext, persistence: Reco
       async () => {
         await ctx.loaders.loadFindingsForSession(session.id, { force: true, replace: true })
       },
-      'Manual finding created',
+      'Finding created',
     )
   }
 

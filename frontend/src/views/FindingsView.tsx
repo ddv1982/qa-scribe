@@ -1,3 +1,4 @@
+import type { RecordCreationCommands } from './RecordCreationActions'
 import { Flag } from 'lucide-react'
 import type { RichEditorImageUpload } from '../editor/RichTextEditor'
 import type { Finding, FindingKind, GenerationJobStatus } from '../tauri'
@@ -21,7 +22,6 @@ const findingsLabels: RecordCollectionLabels = {
   heading: 'Issues and risks',
   emptyTitle: 'No findings yet',
   emptyDescription: 'Capture a bug, question, risk, or follow-up from the current Session note.',
-  emptyActionLabel: 'Prefill finding from note',
   prefillLabel: 'Prefill from note',
   generationTitle: 'Generating finding',
   generationTitleAriaLabel: 'Pending finding title',
@@ -38,6 +38,8 @@ const findingsLabels: RecordCollectionLabels = {
 const findingKindOptions: FindingKind[] = ['bug', 'question', 'risk', 'follow_up', 'note']
 
 export function FindingsView({
+  creationCommands,
+  aiUnavailableReason,
   busyAction,
   copyState,
   findingScreenshotCounts,
@@ -62,6 +64,8 @@ export function FindingsView({
   onDiscardFinding,
   onUploadImage,
 }: {
+  creationCommands: RecordCreationCommands
+  aiUnavailableReason?: string | null
   busyAction: BusyAction | null
   copyState: CopyState
   findingScreenshotCounts: Record<string, number>
@@ -88,6 +92,8 @@ export function FindingsView({
 }) {
   return (
     <RecordCollectionView
+      creationCommands={creationCommands}
+      aiUnavailableReason={aiUnavailableReason}
       labels={findingsLabels}
       emptyIcon={Flag}
       prefillBusyAction="prefill-finding"

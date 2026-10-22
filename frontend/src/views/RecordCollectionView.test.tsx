@@ -1,3 +1,4 @@
+import { recordCreationCommandsFixture } from '../test/fixtures'
 import '@testing-library/jest-dom/vitest'
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { StrictMode, useState, type ComponentProps } from 'react'
@@ -146,7 +147,7 @@ describe('scalable record collection', () => {
     const created = findingFixture({ id: 'new-bug', title: 'New bug' })
     const target: CreatedRecordEditTarget = { sessionId: 'session-1', kind: 'finding', recordId: created.id }
     const consumed = vi.fn()
-    const viewFor = (creating: boolean) => <FindingsView busyAction={null} copyState={{ status: 'idle' }} findingScreenshotCounts={{}} findings={creating ? [existing, created] : [existing]}
+    const viewFor = (creating: boolean) => <FindingsView creationCommands={recordCreationCommandsFixture('finding')} busyAction={null} copyState={{ status: 'idle' }} findingScreenshotCounts={{}} findings={creating ? [existing, created] : [existing]}
       notice={null} error={null} isBusy={false} activeGenerationJob={null} updateLocalFinding={vi.fn()}
       onCancelGenerationJob={async () => undefined} onCopy={async () => undefined}
       onDeleteFinding={vi.fn()} onPrefillFromNote={async () => undefined}
@@ -171,7 +172,7 @@ function renderTestware(drafts = [draftFixture()], overrides: Partial<ComponentP
 
 function testware(drafts = [draftFixture()], overrides: Partial<ComponentProps<typeof TestwareView>> = {}) {
   return (
-    <TestwareView
+    <TestwareView creationCommands={recordCreationCommandsFixture('testware')}
       busyAction={null}
       copyState={{ status: 'idle' }}
       draftScreenshotCounts={{}}

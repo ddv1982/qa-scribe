@@ -1,3 +1,4 @@
+import type { RecordCreationCommands } from '../views/RecordCreationActions'
 import type {
   AppSettings,
   Draft,
@@ -209,5 +210,13 @@ export function generationStatusFixture(patch: Partial<GenerationJobStatus> = {}
     errorMessage: null,
     partialText: null,
     ...patch,
+  }
+}
+
+export function recordCreationCommandsFixture(kind: 'finding' | 'testware'): RecordCreationCommands {
+  const label = kind === 'finding' ? 'Create finding' : 'Create test cases'
+  return {
+    create: { label, available: true, run: () => undefined },
+    generate: { label: `${label} with AI`, available: true, run: () => undefined },
   }
 }

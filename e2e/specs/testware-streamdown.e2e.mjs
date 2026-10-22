@@ -147,7 +147,7 @@ export async function runTestwareStreamdownWorkflow({ createSessionFixture, sess
   }
   const generate = async () => {
     await (await sessionTab('Note')).click()
-    await click('Generate test cases')
+    await click('Create test cases with AI')
     const confirm = await (await $('dialog')).$('button=Generate test cases')
     await confirm.waitForClickable()
     await confirm.click()
