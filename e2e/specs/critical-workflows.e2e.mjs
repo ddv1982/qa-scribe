@@ -287,7 +287,10 @@ const workflows = {
             { id: created.id, title: savedTitle, body: '<p>Authored current body.</p>' },
           ])
           await (await button('Edit')).click()
-          await titleInput.setValue('Discard this edit')
+          const reopenedTitleInput = await $(`[aria-label="${kind === 'testware' ? 'Test case' : 'Finding'} title"]`)
+          await reopenedTitleInput.waitForDisplayed()
+          assert.equal(await reopenedTitleInput.getValue(), savedTitle)
+          await reopenedTitleInput.setValue('Discard this edit')
           await (await button('Discard')).click()
           await $(`h2=${savedTitle}`).waitForDisplayed()
           assert.equal((await list())[0].title, savedTitle)
