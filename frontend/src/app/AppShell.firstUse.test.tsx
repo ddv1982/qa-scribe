@@ -3,8 +3,8 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { simulateDialogCancel } from '../test/dialogPolyfill'
-import { findingFixture, providerStatusFixture, sessionFixture } from '../test/fixtures'
-import { cleanupControllerTest, deferred, getTauriMock, setupControllerTest, useAppController } from './useAppController.testHarness'
+import { entryFixture, findingFixture, providerStatusFixture, sessionFixture } from '../test/fixtures'
+import { cleanupControllerTest, deferred, getTauriMock, sessionNoteStateFixture, setupControllerTest, useAppController } from './useAppController.testHarness'
 
 const { AppShell } = await import('./AppShell')
 const api = getTauriMock()
@@ -117,6 +117,33 @@ describe('first use and Help', () => {
     expect(screen.getByRole('textbox', { name: 'Session title' })).toHaveValue('Checkout session')
     expect(api.createSession).not.toHaveBeenCalled()
     expect(api.startAiActionJob).not.toHaveBeenCalled()
+  })
+
+  it('switches Sessions through the compact select and keeps Help and Settings independently reachable', async () => {
+    const user = userEvent.setup()
+    const sessions = [sessionFixture(), sessionFixture({ id: 'session-2', title: 'Account recovery' })]
+    api.listRecentSessions.mockResolvedValueOnce(sessions)
+    api.openSessionNoteState.mockImplementation(async (id: string) => sessionNoteStateFixture({
+      session: sessions.find((session) => session.id === id)!,
+      noteEntry: entryFixture({ id: `entry-${id}`, sessionId: id }),
+    }))
+    render(<Workspace />)
+    await screen.findByRole('textbox', { name: 'Session title' })
+    const select = screen.getByRole('combobox', { name: 'Session' })
+    expect(select).toBeEnabled()
+    await user.selectOptions(select, 'session-2')
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Session title' })).toHaveValue('Account recovery'))
+    expect(select).toHaveValue('session-2')
+    await user.click(screen.getByRole('button', { name: 'Help' }))
+    const help = screen.getByRole<HTMLDialogElement>('dialog', { name: 'Help' })
+    expect(within(help).getByRole('button', { name: 'Close' })).toHaveFocus()
+    act(() => simulateDialogCancel(help))
+    expect(screen.getByRole('button', { name: 'Settings' })).toBeEnabled()
+    expect(select).toBeEnabled()
+    await user.selectOptions(select, 'session-1')
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Session title' })).toHaveValue('Checkout session'))
+    expect(select).toHaveValue('session-1')
+    expect(api.createSession).not.toHaveBeenCalled()
   })
 
   it('creates exactly one blank ordinary Session only after explicit Start', async () => {

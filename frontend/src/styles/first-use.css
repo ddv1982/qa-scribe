@@ -53,5 +53,13 @@
 }
 @media (max-width: 760px) {
   .rail-utilities { margin-top: 0; flex-wrap: nowrap; order: 3; }
+  .rail-utilities .help-link, .rail-utilities .settings-link {
+    width: var(--control-lg);
+    flex: 0 0 var(--control-lg);
+    padding: 0;
+    gap: 0;
+    justify-content: center;
+    font-size: 0;
+  }
   .first-use-dialog { max-width: calc(100vw - 24px); max-height: calc(100dvh - 24px); padding: var(--space-4); }
 }

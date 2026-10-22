@@ -295,6 +295,68 @@ describe('AC3 first use, read-only example, and Help', function () {
     save('returning-work', { persistedSessionId: finished[0].session.id, findings: finished[0].findings.length, clipboard: output, previewIntercepted: false,
       reopenMethod: 'WebView reload against the same disk-backed profile; process restart is a separate operator check.' })
     assert.deepEqual(readdirSync(fixture).filter((file) => /^codex-exec-.*\.started$/.test(file)), [])
+    await click('[role="tab"]*=Note')
+    await click('button=New Session')
+    await $('[aria-label="Session title"]').setValue('AC3 second Session')
+    await browser.waitUntil(async () => browser.tauri.execute(async ({ core }) =>
+      (await core.invoke('list_sessions')).some((session) => session.title === 'AC3 second Session')))
+    const switchTargets = (await saved()).map(({ session }) => ({ id: session.id, title: session.title }))
+    assert.equal(switchTargets.length, 2)
+    const widths = process.env.QA_SCRIBE_E2E_MINIMUM === '1' ? [320, 360] : [640]
+    for (const theme of ['light', 'dark']) {
+      await resize(1280, 720)
+      await click('button=Settings')
+      const choice = await (await $('#appearance-settings')).$(`button=${theme === 'light' ? 'Light' : 'Dark'}`)
+      await choice.scrollIntoView()
+      await choice.click()
+      await click('.settings-back-button')
+      for (const width of widths) {
+        await resize(width, 520)
+        const geometry = await reachable('.compact-session-select select')
+        const rail = await browser.execute(() => {
+          const select = document.querySelector('.compact-session-select select')
+          const help = document.querySelector('.help-link')
+          const settings = document.querySelector('.rail-utilities .settings-link')
+          return { controlSize: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--control-lg')),
+            selectWidth: select.getBoundingClientRect().width, disabled: select.disabled,
+            helpWidth: help.getBoundingClientRect().width, settingsWidth: settings.getBoundingClientRect().width,
+            helpName: help.getAttribute('aria-label') || help.textContent.trim(), settingsName: settings.textContent.trim() }
+        })
+        save('compact-session-geometry', { theme, width, geometry, ...rail })
+        await shot(`compact-session-${theme}-${width}`)
+        assert.ok(rail.selectWidth >= rail.controlSize, 'Session select keeps the existing compact-control target width')
+        assert.equal(rail.helpWidth, rail.controlSize)
+        assert.equal(rail.settingsWidth, rail.controlSize)
+        assert.equal(rail.disabled, false)
+        assert.equal(rail.helpName, 'Help')
+        assert.equal(rail.settingsName, 'Settings')
+        await reachable('.help-link')
+        await reachable('.rail-utilities .settings-link')
+        await click('button=Help')
+        await $('dialog[open]').waitForDisplayed()
+        assert.equal(await $('dialog h2').getText(), 'Help')
+        await click('dialog .first-use-header button')
+        const startingTitle = await $('[aria-label="Session title"]').getValue()
+        const target = switchTargets.find((session) => session.title !== startingTitle)
+        assert.ok(target, 'Select a different saved Session')
+        await browser.execute((id) => {
+          const select = document.querySelector('.compact-session-select select')
+          select.value = id
+          select.dispatchEvent(new Event('change', { bubbles: true }))
+        }, target.id)
+        await browser.waitUntil(async () => (await $('[aria-label="Session title"]').getValue()) === target.title)
+        assert.equal(await $('.compact-session-select select').getValue(), target.id)
+        save('compact-session-switch', { theme, width, from: startingTitle, to: target.title, sessionId: target.id,
+          method: 'Existing embedded-driver select change path exercises the real React handler and native Session loading.' })
+      }
+    }
+    await resize(1280, 720)
+    assert.equal(await $('[aria-label="Session title"]').getValue(), 'AC3 second Session')
+    await click('[aria-label="Delete Session"]')
+    await (await $('dialog')).$('button=Delete Session permanently').click()
+    await browser.waitUntil(async () => (await $('[aria-label="Session title"]').getValue()) === 'AC3 required postcode')
+    assert.equal((await saved()).length, 1)
+    save('compact-session-fixture-cleanup', { removed: 'AC3 second Session', remaining: 'AC3 required postcode' })
     save('complete', { platform: process.platform, nativeKeyboard: process.platform === 'linux', generationRequests: 0 })
   })
 })

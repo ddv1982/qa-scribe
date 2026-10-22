@@ -172,7 +172,7 @@ export function AppShell(c: AppController) {
         </label> : null}
 
         <div className="rail-utilities">
-          <button className="help-link" type="button" onClick={() => runCommand('help.open')}>
+          <button className="help-link" type="button" aria-label="Help" title="Help" onClick={() => runCommand('help.open')}>
             <CircleHelp size={17} /> Help
           </button>
           <button className={c.activeView === 'settings' ? 'settings-link active' : 'settings-link'} type="button" aria-current={c.activeView === 'settings' ? 'page' : undefined} onClick={() => runCommand('settings.open')}>

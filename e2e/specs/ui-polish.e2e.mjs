@@ -255,7 +255,7 @@ describe('Native UI polish before/after evidence', () => {
 
   it('captures both themes at desktop and native640, with reachable creation and persisted editing', async function () {
     this.timeout(180_000)
-    await (await $('h1=No Session selected')).waitForDisplayed()
+    await (await $('h1=Turn testing evidence into useful output')).waitForDisplayed()
     assert.equal(await browser.tauri.execute(async ({ core }) => (await core.invoke('list_sessions')).length), 0,
       'Run through the isolated E2E runner with a fresh Session Library')
 
