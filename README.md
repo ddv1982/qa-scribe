@@ -8,7 +8,7 @@
 
 A local-first desktop notepad for exploratory testing. Capture evidence during a Session, track Findings, and turn your notes into editable Testware Drafts.
 
-[Download](https://github.com/ddv1982/qa-scribe/releases) · [Wiki](https://github.com/ddv1982/qa-scribe/wiki) · [Development](docs/development.md)
+[Get started](docs/getting-started.md) · [Download](https://github.com/ddv1982/qa-scribe/releases) · [Wiki](https://github.com/ddv1982/qa-scribe/wiki) · [Development](docs/development.md)
 
 ## What you can do
 
@@ -16,7 +16,7 @@ A local-first desktop notepad for exploratory testing. Capture evidence during a
 - Capture Notes, API responses, logs, screenshots, and attachments.
 - Link Findings to their supporting Evidence.
 - Write and edit Test cases, with optional AI generation and Session Chat. Testware remains the domain umbrella for testing output.
-- Use Copy for Jira on a Note, test case, Finding, or selected library record. Library copying keeps the current Session and uses the saved output.
+- Use Copy on a Note, test case, Finding, or selected library record. Library copying keeps the current Session and uses the saved output.
 - Use Copy first screenshot to copy the first managed screenshot in a Note or record.
 
 Capture and editing work without AI. Optional AI uses your authenticated local Claude Code, Codex CLI, or GitHub Copilot CLI. QA Scribe does not store provider API keys.
@@ -49,24 +49,7 @@ The bootstrap verifies the repository setup package with the pinned signing key.
 
 ## Develop
 
-Use the Rust toolchain in [rust-toolchain.toml](rust-toolchain.toml), Node.js 22.13 or newer, Bun 1.3.5, and the [development prerequisites](docs/development.md#requirements).
-
-```bash
-bun install --cwd frontend --frozen-lockfile
-bun run tauri:cli:install
-bun run dev
-```
-
-Common commands:
-
-```bash
-bun run frontend:dev:checked  # Vite with native compiler watchers
-bun run verify:fast           # Shorter local verification
-bun run verify                # Full verification
-bun run build                 # Build the frontend and Rust workspace
-```
-
-See the [development guide](docs/development.md) for editor setup, checks, smoke tests, and desktop end-to-end tests. Read [AI providers and Session Chat](docs/ai-providers.md) for authentication, tools, permissions, and recovery.
+Contributor setup, toolchains, editor configuration, and checks are in the [development guide](docs/development.md). For a first testing task, follow [Get started](docs/getting-started.md). Optional AI setup is in [AI providers and Session Chat](docs/ai-providers.md).
 
 ## Data and privacy
 

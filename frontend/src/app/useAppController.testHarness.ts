@@ -9,7 +9,7 @@ const tauriMock = vi.hoisted(() => ({
   copyHtmlToClipboard: vi.fn(), copyAttachmentImageToClipboard: vi.fn(),
   createDraft: vi.fn(), createEntry: vi.fn(), createFinding: vi.fn(), createSession: vi.fn(),
   deleteAttachment: vi.fn(), deleteDraft: vi.fn(), deleteFinding: vi.fn(), deleteSession: vi.fn(), getProviderStatus: vi.fn(),
-  getSettings: vi.fn(), importClipboardScreenshot: vi.fn(), listDraftLibrary: vi.fn(), listDrafts: vi.fn(), listEntries: vi.fn(),
+  getAttachmentPreviewDataUrl: vi.fn(async () => null), getSettings: vi.fn(), importClipboardScreenshot: vi.fn(), listDraftLibrary: vi.fn(), listDrafts: vi.fn(), listEntries: vi.fn(),
   listFindingLibrary: vi.fn(), listFindings: vi.fn(), listRecentSessions: vi.fn(), listSessions: vi.fn(), openSessionNoteState: vi.fn(),
   reopenSession: vi.fn(), refreshProviderStatus: vi.fn(), retryAttachmentCleanup: vi.fn(), startAiActionJob: vi.fn(), updateDraft: vi.fn(),
   updateEntry: vi.fn(), updateFinding: vi.fn(), updateSession: vi.fn(), updateSettings: vi.fn(),

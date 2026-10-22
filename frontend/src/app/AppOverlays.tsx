@@ -69,7 +69,7 @@ export function CommandPalette({ commands, onClose }: { commands: AppCommand[]; 
         <CommandIcon size={18} />
         <label>
           <span className="sr-only" id="command-palette-title">Command palette</span>
-          <input type="search" aria-label="Search commands" autoFocus value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={handleSearchKeyDown} placeholder="Type a command…" />
+          <input type="search" aria-label="Search commands" value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={handleSearchKeyDown} placeholder="Type a command…" />
         </label>
         <kbd>Esc</kbd>
       </div>

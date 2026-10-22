@@ -2,6 +2,22 @@
 
 [Back to the README](../README.md).
 
+## Set up one provider
+
+Complete [a first testing task](getting-started.md) without AI before you configure a provider. Ordinary Create finding and Create test cases need no account.
+
+Install one CLI using its provider's maintained instructions. Sign in outside QA Scribe.
+
+- **Claude Code.** Follow the [installation guide](https://code.claude.com/docs/en/overview). Check `claude --version`, run `claude auth login`, then check `claude auth status --json`. See the [CLI authentication commands](https://code.claude.com/docs/en/cli-reference).
+- **Codex CLI.** Follow the [official OpenAI installation guide](https://learn.chatgpt.com/docs/codex/cli). Check `codex --version`, run `codex login`, then check `codex login status`. See the [login reference](https://learn.chatgpt.com/docs/developer-commands?surface=cli#codex-login).
+- **GitHub Copilot CLI.** Follow the [installation and authentication guide](https://docs.github.com/en/copilot/how-tos/copilot-cli/set-up-copilot-cli/install-copilot-cli). Check `copilot version`, start `copilot`, and enter `/login` when prompted. QA Scribe may also direct you to `copilot login` when authentication is required. Plain `gh copilot` help alone does not establish readiness.
+
+Open **Settings** and choose **Refresh CLI configuration** after installation or sign-in. Check the provider status, then select a provider and model for the next request. Restart QA Scribe if a new CLI is not available in the desktop app's executable search path.
+
+Installed means the CLI executable responds. Authenticated means the CLI has accepted local credentials. Ready means QA Scribe's current checks passed. Readiness does not guarantee account entitlement, quota, network availability, or success with a selected model.
+
+Choose an action labelled **with AI**, **Summarize notes**, or send a Chat message to request AI. Review the context before generation. A status refresh checks configuration and can run CLI probes, but does not request generated output. Opening Help or the synthetic example does not refresh providers.
+
 ## Providers
 
 AI generation is optional. Capture, persistence, manual review, Draft editing, and attachment handling work without AI configuration.
@@ -16,9 +32,9 @@ Provider status can be ready, auth required, install required, or error. Provide
 
 ## Session Chat
 
-Create or open a Session, then choose **Write note** or **Chat**. Chat uses the same detected, authenticated local provider and model selection as existing Note actions. Send messages explicitly, exchange testing details, and choose **Submit to Session Note** when every turn is complete and the composer is empty.
+Create or open a Session, then choose **Write note** or **Chat**. Chat uses the same detected, authenticated local provider and model selection as existing Note actions. Send messages explicitly, exchange testing details, and choose **Add conversation to note** when every turn is complete and the composer is empty.
 
-Submission appends the role-labelled conversation to the primary Note, preserves its existing rich content, and returns to Write note. You can edit it and use **Generate test cases**, **Create finding**, or **Summarize notes** afterward. Submission itself makes no AI request.
+Submission appends the role-labelled conversation to the primary Note, preserves its existing rich content, and returns to Write note. You can edit it and use **Create test cases with AI**, **Create finding with AI**, or **Summarize notes** afterward. Submission itself makes no AI request.
 
 Messages, unsent composer text, and mode are stored locally per Session. Completed turns are replayed to the CLI on each request; provider-native resume files are not required. Cancelled, failed, or interrupted latest turns can be retried explicitly without duplicating the user message. An earlier unresolved turn requires a new conversation; starting one archives the old conversation locally. Submitted conversations remain readable until you explicitly start another conversation.
 

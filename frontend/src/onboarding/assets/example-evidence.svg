@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="440" viewBox="0 0 800 440">
+  <rect width="800" height="440" fill="#f3f5f8"/>
+  <rect width="800" height="56" fill="#1c3048"/>
+  <g font-family="DejaVu Sans, sans-serif">
+    <text x="28" y="36" fill="white" font-size="22" font-weight="bold">Synthetic shop</text>
+    <text x="544" y="35" fill="white" font-size="15">EXAMPLE · NO REAL ORDER</text>
+    <rect x="28" y="80" width="744" height="330" rx="12" fill="white" stroke="#b9c5d1"/>
+    <text x="56" y="122" fill="#1c3048" font-size="25" font-weight="bold">Checkout</text>
+    <text x="56" y="158" fill="#34485d" font-size="18">Basket: Notebook · 1 item · €8.00</text>
+    <text x="56" y="204" fill="#1c3048" font-size="17">Postcode (required)</text>
+    <rect x="56" y="220" width="320" height="44" rx="5" fill="#f9fafc" stroke="#788b9d"/>
+    <text x="58" y="294" fill="#6c3030" font-size="16">Empty postcode accepted</text>
+    <rect x="56" y="320" width="180" height="48" rx="6" fill="#2858a8"/>
+    <text x="84" y="351" fill="white" font-size="18">Place order</text>
+    <rect x="424" y="220" width="310" height="105" rx="8" fill="#e2f3ea" stroke="#317451"/>
+    <text x="447" y="258" fill="#205239" font-size="22" font-weight="bold">Order confirmed</text>
+    <text x="447" y="292" fill="#205239" font-size="16">Thank you for your order.</text>
+  </g>
+</svg>

@@ -1,0 +1,57 @@
+.rail-utilities {
+  margin-top: auto;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: var(--space-1);
+}
+
+.rail-utilities .settings-link { width: auto; flex: 1; margin-top: 0; }
+
+.help-link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-lg);
+  padding: var(--space-2);
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.help-link:hover { color: var(--text-primary); background: var(--surface-raised); }
+.first-use-dialog { width: min(100%, 720px); gap: var(--space-4); }
+.first-use-header, .first-use-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.first-use-header h2 { margin: 0; }
+.first-use-dialog h3 { margin: 0 0 var(--space-2); }
+.first-use-dialog p, .first-use-dialog li { line-height: var(--leading-relaxed); }
+.first-use-dialog p { margin: var(--space-2) 0; }
+.first-use-dialog ol, .first-use-dialog ul { padding-left: var(--space-5); }
+.first-use-dialog details { border-top: 1px solid var(--border-default); padding-top: var(--space-3); }
+.first-use-dialog summary { font-weight: 600; cursor: pointer; }
+.first-use-dialog code, .feedback-url input { overflow-wrap: anywhere; }
+.first-use-dialog figure { margin: var(--space-3) 0; }
+.first-use-dialog img { display: block; width: 100%; height: auto; border-radius: var(--radius-md); }
+.first-use-dialog figcaption { color: var(--text-secondary); font-size: var(--font-size-sm); margin-top: var(--space-2); }
+.example-label { font-weight: 600; color: var(--accent); }
+.feedback-url { display: grid; gap: var(--space-2); margin-bottom: var(--space-3); }
+.feedback-url input {
+  width: 100%;
+  min-width: 0;
+  padding: var(--space-2);
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+}
+@media (max-width: 760px) {
+  .rail-utilities { margin-top: 0; flex-wrap: nowrap; order: 3; }
+  .first-use-dialog { max-width: calc(100vw - 24px); max-height: calc(100dvh - 24px); padding: var(--space-4); }
+}

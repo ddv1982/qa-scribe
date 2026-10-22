@@ -12,6 +12,7 @@ export type AppCommandId =
   | 'view.findings'
   | 'library.testware'
   | 'library.findings'
+  | 'help.open'
   | 'settings.open'
   | 'settings.close'
   | 'ai.configure'
@@ -29,7 +30,7 @@ export type AppCommand = {
   run: () => void
 }
 
-export function createCommandRegistry(controller: AppController): AppCommand[] {
+export function createCommandRegistry(controller: AppController, openHelp: () => void): AppCommand[] {
   const hasSession = Boolean(controller.activeSession)
   return [
     command('session.new', 'New Session', 'Create a blank testing Session.', ['create', 'capture'], 'n', !controller.isBusy, () => void controller.handleNewSession()),
@@ -42,6 +43,7 @@ export function createCommandRegistry(controller: AppController): AppCommand[] {
     command('view.findings', 'Open Session Findings', 'Show Findings owned by the active Session.', ['bugs', 'risks', 'output'], '3', hasSession, () => controller.setActiveView('findings')),
     command('library.testware', 'Open Test cases Library', 'Browse Test cases across all Sessions.', ['cross-session', 'test cases', 'output'], undefined, true, () => controller.setActiveView('testware-library')),
     command('library.findings', 'Open Findings Library', 'Browse Findings across all Sessions.', ['cross-session', 'bugs', 'risks'], undefined, true, () => controller.setActiveView('findings-library')),
+    command('help.open', 'Open Help', 'Capture evidence, create useful output, and reopen your work.', ['getting started', 'example', 'copy', 'privacy', 'feedback'], undefined, true, openHelp),
     command('settings.open', 'Open Settings', 'Configure appearance, AI execution, and templates.', ['preferences'], ',', true, () => controller.openSettingsSection()),
     command('settings.close', 'Back to Workspace', 'Return to the view you opened Settings from.', ['close settings', 'return'], undefined, controller.activeView === 'settings', controller.closeSettings),
     command('ai.configure', 'Configure AI Execution', 'Open model, reasoning, and CLI-default Settings.', ['provider', 'Codex', 'model', 'reasoning'], undefined, true, () => controller.openSettingsSection('ai-execution-settings')),

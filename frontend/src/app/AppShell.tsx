@@ -1,5 +1,5 @@
 import { useEffect, useState, type KeyboardEvent } from 'react'
-import { BookOpen, Box, ChevronRight, Command as CommandIcon, FileText, Flag, Loader2, PencilLine, Plus, Search, Settings } from 'lucide-react'
+import { BookOpen, Box, ChevronRight, Command as CommandIcon, FileText, Flag, CircleHelp, Loader2, PencilLine, Plus, Search, Settings } from 'lucide-react'
 import { catalogSelectorEnabled } from '../settings/catalog'
 import { customModelCatalogAdvisory } from '../settings/modelAdvisories'
 import { NextModelSelection } from '../components/NextModelSelection'
@@ -18,6 +18,7 @@ import type { AppController } from './useAppController'
 import { createCommandRegistry, type AppCommandId } from './commandRegistry'
 import { CommandPalette, DeleteConfirmationDialog, PendingChangesDialog } from './AppOverlays'
 import { primaryModifierPressed, primaryShortcutLabel } from './platformShortcuts'
+import { FirstUseDialog } from '../onboarding/FirstUseDialog'
 import { AttachmentCleanupWarning } from './AttachmentCleanupWarning'
 
 export { DeleteConfirmationDialog } from './AppOverlays'
@@ -31,9 +32,9 @@ export function AppShell(c: AppController) {
     pending={c.settingsWritePending} disabled={!c.modelSelectionReady || !c.activeProvider}
     catalogEnabled={catalogSelectorEnabled(c.activeProvider, c.providerStatus?.catalogRollout ?? null)}
     onChange={(model) => { void c.persistModelChoice(c.selectedProvider, model) }} />
-  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
+  const [overlay, setOverlay] = useState<'commands' | 'help' | 'example' | null>(null)
   const [librarySidebarTarget, setLibrarySidebarTarget] = useState<HTMLDivElement | null>(null)
-  const commands = createCommandRegistry(c)
+  const commands = createCommandRegistry(c, () => setOverlay('help'))
   const commandById = (id: AppCommandId) => commands.find((command) => command.id === id)
   const runCommand = (id: AppCommandId) => commandById(id)?.run()
   const creationCommands = (kind: 'testware' | 'finding') => ({
@@ -50,10 +51,11 @@ export function AppShell(c: AppController) {
 
   useEffect(() => {
     function handleShortcut(event: globalThis.KeyboardEvent) {
+      if (overlay) return
       if (!primaryModifierPressed(event)) return
       if (event.key.toLocaleLowerCase() === 'k') {
         event.preventDefault()
-        setCommandPaletteOpen(true)
+        setOverlay('commands')
         return
       }
       const matched = commands.find((command) => command.shortcut?.key === event.key.toLocaleLowerCase())
@@ -63,14 +65,14 @@ export function AppShell(c: AppController) {
     }
     window.addEventListener('keydown', handleShortcut)
     return () => window.removeEventListener('keydown', handleShortcut)
-  }, [commands])
+  }, [commands, overlay])
 
   function handleSessionOptionKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
     focusListboxOption(event)
   }
 
   return (
-    <main className="app-shell" onPaste={c.handlePaste}>
+    <main className="app-shell" onPaste={overlay ? undefined : c.handlePaste}>
       <header className="top-bar">
         <div className="brand-cluster">
           <span className="brand-mark">
@@ -96,7 +98,7 @@ export function AppShell(c: AppController) {
         ) : <div className="top-context-label"><strong>Settings</strong></div>}
 
         <div className="top-actions">
-          <button className="secondary-button command-palette-trigger" type="button" aria-label="Open command palette" onClick={() => setCommandPaletteOpen(true)}>
+          <button className="secondary-button command-palette-trigger" type="button" aria-label="Open command palette" onClick={() => setOverlay('commands')}>
             <CommandIcon size={16} />
             <span className="command-trigger-label">Commands</span>
             <kbd>{primaryShortcutLabel('k')}</kbd>
@@ -169,10 +171,15 @@ export function AppShell(c: AppController) {
           </select>
         </label> : null}
 
-        <button className={c.activeView === 'settings' ? 'settings-link active' : 'settings-link'} type="button" aria-current={c.activeView === 'settings' ? 'page' : undefined} onClick={() => runCommand('settings.open')}>
-          <Settings size={17} />
-          Settings
-        </button>
+        <div className="rail-utilities">
+          <button className="help-link" type="button" onClick={() => runCommand('help.open')}>
+            <CircleHelp size={17} /> Help
+          </button>
+          <button className={c.activeView === 'settings' ? 'settings-link active' : 'settings-link'} type="button" aria-current={c.activeView === 'settings' ? 'page' : undefined} onClick={() => runCommand('settings.open')}>
+            <Settings size={17} />
+            Settings
+          </button>
+        </div>
       </aside>
 
       <section className="center-workspace" aria-label="Workspace">
@@ -240,6 +247,8 @@ export function AppShell(c: AppController) {
             onAiAction={c.openGenerationPreflight}
             onCopy={c.copy}
             onCreateSession={() => runCommand('session.new')}
+            hasSavedSessions={c.sessions.length > 0}
+            onExploreExample={() => setOverlay('example')}
             canCreateSession={Boolean(commandById('session.new')?.available)}
             onDeleteSession={c.requestDeleteSession}
             onOpenSession={c.openSession}
@@ -386,8 +395,20 @@ export function AppShell(c: AppController) {
         />
       ) : null}
 
-      {commandPaletteOpen ? (
-        <CommandPalette commands={commands} onClose={() => setCommandPaletteOpen(false)} />
+      {overlay === 'commands' ? (
+        <CommandPalette commands={commands} onClose={() => setOverlay(null)} />
+      ) : null}
+
+      {overlay === 'help' || overlay === 'example' ? (
+        <FirstUseDialog kind={overlay} onClose={() => setOverlay(null)}
+          onExploreExample={() => setOverlay('example')}
+          canCreateSession={Boolean(commandById('session.new')?.available)}
+          onStartSession={() => {
+            const command = commandById('session.new')
+            if (!command?.available) return
+            setOverlay(null)
+            command.run()
+          }} />
       ) : null}
 
       {c.pendingGenerationAction ? (
