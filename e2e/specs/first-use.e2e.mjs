@@ -172,6 +172,47 @@ describe('AC3 first use, read-only example, and Help', function () {
     assert.deepEqual(await saved(), [])
     save('read-only-preview', { ...auditSetup, calls: previewCalls, writes: previewWrites, oneEscape: true, focusReturned: true })
 
+    if (process.platform === 'linux') {
+      for (let step = 0; step < 16; step += 1) {
+        if (await browser.execute(() => document.activeElement?.matches('.help-link'))) break
+        await key(Key.Tab)
+      }
+      assert.ok(await browser.execute(() => document.activeElement?.matches('.help-link')))
+      await key(Key.Enter)
+    } else {
+      await browser.execute(() => document.querySelector('.help-link').focus())
+      await click('button=Help')
+    }
+    await $('dialog[open] .first-use-header button').waitForDisplayed()
+    if (process.platform === 'linux') {
+      await key(Key.Tab)
+      assert.equal(await browser.execute(() => document.activeElement?.textContent.trim()), 'Explore an example')
+      await key(Key.Enter)
+    } else {
+      await (await $('dialog[open]')).$('button=Explore an example').click()
+    }
+    await $('dialog[open] .example-label').waitForDisplayed()
+    const transitionFocus = await browser.execute(() => {
+      const dialog = document.querySelector('dialog[open]')
+      const active = document.activeElement
+      return { location: location.href, dialogTitle: dialog?.querySelector('h2')?.textContent,
+        active: { tag: active?.tagName, text: active?.textContent?.trim(), className: active?.className },
+        containsActiveElement: Boolean(dialog?.contains(active)), platform: navigator.platform }
+    })
+    save('help-to-example-focus', { ...transitionFocus, nativeKeyboard: process.platform === 'linux' })
+    await shot('help-to-example-focus')
+    assert.equal(transitionFocus.dialogTitle, 'Explore an example')
+    assert.equal(transitionFocus.containsActiveElement, true, 'Help to Example must keep focus inside the modal')
+    assert.equal(transitionFocus.active.text, 'Close')
+    await key(Key.Escape)
+    await $('dialog').waitForExist({ reverse: true })
+    const transitionClosed = await browser.execute(() => ({ location: location.href,
+      activeTag: document.activeElement?.tagName, helpTriggerFocused: Boolean(document.activeElement?.matches('.help-link')),
+      dialogOpen: Boolean(document.querySelector('dialog[open]')) }))
+    save('help-to-example-escape', transitionClosed)
+    assert.equal(transitionClosed.helpTriggerFocused, true, 'One Escape returns to the original Help opener')
+    assert.equal(transitionClosed.dialogOpen, false)
+
     for (const theme of ['light', 'dark']) {
       await click('button=Settings')
       const choice = await (await $('#appearance-settings')).$(`button=${theme === 'light' ? 'Light' : 'Dark'}`)

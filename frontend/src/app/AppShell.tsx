@@ -400,7 +400,7 @@ export function AppShell(c: AppController) {
       ) : null}
 
       {overlay === 'help' || overlay === 'example' ? (
-        <FirstUseDialog kind={overlay} onClose={() => setOverlay(null)}
+        <FirstUseDialog key={overlay} kind={overlay} onClose={() => setOverlay(null)}
           onExploreExample={() => setOverlay('example')}
           canCreateSession={Boolean(commandById('session.new')?.available)}
           onStartSession={() => {

@@ -89,6 +89,36 @@ describe('first use and Help', () => {
     expect(visibleHelp).toHaveFocus()
   })
 
+  it.each(['Help', 'Commands'] as const)('keeps Help to Example focus inside the modal and returns to the original %s opener on one cancel', async (entry) => {
+    const user = userEvent.setup()
+    render(<Workspace />)
+    await screen.findByRole('textbox', { name: 'Session title' })
+    const opener = screen.getByRole('button', { name: entry === 'Help' ? 'Help' : 'Open command palette' })
+    opener.focus()
+    if (entry === 'Help') {
+      await user.keyboard('{Enter}')
+    } else {
+      await user.keyboard('{Control>}k{/Control}')
+      await user.type(within(screen.getByRole('dialog', { name: 'Command palette' })).getByRole('searchbox'), 'help')
+      await user.keyboard('{ArrowDown}{Enter}')
+    }
+    const help = screen.getByRole('dialog', { name: 'Help' })
+    expect(within(help).getByRole('button', { name: 'Close' })).toHaveFocus()
+    await user.tab()
+    expect(within(help).getByRole('button', { name: 'Explore an example' })).toHaveFocus()
+    await user.keyboard('{Enter}')
+    const example = screen.getByRole<HTMLDialogElement>('dialog', { name: 'Explore an example' })
+    expect(screen.getAllByRole('dialog')).toHaveLength(1)
+    expect(example.contains(document.activeElement)).toBe(true)
+    expect(within(example).getByRole('button', { name: 'Close' })).toHaveFocus()
+    act(() => simulateDialogCancel(example))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(opener).toHaveFocus()
+    expect(screen.getByRole('textbox', { name: 'Session title' })).toHaveValue('Checkout session')
+    expect(api.createSession).not.toHaveBeenCalled()
+    expect(api.startAiActionJob).not.toHaveBeenCalled()
+  })
+
   it('creates exactly one blank ordinary Session only after explicit Start', async () => {
     api.listRecentSessions.mockResolvedValueOnce([])
     api.createEntry.mockResolvedValueOnce({ id: 'blank-note', sessionId: 'session-2', body: '', bodyJson: null, bodyFormat: 'html' })
