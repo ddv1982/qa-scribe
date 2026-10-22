@@ -227,6 +227,25 @@ test('changed paths select the applicable CI and native tooling jobs from workfl
   }
 })
 
+test('quality and release validation retain the full frontend behavior suite', () => {
+  const shared = parse(readFileSync(resolve(root, '.github/actions/validate-build/action.yml'), 'utf8'))
+  const tests = shared.runs.steps.filter(step => step.run === 'bun run frontend:test')
+  assert.equal(tests.length, 1)
+  assert.equal(tests[0].if, undefined)
+  assert.equal(tests[0]['continue-on-error'], undefined)
+  for (const [path, jobId] of [
+    ['.github/workflows/ci.yml', 'quality-linux'],
+    ['.github/workflows/release.yml', 'validate-release'],
+  ]) {
+    const { jobs } = parse(readFileSync(resolve(root, path), 'utf8'))
+    const validation = jobs[jobId].steps.filter(step => step.uses === '$/.github/actions/validate-build')
+    assert.equal(validation.length, 1, `${path} must invoke the shared full gate`)
+    assert.equal(validation[0].if, undefined)
+    assert.equal(validation[0]['continue-on-error'], undefined)
+    assert.equal(jobs[jobId]['continue-on-error'], undefined)
+  }
+})
+
 test('Linux quality stays unconditional, macOS E2E observational, and CI success propagates failures', () => {
   const { jobs, on } = parse(readFileSync(resolve(root, '.github/workflows/ci.yml'), 'utf8'))
   assert.deepEqual(on, { push: { branches: ['main'] }, pull_request: { branches: ['main'] }, merge_group: { types: ['checks_requested'] } })

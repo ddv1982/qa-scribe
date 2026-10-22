@@ -23,7 +23,7 @@ export type ChatHandoffPresentation = {
 } & (
   | { kind: 'recover'; reason: string; disabled: boolean }
   | { kind: 'settling'; reason: string }
-  | { kind: 'conversation'; reason: string }
+  | { kind: 'conversation'; reason: string; disabled: boolean }
   | { kind: 'added' }
 )
 
@@ -38,7 +38,7 @@ export function deriveChatHandoff(state: ChatActivity & {
   const hydrationPending = Boolean(current && job?.sessionId === sessionId && job.action === 'chat'
     && job.state === 'completed' && (!job.aiRunId || !chat?.messages.some(message =>
       message.role === 'assistant' && message.status === 'completed' && message.aiRunId === job.aiRunId)))
-  const unsettled = busy || Boolean(state.permissionWorking || state.permissionRecoveryPending) || hydrationPending
+  const unsettled = chatIsBusy({ ...state, saving: false }) || Boolean(state.permissionWorking || state.permissionRecoveryPending) || hydrationPending
   const completed = Boolean(current && chat?.messages.length && chat.messages.every(message => message.status === 'completed'))
   const reviewAvailable = completed && !unsettled && !state.recoveryPending
   const facts = { hydrationPending, reviewAvailable }
@@ -54,7 +54,7 @@ export function deriveChatHandoff(state: ChatActivity & {
       && chat.submission.noteId === noteEntry.id) return { ...facts, kind: 'added' }
     return { ...facts, reviewAvailable: false, kind: 'settling', reason: 'Waiting for the updated Session Note.' }
   }
-  return { ...facts, kind: 'conversation', reason: !completed && chat?.messages.length
+  return { ...facts, kind: 'conversation', disabled: busy, reason: !completed && chat?.messages.length
     ? 'Resolve unfinished turns before adding the conversation.'
     : composer !== '' ? 'Send or clear the unsent message before adding the conversation.'
     : !chat?.messages.length ? 'Complete a conversation before adding it to the note.' : '' }

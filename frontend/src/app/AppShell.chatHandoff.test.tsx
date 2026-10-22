@@ -5,7 +5,7 @@ import { AppShell } from './AppShell'
 import { completedChatFixture, chatFixture } from './useSessionChat.testSupport'
 import { entryFixture } from '../test/fixtures'
 import { richEditorDocumentFromPlainText, richEditorDocumentToStoredBody } from '../editor/editorDocument'
-import { cleanupControllerTest, getTauriMock, sessionNoteStateFixture, setupControllerTest, useAppController } from './useAppController.testHarness'
+import { cleanupControllerTest, getTauriMock, sessionNoteStateFixture, setupControllerTest, renderWithControllerStartup, useAppController } from './useAppController.testHarness'
 
 const api = getTauriMock()
 const receipt = { draftId: 'chat-1', noteId: 'entry-1', submittedAt: 'saved' }
@@ -28,9 +28,16 @@ it('reviews without writes, adds once, opens the actual updated Note, and restar
     chat = chatFixture({ draftId: 'chat-next', mode: 'chat' })
     return chat
   })
+  const expectSavedNote = async () => {
+    await waitFor(() => {
+      const note = screen.getByLabelText('Note body')
+      expect(note).toHaveTextContent('Existing Note')
+      expect(note).toHaveTextContent('Assistant: Which build?')
+    })
+  }
   const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
-  render(<Subject />)
-  await waitFor(() => expect(screen.getByRole('button', { name: 'Review saved conversation' })).toBeEnabled())
+  await renderWithControllerStartup(() => render(<Subject />))
+  expect(screen.getByRole('button', { name: 'Review saved conversation' })).toBeEnabled()
   fireEvent.click(screen.getByRole('button', { name: 'Review saved conversation' }))
   expect(screen.getByRole('region', { name: 'Saved conversation' })).toHaveTextContent('Which build?')
   fireEvent.click(screen.getByRole('button', { name: 'Review saved conversation' }))
@@ -39,13 +46,12 @@ it('reviews without writes, adds once, opens the actual updated Note, and restar
   fireEvent.click(screen.getByRole('button', { name: 'Add conversation to note' }))
   await waitFor(() => expect(screen.getByLabelText('Conversation added')).toBeVisible())
   expect(screen.getByRole('button', { name: 'Write note' })).toHaveAttribute('aria-pressed', 'true')
-  expect(screen.getByLabelText('Note body')).toHaveTextContent('Existing Note')
-  expect(screen.getByLabelText('Note body')).toHaveTextContent('Assistant: Which build?')
+  await expectSavedNote()
   expect(confirm).not.toHaveBeenCalled()
   fireEvent.click(screen.getByRole('button', { name: 'Chat' }))
   await waitFor(() => expect(screen.getByRole('button', { name: 'Open updated Note' })).toBeVisible())
   fireEvent.click(screen.getByRole('button', { name: 'Open updated Note' }))
-  expect(screen.getByLabelText('Note body')).toHaveTextContent('Assistant: Which build?')
+  await expectSavedNote()
   fireEvent.click(screen.getByRole('button', { name: 'Start new conversation' }))
   expect(api.restartChat).not.toHaveBeenCalled()
   confirm.mockReturnValue(true)
@@ -54,7 +60,7 @@ it('reviews without writes, adds once, opens the actual updated Note, and restar
   await waitFor(() => expect(screen.getByRole('textbox', { name: 'Message' })).toBeEnabled())
   expect(screen.getByRole('region', { name: 'Conversation transcript' })).toHaveTextContent('No messages yet')
   fireEvent.click(screen.getByRole('button', { name: 'Write note' }))
-  expect(screen.getByLabelText('Note body')).toHaveTextContent('Assistant: Which build?')
+  await expectSavedNote()
   expect(api.submitChat).toHaveBeenCalledTimes(1)
   expect(api.updateEntry).not.toHaveBeenCalled()
   expect(api.startChatJob).not.toHaveBeenCalled()

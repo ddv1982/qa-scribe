@@ -215,7 +215,7 @@ The body is an execution checklist. The appendices hold findings, limits, and so
 - [ ] Investigate the retained short startup-assertion failures once. If a fixed sleep is proven to be the cause, replace it with an awaited readiness condition. Preserve real failure behavior with a deterministic delayed or failed-boot case.
 - [ ] If the original macOS failure remains unreproduced, state that it is unresolved. Do not label improved diagnostics a root-cause repair or raise all test limits.
 - [ ] Keep one documented local fast check, one full verification command, and focused test commands. State exactly what each proves and what it omits.
-- [ ] Remove repeated execution only when the inventory proves identical source, configuration, environment, and obligation. Prefer deleting unnecessary local reruns over creating a new check framework.
+- [ ] Reassign repeated execution only after the inventory names its authoritative proof owner and the platform coverage tradeoff. Keep the full frontend suite mandatory in unconditional quality and release validation. Native cold/warm lanes own installation and native tooling proof. Prefer deleting unnecessary repetition over creating a new check framework.
 - [ ] Preserve independent production-build isolation after E2E, real package install and launch, audits, native cold and warm installation, platform checks, and signing checks. They answer different questions.
 - [ ] Keep the intentional exact-run native cache restore separate from reusable Rust caches. Report cold or missed cache honestly. Never broaden cache keys across incompatible tools or platforms just to force hits.
 - [ ] Add concise check summaries with stage, duration, cache outcome, first failure, and artifact links. Preserve first-attempt results when a justified retry occurs.
@@ -223,6 +223,16 @@ The body is an execution checklist. The appendices hold findings, limits, and so
 **You see.**
 
 - [ ] A failed run identifies where it stopped and retains useful partial evidence. A developer can choose the correct command without running every command in sequence.
+
+**AC-4 scope amendment, 2026-10-22.** Retained cold/warm receipts show moving
+Intel JSDOM failures across unrelated tests. The native installation driver no
+longer repeats the full frontend behavior suite six times. That suite stays
+unchanged in unconditional quality and release validation. All three native
+architectures still prove frozen installation, exact cache restoration, SDK,
+compiler, lint, frontend checks, metadata, production build, and isolation.
+This intentionally removes the macOS JSDOM matrix signal; it does not claim
+equivalent Intel UI coverage. Individual test limits and worker policy remain
+unchanged. Existing failed evidence remains failed.
 
 **Verify, unit.** Run the affected checks and retain exact-source evidence.
 

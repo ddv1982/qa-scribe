@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createRequire } from 'node:module'
+import { pendingComposerSave } from './chat-autosave-proof.mjs'
 import { nativeKeySender, settledViewport, viewport } from './preflight-native-keys.mjs'
 
 const require = createRequire(new URL('../../frontend/package.json', import.meta.url))
@@ -259,7 +260,6 @@ describe('Native UI polish before/after evidence', () => {
     assert.equal(await browser.tauri.execute(async ({ core }) => (await core.invoke('list_sessions')).length), 0,
       'Run through the isolated E2E runner with a fresh Session Library')
 
-    // Capture every empty-state variant before creating data. No theme injection.
     for (const width of [1280, 640]) {
       await laptopResize(width, 860)
       for (const theme of ['light', 'dark']) {
@@ -270,7 +270,6 @@ describe('Native UI polish before/after evidence', () => {
       }
     }
 
-    // Creation is exercised at the actual supported minimum, not phone emulation.
     await click('button=New Session')
     await (await $('[aria-label="Session title"]')).waitForDisplayed()
     await snapshot('created-640-dark', 640, 'dark', '.top-new-button')
@@ -451,6 +450,12 @@ describe('Native UI polish before/after evidence', () => {
           await actions(`narrow-${width}-${theme}-action-${index}`, `.ai-action-buttons button:nth-child(${index + 1})`, false)
         }
         await click('button=Chat')
+        await (await $('.chat-compose-actions .primary-button')).waitForEnabled()
+        await click('button=Review saved conversation')
+        layoutFailures.push(...await pendingComposerSave(theme, sessionId, artifacts, save))
+        if (await (await $('button=Review saved conversation')).getAttribute('aria-expanded') === 'true') {
+          await click('button=Review saved conversation')
+        }
         await (await $('.chat-composer textarea')).scrollIntoView()
         await (await $('.chat-compose-actions .primary-button')).scrollIntoView()
         await actions(`chat-${width}-${theme}-reachable`, '.chat-compose-actions button', false)
@@ -488,6 +493,7 @@ describe('Native UI polish before/after evidence', () => {
     assert.equal(await (await $(note)).getText(), text, 'Note edits survive all local navigation completions')
     const invocations = readdirSync(process.env.QA_SCRIBE_E2E_FIXTURE_DIR).filter((file) => /^codex-exec-\d+\.started$/.test(file))
     assert.deepEqual(invocations, ['codex-exec-1.started'], 'Long Chat uses exactly one isolated fixture request')
+    assert.deepEqual(layoutFailures, [], 'Saved review, unsent explanation, and composer geometry stay stable across autosave')
     save('laptop-layout-result', { completed: true, platform: process.platform, providerInvocations: invocations.length })
   })
 

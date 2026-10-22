@@ -61,7 +61,7 @@ describe('Session Chat explicit canonical Note handoff', () => {
     act(() => result.current.setSessionMode('chat'))
     expect(result.current.sessionChat.dirty).toBe(true)
     expect(result.current.sessionChat.composer).toBe('')
-    expect(result.current.sessionChat.handoff).toEqual({ kind: 'conversation', reason: '', hydrationPending: false, reviewAvailable: true })
+    expect(result.current.sessionChat.handoff).toEqual({ kind: 'conversation', disabled: false, reason: '', hydrationPending: false, reviewAvailable: true })
     expect(api.submitChat).not.toHaveBeenCalled()
     expect(api.startChatJob).not.toHaveBeenCalled()
   })

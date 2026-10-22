@@ -57,10 +57,38 @@ it('keeps review live across accepted revisions and resets on Session/draft or u
     expect(screen.queryByRole('region', { name: 'Saved conversation' })).toBeNull()
     fireEvent.click(button('Review saved conversation'))
   }
-  view.rerender(<ChatHandoff state={state({ saving: true })} {...props} />)
+  view.rerender(<ChatHandoff state={state({ loading: true })} {...props} />)
   expect(screen.queryByRole('button', { name: 'Review saved conversation' })).toBeNull()
   view.rerender(<ChatHandoff state={first} {...props} />)
   expect(button('Review saved conversation')).toHaveAttribute('aria-expanded', 'false')
+})
+
+it('preserves expanded accepted review and the unsent explanation across composer and mode saves', () => {
+  const props = { onSubmit: vi.fn(async () => {}), onOpenNote: vi.fn() }
+  const composer = 'Keep this unsent question'
+  const view = render(<ChatHandoff state={state({ composer })} {...props} />)
+  fireEvent.click(button('Review saved conversation'))
+  const review = screen.getByRole('region', { name: 'Saved conversation' })
+  for (const saving of [true, false, true, false]) {
+    view.rerender(<ChatHandoff state={state({ composer, saving })} {...props} />)
+    expect(button('Review saved conversation')).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('region', { name: 'Saved conversation' })).toBe(review)
+    expect(review).toHaveTextContent('Which build?')
+    expect(screen.getByText('Send or clear the unsent message before adding the conversation.')).toBeVisible()
+    expect(screen.getByText(/Your unsent message is excluded/)).toBeVisible()
+    expect(button('Add conversation to note')).toBeDisabled()
+    fireEvent.click(button('Add conversation to note'))
+  }
+  expect(props.onSubmit).not.toHaveBeenCalled()
+})
+
+it('disables Add with no unsent message during autosave while retaining read-only review', () => {
+  const onSubmit = vi.fn(async () => {})
+  render(<ChatHandoff state={state({ saving: true })} onSubmit={onSubmit} onOpenNote={vi.fn()} />)
+  expect(button('Review saved conversation')).toBeEnabled()
+  expect(button('Add conversation to note')).toBeDisabled()
+  fireEvent.click(button('Add conversation to note'))
+  expect(onSubmit).not.toHaveBeenCalled()
 })
 
 it('adds normally once without review or confirmation', () => {

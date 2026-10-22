@@ -131,6 +131,10 @@ jobs:
             ${{ runner.temp }}/qa-scribe-editor-smoke/frontend/profile/logs/**
           if-no-files-found: error
 
+      - name: Write native tooling summary
+        if: always()
+        run: node scripts/write-quality-summary.mjs
+
       - name: Upload native tooling receipts
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9

@@ -12,14 +12,14 @@ test('critical workflows use separate WDIO processes, app data, fixtures, and ar
   const plan = createWdioInvocationPlan({}, '/tmp/e2e-root', '/tmp/e2e-artifacts')
 
   assert.deepEqual(plan.slice(0, criticalScenarios.length).map(({ id }) => id), criticalScenarios)
-  const legacy = plan.slice(0, criticalScenarios.length + 4 + (['linux', 'darwin'].includes(process.platform) ? 1 : 0) + (process.platform === 'linux' ? 1 : 0))
+  const legacy = plan.slice(0, criticalScenarios.length + 4 + (['linux', 'darwin'].includes(process.platform) ? 2 : 0) + (process.platform === 'linux' ? 1 : 0))
   assert.deepEqual(legacy.slice(criticalScenarios.length).map(({ id }) => id), [
     'chat-to-note', 'chat-tool-authorization-codex', 'chat-tool-authorization-claude', 'chat-tool-authorization-copilot',
-    ...(['linux', 'darwin'].includes(process.platform) ? ['ui-polish'] : []),
+    ...(['linux', 'darwin'].includes(process.platform) ? ['ui-polish', 'first-use'] : []),
     ...(process.platform === 'linux' ? ['native-close'] : []),
   ])
   for (const key of ['QA_SCRIBE_E2E_APP_DATA_DIR', 'QA_SCRIBE_E2E_ARTIFACTS', 'QA_SCRIBE_E2E_FIXTURE_DIR']) {
-    assert.equal(new Set(legacy.map(({ environment }) => environment[key])).size, criticalScenarios.length + 4 + (['linux', 'darwin'].includes(process.platform) ? 1 : 0) + (process.platform === 'linux' ? 1 : 0))
+    assert.equal(new Set(legacy.map(({ environment }) => environment[key])).size, criticalScenarios.length + 4 + (['linux', 'darwin'].includes(process.platform) ? 2 : 0) + (process.platform === 'linux' ? 1 : 0))
   }
   assert.ok(plan.slice(0, criticalScenarios.length).every(({ environment }) => environment.QA_SCRIBE_E2E_SPEC === 'critical-workflows.e2e.mjs'))
   assert.equal(plan[criticalScenarios.length].environment.QA_SCRIBE_E2E_SPEC, 'chat-to-note.e2e.mjs')
@@ -74,7 +74,7 @@ test('Linux defaults require the complete model proof chain while non-Linux defa
   const linux = createWdioInvocationPlan({}, '/tmp/root', '/tmp/artifacts', 'linux')
   assert.deepEqual(linux.map(({ id }) => id), [
     ...criticalScenarios, 'chat-to-note', 'chat-tool-authorization-codex', 'chat-tool-authorization-claude',
-    'chat-tool-authorization-copilot', 'ui-polish', 'native-close', 'model-management', 'model-evidence', 'model-evidence-restart',
+    'chat-tool-authorization-copilot', 'ui-polish', 'first-use', 'native-close', 'model-management', 'model-evidence', 'model-evidence-restart',
     'model-selection', 'model-selection-restart', 'provider-qualification-disabled', 'provider-qualification-diagnostics',
     'provider-qualification-selector',
   ])
@@ -82,7 +82,7 @@ test('Linux defaults require the complete model proof chain while non-Linux defa
   for (const platform of ['darwin', 'win32']) {
     assert.deepEqual(createWdioInvocationPlan({}, '/tmp/root', '/tmp/artifacts', platform).map(({ id }) => id), [
       ...criticalScenarios, 'chat-to-note', 'chat-tool-authorization-codex', 'chat-tool-authorization-claude', 'chat-tool-authorization-copilot',
-      ...(platform === 'darwin' ? ['ui-polish'] : []),
+      ...(platform === 'darwin' ? ['ui-polish', 'first-use'] : []),
     ])
   }
 })
@@ -225,7 +225,7 @@ test('an interrupted E2E build never targets or rebuilds the production frontend
       },
     )
 
-    assert.equal(status, 1)
+    assert.equal(status, 2)
     assert.deepEqual(calls.map(({ command }) => command), ['bun', 'cargo'])
     assert.equal(calls[0].environment.VITE_QA_SCRIBE_E2E, '1')
     assert.deepEqual(calls[0].args.slice(0, 4), ['run', '--cwd', 'frontend', 'build'])
@@ -368,7 +368,7 @@ test('shared and standalone callers build production assets independently when n
 
   assert.match(action, /bun run frontend:build && bun run e2e:isolation/)
   assert.match(benchmark, /if \(!existsSync\(join\(root, 'frontend', 'dist', 'assets'\)\)\)/)
-  assert.match(benchmark, /run\('bun', \['run', 'frontend:build'\]\)/)
+  assert.match(benchmark, /run\('frontend-build', 'bun', \['run', 'frontend:build'\]\)/)
 })
 
 test('the Codex fixture completes only released invocations and leaves cancellation pending', { timeout: 5_000 }, async () => {

@@ -5,6 +5,7 @@ import { chmodSync, cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlin
 import { homedir, tmpdir } from 'node:os'
 import { delimiter, dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { commandReceiptError, finishCommandReceipt, startCommandReceipt } from './command-utils.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const fixtureBin = join(root, 'e2e', 'fixtures', 'bin')
@@ -33,7 +34,7 @@ export function createWdioInvocationPlan(environment, temporaryRoot, artifacts, 
           ...(/^(model-(management|evidence|selection)|provider-qualification)\.e2e\.mjs$/.test(requestedSpec) ? {
             QA_SCRIBE_E2E_MODEL_EVIDENCE: environment.QA_SCRIBE_E2E_MODEL_EVIDENCE ?? artifacts,
           } : {}),
-          ...(['native-close.e2e.mjs', 'model-selection.e2e.mjs'].includes(requestedSpec) || (requestedSpec === 'ui-polish.e2e.mjs' && platform === 'linux') ? { GDK_BACKEND: 'x11' } : {}),
+          ...(['native-close.e2e.mjs', 'model-selection.e2e.mjs'].includes(requestedSpec) || (['ui-polish.e2e.mjs', 'first-use.e2e.mjs'].includes(requestedSpec) && platform === 'linux') ? { GDK_BACKEND: 'x11' } : {}),
           QA_SCRIBE_E2E_APP_DATA_DIR: join(temporaryRoot, 'app-data'),
           QA_SCRIBE_E2E_ARTIFACTS: artifacts,
           QA_SCRIBE_E2E_FIXTURE_DIR: join(temporaryRoot, 'fixtures'),
@@ -58,12 +59,12 @@ export function createWdioInvocationPlan(environment, temporaryRoot, artifacts, 
     },
   }))
   if (!requestedSpec && !requestedScenario) {
-    for (const id of ['chat-to-note', ...['codex', 'claude', 'copilot'].map((provider) => `chat-tool-authorization-${provider}`), ...(['linux', 'darwin'].includes(platform) ? ['ui-polish'] : []), ...(platform === 'linux' ? ['native-close'] : [])]) {
+    for (const id of ['chat-to-note', ...['codex', 'claude', 'copilot'].map((provider) => `chat-tool-authorization-${provider}`), ...(['linux', 'darwin'].includes(platform) ? ['ui-polish', 'first-use'] : []), ...(platform === 'linux' ? ['native-close'] : [])]) {
       const provider = id.startsWith('chat-tool-authorization-') ? id.slice('chat-tool-authorization-'.length) : null
       plan.push({ id, environment: {
         QA_SCRIBE_E2E_SPEC: provider ? 'chat-tool-authorization.workflow.mjs' : `${id}.e2e.mjs`,
         ...(provider ? { QA_SCRIBE_E2E_AUTH_PROVIDER: provider } : {}),
-        ...(id === 'native-close' || (id === 'ui-polish' && platform === 'linux') ? { GDK_BACKEND: 'x11' } : {}),
+        ...(id === 'native-close' || (['ui-polish', 'first-use'].includes(id) && platform === 'linux') ? { GDK_BACKEND: 'x11' } : {}),
         QA_SCRIBE_E2E_APP_DATA_DIR: join(temporaryRoot, 'app-data', id),
         QA_SCRIBE_E2E_ARTIFACTS: join(artifacts, id),
         QA_SCRIBE_E2E_FIXTURE_DIR: join(temporaryRoot, 'fixtures', id),
@@ -130,14 +131,14 @@ export function readQualificationEvidence(path, mode) {
   } catch { return null }
 }
 
-export function executeWdioInvocations(invocations, execute) {
+export function executeWdioInvocations(invocations, execute, onResult = () => {}) {
   const results = []
   for (const invocation of invocations) {
     try {
       const completed = execute(invocation)
       results.push({
         id: invocation.id,
-        status: completed.status,
+        status: completed.error && completed.status === 0 ? 1 : completed.status,
         signal: completed.signal ?? null,
         stdout: completed.stdout ?? '',
         stderr: completed.stderr ?? '',
@@ -145,12 +146,13 @@ export function executeWdioInvocations(invocations, execute) {
     } catch (error) {
       results.push({
         id: invocation.id,
-        status: 1,
-        signal: null,
+        status: error.exitCode ?? 1,
+        signal: error.signal ?? null,
         stdout: '',
         stderr: `${error instanceof Error ? error.message : error}\n`,
       })
     }
+    onResult(results)
   }
 
   const firstFailure = results.find((result) => result.status !== 0)
@@ -169,9 +171,31 @@ export function runE2e(environment = process.env, { spawnSyncImpl = spawnSync } 
   const skipBuild = environment.QA_SCRIBE_E2E_SKIP_BUILD === '1'
   const startedAt = Date.now()
   let result = { status: 1, signal: null, results: [] }
+  let status = 'running'
+  let isolatedDataRemoved = false
+  let failure = null
+  const commands = []
+  let invocations = []
 
   if (environment.QA_SCRIBE_E2E_PRESERVE_ARTIFACTS !== '1') rmSync(artifacts, { recursive: true, force: true })
   mkdirSync(artifacts, { recursive: true })
+  function saveReceipt() {
+    writeFileSync(join(artifacts, 'latest-run.json'), `${JSON.stringify({
+      completedAt: status === 'running' ? null : new Date().toISOString(),
+      durationMs: Date.now() - startedAt,
+      platform: process.platform,
+      architecture: process.arch,
+      runnerClass: environment.QA_SCRIBE_STARTUP_RUNNER_CLASS || `${process.platform}-${process.arch}`,
+      runId: environment.GITHUB_RUN_ID ?? null,
+      runAttempt: Number(environment.GITHUB_RUN_ATTEMPT || 1),
+      status, exitCode: status === 'running' ? null : result.status, signal: result.signal,
+      plannedInvocations: invocations.map(({ id }) => id),
+      invocations: result.results.map(({ id, status, signal }) => ({ id, status, signal })),
+      commands, firstFailure: failure,
+      isolatedDataRemoved,
+    }, null, 2)}\n`)
+  }
+  saveReceipt()
   for (const provider of ['codex', 'claude', 'copilot']) chmodSync(join(fixtureBin, provider), 0o755)
 
   const tauriConfig = JSON.parse(readFileSync(join(root, 'e2e', 'tauri.e2e.conf.json'), 'utf8'))
@@ -202,35 +226,47 @@ export function runE2e(environment = process.env, { spawnSyncImpl = spawnSync } 
     mkdirSync(join(temporaryRoot, directory), { recursive: true })
   }
 
-  function run(command, args, commandEnvironment = isolatedEnvironment) {
-    const completed = spawnSyncImpl(command, args, {
-      cwd: root,
-      env: commandEnvironment,
-      stdio: 'inherit',
-      shell: false,
-    })
-    if (completed.status !== 0) {
-      throw new Error(`${command} ${args.join(' ')} failed with exit code ${completed.status ?? 'unknown'}`)
-    }
+  function execute(stage, command, args, commandEnvironment, timeout, options = {}) {
+    const started = Date.now()
+    const index = commands.push(startCommandReceipt(stage, command, args, timeout)) - 1
+    saveReceipt()
+    let completed
+    try {
+      completed = spawnSyncImpl(command, args, { cwd: root, env: commandEnvironment,
+        stdio: 'inherit', shell: false, timeout, killSignal: 'SIGKILL', ...options })
+    } catch (error) { completed = { error, status: null } }
+    commands[index] = finishCommandReceipt(commands[index], completed, Date.now() - started)
+    if (commands[index].status === 'failed') failure ??= commands[index]
+    saveReceipt()
+    return completed
+  }
+  function run(stage, command, args, commandEnvironment = isolatedEnvironment, timeout = 30_000) {
+    const completed = execute(stage, command, args, commandEnvironment, timeout)
+    if (commands.at(-1).status === 'failed') throw commandReceiptError(commands.at(-1))
     return completed
   }
 
   try {
+    invocations = createWdioInvocationPlan(environment, temporaryRoot, artifacts)
+    saveReceipt()
     if (!skipBuild) {
       run(
+        'frontend-build',
         'bun',
         ['run', '--cwd', 'frontend', 'build', '--', '--outDir', frontendDist, '--emptyOutDir'],
         { ...isolatedEnvironment, VITE_QA_SCRIBE_E2E: '1' },
+        180_000,
       )
-      run('cargo', ['build', '--package', 'qa-scribe-tauri', '--features', 'e2e'])
+      run('native-build', 'cargo', ['build', '--package', 'qa-scribe-tauri', '--features', 'e2e'], isolatedEnvironment, 600_000)
     }
 
     const wdio = join(root, 'frontend', 'node_modules', '.bin', process.platform === 'win32' ? 'wdio.cmd' : 'wdio')
-    const invocations = createWdioInvocationPlan(environment, temporaryRoot, artifacts)
     result = executeWdioInvocations(invocations, (invocation) => {
       const invocationEnvironment = { ...isolatedEnvironment, ...invocation.environment }
+      if (environment.CI || environment.GITHUB_ACTIONS === 'true') delete invocationEnvironment.QA_SCRIBE_AC3_RECORD
       const defaultRun = !environment.QA_SCRIBE_E2E_SPEC?.trim() && !environment.QA_SCRIBE_E2E_SCENARIO?.trim()
       if (defaultRun) {
+        delete invocationEnvironment.QA_SCRIBE_AC3_RETURNING
         const stateId = invocation.restartOf ?? invocation.id
         invocationEnvironment.HOME = join(temporaryRoot, 'home', stateId)
         invocationEnvironment.XDG_CONFIG_HOME = join(temporaryRoot, 'config', stateId)
@@ -286,18 +322,18 @@ export function runE2e(environment = process.env, { spawnSyncImpl = spawnSync } 
         const legacyDatabase = join(invocation.environment.QA_SCRIBE_E2E_APP_DATA_DIR, 'qa-scribe.sqlite')
         if (invocationEnvironment.QA_SCRIBE_E2E_EVIDENCE_RESTART !== '1'
           && invocationEnvironment.QA_SCRIBE_E2E_SELECTION_RESTART !== '1') {
-          run('python3', [join(root, 'e2e/fixtures/model-evidence-database.py'), 'seed', legacyDatabase,
+          run(`${invocation.id}:seed`, 'python3', [join(root, 'e2e/fixtures/model-evidence-database.py'), 'seed', legacyDatabase,
             join(root, 'crates/qa-scribe-core/tests/fixtures/schema_v10.sql'),
             join(invocation.environment.QA_SCRIBE_E2E_FIXTURE_DIR, 'model-evidence-legacy-seed.json')], invocationEnvironment)
-          if (modelSelection) run('python3', [join(root, 'e2e/fixtures/model-selection-legacy.py'), legacyDatabase], invocationEnvironment)
+          if (modelSelection) run(`${invocation.id}:legacy`, 'python3', [join(root, 'e2e/fixtures/model-selection-legacy.py'), legacyDatabase], invocationEnvironment)
         }
       }
       const evidencePath = join(invocation.environment.QA_SCRIBE_E2E_ARTIFACTS, 'wdio-execution.json')
       rmSync(evidencePath, { force: true })
       invocationEnvironment.QA_SCRIBE_E2E_EXECUTION_EVIDENCE = evidencePath
-      const completed = spawnSyncImpl(wdio, ['run', join(root, 'e2e', 'wdio.conf.mjs')], {
-        cwd: root,
-        env: invocationEnvironment,
+      const timeout = invocationEnvironment.QA_SCRIBE_E2E_SPEC === 'ui-polish.e2e.mjs' ? 420_000 : 180_000
+      const completed = execute(invocation.id, wdio, ['run', join(root, 'e2e', 'wdio.conf.mjs')], invocationEnvironment, timeout, {
+        stdio: 'pipe',
         encoding: 'utf8',
         maxBuffer: wdioMaxBuffer,
         shell: process.platform === 'win32',
@@ -314,8 +350,18 @@ export function runE2e(environment = process.env, { spawnSyncImpl = spawnSync } 
       const qualificationEvidenceReceipt = qualification
         ? readQualificationEvidence(join(invocationEnvironment.QA_SCRIBE_E2E_MODEL_EVIDENCE, 'qualification-results.json'), invocationEnvironment.QA_SCRIBE_PROVIDER_CATALOG_MODE) : true
       const missingCoverage = completed.status === 0 && (!evidence || !modelEvidenceReceipt || !qualificationEvidenceReceipt)
-      return { ...completed, status: missingCoverage ? 1 : completed.status, stdout,
+      if (missingCoverage) {
+        Object.assign(commands.at(-1), { status: 'failed', evidenceError: 'Missing complete, unskipped machine execution evidence' })
+        failure ??= commands.at(-1)
+        saveReceipt()
+      }
+      return { ...completed, status: missingCoverage || (completed.error && completed.status === 0) ? 1 : completed.status, stdout,
         stderr: `${stderr}${missingCoverage ? 'WDIO did not produce complete, unskipped machine execution evidence.\n' : ''}` }
+    }, (results) => {
+      result.results = results
+      const first = results.find((run) => run.status !== 0)
+      if (first) failure ??= { stage: first.id, exitCode: first.status, signal: first.signal, message: first.stderr }
+      saveReceipt()
     })
 
     const aggregateLog = result.results
@@ -326,24 +372,17 @@ export function runE2e(environment = process.env, { spawnSyncImpl = spawnSync } 
       console.error(`E2E invocation failed: ${failed.id} (exit ${failed.status ?? 'unknown'})`)
     }
   } catch (error) {
+    result.status = error.exitCode ?? 1
+    result.signal = commands.find((command) => command.status === 'failed')?.signal ?? null
+    failure ??= { stage: 'orchestration', message: error instanceof Error ? error.message : String(error) }
     console.error(error instanceof Error ? error.message : error)
   } finally {
-    const metadata = {
-      completedAt: new Date().toISOString(),
-      durationMs: Date.now() - startedAt,
-      platform: process.platform,
-      architecture: process.arch,
-      runnerClass: environment.QA_SCRIBE_STARTUP_RUNNER_CLASS || `${process.platform}-${process.arch}`,
-      runId: environment.GITHUB_RUN_ID ?? null,
-      runAttempt: Number(environment.GITHUB_RUN_ATTEMPT || 1),
-      status: result.status === 0 ? 'passed' : 'failed',
-      exitCode: result.status,
-      signal: result.signal,
-      invocations: result.results.map(({ id, status, signal }) => ({ id, status, signal })),
-      isolatedDataRemoved: ownsTemporaryRoot,
-    }
-    writeFileSync(join(artifacts, 'latest-run.json'), `${JSON.stringify(metadata, null, 2)}\n`)
+    status = result.status === 0 ? 'passed' : 'failed'
+    if (!failure && result.status !== 0) failure = { stage: result.results.find((run) => run.status !== 0)?.id ?? 'orchestration' }
+    saveReceipt()
     if (ownsTemporaryRoot) rmSync(temporaryRoot, { recursive: true, force: true })
+    isolatedDataRemoved = ownsTemporaryRoot
+    saveReceipt()
   }
 
   return result.status === 0 ? 0 : result.status ?? 1

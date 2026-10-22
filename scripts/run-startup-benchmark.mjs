@@ -5,95 +5,122 @@ import { gzipSync } from 'node:zlib'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
+import { commandReceiptError, finishCommandReceipt, startCommandReceipt } from './command-utils.mjs'
 import { assertStartupBudgets, firstPaintDuration, parseOptionalBudget } from './startup-benchmark-budget.mjs'
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const artifacts = join(root, 'artifacts', 'startup')
-const temporaryRoot = mkdtempSync(join(tmpdir(), 'qa-scribe-startup-'))
-const appData = join(temporaryRoot, 'app-data')
-const database = join(appData, 'qa-scribe.sqlite')
-const sampleCount = readSampleCount(process.argv.slice(2))
-const legacyBudget = process.env.QA_SCRIBE_STARTUP_BUDGET_MS
-const coldBudgetMs = parseOptionalBudget(
-  process.env.QA_SCRIBE_STARTUP_COLD_BUDGET_MS ?? legacyBudget,
-  'QA_SCRIBE_STARTUP_COLD_BUDGET_MS',
-)
-const warmBudgetMs = parseOptionalBudget(
-  process.env.QA_SCRIBE_STARTUP_WARM_BUDGET_MS ?? legacyBudget,
-  'QA_SCRIBE_STARTUP_WARM_BUDGET_MS',
-)
-const runnerClass = process.env.QA_SCRIBE_STARTUP_RUNNER_CLASS || `${process.platform}-${process.arch}-local`
-const reuseBuild = process.env.QA_SCRIBE_STARTUP_REUSE_BUILD === '1'
-const startedAt = Date.now()
-const samples = []
+const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
-rmSync(artifacts, { recursive: true, force: true })
-mkdirSync(appData, { recursive: true })
-mkdirSync(artifacts, { recursive: true })
+export function runStartupBenchmark(environment = process.env, { spawnSyncImpl = spawnSync, root = repositoryRoot, argv = process.argv.slice(2) } = {}) {
+  const artifacts = join(root, 'artifacts', 'startup')
+  const sampleCount = readSampleCount(argv, environment)
+  const legacyBudget = environment.QA_SCRIBE_STARTUP_BUDGET_MS
+  const coldBudgetMs = parseOptionalBudget(
+    environment.QA_SCRIBE_STARTUP_COLD_BUDGET_MS ?? legacyBudget,
+    'QA_SCRIBE_STARTUP_COLD_BUDGET_MS',
+  )
+  const warmBudgetMs = parseOptionalBudget(
+    environment.QA_SCRIBE_STARTUP_WARM_BUDGET_MS ?? legacyBudget,
+    'QA_SCRIBE_STARTUP_WARM_BUDGET_MS',
+  )
+  const runnerClass = environment.QA_SCRIBE_STARTUP_RUNNER_CLASS || `${process.platform}-${process.arch}-local`
+  const reuseBuild = environment.QA_SCRIBE_STARTUP_REUSE_BUILD === '1'
+  const temporaryRoot = mkdtempSync(join(tmpdir(), 'qa-scribe-startup-'))
+  const appData = join(temporaryRoot, 'app-data')
+  const database = join(appData, 'qa-scribe.sqlite')
+  const startedAt = Date.now()
+  const samples = []
 
-function run(command, args, environment = process.env) {
-  const completed = spawnSync(command, args, { cwd: root, env: environment, stdio: 'inherit', shell: false })
-  if (completed.status !== 0) throw new Error(`${command} ${args.join(' ')} failed with exit code ${completed.status ?? 'unknown'}`)
-}
-
-try {
-  run('cargo', ['run', '--quiet', '-p', 'qa-scribe-core', '--example', 'generate_startup_fixture', '--', database])
-  if (!existsSync(join(root, 'frontend', 'dist', 'assets'))) {
-    run('bun', ['run', 'frontend:build'])
-  }
-
-  for (let index = 0; index < sampleCount; index += 1) {
-    const runKind = index === 0 ? 'cold-process' : 'warm-process'
-    const sampleBudgetMs = index === 0 ? coldBudgetMs : warmBudgetMs
-    const runArtifacts = join(artifacts, `${index + 1}-${runKind}`)
-    const samplePath = join(runArtifacts, 'startup-sample.json')
-    run('node', ['scripts/run-e2e.mjs'], {
-      ...process.env,
-      QA_SCRIBE_E2E_TEMP_ROOT: temporaryRoot,
-      QA_SCRIBE_E2E_ARTIFACTS: runArtifacts,
-      QA_SCRIBE_E2E_SPEC: 'startup-performance.benchmark.mjs',
-      QA_SCRIBE_E2E_SKIP_BUILD: reuseBuild || index > 0 ? '1' : '0',
-      QA_SCRIBE_STARTUP_SAMPLE: samplePath,
-      QA_SCRIBE_STARTUP_RUN_KIND: runKind,
-      QA_SCRIBE_STARTUP_RUNNER_CLASS: runnerClass,
-      QA_SCRIBE_STARTUP_BUDGET_MS: sampleBudgetMs ? String(sampleBudgetMs) : '',
-    })
-    samples.push(JSON.parse(readFileSync(samplePath, 'utf8')))
-  }
+  rmSync(artifacts, { recursive: true, force: true })
+  mkdirSync(appData, { recursive: true })
+  mkdirSync(artifacts, { recursive: true })
 
   const report = {
-    schema: 'qa-scribe-startup-report-v1',
-    capturedAt: new Date().toISOString(),
-    runnerClass,
-    fixture: {
-      sessions: 1_000,
-      entries: 1_000,
-      activeDrafts: 250,
-      activeFindings: 250,
-      aiRuns: 2_000,
-    },
+    schema: 'qa-scribe-startup-report-v1', capturedAt: new Date().toISOString(), runnerClass,
+    fixture: { sessions: 1_000, entries: 1_000, activeDrafts: 250, activeFindings: 250, aiRuns: 2_000 },
     budgetMs: coldBudgetMs === warmBudgetMs ? coldBudgetMs : null,
-    budgets: {
-      coldFirstPaintMs: coldBudgetMs,
-      warmFirstPaintMs: warmBudgetMs,
-    },
-    durationMs: Date.now() - startedAt,
-    samples,
-    summary: summarize(samples),
-    productionBundle: bundleSummary(join(root, 'frontend', 'dist', 'assets')),
+    budgets: { coldFirstPaintMs: coldBudgetMs, warmFirstPaintMs: warmBudgetMs },
+    status: 'running', exitCode: null, durationMs: 0, expectedSamples: sampleCount,
+    samples, commands: [], firstFailure: null, summary: null, productionBundle: null, isolatedDataRemoved: false,
   }
-  writeFileSync(join(artifacts, 'startup-report.json'), `${JSON.stringify(report, null, 2)}\n`)
-  console.log(`Startup benchmark: cold=${report.summary.coldFirstPaintMs.toFixed(1)}ms warm_p50=${report.summary.warmFirstPaintP50Ms.toFixed(1)}ms`)
-  assertStartupBudgets(report)
-} finally {
-  rmSync(temporaryRoot, { recursive: true, force: true })
+  function save() {
+    report.durationMs = Date.now() - startedAt
+    writeFileSync(join(artifacts, 'startup-report.json'), `${JSON.stringify(report, null, 2)}\n`)
+  }
+  function run(stage, command, args, commandEnvironment = environment, timeout = 180_000) {
+    const started = Date.now()
+    const index = report.commands.push(startCommandReceipt(stage, command, args, timeout)) - 1
+    save()
+    let completed
+    try {
+      completed = spawnSyncImpl(command, args, { cwd: root, env: commandEnvironment, stdio: 'inherit', shell: false, timeout, killSignal: 'SIGKILL' })
+    } catch (error) { completed = { status: null, error } }
+    report.commands[index] = finishCommandReceipt(report.commands[index], completed, Date.now() - started)
+    save()
+    if (report.commands[index].status === 'failed') throw commandReceiptError(report.commands[index])
+  }
+  save()
+
+  try {
+    run('fixture', 'cargo', ['run', '--quiet', '-p', 'qa-scribe-core', '--example', 'generate_startup_fixture', '--', database])
+    if (!existsSync(join(root, 'frontend', 'dist', 'assets'))) {
+      run('frontend-build', 'bun', ['run', 'frontend:build'])
+    }
+
+    for (let index = 0; index < sampleCount; index += 1) {
+      const runKind = index === 0 ? 'cold-process' : 'warm-process'
+      const sampleBudgetMs = index === 0 ? coldBudgetMs : warmBudgetMs
+      const runArtifacts = join(artifacts, `${index + 1}-${runKind}`)
+      const samplePath = join(runArtifacts, 'startup-sample.json')
+      let sampleError
+      try {
+        run(`sample-${index + 1}-${runKind}`, process.execPath, ['scripts/run-e2e.mjs'], {
+          ...environment,
+          QA_SCRIBE_E2E_TEMP_ROOT: temporaryRoot,
+          QA_SCRIBE_E2E_ARTIFACTS: runArtifacts,
+          QA_SCRIBE_E2E_SPEC: 'startup-performance.benchmark.mjs',
+          QA_SCRIBE_E2E_SKIP_BUILD: reuseBuild || index > 0 ? '1' : '0',
+          QA_SCRIBE_STARTUP_SAMPLE: samplePath,
+          QA_SCRIBE_STARTUP_RUN_KIND: runKind,
+          QA_SCRIBE_STARTUP_RUNNER_CLASS: runnerClass,
+          QA_SCRIBE_STARTUP_BUDGET_MS: sampleBudgetMs ? String(sampleBudgetMs) : '',
+        }, reuseBuild || index > 0 ? 240_000 : 1_020_000)
+      } catch (error) { sampleError = error }
+      if (existsSync(samplePath)) {
+        try { samples.push(JSON.parse(readFileSync(samplePath, 'utf8'))) }
+        catch (error) { if (!sampleError) sampleError = error }
+      } else if (!sampleError) sampleError = new Error(`Missing startup sample: ${samplePath}`)
+      save()
+      if (sampleError) throw sampleError
+    }
+
+    report.summary = summarize(samples)
+    report.productionBundle = bundleSummary(join(root, 'frontend', 'dist', 'assets'))
+    save()
+    console.log(`Startup benchmark: cold=${report.summary.coldFirstPaintMs.toFixed(1)}ms warm_p50=${report.summary.warmFirstPaintP50Ms.toFixed(1)}ms`)
+    assertStartupBudgets(report)
+    report.status = 'passed'
+    report.exitCode = 0
+    return report
+  } catch (error) {
+    report.status = 'failed'
+    report.exitCode = error.exitCode ?? 1
+    report.firstFailure = report.commands.find((command) => command.status === 'failed')
+      ?? { stage: 'startup-report', message: error.message }
+    save()
+    throw error
+  } finally {
+    save()
+    rmSync(temporaryRoot, { recursive: true, force: true })
+    report.isolatedDataRemoved = true
+    save()
+  }
 }
 
-function readSampleCount(argv) {
+function readSampleCount(argv, environment) {
   const index = argv.indexOf('--samples')
-  const value = Number(index >= 0 ? argv[index + 1] : process.env.QA_SCRIBE_STARTUP_SAMPLES || 5)
+  const value = Number(index >= 0 ? argv[index + 1] : environment.QA_SCRIBE_STARTUP_SAMPLES || 5)
   if (!Number.isInteger(value) || value < 2 || value > 20) throw new Error('--samples must be an integer between 2 and 20')
   return value
 }
@@ -129,4 +156,9 @@ function bundleSummary(directory) {
     javascriptGzipBytes: chunks.reduce((total, chunk) => total + chunk.gzipBytes, 0),
     chunks,
   }
+}
+
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+  try { runStartupBenchmark() }
+  catch (error) { console.error(error.message); process.exitCode = error.exitCode ?? 1 }
 }
