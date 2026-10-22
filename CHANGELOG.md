@@ -6,6 +6,7 @@
 - Simplify clipboard controls to Copy and include visible unsaved edits without implicitly saving them. Keep screenshot copying separate.
 - Add a first-use welcome, a read-only synthetic example, visible Help, a task-focused getting-started guide, and a qualitative pilot guide.
 - Keep saved-conversation review and expansion stable during composer autosave while preserving Add, Send, and restart safety gates.
+- Avoid unnecessary Note saves when the editor receives equivalent rich content with a different JSON object key order. Preserve real edits and exact Chat submission replay checks.
 - Cover missing CI tooling inputs, bound validation commands, and retain partial failure receipts. Keep the full frontend behavior suite in quality and release validation while native cold/warm jobs focus on installation, compiler, lint, build, and isolation proof.
 
 ## v0.8.16 - 2026-10-22
