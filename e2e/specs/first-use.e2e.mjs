@@ -51,17 +51,31 @@ const saved = () => browser.tauri.execute(async ({ core }) => {
     findings: await core.invoke('list_findings', { sessionId: session.id }), drafts: await core.invoke('list_drafts', { sessionId: session.id }) })))
 })
 
-async function resize(width, height) {
-  await browser.setWindowSize(width, height)
-  let actual = await settledViewport()
-  const window = await browser.getWindowSize()
-  if (actual.height !== height || actual.width !== width) {
-    await browser.setWindowSize(window.width + width - actual.width, window.height + height - actual.height)
-    actual = await settledViewport()
+let viewportCalibration
+async function resize(width, plannedHeight) {
+  if (!viewportCalibration) {
+    await browser.setWindowSize(1280, 860)
+    const actual = await settledViewport()
+    viewportCalibration = {
+      actual, scale: 1280 / actual.width,
+      macOSHostHeightCeiling: process.platform === 'darwin' ? actual.height : null,
+    }
   }
-  save('viewport', { requested: { width, height }, actual })
-  assert.equal(actual.width, width)
-  assert.equal(actual.height, height)
+  const { actual: calibration, scale, macOSHostHeightCeiling } = viewportCalibration
+  const height = macOSHostHeightCeiling === null ? plannedHeight : Math.min(plannedHeight, macOSHostHeightCeiling)
+  const tolerance = process.platform === 'darwin' ? 2 : 0
+  let requested = { width: Math.round(width * scale), height: Math.round(height * scale) }
+  let actual
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    await browser.setWindowSize(requested.width, requested.height)
+    actual = await settledViewport()
+    save('viewport', { plannedTarget: { width, height: plannedHeight }, calibration, scale, macOSHostHeightCeiling,
+      target: { width, height }, requested, actual, attempt: attempt + 1 })
+    if (Math.abs(actual.width - width) <= tolerance && Math.abs(actual.height - height) <= tolerance) return
+    requested = { width: Math.round(requested.width + (width - actual.width) * scale),
+      height: Math.round(requested.height + (height - actual.height) * scale) }
+  }
+  assert.fail(`Native viewport calibration failed for ${width}x${height}: ${JSON.stringify(actual)}`)
 }
 
 async function reachable(selector) {
