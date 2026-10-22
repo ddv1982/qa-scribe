@@ -1,8 +1,10 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
+import { Editor } from '@tiptap/core'
+import { richTextEditorExtensions } from '../editor/editorExtensions'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { entryFixture } from '../test/fixtures'
 import {
-  richEditorDocumentFromPlainText, richEditorDocumentToPlainText, richEditorDocumentToStoredBody,
+  richEditorDocumentFromPlainText, richEditorDocumentToPlainText, richEditorDocumentToStoredBody, richEditorDocumentFromStoredBody,
 } from '../editor/editorDocument'
 import { completedChatFixture } from './useSessionChat.testSupport'
 import {
@@ -20,6 +22,35 @@ describe('Session Chat explicit canonical Note handoff', () => {
     api.submitChat.mockResolvedValue(receipt)
   })
   afterEach(cleanupControllerTest)
+
+  it('does not autosave adopted canonical JSON when TipTap emits the same content with editor key order', async () => {
+    vi.useFakeTimers()
+    const { result } = renderHook(() => useAppController())
+    await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+    const stored = richEditorDocumentToStoredBody(richEditorDocumentFromPlainText('Existing Note\nAssistant: Which build?'))
+    const canonical = entryFixture({ ...stored, bodyJson: JSON.stringify(JSON.parse(stored.bodyJson), (_key, value: unknown) =>
+      value && typeof value === 'object' && !Array.isArray(value)
+        ? Object.fromEntries(Object.entries(value).sort(([left], [right]) => left.localeCompare(right))) : value) })
+    api.openSessionNoteState
+      .mockResolvedValueOnce(sessionNoteStateFixture())
+      .mockResolvedValueOnce(sessionNoteStateFixture({ noteEntry: canonical }))
+    api.getChat.mockResolvedValue(completedChatFixture({ submission: receipt, mode: 'write_note', revision: 4 }))
+    await act(async () => { await result.current.sessionChat.onSubmit() })
+    expect(result.current.noteEntry).toEqual(canonical)
+    const editor = new Editor({ extensions: richTextEditorExtensions(), content: richEditorDocumentFromStoredBody(canonical).doc })
+    try {
+      act(() => result.current.setNoteBody({ schemaVersion: 1, doc: editor.getJSON() }))
+      await act(async () => { await vi.advanceTimersByTimeAsync(2000) })
+      expect(api.updateEntry).not.toHaveBeenCalled()
+      expect(result.current.sessionSaveState).toBe('saved')
+      expect(result.current.noteEntry).toEqual(canonical)
+      editor.commands.insertContent('Tester edit')
+      act(() => result.current.setNoteBody({ schemaVersion: 1, doc: editor.getJSON() }))
+      await act(async () => { await vi.advanceTimersByTimeAsync(2000) })
+      expect(api.updateEntry).toHaveBeenCalledTimes(1)
+      expect(result.current.noteEntry?.body).toContain('Tester edit')
+    } finally { editor.destroy() }
+  })
 
   it('flushes Note edits, submits all canonical representations, adopts the updated Note and clears summary undo', async () => {
     const { result } = renderHook(() => useAppController())

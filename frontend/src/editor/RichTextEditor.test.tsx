@@ -11,7 +11,7 @@ vi.mock('../tauri', () => ({
 
 import { getAttachmentPreviewDataUrl } from '../tauri'
 import { FormatToolbar, RichTextEditor, type RichEditorImageUpload } from './RichTextEditor'
-import { emptyRichEditorDocument, richEditorDocumentFromHtml, richEditorDocumentToHtml, type RichEditorDocument } from './editorDocument'
+import { emptyRichEditorDocument, richEditorDocumentFromHtml, richEditorDocumentToHtml, richEditorDocumentsEqual, type RichEditorDocument } from './editorDocument'
 import { managedAttachmentImageHtml } from './editorHtml'
 
 const getAttachmentPreviewDataUrlMock = vi.mocked(getAttachmentPreviewDataUrl)
@@ -67,6 +67,20 @@ describe('RichTextEditor toolbar', () => {
 
     rerender(<RichTextEditor value={emptyRichEditorDocument} onChange={onChange} />)
     await waitFor(() => expect(editor.textContent).toBe(''))
+  })
+
+  it('keeps a stored document equal when editability hydration emits an update without an edit', async () => {
+    const value: RichEditorDocument = { schemaVersion: 1, doc: { content: [
+      { content: [{ text: 'Canonical Note', type: 'text' }], type: 'paragraph' },
+    ], type: 'doc' } }
+    const onChange = vi.fn()
+    const { rerender } = render(<RichTextEditor value={value} onChange={onChange} readOnly />)
+    await screen.findByRole('textbox', { name: 'Note body' })
+    onChange.mockClear()
+    rerender(<RichTextEditor value={value} onChange={onChange} />)
+    await waitFor(() => expect(onChange).toHaveBeenCalled())
+    expect(lastChangeHtml(onChange)).toBe('<p>Canonical Note</p>')
+    expect(richEditorDocumentsEqual(lastChange(onChange), value)).toBe(true)
   })
 
   it('switches between read-only records with different preview labels without crashing', async () => {
