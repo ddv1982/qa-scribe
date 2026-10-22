@@ -3,7 +3,7 @@ import { renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { readClipboardText } from '../fixtures/clipboard-readback.mjs'
+import { assertClipboardHtml, readClipboardText } from '../fixtures/clipboard-readback.mjs'
 
 export async function runClipboardWorkflow() {
   const out = process.env.QA_SCRIBE_E2E_ARTIFACTS
@@ -37,7 +37,7 @@ export async function runClipboardWorkflow() {
   await $('[aria-label="Note copied for Jira"]').waitForDisplayed()
   let payload = readClipboardText()
   assert.equal(payload.plain, '## UX4 Alpha\n\n**Note** exact source.')
-  assert.equal(payload.html, '<h2>UX4 Alpha</h2><p><strong>Note</strong> exact source.</p>')
+  assertClipboardHtml(payload.html, '<h2>UX4 Alpha</h2><p><strong>Note</strong> exact source.</p>')
   save('Lane 1. Copy a Note with formatting', payload)
   await capture('copy-note')
 
@@ -46,7 +46,7 @@ export async function runClipboardWorkflow() {
   await $('[aria-label="Duplicate case copied for Jira"]').waitForDisplayed()
   payload = readClipboardText()
   assert.equal(payload.plain, '## Duplicate case\n\n**UX4 Alpha** saved body.')
-  assert.equal(payload.html, '<h2>Duplicate case</h2><p><strong>UX4 Alpha</strong> saved body.</p>')
+  assertClipboardHtml(payload.html, '<h2>Duplicate case</h2><p><strong>UX4 Alpha</strong> saved body.</p>')
   save('Lane 2. Copy a saved test case', { ...payload, id: fixtures[0].draft.id })
   await capture('copy-test-case')
 
@@ -55,7 +55,7 @@ export async function runClipboardWorkflow() {
   await $('[aria-label="Duplicate finding copied for Jira"]').waitForDisplayed()
   payload = readClipboardText()
   assert.equal(payload.plain, '## Duplicate finding\n\n*UX4 Alpha* finding body.')
-  assert.equal(payload.html, '<h2>Duplicate finding</h2><p><em>UX4 Alpha</em> finding body.</p>')
+  assertClipboardHtml(payload.html, '<h2>Duplicate finding</h2><p><em>UX4 Alpha</em> finding body.</p>')
   save('Lane 3. Copy a Finding', { ...payload, id: fixtures[0].finding.id })
   await capture('copy-finding')
 
@@ -82,7 +82,7 @@ export async function runClipboardWorkflow() {
   await $('[aria-label="Duplicate case copied for Jira"]').waitForDisplayed()
   payload = readClipboardText()
   assert.equal(payload.plain, '## Duplicate case\n\n**UX4 Beta** saved body.')
-  assert.equal(payload.html, '<h2>Duplicate case</h2><p><strong>UX4 Beta</strong> saved body.</p>')
+  assertClipboardHtml(payload.html, '<h2>Duplicate case</h2><p><strong>UX4 Beta</strong> saved body.</p>')
   assert.equal(await browser.getUrl(), beforeUrl)
   assert.deepEqual(await readSaved(), before)
   const activations = await browser.execute(() => window.__ux4Activations)
@@ -97,7 +97,7 @@ export async function runClipboardWorkflow() {
   await $('[aria-label="Duplicate case copied for Jira"]').waitForDisplayed()
   payload = readClipboardText()
   assert.equal(payload.plain, '## Duplicate case\n\n**UX4 Alpha** saved body.')
-  assert.equal(payload.html, '<h2>Duplicate case</h2><p><strong>UX4 Alpha</strong> saved body.</p>')
+  assertClipboardHtml(payload.html, '<h2>Duplicate case</h2><p><strong>UX4 Alpha</strong> saved body.</p>')
   save('Lane 5. Select duplicate titles from different Sessions', { ...payload, target: fixtures[0].draft })
   await capture('copy-identity')
 
@@ -108,7 +108,7 @@ export async function runClipboardWorkflow() {
   await $('[aria-label="Duplicate finding copied for Jira"]').waitForDisplayed()
   payload = readClipboardText()
   assert.equal(payload.plain, '## Duplicate finding\n\n*UX4 Beta* finding body.')
-  assert.equal(payload.html, '<h2>Duplicate finding</h2><p><em>UX4 Beta</em> finding body.</p>')
+  assertClipboardHtml(payload.html, '<h2>Duplicate finding</h2><p><em>UX4 Beta</em> finding body.</p>')
   save('Finding library direct copy', { ...payload, id: fixtures[1].finding.id })
 
   await click('button=Open in Session')

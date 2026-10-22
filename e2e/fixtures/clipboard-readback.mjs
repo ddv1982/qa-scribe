@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 
+export function assertClipboardHtml(actual, fragment, platform = process.platform) {
+  const expected = platform === 'darwin'
+    ? `<html><head><meta http-equiv="content-type" content="text/html; charset=utf-8"></head><body>${fragment}</body></html>`
+    : fragment
+  assert.equal(actual, expected)
+}
+
 export function readClipboardText() {
   if (process.platform === 'linux') {
     const read = (target) => execFileSync('xclip', ['-selection', 'clipboard', '-o', '-target', target], { timeout: 5_000, encoding: 'utf8' })
