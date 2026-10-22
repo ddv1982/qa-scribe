@@ -36,7 +36,7 @@ export function ChatHandoff({ state, onSubmit, onOpenNote }: {
   const id = useId()
   const { handoff, chat } = state
   const reason = handoff.kind === 'added' ? '' : handoff.reason
-  const canAdd = handoff.kind === 'conversation' && !reason
+  const canAdd = handoff.kind === 'conversation' && !handoff.disabled && !reason
   return <>
     {handoff.reviewAvailable && chat ? <SavedConversationReview
       key={JSON.stringify([chat.sessionId, chat.draftId])} chat={chat} unsent={state.composer !== ''} /> : null}
