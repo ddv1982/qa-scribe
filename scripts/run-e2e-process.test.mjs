@@ -1,11 +1,51 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import { createWdioInvocationPlan, runE2e } from './run-e2e.mjs'
 import { qualitySummary } from './write-quality-summary.mjs'
+
+for (const skipBuild of ['0', '1']) {
+  test(`invalid invocation plan fails with a receipt and removes owned data before any spawn (skip build ${skipBuild})`, () => {
+    const directory = mkdtempSync(join(tmpdir(), 'qa-scribe-invalid-plan-test-'))
+    const ownedTmp = join(directory, 'tmp')
+    mkdirSync(ownedTmp)
+    try {
+      const child = spawnSync(process.execPath, ['--input-type=module', '-e', `
+        import { existsSync, readFileSync, readdirSync } from 'node:fs'
+        import { runE2e } from ${JSON.stringify(new URL('./run-e2e.mjs', import.meta.url).href)}
+        let status = null
+        let thrown = null
+        let spawns = 0
+        try {
+          status = runE2e({ QA_SCRIBE_E2E_SCENARIO: 'invalid-scenario',
+            QA_SCRIBE_E2E_SKIP_BUILD: ${JSON.stringify(skipBuild)},
+            QA_SCRIBE_E2E_ARTIFACTS: 'artifacts' }, {
+            spawnSyncImpl() { spawns++; throw new Error('Invalid input must never spawn a command') },
+          })
+        } catch (error) { thrown = error.message }
+        const receipt = existsSync('artifacts/latest-run.json')
+          ? JSON.parse(readFileSync('artifacts/latest-run.json', 'utf8')) : null
+        process.stdout.write(JSON.stringify({ status, thrown, spawns, receipt,
+          retainedOwnedRoots: readdirSync(${JSON.stringify(ownedTmp)}) }))
+      `], { cwd: directory, env: { ...process.env, TMPDIR: ownedTmp, TMP: ownedTmp, TEMP: ownedTmp },
+        encoding: 'utf8', timeout: 5_000 })
+      assert.equal(child.status, 0, child.stderr)
+      const observation = JSON.parse(child.stdout)
+      assert.deepEqual({ ...observation, receipt: observation.receipt?.status ?? null }, {
+        status: 1, thrown: null, spawns: 0, receipt: 'failed', retainedOwnedRoots: [],
+      })
+      assert.deepEqual(observation.receipt.firstFailure, {
+        stage: 'orchestration', message: 'Unknown critical E2E scenario: invalid-scenario',
+      })
+      assert.equal(observation.receipt.exitCode, 1)
+      assert.equal(observation.receipt.isolatedDataRemoved, true)
+      for (const key of ['commands', 'plannedInvocations', 'invocations']) assert.deepEqual(observation.receipt[key], [])
+    } finally { rmSync(directory, { recursive: true, force: true }) }
+  })
+}
 
 for (const [platform, expectedCount] of [['linux', 20], ['darwin', 11]]) {
   test(`${platform} defaults register first use with independent state and receipts`, () => {

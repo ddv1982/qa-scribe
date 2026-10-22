@@ -175,7 +175,7 @@ export function runE2e(environment = process.env, { spawnSyncImpl = spawnSync } 
   let isolatedDataRemoved = false
   let failure = null
   const commands = []
-  const invocations = createWdioInvocationPlan(environment, temporaryRoot, artifacts)
+  let invocations = []
 
   if (environment.QA_SCRIBE_E2E_PRESERVE_ARTIFACTS !== '1') rmSync(artifacts, { recursive: true, force: true })
   mkdirSync(artifacts, { recursive: true })
@@ -247,6 +247,8 @@ export function runE2e(environment = process.env, { spawnSyncImpl = spawnSync } 
   }
 
   try {
+    invocations = createWdioInvocationPlan(environment, temporaryRoot, artifacts)
+    saveReceipt()
     if (!skipBuild) {
       run(
         'frontend-build',
