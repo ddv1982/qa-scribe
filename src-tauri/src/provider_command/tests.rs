@@ -152,3 +152,163 @@ fn make_executable(path: &Path) {
 
 #[cfg(not(unix))]
 fn make_executable(_path: &std::path::Path) {}
+
+#[cfg(unix)]
+#[test]
+fn fixture_lookup_isolation() {
+    use super::{
+        ProviderPathMode, apply_provider_path, provider_executable_path, provider_process_path,
+    };
+    use std::process::Command;
+
+    if let Some(root) = std::env::var_os("QA_SCRIBE_LOOKUP_TEST_ROOT") {
+        let root = PathBuf::from(root);
+        let mode = if std::env::var("QA_SCRIBE_LOOKUP_TEST_MODE").unwrap() == "fast" {
+            ProviderPathMode::Fast
+        } else {
+            ProviderPathMode::Deep
+        };
+        let restricted = cfg!(feature = "e2e")
+            && std::env::var_os("QA_SCRIBE_E2E_PROVIDER_PATH")
+                .is_some_and(|value| !value.is_empty());
+        let present = root.join("fixtures/codex").is_file();
+        for program in ["claude", "codex", "copilot"] {
+            let expected = if restricted {
+                present.then(|| root.join("fixtures").join(program))
+            } else {
+                Some(root.join("host").join(program))
+            };
+            let resolved = provider_executable_path(program, mode);
+            assert_eq!(resolved, expected, "{mode:?} lookup for {program}");
+            let process_path = provider_process_path(program);
+            if restricted && !present {
+                assert_eq!(
+                    process_path.unwrap_err().kind(),
+                    std::io::ErrorKind::NotFound
+                );
+            } else {
+                let executable = process_path.unwrap();
+                if restricted {
+                    assert_eq!(Some(executable.clone()), resolved);
+                    assert!(executable.starts_with(&root));
+                } else {
+                    assert_eq!(executable, PathBuf::from(program));
+                }
+                let mut command = Command::new(executable);
+                command.current_dir(&root);
+                apply_provider_path(&mut command);
+                let output = command.output().expect("synthetic executable runs");
+                assert!(output.status.success(), "{output:?}");
+                let expected_output = if restricted {
+                    "fixture interpreter and tool preserved\n"
+                } else {
+                    "synthetic host executable\n"
+                };
+                assert_eq!(String::from_utf8(output.stdout).unwrap(), expected_output);
+            }
+        }
+        assert_eq!(root.join("host-ran").exists(), !restricted);
+        if restricted && !present {
+            assert!(!root.join("shell-ran").exists());
+        }
+        if std::env::var("QA_SCRIBE_LOOKUP_TEST_SCENARIO").as_deref() == Ok("discovery") {
+            let fast = crate::commands::providers::get_provider_status();
+            assert!(fast.providers.iter().all(|provider| !provider.available));
+            let deep = tauri::async_runtime::block_on(
+                crate::commands::providers::refresh_provider_status(),
+            );
+            assert!(deep.providers.iter().all(|provider| !provider.available));
+            assert!(
+                !root.join("host-ran").exists(),
+                "Deep discovery must not spawn a host executable when its fixture is absent"
+            );
+            assert!(!root.join("shell-ran").exists());
+        }
+        println!(
+            "verified {mode:?}: fixture_authority={restricted}, fixture_present={present}, host_marker={}",
+            root.join("host-ran").exists()
+        );
+        return;
+    }
+
+    let root = std::env::temp_dir().join(format!(
+        "qa-scribe-fixture-lookup-{}",
+        uuid::Uuid::new_v4().simple()
+    ));
+    for mode in ["fast", "deep"] {
+        let mut scenarios = vec!["missing", "present", "unset", "empty"];
+        if cfg!(feature = "e2e") && mode == "deep" {
+            scenarios.push("discovery");
+        }
+        for scenario in scenarios {
+            let directory = root.join(format!("{mode}-{scenario}"));
+            let host = directory.join("host");
+            let fixtures = directory.join("fixtures");
+            fs::create_dir_all(&host).unwrap();
+            fs::create_dir_all(&fixtures).unwrap();
+            for program in ["claude", "codex", "copilot"] {
+                let path = host.join(program);
+                fs::write(&path, "#!/bin/sh\n: > \"$QA_SCRIBE_LOOKUP_HOST_MARKER\"\nprintf 'synthetic host executable\\n'\n").unwrap();
+                make_executable(&path);
+                if scenario == "present" {
+                    let path = fixtures.join(program);
+                    fs::write(&path, "#!/usr/bin/env sh\nux3-fixture-helper\n").unwrap();
+                    make_executable(&path);
+                }
+            }
+            let helper = host.join("ux3-fixture-helper");
+            fs::write(
+                &helper,
+                "#!/bin/sh\nprintf 'fixture interpreter and tool preserved\\n'\n",
+            )
+            .unwrap();
+            make_executable(&helper);
+            let shell = directory.join("login-shell");
+            fs::write(&shell, "#!/bin/sh\n: > \"$QA_SCRIBE_LOOKUP_SHELL_MARKER\"\nprintf '%s' \"$QA_SCRIBE_LOOKUP_HOST_PATH\"\n").unwrap();
+            make_executable(&shell);
+            let host_path =
+                std::env::join_paths([host, PathBuf::from("/usr/bin"), PathBuf::from("/bin")])
+                    .unwrap();
+            let mut command = Command::new(std::env::current_exe().unwrap());
+            command
+                .args([
+                    "--exact",
+                    "provider_command::tests::fixture_lookup_isolation",
+                    "--nocapture",
+                ])
+                .env("QA_SCRIBE_LOOKUP_TEST_ROOT", &directory)
+                .env("QA_SCRIBE_LOOKUP_TEST_MODE", mode)
+                .env("QA_SCRIBE_LOOKUP_TEST_SCENARIO", scenario)
+                .env("CODEX_HOME", directory.join(".codex"))
+                .env("CLAUDE_CONFIG_DIR", directory.join(".claude"))
+                .env("COPILOT_HOME", directory.join(".copilot"))
+                .env("XDG_CONFIG_HOME", directory.join("config"))
+                .env("QA_SCRIBE_LOOKUP_HOST_MARKER", directory.join("host-ran"))
+                .env("QA_SCRIBE_LOOKUP_SHELL_MARKER", directory.join("shell-ran"))
+                .env("QA_SCRIBE_LOOKUP_HOST_PATH", &host_path)
+                .env("PATH", host_path)
+                .env("HOME", &directory)
+                .env("SHELL", shell);
+            match scenario {
+                "unset" => {
+                    command.env_remove("QA_SCRIBE_E2E_PROVIDER_PATH");
+                }
+                "empty" => {
+                    command.env("QA_SCRIBE_E2E_PROVIDER_PATH", "");
+                }
+                _ => {
+                    command.env("QA_SCRIBE_E2E_PROVIDER_PATH", fixtures);
+                }
+            }
+            let output = command.output().expect("isolated lookup test starts");
+            print!("{}", String::from_utf8_lossy(&output.stdout));
+            assert!(
+                output.status.success(),
+                "{mode}-{scenario}: {}{}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+    }
+    fs::remove_dir_all(root).unwrap();
+}

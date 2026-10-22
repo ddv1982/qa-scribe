@@ -1,6 +1,7 @@
 import { useEffect, useState, type KeyboardEvent } from 'react'
 import { BookOpen, Box, ChevronRight, Command as CommandIcon, FileText, Flag, Loader2, PencilLine, Plus, Search, Settings } from 'lucide-react'
 import { catalogSelectorEnabled } from '../settings/catalog'
+import { customModelCatalogAdvisory } from '../settings/modelAdvisories'
 import { NextModelSelection } from '../components/NextModelSelection'
 import { RailItem } from '../components/Common'
 import { formatSessionDate } from '../ui/format'
@@ -22,6 +23,9 @@ export { DeleteConfirmationDialog } from './AppOverlays'
 
 export function AppShell(c: AppController) {
   const chatState: SessionChatViewState = c.sessionChat
+  const customModelAdvisory = customModelCatalogAdvisory(c.activeProvider?.models ?? [], c.selectedModel,
+    catalogSelectorEnabled(c.activeProvider, c.providerStatus?.catalogRollout ?? null)
+      && ['fresh', 'stale'].includes(c.activeProvider?.catalogSnapshot.state ?? ''))
   const modelSelectionControl = <NextModelSelection provider={c.activeProvider} value={c.selectedModel}
     pending={c.settingsWritePending} disabled={!c.modelSelectionReady || !c.activeProvider}
     catalogEnabled={catalogSelectorEnabled(c.activeProvider, c.providerStatus?.catalogRollout ?? null)}
@@ -399,7 +403,8 @@ export function AppShell(c: AppController) {
           selectionWarning={c.effectiveAiSelection?.warning ?? c.activeProvider?.defaultSnapshot.warnings.find((warning) => warning.severity === 'blocking')?.message ?? null}
           modelSelectionControl={modelSelectionControl}
           modelSelectionPending={c.settingsWritePending}
-          selectionAdvisories={c.effectiveAiSelection?.advisories.map((warning) => warning.message) ?? []}
+          selectionAdvisories={[...(c.effectiveAiSelection?.advisories.map((warning) => warning.message) ?? []),
+            ...(customModelAdvisory ? [customModelAdvisory] : [])]}
           onConfigureAi={() => {
             c.setPendingGenerationAction(null)
             runCommand('ai.configure')

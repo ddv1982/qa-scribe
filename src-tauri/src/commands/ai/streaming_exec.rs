@@ -29,7 +29,7 @@ use qa_scribe_core::ai::{
 use crate::{
     jobs::JobControl,
     process_io::{configure_process_group, kill_child_group},
-    provider_command::{NeutralProviderCwd, apply_provider_path},
+    provider_command::{NeutralProviderCwd, apply_provider_path, provider_process_path},
 };
 
 /// Overall watchdog bound for a single streaming generation. A CLI that emits
@@ -172,7 +172,9 @@ impl ProviderExecutor for ProcessProviderExecutor<'_> {
             return Ok(ProviderExecution::cancelled());
         }
 
-        let mut process = Command::new(&command.program);
+        let executable =
+            provider_process_path(&command.program).map_err(|error| error.to_string())?;
+        let mut process = Command::new(executable);
         process
             .args(&command.args)
             .current_dir(provider_cwd.path())

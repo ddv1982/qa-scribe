@@ -256,58 +256,63 @@ export function SettingsView({
               </div>
             </div>
 
-            <div className={`execution-overview ${providerDiscoveryState}`} role="status" aria-live="polite">
-              <div className="execution-status-row">
-                <span className="execution-status-icon">{discoveryStatusIcon(providerDiscoveryState)}</span>
-                <div>
-                  <span>CLI status</span>
-                  <strong>{discoveryStatusTitle(providerDiscoveryState, snapshot?.state)}</strong>
+            {defaultProviderUnavailable && defaultProviderStatus ? <p className="inline-message blocking" role="alert">{sanitizedProviderReason(defaultProviderStatus)}</p> : null}
+            {settingsWritePending ? <p className="inline-message advisory" role="status">Saving model preference… Wait before saving settings.</p> : null}
+            {effective?.warning ? <p className="inline-message blocking" role="alert">{effective.warning}</p> : null}
+            {snapshot?.warnings.map((warning) => (
+              <p className={`inline-message ${warning.severity}`} key={warning.code} role={warning.severity === 'blocking' ? 'alert' : 'status'}>{warning.message}</p>
+            ))}
+            {providerDiscoveryState === 'stale' || providerDiscoveryState === 'error' || snapshot?.error ? (
+              <p className="inline-message advisory" role="status">{discoveryStatusTitle(providerDiscoveryState, snapshot?.state)}. {discoveryStatusBody(providerDiscoveryState, snapshot)} {snapshot?.error && snapshot.state === 'stale' ? sanitizedDiscoveryRecovery(snapshot.error.code, defaultProviderStatus?.label ?? 'the CLI') : null}</p>
+            ) : null}
+            <details className="cli-details">
+              <summary>Execution diagnostics</summary>
+              <div className={`execution-overview ${providerDiscoveryState}`} role="status" aria-live="polite">
+                <div className="execution-status-row">
+                  <span className="execution-status-icon">{discoveryStatusIcon(providerDiscoveryState)}</span>
+                  <div>
+                    <span>CLI status</span>
+                    <strong>{discoveryStatusTitle(providerDiscoveryState, snapshot?.state)}</strong>
+                  </div>
+                  <p>{discoveryStatusBody(providerDiscoveryState, snapshot)}</p>
                 </div>
-                <p>{discoveryStatusBody(providerDiscoveryState, snapshot)}</p>
+
+                {effective ? (
+                  <div className="execution-run-preview" aria-label={settingsDirty ? 'Preview if saved' : 'Next run'}>
+                    <div className="execution-run-heading">
+                      <span>{settingsDirty ? 'Preview if saved' : 'Next run'}</span>
+                      <strong>{defaultProviderLabel(defaultProvider, defaultProviderStatus)}</strong>
+                    </div>
+                    <div className="execution-value-list">
+                      <span className="execution-value">
+                        <Cpu size={16} />
+                        <span><small>Model</small><strong>{effective.model}</strong></span>
+                      </span>
+                      <span className="execution-value">
+                        <BrainCircuit size={16} />
+                        <span><small>Reasoning</small><strong>{effective.reasoning ?? 'CLI default'}</strong></span>
+                      </span>
+                    </div>
+                    <p>{effective.runtimeSummary}</p>
+                  </div>
+                ) : null}
               </div>
 
-              {effective ? (
-                <div className="execution-run-preview" aria-label={settingsDirty ? 'Preview if saved' : 'Next run'}>
-                  <div className="execution-run-heading">
-                    <span>{settingsDirty ? 'Preview if saved' : 'Next run'}</span>
-                    <strong>{defaultProviderLabel(defaultProvider, defaultProviderStatus)}</strong>
-                  </div>
-                  <div className="execution-value-list">
-                    <span className="execution-value">
-                      <Cpu size={16} />
-                      <span><small>Model</small><strong>{effective.model}</strong></span>
-                    </span>
-                    <span className="execution-value">
-                      <BrainCircuit size={16} />
-                      <span><small>Reasoning</small><strong>{effective.reasoning ?? 'CLI default'}</strong></span>
-                    </span>
-                  </div>
-                  <p>{effective.runtimeSummary}</p>
-                  {effective.warning ? <p className="inline-message blocking" role="alert">{effective.warning}</p> : null}
-                  {snapshot?.warnings.map((warning) => (
-                    <p className={`inline-message ${warning.severity}`} key={warning.code} role={warning.severity === 'blocking' ? 'alert' : 'status'}>
-                      {warning.message}
-                    </p>
-                  ))}
+              {snapshot ? (
+                <div>
+                  <dl>
+                    <div><dt>CLI version</dt><dd>{snapshot.cliVersion ?? 'Not reported'}</dd></div>
+                    <div><dt>Resolution scope</dt><dd>{snapshot.resolutionScope.label}</dd></div>
+                    <div><dt>Checked</dt><dd>{formatCheckedAt(snapshot.checkedAt)}</dd></div>
+                    <div><dt>Model source</dt><dd>{originDetail(snapshot.model.origin)}</dd></div>
+                    <div><dt>Reasoning source</dt><dd>{originDetail(snapshot.reasoningEffort.origin)}</dd></div>
+                    {catalog ? <div><dt>Model catalog</dt><dd>{catalogSourceDescription(catalog.source)} · {formatCheckedAt(catalog.checkedAt)}</dd></div> : null}
+                  </dl>
+                  {snapshot.error ? <p>{sanitizedDiscoveryRecovery(snapshot.error.code, defaultProviderStatus?.label ?? 'the CLI')}</p> : null}
+                  <code>{effective ? effectiveCommand(defaultProvider, effective.modelOverride ?? 'default', effective.reasoningOverride) : ''}</code>
                 </div>
               ) : null}
-            </div>
-
-            {snapshot ? (
-              <details className="cli-details">
-                <summary>CLI details</summary>
-                <dl>
-                  <div><dt>CLI version</dt><dd>{snapshot.cliVersion ?? 'Not reported'}</dd></div>
-                  <div><dt>Resolution scope</dt><dd>{snapshot.resolutionScope.label}</dd></div>
-                  <div><dt>Checked</dt><dd>{formatCheckedAt(snapshot.checkedAt)}</dd></div>
-                  <div><dt>Model source</dt><dd>{originDetail(snapshot.model.origin)}</dd></div>
-                  <div><dt>Reasoning source</dt><dd>{originDetail(snapshot.reasoningEffort.origin)}</dd></div>
-                  {catalog ? <div><dt>Model catalog</dt><dd>{catalogSourceDescription(catalog.source)} · {formatCheckedAt(catalog.checkedAt)}</dd></div> : null}
-                </dl>
-                {snapshot.error ? <p>{sanitizedDiscoveryRecovery(snapshot.error.code, defaultProviderStatus?.label ?? 'the CLI')}</p> : null}
-                <code>{effective ? effectiveCommand(defaultProvider, effective.modelOverride ?? 'default', effective.reasoningOverride) : ''}</code>
-              </details>
-            ) : null}
+            </details>
           </section>
         ) : null}
 

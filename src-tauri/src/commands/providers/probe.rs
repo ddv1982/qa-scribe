@@ -14,7 +14,9 @@ use serde_json::{Value, json};
 use crate::{
     commands::providers::{ProviderDiscoveryError, ProviderDiscoveryErrorCode},
     process_io::{configure_process_group, kill_child_group},
-    provider_command::{NeutralProviderCwd, ProviderPathMode, apply_provider_path},
+    provider_command::{
+        NeutralProviderCwd, ProviderPathMode, apply_provider_path, provider_process_path,
+    },
 };
 
 mod cancel;
@@ -113,7 +115,9 @@ fn read_codex_app_server_defaults(
         None => NeutralProviderCwd::new(),
     }
     .map_err(|error| discovery_error(ProviderDiscoveryErrorCode::SpawnFailed, error))?;
-    let mut command = Command::new("codex");
+    let executable = provider_process_path("codex")
+        .map_err(|error| discovery_error(ProviderDiscoveryErrorCode::SpawnFailed, error))?;
+    let mut command = Command::new(executable);
     command.arg("app-server").current_dir(provider_cwd.path());
     apply_provider_path(&mut command);
     configure_process_group(&mut command);

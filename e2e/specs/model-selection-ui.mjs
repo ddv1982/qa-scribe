@@ -52,6 +52,8 @@ export async function generation(sessionId, provider, model, marker) {
   execution(provider, provider === 'codex' ? 'missing' : 'init', marker)
   await click('Summarize notes')
   await $('dialog.generation-preflight[open]').waitForDisplayed()
+  const details = await $('dialog.generation-preflight .preflight-execution-details')
+  if (!await browser.execute(node => node.open, details)) await (await details.$('summary')).click()
   await modelPreference(provider, model)
   const summary = await $('.preflight-execution-summary').getText()
   const modelRow = await browser.execute(() => {

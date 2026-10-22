@@ -14,7 +14,13 @@ export function NextModelSelection({ provider, value, pending, disabled, catalog
 }) {
   const descriptionId = useId()
   const snapshot = provider?.defaultSnapshot
-  return <section className="next-model-selection" aria-label="Next invocation model">
+  return <section className="next-model-selection" aria-label="Next invocation model" onFocusCapture={(event) => {
+    const focused = event.currentTarget.ownerDocument.activeElement
+    if (!(focused instanceof HTMLElement) || !event.currentTarget.closest('.generation-preflight')) return
+    requestAnimationFrame(() => {
+      if (focused.ownerDocument.activeElement === focused) focused.scrollIntoView({ block: 'nearest' })
+    })
+  }}>
     <p className="chat-help">Next invocation · {provider?.label ?? 'AI provider'}</p>
     <ModelCombobox models={provider?.models ?? []} value={value}
       placement="above" disabled={disabled || pending} onChange={onChange}

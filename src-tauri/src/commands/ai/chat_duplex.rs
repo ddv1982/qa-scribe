@@ -26,7 +26,7 @@ use crate::{
         GenerationJobStatus, JobControl, JobStore,
     },
     process_io::{configure_process_group, kill_child_group},
-    provider_command::{NeutralProviderCwd, apply_provider_path},
+    provider_command::{NeutralProviderCwd, apply_provider_path, provider_process_path},
 };
 
 mod process;
@@ -118,7 +118,9 @@ fn execute_chat_duplex(
     if context.control.is_cancelled() {
         return Ok(output(None, true));
     }
-    let mut process = Command::new(&command.program);
+    let executable = provider_process_path(&command.program)
+        .map_err(|error| format!("Could not start provider: {error}"))?;
+    let mut process = Command::new(executable);
     process
         .args(&command.args)
         .current_dir(cwd.path())

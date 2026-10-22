@@ -752,3 +752,30 @@ button:disabled:hover {
 .ai-provider-state {
   font-variant-numeric: tabular-nums;
 }
+
+.preflight-execution-details {
+  min-width: 0;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+}
+
+.preflight-execution-details > summary {
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.preflight-execution-details > summary span {
+  display: block;
+  margin-top: var(--space-1);
+  color: var(--text-secondary);
+  font-weight: 400;
+  line-height: var(--leading-normal);
+}
+
+.preflight-execution-content {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-2);
+}

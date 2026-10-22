@@ -170,14 +170,14 @@ Linux keyboard checks use trusted XTEST events. The embedded WebDriver generates
 
 **Review gate.** Review the interaction before merge.
 
-- [ ] Provide the operator with creation and failure screenshots and `UX-2-review.mp4`, a 30 to 60 second video. Obtain the independent verdict at the same patch.
+- [x] Provide the operator with creation and failure screenshots and `UX-2-review.mp4`, a 30 to 60 second video. Obtain the independent verdict at the same patch.
 
 
-The isolated UX-2 implementation starts at `7c84c5f`. Local evidence is `artifacts/ux-improvements/UX-2/delivery.json`, which records the owner handoff and source checks. It binds all 16 changed source files, 597 frontend tests, the ten Linux scenarios, both record kinds at 320 pixels in both themes, and a 40-second actual desktop video. The bounded ten-creation probe changes New-to-focused-title from New, Edit, and title click to one New activation, with zero duplicates. This is an action-count result, with no speed or resource-use claim. Failed observation attempts remain in the handoff. The first independent OpenAI review returned FAIL after confirming a durable-create cache defect. The correction refreshes persisted records independently of superseded navigation while retaining the editor epoch guard. Parent native reproduction covers both kinds, with old-head failures retained. Parent correction checks passed all 605 frontend tests and the unchanged two-case native cache-race probe. The original two failing native assertions now pass without changing the probe. Final corrected-head review and hosted CI remain required.
+The isolated UX-2 implementation starts at `7c84c5f`. Local evidence is `artifacts/ux-improvements/UX-2/delivery.json`, which records the owner handoff and source checks. It binds all 16 changed source files, 597 frontend tests, the ten Linux scenarios, both record kinds at 320 pixels in both themes, and a 40-second actual desktop video. The bounded ten-creation probe changes New-to-focused-title from New, Edit, and title click to one New activation, with zero duplicates. This is an action-count result, with no speed or resource-use claim. Failed observation attempts remain in the handoff. The first independent OpenAI review returned FAIL after confirming a durable-create cache defect. The correction refreshes persisted records independently of superseded navigation while retaining the editor epoch guard. Parent native reproduction covers both kinds, with old-head failures retained. Parent correction checks passed all 605 frontend tests and the unchanged two-case native cache-race probe. The original two failing native assertions now pass without changing the probe. Independent gpt-6-astra round 2 returned PASS+NOTES at exact `6f06188`, with fresh aggregate checks, all 605 tests, both cache-race cases, and all ten ordinary native scenarios. CI run `39685881261` passed all jobs, including ten actual macOS desktop invocations. PR #67 merged normally as `c19e58a`. Evidence is `artifacts/ux-improvements/UX-2/merge-readiness.json`. The parent reviewed the UX-1 and UX-2 screenshots and native outcomes as the first usability checkpoint. Actions are reachable and one creation action reaches the exact focused editor. Later phases remain within the approved plan.
 
 **Merge.**
 
-- [ ] Require protected CI, exact-patch review, and applicable user authority. Keep persistence semantics unchanged.
+- [x] Require protected CI, exact-patch review, and applicable user authority. Keep persistence semantics unchanged.
 
 ## Put test choices before execution details (UX-3)
 
@@ -185,49 +185,55 @@ The isolated UX-2 implementation starts at `7c84c5f`. Local evidence is `artifac
 
 **Files.**
 
-- [ ] Edit `frontend/src/workflows/generationPreflight.tsx`, `frontend/src/views/SettingsView.tsx`, `frontend/src/components/NextModelSelection.tsx`, and their existing tests.
-- [ ] Edit the relevant rules in `frontend/src/styles/shell.css`, `frontend/src/styles/model-selection.css`, and `frontend/src/styles/responsive.css`.
-- [ ] Extend `e2e/specs/generation-preflight-layout.e2e.mjs` and preserve the current model-selection scenarios.
+- [x] Edit `frontend/src/workflows/generationPreflight.tsx`, `frontend/src/views/SettingsView.tsx`, `frontend/src/components/NextModelSelection.tsx`, and their existing tests.
+- [x] Edit the relevant rules in `frontend/src/styles/shell.css`, `frontend/src/styles/model-selection.css`, and `frontend/src/styles/responsive.css`.
+- [x] Extend `e2e/specs/generation-preflight-layout.e2e.mjs` and preserve the current model-selection scenarios.
+
+- [x] Make explicit E2E fixture executable lookup authoritative in `src-tauri/src/provider_command.rs` and bind the four existing discovery and generation launch sites. Preserve production program names and subprocess PATH. Verify missing fixtures with synthetic host markers.
 
 **Build.**
 
-- [ ] Adopt prototype B's task-first order. Show material and execution choice in one short summary, then Output, Depth, and Test design. Put full provenance and model controls inside expandable execution details.
-- [ ] Keep warnings, blockers, pending model writes, and destructive Summary consequences visible outside collapsed details. Expand details automatically when user action there is required.
-- [ ] Preserve default delegation, saved overrides, source information, timestamps, and global preference scope. Do not show an unresolved CLI default as a known model.
-- [ ] Update the dialog's focus handling to exclude hidden controls in collapsed details. Verify native select and model-popover placement after the move.
-- [ ] Simplify Settings into provider, model, and reasoning choices with an optional diagnostic section. Keep readiness and concrete recovery steps visible. Link existing setup guidance rather than executing installation or sign-in commands automatically.
+- [x] Adopt prototype B's task-first order. Show material and execution choice in one short summary, then Output, Depth, and Test design. Put full provenance and model controls inside expandable execution details.
+- [x] Keep warnings, blockers, pending model writes, and destructive Summary consequences visible outside collapsed details. Expand details automatically when user action there is required.
+- [x] Preserve default delegation, saved overrides, source information, timestamps, and global preference scope. Do not show an unresolved CLI default as a known model.
+- [x] Update the dialog's focus handling to exclude hidden controls in collapsed details. Verify native select and model-popover placement after the move.
+- [x] Simplify Settings into provider, model, and reasoning choices with an optional diagnostic section. Keep readiness and concrete recovery steps visible. Link existing setup guidance rather than executing installation or sign-in commands automatically.
 
 **You see.**
 
-- [ ] At 1280 by 720, the initial test-case dialog shows Output, Depth, Auto, and Generate without scrolling. All presets and execution details remain available at normal text sizes.
+- [x] At 1280 by 720, the initial test-case dialog shows Output, Depth, Auto, and Generate without scrolling. All presets and execution details remain available at normal text sizes.
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] Run the existing generationPreflight, NextModelSelection, SettingsView, settings defaults, and controller model-selection tests. Add behavior checks for visible blockers, preserved values, and collapsed-details keyboard handling.
+- [x] Run the existing generationPreflight, NextModelSelection, SettingsView, settings defaults, and controller model-selection tests. Add behavior checks for visible blockers, preserved values, and collapsed-details keyboard handling.
 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on the configured fast profile at the PR head are bounded scenario labels under the boot recipe.
 
-- [ ] Lane 1. Open test-case generation in dark mode at laptop height. Save `preflight-dark.png`. Pass when the common choices and Generate are initially visible.
-- [ ] Lane 2. Repeat in light mode. Save `preflight-light.png`. Pass when hierarchy and focus remain clear.
-- [ ] Lane 3. Select each technique, output, and depth using fixture generation. Save `preflight-options.png`. Pass when the submitted request preserves the selected values.
-- [ ] Lane 4. Expand execution details. Save `execution-expanded.png`. Pass when provenance, model selection, and preference scope remain accessible.
-- [ ] Lane 5. Tab and Shift-Tab with details collapsed and expanded. Save `execution-keyboard.png`. Pass when focus never enters hidden controls or escapes the dialog.
-- [ ] Lane 6. Show an unavailable or stale provider fixture. Save `execution-blocked.png`. Pass when the reason and recovery action are visible without opening details.
-- [ ] Lane 7. Change a model while its preference write is pending. Save `model-pending.png`. Pass when generation remains disabled until the correct selection settles.
-- [ ] Lane 8. Open Summary and Finding preflights. Save `other-preflights.png`. Pass when their actual consequences remain explicit.
-- [ ] Lane 9. Use Settings with no ready provider. Save `provider-setup.png`. Pass when setup guidance is actionable and no command runs automatically.
-- [ ] Lane 10. Open model selection at 640 by 520. Save `model-popover-narrow.png`. Pass when choices, warnings, and confirmation remain reachable.
+- [x] Lane 1. Open test-case generation in dark mode at laptop height. Save `preflight-dark.png`. Pass when the common choices and Generate are initially visible.
+- [x] Lane 2. Repeat in light mode. Save `preflight-light.png`. Pass when hierarchy and focus remain clear.
+- [x] Lane 3. Select each technique, output, and depth using fixture generation. Save `preflight-options.png`. Pass when the submitted request preserves the selected values.
+- [x] Lane 4. Expand execution details. Save `execution-expanded.png`. Pass when provenance, model selection, and preference scope remain accessible.
+- [x] Lane 5. Tab and Shift-Tab with details collapsed and expanded. Save `execution-keyboard.png`. Pass when focus never enters hidden controls or escapes the dialog.
+- [x] Lane 6. Show an unavailable or stale provider fixture. Save `execution-blocked.png`. Pass when the reason and recovery action are visible without opening details.
+- [x] Lane 7. Change a model while its preference write is pending. Save `model-pending.png`. Pass when generation remains disabled until the correct selection settles.
+- [x] Lane 8. Open Summary and Finding preflights. Save `other-preflights.png`. Pass when their actual consequences remain explicit.
+- [x] Lane 9. Use Settings with no ready provider. Save `provider-setup.png`. Pass when setup guidance is actionable and no command runs automatically.
+- [x] Lane 10. Open model selection at 640 by 520. Save `model-popover-narrow.png`. Pass when choices, warnings, and confirmation remain reachable.
 
 **Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] Metric. Count steps to accept defaults, metadata sections shown initially, preference writes, and provider invocations.
-- [ ] Probe. Run the same preflight and discovery fixtures on trunk first and head second. Use existing event receipts, not a new benchmark system.
-- [ ] Baseline. Capture the current repeated model details and initial test-design clipping at laptop height.
-- [ ] Rule. Require no extra mandatory confirmation for accepted defaults, zero provider invocations from opening or expanding details, and exactly the intended preference writes. Keep local actions within the existing 10-second wait.
+- [x] Metric. Count steps to accept defaults, metadata sections shown initially, preference writes, and provider invocations.
+- [x] Probe. Run the same preflight and discovery fixtures on trunk first and head second. Use existing event receipts, not a new benchmark system.
+- [x] Baseline. Capture the current repeated model details and initial test-design clipping at laptop height.
+- [x] Rule. Require no extra mandatory confirmation for accepted defaults, zero provider invocations from opening or expanding details, and exactly the intended preference writes. Keep local actions within the existing 10-second wait.
 
 **Review gate.** Review the interaction before merge.
 
 - [ ] Provide the operator with collapsed, expanded, and blocked screenshots and `UX-3-review.mp4`, a 30 to 60 second video. Obtain the independent verdict at the same patch.
+
+The UX-3 local delivery is recorded in `artifacts/ux-improvements/UX-3/delivery.json`. Original exact-base captures and the scoped implementation cover all ten Linux scenarios, literal generation requests, unchanged 320-pixel layouts, and a recorded walkthrough. The corrected source passes 626 frontend tests in the owner and parent. Fresh correction proof covers the visible custom-model advisory, missing-provider readiness, maintained preflight layout, model selection and restart, and all three catalog rollout modes. Each of eight corrected native invocations records zero synthetic host-provider markers. Existing macOS available-height calibration is retained, with unavailable 720-pixel coverage explicitly qualified. Parent validation also passed the unchanged warning probe, maintained native preflight layout, eight Rust tests with the E2E feature enabled and eight without it, formatting, and Clippy. Independent review and hosted macOS verification remain pending.
+
+Early original test runs probed installed CLI status and catalogs through a fallback path. No real generation was requested, but external traffic was not captured. Those runs are excluded. The correction makes fixture authority structural under the E2E feature. Historical deviation and failed attempts remain retained.
 
 **Merge.**
 
