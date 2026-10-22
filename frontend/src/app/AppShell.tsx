@@ -364,6 +364,7 @@ export function AppShell(c: AppController) {
             settingsDraft={c.settingsDraft}
             settingsDirty={c.settingsDirty}
             settingsSaveState={c.settingsSaveState}
+            settingsSaveError={c.error}
             settingsWritePending={c.settingsWritePending}
             theme={c.theme}
             updateSettingsDraft={c.updateSettingsDraft}

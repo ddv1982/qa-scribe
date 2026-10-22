@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 // Gate: WCAG contrast for token pairings, both themes, parsed from base.css.
-// color-mix() is unsupported: those pairs are skipped, not contrast-verified.
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
@@ -31,7 +30,6 @@ function resolve(value, theme, depth = 0) {
 }
 
 function parseColor(value) {
-  if (value.includes('color-mix')) return null; // skipped pair
   let m = value.match(/^#([0-9a-f]{6})$/i);
   if (m) {
     const n = parseInt(m[1], 16);
@@ -92,20 +90,23 @@ const PAIRS = [
   ['on-accent', 'accent', 4.5],
   ['on-accent', 'success', 4.5],
   ['on-accent', 'danger', 4.5],
+  ['on-accent', 'action-primary-hover', 4.5],
+  ['on-accent', 'action-danger-hover', 4.5],
+  ['danger', 'action-danger-tint', 4.5],
+  ...['surface-base', 'surface-panel', 'surface-raised', 'surface-sunken', 'surface-overlay'].flatMap((surface) => [
+    ['accent', surface, 3],
+    ['danger', surface, 4.5],
+    ['success', surface, 4.5],
+  ]),
 ];
 
 let failures = 0;
-let skipped = 0;
 for (const [themeName, theme] of [['light', light], ['dark', dark]]) {
   for (const [fgName, bgName, min] of PAIRS) {
     const fgRaw = resolve(`var(--${fgName})`, theme);
     const bgRaw = resolve(`var(--${bgName})`, theme);
     const fgC = parseColor(fgRaw);
     const bgC = parseColor(bgRaw);
-    if (!fgC || !bgC) {
-      skipped++;
-      continue;
-    }
     // Composite translucent colors over the theme's base surface.
     const base = parseColor(resolve('var(--surface-base)', theme));
     const bg = bgC.a < 1 ? compositeOver(bgC, base) : bgC;
@@ -124,4 +125,4 @@ if (failures > 0) {
   console.error(`\ncontrast: ${failures} failing pair(s)`);
   process.exit(1);
 }
-console.log(`contrast: OK (${PAIRS.length * 2 - skipped} pairs checked, ${skipped} color-mix pairs skipped)`);
+console.log(`contrast: OK (${PAIRS.length * 2} pairs checked, no skipped states)`);

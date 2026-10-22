@@ -1,3 +1,4 @@
+import { ActionButton } from '../components/ActionButton'
 import type { ReactNode, Ref } from 'react'
 import { copyMatchesSnapshot, type ClipboardSnapshot, type CopyState } from '../app/copyActions'
 import { CheckCircle2, Copy, Image as ImageIcon, Loader2, PencilLine, Save, Trash2, X } from 'lucide-react'
@@ -168,14 +169,10 @@ export function RichRecordActions({
 }) {
   return <>
     {copyControls}
-    <button className={editing ? 'primary-button' : 'secondary-button'} type="button" disabled={isBusy} onClick={editing ? onSave : onEdit}>
-      {saving ? <Loader2 className="spin" size={16} /> : editing ? <Save size={16} /> : <PencilLine size={16} />}
+    <ActionButton variant={editing ? 'primary' : 'secondary'} icon={editing ? Save : PencilLine} loading={saving} disabled={isBusy} onClick={editing ? onSave : onEdit}>
       {editing ? 'Save' : 'Edit'}
-    </button>
-    {editing ? <button className="secondary-button" type="button" disabled={isBusy} onClick={onCancelEdit}>
-      <X size={16} /> Discard
-    </button> : <button className="icon-button danger" type="button" aria-label={deleteLabel} title={deleteTitle} disabled={isBusy} onClick={onDelete}>
-      {deleting ? <Loader2 className="spin" size={16} /> : <Trash2 size={16} />}
-    </button>}
+    </ActionButton>
+    {editing ? <ActionButton variant="destructive-quiet" icon={X} disabled={isBusy} onClick={onCancelEdit}>Discard</ActionButton>
+      : <ActionButton variant="destructive-quiet" iconOnly icon={Trash2} aria-label={deleteLabel} title={deleteTitle} loading={deleting} disabled={isBusy} onClick={onDelete} />}
   </>
 }

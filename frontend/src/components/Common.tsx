@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { Bug, Check, CheckCircle2, Loader2, Save, type LucideIcon } from 'lucide-react'
+import { ActionButton } from './ActionButton'
 import type { BusyAction, SettingsSaveState } from '../ui/types'
 
 export function StatePanel({
@@ -65,24 +67,32 @@ export function SaveSettingsButton({
   busyAction,
   disabled,
   state,
+  error,
   onSave,
 }: {
   label: string
   busyAction: BusyAction | null
   disabled: boolean
   state: SettingsSaveState
+  error?: string | null
   onSave: () => Promise<unknown>
 }) {
   const saving = busyAction === 'save-settings' || state === 'saving'
   const saved = state === 'saved' && !saving
   const failed = state === 'error' && !saving
-  const className = saved ? 'primary-button success-button' : failed ? 'primary-button danger-button' : 'primary-button'
+  const actionLabel = failed ? 'Try again' : label
+  const [pendingLabel, setPendingLabel] = useState(label)
 
   return (
-    <button className={className} type="button" disabled={disabled || saving} onClick={() => void onSave()}>
-      {saving ? <Loader2 className="spin" size={16} /> : saved ? <CheckCircle2 size={16} /> : <Save size={16} />}
-      {saving ? 'Saving...' : saved ? 'Saved' : failed ? 'Try again' : label}
-    </button>
+    <div className="settings-save-feedback">
+      <span className="settings-save-status" role="status">
+        {saved ? <><CheckCircle2 size={16} aria-hidden="true" />Saved</> : null}
+      </span>
+      <ActionButton variant="primary" icon={Save} loading={saving} disabled={disabled} onClick={() => { setPendingLabel(actionLabel); void onSave() }}>
+        {saving ? pendingLabel : actionLabel}
+      </ActionButton>
+      {failed ? <p className="settings-save-error" role="alert">{error ?? 'Could not save settings. Your changes are still here.'}</p> : null}
+    </div>
   )
 }
 

@@ -1,5 +1,6 @@
-import { useState, type KeyboardEvent } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { Command as CommandIcon } from 'lucide-react'
+import { ActionButton } from '../components/ActionButton'
 import { useModalDialog } from '../hooks/useModalDialog'
 import type { AppCommand } from './commandRegistry'
 
@@ -16,7 +17,9 @@ export function PendingChangesDialog({
   onDiscard: () => void
   onSave: () => void
 }) {
+  const cancelRef = useRef<HTMLButtonElement>(null)
   const dialogRef = useModalDialog(onCancel)
+  useEffect(() => { cancelRef.current?.focus() }, [])
   const title = recoveredSummaryConflict ? 'Choose which Note to keep' : 'Save before leaving?'
   const body = recoveredSummaryConflict
     ? 'A recovered Summary replaced locally authored text. Restore the authored text, keep the visible generated Summary and its edits, or stay here. Keeping the Summary also discards any other unsaved changes.'
@@ -29,9 +32,18 @@ export function PendingChangesDialog({
         <p>{body}</p>
       </div>
       <div className="confirmation-actions pending-change-actions">
-        <button className="secondary-button" type="button" disabled={isBusy} onClick={onCancel}>Cancel</button>
-        <button className="danger-button" type="button" disabled={isBusy} onClick={onDiscard}>{recoveredSummaryConflict ? 'Keep generated Summary' : 'Discard changes'}</button>
-        <button className="primary-button" type="button" disabled={isBusy} onClick={onSave}>{recoveredSummaryConflict ? 'Restore authored text' : 'Save and continue'}</button>
+        {recoveredSummaryConflict ? (
+          <>
+            <ActionButton ref={cancelRef} disabled={isBusy} onClick={onCancel}>Cancel</ActionButton>
+            <ActionButton variant="destructive-quiet" disabled={isBusy} onClick={onDiscard}>Keep generated Summary</ActionButton>
+          </>
+        ) : (
+          <>
+            <ActionButton variant="destructive-quiet" className="pending-change-discard" disabled={isBusy} onClick={onDiscard}>Discard changes</ActionButton>
+            <ActionButton ref={cancelRef} disabled={isBusy} onClick={onCancel}>Keep editing</ActionButton>
+          </>
+        )}
+        <ActionButton variant="primary" disabled={isBusy} onClick={onSave}>{recoveredSummaryConflict ? 'Restore authored text' : 'Save and continue'}</ActionButton>
       </div>
     </dialog>
   )
@@ -122,7 +134,9 @@ export function DeleteConfirmationDialog({
   onCancel: () => void
   onConfirm: () => void
 }) {
+  const cancelRef = useRef<HTMLButtonElement>(null)
   const dialogRef = useModalDialog(onCancel)
+  useEffect(() => { cancelRef.current?.focus() }, [])
   return (
     <dialog ref={dialogRef} className="confirmation-dialog" aria-labelledby="delete-dialog-title">
       <div>
@@ -131,8 +145,8 @@ export function DeleteConfirmationDialog({
         <p>{copy.body}</p>
       </div>
       <div className="confirmation-actions">
-        <button className="secondary-button" type="button" disabled={isBusy} onClick={onCancel}>Cancel</button>
-        <button className="primary-button danger-button" type="button" disabled={isBusy} onClick={onConfirm}>{copy.confirmLabel}</button>
+        <ActionButton ref={cancelRef} disabled={isBusy} onClick={onCancel}>Cancel</ActionButton>
+        <ActionButton variant="destructive-confirmation" disabled={isBusy} onClick={onConfirm}>{copy.confirmLabel}</ActionButton>
       </div>
     </dialog>
   )
