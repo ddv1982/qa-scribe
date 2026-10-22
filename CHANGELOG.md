@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.8.17 - 2026-10-22
+
+- Make Create finding and Create test cases open ordinary editors from Notes and collections, with AI creation available as a separate option.
+- Simplify clipboard controls to Copy and include visible unsaved edits without implicitly saving them. Keep screenshot copying separate.
+- Add a first-use welcome, a read-only synthetic example, visible Help, a task-focused getting-started guide, and a qualitative pilot guide.
+- Keep saved-conversation review and expansion stable during composer autosave while preserving Add, Send, and restart safety gates.
+- Cover missing CI tooling inputs, bound validation commands, and retain partial failure receipts. Keep the full frontend behavior suite in quality and release validation while native cold/warm jobs focus on installation, compiler, lint, build, and isolation proof.
+
 ## v0.8.16 - 2026-10-22
 
 - Keep Chat Send, record editing actions, and blocking permission requests reachable in laptop windows, and close the command bar with one Escape press.

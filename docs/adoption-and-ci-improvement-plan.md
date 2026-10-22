@@ -7,6 +7,24 @@ Make checks easier to understand and failures easier to diagnose without weakeni
 Deliver AC-1, AC-2, AC-3, and AC-4 as separate changes. AC-5 is the final authorized release preparation.
 These are planning labels, not GitHub PR numbers. The user now authorizes implementation, normal PRs and protected merges, and one final release through existing CI. Use OpenAI models only.
 
+## Delivery status
+
+AC-1 through AC-4 landed through protected CI and independent OpenAI review:
+
+| Phase | Delivery |
+| --- | --- |
+| AC-1 | [PR #72](https://github.com/ddv1982/qa-scribe/pull/72) adds the check inventory and tested routing contracts. |
+| AC-2 | [PR #73](https://github.com/ddv1982/qa-scribe/pull/73) makes ordinary creation primary and simplifies Copy. |
+| AC-3 | [PR #74](https://github.com/ddv1982/qa-scribe/pull/74) adds the read-only example, Help, quick start, and pilot guide. |
+| AC-4 | [PR #75](https://github.com/ddv1982/qa-scribe/pull/75) adds bounded diagnostics, fixes autosave layout movement, and separates behavior tests from native installation proof. |
+
+AC-5 prepares v0.8.17 through the maintained version script and release CI.
+The checklist below retains the original verification scope. Human recruitment,
+repeat-use outcomes, and actual reporting-tool paste remain unverified. The
+public wiki draft is held until the new app release succeeds. The example stays
+a read-only preview; explicit Start creates a blank Session rather than cloning
+sample data.
+
 ## How to read this
 
 One box is one unit of work. Every box names the evidence that checks it. Check a box only when its evidence exists.
