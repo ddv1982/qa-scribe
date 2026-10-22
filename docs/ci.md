@@ -2,6 +2,8 @@
 
 Linux CI jobs run on `ubuntu-26.04`. Release validation and Linux release builds
 remain on `ubuntu-24.04` to preserve the published installer ABI baseline.
+The [check inventory](verification/check-inventory.md) maps local commands,
+hosted jobs, triggers, runners, proof obligations, and artifacts.
 
 The CI workflow is deliberately divided by responsibility:
 
@@ -12,8 +14,8 @@ The CI workflow is deliberately divided by responsibility:
   large-fixture startup budget. This job always runs so changes cannot
   accidentally fall outside a path filter.
 - **Platform tests (macOS)** run native Rust tests and an Intel cross-compile
-  when Rust, Tauri, frontend, icon, or workflow inputs change. Platform-neutral
-  frontend checks and dependency audits are not repeated here.
+  when Rust, Tauri, frontend, icon, workflow, toolchain, or setup-helper inputs
+  change. Platform-neutral frontend checks and dependency audits are not repeated here.
 - **Built application E2E (macOS arm64, observational)** runs the same isolated
   critical workflows through the embedded WebDriver provider on every CI
   execution. The job is non-blocking and deliberately excluded from the
@@ -29,8 +31,9 @@ The CI workflow is deliberately divided by responsibility:
   applicable job fails and accepts intentionally skipped platform/package jobs.
 
 The separate `Native TypeScript tooling` workflow runs on pull requests that change
-toolchain manifests, lockfiles, lint or TypeScript configuration, native tooling
-checks and fixtures, CI, or editor configuration. Manual dispatch remains available.
+toolchain manifests, lockfiles, lint, TypeScript or Vite configuration, frontend
+check helpers, native tooling checks and fixtures, probe drivers, CI, or editor
+configuration. Manual dispatch remains available.
 Ordinary application and Rust source changes do not create these isolated cache
 proofs. Linux x64, macOS arm64, and macOS Intel each install from the frozen
 lockfile with an empty lane-owned Bun cache. Each lane validates dependencies,
@@ -44,11 +47,18 @@ output, cache file counts and bytes, and command logs.
 This workflow publishes no release and does not replace the protected quality
 gate. All three native lanes must pass before landing a tooling migration.
 Each cold and warm frontend test suite has a five-minute wrapper budget.
-Individual Vitest timeouts and the fifteen-minute overall job limit still apply.
+Individual Vitest timeouts still apply. The overall job limit is thirty minutes
+on macOS arm64 and fifteen minutes on Linux x64 and macOS Intel.
 
 The `changes` job only controls expensive supplementary jobs. It never controls
 the quality gate. This avoids a broad change silently bypassing the primary
 check and keeps a stable final check for branch protection.
+Both conditional filters include `rust-toolchain.toml`. macOS also includes the
+hosted Rust normalization script and the frontend postinstall SDK helpers that
+its setup executes. Package routing already includes all `scripts/**` inputs.
+The workflow tests read these filters and the native trigger paths from YAML,
+then compare changed-path cases with literal applicable job sets. Linux quality
+and observational macOS E2E still run for documentation-only changes.
 
 ## Shared setup and source-of-truth rules
 
