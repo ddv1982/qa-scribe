@@ -13,6 +13,7 @@ use crate::{
     jobs::JobControl,
     provider_command::{
         NeutralProviderCwd, ProviderPathMode, apply_provider_path, provider_executable_path,
+        provider_process_path,
     },
 };
 
@@ -98,8 +99,13 @@ impl ProbeRunner for SystemProbeRunner {
     }
 
     fn run(&self, program: &str, args: &[&str]) -> CommandProbe {
-        let executable = provider_executable_path(program, self.path_mode)
-            .unwrap_or_else(|| PathBuf::from(program));
+        let executable = match provider_executable_path(program, self.path_mode)
+            .map(Ok)
+            .unwrap_or_else(|| provider_process_path(program))
+        {
+            Ok(executable) => executable,
+            Err(_) => return CommandProbe::not_found(),
+        };
         let provider_cwd = match self.provider_cwd() {
             Ok(provider_cwd) => provider_cwd,
             Err(error) => return CommandProbe::scope_unavailable(error.to_string()),

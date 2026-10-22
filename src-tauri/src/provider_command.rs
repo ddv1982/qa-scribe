@@ -132,6 +132,20 @@ pub fn provider_executable_path(program: &str, mode: ProviderPathMode) -> Option
     resolve_provider_executable(program, mode)
 }
 
+pub fn provider_process_path(program: &str) -> std::io::Result<PathBuf> {
+    #[cfg(feature = "e2e")]
+    if let Some(path) = env::var_os("QA_SCRIBE_E2E_PROVIDER_PATH").filter(|value| !value.is_empty())
+    {
+        return resolve_provider_executable_in_path(program, &path).ok_or_else(|| {
+            std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "provider fixture executable not found",
+            )
+        });
+    }
+    Ok(PathBuf::from(program))
+}
+
 fn provider_command_path() -> Option<OsString> {
     cached_or_compute(&PROVIDER_PATH, build_provider_command_path)
 }
@@ -341,6 +355,11 @@ fn nvm_version(bin_path: &Path) -> Option<Vec<u64>> {
 }
 
 fn provider_path_for_mode(mode: ProviderPathMode) -> Option<OsString> {
+    #[cfg(feature = "e2e")]
+    if let Some(path) = env::var_os("QA_SCRIBE_E2E_PROVIDER_PATH").filter(|value| !value.is_empty())
+    {
+        return Some(path);
+    }
     match mode {
         ProviderPathMode::Fast => lightweight_provider_path(),
         ProviderPathMode::Deep => provider_command_path(),

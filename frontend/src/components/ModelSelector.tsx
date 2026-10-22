@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type FocusEvent, type KeyboardEvent } from 'react'
 import { Bot, Check, ChevronDown, Command, Cpu, Search, Sparkles } from 'lucide-react'
 import type { ProviderModelDescriptor } from '../tauri'
+import { customModelCatalogAdvisory } from '../settings/modelAdvisories'
 
 export type ModelCatalogEntry = ProviderModelDescriptor
 
@@ -64,9 +65,7 @@ export function ModelCombobox({
   const customModel = query.trim()
   const exactMatch = options.some((model) => model.id.toLocaleLowerCase() === customModel.toLocaleLowerCase())
   const showCustomOption = customModel.length > 0 && !exactMatch
-  const customSelectionAbsent = catalogChecked
-    && !isProviderManagedModel(currentValue)
-    && !options.some((model) => model.id === currentValue)
+  const customSelectionAdvisory = customModelCatalogAdvisory(options, currentValue, catalogChecked)
   const popoverOpen = open && !disabled
   const optionCount = filteredOptions.length + (showCustomOption ? 1 : 0)
   const disabledOptionIndexes = new Set(filteredOptions
@@ -185,9 +184,9 @@ export function ModelCombobox({
           </button>
         </span>
       </label>
-      {customSelectionAbsent ? (
+      {customSelectionAdvisory ? (
         <p className="field-description" role="status">
-          Custom model “{currentValue}” is not in the current catalog. The CLI will validate it at run time.
+          {customSelectionAdvisory}
         </p>
       ) : null}
       {popoverOpen ? (

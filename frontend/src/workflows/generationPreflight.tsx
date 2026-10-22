@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { GenerateAiActionKind, ProviderDefaultOrigin, TestwareDepth, TestwareGenerationPreferences, TestwareOutputFormat } from '../tauri'
 import { useModalDialog } from '../hooks/useModalDialog'
 import {
@@ -62,6 +62,12 @@ export function GenerationPreflight({
   const updateTestwarePreferences = (patch: Partial<TestwareGenerationPreferences>) =>
     setTestwarePreferences((previous) => ({ ...previous, ...patch }))
   const dialogRef = useModalDialog(onCancel)
+  const executionDetailsRef = useRef<HTMLDetailsElement>(null)
+  useEffect(() => {
+    if (executionDetailsRef.current && (selectionWarning || !activeProviderAvailable || modelSelectionPending)) {
+      executionDetailsRef.current.open = true
+    }
+  }, [selectionWarning, activeProviderAvailable, modelSelectionPending])
   useEffect(() => {
     const dialog = dialogRef.current
     if (!dialog) return
@@ -77,8 +83,12 @@ export function GenerationPreflight({
       aria-labelledby="generation-preflight-title"
       onKeyDown={(event) => {
         if (event.key !== 'Tab' || event.defaultPrevented) return
-        const focusable = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('button, input, select, textarea, a[href], [tabindex]'))
-          .filter((element) => element.tabIndex >= 0 && !element.matches(':disabled, [hidden], input[type="hidden"]'))
+        const focusable = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('summary, button, input, select, textarea, a[href], [tabindex]'))
+          .filter((element) => (element.tabIndex >= 0 || element.matches('summary'))
+            && !element.matches(':disabled, input[type="hidden"]')
+            && !element.closest('[hidden], [inert]')
+            && (!element.closest('details:not([open])')
+              || Boolean(element.closest('details:not([open])')?.querySelector('summary')?.contains(element))))
         const first = focusable[0]
         const last = focusable[focusable.length - 1]
         const activeElement = event.currentTarget.ownerDocument.activeElement
@@ -96,60 +106,52 @@ export function GenerationPreflight({
         <p>{copy.body}</p>
       </div>
       <div className="preflight-body">
-        <dl className="preflight-list">
-          <div>
-            <dt>Session</dt>
-            <dd>{sessionTitle.trim() || 'Untitled session'}</dd>
-          </div>
-          <div>
-            <dt>Material</dt>
-            <dd>
-              {noteWordCount} words, {noteScreenshotCount} screenshot{noteScreenshotCount === 1 ? '' : 's'}
-            </dd>
-          </div>
-          <div>
-            <dt>Provider</dt>
-            <dd>{activeProviderLabel}</dd>
-          </div>
-          <div>
-            <dt>Model</dt>
-            <dd>
-              {selectedModel} {delegatesModel ? <small>CLI default</small> : <small>QA Scribe override</small>}
-              {modelOrigin ? <span>{originSummary(modelOrigin)}</span> : null}
-            </dd>
-          </div>
-          <div>
-            <dt>Reasoning</dt>
-            <dd>
-              {selectedReasoning ?? 'CLI resolves at run time'} {delegatesReasoning ? <small>CLI default</small> : <small>QA Scribe override</small>}
-              {reasoningOrigin ? <span>{originSummary(reasoningOrigin)}</span> : null}
-            </dd>
-          </div>
-        </dl>
-        {executionSummary ? <p className="preflight-execution-summary">{executionSummary}{checkedAt ? ` Last checked ${formatCheckedAt(checkedAt)}.` : ''}</p> : null}
         {selectionWarning ? <p className="inline-message blocking" role="alert">{selectionWarning}</p> : null}
         {selectionAdvisories.map((advisory) => <p className="inline-message advisory" role="status" key={advisory}>{advisory}</p>)}
+        {!activeProviderAvailable ? <p className="inline-message blocking" role="alert">{activeProviderLabel} is unavailable. Configure AI execution to review setup and choose a ready provider.</p> : null}
+        {modelSelectionPending ? <p className="inline-message advisory" role="status">Saving model preference… Wait before generating.</p> : null}
+        <details className="preflight-execution-details" ref={executionDetailsRef}>
+          <summary tabIndex={0}>
+            Execution details
+            <span>{noteWordCount} words · {noteScreenshotCount} screenshot{noteScreenshotCount === 1 ? '' : 's'} · {activeProviderLabel} · {delegatesModel ? 'CLI default' : selectedModel}</span>
+          </summary>
+          <div className="preflight-execution-content">
+            <dl className="preflight-list">
+              <div>
+                <dt>Session</dt>
+                <dd>{sessionTitle.trim() || 'Untitled session'}</dd>
+              </div>
+              <div>
+                <dt>Material</dt>
+                <dd>
+                  {noteWordCount} words, {noteScreenshotCount} screenshot{noteScreenshotCount === 1 ? '' : 's'}
+                </dd>
+              </div>
+              <div>
+                <dt>Provider</dt>
+                <dd>{activeProviderLabel}</dd>
+              </div>
+              <div>
+                <dt>Model</dt>
+                <dd>
+                  {selectedModel} {delegatesModel ? <small>CLI default</small> : <small>QA Scribe override</small>}
+                  {modelOrigin ? <span>{originSummary(modelOrigin)}</span> : null}
+                </dd>
+              </div>
+              <div>
+                <dt>Reasoning</dt>
+                <dd>
+                  {selectedReasoning ?? 'CLI resolves at run time'} {delegatesReasoning ? <small>CLI default</small> : <small>QA Scribe override</small>}
+                  {reasoningOrigin ? <span>{originSummary(reasoningOrigin)}</span> : null}
+                </dd>
+              </div>
+            </dl>
+            {executionSummary ? <p className="preflight-execution-summary">{executionSummary}{checkedAt ? ` Last checked ${formatCheckedAt(checkedAt)}.` : ''}</p> : null}
+            {modelSelectionControl}
+          </div>
+        </details>
         {isTestware ? (
           <div className="preflight-testware-options">
-            <fieldset className="preflight-fieldset">
-              <legend>Test design</legend>
-              <div className="preflight-technique-grid">
-                {testwareTechniquePresets.map((preset) => (
-                  <button
-                    className={testwarePreferences.technique === preset.id ? 'preflight-choice active' : 'preflight-choice'}
-                    type="button"
-                    key={preset.id}
-                    aria-pressed={testwarePreferences.technique === preset.id}
-                    onClick={() => updateTestwarePreferences({ technique: preset.id })}
-                  >
-                    <span>{preset.shortLabel}</span>
-                    <strong>{preset.bestFor}</strong>
-                    <small>{preset.description}</small>
-                  </button>
-                ))}
-              </div>
-            </fieldset>
-
             <div className="preflight-control-grid">
               <label className="preflight-select-field">
                 <span>Output</span>
@@ -178,6 +180,25 @@ export function GenerationPreflight({
                 </select>
               </label>
             </div>
+
+            <fieldset className="preflight-fieldset">
+              <legend>Test design</legend>
+              <div className="preflight-technique-grid">
+                {testwareTechniquePresets.map((preset) => (
+                  <button
+                    className={testwarePreferences.technique === preset.id ? 'preflight-choice active' : 'preflight-choice'}
+                    type="button"
+                    key={preset.id}
+                    aria-pressed={testwarePreferences.technique === preset.id}
+                    onClick={() => updateTestwarePreferences({ technique: preset.id })}
+                  >
+                    <span>{preset.shortLabel}</span>
+                    <strong>{preset.bestFor}</strong>
+                    <small>{preset.description}</small>
+                  </button>
+                ))}
+              </div>
+            </fieldset>
 
             <fieldset className="preflight-fieldset compact">
               <legend>Include</legend>
@@ -228,7 +249,6 @@ export function GenerationPreflight({
           </div>
         ) : null}
       </div>
-      {modelSelectionControl}
       <div className="confirmation-actions">
         {onConfigureAi ? <button className="text-button" type="button" disabled={isBusy} onClick={onConfigureAi}>Configure AI execution…</button> : null}
         <button className="secondary-button" type="button" disabled={isBusy} onClick={onCancel}>
@@ -270,7 +290,7 @@ function generationPreflightCopy(action: GenerateAiActionKind) {
   }
   return {
     title: 'Summarize note?',
-    body: 'QA Scribe will rewrite the current note into a tighter summary.',
+    body: 'QA Scribe will replace the current note with a tighter summary. You can undo the replacement after generation.',
     confirmLabel: 'Summarize note',
   }
 }

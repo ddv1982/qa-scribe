@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createRequire } from 'node:module'
+import { inspect, assertStructure } from './preflight-layout-geometry.mjs'
 import { nativeKeySender, settledViewport, viewport } from './preflight-native-keys.mjs'
 
 // Dependencies belong to the frontend workspace, as in the maintained runner.
@@ -38,114 +39,13 @@ async function resize(width, height, scale, evidence, persist) {
   assert.fail(`Preflight harness calibration failed: requested logical ${width}x${height}; actual ${JSON.stringify(await viewport())}. This is not layout-defect evidence.`)
 }
 
-async function inspect() {
-  return browser.execute((selector) => {
-    const root = document.querySelector(selector)
-    if (!root) return null
-    const rect = (box) => box && ({ left: box.left, right: box.right, top: box.top,
-      bottom: box.bottom, width: box.width, height: box.height })
-    const box = (node) => node ? rect(node.getBoundingClientRect()) : null
-    const summary = root.querySelector('.preflight-execution-summary')
-    const options = root.querySelector('.preflight-testware-options')
-    const legend = options?.querySelector('legend')
-    const textRects = (node) => {
-      if (!node) return []
-      const range = document.createRange()
-      range.selectNodeContents(node)
-      return Array.from(range.getClientRects(), rect).filter((r) => r.width > 0 && r.height > 0)
-    }
-    const visibleTexts = []
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
-    while (walker.nextNode()) {
-      const node = walker.currentNode
-      if (!node.textContent.trim() || node.parentElement.closest('option, script, style')) continue
-      const range = document.createRange()
-      range.selectNodeContents(node)
-      for (const raw of range.getClientRects()) {
-        let clipped = { left: Math.max(0, raw.left), right: Math.min(innerWidth, raw.right),
-          top: Math.max(0, raw.top), bottom: Math.min(innerHeight, raw.bottom) }
-        let hidden = false
-        for (let parent = node.parentElement; parent; parent = parent.parentElement) {
-          const style = getComputedStyle(parent)
-          if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0) hidden = true
-          const bounds = parent.getBoundingClientRect()
-          if (/(auto|scroll|hidden|clip)/.test(style.overflowX)) {
-            clipped.left = Math.max(clipped.left, bounds.left + parent.clientLeft)
-            clipped.right = Math.min(clipped.right, bounds.left + parent.clientLeft + parent.clientWidth)
-          }
-          if (/(auto|scroll|hidden|clip)/.test(style.overflowY)) {
-            clipped.top = Math.max(clipped.top, bounds.top + parent.clientTop)
-            clipped.bottom = Math.min(clipped.bottom, bounds.top + parent.clientTop + parent.clientHeight)
-          }
-        }
-        if (!hidden && clipped.right - clipped.left > 1 && clipped.bottom - clipped.top > 1) {
-          visibleTexts.push({ text: node.textContent.trim(), box: clipped })
-        }
-      }
-    }
-    const overlaps = []
-    for (let i = 0; i < visibleTexts.length; i += 1) {
-      for (let j = i + 1; j < visibleTexts.length; j += 1) {
-        const a = visibleTexts[i]
-        const b = visibleTexts[j]
-        if (Math.min(a.box.right, b.box.right) - Math.max(a.box.left, b.box.left) > 1
-          && Math.min(a.box.bottom, b.box.bottom) - Math.max(a.box.top, b.box.top) > 1) overlaps.push({ a, b })
-      }
-    }
-    return {
-      viewport: { width: innerWidth, height: innerHeight, devicePixelRatio },
-      theme: document.documentElement.dataset.theme,
-      headingOutline: getComputedStyle(root.querySelector('h2')).outlineStyle,
-      focusedTag: document.activeElement?.tagName, focusedId: document.activeElement?.id,
-      dialog: box(root), summary: box(summary), summaryText: summary?.textContent,
-      summaryTextRects: textRects(summary), options: box(options), testDesign: box(legend),
-      header: box(root.querySelector('.preflight-header')),
-      body: box(root.querySelector('.preflight-body')),
-      bodyScrollTop: root.querySelector('.preflight-body')?.scrollTop,
-      footer: box(root.querySelector('.confirmation-actions')),
-      horizontalOverflow: [root, ...root.querySelectorAll('*')]
-        .filter((node) => node.clientWidth > 0 && node.tagName !== 'OPTION' && node.scrollWidth > node.clientWidth + 1)
-        .map((node) => ({ tag: node.tagName, className: node.className,
-          text: node.textContent?.trim(), scrollWidth: node.scrollWidth, clientWidth: node.clientWidth })),
-      scrollContainers: Array.from(root.querySelectorAll('*')).filter((node) => node.scrollHeight > node.clientHeight + 1
-        && /(auto|scroll)/.test(getComputedStyle(node).overflowY)).map((node) => ({
-        className: node.className, box: box(node), scrollTop: node.scrollTop,
-        clientHeight: node.clientHeight, scrollHeight: node.scrollHeight,
-      })),
-      visibleTexts, overlaps,
-    }
-  }, dialog)
-}
-
-function assertNoOverlap(value) {
-  assert.deepEqual(value.overlaps, [], 'Visible preflight text must not overlap other visible text')
-}
-
-function assertStructure(value, initial = value) {
-  assert.ok(value.header && value.body && value.footer, 'Preflight needs explicit header, body and footer')
-  assert.ok(value.body.height > 0, 'Scrollable preflight body must have positive height')
-  assert.ok(value.header.bottom <= value.body.top + 1 && value.body.bottom <= value.footer.top + 1,
-    'Header, body and footer must not intersect')
-  for (const region of ['header', 'body', 'footer']) {
-    const box = value[region]
-    assert.ok(box.left >= value.dialog.left - 1 && box.right <= value.dialog.right + 1
-      && box.top >= value.dialog.top - 1 && box.bottom <= value.dialog.bottom + 1,
-    `${region} must stay inside the dialog`)
-    for (const axis of ['left', 'right', 'top', 'bottom']) {
-      assert.ok(Math.abs(box[axis] - initial[region][axis]) <= 1,
-        `${region} ${axis} must remain invariant while body content scrolls`)
-    }
-  }
-  assert.deepEqual(value.horizontalOverflow, [], 'No horizontal overflow in preflight body, metadata, choices or actions')
-  assertNoOverlap(value)
-}
-
 async function assertReachable(layout, persist) {
   // Scroll through real content without changing layout or injecting fixtures.
   // Hit testing also detects clipping or a footer obscuring an option.
-  const targets = await $$(`${dialog} h2, ${dialog} dt, ${dialog} dd, ${dialog} .preflight-execution-summary, ${dialog} legend, ${dialog} button, ${dialog} select, ${dialog} input, ${dialog} textarea`)
+  const targets = await $$(`${dialog} h2, ${dialog} summary, ${dialog} dt, ${dialog} dd, ${dialog} .preflight-execution-summary, ${dialog} legend, ${dialog} button, ${dialog} select, ${dialog} input, ${dialog} textarea`)
   layout.reachability = []
   for (const target of targets) {
+    if (!await target.isDisplayed()) continue
     await target.scrollIntoView({ block: 'center', inline: 'nearest' })
     const result = await browser.execute((node) => {
       const r = node.getBoundingClientRect()
@@ -174,7 +74,8 @@ async function focusState() {
   return browser.execute((selector) => {
     const root = document.querySelector(selector)
     const active = document.activeElement
-    const controls = Array.from(root.querySelectorAll('button:not(:disabled), select:not(:disabled), input:not(:disabled), textarea:not(:disabled)'))
+    const controls = Array.from(root.querySelectorAll('summary, button:not(:disabled), select:not(:disabled), input:not(:disabled), textarea:not(:disabled)'))
+      .filter(node => !node.closest('details:not([open])') || node.closest('details:not([open])').querySelector('summary') === node)
     const r = active.getBoundingClientRect()
     const body = root.querySelector('.preflight-body')
     const clip = body.contains(active) ? body.getBoundingClientRect() : root.getBoundingClientRect()
@@ -340,10 +241,28 @@ export async function runGenerationPreflightLayoutWorkflow({ button }) {
       `Preflight harness: actual logical viewport must be ${width}x${height}, got ${JSON.stringify(geometry.viewport)}`)
     if (theme) assert.equal(geometry.theme, theme, 'Theme must change through actual Settings controls')
     assert.ok(geometry.summary && geometry.summaryTextRects.length && geometry.testDesign && geometry.options,
-      'Native fixture must show the optional execution summary and Test design options')
+      'Native fixture must show its short execution summary and Test design options')
     const paintedBottom = Math.max(geometry.summary.bottom, ...geometry.summaryTextRects.map((r) => r.bottom))
     assert.ok(paintedBottom <= geometry.testDesign.top + 1 && geometry.summary.bottom <= geometry.options.top + 1,
       `Execution summary bounds and text must end before Test design/options: summary bottom=${geometry.summary.bottom}, painted bottom=${paintedBottom}, Test design top=${geometry.testDesign.top}, options top=${geometry.options.top}`)
+    if (width >= 1024) {
+      const initialChoices = await browser.execute((selector) => {
+        const root = document.querySelector(selector)
+        const body = root.querySelector('.preflight-body').getBoundingClientRect()
+        const inspect = selector => Array.from(root.querySelectorAll(selector), node => {
+          const rect = node.getBoundingClientRect()
+          return { text: node.textContent.trim(), initial: rect.top >= body.top && rect.bottom <= body.bottom }
+        })
+        return { controls: inspect('.preflight-control-grid select'), techniques: inspect('.preflight-choice') }
+      }, dialog)
+      layout.initialChoices = { ...initialChoices, plannedHeight, availableHeight: height,
+        actualHeight: geometry.viewport.height, planned720Coverage: height >= 720 ? 'available' : 'unavailable at calibrated host height' }
+      persist()
+      assert.ok(initialChoices.controls.every(node => node.initial) && initialChoices.techniques[0].initial,
+        'Output, Depth and Auto must be initially visible at the actual supported laptop height')
+      if (height >= 720) assert.ok(initialChoices.techniques.every(node => node.initial),
+        'Every technique must be initially visible when the calibrated laptop height supports 720 pixels')
+    }
     assertStructure(geometry)
     assert.ok(geometry.dialog.left >= -1 && geometry.dialog.right <= width + 1
       && geometry.dialog.top >= -1 && geometry.dialog.bottom <= height + 1, 'Preflight must fit the logical viewport')
@@ -400,12 +319,12 @@ export async function runGenerationPreflightLayoutWorkflow({ button }) {
       await themeButton.waitForClickable()
       await themeButton.click()
       await click('Back')
-      for (const [width, plannedHeight] of [[1366, 768], [1280, 720], [640, 720]]) {
+      for (const [width, plannedHeight] of [[1366, 768], [1280, 720], [1024, 768], [640, 720]]) {
         const height = heightFor(plannedHeight)
         await resize(width, height, scale, evidence, persist)
         await open()
         const layout = await captureAndCheck(`${theme}-${width}x${height}`, width, height, theme, plannedHeight)
-        assert.equal(await $(`${dialog} .preflight-list dd`).getText(), longTitle,
+        assert.equal(await browser.execute(() => document.querySelector('dialog.generation-preflight .preflight-list dd').textContent), longTitle,
           'Long Session title must come from the real Session input, not fabricated native DOM')
         if (theme === 'dark' && width === 640) {
           // Keyboard traversal is deliberately once at the narrowest viewport,
@@ -478,8 +397,9 @@ if (process.env.QA_SCRIBE_E2E_SPEC === 'generation-preflight-layout.e2e.mjs') {
         assert.equal(value.bodyScrollTop, 0)
         assert.ok(await browser.execute(() => {
           const root = document.querySelector('dialog.generation-preflight[open]')
-          const controls = Array.from(root.querySelectorAll('button, input, select, textarea, a[href], [tabindex]'))
-            .filter((node) => node.tabIndex >= 0 && !node.matches(':disabled, [hidden], input[type="hidden"]'))
+          const controls = Array.from(root.querySelectorAll('summary, button, input, select, textarea, a[href], [tabindex]'))
+            .filter((node) => node.tabIndex >= 0 && !node.matches(':disabled, [hidden], input[type="hidden"]')
+              && (!node.closest('details:not([open])') || node.closest('details:not([open])').querySelector('summary') === node))
           const heading = root.querySelector('h2')
           heading.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true }))
           if (document.activeElement !== controls.at(-1)) return false

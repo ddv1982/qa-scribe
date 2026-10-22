@@ -48,9 +48,9 @@ describe('GenerationPreflight behavior and modal accessibility', () => {
     renderPreflight({ action: 'testware', onConfigureAi: vi.fn() })
     const dialog = screen.getByRole<HTMLDialogElement>('dialog', { name: 'Generate test cases?' })
     const controls = within(dialog)
-    const first = controls.getByRole<HTMLButtonElement>('button', { name: /^AutoMixed notes/ })
+    const first = dialog.querySelector<HTMLElement>('summary')!
     const last = controls.getByRole<HTMLButtonElement>('button', { name: 'Generate test cases' })
-    expect(first.disabled).toBe(false)
+    expect(first.tabIndex).toBe(0)
     expect(last.disabled).toBe(false)
 
     const source = shiftKey ? first : last
