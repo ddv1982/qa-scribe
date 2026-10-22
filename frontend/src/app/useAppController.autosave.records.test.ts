@@ -179,7 +179,7 @@ describe('useAppController Draft and Finding autosave', () => {
 
   it.each(['save', 'discard', 'cancel'] as const)('settles %s before opening a created record in the same collection', async (choice) => {
     let stored = draftFixture({ id: 'existing', body: '<p>Saved original.</p>' })
-    const created = draftFixture({ id: 'returned-created', title: 'Untitled testware', body: '<p></p>' })
+    const created = draftFixture({ id: 'returned-created', title: 'Untitled test case', body: '<p></p>' })
     tauriMock.listDrafts.mockResolvedValueOnce([stored]).mockResolvedValue([stored, created])
     tauriMock.createDraft.mockResolvedValueOnce(created)
     tauriMock.updateDraft.mockImplementationOnce(async (_id, patch) => {

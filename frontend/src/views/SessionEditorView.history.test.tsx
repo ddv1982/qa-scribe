@@ -72,14 +72,13 @@ function mountSession(initialBody = doc('A original'), onUploadImage: ViewProps[
     if (!richEditorDocumentsEqual(body, next)) changed(next)
   }
   const view = () => <>
-    <SessionEditorView
-      activeProviderAvailable activeSession={session} busyAction={null} copySucceeded={false}
-      canUndoLatestGeneration={false} screenshotCopySucceeded={false} filteredSessions={[sessionA, sessionB]}
+    <SessionEditorView noteBodyHtml="<p>Body</p>"
+      activeProviderAvailable activeSession={session} busyAction={null} canUndoLatestGeneration={false} copyState={{ status: 'idle' }} filteredSessions={[sessionA, sessionB]}
       isBusy={false} noteBody={body} noteIsReady noteScreenshotCount={0} sessionTitle={session.title}
       noteWordCount={2} notice={null} error={null} pendingAiActions={{}} selectedProvider="codex_cli"
       selectedModel="default" activeProvider={providerStatusFixture().providers[0]}
-      onAiAction={async () => {}} onUndoLatestGeneration={async () => {}} onCopyNote={async () => {}}
-      onCopyNoteScreenshot={async () => {}} onDeleteSession={() => {}} onOpenSession={async () => {}}
+      onAiAction={async () => {}} onUndoLatestGeneration={async () => {}} onCopy={async () => {}}
+      onCreateSession={() => {}} canCreateSession onDeleteSession={() => {}} onOpenSession={async () => {}}
       onSetNoteBody={onSetNoteBody} onSetSessionTitle={() => {}} onUploadImage={onUploadImage} {...presentation}
     />
     <ControllerProbe capture={(next) => { controller = next }} />

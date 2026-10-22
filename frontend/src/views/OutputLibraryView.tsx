@@ -13,11 +13,14 @@ import {
 } from '../testware/generationPreferences'
 import type { DraftLibraryItem, FindingLibraryItem, FindingKind } from '../tauri'
 import { formatFindingKind } from '../ui/format'
+import type { ClipboardSnapshot, CopyState } from '../app/copyActions'
+import { CopyControls } from './RichRecordView'
 import type { LibraryLoadState } from '../app/useOutputLibraries'
 
 type LibraryKind = 'testware' | 'findings'
 type NormalizedLibraryRecord = {
   id: string
+  sourceKind: 'draft' | 'finding'
   sessionId: string
   sessionTitle: string
   title: string
@@ -38,6 +41,9 @@ export function OutputLibraryView({
   loadError,
   onRetry,
   onOpenRecord,
+  onCopy,
+  copyState,
+  isBusy,
   sidebarTarget = null,
 }: {
   kind: LibraryKind
@@ -47,6 +53,9 @@ export function OutputLibraryView({
   loadError: string | null
   onRetry: () => void
   onOpenRecord: (sessionId: string, recordId: string) => void
+  onCopy: (snapshot: ClipboardSnapshot) => Promise<void>
+  copyState: CopyState
+  isBusy: boolean
   sidebarTarget?: HTMLElement | null
 }) {
   const [query, setQuery] = useState('')
@@ -55,11 +64,12 @@ export function OutputLibraryView({
   const [sort, setSort] = useState<'updated' | 'title' | 'session'>('updated')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const isTestware = kind === 'testware'
-  const heading = isTestware ? 'Testware library' : 'Findings library'
+  const heading = isTestware ? 'Test cases library' : 'Findings library'
   const records = useMemo<NormalizedLibraryRecord[]>(() => isTestware
     ? draftItems.filter((item) => item.draft.kind === 'testware').map((item) => {
       const metadata = parseTestwareGenerationMetadata(item.draft)
       return {
+        sourceKind: 'draft',
         id: item.draft.id,
         sessionId: item.draft.sessionId,
         sessionTitle: item.sessionTitle,
@@ -68,7 +78,7 @@ export function OutputLibraryView({
         bodyJson: item.draft.bodyJson,
         bodyFormat: item.draft.bodyFormat,
         updatedAt: item.draft.updatedAt,
-        kindLabel: 'Testware',
+        kindLabel: 'Test case',
         kindValue: item.draft.kind,
         metadata: metadata
           ? [testwareTechniqueLabel(metadata.technique), testwareDepthLabel(metadata.depth), testwareOutputFormatLabel(metadata.outputFormat)]
@@ -78,6 +88,7 @@ export function OutputLibraryView({
     : findingItems.map((item) => {
       const metadata = parseFindingMetadata(item.finding.metadataJson)
       return {
+        sourceKind: 'finding',
         id: item.finding.id,
         sessionId: item.finding.sessionId,
         sessionTitle: item.sessionTitle,
@@ -105,11 +116,11 @@ export function OutputLibraryView({
           ? left.sessionTitle.localeCompare(right.sessionTitle) || left.title.localeCompare(right.title)
           : right.updatedAt.localeCompare(left.updatedAt))
   }, [kindFilter, query, records, sessionFilter, sort])
-  const selected = visibleRecords.find((record) => record.id === selectedId) ?? visibleRecords[0] ?? null
+  const selected = visibleRecords.find((record) => libraryRecordKey(record) === selectedId) ?? visibleRecords[0] ?? null
   const recordList = visibleRecords.length > 0 ? (
     <aside className="record-master-list" aria-label={`${heading} records`}>
       {visibleRecords.map((record) => (
-        <button key={record.id} type="button" className={selected?.id === record.id ? 'active' : ''} aria-current={selected?.id === record.id ? 'true' : undefined} onClick={() => setSelectedId(record.id)}>
+        <button key={libraryRecordKey(record)} type="button" className={(selected && libraryRecordKey(selected) === libraryRecordKey(record)) ? 'active' : ''} aria-current={(selected && libraryRecordKey(selected) === libraryRecordKey(record)) ? 'true' : undefined} onClick={() => setSelectedId(libraryRecordKey(record))}>
           <strong>{record.title}</strong>
           <span>{record.sessionTitle}</span>
           <span>{[record.kindLabel, ...record.metadata, `Updated ${formatLibraryDate(record.updatedAt)}`].join(' · ')}</span>
@@ -182,11 +193,13 @@ export function OutputLibraryView({
               <RichTextEditor value={richEditorDocumentFromStoredBody(selected)} ariaLabel={`${selected.title} preview`} readOnly />
             </div>
             <div className="record-actions">
+              <CopyControls snapshot={{ target: { kind: selected.sourceKind, sessionId: selected.sessionId, id: selected.id, action: 'jira-text' }, title: selected.title, bodyHtml: selected.body }}
+                copyState={copyState} onCopy={onCopy} disabled={isBusy} label={selected.title} />
               <button className="primary-button" type="button" onClick={() => onOpenRecord(selected.sessionId, selected.id)}>Open in Session</button>
             </div>
           </article>
         ) : null}
-        {records.length === 0 ? <EmptyCollection icon={isTestware ? BookOpen : Flag} title={`No ${isTestware ? 'testware' : 'findings'} yet`} description={`Create ${isTestware ? 'Testware' : 'Findings'} in a Session to see it in this library.`} /> : null}
+        {records.length === 0 ? <EmptyCollection icon={isTestware ? BookOpen : Flag} title={`No ${isTestware ? 'test cases' : 'findings'} yet`} description={`Create ${isTestware ? 'Test cases' : 'Findings'} in a Session to see it in this library.`} /> : null}
         {records.length > 0 && visibleRecords.length === 0 ? <EmptyCollection icon={SearchX} title="No matching records" description="Change or clear the current search and filters." action={{ label: 'Clear filters', onClick: () => { setQuery(''); setSessionFilter('all'); setKindFilter('all') } }} /> : null}
       </div>
     </section>
@@ -198,4 +211,8 @@ function formatLibraryDate(value: string): string {
   return Number.isNaN(date.getTime())
     ? value
     : date.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+}
+
+function libraryRecordKey(record: NormalizedLibraryRecord): string {
+  return JSON.stringify([record.sourceKind, record.sessionId, record.id])
 }

@@ -31,12 +31,12 @@ export function createCommandRegistry(controller: AppController): AppCommand[] {
   const hasSession = Boolean(controller.activeSession)
   return [
     command('session.new', 'New Session', 'Create a blank testing Session.', ['create', 'capture'], 'n', !controller.isBusy, () => void controller.handleNewSession()),
-    command('testware.new', 'New Testware', 'Create Testware in the active Session.', ['test cases', 'draft'], undefined, hasSession && !controller.isBusy, () => void controller.handleManualTestware()),
+    command('testware.new', 'New Test case', 'Create a test case in the active Session.', ['test cases', 'draft'], undefined, hasSession && !controller.isBusy, () => void controller.handleManualTestware()),
     command('finding.new', 'New Finding', 'Create a Finding in the active Session.', ['bug', 'risk', 'issue'], undefined, hasSession && !controller.isBusy, () => void controller.handleManualFinding()),
     command('view.note', 'Open Sessions', 'Browse Sessions and show the active Session note.', ['capture', 'editor'], '1', true, () => controller.setActiveView('sessions')),
-    command('view.testware', 'Open Session Testware', 'Show Testware owned by the active Session.', ['test cases', 'output'], '2', hasSession, () => controller.setActiveView('testware')),
+    command('view.testware', 'Open Session Test cases', 'Show Test cases owned by the active Session.', ['test cases', 'output'], '2', hasSession, () => controller.setActiveView('testware')),
     command('view.findings', 'Open Session Findings', 'Show Findings owned by the active Session.', ['bugs', 'risks', 'output'], '3', hasSession, () => controller.setActiveView('findings')),
-    command('library.testware', 'Open Testware Library', 'Browse Testware across all Sessions.', ['cross-session', 'test cases', 'output'], undefined, true, () => controller.setActiveView('testware-library')),
+    command('library.testware', 'Open Test cases Library', 'Browse Test cases across all Sessions.', ['cross-session', 'test cases', 'output'], undefined, true, () => controller.setActiveView('testware-library')),
     command('library.findings', 'Open Findings Library', 'Browse Findings across all Sessions.', ['cross-session', 'bugs', 'risks'], undefined, true, () => controller.setActiveView('findings-library')),
     command('settings.open', 'Open Settings', 'Configure appearance, AI execution, and templates.', ['preferences'], ',', true, () => controller.openSettingsSection()),
     command('settings.close', 'Back to Workspace', 'Return to the view you opened Settings from.', ['close settings', 'return'], undefined, controller.activeView === 'settings', controller.closeSettings),

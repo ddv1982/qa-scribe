@@ -1,143 +1,75 @@
-import { copyAttachmentImageToClipboard, type Draft, type Finding } from '../tauri'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { copyAttachmentImageToClipboard } from '../tauri'
 import { copyRecordForJira, managedAttachmentReferencesForClipboard } from '../editor/clipboardExport'
-import type { BusyAction } from '../ui/types'
 import { formatError } from '../ui/format'
-import type { CopiedTarget, CopyFeedback, SessionWorkspace, WorkflowFeedback } from './types'
-import { useStableCapability } from './useStableCapability'
 
-export type CopyActionsContext = {
-  source: Pick<SessionWorkspace, 'activeSession' | 'sessionTitle' | 'noteBodyHtml'>
-  feedback: WorkflowFeedback
-  copy: CopyFeedback
+type CopyAction = 'jira-text' | 'screenshot'
+export type CopyTarget =
+  | Readonly<{ kind: 'note'; sessionId: string; action: CopyAction }>
+  | Readonly<{ kind: 'draft' | 'finding'; sessionId: string; id: string; action: CopyAction }>
+export type ClipboardSnapshot = Readonly<{ target: CopyTarget; title: string; bodyHtml: string }>
+export type CopyState =
+  | Readonly<{ status: 'idle' }>
+  | Readonly<{ status: 'pending' | 'succeeded'; snapshot: ClipboardSnapshot }>
+  | Readonly<{ status: 'failed'; snapshot: ClipboardSnapshot; error: string }>
+
+export function copyMatchesSnapshot(state: CopyState, snapshot: ClipboardSnapshot): boolean {
+  if (state.status === 'idle') return false
+  const captured = state.snapshot
+  const left = captured.target
+  const right = snapshot.target
+  return left.kind === right.kind && left.sessionId === right.sessionId && left.action === right.action
+    && (left.kind === 'note' || (right.kind !== 'note' && left.id === right.id))
+    && captured.title === snapshot.title && captured.bodyHtml === snapshot.bodyHtml
 }
 
-export function createCopyActions(ctx: CopyActionsContext) {
-  function clearCopiedTarget() {
-    if (ctx.copy.copySuccessResetRef.current) {
-      window.clearTimeout(ctx.copy.copySuccessResetRef.current)
-      ctx.copy.copySuccessResetRef.current = null
+export function useCopyActions() {
+  const [copyState, setCopyState] = useState<CopyState>({ status: 'idle' })
+  const alive = useRef(false)
+  const inFlight = useRef(false)
+  const successTimer = useRef<number | null>(null)
+  const attempt = useRef(0)
+
+  useEffect(() => {
+    alive.current = true
+    return () => {
+      alive.current = false
+      if (successTimer.current !== null) window.clearTimeout(successTimer.current)
+      successTimer.current = null
     }
-    ctx.copy.setCopiedTarget(null)
-  }
+  }, [])
 
-  function markCopiedTarget(target: CopiedTarget) {
-    if (ctx.copy.copySuccessResetRef.current) window.clearTimeout(ctx.copy.copySuccessResetRef.current)
-    ctx.copy.setCopiedTarget(target)
-    ctx.copy.copySuccessResetRef.current = window.setTimeout(() => {
-      ctx.copy.setCopiedTarget(null)
-      ctx.copy.copySuccessResetRef.current = null
-    }, 1800)
-  }
-
-  async function copyTextForJira(record: { title: string; bodyHtml: string }, target: CopiedTarget, busy: BusyAction, successNotice: string) {
+  const copy = useCallback(async (input: ClipboardSnapshot): Promise<void> => {
+    if (inFlight.current || !alive.current) return
+    const target = input.target.kind === 'note'
+      ? Object.freeze({ kind: input.target.kind, sessionId: input.target.sessionId, action: input.target.action })
+      : Object.freeze({ kind: input.target.kind, sessionId: input.target.sessionId, id: input.target.id, action: input.target.action })
+    const snapshot: ClipboardSnapshot = Object.freeze({ target, title: input.title, bodyHtml: input.bodyHtml })
+    inFlight.current = true
+    const currentAttempt = ++attempt.current
+    if (successTimer.current !== null) window.clearTimeout(successTimer.current)
+    successTimer.current = null
+    setCopyState({ status: 'pending', snapshot })
     try {
-      clearCopiedTarget()
-      ctx.feedback.setBusyAction(busy)
-      ctx.feedback.setError(null)
-      await copyRecordForJira(record)
-      markCopiedTarget(target)
-      ctx.feedback.setNotice(successNotice)
+      if (snapshot.target.action === 'jira-text') {
+        await copyRecordForJira(snapshot)
+      } else {
+        const [first] = managedAttachmentReferencesForClipboard(snapshot)
+        if (!first) throw new Error('No screenshot found in this record.')
+        await copyAttachmentImageToClipboard(first.attachmentId)
+      }
+      if (!alive.current || attempt.current !== currentAttempt) return
+      setCopyState({ status: 'succeeded', snapshot })
+      successTimer.current = window.setTimeout(() => {
+        if (alive.current && attempt.current === currentAttempt) setCopyState({ status: 'idle' })
+        successTimer.current = null
+      }, 1800)
     } catch (cause) {
-      ctx.feedback.setError(formatError(cause))
+      if (alive.current && attempt.current === currentAttempt) setCopyState({ status: 'failed', snapshot, error: formatError(cause) })
     } finally {
-      ctx.feedback.setBusyAction(null)
+      inFlight.current = false
     }
-  }
+  }, [])
 
-  async function handleCopyNoteForJira() {
-    if (!ctx.source.activeSession) return
-    await copyTextForJira(
-      { title: ctx.source.sessionTitle, bodyHtml: ctx.source.noteBodyHtml },
-      { kind: 'note', id: ctx.source.activeSession.id, action: 'jira-text' },
-      'copy-note',
-      'Note copied for Jira',
-    )
-  }
-
-  async function handleCopyDraftForJira(draft: Draft) {
-    await copyTextForJira(
-      { title: draft.title, bodyHtml: draft.body },
-      { kind: 'draft', id: draft.id, action: 'jira-text' },
-      `copy-draft:${draft.id}`,
-      'Testware copied for Jira',
-    )
-  }
-
-  async function handleCopyFindingForJira(finding: Finding) {
-    await copyTextForJira(
-      { title: finding.title, bodyHtml: finding.body },
-      { kind: 'finding', id: finding.id, action: 'jira-text' },
-      `copy-finding:${finding.id}`,
-      'Finding copied for Jira',
-    )
-  }
-
-  async function copyFirstScreenshotForJira(
-    record: { title: string; bodyHtml: string },
-    target: CopiedTarget,
-    busy: BusyAction,
-    successNotice: string,
-  ) {
-    const [screenshot] = managedAttachmentReferencesForClipboard(record)
-    if (!screenshot) {
-      ctx.feedback.setError('No screenshot found in this record.')
-      return
-    }
-
-    try {
-      clearCopiedTarget()
-      ctx.feedback.setBusyAction(busy)
-      ctx.feedback.setError(null)
-      await copyAttachmentImageToClipboard(screenshot.attachmentId)
-      markCopiedTarget(target)
-      ctx.feedback.setNotice(successNotice)
-    } catch (cause) {
-      ctx.feedback.setError(formatError(cause))
-    } finally {
-      ctx.feedback.setBusyAction(null)
-    }
-  }
-
-  async function handleCopyNoteScreenshotForJira() {
-    if (!ctx.source.activeSession) return
-    await copyFirstScreenshotForJira(
-      { title: ctx.source.sessionTitle, bodyHtml: ctx.source.noteBodyHtml },
-      { kind: 'note', id: ctx.source.activeSession.id, action: 'screenshot' },
-      'copy-note-screenshot',
-      'Note screenshot copied',
-    )
-  }
-
-  async function handleCopyDraftScreenshotForJira(draft: Draft) {
-    await copyFirstScreenshotForJira(
-      { title: draft.title, bodyHtml: draft.body },
-      { kind: 'draft', id: draft.id, action: 'screenshot' },
-      `copy-draft-screenshot:${draft.id}`,
-      'Testware screenshot copied',
-    )
-  }
-
-  async function handleCopyFindingScreenshotForJira(finding: Finding) {
-    await copyFirstScreenshotForJira(
-      { title: finding.title, bodyHtml: finding.body },
-      { kind: 'finding', id: finding.id, action: 'screenshot' },
-      `copy-finding-screenshot:${finding.id}`,
-      'Finding screenshot copied',
-    )
-  }
-
-  return {
-    clearCopiedTarget,
-    handleCopyDraftForJira,
-    handleCopyDraftScreenshotForJira,
-    handleCopyFindingForJira,
-    handleCopyFindingScreenshotForJira,
-    handleCopyNoteForJira,
-    handleCopyNoteScreenshotForJira,
-    markCopiedTarget,
-  }
-}
-
-export function useCopyActions(ctx: CopyActionsContext) {
-  return useStableCapability(ctx, createCopyActions)
+  return { copy, copyState }
 }

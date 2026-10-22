@@ -88,13 +88,13 @@ export function createRecordActions(ctx: RecordActionsContext, persistence: Reco
       session.id, 'testware',
       'manual-testware',
       emptyRichEditorDocument,
-      'Untitled testware',
+      'Untitled test case',
       async () => (await ctx.loaders.loadDraftsForSession(session.id)).filter((draft) => draft.kind === 'testware'),
       (title, body) => createDraft({ sessionId: session.id, aiRunId: null, kind: 'testware', title, ...body, metadataJson: null }),
       async () => {
         await ctx.loaders.loadDraftsForSession(session.id, { force: true, replace: true })
       },
-      'Manual testware created',
+      'Manual test case created',
     )
   }
 
@@ -105,13 +105,13 @@ export function createRecordActions(ctx: RecordActionsContext, persistence: Reco
       session.id, 'testware',
       'prefill-testware',
       richEditorDocumentFromHtml(renderPrefilledTestware(session.title, ctx.session.noteBodyHtml)),
-      'Untitled testware',
+      'Untitled test case',
       async () => (await ctx.loaders.loadDraftsForSession(session.id)).filter((draft) => draft.kind === 'testware'),
       (title, body) => createDraft({ sessionId: session.id, aiRunId: null, kind: 'testware', title, ...body, metadataJson: null }),
       async () => {
         await ctx.loaders.loadDraftsForSession(session.id, { force: true, replace: true })
       },
-      'Testware prefilled from note',
+      'Test cases prefilled from note',
     )
   }
 

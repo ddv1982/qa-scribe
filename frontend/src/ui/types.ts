@@ -19,18 +19,12 @@ export type BusyAction =
   | 'manual-finding'
   | 'prefill-testware'
   | 'prefill-finding'
-  | 'copy-note'
-  | 'copy-note-screenshot'
   | 'ai-testware'
   | 'ai-finding'
   | 'ai-summary'
   | 'undo-generation'
   | 'attach-image'
   | 'delete-session'
-  | `copy-draft:${string}`
-  | `copy-draft-screenshot:${string}`
-  | `copy-finding:${string}`
-  | `copy-finding-screenshot:${string}`
   | `delete-draft:${string}`
   | `delete-finding:${string}`
   | `draft:${string}`

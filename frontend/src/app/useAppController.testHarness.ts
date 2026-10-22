@@ -6,6 +6,7 @@ import type { ChatComposerRequest } from '../bindings'
 
 const tauriMock = vi.hoisted(() => ({
   cancelAiActionJob: vi.fn(), getAiActionJobStatus: vi.fn(), listActiveAiActionJobs: vi.fn(),
+  copyHtmlToClipboard: vi.fn(), copyAttachmentImageToClipboard: vi.fn(),
   createDraft: vi.fn(), createEntry: vi.fn(), createFinding: vi.fn(), createSession: vi.fn(),
   deleteAttachment: vi.fn(), deleteDraft: vi.fn(), deleteFinding: vi.fn(), deleteSession: vi.fn(), getProviderStatus: vi.fn(),
   getSettings: vi.fn(), importClipboardScreenshot: vi.fn(), listDraftLibrary: vi.fn(), listDrafts: vi.fn(), listEntries: vi.fn(),
@@ -64,6 +65,7 @@ export function setupControllerTest() {
   window.history.replaceState(null, '', '/')
   window.matchMedia = vi.fn().mockReturnValue({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() })
 
+  tauriMock.copyHtmlToClipboard.mockResolvedValue(undefined)
   tauriMock.getSettings.mockResolvedValue(settingsFixture())
   tauriMock.deleteSession.mockResolvedValue({ pendingFiles: 0 })
   tauriMock.retryAttachmentCleanup.mockResolvedValue({ pendingFiles: 0 })

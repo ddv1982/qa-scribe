@@ -4,12 +4,6 @@ import type { RichEditorDocument } from '../editor/editorDocument'
 import type { BusyAction, MainView } from '../ui/types'
 import type { DeleteConfirmation } from '../workflows/deleteConfirmation'
 
-export type CopiedTargetAction = 'jira-text' | 'screenshot'
-export type CopiedTarget =
-  | { kind: 'note'; id: string; action: CopiedTargetAction }
-  | { kind: 'draft'; id: string; action: CopiedTargetAction }
-  | { kind: 'finding'; id: string; action: CopiedTargetAction }
-
 export type LatestNoteGenerationUndo =
   | { kind: 'undo'; entryId: string; before: RichEditorDocument }
   | {
@@ -105,9 +99,4 @@ export type WorkflowNavigation = {
 export type DeletionWorkspace = {
   deleteConfirmation: DeleteConfirmation | null
   setDeleteConfirmation: Dispatch<SetStateAction<DeleteConfirmation | null>>
-}
-
-export type CopyFeedback = {
-  copySuccessResetRef: MutableRefObject<number | null>
-  setCopiedTarget: Dispatch<SetStateAction<CopiedTarget | null>>
 }

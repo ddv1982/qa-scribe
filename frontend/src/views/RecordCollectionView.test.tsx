@@ -40,7 +40,7 @@ describe('scalable record collection', () => {
     await user.type(screen.getByRole('textbox', { name: 'Search Test cases' }), 'Case 49')
 
     expect(within(list).getAllByRole('button')).toHaveLength(1)
-    expect(screen.getByRole('status')).toHaveTextContent('1 of 50 testware records')
+    expect(screen.getByRole('status')).toHaveTextContent('1 of 50 test case records')
   })
 
   it('restores the original record when an explicit edit is discarded', async () => {
@@ -62,7 +62,7 @@ describe('scalable record collection', () => {
 
     renderTestware([], { loadState: 'error', loadError: 'Local database is busy', onRetryLoad })
 
-    expect(screen.getByRole('heading', { name: 'Could not load testware records' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Could not load test case records' })).toBeInTheDocument()
     expect(screen.getByText('Local database is busy')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Try again' }))
     expect(onRetryLoad).toHaveBeenCalledOnce()
@@ -81,8 +81,8 @@ describe('scalable record collection', () => {
     view.rerender(<StrictMode>{testware([existing, created], { createdRecordEditTarget: target,
       onCreatedRecordEditTargetConsumed: consumed })}</StrictMode>)
 
-    expect(screen.getByRole('textbox', { name: 'Testware title' })).toHaveValue('Z created case')
-    expect(screen.getByRole('textbox', { name: 'Testware title' })).toHaveFocus()
+    expect(screen.getByRole('textbox', { name: 'Test case title' })).toHaveValue('Z created case')
+    expect(screen.getByRole('textbox', { name: 'Test case title' })).toHaveFocus()
     expect(screen.getByRole('textbox', { name: 'Search Test cases' })).toHaveValue('')
     expect(screen.getByRole('combobox', { name: 'Sort' })).toHaveValue('title')
     expect(focusedTitles).toEqual(['Z created case'])
@@ -94,7 +94,7 @@ describe('scalable record collection', () => {
     view.unmount()
     renderTestware([existing, created], { initialSelectedRecordId: created.id })
     expect(screen.getByRole('heading', { name: 'Z created case' })).toBeInTheDocument()
-    expect(screen.queryByRole('textbox', { name: 'Testware title' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: 'Test case title' })).not.toBeInTheDocument()
   })
 
   it('waits for the unfiltered returned ID and never edits a fallback record', () => {
@@ -104,11 +104,11 @@ describe('scalable record collection', () => {
     const props = { createdRecordEditTarget: target, onCreatedRecordEditTargetConsumed: consumed }
     const view = renderTestware([existing], props)
     expect(screen.getByRole('heading', { name: 'Existing case' })).toBeInTheDocument()
-    expect(screen.queryByRole('textbox', { name: 'Testware title' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: 'Test case title' })).not.toBeInTheDocument()
     expect(consumed).not.toHaveBeenCalled()
     view.rerender(testware([existing, draftFixture({ id: 'delayed-id', title: 'Delayed case' })], props))
-    expect(screen.getByRole('textbox', { name: 'Testware title' })).toHaveValue('Delayed case')
-    expect(screen.getByRole('textbox', { name: 'Testware title' })).toHaveFocus()
+    expect(screen.getByRole('textbox', { name: 'Test case title' })).toHaveValue('Delayed case')
+    expect(screen.getByRole('textbox', { name: 'Test case title' })).toHaveFocus()
     expect(consumed).toHaveBeenCalledOnce()
   })
 
@@ -127,7 +127,7 @@ describe('scalable record collection', () => {
         onDiscardDraft: (saved) => { discarded.push(saved.title, saved.body); setDraft(saved) } })
     }
     render(<StrictMode><Fixture /></StrictMode>)
-    const title = screen.getByRole('textbox', { name: 'Testware title' })
+    const title = screen.getByRole('textbox', { name: 'Test case title' })
     await user.clear(title)
     await user.type(title, 'Unsaved authored title')
     await user.click(screen.getByRole('button', { name: 'Save' }))
@@ -146,11 +146,10 @@ describe('scalable record collection', () => {
     const created = findingFixture({ id: 'new-bug', title: 'New bug' })
     const target: CreatedRecordEditTarget = { sessionId: 'session-1', kind: 'finding', recordId: created.id }
     const consumed = vi.fn()
-    const viewFor = (creating: boolean) => <FindingsView busyAction={null} copiedFindingId={null}
-      copiedFindingScreenshotId={null} findingScreenshotCounts={{}} findings={creating ? [existing, created] : [existing]}
+    const viewFor = (creating: boolean) => <FindingsView busyAction={null} copyState={{ status: 'idle' }} findingScreenshotCounts={{}} findings={creating ? [existing, created] : [existing]}
       notice={null} error={null} isBusy={false} activeGenerationJob={null} updateLocalFinding={vi.fn()}
-      onCancelGenerationJob={async () => undefined} onCopyFinding={async () => undefined}
-      onCopyFindingScreenshot={async () => undefined} onDeleteFinding={vi.fn()} onPrefillFromNote={async () => undefined}
+      onCancelGenerationJob={async () => undefined} onCopy={async () => undefined}
+      onDeleteFinding={vi.fn()} onPrefillFromNote={async () => undefined}
       onSaveFinding={async () => true} onDiscardFinding={vi.fn()} onUploadImage={vi.fn()}
       createdRecordEditTarget={creating ? target : null} onCreatedRecordEditTargetConsumed={consumed} />
     const view = render(viewFor(false))
@@ -174,8 +173,7 @@ function testware(drafts = [draftFixture()], overrides: Partial<ComponentProps<t
   return (
     <TestwareView
       busyAction={null}
-      copiedDraftId={null}
-      copiedDraftScreenshotId={null}
+      copyState={{ status: 'idle' }}
       draftScreenshotCounts={{}}
       drafts={drafts}
       sessionTitle="Checkout validation"
@@ -185,8 +183,7 @@ function testware(drafts = [draftFixture()], overrides: Partial<ComponentProps<t
       activeGenerationJob={null}
       updateLocalDraft={vi.fn()}
       onCancelGenerationJob={async () => undefined}
-      onCopyDraft={async () => undefined}
-      onCopyDraftScreenshot={async () => undefined}
+      onCopy={async () => undefined}
       onDeleteDraft={vi.fn()}
       onPrefillFromNote={async () => undefined}
       onSaveDraft={async () => true}

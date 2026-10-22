@@ -38,6 +38,7 @@
 
 .document-topline {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
@@ -64,7 +65,8 @@
 .document-actions {
   display: flex;
   flex-wrap: wrap;
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  min-width: 0;
   align-items: center;
   gap: var(--space-2);
 }
@@ -439,4 +441,11 @@
   .app-shell:has(.session-context-header) {
     height: 100dvh;
   }
+}
+
+.copy-error {
+  flex-basis: 100%;
+  color: var(--danger);
+  font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
 }

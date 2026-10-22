@@ -9,32 +9,32 @@ import {
 import type { Draft, GenerationJobStatus } from '../tauri'
 import type { BusyAction } from '../ui/types'
 import type { RecordLoadState } from '../app/useRecordHydration'
+import type { ClipboardSnapshot, CopyState } from '../app/copyActions'
 import type { CreatedRecordEditTarget } from '../app/types'
 import { RecordCollectionView, type RecordCollectionLabels } from './RecordCollectionView'
 
 const testwareLabels: RecordCollectionLabels = {
-  eyebrow: 'Testware',
+  eyebrow: 'Test cases',
   heading: 'Test cases',
-  emptyTitle: 'No testware yet',
-  emptyDescription: 'Create testware from the current Session note, then refine and save it here.',
-  emptyActionLabel: 'Prefill testware from note',
+  emptyTitle: 'No test cases yet',
+  emptyDescription: 'Create test cases from the current Session note, then refine and save it here.',
+  emptyActionLabel: 'Prefill test cases from note',
   prefillLabel: 'Prefill from note',
   generationTitle: 'Generating test cases',
-  generationTitleAriaLabel: 'Pending testware title',
-  generationPlaceholder: 'Preparing testware...',
-  generationBodyAriaLabel: 'Pending generated testware',
+  generationTitleAriaLabel: 'Pending test case title',
+  generationPlaceholder: 'Preparing test cases...',
+  generationBodyAriaLabel: 'Pending generated test cases',
   editorIdPrefix: 'testware-editor',
-  titleInputLabel: 'Testware title',
-  recordNounLower: 'testware',
-  bodyAriaLabelSuffix: 'testware',
+  titleInputLabel: 'Test case title',
+  recordNounLower: 'test case',
+  bodyAriaLabelSuffix: 'test case',
   placeholder: 'Write test cases...',
-  previewFallbackHtml: '<p>No testware detail yet.</p>',
+  previewFallbackHtml: '<p>No test case detail yet.</p>',
 }
 
 export function TestwareView({
   busyAction,
-  copiedDraftId,
-  copiedDraftScreenshotId,
+  copyState,
   draftScreenshotCounts,
   drafts,
   sessionTitle = null,
@@ -50,8 +50,7 @@ export function TestwareView({
   onRetryLoad,
   updateLocalDraft,
   onCancelGenerationJob,
-  onCopyDraft,
-  onCopyDraftScreenshot,
+  onCopy,
   onDeleteDraft,
   onPrefillFromNote,
   onSaveDraft,
@@ -59,8 +58,7 @@ export function TestwareView({
   onUploadImage,
 }: {
   busyAction: BusyAction | null
-  copiedDraftId: string | null
-  copiedDraftScreenshotId: string | null
+  copyState: CopyState
   draftScreenshotCounts: Record<string, number>
   drafts: Draft[]
   sessionTitle?: string | null
@@ -76,8 +74,7 @@ export function TestwareView({
   onRetryLoad?: () => void
   updateLocalDraft: (id: string, patch: Partial<Pick<Draft, 'title' | 'body' | 'bodyJson' | 'bodyFormat'>>) => void
   onCancelGenerationJob: (jobId: string) => Promise<void>
-  onCopyDraft: (draft: Draft) => Promise<void>
-  onCopyDraftScreenshot: (draft: Draft) => Promise<void>
+  onCopy: (snapshot: ClipboardSnapshot) => Promise<void>
   onDeleteDraft: (draft: Draft) => void
   onPrefillFromNote: () => Promise<void>
   onSaveDraft: (draft: Draft) => Promise<boolean>
@@ -90,8 +87,8 @@ export function TestwareView({
       emptyIcon={Box}
       prefillBusyAction="prefill-testware"
       busyAction={busyAction}
-      copiedRecordId={copiedDraftId}
-      copiedRecordScreenshotId={copiedDraftScreenshotId}
+      sourceKind="draft"
+      copyState={copyState}
       recordScreenshotCounts={draftScreenshotCounts}
       records={drafts}
       sessionTitle={sessionTitle}
@@ -116,18 +113,13 @@ export function TestwareView({
         switch (kind) {
           case 'delete':
             return `delete-draft:${draft.id}`
-          case 'copy':
-            return `copy-draft:${draft.id}`
-          case 'copyScreenshot':
-            return `copy-draft-screenshot:${draft.id}`
           case 'saving':
             return `draft:${draft.id}`
         }
       }}
       updateLocalRecord={updateLocalDraft}
       onCancelGenerationJob={onCancelGenerationJob}
-      onCopyRecord={onCopyDraft}
-      onCopyRecordScreenshot={onCopyDraftScreenshot}
+      onCopy={onCopy}
       onDeleteRecord={onDeleteDraft}
       onPrefillFromNote={onPrefillFromNote}
       onSaveRecord={onSaveDraft}
@@ -142,7 +134,7 @@ function TestwareGenerationBadges({ draft }: { draft: Draft }) {
   if (!metadata) return null
 
   return (
-    <div className="testware-metadata-badges" aria-label="Testware generation settings">
+    <div className="testware-metadata-badges" aria-label="Test case generation settings">
       <span>{testwareTechniqueLabel(metadata.technique)}</span>
       <span>{testwareDepthLabel(metadata.depth)}</span>
       <span>{testwareOutputFormatLabel(metadata.outputFormat)}</span>

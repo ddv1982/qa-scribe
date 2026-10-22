@@ -355,10 +355,10 @@ describe('App workflows', () => {
     )
     render(<App />)
     await waitFor(() => expect(screen.getByRole('textbox', { name: 'Session title' })).toHaveValue('Alpha session'))
-    await user.click(screen.getByRole('tab', { name: /testware/i }))
+    await user.click(screen.getByRole('tab', { name: /test cases/i }))
     await user.click(within(screen.getByRole('listbox', { name: 'Sessions' })).getByRole('option', { name: /beta session/i }))
     await waitFor(() => expect(tauriMock.openSessionNoteState).toHaveBeenLastCalledWith('session-2'))
-    await waitFor(() => expect(screen.getByRole('tab', { name: /testware/i })).toHaveAttribute('aria-selected', 'true'))
+    await waitFor(() => expect(screen.getByRole('tab', { name: /test cases/i })).toHaveAttribute('aria-selected', 'true'))
     expect(screen.getByLabelText('Current search scope')).toHaveTextContent('Beta session')
   })
 
@@ -373,9 +373,9 @@ describe('App workflows', () => {
     render(<App />)
     await waitFor(() => expect(screen.getByRole('textbox', { name: 'Session title' })).toHaveValue('Checkout session'))
     const workspaceNavigation = screen.getByRole('navigation', { name: 'Workspace sections' })
-    await user.click(within(workspaceNavigation).getByRole('button', { name: 'Testware library' }))
+    await user.click(within(workspaceNavigation).getByRole('button', { name: 'Test cases library' }))
 
-    const libraryList = await screen.findByRole('complementary', { name: 'Testware library records' })
+    const libraryList = await screen.findByRole('complementary', { name: 'Test cases library records' })
     expect(libraryList.closest('.left-rail')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Checkout coverage' })).toBeInTheDocument()
   })
@@ -385,8 +385,8 @@ describe('App workflows', () => {
     render(<App />)
 
     await waitFor(() => expect(screen.getByRole('textbox', { name: 'Session title' })).toHaveValue('Checkout session'))
-    await user.click(screen.getByRole('tab', { name: /testware/i }))
-    await user.click(screen.getByRole('button', { name: /new testware/i }))
+    await user.click(screen.getByRole('tab', { name: /test cases/i }))
+    await user.click(screen.getByRole('button', { name: /new test case/i }))
 
     await waitFor(() => expect(tauriMock.createDraft).toHaveBeenCalled())
     expect(tauriMock.createDraft.mock.calls[0][0]).toMatchObject({
@@ -432,7 +432,7 @@ describe('App workflows', () => {
 
     window.history.pushState(null, '', '#/libraries/testware')
     window.dispatchEvent(new HashChangeEvent('hashchange'))
-    expect(await screen.findByRole('heading', { name: 'Testware library' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Test cases library' })).toBeInTheDocument()
   })
 
   it('deep-links directly to the AI execution Settings section', async () => {

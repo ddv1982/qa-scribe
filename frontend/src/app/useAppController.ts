@@ -54,7 +54,7 @@ export function useAppController() {
     setNoteBody,
     workspace: sessionWorkspace,
   } = useSessionWorkspace()
-  const { busyAction, copiedTarget, notice, error, setBusyAction, setNotice, setError, feedback, copyFeedback } = useWorkflowFeedback()
+  const { busyAction, notice, error, setBusyAction, setNotice, setError, feedback } = useWorkflowFeedback()
   const {
     generationJobs,
     pendingGenerationAction,
@@ -296,7 +296,7 @@ export function useAppController() {
     canonicalizeGeneratedDraft: recordActions.canonicalizeGeneratedDraft,
     canonicalizeGeneratedFinding: recordActions.canonicalizeGeneratedFinding,
   })
-  const copyActions = useCopyActions({ source: sessionWorkspace, feedback, copy: copyFeedback })
+  const copyActions = useCopyActions()
   const settlement = useAppSettlement({
     chat: chatProtection, sessionActions, recordActions, attachmentActions,
     dirtyDraftIdsRef, dirtyFindingIdsRef, settingsDirty, saveSettingsDraft, captureSettingsCheckpoint, modelWritePending,
@@ -422,7 +422,6 @@ export function useAppController() {
     activeSession,
     activeView,
     busyAction,
-    copiedTarget,
     deleteConfirmation,
     deleteCopy,
     draftScreenshotCounts,
@@ -440,7 +439,7 @@ export function useAppController() {
     latestNoteGenerationUndo,
     loadDraftsForSession,
     loadFindingsForSession,
-    noteBody,
+    noteBody, noteBodyHtml,
     noteEntry,
     noteIsReady,
     noteScreenshotCount,

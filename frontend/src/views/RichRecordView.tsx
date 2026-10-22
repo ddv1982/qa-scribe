@@ -1,4 +1,5 @@
 import type { ReactNode, Ref } from 'react'
+import { copyMatchesSnapshot, type ClipboardSnapshot, type CopyState } from '../app/copyActions'
 import { CheckCircle2, Copy, Image as ImageIcon, Loader2, PencilLine, Save, Trash2, X } from 'lucide-react'
 import { FormatToolbar, RichTextEditor, type RichEditorImageUpload } from '../editor/RichTextEditor'
 import { richEditorDocumentFromHtml, richEditorDocumentFromStoredBody, richEditorDocumentToStoredBody, type StoredRichBody } from '../editor/editorDocument'
@@ -111,88 +112,69 @@ export function EditableRichRecord({
   )
 }
 
+export function CopyControls({ snapshot, copyState, onCopy, disabled = false, label, screenshotCount = 0 }: {
+  snapshot: ClipboardSnapshot
+  copyState: CopyState
+  onCopy: (snapshot: ClipboardSnapshot) => Promise<void>
+  disabled?: boolean
+  label: string
+  screenshotCount?: number
+}) {
+  const screenshot: ClipboardSnapshot = { ...snapshot, target: { ...snapshot.target, action: 'screenshot' } }
+  const textMatches = copyMatchesSnapshot(copyState, snapshot)
+  const screenshotMatches = copyMatchesSnapshot(copyState, screenshot)
+  const copied = textMatches && copyState.status === 'succeeded'
+  const screenshotCopied = screenshotMatches && copyState.status === 'succeeded'
+  const copying = textMatches && copyState.status === 'pending'
+  const copyingScreenshot = screenshotMatches && copyState.status === 'pending'
+  const copyDisabled = disabled || copyState.status === 'pending'
+  const failure = copyState.status === 'failed' && (textMatches || screenshotMatches) ? copyState : null
+  return <>
+    <button className={copied ? 'secondary-button compact-button success' : 'secondary-button compact-button'}
+      type="button" aria-label={copied ? `${label} copied for Jira` : `Copy ${snapshot.target.kind === 'note' ? 'note' : label} for Jira`}
+      disabled={copyDisabled} onClick={() => void onCopy(snapshot)}>
+      {copying ? <Loader2 className="spin" size={16} /> : copied ? <CheckCircle2 size={16} /> : <Copy size={16} />}
+      {copied ? 'Copied for Jira' : copying ? 'Copying for Jira…' : 'Copy for Jira'}
+    </button>
+    {screenshotCount > 0 ? <button className={screenshotCopied ? 'secondary-button compact-button success' : 'secondary-button compact-button'}
+      type="button" aria-label={screenshotCopied ? `${label} screenshot copied for Jira` : `Copy first ${snapshot.target.kind === 'note' ? 'note' : label} screenshot for Jira`}
+      disabled={copyDisabled} onClick={() => void onCopy(screenshot)}>
+      {copyingScreenshot ? <Loader2 className="spin" size={16} /> : screenshotCopied ? <CheckCircle2 size={16} /> : <ImageIcon size={16} />}
+      {screenshotCopied ? 'Screenshot copied' : copyingScreenshot ? 'Copying first screenshot…' : 'Copy first screenshot'}
+    </button> : null}
+    {textMatches || screenshotMatches ? <span className="sr-only" role="status">
+      {copyState.status === 'pending' ? 'Copy in progress' : copyState.status === 'succeeded' ? (textMatches ? 'Copied for Jira' : 'First screenshot copied') : ''}
+    </span> : null}
+    {failure ? <span className="copy-error" role="alert">{failure.snapshot.target.action === 'screenshot' ? 'Copy first screenshot failed' : 'Copy for Jira failed'}: {failure.error}</span> : null}
+  </>
+}
+
 export function RichRecordActions({
-  copied,
-  copying,
-  copyLabel,
-  copyTitle,
-  deleting,
-  deleteLabel,
-  deleteTitle,
-  editing,
-  isBusy,
-  saving,
-  screenshot,
-  onCopy,
-  onDelete,
-  onEdit,
-  onSave,
-  onCancelEdit,
+  copyControls, deleting, deleteLabel, deleteTitle, editing, isBusy, saving,
+  onDelete, onEdit, onSave, onCancelEdit,
 }: {
-  copied: boolean
-  copying: boolean
-  copyLabel: string
-  copyTitle: string
+  copyControls: ReactNode
   deleting: boolean
   deleteLabel: string
   deleteTitle: string
   editing: boolean
   isBusy: boolean
   saving: boolean
-  screenshot?: {
-    copied: boolean
-    copying: boolean
-    count: number
-    label: string
-    title: string
-    onCopy: () => void
-  }
-  onCopy: () => void
   onDelete: () => void
   onEdit: () => void
   onSave: () => void
   onCancelEdit: () => void
 }) {
-  return (
-    <>
-      {!editing ? (
-        <button
-          className={copied ? 'icon-button success' : 'icon-button'}
-          type="button"
-          aria-label={copyLabel}
-          title={copyTitle}
-          disabled={isBusy}
-          onClick={onCopy}
-        >
-          {copying ? <Loader2 className="spin" size={16} /> : copied ? <CheckCircle2 size={16} /> : <Copy size={16} />}
-        </button>
-      ) : null}
-      {!editing && screenshot && screenshot.count > 0 ? (
-        <button
-          className={screenshot.copied ? 'icon-button success' : 'icon-button'}
-          type="button"
-          aria-label={screenshot.label}
-          title={screenshot.title}
-          disabled={isBusy}
-          onClick={screenshot.onCopy}
-        >
-          {screenshot.copying ? <Loader2 className="spin" size={16} /> : screenshot.copied ? <CheckCircle2 size={16} /> : <ImageIcon size={16} />}
-        </button>
-      ) : null}
-      <button className={editing ? 'primary-button' : 'secondary-button'} type="button" disabled={isBusy} onClick={editing ? onSave : onEdit}>
-        {saving ? <Loader2 className="spin" size={16} /> : editing ? <Save size={16} /> : <PencilLine size={16} />}
-        {editing ? 'Save' : 'Edit'}
-      </button>
-      {editing ? (
-        <button className="secondary-button" type="button" disabled={isBusy} onClick={onCancelEdit}>
-          <X size={16} />
-          Discard
-        </button>
-      ) : (
-        <button className="icon-button danger" type="button" aria-label={deleteLabel} title={deleteTitle} disabled={isBusy} onClick={onDelete}>
-          {deleting ? <Loader2 className="spin" size={16} /> : <Trash2 size={16} />}
-        </button>
-      )}
-    </>
-  )
+  return <>
+    {!editing ? copyControls : null}
+    <button className={editing ? 'primary-button' : 'secondary-button'} type="button" disabled={isBusy} onClick={editing ? onSave : onEdit}>
+      {saving ? <Loader2 className="spin" size={16} /> : editing ? <Save size={16} /> : <PencilLine size={16} />}
+      {editing ? 'Save' : 'Edit'}
+    </button>
+    {editing ? <button className="secondary-button" type="button" disabled={isBusy} onClick={onCancelEdit}>
+      <X size={16} /> Discard
+    </button> : <button className="icon-button danger" type="button" aria-label={deleteLabel} title={deleteTitle} disabled={isBusy} onClick={onDelete}>
+      {deleting ? <Loader2 className="spin" size={16} /> : <Trash2 size={16} />}
+    </button>}
+  </>
 }

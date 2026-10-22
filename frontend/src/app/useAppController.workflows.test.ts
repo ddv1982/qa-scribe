@@ -222,12 +222,12 @@ describe('useAppController workflows and record hydration', () => {
 
   it('loads existing Drafts before choosing a manual testware title', async () => {
     tauriMock.listDrafts
-      .mockResolvedValueOnce([draftFixture({ id: 'draft-existing', title: 'Untitled testware' })])
+      .mockResolvedValueOnce([draftFixture({ id: 'draft-existing', title: 'Untitled test case' })])
       .mockResolvedValueOnce([
-        draftFixture({ id: 'draft-new', title: 'Untitled testware 2' }),
-        draftFixture({ id: 'draft-existing', title: 'Untitled testware' }),
+        draftFixture({ id: 'draft-new', title: 'Untitled test case 2' }),
+        draftFixture({ id: 'draft-existing', title: 'Untitled test case' }),
       ])
-    tauriMock.createDraft.mockResolvedValueOnce(draftFixture({ id: 'draft-new', title: 'Untitled testware 2' }))
+    tauriMock.createDraft.mockResolvedValueOnce(draftFixture({ id: 'draft-new', title: 'Untitled test case 2' }))
 
     const { result } = renderHook(() => useAppController())
 
@@ -237,7 +237,7 @@ describe('useAppController workflows and record hydration', () => {
     })
 
     expect(tauriMock.listDrafts).toHaveBeenCalledWith('session-1')
-    expect(tauriMock.createDraft).toHaveBeenCalledWith(expect.objectContaining({ title: 'Untitled testware 2' }))
+    expect(tauriMock.createDraft).toHaveBeenCalledWith(expect.objectContaining({ title: 'Untitled test case 2' }))
     expect(result.current.testwareDraftCount).toBe(2)
   })
 
@@ -302,7 +302,7 @@ describe('useAppController workflows and record hydration', () => {
     tauriMock.listDrafts
       .mockResolvedValueOnce([draftFixture({ id: 'draft-dirty', sessionId: 'session-1', body: '<p>Persisted draft.</p>' })])
       .mockResolvedValueOnce([draftFixture({ id: 'draft-dirty', sessionId: 'session-1', body: '<p>Server refresh body.</p>' })])
-    tauriMock.createDraft.mockResolvedValueOnce(draftFixture({ id: 'draft-new', sessionId: 'session-1', title: 'Untitled testware' }))
+    tauriMock.createDraft.mockResolvedValueOnce(draftFixture({ id: 'draft-new', sessionId: 'session-1', title: 'Untitled test case' }))
 
     const { result } = renderHook(() => useAppController())
 

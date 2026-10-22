@@ -328,7 +328,7 @@ export async function runChatToNoteWorkflow() {
   await $('[role="tab"]*=Note').click()
   await reopen(secondaryTitle)
   await reopen(primaryTitle)
-  await $('[role="tab"]*=Testware').click()
+  await $('[role="tab"]*=Test cases').click()
   await $('h2=E2E test cases').waitForDisplayed()
   assert.deepEqual(await publicRead('list_drafts', { sessionId: primaryId }), drafts)
   assert.equal(invocationCount(directory), 4, 'Only explicit generation may start invocation four')

@@ -229,15 +229,15 @@ The isolated UX-2 implementation starts at `7c84c5f`. Local evidence is `artifac
 
 **Review gate.** Review the interaction before merge.
 
-- [ ] Provide the operator with collapsed, expanded, and blocked screenshots and `UX-3-review.mp4`, a 30 to 60 second video. Obtain the independent verdict at the same patch.
+- [x] Provide the operator with collapsed, expanded, and blocked screenshots and `UX-3-review.mp4`, a 30 to 60 second video. Obtain the independent verdict at the same patch.
 
-The UX-3 local delivery is recorded in `artifacts/ux-improvements/UX-3/delivery.json`. Original exact-base captures and the scoped implementation cover all ten Linux scenarios, literal generation requests, unchanged 320-pixel layouts, and a recorded walkthrough. The corrected source passes 626 frontend tests in the owner and parent. Fresh correction proof covers the visible custom-model advisory, missing-provider readiness, maintained preflight layout, model selection and restart, and all three catalog rollout modes. Each of eight corrected native invocations records zero synthetic host-provider markers. Existing macOS available-height calibration is retained, with unavailable 720-pixel coverage explicitly qualified. Parent validation also passed the unchanged warning probe, maintained native preflight layout, eight Rust tests with the E2E feature enabled and eight without it, formatting, and Clippy. Independent review and hosted macOS verification remain pending.
+The UX-3 local delivery is recorded in `artifacts/ux-improvements/UX-3/delivery.json`. Original exact-base captures and the scoped implementation cover all ten Linux scenarios, literal generation requests, unchanged 320-pixel layouts, and a recorded walkthrough. The corrected source passes 626 frontend tests in the owner and parent. Fresh correction proof covers the visible custom-model advisory, missing-provider readiness, maintained preflight layout, model selection and restart, and all three catalog rollout modes. Each of eight corrected native invocations records zero synthetic host-provider markers. Existing macOS available-height calibration is retained, with unavailable 720-pixel coverage explicitly qualified. Parent validation also passed the unchanged warning probe, maintained native preflight layout, eight Rust tests with the E2E feature enabled and eight without it, formatting, and Clippy. Independent gpt-6-astra review returned PASS+NOTES at exact `49f1865`, including fresh native warning/layout, trusted keyboard traversal, and seven Chat authorization cases. All CI jobs passed in run `39699716811`, including ten actual macOS desktop invocations. PR #68 merged normally as `26eb17b`. Evidence is `artifacts/ux-improvements/UX-3/merge-readiness.json`. Physical macOS keyboard behavior and the qualified reuse of 320-pixel/video evidence remain explicit limits.
 
 Early original test runs probed installed CLI status and catalogs through a fallback path. No real generation was requested, but external traffic was not captured. Those runs are excluded. The correction makes fixture authority structural under the E2E feature. Historical deviation and failed attempts remain retained.
 
 **Merge.**
 
-- [ ] Require protected CI, exact-patch review, and applicable user authority. Do not change provider protocols or generation prompts to solve a layout problem.
+- [x] Require protected CI, exact-patch review, and applicable user authority. Do not change provider protocols or generation prompts to solve a layout problem.
 
 ## Make finished output easier to copy and find (UX-4)
 
@@ -245,45 +245,47 @@ Early original test runs probed installed CLI status and catalogs through a fall
 
 **Files.**
 
-- [ ] Edit `frontend/src/views/SessionEditorView.tsx`, `frontend/src/views/RichRecordView.tsx`, `frontend/src/views/OutputLibraryView.tsx`, `frontend/src/app/AppShell.tsx`, and `frontend/src/app/copyActions.ts`.
-- [ ] Align collection and action labels in `frontend/src/views/TestwareView.tsx`, `frontend/src/app/commandRegistry.ts`, related notices, and relevant documentation. Preserve domain names and generated bindings.
-- [ ] Extend `frontend/src/views/OutputLibraryView.test.tsx`, `frontend/src/views/copySuccess.test.tsx`, clipboard tests, and the maintained clipboard E2E scenario. Extend the terminology guard narrowly where useful.
+- [x] Edit `frontend/src/views/SessionEditorView.tsx`, `frontend/src/views/RichRecordView.tsx`, `frontend/src/views/OutputLibraryView.tsx`, `frontend/src/app/AppShell.tsx`, and `frontend/src/app/copyActions.ts`.
+- [x] Align collection and action labels in `frontend/src/views/TestwareView.tsx`, `frontend/src/app/commandRegistry.ts`, related notices, and relevant documentation. Preserve domain names and generated bindings.
+- [x] Extend `frontend/src/views/OutputLibraryView.test.tsx`, `frontend/src/views/copySuccess.test.tsx`, clipboard tests, and the maintained clipboard E2E scenario. Extend the terminology guard narrowly where useful.
 
 **Build.**
 
-- [ ] Add a visible Copy for Jira text action to the Note and output record. Keep screenshot copying separate and label the first-screenshot limit accurately.
-- [ ] Add Copy for Jira to the selected library record. Reuse the existing clipboard exporter and retain the full selected record identity through library normalization.
-- [ ] Keep copy feedback scoped to record ID and action. Do not change the active Session, save a different Session's edits, or silently open a library record to copy it.
-- [ ] Use Test cases for this collection's visible navigation and creation labels. Keep Testware as the documented domain umbrella. Do not rename routes, `Draft`, `kind: 'testware'`, command IDs, or database values.
-- [ ] Change the empty session state to offer a central Create Session action while retaining the header action. Keep examples optional and local.
+- [x] Add a visible Copy for Jira text action to the Note and output record. Keep screenshot copying separate and label the first-screenshot limit accurately.
+- [x] Add Copy for Jira to the selected library record. Reuse the existing clipboard exporter and retain the full selected record identity through library normalization.
+- [x] Keep copy feedback scoped to record ID and action. Do not change the active Session, save a different Session's edits, or silently open a library record to copy it.
+- [x] Use Test cases for this collection's visible navigation and creation labels. Keep Testware as the documented domain umbrella. Do not rename routes, `Draft`, `kind: 'testware'`, command IDs, or database values.
+- [x] Change the empty session state to offer a central Create Session action while retaining the header action. Keep examples optional and local.
 
 **You see.**
 
-- [ ] A user can copy the selected saved library output directly. Labels identify the output and destination without tooltip discovery or a Session switch.
+- [x] A user can copy the selected saved library output directly. Labels identify the output and destination without tooltip discovery or a Session switch.
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] Run OutputLibraryView, copySuccess, clipboardExport, and richContentConsistency tests, `bun run terminology:check`, and `node --test scripts/check-frontend-terminology.test.mjs`. Assert exact copied content and record identity.
+- [x] Run OutputLibraryView, copySuccess, clipboardExport, and richContentConsistency tests, `bun run terminology:check`, and `node --test scripts/check-frontend-terminology.test.mjs`. Assert exact copied content and record identity.
+
+**Evidence and qualification.** Linux owner and parent native clipboard runs verify literal plain text, HTML and first-image pixels. The owner captured all four planned widths and a 40-second video. Parent reran all 647 frontend tests and the maintained clipboard scenario. Copying takes one activation with zero Session switches or audited writes. The single-window dirty-navigation guard prevents Lane 6 as written. Native baseline and candidate checks prove that guard; a real-controller test separately proves copying cannot save, hydrate, or navigate unrelated dirty editors. Lane 6 remains qualified rather than claimed as native coverage. Independent review and macOS CI are pending.
 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on the configured fast profile at the PR head are bounded scenario labels under the boot recipe.
 
-- [ ] Lane 1. Copy a Note with formatting. Save `copy-note.png`. Pass when the labelled action copies the expected Jira content.
-- [ ] Lane 2. Copy a saved test case. Save `copy-test-case.png`. Pass when the selected title and body reach the clipboard.
-- [ ] Lane 3. Copy a Finding. Save `copy-finding.png`. Pass when the correct Finding reaches the clipboard.
-- [ ] Lane 4. Copy from the test-case library. Save `copy-library.png`. Pass when no Session switch occurs.
-- [ ] Lane 5. Select duplicate titles from different Sessions. Save `copy-identity.png`. Pass when each copied payload matches its selected record ID.
+- [x] Lane 1. Copy a Note with formatting. Save `copy-note.png`. Pass when the labelled action copies the expected Jira content.
+- [x] Lane 2. Copy a saved test case. Save `copy-test-case.png`. Pass when the selected title and body reach the clipboard.
+- [x] Lane 3. Copy a Finding. Save `copy-finding.png`. Pass when the correct Finding reaches the clipboard.
+- [x] Lane 4. Copy from the test-case library. Save `copy-library.png`. Pass when no Session switch occurs.
+- [x] Lane 5. Select duplicate titles from different Sessions. Save `copy-identity.png`. Pass when each copied payload matches its selected record ID.
 - [ ] Lane 6. Copy while another Session has dirty edits. Save `copy-dirty-other-session.png`. Pass when those edits are neither lost nor substituted into the payload.
-- [ ] Lane 7. Inject a clipboard failure. Save `copy-failed.png`. Pass when no success state is shown and retry remains explicit.
-- [ ] Lane 8. Copy a record with several screenshots. Save `copy-screenshot.png`. Pass when the label states the scope and the correct supported image is copied.
-- [ ] Lane 9. Navigate through tabs, libraries, commands, and empty states. Save `test-case-labels.png`. Pass when the collection uses Test cases consistently without changing Session or Finding terminology.
-- [ ] Lane 10. Create the first Session through the central action at laptop and narrow widths. Save `first-session.png`. Pass when the labelled action opens the editable Note without extra setup.
+- [x] Lane 7. Inject a clipboard failure. Save `copy-failed.png`. Pass when no success state is shown and retry remains explicit.
+- [x] Lane 8. Copy a record with several screenshots. Save `copy-screenshot.png`. Pass when the label states the scope and the correct supported image is copied.
+- [x] Lane 9. Navigate through tabs, libraries, commands, and empty states. Save `test-case-labels.png`. Pass when the collection uses Test cases consistently without changing Session or Finding terminology.
+- [x] Lane 10. Create the first Session through the central action at laptop and narrow widths. Save `first-session.png`. Pass when the labelled action opens the editable Note without extra setup.
 
 **Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] Metric. Count actions from a selected library record to a verified clipboard payload and record any navigation or persistence side effects.
-- [ ] Probe. Use the maintained clipboard scenario on trunk first and head second with duplicate-title fixtures. Inspect the actual clipboard payload.
-- [ ] Baseline. Record the current Open in Session, locate action, and Copy sequence.
-- [ ] Rule. Require one Copy activation from the selected library record, zero Session switches, zero unintended record writes, and completion within the existing 10-second wait. Preserve clipboard formatting parity.
+- [x] Metric. Count actions from a selected library record to a verified clipboard payload and record any navigation or persistence side effects.
+- [x] Probe. Use the maintained clipboard scenario on trunk first and head second with duplicate-title fixtures. Inspect the actual clipboard payload.
+- [x] Baseline. Record the current Open in Session, locate action, and Copy sequence.
+- [x] Rule. Require one Copy activation from the selected library record, zero Session switches, zero unintended record writes, and completion within the existing 10-second wait. Preserve clipboard formatting parity.
 
 **Review gate.** Review the interaction before merge.
 
@@ -292,6 +294,7 @@ Early original test runs probed installed CLI status and catalogs through a fall
 **Merge.**
 
 - [ ] Require protected CI, exact-patch review, and applicable user authority. Do not add a second clipboard serializer or new storage names.
+
 
 ## Explain Chat handoff without adding another workflow (UX-5)
 
