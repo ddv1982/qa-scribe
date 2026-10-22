@@ -46,9 +46,13 @@ actual host architecture, tested commit and PR source head, cache key, cache-hit
 output, cache file counts and bytes, and command logs.
 This workflow publishes no release and does not replace the protected quality
 gate. All three native lanes must pass before landing a tooling migration.
-Each cold and warm frontend test suite has a five-minute wrapper budget.
-Individual Vitest timeouts still apply. The overall job limit is thirty minutes
-on macOS arm64 and fifteen minutes on Linux x64 and macOS Intel.
+The full frontend behavior suite runs in the unconditional quality gate and
+again in release validation. Native installation lanes do not repeat that
+JSDOM suite. They prove native dependency, compiler, lint, and build behavior on
+each architecture; they do not claim complete Intel UI behavior. Built-app
+Linux and macOS arm64 workflows remain separate checks.
+The overall job limit is thirty minutes on macOS arm64 and fifteen minutes on
+Linux x64 and macOS Intel. Installation commands retain their 180-second limits.
 
 The `changes` job only controls expensive supplementary jobs. It never controls
 the quality gate. This avoids a broad change silently bypassing the primary
@@ -193,7 +197,8 @@ fixture preparation and production build at 180 seconds each. A startup launch
 has 240 seconds when reusing the binary, or 1020 seconds when its first launch
 also needs the isolated builds. The latter includes the nested build limits and
 180-second WDIO limit with reporting headroom. Existing installation command
-limits remain 180 seconds, with 300 seconds for frontend tests.
+limits remain 180 seconds. The full frontend behavior suite belongs to the
+shared quality and release gate, rather than the installation driver.
 
 These are outer command limits within the existing job limits, not replacements
 for individual test or startup budgets. The retained macOS ten-invocation run

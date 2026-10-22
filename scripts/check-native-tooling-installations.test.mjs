@@ -22,7 +22,7 @@ for (const mode of ['exit', 'spawn-error', 'timeout', 'changed-cache', 'success'
       const receipt = JSON.parse(readFileSync(join(output, 'receipt.json')))
       assert.equal(receipt.stages.at(-1).commands.at(-1).status, 'running')
       assert.equal(spawnOptions.cwd, cwd)
-      assert.equal(spawnOptions.timeout, args[1] === 'frontend:test' ? 300_000 : 180_000)
+      assert.equal(spawnOptions.timeout, 180_000)
       assert.equal(spawnOptions.killSignal, 'SIGKILL')
       if (args[0] === 'install') {
         mkdirSync(cache, { recursive: true })
@@ -56,7 +56,10 @@ for (const mode of ['exit', 'spawn-error', 'timeout', 'changed-cache', 'success'
       const receipt = JSON.parse(readFileSync(join(output, 'receipt.json')))
       assert.deepEqual(receipt.stages.map(({ stage, status }) => [stage, status]), [['cold', 'passed'], ['discard', 'passed'], ['warm', mode === 'success' ? 'passed' : 'failed']])
       assert.deepEqual(receipt.stages[0].commands.map(({ stage }) => stage), ['cold:bun-version', 'cold:install', 'cold:rust-sdk',
-        'cold:tooling', 'cold:compiler', 'cold:check', 'cold:tests', 'cold:release-metadata', 'cold:build', 'cold:isolation'])
+        'cold:tooling', 'cold:compiler', 'cold:check', 'cold:release-metadata', 'cold:build', 'cold:isolation'])
+      if (mode === 'success') assert.deepEqual(receipt.stages[2].commands.map(({ stage }) => stage), [
+        'warm:bun-version', 'warm:install', 'warm:rust-sdk', 'warm:tooling', 'warm:compiler', 'warm:check',
+        'warm:release-metadata', 'warm:build', 'warm:isolation'])
       assert.deepEqual(receipt.stages[0].rustSdk, { sdk: 'fixture' })
       if (!['changed-cache', 'success'].includes(mode)) {
         const failure = receipt.stages[2].firstFailure

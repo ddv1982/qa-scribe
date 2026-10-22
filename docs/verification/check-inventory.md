@@ -23,7 +23,7 @@ The workflow YAML and `package.json` remain authoritative.
 | CI `rust-macos` | Platform input changes detected by `changes`. macOS 26 arm64. | Frontend build, prebuilt contract, `cargo test --workspace`, and Intel `cargo check`. Includes toolchain and setup helpers. | Actions log |
 | CI `package-linux` | Package input changes after successful Linux quality. Ubuntu 26.04 and digest-pinned Fedora 44. | Package build, artifact and metadata checks, deb and AppImage launch, dependency-resolving RPM installation and launch, APT generator and installer checks. | Actions log, metadata report and summary |
 | CI `e2e-macos` | Every CI execution. macOS 26 arm64. | Shared built-app gate, observational with `continue-on-error`. Excluded from `ci-success`. | `qa-scribe-e2e-macos-passed-*` or `qa-scribe-e2e-macos-failed-*`, failure evidence |
-| Native TypeScript tooling `native-tooling` | PR tooling inputs or manual dispatch. Ubuntu 24.04 x64, macOS 26 arm64, and macOS 26 Intel. | Cold and exact-cache warm installs, SDK, lint, compiler, frontend checks and tests, metadata, production build, and isolation. Actual editor smoke on arm64. | `native-tooling-*`, `native-editor-smoke-*` |
+| Native TypeScript tooling `native-tooling` | PR tooling inputs or manual dispatch. Ubuntu 24.04 x64, macOS 26 arm64, and macOS 26 Intel. | Cold and exact-cache warm installs, SDK, lint, compiler, frontend checks, metadata, production build, and isolation. Actual editor smoke on arm64. | `native-tooling-*`, `native-editor-smoke-*` |
 | Release `release-context`, `validate-release`, `create-release` | Main pushes and authorized `v*` tags. Ubuntu 24.04. Publication proceeds only for an eligible version. | Resolve version and tag, metadata validation, same shared validation action, draft release notes. | Actions logs, validation E2E and startup evidence |
 | Release `build-macos-release`, `build-linux-release` | Eligible release after validation and draft creation. macOS 26 arm64 and Intel, Ubuntu 24.04, Fedora 43 container. | Platform packaging, signed and notarized macOS installers, Linux packages and signed APT metadata, final installer launch checks. | Staged release assets and APT Pages artifact |
 | Release `publish-release-assets`, `sign-release-checksums`, `publish-apt-repository`, `publish-release` | Successful eligible release build dependencies. Ubuntu 24.04. | Upload assets, signed checksums, monotonic APT deployment, and final publication. Signing and write privileges remain scoped to their existing jobs. | Public release assets, checksums and signatures, APT Pages |
@@ -46,6 +46,13 @@ need isolated native installation or editor proofs unless tooling inputs change.
 Native probe drivers and frontend check helpers are tooling inputs. Release
 metadata files and app source remain covered by unconditional quality and applicable
 platform or package jobs.
+
+The full frontend behavior suite is mandatory in unconditional Linux quality
+and in release validation. Native installation lanes omit its six duplicate
+cold/warm executions. This gives up JSDOM behavior checks on macOS in that
+matrix, while retaining architecture-specific SDK, compiler, lint, build, and
+isolation checks. It does not establish Intel application UI coverage. The
+built-app Linux and macOS arm64 checks remain enabled and separately reported.
 
 Cold native installation proves an empty cache works. Warm installation proves
 the exact saved cache restores and works after local packages are discarded.

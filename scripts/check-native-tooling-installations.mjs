@@ -76,7 +76,6 @@ export function checkNativeToolingInstallation(stage, { cwd = process.cwd(), env
       command('tooling', process.execPath, ['scripts/check-native-typescript-tooling.mjs'])
       command('compiler', process.execPath, ['scripts/check-typescript-compiler.mjs'])
       command('check', 'bun', ['run', 'frontend:check'])
-      command('tests', 'bun', ['run', 'frontend:test'], 300_000)
       command('release-metadata', process.execPath, ['scripts/check-release-metadata.mjs', '--expected-tag', `v${JSON.parse(readFileSync(at('package.json'), 'utf8')).version}`])
       command('build', 'bun', ['run', 'frontend:build'])
       command('isolation', 'bun', ['run', 'e2e:isolation'])
