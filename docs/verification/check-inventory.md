@@ -57,3 +57,37 @@ intentional. Local fast and full gates overlap for different feedback needs;
 running both and every constituent command against unchanged source adds no
 separate proof. Startup budgets and first-attempt reliability policy remain in
 [CI](../ci.md#built-application-and-startup-evidence).
+
+## AC4 command and evidence changes
+
+Use `bun run verify:fast` for the edit loop and `bun run verify` for the full
+local handoff gate. The table above states their omissions. No command execution
+was removed from CI or either gate. The overlap does not prove duplication under
+identical source, environment, and obligations. Native SDK guards, build
+typechecking, cold and warm installations, independent production isolation,
+audits, signing, and installed-package launch checks remain distinct duties.
+README-only package routing remains unchanged because the source audit did not
+establish the complete bundler input closure.
+
+The default E2E plan now includes first use on Linux and macOS with separate
+app data, fixtures, and artifacts. Literal plan tests preserve every previous
+invocation and Linux restart pair. Receipt expectations derive from the current
+plan's IDs. A completed WDIO receipt still requires positive executed coverage
+and no skips. Optional recording is disabled in CI.
+
+E2E `latest-run.json`, native installation `receipt.json`, and startup
+`startup-report.json` retain running and completed command stages. Each records
+the command, exit code, signal, spawn error, timeout limit and outcome, and elapsed
+time. Startup retains partial samples. The summary shows incomplete reports and
+links the workflow's artifact page. See [CI](../ci.md#built-application-and-startup-evidence)
+for command caps, first-failure policy, and the direct-child cleanup limit.
+
+Focused verification uses `node --test scripts/run-e2e.test.mjs
+scripts/run-e2e-process.test.mjs scripts/run-startup-benchmark.test.mjs scripts/startup-benchmark-budget.test.mjs
+scripts/check-native-tooling-installations.test.mjs`. These exercise real owned
+Node timeout and missing-executable fixtures through injected process boundaries.
+Installation fixtures use disposable working directories and caches. They do not
+impersonate hosted ownership against a developer installation. Run
+`bun run release:script-tests` once for the final script patch. A native suite,
+hosted quality receipts, and the platform matrix remain separate execution proof.
+No comparable feedback-time benchmark or speedup is claimed.

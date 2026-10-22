@@ -58,6 +58,28 @@ export function run(command, args, options = {}) {
   throw error
 }
 
+export function startCommandReceipt(stage, command, args, timeoutMs) {
+  return { stage, command: [command, ...args], status: 'running', exitCode: null, signal: null,
+    spawnError: null, timeoutMs, timedOut: false, elapsedMs: 0 }
+}
+
+export function finishCommandReceipt(receipt, result, elapsedMs) {
+  return { ...receipt, status: result.status === 0 && !result.error ? 'passed' : 'failed',
+    exitCode: result.status ?? null, signal: result.signal ?? null,
+    spawnError: result.error ? { code: result.error.code ?? null, message: result.error.message } : null,
+    timedOut: result.error?.code === 'ETIMEDOUT', elapsedMs }
+}
+
+export function commandReceiptError(receipt) {
+  const detail = receipt.timedOut ? `timed out after ${receipt.timeoutMs}ms`
+    : receipt.spawnError ? `spawn error ${receipt.spawnError.code ?? 'unknown'}: ${receipt.spawnError.message}`
+      : `exit ${receipt.exitCode ?? 'unknown'}, signal ${receipt.signal ?? 'none'}`
+  const error = new Error(`${receipt.stage}: ${receipt.command.join(' ')} failed (${detail})`)
+  error.exitCode = Number.isInteger(receipt.exitCode) && receipt.exitCode !== 0 ? receipt.exitCode : 1
+  error.signal = receipt.signal
+  return error
+}
+
 export function macosArtifactArch(macArch) {
   return macArch === 'arm64' ? 'aarch64' : macArch
 }

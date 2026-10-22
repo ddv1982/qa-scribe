@@ -169,6 +169,53 @@ that temporary root and never replaces `frontend/dist`. Every gate reruns
 an independent production frontend build and `bun run e2e:isolation` after the
 test binary completes.
 
+The default invocation plan in `scripts/run-e2e.mjs` also registers
+`first-use.e2e.mjs` on Linux and macOS. It uses its own home, app data, fixtures,
+and artifacts. `latest-run.json` records the planned IDs and completed invocations;
+compare these arrays rather than relying on a historical hardcoded count.
+Every invocation still requires a completed machine receipt with positive passed
+count and zero failed or skipped tests. Linux model restart pairs and their lane
+receipts remain required. Optional first-use recording stays off in CI. The
+first-use macOS resize helper calibrates its initial host height ceiling; source
+registration alone does not establish successful macOS execution.
+
+Command receipts are written before spawning and after completion. Each contains
+`stage`, `command`, `status`, `exitCode`, `signal`, `spawnError`, `timeoutMs`,
+`timedOut`, and `elapsedMs`. E2E records the first failed command and retains
+completed invocations even if a later command fails. It continues later workflow
+invocations and returns the first failure's exit code, or 1 for a signal, spawn
+error, timeout, or missing execution evidence.
+
+E2E caps frontend build at 180 seconds, native build at 600 seconds, fixture
+seeding at 30 seconds, and WDIO at 180 seconds per invocation. UI polish has 420 seconds to cover its
+existing 60-, 180-, and 120-second tests plus startup and teardown. Startup caps
+fixture preparation and production build at 180 seconds each. A startup launch
+has 240 seconds when reusing the binary, or 1020 seconds when its first launch
+also needs the isolated builds. The latter includes the nested build limits and
+180-second WDIO limit with reporting headroom. Existing installation command
+limits remain 180 seconds, with 300 seconds for frontend tests.
+
+These are outer command limits within the existing job limits, not replacements
+for individual test or startup budgets. The retained macOS ten-invocation run
+lasted about 348 seconds; a focused Linux build and invocation lasted about
+107 seconds. Those aggregate observations do not calibrate each command, so
+retain stage receipts before tuning the caps. Several consecutive timeouts can
+still exhaust a job. Timeout termination targets the owned direct child with
+SIGKILL. Descendant cleanup is not established by this wrapper, and no global
+process scan or retry is added.
+
+Installation receipts append a running cold, discard, or warm stage before work,
+then retain completed commands and SDK evidence on failure. The original cache
+hash and exact-restore checks still run. Startup writes a partial report before
+commands and preserves every readable sample, including one written by a failed
+launch, before throwing. The summary accepts incomplete reports and shows the
+first failure, stage durations, cache outcome, and artifact location.
+
+The retained one-second frontend boot assertions in record-editing titles and
+refresh already await `activeSession`. Their cause remains unresolved. This
+change neither lengthens those waits nor claims a root-cause repair. The later
+macOS stale-element failure is a separate test-handle issue.
+
 Every Linux execution uploads a 90-day `qa-scribe-e2e-passed-*` or
 `qa-scribe-e2e-failed-*` marker containing its machine-readable metadata. macOS
 uses the separate `qa-scribe-e2e-macos-passed-*` and
