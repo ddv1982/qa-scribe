@@ -1,4 +1,6 @@
-import { AlertCircle, Box, CheckCircle2, Copy, FileText, Flag, Image as ImageIcon, Loader2, Settings2, Sparkles, Trash2, Undo2 } from 'lucide-react'
+import { AlertCircle, Box, CheckCircle2, FileText, Flag, Loader2, Plus, Settings2, Sparkles, Trash2, Undo2 } from 'lucide-react'
+import type { ClipboardSnapshot, CopyState } from '../app/copyActions'
+import { CopyControls } from './RichRecordView'
 import { ProviderGlyph } from '../components/ModelSelector'
 import { FormatToolbar, RichTextEditor, type RichEditorImageUpload } from '../editor/RichTextEditor'
 import type { AiProvider, GenerateAiActionKind, ProviderStatus, Session } from '../tauri'
@@ -15,12 +17,11 @@ export function SessionEditorView({
   activeProviderAvailable,
   activeSession,
   busyAction,
-  copySucceeded,
+  copyState,
   canUndoLatestGeneration,
-  screenshotCopySucceeded,
   filteredSessions,
   isBusy,
-  noteBody,
+  noteBody, noteBodyHtml,
   noteReadOnly = false,
   onRecoverNote,
   noteIsReady,
@@ -39,8 +40,9 @@ export function SessionEditorView({
   onConfigureAi,
   onAiAction,
   onUndoLatestGeneration,
-  onCopyNote,
-  onCopyNoteScreenshot,
+  onCopy,
+  onCreateSession,
+  canCreateSession,
   onDeleteSession,
   onOpenSession,
   onSetNoteBody,
@@ -54,11 +56,11 @@ export function SessionEditorView({
   activeSession: Session | null
   busyAction: BusyAction | null
   canUndoLatestGeneration: boolean
-  copySucceeded: boolean
-  screenshotCopySucceeded: boolean
+  copyState: CopyState
   filteredSessions: Session[]
   isBusy: boolean
   noteBody: RichEditorDocument
+  noteBodyHtml: string
   noteReadOnly?: boolean
   onRecoverNote?: () => Promise<void>
   noteIsReady: boolean
@@ -77,8 +79,9 @@ export function SessionEditorView({
   onConfigureAi?: () => void
   onAiAction: (action: GenerateAiActionKind) => Promise<void>
   onUndoLatestGeneration: () => Promise<void>
-  onCopyNote: () => Promise<void>
-  onCopyNoteScreenshot: () => Promise<void>
+  onCopy: (snapshot: ClipboardSnapshot) => Promise<void>
+  onCreateSession: () => void
+  canCreateSession: boolean
   onDeleteSession: () => void
   onOpenSession: (session: Session) => Promise<void>
   onSetNoteBody: (value: RichEditorDocument) => void
@@ -89,15 +92,7 @@ export function SessionEditorView({
   chatContent?: ReactNode
 }) {
   const deletingSession = busyAction === 'delete-session'
-  const copyingNote = busyAction === 'copy-note'
-  const copyingNoteScreenshot = busyAction === 'copy-note-screenshot'
   const undoingGeneration = busyAction === 'undo-generation'
-  const copyNoteLabel = copySucceeded ? 'Note copied for Jira' : 'Copy note for Jira'
-  const copyNoteScreenshotLabel = screenshotCopySucceeded
-    ? 'Note screenshot copied for Jira'
-    : noteScreenshotCount > 1
-      ? 'Copy first note screenshot for Jira'
-      : 'Copy note screenshot for Jira'
   const testwarePending = Boolean(pendingAiActions.testware)
   const findingPending = Boolean(pendingAiActions.finding)
   const summaryPending = Boolean(pendingAiActions.summary)
@@ -126,6 +121,9 @@ export function SessionEditorView({
         </div>
         <h1>No Session selected</h1>
         <p>Create a Session or open an existing one to start writing QA notes.</p>
+        <button className="primary-button" type="button" disabled={!canCreateSession} onClick={onCreateSession}>
+          <Plus size={17} /> Create Session
+        </button>
         {filteredSessions.length > 0 ? (
           <div className="empty-session-actions">
             {filteredSessions.slice(0, 3).map((session) => (
@@ -161,28 +159,9 @@ export function SessionEditorView({
               : <CheckCircle2 size={15} />}
             <span>{saveStatusLabel}</span>
           </div> : null}
-          {sessionMode === 'write_note' ? <button
-            className={copySucceeded ? 'icon-button success' : 'icon-button'}
-            type="button"
-            aria-label={copyNoteLabel}
-            title={copySucceeded ? 'Copied' : 'Copy note for Jira'}
-            disabled={isBusy}
-            onClick={() => void onCopyNote()}
-          >
-            {copyingNote ? <Loader2 className="spin" size={16} /> : copySucceeded ? <CheckCircle2 size={16} /> : <Copy size={16} />}
-          </button> : null}
-          {sessionMode === 'write_note' && noteScreenshotCount > 0 ? (
-            <button
-              className={screenshotCopySucceeded ? 'icon-button success' : 'icon-button'}
-              type="button"
-              aria-label={copyNoteScreenshotLabel}
-              title={screenshotCopySucceeded ? 'Screenshot copied' : noteScreenshotCount > 1 ? 'Copy first screenshot' : 'Copy screenshot'}
-              disabled={isBusy}
-              onClick={() => void onCopyNoteScreenshot()}
-            >
-              {copyingNoteScreenshot ? <Loader2 className="spin" size={16} /> : screenshotCopySucceeded ? <CheckCircle2 size={16} /> : <ImageIcon size={16} />}
-            </button>
-          ) : null}
+          {sessionMode === 'write_note' ? <CopyControls
+            snapshot={{ target: { kind: 'note', sessionId: activeSession.id, action: 'jira-text' }, title: sessionTitle, bodyHtml: noteBodyHtml }}
+            copyState={copyState} onCopy={onCopy} disabled={isBusy} label="Note" screenshotCount={noteScreenshotCount} /> : null}
           <button className="icon-button danger" type="button" aria-label="Delete Session" title="Delete Session" disabled={isBusy} onClick={() => void onDeleteSession()}>
             {deletingSession ? <Loader2 className="spin" size={16} /> : <Trash2 size={16} />}
           </button>

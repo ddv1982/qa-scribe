@@ -15,7 +15,9 @@ A local-first desktop notepad for exploratory testing. Capture evidence during a
 - Organize testing Sessions with context, objectives, and a chronological Timeline.
 - Capture Notes, API responses, logs, screenshots, and attachments.
 - Link Findings to their supporting Evidence.
-- Write and edit Testware Drafts, with optional AI generation and Session Chat.
+- Write and edit Test cases, with optional AI generation and Session Chat. Testware remains the domain umbrella for testing output.
+- Use Copy for Jira on a Note, test case, Finding, or selected library record. Library copying keeps the current Session and uses the saved output.
+- Use Copy first screenshot to copy the first managed screenshot in a Note or record.
 
 Capture and editing work without AI. Optional AI uses your authenticated local Claude Code, Codex CLI, or GitHub Copilot CLI. QA Scribe does not store provider API keys.
 

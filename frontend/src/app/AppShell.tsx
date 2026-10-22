@@ -88,10 +88,10 @@ export function AppShell(c: AppController) {
           <div className="top-context-label" aria-label="Current search scope">
             <span>{c.activeSession?.title}</span>
             <ChevronRight size={14} />
-            <strong>{c.activeView === 'testware' ? 'Testware' : 'Findings'}</strong>
+            <strong>{c.activeView === 'testware' ? 'Test cases' : 'Findings'}</strong>
           </div>
         ) : c.activeView === 'testware-library' || c.activeView === 'findings-library' ? (
-          <div className="top-context-label" aria-label="Current search scope"><strong>{c.activeView === 'testware-library' ? 'Testware library' : 'Findings library'}</strong></div>
+          <div className="top-context-label" aria-label="Current search scope"><strong>{c.activeView === 'testware-library' ? 'Test cases library' : 'Findings library'}</strong></div>
         ) : <div className="top-context-label"><strong>Settings</strong></div>}
 
         <div className="top-actions">
@@ -112,7 +112,7 @@ export function AppShell(c: AppController) {
       <aside className="left-rail" aria-label="Workspace navigation">
         <nav className="workspace-nav" aria-label="Workspace sections">
           <RailItem icon={FileText} label="Sessions" count={c.sessions.length} active={sessionScopedView} onClick={() => runCommand('view.note')} />
-          <RailItem icon={BookOpen} label="Testware library" active={c.activeView === 'testware-library'} onClick={() => runCommand('library.testware')} />
+          <RailItem icon={BookOpen} label="Test cases library" active={c.activeView === 'testware-library'} onClick={() => runCommand('library.testware')} />
           <RailItem icon={Flag} label="Findings library" active={c.activeView === 'findings-library'} onClick={() => runCommand('library.findings')} />
         </nav>
 
@@ -147,8 +147,8 @@ export function AppShell(c: AppController) {
         </section> : null}
 
         {libraryView ? (
-          <section className="library-sidebar contextual-rail" aria-label={c.activeView === 'testware-library' ? 'Testware library records' : 'Findings library records'}>
-            <p className="rail-heading">{c.activeView === 'testware-library' ? 'Testware' : 'Findings'}</p>
+          <section className="library-sidebar contextual-rail" aria-label={c.activeView === 'testware-library' ? 'Test cases library records' : 'Findings library records'}>
+            <p className="rail-heading">{c.activeView === 'testware-library' ? 'Test cases' : 'Findings'}</p>
             <div className="library-sidebar-slot" ref={setLibrarySidebarTarget} />
           </section>
         ) : null}
@@ -188,7 +188,7 @@ export function AppShell(c: AppController) {
                 <FileText size={16} /> Note
               </button>
               <button type="button" role="tab" className={c.activeView === 'testware' ? 'active' : ''} aria-selected={c.activeView === 'testware'} onClick={() => runCommand('view.testware')} onKeyDown={activateAdjacentTab}>
-                <Box size={16} /> Testware <span>{c.testwareDraftCount}</span>
+                <Box size={16} /> Test cases <span>{c.testwareDraftCount}</span>
               </button>
               <button type="button" role="tab" className={c.activeView === 'findings' ? 'active' : ''} aria-selected={c.activeView === 'findings'} onClick={() => runCommand('view.findings')} onKeyDown={activateAdjacentTab}>
                 <Flag size={16} /> Findings <span>{c.findingCount}</span>
@@ -213,11 +213,11 @@ export function AppShell(c: AppController) {
             activeSession={c.activeSession}
             busyAction={c.busyAction}
             canUndoLatestGeneration={Boolean(c.latestNoteGenerationUndo && c.noteEntry?.id === c.latestNoteGenerationUndo.entryId)}
-            copySucceeded={Boolean(c.activeSession && c.copiedTarget?.kind === 'note' && c.copiedTarget.id === c.activeSession.id && c.copiedTarget.action === 'jira-text')}
-            screenshotCopySucceeded={Boolean(c.activeSession && c.copiedTarget?.kind === 'note' && c.copiedTarget.id === c.activeSession.id && c.copiedTarget.action === 'screenshot')}
+            copyState={c.copyState}
             filteredSessions={c.filteredSessions}
             isBusy={c.isBusy}
             noteBody={c.noteBody}
+            noteBodyHtml={c.noteBodyHtml}
             noteIsReady={c.noteIsReady && !c.noteReadOnly}
             sessionTitle={c.sessionTitle}
             sessionTitleValidationError={c.sessionTitleValidationError}
@@ -234,8 +234,9 @@ export function AppShell(c: AppController) {
             onConfigureAi={() => runCommand('ai.configure')}
             onUndoLatestGeneration={c.handleUndoLatestNoteGeneration}
             onAiAction={c.openGenerationPreflight}
-            onCopyNote={c.handleCopyNoteForJira}
-            onCopyNoteScreenshot={c.handleCopyNoteScreenshotForJira}
+            onCopy={c.copy}
+            onCreateSession={() => runCommand('session.new')}
+            canCreateSession={Boolean(commandById('session.new')?.available)}
             onDeleteSession={c.requestDeleteSession}
             onOpenSession={c.openSession}
             onSetNoteBody={c.setNoteBody}
@@ -254,8 +255,7 @@ export function AppShell(c: AppController) {
           <TestwareView
             key={c.activeSession?.id ?? 'no-session'}
             busyAction={c.busyAction}
-            copiedDraftId={c.copiedTarget?.kind === 'draft' && c.copiedTarget.action === 'jira-text' ? c.copiedTarget.id : null}
-            copiedDraftScreenshotId={c.copiedTarget?.kind === 'draft' && c.copiedTarget.action === 'screenshot' ? c.copiedTarget.id : null}
+            copyState={c.copyState}
             draftScreenshotCounts={c.draftScreenshotCounts}
             drafts={c.testwareDrafts}
             sessionTitle={c.activeSession?.title ?? null}
@@ -272,8 +272,7 @@ export function AppShell(c: AppController) {
               if (c.activeSession) void c.loadDraftsForSession(c.activeSession.id, { force: true }).catch(() => undefined)
             }}
             onCancelGenerationJob={c.handleCancelGenerationJob}
-            onCopyDraft={c.handleCopyDraftForJira}
-            onCopyDraftScreenshot={c.handleCopyDraftScreenshotForJira}
+            onCopy={c.copy}
             onDeleteDraft={c.requestDeleteDraft}
             onPrefillFromNote={c.handlePrefillTestwareFromNote}
             onSaveDraft={c.handleSaveDraft}
@@ -287,8 +286,7 @@ export function AppShell(c: AppController) {
           <FindingsView
             key={c.activeSession?.id ?? 'no-session'}
             busyAction={c.busyAction}
-            copiedFindingId={c.copiedTarget?.kind === 'finding' && c.copiedTarget.action === 'jira-text' ? c.copiedTarget.id : null}
-            copiedFindingScreenshotId={c.copiedTarget?.kind === 'finding' && c.copiedTarget.action === 'screenshot' ? c.copiedTarget.id : null}
+            copyState={c.copyState}
             findingScreenshotCounts={c.findingScreenshotCounts}
             findings={c.findings}
             sessionTitle={c.activeSession?.title ?? null}
@@ -305,8 +303,7 @@ export function AppShell(c: AppController) {
               if (c.activeSession) void c.loadFindingsForSession(c.activeSession.id, { force: true }).catch(() => undefined)
             }}
             onCancelGenerationJob={c.handleCancelGenerationJob}
-            onCopyFinding={c.handleCopyFindingForJira}
-            onCopyFindingScreenshot={c.handleCopyFindingScreenshotForJira}
+            onCopy={c.copy}
             onDeleteFinding={c.requestDeleteFinding}
             onPrefillFromNote={c.handlePrefillFindingFromNote}
             onSaveFinding={c.handleSaveFinding}
@@ -325,6 +322,7 @@ export function AppShell(c: AppController) {
             onRetry={() => void c.loadDraftLibrary()}
             onOpenRecord={(sessionId, recordId) => void c.openLibraryRecord(sessionId, 'testware', recordId)}
             sidebarTarget={librarySidebarTarget}
+            onCopy={c.copy} copyState={c.copyState} isBusy={c.isBusy}
           />
         ) : null}
 
@@ -337,6 +335,7 @@ export function AppShell(c: AppController) {
             onRetry={() => void c.loadFindingLibrary()}
             onOpenRecord={(sessionId, recordId) => void c.openLibraryRecord(sessionId, 'findings', recordId)}
             sidebarTarget={librarySidebarTarget}
+            onCopy={c.copy} copyState={c.copyState} isBusy={c.isBusy}
           />
         ) : null}
 

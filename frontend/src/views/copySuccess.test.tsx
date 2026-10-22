@@ -23,13 +23,13 @@ describe('copy success buttons', () => {
 
   it('shows a success state for copied notes', () => {
     render(
-      <SessionEditorView
+      <SessionEditorView noteBodyHtml="<p>Body</p>"
         activeProviderAvailable
         activeSession={session}
         busyAction={null}
         canUndoLatestGeneration={false}
-        copySucceeded
-        screenshotCopySucceeded={false}
+        copyState={{ status: 'succeeded', snapshot: { target: { kind: 'note', sessionId: session.id, action: 'jira-text' }, title: 'Login session', bodyHtml: '<p>Body</p>' } }}
+
         filteredSessions={[session]}
         isBusy={false}
         noteBody={richEditorDocumentFromHtml('<p>Body</p>')}
@@ -45,8 +45,8 @@ describe('copy success buttons', () => {
         activeProvider={providerStatus.providers[0]}
         onAiAction={async () => undefined}
         onUndoLatestGeneration={async () => undefined}
-        onCopyNote={async () => undefined}
-        onCopyNoteScreenshot={async () => undefined}
+        onCopy={async () => undefined}
+        onCreateSession={() => undefined} canCreateSession
         onDeleteSession={() => undefined}
         onOpenSession={async () => undefined}
         onSetNoteBody={() => undefined}
@@ -61,13 +61,12 @@ describe('copy success buttons', () => {
 
   it('shows required-title validation instead of claiming the Session is autosaved', () => {
     render(
-      <SessionEditorView
+      <SessionEditorView noteBodyHtml="<p>Body</p>" copyState={{ status: 'idle' }}
         activeProviderAvailable
         activeSession={session}
         busyAction={null}
         canUndoLatestGeneration={false}
-        copySucceeded={false}
-        screenshotCopySucceeded={false}
+
         filteredSessions={[session]}
         isBusy={false}
         noteBody={richEditorDocumentFromHtml('<p>Body</p>')}
@@ -85,8 +84,8 @@ describe('copy success buttons', () => {
         activeProvider={providerStatus.providers[0]}
         onAiAction={async () => undefined}
         onUndoLatestGeneration={async () => undefined}
-        onCopyNote={async () => undefined}
-        onCopyNoteScreenshot={async () => undefined}
+        onCopy={async () => undefined}
+        onCreateSession={() => undefined} canCreateSession
         onDeleteSession={() => undefined}
         onOpenSession={async () => undefined}
         onSetNoteBody={() => undefined}
@@ -105,13 +104,12 @@ describe('copy success buttons', () => {
     const user = userEvent.setup()
     const onConfigureAi = vi.fn()
     render(
-      <SessionEditorView
+      <SessionEditorView noteBodyHtml="<p>Body</p>" copyState={{ status: 'idle' }}
         activeProviderAvailable
         activeSession={session}
         busyAction={null}
         canUndoLatestGeneration={false}
-        copySucceeded={false}
-        screenshotCopySucceeded={false}
+
         filteredSessions={[session]}
         isBusy={false}
         noteBody={richEditorDocumentFromHtml('<p>Body</p>')}
@@ -143,8 +141,8 @@ describe('copy success buttons', () => {
         onConfigureAi={onConfigureAi}
         onAiAction={async () => undefined}
         onUndoLatestGeneration={async () => undefined}
-        onCopyNote={async () => undefined}
-        onCopyNoteScreenshot={async () => undefined}
+        onCopy={async () => undefined}
+        onCreateSession={() => undefined} canCreateSession
         onDeleteSession={() => undefined}
         onOpenSession={async () => undefined}
         onSetNoteBody={() => undefined}
@@ -168,8 +166,7 @@ describe('copy success buttons', () => {
     render(
       <TestwareView
         busyAction={null}
-        copiedDraftId="draft-1"
-        copiedDraftScreenshotId={null}
+        copyState={{ status: 'succeeded', snapshot: { target: { kind: 'draft', sessionId: draft.sessionId, id: draft.id, action: 'jira-text' }, title: draft.title, bodyHtml: draft.body } }}
         draftScreenshotCounts={{}}
         drafts={[draft]}
         notice={null}
@@ -178,8 +175,7 @@ describe('copy success buttons', () => {
         activeGenerationJob={null}
         updateLocalDraft={() => undefined}
         onCancelGenerationJob={async () => undefined}
-        onCopyDraft={async () => undefined}
-        onCopyDraftScreenshot={async () => undefined}
+        onCopy={async () => undefined}
         onDeleteDraft={() => undefined}
         onPrefillFromNote={async () => undefined}
         onSaveDraft={async () => true}
@@ -196,8 +192,7 @@ describe('copy success buttons', () => {
     render(
       <FindingsView
         busyAction={null}
-        copiedFindingId="finding-1"
-        copiedFindingScreenshotId={null}
+        copyState={{ status: 'succeeded', snapshot: { target: { kind: 'finding', sessionId: finding.sessionId, id: finding.id, action: 'jira-text' }, title: finding.title, bodyHtml: finding.body } }}
         findingScreenshotCounts={{}}
         findings={[finding]}
         notice={null}
@@ -206,8 +201,7 @@ describe('copy success buttons', () => {
         activeGenerationJob={null}
         updateLocalFinding={() => undefined}
         onCancelGenerationJob={async () => undefined}
-        onCopyFinding={async () => undefined}
-        onCopyFindingScreenshot={async () => undefined}
+        onCopy={async () => undefined}
         onDeleteFinding={() => undefined}
         onPrefillFromNote={async () => undefined}
         onSaveFinding={async () => true}
@@ -222,13 +216,12 @@ describe('copy success buttons', () => {
 
   it('shows a success state for copied note screenshots', () => {
     render(
-      <SessionEditorView
+      <SessionEditorView noteBodyHtml="<p>Body</p>"
         activeProviderAvailable
         activeSession={session}
         busyAction={null}
         canUndoLatestGeneration={false}
-        copySucceeded={false}
-        screenshotCopySucceeded
+        copyState={{ status: 'succeeded', snapshot: { target: { kind: 'note', sessionId: session.id, action: 'screenshot' }, title: 'Login session', bodyHtml: '<p>Body</p>' } }}
         filteredSessions={[session]}
         isBusy={false}
         noteBody={richEditorDocumentFromHtml('<p>Body</p>')}
@@ -244,8 +237,8 @@ describe('copy success buttons', () => {
         activeProvider={providerStatus.providers[0]}
         onAiAction={async () => undefined}
         onUndoLatestGeneration={async () => undefined}
-        onCopyNote={async () => undefined}
-        onCopyNoteScreenshot={async () => undefined}
+        onCopy={async () => undefined}
+        onCreateSession={() => undefined} canCreateSession
         onDeleteSession={() => undefined}
         onOpenSession={async () => undefined}
         onSetNoteBody={() => undefined}
@@ -262,8 +255,7 @@ describe('copy success buttons', () => {
     render(
       <TestwareView
         busyAction={null}
-        copiedDraftId={null}
-        copiedDraftScreenshotId="draft-1"
+        copyState={{ status: 'succeeded', snapshot: { target: { kind: 'draft', sessionId: draft.sessionId, id: draft.id, action: 'screenshot' }, title: draft.title, bodyHtml: draft.body } }}
         draftScreenshotCounts={{ 'draft-1': 1 }}
         drafts={[draft]}
         notice={null}
@@ -272,8 +264,7 @@ describe('copy success buttons', () => {
         activeGenerationJob={null}
         updateLocalDraft={() => undefined}
         onCancelGenerationJob={async () => undefined}
-        onCopyDraft={async () => undefined}
-        onCopyDraftScreenshot={async () => undefined}
+        onCopy={async () => undefined}
         onDeleteDraft={() => undefined}
         onPrefillFromNote={async () => undefined}
         onSaveDraft={async () => true}
@@ -290,8 +281,7 @@ describe('copy success buttons', () => {
     render(
       <FindingsView
         busyAction={null}
-        copiedFindingId={null}
-        copiedFindingScreenshotId="finding-1"
+        copyState={{ status: 'succeeded', snapshot: { target: { kind: 'finding', sessionId: finding.sessionId, id: finding.id, action: 'screenshot' }, title: finding.title, bodyHtml: finding.body } }}
         findingScreenshotCounts={{ 'finding-1': 1 }}
         findings={[finding]}
         notice={null}
@@ -300,8 +290,7 @@ describe('copy success buttons', () => {
         activeGenerationJob={null}
         updateLocalFinding={() => undefined}
         onCancelGenerationJob={async () => undefined}
-        onCopyFinding={async () => undefined}
-        onCopyFindingScreenshot={async () => undefined}
+        onCopy={async () => undefined}
         onDeleteFinding={() => undefined}
         onPrefillFromNote={async () => undefined}
         onSaveFinding={async () => true}
@@ -319,8 +308,7 @@ describe('copy success buttons', () => {
     render(
       <TestwareView
         busyAction={null}
-        copiedDraftId={null}
-        copiedDraftScreenshotId={null}
+        copyState={{ status: 'idle' }}
         draftScreenshotCounts={{}}
         drafts={[draft]}
         notice={null}
@@ -329,8 +317,7 @@ describe('copy success buttons', () => {
         activeGenerationJob={null}
         updateLocalDraft={() => undefined}
         onCancelGenerationJob={async () => undefined}
-        onCopyDraft={async () => undefined}
-        onCopyDraftScreenshot={async () => undefined}
+        onCopy={async () => undefined}
         onDeleteDraft={() => undefined}
         onPrefillFromNote={async () => undefined}
         onSaveDraft={async () => false}
@@ -342,7 +329,7 @@ describe('copy success buttons', () => {
     await user.click(screen.getByRole('button', { name: 'Edit' }))
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
-    await waitFor(() => expect(screen.getByLabelText('Testware title')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByLabelText('Test case title')).toBeInTheDocument())
   })
 
   it('keeps a finding record editable when save fails', async () => {
@@ -350,8 +337,7 @@ describe('copy success buttons', () => {
     render(
       <FindingsView
         busyAction={null}
-        copiedFindingId={null}
-        copiedFindingScreenshotId={null}
+        copyState={{ status: 'idle' }}
         findingScreenshotCounts={{}}
         findings={[finding]}
         notice={null}
@@ -360,8 +346,7 @@ describe('copy success buttons', () => {
         activeGenerationJob={null}
         updateLocalFinding={() => undefined}
         onCancelGenerationJob={async () => undefined}
-        onCopyFinding={async () => undefined}
-        onCopyFindingScreenshot={async () => undefined}
+        onCopy={async () => undefined}
         onDeleteFinding={() => undefined}
         onPrefillFromNote={async () => undefined}
         onSaveFinding={async () => false}

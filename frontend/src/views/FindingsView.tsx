@@ -4,6 +4,7 @@ import type { Finding, FindingKind, GenerationJobStatus } from '../tauri'
 import { formatFindingKind } from '../ui/format'
 import type { BusyAction } from '../ui/types'
 import type { RecordLoadState } from '../app/useRecordHydration'
+import type { ClipboardSnapshot, CopyState } from '../app/copyActions'
 import type { CreatedRecordEditTarget } from '../app/types'
 import { RecordCollectionView, type RecordCollectionLabels } from './RecordCollectionView'
 import {
@@ -38,8 +39,7 @@ const findingKindOptions: FindingKind[] = ['bug', 'question', 'risk', 'follow_up
 
 export function FindingsView({
   busyAction,
-  copiedFindingId,
-  copiedFindingScreenshotId,
+  copyState,
   findingScreenshotCounts,
   findings,
   sessionTitle = null,
@@ -55,8 +55,7 @@ export function FindingsView({
   onRetryLoad,
   updateLocalFinding,
   onCancelGenerationJob,
-  onCopyFinding,
-  onCopyFindingScreenshot,
+  onCopy,
   onDeleteFinding,
   onPrefillFromNote,
   onSaveFinding,
@@ -64,8 +63,7 @@ export function FindingsView({
   onUploadImage,
 }: {
   busyAction: BusyAction | null
-  copiedFindingId: string | null
-  copiedFindingScreenshotId: string | null
+  copyState: CopyState
   findingScreenshotCounts: Record<string, number>
   findings: Finding[]
   sessionTitle?: string | null
@@ -81,8 +79,7 @@ export function FindingsView({
   onRetryLoad?: () => void
   updateLocalFinding: (id: string, patch: Partial<Pick<Finding, 'title' | 'body' | 'bodyJson' | 'bodyFormat' | 'kind' | 'metadataJson'>>) => void
   onCancelGenerationJob: (jobId: string) => Promise<void>
-  onCopyFinding: (finding: Finding) => Promise<void>
-  onCopyFindingScreenshot: (finding: Finding) => Promise<void>
+  onCopy: (snapshot: ClipboardSnapshot) => Promise<void>
   onDeleteFinding: (finding: Finding) => void
   onPrefillFromNote: () => Promise<void>
   onSaveFinding: (finding: Finding) => Promise<boolean>
@@ -95,8 +92,8 @@ export function FindingsView({
       emptyIcon={Flag}
       prefillBusyAction="prefill-finding"
       busyAction={busyAction}
-      copiedRecordId={copiedFindingId}
-      copiedRecordScreenshotId={copiedFindingScreenshotId}
+      sourceKind="finding"
+      copyState={copyState}
       recordScreenshotCounts={findingScreenshotCounts}
       records={findings}
       sessionTitle={sessionTitle}
@@ -182,18 +179,13 @@ export function FindingsView({
         switch (kind) {
           case 'delete':
             return `delete-finding:${finding.id}`
-          case 'copy':
-            return `copy-finding:${finding.id}`
-          case 'copyScreenshot':
-            return `copy-finding-screenshot:${finding.id}`
           case 'saving':
             return `finding:${finding.id}`
         }
       }}
       updateLocalRecord={updateLocalFinding}
       onCancelGenerationJob={onCancelGenerationJob}
-      onCopyRecord={onCopyFinding}
-      onCopyRecordScreenshot={onCopyFindingScreenshot}
+      onCopy={onCopy}
       onDeleteRecord={onDeleteFinding}
       onPrefillFromNote={onPrefillFromNote}
       onSaveRecord={onSaveFinding}

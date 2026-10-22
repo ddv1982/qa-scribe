@@ -1,3 +1,4 @@
+import { runClipboardWorkflow } from './clipboard.workflow.mjs'
 import assert from 'node:assert/strict'
 import { existsSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -218,7 +219,7 @@ const workflows = {
       await assertNoteStructure('bullet', editedBulletNote)
 
       // Reopen the Note view with a fresh editor history before checklist undo.
-      await (await sessionTab('Testware')).click()
+      await (await sessionTab('Test cases')).click()
       await (await sessionTab('Note')).click()
       await assertNoteStructure('bullet', editedBulletNote)
       await convertNoteAndUndo('Checklist', 'checklist', 'bullet', editedBulletNote)
@@ -252,14 +253,14 @@ const workflows = {
     title: 'creates and deletes manual testware through the native persistence boundary',
     run: async () => {
       await createSessionFixture('E2E manual testware session', 'Manual testware source note.')
-      await (await sessionTab('Testware')).click()
-      const create = await button('New Testware')
+      await (await sessionTab('Test cases')).click()
+      const create = await button('New Test case')
       await create.waitForClickable()
       await create.click()
 
-      const titleInput = await $('[aria-label="Testware title"]')
+      const titleInput = await $('[aria-label="Test case title"]')
       await titleInput.waitForDisplayed()
-      assert.ok(await browser.execute(() => document.activeElement?.matches('[aria-label="Testware title"]')))
+      assert.ok(await browser.execute(() => document.activeElement?.matches('[aria-label="Test case title"]')))
       const created = await browser.tauri.execute(async ({ core }) => {
         const session = (await core.invoke('list_sessions')).find((item) => item.title === 'E2E manual testware session')
         return (await core.invoke('list_drafts', { sessionId: session.id }))[0]
@@ -275,7 +276,7 @@ const workflows = {
         { id: created.id, title: 'E2E manual saved testware', body: '<p>Manual persisted body.</p>' },
       ])
       await (await button('Edit')).click()
-      await (await $('[aria-label="Testware title"]')).setValue('Discard this manual edit')
+      await (await $('[aria-label="Test case title"]')).setValue('Discard this manual edit')
       await (await button('Discard')).click()
       await (await $('h2=E2E manual saved testware')).waitForDisplayed()
       assert.equal((await browser.tauri.execute(async ({ core }, sessionId) => core.invoke('list_drafts', { sessionId }), created.sessionId))[0].title,
@@ -289,15 +290,8 @@ const workflows = {
     },
   },
   clipboard: {
-    title: 'copies a Note through the native clipboard command',
-    run: async () => {
-      await createSessionFixture('E2E clipboard session', 'Clipboard boundary source note.')
-      await (await sessionTab('Note')).click()
-      const copy = await $('[aria-label="Copy note for Jira"]')
-      await copy.waitForClickable()
-      await copy.click()
-      await $('[aria-label="Note copied for Jira"]').waitForDisplayed()
-    },
+    title: 'copies literal rich text and the first screenshot from Notes, records and selected libraries with failure recovery',
+    run: runClipboardWorkflow,
   },
   'generation-cancellation': {
     title: 'streams rich Testware safely across themes, saves and reopens edits, and cancels a held second generation',

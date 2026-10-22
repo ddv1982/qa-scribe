@@ -29,3 +29,17 @@ test('terminology check permits genuine Note Entry and generation language', () 
     rmSync(root, { recursive: true, force: true })
   }
 })
+
+test('terminology check rejects legacy collection labels and permits Testware domain identifiers', () => {
+  const root = mkdtempSync(join(tmpdir(), 'qa-scribe-terminology-'))
+  try {
+    writeFileSync(join(root, 'Collection.tsx'), `const label = 'New Testware'; const heading = 'Testware library'`)
+    assert.deepEqual(inspectFrontendTerminology(root).map((failure) => failure.label), [
+      'Test-case collection uses legacy visible wording', 'Test-case collection uses legacy visible wording',
+    ])
+    writeFileSync(join(root, 'Collection.tsx'), `const TestwareView = 'Test cases library'; const kind = 'testware'; const domain = 'Testware Drafts'`)
+    assert.deepEqual(inspectFrontendTerminology(root), [])
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})

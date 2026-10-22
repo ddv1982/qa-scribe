@@ -3,9 +3,9 @@ import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { join } from 'node:path'
 
-const preview = '[data-renderer="streamdown"][aria-label="Pending generated testware"]'
-const savedPreview = '.record-detail-pane [aria-label$="testware preview"]'
-const editor = '.record-detail-pane [aria-label$="testware body"][contenteditable="true"]'
+const preview = '[data-renderer="streamdown"][aria-label="Pending generated test cases"]'
+const savedPreview = '.record-detail-pane [aria-label$="test case preview"]'
+const editor = '.record-detail-pane [aria-label$="test case body"][contenteditable="true"]'
 const edit = ' Tester reviewed and saved this rich Testware.'
 const wrappedTask = ' Verify wrapped checklist text stays in its own column beside the first line.'.repeat(8)
 const safeLink = `https://example.test/check/${'long-reference-'.repeat(24)}`
@@ -170,7 +170,7 @@ export async function runTestwareStreamdownWorkflow({ createSessionFixture, sess
       await themeButton.waitForClickable()
       await themeButton.click()
       await click('Back')
-      await (await sessionTab('Testware')).click()
+      await (await sessionTab('Test cases')).click()
       if (editing) await click('Edit')
       for (const width of [1280, 640]) {
         await resize(width)
@@ -252,7 +252,7 @@ export async function runTestwareStreamdownWorkflow({ createSessionFixture, sess
     await createSessionFixture('E2E Streamdown isolation Session', 'Independent Note for reopen verification.')
     await (await sessionOption(title)).click()
     await browser.waitUntil(async () => (await $('[aria-label="Session title"]')).getValue().then((value) => value === title))
-    await (await sessionTab('Testware')).click()
+    await (await sessionTab('Test cases')).click()
     const reopened = await waitRich(savedPreview, attachment.id)
     assertRich(reopened, attachment.id)
     assert.ok(reopened.text.includes(edit.trim()))

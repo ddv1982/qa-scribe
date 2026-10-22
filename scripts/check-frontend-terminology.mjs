@@ -5,6 +5,7 @@ import { join, relative, resolve, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 export const FORBIDDEN_SESSION_LANGUAGE = [
+  { label: 'Test-case collection uses legacy visible wording', pattern: /(?:New Testware|Testware library|Open Session Testware|Prefill testware from note|No testware yet|Testware title)/g },
   { label: 'Session title state named as Note', pattern: /\b(?:noteTitle|setNoteTitle|onSetNoteTitle|noteTitleWriteVersionRef|nextUntitledNoteTitle)\b/g },
   { label: 'Session view named as Notes', pattern: /(?:MainView[^\n]*'notes'|activeView[^\n]*'notes')/g },
   { label: 'Session busy action named as Note', pattern: /\b(?:open-note|new-note|delete-note)\b/g },
