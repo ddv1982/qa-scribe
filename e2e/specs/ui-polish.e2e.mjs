@@ -285,7 +285,7 @@ describe('Native UI polish before/after evidence', () => {
     save('note-persisted', { state: await persistedNote() })
 
     await tab('Test cases')
-    await click('button=New Test case')
+    await click('button=Create test cases')
     await (await $('[aria-label="Test case title"]')).waitForDisplayed()
     assert.ok(await browser.execute(() => document.activeElement?.matches('[aria-label="Test case title"]')))
     await (await $('[aria-label="Test case title"]')).setValue(recordTitle)
@@ -317,7 +317,7 @@ describe('Native UI polish before/after evidence', () => {
         await (await $(`h2=${recordTitle}`)).waitForDisplayed()
         assert.ok((await (await $('.editable-record')).getText()).includes(recordText),
           'Saved Testware edits must survive leaving and reopening the collection')
-        await snapshot(`testware-${stage}`, width, theme, '.top-new-button')
+        await snapshot(`testware-${stage}`, width, theme, '.collection-header-actions .primary-button')
         await tab('Note')
       }
     }
@@ -400,7 +400,7 @@ describe('Native UI polish before/after evidence', () => {
     assert.equal(await (await $('.chat-composer textarea')).getValue(), 'Retained laptop composer draft')
     await click('button=Write note')
     await tab('Test cases')
-    await click('button=New Test case')
+    await click('button=Create test cases')
     await (await $('[aria-label="Test case title"]')).waitForDisplayed()
     assert.ok(await browser.execute(() => document.activeElement?.matches('[aria-label="Test case title"]')))
     await actions('record-empty', '.editable-record .record-actions button')
@@ -438,19 +438,24 @@ describe('Native UI polish before/after evidence', () => {
     await (await recordButton('Discard')).click()
     await (await $('h2=Long evidence record')).waitForDisplayed()
     await tab('Note')
-    for (const width of [640, ...(process.env.QA_SCRIBE_E2E_MINIMUM === '1' ? [320] : [])]) {
-      await laptopResize(width, 520)
-      await actions(width === 640 ? 'narrow-640' : 'minimum-320', '.top-new-button, .session-workspace-tabs button')
-      for (const button of await $$('.ai-action-buttons button')) {
-        await button.scrollIntoView()
-        await actions(`narrow-${width}-${(await button.getText()).replaceAll(' ', '-')}`, '.ai-action-buttons button', false)
-        break
+    for (const theme of ['light', 'dark']) {
+      await laptopResize(1280, 720)
+      await themeSettings(theme)
+      await back()
+      for (const width of [640, ...(process.env.QA_SCRIBE_E2E_MINIMUM === '1' ? [320] : [])]) {
+        await laptopResize(width, 520)
+        await actions(`narrow-${width}-${theme}`, '.top-new-button, .session-workspace-tabs button')
+        const buttons = await $$('.ai-action-buttons button')
+        for (const [index, button] of buttons.entries()) {
+          await button.scrollIntoView()
+          await actions(`narrow-${width}-${theme}-action-${index}`, `.ai-action-buttons button:nth-child(${index + 1})`, false)
+        }
+        await click('button=Chat')
+        await (await $('.chat-composer textarea')).scrollIntoView()
+        await (await $('.chat-compose-actions .primary-button')).scrollIntoView()
+        await actions(`chat-${width}-${theme}-reachable`, '.chat-compose-actions button', false)
+        await click('button=Write note')
       }
-      await click('button=Chat')
-      await (await $('.chat-composer textarea')).scrollIntoView()
-      await (await $('.chat-compose-actions .primary-button')).scrollIntoView()
-      await actions(`chat-${width}-reachable`, '.chat-compose-actions button', false)
-      await click('button=Write note')
     }
     await laptopResize(1280, 720)
     await click('[aria-label="Link"]')

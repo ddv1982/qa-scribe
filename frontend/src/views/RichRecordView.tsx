@@ -120,6 +120,7 @@ export function CopyControls({ snapshot, copyState, onCopy, disabled = false, la
   label: string
   screenshotCount?: number
 }) {
+  const identity = snapshot.target.kind === 'note' ? `note ${snapshot.title}` : label
   const screenshot: ClipboardSnapshot = { ...snapshot, target: { ...snapshot.target, action: 'screenshot' } }
   const textMatches = copyMatchesSnapshot(copyState, snapshot)
   const screenshotMatches = copyMatchesSnapshot(copyState, screenshot)
@@ -131,21 +132,21 @@ export function CopyControls({ snapshot, copyState, onCopy, disabled = false, la
   const failure = copyState.status === 'failed' && (textMatches || screenshotMatches) ? copyState : null
   return <>
     <button className={copied ? 'secondary-button compact-button success' : 'secondary-button compact-button'}
-      type="button" aria-label={copied ? `${label} copied for Jira` : `Copy ${snapshot.target.kind === 'note' ? 'note' : label} for Jira`}
+      type="button" aria-label={copied ? `${identity} copied` : `Copy ${identity}`}
       disabled={copyDisabled} onClick={() => void onCopy(snapshot)}>
       {copying ? <Loader2 className="spin" size={16} /> : copied ? <CheckCircle2 size={16} /> : <Copy size={16} />}
-      {copied ? 'Copied for Jira' : copying ? 'Copying for Jira…' : 'Copy for Jira'}
+      {copied ? 'Copied' : copying ? 'Copying' : 'Copy'}
     </button>
     {screenshotCount > 0 ? <button className={screenshotCopied ? 'secondary-button compact-button success' : 'secondary-button compact-button'}
-      type="button" aria-label={screenshotCopied ? `${label} screenshot copied for Jira` : `Copy first ${snapshot.target.kind === 'note' ? 'note' : label} screenshot for Jira`}
+      type="button" aria-label={screenshotCopied ? `${identity} screenshot copied` : `Copy first ${identity} screenshot`}
       disabled={copyDisabled} onClick={() => void onCopy(screenshot)}>
       {copyingScreenshot ? <Loader2 className="spin" size={16} /> : screenshotCopied ? <CheckCircle2 size={16} /> : <ImageIcon size={16} />}
       {screenshotCopied ? 'Screenshot copied' : copyingScreenshot ? 'Copying first screenshot…' : 'Copy first screenshot'}
     </button> : null}
     {textMatches || screenshotMatches ? <span className="sr-only" role="status">
-      {copyState.status === 'pending' ? 'Copy in progress' : copyState.status === 'succeeded' ? (textMatches ? 'Copied for Jira' : 'First screenshot copied') : ''}
+      {copyState.status === 'pending' ? 'Copy in progress' : copyState.status === 'succeeded' ? (textMatches ? 'Copied' : 'First screenshot copied') : ''}
     </span> : null}
-    {failure ? <span className="copy-error" role="alert">{failure.snapshot.target.action === 'screenshot' ? 'Copy first screenshot failed' : 'Copy for Jira failed'}: {failure.error}</span> : null}
+    {failure ? <span className="copy-error" role="alert">{failure.snapshot.target.action === 'screenshot' ? 'Copy first screenshot failed' : 'Copy failed'}: {failure.error}</span> : null}
   </>
 }
 
@@ -166,7 +167,7 @@ export function RichRecordActions({
   onCancelEdit: () => void
 }) {
   return <>
-    {!editing ? copyControls : null}
+    {copyControls}
     <button className={editing ? 'primary-button' : 'secondary-button'} type="button" disabled={isBusy} onClick={editing ? onSave : onEdit}>
       {saving ? <Loader2 className="spin" size={16} /> : editing ? <Save size={16} /> : <PencilLine size={16} />}
       {editing ? 'Save' : 'Edit'}

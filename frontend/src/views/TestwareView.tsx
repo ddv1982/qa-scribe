@@ -1,3 +1,4 @@
+import type { RecordCreationCommands } from './RecordCreationActions'
 import { Box } from 'lucide-react'
 import type { RichEditorImageUpload } from '../editor/RichTextEditor'
 import {
@@ -17,8 +18,7 @@ const testwareLabels: RecordCollectionLabels = {
   eyebrow: 'Test cases',
   heading: 'Test cases',
   emptyTitle: 'No test cases yet',
-  emptyDescription: 'Create test cases from the current Session note, then refine and save it here.',
-  emptyActionLabel: 'Prefill test cases from note',
+  emptyDescription: 'Create test cases, then edit and save them here.',
   prefillLabel: 'Prefill from note',
   generationTitle: 'Generating test cases',
   generationTitleAriaLabel: 'Pending test case title',
@@ -33,6 +33,8 @@ const testwareLabels: RecordCollectionLabels = {
 }
 
 export function TestwareView({
+  creationCommands,
+  aiUnavailableReason,
   busyAction,
   copyState,
   draftScreenshotCounts,
@@ -57,6 +59,8 @@ export function TestwareView({
   onDiscardDraft,
   onUploadImage,
 }: {
+  creationCommands: RecordCreationCommands
+  aiUnavailableReason?: string | null
   busyAction: BusyAction | null
   copyState: CopyState
   draftScreenshotCounts: Record<string, number>
@@ -83,6 +87,8 @@ export function TestwareView({
 }) {
   return (
     <RecordCollectionView
+      creationCommands={creationCommands}
+      aiUnavailableReason={aiUnavailableReason}
       labels={testwareLabels}
       emptyIcon={Box}
       prefillBusyAction="prefill-testware"

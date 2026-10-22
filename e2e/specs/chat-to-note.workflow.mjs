@@ -355,7 +355,7 @@ export async function runChatToNoteWorkflow() {
   const edited = await canonicalNote(primaryId)
   assertRichNote(edited, originalNodes, true, true)
 
-  await click('Generate test cases')
+  await click('Create test cases with AI')
   await $('dialog').waitForDisplayed()
   const confirm = await (await $('dialog')).$('button=Generate test cases')
   await confirm.waitForClickable()

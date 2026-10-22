@@ -5,6 +5,8 @@ export type AppCommandId =
   | 'session.new'
   | 'testware.new'
   | 'finding.new'
+  | 'testware.ai'
+  | 'finding.ai'
   | 'view.note'
   | 'view.testware'
   | 'view.findings'
@@ -31,8 +33,10 @@ export function createCommandRegistry(controller: AppController): AppCommand[] {
   const hasSession = Boolean(controller.activeSession)
   return [
     command('session.new', 'New Session', 'Create a blank testing Session.', ['create', 'capture'], 'n', !controller.isBusy, () => void controller.handleNewSession()),
-    command('testware.new', 'New Test case', 'Create a test case in the active Session.', ['test cases', 'draft'], undefined, hasSession && !controller.isBusy, () => void controller.handleManualTestware()),
-    command('finding.new', 'New Finding', 'Create a Finding in the active Session.', ['bug', 'risk', 'issue'], undefined, hasSession && !controller.isBusy, () => void controller.handleManualFinding()),
+    command('testware.new', 'Create test cases', 'Create a test case in the active Session.', ['test cases', 'draft'], undefined, hasSession && !controller.isBusy, () => void controller.handleManualTestware()),
+    command('finding.new', 'Create finding', 'Create a Finding in the active Session.', ['bug', 'risk', 'issue'], undefined, hasSession && !controller.isBusy, () => void controller.handleManualFinding()),
+    command('testware.ai', 'Create test cases with AI', 'Review AI options before generating test cases from the Note.', ['generate', 'AI'], undefined, hasSession && !controller.isBusy && controller.noteIsReady && !controller.noteReadOnly && Boolean(controller.activeProvider?.available) && !controller.pendingAiActions.testware, () => void controller.openGenerationPreflight('testware')),
+    command('finding.ai', 'Create finding with AI', 'Review AI options before generating a finding from the Note.', ['generate', 'AI'], undefined, hasSession && !controller.isBusy && controller.noteIsReady && !controller.noteReadOnly && Boolean(controller.activeProvider?.available) && !controller.pendingAiActions.finding, () => void controller.openGenerationPreflight('finding')),
     command('view.note', 'Open Sessions', 'Browse Sessions and show the active Session note.', ['capture', 'editor'], '1', true, () => controller.setActiveView('sessions')),
     command('view.testware', 'Open Session Test cases', 'Show Test cases owned by the active Session.', ['test cases', 'output'], '2', hasSession, () => controller.setActiveView('testware')),
     command('view.findings', 'Open Session Findings', 'Show Findings owned by the active Session.', ['bugs', 'risks', 'output'], '3', hasSession, () => controller.setActiveView('findings')),

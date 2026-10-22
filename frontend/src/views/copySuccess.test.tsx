@@ -1,3 +1,4 @@
+import { recordCreationCommandsFixture } from '../test/fixtures'
 import '@testing-library/jest-dom/vitest'
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -23,7 +24,7 @@ describe('copy success buttons', () => {
 
   it('shows a success state for copied notes', () => {
     render(
-      <SessionEditorView noteBodyHtml="<p>Body</p>"
+      <SessionEditorView creationCommands={{ finding: recordCreationCommandsFixture('finding'), testware: recordCreationCommandsFixture('testware') }} noteBodyHtml="<p>Body</p>"
         activeProviderAvailable
         activeSession={session}
         busyAction={null}
@@ -55,13 +56,13 @@ describe('copy success buttons', () => {
       />,
     )
 
-    const button = screen.getByRole('button', { name: 'Note copied for Jira' })
+    const button = screen.getByRole('button', { name: 'note Login session copied' })
     expect(button.className).toContain('success')
   })
 
   it('shows required-title validation instead of claiming the Session is autosaved', () => {
     render(
-      <SessionEditorView noteBodyHtml="<p>Body</p>" copyState={{ status: 'idle' }}
+      <SessionEditorView creationCommands={{ finding: recordCreationCommandsFixture('finding'), testware: recordCreationCommandsFixture('testware') }} noteBodyHtml="<p>Body</p>" copyState={{ status: 'idle' }}
         activeProviderAvailable
         activeSession={session}
         busyAction={null}
@@ -104,7 +105,7 @@ describe('copy success buttons', () => {
     const user = userEvent.setup()
     const onConfigureAi = vi.fn()
     render(
-      <SessionEditorView noteBodyHtml="<p>Body</p>" copyState={{ status: 'idle' }}
+      <SessionEditorView creationCommands={{ finding: recordCreationCommandsFixture('finding'), testware: recordCreationCommandsFixture('testware') }} noteBodyHtml="<p>Body</p>" copyState={{ status: 'idle' }}
         activeProviderAvailable
         activeSession={session}
         busyAction={null}
@@ -164,7 +165,7 @@ describe('copy success buttons', () => {
 
   it('shows a success state for the copied testware record only', () => {
     render(
-      <TestwareView
+      <TestwareView creationCommands={recordCreationCommandsFixture('testware')}
         busyAction={null}
         copyState={{ status: 'succeeded', snapshot: { target: { kind: 'draft', sessionId: draft.sessionId, id: draft.id, action: 'jira-text' }, title: draft.title, bodyHtml: draft.body } }}
         draftScreenshotCounts={{}}
@@ -184,13 +185,13 @@ describe('copy success buttons', () => {
       />,
     )
 
-    const button = screen.getByRole('button', { name: 'Login case copied for Jira' })
+    const button = screen.getByRole('button', { name: 'Login case copied' })
     expect(button.className).toContain('success')
   })
 
   it('shows a success state for the copied finding only', () => {
     render(
-      <FindingsView
+      <FindingsView creationCommands={recordCreationCommandsFixture('finding')}
         busyAction={null}
         copyState={{ status: 'succeeded', snapshot: { target: { kind: 'finding', sessionId: finding.sessionId, id: finding.id, action: 'jira-text' }, title: finding.title, bodyHtml: finding.body } }}
         findingScreenshotCounts={{}}
@@ -210,13 +211,13 @@ describe('copy success buttons', () => {
       />,
     )
 
-    const button = screen.getByRole('button', { name: 'Login finding copied for Jira' })
+    const button = screen.getByRole('button', { name: 'Login finding copied' })
     expect(button.className).toContain('success')
   })
 
   it('shows a success state for copied note screenshots', () => {
     render(
-      <SessionEditorView noteBodyHtml="<p>Body</p>"
+      <SessionEditorView creationCommands={{ finding: recordCreationCommandsFixture('finding'), testware: recordCreationCommandsFixture('testware') }} noteBodyHtml="<p>Body</p>"
         activeProviderAvailable
         activeSession={session}
         busyAction={null}
@@ -247,13 +248,13 @@ describe('copy success buttons', () => {
       />,
     )
 
-    const button = screen.getByRole('button', { name: 'Note screenshot copied for Jira' })
+    const button = screen.getByRole('button', { name: 'note Login session screenshot copied' })
     expect(button.className).toContain('success')
   })
 
   it('shows a success state for copied testware screenshots', () => {
     render(
-      <TestwareView
+      <TestwareView creationCommands={recordCreationCommandsFixture('testware')}
         busyAction={null}
         copyState={{ status: 'succeeded', snapshot: { target: { kind: 'draft', sessionId: draft.sessionId, id: draft.id, action: 'screenshot' }, title: draft.title, bodyHtml: draft.body } }}
         draftScreenshotCounts={{ 'draft-1': 1 }}
@@ -273,13 +274,13 @@ describe('copy success buttons', () => {
       />,
     )
 
-    const button = screen.getByRole('button', { name: 'Login case screenshot copied for Jira' })
+    const button = screen.getByRole('button', { name: 'Login case screenshot copied' })
     expect(button.className).toContain('success')
   })
 
   it('shows a success state for copied finding screenshots', () => {
     render(
-      <FindingsView
+      <FindingsView creationCommands={recordCreationCommandsFixture('finding')}
         busyAction={null}
         copyState={{ status: 'succeeded', snapshot: { target: { kind: 'finding', sessionId: finding.sessionId, id: finding.id, action: 'screenshot' }, title: finding.title, bodyHtml: finding.body } }}
         findingScreenshotCounts={{ 'finding-1': 1 }}
@@ -299,14 +300,14 @@ describe('copy success buttons', () => {
       />,
     )
 
-    const button = screen.getByRole('button', { name: 'Login finding screenshot copied for Jira' })
+    const button = screen.getByRole('button', { name: 'Login finding screenshot copied' })
     expect(button.className).toContain('success')
   })
 
   it('keeps a testware record editable when save fails', async () => {
     const user = userEvent.setup()
     render(
-      <TestwareView
+      <TestwareView creationCommands={recordCreationCommandsFixture('testware')}
         busyAction={null}
         copyState={{ status: 'idle' }}
         draftScreenshotCounts={{}}
@@ -335,7 +336,7 @@ describe('copy success buttons', () => {
   it('keeps a finding record editable when save fails', async () => {
     const user = userEvent.setup()
     render(
-      <FindingsView
+      <FindingsView creationCommands={recordCreationCommandsFixture('finding')}
         busyAction={null}
         copyState={{ status: 'idle' }}
         findingScreenshotCounts={{}}

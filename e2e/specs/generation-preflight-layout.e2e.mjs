@@ -208,7 +208,7 @@ export async function runGenerationPreflightLayoutWorkflow({ button }) {
     return target
   }
   const open = async () => {
-    const trigger = await click('Generate test cases')
+    const trigger = await click('Create test cases with AI')
     await $(dialog).waitForDisplayed()
     await browser.pause(250) // Let the real dialog entrance animation finish.
     return trigger
@@ -378,10 +378,10 @@ if (process.env.QA_SCRIBE_E2E_SPEC === 'generation-preflight-layout.e2e.mjs') {
       await $('[aria-label="Note body"]').setValue('Check generation options and execution details before starting Testware.')
       await browser.waitUntil(async () => browser.execute(() =>
         document.querySelector('p.status-pill.saved')?.textContent.includes('Note saved') ?? false))
-      await (await button('Generate test cases')).click()
+      await (await button('Create test cases with AI')).click()
       await runGenerationPreflightLayoutWorkflow({ button })
       const variants = []
-      for (const [triggerLabel, heading] of [['Create finding', 'Create finding?'], ['Summarize notes', 'Summarize note?']]) {
+      for (const [triggerLabel, heading] of [['Create finding with AI', 'Create finding?'], ['Summarize notes', 'Summarize note?']]) {
         const trigger = await button(triggerLabel)
         await browser.execute((node) => node.focus(), trigger)
         await trigger.click()

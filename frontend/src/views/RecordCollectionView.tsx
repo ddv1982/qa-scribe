@@ -1,3 +1,4 @@
+import { RecordCreationActions, type RecordCreationCommands } from './RecordCreationActions'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, FileText, Loader2, Search, SearchX } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -28,7 +29,6 @@ export type RecordCollectionLabels = {
   heading: string
   emptyTitle: string
   emptyDescription: string
-  emptyActionLabel: string
   prefillLabel: string
   generationTitle: string
   generationTitleAriaLabel: string
@@ -45,6 +45,8 @@ export type RecordCollectionLabels = {
 export type RecordBusyActionKind = 'delete' | 'saving'
 
 export function RecordCollectionView<T extends CollectionRecord>({
+  creationCommands,
+  aiUnavailableReason,
   labels,
   emptyIcon,
   prefillBusyAction,
@@ -79,6 +81,8 @@ export function RecordCollectionView<T extends CollectionRecord>({
   onSaveRecord,
   onUploadImage,
 }: {
+  creationCommands: RecordCreationCommands
+  aiUnavailableReason?: string | null
   labels: RecordCollectionLabels
   emptyIcon: LucideIcon
   prefillBusyAction: BusyAction
@@ -194,12 +198,15 @@ export function RecordCollectionView<T extends CollectionRecord>({
           {sessionTitle ? <p className="collection-context">Session: {sessionTitle}</p> : null}
         </div>
         <div className="collection-header-actions">
+          <RecordCreationActions commands={creationCommands} />
           <button className="secondary-button" type="button" disabled={isBusy} onClick={() => void onPrefillFromNote()}>
             {busyAction === prefillBusyAction ? <Loader2 className="spin" size={16} /> : <FileText size={16} />}
             {labels.prefillLabel}
           </button>
         </div>
       </header>
+      {aiUnavailableReason ? <p className="collection-action-guidance">{aiUnavailableReason}</p> : null}
+      <p className="collection-action-guidance">Prefill from note uses a plain-text template without formatting or screenshots.{sourceKind === 'finding' ? ' Only the first 4,000 characters are included.' : ''}</p>
       {notice || error ? (
         <div className="collection-status">
           <StatusPill notice={notice} error={error} busyAction={busyAction} />
@@ -343,7 +350,6 @@ export function RecordCollectionView<T extends CollectionRecord>({
             icon={emptyIcon}
             title={labels.emptyTitle}
             description={labels.emptyDescription}
-            action={{ label: labels.emptyActionLabel, onClick: () => void onPrefillFromNote() }}
           />
         ) : null}
         {records.length > 0 && visibleRecords.length === 0 ? (

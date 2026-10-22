@@ -160,7 +160,7 @@ describe('App workflows', () => {
     render(<App />)
 
     await waitFor(() => expect(screen.getByRole('textbox', { name: 'Session title' })).toHaveValue('Checkout session'))
-    const generateButton = screen.getByRole('button', { name: /generate test cases/i })
+    const generateButton = screen.getByRole('button', { name: /create test cases with AI/i })
     expect(generateButton).toBeDisabled()
 
     resolveProviderStatus(providerStatusFixture())
@@ -194,7 +194,7 @@ describe('App workflows', () => {
     render(<App />)
 
     await waitFor(() => expect(screen.getByRole('textbox', { name: 'Session title' })).toHaveValue('Checkout session'))
-    await user.click(screen.getByRole('button', { name: /generate test cases/i }))
+    await user.click(screen.getByRole('button', { name: /create test cases with AI/i }))
     const dialog = screen.getByRole('dialog', { name: /generate test cases/i })
     expect(dialog).toBeInTheDocument()
     expect(tauriMock.startAiActionJob).not.toHaveBeenCalled()
@@ -231,7 +231,7 @@ describe('App workflows', () => {
     render(<App />)
 
     await waitFor(() => expect(screen.getByRole('textbox', { name: 'Session title' })).toHaveValue('Checkout session'))
-    await user.click(screen.getByRole('button', { name: /generate test cases/i }))
+    await user.click(screen.getByRole('button', { name: /create test cases with AI/i }))
     const dialog = screen.getByRole('dialog', { name: /generate test cases/i })
     await user.click(within(dialog).getByRole('button', { name: /boundaries/i }))
     await user.click(within(dialog).getByRole('button', { name: /^generate test cases$/i }))
@@ -380,13 +380,13 @@ describe('App workflows', () => {
     expect(screen.getByRole('heading', { name: 'Checkout coverage' })).toBeInTheDocument()
   })
 
-  it('creates manual testware after saving pending note edits', async () => {
+  it('creates testware after saving pending note edits', async () => {
     const user = userEvent.setup()
     render(<App />)
 
     await waitFor(() => expect(screen.getByRole('textbox', { name: 'Session title' })).toHaveValue('Checkout session'))
     await user.click(screen.getByRole('tab', { name: /test cases/i }))
-    await user.click(screen.getByRole('button', { name: /new test case/i }))
+    await user.click(screen.getByRole('button', { name: /^create test cases$/i }))
 
     await waitFor(() => expect(tauriMock.createDraft).toHaveBeenCalled())
     expect(tauriMock.createDraft.mock.calls[0][0]).toMatchObject({
