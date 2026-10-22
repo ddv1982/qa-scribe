@@ -4,8 +4,10 @@ import type { AiSelection, GenerationWorkspace, SessionWorkspace, WorkflowFeedba
 import type { useSessionActions } from './sessionActions'
 import type { NoteEligibility } from './noteEligibility'
 import type { ChatNoteRecovery } from './useChatNoteRecovery'
+import type { ChatHandoffPresentation } from './sessionChat.presentation'
 
 export interface SessionChatViewState {
+  handoff: ChatHandoffPresentation
   chat: ChatState | null
   composer: string
   job: GenerationJobStatus | null

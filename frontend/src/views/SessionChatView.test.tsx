@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import type { ComponentProps } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AiProvider, ReportedModel, ChatMessage, ChatState, ChatTurnStatus, GenerationJobStatus } from '../bindings'
-import { SessionChatView } from './SessionChatView'
+import { SessionChatView } from './SessionChatView.testSupport'
 
 type Props = ComponentProps<typeof SessionChatView>
 afterEach(() => { cleanup(); vi.restoreAllMocks() })
@@ -60,7 +60,7 @@ describe('SessionChatView', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Session Note recovery required')
     expect(screen.getByRole('textbox', { name: 'Message' })).toBeDisabled()
     expect(button('Send')).toBeDisabled()
-    expect(button('New conversation')).toBeDisabled()
+    expect(button('Start new conversation')).toBeDisabled()
     expect(screen.getByText(/submission outcome is uncertain/i)).toBeInTheDocument()
     fireEvent.click(button('Recover Session Note'))
     expect(props.onSubmit).toHaveBeenCalledTimes(1)
@@ -68,9 +68,9 @@ describe('SessionChatView', () => {
   it('offers canonical Note recovery instead of claiming a finished handoff (R37-01)', () => {
     const submitted = { ...chat([message('user', 'Question'), message('assistant', 'Answer')]), submission: { draftId: 'chat-1', noteId: 'note-1', submittedAt: '2026-10-14T10:05:00Z' } }
     const { props, rerender } = mount({ chat: submitted, recoveryPending: true, error: 'Could not refresh Session Note' })
-    expect(button('New conversation')).toBeDisabled()
+    expect(button('Start new conversation')).toBeDisabled()
     expect(button('Recover Session Note')).toBeEnabled()
-    expect(screen.queryByRole('button', { name: 'Submit to Session Note' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Add conversation to note' })).not.toBeInTheDocument()
     expect(screen.getByText(/stale Note.*write.*protected/i)).toBeInTheDocument()
     expect(screen.queryByText(/Submitted to Session Note\. History is preserved/)).not.toBeInTheDocument()
     fireEvent.click(button('Recover Session Note'))
@@ -79,7 +79,7 @@ describe('SessionChatView', () => {
     rerender(<SessionChatView {...props} working />)
     expect(button('Recover Session Note')).toBeDisabled()
     rerender(<SessionChatView {...props} recoveryPending={false} error={null} />)
-    expect(button('New conversation')).toBeEnabled()
+    expect(button('Start new conversation')).toBeEnabled()
     expect(screen.queryByRole('button', { name: 'Recover Session Note' })).not.toBeInTheDocument()
   })
 
@@ -125,6 +125,13 @@ describe('SessionChatView', () => {
   it('does not treat absent AI Run IDs as an associated saved response (R37-04)', () => {
     mount({ chat: chat([message('assistant', 'Unassociated answer')]), job: job({ state: 'completed', aiRunId: null, partialText: 'Final pending answer' }) })
     expect(within(screen.getByRole('region', { name: 'Final response pending save' })).getByText('Final pending answer')).toBeInTheDocument()
+  })
+
+  it('shares empty-output hydration pending with Add and optional review', () => {
+    mount({ chat: chat([message('assistant', 'Unassociated saved answer')]), job: job({ state: 'completed', aiRunId: null, partialText: '' }) })
+    expect(screen.getByRole('region', { name: 'Final response pending save' })).toHaveTextContent('Waiting for the saved transcript to refresh.')
+    expect(button('Add conversation to note')).toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'Review saved conversation' })).toBeNull()
   })
 
   it.each(['failed', 'cancelled'] as const)('preserves explicitly nonfinal %s partial output (R37-04)', (state) => {
@@ -180,8 +187,8 @@ describe('SessionChatView', () => {
   it.each(['loading', 'saving', 'working'] as const)('blocks mutation while %s and supplies status', (flag) => {
     mount({ composer: 'Question', [flag]: true })
     expect(button('Send')).toBeDisabled()
-    expect(button('Submit to Session Note')).toBeDisabled()
-    expect(button('New conversation')).toBeDisabled()
+    expect(button('Add conversation to note')).toBeDisabled()
+    expect(button('Start new conversation')).toBeDisabled()
     expect(screen.getByRole('status')).not.toBeEmptyDOMElement()
   })
 
@@ -211,7 +218,7 @@ describe('SessionChatView', () => {
     const { props, rerender } = mount({ chat: chat([message('user', 'Question', status)]), composer: 'Do not bypass this turn' })
     expect(screen.getByText(new RegExp(status, 'i'))).toBeInTheDocument()
     expect(button('Send')).toBeDisabled()
-    expect(button('Submit to Session Note')).toBeDisabled()
+    expect(button('Add conversation to note')).toBeDisabled()
     expect(screen.getByText(/Retry.*before sending/i)).toBeInTheDocument()
     expect(button('Retry response')).toBeDisabled()
     expect(screen.getByText(/Clear.*unsent message.*retry/i)).toBeInTheDocument()
@@ -224,7 +231,7 @@ describe('SessionChatView', () => {
   it('explains explicit new-conversation recovery for unresolved earlier history (advisoryR26-01)', () => {
     mount({ chat: chat([message('user', 'Old question', 'failed'), message('user', 'Later question', 'completed', 'user-2'), message('assistant', 'Later answer', 'completed', 'assistant-2')]), composer: 'Next' })
     expect(button('Send')).toBeDisabled()
-    expect(button('Submit to Session Note')).toBeDisabled()
+    expect(button('Add conversation to note')).toBeDisabled()
     expect(screen.queryByRole('button', { name: 'Retry response' })).not.toBeInTheDocument()
     expect(screen.getByText(/earlier.*new conversation/i)).toBeInTheDocument()
   })
@@ -232,24 +239,24 @@ describe('SessionChatView', () => {
   it('submits only completed nonempty history with a literally empty composer', () => {
     const completed = chat([message('user', 'Question'), message('assistant', 'Answer')])
     const { props, rerender } = mount({ chat: completed })
-    fireEvent.click(button('Submit to Session Note'))
+    fireEvent.click(button('Add conversation to note'))
     expect(props.onSubmit).toHaveBeenCalledTimes(1)
-    expect(screen.getByText(/does not generate Testware/i)).toBeInTheDocument()
+    expect(screen.getByText(/does not generate test cases/i)).toBeInTheDocument()
     rerender(<SessionChatView {...props} composer=" " />)
-    expect(button('Submit to Session Note')).toBeDisabled()
+    expect(button('Add conversation to note')).toBeDisabled()
     expect(screen.getByText(/Send or clear.*message/i)).toBeInTheDocument()
     rerender(<SessionChatView {...props} chat={chat()} />)
-    expect(button('Submit to Session Note')).toBeDisabled()
+    expect(button('Add conversation to note')).toBeDisabled()
   })
 
   it('preserves submitted history and offers an explicit new conversation', () => {
     const submitted = { ...chat([message('user', 'Question'), message('assistant', 'Answer')]), submission: { draftId: 'chat-1', noteId: 'note-1', submittedAt: '2026-10-14T10:05:00Z' } }
     mount({ chat: submitted })
-    expect(screen.getByText(/Submitted to Session Note/)).toBeInTheDocument()
+    expect(screen.getByText(/Conversation added to note/)).toBeInTheDocument()
     expect(screen.getByText('Answer')).toBeInTheDocument()
     expect(button('Send')).toBeDisabled()
-    expect(button('Submit to Session Note')).toBeDisabled()
-    expect(button('New conversation')).toBeEnabled()
+    expect(button('Open updated Note')).toBeEnabled()
+    expect(button('Start new conversation')).toBeEnabled()
   })
 
   it.each([
@@ -258,19 +265,19 @@ describe('SessionChatView', () => {
   ])('requires explicit confirmation before replacing nonempty conversation state', (patch) => {
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
     const { props } = mount(patch)
-    fireEvent.click(button('New conversation'))
+    fireEvent.click(button('Start new conversation'))
     expect(confirm).toHaveBeenCalledTimes(1)
     expect(props.onRestart).not.toHaveBeenCalled()
     expect(props.onSetComposer).not.toHaveBeenCalled()
     confirm.mockReturnValue(true)
-    fireEvent.click(button('New conversation'))
+    fireEvent.click(button('Start new conversation'))
     expect(props.onRestart).toHaveBeenCalledTimes(1)
   })
 
   it('does not require confirmation for an empty conversation', () => {
     const confirm = vi.spyOn(window, 'confirm')
     const { props } = mount()
-    fireEvent.click(button('New conversation'))
+    fireEvent.click(button('Start new conversation'))
     expect(confirm).not.toHaveBeenCalled()
     expect(props.onRestart).toHaveBeenCalledTimes(1)
   })

@@ -8,6 +8,7 @@ import { formatSessionDate } from '../ui/format'
 import { FindingsView } from '../views/FindingsView'
 import { SessionEditorView } from '../views/SessionEditorView'
 import { SessionChatView } from '../views/SessionChatView'
+import { ChatAddedToNote } from '../views/ChatHandoff'
 import type { SessionChatViewState } from './useSessionChat'
 import { SettingsView } from '../views/SettingsView'
 import { TestwareView } from '../views/TestwareView'
@@ -202,7 +203,9 @@ export function AppShell(c: AppController) {
             onRecoverNote={c.sessionChat.onSubmit}
             sessionMode={c.sessionMode}
             onSetSessionMode={c.setSessionMode}
+            noteHandoffContent={<ChatAddedToNote state={chatState} />}
             chatContent={<SessionChatView {...chatState}
+              onOpenNote={() => c.setSessionMode('write_note')}
               providerLabel={c.activeProvider?.label ?? c.selectedProvider}
               modelLabel={c.selectedModel === 'default' ? 'CLI Default' : c.selectedModel}
               modelSelectionControl={modelSelectionControl} modelSelectionPending={c.settingsWritePending}

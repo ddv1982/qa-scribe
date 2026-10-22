@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AiProvider } from '../bindings'
 import { SessionChatView, type SessionChatViewProps } from '../views/SessionChatView'
+import { deriveChatHandoff } from './sessionChat.presentation'
 import { createSessionChatActions } from './sessionChat.actions'
 import { emptyChatSnapshot, type ChatSnapshot, type SessionChatContext } from './sessionChat.types'
 import { chatFixture, chatJobFixture } from './useSessionChat.testSupport'
@@ -49,7 +50,8 @@ async function mountControllerView(provider: AiProvider) {
   instances.push(actions)
   function props(): SessionChatViewProps {
     return {
-      ...snapshot, providerLabel: providerLabels[provider], modelLabel: 'test-model',
+      ...snapshot, handoff: deriveChatHandoff({ ...snapshot, sessionId: 'session-1', noteEntry: null }),
+      onOpenNote: vi.fn(), providerLabel: providerLabels[provider], modelLabel: 'test-model',
       providerAvailable: true, providerReason: '', onConfigureAi: vi.fn(),
       onSetComposer: actions.onSetComposer, onSend: actions.onSend, onRetry: actions.onRetry,
       onCancel: actions.onCancel, onSubmit: actions.onSubmit, onRestart: actions.onRestart,

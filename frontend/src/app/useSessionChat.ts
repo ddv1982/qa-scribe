@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { GenerationJobStatus } from '../tauri'
 import { useStableCapability } from './useStableCapability'
 import { createSessionChatActions } from './sessionChat.actions'
+import { deriveChatHandoff } from './sessionChat.presentation'
 import { emptyChatSnapshot, type SessionChatContext, type SessionChatViewState } from './sessionChat.types'
 
 export type { SessionChatViewState } from './sessionChat.types'
@@ -24,6 +25,7 @@ export function useSessionChat(context: Omit<SessionChatContext, 'publish'> & {
   const permissionJobId = current.job?.jobId ?? null
   const permissionProvider = context.selection.selectedProvider
   const sessionChat: SessionChatViewState = {
+    handoff: deriveChatHandoff({ ...current, sessionId, noteEntry: context.session.noteEntry, recoveryPending: noteReadOnly }),
     chat: current.chat, composer: current.composer, job: current.job,
     loading: current.loading, saving: current.saving, working: current.working, error: current.error,
     dirty: current.dirty, recoveryPending: noteReadOnly,

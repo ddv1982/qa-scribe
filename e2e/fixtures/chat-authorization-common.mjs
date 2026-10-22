@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, watch, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { spawnSync } from 'node:child_process'
+import { handoffMarkdown } from './chat-handoff-markdown.mjs'
 
 export function reserveInvocation(directory, prefix = 'codex-exec') {
   mkdirSync(directory, { recursive: true })
@@ -24,7 +25,8 @@ export function waitForFile(path) {
 
 export function chatResponse(turn) {
   if (turn === 1) return 'Which build and environment did you test?'
-  if (turn === 2) return 'What did you expect, and what happened instead?'
+  if (turn === 2) return process.env.QA_SCRIBE_E2E_CHAT_MARKDOWN === '1'
+    ? handoffMarkdown : 'What did you expect, and what happened instead?'
   return 'Your testing context is ready to submit as a Session Note.'
 }
 

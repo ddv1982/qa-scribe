@@ -54,6 +54,18 @@ describe('Session Chat explicit canonical Note handoff', () => {
     expect(api.startChatJob).not.toHaveBeenCalled()
   })
 
+  it('keeps accepted review available during a local mode-only change', async () => {
+    api.getChat.mockResolvedValue(completedChatFixture({ mode: 'write_note' }))
+    const { result } = renderHook(() => useAppController())
+    await waitFor(() => expect(result.current.sessionChat.chat?.revision).toBe(3))
+    act(() => result.current.setSessionMode('chat'))
+    expect(result.current.sessionChat.dirty).toBe(true)
+    expect(result.current.sessionChat.composer).toBe('')
+    expect(result.current.sessionChat.handoff).toEqual({ kind: 'conversation', reason: '', hydrationPending: false, reviewAvailable: true })
+    expect(api.submitChat).not.toHaveBeenCalled()
+    expect(api.startChatJob).not.toHaveBeenCalled()
+  })
+
   it('drains already in-flight Note writes before submission and prevents stale ambient autosave afterwards', async () => {
     vi.useFakeTimers()
     const { result } = renderHook(() => useAppController())

@@ -51,6 +51,7 @@ export function SessionEditorView({
   sessionMode = 'write_note',
   onSetSessionMode,
   chatContent,
+  noteHandoffContent,
 }: {
   activeProviderAvailable: boolean
   activeSession: Session | null
@@ -90,6 +91,7 @@ export function SessionEditorView({
   sessionMode?: ChatMode
   onSetSessionMode?: (mode: ChatMode) => void
   chatContent?: ReactNode
+  noteHandoffContent?: ReactNode
 }) {
   const deletingSession = busyAction === 'delete-session'
   const undoingGeneration = busyAction === 'undo-generation'
@@ -187,6 +189,7 @@ export function SessionEditorView({
             <p>Chat submission needs canonical Note recovery. The Note is read-only until recovery succeeds.</p>
             {onRecoverNote ? <button className="secondary-button" type="button" disabled={isBusy} onClick={() => void onRecoverNote()}>Recover Session Note</button> : null}
           </div> : null}
+          {sessionMode === 'write_note' && !noteReadOnly ? noteHandoffContent : null}
           {sessionMode === 'write_note' ? <RichTextEditor editorId={editorId} value={noteBody} readOnly={noteReadOnly} onChange={onSetNoteBody} className="note-rich-editor" /> : null}
           {sessionMode === 'chat' ? chatContent : null}
         </div>

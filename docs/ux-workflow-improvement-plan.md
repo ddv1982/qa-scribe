@@ -265,7 +265,7 @@ Early original test runs probed installed CLI status and catalogs through a fall
 
 - [x] Run OutputLibraryView, copySuccess, clipboardExport, and richContentConsistency tests, `bun run terminology:check`, and `node --test scripts/check-frontend-terminology.test.mjs`. Assert exact copied content and record identity.
 
-**Evidence and qualification.** Linux owner and parent native clipboard runs verify literal plain text, HTML and first-image pixels. The owner captured all four planned widths and a 40-second video. Parent reran all 647 frontend tests and the maintained clipboard scenario. Copying takes one activation with zero Session switches or audited writes. The single-window dirty-navigation guard prevents Lane 6 as written. Native baseline and candidate checks prove that guard; a real-controller test separately proves copying cannot save, hydrate, or navigate unrelated dirty editors. Lane 6 remains qualified rather than claimed as native coverage. Independent review and macOS CI are pending.
+**Evidence and qualification.** Linux owner and parent native clipboard runs verify literal plain text, HTML and first-image pixels. The owner captured all four planned widths and a 40-second video. Parent reran all 647 frontend tests and the maintained clipboard scenario. Copying takes one activation with zero Session switches or audited writes. The single-window dirty-navigation guard prevents Lane 6 as written. Native baseline and candidate checks prove that guard; a real-controller test separately proves copying cannot save, hydrate, or navigate unrelated dirty editors. Lane 6 remains qualified rather than claimed as native coverage. Independent OpenAI reviews passed. Hosted Linux completed all 19 maintained native invocations and macOS all 10. PR #69 merged normally after every protected and observational check passed. The macOS HTML-envelope and Linux test-tool fixes are included.
 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on the configured fast profile at the PR head are bounded scenario labels under the boot recipe.
 
@@ -289,11 +289,11 @@ Early original test runs probed installed CLI status and catalogs through a fall
 
 **Review gate.** Review the interaction before merge.
 
-- [ ] Provide the operator with labelled copy, library, failure, and narrow screenshots plus `UX-4-review.mp4`, a 30 to 60 second video. Obtain the independent verdict at the same patch.
+- [x] Provide the operator with labelled copy, library, failure, and narrow screenshots plus `UX-4-review.mp4`, a 30 to 60 second video. Obtain the independent verdict at the same patch.
 
 **Merge.**
 
-- [ ] Require protected CI, exact-patch review, and applicable user authority. Do not add a second clipboard serializer or new storage names.
+- [x] Require protected CI, exact-patch review, and applicable user authority. Do not add a second clipboard serializer or new storage names.
 
 
 ## Explain Chat handoff without adding another workflow (UX-5)
@@ -302,45 +302,47 @@ Early original test runs probed installed CLI status and catalogs through a fall
 
 **Files.**
 
-- [ ] Edit `frontend/src/views/SessionChatView.tsx` and the current handoff callback wiring only where navigation or labels require it.
-- [ ] Extend `frontend/src/views/SessionChatView.test.tsx`, controller chat-submission and recovery tests, and `e2e/specs/chat-to-note.e2e.mjs`.
-- [ ] Read `frontend/src/app/sessionChat.noteHandoff.ts` and `crates/qa-scribe-core/src/services/session_service/chat_submission.rs` as preservation boundaries. Do not rewrite the append transaction.
+- [x] Edit `frontend/src/views/SessionChatView.tsx` and the current handoff callback wiring only where navigation or labels require it.
+- [x] Extend `frontend/src/views/SessionChatView.test.tsx`, controller chat-submission and recovery tests, and `e2e/specs/chat-to-note.e2e.mjs`.
+- [x] Read `frontend/src/app/sessionChat.noteHandoff.ts` and `crates/qa-scribe-core/src/services/session_service/chat_submission.rs` as preservation boundaries. Do not rewrite the append transaction.
 
 **Build.**
 
-- [ ] Replace ambiguous Submit wording with Add conversation to note. State that the existing Note stays intact and the saved, role-labelled conversation is appended. State that this action does not generate test cases.
-- [ ] Offer an optional read-only review of the durable completed messages. Reuse the actual transcript content and rendering. Do not preview partial output, generate a summary, or promise a pixel-exact merged document preview.
-- [ ] Keep the normal eligible handoff as one action. Do not add a mandatory confirmation dialog or require opening the optional review.
-- [ ] After confirmed success, make the updated Note and Start new conversation actions clear. Preserve existing conversation completion and restart semantics.
-- [ ] Keep submission receipt reuse, canonical Note adoption, recovery locks, pending-write draining, and retry protections unchanged. Show recovery as recovery, not as a second append.
+- [x] Replace ambiguous Submit wording with Add conversation to note. State that the existing Note stays intact and the saved, role-labelled conversation is appended. State that this action does not generate test cases.
+- [x] Offer an optional read-only review of the durable completed messages. Reuse the actual transcript content and rendering. Do not preview partial output, generate a summary, or promise a pixel-exact merged document preview.
+- [x] Keep the normal eligible handoff as one action. Do not add a mandatory confirmation dialog or require opening the optional review.
+- [x] After confirmed success, make the updated Note and Start new conversation actions clear. Preserve existing conversation completion and restart semantics.
+- [x] Keep submission receipt reuse, canonical Note adoption, recovery locks, pending-write draining, and retry protections unchanged. Show recovery as recovery, not as a second append.
 
 **You see.**
 
-- [ ] Before handoff, the user understands what is added and where. After handoff, the existing Note and appended messages are present exactly once, and the next step is clear.
+- [x] Before handoff, the user understands what is added and where. After handoff, the existing Note and appended messages are present exactly once, and the next step is clear.
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] Run SessionChatView, chat-submission, and chat-recovery tests plus `cargo test -p qa-scribe-core --test chat_storage`. Assert literal message content, preserved existing Note, uncertain-result recovery, and no duplicate append.
+- [x] Run SessionChatView, chat-submission, and chat-recovery tests plus `cargo test -p qa-scribe-core --test chat_storage`. Assert literal message content, preserved existing Note, uncertain-result recovery, and no duplicate append.
+
+**Evidence and qualification.** Parent checks passed 684 frontend tests and 38 Rust storage tests. Maintained native handoff records one Add, one Note update, no ordinary confirmation, and zero extra review/handoff provider starts. Parent corrected reproduced explanation/button and history/composer overlap, then passed all four planned sizes in both themes with trusted Linux keyboard traversal and frozen before/after probes. Native lost-acknowledgement and canonical-read-failure injection have no established effective seam. Lanes 8 and 9 remain unavailable natively; real-controller and Rust transaction tests cover those faults. Lane 10 is qualified for unavailable native recovery controls and macOS physical keyboard. No private state was fabricated. Independent review and hosted macOS CI are pending.
 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on the configured fast profile at the PR head are bounded scenario labels under the boot recipe.
 
-- [ ] Lane 1. Finish a deterministic fixture conversation. Save `chat-completed.png`. Pass when the next action clearly identifies the Session Note destination.
-- [ ] Lane 2. Expand the optional review. Save `chat-review.png`. Pass when durable completed messages retain their roles and literal user content.
-- [ ] Lane 3. Collapse the review and add the conversation. Save `chat-added.png`. Pass when no extra confirmation or AI request is required.
-- [ ] Lane 4. Open the updated Note. Save `note-after-chat.png`. Pass when existing content remains and the expected messages appear once.
-- [ ] Lane 5. Start a new conversation after success. Save `chat-restart.png`. Pass when the previously added history remains in the Note.
-- [ ] Lane 6. Retain an unsent composer message. Save `chat-unsent.png`. Pass when the existing eligibility rule blocks handoff with an understandable reason.
-- [ ] Lane 7. Leave a response or permission request unresolved. Save `chat-pending.png`. Pass when the review does not imply the conversation is ready to append.
+- [x] Lane 1. Finish a deterministic fixture conversation. Save `chat-completed.png`. Pass when the next action clearly identifies the Session Note destination.
+- [x] Lane 2. Expand the optional review. Save `chat-review.png`. Pass when durable completed messages retain their roles and literal user content.
+- [x] Lane 3. Collapse the review and add the conversation. Save `chat-added.png`. Pass when no extra confirmation or AI request is required.
+- [x] Lane 4. Open the updated Note. Save `note-after-chat.png`. Pass when existing content remains and the expected messages appear once.
+- [x] Lane 5. Start a new conversation after success. Save `chat-restart.png`. Pass when the previously added history remains in the Note.
+- [x] Lane 6. Retain an unsent composer message. Save `chat-unsent.png`. Pass when the existing eligibility rule blocks handoff with an understandable reason.
+- [x] Lane 7. Leave a response or permission request unresolved. Save `chat-pending.png`. Pass when the review does not imply the conversation is ready to append.
 - [ ] Lane 8. Inject a committed submission with a failed response. Save `chat-uncertain.png`. Pass when Note protection and recovery do not append again.
 - [ ] Lane 9. Inject a failed canonical Note refresh. Save `chat-recovery.png`. Pass when the stale Note remains protected until recovery succeeds.
 - [ ] Lane 10. Use keyboard navigation at laptop height in both themes. Save `chat-handoff-keyboard.png`. Pass when review, add, recovery, and restart actions remain reachable with visible focus.
 
 **Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] Metric. Count provider invocations, user actions, append transactions, and completed local handoffs.
-- [ ] Probe. Run the same fixture Chat-to-Note scenario on trunk first and head second. Inspect stored Note content and existing submission receipts.
-- [ ] Baseline. Record the current eligible one-action submission and committed-result recovery behavior before wording or view changes.
-- [ ] Rule. Require zero provider requests from review or handoff, one normal handoff action, exactly one append despite uncertain responses, and local completion within the existing 10-second wait. Do not infer a memory or battery improvement.
+- [x] Metric. Count provider invocations, user actions, append transactions, and completed local handoffs.
+- [x] Probe. Run the same fixture Chat-to-Note scenario on trunk first and head second. Inspect stored Note content and existing submission receipts.
+- [x] Baseline. Record the current eligible one-action submission and committed-result recovery behavior before wording or view changes.
+- [x] Rule. Require zero provider requests from review or handoff, one normal handoff action, exactly one append despite uncertain responses, and local completion within the existing 10-second wait. Do not infer a memory or battery improvement.
 
 **Review gate.** Review the interaction before merge.
 
@@ -349,6 +351,7 @@ Early original test runs probed installed CLI status and catalogs through a fall
 **Merge.**
 
 - [ ] Require protected CI, exact-patch review, and applicable user authority. Stop if a proposed UI change requires weakening canonical submission or recovery guarantees.
+
 
 ## Close the program
 

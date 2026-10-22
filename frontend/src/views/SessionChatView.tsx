@@ -1,10 +1,15 @@
 import { useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
-import { RunModelEvidence } from '../components/RunModelEvidence'
+import { ChatMessageList } from './ChatMessageList'
+import { ChatHandoff } from './ChatHandoff'
+import { StartNewConversation } from './StartNewConversation'
+import { chatIsBusy, type ChatHandoffPresentation } from '../app/sessionChat.presentation'
 import '../styles/chat-permissions.css'
 import type { AiProvider, ChatPermissionDecision, ChatState, GenerationJobStatus } from '../bindings'
 import { MarkdownContent } from '../content/MarkdownContent'
 
 export type SessionChatViewProps = {
+  handoff: ChatHandoffPresentation
+  onOpenNote: () => void
   chat: ChatState | null
   composer: string
   job: GenerationJobStatus | null
@@ -44,13 +49,14 @@ const permissionProviderLabels: Record<AiProvider, string> = {
 }
 const byteLength = (text: string) => new TextEncoder().encode(text).length
 
-export function SessionChatView({
-  chat, composer, job, loading, saving, working, error, dirty = false, recoveryPending = false,
-  permissionWorking = false, permissionRecoveryPending = false,
-  providerLabel, modelLabel, providerAvailable, providerReason, modelSelectionControl, modelSelectionPending = false,
-  onSetComposer, onSend, onRetry, onCancel, onSubmit, onRestart, onConfigureAi,
-  onDecidePermission, onRecheck,
-}: SessionChatViewProps) {
+export function SessionChatView(props: SessionChatViewProps) {
+  const {
+    chat, composer, job, loading, saving, working, error, dirty = false, recoveryPending = false, handoff, onOpenNote,
+    permissionWorking = false, permissionRecoveryPending = false,
+    providerLabel, modelLabel, providerAvailable, providerReason, modelSelectionControl, modelSelectionPending = false,
+    onSetComposer, onSend, onRetry, onCancel, onSubmit, onConfigureAi,
+    onDecidePermission, onRecheck,
+  } = props
   const id = useId()
   const [expandedPermissionKey, setExpandedPermissionKey] = useState<string | null>(null)
   const attentionRef = useRef<HTMLElement>(null)
@@ -62,7 +68,7 @@ export function SessionChatView({
   const recovering = recoveryPending
   const activeJob = job?.state === 'starting' || job?.state === 'running' || job?.state === 'cancelling'
   const running = messages.some((message) => message.status === 'running')
-  const busy = loading || saving || working || activeJob || running
+  const busy = chatIsBusy(props)
   const recheckDisabled = loading || saving || permissionWorking || recoveryPending
     || job?.state === 'cancelling' || (working && !activeJob)
   const pendingPermission = chat && job?.sessionId === chat.sessionId
@@ -86,8 +92,6 @@ export function SessionChatView({
   const composerBytes = byteLength(composer)
   const transcriptBytes = messages.reduce((total, message) => total + byteLength(message.text), 0)
   const atLimit = messages.length + 2 > maxMessages || transcriptBytes + composerBytes > transcriptLimit
-  const completedResponseSaved = job?.state === 'completed' && Boolean(job.aiRunId)
-    && messages.some((message) => message.role === 'assistant' && message.status === 'completed' && message.aiRunId === job.aiRunId)
   const responseLabel = job?.state === 'completed' ? 'Final response pending save' : 'Partial response'
   const sendReason = modelSelectionPending ? 'Wait for the model preference to finish saving.' : !chat ? 'Conversation is not ready.'
     : loading ? 'Loading conversation…'
@@ -104,14 +108,6 @@ export function SessionChatView({
   const retryReason = modelSelectionPending ? 'Wait for the model preference to finish saving.' : locked ? 'Wait until the conversation is ready.'
     : !providerAvailable ? providerReason || 'Configure an available AI provider to retry.'
     : composer !== '' ? 'Clear the unsent message before retrying. Your text is kept until you clear it.' : ''
-  const submitReason = recovering ? (submitted
-    ? 'The transcript was saved, but the Session Note could not be refreshed. The stale Note is write-protected until recovery completes. Recovery reloads the saved Note without submitting again.'
-    : 'The submission outcome is uncertain. The Session Note is write-protected until recovery checks its saved state. Recovery does not submit again.')
-    : submitted ? 'Submitted to Session Note. History is preserved; start a new conversation when ready.'
-    : !chat || busy ? 'Wait until the conversation is ready to submit.'
-    : unresolved.length > 0 ? 'Resolve unfinished turns before submitting.'
-    : composer !== '' ? 'Send or clear the unsent message before submitting.'
-    : messages.length === 0 ? 'Complete a conversation before submitting.' : ''
   const status = loading ? 'Loading conversation…' : saving ? 'Saving conversation…'
     : recovering ? 'Session Note recovery required'
     : permissionRecoveryPending ? 'Permission status recovery required'
@@ -140,16 +136,6 @@ export function SessionChatView({
     if (permissionContextRef.current) permissionContextRef.current.scrollTop = 0
     revealPermission()
   }, [permissionKey, permissionRecoveryPending])
-
-  function restart() {
-    if (!chat || busy || recoveryPending) return
-    if ((composer !== '' || messages.length > 0) && !window.confirm(
-      submitted
-        ? 'Start a new conversation? Submitted history remains saved. Any unsent message will be discarded.'
-        : 'Start a new conversation? This replaces the current conversation and discards any unsent message. Submit completed messages to the Session Note first if you want to keep them.',
-    )) return
-    void onRestart()
-  }
 
   return (
     <section className="session-chat" aria-label="Session chat">
@@ -216,11 +202,9 @@ export function SessionChatView({
         <header className="chat-topline">
           <div>
             <h2>Conversation</h2>
-            <p className="chat-help">Gather testing information, then submit it to your Session Note.</p>
+            <p className="chat-help">Gather testing information, then add the saved conversation to your Session Note.</p>
           </div>
-          <button className="secondary-button compact-button" type="button" disabled={!chat || busy || recoveryPending} aria-describedby={recovering ? `${id}-submit-reason` : undefined} onClick={restart}>
-            New conversation
-          </button>
+          {handoff.kind !== 'added' ? <StartNewConversation state={props} /> : null}
         </header>
 
         <div className="chat-meta">
@@ -244,43 +228,20 @@ export function SessionChatView({
 
         <section className="chat-transcript" aria-label="Conversation transcript" tabIndex={0}>
           {messages.length === 0 ? <p className="chat-help">{loading ? 'Loading saved messages…' : 'No messages yet. Describe what you are testing or ask a question.'}</p> : (
-            <ol className="chat-messages">
-              {messages.map((message) => (
-                <li key={message.id} className={`chat-message chat-message-${message.role}`}>
-                  <header>
-                    <strong>{message.role === 'user' ? 'You' : 'Assistant'}</strong>
-                    {message.status !== 'completed' ? <span className="chat-turn-status">{message.status[0].toUpperCase() + message.status.slice(1)}</span> : null}
-                  </header>
-                  {message.text ? message.role === 'assistant'
-                    ? <MarkdownContent text={message.text} />
-                    : <p className="chat-message-text">{message.text}</p> : null}
-                  {message.aiRunId && (message.role === 'assistant' || message.status !== 'completed')
-                    ? <RunModelEvidence run={chat?.aiRuns.find((run) => run.id === message.aiRunId)} /> : null}
-                  {message.errorMessage ? <p className="chat-error">{message.errorMessage}</p> : null}
-                </li>
-              ))}
-            </ol>
+            <ChatMessageList messages={messages} aiRuns={chat?.aiRuns ?? []} />
           )}
-          {job?.partialText && !completedResponseSaved ? (
+          {job && (handoff.hydrationPending || (job.partialText && job.state !== 'completed')) ? (
             <section className="chat-partial" aria-label={responseLabel}>
               <h3>{responseLabel}</h3>
               <p className="chat-help">{job.state === 'completed' ? 'Waiting for the saved transcript to refresh.' : 'Not a completed transcript message.'}</p>
-              <MarkdownContent text={job.partialText} />
+              {job.partialText ? <MarkdownContent text={job.partialText} /> : null}
             </section>
           ) : null}
         </section>
 
         <p className="chat-counts">{messages.length} / 128 messages · {(transcriptBytes / 1024).toFixed(1)} / 128 KiB transcript</p>
         {modelSelectionControl}
-        <footer className="chat-handoff">
-          <div>
-            <p className="chat-help">Submission appends the role-labelled transcript to your editable Session Note. It does not generate Testware.</p>
-            {submitReason ? <p className="chat-help" id={`${id}-submit-reason`}>{submitReason}</p> : null}
-          </div>
-          <button className="secondary-button" type="button" disabled={recovering ? busy : Boolean(submitReason)} aria-describedby={submitReason ? `${id}-submit-reason` : undefined} onClick={() => { if (recovering ? !busy : !submitReason) void onSubmit() }}>
-            {recovering ? 'Recover Session Note' : 'Submit to Session Note'}
-          </button>
-        </footer>
+        <ChatHandoff state={props} onOpenNote={onOpenNote} onSubmit={onSubmit} />
       </div>
       <div className="chat-composer">
         <label htmlFor={`${id}-message`}>Message</label>
