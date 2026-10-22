@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.8.16 - 2026-10-22
+
+- Keep Chat Send, record editing actions, and blocking permission requests reachable in laptop windows, and close the command bar with one Escape press.
+- Open newly created test cases and Findings ready to edit, with stable selection and protection against delayed creation responses changing another Session.
+- Put generation choices first, keep warnings visible, and move routine execution details and Settings diagnostics behind optional disclosures.
+- Add visible Copy for Jira actions and direct copying from saved libraries. Keep copy progress, failures, and content tied to the selected record, and clarify the first-image scope.
+- Explain the one-action Add conversation to note handoff, offer optional saved-conversation review, and show clear Note navigation and new-conversation actions after success.
+- Extend deterministic desktop regression coverage and correct platform-specific clipboard and viewport checks. Include the Linux clipboard test dependency in CI and release validation.
+
 ## v0.8.15 - 2026-10-21
 
 - Use the pinned Rust `tsc-rs` compiler for frontend checks and VS Code language features, and remove the separate Microsoft compiler SDK.
