@@ -16,7 +16,15 @@ Open **Settings** and choose **Refresh CLI configuration** after installation or
 
 Installed means the CLI executable responds. Authenticated means the CLI has accepted local credentials. Ready means QA Scribe's current checks passed. Readiness does not guarantee account entitlement, quota, network availability, or success with a selected model.
 
-Choose an action labelled **with AI**, **Summarize notes**, or send a Chat message to request AI. Review the context before generation. A status refresh checks configuration and can run CLI probes, but does not request generated output. Opening Help or the synthetic example does not refresh providers.
+Choose **Generate with AI** inside a new Finding or test-case draft, choose **Summarize with AI** on Note, or send a Chat message to request AI. Review the context before generation. A status refresh checks configuration and can run CLI probes, but does not request generated output. Opening Help or the synthetic example does not refresh providers.
+
+## Create with optional AI
+
+Choose **Create finding** or **Create test cases** from Note or the corresponding collection. Both open the same local, unsaved creation flow with shared starter sections. You can write and Save without a provider.
+
+**Prefill from note** uses the reviewed saved Note's plain text, without formatting or screenshots. Findings use only its first 4,000 characters. It fills the current draft rather than creating another record; confirm before replacing authored text.
+
+**Generate with AI** reviews the saved source Note, including its revision, and the selected provider and output choices. Successful generation saves one result immediately and opens it for review. If the draft already has authored work, confirmation is **Generate and replace draft**: success closes the local draft and discards its unsaved text and local images. Cancellation or failure keeps that draft. A changed Note must be reviewed again before it can be used as the source.
 
 ## Providers
 
@@ -34,7 +42,7 @@ Provider status can be ready, auth required, install required, or error. Provide
 
 Create or open a Session, then choose **Write note** or **Chat**. Chat uses the same detected, authenticated local provider and model selection as existing Note actions. Send messages explicitly, exchange testing details, and choose **Add conversation to note** when every turn is complete and the composer is empty.
 
-Submission appends the role-labelled conversation to the primary Note, preserves its existing rich content, and returns to Write note. You can edit it and use **Create test cases with AI**, **Create finding with AI**, or **Summarize notes** afterward. Submission itself makes no AI request.
+Submission appends the role-labelled conversation to the primary Note, preserves its existing rich content, and returns to Write note. You can edit it, choose **Create test cases** or **Create finding** and then **Generate with AI** inside the draft, or use **Summarize with AI**. Submission itself makes no AI request.
 
 Messages, unsent composer text, and mode are stored locally per Session. Completed turns are replayed to the CLI on each request; provider-native resume files are not required. Cancelled, failed, or interrupted latest turns can be retried explicitly without duplicating the user message. An earlier unresolved turn requires a new conversation; starting one archives the old conversation locally. Submitted conversations remain readable until you explicitly start another conversation.
 

@@ -20,11 +20,13 @@ Use a test shop you have permission to test. Check what happens when you try to 
 2. Replace the Session title with `Checkout required postcode`.
 3. Write the environment, the steps you tried, and what happened in Note. For example, `Test build, laptop browser. Left postcode empty and chose Place order. A postcode message appeared and no order was created.` Record your actual result.
 4. Paste a screenshot into Note, or choose **Upload image** in the formatting toolbar. Check that the screenshot appears. Use test data and exclude personal details.
-5. Choose **Create finding**. A blank Finding opens for editing without an AI request.
+5. Choose **Create finding**. **New finding** opens as a local, unsaved draft with shared document sections. Opening it saves no blank record and makes no AI request.
 6. Give the Finding a title. Describe the steps, expected behavior, actual behavior, and impact. A Finding can record a passed check as well as a bug.
-7. Choose **Save**. Check that your Finding appears in the Session's **Findings** tab.
+7. Choose **Save finding**. Check that your saved Finding appears in the Session's **Findings** tab.
 
-For a reusable check, choose **Create test cases** and write the setup, steps, and expected result. Save the test case. The Note, Test cases, and Findings tabs keep work in the same Session.
+For a reusable check, choose **Create test cases**, fill in the starter sections, and choose **Save test cases**. Empty sections are optional. The Note, Test cases, and Findings tabs keep work in the same Session.
+
+Before leaving an authored draft, choose **Save draft**, **Discard draft**, or **Keep editing**. Cancelling an untouched draft saves no record. Notes autosave; save a new creation draft before quitting.
 
 ## Copy output into your reporting tool
 
@@ -51,7 +53,9 @@ If a save fails, keep the app open and retain your text before retrying. There i
 
 Choose **Help** beside Settings for the workflow, Copy behavior, provider setup, data locations, and feedback. You can also search for **Open Help** in Commands.
 
-For optional AI, follow [AI providers and Session Chat](ai-providers.md#set-up-one-provider). Ordinary creation stays available without a ready provider.
+Inside either draft, **Prefill from note** lets you review and copy the saved Note's plain text into that same draft, without its formatting or screenshots. For Findings it includes only the first 4,000 characters. Confirm before replacing authored draft text.
+
+For optional AI, follow [AI providers and Session Chat](ai-providers.md#set-up-one-provider), then choose **Generate with AI** inside the draft. Review the saved Note source and the confirmation: success immediately saves one AI result and replaces the local draft. Cancellation or failure keeps the draft. Ordinary writing and Save remain available without a ready provider.
 
 Local data lives under `~/.local/share/io.github.ddv1982.qa-scribe` on Linux, or `$XDG_DATA_HOME/io.github.ddv1982.qa-scribe` when set. On macOS, use `~/Library/Application Support/io.github.ddv1982.qa-scribe`.
 

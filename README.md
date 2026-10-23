@@ -15,7 +15,7 @@ A local-first desktop notepad for exploratory testing. Capture evidence during a
 - Organize testing Sessions with context, objectives, and a chronological Timeline.
 - Capture Notes, API responses, logs, screenshots, and attachments.
 - Link Findings to their supporting Evidence.
-- Write and edit Test cases, with optional AI generation and Session Chat. Testware remains the domain umbrella for testing output.
+- Start a local Finding or test-case draft from Note or its collection. Save explicitly, discard it, or keep editing. Optional AI setup is inside the draft; Session Chat is also available. Testware remains the domain umbrella for testing output.
 - Use Copy on a Note, test case, Finding, or selected library record. Library copying keeps the current Session and uses the saved output.
 - Use Copy first screenshot to copy the first managed screenshot in a Note or record.
 
