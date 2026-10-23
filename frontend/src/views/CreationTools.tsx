@@ -20,6 +20,13 @@ import type { AiProvider, AppSettings } from '../tauri'
 export function CreationTools({ intent, c }: { intent: CreationIntent; c: AppController }) {
   const [mode, setMode] = useState<'prefill' | 'ai' | null>(intent.setup)
   const [confirming, setConfirming] = useState(false)
+  const prefillConfirmation = useRef<symbol | null>(null)
+  function cancelPrefill() {
+    prefillConfirmation.current = null
+    c.creation.cancelPrefill()
+    setConfirming(false)
+    setMode(null)
+  }
   const generateTriggerRef = useRef<HTMLButtonElement>(null)
   function cancelAiSetup() {
     if (confirming) void c.creation.cancelGeneration()
@@ -59,10 +66,16 @@ export function CreationTools({ intent, c }: { intent: CreationIntent; c: AppCon
     </div>
     {c.noteReadOnly ? <p role="status">Recover the Session Note before using it as a source. Ordinary writing remains available.</p> : !ready ? source : null}
     {mode === 'prefill' ? <PrefillReview source={source} authored={authored} finding={intent.kind === 'finding'} busy={confirming}
-      onCancel={() => setMode(null)} onConfirm={() => {
-        if (confirming) return
+      onCancel={cancelPrefill} onConfirm={() => {
+        if (prefillConfirmation.current) return
+        const confirmation = Symbol('prefill-confirmation')
+        prefillConfirmation.current = confirmation
         setConfirming(true)
-        void c.creation.prefill().then((applied) => { if (applied) setMode(null) }).finally(() => setConfirming(false))
+        void c.creation.prefill().then((applied) => { if (prefillConfirmation.current === confirmation && applied) setMode(null) }).finally(() => {
+          if (prefillConfirmation.current !== confirmation) return
+          prefillConfirmation.current = null
+          setConfirming(false)
+        })
       }} /> : null}
     {mode === 'ai' ? createPortal(<GenerationPreflight action={intent.kind} sourceReview={source}
       disclosure={authored ? 'Success immediately saves one AI result, closes this draft, and discards its unsaved text and local images. Cancellation or failure keeps this exact draft.' : 'Success immediately saves one AI result. No blank record is saved first.'}

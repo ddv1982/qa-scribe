@@ -5,8 +5,9 @@ import { createCreationActions, type CreationSelection } from './creationActions
 import type { AiSelection } from './types'
 import type { CreatedRecord, GenerationJobEvent, GenerationJobStatus, NoteSource } from '../tauri'
 import type { CreationIntent } from './creationIntent'
+import * as editorRegistry from '../editor/richEditorRegistry'
 
-const bridge = vi.hoisted(() => ({ readNoteSource: vi.fn(), startAiActionJob: vi.fn(), cancelAiActionJob: vi.fn() }))
+const bridge = vi.hoisted(() => ({ readNoteSource: vi.fn(), startAiActionJob: vi.fn(), cancelAiActionJob: vi.fn(), readClipboardImageDataUrl: vi.fn() }))
 vi.mock('../tauri', async (original) => ({ ...await original<object>(), ...bridge }))
 const selection: AiSelection = { selectedProvider: 'codex_cli', selectedModel: 'request-model', selectedReasoningEffort: 'high' }
 let latest: NoteSource
@@ -25,9 +26,9 @@ function setup() {
     openDestination: vi.fn(), changed: vi.fn(), decisionChanged: vi.fn(), error, notice, selectSaved: selected })
   return { actions, error, notice, selected, jobs, blockSource: () => { allowed = false }, changeSession: (id: string) => { session = id; ++epoch } }
 }
-async function opened() {
+async function opened(kind: 'finding' | 'testware' = 'finding') {
   const owner = setup()
-  await owner.actions.open('finding')
+  await owner.actions.open(kind)
   await vi.waitFor(() => expect(owner.actions.current()?.source?.revision).toBe(0))
   return owner
 }
@@ -207,4 +208,101 @@ it('cannot consume a newer A-to-B-to-A intent from an earlier generation complet
   expect(actions.current()?.id).toBe(id)
   expect(actions.current()?.title).toBe('New A intent must survive')
   expect(selected).not.toHaveBeenCalled()
+})
+it.each(['finding', 'testware'] as const)('rejects a pending %s Prefill after authored content changes', async (kind) => {
+  const { actions } = await opened(kind)
+  actions.update({ title: 'Before confirmation', document: richEditorDocumentFromHtml('<p>Before body</p>') })
+  const id = actions.current()!.id
+  let finish!: (source: NoteSource) => void
+  bridge.readNoteSource.mockReturnValueOnce(new Promise(resolve => { finish = resolve }))
+  const pending = actions.prefill()
+  await vi.waitFor(() => expect(bridge.readNoteSource).toHaveBeenCalledTimes(2))
+  const document = richEditorDocumentFromHtml('<p><strong>New authored body</strong></p>')
+  actions.update({ title: 'New authored title', document })
+  finish(latest)
+  expect(await pending).toBe(false)
+  expect(actions.current()).toMatchObject({ id, title: 'New authored title', document, phase: { state: 'editing' } })
+  expect(bridge.startAiActionJob).not.toHaveBeenCalled()
+})
+
+it.each(['revision', 'error'] as const)('ignores late %s feedback after Prefill dismissal without requiring another edit', async (result) => {
+  const { actions, error } = await opened()
+  let resolve!: (source: NoteSource) => void
+  let reject!: (cause: Error) => void
+  bridge.readNoteSource.mockReturnValueOnce(new Promise((yes, no) => { resolve = yes; reject = no }))
+  const pending = actions.prefill()
+  await vi.waitFor(() => expect(bridge.readNoteSource).toHaveBeenCalledTimes(2))
+  actions.cancelPrefill()
+  const retained = actions.current()
+  error.mockClear()
+  if (result === 'revision') resolve({ ...latest, revision: 8 })
+  else reject(new Error('Old transport failure'))
+  expect(await pending).toBe(false)
+  expect(actions.current()).toBe(retained)
+  expect(error).not.toHaveBeenCalled()
+})
+
+it('does not let an older Prefill completion clear a superseding confirmation', async () => {
+  const { actions, error } = await opened()
+  let oldRead!: (source: NoteSource) => void
+  let newRead!: (source: NoteSource) => void
+  bridge.readNoteSource.mockReturnValueOnce(new Promise(resolve => { oldRead = resolve }))
+  const old = actions.prefill()
+  await vi.waitFor(() => expect(bridge.readNoteSource).toHaveBeenCalledTimes(2))
+  bridge.readNoteSource.mockReturnValueOnce(new Promise(resolve => { newRead = resolve }))
+  const next = actions.prefill()
+  await vi.waitFor(() => expect(bridge.readNoteSource).toHaveBeenCalledTimes(3))
+  error.mockClear()
+  oldRead({ ...latest, revision: 7 })
+  expect(await old).toBe(false)
+  expect(error).not.toHaveBeenCalled()
+  expect(actions.current()?.source?.revision).toBe(0)
+  newRead(latest)
+  expect(await next).toBe(true)
+  expect(richEditorDocumentToHtml(actions.current()!.document)).toContain('Reviewed exact source')
+})
+
+it.each(['title', 'body', 'metadata', 'kind'] as const)('invalidates pending Prefill on a %s edit even when the content returns to its initial value', async (field) => {
+  const { actions } = await opened()
+  const originalDocument = actions.current()!.document
+  let finish!: (source: NoteSource) => void
+  bridge.readNoteSource.mockReturnValueOnce(new Promise(resolve => { finish = resolve }))
+  const pending = actions.prefill()
+  await vi.waitFor(() => expect(bridge.readNoteSource).toHaveBeenCalledTimes(2))
+  if (field === 'title') { actions.update({ title: 'Changed' }); actions.update({ title: '' }) }
+  if (field === 'body') { actions.update({ document: richEditorDocumentFromHtml('<p>Changed body</p>') }); actions.update({ document: originalDocument }) }
+  if (field === 'metadata') { actions.update({ metadataJson: '{"severity":"high"}' }); actions.update({ metadataJson: null }) }
+  if (field === 'kind') { actions.update({ findingKind: 'risk' }); actions.update({ findingKind: 'bug' }) }
+  finish(latest)
+  expect(await pending).toBe(false)
+})
+
+it('can confirm Prefill after a navigation epoch changed while the same draft stayed open', async () => {
+  const { actions, changeSession } = await opened()
+  changeSession('session-1')
+  expect(await actions.prefill()).toBe(true)
+  expect(richEditorDocumentToHtml(actions.current()!.document)).toContain('Reviewed exact source')
+})
+
+it('cancels the Prefill that is still waiting for a local image and retains that image', async () => {
+  const { actions, error } = await opened()
+  let finishImage!: (data: string) => void
+  bridge.readClipboardImageDataUrl.mockReturnValueOnce(new Promise(resolve => { finishImage = resolve }))
+  const document = richEditorDocumentFromHtml('<p>Keep this image</p><img src="data:image/png;base64,aGVsbG8=">')
+  const insertImage = vi.fn(() => { actions.update({ document }); return true })
+  const registry = vi.spyOn(editorRegistry, 'richEditorImageInserterForId').mockReturnValue(insertImage)
+  try {
+    const image = actions.pasteImage({ editorId: 'current-editor', insertImage })
+    const pending = actions.prefill()
+    actions.cancelPrefill()
+    error.mockClear()
+    finishImage('data:image/png;base64,aGVsbG8=')
+    await image
+    expect(await pending).toBe(false)
+    expect(actions.current()?.document).toBe(document)
+    expect(actions.current()?.imageOperations).toEqual({})
+    expect(bridge.readNoteSource).toHaveBeenCalledTimes(1)
+    expect(error).not.toHaveBeenCalled()
+    expect(bridge.startAiActionJob).not.toHaveBeenCalled()
+  } finally { registry.mockRestore() }
 })

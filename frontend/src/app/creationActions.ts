@@ -50,6 +50,10 @@ export function createCreationActions(ctx: CreationContext) {
   }
   function update(patch: Partial<CreationContent>) {
     if (intent?.phase.state !== 'editing') return
+    if ((patch.title !== undefined && patch.title !== intent.title)
+      || ('metadataJson' in patch && patch.metadataJson !== intent.metadataJson)
+      || (patch.findingKind !== undefined && patch.findingKind !== intent.findingKind)
+      || (patch.document && serializeRichEditorDocument(patch.document) !== serializeRichEditorDocument(intent.document))) source.cancelPrefill()
     publish({ ...intent, ...patch })
   }
   async function open(kind: CreationKind, isCurrent: () => boolean = () => true, expandAi = false) {
@@ -109,11 +113,12 @@ export function createCreationActions(ctx: CreationContext) {
   function pasteImage(input: Pick<RichEditorImageUpload, 'editorId' | 'insertImage'>) {
     return stageLocalImage(input, readClipboardImageDataUrl, 'pasted-image.png')
   }
-  async function withSettledImages(action: () => Promise<boolean>) {
+  async function withSettledImages(action: () => Promise<boolean>, isCurrent: () => boolean = () => true) {
     const captured = intent
     if (!captured) return false
     const document = serializeRichEditorDocument(captured.document)
     await Promise.all(staging)
+    if (!isCurrent()) return false
     if (!matches(captured) || !intent || serializeRichEditorDocument(intent.document) !== document) {
       ctx.error('Images finished loading. Review the draft and confirm again.')
       return false
@@ -263,12 +268,12 @@ export function createCreationActions(ctx: CreationContext) {
     if (settled) finishDecision(true)
   }
   const source = createCreationSourceActions({
-    current: () => intent, publish, matches, acceptOutcome, sourceAllowed: () => ctx.sourceAllowed?.() ?? true,
+    current: () => intent, publish, matches, acceptOutcome, withSettledImages, sourceAllowed: () => ctx.sourceAllowed?.() ?? true,
     beginNavigation: () => ctx.beginNavigation(), navigationIsCurrent: (epoch) => ctx.navigationIsCurrent?.(epoch) ?? true,
     error: (message) => ctx.error(message), notice: (message) => ctx.notice?.(message), publishJob: (status) => ctx.publishJob?.(status), finished: () => finishDecision(true),
   })
   return { ...source, generate: (selection: AiSelection, preferences?: TestwareGenerationPreferences) => withSettledImages(() => source.generate(selection, preferences)),
-    prefill: () => withSettledImages(source.prefill), pasteImage, dismissImageFailures, ownsGeneration, markSelectionReady, open, update, save, discard, settle, decide, stageImage, current: () => intent,
+    pasteImage, dismissImageFailures, ownsGeneration, markSelectionReady, open, update, save, discard, settle, decide, stageImage, current: () => intent,
     hasPendingChanges: () => Boolean(intent), isSaving: () => Boolean(saveInFlight || discardInFlight || selectionInFlight) }
 }
 
