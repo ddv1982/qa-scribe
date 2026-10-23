@@ -6,7 +6,7 @@ import { abortCreationSave, commitCreationSave, prepareCreationSave, readClipboa
 import { cloneRichEditorDocument, serializeRichEditorDocument } from '../editor/editorDocument'
 import { pastedImageFilename, readFileAsDataUrl } from '../editor/editorHtml'
 import { richEditorImageInserterForId, type RichEditorImageUpload } from '../editor/richEditorRegistry'
-import { formatError } from '../ui/format'
+import { formatError, toCommandError } from '../ui/format'
 import { creationIsAuthored, creationStarter, type CreationAttempt, type CreationContent, type CreationImageOperation, type CreationIntent } from './creationIntent'
 import { creationImageInputs, materializeCreationDocument } from './creationImages'
 import { useStableCapability } from './useStableCapability'
@@ -182,7 +182,12 @@ export function createCreationActions(ctx: CreationContext) {
         attempt.preparation.images = images.descriptors
       } else publish({ ...captured, phase: { state: 'saving', attempt } })
       preparationMayExist = true
-      const prepared = await prepareCreationSave(attempt.preparation)
+      const prepared = await prepareCreationSave(attempt.preparation).catch((cause: unknown) => {
+        // Only a first, completed validation rejection proves this invocation made no reservation.
+        // A retry may still have an earlier preparation in flight after a lost response.
+        if (captured.phase.state === 'editing' && toCommandError(cause).kind === 'validation') preparationMayExist = false
+        throw cause
+      })
       if (!matches(captured)) return false
       if (prepared.outcome.state !== 'preparing') return acceptOutcome(captured, prepared.outcome)
       if (!attempt.payload) {

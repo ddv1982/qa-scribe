@@ -402,6 +402,8 @@ fn cut_worker() {
     commit_creation_save(&service, &root, request(&prepared, kind)).unwrap();
 }
 
+mod recovery;
+
 mod safety;
 
 mod limits;
