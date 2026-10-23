@@ -2788,6 +2788,7 @@ version = "0.8.18"
 dependencies = [
  "base64 0.22.1",
  "chrono",
+ "dom_query",
  "pulldown-cmark",
  "rusqlite",
  "serde",

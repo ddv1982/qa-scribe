@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
+use dom_query::Document;
 use serde_json::Value;
 
 use crate::{
@@ -7,7 +8,7 @@ use crate::{
     attachments::{decode_image_data_url, hex_sha256},
     domain::*,
     error::validation,
-    generation::{attribute_value, find_html_tag_end, managed_attachment_protocol},
+    generation::managed_attachment_protocol,
 };
 
 use super::CreationAttemptImage;
@@ -89,24 +90,13 @@ pub(crate) fn validate_references(
         } => (body, body_json),
     };
     let mut actual = BTreeSet::new();
-    let mut cursor = 0;
-    while let Some(start) = body[cursor..].find('<').map(|offset| cursor + offset + 1) {
-        let Some(end) = find_html_tag_end(body, start) else {
-            return Err(validation("Creation HTML tag is incomplete"));
-        };
-        let tag = &body[start..end];
-        let name = tag
-            .split(|character: char| character.is_whitespace() || character == '/')
-            .next()
-            .unwrap_or("");
-        if name.eq_ignore_ascii_case("img") {
-            collect_image(
-                attribute_value(tag, "data-attachment-id").as_deref(),
-                attribute_value(tag, "src").as_deref(),
-                &mut actual,
-            )?;
-        }
-        cursor = end + 1;
+    let document = Document::fragment(body.as_str());
+    for image in document.select("img").iter() {
+        collect_image(
+            image.attr("data-attachment-id").as_deref(),
+            image.attr("src").as_deref(),
+            &mut actual,
+        )?;
     }
     if let Some(json) = body_json {
         let mut json_ids = BTreeSet::new();

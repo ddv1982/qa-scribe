@@ -257,6 +257,18 @@ fn html_inventory_rejects_slash_separated_local_data_and_blob_images() {
 }
 
 #[test]
+fn html_inventory_rejects_browser_decoded_named_colon_images() {
+    reject_uninventoried_html(&[
+        "<img src=\"qa-scribe-attachment&colon;//FOREIGN_ID\">",
+        "<img/src=qa-scribe-attachment&colon;//FOREIGN_ID>",
+        "<img/src=\"data&colon;image/png;base64,aW1hZ2U=\">",
+        "<img src=data&colon;image/png;base64,aW1hZ2U=>",
+        "<img/src='blob&colon;local-image'>",
+        "<img src=blob&colon;local-image>",
+    ]);
+}
+
+#[test]
 fn html_inventory_preserves_quoted_and_unquoted_shared_images_for_both_record_kinds() {
     for kind in [CreationKind::Finding, CreationKind::Testware] {
         for template in [
@@ -266,6 +278,12 @@ fn html_inventory_preserves_quoted_and_unquoted_shared_images_for_both_record_ki
             "<img/src=qa-scribe-attachment://SHARED_ID>",
             "<IMG//SRC='qa-scribe-attachment://SHARED_ID'>",
             "<img alt='shared' /src=qa-scribe-attachment://SHARED_ID>",
+            "<p>Text &copy; &amp; ordinary.</p><img src=\"qa-scribe-attachment&colon;//SHARED_ID\" data-attachment-id=\"SHARED_ID\" alt=\"A &quot;quote&quot;\">",
+            "<img/src=qa-scribe-attachment&colon;//SHARED_ID>",
+            "<img src='qa-scribe-attachment&#58;//SHARED_ID'>",
+            "<img src=qa-scribe-attachment&#x3a//SHARED_ID>",
+            "<p>Text &copy; &amp; ordinary.</p><img src=\"qa-scribe-attachment://SHARED_ID\"><img src=\"https://example.test/image?a=1&amp;b=2\">",
+            "<img src=qa-scribe-attachment://SHARED_ID><img src=https://example.test/image?a=1&amp/b=2>",
         ] {
             let fixture = Fixture::new();
             let shared = import_managed_attachment_bytes(
