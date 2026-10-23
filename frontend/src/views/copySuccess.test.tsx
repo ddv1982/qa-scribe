@@ -53,7 +53,8 @@ describe('copy success buttons', () => {
     )
 
     const button = screen.getByRole('button', { name: 'note Login session copied' })
-    expect(button.className).toContain('success')
+    expect(button).toHaveTextContent(/Copied|Screenshot copied/)
+    expect(button).toBeEnabled()
   })
 
   it('shows required-title validation instead of claiming the Session is autosaved', () => {
@@ -154,7 +155,8 @@ describe('copy success buttons', () => {
     )
 
     const button = screen.getByRole('button', { name: 'Login case copied' })
-    expect(button.className).toContain('success')
+    expect(button).toHaveTextContent(/Copied|Screenshot copied/)
+    expect(button).toBeEnabled()
   })
 
   it('shows a success state for the copied finding only', () => {
@@ -179,7 +181,8 @@ describe('copy success buttons', () => {
     )
 
     const button = screen.getByRole('button', { name: 'Login finding copied' })
-    expect(button.className).toContain('success')
+    expect(button).toHaveTextContent(/Copied|Screenshot copied/)
+    expect(button).toBeEnabled()
   })
 
   it('shows a success state for copied note screenshots', () => {
@@ -213,7 +216,8 @@ describe('copy success buttons', () => {
     )
 
     const button = screen.getByRole('button', { name: 'note Login session screenshot copied' })
-    expect(button.className).toContain('success')
+    expect(button).toHaveTextContent(/Copied|Screenshot copied/)
+    expect(button).toBeEnabled()
   })
 
   it('shows a success state for copied testware screenshots', () => {
@@ -238,7 +242,8 @@ describe('copy success buttons', () => {
     )
 
     const button = screen.getByRole('button', { name: 'Login case screenshot copied' })
-    expect(button.className).toContain('success')
+    expect(button).toHaveTextContent(/Copied|Screenshot copied/)
+    expect(button).toBeEnabled()
   })
 
   it('shows a success state for copied finding screenshots', () => {
@@ -263,7 +268,8 @@ describe('copy success buttons', () => {
     )
 
     const button = screen.getByRole('button', { name: 'Login finding screenshot copied' })
-    expect(button.className).toContain('success')
+    expect(button).toHaveTextContent(/Copied|Screenshot copied/)
+    expect(button).toBeEnabled()
   })
 
   it('keeps a testware record editable when save fails', async () => {

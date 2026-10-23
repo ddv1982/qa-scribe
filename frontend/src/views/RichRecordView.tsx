@@ -44,10 +44,10 @@ export function GenerationRecord({
           <Loader2 className="spin" size={16} />
           {job.progressMessage}
         </span>
-        <button className="secondary-button" type="button" disabled={job.state === 'cancelling'} onClick={() => void onCancelGenerationJob(job.jobId)}>
+        <ActionButton variant="secondary" type="button" disabled={job.state === 'cancelling'} onClick={() => void onCancelGenerationJob(job.jobId)}>
           {job.state === 'cancelling' ? <Loader2 className="spin" size={16} /> : <X size={16} />}
           Cancel
-        </button>
+        </ActionButton>
       </div>
     </article>
   )
@@ -132,18 +132,18 @@ export function CopyControls({ snapshot, copyState, onCopy, disabled = false, la
   const copyDisabled = disabled || copyState.status === 'pending'
   const failure = copyState.status === 'failed' && (textMatches || screenshotMatches) ? copyState : null
   return <>
-    <button className={copied ? 'secondary-button compact-button success' : 'secondary-button compact-button'}
+    <ActionButton variant="secondary" size="compact"
       type="button" aria-label={copied ? `${identity} copied` : `Copy ${identity}`}
       disabled={copyDisabled} onClick={() => void onCopy(snapshot)}>
       {copying ? <Loader2 className="spin" size={16} /> : copied ? <CheckCircle2 size={16} /> : <Copy size={16} />}
       {copied ? 'Copied' : copying ? 'Copying' : 'Copy'}
-    </button>
-    {screenshotCount > 0 ? <button className={screenshotCopied ? 'secondary-button compact-button success' : 'secondary-button compact-button'}
+    </ActionButton>
+    {screenshotCount > 0 ? <ActionButton variant="secondary" size="compact"
       type="button" aria-label={screenshotCopied ? `${identity} screenshot copied` : `Copy first ${identity} screenshot`}
       disabled={copyDisabled} onClick={() => void onCopy(screenshot)}>
       {copyingScreenshot ? <Loader2 className="spin" size={16} /> : screenshotCopied ? <CheckCircle2 size={16} /> : <ImageIcon size={16} />}
       {screenshotCopied ? 'Screenshot copied' : copyingScreenshot ? 'Copying first screenshot…' : 'Copy first screenshot'}
-    </button> : null}
+    </ActionButton> : null}
     {textMatches || screenshotMatches ? <span className="sr-only" role="status">
       {copyState.status === 'pending' ? 'Copy in progress' : copyState.status === 'succeeded' ? (textMatches ? 'Copied' : 'First screenshot copied') : ''}
     </span> : null}

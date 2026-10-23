@@ -1,3 +1,4 @@
+import { ActionButton } from '../components/ActionButton'
 import { RecordCreationActions, type RecordCreationCommands } from './RecordCreationActions'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, Loader2, Search, SearchX } from 'lucide-react'
@@ -219,7 +220,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
       {loadState === 'error' && records.length > 0 ? (
         <div className="collection-load-advisory" role="alert">
           <span>{loadError ?? `The ${labels.recordNounLower} collection could not be refreshed.`}</span>
-          {onRetryLoad ? <button className="secondary-button" type="button" onClick={onRetryLoad}>Try again</button> : null}
+          {onRetryLoad ? <ActionButton variant="secondary" type="button" onClick={onRetryLoad}>Try again</ActionButton> : null}
         </div>
       ) : null}
 
@@ -364,8 +365,12 @@ export function RecordCollectionView<T extends CollectionRecord>({
           <EmptyCollection
             icon={SearchX}
             title="No matching records"
-            description={`No ${labels.recordNounLower} records match “${query}”. Clear the search to see the full collection.`}
-            action={{ label: 'Clear search', onClick: () => setQuery('') }}
+            description={filterValue !== 'all'
+              ? `No ${labels.recordNounLower} records match the current filters. Clear filters to see the full collection.`
+              : `No ${labels.recordNounLower} records match “${query}”. Clear the search to see the full collection.`}
+            action={filterValue !== 'all'
+              ? { label: 'Clear filters', onClick: () => { setQuery(''); setFilterValue('all') } }
+              : { label: 'Clear search', onClick: () => setQuery('') }}
           />
         ) : null}
       </div>

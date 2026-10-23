@@ -112,17 +112,17 @@ export function SessionEditorView({
           : 'Capture testing evidence, create a Finding or test cases, and copy useful output into your reporting tool. No AI account needed.'}</p> : null}
         {error ? <p role="alert">{error}</p> : null}
         <div className="empty-session-actions">
-          <button className="primary-button" type="button" disabled={!canCreateSession} onClick={onCreateSession}>
+          <ActionButton variant="primary" type="button" disabled={!canCreateSession} onClick={onCreateSession}>
             <Plus size={17} /> Start a Session
-          </button>
-          {onExploreExample ? <button className="secondary-button" type="button" disabled={isBusy} onClick={onExploreExample}>Explore an example</button> : null}
+          </ActionButton>
+          {onExploreExample ? <ActionButton variant="secondary" type="button" disabled={isBusy} onClick={onExploreExample}>Explore an example</ActionButton> : null}
         </div>
         {filteredSessions.length > 0 ? (
           <div className="empty-session-actions">
             {filteredSessions.slice(0, 3).map((session) => (
-              <button className="secondary-button" key={session.id} type="button" disabled={isBusy} onClick={() => void onOpenSession(session)}>
+              <ActionButton variant="secondary" key={session.id} type="button" disabled={isBusy} onClick={() => void onOpenSession(session)}>
                 {session.title}
-              </button>
+              </ActionButton>
             ))}
           </div>
         ) : null}
@@ -135,25 +135,25 @@ export function SessionEditorView({
       <header className="document-topline">
         {onSetSessionMode ? (
           <div className="document-mode" role="group" aria-label="Session input mode">
-            <button className="secondary-button compact-button" type="button" aria-pressed={sessionMode === 'write_note'} onClick={() => onSetSessionMode('write_note')}>Write note</button>
-            <button className="secondary-button compact-button" type="button" aria-pressed={sessionMode === 'chat'} onClick={() => onSetSessionMode('chat')}>Chat</button>
+            <button className="segmented-option" type="button" aria-pressed={sessionMode === 'write_note'} onClick={() => onSetSessionMode('write_note')}>Write note</button>
+            <button className="segmented-option" type="button" aria-pressed={sessionMode === 'chat'} onClick={() => onSetSessionMode('chat')}>Chat</button>
           </div>
         ) : <p className="document-mode"><FileText size={16} /> Session note</p>}
         <div className="document-actions">
-          {sessionMode === 'write_note' ? <>          <button className="secondary-button" type="button" disabled={isBusy || summaryPending || !noteIsReady || !activeProviderAvailable} onClick={() => void onAiAction('summary')}>
+          {sessionMode === 'write_note' ? <>          <ActionButton variant="secondary" type="button" disabled={isBusy || summaryPending || !noteIsReady || !activeProviderAvailable} onClick={() => void onAiAction('summary')}>
             {busyAction === 'ai-summary' || summaryPending ? <Loader2 className="spin" size={16} /> : <Sparkles size={16} />}
             {summaryPending ? 'Summarizing notes' : 'Summarize with AI'}
-          </button></> : null}
+          </ActionButton></> : null}
           {sessionMode === 'write_note' && canUndoLatestGeneration ? (
-            <button className="secondary-button compact-button" type="button" disabled={isBusy || noteReadOnly} onClick={() => void onUndoLatestGeneration()}>
+            <ActionButton variant="secondary" size="compact" type="button" disabled={isBusy || noteReadOnly} onClick={() => void onUndoLatestGeneration()}>
               {undoingGeneration ? <Loader2 className="spin" size={16} /> : <Undo2 size={16} />}
               Undo generation
-            </button>
+            </ActionButton>
           ) : null}
           {sessionMode === 'write_note' ? <div className="document-status" role="status">
             {sessionSaveState === 'invalid' || sessionSaveState === 'unsaved'
               ? <AlertCircle size={15} />
-              : <CheckCircle2 size={15} />}
+              : sessionSaveState === 'saving' ? <Loader2 className="spin" size={15} /> : <CheckCircle2 size={15} />}
             <span>{saveStatusLabel}</span>
           </div> : null}
           {sessionMode === 'write_note' ? <CopyControls
@@ -180,7 +180,7 @@ export function SessionEditorView({
           ) : null}
           {noteReadOnly && sessionMode === 'write_note' ? <div role="status">
             <p>Chat submission needs canonical Note recovery. The Note is read-only until recovery succeeds.</p>
-            {onRecoverNote ? <button className="secondary-button" type="button" disabled={isBusy} onClick={() => void onRecoverNote()}>Recover Session Note</button> : null}
+            {onRecoverNote ? <ActionButton variant="secondary" type="button" disabled={isBusy} onClick={() => void onRecoverNote()}>Recover Session Note</ActionButton> : null}
           </div> : null}
           {sessionMode === 'write_note' && !noteReadOnly ? noteHandoffContent : null}
           {sessionMode === 'write_note' ? <RichTextEditor editorId={editorId} value={noteBody} readOnly={noteReadOnly} onChange={onSetNoteBody} className="note-rich-editor" /> : null}
