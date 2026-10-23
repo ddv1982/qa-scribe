@@ -86,6 +86,15 @@
   .editor-footer {
     min-height: 44px;
   }
+
+  .testware-preflight {
+    gap: var(--space-3);
+  }
+
+  .testware-preflight .preflight-body,
+  .testware-preflight .preflight-testware-options {
+    gap: var(--space-2);
+  }
 }
 
 @media (max-width: 760px) {
