@@ -2,6 +2,7 @@ import { appendFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import TauriService, { launcher as TauriLauncher } from '../frontend/node_modules/@wdio/tauri-service/dist/esm/index.js'
+import { traceEmbeddedLaunch } from './embedded-launch-trace.mjs'
 
 function record(directory, value) {
   const row = { at: new Date().toISOString(), pid: process.pid, ...value }
@@ -33,7 +34,11 @@ class NativeLifecycleLauncher extends TauriLauncher {
     this.lifecycleDirectory = options.logDir
     record(this.lifecycleDirectory, { phase: 'launcher.construct', elapsedMs: performance.now() - start })
   }
-  onPrepare(...args) { return measureLifecycle(this.lifecycleDirectory, 'launcher.prepare', () => super.onPrepare(...args)) }
+  onPrepare(...args) {
+    return measureLifecycle(this.lifecycleDirectory, 'launcher.prepare', () => traceEmbeddedLaunch(
+      this.options, () => super.onPrepare(...args), row => record(this.lifecycleDirectory, row),
+    ))
+  }
   onWorkerStart(...args) { return measureLifecycle(this.lifecycleDirectory, 'launcher.worker-start', () => super.onWorkerStart(...args)) }
   onComplete(...args) { return measureLifecycle(this.lifecycleDirectory, 'launcher.complete', () => super.onComplete(...args)) }
 }
