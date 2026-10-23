@@ -92,21 +92,25 @@ async function choose(label) {
 }
 
 async function save(provider, model) {
-  const button = await $('.settings-header-actions button.primary-button')
+  const button = await $('button=Save settings')
   await button.waitForDisplayed()
-  await browser.waitUntil(async () => await button.getText() !== 'Saving...',
+  await browser.waitUntil(async () => await button.getAttribute('aria-busy') !== 'true',
     { timeout: 7_000, timeoutMsg: 'Previous Settings save did not settle' })
   if (await button.isEnabled()) {
+    assert.equal(await $('button=Discard changes').isDisplayed(), true, 'A dirty Settings draft must offer Discard changes')
     await button.click()
-    await browser.waitUntil(async () => await button.getText() === 'Saved' && !await button.isEnabled(),
+    const saved = await $('.settings-save-feedback [role="status"]')
+    await browser.waitUntil(async () => await saved.isDisplayed() && await saved.getText() === 'Saved' && !await button.isEnabled(),
       { timeout: 7_000, timeoutMsg: 'Settings controller did not confirm its saved draft' })
   }
   await browser.waitUntil(async () => {
     const current = await read('get_settings')
     return current.selectedAiProvider === ids[provider]
       && (current.selectedAiModelsByProvider?.[ids[provider]] ?? null) === model
-      && !await $('.settings-header-actions button.secondary-button').isExisting()
+      && !await $('button=Discard changes').isExisting()
   }, { timeout: 7_000, timeoutMsg: 'Literal provider model selection did not reach clean saved Settings' })
+  assert.equal(await button.getText(), 'Save settings')
+  assert.equal(await button.isEnabled(), false, 'A clean Settings Save must be disabled')
 }
 
 async function lane(number, name, run) {

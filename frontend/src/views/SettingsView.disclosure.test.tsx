@@ -46,7 +46,9 @@ it('shows provider recovery, discovery failures and warnings while diagnostics r
     expect(alert.closest('details')).toBeNull()
     expect(alert).toBeVisible()
   }
-  expect(screen.getAllByRole('status').find(node => !node.closest('details'))?.textContent?.trim()).toBe('Provider unavailable. Sign in with the CLI, then retry.')
+  const recovery = screen.getByText('Provider unavailable. Sign in with the CLI, then retry.')
+  expect(recovery).toHaveAttribute('role', 'status')
+  expect(recovery.closest('details')).toBeNull()
 })
 
 it('keeps the pending preference write safeguard visible above diagnostics', () => {

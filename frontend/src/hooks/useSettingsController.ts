@@ -35,7 +35,7 @@ export function useSettingsController({
   const [settings, setSettings] = useState<AppSettings | null>(null)
   const [providerStatus, setProviderStatus] = useState<ProviderStatus | null>(initialCachedProviderStatus)
   const [settingsDraft, setSettingsDraft] = useState<AppSettings | null>(null)
-  const [settingsSaveState, setSettingsSaveState] = useState<SettingsSaveState>('idle')
+  const [settingsSaveFeedback, setSettingsSaveFeedback] = useState<SettingsSaveFeedback>({ state: 'idle' })
   const [providerDiscoveryState, setProviderDiscoveryState] = useState<ProviderDiscoveryUiState>(initialCachedProviderStatus ? 'stale' : 'checking')
   const [theme, setTheme] = useState<ThemePreference>(() => initialTheme())
   const [systemTheme, setSystemTheme] = useState(() => currentSystemTheme())
@@ -81,6 +81,7 @@ export function useSettingsController({
   }, [])
 
   function loadSettings(nextSettings: AppSettings) {
+    updateSettingsSaveFeedback({ state: 'idle' })
     settingsDraftVersionRef.current += 1
     settingsRef.current = nextSettings
     settingsDraftRef.current = nextSettings
@@ -161,22 +162,17 @@ export function useSettingsController({
     return true
   }
 
-  async function persistSettings(nextSettings: AppSettings, draftVersion: number): Promise<AppSettings | null> {
-    try {
-      setError(null)
-      const saved = await updateSettings(nextSettings)
-      settingsRef.current = saved
-      setSettings(saved)
-      if (settingsDraftVersionRef.current === draftVersion) {
-        settingsDraftRef.current = saved
-        setSettingsDraft(saved)
-      }
-      setNotice('Settings saved')
-      return saved
-    } catch (cause) {
-      setError(formatError(cause))
-      return null
+  async function persistSettings(nextSettings: AppSettings, draftVersion: number): Promise<AppSettings> {
+    setError(null)
+    const saved = await updateSettings(nextSettings)
+    settingsRef.current = saved
+    setSettings(saved)
+    if (settingsDraftVersionRef.current === draftVersion) {
+      settingsDraftRef.current = saved
+      setSettingsDraft(saved)
     }
+    setNotice('Settings saved')
+    return saved
   }
 
   async function handleSaveSettings(): Promise<boolean> {
@@ -185,16 +181,23 @@ export function useSettingsController({
     settingsWriteRef.current = true
     setSettingsWritePending(true)
     const draftVersion = settingsDraftVersionRef.current
-    setSettingsSaveState('saving')
+    updateSettingsSaveFeedback({ state: 'saving' })
     try {
-      const saved = await persistSettings({
+      await persistSettings({
         ...draft,
         selectedAiModel: modelOverrideForProvider(draft, draft.selectedAiProvider ?? 'codex_cli'),
       }, draftVersion)
       const draftUnchanged = settingsDraftVersionRef.current === draftVersion
-      setSettingsSaveState(saved ? (draftUnchanged ? 'saved' : 'idle') : 'error')
-      if (saved && draftUnchanged) scheduleSettingsSaveReset()
-      return Boolean(saved)
+      updateSettingsSaveFeedback({ state: draftUnchanged ? 'saved' : 'idle' })
+      if (draftUnchanged) scheduleSettingsSaveReset()
+      return true
+    } catch (cause) {
+      const error = formatError(cause)
+      setError(error)
+      if (settingsDraftVersionRef.current === draftVersion) {
+        updateSettingsSaveFeedback({ state: 'error', error })
+      }
+      return false
     } finally {
       settingsWriteRef.current = false
       setSettingsWritePending(false)
@@ -250,7 +253,7 @@ export function useSettingsController({
 
   function updateSettingsDraft(patch: Partial<AppSettings>) {
     settingsDraftVersionRef.current += 1
-    setSettingsSaveState('idle')
+    updateSettingsSaveFeedback({ state: 'idle' })
     const previous = settingsDraftRef.current
     const next = previous ? { ...previous, ...patch } : previous
     settingsDraftRef.current = next
@@ -261,13 +264,19 @@ export function useSettingsController({
     settingsDraftVersionRef.current += 1
     settingsDraftRef.current = settingsRef.current
     setSettingsDraft(settingsRef.current)
-    setSettingsSaveState('idle')
+    updateSettingsSaveFeedback({ state: 'idle' })
+  }
+
+  function updateSettingsSaveFeedback(feedback: SettingsSaveFeedback) {
+    if (settingsSaveResetRef.current) window.clearTimeout(settingsSaveResetRef.current)
+    settingsSaveResetRef.current = null
+    setSettingsSaveFeedback(feedback)
   }
 
   function scheduleSettingsSaveReset() {
     if (settingsSaveResetRef.current) window.clearTimeout(settingsSaveResetRef.current)
     settingsSaveResetRef.current = window.setTimeout(() => {
-      setSettingsSaveState('idle')
+      setSettingsSaveFeedback({ state: 'idle' })
       settingsSaveResetRef.current = null
     }, 1800)
   }
@@ -290,7 +299,8 @@ export function useSettingsController({
     settings,
     settingsDraft,
     settingsDirty,
-    settingsSaveState,
+    settingsSaveState: settingsSaveFeedback.state,
+    settingsSaveError: settingsSaveFeedback.state === 'error' ? settingsSaveFeedback.error : null,
     theme,
     updateSettingsDraft,
     captureSettingsCheckpoint,
@@ -299,6 +309,10 @@ export function useSettingsController({
     modelWritePending,
   }
 }
+
+type SettingsSaveFeedback =
+  | { state: Exclude<SettingsSaveState, 'error'> }
+  | { state: 'error'; error: string }
 
 type ProviderObservationDepth = 'fast' | 'deep'
 

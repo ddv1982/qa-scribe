@@ -78,18 +78,22 @@ export async function preference(provider, model) {
     await $(picker).setValue(model)
     await (await optionNamed('Use custom model')).click()
   }
-  const save = await $('.settings-header-actions button.primary-button')
-  await browser.waitUntil(async () => await save.getText() !== 'Saving...')
+  const save = await $('button=Save settings')
+  await browser.waitUntil(async () => await save.getAttribute('aria-busy') !== 'true')
   if (await save.isEnabled()) {
+    assert.equal(await $('button=Discard changes').isDisplayed(), true, 'A dirty Settings draft must offer Discard changes')
     await save.click()
-    await browser.waitUntil(async () => await save.getText() === 'Saved' && !await save.isEnabled(), { timeout: 7_000 })
+    const saved = await $('.settings-save-feedback [role="status"]')
+    await browser.waitUntil(async () => await saved.isDisplayed() && await saved.getText() === 'Saved' && !await save.isEnabled(), { timeout: 7_000 })
   }
   await browser.waitUntil(async () => {
     const current = await read('get_settings')
     return current.selectedAiProvider === providerIds[provider]
       && (current.selectedAiModelsByProvider?.[providerIds[provider]] ?? null) === model
-      && !await $('.settings-header-actions button.secondary-button').isExisting()
+      && !await $('button=Discard changes').isExisting()
   }, { timeout: 7_000, timeoutMsg: 'Provider preference must persist and leave a clean Settings draft' })
+  assert.equal(await save.getText(), 'Save settings')
+  assert.equal(await save.isEnabled(), false, 'A clean Settings Save must be disabled')
   await click('Back')
 }
 

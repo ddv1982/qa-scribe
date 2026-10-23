@@ -53,13 +53,17 @@ async function rows() {
 }
 
 async function save() {
-  const button = await $('.settings-header-actions button.primary-button')
-  await browser.waitUntil(async () => await button.getText() !== 'Saving...')
+  const button = await $('button=Save settings')
+  await browser.waitUntil(async () => await button.getAttribute('aria-busy') !== 'true')
   if (await button.isEnabled()) {
+    assert.equal(await $('button=Discard changes').isDisplayed(), true, 'A dirty Settings draft must offer Discard changes')
     await button.click()
-    await browser.waitUntil(async () => await button.getText() === 'Saved' && !await button.isEnabled())
+    const saved = await $('.settings-save-feedback [role="status"]')
+    await browser.waitUntil(async () => await saved.isDisplayed() && await saved.getText() === 'Saved' && !await button.isEnabled())
   }
-  await browser.waitUntil(async () => !await $('.settings-header-actions button.secondary-button').isExisting())
+  await browser.waitUntil(async () => !await $('button=Discard changes').isExisting())
+  assert.equal(await button.getText(), 'Save settings')
+  assert.equal(await button.isEnabled(), false, 'A clean Settings Save must be disabled')
 }
 
 async function choose(name, id, label = null) {

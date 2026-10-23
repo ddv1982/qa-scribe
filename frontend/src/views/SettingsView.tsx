@@ -1,4 +1,5 @@
 import { ArrowLeft, BrainCircuit, Cpu, Loader2, RefreshCw, RotateCcw } from 'lucide-react'
+import { ActionButton } from '../components/ActionButton'
 import { SaveSettingsButton } from '../components/Common'
 import { ModelCombobox, ProviderGlyph } from '../components/ModelSelector'
 import { ThemeToggle } from '../components/ThemeToggle'
@@ -40,6 +41,7 @@ export function SettingsView({
   settingsDraft,
   settingsDirty,
   settingsSaveState,
+  settingsSaveError,
   settingsWritePending = false,
   providerDiscoveryState,
   theme,
@@ -55,6 +57,7 @@ export function SettingsView({
   settingsDraft: AppSettings | null
   settingsDirty: boolean
   settingsSaveState: SettingsSaveState
+  settingsSaveError?: string | null
   settingsWritePending?: boolean
   providerDiscoveryState: ProviderDiscoveryUiState
   theme: ThemePreference
@@ -133,16 +136,16 @@ export function SettingsView({
         </div>
         <div className="settings-header-actions">
           {settingsDirty ? (
-            <button className="secondary-button" type="button" disabled={busyAction !== null} onClick={onDiscardSettings}>
-              <RotateCcw size={15} />
+            <ActionButton variant="destructive-quiet" icon={RotateCcw} disabled={busyAction !== null || settingsWritePending} onClick={onDiscardSettings}>
               Discard changes
-            </button>
+            </ActionButton>
           ) : null}
           <SaveSettingsButton
             label="Save settings"
             busyAction={busyAction}
             disabled={!settingsDraft || !settingsDirty || busyAction !== null || settingsWritePending}
             state={settingsSaveState}
+            error={settingsSaveError}
             onSave={onSaveSettings}
           />
         </div>

@@ -159,7 +159,11 @@ describe(`Built application native ${provider} Chat tool authorization`, () => {
     if ((await read('get_settings')).selectedAiProvider !== providerIds[provider]) {
       await save.waitForEnabled()
       await save.click()
-      await $('button=Saved').waitForDisplayed()
+      const saved = await $('.settings-save-feedback [role="status"]')
+      await browser.waitUntil(async () => await saved.getText() === 'Saved')
+      assert.equal(await saved.isDisplayed(), true)
+      assert.equal(await save.getText(), 'Save settings')
+      assert.equal(await save.isEnabled(), false, 'A clean Settings Save must be disabled')
     }
     await browser.waitUntil(async () => (await read('get_settings')).selectedAiProvider === providerIds[provider],
       { timeout: 5_000, timeoutMsg: 'Selected authorization provider did not reach canonical Settings storage' })

@@ -70,7 +70,7 @@
   --accent-alt: #6d28d9;
   --on-accent: #ffffff;
 
-  --success: #15803d;
+  --success: #147b3b;
   --success-hover: color-mix(in oklab, var(--success) 88%, #000);
   --success-tint: color-mix(in oklab, var(--success) 10%, var(--surface-raised));
   --warning: #b45309;
@@ -78,6 +78,10 @@
   --danger: #b91c1c;
   --danger-hover: color-mix(in oklab, var(--danger) 88%, #000);
   --danger-tint: color-mix(in oklab, var(--danger) 8%, var(--surface-raised));
+
+  --action-primary-hover: #1e48a6;
+  --action-danger-hover: #9f1818;
+  --action-danger-tint: #fbecec;
 
   --backdrop: rgba(9, 13, 20, 0.4);
 
@@ -125,6 +129,10 @@
   --danger: #ff7a7a;
   --danger-hover: color-mix(in oklab, var(--danger) 88%, #fff);
   --danger-tint: color-mix(in oklab, var(--danger) 12%, var(--surface-panel));
+
+  --action-primary-hover: #75a4ff;
+  --action-danger-hover: #ff9292;
+  --action-danger-tint: #3c252b;
 
   --backdrop: rgba(2, 4, 8, 0.6);
 

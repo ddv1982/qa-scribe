@@ -113,14 +113,18 @@ export async function switchProviderOnly(provider, expectedModels) {
     select.dispatchEvent(new Event('change', { bubbles: true }))
     return select.value === value
   }, providerIds[provider]), 'Provider-only restore proof must use the enabled native Settings control')
-  const save = await $('.settings-header-actions button.primary-button')
-  await browser.waitUntil(async () => await save.getText() !== 'Saving...')
+  const save = await $('button=Save settings')
+  await browser.waitUntil(async () => await save.getAttribute('aria-busy') !== 'true')
   if (await save.isEnabled()) {
+    assert.equal(await $('button=Discard changes').isDisplayed(), true, 'A dirty Settings draft must offer Discard changes')
     await save.click()
-    await browser.waitUntil(async () => await save.getText() === 'Saved' && !await save.isEnabled())
+    const saved = await $('.settings-save-feedback [role="status"]')
+    await browser.waitUntil(async () => await saved.isDisplayed() && await saved.getText() === 'Saved' && !await save.isEnabled())
   }
   await browser.waitUntil(async () => (await read('get_settings')).selectedAiProvider === providerIds[provider]
-    && !await $('.settings-header-actions button.secondary-button').isExisting())
+    && !await $('button=Discard changes').isExisting())
+  assert.equal(await save.getText(), 'Save settings')
+  assert.equal(await save.isEnabled(), false, 'A clean Settings Save must be disabled')
   assert.deepEqual((await read('get_settings')).selectedAiModelsByProvider, expectedModels,
     'Changing only the provider must preserve every restored model choice')
   await click('Back')

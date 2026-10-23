@@ -12,6 +12,28 @@ describe('useAppController workflows and record hydration', () => {
   beforeEach(setupControllerTest)
   afterEach(cleanupControllerTest)
 
+  it('closes confirmation before awaiting deletion and keeps the owning record pending', async () => {
+    const original = findingFixture({ id: 'finding-pending-delete', title: 'Exact delete target' })
+    const deletion = deferred<void>()
+    tauriMock.openSessionNoteState.mockResolvedValueOnce(sessionNoteStateFixture({ findingCount: 1 }))
+    tauriMock.listFindings.mockResolvedValueOnce([original]).mockResolvedValueOnce([])
+    tauriMock.deleteFinding.mockReturnValueOnce(deletion.promise)
+    const { result } = renderHook(() => useAppController())
+    await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
+    act(() => result.current.setActiveView('findings'))
+    await waitFor(() => expect(result.current.findings).toEqual([original]))
+    act(() => result.current.requestDeleteFinding(original))
+    let pending!: Promise<void>
+    act(() => { pending = result.current.confirmDelete() })
+    expect(result.current.deleteConfirmation).toBeNull()
+    expect(result.current.findings[0].title).toBe('Exact delete target')
+    expect(result.current.busyAction).toBe('delete-finding:finding-pending-delete')
+    await act(async () => { await result.current.confirmDelete() })
+    expect(tauriMock.deleteFinding).toHaveBeenCalledTimes(1)
+    await act(async () => { deletion.resolve(); await pending })
+    expect(result.current.findings).toEqual([])
+  })
+
   it('finalizes Draft deletion before failed attachment cleanup settles', async () => {
     const original = draftFixture({ id: 'draft-delete-cleanup', body: '<p>Saved draft.</p>' })
     const cleanup = deferred<boolean>()

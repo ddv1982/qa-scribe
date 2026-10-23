@@ -6,6 +6,7 @@ import { ProviderGlyph } from '../components/ModelSelector'
 import { FormatToolbar, RichTextEditor, type RichEditorImageUpload } from '../editor/RichTextEditor'
 import type { AiProvider, GenerateAiActionKind, ProviderStatus, Session } from '../tauri'
 import type { RichEditorDocument } from '../editor/editorDocument'
+import { ActionButton } from '../components/ActionButton'
 import { StatusPill } from '../components/Common'
 import type { BusyAction } from '../ui/types'
 import type { PendingAiActions } from '../ui/types'
@@ -175,9 +176,7 @@ export function SessionEditorView({
           {sessionMode === 'write_note' ? <CopyControls
             snapshot={{ target: { kind: 'note', sessionId: activeSession.id, action: 'jira-text' }, title: sessionTitle, bodyHtml: noteBodyHtml }}
             copyState={copyState} onCopy={onCopy} disabled={isBusy} label="Note" screenshotCount={noteScreenshotCount} /> : null}
-          <button className="icon-button danger" type="button" aria-label="Delete Session" title="Delete Session" disabled={isBusy} onClick={() => void onDeleteSession()}>
-            {deletingSession ? <Loader2 className="spin" size={16} /> : <Trash2 size={16} />}
-          </button>
+          <ActionButton variant="destructive-quiet" iconOnly icon={Trash2} aria-label="Delete Session" title="Delete Session" loading={deletingSession} disabled={isBusy} onClick={() => void onDeleteSession()} />
         </div>
       </header>
 
