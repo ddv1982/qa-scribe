@@ -110,6 +110,21 @@ fn fail_next_write(failure: Failure, cleanup_fails: bool) -> Reset {
 }
 
 fn temporary(fixture: &Fixture, prepared: &PreparedCreation) -> PathBuf {
+    use rusqlite::OptionalExtension;
+    let owned: Option<String> = fixture
+        .service
+        .database()
+        .connection()
+        .query_row(
+            "SELECT relative_path FROM creation_staging WHERE attachment_id = ?1",
+            [&prepared.images[0].attachment_id],
+            |row| row.get(0),
+        )
+        .optional()
+        .unwrap();
+    if let Some(owned) = owned {
+        return fixture.root.join(owned).join("image.tmp");
+    }
     fixture
         .root
         .join("attachments")
@@ -352,5 +367,52 @@ fn a_valid_preexisting_temp_is_reused_without_opening_or_cleaning_it() {
             b"image"
         );
         assert_eq!(count(&fixture.service, "attachments"), 1);
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn a_complete_owned_staging_image_is_reused_without_rewriting() {
+    for kind in [CreationKind::Finding, CreationKind::Testware] {
+        let fixture = Fixture::new();
+        let status = Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "attachments::creation::tests::cut_worker",
+                "--nocapture",
+            ])
+            .env("UC1_CUT_ROOT", &fixture.root)
+            .env("UC1_CUT", "temp")
+            .env("UC1_KIND", kind.as_str())
+            .status()
+            .unwrap();
+        assert_eq!(status.code(), Some(93));
+        let prepared = fixture
+            .service
+            .prepare_creation_save(preparation(&fixture.session, kind, 2))
+            .unwrap();
+        assert_eq!(fs::read(temporary(&fixture, &prepared)).unwrap(), b"image");
+        let second_legacy = fixture
+            .root
+            .join("attachments")
+            .join(&fixture.session)
+            .join(format!(".{}.tmp", prepared.images[1].attachment_id));
+        fs::write(&second_legacy, b"image").unwrap();
+        let _reset = fail_next_write(Failure::PartialWrite, false);
+        let result =
+            commit_creation_save(&fixture.service, &fixture.root, request(&prepared, kind))
+                .unwrap();
+        assert!(matches!(result, CreationOutcome::Committed { .. }));
+        assert!(
+            WRITE.with_borrow(|hook| hook.is_some()),
+            "neither verified legacy nor complete owned temp enters write branch"
+        );
+        assert!(REMOVE.with_borrow(|hook| hook.is_none()));
+        assert_eq!(count(&fixture.service, "creation_staging"), 0);
+        assert_eq!(count(&fixture.service, "attachments"), 2);
+        assert_eq!(
+            count(&fixture.service, "findings") + count(&fixture.service, "drafts"),
+            1
+        );
     }
 }

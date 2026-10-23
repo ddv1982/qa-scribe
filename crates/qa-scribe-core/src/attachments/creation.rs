@@ -16,6 +16,7 @@ use crate::{
 };
 
 mod files;
+mod staging;
 
 pub fn commit_creation_save(
     service: &SessionService,
@@ -64,6 +65,20 @@ pub fn commit_creation_save(
         return Ok(initial);
     }
     for slot in &slots {
+        database.with_immediate_tx(|tx| {
+            let attempt = creation::require_attempt(tx, &request.attempt_id)?;
+            if attempt.preparing() {
+                if attempt.payload_hash.as_deref() != Some(&fingerprint) {
+                    return Err(validation("Creation payload binding changed"));
+                }
+                validate_shared(tx, &attempt.session_id, &shared)?;
+                validate_owned_row(tx, &attempt.session_id, slot)?;
+                staging::reserve(tx, root, slot)?;
+            }
+            Ok(())
+        })?;
+        #[cfg(test)]
+        tests::cut("namespace-reserved");
         let state = database.with_immediate_tx(|tx| {
             let attempt = creation::require_attempt(tx, &request.attempt_id)?;
             if !attempt.preparing() {
@@ -74,7 +89,7 @@ pub fn commit_creation_save(
             }
             validate_shared(tx, &attempt.session_id, &shared)?;
             validate_owned_row(tx, &attempt.session_id, slot)?;
-            files::stage(root, slot, &bytes[&slot.descriptor.local_id])?;
+            files::stage(tx, root, slot, &bytes[&slot.descriptor.local_id])?;
             Ok(CreationOutcome::Preparing)
         })?;
         if state != CreationOutcome::Preparing {
@@ -168,7 +183,9 @@ pub fn abort_creation_save(
                     "Creation image still has a live reference owner",
                 ));
             }
+            staging::validate(tx, root.as_ref(), &slot)?;
             files::remove(root.as_ref(), &slot)?;
+            staging::remove(tx, root.as_ref(), &slot)?;
             tx.execute(
                 "DELETE FROM attachments WHERE id = ?1",
                 [&slot.attachment_id],

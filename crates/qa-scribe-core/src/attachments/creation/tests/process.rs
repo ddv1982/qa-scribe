@@ -6,6 +6,8 @@ fn process_cuts_reconcile_only_owned_files_or_return_the_committed_receipt() {
         for point in [
             "reserved",
             "bound",
+            "namespace-reserved",
+            "temp-created",
             "temp",
             "rename",
             "image-staged",

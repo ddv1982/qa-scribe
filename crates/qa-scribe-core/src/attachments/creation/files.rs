@@ -4,6 +4,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use rusqlite::Connection;
+
 use crate::{
     Result,
     attachments::{
@@ -51,7 +53,7 @@ fn directory(path: &Path, create: bool) -> Result<bool> {
     }
 }
 
-fn paths(
+pub(super) fn paths(
     root: &Path,
     slot: &CreationAttemptImage,
     create: bool,
@@ -70,7 +72,7 @@ fn paths(
     Ok(Some((final_path, temp)))
 }
 
-fn verify(path: &Path, slot: &CreationAttemptImage) -> Result<bool> {
+pub(super) fn verify(path: &Path, slot: &CreationAttemptImage) -> Result<bool> {
     let metadata = match fs::symlink_metadata(path) {
         Ok(metadata) if metadata.file_type().is_file() => metadata,
         Ok(_) => return Err(validation("Creation image target must be a regular file")),
@@ -82,16 +84,7 @@ fn verify(path: &Path, slot: &CreationAttemptImage) -> Result<bool> {
             "Creation image size does not match its reservation",
         ));
     }
-    let file = File::open(path)?;
-    if !file.metadata()?.file_type().is_file() {
-        return Err(validation("Creation image target must be a regular file"));
-    }
-    let mut bytes = Vec::new();
-    file.take(MAX_ATTACHMENT_BYTES + 1)
-        .read_to_end(&mut bytes)?;
-    if bytes.len() as u64 != u64::from(slot.descriptor.size_bytes)
-        || hex_sha256(&bytes) != slot.descriptor.sha256
-    {
+    if !contents_match(File::open(path)?, slot)? {
         return Err(validation(
             "Creation image digest does not match its reservation",
         ));
@@ -99,17 +92,57 @@ fn verify(path: &Path, slot: &CreationAttemptImage) -> Result<bool> {
     Ok(true)
 }
 
-pub(super) fn stage(root: &Path, slot: &CreationAttemptImage, bytes: &[u8]) -> Result<()> {
+fn contents_match(file: File, slot: &CreationAttemptImage) -> Result<bool> {
+    if !file.metadata()?.file_type().is_file() {
+        return Err(validation("Creation image target must be a regular file"));
+    }
+    let mut bytes = Vec::new();
+    file.take(MAX_ATTACHMENT_BYTES + 1)
+        .read_to_end(&mut bytes)?;
+    Ok(bytes.len() as u64 == u64::from(slot.descriptor.size_bytes)
+        && hex_sha256(&bytes) == slot.descriptor.sha256)
+}
+
+pub(super) fn stage(
+    connection: &Connection,
+    root: &Path,
+    slot: &CreationAttemptImage,
+    bytes: &[u8],
+) -> Result<()> {
     let (final_path, temp) = paths(root, slot, true)?
         .ok_or_else(|| validation("Creation app data directory does not exist"))?;
     if verify(&final_path, slot)? {
+        super::staging::remove(connection, root, slot)?;
         return Ok(());
     }
-    if !verify(&temp, slot)? {
+    let legacy_exists = verify(&temp, slot)?;
+    let (temp, complete) = if legacy_exists {
+        (temp, true)
+    } else {
+        match super::staging::temporary(connection, root, slot)? {
+            Some(owned) => {
+                // The committed directory receipt grants ownership of this private
+                // image, including partial bytes left by a terminated writer.
+                let complete = match File::open(&owned) {
+                    Ok(file) => contents_match(file, slot)?,
+                    Err(error) if error.kind() == io::ErrorKind::NotFound => false,
+                    Err(error) => return Err(error.into()),
+                };
+                if !complete && owned.try_exists()? {
+                    fs::remove_file(&owned)?;
+                }
+                (owned, complete)
+            }
+            None => (temp, false),
+        }
+    };
+    if !complete {
         let file = OpenOptions::new()
             .write(true)
             .create_new(true)
             .open(&temp)?;
+        #[cfg(test)]
+        super::tests::cut("temp-created");
         if let Err(original) = write_temp(file, bytes) {
             return Err(match remove_temp(&temp) {
                 Ok(()) => original,
@@ -127,10 +160,17 @@ pub(super) fn stage(root: &Path, slot: &CreationAttemptImage, bytes: &[u8]) -> R
     File::open(final_path.parent().expect("validated image parent"))?.sync_all()?;
     #[cfg(test)]
     super::tests::cut("rename");
+    super::staging::remove(connection, root, slot)?;
     Ok(())
 }
 
 fn write_temp(mut file: File, bytes: &[u8]) -> io::Result<()> {
+    #[cfg(test)]
+    if std::env::var("UC1_CUT").as_deref() == Ok("partial-write") {
+        file.write_all(&bytes[..2])?;
+        file.sync_all()?;
+        super::tests::cut("partial-write");
+    }
     #[cfg(test)]
     if let Some(write) = super::tests::io_failure::take_write() {
         return write(file, bytes);

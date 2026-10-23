@@ -48,7 +48,7 @@ fn version_eleven_upgrade_and_partial_reopen_preserve_data_and_repair_trigger() 
         }
         drop(connection);
         let service = SessionService::new(Database::open(&temp.0).unwrap()).unwrap();
-        assert_eq!(SCHEMA_VERSION, 12);
+        assert_eq!(SCHEMA_VERSION, 13);
         let expected = if partial { 7 } else { 0 };
         assert_eq!(revision(&service), expected);
         assert_eq!(
@@ -262,4 +262,39 @@ fn ordinary_and_generated_note_writers_advance_one_shared_revision() {
             .body,
         "Generated"
     );
+}
+
+#[test]
+fn version_twelve_upgrade_adds_only_empty_staging_ownership_and_preserves_attempts() {
+    let temp = Temp::new();
+    let database = Database::open(&temp.0).unwrap();
+    seed(database.connection());
+    database.connection().execute_batch("DROP TABLE creation_staging;
+        INSERT INTO creation_attempts (attempt_id, session_id, kind, state, created_at) VALUES ('attempt', 's', 'finding', 'preparing', 't');
+        INSERT INTO creation_attempt_images (attempt_id, local_id, attachment_id, relative_path, filename, mime_type, size_bytes, sha256) VALUES ('attempt', 'image', 'reserved', 'attachments/s/reserved.png', 'reserved.png', 'image/png', 2, 'hash');
+        PRAGMA user_version = 12;").unwrap();
+    drop(database);
+    for _ in 0..2 {
+        let database = Database::open(&temp.0).unwrap();
+        let connection = database.connection();
+        let version: i32 = connection
+            .pragma_query_value(None, "user_version", |row| row.get(0))
+            .unwrap();
+        assert_eq!(version, 13);
+        let rows: (i64, i64, i64) = connection.query_row("SELECT (SELECT count(*) FROM creation_attempts WHERE state = 'preparing'), (SELECT count(*) FROM creation_attempt_images), (SELECT count(*) FROM creation_staging)", [], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?))).unwrap();
+        assert_eq!(rows, (1, 1, 0));
+        assert!(connection.execute("INSERT INTO creation_staging VALUES ('missing-reservation', 'attachments/s/foreign', '1', '1')", []).is_err());
+        let preserved: String = connection
+            .query_row("SELECT body FROM entries WHERE id = 'n'", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(preserved, "Legacy Note");
+        let violations: i64 = connection
+            .query_row("SELECT count(*) FROM pragma_foreign_key_check", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(violations, 0);
+    }
 }

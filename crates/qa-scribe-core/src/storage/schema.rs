@@ -106,6 +106,13 @@ CREATE TABLE IF NOT EXISTS creation_attempt_images (
   PRIMARY KEY (attempt_id, local_id)
 );
 
+CREATE TABLE IF NOT EXISTS creation_staging (
+  attachment_id TEXT PRIMARY KEY NOT NULL REFERENCES creation_attempt_images(attachment_id) ON DELETE CASCADE,
+  relative_path TEXT NOT NULL UNIQUE,
+  device TEXT NOT NULL,
+  inode TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS attachments (
   id TEXT PRIMARY KEY,
   session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,

@@ -395,7 +395,10 @@ fn cut_worker() {
         .prepare_creation_save(preparation(&session, kind, 2))
         .unwrap();
     cut("reserved");
-    if std::env::var("UC1_CUT").as_deref() == Ok("unlink") {
+    if matches!(
+        std::env::var("UC1_CUT").as_deref(),
+        Ok("unlink" | "staging-unlink" | "staging-remove-dir")
+    ) {
         abort_creation_save(&service, &root, "attempt").unwrap();
         return;
     }

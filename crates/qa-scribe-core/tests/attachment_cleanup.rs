@@ -281,7 +281,7 @@ fn schema_eight_upgrade_and_current_reopen_preserve_data_and_pending_intent() {
         .unwrap();
     drop(service);
     let upgraded = SessionService::new(Database::open(&db).unwrap()).unwrap();
-    assert_eq!(SCHEMA_VERSION, 12);
+    assert_eq!(SCHEMA_VERSION, 13);
     assert_eq!(
         upgraded
             .database()
