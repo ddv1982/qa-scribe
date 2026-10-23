@@ -155,18 +155,21 @@ export async function unifiedRoute() {
   writeFileSync(join(out(), 'uc3-layout.json'), JSON.stringify(receipts, null, 2))
 }
 
-async function focusDiagnostic(sampleId) {
+async function focusDiagnostic(sampleId, windowLabel) {
   let timer
   try {
     return await Promise.race([
-      browser.executeAsync((sampleId, budgetMs, done) => {
+      browser.executeAsync((sampleId, windowLabel, budgetMs, done) => {
         const state = window.__qaScribeFocusDiagnostics
         const element = state?.samples.get(sampleId)
         state?.samples.delete(sampleId)
         const started = performance.now()
         const deadline = started + budgetMs
         const result = { sampleId, nodeId: state?.nodes.get(element), rules: [], errors: [],
-          scannedRules: 0, ruleScanTruncated: false, frameReached: false, windowFocus: { status: 'pending' } }
+          scannedRules: 0, ruleScanTruncated: false, frameReached: false,
+          windowFocus: { status: 'pending', source: 'plugin:wdio|get_window_states',
+            identitySource: 'plugin:wdio|get_active_window_label', targetLabel: windowLabel ?? null,
+            currentLabel: null, queryAttempted: false, stateQueryAttempted: false, nativeReadErrorsDefaultToFalse: true } }
         let finished = false
         let frame
         let timer
@@ -230,20 +233,52 @@ async function focusDiagnostic(sampleId) {
           Array.from(new Set([...document.styleSheets, ...(document.adoptedStyleSheets ?? [])])).forEach((sheet, index) => scan(sheet, [], false, index))
           result.afterRules = snapshot('after-rules')
           const complete = () => { if (result.frameReached && result.windowFocus.status !== 'pending') finish() }
+          const reportWindow = (status, fields) => {
+            if (finished) return
+            result.windowFocus = { ...result.windowFocus, ...fields, status,
+              order: ++state.order, monotonicMs: performance.now() }
+            if (fields.error) result.errors.push(fields.error)
+            complete()
+          }
           try {
-            const nativeWindow = window.__TAURI__?.window?.getCurrentWindow?.()
-            if (!nativeWindow?.isFocused) throw new Error('Native window focus query unavailable')
-            const requestedAt = performance.now()
-            Promise.resolve(nativeWindow.isFocused()).then(value => {
+            const currentLabel = window.__TAURI_INTERNALS__?.metadata?.currentWindow?.label ?? null
+            result.windowFocus.currentLabel = currentLabel
+            if (typeof windowLabel !== 'string' || !windowLabel.trim()) throw new Error('Original window identity unavailable')
+            if (currentLabel !== windowLabel) throw new Error(`Window identity changed from ${windowLabel} to ${currentLabel}`)
+            const invoke = window.__TAURI__?.core?.invoke
+            if (typeof invoke !== 'function') throw new Error('WDIO window-state transport unavailable')
+            const queryWindow = async () => {
+              result.windowFocus.queryAttempted = true
+              result.windowFocus.requestOrder = ++state.order
+              result.windowFocus.requestedAt = performance.now()
+              result.windowFocus.query = result.windowFocus.identitySource
+              const activeLabel = await invoke(result.windowFocus.identitySource)
               if (finished) return
-              result.windowFocus = { status: 'reported', focused: value, requestedAt,
-                order: ++state.order, monotonicMs: performance.now() }; complete()
-            }, error => {
+              result.windowFocus.activeLabel = activeLabel
+              result.windowFocus.identityOrder = ++state.order
+              result.windowFocus.identityReceivedAt = performance.now()
+              if (typeof activeLabel !== 'string' || !activeLabel.trim() || activeLabel !== windowLabel) {
+                reportWindow('unavailable', { error: `WDIO current window ${activeLabel} does not identify original window ${windowLabel}` }); return
+              }
+              result.windowFocus.query = result.windowFocus.source
+              result.windowFocus.stateQueryAttempted = true
+              result.windowFocus.stateRequestOrder = ++state.order
+              result.windowFocus.statesRequestedAt = performance.now()
+              const response = await invoke(result.windowFocus.source)
               if (finished) return
-              result.windowFocus = { status: 'error', error: String(error), requestedAt }
-              result.errors.push(String(error)); complete()
-            })
-          } catch (error) { result.windowFocus = { status: 'unavailable', error: String(error) }; result.errors.push(String(error)) }
+              result.windowFocus.response = response
+              if (!Array.isArray(response) || response.some(row => !row || typeof row.label !== 'string'
+                || typeof row.title !== 'string' || typeof row.is_visible !== 'boolean' || typeof row.is_focused !== 'boolean')) {
+                throw new Error('Invalid WDIO window-state response')
+              }
+              const matches = response.filter(row => row.label === windowLabel)
+              if (matches.length === 0) { reportWindow('unavailable', { error: `No WDIO state for original window ${windowLabel}` }); return }
+              if (matches.length !== 1) throw new Error(`Duplicate WDIO state for original window ${windowLabel}`)
+              const row = matches[0]
+              reportWindow('reported', { label: row.label, title: row.title, visible: row.is_visible, focused: row.is_focused })
+            }
+            queryWindow().catch(error => reportWindow('error', { error: String(error) }))
+          } catch (error) { reportWindow('unavailable', { error: String(error) }) }
           if (performance.now() >= deadline) { result.errors.push('diagnostic budget exhausted before frame'); finish(); return }
           frame = requestAnimationFrame(() => {
             if (finished) return
@@ -253,9 +288,11 @@ async function focusDiagnostic(sampleId) {
             if (result.windowFocus.status !== 'pending' || !result.frameReached) finish()
           })
         } catch (error) { result.errors.push(String(error)); finish() }
-      }, sampleId, 200),
+      }, sampleId, windowLabel, 200),
       new Promise(resolve => { timer = setTimeout(() => resolve({ sampleId, frameReached: null, rules: [],
-        errors: ['diagnostic transport deadline exhausted'], transportTimedOut: true }), 400) }),
+        errors: ['diagnostic transport deadline exhausted'], transportTimedOut: true,
+        windowFocus: { status: 'unknown', source: 'plugin:wdio|get_window_states',
+          identitySource: 'plugin:wdio|get_active_window_label', targetLabel: windowLabel ?? null } }), 400) }),
     ])
   } finally { clearTimeout(timer) }
 }
@@ -281,14 +318,17 @@ export async function recordFocus(theme, input) {
         fullSelector: element.matches('.rich-editor[contenteditable="true"]:focus'),
         sampleId, nodeId: state.nodes.get(element), order: ++state.order, monotonicMs: performance.now(),
         timeOrigin: performance.timeOrigin, identity: { tag: element.tagName, id: element.id,
-          className: element.className, contenteditable: element.getAttribute('contenteditable') } }
+          className: element.className, contenteditable: element.getAttribute('contenteditable') },
+        windowLabel: window.__TAURI_INTERNALS__?.metadata?.currentWindow?.label ?? null }
     } catch (error) { return { ...initial, initialDiagnosticError: String(error) } }
   }))
   receipts.push({ name: `uc3-editor-input-focus-320-${theme}`, input, ...focus })
   writeFileSync(join(out(), 'uc3-layout.json'), JSON.stringify(receipts, null, 2))
-  const diagnostic = { frameReached: null, rules: [], errors: [] }
+  const diagnostic = { frameReached: null, rules: [], errors: [],
+    windowFocus: { status: 'unknown', source: 'plugin:wdio|get_window_states',
+      identitySource: 'plugin:wdio|get_active_window_label', targetLabel: focus.windowLabel ?? null } }
   try {
-    const observed = await focusDiagnostic(focus.sampleId)
+    const observed = await focusDiagnostic(focus.sampleId, focus.windowLabel)
     if (!observed || !Array.isArray(observed.errors)) throw new Error('Invalid focus diagnostic response')
     Object.assign(diagnostic, observed)
   } catch (error) { diagnostic.errors.push(String(error)) }
