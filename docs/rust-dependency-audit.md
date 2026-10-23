@@ -4,7 +4,7 @@ Last reviewed: 2026-10-14 against the locked v0.7.24 graph during Session Chat i
 
 ## Gate
 
-`bun run rust:audit` runs raw `cargo audit --json` against `Cargo.lock`, compares every finding with the exact reviewed registry in `scripts/rust-audit-exceptions.json`, and is wired into the shared CI/release validation action. A new vulnerability, unsoundness warning, unmaintained warning, or yanked crate fails the gate unless its advisory id and current package/version metadata already match that registry.
+`bun run rust:audit` runs raw `cargo audit --json` against `Cargo.lock`, compares every finding with the exact reviewed registry in `scripts/rust-audit-exceptions.json`, and is wired into the shared CI/release validation action. A new vulnerability, unsoundness warning, unmaintained warning, or yanked crate fails the gate unless its finding identity and current package/version metadata already match that registry. Advisory-backed findings retain their RustSec ID; warnings without an advisory use `<kind>:<package>` as their identity, with the version checked separately.
 
 The quality target is zero unexplained or stale ignores. Zero total ignores is desirable, but upstream-constrained transitive advisories may remain when their exposure, blocker, and review trigger are current.
 

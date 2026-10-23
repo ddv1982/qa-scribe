@@ -14,11 +14,25 @@ export function auditFindings(report) {
     version: entry.package.version,
   }))
 
-  for (const entries of Object.values(report.warnings)) {
-    for (const entry of entries) {
+  if (!report.warnings || typeof report.warnings !== 'object' || Array.isArray(report.warnings)) {
+    throw new Error('warnings must be an object')
+  }
+  for (const [kind, entries] of Object.entries(report.warnings)) {
+    if (!Array.isArray(entries)) throw new Error(`warnings.${kind} must be an array`)
+    for (const [index, entry] of entries.entries()) {
+      const warning = `warning ${kind}[${index}]`
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry)) throw new Error(`${warning} must be an object`)
+      if (!isText(entry.kind) || entry.kind !== kind) throw new Error(`${warning} kind must match its group`)
+      if (!isText(entry.package?.name) || !isText(entry.package?.version)) throw new Error(`${warning} requires package name and version`)
+      if (entry.advisory !== null) {
+        if (!isText(entry.advisory?.id)) throw new Error(`${warning} advisory must be null or contain an id`)
+        if (entry.advisory.informational != null && !isText(entry.advisory.informational)) {
+          throw new Error(`${warning} advisory informational must be text`)
+        }
+      }
       findings.push({
-        id: entry.advisory.id,
-        classification: entry.advisory.informational ?? 'warning',
+        id: entry.advisory === null ? `${kind}:${entry.package.name}` : entry.advisory.id,
+        classification: entry.advisory === null ? kind : entry.advisory.informational ?? 'warning',
         package: entry.package.name,
         version: entry.package.version,
       })
@@ -51,7 +65,13 @@ export function compareAudit(report, registry, today = new Date().toISOString().
     else if (exception.reviewDate < today) errors.push(`${exception.id}: review expired ${exception.reviewDate}`)
   }
 
-  const actual = auditFindings(report)
+  let actual
+  try {
+    actual = auditFindings(report)
+  } catch (error) {
+    errors.push(`Invalid cargo-audit report: ${error.message}`)
+    return { errors, findings: [] }
+  }
   const actualIds = new Set(actual.map((finding) => finding.id))
   for (const finding of actual) {
     const exception = registered.get(finding.id)
@@ -69,6 +89,10 @@ export function compareAudit(report, registry, today = new Date().toISOString().
 
   if (isIsoDate(registry.nextReviewDate) && registry.nextReviewDate < today) errors.push(`registry review expired ${registry.nextReviewDate}`)
   return { errors, findings: actual }
+}
+
+function isText(value) {
+  return typeof value === 'string' && value.trim() !== ''
 }
 
 function isIsoDate(value) {
