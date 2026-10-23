@@ -155,6 +155,159 @@ export async function unifiedRoute() {
   writeFileSync(join(out(), 'uc3-layout.json'), JSON.stringify(receipts, null, 2))
 }
 
+async function focusDiagnostic(sampleId) {
+  let timer
+  try {
+    return await Promise.race([
+      browser.executeAsync((sampleId, budgetMs, done) => {
+        const state = window.__qaScribeFocusDiagnostics
+        const element = state?.samples.get(sampleId)
+        state?.samples.delete(sampleId)
+        const started = performance.now()
+        const deadline = started + budgetMs
+        const result = { sampleId, nodeId: state?.nodes.get(element), rules: [], errors: [],
+          scannedRules: 0, ruleScanTruncated: false, frameReached: false, windowFocus: { status: 'pending' } }
+        let finished = false
+        let frame
+        let timer
+        const finish = () => {
+          if (finished) return
+          finished = true
+          clearTimeout(timer)
+          if (frame !== undefined) cancelAnimationFrame(frame)
+          result.elapsedMs = performance.now() - started
+          result.ruleCount = result.rules.length
+          done(result)
+        }
+        const snapshot = phase => {
+          const css = getComputedStyle(element)
+          return { phase, sampleId, nodeId: state.nodes.get(element), order: ++state.order,
+            monotonicMs: performance.now(), connected: element.isConnected,
+            isActiveElement: document.activeElement === element, documentHasFocus: document.hasFocus(),
+            visibilityState: document.visibilityState, topLevelWindow: window === window.top,
+            className: element.className, contenteditable: element.getAttribute('contenteditable'),
+            fullSelector: element.matches('.rich-editor[contenteditable="true"]:focus'),
+            focus: element.matches(':focus'), focusVisible: element.matches(':focus-visible'),
+            outline: css.outlineStyle, offset: css.outlineOffset, width: css.outlineWidth, color: css.outlineColor }
+        }
+        timer = setTimeout(() => { result.errors.push('diagnostic budget exhausted'); finish() }, budgetMs)
+        try {
+          if (!element) throw new Error('Initial diagnostic node is unavailable')
+          const walk = (rules, source, inherited, disabled) => {
+            for (const rule of rules) {
+              if (performance.now() >= deadline || result.scannedRules >= 2000) { result.ruleScanTruncated = true; return }
+              result.scannedRules += 1
+              try {
+                const conditions = [...inherited]
+                if (rule.media?.mediaText) conditions.push({ type: 'media', text: rule.media.mediaText, matches: matchMedia(rule.media.mediaText).matches })
+                if (rule.type === CSSRule.SUPPORTS_RULE || rule.supportsText) {
+                  const text = rule.supportsText || rule.conditionText
+                  conditions.push({ type: 'supports', text, matches: CSS.supports(text) })
+                } else if (rule.conditionText && !rule.media) {
+                  conditions.push({ type: rule.constructor.name, text: rule.conditionText, matches: null })
+                } else if (rule.name && rule.cssRules) {
+                  conditions.push({ type: rule.constructor.name, name: rule.name, matches: true })
+                }
+                if (rule.selectorText && element.matches(rule.selectorText)) {
+                  result.rules.push({ source, selector: rule.selectorText, declarations: rule.style.cssText,
+                    conditions, disabled, sourceRuleIndex: result.scannedRules,
+                    conditionallyActive: disabled || conditions.some(condition => condition.matches === false)
+                      ? false : conditions.every(condition => condition.matches === true) ? true : null })
+                }
+                if (rule.styleSheet) scan(rule.styleSheet, conditions, disabled)
+                else if (rule.cssRules) walk(rule.cssRules, source, conditions, disabled)
+              } catch (error) { result.errors.push(`${source}: ${String(error)}`) }
+            }
+          }
+          const scan = (sheet, inherited = [], disabled = false, index = 'import') => {
+            const source = sheet.href || `inline:${index}`
+            try {
+              const conditions = [...inherited]
+              if (sheet.media?.mediaText) conditions.push({ type: 'media', text: sheet.media.mediaText, matches: matchMedia(sheet.media.mediaText).matches })
+              walk(sheet.cssRules, source, conditions, Boolean(disabled || sheet.disabled))
+            } catch (error) { result.errors.push(`${source}: ${String(error)}`) }
+          }
+          Array.from(new Set([...document.styleSheets, ...(document.adoptedStyleSheets ?? [])])).forEach((sheet, index) => scan(sheet, [], false, index))
+          result.afterRules = snapshot('after-rules')
+          const complete = () => { if (result.frameReached && result.windowFocus.status !== 'pending') finish() }
+          try {
+            const nativeWindow = window.__TAURI__?.window?.getCurrentWindow?.()
+            if (!nativeWindow?.isFocused) throw new Error('Native window focus query unavailable')
+            const requestedAt = performance.now()
+            Promise.resolve(nativeWindow.isFocused()).then(value => {
+              if (finished) return
+              result.windowFocus = { status: 'reported', focused: value, requestedAt,
+                order: ++state.order, monotonicMs: performance.now() }; complete()
+            }, error => {
+              if (finished) return
+              result.windowFocus = { status: 'error', error: String(error), requestedAt }
+              result.errors.push(String(error)); complete()
+            })
+          } catch (error) { result.windowFocus = { status: 'unavailable', error: String(error) }; result.errors.push(String(error)) }
+          if (performance.now() >= deadline) { result.errors.push('diagnostic budget exhausted before frame'); finish(); return }
+          frame = requestAnimationFrame(() => {
+            if (finished) return
+            result.frameReached = true
+            try { result.frame = snapshot('rendering-boundary') }
+            catch (error) { result.errors.push(`frame: ${String(error)}`) }
+            if (result.windowFocus.status !== 'pending' || !result.frameReached) finish()
+          })
+        } catch (error) { result.errors.push(String(error)); finish() }
+      }, sampleId, 200),
+      new Promise(resolve => { timer = setTimeout(() => resolve({ sampleId, frameReached: null, rules: [],
+        errors: ['diagnostic transport deadline exhausted'], transportTimedOut: true }), 400) }),
+    ])
+  } finally { clearTimeout(timer) }
+}
+
+export async function recordFocus(theme, input) {
+  const focus = Object.freeze(await browser.execute(() => {
+    const element = document.activeElement
+    const css = getComputedStyle(element)
+    const rect = element.getBoundingClientRect()
+    const initial = { label: element?.getAttribute('aria-label'), outline: css.outlineStyle,
+      offset: css.outlineOffset, width: css.outlineWidth, color: css.outlineColor,
+      background: css.backgroundColor, focused: element.matches(':focus'),
+      focusVisible: element.matches(':focus-visible'),
+      editableRichText: element.matches('.rich-editor[contenteditable="true"]'),
+      viewport: { width: innerWidth, height: innerHeight },
+      rect: { x: rect.x, y: rect.y, right: rect.right, bottom: rect.bottom } }
+    try {
+      const state = window.__qaScribeFocusDiagnostics ??= { sample: 0, node: 0, order: 0, nodes: new WeakMap(), samples: new Map() }
+      if (!state.nodes.has(element)) state.nodes.set(element, `node-${++state.node}`)
+      const sampleId = `focus-${++state.sample}`
+      state.samples.set(sampleId, element)
+      return { ...initial, documentHasFocus: document.hasFocus(),
+        fullSelector: element.matches('.rich-editor[contenteditable="true"]:focus'),
+        sampleId, nodeId: state.nodes.get(element), order: ++state.order, monotonicMs: performance.now(),
+        timeOrigin: performance.timeOrigin, identity: { tag: element.tagName, id: element.id,
+          className: element.className, contenteditable: element.getAttribute('contenteditable') } }
+    } catch (error) { return { ...initial, initialDiagnosticError: String(error) } }
+  }))
+  receipts.push({ name: `uc3-editor-input-focus-320-${theme}`, input, ...focus })
+  writeFileSync(join(out(), 'uc3-layout.json'), JSON.stringify(receipts, null, 2))
+  const diagnostic = { frameReached: null, rules: [], errors: [] }
+  try {
+    const observed = await focusDiagnostic(focus.sampleId)
+    if (!observed || !Array.isArray(observed.errors)) throw new Error('Invalid focus diagnostic response')
+    Object.assign(diagnostic, observed)
+  } catch (error) { diagnostic.errors.push(String(error)) }
+  diagnostic.initial = focus
+  const file = `focus-diagnostic-${theme}-${focus.sampleId ?? `missing-${receipts.length}`}.json`
+  try { writeFileSync(join(out(), file), JSON.stringify(diagnostic, null, 2)) }
+  catch (error) { diagnostic.artifactError = String(error); diagnostic.errors.push(`artifact: ${String(error)}`) }
+  console.log(`focus-diagnostic ${JSON.stringify({ file, sampleId: focus.sampleId, nodeId: focus.nodeId,
+    frameReached: diagnostic.frameReached, ruleCount: diagnostic.rules?.length ?? 0,
+    scannedRules: diagnostic.scannedRules, ruleScanTruncated: diagnostic.ruleScanTruncated,
+    errorCount: diagnostic.errors.length, errors: diagnostic.errors.slice(0, 3), artifactError: diagnostic.artifactError })}`)
+  assert.equal(focus.label, 'Note body')
+  assert.equal(focus.outline, 'solid')
+  assert.equal(focus.offset, '-2px')
+  assert.equal(focus.width, '2px')
+  assert.equal(focus.focused, true)
+  assert.equal(focus.editableRichText, true)
+}
+
 export async function unifiedWidths(theme) {
   await resize(1280, 860)
   await click('button=Settings')
@@ -167,36 +320,14 @@ export async function unifiedWidths(theme) {
     await capture(`uc3-note-${width}-${theme}`, ['.document-actions .action-button--secondary'])
     if (width === 320) {
       await $('[aria-label="Note body"]').click()
-      async function recordFocus(input) {
-        const focus = await browser.execute(() => {
-          const element = document.activeElement
-          const css = getComputedStyle(element)
-          const rect = element.getBoundingClientRect()
-          return { label: element?.getAttribute('aria-label'), outline: css.outlineStyle,
-            offset: css.outlineOffset, width: css.outlineWidth, color: css.outlineColor,
-            background: css.backgroundColor, focused: element.matches(':focus'),
-            focusVisible: element.matches(':focus-visible'),
-            editableRichText: element.matches('.rich-editor[contenteditable="true"]'),
-            viewport: { width: innerWidth, height: innerHeight },
-            rect: { x: rect.x, y: rect.y, right: rect.right, bottom: rect.bottom } }
-        })
-        receipts.push({ name: `uc3-editor-input-focus-320-${theme}`, input, ...focus })
-        writeFileSync(join(out(), 'uc3-layout.json'), JSON.stringify(receipts, null, 2))
-        assert.equal(focus.label, 'Note body')
-        assert.equal(focus.outline, 'solid')
-        assert.equal(focus.offset, '-2px')
-        assert.equal(focus.width, '2px')
-        assert.equal(focus.focused, true)
-        assert.equal(focus.editableRichText, true)
-      }
-      await recordFocus('pointer: WebDriver elementClick')
+      await recordFocus(theme, 'pointer: WebDriver elementClick')
       await capture(`uc3-editor-focus-320-${theme}`)
       if (process.platform === 'linux') {
         const keyboard = { platform: process.platform, backend: 'xdotool XTEST' }
         const key = nativeKeySender(keyboard, () => writeFileSync(join(out(), `uc3-editor-keyboard-${theme}.json`), JSON.stringify(keyboard, null, 2)), Key)
         await key(Key.Tab)
         await key('Shift+Tab')
-        await recordFocus('keyboard: native Tab then Shift+Tab')
+        await recordFocus(theme, 'keyboard: native Tab then Shift+Tab')
         await capture(`uc3-editor-keyboard-focus-320-${theme}`)
       } else {
         receipts.push({ name: `uc3-editor-keyboard-${theme}`, nativeTabVerified: false,
