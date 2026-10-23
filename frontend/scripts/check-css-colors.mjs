@@ -64,6 +64,9 @@ function checkActions(directory) {
   }
 }
 checkActions(sourceDir);
+for (const { file, content } of [...stylesheets, { file: 'styles.css', content: readFileSync(join(sourceDir, 'styles.css'), 'utf8') }]) {
+  if (legacyActions.test(content)) legacyCallers.push(file);
+}
 if (legacyCallers.length > 0) {
   console.error(`Legacy action callers remain:\n${legacyCallers.join('\n')}`);
   process.exit(1);
