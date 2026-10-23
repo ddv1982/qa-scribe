@@ -122,3 +122,54 @@
 }
 .attachment-cleanup-warning p { flex: 1 1 240px; margin: 0; }
 .attachment-cleanup-warning [role="alert"] { color: var(--danger); }
+
+.editable-record input,
+.editable-record select,
+.editable-record textarea,
+.template-field textarea,
+.settings-grid textarea {
+  width: 100%;
+  color: var(--text-primary);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  outline: 0;
+}
+
+.editable-record input {
+  height: var(--control-lg);
+  padding: 0 var(--space-3);
+  font-weight: 600;
+}
+
+.editable-record select {
+  height: var(--control-lg);
+  padding: 0 var(--space-3);
+}
+
+.editable-record textarea {
+  min-height: 260px;
+  padding: var(--space-3);
+  resize: vertical;
+  line-height: var(--leading-normal);
+}
+
+.field-stack {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.field-stack span {
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.field-stack textarea {
+  min-height: 84px;
+}
+
+
+#note-summary-unavailable { flex-basis: 100%; margin: 0; }

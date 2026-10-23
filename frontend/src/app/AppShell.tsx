@@ -224,6 +224,7 @@ export function AppShell(c: AppController) {
               providerAvailable={Boolean(c.activeProvider?.available) && !c.effectiveAiSelection?.warning}
               providerReason={c.effectiveAiSelection?.warning ?? c.activeProvider?.reason ?? 'Loading provider status'}
               onConfigureAi={() => runCommand('ai.configure')} />}
+            activeProviderReason={c.activeProvider?.reason ?? 'Loading provider status'}
             activeProviderAvailable={Boolean(c.activeProvider?.available)}
             activeSession={c.activeSession}
             busyAction={c.busyAction}

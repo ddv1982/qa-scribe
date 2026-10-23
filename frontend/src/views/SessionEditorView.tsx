@@ -15,6 +15,7 @@ import type { ChatMode } from '../bindings'
 export function SessionEditorView({
   creationCommands,
   activeProviderAvailable,
+  activeProviderReason,
   activeSession,
   busyAction,
   copyState,
@@ -52,6 +53,7 @@ export function SessionEditorView({
 }: {
   creationCommands: Record<'testware' | 'finding', RecordCreationCommands>
   activeProviderAvailable: boolean
+  activeProviderReason?: string
   activeSession: Session | null
   busyAction: BusyAction | null
   canUndoLatestGeneration: boolean
@@ -140,7 +142,7 @@ export function SessionEditorView({
           </div>
         ) : <p className="document-mode"><FileText size={16} /> Session note</p>}
         <div className="document-actions">
-          {sessionMode === 'write_note' ? <>          <ActionButton variant="secondary" type="button" disabled={isBusy || summaryPending || !noteIsReady || !activeProviderAvailable} onClick={() => void onAiAction('summary')}>
+          {sessionMode === 'write_note' ? <>          <ActionButton variant="secondary" type="button" aria-describedby={!activeProviderAvailable ? "note-summary-unavailable" : undefined} disabled={isBusy || summaryPending || !noteIsReady || !activeProviderAvailable} onClick={() => void onAiAction('summary')}>
             {busyAction === 'ai-summary' || summaryPending ? <Loader2 className="spin" size={16} /> : <Sparkles size={16} />}
             {summaryPending ? 'Summarizing notes' : 'Summarize with AI'}
           </ActionButton></> : null}
@@ -161,6 +163,9 @@ export function SessionEditorView({
             copyState={copyState} onCopy={onCopy} disabled={isBusy} label="Note" screenshotCount={noteScreenshotCount} /> : null}
           <ActionButton variant="destructive-quiet" iconOnly icon={Trash2} aria-label="Delete Session" title="Delete Session" loading={deletingSession} disabled={isBusy} onClick={() => void onDeleteSession()} />
         </div>
+      {sessionMode === 'write_note' && !activeProviderAvailable ? <p className="field-description" id="note-summary-unavailable">
+        AI summary unavailable. {activeProviderReason ?? 'Configure an available provider in Settings. You can keep writing and create records without AI.'}
+      </p> : null}
       </header>
 
       <section key={activeSession.id} className={sessionMode === 'chat' ? 'editor-card editor-card--chat' : 'editor-card'} aria-label="Session editor">

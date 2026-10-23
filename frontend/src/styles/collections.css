@@ -263,54 +263,6 @@
   white-space: nowrap;
 }
 
-.editable-record input,
-.editable-record select,
-.editable-record textarea,
-.template-field textarea,
-.settings-grid textarea {
-  width: 100%;
-  color: var(--text-primary);
-  background: var(--surface-sunken);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  outline: 0;
-}
-
-.editable-record input {
-  height: var(--control-lg);
-  padding: 0 var(--space-3);
-  font-weight: 600;
-}
-
-.editable-record select {
-  height: var(--control-lg);
-  padding: 0 var(--space-3);
-}
-
-.editable-record textarea {
-  min-height: 260px;
-  padding: var(--space-3);
-  resize: vertical;
-  line-height: var(--leading-normal);
-}
-
-.field-stack {
-  display: grid;
-  gap: var(--space-1);
-}
-
-.field-stack span {
-  color: var(--text-secondary);
-  font-size: var(--font-size-xs);
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.field-stack textarea {
-  min-height: 84px;
-}
-
 .rich-record-editor-field {
   display: grid;
   min-height: 260px;
@@ -660,23 +612,6 @@
 
 .ai-choice-note .status-dot {
   margin-top: 5px;
-}
-
-.text-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  justify-self: start;
-  min-height: 32px;
-  padding: 0;
-  color: var(--accent);
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  background: var(--accent-tint);
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  padding-inline: var(--space-2);
 }
 
 .execution-overview {

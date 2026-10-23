@@ -13,13 +13,6 @@
 @import './styles/responsive.css';
 @import './styles/first-use.css';
 
-/* Session Chat uses the same document surfaces and controls as Write note. */
-.document-mode button[aria-pressed="true"] {
-  color: var(--accent);
-  background: var(--accent-tint);
-  border-color: var(--accent-border);
-}
-
 .editor-card--chat { grid-template-rows: minmax(0, 1fr); }
 .editor-card--chat .document-body {
   display: flex;

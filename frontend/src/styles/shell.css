@@ -22,8 +22,6 @@
 
 .brand-cluster,
 .document-status,
-.primary-button,
-.secondary-button,
 .settings-link,
 .rail-item,
 .select-shell,
@@ -114,115 +112,6 @@
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
-}
-
-.primary-button,
-.secondary-button {
-  justify-content: center;
-  gap: var(--space-2);
-  min-height: var(--control-lg);
-  padding: 0 var(--space-4);
-  border-radius: var(--radius-md);
-  border: 1px solid transparent;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.primary-button {
-  font-weight: 600;
-  color: var(--on-accent);
-  background: var(--accent);
-}
-
-.success-button {
-  color: var(--on-accent);
-  background: var(--success);
-}
-
-.danger-button {
-  color: var(--on-accent);
-  background: var(--danger);
-}
-
-.secondary-button {
-  color: var(--text-primary);
-  background: var(--surface-raised);
-  border-color: var(--border-default);
-}
-
-.compact-button {
-  min-height: var(--control-md);
-  padding-inline: var(--space-3);
-  font-size: var(--font-size-md);
-}
-
-.icon-button {
-  display: grid;
-  flex: 0 0 auto;
-  width: var(--control-lg);
-  height: var(--control-lg);
-  place-items: center;
-  color: var(--text-secondary);
-  background: var(--surface-raised);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-}
-
-.icon-button:hover {
-  color: var(--text-primary);
-  background: var(--surface-sunken);
-}
-
-.icon-button.success {
-  color: var(--success);
-  background: var(--success-tint);
-  border-color: color-mix(in oklab, var(--success) 38%, var(--border-default));
-}
-
-.icon-button.success:hover {
-  color: var(--success);
-  background: color-mix(in oklab, var(--success-tint) 72%, var(--surface-raised));
-  border-color: color-mix(in oklab, var(--success) 52%, var(--border-default));
-}
-
-.icon-button.danger {
-  color: var(--danger);
-}
-
-.icon-button.danger:hover {
-  background: color-mix(in oklab, var(--danger) 10%, var(--surface-raised));
-  border-color: color-mix(in oklab, var(--danger) 38%, var(--border-default));
-}
-
-.primary-button:hover {
-  background: var(--accent-hover);
-}
-
-.success-button:hover {
-  background: var(--success-hover);
-}
-
-.danger-button:hover {
-  background: var(--danger-hover);
-}
-
-.secondary-button:hover {
-  background: var(--surface-sunken);
-  border-color: var(--border-strong);
-}
-
-.primary-button:active,
-.secondary-button:active,
-.success-button:active,
-.danger-button:active,
-.icon-button:active,
-.toolbar-button:active {
-  transform: scale(0.98);
-}
-
-button:disabled:hover {
-  transform: none;
 }
 
 .top-new-button {
