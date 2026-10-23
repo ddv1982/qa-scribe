@@ -1,13 +1,12 @@
+import { registerUnifiedProof } from './unified-visual-proof.mjs'
 import assert from 'node:assert/strict'
 import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createRequire } from 'node:module'
 import { pendingComposerSave } from './chat-autosave-proof.mjs'
 import { nativeKeySender, settledViewport, viewport } from './preflight-native-keys.mjs'
-
 const require = createRequire(new URL('../../frontend/package.json', import.meta.url))
 const { Key } = await import(require.resolve('webdriverio'))
-
 const artifacts = process.env.QA_SCRIBE_E2E_ARTIFACTS
 assert.ok(artifacts, 'QA_SCRIBE_E2E_ARTIFACTS must name the isolated evidence directory')
 mkdirSync(artifacts, { recursive: true })
@@ -21,7 +20,6 @@ const trigger = '[aria-label="Open command palette"]'
 const inputBackend = process.platform === 'linux' ? 'linux-x11-xtest' : 'embedded-webdriver-key-events'
 const evidence = []
 const layoutFailures = []
-
 function save(stage, value) {
   evidence.push({ stage, baseline, ...value })
   writeFileSync(join(artifacts, 'ui-polish.json'), JSON.stringify(evidence, null, 2))
@@ -341,8 +339,8 @@ describe('Native UI polish before/after evidence', () => {
     await (await $('.chat-composer textarea')).waitForEnabled()
     await actions('chat-empty', '.chat-composer textarea, .chat-compose-actions button')
     await browser.execute(() => { document.querySelector('.chat-composer textarea').style.height = '280px' })
-    await scroll('.chat-compose-actions .primary-button')
-    await actions('chat-composer-expanded', '.chat-compose-actions .primary-button', false)
+    await scroll('.chat-compose-actions .action-button--primary')
+    await actions('chat-composer-expanded', '.chat-compose-actions .action-button--primary', false)
     await scroll('.chat-composer > p')
     await actions('chat-expanded-help', '.chat-composer > p', false)
     await browser.execute(() => { document.querySelector('.chat-composer textarea').style.height = '' })
@@ -379,7 +377,7 @@ describe('Native UI polish before/after evidence', () => {
     await (await $('.chat-composer textarea')).setValue(longChat)
     await browser.waitUntil(async () => browser.tauri.execute(async ({ core }, sessionId, text) =>
       (await core.invoke('get_chat', { sessionId })).composer === text, sessionId, longChat))
-    await click('.chat-compose-actions .primary-button')
+    await click('.chat-compose-actions .action-button--primary')
     const fixture = process.env.QA_SCRIBE_E2E_FIXTURE_DIR
     await browser.waitUntil(() => existsSync(join(fixture, 'codex-exec-1.started')))
     writeFileSync(join(fixture, 'codex-exec-1.release'), 'Release deterministic layout response\n', { flag: 'wx' })
@@ -450,14 +448,14 @@ describe('Native UI polish before/after evidence', () => {
           await actions(`narrow-${width}-${theme}-action-${index}`, `.ai-action-buttons button:nth-child(${index + 1})`, false)
         }
         await click('button=Chat')
-        await (await $('.chat-compose-actions .primary-button')).waitForEnabled()
+        await (await $('.chat-compose-actions .action-button--primary')).waitForEnabled()
         await click('button=Review saved conversation')
         layoutFailures.push(...await pendingComposerSave(theme, sessionId, artifacts, save))
         if (await (await $('button=Review saved conversation')).getAttribute('aria-expanded') === 'true') {
           await click('button=Review saved conversation')
         }
         await (await $('.chat-composer textarea')).scrollIntoView()
-        await (await $('.chat-compose-actions .primary-button')).scrollIntoView()
+        await (await $('.chat-compose-actions .action-button--primary')).scrollIntoView()
         await actions(`chat-${width}-${theme}-reachable`, '.chat-compose-actions button', false)
         await click('button=Write note')
       }
@@ -496,5 +494,7 @@ describe('Native UI polish before/after evidence', () => {
     assert.deepEqual(layoutFailures, [], 'Saved review, unsent explanation, and composer geometry stay stable across autosave')
     save('laptop-layout-result', { completed: true, platform: process.platform, providerInvocations: invocations.length })
   })
+
+  registerUnifiedProof()
 
 })
