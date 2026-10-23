@@ -84,7 +84,9 @@ pub(super) fn attribute_value_with_decoder(
     attribute: &str,
     decoder: impl Fn(&str) -> String,
 ) -> Option<String> {
-    let mut index = raw_tag.find(char::is_whitespace).unwrap_or(raw_tag.len());
+    let mut index = raw_tag
+        .find(|character: char| character.is_whitespace() || character == '/')
+        .unwrap_or(raw_tag.len());
     while index < raw_tag.len() {
         index = skip_whitespace(raw_tag, index);
         if index >= raw_tag.len() {
@@ -135,7 +137,7 @@ pub(super) fn attribute_value_with_decoder(
                     let value_start = index;
                     while index < raw_tag.len() {
                         let character = raw_tag[index..].chars().next()?;
-                        if character.is_whitespace() || character == '/' {
+                        if character.is_whitespace() {
                             break;
                         }
                         index += character.len_utf8();

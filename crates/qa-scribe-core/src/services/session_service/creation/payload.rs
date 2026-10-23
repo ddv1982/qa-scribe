@@ -96,10 +96,9 @@ pub(crate) fn validate_references(
         };
         let tag = &body[start..end];
         let name = tag
-            .split_whitespace()
+            .split(|character: char| character.is_whitespace() || character == '/')
             .next()
-            .unwrap_or("")
-            .trim_end_matches('/');
+            .unwrap_or("");
         if name.eq_ignore_ascii_case("img") {
             collect_image(
                 attribute_value(tag, "data-attachment-id").as_deref(),

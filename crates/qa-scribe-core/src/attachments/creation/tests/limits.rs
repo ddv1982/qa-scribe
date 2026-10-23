@@ -140,3 +140,181 @@ fn shared_images_require_the_actual_attachment_session_and_valid_descriptors() {
         assert!(fixture.service.prepare_creation_save(prep).is_err());
     }
 }
+
+fn html_only_request(
+    prepared: &PreparedCreation,
+    kind: CreationKind,
+    html: String,
+) -> CommitCreationSave {
+    let mut input = request(prepared, kind);
+    match &mut input.record {
+        CreationRecordInput::Finding {
+            body, body_json, ..
+        }
+        | CreationRecordInput::Testware {
+            body, body_json, ..
+        } => {
+            *body = html;
+            *body_json = None;
+        }
+    }
+    input
+}
+
+fn reject_uninventoried_html(sources: &[&str]) {
+    let mut accepted = Vec::new();
+    for kind in [CreationKind::Finding, CreationKind::Testware] {
+        for template in sources {
+            let fixture = Fixture::new();
+            let foreign = fixture
+                .service
+                .create_session(SessionDraft {
+                    title: "Foreign image owner".into(),
+                    ..Default::default()
+                })
+                .unwrap();
+            let borrowed = import_managed_attachment_bytes(
+                &fixture.service,
+                &fixture.root,
+                &foreign.id,
+                None,
+                "borrowed.png".into(),
+                Some("image/png".into()),
+                b"borrowed".to_vec(),
+            )
+            .unwrap();
+            let (_, prepared) = fixture.prepare(kind, 0);
+            let html = template.replace("FOREIGN_ID", &borrowed.id);
+            let input = html_only_request(&prepared, kind, html.clone());
+            assert!(input.images.is_empty());
+            assert!(input.shared_attachment_ids.is_empty());
+            let result = commit_creation_save(&fixture.service, &fixture.root, input);
+            if result.is_ok() {
+                accepted.push(format!("{kind:?}: {html}: {result:?}"));
+                continue;
+            }
+            assert_eq!(count(&fixture.service, "findings"), 0, "{html}");
+            assert_eq!(count(&fixture.service, "drafts"), 0, "{html}");
+            assert_eq!(count(&fixture.service, "attachments"), 1, "{html}");
+            assert_eq!(
+                count(&fixture.service, "creation_attempt_images"),
+                0,
+                "{html}"
+            );
+            let attempt =
+                creation::require_attempt(fixture.service.database().connection(), "attempt")
+                    .unwrap();
+            assert!(attempt.preparing(), "{html}");
+            assert_eq!(attempt.payload_hash, None, "{html}");
+            assert!(
+                !fixture
+                    .root
+                    .join("attachments")
+                    .join(&fixture.session)
+                    .exists(),
+                "{html}"
+            );
+            assert_eq!(
+                fixture.service.get_attachment(&borrowed.id).unwrap(),
+                Some(borrowed.clone()),
+                "{html}"
+            );
+            assert_eq!(
+                fs::read(fixture.root.join(&borrowed.relative_path)).unwrap(),
+                b"borrowed",
+                "{html}"
+            );
+        }
+    }
+    assert!(
+        accepted.is_empty(),
+        "Unchecked actual commits: {accepted:#?}"
+    );
+}
+
+#[test]
+fn html_inventory_rejects_unquoted_and_slash_separated_undeclared_managed_images() {
+    reject_uninventoried_html(&[
+        "<img src=qa-scribe-attachment://FOREIGN_ID>",
+        "<img/src=\"qa-scribe-attachment://FOREIGN_ID\">",
+        "<img/src=qa-scribe-attachment://FOREIGN_ID>",
+        "<IMG//SRC='qa-scribe-attachment://FOREIGN_ID'>",
+        "<img /src=qa-scribe-attachment://FOREIGN_ID>",
+        "<img alt='borrowed' /src=qa-scribe-attachment://FOREIGN_ID>",
+    ]);
+}
+
+#[test]
+fn html_inventory_rejects_slash_separated_local_data_and_blob_images() {
+    reject_uninventoried_html(&[
+        "<img/src=\"data:image/png;base64,aW1hZ2U=\">",
+        "<img/src=data:image/png;base64,aW1hZ2U=>",
+        "<img/src='blob:local-image'>",
+        "<img/src=blob:local-image>",
+        "<IMG//SRC=\"data&#58;image/png;base64,aW1hZ2U=\">",
+        "<img /src='blob:local-image'>",
+    ]);
+}
+
+#[test]
+fn html_inventory_preserves_quoted_and_unquoted_shared_images_for_both_record_kinds() {
+    for kind in [CreationKind::Finding, CreationKind::Testware] {
+        for template in [
+            "<img src=\"qa-scribe-attachment://SHARED_ID\">",
+            "<img src=qa-scribe-attachment://SHARED_ID>",
+            "<img/src=\"qa-scribe-attachment://SHARED_ID\">",
+            "<img/src=qa-scribe-attachment://SHARED_ID>",
+            "<IMG//SRC='qa-scribe-attachment://SHARED_ID'>",
+            "<img alt='shared' /src=qa-scribe-attachment://SHARED_ID>",
+        ] {
+            let fixture = Fixture::new();
+            let shared = import_managed_attachment_bytes(
+                &fixture.service,
+                &fixture.root,
+                &fixture.session,
+                None,
+                "shared.png".into(),
+                Some("image/png".into()),
+                b"shared".to_vec(),
+            )
+            .unwrap();
+            let (_, prepared) = fixture.prepare(kind, 0);
+            let html = template.replace("SHARED_ID", &shared.id);
+            let mut input = html_only_request(&prepared, kind, html.clone());
+            input.shared_attachment_ids.push(shared.id.clone());
+            let result =
+                commit_creation_save(&fixture.service, &fixture.root, input.clone()).unwrap();
+            let record = match &result {
+                CreationOutcome::Committed { record } => record,
+                other => panic!("Unexpected shared image outcome: {other:?}"),
+            };
+            match record.as_ref() {
+                CreatedRecord::Finding(record) => {
+                    assert_eq!(record.body, html);
+                    assert_eq!(record.body_json, None);
+                }
+                CreatedRecord::Testware(record) => {
+                    assert_eq!(record.body, html);
+                    assert_eq!(record.body_json, None);
+                }
+            }
+            assert_eq!(
+                commit_creation_save(&fixture.service, &fixture.root, input).unwrap(),
+                result
+            );
+            assert_eq!(
+                count(&fixture.service, "findings") + count(&fixture.service, "drafts"),
+                1
+            );
+            assert_eq!(count(&fixture.service, "attachments"), 1);
+            assert_eq!(
+                fixture.service.get_attachment(&shared.id).unwrap(),
+                Some(shared.clone())
+            );
+            assert_eq!(
+                fs::read(fixture.root.join(shared.relative_path)).unwrap(),
+                b"shared"
+            );
+        }
+    }
+}
