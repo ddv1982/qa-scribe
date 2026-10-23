@@ -1,3 +1,4 @@
+import { ActionButton } from '../components/ActionButton'
 import { useId, useState } from 'react'
 import type { SessionChatViewState } from '../app/sessionChat.types'
 import type { ChatState } from '../bindings'
@@ -10,9 +11,9 @@ function SavedConversationReview({ chat, unsent }: { chat: ChatState; unsent: bo
   const [expanded, setExpanded] = useState(false)
   const id = useId()
   return <section className="chat-review" aria-label="Saved conversation review">
-    <button className="secondary-button" type="button" aria-expanded={expanded} aria-controls={id} onClick={() => setExpanded(!expanded)}>
+    <ActionButton variant="secondary" type="button" aria-expanded={expanded} aria-controls={id} onClick={() => setExpanded(!expanded)}>
       Review saved conversation
-    </button>
+    </ActionButton>
     <p className="chat-help">Read-only saved messages. {unsent ? 'Your unsent message is excluded from what is added to the note.' : 'This is the conversation that is appended to the note.'}</p>
     {expanded ? <div id={id} role="region" aria-label="Saved conversation">
       <ChatMessageList messages={chat.messages} aiRuns={chat.aiRuns} />
@@ -48,14 +49,14 @@ export function ChatHandoff({ state, onSubmit, onOpenNote }: {
       </div>
       <div className="chat-buttons">
         {handoff.kind === 'added' ? <>
-          <button className="secondary-button" type="button" onClick={onOpenNote}>Open updated Note</button>
+          <ActionButton variant="secondary" type="button" onClick={onOpenNote}>Open updated Note</ActionButton>
           <StartNewConversation state={state} />
-        </> : <button className="secondary-button" type="button"
+        </> : <ActionButton variant="secondary" type="button"
           disabled={handoff.kind === 'recover' ? handoff.disabled : !canAdd}
           aria-describedby={reason ? `${id}-reason` : undefined}
           onClick={() => { if (canAdd || (handoff.kind === 'recover' && !handoff.disabled)) void onSubmit() }}>
           {handoff.kind === 'recover' ? 'Recover Session Note' : 'Add conversation to note'}
-        </button>}
+        </ActionButton>}
       </div>
     </footer>
   </>

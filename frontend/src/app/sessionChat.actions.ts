@@ -309,12 +309,36 @@ export function createSessionChatActions(ctx: SessionChatContext) {
     publish(entry)
     await refresh(entry.sessionId)
   })
+  function captureRestart() {
+    const entry = active()
+    if (!entry?.chat || entry.loading || entry.save || entry.operationKind || entry.permissionOperation
+      || permissions.needsRecovery(entry) || ctx.noteRecovery.has(entry.sessionId) || chatIsWorking(entry.job)
+      || entry.chat.messages.some(message => message.status === 'running')) return null
+    const { chat, job, inputVersion, modeVersion } = entry
+    const epoch = activationEpoch
+    return async () => {
+      if (active() !== entry || activationEpoch !== epoch || entry.chat !== chat || entry.job !== job
+        || entry.inputVersion !== inputVersion || entry.modeVersion !== modeVersion || entry.loading
+        || entry.save || entry.operationKind || entry.permissionOperation || permissions.needsRecovery(entry)
+        || ctx.noteRecovery.has(entry.sessionId)) return
+      await onRestart()
+    }
+  }
   const onRestart = () => run('restart', async (entry) => {
     if (ctx.noteRecovery.has(entry.sessionId)) throw new Error('Recover the canonical Note before starting a new conversation.')
     if (chatIsWorking(entry.job)) throw new Error('Cancel or finish the active turn before starting a new conversation.')
     if (!entry.chat) await hydrate(entry)
-    if (!entry.chat || !await saveComposer(entry)) return
-    if (entry.retired) return
+    if (!entry.chat) return
+    const { inputVersion, modeVersion, job } = entry
+    const epoch = activationEpoch
+    const draftId = entry.chat.draftId
+    const history = JSON.stringify([entry.chat.messages, entry.chat.submission])
+    if (!await saveComposer(entry)) return
+    if (entry.retired || active() !== entry || activationEpoch !== epoch
+      || entry.inputVersion !== inputVersion || entry.modeVersion !== modeVersion || entry.job !== job
+      || entry.loading || entry.permissionOperation || permissions.needsRecovery(entry)
+      || ctx.noteRecovery.has(entry.sessionId) || entry.chat?.draftId !== draftId
+      || JSON.stringify([entry.chat.messages, entry.chat.submission]) !== history) return
     const next = await restartChat({ scope: chatScope(entry.chat) })
     if (entry.retired) return
     ++entry.refreshEpoch
@@ -409,5 +433,5 @@ export function createSessionChatActions(ctx: SessionChatContext) {
     return recoverNote(entry)
   }
   return { activate, dispose, observeJob, flush, hasPendingChanges, setMode, retire, recoverSession,
-    onSetComposer, onSend, onRetry, onCancel, onSubmit, onRestart, onDecidePermission, onRecheck, isCurrentPermissionScope }
+    onSetComposer, onSend, onRetry, onCancel, onSubmit, onRestart, captureRestart, onDecidePermission, onRecheck, isCurrentPermissionScope }
 }

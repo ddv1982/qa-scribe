@@ -4,7 +4,7 @@ import { join } from 'node:path'
 export async function pendingComposerSave(theme, sessionId, artifacts, save) {
   const composer = `Controlled ${theme} unsent message`
   const failures = []
-  await (await $('.chat-compose-actions .primary-button')).scrollIntoView()
+  await (await $('.chat-compose-actions .action-button--primary')).scrollIntoView()
   await browser.saveScreenshot(join(artifacts, `save-${theme}-before-edit.png`))
   await browser.execute((sessionId, composer) => {
     const sample = () => {
@@ -22,9 +22,9 @@ export async function pendingComposerSave(theme, sessionId, artifacts, save) {
         reason: document.querySelector('.chat-handoff [id$="-reason"]')?.textContent ?? '',
         counts: document.querySelector('.chat-counts').textContent,
         model: document.querySelector('.next-model-selection').textContent,
-        composer: rect('.chat-composer textarea'), send: rect('.chat-compose-actions .primary-button'),
+        composer: rect('.chat-composer textarea'), send: rect('.chat-compose-actions .action-button--primary'),
         disabled: { add: button('Add conversation to note').disabled,
-          send: document.querySelector('.chat-compose-actions .primary-button').disabled,
+          send: document.querySelector('.chat-compose-actions .action-button--primary').disabled,
           restart: button('Start new conversation').disabled },
       }
     }
@@ -66,7 +66,7 @@ export async function pendingComposerSave(theme, sessionId, artifacts, save) {
     save(`save-${theme}-pending`, during)
     await browser.saveScreenshot(join(artifacts, `save-${theme}-pending.png`))
     await browser.execute(() => window.__ac4SaveGate.release())
-    await (await $('.chat-compose-actions .primary-button')).waitForEnabled()
+    await (await $('.chat-compose-actions .action-button--primary')).waitForEnabled()
     const after = await browser.execute(() => window.__ac4SaveGate.sample())
     save(`save-${theme}-completed`, after)
     await browser.saveScreenshot(join(artifacts, `save-${theme}-completed.png`))

@@ -36,7 +36,7 @@ export function useSessionChat(context: Omit<SessionChatContext, 'publish'> & {
     onRecheck: () => actions.isCurrentPermissionScope(sessionId, permissionJobId, permissionProvider)
       ? actions.onRecheck() : Promise.resolve(),
     onSetComposer: actions.onSetComposer, onSend: actions.onSend, onRetry: actions.onRetry,
-    onCancel: actions.onCancel, onSubmit: actions.onSubmit, onRestart: actions.onRestart,
+    onCancel: actions.onCancel, onSubmit: actions.onSubmit, onRestart: actions.onRestart, captureRestart: actions.captureRestart,
   }
   return { sessionChat, sessionMode: current.mode, setSessionMode: actions.setMode, noteReadOnly,
     flush: actions.flush, hasPendingChanges: actions.hasPendingChanges, recoverSession: actions.recoverSession }

@@ -2,6 +2,10 @@ import assert from 'node:assert/strict'
 import { spawn, execFileSync } from 'node:child_process'
 import { existsSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { createRequire } from 'node:module'
+import { nativeKeySender } from './preflight-native-keys.mjs'
+const require = createRequire(new URL('../../frontend/package.json', import.meta.url))
+const { Key } = await import(require.resolve('webdriverio'))
 
 const artifactRoot = () => process.env.QA_SCRIBE_E2E_ARTIFACTS
 const save = (name, value) => writeFileSync(join(artifactRoot(), name), JSON.stringify(value, null, 2))
@@ -19,7 +23,16 @@ export async function installConfirmationProbe() {
       const label = event.target.closest('button')?.textContent.trim()
       if (['Add conversation to note', 'Review saved conversation', 'Start new conversation', 'Open updated Note'].includes(label)) window.__ux5Actions.push(label)
     }, { capture: true })
-    window.confirm = text => { window.__ux5Confirm.calls.push(text); return window.__ux5Confirm.accept }
+    const seen = new WeakSet()
+    const recordDialogs = () => {
+      for (const dialog of document.querySelectorAll('dialog[open]')) {
+        if (seen.has(dialog) || dialog.querySelector('h2')?.textContent !== 'Start a new conversation?') continue
+        seen.add(dialog)
+        window.__ux5Confirm.calls.push(`${dialog.querySelector('h2').textContent} ${dialog.querySelector('p').textContent}`)
+      }
+    }
+    new MutationObserver(recordDialogs).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['open'] })
+    window.confirm = () => { throw new Error('System confirmation must not replace the shared Chat restart dialog') }
   })
 }
 
@@ -229,14 +242,34 @@ export async function noteMatrix() {
 }
 
 export async function restartProof(sessionId, read, expectedNote) {
-  await browser.execute(() => { window.__ux5Confirm.accept = false })
+  const keyboard = { platform: process.platform }
+  const key = process.platform === 'linux'
+    ? nativeKeySender(keyboard, () => save('restart-keyboard.json', keyboard), Key)
+    : (value) => browser.keys(value)
   const restart = await $('button=Start new conversation')
   await restart.scrollIntoView()
   await restart.waitForClickable()
+  await browser.execute(() => document.querySelector('.chat-added button, .chat-topline button')?.focus())
   await restart.click()
+  await $('dialog[open]').waitForDisplayed()
+  assert.ok(await browser.execute(() => document.activeElement?.textContent.trim() === 'Cancel'))
+  assert.match(await $('dialog').getText(), /Submitted history remains saved/)
+  if (process.platform === 'linux') {
+    await key(Key.Tab)
+    assert.ok(await browser.execute(() => document.activeElement?.textContent.trim() === 'Start new conversation'))
+    await key('Shift+Tab')
+    assert.ok(await browser.execute(() => document.activeElement?.textContent.trim() === 'Cancel'))
+    await key(Key.Escape)
+  } else {
+    await (await $('dialog')).$('button=Cancel').click()
+  }
+  await $('dialog').waitForExist({ reverse: true })
+  assert.ok(await browser.execute(() => document.activeElement?.textContent.trim() === 'Start new conversation'))
   assert.equal((await read('get_chat', { sessionId })).submission !== null, true)
-  await browser.execute(() => { window.__ux5Confirm.accept = true })
   await restart.click()
+  await $('dialog[open]').waitForDisplayed()
+  await actionProof('dialog .confirmation-actions button:last-child', 'chat-restart-confirmation.png')
+  await (await $('dialog')).$('button=Start new conversation').click()
   await $('button=Send').waitForDisplayed()
   await browser.waitUntil(async () => (await read('get_chat', { sessionId })).draftId !== expectedNote.receipt.draftId)
   await actionProof('.chat-topline button', 'chat-restart.png')
