@@ -1,3 +1,4 @@
+import { ActionButton } from '../components/ActionButton'
 import { CreationWorkspace } from '../views/CreationTools'
 import { useEffect, useState, type KeyboardEvent } from 'react'
 import { BookOpen, Box, ChevronRight, Command as CommandIcon, FileText, Flag, CircleHelp, Loader2, PencilLine, Plus, Search, Settings } from 'lucide-react'
@@ -101,16 +102,16 @@ export function AppShell(c: AppController) {
         ) : <div className="top-context-label"><strong>Settings</strong></div>}
 
         <div className="top-actions">
-          <button className="secondary-button command-palette-trigger" type="button" aria-label="Open command palette" onClick={() => setOverlay('commands')}>
+          <ActionButton variant="secondary" className="command-palette-trigger" type="button" aria-label="Open command palette" onClick={() => setOverlay('commands')}>
             <CommandIcon size={16} />
             <span className="command-trigger-label">Commands</span>
             <kbd>{primaryShortcutLabel('k')}</kbd>
-          </button>
+          </ActionButton>
           {topAction?.command ? (
-            <button className="primary-button top-new-button" type="button" disabled={!topAction.command.available} onClick={topAction.command.run}>
+            <ActionButton variant="primary" className="top-new-button" type="button" disabled={!topAction.command.available} onClick={topAction.command.run}>
               {c.busyAction === topAction.busy ? <Loader2 className="spin" size={17} /> : <Plus size={17} />}
               {topAction.command.label}
-            </button>
+            </ActionButton>
           ) : null}
         </div>
       </header>
@@ -145,10 +146,10 @@ export function AppShell(c: AppController) {
           </div>
           {c.filteredSessions.length > 8 ? <p className="session-picker-more">Showing 8 of {c.filteredSessions.length}. Search to narrow.</p> : null}
           {!c.sessionLibraryComplete ? (
-            <button className="secondary-button" type="button" disabled={!commandById('sessions.load-all')?.available} onClick={() => runCommand('sessions.load-all')}>
+            <ActionButton variant="secondary" type="button" disabled={!commandById('sessions.load-all')?.available} onClick={() => runCommand('sessions.load-all')}>
               {c.busyAction === 'load-session-library' ? <Loader2 className="spin" size={16} /> : null}
               {commandById('sessions.load-all')?.label}
-            </button>
+            </ActionButton>
           ) : null}
         </section> : null}
 

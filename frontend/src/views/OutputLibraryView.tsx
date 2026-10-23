@@ -1,3 +1,4 @@
+import { ActionButton } from '../components/ActionButton'
 import { findingCopyBody } from '../findings/copyBody'
 import { findingSeverityValue } from '../findings/severity'
 import { useMemo, useState } from 'react'
@@ -200,7 +201,7 @@ export function OutputLibraryView({
             <div className="record-actions">
               <CopyControls snapshot={{ target: { kind: selected.sourceKind, sessionId: selected.sessionId, id: selected.id, action: 'jira-text' }, title: selected.title, bodyHtml: selected.sourceKind === 'finding' ? findingCopyBody(selected.body, selected.metadataJson) : selected.body }}
                 copyState={copyState} onCopy={onCopy} disabled={isBusy} label={selected.title} />
-              <button className="primary-button" type="button" onClick={() => onOpenRecord(selected.sessionId, selected.id)}>Open in Session</button>
+              <ActionButton variant="primary" type="button" onClick={() => onOpenRecord(selected.sessionId, selected.id)}>Open in Session</ActionButton>
             </div>
           </article>
         ) : null}

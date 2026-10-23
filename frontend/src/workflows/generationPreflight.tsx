@@ -1,3 +1,4 @@
+import { ActionButton } from '../components/ActionButton'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { GenerateAiActionKind, ProviderDefaultOrigin, TestwareDepth, TestwareGenerationPreferences, TestwareOutputFormat } from '../tauri'
 import { useModalDialog } from '../hooks/useModalDialog'
@@ -256,18 +257,18 @@ export function GenerationPreflight({
         ) : null}
       </div>
       <div className="confirmation-actions">
-        {onConfigureAi ? <button className="text-button" type="button" disabled={isBusy} onClick={onConfigureAi}>Configure AI execution…</button> : null}
-        <button className="secondary-button" type="button" disabled={isBusy} onClick={onCancel}>
+        {onConfigureAi ? <ActionButton variant="quiet" type="button" disabled={isBusy} onClick={onConfigureAi}>Configure AI execution…</ActionButton> : null}
+        <ActionButton variant="secondary" type="button" disabled={isBusy} onClick={onCancel}>
           Cancel
-        </button>
-        <button
-          className="primary-button"
+        </ActionButton>
+        <ActionButton
+          variant="primary"
           type="button"
           disabled={isBusy || modelSelectionPending || !activeProviderAvailable || Boolean(selectionWarning)}
           onClick={() => onConfirm(isTestware ? testwarePreferences : undefined)}
         >
           {confirmLabel ?? copy.confirmLabel}
-        </button>
+        </ActionButton>
       </div>
     </dialog>
   )

@@ -1,3 +1,4 @@
+import { ActionButton } from '../components/ActionButton'
 import type { AttachmentCleanupController } from './useAttachmentCleanup'
 
 export function AttachmentCleanupWarning({ cleanup }: { cleanup: AttachmentCleanupController }) {
@@ -6,7 +7,7 @@ export function AttachmentCleanupWarning({ cleanup }: { cleanup: AttachmentClean
   if (!cleanup.retryError && !unavailable && !(pendingFiles != null && pendingFiles > 0)) return null
 
   return (
-    <section role="status" aria-label="Attachment cleanup">
+    <section className="attachment-cleanup-warning" role="status" aria-label="Attachment cleanup">
       {pendingFiles != null && pendingFiles > 0 ? (
         <p>Attachment cleanup pending: {pendingFiles} {pendingFiles === 1 ? 'file' : 'files'} from deleted Sessions.</p>
       ) : unavailable || cleanup.status === null ? (
@@ -15,10 +16,10 @@ export function AttachmentCleanupWarning({ cleanup }: { cleanup: AttachmentClean
       {unavailable && cleanup.lastKnownPendingFiles !== null ? (
         <p>Last known pending files: {cleanup.lastKnownPendingFiles}.</p>
       ) : null}
-      {cleanup.retryError ? <p>Attachment cleanup retry failed: {cleanup.retryError}</p> : null}
-      <button className="secondary-button" type="button" disabled={cleanup.retryDisabled} onClick={() => void cleanup.retry()}>
+      {cleanup.retryError ? <p role="alert">Attachment cleanup retry failed: {cleanup.retryError}</p> : null}
+      <ActionButton variant="secondary" type="button" disabled={cleanup.retryDisabled} onClick={() => void cleanup.retry()}>
         {cleanup.retrying ? 'Retrying attachment cleanup…' : 'Retry attachment cleanup'}
-      </button>
+      </ActionButton>
     </section>
   )
 }

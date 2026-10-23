@@ -320,6 +320,18 @@ describe('SettingsView AI defaults', () => {
     expect(screen.getByLabelText('Reasoning')).toBeDisabled()
   })
 
+  it('disables both reset actions when the provider handler rejects changes', async () => {
+    const user = userEvent.setup()
+    const { updateSettingsDraft } = renderSettingsView({
+      settings: settingsFixture({ selectedAiModel: 'custom-model', selectedAiModelsByProvider: { codex_cli: 'custom-model' }, selectedAiReasoningEffortsByProvider: { codex_cli: 'high' } }),
+      providerStatus: providerStatusWith([codexProvider(false)]),
+    })
+    const resets = screen.getAllByRole('button', { name: 'Reset to CLI default' })
+    expect(resets).toHaveLength(2)
+    for (const reset of resets) { expect(reset).toBeDisabled(); await user.click(reset) }
+    expect(updateSettingsDraft).not.toHaveBeenCalled()
+  })
+
   it('labels the global AI instructions textarea', () => {
     renderSettingsView()
 

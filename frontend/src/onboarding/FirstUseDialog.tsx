@@ -1,3 +1,4 @@
+import { ActionButton } from '../components/ActionButton'
 import { useState } from 'react'
 import { writePlainClipboard } from '../editor/clipboardExport'
 import { useModalDialog } from '../hooks/useModalDialog'
@@ -29,7 +30,7 @@ export function FirstUseDialog({ kind, onClose, onExploreExample, onStartSession
   return <dialog ref={dialogRef} className="confirmation-dialog first-use-dialog" aria-labelledby="first-use-title">
     <header className="first-use-header">
       <h2 id="first-use-title">{kind === 'help' ? 'Help' : 'Explore an example'}</h2>
-      <button className="secondary-button" type="button" onClick={onClose}>Close</button>
+      <ActionButton variant="secondary" type="button" onClick={onClose}>Close</ActionButton>
     </header>
     {kind === 'example' ? <>
       <p className="example-label">Synthetic example · Read-only preview</p>
@@ -52,7 +53,7 @@ export function FirstUseDialog({ kind, onClose, onExploreExample, onStartSession
       <section aria-label="Example test case"><h3>Test case · Required postcode</h3><p>{exampleSession.testCase}</p></section>
       <footer className="first-use-actions">
         <p>Start a blank Session with your own evidence.</p>
-        <button className="primary-button" type="button" disabled={!canCreateSession} onClick={onStartSession}>Start your own Session</button>
+        <ActionButton variant="primary" type="button" disabled={!canCreateSession} onClick={onStartSession}>Start your own Session</ActionButton>
       </footer>
     </> : <>
       <section aria-label="Capture and report">
@@ -64,7 +65,7 @@ export function FirstUseDialog({ kind, onClose, onExploreExample, onStartSession
           <li>Use Copy and paste into your reporting tool. Reopen work from Sessions or either library.</li>
         </ol>
         <p>Notes autosave. Save explicit edits to Findings and test cases before leaving.</p>
-        <button className="secondary-button" type="button" onClick={onExploreExample}>Explore an example</button>
+        <ActionButton variant="secondary" type="button" onClick={onExploreExample}>Explore an example</ActionButton>
       </section>
       <details>
         <summary>Copy text and screenshots</summary>
@@ -97,7 +98,7 @@ export function FirstUseDialog({ kind, onClose, onExploreExample, onStartSession
         <summary>Send feedback</summary>
         <p>Copy this link and paste it into your browser to write a GitHub issue. Review and edit your report before you submit it. Remove private evidence.</p>
         <label className="feedback-url">Feedback URL<input readOnly value={feedbackUrl} onFocus={(event) => event.currentTarget.select()} /></label>
-        <button className="secondary-button" type="button" disabled={feedbackState === 'copying'} onClick={() => void copyFeedbackLink()}>Copy feedback link</button>
+        <ActionButton variant="secondary" type="button" disabled={feedbackState === 'copying'} onClick={() => void copyFeedbackLink()}>Copy feedback link</ActionButton>
         <p role="status">{feedbackState === 'copied' ? 'Feedback link copied.' : feedbackState === 'failed' ? 'Could not copy. Select the URL and copy it manually.' : 'Only the link is copied. Nothing is uploaded or submitted.'}</p>
       </details>
     </>}
