@@ -18,6 +18,16 @@
     <category>ProjectManagement</category>
   </categories>
   <releases>
+    <release version="0.8.19" date="2026-10-23">
+      <description>
+        <ul>
+          <li>Create local Finding and test-case drafts with shared sections and explicit Save or Discard choices.</li>
+          <li>Use optional Note prefill or AI inside the draft, with reviewed source and clear immediate-save behavior for generation.</li>
+          <li>Use consistent controls and responsive layouts.</li>
+          <li>Clean up interrupted saves with ownership checks and keep Chat restarts working across composer autosave.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.8.18" date="2026-10-22" />
     <release version="0.8.17" date="2026-10-22" />
     <release version="0.8.16" date="2026-10-22" />
