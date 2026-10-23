@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { findingFixture } from '../test/fixtures'
 import { richEditorDocumentFromHtml, richEditorDocumentToHtml } from '../editor/editorDocument'
 import type { CommitCreationSave, CreationOutcome, PrepareCreationSave } from '../tauri'
-import { createCreationActions } from './creationActions'
+import { createCreationActions, type CreationSelection } from './creationActions'
 function deferred<T>() {
   let resolve!: (value: T) => void
   const promise = new Promise<T>((finish) => { resolve = finish })
@@ -15,7 +15,7 @@ const committed: CreationOutcome = { state: 'committed', record: { kind: 'findin
 function setup() {
   let session = 'session-1'
   let epoch = 0
-  const selected = vi.fn(async () => true)
+  const selected = vi.fn(async (): Promise<CreationSelection> => 'selected')
   const error = vi.fn()
   const actions = createCreationActions({ activeSessionId: () => session, beginNavigation: () => ++epoch,
     openDestination: vi.fn(), changed: vi.fn(), decisionChanged: vi.fn(), selectSaved: selected, error })
@@ -55,7 +55,7 @@ describe('creation intent ownership', () => {
   })
   it('coalesces duplicate Save and consumes only after exact returned record selection', async () => {
     const { actions, selected } = setup()
-    const selection = deferred<boolean>()
+    const selection = deferred<CreationSelection>()
     selected.mockReturnValue(selection.promise)
     await actions.open('finding')
     actions.update({ title: 'One result' })
@@ -64,7 +64,7 @@ describe('creation intent ownership', () => {
     await vi.waitFor(() => expect(selected).toHaveBeenCalledOnce())
     expect(actions.current()?.phase.state).toBe('saved')
     expect(bridge.commitCreationSave).toHaveBeenCalledTimes(1)
-    selection.resolve(true)
+    selection.resolve('selected')
     expect(await first).toBe(true)
     expect(actions.current()).toBeNull()
   })
@@ -160,4 +160,67 @@ describe('creation intent ownership', () => {
     expect(payload.record.bodyJson).toContain('reserved-id')
     expect(payload.record.bodyJson).not.toContain('base64')
   })
+})
+
+it('reports deletion during saved-result loading without recreating the committed result', async () => {
+  const { actions, selected } = setup()
+  await actions.open('finding')
+  actions.update({ title: 'Deleted before selection' })
+  selected.mockResolvedValueOnce('deleted')
+  expect(await actions.save()).toBe(false)
+  expect(actions.current()?.phase).toEqual({ state: 'committed-deleted', recordId: committed.state === 'committed' ? committed.record.record.id : '' })
+  expect(await actions.save()).toBe(false)
+  expect(bridge.commitCreationSave).toHaveBeenCalledOnce()
+  expect(await actions.settle()).toBe(true)
+})
+it('keeps the saved draft visible on a load failure and retries selection without another commit', async () => {
+  const { actions, selected, error } = setup()
+  await actions.open('finding')
+  const document = richEditorDocumentFromHtml('<p>Keep visible content</p>')
+  actions.update({ title: 'Saved but not opened', document, metadataJson: '{"severity":"high"}' })
+  selected.mockRejectedValueOnce(new Error('Read unavailable'))
+  expect(await actions.save()).toBe(false)
+  expect(actions.current()).toMatchObject({ title: 'Saved but not opened', document, metadataJson: '{"severity":"high"}', phase: { state: 'saved' } })
+  expect(error).toHaveBeenLastCalledWith(expect.stringContaining('The result is saved, but could not be opened'))
+  expect(await actions.save()).toBe(true)
+  expect(bridge.commitCreationSave).toHaveBeenCalledOnce()
+  expect(bridge.abortCreationSave).not.toHaveBeenCalled()
+})
+
+it('blocks Save after an image read failure until the user explicitly continues without it', async () => {
+  const { actions } = setup()
+  await actions.open('finding')
+  actions.update({ title: 'Retained draft', metadataJson: '{"severity":"high"}' })
+  const reading = vi.spyOn(FileReader.prototype, 'readAsDataURL').mockImplementation(() => { throw new Error('Unreadable image fixture') })
+  try {
+    await actions.stageImage({ editorId: 'owned-editor', file: new File(['x'], 'unreadable.png', { type: 'image/png' }), insertImage: vi.fn() })
+    expect(await actions.save()).toBe(false)
+    expect(bridge.prepareCreationSave).not.toHaveBeenCalled()
+    expect(actions.current()).toMatchObject({ title: 'Retained draft', metadataJson: '{"severity":"high"}' })
+    expect(Object.values(actions.current()!.imageOperations)).toEqual([{ state: 'failed', message: 'Something went wrong: Unreadable image fixture' }])
+    actions.dismissImageFailures()
+    expect(await actions.save()).toBe(true)
+    expect(bridge.commitCreationSave.mock.calls[0][0]).toMatchObject({ images: [], record: { title: 'Retained draft' } })
+  } finally { reading.mockRestore() }
+})
+it('settles an in-flight local image read before completing discard and never inserts it into a stale editor', async () => {
+  const { actions } = setup()
+  await actions.open('finding')
+  const readers: FileReader[] = []
+  const reading = vi.spyOn(FileReader.prototype, 'readAsDataURL').mockImplementation(function (this: FileReader) { readers.push(this) })
+  try {
+    const insertImage = vi.fn()
+    const staged = actions.stageImage({ editorId: 'owned-editor', file: new File(['x'], 'pending.png', { type: 'image/png' }), insertImage })
+    const discarded = actions.discard()
+    expect(actions.current()?.phase.state).toBe('discarding')
+    expect(actions.hasPendingChanges()).toBe(true)
+    const [reader] = readers
+    Object.defineProperty(reader, 'result', { value: 'data:image/png;base64,aGVsbG8=' })
+    reader.dispatchEvent(new ProgressEvent('load'))
+    await staged
+    expect(await discarded).toBe(true)
+    expect(actions.current()).toBeNull()
+    expect(insertImage).not.toHaveBeenCalled()
+    expect(bridge.prepareCreationSave).not.toHaveBeenCalled()
+  } finally { reading.mockRestore() }
 })

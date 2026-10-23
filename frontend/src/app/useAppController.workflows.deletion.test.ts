@@ -51,7 +51,7 @@ describe('useAppController workflows and record hydration', () => {
     await waitFor(() => expect(result.current.testwareDrafts).toEqual([original]))
 
     const editorId = 'draft-delete-cleanup-editor'
-    const insertImage = vi.fn((attachmentId: string) => {
+    const insertImage = vi.fn((attachmentId: string | null) => {
       result.current.updateLocalDraft(original.id, {
         body: `<p>Edited draft.</p><img data-attachment-id="${attachmentId}" src="qa-scribe-attachment://${attachmentId}" alt="Evidence">`,
         bodyJson: null,
@@ -118,7 +118,7 @@ describe('useAppController workflows and record hydration', () => {
     await waitFor(() => expect(result.current.findings).toEqual([original]))
 
     const editorId = 'finding-delete-cleanup-editor'
-    const insertImage = vi.fn((attachmentId: string) => {
+    const insertImage = vi.fn((attachmentId: string | null) => {
       result.current.updateLocalFinding(original.id, {
         body: `<p>Edited finding.</p><img data-attachment-id="${attachmentId}" src="qa-scribe-attachment://${attachmentId}" alt="Evidence">`,
         bodyJson: null,

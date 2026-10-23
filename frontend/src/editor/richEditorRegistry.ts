@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Editor } from '@tiptap/react'
 
-export type RichEditorImageInserter = (attachmentId: string, filename: string, previewSrc?: string) => boolean
+export type RichEditorImageInserter = (attachmentId: string | null, filename: string, previewSrc?: string) => boolean
 
 export type RichEditorImageUpload = {
   editorId: string

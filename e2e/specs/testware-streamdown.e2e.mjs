@@ -1,3 +1,4 @@
+import { openCreationAi } from './creation-helpers.mjs'
 import assert from 'node:assert/strict'
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
@@ -147,8 +148,8 @@ export async function runTestwareStreamdownWorkflow({ createSessionFixture, sess
   }
   const generate = async () => {
     await (await sessionTab('Note')).click()
-    await click('Create test cases with AI')
-    const confirm = await (await $('dialog')).$('button=Generate test cases')
+    await openCreationAi('testware')
+    const confirm = await (await $('dialog')).$('button=Generate')
     await confirm.waitForClickable()
     await confirm.click()
   }
@@ -161,15 +162,19 @@ export async function runTestwareStreamdownWorkflow({ createSessionFixture, sess
     }, { timeout: 10_000, timeoutMsg: 'Native rich Testware and managed image never hydrated' })
     return inspect(selector)
   }
-  const captureLayouts = async (phase, selector, attachmentId, editing = false) => {
-    for (const theme of ['light', 'dark']) {
-      await resize(1280)
-      await click('Settings')
-      const themeButton = await (await $('#appearance-settings')).$(`button=${theme === 'light' ? 'Light' : 'Dark'}`)
-      await themeButton.scrollIntoView()
-      await themeButton.waitForClickable()
-      await themeButton.click()
-      await click('Back')
+  const chooseTheme = async (theme) => {
+    await resize(1280)
+    await click('Settings')
+    await $('#appearance-settings').waitForExist()
+    const choice = await (await $('#appearance-settings')).$(`button=${theme === 'light' ? 'Light' : 'Dark'}`)
+    await choice.scrollIntoView()
+    await choice.waitForClickable()
+    await choice.click()
+    await click('Back')
+  }
+  const captureLayouts = async (phase, selector, attachmentId, editing = false, heldTheme = null) => {
+    for (const theme of heldTheme ? [heldTheme] : ['light', 'dark']) {
+      if (!heldTheme) await chooseTheme(theme)
       await (await sessionTab('Test cases')).click()
       if (editing) await click('Edit')
       for (const width of [1280, 640]) {
@@ -210,6 +215,7 @@ export async function runTestwareStreamdownWorkflow({ createSessionFixture, sess
     writeFileSync(join(directory, 'testware-streamdown.json'), JSON.stringify({ attachmentId: attachment.id, remoteUrl,
       wrappedTask, safeLink }))
 
+    await chooseTheme('light')
     await generate()
     await waitForFixtureFile('codex-exec-1.partial')
     assertRich(await waitRich(preview, attachment.id), attachment.id, true)
@@ -218,7 +224,7 @@ export async function runTestwareStreamdownWorkflow({ createSessionFixture, sess
     evidence.checkpoints.push({ phase: 'held-partial', recordCount: 0, requests: evidence.requests.length })
     assert.equal(evidence.requests.length, 0, 'Hostile image must never reach the local HTTP observer')
 
-    await captureLayouts('live', preview, attachment.id)
+    await captureLayouts('live', preview, attachment.id, false, 'light')
     await resize(1280)
     await releaseFixtureInvocation(1)
     await $(preview).waitForExist({ reverse: true, timeout: 15_000 })
@@ -266,10 +272,12 @@ export async function runTestwareStreamdownWorkflow({ createSessionFixture, sess
     assert.ok(persisted[0].bodyJson.includes(attachment.id), 'Saved canonical rich structure must retain managed image identity')
     evidence.persisted = persisted[0]
 
+    await chooseTheme('dark')
     await generate()
     await waitForFixtureFile('codex-exec-2.partial')
     assertRich(await waitRich(preview, attachment.id), attachment.id, true)
     assert.equal((await records()).length, 1)
+    await captureLayouts('live', preview, attachment.id, false, 'dark')
     await click('Cancel')
     await $(preview).waitForExist({ reverse: true, timeout: 10_000 })
     await browser.waitUntil(async () => (await native('list_active_ai_action_jobs')).length === 0,

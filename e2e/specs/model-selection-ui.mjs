@@ -50,7 +50,7 @@ export async function send(sessionId, provider, mode, marker) {
 
 export async function generation(sessionId, provider, model, marker) {
   execution(provider, provider === 'codex' ? 'missing' : 'init', marker)
-  await click('Summarize notes')
+  await click('Summarize with AI')
   await $('dialog.generation-preflight[open]').waitForDisplayed()
   const details = await $('dialog.generation-preflight .preflight-execution-details')
   if (!await browser.execute(node => node.open, details)) await (await details.$('summary')).click()
@@ -71,7 +71,7 @@ export async function generation(sessionId, provider, model, marker) {
   await confirm.waitForClickable()
   await confirm.click()
   await browser.waitUntil(() => database(sessionId).runs.length > runCount && database(sessionId).runs.at(-1)?.status === 'completed', { timeout: 20_000 })
-  await $('button=Summarize notes').waitForClickable()
+  await $('button=Summarize with AI').waitForClickable()
   const observations = journal().slice(before)
   const starts = observations.filter((entry) => entry.event === 'execution')
   assert.equal(starts.length, 1)

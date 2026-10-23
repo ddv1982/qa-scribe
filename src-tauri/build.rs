@@ -6,6 +6,7 @@ fn main() {
     emit_rerun_if_changed_recursive(std::path::Path::new("../frontend/dist"));
 
     const COMMANDS: &[&str] = &[
+        "read_note_source",
         "prepare_creation_save",
         "commit_creation_save",
         "abort_creation_save",

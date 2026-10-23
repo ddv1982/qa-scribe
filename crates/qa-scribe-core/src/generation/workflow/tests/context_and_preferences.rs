@@ -23,6 +23,7 @@ fn action_generation_context_contains_only_prompt_material() {
         })
         .expect("unreferenced attachment should create");
     let request = request_for(
+        &service,
         &session.id,
         GenerateAiActionKind::Finding,
         Some(&selected_note.id),
@@ -73,7 +74,12 @@ fn testware_preferences_are_added_to_prompt_and_draft_metadata() {
         preserve_evidence: true,
         custom_instructions: Some("Prioritize country and basket total combinations.".to_string()),
     };
-    let mut request = request_for(&session.id, GenerateAiActionKind::Testware, Some(&note.id));
+    let mut request = request_for(
+        &service,
+        &session.id,
+        GenerateAiActionKind::Testware,
+        Some(&note.id),
+    );
     request.testware_preferences = Some(preferences);
     let prepared =
         prepare_ai_action_generation(&service, &request).expect("generation should prepare");

@@ -60,7 +60,7 @@ export function FirstUseDialog({ kind, onClose, onExploreExample, onStartSession
         <ol>
           <li>Start a Session and give it a title for the task you are testing.</li>
           <li>Write what you tried and what happened in Note. Paste a screenshot or use Upload image.</li>
-          <li>Choose Create finding or Create test cases. Edit the result, then Save.</li>
+          <li>Choose Create finding or Create test cases. Write in the unsaved draft, then Save. Opening a draft saves no blank record.</li>
           <li>Use Copy and paste into your reporting tool. Reopen work from Sessions or either library.</li>
         </ol>
         <p>Notes autosave. Save explicit edits to Findings and test cases before leaving.</p>
@@ -80,7 +80,7 @@ export function FirstUseDialog({ kind, onClose, onExploreExample, onStartSession
           <li>GitHub Copilot CLI. Check <code>copilot version</code> then run <code>copilot</code> and enter <code>/login</code> to sign in.</li>
         </ul>
         <p>Open Settings and choose Refresh CLI configuration. Installed does not mean authenticated. A ready status is a local check, not a guarantee of account access, quota, model availability, or a successful response.</p>
-        <p>Choose an action labelled with AI or send a Chat message to request AI. Review selected context before generation. Add conversation to note appends a finished Chat to Note without another AI request.</p>
+        <p>Expand Generate with AI inside a draft, or send a Chat message to request AI. Review the source before confirming. Successful draft generation saves one result immediately. Add conversation to note appends a finished Chat to Note without another AI request.</p>
       </details>
       <details>
         <summary>Local data, privacy, and recovery</summary>

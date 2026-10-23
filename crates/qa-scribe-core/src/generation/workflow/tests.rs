@@ -19,6 +19,8 @@ use super::{
 mod completion;
 #[path = "tests/context_and_preferences.rs"]
 mod context_and_preferences;
+#[path = "tests/reviewed_source.rs"]
+mod reviewed_source;
 #[path = "tests/summary.rs"]
 mod summary;
 
@@ -34,7 +36,7 @@ fn finish_action_with_output(
         "Gmail login",
         "<p>Gmail login fails.</p>",
     );
-    let request = request_for(&session.id, action, Some(&note.id));
+    let request = request_for(&service, &session.id, action, Some(&note.id));
     let prepared =
         prepare_ai_action_generation(&service, &request).expect("generation should prepare");
 
@@ -48,6 +50,7 @@ fn finish_action_with_output(
 }
 
 fn request_for(
+    service: &SessionService,
     session_id: &str,
     action: GenerateAiActionKind,
     note_entry_id: Option<&str>,
@@ -59,6 +62,13 @@ fn request_for(
         reasoning_effort: None,
         action,
         note_entry_id: note_entry_id.map(ToString::to_string),
+        expected_note_revision: note_entry_id
+            .and_then(|id| {
+                service
+                    .note_source(session_id, id)
+                    .expect("source should read")
+            })
+            .map(|source| source.revision),
         testware_preferences: None,
     }
 }

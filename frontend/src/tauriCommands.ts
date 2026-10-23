@@ -215,6 +215,7 @@ export function startAiActionJob(
     reasoningEffort: string | null
     action: GenerateAiActionKind
     noteEntryId?: string | null
+    expectedNoteRevision?: number | null
     testwarePreferences?: TestwareGenerationPreferences | null
   },
   onEvent: (event: GenerationJobEvent) => void,
@@ -249,4 +250,8 @@ export function abortCreationSave(attemptId: string): Promise<CreationOutcome> {
 
 export function copyLocalImageToClipboard(dataUrl: string): Promise<void> {
   return commands.copyLocalImageToClipboard(dataUrl).then(() => undefined)
+}
+
+export function readNoteSource(sessionId: string, noteId: string) {
+  return commands.readNoteSource(sessionId, noteId)
 }

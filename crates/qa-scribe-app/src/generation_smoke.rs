@@ -70,7 +70,12 @@ fn smoke_testware_generation(
     session_id: &str,
     note: &Entry,
 ) -> qa_scribe_core::Result<()> {
-    let request = request_for(session_id, GenerateAiActionKind::Testware, &note.id);
+    let request = request_for(
+        service,
+        session_id,
+        GenerateAiActionKind::Testware,
+        &note.id,
+    );
     let prepared = prepare_ai_action_generation(service, &request)?;
     assert!(
         prepared.prompt.contains("network error after payment"),
@@ -125,7 +130,7 @@ fn smoke_finding_generation(
     note: &Entry,
     attachment: &Attachment,
 ) -> qa_scribe_core::Result<()> {
-    let request = request_for(session_id, GenerateAiActionKind::Finding, &note.id);
+    let request = request_for(service, session_id, GenerateAiActionKind::Finding, &note.id);
     let prepared = prepare_ai_action_generation(service, &request)?;
 
     let executor = ScriptedExecutor {
@@ -161,6 +166,7 @@ fn smoke_finding_generation(
 }
 
 fn request_for(
+    service: &SessionService,
     session_id: &str,
     action: GenerateAiActionKind,
     note_id: &str,
@@ -172,6 +178,10 @@ fn request_for(
         reasoning_effort: None,
         action,
         note_entry_id: Some(note_id.to_string()),
+        expected_note_revision: service
+            .note_source(session_id, note_id)
+            .expect("source should read")
+            .map(|source| source.revision),
         testware_preferences: None,
     }
 }

@@ -1,5 +1,4 @@
-import { CreationComposer } from '../views/CreationComposer'
-import { FindingFields } from '../views/FindingsView'
+import { CreationWorkspace } from '../views/CreationTools'
 import { useEffect, useState, type KeyboardEvent } from 'react'
 import { BookOpen, Box, ChevronRight, Command as CommandIcon, FileText, Flag, CircleHelp, Loader2, PencilLine, Plus, Search, Settings } from 'lucide-react'
 import { catalogSelectorEnabled } from '../settings/catalog'
@@ -41,10 +40,10 @@ export function AppShell(c: AppController) {
   const runCommand = (id: AppCommandId) => commandById(id)?.run()
   const creationCommands = (kind: 'testware' | 'finding') => ({
     create: commands.find((command) => command.id === `${kind}.new`)!,
-    generate: commands.find((command) => command.id === `${kind}.ai`)!,
   })
-  const composer = c.creationIntent ? <CreationComposer intent={c.creationIntent} actions={c.creation} copyState={c.copyState} onCopy={c.copy}
-    fields={c.creationIntent.kind === 'finding' ? <FindingFields finding={{ kind: c.creationIntent.findingKind, metadataJson: c.creationIntent.metadataJson }} onChange={(patch) => c.creation.update({ ...(patch.kind ? { findingKind: patch.kind } : {}), ...('metadataJson' in patch ? { metadataJson: patch.metadataJson } : {}) })} /> : undefined} /> : null
+  const creationResultReady = c.creationIntent?.phase.state === 'saved'
+    && c.creationIntent.phase.selection === 'ready'
+  const composer = c.creationIntent && !creationResultReady ? <CreationWorkspace c={c} /> : null
   const topAction = c.activeView === 'sessions'
     ? { command: commandById('session.new'), busy: 'new-session' as const }
     : null
@@ -55,14 +54,14 @@ export function AppShell(c: AppController) {
 
   useEffect(() => {
     function handleShortcut(event: globalThis.KeyboardEvent) {
-      if (overlay) return
+      if (overlay || document.querySelector('dialog[open]')) return
       if (!primaryModifierPressed(event)) return
       if (event.key.toLocaleLowerCase() === 'k') {
         event.preventDefault()
         setOverlay('commands')
         return
       }
-      const matched = commands.find((command) => command.shortcut?.key === event.key.toLocaleLowerCase())
+      const matched = commands.find((command) => command.available && command.shortcut?.key === event.key.toLocaleLowerCase())
       if (!matched?.available) return
       event.preventDefault()
       matched.run()
@@ -242,11 +241,6 @@ export function AppShell(c: AppController) {
             notice={c.notice}
             error={c.error}
             pendingAiActions={c.pendingAiActions}
-            selectedProvider={c.selectedProvider}
-            selectedModel={c.selectedModel}
-            effectiveSelection={c.effectiveAiSelection}
-            activeProvider={c.activeProvider}
-            onConfigureAi={() => runCommand('ai.configure')}
             onUndoLatestGeneration={c.handleUndoLatestNoteGeneration}
             onAiAction={c.openGenerationPreflight}
             onCopy={c.copy}
@@ -270,9 +264,8 @@ export function AppShell(c: AppController) {
 
         {c.activeView === 'testware' ? (
           <TestwareView
-            composer={c.creationIntent?.kind === 'testware' ? composer : null}
+            composer={c.creationIntent?.kind === 'testware' ? composer : null} settleCreation={c.creation.settle}
             creationCommands={creationCommands('testware')}
-            aiUnavailableReason={c.activeProvider?.available ? null : 'Configure AI execution in Settings to enable AI creation.'}
             key={c.activeSession?.id ?? 'no-session'}
             busyAction={c.busyAction}
             copyState={c.copyState}
@@ -303,9 +296,8 @@ export function AppShell(c: AppController) {
 
         {c.activeView === 'findings' ? (
           <FindingsView
-            composer={c.creationIntent?.kind === 'finding' ? composer : null}
+            composer={c.creationIntent?.kind === 'finding' ? composer : null} settleCreation={c.creation.settle}
             creationCommands={creationCommands('finding')}
-            aiUnavailableReason={c.activeProvider?.available ? null : 'Configure AI execution in Settings to enable AI creation.'}
             key={c.activeSession?.id ?? 'no-session'}
             busyAction={c.busyAction}
             copyState={c.copyState}
@@ -390,7 +382,7 @@ export function AppShell(c: AppController) {
         />
       ) : null}
 
-      {c.creationDecision ? <PendingChangesDialog creationDraft isBusy={c.creationIntent?.phase.state === 'saving'} onCancel={() => void c.creation.decide('keep')} onDiscard={() => void c.creation.decide('discard')} onSave={() => void c.creation.decide('save')} /> : null}
+      {c.creationDecision ? <PendingChangesDialog creationDraft errorMessage={c.error} generationPending={c.creationIntent?.phase.state === 'generating' || c.creationIntent?.phase.state === 'cancelling'} onCancelGeneration={() => void c.creation.cancelGeneration()} isBusy={c.creationIntent?.phase.state === 'saving' || c.creationIntent?.phase.state === 'discarding' || c.creationIntent?.phase.state === 'cancelling'} onCancel={() => void c.creation.decide('keep')} onDiscard={() => void c.creation.decide('discard')} onSave={() => void c.creation.decide('save')} /> : null}
       {c.pendingNavigationView ? (
         <PendingChangesDialog
           recoveredSummaryConflict={c.pendingRecoveredSummaryDecision}

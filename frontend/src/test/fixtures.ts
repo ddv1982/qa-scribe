@@ -217,6 +217,5 @@ export function recordCreationCommandsFixture(kind: 'finding' | 'testware'): Rec
   const label = kind === 'finding' ? 'Create finding' : 'Create test cases'
   return {
     create: { label, available: true, run: () => undefined },
-    generate: { label: `${label} with AI`, available: true, run: () => undefined },
   }
 }

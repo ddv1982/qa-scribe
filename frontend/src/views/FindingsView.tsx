@@ -1,3 +1,5 @@
+import { findingSeverityValue, prepareFindingForEditing } from '../findings/severity'
+import { findingCopyBody } from '../findings/copyBody'
 import type { RecordCreationCommands } from './RecordCreationActions'
 import { Flag } from 'lucide-react'
 import type { RichEditorImageUpload } from '../editor/RichTextEditor'
@@ -22,7 +24,6 @@ const findingsLabels: RecordCollectionLabels = {
   heading: 'Issues and risks',
   emptyTitle: 'No findings yet',
   emptyDescription: 'Capture a bug, question, risk, or follow-up from the current Session note.',
-  prefillLabel: 'Prefill from note',
   generationTitle: 'Generating finding',
   generationTitleAriaLabel: 'Pending finding title',
   generationPlaceholder: 'Preparing finding...',
@@ -38,9 +39,8 @@ const findingsLabels: RecordCollectionLabels = {
 const findingKindOptions: FindingKind[] = ['bug', 'question', 'risk', 'follow_up', 'note']
 
 export function FindingsView({
-  composer,
+  composer, settleCreation,
   creationCommands,
-  aiUnavailableReason,
   busyAction,
   copyState,
   findingScreenshotCounts,
@@ -64,9 +64,9 @@ export function FindingsView({
   onDiscardFinding,
   onUploadImage,
 }: {
+  settleCreation?: () => Promise<boolean>
   composer?: import('react').ReactNode
   creationCommands: RecordCreationCommands
-  aiUnavailableReason?: string | null
   busyAction: BusyAction | null
   copyState: CopyState
   findingScreenshotCounts: Record<string, number>
@@ -92,13 +92,13 @@ export function FindingsView({
 }) {
   return (
     <RecordCollectionView
-      composer={composer}
+      composer={composer} settleCreation={settleCreation}
       creationCommands={creationCommands}
-      aiUnavailableReason={aiUnavailableReason}
       labels={findingsLabels}
       emptyIcon={Flag}
       busyAction={busyAction}
       sourceKind="finding"
+      copyBody={(finding) => findingCopyBody(finding.body, finding.metadataJson)}
       copyState={copyState}
       recordScreenshotCounts={findingScreenshotCounts}
       records={findings}
@@ -116,7 +116,7 @@ export function FindingsView({
       renderMeta={(finding) => (
         <div className="finding-meta-row">
           <span>{formatFindingKind(finding.kind)}</span>
-          <span>{findingSeverityLabel(parseFindingMetadata(finding.metadataJson).severity)}</span>
+          <span>{findingSeverityLabel(findingSeverityValue(finding))}</span>
           <span>{findingStatusLabel(parseFindingMetadata(finding.metadataJson).status)}</span>
         </div>
       )}
@@ -125,7 +125,8 @@ export function FindingsView({
         options: findingKindOptions.map((kind) => ({ id: kind, label: formatFindingKind(kind) })),
         valueFor: (finding) => finding.kind,
       }}
-      renderEditFields={(finding) => <FindingFields finding={finding} onChange={(patch) => updateLocalFinding(finding.id, patch)} />}
+      onPrepareEdit={(finding) => { const patch = prepareFindingForEditing(finding); if (patch) updateLocalFinding(finding.id, patch) }}
+      renderEditFields={(finding) => <FindingFields finding={finding} onChange={(patch) => updateLocalFinding(finding.id, patch.metadataJson === null ? { ...patch, metadataJson: '{}' } : patch)} />}
       renderPreviewHeader={(finding) => <h2 className="record-title">{finding.title}</h2>}
       busyActionFor={(finding, kind) => {
         switch (kind) {

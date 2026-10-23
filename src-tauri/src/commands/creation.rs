@@ -1,6 +1,8 @@
 use qa_scribe_core::{
     attachments::creation::{abort_creation_save as abort, commit_creation_save as commit},
-    domain::{CommitCreationSave, CreationOutcome, PrepareCreationSave, PreparedCreation},
+    domain::{
+        CommitCreationSave, CreationOutcome, NoteSource, PrepareCreationSave, PreparedCreation,
+    },
 };
 use tauri::{AppHandle, Manager};
 
@@ -44,6 +46,20 @@ pub async fn abort_creation_save(
     attachment_task("Creation abort", move || {
         let state = app.state::<AppState>();
         state.with_service(|service| abort(service, state.app_data_dir(), &attempt_id))
+    })
+    .await
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn read_note_source(
+    app: AppHandle,
+    session_id: String,
+    note_id: String,
+) -> Result<Option<NoteSource>, CommandError> {
+    attachment_task("Note source", move || {
+        app.state::<AppState>()
+            .with_service(|service| service.note_source(&session_id, &note_id))
     })
     .await
 }

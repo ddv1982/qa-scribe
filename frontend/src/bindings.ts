@@ -4,6 +4,10 @@ import { invoke as __TAURI_INVOKE, Channel } from "@tauri-apps/api/core";
 
 /** Commands */
 export const commands = {
+	readNoteSource: (sessionId: string, noteId: string) => __TAURI_INVOKE<{
+	entry: Entry,
+	revision: number,
+} | null>("read_note_source", { sessionId, noteId }),
 	prepareCreationSave: (request: PrepareCreationSave) => __TAURI_INVOKE<PreparedCreation>("prepare_creation_save", { request }),
 	commitCreationSave: (request: CommitCreationSave) => __TAURI_INVOKE<CreationOutcome>("commit_creation_save", { request }),
 	abortCreationSave: (attemptId: string) => __TAURI_INVOKE<CreationOutcome>("abort_creation_save", { attemptId }),
@@ -390,6 +394,7 @@ export type GenerateAiActionRequest = {
 	reasoningEffort: string | null,
 	action: GenerateAiActionKind,
 	noteEntryId?: string | null,
+	expectedNoteRevision?: number | null,
 	testwarePreferences?: TestwareGenerationPreferences | null,
 };
 
@@ -439,6 +444,11 @@ export type GenerationJobStatus_Serialize = {
 	errorMessage: string | null,
 	partialText: string | null,
 	pendingPermission?: ChatPermissionRequest_Serialize | null,
+};
+
+export type NoteSource = {
+	entry: Entry,
+	revision: number,
 };
 
 export type PrepareCreationSave = {

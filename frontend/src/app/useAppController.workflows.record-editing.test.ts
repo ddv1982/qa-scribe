@@ -175,7 +175,7 @@ describe('useAppController workflows and record hydration', () => {
     await waitFor(() => expect(result.current.testwareDrafts).toEqual([original]))
 
     const editorId = 'draft-direct-image-editor'
-    const insertImage = vi.fn((attachmentId: string) => {
+    const insertImage = vi.fn((attachmentId: string | null) => {
       result.current.updateLocalDraft(original.id, {
         body: `<p>Edited draft.</p><img data-attachment-id="${attachmentId}" src="qa-scribe-attachment://${attachmentId}" alt="Draft evidence">`,
         bodyJson: null,
@@ -219,7 +219,7 @@ describe('useAppController workflows and record hydration', () => {
     await waitFor(() => expect(result.current.testwareDrafts).toEqual([original]))
 
     const editorId = 'draft-settlement-race-editor'
-    const insertImage = vi.fn((attachmentId: string) => {
+    const insertImage = vi.fn((attachmentId: string | null) => {
       result.current.updateLocalDraft(original.id, {
         body: `<p>Draft edit.</p><img data-attachment-id="${attachmentId}" src="qa-scribe-attachment://${attachmentId}" alt="Evidence">`,
         bodyJson: null,
@@ -276,7 +276,7 @@ describe('useAppController workflows and record hydration', () => {
     await waitFor(() => expect(result.current.findings).toEqual([original]))
 
     const editorId = 'finding-direct-image-editor'
-    const insertImage = vi.fn((attachmentId: string) => {
+    const insertImage = vi.fn((attachmentId: string | null) => {
       result.current.updateLocalFinding(original.id, {
         body: `<p>Edited finding.</p><img data-attachment-id="${attachmentId}" src="qa-scribe-attachment://${attachmentId}" alt="Finding evidence">`,
         bodyJson: null,
@@ -319,7 +319,7 @@ describe('useAppController workflows and record hydration', () => {
     await waitFor(() => expect(result.current.findings).toEqual([original]))
 
     const editorId = 'finding-settlement-race-editor'
-    const insertImage = vi.fn((attachmentId: string) => {
+    const insertImage = vi.fn((attachmentId: string | null) => {
       result.current.updateLocalFinding(original.id, {
         body: `<p>Finding edit.</p><img data-attachment-id="${attachmentId}" src="qa-scribe-attachment://${attachmentId}" alt="Evidence">`,
         bodyJson: null,

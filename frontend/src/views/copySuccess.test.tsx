@@ -1,6 +1,6 @@
 import { recordCreationCommandsFixture } from '../test/fixtures'
 import '@testing-library/jest-dom/vitest'
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -9,9 +9,8 @@ vi.mock('../editor/RichTextEditor', () => ({
   RichTextEditor: () => <div role="textbox" />,
 }))
 
-import type { Draft, Finding, ProviderStatus, Session } from '../tauri'
+import type { Draft, Finding, Session } from '../tauri'
 import { richEditorDocumentFromHtml } from '../editor/editorDocument'
-import { providerDefaultSnapshotFixture, providerStatusFixture } from '../test/fixtures'
 import { FindingsView } from './FindingsView'
 import { SessionEditorView } from './SessionEditorView'
 import { TestwareView } from './TestwareView'
@@ -41,9 +40,6 @@ describe('copy success buttons', () => {
         notice={null}
         error={null}
         pendingAiActions={{}}
-        selectedProvider="codex_cli"
-        selectedModel="default"
-        activeProvider={providerStatus.providers[0]}
         onAiAction={async () => undefined}
         onUndoLatestGeneration={async () => undefined}
         onCopy={async () => undefined}
@@ -80,9 +76,6 @@ describe('copy success buttons', () => {
         notice={null}
         error={null}
         pendingAiActions={{}}
-        selectedProvider="codex_cli"
-        selectedModel="default"
-        activeProvider={providerStatus.providers[0]}
         onAiAction={async () => undefined}
         onUndoLatestGeneration={async () => undefined}
         onCopy={async () => undefined}
@@ -101,9 +94,8 @@ describe('copy success buttons', () => {
     expect(screen.queryByText('Autosaved')).not.toBeInTheDocument()
   })
 
-  it('makes the effective model prominent and exposes a clear configuration action', async () => {
+  it('keeps ordinary creation independent of provider configuration in the Note footer', async () => {
     const user = userEvent.setup()
-    const onConfigureAi = vi.fn()
     render(
       <SessionEditorView creationCommands={{ finding: recordCreationCommandsFixture('finding'), testware: recordCreationCommandsFixture('testware') }} noteBodyHtml="<p>Body</p>" copyState={{ status: 'idle' }}
         activeProviderAvailable
@@ -121,25 +113,6 @@ describe('copy success buttons', () => {
         notice={null}
         error={null}
         pendingAiActions={{}}
-        selectedProvider="codex_cli"
-        selectedModel="default"
-        effectiveSelection={{
-          model: 'gpt-5.5',
-          reasoning: 'xhigh',
-          modelOverride: null,
-          reasoningOverride: null,
-          delegatesModel: true,
-          delegatesReasoning: true,
-          modelOrigin: providerStatus.providers[0]?.defaultSnapshot.model.origin ?? null,
-          reasoningOrigin: null,
-          discoveryState: 'detected',
-          checkedAt: providerStatus.providers[0]?.defaultSnapshot.checkedAt ?? null,
-          runtimeSummary: 'The CLI resolves its live configuration.',
-          warning: null,
-          advisories: [],
-        }}
-        activeProvider={providerStatus.providers[0]}
-        onConfigureAi={onConfigureAi}
         onAiAction={async () => undefined}
         onUndoLatestGeneration={async () => undefined}
         onCopy={async () => undefined}
@@ -152,15 +125,11 @@ describe('copy success buttons', () => {
       />,
     )
 
-    const configureButton = screen.getByRole('button', { name: 'Configure AI execution' })
-    const summary = configureButton.closest('.ai-provider-summary')
-    expect(summary).not.toBeNull()
-    expect(within(summary as HTMLElement).getByText('gpt-5.5')).toBeInTheDocument()
-    expect(within(summary as HTMLElement).getByText('CLI default')).toBeInTheDocument()
-    expect(within(summary as HTMLElement).getByText('Reasoning xhigh')).toBeInTheDocument()
-
-    await user.click(configureButton)
-    expect(onConfigureAi).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('button', { name: 'Configure AI execution' })).not.toBeInTheDocument()
+    expect(screen.queryByText('gpt-5.5')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Create finding' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Create test cases' })).toBeEnabled()
+    await user.click(screen.getByRole('button', { name: 'Create finding' }))
   })
 
   it('shows a success state for the copied testware record only', () => {
@@ -231,9 +200,6 @@ describe('copy success buttons', () => {
         notice={null}
         error={null}
         pendingAiActions={{}}
-        selectedProvider="codex_cli"
-        selectedModel="default"
-        activeProvider={providerStatus.providers[0]}
         onAiAction={async () => undefined}
         onUndoLatestGeneration={async () => undefined}
         onCopy={async () => undefined}
@@ -396,15 +362,4 @@ const finding: Finding = {
   metadataJson: null,
   createdAt: '2026-06-24T08:00:00Z',
   updatedAt: '2026-06-24T08:00:00Z',
-}
-
-const baseProviderStatus = providerStatusFixture()
-const providerStatus: ProviderStatus = {
-  ...baseProviderStatus,
-  providers: baseProviderStatus.providers.map((provider) => ({
-    ...provider,
-    defaultSnapshot: providerDefaultSnapshotFixture({
-      reasoningEffort: { value: 'low', resolution: 'configured', origin: null, recommendedValue: 'medium' },
-    }),
-  })),
 }

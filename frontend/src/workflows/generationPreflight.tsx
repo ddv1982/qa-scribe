@@ -10,6 +10,7 @@ import {
 import { originSummary } from '../settings/defaults'
 
 export function GenerationPreflight({
+  sourceReview, disclosure, confirmLabel,
   action,
   activeProviderAvailable,
   activeProviderLabel,
@@ -33,6 +34,9 @@ export function GenerationPreflight({
   onCancel,
   onConfirm,
 }: {
+  sourceReview?: ReactNode
+  disclosure?: string
+  confirmLabel?: string
   action: GenerateAiActionKind
   activeProviderAvailable: boolean
   activeProviderLabel: string
@@ -103,9 +107,10 @@ export function GenerationPreflight({
       <div className="preflight-header">
         <p className="eyebrow">Generation preflight</p>
         <h2 id="generation-preflight-title" tabIndex={-1}>{copy.title}</h2>
-        <p>{copy.body}</p>
+        <p>{disclosure ?? copy.body}</p>
       </div>
       <div className="preflight-body">
+        {sourceReview}
         {selectionWarning ? <p className="inline-message blocking" role="alert">{selectionWarning}</p> : null}
         {selectionAdvisories.map((advisory) => <p className="inline-message advisory" role="status" key={advisory}>{advisory}</p>)}
         {!activeProviderAvailable ? <p className="inline-message blocking" role="alert">{activeProviderLabel} is unavailable. Configure AI execution to review setup and choose a ready provider.</p> : null}
@@ -155,7 +160,7 @@ export function GenerationPreflight({
             <div className="preflight-control-grid">
               <label className="preflight-select-field">
                 <span>Output</span>
-                <select
+                <select disabled={isBusy}
                   value={testwarePreferences.outputFormat}
                   onChange={(event) => updateTestwarePreferences({ outputFormat: event.target.value as TestwareOutputFormat })}
                 >
@@ -168,7 +173,7 @@ export function GenerationPreflight({
               </label>
               <label className="preflight-select-field">
                 <span>Depth</span>
-                <select
+                <select disabled={isBusy}
                   value={testwarePreferences.depth}
                   onChange={(event) => updateTestwarePreferences({ depth: event.target.value as TestwareDepth })}
                 >
@@ -186,6 +191,7 @@ export function GenerationPreflight({
               <div className="preflight-technique-grid">
                 {testwareTechniquePresets.map((preset) => (
                   <button
+                    disabled={isBusy}
                     className={testwarePreferences.technique === preset.id ? 'preflight-choice active' : 'preflight-choice'}
                     type="button"
                     key={preset.id}
@@ -205,7 +211,7 @@ export function GenerationPreflight({
               <div className="preflight-toggle-grid">
                 <label>
                   <input
-                    type="checkbox"
+                    type="checkbox" disabled={isBusy}
                     checked={testwarePreferences.includeNegativeCases}
                     onChange={(event) => updateTestwarePreferences({ includeNegativeCases: event.target.checked })}
                   />
@@ -213,7 +219,7 @@ export function GenerationPreflight({
                 </label>
                 <label>
                   <input
-                    type="checkbox"
+                    type="checkbox" disabled={isBusy}
                     checked={testwarePreferences.includeBoundaryCases}
                     onChange={(event) => updateTestwarePreferences({ includeBoundaryCases: event.target.checked })}
                   />
@@ -221,7 +227,7 @@ export function GenerationPreflight({
                 </label>
                 <label>
                   <input
-                    type="checkbox"
+                    type="checkbox" disabled={isBusy}
                     checked={testwarePreferences.includeTestData}
                     onChange={(event) => updateTestwarePreferences({ includeTestData: event.target.checked })}
                   />
@@ -229,7 +235,7 @@ export function GenerationPreflight({
                 </label>
                 <label>
                   <input
-                    type="checkbox"
+                    type="checkbox" disabled={isBusy}
                     checked={testwarePreferences.preserveEvidence}
                     onChange={(event) => updateTestwarePreferences({ preserveEvidence: event.target.checked })}
                   />
@@ -240,7 +246,7 @@ export function GenerationPreflight({
 
             <label className="preflight-textarea-field">
               <span>Additional guidance</span>
-              <textarea
+              <textarea disabled={isBusy}
                 value={testwarePreferences.customInstructions ?? ''}
                 placeholder="Optional constraints, priorities, or areas to emphasize."
                 onChange={(event) => updateTestwarePreferences({ customInstructions: event.target.value || null })}
@@ -260,7 +266,7 @@ export function GenerationPreflight({
           disabled={isBusy || modelSelectionPending || !activeProviderAvailable || Boolean(selectionWarning)}
           onClick={() => onConfirm(isTestware ? testwarePreferences : undefined)}
         >
-          {copy.confirmLabel}
+          {confirmLabel ?? copy.confirmLabel}
         </button>
       </div>
     </dialog>

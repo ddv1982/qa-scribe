@@ -15,7 +15,7 @@ export type RecordLoaders = {
 }
 
 export type RecordActionsContext = Omit<RecordPersistenceContext, 'session'> & {
-  session: Pick<SessionWorkspace, 'activeSession' | 'activeSessionIdRef' | 'noteBodyHtml'>
+  session: Pick<SessionWorkspace, 'activeSession' | 'activeSessionIdRef'>
   feedback: WorkflowFeedback
   deletion: DeletionWorkspace
   registerRecordEditIntent: () => void

@@ -1,3 +1,4 @@
+import { openCreationAi } from './creation-helpers.mjs'
 import assert from 'node:assert/strict'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -63,7 +64,7 @@ async function assertReachable(layout, persist) {
     assert.ok(result.reachable, `Preflight body/options/footer must be reachable: ${result.tag} ${result.text}`)
     assertStructure(geometry, layout.geometry)
   }
-  const confirm = await (await $(dialog)).$('button=Generate test cases')
+  const confirm = await (await $(dialog)).$('button=Generate')
   await confirm.scrollIntoView()
   await confirm.waitForClickable()
   const cancel = await (await $(dialog)).$('button=Cancel')
@@ -74,7 +75,7 @@ async function focusState() {
   return browser.execute((selector) => {
     const root = document.querySelector(selector)
     const active = document.activeElement
-    const controls = Array.from(root.querySelectorAll('summary, button:not(:disabled), select:not(:disabled), input:not(:disabled), textarea:not(:disabled)'))
+    const controls = Array.from(root.querySelectorAll('summary, button:not(:disabled), select:not(:disabled), input:not(:disabled), textarea:not(:disabled), [tabindex="0"]'))
       .filter(node => !node.closest('details:not([open])') || node.closest('details:not([open])').querySelector('summary') === node)
     const r = active.getBoundingClientRect()
     const body = root.querySelector('.preflight-body')
@@ -89,7 +90,7 @@ async function focusState() {
       tag: active.tagName, id: active.id, text: active.textContent?.trim(),
       focusVisible: active.matches(':focus-visible'),
       outline: getComputedStyle(active).outline, boxShadow: getComputedStyle(active).boxShadow,
-      selectIndex: Array.from(root.querySelectorAll('select')).indexOf(active),
+      selectIndex: Array.from(root.querySelectorAll('.preflight-testware-options select')).indexOf(active),
       visible: r.width > 0 && bottom - top >= Math.min(16, r.height - 1) && Boolean(hit && (hit === active || active.contains(hit))),
       scrollTop: root.querySelector('.preflight-body').scrollTop }
   }, dialog)
@@ -99,7 +100,7 @@ async function preferences() {
   return browser.execute((selector) => {
     const root = document.querySelector(selector)
     return { technique: root.querySelector('.preflight-choice[aria-pressed="true"] span').textContent,
-      selects: Array.from(root.querySelectorAll('select'), (node) => node.value),
+      selects: Array.from(root.querySelectorAll('.preflight-testware-options select'), (node) => node.value),
       includes: Array.from(root.querySelectorAll('input[type="checkbox"]'), (node) => node.checked),
       guidance: root.querySelector('textarea').value }
   }, dialog)
@@ -152,7 +153,7 @@ async function assertKeyboard(layout, persist, sendKey) {
     assert.equal(state.index, (previous.index + 1) % initial.count, 'Tab must visit every control and wrap within the modal')
     assert.ok(state.visible, 'Tab must scroll each focused control into unobscured view')
     if (state.tag === 'BUTTON' && state.text.startsWith('Rules')) await sendKey(Key.Space)
-    if (state.tag === 'SELECT') {
+    if (state.tag === 'SELECT' && state.selectIndex >= 0) {
       if (state.selectIndex === 0) {
         await sendKey(Key.Home)
         await sendKey(Key.ArrowDown)
@@ -208,7 +209,7 @@ export async function runGenerationPreflightLayoutWorkflow({ button }) {
     return target
   }
   const open = async () => {
-    const trigger = await click('Create test cases with AI')
+    const trigger = await openCreationAi('testware')
     await $(dialog).waitForDisplayed()
     await browser.pause(250) // Let the real dialog entrance animation finish.
     return trigger
@@ -289,12 +290,14 @@ export async function runGenerationPreflightLayoutWorkflow({ button }) {
     await captureAndCheck(`initial-1280x${heightFor(720)}`, 1280, heightFor(720), undefined, 720)
     await cancel()
     const longTitle = 'E2E generation preflight: extended Session context, boundary checks and recovery scenarios '.repeat(2).slice(0, 150).trim()
+    await $('[role="tab"]*=Note').click()
     const title = await $('[aria-label="Session title"]')
     await title.setValue(longTitle)
     await $('[aria-label="Note body"]').click()
     assert.equal(await title.getValue(), longTitle)
     await browser.waitUntil(async () => browser.execute(() =>
-      document.querySelector('p.status-pill.saved')?.textContent.includes('Note saved') ?? false),
+      document.querySelector('.document-status span')?.textContent === 'Autosaved'
+        && document.querySelector('.session-breadcrumb strong')?.textContent === document.querySelector('[aria-label="Session title"]')?.value),
     { timeout: 5_000, timeoutMsg: 'Long valid Session title must save before leaving for Settings' })
     evidence.sessionTitle = longTitle
     for (const theme of ['light', 'dark']) {
@@ -378,13 +381,13 @@ if (process.env.QA_SCRIBE_E2E_SPEC === 'generation-preflight-layout.e2e.mjs') {
       await $('[aria-label="Note body"]').setValue('Check generation options and execution details before starting Testware.')
       await browser.waitUntil(async () => browser.execute(() =>
         document.querySelector('p.status-pill.saved')?.textContent.includes('Note saved') ?? false))
-      await (await button('Create test cases with AI')).click()
+      await openCreationAi('testware')
       await runGenerationPreflightLayoutWorkflow({ button })
       const variants = []
-      for (const [triggerLabel, heading] of [['Create finding with AI', 'Create finding?'], ['Summarize notes', 'Summarize note?']]) {
-        const trigger = await button(triggerLabel)
-        await browser.execute((node) => node.focus(), trigger)
-        await trigger.click()
+      for (const [triggerLabel, heading] of [['Create finding with AI', 'Create finding?'], ['Summarize with AI', 'Summarize note?']]) {
+        await $('[role="tab"]*=Note').click()
+        const trigger = triggerLabel.includes('finding') ? await openCreationAi('finding') : await button(triggerLabel)
+        if (!triggerLabel.includes('finding')) { await browser.execute((node) => node.focus(), trigger); await trigger.click() }
         await $(dialog).waitForDisplayed()
         await browser.pause(250)
         const value = await inspect()

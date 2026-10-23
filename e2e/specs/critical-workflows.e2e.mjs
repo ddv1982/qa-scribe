@@ -1,3 +1,4 @@
+import { openCreationAi } from './creation-helpers.mjs'
 import { runClipboardWorkflow } from './clipboard.workflow.mjs'
 import assert from 'node:assert/strict'
 import { existsSync, readdirSync, writeFileSync } from 'node:fs'
@@ -270,19 +271,19 @@ const workflows = {
           await titleInput.waitForDisplayed()
           assert.ok(await browser.execute((label) => document.activeElement?.getAttribute('aria-label') === label,
             kind === 'testware' ? 'Test case title' : 'Finding title'))
-          const records = await list()
-          assert.equal(records.length, 1, 'One ordinary activation creates exactly one record')
-          const [created] = records
-          assert.equal(created.sessionId, session.id)
-          assert.equal(created.body, '')
-          assert.equal(await (await $('.editable-record [contenteditable="true"]')).getAttribute('id'), `${kind === 'testware' ? 'testware' : 'finding'}-editor-${created.id}`)
-          if (kind === 'testware') assert.equal(created.aiRunId, null)
+          assert.deepEqual(await list(), [], 'Opening the composer creates no record')
+          assert.match(await (await $('.editable-record [contenteditable="true"]')).getAttribute('id'), /^creation-/)
           await browser.saveScreenshot(join(process.env.QA_SCRIBE_E2E_ARTIFACTS, `creation-${route}-${kind}.png`))
           const savedTitle = `${route} ${kind} saved`
           await titleInput.setValue(savedTitle)
           await (await $('.editable-record [contenteditable="true"]')).setValue('Authored current body.')
-          await (await button('Save')).click()
+          await (await button(kind === 'testware' ? 'Save test cases' : 'Save finding')).click()
           await $(`h2=${savedTitle}`).waitForDisplayed()
+          const records = await list()
+          assert.equal(records.length, 1, 'One explicit Save creates exactly one record')
+          const [created] = records
+          assert.equal(created.sessionId, session.id)
+          if (kind === 'testware') assert.equal(created.aiRunId, null)
           assert.deepEqual((await list()).map(({ id, title, body }) => ({ id, title, body })), [
             { id: created.id, title: savedTitle, body: '<p>Authored current body.</p>' },
           ])
@@ -321,7 +322,7 @@ const workflows = {
       })
       for (const [tab, label] of [['Note', 'Create finding with AI'], ['Test cases', 'Create test cases with AI'], ['Findings', 'Create finding with AI']]) {
         await (await sessionTab(tab)).click()
-        await (await button(label)).click()
+        await openCreationAi(label.includes('test cases') ? 'testware' : 'finding')
         await $('dialog.generation-preflight[open]').waitForDisplayed()
         await browser.saveScreenshot(join(process.env.QA_SCRIBE_E2E_ARTIFACTS, `optional-ai-${tab}.png`))
         await (await $('dialog.generation-preflight')).$('button=Cancel').click()
@@ -331,7 +332,7 @@ const workflows = {
       }
       writeFileSync(join(process.env.QA_SCRIBE_E2E_ARTIFACTS, 'optional-ai-cancel.json'), JSON.stringify({ before: beforePreflight, cancelledSurfaces: ['Note', 'Test cases', 'Findings'], unchanged: true }, null, 2))
       await (await sessionTab('Note')).click()
-      await (await button('Create test cases with AI')).click()
+      await openCreationAi('testware')
       await runGenerationPreflightLayoutWorkflow({ button })
       await runTestwareStreamdownWorkflow({ createSessionFixture, sessionTab, sessionOption, button,
         waitForFixtureFile, releaseFixtureInvocation })
@@ -341,7 +342,7 @@ const workflows = {
     title: 'reconciles a Summary that completes after the WebView reloads',
     run: async () => {
       await createSessionFixture('E2E Summary recovery session', 'Summarize this Note after a WebView reload.')
-      const summarize = await button('Summarize notes')
+      const summarize = await button('Summarize with AI')
       await summarize.waitForClickable()
       await summarize.click()
       const confirm = await (await $('dialog')).$('button=Summarize note')

@@ -289,7 +289,7 @@ describe('Native UI polish before/after evidence', () => {
     assert.ok(await browser.execute(() => document.activeElement?.matches('[aria-label="Test case title"]')))
     await (await $('[aria-label="Test case title"]')).setValue(recordTitle)
     await (await $('.editable-record [contenteditable="true"]')).setValue(recordText)
-    await (await recordButton('Save')).click()
+    await (await recordButton('Save test cases')).click()
     await (await recordButton('Edit')).waitForClickable()
     await tab('Note')
     assert.equal(await (await $(note)).getText(), text, 'Note must survive Testware navigation')
@@ -316,7 +316,7 @@ describe('Native UI polish before/after evidence', () => {
         await (await $(`h2=${recordTitle}`)).waitForDisplayed()
         assert.ok((await (await $('.editable-record')).getText()).includes(recordText),
           'Saved Testware edits must survive leaving and reopening the collection')
-        await snapshot(`testware-${stage}`, width, theme, '.collection-header-actions .primary-button')
+        await snapshot(`testware-${stage}`, width, theme, '.collection-header-actions .action-button--primary')
         await tab('Note')
       }
     }
@@ -426,10 +426,10 @@ describe('Native UI polish before/after evidence', () => {
       input.files = transfer.files
       input.dispatchEvent(new Event('change', { bubbles: true }))
     })
-    await (await $('.editable-record img[data-attachment-id]')).waitForExist()
+    await (await $('.editable-record img[src^="data:image/"]')).waitForExist()
     await browser.execute(() => { const workspace = document.querySelector('.center-workspace > .collection-view'); workspace.scrollTop = workspace.scrollHeight })
     await actions('record-long', '.editable-record .record-actions button', false)
-    await (await recordButton('Save')).click()
+    await (await recordButton('Save test cases')).click()
     await (await recordButton('Edit')).waitForClickable()
     assert.ok((await (await $('.editable-record')).getText()).includes(longRecord.trim()), 'Long record must survive Save')
     await (await recordButton('Edit')).click()

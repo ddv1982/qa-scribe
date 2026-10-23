@@ -10,7 +10,7 @@ import { managedAttachmentImageHtml } from './editor/editorHtml'
 const tauriMock = vi.hoisted(() => ({
   cancelAiActionJob: vi.fn(),
   copyAttachmentImageToClipboard: vi.fn(),
-  prepareCreationSave: vi.fn(), commitCreationSave: vi.fn(), abortCreationSave: vi.fn(),
+  readNoteSource: vi.fn(), prepareCreationSave: vi.fn(), commitCreationSave: vi.fn(), abortCreationSave: vi.fn(),
   createDraft: vi.fn(),
   createEntry: vi.fn(),
   createFinding: vi.fn(),
@@ -93,6 +93,7 @@ describe('App workflows', () => {
       removeEventListener: vi.fn(),
     })
 
+    tauriMock.readNoteSource.mockResolvedValue({ entry: entryFixture(), revision: 0 })
     tauriMock.getSettings.mockResolvedValue(settingsFixture())
     for (const command of [tauriMock.deleteSession, tauriMock.retryAttachmentCleanup]) command.mockResolvedValue({ pendingFiles: 0 })
     tauriMock.getProviderStatus.mockResolvedValue(providerStatusFixture())
@@ -161,8 +162,8 @@ describe('App workflows', () => {
     render(<App />)
 
     await waitFor(() => expect(screen.getByRole('textbox', { name: 'Session title' })).toHaveValue('Checkout session'))
-    const generateButton = screen.getByRole('button', { name: /create test cases with AI/i })
-    expect(generateButton).toBeDisabled()
+    const generateButton = screen.getByRole('button', { name: /^create test cases$/i })
+    expect(generateButton).toBeEnabled()
 
     resolveProviderStatus(providerStatusFixture())
 
@@ -195,22 +196,20 @@ describe('App workflows', () => {
     render(<App />)
 
     await waitFor(() => expect(screen.getByRole('textbox', { name: 'Session title' })).toHaveValue('Checkout session'))
-    await user.click(screen.getByRole('button', { name: /create test cases with AI/i }))
+    await user.click(screen.getByRole('button', { name: /^create test cases$/i }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Generate with AI' })).toBeEnabled())
+    await user.click(screen.getByRole('button', { name: 'Generate with AI' }))
     const dialog = screen.getByRole('dialog', { name: /generate test cases/i })
     expect(dialog).toBeInTheDocument()
     expect(tauriMock.startAiActionJob).not.toHaveBeenCalled()
 
-    await user.click(within(dialog).getByRole('button', { name: /^generate test cases$/i }))
+    await user.click(within(dialog).getByRole('button', { name: /^generate$/i }))
 
     await waitFor(() =>
       expect(tauriMock.startAiActionJob).toHaveBeenCalledWith(
         {
-          sessionId: 'session-1',
-          provider: 'codex_cli',
-          model: 'default',
-          reasoningEffort: null,
-          action: 'testware',
-          noteEntryId: 'entry-1',
+          sessionId: 'session-1', provider: 'codex_cli', model: 'default', reasoningEffort: null, action: 'testware',
+          noteEntryId: 'entry-1', expectedNoteRevision: 0,
           testwarePreferences: expect.objectContaining({
             technique: 'auto',
             outputFormat: 'qa_cases',
@@ -232,10 +231,12 @@ describe('App workflows', () => {
     render(<App />)
 
     await waitFor(() => expect(screen.getByRole('textbox', { name: 'Session title' })).toHaveValue('Checkout session'))
-    await user.click(screen.getByRole('button', { name: /create test cases with AI/i }))
+    await user.click(screen.getByRole('button', { name: /^create test cases$/i }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Generate with AI' })).toBeEnabled())
+    await user.click(screen.getByRole('button', { name: 'Generate with AI' }))
     const dialog = screen.getByRole('dialog', { name: /generate test cases/i })
     await user.click(within(dialog).getByRole('button', { name: /boundaries/i }))
-    await user.click(within(dialog).getByRole('button', { name: /^generate test cases$/i }))
+    await user.click(within(dialog).getByRole('button', { name: /^generate$/i }))
 
     await waitFor(() =>
       expect(tauriMock.startAiActionJob).toHaveBeenCalledWith(
@@ -264,7 +265,7 @@ describe('App workflows', () => {
     render(<App />)
 
     await screen.findByDisplayValue('Original note.')
-    await user.click(screen.getByRole('button', { name: /summarize notes/i }))
+    await user.click(screen.getByRole('button', { name: /summarize with AI/i }))
     const dialog = screen.getByRole('dialog', { name: /summarize note/i })
     await user.click(within(dialog).getByRole('button', { name: /summarize note/i }))
 

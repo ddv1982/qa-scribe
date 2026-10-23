@@ -7,6 +7,7 @@ import type { ChatComposerRequest } from '../bindings'
 const tauriMock = vi.hoisted(() => ({
   cancelAiActionJob: vi.fn(), getAiActionJobStatus: vi.fn(), listActiveAiActionJobs: vi.fn(),
   copyHtmlToClipboard: vi.fn(), copyAttachmentImageToClipboard: vi.fn(),
+  readNoteSource: vi.fn(), readClipboardImageDataUrl: vi.fn(),
   prepareCreationSave: vi.fn(), commitCreationSave: vi.fn(), abortCreationSave: vi.fn(), copyLocalImageToClipboard: vi.fn(),
   createDraft: vi.fn(), createEntry: vi.fn(), createFinding: vi.fn(), createSession: vi.fn(),
   deleteAttachment: vi.fn(), deleteDraft: vi.fn(), deleteFinding: vi.fn(), deleteSession: vi.fn(), getProviderStatus: vi.fn(),
@@ -66,6 +67,8 @@ export function setupControllerTest() {
   window.history.replaceState(null, '', '/')
   window.matchMedia = vi.fn().mockReturnValue({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() })
 
+  tauriMock.readClipboardImageDataUrl.mockReset().mockResolvedValue(null)
+  tauriMock.readNoteSource.mockReset().mockResolvedValue({ entry: entryFixture(), revision: 0 })
   tauriMock.prepareCreationSave.mockReset().mockImplementation(async (request: { attemptId: string }) => ({ attemptId: request.attemptId, images: [], outcome: { state: 'preparing' } }))
   tauriMock.commitCreationSave.mockReset()
   tauriMock.abortCreationSave.mockReset().mockResolvedValue({ state: 'aborted' })

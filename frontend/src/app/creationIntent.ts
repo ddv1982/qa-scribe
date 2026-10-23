@@ -1,10 +1,7 @@
-import type { CommitCreationSave, CreatedRecord, CreationKind, Entry, FindingKind, PrepareCreationSave } from '../tauri'
-import { richEditorDocumentFromHtml, serializeRichEditorDocument, type RichEditorDocument } from '../editor/editorDocument'
-
-export const creationSections = {
-  finding: ['Environment', 'Steps to reproduce', 'Expected result', 'Actual result', 'Evidence', 'Impact'],
-  testware: ['Scenario', 'Test case', 'Purpose', 'Preconditions', 'Steps', 'Expected result'],
-} as const
+import creationSections from '../../../shared/creation-starters.json'
+export { creationSections }
+import type { CommitCreationSave, CreatedRecord, CreationKind, FindingKind, NoteSource, PrepareCreationSave } from '../tauri'
+import { richEditorDocumentFromHtml, richEditorDocumentToPlainText, type RichEditorDocument } from '../editor/editorDocument'
 
 export function creationStarter(kind: CreationKind): RichEditorDocument {
   return richEditorDocumentFromHtml(creationSections[kind].map((section) => `<h3>${section}</h3><p></p>`).join(''))
@@ -15,6 +12,8 @@ export type CreationAttempt = {
   snapshot: CreationContent
   payload: CommitCreationSave | null
 }
+export type CreationImageOperation = { state: 'reading' } | { state: 'failed'; message: string }
+
 export type CreationContent = {
   title: string
   document: RichEditorDocument
@@ -24,7 +23,9 @@ export type CreationContent = {
 export type CreationLifecycle =
   | { state: 'editing' }
   | { state: 'saving' | 'uncertain'; attempt: CreationAttempt }
-  | { state: 'saved'; record: CreatedRecord }
+  | { state: 'generating' | 'cancelling'; operationId: string; jobId: string | null }
+  | { state: 'discarding'; attempt: CreationAttempt | null }
+  | { state: 'saved'; record: CreatedRecord; selection: 'loading' | 'ready' }
   | { state: 'committed-deleted'; recordId: string }
   | { state: 'discarded' }
 export type CreationIntent = CreationContent & {
@@ -32,11 +33,19 @@ export type CreationIntent = CreationContent & {
   sessionId: string
   kind: CreationKind
   epoch: number
-  source: { entry: Entry; revision: number } | null
+  imageOperations: Record<string, CreationImageOperation>
+  source: NoteSource | null
+  sourceNoteId: string | null
+  setup: 'ai' | null
   phase: CreationLifecycle
 }
 
 export function creationIsAuthored(intent: CreationIntent): boolean {
-  return Boolean(intent.title.trim() || intent.metadataJson || intent.findingKind !== 'bug'
-    || serializeRichEditorDocument(intent.document) !== serializeRichEditorDocument(creationStarter(intent.kind)))
+  if (Object.keys(intent.imageOperations).length || intent.title.trim() || intent.metadataJson || intent.findingKind !== 'bug') return true
+  const remaining = intent.document.doc.content?.filter((node) => {
+    if (node.type === 'heading' && creationSections[intent.kind].includes((node.content ?? []).map((child) => child.text ?? '').join(''))) return false
+    return node.type !== 'paragraph' || Boolean(node.content?.length)
+  }) ?? []
+  return remaining.some((node) => node.type !== 'paragraph')
+    || Boolean(richEditorDocumentToPlainText({ schemaVersion: 1, doc: { type: 'doc', content: remaining } }))
 }

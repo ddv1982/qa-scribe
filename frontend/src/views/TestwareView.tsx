@@ -19,7 +19,6 @@ const testwareLabels: RecordCollectionLabels = {
   heading: 'Test cases',
   emptyTitle: 'No test cases yet',
   emptyDescription: 'Create test cases, then edit and save them here.',
-  prefillLabel: 'Prefill from note',
   generationTitle: 'Generating test cases',
   generationTitleAriaLabel: 'Pending test case title',
   generationPlaceholder: 'Preparing test cases...',
@@ -33,9 +32,8 @@ const testwareLabels: RecordCollectionLabels = {
 }
 
 export function TestwareView({
-  composer,
+  composer, settleCreation,
   creationCommands,
-  aiUnavailableReason,
   busyAction,
   copyState,
   draftScreenshotCounts,
@@ -59,9 +57,9 @@ export function TestwareView({
   onDiscardDraft,
   onUploadImage,
 }: {
+  settleCreation?: () => Promise<boolean>
   composer?: import('react').ReactNode
   creationCommands: RecordCreationCommands
-  aiUnavailableReason?: string | null
   busyAction: BusyAction | null
   copyState: CopyState
   draftScreenshotCounts: Record<string, number>
@@ -87,9 +85,8 @@ export function TestwareView({
 }) {
   return (
     <RecordCollectionView
-      composer={composer}
+      composer={composer} settleCreation={settleCreation}
       creationCommands={creationCommands}
-      aiUnavailableReason={aiUnavailableReason}
       labels={testwareLabels}
       emptyIcon={Box}
       busyAction={busyAction}

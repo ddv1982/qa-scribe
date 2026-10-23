@@ -67,7 +67,12 @@ fn finding_completion_preserves_managed_screenshots_and_links_evidence() {
     let service = SessionService::in_memory().expect("service should open");
     let session = create_session(&service, "Gmail login");
     let (note, attachment) = create_note_with_attachment(&service, &session);
-    let request = request_for(&session.id, GenerateAiActionKind::Finding, Some(&note.id));
+    let request = request_for(
+        &service,
+        &session.id,
+        GenerateAiActionKind::Finding,
+        Some(&note.id),
+    );
     let prepared =
         prepare_ai_action_generation(&service, &request).expect("generation should prepare");
     let response = format!(
@@ -117,7 +122,12 @@ fn testware_completion_preserves_managed_screenshots() {
     let service = SessionService::in_memory().expect("service should open");
     let session = create_session(&service, "Gmail login");
     let (note, attachment) = create_note_with_attachment(&service, &session);
-    let request = request_for(&session.id, GenerateAiActionKind::Testware, Some(&note.id));
+    let request = request_for(
+        &service,
+        &session.id,
+        GenerateAiActionKind::Testware,
+        Some(&note.id),
+    );
     let prepared =
         prepare_ai_action_generation(&service, &request).expect("generation should prepare");
 
@@ -163,7 +173,12 @@ fn testware_preserve_evidence_true_restores_omitted_managed_and_external_images(
             },
         )
         .expect("mixed evidence note should update");
-    let mut request = request_for(&session.id, GenerateAiActionKind::Testware, Some(&note.id));
+    let mut request = request_for(
+        &service,
+        &session.id,
+        GenerateAiActionKind::Testware,
+        Some(&note.id),
+    );
     request.testware_preferences = Some(testware_preferences_with_preserve_evidence(true));
     let prepared =
         prepare_ai_action_generation(&service, &request).expect("generation should prepare");
@@ -203,7 +218,12 @@ fn testware_preserve_evidence_false_omits_source_images_but_sanitizes_provider_i
             },
         )
         .expect("mixed evidence note should update");
-    let mut request = request_for(&session.id, GenerateAiActionKind::Testware, Some(&note.id));
+    let mut request = request_for(
+        &service,
+        &session.id,
+        GenerateAiActionKind::Testware,
+        Some(&note.id),
+    );
     request.testware_preferences = Some(testware_preferences_with_preserve_evidence(false));
     let prepared =
         prepare_ai_action_generation(&service, &request).expect("generation should prepare");
@@ -246,7 +266,12 @@ fn testware_persistence_failure_marks_ai_run_failed_not_completed() {
         "Input note",
         "<p>Generate too much output.</p>",
     );
-    let request = request_for(&session.id, GenerateAiActionKind::Testware, Some(&note.id));
+    let request = request_for(
+        &service,
+        &session.id,
+        GenerateAiActionKind::Testware,
+        Some(&note.id),
+    );
     let prepared =
         prepare_ai_action_generation(&service, &request).expect("generation should prepare");
     let ai_run_id = prepared.ai_run.id.clone();
@@ -286,7 +311,12 @@ fn testware_output_rolls_back_when_ai_run_completion_cannot_transition() {
         "Input note",
         "<p>Generate output.</p>",
     );
-    let request = request_for(&session.id, GenerateAiActionKind::Testware, Some(&note.id));
+    let request = request_for(
+        &service,
+        &session.id,
+        GenerateAiActionKind::Testware,
+        Some(&note.id),
+    );
     let prepared =
         prepare_ai_action_generation(&service, &request).expect("generation should prepare");
     let ai_run_id = prepared.ai_run.id.clone();
@@ -334,7 +364,7 @@ fn successful_unusable_provider_output_fails_the_run_without_changing_records() 
                 "Input note",
                 "<p>Keep this note unchanged.</p>",
             );
-            let request = request_for(&session.id, action, Some(&note.id));
+            let request = request_for(&service, &session.id, action, Some(&note.id));
             let prepared = prepare_ai_action_generation(&service, &request)
                 .expect("generation should prepare");
             let ai_run_id = prepared.ai_run.id.clone();
@@ -400,7 +430,12 @@ fn generated_testware_title_stays_within_the_shared_title_limit() {
         "Input note",
         "<p>Generate output.</p>",
     );
-    let request = request_for(&session.id, GenerateAiActionKind::Testware, Some(&note.id));
+    let request = request_for(
+        &service,
+        &session.id,
+        GenerateAiActionKind::Testware,
+        Some(&note.id),
+    );
     let prepared =
         prepare_ai_action_generation(&service, &request).expect("generation should prepare");
 

@@ -1,0 +1,4 @@
+{
+  "finding": ["Environment", "Steps to reproduce", "Expected result", "Actual result", "Evidence", "Impact"],
+  "testware": ["Scenario", "Test case", "Purpose", "Preconditions", "Steps", "Expected result"]
+}

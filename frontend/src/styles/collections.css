@@ -1027,3 +1027,34 @@
 .creation-composer .record-actions {
   flex-wrap: wrap;
 }
+
+.creation-fields,
+.creation-source-review,
+.creation-tools {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.creation-source-review .rich-editor {
+  max-width: 100%;
+}
+
+.creation-source-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.creation-source-review .rich-editor {
+  min-height: 0;
+}
+
+.creation-source-review > h3 {
+  margin: 0 0 var(--space-1);
+}
+
+.creation-source-review > p {
+  margin: 0 0 var(--space-1);
+}

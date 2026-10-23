@@ -292,8 +292,9 @@ export function useAppController() {
     canonicalizeGeneratedFinding: recordActions.canonicalizeGeneratedFinding,
   })
   const { creation, creationIntent, creationDecision, consumeSelectedRecord } = useCreationWorkspace({
+    sourceAllowed: !noteReadOnly, noteEntryIdRef: sessionWorkspace.noteEntryIdRef, navigationIsCurrent: sessionActions.sessionNavigationIsCurrent, publishJob: generationActions.storeGenerationStatus,
     activeSessionIdRef: sessionWorkspace.activeSessionIdRef, beginNavigation: () => beginSessionNavigation(),
-    loadDraftsForSession, loadFindingsForSession, setActiveView, setError, setCreatedRecordEditTarget,
+    loadDraftsForSession, loadFindingsForSession, setActiveView, setError, setNotice, setCreatedRecordEditTarget,
     consumeCreatedRecordEditTarget: (target) => consumeCreatedRecordEditTarget(target),
   })
   const copyActions = useCopyActions()
@@ -411,6 +412,7 @@ export function useAppController() {
     attachmentCleanup, ...attachmentActions,
     ...copyActions,
     ...generationActions,
+    handleCancelGenerationJob: (jobId: string) => creation.ownsGeneration(jobId) ? creation.cancelGeneration() : generationActions.handleCancelGenerationJob(jobId),
     ...recordActions,
     handleManualFinding: () => requestCreation('findings', (epoch) => creation.open('finding', () => sessionActions.sessionNavigationIsCurrent(epoch))),
     handleManualTestware: () => requestCreation('testware', (epoch) => creation.open('testware', () => sessionActions.sessionNavigationIsCurrent(epoch))),
@@ -421,10 +423,8 @@ export function useAppController() {
     discardSettingsDraft,
     effectiveAiSelection,
     activeTestwareJob,
-    activeSession,
-    activeView,
-    busyAction,
-    deleteConfirmation,
+    activeSession, activeView,
+    busyAction, deleteConfirmation,
     deleteCopy,
     draftScreenshotCounts,
     draftLoadError,
@@ -455,7 +455,8 @@ export function useAppController() {
     openSession: requestOpenSession,
     handleNewSession: requestNewSession,
     openLibraryRecord,
-    openGenerationPreflight,
+    openGenerationPreflight: (action: Parameters<typeof openGenerationPreflight>[0]) => action === 'summary' ? openGenerationPreflight(action)
+      : requestCreation(action === 'finding' ? 'findings' : 'testware', (epoch) => creation.open(action, () => sessionActions.sessionNavigationIsCurrent(epoch), true)),
     notice,
     pendingAiActions,
     pendingGenerationAction,

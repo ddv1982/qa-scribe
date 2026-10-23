@@ -29,7 +29,6 @@ export type RecordCollectionLabels = {
   heading: string
   emptyTitle: string
   emptyDescription: string
-  prefillLabel: string
   generationTitle: string
   generationTitleAriaLabel: string
   generationPlaceholder: string
@@ -45,16 +44,15 @@ export type RecordCollectionLabels = {
 export type RecordBusyActionKind = 'delete' | 'saving'
 
 export function RecordCollectionView<T extends CollectionRecord>({
-  composer,
+  composer, settleCreation,
   creationCommands,
-  aiUnavailableReason,
   labels,
   emptyIcon,
   busyAction,
   busyActionFor,
   sourceKind,
-  copyState,
-  recordScreenshotCounts,
+  copyBody,
+  copyState,  recordScreenshotCounts,
   records,
   sessionTitle,
   notice,
@@ -70,7 +68,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
   renderMeta,
   renderListMeta,
   filter,
-  renderEditFields,
+  renderEditFields, onPrepareEdit,
   renderPreviewHeader,
   updateLocalRecord,
   onCancelGenerationJob,
@@ -80,14 +78,15 @@ export function RecordCollectionView<T extends CollectionRecord>({
   onSaveRecord,
   onUploadImage,
 }: {
+  settleCreation?: () => Promise<boolean>
   composer?: ReactNode
   creationCommands: RecordCreationCommands
-  aiUnavailableReason?: string | null
   labels: RecordCollectionLabels
   emptyIcon: LucideIcon
   busyAction: BusyAction | null
   busyActionFor: (record: T, kind: RecordBusyActionKind) => BusyAction
   sourceKind: 'draft' | 'finding'
+  copyBody?: (record: T) => string
   copyState: CopyState
   recordScreenshotCounts: Record<string, number>
   records: T[]
@@ -110,6 +109,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
     valueFor: (record: T) => string
   }
   renderPreviewHeader: (record: T) => ReactNode
+  onPrepareEdit?: (record: T) => void
   renderEditFields?: (record: T) => ReactNode
   updateLocalRecord: (id: string, patch: CollectionRecordPatch) => void
   onCancelGenerationJob: (jobId: string) => Promise<void>
@@ -125,6 +125,8 @@ export function RecordCollectionView<T extends CollectionRecord>({
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<'updated' | 'title'>('updated')
   const [filterValue, setFilterValue] = useState('all')
+  const selectionEpochRef = useRef(0)
+  const previewRef = useRef<HTMLDivElement>(null)
   const titleInputRef = useRef<HTMLInputElement>(null)
   const [appliedTarget, setAppliedTarget] = useState<CreatedRecordEditTarget | null>(null)
   const focusedTargetRef = useRef<CreatedRecordEditTarget | null>(null)
@@ -159,6 +161,10 @@ export function RecordCollectionView<T extends CollectionRecord>({
   useEffect(() => {
     const input = titleInputRef.current
     if (appliedTarget && appliedTarget.editing === false && selectedRecord?.id === appliedTarget.recordId && focusedTargetRef.current?.recordId !== appliedTarget.recordId) {
+      const heading = previewRef.current?.querySelector<HTMLElement>('.record-title')
+      if (!heading) return
+      heading.tabIndex = -1
+      heading.focus({ preventScroll: true })
       focusedTargetRef.current = appliedTarget
       onCreatedRecordEditTargetConsumed?.(appliedTarget)
       return
@@ -174,6 +180,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
 
   function startEditing(record: T) {
     setEditingOriginals((previous) => ({ ...previous, [record.id]: record }))
+    onPrepareEdit?.(record)
     setRecordEditing(record.id, true)
   }
 
@@ -204,7 +211,6 @@ export function RecordCollectionView<T extends CollectionRecord>({
           {!composer ? <RecordCreationActions commands={creationCommands} /> : null}
         </div>
       </header>
-      {!composer && aiUnavailableReason ? <p className="collection-action-guidance">{aiUnavailableReason}</p> : null}
       {notice || error ? (
         <div className="collection-status">
           <StatusPill notice={notice} error={error} busyAction={busyAction} />
@@ -249,7 +255,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
         </div>
       ) : null}
 
-      <div className="collection-workspace">
+      <div className={visibleRecords.length ? "collection-workspace" : "collection-workspace collection-workspace--single-sidebar"}>
         {activeGenerationJob ? (
           <GenerationRecord
             title={labels.generationTitle}
@@ -266,10 +272,14 @@ export function RecordCollectionView<T extends CollectionRecord>({
               <button
                 key={record.id}
                 type="button"
-                className={selectedRecord?.id === record.id ? 'active' : ''}
-                aria-current={selectedRecord?.id === record.id ? 'true' : undefined}
+                className={!composer && selectedRecord?.id === record.id ? 'active' : ''}
+                aria-current={!composer && selectedRecord?.id === record.id ? 'true' : undefined}
                 disabled={selectedEditing && selectedRecord?.id !== record.id}
-                onClick={() => setSelectedRecordId(record.id)}
+                onClick={() => {
+                  const epoch = ++selectionEpochRef.current
+                  if (composer && settleCreation) void settleCreation().then((settled) => { if (settled && selectionEpochRef.current === epoch) setSelectedRecordId(record.id) })
+                  else setSelectedRecordId(record.id)
+                }}
               >
                 <strong>{record.title.trim() || `Untitled ${labels.recordNounLower}`}</strong>
                 <span>Updated {formatRecordDate(record.updatedAt)}</span>
@@ -286,7 +296,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
           const editorId = `${labels.editorIdPrefix}-${record.id}`
           const editing = Boolean(editingRecordIds[record.id])
           return (
-            <div className="record-detail-pane">
+            <div className="record-detail-pane" ref={previewRef}>
             <EditableRichRecord
               record={record}
               editing={editing}
@@ -305,7 +315,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
               actions={
                 <RichRecordActions
                   copyControls={<CopyControls
-                    snapshot={{ target: { kind: sourceKind, sessionId: record.sessionId, id: record.id, action: 'jira-text' }, title: record.title, bodyHtml: record.body }}
+                    snapshot={{ target: { kind: sourceKind, sessionId: record.sessionId, id: record.id, action: 'jira-text' }, title: record.title, bodyHtml: copyBody?.(record) ?? record.body }}
                     copyState={copyState} onCopy={onCopy} disabled={isBusy}
                     label={record.title.trim() || labels.recordNounLower} screenshotCount={screenshotCount} />}
                   deleting={deleting}
