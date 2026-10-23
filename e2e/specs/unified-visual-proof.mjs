@@ -1,10 +1,14 @@
 import assert from 'node:assert/strict'
 import { existsSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { createRequire } from 'node:module'
 import { spawn, execFileSync } from 'node:child_process'
 import { DatabaseSync } from 'node:sqlite'
 import { readClipboardText } from '../fixtures/clipboard-readback.mjs'
 import { resize } from './chat-handoff-proof.mjs'
+import { nativeKeySender } from './preflight-native-keys.mjs'
+const require = createRequire(new URL('../../frontend/package.json', import.meta.url))
+const { Key } = await import(require.resolve('webdriverio'))
 
 const out = () => process.env.QA_SCRIBE_E2E_ARTIFACTS
 async function click(selector) {
@@ -163,15 +167,42 @@ export async function unifiedWidths(theme) {
     await capture(`uc3-note-${width}-${theme}`, ['.document-actions .action-button--secondary'])
     if (width === 320) {
       await $('[aria-label="Note body"]').click()
-      const focus = await browser.execute(() => {
-        const element = document.activeElement
-        return { label: element?.getAttribute('aria-label'), outline: getComputedStyle(element).outlineStyle,
-          offset: getComputedStyle(element).outlineOffset }
-      })
-      assert.equal(focus.label, 'Note body')
-      assert.equal(focus.outline, 'solid')
-      assert.equal(focus.offset, '-2px')
+      async function recordFocus(input) {
+        const focus = await browser.execute(() => {
+          const element = document.activeElement
+          const css = getComputedStyle(element)
+          const rect = element.getBoundingClientRect()
+          return { label: element?.getAttribute('aria-label'), outline: css.outlineStyle,
+            offset: css.outlineOffset, width: css.outlineWidth, color: css.outlineColor,
+            background: css.backgroundColor, focused: element.matches(':focus'),
+            focusVisible: element.matches(':focus-visible'),
+            editableRichText: element.matches('.rich-editor[contenteditable="true"]'),
+            viewport: { width: innerWidth, height: innerHeight },
+            rect: { x: rect.x, y: rect.y, right: rect.right, bottom: rect.bottom } }
+        })
+        receipts.push({ name: `uc3-editor-input-focus-320-${theme}`, input, ...focus })
+        writeFileSync(join(out(), 'uc3-layout.json'), JSON.stringify(receipts, null, 2))
+        assert.equal(focus.label, 'Note body')
+        assert.equal(focus.outline, 'solid')
+        assert.equal(focus.offset, '-2px')
+        assert.equal(focus.width, '2px')
+        assert.equal(focus.focused, true)
+        assert.equal(focus.editableRichText, true)
+      }
+      await recordFocus('pointer: WebDriver elementClick')
       await capture(`uc3-editor-focus-320-${theme}`)
+      if (process.platform === 'linux') {
+        const keyboard = { platform: process.platform, backend: 'xdotool XTEST' }
+        const key = nativeKeySender(keyboard, () => writeFileSync(join(out(), `uc3-editor-keyboard-${theme}.json`), JSON.stringify(keyboard, null, 2)), Key)
+        await key(Key.Tab)
+        await key('Shift+Tab')
+        await recordFocus('keyboard: native Tab then Shift+Tab')
+        await capture(`uc3-editor-keyboard-focus-320-${theme}`)
+      } else {
+        receipts.push({ name: `uc3-editor-keyboard-${theme}`, nativeTabVerified: false,
+          reason: 'Embedded WebDriver keyboard events are untrusted; no Mac native keyboard host in owner environment.' })
+        writeFileSync(join(out(), 'uc3-layout.json'), JSON.stringify(receipts, null, 2))
+      }
     }
     await tab('Test cases')
     await click('button=Create test cases')
