@@ -34,7 +34,7 @@ runs:
         USE_XVFB: ${{ inputs.use_xvfb }}
       run: |
         if [ "${USE_XVFB}" = 'true' ]; then
-          xvfb-run -a bun run e2e
+          xvfb-run -a dbus-run-session -- bun run e2e
         else
           bun run e2e
         fi
@@ -57,7 +57,7 @@ runs:
         USE_XVFB: ${{ inputs.use_xvfb }}
       run: |
         if [ "${USE_XVFB}" = 'true' ]; then
-          xvfb-run -a bun run startup:benchmark
+          xvfb-run -a dbus-run-session -- bun run startup:benchmark
         else
           bun run startup:benchmark
         fi
