@@ -149,19 +149,30 @@ fn html_only_request(
     let mut input = request(prepared, kind);
     match &mut input.record {
         CreationRecordInput::Finding {
-            body, body_json, ..
+            body,
+            body_json,
+            body_format,
+            ..
         }
         | CreationRecordInput::Testware {
-            body, body_json, ..
+            body,
+            body_json,
+            body_format,
+            ..
         } => {
             *body = html;
             *body_json = None;
+            *body_format = Some("html".into());
         }
     }
     input
 }
 
 fn reject_uninventoried_html(sources: &[&str]) {
+    reject_html_with_json(sources, None);
+}
+
+fn reject_html_with_json(sources: &[&str], body_json: Option<&str>) {
     let mut accepted = Vec::new();
     for kind in [CreationKind::Finding, CreationKind::Testware] {
         for template in sources {
@@ -185,7 +196,17 @@ fn reject_uninventoried_html(sources: &[&str]) {
             .unwrap();
             let (_, prepared) = fixture.prepare(kind, 0);
             let html = template.replace("FOREIGN_ID", &borrowed.id);
-            let input = html_only_request(&prepared, kind, html.clone());
+            let mut input = html_only_request(&prepared, kind, html.clone());
+            match &mut input.record {
+                CreationRecordInput::Finding {
+                    body_json: json, ..
+                }
+                | CreationRecordInput::Testware {
+                    body_json: json, ..
+                } => {
+                    *json = body_json.map(str::to_owned);
+                }
+            }
             assert!(input.images.is_empty());
             assert!(input.shared_attachment_ids.is_empty());
             let result = commit_creation_save(&fixture.service, &fixture.root, input);
@@ -268,6 +289,36 @@ fn html_inventory_rejects_browser_decoded_named_colon_images() {
     ]);
 }
 
+const LEGACY_IMAGE_BODIES: &[&str] = &[
+    "&lt;img src=\"qa-scribe-attachment://FOREIGN_ID\"&gt;",
+    "&lt;img src=\"data:image/png;base64,aW1hZ2U=\"&gt;",
+    "&lt;img src=\"blob:local-image\"&gt;",
+    "&lt;p&gt;&lt;im&#103; src=\"qa-scribe-attachment://FOREIGN_ID\"&gt;&lt;/p&gt;",
+    "&lt;p&gt;&lt;im&#103; src=\"data:image/png;base64,aW1hZ2U=\"&gt;&lt;/p&gt;",
+    "&lt;p&gt;&lt;im&#103; src=\"blob:local-image\"&gt;&lt;/p&gt;",
+    "&LT;IMG/SRC=qa-scribe-attachment&colon;//FOREIGN_ID&GT;",
+    "<div>&lt;img src=\"qa-scribe-attachment://FOREIGN_ID\"&gt;</div>",
+    "<style>&lt;/style&gt;&lt;img src=\"qa-scribe-attachment://FOREIGN_ID\"&gt;",
+];
+
+#[test]
+fn html_inventory_rejects_legacy_repair_images_with_null_json() {
+    reject_html_with_json(LEGACY_IMAGE_BODIES, None);
+}
+
+#[test]
+fn html_inventory_rejects_legacy_repair_images_with_fallback_json() {
+    reject_html_with_json(LEGACY_IMAGE_BODIES, Some("{}"));
+}
+
+#[test]
+fn html_inventory_rejects_legacy_repair_images_with_unsupported_json_version() {
+    reject_html_with_json(
+        LEGACY_IMAGE_BODIES,
+        Some("{\"schemaVersion\":2,\"doc\":{\"type\":\"doc\"}}"),
+    );
+}
+
 #[test]
 fn html_inventory_preserves_quoted_and_unquoted_shared_images_for_both_record_kinds() {
     for kind in [CreationKind::Finding, CreationKind::Testware] {
@@ -284,6 +335,8 @@ fn html_inventory_preserves_quoted_and_unquoted_shared_images_for_both_record_ki
             "<img src=qa-scribe-attachment&#x3a//SHARED_ID>",
             "<p>Text &copy; &amp; ordinary.</p><img src=\"qa-scribe-attachment://SHARED_ID\"><img src=\"https://example.test/image?a=1&amp;b=2\">",
             "<img src=qa-scribe-attachment://SHARED_ID><img src=https://example.test/image?a=1&amp/b=2>",
+            "<p>Code &lt;img src=\"qa-scribe-attachment://FOREIGN_ID\"&gt;</p><img src=\"qa-scribe-attachment://SHARED_ID\">",
+            "<p>&lt;img src=\"data:image/png;base64,aW1hZ2U=\"&gt;</p><img src=qa-scribe-attachment://SHARED_ID>",
         ] {
             let fixture = Fixture::new();
             let shared = import_managed_attachment_bytes(
@@ -333,6 +386,36 @@ fn html_inventory_preserves_quoted_and_unquoted_shared_images_for_both_record_ki
                 fs::read(fixture.root.join(shared.relative_path)).unwrap(),
                 b"shared"
             );
+        }
+    }
+}
+
+#[test]
+fn html_inventory_preserves_literal_code_examples_inside_genuine_html() {
+    for kind in [CreationKind::Finding, CreationKind::Testware] {
+        for html in [
+            "<p>Code &lt;img src=\"qa-scribe-attachment://FOREIGN_ID\"&gt;</p>",
+            "<p>&lt;img src=\"data:image/png;base64,aW1hZ2U=\"&gt;</p>",
+            "<strong>Code &lt;img src=blob:local-image&gt;</strong>",
+            "<p>&copy; &amp; &lt; ordinary entities.</p>",
+        ] {
+            let fixture = Fixture::new();
+            let (_, prepared) = fixture.prepare(kind, 0);
+            let input = html_only_request(&prepared, kind, html.into());
+            let outcome = commit_creation_save(&fixture.service, &fixture.root, input).unwrap();
+            let CreationOutcome::Committed { record } = outcome else {
+                panic!("Expected commit")
+            };
+            match record.as_ref() {
+                CreatedRecord::Finding(record) => assert_eq!(record.body, html),
+                CreatedRecord::Testware(record) => assert_eq!(record.body, html),
+            }
+            assert_eq!(count(&fixture.service, "attachments"), 0);
+            assert_eq!(
+                count(&fixture.service, "findings") + count(&fixture.service, "drafts"),
+                1
+            );
+            assert!(!fixture.root.join("attachments").exists());
         }
     }
 }

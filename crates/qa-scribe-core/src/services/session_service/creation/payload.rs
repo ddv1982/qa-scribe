@@ -8,7 +8,7 @@ use crate::{
     attachments::{decode_image_data_url, hex_sha256},
     domain::*,
     error::validation,
-    generation::managed_attachment_protocol,
+    generation::{editor_html_tags, managed_attachment_protocol, self_closing_editor_html_tags},
 };
 
 use super::CreationAttemptImage;
@@ -89,6 +89,11 @@ pub(crate) fn validate_references(
             body, body_json, ..
         } => (body, body_json),
     };
+    if requires_legacy_html_repair(body) {
+        return Err(validation(
+            "Creation HTML must be normalized before commit; legacy escaped markup is unsupported",
+        ));
+    }
     let mut actual = BTreeSet::new();
     let document = Document::fragment(body.as_str());
     for image in document.select("img").iter() {
@@ -125,6 +130,38 @@ pub(crate) fn validate_references(
         ));
     }
     Ok(())
+}
+
+fn requires_legacy_html_repair(body: &str) -> bool {
+    let value = body.to_ascii_lowercase();
+    let tags = editor_html_tags();
+    if tags.iter().any(|tag| {
+        contains_tag_start(&value, &format!("<{tag}"), ">")
+            || contains_tag_start(&value, &format!("</{tag}"), ">")
+    }) {
+        return false;
+    }
+    let self_closing = self_closing_editor_html_tags();
+    tags.iter()
+        .any(|tag| contains_tag_start(&value, &format!("&lt;{tag}"), "&gt;"))
+        && (tags
+            .iter()
+            .filter(|tag| !self_closing.contains(tag))
+            .any(|tag| value.contains(&format!("&lt;/{tag}&gt;")))
+            || self_closing
+                .iter()
+                .any(|tag| contains_tag_start(&value, &format!("&lt;{tag}"), "&gt;")))
+}
+
+fn contains_tag_start(value: &str, start: &str, end: &str) -> bool {
+    value.match_indices(start).any(|(index, _)| {
+        let suffix = &value[index + start.len()..];
+        suffix.starts_with(end)
+            || suffix.starts_with('/')
+            || suffix.chars().next().is_some_and(|character| {
+                character == '\u{feff}' || (character.is_whitespace() && character != '\u{85}')
+            })
+    })
 }
 
 fn collect_image(id: Option<&str>, source: Option<&str>, ids: &mut BTreeSet<String>) -> Result<()> {
