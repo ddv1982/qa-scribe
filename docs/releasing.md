@@ -225,6 +225,9 @@ fallback trigger, but is not the normal release sequence.
 
 The release workflow:
 
+- runs the shared full validation gate on Ubuntu 26.04, matching protected Linux
+  CI and its 30-minute budget; Linux installers are still built and launched on
+  Ubuntu 24.04
 - validates tag, package version, changelog, Rust workspace, and Linux metainfo metadata
 - audits frontend dependencies with `bun run frontend:audit`
 - creates or refreshes a draft GitHub Release

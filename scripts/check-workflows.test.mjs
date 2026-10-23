@@ -284,6 +284,18 @@ test('Linux quality stays unconditional, macOS E2E observational, and CI success
   }
 })
 
+test('release validation uses the protected Linux quality environment and budget', () => {
+  const ci = parse(readFileSync(resolve(root, '.github/workflows/ci.yml'), 'utf8')).jobs['quality-linux']
+  const release = parse(readFileSync(resolve(root, '.github/workflows/release.yml'), 'utf8')).jobs['validate-release']
+  assert.equal(release['runs-on'], ci['runs-on'])
+  assert.equal(release['timeout-minutes'], ci['timeout-minutes'])
+  const gate = job => job.steps.find(step => step.uses === '$/.github/actions/validate-build')
+  assert.equal(gate(release).with['runner-class'], gate(ci).with['runner-class'])
+  assert.equal(gate(release).with['expected-tag'], '${{ needs.release-context.outputs.tag }}')
+  const dependencies = job => job.steps.find(step => step.name === 'Install Linux Tauri desktop dependencies').run
+  assert.equal(dependencies(release), dependencies(ci))
+})
+
 test('shared setup normalizes APT once after Node with trusted hosted Linux context', () => {
   const { runs } = parse(readFileSync(resolve(root, '.github/actions/setup-project/action.yml'), 'utf8'))
   const matches = runs.steps.filter(step => step.run?.includes('scripts/normalize-ci-apt-sources.mjs'))
@@ -322,7 +334,7 @@ test('all four APT callers complete shared setup before APT with existing job bu
   assert.deepEqual(callers, [
     ['ci.yml', 'quality-linux', 'ubuntu-26.04', 30],
     ['ci.yml', 'package-linux', 'ubuntu-26.04', 40],
-    ['release.yml', 'validate-release', 'ubuntu-24.04', 30],
+    ['release.yml', 'validate-release', 'ubuntu-26.04', 30],
     ['release.yml', 'build-linux-release', 'ubuntu-24.04', 45],
   ])
 })
