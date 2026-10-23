@@ -181,7 +181,7 @@ export function SessionEditorView({
             aria-describedby={sessionTitleValidationError ? 'session-title-error' : undefined}
           />
           {sessionTitleValidationError ? (
-            <p id="session-title-error">{sessionTitleValidationError}</p>
+            <p className="field-error" id="session-title-error">{sessionTitleValidationError}</p>
           ) : null}
           {noteReadOnly && sessionMode === 'write_note' ? <div role="status">
             <p>Chat submission needs canonical Note recovery. The Note is read-only until recovery succeeds.</p>

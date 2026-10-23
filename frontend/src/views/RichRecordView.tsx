@@ -169,7 +169,7 @@ export function RichRecordActions({
 }) {
   return <>
     {copyControls}
-    <ActionButton variant={editing ? 'primary' : 'secondary'} icon={editing ? Save : PencilLine} loading={saving} disabled={isBusy} onClick={editing ? onSave : onEdit}>
+    <ActionButton variant="primary" icon={editing ? Save : PencilLine} loading={saving} disabled={isBusy} onClick={editing ? onSave : onEdit}>
       {editing ? 'Save' : 'Edit'}
     </ActionButton>
     {editing ? <ActionButton variant="destructive-quiet" icon={X} disabled={isBusy} onClick={onCancelEdit}>Discard</ActionButton>

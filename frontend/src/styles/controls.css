@@ -173,3 +173,20 @@
 
 
 #note-summary-unavailable { flex-basis: 100%; margin: 0; }
+
+.rich-editor[contenteditable="true"]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.session-title-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+.field-error { color: var(--danger); font-size: var(--font-size-sm); }
+@media (pointer: coarse) {
+  :is(button, select, input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), .preflight-toggle-grid label) {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
