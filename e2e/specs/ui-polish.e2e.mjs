@@ -37,7 +37,7 @@ async function tab(label) {
 }
 
 async function recordButton(label) {
-  return (await $('.editable-record')).$(`button=${label}`)
+  return $(`//*[contains(concat(' ', normalize-space(@class), ' '), ' editable-record ')]//button[normalize-space(.)="${label}"]`)
 }
 
 async function snapshot(stage, width, theme, actionSelector) {

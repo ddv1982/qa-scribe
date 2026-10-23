@@ -3,7 +3,7 @@ import { spawn, execFileSync } from 'node:child_process'
 import { existsSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createRequire } from 'node:module'
-import { nativeKeySender } from './preflight-native-keys.mjs'
+import { nativeKeySender, settledViewport } from './preflight-native-keys.mjs'
 const require = createRequire(new URL('../../frontend/package.json', import.meta.url))
 const { Key } = await import(require.resolve('webdriverio'))
 
@@ -81,16 +81,23 @@ export async function resize(width, plannedHeight) {
   const scale = 1280 / calibration.width
   const ceiling = process.platform === 'darwin' ? calibration.height : null
   const height = ceiling === null ? plannedHeight : Math.min(plannedHeight, ceiling)
-  const requested = { width: Math.round(width * scale), height: Math.round(height * scale) }
+  let requested = { width: Math.round(width * scale), height: Math.round(height * scale) }
   await browser.setWindowSize(requested.width, requested.height)
+  let measured
   try {
+    measured = await settledViewport()
+    if (Math.abs(measured.width - width) > 2 || Math.abs(measured.height - height) > 2) {
+      requested = { width: Math.round(requested.width + (width - measured.width) * scale),
+        height: Math.round(requested.height + (height - measured.height) * scale) }
+      await browser.setWindowSize(requested.width, requested.height)
+    }
     await browser.waitUntil(async () => {
       const actual = await viewport()
       return Math.abs(actual.width - width) <= 2 && Math.abs(actual.height - height) <= 2
     }, { timeout: 10_000, timeoutMsg: 'UX5 native viewport did not match calibrated dimensions' })
   } finally {
     save(`viewport-${width}-${plannedHeight}.json`, { calibration, availableHeightCeiling: ceiling,
-      planned: { width, height: plannedHeight }, requested, actual: await viewport() })
+      planned: { width, height: plannedHeight }, measured, requested, actual: await viewport() })
   }
   return viewport()
 }

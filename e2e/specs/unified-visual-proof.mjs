@@ -59,7 +59,7 @@ export async function unifiedRoute() {
   await $('[aria-label="Creation draft body"]').setValue('Authored visual migration evidence.')
   await click('button=Save finding')
   await $('.record-detail-pane .record-title').waitForDisplayed()
-  await click('.record-detail-pane button=Edit')
+  await click('//*[contains(concat(" ", normalize-space(@class), " "), " record-detail-pane ")]//button[normalize-space(.)="Edit"]')
   await $('.record-detail-pane [contenteditable="true"]').setValue('Edited native clipboard evidence.')
   await click('.record-detail-pane button=Save')
   await $('.record-detail-pane .record-title').waitForDisplayed()
