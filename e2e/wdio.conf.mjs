@@ -29,7 +29,7 @@ export const config = {
   },
   services: [
     [
-      'tauri',
+      path.join(root, 'e2e', 'native-lifecycle.mjs'),
       {
         appBinaryPath: binary,
         driverProvider: 'embedded',
