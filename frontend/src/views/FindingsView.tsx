@@ -38,6 +38,7 @@ const findingsLabels: RecordCollectionLabels = {
 const findingKindOptions: FindingKind[] = ['bug', 'question', 'risk', 'follow_up', 'note']
 
 export function FindingsView({
+  composer,
   creationCommands,
   aiUnavailableReason,
   busyAction,
@@ -59,11 +60,11 @@ export function FindingsView({
   onCancelGenerationJob,
   onCopy,
   onDeleteFinding,
-  onPrefillFromNote,
   onSaveFinding,
   onDiscardFinding,
   onUploadImage,
 }: {
+  composer?: import('react').ReactNode
   creationCommands: RecordCreationCommands
   aiUnavailableReason?: string | null
   busyAction: BusyAction | null
@@ -85,18 +86,17 @@ export function FindingsView({
   onCancelGenerationJob: (jobId: string) => Promise<void>
   onCopy: (snapshot: ClipboardSnapshot) => Promise<void>
   onDeleteFinding: (finding: Finding) => void
-  onPrefillFromNote: () => Promise<void>
   onSaveFinding: (finding: Finding) => Promise<boolean>
   onDiscardFinding: (finding: Finding) => void
   onUploadImage: (input: RichEditorImageUpload, recordId: string) => void | Promise<void>
 }) {
   return (
     <RecordCollectionView
+      composer={composer}
       creationCommands={creationCommands}
       aiUnavailableReason={aiUnavailableReason}
       labels={findingsLabels}
       emptyIcon={Flag}
-      prefillBusyAction="prefill-finding"
       busyAction={busyAction}
       sourceKind="finding"
       copyState={copyState}
@@ -125,61 +125,7 @@ export function FindingsView({
         options: findingKindOptions.map((kind) => ({ id: kind, label: formatFindingKind(kind) })),
         valueFor: (finding) => finding.kind,
       }}
-      renderEditFields={(finding) => (
-        <>
-          <label className="field-stack">
-            <span>Finding type</span>
-            <select value={finding.kind} onChange={(event) => updateLocalFinding(finding.id, { kind: event.target.value as FindingKind })}>
-              {findingKindOptions.map((option) => (
-                <option key={option} value={option}>
-                  {formatFindingKind(option)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field-stack">
-            <span>Severity</span>
-            <select
-              value={parseFindingMetadata(finding.metadataJson).severity}
-              onChange={(event) => updateLocalFinding(finding.id, { metadataJson: updateFindingMetadata(finding.metadataJson, { severity: event.target.value as FindingSeverity }) })}
-            >
-              <option value="unspecified">Not set</option>
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-              <option value="critical">Critical</option>
-            </select>
-          </label>
-          <label className="field-stack">
-            <span>Status</span>
-            <select
-              value={parseFindingMetadata(finding.metadataJson).status}
-              onChange={(event) => updateLocalFinding(finding.id, { metadataJson: updateFindingMetadata(finding.metadataJson, { status: event.target.value as FindingStatus }) })}
-            >
-              <option value="open">Open</option>
-              <option value="in_progress">In progress</option>
-              <option value="resolved">Resolved</option>
-              <option value="closed">Closed</option>
-            </select>
-          </label>
-          <label className="field-stack">
-            <span>Component or area</span>
-            <input
-              value={parseFindingMetadata(finding.metadataJson).component}
-              onChange={(event) => updateLocalFinding(finding.id, { metadataJson: updateFindingMetadata(finding.metadataJson, { component: event.target.value }) })}
-              placeholder="Checkout, API, mobile…"
-            />
-          </label>
-          <label className="field-stack">
-            <span>External reference</span>
-            <input
-              value={parseFindingMetadata(finding.metadataJson).reference}
-              onChange={(event) => updateLocalFinding(finding.id, { metadataJson: updateFindingMetadata(finding.metadataJson, { reference: event.target.value }) })}
-              placeholder="Issue ID or URL"
-            />
-          </label>
-        </>
-      )}
+      renderEditFields={(finding) => <FindingFields finding={finding} onChange={(patch) => updateLocalFinding(finding.id, patch)} />}
       renderPreviewHeader={(finding) => <h2 className="record-title">{finding.title}</h2>}
       busyActionFor={(finding, kind) => {
         switch (kind) {
@@ -193,10 +139,67 @@ export function FindingsView({
       onCancelGenerationJob={onCancelGenerationJob}
       onCopy={onCopy}
       onDeleteRecord={onDeleteFinding}
-      onPrefillFromNote={onPrefillFromNote}
       onSaveRecord={onSaveFinding}
       onDiscardRecord={onDiscardFinding}
       onUploadImage={onUploadImage}
     />
+  )
+}
+
+export function FindingFields({ finding, onChange }: { finding: Pick<Finding, 'kind' | 'metadataJson'>; onChange: (patch: Partial<Pick<Finding, 'kind' | 'metadataJson'>>) => void }) {
+  return (
+        <>
+          <label className="field-stack">
+            <span>Finding type</span>
+            <select value={finding.kind} onChange={(event) => onChange({ kind: event.target.value as FindingKind })}>
+              {findingKindOptions.map((option) => (
+                <option key={option} value={option}>
+                  {formatFindingKind(option)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field-stack">
+            <span>Severity</span>
+            <select
+              value={parseFindingMetadata(finding.metadataJson).severity}
+              onChange={(event) => onChange({ metadataJson: updateFindingMetadata(finding.metadataJson, { severity: event.target.value as FindingSeverity }) })}
+            >
+              <option value="unspecified">Not set</option>
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="critical">Critical</option>
+            </select>
+          </label>
+          <label className="field-stack">
+            <span>Status</span>
+            <select
+              value={parseFindingMetadata(finding.metadataJson).status}
+              onChange={(event) => onChange({ metadataJson: updateFindingMetadata(finding.metadataJson, { status: event.target.value as FindingStatus }) })}
+            >
+              <option value="open">Open</option>
+              <option value="in_progress">In progress</option>
+              <option value="resolved">Resolved</option>
+              <option value="closed">Closed</option>
+            </select>
+          </label>
+          <label className="field-stack">
+            <span>Component or area</span>
+            <input
+              value={parseFindingMetadata(finding.metadataJson).component}
+              onChange={(event) => onChange({ metadataJson: updateFindingMetadata(finding.metadataJson, { component: event.target.value }) })}
+              placeholder="Checkout, API, mobile…"
+            />
+          </label>
+          <label className="field-stack">
+            <span>External reference</span>
+            <input
+              value={parseFindingMetadata(finding.metadataJson).reference}
+              onChange={(event) => onChange({ metadataJson: updateFindingMetadata(finding.metadataJson, { reference: event.target.value }) })}
+              placeholder="Issue ID or URL"
+            />
+          </label>
+        </>
   )
 }

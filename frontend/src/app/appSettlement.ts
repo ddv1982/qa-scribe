@@ -6,6 +6,7 @@ import type { useSessionChat } from './useSessionChat'
 import { useStableCapability } from './useStableCapability'
 
 type AppSettlementContext = {
+  creation?: import('./creationActions').CreationActions
   chat: Pick<ReturnType<typeof useSessionChat>, 'flush' | 'hasPendingChanges'>
   sessionActions: ReturnType<typeof useSessionActions>
   recordActions: ReturnType<typeof useRecordActions>
@@ -21,6 +22,7 @@ type AppSettlementContext = {
 export function createAppSettlement(ctx: AppSettlementContext) {
   async function flush(): Promise<boolean> {
     const settingsUnchanged = ctx.captureSettingsCheckpoint()
+    if (ctx.creation?.hasPendingChanges() && !await ctx.creation.save()) return false
     if (!await ctx.chat.flush()) return false
     for (;;) {
       await ctx.attachmentActions.waitForPendingAttachmentMutations()
@@ -60,7 +62,7 @@ export function createAppSettlement(ctx: AppSettlementContext) {
   }
 
   function hasPendingChanges() {
-    return ctx.chat.hasPendingChanges() || ctx.sessionActions.settlement.snapshot().pending
+    return Boolean(ctx.creation?.hasPendingChanges()) || ctx.chat.hasPendingChanges() || ctx.sessionActions.settlement.snapshot().pending
       || ctx.settingsDirty || Boolean(ctx.modelWritePending?.()) || hasPendingCompensations()
       || ctx.dirtyDraftIdsRef.current.size > 0 || ctx.dirtyFindingIdsRef.current.size > 0
   }

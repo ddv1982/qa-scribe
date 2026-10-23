@@ -74,33 +74,26 @@ describe('clipboard and creation wiring', () => {
       : findingFixture({ id: 'created-finding', title: 'Untitled finding', body: '<p></p>' })
     const create = kind === 'testware' ? tauri.createDraft : tauri.createFinding
     const list = kind === 'testware' ? tauri.listDrafts : tauri.listFindings
-    const pending = deferred<typeof record>()
-    create.mockReturnValueOnce(pending.promise)
-    list.mockImplementation(async () => create.mock.calls.length ? [record] : [])
+    let saved = false
+    tauri.commitCreationSave.mockImplementation(async () => { saved = true; return { state: 'committed', record: { kind, record } } })
+    list.mockImplementation(async () => saved ? [record] : [])
     render(<Workspace />)
     await screen.findByRole('textbox', { name: 'Session title' })
     await waitFor(() => expect(screen.getByRole('button', { name: 'Create finding' })).toBeEnabled())
-    if (route === 'collection') {
-      fireEvent.click(screen.getByRole('tab', { name: new RegExp(kind === 'testware' ? 'Test cases' : 'Findings') }))
-      await screen.findByRole('heading', { name: kind === 'testware' ? 'Test cases' : 'Issues and risks' })
-      expect(create).not.toHaveBeenCalled()
-    }
-    const label = kind === 'testware' ? 'Create test cases' : 'Create finding'
-    expect(screen.getByRole('button', { name: `${label} with AI` })).toBeDisabled()
-    const action = screen.getByRole('button', { name: label })
-    fireEvent.click(action)
-    await waitFor(() => expect(create).toHaveBeenCalledTimes(1))
-    expect(screen.getByRole('button', { name: label })).toBeDisabled()
-    fireEvent.click(screen.getByRole('button', { name: label }))
-    await act(async () => { pending.resolve(record); await pending.promise })
+    if (route === 'collection') fireEvent.click(screen.getByRole('tab', { name: new RegExp(kind === 'testware' ? 'Test cases' : 'Findings') }))
+    fireEvent.click(await screen.findByRole('button', { name: kind === 'testware' ? 'Create test cases' : 'Create finding' }))
     const title = await screen.findByRole('textbox', { name: kind === 'testware' ? 'Test case title' : 'Finding title' })
+    expect(title).toHaveValue('')
     await waitFor(() => expect(title).toHaveFocus())
-    expect(title).toHaveValue(record.title)
-    expect(document.getElementById(`${kind === 'testware' ? 'testware' : 'finding'}-editor-${record.id}`)).toHaveAttribute('contenteditable', 'true')
-    expect(create.mock.calls).toEqual([[expect.objectContaining({ sessionId: 'session-1', title: record.title, body: '' })]])
+    expect(create).not.toHaveBeenCalled()
+    expect(tauri.prepareCreationSave).not.toHaveBeenCalled()
+    fireEvent.change(title, { target: { value: record.title } })
+    fireEvent.click(screen.getByRole('button', { name: kind === 'testware' ? 'Save test cases' : 'Save finding' }))
+    await screen.findByRole('heading', { name: record.title })
+    expect(tauri.commitCreationSave).toHaveBeenCalledOnce()
+    expect(create).not.toHaveBeenCalled()
     expect(tauri.startAiActionJob).not.toHaveBeenCalled()
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(screen.getByText(kind === 'testware' ? 'Test case created' : 'Finding created')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument()
   })
 
   it.each(['note', 'collection'] as const)('opens and cancels AI before creation from the %s', async (route) => {

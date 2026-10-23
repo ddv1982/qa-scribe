@@ -10,6 +10,7 @@ import type { useSessionChat } from './useSessionChat'
 import type { CreatedRecordEditTarget } from './types'
 
 type AppControllerNavigationContext = {
+  creation?: import('./creationActions').CreationActions
   chat: Pick<ReturnType<typeof useSessionChat>, 'flush' | 'hasPendingChanges' | 'recoverSession'>
   activeSession: Session | null
   activeSessionIdRef: MutableRefObject<string | null>
@@ -39,7 +40,7 @@ type AppControllerNavigationContext = {
 
 export function useAppControllerNavigation(ctx: AppControllerNavigationContext) {
   function beginSessionNavigation() {
-    ctx.setCreatedRecordEditTarget(null)
+    if (!ctx.creation?.isSaving()) ctx.setCreatedRecordEditTarget(null)
     return ctx.sessionActions.beginSessionNavigation()
   }
 
@@ -66,16 +67,22 @@ export function useAppControllerNavigation(ctx: AppControllerNavigationContext) 
   function requestActiveView(view: MainView) {
     const epoch = beginSessionNavigation()
     if (view === ctx.activeView) return
-    if (ctx.chat.hasPendingChanges()) {
-      void ctx.chat.flush().then((saved) => {
-        if (saved && ctx.sessionActions.sessionNavigationIsCurrent(epoch)) finishActiveViewNavigation(view)
-      })
-      return
+    const continueNavigation = () => {
+      if (!ctx.sessionActions.sessionNavigationIsCurrent(epoch)) return
+      if (ctx.chat.hasPendingChanges()) {
+        void ctx.chat.flush().then((saved) => {
+          if (saved && ctx.sessionActions.sessionNavigationIsCurrent(epoch)) finishActiveViewNavigation(view)
+        })
+        return
+      }
+      finishActiveViewNavigation(view)
     }
-    finishActiveViewNavigation(view)
+    if (ctx.creation?.hasPendingChanges()) {
+      void ctx.creation.settle().then((settled) => { if (settled) continueNavigation() })
+    } else continueNavigation()
   }
 
-  function finishActiveViewNavigation(view: MainView, commit = () => ctx.setActiveView(view)) {
+  function finishActiveViewNavigation(view: MainView, commit: () => void | Promise<void> = () => ctx.setActiveView(view)) {
     const { titleDirty, recoveryChoice } = ctx.sessionActions.settlement.snapshot()
     if (
       titleDirty
@@ -89,7 +96,18 @@ export function useAppControllerNavigation(ctx: AppControllerNavigationContext) 
       ctx.setPendingNavigationView(view)
       return
     }
-    commit()
+    void commit()
+  }
+
+  async function requestCreation(view: MainView, create: (epoch: number) => Promise<void>) {
+    const epoch = beginSessionNavigation()
+    if (ctx.creation?.hasPendingChanges() && !await ctx.creation.settle()) return
+    if (!ctx.sessionActions.sessionNavigationIsCurrent(epoch)) return
+    if (ctx.chat.hasPendingChanges() && !await ctx.chat.flush()) return
+    if (!ctx.sessionActions.sessionNavigationIsCurrent(epoch)) return
+    finishActiveViewNavigation(view, async () => {
+      if (ctx.sessionActions.sessionNavigationIsCurrent(epoch)) await create(epoch)
+    })
   }
 
   function openSettingsSection(sectionId?: string) {
@@ -104,6 +122,7 @@ export function useAppControllerNavigation(ctx: AppControllerNavigationContext) 
 
   async function requestSessionNavigation(view: MainView, navigate: () => Promise<void>): Promise<void> {
     const epoch = beginSessionNavigation()
+    if (ctx.creation && !await ctx.creation.settle()) return
     if (!await ctx.chat.flush() || !ctx.sessionActions.sessionNavigationIsCurrent(epoch)) return
     // A recovered Summary represents two valid canonical outcomes and must not
     // be silently selected by the ordinary Session-switch flush.
@@ -216,6 +235,7 @@ export function useAppControllerNavigation(ctx: AppControllerNavigationContext) 
     discardPendingNavigationChanges,
     openSettingsSection,
     requestActiveView,
+    requestCreation,
     requestNewSession,
     requestOpenSession,
     savePendingNavigationChanges,

@@ -33,6 +33,7 @@ const testwareLabels: RecordCollectionLabels = {
 }
 
 export function TestwareView({
+  composer,
   creationCommands,
   aiUnavailableReason,
   busyAction,
@@ -54,11 +55,11 @@ export function TestwareView({
   onCancelGenerationJob,
   onCopy,
   onDeleteDraft,
-  onPrefillFromNote,
   onSaveDraft,
   onDiscardDraft,
   onUploadImage,
 }: {
+  composer?: import('react').ReactNode
   creationCommands: RecordCreationCommands
   aiUnavailableReason?: string | null
   busyAction: BusyAction | null
@@ -80,18 +81,17 @@ export function TestwareView({
   onCancelGenerationJob: (jobId: string) => Promise<void>
   onCopy: (snapshot: ClipboardSnapshot) => Promise<void>
   onDeleteDraft: (draft: Draft) => void
-  onPrefillFromNote: () => Promise<void>
   onSaveDraft: (draft: Draft) => Promise<boolean>
   onDiscardDraft: (draft: Draft) => void
   onUploadImage: (input: RichEditorImageUpload, recordId: string) => void | Promise<void>
 }) {
   return (
     <RecordCollectionView
+      composer={composer}
       creationCommands={creationCommands}
       aiUnavailableReason={aiUnavailableReason}
       labels={testwareLabels}
       emptyIcon={Box}
-      prefillBusyAction="prefill-testware"
       busyAction={busyAction}
       sourceKind="draft"
       copyState={copyState}
@@ -127,7 +127,6 @@ export function TestwareView({
       onCancelGenerationJob={onCancelGenerationJob}
       onCopy={onCopy}
       onDeleteRecord={onDeleteDraft}
-      onPrefillFromNote={onPrefillFromNote}
       onSaveRecord={onSaveDraft}
       onDiscardRecord={onDiscardDraft}
       onUploadImage={onUploadImage}

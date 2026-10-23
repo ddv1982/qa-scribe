@@ -1,3 +1,4 @@
+import { useCreationWorkspace } from './useCreationWorkspace'
 import { useEffect, useRef, useState } from 'react'
 import { serializeRichEditorDocument } from '../editor/editorDocument'
 import type { MainView } from '../ui/types'
@@ -111,8 +112,7 @@ export function useAppController() {
     providerDiscoveryState,
     providerStatus,
     refreshProviderStatus,
-    selectedModel,
-    selectedProvider,
+    selectedModel, selectedProvider,
     selectedReasoningEffort,
     setTheme,
     settingsDraft,
@@ -266,13 +266,8 @@ export function useAppController() {
     session: sessionWorkspace,
     records: recordWorkspace,
     feedback,
-    navigation,
     deletion,
-    saveNoteNow: sessionActions.saveNoteNow,
     registerRecordEditIntent: sessionActions.registerRecordEditIntent,
-    beginSessionNavigation: () => beginSessionNavigation(),
-    sessionNavigationIsCurrent: sessionActions.sessionNavigationIsCurrent,
-    openCreatedRecord: (target, epoch) => openCreatedRecord(target, epoch),
     handleDeleteSession: sessionActions.handleDeleteSession,
     materializeInlineImages: attachmentActions.materializeInlineImages,
     cleanupMaterializedAttachments: attachmentActions.cleanupMaterializedAttachments,
@@ -296,9 +291,14 @@ export function useAppController() {
     canonicalizeGeneratedDraft: recordActions.canonicalizeGeneratedDraft,
     canonicalizeGeneratedFinding: recordActions.canonicalizeGeneratedFinding,
   })
+  const { creation, creationIntent, creationDecision, consumeSelectedRecord } = useCreationWorkspace({
+    activeSessionIdRef: sessionWorkspace.activeSessionIdRef, beginNavigation: () => beginSessionNavigation(),
+    loadDraftsForSession, loadFindingsForSession, setActiveView, setError, setCreatedRecordEditTarget,
+    consumeCreatedRecordEditTarget: (target) => consumeCreatedRecordEditTarget(target),
+  })
   const copyActions = useCopyActions()
   const settlement = useAppSettlement({
-    chat: chatProtection, sessionActions, recordActions, attachmentActions,
+    creation, chat: chatProtection, sessionActions, recordActions, attachmentActions,
     dirtyDraftIdsRef, dirtyFindingIdsRef, settingsDirty, saveSettingsDraft, captureSettingsCheckpoint, modelWritePending,
   })
   const {
@@ -306,9 +306,9 @@ export function useAppController() {
     openLibraryRecord, openSessionInCurrentView, openSettingsSection,
     requestActiveView, requestNewSession, requestOpenSession,
     savePendingNavigationChanges,
-    beginSessionNavigation, consumeCreatedRecordEditTarget, openCreatedRecord,
+    beginSessionNavigation, consumeCreatedRecordEditTarget, requestCreation,
   } = useAppControllerNavigation({
-    chat: chatProtection,
+    creation, chat: chatProtection,
     activeSession, activeSessionIdRef: sessionWorkspace.activeSessionIdRef, activeView, settlement, dirtyDraftIdsRef, dirtyFindingIdsRef,
     discardSettingsDraft, focusedRecordId, pendingNavigationContinuationRef, pendingNavigationEpochRef,
     pendingNavigationView, recordActions,
@@ -331,7 +331,7 @@ export function useAppController() {
 
   usePendingChangeProtection({
     hasPendingChanges: settlement.hasPendingChanges,
-    savePendingChanges: settlement.flush,
+    savePendingChanges: () => creation.hasPendingChanges() ? creation.settle().then((settled) => settled ? settlement.flush() : false) : settlement.flush(),
   })
 
   const { bootedRef, handleLoadSessionLibrary, handleRefreshProviderStatus, handleSaveSettings } = useAppStartup({
@@ -406,12 +406,14 @@ export function useAppController() {
 
   return {
     sessionChat, sessionMode, setSessionMode, saveAllPendingChanges: settlement.flush, noteReadOnly,
-    createdRecordEditTarget, consumeCreatedRecordEditTarget,
-    attachmentCleanup,
-    ...attachmentActions,
+    creation, creationIntent, creationDecision,
+    createdRecordEditTarget, consumeCreatedRecordEditTarget: consumeSelectedRecord,
+    attachmentCleanup, ...attachmentActions,
     ...copyActions,
     ...generationActions,
     ...recordActions,
+    handleManualFinding: () => requestCreation('findings', (epoch) => creation.open('finding', () => sessionActions.sessionNavigationIsCurrent(epoch))),
+    handleManualTestware: () => requestCreation('testware', (epoch) => creation.open('testware', () => sessionActions.sessionNavigationIsCurrent(epoch))),
     ...sessionActions,
     ...outputLibraries,
     activeFindingJob,
@@ -462,10 +464,8 @@ export function useAppController() {
     providerDiscoveryState,
     providerStatus,
     searchQuery,
-    selectedModel,
-    selectedProvider,
-    sessionLibraryComplete,
-    sessions,
+    selectedModel, selectedProvider,
+    sessionLibraryComplete, sessions,
     settingsDraft,
     settingsDirty,
     settingsSaveState, settingsSaveError,

@@ -150,7 +150,7 @@ describe('scalable record collection', () => {
     const viewFor = (creating: boolean) => <FindingsView creationCommands={recordCreationCommandsFixture('finding')} busyAction={null} copyState={{ status: 'idle' }} findingScreenshotCounts={{}} findings={creating ? [existing, created] : [existing]}
       notice={null} error={null} isBusy={false} activeGenerationJob={null} updateLocalFinding={vi.fn()}
       onCancelGenerationJob={async () => undefined} onCopy={async () => undefined}
-      onDeleteFinding={vi.fn()} onPrefillFromNote={async () => undefined}
+      onDeleteFinding={vi.fn()}
       onSaveFinding={async () => true} onDiscardFinding={vi.fn()} onUploadImage={vi.fn()}
       createdRecordEditTarget={creating ? target : null} onCreatedRecordEditTargetConsumed={consumed} />
     const view = render(viewFor(false))
@@ -186,7 +186,6 @@ function testware(drafts = [draftFixture()], overrides: Partial<ComponentProps<t
       onCancelGenerationJob={async () => undefined}
       onCopy={async () => undefined}
       onDeleteDraft={vi.fn()}
-      onPrefillFromNote={async () => undefined}
       onSaveDraft={async () => true}
       onDiscardDraft={vi.fn()}
       onUploadImage={vi.fn()}

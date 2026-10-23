@@ -1,3 +1,5 @@
+import { CreationComposer } from '../views/CreationComposer'
+import { FindingFields } from '../views/FindingsView'
 import { useEffect, useState, type KeyboardEvent } from 'react'
 import { BookOpen, Box, ChevronRight, Command as CommandIcon, FileText, Flag, CircleHelp, Loader2, PencilLine, Plus, Search, Settings } from 'lucide-react'
 import { catalogSelectorEnabled } from '../settings/catalog'
@@ -41,6 +43,8 @@ export function AppShell(c: AppController) {
     create: commands.find((command) => command.id === `${kind}.new`)!,
     generate: commands.find((command) => command.id === `${kind}.ai`)!,
   })
+  const composer = c.creationIntent ? <CreationComposer intent={c.creationIntent} actions={c.creation} copyState={c.copyState} onCopy={c.copy}
+    fields={c.creationIntent.kind === 'finding' ? <FindingFields finding={{ kind: c.creationIntent.findingKind, metadataJson: c.creationIntent.metadataJson }} onChange={(patch) => c.creation.update({ ...(patch.kind ? { findingKind: patch.kind } : {}), ...('metadataJson' in patch ? { metadataJson: patch.metadataJson } : {}) })} /> : undefined} /> : null
   const topAction = c.activeView === 'sessions'
     ? { command: commandById('session.new'), busy: 'new-session' as const }
     : null
@@ -266,6 +270,7 @@ export function AppShell(c: AppController) {
 
         {c.activeView === 'testware' ? (
           <TestwareView
+            composer={c.creationIntent?.kind === 'testware' ? composer : null}
             creationCommands={creationCommands('testware')}
             aiUnavailableReason={c.activeProvider?.available ? null : 'Configure AI execution in Settings to enable AI creation.'}
             key={c.activeSession?.id ?? 'no-session'}
@@ -289,7 +294,6 @@ export function AppShell(c: AppController) {
             onCancelGenerationJob={c.handleCancelGenerationJob}
             onCopy={c.copy}
             onDeleteDraft={c.requestDeleteDraft}
-            onPrefillFromNote={c.handlePrefillTestwareFromNote}
             onSaveDraft={c.handleSaveDraft}
             onDiscardDraft={c.discardLocalDraft}
             onUploadImage={(input, recordId) => c.uploadEditorImage(input, { kind: 'draft', id: recordId })}
@@ -299,6 +303,7 @@ export function AppShell(c: AppController) {
 
         {c.activeView === 'findings' ? (
           <FindingsView
+            composer={c.creationIntent?.kind === 'finding' ? composer : null}
             creationCommands={creationCommands('finding')}
             aiUnavailableReason={c.activeProvider?.available ? null : 'Configure AI execution in Settings to enable AI creation.'}
             key={c.activeSession?.id ?? 'no-session'}
@@ -322,7 +327,6 @@ export function AppShell(c: AppController) {
             onCancelGenerationJob={c.handleCancelGenerationJob}
             onCopy={c.copy}
             onDeleteFinding={c.requestDeleteFinding}
-            onPrefillFromNote={c.handlePrefillFindingFromNote}
             onSaveFinding={c.handleSaveFinding}
             onDiscardFinding={c.discardLocalFinding}
             onUploadImage={(input, recordId) => c.uploadEditorImage(input, { kind: 'finding', id: recordId })}
@@ -386,6 +390,7 @@ export function AppShell(c: AppController) {
         />
       ) : null}
 
+      {c.creationDecision ? <PendingChangesDialog creationDraft isBusy={c.creationIntent?.phase.state === 'saving'} onCancel={() => void c.creation.decide('keep')} onDiscard={() => void c.creation.decide('discard')} onSave={() => void c.creation.decide('save')} /> : null}
       {c.pendingNavigationView ? (
         <PendingChangesDialog
           recoveredSummaryConflict={c.pendingRecoveredSummaryDecision}

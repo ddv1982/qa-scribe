@@ -285,8 +285,9 @@ export function RichTextEditor({
     if (!editor || editor.isDestroyed || !editorId) return
     const insertImage: RichEditorImageInserter = (attachmentId, filename, previewSrc) => {
       if (editor.isDestroyed) return false
-      const source = `${managedAttachmentProtocol}${attachmentId}`
-      if (previewSrc) previewCache.seed(attachmentId, previewSrc)
+      const source = attachmentId ? `${managedAttachmentProtocol}${attachmentId}` : previewSrc
+      if (!source) return false
+      if (attachmentId && previewSrc) previewCache.seed(attachmentId, previewSrc)
       const inserted = editor
         .chain()
         .focus(undefined, { scrollIntoView: false })

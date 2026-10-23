@@ -1,22 +1,11 @@
-import { createDraft, createFinding, type Draft, type Finding, type Session } from '../tauri'
-import {
-  emptyRichEditorDocument,
-  richEditorDocumentFromHtml,
-  richEditorDocumentToStoredBody,
-  type RichEditorDocument,
-} from '../editor/editorDocument'
-import { formatError, nextUntitledRecordTitle } from '../ui/format'
-import type { BusyAction } from '../ui/types'
-import { renderPrefilledFinding, renderPrefilledTestware } from '../workflows/prefillTemplates'
+import type { Draft, Finding, Session } from '../tauri'
 import type { RecordPersistence, RecordPersistenceContext } from './recordPersistence'
 import { createDraftRecordActions } from './recordActions.drafts'
 import { createFindingRecordActions } from './recordActions.findings'
 import type {
   DeletionWorkspace,
-  CreatedRecordEditTarget,
   SessionWorkspace,
   WorkflowFeedback,
-  WorkflowNavigation,
 } from './types'
 import { useStableCapability } from './useStableCapability'
 
@@ -28,127 +17,18 @@ export type RecordLoaders = {
 export type RecordActionsContext = Omit<RecordPersistenceContext, 'session'> & {
   session: Pick<SessionWorkspace, 'activeSession' | 'activeSessionIdRef' | 'noteBodyHtml'>
   feedback: WorkflowFeedback
-  navigation: WorkflowNavigation
   deletion: DeletionWorkspace
-  saveNoteNow: (options?: { manageBusy?: boolean }) => Promise<boolean>
   registerRecordEditIntent: () => void
   handleDeleteSession: (session: Session) => Promise<void>
   invalidateDraftLoads: () => void
   invalidateFindingLoads: () => void
   loaders: RecordLoaders
-  beginSessionNavigation: () => number
-  sessionNavigationIsCurrent: (epoch: number) => boolean
-  openCreatedRecord: (target: CreatedRecordEditTarget, epoch: number) => Promise<void>
 }
 
 export function createRecordActions(ctx: RecordActionsContext, persistence: RecordPersistence) {
   const { coordination, saveDirtyRecordsNow } = persistence
   const draftActions = createDraftRecordActions(ctx, coordination, persistence.drafts)
   const findingActions = createFindingRecordActions(ctx, coordination, persistence.findings)
-  let creationEpoch: number | null = null
-
-  async function createRecordFromNote(
-    sessionId: string,
-    kind: CreatedRecordEditTarget['kind'],
-    busy: BusyAction,
-    bodyDocument: RichEditorDocument,
-    untitledTitle: string,
-    loadExistingTitles: () => Promise<Array<{ title: string }>>,
-    create: (title: string, body: ReturnType<typeof richEditorDocumentToStoredBody>) => Promise<{ id: string }>,
-    refresh: () => Promise<void>,
-    successNotice: string,
-  ) {
-    const epoch = ctx.beginSessionNavigation()
-    creationEpoch = epoch
-    const isCurrent = () => ctx.session.activeSessionIdRef.current === sessionId && ctx.sessionNavigationIsCurrent(epoch)
-    try {
-      ctx.feedback.setBusyAction(busy)
-      ctx.feedback.setError(null)
-      const saved = await ctx.saveNoteNow({ manageBusy: false })
-      if (!saved || !isCurrent()) return
-      const existingTitles = await loadExistingTitles()
-      if (!isCurrent()) return
-      const created = await create(nextUntitledRecordTitle(existingTitles, untitledTitle), richEditorDocumentToStoredBody(bodyDocument))
-      if (ctx.session.activeSessionIdRef.current !== sessionId) return
-      await refresh()
-      if (!isCurrent()) return
-      await ctx.openCreatedRecord({ sessionId, kind, recordId: created.id }, epoch)
-      if (isCurrent()) ctx.feedback.setNotice(successNotice)
-    } catch (cause) {
-      if (isCurrent()) ctx.feedback.setError(formatError(cause))
-    } finally {
-      if (creationEpoch === epoch) ctx.feedback.setBusyAction((current) => current === busy ? null : current)
-    }
-  }
-
-  async function handleManualTestware() {
-    if (!ctx.session.activeSession) return
-    const session = ctx.session.activeSession
-    await createRecordFromNote(
-      session.id, 'testware',
-      'manual-testware',
-      emptyRichEditorDocument,
-      'Untitled test case',
-      async () => (await ctx.loaders.loadDraftsForSession(session.id)).filter((draft) => draft.kind === 'testware'),
-      (title, body) => createDraft({ sessionId: session.id, aiRunId: null, kind: 'testware', title, ...body, metadataJson: null }),
-      async () => {
-        await ctx.loaders.loadDraftsForSession(session.id, { force: true, replace: true })
-      },
-      'Test case created',
-    )
-  }
-
-  async function handlePrefillTestwareFromNote() {
-    if (!ctx.session.activeSession) return
-    const session = ctx.session.activeSession
-    await createRecordFromNote(
-      session.id, 'testware',
-      'prefill-testware',
-      richEditorDocumentFromHtml(renderPrefilledTestware(session.title, ctx.session.noteBodyHtml)),
-      'Untitled test case',
-      async () => (await ctx.loaders.loadDraftsForSession(session.id)).filter((draft) => draft.kind === 'testware'),
-      (title, body) => createDraft({ sessionId: session.id, aiRunId: null, kind: 'testware', title, ...body, metadataJson: null }),
-      async () => {
-        await ctx.loaders.loadDraftsForSession(session.id, { force: true, replace: true })
-      },
-      'Test cases prefilled from note',
-    )
-  }
-
-  async function handleManualFinding() {
-    if (!ctx.session.activeSession) return
-    const session = ctx.session.activeSession
-    await createRecordFromNote(
-      session.id, 'finding',
-      'manual-finding',
-      emptyRichEditorDocument,
-      'Untitled finding',
-      async () => ctx.loaders.loadFindingsForSession(session.id),
-      (title, body) => createFinding({ sessionId: session.id, title, ...body, kind: 'bug', metadataJson: null }),
-      async () => {
-        await ctx.loaders.loadFindingsForSession(session.id, { force: true, replace: true })
-      },
-      'Finding created',
-    )
-  }
-
-  async function handlePrefillFindingFromNote() {
-    if (!ctx.session.activeSession) return
-    const session = ctx.session.activeSession
-    await createRecordFromNote(
-      session.id, 'finding',
-      'prefill-finding',
-      richEditorDocumentFromHtml(renderPrefilledFinding(ctx.session.noteBodyHtml)),
-      'Untitled finding',
-      async () => ctx.loaders.loadFindingsForSession(session.id),
-      (title, body) => createFinding({ sessionId: session.id, title, ...body, kind: 'bug', metadataJson: null }),
-      async () => {
-        await ctx.loaders.loadFindingsForSession(session.id, { force: true, replace: true })
-      },
-      'Finding prefilled from note',
-    )
-  }
-
   function discardAllDirtyRecords() {
     const dirtyDraftIds = new Set(ctx.records.dirtyDraftIdsRef.current)
     const dirtyFindingIds = new Set(ctx.records.dirtyFindingIdsRef.current)
@@ -210,10 +90,6 @@ export function createRecordActions(ctx: RecordActionsContext, persistence: Reco
     discardLocalDraft: draftActions.discardLocalDraft,
     discardLocalFinding: findingActions.discardLocalFinding,
     discardAllDirtyRecords,
-    handleManualFinding,
-    handleManualTestware,
-    handlePrefillFindingFromNote,
-    handlePrefillTestwareFromNote,
     hasPendingRecordCompensations: coordination.hasPendingRecordCompensations,
     saveDirtyRecordsNow,
     handleSaveDraft: draftActions.handleSaveDraft,

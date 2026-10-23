@@ -178,7 +178,6 @@ describe('copy success buttons', () => {
         onCancelGenerationJob={async () => undefined}
         onCopy={async () => undefined}
         onDeleteDraft={() => undefined}
-        onPrefillFromNote={async () => undefined}
         onSaveDraft={async () => true}
         onDiscardDraft={vi.fn()}
         onUploadImage={() => undefined}
@@ -204,7 +203,6 @@ describe('copy success buttons', () => {
         onCancelGenerationJob={async () => undefined}
         onCopy={async () => undefined}
         onDeleteFinding={() => undefined}
-        onPrefillFromNote={async () => undefined}
         onSaveFinding={async () => true}
         onDiscardFinding={vi.fn()}
         onUploadImage={() => undefined}
@@ -267,7 +265,6 @@ describe('copy success buttons', () => {
         onCancelGenerationJob={async () => undefined}
         onCopy={async () => undefined}
         onDeleteDraft={() => undefined}
-        onPrefillFromNote={async () => undefined}
         onSaveDraft={async () => true}
         onDiscardDraft={vi.fn()}
         onUploadImage={() => undefined}
@@ -293,7 +290,6 @@ describe('copy success buttons', () => {
         onCancelGenerationJob={async () => undefined}
         onCopy={async () => undefined}
         onDeleteFinding={() => undefined}
-        onPrefillFromNote={async () => undefined}
         onSaveFinding={async () => true}
         onDiscardFinding={vi.fn()}
         onUploadImage={() => undefined}
@@ -320,7 +316,6 @@ describe('copy success buttons', () => {
         onCancelGenerationJob={async () => undefined}
         onCopy={async () => undefined}
         onDeleteDraft={() => undefined}
-        onPrefillFromNote={async () => undefined}
         onSaveDraft={async () => false}
         onDiscardDraft={vi.fn()}
         onUploadImage={() => undefined}
@@ -349,7 +344,6 @@ describe('copy success buttons', () => {
         onCancelGenerationJob={async () => undefined}
         onCopy={async () => undefined}
         onDeleteFinding={() => undefined}
-        onPrefillFromNote={async () => undefined}
         onSaveFinding={async () => false}
         onDiscardFinding={vi.fn()}
         onUploadImage={() => undefined}

@@ -1011,3 +1011,19 @@
 .status-dot.unavailable {
   background: var(--text-tertiary);
 }
+
+.creation-composer {
+  min-width: 0;
+}
+
+.creation-fields {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.creation-composer .record-actions {
+  flex-wrap: wrap;
+}

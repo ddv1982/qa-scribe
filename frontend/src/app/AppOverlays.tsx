@@ -5,12 +5,14 @@ import { useModalDialog } from '../hooks/useModalDialog'
 import type { AppCommand } from './commandRegistry'
 
 export function PendingChangesDialog({
+  creationDraft = false,
   recoveredSummaryConflict = false,
   isBusy,
   onCancel,
   onDiscard,
   onSave,
 }: {
+  creationDraft?: boolean
   recoveredSummaryConflict?: boolean
   isBusy: boolean
   onCancel: () => void
@@ -23,7 +25,7 @@ export function PendingChangesDialog({
   const title = recoveredSummaryConflict ? 'Choose which Note to keep' : 'Save before leaving?'
   const body = recoveredSummaryConflict
     ? 'A recovered Summary replaced locally authored text. Restore the authored text, keep the visible generated Summary and its edits, or stay here. Keeping the Summary also discards any other unsaved changes.'
-    : 'Explicit edits to Settings, Testware, or Findings have not been saved. Save them, discard them, or stay here.'
+    : creationDraft ? 'This draft is not saved yet. Save it, discard it, or keep editing.' : 'Explicit edits to Settings, Testware, or Findings have not been saved. Save them, discard them, or stay here.'
   return (
     <dialog ref={dialogRef} className="confirmation-dialog" aria-labelledby="pending-changes-title">
       <div>
@@ -39,11 +41,11 @@ export function PendingChangesDialog({
           </>
         ) : (
           <>
-            <ActionButton variant="destructive-quiet" className="pending-change-discard" disabled={isBusy} onClick={onDiscard}>Discard changes</ActionButton>
+            <ActionButton variant="destructive-quiet" className="pending-change-discard" disabled={isBusy} onClick={onDiscard}>{creationDraft ? 'Discard draft' : 'Discard changes'}</ActionButton>
             <ActionButton ref={cancelRef} disabled={isBusy} onClick={onCancel}>Keep editing</ActionButton>
           </>
         )}
-        <ActionButton variant="primary" disabled={isBusy} onClick={onSave}>{recoveredSummaryConflict ? 'Restore authored text' : 'Save and continue'}</ActionButton>
+        <ActionButton variant="primary" disabled={isBusy} onClick={onSave}>{recoveredSummaryConflict ? 'Restore authored text' : creationDraft ? 'Save draft' : 'Save and continue'}</ActionButton>
       </div>
     </dialog>
   )

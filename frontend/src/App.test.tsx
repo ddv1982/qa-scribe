@@ -10,6 +10,7 @@ import { managedAttachmentImageHtml } from './editor/editorHtml'
 const tauriMock = vi.hoisted(() => ({
   cancelAiActionJob: vi.fn(),
   copyAttachmentImageToClipboard: vi.fn(),
+  prepareCreationSave: vi.fn(), commitCreationSave: vi.fn(), abortCreationSave: vi.fn(),
   createDraft: vi.fn(),
   createEntry: vi.fn(),
   createFinding: vi.fn(),
@@ -380,21 +381,18 @@ describe('App workflows', () => {
     expect(screen.getByRole('heading', { name: 'Checkout coverage' })).toBeInTheDocument()
   })
 
-  it('creates testware after saving pending note edits', async () => {
+  it('opens and cancels an unsaved testware composer without inserting a record', async () => {
     const user = userEvent.setup()
     render(<App />)
-
     await waitFor(() => expect(screen.getByRole('textbox', { name: 'Session title' })).toHaveValue('Checkout session'))
     await user.click(screen.getByRole('tab', { name: /test cases/i }))
     await user.click(screen.getByRole('button', { name: /^create test cases$/i }))
-
-    await waitFor(() => expect(tauriMock.createDraft).toHaveBeenCalled())
-    expect(tauriMock.createDraft.mock.calls[0][0]).toMatchObject({
-      sessionId: 'session-1',
-      aiRunId: null,
-      kind: 'testware',
-      metadataJson: null,
-    })
+    expect(await screen.findByRole('textbox', { name: 'Test case title' })).toHaveValue('')
+    expect(screen.getByText('Draft, not saved yet')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('textbox', { name: 'Test case title' })).not.toBeInTheDocument()
+    expect(tauriMock.createDraft).not.toHaveBeenCalled()
+    expect(tauriMock.prepareCreationSave).not.toHaveBeenCalled()
   })
 
   it('opens the command palette from the keyboard and runs its canonical navigation command', async () => {

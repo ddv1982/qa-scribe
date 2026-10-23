@@ -212,7 +212,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function cloneRichEditorDocument(document: RichEditorDocument): RichEditorDocument {
+export function cloneRichEditorDocument(document: RichEditorDocument): RichEditorDocument {
   return {
     schemaVersion: 1,
     doc: cloneJsonContent(document.doc),
