@@ -335,6 +335,8 @@ for (const noExecve of [false, true]) {
       recursive: true,
       filter: (source) => !['node_modules', 'dist', '.git'].includes(source.split('/').at(-1)) && !source.endsWith('.tsbuildinfo'),
     })
+    mkdirSync(join(f.scratch, 'shared'))
+    copyFileSync(join(root, 'shared/creation-starters.json'), join(f.scratch, 'shared/creation-starters.json'))
     symlinkSync(join(root, 'frontend/node_modules'), join(f.frontend, 'node_modules'))
     const s = f.launch()
     t.after(() => t.diagnostic(s.output))
