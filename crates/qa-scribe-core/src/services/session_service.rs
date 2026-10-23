@@ -5,11 +5,12 @@ use uuid::Uuid;
 
 use crate::{QaScribeError, Result, storage::Database};
 
-mod attachments;
+pub(crate) mod attachments;
 mod chat;
 mod chat_rows;
 mod chat_submission;
 mod chat_turns;
+pub(crate) mod creation;
 mod drafts;
 mod entries;
 mod findings;
@@ -48,7 +49,7 @@ impl SessionService {
     }
 }
 
-fn require_session(connection: &rusqlite::Connection, session_id: &str) -> Result<()> {
+pub(crate) fn require_session(connection: &rusqlite::Connection, session_id: &str) -> Result<()> {
     let exists: Option<String> = connection
         .query_row(
             "SELECT id FROM sessions WHERE id = ?1",

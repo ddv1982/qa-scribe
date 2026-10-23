@@ -42,7 +42,7 @@ pub(super) fn skip_whitespace(value: &str, mut index: usize) -> usize {
 /// an attribute delimiter. Byte indices are accepted and returned so callers
 /// can slice the original fragment without allocation; invalid UTF-8
 /// boundaries are rejected rather than panicking.
-pub(super) fn find_html_tag_end(value: &str, start: usize) -> Option<usize> {
+pub(crate) fn find_html_tag_end(value: &str, start: usize) -> Option<usize> {
     if start > value.len() || !value.is_char_boundary(start) {
         return None;
     }
@@ -70,7 +70,7 @@ pub(super) fn find_html_tag_end(value: &str, start: usize) -> Option<usize> {
 /// `response.rs` needs narrower decoding and uses
 /// [`attribute_value_with_decoder`] with [`decode_basic_html_entities`]
 /// instead.
-pub(super) fn attribute_value(raw_tag: &str, attribute: &str) -> Option<String> {
+pub(crate) fn attribute_value(raw_tag: &str, attribute: &str) -> Option<String> {
     attribute_value_with_decoder(raw_tag, attribute, decode_html_entities)
 }
 

@@ -1,4 +1,5 @@
 mod html;
+pub(crate) use html::{attribute_value, find_html_tag_end};
 mod html_projection;
 mod preferences;
 mod prompt;

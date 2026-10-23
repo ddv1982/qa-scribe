@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-abort-creation-save"
+description = "Enables the abort_creation_save command without any pre-configured scope."
+commands.allow = ["abort_creation_save"]
+
+[[permission]]
+identifier = "deny-abort-creation-save"
+description = "Denies the abort_creation_save command without any pre-configured scope."
+commands.deny = ["abort_creation_save"]

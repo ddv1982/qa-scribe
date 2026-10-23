@@ -2,6 +2,10 @@ import { Channel } from '@tauri-apps/api/core'
 
 import {
   commands,
+  type PrepareCreationSave,
+  type PreparedCreation,
+  type CommitCreationSave,
+  type CreationOutcome,
   type AiProvider,
   type AppSettings,
   type Attachment,
@@ -229,4 +233,20 @@ export function listActiveAiActionJobs(): Promise<GenerationJobStatus[]> {
 
 export function cancelAiActionJob(jobId: string): Promise<GenerationJobStatus> {
   return commands.cancelAiActionJob(jobId)
+}
+
+export function prepareCreationSave(request: PrepareCreationSave): Promise<PreparedCreation> {
+  return commands.prepareCreationSave(request)
+}
+
+export function commitCreationSave(request: CommitCreationSave): Promise<CreationOutcome> {
+  return commands.commitCreationSave(request)
+}
+
+export function abortCreationSave(attemptId: string): Promise<CreationOutcome> {
+  return commands.abortCreationSave(attemptId)
+}
+
+export function copyLocalImageToClipboard(dataUrl: string): Promise<void> {
+  return commands.copyLocalImageToClipboard(dataUrl).then(() => undefined)
 }

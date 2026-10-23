@@ -3,6 +3,11 @@
 [default]
 description = "Allows the main qa-scribe window to invoke the app's explicit custom command surface."
 permissions = [
+  "allow-prepare-creation-save",
+  "allow-commit-creation-save",
+  "allow-abort-creation-save",
+  "allow-copy-local-image-to-clipboard",
+
   "allow-get-settings",
   "allow-update-settings",
   "allow-list-sessions",

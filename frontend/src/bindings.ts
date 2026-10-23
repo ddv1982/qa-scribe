@@ -4,6 +4,10 @@ import { invoke as __TAURI_INVOKE, Channel } from "@tauri-apps/api/core";
 
 /** Commands */
 export const commands = {
+	prepareCreationSave: (request: PrepareCreationSave) => __TAURI_INVOKE<PreparedCreation>("prepare_creation_save", { request }),
+	commitCreationSave: (request: CommitCreationSave) => __TAURI_INVOKE<CreationOutcome>("commit_creation_save", { request }),
+	abortCreationSave: (attemptId: string) => __TAURI_INVOKE<CreationOutcome>("abort_creation_save", { attemptId }),
+	copyLocalImageToClipboard: (dataUrl: string) => __TAURI_INVOKE<null>("copy_local_image_to_clipboard", { dataUrl }),
 	getSettings: () => __TAURI_INVOKE<AppSettings>("get_settings"),
 	updateSettings: (settings: AppSettings) => __TAURI_INVOKE<AppSettings>("update_settings", { settings }),
 	listSessions: () => __TAURI_INVOKE<Session[]>("list_sessions"),
@@ -215,6 +219,34 @@ export type CommandError = {
 
 export type CommandErrorKind = "validation" | "notFound" | "internal";
 
+export type CommitCreationSave = {
+	attemptId: string,
+	record: CreationRecordInput,
+	images: CreationImageInput[],
+	sharedAttachmentIds: string[],
+};
+
+export type CreatedRecord = { kind: "finding"; record: Finding } | { kind: "testware"; record: Draft };
+
+export type CreationImageDescriptor = {
+	localId: string,
+	filename: string,
+	mimeType: string,
+	sizeBytes: number,
+	sha256: string,
+};
+
+export type CreationImageInput = {
+	localId: string,
+	dataUrl: string,
+};
+
+export type CreationKind = "finding" | "testware";
+
+export type CreationOutcome = { state: "preparing" } | { state: "committed"; record: CreatedRecord } | { state: "committedDeleted"; recordId: string } | { state: "aborted" };
+
+export type CreationRecordInput = { kind: "finding"; title: string; body: string; bodyJson: string | null; bodyFormat: string | null; metadataJson: string | null; findingKind: FindingKind } | { kind: "testware"; title: string; body: string; bodyJson: string | null; bodyFormat: string | null; metadataJson: string | null };
+
 export type Draft = {
 	id: string,
 	sessionId: string,
@@ -407,6 +439,25 @@ export type GenerationJobStatus_Serialize = {
 	errorMessage: string | null,
 	partialText: string | null,
 	pendingPermission?: ChatPermissionRequest_Serialize | null,
+};
+
+export type PrepareCreationSave = {
+	attemptId: string,
+	sessionId: string,
+	kind: CreationKind,
+	images: CreationImageDescriptor[],
+};
+
+export type PreparedCreation = {
+	attemptId: string,
+	images: PreparedCreationImage[],
+	outcome: CreationOutcome,
+};
+
+export type PreparedCreationImage = {
+	localId: string,
+	attachmentId: string,
+	filename: string,
 };
 
 export type ProviderCatalogRollout = "disabled" | "diagnostics" | "selector";

@@ -83,7 +83,7 @@ fn v10_legacy_model_bytes_survive_migration_and_reopen() {
         connection
             .query_row("PRAGMA user_version", [], |r| r.get::<_, i32>(0))
             .unwrap(),
-        11
+        qa_scribe_core::storage::SCHEMA_VERSION
     );
     drop(connection);
     std::fs::remove_file(path).unwrap();

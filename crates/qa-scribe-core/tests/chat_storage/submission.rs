@@ -25,7 +25,20 @@ fn assistant_markdown_submission_formats_html_and_json_and_preserves_user_litera
             "**Keep literal**",
             assistant,
         );
+        let before_revision = service
+            .note_source(&id, &note.id)
+            .unwrap()
+            .unwrap()
+            .revision;
         let receipt = service.submit_chat(submit_request(&chat, &note)).unwrap();
+        assert_eq!(
+            service
+                .note_source(&id, &note.id)
+                .unwrap()
+                .unwrap()
+                .revision,
+            before_revision + 1
+        );
         let result = service.get_or_create_note_entry(&id).unwrap();
         assert!(result.body.starts_with("<p>Existing</p>"));
         assert!(

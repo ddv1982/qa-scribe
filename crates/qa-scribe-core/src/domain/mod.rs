@@ -1,6 +1,7 @@
 mod ai_run;
 mod attachment;
 mod chat;
+mod creation;
 mod draft;
 mod entry;
 mod finding;
@@ -12,6 +13,7 @@ mod validation;
 pub use ai_run::*;
 pub use attachment::*;
 pub use chat::*;
+pub use creation::*;
 pub use draft::*;
 pub use entry::*;
 pub use finding::*;
