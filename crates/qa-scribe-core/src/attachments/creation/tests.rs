@@ -407,3 +407,5 @@ mod safety;
 mod limits;
 
 mod process;
+
+pub(super) mod io_failure;

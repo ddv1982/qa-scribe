@@ -106,12 +106,19 @@ pub(super) fn stage(root: &Path, slot: &CreationAttemptImage, bytes: &[u8]) -> R
         return Ok(());
     }
     if !verify(&temp, slot)? {
-        let mut file = OpenOptions::new()
+        let file = OpenOptions::new()
             .write(true)
             .create_new(true)
             .open(&temp)?;
-        file.write_all(bytes)?;
-        file.sync_all()?;
+        if let Err(original) = write_temp(file, bytes) {
+            return Err(match remove_temp(&temp) {
+                Ok(()) => original,
+                Err(cleanup) => {
+                    io::Error::new(original.kind(), TempCleanupError { original, cleanup })
+                }
+            }
+            .into());
+        }
         #[cfg(test)]
         super::tests::cut("temp");
     }
@@ -121,6 +128,31 @@ pub(super) fn stage(root: &Path, slot: &CreationAttemptImage, bytes: &[u8]) -> R
     #[cfg(test)]
     super::tests::cut("rename");
     Ok(())
+}
+
+fn write_temp(mut file: File, bytes: &[u8]) -> io::Result<()> {
+    #[cfg(test)]
+    if let Some(write) = super::tests::io_failure::take_write() {
+        return write(file, bytes);
+    }
+    file.write_all(bytes)?;
+    file.sync_all()
+}
+
+#[derive(Debug, thiserror::Error)]
+#[error("{original}; failed to remove newly created creation temp file: {cleanup}")]
+struct TempCleanupError {
+    #[source]
+    original: io::Error,
+    cleanup: io::Error,
+}
+
+fn remove_temp(path: &Path) -> io::Result<()> {
+    #[cfg(test)]
+    if let Some(remove) = super::tests::io_failure::take_remove() {
+        return remove(path);
+    }
+    fs::remove_file(path)
 }
 
 pub(super) fn verify_final(root: &Path, slot: &CreationAttemptImage) -> Result<()> {
