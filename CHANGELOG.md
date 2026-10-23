@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.8.20 - 2026-10-23
+
+- Use one creation route from Notes and collections for Findings and test cases. New drafts stay local until Save; authored drafts offer Save draft, Discard draft, or Keep editing before leaving.
+- Start with shared document sections, optionally Prefill from note, or choose Generate with AI inside the draft. Review the saved Note source before confirming; successful generation saves one result immediately.
+- Unify action controls, fields, dialogs, and Settings feedback, with layouts that keep creation choices and editing actions reachable in laptop and narrow windows.
+- Recover owned image staging after interrupted saves, keep drafts editable after definite preparation failures, and preserve shared Note evidence and committed results during retry and cleanup.
+- Keep confirmed Chat restarts working across composer autosave while preserving changed-conversation guards and the canonical Session Note.
+- Update Tokio to 1.53.3 for RUSTSEC-2026-0386 without adding audit exceptions.
+- Show the Note editor focus outline immediately when reduced motion is enabled, without animating its width or position.
+- Run release validation on the same Ubuntu 26.04 environment as protected Linux CI while retaining Ubuntu 24.04 installer build and launch coverage.
+
 ## v0.8.19 - 2026-10-23
 
 - Use one creation route from Notes and collections for Findings and test cases. New drafts stay local until Save; authored drafts offer Save draft, Discard draft, or Keep editing before leaving.
