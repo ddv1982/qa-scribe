@@ -63,6 +63,8 @@ function ratio(fg, bg) {
 // [foreground token, background token, minimum ratio]
 const PAIRS = [
   ['text-primary', 'surface-base', 4.5],
+  ['accent', 'action-danger-tint', 3],
+  ['text-primary', 'surface-base', 4.5],
   ['text-primary', 'surface-panel', 4.5],
   ['text-primary', 'surface-raised', 4.5],
   ['text-primary', 'surface-sunken', 4.5],
@@ -125,4 +127,4 @@ if (failures > 0) {
   console.error(`\ncontrast: ${failures} failing pair(s)`);
   process.exit(1);
 }
-console.log(`contrast: OK (${PAIRS.length * 2} pairs checked, no skipped states)`);
+console.log(`contrast: OK (${PAIRS.length * 2} token pairs checked, no skipped pairs)`);

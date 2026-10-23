@@ -4,6 +4,7 @@
 // `pub use` re-exports below do not carry.
 pub(crate) mod ai;
 pub(crate) mod chat;
+pub(crate) mod creation;
 pub(crate) mod entries;
 pub mod error;
 pub(crate) mod files;

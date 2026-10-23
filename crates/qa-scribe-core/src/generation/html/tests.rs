@@ -228,3 +228,36 @@ fn find_case_insensitive_does_not_panic_when_multibyte_char_overlaps_match_windo
     let haystack = "data\u{2019}x";
     assert_eq!(find_case_insensitive(haystack, "data:"), None);
 }
+
+#[test]
+fn attribute_value_preserves_slashes_in_unquoted_url_values() {
+    for value in [
+        "qa-scribe-attachment://attachment-id",
+        "https://example.test/path/image.png",
+        "data:image/png;base64,aW1hZ2U=",
+        "blob:local/image",
+    ] {
+        let tag = format!("img src={value} alt=example");
+        assert_eq!(attribute_value(&tag, "src"), Some(value.into()));
+        assert_eq!(attribute_value(&tag, "alt"), Some("example".into()));
+    }
+    assert_eq!(
+        attribute_value("img src=https://example.test/path/", "src"),
+        Some("https://example.test/path/".into())
+    );
+}
+
+#[test]
+fn attribute_value_reads_attributes_after_tag_name_slashes() {
+    for tag in [
+        "img/src=\"qa-scribe-attachment://attachment-id\"",
+        "img/src=qa-scribe-attachment://attachment-id",
+        "IMG//SRC='qa-scribe-attachment://attachment-id'",
+        "img /src=qa-scribe-attachment://attachment-id",
+    ] {
+        assert_eq!(
+            attribute_value(tag, "src"),
+            Some("qa-scribe-attachment://attachment-id".into())
+        );
+    }
+}

@@ -19,6 +19,7 @@ export type RichRecordPatch = Partial<Pick<Draft, 'title' | 'body' | 'bodyJson' 
 export type FindingRecordPatch = RichRecordPatch & Partial<Pick<Finding, 'kind' | 'metadataJson'>>
 
 export type CreatedRecordEditTarget = {
+  editing?: boolean
   sessionId: string
   kind: 'testware' | 'finding'
   recordId: string

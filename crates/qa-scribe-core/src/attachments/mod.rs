@@ -16,9 +16,10 @@ use crate::{
     services::SessionService,
 };
 
-const MAX_ATTACHMENT_BYTES: u64 = 25 * 1024 * 1024;
+pub const MAX_ATTACHMENT_BYTES: u64 = 25 * 1024 * 1024;
 
 mod cleanup;
+pub mod creation;
 pub(crate) use cleanup::is_exact_attachment_path;
 pub use cleanup::{
     delete_session_attachment_files, delete_session_with_attachment_files, retry_attachment_cleanup,
@@ -35,7 +36,7 @@ const ATTACHMENT_ID_PREFIX_LENGTH: usize = 36 + 1;
 /// name (`{attachment_id}_{filename}`) never approaches that limit, turning
 /// what would otherwise be a raw OS `ENAMETOOLONG` I/O error into a clean
 /// validation error raised before any file is written.
-const MAX_ATTACHMENT_FILENAME_BYTES: usize = 200;
+pub(crate) const MAX_ATTACHMENT_FILENAME_BYTES: usize = 200;
 
 const _: () = assert!(MAX_ATTACHMENT_FILENAME_BYTES + ATTACHMENT_ID_PREFIX_LENGTH <= 255);
 
@@ -93,6 +94,19 @@ pub fn import_clipboard_screenshot_data_url(
     filename: String,
     data_url: &str,
 ) -> Result<Attachment> {
+    let (mime_type, bytes) = decode_image_data_url(data_url)?;
+    import_managed_attachment_bytes(
+        service,
+        app_data_dir,
+        session_id,
+        entry_id,
+        filename,
+        Some(mime_type),
+        bytes,
+    )
+}
+
+pub fn decode_image_data_url(data_url: &str) -> Result<(String, Vec<u8>)> {
     let (mime_type, encoded) = data_url
         .split_once(",")
         .ok_or_else(|| validation("clipboard screenshot data URL is invalid"))?;
@@ -109,20 +123,18 @@ pub fn import_clipboard_screenshot_data_url(
     let bytes = STANDARD
         .decode(encoded)
         .map_err(|_| validation("clipboard screenshot data URL could not decode"))?;
-    import_managed_attachment_bytes(
-        service,
-        app_data_dir,
-        session_id,
-        entry_id,
-        filename,
-        Some(
-            mime_type
-                .trim_start_matches("data:")
-                .trim_end_matches(";base64")
-                .to_string(),
-        ),
+    if bytes.len() as u64 > MAX_ATTACHMENT_BYTES {
+        return Err(validation(format!(
+            "attachment must be at most {MAX_ATTACHMENT_BYTES} bytes"
+        )));
+    }
+    Ok((
+        mime_type
+            .trim_start_matches("data:")
+            .trim_end_matches(";base64")
+            .to_string(),
         bytes,
-    )
+    ))
 }
 
 pub fn import_managed_attachment_bytes(
@@ -341,12 +353,12 @@ fn read_attachment_stream(reader: impl Read) -> Result<Vec<u8>> {
     Ok(bytes)
 }
 
-fn hex_sha256(bytes: &[u8]) -> String {
+pub(crate) fn hex_sha256(bytes: &[u8]) -> String {
     let digest = Sha256::digest(bytes);
     digest.iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
-fn safe_filename(filename: &str) -> String {
+pub(crate) fn safe_filename(filename: &str) -> String {
     filename
         .chars()
         .map(|character| match character {

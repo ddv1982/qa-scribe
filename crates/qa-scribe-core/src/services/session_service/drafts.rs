@@ -17,35 +17,7 @@ use super::{
 
 impl SessionService {
     pub fn create_draft(&self, draft: DraftCreate) -> Result<Draft> {
-        require_session(self.database.connection(), &draft.session_id)?;
-        if let Some(ai_run_id) = &draft.ai_run_id {
-            require_row_in_session(
-                self.database.connection(),
-                "ai_runs",
-                ai_run_id,
-                &draft.session_id,
-                "Draft AI Run must belong to the Session",
-            )?;
-        }
-        let id = new_id();
-        let now = now();
-        let title = validate_required_text("Draft title", &draft.title, TITLE_MAX_LENGTH)?;
-        let body = validate_body_text("Draft body", &draft.body, DRAFT_BODY_MAX_LENGTH)?;
-        let body_json = validate_body_json(draft.body_json)?;
-        let body_format = validate_optional_text(
-            "Draft body format",
-            draft.body_format,
-            BODY_FORMAT_MAX_LENGTH,
-        )?;
-        let metadata_json = validate_metadata_json(draft.metadata_json)?;
-
-        self.database.connection().execute(
-            "INSERT INTO drafts (id, session_id, ai_run_id, kind, title, body, body_json, body_format, metadata_json, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, COALESCE(?8, 'html'), ?9, ?10, ?10)",
-            params![id, draft.session_id, draft.ai_run_id, draft.kind.as_str(), title, body, body_json, body_format, metadata_json, now],
-        )?;
-
-        draft_by_id(self.database.connection(), &id)?.ok_or(QaScribeError::NotFound(id))
+        create_draft_on(self.database.connection(), draft)
     }
 
     pub fn list_drafts(&self, session_id: &str) -> Result<Vec<Draft>> {
@@ -134,7 +106,7 @@ impl SessionService {
     }
 }
 
-fn draft_by_id(connection: &Connection, id: &str) -> Result<Option<Draft>> {
+pub(super) fn draft_by_id(connection: &Connection, id: &str) -> Result<Option<Draft>> {
     connection
         .query_row(
             "SELECT id, session_id, ai_run_id, kind, title, body, body_json, body_format, metadata_json, created_at, updated_at
@@ -145,4 +117,36 @@ fn draft_by_id(connection: &Connection, id: &str) -> Result<Option<Draft>> {
         )
         .optional()
         .map_err(Into::into)
+}
+
+pub(super) fn create_draft_on(connection: &Connection, draft: DraftCreate) -> Result<Draft> {
+    require_session(connection, &draft.session_id)?;
+    if let Some(ai_run_id) = &draft.ai_run_id {
+        require_row_in_session(
+            connection,
+            "ai_runs",
+            ai_run_id,
+            &draft.session_id,
+            "Draft AI Run must belong to the Session",
+        )?;
+    }
+    let id = new_id();
+    let now = now();
+    let title = validate_required_text("Draft title", &draft.title, TITLE_MAX_LENGTH)?;
+    let body = validate_body_text("Draft body", &draft.body, DRAFT_BODY_MAX_LENGTH)?;
+    let body_json = validate_body_json(draft.body_json)?;
+    let body_format = validate_optional_text(
+        "Draft body format",
+        draft.body_format,
+        BODY_FORMAT_MAX_LENGTH,
+    )?;
+    let metadata_json = validate_metadata_json(draft.metadata_json)?;
+
+    connection.execute(
+            "INSERT INTO drafts (id, session_id, ai_run_id, kind, title, body, body_json, body_format, metadata_json, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, COALESCE(?8, 'html'), ?9, ?10, ?10)",
+            params![id, draft.session_id, draft.ai_run_id, draft.kind.as_str(), title, body, body_json, body_format, metadata_json, now],
+        )?;
+
+    draft_by_id(connection, &id)?.ok_or(QaScribeError::NotFound(id))
 }

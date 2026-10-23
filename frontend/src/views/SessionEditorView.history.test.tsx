@@ -22,7 +22,7 @@ import { createAttachmentActions, type AttachmentActionsContext } from '../app/a
 import { emptyRichEditorDocument, richEditorDocumentFromHtml, richEditorDocumentToHtml, richEditorDocumentsEqual, type RichEditorDocument } from '../editor/editorDocument'
 import { managedAttachmentImageHtml } from '../editor/editorHtml'
 import { useRichEditorController, type RichEditorController } from '../editor/richEditorRegistry'
-import { entryFixture, providerStatusFixture, sessionFixture } from '../test/fixtures'
+import { entryFixture, sessionFixture } from '../test/fixtures'
 import { SessionEditorView } from './SessionEditorView'
 
 type ViewProps = ComponentProps<typeof SessionEditorView>
@@ -76,8 +76,7 @@ function mountSession(initialBody = doc('A original'), onUploadImage: ViewProps[
     <SessionEditorView creationCommands={{ finding: recordCreationCommandsFixture('finding'), testware: recordCreationCommandsFixture('testware') }} noteBodyHtml="<p>Body</p>"
       activeProviderAvailable activeSession={session} busyAction={null} canUndoLatestGeneration={false} copyState={{ status: 'idle' }} filteredSessions={[sessionA, sessionB]}
       isBusy={false} noteBody={body} noteIsReady noteScreenshotCount={0} sessionTitle={session.title}
-      noteWordCount={2} notice={null} error={null} pendingAiActions={{}} selectedProvider="codex_cli"
-      selectedModel="default" activeProvider={providerStatusFixture().providers[0]}
+      noteWordCount={2} notice={null} error={null} pendingAiActions={{}}
       onAiAction={async () => {}} onUndoLatestGeneration={async () => {}} onCopy={async () => {}}
       onCreateSession={() => {}} canCreateSession onDeleteSession={() => {}} onOpenSession={async () => {}}
       onSetNoteBody={onSetNoteBody} onSetSessionTitle={() => {}} onUploadImage={onUploadImage} {...presentation}

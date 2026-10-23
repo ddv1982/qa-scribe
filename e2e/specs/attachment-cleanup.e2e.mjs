@@ -84,6 +84,7 @@ async function captureLayout(name, requestedWidth) {
     const editorRect = editor.getBoundingClientRect()
     const hit = document.elementFromPoint(editorRect.x + editorRect.width / 2, editorRect.y + editorRect.height / 2)
     return { viewport: { width: innerWidth, height: innerHeight }, container: rect(container),
+      warningInset: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--space-5')),
       warning: rect(document.querySelector('[aria-label="Attachment cleanup"]')),
       header: rect(document.querySelector('.session-context-header')),
       workspace: rect(editor.closest('.session-workspace')), editor: rect(editor),
@@ -110,7 +111,7 @@ function assertLayout(value) {
   assert.equal(value.grid.display, 'grid')
   assert.equal(value.grid.columns.trim().split(/\s+/).length, 1,
     `${name}: warning and active Session must not create implicit columns: ${value.grid.columns}`)
-  for (const [label, box, width] of [['warning', warning, container.width], ['header', header, container.width],
+  for (const [label, box, width] of [['warning', warning, container.width - 2 * value.warningInset], ['header', header, container.width],
     ['Note workspace', workspace, Math.min(container.width, 980)]]) {
     assert.ok(Math.abs(box.width - width) <= 2, `${name}: ${label} width ${box.width} must be ${width}`)
     assert.ok(Math.abs(box.x + box.width / 2 - container.x - container.width / 2) <= 2,

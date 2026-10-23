@@ -3,8 +3,8 @@ use std::io::Cursor;
 use base64::{Engine, engine::general_purpose::STANDARD};
 use qa_scribe_core::{
     attachments::{
-        attachment_file_bytes, attachment_preview_data_url, delete_attachment_with_file,
-        import_clipboard_screenshot_data_url,
+        attachment_file_bytes, attachment_preview_data_url, decode_image_data_url,
+        delete_attachment_with_file, import_clipboard_screenshot_data_url,
     },
     domain::Attachment,
 };
@@ -115,7 +115,26 @@ pub async fn copy_attachment_image_to_clipboard(
     .await
 }
 
-async fn attachment_task<T: Send + 'static>(
+#[tauri::command]
+#[specta::specta]
+pub async fn copy_local_image_to_clipboard(
+    app: AppHandle,
+    data_url: String,
+) -> Result<(), CommandError> {
+    attachment_task("Local image clipboard copy", move || {
+        let (_, bytes) = decode_image_data_url(&data_url).map_err(CommandError::from)?;
+        let decoded = decode_attachment_image(&bytes)?.to_rgba8();
+        let width = decoded.width();
+        let height = decoded.height();
+        let image = Image::new_owned(decoded.into_raw(), width, height);
+        app.clipboard().write_image(&image).map_err(|error| {
+            CommandError::internal(format!("Local image could not be copied: {error}"))
+        })
+    })
+    .await
+}
+
+pub(super) async fn attachment_task<T: Send + 'static>(
     operation: &'static str,
     action: impl FnOnce() -> Result<T, CommandError> + Send + 'static,
 ) -> Result<T, CommandError> {

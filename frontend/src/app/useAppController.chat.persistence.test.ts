@@ -14,6 +14,37 @@ describe('app-owned Session Chat persistence', () => {
   beforeEach(setupControllerTest)
   afterEach(cleanupControllerTest)
 
+  it('invalidates a captured restart after composer ABA without discarding the conversation', async () => {
+    api.getChat.mockResolvedValue(chatFixture({ mode: 'chat', composer: 'Original message' }))
+    const { result } = renderHook(() => useAppController())
+    await waitFor(() => expect(result.current.sessionChat.composer).toBe('Original message'))
+    const confirm = result.current.sessionChat.captureRestart?.()
+    expect(confirm).toBeTypeOf('function')
+    act(() => { result.current.sessionChat.onSetComposer('New work'); result.current.sessionChat.onSetComposer('Original message') })
+    await act(async () => { await confirm?.() })
+    expect(result.current.sessionChat.composer).toBe('Original message')
+    expect(result.current.sessionChat.chat?.draftId).toBe('chat-1')
+    expect(api.restartChat).not.toHaveBeenCalled()
+  })
+
+  it('rejects a restart if the mode changes while its composer save is pending', async () => {
+    api.getChat.mockResolvedValue(chatFixture({ mode: 'chat' }))
+    const { result } = renderHook(() => useAppController())
+    await waitFor(() => expect(result.current.sessionChat.chat?.draftId).toBe('chat-1'))
+    act(() => result.current.sessionChat.onSetComposer('Unsent message'))
+    const save = deferred<ReturnType<typeof chatFixture>>()
+    api.saveChatComposer.mockReturnValueOnce(save.promise).mockResolvedValueOnce(chatFixture({ mode: 'write_note', composer: 'Unsent message', revision: 2 }))
+    const confirm = result.current.sessionChat.captureRestart?.()
+    let pending: Promise<void> | undefined
+    act(() => { pending = confirm?.() })
+    await waitFor(() => expect(api.saveChatComposer).toHaveBeenCalledOnce())
+    act(() => result.current.setSessionMode('write_note'))
+    await act(async () => { save.resolve(chatFixture({ mode: 'chat', composer: 'Unsent message', revision: 1 })); await pending })
+    expect(result.current.sessionChat.composer).toBe('Unsent message')
+    expect(result.current.sessionChat.chat?.draftId).toBe('chat-1')
+    expect(api.restartChat).not.toHaveBeenCalled()
+  })
+
   it('hydrates durable mode and composer without writing the Session Note', async () => {
     api.getChat.mockResolvedValue(chatFixture({ mode: 'chat', composer: 'Unsaved investigation question' }))
     const { result } = renderHook(() => useAppController())

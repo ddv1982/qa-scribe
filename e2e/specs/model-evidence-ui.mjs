@@ -128,13 +128,13 @@ export async function generate(provider, model, mode, lane) {
   const sessionId = await createSession(`M02 lane ${lane} ${provider} generation`)
   await insertNote(`Synthetic model evidence source for lane ${lane}.`)
   const before = journal().length
-  await click('Summarize notes')
+  await click('Summarize with AI')
   const confirm = await (await $('dialog.generation-preflight[open]')).$('button=Summarize note')
   await confirm.waitForClickable()
   await confirm.click()
   await browser.waitUntil(() => database(sessionId).runs.at(-1)?.status === 'completed',
     { timeout: 20_000, timeoutMsg: `Generation lane ${lane} did not persist its completed AI Run` })
-  await $('button=Summarize notes').waitForClickable({ timeout: 10_000 })
+  await $('button=Summarize with AI').waitForClickable({ timeout: 10_000 })
   return { sessionId, row: database(sessionId).runs.at(-1), observations: journal().slice(before) }
 }
 

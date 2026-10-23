@@ -14,6 +14,10 @@ import { createChatPermissions } from './sessionChat.permissions'
 
 export function createSessionChatActions(ctx: SessionChatContext) {
   const workspaces = new Map<string, ChatWorkspace>()
+  const restartVersions = new WeakMap<ChatWorkspace, number>()
+  function restartContent(chat: ChatState | null) {
+    return JSON.stringify([chat?.sessionId, chat?.draftId, chat?.messages, chat?.aiRuns, chat?.submission])
+  }
   let disposed = false
   let activationEpoch = 0
   let activatedSessionId: string | null = null
@@ -55,13 +59,23 @@ export function createSessionChatActions(ctx: SessionChatContext) {
     publish(entry)
     if (ctx.session.activeSessionIdRef.current === entry.sessionId) ctx.feedback.setError(entry.error)
   }
-  function acceptChat(entry: ChatWorkspace, chat: ChatState, inputVersion: number, modeVersion: number) {
+  function acceptChat(entry: ChatWorkspace, chat: ChatState, inputVersion: number, modeVersion: number, composerSave = false) {
     if (entry.retired) return
     if (chat.sessionId !== entry.sessionId) throw new Error('Chat returned an unexpected Session.')
     if (entry.chat?.draftId === chat.draftId && chat.revision < entry.chat.revision) return
+    const previousChat = entry.chat
+    const previousContent = restartContent(previousChat)
+    const previousComposer = entry.composer
+    const previousMode = entry.mode
     entry.chat = chat
     if (inputVersion === entry.inputVersion) entry.composer = chat.composer
     if (modeVersion === entry.modeVersion) entry.mode = chat.mode
+    // A save acknowledgment advances storage revision without changing the
+    // confirmed subject. Refreshes that change durable input still invalidate it.
+    if (previousContent !== restartContent(chat) || previousComposer !== entry.composer || previousMode !== entry.mode
+      || (!composerSave && (previousChat?.composer !== chat.composer || previousChat?.mode !== chat.mode))) {
+      restartVersions.set(entry, (restartVersions.get(entry) ?? 0) + 1)
+    }
     const reason = unresolvedChatReason(chat, true)
     if (reason?.includes('earlier turn')) entry.error = reason
     publish(entry)
@@ -170,7 +184,7 @@ export function createSessionChatActions(ctx: SessionChatContext) {
           ++entry.refreshEpoch
           const priorError = entry.error
           entry.error = null
-          acceptChat(entry, saved, inputVersion, modeVersion)
+          acceptChat(entry, saved, inputVersion, modeVersion, true)
           if (priorError && ctx.session.activeSessionIdRef.current === entry.sessionId) {
             ctx.feedback.setError((current) => current === priorError ? null : current)
           }
@@ -309,12 +323,39 @@ export function createSessionChatActions(ctx: SessionChatContext) {
     publish(entry)
     await refresh(entry.sessionId)
   })
+  function captureRestart() {
+    const entry = active()
+    if (!entry?.chat || entry.loading || entry.save || entry.operationKind || entry.permissionOperation
+      || permissions.needsRecovery(entry) || ctx.noteRecovery.has(entry.sessionId) || chatIsWorking(entry.job)
+      || entry.chat.messages.some(message => message.status === 'running')) return null
+    const { job, inputVersion, modeVersion } = entry
+    const restartVersion = restartVersions.get(entry)
+    const epoch = activationEpoch
+    return async () => {
+      if (active() !== entry || activationEpoch !== epoch || restartVersions.get(entry) !== restartVersion || entry.job !== job
+        || entry.inputVersion !== inputVersion || entry.modeVersion !== modeVersion || entry.loading
+        || entry.operationKind || entry.permissionOperation || permissions.needsRecovery(entry)
+        || ctx.noteRecovery.has(entry.sessionId)) return
+      // onRestart owns the operation and drains an autosave started after capture.
+      await onRestart()
+    }
+  }
   const onRestart = () => run('restart', async (entry) => {
     if (ctx.noteRecovery.has(entry.sessionId)) throw new Error('Recover the canonical Note before starting a new conversation.')
     if (chatIsWorking(entry.job)) throw new Error('Cancel or finish the active turn before starting a new conversation.')
     if (!entry.chat) await hydrate(entry)
-    if (!entry.chat || !await saveComposer(entry)) return
-    if (entry.retired) return
+    if (!entry.chat) return
+    const { inputVersion, modeVersion, job } = entry
+    const epoch = activationEpoch
+    const restartVersion = restartVersions.get(entry)
+    const draftId = entry.chat.draftId
+    const history = JSON.stringify([entry.chat.messages, entry.chat.submission])
+    if (!await saveComposer(entry)) return
+    if (entry.retired || active() !== entry || activationEpoch !== epoch
+      || restartVersions.get(entry) !== restartVersion || entry.inputVersion !== inputVersion || entry.modeVersion !== modeVersion || entry.job !== job
+      || entry.loading || entry.permissionOperation || permissions.needsRecovery(entry)
+      || ctx.noteRecovery.has(entry.sessionId) || entry.chat?.draftId !== draftId
+      || JSON.stringify([entry.chat.messages, entry.chat.submission]) !== history) return
     const next = await restartChat({ scope: chatScope(entry.chat) })
     if (entry.retired) return
     ++entry.refreshEpoch
@@ -409,5 +450,5 @@ export function createSessionChatActions(ctx: SessionChatContext) {
     return recoverNote(entry)
   }
   return { activate, dispose, observeJob, flush, hasPendingChanges, setMode, retire, recoverSession,
-    onSetComposer, onSend, onRetry, onCancel, onSubmit, onRestart, onDecidePermission, onRecheck, isCurrentPermissionScope }
+    onSetComposer, onSend, onRetry, onCancel, onSubmit, onRestart, captureRestart, onDecidePermission, onRecheck, isCurrentPermissionScope }
 }

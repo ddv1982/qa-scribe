@@ -20,6 +20,7 @@ use super::{
 
 mod context;
 mod model_evidence;
+mod reviewed_source;
 
 impl SessionService {
     pub fn complete_ai_run(&self, id: &str) -> Result<AiRun> {

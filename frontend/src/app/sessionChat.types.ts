@@ -26,6 +26,7 @@ export interface SessionChatViewState {
   onRetry: () => Promise<void>
   onCancel: () => Promise<void>
   onSubmit: () => Promise<void>
+  captureRestart?: () => (() => Promise<void>) | null
   onRestart: () => Promise<void>
 }
 

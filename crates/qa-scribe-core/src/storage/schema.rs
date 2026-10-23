@@ -73,12 +73,44 @@ CREATE TABLE IF NOT EXISTS entries (
   type TEXT NOT NULL CHECK (type IN ('note', 'observation', 'api_response', 'log', 'screenshot', 'finding_candidate')),
   title TEXT,
   body TEXT NOT NULL,
+  revision INTEGER NOT NULL DEFAULT 0 CHECK (revision >= 0),
   body_json TEXT,
   body_format TEXT NOT NULL DEFAULT 'html',
   metadata_json TEXT,
   excluded_from_generation INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS creation_attempts (
+  attempt_id TEXT PRIMARY KEY NOT NULL,
+  session_id TEXT NOT NULL,
+  kind TEXT NOT NULL CHECK (kind IN ('finding', 'testware')),
+  state TEXT NOT NULL CHECK (state IN ('preparing', 'committed', 'aborted')),
+  payload_hash TEXT,
+  record_id TEXT,
+  created_at TEXT NOT NULL,
+  CHECK ((state = 'committed') = (record_id IS NOT NULL)),
+  CHECK (state != 'committed' OR payload_hash IS NOT NULL)
+);
+CREATE INDEX IF NOT EXISTS creation_attempts_recovery ON creation_attempts(state, created_at);
+CREATE TABLE IF NOT EXISTS creation_attempt_images (
+  attempt_id TEXT NOT NULL REFERENCES creation_attempts(attempt_id) ON DELETE CASCADE,
+  local_id TEXT NOT NULL,
+  attachment_id TEXT NOT NULL UNIQUE,
+  relative_path TEXT NOT NULL UNIQUE,
+  filename TEXT NOT NULL,
+  mime_type TEXT NOT NULL,
+  size_bytes INTEGER NOT NULL CHECK (size_bytes >= 0),
+  sha256 TEXT NOT NULL,
+  PRIMARY KEY (attempt_id, local_id)
+);
+
+CREATE TABLE IF NOT EXISTS creation_staging (
+  attachment_id TEXT PRIMARY KEY NOT NULL REFERENCES creation_attempt_images(attachment_id) ON DELETE CASCADE,
+  relative_path TEXT NOT NULL UNIQUE,
+  device TEXT NOT NULL,
+  inode TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS attachments (

@@ -141,6 +141,23 @@ describe('scalable record collection', () => {
   })
 
 
+  it('restores findings hidden by a type filter and keeps query-only recovery distinct', async () => {
+    const user = userEvent.setup()
+    render(<FindingsView creationCommands={recordCreationCommandsFixture('finding')} busyAction={null}
+      copyState={{ status: 'idle' }} findingScreenshotCounts={{}} findings={[findingFixture({ title: 'Checkout bug', kind: 'bug' })]}
+      notice={null} error={null} isBusy={false} activeGenerationJob={null} updateLocalFinding={vi.fn()}
+      onCancelGenerationJob={async () => undefined} onCopy={async () => undefined} onDeleteFinding={vi.fn()}
+      onSaveFinding={async () => true} onDiscardFinding={vi.fn()} onUploadImage={vi.fn()} />)
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Type' }), 'risk')
+    await user.click(screen.getByRole('button', { name: 'Clear filters' }))
+    expect(screen.getByRole('combobox', { name: 'Type' })).toHaveValue('all')
+    expect(screen.getByRole('heading', { name: 'Checkout bug' })).toBeInTheDocument()
+    await user.type(screen.getByRole('textbox', { name: 'Search Issues and risks' }), 'not present')
+    expect(screen.queryByRole('button', { name: 'Clear filters' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Clear search' }))
+    expect(screen.getByRole('heading', { name: 'Checkout bug' })).toBeInTheDocument()
+  })
+
   it('clears the Finding type filter without changing the selected sort', async () => {
     const user = userEvent.setup()
     const existing = findingFixture({ id: 'risk', kind: 'risk' })
@@ -150,7 +167,7 @@ describe('scalable record collection', () => {
     const viewFor = (creating: boolean) => <FindingsView creationCommands={recordCreationCommandsFixture('finding')} busyAction={null} copyState={{ status: 'idle' }} findingScreenshotCounts={{}} findings={creating ? [existing, created] : [existing]}
       notice={null} error={null} isBusy={false} activeGenerationJob={null} updateLocalFinding={vi.fn()}
       onCancelGenerationJob={async () => undefined} onCopy={async () => undefined}
-      onDeleteFinding={vi.fn()} onPrefillFromNote={async () => undefined}
+      onDeleteFinding={vi.fn()}
       onSaveFinding={async () => true} onDiscardFinding={vi.fn()} onUploadImage={vi.fn()}
       createdRecordEditTarget={creating ? target : null} onCreatedRecordEditTargetConsumed={consumed} />
     const view = render(viewFor(false))
@@ -186,7 +203,6 @@ function testware(drafts = [draftFixture()], overrides: Partial<ComponentProps<t
       onCancelGenerationJob={async () => undefined}
       onCopy={async () => undefined}
       onDeleteDraft={vi.fn()}
-      onPrefillFromNote={async () => undefined}
       onSaveDraft={async () => true}
       onDiscardDraft={vi.fn()}
       onUploadImage={vi.fn()}

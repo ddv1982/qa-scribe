@@ -5,7 +5,12 @@ fn summary_completion_preserves_managed_screenshots_on_note_overwrite() {
     let service = SessionService::in_memory().expect("service should open");
     let session = create_session(&service, "Gmail login");
     let (note, attachment) = create_note_with_attachment(&service, &session);
-    let request = request_for(&session.id, GenerateAiActionKind::Summary, Some(&note.id));
+    let request = request_for(
+        &service,
+        &session.id,
+        GenerateAiActionKind::Summary,
+        Some(&note.id),
+    );
     let prepared =
         prepare_ai_action_generation(&service, &request).expect("generation should prepare");
 
@@ -51,6 +56,7 @@ fn summary_generation_rejects_note_id_from_another_session() {
         "<p>This note must not be used as a fallback.</p>",
     );
     let request = request_for(
+        &service,
         &session.id,
         GenerateAiActionKind::Summary,
         Some(&other_note.id),
@@ -85,7 +91,7 @@ fn summary_generation_without_note_does_not_persist_ai_run() {
         "Fallback note",
         "<p>This note must not be used as a fallback.</p>",
     );
-    let request = request_for(&session.id, GenerateAiActionKind::Summary, None);
+    let request = request_for(&service, &session.id, GenerateAiActionKind::Summary, None);
 
     let error = match prepare_ai_action_generation(&service, &request) {
         Ok(_) => panic!("summary without a selected note must be rejected"),
@@ -113,6 +119,7 @@ fn summary_completion_updates_the_selected_note_only() {
         "<p>Selected note.</p>",
     );
     let request = request_for(
+        &service,
         &session.id,
         GenerateAiActionKind::Summary,
         Some(&selected_note.id),
@@ -151,7 +158,12 @@ fn summary_completion_rejects_stale_note_overwrite() {
         "Selected note",
         "<p>Original note.</p>",
     );
-    let request = request_for(&session.id, GenerateAiActionKind::Summary, Some(&note.id));
+    let request = request_for(
+        &service,
+        &session.id,
+        GenerateAiActionKind::Summary,
+        Some(&note.id),
+    );
     let prepared =
         prepare_ai_action_generation(&service, &request).expect("generation should prepare");
     let ai_run_id = prepared.ai_run.id.clone();
@@ -204,7 +216,12 @@ fn summary_unknown_structured_output_fails_without_replacing_unchanged_note() {
     let session = create_session(&service, "Protocol compatibility");
     let original_body = "<p>Keep this authored note.</p>";
     let note = create_note(&service, &session.id, "Selected note", original_body);
-    let request = request_for(&session.id, GenerateAiActionKind::Summary, Some(&note.id));
+    let request = request_for(
+        &service,
+        &session.id,
+        GenerateAiActionKind::Summary,
+        Some(&note.id),
+    );
     let prepared =
         prepare_ai_action_generation(&service, &request).expect("generation should prepare");
     let ai_run_id = prepared.ai_run.id.clone();
@@ -259,7 +276,12 @@ fn summary_malformed_structured_output_reports_compatibility_before_stale_note_e
         "Selected note",
         "<p>Original note.</p>",
     );
-    let request = request_for(&session.id, GenerateAiActionKind::Summary, Some(&note.id));
+    let request = request_for(
+        &service,
+        &session.id,
+        GenerateAiActionKind::Summary,
+        Some(&note.id),
+    );
     let prepared =
         prepare_ai_action_generation(&service, &request).expect("generation should prepare");
     let ai_run_id = prepared.ai_run.id.clone();

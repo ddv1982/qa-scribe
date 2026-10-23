@@ -19,7 +19,6 @@ const testwareLabels: RecordCollectionLabels = {
   heading: 'Test cases',
   emptyTitle: 'No test cases yet',
   emptyDescription: 'Create test cases, then edit and save them here.',
-  prefillLabel: 'Prefill from note',
   generationTitle: 'Generating test cases',
   generationTitleAriaLabel: 'Pending test case title',
   generationPlaceholder: 'Preparing test cases...',
@@ -33,8 +32,8 @@ const testwareLabels: RecordCollectionLabels = {
 }
 
 export function TestwareView({
+  composer, settleCreation,
   creationCommands,
-  aiUnavailableReason,
   busyAction,
   copyState,
   draftScreenshotCounts,
@@ -54,13 +53,13 @@ export function TestwareView({
   onCancelGenerationJob,
   onCopy,
   onDeleteDraft,
-  onPrefillFromNote,
   onSaveDraft,
   onDiscardDraft,
   onUploadImage,
 }: {
+  settleCreation?: () => Promise<boolean>
+  composer?: import('react').ReactNode
   creationCommands: RecordCreationCommands
-  aiUnavailableReason?: string | null
   busyAction: BusyAction | null
   copyState: CopyState
   draftScreenshotCounts: Record<string, number>
@@ -80,18 +79,16 @@ export function TestwareView({
   onCancelGenerationJob: (jobId: string) => Promise<void>
   onCopy: (snapshot: ClipboardSnapshot) => Promise<void>
   onDeleteDraft: (draft: Draft) => void
-  onPrefillFromNote: () => Promise<void>
   onSaveDraft: (draft: Draft) => Promise<boolean>
   onDiscardDraft: (draft: Draft) => void
   onUploadImage: (input: RichEditorImageUpload, recordId: string) => void | Promise<void>
 }) {
   return (
     <RecordCollectionView
+      composer={composer} settleCreation={settleCreation}
       creationCommands={creationCommands}
-      aiUnavailableReason={aiUnavailableReason}
       labels={testwareLabels}
       emptyIcon={Box}
-      prefillBusyAction="prefill-testware"
       busyAction={busyAction}
       sourceKind="draft"
       copyState={copyState}
@@ -127,7 +124,6 @@ export function TestwareView({
       onCancelGenerationJob={onCancelGenerationJob}
       onCopy={onCopy}
       onDeleteRecord={onDeleteDraft}
-      onPrefillFromNote={onPrefillFromNote}
       onSaveRecord={onSaveDraft}
       onDiscardRecord={onDiscardDraft}
       onUploadImage={onUploadImage}

@@ -12,9 +12,8 @@ use crate::{
     QaScribeError, Result,
     ai::ProviderGenerationOutput,
     domain::{
-        AiProvider, AiRun, AiRunCreate, Attachment, Draft, DraftCreate, DraftKind, Entry,
-        EntryPatch, EntryType, Finding, FindingDraft, FindingKind, GenerationContext,
-        TITLE_MAX_LENGTH,
+        AiProvider, AiRun, Attachment, Draft, DraftCreate, DraftKind, Entry, EntryPatch, Finding,
+        FindingDraft, FindingKind, GenerationContext, TITLE_MAX_LENGTH,
     },
     services::SessionService,
 };
@@ -82,6 +81,8 @@ pub struct GenerateAiActionRequest {
     #[specta(optional)]
     pub note_entry_id: Option<String>,
     #[specta(optional)]
+    pub expected_note_revision: Option<i64>,
+    #[specta(optional)]
     pub testware_preferences: Option<TestwareGenerationPreferences>,
 }
 
@@ -116,23 +117,13 @@ pub fn prepare_ai_action_generation(
     service: &SessionService,
     request: &GenerateAiActionRequest,
 ) -> Result<PreparedGeneration> {
-    let session = service
-        .get_session(&request.session_id)?
-        .ok_or_else(|| QaScribeError::NotFound(request.session_id.clone()))?;
     let settings = service.get_settings()?;
-    let entries = service.list_entries(&request.session_id)?;
-    let note_entry = selected_note_entry(request, &entries)?;
-    let attachments = service.list_attachments(&request.session_id)?;
-    let generation_context =
-        create_action_generation_context(service, &request.session_id, note_entry, &attachments)?;
-    let ai_run = service.create_ai_run(AiRunCreate {
-        session_id: request.session_id.clone(),
-        generation_context_id: Some(generation_context.id.clone()),
-        provider: request.provider,
-        model: request.model.clone(),
-        reasoning_effort: request.reasoning_effort.clone(),
-        prompt_version: request.action.prompt_version().to_string(),
-    })?;
+    let captured = service.capture_action_material(request)?;
+    let session = captured.session;
+    let note_entry = captured.note.as_ref();
+    let attachments = captured.attachments;
+    let generation_context = captured.context;
+    let ai_run = captured.run;
 
     // Testware preferences are instructions, so they render inside the
     // prompt's instruction section (before the source material and the final
@@ -196,38 +187,6 @@ pub fn finish_ai_action_generation(
     }
 }
 
-fn selected_note_entry<'a>(
-    request: &GenerateAiActionRequest,
-    entries: &'a [Entry],
-) -> Result<Option<&'a Entry>> {
-    if let Some(note_entry_id) = request.note_entry_id.as_deref() {
-        let entry = entries
-            .iter()
-            .find(|entry| entry.id == note_entry_id)
-            .ok_or_else(|| {
-                QaScribeError::Validation(
-                    "Selected note entry was not found in this Session.".to_string(),
-                )
-            })?;
-        if entry.entry_type != EntryType::Note {
-            return Err(QaScribeError::Validation(
-                "Selected entry must be a Note.".to_string(),
-            ));
-        }
-        return Ok(Some(entry));
-    }
-
-    if matches!(request.action, GenerateAiActionKind::Summary) {
-        return Err(QaScribeError::Validation(
-            "Summarize notes requires an editable note entry.".to_string(),
-        ));
-    }
-
-    Ok(entries
-        .iter()
-        .find(|entry| entry.entry_type == EntryType::Note))
-}
-
 fn finish_successful_generation(
     service: &SessionService,
     request: &GenerateAiActionRequest,
@@ -267,26 +226,6 @@ fn validate_generated_body(body: &str) -> Result<()> {
         ));
     }
     Ok(())
-}
-
-fn create_action_generation_context(
-    service: &SessionService,
-    session_id: &str,
-    note_entry: Option<&Entry>,
-    attachments: &[Attachment],
-) -> Result<GenerationContext> {
-    let entry_ids = note_entry
-        .map(|entry| vec![entry.id.clone()])
-        .unwrap_or_default();
-    let managed_attachment_ids = note_entry
-        .map(|entry| managed_attachment_ids_from_html(&entry.body))
-        .unwrap_or_default();
-    let attachment_ids = attachments
-        .iter()
-        .filter(|attachment| managed_attachment_ids.iter().any(|id| id == &attachment.id))
-        .map(|attachment| attachment.id.clone())
-        .collect::<Vec<_>>();
-    service.create_generation_context_from_material(session_id, &entry_ids, &attachment_ids)
 }
 
 fn finish_testware_generation(

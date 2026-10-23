@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest'
-import { act, render, renderHook, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it } from 'vitest'
 import { AppShell } from './AppShell'
 import { cleanupControllerTest, getTauriMock, renderWithControllerStartup, setupControllerTest, useAppController } from './useAppController.testHarness'
@@ -28,4 +28,15 @@ it.each(['success', 'failure'])('retains the Save failure under Try again after 
   expect(result.current.settingsDirty).toBe(true)
   expect(screen.getByRole('button', { name: 'Try again' })).toBeEnabled()
   expect(feedback.getByRole('alert')).toHaveTextContent('Settings disk is read-only')
+})
+
+it('keeps the Settings Save shortcut available when the creation Save command is inactive', async () => {
+  const { result } = await renderWithControllerStartup(() => renderHook(() => useAppController()))
+  act(() => result.current.openSettingsSection('instructions-settings'))
+  await waitFor(() => expect(result.current.activeView).toBe('settings'))
+  act(() => result.current.updateSettingsDraft({ generationSystemPrompt: 'Settings shortcut remains owned by Settings' }))
+  render(<AppShell {...result.current} />)
+  fireEvent.keyDown(window, { key: 's', ctrlKey: true })
+  await waitFor(() => expect(api.updateSettings).toHaveBeenCalledWith(expect.objectContaining({ generationSystemPrompt: 'Settings shortcut remains owned by Settings' })))
+  expect(api.commitCreationSave).not.toHaveBeenCalled()
 })

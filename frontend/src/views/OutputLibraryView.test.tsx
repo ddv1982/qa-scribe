@@ -167,6 +167,15 @@ describe('saved library clipboard boundary', () => {
     expect(onOpenRecord).not.toHaveBeenCalled()
   })
 
+  it('copies the same metadata severity from the library that is shown in the Session editor', async () => {
+    const user = userEvent.setup()
+    nativeText.mockResolvedValue(undefined)
+    render(<CopyingLibrary kind="findings" findingItems={[{ finding: findingFixture({ title: 'Classified finding', body: '<p>Visible evidence.</p>', metadataJson: '{"severity":"high"}' }), sessionTitle: 'Session' }]}
+      loadState="ready" loadError={null} onRetry={vi.fn()} onOpenRecord={vi.fn()} onActivate={vi.fn()} />)
+    await user.click(screen.getByRole('button', { name: 'Copy Classified finding' }))
+    expect(nativeText.mock.calls).toEqual([['<h2>Classified finding</h2><p><strong>Severity:</strong> High</p><p>Visible evidence.</p>', '## Classified finding\n\n**Severity:** High\n\nVisible evidence.']])
+  })
+
   it('keeps saved HTML export when the Finding preview prefers divergent JSON and requires the Finding source kind', async () => {
     const user = userEvent.setup()
     nativeText.mockResolvedValue(undefined)

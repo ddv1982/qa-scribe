@@ -263,14 +263,13 @@ describe('SessionChatView', () => {
     { composer: 'Unsent message' },
     { chat: chat([message('user', 'Existing message')]) },
   ])('requires explicit confirmation before replacing nonempty conversation state', (patch) => {
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
     const { props } = mount(patch)
     fireEvent.click(button('Start new conversation'))
-    expect(confirm).toHaveBeenCalledTimes(1)
+    const dialog = screen.getByRole('dialog', { name: 'Start a new conversation?' })
+    expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveFocus()
     expect(props.onRestart).not.toHaveBeenCalled()
     expect(props.onSetComposer).not.toHaveBeenCalled()
-    confirm.mockReturnValue(true)
-    fireEvent.click(button('Start new conversation'))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Start new conversation' }))
     expect(props.onRestart).toHaveBeenCalledTimes(1)
   })
 

@@ -1,23 +1,21 @@
-import { AlertCircle, CheckCircle2, FileText, Loader2, Plus, Settings2, Sparkles, Trash2, Undo2 } from 'lucide-react'
+import { AlertCircle, CheckCircle2, FileText, Loader2, Plus, Sparkles, Trash2, Undo2 } from 'lucide-react'
 import type { ClipboardSnapshot, CopyState } from '../app/copyActions'
 import { RecordCreationActions, type RecordCreationCommands } from './RecordCreationActions'
 import { CopyControls } from './RichRecordView'
-import { ProviderGlyph } from '../components/ModelSelector'
 import { FormatToolbar, RichTextEditor, type RichEditorImageUpload } from '../editor/RichTextEditor'
-import type { AiProvider, GenerateAiActionKind, ProviderStatus, Session } from '../tauri'
+import type { GenerateAiActionKind, Session } from '../tauri'
 import type { RichEditorDocument } from '../editor/editorDocument'
 import { ActionButton } from '../components/ActionButton'
 import { StatusPill } from '../components/Common'
 import type { BusyAction } from '../ui/types'
 import type { PendingAiActions } from '../ui/types'
-import { statusLabel } from '../ui/format'
-import { originSummary, type EffectiveAiSelection } from '../settings/defaults'
 import type { ReactNode } from 'react'
 import type { ChatMode } from '../bindings'
 
 export function SessionEditorView({
   creationCommands,
   activeProviderAvailable,
+  activeProviderReason,
   activeSession,
   busyAction,
   copyState,
@@ -36,11 +34,6 @@ export function SessionEditorView({
   notice,
   error,
   pendingAiActions,
-  selectedProvider,
-  selectedModel,
-  effectiveSelection,
-  activeProvider,
-  onConfigureAi,
   onAiAction,
   onUndoLatestGeneration,
   onCopy,
@@ -60,6 +53,7 @@ export function SessionEditorView({
 }: {
   creationCommands: Record<'testware' | 'finding', RecordCreationCommands>
   activeProviderAvailable: boolean
+  activeProviderReason?: string
   activeSession: Session | null
   busyAction: BusyAction | null
   canUndoLatestGeneration: boolean
@@ -79,11 +73,6 @@ export function SessionEditorView({
   notice: string | null
   error: string | null
   pendingAiActions: PendingAiActions
-  selectedProvider: AiProvider
-  selectedModel: string
-  effectiveSelection?: EffectiveAiSelection | null
-  activeProvider: ProviderStatus['providers'][number] | null
-  onConfigureAi?: () => void
   onAiAction: (action: GenerateAiActionKind) => Promise<void>
   onUndoLatestGeneration: () => Promise<void>
   onCopy: (snapshot: ClipboardSnapshot) => Promise<void>
@@ -105,14 +94,6 @@ export function SessionEditorView({
   const undoingGeneration = busyAction === 'undo-generation'
   const summaryPending = Boolean(pendingAiActions.summary)
   const editorId = 'note-body-editor'
-  const selectedModelLabel = activeProvider?.models.find((model) => model.id === (selectedModel.trim() || 'default'))?.label ?? (selectedModel.trim() || 'Provider default')
-  const selectedProviderLabel = activeProvider?.label ?? selectedProvider
-  const providerReadinessLabel = activeProvider ? (activeProvider.available ? 'Ready' : statusLabel(activeProvider.status)) : 'Loading'
-  const effectiveModelLabel = effectiveSelection?.model ?? selectedModelLabel
-  const effectiveReasoningLabel = effectiveSelection?.reasoning ?? 'CLI default'
-  const effectiveOrigin = originSummary(effectiveSelection?.modelOrigin ?? null)
-  const selectionModeLabel = effectiveSelection?.delegatesModel === false ? 'QA Scribe override' : 'CLI default'
-  const providerSummaryLabel = `AI execution: ${selectedProviderLabel}, ${selectionModeLabel} ${effectiveModelLabel}, reasoning ${effectiveReasoningLabel}${effectiveOrigin ? ` from ${effectiveOrigin}` : ''}, ${providerReadinessLabel}`
   const saveStatusLabel = sessionSaveState === 'invalid'
     ? 'Title required'
     : sessionSaveState === 'saving'
@@ -133,17 +114,17 @@ export function SessionEditorView({
           : 'Capture testing evidence, create a Finding or test cases, and copy useful output into your reporting tool. No AI account needed.'}</p> : null}
         {error ? <p role="alert">{error}</p> : null}
         <div className="empty-session-actions">
-          <button className="primary-button" type="button" disabled={!canCreateSession} onClick={onCreateSession}>
+          <ActionButton variant="primary" type="button" disabled={!canCreateSession} onClick={onCreateSession}>
             <Plus size={17} /> Start a Session
-          </button>
-          {onExploreExample ? <button className="secondary-button" type="button" disabled={isBusy} onClick={onExploreExample}>Explore an example</button> : null}
+          </ActionButton>
+          {onExploreExample ? <ActionButton variant="secondary" type="button" disabled={isBusy} onClick={onExploreExample}>Explore an example</ActionButton> : null}
         </div>
         {filteredSessions.length > 0 ? (
           <div className="empty-session-actions">
             {filteredSessions.slice(0, 3).map((session) => (
-              <button className="secondary-button" key={session.id} type="button" disabled={isBusy} onClick={() => void onOpenSession(session)}>
+              <ActionButton variant="secondary" key={session.id} type="button" disabled={isBusy} onClick={() => void onOpenSession(session)}>
                 {session.title}
-              </button>
+              </ActionButton>
             ))}
           </div>
         ) : null}
@@ -156,21 +137,25 @@ export function SessionEditorView({
       <header className="document-topline">
         {onSetSessionMode ? (
           <div className="document-mode" role="group" aria-label="Session input mode">
-            <button className="secondary-button compact-button" type="button" aria-pressed={sessionMode === 'write_note'} onClick={() => onSetSessionMode('write_note')}>Write note</button>
-            <button className="secondary-button compact-button" type="button" aria-pressed={sessionMode === 'chat'} onClick={() => onSetSessionMode('chat')}>Chat</button>
+            <button className="segmented-option" type="button" aria-pressed={sessionMode === 'write_note'} onClick={() => onSetSessionMode('write_note')}>Write note</button>
+            <button className="segmented-option" type="button" aria-pressed={sessionMode === 'chat'} onClick={() => onSetSessionMode('chat')}>Chat</button>
           </div>
         ) : <p className="document-mode"><FileText size={16} /> Session note</p>}
         <div className="document-actions">
+          {sessionMode === 'write_note' ? <>          <ActionButton variant="secondary" type="button" aria-describedby={!activeProviderAvailable ? "note-summary-unavailable" : undefined} disabled={isBusy || summaryPending || !noteIsReady || !activeProviderAvailable} onClick={() => void onAiAction('summary')}>
+            {busyAction === 'ai-summary' || summaryPending ? <Loader2 className="spin" size={16} /> : <Sparkles size={16} />}
+            {summaryPending ? 'Summarizing notes' : 'Summarize with AI'}
+          </ActionButton></> : null}
           {sessionMode === 'write_note' && canUndoLatestGeneration ? (
-            <button className="secondary-button compact-button" type="button" disabled={isBusy || noteReadOnly} onClick={() => void onUndoLatestGeneration()}>
+            <ActionButton variant="secondary" size="compact" type="button" disabled={isBusy || noteReadOnly} onClick={() => void onUndoLatestGeneration()}>
               {undoingGeneration ? <Loader2 className="spin" size={16} /> : <Undo2 size={16} />}
               Undo generation
-            </button>
+            </ActionButton>
           ) : null}
           {sessionMode === 'write_note' ? <div className="document-status" role="status">
             {sessionSaveState === 'invalid' || sessionSaveState === 'unsaved'
               ? <AlertCircle size={15} />
-              : <CheckCircle2 size={15} />}
+              : sessionSaveState === 'saving' ? <Loader2 className="spin" size={15} /> : <CheckCircle2 size={15} />}
             <span>{saveStatusLabel}</span>
           </div> : null}
           {sessionMode === 'write_note' ? <CopyControls
@@ -178,6 +163,9 @@ export function SessionEditorView({
             copyState={copyState} onCopy={onCopy} disabled={isBusy} label="Note" screenshotCount={noteScreenshotCount} /> : null}
           <ActionButton variant="destructive-quiet" iconOnly icon={Trash2} aria-label="Delete Session" title="Delete Session" loading={deletingSession} disabled={isBusy} onClick={() => void onDeleteSession()} />
         </div>
+      {sessionMode === 'write_note' && !activeProviderAvailable ? <p className="field-description" id="note-summary-unavailable">
+        AI summary unavailable. {activeProviderReason ?? 'Configure an available provider in Settings. You can keep writing and create records without AI.'}
+      </p> : null}
       </header>
 
       <section key={activeSession.id} className={sessionMode === 'chat' ? 'editor-card editor-card--chat' : 'editor-card'} aria-label="Session editor">
@@ -193,11 +181,11 @@ export function SessionEditorView({
             aria-describedby={sessionTitleValidationError ? 'session-title-error' : undefined}
           />
           {sessionTitleValidationError ? (
-            <p id="session-title-error">{sessionTitleValidationError}</p>
+            <p className="field-error" id="session-title-error">{sessionTitleValidationError}</p>
           ) : null}
           {noteReadOnly && sessionMode === 'write_note' ? <div role="status">
             <p>Chat submission needs canonical Note recovery. The Note is read-only until recovery succeeds.</p>
-            {onRecoverNote ? <button className="secondary-button" type="button" disabled={isBusy} onClick={() => void onRecoverNote()}>Recover Session Note</button> : null}
+            {onRecoverNote ? <ActionButton variant="secondary" type="button" disabled={isBusy} onClick={() => void onRecoverNote()}>Recover Session Note</ActionButton> : null}
           </div> : null}
           {sessionMode === 'write_note' && !noteReadOnly ? noteHandoffContent : null}
           {sessionMode === 'write_note' ? <RichTextEditor editorId={editorId} value={noteBody} readOnly={noteReadOnly} onChange={onSetNoteBody} className="note-rich-editor" /> : null}
@@ -210,36 +198,10 @@ export function SessionEditorView({
       </section>
 
       {sessionMode === 'write_note' ? <footer className="bottom-command-bar" aria-label="Note actions">
-        <div className={activeProvider?.available ? 'ai-provider-summary ready' : 'ai-provider-summary'} aria-label={providerSummaryLabel} title={providerSummaryLabel}>
-          <span className="ai-provider-icon"><ProviderGlyph provider={selectedProvider} /></span>
-          <div className="ai-provider-selection">
-            <div className="ai-provider-value">
-              <strong>{effectiveModelLabel}</strong>
-              <span className="ai-selection-mode">{selectionModeLabel}</span>
-              <span className={activeProvider?.available ? 'ai-provider-state ready' : 'ai-provider-state'}>
-                <span className={activeProvider?.available ? 'status-dot ready' : 'status-dot unavailable'} />
-                {providerReadinessLabel}
-              </span>
-            </div>
-            <div className="ai-provider-meta">
-              <span>{selectedProviderLabel}</span>
-              <span>Reasoning {effectiveReasoningLabel}</span>
-            </div>
-            {!activeProvider?.available ? <p>{activeProvider ? `${activeProvider.reason} Configure AI execution in Settings to enable AI creation.` : 'Loading provider status'}</p> : null}
-          </div>
-          {onConfigureAi ? (
-            <button className="ai-configure-button" type="button" aria-label="Configure AI execution" title="Configure AI execution" onClick={onConfigureAi}>
-              <Settings2 size={15} />
-            </button>
-          ) : null}
-        </div>
         <div className="ai-action-buttons">
-          <RecordCreationActions commands={creationCommands.finding} />
-          <RecordCreationActions commands={creationCommands.testware} />
-          <button className="secondary-button" type="button" disabled={isBusy || summaryPending || !noteIsReady || !activeProviderAvailable} onClick={() => void onAiAction('summary')}>
-            {busyAction === 'ai-summary' || summaryPending ? <Loader2 className="spin" size={16} /> : <Sparkles size={16} />}
-            {summaryPending ? 'Summarizing notes' : 'Summarize notes'}
-          </button>
+          <RecordCreationActions commands={creationCommands.finding} secondary />
+          <RecordCreationActions commands={creationCommands.testware} secondary />
+
         </div>
       </footer> : null}
     </div>

@@ -97,6 +97,15 @@ fn main() {
                 ),
             }
 
+            let creation_recovery =
+                qa_scribe_core::attachments::creation::reconcile_creation_saves(
+                    &session_service,
+                    &app_data_dir,
+                )?;
+            eprintln!(
+                "qa-scribe startup creation recovery: pending_attempts={}",
+                creation_recovery.pending_attempts
+            );
             app.manage(AppState::new(session_service, app_data_dir));
             app.manage(JobStore::default());
             eprintln!(

@@ -289,7 +289,9 @@ export function createGenerationActions(ctx: GenerationActionsContext) {
       ctx.feedback.setError(null)
       const status = await cancelAiActionJob(jobId)
       storeGenerationStatus(status)
-      ctx.feedback.setNotice('Cancelling generation')
+      if (status.state === 'failed') ctx.feedback.setError(status.errorMessage ?? 'Generation failed.')
+      else ctx.feedback.setNotice(status.state === 'completed' ? 'Generation already completed. Its result is saved.'
+        : status.state === 'cancelled' ? 'Generation cancelled' : 'Cancelling generation')
     } catch (cause) {
       ctx.feedback.setError(formatError(cause))
     }

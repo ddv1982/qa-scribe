@@ -119,17 +119,38 @@ it('uses navigation for the actual updated Note and keeps saved review after sub
 
 it.each([false, true])('shares cancel/accept and exact submitted=%s confirmation semantics on both displays', submitted => {
   const value = state({ chat: completedChatFixture({ submission: submitted ? { draftId: 'chat-1', noteId: 'note-1', submittedAt: 'saved' } : null }) })
-  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+  const view = render(submitted ? <ChatAddedToNote state={value} /> : <StartNewConversation state={value} />)
+  const trigger = button('Start new conversation')
+  trigger.focus()
+  fireEvent.click(trigger)
+  let dialog = screen.getByRole('dialog', { name: 'Start a new conversation?' })
+  expect(dialog).toHaveTextContent(submitted
+    ? 'Submitted history remains saved. Any unsent message will be discarded.'
+    : 'This replaces the current conversation and discards any unsent message. Submit completed messages to the Session Note first if you want to keep them.')
+  expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveFocus()
+  expect(value.onRestart).not.toHaveBeenCalled()
+  fireEvent(dialog, new Event('cancel', { cancelable: true }))
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  expect(trigger).toHaveFocus()
+  view.rerender(submitted ? <ChatAddedToNote state={value} /> : <StartNewConversation state={value} />)
+  fireEvent.click(button('Start new conversation'))
+  dialog = screen.getByRole('dialog')
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Start new conversation' }))
+  expect(value.onRestart).toHaveBeenCalledTimes(1)
+})
+
+it.each([
+  { composer: 'New unsent message' },
+  { chat: completedChatFixture({ draftId: 'chat-2' }) },
+  { job: chatJobFixture() },
+  { permissionRecoveryPending: true },
+])('rejects a stale restart dialog after work changes', patch => {
+  const value = state()
   const view = render(<StartNewConversation state={value} />)
   fireEvent.click(button('Start new conversation'))
-  expect(confirm).toHaveBeenLastCalledWith(submitted
-    ? 'Start a new conversation? Submitted history remains saved. Any unsent message will be discarded.'
-    : 'Start a new conversation? This replaces the current conversation and discards any unsent message. Submit completed messages to the Session Note first if you want to keep them.')
+  view.rerender(<StartNewConversation state={{ ...value, ...patch }} />)
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Start new conversation' }))
   expect(value.onRestart).not.toHaveBeenCalled()
-  confirm.mockReturnValue(true)
-  if (submitted) view.rerender(<ChatAddedToNote state={value} />)
-  fireEvent.click(button('Start new conversation'))
-  expect(value.onRestart).toHaveBeenCalledTimes(1)
 })
 
 it.each(['loading', 'saving', 'working', 'recoveryPending', 'permissionWorking', 'permissionRecoveryPending'] as const)('blocks every restart call site while %s', flag => {

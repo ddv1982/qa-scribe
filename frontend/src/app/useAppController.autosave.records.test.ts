@@ -204,9 +204,9 @@ describe('useAppController Draft and Finding autosave', () => {
     expect(stored.body).toBe(choice === 'save' ? '<p>Authored edit.</p>' : '<p>Saved original.</p>')
     expect(result.current.testwareDrafts.find((record) => record.id === 'existing')?.body)
       .toBe(choice === 'discard' ? '<p>Saved original.</p>' : '<p>Authored edit.</p>')
-    expect(result.current.createdRecordEditTarget).toEqual(choice === 'cancel' ? null
-      : { sessionId: 'session-1', kind: 'testware', recordId: 'returned-created' })
-    expect(result.current.testwareDrafts.map((record) => record.id)).toContain('returned-created')
+    expect(result.current.createdRecordEditTarget).toBeNull()
+    expect(result.current.creationIntent?.kind ?? null).toBe(choice === 'cancel' ? null : 'testware')
+    expect(tauriMock.createDraft).not.toHaveBeenCalled()
     expect(tauriMock.deleteDraft).not.toHaveBeenCalled()
   })
 
@@ -239,7 +239,8 @@ describe('useAppController Draft and Finding autosave', () => {
     const { result } = renderHook(() => useAppController())
     await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
     await act(async () => { await result.current.handleManualTestware() })
-    expect(result.current.createdRecordEditTarget?.recordId).toBe('not-hydrated-yet')
+    expect(result.current.creationIntent?.kind).toBe('testware')
+    expect(result.current.createdRecordEditTarget).toBeNull()
     act(() => result.current.setActiveView('testware'))
     tauriMock.listDrafts.mockResolvedValueOnce([created])
     await act(async () => { await result.current.loadDraftsForSession('session-1', { force: true }) })

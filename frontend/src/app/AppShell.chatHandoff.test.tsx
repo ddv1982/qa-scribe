@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { AppShell } from './AppShell'
 import { completedChatFixture, chatFixture } from './useSessionChat.testSupport'
@@ -54,8 +54,11 @@ it('reviews without writes, adds once, opens the actual updated Note, and restar
   await expectSavedNote()
   fireEvent.click(screen.getByRole('button', { name: 'Start new conversation' }))
   expect(api.restartChat).not.toHaveBeenCalled()
-  confirm.mockReturnValue(true)
+  const dialog = screen.getByRole('dialog', { name: 'Start a new conversation?' })
+  expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveFocus()
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
   fireEvent.click(screen.getByRole('button', { name: 'Start new conversation' }))
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Start new conversation' }))
   await waitFor(() => expect(api.restartChat).toHaveBeenCalledTimes(1))
   await waitFor(() => expect(screen.getByRole('textbox', { name: 'Message' })).toBeEnabled())
   expect(screen.getByRole('region', { name: 'Conversation transcript' })).toHaveTextContent('No messages yet')

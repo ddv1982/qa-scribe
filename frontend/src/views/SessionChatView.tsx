@@ -1,3 +1,4 @@
+import { ActionButton } from '../components/ActionButton'
 import { useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { ChatMessageList } from './ChatMessageList'
 import { ChatHandoff } from './ChatHandoff'
@@ -32,6 +33,7 @@ export type SessionChatViewProps = {
   onRetry: () => Promise<void>
   onCancel: () => Promise<void>
   onSubmit: () => Promise<void>
+  captureRestart?: () => (() => Promise<void>) | null
   onRestart: () => Promise<void>
   onConfigureAi: () => void
   onDecidePermission?: (requestId: string, decision: ChatPermissionDecision) => Promise<void>
@@ -173,7 +175,7 @@ export function SessionChatView(props: SessionChatViewProps) {
                   <p id={`${id}-permission-input`} className="chat-message-text chat-permission-input" tabIndex={0} aria-label={permissionExpanded ? 'Complete arguments' : 'Arguments preview'}>{permissionPreview}</p>
                   {permissionTruncated ? <>
                     <p className="chat-help">Arguments preview truncated to the first {permissionPreviewLimit.toLocaleString('en-US')} characters.</p>
-                    <button className="secondary-button compact-button" type="button" aria-controls={`${id}-permission-input`} onClick={() => setExpandedPermissionKey(permissionKey)}>Show complete arguments</button>
+                    <ActionButton variant="secondary" size="compact" type="button" aria-controls={`${id}-permission-input`} onClick={() => setExpandedPermissionKey(permissionKey)}>Show complete arguments</ActionButton>
                   </> : null}
                 </> : null}
               </div>
@@ -186,14 +188,14 @@ export function SessionChatView(props: SessionChatViewProps) {
           <footer className="chat-permission-decisions">
             {pendingPermission ? (
               <div className="chat-buttons" key={permissionKey}>
-                <button className="primary-button" type="button" disabled={permissionDisabled || approvalUnavailable} aria-describedby={approvalUnavailable ? `${id}-permission-approval-reason` : undefined} onClick={() => { if (!permissionDisabled && !approvalUnavailable) void onDecidePermission?.(pendingPermission.requestId, 'approve') }}>Approve once</button>
-                <button className="secondary-button" type="button" disabled={permissionDisabled || approvalUnavailable} aria-describedby={approvalUnavailable ? `${id}-permission-approval-reason` : undefined} onClick={() => { if (!permissionDisabled && !approvalUnavailable) void onDecidePermission?.(pendingPermission.requestId, 'approveAll') }}>Approve all for this response</button>
-                <button className="secondary-button" type="button" disabled={permissionDisabled} onClick={() => { if (!permissionDisabled) void onDecidePermission?.(pendingPermission.requestId, 'deny') }}>Deny</button>
+                <ActionButton variant="primary" type="button" disabled={permissionDisabled || approvalUnavailable} aria-describedby={approvalUnavailable ? `${id}-permission-approval-reason` : undefined} onClick={() => { if (!permissionDisabled && !approvalUnavailable) void onDecidePermission?.(pendingPermission.requestId, 'approve') }}>Approve once</ActionButton>
+                <ActionButton variant="secondary" type="button" disabled={permissionDisabled || approvalUnavailable} aria-describedby={approvalUnavailable ? `${id}-permission-approval-reason` : undefined} onClick={() => { if (!permissionDisabled && !approvalUnavailable) void onDecidePermission?.(pendingPermission.requestId, 'approveAll') }}>Approve all for this response</ActionButton>
+                <ActionButton variant="secondary" type="button" disabled={permissionDisabled} onClick={() => { if (!permissionDisabled) void onDecidePermission?.(pendingPermission.requestId, 'deny') }}>Deny</ActionButton>
               </div>
             ) : null}
             <div className="chat-buttons">
-              {needsProviderRecovery && onRecheck ? <button className="secondary-button compact-button" type="button" disabled={recheckDisabled} onClick={() => { if (!recheckDisabled) void onRecheck() }}>Recheck status</button> : null}
-              {activeJob ? <button className="secondary-button" type="button" disabled={job?.state === 'cancelling'} onClick={() => void onCancel()}>Cancel response</button> : null}
+              {needsProviderRecovery && onRecheck ? <ActionButton variant="secondary" size="compact" type="button" disabled={recheckDisabled} onClick={() => { if (!recheckDisabled) void onRecheck() }}>Recheck status</ActionButton> : null}
+              {activeJob ? <ActionButton variant="secondary" type="button" disabled={job?.state === 'cancelling'} onClick={() => void onCancel()}>Cancel response</ActionButton> : null}
             </div>
           </footer>
         </section>
@@ -210,9 +212,9 @@ export function SessionChatView(props: SessionChatViewProps) {
         <div className="chat-meta">
           <span>Next invocation · {providerLabel} · {modelLabel}</span>
           <span role="status" aria-live="polite">{status}</span>
-          <button className="secondary-button compact-button" type="button" onClick={onConfigureAi} disabled={busy}>
+          <ActionButton variant="secondary" size="compact" type="button" onClick={onConfigureAi} disabled={busy}>
             Configure AI
-          </button>
+          </ActionButton>
         </div>
         {!permissionAttention && (error || job?.errorMessage) ? <p className="chat-error" role="alert">{error || job?.errorMessage}</p> : null}
         {needsProviderRecovery && !permissionAttention ? (
@@ -222,7 +224,7 @@ export function SessionChatView(props: SessionChatViewProps) {
                 ? 'The permission decision could not be confirmed. Recheck status to recover its current state without repeating the decision.'
                 : 'Configure AI to review provider setup or sign-in. Rechecking status does not send a message or retry a response.'}
             </p>
-            {onRecheck ? <button className="secondary-button compact-button" type="button" disabled={recheckDisabled} onClick={() => { if (!recheckDisabled) void onRecheck() }}>Recheck status</button> : null}
+            {onRecheck ? <ActionButton variant="secondary" size="compact" type="button" disabled={recheckDisabled} onClick={() => { if (!recheckDisabled) void onRecheck() }}>Recheck status</ActionButton> : null}
           </div>
         ) : null}
 
@@ -260,9 +262,9 @@ export function SessionChatView(props: SessionChatViewProps) {
         <div className="chat-compose-actions">
           <span id={`${id}-shortcut`} className="chat-help">Enter for a new line. Ctrl/Cmd + Enter to send.</span>
           <div className="chat-buttons">
-            {permissionAttention ? <button className="secondary-button" type="button" onClick={() => { revealPermission(); permissionHeadingRef.current?.focus({ preventScroll: true }) }}>Review permission</button> : activeJob ? <button className="secondary-button" type="button" disabled={job?.state === 'cancelling'} onClick={() => void onCancel()}>Cancel response</button> : null}
-            {retryable && !submitted ? <button className="secondary-button" type="button" disabled={Boolean(retryReason)} aria-describedby={`${id}-retry-reason`} onClick={() => { if (!retryReason) void onRetry() }}>Retry response</button> : null}
-            <button className="primary-button" type="button" disabled={Boolean(sendReason)} aria-describedby={`${id}-send-reason`} onClick={() => { if (!sendReason) void onSend() }}>Send</button>
+            {permissionAttention ? <ActionButton variant="secondary" type="button" onClick={() => { revealPermission(); permissionHeadingRef.current?.focus({ preventScroll: true }) }}>Review permission</ActionButton> : activeJob ? <ActionButton variant="secondary" type="button" disabled={job?.state === 'cancelling'} onClick={() => void onCancel()}>Cancel response</ActionButton> : null}
+            {retryable && !submitted ? <ActionButton variant="secondary" type="button" disabled={Boolean(retryReason)} aria-describedby={`${id}-retry-reason`} onClick={() => { if (!retryReason) void onRetry() }}>Retry response</ActionButton> : null}
+            <ActionButton variant="primary" type="button" disabled={Boolean(sendReason)} aria-describedby={`${id}-send-reason`} onClick={() => { if (!sendReason) void onSend() }}>Send</ActionButton>
           </div>
         </div>
         <p className="chat-help" id={`${id}-send-reason`}>{sendReason || 'Send this message to the selected AI provider.'}</p>

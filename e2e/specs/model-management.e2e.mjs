@@ -193,13 +193,13 @@ async function copilotGeneration(model) {
   }, `Synthetic source for Copilot ${model} generation.`), 'Native editing must insert the synthetic source note')
   await browser.waitUntil(async () => await $('p.status-pill.saved').getText().then((text) => text.includes('Note saved')))
   const before = journal().length
-  await click('Summarize notes')
+  await click('Summarize with AI')
   const confirm = await (await $('dialog.generation-preflight[open]')).$('button=Summarize note')
   await confirm.waitForClickable()
   await confirm.click()
   await browser.waitUntil(() => journal().slice(before).some((entry) => entry.provider === 'copilot' && entry.event === 'prompt'),
     { timeout: 15_000, timeoutMsg: 'Synthetic Copilot generation did not start' })
-  await $('button=Summarize notes').waitForClickable({ timeout: 15_000 })
+  await $('button=Summarize with AI').waitForClickable({ timeout: 15_000 })
   const spawn = journal().slice(before).find((entry) => entry.provider === 'copilot' && entry.argv?.includes('-s'))
   assert.ok(spawn)
   const index = spawn.argv.indexOf('--model')

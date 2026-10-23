@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { copyAttachmentImageToClipboard } from '../tauri'
+import { copyAttachmentImageToClipboard, copyLocalImageToClipboard } from '../tauri'
 import { copyRecordForJira, managedAttachmentReferencesForClipboard } from '../editor/clipboardExport'
 import { formatError } from '../ui/format'
 
@@ -54,9 +54,14 @@ export function useCopyActions() {
       if (snapshot.target.action === 'jira-text') {
         await copyRecordForJira(snapshot)
       } else {
-        const [first] = managedAttachmentReferencesForClipboard(snapshot)
-        if (!first) throw new Error('No screenshot found in this record.')
-        await copyAttachmentImageToClipboard(first.attachmentId)
+        const image = new DOMParser().parseFromString(snapshot.bodyHtml, 'text/html').querySelector('img')
+        const src = image?.getAttribute('src') ?? ''
+        if (src.startsWith('data:image/')) await copyLocalImageToClipboard(src)
+        else {
+          const [first] = managedAttachmentReferencesForClipboard(snapshot)
+          if (!first) throw new Error('No screenshot found in this record.')
+          await copyAttachmentImageToClipboard(first.attachmentId)
+        }
       }
       if (!alive.current || attempt.current !== currentAttempt) return
       setCopyState({ status: 'succeeded', snapshot })

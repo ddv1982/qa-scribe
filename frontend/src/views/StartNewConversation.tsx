@@ -1,23 +1,62 @@
+import { useId, useLayoutEffect, useRef, useState } from 'react'
 import type { SessionChatViewState } from '../app/sessionChat.types'
 import { chatIsBusy } from '../app/sessionChat.presentation'
+import { ActionButton } from '../components/ActionButton'
+import { useModalDialog } from '../hooks/useModalDialog'
 
 export type ChatRestartState = Pick<SessionChatViewState,
   'chat' | 'composer' | 'job' | 'loading' | 'saving' | 'working' | 'recoveryPending'
-  | 'permissionWorking' | 'permissionRecoveryPending' | 'onRestart'>
+  | 'permissionWorking' | 'permissionRecoveryPending' | 'onRestart' | 'captureRestart'>
+
+function restartDisabled(state: ChatRestartState) {
+  return !state.chat || chatIsBusy(state) || Boolean(state.recoveryPending
+    || state.permissionWorking || state.permissionRecoveryPending)
+}
 
 export function StartNewConversation({ state }: { state: ChatRestartState }) {
-  const disabled = !state.chat || chatIsBusy(state) || Boolean(state.recoveryPending
-    || state.permissionWorking || state.permissionRecoveryPending)
+  const [confirmation, setConfirmation] = useState<null | { submitted: boolean; confirm: () => Promise<void> }>(null)
+  const latest = useRef(state)
+  useLayoutEffect(() => { latest.current = state })
   function restart() {
-    if (disabled || !state.chat) return
-    if ((state.composer !== '' || state.chat.messages.length > 0) && !window.confirm(
-      state.chat.submission
-        ? 'Start a new conversation? Submitted history remains saved. Any unsent message will be discarded.'
-        : 'Start a new conversation? This replaces the current conversation and discards any unsent message. Submit completed messages to the Session Note first if you want to keep them.',
-    )) return
-    void state.onRestart()
+    if (restartDisabled(state) || !state.chat) return
+    const captured = state
+    const confirm = state.captureRestart ? state.captureRestart() : async () => {
+      const current = latest.current
+      if (restartDisabled(current) || current.chat !== captured.chat
+        || current.composer !== captured.composer || current.job !== captured.job) return
+      await current.onRestart()
+    }
+    if (!confirm) return
+    if (state.composer === '' && state.chat.messages.length === 0) { void confirm(); return }
+    setConfirmation({ submitted: Boolean(state.chat.submission), confirm })
   }
-  return <button className="secondary-button compact-button" type="button" disabled={disabled} onClick={restart}>
-    Start new conversation
-  </button>
+  return <>
+    <ActionButton variant="secondary" size="compact" disabled={restartDisabled(state)} onClick={restart}>
+      Start new conversation
+    </ActionButton>
+    {confirmation ? <RestartDialog submitted={confirmation.submitted}
+      onCancel={() => setConfirmation(null)} onConfirm={() => {
+        setConfirmation(null)
+        void confirmation.confirm()
+      }} /> : null}
+  </>
+}
+
+function RestartDialog({ submitted, onCancel, onConfirm }: {
+  submitted: boolean; onCancel: () => void; onConfirm: () => void
+}) {
+  const id = useId()
+  const ref = useModalDialog(onCancel)
+  return <dialog ref={ref} className="confirmation-dialog" aria-labelledby={`${id}-title`} aria-describedby={`${id}-description`}>
+    <div>
+      <h2 id={`${id}-title`}>Start a new conversation?</h2>
+      <p id={`${id}-description`}>{submitted
+        ? 'Submitted history remains saved. Any unsent message will be discarded.'
+        : 'This replaces the current conversation and discards any unsent message. Submit completed messages to the Session Note first if you want to keep them.'}</p>
+    </div>
+    <footer className="confirmation-actions">
+      <ActionButton variant="secondary" onClick={onCancel}>Cancel</ActionButton>
+      <ActionButton variant="primary" onClick={onConfirm}>Start new conversation</ActionButton>
+    </footer>
+  </dialog>
 }

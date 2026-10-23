@@ -1,3 +1,6 @@
+import { ActionButton } from '../components/ActionButton'
+import { findingCopyBody } from '../findings/copyBody'
+import { findingSeverityValue } from '../findings/severity'
 import { useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { BookOpen, Flag, Loader2, Search, SearchX } from 'lucide-react'
@@ -27,6 +30,7 @@ type NormalizedLibraryRecord = {
   body: string
   bodyJson: string | null
   bodyFormat: string | null
+  metadataJson: string | null
   updatedAt: string
   kindLabel: string
   kindValue: string
@@ -77,6 +81,7 @@ export function OutputLibraryView({
         body: item.draft.body,
         bodyJson: item.draft.bodyJson,
         bodyFormat: item.draft.bodyFormat,
+        metadataJson: item.draft.metadataJson,
         updatedAt: item.draft.updatedAt,
         kindLabel: 'Test case',
         kindValue: item.draft.kind,
@@ -96,10 +101,11 @@ export function OutputLibraryView({
         body: item.finding.body,
         bodyJson: item.finding.bodyJson,
         bodyFormat: item.finding.bodyFormat,
+        metadataJson: item.finding.metadataJson,
         updatedAt: item.finding.updatedAt,
         kindLabel: formatFindingKind(item.finding.kind),
         kindValue: item.finding.kind,
-        metadata: [findingSeverityLabel(metadata.severity), findingStatusLabel(metadata.status)],
+        metadata: [findingSeverityLabel(findingSeverityValue(item.finding)), findingStatusLabel(metadata.status)],
       }
     }), [draftItems, findingItems, isTestware])
   const sessions = useMemo(() => Array.from(new Map(records.map((record) => [record.sessionId, record.sessionTitle])).entries())
@@ -193,9 +199,9 @@ export function OutputLibraryView({
               <RichTextEditor value={richEditorDocumentFromStoredBody(selected)} ariaLabel={`${selected.title} preview`} readOnly />
             </div>
             <div className="record-actions">
-              <CopyControls snapshot={{ target: { kind: selected.sourceKind, sessionId: selected.sessionId, id: selected.id, action: 'jira-text' }, title: selected.title, bodyHtml: selected.body }}
+              <CopyControls snapshot={{ target: { kind: selected.sourceKind, sessionId: selected.sessionId, id: selected.id, action: 'jira-text' }, title: selected.title, bodyHtml: selected.sourceKind === 'finding' ? findingCopyBody(selected.body, selected.metadataJson) : selected.body }}
                 copyState={copyState} onCopy={onCopy} disabled={isBusy} label={selected.title} />
-              <button className="primary-button" type="button" onClick={() => onOpenRecord(selected.sessionId, selected.id)}>Open in Session</button>
+              <ActionButton variant="primary" type="button" onClick={() => onOpenRecord(selected.sessionId, selected.id)}>Open in Session</ActionButton>
             </div>
           </article>
         ) : null}

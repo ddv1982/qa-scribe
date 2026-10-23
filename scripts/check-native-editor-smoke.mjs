@@ -36,6 +36,18 @@ export function privateEnvironment(home) {
   return { HOME: home, PATH: path, SHELL: '/bin/sh', LANG: 'en_US.UTF-8', XDG_CONFIG_HOME: join(home, 'config'), XDG_DATA_HOME: join(home, 'data'), XDG_CACHE_HOME: join(home, 'cache'), XDG_RUNTIME_DIR: home, GIO_USE_VFS: 'local', GTK_USE_PORTAL: '0', NO_AT_BRIDGE: '1' }
 }
 
+export async function waitForCompletions(widget, completions, deadline) {
+  const remaining = () => {
+    const timeout = deadline - Date.now()
+    assert.ok(timeout > 0, 'Completion readiness deadline')
+    return timeout
+  }
+  await widget.waitFor({ state: 'visible', timeout: remaining() })
+  for (const item of completions) {
+    await widget.getByRole('option').getByText(item, { exact: true }).waitFor({ state: 'visible', timeout: remaining() })
+  }
+}
+
 export async function verifyReleased({ port, display }) {
   if (port) await new Promise((resolve, reject) => {
     const socket = createConnection({ host: '127.0.0.1', port })
@@ -336,7 +348,8 @@ export async function editorSmoke({ source, output, provision = false, tools = p
           await edit().focus(); await page.keyboard.press('Control+g'); await query.waitFor({ state: 'visible' })
           await query.fill(`:${fixture.completionPosition}`); await query.press('Enter'); await picker.waitFor({ state: 'hidden' })
           await edit().focus(); await page.keyboard.press('Control+Space')
-          const widget = page.locator('.suggest-widget.visible'); await widget.waitFor()
+          const widget = page.locator('.suggest-widget.visible')
+          await waitForCompletions(widget, fixture.completions, Date.now() + budget())
           const text = await widget.innerText()
           for (const item of fixture.completions) assert.ok(text.includes(item), `Completion ${item}`)
         })

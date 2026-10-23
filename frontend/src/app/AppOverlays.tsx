@@ -5,12 +5,18 @@ import { useModalDialog } from '../hooks/useModalDialog'
 import type { AppCommand } from './commandRegistry'
 
 export function PendingChangesDialog({
+  generationPending = false, onCancelGeneration,
+  creationDraft = false, errorMessage = null,
   recoveredSummaryConflict = false,
   isBusy,
   onCancel,
   onDiscard,
   onSave,
 }: {
+  generationPending?: boolean
+  onCancelGeneration?: () => void
+  errorMessage?: string | null
+  creationDraft?: boolean
   recoveredSummaryConflict?: boolean
   isBusy: boolean
   onCancel: () => void
@@ -20,30 +26,34 @@ export function PendingChangesDialog({
   const cancelRef = useRef<HTMLButtonElement>(null)
   const dialogRef = useModalDialog(onCancel)
   useEffect(() => { cancelRef.current?.focus() }, [])
-  const title = recoveredSummaryConflict ? 'Choose which Note to keep' : 'Save before leaving?'
-  const body = recoveredSummaryConflict
+  const title = generationPending ? 'Generation is still running' : recoveredSummaryConflict ? 'Choose which Note to keep' : 'Save before leaving?'
+  const body = generationPending ? 'Keep waiting, or cancel generation before settling this unsaved draft. A result that already committed stays saved.' : recoveredSummaryConflict
     ? 'A recovered Summary replaced locally authored text. Restore the authored text, keep the visible generated Summary and its edits, or stay here. Keeping the Summary also discards any other unsaved changes.'
-    : 'Explicit edits to Settings, Testware, or Findings have not been saved. Save them, discard them, or stay here.'
+    : creationDraft ? 'This draft is not saved yet. Save it, discard it, or keep editing.' : 'Explicit edits to Settings, Testware, or Findings have not been saved. Save them, discard them, or stay here.'
   return (
     <dialog ref={dialogRef} className="confirmation-dialog" aria-labelledby="pending-changes-title">
       <div>
         <p className="eyebrow">{recoveredSummaryConflict ? 'Recovered Summary conflict' : 'Unsaved changes'}</p>
         <h2 id="pending-changes-title">{title}</h2>
         <p>{body}</p>
+        {errorMessage ? <p className="inline-message blocking" role="alert">{errorMessage}</p> : null}
       </div>
       <div className="confirmation-actions pending-change-actions">
-        {recoveredSummaryConflict ? (
+        {generationPending ? <>
+          <ActionButton ref={cancelRef} disabled={isBusy} onClick={onCancel}>Keep waiting</ActionButton>
+          <ActionButton variant="primary" disabled={isBusy} onClick={onCancelGeneration}>Cancel generation</ActionButton>
+        </> : recoveredSummaryConflict ? (
           <>
             <ActionButton ref={cancelRef} disabled={isBusy} onClick={onCancel}>Cancel</ActionButton>
             <ActionButton variant="destructive-quiet" disabled={isBusy} onClick={onDiscard}>Keep generated Summary</ActionButton>
           </>
         ) : (
           <>
-            <ActionButton variant="destructive-quiet" className="pending-change-discard" disabled={isBusy} onClick={onDiscard}>Discard changes</ActionButton>
+            <ActionButton variant="destructive-quiet" className="pending-change-discard" disabled={isBusy} onClick={onDiscard}>{creationDraft ? 'Discard draft' : 'Discard changes'}</ActionButton>
             <ActionButton ref={cancelRef} disabled={isBusy} onClick={onCancel}>Keep editing</ActionButton>
           </>
         )}
-        <ActionButton variant="primary" disabled={isBusy} onClick={onSave}>{recoveredSummaryConflict ? 'Restore authored text' : 'Save and continue'}</ActionButton>
+        {!generationPending ? <ActionButton variant="primary" disabled={isBusy} onClick={onSave}>{recoveredSummaryConflict ? 'Restore authored text' : creationDraft ? 'Save draft' : 'Save and continue'}</ActionButton> : null}
       </div>
     </dialog>
   )

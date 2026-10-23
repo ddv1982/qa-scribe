@@ -4,6 +4,7 @@ use rusqlite::{Connection, Transaction, TransactionBehavior};
 
 use crate::{Result, error::validation};
 
+mod creation;
 mod schema;
 
 use schema::SCHEMA;
@@ -67,7 +68,7 @@ pub fn with_immediate_tx<T>(
 /// final time, and settles on a `user_version` this build can trust from then
 /// on. Once every database in the wild has passed through this once, future
 /// bumps can go strictly by increment again.
-pub const SCHEMA_VERSION: i32 = 11;
+pub const SCHEMA_VERSION: i32 = 13;
 
 fn initialize(connection: &Connection) -> Result<()> {
     let initialize_started = Instant::now();
@@ -110,6 +111,7 @@ fn initialize(connection: &Connection) -> Result<()> {
     if migrations_run {
         let span_started = Instant::now();
         migrate(connection)?;
+        creation::ensure_note_revision_supported(connection)?;
         assert_no_foreign_key_violations(connection)?;
         connection.pragma_update(None, "user_version", SCHEMA_VERSION)?;
         eprintln!(
@@ -119,6 +121,7 @@ fn initialize(connection: &Connection) -> Result<()> {
             span_started.elapsed().as_millis()
         );
     } else {
+        creation::ensure_note_revision_supported(connection)?;
         eprintln!("qa-scribe startup storage foreign key check skipped: reason=current_schema");
     }
     eprintln!(
@@ -362,6 +365,7 @@ fn rebuild_entries_without_body_length_check(connection: &Connection) -> Result<
     let body_format_expr =
         optional_column_select_expr(connection, "entries", "body_format", "'html'")?;
 
+    let revision_expr = optional_column_select_expr(connection, "entries", "revision", "0")?;
     connection.execute_batch(&format!(
         r#"
         DROP TABLE IF EXISTS entries_new;
@@ -372,6 +376,7 @@ fn rebuild_entries_without_body_length_check(connection: &Connection) -> Result<
           type TEXT NOT NULL CHECK (type IN ('note', 'observation', 'api_response', 'log', 'screenshot', 'finding_candidate')),
           title TEXT,
           body TEXT NOT NULL,
+          revision INTEGER NOT NULL DEFAULT 0 CHECK (revision >= 0),
           body_json TEXT,
           body_format TEXT NOT NULL DEFAULT 'html',
           metadata_json TEXT,
@@ -381,9 +386,9 @@ fn rebuild_entries_without_body_length_check(connection: &Connection) -> Result<
         );
 
         INSERT INTO entries_new (
-          id, session_id, type, title, body, body_json, body_format, metadata_json, excluded_from_generation, created_at, updated_at
+          id, session_id, type, title, body, revision, body_json, body_format, metadata_json, excluded_from_generation, created_at, updated_at
         )
-        SELECT id, session_id, type, title, body, {body_json_expr}, {body_format_expr}, metadata_json, excluded_from_generation, created_at, updated_at
+        SELECT id, session_id, type, title, body, {revision_expr}, {body_json_expr}, {body_format_expr}, metadata_json, excluded_from_generation, created_at, updated_at
         FROM entries;
 
         DROP TABLE entries;

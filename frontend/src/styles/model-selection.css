@@ -27,3 +27,12 @@
   transform: none;
   animation: none;
 }
+
+.model-option[aria-disabled="true"],
+.model-option[aria-disabled="true"]:hover {
+  color: var(--text-secondary);
+  background: var(--surface-sunken);
+  border-color: var(--border-default);
+  cursor: not-allowed;
+}
+.model-option[aria-disabled="true"] strong { color: var(--text-secondary); }

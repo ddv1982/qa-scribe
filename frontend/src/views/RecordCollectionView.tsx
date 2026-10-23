@@ -1,6 +1,7 @@
+import { ActionButton } from '../components/ActionButton'
 import { RecordCreationActions, type RecordCreationCommands } from './RecordCreationActions'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AlertTriangle, FileText, Loader2, Search, SearchX } from 'lucide-react'
+import { AlertTriangle, Loader2, Search, SearchX } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { EmptyCollection, StatePanel, StatusPill } from '../components/Common'
@@ -29,7 +30,6 @@ export type RecordCollectionLabels = {
   heading: string
   emptyTitle: string
   emptyDescription: string
-  prefillLabel: string
   generationTitle: string
   generationTitleAriaLabel: string
   generationPlaceholder: string
@@ -45,16 +45,15 @@ export type RecordCollectionLabels = {
 export type RecordBusyActionKind = 'delete' | 'saving'
 
 export function RecordCollectionView<T extends CollectionRecord>({
+  composer, settleCreation,
   creationCommands,
-  aiUnavailableReason,
   labels,
   emptyIcon,
-  prefillBusyAction,
   busyAction,
   busyActionFor,
   sourceKind,
-  copyState,
-  recordScreenshotCounts,
+  copyBody,
+  copyState,  recordScreenshotCounts,
   records,
   sessionTitle,
   notice,
@@ -70,25 +69,25 @@ export function RecordCollectionView<T extends CollectionRecord>({
   renderMeta,
   renderListMeta,
   filter,
-  renderEditFields,
+  renderEditFields, onPrepareEdit,
   renderPreviewHeader,
   updateLocalRecord,
   onCancelGenerationJob,
   onCopy,
   onDeleteRecord,
-  onPrefillFromNote,
   onDiscardRecord,
   onSaveRecord,
   onUploadImage,
 }: {
+  settleCreation?: () => Promise<boolean>
+  composer?: ReactNode
   creationCommands: RecordCreationCommands
-  aiUnavailableReason?: string | null
   labels: RecordCollectionLabels
   emptyIcon: LucideIcon
-  prefillBusyAction: BusyAction
   busyAction: BusyAction | null
   busyActionFor: (record: T, kind: RecordBusyActionKind) => BusyAction
   sourceKind: 'draft' | 'finding'
+  copyBody?: (record: T) => string
   copyState: CopyState
   recordScreenshotCounts: Record<string, number>
   records: T[]
@@ -111,12 +110,12 @@ export function RecordCollectionView<T extends CollectionRecord>({
     valueFor: (record: T) => string
   }
   renderPreviewHeader: (record: T) => ReactNode
+  onPrepareEdit?: (record: T) => void
   renderEditFields?: (record: T) => ReactNode
   updateLocalRecord: (id: string, patch: CollectionRecordPatch) => void
   onCancelGenerationJob: (jobId: string) => Promise<void>
   onCopy: (snapshot: ClipboardSnapshot) => Promise<void>
   onDeleteRecord: (record: T) => void
-  onPrefillFromNote: () => Promise<void>
   onDiscardRecord: (record: T) => void
   onSaveRecord: (record: T) => Promise<boolean>
   onUploadImage: (input: RichEditorImageUpload, recordId: string) => void | Promise<void>
@@ -127,6 +126,8 @@ export function RecordCollectionView<T extends CollectionRecord>({
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<'updated' | 'title'>('updated')
   const [filterValue, setFilterValue] = useState('all')
+  const selectionEpochRef = useRef(0)
+  const previewRef = useRef<HTMLDivElement>(null)
   const titleInputRef = useRef<HTMLInputElement>(null)
   const [appliedTarget, setAppliedTarget] = useState<CreatedRecordEditTarget | null>(null)
   const focusedTargetRef = useRef<CreatedRecordEditTarget | null>(null)
@@ -155,11 +156,20 @@ export function RecordCollectionView<T extends CollectionRecord>({
     setFilterValue('all')
     setSelectedRecordId(createdRecord.id)
     setEditingOriginals({ [createdRecord.id]: createdRecord })
-    setEditingRecordIds({ [createdRecord.id]: true })
+    setEditingRecordIds({ [createdRecord.id]: createdRecordEditTarget?.editing !== false })
   }
 
   useEffect(() => {
     const input = titleInputRef.current
+    if (appliedTarget && appliedTarget.editing === false && selectedRecord?.id === appliedTarget.recordId && focusedTargetRef.current?.recordId !== appliedTarget.recordId) {
+      const heading = previewRef.current?.querySelector<HTMLElement>('.record-title')
+      if (!heading) return
+      heading.tabIndex = -1
+      heading.focus({ preventScroll: true })
+      focusedTargetRef.current = appliedTarget
+      onCreatedRecordEditTargetConsumed?.(appliedTarget)
+      return
+    }
     if (!appliedTarget || focusedTargetRef.current?.recordId === appliedTarget.recordId || appliedTarget.recordId !== createdRecordEditTarget?.recordId
       || selectedRecord?.id !== appliedTarget.recordId || !selectedEditing || !input) return
     input.scrollIntoView({ block: 'center', inline: 'nearest' })
@@ -171,6 +181,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
 
   function startEditing(record: T) {
     setEditingOriginals((previous) => ({ ...previous, [record.id]: record }))
+    onPrepareEdit?.(record)
     setRecordEditing(record.id, true)
   }
 
@@ -198,15 +209,9 @@ export function RecordCollectionView<T extends CollectionRecord>({
           {sessionTitle ? <p className="collection-context">Session: {sessionTitle}</p> : null}
         </div>
         <div className="collection-header-actions">
-          <RecordCreationActions commands={creationCommands} />
-          <button className="secondary-button" type="button" disabled={isBusy} onClick={() => void onPrefillFromNote()}>
-            {busyAction === prefillBusyAction ? <Loader2 className="spin" size={16} /> : <FileText size={16} />}
-            {labels.prefillLabel}
-          </button>
+          {!composer ? <RecordCreationActions commands={creationCommands} /> : null}
         </div>
       </header>
-      {aiUnavailableReason ? <p className="collection-action-guidance">{aiUnavailableReason}</p> : null}
-      <p className="collection-action-guidance">Prefill from note uses a plain-text template without formatting or screenshots.{sourceKind === 'finding' ? ' Only the first 4,000 characters are included.' : ''}</p>
       {notice || error ? (
         <div className="collection-status">
           <StatusPill notice={notice} error={error} busyAction={busyAction} />
@@ -215,7 +220,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
       {loadState === 'error' && records.length > 0 ? (
         <div className="collection-load-advisory" role="alert">
           <span>{loadError ?? `The ${labels.recordNounLower} collection could not be refreshed.`}</span>
-          {onRetryLoad ? <button className="secondary-button" type="button" onClick={onRetryLoad}>Try again</button> : null}
+          {onRetryLoad ? <ActionButton variant="secondary" type="button" onClick={onRetryLoad}>Try again</ActionButton> : null}
         </div>
       ) : null}
 
@@ -251,7 +256,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
         </div>
       ) : null}
 
-      <div className="collection-workspace">
+      <div className={visibleRecords.length ? "collection-workspace" : "collection-workspace collection-workspace--single-sidebar"}>
         {activeGenerationJob ? (
           <GenerationRecord
             title={labels.generationTitle}
@@ -268,10 +273,14 @@ export function RecordCollectionView<T extends CollectionRecord>({
               <button
                 key={record.id}
                 type="button"
-                className={selectedRecord?.id === record.id ? 'active' : ''}
-                aria-current={selectedRecord?.id === record.id ? 'true' : undefined}
+                className={!composer && selectedRecord?.id === record.id ? 'active' : ''}
+                aria-current={!composer && selectedRecord?.id === record.id ? 'true' : undefined}
                 disabled={selectedEditing && selectedRecord?.id !== record.id}
-                onClick={() => setSelectedRecordId(record.id)}
+                onClick={() => {
+                  const epoch = ++selectionEpochRef.current
+                  if (composer && settleCreation) void settleCreation().then((settled) => { if (settled && selectionEpochRef.current === epoch) setSelectedRecordId(record.id) })
+                  else setSelectedRecordId(record.id)
+                }}
               >
                 <strong>{record.title.trim() || `Untitled ${labels.recordNounLower}`}</strong>
                 <span>Updated {formatRecordDate(record.updatedAt)}</span>
@@ -280,7 +289,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
             ))}
           </aside>
         ) : null}
-        {selectedRecord ? (() => {
+        {composer ? <div className="record-detail-pane">{composer}</div> : selectedRecord ? (() => {
           const record = selectedRecord
           const deleting = busyAction === busyActionFor(record, 'delete')
           const screenshotCount = recordScreenshotCounts[record.id] ?? 0
@@ -288,7 +297,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
           const editorId = `${labels.editorIdPrefix}-${record.id}`
           const editing = Boolean(editingRecordIds[record.id])
           return (
-            <div className="record-detail-pane">
+            <div className="record-detail-pane" ref={previewRef}>
             <EditableRichRecord
               record={record}
               editing={editing}
@@ -307,7 +316,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
               actions={
                 <RichRecordActions
                   copyControls={<CopyControls
-                    snapshot={{ target: { kind: sourceKind, sessionId: record.sessionId, id: record.id, action: 'jira-text' }, title: record.title, bodyHtml: record.body }}
+                    snapshot={{ target: { kind: sourceKind, sessionId: record.sessionId, id: record.id, action: 'jira-text' }, title: record.title, bodyHtml: copyBody?.(record) ?? record.body }}
                     copyState={copyState} onCopy={onCopy} disabled={isBusy}
                     label={record.title.trim() || labels.recordNounLower} screenshotCount={screenshotCount} />}
                   deleting={deleting}
@@ -330,14 +339,14 @@ export function RecordCollectionView<T extends CollectionRecord>({
             </div>
           )
         })() : null}
-        {(loadState === 'idle' || loadState === 'loading') && records.length === 0 && !activeGenerationJob ? (
+        {(loadState === 'idle' || loadState === 'loading') && records.length === 0 && !activeGenerationJob && !composer ? (
           <StatePanel
             icon={Loader2}
             title={`Loading ${labels.recordNounLower} records`}
             description={`Reading ${labels.recordNounLower} owned by this Session.`}
           />
         ) : null}
-        {loadState === 'error' && records.length === 0 && !activeGenerationJob ? (
+        {loadState === 'error' && records.length === 0 && !activeGenerationJob && !composer ? (
           <StatePanel
             icon={AlertTriangle}
             title={`Could not load ${labels.recordNounLower} records`}
@@ -345,7 +354,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
             action={onRetryLoad ? { label: 'Try again', onClick: onRetryLoad } : undefined}
           />
         ) : null}
-        {loadState === 'ready' && records.length === 0 && !activeGenerationJob ? (
+        {loadState === 'ready' && records.length === 0 && !activeGenerationJob && !composer ? (
           <EmptyCollection
             icon={emptyIcon}
             title={labels.emptyTitle}
@@ -356,8 +365,12 @@ export function RecordCollectionView<T extends CollectionRecord>({
           <EmptyCollection
             icon={SearchX}
             title="No matching records"
-            description={`No ${labels.recordNounLower} records match “${query}”. Clear the search to see the full collection.`}
-            action={{ label: 'Clear search', onClick: () => setQuery('') }}
+            description={filterValue !== 'all'
+              ? `No ${labels.recordNounLower} records match the current filters. Clear filters to see the full collection.`
+              : `No ${labels.recordNounLower} records match “${query}”. Clear the search to see the full collection.`}
+            action={filterValue !== 'all'
+              ? { label: 'Clear filters', onClick: () => { setQuery(''); setFilterValue('all') } }
+              : { label: 'Clear search', onClick: () => setQuery('') }}
           />
         ) : null}
       </div>

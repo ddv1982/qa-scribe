@@ -1,3 +1,4 @@
+import { openCreationAi } from './creation-helpers.mjs'
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -379,9 +380,9 @@ export async function runChatToNoteWorkflow() {
   const edited = await canonicalNote(primaryId)
   assertRichNote(edited, originalNodes, true, true)
 
-  await click('Create test cases with AI')
+  await openCreationAi('testware')
   await $('dialog').waitForDisplayed()
-  const confirm = await (await $('dialog')).$('button=Generate test cases')
+  const confirm = await (await $('dialog')).$('button=Generate')
   await confirm.waitForClickable()
   await confirm.click()
   await fixtureFile(directory, 'codex-exec-4.started')

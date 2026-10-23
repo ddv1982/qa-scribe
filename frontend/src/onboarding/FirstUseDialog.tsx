@@ -1,3 +1,4 @@
+import { ActionButton } from '../components/ActionButton'
 import { useState } from 'react'
 import { writePlainClipboard } from '../editor/clipboardExport'
 import { useModalDialog } from '../hooks/useModalDialog'
@@ -29,7 +30,7 @@ export function FirstUseDialog({ kind, onClose, onExploreExample, onStartSession
   return <dialog ref={dialogRef} className="confirmation-dialog first-use-dialog" aria-labelledby="first-use-title">
     <header className="first-use-header">
       <h2 id="first-use-title">{kind === 'help' ? 'Help' : 'Explore an example'}</h2>
-      <button className="secondary-button" type="button" onClick={onClose}>Close</button>
+      <ActionButton variant="secondary" type="button" onClick={onClose}>Close</ActionButton>
     </header>
     {kind === 'example' ? <>
       <p className="example-label">Synthetic example · Read-only preview</p>
@@ -52,7 +53,7 @@ export function FirstUseDialog({ kind, onClose, onExploreExample, onStartSession
       <section aria-label="Example test case"><h3>Test case · Required postcode</h3><p>{exampleSession.testCase}</p></section>
       <footer className="first-use-actions">
         <p>Start a blank Session with your own evidence.</p>
-        <button className="primary-button" type="button" disabled={!canCreateSession} onClick={onStartSession}>Start your own Session</button>
+        <ActionButton variant="primary" type="button" disabled={!canCreateSession} onClick={onStartSession}>Start your own Session</ActionButton>
       </footer>
     </> : <>
       <section aria-label="Capture and report">
@@ -60,11 +61,11 @@ export function FirstUseDialog({ kind, onClose, onExploreExample, onStartSession
         <ol>
           <li>Start a Session and give it a title for the task you are testing.</li>
           <li>Write what you tried and what happened in Note. Paste a screenshot or use Upload image.</li>
-          <li>Choose Create finding or Create test cases. Edit the result, then Save.</li>
+          <li>Choose Create finding or Create test cases. Write in the unsaved draft, then Save. Opening a draft saves no blank record.</li>
           <li>Use Copy and paste into your reporting tool. Reopen work from Sessions or either library.</li>
         </ol>
         <p>Notes autosave. Save explicit edits to Findings and test cases before leaving.</p>
-        <button className="secondary-button" type="button" onClick={onExploreExample}>Explore an example</button>
+        <ActionButton variant="secondary" type="button" onClick={onExploreExample}>Explore an example</ActionButton>
       </section>
       <details>
         <summary>Copy text and screenshots</summary>
@@ -80,7 +81,7 @@ export function FirstUseDialog({ kind, onClose, onExploreExample, onStartSession
           <li>GitHub Copilot CLI. Check <code>copilot version</code> then run <code>copilot</code> and enter <code>/login</code> to sign in.</li>
         </ul>
         <p>Open Settings and choose Refresh CLI configuration. Installed does not mean authenticated. A ready status is a local check, not a guarantee of account access, quota, model availability, or a successful response.</p>
-        <p>Choose an action labelled with AI or send a Chat message to request AI. Review selected context before generation. Add conversation to note appends a finished Chat to Note without another AI request.</p>
+        <p>Expand Generate with AI inside a draft, or send a Chat message to request AI. Review the source before confirming. Successful draft generation saves one result immediately. Add conversation to note appends a finished Chat to Note without another AI request.</p>
       </details>
       <details>
         <summary>Local data, privacy, and recovery</summary>
@@ -97,7 +98,7 @@ export function FirstUseDialog({ kind, onClose, onExploreExample, onStartSession
         <summary>Send feedback</summary>
         <p>Copy this link and paste it into your browser to write a GitHub issue. Review and edit your report before you submit it. Remove private evidence.</p>
         <label className="feedback-url">Feedback URL<input readOnly value={feedbackUrl} onFocus={(event) => event.currentTarget.select()} /></label>
-        <button className="secondary-button" type="button" disabled={feedbackState === 'copying'} onClick={() => void copyFeedbackLink()}>Copy feedback link</button>
+        <ActionButton variant="secondary" type="button" disabled={feedbackState === 'copying'} onClick={() => void copyFeedbackLink()}>Copy feedback link</ActionButton>
         <p role="status">{feedbackState === 'copied' ? 'Feedback link copied.' : feedbackState === 'failed' ? 'Could not copy. Select the URL and copy it manually.' : 'Only the link is copied. Nothing is uploaded or submitted.'}</p>
       </details>
     </>}

@@ -1,3 +1,4 @@
+import { ActionButton } from '../components/ActionButton'
 import { useEffect, useId, useRef, useState, type ChangeEvent, type FormEvent, type MouseEvent } from 'react'
 import { EditorContent, useEditor, type Editor } from '@tiptap/react'
 import { Bold, ImageIcon, Italic, Link2, List, ListChecks, type LucideIcon } from 'lucide-react'
@@ -183,9 +184,9 @@ export function FormatToolbar({ editorId, onUploadImage }: FormatToolbarProps) {
               }
             }}
           />
-          <button className="secondary-button link-editor-apply" type="submit" aria-label="Apply link">
+          <ActionButton variant="secondary" className="link-editor-apply" type="submit" aria-label="Apply link">
             Apply
-          </button>
+          </ActionButton>
           {linkPopover.error ? (
             <p id={linkErrorId} className="link-editor-error" role="alert">
               {linkPopover.error}
@@ -285,8 +286,9 @@ export function RichTextEditor({
     if (!editor || editor.isDestroyed || !editorId) return
     const insertImage: RichEditorImageInserter = (attachmentId, filename, previewSrc) => {
       if (editor.isDestroyed) return false
-      const source = `${managedAttachmentProtocol}${attachmentId}`
-      if (previewSrc) previewCache.seed(attachmentId, previewSrc)
+      const source = attachmentId !== null ? `${managedAttachmentProtocol}${attachmentId}` : previewSrc
+      if (!source) return false
+      if (attachmentId && previewSrc) previewCache.seed(attachmentId, previewSrc)
       const inserted = editor
         .chain()
         .focus(undefined, { scrollIntoView: false })

@@ -83,7 +83,7 @@ fn v10_legacy_model_bytes_survive_migration_and_reopen() {
         connection
             .query_row("PRAGMA user_version", [], |r| r.get::<_, i32>(0))
             .unwrap(),
-        11
+        qa_scribe_core::storage::SCHEMA_VERSION
     );
     drop(connection);
     std::fs::remove_file(path).unwrap();
@@ -234,13 +234,15 @@ fn stream_evidence_survives_success_failure_cancel_and_execution_error_into_rows
                 ..Default::default()
             })
             .unwrap();
+        let note = source_note(&service, &session.id);
         let request = GenerateAiActionRequest {
             session_id: session.id,
             provider: AiProvider::ClaudeCode,
             model: "sonnet-alias".into(),
             reasoning_effort: None,
             action: GenerateAiActionKind::Testware,
-            note_entry_id: None,
+            note_entry_id: Some(note.id),
+            expected_note_revision: Some(0),
             testware_preferences: None,
         };
         let prepared = prepare_ai_action_generation(&service, &request).unwrap();
@@ -335,13 +337,15 @@ fn response_parse_failure_preserves_initialization_evidence_in_failed_run() {
             ..Default::default()
         })
         .unwrap();
+    let note = source_note(&service, &session.id);
     let request = GenerateAiActionRequest {
         session_id: session.id,
         provider: AiProvider::ClaudeCode,
         model: "default".into(),
         reasoning_effort: None,
         action: GenerateAiActionKind::Testware,
-        note_entry_id: None,
+        note_entry_id: Some(note.id),
+        expected_note_revision: Some(0),
         testware_preferences: None,
     };
     let prepared = prepare_ai_action_generation(&service, &request).unwrap();
@@ -455,4 +459,19 @@ fn legacy_runs_reject_new_reports_without_writes_or_invented_request() {
             value: "ambiguous-old-alias".into()
         }
     );
+}
+
+fn source_note(service: &SessionService, session_id: &str) -> Entry {
+    service
+        .create_entry(EntryDraft {
+            session_id: session_id.into(),
+            entry_type: EntryType::Note,
+            title: None,
+            body: "Source".into(),
+            body_json: None,
+            body_format: Some("html".into()),
+            metadata_json: None,
+            excluded_from_generation: false,
+        })
+        .unwrap()
 }

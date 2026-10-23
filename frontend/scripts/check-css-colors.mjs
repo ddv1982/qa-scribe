@@ -49,3 +49,26 @@ if (undefinedTokens.length > 0) {
   process.exit(1);
 }
 console.log('css colors: OK — all color literals confined to base.css and custom properties resolve');
+
+const sourceDir = fileURLToPath(new URL('../src', import.meta.url));
+const legacyActions = /\b(?:primary-button|secondary-button|compact-button|icon-button|text-button|danger-button|success-button)\b/;
+const legacyCallers = [];
+function checkActions(directory) {
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) checkActions(path);
+    else if (entry.name.endsWith('.tsx') && !entry.name.includes('.test.')) {
+      const source = readFileSync(path, 'utf8');
+      if (legacyActions.test(source)) legacyCallers.push(path);
+    }
+  }
+}
+checkActions(sourceDir);
+for (const { file, content } of [...stylesheets, { file: 'styles.css', content: readFileSync(join(sourceDir, 'styles.css'), 'utf8') }]) {
+  if (legacyActions.test(content)) legacyCallers.push(file);
+}
+if (legacyCallers.length > 0) {
+  console.error(`Legacy action callers remain:\n${legacyCallers.join('\n')}`);
+  process.exit(1);
+}
+console.log('action callers: OK; navigation, options, segmented selections and editor commands retain their semantic controls');

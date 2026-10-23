@@ -1,3 +1,5 @@
+import { ActionButton } from '../components/ActionButton'
+import { CreationWorkspace } from '../views/CreationTools'
 import { useEffect, useState, type KeyboardEvent } from 'react'
 import { BookOpen, Box, ChevronRight, Command as CommandIcon, FileText, Flag, CircleHelp, Loader2, PencilLine, Plus, Search, Settings } from 'lucide-react'
 import { catalogSelectorEnabled } from '../settings/catalog'
@@ -39,8 +41,10 @@ export function AppShell(c: AppController) {
   const runCommand = (id: AppCommandId) => commandById(id)?.run()
   const creationCommands = (kind: 'testware' | 'finding') => ({
     create: commands.find((command) => command.id === `${kind}.new`)!,
-    generate: commands.find((command) => command.id === `${kind}.ai`)!,
   })
+  const creationResultReady = c.creationIntent?.phase.state === 'saved'
+    && c.creationIntent.phase.selection === 'ready'
+  const composer = c.creationIntent && !creationResultReady ? <CreationWorkspace c={c} /> : null
   const topAction = c.activeView === 'sessions'
     ? { command: commandById('session.new'), busy: 'new-session' as const }
     : null
@@ -51,14 +55,14 @@ export function AppShell(c: AppController) {
 
   useEffect(() => {
     function handleShortcut(event: globalThis.KeyboardEvent) {
-      if (overlay) return
+      if (overlay || document.querySelector('dialog[open]')) return
       if (!primaryModifierPressed(event)) return
       if (event.key.toLocaleLowerCase() === 'k') {
         event.preventDefault()
         setOverlay('commands')
         return
       }
-      const matched = commands.find((command) => command.shortcut?.key === event.key.toLocaleLowerCase())
+      const matched = commands.find((command) => command.available && command.shortcut?.key === event.key.toLocaleLowerCase())
       if (!matched?.available) return
       event.preventDefault()
       matched.run()
@@ -98,16 +102,16 @@ export function AppShell(c: AppController) {
         ) : <div className="top-context-label"><strong>Settings</strong></div>}
 
         <div className="top-actions">
-          <button className="secondary-button command-palette-trigger" type="button" aria-label="Open command palette" onClick={() => setOverlay('commands')}>
+          <ActionButton variant="secondary" className="command-palette-trigger" type="button" aria-label="Open command palette" onClick={() => setOverlay('commands')}>
             <CommandIcon size={16} />
             <span className="command-trigger-label">Commands</span>
             <kbd>{primaryShortcutLabel('k')}</kbd>
-          </button>
+          </ActionButton>
           {topAction?.command ? (
-            <button className="primary-button top-new-button" type="button" disabled={!topAction.command.available} onClick={topAction.command.run}>
+            <ActionButton variant="primary" className="top-new-button" type="button" disabled={!topAction.command.available} onClick={topAction.command.run}>
               {c.busyAction === topAction.busy ? <Loader2 className="spin" size={17} /> : <Plus size={17} />}
               {topAction.command.label}
-            </button>
+            </ActionButton>
           ) : null}
         </div>
       </header>
@@ -142,10 +146,10 @@ export function AppShell(c: AppController) {
           </div>
           {c.filteredSessions.length > 8 ? <p className="session-picker-more">Showing 8 of {c.filteredSessions.length}. Search to narrow.</p> : null}
           {!c.sessionLibraryComplete ? (
-            <button className="secondary-button" type="button" disabled={!commandById('sessions.load-all')?.available} onClick={() => runCommand('sessions.load-all')}>
+            <ActionButton variant="secondary" type="button" disabled={!commandById('sessions.load-all')?.available} onClick={() => runCommand('sessions.load-all')}>
               {c.busyAction === 'load-session-library' ? <Loader2 className="spin" size={16} /> : null}
               {commandById('sessions.load-all')?.label}
-            </button>
+            </ActionButton>
           ) : null}
         </section> : null}
 
@@ -220,6 +224,7 @@ export function AppShell(c: AppController) {
               providerAvailable={Boolean(c.activeProvider?.available) && !c.effectiveAiSelection?.warning}
               providerReason={c.effectiveAiSelection?.warning ?? c.activeProvider?.reason ?? 'Loading provider status'}
               onConfigureAi={() => runCommand('ai.configure')} />}
+            activeProviderReason={c.activeProvider?.reason ?? 'Loading provider status'}
             activeProviderAvailable={Boolean(c.activeProvider?.available)}
             activeSession={c.activeSession}
             busyAction={c.busyAction}
@@ -238,11 +243,6 @@ export function AppShell(c: AppController) {
             notice={c.notice}
             error={c.error}
             pendingAiActions={c.pendingAiActions}
-            selectedProvider={c.selectedProvider}
-            selectedModel={c.selectedModel}
-            effectiveSelection={c.effectiveAiSelection}
-            activeProvider={c.activeProvider}
-            onConfigureAi={() => runCommand('ai.configure')}
             onUndoLatestGeneration={c.handleUndoLatestNoteGeneration}
             onAiAction={c.openGenerationPreflight}
             onCopy={c.copy}
@@ -266,8 +266,8 @@ export function AppShell(c: AppController) {
 
         {c.activeView === 'testware' ? (
           <TestwareView
+            composer={c.creationIntent?.kind === 'testware' ? composer : null} settleCreation={c.creation.settle}
             creationCommands={creationCommands('testware')}
-            aiUnavailableReason={c.activeProvider?.available ? null : 'Configure AI execution in Settings to enable AI creation.'}
             key={c.activeSession?.id ?? 'no-session'}
             busyAction={c.busyAction}
             copyState={c.copyState}
@@ -289,7 +289,6 @@ export function AppShell(c: AppController) {
             onCancelGenerationJob={c.handleCancelGenerationJob}
             onCopy={c.copy}
             onDeleteDraft={c.requestDeleteDraft}
-            onPrefillFromNote={c.handlePrefillTestwareFromNote}
             onSaveDraft={c.handleSaveDraft}
             onDiscardDraft={c.discardLocalDraft}
             onUploadImage={(input, recordId) => c.uploadEditorImage(input, { kind: 'draft', id: recordId })}
@@ -299,8 +298,8 @@ export function AppShell(c: AppController) {
 
         {c.activeView === 'findings' ? (
           <FindingsView
+            composer={c.creationIntent?.kind === 'finding' ? composer : null} settleCreation={c.creation.settle}
             creationCommands={creationCommands('finding')}
-            aiUnavailableReason={c.activeProvider?.available ? null : 'Configure AI execution in Settings to enable AI creation.'}
             key={c.activeSession?.id ?? 'no-session'}
             busyAction={c.busyAction}
             copyState={c.copyState}
@@ -322,7 +321,6 @@ export function AppShell(c: AppController) {
             onCancelGenerationJob={c.handleCancelGenerationJob}
             onCopy={c.copy}
             onDeleteFinding={c.requestDeleteFinding}
-            onPrefillFromNote={c.handlePrefillFindingFromNote}
             onSaveFinding={c.handleSaveFinding}
             onDiscardFinding={c.discardLocalFinding}
             onUploadImage={(input, recordId) => c.uploadEditorImage(input, { kind: 'finding', id: recordId })}
@@ -386,6 +384,7 @@ export function AppShell(c: AppController) {
         />
       ) : null}
 
+      {c.creationDecision ? <PendingChangesDialog creationDraft errorMessage={c.error} generationPending={c.creationIntent?.phase.state === 'generating' || c.creationIntent?.phase.state === 'cancelling'} onCancelGeneration={() => void c.creation.cancelGeneration()} isBusy={c.creationIntent?.phase.state === 'saving' || c.creationIntent?.phase.state === 'discarding' || c.creationIntent?.phase.state === 'cancelling'} onCancel={() => void c.creation.decide('keep')} onDiscard={() => void c.creation.decide('discard')} onSave={() => void c.creation.decide('save')} /> : null}
       {c.pendingNavigationView ? (
         <PendingChangesDialog
           recoveredSummaryConflict={c.pendingRecoveredSummaryDecision}

@@ -140,6 +140,31 @@ pub fn render_action_prompt(
         prompt.push_str(rule);
         prompt.push('\n');
     }
+    if !matches!(action, ActionPromptKind::Summary) {
+        let sections: serde_json::Value =
+            serde_json::from_str(include_str!("../../../../shared/creation-starters.json"))
+                .expect("bundled creation sections are valid JSON");
+        let key = if matches!(action, ActionPromptKind::Finding) {
+            "finding"
+        } else {
+            "testware"
+        };
+        prompt.push_str(
+            "Shared creation starter sections, where applicable to the requested output format: ",
+        );
+        prompt.push_str(
+            &sections[key]
+                .as_array()
+                .expect("bundled section list")
+                .iter()
+                .map(|section| section.as_str().expect("bundled section name"))
+                .collect::<Vec<_>>()
+                .join(", "),
+        );
+        prompt.push_str(
+            ". Keep custom guidance, optional sections, and the selected output format.\n",
+        );
+    }
     prompt.push_str(EXAMPLE_LEAD_IN);
     prompt.push_str(&with_prompt_markers(
         spec.example,

@@ -263,54 +263,6 @@
   white-space: nowrap;
 }
 
-.editable-record input,
-.editable-record select,
-.editable-record textarea,
-.template-field textarea,
-.settings-grid textarea {
-  width: 100%;
-  color: var(--text-primary);
-  background: var(--surface-sunken);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  outline: 0;
-}
-
-.editable-record input {
-  height: var(--control-lg);
-  padding: 0 var(--space-3);
-  font-weight: 600;
-}
-
-.editable-record select {
-  height: var(--control-lg);
-  padding: 0 var(--space-3);
-}
-
-.editable-record textarea {
-  min-height: 260px;
-  padding: var(--space-3);
-  resize: vertical;
-  line-height: var(--leading-normal);
-}
-
-.field-stack {
-  display: grid;
-  gap: var(--space-1);
-}
-
-.field-stack span {
-  color: var(--text-secondary);
-  font-size: var(--font-size-xs);
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.field-stack textarea {
-  min-height: 84px;
-}
-
 .rich-record-editor-field {
   display: grid;
   min-height: 260px;
@@ -453,12 +405,6 @@
   align-items: center;
   justify-content: flex-end;
   gap: var(--space-2);
-}
-
-.settings-section-heading .compact-button {
-  min-height: var(--control-sm);
-  padding: 0 var(--space-2);
-  font-size: var(--font-size-sm);
 }
 
 .wide-setting {
@@ -660,23 +606,6 @@
 
 .ai-choice-note .status-dot {
   margin-top: 5px;
-}
-
-.text-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  justify-self: start;
-  min-height: 32px;
-  padding: 0;
-  color: var(--accent);
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  background: var(--accent-tint);
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  padding-inline: var(--space-2);
 }
 
 .execution-overview {
@@ -1010,4 +939,51 @@
 
 .status-dot.unavailable {
   background: var(--text-tertiary);
+}
+
+.creation-composer {
+  min-width: 0;
+}
+
+.creation-fields {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.creation-composer .record-actions {
+  flex-wrap: wrap;
+}
+
+.creation-fields,
+.creation-source-review,
+.creation-tools {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.creation-source-review .rich-editor {
+  max-width: 100%;
+}
+
+.creation-source-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.creation-source-review .rich-editor {
+  min-height: 0;
+}
+
+.creation-source-review > h3 {
+  margin: 0 0 var(--space-1);
+}
+
+.creation-source-review > p {
+  margin: 0 0 var(--space-1);
 }

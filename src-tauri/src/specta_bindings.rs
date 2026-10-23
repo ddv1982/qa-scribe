@@ -49,6 +49,11 @@ pub fn builder() -> Builder<tauri::Wry> {
         // current format rather than change it.
         .dangerously_cast_bigints_to_number()
         .commands(collect_commands![
+            commands::creation::read_note_source,
+            commands::creation::prepare_creation_save,
+            commands::creation::commit_creation_save,
+            commands::creation::abort_creation_save,
+            commands::files::copy_local_image_to_clipboard,
             commands::settings::get_settings,
             commands::settings::update_settings,
             commands::sessions::list_sessions,

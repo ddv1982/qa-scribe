@@ -125,7 +125,7 @@ describe('useAppController Note autosave writes', () => {
     tauriMock.importClipboardScreenshot.mockResolvedValueOnce({ id: 'attachment-direct-discard', filename: 'direct.png' })
     tauriMock.updateEntry.mockRejectedValueOnce(new Error('save offline'))
     const editorId = 'direct-discard-editor'
-    const insertImage = vi.fn((attachmentId: string) => {
+    const insertImage = vi.fn((attachmentId: string | null) => {
       result.current.setNoteBody(richEditorDocumentFromHtml(
         `<p>Direct image</p><img data-attachment-id="${attachmentId}" src="qa-scribe-attachment://${attachmentId}" alt="Evidence">`,
       ))

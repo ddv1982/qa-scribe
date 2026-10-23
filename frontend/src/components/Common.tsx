@@ -21,7 +21,7 @@ export function StatePanel({
       </div>
       <h2>{title}</h2>
       <p>{description}</p>
-      {action ? <button className="secondary-button" type="button" onClick={action.onClick}>{action.label}</button> : null}
+      {action ? <ActionButton variant="secondary" type="button" onClick={action.onClick}>{action.label}</ActionButton> : null}
     </div>
   )
 }

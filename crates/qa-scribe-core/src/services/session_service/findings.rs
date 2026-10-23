@@ -19,26 +19,7 @@ use super::{
 
 impl SessionService {
     pub fn create_finding(&self, draft: FindingDraft) -> Result<Finding> {
-        require_session(self.database.connection(), &draft.session_id)?;
-        let id = new_id();
-        let now = now();
-        let title = validate_required_text("Finding title", &draft.title, TITLE_MAX_LENGTH)?;
-        let body = validate_body_text("Finding body", &draft.body, TEXT_BODY_MAX_LENGTH)?;
-        let body_json = validate_body_json(draft.body_json)?;
-        let body_format = validate_optional_text(
-            "Finding body format",
-            draft.body_format,
-            BODY_FORMAT_MAX_LENGTH,
-        )?;
-        let metadata_json = validate_metadata_json(draft.metadata_json)?;
-
-        self.database.connection().execute(
-            "INSERT INTO findings (id, session_id, title, body, body_json, body_format, kind, metadata_json, created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, COALESCE(?6, 'html'), ?7, ?8, ?9, ?9)",
-            params![id, draft.session_id, title, body, body_json, body_format, draft.kind.as_str(), metadata_json, now],
-        )?;
-
-        finding(self.database.connection(), &id)?.ok_or(QaScribeError::NotFound(id))
+        create_finding_on(self.database.connection(), draft)
     }
 
     pub fn list_findings(&self, session_id: &str) -> Result<Vec<Finding>> {
@@ -192,7 +173,7 @@ impl SessionService {
     }
 }
 
-fn finding(connection: &Connection, id: &str) -> Result<Option<Finding>> {
+pub(super) fn finding(connection: &Connection, id: &str) -> Result<Option<Finding>> {
     connection
         .query_row(
             "SELECT id, session_id, title, body, body_json, body_format, kind, metadata_json, created_at, updated_at
@@ -216,4 +197,27 @@ fn evidence_link(connection: &Connection, id: &str) -> Result<Option<EvidenceLin
         )
         .optional()
         .map_err(Into::into)
+}
+
+pub(super) fn create_finding_on(connection: &Connection, draft: FindingDraft) -> Result<Finding> {
+    require_session(connection, &draft.session_id)?;
+    let id = new_id();
+    let now = now();
+    let title = validate_required_text("Finding title", &draft.title, TITLE_MAX_LENGTH)?;
+    let body = validate_body_text("Finding body", &draft.body, TEXT_BODY_MAX_LENGTH)?;
+    let body_json = validate_body_json(draft.body_json)?;
+    let body_format = validate_optional_text(
+        "Finding body format",
+        draft.body_format,
+        BODY_FORMAT_MAX_LENGTH,
+    )?;
+    let metadata_json = validate_metadata_json(draft.metadata_json)?;
+
+    connection.execute(
+            "INSERT INTO findings (id, session_id, title, body, body_json, body_format, kind, metadata_json, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, COALESCE(?6, 'html'), ?7, ?8, ?9, ?9)",
+            params![id, draft.session_id, title, body, body_json, body_format, draft.kind.as_str(), metadata_json, now],
+        )?;
+
+    finding(connection, &id)?.ok_or(QaScribeError::NotFound(id))
 }

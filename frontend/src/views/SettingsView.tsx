@@ -125,10 +125,10 @@ export function SettingsView({
     <section className="settings-view">
       <header className="collection-header">
         <div className="settings-title-group">
-          <button className="secondary-button compact-button settings-back-button" type="button" onClick={onBack}>
+          <ActionButton variant="secondary" size="compact" className="settings-back-button" type="button" onClick={onBack}>
             <ArrowLeft size={15} />
             Back
-          </button>
+          </ActionButton>
           <div>
             <p className="eyebrow">Settings</p>
             <h1>Preferences</h1>
@@ -159,10 +159,10 @@ export function SettingsView({
                 <p className="eyebrow">AI</p>
                 <h2>Generation defaults</h2>
               </div>
-              <button className="secondary-button compact-button" type="button" aria-label="Refresh CLI configuration" title="Refresh CLI configuration" disabled={busyAction !== null} onClick={() => void onRefreshProviderStatus()}>
+              <ActionButton variant="secondary" size="compact" type="button" aria-label="Refresh CLI configuration" title="Refresh CLI configuration" disabled={busyAction !== null} onClick={() => void onRefreshProviderStatus()}>
                 {providerDiscoveryState === 'refreshing' ? <Loader2 className="spin" size={14} /> : <RefreshCw size={14} />}
                 Refresh
-              </button>
+              </ActionButton>
             </div>
 
             <div className="ai-execution-grid" role="group" aria-label="AI execution choices">
@@ -219,7 +219,7 @@ export function SettingsView({
                   {catalogStatusDescription(defaultProviderStatus, catalog, providerStatus?.catalogRollout ?? null)}
                 </p>
                 {modelOverrideForProvider(settingsDraft, defaultProvider) ? (
-                  <button className="text-button" type="button" onClick={() => updateDefaultModel('default')}><RotateCcw size={12} /> Reset to CLI default</button>
+                  <ActionButton variant="quiet" size="compact" type="button" disabled={!settingsDraft || aiDefaultControlsDisabled} onClick={() => updateDefaultModel('default')}><RotateCcw size={12} /> Reset to CLI default</ActionButton>
                 ) : null}
               </div>
 
@@ -254,7 +254,7 @@ export function SettingsView({
                   {defaultValueDescription('reasoning', Boolean(reasoningEffort), snapshot, providerDiscoveryState)}
                 </p>
                 {reasoningEffort ? (
-                  <button className="text-button" type="button" onClick={() => updateReasoningEffort('')}><RotateCcw size={12} /> Reset to CLI default</button>
+                  <ActionButton variant="quiet" size="compact" type="button" disabled={!settingsDraft || aiDefaultControlsDisabled} onClick={() => updateReasoningEffort('')}><RotateCcw size={12} /> Reset to CLI default</ActionButton>
                 ) : null}
               </div>
             </div>
