@@ -38,6 +38,7 @@ permissions = [
   "allow-cancel-ai-action-job",
   "allow-get-chat",
   "allow-save-chat-composer",
+  "allow-import-chat-image",
   "allow-restart-chat",
   "allow-submit-chat",
   "allow-start-chat-job",
@@ -48,6 +49,7 @@ permissions = [
   "allow-refresh-provider-status",
   "allow-get-attachment-preview-data-url",
   "allow-read-clipboard-image-data-url",
+  "allow-read-chat-clipboard-image-data-url",
   "allow-copy-attachment-image-to-clipboard",
   "allow-copy-html-to-clipboard",
 ]

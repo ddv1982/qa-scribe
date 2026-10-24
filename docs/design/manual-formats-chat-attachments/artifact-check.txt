@@ -1,0 +1,8 @@
+01-manual-test-cases.png 1280x1084
+02-manual-finding.png 1280x1157
+03-chat-attachments.png 1280x1068
+04-gherkin.png 1280x1084
+05-chat-narrow.png 728x1144
+06-chat-light-narrow.png 360x1303
+07-message-preserved.png 1280x998
+Format catalog, seven screenshots, render metadata, and native observation receipt verified.

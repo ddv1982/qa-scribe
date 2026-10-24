@@ -13,7 +13,7 @@ function startedTurn(): StartChatJobResult {
   return {
     jobId: 'job-chat', turnId: 'turn-1', status: chatJobFixture(),
     chat: chatFixture({ revision: 2, mode: 'chat', messages: [{
-      id: 'message-user', turnId: 'turn-1', role: 'user', text: 'What should I capture?',
+      id: 'message-user', turnId: 'turn-1', role: 'user', text: 'What should I capture?', images: [],
       status: 'running', errorMessage: null, aiRunId: 'run-chat', createdAt: '2026-10-14T10:00:00Z',
     }] }),
   }

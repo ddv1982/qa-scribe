@@ -2776,7 +2776,7 @@ checksum = "d55d956fa96f5ec02be2e13af0e20391a5aa83d6a074e3ad368959d0fab299ea"
 
 [[package]]
 name = "qa-scribe-app"
-version = "0.8.20"
+version = "0.8.21"
 dependencies = [
  "qa-scribe-core",
  "serde_json",
@@ -2784,11 +2784,12 @@ dependencies = [
 
 [[package]]
 name = "qa-scribe-core"
-version = "0.8.20"
+version = "0.8.21"
 dependencies = [
  "base64 0.22.1",
  "chrono",
  "dom_query",
+ "image",
  "pulldown-cmark",
  "rusqlite",
  "serde",
@@ -2802,7 +2803,7 @@ dependencies = [
 
 [[package]]
 name = "qa-scribe-tauri"
-version = "0.8.20"
+version = "0.8.21"
 dependencies = [
  "base64 0.22.1",
  "chrono",

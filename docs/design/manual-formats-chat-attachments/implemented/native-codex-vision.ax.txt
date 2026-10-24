@@ -1,0 +1,101 @@
+Window: "QA Scribe Verification (dev)", App: QA Scribe Verification.
+0 standard window QA Scribe Verification (dev), Secondary Actions: Raise
+	1 scroll area
+		2 HTML content Description: qa-scribe, URL: tauri://localhost#/sessions/9211f964-3642-4c13-8e54-cf57b58e780c
+			3 container
+				4 text QA Scribe
+				5 container
+					6 text Search Sessions
+					7 text field (settable) Search Sessions, Placeholder: Search Sessions…
+				8 button Open command palette
+				9 button New Session
+				10 container Workspace navigation
+					11 container Workspace sections
+						12 button Sessions 1
+						13 button Test cases library
+						14 button Findings library
+					15 container Sessions
+						16 text RECENT SESSIONS
+						17 list (settable) Sessions
+							18 text (selected) Native image verification 4827 Today
+					19 button Help
+					20 button Settings
+				21 container Workspace
+					22 container
+						23 container Breadcrumb
+							24 button Sessions
+							25 text Native image verification 4827
+						26 tab group (selectable) Native image verification 4827 workspace
+							27 tab (selected) Note
+							28 tab (selectable) Test cases 0
+							29 tab (selectable) Findings 0
+					30 container
+						31 container Session input mode
+							32 toggle button Write note, Value: off
+							33 toggle button Chat, Value: on
+						34 button Delete Session
+					35 container Session editor
+						36 text field (settable) Session title, Value: Native image verification 4827, Placeholder: Untitled session
+						37 container Session chat
+							38 container Conversation and actions
+								39 container
+									40 heading Conversation, Value: 2
+										41 text Conversation
+									42 text Gather testing information, then add the saved conversation to your Session Note.
+									43 button Start new conversation
+								44 text Next invocation · Codex CLI · CLI Default
+								45 text Conversation saved
+								46 button Configure AI
+								47 container Conversation transcript
+									48 container
+										49 container You Which four colors are in the quadrants of the attached test image, in reading order?
+Reply with just the colors. Do not call tools.
+											50 text You
+											51 text Which four colors are in the quadrants of the attached test image, in reading order?
+Reply with just the colors. Do not call tools.
+											52 container Message images
+												53 container
+													54 button Preview image.png
+													55 text image.png
+										56 container Assistant Red, green, blue, yellow. Codex · Requested · CLI Default
+CLI report · gpt-6.1-sol · Thread configuration
+											57 text Assistant
+											58 text Red, green, blue, yellow.
+											59 container
+												60 text Codex · Requested · CLI Default CLI report · gpt-6.1-sol · Thread configuration
+								61 text 2 / 128 messages · 0.2 / 128 KiB transcript
+								62 container Next invocation model
+									63 text Next invocation · Codex CLI
+									64 container
+										65 text Model 7 models reported by CLI catalog
+										66 combo box (collapsed, settable) Model, Value: CLI default · GPT-6.1-Sol, Secondary Actions: Expand
+											67 text (settable) CLI default · GPT-6.1-Sol
+										68 button Open model choices
+									69 text Saved for this provider across QA Scribe. Changes affect the next invocation.
+									70 text Observed CLI default · gpt-6.1-sol · detected · Checked 24-10-2026, 09:27:17
+								71 container Saved conversation review
+									72 button (collapsed) Review saved conversation, Secondary Actions: Expand
+									73 text Read-only saved messages. This is the conversation that is appended to the note.
+								74 container
+									75 text Your existing Note stays intact. The saved, role-labelled conversation is appended to your Session Note. This does not generate test cases.
+									76 button Add conversation to note
+							77 text Message
+							78 text entry area (settable) Message, Value: [text entry area], Placeholder: Describe your testing context or ask a question, Secondary Actions: Show Writing Tools
+								79 text Describe your testing context or ask a question
+							80 text Enter for a new line. Ctrl/Cmd + Enter to send. Paste images with Ctrl/Cmd + V.
+							81 button Attach images, Help: Attach up to 4 images, 10 MiB each
+							82 button (disabled) Send
+							83 text Write a message or attach an image to send.
+	84 close button
+	85 full screen button Help: this button also has an action to zoom the window, Secondary Actions: zoom the window
+	86 minimize button
+	87 text QA Scribe Verification (dev)
+88 menu bar
+	89 QA Scribe Verification
+	90 File
+	91 Edit
+	92 View
+	93 Window
+	94 Help
+
+The focused UI element is 78 text entry area (settable) Message, Value: [text entry area], Placeholder: Describe your testing context or ask a question, Secondary Actions: Show Writing Tools

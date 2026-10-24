@@ -1,4 +1,31 @@
 {
   "finding": ["Environment", "Steps to reproduce", "Expected result", "Actual result", "Evidence", "Impact"],
-  "testware": ["Scenario", "Test case", "Purpose", "Preconditions", "Steps", "Expected result"]
+  "testware": ["Scenario", "Test case", "Purpose", "Preconditions", "Steps", "Expected result"],
+  "testwareFormats": {
+    "qa_cases": {
+      "guidance": "Use h2 scenario groups and h3 test cases. For each case include preconditions, test data, steps, expected result, and coverage notes when applicable.",
+      "html": "<h2>Scenario</h2><h3>Test case</h3><p></p><h3>Purpose</h3><p></p><h3>Preconditions</h3><p></p><h3>Test data</h3><p></p><h3>Steps</h3><ol><li><p></p></li></ol><h3>Expected result</h3><p></p><h3>Coverage notes</h3><p></p>",
+      "hint": "Name the behavior, add executable steps, and describe the observable result. Coverage notes are optional."
+    },
+    "checklist": {
+      "guidance": "Use checklist items for executable checks. Keep each item directly testable and include expected results where useful.",
+      "html": "<h2>Checklist</h2><ul data-type=\"taskList\"><li data-type=\"taskItem\" data-checked=\"false\"><p></p></li></ul>",
+      "hint": "Write one executable check and its expected result per item."
+    },
+    "gherkin": {
+      "guidance": "Use Feature/Scenario style content with Given/When/Then phrasing in h2, h3, p, ul, and ol elements.",
+      "html": "<h2>Feature</h2><p></p><h3>Scenario</h3><p></p><p><strong>Given</strong> </p><p><strong>When</strong> </p><p><strong>Then</strong> </p>",
+      "hint": "Name the feature and scenario. Describe the starting state, action, and expected outcome after Given, When, and Then."
+    },
+    "charters": {
+      "guidance": "Use exploratory charter sections with mission, scope, risks, setup/data, timebox, and notes to capture observations.",
+      "html": "<h3>Mission</h3><p></p><h3>Scope</h3><p></p><h3>Risks</h3><p></p><h3>Setup and test data</h3><p></p><h3>Timebox</h3><p></p><h3>Observations</h3><p></p>",
+      "hint": "Describe the mission, scope, risks, setup, data, and timebox. Record observations as you explore."
+    },
+    "coverage_outline": {
+      "guidance": "Start with a compact coverage map, then list the concrete cases needed to exercise each area.",
+      "html": "<h2>Coverage map</h2><ul><li><p></p></li></ul><h3>Concrete cases</h3><ol><li><p></p></li></ol>",
+      "hint": "Group the areas and risks to cover, then list concrete cases with steps and expected results."
+    }
+  }
 }

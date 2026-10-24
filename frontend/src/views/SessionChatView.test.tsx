@@ -9,10 +9,10 @@ type Props = ComponentProps<typeof SessionChatView>
 afterEach(() => { cleanup(); vi.restoreAllMocks() })
 
 function message(role: ChatMessage['role'], text: string, status: ChatTurnStatus = 'completed', id: string = role): ChatMessage {
-  return { id, turnId: 'turn-1', role, text, status, errorMessage: null, aiRunId: null, createdAt: '2026-10-14T10:00:00Z' }
+  return { id, turnId: 'turn-1', role, text, images: [], status, errorMessage: null, aiRunId: null, createdAt: '2026-10-14T10:00:00Z' }
 }
 function chat(messages: ChatMessage[] = []): ChatState {
-  return { sessionId: 'session-1', draftId: 'chat-1', revision: 1, composer: '', mode: 'chat', aiRuns: [], messages, submission: null }
+  return { sessionId: 'session-1', draftId: 'chat-1', revision: 1, composer: '', composerImages: [], mode: 'chat', aiRuns: [], messages, submission: null }
 }
 function job(patch: Partial<GenerationJobStatus> = {}): GenerationJobStatus {
   return { jobId: 'job-1', sessionId: 'session-1', action: 'chat', state: 'running', progressMessage: 'Gathering information', aiRunId: null, errorMessage: null, partialText: null, ...patch }

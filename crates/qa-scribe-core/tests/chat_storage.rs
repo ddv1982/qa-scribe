@@ -15,6 +15,12 @@ mod helpers;
 
 #[path = "chat_storage/boundaries.rs"]
 mod boundaries;
+#[path = "chat_storage/image_limits.rs"]
+mod image_limits;
+#[path = "chat_storage/image_migration.rs"]
+mod image_migration;
+#[path = "chat_storage/images.rs"]
+mod images;
 #[path = "chat_storage/lifecycle.rs"]
 mod lifecycle;
 #[path = "chat_storage/retry_and_ai_run.rs"]
@@ -43,6 +49,7 @@ fn scope(chat: &ChatState) -> ChatRevision {
 fn save(service: &SessionService, chat: &ChatState, text: &str) -> ChatState {
     service
         .save_chat_composer(ChatComposerRequest {
+            attachment_ids: vec![],
             scope: scope(chat),
             composer: text.into(),
             mode: ChatMode::Chat,
@@ -101,17 +108,17 @@ fn version_nine_upgrade_preserves_note_and_adds_session_owned_chat_tables() {
         )
         .unwrap();
     service.database().connection().execute_batch(
-        "DROP TABLE IF EXISTS chat_messages; DROP TABLE IF EXISTS chat_drafts; PRAGMA user_version = 9;"
+        "DROP TABLE chat_image_cleanup; DROP INDEX idx_attachments_relative_path; DROP TABLE IF EXISTS chat_composer_images; DROP TABLE IF EXISTS chat_message_images; DROP TRIGGER IF EXISTS chat_image_attachment_immutable; DROP TABLE IF EXISTS chat_messages; DROP TABLE IF EXISTS chat_drafts; PRAGMA user_version = 9;"
     ).unwrap();
     drop(service);
     let service = SessionService::new(Database::open(&path).unwrap()).unwrap();
-    assert_eq!(SCHEMA_VERSION, 13);
+    assert_eq!(SCHEMA_VERSION, 15);
     let version: i32 = service
         .database()
         .connection()
         .query_row("PRAGMA user_version", [], |r| r.get(0))
         .unwrap();
-    assert_eq!(version, 13);
+    assert_eq!(version, 15);
     assert_eq!(service.get_or_create_note_entry(&id).unwrap(), note);
     let chat = service.load_chat(&id).unwrap();
     let chat = complete(&service, &chat, "Question", "Answer");

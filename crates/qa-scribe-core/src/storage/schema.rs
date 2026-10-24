@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS chat_messages (
   turn_id TEXT NOT NULL,
   sequence INTEGER NOT NULL CHECK (sequence >= 0),
   role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
-  text TEXT NOT NULL CHECK (length(trim(text)) > 0),
+  text TEXT NOT NULL CHECK (role = 'user' OR length(trim(text)) > 0),
   status TEXT NOT NULL CHECK (status IN ('running', 'completed', 'failed', 'cancelled', 'interrupted')),
   error_message TEXT,
   ai_run_id TEXT REFERENCES ai_runs(id),

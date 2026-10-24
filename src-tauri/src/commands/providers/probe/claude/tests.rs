@@ -73,6 +73,40 @@ fn partial_and_unknown_fields_are_safely_normalized() {
 }
 
 #[test]
+fn image_metadata_is_normalized_through_a_typed_whitelist() {
+    let fixture = json!({
+        "type": "control_response",
+        "response": {
+            "request_id": INITIALIZE_REQUEST_ID, "subtype": "success",
+            "response": {"models": [{
+                "value": "custom", "vision": false, "supportsVision": true,
+                "inputModalities": ["text", "image"], "privateMetadata": "secret",
+                "capabilities": {
+                    "image_input": {"supported": false, "account": "secret"},
+                    "privateMetadata": "secret"
+                }
+            }, {
+                "value": "malformed", "vision": "true", "supportsVision": 1,
+                "inputModalities": ["image", {"account": "secret"}],
+                "capabilities": {"image_input": {"supported": "false"}}
+            }]}
+        }
+    });
+    let normalized = parse_fixture(&fixture.to_string(), MAX_MODELS).unwrap();
+    assert_eq!(
+        normalized.models,
+        vec![
+            json!({"id":"custom","vision":false,"supportsVision":true,
+            "inputModalities":["text","image"],
+            "capabilities":{"image_input":{"supported":false}}}),
+            json!({"id":"malformed"})
+        ]
+    );
+}
+
+mod image_admission;
+
+#[test]
 fn empty_catalog_is_a_successful_observation() {
     let result = parse_fixture(
         include_str!("../fixtures/claude/empty_catalog.jsonl"),

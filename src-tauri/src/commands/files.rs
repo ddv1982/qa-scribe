@@ -1,3 +1,4 @@
+pub(crate) mod chat_clipboard;
 use std::io::Cursor;
 
 use base64::{Engine, engine::general_purpose::STANDARD};

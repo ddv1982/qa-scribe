@@ -4,13 +4,14 @@ import {
 } from '../tauri'
 import { formatError } from '../ui/format'
 import {
-  chatIsDirty, chatIsWorking, chatScope, emptyChatSnapshot, unresolvedChatReason,
+  chatIsDirty, chatInputIsDirty, chatIsWorking, chatScope, emptyChatSnapshot, unresolvedChatReason,
   type ChatWorkspace, type SessionChatContext,
 } from './sessionChat.types'
 import { createChatPolling } from './sessionChat.polling'
 import { submitChatToCanonicalNote } from './sessionChat.noteHandoff'
 import { recoverChatCanonicalNote } from './sessionChat.noteRecovery'
 import { createChatPermissions } from './sessionChat.permissions'
+import { createChatImageActions } from './sessionChat.images'
 
 export function createSessionChatActions(ctx: SessionChatContext) {
   const workspaces = new Map<string, ChatWorkspace>()
@@ -27,7 +28,7 @@ export function createSessionChatActions(ctx: SessionChatContext) {
     if (!value) {
       let resolveRetirement: () => void = () => {}
       const retirement = new Promise<void>((resolve) => { resolveRetirement = resolve })
-      value = { sessionId, chat: null, composer: '', mode: 'write_note', inputVersion: 0,
+      value = { sessionId, chat: null, composer: '', composerImages: [], imageFailures: [], pendingStart: null, mode: 'write_note', inputVersion: 0,
         modeVersion: 0, refreshEpoch: 0, loading: false, error: null, job: null,
         hydration: null, save: null, operation: null, operationKind: null, permissionOperation: null, autosaveTimer: null,
         retired: false, retirement, resolveRetirement, recovery: null }
@@ -47,11 +48,12 @@ export function createSessionChatActions(ctx: SessionChatContext) {
   }
   function publish(entry: ChatWorkspace) {
     if (disposed || entry.retired || ctx.session.activeSessionIdRef.current !== entry.sessionId) return
-    ctx.publish({ sessionId: entry.sessionId, chat: entry.chat, composer: entry.composer,
+    ctx.publish({ sessionId: entry.sessionId, chat: entry.chat, composer: entry.composer, composerImages: entry.composerImages, imageFailures: entry.imageFailures,
+      inputRecoveryPending: entry.pendingStart?.state === 'uncertain',
       mode: entry.mode, job: entry.job, loading: entry.loading, saving: Boolean(entry.save),
       permissionWorking: Boolean(entry.permissionOperation),
       permissionRecoveryPending: permissions.needsRecovery(entry),
-      working: Boolean(entry.operationKind) || chatIsWorking(entry.job), error: entry.error, dirty: chatIsDirty(entry) })
+      working: Boolean(entry.operationKind) || chatIsWorking(entry.job), error: entry.error, dirty: chatIsDirty(entry) || entry.imageFailures.length > 0 })
   }
   function report(entry: ChatWorkspace, cause: unknown) {
     if (entry.retired || disposed) return
@@ -68,12 +70,20 @@ export function createSessionChatActions(ctx: SessionChatContext) {
     const previousComposer = entry.composer
     const previousMode = entry.mode
     entry.chat = chat
-    if (inputVersion === entry.inputVersion) entry.composer = chat.composer
+    if (inputVersion === entry.inputVersion) {
+      entry.composer = chat.composer
+      entry.composerImages = chat.composerImages ?? []
+    }
+    if (entry.pendingStart?.state === 'uncertain') {
+      entry.composerImages = chat.composerImages
+      entry.pendingStart = null
+    }
     if (modeVersion === entry.modeVersion) entry.mode = chat.mode
     // A save acknowledgment advances storage revision without changing the
     // confirmed subject. Refreshes that change durable input still invalidate it.
     if (previousContent !== restartContent(chat) || previousComposer !== entry.composer || previousMode !== entry.mode
-      || (!composerSave && (previousChat?.composer !== chat.composer || previousChat?.mode !== chat.mode))) {
+      || (!composerSave && (previousChat?.composer !== chat.composer || previousChat?.mode !== chat.mode
+        || JSON.stringify(previousChat?.composerImages) !== JSON.stringify(chat.composerImages)))) {
       restartVersions.set(entry, (restartVersions.get(entry) ?? 0) + 1)
     }
     const reason = unresolvedChatReason(chat, true)
@@ -86,7 +96,7 @@ export function createSessionChatActions(ctx: SessionChatContext) {
     const epoch = ++entry.refreshEpoch
     // Already-dirty input is authored intent too, even when no edit happens
     // during this particular refresh (for example a terminal-job reload).
-    const inputDirty = entry.chat ? entry.composer !== entry.chat.composer : entry.inputVersion > 0
+    const inputDirty = entry.chat ? chatInputIsDirty(entry) : entry.inputVersion > 0
     const modeDirty = entry.chat ? entry.mode !== entry.chat.mode : entry.modeVersion > 0
     const inputVersion = inputDirty ? -1 : entry.inputVersion
     const modeVersion = modeDirty || preserveMode ? -1 : entry.modeVersion
@@ -161,6 +171,9 @@ export function createSessionChatActions(ctx: SessionChatContext) {
     if (ctx.noteRecovery.has(entry.sessionId)) return false
     clearAutosave(entry)
     if (entry.save) return entry.save
+    if (entry.pendingStart?.state === 'uncertain') {
+      try { await refresh(entry.sessionId, false, true) } catch { return false }
+    }
     if (!chatIsDirty(entry)) return true
     const pending = (async () => {
       if (!entry.chat) await hydrate(entry)
@@ -171,10 +184,11 @@ export function createSessionChatActions(ctx: SessionChatContext) {
         const inputVersion = entry.inputVersion
         const modeVersion = entry.modeVersion
         const composer = entry.composer
+        const attachmentIds = entry.composerImages.map(image => image.attachmentId)
         const mode = entry.mode
         try {
           const saved = await Promise.race([
-            saveChatComposer({ scope: chatScope(chat), composer, mode }), entry.retirement.then(() => null),
+            saveChatComposer({ scope: chatScope(chat), composer, attachmentIds, mode }), entry.retirement.then(() => null),
           ])
           if (!saved || entry.retired) return true
           if (saved.sessionId !== chat.sessionId || saved.draftId !== chat.draftId) {
@@ -222,6 +236,9 @@ export function createSessionChatActions(ctx: SessionChatContext) {
     publish(entry)
     if (!entry.chat?.submission) scheduleAutosave(entry)
   }
+  const { onAttachImages, onPasteNativeImage, onRemoveImage, onRetryImage, onDismissImageFailure, clearImageFailures } = createChatImageActions(ctx, {
+    active, run, saveComposer, acceptChat, refresh: id => refresh(id, false, true), publish, scheduleAutosave,
+  })
   function run(kind: string, action: (entry: ChatWorkspace) => Promise<void>): Promise<void> {
     const entry = active()
     if (!entry || entry.operationKind) return Promise.resolve()
@@ -240,20 +257,22 @@ export function createSessionChatActions(ctx: SessionChatContext) {
     return operation
   }
   async function send(entry: ChatWorkspace, retry: boolean) {
+    if (entry.pendingStart) throw new Error('Recheck status to recover the previous send before continuing.')
     const selection = { ...ctx.selection }
     if (selection.modelWritePending?.()) throw new Error('Wait for the model preference to finish saving.')
     if (ctx.noteRecovery.has(entry.sessionId)) throw new Error('Recover the canonical Note before continuing Chat.')
     if (chatIsWorking(entry.job)) throw new Error('Wait for the active turn or cancel it.')
     if (!ctx.provider?.available) throw new Error(ctx.provider?.reason ?? 'AI provider readiness is unavailable.')
     if (ctx.providerWarning) throw new Error(ctx.providerWarning)
+    if (entry.imageFailures.length) throw new Error('Retry or remove failed images before sending.')
     if (!entry.chat) await hydrate(entry)
     if (entry.retired) return
     if (!entry.chat) throw new Error('Chat could not be loaded. Reopen the Session to try again.')
     if (entry.chat.submission) throw new Error('Start a new conversation to continue after submission.')
     const reason = unresolvedChatReason(entry.chat, retry)
     if (reason) throw new Error(reason)
-    if (retry && entry.composer.length > 0) throw new Error('Clear the composer before retrying the failed turn.')
-    if (!retry && !entry.composer.trim()) throw new Error('Enter a message before sending.')
+    if (retry && (entry.composer.length > 0 || entry.composerImages.length > 0)) throw new Error('Clear the composer before retrying the failed turn.')
+    if (!retry && !entry.composer.trim() && !entry.composerImages.length) throw new Error('Enter a message or attach an image before sending.')
     if (!await saveComposer(entry)) return
     if (entry.retired) return
     if (selection.modelWritePending?.()) throw new Error('Wait for the model preference to finish saving.')
@@ -261,23 +280,29 @@ export function createSessionChatActions(ctx: SessionChatContext) {
     const inputVersion = entry.inputVersion
     const modeVersion = entry.modeVersion
     let result: StartChatJobResult
+    entry.pendingStart = { state: 'starting' }
+    ++entry.refreshEpoch
     try {
       result = await startChatJob({ scope: chatScope(chat), retry,
         provider: selection.selectedProvider, model: selection.selectedModel,
         reasoningEffort: selection.selectedReasoningEffort }, (status) => receiveStatus(entry, status))
+      if (result.chat.sessionId !== entry.sessionId || result.chat.draftId !== chat.draftId
+        || result.status.sessionId !== entry.sessionId || result.status.action !== 'chat') {
+        throw new Error('Chat start returned an unexpected conversation.')
+      }
     } catch (cause) {
       if (entry.retired) return
+      entry.pendingStart = { state: 'uncertain' }
       // Preparation may have durably consumed the composer before spawning
       // failed. Recover that failed turn, never turn a second click into billing.
       await refresh(entry.sessionId)
+      if (entry.chat?.draftId === chat.draftId) entry.composerImages = entry.chat.composerImages
       throw cause
     }
     if (entry.retired) return
-    if (result.chat.sessionId !== entry.sessionId || result.chat.draftId !== chat.draftId
-      || result.status.sessionId !== entry.sessionId || result.status.action !== 'chat') {
-      throw new Error('Chat start returned an unexpected conversation.')
-    }
     ++entry.refreshEpoch
+    entry.pendingStart = null
+    entry.composerImages = result.chat.composerImages
     acceptChat(entry, result.chat, inputVersion, modeVersion)
     observeJob(result.status, true)
     if (entry.job && !chatIsWorking(entry.job)) await refresh(entry.sessionId)
@@ -294,6 +319,7 @@ export function createSessionChatActions(ctx: SessionChatContext) {
     if (!chatIsWorking(status)) { polling.stop(status.jobId); await refresh(entry.sessionId) }
   })
   const onSubmit = () => run('submit', async (entry) => {
+    if (entry.pendingStart) throw new Error('Recheck status to recover the previous send before continuing.')
     if (ctx.noteRecovery.has(entry.sessionId)) { await recoverNote(entry); return }
     if (!entry.chat) await hydrate(entry)
     if (!entry.chat) throw new Error('Load Chat before submitting it.')
@@ -301,7 +327,7 @@ export function createSessionChatActions(ctx: SessionChatContext) {
     if (chatIsWorking(entry.job) || entry.chat.messages.some((message) => message.status !== 'completed')) {
       throw new Error(unresolvedChatReason(entry.chat, false) ?? 'Complete every turn before submitting Chat.')
     }
-    if (entry.composer.length > 0) throw new Error('Send or clear the composer before submitting Chat.')
+    if (entry.composer.length > 0 || entry.composerImages.length > 0 || entry.imageFailures.length) throw new Error('Send or clear the composer before submitting Chat.')
     if (!entry.chat.messages.length) throw new Error('Complete a conversation before submitting Chat.')
     if (!await saveComposer(entry)) return
     if (entry.retired) return
@@ -325,7 +351,7 @@ export function createSessionChatActions(ctx: SessionChatContext) {
   })
   function captureRestart() {
     const entry = active()
-    if (!entry?.chat || entry.loading || entry.save || entry.operationKind || entry.permissionOperation
+    if (!entry?.chat || entry.pendingStart || entry.loading || entry.save || entry.operationKind || entry.permissionOperation
       || permissions.needsRecovery(entry) || ctx.noteRecovery.has(entry.sessionId) || chatIsWorking(entry.job)
       || entry.chat.messages.some(message => message.status === 'running')) return null
     const { job, inputVersion, modeVersion } = entry
@@ -341,6 +367,7 @@ export function createSessionChatActions(ctx: SessionChatContext) {
     }
   }
   const onRestart = () => run('restart', async (entry) => {
+    if (entry.pendingStart) throw new Error('Recheck status to recover the previous send before continuing.')
     if (ctx.noteRecovery.has(entry.sessionId)) throw new Error('Recover the canonical Note before starting a new conversation.')
     if (chatIsWorking(entry.job)) throw new Error('Cancel or finish the active turn before starting a new conversation.')
     if (!entry.chat) await hydrate(entry)
@@ -366,6 +393,8 @@ export function createSessionChatActions(ctx: SessionChatContext) {
     }
     entry.job = null
     entry.composer = ''
+    entry.composerImages = []
+    clearImageFailures(entry)
     ++entry.inputVersion
     acceptChat(entry, next, entry.inputVersion, entry.modeVersion)
     entry.mode = 'chat'
@@ -385,7 +414,7 @@ export function createSessionChatActions(ctx: SessionChatContext) {
   function hasPendingChanges() {
     return ctx.noteRecovery.hasPending()
       || Array.from(workspaces.values()).some((entry) => !entry.retired && (
-        ctx.noteRecovery.has(entry.sessionId) || chatIsDirty(entry) || Boolean(entry.save || entry.operationKind)))
+        ctx.noteRecovery.has(entry.sessionId) || chatIsDirty(entry) || entry.imageFailures.length > 0 || Boolean(entry.pendingStart || entry.save || entry.operationKind)))
   }
   function activate(sessionId: string | null) {
     if (disposed || activatedSessionId !== sessionId) {
@@ -422,7 +451,7 @@ export function createSessionChatActions(ctx: SessionChatContext) {
   function recoverNote(entry: ChatWorkspace): Promise<boolean> {
     if (entry.retired || !ctx.noteRecovery.has(entry.sessionId)) return Promise.resolve(true)
     if (entry.recovery) return entry.recovery
-    const inputVersion = entry.chat && entry.composer === entry.chat.composer ? entry.inputVersion : -1
+    const inputVersion = entry.chat && !chatInputIsDirty(entry) ? entry.inputVersion : -1
     const pending = Promise.race([(async () => {
       try {
         const chat = await recoverChatCanonicalNote(ctx, entry.sessionId)
@@ -450,5 +479,6 @@ export function createSessionChatActions(ctx: SessionChatContext) {
     return recoverNote(entry)
   }
   return { activate, dispose, observeJob, flush, hasPendingChanges, setMode, retire, recoverSession,
-    onSetComposer, onSend, onRetry, onCancel, onSubmit, onRestart, captureRestart, onDecidePermission, onRecheck, isCurrentPermissionScope }
+    onSetComposer, onAttachImages, onPasteNativeImage, onRemoveImage, onRetryImage, onDismissImageFailure, onSend, onRetry, onCancel, onSubmit,
+    onRestart, captureRestart, onDecidePermission, onRecheck, isCurrentPermissionScope }
 }

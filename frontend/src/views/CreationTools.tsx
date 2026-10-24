@@ -77,7 +77,7 @@ export function CreationTools({ intent, c }: { intent: CreationIntent; c: AppCon
           setConfirming(false)
         })
       }} /> : null}
-    {mode === 'ai' ? createPortal(<GenerationPreflight action={intent.kind} sourceReview={source}
+    {mode === 'ai' ? createPortal(<GenerationPreflight action={intent.kind} initialOutputFormat={intent.format.kind === 'testware' ? intent.format.outputFormat : undefined} sourceReview={source}
       disclosure={authored ? 'Success immediately saves one AI result, closes this draft, and discards its unsaved text and local images. Cancellation or failure keeps this exact draft.' : 'Success immediately saves one AI result. No blank record is saved first.'}
       confirmLabel={authored ? 'Generate and replace draft' : 'Generate'} isBusy={confirming}
       activeProviderAvailable={Boolean(provider?.available)} activeProviderLabel={provider?.label ?? selection.provider}

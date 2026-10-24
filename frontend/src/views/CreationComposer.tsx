@@ -1,5 +1,6 @@
 import { findingCopyBody } from '../findings/copyBody'
-import { useEffect, useRef, type ReactNode, type ClipboardEvent } from 'react'
+import { useEffect, useRef, useState, type ReactNode, type ClipboardEvent } from 'react'
+import { createPortal } from 'react-dom'
 import { Save, X } from 'lucide-react'
 import { ActionButton } from '../components/ActionButton'
 import { FormatToolbar, RichTextEditor } from '../editor/RichTextEditor'
@@ -11,6 +12,8 @@ import type { CreationActions } from '../app/creationActions'
 import type { CreationIntent } from '../app/creationIntent'
 import type { ClipboardSnapshot, CopyState } from '../app/copyActions'
 import { CopyControls } from './RichRecordView'
+import { creationFormatForId, creationFormatHint, creationFormatId, creationFormatOptions, type CreationFormat } from '../app/creationFormats'
+import { useModalDialog } from '../hooks/useModalDialog'
 
 export function CreationComposer({ intent, actions, copyState, onCopy, fields, source }: {
   intent: CreationIntent
@@ -52,14 +55,15 @@ export function CreationComposer({ intent, actions, copyState, onCopy, fields, s
     }
   }
   return <article className="editable-record creation-composer" aria-label={intent.kind === 'finding' ? 'New finding' : 'New test cases'} onPasteCapture={paste}>
-    <header className="record-heading-row"><h2>New {intent.kind === 'finding' ? 'finding' : 'test cases'}</h2><span>{intent.phase.state === 'saved' ? 'Saved result, opening for review' : intent.phase.state === 'committed-deleted' ? 'Saved result was deleted' : 'Draft, not saved yet'}</span></header>
+    <header className="record-heading-row"><h2 className="record-title">New {intent.kind === 'finding' ? 'finding' : 'test cases'}</h2><span>{intent.phase.state === 'saved' ? 'Saved result, opening for review' : intent.phase.state === 'committed-deleted' ? 'Saved result was deleted' : 'Draft, not saved yet'}</span></header>
     <div className="record-actions">
       <CopyControls snapshot={{ target: { kind: intent.kind === 'finding' ? 'finding' : 'draft', sessionId: intent.sessionId, id: intent.id, action: 'jira-text' }, title: intent.title, bodyHtml: html }} label={intent.title || 'draft'} copyState={copyState} onCopy={onCopy} screenshotCount={screenshotCount} />
       <ActionButton variant="quiet" icon={X} disabled={intent.phase.state === 'saving' || intent.phase.state === 'discarding'} onClick={() => void actions.settle()}>Cancel</ActionButton>
       <ActionButton variant="primary" icon={Save} loading={intent.phase.state === 'saving'} disabled={!intent.title.trim() || readingImages || failedImages.length > 0 || !['editing', 'uncertain', 'saved'].includes(intent.phase.state)} onClick={() => void actions.save()}>{intent.phase.state === 'uncertain' ? 'Retry Save' : intent.phase.state === 'saved' ? 'Open saved result' : `Save ${intent.kind === 'finding' ? 'finding' : 'test cases'}`}</ActionButton>
     </div>
     <label className="field-stack"><span>Title</span><input ref={titleRef} aria-label={intent.kind === 'finding' ? 'Finding title' : 'Test case title'} value={intent.title} readOnly={locked} onChange={(event) => actions.update({ title: event.target.value })} placeholder="Give this draft a title" /></label>
-    <fieldset disabled={locked} className="creation-fields">{fields}</fieldset>
+    <CreationFormatSelector key={`format-${intent.id}`} intent={intent} actions={actions} />
+    {fields ? <fieldset disabled={locked} className="creation-fields">{fields}</fieldset> : null}
     <div className="rich-record-editor-field">
       <FormatToolbar editorId={editorId} onUploadImage={actions.stageImage} />
       <RichTextEditor editorId={editorId} value={intent.document} onChange={(document) => actions.update({ document })} ariaLabel="Creation draft body" readOnly={locked} placeholder="Add what you observed. Empty sections are optional." />
@@ -70,4 +74,36 @@ export function CreationComposer({ intent, actions, copyState, onCopy, fields, s
     </div> : null}
     {source}
   </article>
+}
+
+export function CreationFormatSelector({ intent, actions }: { intent: CreationIntent; actions: CreationActions }) {
+  const [pending, setPending] = useState<CreationFormat | null>(null)
+  const selectRef = useRef<HTMLSelectElement>(null)
+  const locked = intent.phase.state !== 'editing' || Object.keys(intent.imageOperations).length > 0
+  function close() {
+    setPending(null)
+    requestAnimationFrame(() => selectRef.current?.focus())
+  }
+  return <>
+    <label className="field-stack creation-format"><span>{intent.kind === 'testware' ? 'Output format' : 'Template'}</span>
+      <select ref={selectRef} aria-label={intent.kind === 'testware' ? 'Test case output format' : 'Finding template'} disabled={locked}
+        value={creationFormatId(intent.format)} onChange={event => {
+          const format = creationFormatForId(intent.kind, event.target.value)
+          if (format && !actions.applyFormat(format)) setPending(format)
+        }}>
+        {creationFormatOptions(intent.kind).map(option => <option key={option.id} value={option.id}>{option.label}</option>)}
+      </select>
+      <small>{creationFormatHint(intent.format)}</small>
+    </label>
+    {pending ? <ReplaceFormatDialog onCancel={close} onApply={() => { actions.applyFormat(pending, true); close() }} /> : null}
+  </>
+}
+
+function ReplaceFormatDialog({ onCancel, onApply }: { onCancel: () => void; onApply: () => void }) {
+  const dialogRef = useModalDialog(onCancel)
+  return createPortal(<dialog ref={dialogRef} className="confirmation-dialog" aria-labelledby="replace-format-title">
+    <h2 id="replace-format-title">Replace the draft structure?</h2>
+    <p>Your current body contains changes. Applying another format replaces the body and its images. Your title and finding details stay as they are.</p>
+    <div className="confirmation-actions"><ActionButton onClick={onCancel}>Keep editing</ActionButton><ActionButton variant="primary" onClick={onApply}>Apply format</ActionButton></div>
+  </dialog>, document.body)
 }

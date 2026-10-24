@@ -7,7 +7,6 @@ use std::{
 
 use base64::{Engine, engine::general_purpose::STANDARD};
 use sha2::{Digest, Sha256};
-use uuid::Uuid;
 
 use crate::{
     Result,
@@ -18,8 +17,12 @@ use crate::{
 
 pub const MAX_ATTACHMENT_BYTES: u64 = 25 * 1024 * 1024;
 
+pub mod chat;
+pub mod chat_cleanup;
+pub mod chat_imports;
 mod cleanup;
 pub mod creation;
+mod managed_import;
 pub(crate) use cleanup::is_exact_attachment_path;
 pub use cleanup::{
     delete_session_attachment_files, delete_session_with_attachment_files, retry_attachment_cleanup,
@@ -152,51 +155,36 @@ pub fn import_managed_attachment_bytes(
     if let Some(entry_id) = &entry_id {
         service.require_entry_in_session(entry_id, session_id)?;
     }
-    if bytes.len() as u64 > MAX_ATTACHMENT_BYTES {
-        return Err(validation(format!(
-            "attachment must be at most {MAX_ATTACHMENT_BYTES} bytes"
-        )));
-    }
+    import_managed_attachment_with(
+        app_data_dir,
+        AttachmentDraft {
+            session_id: session_id.into(),
+            entry_id,
+            filename,
+            mime_type,
+            size_bytes: 0,
+            sha256: String::new(),
+            relative_path: String::new(),
+        },
+        bytes,
+        |_, _| Ok(()),
+        |draft| service.create_attachment(draft),
+    )
+}
 
-    let filename = safe_filename(&filename);
-    if filename.is_empty() {
-        return Err(validation("attachment filename is required"));
-    }
-    if filename.len() > MAX_ATTACHMENT_FILENAME_BYTES {
-        return Err(validation(format!(
-            "attachment filename must be at most {MAX_ATTACHMENT_FILENAME_BYTES} bytes"
-        )));
-    }
-    let sha256 = hex_sha256(&bytes);
-    let attachment_id = Uuid::new_v4().to_string();
-    let relative_path = PathBuf::from("attachments")
-        .join(session_id)
-        .join(format!("{attachment_id}_{filename}"));
-    let destination_path = app_data_dir.as_ref().join(&relative_path);
-    if !is_safe_relative_path(&relative_path) {
-        return Err(validation("attachment destination path is invalid"));
-    }
-    if let Some(parent) = destination_path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    let temp_path = destination_path.with_file_name(format!(".{attachment_id}.tmp"));
-    fs::write(&temp_path, &bytes)?;
-    if let Err(error) = fs::rename(&temp_path, &destination_path) {
-        let _ = fs::remove_file(&temp_path);
-        return Err(error.into());
-    }
-
-    let result = service.create_attachment(AttachmentDraft {
-        session_id: session_id.to_string(),
-        entry_id,
-        filename,
-        mime_type,
-        size_bytes: bytes.len() as i64,
-        sha256,
-        relative_path: relative_path.to_string_lossy().replace('\\', "/"),
-    });
+pub(crate) fn import_managed_attachment_with<T>(
+    app_data_dir: impl AsRef<Path>,
+    draft: AttachmentDraft,
+    bytes: Vec<u8>,
+    before_write: impl FnOnce(&AttachmentDraft, &str) -> Result<()>,
+    persist: impl FnOnce(AttachmentDraft) -> Result<T>,
+) -> Result<T> {
+    let prepared = managed_import::PreparedManagedAttachment::new(draft, bytes)?;
+    before_write(&prepared.draft, &prepared.temp_relative)?;
+    prepared.write(app_data_dir.as_ref())?;
+    let result = persist(prepared.draft.clone());
     if result.is_err() {
-        let _ = fs::remove_file(destination_path);
+        let _ = fs::remove_file(app_data_dir.as_ref().join(&prepared.draft.relative_path));
     }
     result
 }
@@ -293,11 +281,20 @@ pub fn attachment_file_bytes(
     let Some(attachment) = service.get_attachment(attachment_id)? else {
         return Ok(None);
     };
+    let bytes = managed_attachment_bytes(app_data_dir.as_ref(), &attachment)?;
+    Ok(Some((attachment, bytes)))
+}
+
+pub(crate) fn managed_attachment_bytes(
+    app_data_dir: &Path,
+    attachment: &Attachment,
+) -> Result<Vec<u8>> {
+    let attachment_id = &attachment.id;
     let relative_path = PathBuf::from(&attachment.relative_path);
     if !is_safe_relative_path(&relative_path) {
         return Err(validation("stored attachment path is invalid"));
     }
-    let bytes = read_attachment_bytes(&app_data_dir.as_ref().join(relative_path))?;
+    let bytes = read_attachment_bytes(&app_data_dir.join(relative_path))?;
     if bytes.len() as i64 != attachment.size_bytes {
         return Err(crate::QaScribeError::InvalidStoredValue {
             field: "attachment file bytes",
@@ -317,7 +314,7 @@ pub fn attachment_file_bytes(
             ),
         });
     }
-    Ok(Some((attachment, bytes)))
+    Ok(bytes)
 }
 
 fn read_attachment_bytes(path: &Path) -> Result<Vec<u8>> {
@@ -431,3 +428,6 @@ fn guess_mime_type(path: &Path) -> Option<&'static str> {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod chat_tests;

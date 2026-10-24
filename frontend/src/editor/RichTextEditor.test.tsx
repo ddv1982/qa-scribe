@@ -11,7 +11,7 @@ vi.mock('../tauri', () => ({
 
 import { getAttachmentPreviewDataUrl } from '../tauri'
 import { FormatToolbar, RichTextEditor, type RichEditorImageUpload } from './RichTextEditor'
-import { emptyRichEditorDocument, richEditorDocumentFromHtml, richEditorDocumentToHtml, richEditorDocumentsEqual, type RichEditorDocument } from './editorDocument'
+import { emptyRichEditorDocument, richEditorDocumentFromHtml, richEditorDocumentToHtml, type RichEditorDocument } from './editorDocument'
 import { managedAttachmentImageHtml } from './editorHtml'
 
 const getAttachmentPreviewDataUrlMock = vi.mocked(getAttachmentPreviewDataUrl)
@@ -69,18 +69,18 @@ describe('RichTextEditor toolbar', () => {
     await waitFor(() => expect(editor.textContent).toBe(''))
   })
 
-  it('keeps a stored document equal when editability hydration emits an update without an edit', async () => {
+  it('preserves stored content without treating editability hydration as an authored edit', async () => {
     const value: RichEditorDocument = { schemaVersion: 1, doc: { content: [
       { content: [{ text: 'Canonical Note', type: 'text' }], type: 'paragraph' },
     ], type: 'doc' } }
     const onChange = vi.fn()
     const { rerender } = render(<RichTextEditor value={value} onChange={onChange} readOnly />)
-    await screen.findByRole('textbox', { name: 'Note body' })
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Note body' }).getAttribute('contenteditable')).toBe('false'))
     onChange.mockClear()
     rerender(<RichTextEditor value={value} onChange={onChange} />)
-    await waitFor(() => expect(onChange).toHaveBeenCalled())
-    expect(lastChangeHtml(onChange)).toBe('<p>Canonical Note</p>')
-    expect(richEditorDocumentsEqual(lastChange(onChange), value)).toBe(true)
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Note body' }).getAttribute('contenteditable')).toBe('true'))
+    expect(screen.getByRole('textbox', { name: 'Note body' }).textContent).toBe('Canonical Note')
+    expect(onChange).not.toHaveBeenCalled()
   })
 
   it('switches between read-only records with different preview labels without crashing', async () => {

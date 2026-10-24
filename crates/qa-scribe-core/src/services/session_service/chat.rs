@@ -21,13 +21,22 @@ impl SessionService {
     }
 
     pub fn save_chat_composer(&self, request: ChatComposerRequest) -> Result<ChatState> {
+        self.save_chat_composer_releasing_images(request)
+            .map(|(chat, _)| chat)
+    }
+
+    pub(crate) fn save_chat_composer_releasing_images(
+        &self,
+        request: ChatComposerRequest,
+    ) -> Result<(ChatState, Vec<String>)> {
         rows::text("Chat composer", &request.composer, true)?;
         self.database.with_immediate_tx(|tx| {
             let chat = rows::checked(tx, &request.scope)?;
             rows::editable(&chat)?;
+            let released = super::chat_images::replace(tx, &chat, &request.attachment_ids)?;
             tx.execute("UPDATE chat_drafts SET composer = ?1, mode = ?2, revision = revision + 1 WHERE id = ?3",
                 params![request.composer, request.mode.as_str(), chat.draft_id])?;
-            rows::read(tx, &chat.draft_id)
+            Ok((rows::read(tx, &chat.draft_id)?, released))
         })
     }
 
@@ -37,7 +46,7 @@ impl SessionService {
             let chat = rows::checked(tx, &request.scope)?;
             rows::editable(&chat)?;
             rows::idle(&chat)?;
-            rows::text("Chat message", &chat.composer, false)?;
+            rows::text("Chat message", &chat.composer, !chat.composer_images.is_empty())?;
             rows::append_capacity(&chat, &chat.composer, 2)?;
             let turn_id = new_id();
             rows::append(
@@ -48,6 +57,11 @@ impl SessionService {
                 &chat.composer,
                 ChatTurnStatus::Running,
             )?;
+            tx.execute("INSERT INTO chat_message_images (message_id, attachment_id, ordinal)
+                SELECT m.id, i.attachment_id, i.ordinal FROM chat_composer_images i
+                JOIN chat_messages m ON m.draft_id = i.draft_id AND m.turn_id = ?1 AND m.role = 'user'
+                WHERE i.draft_id = ?2", params![turn_id, chat.draft_id])?;
+            tx.execute("DELETE FROM chat_composer_images WHERE draft_id = ?1", [&chat.draft_id])?;
             tx.execute(
                 "UPDATE chat_drafts SET composer = '', revision = revision + 1 WHERE id = ?1",
                 [&chat.draft_id],

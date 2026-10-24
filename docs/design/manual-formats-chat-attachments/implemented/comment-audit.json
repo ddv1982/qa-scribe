@@ -1,0 +1,39 @@
+{
+  "head": "98231b532c36873f7f470ded4c8834479f6a1f1f",
+  "base": "30a9ea555d971e46f00596c64fac0b492c55850d",
+  "independentReadOnlyAudit": true,
+  "changedSourceConfigurationFilesAudited": 151,
+  "candidateLines": 7,
+  "acceptedDeletedLines": 5,
+  "deleted": {
+    "frontend/src/app/sessionChat.permissions.ts": 2,
+    "src-tauri/src/commands/providers/models/claude_vision.rs": 3
+  },
+  "rejectedDeletionLines": 2,
+  "retainedExternalConstraint": {
+    "path": "crates/qa-scribe-core/src/chat/input.rs",
+    "source": "https://platform.claude.com/docs/en/build-with-claude/vision#request-limits",
+    "proof": "Official request limits specify 5 MB base64 per image on Amazon Bedrock and 8000-pixel maximum dimensions. The CLI can use Bedrock routing."
+  },
+  "mustKillTargets": [],
+  "suppressions": [],
+  "restoredComments": 0,
+  "reportReruns": 0,
+  "architectSketches": 0,
+  "encodingsOffered": 0,
+  "encodingsAdded": 0,
+  "unenforcedConstraints": [],
+  "skips": [
+    "Historical literal schema fixtures",
+    "Unchanged comments",
+    "Markdown, JSON evidence and images"
+  ],
+  "keptPublicContracts": [
+    "Startup-only import recovery ordering",
+    "At most 50 cleanup paths per queue"
+  ],
+  "keptGeneratedHeaders": [
+    "import_chat_image.toml",
+    "read_chat_clipboard_image_data_url.toml"
+  ]
+}

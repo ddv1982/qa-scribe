@@ -943,7 +943,11 @@
 
 .creation-composer {
   min-width: 0;
+  container-type: inline-size;
+  grid-template-columns: minmax(0, 1fr) auto;
 }
+
+.creation-composer > * { grid-column: 1 / -1; }
 
 .creation-fields {
   border: 0;
@@ -986,4 +990,27 @@
 
 .creation-source-review > p {
   margin: 0 0 var(--space-1);
+}
+
+.finding-classification-fields,
+.finding-reference-fields {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.creation-fields .finding-classification-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.creation-fields .finding-reference-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+@media (max-width: 640px) {
+  .creation-fields .finding-classification-fields,
+  .creation-fields .finding-reference-fields { grid-template-columns: minmax(0, 1fr); }
+}
+
+@container (min-width: 850px) {
+  .creation-composer > .record-heading-row { grid-column: 1; grid-row: 1; align-items: center; }
+  .creation-composer > .record-actions { grid-column: 2; grid-row: 1; margin: 0; padding-block: 0; }
+  .creation-composer > .field-stack { grid-column: 1; grid-row: 2; align-self: start; }
+  .creation-composer > .creation-format { grid-column: 2; }
+  .creation-composer > .creation-fields { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
 }

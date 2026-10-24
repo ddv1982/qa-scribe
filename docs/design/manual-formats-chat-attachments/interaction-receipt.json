@@ -1,0 +1,50 @@
+{
+  "scope": "Design-only prototype observation. This is not a native feature qualification.",
+  "sourceSha": "30a9ea555d971e46f00596c64fac0b492c55850d",
+  "control": "Native Chrome accessibility controls through cua_repl",
+  "observations": [
+    {
+      "action": "Select Gherkin from Test case output format",
+      "observed": "The selected value became Gherkin. The body showed Feature, Scenario, Given, When, and Then."
+    },
+    {
+      "action": "Edit Gherkin body and select Checklist",
+      "observed": "Replace the draft structure dialog appeared before changing the body."
+    },
+    {
+      "action": "Choose Keep editing",
+      "observed": "Gherkin remained selected and the edited body remained."
+    },
+    {
+      "action": "Open Chat attachments and remove checkout-validation.png",
+      "observed": "Only the unchanged sample sentence was observed. This did not establish edited-message preservation. A later native check reproduced a reset bug.",
+      "supersededBy": "removal-native-receipt.json"
+    }
+  ],
+  "rendering": {
+    "desktopWidths": [
+      1280
+    ],
+    "narrowWidths": [
+      728,
+      360
+    ],
+    "consoleErrors": [],
+    "evidence": "render-receipts.json"
+  },
+  "unproven": [
+    "operating-system image paste into QA Scribe",
+    "actual image import through the mock picker",
+    "persistence and recovery",
+    "AI provider image understanding",
+    "production accessibility"
+  ],
+  "supportingEvidence": "Active task tool history contains the native accessibility observations and headless render outputs.",
+  "corrections": [
+    {
+      "action": "Enter Keep my edited message 4827. and remove the image after the prototype fix",
+      "observed": "The exact edited text remained and the remove-image control disappeared.",
+      "evidence": "removal-native-receipt.json"
+    }
+  ]
+}

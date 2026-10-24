@@ -1,18 +1,26 @@
 import { ActionButton } from '../components/ActionButton'
+import { Paperclip } from 'lucide-react'
 import { useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { ChatMessageList } from './ChatMessageList'
+import { ChatImages, ChatImageFailures } from './ChatImages'
+import type { ChatImageFailure } from '../app/sessionChat.types'
+import { imageFileFromClipboardData, shouldReadNativeClipboardImage } from '../app/attachmentActions'
 import { ChatHandoff } from './ChatHandoff'
 import { StartNewConversation } from './StartNewConversation'
 import { chatIsBusy, type ChatHandoffPresentation } from '../app/sessionChat.presentation'
 import '../styles/chat-permissions.css'
-import type { AiProvider, ChatPermissionDecision, ChatState, GenerationJobStatus } from '../bindings'
+import type { AiProvider, ChatImage, ChatPermissionDecision, ChatState, GenerationJobStatus } from '../bindings'
 import { MarkdownContent } from '../content/MarkdownContent'
+import { useChatTranscriptScroll } from './useChatTranscriptScroll'
 
 export type SessionChatViewProps = {
   handoff: ChatHandoffPresentation
   onOpenNote: () => void
   chat: ChatState | null
   composer: string
+  composerImages?: ChatImage[]
+  imageFailures?: ChatImageFailure[]
+  inputRecoveryPending?: boolean
   job: GenerationJobStatus | null
   loading: boolean
   saving: boolean
@@ -29,6 +37,11 @@ export type SessionChatViewProps = {
   providerAvailable: boolean
   providerReason: string
   onSetComposer: (text: string) => void
+  onAttachImages?: (files: File[]) => Promise<void>
+  onPasteNativeImage?: () => Promise<void>
+  onRemoveImage?: (attachmentId: string) => void
+  onRetryImage?: (id: string) => Promise<void>
+  onDismissImageFailure?: (id: string) => Promise<void>
   onSend: () => Promise<void>
   onRetry: () => Promise<void>
   onCancel: () => Promise<void>
@@ -56,10 +69,14 @@ export function SessionChatView(props: SessionChatViewProps) {
     chat, composer, job, loading, saving, working, error, dirty = false, recoveryPending = false, handoff, onOpenNote,
     permissionWorking = false, permissionRecoveryPending = false,
     providerLabel, modelLabel, providerAvailable, providerReason, modelSelectionControl, modelSelectionPending = false,
-    onSetComposer, onSend, onRetry, onCancel, onSubmit, onConfigureAi,
+    onSetComposer, onAttachImages, onPasteNativeImage, onRemoveImage, onSend, onRetry, onCancel, onSubmit, onConfigureAi,
     onDecidePermission, onRecheck,
   } = props
   const id = useId()
+  const fileInput = useRef<HTMLInputElement>(null)
+  const composerImages = props.composerImages ?? chat?.composerImages ?? []
+  const imageFailures = props.imageFailures ?? []
+  const inputRecoveryPending = props.inputRecoveryPending ?? false
   const [expandedPermissionKey, setExpandedPermissionKey] = useState<string | null>(null)
   const attentionRef = useRef<HTMLElement>(null)
   const permissionContextRef = useRef<HTMLDivElement>(null)
@@ -84,8 +101,13 @@ export function SessionChatView(props: SessionChatViewProps) {
   const permissionPreview = permissionExpanded ? permissionInput : permissionInput?.slice(0, permissionPreviewLimit)
   const permissionTruncated = !permissionExpanded && Boolean(permissionInput && permissionInput.length > permissionPreviewLimit)
   const permissionAttention = Boolean(pendingPermission || permissionRecoveryPending)
-  const needsProviderRecovery = permissionRecoveryPending || !providerAvailable || Boolean(error || job?.errorMessage)
+  const { viewportRef, transcriptRef } = useChatTranscriptScroll({ conversationId: chat?.draftId ?? null,
+    userTurnId: latest?.role === 'user' ? latest.turnId : null, messageId: latest?.id ?? null,
+    partialText: job?.partialText ?? null, activeOutput: activeJob || running || handoff.hydrationPending,
+    paused: permissionAttention || inputRecoveryPending })
+  const needsProviderRecovery = inputRecoveryPending || permissionRecoveryPending || !providerAvailable || Boolean(error || job?.errorMessage)
   const locked = !chat || busy || submitted || recovering
+  const attachmentsLocked = locked || inputRecoveryPending || composerImages.length >= 4 || !onAttachImages
   const unresolved = messages.filter((message) => message.status !== 'completed')
   const retryable = latest?.role === 'user'
     && ['failed', 'cancelled', 'interrupted'].includes(latest.status)
@@ -101,17 +123,23 @@ export function SessionChatView(props: SessionChatViewProps) {
     : busy ? 'Wait for the current operation to finish.'
     : recovering ? 'Recover the Session Note before starting a new conversation.'
     : submitted ? 'Start a new conversation to send another message.'
+    : inputRecoveryPending ? 'Recheck status to recover the previous send before continuing.'
     : mixedHistory ? 'An earlier turn is unresolved. Start a new conversation to continue.'
     : retryable ? 'Retry the previous response before sending another message.'
     : !providerAvailable ? providerReason || 'Configure an available AI provider to send.'
+    : imageFailures.length ? 'Retry or remove failed images before sending.'
     : composerBytes > messageLimit ? 'Message exceeds the 16 KiB limit. Shorten it before sending.'
     : atLimit ? 'Conversation limit reached. Submit completed messages or start a new conversation.'
-    : !composer.trim() ? 'Write a message to send.' : ''
+    : !composer.trim() && !composerImages.length ? 'Write a message or attach an image to send.' : ''
   const retryReason = modelSelectionPending ? 'Wait for the model preference to finish saving.' : locked ? 'Wait until the conversation is ready.'
     : !providerAvailable ? providerReason || 'Configure an available AI provider to retry.'
+    : inputRecoveryPending ? 'Recheck status to recover the previous send before continuing.'
+    : imageFailures.length ? 'Retry or remove failed images before retrying the response.'
+    : composerImages.length ? 'Clear the unsent message and images before retrying. Your content is kept until you clear it.'
     : composer !== '' ? 'Clear the unsent message before retrying. Your text is kept until you clear it.' : ''
   const status = loading ? 'Loading conversation…' : saving ? 'Saving conversation…'
     : recovering ? 'Session Note recovery required'
+    : inputRecoveryPending ? 'Response status recovery required'
     : permissionRecoveryPending ? 'Permission status recovery required'
     : dirty && error ? 'Save failed' : dirty ? 'Unsaved changes'
     : job?.state === 'cancelling' ? 'Cancelling response…'
@@ -200,7 +228,7 @@ export function SessionChatView(props: SessionChatViewProps) {
           </footer>
         </section>
       ) : null}
-      <div className="chat-scroll-region" role="region" aria-label="Conversation and actions" tabIndex={0}>
+      <div ref={viewportRef} className="chat-scroll-region" role="region" aria-label="Conversation and actions" tabIndex={0}>
         <header className="chat-topline">
           <div>
             <h2>Conversation</h2>
@@ -228,7 +256,7 @@ export function SessionChatView(props: SessionChatViewProps) {
           </div>
         ) : null}
 
-        <section className="chat-transcript" aria-label="Conversation transcript" tabIndex={0}>
+        <section ref={transcriptRef} className="chat-transcript" aria-label="Conversation transcript" tabIndex={0}>
           {messages.length === 0 ? <p className="chat-help">{loading ? 'Loading saved messages…' : 'No messages yet. Describe what you are testing or ask a question.'}</p> : (
             <ChatMessageList messages={messages} aiRuns={chat?.aiRuns ?? []} />
           )}
@@ -247,10 +275,25 @@ export function SessionChatView(props: SessionChatViewProps) {
       </div>
       <div className="chat-composer">
         <label htmlFor={`${id}-message`}>Message</label>
+        <ChatImages images={composerImages} disabled={locked || inputRecoveryPending} onRemove={onRemoveImage}
+          unverifiedIds={imageFailures.flatMap(failure => failure.recovery?.images.map(image => image.attachmentId) ?? [])} />
+        <ChatImageFailures failures={imageFailures} images={composerImages} disabled={locked || inputRecoveryPending}
+          onRetry={props.onRetryImage} onRemove={props.onDismissImageFailure} onRemoveImage={onRemoveImage} />
         <textarea
           id={`${id}-message`} rows={3} value={composer} disabled={!chat || loading || submitted || recovering}
           aria-describedby={`${id}-shortcut ${id}-send-reason`}
           onChange={(event) => onSetComposer(event.target.value)}
+          onPaste={(event) => {
+            if (!onAttachImages || locked || inputRecoveryPending) return
+            const file = imageFileFromClipboardData(event.clipboardData)
+            if (file) {
+              event.preventDefault()
+              void onAttachImages([file])
+            } else if (onPasteNativeImage && shouldReadNativeClipboardImage(event.clipboardData)) {
+              event.preventDefault()
+              void onPasteNativeImage()
+            }
+          }}
           onKeyDown={(event) => {
             if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) && !event.nativeEvent.isComposing) {
               event.preventDefault()
@@ -259,12 +302,22 @@ export function SessionChatView(props: SessionChatViewProps) {
           }}
           placeholder="Describe your testing context or ask a question"
         />
+        <input ref={fileInput} className="chat-image-input" type="file" multiple accept="image/png,image/jpeg,image/webp,image/gif"
+          aria-label="Choose chat images" tabIndex={-1} onChange={(event) => {
+            const files = Array.from(event.target.files ?? [])
+            event.target.value = ''
+            if (!attachmentsLocked && files.length) void onAttachImages?.(files)
+          }} />
         <div className="chat-compose-actions">
-          <span id={`${id}-shortcut`} className="chat-help">Enter for a new line. Ctrl/Cmd + Enter to send.</span>
+          <span id={`${id}-shortcut`} className="chat-help">Enter for a new line. Ctrl/Cmd + Enter to send. Paste images with Ctrl/Cmd + V.</span>
           <div className="chat-buttons">
             {permissionAttention ? <ActionButton variant="secondary" type="button" onClick={() => { revealPermission(); permissionHeadingRef.current?.focus({ preventScroll: true }) }}>Review permission</ActionButton> : activeJob ? <ActionButton variant="secondary" type="button" disabled={job?.state === 'cancelling'} onClick={() => void onCancel()}>Cancel response</ActionButton> : null}
             {retryable && !submitted ? <ActionButton variant="secondary" type="button" disabled={Boolean(retryReason)} aria-describedby={`${id}-retry-reason`} onClick={() => { if (!retryReason) void onRetry() }}>Retry response</ActionButton> : null}
+            <div className="chat-send-buttons">
+            <ActionButton variant="secondary" type="button" iconOnly icon={Paperclip} aria-label="Attach images"
+              title="Attach up to 4 images, 10 MiB each" disabled={attachmentsLocked} onClick={() => fileInput.current?.click()} />
             <ActionButton variant="primary" type="button" disabled={Boolean(sendReason)} aria-describedby={`${id}-send-reason`} onClick={() => { if (!sendReason) void onSend() }}>Send</ActionButton>
+            </div>
           </div>
         </div>
         <p className="chat-help" id={`${id}-send-reason`}>{sendReason || 'Send this message to the selected AI provider.'}</p>

@@ -72,11 +72,22 @@ impl Drop for Peer<'_> {
     }
 }
 
+#[cfg(test)]
 pub(super) fn read_lines(
     stdout: impl Read,
     sender: SyncSender<Result<Vec<u8>, String>>,
     line: usize,
     total: usize,
+) {
+    read_lines_with_echo(stdout, sender, line, total, None)
+}
+
+pub(super) fn read_lines_with_echo(
+    stdout: impl Read,
+    sender: SyncSender<Result<Vec<u8>, String>>,
+    line: usize,
+    total: usize,
+    mut echo: Option<ImageEchoPolicy>,
 ) {
     let mut reader = BufReader::new(stdout);
     let mut consumed = 0usize;
@@ -84,8 +95,15 @@ pub(super) fn read_lines(
     loop {
         let mut bytes = Vec::new();
         let result = (&mut reader)
-            .take(line.saturating_add(1) as u64)
+            .take(
+                echo.as_ref()
+                    .map_or(line, |policy| policy.remaining_bytes.max(line))
+                    .saturating_add(1) as u64,
+            )
             .read_until(b'\n', &mut bytes);
+        if result.is_ok() && echo.as_mut().is_some_and(|policy| policy.consume(&bytes)) {
+            continue;
+        }
         let error = match result {
             Ok(0) => return,
             Ok(_) if bytes.len() > line => {
@@ -114,7 +132,12 @@ pub(super) fn read_lines(
     }
 }
 
-pub(super) fn read_stderr(mut stderr: impl Read) -> Vec<u8> {
+pub(super) enum DiagnosticCapture {
+    Tail,
+    Discard,
+}
+
+pub(super) fn read_stderr(mut stderr: impl Read, capture: DiagnosticCapture) -> Vec<u8> {
     const LIMIT: usize = 256 * 1024;
     let mut tail = VecDeque::new();
     let mut chunk = [0u8; 8192];
@@ -123,9 +146,86 @@ pub(super) fn read_stderr(mut stderr: impl Read) -> Vec<u8> {
             Ok(0) | Err(_) => break,
             Ok(count) => count,
         };
+        if matches!(capture, DiagnosticCapture::Discard) {
+            continue;
+        }
         let overflow = (tail.len() + count).saturating_sub(LIMIT);
         tail.drain(..overflow);
         tail.extend(&chunk[..count]);
     }
     tail.into_iter().collect()
 }
+
+pub(super) struct ImageEchoPolicy {
+    provider: qa_scribe_core::domain::AiProvider,
+    blocks: Vec<serde_json::Value>,
+    remaining_bytes: usize,
+}
+
+impl ImageEchoPolicy {
+    pub(super) fn new(
+        input: &qa_scribe_core::chat::ChatInput,
+        provider: qa_scribe_core::domain::AiProvider,
+    ) -> Option<Self> {
+        if !input.has_images() || provider == qa_scribe_core::domain::AiProvider::CodexCli {
+            return None;
+        }
+        let blocks = input.content_blocks(provider);
+        let remaining_bytes = blocks
+            .iter()
+            .map(|block| block.to_string().len() + 1)
+            .sum::<usize>()
+            .saturating_add(64 * 1024)
+            .min(qa_scribe_core::chat::MAX_CHAT_INPUT_FRAME_BYTES);
+        Some(Self {
+            provider,
+            blocks,
+            remaining_bytes,
+        })
+    }
+
+    fn consume(&mut self, bytes: &[u8]) -> bool {
+        if self.blocks.is_empty() || bytes.len() > self.remaining_bytes {
+            return false;
+        }
+        let Ok(frame) = serde_json::from_slice::<serde_json::Value>(bytes) else {
+            return false;
+        };
+        let matches = match self.provider {
+            qa_scribe_core::domain::AiProvider::ClaudeCode => {
+                if frame["type"] != "user" || frame["message"]["role"] != "user" {
+                    return false;
+                }
+                if frame["message"]["content"].as_array() != Some(&self.blocks) {
+                    return false;
+                }
+                self.blocks.clear();
+                true
+            }
+            qa_scribe_core::domain::AiProvider::CopilotCli => {
+                if frame["method"] != "session/update"
+                    || frame["params"]["update"]["sessionUpdate"] != "user_message_chunk"
+                {
+                    return false;
+                }
+                let content = &frame["params"]["update"]["content"];
+                if content["type"] != "image" {
+                    return false;
+                }
+                let Some(index) = self.blocks.iter().position(|block| block == content) else {
+                    return false;
+                };
+                self.blocks.remove(index);
+                true
+            }
+            _ => false,
+        };
+        if matches {
+            self.remaining_bytes -= bytes.len();
+        }
+        matches
+    }
+}
+
+#[cfg(test)]
+mod tests;

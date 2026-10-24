@@ -40,6 +40,7 @@ fn main() {
         "cancel_ai_action_job",
         "get_chat",
         "save_chat_composer",
+        "import_chat_image",
         "restart_chat",
         "submit_chat",
         "start_chat_job",
@@ -50,6 +51,7 @@ fn main() {
         "refresh_provider_status",
         "get_attachment_preview_data_url",
         "read_clipboard_image_data_url",
+        "read_chat_clipboard_image_data_url",
         "copy_attachment_image_to_clipboard",
         "copy_html_to_clipboard",
     ];

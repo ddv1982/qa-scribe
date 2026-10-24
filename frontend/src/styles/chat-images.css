@@ -1,0 +1,58 @@
+.chat-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.chat-message .chat-images { margin-top: var(--space-3); }
+
+.chat-image {
+  position: relative;
+  display: grid;
+  width: 144px;
+  max-width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}
+
+.chat-image-preview {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  height: 88px;
+  cursor: zoom-in;
+  background: var(--surface-sunken);
+}
+
+.chat-image-preview img { width: 100%; height: 100%; object-fit: cover; }
+.chat-image-placeholder { min-height: 88px; display: grid; align-content: center; padding: var(--space-2); font-size: var(--font-size-sm); }
+.chat-image-name { padding: var(--space-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--font-size-sm); }
+.chat-image-remove { position: absolute; top: var(--space-1); right: var(--space-1); }
+.chat-image-dialog { max-width: min(960px, 90vw); max-height: 90vh; padding: var(--space-4); border: 1px solid var(--border-default); border-radius: var(--radius-lg); color: var(--text-primary); background: var(--surface-panel); }
+.chat-image-dialog header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-3); }
+.chat-image-dialog h2 { margin: 0; overflow-wrap: anywhere; font-size: var(--font-size-md); }
+.chat-image-dialog > img { display: block; max-width: 100%; max-height: 72vh; object-fit: contain; }
+.chat-image-dialog::backdrop { background: var(--backdrop); }
+.chat-image-input { display: none; }
+.chat-image-failures { list-style: none; margin: 0; padding: 0; }
+.chat-image-failures li { padding: var(--space-2); border: 1px solid var(--danger); border-radius: var(--radius-md); }
+.chat-image-failures p { margin: 0 0 var(--space-2); overflow-wrap: anywhere; color: var(--text-primary); font-size: var(--font-size-sm); }
+.chat-image-failures .action-button {
+  display: flex;
+  max-width: 100%;
+  margin-block: var(--space-1);
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+
+.chat-image-status { padding: 0 var(--space-2) var(--space-2); color: var(--text-secondary); font-size: var(--font-size-sm); }
+
+.chat-send-buttons { display: flex; flex-shrink: 0; align-items: center; gap: var(--space-3); }
+
+.chat-compose-actions > .chat-help { flex: 1; min-width: 0; }
+.chat-compose-actions > .chat-buttons { flex-shrink: 0; max-width: 100%; }

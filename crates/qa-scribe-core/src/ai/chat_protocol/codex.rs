@@ -2,7 +2,7 @@ use super::*;
 
 pub(super) struct CodexProtocol {
     phase: Phase,
-    prompt: String,
+    input: ChatInput,
     model: Option<String>,
     effort: Option<String>,
     cwd: String,
@@ -24,10 +24,10 @@ enum Phase {
 }
 
 impl CodexProtocol {
-    pub(super) fn new(prompt: &str, model: &str, effort: Option<String>, cwd: &str) -> Self {
+    pub(super) fn new(input: &ChatInput, model: &str, effort: Option<String>, cwd: &str) -> Self {
         Self {
             phase: Phase::Initializing,
-            prompt: prompt.into(),
+            input: input.clone(),
             model: super::super::selected_model_arg(model),
             effort,
             cwd: cwd.into(),
@@ -269,8 +269,7 @@ impl CodexProtocol {
                         thread: id.into(),
                         announced_turn: None,
                     };
-                    let mut params =
-                        json!({"threadId":id,"input":[{"type":"text","text":self.prompt}]});
+                    let mut params = json!({"threadId":id,"input":self.input.content_blocks(AiProvider::CodexCli)});
                     if let Some(model) = &self.model {
                         params["model"] = json!(model);
                     }

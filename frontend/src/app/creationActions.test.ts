@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { findingFixture } from '../test/fixtures'
-import { richEditorDocumentFromHtml, richEditorDocumentToHtml } from '../editor/editorDocument'
+import { parseRichEditorDocument, richEditorDocumentFromHtml, richEditorDocumentToHtml } from '../editor/editorDocument'
 import type { CommitCreationSave, CreationOutcome, PrepareCreationSave } from '../tauri'
 import { createCreationActions, type CreationSelection } from './creationActions'
 function deferred<T>() {
@@ -300,4 +300,74 @@ describe('prepare rejection recovery', () => {
     expect(actions.current()).toBeNull()
     expect(bridge.commitCreationSave).not.toHaveBeenCalled()
   })
+})
+
+it('switches untouched formats without treating title and metadata as body authoring', async () => {
+  const { actions } = setup()
+  await actions.open('finding')
+  actions.update({ title: 'Keep title', findingKind: 'risk', metadataJson: '{"severity":"high","status":"resolved","external":{"id":3}}' })
+  expect(actions.applyFormat({ kind: 'finding', template: 'blank' })).toBe(true)
+  expect(richEditorDocumentToHtml(actions.current()!.document)).toBe('')
+  expect(actions.current()).toMatchObject({ title: 'Keep title', findingKind: 'risk' })
+  expect(JSON.parse(actions.current()!.metadataJson!)).toEqual({ severity: 'high', status: 'resolved', external: { id: 3 }, manualCreationFormat: { version: 1, format: { kind: 'finding', template: 'blank' } } })
+  const settlement = actions.settle()
+  await actions.decide('keep')
+  expect(await settlement).toBe(false)
+  expect(actions.current()?.title).toBe('Keep title')
+})
+
+it('settles an untouched alternate starter without a discard decision', async () => {
+  const { actions } = setup()
+  await actions.open('testware')
+  expect(actions.applyFormat({ kind: 'testware', outputFormat: 'gherkin' })).toBe(true)
+  expect(await actions.settle()).toBe(true)
+  expect(actions.current()).toBeNull()
+  expect(bridge.commitCreationSave).not.toHaveBeenCalled()
+})
+
+it('requires explicit replacement for authored text and images and preserves everything when declined', async () => {
+  const { actions } = setup()
+  await actions.open('testware')
+  actions.applyFormat({ kind: 'testware', outputFormat: 'gherkin' })
+  const document = richEditorDocumentFromHtml('<h2>Feature</h2><p>Authored behavior</p><img src="data:image/png;base64,aGVsbG8=" alt="local.png">')
+  actions.update({ title: 'Keep title', document, metadataJson: '{"unknown":7}' })
+  const before = actions.current()
+  expect(actions.applyFormat({ kind: 'testware', outputFormat: 'checklist' })).toBe(false)
+  expect(actions.current()).toBe(before)
+  expect(actions.applyFormat({ kind: 'testware', outputFormat: 'checklist' }, true)).toBe(true)
+  expect(actions.current()?.title).toBe('Keep title')
+  expect(richEditorDocumentToHtml(actions.current()!.document)).not.toContain('img')
+  expect(JSON.parse(actions.current()!.metadataJson!)).toEqual({ unknown: 7, manualCreationFormat: { version: 1, format: { kind: 'testware', outputFormat: 'checklist' } } })
+})
+
+it('saves matching selected-format HTML and JSON and retries an immutable format snapshot', async () => {
+  const { actions } = setup()
+  await actions.open('testware')
+  actions.applyFormat({ kind: 'testware', outputFormat: 'charters' })
+  actions.update({ title: 'Exploration' })
+  bridge.commitCreationSave.mockRejectedValueOnce(new Error('Lost response'))
+  bridge.abortCreationSave.mockRejectedValueOnce(new Error('Offline'))
+  expect(await actions.save()).toBe(false)
+  const payload = bridge.commitCreationSave.mock.calls[0][0] as CommitCreationSave
+  expect(payload.record.body).toBe('<h3>Mission</h3><p></p><h3>Scope</h3><p></p><h3>Risks</h3><p></p><h3>Setup and test data</h3><p></p><h3>Timebox</h3><p></p><h3>Observations</h3><p></p>')
+  expect(richEditorDocumentToHtml(parseRichEditorDocument(payload.record.bodyJson)!)).toBe(payload.record.body)
+  expect(JSON.parse(payload.record.metadataJson!)).toEqual({ manualCreationFormat: { version: 1, format: { kind: 'testware', outputFormat: 'charters' } } })
+  expect(actions.applyFormat({ kind: 'testware', outputFormat: 'gherkin' }, true)).toBe(false)
+  expect(await actions.save()).toBe(true)
+  expect(bridge.commitCreationSave.mock.calls[1][0]).toEqual(payload)
+})
+
+it.each([
+  { metadataJson: '{"severity":"high"}' },
+  { metadataJson: '{"status":"resolved"}' },
+  { findingKind: 'risk' as const },
+])('retains finding field work for navigation settlement after selecting Blank, %j', async patch => {
+  const { actions } = setup()
+  await actions.open('finding')
+  actions.applyFormat({ kind: 'finding', template: 'blank' })
+  actions.update(patch)
+  const pending = actions.settle()
+  await actions.decide('keep')
+  expect(await pending).toBe(false)
+  expect(actions.current()).toMatchObject({ ...patch, format: { kind: 'finding', template: 'blank' }, title: '' })
 })

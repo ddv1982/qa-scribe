@@ -1,0 +1,28 @@
+{
+  "provider": "Codex",
+  "cliVersion": "codex-cli 0.164.0",
+  "macOS": "27.0.1",
+  "messages": [
+    {
+      "role": "user",
+      "text": "Which four colors are in the quadrants of the attached test image, in reading order?\nReply with just the colors. Do not call tools.",
+      "status": "completed"
+    },
+    {
+      "role": "assistant",
+      "text": "Red, green, blue, yellow.",
+      "status": "completed"
+    }
+  ],
+  "expectedColors": [
+    "Red",
+    "green",
+    "blue",
+    "yellow"
+  ],
+  "messageImageReferences": 1,
+  "composerImageReferences": 0,
+  "surface": "native production-style app with WebDriver disabled",
+  "inputMethod": "native Cmd+V, then native Cmd+Enter",
+  "liveModelRecognition": true
+}

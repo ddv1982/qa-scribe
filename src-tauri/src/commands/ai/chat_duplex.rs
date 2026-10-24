@@ -30,9 +30,10 @@ use crate::{
 };
 
 mod process;
-use process::{Peer, read_lines, read_stderr};
+use process::{DiagnosticCapture, ImageEchoPolicy, Peer, read_lines_with_echo, read_stderr};
 
 pub(crate) struct ChatDuplexContext<'a> {
+    pub input: &'a qa_scribe_core::chat::ChatInput,
     pub job_id: &'a str,
     pub jobs: &'a JobStore,
     pub control: &'a JobControl,
@@ -77,7 +78,7 @@ fn run_chat_duplex_with_limits(
     limits: DuplexLimits,
 ) -> Result<ProviderGenerationOutput, ProviderExecutionError> {
     execute_chat_duplex(command, context, on_update, on_status, limits).map_err(|mut error| {
-        error.message = bounded_error_tail(&error.message);
+        error.message = bounded_error_tail(&context.input.provider_error_message(&error.message));
         error
     })
 }
@@ -108,9 +109,10 @@ fn execute_chat_duplex(
         NeutralProviderCwd::new()
     }
     .map_err(|error| format!("The provider was not started: {error}"))?;
+    context.input.preflight_wire(context.provider)?;
     let mut protocol = ChatProtocol::new(
         context.provider,
-        &command.stdin,
+        context.input,
         context.model,
         context.reasoning_effort,
         &cwd.path().to_string_lossy(),
@@ -158,10 +160,16 @@ fn execute_chat_duplex(
     peer.reader = Some(reader);
     let line_limit = limits.line_bytes;
     let total_limit = limits.total_bytes;
+    let echo_policy = ImageEchoPolicy::new(context.input, context.provider);
     peer.threads.push(thread::spawn(move || {
-        read_lines(stdout, lines, line_limit, total_limit)
+        read_lines_with_echo(stdout, lines, line_limit, total_limit, echo_policy)
     }));
-    peer.stderr = Some(thread::spawn(move || read_stderr(stderr)));
+    let diagnostics = if context.input.has_images() {
+        DiagnosticCapture::Discard
+    } else {
+        DiagnosticCapture::Tail
+    };
+    peer.stderr = Some(thread::spawn(move || read_stderr(stderr, diagnostics)));
     let started = Instant::now();
     let mut pending: Option<Receiver<ChatPermissionDecision>> = None;
     // Consent expires with this execution, including cancellation and retries.
@@ -172,7 +180,10 @@ fn execute_chat_duplex(
     let mut priority_frames = VecDeque::new();
     let mut service_due = false;
     let result = (|| {
-        peer.send(&protocol.initial_message(), limits.line_bytes)?;
+        peer.send(
+            &protocol.initial_message(),
+            qa_scribe_core::chat::MAX_CHAT_INPUT_FRAME_BYTES,
+        )?;
         loop {
             if context.control.is_cancelled() {
                 return Ok(None);
@@ -228,7 +239,7 @@ fn execute_chat_duplex(
                             let reply = protocol
                                 .permission_reply(decision != ChatPermissionDecision::Deny)
                                 .map_err(|error| error.to_string())?;
-                            peer.send(&reply, limits.line_bytes)?;
+                            peer.send(&reply, qa_scribe_core::chat::MAX_CHAT_INPUT_FRAME_BYTES)?;
                             pending = None;
                             on_status(
                                 context
@@ -286,7 +297,9 @@ fn execute_chat_duplex(
             };
             for event in handled.map_err(|error| error.to_string())? {
                 match event {
-                    ChatProtocolEvent::Send(message) => peer.send(&message, limits.line_bytes)?,
+                    ChatProtocolEvent::Send(message) => {
+                        peer.send(&message, qa_scribe_core::chat::MAX_CHAT_INPUT_FRAME_BYTES)?
+                    }
                     ChatProtocolEvent::Update(update) => on_update(update),
                     ChatProtocolEvent::Permission(details) => {
                         if pending.is_some() {

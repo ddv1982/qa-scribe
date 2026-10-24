@@ -12,9 +12,12 @@ use presets::{CLAUDE_PRESET_MODELS, CODEX_PRESET_MODELS, COPILOT_PRESET_MODELS};
 mod presets;
 
 mod catalog;
+mod claude_vision;
+mod image_admission;
 mod structured;
 
 pub(super) use catalog::provider_catalog;
+use claude_vision::static_models as claude_static_models;
 use structured::*;
 
 pub(super) fn provider_default_model() -> ProviderModelDescriptor {
@@ -180,20 +183,24 @@ fn parse_codex_app_server_models(models: &[serde_json::Value]) -> Vec<ProviderMo
                     .get("defaultReasoningEffort")
                     .and_then(serde_json::Value::as_str)
                     .map(str::to_string),
-                capabilities: ProviderModelCapabilities::default(),
+                capabilities: ProviderModelCapabilities {
+                    vision: model
+                        .get("inputModalities")
+                        .and_then(serde_json::Value::as_array)
+                        .and_then(|modalities| {
+                            modalities
+                                .iter()
+                                .map(serde_json::Value::as_str)
+                                .collect::<Option<Vec<_>>>()
+                        })
+                        .map(|modalities| modalities.contains(&"image"))
+                        .or_else(|| model.get("vision").and_then(serde_json::Value::as_bool)),
+                    ..Default::default()
+                },
                 resolved_model: None,
             })
         })
         .collect()
-}
-
-pub(super) fn claude_static_models() -> Vec<ProviderModelDescriptor> {
-    let mut models = vec![provider_default_model()];
-    if let Some(model) = environment_model("ANTHROPIC_MODEL") {
-        models.push(model);
-    }
-    models.extend(preset_models(&CLAUDE_PRESET_MODELS));
-    normalize_models(models)
 }
 
 pub(super) fn copilot_models() -> Vec<ProviderModelDescriptor> {
@@ -308,6 +315,10 @@ fn parse_claude_model_help(help: &str) -> Vec<ProviderModelDescriptor> {
         .flat_map(quoted_tokens)
         .filter(|token| !token.trim().is_empty())
         .map(|token| ProviderModelDescriptor {
+            capabilities: ProviderModelCapabilities {
+                vision: claude_vision::known_image_support(&token),
+                ..ProviderModelCapabilities::default()
+            },
             id: token.clone(),
             label: token,
             description: Some("Detected from Claude Code help.".to_string()),
@@ -317,7 +328,6 @@ fn parse_claude_model_help(help: &str) -> Vec<ProviderModelDescriptor> {
             is_default: false,
             reasoning_efforts: Vec::new(),
             default_reasoning_effort: None,
-            capabilities: ProviderModelCapabilities::default(),
             resolved_model: None,
         })
         .collect()

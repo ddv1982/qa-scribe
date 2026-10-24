@@ -268,6 +268,7 @@ fn submission_preserves_rich_document_and_escapes_faithful_role_labelled_transcr
         scope: scope(&submitted),
     }));
     validation(service.save_chat_composer(ChatComposerRequest {
+        attachment_ids: vec![],
         scope: scope(&submitted),
         composer: "Cannot change submitted transcript".into(),
         mode: ChatMode::Chat,

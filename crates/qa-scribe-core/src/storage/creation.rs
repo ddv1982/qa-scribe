@@ -22,7 +22,7 @@ pub(super) fn ensure_note_revision_supported(connection: &Connection) -> Result<
     {
         return Ok(());
     }
-    with_immediate_tx(connection, |tx| {
+    let ensure = |tx: &Connection| {
         ensure_column(
             tx,
             "entries",
@@ -32,5 +32,10 @@ pub(super) fn ensure_note_revision_supported(connection: &Connection) -> Result<
         tx.execute_batch("DROP TRIGGER IF EXISTS note_source_revision")?;
         tx.execute_batch(REVISION_TRIGGER)?;
         Ok(())
-    })
+    };
+    if connection.is_autocommit() {
+        with_immediate_tx(connection, |tx| ensure(tx))
+    } else {
+        ensure(connection)
+    }
 }

@@ -40,7 +40,8 @@ export function ChatHandoff({ state, onSubmit, onOpenNote }: {
   const canAdd = handoff.kind === 'conversation' && !handoff.disabled && !reason
   return <>
     {handoff.reviewAvailable && chat ? <SavedConversationReview
-      key={JSON.stringify([chat.sessionId, chat.draftId])} chat={chat} unsent={state.composer !== ''} /> : null}
+      key={JSON.stringify([chat.sessionId, chat.draftId])} chat={chat}
+      unsent={state.composer !== '' || Boolean((state.composerImages ?? chat.composerImages ?? []).length)} /> : null}
     <footer className="chat-handoff">
       <div>
         <p className="chat-help">Your existing Note stays intact. The saved, role-labelled conversation is appended to your Session Note. This does not generate test cases.</p>

@@ -61,6 +61,8 @@ fn migration_open_still_rejects_foreign_key_violations() {
                   '2026-06-22T00:00:00.000Z', '2026-06-22T00:00:00.000Z'
                 );
 
+                DROP TABLE chat_image_cleanup;
+                DROP INDEX idx_attachments_relative_path;
                 PRAGMA user_version = {};
                 "#,
                 SCHEMA_VERSION - 1

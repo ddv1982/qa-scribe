@@ -1,0 +1,15 @@
+{
+  "platform": "macOS arm64",
+  "appDataDirectory": "/Users/vriesd/Library/Application Support/io.github.ddv1982.qa-scribe.verification.dev",
+  "clipboard": "native Copy Image followed by native Cmd+V",
+  "dimensions": [
+    3840,
+    2160
+  ],
+  "decodedRgbaBytes": 33177600,
+  "storedBytes": 150591,
+  "imageSha256": "4c646999edde0e3b45f1eeb544d5a6a853829eac7893f90f18d08672b36a564c",
+  "retainedText": "Native paste should retain this text 4827.",
+  "durableComposerImages": 1,
+  "driverPlugin": false
+}

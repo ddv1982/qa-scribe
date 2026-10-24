@@ -12,7 +12,7 @@ struct ToolCallMetadata {
 
 pub(super) struct CopilotProtocol {
     phase: Phase,
-    prompt: String,
+    input: ChatInput,
     cwd: String,
 }
 
@@ -26,10 +26,10 @@ enum Phase {
 }
 
 impl CopilotProtocol {
-    pub(super) fn new(prompt: &str, cwd: &str) -> Self {
+    pub(super) fn new(input: &ChatInput, cwd: &str) -> Self {
         Self {
             phase: Phase::Initializing,
-            prompt: prompt.into(),
+            input: input.clone(),
             cwd: cwd.into(),
         }
     }
@@ -207,6 +207,12 @@ impl CopilotProtocol {
                             "Unsupported Copilot ACP protocol version".into(),
                         ));
                     }
+                    if self.input.has_images()
+                        && result["agentCapabilities"]["promptCapabilities"]["image"].as_bool()
+                            != Some(true)
+                    {
+                        return Err(ProtocolError::UnsupportedRequest("Copilot ACP v1 did not negotiate image prompt support. Your message and images are retained for retry.".into()));
+                    }
                     self.phase = Phase::CreatingSession;
                     Ok(vec![ChatProtocolEvent::Send(rpc(
                         "qa-scribe-session",
@@ -223,7 +229,7 @@ impl CopilotProtocol {
                     Ok(vec![ChatProtocolEvent::Send(rpc(
                         "qa-scribe-prompt",
                         "session/prompt",
-                        json!({"sessionId":session,"prompt":[{"type":"text","text":self.prompt}]}),
+                        json!({"sessionId":session,"prompt":self.input.content_blocks(AiProvider::CopilotCli)}),
                     ))])
                 }
                 (Phase::Prompting { .. }, Some("qa-scribe-prompt")) => {

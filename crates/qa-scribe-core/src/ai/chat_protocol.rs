@@ -8,6 +8,7 @@ pub use error::{ProtocolError, ProtocolErrorKind};
 mod tests;
 
 use super::stream::StreamUpdate;
+use crate::chat::ChatInput;
 use crate::domain::{AiProvider, ReportedModel};
 use serde_json::{Value, json};
 use std::collections::VecDeque;
@@ -59,11 +60,12 @@ struct Pending {
 impl ChatProtocol {
     pub fn new(
         provider: AiProvider,
-        prompt: &str,
+        input: impl Into<ChatInput>,
         model: &str,
         effort: Option<&str>,
         cwd: &str,
     ) -> Self {
+        let input = input.into();
         let effort = super::selected_reasoning_effort_arg(effort);
         let failure = effort
             .as_ref()
@@ -71,15 +73,15 @@ impl ChatProtocol {
             .cloned()
             .map(ProtocolError::InvalidFrame);
         let provider = match provider {
-            AiProvider::ClaudeCode => ProviderProtocol::Claude(claude::ClaudeProtocol::new(prompt)),
+            AiProvider::ClaudeCode => ProviderProtocol::Claude(claude::ClaudeProtocol::new(&input)),
             AiProvider::CodexCli => ProviderProtocol::Codex(codex::CodexProtocol::new(
-                prompt,
+                &input,
                 model,
                 effort.ok().flatten(),
                 cwd,
             )),
             AiProvider::CopilotCli => {
-                ProviderProtocol::Copilot(copilot::CopilotProtocol::new(prompt, cwd))
+                ProviderProtocol::Copilot(copilot::CopilotProtocol::new(&input, cwd))
             }
         };
         Self {

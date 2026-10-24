@@ -148,6 +148,10 @@ pub(crate) fn attachment_is_referenced_on(connection: &Connection, id: &str) -> 
                     SELECT 1 FROM findings
                      WHERE instr(body, ?1) > 0 OR instr(COALESCE(body_json, ''), ?1) > 0
                     UNION ALL
+                    SELECT 1 FROM chat_composer_images WHERE attachment_id = ?1
+                    UNION ALL
+                    SELECT 1 FROM chat_message_images WHERE attachment_id = ?1
+                    UNION ALL
                     SELECT 1 FROM evidence_links WHERE attachment_id = ?1
                     UNION ALL
                     SELECT 1 FROM generation_context_attachments WHERE attachment_id = ?1

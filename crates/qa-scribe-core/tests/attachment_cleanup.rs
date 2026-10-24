@@ -277,11 +277,11 @@ fn schema_eight_upgrade_and_current_reopen_preserve_data_and_pending_intent() {
     service
         .database()
         .connection()
-        .execute_batch("DROP TABLE attachment_cleanup; PRAGMA user_version = 8;")
+        .execute_batch("DROP TABLE attachment_cleanup; DROP TABLE chat_image_cleanup; DROP INDEX idx_attachments_relative_path; PRAGMA user_version = 8;")
         .unwrap();
     drop(service);
     let upgraded = SessionService::new(Database::open(&db).unwrap()).unwrap();
-    assert_eq!(SCHEMA_VERSION, 13);
+    assert_eq!(SCHEMA_VERSION, 15);
     assert_eq!(
         upgraded
             .database()

@@ -24,6 +24,7 @@ export const commands = {
 	retryAttachmentCleanup: () => __TAURI_INVOKE<AttachmentCleanupStatus>("retry_attachment_cleanup"),
 	getChat: (sessionId: string) => __TAURI_INVOKE<ChatState>("get_chat", { sessionId }),
 	saveChatComposer: (request: ChatComposerRequest) => __TAURI_INVOKE<ChatState>("save_chat_composer", { request }),
+	importChatImage: (scope: ChatRevision, filename: string, dataUrl: string) => __TAURI_INVOKE<ChatState>("import_chat_image", { scope, filename, dataUrl }),
 	restartChat: (request: ChatRestartRequest) => __TAURI_INVOKE<ChatState>("restart_chat", { request }),
 	submitChat: (request: ChatSubmitRequest) => __TAURI_INVOKE<ChatSubmissionReceipt>("submit_chat", { request }),
 	/**
@@ -63,6 +64,7 @@ export const commands = {
 	refreshProviderStatus: () => __TAURI_INVOKE<ProviderStatus>("refresh_provider_status"),
 	getAttachmentPreviewDataUrl: (attachmentId: string) => __TAURI_INVOKE<string | null>("get_attachment_preview_data_url", { attachmentId }),
 	readClipboardImageDataUrl: () => __TAURI_INVOKE<string | null>("read_clipboard_image_data_url"),
+	readChatClipboardImageDataUrl: () => __TAURI_INVOKE<string | null>("read_chat_clipboard_image_data_url"),
 	copyAttachmentImageToClipboard: (attachmentId: string) => __TAURI_INVOKE<null>("copy_attachment_image_to_clipboard", { attachmentId }),
 	copyHtmlToClipboard: (html: string, altText: string) => __TAURI_INVOKE<null>("copy_html_to_clipboard", { html, altText }),
 };
@@ -127,9 +129,17 @@ export type AttachmentCleanupStatus = {
 };
 
 export type ChatComposerRequest = {
+	attachmentIds?: string[],
 	scope: ChatRevision,
 	composer: string,
 	mode: ChatMode,
+};
+
+export type ChatImage = {
+	attachmentId: string,
+	filename: string,
+	mimeType: string,
+	sizeBytes: number,
 };
 
 export type ChatMessage = {
@@ -137,6 +147,7 @@ export type ChatMessage = {
 	turnId: string,
 	role: ChatRole,
 	text: string,
+	images: ChatImage[],
 	status: ChatTurnStatus,
 	errorMessage: string | null,
 	aiRunId: string | null,
@@ -194,6 +205,7 @@ export type ChatState = {
 	draftId: string,
 	revision: number,
 	composer: string,
+	composerImages: ChatImage[],
 	mode: ChatMode,
 	messages: ChatMessage[],
 	aiRuns: AiRun[],

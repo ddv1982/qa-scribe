@@ -20,10 +20,10 @@
 }
 
 .action-button--primary {
-  --action-text: var(--on-accent);
-  --action-fill: var(--accent);
+  --action-text: var(--action-primary-text);
+  --action-fill: var(--action-primary-fill);
   --action-hover-fill: var(--action-primary-hover);
-  border-color: transparent;
+  border-color: var(--accent);
   font-weight: 600;
 }
 

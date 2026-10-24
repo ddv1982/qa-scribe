@@ -7,6 +7,7 @@ authors.workspace = true
 description = "Core domain and service layer for qa-scribe."
 
 [dependencies]
+image = { version = "0.25.10", default-features = false, features = ["png", "jpeg", "gif", "webp"] }
 base64.workspace = true
 chrono.workspace = true
 dom_query = { version = "=0.27.0", default-features = false }

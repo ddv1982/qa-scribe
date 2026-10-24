@@ -31,6 +31,7 @@ export function createWdioInvocationPlan(environment, temporaryRoot, artifacts, 
         id: requestedSpec,
         environment: {
           QA_SCRIBE_E2E_SPEC: requestedSpec,
+          ...(requestedSpec === 'chat-images.e2e.mjs' ? { QA_SCRIBE_E2E_CHAT_IMAGES: '1' } : {}),
           ...(/^(model-(management|evidence|selection)|provider-qualification)\.e2e\.mjs$/.test(requestedSpec) ? {
             QA_SCRIBE_E2E_MODEL_EVIDENCE: environment.QA_SCRIBE_E2E_MODEL_EVIDENCE ?? artifacts,
           } : {}),
@@ -59,10 +60,12 @@ export function createWdioInvocationPlan(environment, temporaryRoot, artifacts, 
     },
   }))
   if (!requestedSpec && !requestedScenario) {
-    for (const id of ['chat-to-note', ...['codex', 'claude', 'copilot'].map((provider) => `chat-tool-authorization-${provider}`), ...(['linux', 'darwin'].includes(platform) ? ['ui-polish', 'first-use'] : []), ...(platform === 'linux' ? ['native-close'] : [])]) {
+    for (const id of ['chat-to-note', 'chat-images', ...['codex', 'claude', 'copilot'].map((provider) => `chat-tool-authorization-${provider}`), ...(['linux', 'darwin'].includes(platform) ? ['manual-formats', 'ui-polish', 'first-use'] : []), ...(platform === 'linux' ? ['native-close'] : [])]) {
       const provider = id.startsWith('chat-tool-authorization-') ? id.slice('chat-tool-authorization-'.length) : null
       plan.push({ id, environment: {
-        QA_SCRIBE_E2E_SPEC: provider ? 'chat-tool-authorization.workflow.mjs' : `${id}.e2e.mjs`,
+        QA_SCRIBE_E2E_SPEC: provider ? 'chat-tool-authorization.workflow.mjs' : id === 'manual-formats' ? 'creation-composer.e2e.mjs' : `${id}.e2e.mjs`,
+        ...(id === 'manual-formats' ? { QA_SCRIBE_E2E_CREATION_FORMATS_ONLY: '1' } : {}),
+        ...(id === 'chat-images' ? { QA_SCRIBE_E2E_CHAT_IMAGES: '1' } : {}),
         ...(provider ? { QA_SCRIBE_E2E_AUTH_PROVIDER: provider } : {}),
         ...(id === 'native-close' || (['ui-polish', 'first-use'].includes(id) && platform === 'linux') ? { GDK_BACKEND: 'x11' } : {}),
         QA_SCRIBE_E2E_APP_DATA_DIR: join(temporaryRoot, 'app-data', id),
@@ -294,6 +297,9 @@ export function runE2e(environment = process.env, { spawnSyncImpl = spawnSync } 
       const providerBin = join(invocation.environment.QA_SCRIBE_E2E_FIXTURE_DIR, 'bin')
       mkdirSync(providerBin, { recursive: true })
       const authorization = invocationEnvironment.QA_SCRIBE_E2E_SPEC === 'chat-tool-authorization.workflow.mjs'
+      if (invocationEnvironment.QA_SCRIBE_E2E_SPEC !== 'creation-composer.e2e.mjs') delete invocationEnvironment.QA_SCRIBE_E2E_CREATION_FORMATS_ONLY
+      if (invocationEnvironment.QA_SCRIBE_E2E_SPEC !== 'chat-images.e2e.mjs') delete invocationEnvironment.QA_SCRIBE_E2E_CHAT_IMAGES
+      else invocationEnvironment.QA_SCRIBE_PROVIDER_CATALOG_MODE = 'selector'
       const modelSelection = invocationEnvironment.QA_SCRIBE_E2E_SPEC === 'model-selection.e2e.mjs'
       const modelPickerPerformance = invocationEnvironment.QA_SCRIBE_E2E_SPEC === 'model-picker-performance.e2e.mjs'
       const qualification = invocationEnvironment.QA_SCRIBE_E2E_SPEC === 'provider-qualification.e2e.mjs'

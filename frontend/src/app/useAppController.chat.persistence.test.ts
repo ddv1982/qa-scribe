@@ -107,7 +107,7 @@ describe('app-owned Session Chat persistence', () => {
     expect(api.saveChatComposer).toHaveBeenCalledTimes(2)
     expect(api.saveChatComposer).toHaveBeenLastCalledWith({
       scope: { sessionId: 'session-1', draftId: 'chat-1', expectedRevision: 1 },
-      composer: 'Newer edit', mode: 'write_note',
+      composer: 'Newer edit', attachmentIds: [], mode: 'write_note',
     })
   })
 

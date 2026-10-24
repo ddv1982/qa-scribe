@@ -11,6 +11,7 @@ import {
   type Attachment,
   type AttachmentCleanupStatus,
   type ChatComposerRequest,
+  type ChatRevision,
   type ChatRestartRequest,
   type ChatState,
   type ChatSubmissionReceipt,
@@ -56,6 +57,14 @@ export function getChat(sessionId: string): Promise<ChatState> {
 
 export function saveChatComposer(request: ChatComposerRequest): Promise<ChatState> {
   return commands.saveChatComposer(request)
+}
+
+export function importChatImage(scope: ChatRevision, filename: string, dataUrl: string): Promise<ChatState> {
+  return commands.importChatImage(scope, filename, dataUrl)
+}
+
+export function readChatClipboardImageDataUrl(): Promise<string | null> {
+  return commands.readChatClipboardImageDataUrl()
 }
 
 export function restartChat(request: ChatRestartRequest): Promise<ChatState> {

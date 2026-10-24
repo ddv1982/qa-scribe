@@ -1,6 +1,7 @@
 import type { ChatState } from '../bindings'
 import { MarkdownContent } from '../content/MarkdownContent'
 import { RunModelEvidence } from '../components/RunModelEvidence'
+import { ChatImages } from './ChatImages'
 
 export function ChatMessageList({ messages, aiRuns }: {
   messages: Readonly<ChatState['messages']>
@@ -17,6 +18,7 @@ export function ChatMessageList({ messages, aiRuns }: {
           {message.text ? message.role === 'assistant'
             ? <MarkdownContent text={message.text} />
             : <p className="chat-message-text">{message.text}</p> : null}
+          <ChatImages images={message.images ?? []} />
           {message.aiRunId && (message.role === 'assistant' || message.status !== 'completed')
             ? <RunModelEvidence run={aiRuns.find((run) => run.id === message.aiRunId)} /> : null}
           {message.errorMessage ? <p className="chat-error">{message.errorMessage}</p> : null}

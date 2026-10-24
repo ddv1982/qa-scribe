@@ -1,0 +1,13 @@
+							18 text (selected) Native image verification 4827 Today
+							26 text Native image verification 4827
+						27 tab group (selectable) Native image verification 4827 workspace
+						37 text field (settable) Session title, Value: Native image verification 4827, Placeholder: Untitled session
+							62 text Message
+									65 button Preview image.png
+									66 text image.png
+									67 button Remove image.png
+							68 text entry area (settable) Message, Value: [text entry area], Placeholder: Describe your testing context or ask a question, Secondary Actions: Show Writing Tools
+								69 text (settable) Native paste should retain this text 4827.
+							71 button Attach images, Help: Attach up to 4 images, 10 MiB each
+							72 button Send
+The focused UI element is 68 text entry area (settable) Message, Value: [text entry area], Placeholder: Describe your testing context or ask a question, Secondary Actions: Show Writing Tools

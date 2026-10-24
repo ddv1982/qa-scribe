@@ -92,7 +92,8 @@ const PAIRS = [
   ['on-accent', 'accent', 4.5],
   ['on-accent', 'success', 4.5],
   ['on-accent', 'danger', 4.5],
-  ['on-accent', 'action-primary-hover', 4.5],
+  ['action-primary-text', 'action-primary-fill', 4.5],
+  ['action-primary-text', 'action-primary-hover', 4.5],
   ['on-accent', 'action-danger-hover', 4.5],
   ['danger', 'action-danger-tint', 4.5],
   ...['surface-base', 'surface-panel', 'surface-raised', 'surface-sunken', 'surface-overlay'].flatMap((surface) => [

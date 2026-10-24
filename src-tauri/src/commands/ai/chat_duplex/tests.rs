@@ -17,6 +17,7 @@ struct Fixture {
     provider: AiProvider,
     jobs: JobStore,
     control: JobControl,
+    input: qa_scribe_core::chat::ChatInput,
 }
 
 impl Fixture {
@@ -33,11 +34,13 @@ impl Fixture {
             provider,
             jobs,
             control,
+            input: qa_scribe_core::chat::ChatInput::from("fixture prompt"),
         }
     }
 
     fn context(&self) -> ChatDuplexContext<'_> {
         ChatDuplexContext {
+            input: &self.input,
             job_id: "job",
             jobs: &self.jobs,
             control: &self.control,

@@ -2,7 +2,7 @@ use super::*;
 
 pub(super) struct ClaudeProtocol {
     phase: Phase,
-    prompt: String,
+    input: ChatInput,
 }
 #[derive(PartialEq)]
 enum Phase {
@@ -11,10 +11,10 @@ enum Phase {
 }
 
 impl ClaudeProtocol {
-    pub(super) fn new(prompt: &str) -> Self {
+    pub(super) fn new(input: &ChatInput) -> Self {
         Self {
             phase: Phase::Initializing,
-            prompt: prompt.into(),
+            input: input.clone(),
         }
     }
     pub(super) fn initial_message(&self) -> Value {
@@ -42,7 +42,7 @@ impl ClaudeProtocol {
                 self.phase = Phase::Active;
                 Ok(vec![ChatProtocolEvent::Send(
                     json!({"type":"user","session_id":"",
-                    "message":{"role":"user","content":self.prompt},"parent_tool_use_id":null}),
+                    "message":{"role":"user","content":if self.input.has_images() { json!(self.input.content_blocks(AiProvider::ClaudeCode)) } else { json!(self.input.text()) }},"parent_tool_use_id":null}),
                 )])
             }
             "control_cancel_request" => Err(ProtocolError::ProviderFailure(

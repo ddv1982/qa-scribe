@@ -44,7 +44,7 @@ pub(super) fn run(
             control: &control,
             app_data_dir: state.app_data_dir(),
         }
-        .execute(&request, &prepared.prompt);
+        .execute(&request, &prepared.input);
         let report = match &execution {
             Ok(output) => output.model_report.as_ref(),
             Err(error) => error.model_report.as_ref(),
@@ -112,6 +112,7 @@ mod deletion_tests {
         let chat = service.load_chat(&session.id).unwrap();
         let chat = service
             .save_chat_composer(ChatComposerRequest {
+                attachment_ids: vec![],
                 scope: scope(&chat),
                 composer: "Actual behavior differs".into(),
                 mode: ChatMode::Chat,

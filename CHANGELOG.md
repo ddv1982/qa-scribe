@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.8.21 - 2026-10-24
+
+- Choose QA cases, Checklist, Gherkin, Charters, or Coverage outline when creating manual test cases. Findings offer Structured finding and Blank templates. Confirm before replacing authored content, and preserve the selected format through prefill, Save, Copy, and AI setup.
+- Paste screenshots into Chat with Ctrl+V or Cmd+V, or choose images using the paperclip beside Send. Preview and remove attachments without losing message text, resolve uncertain imports through explicit removal controls, and send image-only messages.
+- Keep Chat images through composer recovery, retry, history replay, and Add conversation to note. Keep image imports responsive, and handle cancellation and edits safely during image preparation. Preserve exact message boundaries during provider replay. Recover response status after older jobs are pruned. Migrate existing conversations to schema 15 without changing their text or submission history. Reclaim removed Chat images when no record still references them.
+- Deliver actual image content through compatible Codex and Claude transports. Reject unsupported or unknown model image capability before consuming the composer. Copilot image sends remain unavailable until capability negotiation can safely precede persistence.
+- Keep the latest Chat reply visible, preserve deliberate history scrolling and the composer position during autosave, compact finding metadata in short desktop windows, and keep paperclip and Send together at narrow widths. Use the same blue primary buttons with white text in light and dark themes. Keep selected content stable when editor editability changes.
+- Add maintained desktop checks for manual formats, managed image bytes, replay, Note handoff, and light/dark attachment layouts.
+
 ## v0.8.20 - 2026-10-23
 
 - Use one creation route from Notes and collections for Findings and test cases. New drafts stay local until Save; authored drafts offer Save draft, Discard draft, or Keep editing before leaving.

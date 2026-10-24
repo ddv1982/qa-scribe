@@ -6,6 +6,8 @@ use crate::commands::providers::{
     ProviderModelSource, ProviderWarning, ProviderWarningSeverity,
 };
 
+use super::claude_vision;
+
 pub(super) fn parse_claude_structured_models(
     models: &[serde_json::Value],
 ) -> Vec<ProviderModelDescriptor> {
@@ -13,6 +15,7 @@ pub(super) fn parse_claude_structured_models(
         .iter()
         .filter_map(|model| {
             let id = value_string(model, &["id", "value"])?;
+            let resolved_model = value_string(model, &["resolvedModel"]);
             let reasoning_efforts =
                 value_string_array(model, &["reasoningEfforts", "supportedEffortLevels"]);
             Some(ProviderModelDescriptor {
@@ -27,6 +30,7 @@ pub(super) fn parse_claude_structured_models(
                     &["defaultReasoningEffort", "defaultEffortLevel"],
                 ),
                 capabilities: ProviderModelCapabilities {
+                    vision: claude_vision::image_support(model, &id, resolved_model.as_deref()),
                     reasoning: value_bool(model, &["supportsEffort"])
                         .or_else(|| (!reasoning_efforts.is_empty()).then_some(true)),
                     adaptive_thinking: value_bool(
@@ -37,7 +41,7 @@ pub(super) fn parse_claude_structured_models(
                     auto_mode: value_bool(model, &["supportsAutoMode", "autoMode"]),
                     ..ProviderModelCapabilities::default()
                 },
-                resolved_model: value_string(model, &["resolvedModel"]),
+                resolved_model,
                 id,
                 reasoning_efforts,
             })

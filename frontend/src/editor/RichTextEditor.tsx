@@ -269,7 +269,7 @@ export function RichTextEditor({
 
   useEffect(() => {
     if (!editor || editor.isDestroyed) return
-    editor.setEditable(!readOnly)
+    editor.setEditable(!readOnly, false)
   }, [editor, readOnly])
 
   useEffect(() => {
