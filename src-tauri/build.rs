@@ -39,6 +39,7 @@ fn main() {
         "list_active_ai_action_jobs",
         "cancel_ai_action_job",
         "get_chat",
+        "resolve_refinement",
         "save_chat_composer",
         "import_chat_image",
         "restart_chat",

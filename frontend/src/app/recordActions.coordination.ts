@@ -1,4 +1,5 @@
-import { updateDraft, updateFinding, type Draft, type Finding } from '../tauri'
+import { updateDraft, updateFinding, type Draft, type Finding, type EditorStage, type RecordWriteGuard } from '../tauri'
+import { recordWriteGuard, RecordWriteConflict } from './recordWriteGuards'
 import {
   managedAttachmentImagesInDocument,
   richEditorDocumentFromStoredBody,
@@ -15,11 +16,15 @@ type RecordIntent<T> = {
   kind: 'save' | 'discard' | 'canonicalize' | 'delete'
   restore: T | null
   compensationPending?: boolean
+  expected?: RecordWriteGuard
 }
 
 export function createRecordActionCoordination(ctx: RecordPersistenceContext) {
   const draftIntents = new Map<string, RecordIntent<Draft>>()
   const findingIntents = new Map<string, RecordIntent<Finding>>()
+  const proposalStages = new Map<string, EditorStage>()
+  const latestWriteGuards = new Map<string, RecordWriteGuard>()
+  const events = { onChanged: (_kind?: 'finding' | 'draft', _id?: string, _reason?: 'saved' | 'discard' | 'conflict') => {} }
   const pendingWriteOperations = new Set<Promise<unknown>>()
 
   async function settleImportedRecordAttachments(
@@ -35,8 +40,9 @@ export function createRecordActionCoordination(ctx: RecordPersistenceContext) {
   }
 
   function trackWrite<T>(operation: Promise<T>): Promise<T> {
-    const tracked = operation.finally(() => pendingWriteOperations.delete(tracked))
+    const tracked = operation.finally(() => { pendingWriteOperations.delete(tracked); events.onChanged() })
     pendingWriteOperations.add(tracked)
+    events.onChanged()
     return tracked
   }
 
@@ -53,6 +59,7 @@ export function createRecordActionCoordination(ctx: RecordPersistenceContext) {
       kind,
       restore: kind === 'save' ? restore ?? previous?.restore ?? null : restore,
       compensationPending: kind === 'save' ? previous?.compensationPending : undefined,
+      expected: previous?.expected,
     }
     draftIntents.set(id, intent)
     return intent.generation
@@ -65,6 +72,7 @@ export function createRecordActionCoordination(ctx: RecordPersistenceContext) {
       kind,
       restore: kind === 'save' ? restore ?? previous?.restore ?? null : restore,
       compensationPending: kind === 'save' ? previous?.compensationPending : undefined,
+      expected: previous?.expected,
     }
     findingIntents.set(id, intent)
     return intent.generation
@@ -112,7 +120,7 @@ export function createRecordActionCoordination(ctx: RecordPersistenceContext) {
     const intent = draftIntents.get(id)
     if (!intent?.restore) return true
     try {
-      const restored = await trackWrite(updateDraft(id, draftPersistencePatch(intent.restore)))
+      const restored = await trackWrite(updateDraft(id, draftPersistencePatch(intent.restore), intent.expected ?? await recordWriteGuard(ctx.records.savedDraftsRef.current.find(record => record.id === id) ?? intent.restore, 'drafts')))
       if (draftIntents.get(id) !== intent) return reconcileDraftIntent(id)
       if (ctx.session.activeSessionIdRef.current === restored.sessionId) {
         ctx.records.savedDraftsRef.current = replaceRecord(ctx.records.savedDraftsRef.current, restored)
@@ -129,6 +137,7 @@ export function createRecordActionCoordination(ctx: RecordPersistenceContext) {
       intent.compensationPending = false
       return true
     } catch (cause) {
+      if (adoptConflict(cause)) { intent.compensationPending = false; return false }
       if (draftIntents.get(id) !== intent) return reconcileDraftIntent(id)
       markDraftCompensationPending(intent.restore, cause)
       return false
@@ -139,7 +148,7 @@ export function createRecordActionCoordination(ctx: RecordPersistenceContext) {
     const intent = findingIntents.get(id)
     if (!intent?.restore) return true
     try {
-      const restored = await trackWrite(updateFinding(id, findingPersistencePatch(intent.restore)))
+      const restored = await trackWrite(updateFinding(id, findingPersistencePatch(intent.restore), intent.expected ?? await recordWriteGuard(ctx.records.savedFindingsRef.current.find(record => record.id === id) ?? intent.restore, 'findings')))
       if (findingIntents.get(id) !== intent) return reconcileFindingIntent(id)
       if (ctx.session.activeSessionIdRef.current === restored.sessionId) {
         ctx.records.savedFindingsRef.current = replaceRecord(ctx.records.savedFindingsRef.current, restored)
@@ -156,6 +165,7 @@ export function createRecordActionCoordination(ctx: RecordPersistenceContext) {
       intent.compensationPending = false
       return true
     } catch (cause) {
+      if (adoptConflict(cause)) { intent.compensationPending = false; return false }
       if (findingIntents.get(id) !== intent) return reconcileFindingIntent(id)
       markFindingCompensationPending(intent.restore, cause)
       return false
@@ -199,7 +209,66 @@ export function createRecordActionCoordination(ctx: RecordPersistenceContext) {
     return ctx.materializeInlineImages(document, { entryId: null, isCurrent })
   }
 
+  function adoptConflict(cause: unknown): boolean {
+    if (!(cause instanceof RecordWriteConflict)) return false
+    const record = cause.current
+    if ('aiRunId' in record) {
+      const current = record
+      ctx.records.savedDraftsRef.current = replaceRecord(ctx.records.savedDraftsRef.current, current)
+      ctx.records.dirtyDraftIdsRef.current.add(record.id)
+    } else {
+      const current = record
+      ctx.records.savedFindingsRef.current = replaceRecord(ctx.records.savedFindingsRef.current, current)
+      ctx.records.dirtyFindingIdsRef.current.add(record.id)
+    }
+    ctx.feedback.setError(cause.message)
+    events.onChanged(record.kind === 'testware' || record.kind === 'session_report' ? 'draft' : 'finding', record.id, 'conflict')
+    return true
+  }
+
+  async function guardFor(record: Finding | Draft, kind: 'finding' | 'draft'): Promise<RecordWriteGuard> {
+    const key = `${kind}:${record.id}`
+    const stage = proposalStages.get(key)
+    const pinned = latestWriteGuards.get(key)
+    if (pinned) return pinned
+    const saved = kind === 'finding' ? ctx.records.savedFindingsRef.current.find(item => item.id === record.id) : ctx.records.savedDraftsRef.current.find(item => item.id === record.id)
+    const guard = await recordWriteGuard(saved ?? record, kind === 'finding' ? 'findings' : 'drafts', stage)
+    if (!latestWriteGuards.has(key)) latestWriteGuards.set(key, guard)
+    return latestWriteGuards.get(key) ?? guard
+  }
+
+  async function confirmedWrite(record: Finding | Draft, kind: 'finding' | 'draft', guard: RecordWriteGuard) {
+    const next = await recordWriteGuard(record, kind === 'finding' ? 'findings' : 'drafts')
+    latestWriteGuards.set(`${kind}:${record.id}`, next)
+    const intent = kind === 'finding' ? findingIntents.get(record.id) : draftIntents.get(record.id)
+    if (intent) {
+      const restore = intent.restore
+      const restoredBase = restore ? await recordWriteGuard(restore, kind === 'finding' ? 'findings' : 'drafts') : next
+      intent.expected = { ...next, origin: { kind: 'compensation', stageId: guard.origin.kind === 'editor' ? null : guard.origin.stageId, restoredBase: restoredBase.expectedStoredBase } }
+    }
+  }
+
+  function clearStage(kind: 'finding' | 'draft', id: string, reason: 'saved' | 'discard' = 'saved') {
+    proposalStages.delete(`${kind}:${id}`)
+    latestWriteGuards.delete(`${kind}:${id}`)
+    events.onChanged(kind, id, reason)
+  }
+
+  function beginRecordOperation() {
+    let settle = () => {}
+    const operation = new Promise<void>(resolve => { settle = resolve })
+    pendingWriteOperations.add(operation); events.onChanged()
+    return () => { pendingWriteOperations.delete(operation); settle(); events.onChanged() }
+  }
+
+  function subscribeChanges(listener: typeof events.onChanged) {
+    events.onChanged = listener
+    return () => { if (events.onChanged === listener) events.onChanged = () => {} }
+  }
+
   return {
+    subscribeChanges, beginRecordOperation,
+    proposalStages, latestWriteGuards, events, adoptConflict, guardFor, confirmedWrite, clearStage,
     attachmentsNotReferencedByRecord,
     draftIntents,
     draftPersistencePatch,
@@ -230,12 +299,13 @@ function replaceRecord<T extends { id: string }>(records: T[], saved: T): T[] {
     : [saved, ...records]
 }
 
-function draftPersistencePatch(draft: Pick<Draft, 'title' | 'body' | 'bodyJson' | 'bodyFormat'>) {
+function draftPersistencePatch(draft: Pick<Draft, 'title' | 'body' | 'bodyJson' | 'bodyFormat' | 'metadataJson'>) {
   return {
     title: draft.title,
     body: draft.body,
     bodyJson: draft.bodyJson,
     bodyFormat: draft.bodyFormat,
+    metadataJson: draft.metadataJson,
   }
 }
 

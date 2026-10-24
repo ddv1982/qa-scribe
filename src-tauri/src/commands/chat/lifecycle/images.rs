@@ -41,6 +41,7 @@ impl Fixture {
         )
         .unwrap();
         let request = StartChatJobRequest {
+            refine: false,
             context: ChatTarget::Session,
             scope: scope(&chat),
             retry: false,

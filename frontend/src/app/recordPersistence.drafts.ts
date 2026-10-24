@@ -12,9 +12,11 @@ export function createDraftPersistence(ctx: RecordPersistenceContext, coordinati
   async function persistDraft(draft: Draft): Promise<RecordPersistResult> {
     if (intents.get(draft.id)?.kind === 'delete') return 'superseded'
     const intentGeneration = coordination.reserveDraftIntent(draft.id, 'save')
+    const finishOperation = coordination.beginRecordOperation()
     let importedAttachmentIds: string[] = []
     try {
       ctx.feedback.setError(null)
+      const guard = await coordination.guardFor(draft, 'draft')
       const materialized = await coordination.materializeRecordBody(
         draft,
         () => intents.get(draft.id)?.generation === intentGeneration,
@@ -24,7 +26,8 @@ export function createDraftPersistence(ctx: RecordPersistenceContext, coordinati
         return await ctx.cleanupMaterializedAttachments(importedAttachmentIds) ? 'superseded' : 'failed'
       }
       const storedBody = richEditorDocumentToStoredBody(materialized.document)
-      const saved = await coordination.trackWrite(updateDraft(draft.id, { title: draft.title, ...storedBody }))
+      const saved = await coordination.trackWrite(updateDraft(draft.id, { title: draft.title, ...storedBody }, guard))
+      await coordination.confirmedWrite(saved, 'draft', guard)
       const latestIntent = intents.get(draft.id)
       if (!latestIntent || latestIntent.generation !== intentGeneration) {
         const reconciled = await coordination.reconcileDraftIntent(draft.id)
@@ -73,22 +76,27 @@ export function createDraftPersistence(ctx: RecordPersistenceContext, coordinati
           return nextDrafts
         })
       }
+      coordination.clearStage('draft', draft.id)
       return 'saved'
     } catch (cause) {
+      if (coordination.adoptConflict(cause)) return 'failed'
       await ctx.cleanupMaterializedAttachments(importedAttachmentIds)
       const latestIntent = intents.get(draft.id)
       const reconciled = !latestIntent?.restore || await coordination.reconcileDraftIntent(draft.id)
       if (reconciled) ctx.feedback.setError(formatError(cause))
       return 'failed'
-    }
+    } finally { finishOperation() }
   }
 
-  async function canonicalizeGeneratedDraft(draft: Draft): Promise<void> {
+  async function canonicalizeGeneratedDraft(draft: Draft, storedBase: Draft): Promise<void> {
     if (intents.get(draft.id)?.kind === 'delete') return
+    const finishOperation = coordination.beginRecordOperation()
     const intentGeneration = coordination.reserveDraftIntent(draft.id, 'canonicalize', draft)
-    ctx.records.savedDraftsRef.current = coordination.replaceRecord(ctx.records.savedDraftsRef.current, draft)
+    ctx.records.savedDraftsRef.current = coordination.replaceRecord(ctx.records.savedDraftsRef.current, storedBase)
     try {
-      const saved = await coordination.trackWrite(updateDraft(draft.id, coordination.draftPersistencePatch(draft)))
+      const guard = await coordination.guardFor(draft, 'draft')
+      const saved = await coordination.trackWrite(updateDraft(draft.id, coordination.draftPersistencePatch(draft), guard))
+      await coordination.confirmedWrite(saved, 'draft', guard)
       const intent = intents.get(draft.id)
       if (!intent || intent.generation !== intentGeneration) {
         await coordination.reconcileDraftIntent(draft.id)
@@ -106,10 +114,11 @@ export function createDraftPersistence(ctx: RecordPersistenceContext, coordinati
         })
       }
     } catch (cause) {
+      if (coordination.adoptConflict(cause)) return
       const intent = intents.get(draft.id)
       if (intent?.generation !== intentGeneration) return
       coordination.markDraftCompensationPending(draft, cause)
-    }
+    } finally { finishOperation() }
   }
 
   return { persistDraft, canonicalizeGeneratedDraft }

@@ -6,10 +6,10 @@ import { useModalDialog } from '../hooks/useModalDialog'
 
 export type ChatRestartState = Pick<SessionChatViewState,
   'chat' | 'composer' | 'job' | 'loading' | 'saving' | 'working' | 'recoveryPending'
-  | 'permissionWorking' | 'permissionRecoveryPending' | 'onRestart' | 'captureRestart'> & Partial<Pick<SessionChatViewState, 'composerImages' | 'imageFailures' | 'inputRecoveryPending'>>
+  | 'permissionWorking' | 'permissionRecoveryPending' | 'onRestart' | 'captureRestart'> & Partial<Pick<SessionChatViewState, 'composerImages' | 'imageFailures' | 'inputRecoveryPending' | 'recordWritesPending'>>
 
 function restartDisabled(state: ChatRestartState) {
-  return !state.chat || chatIsBusy(state) || Boolean(state.recoveryPending
+  return !state.chat || state.recordWritesPending || state.chat.proposals?.some(p => p.state.kind === 'staged') || chatIsBusy(state) || Boolean(state.recoveryPending
     || state.permissionWorking || state.permissionRecoveryPending || state.inputRecoveryPending)
 }
 
@@ -33,6 +33,7 @@ export function StartNewConversation({ state }: { state: ChatRestartState }) {
     setConfirmation({ submitted: Boolean(state.chat.submission), confirm })
   }
   return <>
+    {state.chat?.proposals?.some(p => p.state.kind === 'staged') ? <p className="chat-help">Save, Undo, or Discard the local refinement before starting a new conversation.</p> : state.recordWritesPending ? <p className="chat-help">Wait for pending record writes before starting a new conversation.</p> : null}
     <ActionButton variant="secondary" size="compact" disabled={restartDisabled(state)} onClick={restart}>
       Start new conversation
     </ActionButton>

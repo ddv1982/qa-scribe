@@ -10,6 +10,11 @@ export type ChatImageRecovery = { kind: 'refresh_pending' | 'verification_pendin
 export type ChatImageFailure = { id: string; filename: string; message: string; recovery?: ChatImageRecovery }
 
 export interface SessionChatViewState {
+  refinementStarting?: boolean
+  recordWritesPending?: boolean
+  onRefine?: () => Promise<void>
+  onRefresh?: () => Promise<void>
+  proposalControls?: import('./sessionChat.proposals').ProposalControls
   handoff: ChatHandoffPresentation
   chat: ChatState | null
   composer: string
@@ -41,7 +46,7 @@ export interface SessionChatViewState {
   onRestart: () => Promise<void>
 }
 
-export type ChatSnapshot = Pick<SessionChatViewState, 'chat' | 'composer' | 'composerImages' | 'imageFailures' | 'inputRecoveryPending' | 'job' | 'loading' | 'saving' | 'working' | 'error' | 'dirty' | 'permissionWorking' | 'permissionRecoveryPending'> & {
+export type ChatSnapshot = Pick<SessionChatViewState, 'chat' | 'composer' | 'composerImages' | 'imageFailures' | 'inputRecoveryPending' | 'job' | 'loading' | 'saving' | 'working' | 'error' | 'dirty' | 'permissionWorking' | 'permissionRecoveryPending' | 'refinementStarting'> & {
   sessionId: string | null
   mode: ChatMode
 }
@@ -52,6 +57,7 @@ export const emptyChatSnapshot: ChatSnapshot = {
 }
 
 export type SessionChatContext = {
+  recordWritesPending?: () => boolean
   noteRecovery: ChatNoteRecovery
   noteEligibility: NoteEligibility
   session: SessionWorkspace
@@ -76,7 +82,7 @@ export type ChatWorkspace = {
   composer: string
   composerImages: ChatImage[]
   imageFailures: ChatImageFailure[]
-  pendingStart: { state: 'starting' | 'uncertain' } | null
+  pendingStart: { state: 'starting' | 'uncertain'; refine?: boolean } | null
   mode: ChatMode
   inputVersion: number
   modeVersion: number

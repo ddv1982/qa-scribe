@@ -50,6 +50,6 @@ export type GenerationActionsContext = {
     allowRecoveryWrite?: boolean
   }) => Promise<boolean>
   adoptCanonicalNoteBody: (body: RichEditorDocument, entryId: string, sessionId: string) => void
-  canonicalizeGeneratedDraft: (draft: Draft) => Promise<void>
-  canonicalizeGeneratedFinding: (finding: Finding) => Promise<void>
+  canonicalizeGeneratedDraft: (draft: Draft, storedBase: Draft) => Promise<void>
+  canonicalizeGeneratedFinding: (finding: Finding, storedBase: Finding) => Promise<void>
 }

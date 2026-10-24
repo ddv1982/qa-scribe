@@ -64,7 +64,19 @@ pub(super) fn read(connection: &Connection, id: &str) -> Result<ChatState> {
     let ai_runs = statement
         .query_map([id], super::super::session_rows::map_ai_run)?
         .collect::<rusqlite::Result<Vec<_>>>()?;
+    let refinement_pending = messages
+        .iter()
+        .rev()
+        .filter(|m| m.role == ChatRole::User)
+        .take(1)
+        .try_fold(false, |found, message| {
+            Ok::<_, crate::QaScribeError>(
+                found || super::chat_refinements::contract(connection, &message.id)?.is_some(),
+            )
+        })?;
     Ok(ChatState {
+        refinement_pending,
+        proposals: super::chat_refinements::read(connection, id)?,
         session_id: row.0,
         draft_id: id.into(),
         revision: row.1,

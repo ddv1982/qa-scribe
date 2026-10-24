@@ -108,21 +108,14 @@ pub(super) fn capture(
     } else if snapshot.record_kind != DraftKind::Testware.as_str() {
         return Err(validation("Record context must have Test cases kind"));
     }
-    let saved: (String, String, Option<String>, String, String, Option<String>) = connection.query_row(
-        &format!("SELECT title, body, body_json, body_format, kind, metadata_json FROM {table} WHERE id = ?1"),
-        [&snapshot.record_id], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?)))?;
     snapshot.local_fingerprint = digest(&json_bytes(&(
         &snapshot.title,
         &document,
         &snapshot.record_kind,
         &snapshot.metadata_json,
     ))?);
-    snapshot.stored_base_token = digest(&json_bytes(&(
-        table,
-        session_id,
-        &snapshot.record_id,
-        saved,
-    ))?);
+    snapshot.stored_base_token =
+        super::record_bases::stored(connection, table, session_id, &snapshot.record_id)?;
     encoded(&context)?;
     Ok(context)
 }

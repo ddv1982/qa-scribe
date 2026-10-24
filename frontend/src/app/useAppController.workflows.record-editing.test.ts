@@ -97,14 +97,12 @@ describe('useAppController workflows and record hydration', () => {
       'draft-inline',
       expect.objectContaining({
         body: expect.stringContaining('qa-scribe-attachment://attachment-1'),
-      }),
-    )
+      }), expect.objectContaining({ expectedStoredBase: expect.any(String) }))
     expect(tauriMock.updateDraft).toHaveBeenCalledWith(
       'draft-inline',
       expect.objectContaining({
         body: expect.not.stringContaining('data:image/png'),
-      }),
-    )
+      }), expect.objectContaining({ expectedStoredBase: expect.any(String) }))
   })
 
   it('keeps a Draft dirty when another edit happens while save is in flight', async () => {
@@ -136,7 +134,7 @@ describe('useAppController workflows and record hydration', () => {
     act(() => {
       savePromise = result.current.handleSaveDraft(result.current.testwareDrafts[0])
     })
-    await waitFor(() => expect(tauriMock.updateDraft).toHaveBeenCalledWith('draft-race', expect.objectContaining({ body: '<p>First unsaved edit.</p>' })))
+    await waitFor(() => expect(tauriMock.updateDraft).toHaveBeenCalledWith('draft-race', expect.objectContaining({ body: '<p>First unsaved edit.</p>' }), expect.objectContaining({ expectedStoredBase: expect.any(String) })))
 
     act(() => {
       result.current.updateLocalDraft('draft-race', { body: '<p>Edit typed while saving.</p>' })
@@ -159,7 +157,7 @@ describe('useAppController workflows and record hydration', () => {
       await result.current.openSession(otherSession)
     })
 
-    expect(tauriMock.updateDraft).toHaveBeenLastCalledWith('draft-race', expect.objectContaining({ body: '<p>Edit typed while saving.</p>' }))
+    expect(tauriMock.updateDraft).toHaveBeenLastCalledWith('draft-race', expect.objectContaining({ body: '<p>Edit typed while saving.</p>' }), expect.objectContaining({ expectedStoredBase: expect.any(String) }))
     expect(result.current.activeSession?.id).toBe('session-2')
   })
 

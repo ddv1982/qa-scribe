@@ -50,6 +50,15 @@ impl SessionService {
         request: ChatStartRequest,
         context: ChatTarget,
     ) -> Result<ChatTurnStarted> {
+        self.start_chat_turn_with_response(request, context, false)
+    }
+
+    pub fn start_chat_turn_with_response(
+        &self,
+        request: ChatStartRequest,
+        context: ChatTarget,
+        refine: bool,
+    ) -> Result<ChatTurnStarted> {
         self.database.with_immediate_tx(|tx| {
             let chat = rows::checked(tx, &request.scope)?;
             rows::editable(&chat)?;
@@ -68,6 +77,7 @@ impl SessionService {
                 ChatTurnStatus::Running,
             )?;
             super::chat_context::store(tx, &chat.draft_id, &turn_id, &context)?;
+            if refine { super::chat_refinements::start_contract(tx, &chat.draft_id, &turn_id, &context)?; }
             tx.execute("INSERT INTO chat_message_images (message_id, attachment_id, ordinal)
                 SELECT m.id, i.attachment_id, i.ordinal FROM chat_composer_images i
                 JOIN chat_messages m ON m.draft_id = i.draft_id AND m.turn_id = ?1 AND m.role = 'user'
@@ -98,6 +108,7 @@ impl SessionService {
         self.database.with_immediate_tx(|tx| {
             let chat = rows::checked(tx, &request.scope)?;
             rows::idle(&chat)?;
+            if chat.proposals.iter().any(|p| matches!(p.state, RefinementState::Staged { .. })) { return Err(crate::error::validation("Save, Undo, or Discard the local refinement before starting a new conversation")); }
             tx.execute(
                 "UPDATE chat_drafts SET archived = 1 WHERE id = ?1",
                 [&chat.draft_id],

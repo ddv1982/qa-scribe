@@ -32,6 +32,7 @@ import { useAttachmentCleanup } from './useAttachmentCleanup'
 import { useSummaryRecovery } from './useSummaryRecovery'
 import { useAskAiContext } from './useAskAiContext'
 import { useSessionChat } from './useSessionChat'
+import { useRefinementController } from './sessionChat.proposals'
 import { useImportedAttachments } from './importedAttachments'
 import { useStableCapability } from './useStableCapability'
 import { createNoteEligibility } from './noteEligibility'
@@ -233,10 +234,10 @@ export function useAppController() {
     retryPendingRecordCompensations: recordPersistence.retryPendingRecordCompensations,
   })
   const askAi = useAskAiContext(activeSession?.id ?? null, activeView, recordWorkspace)
-  const { sessionChat, sessionMode, setSessionMode, noteReadOnly, ...chatProtection } = useSessionChat({
+  const { sessionChat: baseSessionChat, sessionMode, setSessionMode, noteReadOnly, ...chatProtection } = useSessionChat({
     session: sessionWorkspace, noteRecovery, noteEligibility, sessionActions, generation: coordinatedGenerationWorkspace,
     selection, provider: activeProvider, providerWarning: effectiveAiSelection?.warning ?? null,
-    feedback, jobs: generationJobs, refreshProviderStatus, captureContext: askAi.capture,
+    feedback, jobs: generationJobs, refreshProviderStatus, captureContext: askAi.capture, recordWritesPending: recordPersistence.coordination.hasPendingRecordCompensations,
   })
   function setEditedSessionTitle(value: Parameters<typeof setSessionTitle>[0]) {
     const next = typeof value === 'function' ? value(sessionWorkspace.sessionTitleRef.current) : value
@@ -274,6 +275,7 @@ export function useAppController() {
       loadFindingsForSession,
     },
   }, recordPersistence)
+  const sessionChat = useRefinementController({ chat: baseSessionChat, askAi, records: recordWorkspace, actions: recordActions, persistence: recordPersistence, session: sessionWorkspace, openEditor: setCreatedRecordEditTarget, feedback })
   const generationActions = useGenerationActions({
     session: sessionWorkspace,
     records: recordWorkspace,

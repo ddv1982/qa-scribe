@@ -23,6 +23,7 @@ export const commands = {
 	deleteSession: (id: string) => __TAURI_INVOKE<AttachmentCleanupStatus>("delete_session", { id }),
 	retryAttachmentCleanup: () => __TAURI_INVOKE<AttachmentCleanupStatus>("retry_attachment_cleanup"),
 	getChat: (sessionId: string) => __TAURI_INVOKE<ChatState>("get_chat", { sessionId }),
+	resolveRefinement: (request: RefinementRequest) => __TAURI_INVOKE<ChatState>("resolve_refinement", { request }),
 	saveChatComposer: (request: ChatComposerRequest) => __TAURI_INVOKE<ChatState>("save_chat_composer", { request }),
 	importChatImage: (scope: ChatRevision, filename: string, dataUrl: string) => __TAURI_INVOKE<ChatState>("import_chat_image", { scope, filename, dataUrl }),
 	restartChat: (request: ChatRestartRequest) => __TAURI_INVOKE<ChatState>("restart_chat", { request }),
@@ -39,11 +40,11 @@ export const commands = {
 	createFinding: (draft: FindingDraft) => __TAURI_INVOKE<Finding>("create_finding", { draft }),
 	listFindings: (sessionId: string) => __TAURI_INVOKE<Finding[]>("list_findings", { sessionId }),
 	listFindingLibrary: () => __TAURI_INVOKE<FindingLibraryItem[]>("list_finding_library"),
-	updateFinding: (id: string, patch: FindingPatch) => __TAURI_INVOKE<Finding>("update_finding", { id, patch }),
+	updateFinding: (id: string, patch: FindingPatch, guard: RecordWriteGuard) => __TAURI_INVOKE<RecordWriteOutcome<Finding>>("update_finding", { id, patch, guard }),
 	createDraft: (draft: DraftCreate) => __TAURI_INVOKE<Draft>("create_draft", { draft }),
 	listDrafts: (sessionId: string) => __TAURI_INVOKE<Draft[]>("list_drafts", { sessionId }),
 	listDraftLibrary: () => __TAURI_INVOKE<DraftLibraryItem[]>("list_draft_library"),
-	updateDraft: (id: string, patch: DraftPatch) => __TAURI_INVOKE<Draft>("update_draft", { id, patch }),
+	updateDraft: (id: string, patch: DraftPatch, guard: RecordWriteGuard) => __TAURI_INVOKE<RecordWriteOutcome<Draft>>("update_draft", { id, patch, guard }),
 	deleteDraft: (id: string) => __TAURI_INVOKE<null>("delete_draft", { id }),
 	deleteFinding: (id: string) => __TAURI_INVOKE<null>("delete_finding", { id }),
 	startAiActionJob: (request: GenerateAiActionRequest, events: Channel<GenerationJobEvent_Deserialize>) => __TAURI_INVOKE<StartAiActionJobResult_Serialize>("start_ai_action_job", { request, events }),
@@ -202,6 +203,8 @@ export type ChatRevision = {
 export type ChatRole = "user" | "assistant";
 
 export type ChatState = {
+	refinementPending?: boolean,
+	proposals?: RefinementProposal[],
 	sessionId: string,
 	draftId: string,
 	revision: number,
@@ -312,6 +315,13 @@ export type DraftPatch = {
 	metadataJson?: string | null,
 };
 
+export type EditorStage = {
+	id: string,
+	before: RefinementEditorValue,
+	after: RefinementEditorValue,
+	storedBaseToken: string,
+};
+
 export type Entry = {
 	id: string,
 	sessionId: string,
@@ -383,6 +393,13 @@ export type FindingKind = "bug" | "question" | "risk" | "follow_up" | "note";
 export type FindingLibraryItem = {
 	finding: Finding,
 	sessionTitle: string,
+};
+
+export type FindingMetadataRefinement = {
+	severity: string | null,
+	status: string | null,
+	component: string | null,
+	reference: string | null,
 };
 
 /**
@@ -624,6 +641,47 @@ export type RecordContextSnapshot = {
 
 export type RecordSnapshotOrigin = "saved" | "unsaved_editor";
 
+export type RecordWriteGuard = {
+	sessionId: string,
+	expectedStoredBase: string,
+	origin: RecordWriteOrigin,
+};
+
+export type RecordWriteOrigin = { kind: "editor" } | { kind: "proposal"; stageId: string } | { kind: "compensation"; stageId: string | null; restoredBase: string };
+
+export type RecordWriteOutcome<T> = { kind: "saved"; record: T } | { kind: "conflict"; current: T };
+
+export type RefinementAction = "stage" | "dismiss" | "undo" | "discard" | "abandon";
+
+export type RefinementEditorValue = {
+	title: string,
+	documentJson: string,
+	metadataJson: string | null,
+	recordKind: string,
+};
+
+export type RefinementPatch = { kind: "finding"; title: string | null; bodyMarkdown: string | null; metadata: FindingMetadataRefinement | null } | { kind: "test_cases_draft"; title: string | null; bodyMarkdown: string | null };
+
+export type RefinementProposal = {
+	version: number,
+	id: string,
+	userMessageId: string,
+	assistantMessageId: string,
+	target: ChatTarget,
+	patch: RefinementPatch,
+	before: RefinementEditorValue,
+	after: RefinementEditorValue,
+	state: RefinementState,
+};
+
+export type RefinementRequest = {
+	scope: ChatRevision,
+	proposalId: string,
+	action: RefinementAction,
+};
+
+export type RefinementState = { kind: "offered" } | { kind: "staged"; stage: EditorStage } | { kind: "saved"; stage: EditorStage } | { kind: "dismissed" } | { kind: "undone"; stage: EditorStage } | { kind: "reverted"; stage: EditorStage } | { kind: "abandoned"; stage: EditorStage };
+
 export type ReportedModel = { source: "claudeInitialization"; id: string } | { source: "claudeAssistantMessage"; id: string } | { source: "codexThreadConfiguration"; id: string };
 
 export type RequestedModel = { kind: "default" } | { kind: "copilotAutomatic" } | { kind: "explicit"; id: string };
@@ -696,6 +754,7 @@ export type StartAiActionJobResult_Serialize = {
 };
 
 export type StartChatJobRequest = {
+	refine?: boolean,
 	context?: ChatTarget,
 	scope: ChatRevision,
 	retry?: boolean,

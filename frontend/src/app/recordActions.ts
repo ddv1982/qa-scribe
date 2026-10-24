@@ -43,9 +43,11 @@ export function createRecordActions(ctx: RecordActionsContext, persistence: Reco
     for (const id of pendingDraftIds) ctx.records.dirtyDraftIdsRef.current.add(id)
     for (const id of pendingFindingIds) ctx.records.dirtyFindingIdsRef.current.add(id)
     for (const id of dirtyDraftIds) {
+      coordination.clearStage('draft', id, 'discard')
       void coordination.settleImportedRecordAttachments({ kind: 'draft', id }, savedDrafts.get(id) ?? null)
     }
     for (const id of dirtyFindingIds) {
+      coordination.clearStage('finding', id, 'discard')
       void coordination.settleImportedRecordAttachments({ kind: 'finding', id }, savedFindings.get(id) ?? null)
     }
     ctx.records.setDrafts((previous) => {

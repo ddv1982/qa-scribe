@@ -297,7 +297,7 @@ export function runE2e(environment = process.env, { spawnSyncImpl = spawnSync } 
       const providerBin = join(invocation.environment.QA_SCRIBE_E2E_FIXTURE_DIR, 'bin')
       mkdirSync(providerBin, { recursive: true })
       const authorization = invocationEnvironment.QA_SCRIBE_E2E_SPEC === 'chat-tool-authorization.workflow.mjs'
-      const recordContext = invocationEnvironment.QA_SCRIBE_E2E_SPEC === 'ask-ai-context.e2e.mjs'
+      const recordContext = ['ask-ai-context.e2e.mjs', 'ask-ai-refinement.e2e.mjs'].includes(invocationEnvironment.QA_SCRIBE_E2E_SPEC)
       if (invocationEnvironment.QA_SCRIBE_E2E_SPEC !== 'creation-composer.e2e.mjs') delete invocationEnvironment.QA_SCRIBE_E2E_CREATION_FORMATS_ONLY
       if (invocationEnvironment.QA_SCRIBE_E2E_SPEC !== 'chat-images.e2e.mjs') delete invocationEnvironment.QA_SCRIBE_E2E_CHAT_IMAGES
       else invocationEnvironment.QA_SCRIBE_PROVIDER_CATALOG_MODE = 'selector'

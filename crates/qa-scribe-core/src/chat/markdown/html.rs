@@ -1,4 +1,4 @@
-use super::super::escape;
+use super::escape;
 use serde_json::Value;
 
 pub(crate) fn to_html(nodes: &[Value]) -> String {

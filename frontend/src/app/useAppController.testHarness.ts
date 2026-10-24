@@ -15,7 +15,7 @@ const tauriMock = vi.hoisted(() => ({
   listFindingLibrary: vi.fn(), listFindings: vi.fn(), listRecentSessions: vi.fn(), listSessions: vi.fn(), openSessionNoteState: vi.fn(),
   reopenSession: vi.fn(), refreshProviderStatus: vi.fn(), retryAttachmentCleanup: vi.fn(), startAiActionJob: vi.fn(), updateDraft: vi.fn(),
   updateEntry: vi.fn(), updateFinding: vi.fn(), updateSession: vi.fn(), updateSettings: vi.fn(),
-  getChat: vi.fn(), saveChatComposer: vi.fn(), startChatJob: vi.fn(), submitChat: vi.fn(), restartChat: vi.fn(),
+  resolveRefinement: vi.fn(), getChat: vi.fn(), saveChatComposer: vi.fn(), startChatJob: vi.fn(), submitChat: vi.fn(), restartChat: vi.fn(),
   importChatImage: vi.fn(), readChatClipboardImageDataUrl: vi.fn(),
   EDITOR_HTML_TAGS: ['a', 'b', 'br', 'em', 'h2', 'h3', 'i', 'img', 'input', 'li', 'ol', 'p', 'strong', 'ul'],
   SELF_CLOSING_EDITOR_HTML_TAGS: ['br', 'img', 'input'],
@@ -92,6 +92,7 @@ export function setupControllerTest() {
     sessionId: request.scope.sessionId, draftId: request.scope.draftId,
     revision: request.scope.expectedRevision + 1, composer: request.composer, mode: request.mode,
   }))
+  tauriMock.resolveRefinement.mockReset()
   tauriMock.startChatJob.mockReset()
   tauriMock.submitChat.mockReset()
   tauriMock.restartChat.mockReset()

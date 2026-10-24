@@ -48,8 +48,8 @@ describe('useAppController Draft and Finding autosave', () => {
       await result.current.openSession(otherSession)
     })
 
-    expect(tauriMock.updateDraft).toHaveBeenCalledWith('draft-dirty', expect.objectContaining({ body: '<p>Unsaved draft edit.</p>' }))
-    expect(tauriMock.updateFinding).toHaveBeenCalledWith('finding-dirty', expect.objectContaining({ body: '<p>Unsaved finding edit.</p>' }))
+    expect(tauriMock.updateDraft).toHaveBeenCalledWith('draft-dirty', expect.objectContaining({ body: '<p>Unsaved draft edit.</p>' }), expect.objectContaining({ expectedStoredBase: expect.any(String) }))
+    expect(tauriMock.updateFinding).toHaveBeenCalledWith('finding-dirty', expect.objectContaining({ body: '<p>Unsaved finding edit.</p>' }), expect.objectContaining({ expectedStoredBase: expect.any(String) }))
     expect(tauriMock.openSessionNoteState).toHaveBeenCalledWith('session-2')
     expect(result.current.activeSession?.id).toBe('session-2')
   })
@@ -91,8 +91,7 @@ describe('useAppController Draft and Finding autosave', () => {
     await waitFor(() => expect(tauriMock.updateDraft).toHaveBeenCalledTimes(2))
     expect(tauriMock.updateDraft).toHaveBeenLastCalledWith(
       'draft-dirty',
-      expect.objectContaining({ body: '<p>Latest draft edit.</p>' }),
-    )
+      expect.objectContaining({ body: '<p>Latest draft edit.</p>' }), expect.objectContaining({ expectedStoredBase: expect.any(String) }))
     await act(async () => openPromise)
     expect(result.current.activeSession?.id).toBe('session-1')
 
@@ -137,8 +136,7 @@ describe('useAppController Draft and Finding autosave', () => {
     await waitFor(() => expect(tauriMock.updateFinding).toHaveBeenCalledTimes(2))
     expect(tauriMock.updateFinding).toHaveBeenLastCalledWith(
       'finding-dirty',
-      expect.objectContaining({ body: '<p>Latest finding edit.</p>' }),
-    )
+      expect.objectContaining({ body: '<p>Latest finding edit.</p>' }), expect.objectContaining({ expectedStoredBase: expect.any(String) }))
     await act(async () => openPromise)
     expect(result.current.activeSession?.id).toBe('session-1')
 

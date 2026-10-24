@@ -189,6 +189,7 @@ fn migration_removes_body_length_checks_without_losing_dependents() {
         .expect("migrated entry should accept blank body");
     assert_eq!(entry.body, "");
 
+    let original = service.list_findings("session-1").unwrap().into_iter().find(|r| r.id == "finding-1").unwrap();
     let finding = service
         .update_finding(
             "finding-1",
@@ -197,8 +198,9 @@ fn migration_removes_body_length_checks_without_losing_dependents() {
                 body: Some("".to_string()),
                 ..FindingPatch::default()
             },
+            qa_scribe_core::domain::RecordWriteGuard::finding(&original),
         )
-        .expect("migrated finding should accept blank body");
+        .expect("migrated finding should accept blank body").into_saved().unwrap();
     assert_eq!(finding.body, "");
 
     drop(service);

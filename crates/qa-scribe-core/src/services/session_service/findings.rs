@@ -57,12 +57,24 @@ impl SessionService {
         Ok(items)
     }
 
-    pub fn update_finding(&self, id: &str, patch: FindingPatch) -> Result<Finding> {
+    pub fn update_finding(
+        &self,
+        id: &str,
+        patch: FindingPatch,
+        guard: crate::domain::RecordWriteGuard,
+    ) -> Result<crate::domain::RecordWriteOutcome<Finding>> {
         let now = now();
 
         self.database.with_immediate_tx(|tx| {
-            let existing =
-                finding(tx, id)?.ok_or_else(|| QaScribeError::NotFound(id.to_string()))?;
+            let existing = finding(tx, id)?.ok_or_else(|| QaScribeError::NotFound(id.to_string()))?;
+            if !super::record_bases::matches(tx, "findings", id, &guard)? {
+                if super::record_bases::restored(tx, "findings", id, &guard)? {
+                    super::chat_refinements::guard_stage(tx, "findings", id, &guard)?;
+                    super::chat_refinements::settle_stage(tx, &guard)?;
+                    return Ok(crate::domain::RecordWriteOutcome::Saved { record: existing });
+                }
+                return Ok(crate::domain::RecordWriteOutcome::Conflict { current: existing });
+            }
             let ResolvedRichBody {
                 body,
                 body_json,
@@ -94,7 +106,10 @@ impl SessionService {
                 params![title, body, body_json, body_format, kind.as_str(), metadata_json, now, id],
             )?;
 
-            finding(tx, id)?.ok_or_else(|| QaScribeError::NotFound(id.to_string()))
+            if matches!(guard.origin, crate::domain::RecordWriteOrigin::Compensation { .. }) && !super::record_bases::restored(tx, "findings", id, &guard)? { return Err(crate::error::validation("Compensation does not match its pinned restored record")); }
+            super::chat_refinements::settle_stage(tx, &guard)?;
+            let record = finding(tx, id)?.ok_or_else(|| QaScribeError::NotFound(id.to_string()))?;
+            Ok(crate::domain::RecordWriteOutcome::Saved { record })
         })
     }
 

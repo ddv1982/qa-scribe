@@ -159,7 +159,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
   }, [selectedRecord, sourceKind, recordChat, selectedUnsaved])
 
   const createdRecord = createdRecordEditTarget && records.find((record) => record.id === createdRecordEditTarget.recordId)
-  if (createdRecord && appliedTarget?.recordId !== createdRecord.id) {
+  if (createdRecord && appliedTarget !== createdRecordEditTarget) {
     setAppliedTarget(createdRecordEditTarget)
     setQuery('')
     setFilterValue('all')

@@ -51,7 +51,7 @@ pub(super) fn commit(
     let mut started = if request.retry {
         service.retry_chat_turn(start)?
     } else {
-        service.start_chat_turn_with_context(start, request.context.clone())?
+        service.start_chat_turn_with_response(start, request.context.clone(), request.refine)?
     };
     let mut created_run: Option<AiRun> = None;
     let preparation: Result<PreparedChat> = (|| {
@@ -62,7 +62,13 @@ pub(super) fn commit(
             .expect("started user message")
             .id
             .clone();
-        let input = verified.input(user_id)?;
+        let mut input = verified.input(user_id.clone())?;
+        if let Some(contract) = service.refinement_contract(&user_id)? {
+            input = input.with_refinement_contract(&contract);
+        }
+        input
+            .preflight_wire(request.provider)
+            .map_err(QaScribeError::Validation)?;
         let ai_run = service.create_ai_run(AiRunCreate {
             session_id: request.scope.session_id.clone(),
             generation_context_id: None,

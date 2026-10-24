@@ -246,7 +246,7 @@ describe('useAppController workflows and record hydration', () => {
     await act(async () => { await result.current.confirmDelete() })
 
     expect(tauriMock.deleteDraft).toHaveBeenCalledTimes(2)
-    expect(tauriMock.updateDraft).toHaveBeenCalledWith(original.id, expect.objectContaining({ body: '<p>Saved after failed delete.</p>' }))
+    expect(tauriMock.updateDraft).toHaveBeenCalledWith(original.id, expect.objectContaining({ body: '<p>Saved after failed delete.</p>' }), expect.objectContaining({ expectedStoredBase: expect.any(String) }))
     expect(result.current.testwareDrafts).toEqual([])
     expect(result.current.testwareDraftCount).toBe(0)
   })
@@ -273,7 +273,7 @@ describe('useAppController workflows and record hydration', () => {
     await act(async () => { await result.current.confirmDelete() })
 
     expect(tauriMock.deleteFinding).toHaveBeenCalledTimes(2)
-    expect(tauriMock.updateFinding).toHaveBeenCalledWith(original.id, expect.objectContaining({ body: '<p>Saved after failed delete.</p>' }))
+    expect(tauriMock.updateFinding).toHaveBeenCalledWith(original.id, expect.objectContaining({ body: '<p>Saved after failed delete.</p>' }), expect.objectContaining({ expectedStoredBase: expect.any(String) }))
     expect(result.current.findings).toEqual([])
     expect(result.current.findingCount).toBe(0)
   })

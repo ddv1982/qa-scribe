@@ -40,6 +40,7 @@ fn fixture() -> (SessionService, Finding, StartChatJobRequest) {
         service,
         finding,
         StartChatJobRequest {
+            refine: false,
             context,
             scope: lifecycle::scope(&chat),
             retry: false,
@@ -79,6 +80,7 @@ fn chat_context_preparation_and_retry_project_original_snapshot_not_new_selectio
         )
         .unwrap();
     let retry = StartChatJobRequest {
+        refine: false,
         scope: lifecycle::scope(&failed),
         retry: true,
         context: ChatTarget::Session,
@@ -110,7 +112,10 @@ fn chat_context_recheck_rejects_changed_stored_base_before_consuming_composer() 
                 title: Some("New saved title".into()),
                 ..Default::default()
             },
+            qa_scribe_core::domain::RecordWriteGuard::finding(&finding),
         )
+        .unwrap()
+        .into_saved()
         .unwrap();
     assert!(lifecycle::commit(&service, &request, verified).is_err());
     let chat = service.load_chat(&finding.session_id).unwrap();

@@ -40,6 +40,7 @@ fn fixture_with_size(size: usize) -> (Arc<AppState>, ChatState, std::path::PathB
 
 fn request(chat: &ChatState) -> StartChatJobRequest {
     StartChatJobRequest {
+        refine: false,
         context: ChatTarget::Session,
         scope: lifecycle::scope(chat),
         retry: false,

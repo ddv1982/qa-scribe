@@ -25,11 +25,13 @@ export function useSessionChat(context: Omit<SessionChatContext, 'publish'> & {
   const permissionJobId = current.job?.jobId ?? null
   const permissionProvider = context.selection.selectedProvider
   const sessionChat: SessionChatViewState = {
+    onRefine: actions.onRefine,
+    onRefresh: async () => { if (sessionId) await actions.refresh(sessionId) },
     handoff: deriveChatHandoff({ ...current, sessionId, noteEntry: context.session.noteEntry, recoveryPending: noteReadOnly }),
     chat: current.chat, composer: current.composer, composerImages: current.composerImages, imageFailures: current.imageFailures, job: current.job,
     loading: current.loading, saving: current.saving, working: current.working, error: current.error,
     dirty: current.dirty, recoveryPending: noteReadOnly,
-    inputRecoveryPending: current.inputRecoveryPending,
+    inputRecoveryPending: current.inputRecoveryPending, refinementStarting: current.refinementStarting,
     permissionWorking: current.permissionWorking,
     permissionRecoveryPending: current.permissionRecoveryPending,
     onDecidePermission: (requestId, decision) => actions.isCurrentPermissionScope(sessionId, permissionJobId, permissionProvider)

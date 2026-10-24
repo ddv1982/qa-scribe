@@ -121,6 +121,7 @@ mod deletion_tests {
         (
             service,
             StartChatJobRequest {
+                refine: false,
                 context: ChatTarget::Session,
                 scope: scope(&chat),
                 retry: false,

@@ -120,7 +120,15 @@ pub(super) fn finish(
     rows::text("Assistant response", &request.assistant_text, false)?;
     let chat = rows::checked(connection, &request.scope)?;
     guard_association(&chat, &request.turn_id, ai_run_id)?;
-    rows::append_capacity(&chat, &request.assistant_text, 1)?;
+    let user = chat
+        .messages
+        .iter()
+        .find(|m| m.turn_id == request.turn_id && m.role == ChatRole::User)
+        .ok_or_else(|| validation("User message is missing"))?;
+    let (assistant_text, proposal) =
+        super::chat_refinements::completed(connection, user, &request.assistant_text)?;
+    rows::text("Assistant response", &assistant_text, false)?;
+    rows::append_capacity(&chat, &assistant_text, 1)?;
     connection.execute("UPDATE chat_messages SET status = 'completed' WHERE draft_id = ?1 AND turn_id = ?2 AND status = 'running'",
         params![chat.draft_id, request.turn_id])?;
     rows::append(
@@ -128,12 +136,15 @@ pub(super) fn finish(
         &chat.draft_id,
         &request.turn_id,
         ChatRole::Assistant,
-        &request.assistant_text,
+        &assistant_text,
         ChatTurnStatus::Completed,
     )?;
     if let Some(id) = ai_run_id {
         connection.execute("UPDATE chat_messages SET ai_run_id = ?1 WHERE draft_id = ?2 AND turn_id = ?3 AND role = 'assistant'",
             params![id, chat.draft_id, request.turn_id])?;
+    }
+    if let Some(proposal) = proposal {
+        super::chat_refinements::insert(connection, &chat.draft_id, &request.turn_id, proposal)?;
     }
     rows::bump(connection, &chat.draft_id)?;
     rows::read(connection, &chat.draft_id)

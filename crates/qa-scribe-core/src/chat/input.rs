@@ -59,6 +59,14 @@ impl From<&ChatInput> for ChatInput {
 }
 
 impl ChatInput {
+    pub fn with_refinement_contract(
+        mut self,
+        contract: &crate::domain::RefinementResponseContract,
+    ) -> Self {
+        self.instructions
+            .push_str(&super::response::instructions(contract));
+        self
+    }
     pub fn has_images(&self) -> bool {
         self.messages
             .iter()

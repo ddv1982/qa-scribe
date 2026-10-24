@@ -16,11 +16,16 @@ export function useAskAiContext(sessionId: string | null, view: MainView, record
     if (view === 'sessions' || panel?.sessionId !== sendSessionId || !panel?.target) return { kind: 'session' }
     return captureRecordContext(sendSessionId, panel.target, records)
   }
+  function currentSelection(target: RecordChatSelection): RecordChatSelection {
+    const dirty = target.kind === 'finding' ? records.dirtyFindingIdsRef : records.dirtyDraftIdsRef
+    return { ...target, unsaved: dirty.current.has(target.recordId) }
+  }
   function onAskAi(target: RecordChatSelection) {
     if (!sessionId) return
-    setPanel(previous => ({ sessionId, target, open: true, expanded: false, focusRequest: (previous?.focusRequest ?? 0) + 1 }))
+    setPanel(previous => ({ sessionId, target: currentSelection(target), open: true, expanded: false, focusRequest: (previous?.focusRequest ?? 0) + 1 }))
   }
-  function onSelectRecord(target: RecordChatSelection) {
+  function onSelectRecord(selection: RecordChatSelection) {
+    const target = currentSelection(selection)
     setPanel(previous => previous?.sessionId === sessionId && previous.open && previous.target
       && JSON.stringify(previous.target) !== JSON.stringify(target)
       ? { ...previous, target } : previous)

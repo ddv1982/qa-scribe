@@ -66,6 +66,12 @@ pub struct ChatSubmissionReceipt {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ChatState {
+    #[serde(default)]
+    #[specta(optional)]
+    pub refinement_pending: bool,
+    #[serde(default)]
+    #[specta(optional)]
+    pub proposals: Vec<super::RefinementProposal>,
     pub session_id: String,
     pub draft_id: String,
     pub revision: i32,

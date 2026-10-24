@@ -38,8 +38,9 @@ fn entries_findings_and_evidence_links_cascade_with_session() {
                 body: Some("<p>SAVE10 produces an internal error.</p>".to_string()),
                 ..FindingPatch::default()
             },
+            qa_scribe_core::domain::RecordWriteGuard::finding(&finding),
         )
-        .expect("finding should update");
+        .expect("finding should update").into_saved().unwrap();
     assert_eq!(finding.title, "Coupon blocks checkout");
     assert_eq!(finding.body, "<p>SAVE10 produces an internal error.</p>");
     let link = service

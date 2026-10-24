@@ -14,6 +14,9 @@ import { MarkdownContent } from '../content/MarkdownContent'
 import { useChatTranscriptScroll } from './useChatTranscriptScroll'
 
 export type SessionChatViewProps = {
+  refinementStarting?: boolean
+  onRefine?: () => Promise<void>
+  proposalControls?: import('../app/sessionChat.proposals').ProposalControls
   hidden?: boolean
   handoff: ChatHandoffPresentation
   onOpenNote: () => void
@@ -73,6 +76,7 @@ export function SessionChatView(props: SessionChatViewProps) {
     onSetComposer, onAttachImages, onPasteNativeImage, onRemoveImage, onSend, onRetry, onCancel, onSubmit, onConfigureAi,
     onDecidePermission, onRecheck,
   } = props
+  const refinementOutput = Boolean(props.refinementStarting || chat?.refinementPending)
   const id = useId()
   const fileInput = useRef<HTMLInputElement>(null)
   const composerImages = props.composerImages ?? chat?.composerImages ?? []
@@ -104,7 +108,7 @@ export function SessionChatView(props: SessionChatViewProps) {
   const permissionAttention = Boolean(pendingPermission || permissionRecoveryPending)
   const { viewportRef, transcriptRef } = useChatTranscriptScroll({ conversationId: chat?.draftId ?? null,
     userTurnId: latest?.role === 'user' ? latest.turnId : null, messageId: latest?.id ?? null,
-    partialText: job?.partialText ?? null, activeOutput: activeJob || running || handoff.hydrationPending,
+    partialText: refinementOutput ? null : job?.partialText ?? null, activeOutput: activeJob || running || handoff.hydrationPending,
     paused: Boolean(props.hidden) || permissionAttention || inputRecoveryPending })
   const needsProviderRecovery = inputRecoveryPending || permissionRecoveryPending || !providerAvailable || Boolean(error || job?.errorMessage)
   const locked = !chat || busy || submitted || recovering
@@ -245,7 +249,6 @@ export function SessionChatView(props: SessionChatViewProps) {
             Configure AI
           </ActionButton>
         </div>
-        {!permissionAttention && (error || job?.errorMessage) ? <p className="chat-error" role="alert">{error || job?.errorMessage}</p> : null}
         {needsProviderRecovery && !permissionAttention ? (
           <div className="chat-provider-recovery">
             <p className="chat-help">
@@ -259,13 +262,13 @@ export function SessionChatView(props: SessionChatViewProps) {
 
         <section ref={transcriptRef} className="chat-transcript" aria-label="Conversation transcript" tabIndex={0}>
           {messages.length === 0 ? <p className="chat-help">{loading ? 'Loading saved messages…' : 'No messages yet. Describe what you are testing or ask a question.'}</p> : (
-            <ChatMessageList messages={messages} aiRuns={chat?.aiRuns ?? []} />
+            <ChatMessageList messages={messages} aiRuns={chat?.aiRuns ?? []} proposals={chat?.proposals} proposalControls={submitted ? undefined : props.proposalControls} />
           )}
-          {job && (handoff.hydrationPending || (job.partialText && job.state !== 'completed')) ? (
+          {job && (handoff.hydrationPending || (refinementOutput && activeJob) || (job.partialText && job.state !== 'completed')) ? (
             <section className="chat-partial" aria-label={responseLabel}>
-              <h3>{responseLabel}</h3>
-              <p className="chat-help">{job.state === 'completed' ? 'Waiting for the saved transcript to refresh.' : 'Not a completed transcript message.'}</p>
-              {job.partialText ? <MarkdownContent text={job.partialText} /> : null}
+              <h3>{refinementOutput ? 'Preparing suggested changes' : responseLabel}</h3>
+              <p className="chat-help">{refinementOutput ? 'The completed suggestion will be available for review before any editor change.' : job.state === 'completed' ? 'Waiting for the saved transcript to refresh.' : 'Not a completed transcript message.'}</p>
+              {job.partialText && !refinementOutput ? <MarkdownContent text={job.partialText} /> : null}
             </section>
           ) : null}
         </section>
@@ -275,6 +278,7 @@ export function SessionChatView(props: SessionChatViewProps) {
         <ChatHandoff state={props} onOpenNote={onOpenNote} onSubmit={onSubmit} />
       </div>
       <div className="chat-composer">
+        {!permissionAttention && (error || job?.errorMessage) ? <p className="chat-error" role="alert">{error || job?.errorMessage}</p> : null}
         <label htmlFor={`${id}-message`}>Message</label>
         <ChatImages images={composerImages} disabled={locked || inputRecoveryPending} onRemove={onRemoveImage}
           unverifiedIds={imageFailures.flatMap(failure => failure.recovery?.images.map(image => image.attachmentId) ?? [])} />
@@ -317,6 +321,7 @@ export function SessionChatView(props: SessionChatViewProps) {
             <div className="chat-send-buttons">
             <ActionButton variant="secondary" type="button" iconOnly icon={Paperclip} aria-label="Attach images"
               title="Attach up to 4 images, 10 MiB each" disabled={attachmentsLocked} onClick={() => fileInput.current?.click()} />
+            {props.onRefine ? <ActionButton variant="secondary" type="button" disabled={Boolean(sendReason)} onClick={() => { if (!sendReason) void props.onRefine?.() }}>Refine record</ActionButton> : null}
             <ActionButton variant="primary" type="button" disabled={Boolean(sendReason)} aria-describedby={`${id}-send-reason`} onClick={() => { if (!sendReason) void onSend() }}>Send</ActionButton>
             </div>
           </div>

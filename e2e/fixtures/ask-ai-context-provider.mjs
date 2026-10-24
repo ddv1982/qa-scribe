@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 
 export const contextResponse = 'Synthetic record context received. No external tool or Jira operation was performed.'
 
-export function inspectContextInput(input) {
+export function inspectContextInput(input, validateAssistant = true) {
   const messages = []
   let current
   for (const block of input) {
@@ -25,7 +25,7 @@ export function inspectContextInput(input) {
         assert.ok(Buffer.byteLength(frame[4]) <= 32 * 1024)
       }
       current = { id: frame[1], role: frame[2].toLowerCase(), text: JSON.parse(frame[3]), context, images: [] }
-      if (current.role === 'assistant') assert.equal(current.text, contextResponse)
+      if (validateAssistant && current.role === 'assistant') assert.equal(current.text, contextResponse)
       messages.push(current)
     }
   }

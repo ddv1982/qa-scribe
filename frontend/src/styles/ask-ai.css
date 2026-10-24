@@ -62,3 +62,12 @@
   .ask-ai-header, .chat-context-card { padding-block: var(--space-2); }
   .ask-ai-panel .chat-composer textarea { min-height: 48px; max-height: 80px; }
 }
+
+.chat-proposal { border: 1px solid var(--border-default); padding: 0.75rem; border-radius: 8px; margin-top: 0.75rem; }
+.chat-proposal-comparison { display: grid; gap: 0.75rem; margin-top: 0.75rem; }
+.chat-proposal-comparison section { min-width: 0; }
+.chat-proposal-comparison dl { margin: 0; }
+.chat-proposal-comparison dt { font-weight: 600; }
+.chat-proposal-comparison dd { margin: 0 0 var(--space-2); overflow-wrap: anywhere; }
+.chat-proposal .rich-text-editor { max-height: 220px; overflow: auto; }
+.chat-proposal .chat-error { position: sticky; bottom: 0; background: var(--surface-raised); padding: 0.5rem; }

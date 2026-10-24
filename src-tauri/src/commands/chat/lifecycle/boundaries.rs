@@ -16,6 +16,7 @@ fn setup() -> (SessionService, StartChatJobRequest) {
     (
         service,
         StartChatJobRequest {
+            refine: false,
             context: ChatTarget::Session,
             scope: scope(&chat),
             retry: false,

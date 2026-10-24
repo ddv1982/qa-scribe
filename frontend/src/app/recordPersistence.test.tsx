@@ -46,7 +46,7 @@ describe('Record persistence construction', () => {
     let saved: boolean | null = null
     await act(async () => { saved = await completion })
     expect(saved).toBe(succeeds)
-    expect(api.updateDraft).toHaveBeenCalledWith(stored.id, expect.objectContaining({ title: 'Latest Testware', body: '<p>Persist this edit</p>' }))
+    expect(api.updateDraft).toHaveBeenCalledWith(stored.id, expect.objectContaining({ title: 'Latest Testware', body: '<p>Persist this edit</p>' }), expect.objectContaining({ expectedStoredBase: expect.any(String) }))
     expect(records!.dirtyDraftIdsRef.current.has(stored.id)).toBe(!succeeds)
     expect(records!.savedDraftsRef.current).toEqual(succeeds ? [stored] : [])
   })

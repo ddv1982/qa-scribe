@@ -303,12 +303,10 @@ describe('useAppController Session integrity', () => {
     expect(tauriMock.updateFinding).toHaveBeenCalledTimes(5)
     expect(tauriMock.updateDraft).toHaveBeenLastCalledWith(
       draft.id,
-      expect.objectContaining({ body: '<p>Newest Draft</p>' }),
-    )
+      expect.objectContaining({ body: '<p>Newest Draft</p>' }), expect.objectContaining({ expectedStoredBase: expect.any(String) }))
     expect(tauriMock.updateFinding).toHaveBeenLastCalledWith(
       finding.id,
-      expect.objectContaining({ body: '<p>Newest Finding</p>' }),
-    )
+      expect.objectContaining({ body: '<p>Newest Finding</p>' }), expect.objectContaining({ expectedStoredBase: expect.any(String) }))
     expect(result.current.activeSession?.id).toBe('session-1')
   })
 })

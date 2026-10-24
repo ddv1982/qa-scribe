@@ -3,6 +3,7 @@ import { emit, jsonLines, parseTranscript, record, reserveInvocation, waitForFil
 import { authorizationTurn } from './chat-authorization-providers.mjs'
 import { catalogObservation } from './chat-authorization-catalog.mjs'
 import { inspectContextInput } from './ask-ai-context-provider.mjs'
+import { inspectRefinementInput } from './ask-ai-refinement-provider.mjs'
 import { inspectImageInput } from './chat-images-provider.mjs'
 
 export function codexAppServer(argv) {
@@ -10,11 +11,12 @@ export function codexAppServer(argv) {
   let turnId
   let active = false
   const directory = process.env.QA_SCRIBE_E2E_FIXTURE_DIR
+  const refinementFixture = process.env.QA_SCRIBE_E2E_SPEC === 'ask-ai-refinement.e2e.mjs'
   const contextFixture = process.env.QA_SCRIBE_E2E_SPEC === 'ask-ai-context.e2e.mjs'
-  const images = process.env.QA_SCRIBE_E2E_CHAT_IMAGES === '1' || contextFixture
+  const images = process.env.QA_SCRIBE_E2E_CHAT_IMAGES === '1' || contextFixture || refinementFixture
   const scope = () => ({ threadId, turnId })
-  const complete = (text) => {
-    emit({ method: 'item/agentMessage/delta', params: { ...scope(), itemId: 'assistant', delta: text } })
+  const complete = (text, emittedPrefix = 0) => {
+    emit({ method: 'item/agentMessage/delta', params: { ...scope(), itemId: 'assistant', delta: text.slice(emittedPrefix) } })
     emit({ method: 'item/completed', params: { ...scope(), item: { type: 'agentMessage', id: 'assistant', text } } })
     emit({ method: 'turn/completed', params: { ...scope(), turn: { id: turnId, status: 'completed' } } })
   }
@@ -35,7 +37,7 @@ export function codexAppServer(argv) {
     } else if (request.method === 'turn/start') {
       if (!threadId || request.params.threadId !== threadId || active) throw new Error('Invalid Chat turn scope')
       active = true
-      const imageInput = contextFixture ? inspectContextInput(request.params.input) : images ? inspectImageInput(request.params.input) : null
+      const imageInput = refinementFixture ? inspectRefinementInput(request.params.input) : contextFixture ? inspectContextInput(request.params.input) : images ? inspectImageInput(request.params.input) : null
       const prompt = imageInput ? null : request.params.input.map((input) => {
         if (input.type !== 'text') throw new Error('Only text Chat input supported')
         return input.text
@@ -58,8 +60,10 @@ export function codexAppServer(argv) {
         // Write coordination markers before acknowledging the native turn start.
         record(directory, `codex-exec-${index}.started`, process.pid)
         emit({ id: request.id, result: { turn: { id: turnId, status: 'inProgress' } } })
+        const prefix = refinementFixture && chat.contract ? 24 : 0
+        if (prefix) emit({ method: 'item/agentMessage/delta', params: { ...scope(), itemId: 'assistant', delta: chat.response.slice(0, prefix) } })
         await waitForFile(join(directory, `codex-exec-${index}.release`))
-        complete(chat.response)
+        complete(chat.response, prefix)
       }
     } else if (request.result && authorize) {
       authorize(request.result?.action === 'accept', request)

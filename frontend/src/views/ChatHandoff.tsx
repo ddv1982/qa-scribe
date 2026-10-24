@@ -16,7 +16,7 @@ function SavedConversationReview({ chat, unsent }: { chat: ChatState; unsent: bo
     </ActionButton>
     <p className="chat-help">Read-only saved messages. {unsent ? 'Your unsent message is excluded from what is added to the note.' : 'This is the conversation that is appended to the note.'}</p>
     {expanded ? <div id={id} role="region" aria-label="Saved conversation">
-      <ChatMessageList messages={chat.messages} aiRuns={chat.aiRuns} />
+      <ChatMessageList messages={chat.messages} aiRuns={chat.aiRuns} proposals={chat.proposals} />
     </div> : null}
   </section>
 }

@@ -34,7 +34,8 @@ describe('Tauri command bridge', () => {
     await expectCommand('create_finding', () => tauri.createFinding({} as tauri.FindingDraft))
     await expectCommand('list_findings', () => tauri.listFindings('session-1'))
     await expectCommand('list_finding_library', () => tauri.listFindingLibrary())
-    await expectCommand('update_finding', () => tauri.updateFinding('finding-1', { title: 'Finding' }))
+    coreMock.invoke.mockResolvedValueOnce({ kind: 'saved', record: {} })
+    await expectCommand('update_finding', () => tauri.updateFinding('finding-1', { title: 'Finding' }, { sessionId: 'session-1', expectedStoredBase: 'base', origin: { kind: 'editor' } }))
     await expectCommand('delete_finding', () => tauri.deleteFinding('finding-1'))
     await expectCommand('import_clipboard_screenshot', () =>
       tauri.importClipboardScreenshot({ sessionId: 'session-1', entryId: null, filename: 'screenshot.png', dataUrl: 'data:image/png;base64,' }),
@@ -48,7 +49,8 @@ describe('Tauri command bridge', () => {
     await expectCommand('create_draft', () => tauri.createDraft({ sessionId: 'session-1', aiRunId: null, kind: 'testware', title: 'Draft', body: '' }))
     await expectCommand('list_drafts', () => tauri.listDrafts('session-1'))
     await expectCommand('list_draft_library', () => tauri.listDraftLibrary())
-    await expectCommand('update_draft', () => tauri.updateDraft('draft-1', { title: 'Draft' }))
+    coreMock.invoke.mockResolvedValueOnce({ kind: 'saved', record: {} })
+    await expectCommand('update_draft', () => tauri.updateDraft('draft-1', { title: 'Draft' }, { sessionId: 'session-1', expectedStoredBase: 'base', origin: { kind: 'editor' } }))
     await expectCommand('delete_draft', () => tauri.deleteDraft('draft-1'))
     await expectCommand('get_provider_status', () => tauri.getProviderStatus())
     await expectCommand('refresh_provider_status', () => tauri.refreshProviderStatus())

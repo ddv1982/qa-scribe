@@ -33,8 +33,9 @@ pub fn update_draft(
     state: State<'_, AppState>,
     id: String,
     patch: DraftPatch,
-) -> Result<Draft, CommandError> {
-    state.with_service(|service| service.update_draft(&id, patch))
+    guard: qa_scribe_core::domain::RecordWriteGuard,
+) -> Result<qa_scribe_core::domain::RecordWriteOutcome<Draft>, CommandError> {
+    state.with_service(|service| service.update_draft(&id, patch, guard))
 }
 
 #[tauri::command]

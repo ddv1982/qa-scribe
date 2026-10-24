@@ -22,6 +22,7 @@ fn setup() -> (SessionService, StartChatJobRequest) {
     (
         service,
         StartChatJobRequest {
+            refine: false,
             context: ChatTarget::Session,
             scope: scope(&chat),
             retry: false,
@@ -62,6 +63,7 @@ fn preparation_persists_user_and_durable_attribution_before_execution() {
         prepare(
             &service,
             &StartChatJobRequest {
+                refine: false,
                 context: ChatTarget::Session,
                 scope: scope(&chat),
                 ..request
@@ -163,6 +165,7 @@ fn oversized_send_preserves_composer_without_persisting_user() {
         prepare(
             &service,
             &StartChatJobRequest {
+                refine: false,
                 context: ChatTarget::Session,
                 scope: scope(&chat),
                 ..request.clone()

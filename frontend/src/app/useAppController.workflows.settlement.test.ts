@@ -26,7 +26,7 @@ describe('useAppController workflows and record hydration', () => {
     act(() => {
       savePromise = result.current.handleSaveDraft(result.current.testwareDrafts[0])
     })
-    await waitFor(() => expect(tauriMock.updateDraft).toHaveBeenCalledWith(original.id, expect.objectContaining({ body: '<p>Discarded draft edit.</p>' })))
+    await waitFor(() => expect(tauriMock.updateDraft).toHaveBeenCalledWith(original.id, expect.objectContaining({ body: '<p>Discarded draft edit.</p>' }), expect.objectContaining({ expectedStoredBase: expect.any(String) })))
 
     act(() => {
       result.current.discardLocalDraft(original)
@@ -36,7 +36,7 @@ describe('useAppController workflows and record hydration', () => {
     await act(async () => savePromise)
 
     expect(tauriMock.updateDraft).toHaveBeenCalledTimes(2)
-    expect(tauriMock.updateDraft).toHaveBeenLastCalledWith(original.id, expect.objectContaining({ body: '<p>Saved draft.</p>' }))
+    expect(tauriMock.updateDraft).toHaveBeenLastCalledWith(original.id, expect.objectContaining({ body: '<p>Saved draft.</p>' }), expect.objectContaining({ expectedStoredBase: expect.any(String) }))
     expect(result.current.testwareDrafts[0].body).toBe('<p>Newer dirty draft edit.</p>')
     act(() => result.current.discardAllDirtyRecords())
     expect(result.current.testwareDrafts[0].body).toBe('<p>Saved draft.</p>')
@@ -59,7 +59,7 @@ describe('useAppController workflows and record hydration', () => {
     act(() => {
       savePromise = result.current.handleSaveFinding(result.current.findings[0])
     })
-    await waitFor(() => expect(tauriMock.updateFinding).toHaveBeenCalledWith(original.id, expect.objectContaining({ body: '<p>Discarded finding edit.</p>' })))
+    await waitFor(() => expect(tauriMock.updateFinding).toHaveBeenCalledWith(original.id, expect.objectContaining({ body: '<p>Discarded finding edit.</p>' }), expect.objectContaining({ expectedStoredBase: expect.any(String) })))
 
     act(() => {
       result.current.discardLocalFinding(original)
@@ -69,7 +69,7 @@ describe('useAppController workflows and record hydration', () => {
     await act(async () => savePromise)
 
     expect(tauriMock.updateFinding).toHaveBeenCalledTimes(2)
-    expect(tauriMock.updateFinding).toHaveBeenLastCalledWith(original.id, expect.objectContaining({ body: '<p>Saved finding.</p>' }))
+    expect(tauriMock.updateFinding).toHaveBeenLastCalledWith(original.id, expect.objectContaining({ body: '<p>Saved finding.</p>' }), expect.objectContaining({ expectedStoredBase: expect.any(String) }))
     expect(result.current.findings[0].body).toBe('<p>Newer dirty finding edit.</p>')
     act(() => result.current.discardAllDirtyRecords())
     expect(result.current.findings[0].body).toBe('<p>Saved finding.</p>')
@@ -109,7 +109,7 @@ describe('useAppController workflows and record hydration', () => {
     await act(async () => { await olderSave })
 
     expect(tauriMock.updateDraft.mock.calls.slice(2)).toEqual(expect.arrayContaining([
-      [original.id, expect.objectContaining({ body: '<p>Saved draft.</p>' })],
+      [original.id, expect.objectContaining({ body: '<p>Saved draft.</p>' }), expect.objectContaining({ expectedStoredBase: expect.any(String) })],
     ]))
     expect(result.current.testwareDrafts[0].body).toBe('<p>Saved draft.</p>')
   })
@@ -148,7 +148,7 @@ describe('useAppController workflows and record hydration', () => {
     await act(async () => { await olderSave })
 
     expect(tauriMock.updateFinding.mock.calls.slice(2)).toEqual(expect.arrayContaining([
-      [original.id, expect.objectContaining({ body: '<p>Saved finding.</p>' })],
+      [original.id, expect.objectContaining({ body: '<p>Saved finding.</p>' }), expect.objectContaining({ expectedStoredBase: expect.any(String) })],
     ]))
     expect(result.current.findings[0].body).toBe('<p>Saved finding.</p>')
   })
@@ -179,7 +179,7 @@ describe('useAppController workflows and record hydration', () => {
     await act(async () => savePromise)
 
     expect(tauriMock.updateDraft).toHaveBeenCalledTimes(2)
-    expect(tauriMock.updateDraft).toHaveBeenLastCalledWith(original.id, expect.objectContaining({ body: '<p>Saved draft.</p>' }))
+    expect(tauriMock.updateDraft).toHaveBeenLastCalledWith(original.id, expect.objectContaining({ body: '<p>Saved draft.</p>' }), expect.objectContaining({ expectedStoredBase: expect.any(String) }))
     expect(result.current.testwareDrafts[0].body).toBe('<p>Saved draft.</p>')
   })
 
@@ -209,7 +209,7 @@ describe('useAppController workflows and record hydration', () => {
     await act(async () => savePromise)
 
     expect(tauriMock.updateFinding).toHaveBeenCalledTimes(2)
-    expect(tauriMock.updateFinding).toHaveBeenLastCalledWith(original.id, expect.objectContaining({ body: '<p>Saved finding.</p>' }))
+    expect(tauriMock.updateFinding).toHaveBeenLastCalledWith(original.id, expect.objectContaining({ body: '<p>Saved finding.</p>' }), expect.objectContaining({ expectedStoredBase: expect.any(String) }))
     expect(result.current.findings[0].body).toBe('<p>Saved finding.</p>')
   })
 
@@ -401,7 +401,7 @@ describe('useAppController workflows and record hydration', () => {
     expect(result.current.error).toContain('Draft compensation offline')
     await act(async () => { expect(await result.current.saveDirtyRecordsNow()).toBe(true) })
     expect(tauriMock.updateDraft).toHaveBeenCalledTimes(4)
-    expect(tauriMock.updateDraft).toHaveBeenLastCalledWith(generated.id, expect.objectContaining({ body: newer.body }))
+    expect(tauriMock.updateDraft).toHaveBeenLastCalledWith(generated.id, expect.objectContaining({ body: newer.body }), expect.objectContaining({ expectedStoredBase: expect.any(String) }))
     expect(result.current.testwareDrafts[0].body).toBe(newer.body)
   })
 
@@ -433,7 +433,7 @@ describe('useAppController workflows and record hydration', () => {
     expect(result.current.error).toContain('Finding compensation offline')
     await act(async () => { expect(await result.current.saveDirtyRecordsNow()).toBe(true) })
     expect(tauriMock.updateFinding).toHaveBeenCalledTimes(4)
-    expect(tauriMock.updateFinding).toHaveBeenLastCalledWith(generated.id, expect.objectContaining({ body: newer.body }))
+    expect(tauriMock.updateFinding).toHaveBeenLastCalledWith(generated.id, expect.objectContaining({ body: newer.body }), expect.objectContaining({ expectedStoredBase: expect.any(String) }))
     expect(result.current.findings[0].body).toBe(newer.body)
   })
 })

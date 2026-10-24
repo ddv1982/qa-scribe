@@ -170,6 +170,9 @@ fn reconcile_chat_failure(
 pub struct StartChatJobRequest {
     #[serde(default)]
     #[specta(optional)]
+    pub refine: bool,
+    #[serde(default)]
+    #[specta(optional)]
     pub context: ChatTarget,
     pub scope: ChatRevision,
     #[serde(default)]
@@ -303,4 +306,13 @@ fn start_chat_job_blocking(
         return Err(CommandError::internal(message));
     }
     Ok(result)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn resolve_refinement(
+    state: State<'_, AppState>,
+    request: RefinementRequest,
+) -> Result<ChatState, CommandError> {
+    state.with_service(|service| service.resolve_refinement(request))
 }

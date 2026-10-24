@@ -1,4 +1,6 @@
 mod input;
+pub(crate) mod markdown;
+pub mod response;
 pub use input::{ChatInput, ChatInputMessage, MAX_CHAT_INPUT_FRAME_BYTES, build_chat_input};
 
 use serde::{Deserialize, Serialize};

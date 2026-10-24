@@ -88,7 +88,10 @@ fn chat_context_retry_pins_original_message_and_unsaved_document_without_saving_
                 title: Some("New saved title".into()),
                 ..Default::default()
             },
+            qa_scribe_core::domain::RecordWriteGuard::finding(&finding),
         )
+        .unwrap()
+        .into_saved()
         .unwrap();
     let retried = service
         .retry_chat_turn(ChatStartRequest {
@@ -354,7 +357,10 @@ fn chat_context_retry_after_process_reopen_uses_the_interrupted_snapshot() {
                 title: Some("New saved content after reopen".into()),
                 ..Default::default()
             },
+            qa_scribe_core::domain::RecordWriteGuard::finding(&record),
         )
+        .unwrap()
+        .into_saved()
         .unwrap();
     let retried = service
         .retry_chat_turn(ChatStartRequest {
