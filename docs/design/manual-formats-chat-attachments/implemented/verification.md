@@ -25,3 +25,14 @@ The serial default desktop run passed 12 of 13 workflows. All three provider aut
 The screenshot-copy case exposed a compressed creation title in a narrow detail panel. The compact header now follows the actual panel width through a container query. The native manual-format workflow passed all four cases again, including a literal one-line heading assertion while screenshot-copy controls are present. The corrected screenshot replaces the earlier example.
 
 Linux CI initially exceeded the five-second budget in three new full-workspace creation cases. Only those cases now have a ten-second bound; all assertions remain. All 19 focused cases and all 882 frontend tests pass. Two builds at the earlier reviewed head and one build after the test-only edit produced identical WebView assets. That equivalence receipt applies to the test-only correction, before the later container-layout change.
+
+
+## Preparation, recovery, and editor callbacks
+
+Sentry identified two real issues. Chat preparation now captures owned metadata under a short service lock, checks replay budgets before loading, and resolves files on the existing blocking worker outside service and cancellation gates. Commit rechecks revision, context, metadata, and cancellation. Verified images are loaded once and the pending message label is replaced by the durable ID. A barrier test proves that a service read and accepted cancellation finish while loading is paused. Its negative control fails when both gates are deliberately retained.
+
+Recheck now survives a pruned prior terminal job. It refreshes canonical Chat state and, when a response is still running, reconnects only to a job whose AI run matches that durable turn. Tests preserve newly typed text, reject another turn's job, resume polling, and never send another model request.
+
+A deterministic editor regression showed that changing editability could emit the previous document as an authored update before applying a new value. Editability changes now suppress that update. Both stored-content and simultaneous document/editability cases pass, and format Copy asserts the live selected format and body before invoking the clipboard.
+
+The parent passed 886 frontend tests and all 659 Rust tests, with the same three existing opt-in Rust tests ignored. Subsequent targeted recovery tests, quality checks, bindings, command surface, and code-size checks pass. Fresh native workflows passed Chat images, seven Codex permission cases, and all four manual-format cases. These runs use the asynchronous preparation command and the corrected editor callback.
