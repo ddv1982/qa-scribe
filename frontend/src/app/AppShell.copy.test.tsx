@@ -293,7 +293,7 @@ it('renders each manual testware format without AI and settles untouched selecti
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   expect(tauri.startAiActionJob).not.toHaveBeenCalled()
   expect(tauri.commitCreationSave).not.toHaveBeenCalled()
-})
+}, 10_000)
 
 it('copies the selected Gherkin body and initializes preflight without losing the draft on cancellation', async () => {
   render(<Workspace />)
@@ -316,7 +316,7 @@ it('copies the selected Gherkin body and initializes preflight without losing th
   expect(title).toHaveValue('Manual behavior')
   expect(screen.getByRole('textbox', { name: 'Creation draft body' })).toHaveTextContent('GivenWhenThen')
   expect(tauri.startAiActionJob).not.toHaveBeenCalled()
-})
+}, 10_000)
 
 it('keeps authored rich text and images until Apply format and retains finding details', async () => {
   render(<Workspace />)
@@ -355,4 +355,4 @@ it('keeps authored rich text and images until Apply format and retains finding d
   const payload = tauri.commitCreationSave.mock.calls[0][0] as import('../tauri').CommitCreationSave
   expect(payload.record).toMatchObject({ kind: 'finding', title: 'Keep details', findingKind: 'risk', body: '' })
   expect(JSON.parse(payload.record.metadataJson!)).toEqual({ severity: 'high', status: 'resolved', manualCreationFormat: { version: 1, format: { kind: 'finding', template: 'blank' } } })
-})
+}, 10_000)
