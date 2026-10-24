@@ -24,7 +24,7 @@ fn codex_catalog_retains_explicit_image_input_capabilities() {
 
 use std::path::PathBuf;
 
-use super::{parse_codex_app_server_models, provider_catalog};
+use super::{parse_claude_structured_models, parse_codex_app_server_models, provider_catalog};
 use crate::commands::providers::{
     ProviderCatalogSource, ProviderCatalogState, ProviderDiscoveryError,
     ProviderDiscoveryErrorCode, ProviderModelAvailability, ProviderModelSource,
@@ -90,6 +90,145 @@ fn unattempted_catalog() -> StructuredCatalogProbe {
 }
 
 #[test]
+fn claude_structured_image_capabilities_use_explicit_evidence_before_identity() {
+    let cases = [
+        (
+            json!({"value":"sonnet","displayName":"Sonnet","description":"Sonnet model","supportsEffort":true,"supportedEffortLevels":["low","medium","high"],"supportsAdaptiveThinking":true}),
+            Some(true),
+        ),
+        (
+            json!({"id":"default","resolvedModel":"claude-sonnet-4-6"}),
+            Some(true),
+        ),
+        (
+            json!({"value":"default","displayName":"Default","resolvedModel":"claude-sonnet-5-5"}),
+            Some(true),
+        ),
+        (json!({"id":"default","resolvedModel":"haiku"}), Some(true)),
+        (json!({"id":"default"}), None),
+        (json!({"id":"default","resolvedModel":"custom-text"}), None),
+        (json!({"id":"sonnet","resolvedModel":"custom-text"}), None),
+        (
+            json!({"id":"claude-opus-4-8","resolvedModel":"custom-text"}),
+            None,
+        ),
+        (
+            json!({"id":"custom-alias","resolvedModel":"claude-opus-4-8"}),
+            Some(true),
+        ),
+        (
+            json!({"id":"unknown","capabilities":{"image_input":{"supported":true}}}),
+            Some(true),
+        ),
+        (
+            json!({"id":"sonnet","capabilities":{"image_input":{"supported":false}}}),
+            Some(false),
+        ),
+        (
+            json!({"id":"unknown","capabilities":{"image_input":{"supported":false}}}),
+            Some(false),
+        ),
+        (
+            json!({"id":"sonnet","resolvedModel":"custom-text","vision":false}),
+            Some(false),
+        ),
+        (json!({"id":"sonnet","vision":false}), Some(false)),
+        (json!({"id":"unknown","vision":true}), Some(true)),
+        (json!({"id":"unknown","supportsVision":true}), Some(true)),
+        (
+            json!({"id":"custom-text","supportsVision":false}),
+            Some(false),
+        ),
+        (
+            json!({"id":"unknown","inputModalities":["text","image"]}),
+            Some(true),
+        ),
+        (
+            json!({"id":"sonnet","inputModalities":["text"]}),
+            Some(false),
+        ),
+        (json!({"id":"unknown","inputModalities":[]}), Some(false)),
+        (
+            json!({"id":"unknown","vision":"true","inputModalities":["image",42],"capabilities":{"image_input":{"supported":"true"}}}),
+            None,
+        ),
+        (
+            json!({"id":"sonnet","vision":true,"supportsVision":false}),
+            Some(false),
+        ),
+        (
+            json!({"id":"sonnet","vision":false,"capabilities":{"image_input":{"supported":true}}}),
+            Some(false),
+        ),
+        (
+            json!({"id":"sonnet","vision":true,"capabilities":{"image_input":{"supported":false}}}),
+            Some(false),
+        ),
+        (
+            json!({"id":"sonnet","vision":true,"inputModalities":["text"]}),
+            Some(false),
+        ),
+        (
+            json!({"id":"sonnet","vision":false,"inputModalities":["image"]}),
+            Some(false),
+        ),
+        (
+            json!({"id":"default","resolvedModel":"claude-sonnet-4-6","vision":false}),
+            Some(false),
+        ),
+        (json!({"id":"unknown"}), None),
+        (
+            json!({"id":"custom-text","displayName":"Claude Sonnet","description":"Supports images"}),
+            None,
+        ),
+        (json!({"id":"claude-sonnet-99-0"}), None),
+        (json!({"id":"claude-sonnet-4-6-custom"}), None),
+        (json!({"id":"claude-opus-4-8-20260101"}), None),
+        (json!({"id":"claude-sonnet-4-5-20990101"}), None),
+        (json!({"id":"sonnet-custom"}), None),
+        (
+            json!({"id":"default","resolvedModel":"claude-future-9"}),
+            None,
+        ),
+    ];
+
+    for (row, expected) in cases {
+        let models = parse_claude_structured_models(std::slice::from_ref(&row));
+        assert_eq!(models.len(), 1, "{row}");
+        assert_eq!(models[0].capabilities.vision, expected, "{row}");
+    }
+}
+
+#[test]
+fn claude_structured_image_policy_accepts_documented_models_and_aliases() {
+    for id in [
+        "sonnet",
+        "opus",
+        "haiku",
+        "fable",
+        "sonnet[1m]",
+        "opus[1m]",
+        "claude-sonnet-4-5",
+        "claude-sonnet-4-5-20250929",
+        "claude-sonnet-4-6",
+        "claude-haiku-4-5",
+        "claude-haiku-4-5-20251001",
+        "claude-opus-4-5",
+        "claude-opus-4-5-20251101",
+        "claude-opus-4-6",
+        "claude-opus-4-7",
+        "claude-opus-4-8",
+        "claude-opus-5-5",
+        "claude-sonnet-5-5",
+        "claude-haiku-5-5",
+        "claude-fable-5-1",
+    ] {
+        let models = parse_claude_structured_models(&[json!({"value":id})]);
+        assert_eq!(models[0].capabilities.vision, Some(true), "{id}");
+    }
+}
+
+#[test]
 fn claude_structured_catalog_maps_authoritative_capabilities() {
     let runner = StructuredRunner {
         claude: StructuredCatalogProbe::Success(StructuredCatalog {
@@ -120,6 +259,7 @@ fn claude_structured_catalog_maps_authoritative_capabilities() {
     assert_eq!(model.capabilities.reasoning, Some(true));
     assert_eq!(model.capabilities.adaptive_thinking, Some(true));
     assert_eq!(model.resolved_model.as_deref(), Some("claude-opus-current"));
+    assert_eq!(model.capabilities.vision, None);
 }
 
 #[test]
@@ -148,6 +288,7 @@ fn claude_structured_catalog_adds_missing_provider_default() {
     );
     assert_eq!(snapshot.models[0].label, "Use CLI default");
     assert_eq!(snapshot.models[0].resolved_model, None);
+    assert_eq!(snapshot.models[0].capabilities.vision, None);
 }
 
 #[test]
@@ -157,7 +298,7 @@ fn claude_structured_catalog_retains_provider_reported_default_metadata() {
             models: vec![json!({
                 "id": "default",
                 "label": "Account default",
-                "resolvedModel": "claude-opus-current",
+                "resolvedModel": "claude-sonnet-4-6",
                 "reasoningEfforts": ["low", "high"],
                 "defaultReasoningEffort": "high"
             })],
@@ -173,7 +314,8 @@ fn claude_structured_catalog_retains_provider_reported_default_metadata() {
     assert_eq!(model.id, "default");
     assert_eq!(model.label, "Account default");
     assert_eq!(model.source, ProviderModelSource::CliCatalog);
-    assert_eq!(model.resolved_model.as_deref(), Some("claude-opus-current"));
+    assert_eq!(model.resolved_model.as_deref(), Some("claude-sonnet-4-6"));
+    assert_eq!(model.capabilities.vision, Some(true));
     assert_eq!(model.reasoning_efforts, ["low", "high"]);
     assert_eq!(model.default_reasoning_effort.as_deref(), Some("high"));
 }

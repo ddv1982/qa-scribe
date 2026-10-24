@@ -25,7 +25,7 @@ fn input() -> ChatInput {
 
 #[test]
 fn literal_claude_base64_blocks_and_labelled_image_only_input() {
-    let mut p = ChatProtocol::new(AiProvider::ClaudeCode, &input(), "model", None, "/neutral");
+    let mut p = ChatProtocol::new(AiProvider::ClaudeCode, input(), "model", None, "/neutral");
     let frames = sent(&p.handle(&json!({"type":"control_response","response":{"subtype":"success","request_id":"qa-scribe-init"}})).unwrap());
     let content = frames[0]["message"]["content"].as_array().unwrap();
     assert_eq!(
@@ -40,7 +40,7 @@ fn literal_claude_base64_blocks_and_labelled_image_only_input() {
 
 #[test]
 fn literal_codex_local_image_uses_exact_managed_canonical_path() {
-    let mut p = ChatProtocol::new(AiProvider::CodexCli, &input(), "model", None, "/neutral");
+    let mut p = ChatProtocol::new(AiProvider::CodexCli, input(), "model", None, "/neutral");
     p.handle(&json!({"id":"qa-scribe-init","result":{}}))
         .unwrap();
     let frames = sent(
@@ -66,12 +66,12 @@ fn literal_acp_v1_image_requires_negotiated_prompt_capability() {
         json!({"promptCapabilities":{"image":false}}),
         json!({"sessionCapabilities":{"promptCapabilities":{"image":true}}}),
     ] {
-        let mut p = ChatProtocol::new(AiProvider::CopilotCli, &input(), "model", None, "/neutral");
+        let mut p = ChatProtocol::new(AiProvider::CopilotCli, input(), "model", None, "/neutral");
         let err = p.handle(&json!({"id":"qa-scribe-init","result":{"protocolVersion":1,"agentCapabilities":caps}})).unwrap_err();
         assert!(err.to_string().contains("did not negotiate image"));
         assert!(p.finish().is_err());
     }
-    let mut p = ChatProtocol::new(AiProvider::CopilotCli, &input(), "model", None, "/neutral");
+    let mut p = ChatProtocol::new(AiProvider::CopilotCli, input(), "model", None, "/neutral");
     p.handle(&json!({"id":"qa-scribe-init","result":{"protocolVersion":1,"agentCapabilities":{"promptCapabilities":{"image":true}}}})).unwrap();
     let frames = sent(
         &p.handle(&json!({"id":"qa-scribe-session","result":{"sessionId":"session"}}))

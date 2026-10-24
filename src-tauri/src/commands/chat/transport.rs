@@ -118,20 +118,7 @@ pub(super) fn validate_image_model(
     descriptor: &crate::commands::providers::ProviderDescriptor,
     selection: &str,
 ) -> Result<(), String> {
-    let model = if selection.trim().is_empty()
-        || selection.eq_ignore_ascii_case("default")
-        || selection.eq_ignore_ascii_case("auto")
-    {
-        descriptor.default_snapshot.model.value.as_deref()
-    } else {
-        Some(selection.trim())
-    };
-    match model.and_then(|id| descriptor.models.iter().find(|model| model.id == id))
-        .and_then(|model| model.capabilities.vision) {
-        Some(true) => Ok(()),
-        Some(false) => Err("The selected model does not support images. Choose a model with image support; your composer is retained.".into()),
-        None => Err("Image support for the selected model is unknown. Choose a model with confirmed image support; your composer is retained.".into()),
-    }
+    descriptor.validate_image_model(selection)
 }
 
 #[cfg(test)]

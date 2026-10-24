@@ -90,6 +90,7 @@ fn normalize_model(raw: &Value) -> Option<Value> {
     );
     copy_bool(raw, "supportsFastMode", &mut normalized, "supportsFastMode");
     copy_bool(raw, "supportsAutoMode", &mut normalized, "supportsAutoMode");
+    copy_image_capabilities(raw, &mut normalized);
 
     if let Some(levels) = raw.get("supportedEffortLevels").and_then(Value::as_array) {
         let levels = levels
@@ -102,6 +103,34 @@ fn normalize_model(raw: &Value) -> Option<Value> {
     }
 
     Some(Value::Object(normalized))
+}
+
+fn copy_image_capabilities(raw: &Map<String, Value>, normalized: &mut Map<String, Value>) {
+    for key in ["vision", "supportsVision"] {
+        copy_bool(raw, key, normalized, key);
+    }
+    if let Some(supported) = raw
+        .get("capabilities")
+        .and_then(|value| value.pointer("/image_input/supported"))
+        .and_then(Value::as_bool)
+    {
+        normalized.insert(
+            "capabilities".into(),
+            serde_json::json!({"image_input": {"supported": supported}}),
+        );
+    }
+    if let Some(modalities) = raw
+        .get("inputModalities")
+        .and_then(Value::as_array)
+        .and_then(|modalities| {
+            modalities
+                .iter()
+                .map(Value::as_str)
+                .collect::<Option<Vec<_>>>()
+        })
+    {
+        normalized.insert("inputModalities".into(), serde_json::json!(modalities));
+    }
 }
 
 fn nonempty_string(value: &Value) -> Option<&str> {
