@@ -166,7 +166,7 @@ describe('durable chat composer images', () => {
   })
 
   it('retries a failed import with its retained image and clears the failure on success', async () => {
-    api.getChat.mockResolvedValue(chatFixture({ mode: 'chat', composer: 'Question' }))
+    api.getChat.mockImplementation(async () => chatFixture({ mode: 'chat', composer: 'Question' }))
     api.importChatImage.mockRejectedValueOnce(new Error('Disk busy')).mockResolvedValueOnce(chatFixture({
       mode: 'chat', revision: 1, composer: 'Question', composerImages: [image],
     }))

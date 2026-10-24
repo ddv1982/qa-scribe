@@ -42,7 +42,13 @@
 .chat-image-failures { list-style: none; margin: 0; padding: 0; }
 .chat-image-failures li { padding: var(--space-2); border: 1px solid var(--danger); border-radius: var(--radius-md); }
 .chat-image-failures p { margin: 0 0 var(--space-2); overflow-wrap: anywhere; color: var(--text-primary); font-size: var(--font-size-sm); }
-.chat-image-failures button + button { margin-left: var(--space-2); }
+.chat-image-failures .action-button {
+  display: flex;
+  max-width: 100%;
+  margin-block: var(--space-1);
+  overflow-wrap: anywhere;
+  text-align: left;
+}
 
 .chat-image-status { padding: 0 var(--space-2) var(--space-2); color: var(--text-secondary); font-size: var(--font-size-sm); }
 

@@ -6,7 +6,8 @@ import type { NoteEligibility } from './noteEligibility'
 import type { ChatNoteRecovery } from './useChatNoteRecovery'
 import type { ChatHandoffPresentation } from './sessionChat.presentation'
 
-export type ChatImageFailure = { id: string; filename: string; message: string }
+export type ChatImageRecovery = { kind: 'refresh_pending' | 'verification_pending'; images: ChatImage[] }
+export type ChatImageFailure = { id: string; filename: string; message: string; recovery?: ChatImageRecovery }
 
 export interface SessionChatViewState {
   handoff: ChatHandoffPresentation

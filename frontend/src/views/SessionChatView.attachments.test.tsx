@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useState, type ComponentProps } from 'react'
 import { SessionChatView } from './SessionChatView.testSupport'
@@ -105,5 +105,34 @@ describe('chat attachment controls', () => {
     expect(callbacks.onRetryImage).toHaveBeenCalledExactlyOnceWith('failed-1')
     fireEvent.click(screen.getByRole('button', { name: 'Remove failed large.png' }))
     expect(callbacks.onDismissImageFailure).toHaveBeenCalledExactlyOnceWith('failed-1')
+  })
+
+  it('labels uncertain attachments and links their removal without dropping known images or text', () => {
+    const known = { ...image, attachmentId: 'known-image', filename: 'known.png' }
+    const removeImage = vi.fn()
+    function Controlled() {
+      const [images, setImages] = useState([known, image])
+      const [failures, setFailures] = useState<NonNullable<Props['imageFailures']>>([{ id: 'failed-1', filename: image.filename,
+        message: 'Preview unavailable', recovery: { kind: 'verification_pending', images: [image] } }])
+      return <SessionChatView {...props({ composer: 'Keep my question 4827', composerImages: images, imageFailures: failures,
+        onRemoveImage: id => { removeImage(id); setImages(current => current.filter(value => value.attachmentId !== id)) },
+        onDismissImageFailure: async () => { if (!images.some(value => value.attachmentId === image.attachmentId)) setFailures([]) } })} />
+    }
+    render(<Controlled />)
+    const list = screen.getByRole('list', { name: 'Attached images' })
+    expect(within(list).getByText('Verification pending').closest('li')).toHaveAttribute('data-attachment-id', 'image-1')
+    expect(within(list).getByText('Ready to send').closest('li')).toHaveAttribute('data-attachment-id', 'known-image')
+    expect(screen.getByRole('list', { name: 'Failed images' })).toHaveTextContent('another client')
+    fireEvent.click(screen.getByRole('button', { name: 'Remove failed checkout.png' }))
+    expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Remove unverified checkout.png' }))
+    expect(removeImage).toHaveBeenCalledExactlyOnceWith('image-1')
+    expect(screen.getByText('Removed from message')).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Remove failed checkout.png' }))
+    expect(screen.getByRole('button', { name: 'Send' })).toBeEnabled()
+    expect(screen.getByRole('textbox', { name: 'Message' })).toHaveValue('Keep my question 4827')
+    expect(screen.getByRole('list', { name: 'Attached images' })).toHaveTextContent('known.png')
+    expect(screen.queryByRole('button', { name: 'Remove checkout.png' })).not.toBeInTheDocument()
   })
 })

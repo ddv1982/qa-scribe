@@ -275,8 +275,10 @@ export function SessionChatView(props: SessionChatViewProps) {
       </div>
       <div className="chat-composer">
         <label htmlFor={`${id}-message`}>Message</label>
-        <ChatImages images={composerImages} disabled={locked || inputRecoveryPending} onRemove={onRemoveImage} />
-        <ChatImageFailures failures={imageFailures} disabled={locked} onRetry={props.onRetryImage} onRemove={props.onDismissImageFailure} />
+        <ChatImages images={composerImages} disabled={locked || inputRecoveryPending} onRemove={onRemoveImage}
+          unverifiedIds={imageFailures.flatMap(failure => failure.recovery?.images.map(image => image.attachmentId) ?? [])} />
+        <ChatImageFailures failures={imageFailures} images={composerImages} disabled={locked || inputRecoveryPending}
+          onRetry={props.onRetryImage} onRemove={props.onDismissImageFailure} onRemoveImage={onRemoveImage} />
         <textarea
           id={`${id}-message`} rows={3} value={composer} disabled={!chat || loading || submitted || recovering}
           aria-describedby={`${id}-shortcut ${id}-send-reason`}
