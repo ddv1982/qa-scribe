@@ -1,0 +1,6 @@
+Phase 1. Fix the sticky record header and scroll region (S1)  boxes=33  files=3 build=5 you-see=2 verify-unit=2 verify-live=10 verify-perf=4 review-gate=3 merge=4
+Phase 2. Open shared Ask AI chat with durable item context (C1)  boxes=41  files=4 build=10 you-see=3 verify-unit=3 verify-live=10 verify-perf=4 review-gate=3 merge=4
+Phase 3. Review and apply local refinement proposals (R1)  boxes=42  files=6 build=9 you-see=3 verify-unit=3 verify-live=10 verify-perf=4 review-gate=3 merge=4
+Phase 4. Draft Jira issues and collect missing details in chat (J1)  boxes=48  files=5 build=16 you-see=3 verify-unit=3 verify-live=10 verify-perf=4 review-gate=3 merge=4
+Phase 5. Create reviewed Jira issues through coding-agent tools (J2)  boxes=50  files=4 build=17 you-see=3 verify-unit=3 verify-live=10 verify-perf=4 review-gate=5 merge=4
+5 PR sections, 0 problems

@@ -1,0 +1,16 @@
+[
+  {
+    "worktree": "/Users/vriesd/.t3/worktrees/qa-scribe/t3-8f61e361",
+    "binary": "/Users/vriesd/.t3/worktrees/qa-scribe/t3-8f61e361/target/debug/qa-scribe-tauri",
+    "sha256": "c068f8b316e4c4a7551e32fdaa44fff03c502d26165220a0fb87e6040493db78",
+    "separateInode": true,
+    "launched": false
+  },
+  {
+    "worktree": "/private/tmp/qa-scribe-perf-head-a99ac02",
+    "binary": "/private/tmp/qa-scribe-perf-head-a99ac02/target/debug/qa-scribe-tauri",
+    "sha256": "c7c5882101f0b10a2d06fdfd12752f81a2ae86467cc5c7ff7e2a9c96af083f4f",
+    "separateInode": true,
+    "launched": false
+  }
+]

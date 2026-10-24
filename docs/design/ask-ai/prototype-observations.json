@@ -1,0 +1,70 @@
+{
+  "desktop": [
+    {
+      "type": "text",
+      "text": "{\"width\":1440,\"contentHeight\":992,\"capturedHeight\":992,\"consoleMessages\":[{\"level\":\"log\",\"text\":\"{\\\"step\\\":\\\"draft first\\\",\\\"draftVisible\\\":true,\\\"asksRoute\\\":\\\"How should I create this in Jira?\\\",\\\"createAvailable\\\":false}\"},{\"level\":\"log\",\"text\":\"{\\\"step\\\":\\\"unknown parent\\\",\\\"error\\\":\\\"No matching parent in this demo. Try DEMO-184 or DEMO-207.\\\",\\\"phase\\\":\\\"parent\\\"}\"},{\"level\":\"log\",\"text\":\"{\\\"step\\\":\\\"valid parent\\\",\\\"project\\\":\\\"CHECKOUT\\\",\\\"parent\\\":\\\"DEMO-184\\\",\\\"phase\\\":\\\"subtype\\\",\\\"choices\\\":[\\\"Subtask\\\",\\\"Defect subtask\\\"]}\"},{\"level\":\"log\",\"text\":\"{\\\"step\\\":\\\"custom subtask type\\\",\\\"phase\\\":\\\"required\\\",\\\"type\\\":\\\"Defect subtask\\\",\\\"createAvailable\\\":false}\"},{\"level\":\"log\",\"text\":\"{\\\"step\\\":\\\"free text answer\\\",\\\"phase\\\":\\\"review\\\",\\\"component\\\":\\\"Address form\\\",\\\"createLabel\\\":\\\"Create subtask in Jira\\\"}\"},{\"level\":\"log\",\"text\":\"{\\\"step\\\":\\\"simulated result\\\",\\\"phase\\\":\\\"done\\\",\\\"created\\\":true,\\\"sourceUnchanged\\\":true,\\\"composerAvailable\\\":true}\"},{\"level\":\"log\",\"text\":\"{\\\"step\\\":\\\"standalone types\\\",\\\"choices\\\":[\\\"Bug\\\",\\\"Task\\\"],\\\"noSubtaskTypes\\\":true}\"},{\"level\":\"log\",\"text\":\"{\\\"step\\\":\\\"no extra required fields\\\",\\\"phase\\\":\\\"review\\\",\\\"parent\\\":null,\\\"createLabel\\\":\\\"Create issue in Jira\\\"}\"},{\"level\":\"log\",\"text\":\"{\\\"step\\\":\\\"change route resets destination\\\",\\\"phase\\\":\\\"route\\\",\\\"parent\\\":null,\\\"type\\\":null,\\\"component\\\":null,\\\"draftRetained\\\":true}\"},{\"level\":\"log\",\"text\":\"{\\\"step\\\":\\\"sticky header\\\",\\\"gap\\\":0}\"},{\"level\":\"log\",\"text\":\"{\\\"step\\\":\\\"paste in Jira conversation\\\",\\\"images\\\":1,\\\"textRetained\\\":true}\"},{\"level\":\"log\",\"text\":\"{\\\"step\\\":\\\"visible controls\\\",\\\"createInsidePanel\\\":true,\\\"composerInsideApp\\\":true}\"}],\"screenshot\":{\"mimeType\":\"image/png\",\"width\":1440,\"height\":992}}"
+    }
+  ],
+  "short": [
+    {
+      "type": "text",
+      "text": "{\"width\":1280,\"contentHeight\":772,\"capturedHeight\":772,\"consoleMessages\":[{\"level\":\"log\",\"text\":\"{\\\"step\\\":\\\"draft first\\\",\\\"draftVisible\\\":true,\\\"asksRoute\\\":\\\"How should I create this in Jira?\\\",\\\"createAvailable\\\":false}\"},{\"level\":\"log\",\"text\":\"{\\\"step\\\":\\\"unknown parent\\\",\\\"error\\\":\\\"No matching parent in this demo. Try DEMO-184 or DEMO-207.\\\",\\\"phase\\\":\\\"parent\\\"}\"},{\"level\":\"log\",\"text\":\"{\\\"step\\\":\\\"valid parent\\\",\\\"project\\\":\\\"CHECKOUT\\\",\\\"parent\\\":\\\"DEMO-184\\\",\\\"phase\\\":\\\"subtype\\\",\\\"choices\\\":[\\\"Subtask\\\",\\\"Defect subtask\\\"]}\"},{\"level\":\"log\",\"text\":\"{\\\"step\\\":\\\"custom subtask type\\\",\\\"phase\\\":\\\"required\\\",\\\"type\\\":\\\"Defect subtask\\\",\\\"createAvailable\\\":false}\"},{\"level\":\"log\",\"text\":\"{\\\"step\\\":\\\"free text answer\\\",\\\"phase\\\":\\\"review\\\",\\\"component\\\":\\\"Address form\\\",\\\"createLabel\\\":\\\"Create subtask in Jira\\\"}\"},{\"level\":\"log\",\"text\":\"{\\\"step\\\":\\\"simulated result\\\",\\\"phase\\\":\\\"done\\\",\\\"created\\\":true,\\\"sourceUnchanged\\\":true,\\\"composerAvailable\\\":true}\"},{\"level\":\"log\",\"text\":\"{\\\"step\\\":\\\"standalone types\\\",\\\"choices\\\":[\\\"Bug\\\",\\\"Task\\\"],\\\"noSubtaskTypes\\\":true}\"},{\"level\":\"log\",\"text\":\"{\\\"step\\\":\\\"no extra required fields\\\",\\\"phase\\\":\\\"review\\\",\\\"parent\\\":null,\\\"createLabel\\\":\\\"Create issue in Jira\\\"}\"},{\"level\":\"log\",\"text\":\"{\\\"step\\\":\\\"change route resets destination\\\",\\\"phase\\\":\\\"route\\\",\\\"parent\\\":null,\\\"type\\\":null,\\\"component\\\":null,\\\"draftRetained\\\":true}\"},{\"level\":\"log\",\"text\":\"{\\\"step\\\":\\\"sticky header\\\",\\\"gap\\\":0}\"},{\"level\":\"log\",\"text\":\"{\\\"step\\\":\\\"paste in Jira conversation\\\",\\\"images\\\":1,\\\"textRetained\\\":true}\"},{\"level\":\"log\",\"text\":\"{\\\"step\\\":\\\"visible controls\\\",\\\"createInsidePanel\\\":true,\\\"composerInsideApp\\\":true}\"}],\"screenshot\":{\"mimeType\":\"image/png\",\"width\":1280,\"height\":772}}"
+    }
+  ],
+  "screenshots": [
+    {
+      "name": "01-draft-followup",
+      "meta": [
+        {
+          "type": "text",
+          "text": "{\"width\":1440,\"contentHeight\":992,\"capturedHeight\":992,\"consoleMessages\":[],\"screenshot\":{\"mimeType\":\"image/png\",\"width\":1440,\"height\":992}}"
+        }
+      ]
+    },
+    {
+      "name": "02-parent-search",
+      "meta": [
+        {
+          "type": "text",
+          "text": "{\"width\":1440,\"contentHeight\":992,\"capturedHeight\":992,\"consoleMessages\":[],\"screenshot\":{\"mimeType\":\"image/png\",\"width\":1440,\"height\":992}}"
+        }
+      ]
+    },
+    {
+      "name": "03-subtask-type",
+      "meta": [
+        {
+          "type": "text",
+          "text": "{\"width\":1440,\"contentHeight\":992,\"capturedHeight\":992,\"consoleMessages\":[],\"screenshot\":{\"mimeType\":\"image/png\",\"width\":1440,\"height\":992}}"
+        }
+      ]
+    },
+    {
+      "name": "04-required-field",
+      "meta": [
+        {
+          "type": "text",
+          "text": "{\"width\":1440,\"contentHeight\":992,\"capturedHeight\":992,\"consoleMessages\":[],\"screenshot\":{\"mimeType\":\"image/png\",\"width\":1440,\"height\":992}}"
+        }
+      ]
+    },
+    {
+      "name": "05-review",
+      "meta": [
+        {
+          "type": "text",
+          "text": "{\"width\":1440,\"contentHeight\":992,\"capturedHeight\":992,\"consoleMessages\":[],\"screenshot\":{\"mimeType\":\"image/png\",\"width\":1440,\"height\":992}}"
+        }
+      ]
+    },
+    {
+      "name": "06-new-issue",
+      "meta": [
+        {
+          "type": "text",
+          "text": "{\"width\":1440,\"contentHeight\":992,\"capturedHeight\":992,\"consoleMessages\":[],\"screenshot\":{\"mimeType\":\"image/png\",\"width\":1440,\"height\":992}}"
+        }
+      ]
+    }
+  ]
+}

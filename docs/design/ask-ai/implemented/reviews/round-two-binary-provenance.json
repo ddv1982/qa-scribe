@@ -1,0 +1,96 @@
+{
+  "head": "20bbeaf38b3b1a3d53258b157ce8a2cfb5f9a068",
+  "base": "1c34f3e229ccf471241f7dfc7248b4d73c2ce6d9",
+  "stablePatchId": "dc03d3fc551660a7969060e7f52456340467c657",
+  "binary": "/Users/vriesd/.t3/worktrees/qa-scribe/t3-7365c6d3/target/debug/qa-scribe-tauri",
+  "binarySha256": "97429496dfa7c9dc0ec4cde3c8e2c45d7726a29269897139304aaba6ff4a6561",
+  "completedWaves": {
+    "layout": {
+      "execution": {
+        "version": 1,
+        "spec": "record-workspace-layout.e2e.mjs",
+        "completed": true,
+        "passed": 10,
+        "failed": 0,
+        "skipped": 0
+      },
+      "runnerSha256": "1c6c4c4243efd6ddf032a51f72a93cb15f4e21a010cf9e4846aea7f863957d2b",
+      "executionSha256": "b67a14b19834b6340a6c30986ff016b99ca351d119bd9af466c08b141ad3646a"
+    },
+    "context": {
+      "execution": {
+        "version": 1,
+        "spec": "ask-ai-context.e2e.mjs",
+        "completed": true,
+        "passed": 7,
+        "failed": 0,
+        "skipped": 0
+      },
+      "runnerSha256": "a36d9d9bf9429f33f3e52c0bd19b65eefa6d767db421628ae03cd0608867f06b",
+      "executionSha256": "8358589fd7f61dd9ccde17a4abedf449bd6530e58f1ac5f2d18ed3a19d1bca87"
+    },
+    "refinement": {
+      "execution": {
+        "version": 1,
+        "spec": "ask-ai-refinement.e2e.mjs",
+        "completed": true,
+        "passed": 11,
+        "failed": 0,
+        "skipped": 0
+      },
+      "runnerSha256": "bd35eaea1f07826c198d397a395b189577507476685363b1e6a9b3b7b178a473",
+      "executionSha256": "a6796a250096b84a1dc975c4488176a4ea95814786fab5f91af2f5d61f1a5bbd"
+    },
+    "jira": {
+      "execution": {
+        "version": 1,
+        "spec": "ask-ai-jira-draft.e2e.mjs",
+        "completed": true,
+        "passed": 9,
+        "failed": 0,
+        "skipped": 0
+      },
+      "runnerSha256": "4d54441b4c5dbbdd4a0de6879335c5143a4ddb6422a1256b0eab5d57803ed16c",
+      "executionSha256": "52f66deb613bf0af1fb645e3b87927689bcace554deb05e1b5c31554dcebeb86"
+    },
+    "images": {
+      "execution": {
+        "version": 1,
+        "spec": "chat-images.e2e.mjs",
+        "completed": true,
+        "passed": 1,
+        "failed": 0,
+        "skipped": 0
+      },
+      "binaryUnchangedOnCheck": "97429496dfa7c9dc0ec4cde3c8e2c45d7726a29269897139304aaba6ff4a6561",
+      "runnerSha256": "a9807a4c4cf2eb4bd6e0fdebac91920c1af7be9d438e4591830c8a298b885d21",
+      "executionSha256": "b6fd0c021e9793320fa44f73766a5bb3576ce149e83b02dc930830d99f69c0ea"
+    },
+    "narrow-flow": {
+      "execution": {
+        "version": 1,
+        "spec": "ask-ai-context.e2e.mjs",
+        "completed": true,
+        "passed": 4,
+        "failed": 0,
+        "skipped": 0
+      },
+      "binaryUnchangedOnCheck": "97429496dfa7c9dc0ec4cde3c8e2c45d7726a29269897139304aaba6ff4a6561",
+      "runnerSha256": "555d6fb261408d70f46b037f18dd0a57175d299e25c136ce561d8f1c0adf0715",
+      "executionSha256": "2b09b4d1a743e3ece114147753cb269d1feac9fad5f53bf14b704e2882ff1628"
+    },
+    "undo": {
+      "execution": {
+        "version": 1,
+        "spec": "ask-ai-refinement.e2e.mjs",
+        "completed": true,
+        "passed": 4,
+        "failed": 0,
+        "skipped": 0
+      },
+      "binaryUnchangedOnCheck": "97429496dfa7c9dc0ec4cde3c8e2c45d7726a29269897139304aaba6ff4a6561",
+      "runnerSha256": "981bd7dbbea9ed4dfc035bd88cb97ae0e1158f4771a1ba39f1e357731a67029f",
+      "executionSha256": "02f90378719f206428b73d20e4bb148c0d567b74ae378e7ac925af616f40d79f"
+    }
+  }
+}

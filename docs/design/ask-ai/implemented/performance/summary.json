@@ -1,0 +1,279 @@
+{
+  "series": "final audited five interleaved pairs",
+  "metrics": {
+    "notes-open": {
+      "baseline": {
+        "p95MsByRun": [
+          36,
+          36,
+          37,
+          36,
+          36
+        ],
+        "medianP95Ms": 36,
+        "rangeP95Ms": [
+          36,
+          37
+        ]
+      },
+      "head": {
+        "p95MsByRun": [
+          27,
+          23,
+          23,
+          23,
+          23
+        ],
+        "medianP95Ms": 23,
+        "rangeP95Ms": [
+          23,
+          27
+        ]
+      }
+    },
+    "manual-edit": {
+      "baseline": {
+        "p95MsByRun": [
+          32,
+          32,
+          32,
+          33,
+          31
+        ],
+        "medianP95Ms": 32,
+        "rangeP95Ms": [
+          31,
+          33
+        ]
+      },
+      "head": {
+        "p95MsByRun": [
+          35,
+          37,
+          35,
+          38,
+          38
+        ],
+        "medianP95Ms": 37,
+        "rangeP95Ms": [
+          35,
+          38
+        ]
+      }
+    },
+    "record-save": {
+      "baseline": {
+        "p95MsByRun": [
+          87,
+          87,
+          86,
+          86,
+          86
+        ],
+        "medianP95Ms": 86,
+        "rangeP95Ms": [
+          86,
+          87
+        ]
+      },
+      "head": {
+        "p95MsByRun": [
+          117,
+          114,
+          121,
+          118,
+          118
+        ],
+        "medianP95Ms": 118,
+        "rangeP95Ms": [
+          114,
+          121
+        ]
+      }
+    },
+    "ask-ai-open": {
+      "head": {
+        "p95MsByRun": [
+          37,
+          38,
+          39,
+          39,
+          38
+        ],
+        "medianP95Ms": 38,
+        "rangeP95Ms": [
+          37,
+          39
+        ]
+      }
+    },
+    "proposal-review": {
+      "head": {
+        "p95MsByRun": [
+          21,
+          21,
+          22,
+          19,
+          20
+        ],
+        "medianP95Ms": 21,
+        "rangeP95Ms": [
+          19,
+          22
+        ]
+      }
+    },
+    "proposal-apply": {
+      "head": {
+        "p95MsByRun": [
+          78,
+          89,
+          79,
+          89,
+          78
+        ],
+        "medianP95Ms": 79,
+        "rangeP95Ms": [
+          78,
+          89
+        ]
+      }
+    }
+  },
+  "budgets": [
+    {
+      "pair": 1,
+      "notes-open": true,
+      "record-save": true,
+      "ask-ai-open": true,
+      "proposal-apply": true,
+      "scroll": true,
+      "header-gap": true
+    },
+    {
+      "pair": 2,
+      "notes-open": true,
+      "record-save": true,
+      "ask-ai-open": true,
+      "proposal-apply": true,
+      "scroll": true,
+      "header-gap": true
+    },
+    {
+      "pair": 3,
+      "notes-open": true,
+      "record-save": true,
+      "ask-ai-open": true,
+      "proposal-apply": true,
+      "scroll": true,
+      "header-gap": true
+    },
+    {
+      "pair": 4,
+      "notes-open": true,
+      "record-save": true,
+      "ask-ai-open": true,
+      "proposal-apply": true,
+      "scroll": true,
+      "header-gap": true
+    },
+    {
+      "pair": 5,
+      "notes-open": true,
+      "record-save": true,
+      "ask-ai-open": true,
+      "proposal-apply": true,
+      "scroll": true,
+      "header-gap": true
+    }
+  ],
+  "rawHashes": {
+    "artifacts/ask-ai/performance/pair-final-1-baseline/native-ui-performance.json": "726fde3f6a5c505d7409129ae248d5c007f729ee054a1478a5f631a164ec7907",
+    "artifacts/ask-ai/performance/pair-final-1-head/native-ui-performance.json": "dc29686a419a38c72992907befb1d19b1cc80b134f8b3f6106ca927f1f4f19aa",
+    "artifacts/ask-ai/performance/pair-final-2-baseline/native-ui-performance.json": "60475114502faccffe6f2e0e419ebfd7b9b7111fa6e18115ee0165b7344da84b",
+    "artifacts/ask-ai/performance/pair-final-2-head/native-ui-performance.json": "6af7c5698c1ddad78914894a5446b730e503b1d8ed2e817c0f84621f2b22da1e",
+    "artifacts/ask-ai/performance/pair-final-3-baseline/native-ui-performance.json": "f1f1fd8428575c9820e7400c2daeb8a690baac83f402c0d07dca8bb422cd40fa",
+    "artifacts/ask-ai/performance/pair-final-3-head/native-ui-performance.json": "e2179d559100e0c1f3a4cca65510c4910abaf34aff9f7908b6cbc7f3488b5d91",
+    "artifacts/ask-ai/performance/pair-final-4-baseline/native-ui-performance.json": "64b5411d2eed36e0c13486f0267245ac48f1670e6486c5aaefee723b5f4130cd",
+    "artifacts/ask-ai/performance/pair-final-4-head/native-ui-performance.json": "5ede3d995b92804db19ff77178f594a97adcc624d823bf85ba5fc5445b2adc9a",
+    "artifacts/ask-ai/performance/pair-final-5-baseline/native-ui-performance.json": "c9698d67b80c2baca82b2e7bff0d2ebdc958f40a1077669d8249b2606f5ab702",
+    "artifacts/ask-ai/performance/pair-final-5-head/native-ui-performance.json": "4ec995dd939f3c121e734afc85116c16e041a777583d7ab2c6e9722b239ebe4e"
+  },
+  "scroll": {
+    "baseline": {
+      "p95FrameMs": [
+        12,
+        12,
+        12,
+        12,
+        12
+      ],
+      "headerGapPx": [
+        32,
+        32,
+        32,
+        32,
+        32
+      ],
+      "firstNotesMs": [
+        523,
+        516,
+        519,
+        521,
+        521
+      ],
+      "loadBefore": [
+        3.51123046875,
+        3.68212890625,
+        3.44287109375,
+        3.29541015625,
+        3.07763671875
+      ],
+      "loadAfter": [
+        3.4453125,
+        3.59130859375,
+        3.36865234375,
+        3.4638671875,
+        2.9853515625
+      ]
+    },
+    "head": {
+      "p95FrameMs": [
+        12,
+        12,
+        12,
+        12,
+        12
+      ],
+      "headerGapPx": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "firstNotesMs": [
+        524,
+        524,
+        525,
+        520,
+        524
+      ],
+      "loadBefore": [
+        3.4453125,
+        3.59130859375,
+        3.36865234375,
+        3.34619140625,
+        3.06640625
+      ],
+      "loadAfter": [
+        3.68212890625,
+        3.44287109375,
+        3.29541015625,
+        3.08447265625,
+        2.6787109375
+      ]
+    }
+  },
+  "verdict": "All budgets pass; guarded Save is slower within its budget. No general speedup claim."
+}

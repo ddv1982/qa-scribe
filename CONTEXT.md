@@ -80,6 +80,18 @@ _Avoid_: Report, Summary
 A copy-ready bug report Draft shaped for manual creation of a Jira issue.
 _Avoid_: Jira ticket, Jira issue
 
+**Ask AI**:
+The action that opens the shared Session conversation beside a saved Finding or test case. It includes the selected record's current content when sending, without saving its edits.
+
+**AI chat**:
+The shared Session conversation shown in Note or beside a record. It retains the same composer, images, provider, model, and tool permissions across these views.
+
+**Refinement proposal**:
+A suggested local change reviewed before applying it to the record editor. Applying leaves the record unsaved. Ordinary Save persists the reviewed edit.
+
+**Jira conversation draft**:
+Jira content and follow-up answers in AI chat. The configured coding agent handles Jira tools and actions. This is separate from the clipboard-only Jira Bug Draft and does not introduce a stored Draft kind.
+
 **Record**:
 A UI umbrella term for a Draft or Finding rendered and edited through the shared rich-record components.
 _Avoid_: Item, Card

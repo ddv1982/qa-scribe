@@ -61,3 +61,25 @@ Chat can use tools and connectors already configured in Claude Code, Codex CLI, 
 Chat uses Claude's bidirectional stream-json control protocol, Codex app-server stdio, and Copilot's ACP stdio interface. Unsupported permission request schemas fail visibly rather than being auto-approved. Where a provider supplies only a description, Chat labels it as a provider description instead of inventing a tool identity. **Recheck status** reloads response and provider readiness without sending a message; **Retry response** is an explicit new attempt. Authenticated Copilot tool execution has not been verified for this change because account access is unavailable; its approval transport is covered by deterministic process and UI checks.
 
 Claude and Codex Chat use a fresh temporary directory each turn. Copilot Chat uses the stable private `copilot-chat` directory inside qa-scribe's Tauri app-data directory, because Copilot saves approvals by directory. After the first Copilot Chat attempt creates it, open an interactive Copilot CLI there and approve the specific tools you want to use. Those approvals remain CLI-owned and apply to later Chat turns. On Linux the default scope is `~/.local/share/io.github.ddv1982.qa-scribe/copilot-chat` (or the equivalent under `$XDG_DATA_HOME`); on macOS it is `~/Library/Application Support/io.github.ddv1982.qa-scribe/copilot-chat`. This directory persists across turns and app restarts; files created there by permitted tools also remain. Ordinary generation and readiness probes continue using fresh temporary directories.
+
+## Ask AI from a Finding or test case
+
+Select a saved Finding or test case and choose **Ask AI** beside Copy and Edit. Manual and generated records use the same AI chat. Closing or expanding the panel keeps its composer, images, conversation, and running response. A narrow window gives chat the available content area.
+
+The context card identifies the record for the next message and whether it has unsaved edits. Sending captures that content without saving it. Earlier messages retain their original snapshots when you edit or switch records. **Detach record context** changes future messages only. Note chat uses Session Context rather than automatically attaching the record, the full Note, or other records.
+
+Paste or choose screenshots in **Message** using the existing image controls. To ask about a screenshot, attach it to Message even if it already appears in the record. Record screenshots remain preserved during local refinement. They are not automatically sent as chat images or uploaded to Jira.
+
+To request an editable suggestion, describe the change and choose **Refine record**. Open **Review refinement** to compare the title, body, and any finding-field changes. **Apply to editor** changes the local record. Use its ordinary **Save** control to persist the changes, or **Undo refinement** to restore the previous content while it is still eligible. Dismiss an unapplied proposal to keep the record unchanged.
+
+If the editor or saved record changes during refinement, QA Scribe keeps the newer content and explains why it cannot apply or save the old suggestion. Review the current record before requesting another proposal. Resolve applied changes with Save, Undo, or Discard before adding the conversation to Note or starting a new conversation. After a restart, review a recovered suggestion before applying it again.
+
+Record context is limited to 32 KiB per snapshot and 128 KiB across the conversation. An oversized request retains your composer and record edits. Shorten the record, detach its context, or start a new conversation as the error directs.
+
+## Draft Jira work in chat
+
+Ask the coding agent to draft Jira content from the selected record. Review the content, then answer its missing-detail questions. Follow-ups can cover a new issue or subtask, project or parent, configured issue type, and required fields. For Findings, request the exact configured type **Finding subtask**. For Test cases, choose the type you want.
+
+When the agent offers reply choices, click one with an empty composer or type your own answer. A choice sends its visible text. Pending text and images remain intact when a direct choice cannot send. Old choices become inactive once the conversation moves on or their original record is no longer selected.
+
+Preparing an action request fills an editable Message. Review it and choose Send to ask your configured agent to act. Its Jira access and tool permissions remain CLI-owned. Chat shows the agent's reported result and links. Copy on the record remains a clipboard action.

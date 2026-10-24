@@ -1,0 +1,460 @@
+{
+  "events": [
+    {
+      "domReadyAt": 6891,
+      "id": 1,
+      "startedAt": 6806
+    },
+    {
+      "domReadyAt": 7220,
+      "id": 2,
+      "startedAt": 7133
+    },
+    {
+      "domReadyAt": 7524,
+      "id": 3,
+      "startedAt": 7454
+    },
+    {
+      "domReadyAt": 7842,
+      "id": 4,
+      "startedAt": 7756
+    },
+    {
+      "domReadyAt": 8165,
+      "id": 5,
+      "startedAt": 8079
+    },
+    {
+      "domReadyAt": 8467,
+      "id": 6,
+      "startedAt": 8394
+    },
+    {
+      "domReadyAt": 8785,
+      "id": 7,
+      "startedAt": 8713
+    },
+    {
+      "domReadyAt": 9131,
+      "id": 8,
+      "startedAt": 9032
+    },
+    {
+      "domReadyAt": 9442,
+      "id": 9,
+      "startedAt": 9356
+    },
+    {
+      "domReadyAt": 9763,
+      "id": 10,
+      "startedAt": 9678
+    },
+    {
+      "domReadyAt": 10075,
+      "id": 11,
+      "startedAt": 9988
+    },
+    {
+      "domReadyAt": 10413,
+      "id": 12,
+      "startedAt": 10324
+    },
+    {
+      "domReadyAt": 10742,
+      "id": 13,
+      "startedAt": 10653
+    },
+    {
+      "domReadyAt": 11087,
+      "id": 14,
+      "startedAt": 10996
+    },
+    {
+      "domReadyAt": 11428,
+      "id": 15,
+      "startedAt": 11338
+    },
+    {
+      "domReadyAt": 11744,
+      "id": 16,
+      "startedAt": 11661
+    },
+    {
+      "domReadyAt": 12077,
+      "id": 17,
+      "startedAt": 11978
+    },
+    {
+      "domReadyAt": 12383,
+      "id": 18,
+      "startedAt": 12295
+    },
+    {
+      "domReadyAt": 12720,
+      "id": 19,
+      "startedAt": 12620
+    },
+    {
+      "domReadyAt": 13052,
+      "id": 20,
+      "startedAt": 12952
+    }
+  ],
+  "operations": [
+    {
+      "bytes": 190406,
+      "finishedAt": 6830,
+      "kind": "digest",
+      "startedAt": 6807
+    },
+    {
+      "bytes": 190760,
+      "finishedAt": 6860,
+      "kind": "digest",
+      "startedAt": 6855
+    },
+    {
+      "bytes": 190760,
+      "finishedAt": 7152,
+      "kind": "digest",
+      "startedAt": 7133
+    },
+    {
+      "bytes": 190786,
+      "finishedAt": 7191,
+      "kind": "digest",
+      "startedAt": 7174
+    },
+    {
+      "bytes": 190760,
+      "finishedAt": 7192,
+      "kind": "digest",
+      "startedAt": 7192
+    },
+    {
+      "bytes": 190786,
+      "finishedAt": 7474,
+      "kind": "digest",
+      "startedAt": 7454
+    },
+    {
+      "bytes": 190812,
+      "finishedAt": 7496,
+      "kind": "digest",
+      "startedAt": 7482
+    },
+    {
+      "bytes": 190786,
+      "finishedAt": 7501,
+      "kind": "digest",
+      "startedAt": 7496
+    },
+    {
+      "bytes": 190812,
+      "finishedAt": 7775,
+      "kind": "digest",
+      "startedAt": 7756
+    },
+    {
+      "bytes": 190838,
+      "finishedAt": 7814,
+      "kind": "digest",
+      "startedAt": 7796
+    },
+    {
+      "bytes": 190812,
+      "finishedAt": 7819,
+      "kind": "digest",
+      "startedAt": 7814
+    },
+    {
+      "bytes": 190838,
+      "finishedAt": 8099,
+      "kind": "digest",
+      "startedAt": 8079
+    },
+    {
+      "bytes": 190864,
+      "finishedAt": 8124,
+      "kind": "digest",
+      "startedAt": 8109
+    },
+    {
+      "bytes": 190838,
+      "finishedAt": 8130,
+      "kind": "digest",
+      "startedAt": 8124
+    },
+    {
+      "bytes": 190864,
+      "finishedAt": 8417,
+      "kind": "digest",
+      "startedAt": 8394
+    },
+    {
+      "bytes": 190890,
+      "finishedAt": 8440,
+      "kind": "digest",
+      "startedAt": 8426
+    },
+    {
+      "bytes": 190864,
+      "finishedAt": 8444,
+      "kind": "digest",
+      "startedAt": 8440
+    },
+    {
+      "bytes": 190890,
+      "finishedAt": 8736,
+      "kind": "digest",
+      "startedAt": 8714
+    },
+    {
+      "bytes": 190916,
+      "finishedAt": 8758,
+      "kind": "digest",
+      "startedAt": 8744
+    },
+    {
+      "bytes": 190890,
+      "finishedAt": 8758,
+      "kind": "digest",
+      "startedAt": 8758
+    },
+    {
+      "bytes": 190916,
+      "finishedAt": 9054,
+      "kind": "digest",
+      "startedAt": 9033
+    },
+    {
+      "bytes": 190942,
+      "finishedAt": 9076,
+      "kind": "digest",
+      "startedAt": 9076
+    },
+    {
+      "bytes": 190916,
+      "finishedAt": 9093,
+      "kind": "digest",
+      "startedAt": 9076
+    },
+    {
+      "bytes": 190942,
+      "finishedAt": 9377,
+      "kind": "digest",
+      "startedAt": 9356
+    },
+    {
+      "bytes": 190968,
+      "finishedAt": 9398,
+      "kind": "digest",
+      "startedAt": 9398
+    },
+    {
+      "bytes": 190942,
+      "finishedAt": 9415,
+      "kind": "digest",
+      "startedAt": 9398
+    },
+    {
+      "bytes": 190968,
+      "finishedAt": 9701,
+      "kind": "digest",
+      "startedAt": 9678
+    },
+    {
+      "bytes": 190994,
+      "finishedAt": 9724,
+      "kind": "digest",
+      "startedAt": 9710
+    },
+    {
+      "bytes": 190968,
+      "finishedAt": 9729,
+      "kind": "digest",
+      "startedAt": 9724
+    },
+    {
+      "bytes": 190994,
+      "finishedAt": 10009,
+      "kind": "digest",
+      "startedAt": 9988
+    },
+    {
+      "bytes": 191020,
+      "finishedAt": 10048,
+      "kind": "digest",
+      "startedAt": 10031
+    },
+    {
+      "bytes": 190994,
+      "finishedAt": 10048,
+      "kind": "digest",
+      "startedAt": 10048
+    },
+    {
+      "bytes": 191020,
+      "finishedAt": 10345,
+      "kind": "digest",
+      "startedAt": 10324
+    },
+    {
+      "bytes": 191046,
+      "finishedAt": 10384,
+      "kind": "digest",
+      "startedAt": 10366
+    },
+    {
+      "bytes": 191020,
+      "finishedAt": 10389,
+      "kind": "digest",
+      "startedAt": 10384
+    },
+    {
+      "bytes": 191046,
+      "finishedAt": 10675,
+      "kind": "digest",
+      "startedAt": 10654
+    },
+    {
+      "bytes": 191072,
+      "finishedAt": 10699,
+      "kind": "digest",
+      "startedAt": 10698
+    },
+    {
+      "bytes": 191046,
+      "finishedAt": 10704,
+      "kind": "digest",
+      "startedAt": 10699
+    },
+    {
+      "bytes": 191072,
+      "finishedAt": 11021,
+      "kind": "digest",
+      "startedAt": 10996
+    },
+    {
+      "bytes": 191098,
+      "finishedAt": 11042,
+      "kind": "digest",
+      "startedAt": 11042
+    },
+    {
+      "bytes": 191072,
+      "finishedAt": 11059,
+      "kind": "digest",
+      "startedAt": 11042
+    },
+    {
+      "bytes": 191098,
+      "finishedAt": 11360,
+      "kind": "digest",
+      "startedAt": 11338
+    },
+    {
+      "bytes": 191124,
+      "finishedAt": 11400,
+      "kind": "digest",
+      "startedAt": 11383
+    },
+    {
+      "bytes": 191098,
+      "finishedAt": 11401,
+      "kind": "digest",
+      "startedAt": 11401
+    },
+    {
+      "bytes": 191124,
+      "finishedAt": 11683,
+      "kind": "digest",
+      "startedAt": 11661
+    },
+    {
+      "bytes": 191150,
+      "finishedAt": 11705,
+      "kind": "digest",
+      "startedAt": 11692
+    },
+    {
+      "bytes": 191124,
+      "finishedAt": 11710,
+      "kind": "digest",
+      "startedAt": 11705
+    },
+    {
+      "bytes": 191150,
+      "finishedAt": 12000,
+      "kind": "digest",
+      "startedAt": 11978
+    },
+    {
+      "bytes": 191176,
+      "finishedAt": 12038,
+      "kind": "digest",
+      "startedAt": 12021
+    },
+    {
+      "bytes": 191150,
+      "finishedAt": 12042,
+      "kind": "digest",
+      "startedAt": 12038
+    },
+    {
+      "bytes": 191176,
+      "finishedAt": 12317,
+      "kind": "digest",
+      "startedAt": 12296
+    },
+    {
+      "bytes": 191202,
+      "finishedAt": 12356,
+      "kind": "digest",
+      "startedAt": 12339
+    },
+    {
+      "bytes": 191176,
+      "finishedAt": 12356,
+      "kind": "digest",
+      "startedAt": 12356
+    },
+    {
+      "bytes": 191202,
+      "finishedAt": 12642,
+      "kind": "digest",
+      "startedAt": 12620
+    },
+    {
+      "bytes": 191228,
+      "finishedAt": 12680,
+      "kind": "digest",
+      "startedAt": 12663
+    },
+    {
+      "bytes": 191202,
+      "finishedAt": 12685,
+      "kind": "digest",
+      "startedAt": 12680
+    },
+    {
+      "bytes": 191228,
+      "finishedAt": 12974,
+      "kind": "digest",
+      "startedAt": 12952
+    },
+    {
+      "bytes": 191254,
+      "finishedAt": 13013,
+      "kind": "digest",
+      "startedAt": 12996
+    },
+    {
+      "bytes": 191228,
+      "finishedAt": 13017,
+      "kind": "digest",
+      "startedAt": 13013
+    }
+  ]
+}
