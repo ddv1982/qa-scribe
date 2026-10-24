@@ -1,0 +1,98 @@
+diff --git a/dist/cjs/index.js b/dist/cjs/index.js
+index 199d9ee179defe66f659ca67246db54a34e175ca..3eccf88186ceeb0ba388523413c97a124d31d14a 100644
+--- a/dist/cjs/index.js
++++ b/dist/cjs/index.js
+@@ -1139,11 +1139,17 @@ async function diagnoseTauriEnvironment(binaryPath, options = {}) {
+     return results;
+ }
+ async function diagnoseDriver(options) {
++    if (isEmbeddedProvider(options)) {
++        return [
++            {
++                category: 'Tauri Driver',
++                status: 'ok',
++                message: 'Embedded WebDriver server (tauri-plugin-wdio-webdriver) — no external driver required',
++            },
++        ];
++    }
+     const results = [];
+-    const driverOptions = {
+-        autoInstallTauriDriver: options.autoInstallTauriDriver,
+-    };
+-    const driverResult = await ensureTauriDriver(driverOptions);
++    const driverResult = await ensureTauriDriver(options);
+     if (nativeUtils.isErr(driverResult)) {
+         results.push({
+             category: 'Tauri Driver',
+@@ -2435,8 +2441,7 @@ class TauriLaunchService {
+         if (this.isEmbeddedMode && !this.perWorkerMode) {
+             await this.ensureEmbeddedServersHealthy();
+         }
+-        // Run environment diagnostics
+-        await this.diagnoseEnvironment(this.appBinaryPath);
++        await this.diagnoseEnvironment(this.appBinaryPath, mergeOptions(this.options, firstCap['wdio:tauriServiceOptions']));
+         log$6.debug(`Tauri worker session started: ${cid}`);
+     }
+     /**
+@@ -2503,10 +2508,8 @@ class TauriLaunchService {
+     /**
+      * Diagnose the environment before running tests
+      */
+-    async diagnoseEnvironment(binaryPath) {
+-        const results = await diagnoseTauriEnvironment(binaryPath, {
+-            autoInstallTauriDriver: this.options.autoInstallTauriDriver,
+-        });
++    async diagnoseEnvironment(binaryPath, options) {
++        const results = await diagnoseTauriEnvironment(binaryPath, options);
+         nativeUtils.formatDiagnosticResults(results);
+     }
+     /**
+diff --git a/dist/esm/index.js b/dist/esm/index.js
+index 96bcb93875968ed51ed17cc9ceeca59eacc20bf1..61f939167d8126919e0d191dbeb77fdeb01ea407 100644
+--- a/dist/esm/index.js
++++ b/dist/esm/index.js
+@@ -1135,11 +1135,17 @@ async function diagnoseTauriEnvironment(binaryPath, options = {}) {
+     return results;
+ }
+ async function diagnoseDriver(options) {
++    if (isEmbeddedProvider(options)) {
++        return [
++            {
++                category: 'Tauri Driver',
++                status: 'ok',
++                message: 'Embedded WebDriver server (tauri-plugin-wdio-webdriver) — no external driver required',
++            },
++        ];
++    }
+     const results = [];
+-    const driverOptions = {
+-        autoInstallTauriDriver: options.autoInstallTauriDriver,
+-    };
+-    const driverResult = await ensureTauriDriver(driverOptions);
++    const driverResult = await ensureTauriDriver(options);
+     if (isErr(driverResult)) {
+         results.push({
+             category: 'Tauri Driver',
+@@ -2431,8 +2437,7 @@ class TauriLaunchService {
+         if (this.isEmbeddedMode && !this.perWorkerMode) {
+             await this.ensureEmbeddedServersHealthy();
+         }
+-        // Run environment diagnostics
+-        await this.diagnoseEnvironment(this.appBinaryPath);
++        await this.diagnoseEnvironment(this.appBinaryPath, mergeOptions(this.options, firstCap['wdio:tauriServiceOptions']));
+         log$6.debug(`Tauri worker session started: ${cid}`);
+     }
+     /**
+@@ -2499,10 +2504,8 @@ class TauriLaunchService {
+     /**
+      * Diagnose the environment before running tests
+      */
+-    async diagnoseEnvironment(binaryPath) {
+-        const results = await diagnoseTauriEnvironment(binaryPath, {
+-            autoInstallTauriDriver: this.options.autoInstallTauriDriver,
+-        });
++    async diagnoseEnvironment(binaryPath, options) {
++        const results = await diagnoseTauriEnvironment(binaryPath, options);
+         formatDiagnosticResults(results);
+     }
+     /**

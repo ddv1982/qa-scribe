@@ -15,6 +15,7 @@
     "preview": "vite preview",
     "typecheck:watch": "node ../scripts/run-frontend-dev.mjs watch",
     "dev:checked": "node ../scripts/run-frontend-dev.mjs checked",
+    "preinstall": "node ../scripts/check-tauri-diagnostic-patch.mjs",
     "postinstall": "node ../scripts/prepare-rust-typescript-sdk.mjs",
     "sdk:prepare": "node ../scripts/prepare-rust-typescript-sdk.mjs"
   },
@@ -76,5 +77,8 @@
     "prosemirror-view": "1.42.6",
     "source-map-js": "1.2.2",
     "serialize-javascript": "7.0.7"
+  },
+  "patchedDependencies": {
+    "@wdio/tauri-service@1.2.0": "patches/@wdio%2Ftauri-service@1.2.0.patch"
   }
 }

@@ -52,6 +52,9 @@
       },
     },
   },
+  "patchedDependencies": {
+    "@wdio/tauri-service@1.2.0": "patches/@wdio%2Ftauri-service@1.2.0.patch",
+  },
   "overrides": {
     "@puppeteer/browsers": "3.2.3",
     "@wdio/native-utils": "2.5.0",
