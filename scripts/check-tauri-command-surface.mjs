@@ -20,7 +20,7 @@ const buildBlock = requiredMatch(buildSource, /const COMMANDS: &\[&str\] = &\[([
 const buildCommands = matches(buildBlock, /"([a-z0-9_]+)"/g)
 
 const spectaBlock = requiredMatch(spectaSource, /\.commands\(collect_commands!\[([\s\S]*?)\]\)/, 'Specta collect_commands')[1]
-const spectaCommands = matches(spectaBlock, /commands(?:::[a-z0-9_]+)+::([a-z0-9_]+),/g)
+const spectaCommands = matches(spectaBlock, /commands(?:::[a-z0-9_]+)+::([a-z0-9_]+)(?:::<tauri::Wry>)?,/g)
 
 const bindingCommands = matches(bindingsSource, /__TAURI_INVOKE<[^>]+>\("([a-z0-9_]+)"/g)
 const defaultPermissions = matches(permissionSource, /"allow-([a-z0-9-]+)"/g).map((name) => name.replaceAll('-', '_'))

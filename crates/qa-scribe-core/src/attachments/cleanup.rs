@@ -16,13 +16,20 @@ pub fn delete_session_with_attachment_files(
     retry_attachment_cleanup(service, app_data_dir)
 }
 
-/// Attempts at most 50 queued paths, rotating failures behind unattempted work.
+/// Attempts at most 50 paths per queue, rotating failures behind unattempted work.
 /// Database failures mean status is unavailable, not that deletion rolled back.
 pub fn retry_attachment_cleanup(
     service: &SessionService,
     app_data_dir: impl AsRef<Path>,
 ) -> Result<AttachmentCleanupStatus> {
-    let pending_files = cleanup_batch(service, app_data_dir.as_ref()).ok();
+    let pending_files = (|| {
+        let session_pending = cleanup_batch(service, app_data_dir.as_ref())?;
+        let chat_pending = super::chat_cleanup::retry(service, app_data_dir.as_ref())?;
+        session_pending
+            .checked_add(chat_pending)
+            .ok_or_else(|| validation("attachment cleanup count exceeds supported range"))
+    })()
+    .ok();
     Ok(AttachmentCleanupStatus { pending_files })
 }
 

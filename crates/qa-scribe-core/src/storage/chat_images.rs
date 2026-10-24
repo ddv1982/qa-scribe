@@ -91,3 +91,13 @@ WHEN EXISTS (SELECT 1 FROM chat_composer_images WHERE attachment_id = OLD.id)
   OR EXISTS (SELECT 1 FROM chat_message_images WHERE attachment_id = OLD.id)
 BEGIN SELECT RAISE(ABORT, 'Chat image attachment is immutable'); END;
 "#;
+
+pub(super) const CLEANUP: &str = r#"
+CREATE TABLE chat_image_cleanup (
+  relative_path TEXT PRIMARY KEY NOT NULL,
+  session_id TEXT NOT NULL,
+  attempt_count INTEGER NOT NULL DEFAULT 0 CHECK (attempt_count >= 0)
+);
+CREATE INDEX idx_chat_image_cleanup_attempt_order ON chat_image_cleanup(attempt_count, relative_path);
+CREATE INDEX idx_attachments_relative_path ON attachments(relative_path);
+"#;

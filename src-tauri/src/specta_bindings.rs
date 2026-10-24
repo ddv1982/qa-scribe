@@ -65,7 +65,7 @@ pub fn builder() -> Builder<tauri::Wry> {
             commands::sessions::delete_session,
             commands::sessions::retry_attachment_cleanup,
             commands::chat::get_chat,
-            commands::chat::save_chat_composer,
+            commands::chat::save_chat_composer::<tauri::Wry>,
             commands::chat::import_chat_image,
             commands::chat::restart_chat,
             commands::chat::submit_chat,

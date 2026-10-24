@@ -46,7 +46,13 @@ fn real_encoded_image_aggregate_stops_before_fourth_and_failed_sql_import_cleans
         import_chat_image_data_url(&service, &dir, scope(&removed), "failed.png".into(), &data)
             .is_err()
     );
-    assert_eq!(service.list_attachments(&sid).unwrap().len(), 3);
+    assert!(service.list_attachments(&sid).unwrap().is_empty());
+    assert_eq!(
+        qa_scribe_core::attachments::retry_attachment_cleanup(&service, &dir)
+            .unwrap()
+            .pending_files,
+        Some(0)
+    );
     assert_eq!(service.load_chat(&sid).unwrap(), removed);
     assert_eq!(
         reconcile_attachment_files(&service, &dir)

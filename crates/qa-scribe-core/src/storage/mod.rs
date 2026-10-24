@@ -69,7 +69,7 @@ pub fn with_immediate_tx<T>(
 /// final time, and settles on a `user_version` this build can trust from then
 /// on. Once every database in the wild has passed through this once, future
 /// bumps can go strictly by increment again.
-pub const SCHEMA_VERSION: i32 = 14;
+pub const SCHEMA_VERSION: i32 = 15;
 
 fn initialize(connection: &Connection) -> Result<()> {
     let initialize_started = Instant::now();
@@ -111,6 +111,9 @@ fn initialize(connection: &Connection) -> Result<()> {
         ensure_chat_run_association_supported(tx)?;
         if migrations_run {
             chat_images::migrate(tx)?;
+        }
+        if found < 15 {
+            tx.execute_batch(chat_images::CLEANUP)?;
         }
         creation::ensure_note_revision_supported(tx)?;
         tx.execute_batch(chat_images::RELATIONSHIPS)?;

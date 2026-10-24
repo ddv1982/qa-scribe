@@ -11,6 +11,8 @@ use crate::{
     settings::AppState,
 };
 
+#[cfg(test)]
+mod composer_tests;
 mod image_import;
 #[cfg(test)]
 mod image_preflight_tests;
@@ -189,11 +191,22 @@ pub fn get_chat(state: State<'_, AppState>, session_id: String) -> Result<ChatSt
 
 #[tauri::command]
 #[specta::specta]
-pub fn save_chat_composer(
-    state: State<'_, AppState>,
+pub async fn save_chat_composer<R: tauri::Runtime>(
+    app: AppHandle<R>,
     request: ChatComposerRequest,
 ) -> Result<ChatState, CommandError> {
-    state.with_service(|service| service.save_chat_composer(request))
+    super::files::attachment_task("Chat composer save", move || {
+        use tauri::Manager;
+        let state = app.state::<AppState>();
+        state.with_service(|service| {
+            qa_scribe_core::attachments::chat_cleanup::save_chat_composer_with_cleanup(
+                service,
+                state.app_data_dir(),
+                request,
+            )
+        })
+    })
+    .await
 }
 
 #[tauri::command]

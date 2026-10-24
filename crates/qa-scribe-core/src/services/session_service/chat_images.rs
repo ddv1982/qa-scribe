@@ -39,7 +39,11 @@ fn capacity(chat: &ChatState, count: usize, bytes: usize) -> Result<()> {
     rows::editable(chat)
 }
 
-pub(super) fn replace(connection: &Connection, chat: &ChatState, ids: &[String]) -> Result<()> {
+pub(super) fn replace(
+    connection: &Connection,
+    chat: &ChatState,
+    ids: &[String],
+) -> Result<Vec<String>> {
     let mut seen = std::collections::HashSet::new();
     let mut bytes = 0usize;
     for id in ids {
@@ -63,7 +67,39 @@ pub(super) fn replace(connection: &Connection, chat: &ChatState, ids: &[String])
     for (ordinal, id) in ids.iter().enumerate() {
         connection.execute("INSERT INTO chat_composer_images (draft_id, attachment_id, ordinal) VALUES (?1, ?2, ?3)", params![chat.draft_id, id, ordinal as i32])?;
     }
-    Ok(())
+    let mut released = Vec::new();
+    for image in &chat.composer_images {
+        if seen.contains(&image.attachment_id)
+            || attachments::attachment_is_referenced_on(connection, &image.attachment_id)?
+        {
+            continue;
+        }
+        let attachment = attachments::attachment_on(connection, &image.attachment_id)?
+            .ok_or_else(|| validation("Released Chat image is missing"))?;
+        if !crate::attachments::is_exact_attachment_path(
+            &attachment.relative_path,
+            &chat.session_id,
+        ) {
+            return Err(validation("Released Chat image path is invalid"));
+        }
+        connection.execute(
+            "INSERT INTO chat_image_cleanup (relative_path, session_id) VALUES (?1, ?2)
+             ON CONFLICT(relative_path) DO NOTHING",
+            params![attachment.relative_path, chat.session_id],
+        )?;
+        let queued: bool = connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM chat_image_cleanup WHERE relative_path = ?1 AND session_id = ?2)",
+            params![attachment.relative_path, chat.session_id],
+            |row| row.get(0),
+        )?;
+        let deleted =
+            connection.execute("DELETE FROM attachments WHERE id = ?1", [&attachment.id])?;
+        if !queued || deleted != 1 {
+            return Err(validation("Chat image release could not be stored"));
+        }
+        released.push(attachment.relative_path);
+    }
+    Ok(released)
 }
 
 impl SessionService {

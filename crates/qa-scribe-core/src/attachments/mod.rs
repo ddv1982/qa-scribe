@@ -18,6 +18,7 @@ use crate::{
 pub const MAX_ATTACHMENT_BYTES: u64 = 25 * 1024 * 1024;
 
 pub mod chat;
+pub mod chat_cleanup;
 pub mod chat_imports;
 mod cleanup;
 pub mod creation;

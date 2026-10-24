@@ -41,7 +41,7 @@ The regression census is `frontend/src/app/useAppController.chat.images.test.ts`
 
 ## Delivery and qualification
 
-The three feature units ship as ordered commits in one release PR. This keeps schema 14, generated bindings, and the composer controls in one installable change. Their separate implementation and review checkpoints remain recorded.
+The three feature units ship as ordered commits in one release PR. This keeps schema 15, generated bindings, and the composer controls in one installable change. Their separate implementation and review checkpoints remain recorded.
 
 The managed image store is shared with Notes. Chat owns ordered composer and message relationships. Copilot image starts are rejected before persistence until its initialized peer can negotiate capability before consuming a draft. Text-only Copilot Chat remains available. Claude image payloads have fixture coverage; authenticated live Claude vision was unavailable on this host. Codex 0.164.0 identified the colors in an actual pasted 3840 by 2160 synthetic screenshot.
 
