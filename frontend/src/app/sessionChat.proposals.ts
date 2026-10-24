@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { getChat, resolveRefinement, type RefinementAction, type RefinementProposal } from '../tauri'
+import { getChat, resolveRefinement, type RefinementAction, type RefinementProposal, type RecordWriteGuard } from '../tauri'
 import { parseRichEditorDocument, preserveManagedImageNodes, richEditorDocumentToStoredBody } from '../editor/editorDocument'
 import { editorKey, editorValue } from './recordWriteGuards'
 import { formatError } from '../ui/format'
@@ -28,6 +28,14 @@ type Context = {
   feedback: RecordActionsContext['feedback']
 }
 
+function editorBase(proposal: RefinementProposal): Pick<RecordWriteGuard, 'sessionId' | 'expectedStoredBase'> {
+  if (proposal.target.kind === 'session') throw new Error('This proposal has no record context.')
+  const snapshot = proposal.target.snapshot
+  const expectedStoredBase = snapshot.storedBaseToken ?? ('stage' in proposal.state ? proposal.state.stage.storedBaseToken : undefined)
+  if (!expectedStoredBase) throw new Error('This proposal has no stored record base. Request a new refinement.')
+  return { sessionId: snapshot.sessionId, expectedStoredBase }
+}
+
 export function useRefinementController(context: Context): SessionChatViewState {
   const live = useRef(context)
   useEffect(() => { live.current = context }, [context])
@@ -49,7 +57,7 @@ export function useRefinementController(context: Context): SessionChatViewState 
     if (!record || record.sessionId !== snapshot.sessionId) throw new Error('This record was deleted or is no longer available.')
     const intent = kind === 'finding' ? ctx.persistence.coordination.findingIntents.get(record.id) : ctx.persistence.coordination.draftIntents.get(record.id)
     if (intent?.kind === 'delete' || ctx.persistence.coordination.hasPendingRecordCompensations()) throw new Error('Wait for pending record writes before applying this proposal.')
-    return { ctx, record, kind, generation: intent?.generation ?? 0, key: editorKey(editorValue(record)) }
+    return { ctx, record, kind, base: editorBase(proposal), generation: intent?.generation ?? 0, key: editorKey(editorValue(record)) }
   }
 
   async function onAction(id: string, action: RefinementAction) {
@@ -86,7 +94,11 @@ export function useRefinementController(context: Context): SessionChatViewState 
           if (latest.kind === 'finding') latest.ctx.actions.updateLocalFinding(latest.record.id, { ...patch, metadataJson: proposal.before.metadataJson })
           else latest.ctx.actions.updateLocalDraft(latest.record.id, patch)
         }
-        latest.ctx.persistence.coordination.clearStage(latest.kind, latest.record.id)
+        latest.ctx.persistence.coordination.releaseStage(latest.kind, latest.record.id, latest.base)
+      }
+      if (action === 'abandon' && proposal.target.kind !== 'session') {
+        const snapshot = proposal.target.snapshot
+        live.current.persistence.coordination.releaseStage(proposal.target.kind === 'finding' ? 'finding' : 'draft', snapshot.recordId, editorBase(proposal))
       }
       const result = await resolveRefinement({ scope: { sessionId: fresh.sessionId, draftId: fresh.draftId, expectedRevision: fresh.revision }, proposalId: id, action })
       const resolved = result.proposals?.find(item => item.id === id)
@@ -100,9 +112,8 @@ export function useRefinementController(context: Context): SessionChatViewState 
         if (!document || !beforeDocument) throw new Error('The reviewed document is unavailable. Request another refinement.')
         const body = richEditorDocumentToStoredBody(preserveManagedImageNodes(beforeDocument, document))
         if (resolved.state.kind === 'staged') {
-          latest.ctx.persistence.coordination.proposalStages.set(`${latest.kind}:${latest.record.id}`, resolved.state.stage)
-          latest.ctx.persistence.coordination.latestWriteGuards.delete(`${latest.kind}:${latest.record.id}`)
-        } else latest.ctx.persistence.coordination.clearStage(latest.kind, latest.record.id)
+          latest.ctx.persistence.coordination.bindStage(latest.kind, latest.record.id, latest.record.sessionId, resolved.state.stage)
+        } else latest.ctx.persistence.coordination.releaseStage(latest.kind, latest.record.id, latest.base)
         const patch = { title: value.title, ...body }
         if (latest.kind === 'finding') latest.ctx.actions.updateLocalFinding(latest.record.id, { ...patch, metadataJson: value.metadataJson })
         else latest.ctx.actions.updateLocalDraft(latest.record.id, patch)

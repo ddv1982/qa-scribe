@@ -11,6 +11,8 @@ import type { RecordPersistenceContext } from './recordPersistence'
 
 export type RecordAttachmentOwner = { kind: 'draft' | 'finding'; id: string }
 
+type EditorWriteBase = Pick<RecordWriteGuard, 'sessionId' | 'expectedStoredBase'>
+
 type RecordIntent<T> = {
   generation: number
   kind: 'save' | 'discard' | 'canonicalize' | 'delete'
@@ -248,6 +250,21 @@ export function createRecordActionCoordination(ctx: RecordPersistenceContext) {
     }
   }
 
+  function bindStage(kind: 'finding' | 'draft', id: string, sessionId: string, stage: EditorStage) {
+    const key = `${kind}:${id}`
+    const pinned = latestWriteGuards.get(key)
+    proposalStages.set(key, stage)
+    latestWriteGuards.set(key, { sessionId, expectedStoredBase: pinned?.expectedStoredBase ?? stage.storedBaseToken, origin: { kind: 'proposal', stageId: stage.id } })
+  }
+
+  function releaseStage(kind: 'finding' | 'draft', id: string, base: EditorWriteBase) {
+    const key = `${kind}:${id}`
+    const pinned = latestWriteGuards.get(key) ?? base
+    latestWriteGuards.set(key, { sessionId: pinned.sessionId, expectedStoredBase: pinned.expectedStoredBase, origin: { kind: 'editor' } })
+    proposalStages.delete(key)
+    events.onChanged()
+  }
+
   function clearStage(kind: 'finding' | 'draft', id: string, reason: 'saved' | 'discard' = 'saved') {
     proposalStages.delete(`${kind}:${id}`)
     latestWriteGuards.delete(`${kind}:${id}`)
@@ -268,7 +285,7 @@ export function createRecordActionCoordination(ctx: RecordPersistenceContext) {
 
   return {
     subscribeChanges, beginRecordOperation,
-    proposalStages, latestWriteGuards, events, adoptConflict, guardFor, confirmedWrite, clearStage,
+    proposalStages, latestWriteGuards, bindStage, releaseStage, events, adoptConflict, guardFor, confirmedWrite, clearStage,
     attachmentsNotReferencedByRecord,
     draftIntents,
     draftPersistencePatch,

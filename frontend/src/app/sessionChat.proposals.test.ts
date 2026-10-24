@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it } from 'vitest'
-import type { ChatState, RefinementProposal, RefinementRequest } from '../bindings'
+import type { ChatState, DraftPatch, FindingPatch, RecordWriteGuard, RefinementProposal, RefinementRequest } from '../bindings'
 import { draftFixture, findingFixture } from '../test/fixtures'
 import { richEditorDocumentFromPlainText, richEditorDocumentToStoredBody } from '../editor/editorDocument'
 import { editorValue, recordWriteGuard, RecordWriteConflict } from './recordWriteGuards'
@@ -142,4 +142,162 @@ it('edits made during the Undo status await remain saveable under the original s
   api.updateFinding.mockResolvedValue(findingFixture({ title: 'Edit during Undo status' }))
   await act(async () => { await result.current.handleSaveFinding(result.current.findings[0]) })
   expect(api.updateFinding).toHaveBeenCalledWith(record.id, expect.objectContaining({ title: 'Edit during Undo status' }), { sessionId: record.sessionId, expectedStoredBase: base.expectedStoredBase, origin: { kind: 'editor' } })
+})
+
+async function saveCurrent(controller: ReturnType<typeof useAppController>, kind: 'finding' | 'test_cases_draft') {
+  return kind === 'finding' ? controller.handleSaveFinding(controller.findings[0]) : controller.handleSaveDraft(controller.testwareDrafts[0])
+}
+
+function currentRecord(controller: ReturnType<typeof useAppController>, kind: 'finding' | 'test_cases_draft') {
+  return kind === 'finding' ? controller.findings[0] : controller.testwareDrafts[0]
+}
+
+function storageOutcome(record: ReturnType<typeof findingFixture> | ReturnType<typeof draftFixture>, kind: 'finding' | 'test_cases_draft') {
+  let persisted = record
+  const write = async (_id: string, patch: FindingPatch | DraftPatch, guard: RecordWriteGuard) => {
+    const expected = await recordWriteGuard(persisted, kind === 'finding' ? 'findings' : 'drafts')
+    if (guard.expectedStoredBase !== expected.expectedStoredBase) throw new RecordWriteConflict(persisted)
+    persisted = { ...persisted, title: patch.title ?? persisted.title, body: patch.body ?? persisted.body,
+      bodyJson: patch.bodyJson === undefined ? persisted.bodyJson : patch.bodyJson,
+      bodyFormat: patch.bodyFormat === undefined ? persisted.bodyFormat : patch.bodyFormat,
+      metadataJson: patch.metadataJson === undefined ? persisted.metadataJson : patch.metadataJson }
+    return persisted
+  }
+  return { write, read: () => persisted }
+}
+
+it.each(['finding', 'test_cases_draft'] as const)('%s Conflict then Undo then Save retains B and the original editor base', async kind => {
+  const { result, record, base } = await open(kind)
+  await act(async () => { await result.current.sessionChat.proposalControls!.onAction('proposal-1', 'stage') })
+  const remote = { ...record, title: 'Newer stored title', ...richEditorDocumentToStoredBody(richEditorDocumentFromPlainText('Newer stored body B')) }
+  const storage = storageOutcome(remote, kind)
+  const save = kind === 'finding' ? api.updateFinding : api.updateDraft
+  save.mockImplementation(storage.write)
+  await act(async () => { await saveCurrent(result.current, kind) })
+  expect(storage.read().title).toBe('Newer stored title')
+  await act(async () => { await result.current.sessionChat.proposalControls!.onAction('proposal-1', 'undo') })
+  expect(currentRecord(result.current, kind).title).toBe(record.title)
+  let saved = true
+  await act(async () => { saved = await saveCurrent(result.current, kind) })
+  expect(storage.read().title).toBe('Newer stored title')
+  expect(storage.read().body).toBe('<p>Newer stored body B</p>')
+  expect(storage.read()).toEqual(remote)
+  expect(saved).toBe(false)
+  expect(save.mock.calls.at(-1)?.[2]).toEqual({ sessionId: record.sessionId, expectedStoredBase: base.expectedStoredBase, origin: { kind: 'editor' } })
+  expect(save).toHaveBeenCalledTimes(2)
+})
+
+function editTitle(controller: ReturnType<typeof useAppController>, kind: 'finding' | 'test_cases_draft', title: string) {
+  const record = currentRecord(controller, kind)
+  if (kind === 'finding') controller.updateLocalFinding(record.id, { title })
+  else controller.updateLocalDraft(record.id, { title })
+}
+
+function discardCurrent(controller: ReturnType<typeof useAppController>, kind: 'finding' | 'test_cases_draft') {
+  if (kind === 'finding') controller.discardLocalFinding(controller.findings[0])
+  else controller.discardLocalDraft(controller.testwareDrafts[0])
+}
+
+it.each(['finding', 'test_cases_draft'] as const)('%s retains the old base after conflict, failed Undo status and abandonment', async kind => {
+  const { result, record, base } = await open(kind)
+  await act(async () => { await result.current.sessionChat.proposalControls!.onAction('proposal-1', 'stage') })
+  const remote = { ...record, title: 'Newer stored title', ...richEditorDocumentToStoredBody(richEditorDocumentFromPlainText('Newer stored body B')) }
+  const storage = storageOutcome(remote, kind)
+  const save = kind === 'finding' ? api.updateFinding : api.updateDraft
+  save.mockImplementation(storage.write)
+  await act(async () => { await saveCurrent(result.current, kind) })
+  let rejectUndo!: (cause: Error) => void
+  const status = new Promise<ChatState>((_resolve, reject) => { rejectUndo = reject })
+  api.resolveRefinement.mockReturnValueOnce(status)
+  let undoing!: Promise<void>
+  act(() => { undoing = result.current.sessionChat.proposalControls!.onAction('proposal-1', 'undo') })
+  await waitFor(() => expect(api.resolveRefinement).toHaveBeenCalledTimes(2))
+  act(() => editTitle(result.current, kind, 'Later local edit during failed Undo'))
+  await act(async () => { rejectUndo(new Error('Synthetic Undo status write failed')); await undoing })
+  expect(currentRecord(result.current, kind).title).toBe('Later local edit during failed Undo')
+  let saved = true
+  await act(async () => { saved = await saveCurrent(result.current, kind) })
+  expect(storage.read()).toEqual(remote)
+  expect(saved).toBe(false)
+  expect(save.mock.calls.at(-1)?.[2]).toEqual({ sessionId: record.sessionId, expectedStoredBase: base.expectedStoredBase, origin: { kind: 'editor' } })
+  await act(async () => { await result.current.sessionChat.proposalControls!.onAction('proposal-1', 'abandon') })
+  await act(async () => { saved = await saveCurrent(result.current, kind) })
+  expect(storage.read().title).toBe('Newer stored title')
+  expect(storage.read().body).toBe('<p>Newer stored body B</p>')
+  expect(currentRecord(result.current, kind).title).toBe('Later local edit during failed Undo')
+  expect(saved).toBe(false)
+  expect(save.mock.calls.at(-1)?.[2]).toEqual({ sessionId: record.sessionId, expectedStoredBase: base.expectedStoredBase, origin: { kind: 'editor' } })
+  expect(save).toHaveBeenCalledTimes(3)
+})
+
+it.each(['finding', 'test_cases_draft'] as const)('%s explicit Discard releases the old base and permits an edit of B', async kind => {
+  const { result, record } = await open(kind)
+  await act(async () => { await result.current.sessionChat.proposalControls!.onAction('proposal-1', 'stage') })
+  const remote = { ...record, title: 'Newer stored title', ...richEditorDocumentToStoredBody(richEditorDocumentFromPlainText('Newer stored body B')) }
+  const storage = storageOutcome(remote, kind)
+  const save = kind === 'finding' ? api.updateFinding : api.updateDraft
+  save.mockImplementation(storage.write)
+  await act(async () => { await saveCurrent(result.current, kind) })
+  await act(async () => { await result.current.sessionChat.proposalControls!.onAction('proposal-1', 'undo') })
+  act(() => discardCurrent(result.current, kind))
+  expect(editorValue(currentRecord(result.current, kind))).toEqual(editorValue(remote))
+  act(() => editTitle(result.current, kind, 'Edited after reviewing B'))
+  let saved = false
+  await act(async () => { saved = await saveCurrent(result.current, kind) })
+  expect(storage.read().title).toBe('Edited after reviewing B')
+  expect(storage.read().body).toBe('<p>Newer stored body B</p>')
+  expect(saved).toBe(true)
+  expect(save.mock.calls.at(-1)?.[2]).toEqual(await recordWriteGuard(remote, kind === 'finding' ? 'findings' : 'drafts'))
+})
+
+it.each([['finding', false], ['finding', true], ['test_cases_draft', false], ['test_cases_draft', true]] as const)('%s nonconflict Undo remains saveable and confirmed writes advance the base; status failure %s', async (kind, statusFailure) => {
+  const { result, record, base } = await open(kind)
+  const storage = storageOutcome(record, kind)
+  const save = kind === 'finding' ? api.updateFinding : api.updateDraft
+  save.mockImplementation(storage.write)
+  await act(async () => { await result.current.sessionChat.proposalControls!.onAction('proposal-1', 'stage') })
+  if (statusFailure) api.resolveRefinement.mockRejectedValueOnce(new Error('Synthetic Undo status write failed'))
+  await act(async () => { await result.current.sessionChat.proposalControls!.onAction('proposal-1', 'undo') })
+  act(() => editTitle(result.current, kind, 'Saved after Undo'))
+  let saved = false
+  await act(async () => { saved = await saveCurrent(result.current, kind) })
+  expect(saved).toBe(true)
+  expect(storage.read().title).toBe('Saved after Undo')
+  expect(save.mock.calls.at(-1)?.[2]).toEqual({ sessionId: record.sessionId, expectedStoredBase: base.expectedStoredBase, origin: { kind: 'editor' } })
+  const nextBase = await recordWriteGuard(storage.read(), kind === 'finding' ? 'findings' : 'drafts')
+  act(() => editTitle(result.current, kind, 'Saved after a confirmed write'))
+  await act(async () => { saved = await saveCurrent(result.current, kind) })
+  expect(saved).toBe(true)
+  expect(storage.read().title).toBe('Saved after a confirmed write')
+  expect(save.mock.calls.at(-1)?.[2]).toEqual(nextBase)
+})
+
+it.each([['finding', false], ['finding', true], ['test_cases_draft', false], ['test_cases_draft', true]] as const)('%s a replacement stage cannot rebase retained edits onto B; recovered %s', async (kind, recovered) => {
+  const { result, record, proposal, after, base, setChat } = await open(kind)
+  await act(async () => { await result.current.sessionChat.proposalControls!.onAction('proposal-1', 'stage') })
+  const remote = { ...record, title: 'Newer stored title', ...richEditorDocumentToStoredBody(richEditorDocumentFromPlainText('Newer stored body B')) }
+  const remoteBase = await recordWriteGuard(remote, kind === 'finding' ? 'findings' : 'drafts')
+  const storage = storageOutcome(remote, kind)
+  const save = kind === 'finding' ? api.updateFinding : api.updateDraft
+  save.mockImplementation(storage.write)
+  await act(async () => { await saveCurrent(result.current, kind) })
+  await act(async () => { await result.current.sessionChat.proposalControls!.onAction('proposal-1', 'undo') })
+  if (proposal.target.kind === 'session') throw new Error('Missing record context')
+  const replacement: RefinementProposal = { ...proposal, id: 'proposal-2', target: { ...proposal.target, snapshot: { ...proposal.target.snapshot, storedBaseToken: remoteBase.expectedStoredBase } }, state: recovered ? { kind: 'staged', stage: { id: 'stage-2', before: proposal.before, after, storedBaseToken: remoteBase.expectedStoredBase } } : { kind: 'offered' } }
+  const offered = chatFixture({ draftId: 'chat-session-1', revision: 3, proposals: [replacement] })
+  setChat(offered)
+  await act(async () => { await result.current.sessionChat.onRefresh?.() })
+  api.resolveRefinement.mockImplementationOnce(async () => {
+    const staged = chatFixture({ ...offered, revision: offered.revision + 1, proposals: [{ ...replacement, state: { kind: 'staged', stage: { id: 'stage-2', before: proposal.before, after, storedBaseToken: remoteBase.expectedStoredBase } } }] })
+    setChat(staged)
+    return staged
+  })
+  await act(async () => { await result.current.sessionChat.proposalControls!.onAction('proposal-2', 'stage') })
+  expect(currentRecord(result.current, kind).title).toBe('Refined title')
+  let saved = true
+  await act(async () => { saved = await saveCurrent(result.current, kind) })
+  expect(storage.read().title).toBe('Newer stored title')
+  expect(storage.read().body).toBe('<p>Newer stored body B</p>')
+  expect(saved).toBe(false)
+  expect(save.mock.calls.at(-1)?.[2]).toEqual({ sessionId: record.sessionId, expectedStoredBase: base.expectedStoredBase, origin: { kind: 'proposal', stageId: 'stage-2' } })
 })
