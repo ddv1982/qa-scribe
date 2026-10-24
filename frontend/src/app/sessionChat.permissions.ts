@@ -1,6 +1,7 @@
-import { commands, getAiActionJobStatus, type GenerationJobStatus } from '../tauri'
+import { commands, getAiActionJobStatus, listActiveAiActionJobs, type GenerationJobStatus } from '../tauri'
 import type { ChatPermissionDecision, ChatPermissionRequest } from '../bindings'
-import type { ChatWorkspace, SessionChatContext } from './sessionChat.types'
+import { chatIsWorking, type ChatWorkspace, type SessionChatContext } from './sessionChat.types'
+import { toCommandError } from '../ui/format'
 
 type PermissionLedger = {
   jobId: string
@@ -132,25 +133,46 @@ export function createChatPermissions(ctx: SessionChatContext, host: {
       && entry.job?.jobId === jobId && ctx.selection.selectedProvider === provider
     try {
       if (jobId) {
-        const status = await getAiActionJobStatus(jobId)
+        let status: GenerationJobStatus | null = null
+        try {
+          status = await getAiActionJobStatus(jobId)
+        } catch (cause) {
+          if (!current()) return
+          if (toCommandError(cause).kind !== 'notFound'
+            || (entry.pendingStart?.state !== 'uncertain' && chatIsWorking(entry.job))) {
+            host.report(entry, cause)
+            return
+          }
+        }
         if (!current()) return
-        validStatus(status, entry, jobId)
-        const state = ledger(entry, jobId)
-        const token = status.pendingPermission?.requestId
-        // Explicit recovery may restore an attempted token, not a successfully
-        // resolved one. It never decides a permission itself.
-        if (!entry.permissionOperation && token && !state.resolved.has(token)
-          && status.pendingPermission?.provider === provider) state.attempted.delete(token)
-        host.observe(status)
+        if (status) {
+          validStatus(status, entry, jobId)
+          const state = ledger(entry, jobId)
+          const token = status.pendingPermission?.requestId
+          // Explicit recovery may restore an attempted token, not a successfully
+          // resolved one. It never decides a permission itself.
+          if (!entry.permissionOperation && token && !state.resolved.has(token)
+            && status.pendingPermission?.provider === provider) state.attempted.delete(token)
+          host.observe(status)
+        }
       }
       if (!current()) return
       await host.refresh(entry.sessionId, current)
       if (!current()) return
+      let recoveredJob: GenerationJobStatus | null = null
+      if (entry.chat?.messages.some(message => message.status === 'running') && !chatIsWorking(entry.job)) {
+        const jobs = await listActiveAiActionJobs()
+        if (!current()) return
+        const active = jobs.filter(job => job.sessionId === entry.sessionId && job.action === 'chat' && chatIsWorking(job))
+        if (active.length !== 1) throw new Error('The running response could not be located. Recheck status to try again.')
+        recoveredJob = active[0]
+      }
       if (ctx.refreshProviderStatus) await ctx.refreshProviderStatus()
       if (!current()) return
-      entry.error = entry.job?.errorMessage ?? null
+      entry.error = (recoveredJob ?? entry.job)?.errorMessage ?? null
       ctx.feedback.setError(entry.error)
-      host.publish(entry)
+      if (recoveredJob) host.observe(recoveredJob)
+      else host.publish(entry)
     } catch (cause) {
       if (current()) host.report(entry, cause)
     }

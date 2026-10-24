@@ -2,11 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AiProvider, ChatPermissionDecision, GenerationJobStatus } from '../bindings'
 import { createSessionChatActions } from './sessionChat.actions'
 import { emptyChatSnapshot, type ChatSnapshot, type SessionChatContext } from './sessionChat.types'
-import { chatFixture, chatJobFixture } from './useSessionChat.testSupport'
+import { chatFixture, chatJobFixture, completedChatFixture } from './useSessionChat.testSupport'
 
 const api = vi.hoisted(() => ({
   decideChatPermission: vi.fn(), getChat: vi.fn(), getAiActionJobStatus: vi.fn(),
-  cancelAiActionJob: vi.fn(), startChatJob: vi.fn(), saveChatComposer: vi.fn(),
+  cancelAiActionJob: vi.fn(), startChatJob: vi.fn(), saveChatComposer: vi.fn(), listActiveAiActionJobs: vi.fn(),
 }))
 vi.mock('../tauri', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../tauri')>()
@@ -63,6 +63,7 @@ describe('Session Chat explicit permission authority', () => {
     vi.useFakeTimers()
     vi.resetAllMocks()
     api.getChat.mockResolvedValue(chatFixture())
+    api.listActiveAiActionJobs.mockResolvedValue([])
     api.getAiActionJobStatus.mockResolvedValue(pending())
     api.decideChatPermission.mockResolvedValue(clean)
     api.cancelAiActionJob.mockResolvedValue(stopped)
@@ -346,6 +347,56 @@ describe('Session Chat explicit permission authority', () => {
     expect(h.snapshot.job?.pendingPermission).toBeFalsy()
     expect(h.ctx.refreshProviderStatus).toHaveBeenCalledTimes(1)
     expect(api.decideChatPermission).not.toHaveBeenCalled()
+    expect(api.startChatJob).not.toHaveBeenCalled()
+  })
+
+
+  it.each(['failed', 'running'] as const)('rechecks an uncertain %s send when its previous terminal job was pruned', async status => {
+    const initial = completedChatFixture({ composer: 'Next question' })
+    const recovered = completedChatFixture({ revision: 4, messages: [...initial.messages, {
+      id: 'message-3', turnId: 'turn-2', role: 'user', text: 'Next question', images: [],
+      status, errorMessage: status === 'failed' ? 'Provider unavailable' : null, aiRunId: 'run-new', createdAt: 'now',
+    }] })
+    api.getChat.mockResolvedValueOnce(initial).mockRejectedValueOnce(new Error('Recovery unavailable')).mockResolvedValue(recovered)
+    api.startChatJob.mockRejectedValueOnce(new Error('Start response lost'))
+    const h = setup()
+    await vi.advanceTimersByTimeAsync(0)
+    h.actions.observeJob(chatJobFixture({ state: 'completed', pendingPermission: null }))
+    await h.actions.onSend()
+    expect(h.snapshot.inputRecoveryPending).toBe(true)
+    h.actions.onSetComposer('Keep my next draft')
+    api.getAiActionJobStatus.mockRejectedValueOnce({ kind: 'notFound', message: 'Job was pruned' })
+    api.listActiveAiActionJobs.mockResolvedValue([chatJobFixture({ jobId: 'other-session', sessionId: 'session-2' }), chatJobFixture({ jobId: 'job-new', aiRunId: 'run-new', pendingPermission: null })])
+    await h.actions.onRecheck()
+    expect(h.snapshot.inputRecoveryPending).toBe(false)
+    expect(h.snapshot.chat?.messages).toEqual(recovered.messages)
+    expect(h.snapshot.composer).toBe('Keep my next draft')
+    expect(api.startChatJob).toHaveBeenCalledOnce()
+    expect(api.getChat).toHaveBeenCalledTimes(3)
+    if (status === 'running') {
+      expect(h.snapshot.job?.jobId).toBe('job-new')
+      api.getAiActionJobStatus.mockResolvedValue(chatJobFixture({ jobId: 'job-new', aiRunId: 'run-new', state: 'completed', pendingPermission: null }))
+      const completed = completedChatFixture({ revision: 5, messages: [
+        ...recovered.messages.map(message => ({ ...message, status: 'completed' as const })),
+        { id: 'message-4', turnId: 'turn-2', role: 'assistant', text: 'Which browser?', images: [],
+          status: 'completed', errorMessage: null, aiRunId: 'run-new', createdAt: 'later' },
+      ] })
+      api.getChat.mockResolvedValue(completed)
+      await vi.advanceTimersByTimeAsync(1000)
+      expect(api.getAiActionJobStatus).toHaveBeenLastCalledWith('job-new')
+      expect(h.snapshot.chat?.revision).toBe(5)
+      expect(h.snapshot.composer).toBe('Keep my next draft')
+    }
+  })
+
+  it('keeps missing-job errors visible when no uncertain send needs recovery', async () => {
+    const h = setup()
+    await vi.advanceTimersByTimeAsync(0)
+    api.getChat.mockClear()
+    api.getAiActionJobStatus.mockRejectedValueOnce({ kind: 'notFound', message: 'Job was pruned' })
+    await h.actions.onRecheck()
+    expect(api.getChat).not.toHaveBeenCalled()
+    expect(h.snapshot.error).toContain('Job was pruned')
     expect(api.startChatJob).not.toHaveBeenCalled()
   })
 
