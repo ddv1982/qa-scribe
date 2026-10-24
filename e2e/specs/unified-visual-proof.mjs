@@ -13,7 +13,7 @@ const { Key } = await import(require.resolve('webdriverio'))
 
 const out = () => process.env.QA_SCRIBE_E2E_ARTIFACTS
 let restartTrace
-async function click(selector) {
+export async function click(selector) {
   restartTrace?.click('lookup', selector)
   const scopedText = selector.match(/^(.*) (button)(\*?=.+)$/)
   const element = scopedText ? await (await $(scopedText[1])).$(`${scopedText[2]}${scopedText[3]}`) : await $(selector)
@@ -23,6 +23,9 @@ async function click(selector) {
   restartTrace?.click('dispatch', selector, element.elementId)
   await element.click()
   restartTrace?.click('returned', selector, element.elementId)
+}
+export async function waitForSavedConversation() {
+  await browser.waitUntil(async () => await $('.chat-meta [role="status"]').getText() === 'Conversation saved')
 }
 const tab = label => click(`.session-workspace-tabs button*=${label}`)
 const native = (command, args = {}) => browser.tauri.execute(({ core }, { command, args }) => core.invoke(command, args), { command, args })
@@ -145,6 +148,7 @@ async function unifiedRouteBody() {
   restartTrace?.activate()
   await click('button=Chat')
   await $('button=Start new conversation').waitForEnabled()
+  await waitForSavedConversation()
   const oldChat = await native('get_chat', { sessionId: session.id })
   restartTrace?.identity('before restart', oldChat)
   await click('button=Start new conversation')
