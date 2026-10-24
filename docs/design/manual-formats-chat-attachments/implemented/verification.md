@@ -85,3 +85,10 @@ Round six returned PASS+NOTES at 98231b5 and closed all three round-five objecti
 A separate read-only Comment Sicko audit examined 151 changed source/configuration files. Five ordinary comment lines were deleted, with no executable-line changes. Two proposed deletions were rejected after fresh primary documentation confirmed the external Bedrock image limit. Public API ordering/bounds contracts, generator-owned headers, and literal historical fixtures remain. There are no suppression or MUST KILL findings, restorations, encoding offers, or open constraints.
 
 Two production frontend builds at the signed-off source and one after comment cleanup produced 21 byte-identical files. Both changed source files retain exactly the same non-comment lines. Scoped permission and provider-model tests pass. The final comment-only head requires its own bounded reuse review and protected CI before landing; the earlier verdict is not claimed for a different patch ID.
+
+
+## Hosted busy-peer fixture correction
+
+Final-head macOS platform testing failed the existing busy-peer fixture assertion after 268 Tauri tests passed, with three opt-in cases ignored. The fixture stopped emitting at one second even if the scheduler had produced fewer than the required 100 notifications. A deterministic coarse-sleep regression failed on the original fixture. The loop now requires both the minimum count and duration before stopping. The original response-latency, duration, frame-count, byte-budget, and watchdog assertions remain unchanged.
+
+The new fixture contract test passes for all three provider wire shapes, and all 33 real duplex process tests pass, including the busy-peer permission case. No runtime source, provider protocol, frontend source, dependency, or release setting changed. The Python peer is invoked only by the cfg(test) module. Two production frontend builds at b388477 and one after the fixture correction produce the same 21 files. The new Node regression is inside the maintained scripts/*.test.mjs glob. Exact-head independent reuse review and hosted checks remain required; the original platform failure is preserved.

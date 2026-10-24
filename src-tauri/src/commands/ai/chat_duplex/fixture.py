@@ -88,7 +88,7 @@ def busy_progress():
     started = time.monotonic()
     count = 0
     # Bounded bytes, but no intended 10ms quiet gap throughout a full second.
-    while time.monotonic() - started < 1:
+    while count < 100 or time.monotonic() - started < 1:
         assert (count + 1) * len(frame.encode()) < 1024 * 1024
         sys.stdout.write(frame)
         sys.stdout.flush()
