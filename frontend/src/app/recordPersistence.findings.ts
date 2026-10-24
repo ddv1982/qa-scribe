@@ -84,11 +84,18 @@ export function createFindingPersistence(ctx: RecordPersistenceContext, coordina
       coordination.clearStage('finding', finding.id)
       return 'saved'
     } catch (cause) {
-      if (coordination.adoptConflict(cause)) return 'failed'
-      await ctx.cleanupMaterializedAttachments(importedAttachmentIds)
+      if (intents.get(finding.id)?.generation !== intentGeneration) {
+        return await coordination.cleanupUnreferencedRecordAttachments('finding', finding.id, importedAttachmentIds) ? 'superseded' : 'failed'
+      }
+      if (coordination.adoptConflict(cause)) {
+        await coordination.cleanupUnreferencedRecordAttachments('finding', finding.id, importedAttachmentIds)
+        return 'failed'
+      }
+      await coordination.cleanupUnreferencedRecordAttachments('finding', finding.id, importedAttachmentIds)
       const latestIntent = intents.get(finding.id)
-      const reconciled = !latestIntent?.restore || await coordination.reconcileFindingIntent(finding.id)
-      if (reconciled) ctx.feedback.setError(formatError(cause))
+      if (latestIntent?.generation !== intentGeneration) return 'superseded'
+      const reconciled = !latestIntent.restore || await coordination.reconcileFindingIntent(finding.id)
+      if (reconciled && intents.get(finding.id)?.generation === intentGeneration) ctx.feedback.setError(formatError(cause))
       return 'failed'
     } finally { finishOperation() }
   }
@@ -119,9 +126,9 @@ export function createFindingPersistence(ctx: RecordPersistenceContext, coordina
         })
       }
     } catch (cause) {
-      if (coordination.adoptConflict(cause)) return
       const intent = intents.get(finding.id)
       if (intent?.generation !== intentGeneration) return
+      if (coordination.adoptConflict(cause)) return
       coordination.markFindingCompensationPending(finding, cause)
     } finally { finishOperation() }
   }

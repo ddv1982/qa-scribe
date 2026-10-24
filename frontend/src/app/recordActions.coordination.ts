@@ -118,17 +118,51 @@ export function createRecordActionCoordination(ctx: RecordPersistenceContext) {
     ctx.feedback.setError(`Could not reconcile the latest Finding write. ${formatError(cause)}`)
   }
 
+  function publishRetiredRestoration<T extends Draft | Finding>(
+    key: string,
+    owner: RecordIntent<T>,
+    current: RecordIntent<T> | undefined,
+    expected: RecordWriteGuard,
+    lease: RecordWriteGuard | undefined,
+    restored: T,
+    restoredGuard: RecordWriteGuard,
+  ) {
+    if (!current || current.kind !== 'save' || current.generation <= owner.generation
+      || current.restore !== owner.restore || current.expected !== expected
+      || expected.origin.kind !== 'compensation' || expected.origin.restoredBase !== restoredGuard.expectedStoredBase
+      || !lease || lease.origin.kind !== 'editor' || latestWriteGuards.get(key) !== lease
+      || proposalStages.has(key) || lease.sessionId !== expected.sessionId
+      || restored.sessionId !== expected.sessionId || restored.id !== owner.restore?.id
+      || lease.expectedStoredBase !== expected.expectedStoredBase) return
+    latestWriteGuards.set(key, restoredGuard)
+    events.onChanged()
+  }
+
+  async function cleanupUnreferencedRecordAttachments(kind: 'finding' | 'draft', id: string, attachmentIds: string[]) {
+    const records = kind === 'finding' ? ctx.records.findingsRef.current : ctx.records.draftsRef.current
+    const saved = kind === 'finding' ? ctx.records.savedFindingsRef.current : ctx.records.savedDraftsRef.current
+    const restore = kind === 'finding' ? findingIntents.get(id)?.restore : draftIntents.get(id)?.restore
+    let unreferenced = attachmentIds
+    for (const record of [records.find(record => record.id === id), saved.find(record => record.id === id), restore]) {
+      unreferenced = attachmentsNotReferencedByRecord(unreferenced, record)
+    }
+    return unreferenced.length === 0 || await ctx.cleanupMaterializedAttachments(unreferenced)
+  }
+
   async function reconcileDraftIntent(id: string): Promise<boolean> {
     const intent = draftIntents.get(id)
     if (!intent?.restore) return true
     try {
       const expected = intent.expected ?? await recordWriteGuard(ctx.records.savedDraftsRef.current.find(record => record.id === id) ?? intent.restore, 'drafts')
       if (draftIntents.get(id) !== intent) return true
+      const lease = latestWriteGuards.get(`draft:${id}`)
       const restored = await trackWrite(updateDraft(id, draftPersistencePatch(intent.restore), expected))
-      if (draftIntents.get(id) !== intent) return true
       const restoredGuard = await recordWriteGuard(restored, 'drafts')
-      if (draftIntents.get(id) !== intent) return true
-      latestWriteGuards.set(`draft:${id}`, restoredGuard)
+      if (draftIntents.get(id) !== intent) {
+        publishRetiredRestoration(`draft:${id}`, intent, draftIntents.get(id), expected, lease, restored, restoredGuard)
+        return true
+      }
+      if (latestWriteGuards.get(`draft:${id}`)?.origin.kind !== 'proposal') latestWriteGuards.set(`draft:${id}`, restoredGuard)
       if (ctx.session.activeSessionIdRef.current === restored.sessionId) {
         ctx.records.savedDraftsRef.current = replaceRecord(ctx.records.savedDraftsRef.current, restored)
       }
@@ -158,11 +192,14 @@ export function createRecordActionCoordination(ctx: RecordPersistenceContext) {
     try {
       const expected = intent.expected ?? await recordWriteGuard(ctx.records.savedFindingsRef.current.find(record => record.id === id) ?? intent.restore, 'findings')
       if (findingIntents.get(id) !== intent) return true
+      const lease = latestWriteGuards.get(`finding:${id}`)
       const restored = await trackWrite(updateFinding(id, findingPersistencePatch(intent.restore), expected))
-      if (findingIntents.get(id) !== intent) return true
       const restoredGuard = await recordWriteGuard(restored, 'findings')
-      if (findingIntents.get(id) !== intent) return true
-      latestWriteGuards.set(`finding:${id}`, restoredGuard)
+      if (findingIntents.get(id) !== intent) {
+        publishRetiredRestoration(`finding:${id}`, intent, findingIntents.get(id), expected, lease, restored, restoredGuard)
+        return true
+      }
+      if (latestWriteGuards.get(`finding:${id}`)?.origin.kind !== 'proposal') latestWriteGuards.set(`finding:${id}`, restoredGuard)
       if (ctx.session.activeSessionIdRef.current === restored.sessionId) {
         ctx.records.savedFindingsRef.current = replaceRecord(ctx.records.savedFindingsRef.current, restored)
       }
@@ -271,8 +308,12 @@ export function createRecordActionCoordination(ctx: RecordPersistenceContext) {
 
   function releaseStage(kind: 'finding' | 'draft', id: string, base: EditorWriteBase) {
     const key = `${kind}:${id}`
-    const pinned = latestWriteGuards.get(key) ?? base
-    latestWriteGuards.set(key, { sessionId: pinned.sessionId, expectedStoredBase: pinned.expectedStoredBase, origin: { kind: 'editor' } })
+    const pinned = latestWriteGuards.get(key)
+    latestWriteGuards.set(key, pinned?.origin.kind === 'editor' ? pinned : {
+      sessionId: pinned?.sessionId ?? base.sessionId,
+      expectedStoredBase: pinned?.expectedStoredBase ?? base.expectedStoredBase,
+      origin: { kind: 'editor' },
+    })
     proposalStages.delete(key)
     events.onChanged()
   }
@@ -296,7 +337,7 @@ export function createRecordActionCoordination(ctx: RecordPersistenceContext) {
   }
 
   return {
-    subscribeChanges, beginRecordOperation,
+    subscribeChanges, beginRecordOperation, cleanupUnreferencedRecordAttachments,
     proposalStages, latestWriteGuards, bindStage, releaseStage, events, adoptConflict, guardFor, confirmedWrite, clearStage,
     attachmentsNotReferencedByRecord,
     draftIntents,

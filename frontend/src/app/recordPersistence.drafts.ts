@@ -79,11 +79,18 @@ export function createDraftPersistence(ctx: RecordPersistenceContext, coordinati
       coordination.clearStage('draft', draft.id)
       return 'saved'
     } catch (cause) {
-      if (coordination.adoptConflict(cause)) return 'failed'
-      await ctx.cleanupMaterializedAttachments(importedAttachmentIds)
+      if (intents.get(draft.id)?.generation !== intentGeneration) {
+        return await coordination.cleanupUnreferencedRecordAttachments('draft', draft.id, importedAttachmentIds) ? 'superseded' : 'failed'
+      }
+      if (coordination.adoptConflict(cause)) {
+        await coordination.cleanupUnreferencedRecordAttachments('draft', draft.id, importedAttachmentIds)
+        return 'failed'
+      }
+      await coordination.cleanupUnreferencedRecordAttachments('draft', draft.id, importedAttachmentIds)
       const latestIntent = intents.get(draft.id)
-      const reconciled = !latestIntent?.restore || await coordination.reconcileDraftIntent(draft.id)
-      if (reconciled) ctx.feedback.setError(formatError(cause))
+      if (latestIntent?.generation !== intentGeneration) return 'superseded'
+      const reconciled = !latestIntent.restore || await coordination.reconcileDraftIntent(draft.id)
+      if (reconciled && intents.get(draft.id)?.generation === intentGeneration) ctx.feedback.setError(formatError(cause))
       return 'failed'
     } finally { finishOperation() }
   }
@@ -114,9 +121,9 @@ export function createDraftPersistence(ctx: RecordPersistenceContext, coordinati
         })
       }
     } catch (cause) {
-      if (coordination.adoptConflict(cause)) return
       const intent = intents.get(draft.id)
       if (intent?.generation !== intentGeneration) return
+      if (coordination.adoptConflict(cause)) return
       coordination.markDraftCompensationPending(draft, cause)
     } finally { finishOperation() }
   }
