@@ -161,9 +161,11 @@ export function createChatPermissions(ctx: SessionChatContext, host: {
       if (!current()) return
       let recoveredJob: GenerationJobStatus | null = null
       if (entry.chat?.messages.some(message => message.status === 'running') && !chatIsWorking(entry.job)) {
+        const runs = new Set(entry.chat.messages.filter(message => message.status === 'running').map(message => message.aiRunId).filter(Boolean))
         const jobs = await listActiveAiActionJobs()
         if (!current()) return
-        const active = jobs.filter(job => job.sessionId === entry.sessionId && job.action === 'chat' && chatIsWorking(job))
+        const active = jobs.filter(job => job.sessionId === entry.sessionId && job.action === 'chat'
+          && chatIsWorking(job) && job.aiRunId !== null && runs.has(job.aiRunId))
         if (active.length !== 1) throw new Error('The running response could not be located. Recheck status to try again.')
         recoveredJob = active[0]
       }

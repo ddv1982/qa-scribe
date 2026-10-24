@@ -366,7 +366,11 @@ describe('Session Chat explicit permission authority', () => {
     expect(h.snapshot.inputRecoveryPending).toBe(true)
     h.actions.onSetComposer('Keep my next draft')
     api.getAiActionJobStatus.mockRejectedValueOnce({ kind: 'notFound', message: 'Job was pruned' })
-    api.listActiveAiActionJobs.mockResolvedValue([chatJobFixture({ jobId: 'other-session', sessionId: 'session-2' }), chatJobFixture({ jobId: 'job-new', aiRunId: 'run-new', pendingPermission: null })])
+    api.listActiveAiActionJobs.mockResolvedValue([
+      chatJobFixture({ jobId: 'other-session', sessionId: 'session-2' }),
+      chatJobFixture({ jobId: 'wrong-turn', aiRunId: 'run-other' }),
+      chatJobFixture({ jobId: 'job-new', aiRunId: 'run-new', pendingPermission: null }),
+    ])
     await h.actions.onRecheck()
     expect(h.snapshot.inputRecoveryPending).toBe(false)
     expect(h.snapshot.chat?.messages).toEqual(recovered.messages)
