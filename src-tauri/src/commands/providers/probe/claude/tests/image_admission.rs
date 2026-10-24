@@ -272,3 +272,85 @@ fn image_admission_uses_known_identity_evidence_in_static_and_help_catalogs() {
         assert_eq!(descriptor.validate_image_model("default"), unknown);
     }
 }
+
+struct DetectionCatalogRunner(Vec<Value>);
+
+impl ProbeRunner for DetectionCatalogRunner {
+    fn executable_path(&self, _program: &str) -> Option<std::path::PathBuf> {
+        Some(std::path::PathBuf::from("/fixture/claude"))
+    }
+
+    fn run(&self, _program: &str, _args: &[&str]) -> CommandProbe {
+        CommandProbe {
+            success: true,
+            stdout: String::new(),
+            stderr: String::new(),
+            not_found: false,
+            scope_error: None,
+        }
+    }
+
+    fn claude_structured_catalog(&self) -> StructuredCatalogProbe {
+        StructuredCatalogProbe::Success(StructuredCatalog {
+            models: self.0.clone(),
+            cli_version: None,
+        })
+    }
+}
+
+#[test]
+fn actual_detection_preserves_image_evidence_independently_of_selector_rollout() {
+    let unsupported = Err("The selected model does not support images. Choose a model with image support; your composer is retained.".into());
+    let unknown = Err("Image support for the selected model is unknown. Choose a model with confirmed image support; your composer is retained.".into());
+    let cases = [
+        (
+            json!({"value":"sonnet","vision":false}),
+            "sonnet",
+            unsupported.clone(),
+        ),
+        (
+            json!({"value":"sonnet","supportsVision":false}),
+            "sonnet",
+            unsupported.clone(),
+        ),
+        (
+            json!({"value":"sonnet","capabilities":{"image_input":{"supported":false}}}),
+            "sonnet",
+            unsupported.clone(),
+        ),
+        (
+            json!({"value":"sonnet","inputModalities":["text"]}),
+            "sonnet",
+            unsupported,
+        ),
+        (
+            json!({"value":"sonnet","resolvedModel":"custom-text"}),
+            "sonnet",
+            unknown,
+        ),
+        (
+            json!({"value":"custom-visual","vision":true}),
+            "custom-visual",
+            Ok(()),
+        ),
+    ];
+    for (row, selection, expected) in cases {
+        let frame = json!({
+            "type":"control_response",
+            "response":{"request_id":INITIALIZE_REQUEST_ID,"subtype":"success",
+                "response":{"models":[row]}}
+        });
+        let normalized = parse_fixture(&frame.to_string(), MAX_MODELS).unwrap();
+        let readiness = crate::commands::providers::detection::detect_provider(
+            qa_scribe_core::domain::AiProvider::ClaudeCode,
+            &DetectionCatalogRunner(normalized.models),
+            DetectionMode::Deep,
+        );
+        assert_eq!(readiness.descriptor.status, ProviderState::Ready);
+        assert_eq!(
+            readiness.descriptor.validate_image_model(selection),
+            expected,
+            "{row}"
+        );
+    }
+}

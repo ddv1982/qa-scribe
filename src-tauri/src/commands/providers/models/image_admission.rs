@@ -11,10 +11,11 @@ impl ProviderDescriptor {
         } else {
             Some(selection)
         };
+        let models = &self.catalog_snapshot.models;
         let vision = model
             .and_then(|id| {
-                self.models.iter().find(|model| model.id == id).or_else(|| {
-                    self.models
+                models.iter().find(|model| model.id == id).or_else(|| {
+                    models
                         .iter()
                         .find(|model| model.resolved_model.as_deref() == Some(id))
                 })
