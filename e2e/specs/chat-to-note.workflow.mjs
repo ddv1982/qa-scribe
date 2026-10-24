@@ -158,7 +158,7 @@ async function capture(artifacts, filename, selector) {
   const geometry = await browser.execute((targetSelector) => {
     const target = document.querySelector(targetSelector)
     const rect = target.getBoundingClientRect()
-    const texts = Array.from(document.querySelectorAll('.chat-message-text'), (element) => {
+    const texts = Array.from(document.querySelectorAll('.chat-message-text')).filter(element => !element.closest('[hidden]')).map((element) => {
       const box = element.getBoundingClientRect()
       return { width: box.width, client: element.clientWidth, scroll: element.scrollWidth }
     })

@@ -42,10 +42,20 @@ impl SessionService {
 
     /// The returned turn has already committed its user message. Execute the provider only afterward.
     pub fn start_chat_turn(&self, request: ChatStartRequest) -> Result<ChatTurnStarted> {
+        self.start_chat_turn_with_context(request, ChatTarget::Session)
+    }
+
+    pub fn start_chat_turn_with_context(
+        &self,
+        request: ChatStartRequest,
+        context: ChatTarget,
+    ) -> Result<ChatTurnStarted> {
         self.database.with_immediate_tx(|tx| {
             let chat = rows::checked(tx, &request.scope)?;
             rows::editable(&chat)?;
             rows::idle(&chat)?;
+            let context = super::chat_context::capture(tx, &chat.session_id, context.clone())?;
+            super::chat_context::capacity(&chat.messages, &context)?;
             rows::text("Chat message", &chat.composer, !chat.composer_images.is_empty())?;
             rows::append_capacity(&chat, &chat.composer, 2)?;
             let turn_id = new_id();
@@ -57,6 +67,7 @@ impl SessionService {
                 &chat.composer,
                 ChatTurnStatus::Running,
             )?;
+            super::chat_context::store(tx, &chat.draft_id, &turn_id, &context)?;
             tx.execute("INSERT INTO chat_message_images (message_id, attachment_id, ordinal)
                 SELECT m.id, i.attachment_id, i.ordinal FROM chat_composer_images i
                 JOIN chat_messages m ON m.draft_id = i.draft_id AND m.turn_id = ?1 AND m.role = 'user'

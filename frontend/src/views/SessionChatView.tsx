@@ -14,6 +14,7 @@ import { MarkdownContent } from '../content/MarkdownContent'
 import { useChatTranscriptScroll } from './useChatTranscriptScroll'
 
 export type SessionChatViewProps = {
+  hidden?: boolean
   handoff: ChatHandoffPresentation
   onOpenNote: () => void
   chat: ChatState | null
@@ -104,7 +105,7 @@ export function SessionChatView(props: SessionChatViewProps) {
   const { viewportRef, transcriptRef } = useChatTranscriptScroll({ conversationId: chat?.draftId ?? null,
     userTurnId: latest?.role === 'user' ? latest.turnId : null, messageId: latest?.id ?? null,
     partialText: job?.partialText ?? null, activeOutput: activeJob || running || handoff.hydrationPending,
-    paused: permissionAttention || inputRecoveryPending })
+    paused: Boolean(props.hidden) || permissionAttention || inputRecoveryPending })
   const needsProviderRecovery = inputRecoveryPending || permissionRecoveryPending || !providerAvailable || Boolean(error || job?.errorMessage)
   const locked = !chat || busy || submitted || recovering
   const attachmentsLocked = locked || inputRecoveryPending || composerImages.length >= 4 || !onAttachImages
@@ -232,7 +233,7 @@ export function SessionChatView(props: SessionChatViewProps) {
         <header className="chat-topline">
           <div>
             <h2>Conversation</h2>
-            <p className="chat-help">Gather testing information, then add the saved conversation to your Session Note.</p>
+            <p className="chat-help">Ask questions, refine your record, or ask your configured coding agent to act.</p>
           </div>
           {handoff.kind !== 'added' ? <StartNewConversation state={props} /> : null}
         </header>

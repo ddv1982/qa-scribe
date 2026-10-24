@@ -1,7 +1,8 @@
+import type { RecordChatActions } from '../app/sessionChat.context'
 import { ActionButton } from '../components/ActionButton'
 import { RecordCreationActions, type RecordCreationCommands } from './RecordCreationActions'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AlertTriangle, Loader2, Search, SearchX } from 'lucide-react'
+import { AlertTriangle, Loader2, Search, SearchX, Sparkles } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { EmptyCollection, StatePanel, StatusPill } from '../components/Common'
@@ -45,7 +46,7 @@ export type RecordCollectionLabels = {
 export type RecordBusyActionKind = 'delete' | 'saving'
 
 export function RecordCollectionView<T extends CollectionRecord>({
-  composer, settleCreation,
+  composer, settleCreation, recordChat,
   creationCommands,
   labels,
   emptyIcon,
@@ -79,6 +80,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
   onSaveRecord,
   onUploadImage,
 }: {
+  recordChat?: RecordChatActions
   settleCreation?: () => Promise<boolean>
   composer?: ReactNode
   creationCommands: RecordCreationCommands
@@ -148,6 +150,13 @@ export function RecordCollectionView<T extends CollectionRecord>({
     ?? visibleRecords[0]
     ?? null
   const selectedEditing = selectedRecord ? Boolean(editingRecordIds[selectedRecord.id]) : false
+
+  const selectedUnsaved = Boolean(selectedRecord && selectedEditing && editingOriginals[selectedRecord.id]
+    && JSON.stringify(selectedRecord) !== JSON.stringify(editingOriginals[selectedRecord.id]))
+  useEffect(() => {
+    if (selectedRecord) recordChat?.onSelectRecord({ kind: sourceKind === 'finding' ? 'finding' : 'test_cases_draft',
+      recordId: selectedRecord.id, title: selectedRecord.title, unsaved: selectedUnsaved })
+  }, [selectedRecord, sourceKind, recordChat, selectedUnsaved])
 
   const createdRecord = createdRecordEditTarget && records.find((record) => record.id === createdRecordEditTarget.recordId)
   if (createdRecord && appliedTarget?.recordId !== createdRecord.id) {
@@ -315,10 +324,13 @@ export function RecordCollectionView<T extends CollectionRecord>({
               onUploadImage={(input) => onUploadImage(input, record.id)}
               actions={
                 <RichRecordActions
-                  copyControls={<CopyControls
+                  copyControls={<>
+                    {recordChat ? <ActionButton variant="secondary" type="button" className="ask-ai-trigger" icon={Sparkles} disabled={isBusy}
+                      onClick={() => recordChat.onAskAi({ kind: sourceKind === 'finding' ? 'finding' : 'test_cases_draft', recordId: record.id, title: record.title, unsaved: selectedUnsaved })}>Ask AI</ActionButton> : null}
+                    <CopyControls
                     snapshot={{ target: { kind: sourceKind, sessionId: record.sessionId, id: record.id, action: 'jira-text' }, title: record.title, bodyHtml: copyBody?.(record) ?? record.body }}
                     copyState={copyState} onCopy={onCopy} disabled={isBusy}
-                    label={record.title.trim() || labels.recordNounLower} screenshotCount={screenshotCount} />}
+                    label={record.title.trim() || labels.recordNounLower} screenshotCount={screenshotCount} /></>}
                   deleting={deleting}
                   deleteLabel={`Delete ${record.title}`}
                   deleteTitle={`Delete ${labels.recordNounLower}`}

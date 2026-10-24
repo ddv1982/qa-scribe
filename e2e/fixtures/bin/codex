@@ -88,7 +88,7 @@ if (modelManagementEnabled) {
       const startedPath = join(controlDirectory, `codex-exec-${invocation}.started`)
       const releasePath = join(controlDirectory, `codex-exec-${invocation}.release`)
 
-      const chat = prompt.startsWith('QA_SCRIBE_CHAT_V2\n') ? parseChat(prompt) : null
+      const chat = /^QA_SCRIBE_CHAT_V[23]\n/.test(prompt) ? parseChat(prompt) : null
       const isTestware = !chat && /Create test scenarios with test cases from the selected note only/i.test(prompt)
       const isSummary = /Keep the output as a summarized QA note/i.test(prompt)
       const streamConfigPath = join(controlDirectory, 'testware-streamdown.json')

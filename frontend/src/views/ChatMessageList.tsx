@@ -1,4 +1,5 @@
 import type { ChatState } from '../bindings'
+import { ChatContextLabel } from './ChatContextCard'
 import { MarkdownContent } from '../content/MarkdownContent'
 import { RunModelEvidence } from '../components/RunModelEvidence'
 import { ChatImages } from './ChatImages'
@@ -15,6 +16,7 @@ export function ChatMessageList({ messages, aiRuns }: {
             <strong>{message.role === 'user' ? 'You' : 'Assistant'}</strong>
             {message.status !== 'completed' ? <span className="chat-turn-status">{message.status[0].toUpperCase() + message.status.slice(1)}</span> : null}
           </header>
+          {message.role === 'user' && message.context && message.context.kind !== 'session' ? <ChatContextLabel context={message.context} /> : null}
           {message.text ? message.role === 'assistant'
             ? <MarkdownContent text={message.text} />
             : <p className="chat-message-text">{message.text}</p> : null}

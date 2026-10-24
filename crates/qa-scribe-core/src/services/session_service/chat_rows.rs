@@ -37,6 +37,7 @@ pub(super) fn read(connection: &Connection, id: &str) -> Result<ChatState> {
         let (id, turn_id, role, text, status, error_message, created_at, ai_run_id) = row?;
         messages.push(ChatMessage {
             images: super::chat_images::read(connection, &id, false)?,
+            context: super::chat_context::read(connection, &id)?,
             id,
             turn_id,
             role: ChatRole::from_stored(&role)?,

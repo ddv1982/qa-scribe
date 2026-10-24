@@ -15,6 +15,7 @@ impl SessionService {
             let message = chat.messages.last().filter(|m| m.role == ChatRole::User
                 && matches!(m.status, ChatTurnStatus::Failed | ChatTurnStatus::Cancelled | ChatTurnStatus::Interrupted))
                 .ok_or_else(|| validation("The latest Chat message is not retryable"))?;
+            super::chat_context::validate_owner(tx, &chat.session_id, &message.context)?;
             let turn_id = new_id();
             tx.execute("UPDATE chat_messages SET turn_id = ?1, status = 'running', error_message = NULL, ai_run_id = NULL WHERE id = ?2",
                 params![turn_id, message.id])?;

@@ -63,7 +63,10 @@ impl ChatPreparationSnapshot {
                     "Chat has reached its text limit. Start a new conversation.".into(),
                 ));
             }
+            let context =
+                service.capture_chat_context(&chat.session_id, request.context.clone())?;
             chat.messages.push(ChatMessage {
+                context,
                 id: uuid::Uuid::nil().to_string(),
                 turn_id: String::new(),
                 role: ChatRole::User,
@@ -74,6 +77,10 @@ impl ChatPreparationSnapshot {
                 ai_run_id: None,
                 created_at: String::new(),
             });
+        }
+        if request.retry {
+            let message = chat.messages.last().ok_or_else(changed)?;
+            service.validate_chat_context_owner(&chat.session_id, &message.context)?;
         }
         let messages = chat
             .messages
@@ -145,6 +152,7 @@ impl ChatPreparationSnapshot {
         let messages = messages
             .into_iter()
             .map(|message| ChatInputMessage {
+                context: message.context.clone(),
                 id: message.id.clone(),
                 role: match message.role {
                     ChatRole::User => ChatPromptRole::User,
@@ -209,6 +217,15 @@ impl VerifiedChatPreparation {
         if current.revision != self.snapshot.revision
             || current.context != self.snapshot.context
             || current.sources != self.snapshot.sources
+            || current
+                .messages
+                .iter()
+                .map(|m| (&m.id, &m.text, &m.context))
+                .ne(self
+                    .snapshot
+                    .messages
+                    .iter()
+                    .map(|m| (&m.id, &m.text, &m.context)))
         {
             return Err(changed());
         }

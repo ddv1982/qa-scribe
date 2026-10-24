@@ -1,4 +1,4 @@
-import type { ChatImage, ChatMode, ChatPermissionDecision, ChatState, GenerationJobStatus, ProviderDescriptor } from '../bindings'
+import type { ChatTarget, ChatImage, ChatMode, ChatPermissionDecision, ChatState, GenerationJobStatus, ProviderDescriptor } from '../bindings'
 import type { Dispatch, SetStateAction } from 'react'
 import type { AiSelection, GenerationWorkspace, SessionWorkspace, WorkflowFeedback } from './types'
 import type { useSessionActions } from './sessionActions'
@@ -61,6 +61,7 @@ export type SessionChatContext = {
   provider: ProviderDescriptor | null
   providerWarning: string | null
   refreshProviderStatus?: () => Promise<void>
+  captureContext?: (sessionId: string) => ChatTarget
   feedback: WorkflowFeedback
   publish: Dispatch<SetStateAction<ChatSnapshot>>
 }

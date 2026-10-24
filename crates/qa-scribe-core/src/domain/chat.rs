@@ -46,6 +46,9 @@ pub struct ChatMessage {
     pub role: ChatRole,
     pub text: String,
     pub images: Vec<ChatImage>,
+    #[serde(default)]
+    #[specta(optional)]
+    pub context: super::ChatTarget,
     pub status: ChatTurnStatus,
     pub error_message: Option<String>,
     pub ai_run_id: Option<String>,

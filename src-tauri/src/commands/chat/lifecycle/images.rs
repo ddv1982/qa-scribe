@@ -41,6 +41,7 @@ impl Fixture {
         )
         .unwrap();
         let request = StartChatJobRequest {
+            context: ChatTarget::Session,
             scope: scope(&chat),
             retry: false,
             provider: AiProvider::CopilotCli,

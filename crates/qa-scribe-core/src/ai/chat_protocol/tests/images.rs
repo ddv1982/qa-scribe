@@ -8,6 +8,7 @@ fn input() -> ChatInput {
     build_chat_input(
         "context",
         vec![ChatInputMessage {
+            context: crate::domain::ChatTarget::Session,
             id: "message-1".into(),
             role: ChatPromptRole::User,
             text: String::new(),
@@ -99,18 +100,21 @@ fn image_replay_preserves_message_and_ordinal_and_enforces_separate_history_budg
     };
     let messages = vec![
         ChatInputMessage {
+            context: crate::domain::ChatTarget::Session,
             id: "old-user".into(),
             role: ChatPromptRole::User,
             text: "First".into(),
             images: vec![image.clone(), image.clone()],
         },
         ChatInputMessage {
+            context: crate::domain::ChatTarget::Session,
             id: "assistant".into(),
             role: ChatPromptRole::Assistant,
             text: "Seen".into(),
             images: vec![],
         },
         ChatInputMessage {
+            context: crate::domain::ChatTarget::Session,
             id: "current".into(),
             role: ChatPromptRole::User,
             text: "Again".into(),
@@ -139,6 +143,7 @@ fn image_replay_preserves_message_and_ordinal_and_enforces_separate_history_budg
     let rejected = build_chat_input(
         "",
         vec![ChatInputMessage {
+            context: crate::domain::ChatTarget::Session,
             id: "over".into(),
             role: ChatPromptRole::User,
             text: "".into(),
@@ -175,6 +180,7 @@ fn image_data_is_redacted_from_diagnostics_and_provider_limits_reject_before_enc
     let input = build_chat_input(
         "",
         vec![ChatInputMessage {
+            context: crate::domain::ChatTarget::Session,
             id: "wide".into(),
             role: ChatPromptRole::User,
             text: "wide".into(),
@@ -199,6 +205,7 @@ fn image_data_is_redacted_from_diagnostics_and_provider_limits_reject_before_enc
     let input = build_chat_input(
         "",
         vec![ChatInputMessage {
+            context: crate::domain::ChatTarget::Session,
             id: "large".into(),
             role: ChatPromptRole::User,
             text: "large".into(),

@@ -297,6 +297,7 @@ export function runE2e(environment = process.env, { spawnSyncImpl = spawnSync } 
       const providerBin = join(invocation.environment.QA_SCRIBE_E2E_FIXTURE_DIR, 'bin')
       mkdirSync(providerBin, { recursive: true })
       const authorization = invocationEnvironment.QA_SCRIBE_E2E_SPEC === 'chat-tool-authorization.workflow.mjs'
+      const recordContext = invocationEnvironment.QA_SCRIBE_E2E_SPEC === 'ask-ai-context.e2e.mjs'
       if (invocationEnvironment.QA_SCRIBE_E2E_SPEC !== 'creation-composer.e2e.mjs') delete invocationEnvironment.QA_SCRIBE_E2E_CREATION_FORMATS_ONLY
       if (invocationEnvironment.QA_SCRIBE_E2E_SPEC !== 'chat-images.e2e.mjs') delete invocationEnvironment.QA_SCRIBE_E2E_CHAT_IMAGES
       else invocationEnvironment.QA_SCRIBE_PROVIDER_CATALOG_MODE = 'selector'
@@ -308,7 +309,7 @@ export function runE2e(environment = process.env, { spawnSyncImpl = spawnSync } 
       const sourceBin = qualification ? join(invocation.environment.QA_SCRIBE_E2E_FIXTURE_DIR, 'provider-copy', 'bin') : fixtureBin
       if (qualification) cpSync(join(root, 'e2e', 'fixtures'), join(invocation.environment.QA_SCRIBE_E2E_FIXTURE_DIR, 'provider-copy'), { recursive: true })
       for (const provider of ['codex', 'claude', 'copilot']) rmSync(join(providerBin, provider), { force: true })
-      for (const provider of authorization || modelManagement ? ['codex', 'claude', 'copilot'] : ['codex']) {
+      for (const provider of authorization || modelManagement ? ['codex', 'claude', 'copilot'] : recordContext ? ['codex', 'copilot'] : ['codex']) {
         const link = join(providerBin, provider)
         symlinkSync(join(sourceBin, provider), link)
       }

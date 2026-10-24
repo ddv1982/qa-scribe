@@ -258,6 +258,7 @@ export function createSessionChatActions(ctx: SessionChatContext) {
   }
   async function send(entry: ChatWorkspace, retry: boolean) {
     if (entry.pendingStart) throw new Error('Recheck status to recover the previous send before continuing.')
+    const context = retry ? undefined : ctx.captureContext?.(entry.sessionId) ?? { kind: 'session' as const }
     const selection = { ...ctx.selection }
     if (selection.modelWritePending?.()) throw new Error('Wait for the model preference to finish saving.')
     if (ctx.noteRecovery.has(entry.sessionId)) throw new Error('Recover the canonical Note before continuing Chat.')
@@ -283,7 +284,7 @@ export function createSessionChatActions(ctx: SessionChatContext) {
     entry.pendingStart = { state: 'starting' }
     ++entry.refreshEpoch
     try {
-      result = await startChatJob({ scope: chatScope(chat), retry,
+      result = await startChatJob({ scope: chatScope(chat), retry, context,
         provider: selection.selectedProvider, model: selection.selectedModel,
         reasoningEffort: selection.selectedReasoningEffort }, (status) => receiveStatus(entry, status))
       if (result.chat.sessionId !== entry.sessionId || result.chat.draftId !== chat.draftId

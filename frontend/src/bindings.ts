@@ -148,6 +148,7 @@ export type ChatMessage = {
 	role: ChatRole,
 	text: string,
 	images: ChatImage[],
+	context?: ChatTarget,
 	status: ChatTurnStatus,
 	errorMessage: string | null,
 	aiRunId: string | null,
@@ -225,6 +226,8 @@ export type ChatSubmitRequest = {
 	expectedNoteBodyJson: string | null,
 	expectedNoteBodyFormat: string | null,
 };
+
+export type ChatTarget = { kind: "session" } | { kind: "finding"; snapshot: RecordContextSnapshot } | { kind: "test_cases_draft"; snapshot: RecordContextSnapshot };
 
 export type ChatTurnStatus = "running" | "completed" | "failed" | "cancelled" | "interrupted";
 
@@ -607,6 +610,20 @@ export type ProviderWarning = {
 
 export type ProviderWarningSeverity = "advisory" | "blocking";
 
+export type RecordContextSnapshot = {
+	sessionId: string,
+	recordId: string,
+	title: string,
+	documentJson: string,
+	metadataJson: string | null,
+	recordKind: string,
+	origin: RecordSnapshotOrigin,
+	localFingerprint?: string,
+	storedBaseToken?: string,
+};
+
+export type RecordSnapshotOrigin = "saved" | "unsaved_editor";
+
 export type ReportedModel = { source: "claudeInitialization"; id: string } | { source: "claudeAssistantMessage"; id: string } | { source: "codexThreadConfiguration"; id: string };
 
 export type RequestedModel = { kind: "default" } | { kind: "copilotAutomatic" } | { kind: "explicit"; id: string };
@@ -679,6 +696,7 @@ export type StartAiActionJobResult_Serialize = {
 };
 
 export type StartChatJobRequest = {
+	context?: ChatTarget,
 	scope: ChatRevision,
 	retry?: boolean,
 	provider: AiProvider,

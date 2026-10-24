@@ -13,6 +13,8 @@ use crate::{
 
 #[cfg(test)]
 mod composer_tests;
+#[cfg(test)]
+mod context_tests;
 mod image_import;
 #[cfg(test)]
 mod image_preflight_tests;
@@ -166,6 +168,9 @@ fn reconcile_chat_failure(
 #[derive(Clone, Debug, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct StartChatJobRequest {
+    #[serde(default)]
+    #[specta(optional)]
+    pub context: ChatTarget,
     pub scope: ChatRevision,
     #[serde(default)]
     pub retry: bool,

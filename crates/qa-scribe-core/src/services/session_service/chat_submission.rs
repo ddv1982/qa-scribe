@@ -81,6 +81,9 @@ fn append_transcript(
         } else {
             nodes.insert(0, json!({"type":"paragraph", "content":label_content}));
         }
+        if message.role == ChatRole::User && message.context != ChatTarget::Session {
+            nodes.splice(0..0, markdown::literal(&message.context.label()));
+        }
         for image in &message.images {
             nodes.push(json!({"type":"image", "attrs":{
                 "src": format!("qa-scribe-attachment://{}", image.attachment_id),

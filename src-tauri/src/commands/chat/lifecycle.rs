@@ -51,7 +51,7 @@ pub(super) fn commit(
     let mut started = if request.retry {
         service.retry_chat_turn(start)?
     } else {
-        service.start_chat_turn(start)?
+        service.start_chat_turn_with_context(start, request.context.clone())?
     };
     let mut created_run: Option<AiRun> = None;
     let preparation: Result<PreparedChat> = (|| {
