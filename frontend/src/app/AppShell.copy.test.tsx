@@ -302,6 +302,8 @@ it('copies the selected Gherkin body and initializes preflight without losing th
   fireEvent.click(create)
   const select = await screen.findByRole('combobox', { name: 'Test case output format' })
   fireEvent.change(select, { target: { value: 'gherkin' } })
+  expect(screen.getByRole('combobox', { name: 'Test case output format' })).toHaveValue('gherkin')
+  expect(screen.getByRole('textbox', { name: 'Creation draft body' })).toHaveTextContent('GivenWhenThen')
   const title = screen.getByRole('textbox', { name: 'Test case title' })
   fireEvent.change(title, { target: { value: 'Manual behavior' } })
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Copy Manual behavior' })) })
