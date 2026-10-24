@@ -14,3 +14,5 @@ Reports describe the exact source revisions they reviewed. A passing focused rev
 | [Corrected source and native review](source-native-round-two.md) | Pass with notes at 20bbeaf | Both P2s close. Earlier closures hold. All 38 maintained native cases and eight additional cases pass. Performance and hosted CI remain separate gates. |
 
 The [implementation run](../../implementation.md) records current acceptance and limits. These historical reports are not a release verdict.
+
+Erratum for the round-two helper description. Its statement that the observer rejects provider or Jira invocations is not runtime prevention proof. Tauri's invoke property is non-writable, so that attempted override did not install. The current harness verifies actual SQLite AI Run/message counts and zero fixture executions instead. The final performance report and decision trail supersede the historical interception claim; the original review report is unchanged.
