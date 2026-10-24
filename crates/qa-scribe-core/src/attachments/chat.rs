@@ -6,7 +6,7 @@ use std::{
 
 use image::{ImageFormat, ImageReader};
 
-use super::{decode_image_data_url, import_managed_attachment_with, managed_attachment_bytes};
+use super::{decode_image_data_url, managed_attachment_bytes};
 use crate::{
     Result,
     domain::{Attachment, ChatRevision, ChatState},
@@ -80,31 +80,64 @@ pub fn import_chat_image_data_url(
     filename: String,
     data_url: &str,
 ) -> Result<ChatState> {
-    if data_url.len() > MAX_CHAT_IMAGE_BYTES.div_ceil(3) * 4 + 64 {
-        return Err(validation("Chat images must be at most 10 MiB each"));
-    }
-    let (mime_type, bytes) = decode_image_data_url(data_url)?;
-    validate_chat_image(&mime_type, &bytes)?;
-    service.check_chat_image_import(&scope, bytes.len())?;
-    let result = import_managed_attachment_with(
-        &app_data_dir,
-        crate::domain::AttachmentDraft {
-            session_id: scope.session_id.clone(),
-            entry_id: None,
-            filename,
-            mime_type: Some(mime_type),
-            size_bytes: 0,
-            sha256: String::new(),
-            relative_path: String::new(),
-        },
-        bytes,
-        |draft, temp_path| service.reserve_chat_image_import(&scope, draft, temp_path),
-        |draft| service.append_imported_chat_image(&scope, draft),
-    );
+    let prepared = PreparedChatImageImport::decode(scope, filename, data_url)?;
+    let result = (|| {
+        prepared.reserve(service)?;
+        prepared.write(app_data_dir.as_ref())?;
+        prepared.commit(service)
+    })();
     if result.is_err() {
-        let _ = super::chat_imports::recover_chat_image_imports(service, app_data_dir.as_ref());
+        let _ = prepared.recover(service, app_data_dir.as_ref());
     }
     result
+}
+
+pub struct PreparedChatImageImport {
+    scope: ChatRevision,
+    file: super::managed_import::PreparedManagedAttachment,
+}
+
+impl PreparedChatImageImport {
+    pub fn decode(scope: ChatRevision, filename: String, data_url: &str) -> Result<Self> {
+        if data_url.len() > MAX_CHAT_IMAGE_BYTES.div_ceil(3) * 4 + 64 {
+            return Err(validation("Chat images must be at most 10 MiB each"));
+        }
+        let (mime_type, bytes) = decode_image_data_url(data_url)?;
+        validate_chat_image(&mime_type, &bytes)?;
+        let file = super::managed_import::PreparedManagedAttachment::new(
+            crate::domain::AttachmentDraft {
+                session_id: scope.session_id.clone(),
+                entry_id: None,
+                filename,
+                mime_type: Some(mime_type),
+                size_bytes: 0,
+                sha256: String::new(),
+                relative_path: String::new(),
+            },
+            bytes,
+        )?;
+        Ok(Self { scope, file })
+    }
+
+    pub fn reserve(&self, service: &SessionService) -> Result<()> {
+        service.reserve_chat_image_import(&self.scope, &self.file.draft, &self.file.temp_relative)
+    }
+
+    pub fn write(&self, app_data_dir: &Path) -> Result<()> {
+        self.file.write(app_data_dir)
+    }
+
+    pub fn commit(&self, service: &SessionService) -> Result<ChatState> {
+        service.append_imported_chat_image(&self.scope, self.file.draft.clone())
+    }
+
+    pub fn recover(&self, service: &SessionService, app_data_dir: &Path) -> Result<()> {
+        super::chat_imports::recover_chat_image_import(
+            service,
+            app_data_dir,
+            &self.file.draft.relative_path,
+        )
+    }
 }
 
 pub fn resolve_chat_image(

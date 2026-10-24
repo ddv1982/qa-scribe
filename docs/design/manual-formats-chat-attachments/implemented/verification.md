@@ -45,3 +45,10 @@ Independent round-three review closed the preparation, uncertain-start recovery,
 Fixture parsers reject raw labelled bodies and preserve legacy JSON replay for base comparisons. Two bulk authorization tests exposed a receipt publication race. Receipts and real marker-child results now publish complete JSON through an exclusive hard link after the temporary file is written. Duplicate names still fail without replacing the original. All 53 focused Node fixture tests pass. The parent also passed all 661 workspace Rust tests, with the same three existing opt-in tests ignored, plus Clippy, formatting, bindings, command surface, and code-size checks.
 
 Round three independently passed four native format cases and seven native permission cases. Its image run passed send, replay, pixels, and the visual matrix, then stopped with a WebDriver click exception during Note handoff. The durable submission was present, but its final reopen assertions did not run. That failed run remains contrary evidence. The next pinned review must complete those assertions against the encoded transcript patch.
+
+
+## Import lock boundary
+
+Sentry identified the remaining shared lock around image import. A prepared import now owns the validated image bytes, generated managed paths, and original Chat revision. Decode, validation, hashing, writing, and file synchronization run on the existing blocking worker outside the service mutex. Short reservation and commit operations recheck the revision. A failed import compensates only its own durable receipt; the global sweep runs at startup before import workers exist.
+
+The author passed 45 Tauri Chat tests, 49 attachment unit tests, 47 Chat storage tests, 12 cleanup tests, and 19 attachment integration tests, plus Clippy, formatting, code-size, command manifest, and unchanged bindings. Deliberately retaining the mutex during decode or writing makes the service-read barrier fail. Reinstating global failure recovery makes the concurrent-import test fail. The parent independently reran all nine import boundary tests and all 47 Chat storage tests. Native execution and independent final review of this boundary remain pending.

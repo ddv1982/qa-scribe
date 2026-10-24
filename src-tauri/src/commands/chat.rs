@@ -11,6 +11,7 @@ use crate::{
     settings::AppState,
 };
 
+mod image_import;
 #[cfg(test)]
 mod image_preflight_tests;
 mod lifecycle;
@@ -206,15 +207,7 @@ pub async fn import_chat_image(
     super::files::attachment_task("Chat image import", move || {
         use tauri::Manager;
         let state = app.state::<AppState>();
-        state.with_service(|service| {
-            qa_scribe_core::attachments::chat::import_chat_image_data_url(
-                service,
-                state.app_data_dir(),
-                scope,
-                filename,
-                &data_url,
-            )
-        })
+        image_import::import(&state, scope, filename, &data_url)
     })
     .await
 }
