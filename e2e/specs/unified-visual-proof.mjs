@@ -7,17 +7,25 @@ import { DatabaseSync } from 'node:sqlite'
 import { readClipboardText } from '../fixtures/clipboard-readback.mjs'
 import { resize } from './chat-handoff-proof.mjs'
 import { nativeKeySender } from './preflight-native-keys.mjs'
+import { captureRestartRoute } from './chat-restart-capture.mjs'
 const require = createRequire(new URL('../../frontend/package.json', import.meta.url))
 const { Key } = await import(require.resolve('webdriverio'))
 
 const out = () => process.env.QA_SCRIBE_E2E_ARTIFACTS
-async function click(selector) {
+let restartTrace
+export async function click(selector) {
+  restartTrace?.click('lookup', selector)
   const scopedText = selector.match(/^(.*) (button)(\*?=.+)$/)
   const element = scopedText ? await (await $(scopedText[1])).$(`${scopedText[2]}${scopedText[3]}`) : await $(selector)
   await element.waitForExist()
   await element.scrollIntoView()
   await element.waitForClickable()
+  restartTrace?.click('dispatch', selector, element.elementId)
   await element.click()
+  restartTrace?.click('returned', selector, element.elementId)
+}
+export async function waitForSavedConversation() {
+  await browser.waitUntil(async () => await $('.chat-meta [role="status"]').getText() === 'Conversation saved')
 }
 const tab = label => click(`.session-workspace-tabs button*=${label}`)
 const native = (command, args = {}) => browser.tauri.execute(({ core }, { command, args }) => core.invoke(command, args), { command, args })
@@ -49,6 +57,16 @@ async function capture(name, selectors = []) {
 }
 
 export async function unifiedRoute() {
+  return captureRestartRoute(browser, async trace => {
+    restartTrace = trace
+    try { return await unifiedRouteBody() } finally { restartTrace = undefined }
+  }, diagnostic => {
+    receipts.push(diagnostic)
+    writeFileSync(join(out(), 'uc3-layout.json'), JSON.stringify(receipts, null, 2))
+  })
+}
+
+async function unifiedRouteBody() {
   await resize(1280, 860)
   await tab('Note')
   const sessionTitle = await $('[aria-label="Session title"]').getValue()
@@ -127,19 +145,29 @@ export async function unifiedRoute() {
   await capture('uc3-settings-saved', ['.settings-save-feedback button'])
   await click('.settings-back-button')
   await tab('Note')
+  restartTrace?.activate()
   await click('button=Chat')
   await $('button=Start new conversation').waitForEnabled()
+  await waitForSavedConversation()
   const oldChat = await native('get_chat', { sessionId: session.id })
+  restartTrace?.identity('before restart', oldChat)
   await click('button=Start new conversation')
   await $('dialog[open]').waitForDisplayed()
   assert.match(await $('dialog').getText(), /Submit completed messages to the Session Note first/)
   assert.equal(await browser.execute(() => document.activeElement?.textContent.trim()), 'Cancel')
   await capture('uc3-accessibility-and-layout', ['dialog .confirmation-actions button:first-child', 'dialog .confirmation-actions button:last-child'])
   await click('dialog button=Cancel')
-  assert.equal((await native('get_chat', { sessionId: session.id })).draftId, oldChat.draftId)
+  const afterCancel = await native('get_chat', { sessionId: session.id })
+  restartTrace?.identity('after Cancel', afterCancel)
+  assert.equal(afterCancel.draftId, oldChat.draftId)
   await click('button=Start new conversation')
   await click('dialog button=Start new conversation')
-  await browser.waitUntil(async () => (await native('get_chat', { sessionId: session.id })).draftId !== oldChat.draftId)
+  await browser.waitUntil(async () => {
+    const chat = await native('get_chat', { sessionId: session.id })
+    restartTrace?.identity('restart poll', chat)
+    return chat.draftId !== oldChat.draftId
+  })
+  restartTrace?.deactivate()
   await click('button=Write note')
   await click('button=Help')
   await $('dialog[open]').waitForDisplayed()
