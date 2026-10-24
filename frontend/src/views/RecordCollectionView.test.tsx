@@ -57,6 +57,41 @@ describe('scalable record collection', () => {
     expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument()
   })
 
+  it.each(['finding', 'testware'] as const)('retains the %s title, Copy and keyboard editing actions in the record header', async (kind) => {
+    const user = userEvent.setup()
+    const title = 'Checkout validation'
+    const onCopy = vi.fn(async () => undefined)
+    if (kind === 'testware') renderTestware([draftFixture({ title })], { onCopy })
+    else render(<FindingsView creationCommands={recordCreationCommandsFixture('finding')} busyAction={null}
+      copyState={{ status: 'idle' }} findingScreenshotCounts={{}} findings={[findingFixture({ title })]}
+      notice={null} error={null} isBusy={false} activeGenerationJob={null} updateLocalFinding={vi.fn()}
+      onCancelGenerationJob={async () => undefined} onCopy={onCopy} onDeleteFinding={vi.fn()}
+      onSaveFinding={async () => true} onDiscardFinding={vi.fn()} onUploadImage={vi.fn()} />)
+
+    const heading = screen.getByRole('heading', { name: title })
+    const header = heading.closest('header')!
+    const copy = within(header).getByRole('button', { name: `Copy ${title}` })
+    expect(within(header).getByRole('button', { name: `Delete ${title}` })).toBeEnabled()
+    copy.focus()
+    await user.keyboard('{Enter}')
+    expect(onCopy).toHaveBeenCalledWith(expect.objectContaining({ title, target: expect.objectContaining({ kind: kind === 'finding' ? 'finding' : 'draft' }) }))
+    await user.tab()
+    expect(screen.getByRole('button', { name: 'Edit' })).toHaveFocus()
+    await user.keyboard('{Enter}')
+    expect(screen.getByRole('button', { name: 'Save' })).toHaveFocus()
+    await user.tab({ shift: true })
+    expect(copy).toHaveFocus()
+    await user.tab({ shift: true })
+    const titleInput = screen.getByRole('textbox', { name: kind === 'finding' ? 'Finding title' : 'Test case title' })
+    expect(titleInput).toHaveValue(title)
+    expect(titleInput).toHaveFocus()
+    await user.tab()
+    await user.tab()
+    await user.keyboard('{Enter}')
+    expect(screen.getByRole('heading', { name: title })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeEnabled()
+  })
+
   it('explains a collection load failure and exposes a retry action', async () => {
     const user = userEvent.setup()
     const onRetryLoad = vi.fn()

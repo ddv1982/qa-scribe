@@ -1,6 +1,9 @@
 import { ActionButton } from '../components/ActionButton'
 import { useEffect, useId, useRef, useState, type ChangeEvent, type FormEvent, type MouseEvent } from 'react'
 import { EditorContent, useEditor, type Editor } from '@tiptap/react'
+import type { Extension } from '@tiptap/core'
+import type { UndoRedoOptions } from '@tiptap/extensions'
+import { history } from '@tiptap/pm/history'
 import { Bold, ImageIcon, Italic, Link2, List, ListChecks, type LucideIcon } from 'lucide-react'
 import {
   createManagedAttachmentPreviewCache,
@@ -206,6 +209,7 @@ type RichTextEditorProps = {
   readOnly?: boolean
   className?: string
   editorId?: string
+  historyScope?: string
 }
 
 export function RichTextEditor({
@@ -216,11 +220,13 @@ export function RichTextEditor({
   readOnly = false,
   className,
   editorId,
+  historyScope,
 }: RichTextEditorProps) {
   const previewLoadRef = useRef(0)
   const previewRetryTimerRef = useRef<number | null>(null)
   const [previewCache] = useState(() => createManagedAttachmentPreviewCache())
   const onChangeRef = useRef(onChange)
+  const historyScopeRef = useRef(historyScope)
 
   useEffect(() => {
     onChangeRef.current = onChange
@@ -279,8 +285,16 @@ export function RichTextEditor({
     if (!richEditorDocumentsEqual(currentValue, normalizedValue)) {
       editor.commands.setContent(normalizedValue.doc, { emitUpdate: false })
     }
+    if (historyScopeRef.current !== historyScope) {
+      const undoRedo = editor.extensionManager.extensions.find((extension): extension is Extension<UndoRedoOptions> => extension.name === 'undoRedo')
+      if (undoRedo) {
+        editor.unregisterPlugin('history')
+        editor.registerPlugin(history(undoRedo.options))
+      }
+      historyScopeRef.current = historyScope
+    }
     queueManagedPreviewHydration(editor, previewLoadRef, previewRetryTimerRef, previewCache)
-  }, [editor, previewCache, value])
+  }, [editor, historyScope, previewCache, value])
 
   useEffect(() => {
     if (!editor || editor.isDestroyed || !editorId) return
