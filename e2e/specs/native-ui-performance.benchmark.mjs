@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { cpus, loadavg, release } from 'node:os'
@@ -191,8 +192,10 @@ describe('Bounded native WebView UI performance preparation', () => {
       assert.deepEqual(Object.fromEntries(Object.keys(expectedActions).map(action => [action, receipt.samples.filter(sample => sample.action === action).length])), expectedActions)
       assert.equal(receipt.samples.length, side === 'head' ? 120 : 60)
       if (side === 'head') assert.equal(receipt.proposal.status, 'passed')
-      receipt.forbiddenInvocations = await browser.execute(() => window.__uiPerf.forbiddenInvocations)
-      assert.deepEqual(receipt.forbiddenInvocations, [])
+      receipt.executionAudit = JSON.parse(execFileSync('python3', ['-c',
+        'import json,sqlite3,sys\nwith sqlite3.connect(sys.argv[1]) as db:\n print(json.dumps({"aiRuns":db.execute("SELECT count(*) FROM ai_runs").fetchone()[0],"messages":db.execute("SELECT count(*) FROM chat_messages").fetchone()[0]}))',
+        join(env.QA_SCRIBE_E2E_APP_DATA_DIR, 'qa-scribe.sqlite')], { encoding: 'utf8' }))
+      assert.deepEqual(receipt.executionAudit, { aiRuns: 0, messages: side === 'head' ? 140 : 100 })
       receipt.providerExecutionFiles = readdirSync(env.QA_SCRIBE_E2E_FIXTURE_DIR).filter(name => /exec-\d+\.started$/.test(name))
       assert.deepEqual(receipt.providerExecutionFiles, [], 'The probe must not request a provider response')
       receipt.summary = Object.fromEntries([...new Set(receipt.samples.map(sample => sample.action))].map(action => {

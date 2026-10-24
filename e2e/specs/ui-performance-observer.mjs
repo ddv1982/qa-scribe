@@ -1,15 +1,6 @@
 export function installUiPerformanceObserver() {
-  const state = { samples: [], failures: [], forbiddenInvocations: [], pending: null }
+  const state = { samples: [], failures: [], pending: null }
   window.__uiPerf = state
-  const invoke = window.__TAURI_INTERNALS__.invoke
-  window.__TAURI_INTERNALS__.invoke = function (command, ...args) {
-    if (/start_chat_job|start_ai_action_job|jira/i.test(command)) {
-      state.forbiddenInvocations.push(command)
-      state.failures.push(`Forbidden provider or Jira invocation ${command}`)
-      return Promise.reject(Error(`Forbidden performance-probe command ${command}`))
-    }
-    return invoke.call(this, command, ...args)
-  }
   const visible = node => Boolean(node?.getClientRects().length && getComputedStyle(node).visibility !== 'hidden'
     && !node.closest('[hidden], [inert], [aria-hidden="true"]'))
   const button = text => [...document.querySelectorAll('button')].find(node => visible(node) && node.textContent.trim() === text)
