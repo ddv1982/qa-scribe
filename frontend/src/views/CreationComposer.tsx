@@ -62,7 +62,8 @@ export function CreationComposer({ intent, actions, copyState, onCopy, fields, s
       <ActionButton variant="primary" icon={Save} loading={intent.phase.state === 'saving'} disabled={!intent.title.trim() || readingImages || failedImages.length > 0 || !['editing', 'uncertain', 'saved'].includes(intent.phase.state)} onClick={() => void actions.save()}>{intent.phase.state === 'uncertain' ? 'Retry Save' : intent.phase.state === 'saved' ? 'Open saved result' : `Save ${intent.kind === 'finding' ? 'finding' : 'test cases'}`}</ActionButton>
     </div>
     <label className="field-stack"><span>Title</span><input ref={titleRef} aria-label={intent.kind === 'finding' ? 'Finding title' : 'Test case title'} value={intent.title} readOnly={locked} onChange={(event) => actions.update({ title: event.target.value })} placeholder="Give this draft a title" /></label>
-    <fieldset disabled={locked} className="creation-fields">{fields}{intent.kind === 'testware' ? <CreationFormatSelector key={intent.id} intent={intent} actions={actions} /> : null}</fieldset>
+    <CreationFormatSelector key={`format-${intent.id}`} intent={intent} actions={actions} />
+    {fields ? <fieldset disabled={locked} className="creation-fields">{fields}</fieldset> : null}
     <div className="rich-record-editor-field">
       <FormatToolbar editorId={editorId} onUploadImage={actions.stageImage} />
       <RichTextEditor editorId={editorId} value={intent.document} onChange={(document) => actions.update({ document })} ariaLabel="Creation draft body" readOnly={locked} placeholder="Add what you observed. Empty sections are optional." />
@@ -84,7 +85,7 @@ export function CreationFormatSelector({ intent, actions }: { intent: CreationIn
     requestAnimationFrame(() => selectRef.current?.focus())
   }
   return <>
-    <label className="field-stack"><span>{intent.kind === 'testware' ? 'Output format' : 'Template'}</span>
+    <label className="field-stack creation-format"><span>{intent.kind === 'testware' ? 'Output format' : 'Template'}</span>
       <select ref={selectRef} aria-label={intent.kind === 'testware' ? 'Test case output format' : 'Finding template'} disabled={locked}
         value={creationFormatId(intent.format)} onChange={event => {
           const format = creationFormatForId(intent.kind, event.target.value)

@@ -5,10 +5,11 @@ type TranscriptPosition = {
   userTurnId: string | null
   messageId: string | null
   partialText: string | null
+  activeOutput: boolean
   paused: boolean
 }
 
-export function useChatTranscriptScroll({ conversationId, userTurnId, messageId, partialText, paused }: TranscriptPosition) {
+export function useChatTranscriptScroll({ conversationId, userTurnId, messageId, partialText, activeOutput, paused }: TranscriptPosition) {
   const viewportRef = useRef<HTMLDivElement>(null)
   const transcriptRef = useRef<HTMLElement>(null)
   const following = useRef(true)
@@ -50,7 +51,9 @@ export function useChatTranscriptScroll({ conversationId, userTurnId, messageId,
     viewport.addEventListener('scroll', observeScroll)
     viewport.addEventListener('wheel', observeWheel, { passive: true })
     viewport.addEventListener('keydown', observeKey)
-    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(revealLatest)
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => {
+      if (activeOutput) revealLatest()
+    })
     observer?.observe(transcript)
     observer?.observe(viewport)
     revealLatest()
@@ -61,7 +64,7 @@ export function useChatTranscriptScroll({ conversationId, userTurnId, messageId,
       viewport.removeEventListener('wheel', observeWheel)
       viewport.removeEventListener('keydown', observeKey)
     }
-  }, [conversationId, userTurnId, messageId, partialText, paused])
+  }, [conversationId, userTurnId, messageId, partialText, activeOutput, paused])
 
   return { viewportRef, transcriptRef }
 }

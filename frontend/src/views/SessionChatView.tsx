@@ -103,7 +103,8 @@ export function SessionChatView(props: SessionChatViewProps) {
   const permissionAttention = Boolean(pendingPermission || permissionRecoveryPending)
   const { viewportRef, transcriptRef } = useChatTranscriptScroll({ conversationId: chat?.draftId ?? null,
     userTurnId: latest?.role === 'user' ? latest.turnId : null, messageId: latest?.id ?? null,
-    partialText: job?.partialText ?? null, paused: permissionAttention || inputRecoveryPending })
+    partialText: job?.partialText ?? null, activeOutput: activeJob || running || handoff.hydrationPending,
+    paused: permissionAttention || inputRecoveryPending })
   const needsProviderRecovery = inputRecoveryPending || permissionRecoveryPending || !providerAvailable || Boolean(error || job?.errorMessage)
   const locked = !chat || busy || submitted || recovering
   const attachmentsLocked = locked || inputRecoveryPending || composerImages.length >= 4 || !onAttachImages

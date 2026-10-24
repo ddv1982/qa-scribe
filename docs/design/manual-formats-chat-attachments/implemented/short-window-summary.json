@@ -1,0 +1,1427 @@
+{
+  "receipts": {
+    "short-window-wdio-execution.json": {
+      "version": 1,
+      "spec": "short-window-visual.e2e.mjs",
+      "completed": true,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0
+    },
+    "short-window-formats-wdio-execution.json": {
+      "version": 1,
+      "spec": "creation-composer.e2e.mjs",
+      "completed": true,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0
+    },
+    "short-window-polish-wdio-execution.json": {
+      "version": 1,
+      "spec": "ui-polish.e2e.mjs",
+      "completed": true,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0
+    },
+    "short-window-negative-wdio-execution.json": {
+      "version": 1,
+      "spec": "short-window-visual.e2e.mjs",
+      "completed": true,
+      "passed": 0,
+      "failed": 2,
+      "skipped": 0
+    }
+  },
+  "fixed": [
+    {
+      "stage": "creation-light-1280-613",
+      "pageWidth": 1280,
+      "starter": {
+        "bottom": 578.4375,
+        "height": 21.25,
+        "right": 1226,
+        "width": 924,
+        "x": 302,
+        "y": 557.1875
+      },
+      "viewport": {
+        "height": 613,
+        "width": 1280
+      }
+    },
+    {
+      "stage": "creation-light-1280-645",
+      "pageWidth": 1280,
+      "starter": {
+        "bottom": 578.4375,
+        "height": 21.25,
+        "right": 1226,
+        "width": 924,
+        "x": 302,
+        "y": 557.1875
+      },
+      "viewport": {
+        "height": 645,
+        "width": 1280
+      }
+    },
+    {
+      "stage": "creation-light-1024-645",
+      "pageWidth": 1024,
+      "starter": {
+        "bottom": 759.3125,
+        "height": 21.25,
+        "right": 970,
+        "width": 672,
+        "x": 298,
+        "y": 738.0625
+      },
+      "viewport": {
+        "height": 645,
+        "width": 1024
+      }
+    },
+    {
+      "stage": "creation-light-768-645",
+      "pageWidth": 768,
+      "starter": {
+        "bottom": 775,
+        "height": 21.25,
+        "right": 714,
+        "width": 416,
+        "x": 298,
+        "y": 753.75
+      },
+      "viewport": {
+        "height": 645,
+        "width": 768
+      }
+    },
+    {
+      "stage": "creation-light-360-645",
+      "pageWidth": 360,
+      "starter": {
+        "bottom": 1204.65625,
+        "height": 21.25,
+        "right": 306,
+        "width": 252,
+        "x": 54,
+        "y": 1183.40625
+      },
+      "viewport": {
+        "height": 645,
+        "width": 360
+      }
+    },
+    {
+      "stage": "creation-light-320-645",
+      "pageWidth": 320,
+      "starter": {
+        "bottom": 1220.34375,
+        "height": 21.25,
+        "right": 266,
+        "width": 212,
+        "x": 54,
+        "y": 1199.09375
+      },
+      "viewport": {
+        "height": 645,
+        "width": 320
+      }
+    },
+    {
+      "stage": "creation-dark-1280-613",
+      "pageWidth": 1280,
+      "starter": {
+        "bottom": 578.4375,
+        "height": 21.25,
+        "right": 1226,
+        "width": 924,
+        "x": 302,
+        "y": 557.1875
+      },
+      "viewport": {
+        "height": 613,
+        "width": 1280
+      }
+    },
+    {
+      "stage": "creation-dark-1280-645",
+      "pageWidth": 1280,
+      "starter": {
+        "bottom": 578.4375,
+        "height": 21.25,
+        "right": 1226,
+        "width": 924,
+        "x": 302,
+        "y": 557.1875
+      },
+      "viewport": {
+        "height": 645,
+        "width": 1280
+      }
+    },
+    {
+      "stage": "creation-dark-1024-645",
+      "pageWidth": 1024,
+      "starter": {
+        "bottom": 759.3125,
+        "height": 21.25,
+        "right": 970,
+        "width": 672,
+        "x": 298,
+        "y": 738.0625
+      },
+      "viewport": {
+        "height": 645,
+        "width": 1024
+      }
+    },
+    {
+      "stage": "creation-dark-768-645",
+      "pageWidth": 768,
+      "starter": {
+        "bottom": 775,
+        "height": 21.25,
+        "right": 714,
+        "width": 416,
+        "x": 298,
+        "y": 753.75
+      },
+      "viewport": {
+        "height": 645,
+        "width": 768
+      }
+    },
+    {
+      "stage": "creation-dark-360-645",
+      "pageWidth": 360,
+      "starter": {
+        "bottom": 1204.65625,
+        "height": 21.25,
+        "right": 306,
+        "width": 252,
+        "x": 54,
+        "y": 1183.40625
+      },
+      "viewport": {
+        "height": 645,
+        "width": 360
+      }
+    },
+    {
+      "stage": "creation-dark-320-645",
+      "pageWidth": 320,
+      "starter": {
+        "bottom": 1220.34375,
+        "height": 21.25,
+        "right": 266,
+        "width": 212,
+        "x": 54,
+        "y": 1199.09375
+      },
+      "viewport": {
+        "height": 645,
+        "width": 320
+      }
+    },
+    {
+      "stage": "save-light-before-edit",
+      "composer": {
+        "bottom": 401.78125,
+        "height": 88.390625,
+        "width": 582,
+        "x": 29,
+        "y": 313.390625
+      },
+      "counts": "2 / 128 messages \u00b7 9.2 / 128 KiB transcript",
+      "disabled": {
+        "add": true,
+        "restart": false,
+        "send": false
+      },
+      "draft": "Retained laptop composer draft",
+      "send": {
+        "bottom": 445.78125,
+        "height": 36,
+        "width": 66.21875,
+        "x": 544.78125,
+        "y": 409.78125
+      },
+      "viewport": {
+        "height": 520,
+        "width": 640
+      }
+    },
+    {
+      "stage": "save-light-typed",
+      "composer": {
+        "bottom": 444.78125,
+        "height": 88.390625,
+        "width": 582,
+        "x": 29,
+        "y": 356.390625
+      },
+      "counts": "2 / 128 messages \u00b7 9.2 / 128 KiB transcript",
+      "disabled": {
+        "add": true,
+        "restart": false,
+        "send": false
+      },
+      "draft": "Controlled light unsent message",
+      "send": {
+        "bottom": 488.78125,
+        "height": 36,
+        "width": 66.21875,
+        "x": 544.78125,
+        "y": 452.78125
+      },
+      "viewport": {
+        "height": 520,
+        "width": 640
+      }
+    },
+    {
+      "stage": "save-light-before",
+      "composer": {
+        "bottom": 444.78125,
+        "height": 88.390625,
+        "width": 582,
+        "x": 29,
+        "y": 356.390625
+      },
+      "counts": "2 / 128 messages \u00b7 9.2 / 128 KiB transcript",
+      "disabled": {
+        "add": true,
+        "restart": false,
+        "send": false
+      },
+      "draft": "Controlled light unsent message",
+      "send": {
+        "bottom": 488.78125,
+        "height": 36,
+        "width": 66.21875,
+        "x": 544.78125,
+        "y": 452.78125
+      },
+      "viewport": {
+        "height": 520,
+        "width": 640
+      }
+    },
+    {
+      "stage": "save-light-pending",
+      "composer": {
+        "bottom": 444.78125,
+        "height": 88.390625,
+        "width": 582,
+        "x": 29,
+        "y": 356.390625
+      },
+      "counts": "2 / 128 messages \u00b7 9.2 / 128 KiB transcript",
+      "disabled": {
+        "add": true,
+        "restart": true,
+        "send": true
+      },
+      "draft": "Controlled light unsent message",
+      "send": {
+        "bottom": 488.78125,
+        "height": 36,
+        "width": 66.21875,
+        "x": 544.78125,
+        "y": 452.78125
+      },
+      "viewport": {
+        "height": 520,
+        "width": 640
+      }
+    },
+    {
+      "stage": "save-light-completed",
+      "composer": {
+        "bottom": 444.78125,
+        "height": 88.390625,
+        "width": 582,
+        "x": 29,
+        "y": 356.390625
+      },
+      "counts": "2 / 128 messages \u00b7 9.2 / 128 KiB transcript",
+      "disabled": {
+        "add": true,
+        "restart": false,
+        "send": false
+      },
+      "draft": "Controlled light unsent message",
+      "send": {
+        "bottom": 488.78125,
+        "height": 36,
+        "width": 66.21875,
+        "x": 544.78125,
+        "y": 452.78125
+      },
+      "viewport": {
+        "height": 520,
+        "width": 640
+      }
+    },
+    {
+      "stage": "save-light-result",
+      "failures": [],
+      "gate": {
+        "acknowledgment": {
+          "composer": "Controlled light unsent message",
+          "draftId": "f1db1a86-cec7-4786-aada-d7d61fd79826",
+          "mode": "chat",
+          "revision": 6,
+          "sessionId": "a2cca201-3360-4fcb-a45c-27cc070b3401"
+        },
+        "released": true,
+        "scrolls": []
+      }
+    },
+    {
+      "stage": "save-dark-before-edit",
+      "composer": {
+        "bottom": 401.78125,
+        "height": 88.390625,
+        "width": 582,
+        "x": 29,
+        "y": 313.390625
+      },
+      "counts": "2 / 128 messages \u00b7 9.2 / 128 KiB transcript",
+      "disabled": {
+        "add": true,
+        "restart": false,
+        "send": false
+      },
+      "draft": "Controlled light unsent message",
+      "send": {
+        "bottom": 445.78125,
+        "height": 36,
+        "width": 66.21875,
+        "x": 544.78125,
+        "y": 409.78125
+      },
+      "viewport": {
+        "height": 520,
+        "width": 640
+      }
+    },
+    {
+      "stage": "save-dark-typed",
+      "composer": {
+        "bottom": 444.78125,
+        "height": 88.390625,
+        "width": 582,
+        "x": 29,
+        "y": 356.390625
+      },
+      "counts": "2 / 128 messages \u00b7 9.2 / 128 KiB transcript",
+      "disabled": {
+        "add": true,
+        "restart": false,
+        "send": false
+      },
+      "draft": "Controlled dark unsent message",
+      "send": {
+        "bottom": 488.78125,
+        "height": 36,
+        "width": 66.21875,
+        "x": 544.78125,
+        "y": 452.78125
+      },
+      "viewport": {
+        "height": 520,
+        "width": 640
+      }
+    },
+    {
+      "stage": "save-dark-before",
+      "composer": {
+        "bottom": 444.78125,
+        "height": 88.390625,
+        "width": 582,
+        "x": 29,
+        "y": 356.390625
+      },
+      "counts": "2 / 128 messages \u00b7 9.2 / 128 KiB transcript",
+      "disabled": {
+        "add": true,
+        "restart": false,
+        "send": false
+      },
+      "draft": "Controlled dark unsent message",
+      "send": {
+        "bottom": 488.78125,
+        "height": 36,
+        "width": 66.21875,
+        "x": 544.78125,
+        "y": 452.78125
+      },
+      "viewport": {
+        "height": 520,
+        "width": 640
+      }
+    },
+    {
+      "stage": "save-dark-pending",
+      "composer": {
+        "bottom": 444.78125,
+        "height": 88.390625,
+        "width": 582,
+        "x": 29,
+        "y": 356.390625
+      },
+      "counts": "2 / 128 messages \u00b7 9.2 / 128 KiB transcript",
+      "disabled": {
+        "add": true,
+        "restart": true,
+        "send": true
+      },
+      "draft": "Controlled dark unsent message",
+      "send": {
+        "bottom": 488.78125,
+        "height": 36,
+        "width": 66.21875,
+        "x": 544.78125,
+        "y": 452.78125
+      },
+      "viewport": {
+        "height": 520,
+        "width": 640
+      }
+    },
+    {
+      "stage": "save-dark-completed",
+      "composer": {
+        "bottom": 444.78125,
+        "height": 88.390625,
+        "width": 582,
+        "x": 29,
+        "y": 356.390625
+      },
+      "counts": "2 / 128 messages \u00b7 9.2 / 128 KiB transcript",
+      "disabled": {
+        "add": true,
+        "restart": false,
+        "send": false
+      },
+      "draft": "Controlled dark unsent message",
+      "send": {
+        "bottom": 488.78125,
+        "height": 36,
+        "width": 66.21875,
+        "x": 544.78125,
+        "y": 452.78125
+      },
+      "viewport": {
+        "height": 520,
+        "width": 640
+      }
+    },
+    {
+      "stage": "save-dark-result",
+      "failures": [],
+      "gate": {
+        "acknowledgment": {
+          "composer": "Controlled dark unsent message",
+          "draftId": "f1db1a86-cec7-4786-aada-d7d61fd79826",
+          "mode": "chat",
+          "revision": 7,
+          "sessionId": "a2cca201-3360-4fcb-a45c-27cc070b3401"
+        },
+        "released": true,
+        "scrolls": []
+      }
+    }
+  ],
+  "originalPolish": [
+    {
+      "stage": "save-light-before-edit",
+      "composer": {
+        "bottom": 401.78125,
+        "height": 88.390625,
+        "width": 582,
+        "x": 29,
+        "y": 313.390625
+      },
+      "counts": "2 / 128 messages \u00b7 9.2 / 128 KiB transcript",
+      "disabled": {
+        "add": true,
+        "restart": false,
+        "send": false
+      },
+      "draft": "Retained laptop composer draft",
+      "send": {
+        "bottom": 445.78125,
+        "height": 36,
+        "width": 66.21875,
+        "x": 544.78125,
+        "y": 409.78125
+      },
+      "sendPaint": {
+        "background": "rgb(36, 86, 196)",
+        "text": "rgb(255, 255, 255)"
+      },
+      "viewport": {
+        "height": 520,
+        "width": 640
+      }
+    },
+    {
+      "stage": "save-light-typed",
+      "composer": {
+        "bottom": 444.78125,
+        "height": 88.390625,
+        "width": 582,
+        "x": 29,
+        "y": 356.390625
+      },
+      "counts": "2 / 128 messages \u00b7 9.2 / 128 KiB transcript",
+      "disabled": {
+        "add": true,
+        "restart": false,
+        "send": false
+      },
+      "draft": "Controlled light unsent message",
+      "send": {
+        "bottom": 488.78125,
+        "height": 36,
+        "width": 66.21875,
+        "x": 544.78125,
+        "y": 452.78125
+      },
+      "sendPaint": {
+        "background": "rgb(36, 86, 196)",
+        "text": "rgb(255, 255, 255)"
+      },
+      "viewport": {
+        "height": 520,
+        "width": 640
+      }
+    },
+    {
+      "stage": "save-light-before",
+      "composer": {
+        "bottom": 444.78125,
+        "height": 88.390625,
+        "width": 582,
+        "x": 29,
+        "y": 356.390625
+      },
+      "counts": "2 / 128 messages \u00b7 9.2 / 128 KiB transcript",
+      "disabled": {
+        "add": true,
+        "restart": false,
+        "send": false
+      },
+      "draft": "Controlled light unsent message",
+      "send": {
+        "bottom": 488.78125,
+        "height": 36,
+        "width": 66.21875,
+        "x": 544.78125,
+        "y": 452.78125
+      },
+      "sendPaint": {
+        "background": "rgb(36, 86, 196)",
+        "text": "rgb(255, 255, 255)"
+      },
+      "viewport": {
+        "height": 520,
+        "width": 640
+      }
+    },
+    {
+      "stage": "save-light-pending",
+      "composer": {
+        "bottom": 444.78125,
+        "height": 88.390625,
+        "width": 582,
+        "x": 29,
+        "y": 356.390625
+      },
+      "counts": "2 / 128 messages \u00b7 9.2 / 128 KiB transcript",
+      "disabled": {
+        "add": true,
+        "restart": true,
+        "send": true
+      },
+      "draft": "Controlled light unsent message",
+      "send": {
+        "bottom": 488.78125,
+        "height": 36,
+        "width": 66.21875,
+        "x": 544.78125,
+        "y": 452.78125
+      },
+      "sendPaint": {
+        "background": "rgb(36, 86, 196)",
+        "text": "rgb(255, 255, 255)"
+      },
+      "viewport": {
+        "height": 520,
+        "width": 640
+      }
+    },
+    {
+      "stage": "save-light-completed",
+      "composer": {
+        "bottom": 444.78125,
+        "height": 88.390625,
+        "width": 582,
+        "x": 29,
+        "y": 356.390625
+      },
+      "counts": "2 / 128 messages \u00b7 9.2 / 128 KiB transcript",
+      "disabled": {
+        "add": true,
+        "restart": false,
+        "send": false
+      },
+      "draft": "Controlled light unsent message",
+      "send": {
+        "bottom": 488.78125,
+        "height": 36,
+        "width": 66.21875,
+        "x": 544.78125,
+        "y": 452.78125
+      },
+      "sendPaint": {
+        "background": "rgb(36, 86, 196)",
+        "text": "rgb(255, 255, 255)"
+      },
+      "viewport": {
+        "height": 520,
+        "width": 640
+      }
+    },
+    {
+      "stage": "save-light-result",
+      "failures": [],
+      "gate": {
+        "acknowledgment": {
+          "composer": "Controlled light unsent message",
+          "draftId": "8963b879-b333-4c16-a5ac-141d67beebe2",
+          "mode": "chat",
+          "revision": 7,
+          "sessionId": "36f75a88-5535-408f-ba1e-aab5912740bd"
+        },
+        "released": true,
+        "scrolls": []
+      }
+    },
+    {
+      "stage": "save-dark-before-edit",
+      "composer": {
+        "bottom": 401.78125,
+        "height": 88.390625,
+        "width": 582,
+        "x": 29,
+        "y": 313.390625
+      },
+      "counts": "2 / 128 messages \u00b7 9.2 / 128 KiB transcript",
+      "disabled": {
+        "add": true,
+        "restart": false,
+        "send": false
+      },
+      "draft": "Controlled light unsent message",
+      "send": {
+        "bottom": 445.78125,
+        "height": 36,
+        "width": 66.21875,
+        "x": 544.78125,
+        "y": 409.78125
+      },
+      "sendPaint": {
+        "background": "rgb(36, 86, 196)",
+        "text": "rgb(255, 255, 255)"
+      },
+      "viewport": {
+        "height": 520,
+        "width": 640
+      }
+    },
+    {
+      "stage": "save-dark-typed",
+      "composer": {
+        "bottom": 444.78125,
+        "height": 88.390625,
+        "width": 582,
+        "x": 29,
+        "y": 356.390625
+      },
+      "counts": "2 / 128 messages \u00b7 9.2 / 128 KiB transcript",
+      "disabled": {
+        "add": true,
+        "restart": false,
+        "send": false
+      },
+      "draft": "Controlled dark unsent message",
+      "send": {
+        "bottom": 488.78125,
+        "height": 36,
+        "width": 66.21875,
+        "x": 544.78125,
+        "y": 452.78125
+      },
+      "sendPaint": {
+        "background": "rgb(36, 86, 196)",
+        "text": "rgb(255, 255, 255)"
+      },
+      "viewport": {
+        "height": 520,
+        "width": 640
+      }
+    },
+    {
+      "stage": "save-dark-before",
+      "composer": {
+        "bottom": 444.78125,
+        "height": 88.390625,
+        "width": 582,
+        "x": 29,
+        "y": 356.390625
+      },
+      "counts": "2 / 128 messages \u00b7 9.2 / 128 KiB transcript",
+      "disabled": {
+        "add": true,
+        "restart": false,
+        "send": false
+      },
+      "draft": "Controlled dark unsent message",
+      "send": {
+        "bottom": 488.78125,
+        "height": 36,
+        "width": 66.21875,
+        "x": 544.78125,
+        "y": 452.78125
+      },
+      "sendPaint": {
+        "background": "rgb(36, 86, 196)",
+        "text": "rgb(255, 255, 255)"
+      },
+      "viewport": {
+        "height": 520,
+        "width": 640
+      }
+    },
+    {
+      "stage": "save-dark-pending",
+      "composer": {
+        "bottom": 444.78125,
+        "height": 88.390625,
+        "width": 582,
+        "x": 29,
+        "y": 356.390625
+      },
+      "counts": "2 / 128 messages \u00b7 9.2 / 128 KiB transcript",
+      "disabled": {
+        "add": true,
+        "restart": true,
+        "send": true
+      },
+      "draft": "Controlled dark unsent message",
+      "send": {
+        "bottom": 488.78125,
+        "height": 36,
+        "width": 66.21875,
+        "x": 544.78125,
+        "y": 452.78125
+      },
+      "sendPaint": {
+        "background": "rgb(36, 86, 196)",
+        "text": "rgb(255, 255, 255)"
+      },
+      "viewport": {
+        "height": 520,
+        "width": 640
+      }
+    },
+    {
+      "stage": "save-dark-completed",
+      "composer": {
+        "bottom": 444.78125,
+        "height": 88.390625,
+        "width": 582,
+        "x": 29,
+        "y": 356.390625
+      },
+      "counts": "2 / 128 messages \u00b7 9.2 / 128 KiB transcript",
+      "disabled": {
+        "add": true,
+        "restart": false,
+        "send": false
+      },
+      "draft": "Controlled dark unsent message",
+      "send": {
+        "bottom": 488.78125,
+        "height": 36,
+        "width": 66.21875,
+        "x": 544.78125,
+        "y": 452.78125
+      },
+      "sendPaint": {
+        "background": "rgb(36, 86, 196)",
+        "text": "rgb(255, 255, 255)"
+      },
+      "viewport": {
+        "height": 520,
+        "width": 640
+      }
+    },
+    {
+      "stage": "save-dark-result",
+      "failures": [],
+      "gate": {
+        "acknowledgment": {
+          "composer": "Controlled dark unsent message",
+          "draftId": "8963b879-b333-4c16-a5ac-141d67beebe2",
+          "mode": "chat",
+          "revision": 9,
+          "sessionId": "36f75a88-5535-408f-ba1e-aab5912740bd"
+        },
+        "released": true,
+        "scrolls": []
+      }
+    }
+  ],
+  "negativeControl": [
+    {
+      "stage": "creation-light-1280-613",
+      "pageWidth": 1280,
+      "starter": {
+        "bottom": 730.3125,
+        "height": 21.25,
+        "right": 1226,
+        "width": 924,
+        "x": 302,
+        "y": 709.0625
+      },
+      "viewport": {
+        "height": 613,
+        "width": 1280
+      }
+    },
+    {
+      "stage": "creation-light-1280-645",
+      "pageWidth": 1280,
+      "starter": {
+        "bottom": 730.3125,
+        "height": 21.25,
+        "right": 1226,
+        "width": 924,
+        "x": 302,
+        "y": 709.0625
+      },
+      "viewport": {
+        "height": 645,
+        "width": 1280
+      }
+    },
+    {
+      "stage": "creation-light-1024-645",
+      "pageWidth": 1024,
+      "starter": {
+        "bottom": 759.3125,
+        "height": 21.25,
+        "right": 970,
+        "width": 672,
+        "x": 298,
+        "y": 738.0625
+      },
+      "viewport": {
+        "height": 645,
+        "width": 1024
+      }
+    },
+    {
+      "stage": "creation-light-768-645",
+      "pageWidth": 768,
+      "starter": {
+        "bottom": 775,
+        "height": 21.25,
+        "right": 714,
+        "width": 416,
+        "x": 298,
+        "y": 753.75
+      },
+      "viewport": {
+        "height": 645,
+        "width": 768
+      }
+    },
+    {
+      "stage": "creation-light-360-645",
+      "pageWidth": 360,
+      "starter": {
+        "bottom": 1204.65625,
+        "height": 21.25,
+        "right": 306,
+        "width": 252,
+        "x": 54,
+        "y": 1183.40625
+      },
+      "viewport": {
+        "height": 645,
+        "width": 360
+      }
+    },
+    {
+      "stage": "creation-light-320-645",
+      "pageWidth": 320,
+      "starter": {
+        "bottom": 1220.34375,
+        "height": 21.25,
+        "right": 266,
+        "width": 212,
+        "x": 54,
+        "y": 1199.09375
+      },
+      "viewport": {
+        "height": 645,
+        "width": 320
+      }
+    },
+    {
+      "stage": "creation-dark-1280-613",
+      "pageWidth": 1280,
+      "starter": {
+        "bottom": 730.3125,
+        "height": 21.25,
+        "right": 1226,
+        "width": 924,
+        "x": 302,
+        "y": 709.0625
+      },
+      "viewport": {
+        "height": 613,
+        "width": 1280
+      }
+    },
+    {
+      "stage": "creation-dark-1280-645",
+      "pageWidth": 1280,
+      "starter": {
+        "bottom": 730.3125,
+        "height": 21.25,
+        "right": 1226,
+        "width": 924,
+        "x": 302,
+        "y": 709.0625
+      },
+      "viewport": {
+        "height": 645,
+        "width": 1280
+      }
+    },
+    {
+      "stage": "creation-dark-1024-645",
+      "pageWidth": 1024,
+      "starter": {
+        "bottom": 759.3125,
+        "height": 21.25,
+        "right": 970,
+        "width": 672,
+        "x": 298,
+        "y": 738.0625
+      },
+      "viewport": {
+        "height": 645,
+        "width": 1024
+      }
+    },
+    {
+      "stage": "creation-dark-768-645",
+      "pageWidth": 768,
+      "starter": {
+        "bottom": 775,
+        "height": 21.25,
+        "right": 714,
+        "width": 416,
+        "x": 298,
+        "y": 753.75
+      },
+      "viewport": {
+        "height": 645,
+        "width": 768
+      }
+    },
+    {
+      "stage": "creation-dark-360-645",
+      "pageWidth": 360,
+      "starter": {
+        "bottom": 1204.65625,
+        "height": 21.25,
+        "right": 306,
+        "width": 252,
+        "x": 54,
+        "y": 1183.40625
+      },
+      "viewport": {
+        "height": 645,
+        "width": 360
+      }
+    },
+    {
+      "stage": "creation-dark-320-645",
+      "pageWidth": 320,
+      "starter": {
+        "bottom": 1220.34375,
+        "height": 21.25,
+        "right": 266,
+        "width": 212,
+        "x": 54,
+        "y": 1199.09375
+      },
+      "viewport": {
+        "height": 645,
+        "width": 320
+      }
+    },
+    {
+      "stage": "save-light-before-edit",
+      "composer": {
+        "bottom": 401.78125,
+        "height": 88.390625,
+        "width": 582,
+        "x": 29,
+        "y": 313.390625
+      },
+      "counts": "2 / 128 messages \u00b7 9.2 / 128 KiB transcript",
+      "disabled": {
+        "add": true,
+        "restart": false,
+        "send": false
+      },
+      "draft": "Retained laptop composer draft",
+      "send": {
+        "bottom": 445.78125,
+        "height": 36,
+        "width": 66.21875,
+        "x": 544.78125,
+        "y": 409.78125
+      },
+      "viewport": {
+        "height": 520,
+        "width": 640
+      }
+    },
+    {
+      "stage": "save-light-typed",
+      "composer": {
+        "bottom": 3692.78125,
+        "height": 88.390625,
+        "width": 582,
+        "x": 29,
+        "y": 3604.390625
+      },
+      "counts": "2 / 128 messages \u00b7 9.2 / 128 KiB transcript",
+      "disabled": {
+        "add": true,
+        "restart": false,
+        "send": false
+      },
+      "draft": "Controlled light unsent message",
+      "send": {
+        "bottom": 3736.78125,
+        "height": 36,
+        "width": 66.21875,
+        "x": 544.78125,
+        "y": 3700.78125
+      },
+      "viewport": {
+        "height": 520,
+        "width": 640
+      }
+    },
+    {
+      "stage": "save-light-before",
+      "composer": {
+        "bottom": 3692.78125,
+        "height": 88.390625,
+        "width": 582,
+        "x": 29,
+        "y": 3604.390625
+      },
+      "counts": "2 / 128 messages \u00b7 9.2 / 128 KiB transcript",
+      "disabled": {
+        "add": true,
+        "restart": false,
+        "send": false
+      },
+      "draft": "Controlled light unsent message",
+      "send": {
+        "bottom": 3736.78125,
+        "height": 36,
+        "width": 66.21875,
+        "x": 544.78125,
+        "y": 3700.78125
+      },
+      "viewport": {
+        "height": 520,
+        "width": 640
+      }
+    },
+    {
+      "stage": "save-light-pending",
+      "composer": {
+        "bottom": 3692.78125,
+        "height": 88.390625,
+        "width": 582,
+        "x": 29,
+        "y": 3604.390625
+      },
+      "counts": "2 / 128 messages \u00b7 9.2 / 128 KiB transcript",
+      "disabled": {
+        "add": true,
+        "restart": true,
+        "send": true
+      },
+      "draft": "Controlled light unsent message",
+      "send": {
+        "bottom": 3736.78125,
+        "height": 36,
+        "width": 66.21875,
+        "x": 544.78125,
+        "y": 3700.78125
+      },
+      "viewport": {
+        "height": 520,
+        "width": 640
+      }
+    },
+    {
+      "stage": "save-light-completed",
+      "composer": {
+        "bottom": 3692.78125,
+        "height": 88.390625,
+        "width": 582,
+        "x": 29,
+        "y": 3604.390625
+      },
+      "counts": "2 / 128 messages \u00b7 9.2 / 128 KiB transcript",
+      "disabled": {
+        "add": true,
+        "restart": false,
+        "send": false
+      },
+      "draft": "Controlled light unsent message",
+      "send": {
+        "bottom": 3736.78125,
+        "height": 36,
+        "width": 66.21875,
+        "x": 544.78125,
+        "y": 3700.78125
+      },
+      "viewport": {
+        "height": 520,
+        "width": 640
+      }
+    },
+    {
+      "stage": "save-light-result",
+      "failures": [
+        "light: composer is clipped before acknowledgment",
+        "light: send is clipped before acknowledgment",
+        "light: Send is clipped after acknowledgment"
+      ],
+      "gate": {
+        "acknowledgment": {
+          "composer": "Controlled light unsent message",
+          "draftId": "6e01fe73-d486-49cb-bdf7-e34e4685223f",
+          "mode": "chat",
+          "revision": 6,
+          "sessionId": "0154193c-573f-4c54-ba19-acdd9a8588cf"
+        },
+        "released": true,
+        "scrolls": [
+          {
+            "target": "chat-transcript",
+            "stack": "@tauri://localhost:98:105\nu@tauri://localhost/assets/index-DEpCCBEJ.js:19:73245"
+          },
+          {
+            "target": "chat-transcript",
+            "stack": "@tauri://localhost:98:105\nu@tauri://localhost/assets/index-DEpCCBEJ.js:19:73245"
+          }
+        ]
+      }
+    },
+    {
+      "stage": "save-dark-before-edit",
+      "composer": {
+        "bottom": 401.78125,
+        "height": 88.390625,
+        "width": 582,
+        "x": 29,
+        "y": 313.390625
+      },
+      "counts": "2 / 128 messages \u00b7 9.2 / 128 KiB transcript",
+      "disabled": {
+        "add": true,
+        "restart": false,
+        "send": false
+      },
+      "draft": "Controlled light unsent message",
+      "send": {
+        "bottom": 445.78125,
+        "height": 36,
+        "width": 66.21875,
+        "x": 544.78125,
+        "y": 409.78125
+      },
+      "viewport": {
+        "height": 520,
+        "width": 640
+      }
+    },
+    {
+      "stage": "save-dark-typed",
+      "composer": {
+        "bottom": 444.78125,
+        "height": 88.390625,
+        "width": 582,
+        "x": 29,
+        "y": 356.390625
+      },
+      "counts": "2 / 128 messages \u00b7 9.2 / 128 KiB transcript",
+      "disabled": {
+        "add": true,
+        "restart": false,
+        "send": false
+      },
+      "draft": "Controlled dark unsent message",
+      "send": {
+        "bottom": 488.78125,
+        "height": 36,
+        "width": 66.21875,
+        "x": 544.78125,
+        "y": 452.78125
+      },
+      "viewport": {
+        "height": 520,
+        "width": 640
+      }
+    },
+    {
+      "stage": "save-dark-before",
+      "composer": {
+        "bottom": 444.78125,
+        "height": 88.390625,
+        "width": 582,
+        "x": 29,
+        "y": 356.390625
+      },
+      "counts": "2 / 128 messages \u00b7 9.2 / 128 KiB transcript",
+      "disabled": {
+        "add": true,
+        "restart": false,
+        "send": false
+      },
+      "draft": "Controlled dark unsent message",
+      "send": {
+        "bottom": 488.78125,
+        "height": 36,
+        "width": 66.21875,
+        "x": 544.78125,
+        "y": 452.78125
+      },
+      "viewport": {
+        "height": 520,
+        "width": 640
+      }
+    },
+    {
+      "stage": "save-dark-pending",
+      "composer": {
+        "bottom": 444.78125,
+        "height": 88.390625,
+        "width": 582,
+        "x": 29,
+        "y": 356.390625
+      },
+      "counts": "2 / 128 messages \u00b7 9.2 / 128 KiB transcript",
+      "disabled": {
+        "add": true,
+        "restart": true,
+        "send": true
+      },
+      "draft": "Controlled dark unsent message",
+      "send": {
+        "bottom": 488.78125,
+        "height": 36,
+        "width": 66.21875,
+        "x": 544.78125,
+        "y": 452.78125
+      },
+      "viewport": {
+        "height": 520,
+        "width": 640
+      }
+    },
+    {
+      "stage": "save-dark-completed",
+      "composer": {
+        "bottom": 444.78125,
+        "height": 88.390625,
+        "width": 582,
+        "x": 29,
+        "y": 356.390625
+      },
+      "counts": "2 / 128 messages \u00b7 9.2 / 128 KiB transcript",
+      "disabled": {
+        "add": true,
+        "restart": false,
+        "send": false
+      },
+      "draft": "Controlled dark unsent message",
+      "send": {
+        "bottom": 488.78125,
+        "height": 36,
+        "width": 66.21875,
+        "x": 544.78125,
+        "y": 452.78125
+      },
+      "viewport": {
+        "height": 520,
+        "width": 640
+      }
+    },
+    {
+      "stage": "save-dark-result",
+      "failures": [],
+      "gate": {
+        "acknowledgment": {
+          "composer": "Controlled dark unsent message",
+          "draftId": "6e01fe73-d486-49cb-bdf7-e34e4685223f",
+          "mode": "chat",
+          "revision": 7,
+          "sessionId": "0154193c-573f-4c54-ba19-acdd9a8588cf"
+        },
+        "released": true,
+        "scrolls": []
+      }
+    }
+  ],
+  "fullSources": {
+    "/tmp/qa-scribe-visual-native-fixed/short-window-visual.json": {
+      "sha256": "0021482007c7deba9d382ee8d3c2e63cc5b4c10460731b909cce1c7d0eca336e",
+      "bytes": 195630
+    },
+    "/tmp/qa-scribe-visual-native-polish/ui-polish.json": {
+      "sha256": "7075267a270756be4275d1be4087deaaf801e37278f8f079e5fa3819cff3b46d",
+      "bytes": 211198
+    },
+    "/tmp/qa-scribe-visual-native-negative/short-window-visual.json": {
+      "sha256": "aab7573ed3038d690974a8c3e62913c1bced029b08b4a0b1901caafb0aca1da6",
+      "bytes": 210505
+    }
+  },
+  "limits": [
+    "Embedded macOS driver does not qualify native Tab traversal.",
+    "Negative light-theme composer jump reproduced; dark did not jump in that run."
+  ]
+}

@@ -1,6 +1,6 @@
 import { createPortal } from 'react-dom'
 import { customModelCatalogAdvisory } from '../settings/modelAdvisories'
-import { CreationComposer, CreationFormatSelector } from './CreationComposer'
+import { CreationComposer } from './CreationComposer'
 import { FindingFields } from './FindingsView'
 import { useRef, useState } from 'react'
 import { FileText, Sparkles } from 'lucide-react'
@@ -124,5 +124,5 @@ export function CreationWorkspace({ c }: { c: AppController }) {
   if (!intent) return null
   return <CreationComposer intent={intent} actions={c.creation} copyState={c.copyState} onCopy={c.copy}
     source={<CreationTools key={intent.id} intent={intent} c={c} />}
-    fields={intent.kind === 'finding' ? <FindingFields afterStatus={<CreationFormatSelector key={intent.id} intent={intent} actions={c.creation} />} finding={{ kind: intent.findingKind, metadataJson: intent.metadataJson }} onChange={(patch) => c.creation.update({ ...(patch.kind ? { findingKind: patch.kind } : {}), ...('metadataJson' in patch ? { metadataJson: patch.metadataJson } : {}) })} /> : undefined} />
+    fields={intent.kind === 'finding' ? <FindingFields finding={{ kind: intent.findingKind, metadataJson: intent.metadataJson }} onChange={(patch) => c.creation.update({ ...(patch.kind ? { findingKind: patch.kind } : {}), ...('metadataJson' in patch ? { metadataJson: patch.metadataJson } : {}) })} /> : undefined} />
 }
