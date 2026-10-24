@@ -149,8 +149,6 @@ export function createChatPermissions(ctx: SessionChatContext, host: {
           validStatus(status, entry, jobId)
           const state = ledger(entry, jobId)
           const token = status.pendingPermission?.requestId
-          // Explicit recovery may restore an attempted token, not a successfully
-          // resolved one. It never decides a permission itself.
           if (!entry.permissionOperation && token && !state.resolved.has(token)
             && status.pendingPermission?.provider === provider) state.attempted.delete(token)
           host.observe(status)

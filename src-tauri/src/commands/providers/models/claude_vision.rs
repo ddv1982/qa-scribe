@@ -47,9 +47,6 @@ pub(super) fn image_support(
 }
 
 pub(super) fn known_image_support(id: &str) -> Option<bool> {
-    // SDKModelInfo can omit image metadata. This fallback uses only documented identities.
-    // https://platform.claude.com/docs/en/models/overview and each model's linked specifications.
-    // https://code.claude.com/docs/en/model-config documents the CLI aliases.
     const MODELS: &[&str] = &[
         "sonnet",
         "opus",
