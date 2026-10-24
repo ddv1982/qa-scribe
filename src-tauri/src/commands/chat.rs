@@ -24,6 +24,8 @@ mod permission_tests;
 mod preparation;
 #[cfg(test)]
 mod preparation_tests;
+#[cfg(test)]
+mod question_tests;
 mod runner;
 mod transport;
 
@@ -166,17 +168,13 @@ fn reconcile_chat_failure(
 }
 
 #[derive(Clone, Debug, Deserialize, specta::Type)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct StartChatJobRequest {
-    #[serde(default)]
-    #[specta(optional)]
-    pub refine: bool,
+    pub intent: ChatRequestIntent,
     #[serde(default)]
     #[specta(optional)]
     pub context: ChatTarget,
     pub scope: ChatRevision,
-    #[serde(default)]
-    pub retry: bool,
     pub provider: AiProvider,
     pub model: String,
     pub reasoning_effort: Option<String>,

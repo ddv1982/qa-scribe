@@ -48,10 +48,14 @@ pub(super) fn commit(
     let start = ChatStartRequest {
         scope: request.scope.clone(),
     };
-    let mut started = if request.retry {
+    let mut started = if matches!(request.intent, ChatRequestIntent::Retry) {
         service.retry_chat_turn(start)?
     } else {
-        service.start_chat_turn_with_response(start, request.context.clone(), request.refine)?
+        service.start_chat_turn_with_response(
+            start,
+            request.context.clone(),
+            request.intent.clone(),
+        )?
     };
     let mut created_run: Option<AiRun> = None;
     let preparation: Result<PreparedChat> = (|| {
@@ -63,8 +67,8 @@ pub(super) fn commit(
             .id
             .clone();
         let mut input = verified.input(user_id.clone())?;
-        if let Some(contract) = service.refinement_contract(&user_id)? {
-            input = input.with_refinement_contract(&contract);
+        if let Some(contract) = service.response_contract(&user_id)? {
+            input = input.with_response_contract(&contract);
         }
         input
             .preflight_wire(request.provider)

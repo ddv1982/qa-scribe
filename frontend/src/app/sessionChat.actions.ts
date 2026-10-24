@@ -1,6 +1,7 @@
+import { createChatSend } from './sessionChat.send'
 import {
-  cancelAiActionJob, getChat, restartChat, saveChatComposer, startChatJob,
-  type ChatMode, type ChatState, type ChatSubmissionReceipt, type GenerationJobStatus, type StartChatJobResult,
+  cancelAiActionJob, getChat, restartChat, saveChatComposer,
+  type ChatMode, type ChatState, type ChatSubmissionReceipt, type GenerationJobStatus,
 } from '../tauri'
 import { formatError } from '../ui/format'
 import {
@@ -49,7 +50,7 @@ export function createSessionChatActions(ctx: SessionChatContext) {
   function publish(entry: ChatWorkspace) {
     if (disposed || entry.retired || ctx.session.activeSessionIdRef.current !== entry.sessionId) return
     ctx.publish({ sessionId: entry.sessionId, chat: entry.chat, composer: entry.composer, composerImages: entry.composerImages, imageFailures: entry.imageFailures,
-      inputRecoveryPending: entry.pendingStart?.state === 'uncertain', refinementStarting: entry.pendingStart?.refine,
+      inputRecoveryPending: entry.pendingStart?.state === 'uncertain', responseStarting: entry.pendingStart?.intent,
       mode: entry.mode, job: entry.job, loading: entry.loading, saving: Boolean(entry.save),
       permissionWorking: Boolean(entry.permissionOperation),
       permissionRecoveryPending: permissions.needsRecovery(entry),
@@ -256,61 +257,9 @@ export function createSessionChatActions(ctx: SessionChatContext) {
     publish(entry)
     return operation
   }
-  async function send(entry: ChatWorkspace, retry: boolean, refine = false) {
-    if (entry.pendingStart) throw new Error('Recheck status to recover the previous send before continuing.')
-    const context = retry ? undefined : ctx.captureContext?.(entry.sessionId) ?? { kind: 'session' as const }
-    const selection = { ...ctx.selection }
-    if (selection.modelWritePending?.()) throw new Error('Wait for the model preference to finish saving.')
-    if (ctx.noteRecovery.has(entry.sessionId)) throw new Error('Recover the canonical Note before continuing Chat.')
-    if (chatIsWorking(entry.job)) throw new Error('Wait for the active turn or cancel it.')
-    if (!ctx.provider?.available) throw new Error(ctx.provider?.reason ?? 'AI provider readiness is unavailable.')
-    if (ctx.providerWarning) throw new Error(ctx.providerWarning)
-    if (entry.imageFailures.length) throw new Error('Retry or remove failed images before sending.')
-    if (!entry.chat) await hydrate(entry)
-    if (entry.retired) return
-    if (!entry.chat) throw new Error('Chat could not be loaded. Reopen the Session to try again.')
-    if (entry.chat.submission) throw new Error('Start a new conversation to continue after submission.')
-    const reason = unresolvedChatReason(entry.chat, retry)
-    if (reason) throw new Error(reason)
-    if (retry && (entry.composer.length > 0 || entry.composerImages.length > 0)) throw new Error('Clear the composer before retrying the failed turn.')
-    if (!retry && !entry.composer.trim() && !entry.composerImages.length) throw new Error('Enter a message or attach an image before sending.')
-    if (!await saveComposer(entry)) return
-    if (entry.retired) return
-    if (selection.modelWritePending?.()) throw new Error('Wait for the model preference to finish saving.')
-    const chat = entry.chat
-    const inputVersion = entry.inputVersion
-    const modeVersion = entry.modeVersion
-    let result: StartChatJobResult
-    entry.pendingStart = { state: 'starting', refine }; publish(entry)
-    ++entry.refreshEpoch
-    try {
-      result = await startChatJob({ scope: chatScope(chat), retry, context, refine,
-        provider: selection.selectedProvider, model: selection.selectedModel,
-        reasoningEffort: selection.selectedReasoningEffort }, (status) => receiveStatus(entry, status))
-      if (result.chat.sessionId !== entry.sessionId || result.chat.draftId !== chat.draftId
-        || result.status.sessionId !== entry.sessionId || result.status.action !== 'chat') {
-        throw new Error('Chat start returned an unexpected conversation.')
-      }
-    } catch (cause) {
-      if (entry.retired) return
-      entry.pendingStart = { state: 'uncertain', refine }
-      // Preparation may have durably consumed the composer before spawning
-      // failed. Recover that failed turn, never turn a second click into billing.
-      await refresh(entry.sessionId)
-      if (entry.chat?.draftId === chat.draftId) entry.composerImages = entry.chat.composerImages
-      throw cause
-    }
-    if (entry.retired) return
-    ++entry.refreshEpoch
-    entry.pendingStart = null
-    entry.composerImages = result.chat.composerImages
-    acceptChat(entry, result.chat, inputVersion, modeVersion)
-    observeJob(result.status, true)
-    if (entry.job && !chatIsWorking(entry.job)) await refresh(entry.sessionId)
-  }
-  const onSend = () => run('send', (entry) => send(entry, false))
-  const onRefine = () => run('send', (entry) => send(entry, false, true))
-  const onRetry = () => run('retry', (entry) => send(entry, true))
+  const { onSend, onRefine, onDraftJira, onAnswerQuestion, onPrepareAction, onRetry } = createChatSend(ctx, {
+    active, run, saveComposer, hydrate, refresh: id => refresh(id), publish, acceptChat, receiveStatus, observeJob, onSetComposer,
+  })
   const { onDecidePermission, onRecheck } = permissions
   const onCancel = () => run('cancel', async (entry) => {
     if (!entry.job || !chatIsWorking(entry.job)) return
@@ -482,7 +431,7 @@ export function createSessionChatActions(ctx: SessionChatContext) {
     if (entry.retired) return true
     return recoverNote(entry)
   }
-  return { refresh, onRefine, activate, dispose, observeJob, flush, hasPendingChanges, setMode, retire, recoverSession,
+  return { refresh, onRefine, onDraftJira, onAnswerQuestion, onPrepareAction, activate, dispose, observeJob, flush, hasPendingChanges, setMode, retire, recoverSession,
     onSetComposer, onAttachImages, onPasteNativeImage, onRemoveImage, onRetryImage, onDismissImageFailure, onSend, onRetry, onCancel, onSubmit,
     onRestart, captureRestart, onDecidePermission, onRecheck, isCurrentPermissionScope }
 }

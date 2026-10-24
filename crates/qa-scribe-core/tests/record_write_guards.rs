@@ -52,11 +52,11 @@ fn fixture(service: &SessionService) -> (Finding, ChatState) {
                 scope: scope(&chat),
             },
             target,
-            true,
+            ChatRequestIntent::RefineRecord,
         )
         .unwrap();
     let request_id = &started.chat.messages[0].id;
-    let chat = service.finish_chat_turn(ChatFinishRequest { scope: scope(&started.chat), turn_id: started.turn_id.clone(), assistant_text: json!({"version":1,"requestId":request_id,"markdown":"Suggested title.","refinement":{"kind":"finding","title":"Suggested"}}).to_string() }).unwrap();
+    let chat = service.finish_chat_turn(ChatFinishRequest { scope: scope(&started.chat), turn_id: started.turn_id.clone(), assistant_text: json!({"version":2,"requestId":request_id,"markdown":"Suggested title.","refinement":{"kind":"finding","title":"Suggested"}}).to_string() }).unwrap();
     let chat = service
         .resolve_refinement(RefinementRequest {
             scope: scope(&chat),
@@ -322,8 +322,12 @@ fn migration_seventeen_preserves_sixteen_context_and_never_reparses_history() {
     std::fs::create_dir_all(&directory).unwrap();
     let path = directory.join("db.sqlite");
     let service = SessionService::new(Database::open(&path).unwrap()).unwrap();
-    let (record, chat) = fixture(&service);
-    service.database().connection().execute_batch("DROP TABLE chat_editor_stages; DROP TABLE chat_refinements; DROP TABLE chat_response_contracts; PRAGMA user_version=16;").unwrap();
+    let (record, mut chat) = fixture(&service);
+    for message in &mut chat.messages {
+        message.response = None;
+        message.answer = None;
+    }
+    service.database().connection().execute_batch("DROP TABLE chat_answers; DROP TABLE chat_response_messages; DROP TABLE chat_editor_stages; DROP TABLE chat_refinements; DROP TABLE chat_response_contracts; PRAGMA user_version=16;").unwrap();
     drop(service);
     let service = SessionService::new(Database::open(&path).unwrap()).unwrap();
     let reopened = service.load_chat(&record.session_id).unwrap();
@@ -331,7 +335,7 @@ fn migration_seventeen_preserves_sixteen_context_and_never_reparses_history() {
     assert!(reopened.proposals.is_empty());
     assert!(
         service
-            .refinement_contract(&chat.messages[0].id)
+            .response_contract(&chat.messages[0].id)
             .unwrap()
             .is_none()
     );
@@ -341,7 +345,7 @@ fn migration_seventeen_preserves_sixteen_context_and_never_reparses_history() {
             .connection()
             .query_row("PRAGMA user_version", [], |r| r.get::<_, i32>(0))
             .unwrap(),
-        17
+        qa_scribe_core::storage::SCHEMA_VERSION
     );
     drop(service);
     std::fs::remove_dir_all(directory).unwrap();

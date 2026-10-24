@@ -45,7 +45,7 @@ impl ChatPreparationSnapshot {
             .ok_or_else(|| QaScribeError::NotFound(chat.session_id.clone()))?
             .session_context
             .unwrap_or_default();
-        if !request.retry {
+        if !matches!(request.intent, ChatRequestIntent::Retry) {
             if chat.messages.len().saturating_add(2) > MAX_CHAT_MESSAGES {
                 return Err(QaScribeError::Validation(
                     "Chat has reached its message limit. Start a new conversation.".into(),
@@ -54,7 +54,7 @@ impl ChatPreparationSnapshot {
             if chat
                 .messages
                 .iter()
-                .map(|m| m.text.len())
+                .map(|m| qa_scribe_core::services::readable_chat_message(m).len())
                 .sum::<usize>()
                 .saturating_add(chat.composer.len())
                 > MAX_CHAT_TRANSCRIPT_BYTES
@@ -63,22 +63,24 @@ impl ChatPreparationSnapshot {
                     "Chat has reached its text limit. Start a new conversation.".into(),
                 ));
             }
-            let context =
-                service.capture_chat_context(&chat.session_id, request.context.clone())?;
+            let resolved =
+                service.prepare_chat_message(&chat, request.context.clone(), &request.intent)?;
             chat.messages.push(ChatMessage {
-                context,
+                response: None,
+                answer: None,
+                context: resolved.context,
                 id: uuid::Uuid::nil().to_string(),
                 turn_id: String::new(),
                 role: ChatRole::User,
-                text: chat.composer.clone(),
-                images: chat.composer_images.clone(),
+                text: resolved.text,
+                images: resolved.images,
                 status: ChatTurnStatus::Running,
                 error_message: None,
                 ai_run_id: None,
                 created_at: String::new(),
             });
         }
-        if request.retry {
+        if matches!(request.intent, ChatRequestIntent::Retry) {
             let message = chat.messages.last().ok_or_else(changed)?;
             service.validate_chat_context_owner(&chat.session_id, &message.context)?;
         }
@@ -158,7 +160,7 @@ impl ChatPreparationSnapshot {
                     ChatRole::User => ChatPromptRole::User,
                     ChatRole::Assistant => ChatPromptRole::Assistant,
                 },
-                text: message.text.clone(),
+                text: qa_scribe_core::services::readable_chat_message(message),
                 images: vec![],
             })
             .collect();

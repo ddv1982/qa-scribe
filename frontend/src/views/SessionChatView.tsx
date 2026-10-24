@@ -1,6 +1,9 @@
 import { ActionButton } from '../components/ActionButton'
 import { Paperclip } from 'lucide-react'
 import { useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { occupiedChoiceReason } from '../app/sessionChat.questions'
+import type { ChatContextPresentation } from '../app/sessionChat.context'
+import type { ChatRequestIntent } from '../bindings'
 import { ChatMessageList } from './ChatMessageList'
 import { ChatImages, ChatImageFailures } from './ChatImages'
 import type { ChatImageFailure } from '../app/sessionChat.types'
@@ -14,7 +17,11 @@ import { MarkdownContent } from '../content/MarkdownContent'
 import { useChatTranscriptScroll } from './useChatTranscriptScroll'
 
 export type SessionChatViewProps = {
-  refinementStarting?: boolean
+  responseStarting?: ChatRequestIntent
+  activeTarget?: ChatContextPresentation
+  onDraftJira?: () => Promise<void>
+  onAnswerQuestion?: (assistantMessageId: string, text: string) => Promise<void>
+  onPrepareAction?: (assistantMessageId: string) => Promise<void>
   onRefine?: () => Promise<void>
   proposalControls?: import('../app/sessionChat.proposals').ProposalControls
   hidden?: boolean
@@ -76,9 +83,11 @@ export function SessionChatView(props: SessionChatViewProps) {
     onSetComposer, onAttachImages, onPasteNativeImage, onRemoveImage, onSend, onRetry, onCancel, onSubmit, onConfigureAi,
     onDecidePermission, onRecheck,
   } = props
-  const refinementOutput = Boolean(props.refinementStarting || chat?.refinementPending)
+  const structuredOutput = Boolean(props.responseStarting || chat?.pendingResponse)
+  const refinementOutput = props.responseStarting?.kind === 'refine_record' || chat?.pendingResponse?.kind === 'refinement'
   const id = useId()
   const fileInput = useRef<HTMLInputElement>(null)
+  const composerInput = useRef<HTMLTextAreaElement>(null)
   const composerImages = props.composerImages ?? chat?.composerImages ?? []
   const imageFailures = props.imageFailures ?? []
   const inputRecoveryPending = props.inputRecoveryPending ?? false
@@ -108,7 +117,7 @@ export function SessionChatView(props: SessionChatViewProps) {
   const permissionAttention = Boolean(pendingPermission || permissionRecoveryPending)
   const { viewportRef, transcriptRef } = useChatTranscriptScroll({ conversationId: chat?.draftId ?? null,
     userTurnId: latest?.role === 'user' ? latest.turnId : null, messageId: latest?.id ?? null,
-    partialText: refinementOutput ? null : job?.partialText ?? null, activeOutput: activeJob || running || handoff.hydrationPending,
+    partialText: structuredOutput ? null : job?.partialText ?? null, activeOutput: activeJob || running || handoff.hydrationPending,
     paused: Boolean(props.hidden) || permissionAttention || inputRecoveryPending })
   const needsProviderRecovery = inputRecoveryPending || permissionRecoveryPending || !providerAvailable || Boolean(error || job?.errorMessage)
   const locked = !chat || busy || submitted || recovering
@@ -262,13 +271,17 @@ export function SessionChatView(props: SessionChatViewProps) {
 
         <section ref={transcriptRef} className="chat-transcript" aria-label="Conversation transcript" tabIndex={0}>
           {messages.length === 0 ? <p className="chat-help">{loading ? 'Loading saved messages…' : 'No messages yet. Describe what you are testing or ask a question.'}</p> : (
-            <ChatMessageList messages={messages} aiRuns={chat?.aiRuns ?? []} proposals={chat?.proposals} proposalControls={submitted ? undefined : props.proposalControls} />
+            <ChatMessageList messages={messages} aiRuns={chat?.aiRuns ?? []} proposals={chat?.proposals} proposalControls={submitted ? undefined : props.proposalControls}
+              questionControls={submitted ? undefined : { target: props.activeTarget ?? { kind: 'session' },
+                blockedReason: composer !== '' || composerImages.length || imageFailures.length ? occupiedChoiceReason
+                  : busy || inputRecoveryPending || recovering || permissionRecoveryPending || modelSelectionPending || handoff.hydrationPending ? 'Wait until the conversation and images are ready. Your input is retained.'
+                  : !providerAvailable ? providerReason : '', onAnswer: props.onAnswerQuestion, onPrepareAction: props.onPrepareAction ? async assistantId => { await props.onPrepareAction?.(assistantId); composerInput.current?.focus({ preventScroll: true }) } : undefined }} />
           )}
-          {job && (handoff.hydrationPending || (refinementOutput && activeJob) || (job.partialText && job.state !== 'completed')) ? (
+          {job && (handoff.hydrationPending || (structuredOutput && activeJob) || (job.partialText && job.state !== 'completed')) ? (
             <section className="chat-partial" aria-label={responseLabel}>
-              <h3>{refinementOutput ? 'Preparing suggested changes' : responseLabel}</h3>
-              <p className="chat-help">{refinementOutput ? 'The completed suggestion will be available for review before any editor change.' : job.state === 'completed' ? 'Waiting for the saved transcript to refresh.' : 'Not a completed transcript message.'}</p>
-              {job.partialText && !refinementOutput ? <MarkdownContent text={job.partialText} /> : null}
+              <h3>{structuredOutput && !activeJob && !running && !handoff.hydrationPending ? 'Response not completed' : refinementOutput ? 'Preparing suggested changes' : structuredOutput ? 'Preparing reply' : responseLabel}</h3>
+              <p className="chat-help">{structuredOutput ? 'The completed reply will be available when the response finishes.' : job.state === 'completed' ? 'Waiting for the saved transcript to refresh.' : 'Not a completed transcript message.'}</p>
+              {job.partialText && !structuredOutput ? <MarkdownContent text={job.partialText} /> : null}
             </section>
           ) : null}
         </section>
@@ -285,7 +298,7 @@ export function SessionChatView(props: SessionChatViewProps) {
         <ChatImageFailures failures={imageFailures} images={composerImages} disabled={locked || inputRecoveryPending}
           onRetry={props.onRetryImage} onRemove={props.onDismissImageFailure} onRemoveImage={onRemoveImage} />
         <textarea
-          id={`${id}-message`} rows={3} value={composer} disabled={!chat || loading || submitted || recovering}
+          ref={composerInput} id={`${id}-message`} rows={3} value={composer} disabled={!chat || loading || submitted || recovering}
           aria-describedby={`${id}-shortcut ${id}-send-reason`}
           onChange={(event) => onSetComposer(event.target.value)}
           onPaste={(event) => {
@@ -321,13 +334,15 @@ export function SessionChatView(props: SessionChatViewProps) {
             <div className="chat-send-buttons">
             <ActionButton variant="secondary" type="button" iconOnly icon={Paperclip} aria-label="Attach images"
               title="Attach up to 4 images, 10 MiB each" disabled={attachmentsLocked} onClick={() => fileInput.current?.click()} />
+            {props.onDraftJira ? <ActionButton variant="secondary" type="button" disabled={Boolean(sendReason && (composer.trim() || composerImages.length || sendReason !== 'Write a message or attach an image to send.'))}
+              onClick={() => { void props.onDraftJira?.() }}>Draft Jira issue</ActionButton> : null}
             {props.onRefine ? <ActionButton variant="secondary" type="button" disabled={Boolean(sendReason)} onClick={() => { if (!sendReason) void props.onRefine?.() }}>Refine record</ActionButton> : null}
             <ActionButton variant="primary" type="button" disabled={Boolean(sendReason)} aria-describedby={`${id}-send-reason`} onClick={() => { if (!sendReason) void onSend() }}>Send</ActionButton>
             </div>
           </div>
         </div>
         <p className="chat-help" id={`${id}-send-reason`}>{sendReason || 'Send this message to the selected AI provider.'}</p>
-        {retryable && !submitted ? <p className="chat-help" id={`${id}-retry-reason`}>{retryReason || 'Retry sends the previous message again and may incur another AI usage charge.'}</p> : null}
+        {retryable && !submitted ? <p className="chat-help" id={`${id}-retry-reason`}>{retryReason || 'Retry sends the previous message again and may repeat tool actions or incur another AI usage charge. Check uncertain external results before retrying.'}</p> : null}
       </div>
     </section>
   )

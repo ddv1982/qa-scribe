@@ -50,34 +50,32 @@ impl SessionService {
         request: ChatStartRequest,
         context: ChatTarget,
     ) -> Result<ChatTurnStarted> {
-        self.start_chat_turn_with_response(request, context, false)
+        self.start_chat_turn_with_response(request, context, ChatRequestIntent::Message)
     }
 
     pub fn start_chat_turn_with_response(
         &self,
         request: ChatStartRequest,
         context: ChatTarget,
-        refine: bool,
+        intent: ChatRequestIntent,
     ) -> Result<ChatTurnStarted> {
         self.database.with_immediate_tx(|tx| {
             let chat = rows::checked(tx, &request.scope)?;
             rows::editable(&chat)?;
             rows::idle(&chat)?;
-            let context = super::chat_context::capture(tx, &chat.session_id, context.clone())?;
-            super::chat_context::capacity(&chat.messages, &context)?;
-            rows::text("Chat message", &chat.composer, !chat.composer_images.is_empty())?;
-            rows::append_capacity(&chat, &chat.composer, 2)?;
+            let resolved = super::chat_questions::resolve(tx, &chat, context.clone(), &intent)?;
             let turn_id = new_id();
             rows::append(
                 tx,
                 &chat.draft_id,
                 &turn_id,
                 ChatRole::User,
-                &chat.composer,
+                &resolved.text,
                 ChatTurnStatus::Running,
             )?;
-            super::chat_context::store(tx, &chat.draft_id, &turn_id, &context)?;
-            if refine { super::chat_refinements::start_contract(tx, &chat.draft_id, &turn_id, &context)?; }
+            super::chat_context::store(tx, &chat.draft_id, &turn_id, &resolved.context)?;
+            super::chat_responses::start(tx, &chat.draft_id, &turn_id, resolved.purpose)?;
+            if let Some(answer) = resolved.answer { super::chat_questions::store_answer(tx, &chat.draft_id, &turn_id, &answer)?; }
             tx.execute("INSERT INTO chat_message_images (message_id, attachment_id, ordinal)
                 SELECT m.id, i.attachment_id, i.ordinal FROM chat_composer_images i
                 JOIN chat_messages m ON m.draft_id = i.draft_id AND m.turn_id = ?1 AND m.role = 'user'

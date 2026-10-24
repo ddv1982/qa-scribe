@@ -22,10 +22,10 @@ fn setup() -> (SessionService, StartChatJobRequest) {
     (
         service,
         StartChatJobRequest {
-            refine: false,
+            intent: ChatRequestIntent::Message,
             context: ChatTarget::Session,
             scope: scope(&chat),
-            retry: false,
+
             provider: AiProvider::ClaudeCode,
             model: "sonnet".into(),
             reasoning_effort: Some("high".into()),
@@ -63,7 +63,7 @@ fn preparation_persists_user_and_durable_attribution_before_execution() {
         prepare(
             &service,
             &StartChatJobRequest {
-                refine: false,
+                intent: ChatRequestIntent::Message,
                 context: ChatTarget::Session,
                 scope: scope(&chat),
                 ..request
@@ -165,7 +165,7 @@ fn oversized_send_preserves_composer_without_persisting_user() {
         prepare(
             &service,
             &StartChatJobRequest {
-                refine: false,
+                intent: ChatRequestIntent::Message,
                 context: ChatTarget::Session,
                 scope: scope(&chat),
                 ..request.clone()
@@ -228,12 +228,12 @@ fn cancellation_gate_suppresses_late_assistant_and_finishes_user_terminal() {
 }
 
 #[test]
-fn omitted_retry_defaults_to_false_on_the_bridge() {
+fn bridge_requires_one_explicit_request_intent() {
     let (_, request) = setup();
     let decoded: StartChatJobRequest = serde_json::from_value(serde_json::json!({
-        "scope": request.scope, "provider": "claude_code", "model": "sonnet", "reasoningEffort": null,
+        "scope": request.scope, "intent": {"kind":"message"}, "provider": "claude_code", "model": "sonnet", "reasoningEffort": null,
     })).unwrap();
-    assert!(!decoded.retry);
+    assert_eq!(decoded.intent, ChatRequestIntent::Message);
 }
 
 #[test]
@@ -248,7 +248,7 @@ fn retry_reuses_failed_user_message_and_associates_new_run() {
     )
     .unwrap();
     request.scope = scope(&chat);
-    request.retry = true;
+    request.intent = ChatRequestIntent::Retry;
     let retried = prepare(&service, &request).unwrap();
     assert_eq!(retried.started.chat.messages.len(), 1);
     assert_eq!(

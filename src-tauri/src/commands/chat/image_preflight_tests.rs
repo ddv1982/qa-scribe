@@ -23,10 +23,10 @@ fn copilot_image_rejection_preserves_durable_composer_and_creates_no_turn() {
     )
     .unwrap();
     let request = StartChatJobRequest {
-        refine: false,
+        intent: ChatRequestIntent::Message,
         context: ChatTarget::Session,
         scope: lifecycle::scope(&before),
-        retry: false,
+
         provider: AiProvider::CopilotCli,
         model: "image-model".into(),
         reasoning_effort: None,

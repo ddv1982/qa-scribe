@@ -129,6 +129,10 @@ export type AttachmentCleanupStatus = {
 	pendingFiles: number | null,
 };
 
+export type ChatAnswer = {
+	assistantMessageId: string,
+};
+
 export type ChatComposerRequest = {
 	attachmentIds?: string[],
 	scope: ChatRevision,
@@ -144,6 +148,8 @@ export type ChatImage = {
 };
 
 export type ChatMessage = {
+	response?: ChatResponseInfo | null,
+	answer?: ChatAnswer | null,
 	id: string,
 	turnId: string,
 	role: ChatRole,
@@ -190,6 +196,22 @@ export type ChatPermissionRequest_Serialize = {
 	inputJson: string | null,
 };
 
+export type ChatQuestion = {
+	prompt: string,
+	choices: string[],
+};
+
+export type ChatRequestIntent = { kind: "message" } | { kind: "refine_record" } | { kind: "draft_jira" } | { kind: "question_reply"; assistantMessageId: string; text: string } | { kind: "retry" };
+
+export type ChatResponseInfo = {
+	sourceUserMessageId: string,
+	purpose: ChatResponsePurpose,
+	question: ChatQuestion | null,
+	warning: string | null,
+};
+
+export type ChatResponsePurpose = { kind: "conversation" } | { kind: "refinement"; recordKind: RefinementRecordKind } | { kind: "jira_drafting" };
+
 export type ChatRestartRequest = {
 	scope: ChatRevision,
 };
@@ -203,7 +225,7 @@ export type ChatRevision = {
 export type ChatRole = "user" | "assistant";
 
 export type ChatState = {
-	refinementPending?: boolean,
+	pendingResponse?: ChatResponsePurpose | null,
 	proposals?: RefinementProposal[],
 	sessionId: string,
 	draftId: string,
@@ -674,6 +696,8 @@ export type RefinementProposal = {
 	state: RefinementState,
 };
 
+export type RefinementRecordKind = "finding" | "test_cases_draft";
+
 export type RefinementRequest = {
 	scope: ChatRevision,
 	proposalId: string,
@@ -754,10 +778,9 @@ export type StartAiActionJobResult_Serialize = {
 };
 
 export type StartChatJobRequest = {
-	refine?: boolean,
+	intent: ChatRequestIntent,
 	context?: ChatTarget,
 	scope: ChatRevision,
-	retry?: boolean,
 	provider: AiProvider,
 	model: string,
 	reasoningEffort: string | null,

@@ -40,10 +40,10 @@ fn fixture() -> (SessionService, Finding, StartChatJobRequest) {
         service,
         finding,
         StartChatJobRequest {
-            refine: false,
+            intent: ChatRequestIntent::Message,
             context,
             scope: lifecycle::scope(&chat),
-            retry: false,
+
             provider: AiProvider::CodexCli,
             model: "default".into(),
             reasoning_effort: None,
@@ -80,9 +80,8 @@ fn chat_context_preparation_and_retry_project_original_snapshot_not_new_selectio
         )
         .unwrap();
     let retry = StartChatJobRequest {
-        refine: false,
         scope: lifecycle::scope(&failed),
-        retry: true,
+        intent: ChatRequestIntent::Retry,
         context: ChatTarget::Session,
         ..request
     };

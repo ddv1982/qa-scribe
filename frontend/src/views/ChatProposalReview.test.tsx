@@ -28,14 +28,14 @@ it('shows allowed field changes with labels and keeps preserved unknown metadata
 })
 
 function view(chat = chatFixture(), error: string | null = null, refinementStarting = false) {
-  return render(<SessionChatView chat={chat} refinementStarting={refinementStarting} composer="Retained input" job={chatJobFixture({ partialText: '{"version":1,"requestId":"internal-contract"' })}
+  return render(<SessionChatView chat={chat} responseStarting={refinementStarting ? { kind: 'refine_record' } : undefined} composer="Retained input" job={chatJobFixture({ partialText: '{"version":1,"requestId":"internal-contract"' })}
     loading={false} saving={false} working error={error} providerLabel="Codex" modelLabel="CLI default" providerAvailable providerReason=""
     onSetComposer={vi.fn()} onSend={vi.fn(async () => {})} onRetry={vi.fn(async () => {})} onCancel={vi.fn(async () => {})}
     onSubmit={vi.fn(async () => {})} onRestart={vi.fn(async () => {})} onConfigureAi={vi.fn()} />)
 }
 
 it('hides contracted JSON while preparing and retains Cancel and the composer', () => {
-  view(chatFixture({ refinementPending: true }))
+  view(chatFixture({ pendingResponse: { kind: 'refinement', recordKind: 'finding' } }))
   expect(screen.getByRole('heading', { name: 'Preparing suggested changes' })).toBeInTheDocument()
   expect(screen.queryByText(/internal-contract|requestId/)).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Cancel response' })).toBeEnabled()

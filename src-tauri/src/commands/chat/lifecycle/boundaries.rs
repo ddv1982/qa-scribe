@@ -16,10 +16,10 @@ fn setup() -> (SessionService, StartChatJobRequest) {
     (
         service,
         StartChatJobRequest {
-            refine: false,
+            intent: ChatRequestIntent::Message,
             context: ChatTarget::Session,
             scope: scope(&chat),
-            retry: false,
+
             provider: AiProvider::ClaudeCode,
             model: "sonnet".into(),
             reasoning_effort: None,
@@ -73,7 +73,7 @@ fn r20_01_oversized_assistant_cannot_complete_run_or_poison_future_replay() {
         )
         .unwrap();
         request.scope = scope(&failed);
-        request.retry = true;
+        request.intent = ChatRequestIntent::Retry;
         let retried = prepare(&service, &request).unwrap();
         assert_eq!(retried.started.chat.messages.len(), 1);
         assert_eq!(
@@ -83,7 +83,7 @@ fn r20_01_oversized_assistant_cannot_complete_run_or_poison_future_replay() {
         let completed = finish(&service, &retried, output("Valid A")).unwrap();
         let saved = composer(&service, &completed, "Next Q");
         request.scope = scope(&saved);
-        request.retry = false;
+        request.intent = ChatRequestIntent::Message;
         let next = prepare(&service, &request).unwrap();
         assert!(next.input.text().contains("Valid A"));
         assert!(next.input.text().contains("Next Q"));

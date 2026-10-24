@@ -41,6 +41,12 @@ pub struct ChatImage {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ChatMessage {
+    #[serde(default)]
+    #[specta(optional)]
+    pub response: Option<super::ChatResponseInfo>,
+    #[serde(default)]
+    #[specta(optional)]
+    pub answer: Option<super::ChatAnswer>,
     pub id: String,
     pub turn_id: String,
     pub role: ChatRole,
@@ -68,7 +74,7 @@ pub struct ChatSubmissionReceipt {
 pub struct ChatState {
     #[serde(default)]
     #[specta(optional)]
-    pub refinement_pending: bool,
+    pub pending_response: Option<super::ChatResponsePurpose>,
     #[serde(default)]
     #[specta(optional)]
     pub proposals: Vec<super::RefinementProposal>,

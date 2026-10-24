@@ -59,9 +59,9 @@ impl From<&ChatInput> for ChatInput {
 }
 
 impl ChatInput {
-    pub fn with_refinement_contract(
+    pub fn with_response_contract(
         mut self,
-        contract: &crate::domain::RefinementResponseContract,
+        contract: &crate::domain::ChatResponseContract,
     ) -> Self {
         self.instructions
             .push_str(&super::response::instructions(contract));

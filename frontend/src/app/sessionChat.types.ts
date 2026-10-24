@@ -1,4 +1,4 @@
-import type { ChatTarget, ChatImage, ChatMode, ChatPermissionDecision, ChatState, GenerationJobStatus, ProviderDescriptor } from '../bindings'
+import type { ChatRequestIntent, ChatTarget, ChatImage, ChatMode, ChatPermissionDecision, ChatState, GenerationJobStatus, ProviderDescriptor } from '../bindings'
 import type { Dispatch, SetStateAction } from 'react'
 import type { AiSelection, GenerationWorkspace, SessionWorkspace, WorkflowFeedback } from './types'
 import type { useSessionActions } from './sessionActions'
@@ -10,9 +10,12 @@ export type ChatImageRecovery = { kind: 'refresh_pending' | 'verification_pendin
 export type ChatImageFailure = { id: string; filename: string; message: string; recovery?: ChatImageRecovery }
 
 export interface SessionChatViewState {
-  refinementStarting?: boolean
+  responseStarting?: ChatRequestIntent
   recordWritesPending?: boolean
   onRefine?: () => Promise<void>
+  onDraftJira?: () => Promise<void>
+  onAnswerQuestion?: (assistantMessageId: string, text: string) => Promise<void>
+  onPrepareAction?: (assistantMessageId: string) => Promise<void>
   onRefresh?: () => Promise<void>
   proposalControls?: import('./sessionChat.proposals').ProposalControls
   handoff: ChatHandoffPresentation
@@ -46,7 +49,7 @@ export interface SessionChatViewState {
   onRestart: () => Promise<void>
 }
 
-export type ChatSnapshot = Pick<SessionChatViewState, 'chat' | 'composer' | 'composerImages' | 'imageFailures' | 'inputRecoveryPending' | 'job' | 'loading' | 'saving' | 'working' | 'error' | 'dirty' | 'permissionWorking' | 'permissionRecoveryPending' | 'refinementStarting'> & {
+export type ChatSnapshot = Pick<SessionChatViewState, 'chat' | 'composer' | 'composerImages' | 'imageFailures' | 'inputRecoveryPending' | 'job' | 'loading' | 'saving' | 'working' | 'error' | 'dirty' | 'permissionWorking' | 'permissionRecoveryPending' | 'responseStarting'> & {
   sessionId: string | null
   mode: ChatMode
 }
@@ -82,7 +85,7 @@ export type ChatWorkspace = {
   composer: string
   composerImages: ChatImage[]
   imageFailures: ChatImageFailure[]
-  pendingStart: { state: 'starting' | 'uncertain'; refine?: boolean } | null
+  pendingStart: { state: 'starting' | 'uncertain'; intent: ChatRequestIntent } | null
   mode: ChatMode
   inputVersion: number
   modeVersion: number

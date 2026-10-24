@@ -48,7 +48,7 @@ fn started(service: &SessionService, record: &Finding) -> ChatTurnStarted {
                 scope: scope(&chat),
             },
             target(record),
-            true,
+            ChatRequestIntent::RefineRecord,
         )
         .unwrap()
 }
@@ -58,10 +58,10 @@ fn complete(
     patch: serde_json::Value,
 ) -> ChatState {
     let contract = service
-        .refinement_contract(&start.chat.messages[0].id)
+        .response_contract(&start.chat.messages[0].id)
         .unwrap()
         .unwrap();
-    service.finish_chat_turn(ChatFinishRequest { scope: scope(&start.chat), turn_id: start.turn_id, assistant_text: json!({"version":1,"requestId":contract.request_id,"markdown":"Suggested clearer expected result.","refinement":patch}).to_string() }).unwrap()
+    service.finish_chat_turn(ChatFinishRequest { scope: scope(&start.chat), turn_id: start.turn_id, assistant_text: json!({"version":contract.version(),"requestId":contract.request_id(),"markdown":"Suggested clearer expected result.","refinement":patch}).to_string() }).unwrap()
 }
 fn action(service: &SessionService, chat: &ChatState, action: RefinementAction) -> ChatState {
     service
@@ -155,7 +155,12 @@ fn whole_envelope_only_wrong_kind_unknown_fields_empty_patch_and_fences_fall_bac
             chat.messages
                 .last()
                 .unwrap()
-                .text
+                .response
+                .as_ref()
+                .unwrap()
+                .warning
+                .as_ref()
+                .unwrap()
                 .starts_with("No editable proposal")
         );
     }

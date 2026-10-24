@@ -243,8 +243,9 @@ describe('Reviewed local refinement in shared native chat', () => {
     const before = (await chat()).proposals.length
     const bad = await start('invalid envelope')
     writeFileSync(join(fixture, `codex-exec-${bad}.release`), 'Release malformed response')
-    await browser.waitUntil(async () => (await chat()).messages.at(-1)?.text.startsWith('No editable proposal'))
+    await browser.waitUntil(async () => (await chat()).messages.at(-1)?.response?.warning?.startsWith('No editable proposal'))
     assert.equal((await chat()).proposals.length, before)
+    assert.match((await chat()).messages.at(-1).text, /Must never apply/)
     assert.equal((await stored()).title, record.title)
   })
   it('resolves an uninstalled prepared stage while retaining and saving newer local edits', async () => {

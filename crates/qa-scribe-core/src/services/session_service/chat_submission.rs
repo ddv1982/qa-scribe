@@ -34,6 +34,7 @@ impl SessionService {
                 return Err(validation("Note changed. Review the latest Note before submitting Chat."));
             }
             let mut messages = chat.messages.clone();
+            for message in &mut messages { message.text = super::chat_questions::readable_message(message); }
             for proposal in &chat.proposals { if let Some(message) = messages.iter_mut().find(|m| m.id == proposal.assistant_message_id) { message.text.push_str(&super::chat_refinements::summary(proposal)); } }
             let (body, body_json, body_format) = append_transcript(&note.1, note.2.as_deref(), &note.3, &messages)?;
             rows::text("Note body", &body, true)?;

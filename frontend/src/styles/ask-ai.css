@@ -71,3 +71,10 @@
 .chat-proposal-comparison dd { margin: 0 0 var(--space-2); overflow-wrap: anywhere; }
 .chat-proposal .rich-text-editor { max-height: 220px; overflow: auto; }
 .chat-proposal .chat-error { position: sticky; bottom: 0; background: var(--surface-raised); padding: 0.5rem; }
+
+.chat-question, .chat-jira-review { margin-top: 0.75rem; padding: 0.75rem; border: 1px solid var(--border-default); border-radius: 0.75rem; }
+.chat-question-prompt { font-weight: 600; white-space: pre-wrap; }
+.chat-question-choices { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.chat-question-choice { display: flex; align-items: center; gap: 0.375rem; max-width: 100%; }
+.chat-question-choice button { white-space: normal; overflow-wrap: anywhere; text-align: left; }
+.chat-choice-recommendation { font-size: 0.75rem; color: var(--text-secondary); }

@@ -1,3 +1,4 @@
+import { inspectJiraInput } from './ask-ai-jira-provider.mjs'
 import { join } from 'node:path'
 import { emit, jsonLines, parseTranscript, record, reserveInvocation, waitForFile } from './chat-authorization-common.mjs'
 import { authorizationTurn } from './chat-authorization-providers.mjs'
@@ -11,9 +12,10 @@ export function codexAppServer(argv) {
   let turnId
   let active = false
   const directory = process.env.QA_SCRIBE_E2E_FIXTURE_DIR
+  const jiraFixture = process.env.QA_SCRIBE_E2E_SPEC === 'ask-ai-jira-draft.e2e.mjs'
   const refinementFixture = process.env.QA_SCRIBE_E2E_SPEC === 'ask-ai-refinement.e2e.mjs'
   const contextFixture = process.env.QA_SCRIBE_E2E_SPEC === 'ask-ai-context.e2e.mjs'
-  const images = process.env.QA_SCRIBE_E2E_CHAT_IMAGES === '1' || contextFixture || refinementFixture
+  const images = process.env.QA_SCRIBE_E2E_CHAT_IMAGES === '1' || contextFixture || refinementFixture || jiraFixture
   const scope = () => ({ threadId, turnId })
   const complete = (text, emittedPrefix = 0) => {
     emit({ method: 'item/agentMessage/delta', params: { ...scope(), itemId: 'assistant', delta: text.slice(emittedPrefix) } })
@@ -37,7 +39,7 @@ export function codexAppServer(argv) {
     } else if (request.method === 'turn/start') {
       if (!threadId || request.params.threadId !== threadId || active) throw new Error('Invalid Chat turn scope')
       active = true
-      const imageInput = refinementFixture ? inspectRefinementInput(request.params.input) : contextFixture ? inspectContextInput(request.params.input) : images ? inspectImageInput(request.params.input) : null
+      const imageInput = jiraFixture ? inspectJiraInput(request.params.input) : refinementFixture ? inspectRefinementInput(request.params.input) : contextFixture ? inspectContextInput(request.params.input) : images ? inspectImageInput(request.params.input) : null
       const prompt = imageInput ? null : request.params.input.map((input) => {
         if (input.type !== 'text') throw new Error('Only text Chat input supported')
         return input.text
@@ -60,10 +62,20 @@ export function codexAppServer(argv) {
         // Write coordination markers before acknowledging the native turn start.
         record(directory, `codex-exec-${index}.started`, process.pid)
         emit({ id: request.id, result: { turn: { id: turnId, status: 'inProgress' } } })
-        const prefix = refinementFixture && chat.contract ? 24 : 0
+        const prefix = (refinementFixture || jiraFixture) && chat.contract ? 24 : 0
         if (prefix) emit({ method: 'item/agentMessage/delta', params: { ...scope(), itemId: 'assistant', delta: chat.response.slice(0, prefix) } })
         await waitForFile(join(directory, `codex-exec-${index}.release`))
-        complete(chat.response, prefix)
+        if (chat.permission) {
+          authorize = (accepted) => {
+            record(directory, `codex-exec-${index}.permission.json`, { accepted, externalWrites: false })
+            complete(chat.response, prefix)
+          }
+          emit({ id: 9000 + index, method: 'mcpServer/elicitation/request', params: {
+            ...scope(), serverName: 'fixture-review', mode: 'form', message: 'Allow the local deterministic permission fixture',
+            requestedSchema: { type: 'object', properties: {} },
+            _meta: { codex_approval_kind: 'mcp_tool_call', tool_params: { operation: 'local synthetic review', externalWrites: false } },
+          } })
+        } else complete(chat.response, prefix)
       }
     } else if (request.result && authorize) {
       authorize(request.result?.action === 'accept', request)

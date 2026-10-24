@@ -1,15 +1,8 @@
 use super::{SessionService, chat_rows as rows, new_id};
 use crate::{Result, domain::*, error::validation};
-use rusqlite::{Connection, OptionalExtension, params};
+use rusqlite::{Connection, params};
 
 impl SessionService {
-    pub fn refinement_contract(
-        &self,
-        message_id: &str,
-    ) -> Result<Option<RefinementResponseContract>> {
-        contract(self.database.connection(), message_id)
-    }
-
     pub fn resolve_refinement(&self, request: RefinementRequest) -> Result<ChatState> {
         self.database.with_immediate_tx(|tx| {
             let chat = rows::checked(tx, &request.scope)?;
@@ -58,87 +51,6 @@ pub(super) fn table(target: &ChatTarget) -> Result<&'static str> {
         ChatTarget::TestCasesDraft { .. } => Ok("drafts"),
         _ => Err(validation("Refinement needs a record")),
     }
-}
-
-pub(super) fn start_contract(
-    connection: &Connection,
-    draft_id: &str,
-    turn_id: &str,
-    target: &ChatTarget,
-) -> Result<()> {
-    let kind = match target {
-        ChatTarget::Finding { .. } => RefinementRecordKind::Finding,
-        ChatTarget::TestCasesDraft { .. } => RefinementRecordKind::TestCasesDraft,
-        _ => {
-            return Err(validation(
-                "Select a Finding or Test cases record to refine",
-            ));
-        }
-    };
-    let id: String = connection.query_row(
-        "SELECT id FROM chat_messages WHERE draft_id=?1 AND turn_id=?2 AND role='user'",
-        params![draft_id, turn_id],
-        |r| r.get(0),
-    )?;
-    let contract = RefinementResponseContract {
-        version: 1,
-        request_id: id.clone(),
-        record_kind: kind,
-    };
-    connection.execute(
-        "INSERT INTO chat_response_contracts(message_id, contract_json) VALUES (?1, ?2)",
-        params![id, encode(&contract)?],
-    )?;
-    Ok(())
-}
-
-pub(super) fn contract(
-    connection: &Connection,
-    id: &str,
-) -> Result<Option<RefinementResponseContract>> {
-    let raw: Option<String> = connection
-        .query_row(
-            "SELECT contract_json FROM chat_response_contracts WHERE message_id=?1",
-            [id],
-            |r| r.get(0),
-        )
-        .optional()?;
-    raw.map(|s| decode(&s)).transpose()
-}
-
-pub(super) fn completed(
-    connection: &Connection,
-    user: &ChatMessage,
-    raw: &str,
-) -> Result<(String, Option<RefinementProposal>)> {
-    let Some(contract) = contract(connection, &user.id)? else {
-        return Ok((raw.into(), None));
-    };
-    let response = match crate::chat::response::interpret(raw, &contract, &user.context) {
-        Ok(response) => response,
-        Err(_) => return Ok(("No editable proposal was created. The response did not match the requested refinement format. Ask again or continue the conversation.".into(), None)),
-    };
-    let Some((before, after)) = response.values else {
-        return Ok((response.markdown, None));
-    };
-    let proposal = RefinementProposal {
-        version: 1,
-        id: new_id(),
-        user_message_id: user.id.clone(),
-        assistant_message_id: String::new(),
-        target: user.context.clone(),
-        patch: response.patch.expect("validated patch"),
-        before,
-        after,
-        state: RefinementState::Offered,
-    };
-    Ok((
-        format!(
-            "{}\n\nSuggested local refinement. Review before applying. No record has been saved.",
-            response.markdown
-        ),
-        Some(proposal),
-    ))
 }
 
 pub(super) fn insert(

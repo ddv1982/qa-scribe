@@ -104,7 +104,7 @@ it('Retry sends no new record context even when the selected record changes', as
   api.startChatJob.mockImplementation(async () => ({ jobId: 'job-chat', turnId: 'new-attempt', status: chatJobFixture(), chat: { ...failed, revision: 3,
     messages: [{ ...failed.messages[0], turnId: 'new-attempt', status: 'running' }] } }))
   await act(async () => { await result.current.sessionChat.onRetry() })
-  expect(api.startChatJob.mock.calls[0][0]).toMatchObject({ retry: true })
+  expect(api.startChatJob.mock.calls[0][0]).toMatchObject({ intent: { kind: 'retry' } })
   expect((api.startChatJob.mock.calls[0][0] as StartChatJobRequest).context).toBeUndefined()
   expect(result.current.sessionChat.chat?.messages[0].context).toEqual(context)
   expect(result.current.sessionChat.chat?.messages[0].id).toBe('original-user')

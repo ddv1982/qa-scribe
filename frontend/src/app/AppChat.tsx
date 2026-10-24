@@ -32,7 +32,7 @@ export function AppChat({ c, modelSelectionControl, onConfigureAi }: {
       </div>
     </header>
     <ChatContextCard context={c.askAi.context} error={c.askAi.contextError} onDetach={c.askAi.detach} />
-    <SessionChatView {...c.sessionChat} onRefine={c.askAi.context.kind === 'session' ? undefined : c.sessionChat.onRefine} hidden={!visible}
+    <SessionChatView {...c.sessionChat} activeTarget={c.askAi.context} onDraftJira={c.askAi.context.kind === 'session' ? undefined : c.sessionChat.onDraftJira} onRefine={c.askAi.context.kind === 'session' ? undefined : c.sessionChat.onRefine} hidden={!visible}
       onOpenNote={() => { c.setSessionMode('write_note'); c.setActiveView('sessions') }}
       providerLabel={c.activeProvider?.label ?? c.selectedProvider}
       modelLabel={c.selectedModel === 'default' ? 'CLI Default' : c.selectedModel}

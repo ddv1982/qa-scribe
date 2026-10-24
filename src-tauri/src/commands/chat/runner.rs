@@ -121,10 +121,10 @@ mod deletion_tests {
         (
             service,
             StartChatJobRequest {
-                refine: false,
+                intent: ChatRequestIntent::Message,
                 context: ChatTarget::Session,
                 scope: scope(&chat),
-                retry: false,
+
                 provider: AiProvider::ClaudeCode,
                 model: "sonnet".into(),
                 reasoning_effort: Some("high".into()),

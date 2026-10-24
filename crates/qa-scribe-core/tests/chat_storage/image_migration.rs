@@ -23,7 +23,7 @@ fn schema13_rebuild_preserves_identity_receipt_revisions_indexes_and_constraints
     let version: i32 = c
         .query_row("PRAGMA user_version", [], |r| r.get(0))
         .unwrap();
-    assert_eq!(version, 17);
+    assert_eq!(version, 18);
     let draft: (i32,String,String,i32,String,String) = c.query_row("SELECT revision,composer,mode,archived,submitted_note_id,submitted_at FROM chat_drafts WHERE id='d'", [], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?,r.get(5)?))).unwrap();
     assert_eq!(
         draft,

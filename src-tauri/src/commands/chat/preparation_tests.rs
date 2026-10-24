@@ -40,10 +40,10 @@ fn fixture_with_size(size: usize) -> (Arc<AppState>, ChatState, std::path::PathB
 
 fn request(chat: &ChatState) -> StartChatJobRequest {
     StartChatJobRequest {
-        refine: false,
+        intent: ChatRequestIntent::Message,
         context: ChatTarget::Session,
         scope: lifecycle::scope(chat),
-        retry: false,
+
         provider: AiProvider::CopilotCli,
         model: "fixture".into(),
         reasoning_effort: None,
@@ -269,7 +269,7 @@ fn oversized_text_precedes_missing_image_and_preserves_composer() {
         })
         .err()
         .unwrap();
-    assert_eq!(error.message, "Chat message 1 exceeds 16384 bytes");
+    assert_eq!(error.message, "Chat message exceeds 16384 bytes");
     assert_eq!(run_count(&state), 0);
     assert_eq!(
         state
