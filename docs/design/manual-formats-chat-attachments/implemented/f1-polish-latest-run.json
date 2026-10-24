@@ -1,0 +1,80 @@
+{
+  "completedAt": "2026-10-24T07:46:54.025Z",
+  "durationMs": 30451,
+  "platform": "darwin",
+  "architecture": "arm64",
+  "runnerClass": "darwin-arm64",
+  "runId": null,
+  "runAttempt": 1,
+  "status": "passed",
+  "exitCode": 0,
+  "signal": null,
+  "plannedInvocations": [
+    "creation-composer.e2e.mjs"
+  ],
+  "invocations": [
+    {
+      "id": "creation-composer.e2e.mjs",
+      "status": 0,
+      "signal": null
+    }
+  ],
+  "commands": [
+    {
+      "stage": "frontend-build",
+      "command": [
+        "bun",
+        "run",
+        "--cwd",
+        "frontend",
+        "build",
+        "--",
+        "--outDir",
+        "/var/folders/ph/ypnbw6f11qd1s2j_df2rvzgc0000gn/T/qa-scribe-e2e-ynndSZ/frontend-dist",
+        "--emptyOutDir"
+      ],
+      "status": "passed",
+      "exitCode": 0,
+      "signal": null,
+      "spawnError": null,
+      "timeoutMs": 180000,
+      "timedOut": false,
+      "elapsedMs": 2334
+    },
+    {
+      "stage": "native-build",
+      "command": [
+        "cargo",
+        "build",
+        "--package",
+        "qa-scribe-tauri",
+        "--features",
+        "e2e"
+      ],
+      "status": "passed",
+      "exitCode": 0,
+      "signal": null,
+      "spawnError": null,
+      "timeoutMs": 600000,
+      "timedOut": false,
+      "elapsedMs": 3424
+    },
+    {
+      "stage": "creation-composer.e2e.mjs",
+      "command": [
+        "/Users/vriesd/projects/qa-scribe/frontend/node_modules/.bin/wdio",
+        "run",
+        "/Users/vriesd/projects/qa-scribe/e2e/wdio.conf.mjs"
+      ],
+      "status": "passed",
+      "exitCode": 0,
+      "signal": null,
+      "spawnError": null,
+      "timeoutMs": 180000,
+      "timedOut": false,
+      "elapsedMs": 24677
+    }
+  ],
+  "firstFailure": null,
+  "isolatedDataRemoved": true
+}

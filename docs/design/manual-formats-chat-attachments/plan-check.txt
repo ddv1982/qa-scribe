@@ -1,0 +1,4 @@
+Choose a format while writing manual drafts (F1)  boxes=38  files=5 build=10 you-see=3 verify-unit=2 verify-live=10 verify-perf=4 review-gate=2 merge=2
+Persist chat images and deliver them to providers (A1)  boxes=44  files=5 build=15 you-see=3 verify-unit=3 verify-live=10 verify-perf=4 review-gate=2 merge=2
+Paste and attach images in the chat composer (A2)  boxes=40  files=5 build=11 you-see=3 verify-unit=3 verify-live=10 verify-perf=4 review-gate=2 merge=2
+3 PR sections, 0 problems

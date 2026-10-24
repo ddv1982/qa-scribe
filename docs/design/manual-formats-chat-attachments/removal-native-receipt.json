@@ -1,0 +1,8 @@
+{
+  "expectedMessage": "Keep my edited message 4827.",
+  "observedMessageLines": [
+    "\t\t\t\t\t\t\t\t60 tekstinvoergebied (settable) Message, Value: Keep my edited message 4827., Placeholder: Describe your testing context or ask a question"
+  ],
+  "removeControlVisible": false,
+  "scope": "Native Chrome prototype observation after attachment removal. No QA Scribe import or AI request."
+}

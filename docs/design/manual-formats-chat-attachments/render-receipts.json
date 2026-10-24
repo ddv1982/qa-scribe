@@ -1,0 +1,46 @@
+{
+  "02-manual-finding": {
+    "width": 1280,
+    "contentHeight": 1157,
+    "capturedHeight": 1157,
+    "consoleMessages": [],
+    "screenshot": {
+      "mimeType": "image/png",
+      "width": 1280,
+      "height": 1157
+    }
+  },
+  "05-chat-narrow": {
+    "width": 728,
+    "contentHeight": 1144,
+    "capturedHeight": 1144,
+    "consoleMessages": [],
+    "screenshot": {
+      "mimeType": "image/png",
+      "width": 728,
+      "height": 1144
+    }
+  },
+  "06-chat-light-narrow": {
+    "width": 360,
+    "contentHeight": 1303,
+    "capturedHeight": 1303,
+    "consoleMessages": [],
+    "screenshot": {
+      "mimeType": "image/png",
+      "width": 360,
+      "height": 1303
+    }
+  },
+  "07-message-preserved": {
+    "width": 1280,
+    "contentHeight": 998,
+    "capturedHeight": 998,
+    "consoleMessages": [],
+    "screenshot": {
+      "mimeType": "image/png",
+      "width": 1280,
+      "height": 998
+    }
+  }
+}

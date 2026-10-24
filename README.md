@@ -15,7 +15,7 @@ A local-first desktop notepad for exploratory testing. Capture evidence during a
 - Organize testing Sessions with context, objectives, and a chronological Timeline.
 - Capture Notes, API responses, logs, screenshots, and attachments.
 - Link Findings to their supporting Evidence.
-- Start a local Finding or test-case draft from Note or its collection. Save explicitly, discard it, or keep editing. Optional AI setup is inside the draft; Session Chat is also available. Testware remains the domain umbrella for testing output.
+- Start a local Finding or test-case draft from Note or its collection. Choose a manual output format or finding template, then save explicitly. Optional AI setup is inside the draft. Session Chat accepts pasted or chosen images. Testware remains the domain umbrella for testing output.
 - Use Copy on a Note, test case, Finding, or selected library record. Library copying keeps the current Session and uses the saved output.
 - Use Copy first screenshot to copy the first managed screenshot in a Note or record.
 
@@ -57,7 +57,7 @@ Sessions and Drafts live in local SQLite. Attachments are managed files in the a
 
 Deleting a Finding removes its Evidence links. Deleting a Draft preserves its AI Run history.
 
-AI generation sends the selected context and attachment metadata, without raw attachment binaries. Chat tools and connectors use the selected CLI's permissions. See the [AI guide](docs/ai-providers.md) for the full behavior.
+AI generation sends the selected context and attachment metadata, without raw attachment binaries. Sending a Chat image sends its pixels to the selected CLI, including when that conversation is replayed. Chat tools and connectors use the selected CLI's permissions. See the [AI guide](docs/ai-providers.md) for the full behavior.
 
 ## Project layout
 

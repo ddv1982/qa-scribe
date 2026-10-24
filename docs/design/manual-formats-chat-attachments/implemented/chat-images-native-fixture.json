@@ -1,0 +1,203 @@
+{
+  "status": "passed",
+  "provider": "deterministic-codex-fixture",
+  "realVision": false,
+  "osClipboard": "not-exercised",
+  "nativeFileDialog": "not-exercised",
+  "fileInputSelection": "unsupported-driver; DOM-file-input-contract-only",
+  "domPasteContract": true,
+  "webviewReload": true,
+  "nativeProcessRestart": "not-exercised",
+  "providerCatalog": {
+    "available": true,
+    "catalogSnapshot": {
+      "checkedAt": "2026-10-24T07:20:23Z",
+      "cliVersion": "1.0.0",
+      "error": null,
+      "models": [
+        {
+          "availability": "available",
+          "capabilities": {
+            "adaptiveThinking": null,
+            "autoMode": null,
+            "contextWindowTokens": null,
+            "fastMode": null,
+            "maxOutputTokens": null,
+            "reasoning": null,
+            "vision": null
+          },
+          "confidence": "authoritative",
+          "defaultReasoningEffort": null,
+          "description": "Use the model configured by the local provider CLI.",
+          "id": "default",
+          "isDefault": true,
+          "label": "Use CLI default",
+          "reasoningEfforts": [],
+          "resolvedModel": null,
+          "source": "providerDefault"
+        },
+        {
+          "availability": "available",
+          "capabilities": {
+            "adaptiveThinking": null,
+            "autoMode": null,
+            "contextWindowTokens": null,
+            "fastMode": null,
+            "maxOutputTokens": null,
+            "reasoning": null,
+            "vision": true
+          },
+          "confidence": "authoritative",
+          "defaultReasoningEffort": null,
+          "description": null,
+          "id": "chat-image-fixture",
+          "isDefault": true,
+          "label": "Synthetic image transport fixture",
+          "reasoningEfforts": [],
+          "resolvedModel": null,
+          "source": "cliCatalog"
+        }
+      ],
+      "resolutionScope": {
+        "kind": "neutral",
+        "label": "Neutral QA Scribe runtime scope"
+      },
+      "source": "cliCatalog",
+      "state": "fresh",
+      "warnings": []
+    },
+    "command": "codex exec --skip-git-repo-check -",
+    "defaultSnapshot": {
+      "checkedAt": "2026-10-24T07:20:23Z",
+      "cliVersion": "1.0.0",
+      "error": null,
+      "model": {
+        "origin": {
+          "displayPath": null,
+          "kind": "cliRecommendation",
+          "label": "Codex model catalog default"
+        },
+        "recommendedValue": "chat-image-fixture",
+        "resolution": "configured",
+        "value": "chat-image-fixture"
+      },
+      "reasoningEffort": {
+        "origin": null,
+        "recommendedValue": null,
+        "resolution": "providerManaged",
+        "value": null
+      },
+      "resolutionScope": {
+        "kind": "neutral",
+        "label": "Neutral QA Scribe runtime scope"
+      },
+      "state": "detected",
+      "warnings": []
+    },
+    "id": "codex_cli",
+    "label": "Codex CLI",
+    "localOnly": true,
+    "models": [
+      {
+        "availability": "available",
+        "capabilities": {
+          "adaptiveThinking": null,
+          "autoMode": null,
+          "contextWindowTokens": null,
+          "fastMode": null,
+          "maxOutputTokens": null,
+          "reasoning": null,
+          "vision": null
+        },
+        "confidence": "authoritative",
+        "defaultReasoningEffort": null,
+        "description": "Use the model configured by the local provider CLI.",
+        "id": "default",
+        "isDefault": true,
+        "label": "Use CLI default",
+        "reasoningEfforts": [],
+        "resolvedModel": null,
+        "source": "providerDefault"
+      },
+      {
+        "availability": "available",
+        "capabilities": {
+          "adaptiveThinking": null,
+          "autoMode": null,
+          "contextWindowTokens": null,
+          "fastMode": null,
+          "maxOutputTokens": null,
+          "reasoning": null,
+          "vision": true
+        },
+        "confidence": "authoritative",
+        "defaultReasoningEffort": null,
+        "description": null,
+        "id": "chat-image-fixture",
+        "isDefault": true,
+        "label": "Synthetic image transport fixture",
+        "reasoningEfforts": [],
+        "resolvedModel": null,
+        "source": "cliCatalog"
+      }
+    ],
+    "reason": "Codex CLI is installed and authenticated.",
+    "status": "ready"
+  },
+  "paperclipActivation": "file-input-click-observed-with-native-dialog-suppressed",
+  "initialPayload": {
+    "provider": "codex",
+    "transport": "app-server",
+    "realVision": false,
+    "messages": [
+      {
+        "id": "eec82617-98d5-4b6e-b92a-0af94146fa56",
+        "role": "user",
+        "text": "",
+        "images": [
+          {
+            "type": "localImage",
+            "path": "/private/var/folders/ph/ypnbw6f11qd1s2j_df2rvzgc0000gn/T/qa-scribe-e2e-uXTWaW/app-data/attachments/b936efcf-f8ec-4c31-b0d4-2673a22dfb0c/d0601731-1571-4bf0-8a2b-c1c5a1a4edea_chat-image-pixels.png",
+            "sizeBytes": 77,
+            "sha256": "f6b373ee62d8abe053e1decceb83b38627e0ce3df932ce72729f10a2e6e8fc58"
+          }
+        ]
+      }
+    ],
+    "response": "Deterministic image transport fixture completed. No model vision was exercised."
+  },
+  "keyboard": "DOM key contract; native OS keys require separate proof",
+  "replayPayload": {
+    "provider": "codex",
+    "transport": "app-server",
+    "realVision": false,
+    "messages": [
+      {
+        "id": "eec82617-98d5-4b6e-b92a-0af94146fa56",
+        "role": "user",
+        "text": "",
+        "images": [
+          {
+            "type": "localImage",
+            "path": "/private/var/folders/ph/ypnbw6f11qd1s2j_df2rvzgc0000gn/T/qa-scribe-e2e-uXTWaW/app-data/attachments/b936efcf-f8ec-4c31-b0d4-2673a22dfb0c/d0601731-1571-4bf0-8a2b-c1c5a1a4edea_chat-image-pixels.png",
+            "sizeBytes": 77,
+            "sha256": "f6b373ee62d8abe053e1decceb83b38627e0ce3df932ce72729f10a2e6e8fc58"
+          }
+        ]
+      },
+      {
+        "id": "d6b15d36-8c59-407c-8d24-cb3e3f176471",
+        "role": "assistant",
+        "text": "Deterministic image transport fixture completed. No model vision was exercised.",
+        "images": []
+      },
+      {
+        "id": "de6a132c-6f3b-4565-ae14-3384afbf8011",
+        "role": "user",
+        "text": "Retain the original screenshot on this later turn.\n",
+        "images": []
+      }
+    ],
+    "response": "Deterministic image transport fixture completed. No model vision was exercised."
+  }
+}
