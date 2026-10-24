@@ -348,11 +348,20 @@ pub fn attachment_file_bytes(
     let Some(attachment) = service.get_attachment(attachment_id)? else {
         return Ok(None);
     };
+    let bytes = managed_attachment_bytes(app_data_dir.as_ref(), &attachment)?;
+    Ok(Some((attachment, bytes)))
+}
+
+pub(crate) fn managed_attachment_bytes(
+    app_data_dir: &Path,
+    attachment: &Attachment,
+) -> Result<Vec<u8>> {
+    let attachment_id = &attachment.id;
     let relative_path = PathBuf::from(&attachment.relative_path);
     if !is_safe_relative_path(&relative_path) {
         return Err(validation("stored attachment path is invalid"));
     }
-    let bytes = read_attachment_bytes(&app_data_dir.as_ref().join(relative_path))?;
+    let bytes = read_attachment_bytes(&app_data_dir.join(relative_path))?;
     if bytes.len() as i64 != attachment.size_bytes {
         return Err(crate::QaScribeError::InvalidStoredValue {
             field: "attachment file bytes",
@@ -372,7 +381,7 @@ pub fn attachment_file_bytes(
             ),
         });
     }
-    Ok(Some((attachment, bytes)))
+    Ok(bytes)
 }
 
 fn read_attachment_bytes(path: &Path) -> Result<Vec<u8>> {

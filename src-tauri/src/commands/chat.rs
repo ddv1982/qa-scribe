@@ -16,6 +16,9 @@ mod image_preflight_tests;
 mod lifecycle;
 #[cfg(test)]
 mod permission_tests;
+mod preparation;
+#[cfg(test)]
+mod preparation_tests;
 mod runner;
 mod transport;
 
@@ -42,41 +45,47 @@ fn prepare_chat_job(
     request: &StartChatJobRequest,
     job_id: &str,
 ) -> Result<(lifecycle::PreparedChat, GenerationJobStatus, JobControl), CommandError> {
-    let (status, control) = jobs.insert_generation_job(
-        job_id.to_string(),
-        request.scope.session_id.clone(),
-        "chat".into(),
-    )?;
-    // Reserve before persisted preparation. Both preparation and finalization
-    // acquire the control gate before the service mutex, never the reverse.
-    let preflight = (|| {
-        let has_images = state.with_service(|service| {
-            let chat = service.load_chat(&request.scope.session_id)?;
-            Ok((!request.retry && !chat.composer_images.is_empty())
-                || chat.messages.iter().enumerate().any(|(index, message)| {
-                    !message.images.is_empty()
-                        && (message.status == ChatTurnStatus::Completed
-                            || (request.retry && index + 1 == chat.messages.len()))
-                }))
-        })?;
-        if has_images {
+    prepare_chat_job_with(state, jobs, request, job_id, |snapshot, control| {
+        if snapshot.has_images() {
             transport::validate_image_provider(request.provider)
                 .map_err(CommandError::validation)?;
             let readiness =
-                crate::commands::providers::provider_readiness_for_job(request.provider, &control);
+                crate::commands::providers::provider_readiness_for_job(request.provider, control);
             if !readiness.descriptor.status.is_ready() {
                 return Err(CommandError::validation(readiness.descriptor.reason));
             }
             transport::validate_image_model(&readiness.descriptor, &request.model)
                 .map_err(CommandError::validation)?;
         }
-        Ok(())
-    })();
-    let preparation = match preflight {
-        Ok(()) => control.run_if_not_cancelled(|| {
-            state.with_service(|service| {
-                lifecycle::prepare_with_images(service, request, state.app_data_dir())
+        snapshot
+            .verify(state.app_data_dir(), request.provider, || {
+                control.is_cancelled()
             })
+            .map_err(CommandError::from)
+    })
+}
+
+fn prepare_chat_job_with(
+    state: &AppState,
+    jobs: &JobStore,
+    request: &StartChatJobRequest,
+    job_id: &str,
+    verify: impl FnOnce(
+        preparation::ChatPreparationSnapshot,
+        &JobControl,
+    ) -> Result<preparation::VerifiedChatPreparation, CommandError>,
+) -> Result<(lifecycle::PreparedChat, GenerationJobStatus, JobControl), CommandError> {
+    let (status, control) = jobs.insert_generation_job(
+        job_id.to_string(),
+        request.scope.session_id.clone(),
+        "chat".into(),
+    )?;
+    let verified = state
+        .with_service(|service| preparation::ChatPreparationSnapshot::capture(service, request))
+        .and_then(|snapshot| verify(snapshot, &control));
+    let preparation = match verified {
+        Ok(verified) => control.run_if_not_cancelled(|| {
+            state.with_service(|service| lifecycle::commit(service, request, verified))
         }),
         Err(error) => Ok(Some(Err(error))),
     };
@@ -232,13 +241,25 @@ pub fn submit_chat(
 /// Reload the canonical ChatState when the job reaches a terminal status.
 #[tauri::command]
 #[specta::specta]
-pub fn start_chat_job(
+pub async fn start_chat_job(
     app: AppHandle,
-    state: State<'_, AppState>,
-    jobs: State<'_, JobStore>,
     request: StartChatJobRequest,
     events: Channel<GenerationJobStatus>,
 ) -> Result<StartChatJobResult, CommandError> {
+    super::files::attachment_task("Chat preparation", move || {
+        start_chat_job_blocking(app, request, events)
+    })
+    .await
+}
+
+fn start_chat_job_blocking(
+    app: AppHandle,
+    request: StartChatJobRequest,
+    events: Channel<GenerationJobStatus>,
+) -> Result<StartChatJobResult, CommandError> {
+    use tauri::Manager;
+    let state = app.state::<AppState>();
+    let jobs = app.state::<JobStore>();
     let job_id = uuid::Uuid::new_v4().to_string();
     let (prepared, status, control) = prepare_chat_job(&state, &jobs, &request, &job_id)?;
     let result = StartChatJobResult {

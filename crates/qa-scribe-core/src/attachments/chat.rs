@@ -6,10 +6,10 @@ use std::{
 
 use image::{ImageFormat, ImageReader};
 
-use super::{attachment_file_bytes, decode_image_data_url, import_managed_attachment_with};
+use super::{decode_image_data_url, import_managed_attachment_with, managed_attachment_bytes};
 use crate::{
     Result,
-    domain::{ChatRevision, ChatState},
+    domain::{Attachment, ChatRevision, ChatState},
     error::validation,
     services::SessionService,
 };
@@ -113,6 +113,18 @@ pub fn resolve_chat_image(
     session_id: &str,
     attachment_id: &str,
 ) -> Result<ChatInputImage> {
+    let attachment = chat_image_source(service, session_id, attachment_id)?;
+    resolve_chat_image_source(app_data_dir, attachment)
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ChatImageSource(Attachment);
+
+pub fn chat_image_source(
+    service: &SessionService,
+    session_id: &str,
+    attachment_id: &str,
+) -> Result<ChatImageSource> {
     let attachment = service
         .get_attachment(attachment_id)?
         .ok_or_else(|| validation("Chat image is missing"))?;
@@ -123,6 +135,17 @@ pub fn resolve_chat_image(
             "Chat image must be a managed file in this Session",
         ));
     }
+    if attachment.size_bytes < 0 || attachment.size_bytes as u64 > MAX_CHAT_IMAGE_BYTES as u64 {
+        return Err(validation("Chat images must be at most 10 MiB each"));
+    }
+    Ok(ChatImageSource(attachment))
+}
+
+pub fn resolve_chat_image_source(
+    app_data_dir: &Path,
+    source: ChatImageSource,
+) -> Result<ChatInputImage> {
+    let attachment = source.0;
     let root = app_data_dir.canonicalize()?;
     let path = app_data_dir
         .join(&attachment.relative_path)
@@ -132,8 +155,7 @@ pub fn resolve_chat_image(
             "Chat image path escapes its managed Session directory",
         ));
     }
-    let (_, bytes) = attachment_file_bytes(service, app_data_dir, attachment_id)?
-        .ok_or_else(|| validation("Chat image is missing"))?;
+    let bytes = managed_attachment_bytes(app_data_dir, &attachment)?;
     let mime_type = attachment
         .mime_type
         .ok_or_else(|| validation("Chat image MIME type is missing"))?;
