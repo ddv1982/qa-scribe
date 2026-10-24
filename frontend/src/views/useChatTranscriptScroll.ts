@@ -47,7 +47,14 @@ export function useChatTranscriptScroll({ conversationId, userTurnId, messageId,
     function observePageScroll() {
       if (viewport && viewport.clientHeight > 0 && getComputedStyle(viewport).overflowY === 'visible') observeScroll()
     }
+    function observeWindowResize() {
+      const focused = document.activeElement
+      if (!activeOutput && focused instanceof HTMLTextAreaElement && focused.value !== ''
+        && viewport?.parentElement?.contains(focused)) return
+      revealLatest()
+    }
     window.addEventListener('scroll', observePageScroll, true)
+    window.addEventListener('resize', observeWindowResize)
     viewport.addEventListener('scroll', observeScroll)
     viewport.addEventListener('wheel', observeWheel, { passive: true })
     viewport.addEventListener('keydown', observeKey)
@@ -60,6 +67,7 @@ export function useChatTranscriptScroll({ conversationId, userTurnId, messageId,
     return () => {
       observer?.disconnect()
       window.removeEventListener('scroll', observePageScroll, true)
+      window.removeEventListener('resize', observeWindowResize)
       viewport.removeEventListener('scroll', observeScroll)
       viewport.removeEventListener('wheel', observeWheel)
       viewport.removeEventListener('keydown', observeKey)

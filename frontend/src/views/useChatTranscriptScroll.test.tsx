@@ -7,15 +7,16 @@ afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); Reflec
 describe('chat transcript following', () => {
   function setup() {
     let height = 300
+    let viewportHeight = 100
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
       return this.dataset.testid === 'transcript'
         ? new DOMRect(0, -(this.parentElement?.scrollTop ?? 0), 100, height)
-        : new DOMRect(0, 0, 100, 100)
+        : new DOMRect(0, 0, 100, viewportHeight)
     })
-    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(100)
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(() => viewportHeight)
     vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockImplementation(() => height + 200)
-    function Chat({ partialText = '', conversationId = 'chat-1', userTurnId = 'turn-1', paused = false }) {
-      const { viewportRef, transcriptRef } = useChatTranscriptScroll({ conversationId, userTurnId, messageId: 'message', partialText, activeOutput: true, paused })
+    function Chat({ partialText = '', conversationId = 'chat-1', userTurnId = 'turn-1', activeOutput = true, paused = false }) {
+      const { viewportRef, transcriptRef } = useChatTranscriptScroll({ conversationId, userTurnId, messageId: 'message', partialText, activeOutput, paused })
       return <div ref={viewportRef} data-testid="viewport" style={{ overflowY: 'auto' }}><section ref={transcriptRef} data-testid="transcript">Transcript</section></div>
     }
     const view = render(<Chat />)
@@ -26,7 +27,8 @@ describe('chat transcript following', () => {
       viewport.scrollTop = top
       fireEvent.scroll(viewport)
     }
-    return { Chat, view, scrollTop, scrollTo, setHeight: (value: number) => { height = value } }
+    return { Chat, view, scrollTop, scrollTo, setHeight: (value: number) => { height = value },
+      setViewportHeight: (value: number) => { viewportHeight = value } }
   }
 
   it('follows new output, preserves a deliberate history position, and resumes near the latest message', () => {
@@ -71,6 +73,32 @@ describe('chat transcript following', () => {
     expect(h.scrollTop()).toBe(900)
   })
 
+  it('follows idle native window height changes without overriding history or permission attention', () => {
+    const h = setup()
+    h.view.rerender(<h.Chat activeOutput={false} />)
+    h.setViewportHeight(60)
+    fireEvent.resize(window)
+    expect(h.scrollTop()).toBe(240)
+    h.scrollTo(50)
+    h.setViewportHeight(40)
+    fireEvent.resize(window)
+    expect(h.scrollTop()).toBe(50)
+    h.view.rerender(<h.Chat activeOutput={false} userTurnId="turn-2" paused />)
+    fireEvent.resize(window)
+    expect(h.scrollTop()).toBe(50)
+    h.view.rerender(<h.Chat activeOutput={false} userTurnId="turn-2" />)
+    expect(h.scrollTop()).toBe(260)
+  })
+
+  it('follows the idle transcript after a native window width change wraps the response', () => {
+    const h = setup()
+    h.view.rerender(<h.Chat activeOutput={false} />)
+    vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(360)
+    h.setHeight(600)
+    fireEvent.resize(window)
+    expect(h.scrollTop()).toBe(500)
+  })
+
   it('keeps the page-flow composer visible when idle layout changes below the transcript', () => {
     let resize: ResizeObserverCallback = () => {}
     vi.stubGlobal('ResizeObserver', class {
@@ -98,11 +126,27 @@ describe('chat transcript following', () => {
     const view = render(<Chat />)
     pageTop = 3200
     fireEvent.scroll(window)
+    view.getByRole('textbox').focus()
     fireEvent.change(view.getByRole('textbox'), { target: { value: 'Controlled light unsent message' } })
     act(() => { resize([], {} as ResizeObserver) })
     expect(view.getByRole('textbox').getBoundingClientRect().y).toBe(304)
     expect((view.getByRole('textbox') as HTMLTextAreaElement).value).toBe('Controlled light unsent message')
+    expect(document.activeElement).toBe(view.getByRole('textbox'))
+    vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(360)
+    fireEvent.resize(window)
+    expect(view.getByRole('textbox').getBoundingClientRect().y).toBe(304)
+    expect(document.activeElement).toBe(view.getByRole('textbox'))
+    view.getByRole('textbox').blur()
+    fireEvent.resize(window)
+    expect(pageTop).toBe(-120)
+    view.getByRole('textbox').focus()
+    pageTop = 3200
+    fireEvent.scroll(window)
     view.rerender(<Chat activeOutput partialText="Response continues while the next question is typed" />)
+    expect(pageTop).toBe(-120)
+    pageTop = 3200
+    fireEvent.scroll(window)
+    fireEvent.resize(window)
     expect(pageTop).toBe(-120)
     pageTop = 3200
     fireEvent.scroll(window)
@@ -120,6 +164,12 @@ describe('chat transcript following', () => {
     act(() => { resize([], {} as ResizeObserver) })
     expect(pageTop).toBe(-300)
     view.rerender(<Chat activeOutput userTurnId="explicit-next-turn" />)
+    expect(pageTop).toBe(-120)
+    view.rerender(<Chat />)
+    pageTop = 3200
+    fireEvent.scroll(window)
+    fireEvent.change(view.getByRole('textbox'), { target: { value: '' } })
+    fireEvent.resize(window)
     expect(pageTop).toBe(-120)
   })
 
