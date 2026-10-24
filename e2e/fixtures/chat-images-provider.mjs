@@ -25,7 +25,9 @@ export function inspectImageInput(input) {
         'Image fixture text must stay within the Chat budget')
       const message = /^MESSAGE (\S+) (User|Assistant)\n([\s\S]*)$/.exec(block.text)
       if (message) {
-        current = { id: message[1], role: message[2].toLowerCase(), text: message[3], images: [] }
+        const text = JSON.parse(message[3])
+        assert.equal(typeof text, 'string', 'Message body must be one JSON string')
+        current = { id: message[1], role: message[2].toLowerCase(), text, images: [] }
         messages.push(current)
       }
       continue

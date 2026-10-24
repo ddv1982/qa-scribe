@@ -36,3 +36,12 @@ Recheck now survives a pruned prior terminal job. It refreshes canonical Chat st
 A deterministic editor regression showed that changing editability could emit the previous document as an authored update before applying a new value. Editability changes now suppress that update. Both stored-content and simultaneous document/editability cases pass, and format Copy asserts the live selected format and body before invoking the clipboard.
 
 The parent passed 886 frontend tests and all 659 Rust tests, with the same three existing opt-in Rust tests ignored. Subsequent targeted recovery tests, quality checks, bindings, command surface, and code-size checks pass. Fresh native workflows passed Chat images, seven Codex permission cases, and all four manual-format cases. These runs use the asynchronous preparation command and the corrected editor callback.
+
+
+## Transcript boundaries and fixture receipts
+
+Independent round-three review closed the preparation, uncertain-start recovery, and editor hydration findings at 08fef17. It reproduced a collision between distinct conversations in the raw labelled transcript. Both text-only and multimodal serializers now put each exact message body in one JSON string. The prompt states the decoding rule. Compiled regressions cover forged headers, Unicode and control characters, image-only bodies, and image ownership. This is structural framing, not a claim that semantic prompt injection is solved.
+
+Fixture parsers reject raw labelled bodies and preserve legacy JSON replay for base comparisons. Two bulk authorization tests exposed a receipt publication race. Receipts and real marker-child results now publish complete JSON through an exclusive hard link after the temporary file is written. Duplicate names still fail without replacing the original. All 53 focused Node fixture tests pass. The parent also passed all 661 workspace Rust tests, with the same three existing opt-in tests ignored, plus Clippy, formatting, bindings, command surface, and code-size checks.
+
+Round three independently passed four native format cases and seven native permission cases. Its image run passed send, replay, pixels, and the visual matrix, then stopped with a WebDriver click exception during Note handoff. The durable submission was present, but its final reopen assertions did not run. That failed run remains contrary evidence. The next pinned review must complete those assertions against the encoded transcript patch.

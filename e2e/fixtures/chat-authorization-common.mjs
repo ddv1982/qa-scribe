@@ -1,6 +1,7 @@
-import { existsSync, mkdirSync, watch, writeFileSync } from 'node:fs'
+import { existsSync, linkSync, mkdirSync, unlinkSync, watch, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { spawnSync } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { handoffMarkdown } from './chat-handoff-markdown.mjs'
 
 export function reserveInvocation(directory, prefix = 'codex-exec') {
@@ -36,12 +37,12 @@ export function parseTranscript(prompt, argv) {
   const labels = start < 0 ? [...prompt.matchAll(/\nMESSAGE \S+ (User|Assistant)\n/g)] : []
   const messages = start >= 0 ? JSON.parse(prompt.slice(start + separator.length)).messages
     : labels.map((label, index) => ({ role: label[1].toLowerCase(),
-      text: prompt.slice(label.index + label[0].length, labels[index + 1]?.index) }))
+      text: JSON.parse(prompt.slice(label.index + label[0].length, labels[index + 1]?.index)) }))
   if (!Array.isArray(messages) || !messages.length || messages.length % 2 !== 1) {
     throw new Error('Chat transcript requires completed pairs followed by latest user message')
   }
   for (const [index, message] of messages.entries()) {
-    if (message.role !== (index % 2 ? 'assistant' : 'user') || !message.text?.trim()) {
+    if (message.role !== (index % 2 ? 'assistant' : 'user') || typeof message.text !== 'string' || !message.text.trim()) {
       throw new Error('Invalid Chat role order or text')
     }
     if (message.role === 'assistant' && message.text !== chatResponse((index + 1) / 2)) {
@@ -52,9 +53,8 @@ export function parseTranscript(prompt, argv) {
 }
 
 export function executeMarker(path) {
-  // A separate process performs the tool side effect, never the protocol fixture itself.
   const child = spawnSync(process.execPath, ['--input-type=module', '-e',
-    'import {writeFileSync} from "node:fs"; writeFileSync(process.argv[1], JSON.stringify({pid:process.pid,parent:process.ppid})+"\\n", {flag:"wx"})', path],
+    `import {record} from ${JSON.stringify(import.meta.url)}; import {dirname,basename} from 'node:path'; record(dirname(process.argv[1]),basename(process.argv[1]),{pid:process.pid,parent:process.ppid})`, path],
   { encoding: 'utf8' })
   if (child.status !== 0) throw new Error(`Marker child failed: ${child.stderr}`)
 }
@@ -76,5 +76,9 @@ export function jsonLines(handle) {
 }
 
 export const emit = (event) => process.stdout.write(`${JSON.stringify(event)}\n`)
-export const record = (directory, name, value) => writeFileSync(join(directory, name),
-  `${JSON.stringify(value, null, 2)}\n`, { flag: 'wx' })
+export function record(directory, name, value) {
+  const temporary = join(directory, `.${name}.${randomUUID()}.tmp`)
+  writeFileSync(temporary, `${JSON.stringify(value, null, 2)}\n`, { flag: 'wx' })
+  try { linkSync(temporary, join(directory, name)) }
+  finally { unlinkSync(temporary) }
+}

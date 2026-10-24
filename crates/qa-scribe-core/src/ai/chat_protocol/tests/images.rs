@@ -31,7 +31,7 @@ fn literal_claude_base64_blocks_and_labelled_image_only_input() {
     assert_eq!(
         &content[1..],
         &[
-            json!({"type":"text","text":"MESSAGE message-1 User\n"}),
+            json!({"type":"text","text":"MESSAGE message-1 User\n\"\""}),
             json!({"type":"text","text":"Image 1 for message message-1"}),
             json!({"type":"image","source":{"type":"base64","media_type":"image/png","data":"AAEC"}}),
         ]

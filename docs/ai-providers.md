@@ -50,7 +50,9 @@ Messages, images, unsent composer content, and mode are stored locally per Sessi
 
 Chat text is bounded to 16 KiB per sent message, 128 KiB of transcript text, and 128 messages including unsuccessful turns. Each message accepts up to four images, 10 MiB per image and 20 MiB in total. Provider and replay limits can be lower. Use PNG, JPEG, WebP, or GIF. Image support also depends on the selected provider and model. Unsupported inputs produce an error instead of silently dropping images.
 
-Image sends require confirmed image support in the CLI's model catalog. Copilot Chat image sends are currently unavailable. Choose another supported provider or remove the images to continue with text. A rejected image send keeps the composer intact.
+Image sends require confirmed model image support. QA Scribe uses catalog capabilities and documented Claude identities when the SDK omits that field. Copilot Chat image sends are currently unavailable. Choose a compatible provider or start a new text-only conversation. A rejected image send keeps the composer intact.
+
+For turns that include images, QA Scribe omits raw provider errors and stderr to keep image data out of diagnostics. Setup and input-validation errors remain specific.
 
 If submission succeeds but its response or Note reload fails, the Note is write-protected until **Recover Session Note** safely reads its canonical state. Authentication remains in the existing CLIs. QA Scribe does not add direct provider APIs or store API keys.
 

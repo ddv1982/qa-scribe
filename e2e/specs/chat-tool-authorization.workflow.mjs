@@ -101,7 +101,7 @@ async function start(mode, caseName, text = `Check the marker tool authorization
   await click('Send')
   await markerFile(index, 'started')
   const prompt = JSON.parse(readFileSync(await markerFile(index, 'prompt.json'), 'utf8'))
-  assert.ok(prompt.prompt.includes(text), 'The actual provider must receive the original user message')
+  assert.ok(prompt.prompt.includes(JSON.stringify(text)), 'The actual provider must receive the original user message')
   if (mode !== 'policy') {
     await $(permission).waitForDisplayed()
     assert.equal(files('.executed.json').length, before, 'A permission request must not execute a child before approval')
@@ -228,7 +228,7 @@ describe(`Built application native ${provider} Chat tool authorization`, () => {
     await $(permission).waitForDisplayed()
     await $('button=Approve all for this response').waitForDisplayed()
     const followUpPrompt = JSON.parse(readFileSync(await markerFile(current.index + 1, 'prompt.json'), 'utf8'))
-    assert.ok(followUpPrompt.prompt.includes(text), 'The new response must receive the follow-up user prompt')
+    assert.ok(followUpPrompt.prompt.includes(JSON.stringify(text)), 'The new response must receive the follow-up user prompt')
     assertChild(current.index + 1, 0)
     assert.equal(files('.executed.json').length, current.before + 4,
       'Response-wide approval must not authorize the next response')
@@ -263,7 +263,7 @@ describe(`Built application native ${provider} Chat tool authorization`, () => {
     await $(permission).waitForDisplayed()
     assertChild(current.index + 1, 0)
     const prompt = JSON.parse(readFileSync(await markerFile(current.index + 1, 'prompt.json'), 'utf8'))
-    assert.ok(prompt.prompt.includes(text))
+    assert.ok(prompt.prompt.includes(JSON.stringify(text)))
     const geometry = []
     for (const [width, height] of [[1280, 720], [640, 520]]) {
       await browser.setWindowSize(width, height)
@@ -340,7 +340,7 @@ describe(`Built application native ${provider} Chat tool authorization`, () => {
     await $(permission).waitForDisplayed()
     assertChild(current.index + 1, 0)
     const retried = JSON.parse(readFileSync(await markerFile(current.index + 1, 'prompt.json'), 'utf8'))
-    assert.ok(retried.prompt.endsWith(`\nMESSAGE ${cancelled.messages[0].id} User\n${current.text}`), 'Retry must replay the exact cancelled user message under its stable identity')
+    assert.ok(retried.prompt.endsWith(`\nMESSAGE ${cancelled.messages[0].id} User\n${JSON.stringify(current.text)}`), 'Retry must replay the exact cancelled user message under its stable identity')
     await click('Approve once')
     const chat = await settled(current.sessionId, 'completed', 2)
     assert.equal(chat.messages[0].id, cancelled.messages[0].id)

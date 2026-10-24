@@ -153,7 +153,7 @@ fn next_turn_replays_completed_image_with_original_message_label() {
     assert_eq!(&blocks[1..4], &original[1..4]);
     assert_eq!(
         blocks[4],
-        json!({"type":"text","text":format!("MESSAGE {} Assistant\nSeen",completed.messages[1].id)})
+        json!({"type":"text","text":format!("MESSAGE {} Assistant\n\"Seen\"",completed.messages[1].id)})
     );
     assert_eq!(next.started.chat.messages.len(), 3);
 }
