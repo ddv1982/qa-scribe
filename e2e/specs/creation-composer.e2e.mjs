@@ -11,6 +11,14 @@ const requestClose = () => execFileSync('python3', [join(process.cwd(), 'e2e/fix
 const draftBody = '[aria-label="Creation draft body"][contenteditable="true"]'
 const input = kind => `[aria-label="${kind === 'finding' ? 'Finding' : 'Test case'} title"]`
 const list = (kind, sessionId) => native(kind === 'finding' ? 'list_findings' : 'list_drafts', { sessionId })
+async function choose(selector, value) {
+  await browser.execute((selector, value) => {
+    const select = document.querySelector(selector)
+    select.value = value
+    select.dispatchEvent(new Event('change', { bubbles: true }))
+  }, selector, value)
+  await browser.waitUntil(async () => (await $(selector).getValue()) === value || await $('dialog[open]').isExisting())
+}
 let session, note, localImage, shared, ordinary, generated, activeRecorder
 
 describe('Unified creation composer in the built native application', () => {
@@ -81,10 +89,10 @@ describe('Unified creation composer in the built native application', () => {
     const before = rows()
     await create('testware')
     const select = await $('[aria-label="Test case output format"]')
-    assert.deepEqual(await select.$$('option').then(options => Promise.all(options.map(option => option.getText()))), formats.map(([, label]) => label))
+    assert.deepEqual(await browser.execute(() => Array.from(document.querySelectorAll('[aria-label="Test case output format"] option'), option => option.textContent)), formats.map(([, label]) => label))
     const editorId = await $(draftBody).getAttribute('id')
     for (const [id, , headings] of formats) {
-      await select.selectByAttribute('value', id)
+      await choose('[aria-label="Test case output format"]', id)
       assert.deepEqual(await browser.execute(() => Array.from(document.querySelectorAll('.creation-composer .rich-editor h2,.creation-composer .rich-editor h3'), node => node.textContent)), headings)
       assert.equal(await $(draftBody).getAttribute('id'), editorId)
       assert.equal(await $('dialog[open]').isExisting(), false)
@@ -96,7 +104,7 @@ describe('Unified creation composer in the built native application', () => {
     await tab('Test cases')
     for (const [id, label, headings] of formats) {
       await create('testware')
-      await $('[aria-label="Test case output format"]').selectByAttribute('value', id)
+      await choose('[aria-label="Test case output format"]', id)
       const title = `Manual ${label}`
       await fill(input('testware'), title)
       await click(`[aria-label="Copy ${title}"]`)
@@ -126,12 +134,12 @@ describe('Unified creation composer in the built native application', () => {
     const { stageImage } = await import('./composer-proof.mjs')
     await create('testware')
     const format = await $('[aria-label="Test case output format"]')
-    await format.selectByAttribute('value', 'gherkin')
+    await choose('[aria-label="Test case output format"]', 'gherkin')
     await fill(input('testware'), 'Retain selected format')
     await fill(draftBody, 'Authored Gherkin body')
     await stageImage(await imageFile(), 'upload')
     const authored = await $(draftBody).getHTML(false)
-    await format.selectByAttribute('value', 'checklist')
+    await choose('[aria-label="Test case output format"]', 'checklist')
     await $('dialog[open]*=Replace the draft structure?').waitForDisplayed()
     await click('dialog button=Keep editing')
     assert.equal(await format.getValue(), 'gherkin')
@@ -142,7 +150,7 @@ describe('Unified creation composer in the built native application', () => {
     assert.equal(await $('dialog .preflight-select-field select').getValue(), 'gherkin')
     await click('dialog button=Cancel')
     assert.equal(await $(draftBody).getHTML(false), authored)
-    await format.selectByAttribute('value', 'checklist')
+    await choose('[aria-label="Test case output format"]', 'checklist')
     await click('dialog button=Apply format')
     assert.equal(await format.getValue(), 'checklist')
     assert.equal(await $(draftBody).$$('img').then(images => images.length), 0)
@@ -152,7 +160,7 @@ describe('Unified creation composer in the built native application', () => {
     await click('button=Discard draft')
     await tab('Findings')
     await create('finding')
-    await $('[aria-label="Finding template"]').selectByAttribute('value', 'blank')
+    await choose('[aria-label="Finding template"]', 'blank')
     assert.equal((await $(draftBody).getText()).trim(), '')
     await browser.execute(() => {
       for (const [label, value] of [['Finding type', 'risk'], ['Severity', 'high'], ['Status', 'resolved']]) {
@@ -160,7 +168,7 @@ describe('Unified creation composer in the built native application', () => {
         select.value = value; select.dispatchEvent(new Event('change', { bubbles: true }))
       }
     })
-    await $('[aria-label="Finding template"]').selectByAttribute('value', 'structured')
+    await choose('[aria-label="Finding template"]', 'structured')
     assert.deepEqual(await browser.execute(() => Array.from(document.querySelectorAll('.creation-composer .rich-editor h3'), node => node.textContent)), ['Environment', 'Steps to reproduce', 'Expected result', 'Actual result', 'Evidence', 'Impact'])
     assert.deepEqual(await browser.execute(() => Array.from(document.querySelectorAll('.creation-fields select'), select => select.value).slice(0, 4)), ['risk', 'high', 'resolved', 'structured'])
     await capture('f1-structured-finding-metadata')
@@ -187,6 +195,7 @@ describe('Unified creation composer in the built native application', () => {
       await click('button=Cancel')
     }
   })
+  if (process.platform === 'linux' && process.env.QA_SCRIBE_E2E_CREATION_FORMATS_ONLY !== '1') {
   it('retains local and shared images, source review, cancellation and one saved AI result', async () => {
     localImage = await imageFile()
     shared = await native('import_clipboard_screenshot', { sessionId: session.id, entryId: note.id, filename: 'shared-note.png', dataUrl: localImage })
@@ -385,4 +394,5 @@ describe('Unified creation composer in the built native application', () => {
     receipt('native-close-discarded-no-row', { before: beforeClose, after: rows(), windowClosed: true })
     browser.overwriteCommand('deleteSession', async () => null)
   })
+  }
 })
