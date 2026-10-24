@@ -150,6 +150,7 @@ export function FindingsView({
 export function FindingFields({ finding, onChange, afterStatus }: { afterStatus?: import('react').ReactNode; finding: Pick<Finding, 'kind' | 'metadataJson'>; onChange: (patch: Partial<Pick<Finding, 'kind' | 'metadataJson'>>) => void }) {
   return (
         <>
+          <div className="finding-classification-fields">
           <label className="field-stack">
             <span>Finding type</span>
             <select value={finding.kind} onChange={(event) => onChange({ kind: event.target.value as FindingKind })}>
@@ -185,7 +186,9 @@ export function FindingFields({ finding, onChange, afterStatus }: { afterStatus?
               <option value="closed">Closed</option>
             </select>
           </label>
+          </div>
           {afterStatus}
+          <div className="finding-reference-fields">
           <label className="field-stack">
             <span>Component or area</span>
             <input
@@ -202,6 +205,7 @@ export function FindingFields({ finding, onChange, afterStatus }: { afterStatus?
               placeholder="Issue ID or URL"
             />
           </label>
+          </div>
         </>
   )
 }

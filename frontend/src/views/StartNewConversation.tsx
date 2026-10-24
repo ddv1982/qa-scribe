@@ -6,11 +6,11 @@ import { useModalDialog } from '../hooks/useModalDialog'
 
 export type ChatRestartState = Pick<SessionChatViewState,
   'chat' | 'composer' | 'job' | 'loading' | 'saving' | 'working' | 'recoveryPending'
-  | 'permissionWorking' | 'permissionRecoveryPending' | 'onRestart' | 'captureRestart'>
+  | 'permissionWorking' | 'permissionRecoveryPending' | 'onRestart' | 'captureRestart'> & Partial<Pick<SessionChatViewState, 'composerImages' | 'imageFailures' | 'inputRecoveryPending'>>
 
 function restartDisabled(state: ChatRestartState) {
   return !state.chat || chatIsBusy(state) || Boolean(state.recoveryPending
-    || state.permissionWorking || state.permissionRecoveryPending)
+    || state.permissionWorking || state.permissionRecoveryPending || state.inputRecoveryPending)
 }
 
 export function StartNewConversation({ state }: { state: ChatRestartState }) {
@@ -23,11 +23,13 @@ export function StartNewConversation({ state }: { state: ChatRestartState }) {
     const confirm = state.captureRestart ? state.captureRestart() : async () => {
       const current = latest.current
       if (restartDisabled(current) || current.chat !== captured.chat
+        || current.composerImages !== captured.composerImages
+        || current.imageFailures !== captured.imageFailures
         || current.composer !== captured.composer || current.job !== captured.job) return
       await current.onRestart()
     }
     if (!confirm) return
-    if (state.composer === '' && state.chat.messages.length === 0) { void confirm(); return }
+    if (state.composer === '' && !(state.composerImages ?? state.chat.composerImages ?? []).length && !state.imageFailures?.length && state.chat.messages.length === 0) { void confirm(); return }
     setConfirmation({ submitted: Boolean(state.chat.submission), confirm })
   }
   return <>

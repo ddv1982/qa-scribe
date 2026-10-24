@@ -1,4 +1,5 @@
-import type { ChatState, Entry, GenerationJobStatus } from '../bindings'
+import type { ChatImage, ChatState, Entry, GenerationJobStatus } from '../bindings'
+import type { ChatImageFailure } from './sessionChat.types'
 
 export type ChatActivity = {
   chat: ChatState | null
@@ -9,6 +10,7 @@ export type ChatActivity = {
   recoveryPending?: boolean
   permissionWorking?: boolean
   permissionRecoveryPending?: boolean
+  inputRecoveryPending?: boolean
 }
 
 export function chatIsBusy(state: ChatActivity): boolean {
@@ -31,6 +33,8 @@ export function deriveChatHandoff(state: ChatActivity & {
   sessionId: string | null
   noteEntry: Pick<Entry, 'id' | 'sessionId'> | null
   composer: string
+  composerImages?: ChatImage[]
+  imageFailures?: readonly ChatImageFailure[]
 }): ChatHandoffPresentation {
   const { chat, job, sessionId, noteEntry, composer } = state
   const current = Boolean(sessionId && chat?.sessionId === sessionId)
@@ -38,7 +42,7 @@ export function deriveChatHandoff(state: ChatActivity & {
   const hydrationPending = Boolean(current && job?.sessionId === sessionId && job.action === 'chat'
     && job.state === 'completed' && (!job.aiRunId || !chat?.messages.some(message =>
       message.role === 'assistant' && message.status === 'completed' && message.aiRunId === job.aiRunId)))
-  const unsettled = chatIsBusy({ ...state, saving: false }) || Boolean(state.permissionWorking || state.permissionRecoveryPending) || hydrationPending
+  const unsettled = chatIsBusy({ ...state, saving: false }) || Boolean(state.permissionWorking || state.permissionRecoveryPending || state.inputRecoveryPending) || hydrationPending
   const completed = Boolean(current && chat?.messages.length && chat.messages.every(message => message.status === 'completed'))
   const reviewAvailable = completed && !unsettled && !state.recoveryPending
   const facts = { hydrationPending, reviewAvailable }
@@ -56,6 +60,8 @@ export function deriveChatHandoff(state: ChatActivity & {
   }
   return { ...facts, kind: 'conversation', disabled: busy, reason: !completed && chat?.messages.length
     ? 'Resolve unfinished turns before adding the conversation.'
+    : state.imageFailures?.length ? 'Retry or remove failed images before adding the conversation.'
+    : (state.composerImages ?? chat?.composerImages ?? []).length ? 'Send or clear the unsent message and images before adding the conversation.'
     : composer !== '' ? 'Send or clear the unsent message before adding the conversation.'
     : !chat?.messages.length ? 'Complete a conversation before adding it to the note.' : '' }
 }

@@ -1,4 +1,4 @@
-import type { ChatMode, ChatPermissionDecision, ChatState, GenerationJobStatus, ProviderDescriptor } from '../bindings'
+import type { ChatImage, ChatMode, ChatPermissionDecision, ChatState, GenerationJobStatus, ProviderDescriptor } from '../bindings'
 import type { Dispatch, SetStateAction } from 'react'
 import type { AiSelection, GenerationWorkspace, SessionWorkspace, WorkflowFeedback } from './types'
 import type { useSessionActions } from './sessionActions'
@@ -6,10 +6,15 @@ import type { NoteEligibility } from './noteEligibility'
 import type { ChatNoteRecovery } from './useChatNoteRecovery'
 import type { ChatHandoffPresentation } from './sessionChat.presentation'
 
+export type ChatImageFailure = { id: string; filename: string; message: string }
+
 export interface SessionChatViewState {
   handoff: ChatHandoffPresentation
   chat: ChatState | null
   composer: string
+  composerImages: ChatImage[]
+  imageFailures: ChatImageFailure[]
+  inputRecoveryPending: boolean
   job: GenerationJobStatus | null
   loading: boolean
   saving: boolean
@@ -22,6 +27,11 @@ export interface SessionChatViewState {
   onDecidePermission?: (requestId: string, decision: ChatPermissionDecision) => Promise<void>
   onRecheck?: () => Promise<void>
   onSetComposer: (text: string) => void
+  onAttachImages: (files: File[]) => Promise<void>
+  onPasteNativeImage: () => Promise<void>
+  onRemoveImage: (attachmentId: string) => void
+  onRetryImage: (id: string) => Promise<void>
+  onDismissImageFailure: (id: string) => Promise<void>
   onSend: () => Promise<void>
   onRetry: () => Promise<void>
   onCancel: () => Promise<void>
@@ -30,13 +40,13 @@ export interface SessionChatViewState {
   onRestart: () => Promise<void>
 }
 
-export type ChatSnapshot = Pick<SessionChatViewState, 'chat' | 'composer' | 'job' | 'loading' | 'saving' | 'working' | 'error' | 'dirty' | 'permissionWorking' | 'permissionRecoveryPending'> & {
+export type ChatSnapshot = Pick<SessionChatViewState, 'chat' | 'composer' | 'composerImages' | 'imageFailures' | 'inputRecoveryPending' | 'job' | 'loading' | 'saving' | 'working' | 'error' | 'dirty' | 'permissionWorking' | 'permissionRecoveryPending'> & {
   sessionId: string | null
   mode: ChatMode
 }
 
 export const emptyChatSnapshot: ChatSnapshot = {
-  sessionId: null, chat: null, composer: '', job: null, loading: false,
+  sessionId: null, chat: null, composer: '', composerImages: [], imageFailures: [], inputRecoveryPending: false, job: null, loading: false,
   saving: false, working: false, permissionWorking: false, permissionRecoveryPending: false, error: null, dirty: false, mode: 'write_note',
 }
 
@@ -62,6 +72,9 @@ export type ChatWorkspace = {
   sessionId: string
   chat: ChatState | null
   composer: string
+  composerImages: ChatImage[]
+  imageFailures: ChatImageFailure[]
+  pendingStart: { state: 'starting' | 'uncertain' } | null
   mode: ChatMode
   inputVersion: number
   modeVersion: number
@@ -85,7 +98,13 @@ export function chatIsDirty(workspace: ChatWorkspace): boolean {
   if (workspace.retired) return false
   if (workspace.chat?.submission) return false
   if (!workspace.chat) return workspace.inputVersion > 0 || workspace.modeVersion > 0
-  return workspace.composer !== workspace.chat.composer || workspace.mode !== workspace.chat.mode
+  return chatInputIsDirty(workspace) || workspace.mode !== workspace.chat.mode
+}
+
+export function chatInputIsDirty(workspace: ChatWorkspace): boolean {
+  return workspace.composer !== workspace.chat?.composer
+    || JSON.stringify(workspace.composerImages.map(image => image.attachmentId))
+      !== JSON.stringify((workspace.chat?.composerImages ?? []).map(image => image.attachmentId))
 }
 
 export function chatScope(chat: ChatState) {

@@ -186,6 +186,10 @@ describe('Unified creation composer in the built native application', () => {
         const viewport = await resize(width)
         const geometry = await browser.execute(() => ({ width: innerWidth, pageWidth: Math.max(document.body.scrollWidth, document.documentElement.scrollWidth),
           controls: Array.from(document.querySelectorAll('.creation-composer button'), node => { const box = node.getBoundingClientRect(); return { label: node.textContent.trim(), left: box.left, right: box.right } }) }))
+        if (width === 1280) {
+          const starter = await browser.execute(() => ({ top: document.querySelector('.creation-composer .rich-editor h3').getBoundingClientRect().top, height: innerHeight }))
+          assert.ok(starter.top < starter.height - 40, 'The structured finding starter must be visible below compact desktop metadata')
+        }
         receipt(`layout-${theme}-${width}`, { viewport, geometry })
         assert.ok(geometry.pageWidth <= geometry.width + 1)
         assert.ok(geometry.controls.every(control => control.left >= -1 && control.right <= geometry.width + 1))

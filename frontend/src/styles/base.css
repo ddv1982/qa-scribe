@@ -79,6 +79,8 @@
   --danger-hover: color-mix(in oklab, var(--danger) 88%, #000);
   --danger-tint: color-mix(in oklab, var(--danger) 8%, var(--surface-raised));
 
+  --action-primary-fill: #2456c4;
+  --action-primary-text: #ffffff;
   --action-primary-hover: #1e48a6;
   --action-danger-hover: #9f1818;
   --action-danger-tint: #fbecec;
@@ -130,7 +132,6 @@
   --danger-hover: color-mix(in oklab, var(--danger) 88%, #fff);
   --danger-tint: color-mix(in oklab, var(--danger) 12%, var(--surface-panel));
 
-  --action-primary-hover: #75a4ff;
   --action-danger-hover: #ff9292;
   --action-danger-tint: #3c252b;
 

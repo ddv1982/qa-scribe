@@ -11,11 +11,12 @@ const tauriMock = vi.hoisted(() => ({
   prepareCreationSave: vi.fn(), commitCreationSave: vi.fn(), abortCreationSave: vi.fn(), copyLocalImageToClipboard: vi.fn(),
   createDraft: vi.fn(), createEntry: vi.fn(), createFinding: vi.fn(), createSession: vi.fn(),
   deleteAttachment: vi.fn(), deleteDraft: vi.fn(), deleteFinding: vi.fn(), deleteSession: vi.fn(), getProviderStatus: vi.fn(),
-  getAttachmentPreviewDataUrl: vi.fn(async () => null), getSettings: vi.fn(), importClipboardScreenshot: vi.fn(), listDraftLibrary: vi.fn(), listDrafts: vi.fn(), listEntries: vi.fn(),
+  getAttachmentPreviewDataUrl: vi.fn(async (): Promise<string | null> => null), getSettings: vi.fn(), importClipboardScreenshot: vi.fn(), listDraftLibrary: vi.fn(), listDrafts: vi.fn(), listEntries: vi.fn(),
   listFindingLibrary: vi.fn(), listFindings: vi.fn(), listRecentSessions: vi.fn(), listSessions: vi.fn(), openSessionNoteState: vi.fn(),
   reopenSession: vi.fn(), refreshProviderStatus: vi.fn(), retryAttachmentCleanup: vi.fn(), startAiActionJob: vi.fn(), updateDraft: vi.fn(),
   updateEntry: vi.fn(), updateFinding: vi.fn(), updateSession: vi.fn(), updateSettings: vi.fn(),
   getChat: vi.fn(), saveChatComposer: vi.fn(), startChatJob: vi.fn(), submitChat: vi.fn(), restartChat: vi.fn(),
+  importChatImage: vi.fn(), readChatClipboardImageDataUrl: vi.fn(),
   EDITOR_HTML_TAGS: ['a', 'b', 'br', 'em', 'h2', 'h3', 'i', 'img', 'input', 'li', 'ol', 'p', 'strong', 'ul'],
   SELF_CLOSING_EDITOR_HTML_TAGS: ['br', 'img', 'input'],
   MANAGED_ATTACHMENT_PROTOCOL: 'qa-scribe-attachment://',
@@ -68,6 +69,8 @@ export function setupControllerTest() {
   window.matchMedia = vi.fn().mockReturnValue({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() })
 
   tauriMock.readClipboardImageDataUrl.mockReset().mockResolvedValue(null)
+  tauriMock.readChatClipboardImageDataUrl.mockReset().mockResolvedValue(null)
+  tauriMock.importChatImage.mockReset()
   tauriMock.readNoteSource.mockReset().mockResolvedValue({ entry: entryFixture(), revision: 0 })
   tauriMock.prepareCreationSave.mockReset().mockImplementation(async (request: { attemptId: string }) => ({ attemptId: request.attemptId, images: [], outcome: { state: 'preparing' } }))
   tauriMock.commitCreationSave.mockReset()

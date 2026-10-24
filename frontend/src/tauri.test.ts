@@ -40,6 +40,9 @@ describe('Tauri command bridge', () => {
       tauri.importClipboardScreenshot({ sessionId: 'session-1', entryId: null, filename: 'screenshot.png', dataUrl: 'data:image/png;base64,' }),
     )
     await expectCommand('read_clipboard_image_data_url', () => tauri.readClipboardImageDataUrl())
+    await expectCommand('read_chat_clipboard_image_data_url', () => tauri.readChatClipboardImageDataUrl())
+    await expectCommand('import_chat_image', () => tauri.importChatImage(
+      { sessionId: 'session-1', draftId: 'chat-1', expectedRevision: 0 }, 'screenshot.png', 'data:image/png;base64,'))
     await expectCommand('get_attachment_preview_data_url', () => tauri.getAttachmentPreviewDataUrl('attachment-1'))
     await expectCommand('copy_attachment_image_to_clipboard', () => tauri.copyAttachmentImageToClipboard('attachment-1'))
     await expectCommand('create_draft', () => tauri.createDraft({ sessionId: 'session-1', aiRunId: null, kind: 'testware', title: 'Draft', body: '' }))

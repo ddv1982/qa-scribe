@@ -12,19 +12,19 @@ test('critical workflows use separate WDIO processes, app data, fixtures, and ar
   const plan = createWdioInvocationPlan({}, '/tmp/e2e-root', '/tmp/e2e-artifacts')
 
   assert.deepEqual(plan.slice(0, criticalScenarios.length).map(({ id }) => id), criticalScenarios)
-  const legacy = plan.slice(0, criticalScenarios.length + 4 + (['linux', 'darwin'].includes(process.platform) ? 2 : 0) + (process.platform === 'linux' ? 1 : 0))
+  const legacy = plan.slice(0, criticalScenarios.length + 5 + (['linux', 'darwin'].includes(process.platform) ? 3 : 0) + (process.platform === 'linux' ? 1 : 0))
   assert.deepEqual(legacy.slice(criticalScenarios.length).map(({ id }) => id), [
-    'chat-to-note', 'chat-tool-authorization-codex', 'chat-tool-authorization-claude', 'chat-tool-authorization-copilot',
-    ...(['linux', 'darwin'].includes(process.platform) ? ['ui-polish', 'first-use'] : []),
+    'chat-to-note', 'chat-images', 'chat-tool-authorization-codex', 'chat-tool-authorization-claude', 'chat-tool-authorization-copilot',
+    ...(['linux', 'darwin'].includes(process.platform) ? ['manual-formats', 'ui-polish', 'first-use'] : []),
     ...(process.platform === 'linux' ? ['native-close'] : []),
   ])
   for (const key of ['QA_SCRIBE_E2E_APP_DATA_DIR', 'QA_SCRIBE_E2E_ARTIFACTS', 'QA_SCRIBE_E2E_FIXTURE_DIR']) {
-    assert.equal(new Set(legacy.map(({ environment }) => environment[key])).size, criticalScenarios.length + 4 + (['linux', 'darwin'].includes(process.platform) ? 2 : 0) + (process.platform === 'linux' ? 1 : 0))
+    assert.equal(new Set(legacy.map(({ environment }) => environment[key])).size, legacy.length)
   }
   assert.ok(plan.slice(0, criticalScenarios.length).every(({ environment }) => environment.QA_SCRIBE_E2E_SPEC === 'critical-workflows.e2e.mjs'))
   assert.equal(plan[criticalScenarios.length].environment.QA_SCRIBE_E2E_SPEC, 'chat-to-note.e2e.mjs')
   for (const [index, provider] of ['codex', 'claude', 'copilot'].entries()) {
-    const environment = plan[criticalScenarios.length + 1 + index].environment
+    const environment = plan[criticalScenarios.length + 2 + index].environment
     assert.equal(environment.QA_SCRIBE_E2E_SPEC, 'chat-tool-authorization.workflow.mjs')
     assert.equal(environment.QA_SCRIBE_E2E_AUTH_PROVIDER, provider)
   }
@@ -45,6 +45,24 @@ test('UI polish runs with isolated artifacts in supported desktop defaults', () 
     assert.equal(selected[0].environment.GDK_BACKEND, platform === 'linux' ? 'x11' : undefined)
     assert.ok(plan.filter(({ id }) => id !== 'ui-polish').every(({ environment }) =>
       environment.QA_SCRIBE_E2E_APP_DATA_DIR !== polish.environment.QA_SCRIBE_E2E_APP_DATA_DIR))
+  }
+})
+
+test('Chat images is a required isolated default and an explicit invocation enables the same fixture', () => {
+  for (const platform of ['linux', 'darwin', 'win32']) {
+    const plan = createWdioInvocationPlan({}, '/tmp/root', '/tmp/artifacts', platform)
+    assert.deepEqual(plan.find(({ id }) => id === 'chat-images'), {
+      id: 'chat-images', environment: {
+        QA_SCRIBE_E2E_SPEC: 'chat-images.e2e.mjs', QA_SCRIBE_E2E_CHAT_IMAGES: '1',
+        QA_SCRIBE_E2E_APP_DATA_DIR: '/tmp/root/app-data/chat-images',
+        QA_SCRIBE_E2E_ARTIFACTS: '/tmp/artifacts/chat-images',
+        QA_SCRIBE_E2E_FIXTURE_DIR: '/tmp/root/fixtures/chat-images',
+      },
+    })
+    assert.deepEqual(plan.filter(({ environment }) => environment.QA_SCRIBE_E2E_CHAT_IMAGES).map(({ id }) => id), ['chat-images'])
+    const explicit = createWdioInvocationPlan({ QA_SCRIBE_E2E_SPEC: 'chat-images.e2e.mjs' }, '/tmp/root', '/tmp/artifacts', platform)
+    assert.equal(explicit.length, 1)
+    assert.equal(explicit[0].environment.QA_SCRIBE_E2E_CHAT_IMAGES, '1')
   }
 })
 
@@ -73,16 +91,16 @@ test('explicit model selection uses X11 and remains exactly one invocation', () 
 test('Linux defaults require the complete model proof chain while non-Linux defaults retain their supported workflows', () => {
   const linux = createWdioInvocationPlan({}, '/tmp/root', '/tmp/artifacts', 'linux')
   assert.deepEqual(linux.map(({ id }) => id), [
-    ...criticalScenarios, 'chat-to-note', 'chat-tool-authorization-codex', 'chat-tool-authorization-claude',
-    'chat-tool-authorization-copilot', 'ui-polish', 'first-use', 'native-close', 'model-management', 'model-evidence', 'model-evidence-restart',
+    ...criticalScenarios, 'chat-to-note', 'chat-images', 'chat-tool-authorization-codex', 'chat-tool-authorization-claude',
+    'chat-tool-authorization-copilot', 'manual-formats', 'ui-polish', 'first-use', 'native-close', 'model-management', 'model-evidence', 'model-evidence-restart',
     'model-selection', 'model-selection-restart', 'provider-qualification-disabled', 'provider-qualification-diagnostics',
     'provider-qualification-selector',
   ])
   assert.equal(linux.find(({ id }) => id === 'model-selection').environment.GDK_BACKEND, 'x11')
   for (const platform of ['darwin', 'win32']) {
     assert.deepEqual(createWdioInvocationPlan({}, '/tmp/root', '/tmp/artifacts', platform).map(({ id }) => id), [
-      ...criticalScenarios, 'chat-to-note', 'chat-tool-authorization-codex', 'chat-tool-authorization-claude', 'chat-tool-authorization-copilot',
-      ...(platform === 'darwin' ? ['ui-polish', 'first-use'] : []),
+      ...criticalScenarios, 'chat-to-note', 'chat-images', 'chat-tool-authorization-codex', 'chat-tool-authorization-claude', 'chat-tool-authorization-copilot',
+      ...(platform === 'darwin' ? ['manual-formats', 'ui-polish', 'first-use'] : []),
     ])
   }
 })
@@ -308,7 +326,7 @@ test('default execution preserves migrated pair state through restart and isolat
   const restartChecks = []
   try {
     const status = runE2e({ ...process.env, QA_SCRIBE_E2E_SKIP_BUILD: '1', QA_SCRIBE_E2E_TEMP_ROOT: join(directory, 'native'),
-      QA_SCRIBE_E2E_ARTIFACTS: join(directory, 'artifacts') }, {
+      QA_SCRIBE_E2E_ARTIFACTS: join(directory, 'artifacts'), QA_SCRIBE_E2E_CHAT_IMAGES: 'inherited-value-must-not-leak' }, {
       spawnSyncImpl(command, args, options) {
         const env = options.env
         if (command === 'python3') {
@@ -320,6 +338,8 @@ test('default execution preserves migrated pair state through restart and isolat
           return { status: 0, stdout: '', stderr: '' }
         }
         const spec = env.QA_SCRIBE_E2E_SPEC
+        assert.equal(env.QA_SCRIBE_E2E_CHAT_IMAGES, spec === 'chat-images.e2e.mjs' ? '1' : undefined)
+        if (spec === 'chat-images.e2e.mjs') assert.equal(env.QA_SCRIBE_PROVIDER_CATALOG_MODE, 'selector')
         const restarting = env.QA_SCRIBE_E2E_EVIDENCE_RESTART === '1' || env.QA_SCRIBE_E2E_SELECTION_RESTART === '1'
         const state = join(env.QA_SCRIBE_E2E_APP_DATA_DIR, 'retained-model-state')
         const peer = join(env.QA_SCRIBE_E2E_FIXTURE_DIR, 'retained-model-peer')
