@@ -262,7 +262,7 @@ it('does not let an older Prefill completion clear a superseding confirmation', 
   expect(richEditorDocumentToHtml(actions.current()!.document)).toContain('Reviewed exact source')
 })
 
-it.each(['title', 'body', 'metadata', 'kind'] as const)('invalidates pending Prefill on a %s edit even when the content returns to its initial value', async (field) => {
+it.each(['title', 'body', 'metadata', 'kind', 'format'] as const)('invalidates pending Prefill on a %s edit even when the content returns to its initial value', async (field) => {
   const { actions } = await opened()
   const originalDocument = actions.current()!.document
   let finish!: (source: NoteSource) => void
@@ -273,6 +273,7 @@ it.each(['title', 'body', 'metadata', 'kind'] as const)('invalidates pending Pre
   if (field === 'body') { actions.update({ document: richEditorDocumentFromHtml('<p>Changed body</p>') }); actions.update({ document: originalDocument }) }
   if (field === 'metadata') { actions.update({ metadataJson: '{"severity":"high"}' }); actions.update({ metadataJson: null }) }
   if (field === 'kind') { actions.update({ findingKind: 'risk' }); actions.update({ findingKind: 'bug' }) }
+  if (field === 'format') { actions.applyFormat({ kind: 'finding', template: 'blank' }); actions.applyFormat({ kind: 'finding', template: 'structured' }) }
   finish(latest)
   expect(await pending).toBe(false)
 })
@@ -305,4 +306,30 @@ it('cancels the Prefill that is still waiting for a local image and retains that
     expect(error).not.toHaveBeenCalled()
     expect(bridge.startAiActionJob).not.toHaveBeenCalled()
   } finally { registry.mockRestore() }
+})
+
+it('prefills the selected Gherkin structure with escaped source and retains its selection', async () => {
+  const { actions } = await opened('testware')
+  actions.applyFormat({ kind: 'testware', outputFormat: 'gherkin' })
+  expect(await actions.prefill()).toBe(true)
+  expect(richEditorDocumentToHtml(actions.current()!.document)).toBe('<h3>Source note</h3><p>Reviewed exact source</p><h2>Feature</h2><p></p><h3>Scenario</h3><p></p><p><strong>Given</strong></p><p><strong>When</strong></p><p><strong>Then</strong></p>')
+  expect(actions.current()?.format).toEqual({ kind: 'testware', outputFormat: 'gherkin' })
+  expect(latest.entry.body).toBe('<p>Reviewed exact source</p>')
+})
+
+it('prefills a blank finding with plain Note content and no structured sections', async () => {
+  const { actions } = await opened()
+  actions.applyFormat({ kind: 'finding', template: 'blank' })
+  expect(await actions.prefill()).toBe(true)
+  expect(richEditorDocumentToHtml(actions.current()!.document)).toBe('<p>Reviewed exact source</p>')
+})
+
+it('inherits the selected format for generation and retains it on failure', async () => {
+  const { actions } = await opened('testware')
+  actions.applyFormat({ kind: 'testware', outputFormat: 'coverage_outline' })
+  const original = actions.current()!
+  expect(await actions.generate(selection)).toBe(true)
+  expect((bridge.startAiActionJob.mock.calls[0][0] as Parameters<typeof import('../tauri').startAiActionJob>[0]).testwarePreferences).toEqual({ technique: 'auto', outputFormat: 'coverage_outline', depth: 'balanced', includeNegativeCases: true, includeBoundaryCases: true, includeTestData: true, preserveEvidence: true, customInstructions: null })
+  receive({ type: 'failed', job_id: 'owned-job', status: status({ action: 'testware', state: 'failed' }), error_message: 'Provider failed', ai_run: null })
+  expect(actions.current()).toMatchObject({ document: original.document, format: { kind: 'testware', outputFormat: 'coverage_outline' }, phase: { state: 'editing' } })
 })

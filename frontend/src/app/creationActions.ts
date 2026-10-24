@@ -1,3 +1,4 @@
+import { creationFormatId, creationStarter, defaultCreationFormat, withCreationFormatMetadata, type CreationFormat } from './creationFormats'
 import { createCreationSourceActions } from './creationSourceActions'
 import type { GenerationJobStatus, TestwareGenerationPreferences } from '../tauri'
 import type { AiSelection } from './types'
@@ -7,7 +8,7 @@ import { cloneRichEditorDocument, serializeRichEditorDocument } from '../editor/
 import { pastedImageFilename, readFileAsDataUrl } from '../editor/editorHtml'
 import { richEditorImageInserterForId, type RichEditorImageUpload } from '../editor/richEditorRegistry'
 import { formatError, toCommandError } from '../ui/format'
-import { creationIsAuthored, creationStarter, type CreationAttempt, type CreationContent, type CreationImageOperation, type CreationIntent } from './creationIntent'
+import { creationBodyIsAuthored, creationIsAuthored, type CreationAttempt, type CreationContent, type CreationImageOperation, type CreationIntent } from './creationIntent'
 import { creationImageInputs, materializeCreationDocument } from './creationImages'
 import { useStableCapability } from './useStableCapability'
 
@@ -48,7 +49,7 @@ export function createCreationActions(ctx: CreationContext) {
     publish({ ...intent, phase: { ...intent.phase, selection: 'ready' } })
     return true
   }
-  function update(patch: Partial<CreationContent>) {
+  function update(patch: Partial<Omit<CreationContent, 'format'>>) {
     if (intent?.phase.state !== 'editing') return
     if ((patch.title !== undefined && patch.title !== intent.title)
       || ('metadataJson' in patch && patch.metadataJson !== intent.metadataJson)
@@ -56,12 +57,21 @@ export function createCreationActions(ctx: CreationContext) {
       || (patch.document && serializeRichEditorDocument(patch.document) !== serializeRichEditorDocument(intent.document))) source.cancelPrefill()
     publish({ ...intent, ...patch })
   }
+  function applyFormat(format: CreationFormat, confirmed = false): boolean {
+    if (!intent || intent.phase.state !== 'editing' || format.kind !== intent.kind || Object.keys(intent.imageOperations).length) return false
+    if (creationFormatId(format) === creationFormatId(intent.format)) return true
+    if (creationBodyIsAuthored(intent) && !confirmed) return false
+    source.cancelPrefill()
+    publish({ ...intent, format, document: creationStarter(format), metadataJson: withCreationFormatMetadata(intent.metadataJson, format) })
+    return true
+  }
   async function open(kind: CreationKind, isCurrent: () => boolean = () => true, expandAi = false) {
     if (!await settle() || !isCurrent()) return
     const sessionId = ctx.activeSessionId()
     if (!sessionId) return
     const epoch = ctx.beginNavigation()
-    publish({ id: crypto.randomUUID(), sessionId, epoch, kind, title: '', document: creationStarter(kind), metadataJson: null, findingKind: 'bug', imageOperations: {}, source: null, sourceNoteId: ctx.noteId?.() ?? null, setup: expandAi ? 'ai' : null, phase: { state: 'editing' } })
+    const format = defaultCreationFormat(kind)
+    publish({ id: crypto.randomUUID(), sessionId, epoch, kind, format, title: '', document: creationStarter(format), metadataJson: null, findingKind: 'bug', imageOperations: {}, source: null, sourceNoteId: ctx.noteId?.() ?? null, setup: expandAi ? 'ai' : null, phase: { state: 'editing' } })
     ctx.error(null)
     ctx.openDestination(kind)
     void source.reviewSource()
@@ -173,7 +183,7 @@ export function createCreationActions(ctx: CreationContext) {
     let attempt: CreationAttempt | null = captured.phase.state === 'uncertain' ? captured.phase.attempt : null
     try {
       ctx.error(null)
-      const snapshot: CreationContent = { title: captured.title, document: cloneRichEditorDocument(captured.document), metadataJson: captured.metadataJson, findingKind: captured.findingKind }
+      const snapshot: CreationContent = { format: captured.format, title: captured.title, document: cloneRichEditorDocument(captured.document), metadataJson: withCreationFormatMetadata(captured.metadataJson, captured.format), findingKind: captured.findingKind }
       if (!attempt) {
         const attemptId = crypto.randomUUID()
         attempt = { preparation: { attemptId, sessionId: captured.sessionId, kind: captured.kind, images: [] }, snapshot, payload: null }
@@ -278,7 +288,7 @@ export function createCreationActions(ctx: CreationContext) {
     error: (message) => ctx.error(message), notice: (message) => ctx.notice?.(message), publishJob: (status) => ctx.publishJob?.(status), finished: () => finishDecision(true),
   })
   return { ...source, generate: (selection: AiSelection, preferences?: TestwareGenerationPreferences) => withSettledImages(() => source.generate(selection, preferences)),
-    pasteImage, dismissImageFailures, ownsGeneration, markSelectionReady, open, update, save, discard, settle, decide, stageImage, current: () => intent,
+    pasteImage, dismissImageFailures, ownsGeneration, markSelectionReady, open, update, applyFormat, save, discard, settle, decide, stageImage, current: () => intent,
     hasPendingChanges: () => Boolean(intent), isSaving: () => Boolean(saveInFlight || discardInFlight || selectionInFlight) }
 }
 

@@ -1,11 +1,6 @@
-import creationSections from '../../../shared/creation-starters.json'
-export { creationSections }
 import type { CommitCreationSave, CreatedRecord, CreationKind, FindingKind, NoteSource, PrepareCreationSave } from '../tauri'
-import { richEditorDocumentFromHtml, richEditorDocumentToPlainText, type RichEditorDocument } from '../editor/editorDocument'
-
-export function creationStarter(kind: CreationKind): RichEditorDocument {
-  return richEditorDocumentFromHtml(creationSections[kind].map((section) => `<h3>${section}</h3><p></p>`).join(''))
-}
+import { richEditorDocumentsEqual, type RichEditorDocument } from '../editor/editorDocument'
+import { creationStarter, hasAuthoredCreationMetadata, type CreationFormat } from './creationFormats'
 
 export type CreationAttempt = {
   preparation: PrepareCreationSave
@@ -15,6 +10,7 @@ export type CreationAttempt = {
 export type CreationImageOperation = { state: 'reading' } | { state: 'failed'; message: string }
 
 export type CreationContent = {
+  format: CreationFormat
   title: string
   document: RichEditorDocument
   metadataJson: string | null
@@ -40,12 +36,11 @@ export type CreationIntent = CreationContent & {
   phase: CreationLifecycle
 }
 
+export function creationBodyIsAuthored(intent: CreationIntent): boolean {
+  return Object.keys(intent.imageOperations).length > 0 || !richEditorDocumentsEqual(intent.document, creationStarter(intent.format))
+}
+
 export function creationIsAuthored(intent: CreationIntent): boolean {
-  if (Object.keys(intent.imageOperations).length || intent.title.trim() || intent.metadataJson || intent.findingKind !== 'bug') return true
-  const remaining = intent.document.doc.content?.filter((node) => {
-    if (node.type === 'heading' && creationSections[intent.kind].includes((node.content ?? []).map((child) => child.text ?? '').join(''))) return false
-    return node.type !== 'paragraph' || Boolean(node.content?.length)
-  }) ?? []
-  return remaining.some((node) => node.type !== 'paragraph')
-    || Boolean(richEditorDocumentToPlainText({ schemaVersion: 1, doc: { type: 'doc', content: remaining } }))
+  return creationBodyIsAuthored(intent) || Boolean(intent.title.trim())
+    || hasAuthoredCreationMetadata(intent.metadataJson) || intent.findingKind !== 'bug'
 }

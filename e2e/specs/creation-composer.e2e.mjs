@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import { readlinkSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { readClipboardText } from '../fixtures/clipboard-readback.mjs'
+import { assertClipboardHtml, readClipboardText } from '../fixtures/clipboard-readback.mjs'
 import { openCreationAi } from './creation-helpers.mjs'
 import { capture, click, clipboardPixels, create, fill, fixture, fixtureStarted, imageFile, native, out, receipt, recordVideo, resize, rows, save, tab } from './composer-proof.mjs'
 
@@ -69,6 +69,104 @@ describe('Unified creation composer in the built native application', () => {
     symlinkSync(providerTarget, providerLink)
     await browser.refresh()
   })
+  it('creates, reopens and copies every manual testware format without AI', async () => {
+    const formats = [
+      ['qa_cases', 'QA cases', ['Scenario', 'Test case', 'Purpose', 'Preconditions', 'Test data', 'Steps', 'Expected result', 'Coverage notes']],
+      ['checklist', 'Checklist', ['Checklist']],
+      ['gherkin', 'Gherkin', ['Feature', 'Scenario']],
+      ['charters', 'Charters', ['Mission', 'Scope', 'Risks', 'Setup and test data', 'Timebox', 'Observations']],
+      ['coverage_outline', 'Coverage outline', ['Coverage map', 'Concrete cases']],
+    ]
+    await tab('Test cases')
+    const before = rows()
+    await create('testware')
+    const select = await $('[aria-label="Test case output format"]')
+    assert.deepEqual(await select.$$('option').then(options => Promise.all(options.map(option => option.getText()))), formats.map(([, label]) => label))
+    const editorId = await $(draftBody).getAttribute('id')
+    for (const [id, , headings] of formats) {
+      await select.selectByAttribute('value', id)
+      assert.deepEqual(await browser.execute(() => Array.from(document.querySelectorAll('.creation-composer .rich-editor h2,.creation-composer .rich-editor h3'), node => node.textContent)), headings)
+      assert.equal(await $(draftBody).getAttribute('id'), editorId)
+      assert.equal(await $('dialog[open]').isExisting(), false)
+      await capture(`f1-starter-${id}`)
+    }
+    await tab('Note')
+    assert.equal(await $('dialog[open]').isExisting(), false)
+    assert.deepEqual(rows(), before)
+    await tab('Test cases')
+    for (const [id, label, headings] of formats) {
+      await create('testware')
+      await $('[aria-label="Test case output format"]').selectByAttribute('value', id)
+      const title = `Manual ${label}`
+      await fill(input('testware'), title)
+      await click(`[aria-label="Copy ${title}"]`)
+      await $(`[aria-label="${title} copied"]`).waitForDisplayed()
+      const copied = readClipboardText()
+      for (const heading of headings) assert.ok(copied.plain.includes(heading))
+      await save('testware')
+      const record = (await list('testware', session.id)).find(record => record.title === title)
+      assert.ok(record)
+      assert.deepEqual(JSON.parse(record.metadataJson), { manualCreationFormat: { version: 1, format: { kind: 'testware', outputFormat: id } } })
+      assert.equal(record.bodyFormat, 'tiptap_json')
+      const headingNodes = JSON.parse(record.bodyJson).doc.content.filter(node => node.type === 'heading')
+      assert.deepEqual(headingNodes.map(node => node.content.map(child => child.text || '').join('')), headings)
+      assertClipboardHtml(copied.html, `<h2>${title}</h2>${record.body}`)
+      await click('button=Edit')
+      await click(`[aria-label="Copy ${title}"]`)
+      await $(`[aria-label="${title} copied"]`).waitForDisplayed()
+      assert.deepEqual(readClipboardText(), copied)
+      await capture(`f1-saved-${id}`)
+      await click('button=Discard')
+    }
+    assert.equal(rows().drafts, before.drafts + 5)
+    assert.equal(rows().ai_runs, before.ai_runs)
+    receipt('f1-manual-formats-save-copy', { before, after: rows() })
+  })
+  it('confirms authored format replacement and keeps metadata, source and AI cancellation intact', async () => {
+    const { stageImage } = await import('./composer-proof.mjs')
+    await create('testware')
+    const format = await $('[aria-label="Test case output format"]')
+    await format.selectByAttribute('value', 'gherkin')
+    await fill(input('testware'), 'Retain selected format')
+    await fill(draftBody, 'Authored Gherkin body')
+    await stageImage(await imageFile(), 'upload')
+    const authored = await $(draftBody).getHTML(false)
+    await format.selectByAttribute('value', 'checklist')
+    await $('dialog[open]*=Replace the draft structure?').waitForDisplayed()
+    await click('dialog button=Keep editing')
+    assert.equal(await format.getValue(), 'gherkin')
+    assert.equal(await $(draftBody).getHTML(false), authored)
+    assert.equal(await $(input('testware')).getValue(), 'Retain selected format')
+    await capture('f1-format-keep-text-and-image')
+    await openCreationAi('testware')
+    assert.equal(await $('dialog .preflight-select-field select').getValue(), 'gherkin')
+    await click('dialog button=Cancel')
+    assert.equal(await $(draftBody).getHTML(false), authored)
+    await format.selectByAttribute('value', 'checklist')
+    await click('dialog button=Apply format')
+    assert.equal(await format.getValue(), 'checklist')
+    assert.equal(await $(draftBody).$$('img').then(images => images.length), 0)
+    assert.equal(await $(input('testware')).getValue(), 'Retain selected format')
+    await capture('f1-format-applied')
+    await click('button=Cancel')
+    await click('button=Discard draft')
+    await tab('Findings')
+    await create('finding')
+    await $('[aria-label="Finding template"]').selectByAttribute('value', 'blank')
+    assert.equal((await $(draftBody).getText()).trim(), '')
+    await browser.execute(() => {
+      for (const [label, value] of [['Finding type', 'risk'], ['Severity', 'high'], ['Status', 'resolved']]) {
+        const select = Array.from(document.querySelectorAll('.creation-fields label')).find(field => field.querySelector('span')?.textContent === label).querySelector('select')
+        select.value = value; select.dispatchEvent(new Event('change', { bubbles: true }))
+      }
+    })
+    await $('[aria-label="Finding template"]').selectByAttribute('value', 'structured')
+    assert.deepEqual(await browser.execute(() => Array.from(document.querySelectorAll('.creation-composer .rich-editor h3'), node => node.textContent)), ['Environment', 'Steps to reproduce', 'Expected result', 'Actual result', 'Evidence', 'Impact'])
+    assert.deepEqual(await browser.execute(() => Array.from(document.querySelectorAll('.creation-fields select'), select => select.value).slice(0, 4)), ['risk', 'high', 'resolved', 'structured'])
+    await capture('f1-structured-finding-metadata')
+    await click('button=Cancel')
+    await click('button=Discard draft')
+  })
   it('fits the composer in both themes across the approved native CSS widths', async () => {
     for (const theme of ['light', 'dark']) {
       await click('button=Settings')
@@ -96,6 +194,19 @@ describe('Unified creation composer in the built native application', () => {
     await native('update_entry', { id: note.id, patch: { body: sourceBody, bodyJson: JSON.stringify({ schemaVersion: 1, doc: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Exact source for the native review.' }] }, { type: 'image', attrs: { src: `qa-scribe-attachment://${shared.id}`, attachmentId: shared.id, alt: 'Shared Note screenshot' } }] } }), bodyFormat: 'tiptap_json' } })
     await browser.refresh()
     await $('h1=Issues and risks').waitForDisplayed()
+    await tab('Test cases')
+    await create('testware')
+    await $('[aria-label="Test case output format"]').selectByAttribute('value', 'gherkin')
+    await click('button=Prefill from note')
+    await click('dialog button=Prefill draft')
+    assert.ok((await $(draftBody).getText()).includes('Exact source for the native review.'))
+    assert.equal(await $('[aria-label="Test case output format"]').getValue(), 'gherkin')
+    assert.deepEqual(await browser.execute(() => Array.from(document.querySelectorAll('.creation-composer .rich-editor h2'), node => node.textContent)), ['Feature'])
+    assert.equal((await native('read_note_source', { sessionId: session.id, noteId: note.id })).entry.body, sourceBody)
+    await capture('f1-gherkin-prefill')
+    await click('button=Cancel')
+    await click('button=Discard draft')
+    await tab('Findings')
     await create('finding')
     const sharedBefore = rows()
     await browser.execute(id => {
@@ -145,6 +256,12 @@ describe('Unified creation composer in the built native application', () => {
     assert.equal(rows().findings, 0)
     assert.equal(rows().attachments, sharedBefore.attachments)
     await capture('uc1-save-error-retention')
+    await browser.execute(() => {
+      for (const [label, value] of [['Severity', 'high'], ['Status', 'resolved']]) {
+        const select = Array.from(document.querySelectorAll('.creation-fields label')).find(field => field.querySelector('span')?.textContent === label).querySelector('select')
+        select.value = value; select.dispatchEvent(new Event('change', { bubbles: true }))
+      }
+    })
     await fill(input('finding'), 'AAA retained screenshot finding')
     const windows = execFileSync('xdotool', ['search', '--onlyvisible', '--name', 'QA Scribe E2E'], { encoding: 'utf8', timeout: 5_000 }).trim().split(/\s+/)
     assert.equal(windows.length, 1)
@@ -152,6 +269,7 @@ describe('Unified creation composer in the built native application', () => {
     execFileSync('xdotool', ['key', '--clearmodifiers', 'ctrl+s'], { timeout: 5_000 })
     await $('h2=AAA retained screenshot finding').waitForDisplayed()
     ordinary = (await list('finding', session.id))[0]
+    assert.deepEqual(JSON.parse(ordinary.metadataJson), { severity: 'high', status: 'resolved', manualCreationFormat: { version: 1, format: { kind: 'finding', template: 'structured' } } })
     assert.ok(!ordinary.body.includes('data:image/'))
     assert.ok(!ordinary.bodyJson.includes('base64'))
     await browser.waitUntil(() => browser.execute(() => Array.from(document.querySelectorAll('.record-detail-pane img')).every(image => image.complete && image.naturalWidth > 0)))

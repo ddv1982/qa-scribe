@@ -1,6 +1,6 @@
 import { createPortal } from 'react-dom'
 import { customModelCatalogAdvisory } from '../settings/modelAdvisories'
-import { CreationComposer } from './CreationComposer'
+import { CreationComposer, CreationFormatSelector } from './CreationComposer'
 import { FindingFields } from './FindingsView'
 import { useRef, useState } from 'react'
 import { FileText, Sparkles } from 'lucide-react'
@@ -77,7 +77,7 @@ export function CreationTools({ intent, c }: { intent: CreationIntent; c: AppCon
           setConfirming(false)
         })
       }} /> : null}
-    {mode === 'ai' ? createPortal(<GenerationPreflight action={intent.kind} sourceReview={source}
+    {mode === 'ai' ? createPortal(<GenerationPreflight action={intent.kind} initialOutputFormat={intent.format.kind === 'testware' ? intent.format.outputFormat : undefined} sourceReview={source}
       disclosure={authored ? 'Success immediately saves one AI result, closes this draft, and discards its unsaved text and local images. Cancellation or failure keeps this exact draft.' : 'Success immediately saves one AI result. No blank record is saved first.'}
       confirmLabel={authored ? 'Generate and replace draft' : 'Generate'} isBusy={confirming}
       activeProviderAvailable={Boolean(provider?.available)} activeProviderLabel={provider?.label ?? selection.provider}
@@ -124,5 +124,5 @@ export function CreationWorkspace({ c }: { c: AppController }) {
   if (!intent) return null
   return <CreationComposer intent={intent} actions={c.creation} copyState={c.copyState} onCopy={c.copy}
     source={<CreationTools key={intent.id} intent={intent} c={c} />}
-    fields={intent.kind === 'finding' ? <FindingFields finding={{ kind: intent.findingKind, metadataJson: intent.metadataJson }} onChange={(patch) => c.creation.update({ ...(patch.kind ? { findingKind: patch.kind } : {}), ...('metadataJson' in patch ? { metadataJson: patch.metadataJson } : {}) })} /> : undefined} />
+    fields={intent.kind === 'finding' ? <FindingFields afterStatus={<CreationFormatSelector key={intent.id} intent={intent} actions={c.creation} />} finding={{ kind: intent.findingKind, metadataJson: intent.metadataJson }} onChange={(patch) => c.creation.update({ ...(patch.kind ? { findingKind: patch.kind } : {}), ...('metadataJson' in patch ? { metadataJson: patch.metadataJson } : {}) })} /> : undefined} />
 }

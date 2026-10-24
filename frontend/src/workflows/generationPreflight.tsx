@@ -11,7 +11,7 @@ import {
 import { originSummary } from '../settings/defaults'
 
 export function GenerationPreflight({
-  sourceReview, disclosure, confirmLabel,
+  sourceReview, disclosure, confirmLabel, initialOutputFormat = 'qa_cases',
   action,
   activeProviderAvailable,
   activeProviderLabel,
@@ -35,6 +35,7 @@ export function GenerationPreflight({
   onCancel,
   onConfirm,
 }: {
+  initialOutputFormat?: TestwareOutputFormat
   sourceReview?: ReactNode
   disclosure?: string
   confirmLabel?: string
@@ -62,7 +63,7 @@ export function GenerationPreflight({
   onConfirm: (testwarePreferences?: TestwareGenerationPreferences) => void
 }) {
   const copy = generationPreflightCopy(action)
-  const [testwarePreferences, setTestwarePreferences] = useState<TestwareGenerationPreferences>(defaultTestwareGenerationPreferences)
+  const [testwarePreferences, setTestwarePreferences] = useState<TestwareGenerationPreferences>(() => ({ ...defaultTestwareGenerationPreferences, outputFormat: initialOutputFormat }))
   const isTestware = action === 'testware'
   const updateTestwarePreferences = (patch: Partial<TestwareGenerationPreferences>) =>
     setTestwarePreferences((previous) => ({ ...previous, ...patch }))

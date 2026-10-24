@@ -1,3 +1,4 @@
+import { defaultTestwareGenerationPreferences } from '../testware/generationPreferences'
 import { cancelAiActionJob, readNoteSource, startAiActionJob, type CreatedRecord, type CreationOutcome, type GenerationJobEvent, type GenerationJobStatus, type NoteSource, type TestwareGenerationPreferences } from '../tauri'
 import { richEditorDocumentFromHtml } from '../editor/editorDocument'
 import { formatError } from '../ui/format'
@@ -61,7 +62,7 @@ export function createCreationSourceActions(host: CreationSourceHost) {
         host.publish(captured)
         const source = await confirmSource(captured, owned)
         if (!source || !owned()) return false
-        const html = captured.kind === 'finding' ? renderPrefilledFinding(source.entry.body) : renderPrefilledTestware(source.entry.title ?? '', source.entry.body)
+        const html = captured.format.kind === 'finding' ? renderPrefilledFinding(source.entry.body, captured.format.template) : renderPrefilledTestware(source.entry.title ?? '', source.entry.body, captured.format.outputFormat)
         host.publish({ ...host.current()!, document: richEditorDocumentFromHtml(html), title: captured.title || source.entry.title || '' })
         host.error(null)
         return true
@@ -105,7 +106,7 @@ export function createCreationSourceActions(host: CreationSourceHost) {
       const started = await startAiActionJob({ sessionId: captured.sessionId, noteEntryId: source.entry.id,
         expectedNoteRevision: source.revision, provider: selection.selectedProvider, model: selection.selectedModel.trim() || 'default',
         reasoningEffort: selection.selectedReasoningEffort, action: captured.kind,
-        testwarePreferences: captured.kind === 'testware' ? preferences ?? null : null }, event)
+        testwarePreferences: captured.format.kind === 'testware' ? preferences ?? { ...defaultTestwareGenerationPreferences, outputFormat: captured.format.outputFormat } : null }, event)
       if (owned()) {
         host.publishJob(started.status)
         host.notice?.(captured.kind === 'testware' ? 'Generating test cases' : 'Generating finding')

@@ -147,7 +147,7 @@ export function FindingsView({
   )
 }
 
-export function FindingFields({ finding, onChange }: { finding: Pick<Finding, 'kind' | 'metadataJson'>; onChange: (patch: Partial<Pick<Finding, 'kind' | 'metadataJson'>>) => void }) {
+export function FindingFields({ finding, onChange, afterStatus }: { afterStatus?: import('react').ReactNode; finding: Pick<Finding, 'kind' | 'metadataJson'>; onChange: (patch: Partial<Pick<Finding, 'kind' | 'metadataJson'>>) => void }) {
   return (
         <>
           <label className="field-stack">
@@ -185,6 +185,7 @@ export function FindingFields({ finding, onChange }: { finding: Pick<Finding, 'k
               <option value="closed">Closed</option>
             </select>
           </label>
+          {afterStatus}
           <label className="field-stack">
             <span>Component or area</span>
             <input
