@@ -104,7 +104,7 @@ export function installUiPerformanceObserver() {
 export async function scrollRichRecord(expectedSide) {
   if (!['baseline', 'head'].includes(expectedSide)) throw Error('Declare the expected scroll-probe side')
   const target = document.querySelector('.record-detail-pane .rich-editor')
-  if (!target?.textContent.includes('PERF_RECORD_END') || target.textContent.length < 100_000) throw Error('Long record is missing')
+  if (!target?.textContent.includes('PERF_RECORD_END') || target.textContent.length < 80_000) throw Error('Long record is missing')
   const pane = target.closest('.record-detail-pane')
   const headerSelector = expectedSide === 'head' ? '.record-detail-pane .record-header' : '.record-detail-pane .record-actions'
   const header = document.querySelector(headerSelector)

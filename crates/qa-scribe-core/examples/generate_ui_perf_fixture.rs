@@ -1,6 +1,9 @@
 use std::{env, path::PathBuf};
 
-use qa_scribe_core::storage::Database;
+use qa_scribe_core::{
+    domain::{TEXT_BODY_MAX_LENGTH, validate_body_text},
+    storage::Database,
+};
 use rusqlite::params;
 use serde_json::json;
 
@@ -21,7 +24,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let paragraph = "Deterministic rich record evidence. ".repeat(16);
     let mut nodes = vec![];
     let mut html = String::new();
-    for index in 0..190 {
+    for index in 0..150 {
         let text = format!("Paragraph {index:03}. {paragraph}");
         html.push_str(&format!("<p>{text}</p>"));
         nodes.push(json!({"type":"paragraph", "content":[{"type":"text", "text":text}]}));
@@ -38,6 +41,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     html.push_str("<p>PERF_RECORD_END</p>");
     nodes.push(json!({"type":"paragraph", "content":[{"type":"text", "text":"PERF_RECORD_END"}]}));
+    validate_body_text("Performance finding", &html, TEXT_BODY_MAX_LENGTH - 1024)?;
     let body_json = json!({"schemaVersion":1, "doc":{"type":"doc", "content":nodes}}).to_string();
     let database = Database::open(root.join("qa-scribe.sqlite"))?;
     database.with_immediate_tx(|tx| {
