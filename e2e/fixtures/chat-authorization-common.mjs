@@ -33,8 +33,10 @@ export function chatResponse(turn) {
 export function parseTranscript(prompt, argv) {
   const separator = '\nTRANSCRIPT_JSON\n'
   const start = prompt.indexOf(separator)
-  if (start < 0) throw new Error('Chat prompt is missing TRANSCRIPT_JSON data')
-  const { messages } = JSON.parse(prompt.slice(start + separator.length))
+  const labels = start < 0 ? [...prompt.matchAll(/\nMESSAGE \S+ (User|Assistant)\n/g)] : []
+  const messages = start >= 0 ? JSON.parse(prompt.slice(start + separator.length)).messages
+    : labels.map((label, index) => ({ role: label[1].toLowerCase(),
+      text: prompt.slice(label.index + label[0].length, labels[index + 1]?.index) }))
   if (!Array.isArray(messages) || !messages.length || messages.length % 2 !== 1) {
     throw new Error('Chat transcript requires completed pairs followed by latest user message')
   }

@@ -9,7 +9,7 @@ impl SessionService {
             let chat = rows::checked(tx, &request.scope)?;
             rows::editable(&chat)?;
             rows::idle(&chat)?;
-            if !chat.composer.is_empty() {
+            if !chat.composer.is_empty() || !chat.composer_images.is_empty() {
                 return Err(validation("Clear the Chat composer before retrying the previous message"));
             }
             let message = chat.messages.last().filter(|m| m.role == ChatRole::User

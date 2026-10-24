@@ -18,6 +18,8 @@ use crate::{
 
 pub const MAX_ATTACHMENT_BYTES: u64 = 25 * 1024 * 1024;
 
+pub mod chat;
+pub mod chat_imports;
 mod cleanup;
 pub mod creation;
 pub(crate) use cleanup::is_exact_attachment_path;
@@ -152,13 +154,37 @@ pub fn import_managed_attachment_bytes(
     if let Some(entry_id) = &entry_id {
         service.require_entry_in_session(entry_id, session_id)?;
     }
+    import_managed_attachment_with(
+        app_data_dir,
+        AttachmentDraft {
+            session_id: session_id.into(),
+            entry_id,
+            filename,
+            mime_type,
+            size_bytes: 0,
+            sha256: String::new(),
+            relative_path: String::new(),
+        },
+        bytes,
+        |_, _| Ok(()),
+        |draft| service.create_attachment(draft),
+    )
+}
+
+pub(crate) fn import_managed_attachment_with<T>(
+    app_data_dir: impl AsRef<Path>,
+    mut draft: AttachmentDraft,
+    bytes: Vec<u8>,
+    before_write: impl FnOnce(&AttachmentDraft, &str) -> Result<()>,
+    persist: impl FnOnce(AttachmentDraft) -> Result<T>,
+) -> Result<T> {
     if bytes.len() as u64 > MAX_ATTACHMENT_BYTES {
         return Err(validation(format!(
             "attachment must be at most {MAX_ATTACHMENT_BYTES} bytes"
         )));
     }
 
-    let filename = safe_filename(&filename);
+    let filename = safe_filename(&draft.filename);
     if filename.is_empty() {
         return Err(validation("attachment filename is required"));
     }
@@ -170,33 +196,62 @@ pub fn import_managed_attachment_bytes(
     let sha256 = hex_sha256(&bytes);
     let attachment_id = Uuid::new_v4().to_string();
     let relative_path = PathBuf::from("attachments")
-        .join(session_id)
+        .join(&draft.session_id)
         .join(format!("{attachment_id}_{filename}"));
     let destination_path = app_data_dir.as_ref().join(&relative_path);
-    if !is_safe_relative_path(&relative_path) {
+    if !is_safe_relative_path(&relative_path)
+        || !is_exact_attachment_path(&relative_path.to_string_lossy(), &draft.session_id)
+    {
         return Err(validation("attachment destination path is invalid"));
     }
-    if let Some(parent) = destination_path.parent() {
-        fs::create_dir_all(parent)?;
-    }
     let temp_path = destination_path.with_file_name(format!(".{attachment_id}.tmp"));
-    fs::write(&temp_path, &bytes)?;
-    if let Err(error) = fs::rename(&temp_path, &destination_path) {
-        let _ = fs::remove_file(&temp_path);
-        return Err(error.into());
-    }
-
-    let result = service.create_attachment(AttachmentDraft {
-        session_id: session_id.to_string(),
-        entry_id,
-        filename,
-        mime_type,
-        size_bytes: bytes.len() as i64,
-        sha256,
-        relative_path: relative_path.to_string_lossy().replace('\\', "/"),
-    });
+    let temp_relative = relative_path.with_file_name(format!(".{attachment_id}.tmp"));
+    draft.filename = filename;
+    draft.size_bytes = bytes.len() as i64;
+    draft.sha256 = sha256;
+    draft.relative_path = relative_path.to_string_lossy().replace('\\', "/");
+    before_write(&draft, &temp_relative.to_string_lossy())?;
+    let mut staged = false;
+    let mut published = false;
+    let result = (|| {
+        fs::create_dir_all(app_data_dir.as_ref())?;
+        for directory in [
+            app_data_dir.as_ref().join("attachments"),
+            destination_path.parent().unwrap().to_path_buf(),
+        ] {
+            match fs::create_dir(&directory) {
+                Ok(()) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
+                Err(error) => return Err(error.into()),
+            }
+            if !fs::symlink_metadata(&directory)?.file_type().is_dir() {
+                return Err(validation(
+                    "Attachment import directory must be a real directory",
+                ));
+            }
+        }
+        use std::io::Write;
+        let mut file = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temp_path)?;
+        staged = true;
+        file.write_all(&bytes)?;
+        file.sync_all()?;
+        fs::rename(&temp_path, &destination_path)?;
+        staged = false;
+        published = true;
+        #[cfg(unix)]
+        fs::File::open(destination_path.parent().unwrap())?.sync_all()?;
+        persist(draft)
+    })();
     if result.is_err() {
-        let _ = fs::remove_file(destination_path);
+        if staged {
+            let _ = fs::remove_file(&temp_path);
+        }
+        if published {
+            let _ = fs::remove_file(&destination_path);
+        }
     }
     result
 }
@@ -431,3 +486,6 @@ fn guess_mime_type(path: &Path) -> Option<&'static str> {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod chat_tests;

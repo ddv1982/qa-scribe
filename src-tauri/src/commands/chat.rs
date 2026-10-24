@@ -11,6 +11,8 @@ use crate::{
     settings::AppState,
 };
 
+#[cfg(test)]
+mod image_preflight_tests;
 mod lifecycle;
 #[cfg(test)]
 mod permission_tests;
@@ -47,9 +49,37 @@ fn prepare_chat_job(
     )?;
     // Reserve before persisted preparation. Both preparation and finalization
     // acquire the control gate before the service mutex, never the reverse.
-    let preparation = control.run_if_not_cancelled(|| {
-        state.with_service(|service| lifecycle::prepare(service, request))
-    });
+    let preflight = (|| {
+        let has_images = state.with_service(|service| {
+            let chat = service.load_chat(&request.scope.session_id)?;
+            Ok((!request.retry && !chat.composer_images.is_empty())
+                || chat.messages.iter().enumerate().any(|(index, message)| {
+                    !message.images.is_empty()
+                        && (message.status == ChatTurnStatus::Completed
+                            || (request.retry && index + 1 == chat.messages.len()))
+                }))
+        })?;
+        if has_images {
+            transport::validate_image_provider(request.provider)
+                .map_err(CommandError::validation)?;
+            let readiness =
+                crate::commands::providers::provider_readiness_for_job(request.provider, &control);
+            if !readiness.descriptor.status.is_ready() {
+                return Err(CommandError::validation(readiness.descriptor.reason));
+            }
+            transport::validate_image_model(&readiness.descriptor, &request.model)
+                .map_err(CommandError::validation)?;
+        }
+        Ok(())
+    })();
+    let preparation = match preflight {
+        Ok(()) => control.run_if_not_cancelled(|| {
+            state.with_service(|service| {
+                lifecycle::prepare_with_images(service, request, state.app_data_dir())
+            })
+        }),
+        Err(error) => Ok(Some(Err(error))),
+    };
     let error = match preparation {
         Ok(Some(Ok(prepared))) => return Ok((prepared, status, control)),
         Ok(Some(Err(error))) => error,
@@ -154,6 +184,30 @@ pub fn save_chat_composer(
     request: ChatComposerRequest,
 ) -> Result<ChatState, CommandError> {
     state.with_service(|service| service.save_chat_composer(request))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn import_chat_image(
+    app: AppHandle,
+    scope: ChatRevision,
+    filename: String,
+    data_url: String,
+) -> Result<ChatState, CommandError> {
+    super::files::attachment_task("Chat image import", move || {
+        use tauri::Manager;
+        let state = app.state::<AppState>();
+        state.with_service(|service| {
+            qa_scribe_core::attachments::chat::import_chat_image_data_url(
+                service,
+                state.app_data_dir(),
+                scope,
+                filename,
+                &data_url,
+            )
+        })
+    })
+    .await
 }
 
 #[tauri::command]

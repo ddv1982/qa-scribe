@@ -36,6 +36,7 @@ pub(super) fn read(connection: &Connection, id: &str) -> Result<ChatState> {
     for row in rows {
         let (id, turn_id, role, text, status, error_message, created_at, ai_run_id) = row?;
         messages.push(ChatMessage {
+            images: super::chat_images::read(connection, &id, false)?,
             id,
             turn_id,
             role: ChatRole::from_stored(&role)?,
@@ -67,6 +68,7 @@ pub(super) fn read(connection: &Connection, id: &str) -> Result<ChatState> {
         draft_id: id.into(),
         revision: row.1,
         composer: row.2,
+        composer_images: super::chat_images::read(connection, id, true)?,
         mode: ChatMode::from_stored(&row.3)?,
         messages,
         ai_runs,

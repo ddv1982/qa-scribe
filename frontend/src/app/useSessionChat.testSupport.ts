@@ -3,7 +3,7 @@ import type { ChatState, GenerationJobStatus } from '../bindings'
 export function chatFixture(patch: Partial<ChatState> = {}): ChatState {
   return {
     sessionId: 'session-1', draftId: 'chat-1', revision: 0,
-    composer: '', mode: 'write_note', aiRuns: [], messages: [], submission: null,
+    composer: '', composerImages: [], mode: 'write_note', aiRuns: [], messages: [], submission: null,
     ...patch,
   }
 }
@@ -12,9 +12,9 @@ export function completedChatFixture(patch: Partial<ChatState> = {}): ChatState 
   return chatFixture({
     revision: 3, mode: 'chat',
     messages: [
-      { id: 'message-1', turnId: 'turn-1', role: 'user', text: 'Payment failed',
+      { id: 'message-1', turnId: 'turn-1', role: 'user', text: 'Payment failed', images: [],
         status: 'completed', errorMessage: null, aiRunId: 'run-chat', createdAt: '2026-10-14T10:00:00Z' },
-      { id: 'message-2', turnId: 'turn-1', role: 'assistant', text: 'Which build?',
+      { id: 'message-2', turnId: 'turn-1', role: 'assistant', text: 'Which build?', images: [],
         status: 'completed', errorMessage: null, aiRunId: 'run-chat', createdAt: '2026-10-14T10:00:01Z' },
     ],
     ...patch,

@@ -28,6 +28,7 @@ fn setup() -> (SessionService, StartChatJobRequest) {
 fn composer(service: &SessionService, chat: &ChatState, text: &str) -> ChatState {
     service
         .save_chat_composer(ChatComposerRequest {
+            attachment_ids: vec![],
             scope: scope(chat),
             composer: text.into(),
             mode: ChatMode::Chat,
@@ -82,9 +83,9 @@ fn r20_01_oversized_assistant_cannot_complete_run_or_poison_future_replay() {
         request.scope = scope(&saved);
         request.retry = false;
         let next = prepare(&service, &request).unwrap();
-        assert!(next.prompt.contains("Valid A"));
-        assert!(next.prompt.contains("Next Q"));
-        assert!(!next.prompt.contains(&text));
+        assert!(next.input.text().contains("Valid A"));
+        assert!(next.input.text().contains("Next Q"));
+        assert!(!next.input.text().contains(&text));
     }
 }
 
@@ -106,8 +107,8 @@ fn r20_01_exact_utf8_assistant_boundary_remains_replayable() {
         let saved = composer(&service, &completed, "Next Q");
         request.scope = scope(&saved);
         let next = prepare(&service, &request).unwrap();
-        assert!(next.prompt.contains(&text));
-        assert!(next.prompt.contains("Next Q"));
+        assert!(next.input.text().contains(&text));
+        assert!(next.input.text().contains("Next Q"));
     }
 }
 

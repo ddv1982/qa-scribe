@@ -1,7 +1,7 @@
 use qa_scribe_core::{
     QaScribeError, Result,
     ai::ProviderGenerationOutput,
-    chat::{CHAT_PROMPT_VERSION, ChatPromptMessage, ChatPromptRole, build_chat_prompt},
+    chat::{CHAT_PROMPT_VERSION, ChatInput, ChatInputMessage, ChatPromptRole, build_chat_input},
     domain::*,
     services::SessionService,
 };
@@ -11,7 +11,7 @@ use super::StartChatJobRequest;
 #[derive(Clone)]
 pub(super) struct PreparedChat {
     pub started: ChatTurnStarted,
-    pub prompt: String,
+    pub input: ChatInput,
     pub ai_run: AiRun,
 }
 
@@ -23,10 +23,35 @@ pub(super) fn scope(chat: &ChatState) -> ChatRevision {
     }
 }
 
-pub(super) fn prepare(
+pub(super) fn prepare_with_images(
     service: &SessionService,
     request: &StartChatJobRequest,
+    app_data_dir: &std::path::Path,
 ) -> Result<PreparedChat> {
+    let mut preview = service.load_chat(&request.scope.session_id)?;
+    let preview_turn = if request.retry {
+        preview
+            .messages
+            .last()
+            .map(|message| message.turn_id.clone())
+            .unwrap_or_default()
+    } else {
+        preview.messages.push(ChatMessage {
+            id: "pending".into(),
+            turn_id: "pending".into(),
+            role: ChatRole::User,
+            text: preview.composer.clone(),
+            images: preview.composer_images.clone(),
+            status: ChatTurnStatus::Running,
+            error_message: None,
+            ai_run_id: None,
+            created_at: String::new(),
+        });
+        "pending".into()
+    };
+    prepare_input(service, &preview, &preview_turn, app_data_dir)?
+        .preflight_wire(request.provider)
+        .map_err(QaScribeError::Validation)?;
     let start = ChatStartRequest {
         scope: request.scope.clone(),
     };
@@ -37,12 +62,7 @@ pub(super) fn prepare(
     };
     let mut created_run: Option<AiRun> = None;
     let preparation: Result<PreparedChat> = (|| {
-        let session = service
-            .get_session(&request.scope.session_id)?
-            .ok_or_else(|| QaScribeError::NotFound(request.scope.session_id.clone()))?;
-        let messages = replay(&started.chat, &started.turn_id);
-        let prompt = build_chat_prompt(session.session_context.as_deref().unwrap_or(""), &messages)
-            .map_err(QaScribeError::Validation)?;
+        let input = prepare_input(service, &started.chat, &started.turn_id, app_data_dir)?;
         let ai_run = service.create_ai_run(AiRunCreate {
             session_id: request.scope.session_id.clone(),
             generation_context_id: None,
@@ -63,7 +83,7 @@ pub(super) fn prepare(
         })?;
         Ok(PreparedChat {
             started: started.clone(),
-            prompt,
+            input,
             ai_run,
         })
     })();
@@ -87,21 +107,52 @@ pub(super) fn prepare(
     preparation
 }
 
-fn replay(chat: &ChatState, turn_id: &str) -> Vec<ChatPromptMessage> {
-    chat.messages
+fn prepare_input(
+    service: &SessionService,
+    chat: &ChatState,
+    turn_id: &str,
+    app_data_dir: &std::path::Path,
+) -> Result<ChatInput> {
+    let session = service
+        .get_session(&chat.session_id)?
+        .ok_or_else(|| QaScribeError::NotFound(chat.session_id.clone()))?;
+    let messages = chat
+        .messages
         .iter()
         .filter(|message| {
             message.status == ChatTurnStatus::Completed
                 || (message.turn_id == turn_id && message.role == ChatRole::User)
         })
-        .map(|message| ChatPromptMessage {
-            role: match message.role {
-                ChatRole::User => ChatPromptRole::User,
-                ChatRole::Assistant => ChatPromptRole::Assistant,
-            },
-            text: message.text.clone(),
+        .map(|message| {
+            Ok(ChatInputMessage {
+                id: message.id.clone(),
+                role: match message.role {
+                    ChatRole::User => ChatPromptRole::User,
+                    ChatRole::Assistant => ChatPromptRole::Assistant,
+                },
+                text: message.text.clone(),
+                images: message
+                    .images
+                    .iter()
+                    .map(|image| {
+                        qa_scribe_core::attachments::chat::resolve_chat_image(
+                            service,
+                            app_data_dir,
+                            &chat.session_id,
+                            &image.attachment_id,
+                        )
+                    })
+                    .collect::<Result<Vec<_>>>()?,
+            })
         })
-        .collect()
+        .collect::<Result<Vec<_>>>()?;
+    build_chat_input(session.session_context.as_deref().unwrap_or(""), messages)
+        .map_err(QaScribeError::Validation)
+}
+
+#[cfg(test)]
+fn prepare(service: &SessionService, request: &StartChatJobRequest) -> Result<PreparedChat> {
+    prepare_with_images(service, request, &std::env::temp_dir())
 }
 
 fn current_scope(service: &SessionService, prepared: &PreparedChat) -> Result<ChatRevision> {
@@ -163,3 +214,6 @@ mod tests;
 
 #[cfg(test)]
 mod boundaries;
+
+#[cfg(test)]
+mod images;

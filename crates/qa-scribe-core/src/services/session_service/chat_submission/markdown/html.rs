@@ -24,6 +24,14 @@ fn render(node: &Value) -> String {
     if node["type"] == "hardBreak" {
         return "<br>".into();
     }
+    if node["type"] == "image" {
+        return format!(
+            "<img src=\"{}\" data-attachment-id=\"{}\" alt=\"{}\">",
+            escape(node["attrs"]["src"].as_str().unwrap_or_default()),
+            escape(node["attrs"]["attachmentId"].as_str().unwrap_or_default()),
+            escape(node["attrs"]["alt"].as_str().unwrap_or_default())
+        );
+    }
     let content = to_html(
         node["content"]
             .as_array()

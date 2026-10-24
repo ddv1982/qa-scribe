@@ -2789,6 +2789,7 @@ dependencies = [
  "base64 0.22.1",
  "chrono",
  "dom_query",
+ "image",
  "pulldown-cmark",
  "rusqlite",
  "serde",

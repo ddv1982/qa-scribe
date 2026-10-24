@@ -19,8 +19,8 @@ impl SessionService {
             let chat = rows::checked(tx, &request.scope)?;
             rows::idle(&chat)?;
             if chat.messages.is_empty() { return Err(validation("Chat has no messages to submit")); }
-            if !chat.composer.is_empty() || chat.messages.iter().any(|message| message.status != ChatTurnStatus::Completed) {
-                return Err(validation("Finish or retry all Chat turns and clear unsent text before submitting."));
+            if !chat.composer.is_empty() || !chat.composer_images.is_empty() || chat.messages.iter().any(|message| message.status != ChatTurnStatus::Completed) {
+                return Err(validation("Finish or retry all Chat turns and clear unsent text and images before submitting."));
             }
             let note = tx.query_row(
                 "SELECT id, body, body_json, body_format FROM entries WHERE session_id = ?1 AND type = 'note' ORDER BY created_at ASC LIMIT 1",
@@ -80,6 +80,12 @@ fn append_transcript(
             nodes[0]["content"] = json!(label_content);
         } else {
             nodes.insert(0, json!({"type":"paragraph", "content":label_content}));
+        }
+        for image in &message.images {
+            nodes.push(json!({"type":"image", "attrs":{
+                "src": format!("qa-scribe-attachment://{}", image.attachment_id),
+                "attachmentId": image.attachment_id, "alt": image.filename,
+            }}));
         }
         html.push_str(&markdown::to_html(&nodes));
         added.extend(nodes);

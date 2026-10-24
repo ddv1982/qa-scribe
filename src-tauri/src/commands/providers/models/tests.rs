@@ -1,5 +1,27 @@
 use serde_json::json;
 
+#[test]
+fn codex_catalog_retains_explicit_image_input_capabilities() {
+    let models = parse_codex_app_server_models(&[
+        json!({"model":"visual","inputModalities":["text","image"]}),
+        json!({"model":"text","inputModalities":["text"],"vision":true}),
+        json!({"model":"legacy","vision":true}),
+        json!({"model":"unknown"}),
+    ]);
+    assert_eq!(
+        models
+            .iter()
+            .map(|model| (model.id.as_str(), model.capabilities.vision))
+            .collect::<Vec<_>>(),
+        vec![
+            ("visual", Some(true)),
+            ("text", Some(false)),
+            ("legacy", Some(true)),
+            ("unknown", None)
+        ]
+    );
+}
+
 use std::path::PathBuf;
 
 use super::{parse_codex_app_server_models, provider_catalog};

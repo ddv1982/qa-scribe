@@ -31,11 +31,21 @@ chat_enum!(ChatFailureKind { Failed => "failed", Cancelled => "cancelled" });
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
+pub struct ChatImage {
+    pub attachment_id: String,
+    pub filename: String,
+    pub mime_type: String,
+    pub size_bytes: i64,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
 pub struct ChatMessage {
     pub id: String,
     pub turn_id: String,
     pub role: ChatRole,
     pub text: String,
+    pub images: Vec<ChatImage>,
     pub status: ChatTurnStatus,
     pub error_message: Option<String>,
     pub ai_run_id: Option<String>,
@@ -57,6 +67,7 @@ pub struct ChatState {
     pub draft_id: String,
     pub revision: i32,
     pub composer: String,
+    pub composer_images: Vec<ChatImage>,
     pub mode: ChatMode,
     pub messages: Vec<ChatMessage>,
     pub ai_runs: Vec<super::AiRun>,
@@ -74,6 +85,8 @@ pub struct ChatRevision {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ChatComposerRequest {
+    #[serde(default)]
+    pub attachment_ids: Vec<String>,
     pub scope: ChatRevision,
     pub composer: String,
     pub mode: ChatMode,

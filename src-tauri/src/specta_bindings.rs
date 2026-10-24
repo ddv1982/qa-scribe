@@ -66,6 +66,7 @@ pub fn builder() -> Builder<tauri::Wry> {
             commands::sessions::retry_attachment_cleanup,
             commands::chat::get_chat,
             commands::chat::save_chat_composer,
+            commands::chat::import_chat_image,
             commands::chat::restart_chat,
             commands::chat::submit_chat,
             commands::chat::start_chat_job,
@@ -93,6 +94,7 @@ pub fn builder() -> Builder<tauri::Wry> {
             commands::providers::refresh_provider_status,
             commands::files::get_attachment_preview_data_url,
             commands::files::read_clipboard_image_data_url,
+            commands::files::chat_clipboard::read_chat_clipboard_image_data_url,
             commands::files::copy_attachment_image_to_clipboard,
             commands::files::copy_html_to_clipboard,
         ])

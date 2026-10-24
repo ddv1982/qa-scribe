@@ -1,4 +1,5 @@
 mod errors;
+mod images;
 mod replay;
 use super::*;
 use crate::ai::{GenerationOutputFormat, chat::duplex_chat_command};

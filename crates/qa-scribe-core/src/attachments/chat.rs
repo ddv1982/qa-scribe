@@ -1,0 +1,148 @@
+use std::{
+    io::Cursor,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
+
+use image::{ImageFormat, ImageReader};
+
+use super::{attachment_file_bytes, decode_image_data_url, import_managed_attachment_with};
+use crate::{
+    Result,
+    domain::{ChatRevision, ChatState},
+    error::validation,
+    services::SessionService,
+};
+
+pub const MAX_CHAT_IMAGE_PIXELS: u64 = 40_000_000;
+pub const MAX_CHAT_IMAGE_BYTES: usize = 10 * 1024 * 1024;
+pub const MAX_CHAT_TURN_IMAGE_BYTES: usize = 20 * 1024 * 1024;
+pub const MAX_CHAT_TURN_IMAGES: usize = 4;
+pub const MAX_CHAT_REPLAY_IMAGES: usize = 16;
+pub const MAX_CHAT_REPLAY_IMAGE_BYTES: usize = 40 * 1024 * 1024;
+
+#[derive(Clone)]
+pub struct ChatInputImage {
+    pub(crate) path: PathBuf,
+    pub(crate) width: u32,
+    pub(crate) height: u32,
+    pub(crate) mime_type: String,
+    pub(crate) bytes: Arc<[u8]>,
+}
+
+impl std::fmt::Debug for ChatInputImage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ChatInputImage")
+            .field("mime_type", &self.mime_type)
+            .field("size_bytes", &self.bytes.len())
+            .finish_non_exhaustive()
+    }
+}
+
+pub fn validate_chat_image(mime_type: &str, bytes: &[u8]) -> Result<(u32, u32)> {
+    if bytes.len() > MAX_CHAT_IMAGE_BYTES {
+        return Err(validation("Chat images must be at most 10 MiB each"));
+    }
+    let expected = match mime_type {
+        "image/png" => ImageFormat::Png,
+        "image/jpeg" => ImageFormat::Jpeg,
+        "image/webp" => ImageFormat::WebP,
+        "image/gif" => ImageFormat::Gif,
+        _ => return Err(validation("Chat images must be PNG, JPEG, WebP or GIF")),
+    };
+    let format =
+        image::guess_format(bytes).map_err(|_| validation("Chat image could not be decoded"))?;
+    if format != expected {
+        return Err(validation("Chat image MIME type does not match its pixels"));
+    }
+    let (width, height) = ImageReader::with_format(Cursor::new(bytes), format)
+        .into_dimensions()
+        .map_err(|_| validation("Chat image dimensions could not be decoded"))?;
+    if width == 0 || height == 0 || u64::from(width) * u64::from(height) > MAX_CHAT_IMAGE_PIXELS {
+        return Err(validation(
+            "Chat images must contain 1 to 40 million pixels",
+        ));
+    }
+    let mut reader = ImageReader::with_format(Cursor::new(bytes), format);
+    let mut limits = image::Limits::default();
+    limits.max_alloc = Some(MAX_CHAT_IMAGE_PIXELS * 8);
+    reader.limits(limits);
+    reader
+        .decode()
+        .map_err(|_| validation("Chat image pixels could not be decoded"))?;
+    Ok((width, height))
+}
+
+pub fn import_chat_image_data_url(
+    service: &SessionService,
+    app_data_dir: impl AsRef<Path>,
+    scope: ChatRevision,
+    filename: String,
+    data_url: &str,
+) -> Result<ChatState> {
+    if data_url.len() > MAX_CHAT_IMAGE_BYTES.div_ceil(3) * 4 + 64 {
+        return Err(validation("Chat images must be at most 10 MiB each"));
+    }
+    let (mime_type, bytes) = decode_image_data_url(data_url)?;
+    validate_chat_image(&mime_type, &bytes)?;
+    service.check_chat_image_import(&scope, bytes.len())?;
+    let result = import_managed_attachment_with(
+        &app_data_dir,
+        crate::domain::AttachmentDraft {
+            session_id: scope.session_id.clone(),
+            entry_id: None,
+            filename,
+            mime_type: Some(mime_type),
+            size_bytes: 0,
+            sha256: String::new(),
+            relative_path: String::new(),
+        },
+        bytes,
+        |draft, temp_path| service.reserve_chat_image_import(&scope, draft, temp_path),
+        |draft| service.append_imported_chat_image(&scope, draft),
+    );
+    if result.is_err() {
+        let _ = super::chat_imports::recover_chat_image_imports(service, app_data_dir.as_ref());
+    }
+    result
+}
+
+pub fn resolve_chat_image(
+    service: &SessionService,
+    app_data_dir: &Path,
+    session_id: &str,
+    attachment_id: &str,
+) -> Result<ChatInputImage> {
+    let attachment = service
+        .get_attachment(attachment_id)?
+        .ok_or_else(|| validation("Chat image is missing"))?;
+    if attachment.session_id != session_id
+        || !super::is_exact_attachment_path(&attachment.relative_path, session_id)
+    {
+        return Err(validation(
+            "Chat image must be a managed file in this Session",
+        ));
+    }
+    let root = app_data_dir.canonicalize()?;
+    let path = app_data_dir
+        .join(&attachment.relative_path)
+        .canonicalize()?;
+    if path != root.join(&attachment.relative_path) {
+        return Err(validation(
+            "Chat image path escapes its managed Session directory",
+        ));
+    }
+    let (_, bytes) = attachment_file_bytes(service, app_data_dir, attachment_id)?
+        .ok_or_else(|| validation("Chat image is missing"))?;
+    let mime_type = attachment
+        .mime_type
+        .ok_or_else(|| validation("Chat image MIME type is missing"))?;
+    let (width, height) = validate_chat_image(&mime_type, &bytes)?;
+    Ok(ChatInputImage {
+        path,
+        width,
+        height,
+        mime_type,
+        bytes: bytes.into(),
+    })
+}

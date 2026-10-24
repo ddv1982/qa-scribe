@@ -97,6 +97,15 @@ fn main() {
                 ),
             }
 
+            if let Err(error) =
+                qa_scribe_core::attachments::chat_imports::recover_chat_image_imports(
+                    &session_service,
+                    &app_data_dir,
+                )
+            {
+                eprintln!("qa-scribe startup Chat image import recovery unavailable: {error}");
+            }
+
             let creation_recovery =
                 qa_scribe_core::attachments::creation::reconcile_creation_saves(
                     &session_service,

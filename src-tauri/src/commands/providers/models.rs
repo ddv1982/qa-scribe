@@ -180,7 +180,20 @@ fn parse_codex_app_server_models(models: &[serde_json::Value]) -> Vec<ProviderMo
                     .get("defaultReasoningEffort")
                     .and_then(serde_json::Value::as_str)
                     .map(str::to_string),
-                capabilities: ProviderModelCapabilities::default(),
+                capabilities: ProviderModelCapabilities {
+                    vision: model
+                        .get("inputModalities")
+                        .and_then(serde_json::Value::as_array)
+                        .and_then(|modalities| {
+                            modalities
+                                .iter()
+                                .map(serde_json::Value::as_str)
+                                .collect::<Option<Vec<_>>>()
+                        })
+                        .map(|modalities| modalities.contains(&"image"))
+                        .or_else(|| model.get("vision").and_then(serde_json::Value::as_bool)),
+                    ..Default::default()
+                },
                 resolved_model: None,
             })
         })

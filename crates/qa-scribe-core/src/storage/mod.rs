@@ -4,6 +4,7 @@ use rusqlite::{Connection, Transaction, TransactionBehavior};
 
 use crate::{Result, error::validation};
 
+mod chat_images;
 mod creation;
 mod schema;
 
@@ -68,7 +69,7 @@ pub fn with_immediate_tx<T>(
 /// final time, and settles on a `user_version` this build can trust from then
 /// on. Once every database in the wild has passed through this once, future
 /// bumps can go strictly by increment again.
-pub const SCHEMA_VERSION: i32 = 13;
+pub const SCHEMA_VERSION: i32 = 14;
 
 fn initialize(connection: &Connection) -> Result<()> {
     let initialize_started = Instant::now();
@@ -99,31 +100,27 @@ fn initialize(connection: &Connection) -> Result<()> {
         span_started.elapsed().as_millis()
     );
 
-    let span_started = Instant::now();
-    connection.execute_batch(SCHEMA)?;
-    ensure_chat_run_association_supported(connection)?;
-    eprintln!(
-        "qa-scribe startup storage schema ensured: elapsed_ms={}",
-        span_started.elapsed().as_millis()
-    );
-
     let migrations_run = found < SCHEMA_VERSION;
-    if migrations_run {
-        let span_started = Instant::now();
+    if found < 13 {
+        connection.execute_batch(SCHEMA)?;
+        ensure_chat_run_association_supported(connection)?;
         migrate(connection)?;
-        creation::ensure_note_revision_supported(connection)?;
-        assert_no_foreign_key_violations(connection)?;
-        connection.pragma_update(None, "user_version", SCHEMA_VERSION)?;
-        eprintln!(
-            "qa-scribe startup storage migrations complete: from_version={}, to_version={}, elapsed_ms={}",
-            found,
-            SCHEMA_VERSION,
-            span_started.elapsed().as_millis()
-        );
-    } else {
-        creation::ensure_note_revision_supported(connection)?;
-        eprintln!("qa-scribe startup storage foreign key check skipped: reason=current_schema");
     }
+    with_immediate_tx(connection, |tx| {
+        tx.execute_batch(SCHEMA)?;
+        ensure_chat_run_association_supported(tx)?;
+        if migrations_run {
+            chat_images::migrate(tx)?;
+        }
+        creation::ensure_note_revision_supported(tx)?;
+        tx.execute_batch(chat_images::RELATIONSHIPS)?;
+        tx.execute_batch(SCHEMA)?;
+        if migrations_run {
+            assert_no_foreign_key_violations(tx)?;
+            tx.pragma_update(None, "user_version", SCHEMA_VERSION)?;
+        }
+        Ok(())
+    })?;
     eprintln!(
         "qa-scribe startup storage initialize complete: schema_version={}, migrations_run={}, elapsed_ms={}",
         SCHEMA_VERSION,

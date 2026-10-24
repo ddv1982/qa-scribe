@@ -1,3 +1,6 @@
+mod input;
+pub use input::{ChatInput, ChatInputMessage, MAX_CHAT_INPUT_FRAME_BYTES, build_chat_input};
+
 use serde::{Deserialize, Serialize};
 
 pub const CHAT_PROMPT_VERSION: &str = "QA_SCRIBE_CHAT_V2";
@@ -25,6 +28,27 @@ pub fn build_chat_prompt(
     session_context: &str,
     messages: &[ChatPromptMessage],
 ) -> Result<String, String> {
+    validate_chat_messages(session_context, messages)?;
+
+    #[derive(Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Replay<'a> {
+        session_context: &'a str,
+        messages: &'a [ChatPromptMessage],
+    }
+
+    let data = serde_json::to_string(&Replay {
+        session_context,
+        messages,
+    })
+    .map_err(|error| format!("Could not encode chat transcript: {error}"))?;
+    Ok(format!("{}\n{data}", chat_instructions()))
+}
+
+pub(super) fn validate_chat_messages(
+    session_context: &str,
+    messages: &[ChatPromptMessage],
+) -> Result<(), String> {
     if session_context.len() > MAX_CHAT_CONTEXT_BYTES {
         return Err(format!(
             "Session Context exceeds {MAX_CHAT_CONTEXT_BYTES} bytes"
@@ -66,19 +90,11 @@ pub fn build_chat_prompt(
         }
     }
 
-    #[derive(Serialize)]
-    #[serde(rename_all = "camelCase")]
-    struct Replay<'a> {
-        session_context: &'a str,
-        messages: &'a [ChatPromptMessage],
-    }
+    Ok(())
+}
 
-    let data = serde_json::to_string(&Replay {
-        session_context,
-        messages,
-    })
-    .map_err(|error| format!("Could not encode chat transcript: {error}"))?;
-    Ok(format!(
+pub(super) fn chat_instructions() -> String {
+    format!(
         "{CHAT_PROMPT_VERSION}\n\
          You are qa-scribe's QA interview assistant, gathering information for a testing Session.\n\
          Continue the conversation by responding to the latest user message in TRANSCRIPT_JSON, including explicit requests to use configured tools.\n\
@@ -90,8 +106,8 @@ pub fn build_chat_prompt(
          Distinguish tool-verified information from assumptions. If a tool is unavailable or permission is denied, explain the actual limitation and required CLI-side setup without claiming this chat has no tool access.\n\
          Do not generate Testware, Findings, Session Report Drafts, or Jira Bug Drafts automatically. Do not submit or modify the Session Note.\n\
          The app supplies the complete bounded replay for this turn; do not rely on saved provider sessions.\n\
-         TRANSCRIPT_JSON\n{data}"
-    ))
+         TRANSCRIPT_JSON"
+    )
 }
 
 #[cfg(test)]

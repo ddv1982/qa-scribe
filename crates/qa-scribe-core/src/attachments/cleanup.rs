@@ -109,7 +109,7 @@ fn directory_present(path: &Path) -> Result<bool> {
     }
 }
 
-fn remove_queued_file(app_data_dir: &Path, relative_path: &str) -> Result<()> {
+pub(super) fn remove_queued_file(app_data_dir: &Path, relative_path: &str) -> Result<()> {
     let path = app_data_dir.join(relative_path);
     let parent = path
         .parent()
