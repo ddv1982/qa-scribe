@@ -14,3 +14,14 @@ The full local verify command stops in three unchanged host tooling tests on mac
 A default desktop run found an obsolete authorization retry assertion that expected the old text-only prompt envelope. It now asserts the literal stable message ID and exact user text in the labelled payload. Later launches in that run were invalidated when a normal Rust build replaced its instrumented binary. The owned run was stopped. A serial default rerun is required and is running before release.
 
 Live Claude vision was unavailable because the local CLI is signed out. Copilot image sends are deliberately rejected before persistence until safe capability negotiation is implemented. Fixture transport acceptance does not establish live model understanding.
+
+
+## Final review corrections
+
+Independent release review traced actual provider detection under diagnostic and selector rollout. The selector projection can differ from the authoritative catalog. Image admission now reads the catalog snapshot directly. Six literal detection cases failed before this correction and pass in both rollout modes afterward. Clippy and all 651 workspace Rust tests pass, with the same three existing opt-in tests ignored.
+
+The serial default desktop run passed 12 of 13 workflows. All three provider authorization workflows, manual formats, Chat images, and first use passed. Independent compiled base/head runs reproduced the same three focus-outline assertions with document and window focus false. Those failures are pre-existing under that observed test state. Active-window keyboard focus remains unqualified.
+
+The screenshot-copy case exposed a compressed creation title in a narrow detail panel. The compact header now follows the actual panel width through a container query. The native manual-format workflow passed all four cases again, including a literal one-line heading assertion while screenshot-copy controls are present. The corrected screenshot replaces the earlier example.
+
+Linux CI initially exceeded the five-second budget in three new full-workspace creation cases. Only those cases now have a ten-second bound; all assertions remain. All 19 focused cases and all 882 frontend tests pass. Two builds at the earlier reviewed head and one build after the test-only edit produced identical WebView assets. That equivalence receipt applies to the test-only correction, before the later container-layout change.

@@ -146,6 +146,11 @@ describe('Unified creation composer in the built native application', () => {
     assert.equal(await $(draftBody).getHTML(false), authored)
     assert.equal(await $(input('testware')).getValue(), 'Retain selected format')
     await capture('f1-format-keep-text-and-image')
+    const heading = await browser.execute(() => {
+      const title = document.querySelector('.creation-composer .record-title')
+      return { height: title.getBoundingClientRect().height, lineHeight: Number.parseFloat(getComputedStyle(title).lineHeight) }
+    })
+    assert.ok(heading.height <= heading.lineHeight + 1, 'Creation title must remain on one line beside screenshot-copy controls')
     await openCreationAi('testware')
     assert.equal(await $('dialog .preflight-select-field select').getValue(), 'gherkin')
     await click('dialog button=Cancel')
