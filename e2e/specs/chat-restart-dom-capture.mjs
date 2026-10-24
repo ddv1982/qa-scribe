@@ -1,7 +1,7 @@
 // Serialized by WebDriver; all state stays diagnostic-only, outside the app DOM.
 export function installRestartDomCapture(key, lifetimeMs = 60_000) {
   const events = [], nodes = new WeakMap(), errors = []
-  let sequence = 0, nextNode = 0, overflow = 0, active = false, disposed = false, timer
+  let sequence = 0, nextNode = 0, overflow = 0, active = false, entered = false, disposed = false, timer
   const nodeId = node => node ? (nodes.has(node) ? nodes.get(node) : (nodes.set(node, ++nextNode), nextNode)) : null
   const record = (kind, details = {}) => {
     const row = { sequence: ++sequence, monotonicMs: performance.now(), kind, ...details }
@@ -26,7 +26,10 @@ export function installRestartDomCapture(key, lifetimeMs = 60_000) {
   }
   const onEvent = event => safe(() => {
     const button = event.target?.closest?.('button'), label = buttonLabel(button)
-    if (event.type === 'click' && label === 'Chat' && !button.closest('dialog')) active = true
+    if (event.type === 'click' && label === 'Chat' && !button.closest('dialog')) {
+      if (!entered) { entered = true; arm(lifetimeMs, 'lifetime') }
+      active = true
+    }
     if (!active || !label) return
     record(event.type, { label, trusted: event.isTrusted, button: identity(button),
       dialog: identity(button.closest('dialog')), documentHasFocus: document.hasFocus(), status: status() })
@@ -63,14 +66,19 @@ export function installRestartDomCapture(key, lifetimeMs = 60_000) {
     }
     return { clock: 'browser.performance.now', active, disposed, events, overflow, errors }
   }
+  const arm = (duration, reason) => {
+    clearTimeout(timer)
+    timer = setTimeout(() => { dispose(reason); delete window[key] }, duration)
+  }
   try {
     window[key] = { dispose }
     for (const type of ['pointerdown', 'mousedown', 'click']) document.addEventListener(type, onEvent, true)
     observer.observe(document.body, { subtree: true, childList: true, characterData: true,
       attributes: true, attributeOldValue: true, attributeFilter: ['disabled', 'inert', 'open'] })
-    // Safety net if a broken transport cannot deliver the final read/dispose command.
-    timer = setTimeout(() => { dispose('lifetime'); delete window[key] }, lifetimeMs)
-    return { installedAt: performance.now(), lifetimeMs }
+    // Existing 60s route budget plus two 30s transport attempts, without a reachable drain.
+    const preEntryMs = 120_000
+    arm(preEntryMs, 'pre-entry')
+    return { installedAt: performance.now(), lifetimeMs, preEntryMs }
   } catch (error) {
     dispose('install-error')
     delete window[key]

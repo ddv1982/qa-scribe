@@ -146,7 +146,7 @@ test('hung drain returns within the 250ms diagnostic budget and browser collecto
   }
   const original = new Error('original missing dialog')
   const start = performance.now()
-  await assert.rejects(captureRestartRoute(browser, async () => { throw original }, value => { trace = value }), error => error === original)
+  await assert.rejects(captureRestartRoute(browser, async () => { document.querySelector('button').click(); throw original }, value => { trace = value }), error => error === original)
   assert.ok(performance.now() - start >= 250)
   assert.ok(performance.now() - start < 750)
   assert.ok(trace.errors.some(error => error.name === 'DiagnosticBudget'))
@@ -233,4 +233,101 @@ test('artifact retention failure cannot replace the identical route assertion er
   const original = new Error('original missing dialog assertion')
   await assert.rejects(captureRestartRoute(browser, async () => { throw original }, () => { throw new Error('disk write failed') }), error => error === original)
   assert.equal(browser.listenerCount('command') + browser.listenerCount('result'), 0)
+})
+
+function collectorClock(t) {
+  const pageState = page(t), { window, document } = pageState
+  const timers = new Map(), listeners = new Map(), observers = new Set()
+  let now = 0, next = 0
+  window.setTimeout = (callback, delay) => { const id = ++next; timers.set(id, { at: now + delay, callback }); return id }
+  window.clearTimeout = id => timers.delete(id)
+  Object.defineProperty(window.performance, 'now', { value: () => now })
+  const add = document.addEventListener.bind(document), remove = document.removeEventListener.bind(document)
+  document.addEventListener = (type, listener, options) => {
+    if (options === true) listeners.set(type, listener)
+    add(type, listener, options)
+  }
+  document.removeEventListener = (type, listener, options) => {
+    if (listeners.get(type) === listener) listeners.delete(type)
+    remove(type, listener, options)
+  }
+  const NativeObserver = window.MutationObserver
+  window.MutationObserver = class extends NativeObserver {
+    observe(...args) { observers.add(this); return super.observe(...args) }
+    disconnect() { observers.delete(this); super.disconnect() }
+  }
+  const advance = duration => {
+    const end = now + duration
+    for (;;) {
+      const pending = [...timers].filter(([, timer]) => timer.at <= end).sort((a, b) => a[1].at - b[1].at)[0]
+      if (!pending) break
+      const [id, timer] = pending
+      timers.delete(id); now = timer.at; timer.callback()
+    }
+    now = end
+  }
+  return { ...pageState, advance, timers, listeners, observers }
+}
+
+test('a lead-in over 60 seconds leaves a full bounded capture window at actual Chat entry', t => {
+  const { execute, window, document, advance, timers, listeners, observers } = collectorClock(t)
+  execute(installRestartDomCapture, 'clockKey')
+  const state = window.clockKey
+  advance(60_001)
+  assert.equal(window.clockKey, state)
+  document.querySelector('button').click()
+  assert.equal(timers.size, 1)
+  advance(59_999)
+  document.querySelector('#restart').click()
+  assert.equal(window.clockKey, state)
+  advance(1)
+  const trace = state.dispose('check')
+  assert.deepEqual(Array.from(trace.events.filter(row => row.kind === 'click'), row => row.label), ['Chat', 'Start new conversation'])
+  assert.equal(trace.events.at(-1).reason, 'lifetime')
+  assert.equal(window.clockKey, undefined)
+  assert.equal(timers.size + listeners.size + observers.size, 0)
+})
+
+test('pre-Chat failure without drain self-disposes within the existing route and transport lifetime', t => {
+  const { execute, window, advance, timers, listeners, observers } = collectorClock(t)
+  execute(installRestartDomCapture, 'clockKey')
+  const state = window.clockKey
+  advance(119_999)
+  assert.equal(window.clockKey, state)
+  assert.equal(timers.size, 1)
+  advance(1)
+  assert.equal(state.dispose('check').events.at(-1).reason, 'pre-entry')
+  assert.equal(window.clockKey, undefined)
+  assert.equal(timers.size + listeners.size + observers.size, 0)
+})
+
+test('normal drain clears the single timer, observer and listeners both before and after Chat entry', t => {
+  for (const enterChat of [false, true]) {
+    const { execute, window, document, advance, timers, listeners, observers } = collectorClock(t)
+    execute(installRestartDomCapture, 'clockKey')
+    if (enterChat) document.querySelector('button').click()
+    assert.equal(timers.size, 1)
+    const trace = execute(drainRestartDomCapture, 'clockKey')
+    assert.equal(trace.events.at(-1).reason, 'drain')
+    assert.equal(window.clockKey, undefined)
+    assert.equal(timers.size + listeners.size + observers.size, 0)
+    const before = JSON.stringify(trace)
+    advance(300_000)
+    document.querySelector('button').click()
+    assert.equal(JSON.stringify(trace), before)
+  }
+})
+
+test('repeated Chat clicks cannot extend the active collection deadline', t => {
+  const { execute, window, document, advance, timers, listeners, observers } = collectorClock(t)
+  execute(installRestartDomCapture, 'clockKey')
+  const state = window.clockKey
+  document.querySelector('button').click()
+  advance(59_999)
+  document.querySelector('button').click()
+  assert.equal(timers.size, 1)
+  advance(1)
+  assert.equal(state.dispose('check').events.at(-1).reason, 'lifetime')
+  assert.equal(window.clockKey, undefined)
+  assert.equal(timers.size + listeners.size + observers.size, 0)
 })
