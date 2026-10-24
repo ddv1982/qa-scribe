@@ -122,8 +122,13 @@ export function createRecordActionCoordination(ctx: RecordPersistenceContext) {
     const intent = draftIntents.get(id)
     if (!intent?.restore) return true
     try {
-      const restored = await trackWrite(updateDraft(id, draftPersistencePatch(intent.restore), intent.expected ?? await recordWriteGuard(ctx.records.savedDraftsRef.current.find(record => record.id === id) ?? intent.restore, 'drafts')))
-      if (draftIntents.get(id) !== intent) return reconcileDraftIntent(id)
+      const expected = intent.expected ?? await recordWriteGuard(ctx.records.savedDraftsRef.current.find(record => record.id === id) ?? intent.restore, 'drafts')
+      if (draftIntents.get(id) !== intent) return true
+      const restored = await trackWrite(updateDraft(id, draftPersistencePatch(intent.restore), expected))
+      if (draftIntents.get(id) !== intent) return true
+      const restoredGuard = await recordWriteGuard(restored, 'drafts')
+      if (draftIntents.get(id) !== intent) return true
+      latestWriteGuards.set(`draft:${id}`, restoredGuard)
       if (ctx.session.activeSessionIdRef.current === restored.sessionId) {
         ctx.records.savedDraftsRef.current = replaceRecord(ctx.records.savedDraftsRef.current, restored)
       }
@@ -137,10 +142,11 @@ export function createRecordActionCoordination(ctx: RecordPersistenceContext) {
       }
       if (!hasNewerLocalEdit) ctx.records.dirtyDraftIdsRef.current.delete(id)
       intent.compensationPending = false
+      events.onChanged()
       return true
     } catch (cause) {
+      if (draftIntents.get(id) !== intent) return true
       if (adoptConflict(cause)) { intent.compensationPending = false; return false }
-      if (draftIntents.get(id) !== intent) return reconcileDraftIntent(id)
       markDraftCompensationPending(intent.restore, cause)
       return false
     }
@@ -150,8 +156,13 @@ export function createRecordActionCoordination(ctx: RecordPersistenceContext) {
     const intent = findingIntents.get(id)
     if (!intent?.restore) return true
     try {
-      const restored = await trackWrite(updateFinding(id, findingPersistencePatch(intent.restore), intent.expected ?? await recordWriteGuard(ctx.records.savedFindingsRef.current.find(record => record.id === id) ?? intent.restore, 'findings')))
-      if (findingIntents.get(id) !== intent) return reconcileFindingIntent(id)
+      const expected = intent.expected ?? await recordWriteGuard(ctx.records.savedFindingsRef.current.find(record => record.id === id) ?? intent.restore, 'findings')
+      if (findingIntents.get(id) !== intent) return true
+      const restored = await trackWrite(updateFinding(id, findingPersistencePatch(intent.restore), expected))
+      if (findingIntents.get(id) !== intent) return true
+      const restoredGuard = await recordWriteGuard(restored, 'findings')
+      if (findingIntents.get(id) !== intent) return true
+      latestWriteGuards.set(`finding:${id}`, restoredGuard)
       if (ctx.session.activeSessionIdRef.current === restored.sessionId) {
         ctx.records.savedFindingsRef.current = replaceRecord(ctx.records.savedFindingsRef.current, restored)
       }
@@ -165,10 +176,11 @@ export function createRecordActionCoordination(ctx: RecordPersistenceContext) {
       }
       if (!hasNewerLocalEdit) ctx.records.dirtyFindingIdsRef.current.delete(id)
       intent.compensationPending = false
+      events.onChanged()
       return true
     } catch (cause) {
+      if (findingIntents.get(id) !== intent) return true
       if (adoptConflict(cause)) { intent.compensationPending = false; return false }
-      if (findingIntents.get(id) !== intent) return reconcileFindingIntent(id)
       markFindingCompensationPending(intent.restore, cause)
       return false
     }
