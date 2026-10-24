@@ -211,7 +211,7 @@ describe('Built application Chat image transport fixtures, without real vision o
       await previewPixels('[aria-label="Conversation transcript"] [aria-label="Message images"] img')
       const sent = await read('get_chat', { sessionId })
       assert.deepEqual(sent.messages[0].images, beforeReload.composerImages)
-      evidence.visual = await proveChatImagesVisual({ sessionId })
+      evidence.visual = await proveChatImagesVisual({ sessionId, include320: true })
       await reopen(title)
       await saved(sessionId, '', [])
       assert.deepEqual((await read('get_chat', { sessionId })).messages, sent.messages)
