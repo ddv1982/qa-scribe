@@ -1,0 +1,9 @@
+$ bun run --cwd frontend check
+$ bun run typecheck && bun run lint && bun run lint:css && bun run check:contrast
+$ tsc-rs --noEmit -p tsconfig.json && tsc-rs --noEmit -p tsconfig.node.json
+$ oxlint --type-aware --report-unused-disable-directives-severity error .
+$ node scripts/check-css-colors.mjs
+css colors: OK — all color literals confined to base.css and custom properties resolve
+action callers: OK; navigation, options, segmented selections and editor commands retain their semantic controls
+$ node scripts/check-contrast.mjs
+contrast: OK (96 token pairs checked, no skipped pairs)
