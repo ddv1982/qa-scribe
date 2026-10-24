@@ -172,7 +172,7 @@ describe('Built application Chat image transport fixtures, without real vision o
         await $('input[aria-label="Choose chat images"]').setValue(imageFixture.path)
         evidence.fileInputSelection = 'webdriver-file-input'
       } catch (error) {
-        if (!/unsupported|not implemented|invalid element state|not interactable|only.*text|file.*upload|JavaScript exception occurred/i.test(String(error.message))) throw error
+        if (!/unsupported|not implemented|invalid element state|InvalidStateError|not interactable|only.*text|file.*upload|JavaScript exception occurred/i.test(String(error.message))) throw error
         evidence.fileInputSelection = 'unsupported-driver; DOM-file-input-contract-only'
         assert.equal(await stageDomImage(imageFixture.filename, false), true)
       }
