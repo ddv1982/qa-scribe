@@ -1,0 +1,1043 @@
+{
+  "source": "/tmp/qa-scribe-recovery-native-20261024/native-recovery-4/chat-image-recovery-evidence.json",
+  "sourceSha256": "bb8c4e5d4928bced731eb3a752f7f1a83443da70b89d67a77e4862ca7694ff4f",
+  "status": "passed",
+  "results": [
+    {
+      "status": "passed",
+      "fileInput": "DOM FileList/change contract",
+      "osClipboard": "not-exercised",
+      "osIpcFailure": "not-exercised",
+      "geometry": [
+        {
+          "appearance": "light",
+          "width": 360,
+          "window": {
+            "requestedCssWidth": 360,
+            "actual": {
+              "devicePixelRatio": 1,
+              "height": 828,
+              "width": 360
+            },
+            "attempts": [
+              {
+                "request": {
+                  "width": 360,
+                  "height": 860
+                },
+                "actual": {
+                  "devicePixelRatio": 1,
+                  "height": 828,
+                  "width": 360
+                }
+              }
+            ]
+          },
+          "label": "Remove unverified uncertain_checkoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidation.png",
+          "screenshot": "/private/tmp/qa-scribe-recovery-native-20261024/native-recovery-4/chat-image-recovery-light-360-action-0.png",
+          "bodyWidth": 360,
+          "button": {
+            "bottom": 471.734375,
+            "height": 115.0625,
+            "left": 87,
+            "right": 313,
+            "top": 356.671875,
+            "width": 226
+          },
+          "centerHit": true,
+          "clientWidth": 224,
+          "clip": {
+            "bottom": 828,
+            "left": 13,
+            "right": 347,
+            "top": 0
+          },
+          "disabled": false,
+          "documentWidth": 360,
+          "panel": {
+            "bottom": 698.171875,
+            "height": 559.5,
+            "left": 29,
+            "right": 331,
+            "top": 138.671875,
+            "width": 302
+          },
+          "scrollWidth": 224,
+          "text": "Remove unverified uncertain_checkoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidation.png",
+          "theme": "light",
+          "viewport": {
+            "height": 828,
+            "width": 360
+          },
+          "whiteSpace": "normal"
+        },
+        {
+          "appearance": "light",
+          "width": 360,
+          "window": {
+            "requestedCssWidth": 360,
+            "actual": {
+              "devicePixelRatio": 1,
+              "height": 828,
+              "width": 360
+            },
+            "attempts": [
+              {
+                "request": {
+                  "width": 360,
+                  "height": 860
+                },
+                "actual": {
+                  "devicePixelRatio": 1,
+                  "height": 828,
+                  "width": 360
+                }
+              }
+            ]
+          },
+          "label": "Retry uncertain_checkoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidation.png",
+          "screenshot": "/private/tmp/qa-scribe-recovery-native-20261024/native-recovery-4/chat-image-recovery-light-360-action-1.png",
+          "bodyWidth": 360,
+          "button": {
+            "bottom": 461.953125,
+            "height": 96.21875,
+            "left": 38,
+            "right": 322,
+            "top": 365.734375,
+            "width": 284
+          },
+          "centerHit": true,
+          "clientWidth": 282,
+          "clip": {
+            "bottom": 804,
+            "left": 13,
+            "right": 347,
+            "top": 0
+          },
+          "disabled": false,
+          "documentWidth": 360,
+          "panel": {
+            "bottom": 575.171875,
+            "height": 559.5,
+            "left": 29,
+            "right": 331,
+            "top": 15.671875,
+            "width": 302
+          },
+          "scrollWidth": 282,
+          "text": "Retry uncertain_checkoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidation.png",
+          "theme": "light",
+          "viewport": {
+            "height": 828,
+            "width": 360
+          },
+          "whiteSpace": "normal"
+        },
+        {
+          "appearance": "light",
+          "width": 360,
+          "window": {
+            "requestedCssWidth": 360,
+            "actual": {
+              "devicePixelRatio": 1,
+              "height": 828,
+              "width": 360
+            },
+            "attempts": [
+              {
+                "request": {
+                  "width": 360,
+                  "height": 860
+                },
+                "actual": {
+                  "devicePixelRatio": 1,
+                  "height": 828,
+                  "width": 360
+                }
+              }
+            ]
+          },
+          "label": "Remove failed uncertain_checkoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidation.png",
+          "screenshot": "/private/tmp/qa-scribe-recovery-native-20261024/native-recovery-4/chat-image-recovery-light-360-action-2.png",
+          "bodyWidth": 360,
+          "button": {
+            "bottom": 553.171875,
+            "height": 96.21875,
+            "left": 38,
+            "right": 322,
+            "top": 456.953125,
+            "width": 284
+          },
+          "centerHit": true,
+          "clientWidth": 282,
+          "clip": {
+            "bottom": 795,
+            "left": 13,
+            "right": 347,
+            "top": 0
+          },
+          "disabled": false,
+          "documentWidth": 360,
+          "panel": {
+            "bottom": 566.171875,
+            "height": 559.5,
+            "left": 29,
+            "right": 331,
+            "top": 6.671875,
+            "width": 302
+          },
+          "scrollWidth": 282,
+          "text": "Remove failed uncertain_checkoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidation.png",
+          "theme": "light",
+          "viewport": {
+            "height": 828,
+            "width": 360
+          },
+          "whiteSpace": "normal"
+        },
+        {
+          "appearance": "light",
+          "width": 768,
+          "window": {
+            "requestedCssWidth": 768,
+            "actual": {
+              "devicePixelRatio": 1,
+              "height": 828,
+              "width": 768
+            },
+            "attempts": [
+              {
+                "request": {
+                  "width": 768,
+                  "height": 860
+                },
+                "actual": {
+                  "devicePixelRatio": 1,
+                  "height": 828,
+                  "width": 768
+                }
+              }
+            ]
+          },
+          "label": "Remove unverified uncertain_checkoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidation.png",
+          "screenshot": "/private/tmp/qa-scribe-recovery-native-20261024/native-recovery-4/chat-image-recovery-light-768-action-0.png",
+          "bodyWidth": 768,
+          "button": {
+            "bottom": 746.375,
+            "height": 77.375,
+            "left": 343,
+            "right": 709,
+            "top": 669,
+            "width": 366
+          },
+          "centerHit": true,
+          "clientWidth": 364,
+          "clip": {
+            "bottom": 791,
+            "left": 261,
+            "right": 751,
+            "top": 188
+          },
+          "disabled": false,
+          "documentWidth": 768,
+          "panel": {
+            "bottom": 935.125,
+            "height": 409.125,
+            "left": 285,
+            "right": 727,
+            "top": 526,
+            "width": 442
+          },
+          "scrollWidth": 364,
+          "text": "Remove unverified uncertain_checkoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidation.png",
+          "theme": "light",
+          "viewport": {
+            "height": 828,
+            "width": 768
+          },
+          "whiteSpace": "normal"
+        },
+        {
+          "appearance": "light",
+          "width": 768,
+          "window": {
+            "requestedCssWidth": 768,
+            "actual": {
+              "devicePixelRatio": 1,
+              "height": 828,
+              "width": 768
+            },
+            "attempts": [
+              {
+                "request": {
+                  "width": 768,
+                  "height": 860
+                },
+                "actual": {
+                  "devicePixelRatio": 1,
+                  "height": 828,
+                  "width": 768
+                }
+              }
+            ]
+          },
+          "label": "Retry uncertain_checkoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidation.png",
+          "screenshot": "/private/tmp/qa-scribe-recovery-native-20261024/native-recovery-4/chat-image-recovery-light-768-action-1.png",
+          "bodyWidth": 768,
+          "button": {
+            "bottom": 530.75,
+            "height": 77.375,
+            "left": 294,
+            "right": 718,
+            "top": 453.375,
+            "width": 424
+          },
+          "centerHit": true,
+          "clientWidth": 422,
+          "clip": {
+            "bottom": 791,
+            "left": 261,
+            "right": 751,
+            "top": 188
+          },
+          "disabled": false,
+          "documentWidth": 768,
+          "panel": {
+            "bottom": 625.125,
+            "height": 409.125,
+            "left": 285,
+            "right": 727,
+            "top": 216,
+            "width": 442
+          },
+          "scrollWidth": 422,
+          "text": "Retry uncertain_checkoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidation.png",
+          "theme": "light",
+          "viewport": {
+            "height": 828,
+            "width": 768
+          },
+          "whiteSpace": "normal"
+        },
+        {
+          "appearance": "light",
+          "width": 768,
+          "window": {
+            "requestedCssWidth": 768,
+            "actual": {
+              "devicePixelRatio": 1,
+              "height": 828,
+              "width": 768
+            },
+            "attempts": [
+              {
+                "request": {
+                  "width": 768,
+                  "height": 860
+                },
+                "actual": {
+                  "devicePixelRatio": 1,
+                  "height": 828,
+                  "width": 768
+                }
+              }
+            ]
+          },
+          "label": "Remove failed uncertain_checkoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidation.png",
+          "screenshot": "/private/tmp/qa-scribe-recovery-native-20261024/native-recovery-4/chat-image-recovery-light-768-action-2.png",
+          "bodyWidth": 768,
+          "button": {
+            "bottom": 612.125,
+            "height": 77.375,
+            "left": 294,
+            "right": 718,
+            "top": 534.75,
+            "width": 424
+          },
+          "centerHit": true,
+          "clientWidth": 422,
+          "clip": {
+            "bottom": 791,
+            "left": 261,
+            "right": 751,
+            "top": 188
+          },
+          "disabled": false,
+          "documentWidth": 768,
+          "panel": {
+            "bottom": 625.125,
+            "height": 409.125,
+            "left": 285,
+            "right": 727,
+            "top": 216,
+            "width": 442
+          },
+          "scrollWidth": 422,
+          "text": "Remove failed uncertain_checkoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidation.png",
+          "theme": "light",
+          "viewport": {
+            "height": 828,
+            "width": 768
+          },
+          "whiteSpace": "normal"
+        }
+      ],
+      "before": {
+        "schemaVersion": 15,
+        "attachments": [
+          {
+            "id": "7c7c3b21-1b92-4cbf-8609-8582309bc2b5",
+            "filename": "existing-image-a.png",
+            "relative_path": "attachments/5ec64534-5e44-4530-b36c-a6031ad652e9/5757fb61-3164-42d4-bc2d-6d8cee35de55_existing-image-a.png",
+            "sha256": "f6b373ee62d8abe053e1decceb83b38627e0ce3df932ce72729f10a2e6e8fc58",
+            "size_bytes": 77
+          }
+        ],
+        "composerIds": [
+          "7c7c3b21-1b92-4cbf-8609-8582309bc2b5"
+        ],
+        "messageCount": 0,
+        "aiRunCount": 0,
+        "pendingImports": 0,
+        "pendingCleanup": [],
+        "foreignKeyViolations": [],
+        "files": [
+          {
+            "relativePath": "attachments/5ec64534-5e44-4530-b36c-a6031ad652e9/5757fb61-3164-42d4-bc2d-6d8cee35de55_existing-image-a.png",
+            "exists": true,
+            "sha256": "f6b373ee62d8abe053e1decceb83b38627e0ce3df932ce72729f10a2e6e8fc58",
+            "sizeBytes": 77
+          }
+        ]
+      },
+      "committed": {
+        "schemaVersion": 15,
+        "attachments": [
+          {
+            "id": "20a3c1ee-b869-4919-b736-bc87e509e83c",
+            "filename": "uncertain_checkoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidation.png",
+            "relative_path": "attachments/5ec64534-5e44-4530-b36c-a6031ad652e9/b151337b-5ddd-4770-8048-0e187ef79022_uncertain_checkoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidation.png",
+            "sha256": "f6b373ee62d8abe053e1decceb83b38627e0ce3df932ce72729f10a2e6e8fc58",
+            "size_bytes": 77
+          },
+          {
+            "id": "7c7c3b21-1b92-4cbf-8609-8582309bc2b5",
+            "filename": "existing-image-a.png",
+            "relative_path": "attachments/5ec64534-5e44-4530-b36c-a6031ad652e9/5757fb61-3164-42d4-bc2d-6d8cee35de55_existing-image-a.png",
+            "sha256": "f6b373ee62d8abe053e1decceb83b38627e0ce3df932ce72729f10a2e6e8fc58",
+            "size_bytes": 77
+          }
+        ],
+        "composerIds": [
+          "7c7c3b21-1b92-4cbf-8609-8582309bc2b5",
+          "20a3c1ee-b869-4919-b736-bc87e509e83c"
+        ],
+        "messageCount": 0,
+        "aiRunCount": 0,
+        "pendingImports": 0,
+        "pendingCleanup": [],
+        "foreignKeyViolations": [],
+        "files": [
+          {
+            "relativePath": "attachments/5ec64534-5e44-4530-b36c-a6031ad652e9/5757fb61-3164-42d4-bc2d-6d8cee35de55_existing-image-a.png",
+            "exists": true,
+            "sha256": "f6b373ee62d8abe053e1decceb83b38627e0ce3df932ce72729f10a2e6e8fc58",
+            "sizeBytes": 77
+          },
+          {
+            "relativePath": "attachments/5ec64534-5e44-4530-b36c-a6031ad652e9/b151337b-5ddd-4770-8048-0e187ef79022_uncertain_checkoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidation.png",
+            "exists": true,
+            "sha256": "f6b373ee62d8abe053e1decceb83b38627e0ce3df932ce72729f10a2e6e8fc58",
+            "sizeBytes": 77
+          }
+        ]
+      },
+      "after": {
+        "schemaVersion": 15,
+        "attachments": [
+          {
+            "id": "7c7c3b21-1b92-4cbf-8609-8582309bc2b5",
+            "filename": "existing-image-a.png",
+            "relative_path": "attachments/5ec64534-5e44-4530-b36c-a6031ad652e9/5757fb61-3164-42d4-bc2d-6d8cee35de55_existing-image-a.png",
+            "sha256": "f6b373ee62d8abe053e1decceb83b38627e0ce3df932ce72729f10a2e6e8fc58",
+            "size_bytes": 77
+          }
+        ],
+        "composerIds": [
+          "7c7c3b21-1b92-4cbf-8609-8582309bc2b5"
+        ],
+        "messageCount": 0,
+        "aiRunCount": 0,
+        "pendingImports": 0,
+        "pendingCleanup": [],
+        "foreignKeyViolations": [],
+        "files": [
+          {
+            "relativePath": "attachments/5ec64534-5e44-4530-b36c-a6031ad652e9/5757fb61-3164-42d4-bc2d-6d8cee35de55_existing-image-a.png",
+            "exists": true,
+            "sha256": "f6b373ee62d8abe053e1decceb83b38627e0ce3df932ce72729f10a2e6e8fc58",
+            "sizeBytes": 77
+          },
+          {
+            "relativePath": "attachments/5ec64534-5e44-4530-b36c-a6031ad652e9/b151337b-5ddd-4770-8048-0e187ef79022_uncertain_checkoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidation.png",
+            "exists": false,
+            "sha256": null,
+            "sizeBytes": null
+          }
+        ]
+      },
+      "faultSummary": {
+        "injected": true,
+        "realCommit": {
+          "attachmentIds": [
+            "7c7c3b21-1b92-4cbf-8609-8582309bc2b5",
+            "20a3c1ee-b869-4919-b736-bc87e509e83c"
+          ],
+          "draftId": "86bb9b67-4810-4d56-9165-25c33d2d743b",
+          "revision": 4
+        },
+        "imports": [
+          {
+            "at": 3877,
+            "filename": "existing-image-a.png"
+          },
+          {
+            "at": 4048,
+            "filename": "uncertain_checkoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidation.png"
+          }
+        ],
+        "rejectedPreviews": [
+          "20a3c1ee-b869-4919-b736-bc87e509e83c",
+          "20a3c1ee-b869-4919-b736-bc87e509e83c",
+          "20a3c1ee-b869-4919-b736-bc87e509e83c",
+          "20a3c1ee-b869-4919-b736-bc87e509e83c"
+        ],
+        "starts": 0,
+        "restored": true,
+        "removal": {
+          "dismissedAt": 6720,
+          "removedAt": 6720
+        },
+        "invokeUnchanged": true
+      }
+    },
+    {
+      "status": "passed",
+      "fileInput": "DOM FileList/change contract",
+      "osClipboard": "not-exercised",
+      "osIpcFailure": "not-exercised",
+      "geometry": [
+        {
+          "appearance": "dark",
+          "width": 360,
+          "window": {
+            "requestedCssWidth": 360,
+            "actual": {
+              "devicePixelRatio": 1,
+              "height": 828,
+              "width": 360
+            },
+            "attempts": [
+              {
+                "request": {
+                  "width": 360,
+                  "height": 860
+                },
+                "actual": {
+                  "devicePixelRatio": 1,
+                  "height": 828,
+                  "width": 360
+                }
+              }
+            ]
+          },
+          "label": "Remove unverified uncertain_checkoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidation.png",
+          "screenshot": "/private/tmp/qa-scribe-recovery-native-20261024/native-recovery-4/chat-image-recovery-dark-360-action-0.png",
+          "bodyWidth": 360,
+          "button": {
+            "bottom": 471.734375,
+            "height": 115.0625,
+            "left": 87,
+            "right": 313,
+            "top": 356.671875,
+            "width": 226
+          },
+          "centerHit": true,
+          "clientWidth": 224,
+          "clip": {
+            "bottom": 828,
+            "left": 13,
+            "right": 347,
+            "top": 0
+          },
+          "disabled": false,
+          "documentWidth": 360,
+          "panel": {
+            "bottom": 698.171875,
+            "height": 559.5,
+            "left": 29,
+            "right": 331,
+            "top": 138.671875,
+            "width": 302
+          },
+          "scrollWidth": 224,
+          "text": "Remove unverified uncertain_checkoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidation.png",
+          "theme": "dark",
+          "viewport": {
+            "height": 828,
+            "width": 360
+          },
+          "whiteSpace": "normal"
+        },
+        {
+          "appearance": "dark",
+          "width": 360,
+          "window": {
+            "requestedCssWidth": 360,
+            "actual": {
+              "devicePixelRatio": 1,
+              "height": 828,
+              "width": 360
+            },
+            "attempts": [
+              {
+                "request": {
+                  "width": 360,
+                  "height": 860
+                },
+                "actual": {
+                  "devicePixelRatio": 1,
+                  "height": 828,
+                  "width": 360
+                }
+              }
+            ]
+          },
+          "label": "Retry uncertain_checkoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidation.png",
+          "screenshot": "/private/tmp/qa-scribe-recovery-native-20261024/native-recovery-4/chat-image-recovery-dark-360-action-1.png",
+          "bodyWidth": 360,
+          "button": {
+            "bottom": 461.953125,
+            "height": 96.21875,
+            "left": 38,
+            "right": 322,
+            "top": 365.734375,
+            "width": 284
+          },
+          "centerHit": true,
+          "clientWidth": 282,
+          "clip": {
+            "bottom": 804,
+            "left": 13,
+            "right": 347,
+            "top": 0
+          },
+          "disabled": false,
+          "documentWidth": 360,
+          "panel": {
+            "bottom": 575.171875,
+            "height": 559.5,
+            "left": 29,
+            "right": 331,
+            "top": 15.671875,
+            "width": 302
+          },
+          "scrollWidth": 282,
+          "text": "Retry uncertain_checkoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidation.png",
+          "theme": "dark",
+          "viewport": {
+            "height": 828,
+            "width": 360
+          },
+          "whiteSpace": "normal"
+        },
+        {
+          "appearance": "dark",
+          "width": 360,
+          "window": {
+            "requestedCssWidth": 360,
+            "actual": {
+              "devicePixelRatio": 1,
+              "height": 828,
+              "width": 360
+            },
+            "attempts": [
+              {
+                "request": {
+                  "width": 360,
+                  "height": 860
+                },
+                "actual": {
+                  "devicePixelRatio": 1,
+                  "height": 828,
+                  "width": 360
+                }
+              }
+            ]
+          },
+          "label": "Remove failed uncertain_checkoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidation.png",
+          "screenshot": "/private/tmp/qa-scribe-recovery-native-20261024/native-recovery-4/chat-image-recovery-dark-360-action-2.png",
+          "bodyWidth": 360,
+          "button": {
+            "bottom": 553.171875,
+            "height": 96.21875,
+            "left": 38,
+            "right": 322,
+            "top": 456.953125,
+            "width": 284
+          },
+          "centerHit": true,
+          "clientWidth": 282,
+          "clip": {
+            "bottom": 795,
+            "left": 13,
+            "right": 347,
+            "top": 0
+          },
+          "disabled": false,
+          "documentWidth": 360,
+          "panel": {
+            "bottom": 566.171875,
+            "height": 559.5,
+            "left": 29,
+            "right": 331,
+            "top": 6.671875,
+            "width": 302
+          },
+          "scrollWidth": 282,
+          "text": "Remove failed uncertain_checkoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidation.png",
+          "theme": "dark",
+          "viewport": {
+            "height": 828,
+            "width": 360
+          },
+          "whiteSpace": "normal"
+        },
+        {
+          "appearance": "dark",
+          "width": 768,
+          "window": {
+            "requestedCssWidth": 768,
+            "actual": {
+              "devicePixelRatio": 1,
+              "height": 828,
+              "width": 768
+            },
+            "attempts": [
+              {
+                "request": {
+                  "width": 768,
+                  "height": 860
+                },
+                "actual": {
+                  "devicePixelRatio": 1,
+                  "height": 828,
+                  "width": 768
+                }
+              }
+            ]
+          },
+          "label": "Remove unverified uncertain_checkoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidation.png",
+          "screenshot": "/private/tmp/qa-scribe-recovery-native-20261024/native-recovery-4/chat-image-recovery-dark-768-action-0.png",
+          "bodyWidth": 768,
+          "button": {
+            "bottom": 746.375,
+            "height": 77.375,
+            "left": 343,
+            "right": 709,
+            "top": 669,
+            "width": 366
+          },
+          "centerHit": true,
+          "clientWidth": 364,
+          "clip": {
+            "bottom": 791,
+            "left": 261,
+            "right": 751,
+            "top": 188
+          },
+          "disabled": false,
+          "documentWidth": 768,
+          "panel": {
+            "bottom": 935.125,
+            "height": 409.125,
+            "left": 285,
+            "right": 727,
+            "top": 526,
+            "width": 442
+          },
+          "scrollWidth": 364,
+          "text": "Remove unverified uncertain_checkoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidation.png",
+          "theme": "dark",
+          "viewport": {
+            "height": 828,
+            "width": 768
+          },
+          "whiteSpace": "normal"
+        },
+        {
+          "appearance": "dark",
+          "width": 768,
+          "window": {
+            "requestedCssWidth": 768,
+            "actual": {
+              "devicePixelRatio": 1,
+              "height": 828,
+              "width": 768
+            },
+            "attempts": [
+              {
+                "request": {
+                  "width": 768,
+                  "height": 860
+                },
+                "actual": {
+                  "devicePixelRatio": 1,
+                  "height": 828,
+                  "width": 768
+                }
+              }
+            ]
+          },
+          "label": "Retry uncertain_checkoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidation.png",
+          "screenshot": "/private/tmp/qa-scribe-recovery-native-20261024/native-recovery-4/chat-image-recovery-dark-768-action-1.png",
+          "bodyWidth": 768,
+          "button": {
+            "bottom": 530.75,
+            "height": 77.375,
+            "left": 294,
+            "right": 718,
+            "top": 453.375,
+            "width": 424
+          },
+          "centerHit": true,
+          "clientWidth": 422,
+          "clip": {
+            "bottom": 791,
+            "left": 261,
+            "right": 751,
+            "top": 188
+          },
+          "disabled": false,
+          "documentWidth": 768,
+          "panel": {
+            "bottom": 625.125,
+            "height": 409.125,
+            "left": 285,
+            "right": 727,
+            "top": 216,
+            "width": 442
+          },
+          "scrollWidth": 422,
+          "text": "Retry uncertain_checkoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidation.png",
+          "theme": "dark",
+          "viewport": {
+            "height": 828,
+            "width": 768
+          },
+          "whiteSpace": "normal"
+        },
+        {
+          "appearance": "dark",
+          "width": 768,
+          "window": {
+            "requestedCssWidth": 768,
+            "actual": {
+              "devicePixelRatio": 1,
+              "height": 828,
+              "width": 768
+            },
+            "attempts": [
+              {
+                "request": {
+                  "width": 768,
+                  "height": 860
+                },
+                "actual": {
+                  "devicePixelRatio": 1,
+                  "height": 828,
+                  "width": 768
+                }
+              }
+            ]
+          },
+          "label": "Remove failed uncertain_checkoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidation.png",
+          "screenshot": "/private/tmp/qa-scribe-recovery-native-20261024/native-recovery-4/chat-image-recovery-dark-768-action-2.png",
+          "bodyWidth": 768,
+          "button": {
+            "bottom": 612.125,
+            "height": 77.375,
+            "left": 294,
+            "right": 718,
+            "top": 534.75,
+            "width": 424
+          },
+          "centerHit": true,
+          "clientWidth": 422,
+          "clip": {
+            "bottom": 791,
+            "left": 261,
+            "right": 751,
+            "top": 188
+          },
+          "disabled": false,
+          "documentWidth": 768,
+          "panel": {
+            "bottom": 625.125,
+            "height": 409.125,
+            "left": 285,
+            "right": 727,
+            "top": 216,
+            "width": 442
+          },
+          "scrollWidth": 422,
+          "text": "Remove failed uncertain_checkoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidation.png",
+          "theme": "dark",
+          "viewport": {
+            "height": 828,
+            "width": 768
+          },
+          "whiteSpace": "normal"
+        }
+      ],
+      "before": {
+        "schemaVersion": 15,
+        "attachments": [
+          {
+            "id": "f8097353-e1e7-4703-9999-871ebb9a5f02",
+            "filename": "existing-image-a.png",
+            "relative_path": "attachments/fc7ff0f8-9d35-4467-87f1-33e81c02cb9d/fd91f30a-c73a-4a93-8fa0-514932928627_existing-image-a.png",
+            "sha256": "f6b373ee62d8abe053e1decceb83b38627e0ce3df932ce72729f10a2e6e8fc58",
+            "size_bytes": 77
+          }
+        ],
+        "composerIds": [
+          "f8097353-e1e7-4703-9999-871ebb9a5f02"
+        ],
+        "messageCount": 0,
+        "aiRunCount": 0,
+        "pendingImports": 0,
+        "pendingCleanup": [],
+        "foreignKeyViolations": [],
+        "files": [
+          {
+            "relativePath": "attachments/fc7ff0f8-9d35-4467-87f1-33e81c02cb9d/fd91f30a-c73a-4a93-8fa0-514932928627_existing-image-a.png",
+            "exists": true,
+            "sha256": "f6b373ee62d8abe053e1decceb83b38627e0ce3df932ce72729f10a2e6e8fc58",
+            "sizeBytes": 77
+          }
+        ]
+      },
+      "committed": {
+        "schemaVersion": 15,
+        "attachments": [
+          {
+            "id": "0b00422d-3585-40ef-a3a7-7b78d16e2717",
+            "filename": "uncertain_checkoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidation.png",
+            "relative_path": "attachments/fc7ff0f8-9d35-4467-87f1-33e81c02cb9d/27e26c9f-d098-4cc5-b5f0-c85984574ae0_uncertain_checkoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidation.png",
+            "sha256": "f6b373ee62d8abe053e1decceb83b38627e0ce3df932ce72729f10a2e6e8fc58",
+            "size_bytes": 77
+          },
+          {
+            "id": "f8097353-e1e7-4703-9999-871ebb9a5f02",
+            "filename": "existing-image-a.png",
+            "relative_path": "attachments/fc7ff0f8-9d35-4467-87f1-33e81c02cb9d/fd91f30a-c73a-4a93-8fa0-514932928627_existing-image-a.png",
+            "sha256": "f6b373ee62d8abe053e1decceb83b38627e0ce3df932ce72729f10a2e6e8fc58",
+            "size_bytes": 77
+          }
+        ],
+        "composerIds": [
+          "f8097353-e1e7-4703-9999-871ebb9a5f02",
+          "0b00422d-3585-40ef-a3a7-7b78d16e2717"
+        ],
+        "messageCount": 0,
+        "aiRunCount": 0,
+        "pendingImports": 0,
+        "pendingCleanup": [],
+        "foreignKeyViolations": [],
+        "files": [
+          {
+            "relativePath": "attachments/fc7ff0f8-9d35-4467-87f1-33e81c02cb9d/27e26c9f-d098-4cc5-b5f0-c85984574ae0_uncertain_checkoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidation.png",
+            "exists": true,
+            "sha256": "f6b373ee62d8abe053e1decceb83b38627e0ce3df932ce72729f10a2e6e8fc58",
+            "sizeBytes": 77
+          },
+          {
+            "relativePath": "attachments/fc7ff0f8-9d35-4467-87f1-33e81c02cb9d/fd91f30a-c73a-4a93-8fa0-514932928627_existing-image-a.png",
+            "exists": true,
+            "sha256": "f6b373ee62d8abe053e1decceb83b38627e0ce3df932ce72729f10a2e6e8fc58",
+            "sizeBytes": 77
+          }
+        ]
+      },
+      "after": {
+        "schemaVersion": 15,
+        "attachments": [
+          {
+            "id": "f8097353-e1e7-4703-9999-871ebb9a5f02",
+            "filename": "existing-image-a.png",
+            "relative_path": "attachments/fc7ff0f8-9d35-4467-87f1-33e81c02cb9d/fd91f30a-c73a-4a93-8fa0-514932928627_existing-image-a.png",
+            "sha256": "f6b373ee62d8abe053e1decceb83b38627e0ce3df932ce72729f10a2e6e8fc58",
+            "size_bytes": 77
+          }
+        ],
+        "composerIds": [
+          "f8097353-e1e7-4703-9999-871ebb9a5f02"
+        ],
+        "messageCount": 0,
+        "aiRunCount": 0,
+        "pendingImports": 0,
+        "pendingCleanup": [],
+        "foreignKeyViolations": [],
+        "files": [
+          {
+            "relativePath": "attachments/fc7ff0f8-9d35-4467-87f1-33e81c02cb9d/27e26c9f-d098-4cc5-b5f0-c85984574ae0_uncertain_checkoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidation.png",
+            "exists": false,
+            "sha256": null,
+            "sizeBytes": null
+          },
+          {
+            "relativePath": "attachments/fc7ff0f8-9d35-4467-87f1-33e81c02cb9d/fd91f30a-c73a-4a93-8fa0-514932928627_existing-image-a.png",
+            "exists": true,
+            "sha256": "f6b373ee62d8abe053e1decceb83b38627e0ce3df932ce72729f10a2e6e8fc58",
+            "sizeBytes": 77
+          }
+        ]
+      },
+      "faultSummary": {
+        "injected": true,
+        "realCommit": {
+          "attachmentIds": [
+            "f8097353-e1e7-4703-9999-871ebb9a5f02",
+            "0b00422d-3585-40ef-a3a7-7b78d16e2717"
+          ],
+          "draftId": "b86d7831-6ee4-41ac-8372-d3678acf5d80",
+          "revision": 4
+        },
+        "imports": [
+          {
+            "at": 9137,
+            "filename": "existing-image-a.png"
+          },
+          {
+            "at": 9296,
+            "filename": "uncertain_checkoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidationcheckoutValidation.png"
+          }
+        ],
+        "rejectedPreviews": [
+          "0b00422d-3585-40ef-a3a7-7b78d16e2717",
+          "0b00422d-3585-40ef-a3a7-7b78d16e2717",
+          "0b00422d-3585-40ef-a3a7-7b78d16e2717",
+          "0b00422d-3585-40ef-a3a7-7b78d16e2717"
+        ],
+        "starts": 0,
+        "restored": true,
+        "removal": {
+          "dismissedAt": 11861,
+          "removedAt": 11861
+        },
+        "invokeUnchanged": true
+      }
+    }
+  ]
+}

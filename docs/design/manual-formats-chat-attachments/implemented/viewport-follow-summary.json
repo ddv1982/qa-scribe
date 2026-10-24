@@ -1,0 +1,884 @@
+{
+  "scope": "private visual unit only; pinned8ae plus exactly hook/test, no schema15 or recovery-owner changes",
+  "negativeBinary": {
+    "head": "8ae566c92533d1c2031e3dc6c57783bb6da18949",
+    "source": "/tmp/qa-scribe-viewport-follow-20261024/pinned-source",
+    "binary": "/tmp/qa-scribe-viewport-follow-20261024/negative-target/debug/qa-scribe-tauri",
+    "sha256": "2ea009c89a9d4e6bb96b70ac182f84c007d97218e30e6f43e2a47451aab63b19",
+    "originalBinary": "/tmp/qa-scribe-review-8ae566c-round5-20261024/target/debug/qa-scribe-tauri",
+    "skipBuild": true
+  },
+  "fixedBinary": {
+    "base": "8ae566c92533d1c2031e3dc6c57783bb6da18949",
+    "binary": "/tmp/qa-scribe-viewport-follow-20261024/fixed-target/debug/qa-scribe-tauri",
+    "sha256": "d9cef06d02a4c1b3f3b23f8657b8bc3e4a35a2d50ea1dfa3dd54653e74ac49d7",
+    "sourceIdentity": "/tmp/qa-scribe-viewport-follow-20261024/fixed-source-identity.json",
+    "originalReviewSha256": "2ea009c89a9d4e6bb96b70ac182f84c007d97218e30e6f43e2a47451aab63b19"
+  },
+  "source": {
+    "base": "8ae566c92533d1c2031e3dc6c57783bb6da18949",
+    "changed": [
+      {
+        "path": "frontend/src/views/useChatTranscriptScroll.test.tsx",
+        "pinnedSha256": "0ee9c7a7d9a485cc20e7e42b130d397de4370dc4d4cb8a9f8b34b40053c9cc1c",
+        "fixedSha256": "a844d07eba4a632402b4d4ec7f5c0cb897e25d8f9c45d62ede4df71f35620cd2"
+      },
+      {
+        "path": "frontend/src/views/useChatTranscriptScroll.ts",
+        "pinnedSha256": "fe4b68835e73c140637829ae22e69c00dd7d0e08d85334936f471bda9251dacf",
+        "fixedSha256": "0931c7fd1f15e5c00ebca83d7efb8e6b2126f64ed948e1603e4d7fdd78f4155f"
+      }
+    ],
+    "allOtherArchivedFilesMatch": true,
+    "extraProbe": "e2e/specs/focused-window-fixed.e2e.mjs is a disposable native test only",
+    "testOnlyAdditionAfterBuild": "active-output focused native-resize unit assertion; production hook SHA unchanged"
+  },
+  "nativeReceipts": {
+    "negative-native": {
+      "version": 1,
+      "spec": "chat-images.e2e.mjs",
+      "completed": true,
+      "passed": 0,
+      "failed": 1,
+      "skipped": 0
+    },
+    "fixed-images-native": {
+      "version": 1,
+      "spec": "chat-images.e2e.mjs",
+      "completed": true,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0
+    },
+    "fixed-cap-native": {
+      "version": 1,
+      "spec": "chat-images.e2e.mjs",
+      "completed": true,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0
+    },
+    "focused-counter-native": {
+      "version": 1,
+      "spec": "focused-window-probe.e2e.mjs",
+      "completed": true,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0
+    },
+    "focused-fixed-native": {
+      "version": 1,
+      "spec": "focused-window-fixed.e2e.mjs",
+      "completed": true,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0
+    },
+    "fixed-short-native": {
+      "version": 1,
+      "spec": "short-window-visual.e2e.mjs",
+      "completed": true,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0
+    }
+  },
+  "negativeVisibility": {
+    "status": "failed",
+    "failures": [
+      "light-360 latest assistant text is visible on return to Chat",
+      "dark-360 latest assistant text is visible on return to Chat"
+    ],
+    "cases": [
+      {
+        "label": "light-1280-empty-before-manual-scroll",
+        "viewport": {
+          "devicePixelRatio": 1,
+          "height": 828,
+          "width": 1280
+        },
+        "rect": {
+          "bottom": 521.1875,
+          "height": 20.796875,
+          "left": 342,
+          "right": 1186,
+          "top": 500.390625,
+          "width": 844
+        },
+        "clip": {
+          "bottom": 573,
+          "left": 323,
+          "right": 1205,
+          "top": 266
+        },
+        "fullyVisible": true
+      },
+      {
+        "label": "light-768-empty-before-manual-scroll",
+        "viewport": {
+          "devicePixelRatio": 1,
+          "height": 828,
+          "width": 768
+        },
+        "rect": {
+          "bottom": 533.765625,
+          "height": 41.59375,
+          "left": 304,
+          "right": 708,
+          "top": 492.171875,
+          "width": 404
+        },
+        "clip": {
+          "bottom": 573,
+          "left": 285,
+          "right": 727,
+          "top": 258
+        },
+        "fullyVisible": true
+      },
+      {
+        "label": "light-360-empty-before-manual-scroll",
+        "viewport": {
+          "devicePixelRatio": 1,
+          "height": 828,
+          "width": 360
+        },
+        "rect": {
+          "bottom": 830.765625,
+          "height": 41.59375,
+          "left": 44,
+          "right": 316,
+          "top": 789.171875,
+          "width": 272
+        },
+        "clip": {
+          "bottom": 828,
+          "left": 13,
+          "right": 347,
+          "top": 322
+        },
+        "fullyVisible": false
+      },
+      {
+        "label": "dark-1280-empty-before-manual-scroll",
+        "viewport": {
+          "devicePixelRatio": 1,
+          "height": 828,
+          "width": 1280
+        },
+        "rect": {
+          "bottom": 521.1875,
+          "height": 20.796875,
+          "left": 342,
+          "right": 1186,
+          "top": 500.390625,
+          "width": 844
+        },
+        "clip": {
+          "bottom": 573,
+          "left": 323,
+          "right": 1205,
+          "top": 266
+        },
+        "fullyVisible": true
+      },
+      {
+        "label": "dark-768-empty-before-manual-scroll",
+        "viewport": {
+          "devicePixelRatio": 1,
+          "height": 828,
+          "width": 768
+        },
+        "rect": {
+          "bottom": 533.765625,
+          "height": 41.59375,
+          "left": 304,
+          "right": 708,
+          "top": 492.171875,
+          "width": 404
+        },
+        "clip": {
+          "bottom": 573,
+          "left": 285,
+          "right": 727,
+          "top": 258
+        },
+        "fullyVisible": true
+      },
+      {
+        "label": "dark-360-empty-before-manual-scroll",
+        "viewport": {
+          "devicePixelRatio": 1,
+          "height": 828,
+          "width": 360
+        },
+        "rect": {
+          "bottom": 830.765625,
+          "height": 41.59375,
+          "left": 44,
+          "right": 316,
+          "top": 789.171875,
+          "width": 272
+        },
+        "clip": {
+          "bottom": 828,
+          "left": 13,
+          "right": 347,
+          "top": 322
+        },
+        "fullyVisible": false
+      }
+    ]
+  },
+  "fixedVisibility": {
+    "status": "passed",
+    "failures": [],
+    "cases": [
+      {
+        "label": "light-1280-empty-before-manual-scroll",
+        "viewport": {
+          "devicePixelRatio": 1,
+          "height": 828,
+          "width": 1280
+        },
+        "rect": {
+          "bottom": 521.1875,
+          "height": 20.796875,
+          "left": 342,
+          "right": 1186,
+          "top": 500.390625,
+          "width": 844
+        },
+        "clip": {
+          "bottom": 573,
+          "left": 323,
+          "right": 1205,
+          "top": 266
+        },
+        "fullyVisible": true
+      },
+      {
+        "label": "light-768-empty-before-manual-scroll",
+        "viewport": {
+          "devicePixelRatio": 1,
+          "height": 828,
+          "width": 768
+        },
+        "rect": {
+          "bottom": 520.765625,
+          "height": 41.59375,
+          "left": 304,
+          "right": 708,
+          "top": 479.171875,
+          "width": 404
+        },
+        "clip": {
+          "bottom": 573,
+          "left": 285,
+          "right": 727,
+          "top": 258
+        },
+        "fullyVisible": true
+      },
+      {
+        "label": "light-360-empty-before-manual-scroll",
+        "viewport": {
+          "devicePixelRatio": 1,
+          "height": 828,
+          "width": 360
+        },
+        "rect": {
+          "bottom": 778.765625,
+          "height": 41.59375,
+          "left": 44,
+          "right": 316,
+          "top": 737.171875,
+          "width": 272
+        },
+        "clip": {
+          "bottom": 828,
+          "left": 13,
+          "right": 347,
+          "top": 270
+        },
+        "fullyVisible": true
+      },
+      {
+        "label": "dark-1280-empty-before-manual-scroll",
+        "viewport": {
+          "devicePixelRatio": 1,
+          "height": 828,
+          "width": 1280
+        },
+        "rect": {
+          "bottom": 521.1875,
+          "height": 20.796875,
+          "left": 342,
+          "right": 1186,
+          "top": 500.390625,
+          "width": 844
+        },
+        "clip": {
+          "bottom": 573,
+          "left": 323,
+          "right": 1205,
+          "top": 266
+        },
+        "fullyVisible": true
+      },
+      {
+        "label": "dark-768-empty-before-manual-scroll",
+        "viewport": {
+          "devicePixelRatio": 1,
+          "height": 828,
+          "width": 768
+        },
+        "rect": {
+          "bottom": 520.765625,
+          "height": 41.59375,
+          "left": 304,
+          "right": 708,
+          "top": 479.171875,
+          "width": 404
+        },
+        "clip": {
+          "bottom": 573,
+          "left": 285,
+          "right": 727,
+          "top": 258
+        },
+        "fullyVisible": true
+      },
+      {
+        "label": "dark-360-empty-before-manual-scroll",
+        "viewport": {
+          "devicePixelRatio": 1,
+          "height": 828,
+          "width": 360
+        },
+        "rect": {
+          "bottom": 778.765625,
+          "height": 41.59375,
+          "left": 44,
+          "right": 316,
+          "top": 737.171875,
+          "width": 272
+        },
+        "clip": {
+          "bottom": 828,
+          "left": 13,
+          "right": 347,
+          "top": 270
+        },
+        "fullyVisible": true
+      }
+    ]
+  },
+  "shortHeightVisibility": {
+    "status": "passed",
+    "failures": [],
+    "cases": [
+      {
+        "label": "light-1280-empty-before-manual-scroll",
+        "viewport": {
+          "devicePixelRatio": 1,
+          "height": 645,
+          "width": 1280
+        },
+        "rect": {
+          "bottom": 354.1875,
+          "height": 20.796875,
+          "left": 342,
+          "right": 1186,
+          "top": 333.390625,
+          "width": 844
+        },
+        "clip": {
+          "bottom": 406,
+          "left": 323,
+          "right": 1205,
+          "top": 242
+        },
+        "fullyVisible": true
+      },
+      {
+        "label": "light-768-empty-before-manual-scroll",
+        "viewport": {
+          "devicePixelRatio": 1,
+          "height": 645,
+          "width": 768
+        },
+        "rect": {
+          "bottom": 353.765625,
+          "height": 41.59375,
+          "left": 304,
+          "right": 708,
+          "top": 312.171875,
+          "width": 404
+        },
+        "clip": {
+          "bottom": 406,
+          "left": 285,
+          "right": 727,
+          "top": 234
+        },
+        "fullyVisible": true
+      },
+      {
+        "label": "light-360-empty-before-manual-scroll",
+        "viewport": {
+          "devicePixelRatio": 1,
+          "height": 645,
+          "width": 360
+        },
+        "rect": {
+          "bottom": 595.765625,
+          "height": 41.59375,
+          "left": 44,
+          "right": 316,
+          "top": 554.171875,
+          "width": 272
+        },
+        "clip": {
+          "bottom": 645,
+          "left": 13,
+          "right": 347,
+          "top": 87
+        },
+        "fullyVisible": true
+      },
+      {
+        "label": "dark-1280-empty-before-manual-scroll",
+        "viewport": {
+          "devicePixelRatio": 1,
+          "height": 645,
+          "width": 1280
+        },
+        "rect": {
+          "bottom": 354.1875,
+          "height": 20.796875,
+          "left": 342,
+          "right": 1186,
+          "top": 333.390625,
+          "width": 844
+        },
+        "clip": {
+          "bottom": 406,
+          "left": 323,
+          "right": 1205,
+          "top": 242
+        },
+        "fullyVisible": true
+      },
+      {
+        "label": "dark-768-empty-before-manual-scroll",
+        "viewport": {
+          "devicePixelRatio": 1,
+          "height": 645,
+          "width": 768
+        },
+        "rect": {
+          "bottom": 353.765625,
+          "height": 41.59375,
+          "left": 304,
+          "right": 708,
+          "top": 312.171875,
+          "width": 404
+        },
+        "clip": {
+          "bottom": 406,
+          "left": 285,
+          "right": 727,
+          "top": 234
+        },
+        "fullyVisible": true
+      },
+      {
+        "label": "dark-360-empty-before-manual-scroll",
+        "viewport": {
+          "devicePixelRatio": 1,
+          "height": 645,
+          "width": 360
+        },
+        "rect": {
+          "bottom": 595.765625,
+          "height": 41.59375,
+          "left": 44,
+          "right": 316,
+          "top": 554.171875,
+          "width": 272
+        },
+        "clip": {
+          "bottom": 645,
+          "left": 13,
+          "right": 347,
+          "top": 87
+        },
+        "fullyVisible": true
+      }
+    ]
+  },
+  "focusedCounterexample": {
+    "candidate": "unconditional window resize revealLatest",
+    "before": {
+      "composer": {
+        "bottom": 401.125,
+        "top": 312.734375
+      },
+      "draft": "Focused idle resize draft retained",
+      "focused": true,
+      "followingGeometry": true,
+      "send": {
+        "bottom": 445.125,
+        "top": 409.125
+      },
+      "viewport": {
+        "height": 520,
+        "width": 640
+      }
+    },
+    "after": {
+      "composer": {
+        "bottom": 1057.953125,
+        "top": 969.5625
+      },
+      "draft": "Focused idle resize draft retained",
+      "focused": true,
+      "followingGeometry": true,
+      "send": {
+        "bottom": 1131.34375,
+        "top": 1095.34375
+      },
+      "viewport": {
+        "height": 520,
+        "width": 600
+      }
+    }
+  },
+  "focusedFixed": {
+    "before": {
+      "composer": {
+        "bottom": 401.125,
+        "top": 312.734375
+      },
+      "draft": "Focused idle resize draft retained",
+      "focused": true,
+      "scrolls": [],
+      "send": {
+        "bottom": 445.125,
+        "top": 409.125
+      },
+      "viewport": {
+        "height": 520,
+        "width": 640
+      }
+    },
+    "after": {
+      "composer": {
+        "bottom": 432.953125,
+        "top": 344.5625
+      },
+      "draft": "Focused idle resize draft retained",
+      "focused": true,
+      "scrolls": [],
+      "send": {
+        "bottom": 506.34375,
+        "top": 470.34375
+      },
+      "viewport": {
+        "height": 520,
+        "width": 600
+      }
+    }
+  },
+  "shortComposer": [
+    {
+      "stage": "save-light-before",
+      "composer": {
+        "bottom": 444.78125,
+        "height": 88.390625,
+        "width": 582,
+        "x": 29,
+        "y": 356.390625
+      },
+      "counts": "2 / 128 messages \u00b7 9.2 / 128 KiB transcript",
+      "disabled": {
+        "add": true,
+        "restart": false,
+        "send": false
+      },
+      "draft": "Controlled light unsent message",
+      "model": "Next invocation \u00b7 Codex CLIModel5 models in static fallbackSaved for this provider across QA Scribe. Changes affect the next invocation.",
+      "reason": "Send or clear the unsent message before adding the conversation.",
+      "review": {
+        "expanded": "true",
+        "messages": [
+          "Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result.",
+          "Which build and environment did you test?"
+        ],
+        "text": "Read-only saved messages. Your unsent message is excluded from what is added to the note."
+      },
+      "send": {
+        "bottom": 488.78125,
+        "height": 36,
+        "width": 66.21875,
+        "x": 544.78125,
+        "y": 452.78125
+      },
+      "sendPaint": {
+        "background": "rgb(36, 86, 196)",
+        "text": "rgb(255, 255, 255)"
+      },
+      "viewport": {
+        "height": 520,
+        "width": 640
+      }
+    },
+    {
+      "stage": "save-light-pending",
+      "composer": {
+        "bottom": 444.78125,
+        "height": 88.390625,
+        "width": 582,
+        "x": 29,
+        "y": 356.390625
+      },
+      "counts": "2 / 128 messages \u00b7 9.2 / 128 KiB transcript",
+      "disabled": {
+        "add": true,
+        "restart": true,
+        "send": true
+      },
+      "draft": "Controlled light unsent message",
+      "model": "Next invocation \u00b7 Codex CLIModel5 models in static fallbackSaved for this provider across QA Scribe. Changes affect the next invocation.",
+      "reason": "Send or clear the unsent message before adding the conversation.",
+      "review": {
+        "expanded": "true",
+        "messages": [
+          "Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result.",
+          "Which build and environment did you test?"
+        ],
+        "text": "Read-only saved messages. Your unsent message is excluded from what is added to the note."
+      },
+      "send": {
+        "bottom": 488.78125,
+        "height": 36,
+        "width": 66.21875,
+        "x": 544.78125,
+        "y": 452.78125
+      },
+      "sendPaint": {
+        "background": "rgb(48, 95, 199)",
+        "text": "rgb(245, 246, 247)"
+      },
+      "viewport": {
+        "height": 520,
+        "width": 640
+      }
+    },
+    {
+      "stage": "save-light-completed",
+      "composer": {
+        "bottom": 444.78125,
+        "height": 88.390625,
+        "width": 582,
+        "x": 29,
+        "y": 356.390625
+      },
+      "counts": "2 / 128 messages \u00b7 9.2 / 128 KiB transcript",
+      "disabled": {
+        "add": true,
+        "restart": false,
+        "send": false
+      },
+      "draft": "Controlled light unsent message",
+      "model": "Next invocation \u00b7 Codex CLIModel5 models in static fallbackSaved for this provider across QA Scribe. Changes affect the next invocation.",
+      "reason": "Send or clear the unsent message before adding the conversation.",
+      "review": {
+        "expanded": "true",
+        "messages": [
+          "Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result.",
+          "Which build and environment did you test?"
+        ],
+        "text": "Read-only saved messages. Your unsent message is excluded from what is added to the note."
+      },
+      "send": {
+        "bottom": 488.78125,
+        "height": 36,
+        "width": 66.21875,
+        "x": 544.78125,
+        "y": 452.78125
+      },
+      "sendPaint": {
+        "background": "rgb(36, 86, 196)",
+        "text": "rgb(255, 255, 255)"
+      },
+      "viewport": {
+        "height": 520,
+        "width": 640
+      }
+    },
+    {
+      "stage": "save-light-result",
+      "failures": [],
+      "gate": {
+        "acknowledgment": {
+          "composer": "Controlled light unsent message",
+          "draftId": "182c5a0b-35ed-4e1c-aa0a-025af6b67adb",
+          "mode": "chat",
+          "revision": 6,
+          "sessionId": "457bd759-fb2b-4c3d-bc9a-6596838ac613"
+        },
+        "released": true,
+        "scrolls": []
+      }
+    },
+    {
+      "stage": "save-dark-before",
+      "composer": {
+        "bottom": 444.78125,
+        "height": 88.390625,
+        "width": 582,
+        "x": 29,
+        "y": 356.390625
+      },
+      "counts": "2 / 128 messages \u00b7 9.2 / 128 KiB transcript",
+      "disabled": {
+        "add": true,
+        "restart": false,
+        "send": false
+      },
+      "draft": "Controlled dark unsent message",
+      "model": "Next invocation \u00b7 Codex CLIModel5 models in static fallbackSaved for this provider across QA Scribe. Changes affect the next invocation.",
+      "reason": "Send or clear the unsent message before adding the conversation.",
+      "review": {
+        "expanded": "true",
+        "messages": [
+          "Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result.",
+          "Which build and environment did you test?"
+        ],
+        "text": "Read-only saved messages. Your unsent message is excluded from what is added to the note."
+      },
+      "send": {
+        "bottom": 488.78125,
+        "height": 36,
+        "width": 66.21875,
+        "x": 544.78125,
+        "y": 452.78125
+      },
+      "sendPaint": {
+        "background": "rgb(36, 86, 196)",
+        "text": "rgb(255, 255, 255)"
+      },
+      "viewport": {
+        "height": 520,
+        "width": 640
+      }
+    },
+    {
+      "stage": "save-dark-pending",
+      "composer": {
+        "bottom": 444.78125,
+        "height": 88.390625,
+        "width": 582,
+        "x": 29,
+        "y": 356.390625
+      },
+      "counts": "2 / 128 messages \u00b7 9.2 / 128 KiB transcript",
+      "disabled": {
+        "add": true,
+        "restart": true,
+        "send": true
+      },
+      "draft": "Controlled dark unsent message",
+      "model": "Next invocation \u00b7 Codex CLIModel5 models in static fallbackSaved for this provider across QA Scribe. Changes affect the next invocation.",
+      "reason": "Send or clear the unsent message before adding the conversation.",
+      "review": {
+        "expanded": "true",
+        "messages": [
+          "Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result.",
+          "Which build and environment did you test?"
+        ],
+        "text": "Read-only saved messages. Your unsent message is excluded from what is added to the note."
+      },
+      "send": {
+        "bottom": 488.78125,
+        "height": 36,
+        "width": 66.21875,
+        "x": 544.78125,
+        "y": 452.78125
+      },
+      "sendPaint": {
+        "background": "rgb(35, 82, 184)",
+        "text": "rgb(249, 250, 251)"
+      },
+      "viewport": {
+        "height": 520,
+        "width": 640
+      }
+    },
+    {
+      "stage": "save-dark-completed",
+      "composer": {
+        "bottom": 444.78125,
+        "height": 88.390625,
+        "width": 582,
+        "x": 29,
+        "y": 356.390625
+      },
+      "counts": "2 / 128 messages \u00b7 9.2 / 128 KiB transcript",
+      "disabled": {
+        "add": true,
+        "restart": false,
+        "send": false
+      },
+      "draft": "Controlled dark unsent message",
+      "model": "Next invocation \u00b7 Codex CLIModel5 models in static fallbackSaved for this provider across QA Scribe. Changes affect the next invocation.",
+      "reason": "Send or clear the unsent message before adding the conversation.",
+      "review": {
+        "expanded": "true",
+        "messages": [
+          "Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result. Checkout evidence and expected result.",
+          "Which build and environment did you test?"
+        ],
+        "text": "Read-only saved messages. Your unsent message is excluded from what is added to the note."
+      },
+      "send": {
+        "bottom": 488.78125,
+        "height": 36,
+        "width": 66.21875,
+        "x": 544.78125,
+        "y": 452.78125
+      },
+      "sendPaint": {
+        "background": "rgb(36, 86, 196)",
+        "text": "rgb(255, 255, 255)"
+      },
+      "viewport": {
+        "height": 520,
+        "width": 640
+      }
+    },
+    {
+      "stage": "save-dark-result",
+      "failures": [],
+      "gate": {
+        "acknowledgment": {
+          "composer": "Controlled dark unsent message",
+          "draftId": "182c5a0b-35ed-4e1c-aa0a-025af6b67adb",
+          "mode": "chat",
+          "revision": 7,
+          "sessionId": "457bd759-fb2b-4c3d-bc9a-6596838ac613"
+        },
+        "released": true,
+        "scrolls": []
+      }
+    }
+  ],
+  "originalReviewBinaryStillUnchanged": true,
+  "port4445Free": true,
+  "extraHarness": "cap run only caps native requested height to677 to reach actual645; full maintained assertions untouched",
+  "priorProofs": "Existing6UI/4format receipts retained, not rerun this round",
+  "rootBuildPerformed": false,
+  "newCommentsOrSuppressions": 0
+}
