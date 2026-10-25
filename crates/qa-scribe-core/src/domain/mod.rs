@@ -1,6 +1,8 @@
 mod ai_run;
 mod attachment;
 mod chat;
+mod chat_conversation;
+pub use chat_conversation::*;
 mod chat_context;
 mod chat_interaction;
 mod chat_response;

@@ -72,6 +72,11 @@ pub struct ChatSubmissionReceipt {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ChatState {
+    pub owner: super::ConversationOwner,
+    pub archived: bool,
+    pub composer_intent: super::ChatComposerIntent,
+    pub last_active_order: i64,
+    pub last_active_at: String,
     #[serde(default)]
     #[specta(optional)]
     pub pending_response: Option<super::ChatResponsePurpose>,
@@ -100,6 +105,8 @@ pub struct ChatRevision {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ChatComposerRequest {
+    #[serde(default)]
+    pub intent: super::ChatComposerIntent,
     #[serde(default)]
     pub attachment_ids: Vec<String>,
     pub scope: ChatRevision,

@@ -8,6 +8,7 @@ pub(super) fn create(connection: &Connection, session_id: &str) -> Result<ChatSt
         "INSERT INTO chat_drafts (id, session_id, created_at) VALUES (?1, ?2, ?3)",
         params![id, session_id, now()],
     )?;
+    touch_activity(connection, &id)?;
     read(connection, &id)
 }
 
@@ -73,7 +74,16 @@ pub(super) fn read(connection: &Connection, id: &str) -> Result<ChatState> {
         .transpose()?
         .flatten()
         .map(|c| c.purpose());
+    let (kind, owner_record_id, archived, intent, last_active_order, last_active_at) = connection.query_row(
+        "SELECT owner_kind, owner_record_id, archived, composer_intent, last_active_order, last_active_at FROM chat_drafts WHERE id=?1", [id],
+        |r| Ok((r.get::<_, String>(0)?, r.get::<_, Option<String>>(1)?, r.get::<_, bool>(2)?, r.get::<_, String>(3)?, r.get::<_, i64>(4)?, r.get::<_, String>(5)?)),
+    )?;
     Ok(ChatState {
+        owner: ConversationOwner::from_stored(row.0.clone(), &kind, owner_record_id)?,
+        archived,
+        composer_intent: ChatComposerIntent::from_stored(&intent)?,
+        last_active_order,
+        last_active_at,
         pending_response,
         proposals: super::chat_refinements::read(connection, id)?,
         session_id: row.0,
@@ -89,15 +99,39 @@ pub(super) fn read(connection: &Connection, id: &str) -> Result<ChatState> {
 }
 
 pub(super) fn owned(connection: &Connection, scope: &ChatRevision) -> Result<ChatState> {
-    require_session(connection, &scope.session_id)?;
+    owned_id(
+        connection,
+        &ChatRef {
+            session_id: scope.session_id.clone(),
+            draft_id: scope.draft_id.clone(),
+        },
+    )
+}
+
+pub(super) fn owned_id(connection: &Connection, reference: &ChatRef) -> Result<ChatState> {
+    require_session(connection, &reference.session_id)?;
     require_row_in_session(
         connection,
         "chat_drafts",
-        &scope.draft_id,
-        &scope.session_id,
+        &reference.draft_id,
+        &reference.session_id,
         "Chat draft must belong to the Session",
     )?;
-    read(connection, &scope.draft_id)
+    read(connection, &reference.draft_id)
+}
+
+pub(super) fn touch_activity(connection: &Connection, id: &str) -> Result<()> {
+    connection.execute("UPDATE chat_drafts SET last_active_at=?1, last_active_order=(SELECT COALESCE(MAX(last_active_order),0)+1 FROM chat_drafts WHERE session_id=(SELECT session_id FROM chat_drafts WHERE id=?2)) WHERE id=?2", params![now(), id])?;
+    Ok(())
+}
+
+pub(super) fn notes(chat: &ChatState) -> Result<()> {
+    if !matches!(chat.owner, ConversationOwner::Notes { .. }) {
+        return Err(validation(
+            "Only Notes conversations support Note submission or restart",
+        ));
+    }
+    Ok(())
 }
 
 pub(super) fn checked(connection: &Connection, scope: &ChatRevision) -> Result<ChatState> {

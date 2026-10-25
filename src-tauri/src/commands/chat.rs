@@ -20,6 +20,8 @@ mod image_import;
 mod image_preflight_tests;
 mod lifecycle;
 #[cfg(test)]
+mod ownership_tests;
+#[cfg(test)]
 mod permission_tests;
 mod preparation;
 #[cfg(test)]
@@ -193,6 +195,42 @@ pub struct StartChatJobResult {
 #[specta::specta]
 pub fn get_chat(state: State<'_, AppState>, session_id: String) -> Result<ChatState, CommandError> {
     state.with_service(|service| service.load_chat(&session_id))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn begin_record_chat(
+    state: State<'_, AppState>,
+    request: BeginRecordChatRequest,
+) -> Result<ChatState, CommandError> {
+    state.with_service(|service| service.begin_record_chat(request))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn get_conversation(
+    state: State<'_, AppState>,
+    reference: ChatRef,
+) -> Result<ChatState, CommandError> {
+    state.with_service(|service| service.read_chat(&reference))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn activate_conversation(
+    state: State<'_, AppState>,
+    reference: ChatRef,
+) -> Result<ChatState, CommandError> {
+    state.with_service(|service| service.activate_chat(&reference))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn list_chat_history(
+    state: State<'_, AppState>,
+    scope: ChatHistoryScope,
+) -> Result<Vec<ChatHistoryEntry>, CommandError> {
+    state.with_service(|service| service.list_chat_history(scope))
 }
 
 #[tauri::command]

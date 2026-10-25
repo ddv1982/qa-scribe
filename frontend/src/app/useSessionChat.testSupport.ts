@@ -2,6 +2,7 @@ import type { ChatState, GenerationJobStatus } from '../bindings'
 
 export function chatFixture(patch: Partial<ChatState> = {}): ChatState {
   return {
+    owner: { kind: 'notes', sessionId: patch.sessionId ?? 'session-1' }, archived: false, composerIntent: { kind: 'message' }, lastActiveOrder: 1, lastActiveAt: '2026-10-14T10:00:00Z',
     sessionId: 'session-1', draftId: 'chat-1', revision: 0,
     composer: '', composerImages: [], mode: 'write_note', aiRuns: [], messages: [], submission: null,
     ...patch,

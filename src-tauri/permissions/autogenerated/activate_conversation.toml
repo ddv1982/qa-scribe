@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-activate-conversation"
+description = "Enables the activate_conversation command without any pre-configured scope."
+commands.allow = ["activate_conversation"]
+
+[[permission]]
+identifier = "deny-activate-conversation"
+description = "Denies the activate_conversation command without any pre-configured scope."
+commands.deny = ["activate_conversation"]

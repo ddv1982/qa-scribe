@@ -137,6 +137,7 @@ impl SessionService {
             tx.execute("INSERT INTO chat_composer_images (draft_id, attachment_id, ordinal) VALUES (?1, ?2, ?3)", params![chat.draft_id, image.id, chat.composer_images.len() as i32])?;
             tx.execute("DELETE FROM chat_image_imports WHERE relative_path = ?1", [&image.relative_path])?;
             rows::bump(tx, &chat.draft_id)?;
+            rows::touch_activity(tx, &chat.draft_id)?;
             rows::read(tx, &chat.draft_id)
         })
     }

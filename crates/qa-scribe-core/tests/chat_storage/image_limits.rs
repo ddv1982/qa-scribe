@@ -35,6 +35,7 @@ fn real_encoded_image_aggregate_stops_before_fourth_and_failed_sql_import_cleans
     assert_eq!(service.load_chat(&sid).unwrap(), chat);
     let removed = service
         .save_chat_composer(ChatComposerRequest {
+            intent: qa_scribe_core::domain::ChatComposerIntent::Message,
             scope: scope(&chat),
             attachment_ids: vec![],
             composer: "keep".into(),

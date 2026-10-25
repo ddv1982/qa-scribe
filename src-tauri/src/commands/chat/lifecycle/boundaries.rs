@@ -30,6 +30,7 @@ fn setup() -> (SessionService, StartChatJobRequest) {
 fn composer(service: &SessionService, chat: &ChatState, text: &str) -> ChatState {
     service
         .save_chat_composer(ChatComposerRequest {
+            intent: qa_scribe_core::domain::ChatComposerIntent::Message,
             attachment_ids: vec![],
             scope: scope(chat),
             composer: text.into(),

@@ -13,6 +13,7 @@ fn setup() -> (SessionService, StartChatJobRequest) {
     let chat = service.load_chat(&session.id).unwrap();
     let chat = service
         .save_chat_composer(ChatComposerRequest {
+            intent: qa_scribe_core::domain::ChatComposerIntent::Message,
             attachment_ids: vec![],
             scope: scope(&chat),
             composer: "Actual behavior differs".into(),
@@ -79,6 +80,7 @@ fn finalizer_preserves_composer_and_mode_changed_during_execution_without_testwa
     let prepared = prepare(&service, &request).unwrap();
     let chat = service
         .save_chat_composer(ChatComposerRequest {
+            intent: qa_scribe_core::domain::ChatComposerIntent::Message,
             attachment_ids: vec![],
             scope: scope(&prepared.started.chat),
             composer: "Next question".into(),
@@ -155,6 +157,7 @@ fn oversized_send_preserves_composer_without_persisting_user() {
     let chat = service.load_chat(&request.scope.session_id).unwrap();
     let chat = service
         .save_chat_composer(ChatComposerRequest {
+            intent: qa_scribe_core::domain::ChatComposerIntent::Message,
             attachment_ids: vec![],
             scope: scope(&chat),
             composer: "x".repeat(qa_scribe_core::chat::MAX_CHAT_MESSAGE_BYTES + 1),
@@ -342,6 +345,7 @@ fn next_prompt_excludes_failed_turns_but_keeps_completed_pairs() {
     .unwrap();
     let chat = service
         .save_chat_composer(ChatComposerRequest {
+            intent: qa_scribe_core::domain::ChatComposerIntent::Message,
             attachment_ids: vec![],
             scope: scope(&chat),
             composer: "Completed user".into(),
@@ -353,6 +357,7 @@ fn next_prompt_excludes_failed_turns_but_keeps_completed_pairs() {
     let chat = finish(&service, &completed, output("Completed assistant")).unwrap();
     let chat = service
         .save_chat_composer(ChatComposerRequest {
+            intent: qa_scribe_core::domain::ChatComposerIntent::Message,
             attachment_ids: vec![],
             scope: scope(&chat),
             composer: "Latest user".into(),

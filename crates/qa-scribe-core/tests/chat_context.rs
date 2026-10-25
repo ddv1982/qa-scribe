@@ -24,6 +24,7 @@ fn scope(chat: &ChatState) -> ChatRevision {
 fn compose(service: &SessionService, chat: &ChatState) -> ChatState {
     service
         .save_chat_composer(ChatComposerRequest {
+            intent: qa_scribe_core::domain::ChatComposerIntent::Message,
             scope: scope(chat),
             composer: "Review this record".into(),
             attachment_ids: vec![],

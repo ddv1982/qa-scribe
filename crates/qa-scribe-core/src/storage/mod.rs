@@ -6,6 +6,7 @@ use crate::{Result, error::validation};
 
 mod chat_context;
 mod chat_images;
+mod chat_ownership;
 mod chat_questions;
 mod chat_refinements;
 mod creation;
@@ -72,7 +73,7 @@ pub fn with_immediate_tx<T>(
 /// final time, and settles on a `user_version` this build can trust from then
 /// on. Once every database in the wild has passed through this once, future
 /// bumps can go strictly by increment again.
-pub const SCHEMA_VERSION: i32 = 18;
+pub const SCHEMA_VERSION: i32 = 19;
 
 fn initialize(connection: &Connection) -> Result<()> {
     let initialize_started = Instant::now();
@@ -126,6 +127,10 @@ fn initialize(connection: &Connection) -> Result<()> {
             tx.execute_batch(chat_questions::SCHEMA)?;
         }
         tx.execute_batch(SCHEMA)?;
+        if found < 19 {
+            chat_ownership::migrate(tx)?;
+        }
+        chat_ownership::install(tx)?;
         if migrations_run {
             assert_no_foreign_key_violations(tx)?;
             tx.pragma_update(None, "user_version", SCHEMA_VERSION)?;

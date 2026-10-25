@@ -1,0 +1,183 @@
+{
+  "schema": "qa-scribe-ask-ai-isolation-fixture-v1",
+  "sourceSha": "51189e3a388c12a53dd7c18eeb79571bad437902",
+  "canonicalization": "Public service UUIDs become stable UUIDv5 values in dump encounter order. UTC timestamps become 2026-01-01. Schema, triggers and rows are otherwise retained. The canonical fixture must pass public core reopen validation before use.",
+  "sqliteVersion": "3.54.1",
+  "historicalConversations": 100,
+  "historicalMessagesEach": 10,
+  "mainActiveMessages": 100,
+  "submittedMessages": 10,
+  "mixedMessages": 10,
+  "competingFindingStages": 2,
+  "databaseBytes": 1064960,
+  "databaseSha256": "3f68b6b35dd720c719e9d7a959a2ce5c518155b1aaf72009ff3fd05ab4f38ae0",
+  "snapshot": {
+    "schemaVersion": 18,
+    "tables": {
+      "chat_drafts": {
+        "columns": [
+          "id",
+          "session_id",
+          "revision",
+          "composer",
+          "mode",
+          "archived",
+          "submitted_note_id",
+          "submitted_at",
+          "created_at"
+        ],
+        "rows": 103,
+        "sha256": "4291143ee90add043ae046d884c44a42f53f9065cd3520dd442d638ffd781e55"
+      },
+      "chat_messages": {
+        "columns": [
+          "id",
+          "draft_id",
+          "turn_id",
+          "sequence",
+          "role",
+          "text",
+          "status",
+          "error_message",
+          "ai_run_id",
+          "created_at"
+        ],
+        "rows": 1120,
+        "sha256": "6bc52cf109ac020fd6514270bd6b090ebd9e2cbd724b4b7abe01599e27b3f5b2"
+      },
+      "chat_message_images": {
+        "columns": [
+          "message_id",
+          "attachment_id",
+          "ordinal"
+        ],
+        "rows": 4,
+        "sha256": "91c9303032dd665fdb09920d90617d8b3e158534e3e0c6a52e69b928f49a60e0"
+      },
+      "chat_composer_images": {
+        "columns": [
+          "draft_id",
+          "attachment_id",
+          "ordinal"
+        ],
+        "rows": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "chat_message_contexts": {
+        "columns": [
+          "message_id",
+          "version",
+          "context_json"
+        ],
+        "rows": 3,
+        "sha256": "66e25fdd7cea0487fcf34c1de4b97b39cd2e7379e1cd0298eafa915e77171c1b"
+      },
+      "chat_response_contracts": {
+        "columns": [
+          "message_id",
+          "contract_json"
+        ],
+        "rows": 3,
+        "sha256": "fd9c77ff0016d4a780130e9ab181a3efbf43eb74aabde7c216c21bc7292eaaac"
+      },
+      "chat_response_messages": {
+        "columns": [
+          "assistant_message_id",
+          "source_user_message_id",
+          "warning_text",
+          "question_json"
+        ],
+        "rows": 3,
+        "sha256": "007bf0c510964d3fc0c270e4ed2a43e89279229f7e218325050b7c067b516101"
+      },
+      "chat_refinements": {
+        "columns": [
+          "id",
+          "draft_id",
+          "user_message_id",
+          "assistant_message_id",
+          "proposal_json"
+        ],
+        "rows": 3,
+        "sha256": "5a47400927563a884c70c58065e7fe685575499ad8eec18a77dd1ac5cf87db1c"
+      },
+      "chat_editor_stages": {
+        "columns": [
+          "id",
+          "proposal_id",
+          "stage_json"
+        ],
+        "rows": 3,
+        "sha256": "f18e4a8e729978cf1855d3ec7b6957a2aca7f713f074fe35a165ae172ed66489"
+      },
+      "chat_answers": {
+        "columns": [
+          "user_message_id",
+          "assistant_message_id"
+        ],
+        "rows": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "attachments": {
+        "columns": [
+          "id",
+          "session_id",
+          "entry_id",
+          "filename",
+          "mime_type",
+          "size_bytes",
+          "sha256",
+          "relative_path",
+          "created_at"
+        ],
+        "rows": 4,
+        "sha256": "883f64a0ff43ea9f2fa8a4ac8395fa7680614ec88c7c73995ec74fbb8afb4efd"
+      },
+      "entries": {
+        "columns": [
+          "id",
+          "session_id",
+          "type",
+          "title",
+          "body",
+          "revision",
+          "body_json",
+          "body_format",
+          "metadata_json",
+          "excluded_from_generation",
+          "created_at",
+          "updated_at"
+        ],
+        "rows": 3,
+        "sha256": "8ceb87f619d50b17728f8bfefae72d7bad0ff691e80bdef1b8696e02b7428472"
+      }
+    },
+    "images": [
+      {
+        "id": "perf-image-0",
+        "relativePath": "attachments/perf-session/perf-image-0.png",
+        "bytes": 77,
+        "sha256": "f6b373ee62d8abe053e1decceb83b38627e0ce3df932ce72729f10a2e6e8fc58"
+      },
+      {
+        "id": "perf-image-1",
+        "relativePath": "attachments/perf-session/perf-image-1.png",
+        "bytes": 77,
+        "sha256": "f6b373ee62d8abe053e1decceb83b38627e0ce3df932ce72729f10a2e6e8fc58"
+      },
+      {
+        "id": "perf-image-2",
+        "relativePath": "attachments/perf-session/perf-image-2.png",
+        "bytes": 77,
+        "sha256": "f6b373ee62d8abe053e1decceb83b38627e0ce3df932ce72729f10a2e6e8fc58"
+      },
+      {
+        "id": "perf-image-3",
+        "relativePath": "attachments/perf-session/perf-image-3.png",
+        "bytes": 77,
+        "sha256": "f6b373ee62d8abe053e1decceb83b38627e0ce3df932ce72729f10a2e6e8fc58"
+      }
+    ]
+  },
+  "providerInvoked": false
+}

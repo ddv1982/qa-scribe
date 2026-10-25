@@ -58,6 +58,7 @@ fn actual_save_adapter_yields_while_service_is_busy_then_reclaims_released_file(
     entered_rx.recv_timeout(Duration::from_secs(5)).unwrap();
     let handle = app.handle().clone();
     let request = ChatComposerRequest {
+        intent: qa_scribe_core::domain::ChatComposerIntent::Message,
         scope: scope(&chat),
         composer: "Keep text".into(),
         attachment_ids: vec![],

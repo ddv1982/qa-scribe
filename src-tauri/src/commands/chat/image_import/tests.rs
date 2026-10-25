@@ -95,6 +95,7 @@ fn edit(state: &AppState, chat: &ChatState) -> ChatState {
     state
         .with_service(|service| {
             service.save_chat_composer(ChatComposerRequest {
+                intent: qa_scribe_core::domain::ChatComposerIntent::Message,
                 scope: scope(chat),
                 composer: "Newer composer".into(),
                 attachment_ids: vec![],

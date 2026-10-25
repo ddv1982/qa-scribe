@@ -143,6 +143,7 @@ fn next_turn_replays_completed_image_with_original_message_label() {
     let saved = fixture
         .service
         .save_chat_composer(ChatComposerRequest {
+            intent: qa_scribe_core::domain::ChatComposerIntent::Message,
             scope: scope(&completed),
             attachment_ids: vec![],
             composer: "What changed?".into(),

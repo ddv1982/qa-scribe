@@ -27,6 +27,7 @@ fn fixture() -> (SessionService, Finding, StartChatJobRequest) {
     let chat = service.load_chat(&session.id).unwrap();
     let chat = service
         .save_chat_composer(ChatComposerRequest {
+            intent: qa_scribe_core::domain::ChatComposerIntent::Message,
             scope: lifecycle::scope(&chat),
             composer: "Review the selected evidence".into(),
             mode: ChatMode::Chat,

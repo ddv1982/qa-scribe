@@ -153,6 +153,7 @@ fn stale_edit_or_session_deletion_during_loading_consumes_nothing() {
                                     } else {
                                         edited = Some(
                                             service.save_chat_composer(ChatComposerRequest {
+                                                intent: qa_scribe_core::domain::ChatComposerIntent::Message,
                                                 scope: lifecycle::scope(&before),
                                                 composer: "Concurrent edit".into(),
                                                 attachment_ids: before
@@ -251,6 +252,7 @@ fn oversized_text_precedes_missing_image_and_preserves_composer() {
     let before = state
         .with_service(|service| {
             service.save_chat_composer(ChatComposerRequest {
+                intent: qa_scribe_core::domain::ChatComposerIntent::Message,
                 scope: lifecycle::scope(&chat),
                 composer: "x".repeat(16_385),
                 attachment_ids: chat

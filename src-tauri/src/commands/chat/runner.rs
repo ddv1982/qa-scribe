@@ -112,6 +112,7 @@ mod deletion_tests {
         let chat = service.load_chat(&session.id).unwrap();
         let chat = service
             .save_chat_composer(ChatComposerRequest {
+                intent: qa_scribe_core::domain::ChatComposerIntent::Message,
                 attachment_ids: vec![],
                 scope: scope(&chat),
                 composer: "Actual behavior differs".into(),

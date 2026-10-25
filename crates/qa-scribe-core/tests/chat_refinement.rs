@@ -36,6 +36,7 @@ fn started(service: &SessionService, record: &Finding) -> ChatTurnStarted {
     let chat = service.load_chat(&record.session_id).unwrap();
     let chat = service
         .save_chat_composer(ChatComposerRequest {
+            intent: qa_scribe_core::domain::ChatComposerIntent::Message,
             scope: scope(&chat),
             composer: "Refine the expected result".into(),
             mode: ChatMode::Chat,

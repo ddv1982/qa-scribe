@@ -8,7 +8,7 @@ impl SessionService {
             require_session(tx, session_id)?;
             let id: Option<String> = tx
                 .query_row(
-                    "SELECT id FROM chat_drafts WHERE session_id = ?1 AND archived = 0",
+                    "SELECT id FROM chat_drafts WHERE session_id = ?1 AND archived = 0 AND owner_kind = 'notes'",
                     [session_id],
                     |r| r.get(0),
                 )
@@ -33,9 +33,14 @@ impl SessionService {
         self.database.with_immediate_tx(|tx| {
             let chat = rows::checked(tx, &request.scope)?;
             rows::editable(&chat)?;
+            if chat.composer == request.composer && chat.mode == request.mode && chat.composer_intent == request.intent
+                && chat.composer_images.iter().map(|i| &i.attachment_id).eq(request.attachment_ids.iter()) {
+                return Ok((chat, Vec::new()));
+            }
             let released = super::chat_images::replace(tx, &chat, &request.attachment_ids)?;
-            tx.execute("UPDATE chat_drafts SET composer = ?1, mode = ?2, revision = revision + 1 WHERE id = ?3",
-                params![request.composer, request.mode.as_str(), chat.draft_id])?;
+            tx.execute("UPDATE chat_drafts SET composer = ?1, mode = ?2, composer_intent = ?4, revision = revision + 1 WHERE id = ?3",
+                params![request.composer, request.mode.as_str(), chat.draft_id, request.intent.as_str()])?;
+            rows::touch_activity(tx, &chat.draft_id)?;
             Ok((rows::read(tx, &chat.draft_id)?, released))
         })
     }
@@ -82,9 +87,10 @@ impl SessionService {
                 WHERE i.draft_id = ?2", params![turn_id, chat.draft_id])?;
             tx.execute("DELETE FROM chat_composer_images WHERE draft_id = ?1", [&chat.draft_id])?;
             tx.execute(
-                "UPDATE chat_drafts SET composer = '', revision = revision + 1 WHERE id = ?1",
+                "UPDATE chat_drafts SET composer = '', composer_intent = 'message', revision = revision + 1 WHERE id = ?1",
                 [&chat.draft_id],
             )?;
+            rows::touch_activity(tx, &chat.draft_id)?;
             Ok(ChatTurnStarted {
                 chat: rows::read(tx, &chat.draft_id)?,
                 turn_id,
@@ -105,6 +111,7 @@ impl SessionService {
     pub fn restart_chat(&self, request: ChatRestartRequest) -> Result<ChatState> {
         self.database.with_immediate_tx(|tx| {
             let chat = rows::checked(tx, &request.scope)?;
+            rows::notes(&chat)?;
             rows::idle(&chat)?;
             if chat.proposals.iter().any(|p| matches!(p.state, RefinementState::Staged { .. })) { return Err(crate::error::validation("Save, Undo, or Discard the local refinement before starting a new conversation")); }
             tx.execute(
