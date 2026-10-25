@@ -35,11 +35,12 @@ async function proof(lane, kind, details) {
 }
 async function openSession(title) {
   await click(`[role="option"]*=${title}`)
-  await browser.waitUntil(async () => await $('[aria-label="Session title"]').getValue() === title)
+  await browser.waitUntil(() => browser.execute(title => document.querySelector('.session-context-header')?.textContent?.includes(title) === true, title))
 }
 async function showNotes(title) {
   await openSession(title)
   await click('[role="tab"]*=Note')
+  await browser.waitUntil(async () => await $('[aria-label="Session title"]').getValue() === title)
   await click('button=Chat')
   await $('.chat-messages').waitForDisplayed()
 }
