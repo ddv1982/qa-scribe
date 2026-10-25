@@ -152,7 +152,9 @@ describe('Built application native model evidence M02', () => {
 
   it('freezes accepted cancellation and isolates its successor from delayed metadata', () => lane(8, 'cancel', async () => {
     const current = await startChat('claude', null, 'cancel', 8)
-    await browser.waitUntil(async () => (await $('[aria-label="Session chat"]').getText()).includes('Awaiting delayed model metadata.'))
+    await browser.waitUntil(async () => (await read('list_active_ai_action_jobs'))
+      .some((job) => job.sessionId === current.sessionId && job.partialText?.includes('Awaiting delayed model metadata.')))
+    assert.equal(await $('.chat-partial h3').getText(), 'Preparing reply')
     const marker = JSON.parse(readFileSync(join(directory, 'model-evidence-8.ready'), 'utf8'))
     await click('Cancel response')
     const cancelled = await finishChat(current.sessionId, 'cancelled')
