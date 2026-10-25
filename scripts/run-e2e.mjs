@@ -5,6 +5,7 @@ import { chmodSync, cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlin
 import { homedir, tmpdir } from 'node:os'
 import { delimiter, dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { prepareOwnershipFixture } from './prepare-ask-ai-ownership.mjs'
 import { commandReceiptError, finishCommandReceipt, startCommandReceipt } from './command-utils.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -23,6 +24,21 @@ export const criticalScenarios = Object.freeze([
 export function createWdioInvocationPlan(environment, temporaryRoot, artifacts, platform = process.platform) {
   const requestedSpec = environment.QA_SCRIBE_E2E_SPEC?.trim()
   const requestedScenario = environment.QA_SCRIBE_E2E_SCENARIO?.trim()
+
+  if (requestedSpec === 'ask-ai-ownership-migration.e2e.mjs') {
+    if (requestedScenario) throw new Error('Ownership migration runs its named scenarios serially')
+    return ['initial', 'reopen-1', 'reopen-2'].map((phase, index) => ({
+      id: `ownership-${phase}`,
+      ...(index ? { restartOf: 'ownership-initial' } : {}),
+      environment: {
+        QA_SCRIBE_E2E_SPEC: requestedSpec,
+        QA_SCRIBE_E2E_OWNERSHIP_PHASE: phase,
+        QA_SCRIBE_E2E_APP_DATA_DIR: join(temporaryRoot, 'app-data'),
+        QA_SCRIBE_E2E_ARTIFACTS: join(artifacts, phase),
+        QA_SCRIBE_E2E_FIXTURE_DIR: join(temporaryRoot, 'fixtures'),
+      },
+    }))
+  }
 
   if (requestedSpec && requestedSpec !== criticalSpec) {
     if (requestedScenario) throw new Error('QA_SCRIBE_E2E_SCENARIO can only select a critical workflow')
@@ -292,6 +308,7 @@ export function runE2e(environment = process.env, { spawnSyncImpl = spawnSync } 
       mkdirSync(invocation.environment.QA_SCRIBE_E2E_APP_DATA_DIR, { recursive: true })
       mkdirSync(invocation.environment.QA_SCRIBE_E2E_ARTIFACTS, { recursive: true })
       mkdirSync(invocation.environment.QA_SCRIBE_E2E_FIXTURE_DIR, { recursive: true })
+      if (invocation.environment.QA_SCRIBE_E2E_OWNERSHIP_PHASE === 'initial') prepareOwnershipFixture(invocation.environment.QA_SCRIBE_E2E_APP_DATA_DIR)
       // Fast readiness checks executable presence. Keep non-Codex fixtures out
       // of the default provider PATH, not merely returning an unavailable version.
       const providerBin = join(invocation.environment.QA_SCRIBE_E2E_FIXTURE_DIR, 'bin')

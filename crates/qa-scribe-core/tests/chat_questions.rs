@@ -36,6 +36,7 @@ fn setup() -> (SessionService, Finding, ChatTarget) {
 }
 fn save(s: &SessionService, c: &ChatState, text: &str) -> ChatState {
     s.save_chat_composer(ChatComposerRequest {
+        intent: qa_scribe_core::domain::ChatComposerIntent::Message,
         scope: scope(c),
         composer: text.into(),
         mode: ChatMode::Chat,
@@ -352,7 +353,7 @@ fn additive_migration_retains_v1_contract_without_reparsing_historical_prose() {
         db.connection()
             .query_row("PRAGMA user_version", [], |r| r.get::<_, i32>(0))
             .unwrap(),
-        18
+        19
     );
     let reopened = SessionService::new(db).unwrap();
     assert_eq!(

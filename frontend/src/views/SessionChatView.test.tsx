@@ -12,7 +12,7 @@ function message(role: ChatMessage['role'], text: string, status: ChatTurnStatus
   return { id, turnId: 'turn-1', role, text, images: [], status, errorMessage: null, aiRunId: null, createdAt: '2026-10-14T10:00:00Z' }
 }
 function chat(messages: ChatMessage[] = []): ChatState {
-  return { sessionId: 'session-1', draftId: 'chat-1', revision: 1, composer: '', composerImages: [], mode: 'chat', aiRuns: [], messages, submission: null }
+  return { owner: { kind: 'notes', sessionId: 'session-1' }, archived: false, composerIntent: { kind: 'message' }, lastActiveOrder: 1, lastActiveAt: '2026-10-14T10:00:00Z', sessionId: 'session-1', draftId: 'chat-1', revision: 1, composer: '', composerImages: [], mode: 'chat', aiRuns: [], messages, submission: null }
 }
 function job(patch: Partial<GenerationJobStatus> = {}): GenerationJobStatus {
   return { jobId: 'job-1', sessionId: 'session-1', action: 'chat', state: 'running', progressMessage: 'Gathering information', aiRunId: null, errorMessage: null, partialText: null, ...patch }

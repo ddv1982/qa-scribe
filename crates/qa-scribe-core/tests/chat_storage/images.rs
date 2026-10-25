@@ -38,6 +38,7 @@ fn image_only_composer_reopens_sends_retries_and_retains_archived_images() {
     let image = image_chat.composer_images[0].clone();
     assert!(!delete_attachment_with_file(&service, &dir, &image.attachment_id).unwrap());
     validation(service.save_chat_composer(ChatComposerRequest {
+        intent: qa_scribe_core::domain::ChatComposerIntent::Message,
         scope: scope(&chat),
         attachment_ids: vec![],
         composer: "stale".into(),
@@ -112,6 +113,7 @@ fn import_and_reorder_are_atomic_and_cross_session_images_cannot_be_borrowed() {
         .collect::<Vec<_>>();
     let reordered = service
         .save_chat_composer(ChatComposerRequest {
+            intent: qa_scribe_core::domain::ChatComposerIntent::Message,
             scope: scope(&b),
             attachment_ids: ids.clone(),
             composer: "typed".into(),
@@ -130,6 +132,7 @@ fn import_and_reorder_are_atomic_and_cross_session_images_cannot_be_borrowed() {
     let foreign_chat = service.load_chat(&other).unwrap();
     validation(resolve_chat_image(&service, &dir, &other, &ids[0]));
     validation(service.save_chat_composer(ChatComposerRequest {
+        intent: qa_scribe_core::domain::ChatComposerIntent::Message,
         scope: scope(&foreign_chat),
         attachment_ids: ids.clone(),
         composer: "".into(),
@@ -151,6 +154,7 @@ fn import_and_reorder_are_atomic_and_cross_session_images_cannot_be_borrowed() {
     );
     let removed = service
         .save_chat_composer(ChatComposerRequest {
+            intent: qa_scribe_core::domain::ChatComposerIntent::Message,
             scope: scope(&reordered),
             attachment_ids: vec![ids[0].clone()],
             composer: "typed".into(),
@@ -191,6 +195,7 @@ fn image_handoff_preserves_note_json_and_receipt_and_guards_submitted_relationsh
     validation(service.submit_chat(submit_request(&unsent, &note)));
     let chat = service
         .save_chat_composer(ChatComposerRequest {
+            intent: qa_scribe_core::domain::ChatComposerIntent::Message,
             scope: scope(&unsent),
             attachment_ids: vec![],
             composer: String::new(),

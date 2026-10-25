@@ -30,7 +30,6 @@ CREATE TABLE IF NOT EXISTS chat_drafts (
   created_at TEXT NOT NULL,
   CHECK ((submitted_note_id IS NULL) = (submitted_at IS NULL))
 );
-CREATE UNIQUE INDEX IF NOT EXISTS idx_chat_active_session ON chat_drafts(session_id) WHERE archived = 0;
 CREATE INDEX IF NOT EXISTS idx_chat_drafts_session ON chat_drafts(session_id);
 CREATE TABLE IF NOT EXISTS chat_messages (
   id TEXT PRIMARY KEY,
@@ -48,14 +47,6 @@ CREATE TABLE IF NOT EXISTS chat_messages (
   CHECK (role = 'user' OR status = 'completed')
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_chat_one_running_turn ON chat_messages(draft_id) WHERE status = 'running';
-CREATE TRIGGER IF NOT EXISTS chat_receipt_immutable BEFORE UPDATE ON chat_drafts
-WHEN OLD.submitted_at IS NOT NULL AND (
-  NEW.submitted_at IS NOT OLD.submitted_at OR NEW.submitted_note_id IS NOT OLD.submitted_note_id
-  OR NEW.composer IS NOT OLD.composer OR NEW.revision IS NOT OLD.revision
-  OR NEW.mode IS NOT OLD.mode
-  OR NEW.id IS NOT OLD.id OR NEW.session_id IS NOT OLD.session_id
-)
-BEGIN SELECT RAISE(ABORT, 'Submitted chat is immutable'); END;
 CREATE TRIGGER IF NOT EXISTS chat_submitted_messages_no_delete BEFORE DELETE ON chat_messages
 WHEN (SELECT submitted_at FROM chat_drafts WHERE id = OLD.draft_id) IS NOT NULL
 BEGIN SELECT RAISE(ABORT, 'Submitted chat is immutable'); END;

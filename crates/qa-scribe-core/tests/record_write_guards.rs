@@ -39,6 +39,7 @@ fn fixture(service: &SessionService) -> (Finding, ChatState) {
     let chat = service.load_chat(&session.id).unwrap();
     let chat = service
         .save_chat_composer(ChatComposerRequest {
+            intent: qa_scribe_core::domain::ChatComposerIntent::Message,
             scope: scope(&chat),
             composer: "Refine".into(),
             mode: ChatMode::Chat,

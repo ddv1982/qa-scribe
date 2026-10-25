@@ -23,6 +23,10 @@ export const commands = {
 	deleteSession: (id: string) => __TAURI_INVOKE<AttachmentCleanupStatus>("delete_session", { id }),
 	retryAttachmentCleanup: () => __TAURI_INVOKE<AttachmentCleanupStatus>("retry_attachment_cleanup"),
 	getChat: (sessionId: string) => __TAURI_INVOKE<ChatState>("get_chat", { sessionId }),
+	beginRecordChat: (request: BeginRecordChatRequest) => __TAURI_INVOKE<ChatState>("begin_record_chat", { request }),
+	getConversation: (reference: ChatRef) => __TAURI_INVOKE<ChatState>("get_conversation", { reference }),
+	activateConversation: (reference: ChatRef) => __TAURI_INVOKE<ChatState>("activate_conversation", { reference }),
+	listChatHistory: (scope: ChatHistoryScope) => __TAURI_INVOKE<ChatHistoryEntry[]>("list_chat_history", { scope }),
 	resolveRefinement: (request: RefinementRequest) => __TAURI_INVOKE<ChatState>("resolve_refinement", { request }),
 	saveChatComposer: (request: ChatComposerRequest) => __TAURI_INVOKE<ChatState>("save_chat_composer", { request }),
 	importChatImage: (scope: ChatRevision, filename: string, dataUrl: string) => __TAURI_INVOKE<ChatState>("import_chat_image", { scope, filename, dataUrl }),
@@ -129,16 +133,41 @@ export type AttachmentCleanupStatus = {
 	pendingFiles: number | null,
 };
 
+export type BeginRecordChatRequest = {
+	sessionId: string,
+	draftId: string,
+	record: ConversationRecord,
+};
+
 export type ChatAnswer = {
 	assistantMessageId: string,
 };
 
+export type ChatComposerIntent = { kind: "message" } | { kind: "refine_record" } | { kind: "draft_jira" };
+
 export type ChatComposerRequest = {
+	intent?: ChatComposerIntent,
 	attachmentIds?: string[],
 	scope: ChatRevision,
 	composer: string,
 	mode: ChatMode,
 };
+
+export type ChatHistoryEntry = {
+	reference: ChatRef,
+	owner: ConversationOwner,
+	createdAt: string,
+	lastActiveAt: string,
+	lastActiveOrder: number,
+	preview: string,
+	archived: boolean,
+	submission: ChatSubmissionReceipt | null,
+	hasContent: boolean,
+	lastTurnStatus: ChatTurnStatus | null,
+	unresolvedStages: StageOrigin[],
+};
+
+export type ChatHistoryScope = { kind: "notes"; sessionId: string } | { kind: "record"; sessionId: string; record: ConversationRecord } | { kind: "session"; sessionId: string };
 
 export type ChatImage = {
 	attachmentId: string,
@@ -201,6 +230,11 @@ export type ChatQuestion = {
 	choices: string[],
 };
 
+export type ChatRef = {
+	sessionId: string,
+	draftId: string,
+};
+
 export type ChatRequestIntent = { kind: "message" } | { kind: "refine_record" } | { kind: "draft_jira" } | { kind: "question_reply"; assistantMessageId: string; text: string } | { kind: "retry" };
 
 export type ChatResponseInfo = {
@@ -225,6 +259,11 @@ export type ChatRevision = {
 export type ChatRole = "user" | "assistant";
 
 export type ChatState = {
+	owner: ConversationOwner,
+	archived: boolean,
+	composerIntent: ChatComposerIntent,
+	lastActiveOrder: number,
+	lastActiveAt: string,
 	pendingResponse?: ChatResponsePurpose | null,
 	proposals?: RefinementProposal[],
 	sessionId: string,
@@ -269,6 +308,10 @@ export type CommitCreationSave = {
 	images: CreationImageInput[],
 	sharedAttachmentIds: string[],
 };
+
+export type ConversationOwner = { kind: "notes"; sessionId: string } | { kind: "record"; sessionId: string; record: ConversationRecord };
+
+export type ConversationRecord = { kind: "finding"; recordId: string } | { kind: "test_cases_draft"; recordId: string };
 
 export type CreatedRecord = { kind: "finding"; record: Finding } | { kind: "testware"; record: Draft };
 
@@ -763,6 +806,13 @@ export type SessionPatch = {
 	environment?: string | null,
 	buildVersion?: string | null,
 	relatedReference?: string | null,
+};
+
+export type StageOrigin = {
+	reference: ChatRef,
+	proposalId: string,
+	stageId: string,
+	record: ConversationRecord,
 };
 
 export type StartAiActionJobResult = StartAiActionJobResult_Serialize | StartAiActionJobResult_Deserialize;

@@ -13,6 +13,10 @@ import {
   type Attachment,
   type AttachmentCleanupStatus,
   type ChatComposerRequest,
+  type BeginRecordChatRequest,
+  type ChatRef,
+  type ChatHistoryScope,
+  type ChatHistoryEntry,
   type ChatRevision,
   type ChatRestartRequest,
   type ChatState,
@@ -55,6 +59,22 @@ export function getSettings(): Promise<AppSettings> {
 
 export function getChat(sessionId: string): Promise<ChatState> {
   return commands.getChat(sessionId)
+}
+
+export function beginRecordChat(request: BeginRecordChatRequest): Promise<ChatState> {
+  return commands.beginRecordChat(request)
+}
+
+export function getConversation(reference: ChatRef): Promise<ChatState> {
+  return commands.getConversation(reference)
+}
+
+export function activateConversation(reference: ChatRef): Promise<ChatState> {
+  return commands.activateConversation(reference)
+}
+
+export function listChatHistory(scope: ChatHistoryScope): Promise<ChatHistoryEntry[]> {
+  return commands.listChatHistory(scope)
 }
 
 export function saveChatComposer(request: ChatComposerRequest): Promise<ChatState> {

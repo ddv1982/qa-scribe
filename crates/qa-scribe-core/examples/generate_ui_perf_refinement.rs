@@ -93,6 +93,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         };
         let chat = service.load_chat(&session.id)?;
         let chat = service.save_chat_composer(ChatComposerRequest {
+            intent: qa_scribe_core::domain::ChatComposerIntent::Message,
             scope: scope(&chat),
             composer: "Clarify the receipt expectation while retaining the reproduction steps."
                 .into(),

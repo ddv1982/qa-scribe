@@ -47,6 +47,7 @@ pub fn scope(chat: &ChatState) -> ChatRevision {
 pub fn compose(service: &SessionService, chat: &ChatState, composer: &str) -> ChatState {
     service
         .save_chat_composer(ChatComposerRequest {
+            intent: qa_scribe_core::domain::ChatComposerIntent::Message,
             scope: scope(chat),
             composer: composer.into(),
             attachment_ids: chat

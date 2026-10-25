@@ -13,6 +13,7 @@ fn composer_and_mode_are_durable_and_stale_or_cross_session_mutations_fail() {
     assert_eq!(service.load_chat(&id).unwrap(), saved);
     assert!(saved.revision > initial.revision);
     validation(service.save_chat_composer(ChatComposerRequest {
+        intent: qa_scribe_core::domain::ChatComposerIntent::Message,
         attachment_ids: vec![],
         scope: scope(&initial),
         composer: "stale".into(),
@@ -165,6 +166,7 @@ fn blank_and_oversized_input_fail_without_consuming_revision() {
         scope: scope(&chat),
     }));
     validation(service.save_chat_composer(ChatComposerRequest {
+        intent: qa_scribe_core::domain::ChatComposerIntent::Message,
         attachment_ids: vec![],
         scope: scope(&chat),
         composer: "x".repeat(100_001),

@@ -10,6 +10,7 @@ impl SessionService {
     pub fn submit_chat(&self, request: ChatSubmitRequest) -> Result<ChatSubmissionReceipt> {
         self.database.with_immediate_tx(|tx| {
             let owned = rows::owned(tx, &request.scope)?;
+            rows::notes(&owned)?;
             if let Some(receipt) = owned.submission {
                 if receipt.note_id != request.note_id {
                     return Err(validation("Chat was submitted to a different Note"));
@@ -20,7 +21,7 @@ impl SessionService {
             rows::idle(&chat)?;
             if chat.proposals.iter().any(|p| matches!(p.state, RefinementState::Staged { .. })) { return Err(validation("Save, Undo, or Discard the local refinement before adding the conversation to the Note")); }
             if chat.messages.is_empty() { return Err(validation("Chat has no messages to submit")); }
-            if !chat.composer.is_empty() || !chat.composer_images.is_empty() || chat.messages.iter().any(|message| message.status != ChatTurnStatus::Completed) {
+            if chat.composer_intent != ChatComposerIntent::Message || !chat.composer.is_empty() || !chat.composer_images.is_empty() || chat.messages.iter().any(|message| message.status != ChatTurnStatus::Completed) {
                 return Err(validation("Finish or retry all Chat turns and clear unsent text and images before submitting."));
             }
             let note = tx.query_row(
@@ -46,6 +47,7 @@ impl SessionService {
                 params![body, body_json, body_format, submitted_at, note.0])?;
             tx.execute("UPDATE chat_drafts SET submitted_note_id = ?1, submitted_at = ?2, mode = 'write_note', revision = revision + 1 WHERE id = ?3",
                 params![note.0, submitted_at, chat.draft_id])?;
+            rows::touch_activity(tx, &chat.draft_id)?;
             Ok(ChatSubmissionReceipt { draft_id: chat.draft_id, note_id: note.0, submitted_at })
         })
     }

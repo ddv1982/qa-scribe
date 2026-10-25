@@ -87,6 +87,7 @@ fn scope(chat: &ChatState) -> ChatRevision {
 
 fn request(chat: &ChatState, ids: Vec<String>) -> ChatComposerRequest {
     ChatComposerRequest {
+        intent: qa_scribe_core::domain::ChatComposerIntent::Message,
         scope: scope(chat),
         composer: "preserved text".into(),
         mode: ChatMode::Chat,

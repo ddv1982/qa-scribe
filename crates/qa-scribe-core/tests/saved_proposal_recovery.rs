@@ -226,6 +226,18 @@ fn saved_identity_mismatches_fail_even_with_the_correct_current_record_hash() {
                         ..Default::default()
                     })
                     .unwrap();
+                let connection = fixture.service.database().connection();
+                assert!(
+                    connection
+                        .execute(
+                            "UPDATE chat_drafts SET session_id=?1 WHERE id=?2",
+                            [&session.id, &fixture.chat.draft_id],
+                        )
+                        .is_err()
+                );
+                connection
+                    .execute_batch("DROP TRIGGER chat_owner_immutable")
+                    .unwrap();
                 fixture
                     .service
                     .database()

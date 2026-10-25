@@ -7,7 +7,7 @@ import { SessionChatView, type SessionChatViewProps } from './SessionChatView.te
 afterEach(() => { cleanup(); vi.restoreAllMocks() })
 
 function chat(messages: ChatMessage[] = []): ChatState {
-  return { sessionId: 'session-1', draftId: 'chat-1', revision: 1, composer: '', composerImages: [], mode: 'chat', aiRuns: [], messages, submission: null }
+  return { owner: { kind: 'notes', sessionId: 'session-1' }, archived: false, composerIntent: { kind: 'message' }, lastActiveOrder: 1, lastActiveAt: '2026-10-14T10:00:00Z', sessionId: 'session-1', draftId: 'chat-1', revision: 1, composer: '', composerImages: [], mode: 'chat', aiRuns: [], messages, submission: null }
 }
 
 function permission(patch: Partial<ChatPermissionRequest> = {}): ChatPermissionRequest {

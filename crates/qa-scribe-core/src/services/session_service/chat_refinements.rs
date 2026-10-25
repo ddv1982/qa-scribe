@@ -215,3 +215,38 @@ fn ensure_stage_editable(connection: &Connection, stage_id: &str) -> Result<()> 
     }
     Ok(())
 }
+
+pub(super) fn staged_origins(
+    connection: &Connection,
+    session_id: &str,
+) -> Result<Vec<StageOrigin>> {
+    let mut statement = connection.prepare("SELECT r.draft_id,r.proposal_json FROM chat_refinements r JOIN chat_drafts d ON d.id=r.draft_id WHERE d.session_id=?1 ORDER BY r.rowid")?;
+    let mut origins = Vec::new();
+    for row in statement.query_map([session_id], |r| {
+        Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
+    })? {
+        let (draft_id, raw) = row?;
+        let proposal: RefinementProposal = decode(&raw)?;
+        if let RefinementState::Staged { stage } = proposal.state {
+            let record = match proposal.target {
+                ChatTarget::Finding { snapshot } => ConversationRecord::Finding {
+                    record_id: snapshot.record_id,
+                },
+                ChatTarget::TestCasesDraft { snapshot } => ConversationRecord::TestCasesDraft {
+                    record_id: snapshot.record_id,
+                },
+                ChatTarget::Session => return Err(validation("Stage target is missing")),
+            };
+            origins.push(StageOrigin {
+                reference: ChatRef {
+                    session_id: session_id.into(),
+                    draft_id,
+                },
+                proposal_id: proposal.id,
+                stage_id: stage.id,
+                record,
+            });
+        }
+    }
+    Ok(origins)
+}

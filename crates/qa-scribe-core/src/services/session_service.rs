@@ -8,6 +8,7 @@ use crate::{QaScribeError, Result, storage::Database};
 pub(crate) mod attachments;
 mod chat;
 mod chat_context;
+mod chat_conversations;
 mod chat_images;
 mod chat_questions;
 mod chat_refinements;
