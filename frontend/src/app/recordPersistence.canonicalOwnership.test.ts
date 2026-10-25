@@ -50,3 +50,48 @@ it.each((['draft', 'finding'] as const).flatMap(kind => holders.map(holder => ({
     expect(coordination.hasPendingRecordCompensations()).toBe(false)
   },
 )
+
+it.each(['draft', 'finding'] as const)('%s absent baseline admission preserves an existing pin, stage, delete, and foreign Session', async kind => {
+  const subject = createOwnerBoundary(kind)
+  const command = kind === 'draft' ? subject.api.updateDraft : subject.api.updateFinding
+  const reached = deferred<void>(); const release = deferred<void>()
+  command.mockImplementationOnce(async (id: string, patch: RecordPatch, guard: RecordWriteGuard) => {
+    reached.resolve(); await release.promise
+    return subject.storage.write(id, patch, guard)
+  })
+  const owner = subject.persistence.saveDirtyRecordsNow()
+  await reached.promise
+  const pinTarget = subject.second
+  const stageTarget = { ...pinTarget, id: 'stage-target' }
+  const deletedTarget = { ...pinTarget, id: 'deleted-target' }
+  const foreignTarget = { ...pinTarget, id: 'foreign-target', sessionId: 'foreign-session' }
+  const coordination = subject.persistence.coordination
+  if ('aiRunId' in pinTarget) subject.ctx.records.savedDraftsRef.current = [subject.ctx.records.savedDraftsRef.current[0]]
+  else subject.ctx.records.savedFindingsRef.current = [subject.ctx.records.savedFindingsRef.current[0]]
+  const pin = await recordWriteGuard(pinTarget, kind === 'draft' ? 'drafts' : 'findings')
+  const value = editorValue(stageTarget)
+  const stage = { id: 'existing-stage', before: value, after: value, storedBaseToken: pin.expectedStoredBase }
+  coordination.latestWriteGuards.set(`${kind}:${pinTarget.id}`, pin)
+  coordination.proposalStages.set(`${kind}:${stageTarget.id}`, stage)
+  const reserveDelete = (record: typeof pinTarget) => 'aiRunId' in record
+    ? coordination.reserveDraftIntent(record.id, 'delete') : coordination.reserveFindingIntent(record.id, 'delete')
+  reserveDelete(deletedTarget)
+  const canonicalize = (record: typeof pinTarget) => 'aiRunId' in record
+    ? subject.persistence.drafts.canonicalizeGeneratedDraft(record, record)
+    : subject.persistence.findings.canonicalizeGeneratedFinding(record, record)
+  const tickets = [canonicalize(pinTarget), canonicalize(stageTarget), canonicalize(deletedTarget), canonicalize(foreignTarget)]
+  try {
+    const saved = kind === 'draft' ? subject.ctx.records.savedDraftsRef.current : subject.ctx.records.savedFindingsRef.current
+    expect(saved.map(record => record.id)).toEqual([subject.record.id])
+    expect(coordination.latestWriteGuards.get(`${kind}:${pinTarget.id}`)).toBe(pin)
+    expect(coordination.proposalStages.get(`${kind}:${stageTarget.id}`)).toBe(stage)
+  } finally {
+    reserveDelete(pinTarget); reserveDelete(stageTarget)
+    release.resolve()
+    expect(await owner).toBe(true)
+    await Promise.all(tickets)
+  }
+  expect(command).toHaveBeenCalledOnce()
+  const saved = kind === 'draft' ? subject.ctx.records.savedDraftsRef.current : subject.ctx.records.savedFindingsRef.current
+  expect(saved.map(record => record.id)).toEqual([subject.record.id])
+})
