@@ -54,7 +54,7 @@ fn fresh_missing_foreign_and_wrong_kind_preparation_retains_input_and_images() {
             }
             let before = rows(&f.service);
             let request = StartChatJobRequest {
-                intent: ChatRequestIntent::Message,
+                intent: crate::commands::chat::ChatSendIntent::Composer,
                 context,
                 ..request(&fresh)
             };

@@ -409,3 +409,55 @@ fn shutdown_broadcasts_cancellation_and_kills_children_before_finalization_waits
         );
     }
 }
+
+#[test]
+fn same_session_chat_jobs_share_global_three_job_limit() {
+    let store = JobStore::default();
+    for draft in ["A", "B"] {
+        let reference = qa_scribe_core::domain::ChatRef {
+            session_id: "shared-session".into(),
+            draft_id: draft.into(),
+        };
+        let (status, _) = store
+            .insert_chat_job(draft.into(), reference.clone())
+            .unwrap();
+        assert_eq!(status.chat.unwrap().reference, reference);
+        assert_eq!(status.ai_run_id, None);
+    }
+    let (general, _) = store
+        .insert_generation_job("general".into(), "other-session".into(), "testware".into())
+        .unwrap();
+    assert_eq!(general.chat, None);
+    assert_eq!(
+        store
+            .insert_chat_job(
+                "fourth".into(),
+                qa_scribe_core::domain::ChatRef {
+                    session_id: "shared-session".into(),
+                    draft_id: "C".into()
+                }
+            )
+            .err()
+            .unwrap(),
+        JobStoreError::Capacity { limit: 3 }
+    );
+    assert_eq!(store.len(), 3);
+}
+
+#[test]
+fn chat_identity_survives_all_transitions() {
+    let store = JobStore::default();
+    let reference = qa_scribe_core::domain::ChatRef {
+        session_id: "session".into(),
+        draft_id: "A".into(),
+    };
+    let (initial, _) = store.insert_chat_job("A".into(), reference).unwrap();
+    for status in [
+        store.mark_running("A", "run".into(), "Started").unwrap(),
+        store.update_partial("A", "Partial").unwrap(),
+        store.cancel("A").unwrap(),
+        store.mark_cancelled("A").unwrap(),
+    ] {
+        assert_eq!(status.chat, initial.chat);
+    }
+}

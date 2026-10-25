@@ -15,6 +15,10 @@ use crate::{
 mod composer_tests;
 #[cfg(test)]
 mod context_tests;
+#[cfg(test)]
+mod conversation_ownership_tests;
+#[cfg(test)]
+mod conversation_question_tests;
 mod image_import;
 #[cfg(test)]
 mod image_preflight_tests;
@@ -84,10 +88,12 @@ fn prepare_chat_job_with(
         &JobControl,
     ) -> Result<preparation::VerifiedChatPreparation, CommandError>,
 ) -> Result<(lifecycle::PreparedChat, GenerationJobStatus, JobControl), CommandError> {
-    let (status, control) = jobs.insert_generation_job(
+    let (status, control) = jobs.insert_chat_job(
         job_id.to_string(),
-        request.scope.session_id.clone(),
-        "chat".into(),
+        ChatRef {
+            session_id: request.scope.session_id.clone(),
+            draft_id: request.scope.draft_id.clone(),
+        },
     )?;
     let verified = state
         .with_service(|service| preparation::ChatPreparationSnapshot::capture(service, request))
@@ -169,10 +175,46 @@ fn reconcile_chat_failure(
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Deserialize, specta::Type)]
+#[serde(
+    tag = "kind",
+    rename_all = "snake_case",
+    rename_all_fields = "camelCase",
+    deny_unknown_fields
+)]
+pub enum ChatSendIntent {
+    Composer,
+    QuestionReply {
+        assistant_message_id: String,
+        text: String,
+    },
+    Retry,
+}
+
+impl ChatSendIntent {
+    fn resolve(&self, saved: ChatComposerIntent) -> ChatRequestIntent {
+        match self {
+            Self::Composer => match saved {
+                ChatComposerIntent::Message => ChatRequestIntent::Message,
+                ChatComposerIntent::RefineRecord => ChatRequestIntent::RefineRecord,
+                ChatComposerIntent::DraftJira => ChatRequestIntent::DraftJira,
+            },
+            Self::QuestionReply {
+                assistant_message_id,
+                text,
+            } => ChatRequestIntent::QuestionReply {
+                assistant_message_id: assistant_message_id.clone(),
+                text: text.clone(),
+            },
+            Self::Retry => ChatRequestIntent::Retry,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct StartChatJobRequest {
-    pub intent: ChatRequestIntent,
+    pub intent: ChatSendIntent,
     #[serde(default)]
     #[specta(optional)]
     pub context: ChatTarget,

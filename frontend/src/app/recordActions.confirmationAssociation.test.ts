@@ -1,3 +1,4 @@
+import { stageOrigin } from './proposalStage.testSupport'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { draftFixture, findingFixture } from '../test/fixtures'
 import { createRecordActionCoordination } from './recordActions.coordination'
@@ -16,7 +17,7 @@ async function subject(kind: Kind, superseded = false) {
   const table = kind === 'finding' ? 'findings' : 'drafts'
   const base = await recordWriteGuard(a, table)
   const confirmed = await recordWriteGuard(b, table)
-  const stage = { id: 'completed-stage', before: editorValue(a), after: editorValue(b), storedBaseToken: base.expectedStoredBase }
+  const stage = { origin: stageOrigin(kind, a.id, 'completed-stage', a.sessionId), id: 'completed-stage', before: editorValue(a), after: editorValue(b), storedBaseToken: base.expectedStoredBase }
   const ctx: RecordPersistenceContext = {
     session: { activeSessionIdRef: { current: a.sessionId } },
     records: {
@@ -67,8 +68,10 @@ it.each(kinds.flatMap(kind => (['resolve', 'reject'] as const).map(outcome => ({
   '$kind retires only its association before the restore hash can $outcome', async ({ kind, outcome }) => {
     const s = await subject(kind, true)
     const otherKey = `${kind}:other-record`
-    s.c.bindStage(kind, 'other-record', s.a.sessionId, s.stage)
+    const otherStage = { ...s.stage, id: 'other-stage', origin: stageOrigin(kind, 'other-record', 'other-stage', s.a.sessionId) }
+    s.c.bindStage(kind, 'other-record', s.a.sessionId, otherStage)
     const otherGuard = s.c.latestWriteGuards.get(otherKey)
+    expect(otherGuard).toEqual({ sessionId: s.a.sessionId, expectedStoredBase: s.stage.storedBaseToken, origin: { kind: 'proposal', stageId: 'other-stage' } })
     s.ctx.session.activeSessionIdRef.current = 'another-active-session'
     const boundary = holdHash(2, outcome === 'reject' ? new Error('restore hash failed') : undefined)
     const pending = s.confirm()
@@ -77,7 +80,7 @@ it.each(kinds.flatMap(kind => (['resolve', 'reject'] as const).map(outcome => ({
     expect(lease).toEqual(s.confirmed)
     expect(lease).not.toBe(s.source)
     expect(s.c.proposalStages.has(s.key)).toBe(false)
-    expect(s.c.proposalStages.get(otherKey)).toBe(s.stage)
+    expect(s.c.proposalStages.get(otherKey)).toBe(otherStage)
     expect(s.c.latestWriteGuards.get(otherKey)).toBe(otherGuard)
     expect(s.intent.restore).toBe(s.a)
     expect(s.intent.expected).toBeUndefined()
@@ -151,4 +154,44 @@ it.each(kinds)('%s matching acceptance installs the canonical restore and null-s
   expect(accepted?.expected).toEqual({ ...s.confirmed, origin: { kind: 'compensation', stageId: null, restoredBase: s.confirmed.expectedStoredBase } })
   expect(digest).toHaveBeenCalledOnce()
   expect(s.c.proposalStages.has(s.key)).toBe(false)
+})
+
+it.each(kinds)('%s binding preserves an older editor pin after a newer server snapshot', async kind => {
+  const s = await subject(kind)
+  s.c.releaseStage(kind, s.a.id, s.source, s.stage.id)
+  const pinned = s.c.latestWriteGuards.get(s.key)!
+  const newer = { ...s.stage, id: 'newer-snapshot', storedBaseToken: s.confirmed.expectedStoredBase, origin: { ...s.stage.origin, stageId: 'newer-snapshot' } }
+  s.c.bindStage(kind, s.a.id, s.a.sessionId, newer)
+  expect(s.c.latestWriteGuards.get(s.key)?.expectedStoredBase).toBe(pinned.expectedStoredBase)
+  expect(s.c.latestWriteGuards.get(s.key)?.expectedStoredBase).not.toBe(newer.storedBaseToken)
+  expect(s.c.proposalStages.get(s.key)).toBe(newer)
+})
+
+it.each(kinds)('%s stale release leaves both association and write guard unchanged', async kind => {
+  const s = await subject(kind)
+  const association = s.c.proposalStages.get(s.key)
+  const guard = s.c.latestWriteGuards.get(s.key)
+  s.c.releaseStage(kind, s.a.id, s.confirmed, 'unbound-competitor')
+  expect(s.c.proposalStages.get(s.key)).toBe(association)
+  expect(s.c.latestWriteGuards.get(s.key)).toBe(guard)
+  expect(() => s.c.bindStage(kind, s.a.id, s.a.sessionId, { ...s.stage, id: 'competitor', origin: { ...s.stage.origin, stageId: 'competitor' } })).toThrow('already bound')
+  expect(s.c.proposalStages.get(s.key)).toBe(association)
+  expect(s.c.latestWriteGuards.get(s.key)).toBe(guard)
+})
+
+it.each(kinds)('%s confirmation notifies the dispatched origin after association replacement', async kind => {
+  const s = await subject(kind)
+  const changed = vi.fn(); s.c.subscribeChanges(changed)
+  const replacement = { ...s.stage, id: 'replacement-stage', origin: { ...s.stage.origin, stageId: 'replacement-stage', proposalId: 'replacement-proposal', reference: { ...s.stage.origin.reference, draftId: 'other-conversation' } } }
+  s.c.proposalStages.set(s.key, replacement)
+  if ('aiRunId' in s.b) {
+    const write = { record: s.b, kind: 'draft' as const, guard: s.source, generation: 1, stageOrigin: s.stage.origin }
+    await s.c.confirmedWrite(write)
+  } else {
+    const write = { record: s.b, kind: 'finding' as const, guard: s.source, generation: 1, stageOrigin: s.stage.origin }
+    await s.c.confirmedWrite(write)
+  }
+  expect(changed).toHaveBeenCalledWith(kind, s.a.id, 'saved', s.stage.origin)
+  expect(changed).not.toHaveBeenCalledWith(kind, s.a.id, 'saved', replacement.origin)
+  expect(s.c.proposalStages.get(s.key)).toBe(replacement)
 })

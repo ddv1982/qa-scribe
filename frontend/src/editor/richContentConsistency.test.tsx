@@ -22,7 +22,7 @@ describe('shared rich-content surfaces', () => {
         onTitleChange={vi.fn()} onBodyChange={vi.fn()} onUploadImage={vi.fn()}
       />))}
       <GenerationRecord title="Generated preview" titleAriaLabel="Generated title" bodyAriaLabel="Generated content"
-        placeholder="" job={{ jobId: 'job', sessionId: 'session', action: 'testware', state: 'running', aiRunId: null, errorMessage: null, progressMessage: 'Generating', partialText: html }} onCancelGenerationJob={vi.fn(async () => {})} />
+        placeholder="" job={{ chat: null, jobId: 'job', sessionId: 'session', action: 'testware', state: 'running', aiRunId: null, errorMessage: null, progressMessage: 'Generating', partialText: html }} onCancelGenerationJob={vi.fn(async () => {})} />
     </>)
     await waitFor(() => expect(container.querySelectorAll('.rich-editor h2')).toHaveLength(6))
     const editors = Array.from(container.querySelectorAll('.rich-editor'))

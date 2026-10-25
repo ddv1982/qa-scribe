@@ -2,7 +2,7 @@ import { act, cleanup } from '@testing-library/react'
 import { vi } from 'vitest'
 import { draftFixture, entryFixture, findingFixture, providerStatusFixture, sessionFixture, settingsFixture } from '../test/fixtures'
 import { chatFixture } from './useSessionChat.testSupport'
-import type { ChatComposerRequest } from '../bindings'
+import type { ChatComposerRequest, ChatState, ChatRef } from '../bindings'
 
 const tauriMock = vi.hoisted(() => ({
   cancelAiActionJob: vi.fn(), getAiActionJobStatus: vi.fn(), listActiveAiActionJobs: vi.fn(),
@@ -15,7 +15,8 @@ const tauriMock = vi.hoisted(() => ({
   listFindingLibrary: vi.fn(), listFindings: vi.fn(), listRecentSessions: vi.fn(), listSessions: vi.fn(), openSessionNoteState: vi.fn(),
   reopenSession: vi.fn(), refreshProviderStatus: vi.fn(), retryAttachmentCleanup: vi.fn(), startAiActionJob: vi.fn(), updateDraft: vi.fn(),
   updateEntry: vi.fn(), updateFinding: vi.fn(), updateSession: vi.fn(), updateSettings: vi.fn(),
-  resolveRefinement: vi.fn(), getChat: vi.fn(), saveChatComposer: vi.fn(), startChatJob: vi.fn(), submitChat: vi.fn(), restartChat: vi.fn(),
+  beginRecordChat: vi.fn(), getConversation: vi.fn<(reference: ChatRef) => Promise<ChatState>>(), activateConversation: vi.fn(), listChatHistory: vi.fn(),
+  resolveRefinement: vi.fn(), getChat: vi.fn<(sessionId: string) => Promise<ChatState>>(), saveChatComposer: vi.fn(), startChatJob: vi.fn(), submitChat: vi.fn(), restartChat: vi.fn(),
   importChatImage: vi.fn(), readChatClipboardImageDataUrl: vi.fn(),
   EDITOR_HTML_TAGS: ['a', 'b', 'br', 'em', 'h2', 'h3', 'i', 'img', 'input', 'li', 'ol', 'p', 'strong', 'ul'],
   SELF_CLOSING_EDITOR_HTML_TAGS: ['br', 'img', 'input'],
@@ -88,10 +89,33 @@ export function setupControllerTest() {
   tauriMock.listSessions.mockResolvedValue([sessionFixture()])
   tauriMock.listActiveAiActionJobs.mockResolvedValue([])
   tauriMock.getChat.mockReset().mockImplementation(async (sessionId: string) => chatFixture({ sessionId, draftId: `chat-${sessionId}` }))
-  tauriMock.saveChatComposer.mockReset().mockImplementation(async (request: ChatComposerRequest) => chatFixture({
-    sessionId: request.scope.sessionId, draftId: request.scope.draftId,
-    revision: request.scope.expectedRevision + 1, composer: request.composer, mode: request.mode,
-  }))
+  const rows = new Map<string, import('../bindings').ChatState>()
+  tauriMock.getConversation.mockReset().mockImplementation(async (reference: import('../bindings').ChatRef) => {
+    const row = rows.get(reference.draftId)
+    if (row) {
+      if (row.sessionId !== reference.sessionId) throw new Error('Wrong exact draft Session')
+      return row
+    }
+    const notes = await tauriMock.getChat(reference.sessionId)
+    if (notes.draftId !== reference.draftId || notes.sessionId !== reference.sessionId) throw new Error('Exact draft not found')
+    return notes
+  })
+  tauriMock.beginRecordChat.mockReset().mockImplementation(async (request: import('../bindings').BeginRecordChatRequest) => {
+    const row = rows.get(request.draftId) ?? chatFixture({ sessionId: request.sessionId, draftId: request.draftId, mode: 'chat', owner: { kind: 'record', sessionId: request.sessionId, record: request.record } })
+    rows.set(row.draftId, row); return row
+  })
+  tauriMock.activateConversation.mockReset().mockImplementation(async (reference: import('../bindings').ChatRef) => tauriMock.getConversation(reference))
+  tauriMock.listChatHistory.mockReset().mockResolvedValue([])
+  tauriMock.saveChatComposer.mockReset().mockImplementation(async (request: ChatComposerRequest) => {
+    const previous = rows.get(request.scope.draftId)
+    const saved = chatFixture({ ...previous,
+      sessionId: request.scope.sessionId, draftId: request.scope.draftId,
+      revision: request.scope.expectedRevision + 1, composer: request.composer, composerIntent: request.intent ?? { kind: 'message' }, mode: request.mode,
+      composerImages: (request.attachmentIds ?? []).map(id => previous?.composerImages.find(image => image.attachmentId === id) ?? { attachmentId: id, filename: id, mimeType: 'image/png', sizeBytes: 1 }),
+    })
+    if (previous) rows.set(saved.draftId, saved)
+    return saved
+  })
   tauriMock.resolveRefinement.mockReset()
   tauriMock.startChatJob.mockReset()
   tauriMock.submitChat.mockReset()

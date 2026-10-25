@@ -7,7 +7,7 @@ import * as tauri from '../tauri'
 
 afterEach(() => { cleanup(); vi.restoreAllMocks() })
 
-const job: GenerationJobStatus = { jobId: 'job', sessionId: 'session', action: 'testware', state: 'running', aiRunId: null, errorMessage: null, progressMessage: 'Generating', partialText: '' }
+const job: GenerationJobStatus = { chat: null, jobId: 'job', sessionId: 'session', action: 'testware', state: 'running', aiRunId: null, errorMessage: null, progressMessage: 'Generating', partialText: '' }
 const html = '<h2>Requirements</h2><p><strong>Important</strong> <em>context</em> **literal** _name_ `code` [label](url) &amp; entities</p><ol start="7"><li><p>Seventh</p></li></ol><ul><li><p>Parent</p><ul><li><p>Nested</p></li></ul></li></ul><ul data-type="taskList"><li data-type="taskItem" data-checked="true"><p>Verified</p></li></ul>'
 
 function preview(current: GenerationJobStatus, cancel = vi.fn(async () => {})) {
@@ -70,7 +70,7 @@ describe('Testware generation Streamdown preview', () => {
       : Promise.resolve('data:image/png;base64,new-image'))
     const { rerender } = render(preview({ ...job, partialText: '<p>Evidence</p><img src="qa-scribe-attachment://old-image" alt="Old evidence">' }))
     await waitFor(() => expect(load).toHaveBeenCalledWith('old-image'))
-    rerender(preview({ ...job, sessionId: 'other-session', jobId: 'other-job', partialText: '<p>New</p><img src="qa-scribe-attachment://new-image" alt="New evidence">' }))
+    rerender(preview({ ...job, sessionId: 'other-session', chat: null, jobId: 'other-job', partialText: '<p>New</p><img src="qa-scribe-attachment://new-image" alt="New evidence">' }))
     await waitFor(() => expect(screen.getByAltText('New evidence')).toHaveAttribute('src', 'data:image/png;base64,new-image'))
     finishOld('data:image/png;base64,old-image')
     await waitFor(() => expect(screen.queryByAltText('Old evidence')).toBeNull())

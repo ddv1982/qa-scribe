@@ -122,7 +122,7 @@ mod deletion_tests {
         (
             service,
             StartChatJobRequest {
-                intent: ChatRequestIntent::Message,
+                intent: crate::commands::chat::ChatSendIntent::Composer,
                 context: ChatTarget::Session,
                 scope: scope(&chat),
 

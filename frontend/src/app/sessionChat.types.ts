@@ -1,4 +1,4 @@
-import type { ChatRequestIntent, ChatTarget, ChatImage, ChatMode, ChatPermissionDecision, ChatState, GenerationJobStatus, ProviderDescriptor } from '../bindings'
+import type { ChatComposerIntent, ChatRef, ConversationOwner, ChatSendIntent, ChatTarget, ChatImage, ChatMode, ChatPermissionDecision, ChatState, GenerationJobStatus, ProviderDescriptor } from '../bindings'
 import type { Dispatch, SetStateAction } from 'react'
 import type { AiSelection, GenerationWorkspace, SessionWorkspace, WorkflowFeedback } from './types'
 import type { useSessionActions } from './sessionActions'
@@ -10,7 +10,7 @@ export type ChatImageRecovery = { kind: 'refresh_pending' | 'verification_pendin
 export type ChatImageFailure = { id: string; filename: string; message: string; recovery?: ChatImageRecovery }
 
 export interface SessionChatViewState {
-  responseStarting?: ChatRequestIntent
+  responseStarting?: ChatSendIntent | ChatComposerIntent
   recordWritesPending?: boolean
   onRefine?: () => Promise<void>
   onDraftJira?: () => Promise<void>
@@ -21,6 +21,7 @@ export interface SessionChatViewState {
   handoff: ChatHandoffPresentation
   chat: ChatState | null
   composer: string
+  composerIntent: ChatComposerIntent
   composerImages: ChatImage[]
   imageFailures: ChatImageFailure[]
   inputRecoveryPending: boolean
@@ -49,13 +50,13 @@ export interface SessionChatViewState {
   onRestart: () => Promise<void>
 }
 
-export type ChatSnapshot = Pick<SessionChatViewState, 'chat' | 'composer' | 'composerImages' | 'imageFailures' | 'inputRecoveryPending' | 'job' | 'loading' | 'saving' | 'working' | 'error' | 'dirty' | 'permissionWorking' | 'permissionRecoveryPending' | 'responseStarting'> & {
+export type ChatSnapshot = Pick<SessionChatViewState, 'chat' | 'composer' | 'composerImages' | 'imageFailures' | 'inputRecoveryPending' | 'job' | 'loading' | 'saving' | 'working' | 'error' | 'dirty' | 'permissionWorking' | 'permissionRecoveryPending' | 'responseStarting' | 'composerIntent'> & {
   sessionId: string | null
   mode: ChatMode
 }
 
 export const emptyChatSnapshot: ChatSnapshot = {
-  sessionId: null, chat: null, composer: '', composerImages: [], imageFailures: [], inputRecoveryPending: false, job: null, loading: false,
+  sessionId: null, chat: null, composerIntent: { kind: 'message' }, composer: '', composerImages: [], imageFailures: [], inputRecoveryPending: false, job: null, loading: false,
   saving: false, working: false, permissionWorking: false, permissionRecoveryPending: false, error: null, dirty: false, mode: 'write_note',
 }
 
@@ -70,7 +71,7 @@ export type SessionChatContext = {
   provider: ProviderDescriptor | null
   providerWarning: string | null
   refreshProviderStatus?: () => Promise<void>
-  captureContext?: (sessionId: string) => ChatTarget
+  captureContext?: (sessionId: string, owner?: ConversationOwner | null) => ChatTarget
   feedback: WorkflowFeedback
   publish: Dispatch<SetStateAction<ChatSnapshot>>
 }
@@ -80,12 +81,16 @@ export type ChatWorkspace = {
   retirement: Promise<void>
   resolveRetirement: () => void
   recovery: Promise<boolean> | null
+  readonly reference: ChatRef
+  owner: ConversationOwner | null
   sessionId: string
   chat: ChatState | null
   composer: string
+  composerIntent: ChatComposerIntent
   composerImages: ChatImage[]
   imageFailures: ChatImageFailure[]
-  pendingStart: { state: 'starting' | 'uncertain'; intent: ChatRequestIntent } | null
+  pendingStart: { intent: ChatSendIntent; previousJobId: string | null; previousUserTurn: { id: string; turnId: string } | null }
+    & ({ state: 'starting' } | { state: 'uncertain'; outcome: 'unknown' | 'rejected' }) | null
   mode: ChatMode
   inputVersion: number
   modeVersion: number
@@ -105,6 +110,11 @@ export function chatIsWorking(job: GenerationJobStatus | null): boolean {
   return Boolean(job && ['starting', 'running', 'cancelling'].includes(job.state))
 }
 
+export function chatHasCommittedStart(chat: ChatState, pending: ChatWorkspace['pendingStart']): boolean {
+  const latestUser = chat.messages.filter(message => message.role === 'user').at(-1)
+  return Boolean(pending && latestUser && (latestUser.id !== pending.previousUserTurn?.id || latestUser.turnId !== pending.previousUserTurn?.turnId))
+}
+
 export function chatIsDirty(workspace: ChatWorkspace): boolean {
   if (workspace.retired) return false
   if (workspace.chat?.submission) return false
@@ -113,7 +123,8 @@ export function chatIsDirty(workspace: ChatWorkspace): boolean {
 }
 
 export function chatInputIsDirty(workspace: ChatWorkspace): boolean {
-  return workspace.composer !== workspace.chat?.composer
+  return JSON.stringify(workspace.composerIntent) !== JSON.stringify(workspace.chat?.composerIntent)
+    || workspace.composer !== workspace.chat?.composer
     || JSON.stringify(workspace.composerImages.map(image => image.attachmentId))
       !== JSON.stringify((workspace.chat?.composerImages ?? []).map(image => image.attachmentId))
 }

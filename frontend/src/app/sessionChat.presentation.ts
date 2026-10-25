@@ -37,12 +37,13 @@ export function deriveChatHandoff(state: ChatActivity & {
   imageFailures?: readonly ChatImageFailure[]
 }): ChatHandoffPresentation {
   const { chat, job, sessionId, noteEntry, composer } = state
-  const current = Boolean(sessionId && chat?.sessionId === sessionId)
-  const busy = chatIsBusy(state)
-  const hydrationPending = Boolean(current && job?.sessionId === sessionId && job.action === 'chat'
-    && job.state === 'completed' && (!job.aiRunId || !chat?.messages.some(message =>
-      message.role === 'assistant' && message.status === 'completed' && message.aiRunId === job.aiRunId)))
-  const unsettled = chatIsBusy({ ...state, saving: false }) || Boolean(state.permissionWorking || state.permissionRecoveryPending || state.inputRecoveryPending) || hydrationPending
+  const current = Boolean(sessionId && chat?.sessionId === sessionId && chat.owner.kind === 'notes')
+  const ownJob = job?.chat?.reference.sessionId === sessionId && job.chat.reference.draftId === chat?.draftId ? job : null
+  const busy = chatIsBusy({ ...state, job: ownJob })
+  const hydrationPending = Boolean(current && ownJob?.sessionId === sessionId && ownJob.action === 'chat'
+    && ownJob.state === 'completed' && (!ownJob.aiRunId || !chat?.messages.some(message =>
+      message.role === 'assistant' && message.status === 'completed' && message.aiRunId === ownJob.aiRunId)))
+  const unsettled = chatIsBusy({ ...state, job: ownJob, saving: false }) || Boolean(state.permissionWorking || state.permissionRecoveryPending || state.inputRecoveryPending) || hydrationPending
   const completed = Boolean(current && chat?.messages.length && chat.messages.every(message => message.status === 'completed'))
   const reviewAvailable = completed && !unsettled && !state.recoveryPending
   const facts = { hydrationPending, reviewAvailable }

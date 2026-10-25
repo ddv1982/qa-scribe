@@ -40,7 +40,7 @@ fn fixture_with_size(size: usize) -> (Arc<AppState>, ChatState, std::path::PathB
 
 fn request(chat: &ChatState) -> StartChatJobRequest {
     StartChatJobRequest {
-        intent: ChatRequestIntent::Message,
+        intent: crate::commands::chat::ChatSendIntent::Composer,
         context: ChatTarget::Session,
         scope: lifecycle::scope(chat),
 

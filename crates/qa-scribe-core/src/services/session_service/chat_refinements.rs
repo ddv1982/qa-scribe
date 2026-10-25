@@ -18,6 +18,14 @@ impl SessionService {
                     if current != snapshot.stored_base_token { return Err(validation("Stored record changed. Discard local changes and review the latest record before requesting another refinement.")); }
                     match proposal.state {
                         RefinementState::Offered => {
+                            let record = match &proposal.target {
+                                ChatTarget::Finding { snapshot } => ConversationRecord::Finding { record_id: snapshot.record_id.clone() },
+                                ChatTarget::TestCasesDraft { snapshot } => ConversationRecord::TestCasesDraft { record_id: snapshot.record_id.clone() },
+                                ChatTarget::Session => return Err(validation("Stage target is missing")),
+                            };
+                            if let Some(origin) = staged_origins(tx, &chat.session_id)?.into_iter().find(|origin| origin.record == record) {
+                                return Err(validation(format!("Resolve the prepared change in conversation {} (proposal {}) before applying another suggestion.", origin.reference.draft_id, origin.proposal_id)));
+                            }
                             let stage = EditorStage { id: new_id(), before: proposal.before.clone(), after: proposal.after.clone(), stored_base_token: snapshot.stored_base_token.clone() };
                             tx.execute("INSERT INTO chat_editor_stages (id, proposal_id, stage_json) VALUES (?1, ?2, ?3)", params![stage.id, proposal.id, encode(&stage)?])?;
                             proposal.state = RefinementState::Staged { stage };

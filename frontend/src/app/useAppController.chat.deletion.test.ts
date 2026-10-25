@@ -111,8 +111,8 @@ describe('BlockingR37-02: successful Session deletion retires app-owned Chat wor
   it('cancels scheduled Chat polling when core Session deletion succeeds', async () => {
     deletableSession()
     vi.useFakeTimers()
-    api.listActiveAiActionJobs.mockResolvedValue([chatJobFixture()])
-    api.getAiActionJobStatus.mockResolvedValue(chatJobFixture())
+    api.listActiveAiActionJobs.mockResolvedValue([chatJobFixture({ chat: { reference: { sessionId: 'session-1', draftId: 'chat-session-1' } } })])
+    api.getAiActionJobStatus.mockResolvedValue(chatJobFixture({ chat: { reference: { sessionId: 'session-1', draftId: 'chat-session-1' } } }))
     const { result } = renderHook(() => useAppController())
     await bootWithFakeClock(result)
     expect(result.current.sessionChat.job?.jobId).toBe('job-chat')
@@ -125,7 +125,7 @@ describe('BlockingR37-02: successful Session deletion retires app-owned Chat wor
   it('ignores a polling response already in flight instead of recreating or rehydrating a deleted workspace', async () => {
     deletableSession()
     vi.useFakeTimers()
-    api.listActiveAiActionJobs.mockResolvedValue([chatJobFixture()])
+    api.listActiveAiActionJobs.mockResolvedValue([chatJobFixture({ chat: { reference: { sessionId: 'session-1', draftId: 'chat-session-1' } } })])
     const status = deferred<ReturnType<typeof chatJobFixture>>()
     api.getAiActionJobStatus.mockReturnValueOnce(status.promise)
     const { result } = renderHook(() => useAppController())

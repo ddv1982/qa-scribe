@@ -8,7 +8,7 @@ export function countWords(value: string): number {
 const BRIDGE_UNAVAILABLE_MESSAGE =
   'Desktop bridge unavailable in browser preview. Run the Tauri app for live local data.'
 
-function isCommandError(value: unknown): value is CommandError {
+export function isCommandError(value: unknown): value is CommandError {
   return (
     typeof value === 'object' &&
     value !== null &&

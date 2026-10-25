@@ -81,10 +81,17 @@ impl std::error::Error for JobStoreError {}
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
+pub struct ChatJobIdentity {
+    pub reference: qa_scribe_core::domain::ChatRef,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
 pub struct GenerationJobStatus {
     pub job_id: String,
     pub session_id: String,
     pub action: String,
+    pub chat: Option<ChatJobIdentity>,
     pub state: GenerationJobState,
     pub progress_message: String,
     pub ai_run_id: Option<String>,

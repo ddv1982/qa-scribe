@@ -67,14 +67,43 @@ fn launch(session_id: &str, record: &ConversationRecord) -> BeginRecordChatReque
         record: record.clone(),
     }
 }
+fn owned_context(chat: &ChatState) -> ChatTarget {
+    let ConversationOwner::Record { session_id, record } = &chat.owner else {
+        return ChatTarget::Session;
+    };
+    let (record_id, title, record_kind) = match record {
+        ConversationRecord::Finding { record_id } => (record_id, "Synthetic finding", "bug"),
+        ConversationRecord::TestCasesDraft { record_id } => {
+            (record_id, "Synthetic test cases", "testware")
+        }
+    };
+    let snapshot = RecordContextSnapshot {
+        session_id: session_id.clone(),
+        record_id: record_id.clone(),
+        title: title.into(),
+        document_json: serde_json::json!({"schemaVersion":1,"doc":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Original"}]}]}}).to_string(),
+        metadata_json: None,
+        record_kind: record_kind.into(),
+        origin: RecordSnapshotOrigin::Saved,
+        local_fingerprint: String::new(),
+        stored_base_token: String::new(),
+    };
+    match record {
+        ConversationRecord::Finding { .. } => ChatTarget::Finding { snapshot },
+        ConversationRecord::TestCasesDraft { .. } => ChatTarget::TestCasesDraft { snapshot },
+    }
+}
 fn complete(service: &SessionService, chat: &ChatState) -> ChatState {
     let chat = service
         .save_chat_composer(composer(chat, "Question", ChatComposerIntent::Message))
         .unwrap();
     let started = service
-        .start_chat_turn(ChatStartRequest {
-            scope: scope(&chat),
-        })
+        .start_chat_turn_with_context(
+            ChatStartRequest {
+                scope: scope(&chat),
+            },
+            owned_context(&chat),
+        )
         .unwrap();
     service
         .finish_chat_turn(ChatFinishRequest {

@@ -51,7 +51,7 @@ it.each(kinds.flatMap(kind => boundaries.map(boundary => ({ kind, boundary }))))
     if (boundary === 'owned') {
       expect(kind === 'draft' ? ctx.records.savedDraftsRef.current : ctx.records.savedFindingsRef.current).toEqual([incoming])
       expect(ctx.feedback.setError).toHaveBeenCalledWith(cause.message)
-      expect(changed).toHaveBeenCalledExactlyOnceWith(kind, incoming.id, 'conflict')
+      expect(changed).toHaveBeenCalledExactlyOnceWith(kind, incoming.id, 'conflict', undefined)
     } else {
       expect(ctx.records.savedDraftsRef.current).toBe(before.savedDrafts)
       expect(ctx.records.savedFindingsRef.current).toBe(before.savedFindings)

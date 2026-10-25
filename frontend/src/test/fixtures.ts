@@ -201,6 +201,7 @@ export function providerDefaultSnapshotFixture(patch: Partial<ProviderDefaultSna
 
 export function generationStatusFixture(patch: Partial<GenerationJobStatus> = {}): GenerationJobStatus {
   return {
+    chat: null,
     jobId: 'job-1',
     sessionId: 'session-1',
     action: 'testware',

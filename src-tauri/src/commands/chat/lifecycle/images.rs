@@ -41,7 +41,7 @@ impl Fixture {
         )
         .unwrap();
         let request = StartChatJobRequest {
-            intent: ChatRequestIntent::Message,
+            intent: crate::commands::chat::ChatSendIntent::Composer,
             context: ChatTarget::Session,
             scope: scope(&chat),
 
@@ -103,7 +103,7 @@ fn unsupported_acp_retains_immutable_image_turn_and_retry_replays_identical_pixe
     assert_eq!(failed.messages[0].id, id);
     assert_eq!(failed.messages[0].images, images);
     fixture.request.scope = scope(&failed);
-    fixture.request.intent = ChatRequestIntent::Retry;
+    fixture.request.intent = crate::commands::chat::ChatSendIntent::Retry;
     let retry = fixture.prepare();
     assert_eq!(retry.started.chat.messages[0].id, id);
     assert_eq!(retry.input.content_blocks(AiProvider::CopilotCli), blocks);

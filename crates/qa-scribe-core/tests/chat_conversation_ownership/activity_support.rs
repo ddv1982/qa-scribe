@@ -137,9 +137,12 @@ impl Fixture {
         let chat = self.save(&self.read(&self.a), "Retry this literal question");
         let started = self
             .service
-            .start_chat_turn(ChatStartRequest {
-                scope: scope(&chat),
-            })
+            .start_chat_turn_with_context(
+                ChatStartRequest {
+                    scope: scope(&chat),
+                },
+                owned_context(&chat),
+            )
             .unwrap();
         self.service
             .fail_chat_turn(ChatFailRequest {

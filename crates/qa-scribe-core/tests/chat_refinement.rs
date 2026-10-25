@@ -301,3 +301,181 @@ fn draft_guards_compare_all_body_representations_and_session() {
             .is_err()
     );
 }
+
+#[test]
+fn competing_stage_is_atomic_across_conversations() {
+    let (service, record) = setup();
+    let a = complete(
+        &service,
+        started(&service, &record),
+        json!({"kind":"finding","title":"A suggestion"}),
+    );
+    let b = service
+        .begin_record_chat(BeginRecordChatRequest {
+            session_id: record.session_id.clone(),
+            draft_id: uuid::Uuid::new_v4().to_string(),
+            record: ConversationRecord::Finding {
+                record_id: record.id.clone(),
+            },
+        })
+        .unwrap();
+    let b = service
+        .save_chat_composer(ChatComposerRequest {
+            scope: scope(&b),
+            composer: "B request".into(),
+            intent: ChatComposerIntent::RefineRecord,
+            mode: ChatMode::Chat,
+            attachment_ids: vec![],
+        })
+        .unwrap();
+    let b = service
+        .start_chat_turn_with_response(
+            ChatStartRequest { scope: scope(&b) },
+            target(&record),
+            ChatRequestIntent::RefineRecord,
+        )
+        .unwrap();
+    let b = complete(
+        &service,
+        b,
+        json!({"kind":"finding","title":"B suggestion"}),
+    );
+    let staged = action(&service, &a, RefinementAction::Stage);
+    let error = service.resolve_refinement(RefinementRequest {
+        scope: scope(&b),
+        proposal_id: b.proposals[0].id.clone(),
+        action: RefinementAction::Stage,
+    });
+    assert!(
+        error.is_err(),
+        "a second conversation must not stage the same record"
+    );
+    assert_eq!(
+        service
+            .read_chat(&ChatRef {
+                session_id: b.session_id.clone(),
+                draft_id: b.draft_id.clone()
+            })
+            .unwrap(),
+        b
+    );
+    let replay = action(&service, &staged, RefinementAction::Stage);
+    assert_eq!(replay, staged);
+    assert_eq!(
+        service.list_findings(&record.session_id).unwrap(),
+        vec![record.clone()]
+    );
+    let abandoned = action(&service, &staged, RefinementAction::Abandon);
+    assert!(matches!(
+        abandoned.proposals[0].state,
+        RefinementState::Abandoned { .. }
+    ));
+    let b = action(&service, &b, RefinementAction::Stage);
+    assert!(matches!(
+        b.proposals[0].state,
+        RefinementState::Staged { .. }
+    ));
+}
+
+#[test]
+fn failed_stage_transaction_retains_offer_and_stored_body() {
+    let (service, record) = setup();
+    let chat = complete(
+        &service,
+        started(&service, &record),
+        json!({"kind":"finding","title":"Rollback suggestion"}),
+    );
+    service.database().connection().execute_batch("CREATE TRIGGER fail_stage_write BEFORE UPDATE OF proposal_json ON chat_refinements BEGIN SELECT RAISE(ABORT, 'controlled stage write failure'); END;").unwrap();
+    assert!(
+        service
+            .resolve_refinement(RefinementRequest {
+                scope: scope(&chat),
+                proposal_id: chat.proposals[0].id.clone(),
+                action: RefinementAction::Stage
+            })
+            .is_err()
+    );
+    assert_eq!(
+        service
+            .read_chat(&ChatRef {
+                session_id: chat.session_id.clone(),
+                draft_id: chat.draft_id.clone()
+            })
+            .unwrap(),
+        chat
+    );
+    let stages: i64 = service
+        .database()
+        .connection()
+        .query_row("SELECT COUNT(*) FROM chat_editor_stages", [], |row| {
+            row.get(0)
+        })
+        .unwrap();
+    assert_eq!(stages, 0);
+    assert_eq!(
+        service.list_findings(&record.session_id).unwrap(),
+        vec![record]
+    );
+}
+
+#[test]
+fn newer_snapshot_stage_cannot_replace_an_older_editor_base() {
+    let (service, original) = setup();
+    let pinned = RecordWriteGuard::finding(&original);
+    let newer = service
+        .update_finding(
+            &original.id,
+            FindingPatch {
+                title: Some("Remote title B".into()),
+                body: Some("Literal remote body B".into()),
+                ..Default::default()
+            },
+            pinned.clone(),
+        )
+        .unwrap()
+        .into_saved()
+        .unwrap();
+    let chat = complete(
+        &service,
+        started(&service, &newer),
+        json!({"kind":"finding","title":"Proposed from local A"}),
+    );
+    let staged = action(&service, &chat, RefinementAction::Stage);
+    let stage = match &staged.proposals[0].state {
+        RefinementState::Staged { stage } => stage,
+        _ => panic!("stage"),
+    };
+    assert_eq!(
+        stage.stored_base_token,
+        RecordWriteGuard::finding(&newer).expected_stored_base
+    );
+    assert_ne!(stage.stored_base_token, pinned.expected_stored_base);
+    let attempted = service
+        .update_finding(
+            &original.id,
+            FindingPatch {
+                title: Some("Unsaved local A".into()),
+                body: Some("Local A body must not overwrite B".into()),
+                ..Default::default()
+            },
+            RecordWriteGuard {
+                origin: RecordWriteOrigin::Proposal {
+                    stage_id: stage.id.clone(),
+                },
+                ..pinned
+            },
+        )
+        .unwrap();
+    assert!(matches!(attempted, RecordWriteOutcome::Conflict { .. }));
+    let stored = service.list_findings(&original.session_id).unwrap();
+    assert_eq!(stored[0].title, "Remote title B");
+    assert_eq!(stored[0].body, "Literal remote body B");
+    assert_eq!(
+        RecordWriteGuard::finding(&stored[0]),
+        RecordWriteGuard::finding(&newer)
+    );
+    assert_eq!(
+        service.load_chat(&original.session_id).unwrap().proposals,
+        staged.proposals
+    );
+}

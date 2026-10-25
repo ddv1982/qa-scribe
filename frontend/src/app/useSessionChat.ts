@@ -15,7 +15,7 @@ export function useSessionChat(context: Omit<SessionChatContext, 'publish'> & {
   const sessionId = context.session.activeSession?.id ?? null
   const bindRetirement = context.noteRecovery.bindRetirement
   useEffect(() => bindRetirement(actions.retire), [actions, bindRetirement])
-  useEffect(() => { actions.activate(sessionId) }, [actions, sessionId])
+  useEffect(() => { void actions.activate(sessionId) }, [actions, sessionId])
   useEffect(() => {
     for (const job of Object.values(context.jobs)) if (job.action === 'chat') actions.observeJob(job)
   }, [actions, context.jobs])
@@ -23,13 +23,18 @@ export function useSessionChat(context: Omit<SessionChatContext, 'publish'> & {
   const current = snapshot.sessionId === sessionId ? snapshot : { ...emptyChatSnapshot, loading: Boolean(sessionId) }
   const noteReadOnly = Boolean(sessionId && context.noteRecovery.pendingSessionIds.includes(sessionId))
   const permissionJobId = current.job?.jobId ?? null
-  const permissionProvider = context.selection.selectedProvider
+  const permissionProvider = current.job?.pendingPermission?.provider ?? context.selection.selectedProvider
+  const retryLoad = async () => {
+    if (!sessionId || sessionId !== context.session.activeSessionIdRef.current) return
+    context.feedback.setError(error => error === current.error ? null : error)
+    await actions.activate(sessionId)
+  }
   const sessionChat: SessionChatViewState = {
     onRefine: actions.onRefine,
     onDraftJira: actions.onDraftJira, onAnswerQuestion: actions.onAnswerQuestion, onPrepareAction: actions.onPrepareAction,
-    onRefresh: async () => { if (sessionId) await actions.refresh(sessionId) },
+    onRefresh: async () => { if (sessionId && current.chat) await actions.refresh({ sessionId, draftId: current.chat.draftId }); else await retryLoad() },
     handoff: deriveChatHandoff({ ...current, sessionId, noteEntry: context.session.noteEntry, recoveryPending: noteReadOnly }),
-    chat: current.chat, composer: current.composer, composerImages: current.composerImages, imageFailures: current.imageFailures, job: current.job,
+    chat: current.chat, composer: current.composer, composerIntent: current.composerIntent, composerImages: current.composerImages, imageFailures: current.imageFailures, job: current.job,
     loading: current.loading, saving: current.saving, working: current.working, error: current.error,
     dirty: current.dirty, recoveryPending: noteReadOnly,
     inputRecoveryPending: current.inputRecoveryPending, responseStarting: current.responseStarting,
@@ -37,7 +42,7 @@ export function useSessionChat(context: Omit<SessionChatContext, 'publish'> & {
     permissionRecoveryPending: current.permissionRecoveryPending,
     onDecidePermission: (requestId, decision) => actions.isCurrentPermissionScope(sessionId, permissionJobId, permissionProvider)
       ? actions.onDecidePermission(requestId, decision) : Promise.resolve(),
-    onRecheck: () => actions.isCurrentPermissionScope(sessionId, permissionJobId, permissionProvider)
+    onRecheck: () => !current.chat && !current.loading ? retryLoad() : actions.isCurrentPermissionScope(sessionId, permissionJobId, permissionProvider)
       ? actions.onRecheck() : Promise.resolve(),
     onSetComposer: actions.onSetComposer, onAttachImages: actions.onAttachImages,
     onPasteNativeImage: actions.onPasteNativeImage, onRemoveImage: actions.onRemoveImage,
@@ -46,5 +51,5 @@ export function useSessionChat(context: Omit<SessionChatContext, 'publish'> & {
     onCancel: actions.onCancel, onSubmit: actions.onSubmit, onRestart: actions.onRestart, captureRestart: actions.captureRestart,
   }
   return { sessionChat, sessionMode: current.mode, setSessionMode: actions.setMode, noteReadOnly,
-    flush: actions.flush, hasPendingChanges: actions.hasPendingChanges, recoverSession: actions.recoverSession }
+    conversations: actions, flush: actions.flush, hasPendingChanges: actions.hasPendingChanges, recoverSession: actions.recoverSession }
 }

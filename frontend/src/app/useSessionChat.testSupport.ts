@@ -24,6 +24,7 @@ export function completedChatFixture(patch: Partial<ChatState> = {}): ChatState 
 
 export function chatJobFixture(patch: Partial<GenerationJobStatus> = {}): GenerationJobStatus {
   return {
+    chat: { reference: { sessionId: patch.sessionId ?? 'session-1', draftId: 'chat-1' } },
     jobId: 'job-chat', sessionId: 'session-1', action: 'chat', state: 'running',
     progressMessage: 'Gathering information', aiRunId: 'run-chat', errorMessage: null,
     partialText: 'Which', ...patch,

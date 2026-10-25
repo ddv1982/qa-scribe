@@ -3,7 +3,7 @@ import { Paperclip } from 'lucide-react'
 import { useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { occupiedChoiceReason } from '../app/sessionChat.questions'
 import type { ChatContextPresentation } from '../app/sessionChat.context'
-import type { ChatRequestIntent } from '../bindings'
+import type { ChatComposerIntent, ChatSendIntent } from '../bindings'
 import { ChatMessageList } from './ChatMessageList'
 import { ChatImages, ChatImageFailures } from './ChatImages'
 import type { ChatImageFailure } from '../app/sessionChat.types'
@@ -17,7 +17,7 @@ import { MarkdownContent } from '../content/MarkdownContent'
 import { useChatTranscriptScroll } from './useChatTranscriptScroll'
 
 export type SessionChatViewProps = {
-  responseStarting?: ChatRequestIntent
+  responseStarting?: ChatSendIntent | ChatComposerIntent
   activeTarget?: ChatContextPresentation
   onDraftJira?: () => Promise<void>
   onAnswerQuestion?: (assistantMessageId: string, text: string) => Promise<void>

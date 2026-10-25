@@ -9,7 +9,7 @@ import { emptyChatSnapshot, type ChatSnapshot, type SessionChatContext } from '.
 import { chatFixture, chatJobFixture } from './useSessionChat.testSupport'
 
 const api = vi.hoisted(() => ({
-  decideChatPermission: vi.fn(), getAiActionJobStatus: vi.fn(), getChat: vi.fn(),
+  decideChatPermission: vi.fn(), getAiActionJobStatus: vi.fn(), getConversation: vi.fn(), getChat: vi.fn(),
   startChatJob: vi.fn(), saveChatComposer: vi.fn(), cancelAiActionJob: vi.fn(),
 }))
 vi.mock('../tauri', async (importOriginal) => {
@@ -61,7 +61,7 @@ async function mountControllerView(provider: AiProvider) {
   const view = render(<SessionChatView {...props()} />)
   repaint = () => view.rerender(<SessionChatView {...props()} />)
   await act(async () => {
-    actions.activate('session-1')
+    await actions.activate('session-1')
     actions.observeJob(pending(provider))
   })
   return { refreshProviderStatus, get snapshot() { return snapshot } }
@@ -72,6 +72,7 @@ describe('controller-to-view permission recovery (F4retry2, R57-01)', () => {
     vi.useFakeTimers()
     vi.resetAllMocks()
     api.getChat.mockResolvedValue(chatFixture({ mode: 'chat', composer }))
+    api.getConversation.mockResolvedValue(chatFixture({ mode: 'chat', composer }))
   })
   afterEach(() => {
     for (const actions of instances) actions.dispose()
@@ -180,7 +181,7 @@ describe('controller-to-view permission recovery (F4retry2, R57-01)', () => {
           await act(async () => { await vi.advanceTimersByTimeAsync(500) })
           expect(api.saveChatComposer).toHaveBeenCalledTimes(1)
           expect(h.snapshot.dirty).toBe(false)
-          api.getChat.mockResolvedValue(chatFixture({ mode: 'chat', composer: authoredComposer, revision: 1 }))
+          api.getConversation.mockResolvedValue(chatFixture({ mode: 'chat', composer: authoredComposer, revision: 1 }))
         }
         expect(screen.getByRole('textbox', { name: 'Message' })).toHaveValue(authoredComposer)
         expect(screen.queryByRole('region', { name: 'Tool permission' })).not.toBeInTheDocument()
@@ -194,7 +195,8 @@ describe('controller-to-view permission recovery (F4retry2, R57-01)', () => {
       expect(recheck).toHaveFocus()
       await act(async () => { fireEvent.click(recheck) })
       expect(api.getAiActionJobStatus).toHaveBeenCalledTimes(3)
-      expect(api.getChat).toHaveBeenCalledTimes(2)
+      expect(api.getChat).toHaveBeenCalledTimes(1)
+      expect(api.getConversation).toHaveBeenCalledExactlyOnceWith({ sessionId: 'session-1', draftId: 'chat-1' })
       expect(h.refreshProviderStatus).toHaveBeenCalledTimes(1)
       expect(h.snapshot.job?.pendingPermission).toEqual(canonical.pendingPermission)
       expect(within(panel()).getByRole('button', { name: 'Approve once' })).toBeEnabled()

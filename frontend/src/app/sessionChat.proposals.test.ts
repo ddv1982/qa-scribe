@@ -52,7 +52,7 @@ it('rejects navigation during the await and never writes the newly selected reco
   act(() => result.current.askAi.detach())
   await act(async () => { staging.resolve(chatFixture({ draftId: 'chat-session-1', proposals: [{ ...proposal, state: { kind: 'staged', stage: { id: 'stage-1', before: proposal.before, after, storedBaseToken: base.expectedStoredBase } } }] })); await applying })
   expect(result.current.findings[0].title).toBe(proposal.before.title)
-  expect(result.current.sessionChat.proposalControls?.errors['proposal-1']).toContain('Select the original record')
+  expect(result.current.sessionChat.proposalControls?.errors['proposal-1']).toContain('selection changed while preparing')
 })
 
 it('Undo restores the literal before value and Dismiss never mutates a record', async () => {
@@ -104,4 +104,51 @@ it('a newer Discard intent wins even when it restores the identical before-conte
   expect(editorValue(result.current.findings[0])).toEqual(proposal.before)
   expect(result.current.sessionChat.chat?.proposals?.[0].state.kind).toBe('abandoned')
   expect(api.updateFinding).not.toHaveBeenCalled()
+})
+
+it('rejects a Stage result after record selection A to B to A', async () => {
+  const { result, record, proposal, after, base } = await open()
+  const staging = deferred<ChatState>(); api.resolveRefinement.mockReturnValueOnce(staging.promise)
+  let applying!: Promise<void>
+  act(() => { applying = result.current.sessionChat.proposalControls!.onAction(proposal.id, 'stage') })
+  await waitFor(() => expect(api.resolveRefinement).toHaveBeenCalledOnce())
+  act(() => {
+    result.current.askAi.onSelectRecord({ kind: 'finding', recordId: 'B', title: 'Other record', unsaved: false })
+    result.current.askAi.onSelectRecord({ kind: 'finding', recordId: record.id, title: record.title, unsaved: false })
+  })
+  await act(async () => { staging.resolve(chatFixture({ draftId: 'chat-session-1', proposals: [{ ...proposal, state: { kind: 'staged', stage: { id: 'stage-1', before: proposal.before, after, storedBaseToken: base.expectedStoredBase } } }] })); await applying })
+  expect(result.current.findings[0].title).toBe(record.title)
+  expect(result.current.findings[0].body).toBe(record.body)
+  expect(result.current.sessionChat.proposalControls!.errors[proposal.id]).toContain('selection changed')
+  expect(result.current.sessionChat.chat?.proposals?.[0].state.kind).toBe('abandoned')
+})
+
+it('a repeated same-record selection notification does not invalidate Apply', async () => {
+  const { result, record, proposal, after, base } = await open()
+  const staging = deferred<ChatState>(); api.resolveRefinement.mockReturnValueOnce(staging.promise)
+  let applying!: Promise<void>
+  act(() => { applying = result.current.sessionChat.proposalControls!.onAction(proposal.id, 'stage') })
+  await waitFor(() => expect(api.resolveRefinement).toHaveBeenCalledOnce())
+  act(() => result.current.askAi.onSelectRecord({ kind: 'finding', recordId: record.id, title: record.title, unsaved: false }))
+  await act(async () => { staging.resolve(chatFixture({ draftId: 'chat-session-1', proposals: [{ ...proposal, state: { kind: 'staged', stage: { id: 'stage-1', before: proposal.before, after, storedBaseToken: base.expectedStoredBase } } }] })); await applying })
+  expect(result.current.findings[0].title).toBe(after.title)
+  expect(result.current.findings[0].bodyJson).toBe(after.documentJson)
+  expect(result.current.sessionChat.proposalControls!.errors[proposal.id]).toBeUndefined()
+})
+
+it('conversation selection A to B to A invalidates an awaited Apply on the same record', async () => {
+  const { result, record, proposal, after, base } = await open()
+  const original = { sessionId: record.sessionId, draftId: 'chat-session-1' }
+  const other = chatFixture({ sessionId: record.sessionId, draftId: 'conversation-B', owner: { kind: 'record', sessionId: record.sessionId, record: { kind: 'finding', recordId: record.id } } })
+  const exactRead = api.getConversation.getMockImplementation()!
+  api.getConversation.mockImplementation(reference => reference.draftId === other.draftId ? Promise.resolve(other) : exactRead(reference))
+  const staging = deferred<ChatState>(); api.resolveRefinement.mockReturnValueOnce(staging.promise)
+  let applying!: Promise<void>
+  act(() => { applying = result.current.sessionChat.proposalControls!.onAction(proposal.id, 'stage') })
+  await waitFor(() => expect(api.resolveRefinement).toHaveBeenCalledOnce())
+  await act(async () => { await result.current.conversations.select({ sessionId: record.sessionId, draftId: other.draftId }); await result.current.conversations.select(original) })
+  await act(async () => { staging.resolve(chatFixture({ draftId: original.draftId, proposals: [{ ...proposal, state: { kind: 'staged', stage: { id: 'stage-1', before: proposal.before, after, storedBaseToken: base.expectedStoredBase } } }] })); await applying })
+  expect(result.current.findings[0].title).toBe(record.title)
+  expect(result.current.findings[0].body).toBe(record.body)
+  expect(result.current.sessionChat.proposalControls!.errors[proposal.id]).toContain('selection changed')
 })

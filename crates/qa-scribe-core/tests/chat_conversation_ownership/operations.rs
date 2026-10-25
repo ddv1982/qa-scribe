@@ -200,9 +200,12 @@ fn explicit_activation_orders_history_without_revision_changes_or_background_act
         vec![first.draft_id.as_str(), second.draft_id.as_str()]
     );
     let started = service
-        .start_chat_turn(ChatStartRequest {
-            scope: scope(&activated),
-        })
+        .start_chat_turn_with_context(
+            ChatStartRequest {
+                scope: scope(&activated),
+            },
+            owned_context(&activated),
+        )
         .unwrap();
     let order = started.chat.last_active_order;
     let finished = service

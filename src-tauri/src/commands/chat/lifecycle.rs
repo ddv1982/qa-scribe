@@ -48,13 +48,13 @@ pub(super) fn commit(
     let start = ChatStartRequest {
         scope: request.scope.clone(),
     };
-    let mut started = if matches!(request.intent, ChatRequestIntent::Retry) {
+    let mut started = if matches!(verified.intent(), ChatRequestIntent::Retry) {
         service.retry_chat_turn(start)?
     } else {
         service.start_chat_turn_with_response(
             start,
             request.context.clone(),
-            request.intent.clone(),
+            verified.intent().clone(),
         )?
     };
     let mut created_run: Option<AiRun> = None;
@@ -123,7 +123,10 @@ fn prepare(service: &SessionService, request: &StartChatJobRequest) -> Result<Pr
 }
 
 fn current_scope(service: &SessionService, prepared: &PreparedChat) -> Result<ChatRevision> {
-    let chat = service.load_chat(&prepared.started.chat.session_id)?;
+    let chat = service.read_chat(&ChatRef {
+        session_id: prepared.started.chat.session_id.clone(),
+        draft_id: prepared.started.chat.draft_id.clone(),
+    })?;
     if chat.draft_id != prepared.started.chat.draft_id {
         return Err(QaScribeError::Validation(
             "Chat conversation changed during generation".into(),

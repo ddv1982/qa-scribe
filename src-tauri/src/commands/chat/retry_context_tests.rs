@@ -12,7 +12,7 @@ use support::*;
 fn request(chat: &ChatState) -> StartChatJobRequest {
     StartChatJobRequest {
         scope: scope(chat),
-        intent: ChatRequestIntent::Retry,
+        intent: crate::commands::chat::ChatSendIntent::Retry,
         context: ChatTarget::Session,
         provider: AiProvider::CodexCli,
         model: "gpt-6.1".into(),
@@ -66,7 +66,7 @@ fn deleted_retry(kind: Kind, terminal: Terminal) {
     }, &prepared.ai_run.id).unwrap();
     let composed = compose(&f.service, &completed, "Next Session question");
     let next = StartChatJobRequest {
-        intent: ChatRequestIntent::Message,
+        intent: crate::commands::chat::ChatSendIntent::Composer,
         ..request(&composed)
     };
     let prepared = lifecycle::prepare_with_images(&f.service, &next, &f.dir).unwrap();

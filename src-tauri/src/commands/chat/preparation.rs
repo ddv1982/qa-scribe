@@ -19,6 +19,8 @@ use super::{StartChatJobRequest, lifecycle::scope};
 
 pub(super) struct ChatPreparationSnapshot {
     revision: ChatRevision,
+    intent: ChatRequestIntent,
+    composer_intent: ChatComposerIntent,
     context: String,
     messages: Vec<ChatInputMessage>,
     sources: Vec<Vec<ChatImageSource>>,
@@ -35,7 +37,12 @@ fn changed() -> QaScribeError {
 
 impl ChatPreparationSnapshot {
     pub fn capture(service: &SessionService, request: &StartChatJobRequest) -> Result<Self> {
-        let mut chat = service.load_chat(&request.scope.session_id)?;
+        let mut chat = service.read_chat(&ChatRef {
+            session_id: request.scope.session_id.clone(),
+            draft_id: request.scope.draft_id.clone(),
+        })?;
+        let intent = request.intent.resolve(chat.composer_intent);
+        let composer_intent = chat.composer_intent;
         if scope(&chat) != request.scope {
             return Err(changed());
         }
@@ -45,7 +52,7 @@ impl ChatPreparationSnapshot {
             .ok_or_else(|| QaScribeError::NotFound(chat.session_id.clone()))?
             .session_context
             .unwrap_or_default();
-        if !matches!(request.intent, ChatRequestIntent::Retry) {
+        if !matches!(intent, ChatRequestIntent::Retry) {
             if chat.messages.len().saturating_add(2) > MAX_CHAT_MESSAGES {
                 return Err(QaScribeError::Validation(
                     "Chat has reached its message limit. Start a new conversation.".into(),
@@ -63,8 +70,7 @@ impl ChatPreparationSnapshot {
                     "Chat has reached its text limit. Start a new conversation.".into(),
                 ));
             }
-            let resolved =
-                service.prepare_chat_message(&chat, request.context.clone(), &request.intent)?;
+            let resolved = service.prepare_chat_message(&chat, request.context.clone(), &intent)?;
             chat.messages.push(ChatMessage {
                 response: None,
                 answer: None,
@@ -80,8 +86,9 @@ impl ChatPreparationSnapshot {
                 created_at: String::new(),
             });
         }
-        if matches!(request.intent, ChatRequestIntent::Retry) {
+        if matches!(intent, ChatRequestIntent::Retry) {
             let message = chat.messages.last().ok_or_else(changed)?;
+            service.validate_chat_context_anchor(&chat, &message.context)?;
             service.validate_chat_retry_context_owner(&chat.session_id, &message.context)?;
         }
         let messages = chat
@@ -166,6 +173,8 @@ impl ChatPreparationSnapshot {
             .collect();
         Ok(Self {
             revision,
+            intent,
+            composer_intent,
             context,
             messages,
             sources,
@@ -214,9 +223,15 @@ impl ChatPreparationSnapshot {
 }
 
 impl VerifiedChatPreparation {
+    pub fn intent(&self) -> &ChatRequestIntent {
+        &self.snapshot.intent
+    }
+
     pub fn recheck(&self, service: &SessionService, request: &StartChatJobRequest) -> Result<()> {
         let current = ChatPreparationSnapshot::capture(service, request)?;
-        if current.revision != self.snapshot.revision
+        if current.intent != self.snapshot.intent
+            || current.composer_intent != self.snapshot.composer_intent
+            || current.revision != self.snapshot.revision
             || current.context != self.snapshot.context
             || current.sources != self.snapshot.sources
             || current

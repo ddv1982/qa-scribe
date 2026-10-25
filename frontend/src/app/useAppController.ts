@@ -275,7 +275,7 @@ export function useAppController() {
       loadFindingsForSession,
     },
   }, recordPersistence)
-  const sessionChat = useRefinementController({ chat: baseSessionChat, askAi, records: recordWorkspace, actions: recordActions, persistence: recordPersistence, session: sessionWorkspace, openEditor: setCreatedRecordEditTarget, feedback })
+  const sessionChat = useRefinementController({ conversations: chatProtection.conversations, chat: baseSessionChat, askAi, records: recordWorkspace, actions: recordActions, persistence: recordPersistence, session: sessionWorkspace, openEditor: setCreatedRecordEditTarget, feedback })
   const generationActions = useGenerationActions({
     session: sessionWorkspace,
     records: recordWorkspace,
@@ -404,7 +404,7 @@ export function useAppController() {
   }, [noteEntry, noteBody, pendingRecoveredSummaryDecision]) // oxlint-disable-line react-hooks/exhaustive-deps -- debounce is keyed to note identity, body, and recovery decision
 
   return {
-    sessionChat, sessionMode, setSessionMode, saveAllPendingChanges: settlement.flush, noteReadOnly,
+    conversations: chatProtection.conversations, sessionChat, sessionMode, setSessionMode, saveAllPendingChanges: settlement.flush, noteReadOnly,
     creation, creationIntent, creationDecision,
     createdRecordEditTarget, consumeCreatedRecordEditTarget: consumeSelectedRecord,
     attachmentCleanup, ...attachmentActions,
