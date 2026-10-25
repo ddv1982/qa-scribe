@@ -5,8 +5,8 @@ import { createRequire } from 'node:module'
 import { click, createSession, database, directory, execution, finishChat, insertNote, journal, openSession,
   preference, read, refresh, settings } from './model-evidence-ui.mjs'
 import { configureCatalog, generation, historyText, menuGeometry, modelPreference, outputRoot,
-  quickInput, quickOptions, quickSection, send, switchProviderOnly } from './model-selection-ui.mjs'
-import { inspectLayout, layoutViewport } from './chat-layout-geometry.mjs'
+  quickInput, quickOptions, quickSection, send, switchProviderOnly, attachPickerDraftImage, openQuickPicker, pickerState, activeQuickOption, domModelKey } from './model-selection-ui.mjs'
+import { inspectLayout, layoutViewport, wideLayoutViewport } from './chat-layout-geometry.mjs'
 import { nativeKeySender } from './preflight-native-keys.mjs'
 
 const require = createRequire(new URL('../../frontend/package.json', import.meta.url))
@@ -109,11 +109,12 @@ describe('Built application native quick model selection M03', () => {
 
   it('opens pointer choices outside transcript clipping and preserves the draft across narrow resize', async () => {
     await fresh('claude', 'M03 pointer geometry')
+    const wide = await wideLayoutViewport()
     try {
       const draft = 'Retained literal model layout draft'
       await $('[aria-label="Session chat"] textarea').setValue(draft)
       const samples = []
-      for (const [width, height] of [[1280, 828], [360, 645], [320, 645], [640, 488]]) {
+      for (const [width, height] of [[1280, wide.height], [360, 645], [320, 645], [640, 488]]) {
         const actual = await layoutViewport(width, height)
         assert.deepEqual(actual, { width, height })
         const input = await $(quickInput)
@@ -146,7 +147,7 @@ describe('Built application native quick model selection M03', () => {
         assert.equal(await $('[aria-label="Session chat"] textarea').getValue(), draft)
         await $(`${quickSection} [aria-label="Open model choices"]`).click()
       }
-      await layoutViewport(1280, 828)
+      await layoutViewport(1280, wide.height)
       await $(quickInput).click()
       const queryStates = []
       const queryState = async stage => {
@@ -163,7 +164,7 @@ describe('Built application native quick model selection M03', () => {
       await $(quickInput).setValue('fixture')
       await queryState('before-resize')
       assert.equal(await $(quickInput).getValue(), 'fixture', 'Typing must establish the searched query before resize')
-      await layoutViewport(1100, 828)
+      await layoutViewport(1100, wide.height)
       await queryState('after-resize')
       assert.equal(await $(quickInput).getValue(), 'fixture', 'An open query must survive viewport resize')
       await browser.execute(selector => {
@@ -178,9 +179,94 @@ describe('Built application native quick model selection M03', () => {
       await browser.waitUntil(async () => (await read('get_settings')).selectedAiModelsByProvider.claude_code === 'claude-fixture')
       assert.equal(await $('[aria-label="Session chat"] textarea').getValue(), draft)
     } finally {
-      await layoutViewport(1280, 828)
+      await layoutViewport(1280, wide.height)
     }
   })
+
+  it('keeps a wrapped 40-model catalog visible, navigable, and draft-safe at the short supported viewport', async () => {
+    const wide = await wideLayoutViewport()
+    const samples = []
+    const keyboard = { method: 'DOM-key diagnostic; not OS delivery proof', imageInput: 'DOM file-input fixture; not OS dialog proof' }
+    const persist = () => writeFileSync(join(outputRoot, 'long-catalog.json'), JSON.stringify({ keyboard, samples }, null, 2))
+    const key = domModelKey
+    try {
+      configureCatalog('claude', 'long-catalog')
+      await settings(); await refresh(); await click('Back')
+      const sessionId = await fresh('claude', 'M03 long catalog geometry')
+      const draft = 'Retained long catalog draft with a local image'
+      await $('[aria-label="Session chat"] textarea').waitForEnabled()
+      await $('[aria-label="Session chat"] textarea').setValue(draft)
+      const held = await attachPickerDraftImage(sessionId)
+      assert.equal(held.composer, draft)
+      for (const [width, height] of [[640, 488], [1280, wide.height], [360, 645], [320, 645]]) {
+        assert.deepEqual(await layoutViewport(width, height), { width, height })
+        await $(quickInput).scrollIntoView({ block: 'center', inline: 'nearest' })
+        if (await $(quickInput).getAttribute('aria-expanded') === 'true') await $(`${quickSection} [aria-label="Open model choices"]`).click()
+        const before = await pickerState()
+        await openQuickPicker()
+        const sample = { viewport: { width, height }, before, state: await pickerState(), geometry: await menuGeometry(), navigation: [] }
+        samples.push(sample); persist()
+        await browser.saveScreenshot(join(outputRoot, `long-catalog-${width}-${height}.png`))
+        assert.equal(sample.state.expanded, 'true')
+        assert.equal(sample.state.visibility, 'visible', JSON.stringify(sample.state))
+        assert.equal(sample.state.count, 41)
+        assert.ok(sample.geometry.visible, JSON.stringify(sample.geometry))
+        const input = await browser.execute(inspectLayout, await $(quickInput))
+        assert.ok(input.visible && input.hit, 'The aligned query must remain fully visible and hit-testable')
+        assert.match(sample.state.hintText, /40 models reported by CLI catalog/)
+        if (width === 640) assert.ok(sample.state.hintLines >= 2, 'The regression must retain the wrapped hint')
+        await browser.execute(selector => document.querySelector(selector).focus({ preventScroll: true }), quickInput)
+        await browser.executeAsync(done => requestAnimationFrame(() => requestAnimationFrame(done)))
+        const owners = (await pickerState()).owners
+        for (const [name, index] of [['Home', 0], ['End', 40], ['ArrowUp', 39], ['ArrowDown', 40]]) {
+          await key(name)
+          const state = await pickerState(), active = await activeQuickOption()
+          sample.navigation.push({ key: name, state, active }); persist()
+          assert.ok(state.activeId.endsWith(`-option-${index}`), JSON.stringify(state))
+          assert.ok(active.visible && active.hit, `The entire active option must be reachable: ${JSON.stringify(active)}`)
+          assert.deepEqual(state.owners, owners, 'Option traversal must scroll only the owned list')
+          assert.equal(state.focused, true)
+          assert.equal(state.visibility, 'visible')
+        }
+        await key('Escape')
+        assert.equal(await $(quickInput).getAttribute('aria-expanded'), 'false')
+        assert.deepEqual((await read('get_chat', { sessionId })).composerImages, held.composerImages)
+        assert.equal(await $('[aria-label="Session chat"] textarea').getValue(), draft)
+      }
+      await openQuickPicker()
+      await browser.execute(selector => document.querySelector(selector).focus({ preventScroll: true }), quickInput)
+      samples.push({ stage: 'before-exact-query', state: await pickerState() }); persist()
+      await $(quickInput).setValue('literal-model-39')
+      samples.push({ stage: 'exact-query', state: await pickerState() }); persist()
+      assert.equal((await quickOptions()).length, 1)
+      await $(quickInput).setValue('synthetic-custom-catalog-id')
+      samples.push({ stage: 'custom-query', state: await pickerState() }); persist()
+      assert.deepEqual(await layoutViewport(640, 488), { width: 640, height: 488 })
+      const custom = await pickerState(); samples.push({ stage: 'custom-resize', state: custom }); persist()
+      assert.equal(custom.query, 'synthetic-custom-catalog-id')
+      assert.ok(custom.focused && custom.visibility === 'visible')
+      assert.equal((await quickOptions()).length, 1)
+      await (await quickOptions())[0].click()
+      await browser.waitUntil(async () => (await read('get_settings')).selectedAiModelsByProvider.claude_code === 'synthetic-custom-catalog-id' && await $(quickInput).isEnabled())
+      await openQuickPicker(); await key('End')
+      await (await quickOptions()).at(-1).click()
+      await browser.waitUntil(async () => (await read('get_settings')).selectedAiModelsByProvider.claude_code === 'literal-model-39' && await $(quickInput).isEnabled())
+      assert.equal((await pickerState()).focused, true)
+      await openQuickPicker(); await $('[aria-label="Session chat"] textarea').click()
+      assert.equal((await pickerState()).expanded, 'false')
+      await openQuickPicker(); await $('[aria-label="Close AI chat"]').click()
+      await browser.waitUntil(() => browser.execute(() => !document.querySelector('.model-combobox-popover--chat')))
+      const retained = await read('get_chat', { sessionId })
+      assert.equal(retained.composer, draft)
+      assert.deepEqual(retained.composerImages, held.composerImages)
+      assert.equal(database(sessionId).runs.length, 0, 'Picker use cannot launch a provider response')
+      samples.push({ stage: 'closed', composer: retained.composer, images: retained.composerImages }); persist()
+    } finally {
+      await layoutViewport(1280, wide.height)
+      configureCatalog('claude', 'fresh')
+      await settings(); await refresh(); await click('Back')
+    }
+  }).timeout(60_000)
 
   it('selects using real native keys, retains focus, and keeps the open menu in the viewport', () => lane(1, 'keyboard', async (output) => {
     const sessionId = await fresh('claude', 'M03 keyboard selection')

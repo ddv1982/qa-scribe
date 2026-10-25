@@ -146,3 +146,72 @@ export async function switchProviderOnly(provider, expectedModels) {
     'Changing only the provider must preserve every restored model choice')
   await click('Back')
 }
+
+export async function attachPickerDraftImage(sessionId) {
+  const bytes = [...readFileSync(new URL('../fixtures/chat-image-pixels.png', import.meta.url))]
+  await browser.execute(bytes => {
+    const transfer = new DataTransfer()
+    transfer.items.add(new File([new Uint8Array(bytes)], 'catalog-draft.png', { type: 'image/png' }))
+    const target = document.querySelector('input[aria-label="Choose chat images"]')
+    target.files = transfer.files
+    target.dispatchEvent(new Event('change', { bubbles: true }))
+  }, bytes)
+  await browser.waitUntil(async () => (await read('get_chat', { sessionId })).composerImages.length === 1,
+    { timeout: 7_000, timeoutMsg: 'The local fixture image must become durable before picker checks' })
+  await browser.waitUntil(() => browser.execute(() => {
+    const image = document.querySelector('[aria-label="Attached images"] img')
+    return Boolean(image?.complete && image.naturalWidth)
+  }), { timeout: 5_000, timeoutMsg: 'The retained local image must finish loading before geometry checks' })
+  return read('get_chat', { sessionId })
+}
+
+export async function openQuickPicker() {
+  if (await $(quickInput).getAttribute('aria-expanded') !== 'true') await $(`${quickSection} [aria-label="Open model choices"]`).click()
+  await browser.executeAsync(done => requestAnimationFrame(() => requestAnimationFrame(done)))
+}
+
+export async function pickerState() {
+  return browser.execute(selector => {
+    const input = document.querySelector(selector)
+    const list = document.getElementById(input.getAttribute('aria-controls'))
+    const popup = list?.closest('.model-combobox-popover')
+    const hint = popup?.querySelector('.model-search-hint')
+    const owners = []
+    for (let node = input.parentElement; node; node = node.parentElement) {
+      if (/(auto|scroll)/.test(getComputedStyle(node).overflowY)) owners.push({ class: node.className, scrollTop: node.scrollTop,
+        clientHeight: node.clientHeight, scrollHeight: node.scrollHeight, top: node.getBoundingClientRect().top, bottom: node.getBoundingClientRect().bottom })
+      if (node.matches('.ask-ai-panel')) break
+    }
+    const rect = node => {
+      if (!node) return null
+      const r = node.getBoundingClientRect()
+      return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, height: r.height, width: r.width }
+    }
+    const lines = []
+    if (hint) {
+      const walker = document.createTreeWalker(hint, NodeFilter.SHOW_TEXT)
+      while (walker.nextNode()) {
+        if (!walker.currentNode.textContent.trim()) continue
+        const range = document.createRange()
+        range.selectNodeContents(walker.currentNode)
+        for (const line of range.getClientRects()) if (line.width > 0 && line.height > 0) lines.push(rect({ getBoundingClientRect: () => line }))
+      }
+    }
+    return { expanded: input.getAttribute('aria-expanded'), focused: document.activeElement === input, query: input.value,
+      input: rect(input), panel: rect(input.closest('.ask-ai-panel')), owners, activeId: input.getAttribute('aria-activedescendant'),
+      visibility: popup ? getComputedStyle(popup).visibility : null, popup: rect(popup), hint: rect(hint), hintText: hint?.textContent,
+      hintLines: lines.length, count: list?.children.length, listScrollTop: list?.scrollTop }
+  }, quickInput)
+}
+
+export async function activeQuickOption() {
+  const id = await $(quickInput).getAttribute('aria-activedescendant')
+  assert.ok(id, 'Keyboard navigation must identify an active option')
+  return browser.execute(inspectLayout, `[id="${id}"]`)
+}
+
+export async function domModelKey(key) {
+  await browser.execute((selector, key) => document.querySelector(selector)
+    .dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true })), quickInput, key)
+  await browser.executeAsync(done => requestAnimationFrame(() => requestAnimationFrame(done)))
+}

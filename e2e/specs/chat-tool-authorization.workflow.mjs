@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { layoutViewport } from './chat-layout-geometry.mjs'
+import { layoutViewport, wideLayoutViewport } from './chat-layout-geometry.mjs'
 import { permissionGeometry, reachPermission, reviewPermission } from './chat-permission-geometry.mjs'
 
 const provider = process.env.QA_SCRIBE_E2E_AUTH_PROVIDER
@@ -266,7 +266,8 @@ describe(`Built application native ${provider} Chat tool authorization`, () => {
     const prompt = JSON.parse(readFileSync(await markerFile(current.index + 1, 'prompt.json'), 'utf8'))
     assert.ok(prompt.prompt.includes(JSON.stringify(text)))
     const geometry = []
-    for (const [width, height] of [[1280, 828], [1280, 645], [640, 488], [360, 645], [320, 645]]) {
+    const wide = await wideLayoutViewport()
+    for (const [width, height] of [[1280, wide.height], [1280, 645], [640, 488], [360, 645], [320, 645]]) {
       assert.deepEqual(await layoutViewport(width, height), { width, height })
       await $('button=Review permission').scrollIntoView()
       await reviewPermission()

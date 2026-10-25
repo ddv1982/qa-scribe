@@ -3,16 +3,29 @@ import { useLayoutEffect, useRef, useState, type CSSProperties, type RefObject }
 type Rect = { left: number; right: number; top: number; bottom: number }
 type MenuBox = { left: number; top: number; width: number; maxHeight: number }
 
-export function placeChatMenu(anchor: Rect, available: Rect, height: number, minimumHeight: number, preferred: 'above' | 'below'): MenuBox | null {
+type MenuPlacement = { box: MenuBox; anchorTop: number }
+
+export function placeChatMenu(anchor: Rect, available: Rect, height: number, minimumHeight: number, preferred: 'above' | 'below', anchorRoom: Rect = available): MenuPlacement | null {
   const width = Math.min(360, available.right - available.left)
+  const anchorHeight = anchor.bottom - anchor.top
+  const desiredHeight = Math.max(height, minimumHeight)
+  if (width <= 0) return null
+  function fit(top: number, side: 'above' | 'below'): MenuPlacement | null {
+    const maxHeight = Math.min(desiredHeight, side === 'above' ? top - available.top - 6 : available.bottom - top - anchorHeight - 6)
+    if (maxHeight < minimumHeight) return null
+    return { anchorTop: top, box: { left: Math.max(available.left, Math.min(anchor.left, available.right - width)),
+      top: side === 'above' ? top - 6 - maxHeight : top + anchorHeight + 6, width, maxHeight } }
+  }
   const above = Math.max(0, anchor.top - available.top - 6)
   const below = Math.max(0, available.bottom - anchor.bottom - 6)
   const space = preferred === 'above' ? above : below
-  const side = space >= height ? preferred : above >= below ? 'above' : 'below'
-  const maxHeight = Math.min(height, side === 'above' ? above : below)
-  if (width <= 0 || maxHeight < minimumHeight) return null
-  return { left: Math.max(available.left, Math.min(anchor.left, available.right - width)),
-    top: side === 'above' ? anchor.top - 6 - maxHeight : anchor.bottom + 6, width, maxHeight }
+  const side = space >= desiredHeight ? preferred : above >= below ? 'above' : 'below'
+  const current = fit(anchor.top, side)
+  if (current) return current
+  const first = Math.max(available.top, anchorRoom.top)
+  const last = Math.min(available.bottom, anchorRoom.bottom) - anchorHeight
+  if (last < first) return null
+  return preferred === 'above' ? fit(last, 'above') ?? fit(first, 'below') : fit(first, 'below') ?? fit(last, 'above')
 }
 
 function visibleRect(node: HTMLElement, stop?: HTMLElement): Rect {
@@ -72,6 +85,7 @@ export function useChatModelMenu({ open, placement, query, activeOptionId, input
         const visible = visibleRect(anchor)
         if (visible.right <= visible.left || visible.bottom <= visible.top) anchor.scrollIntoView({ block: 'nearest', inline: 'nearest' })
       }
+      const canAlign = opening
       opening = false
       const anchorBounds = visibleRect(anchor)
       if (!root.isConnected || !boundary.isConnected || boundary.closest('[hidden], [inert]')
@@ -81,13 +95,31 @@ export function useChatModelMenu({ open, placement, query, activeOptionId, input
       }
       const available = visibleRect(boundary)
       const list = popup.querySelector<HTMLElement>('[role="listbox"]')
-      const row = list?.querySelector<HTMLElement>('[role="option"]')
+      const row = (activeOptionId ? document.getElementById(activeOptionId) : null) ?? list?.querySelector<HTMLElement>('[role="option"]')
       if (!list) return
       const chrome = popup.offsetHeight - list.clientHeight
-      const next = placeChatMenu(anchor.getBoundingClientRect(), available,
-        chrome + Math.min(228, list.scrollHeight), chrome + (row?.offsetHeight ?? 0), placement)
-      setBox(previous => previous?.left === next?.left && previous?.top === next?.top
-        && previous?.width === next?.width && previous?.maxHeight === next?.maxHeight ? previous : next)
+      const height = chrome + Math.min(228, list.scrollHeight)
+      const minimum = chrome + (row?.getBoundingClientRect().height ?? 0)
+      const scrollers: HTMLElement[] = []
+      for (let parent = anchor.parentElement; parent && parent !== boundary; parent = parent.parentElement) {
+        if (/(auto|scroll)/.test(view.getComputedStyle(parent).overflowY) && parent.scrollHeight > parent.clientHeight) scrollers.push(parent)
+      }
+      const bounds = anchor.getBoundingClientRect()
+      const room = canAlign && scrollers[0] ? visibleRect(scrollers[0]) : bounds
+      let next = placeChatMenu(bounds, available, height, minimum, placement, room)
+      if (next && next.anchorTop !== bounds.top) {
+        const target = next.anchorTop
+        for (const scroller of scrollers) scroller.scrollTop += anchor.getBoundingClientRect().top - target
+        const actual = anchor.getBoundingClientRect()
+        next = placeChatMenu(actual, available, height, minimum, placement, actual)
+      }
+      if (!next) {
+        onDismiss()
+        return
+      }
+      const nextBox = next.box
+      setBox(previous => previous?.left === nextBox.left && previous?.top === nextBox.top
+        && previous?.width === nextBox.width && previous?.maxHeight === nextBox.maxHeight ? previous : nextBox)
     }
     function schedule() {
       if (!frame) frame = view.requestAnimationFrame(measure)
@@ -123,7 +155,7 @@ export function useChatModelMenu({ open, placement, query, activeOptionId, input
       view.visualViewport?.removeEventListener('scroll', schedule)
       if (frame) view.cancelAnimationFrame(frame)
     }
-  }, [open, boundary, inputRef, placement, query, onDismiss])
+  }, [open, boundary, inputRef, placement, query, activeOptionId, onDismiss])
 
   useLayoutEffect(() => {
     if (!open || !activeOptionId) return

@@ -46,9 +46,13 @@ export function modelManagementFixture(provider, argv) {
         emit({ type: 'control_response', response: { subtype: 'error', request_id: request.request_id, error: { code: 'unavailable' } } })
         return
       }
-      const models = mode === 'qualification'
-        ? [{ value: 'qualification-claude-model', displayName: 'qualification-claude-model' }]
-        : [{ value: 'claude-fixture', displayName: 'Claude Fixture', description: 'Synthetic account catalog' }]
+      const models = mode === 'long-catalog'
+        ? Array.from({ length: 40 }, (_, index) => ({ value: `literal-model-${index}`,
+          displayName: `Literal model ${index} with wrapping descriptive label`,
+          description: `Synthetic long catalog description for checkout evidence ${index}` }))
+        : mode === 'qualification'
+          ? [{ value: 'qualification-claude-model', displayName: 'qualification-claude-model' }]
+          : [{ value: 'claude-fixture', displayName: 'Claude Fixture', description: 'Synthetic account catalog' }]
       record({ event: 'catalog-response', ids: models.map((model) => model.value) })
       emit({ type: 'control_response', response: { subtype: 'success', request_id: request.request_id, response: { models } } })
     })
