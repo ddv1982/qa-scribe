@@ -43,6 +43,17 @@ async function showNotes(title) {
   await click('button=Chat')
   await $('.chat-messages').waitForDisplayed()
 }
+async function canonicalNote(sessionId, noteId) {
+  const { noteEntry } = await native('open_session_note_state', { id: sessionId })
+  assert.equal(noteEntry.id, noteId)
+  assert.equal(noteEntry.sessionId, sessionId)
+  const storedRevision = JSON.parse(execFileSync('python3', ['-c', `import sqlite3,json,pathlib,sys
+with sqlite3.connect(pathlib.Path(sys.argv[1]).resolve().as_uri()+"?mode=ro",uri=True) as db:
+ row=db.execute("SELECT revision FROM entries WHERE id=? AND session_id=? AND type='note'",(sys.argv[2],sys.argv[3])).fetchone()
+ assert row is not None, "Canonical Note must exist in its Session"
+ print(json.dumps(row[0]))`, join(data, 'qa-scribe.sqlite'), noteId, sessionId], { encoding: 'utf8', timeout: 5000 }))
+  return { noteEntry, revision: storedRevision }
+}
 function legacyProjection(path) {
   const source = join(ownershipFixture, 'v18.sqlite')
   return JSON.parse(execFileSync('python3', ['-c', `import sqlite3,json,sys
@@ -98,12 +109,11 @@ describe('I1 migration and hidden conversation boundaries', () => {
     const reference = { sessionId: 'isolation-submitted', draftId: 'isolation-submitted-chat' }
     const chat = await exact(reference)
     assert.equal(chat.submission.noteId, 'isolation-submitted-note')
-    const note = await native('open_session_note_state', { id: reference.sessionId })
-    assert.ok(JSON.stringify(note).includes('isolation-submitted-note'))
+    const note = await canonicalNote(reference.sessionId, 'isolation-submitted-note')
     const replay = await native('submit_chat', { request: { scope: { ...revision(chat), expectedRevision: 0 }, noteId: chat.submission.noteId,
       expectedNoteBody: '', expectedNoteBodyJson: null, expectedNoteBodyFormat: null } })
     assert.deepEqual(replay, chat.submission)
-    assert.deepEqual(await native('open_session_note_state', { id: reference.sessionId }), note)
+    assert.deepEqual(await canonicalNote(reference.sessionId, 'isolation-submitted-note'), note)
     await proof(2, 'native-submitted-notes-and-receipt-fixture', { receipt: replay })
   })
 
@@ -156,10 +166,10 @@ describe('I1 migration and hidden conversation boundaries', () => {
 
   it('lane 8 rejects record Note submission and Notes restart', async () => {
     const chat = await exact({ sessionId: recordChats[0].sessionId, draftId: recordChats[0].draftId })
-    const note = await native('open_session_note_state', { id: chat.sessionId })
+    const note = await canonicalNote(chat.sessionId, 'perf-note')
     await assert.rejects(native('submit_chat', { request: { scope: revision(chat), noteId: 'perf-note', expectedNoteBody: '', expectedNoteBodyJson: null, expectedNoteBodyFormat: null } }))
     await assert.rejects(native('restart_chat', { request: { scope: revision(chat) } }))
-    assert.deepEqual(await native('open_session_note_state', { id: chat.sessionId }), note)
+    assert.deepEqual(await canonicalNote(chat.sessionId, 'perf-note'), note)
     assert.deepEqual(await exact({ sessionId: chat.sessionId, draftId: chat.draftId }), chat)
     await proof(8, 'notes-purpose-boundary-fixture', { draftId: chat.draftId })
   })
@@ -167,7 +177,10 @@ describe('I1 migration and hidden conversation boundaries', () => {
   it('lane 9 explicitly reviews one original legacy stage and saves through its record editor', async () => {
     await openSession('Isolation legacy mixed staged fixture')
     await click('[role="tab"]*=Findings')
-    await click('.record-master-list button*=Legacy mixed finding')
+    const list = await $('.record-master-list')
+    const button = await list.$('button*=Legacy mixed finding')
+    await button.waitForClickable()
+    await button.click()
     await click('button=Ask AI')
     await $('.ask-ai-panel textarea').waitForDisplayed()
     const chat = await exact(mixedRef)
