@@ -226,13 +226,23 @@ describe('Ask AI with immutable record context in the built native application',
     await ask()
     await fill(composer, 'Unsent text survives a WebView reload')
     await browser.waitUntil(async () => (await chat()).composer === 'Unsent text survives a WebView reload')
-    for (const width of [1280, 768]) {
+    for (const width of [1280, 1100, 768]) {
       await resize(width, 700)
       await settle()
       const value = await screenshot(`lane-8-${width}-by-700`)
       assert.ok(value.composer.right <= value.viewport.width + 1 && value.composer.bottom <= value.viewport.height + 1)
       assert.ok(value.outer.width <= value.viewport.width + 1)
       assert.equal(value.outer.scrollTop, 0)
+      const actions = await browser.execute(() => {
+        const panel = document.querySelector('.ask-ai-panel').getBoundingClientRect()
+        return [...document.querySelectorAll('.ask-ai-panel .chat-compose-actions button')].map(button => {
+          const bounds = button.getBoundingClientRect()
+          return { label: button.textContent.trim() || button.getAttribute('aria-label'), left: bounds.left, right: bounds.right,
+            minimum: Math.max(0, panel.left), maximum: Math.min(innerWidth, panel.right) }
+        })
+      })
+      for (const action of actions) assert.ok(action.left >= action.minimum - 1 && action.right <= action.maximum + 1,
+        `${width}px chat action must fit its panel: ${JSON.stringify(action)}`)
       if (width === 768) assert.equal(value.document.width, 0, 'Narrow chat must occupy the full available content')
     }
     await resize(1280, 800)

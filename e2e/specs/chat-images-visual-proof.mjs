@@ -110,17 +110,19 @@ export async function proveChatImagesVisual({ sessionId, include320 = false }) {
   assert.equal(started, 1)
   let inSettings = false
   let scale = 1
+  const nominalNativeHeight = Number(process.env.QA_SCRIBE_E2E_CHAT_VISUAL_NATIVE_HEIGHT ?? 860)
+  assert.ok(Number.isFinite(nominalNativeHeight) && nominalNativeHeight >= 520 && nominalNativeHeight <= 1200)
   async function resize(width) {
-    await browser.setWindowSize(1280, 860)
+    await browser.setWindowSize(1280, nominalNativeHeight)
     const base = await settledViewport()
     scale = 1280 / base.width
-    let request = { width: Math.round(width * scale), height: Math.round(860 * scale) }
+    let request = { width: Math.round(width * scale), height: Math.round(nominalNativeHeight * scale) }
     const attempts = []
     for (let index = 0; index < 5; index++) {
       await browser.setWindowSize(request.width, request.height)
       const actual = await settledViewport()
       attempts.push({ request: { ...request }, actual })
-      if (Math.abs(actual.width - width) <= 2) return { requestedCssWidth: width, nominalNativeHeight: 860, attempts, actual }
+      if (Math.abs(actual.width - width) <= 2) return { requestedCssWidth: width, nominalNativeHeight, attempts, actual }
       request.width += Math.round((width - actual.width) * scale)
       if (request.width <= 0) break
     }
@@ -167,11 +169,18 @@ export async function proveChatImagesVisual({ sessionId, include320 = false }) {
     const value = await capture(label)
     return value
   }
+  async function revealFirstImageCard() {
+    await browser.execute(selector => {
+      const card = document.querySelector(selector)?.closest('.chat-image')
+      if (!card) throw new Error('The image review card is missing')
+      card.scrollIntoView({ block: 'center', inline: 'nearest' })
+    }, `${attached} .chat-image-remove`)
+  }
   async function clear() {
     if (await $('dialog[open]').isExisting()) await $('[aria-label="Close image preview"]').click()
     while (await $(`${attached} .chat-image-remove`).isExisting()) {
       const remove = await $(`${attached} .chat-image-remove`)
-      await remove.scrollIntoView({ block: 'center', inline: 'nearest' })
+      await revealFirstImageCard()
       await remove.waitForClickable()
       await remove.click()
     }
@@ -219,7 +228,7 @@ export async function proveChatImagesVisual({ sessionId, include320 = false }) {
         check(four.send.fullyVisible && four.send.centerHit, `${label} Send remains reachable with four thumbnails`)
         for (let index = 0; index < names.length; index++) {
           const remove = await $(`${attached} .chat-image-remove`)
-          await remove.scrollIntoView({ block: 'center', inline: 'nearest' })
+          await revealFirstImageCard()
           const before = await capture(`${label}-remove-${index + 1}`)
           check(before.images[0]?.remove.fullyVisible && before.images[0]?.remove.centerHit && before.images[0]?.preview.fullyVisible, `${label} thumbnail ${index + 1} can be reviewed and removed`)
           await remove.waitForClickable()
