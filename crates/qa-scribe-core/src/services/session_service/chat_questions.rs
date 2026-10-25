@@ -30,6 +30,7 @@ pub(super) fn resolve(
     active: ChatTarget,
     intent: &ChatRequestIntent,
 ) -> Result<ResolvedChatMessage> {
+    chat_context::validate_anchor(chat, &active)?;
     chat_rows::editable(chat)?;
     chat_rows::idle(chat)?;
     let eligible = chat

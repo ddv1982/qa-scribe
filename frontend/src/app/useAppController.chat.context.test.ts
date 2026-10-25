@@ -48,7 +48,7 @@ it('captures the latest unsaved editor at Send before an awaited composer save a
   expect(request.context.snapshot.origin).toBe('unsaved_editor')
   expect(result.current.findings[0].title).toBe('New edit after Send')
   expect(api.updateFinding).not.toHaveBeenCalled()
-  await act(async () => { starting.resolve({ jobId: 'job-chat', turnId: 'attempt-1', status: chatJobFixture(), chat: chatFixture({ draftId: 'chat-session-1', revision: 2, mode: 'chat' }) }); await sending })
+  await act(async () => { starting.resolve({ jobId: 'job-chat', turnId: 'attempt-1', status: chatJobFixture({ chat: { reference: { sessionId: 'session-1', draftId: 'chat-session-1' } } }), chat: chatFixture({ draftId: 'chat-session-1', revision: 2, mode: 'chat' }) }); await sending })
 })
 
 it('uses the existing conversation and composer through panel close, open, expand and record switches', async () => {
@@ -101,7 +101,7 @@ it('Retry sends no new record context even when the selected record changes', as
   api.getChat.mockResolvedValue(failed)
   await act(async () => { await result.current.sessionChat.onRecheck?.() })
   act(() => result.current.askAi.detach())
-  api.startChatJob.mockImplementation(async () => ({ jobId: 'job-chat', turnId: 'new-attempt', status: chatJobFixture(), chat: { ...failed, revision: 3,
+  api.startChatJob.mockImplementation(async () => ({ jobId: 'job-chat', turnId: 'new-attempt', status: chatJobFixture({ chat: { reference: { sessionId: 'session-1', draftId: 'chat-session-1' } } }), chat: { ...failed, revision: 3,
     messages: [{ ...failed.messages[0], turnId: 'new-attempt', status: 'running' }] } }))
   await act(async () => { await result.current.sessionChat.onRetry() })
   expect(api.startChatJob.mock.calls[0][0]).toMatchObject({ intent: { kind: 'retry' } })

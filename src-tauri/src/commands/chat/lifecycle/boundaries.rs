@@ -16,7 +16,7 @@ fn setup() -> (SessionService, StartChatJobRequest) {
     (
         service,
         StartChatJobRequest {
-            intent: ChatRequestIntent::Message,
+            intent: crate::commands::chat::ChatSendIntent::Composer,
             context: ChatTarget::Session,
             scope: scope(&chat),
 
@@ -74,7 +74,7 @@ fn r20_01_oversized_assistant_cannot_complete_run_or_poison_future_replay() {
         )
         .unwrap();
         request.scope = scope(&failed);
-        request.intent = ChatRequestIntent::Retry;
+        request.intent = crate::commands::chat::ChatSendIntent::Retry;
         let retried = prepare(&service, &request).unwrap();
         assert_eq!(retried.started.chat.messages.len(), 1);
         assert_eq!(
@@ -84,7 +84,7 @@ fn r20_01_oversized_assistant_cannot_complete_run_or_poison_future_replay() {
         let completed = finish(&service, &retried, output("Valid A")).unwrap();
         let saved = composer(&service, &completed, "Next Q");
         request.scope = scope(&saved);
-        request.intent = ChatRequestIntent::Message;
+        request.intent = crate::commands::chat::ChatSendIntent::Composer;
         let next = prepare(&service, &request).unwrap();
         assert!(next.input.text().contains("Valid A"));
         assert!(next.input.text().contains("Next Q"));

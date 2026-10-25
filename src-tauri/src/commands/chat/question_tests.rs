@@ -25,6 +25,15 @@ fn setup() -> (SessionService, StartChatJobRequest) {
         })
         .unwrap();
     let chat = service.load_chat(&session.id).unwrap();
+    let chat = service
+        .save_chat_composer(ChatComposerRequest {
+            scope: lifecycle::scope(&chat),
+            composer: String::new(),
+            intent: ChatComposerIntent::DraftJira,
+            mode: ChatMode::Chat,
+            attachment_ids: vec![],
+        })
+        .unwrap();
     let context = ChatTarget::Finding {
         snapshot: RecordContextSnapshot {
             session_id: session.id,
@@ -42,7 +51,7 @@ fn setup() -> (SessionService, StartChatJobRequest) {
         service,
         StartChatJobRequest {
             scope: lifecycle::scope(&chat),
-            intent: ChatRequestIntent::DraftJira,
+            intent: crate::commands::chat::ChatSendIntent::Composer,
             context,
             provider: AiProvider::CodexCli,
             model: "fixture".into(),
@@ -70,7 +79,7 @@ fn question_preflight_commit_and_provider_input_share_the_original_snapshot() {
     let id = &initial.started.chat.messages[0].id;
     let chat=lifecycle::finish(&service,&initial,output(json!({"version":2,"requestId":id,"markdown":"Original draft","question":{"prompt":"Type?","choices":["Finding subtask","Other"]}}).to_string())).unwrap();
     request.scope = lifecycle::scope(&chat);
-    request.intent = ChatRequestIntent::QuestionReply {
+    request.intent = crate::commands::chat::ChatSendIntent::QuestionReply {
         assistant_message_id: chat.messages.last().unwrap().id.clone(),
         text: "Finding subtask".into(),
     };

@@ -46,7 +46,7 @@ describe('durable chat composer images', () => {
     expect(result.current.sessionChat.composerImages).toEqual([image])
     await act(async () => { await result.current.saveAllPendingChanges() })
     expect(api.saveChatComposer).toHaveBeenLastCalledWith({ scope: { sessionId: 'session-1', draftId: 'chat-1', expectedRevision: 1 },
-      composer: 'Newer question 4827', attachmentIds: ['image-1'], mode: 'chat' })
+      intent: { kind: 'message' }, composer: 'Newer question 4827', attachmentIds: ['image-1'], mode: 'chat' })
   })
 
   it('does not restore an image removed while an older autosave is pending', async () => {
@@ -144,7 +144,7 @@ describe('durable chat composer images', () => {
     expect(result.current.sessionChat.composerImages).toEqual([])
     expect(result.current.sessionChat.chat?.messages[0].images).toEqual([image])
     await act(async () => { await result.current.saveAllPendingChanges() })
-    expect(api.saveChatComposer).toHaveBeenLastCalledWith(expect.objectContaining({ composer: 'New question 4827', attachmentIds: [] }))
+    expect(api.saveChatComposer).toHaveBeenLastCalledWith(expect.objectContaining({ intent: { kind: 'message' }, composer: 'New question 4827', attachmentIds: [] }))
     expect(api.startChatJob).toHaveBeenCalledOnce()
   })
 
@@ -201,7 +201,7 @@ describe('durable chat composer images', () => {
     expect(result.current.sessionChat.composer).toBe('New question')
     expect(result.current.sessionChat.composerImages).toEqual([])
     await act(async () => { await result.current.saveAllPendingChanges() })
-    expect(api.saveChatComposer).toHaveBeenLastCalledWith(expect.objectContaining({ composer: 'New question', attachmentIds: [] }))
+    expect(api.saveChatComposer).toHaveBeenLastCalledWith(expect.objectContaining({ intent: { kind: 'message' }, composer: 'New question', attachmentIds: [] }))
     expect(api.startChatJob).toHaveBeenCalledOnce()
   })
 

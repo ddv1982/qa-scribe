@@ -1,3 +1,4 @@
+import { inspectRoutingInput } from './ask-ai-routing-provider.mjs'
 import { inspectJiraInput } from './ask-ai-jira-provider.mjs'
 import { join } from 'node:path'
 import { emit, jsonLines, parseTranscript, record, reserveInvocation, waitForFile } from './chat-authorization-common.mjs'
@@ -12,10 +13,11 @@ export function codexAppServer(argv) {
   let turnId
   let active = false
   const directory = process.env.QA_SCRIBE_E2E_FIXTURE_DIR
+  const routingFixture = process.env.QA_SCRIBE_E2E_SPEC === 'ask-ai-conversation-routing.e2e.mjs'
   const jiraFixture = process.env.QA_SCRIBE_E2E_SPEC === 'ask-ai-jira-draft.e2e.mjs'
   const refinementFixture = process.env.QA_SCRIBE_E2E_SPEC === 'ask-ai-refinement.e2e.mjs'
   const contextFixture = process.env.QA_SCRIBE_E2E_SPEC === 'ask-ai-context.e2e.mjs'
-  const images = process.env.QA_SCRIBE_E2E_CHAT_IMAGES === '1' || contextFixture || refinementFixture || jiraFixture
+  const images = process.env.QA_SCRIBE_E2E_CHAT_IMAGES === '1' || contextFixture || refinementFixture || jiraFixture || routingFixture
   const scope = () => ({ threadId, turnId })
   const complete = (text, emittedPrefix = 0) => {
     emit({ method: 'item/agentMessage/delta', params: { ...scope(), itemId: 'assistant', delta: text.slice(emittedPrefix) } })
@@ -39,7 +41,7 @@ export function codexAppServer(argv) {
     } else if (request.method === 'turn/start') {
       if (!threadId || request.params.threadId !== threadId || active) throw new Error('Invalid Chat turn scope')
       active = true
-      const imageInput = jiraFixture ? inspectJiraInput(request.params.input) : refinementFixture ? inspectRefinementInput(request.params.input) : contextFixture ? inspectContextInput(request.params.input) : images ? inspectImageInput(request.params.input) : null
+      const imageInput = routingFixture ? inspectRoutingInput(request.params.input) : jiraFixture ? inspectJiraInput(request.params.input) : refinementFixture ? inspectRefinementInput(request.params.input) : contextFixture ? inspectContextInput(request.params.input) : images ? inspectImageInput(request.params.input) : null
       const prompt = imageInput ? null : request.params.input.map((input) => {
         if (input.type !== 'text') throw new Error('Only text Chat input supported')
         return input.text

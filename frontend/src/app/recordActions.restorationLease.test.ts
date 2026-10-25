@@ -1,3 +1,4 @@
+import { stageOrigin } from './proposalStage.testSupport'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import type { Draft, DraftPatch, Finding, FindingPatch, RecordWriteGuard } from '../bindings'
 import { draftFixture, findingFixture } from '../test/fixtures'
@@ -157,7 +158,7 @@ it.each(kinds)('%s leaves a fresh Proposal origin intact', async kind => {
   const s = await held(kind)
   s.reserve('save')
   const value = editorValue(s.a)
-  s.c.bindStage(kind, s.a.id, s.a.sessionId, { id: 'fresh-stage', before: value, after: value, storedBaseToken: s.lease.expectedStoredBase })
+  s.c.bindStage(kind, s.a.id, s.a.sessionId, { origin: stageOrigin(kind, s.a.id, 'fresh-stage', s.a.sessionId), id: 'fresh-stage', before: value, after: value, storedBaseToken: s.lease.expectedStoredBase })
   const proposal = s.c.latestWriteGuards.get(s.key)
   s.release.resolve(); await s.pending
   expect(s.c.latestWriteGuards.get(s.key)).toBe(proposal)
@@ -170,8 +171,8 @@ it.each(kinds)('%s keeps the same Editor object when release only removes propos
   const s = await held(kind)
   s.reserve('save')
   const value = editorValue(s.a)
-  s.c.proposalStages.set(s.key, { id: 'previous-stage', before: value, after: value, storedBaseToken: s.lease.expectedStoredBase })
-  s.c.releaseStage(kind, s.a.id, s.lease)
+  s.c.proposalStages.set(s.key, { origin: stageOrigin(kind, s.a.id, 'previous-stage', s.a.sessionId), id: 'previous-stage', before: value, after: value, storedBaseToken: s.lease.expectedStoredBase })
+  s.c.releaseStage(kind, s.a.id, s.lease, 'previous-stage')
   expect(s.c.latestWriteGuards.get(s.key)).toBe(s.lease)
   expect(s.c.proposalStages.has(s.key)).toBe(false)
   s.release.resolve(); await s.pending
@@ -262,9 +263,9 @@ it.each(kinds)('%s Proposal to Editor release preserves its pinned base and revo
   const s = await held(kind)
   s.reserve('save')
   const value = editorValue(s.a)
-  s.c.bindStage(kind, s.a.id, s.a.sessionId, { id: 'new-stage', before: value, after: value, storedBaseToken: s.lease.expectedStoredBase })
+  s.c.bindStage(kind, s.a.id, s.a.sessionId, { origin: stageOrigin(kind, s.a.id, 'new-stage', s.a.sessionId), id: 'new-stage', before: value, after: value, storedBaseToken: s.lease.expectedStoredBase })
   const proposal = s.c.latestWriteGuards.get(s.key)
-  s.c.releaseStage(kind, s.a.id, await recordWriteGuard(s.a, s.table))
+  s.c.releaseStage(kind, s.a.id, await recordWriteGuard(s.a, s.table), 'new-stage')
   const released = s.c.latestWriteGuards.get(s.key)!
   expect(released).not.toBe(proposal); expect(released).not.toBe(s.lease)
   expect(released.origin).toEqual({ kind: 'editor' })

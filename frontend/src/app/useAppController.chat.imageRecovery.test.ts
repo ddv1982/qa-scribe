@@ -45,7 +45,7 @@ describe('uncertain image recovery', () => {
     act(() => { dismissing = result.current.sessionChat.onDismissImageFailure(failureId) })
     await waitFor(() => expect(api.saveChatComposer).toHaveBeenCalledWith({
       scope: { sessionId: 'session-1', draftId: 'chat-1', expectedRevision: 1 },
-      composer: 'New question 4827', attachmentIds: ['image-a'], mode: 'chat',
+      intent: { kind: 'message' }, composer: 'New question 4827', attachmentIds: ['image-a'], mode: 'chat',
     }))
     expect(result.current.sessionChat.imageFailures).toHaveLength(1)
     await act(async () => {
@@ -148,16 +148,17 @@ describe('uncertain image recovery', () => {
     expect(api.importChatImage).toHaveBeenCalledOnce()
   })
 
-  it('can forget an old failed operation after the canonical draft changes without editing the new draft', async () => {
+  it('rejects a foreign draft during failed import recovery without editing either draft', async () => {
     const { result } = await failedImport()
     const failureId = result.current.sessionChat.imageFailures[0].id
     api.getChat.mockResolvedValue(chatFixture({ draftId: 'chat-new', mode: 'chat', composer: 'New draft', composerImages: [later] }))
     await act(async () => { await result.current.sessionChat.onRetryImage(failureId) })
     expect(result.current.sessionChat.imageFailures).toHaveLength(1)
     await act(async () => { await result.current.sessionChat.onDismissImageFailure(failureId) })
-    expect(result.current.sessionChat.imageFailures).toEqual([])
-    expect(result.current.sessionChat.composerImages).toEqual([later])
-    expect(result.current.sessionChat.composer).toBe('New draft')
+    expect(result.current.sessionChat.imageFailures).toHaveLength(1)
+    expect(result.current.sessionChat.composerImages).toEqual([existing, uncertain])
+    expect(result.current.sessionChat.chat?.draftId).toBe('chat-1')
+    expect(result.current.sessionChat.composer).not.toBe('New draft')
     expect(api.saveChatComposer).not.toHaveBeenCalled()
     expect(api.importChatImage).toHaveBeenCalledOnce()
   })

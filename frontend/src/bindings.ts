@@ -176,6 +176,10 @@ export type ChatImage = {
 	sizeBytes: number,
 };
 
+export type ChatJobIdentity = {
+	reference: ChatRef,
+};
+
 export type ChatMessage = {
 	response?: ChatResponseInfo | null,
 	answer?: ChatAnswer | null,
@@ -235,8 +239,6 @@ export type ChatRef = {
 	draftId: string,
 };
 
-export type ChatRequestIntent = { kind: "message" } | { kind: "refine_record" } | { kind: "draft_jira" } | { kind: "question_reply"; assistantMessageId: string; text: string } | { kind: "retry" };
-
 export type ChatResponseInfo = {
 	sourceUserMessageId: string,
 	purpose: ChatResponsePurpose,
@@ -257,6 +259,8 @@ export type ChatRevision = {
 };
 
 export type ChatRole = "user" | "assistant";
+
+export type ChatSendIntent = { kind: "composer" } | { kind: "question_reply"; assistantMessageId: string; text: string } | { kind: "retry" };
 
 export type ChatState = {
 	owner: ConversationOwner,
@@ -523,6 +527,7 @@ export type GenerationJobStatus_Deserialize = {
 	jobId: string,
 	sessionId: string,
 	action: string,
+	chat: ChatJobIdentity | null,
 	state: GenerationJobState,
 	progressMessage: string,
 	aiRunId: string | null,
@@ -535,6 +540,7 @@ export type GenerationJobStatus_Serialize = {
 	jobId: string,
 	sessionId: string,
 	action: string,
+	chat: ChatJobIdentity | null,
 	state: GenerationJobState,
 	progressMessage: string,
 	aiRunId: string | null,
@@ -828,7 +834,7 @@ export type StartAiActionJobResult_Serialize = {
 };
 
 export type StartChatJobRequest = {
-	intent: ChatRequestIntent,
+	intent: ChatSendIntent,
 	context?: ChatTarget,
 	scope: ChatRevision,
 	provider: AiProvider,

@@ -9,12 +9,13 @@ impl SessionService {
             let chat = rows::checked(tx, &request.scope)?;
             rows::editable(&chat)?;
             rows::idle(&chat)?;
-            if !chat.composer.is_empty() || !chat.composer_images.is_empty() {
+            if !chat.composer.is_empty() || !chat.composer_images.is_empty() || chat.composer_intent != ChatComposerIntent::Message {
                 return Err(validation("Clear the Chat composer before retrying the previous message"));
             }
             let message = chat.messages.last().filter(|m| m.role == ChatRole::User
                 && matches!(m.status, ChatTurnStatus::Failed | ChatTurnStatus::Cancelled | ChatTurnStatus::Interrupted))
                 .ok_or_else(|| validation("The latest Chat message is not retryable"))?;
+            super::chat_context::validate_anchor(&chat, &message.context)?;
             super::chat_context::validate_retry_owner(tx, &chat.session_id, &message.context)?;
             let turn_id = new_id();
             tx.execute("UPDATE chat_messages SET turn_id = ?1, status = 'running', error_message = NULL, ai_run_id = NULL WHERE id = ?2",

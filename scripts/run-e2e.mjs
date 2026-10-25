@@ -25,6 +25,21 @@ export function createWdioInvocationPlan(environment, temporaryRoot, artifacts, 
   const requestedSpec = environment.QA_SCRIBE_E2E_SPEC?.trim()
   const requestedScenario = environment.QA_SCRIBE_E2E_SCENARIO?.trim()
 
+  if (requestedSpec === 'ask-ai-conversation-routing.e2e.mjs') {
+    if (requestedScenario) throw new Error('Conversation routing runs its phases serially')
+    return ['initial', 'restart'].map((phase, index) => ({
+      id: `routing-${phase}`,
+      ...(index ? { restartOf: 'routing-initial' } : {}),
+      environment: {
+        QA_SCRIBE_E2E_SPEC: requestedSpec,
+        QA_SCRIBE_E2E_ROUTING_PHASE: phase,
+        QA_SCRIBE_E2E_APP_DATA_DIR: join(temporaryRoot, 'app-data'),
+        QA_SCRIBE_E2E_ARTIFACTS: join(artifacts, phase),
+        QA_SCRIBE_E2E_FIXTURE_DIR: join(temporaryRoot, 'fixtures'),
+      },
+    }))
+  }
+
   if (requestedSpec === 'ask-ai-ownership-migration.e2e.mjs') {
     if (requestedScenario) throw new Error('Ownership migration runs its named scenarios serially')
     return ['initial', 'reopen-1', 'reopen-2'].map((phase, index) => ({
@@ -314,7 +329,7 @@ export function runE2e(environment = process.env, { spawnSyncImpl = spawnSync } 
       const providerBin = join(invocation.environment.QA_SCRIBE_E2E_FIXTURE_DIR, 'bin')
       mkdirSync(providerBin, { recursive: true })
       const authorization = invocationEnvironment.QA_SCRIBE_E2E_SPEC === 'chat-tool-authorization.workflow.mjs'
-      const recordContext = ['ask-ai-context.e2e.mjs', 'ask-ai-refinement.e2e.mjs', 'ask-ai-jira-draft.e2e.mjs'].includes(invocationEnvironment.QA_SCRIBE_E2E_SPEC)
+      const recordContext = ['ask-ai-context.e2e.mjs', 'ask-ai-refinement.e2e.mjs', 'ask-ai-jira-draft.e2e.mjs', 'ask-ai-conversation-routing.e2e.mjs'].includes(invocationEnvironment.QA_SCRIBE_E2E_SPEC)
       if (invocationEnvironment.QA_SCRIBE_E2E_SPEC !== 'creation-composer.e2e.mjs') delete invocationEnvironment.QA_SCRIBE_E2E_CREATION_FORMATS_ONLY
       if (invocationEnvironment.QA_SCRIBE_E2E_SPEC !== 'chat-images.e2e.mjs') delete invocationEnvironment.QA_SCRIBE_E2E_CHAT_IMAGES
       else invocationEnvironment.QA_SCRIBE_PROVIDER_CATALOG_MODE = 'selector'

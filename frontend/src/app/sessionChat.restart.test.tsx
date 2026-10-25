@@ -12,7 +12,7 @@ function deferred<T>() {
   return { promise, resolve }
 }
 
-const api = vi.hoisted(() => ({ getChat: vi.fn(), saveChatComposer: vi.fn(), restartChat: vi.fn(), updateEntry: vi.fn(), submitChat: vi.fn() }))
+const api = vi.hoisted(() => ({ getConversation: vi.fn(), getChat: vi.fn(), saveChatComposer: vi.fn(), restartChat: vi.fn(), updateEntry: vi.fn(), submitChat: vi.fn() }))
 vi.mock('../tauri', async (original) => ({ ...await original<object>(), ...api }))
 const instances: ReturnType<typeof createSessionChatActions>[] = []
 let durable: ChatState
@@ -33,7 +33,7 @@ async function mount() {
   const props = () => ({ ...snapshot, onRestart: actions.onRestart, captureRestart: actions.captureRestart })
   const view = render(<StartNewConversation state={props()} />)
   repaint = () => view.rerender(<StartNewConversation state={props()} />)
-  await act(async () => { actions.activate('session-1') })
+  await act(async () => { void actions.activate('session-1') })
   function open() { fireEvent.click(screen.getByRole('button', { name: 'Start new conversation' })) }
   function confirm() { fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Start new conversation' })) }
   return { actions, open, confirm, get snapshot() { return snapshot } }
@@ -45,6 +45,7 @@ beforeEach(() => {
   sessionId = 'session-1'; recovery = false
   durable = completedChatFixture({ mode: 'write_note', composer: 'Controlled dark unsent message' })
   api.getChat.mockImplementation(async () => structuredClone(durable))
+  api.getConversation.mockImplementation(async () => structuredClone(durable))
   api.saveChatComposer.mockImplementation(async (request: ChatComposerRequest) => {
     durable = { ...durable, composer: request.composer, mode: request.mode, revision: request.scope.expectedRevision + 1 }
     return structuredClone(durable)
@@ -94,7 +95,7 @@ it('settles an autosave that began after opening confirmation before restarting 
 it('permits a byte-equivalent refresh of the same conversation', async () => {
   const h = await mount()
   h.open()
-  await act(async () => { h.actions.activate('session-1') })
+  await act(async () => { void h.actions.activate('session-1') })
   await act(async () => { h.confirm() })
   expect(h.snapshot.chat?.draftId).toBe('new-chat')
   expect(api.restartChat).toHaveBeenCalledOnce()
@@ -112,9 +113,9 @@ it.each(['composer', 'mode', 'history', 'runs', 'submission', 'draft'] as const)
     draft: { draftId: 'another-chat' },
   }[field]
   durable = { ...durable, ...changed, revision: 4 }
-  await act(async () => { h.actions.activate('session-1') })
+  await act(async () => { void h.actions.activate('session-1') })
   durable = { ...original, revision: 5 }
-  await act(async () => { h.actions.activate('session-1') })
+  await act(async () => { void h.actions.activate('session-1') })
   await act(async () => { h.confirm() })
   expect(api.restartChat).not.toHaveBeenCalled()
   expect(h.snapshot.chat?.draftId).toBe('chat-1')
@@ -131,7 +132,7 @@ it.each(['input', 'mode', 'session', 'job', 'recovery'] as const)('protects %s w
   await act(async () => { h.confirm() })
   act(() => {
     if (field === 'mode') { h.actions.setMode('write_note'); h.actions.setMode('chat') }
-    if (field === 'session') { sessionId = 'session-2'; h.actions.activate('session-2'); sessionId = 'session-1'; h.actions.activate('session-1') }
+    if (field === 'session') { sessionId = 'session-2'; void h.actions.activate('session-2'); sessionId = 'session-1'; void h.actions.activate('session-1') }
     if (field === 'job') h.actions.observeJob(chatJobFixture())
     if (field === 'recovery') recovery = true
     if (field === 'input') h.actions.onSetComposer('New work after confirming')
@@ -171,7 +172,7 @@ it('does not discard a foreign persisted composer hidden behind dirty local inpu
   act(() => h.actions.onSetComposer('Local confirmed input'))
   h.open()
   durable = { ...durable, composer: 'Foreign persisted input', revision: 4 }
-  await act(async () => { h.actions.activate('session-1') })
+  await act(async () => { void h.actions.activate('session-1') })
   expect(h.snapshot.composer).toBe('Local confirmed input')
   await act(async () => { h.confirm() })
   expect(api.restartChat).not.toHaveBeenCalled()

@@ -20,7 +20,7 @@ beforeEach(() => {
     saved = { ...saved, revision: request.scope.expectedRevision + 1, composer: request.composer }
     return saved
   })
-  api.startChatJob.mockImplementation(async (request: StartChatJobRequest) => ({ jobId: 'job-chat', turnId: 'turn-2', status: chatJobFixture(), chat: { ...saved, composer: '', revision: saved.revision + 1, messages: [...saved.messages, { ...user, id: 'reply', turnId: 'turn-2', status: 'running', text: request.intent.kind === 'question_reply' ? request.intent.text : saved.composer }] } }))
+  api.startChatJob.mockImplementation(async (request: StartChatJobRequest) => ({ jobId: 'job-chat', turnId: 'turn-2', status: chatJobFixture({ chat: { reference: { sessionId: saved.sessionId, draftId: saved.draftId } } }), chat: { ...saved, composer: '', revision: saved.revision + 1, messages: [...saved.messages, { ...user, id: 'reply', turnId: 'turn-2', status: 'running', text: request.intent.kind === 'question_reply' ? request.intent.text : saved.composer }] } }))
 })
 afterEach(cleanupControllerTest)
 async function open() {
@@ -64,7 +64,7 @@ it('refuses mismatched choices but ordinary matching text still sends current Se
   expect(api.startChatJob).not.toHaveBeenCalled()
   act(() => result.current.sessionChat.onSetComposer('Bug'))
   await act(async () => { await result.current.sessionChat.onSend() })
-  expect(api.startChatJob.mock.calls[0][0]).toMatchObject({ intent: { kind: 'message' }, context: { kind: 'session' } })
+  expect(api.startChatJob.mock.calls[0][0]).toMatchObject({ intent: { kind: 'composer' }, context: { kind: 'session' } })
   expect(result.current.sessionChat.chat?.messages.at(-1)?.text).toBe('Bug')
 })
 it('prepares an editable action request without starting a job and sends the user edit normally', async () => {
@@ -76,7 +76,7 @@ it('prepares an editable action request without starting a job and sends the use
   expect(api.startChatJob).not.toHaveBeenCalled()
   act(() => result.current.sessionChat.onSetComposer('Create the reviewed subtask, but ask before uploading evidence.'))
   await act(async () => { await result.current.sessionChat.onSend() })
-  expect((api.startChatJob.mock.calls[0][0] as StartChatJobRequest).intent).toEqual({ kind: 'message' })
+  expect((api.startChatJob.mock.calls[0][0] as StartChatJobRequest).intent).toEqual({ kind: 'composer' })
   expect(result.current.sessionChat.chat?.messages.at(-1)?.text).toBe('Create the reviewed subtask, but ask before uploading evidence.')
 })
 it('blocks choices during image ingestion and retains the resulting image', async () => {

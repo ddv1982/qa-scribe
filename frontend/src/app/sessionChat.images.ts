@@ -1,4 +1,4 @@
-import { getAttachmentPreviewDataUrl, importChatImage, readChatClipboardImageDataUrl, type ChatRevision, type ChatState } from '../tauri'
+import { getAttachmentPreviewDataUrl, importChatImage, readChatClipboardImageDataUrl, type ChatRef, type ChatRevision, type ChatState } from '../tauri'
 import { pastedImageFilename, readFileAsDataUrl } from '../editor/editorHtml'
 import { chatIsWorking, chatScope, type ChatImageRecovery, type ChatWorkspace, type SessionChatContext } from './sessionChat.types'
 import { formatError, toCommandError } from '../ui/format'
@@ -13,10 +13,10 @@ type ImageSource = {
 type ImportResolution = { kind: 'not_committed' } | { kind: 'committed'; attachmentIds: string[] }
 type ImageActions = {
   active: () => ChatWorkspace | null
-  run: (kind: string, action: (entry: ChatWorkspace) => Promise<void>) => Promise<void>
+  run: (kind: string, action: (entry: ChatWorkspace) => Promise<void>, bound?: ChatWorkspace) => Promise<void>
   saveComposer: (entry: ChatWorkspace) => Promise<boolean>
   acceptChat: (entry: ChatWorkspace, chat: ChatState, inputVersion: number, modeVersion: number) => void
-  refresh: (sessionId: string) => Promise<void>
+  refresh: (reference: ChatRef) => Promise<void>
   publish: (entry: ChatWorkspace) => void
   scheduleAutosave: (entry: ChatWorkspace) => void
 }
@@ -24,8 +24,8 @@ type ImageActions = {
 export function createChatImageActions(ctx: SessionChatContext, actions: ImageActions) {
   const failedSources = new WeakMap<ChatWorkspace, Map<string, ImageSource>>()
   function editable(entry: ChatWorkspace) {
-    return !entry.retired && Boolean(entry.chat) && !entry.chat?.submission
-      && !entry.pendingStart && !ctx.noteRecovery.has(entry.sessionId) && !chatIsWorking(entry.job)
+    return !entry.retired && Boolean(entry.chat) && !entry.chat?.archived && !entry.chat?.submission
+      && !entry.pendingStart && !(entry.owner?.kind === 'notes' && ctx.noteRecovery.has(entry.sessionId)) && !chatIsWorking(entry.job)
   }
 
   async function reconcileImport(entry: ChatWorkspace, source: ImageSource, intent: 'retry' | 'remove' = 'retry'): Promise<ImportResolution> {
@@ -35,7 +35,7 @@ export function createChatImageActions(ctx: SessionChatContext, actions: ImageAc
     const removed = new Set((entry.chat?.composerImages ?? []).filter(image => !retained.has(image.attachmentId)).map(image => image.attachmentId))
     const previousChat = entry.chat
     attempt.recovery = { kind: 'refresh_pending', images: attempt.recovery.images }
-    await actions.refresh(entry.sessionId)
+    await actions.refresh(entry.reference)
     if (entry.retired) return { kind: 'not_committed' }
     const chat = entry.chat
     if (!chat) throw new Error('Reload the conversation before resolving the failed image.')
@@ -115,15 +115,15 @@ export function createChatImageActions(ctx: SessionChatContext, actions: ImageAc
     if (failure) throw failure
   }
 
-  function onAttachImages(files: File[]) {
+  function onAttachImages(files: File[], bound?: ChatWorkspace) {
     if (!files.length) return Promise.resolve()
     return actions.run('attach', entry => attach(entry, files.map(file => ({ id: crypto.randomUUID(), pending: null,
-      filename: pastedImageFilename(file), size: file.size, load: () => readFileAsDataUrl(file) }))))
+      filename: pastedImageFilename(file), size: file.size, load: () => readFileAsDataUrl(file) }))), bound)
   }
 
-  const onPasteNativeImage = () => actions.run('attach', entry => attach(entry, [{
+  const onPasteNativeImage = (bound?: ChatWorkspace) => actions.run('attach', entry => attach(entry, [{
     id: crypto.randomUUID(), pending: null, filename: `pasted-image-${Date.now()}.png`, load: readChatClipboardImageDataUrl,
-  }]))
+  }]), bound)
 
   function dismiss(entry: ChatWorkspace, id: string) {
     failedSources.get(entry)?.delete(id)
@@ -139,13 +139,13 @@ export function createChatImageActions(ctx: SessionChatContext, actions: ImageAc
         ...(source.pending ? { recovery: source.pending.recovery } : {}) }]
   }
 
-  const onRetryImage = (id: string) => actions.run('attach', entry => {
+  const onRetryImage = (id: string, bound?: ChatWorkspace) => actions.run('attach', entry => {
     const source = failedSources.get(entry)?.get(id)
     return source ? attach(entry, [source]) : Promise.resolve()
-  })
+  }, bound)
 
-  function onDismissImageFailure(id: string) {
-    const entry = actions.active()
+  function onDismissImageFailure(id: string, bound?: ChatWorkspace) {
+    const entry = bound ?? actions.active()
     if (!entry || entry.operationKind) return Promise.resolve()
     const source = failedSources.get(entry)?.get(id)
     if (source?.pending) {
@@ -161,7 +161,7 @@ export function createChatImageActions(ctx: SessionChatContext, actions: ImageAc
           current.composerImages = current.composerImages.filter(image => !removed.has(image.attachmentId))
         }
         removeFailure(current, id)
-      })
+      }, entry)
     }
     removeFailure(entry, id)
     return Promise.resolve()
@@ -180,8 +180,8 @@ export function createChatImageActions(ctx: SessionChatContext, actions: ImageAc
     entry.imageFailures = []
   }
 
-  function onRemoveImage(attachmentId: string) {
-    const entry = actions.active()
+  function onRemoveImage(attachmentId: string, bound?: ChatWorkspace) {
+    const entry = bound ?? actions.active()
     if (!entry || !editable(entry) || entry.operationKind) return
     const images = entry.composerImages.filter(image => image.attachmentId !== attachmentId)
     if (images.length === entry.composerImages.length) return

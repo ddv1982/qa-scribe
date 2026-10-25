@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { AiProvider, ChatPermissionDecision, GenerationJobStatus } from '../bindings'
+import type { AiProvider, ChatPermissionDecision, ChatRef, ChatState, GenerationJobStatus } from '../bindings'
 import { createSessionChatActions } from './sessionChat.actions'
 import { emptyChatSnapshot, type ChatSnapshot, type SessionChatContext } from './sessionChat.types'
 import { chatFixture, chatJobFixture, completedChatFixture } from './useSessionChat.testSupport'
 
 const api = vi.hoisted(() => ({
-  decideChatPermission: vi.fn(), getChat: vi.fn(), getAiActionJobStatus: vi.fn(),
+  decideChatPermission: vi.fn(), getConversation: vi.fn<(reference: ChatRef) => Promise<ChatState>>(), getChat: vi.fn<(sessionId: string) => Promise<ChatState>>(), getAiActionJobStatus: vi.fn(),
   cancelAiActionJob: vi.fn(), startChatJob: vi.fn(), saveChatComposer: vi.fn(), listActiveAiActionJobs: vi.fn(),
 }))
 vi.mock('../tauri', async (importOriginal) => {
@@ -30,7 +30,7 @@ const clean: GenerationJobStatus = chatJobFixture({ pendingPermission: null })
 // Temporary compatibility until the backend regenerates ChatPermissionDecision.
 const approveAll: ChatPermissionDecision = 'approveAll'
 
-function harness(provider: AiProvider = 'claude_code') {
+async function harness(provider: AiProvider = 'claude_code') {
   let snapshot: ChatSnapshot = emptyChatSnapshot
   const retired = new Set<string>()
   // Actions use only these capabilities for this slice. The production context
@@ -47,13 +47,13 @@ function harness(provider: AiProvider = 'claude_code') {
     },
   } as unknown as SessionChatContext
   const actions = createSessionChatActions(ctx)
-  actions.activate('session-1')
+  await actions.activate('session-1')
   actions.observeJob(pending(provider))
   return { actions, ctx, retired, get snapshot() { return snapshot } }
 }
-let instances: ReturnType<typeof harness>[] = []
-function setup(provider?: AiProvider) {
-  const instance = harness(provider)
+let instances: Awaited<ReturnType<typeof harness>>[] = []
+async function setup(provider?: AiProvider) {
+  const instance = await harness(provider)
   instances.push(instance)
   return instance
 }
@@ -63,6 +63,7 @@ describe('Session Chat explicit permission authority', () => {
     vi.useFakeTimers()
     vi.resetAllMocks()
     api.getChat.mockResolvedValue(chatFixture())
+    api.getConversation.mockImplementation(async reference => { const chat = await api.getChat(reference.sessionId); if (chat.draftId !== reference.draftId) throw new Error('Wrong exact draft'); return chat })
     api.listActiveAiActionJobs.mockResolvedValue([])
     api.getAiActionJobStatus.mockResolvedValue(pending())
     api.decideChatPermission.mockResolvedValue(clean)
@@ -75,7 +76,7 @@ describe('Session Chat explicit permission authority', () => {
   })
 
   it.each(['claude_code', 'codex_cli', 'copilot_cli'] as const)('sends only the exact %s request identity and explicit decision', async (provider) => {
-    const h = setup(provider)
+    const h = await setup(provider)
     await h.actions.onDecidePermission('permission-1', 'approve')
     expect(api.decideChatPermission).toHaveBeenCalledExactlyOnceWith({
       jobId: 'job-chat', sessionId: 'session-1', provider, requestId: 'permission-1', decision: 'approve',
@@ -88,7 +89,7 @@ describe('Session Chat explicit permission authority', () => {
   it.each(['claude_code', 'codex_cli', 'copilot_cli'] as const)('dispatches bulk approval with the exact %s response identity only once', async (provider) => {
     const gate = deferred<GenerationJobStatus>()
     api.decideChatPermission.mockReturnValue(gate.promise)
-    const h = setup(provider)
+    const h = await setup(provider)
     const first = h.actions.onDecidePermission('permission-1', approveAll)
     const duplicate = h.actions.onDecidePermission('permission-1', approveAll)
     expect(h.snapshot.permissionWorking).toBe(true)
@@ -109,7 +110,7 @@ describe('Session Chat explicit permission authority', () => {
   it.each(['claude_code', 'codex_cli', 'copilot_cli'] as const)('refuses unavailable %s bulk approval before invoking or suppressing the token', async (provider) => {
     const status = pending(provider)
     const request = Object.assign(status.pendingPermission!, { canApprove: false })
-    const h = setup(provider)
+    const h = await setup(provider)
     await Promise.resolve()
     h.actions.observeJob(status)
     const forged = h.actions.onDecidePermission(request.requestId, approveAll)
@@ -126,10 +127,9 @@ describe('Session Chat explicit permission authority', () => {
     })
   })
 
-  it.each(['forged', 'stale', 'provider', 'session', 'disposed', 'retired', 'terminal'] as const)('refuses %s bulk authority before invoke', async (change) => {
-    const h = setup()
+  it.each(['forged', 'stale', 'session', 'disposed', 'retired', 'terminal'] as const)('refuses %s bulk authority before invoke', async (change) => {
+    const h = await setup()
     if (change === 'stale') h.actions.observeJob(pending('claude_code', { pendingPermission: { ...pending().pendingPermission!, requestId: 'permission-2' } }))
-    if (change === 'provider') h.ctx.selection.selectedProvider = 'codex_cli'
     if (change === 'session') h.ctx.session.activeSessionIdRef.current = 'session-2'
     if (change === 'disposed') h.actions.dispose()
     if (change === 'retired') { h.retired.add('session-1'); h.actions.retire('session-1') }
@@ -144,7 +144,7 @@ describe('Session Chat explicit permission authority', () => {
   it('serializes duplicate clicks and does not replay a resolved token', async () => {
     const gate = deferred<GenerationJobStatus>()
     api.decideChatPermission.mockReturnValue(gate.promise)
-    const h = setup()
+    const h = await setup()
     const first = h.actions.onDecidePermission('permission-1', 'deny')
     const duplicate = h.actions.onDecidePermission('permission-1', 'approve')
     expect(h.snapshot.permissionWorking).toBe(true)
@@ -160,7 +160,7 @@ describe('Session Chat explicit permission authority', () => {
   it('refuses forged reject-only Copilot approval before mutating local permission state, then allows explicit deny (discussion_r4276620738)', async () => {
     const status = pending('copilot_cli')
     const request = Object.assign(status.pendingPermission!, { canApprove: false })
-    const h = setup('copilot_cli')
+    const h = await setup('copilot_cli')
     await Promise.resolve()
     h.actions.observeJob(status)
     const forgedApproval = h.actions.onDecidePermission(request.requestId, 'approve')
@@ -194,7 +194,7 @@ describe('Session Chat explicit permission authority', () => {
   it('allows approval for a legacy Copilot payload without canApprove', async () => {
     const status = pending('copilot_cli')
     expect(status.pendingPermission).not.toHaveProperty('canApprove')
-    const h = setup('copilot_cli')
+    const h = await setup('copilot_cli')
     h.actions.observeJob(status)
     await h.actions.onDecidePermission('permission-1', 'approve')
     expect(api.decideChatPermission).toHaveBeenCalledExactlyOnceWith({
@@ -207,7 +207,7 @@ describe('Session Chat explicit permission authority', () => {
   it('allows Cancel while a permission invoke is awaiting and ignores its late running response', async () => {
     const gate = deferred<GenerationJobStatus>()
     api.decideChatPermission.mockReturnValue(gate.promise)
-    const h = setup()
+    const h = await setup()
     const deciding = h.actions.onDecidePermission('permission-1', 'approve')
     await h.actions.onCancel()
     expect(api.cancelAiActionJob).toHaveBeenCalledWith('job-chat')
@@ -226,7 +226,7 @@ describe('Session Chat explicit permission authority', () => {
     })
     const newAccepted = { ...newJob, pendingPermission: null }
     api.decideChatPermission.mockReturnValueOnce(oldInvoke.promise).mockResolvedValueOnce(newAccepted)
-    const h = setup()
+    const h = await setup()
     const oldDecision = h.actions.onDecidePermission('permission-1', 'approve')
     expect(api.decideChatPermission).toHaveBeenCalledExactlyOnceWith({
       jobId: 'job-chat', sessionId: 'session-1', requestId: 'permission-1',
@@ -261,10 +261,9 @@ describe('Session Chat explicit permission authority', () => {
     expect(api.startChatJob).not.toHaveBeenCalled()
   })
 
-  it.each(['token', 'provider', 'session', 'disposed', 'retired', 'terminal'] as const)('rejects %s changes before invoking', async (change) => {
-    const h = setup()
+  it.each(['token', 'session', 'disposed', 'retired', 'terminal'] as const)('rejects %s changes before invoking', async (change) => {
+    const h = await setup()
     if (change === 'token') h.actions.observeJob(pending('claude_code', { pendingPermission: { ...pending().pendingPermission!, requestId: 'permission-2' } }))
-    if (change === 'provider') h.ctx.selection.selectedProvider = 'codex_cli'
     if (change === 'session') h.ctx.session.activeSessionIdRef.current = 'session-2'
     if (change === 'disposed') h.actions.dispose()
     if (change === 'retired') { h.retired.add('session-1'); h.actions.retire('session-1') }
@@ -273,16 +272,15 @@ describe('Session Chat explicit permission authority', () => {
     expect(api.decideChatPermission).not.toHaveBeenCalled()
   })
 
-  it.each(['session', 'provider', 'token', 'disposed', 'retired', 'foreign-job', 'foreign-session', 'foreign-action'] as const)('does not publish a late decision after %s change', async (change) => {
+  it.each(['session', 'token', 'disposed', 'retired', 'foreign-job', 'foreign-session', 'foreign-action'] as const)('does not publish a late decision after %s change', async (change) => {
     const gate = deferred<GenerationJobStatus>()
     api.decideChatPermission.mockReturnValue(gate.promise)
-    const h = setup()
+    const h = await setup()
     const deciding = h.actions.onDecidePermission('permission-1', 'approve')
     expect(api.decideChatPermission).toHaveBeenCalledTimes(1)
     // Drain initial hydration before establishing the post-change snapshot.
     await Promise.resolve()
-    if (change === 'session') { h.ctx.session.activeSessionIdRef.current = 'session-2'; h.actions.activate('session-2'); await Promise.resolve() }
-    if (change === 'provider') h.ctx.selection.selectedProvider = 'codex_cli'
+    if (change === 'session') { h.ctx.session.activeSessionIdRef.current = 'session-2'; void h.actions.activate('session-2'); await Promise.resolve() }
     if (change === 'token') h.actions.observeJob(pending('claude_code', { pendingPermission: { ...pending().pendingPermission!, requestId: 'permission-2' } }))
     if (change === 'disposed') h.actions.dispose()
     if (change === 'retired') { h.retired.add('session-1'); h.actions.retire('session-1') }
@@ -298,7 +296,7 @@ describe('Session Chat explicit permission authority', () => {
   })
 
   it('suppresses late pending events and polling snapshots after an accepted decision', async () => {
-    const h = setup()
+    const h = await setup()
     await h.actions.onDecidePermission('permission-1', 'approve')
     h.actions.observeJob(pending())
     expect(h.snapshot.job?.pendingPermission).toBeFalsy()
@@ -311,7 +309,7 @@ describe('Session Chat explicit permission authority', () => {
   it('suppresses an attempted token during invoke so late pending status cannot invite replay', async () => {
     const gate = deferred<GenerationJobStatus>()
     api.decideChatPermission.mockReturnValue(gate.promise)
-    const h = setup()
+    const h = await setup()
     const deciding = h.actions.onDecidePermission('permission-1', 'approve')
     h.actions.observeJob(pending())
     expect(h.snapshot.job?.pendingPermission).toBeFalsy()
@@ -324,7 +322,7 @@ describe('Session Chat explicit permission authority', () => {
   it.each([true, false])('recovers failed decisions from authoritative status (still pending: %s), never a model request', async (stillPending) => {
     api.decideChatPermission.mockRejectedValue(new Error('Channel lost'))
     api.getAiActionJobStatus.mockResolvedValue(stillPending ? pending() : clean)
-    const h = setup()
+    const h = await setup()
     await h.actions.onDecidePermission('permission-1', 'deny')
     expect(api.getAiActionJobStatus).toHaveBeenCalledWith('job-chat')
     expect(Boolean(h.snapshot.job?.pendingPermission)).toBe(stillPending)
@@ -335,7 +333,7 @@ describe('Session Chat explicit permission authority', () => {
   })
 
   it('explicit recheck reloads job status and Chat, uses real provider refresh and does not resubmit', async () => {
-    const h = setup()
+    const h = await setup()
     await Promise.resolve()
     api.getChat.mockClear()
     api.getAiActionJobStatus.mockResolvedValue(clean)
@@ -359,16 +357,18 @@ describe('Session Chat explicit permission authority', () => {
     }] })
     api.getChat.mockResolvedValueOnce(initial).mockRejectedValueOnce(new Error('Recovery unavailable')).mockResolvedValue(recovered)
     api.startChatJob.mockRejectedValueOnce(new Error('Start response lost'))
-    const h = setup()
+    const h = await setup()
     await vi.advanceTimersByTimeAsync(0)
     h.actions.observeJob(chatJobFixture({ state: 'completed', pendingPermission: null }))
+    await Promise.resolve(); await Promise.resolve()
+    api.getChat.mockReset().mockRejectedValueOnce(new Error('Recovery unavailable')).mockResolvedValue(recovered)
     await h.actions.onSend()
     expect(h.snapshot.inputRecoveryPending).toBe(true)
     h.actions.onSetComposer('Keep my next draft')
     api.getAiActionJobStatus.mockRejectedValueOnce({ kind: 'notFound', message: 'Job was pruned' })
     api.listActiveAiActionJobs.mockResolvedValue([
       chatJobFixture({ jobId: 'other-session', sessionId: 'session-2' }),
-      chatJobFixture({ jobId: 'wrong-turn', aiRunId: 'run-other' }),
+      chatJobFixture({ jobId: 'wrong-turn', aiRunId: 'run-other', chat: { reference: { sessionId: 'session-1', draftId: 'other-chat' } } }),
       chatJobFixture({ jobId: 'job-new', aiRunId: 'run-new', pendingPermission: null }),
     ])
     await h.actions.onRecheck()
@@ -376,7 +376,7 @@ describe('Session Chat explicit permission authority', () => {
     expect(h.snapshot.chat?.messages).toEqual(recovered.messages)
     expect(h.snapshot.composer).toBe('Keep my next draft')
     expect(api.startChatJob).toHaveBeenCalledOnce()
-    expect(api.getChat).toHaveBeenCalledTimes(3)
+    expect(api.getChat).toHaveBeenCalledTimes(2)
     if (status === 'running') {
       expect(h.snapshot.job?.jobId).toBe('job-new')
       api.getAiActionJobStatus.mockResolvedValue(chatJobFixture({ jobId: 'job-new', aiRunId: 'run-new', state: 'completed', pendingPermission: null }))
@@ -394,7 +394,7 @@ describe('Session Chat explicit permission authority', () => {
   })
 
   it('keeps missing-job errors visible when no uncertain send needs recovery', async () => {
-    const h = setup()
+    const h = await setup()
     await vi.advanceTimersByTimeAsync(0)
     api.getChat.mockClear()
     api.getAiActionJobStatus.mockRejectedValueOnce({ kind: 'notFound', message: 'Job was pruned' })
@@ -405,7 +405,7 @@ describe('Session Chat explicit permission authority', () => {
   })
 
   it('does not invent provider readiness when recheck fails', async () => {
-    const h = setup()
+    const h = await setup()
     h.ctx.provider = { ...h.ctx.provider!, available: false, reason: 'Connector disconnected' }
     vi.mocked(h.ctx.refreshProviderStatus!).mockRejectedValue(new Error('Connector disconnected'))
     await h.actions.onRecheck()
@@ -415,7 +415,7 @@ describe('Session Chat explicit permission authority', () => {
   })
 
   it('a new job does not inherit authority and old jobs never replace it', async () => {
-    const h = setup()
+    const h = await setup()
     await h.actions.onDecidePermission('permission-1', 'approve')
     h.actions.observeJob(chatJobFixture({ state: 'completed', pendingPermission: null }))
     h.actions.observeJob(pending('claude_code', { jobId: 'job-new' }))
@@ -430,4 +430,44 @@ describe('Session Chat explicit permission authority', () => {
       jobId: 'job-new', sessionId: 'session-1', requestId: 'permission-1', provider: 'claude_code', decision: 'deny',
     })
   })
+})
+
+it('keeps the captured execution provider when the global next-provider preference changes', async () => {
+  vi.useFakeTimers()
+  vi.clearAllMocks()
+  api.getChat.mockResolvedValue(chatFixture())
+  api.getConversation.mockResolvedValue(chatFixture())
+  api.decideChatPermission.mockResolvedValue(clean)
+  const h = await setup('claude_code')
+  h.ctx.selection.selectedProvider = 'codex_cli'
+  await h.actions.onDecidePermission('permission-1', 'approve')
+  expect(api.decideChatPermission).toHaveBeenLastCalledWith({ jobId: 'job-chat', sessionId: 'session-1', requestId: 'permission-1', provider: 'claude_code', decision: 'approve' })
+  expect(h.snapshot.job?.pendingPermission).toBeNull()
+  h.actions.dispose(); vi.useRealTimers()
+})
+
+it.each(['success', 'catch', 'recheck', 'enumeration', 'terminal'] as const)('wrong-provider %s cannot release attempted-token suppression', async lane => {
+  vi.useFakeTimers()
+  vi.clearAllMocks()
+  api.getChat.mockResolvedValue(chatFixture())
+  api.getConversation.mockResolvedValue(chatFixture())
+  const foreign = pending('codex_cli', lane === 'terminal' ? { state: 'completed' } : {})
+  const gate = deferred<GenerationJobStatus>()
+  api.decideChatPermission.mockReturnValue(gate.promise)
+  api.getAiActionJobStatus.mockResolvedValue(foreign)
+  api.listActiveAiActionJobs.mockResolvedValue([foreign])
+  const h = await setup('claude_code')
+  const deciding = h.actions.onDecidePermission('permission-1', 'approve')
+  if (lane === 'catch') gate.reject(new Error('Lost response'))
+  else gate.resolve(foreign)
+  await deciding
+  if (lane === 'recheck' || lane === 'enumeration') await h.actions.onRecheck()
+  if (lane === 'terminal') h.actions.observeJob(foreign)
+  h.actions.observeJob(pending('claude_code'))
+  await h.actions.onDecidePermission('permission-1', 'approve')
+  expect(h.snapshot.job?.pendingPermission).toBeNull()
+  expect(h.snapshot.job?.state).toBe('running')
+  expect(h.snapshot.permissionRecoveryPending).toBe(true)
+  expect(api.decideChatPermission).toHaveBeenCalledTimes(1)
+  h.actions.dispose(); vi.useRealTimers()
 })

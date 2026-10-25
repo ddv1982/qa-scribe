@@ -15,7 +15,7 @@ function chat(messages: ChatMessage[] = []): ChatState {
   return { owner: { kind: 'notes', sessionId: 'session-1' }, archived: false, composerIntent: { kind: 'message' }, lastActiveOrder: 1, lastActiveAt: '2026-10-14T10:00:00Z', sessionId: 'session-1', draftId: 'chat-1', revision: 1, composer: '', composerImages: [], mode: 'chat', aiRuns: [], messages, submission: null }
 }
 function job(patch: Partial<GenerationJobStatus> = {}): GenerationJobStatus {
-  return { jobId: 'job-1', sessionId: 'session-1', action: 'chat', state: 'running', progressMessage: 'Gathering information', aiRunId: null, errorMessage: null, partialText: null, ...patch }
+  return { chat: { reference: { sessionId: 'session-1', draftId: 'chat-1' } }, jobId: 'job-1', sessionId: 'session-1', action: 'chat', state: 'running', progressMessage: 'Gathering information', aiRunId: null, errorMessage: null, partialText: null, ...patch }
 }
 function mount(patch: Partial<Props> = {}) {
   const props: Props = {

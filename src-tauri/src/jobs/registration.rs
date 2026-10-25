@@ -1,6 +1,6 @@
 use super::{
-    GenerationJobState, GenerationJobStatus, JobControl, JobRecord, JobStore, JobStoreError,
-    MAX_ACTIVE_GENERATION_JOBS,
+    ChatJobIdentity, GenerationJobState, GenerationJobStatus, JobControl, JobRecord, JobStore,
+    JobStoreError, MAX_ACTIVE_GENERATION_JOBS,
 };
 
 impl JobStore {
@@ -9,6 +9,29 @@ impl JobStore {
         job_id: String,
         session_id: String,
         action: String,
+    ) -> Result<(GenerationJobStatus, JobControl), JobStoreError> {
+        self.insert_job(job_id, session_id, action, None)
+    }
+
+    pub fn insert_chat_job(
+        &self,
+        job_id: String,
+        reference: qa_scribe_core::domain::ChatRef,
+    ) -> Result<(GenerationJobStatus, JobControl), JobStoreError> {
+        self.insert_job(
+            job_id,
+            reference.session_id.clone(),
+            "chat".into(),
+            Some(ChatJobIdentity { reference }),
+        )
+    }
+
+    fn insert_job(
+        &self,
+        job_id: String,
+        session_id: String,
+        action: String,
+        chat: Option<ChatJobIdentity>,
     ) -> Result<(GenerationJobStatus, JobControl), JobStoreError> {
         let mut inner = self
             .inner
@@ -33,6 +56,7 @@ impl JobStore {
             job_id: job_id.clone(),
             session_id,
             action,
+            chat,
             state: GenerationJobState::Starting,
             progress_message: "Preparing generation".to_string(),
             ai_run_id: None,

@@ -1,10 +1,12 @@
-import { commands, getAiActionJobStatus, listActiveAiActionJobs, type GenerationJobStatus } from '../tauri'
+import { commands, getAiActionJobStatus, listActiveAiActionJobs, type ChatRef, type AiProvider, type GenerationJobStatus } from '../tauri'
 import type { ChatPermissionDecision, ChatPermissionRequest } from '../bindings'
+import { statusOwns } from './sessionChat.workspaces'
 import { chatIsWorking, type ChatWorkspace, type SessionChatContext } from './sessionChat.types'
 import { toCommandError } from '../ui/format'
 
 type PermissionLedger = {
   jobId: string
+  provider: AiProvider | null
   pending: ChatPermissionRequest | null
   attempted: Set<string>
   resolved: Set<string>
@@ -19,20 +21,23 @@ export function createChatPermissions(ctx: SessionChatContext, host: {
   publish: (entry: ChatWorkspace) => void
   report: (entry: ChatWorkspace, cause: unknown) => void
   observe: (status: GenerationJobStatus) => void
-  refresh: (sessionId: string, current?: () => boolean) => Promise<void>
+  refresh: (reference: ChatRef, current?: () => boolean) => Promise<void>
 }) {
   const ledgers = new WeakMap<ChatWorkspace, PermissionLedger>()
-  function ledger(entry: ChatWorkspace, jobId: string) {
+  function ledger(entry: ChatWorkspace, jobId: string, aiRunId = entry.job?.aiRunId) {
     let value = ledgers.get(entry)
     if (!value || value.jobId !== jobId) {
       entry.permissionOperation = null
-      value = { jobId, pending: null, attempted: new Set(), resolved: new Set() }
+      value = { jobId, provider: entry.chat?.aiRuns.find(run => run.id === aiRunId)?.provider ?? null, pending: null, attempted: new Set(), resolved: new Set() }
       ledgers.set(entry, value)
     }
     return value
   }
-  function filterStatus(entry: ChatWorkspace, status: GenerationJobStatus): GenerationJobStatus {
-    const state = ledger(entry, status.jobId)
+  function filterStatus(entry: ChatWorkspace, status: GenerationJobStatus): GenerationJobStatus | null {
+    if (!statusOwns(entry, status)) return null
+    const state = ledger(entry, status.jobId, status.aiRunId)
+    if (status.pendingPermission && state.provider && status.pendingPermission.provider !== state.provider) return null
+    state.provider ??= status.pendingPermission?.provider ?? null
     state.pending = status.pendingPermission ?? null
     if (!['starting', 'running', 'cancelling'].includes(status.state)) {
       entry.permissionOperation = null
@@ -46,7 +51,7 @@ export function createChatPermissions(ctx: SessionChatContext, host: {
       ? { ...status, pendingPermission: null } : status
   }
   function validStatus(status: GenerationJobStatus, entry: ChatWorkspace, jobId: string) {
-    if (status.jobId !== jobId || status.sessionId !== entry.sessionId || status.action !== 'chat') {
+    if (status.jobId !== jobId || !statusOwns(entry, status) || (status.pendingPermission && ledgers.get(entry)?.provider && status.pendingPermission.provider !== ledgers.get(entry)?.provider)) {
       throw new Error('Permission recovery returned an unexpected Chat job.')
     }
   }
@@ -57,23 +62,21 @@ export function createChatPermissions(ctx: SessionChatContext, host: {
       && token && state?.attempted.has(token) && !state.resolved.has(token)
       && !entry.permissionOperation)
   }
-  function onDecidePermission(requestId: string, decision: ChatPermissionDecision): Promise<void> {
-    const entry = host.active()
+  function onDecidePermission(requestId: string, decision: ChatPermissionDecision, bound?: ChatWorkspace): Promise<void> {
+    const entry = bound ?? host.active()
     if (!entry || !host.current(entry) || !['approve', 'approveAll', 'deny'].includes(decision)) return Promise.resolve()
     if (entry.permissionOperation) return entry.permissionOperation
     const job = entry.job
     const request = job?.pendingPermission
     if (!job || job.action !== 'chat' || job.sessionId !== entry.sessionId || job.state !== 'running'
-      || !request || request.requestId !== requestId || request.provider !== ctx.selection.selectedProvider) {
+      || !request || request.requestId !== requestId || !statusOwns(entry, job)) {
       return Promise.resolve()
     }
     if ((decision === 'approve' || decision === 'approveAll') && request.canApprove === false) return Promise.resolve()
     const state = ledger(entry, job.jobId)
     if (state.attempted.has(requestId) || state.resolved.has(requestId)) return Promise.resolve()
-    const epoch = host.epoch()
-    const scopeCurrent = () => host.current(entry) && host.epoch() === epoch
+    const scopeCurrent = () => host.current(entry)
       && entry.job?.jobId === job.jobId
-      && ctx.selection.selectedProvider === request.provider
       && ledgers.get(entry) === state
     const stillCurrent = () => scopeCurrent() && entry.job?.state === 'running'
       && (!state.pending || (state.pending.requestId === requestId && state.pending.provider === request.provider))
@@ -86,12 +89,12 @@ export function createChatPermissions(ctx: SessionChatContext, host: {
         const status = await commands.decideChatPermission({ jobId: job.jobId,
           sessionId: entry.sessionId, requestId, provider: request.provider, decision })
         if (!stillCurrent()) return
-        if (status.jobId !== job.jobId || status.sessionId !== entry.sessionId || status.action !== 'chat') return
+        if (status.jobId !== job.jobId || !statusOwns(entry, status)) return
         if (status.pendingPermission && status.pendingPermission.provider !== request.provider) return
         state.resolved.add(requestId)
         host.observe(status)
         if (!['starting', 'running', 'cancelling'].includes(status.state)) {
-          await host.refresh(entry.sessionId, () => host.current(entry) && host.epoch() === epoch)
+          await host.refresh(entry.reference, () => host.current(entry))
         }
       } catch (cause) {
         if (!stillCurrent()) return
@@ -123,14 +126,13 @@ export function createChatPermissions(ctx: SessionChatContext, host: {
     host.publish(entry)
     return operation
   }
-  async function onRecheck(): Promise<void> {
-    const entry = host.active()
+  async function onRecheck(bound?: ChatWorkspace): Promise<void> {
+    const entry = bound ?? host.active()
     if (!entry || !host.current(entry)) return
-    const epoch = host.epoch()
     const jobId = entry.job?.jobId
-    const provider = ctx.selection.selectedProvider
-    const current = () => host.current(entry) && host.epoch() === epoch
-      && entry.job?.jobId === jobId && ctx.selection.selectedProvider === provider
+    const provider = entry.job ? ledger(entry, entry.job.jobId).provider : null
+    const current = () => host.current(entry)
+      && entry.job?.jobId === jobId
     try {
       if (jobId) {
         let status: GenerationJobStatus | null = null
@@ -155,23 +157,23 @@ export function createChatPermissions(ctx: SessionChatContext, host: {
         }
       }
       if (!current()) return
-      await host.refresh(entry.sessionId, current)
+      await host.refresh(entry.reference, current)
       if (!current()) return
       let recoveredJob: GenerationJobStatus | null = null
-      if (entry.chat?.messages.some(message => message.status === 'running') && !chatIsWorking(entry.job)) {
-        const runs = new Set(entry.chat.messages.filter(message => message.status === 'running').map(message => message.aiRunId).filter(Boolean))
+      if ((entry.pendingStart || entry.chat?.messages.some(message => message.status === 'running')) && !chatIsWorking(entry.job)) {
         const jobs = await listActiveAiActionJobs()
         if (!current()) return
-        const active = jobs.filter(job => job.sessionId === entry.sessionId && job.action === 'chat'
-          && chatIsWorking(job) && job.aiRunId !== null && runs.has(job.aiRunId))
+        const active = jobs.filter(job => statusOwns(entry, job) && chatIsWorking(job))
         if (active.length !== 1) throw new Error('The running response could not be located. Recheck status to try again.')
         recoveredJob = active[0]
+        validStatus(recoveredJob, entry, recoveredJob.jobId)
+        if (recoveredJob.pendingPermission && provider && recoveredJob.pendingPermission.provider !== provider) throw new Error('Permission recovery returned an unexpected provider.')
       }
       if (ctx.refreshProviderStatus) await ctx.refreshProviderStatus()
       if (!current()) return
       entry.error = (recoveredJob ?? entry.job)?.errorMessage ?? null
       ctx.feedback.setError(entry.error)
-      if (recoveredJob) host.observe(recoveredJob)
+      if (recoveredJob) { host.observe(recoveredJob); entry.pendingStart = null; host.publish(entry) }
       else host.publish(entry)
     } catch (cause) {
       if (current()) host.report(entry, cause)

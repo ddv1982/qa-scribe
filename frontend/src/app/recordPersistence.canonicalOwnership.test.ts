@@ -1,3 +1,4 @@
+import { stageOrigin } from './proposalStage.testSupport'
 import { afterEach, beforeEach, expect, it } from 'vitest'
 import type { RecordWriteGuard } from '../bindings'
 import { cleanupControllerTest, deferred, setupControllerTest } from './useAppController.testHarness'
@@ -36,7 +37,7 @@ it.each((['draft', 'finding'] as const).flatMap(kind => holders.map(holder => ({
       coordination.latestWriteGuards.set(key, await recordWriteGuard(target, kind === 'draft' ? 'drafts' : 'findings'))
     } else {
       const value = editorValue(target)
-      coordination.proposalStages.set(key, { id: 'replacement-stage', before: value, after: value, storedBaseToken: '' })
+      coordination.proposalStages.set(key, { origin: stageOrigin(kind, target.id, 'replacement-stage', target.sessionId), id: 'replacement-stage', before: value, after: value, storedBaseToken: '' })
     }
     try {
       expect(command).toHaveBeenCalledOnce()
@@ -70,7 +71,7 @@ it.each(['draft', 'finding'] as const)('%s absent baseline admission preserves a
   else subject.ctx.records.savedFindingsRef.current = [subject.ctx.records.savedFindingsRef.current[0]]
   const pin = await recordWriteGuard(pinTarget, kind === 'draft' ? 'drafts' : 'findings')
   const value = editorValue(stageTarget)
-  const stage = { id: 'existing-stage', before: value, after: value, storedBaseToken: pin.expectedStoredBase }
+  const stage = { origin: stageOrigin(kind, stageTarget.id, 'existing-stage', stageTarget.sessionId), id: 'existing-stage', before: value, after: value, storedBaseToken: pin.expectedStoredBase }
   coordination.latestWriteGuards.set(`${kind}:${pinTarget.id}`, pin)
   coordination.proposalStages.set(`${kind}:${stageTarget.id}`, stage)
   const reserveDelete = (record: typeof pinTarget) => 'aiRunId' in record

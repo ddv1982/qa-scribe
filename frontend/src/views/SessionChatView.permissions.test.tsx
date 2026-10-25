@@ -19,7 +19,7 @@ function permission(patch: Partial<ChatPermissionRequest> = {}): ChatPermissionR
 
 function job(patch: Partial<GenerationJobStatus> = {}): GenerationJobStatus {
   return {
-    jobId: 'job-1', sessionId: 'session-1', action: 'chat', state: 'running',
+    chat: null, jobId: 'job-1', sessionId: 'session-1', action: 'chat', state: 'running',
     progressMessage: 'Waiting for tool permission', aiRunId: null, errorMessage: null,
     partialText: null, pendingPermission: permission(), ...patch,
   }

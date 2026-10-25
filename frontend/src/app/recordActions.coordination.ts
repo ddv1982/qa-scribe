@@ -1,4 +1,4 @@
-import { updateDraft, updateFinding, type Draft, type Finding, type EditorStage, type RecordWriteGuard } from '../tauri'
+import { updateDraft, updateFinding, type Draft, type Finding, type EditorStage, type StageOrigin, type RecordWriteGuard } from '../tauri'
 import { recordWriteGuard, RecordWriteConflict } from './recordWriteGuards'
 import {
   managedAttachmentImagesInDocument,
@@ -11,6 +11,8 @@ import type { RecordPersistenceContext } from './recordPersistence'
 
 export type RecordAttachmentOwner = { kind: 'draft' | 'finding'; id: string }
 
+export type BoundProposalStage = EditorStage & { origin: StageOrigin }
+
 type EditorWriteBase = Pick<RecordWriteGuard, 'sessionId' | 'expectedStoredBase'>
 
 type RecordIntent<T> = {
@@ -19,18 +21,19 @@ type RecordIntent<T> = {
   restore: T | null
   compensationPending?: boolean
   expected?: RecordWriteGuard
+  origin?: StageOrigin
 }
 
 type ConfirmedRecordWrite =
-  | { kind: 'draft'; record: Draft; guard: RecordWriteGuard; generation: number }
-  | { kind: 'finding'; record: Finding; guard: RecordWriteGuard; generation: number }
+  | { kind: 'draft'; record: Draft; guard: RecordWriteGuard; generation: number; stageOrigin?: StageOrigin }
+  | { kind: 'finding'; record: Finding; guard: RecordWriteGuard; generation: number; stageOrigin?: StageOrigin }
 
 export function createRecordActionCoordination(ctx: RecordPersistenceContext, hasForcedPass = () => false) {
   const draftIntents = new Map<string, RecordIntent<Draft>>()
   const findingIntents = new Map<string, RecordIntent<Finding>>()
-  const proposalStages = new Map<string, EditorStage>()
+  const proposalStages = new Map<string, BoundProposalStage>()
   const latestWriteGuards = new Map<string, RecordWriteGuard>()
-  const events = { onChanged: (_kind?: 'finding' | 'draft', _id?: string, _reason?: 'saved' | 'discard' | 'conflict') => {} }
+  const events = { onChanged: (_kind?: 'finding' | 'draft', _id?: string, _reason?: 'saved' | 'discard' | 'conflict', _origin?: StageOrigin) => {} }
   const pendingWriteOperations = new Set<Promise<unknown>>()
 
   async function settleImportedRecordAttachments(
@@ -66,6 +69,7 @@ export function createRecordActionCoordination(ctx: RecordPersistenceContext, ha
       restore: kind === 'save' ? restore ?? previous?.restore ?? null : restore,
       compensationPending: kind === 'save' ? previous?.compensationPending : undefined,
       expected: previous?.expected,
+      origin: proposalStages.get(`draft:${id}`)?.origin ?? previous?.origin,
     }
     draftIntents.set(id, intent)
     return intent.generation
@@ -79,6 +83,7 @@ export function createRecordActionCoordination(ctx: RecordPersistenceContext, ha
       restore: kind === 'save' ? restore ?? previous?.restore ?? null : restore,
       compensationPending: kind === 'save' ? previous?.compensationPending : undefined,
       expected: previous?.expected,
+      origin: proposalStages.get(`finding:${id}`)?.origin ?? previous?.origin,
     }
     findingIntents.set(id, intent)
     return intent.generation
@@ -180,11 +185,11 @@ export function createRecordActionCoordination(ctx: RecordPersistenceContext, ha
       }
       if (!hasNewerLocalEdit) ctx.records.dirtyDraftIdsRef.current.delete(id)
       intent.compensationPending = false
-      events.onChanged()
+      events.onChanged('draft', id, 'saved', intent.origin)
       return true
     } catch (cause) {
       if (draftIntents.get(id) !== intent) return true
-      if (adoptConflict(cause)) { intent.compensationPending = false; return false }
+      if (adoptConflict(cause, intent.origin)) { intent.compensationPending = false; return false }
       markDraftCompensationPending(intent.restore, cause)
       return false
     }
@@ -217,11 +222,11 @@ export function createRecordActionCoordination(ctx: RecordPersistenceContext, ha
       }
       if (!hasNewerLocalEdit) ctx.records.dirtyFindingIdsRef.current.delete(id)
       intent.compensationPending = false
-      events.onChanged()
+      events.onChanged('finding', id, 'saved', intent.origin)
       return true
     } catch (cause) {
       if (findingIntents.get(id) !== intent) return true
-      if (adoptConflict(cause)) { intent.compensationPending = false; return false }
+      if (adoptConflict(cause, intent.origin)) { intent.compensationPending = false; return false }
       markFindingCompensationPending(intent.restore, cause)
       return false
     }
@@ -264,7 +269,7 @@ export function createRecordActionCoordination(ctx: RecordPersistenceContext, ha
     return ctx.materializeInlineImages(document, { entryId: null, isCurrent })
   }
 
-  function adoptConflict(cause: unknown): boolean {
+  function adoptConflict(cause: unknown, stageOrigin?: StageOrigin): boolean {
     if (!(cause instanceof RecordWriteConflict)) return false
     const record = cause.current
     const isDraft = 'aiRunId' in record
@@ -285,7 +290,7 @@ export function createRecordActionCoordination(ctx: RecordPersistenceContext, ha
       ctx.records.dirtyFindingIdsRef.current.add(record.id)
     }
     ctx.feedback.setError(cause.message)
-    events.onChanged(kind, record.id, 'conflict')
+    events.onChanged(kind, record.id, 'conflict', stageOrigin ?? proposalStages.get(`${kind}:${record.id}`)?.origin ?? (kind === 'finding' ? findingIntents.get(record.id)?.origin : draftIntents.get(record.id)?.origin))
     return true
   }
 
@@ -320,6 +325,7 @@ export function createRecordActionCoordination(ctx: RecordPersistenceContext, ha
     const { record, kind, guard } = write
     const key = `${kind}:${record.id}`
     const association = proposalStages.get(key)
+    const origin = write.stageOrigin ?? (association && guard.origin.kind !== 'editor' && association.id === guard.origin.stageId ? association.origin : undefined)
     const next = await recordWriteGuard(record, kind === 'finding' ? 'findings' : 'drafts')
     const ownsAssociation = association !== undefined && guard.origin.kind === 'proposal'
       && association.id === guard.origin.stageId && guard.sessionId === record.sessionId
@@ -328,19 +334,29 @@ export function createRecordActionCoordination(ctx: RecordPersistenceContext, ha
     if (ownsAssociation && proposalStages.get(key) === association && latestWriteGuards.get(key) === next) {
       proposalStages.delete(key)
     }
+    if (origin) events.onChanged(kind, record.id, 'saved', origin)
     if (write.kind === 'finding') await advanceConfirmedIntent(findingIntents, write.record, next, guard, write.generation, 'findings')
     else await advanceConfirmedIntent(draftIntents, write.record, next, guard, write.generation, 'drafts')
+    return origin
   }
 
-  function bindStage(kind: 'finding' | 'draft', id: string, sessionId: string, stage: EditorStage) {
+  function bindStage(kind: 'finding' | 'draft', id: string, sessionId: string, stage: BoundProposalStage) {
     const key = `${kind}:${id}`
+    const association = proposalStages.get(key)
+    if (association) {
+      if (association.id !== stage.id) throw new Error('Another prepared change is already bound to this record.')
+      return
+    }
+    if (stage.id !== stage.origin.stageId || sessionId !== stage.origin.reference.sessionId || stage.origin.record.recordId !== id || (stage.origin.record.kind === 'finding' ? 'finding' : 'draft') !== kind) throw new Error('Prepared change belongs to another record.')
     const pinned = latestWriteGuards.get(key)
     proposalStages.set(key, stage)
     latestWriteGuards.set(key, { sessionId, expectedStoredBase: pinned?.expectedStoredBase ?? stage.storedBaseToken, origin: { kind: 'proposal', stageId: stage.id } })
   }
 
-  function releaseStage(kind: 'finding' | 'draft', id: string, base: EditorWriteBase) {
+  function releaseStage(kind: 'finding' | 'draft', id: string, base: EditorWriteBase, expectedStageId: string | null) {
     const key = `${kind}:${id}`
+    const association = proposalStages.get(key)
+    if ((association?.id ?? null) !== expectedStageId) return
     const pinned = latestWriteGuards.get(key)
     latestWriteGuards.set(key, pinned?.origin.kind === 'editor' ? pinned : {
       sessionId: pinned?.sessionId ?? base.sessionId,
@@ -351,10 +367,14 @@ export function createRecordActionCoordination(ctx: RecordPersistenceContext, ha
     events.onChanged()
   }
 
-  function clearStage(kind: 'finding' | 'draft', id: string, reason: 'saved' | 'discard' = 'saved') {
-    proposalStages.delete(`${kind}:${id}`)
-    latestWriteGuards.delete(`${kind}:${id}`)
-    events.onChanged(kind, id, reason)
+  function clearStage(kind: 'finding' | 'draft', id: string, reason: 'saved' | 'discard' = 'saved', origin = proposalStages.get(`${kind}:${id}`)?.origin) {
+    const key = `${kind}:${id}`
+    const association = proposalStages.get(key)
+    if (!association || association.id === origin?.stageId) {
+      proposalStages.delete(key)
+      latestWriteGuards.delete(key)
+    }
+    events.onChanged(kind, id, reason, origin)
   }
 
   function beginRecordOperation() {

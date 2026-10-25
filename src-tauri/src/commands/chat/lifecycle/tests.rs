@@ -23,7 +23,7 @@ fn setup() -> (SessionService, StartChatJobRequest) {
     (
         service,
         StartChatJobRequest {
-            intent: ChatRequestIntent::Message,
+            intent: crate::commands::chat::ChatSendIntent::Composer,
             context: ChatTarget::Session,
             scope: scope(&chat),
 
@@ -64,7 +64,7 @@ fn preparation_persists_user_and_durable_attribution_before_execution() {
         prepare(
             &service,
             &StartChatJobRequest {
-                intent: ChatRequestIntent::Message,
+                intent: crate::commands::chat::ChatSendIntent::Composer,
                 context: ChatTarget::Session,
                 scope: scope(&chat),
                 ..request
@@ -168,7 +168,7 @@ fn oversized_send_preserves_composer_without_persisting_user() {
         prepare(
             &service,
             &StartChatJobRequest {
-                intent: ChatRequestIntent::Message,
+                intent: crate::commands::chat::ChatSendIntent::Composer,
                 context: ChatTarget::Session,
                 scope: scope(&chat),
                 ..request.clone()
@@ -234,9 +234,21 @@ fn cancellation_gate_suppresses_late_assistant_and_finishes_user_terminal() {
 fn bridge_requires_one_explicit_request_intent() {
     let (_, request) = setup();
     let decoded: StartChatJobRequest = serde_json::from_value(serde_json::json!({
-        "scope": request.scope, "intent": {"kind":"message"}, "provider": "claude_code", "model": "sonnet", "reasoningEffort": null,
+        "scope": request.scope, "intent": {"kind":"composer"}, "provider": "claude_code", "model": "sonnet", "reasoningEffort": null,
     })).unwrap();
-    assert_eq!(decoded.intent, ChatRequestIntent::Message);
+    assert_eq!(
+        decoded.intent,
+        crate::commands::chat::ChatSendIntent::Composer
+    );
+    assert!(serde_json::from_value::<StartChatJobRequest>(serde_json::json!({"scope": request.scope, "provider":"claude_code", "model":"sonnet", "reasoningEffort":null})).is_err());
+    for intent in [
+        serde_json::json!({"kind":"message"}),
+        serde_json::json!({"kind":"refine_record"}),
+        serde_json::json!({"kind":"draft_jira"}),
+        serde_json::Value::Null,
+    ] {
+        assert!(serde_json::from_value::<StartChatJobRequest>(serde_json::json!({"scope": request.scope, "intent": intent, "provider":"claude_code", "model":"sonnet", "reasoningEffort":null})).is_err());
+    }
 }
 
 #[test]
@@ -251,7 +263,7 @@ fn retry_reuses_failed_user_message_and_associates_new_run() {
     )
     .unwrap();
     request.scope = scope(&chat);
-    request.intent = ChatRequestIntent::Retry;
+    request.intent = crate::commands::chat::ChatSendIntent::Retry;
     let retried = prepare(&service, &request).unwrap();
     assert_eq!(retried.started.chat.messages.len(), 1);
     assert_eq!(

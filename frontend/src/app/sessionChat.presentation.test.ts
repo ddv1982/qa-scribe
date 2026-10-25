@@ -99,3 +99,15 @@ describe('derived Chat handoff', () => {
       reason: 'Complete a conversation before adding it to the note.' })
   })
 })
+
+it('a foreign same-Session completed job cannot delay or authorize Notes handoff', () => {
+  const state = ready()
+  const job = chatJobFixture({ state: 'completed', aiRunId: 'foreign-run', chat: { reference: { sessionId: 'session-1', draftId: 'record-A' } } })
+  expect(deriveChatHandoff({ ...state, job })).toEqual(deriveChatHandoff(state))
+})
+it('Record ownership cannot authorize Notes handoff even for completed history', () => {
+  const state = ready()
+  const chat = { ...state.chat, owner: { kind: 'record' as const, sessionId: 'session-1', record: { kind: 'finding' as const, recordId: 'A' } } }
+  expect(deriveChatHandoff({ ...state, chat }).kind).toBe('settling')
+  expect(deriveChatHandoff({ ...state, chat }).reviewAvailable).toBe(false)
+})

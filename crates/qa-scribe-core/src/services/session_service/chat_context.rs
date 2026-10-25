@@ -10,6 +10,14 @@ use crate::{
 };
 
 impl SessionService {
+    pub fn validate_chat_context_anchor(
+        &self,
+        chat: &ChatState,
+        context: &ChatTarget,
+    ) -> Result<()> {
+        validate_anchor(chat, context)
+    }
+
     pub fn capture_chat_context(
         &self,
         session_id: &str,
@@ -219,4 +227,23 @@ pub(super) fn read(connection: &Connection, message_id: &str) -> Result<ChatTarg
 
 fn json_bytes(value: &impl serde::Serialize) -> Result<Vec<u8>> {
     serde_json::to_vec(value).map_err(|error| validation(error.to_string()))
+}
+
+pub(super) fn validate_anchor(chat: &ChatState, context: &ChatTarget) -> Result<()> {
+    if let ConversationOwner::Record { session_id, record } = &chat.owner {
+        let matches = match (record, context) {
+            (ConversationRecord::Finding { record_id }, ChatTarget::Finding { snapshot })
+            | (
+                ConversationRecord::TestCasesDraft { record_id },
+                ChatTarget::TestCasesDraft { snapshot },
+            ) => snapshot.session_id == *session_id && snapshot.record_id == *record_id,
+            _ => false,
+        };
+        if !matches {
+            return Err(validation(
+                "Record context must match the conversation owner",
+            ));
+        }
+    }
+    Ok(())
 }

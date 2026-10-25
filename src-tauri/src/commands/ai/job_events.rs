@@ -110,6 +110,7 @@ pub(super) fn fallback_status(
         job_id: job_id.to_string(),
         session_id: request.session_id.clone(),
         action: request.action.as_str().to_string(),
+        chat: None,
         state,
         progress_message: message.to_string(),
         ai_run_id: None,

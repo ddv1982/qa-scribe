@@ -41,7 +41,7 @@ fn fixture() -> (SessionService, Finding, StartChatJobRequest) {
         service,
         finding,
         StartChatJobRequest {
-            intent: ChatRequestIntent::Message,
+            intent: crate::commands::chat::ChatSendIntent::Composer,
             context,
             scope: lifecycle::scope(&chat),
 
@@ -82,7 +82,7 @@ fn chat_context_preparation_and_retry_project_original_snapshot_not_new_selectio
         .unwrap();
     let retry = StartChatJobRequest {
         scope: lifecycle::scope(&failed),
-        intent: ChatRequestIntent::Retry,
+        intent: crate::commands::chat::ChatSendIntent::Retry,
         context: ChatTarget::Session,
         ..request
     };
