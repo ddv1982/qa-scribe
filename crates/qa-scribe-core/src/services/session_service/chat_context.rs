@@ -18,13 +18,55 @@ impl SessionService {
         capture(self.database.connection(), session_id, context)
     }
 
-    pub fn validate_chat_context_owner(
+    pub fn validate_chat_retry_context_owner(
         &self,
         session_id: &str,
-        context: &ChatTarget,
+        persisted_context: &ChatTarget,
     ) -> Result<()> {
-        validate_owner(self.database.connection(), session_id, context)
+        validate_retry_owner(self.database.connection(), session_id, persisted_context)
     }
+}
+
+pub(super) fn validate_retry_owner(
+    connection: &Connection,
+    session_id: &str,
+    persisted_context: &ChatTarget,
+) -> Result<()> {
+    let Some(snapshot) = persisted_context.snapshot() else {
+        return Ok(());
+    };
+    if snapshot.session_id != session_id {
+        return Err(validation("Record context must belong to the chat Session"));
+    }
+    let owner: Option<(String, Option<String>)> = match persisted_context {
+        ChatTarget::Finding { .. } => connection
+            .query_row(
+                "SELECT session_id FROM findings WHERE id = ?1",
+                [&snapshot.record_id],
+                |row| Ok((row.get(0)?, None)),
+            )
+            .optional()?,
+        ChatTarget::TestCasesDraft { .. } => connection
+            .query_row(
+                "SELECT session_id, kind FROM drafts WHERE id = ?1",
+                [&snapshot.record_id],
+                |row| Ok((row.get(0)?, Some(row.get(1)?))),
+            )
+            .optional()?,
+        ChatTarget::Session => unreachable!(),
+    };
+    let Some((owner, kind)) = owner else {
+        return Ok(());
+    };
+    if owner != session_id {
+        return Err(validation("Record context must belong to the chat Session"));
+    }
+    if kind.is_some_and(|kind| kind != DraftKind::Testware.as_str()) {
+        return Err(validation(
+            "Only Test cases drafts can be used as record context",
+        ));
+    }
+    Ok(())
 }
 
 pub(super) fn validate_owner(

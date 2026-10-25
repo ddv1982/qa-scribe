@@ -82,7 +82,7 @@ impl ChatPreparationSnapshot {
         }
         if matches!(request.intent, ChatRequestIntent::Retry) {
             let message = chat.messages.last().ok_or_else(changed)?;
-            service.validate_chat_context_owner(&chat.session_id, &message.context)?;
+            service.validate_chat_retry_context_owner(&chat.session_id, &message.context)?;
         }
         let messages = chat
             .messages
