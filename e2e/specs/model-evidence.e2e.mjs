@@ -55,7 +55,7 @@ async function migrationProof() {
   assert.equal(seed.schemaVersion, 10)
   assert.equal(seed.aiRunColumns.includes('model_selection_json'), false)
   const legacy = database('model-evidence-legacy-session')
-  assert.equal(legacy.schemaVersion, 15)
+  assert.equal(legacy.schemaVersion, 18)
   assert.deepEqual(legacy.foreignKeyViolations, [])
   assert.equal(legacy.runs.length, 1)
   assert.deepEqual(legacy.runs[0], { id: 'model-evidence-legacy-run', session_id: 'model-evidence-legacy-session',
