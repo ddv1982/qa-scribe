@@ -20,6 +20,7 @@ impl SessionService {
             tx.execute("UPDATE chat_messages SET turn_id = ?1, status = 'running', error_message = NULL, ai_run_id = NULL WHERE id = ?2",
                 params![turn_id, message.id])?;
             rows::bump(tx, &chat.draft_id)?;
+            rows::touch_activity(tx, &chat.draft_id)?;
             Ok(ChatTurnStarted { chat: rows::read(tx, &chat.draft_id)?, turn_id })
         })
     }

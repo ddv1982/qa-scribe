@@ -1,5 +1,7 @@
 use qa_scribe_core::{domain::*, services::SessionService, storage::Database};
 
+#[path = "chat_conversation_ownership/activity.rs"]
+mod activity;
 #[path = "chat_conversation_ownership/migration.rs"]
 mod migration;
 #[path = "chat_conversation_ownership/operations.rs"]

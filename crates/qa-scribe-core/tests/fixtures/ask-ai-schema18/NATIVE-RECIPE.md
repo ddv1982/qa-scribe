@@ -26,8 +26,8 @@ The initial process runs lanes 1, 2, and 4 through 10. Each reopen runs lane 3. 
 7. Lane 7 creates and replays one UUID through the command boundary. One row exists. Another owner fails without an activity change.
 8. Lane 8 rejects record-owned Note submission and Notes restart through the command boundary. The canonical Note stays unchanged.
 9. Lane 9 selects the original legacy Finding, opens the existing Ask AI panel, reviews one original staged proposal, applies it locally, and clicks the ordinary record Save button. The same stage becomes Saved. Other legacy stages remain retained.
-10. Lane 10 deletes a synthetic source through the command boundary. Exact read, scoped history, and same-UUID replay retain its conversation. A new launch fails.
+10. Lane 10 seeds a synthetic source through the command boundary, selects its original Session and Finding through the existing UI, clicks its record Delete action, and confirms Delete finding permanently. A read-only command confirms the source disappeared. Exact read, scoped history, and same-UUID replay retain its conversation. A new launch fails.
 
-Lanes 5 through 8 and 10 exercise hidden APIs. Their screenshots show the surrounding existing application and accompany command diagnostics. They do not prove future record-launch, Continue, or History controls. Lanes 1, 2, 3, 4, 6, and 9 also check the stated existing UI behavior. A syntax check and fixture-runner unit tests do not establish that the native selectors pass.
+Lanes 5 through 8 exercise hidden APIs. Lane 10 combines existing UI deletion with hidden conversation retention checks. Their screenshots show the surrounding existing application and accompany command diagnostics. They do not prove future record-launch, Continue, or History controls. Lanes 1, 2, 3, 4, 6, 9, and 10 also check the stated existing UI behavior. A syntax check and fixture-runner unit tests do not establish that the native selectors pass.
 
 The benchmark and its baseline preparation helpers remain parent-owned. This recipe does not qualify performance or claim that any native lane passed.

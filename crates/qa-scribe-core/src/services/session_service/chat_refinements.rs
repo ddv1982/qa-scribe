@@ -9,6 +9,7 @@ impl SessionService {
             rows::editable(&chat)?;
             let mut proposal = read(tx, &chat.draft_id)?.into_iter().find(|p| p.id == request.proposal_id)
                 .ok_or_else(|| validation("Proposal is not in this conversation"))?;
+            let previous_state = proposal.state.clone();
             match request.action {
                 RefinementAction::Stage => {
                     super::chat_context::validate_owner(tx, &chat.session_id, &proposal.target)?;
@@ -40,6 +41,7 @@ impl SessionService {
             }
             write(tx, &proposal)?;
             rows::bump(tx, &chat.draft_id)?;
+            if proposal.state != previous_state { rows::touch_activity(tx, &chat.draft_id)?; }
             rows::read(tx, &chat.draft_id)
         })
     }
