@@ -154,3 +154,6 @@ fn chat_context_prompt_counts_context_separately_without_increasing_message_or_i
             .contains("32 KiB")
     );
 }
+
+#[path = "retry_context_tests.rs"]
+mod retry_context_tests;
