@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.8.22 - 2026-10-25
+
+### Added
+
+- Ask AI from Findings and Test cases. Continue the Session conversation beside the selected record, with image attachments and the existing provider tools and permissions.
+- Review AI refinements before applying them to the editor. Save reviewed changes through the normal record workflow.
+- Draft Jira work in chat, answer follow-up questions about the destination and issue type, including Finding subtask, and prepare an editable action message for the configured coding agent.
+
+### Fixed
+
+- Keep record titles and actions flush with the scroll area while reading long records.
+- Preserve record content across Undo, Discard and overlapping saves. Keep generated Findings and Test cases saveable after Discard while other edits are saving.
+- Retry a failed Chat response after its original Finding or Test cases record has been deleted, retaining the original message context and images.
+- Keep chat controls, long model catalogs and permission review usable in compact windows. Return focus to the owning model picker after saving a selection.
+
 ## v0.8.21 - 2026-10-24
 
 - Choose QA cases, Checklist, Gherkin, Charters, or Coverage outline when creating manual test cases. Findings offer Structured finding and Blank templates. Confirm before replacing authored content, and preserve the selected format through prefill, Save, Copy, and AI setup.
