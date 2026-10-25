@@ -12,6 +12,7 @@ import type { useAskAiContext } from './useAskAiContext'
 import type { CreatedRecordEditTarget, RecordWorkspace } from './types'
 
 export type ProposalControls = {
+  applyUnavailable?: string
   errors: Readonly<Record<string, string>>
   pending: ReadonlySet<string>
   preparedOnly?: ReadonlySet<string>
@@ -20,7 +21,7 @@ export type ProposalControls = {
 
 type Context = {
   conversations: import('./sessionChat.actions').ConversationEngine
-  chat: SessionChatViewState
+  chat: Pick<SessionChatViewState, 'chat' | 'onRefresh'>
   askAi: ReturnType<typeof useAskAiContext>
   records: RecordWorkspace
   actions: ReturnType<typeof useRecordActions>
@@ -38,7 +39,7 @@ function editorBase(proposal: RefinementProposal): Pick<RecordWriteGuard, 'sessi
   return { sessionId: snapshot.sessionId, expectedStoredBase }
 }
 
-export function useRefinementController(context: Context): SessionChatViewState {
+export function useRefinementController(context: Context) {
   const live = useRef(context)
   useEffect(() => { live.current = context }, [context])
   const running = useRef(new Set<string>())
@@ -167,6 +168,5 @@ export function useRefinementController(context: Context): SessionChatViewState 
   const preparedOnly = new Set((context.chat.chat?.proposals ?? []).filter(item => item.state.kind === 'staged' && item.target.kind !== 'session' && context.persistence.coordination.proposalStages.get(`${item.target.kind === 'finding' ? 'finding' : 'draft'}:${item.target.snapshot.recordId}`)?.id !== (item.state.kind === 'staged' ? item.state.stage.id : undefined)).map(item => item.id))
   const controls: ProposalControls = { errors, pending, onAction, preparedOnly }
   const recordWritesPending = context.persistence.coordination.hasPendingRecordCompensations()
-  const handoff = recordWritesPending && context.chat.handoff.kind !== 'recover' ? { ...context.chat.handoff, kind: 'settling' as const, reason: 'Wait for pending record writes before adding the conversation.' } : context.chat.handoff
-  return { ...context.chat, handoff, recordWritesPending, proposalControls: controls }
+  return { recordWritesPending, proposalControls: controls }
 }

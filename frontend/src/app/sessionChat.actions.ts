@@ -1,4 +1,4 @@
-import { createChatWorkspaces, sameReference, statusOwns, type ConversationAttention } from './sessionChat.workspaces'
+import { createNotesEntry, createChatWorkspaces, sameReference, statusOwns, type ConversationAttention } from './sessionChat.workspaces'
 import { createChatSend } from './sessionChat.send'
 import {
   cancelAiActionJob, getConversation, activateConversation, restartChat, saveChatComposer,
@@ -15,13 +15,12 @@ import { submitChatToCanonicalNote } from './sessionChat.noteHandoff'
 import { recoverChatCanonicalNote } from './sessionChat.noteRecovery'
 import { createChatPermissions } from './sessionChat.permissions'
 import { createChatImageActions } from './sessionChat.images'
-
 export function createSessionChatActions(ctx: SessionChatContext) {
   const snapshots = new WeakMap<ChatWorkspace, import('./sessionChat.types').ChatSnapshot>()
   const attentionListeners = new Set<() => void>()
   let selectionRequest = 0
   const listeners = new WeakMap<ChatWorkspace, Set<() => void>>()
-  const registry = createChatWorkspaces(ctx, publish)
+  const registry = createChatWorkspaces(ctx, publish, () => { for (const listener of attentionListeners) listener() })
   const { workspaces, workspace } = registry
   const restartVersions = new WeakMap<ChatWorkspace, number>()
   function restartContent(chat: ChatState | null) {
@@ -370,6 +369,7 @@ export function createSessionChatActions(ctx: SessionChatContext) {
         (entry.owner?.kind === 'notes' && ctx.noteRecovery.has(entry.sessionId)) || chatIsDirty(entry) || entry.imageFailures.length > 0 || Boolean(entry.save || (entry.operationKind && ['attach', 'remove-image', 'submit', 'restart'].includes(entry.operationKind)))))
   }
   function activate(sessionId: string | null) {
+    const request = ++selectionRequest
     if (disposed || activatedSessionId !== sessionId) {
       ++activationEpoch
     }
@@ -383,14 +383,14 @@ export function createSessionChatActions(ctx: SessionChatContext) {
     registry.loading(sessionId)
     return registry.notes(sessionId).then(async entry => {
       if (!entry || disposed || epoch !== activationEpoch || activatedSessionId !== sessionId) return
-      registry.select(entry.reference)
+      if (request === selectionRequest) registry.select(entry.reference)
       const reason = entry.chat && unresolvedChatReason(entry.chat, true)
       if (reason?.includes('earlier turn')) entry.error = reason
       publish(entry)
       if (known) await refresh(entry.reference)
       if (chatIsDirty(entry)) scheduleAutosave(entry)
       if (entry.job) polling.watch(entry.job)
-    }).catch(cause => { if (epoch === activationEpoch) registry.loadFailed(sessionId, formatError(cause)) })
+    }).catch(cause => { if (epoch === activationEpoch) registry.loadFailed(sessionId, formatError(cause), request === selectionRequest) })
   }
   function dispose() {
     ++activationEpoch
@@ -458,13 +458,6 @@ export function createSessionChatActions(ctx: SessionChatContext) {
       snapshot: () => snapshots.get(entry) ?? emptyChatSnapshot,
       subscribe(listener: () => void) { const set = listeners.get(entry) ?? new Set(); set.add(listener); listeners.set(entry, set); return () => { set.delete(listener) } },
       refresh: () => refresh(reference, false, true), flush: () => saveComposer(entry),
-      async prepareComposer(intent: ChatComposerIntent, text: string) {
-        if (!entry.chat) await refresh(reference, false, true)
-        if (entry.chat?.archived || entry.chat?.submission) throw new Error('This conversation is read-only.')
-        if (entry.retired || entry.pendingStart || entry.operation || entry.save || entry.imageFailures.length || entry.composer || entry.composerImages.length || entry.composerIntent.kind !== 'message' || chatIsWorking(entry.job) || entry.chat?.submission) throw new Error('Your existing input is retained. Complete or clear it before preparing a new action.')
-        entry.composer = text; entry.composerIntent = intent; ++entry.inputVersion; publish(entry)
-        return saveComposer(entry)
-      },
       setComposer: (text: string) => onSetComposer(text, entry), setIntent: (intent: ChatComposerIntent) => setIntent(intent, entry),
       setMode: (mode: ChatMode) => setMode(mode, entry),
       submit: () => onSubmit(entry), restart: () => onRestart(entry), captureRestart: () => captureRestart(entry), prepareAction: (id: string) => onPrepareAction(id, entry),
@@ -488,13 +481,13 @@ export function createSessionChatActions(ctx: SessionChatContext) {
     if (selectionRequest === request && ctx.session.activeSessionIdRef.current === reference.sessionId) { registry.select(reference); publish(entry) }
     return handle
   }
+  const { snapshot: notesSnapshot, setInput: setNotesInput } = createNotesEntry({ registry, unavailable: id => disposed || ctx.noteRecovery.isRetired(id), snapshot: entry => snapshots.get(entry) ?? emptyChatSnapshot, update: (entry, input) => { if (input.composer !== undefined) onSetComposer(input.composer, entry); if (input.mode !== undefined) setMode(input.mode, entry) } })
   function attention(sessionId: string): ConversationAttention[] {
     return [...workspaces.values()].filter(entry => entry.sessionId === sessionId && !entry.retired).map(entry => ({ reference: entry.reference, owner: entry.owner, snapshot: snapshots.get(entry) ?? emptyChatSnapshot }))
   }
-  return { bind, select, attention, subscribeAttention(listener: () => void) { attentionListeners.add(listener); return () => { attentionListeners.delete(listener) } }, flushInputs: flush, selectionEpoch: registry.epoch, refresh, onRefine, onDraftJira, onAnswerQuestion, onPrepareAction, activate, dispose, observeJob, flush, hasPendingChanges, setMode, retire, recoverSession,
+  return { bind, select, attention, notesSnapshot, setNotesInput, subscribeAttention(this: void, listener: () => void) { attentionListeners.add(listener); return () => { attentionListeners.delete(listener) } }, flushInputs: flush, selectionEpoch: registry.epoch, refresh, onRefine, onDraftJira, onAnswerQuestion, onPrepareAction, activate, dispose, observeJob, flush, hasPendingChanges, setMode, retire, recoverSession,
     onSetComposer, onAttachImages, onPasteNativeImage, onRemoveImage, onRetryImage, onDismissImageFailure, onSend, onRetry, onCancel, onSubmit,
     onRestart, captureRestart, onDecidePermission, onRecheck, isCurrentPermissionScope }
 }
-
 export type ConversationEngine = ReturnType<typeof createSessionChatActions>
-export type ConversationHandle = { reference: ChatRef; snapshot: () => import('./sessionChat.types').ChatSnapshot; subscribe: (listener: () => void) => () => void; refresh: () => Promise<void>; flush: () => Promise<boolean>; prepareComposer: (intent: ChatComposerIntent, text: string) => Promise<boolean>; setComposer: (text: string) => void; setIntent: (intent: ChatComposerIntent) => void; setMode: (mode: ChatMode) => void; submit: () => Promise<void>; restart: () => Promise<void>; captureRestart: () => (() => Promise<void>) | null; prepareAction: (id: string) => Promise<void>; send: () => Promise<void>; retry: () => Promise<void>; answer: (id: string, text: string) => Promise<void>; cancel: () => Promise<void>; attachImages: (files: File[]) => Promise<void>; pasteImage: () => Promise<void>; removeImage: (id: string) => void; retryImage: (id: string) => Promise<void>; dismissImage: (id: string) => Promise<void>; decidePermission: (id: string, decision: import('../bindings').ChatPermissionDecision) => Promise<void>; recheck: () => Promise<void> }
+export type ConversationHandle = { reference: ChatRef; snapshot: () => import('./sessionChat.types').ChatSnapshot; subscribe: (listener: () => void) => () => void; refresh: () => Promise<void>; flush: () => Promise<boolean>; setComposer: (text: string) => void; setIntent: (intent: ChatComposerIntent) => void; setMode: (mode: ChatMode) => void; submit: () => Promise<void>; restart: () => Promise<void>; captureRestart: () => (() => Promise<void>) | null; prepareAction: (id: string) => Promise<void>; send: () => Promise<void>; retry: () => Promise<void>; answer: (id: string, text: string) => Promise<void>; cancel: () => Promise<void>; attachImages: (files: File[]) => Promise<void>; pasteImage: () => Promise<void>; removeImage: (id: string) => void; retryImage: (id: string) => Promise<void>; dismissImage: (id: string) => Promise<void>; decidePermission: (id: string, decision: import('../bindings').ChatPermissionDecision) => Promise<void>; recheck: () => Promise<void> }

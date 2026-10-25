@@ -1,13 +1,14 @@
+import { click, selected, recoverExact, exact } from './ask-ai-isolation-proof.mjs'
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { click, create, database, fill, fixture, native, out, save, tab } from './composer-proof.mjs'
+import { create, database, fill, fixture, native, out, save, tab } from './composer-proof.mjs'
 import { openCreationAi } from './creation-helpers.mjs'
 import { imageFixture } from '../fixtures/chat-images-provider.mjs'
 
-const composer = '.ask-ai-panel textarea'
+const composer = '.ask-ai-panel:not([hidden]) textarea'
 let sequence = 0
 let session
 let record
@@ -16,7 +17,9 @@ const evidence = []
 const table = () => kind === 'finding' ? 'findings' : 'drafts'
 const titleInput = () => `[aria-label="${kind === 'finding' ? 'Finding' : 'Test case'} title"]`
 const count = () => readdirSync(fixture).filter(name => /^codex-exec-\d+\.started$/.test(name)).length
-const chat = () => native('get_chat', { sessionId: session.id })
+const chat = selected
+let responseReference
+const turns = new Map()
 const stored = async () => (await native(kind === 'finding' ? 'list_findings' : 'list_drafts', { sessionId: session.id })).find(item => item.id === record.id)
 const proposal = async () => (await chat()).proposals.at(-1)
 async function panel() { return (await $$('.chat-proposal')).at(-1) }
@@ -64,9 +67,12 @@ async function setup(recordKind = 'finding', generated = false) {
 }
 async function start(text = 'Refine this expected result') {
   const index = count() + 1
-  const existingProposals = (await chat()).proposals.length
+  let input = await chat()
+  if (input.composerIntent.kind === 'message' && input.messages.length) { await click('[aria-label="Close Ask AI"]'); await $('.ask-ai-panel--record').waitForDisplayed({ reverse: true }); await ask(); await browser.waitUntil(async () => (await chat()).draftId !== input.draftId); input = await chat() }
+  const existingProposals = input.proposals.length
   await fill(composer, text)
-  await click('button=Refine record')
+  responseReference = { sessionId: input.sessionId, draftId: input.draftId }; turns.set(index, responseReference)
+  await click('button=Send')
   await browser.waitUntil(() => existsSync(join(fixture, `codex-exec-${index}.started`)))
   await $('.chat-partial').waitForDisplayed()
   assert.match(await $('.chat-partial').getText(), /Preparing suggested changes/)
@@ -80,8 +86,7 @@ async function complete(index) {
   await browser.waitUntil(async () => (await chat()).messages.at(-1)?.role === 'assistant')
   await $('.chat-proposal').waitForDisplayed()
   assert.doesNotMatch(await $('.chat-message-assistant').getText(), /requestId|"version"/)
-  await control('Review refinement')
-  await (await panel()).$('[aria-label="Before refinement"]').waitForDisplayed()
+  await (await panel()).$('button=Apply to editor').waitForDisplayed()
 }
 async function apply() { await control('Apply to editor'); await browser.waitUntil(async () => (await proposal()).state.kind === 'staged') }
 async function recordButton(label) { const target = await (await $('.record-detail-pane')).$(`button=${label}`); await target.waitForClickable(); await target.click() }
@@ -99,8 +104,8 @@ describe('Reviewed local refinement in shared native chat', () => {
     await apply()
     assert.equal(await localTitle(), `${record.title} refined`)
     assert.equal((await stored()).title, record.title)
-    for (const button of await $$('button=Start new conversation')) assert.equal(await button.isEnabled(), false)
-    assert.match(await $('[aria-label="Chat context"]').getText(), /Unsaved editor snapshot/)
+    assert.equal(await (await $('.ask-ai-panel:not([hidden])')).$('button=Start new conversation').isExisting(), false)
+    assert.match(await $('[aria-label="Chat source"]').getText(), /Unsaved edits included/)
     assert.match(await (await panel()).getText(), /applied to the local editor and not saved/)
     const id = (await proposal()).state.stage.id
     await control('Apply to editor')
@@ -114,11 +119,9 @@ describe('Reviewed local refinement in shared native chat', () => {
     assert.match(saved.body, /shows a receipt/)
     assert.match(saved.bodyJson, /shows a receipt/)
     await proof('lane-1-saved')
-    const onNote = await $('button=Add conversation to note'); await onNote.scrollIntoView(); await onNote.click()
-    await browser.waitUntil(async () => (await chat()).submission !== null)
+    assert.equal((await native('get_chat', { sessionId: session.id })).messages.length, 0)
     const note = (await native('list_entries', { sessionId: session.id })).find(item => item.entryType === 'note')
-    assert.match(note.body, /Saved through the record editor/)
-    assert.doesNotMatch(note.body, /requestId|"version"/)
+    assert.match(note.body, /Original Session Note/); assert.doesNotMatch(note.body, /Saved through the record editor|requestId|"version"/)
     assert.deepEqual(await stored(), saved)
   })
 
@@ -162,24 +165,14 @@ describe('Reviewed local refinement in shared native chat', () => {
     await browser.waitUntil(async () => /local editor changed/.test(await (await panel()).getText()))
     assert.equal(await localTitle(), 'Newer local edit')
     assert.equal((await stored()).title, record.title)
-    await proof('lane-4-stale-local'); await control('Dismiss proposal'); await discard()
-  })
-
-  it('Dismiss leaves the original record intact and does not create an editor stage', async () => {
-    await setup(); const index = await start(); await complete(index)
-    await control('Dismiss proposal')
-    await browser.waitUntil(async () => (await proposal()).state.kind === 'dismissed')
-    assert.equal((await stored()).title, record.title)
-    assert.equal(await $('.record-detail-pane .record-title').getText(), record.title)
-    assert.equal(await $('button=Send').isExisting(), true)
-    await proof('lane-5-dismissed')
+    await proof('lane-4-stale-local'); await discard()
   })
 
   it('rejects a second-client stored change atomically and Discard reviews the newer saved record', async () => {
     await setup(); const index = await start(); await complete(index); await apply()
     sql('UPDATE findings SET title=? WHERE id=?', ['Newer stored title', record.id])
     await recordButton('Save')
-    await browser.waitUntil(async () => /Use the record editor Discard/.test(await (await panel()).getText()))
+    await browser.waitUntil(async () => /Use the record editor Discard/.test(await $('.ask-ai-panel:not([hidden])').getText()))
     assert.equal(await localTitle(), `${record.title} refined`)
     assert.equal((await stored()).title, 'Newer stored title')
     assert.equal((await proposal()).state.kind, 'staged')
@@ -188,11 +181,10 @@ describe('Reviewed local refinement in shared native chat', () => {
     assert.equal(await $('.record-detail-pane .record-title').getText(), 'Newer stored title')
   })
 
-  it('Undo restores before exactly and a failed Save retains the dirty editor and recoverable stage', async () => {
-    await setup(); let index = await start(); await complete(index); await apply(); await control('Undo refinement')
-    assert.equal(await localTitle(), record.title)
+  it('Discard restores the stored record and a failed Save retains the dirty editor and recoverable stage', async () => {
+    await setup(); let index = await start(); await complete(index); await apply(); await discard()
+    assert.equal(await $('.record-detail-pane .record-title').getText(), record.title)
     assert.equal((await stored()).title, record.title)
-    await discard()
     index = await start(); await complete(index); await apply()
     sql(`CREATE TRIGGER r1_fail_save BEFORE UPDATE ON findings WHEN OLD.id='${record.id}' BEGIN SELECT RAISE(ABORT, 'Synthetic R1 failed Save'); END`)
     await recordButton('Save')
@@ -205,46 +197,51 @@ describe('Reviewed local refinement in shared native chat', () => {
   })
 
   it('never redirects a proposal when the selected record changes', async () => {
-    await setup(); await click('[aria-label="Close AI chat"]')
+    await setup(); await click('[aria-label="Close Ask AI"]')
     await create('finding'); await fill(titleInput(), 'Other finding'); await fill('[aria-label="Creation draft body"]', 'Other evidence'); await save('finding')
     await select(record.title); await ask(); const index = await start()
-    await click('[aria-label="Close AI chat"]'); await select('Other finding'); await ask(); await complete(index)
-    await control('Apply to editor')
-    await browser.waitUntil(async () => /Select the original record/.test(await (await panel()).getText()))
+    await click('[aria-label="Close Ask AI"]'); await select('Other finding'); await ask()
+    writeFileSync(join(fixture, `codex-exec-${index}.release`), 'Release hidden refinement')
+    await browser.waitUntil(async () => (await exact(turns.get(index))).proposals.length === 1)
+    assert.deepEqual((await chat()).proposals, [])
     assert.equal(await $('.record-detail-pane .record-title').getText(), 'Other finding')
     assert.equal((await stored()).title, record.title)
-    await proof('lane-8-navigation'); await control('Dismiss proposal')
+    assert.equal((await exact(turns.get(index))).proposals[0].target.snapshot.recordId, record.id)
+    await proof('lane-8-navigation')
   })
 
   it('retains deleted-target history and refuses to apply it', async () => {
     await setup(); const index = await start()
     await click(`[aria-label="Delete ${record.title}"]`); await click('dialog button=Delete finding permanently')
-    await complete(index); await control('Apply to editor')
-    await browser.waitUntil(async () => /no longer available|deleted/i.test(await (await panel()).getText()))
+    await recoverExact(turns.get(index)); await $(composer).waitForDisplayed()
+    await complete(index)
+    assert.equal(await (await panel()).$('button=Apply to editor').isEnabled(), false)
     assert.equal(await stored(), undefined)
     assert.equal((await proposal()).target.snapshot.recordId, record.id)
-    await proof('lane-9-deleted-target'); await control('Dismiss proposal')
+    await proof('lane-9-deleted-target')
   })
 
   it('offers recovery without restoring automatically and retains open-ended chat and malformed-response fallback', async () => {
     await setup(); const index = await start(); await complete(index); await apply()
     const stageId = (await proposal()).state.stage.id
-    await browser.refresh(); await $('.record-detail-pane .record-title').waitForDisplayed(); await ask()
+    const recoveredReference = { sessionId: session.id, draftId: (await chat()).draftId }; await browser.refresh(); await $('.record-detail-pane .record-title').waitForDisplayed(); await recoverExact(recoveredReference); await $(composer).waitForDisplayed()
     assert.equal(await $('.record-detail-pane .record-title').getText(), record.title)
     assert.equal((await proposal()).state.stage.id, stageId)
-    await control('Review refinement'); await control('Apply to editor')
+    await control('Apply to editor')
     assert.equal(await localTitle(), `${record.title} refined`)
-    await control('Undo refinement'); await discard(); await proof('lane-10-offered-recovery')
+    await discard(); await proof('lane-10-offered-recovery')
     await fill(composer, 'An unrelated free-form testing question')
     const normalIndex = count() + 1; await click('button=Send')
     await browser.waitUntil(() => existsSync(join(fixture, `codex-exec-${normalIndex}.started`)))
     writeFileSync(join(fixture, `codex-exec-${normalIndex}.release`), 'Release ordinary chat')
     await browser.waitUntil(async () => (await chat()).messages.at(-1)?.text.includes('Synthetic general chat'))
-    const before = (await chat()).proposals.length
+    const retainedChat = await chat()
+    const before = retainedChat.proposals.length
     const bad = await start('invalid envelope')
     writeFileSync(join(fixture, `codex-exec-${bad}.release`), 'Release malformed response')
     await browser.waitUntil(async () => (await chat()).messages.at(-1)?.response?.warning?.startsWith('No editable proposal'))
-    assert.equal((await chat()).proposals.length, before)
+    assert.equal((await chat()).proposals.length, 0)
+    assert.equal((await exact({ sessionId: retainedChat.sessionId, draftId: retainedChat.draftId })).proposals.length, before)
     assert.match((await chat()).messages.at(-1).text, /Must never apply/)
     assert.equal((await stored()).title, record.title)
   })
@@ -252,9 +249,9 @@ describe('Reviewed local refinement in shared native chat', () => {
     await setup(); const index = await start(); await complete(index)
     const current = await chat()
     await native('resolve_refinement', { request: { scope: { sessionId: current.sessionId, draftId: current.draftId, expectedRevision: current.revision }, proposalId: current.proposals.at(-1).id, action: 'stage' } })
-    await browser.refresh(); await $('.record-detail-pane .record-title').waitForDisplayed(); await ask()
+    const recoveredReference = { sessionId: session.id, draftId: (await chat()).draftId }; await browser.refresh(); await $('.record-detail-pane .record-title').waitForDisplayed(); await recoverExact(recoveredReference); await $(composer).waitForDisplayed()
     await recordButton('Edit'); await fill(titleInput(), 'Newer edits after prepared recovery')
-    await control('Review refinement'); await control('Apply to editor')
+    await control('Apply to editor')
     await browser.waitUntil(async () => /local editor changed/.test(await (await panel()).getText()))
     await control('Keep current edits')
     await browser.waitUntil(async () => (await proposal()).state.kind === 'abandoned')

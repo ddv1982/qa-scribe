@@ -30,10 +30,11 @@ export function AppShell(c: AppController) {
   const customModelAdvisory = customModelCatalogAdvisory(c.activeProvider?.models ?? [], c.selectedModel,
     catalogSelectorEnabled(c.activeProvider, c.providerStatus?.catalogRollout ?? null)
       && ['fresh', 'stale'].includes(c.activeProvider?.catalogSnapshot.state ?? ''))
-  const modelSelectionControl = <NextModelSelection provider={c.activeProvider} value={c.selectedModel}
-    pending={c.settingsWritePending} disabled={!c.modelSelectionReady || !c.activeProvider}
-    catalogEnabled={catalogSelectorEnabled(c.activeProvider, c.providerStatus?.catalogRollout ?? null)}
-    onChange={(model) => { void c.persistModelChoice(c.selectedProvider, model) }} />
+  const modelSelectionProps = { provider: c.activeProvider, value: c.selectedModel,
+    pending: c.settingsWritePending, disabled: !c.modelSelectionReady || !c.activeProvider,
+    catalogEnabled: catalogSelectorEnabled(c.activeProvider, c.providerStatus?.catalogRollout ?? null),
+    onChange: (model: string) => { void c.persistModelChoice(c.selectedProvider, model) } }
+  const modelSelectionControl = <NextModelSelection {...modelSelectionProps} />
   const [overlay, setOverlay] = useState<'commands' | 'help' | 'example' | null>(null)
   const [librarySidebarTarget, setLibrarySidebarTarget] = useState<HTMLDivElement | null>(null)
   const commands = createCommandRegistry(c, () => setOverlay('help'))
@@ -206,10 +207,16 @@ export function AppShell(c: AppController) {
                 <Flag size={16} /> Findings <span>{c.findingCount}</span>
               </button>
             </nav>
+        {c.askAi.recovery.filter(item => !c.askAi.visible || item.reference.draftId !== c.askAi.reference?.draftId || Boolean(item.origin && item.origin.stageId !== c.askAi.panel?.legacyOrigin?.stageId)).map(item =>
+          <div className="chat-recovery-notice" key={item.origin?.stageId ?? item.reference.draftId}>
+            <span>{item.reason}</span>
+            <ActionButton variant="secondary" size="compact" data-recovery-draft={item.reference.draftId} onClick={() => void c.askAi.recover(item)}>Recover Ask AI · {(item.owner.record.kind === 'finding' ? c.findings : c.testwareDrafts).find(row => row.id === item.owner.record.recordId)?.title ?? 'Unavailable source'}</ActionButton>
+          </div>)}
+        {c.askAi.recoveryError ? <p className="chat-error" role="alert">{c.askAi.recoveryError}</p> : null}
           </header>
         ) : null}
-        <div className={`session-content${c.askAi.visible ? ' session-content--record-chat' : ''}${c.askAi.expanded ? ' session-content--expanded' : ''}${c.activeView === 'sessions' && c.sessionMode === 'chat' ? ' session-content--notes-chat' : ''}`}>
-        <div className="session-document-area" hidden={c.askAi.expanded}>
+        <div className={`session-content${c.askAi.visible ? ' session-content--record-chat' : ''}${c.activeView === 'sessions' && c.sessionMode === 'chat' ? ' session-content--notes-chat' : ''}`}>
+        <div className="session-document-area">
         {c.activeView === 'sessions' ? (
           <SessionEditorView
             creationCommands={{ testware: creationCommands('testware'), finding: creationCommands('finding') }}

@@ -47,6 +47,7 @@ export function deriveChatHandoff(state: ChatActivity & {
   const completed = Boolean(current && chat?.messages.length && chat.messages.every(message => message.status === 'completed'))
   const reviewAvailable = completed && !unsettled && !state.recoveryPending
   const facts = { hydrationPending, reviewAvailable }
+  if (chat?.archived) return { ...facts, kind: 'settling', reason: 'Archived conversation is read-only.' }
   if (state.recoveryPending) return { ...facts, kind: 'recover', disabled: busy,
     reason: chat?.submission
       ? 'The conversation was saved, but the Session Note could not be refreshed. The stale Note is write-protected until recovery completes. Recovery reloads the saved Note without adding again.'
@@ -66,4 +67,8 @@ export function deriveChatHandoff(state: ChatActivity & {
     : (state.composerImages ?? chat?.composerImages ?? []).length ? 'Send or clear the unsent message and images before adding the conversation.'
     : composer !== '' ? 'Send or clear the unsent message before adding the conversation.'
     : !chat?.messages.length ? 'Complete a conversation before adding it to the note.' : '' }
+}
+
+export function handoffDuringRecordWrites(handoff: ChatHandoffPresentation, pending: boolean): ChatHandoffPresentation {
+  return pending && handoff.kind !== 'recover' ? { ...handoff, kind: 'settling', reason: 'Wait for pending record writes before adding the conversation.' } : handoff
 }

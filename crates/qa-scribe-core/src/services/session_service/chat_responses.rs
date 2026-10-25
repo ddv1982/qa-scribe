@@ -108,9 +108,6 @@ pub(super) fn completed(
             after,
             state: RefinementState::Offered,
         });
-        result.markdown.push_str(
-            "\n\nSuggested local refinement. Review before applying. No record has been saved.",
-        );
     }
     Ok(result)
 }

@@ -5,6 +5,7 @@ import { chatFixture } from './useSessionChat.testSupport'
 import type { ChatComposerRequest, ChatState, ChatRef } from '../bindings'
 
 const tauriMock = vi.hoisted(() => ({
+  commands: { decideChatPermission: vi.fn() },
   cancelAiActionJob: vi.fn(), getAiActionJobStatus: vi.fn(), listActiveAiActionJobs: vi.fn(),
   copyHtmlToClipboard: vi.fn(), copyAttachmentImageToClipboard: vi.fn(),
   readNoteSource: vi.fn(), readClipboardImageDataUrl: vi.fn(),
@@ -105,12 +106,12 @@ export function setupControllerTest() {
     rows.set(row.draftId, row); return row
   })
   tauriMock.activateConversation.mockReset().mockImplementation(async (reference: import('../bindings').ChatRef) => tauriMock.getConversation(reference))
-  tauriMock.listChatHistory.mockReset().mockResolvedValue([])
+  tauriMock.listChatHistory.mockReset().mockImplementation(async () => [...rows.values()].map(row => ({ reference: { sessionId: row.sessionId, draftId: row.draftId }, owner: row.owner, createdAt: '', lastActiveAt: row.lastActiveAt, lastActiveOrder: row.lastActiveOrder, preview: row.composer || row.messages[0]?.text || '', archived: row.archived, submission: row.submission, hasContent: Boolean(row.composer || row.composerImages.length || row.messages.length || row.composerIntent.kind !== 'message'), lastTurnStatus: row.messages.at(-1)?.status ?? null, unresolvedStages: [] })))
   tauriMock.saveChatComposer.mockReset().mockImplementation(async (request: ChatComposerRequest) => {
     const previous = rows.get(request.scope.draftId)
     const saved = chatFixture({ ...previous,
       sessionId: request.scope.sessionId, draftId: request.scope.draftId,
-      revision: request.scope.expectedRevision + 1, composer: request.composer, composerIntent: request.intent ?? { kind: 'message' }, mode: request.mode,
+      revision: request.scope.expectedRevision + 1, lastActiveOrder: (previous?.lastActiveOrder ?? 0) + 1, composer: request.composer, composerIntent: request.intent ?? { kind: 'message' }, mode: request.mode,
       composerImages: (request.attachmentIds ?? []).map(id => previous?.composerImages.find(image => image.attachmentId === id) ?? { attachmentId: id, filename: id, mimeType: 'image/png', sizeBytes: 1 }),
     })
     if (previous) rows.set(saved.draftId, saved)

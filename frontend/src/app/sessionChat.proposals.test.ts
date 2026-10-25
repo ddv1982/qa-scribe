@@ -49,7 +49,7 @@ it('rejects navigation during the await and never writes the newly selected reco
   let applying!: Promise<void>
   act(() => { applying = result.current.sessionChat.proposalControls!.onAction('proposal-1', 'stage') })
   await waitFor(() => expect(api.resolveRefinement).toHaveBeenCalled())
-  act(() => result.current.askAi.detach())
+  act(() => result.current.askAi.onSelectRecord(null))
   await act(async () => { staging.resolve(chatFixture({ draftId: 'chat-session-1', proposals: [{ ...proposal, state: { kind: 'staged', stage: { id: 'stage-1', before: proposal.before, after, storedBaseToken: base.expectedStoredBase } } }] })); await applying })
   expect(result.current.findings[0].title).toBe(proposal.before.title)
   expect(result.current.sessionChat.proposalControls?.errors['proposal-1']).toContain('selection changed while preparing')

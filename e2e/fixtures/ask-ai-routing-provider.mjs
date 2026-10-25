@@ -11,7 +11,7 @@ export function inspectRoutingInput(input) {
   const contract = JSON.parse(match[1])
   const user = payload.messages.at(-1)
   assert.equal(contract.requestId, user.id)
-  if (contract.purpose.kind === 'refinement') return inspectRefinementInput(input)
+  if (contract.purpose.kind === 'refinement' && !user.text.startsWith('ROUTING_')) return inspectRefinementInput(input)
   if (contract.purpose.kind === 'jira_drafting') return inspectJiraInput(input)
   return { ...payload, contract, response: `Routing reply for ${user.text}`, permission: /ROUTING_PERMISSION/.test(user.text), externalWrites: false }
 }

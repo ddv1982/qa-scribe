@@ -12,6 +12,7 @@ export function inspectRefinementInput(input) {
   const user = payload.messages.at(-1)
   assert.equal(contract.requestId, user.id)
   assert.equal((contract.recordKind ?? contract.purpose?.recordKind), user.context.kind)
+  if (user.text === 'An unrelated free-form testing question') return { ...payload, contract, response: JSON.stringify({ version: contract.version, requestId: contract.requestId, markdown: 'Synthetic general chat remains available. No record was changed.' }) }
   const metadata = user.context.kind === 'finding' && /metadata/.test(user.text) ? { severity: 'high' } : undefined
   const refinement = { kind: user.context.kind, title: `${user.context.snapshot.title} refined`, bodyMarkdown: 'Expected result\n\nThe application shows a receipt after submission.', ...(metadata ? { metadata } : {}) }
   const response = /invalid envelope/.test(user.text) ? '```json\n{"version":1,"refinement":{"title":"Must never apply"}}\n```' : JSON.stringify({ version: contract.version, requestId: contract.requestId, markdown: 'Suggestion for review. This has not been verified by testing.', refinement })

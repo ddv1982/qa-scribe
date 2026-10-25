@@ -50,7 +50,19 @@ pub(super) fn resolve(
         });
     let mut text = chat.composer.clone();
     let mut answer = None;
-    let mut purpose = ChatResponsePurpose::Conversation;
+    let mut purpose = match (&chat.owner, &active) {
+        (ConversationOwner::Record { .. }, ChatTarget::Finding { .. }) => {
+            ChatResponsePurpose::Refinement {
+                record_kind: RefinementRecordKind::Finding,
+            }
+        }
+        (ConversationOwner::Record { .. }, ChatTarget::TestCasesDraft { .. }) => {
+            ChatResponsePurpose::Refinement {
+                record_kind: RefinementRecordKind::TestCasesDraft,
+            }
+        }
+        _ => ChatResponsePurpose::Conversation,
+    };
     let mut pinned = None;
     match intent {
         ChatRequestIntent::Retry => return Err(validation("Retry uses the existing user message")),

@@ -76,6 +76,7 @@ runs:
           artifacts/e2e/latest-run.json
           artifacts/e2e/ui-polish/focus-diagnostic-*.json
           artifacts/e2e/ui-polish/uc3-layout.json
+          artifacts/e2e/ask-ai-isolation
         if-no-files-found: error
         retention-days: 90
 

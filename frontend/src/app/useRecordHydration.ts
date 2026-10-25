@@ -18,6 +18,8 @@ export function useRecordHydration({ activeSessionId, activeView }: UseRecordHyd
   const [findingCount, setFindingCount] = useState(0)
   const [draftLoadState, setDraftLoadState] = useState<RecordLoadState>('idle')
   const [findingLoadState, setFindingLoadState] = useState<RecordLoadState>('idle')
+  const [draftSourceIds, setDraftSourceIds] = useState<ReadonlySet<string> | null>(null)
+  const [findingSourceIds, setFindingSourceIds] = useState<ReadonlySet<string> | null>(null)
   const [draftLoadError, setDraftLoadError] = useState<string | null>(null)
   const [findingLoadError, setFindingLoadError] = useState<string | null>(null)
 
@@ -56,6 +58,7 @@ export function useRecordHydration({ activeSessionId, activeView }: UseRecordHyd
     findingsRef.current = []
     savedDraftsRef.current = []
     savedFindingsRef.current = []
+    setDraftSourceIds(null); setFindingSourceIds(null)
     setDraftLoadState('idle')
     setFindingLoadState('idle')
     setDraftLoadError(null)
@@ -80,6 +83,7 @@ export function useRecordHydration({ activeSessionId, activeView }: UseRecordHyd
     }
     if (draftLoadVersionRef.current !== loadVersion || activeSessionIdRef.current !== sessionId) return draftsRef.current
 
+    setDraftSourceIds(new Set(loaded.filter(row => row.kind === 'testware').map(row => row.id)))
     savedDraftsRef.current = loaded
     const nextDrafts = mergeRecordLists(loaded, draftsRef.current, sessionId, { dirtyIds: dirtyDraftIdsRef.current, replace })
     draftsSessionIdRef.current = sessionId
@@ -108,6 +112,7 @@ export function useRecordHydration({ activeSessionId, activeView }: UseRecordHyd
     }
     if (findingLoadVersionRef.current !== loadVersion || activeSessionIdRef.current !== sessionId) return findingsRef.current
 
+    setFindingSourceIds(new Set(loaded.map(row => row.id)))
     savedFindingsRef.current = loaded
     const nextFindings = mergeRecordLists(loaded, findingsRef.current, sessionId, { dirtyIds: dirtyFindingIdsRef.current, replace })
     findingsSessionIdRef.current = sessionId
@@ -172,7 +177,7 @@ export function useRecordHydration({ activeSessionId, activeView }: UseRecordHyd
     findings,
     testwareDraftCount,
     findingCount,
-    draftLoadError,
+    draftLoadError, draftSourceIds, findingSourceIds,
     draftLoadState,
     findingLoadError,
     findingLoadState,

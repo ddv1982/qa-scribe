@@ -31,15 +31,17 @@ import { useAppControllerNavigation } from './useAppController.navigation'
 import { useAttachmentCleanup } from './useAttachmentCleanup'
 import { useSummaryRecovery } from './useSummaryRecovery'
 import { useAskAiContext } from './useAskAiContext'
+import { captureAvailableRecordContext } from './conversationPresentation'
+import { handoffDuringRecordWrites } from './sessionChat.presentation'
+import { useConversationSnapshot } from './useConversationSnapshot'
+import type { SessionChatViewState } from './sessionChat.types'
 import { useSessionChat } from './useSessionChat'
 import { useRefinementController } from './sessionChat.proposals'
 import { useImportedAttachments } from './importedAttachments'
 import { useStableCapability } from './useStableCapability'
 import { createNoteEligibility } from './noteEligibility'
 import { useChatNoteRecovery } from './useChatNoteRecovery'
-
 export { mergeRecordLists } from './useRecordHydration'
-
 export function useAppController() {
   const {
     sessions,
@@ -88,7 +90,8 @@ export function useAppController() {
   const [settingsSection, setSettingsSection] = useState<string | null>(null)
   const [focusedRecordId, setFocusedRecordId] = useState<string | null>(null)
   const [createdRecordEditTarget, setCreatedRecordEditTarget] = useState<CreatedRecordEditTarget | null>(null)
-  const initialNavigationRouteRef = useRef(parseNavigationRoute(window.location.hash))
+  const [initialNavigationRoute] = useState(() => parseNavigationRoute(window.location.hash))
+  const initialNavigationRouteRef = useRef(initialNavigationRoute)
   const navigationRouteHydratedRef = useRef(false)
   const settingsReturnViewRef = useRef<MainView>('sessions')
   const outputLibraries = useOutputLibraries(activeView)
@@ -123,7 +126,7 @@ export function useAppController() {
     findings,
     testwareDraftCount,
     findingCount,
-    draftLoadError,
+    draftLoadError, draftSourceIds, findingSourceIds,
     draftLoadState,
     findingLoadError,
     findingLoadState,
@@ -182,7 +185,6 @@ export function useAppController() {
   const { activeFindingJob, activeTestwareJob, pendingAiActions } = useAppControllerGenerationState({
     activeSession, generationJobs,
   })
-
   const recordWorkspace: RecordWorkspace = {
     drafts,
     findings,
@@ -233,11 +235,13 @@ export function useAppController() {
     saveDirtyRecordsNow: recordPersistence.saveDirtyRecordsNow,
     retryPendingRecordCompensations: recordPersistence.retryPendingRecordCompensations,
   })
-  const askAi = useAskAiContext(activeSession?.id ?? null, activeView, recordWorkspace)
   const { sessionChat: baseSessionChat, sessionMode, setSessionMode, noteReadOnly, ...chatProtection } = useSessionChat({
     session: sessionWorkspace, noteRecovery, noteEligibility, sessionActions, generation: coordinatedGenerationWorkspace,
     selection, provider: activeProvider, providerWarning: effectiveAiSelection?.warning ?? null,
-    feedback, jobs: generationJobs, refreshProviderStatus, captureContext: askAi.capture, recordWritesPending: recordPersistence.coordination.hasPendingRecordCompensations,
+    feedback, jobs: generationJobs, refreshProviderStatus, captureContext: (sessionId, owner) => {
+      if (sessionId !== sessionWorkspace.activeSessionIdRef.current) throw new Error('The active Session changed before sending.')
+      return owner?.kind === 'record' ? captureAvailableRecordContext(sessionId, owner.record, recordWorkspace, owner.record.kind === 'finding' ? { state: findingLoadState, ids: findingSourceIds } : { state: draftLoadState, ids: draftSourceIds }) : activeView === 'sessions' ? { kind: 'session' } : askAi.captureNotesContext(sessionId)
+    }, recordWritesPending: recordPersistence.coordination.hasPendingRecordCompensations,
   })
   function setEditedSessionTitle(value: Parameters<typeof setSessionTitle>[0]) {
     const next = typeof value === 'function' ? value(sessionWorkspace.sessionTitleRef.current) : value
@@ -275,7 +279,17 @@ export function useAppController() {
       loadFindingsForSession,
     },
   }, recordPersistence)
-  const sessionChat = useRefinementController({ conversations: chatProtection.conversations, chat: baseSessionChat, askAi, records: recordWorkspace, actions: recordActions, persistence: recordPersistence, session: sessionWorkspace, openEditor: setCreatedRecordEditTarget, feedback })
+  const askAi = useAskAiContext(activeSession?.id ?? null, activeView, recordWorkspace, {
+    conversations: chatProtection.conversations, findingLoadState, draftLoadState, findingLoadError, draftLoadError, findingSourceIds, draftSourceIds,
+    retrySource: record => { if (activeSession) void (record.kind === 'finding' ? loadFindingsForSession(activeSession.id, { force: true }) : loadDraftsForSession(activeSession.id, { force: true })).catch(() => undefined) },
+    revealOwner: (owner, reveal, recoverInput, preserveEditor) => requestRevealConversationOwner(owner, reveal, recoverInput, preserveEditor),
+    openNotes: () => setSessionMode('chat'),
+    restoredReference: initialNavigationRoute?.kind === 'session' ? initialNavigationRoute.conversation ?? null : null,
+  })
+  const recordChat = useConversationSnapshot(chatProtection.conversations, askAi.reference)
+  const selectedChat = chatProtection.selectedSnapshot.chat ? chatProtection.selectedSnapshot : baseSessionChat
+  const refinement = useRefinementController({ conversations: chatProtection.conversations, chat: selectedChat, askAi, records: recordWorkspace, actions: recordActions, persistence: recordPersistence, session: sessionWorkspace, openEditor: setCreatedRecordEditTarget, feedback })
+  const sessionChat: SessionChatViewState = { ...baseSessionChat, ...refinement, handoff: handoffDuringRecordWrites(baseSessionChat.handoff, refinement.recordWritesPending) }
   const generationActions = useGenerationActions({
     session: sessionWorkspace,
     records: recordWorkspace,
@@ -305,16 +319,15 @@ export function useAppController() {
     openLibraryRecord, openSessionInCurrentView, openSettingsSection,
     requestActiveView, requestNewSession, requestOpenSession,
     savePendingNavigationChanges,
-    beginSessionNavigation, consumeCreatedRecordEditTarget, requestCreation,
+    beginSessionNavigation, consumeCreatedRecordEditTarget, requestCreation, requestRevealConversationOwner,
   } = useAppControllerNavigation({
-    creation, chat: chatProtection,
+    creation, chat: chatProtection, onNavigationIntent: askAi.invalidateNavigation,
     activeSession, activeSessionIdRef: sessionWorkspace.activeSessionIdRef, activeView, settlement, dirtyDraftIdsRef, dirtyFindingIdsRef,
     discardSettingsDraft, focusedRecordId, pendingNavigationContinuationRef, pendingNavigationEpochRef,
     pendingNavigationView, recordActions,
     sessionActions, sessions, settingsDirty, settingsReturnViewRef, settingsSection,
     setActiveView, setError, setFocusedRecordId, setCreatedRecordEditTarget, setPendingNavigationView, setPendingSettingsSection, setSettingsSection,
   })
-
   useEffect(() => {
     if (activeView !== 'settings' || !pendingSettingsSection) return
     const timeout = window.setTimeout(() => {
@@ -325,14 +338,11 @@ export function useAppController() {
     }, 0)
     return () => window.clearTimeout(timeout)
   }, [activeView, pendingSettingsSection])
-
   useSettingsDiscovery(activeView, activeProvider, discoverProviderDefaults)
-
   usePendingChangeProtection({
     hasPendingChanges: settlement.hasPendingChanges,
     savePendingChanges: () => creation.hasPendingChanges() ? creation.settle().then((settled) => settled ? settlement.flush() : false) : settlement.flush(),
   })
-
   const { bootedRef, handleLoadSessionLibrary, handleRefreshProviderStatus, handleSaveSettings } = useAppStartup({
     loadSettings,
     openSession: sessionActions.openSession, captureActiveJobs: generationActions.captureActiveJobs,
@@ -346,7 +356,6 @@ export function useAppController() {
     setNotice,
     setError,
   })
-
   useEffect(() => {
     if (navigationRouteHydratedRef.current || !bootedRef.current || busyAction !== null) return
     const route = initialNavigationRouteRef.current
@@ -355,7 +364,6 @@ export function useAppController() {
     const timeout = window.setTimeout(() => void applyNavigationRoute(route), 0)
     return () => window.clearTimeout(timeout)
   }, [activeSession, busyAction]) // oxlint-disable-line react-hooks/exhaustive-deps -- hydrate the immutable launch route once after startup
-
   useEffect(() => {
     function handleHistoryNavigation() {
       const route = parseNavigationRoute(window.location.hash)
@@ -364,7 +372,6 @@ export function useAppController() {
     window.addEventListener('hashchange', handleHistoryNavigation)
     return () => window.removeEventListener('hashchange', handleHistoryNavigation)
   })
-
   useEffect(() => {
     if (!navigationRouteHydratedRef.current) return
     const nextHash = navigationHash({
@@ -372,22 +379,20 @@ export function useAppController() {
       sessionId: activeSession?.id ?? null,
       focusedRecordId,
       settingsSectionId: settingsSection,
+      conversation: askAi.reference,
     })
     if (window.location.hash !== nextHash) window.history.pushState(null, '', nextHash)
-  }, [activeSession?.id, activeView, focusedRecordId, settingsSection])
-
+  }, [activeSession?.id, activeView, focusedRecordId, settingsSection, askAi.reference])
   useEffect(() => {
     if (!activeSession || !bootedRef.current) return
     const trimmedTitle = sessionTitle.trim()
     if (!trimmedTitle || sessionTitle === savedTitleRef.current) return
-
     const timeout = window.setTimeout(() => {
       if (suppressAmbientNoteSaveRef.current) return
       void sessionActions.saveTitle(sessionTitle)
     }, 700)
     return () => window.clearTimeout(timeout)
   }, [activeSession, sessionTitle]) // oxlint-disable-line react-hooks/exhaustive-deps -- debounce is keyed to Session identity and title
-
   useEffect(() => {
     if (!noteEntry || !bootedRef.current) return
     const nextBody = serializeRichEditorDocument(noteBody)
@@ -395,16 +400,14 @@ export function useAppController() {
     // Recovery conflicts require an explicit save/discard choice. Ambient
     // autosave must not silently choose the authored side of that decision.
     if (pendingRecoveredSummaryDecision) return
-
     const timeout = window.setTimeout(() => {
       if (suppressAmbientNoteSaveRef.current) return
       void sessionActions.saveNoteNow()
     }, 850)
     return () => window.clearTimeout(timeout)
   }, [noteEntry, noteBody, pendingRecoveredSummaryDecision]) // oxlint-disable-line react-hooks/exhaustive-deps -- debounce is keyed to note identity, body, and recovery decision
-
   return {
-    conversations: chatProtection.conversations, sessionChat, sessionMode, setSessionMode, saveAllPendingChanges: settlement.flush, noteReadOnly,
+    conversations: chatProtection.conversations, sessionChat, recordChat, selectedConversation: chatProtection.selectedSnapshot, proposalControls: refinement.proposalControls, sessionMode, setSessionMode, saveAllPendingChanges: settlement.flush, noteReadOnly,
     creation, creationIntent, creationDecision,
     createdRecordEditTarget, consumeCreatedRecordEditTarget: consumeSelectedRecord,
     attachmentCleanup, ...attachmentActions,
@@ -494,5 +497,4 @@ export function useAppController() {
     modelSelectionReady: Boolean(settings),
   }
 }
-
 export type AppController = ReturnType<typeof useAppController>

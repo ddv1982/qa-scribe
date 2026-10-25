@@ -28,7 +28,7 @@ async function open() {
   await waitFor(() => expect(hook.result.current.sessionChat.chat?.messages).toHaveLength(2))
   await act(async () => { hook.result.current.setActiveView('findings') })
   await waitFor(() => expect(hook.result.current.findings).toHaveLength(1))
-  act(() => hook.result.current.askAi.onAskAi({ kind: 'finding', recordId: 'finding-1', title: 'Source', unsaved: false }))
+  act(() => hook.result.current.askAi.onSelectRecord({ kind: 'finding', recordId: 'finding-1', title: 'Source', unsaved: false }))
   return hook
 }
 it('sends a choice as the entire visible text through the typed shared request', async () => {
@@ -59,7 +59,7 @@ it('retains newer input typed during save and refuses the direct choice', async 
 })
 it('refuses mismatched choices but ordinary matching text still sends current Session context', async () => {
   const { result } = await open()
-  act(() => result.current.askAi.detach())
+  act(() => result.current.askAi.onSelectRecord(null))
   await act(async () => { await result.current.sessionChat.onAnswerQuestion?.(response.id, 'Bug') })
   expect(api.startChatJob).not.toHaveBeenCalled()
   act(() => result.current.sessionChat.onSetComposer('Bug'))

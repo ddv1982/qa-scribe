@@ -47,7 +47,7 @@ for (const skipBuild of ['0', '1']) {
   })
 }
 
-for (const [platform, expectedCount] of [['linux', 22], ['darwin', 13]]) {
+for (const [platform, expectedCount] of [['linux', 23], ['darwin', 14]]) {
   test(`${platform} defaults register first use with independent state and receipts`, () => {
     const plan = createWdioInvocationPlan({}, '/tmp/owned', '/tmp/evidence', platform)
     assert.equal(plan.length, expectedCount)
@@ -104,7 +104,7 @@ for (const mode of ['spawn-error', 'timeout']) {
         spawnSyncImpl(command, args, options) {
           assert.equal(options.env.QA_SCRIBE_AC3_RECORD, undefined)
           if (command === 'python3') return { status: 0 }
-          assert.equal(options.timeout, options.env.QA_SCRIBE_E2E_SPEC === 'ui-polish.e2e.mjs' ? 420_000 : 180_000)
+          assert.equal(options.timeout, ['ui-polish.e2e.mjs', 'ask-ai-conversation-isolation.e2e.mjs'].includes(options.env.QA_SCRIBE_E2E_SPEC) ? 420_000 : 180_000)
           invoked.push(options.env.QA_SCRIBE_E2E_SPEC)
           if (invoked.length === 1) {
             return mode === 'spawn-error'

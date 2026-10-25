@@ -81,10 +81,10 @@ A copy-ready bug report Draft shaped for manual creation of a Jira issue.
 _Avoid_: Jira ticket, Jira issue
 
 **Ask AI**:
-The action that opens the shared Session conversation beside a saved Finding or test case. It includes the selected record's current content when sending, without saving its edits.
+The action that opens a fresh conversation beside a saved Finding or Test cases draft. The conversation belongs to that record. Reclicking an open panel focuses its current input. A settled close and reopen starts fresh. Exact unfinished turns and prepared edits remain recoverable through their original references. Sending includes that record's current content without saving its edits.
 
 **AI chat**:
-The shared Session conversation shown in Note or beside a record. It retains the same composer, images, provider, model, and tool permissions across these views.
+Notes chat and record Ask AI use separate conversations, input, images, and tool decisions. Close persists input before hiding, and keeps the panel visible if persistence fails. The provider and model preference applies globally to the next invocation through Notes and Settings. Only Notes chat can be added to the Session Note.
 
 **Refinement proposal**:
 A suggested local change reviewed before applying it to the record editor. Applying leaves the record unsaved. Ordinary Save persists the reviewed edit.

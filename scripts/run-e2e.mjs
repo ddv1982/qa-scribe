@@ -5,6 +5,7 @@ import { chmodSync, cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlin
 import { homedir, tmpdir } from 'node:os'
 import { delimiter, dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { isolationInvocations, readIsolationEvidence } from './ask-ai-isolation-evidence.mjs'
 import { prepareOwnershipFixture } from './prepare-ask-ai-ownership.mjs'
 import { commandReceiptError, finishCommandReceipt, startCommandReceipt } from './command-utils.mjs'
 
@@ -24,6 +25,11 @@ export const criticalScenarios = Object.freeze([
 export function createWdioInvocationPlan(environment, temporaryRoot, artifacts, platform = process.platform) {
   const requestedSpec = environment.QA_SCRIBE_E2E_SPEC?.trim()
   const requestedScenario = environment.QA_SCRIBE_E2E_SCENARIO?.trim()
+
+  if (requestedSpec === 'ask-ai-conversation-isolation.e2e.mjs') {
+    if (requestedScenario) throw new Error('Conversation isolation runs its phases serially')
+    return isolationInvocations(temporaryRoot, artifacts)
+  }
 
   if (requestedSpec === 'ask-ai-conversation-routing.e2e.mjs') {
     if (requestedScenario) throw new Error('Conversation routing runs its phases serially')
@@ -104,6 +110,7 @@ export function createWdioInvocationPlan(environment, temporaryRoot, artifacts, 
         QA_SCRIBE_E2E_FIXTURE_DIR: join(temporaryRoot, 'fixtures', id),
       } })
     }
+    if (['linux', 'darwin'].includes(platform)) plan.push(...isolationInvocations(temporaryRoot, artifacts))
     if (platform === 'linux') {
       const modelRuns = [
         ['model-management', 'model-management', null, {}],
@@ -329,7 +336,11 @@ export function runE2e(environment = process.env, { spawnSyncImpl = spawnSync } 
       const providerBin = join(invocation.environment.QA_SCRIBE_E2E_FIXTURE_DIR, 'bin')
       mkdirSync(providerBin, { recursive: true })
       const authorization = invocationEnvironment.QA_SCRIBE_E2E_SPEC === 'chat-tool-authorization.workflow.mjs'
-      const recordContext = ['ask-ai-context.e2e.mjs', 'ask-ai-refinement.e2e.mjs', 'ask-ai-jira-draft.e2e.mjs', 'ask-ai-conversation-routing.e2e.mjs'].includes(invocationEnvironment.QA_SCRIBE_E2E_SPEC)
+      const isolation = invocationEnvironment.QA_SCRIBE_E2E_SPEC === 'ask-ai-conversation-isolation.e2e.mjs'
+      if (isolation) {
+        invocationEnvironment.QA_SCRIBE_PROVIDER_CATALOG_MODE = 'selector'
+      }
+      const recordContext = ['ask-ai-context.e2e.mjs', 'ask-ai-refinement.e2e.mjs', 'ask-ai-jira-draft.e2e.mjs', 'ask-ai-conversation-routing.e2e.mjs', 'ask-ai-conversation-isolation.e2e.mjs'].includes(invocationEnvironment.QA_SCRIBE_E2E_SPEC)
       if (invocationEnvironment.QA_SCRIBE_E2E_SPEC !== 'creation-composer.e2e.mjs') delete invocationEnvironment.QA_SCRIBE_E2E_CREATION_FORMATS_ONLY
       if (invocationEnvironment.QA_SCRIBE_E2E_SPEC !== 'chat-images.e2e.mjs') delete invocationEnvironment.QA_SCRIBE_E2E_CHAT_IMAGES
       else invocationEnvironment.QA_SCRIBE_PROVIDER_CATALOG_MODE = 'selector'
@@ -341,7 +352,7 @@ export function runE2e(environment = process.env, { spawnSyncImpl = spawnSync } 
       const sourceBin = qualification ? join(invocation.environment.QA_SCRIBE_E2E_FIXTURE_DIR, 'provider-copy', 'bin') : fixtureBin
       if (qualification) cpSync(join(root, 'e2e', 'fixtures'), join(invocation.environment.QA_SCRIBE_E2E_FIXTURE_DIR, 'provider-copy'), { recursive: true })
       for (const provider of ['codex', 'claude', 'copilot']) rmSync(join(providerBin, provider), { force: true })
-      for (const provider of authorization || modelManagement ? ['codex', 'claude', 'copilot'] : recordContext ? ['codex', 'copilot'] : ['codex']) {
+      for (const provider of authorization || modelManagement ? ['codex', 'claude', 'copilot'] : isolation ? ['codex'] : recordContext ? ['codex', 'copilot'] : ['codex']) {
         const link = join(providerBin, provider)
         symlinkSync(join(sourceBin, provider), link)
       }
@@ -370,7 +381,7 @@ export function runE2e(environment = process.env, { spawnSyncImpl = spawnSync } 
       const evidencePath = join(invocation.environment.QA_SCRIBE_E2E_ARTIFACTS, 'wdio-execution.json')
       rmSync(evidencePath, { force: true })
       invocationEnvironment.QA_SCRIBE_E2E_EXECUTION_EVIDENCE = evidencePath
-      const timeout = invocationEnvironment.QA_SCRIBE_E2E_SPEC === 'ui-polish.e2e.mjs' ? 420_000 : 180_000
+      const timeout = ['ui-polish.e2e.mjs', 'ask-ai-conversation-isolation.e2e.mjs'].includes(invocationEnvironment.QA_SCRIBE_E2E_SPEC) ? 420_000 : 180_000
       const completed = execute(invocation.id, wdio, ['run', join(root, 'e2e', 'wdio.conf.mjs')], invocationEnvironment, timeout, {
         stdio: 'pipe',
         encoding: 'utf8',
@@ -388,7 +399,8 @@ export function runE2e(environment = process.env, { spawnSyncImpl = spawnSync } 
       const modelEvidenceReceipt = modelPhase ? readModelLaneEvidence(join(invocationEnvironment.QA_SCRIBE_E2E_MODEL_EVIDENCE, 'lane-results.json'), modelPhase, restartRequired) : true
       const qualificationEvidenceReceipt = qualification
         ? readQualificationEvidence(join(invocationEnvironment.QA_SCRIBE_E2E_MODEL_EVIDENCE, 'qualification-results.json'), invocationEnvironment.QA_SCRIBE_PROVIDER_CATALOG_MODE) : true
-      const missingCoverage = completed.status === 0 && (!evidence || !modelEvidenceReceipt || !qualificationEvidenceReceipt)
+      const isolationEvidence = invocationEnvironment.QA_SCRIBE_E2E_SPEC === 'ask-ai-conversation-isolation.e2e.mjs' ? readIsolationEvidence(join(invocationEnvironment.QA_SCRIBE_E2E_ARTIFACTS, 'isolation-outcomes.json'), invocationEnvironment.QA_SCRIBE_E2E_ISOLATION_PHASE) : true
+      const missingCoverage = completed.status === 0 && (!evidence || !modelEvidenceReceipt || !qualificationEvidenceReceipt || !isolationEvidence)
       if (missingCoverage) {
         Object.assign(commands.at(-1), { status: 'failed', evidenceError: 'Missing complete, unskipped machine execution evidence' })
         failure ??= commands.at(-1)

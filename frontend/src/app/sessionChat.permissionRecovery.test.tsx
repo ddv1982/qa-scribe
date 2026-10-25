@@ -50,7 +50,7 @@ async function mountControllerView(provider: AiProvider) {
   instances.push(actions)
   function props(): SessionChatViewProps {
     return {
-      ...snapshot, handoff: deriveChatHandoff({ ...snapshot, sessionId: 'session-1', noteEntry: null }),
+      ...snapshot, kind: 'notes', handoff: deriveChatHandoff({ ...snapshot, sessionId: 'session-1', noteEntry: null }),
       onOpenNote: vi.fn(), providerLabel: providerLabels[provider], modelLabel: 'test-model',
       providerAvailable: true, providerReason: '', onConfigureAi: vi.fn(),
       onSetComposer: actions.onSetComposer, onSend: actions.onSend, onRetry: actions.onRetry,

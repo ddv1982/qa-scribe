@@ -127,6 +127,19 @@ earlier samples. A timeout is distinct from an application assertion or process
 exit. These wrappers bound their direct children and do not prove descendant
 cleanup. Keep isolated native runs serialized with other users of the target.
 
+Verify the minimal Ask AI interface with its six synthetic native journeys:
+
+```bash
+QA_SCRIBE_E2E_SPEC=ask-ai-conversation-isolation.e2e.mjs bun run e2e
+```
+
+The fixture exercises fresh record launch, image-backed refinement and ordinary Save,
+reclick and close, exact unfinished recovery, typed Jira follow-ups, and short-window
+keyboard access. It uses the maintained embedded WebView driver, DOM keyboard events,
+and the operating-system clipboard. It does not call real providers or Jira. The
+separate `ask-ai-conversation-routing.e2e.mjs` initial/restart pair retains process
+recovery coverage. Completed record conversations have no History or Continue UI.
+
 Run the reproducible large-data startup measurement (five launches by default):
 
 ```bash
