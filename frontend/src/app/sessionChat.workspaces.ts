@@ -69,7 +69,7 @@ export function createChatWorkspaces(ctx: SessionChatContext, changed: (entry: C
   }
   function buffer(input: { composer?: string; mode?: import('../bindings').ChatMode }) {
     const sessionId = ctx.session.activeSessionIdRef.current
-    if (!sessionId || selected || !notesLoads.has(sessionId) || retired.has(sessionId)) return false
+    if (!sessionId || selected || notesBySession.has(sessionId) || retired.has(sessionId)) return false
     notesInput.set(sessionId, { ...notesInput.get(sessionId), ...input })
     ctx.publish(previous => ({ ...previous, ...input, dirty: true }))
     return true
