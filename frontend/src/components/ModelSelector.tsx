@@ -92,7 +92,7 @@ export function ModelCombobox({
     if (disabled || !restoreChoiceFocusRef.current) return
     const timeout = window.setTimeout(() => {
       const input = inputRef.current
-      if (input && (document.activeElement === document.body || document.activeElement === input)) {
+      if (input && (document.activeElement === document.body || rootRef.current?.contains(document.activeElement))) {
         restoringChoiceFocusRef.current = true
         input.focus()
         restoringChoiceFocusRef.current = false
@@ -100,7 +100,7 @@ export function ModelCombobox({
       restoreChoiceFocusRef.current = false
     }, 0)
     return () => window.clearTimeout(timeout)
-  }, [disabled, value, open])
+  }, [disabled, value, open, rootRef])
 
   function chooseModel(modelId: string) {
     if (disabled) return
