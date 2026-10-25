@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict'
-import { appendFileSync } from 'node:fs'
+import { appendFileSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { settledViewport } from './preflight-native-keys.mjs'
+
+const nativeMinimum = JSON.parse(readFileSync(new URL('../tauri.e2e.conf.json', import.meta.url), 'utf8')).app.windows.find(window => window.label === 'main')
 
 export function inspectLayout(selector, closest) {
   const selected = typeof selector === 'string' ? document.querySelector(selector) : selector
@@ -55,15 +57,33 @@ async function resizeLayoutViewport(width, height) {
       JSON.stringify({ target, baseline, steps, converged: actual.width === width && actual.height === height }) + '\n')
     return actual
   }
-  const requested = { width: width + window.width - current.width, height: height + window.height - current.height }
+  const measuredFrame = Number.isFinite(window.width) && Number.isFinite(window.height) && window.width >= current.width && window.height >= current.height
+  const requested = measuredFrame
+    ? { width: width + window.width - current.width, height: height + window.height - current.height }
+    : { width: Math.max(width, nativeMinimum.minWidth), height: Math.max(height, nativeMinimum.minHeight) }
   let actual = await resize(requested)
-  if (actual.width !== width || actual.height !== height) actual = await resize({ width: requested.width + width - actual.width, height: requested.height + height - actual.height })
+  if (actual.width !== width || actual.height !== height) actual = await resize({ width: Math.max(nativeMinimum.minWidth, requested.width + width - actual.width), height: Math.max(nativeMinimum.minHeight, requested.height + height - actual.height) })
   return actual
 }
 
 export async function layoutViewport(width, height) {
   const actual = await resizeLayoutViewport(width, height)
   assert.deepEqual(actual, { width, height }, 'The required native viewport must converge to its exact target')
+  return actual
+}
+
+export async function minimumLayoutViewport(width = 640) {
+  const requested = { width, height: nativeMinimum.minHeight }
+  await browser.setWindowSize(requested.width, requested.height)
+  const measured = await settledViewport()
+  const actual = { width: measured.width, height: measured.height }
+  const nativeWindow = await browser.getWindowRect()
+  const atMinimum = actual.height === nativeMinimum.minHeight
+    || nativeWindow.width === width && nativeWindow.height === nativeMinimum.minHeight
+  appendFileSync(join(process.env.QA_SCRIBE_E2E_ARTIFACTS, 'minimum-viewport.jsonl'), JSON.stringify({ requested, actual, nativeWindow, platform: process.platform }) + '\n')
+  assert.equal(actual.width, width, 'The minimum native case must retain its exact width')
+  assert.ok(atMinimum && actual.height >= nativeMinimum.minHeight - 32 && actual.height <= nativeMinimum.minHeight,
+    `The minimum native window must provide the supported client height: ${JSON.stringify({ requested, actual, nativeWindow })}`)
   return actual
 }
 
@@ -75,9 +95,9 @@ export async function wideLayoutViewport() {
     screen: { width: screen.width, height: screen.height, availWidth: screen.availWidth, availHeight: screen.availHeight,
       availLeft: screen.availLeft, availTop: screen.availTop } }))
   const driverRect = await browser.getWindowRect()
-  const frameHeight = driverRect.height - actual.height
-  const contentCeiling = constraints.screen.availHeight - frameHeight
-  const physicalCeiling = process.platform === 'darwin' && frameHeight >= 0
+  const frameHeight = driverRect.height >= actual.height && driverRect.width >= actual.width ? driverRect.height - actual.height : null
+  const contentCeiling = frameHeight === null ? null : constraints.screen.availHeight - frameHeight
+  const physicalCeiling = process.platform === 'darwin' && frameHeight !== null
     && driverRect.width === actual.width
     && Math.abs(driverRect.height - constraints.screen.availHeight) <= 1
     && Math.abs(actual.height - contentCeiling) <= 1

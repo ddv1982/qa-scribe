@@ -3,7 +3,7 @@ import { test, after } from 'node:test'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { layoutViewport, wideLayoutViewport } from '../e2e/specs/chat-layout-geometry.mjs'
+import { layoutViewport, wideLayoutViewport, minimumLayoutViewport } from '../e2e/specs/chat-layout-geometry.mjs'
 const artifacts = mkdtempSync(join(tmpdir(), 'qa-scribe-viewport-contract-'))
 const platformDescriptor = Object.getOwnPropertyDescriptor(process, 'platform')
 const globalNames = ['innerWidth', 'innerHeight', 'outerWidth', 'outerHeight', 'devicePixelRatio', 'screen', 'requestAnimationFrame', 'browser']
@@ -22,14 +22,20 @@ after(() => {
 })
 function host(height, width = 1280, delayed = false, platform = 'darwin') {
   Object.defineProperty(process, 'platform', { value: platform })
-  Object.assign(globalThis, { innerWidth: width, innerHeight: height, outerWidth: width, outerHeight: height + 32,
-    devicePixelRatio: 1, screen: { width, height: height + 32, availWidth: width, availHeight: height + 32, availTop: 0, availLeft: 0 },
+  const frame = platform === 'linux' ? 0 : 32
+  Object.assign(globalThis, { innerWidth: width, innerHeight: height, outerWidth: width, outerHeight: height + frame,
+    devicePixelRatio: 1, screen: { width, height: height + frame, availWidth: width, availHeight: height + frame, availTop: 0, availLeft: 0 },
     requestAnimationFrame: callback => queueMicrotask(callback) })
   const requests = []
   let pending
   globalThis.browser = {
-    setWindowSize: async (w, h) => { requests.push({ width: w, height: h }); pending = { innerWidth: Math.min(w, width), innerHeight: Math.min(h - 32, height) }; if (!delayed) Object.assign(globalThis, pending) },
-    getWindowRect: async () => ({ width: innerWidth, height: innerHeight + 32, x: 0, y: 0 }),
+    setWindowSize: async (w, h) => {
+      assert.ok(Number.isFinite(w) && Number.isFinite(h) && w >= 0 && h >= 0, 'Native resize arguments must be finite and nonnegative')
+      requests.push({ width: w, height: h })
+      pending = { innerWidth: Math.min(Math.max(w, 320), width), innerHeight: Math.min(Math.max(h, 520) - frame, height) }
+      if (!delayed) Object.assign(globalThis, pending)
+    },
+    getWindowRect: async () => ({ width: innerWidth, height: innerHeight + frame, x: 0, y: 0 }),
     pause: async () => { if (pending) Object.assign(globalThis, pending) },
     waitUntil: async callback => { for (let i = 0; i < 8; i++) if (await callback()) return; throw new Error('not settled') },
     execute: async (callback, ...args) => callback(...args),
@@ -99,4 +105,30 @@ test('a narrow screen cannot substitute for missing vertical work-area evidence'
   host(645)
   Object.assign(screen, { width: 1024, availWidth: 1024, availHeight: 1000 })
   await assert.rejects(wideLayoutViewport(), /requires a measured macOS work-area ceiling/)
+})
+
+test('a zero driver rectangle cannot produce negative resize arguments', async () => {
+  const requests = host(860, 1280, false, 'linux')
+  browser.getWindowRect = async () => ({ width: 0, height: 0, x: 0, y: 0 })
+  assert.deepEqual(await wideLayoutViewport(), { width: 1280, height: 828 })
+  assert.deepEqual(requests[0], { width: 1280, height: 828 })
+})
+
+test('the configured minimum native window has a measured macOS client height', async () => {
+  const requests = host(828)
+  assert.deepEqual(await minimumLayoutViewport(), { width: 640, height: 488 })
+  assert.deepEqual(requests, [{ width: 640, height: 520 }])
+})
+
+test('the Linux native minimum is 520 client pixels even without rectangle support', async () => {
+  host(860, 1280, false, 'linux')
+  browser.getWindowRect = async () => ({ width: 0, height: 0, x: 0, y: 0 })
+  assert.deepEqual(await minimumLayoutViewport(), { width: 640, height: 520 })
+  await assert.rejects(layoutViewport(640, 488), /must converge to its exact target/)
+})
+
+test('a stable nonminimum frame cannot be accepted as the minimum native case', async () => {
+  host(828)
+  browser.setWindowSize = async width => { globalThis.innerWidth = width; globalThis.innerHeight = 500 }
+  await assert.rejects(minimumLayoutViewport(), /minimum native window must provide/)
 })

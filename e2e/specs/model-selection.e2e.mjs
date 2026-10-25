@@ -6,7 +6,7 @@ import { click, createSession, database, directory, execution, finishChat, inser
   preference, read, refresh, settings } from './model-evidence-ui.mjs'
 import { configureCatalog, generation, historyText, menuGeometry, modelPreference, outputRoot,
   quickInput, quickOptions, quickSection, send, switchProviderOnly, attachPickerDraftImage, openQuickPicker, pickerState, activeQuickOption, domModelKey } from './model-selection-ui.mjs'
-import { inspectLayout, layoutViewport, wideLayoutViewport } from './chat-layout-geometry.mjs'
+import { inspectLayout, layoutViewport, wideLayoutViewport, minimumLayoutViewport } from './chat-layout-geometry.mjs'
 import { nativeKeySender } from './preflight-native-keys.mjs'
 
 const require = createRequire(new URL('../../frontend/package.json', import.meta.url))
@@ -110,11 +110,12 @@ describe('Built application native quick model selection M03', () => {
   it('opens pointer choices outside transcript clipping and preserves the draft across narrow resize', async () => {
     await fresh('claude', 'M03 pointer geometry')
     const wide = await wideLayoutViewport()
+    const short = await minimumLayoutViewport()
     try {
       const draft = 'Retained literal model layout draft'
       await $('[aria-label="Session chat"] textarea').setValue(draft)
       const samples = []
-      for (const [width, height] of [[1280, wide.height], [360, 645], [320, 645], [640, 488]]) {
+      for (const [width, height] of [[1280, wide.height], [360, 645], [320, 645], [640, short.height]]) {
         const actual = await layoutViewport(width, height)
         assert.deepEqual(actual, { width, height })
         const input = await $(quickInput)
@@ -185,6 +186,7 @@ describe('Built application native quick model selection M03', () => {
 
   it('keeps a wrapped 40-model catalog visible, navigable, and draft-safe at the short supported viewport', async () => {
     const wide = await wideLayoutViewport()
+    const short = await minimumLayoutViewport()
     const samples = []
     const keyboard = { method: 'DOM-key diagnostic; not OS delivery proof', imageInput: 'DOM file-input fixture; not OS dialog proof' }
     const persist = () => writeFileSync(join(outputRoot, 'long-catalog.json'), JSON.stringify({ keyboard, samples }, null, 2))
@@ -198,7 +200,7 @@ describe('Built application native quick model selection M03', () => {
       await $('[aria-label="Session chat"] textarea').setValue(draft)
       const held = await attachPickerDraftImage(sessionId)
       assert.equal(held.composer, draft)
-      for (const [width, height] of [[640, 488], [1280, wide.height], [360, 645], [320, 645]]) {
+      for (const [width, height] of [[640, short.height], [1280, wide.height], [360, 645], [320, 645]]) {
         assert.deepEqual(await layoutViewport(width, height), { width, height })
         await $(quickInput).scrollIntoView({ block: 'center', inline: 'nearest' })
         if (await $(quickInput).getAttribute('aria-expanded') === 'true') await $(`${quickSection} [aria-label="Open model choices"]`).click()
@@ -241,7 +243,7 @@ describe('Built application native quick model selection M03', () => {
       assert.equal((await quickOptions()).length, 1)
       await $(quickInput).setValue('synthetic-custom-catalog-id')
       samples.push({ stage: 'custom-query', state: await pickerState() }); persist()
-      assert.deepEqual(await layoutViewport(640, 488), { width: 640, height: 488 })
+      assert.deepEqual(await layoutViewport(640, short.height), { width: 640, height: short.height })
       const custom = await pickerState(); samples.push({ stage: 'custom-resize', state: custom }); persist()
       assert.equal(custom.query, 'synthetic-custom-catalog-id')
       assert.ok(custom.focused && custom.visibility === 'visible')
