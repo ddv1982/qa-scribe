@@ -32,7 +32,7 @@ export function createFindingPersistence(ctx: RecordPersistenceContext, coordina
         kind: finding.kind,
         metadataJson: finding.metadataJson,
       }, guard))
-      await coordination.confirmedWrite(saved, 'finding', guard)
+      await coordination.confirmedWrite({ record: saved, kind: 'finding', guard, generation: intentGeneration })
       const latestIntent = intents.get(finding.id)
       if (!latestIntent || latestIntent.generation !== intentGeneration) {
         const reconciled = await coordination.reconcileFindingIntent(finding.id)
@@ -43,7 +43,6 @@ export function createFindingPersistence(ctx: RecordPersistenceContext, coordina
         )
         return reconciled && cleaned ? 'superseded' : 'failed'
       }
-      intents.set(finding.id, { ...latestIntent, restore: saved, compensationPending: false })
       if (ctx.session.activeSessionIdRef.current === saved.sessionId) {
         ctx.records.savedFindingsRef.current = coordination.replaceRecord(ctx.records.savedFindingsRef.current, saved)
       }
@@ -100,21 +99,19 @@ export function createFindingPersistence(ctx: RecordPersistenceContext, coordina
     } finally { finishOperation() }
   }
 
-  async function canonicalizeGeneratedFinding(finding: Finding, storedBase: Finding): Promise<void> {
-    if (intents.get(finding.id)?.kind === 'delete') return
+  async function canonicalizeGeneratedFinding(finding: Finding, storedBase: Finding): Promise<RecordPersistResult> {
+    if (intents.get(finding.id)?.kind === 'delete') return 'superseded'
     const finishOperation = coordination.beginRecordOperation()
     const intentGeneration = coordination.reserveFindingIntent(finding.id, 'canonicalize', finding)
-    ctx.records.savedFindingsRef.current = coordination.replaceRecord(ctx.records.savedFindingsRef.current, storedBase)
     try {
+      ctx.records.savedFindingsRef.current = coordination.replaceRecord(ctx.records.savedFindingsRef.current, storedBase)
       const guard = await coordination.guardFor(finding, 'finding')
       const saved = await coordination.trackWrite(updateFinding(finding.id, coordination.findingPersistencePatch(finding), guard))
-      await coordination.confirmedWrite(saved, 'finding', guard)
+      await coordination.confirmedWrite({ record: saved, kind: 'finding', guard, generation: intentGeneration })
       const intent = intents.get(finding.id)
       if (!intent || intent.generation !== intentGeneration) {
-        await coordination.reconcileFindingIntent(finding.id)
-        return
+        return await coordination.reconcileFindingIntent(finding.id) ? 'superseded' : 'failed'
       }
-      intents.set(finding.id, { ...intent, restore: saved, compensationPending: false })
       if (ctx.session.activeSessionIdRef.current === saved.sessionId) {
         ctx.records.savedFindingsRef.current = coordination.replaceRecord(ctx.records.savedFindingsRef.current, saved)
       }
@@ -125,11 +122,13 @@ export function createFindingPersistence(ctx: RecordPersistenceContext, coordina
           return next
         })
       }
+      return 'saved'
     } catch (cause) {
       const intent = intents.get(finding.id)
-      if (intent?.generation !== intentGeneration) return
-      if (coordination.adoptConflict(cause)) return
+      if (intent?.generation !== intentGeneration) return 'superseded'
+      if (coordination.adoptConflict(cause)) return 'failed'
       coordination.markFindingCompensationPending(finding, cause)
+      return 'failed'
     } finally { finishOperation() }
   }
 

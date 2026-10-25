@@ -16,7 +16,7 @@ export async function openSaveGuardSubject(kind: RecordKind, withSecondRecord = 
   const second = kind === 'draft' ? draftFixture({ id: secondId, title: 'Y0', ...richBody('Body Y0') })
     : findingFixture({ id: secondId, title: 'Y0', ...richBody('Body Y0') })
   const storage = recordStorage(initial, kind, withSecondRecord ? [second] : [])
-  const storedRows = () => withSecondRecord ? [storage.read(), storage.read(second.id)] : [storage.read()]
+  const storedRows = () => (withSecondRecord ? [initial.id, second.id] : [initial.id]).filter(id => storage.has(id)).map(id => storage.read(id))
   const update = kind === 'draft' ? api.updateDraft : api.updateFinding
   update.mockImplementation(storage.write)
   api.listDrafts.mockImplementation((sessionId: string) => Promise.resolve(kind === 'draft' && sessionId === initial.sessionId ? storedRows() : []))

@@ -274,11 +274,13 @@ describe('useAppController Session integrity', () => {
       session: sessionTwo,
       noteEntry: entryFixture({ id: 'entry-2', sessionId: 'session-2' }),
     }))
-    await act(async () => { await result.current.openSession(sessionTwo) })
+    let openingRecords!: Promise<void>
+    act(() => { result.current.clearActiveSessionState(); openingRecords = result.current.openSession(sessionTwo) })
     await act(async () => {
       olderDraftWrite.resolve(draftFixture({ id: draft.id, body: '<p>Older Draft</p>' }))
       olderFindingWrite.resolve(findingFixture({ id: finding.id, body: '<p>Older Finding</p>' }))
       await Promise.all([olderDraftPromise, olderFindingPromise])
+      await openingRecords
     })
 
     expect(result.current.activeSession?.id).toBe('session-2')

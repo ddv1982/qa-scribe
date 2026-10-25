@@ -21,7 +21,11 @@ type RecordIntent<T> = {
   expected?: RecordWriteGuard
 }
 
-export function createRecordActionCoordination(ctx: RecordPersistenceContext) {
+type ConfirmedRecordWrite =
+  | { kind: 'draft'; record: Draft; guard: RecordWriteGuard; generation: number }
+  | { kind: 'finding'; record: Finding; guard: RecordWriteGuard; generation: number }
+
+export function createRecordActionCoordination(ctx: RecordPersistenceContext, hasForcedPass = () => false) {
   const draftIntents = new Map<string, RecordIntent<Draft>>()
   const findingIntents = new Map<string, RecordIntent<Finding>>()
   const proposalStages = new Map<string, EditorStage>()
@@ -236,7 +240,7 @@ export function createRecordActionCoordination(ctx: RecordPersistenceContext) {
   }
 
   function hasPendingRecordCompensations(): boolean {
-    return pendingWriteOperations.size > 0
+    return hasForcedPass() || pendingWriteOperations.size > 0
       || Array.from(draftIntents.values()).some((intent) => intent.compensationPending)
       || Array.from(findingIntents.values()).some((intent) => intent.compensationPending)
   }
@@ -296,7 +300,24 @@ export function createRecordActionCoordination(ctx: RecordPersistenceContext) {
     return latestWriteGuards.get(key) ?? guard
   }
 
-  async function confirmedWrite(record: Finding | Draft, kind: 'finding' | 'draft', guard: RecordWriteGuard) {
+  async function advanceConfirmedIntent<T extends Draft | Finding>(
+    intents: Map<string, RecordIntent<T>>, record: T, next: RecordWriteGuard,
+    guard: RecordWriteGuard, generation: number, table: 'drafts' | 'findings',
+  ) {
+    const intent = intents.get(record.id)
+    if (!intent || intent.kind === 'delete' || guard.sessionId !== record.sessionId) return
+    if (intent.generation === generation && (intent.kind === 'save' || intent.kind === 'canonicalize')) {
+      intents.set(record.id, { ...intent, restore: record, compensationPending: false,
+        expected: { ...next, origin: { kind: 'compensation', stageId: null, restoredBase: next.expectedStoredBase } } })
+      return
+    }
+    const restore = intent.restore
+    const restoredBase = restore ? await recordWriteGuard(restore, table) : next
+    intent.expected = { ...next, origin: { kind: 'compensation', stageId: guard.origin.kind === 'editor' ? null : guard.origin.stageId, restoredBase: restoredBase.expectedStoredBase } }
+  }
+
+  async function confirmedWrite(write: ConfirmedRecordWrite) {
+    const { record, kind, guard } = write
     const key = `${kind}:${record.id}`
     const association = proposalStages.get(key)
     const next = await recordWriteGuard(record, kind === 'finding' ? 'findings' : 'drafts')
@@ -307,12 +328,8 @@ export function createRecordActionCoordination(ctx: RecordPersistenceContext) {
     if (ownsAssociation && proposalStages.get(key) === association && latestWriteGuards.get(key) === next) {
       proposalStages.delete(key)
     }
-    const intent = kind === 'finding' ? findingIntents.get(record.id) : draftIntents.get(record.id)
-    if (intent) {
-      const restore = intent.restore
-      const restoredBase = restore ? await recordWriteGuard(restore, kind === 'finding' ? 'findings' : 'drafts') : next
-      intent.expected = { ...next, origin: { kind: 'compensation', stageId: guard.origin.kind === 'editor' ? null : guard.origin.stageId, restoredBase: restoredBase.expectedStoredBase } }
-    }
+    if (write.kind === 'finding') await advanceConfirmedIntent(findingIntents, write.record, next, guard, write.generation, 'findings')
+    else await advanceConfirmedIntent(draftIntents, write.record, next, guard, write.generation, 'drafts')
   }
 
   function bindStage(kind: 'finding' | 'draft', id: string, sessionId: string, stage: EditorStage) {

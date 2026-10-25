@@ -72,8 +72,11 @@ function subject(kind: Kind) {
   const reconcile = () => kind === 'finding' ? c.reconcileFindingIntent(a.id) : c.reconcileDraftIntent(a.id)
   const save = () => kind === 'finding' ? persistence.findings.persistFinding(ctx.records.findingsRef.current[0]) : persistence.drafts.persistDraft(ctx.records.draftsRef.current[0])
   const canonicalize = (row: Row) => 'aiRunId' in row ? persistence.drafts.canonicalizeGeneratedDraft(row, row) : persistence.findings.canonicalizeGeneratedFinding(row, row)
+  const confirm = (row: Row, guard: RecordWriteGuard, generation: number) => 'aiRunId' in row
+    ? c.confirmedWrite({ record: row, kind: 'draft', guard, generation })
+    : c.confirmedWrite({ record: row, kind: 'finding', guard, generation })
   const local = () => kind === 'finding' ? ctx.records.findingsRef.current[0] : ctx.records.draftsRef.current[0]
-  return { a, ctx, c, key, intents, command, table, dirty, cleanup, feedback, write, reconcile, reserve, install, installSaved, save, canonicalize, local,
+  return { a, ctx, c, key, intents, command, table, dirty, cleanup, feedback, write, reconcile, reserve, install, installSaved, save, canonicalize, confirm, local,
     read: () => stored, external: (row: Row) => { stored = row } }
 }
 
@@ -83,7 +86,7 @@ async function held(kind: Kind, boundary: 'ack' | 'hash' = 'ack') {
   s.reserve('save'); s.reserve('discard', s.a)
   const base = await s.c.guardFor(s.a, kind)
   await s.write(s.a.id, b, base)
-  await s.c.confirmedWrite(b, kind, base)
+  await s.confirm(b, base, 1)
   const lease = s.c.latestWriteGuards.get(s.key)!
   s.install({ ...s.a, title: 'C', body: '<p>C</p>' })
   const reached = deferred<void>(); const release = deferred<void>()
@@ -241,7 +244,7 @@ it.each(kinds)('%s rejects same-token ABA while a newer confirmation still inher
     if (hold) { reached.resolve(); await finishConfirmation.promise }
     return hash
   })
-  const confirming = s.c.confirmedWrite(s.b, kind, aGuard)
+  const confirming = s.confirm(s.b, aGuard, 1)
   await reached.promise
   const fresh = s.c.latestWriteGuards.get(s.key)!
   expect(fresh).not.toBe(s.lease)

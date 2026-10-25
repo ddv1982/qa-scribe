@@ -9,7 +9,7 @@ const tauriMock = getTauriMock()
 describe('useAppController lifecycle and memoization', () => {
   beforeEach(setupControllerTest)
   afterEach(cleanupControllerTest)
-  it('does not merge a generated draft canonicalization after switching sessions', async () => {
+  it('drains generated Draft canonicalization before switching and keeps the destination empty', async () => {
     const { result } = renderHook(() => useAppController())
 
     await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
@@ -60,16 +60,18 @@ describe('useAppController lifecycle and memoization', () => {
         noteEntry: entryFixture({ id: 'entry-2', sessionId: 'session-2' }),
       }),
     )
-    await act(async () => {
-      await result.current.openSession(otherSession)
-    })
-
-    act(() => {
-      resolveUpdateDraft(draftFixture({ id: 'draft-from-session-1', sessionId: 'session-1' }))
-    })
-    await act(async () => {
-      await Promise.resolve()
-    })
+    let opening!: Promise<void>
+    act(() => { opening = result.current.openSession(otherSession) })
+    try {
+      await act(async () => { await new Promise<void>(resolve => { setTimeout(resolve, 0) }) })
+      expect(result.current.activeSession?.id).toBe('session-1')
+      expect(tauriMock.openSessionNoteState).not.toHaveBeenCalledWith('session-2')
+    } finally {
+      await act(async () => {
+        resolveUpdateDraft(draftFixture({ id: 'draft-from-session-1', sessionId: 'session-1' }))
+        await opening
+      })
+    }
 
     expect(result.current.activeSession?.id).toBe('session-2')
     expect(result.current.testwareDrafts).toEqual([])

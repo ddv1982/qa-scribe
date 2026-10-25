@@ -16,7 +16,7 @@ const schedules = (['finding', 'test_cases_draft'] as const).flatMap(kind =>
  [true, false].flatMap(proposalActive =>
   (['ack', 'hash'] as const).map(boundary => ({ kind, proposalActive, boundary }))))
 
-it.each(schedules)('$kind navigation flush and ordinary Save preserve the next literal Save, proposal $proposalActive, restoration $boundary',async({kind,proposalActive,boundary})=>{
+async function completionSchedule({kind,proposalActive,boundary}: typeof schedules[number], forcedOwner = false) {
  const table=kind==='finding'?'findings':'drafts'
  const a=kind==='finding'?findingFixture({title:'A',...body('Body A')}):draftFixture({title:'A',...body('Body A')})
  let stored={...a}
@@ -26,6 +26,9 @@ it.each(schedules)('$kind navigation flush and ordinary Save preserve the next l
  const proposal:RefinementProposal={version:1,id:'proposal-S',userMessageId:'user-S',assistantMessageId:'assistant-S',target:{kind,snapshot:{sessionId:a.sessionId,recordId:a.id,title:a.title,documentJson:before.documentJson,metadataJson:a.metadataJson,recordKind:a.kind,origin:'saved',localFingerprint:'synthetic',storedBaseToken:base.expectedStoredBase}},patch:kind==='finding'?{kind,title:'B',bodyMarkdown:'Body B',metadata:null}:{kind,title:'B',bodyMarkdown:'Body B'},before,after,state:{kind:'offered'}}
  let chat:ChatState=chatFixture({draftId:'chat-session-1',proposals:[proposal]})
  let state='offered'
+ const publishHistory=()=>{
+  if(state==='saved'||state==='reverted')chat={...chat,proposals:[{...proposal,state:{kind:state,stage}}]}
+ }
  api.getChat.mockImplementation(async()=>chat)
  api.resolveRefinement.mockImplementation(async(request:RefinementRequest)=>{
   expect(request.action).toBe('stage');state='staged';chat={...chat,revision:chat.revision+1,proposals:[{...proposal,state:{kind:'staged',stage}}]};return chat
@@ -57,13 +60,14 @@ it.each(schedules)('$kind navigation flush and ordinary Save preserve the next l
    if(guard.origin.kind==='proposal')expect(['staged','saved']).toContain(state)
    else expect(['saved','reverted']).toContain(state)
   }
-  if(guard.origin.kind==='compensation'&&guard.origin.restoredBase===current.expectedStoredBase){check();state='reverted';request.outcome='replay';return {...stored}}
+  if(guard.origin.kind==='compensation'&&guard.origin.restoredBase===current.expectedStoredBase){check();if(staged)state='reverted';publishHistory();request.outcome='replay';return {...stored}}
   if(guard.expectedStoredBase!==current.expectedStoredBase){request.outcome='conflict';throw new RecordWriteConflict({...stored})}
   check()
   const next={...stored,title:patch.title??stored.title,body:patch.body??stored.body,bodyJson:patch.bodyJson===undefined?stored.bodyJson:patch.bodyJson,bodyFormat:patch.bodyFormat===undefined?stored.bodyFormat:patch.bodyFormat,metadataJson:patch.metadataJson===undefined?stored.metadataJson:patch.metadataJson}
   if(guard.origin.kind==='compensation')expect((await recordWriteGuard(next,table)).expectedStoredBase).toBe(guard.origin.restoredBase)
   stored=next
   if(staged)state=guard.origin.kind==='proposal'?'saved':'reverted'
+  publishHistory()
   request.outcome='committed'
   if(armB&&patch.title==='B'){armB=false;committedB.resolve();await ackB.promise}
   if(armA&&guard.origin.kind==='compensation'){
@@ -86,13 +90,42 @@ it.each(schedules)('$kind navigation flush and ordinary Save preserve the next l
  if(proposalActive)await act(async()=>result.current.sessionChat.proposalControls!.onAction(proposal.id,'stage'))
  else act(()=>edit('B'))
  expect(row().title).toBe('B')
- armB=true;armA=true
+ armB=true;armA=!forcedOwner
+ if(forcedOwner){
+  let owner!:Promise<boolean>,joined!:Promise<boolean>
+  let joinedSettled=false
+  act(()=>{owner=result.current.saveDirtyRecordsNow()})
+  await act(async()=>{await committedB.promise})
+  expect(state).toBe('saved');expect(stored.title).toBe('B')
+  act(()=>edit('C'))
+  act(()=>{joined=save().then(value=>{joinedSettled=true;return value})})
+  try{
+   await act(async()=>{await new Promise<void>(resolve=>{setTimeout(resolve,0)})})
+   expect(joinedSettled).toBe(false);expect(requests).toHaveLength(2)
+  }finally{await act(async()=>{ackB.resolve();expect(await Promise.all([owner,joined])).toEqual([true,true])})}
+  expect(stored.title).toBe('C');expect(stored.body).toBe('<p>Body C</p>')
+  expect(row().metadataJson).toBe(a.metadataJson)
+  expect(state).toBe('saved');expect(chat.proposals?.[0].state.kind).toBe('saved')
+  expect(requests.some(request=>request.guard.origin.kind==='compensation')).toBe(false)
+  act(()=>edit('D'));await act(async()=>expect(await save()).toBe(true))
+  command.mockRejectedValueOnce(new Error('Benign ordinary save failure'))
+  act(()=>edit('E'));await act(async()=>expect(await save()).toBe(false))
+  expect(stored.title).toBe('D');expect(row().title).toBe('E')
+  expect(requests.at(-1)?.guard.origin).toMatchObject({kind:'compensation',stageId:null})
+  expect(state).toBe('saved');expect(chat.proposals?.[0].state.kind).toBe('saved')
+  expect(result.current.error).toBe('Something went wrong: Benign ordinary save failure')
+  expect(result.current.hasPendingRecordCompensations()).toBe(false)
+  act(()=>edit('F'));await act(async()=>expect(await save()).toBe(true))
+  expect(stored.title).toBe('F');expect(stored.body).toBe('<p>Body F</p>')
+  expect(state).toBe('saved');expect(result.current.hasPendingSessionEdits()).toBe(false)
+  return
+ }
  act(()=>result.current.setActiveView('settings'))
  expect(result.current.pendingNavigationView).toBe('settings')
- let navigation!:Promise<void>
- act(()=>{navigation=result.current.savePendingNavigationChanges()})
+ let pendingSave!:Promise<boolean>
+ act(()=>{pendingSave=save()})
  await act(async()=>{await committedB.promise})
- expect(stored.title).toBe('B');expect(state).toBe(proposalActive?'saved':'offered');expect(result.current.isBusy).toBe(false)
+ expect(stored.title).toBe('B');expect(state).toBe(proposalActive?'saved':'offered');expect(result.current.isBusy).toBe(true)
  act(()=>{result.current.cancelPendingNavigation();edit('C')})
  expect(result.current.pendingNavigationView).toBeNull()
  await act(async()=>expect(await save()).toBe(false))
@@ -103,7 +136,7 @@ it.each(schedules)('$kind navigation flush and ordinary Save preserve the next l
  act(()=>edit('D'))
  await act(async()=>expect(await save()).toBe(false))
  expect(stored.title).toBe('A')
- await act(async()=>{ackA.resolve();await navigation})
+ await act(async()=>{ackA.resolve();await pendingSave})
  let future=false
  await act(async()=>{future=await save()})
  expect(future).toBe(true)
@@ -116,4 +149,12 @@ it.each(schedules)('$kind navigation flush and ordinary Save preserve the next l
  expect(row().metadataJson).toBe(a.metadataJson)
  expect(requests.find(request => request.patch.title === 'D' && request.outcome === 'committed')?.guard).toEqual(base)
  expect(state).toBe(proposalActive?'reverted':'offered')
+}
+
+it.each(schedules)('$kind ordinary-first Save preserves the next literal Save, proposal $proposalActive, restoration $boundary',async schedule=>{
+ await completionSchedule(schedule)
+})
+
+it.each(['finding','test_cases_draft'] as const)('%s forced proposal B and joined C remain Saved through later ordinary recovery',async kind=>{
+ await completionSchedule({kind,proposalActive:true,boundary:'ack'},true)
 })

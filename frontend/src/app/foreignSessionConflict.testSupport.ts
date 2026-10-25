@@ -84,14 +84,25 @@ export async function openConflictSubject(kind: RecordKind) {
   await waitFor(() => expect(hook.result.current.activeSession?.id).toBe('session-1'))
   act(() => hook.result.current.setActiveView(kind === 'draft' ? 'testware' : 'findings'))
   await waitFor(() => expect(currentRecord(hook.result.current, kind)).toEqual(initial))
-  async function openSessionTwo() {
+  async function openSessionTwo(settlePrevious?: () => Promise<void>) {
     vi.useRealTimers()
     const sessionTwo = sessionFixture({ id: 'session-2', title: 'Session Two' })
     api.openSessionNoteState.mockImplementationOnce((sessionId: string) => {
       expect(sessionId).toBe('session-2')
       return Promise.resolve(sessionNoteStateFixture({ session: sessionTwo, noteEntry: entryFixture({ id: 'entry-2', sessionId: 'session-2' }), testwareDraftCount: 1, findingCount: 1 }))
     })
-    await act(async () => { await hook.result.current.openSession(sessionTwo) })
+    let opening!: Promise<void>
+    act(() => {
+      if (settlePrevious) hook.result.current.clearActiveSessionState()
+      opening = hook.result.current.openSession(sessionTwo)
+    })
+    if (settlePrevious) {
+      await act(async () => { await new Promise<void>(resolve => { setTimeout(resolve, 0) }) })
+      expect(hook.result.current.activeSession).toBeNull()
+      expect(api.openSessionNoteState).not.toHaveBeenCalledWith('session-2')
+      await settlePrevious()
+    }
+    await act(async () => { await opening })
     expect(hook.result.current.activeSession?.id).toBe('session-2')
     await act(async () => {
       await hook.result.current.loadDraftsForSession('session-2')

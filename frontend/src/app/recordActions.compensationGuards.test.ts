@@ -76,7 +76,7 @@ async function heldSave(kind: Kind) {
   })
   act(() => edit(subject.result.current, kind, 'Committed B', 'Body B'))
   let pending!: Promise<boolean>
-  act(() => { pending = subject.result.current.saveDirtyRecordsNow() })
+  act(() => { pending = saveCurrent(subject.result.current, kind) })
   await act(async () => { await committed.promise })
   expect(subject.storage.read().title).toBe('Committed B')
   expect(subject.storage.read().body).toBe('<p>Body B</p>')

@@ -69,5 +69,7 @@ export function recordStorage(initial: RecordValue, kind: RecordKind, additional
   function write(id: string, patch: RecordPatch, guard: RecordWriteGuard): Promise<RecordValue> {
     return Promise.resolve().then(() => transact(id, patch, guard))
   }
-  return { requests, write, read, external: (record: RecordValue) => { records.set(record.id, record) } }
+  return { requests, write, read, has: (id: string) => records.has(id), remove: (id: string) => records.delete(id),
+    removeSession: (sessionId: string) => { for (const [id, row] of records) if (row.sessionId === sessionId) records.delete(id) },
+    external: (record: RecordValue) => { records.set(record.id, record) } }
 }
