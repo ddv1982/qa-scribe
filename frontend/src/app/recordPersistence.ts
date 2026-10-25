@@ -65,12 +65,22 @@ export function createRecordPersistence(ctx: RecordPersistenceContext) {
     })
   }
 
-  function canonicalize(record: Draft | Finding, kind: 'draft' | 'finding', runRaw: () => Promise<RecordPersistResult>): Promise<void> {
+  function canonicalize(record: Draft | Finding, storedBase: Draft | Finding, kind: 'draft' | 'finding', runRaw: () => Promise<RecordPersistResult>): Promise<void> {
     const owner = activePass
     if (!owner) return runRaw().then(() => undefined)
     const key = `${kind}:${record.id}`
     const intentFor = () => kind === 'draft' ? coordination.draftIntents.get(record.id) : coordination.findingIntents.get(record.id)
     const savedFor = () => (kind === 'draft' ? ctx.records.savedDraftsRef.current : ctx.records.savedFindingsRef.current).find(row => row.id === record.id)
+    if (record.sessionId === owner.sessionId && ctx.session.activeSessionIdRef.current === owner.sessionId
+      && storedBase.id === record.id && storedBase.sessionId === record.sessionId
+      && !savedFor() && intentFor()?.kind !== 'delete'
+      && !coordination.latestWriteGuards.has(key) && !coordination.proposalStages.has(key)) {
+      if (kind === 'draft' && 'aiRunId' in storedBase) {
+        ctx.records.savedDraftsRef.current = coordination.replaceRecord(ctx.records.savedDraftsRef.current, storedBase)
+      } else if (kind === 'finding' && !('aiRunId' in storedBase)) {
+        ctx.records.savedFindingsRef.current = coordination.replaceRecord(ctx.records.savedFindingsRef.current, storedBase)
+      }
+    }
     const intent = intentFor()
     const saved = savedFor()
     const pin = coordination.latestWriteGuards.get(key)
@@ -178,8 +188,8 @@ export function createRecordPersistence(ctx: RecordPersistenceContext) {
 
   return {
     coordination, saveDirtyRecordsNow,
-    drafts: { persistDraft, canonicalizeGeneratedDraft: (record: Draft, storedBase: Draft) => canonicalize(record, 'draft', () => draftActions.canonicalizeGeneratedDraft(record, storedBase)) },
-    findings: { persistFinding, canonicalizeGeneratedFinding: (record: Finding, storedBase: Finding) => canonicalize(record, 'finding', () => findingActions.canonicalizeGeneratedFinding(record, storedBase)) },
+    drafts: { persistDraft, canonicalizeGeneratedDraft: (record: Draft, storedBase: Draft) => canonicalize(record, storedBase, 'draft', () => draftActions.canonicalizeGeneratedDraft(record, storedBase)) },
+    findings: { persistFinding, canonicalizeGeneratedFinding: (record: Finding, storedBase: Finding) => canonicalize(record, storedBase, 'finding', () => findingActions.canonicalizeGeneratedFinding(record, storedBase)) },
     retryPendingRecordCompensations: (sessionId: string) => retryWhenAdmitted(() => coordination.retryPendingRecordCompensations(sessionId)),
     retryAllPendingRecordCompensations: () => retryWhenAdmitted(coordination.retryAllPendingRecordCompensations),
   }
