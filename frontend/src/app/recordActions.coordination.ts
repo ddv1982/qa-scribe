@@ -263,17 +263,25 @@ export function createRecordActionCoordination(ctx: RecordPersistenceContext) {
   function adoptConflict(cause: unknown): boolean {
     if (!(cause instanceof RecordWriteConflict)) return false
     const record = cause.current
-    if ('aiRunId' in record) {
-      const current = record
-      ctx.records.savedDraftsRef.current = replaceRecord(ctx.records.savedDraftsRef.current, current)
+    const isDraft = 'aiRunId' in record
+    const kind = isDraft ? 'draft' : 'finding'
+    const records = isDraft ? ctx.records.draftsRef.current : ctx.records.findingsRef.current
+    const isActiveSession = ctx.session.activeSessionIdRef.current === record.sessionId
+    if (!isActiveSession || !records.some(item => item.id === record.id && item.sessionId === record.sessionId)) {
+      ctx.feedback.setError(isActiveSession
+        ? 'A Save for a record not open in this workspace reported a conflict. Reopen its Session to review the latest saved record.'
+        : 'A Save from another Session reported a conflict. Reopen its Session to review the latest saved record.')
+      return true
+    }
+    if (isDraft) {
+      ctx.records.savedDraftsRef.current = replaceRecord(ctx.records.savedDraftsRef.current, record)
       ctx.records.dirtyDraftIdsRef.current.add(record.id)
     } else {
-      const current = record
-      ctx.records.savedFindingsRef.current = replaceRecord(ctx.records.savedFindingsRef.current, current)
+      ctx.records.savedFindingsRef.current = replaceRecord(ctx.records.savedFindingsRef.current, record)
       ctx.records.dirtyFindingIdsRef.current.add(record.id)
     }
     ctx.feedback.setError(cause.message)
-    events.onChanged(record.kind === 'testware' || record.kind === 'session_report' ? 'draft' : 'finding', record.id, 'conflict')
+    events.onChanged(kind, record.id, 'conflict')
     return true
   }
 
