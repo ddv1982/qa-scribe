@@ -1,4 +1,4 @@
 mod session_rows;
 pub(crate) mod session_service;
 
-pub use session_service::SessionService;
+pub use session_service::{SessionService, readable_chat_message};

@@ -46,13 +46,14 @@ export function createSessionSaveActions(ctx: SessionActionsContext, writes: Ses
   }
 
   async function flushPendingSessionEdits(): Promise<boolean> {
+    const sessionId = ctx.session.activeSessionIdRef.current
     ctx.session.suppressAmbientNoteSaveRef.current = true
     try {
       do {
         const flushedNote = await saveNoteNow({ manageBusy: false })
-        if (!flushedNote) return false
+        if (!flushedNote || ctx.session.activeSessionIdRef.current !== sessionId) return false
         const flushedRecords = await ctx.saveDirtyRecordsNow()
-        if (!flushedRecords) return false
+        if (!flushedRecords || ctx.session.activeSessionIdRef.current !== sessionId) return false
       } while (hasPendingSessionEdits())
       return true
     } finally {

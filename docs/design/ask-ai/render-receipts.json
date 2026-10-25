@@ -1,0 +1,29 @@
+[
+  {
+    "name": "01-draft-followup",
+    "receipt": [
+      {
+        "type": "text",
+        "text": "{\"width\":1440,\"contentHeight\":992,\"capturedHeight\":992,\"consoleMessages\":[{\"level\":\"log\",\"text\":\"{\\\"phase\\\":\\\"route\\\",\\\"correctTypeLabel\\\":true,\\\"currentType\\\":null,\\\"oldLabelVisible\\\":false}\"}],\"screenshot\":{\"mimeType\":\"image/png\",\"width\":1440,\"height\":992}}"
+      }
+    ]
+  },
+  {
+    "name": "03-subtask-type",
+    "receipt": [
+      {
+        "type": "text",
+        "text": "{\"width\":1440,\"contentHeight\":992,\"capturedHeight\":992,\"consoleMessages\":[{\"level\":\"log\",\"text\":\"{\\\"phase\\\":\\\"subtype\\\",\\\"correctTypeLabel\\\":true,\\\"currentType\\\":null,\\\"oldLabelVisible\\\":false}\"}],\"screenshot\":{\"mimeType\":\"image/png\",\"width\":1440,\"height\":992}}"
+      }
+    ]
+  },
+  {
+    "name": "05-review",
+    "receipt": [
+      {
+        "type": "text",
+        "text": "{\"width\":1440,\"contentHeight\":992,\"capturedHeight\":992,\"consoleMessages\":[{\"level\":\"log\",\"text\":\"{\\\"phase\\\":\\\"review\\\",\\\"correctTypeLabel\\\":true,\\\"currentType\\\":\\\"Finding subtask\\\",\\\"oldLabelVisible\\\":false}\"}],\"screenshot\":{\"mimeType\":\"image/png\",\"width\":1440,\"height\":992}}"
+      }
+    ]
+  }
+]

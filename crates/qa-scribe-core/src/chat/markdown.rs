@@ -4,7 +4,7 @@ use pulldown_cmark::{Event, HeadingLevel, Options, Parser, Tag};
 use serde_json::{Value, json};
 
 mod html;
-pub(super) use html::to_html;
+pub(crate) use html::to_html;
 
 struct Frame<'a> {
     tag: Option<Tag<'a>>,
@@ -12,11 +12,11 @@ struct Frame<'a> {
     checked: Option<bool>,
 }
 
-pub(super) fn literal(text: &str) -> Vec<Value> {
+pub(crate) fn literal(text: &str) -> Vec<Value> {
     vec![node("paragraph", text_nodes(text))]
 }
 
-pub(super) fn parse(text: &str) -> Vec<Value> {
+pub(crate) fn parse(text: &str) -> Vec<Value> {
     let options =
         Options::ENABLE_TABLES | Options::ENABLE_TASKLISTS | Options::ENABLE_STRIKETHROUGH;
     let mut stack = vec![Frame {
@@ -224,4 +224,19 @@ fn lists(items: Vec<Value>, start: Option<u64>) -> Vec<Value> {
             .push(item);
     }
     result
+}
+
+pub(super) fn escape(text: &str) -> String {
+    let mut escaped = String::new();
+    for character in text.chars() {
+        match character {
+            '&' => escaped.push_str("&amp;"),
+            '<' => escaped.push_str("&lt;"),
+            '>' => escaped.push_str("&gt;"),
+            '"' => escaped.push_str("&quot;"),
+            '\'' => escaped.push_str("&#39;"),
+            _ => escaped.push(character),
+        }
+    }
+    escaped
 }

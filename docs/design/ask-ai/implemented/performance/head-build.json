@@ -1,0 +1,9 @@
+{
+  "sourceSha": "20bbeaf38b3b1a3d53258b157ce8a2cfb5f9a068",
+  "binary": "/private/tmp/qa-scribe-perf-head-a99ac02/target-perf-head/release/qa-scribe-tauri",
+  "sha256": "c7c5882101f0b10a2d06fdfd12752f81a2ae86467cc5c7ff7e2a9c96af083f4f",
+  "mode": "release-production-e2e",
+  "node": "v24.22.1",
+  "log": "/tmp/ask-ai-optimized-head-build.log",
+  "nativeRun": false
+}

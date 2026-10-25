@@ -1,0 +1,41 @@
+{
+  "completedAt": "2026-10-24T23:08:50.912Z",
+  "durationMs": 14201,
+  "platform": "darwin",
+  "architecture": "arm64",
+  "runnerClass": "darwin-arm64",
+  "runId": null,
+  "runAttempt": 1,
+  "status": "passed",
+  "exitCode": 0,
+  "signal": null,
+  "plannedInvocations": [
+    "native-ui-performance.benchmark.mjs"
+  ],
+  "invocations": [
+    {
+      "id": "native-ui-performance.benchmark.mjs",
+      "status": 0,
+      "signal": null
+    }
+  ],
+  "commands": [
+    {
+      "stage": "native-ui-performance.benchmark.mjs",
+      "command": [
+        "/Users/vriesd/.t3/worktrees/qa-scribe/t3-8f61e361/frontend/node_modules/.bin/wdio",
+        "run",
+        "/Users/vriesd/.t3/worktrees/qa-scribe/t3-8f61e361/e2e/wdio.conf.mjs"
+      ],
+      "status": "passed",
+      "exitCode": 0,
+      "signal": null,
+      "spawnError": null,
+      "timeoutMs": 180000,
+      "timedOut": false,
+      "elapsedMs": 14198
+    }
+  ],
+  "firstFailure": null,
+  "isolatedDataRemoved": false
+}

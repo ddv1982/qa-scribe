@@ -1,0 +1,4291 @@
+{
+  "schema": "qa-scribe-native-ui-perf-v1",
+  "side": "baseline",
+  "revision": "1c34f3e229ccf471241f7dfc7248b4d73c2ce6d9",
+  "binarySha256": "c068f8b316e4c4a7551e32fdaa44fff03c502d26165220a0fb87e6040493db78",
+  "buildMode": "release-production-e2e",
+  "fixture": {
+    "findingId": "perf-finding",
+    "foreignKeyViolations": 0,
+    "imageBytesEach": 77,
+    "imageSha256": "f6b373ee62d8abe053e1decceb83b38627e0ce3df932ce72729f10a2e6e8fc58",
+    "images": 4,
+    "messages": 100,
+    "recordHtmlBytes": 89982,
+    "recordJsonBytes": 98110,
+    "schema": "qa-scribe-ui-perf-fixture-v1",
+    "sessionId": "perf-session"
+  },
+  "clock": "WebView performance.now and requestAnimationFrame timestamps",
+  "scope": "DOM event capture to second ready animation frame. Paint opportunity, not physical display paint. No WDIO round trip or provider request is timed.",
+  "notesOpenScope": "Visible opening/reveal latency. First means first measured click, not cold parsing. C1 may retain hydrated chat DOM while hidden. No Session-startup or total-work-reduction inference; the production startup gate is separate.",
+  "machine": {
+    "platform": "darwin",
+    "architecture": "arm64",
+    "release": "27.0.0",
+    "logicalCpus": 10,
+    "loadAverage": [
+      3.44287109375,
+      2.98486328125,
+      2.896484375
+    ],
+    "loadAverageAfter": [
+      3.36865234375,
+      2.98583984375,
+      2.89794921875
+    ]
+  },
+  "completed": true,
+  "requestedScopeComplete": true,
+  "failures": 0,
+  "samples": [
+    {
+      "action": "notes-open",
+      "elapsedMs": 519,
+      "eventAtMs": 1844,
+      "eventType": "click",
+      "kind": "first-measured-interaction",
+      "ordinal": 1,
+      "paintOpportunityAtMs": 2363,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 2354,
+      "trustedEvent": false
+    },
+    {
+      "action": "notes-open",
+      "elapsedMs": 37,
+      "eventAtMs": 2415,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 2,
+      "paintOpportunityAtMs": 2452,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 2445,
+      "trustedEvent": false
+    },
+    {
+      "action": "notes-open",
+      "elapsedMs": 36,
+      "eventAtMs": 2578,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 3,
+      "paintOpportunityAtMs": 2614,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 2607,
+      "trustedEvent": false
+    },
+    {
+      "action": "notes-open",
+      "elapsedMs": 35,
+      "eventAtMs": 2739,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 4,
+      "paintOpportunityAtMs": 2774,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 2768,
+      "trustedEvent": false
+    },
+    {
+      "action": "notes-open",
+      "elapsedMs": 35,
+      "eventAtMs": 2898,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 5,
+      "paintOpportunityAtMs": 2933,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 2927,
+      "trustedEvent": false
+    },
+    {
+      "action": "notes-open",
+      "elapsedMs": 34,
+      "eventAtMs": 3062,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 6,
+      "paintOpportunityAtMs": 3096,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 3090,
+      "trustedEvent": false
+    },
+    {
+      "action": "notes-open",
+      "elapsedMs": 33,
+      "eventAtMs": 3217,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 7,
+      "paintOpportunityAtMs": 3250,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 3243,
+      "trustedEvent": false
+    },
+    {
+      "action": "notes-open",
+      "elapsedMs": 34,
+      "eventAtMs": 3371,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 8,
+      "paintOpportunityAtMs": 3405,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 3399,
+      "trustedEvent": false
+    },
+    {
+      "action": "notes-open",
+      "elapsedMs": 33,
+      "eventAtMs": 3524,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 9,
+      "paintOpportunityAtMs": 3557,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 3551,
+      "trustedEvent": false
+    },
+    {
+      "action": "notes-open",
+      "elapsedMs": 33,
+      "eventAtMs": 3678,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 10,
+      "paintOpportunityAtMs": 3711,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 3705,
+      "trustedEvent": false
+    },
+    {
+      "action": "notes-open",
+      "elapsedMs": 33,
+      "eventAtMs": 3829,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 11,
+      "paintOpportunityAtMs": 3862,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 3856,
+      "trustedEvent": false
+    },
+    {
+      "action": "notes-open",
+      "elapsedMs": 33,
+      "eventAtMs": 3981,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 12,
+      "paintOpportunityAtMs": 4014,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 4009,
+      "trustedEvent": false
+    },
+    {
+      "action": "notes-open",
+      "elapsedMs": 33,
+      "eventAtMs": 4133,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 13,
+      "paintOpportunityAtMs": 4166,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 4160,
+      "trustedEvent": false
+    },
+    {
+      "action": "notes-open",
+      "elapsedMs": 34,
+      "eventAtMs": 4284,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 14,
+      "paintOpportunityAtMs": 4318,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 4312,
+      "trustedEvent": false
+    },
+    {
+      "action": "notes-open",
+      "elapsedMs": 34,
+      "eventAtMs": 4438,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 15,
+      "paintOpportunityAtMs": 4472,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 4466,
+      "trustedEvent": false
+    },
+    {
+      "action": "notes-open",
+      "elapsedMs": 33,
+      "eventAtMs": 4588,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 16,
+      "paintOpportunityAtMs": 4621,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 4615,
+      "trustedEvent": false
+    },
+    {
+      "action": "notes-open",
+      "elapsedMs": 34,
+      "eventAtMs": 4738,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 17,
+      "paintOpportunityAtMs": 4772,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 4766,
+      "trustedEvent": false
+    },
+    {
+      "action": "notes-open",
+      "elapsedMs": 33,
+      "eventAtMs": 4890,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 18,
+      "paintOpportunityAtMs": 4923,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 4917,
+      "trustedEvent": false
+    },
+    {
+      "action": "notes-open",
+      "elapsedMs": 34,
+      "eventAtMs": 5038,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 19,
+      "paintOpportunityAtMs": 5072,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 5065,
+      "trustedEvent": false
+    },
+    {
+      "action": "notes-open",
+      "elapsedMs": 34,
+      "eventAtMs": 5189,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 20,
+      "paintOpportunityAtMs": 5223,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 5216,
+      "trustedEvent": false
+    },
+    {
+      "action": "manual-edit",
+      "elapsedMs": 34,
+      "eventAtMs": 6762,
+      "eventType": "input",
+      "kind": "first-measured-interaction",
+      "ordinal": 1,
+      "paintOpportunityAtMs": 6796,
+      "proof": {
+        "marker": " PERF_EDIT_00"
+      },
+      "readyFrameAtMs": 6790,
+      "trustedEvent": true
+    },
+    {
+      "action": "record-save",
+      "elapsedMs": 76,
+      "eventAtMs": 6890,
+      "eventType": "click",
+      "kind": "first-measured-interaction",
+      "ordinal": 1,
+      "paintOpportunityAtMs": 6966,
+      "proof": {
+        "images": 4,
+        "marker": " PERF_EDIT_00"
+      },
+      "readyFrameAtMs": 6959,
+      "trustedEvent": false
+    },
+    {
+      "action": "manual-edit",
+      "elapsedMs": 31,
+      "eventAtMs": 7081,
+      "eventType": "input",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 2,
+      "paintOpportunityAtMs": 7112,
+      "proof": {
+        "marker": " PERF_EDIT_01"
+      },
+      "readyFrameAtMs": 7105,
+      "trustedEvent": true
+    },
+    {
+      "action": "record-save",
+      "elapsedMs": 86,
+      "eventAtMs": 7202,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 2,
+      "paintOpportunityAtMs": 7288,
+      "proof": {
+        "images": 4,
+        "marker": " PERF_EDIT_01"
+      },
+      "readyFrameAtMs": 7282,
+      "trustedEvent": false
+    },
+    {
+      "action": "manual-edit",
+      "elapsedMs": 30,
+      "eventAtMs": 7405,
+      "eventType": "input",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 3,
+      "paintOpportunityAtMs": 7435,
+      "proof": {
+        "marker": " PERF_EDIT_02"
+      },
+      "readyFrameAtMs": 7428,
+      "trustedEvent": true
+    },
+    {
+      "action": "record-save",
+      "elapsedMs": 61,
+      "eventAtMs": 7526,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 3,
+      "paintOpportunityAtMs": 7587,
+      "proof": {
+        "images": 4,
+        "marker": " PERF_EDIT_02"
+      },
+      "readyFrameAtMs": 7583,
+      "trustedEvent": false
+    },
+    {
+      "action": "manual-edit",
+      "elapsedMs": 29,
+      "eventAtMs": 7707,
+      "eventType": "input",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 4,
+      "paintOpportunityAtMs": 7736,
+      "proof": {
+        "marker": " PERF_EDIT_03"
+      },
+      "readyFrameAtMs": 7729,
+      "trustedEvent": true
+    },
+    {
+      "action": "record-save",
+      "elapsedMs": 59,
+      "eventAtMs": 7828,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 4,
+      "paintOpportunityAtMs": 7887,
+      "proof": {
+        "images": 4,
+        "marker": " PERF_EDIT_03"
+      },
+      "readyFrameAtMs": 7885,
+      "trustedEvent": false
+    },
+    {
+      "action": "manual-edit",
+      "elapsedMs": 30,
+      "eventAtMs": 8009,
+      "eventType": "input",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 5,
+      "paintOpportunityAtMs": 8039,
+      "proof": {
+        "marker": " PERF_EDIT_04"
+      },
+      "readyFrameAtMs": 8033,
+      "trustedEvent": true
+    },
+    {
+      "action": "record-save",
+      "elapsedMs": 93,
+      "eventAtMs": 8129,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 5,
+      "paintOpportunityAtMs": 8222,
+      "proof": {
+        "images": 4,
+        "marker": " PERF_EDIT_04"
+      },
+      "readyFrameAtMs": 8213,
+      "trustedEvent": false
+    },
+    {
+      "action": "manual-edit",
+      "elapsedMs": 28,
+      "eventAtMs": 8311,
+      "eventType": "input",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 6,
+      "paintOpportunityAtMs": 8339,
+      "proof": {
+        "marker": " PERF_EDIT_05"
+      },
+      "readyFrameAtMs": 8333,
+      "trustedEvent": true
+    },
+    {
+      "action": "record-save",
+      "elapsedMs": 64,
+      "eventAtMs": 8432,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 6,
+      "paintOpportunityAtMs": 8496,
+      "proof": {
+        "images": 4,
+        "marker": " PERF_EDIT_05"
+      },
+      "readyFrameAtMs": 8492,
+      "trustedEvent": false
+    },
+    {
+      "action": "manual-edit",
+      "elapsedMs": 28,
+      "eventAtMs": 8633,
+      "eventType": "input",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 7,
+      "paintOpportunityAtMs": 8661,
+      "proof": {
+        "marker": " PERF_EDIT_06"
+      },
+      "readyFrameAtMs": 8655,
+      "trustedEvent": true
+    },
+    {
+      "action": "record-save",
+      "elapsedMs": 62,
+      "eventAtMs": 8755,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 7,
+      "paintOpportunityAtMs": 8817,
+      "proof": {
+        "images": 4,
+        "marker": " PERF_EDIT_06"
+      },
+      "readyFrameAtMs": 8813,
+      "trustedEvent": false
+    },
+    {
+      "action": "manual-edit",
+      "elapsedMs": 28,
+      "eventAtMs": 8945,
+      "eventType": "input",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 8,
+      "paintOpportunityAtMs": 8973,
+      "proof": {
+        "marker": " PERF_EDIT_07"
+      },
+      "readyFrameAtMs": 8966,
+      "trustedEvent": true
+    },
+    {
+      "action": "record-save",
+      "elapsedMs": 66,
+      "eventAtMs": 9071,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 8,
+      "paintOpportunityAtMs": 9137,
+      "proof": {
+        "images": 4,
+        "marker": " PERF_EDIT_07"
+      },
+      "readyFrameAtMs": 9133,
+      "trustedEvent": false
+    },
+    {
+      "action": "manual-edit",
+      "elapsedMs": 29,
+      "eventAtMs": 9270,
+      "eventType": "input",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 9,
+      "paintOpportunityAtMs": 9299,
+      "proof": {
+        "marker": " PERF_EDIT_08"
+      },
+      "readyFrameAtMs": 9293,
+      "trustedEvent": true
+    },
+    {
+      "action": "record-save",
+      "elapsedMs": 66,
+      "eventAtMs": 9392,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 9,
+      "paintOpportunityAtMs": 9458,
+      "proof": {
+        "images": 4,
+        "marker": " PERF_EDIT_08"
+      },
+      "readyFrameAtMs": 9452,
+      "trustedEvent": false
+    },
+    {
+      "action": "manual-edit",
+      "elapsedMs": 28,
+      "eventAtMs": 9581,
+      "eventType": "input",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 10,
+      "paintOpportunityAtMs": 9609,
+      "proof": {
+        "marker": " PERF_EDIT_09"
+      },
+      "readyFrameAtMs": 9603,
+      "trustedEvent": true
+    },
+    {
+      "action": "record-save",
+      "elapsedMs": 68,
+      "eventAtMs": 9700,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 10,
+      "paintOpportunityAtMs": 9768,
+      "proof": {
+        "images": 4,
+        "marker": " PERF_EDIT_09"
+      },
+      "readyFrameAtMs": 9758,
+      "trustedEvent": false
+    },
+    {
+      "action": "manual-edit",
+      "elapsedMs": 32,
+      "eventAtMs": 9907,
+      "eventType": "input",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 11,
+      "paintOpportunityAtMs": 9939,
+      "proof": {
+        "marker": " PERF_EDIT_10"
+      },
+      "readyFrameAtMs": 9933,
+      "trustedEvent": true
+    },
+    {
+      "action": "record-save",
+      "elapsedMs": 64,
+      "eventAtMs": 10034,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 11,
+      "paintOpportunityAtMs": 10098,
+      "proof": {
+        "images": 4,
+        "marker": " PERF_EDIT_10"
+      },
+      "readyFrameAtMs": 10093,
+      "trustedEvent": false
+    },
+    {
+      "action": "manual-edit",
+      "elapsedMs": 28,
+      "eventAtMs": 10249,
+      "eventType": "input",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 12,
+      "paintOpportunityAtMs": 10277,
+      "proof": {
+        "marker": " PERF_EDIT_11"
+      },
+      "readyFrameAtMs": 10272,
+      "trustedEvent": true
+    },
+    {
+      "action": "record-save",
+      "elapsedMs": 68,
+      "eventAtMs": 10370,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 12,
+      "paintOpportunityAtMs": 10438,
+      "proof": {
+        "images": 4,
+        "marker": " PERF_EDIT_11"
+      },
+      "readyFrameAtMs": 10430,
+      "trustedEvent": false
+    },
+    {
+      "action": "manual-edit",
+      "elapsedMs": 29,
+      "eventAtMs": 10564,
+      "eventType": "input",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 13,
+      "paintOpportunityAtMs": 10593,
+      "proof": {
+        "marker": " PERF_EDIT_12"
+      },
+      "readyFrameAtMs": 10587,
+      "trustedEvent": true
+    },
+    {
+      "action": "record-save",
+      "elapsedMs": 62,
+      "eventAtMs": 10686,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 13,
+      "paintOpportunityAtMs": 10748,
+      "proof": {
+        "images": 4,
+        "marker": " PERF_EDIT_12"
+      },
+      "readyFrameAtMs": 10744,
+      "trustedEvent": false
+    },
+    {
+      "action": "manual-edit",
+      "elapsedMs": 28,
+      "eventAtMs": 10877,
+      "eventType": "input",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 14,
+      "paintOpportunityAtMs": 10905,
+      "proof": {
+        "marker": " PERF_EDIT_13"
+      },
+      "readyFrameAtMs": 10899,
+      "trustedEvent": true
+    },
+    {
+      "action": "record-save",
+      "elapsedMs": 61,
+      "eventAtMs": 10998,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 14,
+      "paintOpportunityAtMs": 11059,
+      "proof": {
+        "images": 4,
+        "marker": " PERF_EDIT_13"
+      },
+      "readyFrameAtMs": 11053,
+      "trustedEvent": false
+    },
+    {
+      "action": "manual-edit",
+      "elapsedMs": 28,
+      "eventAtMs": 11209,
+      "eventType": "input",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 15,
+      "paintOpportunityAtMs": 11237,
+      "proof": {
+        "marker": " PERF_EDIT_14"
+      },
+      "readyFrameAtMs": 11232,
+      "trustedEvent": true
+    },
+    {
+      "action": "record-save",
+      "elapsedMs": 69,
+      "eventAtMs": 11330,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 15,
+      "paintOpportunityAtMs": 11399,
+      "proof": {
+        "images": 4,
+        "marker": " PERF_EDIT_14"
+      },
+      "readyFrameAtMs": 11389,
+      "trustedEvent": false
+    },
+    {
+      "action": "manual-edit",
+      "elapsedMs": 29,
+      "eventAtMs": 11514,
+      "eventType": "input",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 16,
+      "paintOpportunityAtMs": 11543,
+      "proof": {
+        "marker": " PERF_EDIT_15"
+      },
+      "readyFrameAtMs": 11537,
+      "trustedEvent": true
+    },
+    {
+      "action": "record-save",
+      "elapsedMs": 63,
+      "eventAtMs": 11636,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 16,
+      "paintOpportunityAtMs": 11699,
+      "proof": {
+        "images": 4,
+        "marker": " PERF_EDIT_15"
+      },
+      "readyFrameAtMs": 11691,
+      "trustedEvent": false
+    },
+    {
+      "action": "manual-edit",
+      "elapsedMs": 28,
+      "eventAtMs": 11850,
+      "eventType": "input",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 17,
+      "paintOpportunityAtMs": 11878,
+      "proof": {
+        "marker": " PERF_EDIT_16"
+      },
+      "readyFrameAtMs": 11872,
+      "trustedEvent": true
+    },
+    {
+      "action": "record-save",
+      "elapsedMs": 62,
+      "eventAtMs": 11977,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 17,
+      "paintOpportunityAtMs": 12039,
+      "proof": {
+        "images": 4,
+        "marker": " PERF_EDIT_16"
+      },
+      "readyFrameAtMs": 12035,
+      "trustedEvent": false
+    },
+    {
+      "action": "manual-edit",
+      "elapsedMs": 28,
+      "eventAtMs": 12167,
+      "eventType": "input",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 18,
+      "paintOpportunityAtMs": 12195,
+      "proof": {
+        "marker": " PERF_EDIT_17"
+      },
+      "readyFrameAtMs": 12188,
+      "trustedEvent": true
+    },
+    {
+      "action": "record-save",
+      "elapsedMs": 62,
+      "eventAtMs": 12287,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 18,
+      "paintOpportunityAtMs": 12349,
+      "proof": {
+        "images": 4,
+        "marker": " PERF_EDIT_17"
+      },
+      "readyFrameAtMs": 12341,
+      "trustedEvent": false
+    },
+    {
+      "action": "manual-edit",
+      "elapsedMs": 27,
+      "eventAtMs": 12486,
+      "eventType": "input",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 19,
+      "paintOpportunityAtMs": 12513,
+      "proof": {
+        "marker": " PERF_EDIT_18"
+      },
+      "readyFrameAtMs": 12507,
+      "trustedEvent": true
+    },
+    {
+      "action": "record-save",
+      "elapsedMs": 63,
+      "eventAtMs": 12606,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 19,
+      "paintOpportunityAtMs": 12669,
+      "proof": {
+        "images": 4,
+        "marker": " PERF_EDIT_18"
+      },
+      "readyFrameAtMs": 12661,
+      "trustedEvent": false
+    },
+    {
+      "action": "manual-edit",
+      "elapsedMs": 27,
+      "eventAtMs": 12807,
+      "eventType": "input",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 20,
+      "paintOpportunityAtMs": 12834,
+      "proof": {
+        "marker": " PERF_EDIT_19"
+      },
+      "readyFrameAtMs": 12828,
+      "trustedEvent": true
+    },
+    {
+      "action": "record-save",
+      "elapsedMs": 62,
+      "eventAtMs": 12928,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 20,
+      "paintOpportunityAtMs": 12990,
+      "proof": {
+        "images": 4,
+        "marker": " PERF_EDIT_19"
+      },
+      "readyFrameAtMs": 12982,
+      "trustedEvent": false
+    }
+  ],
+  "proposal": {
+    "status": "not-applicable",
+    "cases": [],
+    "applyBudgetMs": 100,
+    "scope": "Head only. Twenty short realistic finding refinements in a separate 40-message companion Session. No images and no 100 KB proposal claim. Provider completion is seeded before native launch through the real V2 core contract."
+  },
+  "chatJsonBytes": 64575,
+  "observerFailures": [],
+  "observedVariant": "baseline",
+  "scroll": {
+    "frameIntervalsMs": [
+      8,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      9,
+      12,
+      9,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      12,
+      8,
+      10,
+      10,
+      9,
+      11,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      11,
+      9,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      9,
+      11,
+      10,
+      10,
+      10,
+      12,
+      8,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      11,
+      10,
+      10,
+      10,
+      10,
+      10,
+      8,
+      12,
+      10,
+      9,
+      12,
+      9,
+      10,
+      8,
+      12,
+      10,
+      9,
+      9,
+      12,
+      9,
+      12,
+      9,
+      10,
+      10,
+      10,
+      10,
+      12,
+      8,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      8,
+      12,
+      10,
+      10,
+      11,
+      9,
+      10,
+      10,
+      10,
+      10,
+      12,
+      8,
+      10,
+      9
+    ],
+    "geometry": [
+      {
+        "atMs": 5467,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": 54.171875,
+        "pinned": true,
+        "recordBottomPx": 20800.15625,
+        "scrollTopPx": 284,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5475,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": 14.171875,
+        "pinned": true,
+        "recordBottomPx": 20760.15625,
+        "scrollTopPx": 324,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5485,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -25.828125,
+        "pinned": true,
+        "recordBottomPx": 20720.15625,
+        "scrollTopPx": 364,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5495,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -65.828125,
+        "pinned": true,
+        "recordBottomPx": 20680.15625,
+        "scrollTopPx": 404,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5505,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -105.828125,
+        "pinned": true,
+        "recordBottomPx": 20640.15625,
+        "scrollTopPx": 444,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5515,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -145.828125,
+        "pinned": true,
+        "recordBottomPx": 20600.15625,
+        "scrollTopPx": 484,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5525,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -185.828125,
+        "pinned": true,
+        "recordBottomPx": 20560.15625,
+        "scrollTopPx": 524,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5535,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -225.828125,
+        "pinned": true,
+        "recordBottomPx": 20520.15625,
+        "scrollTopPx": 564,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5544,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -265.828125,
+        "pinned": true,
+        "recordBottomPx": 20480.15625,
+        "scrollTopPx": 604,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5556,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -305.828125,
+        "pinned": true,
+        "recordBottomPx": 20440.15625,
+        "scrollTopPx": 644,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5565,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -345.828125,
+        "pinned": true,
+        "recordBottomPx": 20400.15625,
+        "scrollTopPx": 684,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5575,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -385.828125,
+        "pinned": true,
+        "recordBottomPx": 20360.15625,
+        "scrollTopPx": 724,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5585,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -425.828125,
+        "pinned": true,
+        "recordBottomPx": 20320.15625,
+        "scrollTopPx": 764,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5595,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -465.828125,
+        "pinned": true,
+        "recordBottomPx": 20280.15625,
+        "scrollTopPx": 804,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5605,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -505.828125,
+        "pinned": true,
+        "recordBottomPx": 20240.15625,
+        "scrollTopPx": 844,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5615,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -545.828125,
+        "pinned": true,
+        "recordBottomPx": 20200.15625,
+        "scrollTopPx": 884,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5625,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -585.828125,
+        "pinned": true,
+        "recordBottomPx": 20160.15625,
+        "scrollTopPx": 924,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5635,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -625.828125,
+        "pinned": true,
+        "recordBottomPx": 20120.15625,
+        "scrollTopPx": 964,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5647,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -665.828125,
+        "pinned": true,
+        "recordBottomPx": 20080.15625,
+        "scrollTopPx": 1004,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5655,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -705.828125,
+        "pinned": true,
+        "recordBottomPx": 20040.15625,
+        "scrollTopPx": 1044,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5665,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -745.828125,
+        "pinned": true,
+        "recordBottomPx": 20000.15625,
+        "scrollTopPx": 1084,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5675,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -785.828125,
+        "pinned": true,
+        "recordBottomPx": 19960.15625,
+        "scrollTopPx": 1124,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5684,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -825.828125,
+        "pinned": true,
+        "recordBottomPx": 19920.15625,
+        "scrollTopPx": 1164,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5695,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -865.828125,
+        "pinned": true,
+        "recordBottomPx": 19880.15625,
+        "scrollTopPx": 1204,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5705,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -905.828125,
+        "pinned": true,
+        "recordBottomPx": 19840.15625,
+        "scrollTopPx": 1244,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5715,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -945.828125,
+        "pinned": true,
+        "recordBottomPx": 19800.15625,
+        "scrollTopPx": 1284,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5725,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -985.828125,
+        "pinned": true,
+        "recordBottomPx": 19760.15625,
+        "scrollTopPx": 1324,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5735,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1025.828125,
+        "pinned": true,
+        "recordBottomPx": 19720.15625,
+        "scrollTopPx": 1364,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5745,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1065.828125,
+        "pinned": true,
+        "recordBottomPx": 19680.15625,
+        "scrollTopPx": 1404,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5755,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1105.828125,
+        "pinned": true,
+        "recordBottomPx": 19640.15625,
+        "scrollTopPx": 1444,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5765,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1145.828125,
+        "pinned": true,
+        "recordBottomPx": 19600.15625,
+        "scrollTopPx": 1484,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5775,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1185.828125,
+        "pinned": true,
+        "recordBottomPx": 19560.15625,
+        "scrollTopPx": 1524,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5785,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1225.828125,
+        "pinned": true,
+        "recordBottomPx": 19520.15625,
+        "scrollTopPx": 1564,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5795,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1265.828125,
+        "pinned": true,
+        "recordBottomPx": 19480.15625,
+        "scrollTopPx": 1604,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5806,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1305.828125,
+        "pinned": true,
+        "recordBottomPx": 19440.15625,
+        "scrollTopPx": 1644,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5815,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1345.828125,
+        "pinned": true,
+        "recordBottomPx": 19400.15625,
+        "scrollTopPx": 1684,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5825,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1385.828125,
+        "pinned": true,
+        "recordBottomPx": 19360.15625,
+        "scrollTopPx": 1724,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5835,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1425.828125,
+        "pinned": true,
+        "recordBottomPx": 19320.15625,
+        "scrollTopPx": 1764,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5845,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1465.828125,
+        "pinned": true,
+        "recordBottomPx": 19280.15625,
+        "scrollTopPx": 1804,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5855,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1505.828125,
+        "pinned": true,
+        "recordBottomPx": 19240.15625,
+        "scrollTopPx": 1844,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5865,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1545.828125,
+        "pinned": true,
+        "recordBottomPx": 19200.15625,
+        "scrollTopPx": 1884,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5875,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1585.828125,
+        "pinned": true,
+        "recordBottomPx": 19160.15625,
+        "scrollTopPx": 1924,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5885,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1625.828125,
+        "pinned": true,
+        "recordBottomPx": 19120.15625,
+        "scrollTopPx": 1964,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5895,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1665.828125,
+        "pinned": true,
+        "recordBottomPx": 19080.15625,
+        "scrollTopPx": 2004,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5905,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1704.828125,
+        "pinned": true,
+        "recordBottomPx": 19041.15625,
+        "scrollTopPx": 2043,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5915,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1745.828125,
+        "pinned": true,
+        "recordBottomPx": 19000.15625,
+        "scrollTopPx": 2084,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5925,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1785.828125,
+        "pinned": true,
+        "recordBottomPx": 18960.15625,
+        "scrollTopPx": 2124,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5935,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1825.828125,
+        "pinned": true,
+        "recordBottomPx": 18920.15625,
+        "scrollTopPx": 2164,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5945,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1865.828125,
+        "pinned": true,
+        "recordBottomPx": 18880.15625,
+        "scrollTopPx": 2204,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5955,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1905.828125,
+        "pinned": true,
+        "recordBottomPx": 18840.15625,
+        "scrollTopPx": 2244,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5965,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1945.828125,
+        "pinned": true,
+        "recordBottomPx": 18800.15625,
+        "scrollTopPx": 2284,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5975,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1985.828125,
+        "pinned": true,
+        "recordBottomPx": 18760.15625,
+        "scrollTopPx": 2324,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5985,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -2025.828125,
+        "pinned": true,
+        "recordBottomPx": 18720.15625,
+        "scrollTopPx": 2364,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5995,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -2065.828125,
+        "pinned": true,
+        "recordBottomPx": 18680.15625,
+        "scrollTopPx": 2404,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6005,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -2105.828125,
+        "pinned": true,
+        "recordBottomPx": 18640.15625,
+        "scrollTopPx": 2444,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6015,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -2145.828125,
+        "pinned": true,
+        "recordBottomPx": 18600.15625,
+        "scrollTopPx": 2484,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6025,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -2185.828125,
+        "pinned": true,
+        "recordBottomPx": 18560.15625,
+        "scrollTopPx": 2524,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6035,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -2225.828125,
+        "pinned": true,
+        "recordBottomPx": 18520.15625,
+        "scrollTopPx": 2564,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6045,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -2265.828125,
+        "pinned": true,
+        "recordBottomPx": 18480.15625,
+        "scrollTopPx": 2604,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6054,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -2305.828125,
+        "pinned": true,
+        "recordBottomPx": 18440.15625,
+        "scrollTopPx": 2644,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6065,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -2345.828125,
+        "pinned": true,
+        "recordBottomPx": 18400.15625,
+        "scrollTopPx": 2684,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6075,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -2305.828125,
+        "pinned": true,
+        "recordBottomPx": 18440.15625,
+        "scrollTopPx": 2644,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6085,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -2264.828125,
+        "pinned": true,
+        "recordBottomPx": 18481.15625,
+        "scrollTopPx": 2603,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6095,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -2225.828125,
+        "pinned": true,
+        "recordBottomPx": 18520.15625,
+        "scrollTopPx": 2564,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6107,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -2185.828125,
+        "pinned": true,
+        "recordBottomPx": 18560.15625,
+        "scrollTopPx": 2524,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6115,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -2145.828125,
+        "pinned": true,
+        "recordBottomPx": 18600.15625,
+        "scrollTopPx": 2484,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6125,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -2105.828125,
+        "pinned": true,
+        "recordBottomPx": 18640.15625,
+        "scrollTopPx": 2444,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6135,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -2065.828125,
+        "pinned": true,
+        "recordBottomPx": 18680.15625,
+        "scrollTopPx": 2404,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6145,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -2025.828125,
+        "pinned": true,
+        "recordBottomPx": 18720.15625,
+        "scrollTopPx": 2364,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6155,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1985.828125,
+        "pinned": true,
+        "recordBottomPx": 18760.15625,
+        "scrollTopPx": 2324,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6165,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1945.828125,
+        "pinned": true,
+        "recordBottomPx": 18800.15625,
+        "scrollTopPx": 2284,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6175,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1905.828125,
+        "pinned": true,
+        "recordBottomPx": 18840.15625,
+        "scrollTopPx": 2244,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6186,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1865.828125,
+        "pinned": true,
+        "recordBottomPx": 18880.15625,
+        "scrollTopPx": 2204,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6196,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1825.828125,
+        "pinned": true,
+        "recordBottomPx": 18920.15625,
+        "scrollTopPx": 2164,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6206,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1785.828125,
+        "pinned": true,
+        "recordBottomPx": 18960.15625,
+        "scrollTopPx": 2124,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6216,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1745.828125,
+        "pinned": true,
+        "recordBottomPx": 19000.15625,
+        "scrollTopPx": 2084,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6226,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1705.828125,
+        "pinned": true,
+        "recordBottomPx": 19040.15625,
+        "scrollTopPx": 2044,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6236,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1664.828125,
+        "pinned": true,
+        "recordBottomPx": 19081.15625,
+        "scrollTopPx": 2003,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6244,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1625.828125,
+        "pinned": true,
+        "recordBottomPx": 19120.15625,
+        "scrollTopPx": 1964,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6256,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1585.828125,
+        "pinned": true,
+        "recordBottomPx": 19160.15625,
+        "scrollTopPx": 1924,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6266,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1545.828125,
+        "pinned": true,
+        "recordBottomPx": 19200.15625,
+        "scrollTopPx": 1884,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6275,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1504.828125,
+        "pinned": true,
+        "recordBottomPx": 19241.15625,
+        "scrollTopPx": 1843,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6287,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1465.828125,
+        "pinned": true,
+        "recordBottomPx": 19280.15625,
+        "scrollTopPx": 1804,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6296,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1425.828125,
+        "pinned": true,
+        "recordBottomPx": 19320.15625,
+        "scrollTopPx": 1764,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6306,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1385.828125,
+        "pinned": true,
+        "recordBottomPx": 19360.15625,
+        "scrollTopPx": 1724,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6314,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1344.828125,
+        "pinned": true,
+        "recordBottomPx": 19401.15625,
+        "scrollTopPx": 1683,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6326,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1305.828125,
+        "pinned": true,
+        "recordBottomPx": 19440.15625,
+        "scrollTopPx": 1644,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6336,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1265.828125,
+        "pinned": true,
+        "recordBottomPx": 19480.15625,
+        "scrollTopPx": 1604,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6345,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1225.828125,
+        "pinned": true,
+        "recordBottomPx": 19520.15625,
+        "scrollTopPx": 1564,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6354,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1184.828125,
+        "pinned": true,
+        "recordBottomPx": 19561.15625,
+        "scrollTopPx": 1523,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6366,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1145.828125,
+        "pinned": true,
+        "recordBottomPx": 19600.15625,
+        "scrollTopPx": 1484,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6375,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1105.828125,
+        "pinned": true,
+        "recordBottomPx": 19640.15625,
+        "scrollTopPx": 1444,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6387,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1064.828125,
+        "pinned": true,
+        "recordBottomPx": 19681.15625,
+        "scrollTopPx": 1403,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6396,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -1025.828125,
+        "pinned": true,
+        "recordBottomPx": 19720.15625,
+        "scrollTopPx": 1364,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6406,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -985.828125,
+        "pinned": true,
+        "recordBottomPx": 19760.15625,
+        "scrollTopPx": 1324,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6416,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -945.828125,
+        "pinned": true,
+        "recordBottomPx": 19800.15625,
+        "scrollTopPx": 1284,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6426,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -904.828125,
+        "pinned": true,
+        "recordBottomPx": 19841.15625,
+        "scrollTopPx": 1243,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6436,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -865.828125,
+        "pinned": true,
+        "recordBottomPx": 19880.15625,
+        "scrollTopPx": 1204,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6448,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -825.828125,
+        "pinned": true,
+        "recordBottomPx": 19920.15625,
+        "scrollTopPx": 1164,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6456,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -785.828125,
+        "pinned": true,
+        "recordBottomPx": 19960.15625,
+        "scrollTopPx": 1124,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6466,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -744.828125,
+        "pinned": true,
+        "recordBottomPx": 20001.15625,
+        "scrollTopPx": 1083,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6476,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -705.828125,
+        "pinned": true,
+        "recordBottomPx": 20040.15625,
+        "scrollTopPx": 1044,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6486,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -665.828125,
+        "pinned": true,
+        "recordBottomPx": 20080.15625,
+        "scrollTopPx": 1004,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6496,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -625.828125,
+        "pinned": true,
+        "recordBottomPx": 20120.15625,
+        "scrollTopPx": 964,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6506,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -584.828125,
+        "pinned": true,
+        "recordBottomPx": 20161.15625,
+        "scrollTopPx": 923,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6516,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -545.828125,
+        "pinned": true,
+        "recordBottomPx": 20200.15625,
+        "scrollTopPx": 884,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6526,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -505.828125,
+        "pinned": true,
+        "recordBottomPx": 20240.15625,
+        "scrollTopPx": 844,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6534,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -464.828125,
+        "pinned": true,
+        "recordBottomPx": 20281.15625,
+        "scrollTopPx": 803,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6546,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -424.828125,
+        "pinned": true,
+        "recordBottomPx": 20321.15625,
+        "scrollTopPx": 763,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6556,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -385.828125,
+        "pinned": true,
+        "recordBottomPx": 20360.15625,
+        "scrollTopPx": 724,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6566,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -345.828125,
+        "pinned": true,
+        "recordBottomPx": 20400.15625,
+        "scrollTopPx": 684,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6577,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -304.828125,
+        "pinned": true,
+        "recordBottomPx": 20441.15625,
+        "scrollTopPx": 643,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6586,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -265.828125,
+        "pinned": true,
+        "recordBottomPx": 20480.15625,
+        "scrollTopPx": 604,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6596,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -225.828125,
+        "pinned": true,
+        "recordBottomPx": 20520.15625,
+        "scrollTopPx": 564,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6606,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -185.828125,
+        "pinned": true,
+        "recordBottomPx": 20560.15625,
+        "scrollTopPx": 524,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6616,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -144.828125,
+        "pinned": true,
+        "recordBottomPx": 20601.15625,
+        "scrollTopPx": 483,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6626,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -105.828125,
+        "pinned": true,
+        "recordBottomPx": 20640.15625,
+        "scrollTopPx": 444,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6638,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -65.828125,
+        "pinned": true,
+        "recordBottomPx": 20680.15625,
+        "scrollTopPx": 404,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6646,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": -25.828125,
+        "pinned": true,
+        "recordBottomPx": 20720.15625,
+        "scrollTopPx": 364,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6656,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": 15.171875,
+        "pinned": true,
+        "recordBottomPx": 20761.15625,
+        "scrollTopPx": 323,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6665,
+        "header": {
+          "bottom": 203,
+          "height": 52,
+          "left": 581,
+          "right": 1239,
+          "top": 151,
+          "width": 658
+        },
+        "headerGapPx": 32,
+        "normalHeaderTopPx": 54.171875,
+        "pinned": true,
+        "recordBottomPx": 20800.15625,
+        "scrollTopPx": 284,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      }
+    ],
+    "headerGapsPx": [
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32,
+      32
+    ],
+    "headerSelector": ".record-detail-pane .record-actions",
+    "initialGeometry": {
+      "header": {
+        "bottom": 390.171875,
+        "height": 52,
+        "left": 581,
+        "right": 1239,
+        "top": 338.171875,
+        "width": 658
+      },
+      "normalHeaderContentTopPx": 219.171875,
+      "recordBottomContentPx": 20965.15625,
+      "scrollport": {
+        "bottom": 828,
+        "height": 709,
+        "left": 248,
+        "right": 1280,
+        "top": 119,
+        "width": 1032
+      },
+      "stickyInsetPx": 0
+    },
+    "input": "programmatic scrollTop changes inside an already pinned range; setup and boundary positions are not timed",
+    "movedPx": 2400,
+    "pinnedRangePx": {
+      "end": 2684,
+      "start": 284
+    },
+    "positions": [
+      284,
+      324,
+      364,
+      404,
+      444,
+      484,
+      524,
+      564,
+      604,
+      644,
+      684,
+      724,
+      764,
+      804,
+      844,
+      884,
+      924,
+      964,
+      1004,
+      1044,
+      1084,
+      1124,
+      1164,
+      1204,
+      1244,
+      1284,
+      1324,
+      1364,
+      1404,
+      1444,
+      1484,
+      1524,
+      1564,
+      1604,
+      1644,
+      1684,
+      1724,
+      1764,
+      1804,
+      1844,
+      1884,
+      1924,
+      1964,
+      2004,
+      2043,
+      2084,
+      2124,
+      2164,
+      2204,
+      2244,
+      2284,
+      2324,
+      2364,
+      2404,
+      2444,
+      2484,
+      2524,
+      2564,
+      2604,
+      2644,
+      2684,
+      2644,
+      2603,
+      2564,
+      2524,
+      2484,
+      2444,
+      2404,
+      2364,
+      2324,
+      2284,
+      2244,
+      2204,
+      2164,
+      2124,
+      2084,
+      2044,
+      2003,
+      1964,
+      1924,
+      1884,
+      1843,
+      1804,
+      1764,
+      1724,
+      1683,
+      1644,
+      1604,
+      1564,
+      1523,
+      1484,
+      1444,
+      1403,
+      1364,
+      1324,
+      1284,
+      1243,
+      1204,
+      1164,
+      1124,
+      1083,
+      1044,
+      1004,
+      964,
+      923,
+      884,
+      844,
+      803,
+      763,
+      724,
+      684,
+      643,
+      604,
+      564,
+      524,
+      483,
+      444,
+      404,
+      364,
+      323,
+      284
+    ],
+    "scrollEvents": 120,
+    "scrollRangePx": 20288,
+    "scroller": {
+      "className": "collection-view",
+      "id": "",
+      "tagName": "SECTION"
+    },
+    "p95FrameIntervalMs": 12,
+    "maxHeaderGapPx": 32
+  },
+  "executionAudit": {
+    "aiRuns": 0,
+    "messages": 100
+  },
+  "providerExecutionFiles": [],
+  "summary": {
+    "notes-open": {
+      "count": 20,
+      "p95Ms": 37,
+      "minMs": 33,
+      "maxMs": 519
+    },
+    "manual-edit": {
+      "count": 20,
+      "p95Ms": 32,
+      "minMs": 27,
+      "maxMs": 34
+    },
+    "record-save": {
+      "count": 20,
+      "p95Ms": 86,
+      "minMs": 59,
+      "maxMs": 93
+    }
+  },
+  "completedScope": "Shared Notes/scroll/edit/Save. Head-only Ask AI and companion proposals do not exist on baseline."
+}

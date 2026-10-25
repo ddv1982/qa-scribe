@@ -31,16 +31,6 @@
   padding: 2px;
 }
 .chat-scroll-region > * { flex-shrink: 0; }
-.chat-scroll-region .model-combobox-popover {
-  position: static;
-  width: 100%;
-  max-height: none;
-  overflow: visible;
-  margin-top: var(--space-2);
-  transform: none;
-  animation: none;
-}
-.chat-scroll-region .model-options { max-height: 140px; }
 .editor-card--chat .chat-transcript { max-height: none; overflow: visible; }
 .editor-card--chat .chat-composer { flex-shrink: 0; }
 .chat-scroll-region:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }

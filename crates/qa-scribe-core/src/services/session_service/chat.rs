@@ -42,21 +42,40 @@ impl SessionService {
 
     /// The returned turn has already committed its user message. Execute the provider only afterward.
     pub fn start_chat_turn(&self, request: ChatStartRequest) -> Result<ChatTurnStarted> {
+        self.start_chat_turn_with_context(request, ChatTarget::Session)
+    }
+
+    pub fn start_chat_turn_with_context(
+        &self,
+        request: ChatStartRequest,
+        context: ChatTarget,
+    ) -> Result<ChatTurnStarted> {
+        self.start_chat_turn_with_response(request, context, ChatRequestIntent::Message)
+    }
+
+    pub fn start_chat_turn_with_response(
+        &self,
+        request: ChatStartRequest,
+        context: ChatTarget,
+        intent: ChatRequestIntent,
+    ) -> Result<ChatTurnStarted> {
         self.database.with_immediate_tx(|tx| {
             let chat = rows::checked(tx, &request.scope)?;
             rows::editable(&chat)?;
             rows::idle(&chat)?;
-            rows::text("Chat message", &chat.composer, !chat.composer_images.is_empty())?;
-            rows::append_capacity(&chat, &chat.composer, 2)?;
+            let resolved = super::chat_questions::resolve(tx, &chat, context.clone(), &intent)?;
             let turn_id = new_id();
             rows::append(
                 tx,
                 &chat.draft_id,
                 &turn_id,
                 ChatRole::User,
-                &chat.composer,
+                &resolved.text,
                 ChatTurnStatus::Running,
             )?;
+            super::chat_context::store(tx, &chat.draft_id, &turn_id, &resolved.context)?;
+            super::chat_responses::start(tx, &chat.draft_id, &turn_id, resolved.purpose)?;
+            if let Some(answer) = resolved.answer { super::chat_questions::store_answer(tx, &chat.draft_id, &turn_id, &answer)?; }
             tx.execute("INSERT INTO chat_message_images (message_id, attachment_id, ordinal)
                 SELECT m.id, i.attachment_id, i.ordinal FROM chat_composer_images i
                 JOIN chat_messages m ON m.draft_id = i.draft_id AND m.turn_id = ?1 AND m.role = 'user'
@@ -87,6 +106,7 @@ impl SessionService {
         self.database.with_immediate_tx(|tx| {
             let chat = rows::checked(tx, &request.scope)?;
             rows::idle(&chat)?;
+            if chat.proposals.iter().any(|p| matches!(p.state, RefinementState::Staged { .. })) { return Err(crate::error::validation("Save, Undo, or Discard the local refinement before starting a new conversation")); }
             tx.execute(
                 "UPDATE chat_drafts SET archived = 1 WHERE id = ?1",
                 [&chat.draft_id],

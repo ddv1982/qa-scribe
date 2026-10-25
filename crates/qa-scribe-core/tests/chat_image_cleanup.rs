@@ -5,7 +5,7 @@ use qa_scribe_core::{
     attachments::{chat::import_chat_image_data_url, retry_attachment_cleanup},
     domain::*,
     services::SessionService,
-    storage::Database,
+    storage::{Database, SCHEMA_VERSION},
 };
 
 struct Fixture {
@@ -292,7 +292,7 @@ fn schema14_physical_upgrade_preserves_owners_and_does_not_backfill_arbitrary_or
                 .connection()
                 .pragma_query_value(None, "user_version", |r| r.get::<_, i32>(0))
                 .unwrap(),
-            15
+            SCHEMA_VERSION
         );
         assert_eq!(pending(&service), 0);
         assert_eq!(service.load_chat("s").unwrap().revision, 7);
@@ -364,7 +364,8 @@ fn schema14_failed_upgrade_rolls_back_queue_and_version_and_future_is_untouched(
             .unwrap(),
         14
     );
-    c.execute_batch("PRAGMA user_version = 16;").unwrap();
+    c.pragma_update(None, "user_version", SCHEMA_VERSION + 1)
+        .unwrap();
     drop(c);
     let bytes = fs::read(&path).unwrap();
     assert!(matches!(

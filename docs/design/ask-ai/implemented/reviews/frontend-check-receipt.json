@@ -1,0 +1,7 @@
+{
+  "head": "32fce1d1a49919562001f6e92c8d41e135d30157",
+  "command": "NODE_OPTIONS=--no-experimental-webstorage bun run frontend:check",
+  "exitCode": 0,
+  "unchangedHead": true,
+  "log": "/tmp/ask-ai-frontend-check-final.log"
+}

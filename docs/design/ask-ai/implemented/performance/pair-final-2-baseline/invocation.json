@@ -1,0 +1,15 @@
+{
+  "side": "baseline",
+  "label": "pair-final-2-baseline",
+  "revision": "1c34f3e229ccf471241f7dfc7248b4d73c2ce6d9",
+  "binarySha256": "c068f8b316e4c4a7551e32fdaa44fff03c502d26165220a0fb87e6040493db78",
+  "temporaryRoot": "/private/tmp/ask-ai-pair-final-2-baseline-ja7jwgs7",
+  "artifacts": "/Users/vriesd/projects/qa-scribe/artifacts/ask-ai/performance/pair-final-2-baseline",
+  "reportedComparisonRun": true,
+  "probeSha256": "0e95cb7fa9457f02ff6dcc3c92aa7d04fd3f8c5f884c896029865cbca0e4e5aa",
+  "observerSha256": "bab0ed14ef150ff141b63c6180cf4b8d791d434013dbf572f41d41f08ab6a09f",
+  "generatorSha256": [
+    "a9718d54b28872e7489fb3dc5827928ba90a5088432aecbcfb51382c278d237d"
+  ],
+  "exitCode": 0
+}

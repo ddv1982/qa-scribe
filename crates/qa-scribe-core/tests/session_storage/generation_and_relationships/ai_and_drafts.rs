@@ -136,8 +136,9 @@ fn settings_generation_context_ai_run_and_draft_round_trip() {
                 body: Some("Edited Session Report Draft".to_string()),
                 ..DraftPatch::default()
             },
+            qa_scribe_core::domain::RecordWriteGuard::draft(&draft),
         )
-        .expect("Draft should update");
+        .expect("Draft should update").into_saved().unwrap();
     assert_eq!(updated_draft.body, "Edited Session Report Draft");
 
     let failed = service
@@ -231,8 +232,9 @@ fn body_format_null_resets_to_default_html_for_rich_records() {
                 body_format: Some(None),
                 ..FindingPatch::default()
             },
+            qa_scribe_core::domain::RecordWriteGuard::finding(&finding),
         )
-        .expect("finding body format should reset");
+        .expect("finding body format should reset").into_saved().unwrap();
     assert_eq!(finding.body_json, None);
     assert_eq!(finding.body_format.as_deref(), Some("html"));
 
@@ -256,8 +258,9 @@ fn body_format_null_resets_to_default_html_for_rich_records() {
                 body_format: Some(None),
                 ..DraftPatch::default()
             },
+            qa_scribe_core::domain::RecordWriteGuard::draft(&draft),
         )
-        .expect("draft body format should reset");
+        .expect("draft body format should reset").into_saved().unwrap();
     assert_eq!(draft.body_json, None);
     assert_eq!(draft.body_format.as_deref(), Some("html"));
 

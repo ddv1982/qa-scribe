@@ -55,7 +55,7 @@ async function migrationProof() {
   assert.equal(seed.schemaVersion, 10)
   assert.equal(seed.aiRunColumns.includes('model_selection_json'), false)
   const legacy = database('model-evidence-legacy-session')
-  assert.equal(legacy.schemaVersion, 15)
+  assert.equal(legacy.schemaVersion, 18)
   assert.deepEqual(legacy.foreignKeyViolations, [])
   assert.equal(legacy.runs.length, 1)
   assert.deepEqual(legacy.runs[0], { id: 'model-evidence-legacy-run', session_id: 'model-evidence-legacy-session',
@@ -152,7 +152,9 @@ describe('Built application native model evidence M02', () => {
 
   it('freezes accepted cancellation and isolates its successor from delayed metadata', () => lane(8, 'cancel', async () => {
     const current = await startChat('claude', null, 'cancel', 8)
-    await browser.waitUntil(async () => (await $('[aria-label="Session chat"]').getText()).includes('Awaiting delayed model metadata.'))
+    await browser.waitUntil(async () => (await read('list_active_ai_action_jobs'))
+      .some((job) => job.sessionId === current.sessionId && job.partialText?.includes('Awaiting delayed model metadata.')))
+    assert.equal(await $('.chat-partial h3').getText(), 'Preparing reply')
     const marker = JSON.parse(readFileSync(join(directory, 'model-evidence-8.ready'), 'utf8'))
     await click('Cancel response')
     const cancelled = await finishChat(current.sessionId, 'cancelled')

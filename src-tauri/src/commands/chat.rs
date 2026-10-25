@@ -13,6 +13,8 @@ use crate::{
 
 #[cfg(test)]
 mod composer_tests;
+#[cfg(test)]
+mod context_tests;
 mod image_import;
 #[cfg(test)]
 mod image_preflight_tests;
@@ -22,6 +24,8 @@ mod permission_tests;
 mod preparation;
 #[cfg(test)]
 mod preparation_tests;
+#[cfg(test)]
+mod question_tests;
 mod runner;
 mod transport;
 
@@ -164,11 +168,13 @@ fn reconcile_chat_failure(
 }
 
 #[derive(Clone, Debug, Deserialize, specta::Type)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct StartChatJobRequest {
-    pub scope: ChatRevision,
+    pub intent: ChatRequestIntent,
     #[serde(default)]
-    pub retry: bool,
+    #[specta(optional)]
+    pub context: ChatTarget,
+    pub scope: ChatRevision,
     pub provider: AiProvider,
     pub model: String,
     pub reasoning_effort: Option<String>,
@@ -298,4 +304,13 @@ fn start_chat_job_blocking(
         return Err(CommandError::internal(message));
     }
     Ok(result)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn resolve_refinement(
+    state: State<'_, AppState>,
+    request: RefinementRequest,
+) -> Result<ChatState, CommandError> {
+    state.with_service(|service| service.resolve_refinement(request))
 }

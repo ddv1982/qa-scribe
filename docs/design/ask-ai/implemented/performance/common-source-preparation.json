@@ -1,0 +1,18 @@
+{
+  "commonFixtureIdentical": true,
+  "sharedProbeFiles": [
+    {
+      "path": "e2e/specs/native-ui-performance.benchmark.mjs",
+      "sha256": "988fc0428b4d25e732e337f2dfec12de4932872d9b0260527227d11c8e2ba8a9"
+    },
+    {
+      "path": "e2e/specs/ui-performance-observer.mjs",
+      "sha256": "fc5e8c1b48c2a0079d5b73fc76c57b98109d957112e11553fc6d4a622f2ce76c"
+    },
+    {
+      "path": "e2e/specs/ui-performance-observer.test.mjs",
+      "sha256": "fcf73b7e7b85563e14666c50466d73925392f438545ef500ad0b79ff9f2cdc66"
+    }
+  ],
+  "productionSourceOrBinaryChanged": false
+}

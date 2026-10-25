@@ -1,3 +1,4 @@
+import type { RecordChatActions } from '../app/sessionChat.context'
 import type { RecordCreationCommands } from './RecordCreationActions'
 import { Box } from 'lucide-react'
 import type { RichEditorImageUpload } from '../editor/RichTextEditor'
@@ -32,7 +33,7 @@ const testwareLabels: RecordCollectionLabels = {
 }
 
 export function TestwareView({
-  composer, settleCreation,
+  composer, settleCreation, recordChat,
   creationCommands,
   busyAction,
   copyState,
@@ -57,6 +58,7 @@ export function TestwareView({
   onDiscardDraft,
   onUploadImage,
 }: {
+  recordChat?: RecordChatActions
   settleCreation?: () => Promise<boolean>
   composer?: import('react').ReactNode
   creationCommands: RecordCreationCommands
@@ -85,7 +87,7 @@ export function TestwareView({
 }) {
   return (
     <RecordCollectionView
-      composer={composer} settleCreation={settleCreation}
+      composer={composer} settleCreation={settleCreation} recordChat={recordChat}
       creationCommands={creationCommands}
       labels={testwareLabels}
       emptyIcon={Box}

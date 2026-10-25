@@ -1,4 +1,6 @@
 import { Channel } from '@tauri-apps/api/core'
+import { RecordWriteConflict } from './app/recordWriteGuards'
+import type { RecordWriteGuard, RefinementRequest } from './bindings'
 
 import {
   commands,
@@ -142,8 +144,10 @@ export function listFindingLibrary(): Promise<FindingLibraryItem[]> {
   return commands.listFindingLibrary()
 }
 
-export function updateFinding(id: string, patch: FindingPatch): Promise<Finding> {
-  return commands.updateFinding(id, patch)
+export async function updateFinding(id: string, patch: FindingPatch, guard: RecordWriteGuard): Promise<Finding> {
+  const result = await commands.updateFinding(id, patch, guard)
+  if (result.kind === 'conflict') throw new RecordWriteConflict(result.current)
+  return result.record
 }
 
 export function deleteFinding(id: string): Promise<void> {
@@ -200,8 +204,10 @@ export function listDraftLibrary(): Promise<DraftLibraryItem[]> {
   return commands.listDraftLibrary()
 }
 
-export function updateDraft(id: string, patch: DraftPatch): Promise<Draft> {
-  return commands.updateDraft(id, patch)
+export async function updateDraft(id: string, patch: DraftPatch, guard: RecordWriteGuard): Promise<Draft> {
+  const result = await commands.updateDraft(id, patch, guard)
+  if (result.kind === 'conflict') throw new RecordWriteConflict(result.current)
+  return result.record
 }
 
 export function deleteDraft(id: string): Promise<void> {
@@ -263,4 +269,8 @@ export function copyLocalImageToClipboard(dataUrl: string): Promise<void> {
 
 export function readNoteSource(sessionId: string, noteId: string) {
   return commands.readNoteSource(sessionId, noteId)
+}
+
+export function resolveRefinement(request: RefinementRequest): Promise<ChatState> {
+  return commands.resolveRefinement(request)
 }

@@ -60,6 +60,7 @@ export function deriveChatHandoff(state: ChatActivity & {
   }
   return { ...facts, kind: 'conversation', disabled: busy, reason: !completed && chat?.messages.length
     ? 'Resolve unfinished turns before adding the conversation.'
+    : chat?.proposals?.some(proposal => proposal.state.kind === 'staged') ? 'Save, Undo, or Discard the local refinement before adding the conversation.'
     : state.imageFailures?.length ? 'Retry or remove failed images before adding the conversation.'
     : (state.composerImages ?? chat?.composerImages ?? []).length ? 'Send or clear the unsent message and images before adding the conversation.'
     : composer !== '' ? 'Send or clear the unsent message before adding the conversation.'

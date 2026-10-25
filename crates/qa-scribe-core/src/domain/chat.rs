@@ -41,11 +41,20 @@ pub struct ChatImage {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ChatMessage {
+    #[serde(default)]
+    #[specta(optional)]
+    pub response: Option<super::ChatResponseInfo>,
+    #[serde(default)]
+    #[specta(optional)]
+    pub answer: Option<super::ChatAnswer>,
     pub id: String,
     pub turn_id: String,
     pub role: ChatRole,
     pub text: String,
     pub images: Vec<ChatImage>,
+    #[serde(default)]
+    #[specta(optional)]
+    pub context: super::ChatTarget,
     pub status: ChatTurnStatus,
     pub error_message: Option<String>,
     pub ai_run_id: Option<String>,
@@ -63,6 +72,12 @@ pub struct ChatSubmissionReceipt {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ChatState {
+    #[serde(default)]
+    #[specta(optional)]
+    pub pending_response: Option<super::ChatResponsePurpose>,
+    #[serde(default)]
+    #[specta(optional)]
+    pub proposals: Vec<super::RefinementProposal>,
     pub session_id: String,
     pub draft_id: String,
     pub revision: i32,

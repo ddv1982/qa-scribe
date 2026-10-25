@@ -15,6 +15,7 @@ impl SessionService {
             let message = chat.messages.last().filter(|m| m.role == ChatRole::User
                 && matches!(m.status, ChatTurnStatus::Failed | ChatTurnStatus::Cancelled | ChatTurnStatus::Interrupted))
                 .ok_or_else(|| validation("The latest Chat message is not retryable"))?;
+            super::chat_context::validate_retry_owner(tx, &chat.session_id, &message.context)?;
             let turn_id = new_id();
             tx.execute("UPDATE chat_messages SET turn_id = ?1, status = 'running', error_message = NULL, ai_run_id = NULL WHERE id = ?2",
                 params![turn_id, message.id])?;
@@ -119,7 +120,22 @@ pub(super) fn finish(
     rows::text("Assistant response", &request.assistant_text, false)?;
     let chat = rows::checked(connection, &request.scope)?;
     guard_association(&chat, &request.turn_id, ai_run_id)?;
-    rows::append_capacity(&chat, &request.assistant_text, 1)?;
+    let user = chat
+        .messages
+        .iter()
+        .find(|m| m.turn_id == request.turn_id && m.role == ChatRole::User)
+        .ok_or_else(|| validation("User message is missing"))?;
+    let completion = super::chat_responses::completed(connection, user, &request.assistant_text)?;
+    let assistant_text = completion.markdown;
+    rows::text("Assistant response", &assistant_text, false)?;
+    let mut readable = user.clone();
+    readable.text = assistant_text.clone();
+    readable.response = completion.response.clone();
+    rows::append_capacity(
+        &chat,
+        &super::chat_questions::readable_message(&readable),
+        1,
+    )?;
     connection.execute("UPDATE chat_messages SET status = 'completed' WHERE draft_id = ?1 AND turn_id = ?2 AND status = 'running'",
         params![chat.draft_id, request.turn_id])?;
     rows::append(
@@ -127,12 +143,18 @@ pub(super) fn finish(
         &chat.draft_id,
         &request.turn_id,
         ChatRole::Assistant,
-        &request.assistant_text,
+        &assistant_text,
         ChatTurnStatus::Completed,
     )?;
     if let Some(id) = ai_run_id {
         connection.execute("UPDATE chat_messages SET ai_run_id = ?1 WHERE draft_id = ?2 AND turn_id = ?3 AND role = 'assistant'",
             params![id, chat.draft_id, request.turn_id])?;
+    }
+    if let Some(response) = completion.response {
+        super::chat_responses::insert(connection, &chat.draft_id, &request.turn_id, response)?;
+    }
+    if let Some(proposal) = completion.proposal {
+        super::chat_refinements::insert(connection, &chat.draft_id, &request.turn_id, proposal)?;
     }
     rows::bump(connection, &chat.draft_id)?;
     rows::read(connection, &chat.draft_id)

@@ -1,0 +1,16 @@
+{
+  "side": "head",
+  "label": "pair-final-1-head",
+  "revision": "20bbeaf38b3b1a3d53258b157ce8a2cfb5f9a068",
+  "binarySha256": "c7c5882101f0b10a2d06fdfd12752f81a2ae86467cc5c7ff7e2a9c96af083f4f",
+  "temporaryRoot": "/private/tmp/ask-ai-pair-final-1-head-_qe7z9n9",
+  "artifacts": "/Users/vriesd/projects/qa-scribe/artifacts/ask-ai/performance/pair-final-1-head",
+  "reportedComparisonRun": true,
+  "probeSha256": "0e95cb7fa9457f02ff6dcc3c92aa7d04fd3f8c5f884c896029865cbca0e4e5aa",
+  "observerSha256": "bab0ed14ef150ff141b63c6180cf4b8d791d434013dbf572f41d41f08ab6a09f",
+  "generatorSha256": [
+    "9bb1e8753355ff14d3fc0ec092c0084a57a7c3bfc994e1f772a721a193270c81",
+    "59a3f386987b367a74fcafa86897f51ff5cd1e958f3940edd47ecb8d6029a52a"
+  ],
+  "exitCode": 0
+}

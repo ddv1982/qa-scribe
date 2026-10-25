@@ -235,8 +235,7 @@ describe('useAppController close protection', () => {
     expect(tauriMock.updateDraft).toHaveBeenCalledTimes(2)
     expect(tauriMock.updateDraft).toHaveBeenLastCalledWith(
       draft.id,
-      expect.objectContaining({ body: '<p>Saved Draft</p>' }),
-    )
+      expect.objectContaining({ body: '<p>Saved Draft</p>' }), expect.objectContaining({ expectedStoredBase: expect.any(String) }))
     expect(tauriWindowMock.currentWindow.destroy).toHaveBeenCalledTimes(1)
   })
 

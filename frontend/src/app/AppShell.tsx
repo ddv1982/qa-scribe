@@ -9,7 +9,7 @@ import { RailItem } from '../components/Common'
 import { formatSessionDate } from '../ui/format'
 import { FindingsView } from '../views/FindingsView'
 import { SessionEditorView } from '../views/SessionEditorView'
-import { SessionChatView } from '../views/SessionChatView'
+import { AppChat } from './AppChat'
 import { ChatAddedToNote } from '../views/ChatHandoff'
 import type { SessionChatViewState } from './useSessionChat'
 import { SettingsView } from '../views/SettingsView'
@@ -208,6 +208,8 @@ export function AppShell(c: AppController) {
             </nav>
           </header>
         ) : null}
+        <div className={`session-content${c.askAi.visible ? ' session-content--record-chat' : ''}${c.askAi.expanded ? ' session-content--expanded' : ''}${c.activeView === 'sessions' && c.sessionMode === 'chat' ? ' session-content--notes-chat' : ''}`}>
+        <div className="session-document-area" hidden={c.askAi.expanded}>
         {c.activeView === 'sessions' ? (
           <SessionEditorView
             creationCommands={{ testware: creationCommands('testware'), finding: creationCommands('finding') }}
@@ -216,14 +218,6 @@ export function AppShell(c: AppController) {
             sessionMode={c.sessionMode}
             onSetSessionMode={c.setSessionMode}
             noteHandoffContent={<ChatAddedToNote state={chatState} />}
-            chatContent={<SessionChatView {...chatState}
-              onOpenNote={() => c.setSessionMode('write_note')}
-              providerLabel={c.activeProvider?.label ?? c.selectedProvider}
-              modelLabel={c.selectedModel === 'default' ? 'CLI Default' : c.selectedModel}
-              modelSelectionControl={modelSelectionControl} modelSelectionPending={c.settingsWritePending}
-              providerAvailable={Boolean(c.activeProvider?.available) && !c.effectiveAiSelection?.warning}
-              providerReason={c.effectiveAiSelection?.warning ?? c.activeProvider?.reason ?? 'Loading provider status'}
-              onConfigureAi={() => runCommand('ai.configure')} />}
             activeProviderReason={c.activeProvider?.reason ?? 'Loading provider status'}
             activeProviderAvailable={Boolean(c.activeProvider?.available)}
             activeSession={c.activeSession}
@@ -265,7 +259,7 @@ export function AppShell(c: AppController) {
         ) : null}
 
         {c.activeView === 'testware' ? (
-          <TestwareView
+          <TestwareView recordChat={c.askAi}
             composer={c.creationIntent?.kind === 'testware' ? composer : null} settleCreation={c.creation.settle}
             creationCommands={creationCommands('testware')}
             key={c.activeSession?.id ?? 'no-session'}
@@ -297,7 +291,7 @@ export function AppShell(c: AppController) {
         ) : null}
 
         {c.activeView === 'findings' ? (
-          <FindingsView
+          <FindingsView recordChat={c.askAi}
             composer={c.creationIntent?.kind === 'finding' ? composer : null} settleCreation={c.creation.settle}
             creationCommands={creationCommands('finding')}
             key={c.activeSession?.id ?? 'no-session'}
@@ -373,6 +367,9 @@ export function AppShell(c: AppController) {
             onBack={c.closeSettings}
           />
         ) : null}
+        </div>
+        <AppChat c={c} modelSelectionControl={modelSelectionControl} onConfigureAi={() => runCommand('ai.configure')} />
+        </div>
       </section>
 
       {c.deleteConfirmation && c.deleteCopy ? (

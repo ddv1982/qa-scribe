@@ -1,0 +1,571 @@
+{
+  "base": "1c34f3e229ccf471241f7dfc7248b4d73c2ce6d9",
+  "head": "20bbeaf38b3b1a3d53258b157ce8a2cfb5f9a068",
+  "stablePatchId": "dc03d3fc551660a7969060e7f52456340467c657",
+  "files": {
+    "crates/qa-scribe-core/examples/generate_ui_perf_fixture.rs": {
+      "sha256": "61543c2b99882c0fea7d9dc953c7b45bf7f64f64c4f18b0748e38e45fc55a0b6",
+      "matchesHead": true
+    },
+    "crates/qa-scribe-core/examples/generate_ui_perf_refinement.rs": {
+      "sha256": "1ebff2f7591a7d42efb82eeaf358b5081c17762130e5d66568a54beb1b9affcb",
+      "matchesHead": true
+    },
+    "crates/qa-scribe-core/src/ai/chat_protocol/tests/images.rs": {
+      "sha256": "bd444f177e3a4ecaa498e2a7d68072e5cdc7e8480d276e8b3c5086b7c8b91eb1",
+      "matchesHead": true
+    },
+    "crates/qa-scribe-core/src/chat/input.rs": {
+      "sha256": "1e952af80eea8e321545439b7f19cf18fac8484b9e4e0bcaeb591db4f3ce89dd",
+      "matchesHead": true
+    },
+    "crates/qa-scribe-core/src/chat/markdown.rs": {
+      "sha256": "4b6d11a733d1f2da1d94c380f55bbf05ea3e34eedcd89c226fd64f56370458da",
+      "matchesHead": true
+    },
+    "crates/qa-scribe-core/src/chat/markdown/html.rs": {
+      "sha256": "b679359b48b1da81dc0071ef9df44777258999e6f545899ccb5992a732280b87",
+      "matchesHead": true
+    },
+    "crates/qa-scribe-core/src/chat/mod.rs": {
+      "sha256": "a04decf6eecc98d72650524d5d07d486df8240c9934f58fa85f1ebcf75e96303",
+      "matchesHead": true
+    },
+    "crates/qa-scribe-core/src/chat/response.rs": {
+      "sha256": "21ca9caa5dbfcf44fc2910315eea9874e83594d9d54fbda0743fbec4f555fd60",
+      "matchesHead": true
+    },
+    "crates/qa-scribe-core/src/domain/chat.rs": {
+      "sha256": "8e26961f788108f420315eb7e8dd72571ebeac9a4f79a4c5f4a3364e567540bb",
+      "matchesHead": true
+    },
+    "crates/qa-scribe-core/src/domain/chat_context.rs": {
+      "sha256": "d52973b7b60b06638eb5472e95e8aaf7d19b826e13f9567e053c800cd45b17a5",
+      "matchesHead": true
+    },
+    "crates/qa-scribe-core/src/domain/chat_interaction.rs": {
+      "sha256": "c443fca1ef093ca21b2bf640fce8a08727ff57c4efdefbcbb899576fc43b50d5",
+      "matchesHead": true
+    },
+    "crates/qa-scribe-core/src/domain/chat_response.rs": {
+      "sha256": "38cdae30cdde4b7d902ed48a7b35b05790b0da3807cb87c15b5e45c616bb1908",
+      "matchesHead": true
+    },
+    "crates/qa-scribe-core/src/domain/mod.rs": {
+      "sha256": "9c2a3caaf6ae5fa537eb1053c82353c7c66b7e443beaeb5bad9f6fe96cf7bb07",
+      "matchesHead": true
+    },
+    "crates/qa-scribe-core/src/domain/record_write.rs": {
+      "sha256": "2bbfb000365153c86e8f156f9f27a662ddb4ed3b142afbc7ff9f80da234f667a",
+      "matchesHead": true
+    },
+    "crates/qa-scribe-core/src/services/mod.rs": {
+      "sha256": "340f80794c2c3b52bb8a3d688d630fff072974b0f25b920d6d3ff1069cc7a685",
+      "matchesHead": true
+    },
+    "crates/qa-scribe-core/src/services/session_service.rs": {
+      "sha256": "a8e48dd39dee17b87086934c34136bc4291f530400b0a24684429b32cbe051af",
+      "matchesHead": true
+    },
+    "crates/qa-scribe-core/src/services/session_service/chat.rs": {
+      "sha256": "7174df7876a2eb2821a9a730e3eac1fa95db4b2849f952d843c61445cb2eadcb",
+      "matchesHead": true
+    },
+    "crates/qa-scribe-core/src/services/session_service/chat_context.rs": {
+      "sha256": "2602d3e00efce9213bb1433d461ee7ff8c3a37311bff7b9bf1e678a57e21cdf7",
+      "matchesHead": true
+    },
+    "crates/qa-scribe-core/src/services/session_service/chat_questions.rs": {
+      "sha256": "4ff2e6abbfec99accbec9fd2a239ce5deb091fda051e0990f7996738674e73c8",
+      "matchesHead": true
+    },
+    "crates/qa-scribe-core/src/services/session_service/chat_refinements.rs": {
+      "sha256": "ceb34b68eeee8b08ce2f59bbdef226ac25ab757aab1034baaf7546486ad9ca4d",
+      "matchesHead": true
+    },
+    "crates/qa-scribe-core/src/services/session_service/chat_responses.rs": {
+      "sha256": "2d11e1887a8e1e92d7265a750e08964ef4af3b77888a0f6448573557b8e2906b",
+      "matchesHead": true
+    },
+    "crates/qa-scribe-core/src/services/session_service/chat_rows.rs": {
+      "sha256": "31357c7f0af196fac6f68e98295dd986d68b21adb8e0ff6f25c7494aca7da0f0",
+      "matchesHead": true
+    },
+    "crates/qa-scribe-core/src/services/session_service/chat_submission.rs": {
+      "sha256": "12b5bda263f2e95ed7fd0a2d86ddbb8528b1370abf8dbb35915cd6c8f3b2dfa6",
+      "matchesHead": true
+    },
+    "crates/qa-scribe-core/src/services/session_service/chat_turns.rs": {
+      "sha256": "d21e2b5dd52873d78bcc4636513002f13162d5f67081d4487dfc636530cf59a4",
+      "matchesHead": true
+    },
+    "crates/qa-scribe-core/src/services/session_service/drafts.rs": {
+      "sha256": "04e1c9f51d51d20afe948931e8e5b202d4437f252a14afd359bfffbfdf8a75f9",
+      "matchesHead": true
+    },
+    "crates/qa-scribe-core/src/services/session_service/findings.rs": {
+      "sha256": "323620fa404e97354b7342b49556d699df33df108562d52b2c98caf0e4186462",
+      "matchesHead": true
+    },
+    "crates/qa-scribe-core/src/services/session_service/record_bases.rs": {
+      "sha256": "3825a884bf31e25cd7c13bb219696912ba0ad5686518032048429e56eaa74497",
+      "matchesHead": true
+    },
+    "crates/qa-scribe-core/src/storage/chat_context.rs": {
+      "sha256": "0c53d1b3670870eb09ea27dd6cb05e656ca824c7b428347e54550b138cbca17a",
+      "matchesHead": true
+    },
+    "crates/qa-scribe-core/src/storage/chat_questions.rs": {
+      "sha256": "c1ff295eb61e37d476ad58881b721c53caf1e15a7c654c22ac7ed28744c16780",
+      "matchesHead": true
+    },
+    "crates/qa-scribe-core/src/storage/chat_refinements.rs": {
+      "sha256": "7b76d80487d4433063a235d32c1ab93d51784689e2d8d631d09c70fdd8e2011c",
+      "matchesHead": true
+    },
+    "crates/qa-scribe-core/src/storage/mod.rs": {
+      "sha256": "cf041b26e88b3367c85b76469f6ac25ed990bc90caed5c5d0e84805e68fccab6",
+      "matchesHead": true
+    },
+    "crates/qa-scribe-core/tests/attachment_cleanup.rs": {
+      "sha256": "31d1612e01fd311040fe9e4dbeb906929d82a544a20ec332ca3958ab12e0fc3c",
+      "matchesHead": true
+    },
+    "crates/qa-scribe-core/tests/chat_context.rs": {
+      "sha256": "600fca40900484595abaecebf741ea73ada9919802c025f9cc1235735cd90858",
+      "matchesHead": true
+    },
+    "crates/qa-scribe-core/tests/chat_image_cleanup.rs": {
+      "sha256": "42089294027741c55fef1e284c73cff2a047805950cadd9395ee1cddd626c193",
+      "matchesHead": true
+    },
+    "crates/qa-scribe-core/tests/chat_questions.rs": {
+      "sha256": "360cab1bb8f206b92f1244c48f0777aa3a9aeaa09148f7e451d1883e8665b696",
+      "matchesHead": true
+    },
+    "crates/qa-scribe-core/tests/chat_refinement.rs": {
+      "sha256": "bf5898f4d7e09548e36e957de686c06278b36ba7b47678a55661775a10022a0d",
+      "matchesHead": true
+    },
+    "crates/qa-scribe-core/tests/chat_storage.rs": {
+      "sha256": "9810fd330be1047b937a7c564e8d0f0db9ab00ab09d5a4554a87c2810e6142c5",
+      "matchesHead": true
+    },
+    "crates/qa-scribe-core/tests/chat_storage/image_migration.rs": {
+      "sha256": "4c1d2a385bd05f79d1ac8b69846abaf36e7f9f25aa387df7c08f12028ab2220c",
+      "matchesHead": true
+    },
+    "crates/qa-scribe-core/tests/creation_migrations.rs": {
+      "sha256": "89917515969df69017c8d9387bfbbbcdf0d293c8399608839f9113044e8ec48c",
+      "matchesHead": true
+    },
+    "crates/qa-scribe-core/tests/record_write_guards.rs": {
+      "sha256": "6c2138658e5b9765eb02e0fb4999d19a36520ad8b732b0797dc86689a1f90af1",
+      "matchesHead": true
+    },
+    "crates/qa-scribe-core/tests/session_storage/generation_and_relationships/ai_and_drafts.rs": {
+      "sha256": "1a78185a6c1c1ec50a437b4bae6d8683b68fa2c8b68bd938aec3a5fc3ac5c1f5",
+      "matchesHead": true
+    },
+    "crates/qa-scribe-core/tests/session_storage/generation_and_relationships/evidence.rs": {
+      "sha256": "3008e6ac45c5851183ee6df8d625f459f84adf635edbe37f7ee3aa1d04d600e8",
+      "matchesHead": true
+    },
+    "crates/qa-scribe-core/tests/session_storage/lifecycle_and_validation.rs": {
+      "sha256": "0ef8b612496d573b757ed59bac77570d123c965b25c92799f9dcdd96ee855907",
+      "matchesHead": true
+    },
+    "crates/qa-scribe-core/tests/session_storage/migrations/body_length_checks.rs": {
+      "sha256": "c0f41a6e219e670560f2d01ec1e924ca1262d551a9b44f6c4fbba2ee860c1186",
+      "matchesHead": true
+    },
+    "e2e/fixtures/ask-ai-context-provider.mjs": {
+      "sha256": "dc02e31c9336f0613dd09036aac0f13f6d8cab5f4dfc5c08ba72d5011bfcff3f",
+      "matchesHead": true
+    },
+    "e2e/fixtures/ask-ai-context-provider.test.mjs": {
+      "sha256": "7812558288cd24d1e0907e71207e67a24579eb29c8399f094c85e645248ee16d",
+      "matchesHead": true
+    },
+    "e2e/fixtures/ask-ai-jira-provider.mjs": {
+      "sha256": "e38d9595a39d187a91a6ad15556d75ba905403875e63ab7d7ea129ec7b062505",
+      "matchesHead": true
+    },
+    "e2e/fixtures/ask-ai-jira-provider.test.mjs": {
+      "sha256": "a844ac3e37f4039927bf887b748884c268ce0d40378322144f1c0120a2cd82e6",
+      "matchesHead": true
+    },
+    "e2e/fixtures/ask-ai-refinement-provider.mjs": {
+      "sha256": "1667fec5259941bd8fd3ab158be1dddfb512822fb442b3fce14f666c61bdfebd",
+      "matchesHead": true
+    },
+    "e2e/fixtures/ask-ai-refinement-provider.test.mjs": {
+      "sha256": "47ec9bce0fea3bee908681bb7dbe976a047b3d9a342d212425b688267d51ee39",
+      "matchesHead": true
+    },
+    "e2e/fixtures/bin/codex": {
+      "sha256": "5fd5e0ab39c28c97192ea983d7afded087f3501a1d97a74e200434093c5cef9e",
+      "matchesHead": true
+    },
+    "e2e/fixtures/chat-authorization-codex.mjs": {
+      "sha256": "052e4f8cd3da5c74ba2a4e21ed42718b1c38113bb7f4d29fed5fa25a3aba754b",
+      "matchesHead": true
+    },
+    "e2e/fixtures/chat-authorization-common.mjs": {
+      "sha256": "db3258a860cf30b98b4676c51cff6ea116fceca995139918a218ff54b8dd4318",
+      "matchesHead": true
+    },
+    "e2e/fixtures/chat-authorization-common.test.mjs": {
+      "sha256": "4da6c3602ac9dca5340769a0792dbed02c363f4df21da29cc5ad264d1f79359e",
+      "matchesHead": true
+    },
+    "e2e/specs/ask-ai-context.e2e.mjs": {
+      "sha256": "49ec732d4469a62fbcead17086d1d49b68970a09da05dff49ccfb012cf895738",
+      "matchesHead": true
+    },
+    "e2e/specs/ask-ai-jira-draft.e2e.mjs": {
+      "sha256": "0af1c20831fab208bd7fef2ff478b8fecf6c40521a7fad0c4d713e08971deabc",
+      "matchesHead": true
+    },
+    "e2e/specs/ask-ai-refinement.e2e.mjs": {
+      "sha256": "4317a121cfb73902cf00fe69fade229cdb47bb76556ba093303dddc9b0a62bdf",
+      "matchesHead": true
+    },
+    "e2e/specs/chat-images.e2e.mjs": {
+      "sha256": "1e242a7f3671dd9fb963d1e5d10fac76c3fb8db362ffa289b2d02ed7b3b5706e",
+      "matchesHead": true
+    },
+    "e2e/specs/chat-to-note.workflow.mjs": {
+      "sha256": "641be34008ee39218ce57b3a2acf52fa16530802ad31720164c8bc781233309d",
+      "matchesHead": true
+    },
+    "e2e/specs/native-ui-performance.benchmark.mjs": {
+      "sha256": "988fc0428b4d25e732e337f2dfec12de4932872d9b0260527227d11c8e2ba8a9",
+      "matchesHead": true
+    },
+    "e2e/specs/record-workspace-layout.e2e.mjs": {
+      "sha256": "1172093b77644707c53f0feca23cc831d76b8f63f8b9aa899138b9c79b8029c1",
+      "matchesHead": true
+    },
+    "e2e/specs/ui-performance-observer.mjs": {
+      "sha256": "fc5e8c1b48c2a0079d5b73fc76c57b98109d957112e11553fc6d4a622f2ce76c",
+      "matchesHead": true
+    },
+    "e2e/specs/ui-performance-observer.test.mjs": {
+      "sha256": "fcf73b7e7b85563e14666c50466d73925392f438545ef500ad0b79ff9f2cdc66",
+      "matchesHead": true
+    },
+    "frontend/src/app/AppChat.tsx": {
+      "sha256": "2a538cc4b21962f32e5831f5de3cc3d127ed36183e409f6f5200c17859ec90f0",
+      "matchesHead": true
+    },
+    "frontend/src/app/AppShell.askAi.test.tsx": {
+      "sha256": "a97416efe75846905217b0a0efa3a676a67dd439d22e005fd0c26a1445eebc54",
+      "matchesHead": true
+    },
+    "frontend/src/app/AppShell.tsx": {
+      "sha256": "1438989413a88339ba981b2b7f70d75d765f7bb81f3aec441ec3833b02f38095",
+      "matchesHead": true
+    },
+    "frontend/src/app/generationActions.ts": {
+      "sha256": "a7084609a3f9e899d4a9561b67e584032c9d880d58b50d165e623a99e75c776f",
+      "matchesHead": true
+    },
+    "frontend/src/app/generationActions.types.ts": {
+      "sha256": "09744203b562df2d74cc2ae3024623b2130df094a7fefa8059eeba3ca4d001a4",
+      "matchesHead": true
+    },
+    "frontend/src/app/recordActions.compensationGuards.test.ts": {
+      "sha256": "c1d7f2b6da0a8b1f2979efbaa6077e2be677c25358b9b0b1e9e80c812a36c8b2",
+      "matchesHead": true
+    },
+    "frontend/src/app/recordActions.coordination.ts": {
+      "sha256": "65d5cff9c44b93063f73eef6ec1e4d82255d22154c90966aea0423ff7908e785",
+      "matchesHead": true
+    },
+    "frontend/src/app/recordActions.drafts.ts": {
+      "sha256": "a5ddb2c6cab4cce8a4757d0158186e4a7baf534e09635594cf6a0822e7e5d253",
+      "matchesHead": true
+    },
+    "frontend/src/app/recordActions.findings.ts": {
+      "sha256": "922976b3e41f0e36a740aaf37c9b9fc5c3ac3ae68ebb28dbd157ca53d2759782",
+      "matchesHead": true
+    },
+    "frontend/src/app/recordActions.ts": {
+      "sha256": "e60ca372d3ed4ab882efd06775567397fc5c28f1409cd812597215712302c30e",
+      "matchesHead": true
+    },
+    "frontend/src/app/recordPersistence.drafts.ts": {
+      "sha256": "00e70896c1c5fc240535e9545abb08edd20b95cbc4508a75a84b13d4b23fe635",
+      "matchesHead": true
+    },
+    "frontend/src/app/recordPersistence.findings.ts": {
+      "sha256": "495e0399c0e95970c37dabe5189b7ec414455b66a5eab4514fcfe81b27b1518c",
+      "matchesHead": true
+    },
+    "frontend/src/app/recordPersistence.test.tsx": {
+      "sha256": "b247ed84b24224e1ccc3cd8aa6fcf5663cf10ba97d7e337cd82291bb95a92722",
+      "matchesHead": true
+    },
+    "frontend/src/app/recordWriteGuards.ts": {
+      "sha256": "36c0c365a26351e9dcdc4ff7f983dde4e16dd2e594cd2b5fb6c356771a04f148",
+      "matchesHead": true
+    },
+    "frontend/src/app/sessionChat.actions.ts": {
+      "sha256": "d1830e4c37d16d8b8f4b04dc54bce14c031981850bf653e42e21e2832de28451",
+      "matchesHead": true
+    },
+    "frontend/src/app/sessionChat.context.ts": {
+      "sha256": "211db00cd41d844dbc2b93f139940371fcfa3e35e8588dae575e318b0e7dfce6",
+      "matchesHead": true
+    },
+    "frontend/src/app/sessionChat.presentation.ts": {
+      "sha256": "280749c8625bd9fc29703c2a2495ece5fc53433f6b77fdd11a950813dbfdbcd1",
+      "matchesHead": true
+    },
+    "frontend/src/app/sessionChat.proposals.test.ts": {
+      "sha256": "356fef958603cf11d2958974a5d6b6244c8659d4ad1f61201cc98186ec3430ab",
+      "matchesHead": true
+    },
+    "frontend/src/app/sessionChat.proposals.ts": {
+      "sha256": "03e9c6b4ce0cc0f3897e6561fe59f08919e0827d041505ccb3ecb12ecfbfefc1",
+      "matchesHead": true
+    },
+    "frontend/src/app/sessionChat.questions.test.ts": {
+      "sha256": "40068002b9d3a5f031c83c64d3bebd27caca9070b83615a3eb554d76711c1b1a",
+      "matchesHead": true
+    },
+    "frontend/src/app/sessionChat.questions.ts": {
+      "sha256": "00c75f4bd988312e557051d1e280247992e81a33777467374acc2e3c8d604189",
+      "matchesHead": true
+    },
+    "frontend/src/app/sessionChat.send.ts": {
+      "sha256": "097f943e3daf67321d770ca17000b0e0acb21a407ba08fc3c3e79a2d4ae37656",
+      "matchesHead": true
+    },
+    "frontend/src/app/sessionChat.types.ts": {
+      "sha256": "0a63b7878aba76c09419f4e1d281faaf95612c34ad697b1ef71cc6d23b638efc",
+      "matchesHead": true
+    },
+    "frontend/src/app/useAppController.autosave.records.test.ts": {
+      "sha256": "40d5bce6cc9b2dee3ec6036f564afc5122607046679556e29f0df778d0ade323",
+      "matchesHead": true
+    },
+    "frontend/src/app/useAppController.chat.context.test.ts": {
+      "sha256": "8f83afded089fba17bcef584ba8053c1a16b5a4a347eee76600341b83c5473a9",
+      "matchesHead": true
+    },
+    "frontend/src/app/useAppController.chat.lifecycle.test.ts": {
+      "sha256": "fd2171acba5c0b3a0fe31dd53d2d76fcf9d0f811ede14671b761ad22d4ecb769",
+      "matchesHead": true
+    },
+    "frontend/src/app/useAppController.closeProtection.test.ts": {
+      "sha256": "58b7f5318af105746bb5ea90da629e33dcdad16ff754aebd06767dff0819c9ec",
+      "matchesHead": true
+    },
+    "frontend/src/app/useAppController.sessionIntegrity.compensation.test.ts": {
+      "sha256": "e0713b97eeb2d66f246227f3effd2be001975eda427b78dca993a0a473895ee8",
+      "matchesHead": true
+    },
+    "frontend/src/app/useAppController.testHarness.ts": {
+      "sha256": "4abc930cc744f0ebfd02bcba882dde4bb4c970995fa308edf9c6f5d919645956",
+      "matchesHead": true
+    },
+    "frontend/src/app/useAppController.ts": {
+      "sha256": "75ccc6af75317f61c7c9c05dcf8b28d5d07146fee2b3b489681d6f8ae50412aa",
+      "matchesHead": true
+    },
+    "frontend/src/app/useAppController.workflows.deletion.test.ts": {
+      "sha256": "d6d4178005992baf9bcffffc086939cd87c462a60a6554115fb62b0cf7896b1e",
+      "matchesHead": true
+    },
+    "frontend/src/app/useAppController.workflows.record-editing.test.ts": {
+      "sha256": "24d655923e37dbe560c398788fd1af91d799a9ed003b9ef54b00efcf45b84147",
+      "matchesHead": true
+    },
+    "frontend/src/app/useAppController.workflows.settlement.test.ts": {
+      "sha256": "a1834494ddc8487274b2aafaf418edc3dbd7420538ef699a0dcb419a1381af10",
+      "matchesHead": true
+    },
+    "frontend/src/app/useAskAiContext.ts": {
+      "sha256": "89a09795328261faae62df5c4161ccd2e2dc75980c8c1dd983134483692bcc40",
+      "matchesHead": true
+    },
+    "frontend/src/app/useSessionChat.ts": {
+      "sha256": "1cd324e479a7d59a73e8179c6836dec38e38bdcad3b9d1005c5e6018c0a6303e",
+      "matchesHead": true
+    },
+    "frontend/src/app/useSummaryRecovery.ts": {
+      "sha256": "94ea7474c038fee3f42e06f2e34df24566f6f78954fb99720bb0b09d77e883c9",
+      "matchesHead": true
+    },
+    "frontend/src/bindings.ts": {
+      "sha256": "dc167442e87affe58b66845b47ef7b12a44d0a5c9986dd1f5e25a0f09919ab0b",
+      "matchesHead": true
+    },
+    "frontend/src/editor/RichTextEditor.tsx": {
+      "sha256": "a7565c82caa62c0396d90a7c869b2fea9656a758f3420f87fca61e08424886d5",
+      "matchesHead": true
+    },
+    "frontend/src/styles/ask-ai.css": {
+      "sha256": "16bc5968e0fc1b8598210fe87399843e066bb1de587feaf96bad479369512534",
+      "matchesHead": true
+    },
+    "frontend/src/styles/collections.css": {
+      "sha256": "b08e59bf1b61f070b1b9c5b00d4e20e269744ad42ea8f25e5b817d48e8e09843",
+      "matchesHead": true
+    },
+    "frontend/src/tauri.test.ts": {
+      "sha256": "5b257b11db2f485b711e011bce837f36284681a1c0db5c358dbe11a0b97e98f4",
+      "matchesHead": true
+    },
+    "frontend/src/tauriCommands.ts": {
+      "sha256": "f9cfedba0154e1de7cf7b0ee0314bb25fbe30991163fc9534347ee2e7d3b13a2",
+      "matchesHead": true
+    },
+    "frontend/src/views/ChatContextCard.tsx": {
+      "sha256": "afc4efd7ef04ddc1d80ee81c4e9cf45d37f86eb69d875268b2462f6d002a4344",
+      "matchesHead": true
+    },
+    "frontend/src/views/ChatHandoff.tsx": {
+      "sha256": "b33fadb18feed29292e9cfebc0f2bfb7c9b0293c128974a93af2c4d0cc0ecb0b",
+      "matchesHead": true
+    },
+    "frontend/src/views/ChatMessageList.tsx": {
+      "sha256": "a3a0bef2a00098fd6f26e94c00064501cdae4e576370042fa7faf70518250015",
+      "matchesHead": true
+    },
+    "frontend/src/views/ChatProposalReview.test.tsx": {
+      "sha256": "7739819e43e59b070da2d8de1dfb51116da1c1b3d12df7734314a03cd3fae226",
+      "matchesHead": true
+    },
+    "frontend/src/views/ChatProposalReview.tsx": {
+      "sha256": "e1b897489be7d17ab93cdc0bc0b81af8b6080c9b51cdfb479db12c960206582c",
+      "matchesHead": true
+    },
+    "frontend/src/views/ChatQuestion.test.tsx": {
+      "sha256": "a33fb1a3e4e15a890fb3a558063389d60a48335dff096a6e9747bdf828835798",
+      "matchesHead": true
+    },
+    "frontend/src/views/ChatQuestion.tsx": {
+      "sha256": "8afb7a633f1784323beb7d67ee279830cbf63ec7f295d59b9cca2f8a88ee52da",
+      "matchesHead": true
+    },
+    "frontend/src/views/FindingsView.tsx": {
+      "sha256": "750275a4c00ac74edce7f50293a6185d71094d61725a3aa99d1a36a328d3b7e8",
+      "matchesHead": true
+    },
+    "frontend/src/views/RecordCollectionView.test.tsx": {
+      "sha256": "38e33cc58bf82ec6e77ac5e3cf7b6e7e458646052f5ede77652be3dfb1bb69b3",
+      "matchesHead": true
+    },
+    "frontend/src/views/RecordCollectionView.tsx": {
+      "sha256": "4be1d1cc9af22e358a3c1e4f4e41efbf76c24c78e745a5509099b481b66194ec",
+      "matchesHead": true
+    },
+    "frontend/src/views/RichRecordView.history.test.tsx": {
+      "sha256": "a86b182574525cb29fc8e2f3ef8daa51bd6a62b4e60af453892bad7851a0ad44",
+      "matchesHead": true
+    },
+    "frontend/src/views/RichRecordView.tsx": {
+      "sha256": "4466e343a236286922ce170d3dfb1584f2592f6306a94d604b661deab639663b",
+      "matchesHead": true
+    },
+    "frontend/src/views/SessionChatView.tsx": {
+      "sha256": "1659c69992640b8e05ac4e6292ca4c70b5884b641a7006854ce39e92a1b7d3bb",
+      "matchesHead": true
+    },
+    "frontend/src/views/StartNewConversation.tsx": {
+      "sha256": "d8450ec026c66b189e1b723297da76d70e83321fddb2d16f3c879a2c7631c664",
+      "matchesHead": true
+    },
+    "frontend/src/views/TestwareView.tsx": {
+      "sha256": "a8a37920ad371cd1b9426b3aee11bd3c08cd6892750d6de2bc451e605409d32c",
+      "matchesHead": true
+    },
+    "scripts/check-tauri-command-surface.mjs": {
+      "sha256": "9149bc4223709e3221fc19add4d3ceb75f4bd581adf3fd26d1cc85599a1de773",
+      "matchesHead": true
+    },
+    "scripts/check-tauri-command-surface.test.mjs": {
+      "sha256": "57e9a83a4f13a1ae268f5eaf658130220ecd2dbeea044c509b18a081f021f8e6",
+      "matchesHead": true
+    },
+    "scripts/run-e2e.mjs": {
+      "sha256": "e783387701e082f1f0d6944308cf9bb05ee503d63ed5399a6754aee223a809f7",
+      "matchesHead": true
+    },
+    "src-tauri/build.rs": {
+      "sha256": "991a8c7cd355fdc90aff1a3d03ff81d5b8d799cefac8df19a2aa48338ff0c0f6",
+      "matchesHead": true
+    },
+    "src-tauri/permissions/autogenerated/resolve_refinement.toml": {
+      "sha256": "9c25d1398ce87687ddc638c3c39ef5171195a2260aaa3cec40f609d3a5ecca61",
+      "matchesHead": true
+    },
+    "src-tauri/permissions/default.toml": {
+      "sha256": "fa823c55847a3a4378eacdbcfc11997aecdcfbad21c0a6397af4024f04a6bfd5",
+      "matchesHead": true
+    },
+    "src-tauri/src/commands/ai/chat_duplex/process/tests.rs": {
+      "sha256": "0525226b1efd40c550cb9cdc20ad2b6bf34742b2a4000542f972c737ae3ac418",
+      "matchesHead": true
+    },
+    "src-tauri/src/commands/chat.rs": {
+      "sha256": "e81a9f3a3ef57ef2f1bf0797871f53ec9e94fa673cabb7d7315e27ed78a81f63",
+      "matchesHead": true
+    },
+    "src-tauri/src/commands/chat/context_tests.rs": {
+      "sha256": "1779af35aa51c0ae2ad9a79b1538a0beecf705ba4340d4ebe756f2d91d6e85c8",
+      "matchesHead": true
+    },
+    "src-tauri/src/commands/chat/image_preflight_tests.rs": {
+      "sha256": "7d8301c4e00b2ba9fd33b08db39e663d089a5a3e642e130307a93c4c98dd4bc2",
+      "matchesHead": true
+    },
+    "src-tauri/src/commands/chat/lifecycle.rs": {
+      "sha256": "527d4978fb912378c7dd5446e429c0809fc89004a8870da461c8f9ca20860a01",
+      "matchesHead": true
+    },
+    "src-tauri/src/commands/chat/lifecycle/boundaries.rs": {
+      "sha256": "26d67c792fa0aacbc7b264e480f74666475a5e7885693254b9e918baf8e72b55",
+      "matchesHead": true
+    },
+    "src-tauri/src/commands/chat/lifecycle/images.rs": {
+      "sha256": "cf70d2717d9da5578698c02e3593c5211e909cdc87c8a9ad43ee9fe98ad422f3",
+      "matchesHead": true
+    },
+    "src-tauri/src/commands/chat/lifecycle/tests.rs": {
+      "sha256": "ffb3acd985f1fec052ccedd562079fcc1b53697267084894663fbf141a94937f",
+      "matchesHead": true
+    },
+    "src-tauri/src/commands/chat/preparation.rs": {
+      "sha256": "b7a78b4b8d9cdeb91843dfc314565e0144b1365cc0e194f8573ee1675d3b6cc5",
+      "matchesHead": true
+    },
+    "src-tauri/src/commands/chat/preparation_tests.rs": {
+      "sha256": "d029e282b73d7919b8c1433c6f2affa8cfddc82e1c9af9e9e48658967b678e6e",
+      "matchesHead": true
+    },
+    "src-tauri/src/commands/chat/question_tests.rs": {
+      "sha256": "e76f5fab38591f02e098fd73ec292d5382cf0380fd9b6f3abd917c766e831437",
+      "matchesHead": true
+    },
+    "src-tauri/src/commands/chat/runner.rs": {
+      "sha256": "3fa09d9202386b3fbb1d3f9d61683ce03242bf87d56e32e3059a66cc143bda86",
+      "matchesHead": true
+    },
+    "src-tauri/src/commands/findings.rs": {
+      "sha256": "60d03d79b267925e49a3443c93bd29ae4941da2dbd476d7685624688c74f2d3b",
+      "matchesHead": true
+    },
+    "src-tauri/src/commands/generation.rs": {
+      "sha256": "019bdc298247c76d05cf984d2f228bda27928f104178e3f352c439f3ca36c048",
+      "matchesHead": true
+    },
+    "src-tauri/src/specta_bindings.rs": {
+      "sha256": "363e13291aff8cfb5e2c671d26efd31ded31a3e724e73c5722e196ab95cbdb0b",
+      "matchesHead": true
+    }
+  }
+}

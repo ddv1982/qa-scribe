@@ -29,7 +29,10 @@ import {
 import { useAppSettlement } from './appSettlement'
 import { useAppControllerNavigation } from './useAppController.navigation'
 import { useAttachmentCleanup } from './useAttachmentCleanup'
+import { useSummaryRecovery } from './useSummaryRecovery'
+import { useAskAiContext } from './useAskAiContext'
 import { useSessionChat } from './useSessionChat'
+import { useRefinementController } from './sessionChat.proposals'
 import { useImportedAttachments } from './importedAttachments'
 import { useStableCapability } from './useStableCapability'
 import { createNoteEligibility } from './noteEligibility'
@@ -89,14 +92,7 @@ export function useAppController() {
   const navigationRouteHydratedRef = useRef(false)
   const settingsReturnViewRef = useRef<MainView>('sessions')
   const outputLibraries = useOutputLibraries(activeView)
-  const summaryRecovery = {
-    recoveredJobsRef: useRef(new Map<string, (typeof generationJobs)[string]>()),
-    unresolvedSummaryJobsRef: useRef(new Map<string, string>()),
-    completedSummaryEntriesRef: useRef(new Map<string, NonNullable<typeof noteEntry>>()),
-    openingSessionIdRef: useRef<string | null>(null),
-    discoveryPendingRef: useRef(true),
-    blockedSaveSessionIdsRef: useRef(new Set<string>()),
-  }
+  const summaryRecovery = useSummaryRecovery()
   const {
     activeProvider,
     captureSettingsCheckpoint,
@@ -237,10 +233,11 @@ export function useAppController() {
     saveDirtyRecordsNow: recordPersistence.saveDirtyRecordsNow,
     retryPendingRecordCompensations: recordPersistence.retryPendingRecordCompensations,
   })
-  const { sessionChat, sessionMode, setSessionMode, noteReadOnly, ...chatProtection } = useSessionChat({
+  const askAi = useAskAiContext(activeSession?.id ?? null, activeView, recordWorkspace)
+  const { sessionChat: baseSessionChat, sessionMode, setSessionMode, noteReadOnly, ...chatProtection } = useSessionChat({
     session: sessionWorkspace, noteRecovery, noteEligibility, sessionActions, generation: coordinatedGenerationWorkspace,
     selection, provider: activeProvider, providerWarning: effectiveAiSelection?.warning ?? null,
-    feedback, jobs: generationJobs, refreshProviderStatus,
+    feedback, jobs: generationJobs, refreshProviderStatus, captureContext: askAi.capture, recordWritesPending: recordPersistence.coordination.hasPendingRecordCompensations,
   })
   function setEditedSessionTitle(value: Parameters<typeof setSessionTitle>[0]) {
     const next = typeof value === 'function' ? value(sessionWorkspace.sessionTitleRef.current) : value
@@ -278,6 +275,7 @@ export function useAppController() {
       loadFindingsForSession,
     },
   }, recordPersistence)
+  const sessionChat = useRefinementController({ chat: baseSessionChat, askAi, records: recordWorkspace, actions: recordActions, persistence: recordPersistence, session: sessionWorkspace, openEditor: setCreatedRecordEditTarget, feedback })
   const generationActions = useGenerationActions({
     session: sessionWorkspace,
     records: recordWorkspace,
@@ -423,7 +421,7 @@ export function useAppController() {
     discardSettingsDraft,
     effectiveAiSelection,
     activeTestwareJob,
-    activeSession, activeView,
+    activeSession, activeView, askAi,
     busyAction, deleteConfirmation,
     deleteCopy,
     draftScreenshotCounts,

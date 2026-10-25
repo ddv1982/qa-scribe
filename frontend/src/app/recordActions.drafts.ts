@@ -37,6 +37,7 @@ export function createDraftRecordActions(
 
   function discardLocalDraft(original: Draft) {
     if (intents.get(original.id)?.kind === 'delete') return
+    coordination.clearStage('draft', original.id, 'discard')
     const latestSaved = ctx.records.savedDraftsRef.current.find((draft) => draft.id === original.id) ?? original
     const compensationPending = intents.get(original.id)?.compensationPending
     coordination.reserveDraftIntent(original.id, 'discard', latestSaved)

@@ -1,0 +1,70 @@
+Analysis of sampling com.apple.WebKit.WebContent (pid 41127) every 1 millisecond
+Process:         com.apple.WebKit.WebContent [41127]
+Path:            /System/Volumes/Preboot/Cryptexes/OS/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent
+Load Address:    0x102390000
+Identifier:      com.apple.WebKit.WebContent
+Version:         22625 (22625.1.29.11.28)
+Code Type:       ARM64E
+Platform:        macOS
+Parent Process:  launchd [1]
+Target Type:     live task
+
+Date/Time:       2026-10-25 00:56:36.961 +0200
+Launch Time:     2026-10-25 00:56:36.819 +0200
+OS Version:      macOS 27.0.1 (26A434)
+Report Version:  7
+Analysis Tool:   /usr/bin/sample
+
+Physical footprint:         142.5M
+Physical footprint (peak):  142.6M
+Idle exit:                  clean
+----
+
+Call graph:
+    1932 Thread_18469837   DispatchQueue_1: com.apple.main-thread  (serial)
+    + 1932 start  (in dyld) + 6688  [0x19a80be80]
+    +   1932 WebKit::XPCServiceMain(int, char const**)  (in WebKit) + 48  [0x1c8029588]
+    +     1932 xpc_main  (in libxpc.dylib) + 64  [0x19a8b7f64]
+    +       1932 _xpc_main  (in libxpc.dylib) + 40  [0x19a8cc074]
+    +         1932 _xpc_objc_main  (in libxpc.dylib) + 780  [0x19a8b8524]
+    +           1932 -[NSRunLoop(NSRunLoop) run]  (in Foundation) + 64  [0x19c41dbcc]
+    +             1931 -[NSRunLoop(NSRunLoop) runMode:beforeDate:]  (in Foundation) + 212  [0x19c3a4d5c]
+    +             ! 1928 _CFRunLoopRunSpecificWithOptions  (in CoreFoundation) + 536  [0x19ad7b82c]
+    +             ! : 1671 __CFRunLoopRun  (in CoreFoundation) + 1172  [0x19aca1334]
+    +             ! : | 1671 __CFRunLoopServiceMachPort  (in CoreFoundation) + 160  [0x19aca2aec]
+    +             ! : |   1671 mach_msg  (in libsystem_kernel.dylib) + 24  [0x19ab9cfac]
+    +             ! : |     1671 mach_msg_overwrite  (in libsystem_kernel.dylib) + 480  [0x19aba5a28]
+    +             ! : |       1671 mach_msg2_internal  (in libsystem_kernel.dylib) + 76  [0x19abaf8e0]
+    +             ! : |         1671 mach_msg2_trap  (in libsystem_kernel.dylib) + 8  [0x19ab9cc20]
+    +             ! : 167 __CFRunLoopRun  (in CoreFoundation) + 1852  [0x19aca15dc]
+    +             ! : | 166 __CFRunLoopDoTimers  (in CoreFoundation) + 280  [0x19acbc0d8]
+    +             ! : | + 163 __CFRunLoopDoTimer  (in CoreFoundation) + 1084  [0x19acbc5c8]
+    +             ! : | + ! 163 __CFRUNLOOP_IS_CALLING_OUT_TO_A_TIMER_CALLBACK_FUNCTION__  (in CoreFoundation) + 32  [0x19acbc8cc]
+    +             ! : | + !   151 WebCore::timerFired(__CFRunLoopTimer*, void*)  (in WebCore) + 76  [0x1c3bcf784]
+    +             ! : | + !   : 150 WTF::Detail::CallableWrapper<WebCore::ThreadTimers::setSharedTimer(WebCore::SharedTimer*)::$_0, void>::call()  (in WebCore) + 436  [0x1c3bcf998]
+    +             ! : | + !   : | 63 WTF::Detail::CallableWrapper<WebCore::Timer::Timer<WebKit::RemoteLayerTreeDrawingArea, WebKit::RemoteLayerTreeDrawingArea>(WebKit::RemoteLayerTreeDrawingArea&, void (WebKit::RemoteLayerTreeDrawingArea::*)())::'lambda'(), void>::call()  (in WebKit) + 68  [0x1c83a47b0]
+    +             ! : | + !   : | + 45 WebKit::RemoteLayerTreeDrawingArea::updateRendering()  (in WebKit) + 168  [0x1c83a0b28]
+    +             ! : | + !   : | + ! 45 WebKit::WebPage::updateRendering()  (in WebKit) + 44  [0x1c9229b58]
+    +             ! : | + !   : | + !   21 WebCore::Page::updateRendering()  (in WebCore) + 228  [0x1c3bea224]
+    +             ! : | + !   : | + !   : 21 WebCore::Page::layoutIfNeeded(WTF::OptionSet<WebCore::LayoutOptions, (WTF::ConcurrencyTag)0>)  (in WebCore) + 156  [0x1c3bfee9c]
+    +             ! : | + !   : | + !   :   21 WebCore::LocalFrameView::updateLayoutAndStyleIfNeededRecursive(WTF::OptionSet<WebCore::LayoutOptions, (WTF::ConcurrencyTag)0>)  (in WebCore) + 392  [0x1c3bff0cc]
+    +             ! : | + !   : | + !   :     17 WebCore::Document::updateLayout(WTF::OptionSet<WebCore::LayoutOptions, (WTF::ConcurrencyTag)0>, WebCore::Element const*)  (in WebCore) + 1232  [0x1c3ba9b30]
+    +             ! : | + !   : | + !   :     | 4 WebCore::Document::resolveStyle(WebCore::Document::ResolveStyleType)  (in WebCore) + 548  [0x1c3bd04a0]
+    +             ! : | + !   : | + !   :     | + 3 WebCore::Style::TreeResolver::resolve()  (in WebCore) + 636  [0x1c3bd14bc]
+    +             ! : | + !   : | + !   :     | + ! 3 WebCore::Style::TreeResolver::resolveComposedTree()  (in WebCore) + 1076  [0x1c5ff3ee4]
+    +             ! : | + !   : | + !   :     | + !   3 WebCore::Style::TreeResolver::resolveElement(WebCore::Element&, WebCore::Style::ComputedStyle const*, WebCore::Style::TreeResolver::ResolutionType)  (in WebCore) + 304  [0x1c5fea354]
+    +             ! : | + !   : | + !   :     | + !     2 WebCore::Style::TreeResolver::styleForStyleable(WebCore::Styleable const&, WebCore::Style::TreeResolver::ResolutionType, WebCore::Style::ResolutionContext const&, WebCore::Style::ComputedStyle const*)  (in WebCore) + 3064  [0x1c5fe6e04]
+    +             ! : | + !   : | + !   :     | + !     : 1 WebCore::Style::Resolver::unadjustedStyleForElement(WebCore::Element&, WebCore::Style::ResolutionContext const&, WebCore::RuleMatchingBehavior)  (in WebCore) + 464  [0x1c3bcbfe0]
+    +             ! : | + !   : | + !   :     | + !     : | 1 WebCore::Style::ElementRuleCollector::matchAllRules(bool, bool)  (in WebCore) + 332  [0x1c3bcd974]
+    +             ! : | + !   : | + !   :     | + !     : |   1 WebCore::Style::ElementRuleCollector::collectMatchingRules(WebCore::Style::DeclarationOrigin)  (in WebCore) + 1132  [0x1c3bc1ee4]
+    +             ! : | + !   : | + !   :     | + !     : |     1 WebCore::Style::ElementRuleCollector::collectMatchingRulesForListSlow(WTF::Vector<WebCore::Style::RuleData, 1ul, WTF::CrashOnOverflow, 16ul, WTF::FastMalloc> const&, WebCore::Style::MatchRequest const&)  (in WebCore) + 1644  [0x1c3bdf89c]
+    +             ! : | + !   : | + !   :     | + !     : |       1 WebCore::SelectorCompiler::SelectorCodeGenerator::compile(JSC::MacroAssemblerCodeRef<(WTF::PtrTag)37060>&)  (in WebCore) + 2152  [0x1c3f81740]
+    +             ! : | + !   : | + !   :     | + !     : |         1 JSC::LinkBuffer::linkCode(JSC::MacroAssembler&, JSC::JITCompilationEffort)  (in JavaScriptCore) + 120  [0x1bec5cb88]
+    +             ! : | + !   : | + !   :     | + !     : |           1 ???  (in <unknown binary>)  [0x1c246aebc]
+    +             ! : | + !   : | + !   :     | + !     : 1 WebCore::Style::Resolver::unadjustedStyleForElement(WebCore::Element&, WebCore::Style::ResolutionContext const&, WebCore::RuleMatchingBehavior)  (in WebCore) + 688  [0x1c3bcc0c0]
+    +             ! : | + !   : | + !   :     | + !     :   1 WebCore::Style::Resolver::applyMatchedProperties(WebCore::Style::Resolver::State&, WebCore::Style::MatchResult const&, WebCore::Style::PropertyCascade::IncludedProperties&&)  (in WebCore) + 7060  [0x1c4044fb4]
+    +             ! : | + !   : | + !   :     | + !     1 WebCore::Style::TreeResolver::styleForStyleable(WebCore::Styleable const&, WebCore::Style::TreeResolver::ResolutionType, WebCore::Style::ResolutionContext const&, WebCore::Style::ComputedStyle const*)  (in WebCore) + 2976  [0x1c5fe6dac]
+    +             ! : | + !   : | + !   :     | + !       1 WebCore::SVGElement::resolveCustomStyle(WebCore::Style::ResolutionContext const&, WebCore::Style::ComputedStyle const*)  (in WebCore) + 124  [0x1c60c60b8]
+    +             ! : | + !   : | + !   :     | + !         1 WebCore::Style::Resolver::unadjustedStyleForElement(WebCore::Element&, WebCore::Style::ResolutionContext const&, WebCore::RuleMatchingBehavior)  (in WebCore) + 464  [0x1c3bcbfe0]
+    +             ! : | + !   : | + !   :     | + !           1 WebCore::Style::ElementRuleCollector::matchAllRules(bool, bool)  (in WebCore) + 332  [0x1c3bcd974]
+    +             ! : | + !   : | + !   :     | + !             1 WebCore::Style::ElementRuleCollector::collectMatchingRules(WebCore::Style::DeclarationOrigin)  (in WebCore) + 660  [0x1c3bc1d0c]

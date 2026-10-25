@@ -38,8 +38,9 @@ pub fn update_finding(
     state: State<'_, AppState>,
     id: String,
     patch: FindingPatch,
-) -> Result<Finding, CommandError> {
-    state.with_service(|service| service.update_finding(&id, patch))
+    guard: qa_scribe_core::domain::RecordWriteGuard,
+) -> Result<qa_scribe_core::domain::RecordWriteOutcome<Finding>, CommandError> {
+    state.with_service(|service| service.update_finding(&id, patch, guard))
 }
 
 #[tauri::command]

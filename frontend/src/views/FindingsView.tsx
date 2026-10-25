@@ -1,5 +1,6 @@
 import { findingSeverityValue, prepareFindingForEditing } from '../findings/severity'
 import { findingCopyBody } from '../findings/copyBody'
+import type { RecordChatActions } from '../app/sessionChat.context'
 import type { RecordCreationCommands } from './RecordCreationActions'
 import { Flag } from 'lucide-react'
 import type { RichEditorImageUpload } from '../editor/RichTextEditor'
@@ -39,7 +40,7 @@ const findingsLabels: RecordCollectionLabels = {
 const findingKindOptions: FindingKind[] = ['bug', 'question', 'risk', 'follow_up', 'note']
 
 export function FindingsView({
-  composer, settleCreation,
+  composer, settleCreation, recordChat,
   creationCommands,
   busyAction,
   copyState,
@@ -64,6 +65,7 @@ export function FindingsView({
   onDiscardFinding,
   onUploadImage,
 }: {
+  recordChat?: RecordChatActions
   settleCreation?: () => Promise<boolean>
   composer?: import('react').ReactNode
   creationCommands: RecordCreationCommands
@@ -92,7 +94,7 @@ export function FindingsView({
 }) {
   return (
     <RecordCollectionView
-      composer={composer} settleCreation={settleCreation}
+      composer={composer} settleCreation={settleCreation} recordChat={recordChat}
       creationCommands={creationCommands}
       labels={findingsLabels}
       emptyIcon={Flag}

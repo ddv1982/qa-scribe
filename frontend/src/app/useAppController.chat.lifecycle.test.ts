@@ -171,7 +171,7 @@ describe('app-owned Session Chat turn lifecycle', () => {
     api.startChatJob.mockResolvedValue(startedTurn())
     await act(async () => { await result.current.sessionChat.onRetry() })
     expect(api.startChatJob).toHaveBeenCalledWith(expect.objectContaining({
-      scope: { sessionId: 'session-1', draftId: 'chat-1', expectedRevision: 3 }, retry: true,
+      scope: { sessionId: 'session-1', draftId: 'chat-1', expectedRevision: 3 }, intent: { kind: 'retry' },
     }), expect.any(Function))
   })
 

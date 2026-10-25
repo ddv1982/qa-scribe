@@ -36,7 +36,10 @@ pub(super) fn read(connection: &Connection, id: &str) -> Result<ChatState> {
     for row in rows {
         let (id, turn_id, role, text, status, error_message, created_at, ai_run_id) = row?;
         messages.push(ChatMessage {
+            response: super::chat_responses::read(connection, &id)?,
+            answer: super::chat_responses::answer(connection, &id)?,
             images: super::chat_images::read(connection, &id, false)?,
+            context: super::chat_context::read(connection, &id)?,
             id,
             turn_id,
             role: ChatRole::from_stored(&role)?,
@@ -63,7 +66,16 @@ pub(super) fn read(connection: &Connection, id: &str) -> Result<ChatState> {
     let ai_runs = statement
         .query_map([id], super::super::session_rows::map_ai_run)?
         .collect::<rusqlite::Result<Vec<_>>>()?;
+    let pending_response = messages
+        .iter()
+        .find(|m| m.role == ChatRole::User && m.status != ChatTurnStatus::Completed)
+        .map(|message| super::chat_responses::contract(connection, &message.id))
+        .transpose()?
+        .flatten()
+        .map(|c| c.purpose());
     Ok(ChatState {
+        pending_response,
+        proposals: super::chat_refinements::read(connection, id)?,
         session_id: row.0,
         draft_id: id.into(),
         revision: row.1,
@@ -163,7 +175,11 @@ pub(super) fn append_capacity(
             "Chat has reached its message limit. Start a new conversation.",
         ));
     }
-    let total: usize = chat.messages.iter().map(|message| message.text.len()).sum();
+    let total: usize = chat
+        .messages
+        .iter()
+        .map(|message| super::chat_questions::readable_message(message).len())
+        .sum();
     if total.saturating_add(text.len()) > MAX_CHAT_TRANSCRIPT_BYTES {
         return Err(validation(
             "Chat has reached its text limit. Start a new conversation.",

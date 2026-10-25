@@ -37,6 +37,7 @@ export function createFindingRecordActions(
 
   function discardLocalFinding(original: Finding) {
     if (intents.get(original.id)?.kind === 'delete') return
+    coordination.clearStage('finding', original.id, 'discard')
     const latestSaved = ctx.records.savedFindingsRef.current.find((finding) => finding.id === original.id) ?? original
     const compensationPending = intents.get(original.id)?.compensationPending
     coordination.reserveFindingIntent(original.id, 'discard', latestSaved)

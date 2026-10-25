@@ -1,4 +1,5 @@
 import { registerUnifiedProof } from './unified-visual-proof.mjs'
+import { attachRecordProofImage, scrollRecordToEnd } from './record-editor-proof.mjs'
 import assert from 'node:assert/strict'
 import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -45,6 +46,7 @@ async function snapshot(stage, width, theme, actionSelector) {
     window.scrollTo(0, 0)
     const workspace = document.querySelector('.center-workspace')
     if (workspace) workspace.scrollTop = 0
+    for (const collection of document.querySelectorAll('.collection-view')) collection.scrollTop = 0
   })
   // Save pixels before geometry assertions, including unchanged-CSS regressions.
   await browser.saveScreenshot(join(artifacts, `${stage}.png`))
@@ -334,7 +336,7 @@ describe('Native UI polish before/after evidence', () => {
       await back()
       await actions(stage, '.ai-action-buttons button')
     }
-    await laptopResize(1280, 720)
+    await laptopResize(1280, 645)
     await click('button=Chat')
     await (await $('.chat-composer textarea')).waitForEnabled()
     await actions('chat-empty', '.chat-composer textarea, .chat-compose-actions button')
@@ -407,25 +409,9 @@ describe('Native UI polish before/after evidence', () => {
     const longRecord = 'Evidence: checkout request 42 retained. '.repeat(160)
     await (await $('[aria-label="Test case title"]')).setValue('Long evidence record')
     await (await $('.editable-record [contenteditable="true"]')).setValue(longRecord)
-    await browser.execute(() => {
-      const canvas = document.createElement('canvas')
-      canvas.width = canvas.height = 32
-      const context = canvas.getContext('2d')
-      context.fillStyle = '#2456c4'
-      context.fillRect(0, 0, 32, 32)
-      const bytes = Uint8Array.from(atob(canvas.toDataURL('image/png').split(',')[1]), (char) => char.charCodeAt(0))
-      const transfer = new DataTransfer()
-      transfer.items.add(new File([bytes], 'checkout-evidence.png', { type: 'image/png' }))
-      const editor = document.querySelector('.editable-record [contenteditable="true"]')
-      editor.focus()
-      const input = document.querySelector('.editable-record [aria-label="Upload image file"]')
-      input.addEventListener('click', (event) => event.preventDefault(), { once: true })
-      document.querySelector('.editable-record [aria-label="Upload image"]').click()
-      input.files = transfer.files
-      input.dispatchEvent(new Event('change', { bubbles: true }))
-    })
+    await attachRecordProofImage()
     await (await $('.editable-record img[src^="data:image/"]')).waitForExist()
-    await browser.execute(() => { const workspace = document.querySelector('.center-workspace > .collection-view'); workspace.scrollTop = workspace.scrollHeight })
+    await scrollRecordToEnd()
     await actions('record-long', '.editable-record .record-actions button', false)
     await (await recordButton('Save test cases')).click()
     await (await recordButton('Edit')).waitForClickable()

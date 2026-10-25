@@ -1,4 +1,4 @@
-import type { ChatImage, ChatMode, ChatPermissionDecision, ChatState, GenerationJobStatus, ProviderDescriptor } from '../bindings'
+import type { ChatRequestIntent, ChatTarget, ChatImage, ChatMode, ChatPermissionDecision, ChatState, GenerationJobStatus, ProviderDescriptor } from '../bindings'
 import type { Dispatch, SetStateAction } from 'react'
 import type { AiSelection, GenerationWorkspace, SessionWorkspace, WorkflowFeedback } from './types'
 import type { useSessionActions } from './sessionActions'
@@ -10,6 +10,14 @@ export type ChatImageRecovery = { kind: 'refresh_pending' | 'verification_pendin
 export type ChatImageFailure = { id: string; filename: string; message: string; recovery?: ChatImageRecovery }
 
 export interface SessionChatViewState {
+  responseStarting?: ChatRequestIntent
+  recordWritesPending?: boolean
+  onRefine?: () => Promise<void>
+  onDraftJira?: () => Promise<void>
+  onAnswerQuestion?: (assistantMessageId: string, text: string) => Promise<void>
+  onPrepareAction?: (assistantMessageId: string) => Promise<void>
+  onRefresh?: () => Promise<void>
+  proposalControls?: import('./sessionChat.proposals').ProposalControls
   handoff: ChatHandoffPresentation
   chat: ChatState | null
   composer: string
@@ -41,7 +49,7 @@ export interface SessionChatViewState {
   onRestart: () => Promise<void>
 }
 
-export type ChatSnapshot = Pick<SessionChatViewState, 'chat' | 'composer' | 'composerImages' | 'imageFailures' | 'inputRecoveryPending' | 'job' | 'loading' | 'saving' | 'working' | 'error' | 'dirty' | 'permissionWorking' | 'permissionRecoveryPending'> & {
+export type ChatSnapshot = Pick<SessionChatViewState, 'chat' | 'composer' | 'composerImages' | 'imageFailures' | 'inputRecoveryPending' | 'job' | 'loading' | 'saving' | 'working' | 'error' | 'dirty' | 'permissionWorking' | 'permissionRecoveryPending' | 'responseStarting'> & {
   sessionId: string | null
   mode: ChatMode
 }
@@ -52,6 +60,7 @@ export const emptyChatSnapshot: ChatSnapshot = {
 }
 
 export type SessionChatContext = {
+  recordWritesPending?: () => boolean
   noteRecovery: ChatNoteRecovery
   noteEligibility: NoteEligibility
   session: SessionWorkspace
@@ -61,6 +70,7 @@ export type SessionChatContext = {
   provider: ProviderDescriptor | null
   providerWarning: string | null
   refreshProviderStatus?: () => Promise<void>
+  captureContext?: (sessionId: string) => ChatTarget
   feedback: WorkflowFeedback
   publish: Dispatch<SetStateAction<ChatSnapshot>>
 }
@@ -75,7 +85,7 @@ export type ChatWorkspace = {
   composer: string
   composerImages: ChatImage[]
   imageFailures: ChatImageFailure[]
-  pendingStart: { state: 'starting' | 'uncertain' } | null
+  pendingStart: { state: 'starting' | 'uncertain'; intent: ChatRequestIntent } | null
   mode: ChatMode
   inputVersion: number
   modeVersion: number

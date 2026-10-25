@@ -78,6 +78,7 @@ impl Images {
         let input = build_chat_input(
             "",
             vec![ChatInputMessage {
+                context: qa_scribe_core::domain::ChatTarget::Session,
                 id: "message".into(),
                 role: ChatPromptRole::User,
                 text: "pixels".into(),

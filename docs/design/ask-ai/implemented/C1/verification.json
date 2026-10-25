@@ -1,0 +1,241 @@
+{
+  "scope": "C1 only. No R1 envelope, proposal/apply feature, Jira integration, real Jira operations, commits, PRs, pushes, goals, automations, or nested agents.",
+  "baseHead": "ed93f43955bfa98fec8fcb00f47a8ee9ddc24d3f",
+  "status": "C1 implementation and bounded focused native/contract proofs complete. Writes and native lane released to parent.",
+  "modifiedPaths": [
+    "crates/qa-scribe-core/src/ai/chat_protocol/tests/images.rs",
+    "crates/qa-scribe-core/src/chat/input.rs",
+    "crates/qa-scribe-core/src/chat/mod.rs",
+    "crates/qa-scribe-core/src/domain/chat.rs",
+    "crates/qa-scribe-core/src/domain/chat_context.rs",
+    "crates/qa-scribe-core/src/domain/mod.rs",
+    "crates/qa-scribe-core/src/services/session_service.rs",
+    "crates/qa-scribe-core/src/services/session_service/chat.rs",
+    "crates/qa-scribe-core/src/services/session_service/chat_context.rs",
+    "crates/qa-scribe-core/src/services/session_service/chat_rows.rs",
+    "crates/qa-scribe-core/src/services/session_service/chat_submission.rs",
+    "crates/qa-scribe-core/src/services/session_service/chat_turns.rs",
+    "crates/qa-scribe-core/src/storage/chat_context.rs",
+    "crates/qa-scribe-core/src/storage/mod.rs",
+    "crates/qa-scribe-core/tests/chat_context.rs",
+    "crates/qa-scribe-core/tests/chat_storage.rs",
+    "crates/qa-scribe-core/tests/chat_storage/image_migration.rs",
+    "e2e/fixtures/ask-ai-context-provider.mjs",
+    "e2e/fixtures/ask-ai-context-provider.test.mjs",
+    "e2e/fixtures/bin/codex",
+    "e2e/fixtures/chat-authorization-codex.mjs",
+    "e2e/specs/ask-ai-context.e2e.mjs",
+    "e2e/specs/chat-to-note.workflow.mjs",
+    "frontend/src/app/AppChat.tsx",
+    "frontend/src/app/AppShell.askAi.test.tsx",
+    "frontend/src/app/AppShell.tsx",
+    "frontend/src/app/sessionChat.actions.ts",
+    "frontend/src/app/sessionChat.context.ts",
+    "frontend/src/app/sessionChat.types.ts",
+    "frontend/src/app/useAppController.chat.context.test.ts",
+    "frontend/src/app/useAppController.ts",
+    "frontend/src/app/useAskAiContext.ts",
+    "frontend/src/app/useSummaryRecovery.ts",
+    "frontend/src/bindings.ts",
+    "frontend/src/styles/ask-ai.css",
+    "frontend/src/views/ChatContextCard.tsx",
+    "frontend/src/views/ChatMessageList.tsx",
+    "frontend/src/views/FindingsView.tsx",
+    "frontend/src/views/RecordCollectionView.tsx",
+    "frontend/src/views/SessionChatView.tsx",
+    "frontend/src/views/TestwareView.tsx",
+    "scripts/run-e2e.mjs",
+    "src-tauri/src/commands/ai/chat_duplex/process/tests.rs",
+    "src-tauri/src/commands/chat.rs",
+    "src-tauri/src/commands/chat/context_tests.rs",
+    "src-tauri/src/commands/chat/image_preflight_tests.rs",
+    "src-tauri/src/commands/chat/lifecycle.rs",
+    "src-tauri/src/commands/chat/lifecycle/boundaries.rs",
+    "src-tauri/src/commands/chat/lifecycle/images.rs",
+    "src-tauri/src/commands/chat/lifecycle/tests.rs",
+    "src-tauri/src/commands/chat/preparation.rs",
+    "src-tauri/src/commands/chat/preparation_tests.rs",
+    "src-tauri/src/commands/chat/runner.rs"
+  ],
+  "sourceSha256": {
+    "crates/qa-scribe-core/src/ai/chat_protocol/tests/images.rs": "bd444f177e3a4ecaa498e2a7d68072e5cdc7e8480d276e8b3c5086b7c8b91eb1",
+    "crates/qa-scribe-core/src/chat/input.rs": "62547a6c1b13a1aafdff67ab5657af68bbc11381d0c569dc0657d29d2a9e6edd",
+    "crates/qa-scribe-core/src/chat/mod.rs": "906b92cdd8b3c5708b83b0c3a8ca2f576aa875de2d91bc9ef2f344a4d770ef14",
+    "crates/qa-scribe-core/src/domain/chat.rs": "47ae2e68f32a82d69864e332a87ba42df92e61a2f79b7eb2abc008064af4d1e4",
+    "crates/qa-scribe-core/src/domain/chat_context.rs": "d52973b7b60b06638eb5472e95e8aaf7d19b826e13f9567e053c800cd45b17a5",
+    "crates/qa-scribe-core/src/domain/mod.rs": "36d0f86e8e73ccebfc30399e1611a9e93037e8ba7ee8cd3b60cc670aaf645fb0",
+    "crates/qa-scribe-core/src/services/session_service.rs": "83a3565d01e1d41f7a6a158739a392c482a4b96417b70075c45826f3611cd905",
+    "crates/qa-scribe-core/src/services/session_service/chat.rs": "85e01a361677b1143f92227767bb8e4e4403bdf8c430ca822766f201c742cd9f",
+    "crates/qa-scribe-core/src/services/session_service/chat_context.rs": "1e6a0d9127bb09e1848a247b1e0368d5b5dfb82683c21ba539699200f9e34c01",
+    "crates/qa-scribe-core/src/services/session_service/chat_rows.rs": "d8d423344346bfd75d63b8f1cc895f652346304b7d8531091f3120def946a9f8",
+    "crates/qa-scribe-core/src/services/session_service/chat_submission.rs": "ce8b1ace50baa46f4d7cccc40ef255fb81731d6410f69e48ed71e485e8eba35a",
+    "crates/qa-scribe-core/src/services/session_service/chat_turns.rs": "6a7630fb7b1e3608f40b8a50eb1f5acdf8e2a3d358230581ca7ae6b55d55fa8e",
+    "crates/qa-scribe-core/src/storage/chat_context.rs": "0c53d1b3670870eb09ea27dd6cb05e656ca824c7b428347e54550b138cbca17a",
+    "crates/qa-scribe-core/src/storage/mod.rs": "ffb00f9f3b834227867b2538603c4618779af33c021d4ceab9bc34cc1a8a3f07",
+    "crates/qa-scribe-core/tests/chat_context.rs": "f0cc3c3a8bb9d7ed2d42e80bfd132bba00530811d804b144a9df49d7d44ec676",
+    "crates/qa-scribe-core/tests/chat_storage.rs": "21c43610d62d0686db5ecf3947963865ca490afec4a9596c2ec0cc024fa8ae8b",
+    "crates/qa-scribe-core/tests/chat_storage/image_migration.rs": "1c50c9bf50558e3642d0b15679e8b9c2acaabc7d305e60300020eb42da04e5ec",
+    "e2e/fixtures/ask-ai-context-provider.mjs": "a812708ff5c99ce9ea281c2bdef87b92ac6275f73333e84f64cacd544922c829",
+    "e2e/fixtures/ask-ai-context-provider.test.mjs": "7812558288cd24d1e0907e71207e67a24579eb29c8399f094c85e645248ee16d",
+    "e2e/fixtures/bin/codex": "5fd5e0ab39c28c97192ea983d7afded087f3501a1d97a74e200434093c5cef9e",
+    "e2e/fixtures/chat-authorization-codex.mjs": "28dc09ef3566e22aaa9d275d832a93381c84b1c28370401445305e77ee95c1de",
+    "e2e/specs/ask-ai-context.e2e.mjs": "49ec732d4469a62fbcead17086d1d49b68970a09da05dff49ccfb012cf895738",
+    "e2e/specs/chat-to-note.workflow.mjs": "641be34008ee39218ce57b3a2acf52fa16530802ad31720164c8bc781233309d",
+    "frontend/src/app/AppChat.tsx": "75ef647ebe090f8e78463f63af49407f1c1d9e2f408e6cf4790094b66bdc8a03",
+    "frontend/src/app/AppShell.askAi.test.tsx": "a97416efe75846905217b0a0efa3a676a67dd439d22e005fd0c26a1445eebc54",
+    "frontend/src/app/AppShell.tsx": "1438989413a88339ba981b2b7f70d75d765f7bb81f3aec441ec3833b02f38095",
+    "frontend/src/app/sessionChat.actions.ts": "03f1cc4bd5fb5cf45754e0820990c8f53bbd98039ee71002b4440b559a9d65d2",
+    "frontend/src/app/sessionChat.context.ts": "211db00cd41d844dbc2b93f139940371fcfa3e35e8588dae575e318b0e7dfce6",
+    "frontend/src/app/sessionChat.types.ts": "0dc9a5446294fd596fcbd7ffaaddf2c697fad7714ec2500e4d2725af19901741",
+    "frontend/src/app/useAppController.chat.context.test.ts": "bc9aea5f64b51951acb0b309fd74be7f347215a81e6e7ae20d21f0cf73136ea5",
+    "frontend/src/app/useAppController.ts": "242e81b776903872854df4931c09a5c38968de938d5939d74207e7cd0d7d14fd",
+    "frontend/src/app/useAskAiContext.ts": "513b9a5de9733af65c39f02b4893a240256293d38467966842cef53d635cbfcf",
+    "frontend/src/app/useSummaryRecovery.ts": "94ea7474c038fee3f42e06f2e34df24566f6f78954fb99720bb0b09d77e883c9",
+    "frontend/src/bindings.ts": "da5bb79d984df0fce18be61dbbce649e38cd3faf3a8fe9129ed441260a8e7c7a",
+    "frontend/src/styles/ask-ai.css": "88354738a06f26a64895fa48d80de9a69c73b5b11bf253144c2b7fa73781e864",
+    "frontend/src/views/ChatContextCard.tsx": "afc4efd7ef04ddc1d80ee81c4e9cf45d37f86eb69d875268b2462f6d002a4344",
+    "frontend/src/views/ChatMessageList.tsx": "bd91d03f2c93c60e2ed6d8813cb602d3d7b896138c404a12312e724a59be4e32",
+    "frontend/src/views/FindingsView.tsx": "750275a4c00ac74edce7f50293a6185d71094d61725a3aa99d1a36a328d3b7e8",
+    "frontend/src/views/RecordCollectionView.tsx": "cb323715b02979a836f1705c589921e1d3ac2dd8984b0c1d5fb712c759fbd5dc",
+    "frontend/src/views/SessionChatView.tsx": "bcf4ba6fd99db054b0f340b8bc7145b9e06390aa6d07edc9bd1049476a3d8eae",
+    "frontend/src/views/TestwareView.tsx": "a8a37920ad371cd1b9426b3aee11bd3c08cd6892750d6de2bc451e605409d32c",
+    "scripts/run-e2e.mjs": "78ea2811bba7b28623a62426d5b028a2636c31799733bf8836315e14d6b595db",
+    "src-tauri/src/commands/ai/chat_duplex/process/tests.rs": "0525226b1efd40c550cb9cdc20ad2b6bf34742b2a4000542f972c737ae3ac418",
+    "src-tauri/src/commands/chat.rs": "f112ea77e0480997f130839b42e194f64f2fb9dfecd859f48bfed5977ee2dfde",
+    "src-tauri/src/commands/chat/context_tests.rs": "17e6b9407f58a7eaf92e2c3f22e5a85a8877a5e5faaf11861027ce0d3704a84b",
+    "src-tauri/src/commands/chat/image_preflight_tests.rs": "29dd479a6186f3984544e72356217b430299122f92fd906999d70959e873580b",
+    "src-tauri/src/commands/chat/lifecycle.rs": "447d65cfda1239b6029929b4ff2717c8a15b78ec069fa7dd963d4d0ed3b77573",
+    "src-tauri/src/commands/chat/lifecycle/boundaries.rs": "cfcd839d777f26f91f3d2d1f965f18d889016fb3d20c59353e0f73e94ab05302",
+    "src-tauri/src/commands/chat/lifecycle/images.rs": "7cdde549496c390411478913136b7ddf663fb22972badbc7946010e6cecec2ea",
+    "src-tauri/src/commands/chat/lifecycle/tests.rs": "82a8c75592d62a3bcbd08a66d650047d0010f3f23f4be5810e0872fa93783641",
+    "src-tauri/src/commands/chat/preparation.rs": "7ef2ef1f99459a57bf7af718c8b6d764ff763b213fc2f89e1b5f38454eb48bf8",
+    "src-tauri/src/commands/chat/preparation_tests.rs": "1ca48b092e312fcc978b1a4293b5ded2634dfeac748844f2ab8568a2d70fd929",
+    "src-tauri/src/commands/chat/runner.rs": "337225c13f0c9e92ede1510255e1ea10a51d4eb8cf2a9a6daed330a47d31aefa"
+  },
+  "behavior": [
+    "ChatTarget Session/Finding/TestCasesDraft. Canonical rich record snapshot captured synchronously when Send begins, from current local editor records.",
+    "Schema 15 to 16 adds immutable version-1 context adjunct keyed by stable user message ID in the original turn transaction. Old messages default to Session context.",
+    "Backend checks Session ownership, record existence and Testware draft kind. Backend computes local fingerprint and a separate stored base token. Retry retains the original context even after new saved edits or service reopen.",
+    "Context limits are 32 KiB per snapshot and 128 KiB aggregate. Existing text, image and provider frame limits remain. Oversize sends retain composer and dirty records.",
+    "One mounted SessionChatView reuses composer, images, provider/model controls, job, cancellation, permissions, explicit reset and Note handoff. Context detach affects future sends. Notes sends explicitly use Session context.",
+    "Saved manual/generated records expose Ask AI beside Copy/Edit. Record list hides while panel is active. At workspace widths below 850 px chat uses full content. Collection remains its own scrollport.",
+    "Panel styles live in ask-ai.css. Existing summary recovery refs extracted into a typed domain hook to retain the 500-line policy."
+  ],
+  "passedNativeProofs": {
+    "s1_layout": {
+      "version": 1,
+      "spec": "record-workspace-layout.e2e.mjs",
+      "completed": true,
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0,
+      "receipt": "/Users/vriesd/projects/qa-scribe/artifacts/ask-ai/C1/s1-regression/wdio-execution.json",
+      "runnerReceipt": "/Users/vriesd/projects/qa-scribe/artifacts/ask-ai/C1/s1-regression/latest-run.json"
+    },
+    "context": {
+      "version": 1,
+      "spec": "ask-ai-context.e2e.mjs",
+      "completed": true,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "receipt": "/Users/vriesd/projects/qa-scribe/artifacts/ask-ai/C1/context-complete/wdio-execution.json",
+      "runnerReceipt": "/Users/vriesd/projects/qa-scribe/artifacts/ask-ai/C1/context-complete/latest-run.json"
+    },
+    "permissions": {
+      "version": 1,
+      "spec": "chat-tool-authorization.workflow.mjs",
+      "completed": true,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "receipt": "/Users/vriesd/projects/qa-scribe/artifacts/ask-ai/C1/permissions-r3/wdio-execution.json",
+      "runnerReceipt": "/Users/vriesd/projects/qa-scribe/artifacts/ask-ai/C1/permissions-r3/latest-run.json"
+    },
+    "note_handoff": {
+      "version": 1,
+      "spec": "chat-to-note.e2e.mjs",
+      "completed": true,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "receipt": "/Users/vriesd/projects/qa-scribe/artifacts/ask-ai/C1/handoff-r3/wdio-execution.json",
+      "runnerReceipt": "/Users/vriesd/projects/qa-scribe/artifacts/ask-ai/C1/handoff-r3/latest-run.json"
+    }
+  },
+  "passedChecks": [
+    {
+      "command": "bun run frontend:check",
+      "log": "/tmp/ask-ai-c1-frontend-check.log"
+    },
+    {
+      "command": "NODE_OPTIONS=--no-experimental-webstorage bun run frontend:test",
+      "tests": 912,
+      "files": 95,
+      "log": "/tmp/ask-ai-c1-frontend-tests.log"
+    },
+    {
+      "command": "NODE_OPTIONS=--no-experimental-webstorage bun run frontend:test -- src/app/useAppController.chat.context.test.ts src/app/AppShell.askAi.test.tsx",
+      "tests": 8,
+      "log": "/tmp/ask-ai-c1-focused-frontend-final.log"
+    },
+    {
+      "command": "cargo test -p qa-scribe-core chat",
+      "log": "/tmp/ask-ai-c1-core-chat.log"
+    },
+    {
+      "command": "cargo test -p qa-scribe-core --test chat_storage",
+      "tests": 47
+    },
+    {
+      "command": "cargo test -p qa-scribe-core --test chat_context",
+      "tests": 7
+    },
+    {
+      "command": "cargo test -p qa-scribe-tauri commands::chat",
+      "tests": 49
+    },
+    {
+      "command": "bun run bindings:generate && bun run bindings:check",
+      "status": "passed generated Specta bindings"
+    },
+    {
+      "command": "cargo clippy -p qa-scribe-core --all-targets -- -D warnings",
+      "log": "/tmp/ask-ai-c1-core-clippy.log"
+    },
+    {
+      "command": "node --test e2e/fixtures/ask-ai-context-provider.test.mjs scripts/run-e2e.test.mjs",
+      "tests": 24,
+      "log": "/tmp/ask-ai-c1-focused-fixture-contract.log"
+    },
+    {
+      "command": "bun run code-size:check",
+      "log": "/tmp/ask-ai-c1-code-size.log",
+      "failures": 0
+    },
+    {
+      "command": "cargo fmt --all --check; bun run tauri:commands:check; bun run terminology:check; bun run e2e:isolation:source; git diff --check",
+      "status": "passed"
+    }
+  ],
+  "sourceHazardsAndLimits": [
+    "The explicit Start new conversation reset and warning are unchanged. It clears the composer by confirmed design; panel close and app reopen preserve input.",
+    "Native handoff proof required retaining the Session title row. Its geometry helper now ignores intentionally hidden mounted transcript text while retaining visible text wrapping assertions.",
+    "The native permission proof caught a clipped fixed-height panel after the title row was restored. ask-ai.css now bounds permission height by its available chat height; unchanged native permission tests pass at 1280 and 640 widths.",
+    "C1-specific fixture module and parser are selected only for the C1 spec. The E2E runner installs deterministic Copilot for this spec to test image rejection. The legacy fixture recognizes current V3 and legacy V2 prompts.",
+    "An auxiliary existing image-fixture executable test timed out waiting for turn/completed after a release marker in later reruns. Earlier runs passed. Cause is untriaged; not claiming the broad fixture bundle is green. Logs /tmp/ask-ai-c1-fixture-tests-final.log and /tmp/ask-ai-c1-fixture-tests.log retain the failure. The focused 24 C1/runner checks and native record-image send/replay pass.",
+    "Node 26 requires NODE_OPTIONS=--no-experimental-webstorage for the existing controller localStorage test harness. No shared harness change was made.",
+    "The E2E promotion-readiness audit requires GITHUB_REPOSITORY and GH_TOKEN and was not completed. No secrets or remote audit were requested.",
+    "No comparative performance baseline or review video was captured. Native WebView reload was exercised; actual database/service close/reopen and interrupted-message retry were exercised in core tests.",
+    "S1 editor/style files were left to S1 owner. Parent committed S1 as ed93f43 during this task. Parent owns final synthesis and independent diff review. No review independence is claimed by this implementation delegate."
+  ],
+  "principles": {
+    "Model the Domain": "Typed target variants carry the record snapshot; panel selection remains separate from immutable historical context.",
+    "Type System Discipline": "Finding and Test cases are distinct target variants. Local and stored bases have separate fields and server-computed digests.",
+    "Boundary Discipline": "Ownership, existence, kind and size validation occur before atomic turn creation and provider dispatch.",
+    "Separate Before Serializing Shared State": "Private /tmp preparation during the write hold, S1-exclusive files, and serialized native control avoided shared build/source races.",
+    "Sequence Work into Verifiable Units": "Core persistence was checked before controller wiring, then native context and existing layout/permission/handoff workflows.",
+    "Prove It Works": "Persisted state, actual fixture payloads and native geometry were asserted rather than inferring success from compilation.",
+    "Fix Root Causes": "Kept the title input visible and sized permissions against available height after their native regressions were reproduced."
+  }
+}

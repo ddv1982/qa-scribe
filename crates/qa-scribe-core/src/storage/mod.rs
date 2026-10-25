@@ -4,7 +4,10 @@ use rusqlite::{Connection, Transaction, TransactionBehavior};
 
 use crate::{Result, error::validation};
 
+mod chat_context;
 mod chat_images;
+mod chat_questions;
+mod chat_refinements;
 mod creation;
 mod schema;
 
@@ -69,7 +72,7 @@ pub fn with_immediate_tx<T>(
 /// final time, and settles on a `user_version` this build can trust from then
 /// on. Once every database in the wild has passed through this once, future
 /// bumps can go strictly by increment again.
-pub const SCHEMA_VERSION: i32 = 15;
+pub const SCHEMA_VERSION: i32 = 18;
 
 fn initialize(connection: &Connection) -> Result<()> {
     let initialize_started = Instant::now();
@@ -117,6 +120,11 @@ fn initialize(connection: &Connection) -> Result<()> {
         }
         creation::ensure_note_revision_supported(tx)?;
         tx.execute_batch(chat_images::RELATIONSHIPS)?;
+        tx.execute_batch(chat_context::SCHEMA)?;
+        tx.execute_batch(chat_refinements::SCHEMA)?;
+        if found < 18 {
+            tx.execute_batch(chat_questions::SCHEMA)?;
+        }
         tx.execute_batch(SCHEMA)?;
         if migrations_run {
             assert_no_foreign_key_violations(tx)?;

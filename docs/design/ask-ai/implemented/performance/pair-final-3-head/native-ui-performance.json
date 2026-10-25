@@ -1,0 +1,6232 @@
+{
+  "schema": "qa-scribe-native-ui-perf-v1",
+  "side": "head",
+  "revision": "20bbeaf38b3b1a3d53258b157ce8a2cfb5f9a068",
+  "binarySha256": "c7c5882101f0b10a2d06fdfd12752f81a2ae86467cc5c7ff7e2a9c96af083f4f",
+  "buildMode": "release-production-e2e",
+  "fixture": {
+    "findingId": "perf-finding",
+    "foreignKeyViolations": 0,
+    "imageBytesEach": 77,
+    "imageSha256": "f6b373ee62d8abe053e1decceb83b38627e0ce3df932ce72729f10a2e6e8fc58",
+    "images": 4,
+    "messages": 100,
+    "recordHtmlBytes": 89982,
+    "recordJsonBytes": 98110,
+    "schema": "qa-scribe-ui-perf-fixture-v1",
+    "sessionId": "perf-session"
+  },
+  "clock": "WebView performance.now and requestAnimationFrame timestamps",
+  "scope": "DOM event capture to second ready animation frame. Paint opportunity, not physical display paint. No WDIO round trip or provider request is timed.",
+  "notesOpenScope": "Visible opening/reveal latency. First means first measured click, not cold parsing. C1 may retain hydrated chat DOM while hidden. No Session-startup or total-work-reduction inference; the production startup gate is separate.",
+  "machine": {
+    "platform": "darwin",
+    "architecture": "arm64",
+    "release": "27.0.0",
+    "logicalCpus": 10,
+    "loadAverage": [
+      3.36865234375,
+      2.98583984375,
+      2.89794921875
+    ],
+    "loadAverageAfter": [
+      3.29541015625,
+      3.001953125,
+      2.90673828125
+    ]
+  },
+  "completed": true,
+  "requestedScopeComplete": true,
+  "failures": 0,
+  "samples": [
+    {
+      "action": "notes-open",
+      "elapsedMs": 525,
+      "eventAtMs": 1812,
+      "eventType": "click",
+      "kind": "first-measured-interaction",
+      "ordinal": 1,
+      "paintOpportunityAtMs": 2337,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 2325,
+      "trustedEvent": false
+    },
+    {
+      "action": "notes-open",
+      "elapsedMs": 17,
+      "eventAtMs": 2469,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 2,
+      "paintOpportunityAtMs": 2486,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 2476,
+      "trustedEvent": false
+    },
+    {
+      "action": "notes-open",
+      "elapsedMs": 17,
+      "eventAtMs": 2624,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 3,
+      "paintOpportunityAtMs": 2641,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 2630,
+      "trustedEvent": false
+    },
+    {
+      "action": "notes-open",
+      "elapsedMs": 16,
+      "eventAtMs": 2773,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 4,
+      "paintOpportunityAtMs": 2789,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 2779,
+      "trustedEvent": false
+    },
+    {
+      "action": "notes-open",
+      "elapsedMs": 16,
+      "eventAtMs": 2931,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 5,
+      "paintOpportunityAtMs": 2947,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 2937,
+      "trustedEvent": false
+    },
+    {
+      "action": "notes-open",
+      "elapsedMs": 22,
+      "eventAtMs": 3087,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 6,
+      "paintOpportunityAtMs": 3109,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 3102,
+      "trustedEvent": false
+    },
+    {
+      "action": "notes-open",
+      "elapsedMs": 16,
+      "eventAtMs": 3240,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 7,
+      "paintOpportunityAtMs": 3256,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 3246,
+      "trustedEvent": false
+    },
+    {
+      "action": "notes-open",
+      "elapsedMs": 17,
+      "eventAtMs": 3390,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 8,
+      "paintOpportunityAtMs": 3407,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 3396,
+      "trustedEvent": false
+    },
+    {
+      "action": "notes-open",
+      "elapsedMs": 16,
+      "eventAtMs": 3541,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 9,
+      "paintOpportunityAtMs": 3557,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 3547,
+      "trustedEvent": false
+    },
+    {
+      "action": "notes-open",
+      "elapsedMs": 18,
+      "eventAtMs": 3689,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 10,
+      "paintOpportunityAtMs": 3707,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 3695,
+      "trustedEvent": false
+    },
+    {
+      "action": "notes-open",
+      "elapsedMs": 17,
+      "eventAtMs": 3840,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 11,
+      "paintOpportunityAtMs": 3857,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 3846,
+      "trustedEvent": false
+    },
+    {
+      "action": "notes-open",
+      "elapsedMs": 15,
+      "eventAtMs": 3993,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 12,
+      "paintOpportunityAtMs": 4008,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 3998,
+      "trustedEvent": false
+    },
+    {
+      "action": "notes-open",
+      "elapsedMs": 23,
+      "eventAtMs": 4137,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 13,
+      "paintOpportunityAtMs": 4160,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 4152,
+      "trustedEvent": false
+    },
+    {
+      "action": "notes-open",
+      "elapsedMs": 16,
+      "eventAtMs": 4282,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 14,
+      "paintOpportunityAtMs": 4298,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 4287,
+      "trustedEvent": false
+    },
+    {
+      "action": "notes-open",
+      "elapsedMs": 16,
+      "eventAtMs": 4425,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 15,
+      "paintOpportunityAtMs": 4441,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 4431,
+      "trustedEvent": false
+    },
+    {
+      "action": "notes-open",
+      "elapsedMs": 15,
+      "eventAtMs": 4573,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 16,
+      "paintOpportunityAtMs": 4588,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 4578,
+      "trustedEvent": false
+    },
+    {
+      "action": "notes-open",
+      "elapsedMs": 22,
+      "eventAtMs": 4718,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 17,
+      "paintOpportunityAtMs": 4740,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 4732,
+      "trustedEvent": false
+    },
+    {
+      "action": "notes-open",
+      "elapsedMs": 16,
+      "eventAtMs": 4863,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 18,
+      "paintOpportunityAtMs": 4879,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 4869,
+      "trustedEvent": false
+    },
+    {
+      "action": "notes-open",
+      "elapsedMs": 22,
+      "eventAtMs": 5006,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 19,
+      "paintOpportunityAtMs": 5028,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 5020,
+      "trustedEvent": false
+    },
+    {
+      "action": "notes-open",
+      "elapsedMs": 22,
+      "eventAtMs": 5151,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 20,
+      "paintOpportunityAtMs": 5173,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 5165,
+      "trustedEvent": false
+    },
+    {
+      "action": "manual-edit",
+      "elapsedMs": 38,
+      "eventAtMs": 6706,
+      "eventType": "input",
+      "kind": "first-measured-interaction",
+      "ordinal": 1,
+      "paintOpportunityAtMs": 6744,
+      "proof": {
+        "marker": " PERF_EDIT_00"
+      },
+      "readyFrameAtMs": 6736,
+      "trustedEvent": true
+    },
+    {
+      "action": "record-save",
+      "elapsedMs": 95,
+      "eventAtMs": 6850,
+      "eventType": "click",
+      "kind": "first-measured-interaction",
+      "ordinal": 1,
+      "paintOpportunityAtMs": 6945,
+      "proof": {
+        "images": 4,
+        "marker": " PERF_EDIT_00"
+      },
+      "readyFrameAtMs": 6930,
+      "trustedEvent": false
+    },
+    {
+      "action": "manual-edit",
+      "elapsedMs": 33,
+      "eventAtMs": 7028,
+      "eventType": "input",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 2,
+      "paintOpportunityAtMs": 7061,
+      "proof": {
+        "marker": " PERF_EDIT_01"
+      },
+      "readyFrameAtMs": 7054,
+      "trustedEvent": true
+    },
+    {
+      "action": "record-save",
+      "elapsedMs": 137,
+      "eventAtMs": 7152,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 2,
+      "paintOpportunityAtMs": 7289,
+      "proof": {
+        "images": 4,
+        "marker": " PERF_EDIT_01"
+      },
+      "readyFrameAtMs": 7267,
+      "trustedEvent": false
+    },
+    {
+      "action": "manual-edit",
+      "elapsedMs": 27,
+      "eventAtMs": 7379,
+      "eventType": "input",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 3,
+      "paintOpportunityAtMs": 7406,
+      "proof": {
+        "marker": " PERF_EDIT_02"
+      },
+      "readyFrameAtMs": 7385,
+      "trustedEvent": true
+    },
+    {
+      "action": "record-save",
+      "elapsedMs": 89,
+      "eventAtMs": 7515,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 3,
+      "paintOpportunityAtMs": 7604,
+      "proof": {
+        "images": 4,
+        "marker": " PERF_EDIT_02"
+      },
+      "readyFrameAtMs": 7591,
+      "trustedEvent": false
+    },
+    {
+      "action": "manual-edit",
+      "elapsedMs": 32,
+      "eventAtMs": 7695,
+      "eventType": "input",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 4,
+      "paintOpportunityAtMs": 7727,
+      "proof": {
+        "marker": " PERF_EDIT_03"
+      },
+      "readyFrameAtMs": 7720,
+      "trustedEvent": true
+    },
+    {
+      "action": "record-save",
+      "elapsedMs": 95,
+      "eventAtMs": 7824,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 4,
+      "paintOpportunityAtMs": 7919,
+      "proof": {
+        "images": 4,
+        "marker": " PERF_EDIT_03"
+      },
+      "readyFrameAtMs": 7914,
+      "trustedEvent": false
+    },
+    {
+      "action": "manual-edit",
+      "elapsedMs": 32,
+      "eventAtMs": 8022,
+      "eventType": "input",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 5,
+      "paintOpportunityAtMs": 8054,
+      "proof": {
+        "marker": " PERF_EDIT_04"
+      },
+      "readyFrameAtMs": 8048,
+      "trustedEvent": true
+    },
+    {
+      "action": "record-save",
+      "elapsedMs": 92,
+      "eventAtMs": 8149,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 5,
+      "paintOpportunityAtMs": 8241,
+      "proof": {
+        "images": 4,
+        "marker": " PERF_EDIT_04"
+      },
+      "readyFrameAtMs": 8227,
+      "trustedEvent": false
+    },
+    {
+      "action": "manual-edit",
+      "elapsedMs": 32,
+      "eventAtMs": 8340,
+      "eventType": "input",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 6,
+      "paintOpportunityAtMs": 8372,
+      "proof": {
+        "marker": " PERF_EDIT_05"
+      },
+      "readyFrameAtMs": 8365,
+      "trustedEvent": true
+    },
+    {
+      "action": "record-save",
+      "elapsedMs": 93,
+      "eventAtMs": 8475,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 6,
+      "paintOpportunityAtMs": 8568,
+      "proof": {
+        "images": 4,
+        "marker": " PERF_EDIT_05"
+      },
+      "readyFrameAtMs": 8554,
+      "trustedEvent": false
+    },
+    {
+      "action": "manual-edit",
+      "elapsedMs": 32,
+      "eventAtMs": 8669,
+      "eventType": "input",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 7,
+      "paintOpportunityAtMs": 8701,
+      "proof": {
+        "marker": " PERF_EDIT_06"
+      },
+      "readyFrameAtMs": 8694,
+      "trustedEvent": true
+    },
+    {
+      "action": "record-save",
+      "elapsedMs": 98,
+      "eventAtMs": 8805,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 7,
+      "paintOpportunityAtMs": 8903,
+      "proof": {
+        "images": 4,
+        "marker": " PERF_EDIT_06"
+      },
+      "readyFrameAtMs": 8888,
+      "trustedEvent": false
+    },
+    {
+      "action": "manual-edit",
+      "elapsedMs": 33,
+      "eventAtMs": 8992,
+      "eventType": "input",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 8,
+      "paintOpportunityAtMs": 9025,
+      "proof": {
+        "marker": " PERF_EDIT_07"
+      },
+      "readyFrameAtMs": 9018,
+      "trustedEvent": true
+    },
+    {
+      "action": "record-save",
+      "elapsedMs": 97,
+      "eventAtMs": 9121,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 8,
+      "paintOpportunityAtMs": 9218,
+      "proof": {
+        "images": 4,
+        "marker": " PERF_EDIT_07"
+      },
+      "readyFrameAtMs": 9202,
+      "trustedEvent": false
+    },
+    {
+      "action": "manual-edit",
+      "elapsedMs": 32,
+      "eventAtMs": 9307,
+      "eventType": "input",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 9,
+      "paintOpportunityAtMs": 9339,
+      "proof": {
+        "marker": " PERF_EDIT_08"
+      },
+      "readyFrameAtMs": 9332,
+      "trustedEvent": true
+    },
+    {
+      "action": "record-save",
+      "elapsedMs": 94,
+      "eventAtMs": 9447,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 9,
+      "paintOpportunityAtMs": 9541,
+      "proof": {
+        "images": 4,
+        "marker": " PERF_EDIT_08"
+      },
+      "readyFrameAtMs": 9526,
+      "trustedEvent": false
+    },
+    {
+      "action": "manual-edit",
+      "elapsedMs": 32,
+      "eventAtMs": 9636,
+      "eventType": "input",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 10,
+      "paintOpportunityAtMs": 9668,
+      "proof": {
+        "marker": " PERF_EDIT_09"
+      },
+      "readyFrameAtMs": 9661,
+      "trustedEvent": true
+    },
+    {
+      "action": "record-save",
+      "elapsedMs": 97,
+      "eventAtMs": 9765,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 10,
+      "paintOpportunityAtMs": 9862,
+      "proof": {
+        "images": 4,
+        "marker": " PERF_EDIT_09"
+      },
+      "readyFrameAtMs": 9846,
+      "trustedEvent": false
+    },
+    {
+      "action": "manual-edit",
+      "elapsedMs": 34,
+      "eventAtMs": 9940,
+      "eventType": "input",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 11,
+      "paintOpportunityAtMs": 9974,
+      "proof": {
+        "marker": " PERF_EDIT_10"
+      },
+      "readyFrameAtMs": 9966,
+      "trustedEvent": true
+    },
+    {
+      "action": "record-save",
+      "elapsedMs": 107,
+      "eventAtMs": 10094,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 11,
+      "paintOpportunityAtMs": 10201,
+      "proof": {
+        "images": 4,
+        "marker": " PERF_EDIT_10"
+      },
+      "readyFrameAtMs": 10201,
+      "trustedEvent": false
+    },
+    {
+      "action": "manual-edit",
+      "elapsedMs": 32,
+      "eventAtMs": 10267,
+      "eventType": "input",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 12,
+      "paintOpportunityAtMs": 10299,
+      "proof": {
+        "marker": " PERF_EDIT_11"
+      },
+      "readyFrameAtMs": 10292,
+      "trustedEvent": true
+    },
+    {
+      "action": "record-save",
+      "elapsedMs": 111,
+      "eventAtMs": 10421,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 12,
+      "paintOpportunityAtMs": 10532,
+      "proof": {
+        "images": 4,
+        "marker": " PERF_EDIT_11"
+      },
+      "readyFrameAtMs": 10519,
+      "trustedEvent": false
+    },
+    {
+      "action": "manual-edit",
+      "elapsedMs": 31,
+      "eventAtMs": 10619,
+      "eventType": "input",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 13,
+      "paintOpportunityAtMs": 10650,
+      "proof": {
+        "marker": " PERF_EDIT_12"
+      },
+      "readyFrameAtMs": 10644,
+      "trustedEvent": true
+    },
+    {
+      "action": "record-save",
+      "elapsedMs": 95,
+      "eventAtMs": 10748,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 13,
+      "paintOpportunityAtMs": 10843,
+      "proof": {
+        "images": 4,
+        "marker": " PERF_EDIT_12"
+      },
+      "readyFrameAtMs": 10828,
+      "trustedEvent": false
+    },
+    {
+      "action": "manual-edit",
+      "elapsedMs": 32,
+      "eventAtMs": 10937,
+      "eventType": "input",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 14,
+      "paintOpportunityAtMs": 10969,
+      "proof": {
+        "marker": " PERF_EDIT_13"
+      },
+      "readyFrameAtMs": 10962,
+      "trustedEvent": true
+    },
+    {
+      "action": "record-save",
+      "elapsedMs": 101,
+      "eventAtMs": 11076,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 14,
+      "paintOpportunityAtMs": 11177,
+      "proof": {
+        "images": 4,
+        "marker": " PERF_EDIT_13"
+      },
+      "readyFrameAtMs": 11174,
+      "trustedEvent": false
+    },
+    {
+      "action": "manual-edit",
+      "elapsedMs": 29,
+      "eventAtMs": 11262,
+      "eventType": "input",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 15,
+      "paintOpportunityAtMs": 11291,
+      "proof": {
+        "marker": " PERF_EDIT_14"
+      },
+      "readyFrameAtMs": 11286,
+      "trustedEvent": true
+    },
+    {
+      "action": "record-save",
+      "elapsedMs": 102,
+      "eventAtMs": 11400,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 15,
+      "paintOpportunityAtMs": 11502,
+      "proof": {
+        "images": 4,
+        "marker": " PERF_EDIT_14"
+      },
+      "readyFrameAtMs": 11486,
+      "trustedEvent": false
+    },
+    {
+      "action": "manual-edit",
+      "elapsedMs": 35,
+      "eventAtMs": 11636,
+      "eventType": "input",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 16,
+      "paintOpportunityAtMs": 11671,
+      "proof": {
+        "marker": " PERF_EDIT_15"
+      },
+      "readyFrameAtMs": 11664,
+      "trustedEvent": true
+    },
+    {
+      "action": "record-save",
+      "elapsedMs": 94,
+      "eventAtMs": 11776,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 16,
+      "paintOpportunityAtMs": 11870,
+      "proof": {
+        "images": 4,
+        "marker": " PERF_EDIT_15"
+      },
+      "readyFrameAtMs": 11855,
+      "trustedEvent": false
+    },
+    {
+      "action": "manual-edit",
+      "elapsedMs": 31,
+      "eventAtMs": 11967,
+      "eventType": "input",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 17,
+      "paintOpportunityAtMs": 11998,
+      "proof": {
+        "marker": " PERF_EDIT_16"
+      },
+      "readyFrameAtMs": 11992,
+      "trustedEvent": true
+    },
+    {
+      "action": "record-save",
+      "elapsedMs": 94,
+      "eventAtMs": 12107,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 17,
+      "paintOpportunityAtMs": 12201,
+      "proof": {
+        "images": 4,
+        "marker": " PERF_EDIT_16"
+      },
+      "readyFrameAtMs": 12187,
+      "trustedEvent": false
+    },
+    {
+      "action": "manual-edit",
+      "elapsedMs": 31,
+      "eventAtMs": 12299,
+      "eventType": "input",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 18,
+      "paintOpportunityAtMs": 12330,
+      "proof": {
+        "marker": " PERF_EDIT_17"
+      },
+      "readyFrameAtMs": 12324,
+      "trustedEvent": true
+    },
+    {
+      "action": "record-save",
+      "elapsedMs": 80,
+      "eventAtMs": 12442,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 18,
+      "paintOpportunityAtMs": 12522,
+      "proof": {
+        "images": 4,
+        "marker": " PERF_EDIT_17"
+      },
+      "readyFrameAtMs": 12520,
+      "trustedEvent": false
+    },
+    {
+      "action": "manual-edit",
+      "elapsedMs": 31,
+      "eventAtMs": 12646,
+      "eventType": "input",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 19,
+      "paintOpportunityAtMs": 12677,
+      "proof": {
+        "marker": " PERF_EDIT_18"
+      },
+      "readyFrameAtMs": 12670,
+      "trustedEvent": true
+    },
+    {
+      "action": "record-save",
+      "elapsedMs": 113,
+      "eventAtMs": 12773,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 19,
+      "paintOpportunityAtMs": 12886,
+      "proof": {
+        "images": 4,
+        "marker": " PERF_EDIT_18"
+      },
+      "readyFrameAtMs": 12872,
+      "trustedEvent": false
+    },
+    {
+      "action": "manual-edit",
+      "elapsedMs": 33,
+      "eventAtMs": 12967,
+      "eventType": "input",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 20,
+      "paintOpportunityAtMs": 13000,
+      "proof": {
+        "marker": " PERF_EDIT_19"
+      },
+      "readyFrameAtMs": 12993,
+      "trustedEvent": true
+    },
+    {
+      "action": "record-save",
+      "elapsedMs": 121,
+      "eventAtMs": 13104,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 20,
+      "paintOpportunityAtMs": 13225,
+      "proof": {
+        "images": 4,
+        "marker": " PERF_EDIT_19"
+      },
+      "readyFrameAtMs": 13208,
+      "trustedEvent": false
+    },
+    {
+      "action": "ask-ai-open",
+      "elapsedMs": 35,
+      "eventAtMs": 13278,
+      "eventType": "click",
+      "kind": "first-measured-interaction",
+      "ordinal": 1,
+      "paintOpportunityAtMs": 13313,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 13303,
+      "trustedEvent": false
+    },
+    {
+      "action": "ask-ai-open",
+      "elapsedMs": 37,
+      "eventAtMs": 13526,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 2,
+      "paintOpportunityAtMs": 13563,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 13549,
+      "trustedEvent": false
+    },
+    {
+      "action": "ask-ai-open",
+      "elapsedMs": 35,
+      "eventAtMs": 13708,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 3,
+      "paintOpportunityAtMs": 13743,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 13729,
+      "trustedEvent": false
+    },
+    {
+      "action": "ask-ai-open",
+      "elapsedMs": 30,
+      "eventAtMs": 13883,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 4,
+      "paintOpportunityAtMs": 13913,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 13905,
+      "trustedEvent": false
+    },
+    {
+      "action": "ask-ai-open",
+      "elapsedMs": 35,
+      "eventAtMs": 14058,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 5,
+      "paintOpportunityAtMs": 14093,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 14080,
+      "trustedEvent": false
+    },
+    {
+      "action": "ask-ai-open",
+      "elapsedMs": 31,
+      "eventAtMs": 14232,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 6,
+      "paintOpportunityAtMs": 14263,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 14254,
+      "trustedEvent": false
+    },
+    {
+      "action": "ask-ai-open",
+      "elapsedMs": 37,
+      "eventAtMs": 14406,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 7,
+      "paintOpportunityAtMs": 14443,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 14428,
+      "trustedEvent": false
+    },
+    {
+      "action": "ask-ai-open",
+      "elapsedMs": 34,
+      "eventAtMs": 14590,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 8,
+      "paintOpportunityAtMs": 14624,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 14612,
+      "trustedEvent": false
+    },
+    {
+      "action": "ask-ai-open",
+      "elapsedMs": 40,
+      "eventAtMs": 14773,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 9,
+      "paintOpportunityAtMs": 14813,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 14797,
+      "trustedEvent": false
+    },
+    {
+      "action": "ask-ai-open",
+      "elapsedMs": 29,
+      "eventAtMs": 14954,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 10,
+      "paintOpportunityAtMs": 14983,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 14976,
+      "trustedEvent": false
+    },
+    {
+      "action": "ask-ai-open",
+      "elapsedMs": 34,
+      "eventAtMs": 15129,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 11,
+      "paintOpportunityAtMs": 15163,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 15154,
+      "trustedEvent": false
+    },
+    {
+      "action": "ask-ai-open",
+      "elapsedMs": 35,
+      "eventAtMs": 15320,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 12,
+      "paintOpportunityAtMs": 15355,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 15343,
+      "trustedEvent": false
+    },
+    {
+      "action": "ask-ai-open",
+      "elapsedMs": 37,
+      "eventAtMs": 15498,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 13,
+      "paintOpportunityAtMs": 15535,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 15523,
+      "trustedEvent": false
+    },
+    {
+      "action": "ask-ai-open",
+      "elapsedMs": 37,
+      "eventAtMs": 15676,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 14,
+      "paintOpportunityAtMs": 15713,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 15701,
+      "trustedEvent": false
+    },
+    {
+      "action": "ask-ai-open",
+      "elapsedMs": 37,
+      "eventAtMs": 15858,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 15,
+      "paintOpportunityAtMs": 15895,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 15883,
+      "trustedEvent": false
+    },
+    {
+      "action": "ask-ai-open",
+      "elapsedMs": 34,
+      "eventAtMs": 16038,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 16,
+      "paintOpportunityAtMs": 16072,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 16062,
+      "trustedEvent": false
+    },
+    {
+      "action": "ask-ai-open",
+      "elapsedMs": 39,
+      "eventAtMs": 16215,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 17,
+      "paintOpportunityAtMs": 16254,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 16240,
+      "trustedEvent": false
+    },
+    {
+      "action": "ask-ai-open",
+      "elapsedMs": 32,
+      "eventAtMs": 16402,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 18,
+      "paintOpportunityAtMs": 16434,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 16424,
+      "trustedEvent": false
+    },
+    {
+      "action": "ask-ai-open",
+      "elapsedMs": 36,
+      "eventAtMs": 16577,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 19,
+      "paintOpportunityAtMs": 16613,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 16599,
+      "trustedEvent": false
+    },
+    {
+      "action": "ask-ai-open",
+      "elapsedMs": 34,
+      "eventAtMs": 16752,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 20,
+      "paintOpportunityAtMs": 16786,
+      "proof": {
+        "images": 4,
+        "messages": 100,
+        "textCharacters": 46810
+      },
+      "readyFrameAtMs": 16774,
+      "trustedEvent": false
+    },
+    {
+      "action": "proposal-review",
+      "elapsedMs": 19,
+      "eventAtMs": 17195,
+      "eventType": "click",
+      "kind": "first-measured-interaction",
+      "ordinal": 1,
+      "paintOpportunityAtMs": 17214,
+      "proof": {
+        "afterTitle": "PERF R1 00 checkout confirmation shows receipt",
+        "beforeTitle": "PERF R1 00 delayed receipt after checkout",
+        "proposalId": "4461de29-a95a-46ce-b8a6-4af7f471d5fc",
+        "recordId": "a4e96cb0-1733-4526-bcba-8d0fb3fd20dd"
+      },
+      "readyFrameAtMs": 17204,
+      "trustedEvent": false
+    },
+    {
+      "action": "proposal-apply",
+      "elapsedMs": 84,
+      "eventAtMs": 17323,
+      "eventType": "click",
+      "kind": "first-measured-interaction",
+      "ordinal": 1,
+      "paintOpportunityAtMs": 17407,
+      "proof": {
+        "bodyText": "Case 00. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.",
+        "dirty": true,
+        "proposalId": "4461de29-a95a-46ce-b8a6-4af7f471d5fc",
+        "recordId": "a4e96cb0-1733-4526-bcba-8d0fb3fd20dd",
+        "title": "PERF R1 00 checkout confirmation shows receipt"
+      },
+      "readyFrameAtMs": 17402,
+      "trustedEvent": false
+    },
+    {
+      "action": "proposal-review",
+      "elapsedMs": 15,
+      "eventAtMs": 17860,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 2,
+      "paintOpportunityAtMs": 17875,
+      "proof": {
+        "afterTitle": "PERF R1 01 checkout confirmation shows receipt",
+        "beforeTitle": "PERF R1 01 delayed receipt after checkout",
+        "proposalId": "fba91141-d6b5-4787-b501-6d9a1707be70",
+        "recordId": "e5f08b85-31ea-45f4-a48f-d29eb3057dfe"
+      },
+      "readyFrameAtMs": 17866,
+      "trustedEvent": false
+    },
+    {
+      "action": "proposal-apply",
+      "elapsedMs": 79,
+      "eventAtMs": 17992,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 2,
+      "paintOpportunityAtMs": 18071,
+      "proof": {
+        "bodyText": "Case 01. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.",
+        "dirty": true,
+        "proposalId": "fba91141-d6b5-4787-b501-6d9a1707be70",
+        "recordId": "e5f08b85-31ea-45f4-a48f-d29eb3057dfe",
+        "title": "PERF R1 01 checkout confirmation shows receipt"
+      },
+      "readyFrameAtMs": 18068,
+      "trustedEvent": false
+    },
+    {
+      "action": "proposal-review",
+      "elapsedMs": 12,
+      "eventAtMs": 18443,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 3,
+      "paintOpportunityAtMs": 18455,
+      "proof": {
+        "afterTitle": "PERF R1 02 checkout confirmation shows receipt",
+        "beforeTitle": "PERF R1 02 delayed receipt after checkout",
+        "proposalId": "763fbe20-bd18-4c4e-956a-cf1154e97916",
+        "recordId": "f45b0f60-bde4-455e-8c98-9d44cf2ad0f7"
+      },
+      "readyFrameAtMs": 18448,
+      "trustedEvent": false
+    },
+    {
+      "action": "proposal-apply",
+      "elapsedMs": 76,
+      "eventAtMs": 18568,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 3,
+      "paintOpportunityAtMs": 18644,
+      "proof": {
+        "bodyText": "Case 02. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.",
+        "dirty": true,
+        "proposalId": "763fbe20-bd18-4c4e-956a-cf1154e97916",
+        "recordId": "f45b0f60-bde4-455e-8c98-9d44cf2ad0f7",
+        "title": "PERF R1 02 checkout confirmation shows receipt"
+      },
+      "readyFrameAtMs": 18640,
+      "trustedEvent": false
+    },
+    {
+      "action": "proposal-review",
+      "elapsedMs": 22,
+      "eventAtMs": 19024,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 4,
+      "paintOpportunityAtMs": 19046,
+      "proof": {
+        "afterTitle": "PERF R1 03 checkout confirmation shows receipt",
+        "beforeTitle": "PERF R1 03 delayed receipt after checkout",
+        "proposalId": "7d2f7dc2-82ec-419a-8365-bc2939f7b985",
+        "recordId": "d212f521-f145-4660-ae53-8e18d139455b"
+      },
+      "readyFrameAtMs": 19034,
+      "trustedEvent": false
+    },
+    {
+      "action": "proposal-apply",
+      "elapsedMs": 77,
+      "eventAtMs": 19159,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 4,
+      "paintOpportunityAtMs": 19236,
+      "proof": {
+        "bodyText": "Case 03. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.",
+        "dirty": true,
+        "proposalId": "7d2f7dc2-82ec-419a-8365-bc2939f7b985",
+        "recordId": "d212f521-f145-4660-ae53-8e18d139455b",
+        "title": "PERF R1 03 checkout confirmation shows receipt"
+      },
+      "readyFrameAtMs": 19232,
+      "trustedEvent": false
+    },
+    {
+      "action": "proposal-review",
+      "elapsedMs": 18,
+      "eventAtMs": 19608,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 5,
+      "paintOpportunityAtMs": 19626,
+      "proof": {
+        "afterTitle": "PERF R1 04 checkout confirmation shows receipt",
+        "beforeTitle": "PERF R1 04 delayed receipt after checkout",
+        "proposalId": "3540aafb-ae60-41fc-95e6-9f3bd17e340b",
+        "recordId": "6a260238-9a39-4ac8-bdea-c42c5341b6f2"
+      },
+      "readyFrameAtMs": 19614,
+      "trustedEvent": false
+    },
+    {
+      "action": "proposal-apply",
+      "elapsedMs": 74,
+      "eventAtMs": 19733,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 5,
+      "paintOpportunityAtMs": 19807,
+      "proof": {
+        "bodyText": "Case 04. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.",
+        "dirty": true,
+        "proposalId": "3540aafb-ae60-41fc-95e6-9f3bd17e340b",
+        "recordId": "6a260238-9a39-4ac8-bdea-c42c5341b6f2",
+        "title": "PERF R1 04 checkout confirmation shows receipt"
+      },
+      "readyFrameAtMs": 19803,
+      "trustedEvent": false
+    },
+    {
+      "action": "proposal-review",
+      "elapsedMs": 11,
+      "eventAtMs": 20165,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 6,
+      "paintOpportunityAtMs": 20176,
+      "proof": {
+        "afterTitle": "PERF R1 05 checkout confirmation shows receipt",
+        "beforeTitle": "PERF R1 05 delayed receipt after checkout",
+        "proposalId": "6530eb9e-cd2d-4e39-b316-0173d84b6467",
+        "recordId": "74f09209-a494-440e-9790-d8050623e581"
+      },
+      "readyFrameAtMs": 20171,
+      "trustedEvent": false
+    },
+    {
+      "action": "proposal-apply",
+      "elapsedMs": 73,
+      "eventAtMs": 20294,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 6,
+      "paintOpportunityAtMs": 20367,
+      "proof": {
+        "bodyText": "Case 05. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.",
+        "dirty": true,
+        "proposalId": "6530eb9e-cd2d-4e39-b316-0173d84b6467",
+        "recordId": "74f09209-a494-440e-9790-d8050623e581",
+        "title": "PERF R1 05 checkout confirmation shows receipt"
+      },
+      "readyFrameAtMs": 20362,
+      "trustedEvent": false
+    },
+    {
+      "action": "proposal-review",
+      "elapsedMs": 18,
+      "eventAtMs": 20728,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 7,
+      "paintOpportunityAtMs": 20746,
+      "proof": {
+        "afterTitle": "PERF R1 06 checkout confirmation shows receipt",
+        "beforeTitle": "PERF R1 06 delayed receipt after checkout",
+        "proposalId": "50595a1b-d9d4-41b5-ace5-3c1f0b01dbad",
+        "recordId": "19e17f34-fbf5-4df8-beb5-121e54298016"
+      },
+      "readyFrameAtMs": 20736,
+      "trustedEvent": false
+    },
+    {
+      "action": "proposal-apply",
+      "elapsedMs": 75,
+      "eventAtMs": 20862,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 7,
+      "paintOpportunityAtMs": 20937,
+      "proof": {
+        "bodyText": "Case 06. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.",
+        "dirty": true,
+        "proposalId": "50595a1b-d9d4-41b5-ace5-3c1f0b01dbad",
+        "recordId": "19e17f34-fbf5-4df8-beb5-121e54298016",
+        "title": "PERF R1 06 checkout confirmation shows receipt"
+      },
+      "readyFrameAtMs": 20934,
+      "trustedEvent": false
+    },
+    {
+      "action": "proposal-review",
+      "elapsedMs": 19,
+      "eventAtMs": 21298,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 8,
+      "paintOpportunityAtMs": 21317,
+      "proof": {
+        "afterTitle": "PERF R1 07 checkout confirmation shows receipt",
+        "beforeTitle": "PERF R1 07 delayed receipt after checkout",
+        "proposalId": "c0a09c77-7b88-4843-b51a-11c6f7a8c417",
+        "recordId": "3a16e89d-a944-477d-b115-b9fd57aa7df3"
+      },
+      "readyFrameAtMs": 21307,
+      "trustedEvent": false
+    },
+    {
+      "action": "proposal-apply",
+      "elapsedMs": 71,
+      "eventAtMs": 21423,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 8,
+      "paintOpportunityAtMs": 21494,
+      "proof": {
+        "bodyText": "Case 07. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.",
+        "dirty": true,
+        "proposalId": "c0a09c77-7b88-4843-b51a-11c6f7a8c417",
+        "recordId": "3a16e89d-a944-477d-b115-b9fd57aa7df3",
+        "title": "PERF R1 07 checkout confirmation shows receipt"
+      },
+      "readyFrameAtMs": 21493,
+      "trustedEvent": false
+    },
+    {
+      "action": "proposal-review",
+      "elapsedMs": 14,
+      "eventAtMs": 21891,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 9,
+      "paintOpportunityAtMs": 21905,
+      "proof": {
+        "afterTitle": "PERF R1 08 checkout confirmation shows receipt",
+        "beforeTitle": "PERF R1 08 delayed receipt after checkout",
+        "proposalId": "fc7aaa03-843b-4c98-a9b5-d41c7994e94c",
+        "recordId": "22bca6bc-340c-4ac3-b6f5-e0cbb1f598f4"
+      },
+      "readyFrameAtMs": 21897,
+      "trustedEvent": false
+    },
+    {
+      "action": "proposal-apply",
+      "elapsedMs": 74,
+      "eventAtMs": 22024,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 9,
+      "paintOpportunityAtMs": 22098,
+      "proof": {
+        "bodyText": "Case 08. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.",
+        "dirty": true,
+        "proposalId": "fc7aaa03-843b-4c98-a9b5-d41c7994e94c",
+        "recordId": "22bca6bc-340c-4ac3-b6f5-e0cbb1f598f4",
+        "title": "PERF R1 08 checkout confirmation shows receipt"
+      },
+      "readyFrameAtMs": 22095,
+      "trustedEvent": false
+    },
+    {
+      "action": "proposal-review",
+      "elapsedMs": 14,
+      "eventAtMs": 22503,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 10,
+      "paintOpportunityAtMs": 22517,
+      "proof": {
+        "afterTitle": "PERF R1 09 checkout confirmation shows receipt",
+        "beforeTitle": "PERF R1 09 delayed receipt after checkout",
+        "proposalId": "4418aed0-dd7e-4f76-92db-0958ad8e869d",
+        "recordId": "6e4edd0e-c591-4ac2-9d1f-5b75dc82202d"
+      },
+      "readyFrameAtMs": 22509,
+      "trustedEvent": false
+    },
+    {
+      "action": "proposal-apply",
+      "elapsedMs": 78,
+      "eventAtMs": 22628,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 10,
+      "paintOpportunityAtMs": 22706,
+      "proof": {
+        "bodyText": "Case 09. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.",
+        "dirty": true,
+        "proposalId": "4418aed0-dd7e-4f76-92db-0958ad8e869d",
+        "recordId": "6e4edd0e-c591-4ac2-9d1f-5b75dc82202d",
+        "title": "PERF R1 09 checkout confirmation shows receipt"
+      },
+      "readyFrameAtMs": 22702,
+      "trustedEvent": false
+    },
+    {
+      "action": "proposal-review",
+      "elapsedMs": 18,
+      "eventAtMs": 23078,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 11,
+      "paintOpportunityAtMs": 23096,
+      "proof": {
+        "afterTitle": "PERF R1 10 checkout confirmation shows receipt",
+        "beforeTitle": "PERF R1 10 delayed receipt after checkout",
+        "proposalId": "aaf86138-08ae-4e09-81d5-d1abb5b9aa11",
+        "recordId": "18ed42b8-7778-4210-9719-c2d7a340a7a8"
+      },
+      "readyFrameAtMs": 23088,
+      "trustedEvent": false
+    },
+    {
+      "action": "proposal-apply",
+      "elapsedMs": 75,
+      "eventAtMs": 23204,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 11,
+      "paintOpportunityAtMs": 23279,
+      "proof": {
+        "bodyText": "Case 10. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.",
+        "dirty": true,
+        "proposalId": "aaf86138-08ae-4e09-81d5-d1abb5b9aa11",
+        "recordId": "18ed42b8-7778-4210-9719-c2d7a340a7a8",
+        "title": "PERF R1 10 checkout confirmation shows receipt"
+      },
+      "readyFrameAtMs": 23276,
+      "trustedEvent": false
+    },
+    {
+      "action": "proposal-review",
+      "elapsedMs": 22,
+      "eventAtMs": 23637,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 12,
+      "paintOpportunityAtMs": 23659,
+      "proof": {
+        "afterTitle": "PERF R1 11 checkout confirmation shows receipt",
+        "beforeTitle": "PERF R1 11 delayed receipt after checkout",
+        "proposalId": "594c70d8-aa25-4b97-b838-653bb479dcf1",
+        "recordId": "d91fa281-c033-42eb-839d-0503c129c278"
+      },
+      "readyFrameAtMs": 23646,
+      "trustedEvent": false
+    },
+    {
+      "action": "proposal-apply",
+      "elapsedMs": 77,
+      "eventAtMs": 23765,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 12,
+      "paintOpportunityAtMs": 23842,
+      "proof": {
+        "bodyText": "Case 11. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.",
+        "dirty": true,
+        "proposalId": "594c70d8-aa25-4b97-b838-653bb479dcf1",
+        "recordId": "d91fa281-c033-42eb-839d-0503c129c278",
+        "title": "PERF R1 11 checkout confirmation shows receipt"
+      },
+      "readyFrameAtMs": 23839,
+      "trustedEvent": false
+    },
+    {
+      "action": "proposal-review",
+      "elapsedMs": 16,
+      "eventAtMs": 24201,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 13,
+      "paintOpportunityAtMs": 24217,
+      "proof": {
+        "afterTitle": "PERF R1 12 checkout confirmation shows receipt",
+        "beforeTitle": "PERF R1 12 delayed receipt after checkout",
+        "proposalId": "22873dd0-0ba6-474b-b600-cd6571e4f7ee",
+        "recordId": "4de0febf-fdb1-4379-b5c6-653cc535a19a"
+      },
+      "readyFrameAtMs": 24206,
+      "trustedEvent": false
+    },
+    {
+      "action": "proposal-apply",
+      "elapsedMs": 74,
+      "eventAtMs": 24336,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 13,
+      "paintOpportunityAtMs": 24410,
+      "proof": {
+        "bodyText": "Case 12. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.",
+        "dirty": true,
+        "proposalId": "22873dd0-0ba6-474b-b600-cd6571e4f7ee",
+        "recordId": "4de0febf-fdb1-4379-b5c6-653cc535a19a",
+        "title": "PERF R1 12 checkout confirmation shows receipt"
+      },
+      "readyFrameAtMs": 24406,
+      "trustedEvent": false
+    },
+    {
+      "action": "proposal-review",
+      "elapsedMs": 12,
+      "eventAtMs": 24805,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 14,
+      "paintOpportunityAtMs": 24817,
+      "proof": {
+        "afterTitle": "PERF R1 13 checkout confirmation shows receipt",
+        "beforeTitle": "PERF R1 13 delayed receipt after checkout",
+        "proposalId": "fa8b690a-8442-441b-a7fc-53fc70842ed2",
+        "recordId": "d489a300-aa7d-4c11-b618-fff8e177f8d1"
+      },
+      "readyFrameAtMs": 24810,
+      "trustedEvent": false
+    },
+    {
+      "action": "proposal-apply",
+      "elapsedMs": 74,
+      "eventAtMs": 24940,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 14,
+      "paintOpportunityAtMs": 25014,
+      "proof": {
+        "bodyText": "Case 13. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.",
+        "dirty": true,
+        "proposalId": "fa8b690a-8442-441b-a7fc-53fc70842ed2",
+        "recordId": "d489a300-aa7d-4c11-b618-fff8e177f8d1",
+        "title": "PERF R1 13 checkout confirmation shows receipt"
+      },
+      "readyFrameAtMs": 25010,
+      "trustedEvent": false
+    },
+    {
+      "action": "proposal-review",
+      "elapsedMs": 16,
+      "eventAtMs": 25373,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 15,
+      "paintOpportunityAtMs": 25389,
+      "proof": {
+        "afterTitle": "PERF R1 14 checkout confirmation shows receipt",
+        "beforeTitle": "PERF R1 14 delayed receipt after checkout",
+        "proposalId": "2a9d064f-9174-4c8d-9ff4-7f085ca83192",
+        "recordId": "0b367fa6-8602-4181-bc25-b4b90eb275a1"
+      },
+      "readyFrameAtMs": 25379,
+      "trustedEvent": false
+    },
+    {
+      "action": "proposal-apply",
+      "elapsedMs": 72,
+      "eventAtMs": 25508,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 15,
+      "paintOpportunityAtMs": 25580,
+      "proof": {
+        "bodyText": "Case 14. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.",
+        "dirty": true,
+        "proposalId": "2a9d064f-9174-4c8d-9ff4-7f085ca83192",
+        "recordId": "0b367fa6-8602-4181-bc25-b4b90eb275a1",
+        "title": "PERF R1 14 checkout confirmation shows receipt"
+      },
+      "readyFrameAtMs": 25577,
+      "trustedEvent": false
+    },
+    {
+      "action": "proposal-review",
+      "elapsedMs": 17,
+      "eventAtMs": 25943,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 16,
+      "paintOpportunityAtMs": 25960,
+      "proof": {
+        "afterTitle": "PERF R1 15 checkout confirmation shows receipt",
+        "beforeTitle": "PERF R1 15 delayed receipt after checkout",
+        "proposalId": "e79f63ef-cf14-4266-8131-e5e90d6d4abe",
+        "recordId": "bc8769f8-d92f-48a9-8109-d11d8d5aa2cb"
+      },
+      "readyFrameAtMs": 25949,
+      "trustedEvent": false
+    },
+    {
+      "action": "proposal-apply",
+      "elapsedMs": 75,
+      "eventAtMs": 26069,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 16,
+      "paintOpportunityAtMs": 26144,
+      "proof": {
+        "bodyText": "Case 15. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.",
+        "dirty": true,
+        "proposalId": "e79f63ef-cf14-4266-8131-e5e90d6d4abe",
+        "recordId": "bc8769f8-d92f-48a9-8109-d11d8d5aa2cb",
+        "title": "PERF R1 15 checkout confirmation shows receipt"
+      },
+      "readyFrameAtMs": 26141,
+      "trustedEvent": false
+    },
+    {
+      "action": "proposal-review",
+      "elapsedMs": 19,
+      "eventAtMs": 26501,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 17,
+      "paintOpportunityAtMs": 26520,
+      "proof": {
+        "afterTitle": "PERF R1 16 checkout confirmation shows receipt",
+        "beforeTitle": "PERF R1 16 delayed receipt after checkout",
+        "proposalId": "960b1aac-5e3d-4d24-b487-ed47e843ef76",
+        "recordId": "934e3d98-a060-453c-a1a4-ab2c72e9fc87"
+      },
+      "readyFrameAtMs": 26510,
+      "trustedEvent": false
+    },
+    {
+      "action": "proposal-apply",
+      "elapsedMs": 74,
+      "eventAtMs": 26626,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 17,
+      "paintOpportunityAtMs": 26700,
+      "proof": {
+        "bodyText": "Case 16. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.",
+        "dirty": true,
+        "proposalId": "960b1aac-5e3d-4d24-b487-ed47e843ef76",
+        "recordId": "934e3d98-a060-453c-a1a4-ab2c72e9fc87",
+        "title": "PERF R1 16 checkout confirmation shows receipt"
+      },
+      "readyFrameAtMs": 26696,
+      "trustedEvent": false
+    },
+    {
+      "action": "proposal-review",
+      "elapsedMs": 15,
+      "eventAtMs": 27065,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 18,
+      "paintOpportunityAtMs": 27080,
+      "proof": {
+        "afterTitle": "PERF R1 17 checkout confirmation shows receipt",
+        "beforeTitle": "PERF R1 17 delayed receipt after checkout",
+        "proposalId": "fcf702be-eb3d-4a25-a530-305c1d8d6c7c",
+        "recordId": "d6b6d420-c3c0-435e-b914-46c6e5e81019"
+      },
+      "readyFrameAtMs": 27071,
+      "trustedEvent": false
+    },
+    {
+      "action": "proposal-apply",
+      "elapsedMs": 75,
+      "eventAtMs": 27189,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 18,
+      "paintOpportunityAtMs": 27264,
+      "proof": {
+        "bodyText": "Case 17. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.",
+        "dirty": true,
+        "proposalId": "fcf702be-eb3d-4a25-a530-305c1d8d6c7c",
+        "recordId": "d6b6d420-c3c0-435e-b914-46c6e5e81019",
+        "title": "PERF R1 17 checkout confirmation shows receipt"
+      },
+      "readyFrameAtMs": 27260,
+      "trustedEvent": false
+    },
+    {
+      "action": "proposal-review",
+      "elapsedMs": 18,
+      "eventAtMs": 27622,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 19,
+      "paintOpportunityAtMs": 27640,
+      "proof": {
+        "afterTitle": "PERF R1 18 checkout confirmation shows receipt",
+        "beforeTitle": "PERF R1 18 delayed receipt after checkout",
+        "proposalId": "cdfd377f-cafe-4cb7-b28f-6c94be8688ad",
+        "recordId": "cc8d4f9f-90f3-459c-836a-7d3c6eeb0f67"
+      },
+      "readyFrameAtMs": 27630,
+      "trustedEvent": false
+    },
+    {
+      "action": "proposal-apply",
+      "elapsedMs": 73,
+      "eventAtMs": 27747,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 19,
+      "paintOpportunityAtMs": 27820,
+      "proof": {
+        "bodyText": "Case 18. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.",
+        "dirty": true,
+        "proposalId": "cdfd377f-cafe-4cb7-b28f-6c94be8688ad",
+        "recordId": "cc8d4f9f-90f3-459c-836a-7d3c6eeb0f67",
+        "title": "PERF R1 18 checkout confirmation shows receipt"
+      },
+      "readyFrameAtMs": 27817,
+      "trustedEvent": false
+    },
+    {
+      "action": "proposal-review",
+      "elapsedMs": 11,
+      "eventAtMs": 28190,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 20,
+      "paintOpportunityAtMs": 28201,
+      "proof": {
+        "afterTitle": "PERF R1 19 checkout confirmation shows receipt",
+        "beforeTitle": "PERF R1 19 delayed receipt after checkout",
+        "proposalId": "abc00583-6f35-4722-908f-cdb6b83786b0",
+        "recordId": "7879a278-8bf0-455c-89a1-41d52588faa3"
+      },
+      "readyFrameAtMs": 28195,
+      "trustedEvent": false
+    },
+    {
+      "action": "proposal-apply",
+      "elapsedMs": 74,
+      "eventAtMs": 28322,
+      "eventType": "click",
+      "kind": "subsequent-measured-interaction",
+      "ordinal": 20,
+      "paintOpportunityAtMs": 28396,
+      "proof": {
+        "bodyText": "Case 19. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.",
+        "dirty": true,
+        "proposalId": "abc00583-6f35-4722-908f-cdb6b83786b0",
+        "recordId": "7879a278-8bf0-455c-89a1-41d52588faa3",
+        "title": "PERF R1 19 checkout confirmation shows receipt"
+      },
+      "readyFrameAtMs": 28392,
+      "trustedEvent": false
+    }
+  ],
+  "proposal": {
+    "status": "passed",
+    "cases": [
+      {
+        "recordId": "a4e96cb0-1733-4526-bcba-8d0fb3fd20dd",
+        "proposalId": "4461de29-a95a-46ce-b8a6-4af7f471d5fc",
+        "stageId": "d8bc4656-f203-43a1-825b-dc62c0c555a1",
+        "stageKind": "staged",
+        "storedUnchanged": true,
+        "dirtyLiteralEditorVerified": true,
+        "cleanupKind": "undone-and-discarded"
+      },
+      {
+        "recordId": "e5f08b85-31ea-45f4-a48f-d29eb3057dfe",
+        "proposalId": "fba91141-d6b5-4787-b501-6d9a1707be70",
+        "stageId": "ffdf6749-4b0e-4fd6-93fe-b1b9a405b7fe",
+        "stageKind": "staged",
+        "storedUnchanged": true,
+        "dirtyLiteralEditorVerified": true,
+        "cleanupKind": "undone-and-discarded"
+      },
+      {
+        "recordId": "f45b0f60-bde4-455e-8c98-9d44cf2ad0f7",
+        "proposalId": "763fbe20-bd18-4c4e-956a-cf1154e97916",
+        "stageId": "3ea77434-dd27-495e-a5fc-d8df14107d4b",
+        "stageKind": "staged",
+        "storedUnchanged": true,
+        "dirtyLiteralEditorVerified": true,
+        "cleanupKind": "undone-and-discarded"
+      },
+      {
+        "recordId": "d212f521-f145-4660-ae53-8e18d139455b",
+        "proposalId": "7d2f7dc2-82ec-419a-8365-bc2939f7b985",
+        "stageId": "648decac-5410-43f3-a608-af8be9b24b67",
+        "stageKind": "staged",
+        "storedUnchanged": true,
+        "dirtyLiteralEditorVerified": true,
+        "cleanupKind": "undone-and-discarded"
+      },
+      {
+        "recordId": "6a260238-9a39-4ac8-bdea-c42c5341b6f2",
+        "proposalId": "3540aafb-ae60-41fc-95e6-9f3bd17e340b",
+        "stageId": "de9634f2-9b1d-4fc5-afe8-3598d6ffb0a0",
+        "stageKind": "staged",
+        "storedUnchanged": true,
+        "dirtyLiteralEditorVerified": true,
+        "cleanupKind": "undone-and-discarded"
+      },
+      {
+        "recordId": "74f09209-a494-440e-9790-d8050623e581",
+        "proposalId": "6530eb9e-cd2d-4e39-b316-0173d84b6467",
+        "stageId": "b9df42c9-9efa-451d-a4a6-b2199e78e6b7",
+        "stageKind": "staged",
+        "storedUnchanged": true,
+        "dirtyLiteralEditorVerified": true,
+        "cleanupKind": "undone-and-discarded"
+      },
+      {
+        "recordId": "19e17f34-fbf5-4df8-beb5-121e54298016",
+        "proposalId": "50595a1b-d9d4-41b5-ace5-3c1f0b01dbad",
+        "stageId": "b2724303-73fa-44a6-8f38-3d5580568e44",
+        "stageKind": "staged",
+        "storedUnchanged": true,
+        "dirtyLiteralEditorVerified": true,
+        "cleanupKind": "undone-and-discarded"
+      },
+      {
+        "recordId": "3a16e89d-a944-477d-b115-b9fd57aa7df3",
+        "proposalId": "c0a09c77-7b88-4843-b51a-11c6f7a8c417",
+        "stageId": "5f5bd78b-ef62-4d9b-b898-af9455861c96",
+        "stageKind": "staged",
+        "storedUnchanged": true,
+        "dirtyLiteralEditorVerified": true,
+        "cleanupKind": "undone-and-discarded"
+      },
+      {
+        "recordId": "22bca6bc-340c-4ac3-b6f5-e0cbb1f598f4",
+        "proposalId": "fc7aaa03-843b-4c98-a9b5-d41c7994e94c",
+        "stageId": "9e383fd4-0dff-4e77-a477-030fa6b70921",
+        "stageKind": "staged",
+        "storedUnchanged": true,
+        "dirtyLiteralEditorVerified": true,
+        "cleanupKind": "undone-and-discarded"
+      },
+      {
+        "recordId": "6e4edd0e-c591-4ac2-9d1f-5b75dc82202d",
+        "proposalId": "4418aed0-dd7e-4f76-92db-0958ad8e869d",
+        "stageId": "2846e971-9460-4fbd-adc4-9c5461a9ebc4",
+        "stageKind": "staged",
+        "storedUnchanged": true,
+        "dirtyLiteralEditorVerified": true,
+        "cleanupKind": "undone-and-discarded"
+      },
+      {
+        "recordId": "18ed42b8-7778-4210-9719-c2d7a340a7a8",
+        "proposalId": "aaf86138-08ae-4e09-81d5-d1abb5b9aa11",
+        "stageId": "8344417a-ce3a-43be-89da-63f76334238b",
+        "stageKind": "staged",
+        "storedUnchanged": true,
+        "dirtyLiteralEditorVerified": true,
+        "cleanupKind": "undone-and-discarded"
+      },
+      {
+        "recordId": "d91fa281-c033-42eb-839d-0503c129c278",
+        "proposalId": "594c70d8-aa25-4b97-b838-653bb479dcf1",
+        "stageId": "2b6de394-521a-4f85-906c-9ee3ba8f2270",
+        "stageKind": "staged",
+        "storedUnchanged": true,
+        "dirtyLiteralEditorVerified": true,
+        "cleanupKind": "undone-and-discarded"
+      },
+      {
+        "recordId": "4de0febf-fdb1-4379-b5c6-653cc535a19a",
+        "proposalId": "22873dd0-0ba6-474b-b600-cd6571e4f7ee",
+        "stageId": "e183f773-7214-4ed9-9e5b-a6905d6e833d",
+        "stageKind": "staged",
+        "storedUnchanged": true,
+        "dirtyLiteralEditorVerified": true,
+        "cleanupKind": "undone-and-discarded"
+      },
+      {
+        "recordId": "d489a300-aa7d-4c11-b618-fff8e177f8d1",
+        "proposalId": "fa8b690a-8442-441b-a7fc-53fc70842ed2",
+        "stageId": "6111e5b6-4049-4d2d-93c3-5ce0be8421bb",
+        "stageKind": "staged",
+        "storedUnchanged": true,
+        "dirtyLiteralEditorVerified": true,
+        "cleanupKind": "undone-and-discarded"
+      },
+      {
+        "recordId": "0b367fa6-8602-4181-bc25-b4b90eb275a1",
+        "proposalId": "2a9d064f-9174-4c8d-9ff4-7f085ca83192",
+        "stageId": "260271f0-d876-42fd-b8f2-5ced8ff0f3f2",
+        "stageKind": "staged",
+        "storedUnchanged": true,
+        "dirtyLiteralEditorVerified": true,
+        "cleanupKind": "undone-and-discarded"
+      },
+      {
+        "recordId": "bc8769f8-d92f-48a9-8109-d11d8d5aa2cb",
+        "proposalId": "e79f63ef-cf14-4266-8131-e5e90d6d4abe",
+        "stageId": "6352ee8e-5b78-4ea8-8ad1-cb47986ee252",
+        "stageKind": "staged",
+        "storedUnchanged": true,
+        "dirtyLiteralEditorVerified": true,
+        "cleanupKind": "undone-and-discarded"
+      },
+      {
+        "recordId": "934e3d98-a060-453c-a1a4-ab2c72e9fc87",
+        "proposalId": "960b1aac-5e3d-4d24-b487-ed47e843ef76",
+        "stageId": "615df303-c2db-4512-8402-7a55a00fc8e4",
+        "stageKind": "staged",
+        "storedUnchanged": true,
+        "dirtyLiteralEditorVerified": true,
+        "cleanupKind": "undone-and-discarded"
+      },
+      {
+        "recordId": "d6b6d420-c3c0-435e-b914-46c6e5e81019",
+        "proposalId": "fcf702be-eb3d-4a25-a530-305c1d8d6c7c",
+        "stageId": "5ed544bc-9a91-4263-9b9f-1e8b867991ca",
+        "stageKind": "staged",
+        "storedUnchanged": true,
+        "dirtyLiteralEditorVerified": true,
+        "cleanupKind": "undone-and-discarded"
+      },
+      {
+        "recordId": "cc8d4f9f-90f3-459c-836a-7d3c6eeb0f67",
+        "proposalId": "cdfd377f-cafe-4cb7-b28f-6c94be8688ad",
+        "stageId": "8ca649eb-e2d6-4385-b055-0aad2f1be1a1",
+        "stageKind": "staged",
+        "storedUnchanged": true,
+        "dirtyLiteralEditorVerified": true,
+        "cleanupKind": "undone-and-discarded"
+      },
+      {
+        "recordId": "7879a278-8bf0-455c-89a1-41d52588faa3",
+        "proposalId": "abc00583-6f35-4722-908f-cdb6b83786b0",
+        "stageId": "98fb4331-35e0-4ed4-b0de-675e0bde098b",
+        "stageKind": "staged",
+        "storedUnchanged": true,
+        "dirtyLiteralEditorVerified": true,
+        "cleanupKind": "undone-and-discarded"
+      }
+    ],
+    "applyBudgetMs": 100,
+    "scope": "Head only. Twenty short realistic finding refinements in a separate 40-message companion Session. No images and no 100 KB proposal claim. Provider completion is seeded before native launch through the real V2 core contract.",
+    "fixture": {
+      "aiRuns": 0,
+      "cases": [
+        {
+          "after": {
+            "documentJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 00. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "metadataJson": null,
+            "recordKind": "bug",
+            "title": "PERF R1 00 checkout confirmation shows receipt"
+          },
+          "afterBodyText": "Case 00. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.",
+          "afterTitle": "PERF R1 00 checkout confirmation shows receipt",
+          "before": {
+            "documentJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 00. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "metadataJson": null,
+            "recordKind": "bug",
+            "title": "PERF R1 00 delayed receipt after checkout"
+          },
+          "beforeBodyText": "Case 00. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.",
+          "beforeRecord": {
+            "body": "<p>Case 00. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.</p>",
+            "bodyFormat": "tiptap_json",
+            "bodyJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 00. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "createdAt": "2026-10-24T23:09:35.622Z",
+            "id": "a4e96cb0-1733-4526-bcba-8d0fb3fd20dd",
+            "kind": "bug",
+            "metadataJson": null,
+            "sessionId": "9275f932-21cb-46b5-a17d-585c9ec94724",
+            "title": "PERF R1 00 delayed receipt after checkout",
+            "updatedAt": "2026-10-24T23:09:35.622Z"
+          },
+          "beforeTitle": "PERF R1 00 delayed receipt after checkout",
+          "contextBytes": 723,
+          "contractVersion": 2,
+          "proposalId": "4461de29-a95a-46ce-b8a6-4af7f471d5fc",
+          "recordId": "a4e96cb0-1733-4526-bcba-8d0fb3fd20dd",
+          "requestId": "4dcc4aba-fd20-48d6-9b6d-7bf2ea0c47b8"
+        },
+        {
+          "after": {
+            "documentJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 01. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "metadataJson": null,
+            "recordKind": "bug",
+            "title": "PERF R1 01 checkout confirmation shows receipt"
+          },
+          "afterBodyText": "Case 01. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.",
+          "afterTitle": "PERF R1 01 checkout confirmation shows receipt",
+          "before": {
+            "documentJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 01. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "metadataJson": null,
+            "recordKind": "bug",
+            "title": "PERF R1 01 delayed receipt after checkout"
+          },
+          "beforeBodyText": "Case 01. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.",
+          "beforeRecord": {
+            "body": "<p>Case 01. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.</p>",
+            "bodyFormat": "tiptap_json",
+            "bodyJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 01. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "createdAt": "2026-10-24T23:09:35.625Z",
+            "id": "e5f08b85-31ea-45f4-a48f-d29eb3057dfe",
+            "kind": "bug",
+            "metadataJson": null,
+            "sessionId": "9275f932-21cb-46b5-a17d-585c9ec94724",
+            "title": "PERF R1 01 delayed receipt after checkout",
+            "updatedAt": "2026-10-24T23:09:35.625Z"
+          },
+          "beforeTitle": "PERF R1 01 delayed receipt after checkout",
+          "contextBytes": 723,
+          "contractVersion": 2,
+          "proposalId": "fba91141-d6b5-4787-b501-6d9a1707be70",
+          "recordId": "e5f08b85-31ea-45f4-a48f-d29eb3057dfe",
+          "requestId": "7e4ed281-a6c3-4116-8049-f984e57a54fe"
+        },
+        {
+          "after": {
+            "documentJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 02. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "metadataJson": null,
+            "recordKind": "bug",
+            "title": "PERF R1 02 checkout confirmation shows receipt"
+          },
+          "afterBodyText": "Case 02. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.",
+          "afterTitle": "PERF R1 02 checkout confirmation shows receipt",
+          "before": {
+            "documentJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 02. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "metadataJson": null,
+            "recordKind": "bug",
+            "title": "PERF R1 02 delayed receipt after checkout"
+          },
+          "beforeBodyText": "Case 02. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.",
+          "beforeRecord": {
+            "body": "<p>Case 02. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.</p>",
+            "bodyFormat": "tiptap_json",
+            "bodyJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 02. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "createdAt": "2026-10-24T23:09:35.627Z",
+            "id": "f45b0f60-bde4-455e-8c98-9d44cf2ad0f7",
+            "kind": "bug",
+            "metadataJson": null,
+            "sessionId": "9275f932-21cb-46b5-a17d-585c9ec94724",
+            "title": "PERF R1 02 delayed receipt after checkout",
+            "updatedAt": "2026-10-24T23:09:35.627Z"
+          },
+          "beforeTitle": "PERF R1 02 delayed receipt after checkout",
+          "contextBytes": 723,
+          "contractVersion": 2,
+          "proposalId": "763fbe20-bd18-4c4e-956a-cf1154e97916",
+          "recordId": "f45b0f60-bde4-455e-8c98-9d44cf2ad0f7",
+          "requestId": "bede0c92-dc2a-431d-ba2a-b48aa32bac08"
+        },
+        {
+          "after": {
+            "documentJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 03. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "metadataJson": null,
+            "recordKind": "bug",
+            "title": "PERF R1 03 checkout confirmation shows receipt"
+          },
+          "afterBodyText": "Case 03. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.",
+          "afterTitle": "PERF R1 03 checkout confirmation shows receipt",
+          "before": {
+            "documentJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 03. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "metadataJson": null,
+            "recordKind": "bug",
+            "title": "PERF R1 03 delayed receipt after checkout"
+          },
+          "beforeBodyText": "Case 03. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.",
+          "beforeRecord": {
+            "body": "<p>Case 03. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.</p>",
+            "bodyFormat": "tiptap_json",
+            "bodyJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 03. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "createdAt": "2026-10-24T23:09:35.631Z",
+            "id": "d212f521-f145-4660-ae53-8e18d139455b",
+            "kind": "bug",
+            "metadataJson": null,
+            "sessionId": "9275f932-21cb-46b5-a17d-585c9ec94724",
+            "title": "PERF R1 03 delayed receipt after checkout",
+            "updatedAt": "2026-10-24T23:09:35.631Z"
+          },
+          "beforeTitle": "PERF R1 03 delayed receipt after checkout",
+          "contextBytes": 723,
+          "contractVersion": 2,
+          "proposalId": "7d2f7dc2-82ec-419a-8365-bc2939f7b985",
+          "recordId": "d212f521-f145-4660-ae53-8e18d139455b",
+          "requestId": "4b9c60ee-8e31-4d42-9b35-3601ccf6b372"
+        },
+        {
+          "after": {
+            "documentJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 04. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "metadataJson": null,
+            "recordKind": "bug",
+            "title": "PERF R1 04 checkout confirmation shows receipt"
+          },
+          "afterBodyText": "Case 04. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.",
+          "afterTitle": "PERF R1 04 checkout confirmation shows receipt",
+          "before": {
+            "documentJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 04. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "metadataJson": null,
+            "recordKind": "bug",
+            "title": "PERF R1 04 delayed receipt after checkout"
+          },
+          "beforeBodyText": "Case 04. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.",
+          "beforeRecord": {
+            "body": "<p>Case 04. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.</p>",
+            "bodyFormat": "tiptap_json",
+            "bodyJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 04. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "createdAt": "2026-10-24T23:09:35.635Z",
+            "id": "6a260238-9a39-4ac8-bdea-c42c5341b6f2",
+            "kind": "bug",
+            "metadataJson": null,
+            "sessionId": "9275f932-21cb-46b5-a17d-585c9ec94724",
+            "title": "PERF R1 04 delayed receipt after checkout",
+            "updatedAt": "2026-10-24T23:09:35.635Z"
+          },
+          "beforeTitle": "PERF R1 04 delayed receipt after checkout",
+          "contextBytes": 723,
+          "contractVersion": 2,
+          "proposalId": "3540aafb-ae60-41fc-95e6-9f3bd17e340b",
+          "recordId": "6a260238-9a39-4ac8-bdea-c42c5341b6f2",
+          "requestId": "11cffa35-3193-4361-9cf2-2d015b86139d"
+        },
+        {
+          "after": {
+            "documentJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 05. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "metadataJson": null,
+            "recordKind": "bug",
+            "title": "PERF R1 05 checkout confirmation shows receipt"
+          },
+          "afterBodyText": "Case 05. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.",
+          "afterTitle": "PERF R1 05 checkout confirmation shows receipt",
+          "before": {
+            "documentJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 05. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "metadataJson": null,
+            "recordKind": "bug",
+            "title": "PERF R1 05 delayed receipt after checkout"
+          },
+          "beforeBodyText": "Case 05. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.",
+          "beforeRecord": {
+            "body": "<p>Case 05. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.</p>",
+            "bodyFormat": "tiptap_json",
+            "bodyJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 05. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "createdAt": "2026-10-24T23:09:35.639Z",
+            "id": "74f09209-a494-440e-9790-d8050623e581",
+            "kind": "bug",
+            "metadataJson": null,
+            "sessionId": "9275f932-21cb-46b5-a17d-585c9ec94724",
+            "title": "PERF R1 05 delayed receipt after checkout",
+            "updatedAt": "2026-10-24T23:09:35.639Z"
+          },
+          "beforeTitle": "PERF R1 05 delayed receipt after checkout",
+          "contextBytes": 723,
+          "contractVersion": 2,
+          "proposalId": "6530eb9e-cd2d-4e39-b316-0173d84b6467",
+          "recordId": "74f09209-a494-440e-9790-d8050623e581",
+          "requestId": "7332047a-2a41-4e42-b6e5-94ba655ff488"
+        },
+        {
+          "after": {
+            "documentJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 06. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "metadataJson": null,
+            "recordKind": "bug",
+            "title": "PERF R1 06 checkout confirmation shows receipt"
+          },
+          "afterBodyText": "Case 06. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.",
+          "afterTitle": "PERF R1 06 checkout confirmation shows receipt",
+          "before": {
+            "documentJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 06. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "metadataJson": null,
+            "recordKind": "bug",
+            "title": "PERF R1 06 delayed receipt after checkout"
+          },
+          "beforeBodyText": "Case 06. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.",
+          "beforeRecord": {
+            "body": "<p>Case 06. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.</p>",
+            "bodyFormat": "tiptap_json",
+            "bodyJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 06. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "createdAt": "2026-10-24T23:09:35.644Z",
+            "id": "19e17f34-fbf5-4df8-beb5-121e54298016",
+            "kind": "bug",
+            "metadataJson": null,
+            "sessionId": "9275f932-21cb-46b5-a17d-585c9ec94724",
+            "title": "PERF R1 06 delayed receipt after checkout",
+            "updatedAt": "2026-10-24T23:09:35.644Z"
+          },
+          "beforeTitle": "PERF R1 06 delayed receipt after checkout",
+          "contextBytes": 723,
+          "contractVersion": 2,
+          "proposalId": "50595a1b-d9d4-41b5-ace5-3c1f0b01dbad",
+          "recordId": "19e17f34-fbf5-4df8-beb5-121e54298016",
+          "requestId": "110395e9-39e1-48e9-b629-53a1062deef6"
+        },
+        {
+          "after": {
+            "documentJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 07. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "metadataJson": null,
+            "recordKind": "bug",
+            "title": "PERF R1 07 checkout confirmation shows receipt"
+          },
+          "afterBodyText": "Case 07. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.",
+          "afterTitle": "PERF R1 07 checkout confirmation shows receipt",
+          "before": {
+            "documentJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 07. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "metadataJson": null,
+            "recordKind": "bug",
+            "title": "PERF R1 07 delayed receipt after checkout"
+          },
+          "beforeBodyText": "Case 07. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.",
+          "beforeRecord": {
+            "body": "<p>Case 07. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.</p>",
+            "bodyFormat": "tiptap_json",
+            "bodyJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 07. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "createdAt": "2026-10-24T23:09:35.650Z",
+            "id": "3a16e89d-a944-477d-b115-b9fd57aa7df3",
+            "kind": "bug",
+            "metadataJson": null,
+            "sessionId": "9275f932-21cb-46b5-a17d-585c9ec94724",
+            "title": "PERF R1 07 delayed receipt after checkout",
+            "updatedAt": "2026-10-24T23:09:35.650Z"
+          },
+          "beforeTitle": "PERF R1 07 delayed receipt after checkout",
+          "contextBytes": 723,
+          "contractVersion": 2,
+          "proposalId": "c0a09c77-7b88-4843-b51a-11c6f7a8c417",
+          "recordId": "3a16e89d-a944-477d-b115-b9fd57aa7df3",
+          "requestId": "d7091fe7-4787-4fa1-b7d3-b4096098d40b"
+        },
+        {
+          "after": {
+            "documentJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 08. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "metadataJson": null,
+            "recordKind": "bug",
+            "title": "PERF R1 08 checkout confirmation shows receipt"
+          },
+          "afterBodyText": "Case 08. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.",
+          "afterTitle": "PERF R1 08 checkout confirmation shows receipt",
+          "before": {
+            "documentJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 08. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "metadataJson": null,
+            "recordKind": "bug",
+            "title": "PERF R1 08 delayed receipt after checkout"
+          },
+          "beforeBodyText": "Case 08. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.",
+          "beforeRecord": {
+            "body": "<p>Case 08. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.</p>",
+            "bodyFormat": "tiptap_json",
+            "bodyJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 08. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "createdAt": "2026-10-24T23:09:35.657Z",
+            "id": "22bca6bc-340c-4ac3-b6f5-e0cbb1f598f4",
+            "kind": "bug",
+            "metadataJson": null,
+            "sessionId": "9275f932-21cb-46b5-a17d-585c9ec94724",
+            "title": "PERF R1 08 delayed receipt after checkout",
+            "updatedAt": "2026-10-24T23:09:35.657Z"
+          },
+          "beforeTitle": "PERF R1 08 delayed receipt after checkout",
+          "contextBytes": 723,
+          "contractVersion": 2,
+          "proposalId": "fc7aaa03-843b-4c98-a9b5-d41c7994e94c",
+          "recordId": "22bca6bc-340c-4ac3-b6f5-e0cbb1f598f4",
+          "requestId": "790ec2d3-769e-4c58-bdac-6ce81de1bd05"
+        },
+        {
+          "after": {
+            "documentJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 09. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "metadataJson": null,
+            "recordKind": "bug",
+            "title": "PERF R1 09 checkout confirmation shows receipt"
+          },
+          "afterBodyText": "Case 09. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.",
+          "afterTitle": "PERF R1 09 checkout confirmation shows receipt",
+          "before": {
+            "documentJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 09. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "metadataJson": null,
+            "recordKind": "bug",
+            "title": "PERF R1 09 delayed receipt after checkout"
+          },
+          "beforeBodyText": "Case 09. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.",
+          "beforeRecord": {
+            "body": "<p>Case 09. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.</p>",
+            "bodyFormat": "tiptap_json",
+            "bodyJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 09. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "createdAt": "2026-10-24T23:09:35.664Z",
+            "id": "6e4edd0e-c591-4ac2-9d1f-5b75dc82202d",
+            "kind": "bug",
+            "metadataJson": null,
+            "sessionId": "9275f932-21cb-46b5-a17d-585c9ec94724",
+            "title": "PERF R1 09 delayed receipt after checkout",
+            "updatedAt": "2026-10-24T23:09:35.664Z"
+          },
+          "beforeTitle": "PERF R1 09 delayed receipt after checkout",
+          "contextBytes": 723,
+          "contractVersion": 2,
+          "proposalId": "4418aed0-dd7e-4f76-92db-0958ad8e869d",
+          "recordId": "6e4edd0e-c591-4ac2-9d1f-5b75dc82202d",
+          "requestId": "a5b93d39-384a-41c4-af39-68bcb056e602"
+        },
+        {
+          "after": {
+            "documentJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 10. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "metadataJson": null,
+            "recordKind": "bug",
+            "title": "PERF R1 10 checkout confirmation shows receipt"
+          },
+          "afterBodyText": "Case 10. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.",
+          "afterTitle": "PERF R1 10 checkout confirmation shows receipt",
+          "before": {
+            "documentJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 10. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "metadataJson": null,
+            "recordKind": "bug",
+            "title": "PERF R1 10 delayed receipt after checkout"
+          },
+          "beforeBodyText": "Case 10. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.",
+          "beforeRecord": {
+            "body": "<p>Case 10. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.</p>",
+            "bodyFormat": "tiptap_json",
+            "bodyJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 10. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "createdAt": "2026-10-24T23:09:35.672Z",
+            "id": "18ed42b8-7778-4210-9719-c2d7a340a7a8",
+            "kind": "bug",
+            "metadataJson": null,
+            "sessionId": "9275f932-21cb-46b5-a17d-585c9ec94724",
+            "title": "PERF R1 10 delayed receipt after checkout",
+            "updatedAt": "2026-10-24T23:09:35.672Z"
+          },
+          "beforeTitle": "PERF R1 10 delayed receipt after checkout",
+          "contextBytes": 723,
+          "contractVersion": 2,
+          "proposalId": "aaf86138-08ae-4e09-81d5-d1abb5b9aa11",
+          "recordId": "18ed42b8-7778-4210-9719-c2d7a340a7a8",
+          "requestId": "f96dfe7b-590e-4bda-8e85-19162707d827"
+        },
+        {
+          "after": {
+            "documentJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 11. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "metadataJson": null,
+            "recordKind": "bug",
+            "title": "PERF R1 11 checkout confirmation shows receipt"
+          },
+          "afterBodyText": "Case 11. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.",
+          "afterTitle": "PERF R1 11 checkout confirmation shows receipt",
+          "before": {
+            "documentJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 11. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "metadataJson": null,
+            "recordKind": "bug",
+            "title": "PERF R1 11 delayed receipt after checkout"
+          },
+          "beforeBodyText": "Case 11. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.",
+          "beforeRecord": {
+            "body": "<p>Case 11. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.</p>",
+            "bodyFormat": "tiptap_json",
+            "bodyJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 11. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "createdAt": "2026-10-24T23:09:35.681Z",
+            "id": "d91fa281-c033-42eb-839d-0503c129c278",
+            "kind": "bug",
+            "metadataJson": null,
+            "sessionId": "9275f932-21cb-46b5-a17d-585c9ec94724",
+            "title": "PERF R1 11 delayed receipt after checkout",
+            "updatedAt": "2026-10-24T23:09:35.681Z"
+          },
+          "beforeTitle": "PERF R1 11 delayed receipt after checkout",
+          "contextBytes": 723,
+          "contractVersion": 2,
+          "proposalId": "594c70d8-aa25-4b97-b838-653bb479dcf1",
+          "recordId": "d91fa281-c033-42eb-839d-0503c129c278",
+          "requestId": "45419222-d5d8-45a3-9924-288e084a8781"
+        },
+        {
+          "after": {
+            "documentJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 12. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "metadataJson": null,
+            "recordKind": "bug",
+            "title": "PERF R1 12 checkout confirmation shows receipt"
+          },
+          "afterBodyText": "Case 12. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.",
+          "afterTitle": "PERF R1 12 checkout confirmation shows receipt",
+          "before": {
+            "documentJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 12. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "metadataJson": null,
+            "recordKind": "bug",
+            "title": "PERF R1 12 delayed receipt after checkout"
+          },
+          "beforeBodyText": "Case 12. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.",
+          "beforeRecord": {
+            "body": "<p>Case 12. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.</p>",
+            "bodyFormat": "tiptap_json",
+            "bodyJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 12. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "createdAt": "2026-10-24T23:09:35.690Z",
+            "id": "4de0febf-fdb1-4379-b5c6-653cc535a19a",
+            "kind": "bug",
+            "metadataJson": null,
+            "sessionId": "9275f932-21cb-46b5-a17d-585c9ec94724",
+            "title": "PERF R1 12 delayed receipt after checkout",
+            "updatedAt": "2026-10-24T23:09:35.690Z"
+          },
+          "beforeTitle": "PERF R1 12 delayed receipt after checkout",
+          "contextBytes": 723,
+          "contractVersion": 2,
+          "proposalId": "22873dd0-0ba6-474b-b600-cd6571e4f7ee",
+          "recordId": "4de0febf-fdb1-4379-b5c6-653cc535a19a",
+          "requestId": "d1509119-825c-44dc-993d-e06262b2c705"
+        },
+        {
+          "after": {
+            "documentJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 13. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "metadataJson": null,
+            "recordKind": "bug",
+            "title": "PERF R1 13 checkout confirmation shows receipt"
+          },
+          "afterBodyText": "Case 13. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.",
+          "afterTitle": "PERF R1 13 checkout confirmation shows receipt",
+          "before": {
+            "documentJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 13. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "metadataJson": null,
+            "recordKind": "bug",
+            "title": "PERF R1 13 delayed receipt after checkout"
+          },
+          "beforeBodyText": "Case 13. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.",
+          "beforeRecord": {
+            "body": "<p>Case 13. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.</p>",
+            "bodyFormat": "tiptap_json",
+            "bodyJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 13. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "createdAt": "2026-10-24T23:09:35.699Z",
+            "id": "d489a300-aa7d-4c11-b618-fff8e177f8d1",
+            "kind": "bug",
+            "metadataJson": null,
+            "sessionId": "9275f932-21cb-46b5-a17d-585c9ec94724",
+            "title": "PERF R1 13 delayed receipt after checkout",
+            "updatedAt": "2026-10-24T23:09:35.699Z"
+          },
+          "beforeTitle": "PERF R1 13 delayed receipt after checkout",
+          "contextBytes": 723,
+          "contractVersion": 2,
+          "proposalId": "fa8b690a-8442-441b-a7fc-53fc70842ed2",
+          "recordId": "d489a300-aa7d-4c11-b618-fff8e177f8d1",
+          "requestId": "e5a03a8b-6f30-446c-86a3-fb34b06daf07"
+        },
+        {
+          "after": {
+            "documentJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 14. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "metadataJson": null,
+            "recordKind": "bug",
+            "title": "PERF R1 14 checkout confirmation shows receipt"
+          },
+          "afterBodyText": "Case 14. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.",
+          "afterTitle": "PERF R1 14 checkout confirmation shows receipt",
+          "before": {
+            "documentJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 14. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "metadataJson": null,
+            "recordKind": "bug",
+            "title": "PERF R1 14 delayed receipt after checkout"
+          },
+          "beforeBodyText": "Case 14. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.",
+          "beforeRecord": {
+            "body": "<p>Case 14. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.</p>",
+            "bodyFormat": "tiptap_json",
+            "bodyJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 14. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "createdAt": "2026-10-24T23:09:35.710Z",
+            "id": "0b367fa6-8602-4181-bc25-b4b90eb275a1",
+            "kind": "bug",
+            "metadataJson": null,
+            "sessionId": "9275f932-21cb-46b5-a17d-585c9ec94724",
+            "title": "PERF R1 14 delayed receipt after checkout",
+            "updatedAt": "2026-10-24T23:09:35.710Z"
+          },
+          "beforeTitle": "PERF R1 14 delayed receipt after checkout",
+          "contextBytes": 723,
+          "contractVersion": 2,
+          "proposalId": "2a9d064f-9174-4c8d-9ff4-7f085ca83192",
+          "recordId": "0b367fa6-8602-4181-bc25-b4b90eb275a1",
+          "requestId": "a2cc1117-e247-4106-a67a-30e18585c066"
+        },
+        {
+          "after": {
+            "documentJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 15. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "metadataJson": null,
+            "recordKind": "bug",
+            "title": "PERF R1 15 checkout confirmation shows receipt"
+          },
+          "afterBodyText": "Case 15. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.",
+          "afterTitle": "PERF R1 15 checkout confirmation shows receipt",
+          "before": {
+            "documentJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 15. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "metadataJson": null,
+            "recordKind": "bug",
+            "title": "PERF R1 15 delayed receipt after checkout"
+          },
+          "beforeBodyText": "Case 15. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.",
+          "beforeRecord": {
+            "body": "<p>Case 15. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.</p>",
+            "bodyFormat": "tiptap_json",
+            "bodyJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 15. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "createdAt": "2026-10-24T23:09:35.721Z",
+            "id": "bc8769f8-d92f-48a9-8109-d11d8d5aa2cb",
+            "kind": "bug",
+            "metadataJson": null,
+            "sessionId": "9275f932-21cb-46b5-a17d-585c9ec94724",
+            "title": "PERF R1 15 delayed receipt after checkout",
+            "updatedAt": "2026-10-24T23:09:35.721Z"
+          },
+          "beforeTitle": "PERF R1 15 delayed receipt after checkout",
+          "contextBytes": 723,
+          "contractVersion": 2,
+          "proposalId": "e79f63ef-cf14-4266-8131-e5e90d6d4abe",
+          "recordId": "bc8769f8-d92f-48a9-8109-d11d8d5aa2cb",
+          "requestId": "3858f056-c898-4177-bc20-0fab06d27f57"
+        },
+        {
+          "after": {
+            "documentJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 16. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "metadataJson": null,
+            "recordKind": "bug",
+            "title": "PERF R1 16 checkout confirmation shows receipt"
+          },
+          "afterBodyText": "Case 16. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.",
+          "afterTitle": "PERF R1 16 checkout confirmation shows receipt",
+          "before": {
+            "documentJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 16. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "metadataJson": null,
+            "recordKind": "bug",
+            "title": "PERF R1 16 delayed receipt after checkout"
+          },
+          "beforeBodyText": "Case 16. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.",
+          "beforeRecord": {
+            "body": "<p>Case 16. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.</p>",
+            "bodyFormat": "tiptap_json",
+            "bodyJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 16. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "createdAt": "2026-10-24T23:09:35.734Z",
+            "id": "934e3d98-a060-453c-a1a4-ab2c72e9fc87",
+            "kind": "bug",
+            "metadataJson": null,
+            "sessionId": "9275f932-21cb-46b5-a17d-585c9ec94724",
+            "title": "PERF R1 16 delayed receipt after checkout",
+            "updatedAt": "2026-10-24T23:09:35.734Z"
+          },
+          "beforeTitle": "PERF R1 16 delayed receipt after checkout",
+          "contextBytes": 723,
+          "contractVersion": 2,
+          "proposalId": "960b1aac-5e3d-4d24-b487-ed47e843ef76",
+          "recordId": "934e3d98-a060-453c-a1a4-ab2c72e9fc87",
+          "requestId": "afa5df93-a814-406b-8b79-6fbf03b87d8a"
+        },
+        {
+          "after": {
+            "documentJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 17. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "metadataJson": null,
+            "recordKind": "bug",
+            "title": "PERF R1 17 checkout confirmation shows receipt"
+          },
+          "afterBodyText": "Case 17. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.",
+          "afterTitle": "PERF R1 17 checkout confirmation shows receipt",
+          "before": {
+            "documentJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 17. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "metadataJson": null,
+            "recordKind": "bug",
+            "title": "PERF R1 17 delayed receipt after checkout"
+          },
+          "beforeBodyText": "Case 17. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.",
+          "beforeRecord": {
+            "body": "<p>Case 17. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.</p>",
+            "bodyFormat": "tiptap_json",
+            "bodyJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 17. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "createdAt": "2026-10-24T23:09:35.747Z",
+            "id": "d6b6d420-c3c0-435e-b914-46c6e5e81019",
+            "kind": "bug",
+            "metadataJson": null,
+            "sessionId": "9275f932-21cb-46b5-a17d-585c9ec94724",
+            "title": "PERF R1 17 delayed receipt after checkout",
+            "updatedAt": "2026-10-24T23:09:35.747Z"
+          },
+          "beforeTitle": "PERF R1 17 delayed receipt after checkout",
+          "contextBytes": 723,
+          "contractVersion": 2,
+          "proposalId": "fcf702be-eb3d-4a25-a530-305c1d8d6c7c",
+          "recordId": "d6b6d420-c3c0-435e-b914-46c6e5e81019",
+          "requestId": "1989ad13-33c4-4d72-924d-734c8ac264bb"
+        },
+        {
+          "after": {
+            "documentJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 18. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "metadataJson": null,
+            "recordKind": "bug",
+            "title": "PERF R1 18 checkout confirmation shows receipt"
+          },
+          "afterBodyText": "Case 18. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.",
+          "afterTitle": "PERF R1 18 checkout confirmation shows receipt",
+          "before": {
+            "documentJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 18. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "metadataJson": null,
+            "recordKind": "bug",
+            "title": "PERF R1 18 delayed receipt after checkout"
+          },
+          "beforeBodyText": "Case 18. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.",
+          "beforeRecord": {
+            "body": "<p>Case 18. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.</p>",
+            "bodyFormat": "tiptap_json",
+            "bodyJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 18. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "createdAt": "2026-10-24T23:09:35.760Z",
+            "id": "cc8d4f9f-90f3-459c-836a-7d3c6eeb0f67",
+            "kind": "bug",
+            "metadataJson": null,
+            "sessionId": "9275f932-21cb-46b5-a17d-585c9ec94724",
+            "title": "PERF R1 18 delayed receipt after checkout",
+            "updatedAt": "2026-10-24T23:09:35.760Z"
+          },
+          "beforeTitle": "PERF R1 18 delayed receipt after checkout",
+          "contextBytes": 723,
+          "contractVersion": 2,
+          "proposalId": "cdfd377f-cafe-4cb7-b28f-6c94be8688ad",
+          "recordId": "cc8d4f9f-90f3-459c-836a-7d3c6eeb0f67",
+          "requestId": "a4415110-bb3a-4668-b849-13e1ab63052d"
+        },
+        {
+          "after": {
+            "documentJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 19. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "metadataJson": null,
+            "recordKind": "bug",
+            "title": "PERF R1 19 checkout confirmation shows receipt"
+          },
+          "afterBodyText": "Case 19. After completing an order, confirmation shows the receipt immediately. Reopen confirmation and verify the order number and total are present.",
+          "afterTitle": "PERF R1 19 checkout confirmation shows receipt",
+          "before": {
+            "documentJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 19. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "metadataJson": null,
+            "recordKind": "bug",
+            "title": "PERF R1 19 delayed receipt after checkout"
+          },
+          "beforeBodyText": "Case 19. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.",
+          "beforeRecord": {
+            "body": "<p>Case 19. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.</p>",
+            "bodyFormat": "tiptap_json",
+            "bodyJson": "{\"doc\":{\"content\":[{\"content\":[{\"text\":\"Case 19. Checkout confirmation appears before the receipt details. Complete an order and open confirmation. Expected order number and total appear immediately.\",\"type\":\"text\"}],\"type\":\"paragraph\"}],\"type\":\"doc\"},\"schemaVersion\":1}",
+            "createdAt": "2026-10-24T23:09:35.774Z",
+            "id": "7879a278-8bf0-455c-89a1-41d52588faa3",
+            "kind": "bug",
+            "metadataJson": null,
+            "sessionId": "9275f932-21cb-46b5-a17d-585c9ec94724",
+            "title": "PERF R1 19 delayed receipt after checkout",
+            "updatedAt": "2026-10-24T23:09:35.774Z"
+          },
+          "beforeTitle": "PERF R1 19 delayed receipt after checkout",
+          "contextBytes": 723,
+          "contractVersion": 2,
+          "proposalId": "abc00583-6f35-4722-908f-cdb6b83786b0",
+          "recordId": "7879a278-8bf0-455c-89a1-41d52588faa3",
+          "requestId": "9af6b5ba-b277-4889-a181-92b50c195477"
+        }
+      ],
+      "foreignKeyViolations": 0,
+      "images": 0,
+      "mainFixtureUnchanged": true,
+      "messages": 40,
+      "proposals": 20,
+      "providerInvoked": false,
+      "schema": "qa-scribe-ui-perf-refinement-v1",
+      "sessionId": "9275f932-21cb-46b5-a17d-585c9ec94724",
+      "sessionTitle": "Native refinement performance fixture",
+      "workload": "Twenty short realistic finding refinements in one companion Session. Separate from the shared 100-message, four-image, long-record workload. Not a 100 KB proposal benchmark."
+    },
+    "completedWork": {
+      "reviewed": 20,
+      "appliedToDirtyEditor": 20,
+      "storedRecordsUnchanged": 20,
+      "stagesCleared": 20
+    },
+    "applyP95Ms": 79
+  },
+  "chatJsonBytes": 70513,
+  "observerFailures": [],
+  "observedVariant": "head",
+  "scroll": {
+    "frameIntervalsMs": [
+      10,
+      10,
+      10,
+      10,
+      10,
+      9,
+      12,
+      9,
+      10,
+      10,
+      12,
+      8,
+      12,
+      8,
+      10,
+      10,
+      9,
+      11,
+      12,
+      8,
+      10,
+      11,
+      9,
+      10,
+      10,
+      11,
+      10,
+      8,
+      12,
+      10,
+      9,
+      11,
+      10,
+      10,
+      10,
+      10,
+      9,
+      11,
+      10,
+      9,
+      10,
+      12,
+      9,
+      12,
+      8,
+      12,
+      8,
+      10,
+      10,
+      10,
+      10,
+      8,
+      12,
+      10,
+      10,
+      10,
+      10,
+      10,
+      8,
+      13,
+      9,
+      10,
+      10,
+      10,
+      12,
+      8,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      12,
+      8,
+      8,
+      12,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      8,
+      12,
+      10,
+      10,
+      10,
+      12,
+      8,
+      10,
+      10,
+      10,
+      10,
+      12,
+      8,
+      12,
+      8,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      10,
+      9,
+      12,
+      9,
+      10,
+      10,
+      10,
+      9,
+      12,
+      9
+    ],
+    "geometry": [
+      {
+        "atMs": 5407,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": 54.78125,
+        "pinned": true,
+        "recordBottomPx": 20830.15625,
+        "scrollTopPx": 254,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5417,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": 14.78125,
+        "pinned": true,
+        "recordBottomPx": 20790.15625,
+        "scrollTopPx": 294,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5427,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -25.21875,
+        "pinned": true,
+        "recordBottomPx": 20750.15625,
+        "scrollTopPx": 334,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5437,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -65.21875,
+        "pinned": true,
+        "recordBottomPx": 20710.15625,
+        "scrollTopPx": 374,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5447,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -105.21875,
+        "pinned": true,
+        "recordBottomPx": 20670.15625,
+        "scrollTopPx": 414,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5457,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -145.21875,
+        "pinned": true,
+        "recordBottomPx": 20630.15625,
+        "scrollTopPx": 454,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5466,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -185.21875,
+        "pinned": true,
+        "recordBottomPx": 20590.15625,
+        "scrollTopPx": 494,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5478,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -225.21875,
+        "pinned": true,
+        "recordBottomPx": 20550.15625,
+        "scrollTopPx": 534,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5487,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -265.21875,
+        "pinned": true,
+        "recordBottomPx": 20510.15625,
+        "scrollTopPx": 574,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5497,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -305.21875,
+        "pinned": true,
+        "recordBottomPx": 20470.15625,
+        "scrollTopPx": 614,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5507,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -345.21875,
+        "pinned": true,
+        "recordBottomPx": 20430.15625,
+        "scrollTopPx": 654,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5519,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -385.21875,
+        "pinned": true,
+        "recordBottomPx": 20390.15625,
+        "scrollTopPx": 694,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5527,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -425.21875,
+        "pinned": true,
+        "recordBottomPx": 20350.15625,
+        "scrollTopPx": 734,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5539,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -465.21875,
+        "pinned": true,
+        "recordBottomPx": 20310.15625,
+        "scrollTopPx": 774,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5547,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -505.21875,
+        "pinned": true,
+        "recordBottomPx": 20270.15625,
+        "scrollTopPx": 814,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5557,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -545.21875,
+        "pinned": true,
+        "recordBottomPx": 20230.15625,
+        "scrollTopPx": 854,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5567,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -585.21875,
+        "pinned": true,
+        "recordBottomPx": 20190.15625,
+        "scrollTopPx": 894,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5576,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -625.21875,
+        "pinned": true,
+        "recordBottomPx": 20150.15625,
+        "scrollTopPx": 934,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5587,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -665.21875,
+        "pinned": true,
+        "recordBottomPx": 20110.15625,
+        "scrollTopPx": 974,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5599,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -705.21875,
+        "pinned": true,
+        "recordBottomPx": 20070.15625,
+        "scrollTopPx": 1014,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5607,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -745.21875,
+        "pinned": true,
+        "recordBottomPx": 20030.15625,
+        "scrollTopPx": 1054,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5617,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -785.21875,
+        "pinned": true,
+        "recordBottomPx": 19990.15625,
+        "scrollTopPx": 1094,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5628,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -825.21875,
+        "pinned": true,
+        "recordBottomPx": 19950.15625,
+        "scrollTopPx": 1134,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5637,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -865.21875,
+        "pinned": true,
+        "recordBottomPx": 19910.15625,
+        "scrollTopPx": 1174,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5647,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -905.21875,
+        "pinned": true,
+        "recordBottomPx": 19870.15625,
+        "scrollTopPx": 1214,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5657,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -945.21875,
+        "pinned": true,
+        "recordBottomPx": 19830.15625,
+        "scrollTopPx": 1254,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5668,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -985.21875,
+        "pinned": true,
+        "recordBottomPx": 19790.15625,
+        "scrollTopPx": 1294,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5678,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1025.21875,
+        "pinned": true,
+        "recordBottomPx": 19750.15625,
+        "scrollTopPx": 1334,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5686,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1065.21875,
+        "pinned": true,
+        "recordBottomPx": 19710.15625,
+        "scrollTopPx": 1374,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5698,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1105.21875,
+        "pinned": true,
+        "recordBottomPx": 19670.15625,
+        "scrollTopPx": 1414,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5708,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1145.21875,
+        "pinned": true,
+        "recordBottomPx": 19630.15625,
+        "scrollTopPx": 1454,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5717,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1185.21875,
+        "pinned": true,
+        "recordBottomPx": 19590.15625,
+        "scrollTopPx": 1494,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5728,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1225.21875,
+        "pinned": true,
+        "recordBottomPx": 19550.15625,
+        "scrollTopPx": 1534,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5738,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1265.21875,
+        "pinned": true,
+        "recordBottomPx": 19510.15625,
+        "scrollTopPx": 1574,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5748,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1305.21875,
+        "pinned": true,
+        "recordBottomPx": 19470.15625,
+        "scrollTopPx": 1614,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5758,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1345.21875,
+        "pinned": true,
+        "recordBottomPx": 19430.15625,
+        "scrollTopPx": 1654,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5768,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1385.21875,
+        "pinned": true,
+        "recordBottomPx": 19390.15625,
+        "scrollTopPx": 1694,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5777,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1425.21875,
+        "pinned": true,
+        "recordBottomPx": 19350.15625,
+        "scrollTopPx": 1734,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5788,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1465.21875,
+        "pinned": true,
+        "recordBottomPx": 19310.15625,
+        "scrollTopPx": 1774,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5798,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1505.21875,
+        "pinned": true,
+        "recordBottomPx": 19270.15625,
+        "scrollTopPx": 1814,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5807,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1545.21875,
+        "pinned": true,
+        "recordBottomPx": 19230.15625,
+        "scrollTopPx": 1854,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5817,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1585.21875,
+        "pinned": true,
+        "recordBottomPx": 19190.15625,
+        "scrollTopPx": 1894,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5829,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1625.21875,
+        "pinned": true,
+        "recordBottomPx": 19150.15625,
+        "scrollTopPx": 1934,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5838,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1665.21875,
+        "pinned": true,
+        "recordBottomPx": 19110.15625,
+        "scrollTopPx": 1974,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5850,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1704.21875,
+        "pinned": true,
+        "recordBottomPx": 19071.15625,
+        "scrollTopPx": 2013,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5858,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1745.21875,
+        "pinned": true,
+        "recordBottomPx": 19030.15625,
+        "scrollTopPx": 2054,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5870,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1785.21875,
+        "pinned": true,
+        "recordBottomPx": 18990.15625,
+        "scrollTopPx": 2094,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5878,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1825.21875,
+        "pinned": true,
+        "recordBottomPx": 18950.15625,
+        "scrollTopPx": 2134,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5888,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1865.21875,
+        "pinned": true,
+        "recordBottomPx": 18910.15625,
+        "scrollTopPx": 2174,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5898,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1905.21875,
+        "pinned": true,
+        "recordBottomPx": 18870.15625,
+        "scrollTopPx": 2214,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5908,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1945.21875,
+        "pinned": true,
+        "recordBottomPx": 18830.15625,
+        "scrollTopPx": 2254,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5918,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1985.21875,
+        "pinned": true,
+        "recordBottomPx": 18790.15625,
+        "scrollTopPx": 2294,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5926,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -2025.21875,
+        "pinned": true,
+        "recordBottomPx": 18750.15625,
+        "scrollTopPx": 2334,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5938,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -2065.21875,
+        "pinned": true,
+        "recordBottomPx": 18710.15625,
+        "scrollTopPx": 2374,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5948,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -2105.21875,
+        "pinned": true,
+        "recordBottomPx": 18670.15625,
+        "scrollTopPx": 2414,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5958,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -2145.21875,
+        "pinned": true,
+        "recordBottomPx": 18630.15625,
+        "scrollTopPx": 2454,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5968,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -2185.21875,
+        "pinned": true,
+        "recordBottomPx": 18590.15625,
+        "scrollTopPx": 2494,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5978,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -2225.21875,
+        "pinned": true,
+        "recordBottomPx": 18550.15625,
+        "scrollTopPx": 2534,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5988,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -2265.21875,
+        "pinned": true,
+        "recordBottomPx": 18510.15625,
+        "scrollTopPx": 2574,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 5996,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -2305.21875,
+        "pinned": true,
+        "recordBottomPx": 18470.15625,
+        "scrollTopPx": 2614,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6009,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -2345.21875,
+        "pinned": true,
+        "recordBottomPx": 18430.15625,
+        "scrollTopPx": 2654,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6018,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -2305.21875,
+        "pinned": true,
+        "recordBottomPx": 18470.15625,
+        "scrollTopPx": 2614,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6028,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -2264.21875,
+        "pinned": true,
+        "recordBottomPx": 18511.15625,
+        "scrollTopPx": 2573,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6038,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -2225.21875,
+        "pinned": true,
+        "recordBottomPx": 18550.15625,
+        "scrollTopPx": 2534,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6048,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -2185.21875,
+        "pinned": true,
+        "recordBottomPx": 18590.15625,
+        "scrollTopPx": 2494,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6060,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -2145.21875,
+        "pinned": true,
+        "recordBottomPx": 18630.15625,
+        "scrollTopPx": 2454,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6068,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -2105.21875,
+        "pinned": true,
+        "recordBottomPx": 18670.15625,
+        "scrollTopPx": 2414,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6078,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -2065.21875,
+        "pinned": true,
+        "recordBottomPx": 18710.15625,
+        "scrollTopPx": 2374,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6088,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -2025.21875,
+        "pinned": true,
+        "recordBottomPx": 18750.15625,
+        "scrollTopPx": 2334,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6098,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1985.21875,
+        "pinned": true,
+        "recordBottomPx": 18790.15625,
+        "scrollTopPx": 2294,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6108,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1945.21875,
+        "pinned": true,
+        "recordBottomPx": 18830.15625,
+        "scrollTopPx": 2254,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6118,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1905.21875,
+        "pinned": true,
+        "recordBottomPx": 18870.15625,
+        "scrollTopPx": 2214,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6128,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1865.21875,
+        "pinned": true,
+        "recordBottomPx": 18910.15625,
+        "scrollTopPx": 2174,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6138,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1825.21875,
+        "pinned": true,
+        "recordBottomPx": 18950.15625,
+        "scrollTopPx": 2134,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6150,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1785.21875,
+        "pinned": true,
+        "recordBottomPx": 18990.15625,
+        "scrollTopPx": 2094,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6158,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1745.21875,
+        "pinned": true,
+        "recordBottomPx": 19030.15625,
+        "scrollTopPx": 2054,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6166,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1705.21875,
+        "pinned": true,
+        "recordBottomPx": 19070.15625,
+        "scrollTopPx": 2014,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6178,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1664.21875,
+        "pinned": true,
+        "recordBottomPx": 19111.15625,
+        "scrollTopPx": 1973,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6188,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1625.21875,
+        "pinned": true,
+        "recordBottomPx": 19150.15625,
+        "scrollTopPx": 1934,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6198,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1585.21875,
+        "pinned": true,
+        "recordBottomPx": 19190.15625,
+        "scrollTopPx": 1894,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6208,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1545.21875,
+        "pinned": true,
+        "recordBottomPx": 19230.15625,
+        "scrollTopPx": 1854,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6218,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1504.21875,
+        "pinned": true,
+        "recordBottomPx": 19271.15625,
+        "scrollTopPx": 1813,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6228,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1465.21875,
+        "pinned": true,
+        "recordBottomPx": 19310.15625,
+        "scrollTopPx": 1774,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6238,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1425.21875,
+        "pinned": true,
+        "recordBottomPx": 19350.15625,
+        "scrollTopPx": 1734,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6248,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1385.21875,
+        "pinned": true,
+        "recordBottomPx": 19390.15625,
+        "scrollTopPx": 1694,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6258,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1344.21875,
+        "pinned": true,
+        "recordBottomPx": 19431.15625,
+        "scrollTopPx": 1653,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6266,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1305.21875,
+        "pinned": true,
+        "recordBottomPx": 19470.15625,
+        "scrollTopPx": 1614,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6278,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1265.21875,
+        "pinned": true,
+        "recordBottomPx": 19510.15625,
+        "scrollTopPx": 1574,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6288,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1225.21875,
+        "pinned": true,
+        "recordBottomPx": 19550.15625,
+        "scrollTopPx": 1534,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6298,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1184.21875,
+        "pinned": true,
+        "recordBottomPx": 19591.15625,
+        "scrollTopPx": 1493,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6308,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1145.21875,
+        "pinned": true,
+        "recordBottomPx": 19630.15625,
+        "scrollTopPx": 1454,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6320,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1105.21875,
+        "pinned": true,
+        "recordBottomPx": 19670.15625,
+        "scrollTopPx": 1414,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6328,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1064.21875,
+        "pinned": true,
+        "recordBottomPx": 19711.15625,
+        "scrollTopPx": 1373,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6338,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -1025.21875,
+        "pinned": true,
+        "recordBottomPx": 19750.15625,
+        "scrollTopPx": 1334,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6348,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -985.21875,
+        "pinned": true,
+        "recordBottomPx": 19790.15625,
+        "scrollTopPx": 1294,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6358,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -945.21875,
+        "pinned": true,
+        "recordBottomPx": 19830.15625,
+        "scrollTopPx": 1254,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6368,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -904.21875,
+        "pinned": true,
+        "recordBottomPx": 19871.15625,
+        "scrollTopPx": 1213,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6380,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -865.21875,
+        "pinned": true,
+        "recordBottomPx": 19910.15625,
+        "scrollTopPx": 1174,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6388,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -825.21875,
+        "pinned": true,
+        "recordBottomPx": 19950.15625,
+        "scrollTopPx": 1134,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6400,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -785.21875,
+        "pinned": true,
+        "recordBottomPx": 19990.15625,
+        "scrollTopPx": 1094,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6408,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -744.21875,
+        "pinned": true,
+        "recordBottomPx": 20031.15625,
+        "scrollTopPx": 1053,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6418,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -705.21875,
+        "pinned": true,
+        "recordBottomPx": 20070.15625,
+        "scrollTopPx": 1014,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6428,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -665.21875,
+        "pinned": true,
+        "recordBottomPx": 20110.15625,
+        "scrollTopPx": 974,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6438,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -625.21875,
+        "pinned": true,
+        "recordBottomPx": 20150.15625,
+        "scrollTopPx": 934,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6448,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -584.21875,
+        "pinned": true,
+        "recordBottomPx": 20191.15625,
+        "scrollTopPx": 893,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6458,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -545.21875,
+        "pinned": true,
+        "recordBottomPx": 20230.15625,
+        "scrollTopPx": 854,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6468,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -505.21875,
+        "pinned": true,
+        "recordBottomPx": 20270.15625,
+        "scrollTopPx": 814,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6478,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -464.21875,
+        "pinned": true,
+        "recordBottomPx": 20311.15625,
+        "scrollTopPx": 773,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6488,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -424.21875,
+        "pinned": true,
+        "recordBottomPx": 20351.15625,
+        "scrollTopPx": 733,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6498,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -385.21875,
+        "pinned": true,
+        "recordBottomPx": 20390.15625,
+        "scrollTopPx": 694,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6508,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -345.21875,
+        "pinned": true,
+        "recordBottomPx": 20430.15625,
+        "scrollTopPx": 654,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6518,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -304.21875,
+        "pinned": true,
+        "recordBottomPx": 20471.15625,
+        "scrollTopPx": 613,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6527,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -265.21875,
+        "pinned": true,
+        "recordBottomPx": 20510.15625,
+        "scrollTopPx": 574,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6539,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -225.21875,
+        "pinned": true,
+        "recordBottomPx": 20550.15625,
+        "scrollTopPx": 534,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6548,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -185.21875,
+        "pinned": true,
+        "recordBottomPx": 20590.15625,
+        "scrollTopPx": 494,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6558,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -144.21875,
+        "pinned": true,
+        "recordBottomPx": 20631.15625,
+        "scrollTopPx": 453,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6568,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -105.21875,
+        "pinned": true,
+        "recordBottomPx": 20670.15625,
+        "scrollTopPx": 414,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6578,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -65.21875,
+        "pinned": true,
+        "recordBottomPx": 20710.15625,
+        "scrollTopPx": 374,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6587,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": -25.21875,
+        "pinned": true,
+        "recordBottomPx": 20750.15625,
+        "scrollTopPx": 334,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6599,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": 15.78125,
+        "pinned": true,
+        "recordBottomPx": 20791.15625,
+        "scrollTopPx": 293,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      },
+      {
+        "atMs": 6608,
+        "header": {
+          "bottom": 237.390625,
+          "height": 118.390625,
+          "left": 581,
+          "right": 1239,
+          "top": 119,
+          "width": 658
+        },
+        "headerGapPx": 0,
+        "normalHeaderTopPx": 54.78125,
+        "pinned": true,
+        "recordBottomPx": 20830.15625,
+        "scrollTopPx": 254,
+        "scrollport": {
+          "bottom": 828,
+          "height": 709,
+          "left": 248,
+          "right": 1280,
+          "top": 119,
+          "width": 1032
+        }
+      }
+    ],
+    "headerGapsPx": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "headerSelector": ".record-detail-pane .record-header",
+    "initialGeometry": {
+      "header": {
+        "bottom": 427.171875,
+        "height": 118.390625,
+        "left": 581,
+        "right": 1239,
+        "top": 308.78125,
+        "width": 658
+      },
+      "normalHeaderContentTopPx": 189.78125,
+      "recordBottomContentPx": 20965.15625,
+      "scrollport": {
+        "bottom": 828,
+        "height": 709,
+        "left": 248,
+        "right": 1280,
+        "top": 119,
+        "width": 1032
+      },
+      "stickyInsetPx": 0
+    },
+    "input": "programmatic scrollTop changes inside an already pinned range; setup and boundary positions are not timed",
+    "movedPx": 2400,
+    "pinnedRangePx": {
+      "end": 2654,
+      "start": 254
+    },
+    "positions": [
+      254,
+      294,
+      334,
+      374,
+      414,
+      454,
+      494,
+      534,
+      574,
+      614,
+      654,
+      694,
+      734,
+      774,
+      814,
+      854,
+      894,
+      934,
+      974,
+      1014,
+      1054,
+      1094,
+      1134,
+      1174,
+      1214,
+      1254,
+      1294,
+      1334,
+      1374,
+      1414,
+      1454,
+      1494,
+      1534,
+      1574,
+      1614,
+      1654,
+      1694,
+      1734,
+      1774,
+      1814,
+      1854,
+      1894,
+      1934,
+      1974,
+      2013,
+      2054,
+      2094,
+      2134,
+      2174,
+      2214,
+      2254,
+      2294,
+      2334,
+      2374,
+      2414,
+      2454,
+      2494,
+      2534,
+      2574,
+      2614,
+      2654,
+      2614,
+      2573,
+      2534,
+      2494,
+      2454,
+      2414,
+      2374,
+      2334,
+      2294,
+      2254,
+      2214,
+      2174,
+      2134,
+      2094,
+      2054,
+      2014,
+      1973,
+      1934,
+      1894,
+      1854,
+      1813,
+      1774,
+      1734,
+      1694,
+      1653,
+      1614,
+      1574,
+      1534,
+      1493,
+      1454,
+      1414,
+      1373,
+      1334,
+      1294,
+      1254,
+      1213,
+      1174,
+      1134,
+      1094,
+      1053,
+      1014,
+      974,
+      934,
+      893,
+      854,
+      814,
+      773,
+      733,
+      694,
+      654,
+      613,
+      574,
+      534,
+      494,
+      453,
+      414,
+      374,
+      334,
+      293,
+      254
+    ],
+    "scrollEvents": 120,
+    "scrollRangePx": 20288,
+    "scroller": {
+      "className": "collection-view",
+      "id": "",
+      "tagName": "SECTION"
+    },
+    "p95FrameIntervalMs": 12,
+    "maxHeaderGapPx": 0
+  },
+  "executionAudit": {
+    "aiRuns": 0,
+    "messages": 140
+  },
+  "providerExecutionFiles": [],
+  "summary": {
+    "notes-open": {
+      "count": 20,
+      "p95Ms": 23,
+      "minMs": 15,
+      "maxMs": 525
+    },
+    "manual-edit": {
+      "count": 20,
+      "p95Ms": 35,
+      "minMs": 27,
+      "maxMs": 38
+    },
+    "record-save": {
+      "count": 20,
+      "p95Ms": 121,
+      "minMs": 80,
+      "maxMs": 137
+    },
+    "ask-ai-open": {
+      "count": 20,
+      "p95Ms": 39,
+      "minMs": 29,
+      "maxMs": 40
+    },
+    "proposal-review": {
+      "count": 20,
+      "p95Ms": 22,
+      "minMs": 11,
+      "maxMs": 22
+    },
+    "proposal-apply": {
+      "count": 20,
+      "p95Ms": 79,
+      "minMs": 71,
+      "maxMs": 84
+    }
+  },
+  "completedScope": "Shared Notes/scroll/edit/Save; Ask AI; 20 companion proposal review/Apply/Undo/Discard cases."
+}

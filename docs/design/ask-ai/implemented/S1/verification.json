@@ -1,0 +1,117 @@
+{
+  "scope": "S1 only. Ready for parent review and integration. Native device lane released. No further native runs or source writes by this delegate.",
+  "baseSha": "1c34f3e229ccf471241f7dfc7248b4d73c2ce6d9",
+  "files": [
+    {
+      "path": "frontend/src/views/RichRecordView.tsx",
+      "sha256": "044339c50d14dcd4210e7abecac430aa5c9ea3c411b3058b7c2f3718bedb4d28"
+    },
+    {
+      "path": "frontend/src/styles/collections.css",
+      "sha256": "b08e59bf1b61f070b1b9c5b00d4e20e269744ad42ea8f25e5b817d48e8e09843"
+    },
+    {
+      "path": "frontend/src/views/RecordCollectionView.test.tsx",
+      "sha256": "38e33cc58bf82ec6e77ac5e3cf7b6e7e458646052f5ede77652be3dfb1bb69b3"
+    },
+    {
+      "path": "e2e/specs/record-workspace-layout.e2e.mjs",
+      "sha256": "1172093b77644707c53f0feca23cc831d76b8f63f8b9aa899138b9c79b8029c1"
+    }
+  ],
+  "untouched": [
+    "frontend/src/views/RecordCollectionView.tsx",
+    "frontend/src/styles/editor.css",
+    "docs/ask-ai-phased-plan.md",
+    "docs/design/ask-ai"
+  ],
+  "checks": [
+    {
+      "command": "QA_SCRIBE_E2E_SPEC=record-workspace-layout.e2e.mjs QA_SCRIBE_E2E_ARTIFACTS=/Users/vriesd/projects/qa-scribe/artifacts/ask-ai/S1/before bun run e2e",
+      "exitCode": 1,
+      "result": "Expected baseline failure. Pinned record header gap must be within 1 CSS pixel; observed 32px"
+    },
+    {
+      "command": "QA_SCRIBE_E2E_SPEC=record-workspace-layout.e2e.mjs QA_SCRIBE_E2E_ARTIFACTS=/Users/vriesd/projects/qa-scribe/artifacts/ask-ai/S1/passing bun run e2e",
+      "exitCode": 0,
+      "result": "10 passed, 0 failed, 0 skipped. Native macOS arm64 WebKit. Frontend and native builds passed. Isolated data removed."
+    },
+    {
+      "command": "bun run frontend:test -- src/views/RecordCollectionView.test.tsx src/views/CopyControls.test.tsx src/views/copySuccess.test.tsx src/views/SessionEditorView.history.test.tsx src/app/creationActions.test.ts src/app/creationFormats.test.ts src/app/creationSourceActions.test.ts src/editor/RichTextEditor.test.tsx",
+      "exitCode": 0,
+      "result": "8 test files passed. 112 tests passed."
+    },
+    {
+      "command": "bun run frontend:check",
+      "exitCode": 0,
+      "result": "Typecheck, typed lint, CSS token checks, action caller semantics and 96 contrast pairs passed."
+    },
+    {
+      "command": "bun run e2e:isolation:source && bun run code-size:check && bun run frontend:check",
+      "exitCode": 0,
+      "result": "Production source isolation passed. Code size had 0 failures. Frontend checks passed."
+    },
+    {
+      "command": "git diff --check; node --check e2e/specs/record-workspace-layout.e2e.mjs",
+      "exitCode": 0,
+      "result": "Passed."
+    }
+  ],
+  "artifacts": {
+    "baseline": "artifacts/ask-ai/S1/before",
+    "passing": "artifacts/ask-ai/S1/passing",
+    "geometry": "artifacts/ask-ai/S1/passing/record-workspace-layout.json",
+    "saveTransitionDiagnosis": "artifacts/ask-ai/S1/scroll-diagnostic/save-scroll-trace.json",
+    "intermediateFailures": [
+      "artifacts/ask-ai/S1/verified",
+      "artifacts/ask-ai/S1/final",
+      "artifacts/ask-ai/S1/complete"
+    ]
+  },
+  "evidence": {
+    "beforeGapCssPx": 32,
+    "afterPinnedGapCssPx": 0,
+    "sessionTabBorderCssPx": 1,
+    "scrollTopBeforeEdit": 650,
+    "scrollTopAfterEdit": 650,
+    "scrollTopAfterTitleInput": 650,
+    "scrollTopAfterSave": 650,
+    "viewportsCssPx": [
+      [
+        1280,
+        700
+      ],
+      [
+        768,
+        700
+      ]
+    ],
+    "nativeLanes": 10,
+    "nativeFocusMethod": "DOM focus with preventScroll in native WebView. Copy/Edit/Save use visible unobscured buttons and real click handlers without the embedded driver unconditional scrollIntoView centering. Frontend tests cover keyboard Tab/Enter.",
+    "generatedRecords": "Generated through deterministic provider fixtures, then edited to contain the long synthetic body."
+  },
+  "limitations": [
+    "Planned interleaved performance qualification was not run. No performance regression or speedup claim.",
+    "Planned review video was not recorded.",
+    "OS-level keyboard Tab navigation was not qualified. Native checks cover focus visibility; frontend checks cover keyboard order and activation.",
+    "Independent no-comments review requires parent. The skill says to report capability blocked rather than self-certify when independent agent is unavailable; nested agents are prohibited. No comments or suppressions were added.",
+    "Full bun run verify remains with parent. Linux was not run.",
+    "Existing WDIO teardown mock-store warning remained nonfatal; machine receipt confirms completed with no skipped tests."
+  ],
+  "principles": {
+    "Model the Domain": "Grouped title, metadata and actions in one record header.",
+    "Fix Root Causes": "Removed padded sticky origin, corrected narrow grid sizing, and retained one rich editor instance after tracing transient content collapse on Save.",
+    "Test Behavior, Not Implementation": "Asserted live native geometry, persistent content and keyboard interactions.",
+    "Prove It Works": "Reproduced baseline failure in the native built app and reran original assertion after the fix.",
+    "Laziness Protocol": "Kept existing props and action handlers; no new component or state layer.",
+    "Build the Lever": "Added the maintained native layout E2E so the parent can rerun the checks."
+  },
+  "skillsRead": [
+    "poteto-mode/SKILL.md including inline Principles",
+    "poteto-mode/playbooks/feature.md",
+    "poteto-mode/playbooks/bug-fix.md",
+    "poteto-mode/references/codex-agent-runtime.md",
+    "no-comments/SKILL.md"
+  ],
+  "publication": "No nested agents, commits, pushes, PRs or external writes."
+}

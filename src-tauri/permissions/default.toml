@@ -37,6 +37,7 @@ permissions = [
   "allow-list-active-ai-action-jobs",
   "allow-cancel-ai-action-job",
   "allow-get-chat",
+  "allow-resolve-refinement",
   "allow-save-chat-composer",
   "allow-import-chat-image",
   "allow-restart-chat",

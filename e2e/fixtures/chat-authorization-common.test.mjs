@@ -1,9 +1,70 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
+import fs, { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { EventEmitter, once } from 'node:events'
+import { spawn } from 'node:child_process'
+import { syncBuiltinESMExports } from 'node:module'
+import { setTimeout as delay } from 'node:timers/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { executeMarker, parseTranscript, record } from './chat-authorization-common.mjs'
+import { executeMarker, parseTranscript, record, waitForFile } from './chat-authorization-common.mjs'
+
+test('an existing release marker completes the wait', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'qa-release-existing-'))
+  const marker = join(directory, 'release')
+  try {
+    writeFileSync(marker, 'released')
+    await waitForFile(marker)
+    assert.equal(readFileSync(marker, 'utf8'), 'released')
+  } finally { rmSync(directory, { recursive: true, force: true }) }
+})
+
+test('a release marker appearing after the wait starts completes without directory notifications', async t => {
+  const directory = mkdtempSync(join(tmpdir(), 'qa-release-silent-'))
+  const marker = join(directory, 'release')
+  const watcher = Object.assign(new EventEmitter(), { close() {} })
+  const watch = t.mock.method(fs, 'watch', () => watcher)
+  syncBuiltinESMExports()
+  let deadline
+  try {
+    const waiting = waitForFile(marker).then(() => readFileSync(marker, 'utf8'))
+    writeFileSync(marker, 'released without a notification')
+    const result = await Promise.race([waiting, new Promise(resolve => {
+      deadline = setTimeout(resolve, 500, 'release marker was not observed')
+    })])
+    assert.equal(result, 'released without a notification')
+  } finally {
+    clearTimeout(deadline)
+    watch.mock.restore()
+    syncBuiltinESMExports()
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+test('a missing marker keeps the fixture process alive until external cancellation', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'qa-release-cancel-'))
+  const module = new URL('./chat-authorization-common.mjs', import.meta.url).href
+  const child = spawn(process.execPath, ['--input-type=module', '-e',
+    `import {waitForFile} from ${JSON.stringify(module)}; process.stdout.write('waiting\\n'); await waitForFile(process.argv[1]); process.stdout.write('released\\n')`,
+    join(directory, 'release')], { stdio: ['ignore', 'pipe', 'pipe'] })
+  let output = ''
+  child.stdout.on('data', chunk => { output += chunk })
+  const closed = once(child, 'close')
+  try {
+    await once(child.stdout, 'data')
+    await delay(40)
+    assert.equal(child.exitCode, null)
+    assert.equal(child.signalCode, null)
+    assert.equal(output, 'waiting\n')
+    child.kill('SIGTERM')
+    assert.deepEqual(await closed, [null, 'SIGTERM'])
+    assert.equal(output, 'waiting\n')
+  } finally {
+    if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL')
+    await closed
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
 
 test('text Chat fixtures read labelled replay without dropping message newlines', () => {
   const input = 'Instructions\nSESSION_CONTEXT_JSON\n"Context"\nMESSAGE user-1 User\n"Question\\n"'

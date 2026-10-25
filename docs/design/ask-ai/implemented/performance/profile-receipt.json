@@ -1,0 +1,39 @@
+{
+  "comparisonTimingsAccepted": false,
+  "source": "20bbeaf",
+  "profiledProcess": {
+    "pid": 41127,
+    "ppid": 1,
+    "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+  },
+  "status": "profile-captured",
+  "taskProcesses": [
+    {
+      "pid": 41080,
+      "ppid": 41061,
+      "command": "/opt/homebrew/Cellar/python@3.15/3.15.0_1/Frameworks/Python.framework/Versions/3.15/Resources/Python.app/Contents/MacOS/Python"
+    },
+    {
+      "pid": 41087,
+      "ppid": 41080,
+      "command": "node"
+    },
+    {
+      "pid": 41088,
+      "ppid": 41087,
+      "command": "node"
+    },
+    {
+      "pid": 41123,
+      "ppid": 41088,
+      "command": "/private/tmp/qa-scribe-perf-head-a99ac02/target/debug/qa-scribe-tauri"
+    },
+    {
+      "pid": 41127,
+      "ppid": 1,
+      "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+    }
+  ],
+  "sampleExitCode": 0,
+  "nativeRunExitCode": 0
+}

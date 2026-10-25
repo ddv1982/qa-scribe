@@ -296,8 +296,9 @@ fn rich_body_json_round_trips_for_entries_findings_and_drafts() {
                 metadata_json: Some(Some(r#"{"severity":"high"}"#.to_string())),
                 ..FindingPatch::default()
             },
+            qa_scribe_core::domain::RecordWriteGuard::finding(&finding),
         )
-        .expect("finding should update rich body JSON");
+        .expect("finding should update rich body JSON").into_saved().unwrap();
     assert_eq!(finding.body_json.as_deref(), Some(updated_body_json));
     assert_eq!(finding.kind, FindingKind::Risk);
     assert_eq!(finding.metadata_json.as_deref(), Some(r#"{"severity":"high"}"#));
@@ -324,8 +325,9 @@ fn rich_body_json_round_trips_for_entries_findings_and_drafts() {
                 body_format: Some(Some("tiptap_json".to_string())),
                 ..DraftPatch::default()
             },
+            qa_scribe_core::domain::RecordWriteGuard::draft(&draft),
         )
-        .expect("draft should update rich body JSON");
+        .expect("draft should update rich body JSON").into_saved().unwrap();
     assert_eq!(draft.body_json.as_deref(), Some(updated_body_json));
 }
 
@@ -385,8 +387,9 @@ fn rich_text_bodies_can_be_blank() {
                 body: Some("   ".to_string()),
                 ..FindingPatch::default()
             },
+            qa_scribe_core::domain::RecordWriteGuard::finding(&finding),
         )
-        .expect("blank finding update should be accepted");
+        .expect("blank finding update should be accepted").into_saved().unwrap();
     assert_eq!(finding.body, "");
 
     let draft = service
@@ -411,8 +414,9 @@ fn rich_text_bodies_can_be_blank() {
                 body: Some("   ".to_string()),
                 ..DraftPatch::default()
             },
+            qa_scribe_core::domain::RecordWriteGuard::draft(&draft),
         )
-        .expect("blank draft update should be accepted");
+        .expect("blank draft update should be accepted").into_saved().unwrap();
     assert_eq!(draft.body, "");
 }
 

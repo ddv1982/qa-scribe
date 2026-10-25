@@ -90,25 +90,24 @@ export function EditableRichRecord({
 
   return (
     <article className="editable-record">
-      {meta}
-      <div className="record-actions">{actions}</div>
-      {editing ? (
-        <>
-          <input ref={titleInputRef} value={record.title} aria-label={titleInputLabel} onChange={(event) => onTitleChange(event.target.value)} />
-          {editFields}
-          <div className="rich-record-editor-field">
-            <FormatToolbar editorId={editorId} onUploadImage={onUploadImage} />
-            <RichTextEditor editorId={editorId} value={document} onChange={(body) => onBodyChange(richEditorDocumentToStoredBody(body))} ariaLabel={bodyAriaLabel} placeholder={placeholder} />
-          </div>
-        </>
-      ) : (
-        <>
-          {previewHeader}
-          <div className="rich-record-editor-field rich-record-preview-field">
-            <RichTextEditor value={record.body ? document : richEditorDocumentFromHtml(previewFallbackHtml)} ariaLabel={bodyAriaLabel} readOnly />
-          </div>
-        </>
-      )}
+      <header className="record-header">
+        {editing ? <input ref={titleInputRef} value={record.title} aria-label={titleInputLabel} onChange={(event) => onTitleChange(event.target.value)} /> : previewHeader}
+        {meta}
+        <div className="record-actions">{actions}</div>
+      </header>
+      {editing ? editFields : null}
+      <div className={`rich-record-editor-field${editing ? '' : ' rich-record-preview-field'}`}>
+        {editing ? <FormatToolbar editorId={editorId} onUploadImage={onUploadImage} /> : null}
+        <RichTextEditor
+          editorId={editing ? editorId : undefined}
+          historyScope={`${editorId}:${editing ? 'editing' : 'preview'}`}
+          value={editing || record.body ? document : richEditorDocumentFromHtml(previewFallbackHtml)}
+          onChange={editing ? (body) => onBodyChange(richEditorDocumentToStoredBody(body)) : undefined}
+          ariaLabel={bodyAriaLabel}
+          placeholder={editing ? placeholder : undefined}
+          readOnly={!editing}
+        />
+      </div>
     </article>
   )
 }

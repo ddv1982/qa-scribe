@@ -1,7 +1,8 @@
-import { existsSync, linkSync, mkdirSync, unlinkSync, watch, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { existsSync, linkSync, mkdirSync, unlinkSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
+import { setTimeout as delay } from 'node:timers/promises'
 import { handoffMarkdown } from './chat-handoff-markdown.mjs'
 
 export function reserveInvocation(directory, prefix = 'codex-exec') {
@@ -13,15 +14,8 @@ export function reserveInvocation(directory, prefix = 'codex-exec') {
   throw new Error('Fixture invocation limit exceeded')
 }
 
-export function waitForFile(path) {
-  if (existsSync(path)) return Promise.resolve()
-  return new Promise((resolve, reject) => {
-    const watcher = watch(dirname(path), () => {
-      if (existsSync(path)) { watcher.close(); resolve() }
-    })
-    watcher.on('error', reject)
-    if (existsSync(path)) { watcher.close(); resolve() }
-  })
+export async function waitForFile(path) {
+  while (!existsSync(path)) await delay(20)
 }
 
 export function chatResponse(turn) {

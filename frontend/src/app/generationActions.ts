@@ -220,7 +220,7 @@ export function createGenerationActions(ctx: GenerationActionsContext) {
       const storedBody = richEditorDocumentToStoredBody(draftDocument)
       const richDraft = { ...result.draft, ...storedBody }
       mergeDraft(richDraft)
-      void ctx.canonicalizeGeneratedDraft(richDraft)
+      void ctx.canonicalizeGeneratedDraft(richDraft, result.draft)
       ctx.navigation.setActiveView('testware')
       ctx.feedback.setNotice('Testware generated')
     } else if (result.finding && ctx.session.activeSessionIdRef.current === result.finding.sessionId) {
@@ -228,7 +228,7 @@ export function createGenerationActions(ctx: GenerationActionsContext) {
       const storedBody = richEditorDocumentToStoredBody(findingDocument)
       const richFinding = { ...result.finding, ...storedBody }
       mergeFinding(richFinding)
-      void ctx.canonicalizeGeneratedFinding(richFinding)
+      void ctx.canonicalizeGeneratedFinding(richFinding, result.finding)
       ctx.navigation.setActiveView('findings')
       ctx.feedback.setNotice('Finding created')
     } else if (result.noteEntry && ctx.session.noteEntryIdRef.current === result.noteEntry.id) {

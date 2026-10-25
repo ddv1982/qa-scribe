@@ -8,6 +8,14 @@
   line-height: var(--leading-normal);
 }
 
+.collection-view {
+  padding-top: 0;
+}
+
+.collection-view > .collection-header {
+  padding-top: var(--space-8);
+}
+
 .collection-header {
   display: flex;
   align-items: center;
@@ -124,7 +132,7 @@
 
 .collection-workspace {
   display: grid;
-  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  grid-template-columns: minmax(160px, min(280px, 30%)) minmax(0, 1fr);
   align-items: start;
   gap: var(--space-3);
   min-height: 520px;
@@ -313,6 +321,28 @@
   align-items: center;
   justify-content: flex-end;
   gap: var(--space-2);
+}
+
+.record-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  padding-block: var(--space-2);
+  background: var(--surface-raised);
+}
+
+.record-header > .record-actions {
+  position: static;
+  min-width: 0;
+  padding-block: 0;
+}
+
+.record-header > .record-heading-row {
+  min-width: 0;
+  flex-wrap: wrap;
 }
 
 .generation-record input,

@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { permissionGeometry, reviewPermission } from './chat-permission-geometry.mjs'
+import { layoutViewport, wideLayoutViewport, minimumLayoutViewport } from './chat-layout-geometry.mjs'
+import { permissionGeometry, reachPermission, reviewPermission } from './chat-permission-geometry.mjs'
 
 const provider = process.env.QA_SCRIBE_E2E_AUTH_PROVIDER
 const providerIds = { codex: 'codex_cli', claude: 'claude_code', copilot: 'copilot_cli' }
@@ -265,21 +266,46 @@ describe(`Built application native ${provider} Chat tool authorization`, () => {
     const prompt = JSON.parse(readFileSync(await markerFile(current.index + 1, 'prompt.json'), 'utf8'))
     assert.ok(prompt.prompt.includes(JSON.stringify(text)))
     const geometry = []
-    for (const [width, height] of [[1280, 720], [640, 520]]) {
-      await browser.setWindowSize(width, height)
-      if (width === 640) {
-        await $('button=Review permission').scrollIntoView()
-        await reviewPermission()
-        assert.ok(await browser.execute(() => document.activeElement?.matches('.chat-permission h3')), 'Explicit review must focus the non-interactive permission heading')
-      }
+    const wide = await wideLayoutViewport()
+    const short = await minimumLayoutViewport()
+    for (const [width, height] of [[1280, wide.height], [1280, 645], [640, short.height], [360, 645], [320, 645]]) {
+      assert.deepEqual(await layoutViewport(width, height), { width, height })
+      await $('button=Review permission').scrollIntoView()
+      await reviewPermission()
+      assert.ok(await browser.execute(() => document.activeElement?.matches('.chat-permission h3')), 'Explicit review must focus the non-interactive permission heading')
       const actual = await permissionGeometry()
       geometry.push({ requested: { width, height }, ...actual })
       writeFileSync(join(process.env.QA_SCRIBE_E2E_ARTIFACTS, 'permission-geometry.json'), JSON.stringify({ before, geometry }, null, 2))
       await browser.saveScreenshot(join(process.env.QA_SCRIBE_E2E_ARTIFACTS, `permission-${width}.png`))
-      assert.ok(actual.panel.visible && actual.identity.visible && actual.identity.hit, 'Permission identity and full panel must remain visible')
-      assert.ok(actual.context.visible && actual.context.hit, 'Permission context must be visible and unobstructed')
+      const fits = actual.panel.rect.height <= actual.owner.clip.bottom - actual.owner.clip.top
+      if (fits) {
+        assert.ok(actual.panel.visible && actual.identity.visible && actual.identity.hit, 'A fitting permission panel must remain fully visible')
+        assert.ok(actual.context.visible && actual.context.hit, 'A fitting permission context must be fully visible and unobstructed')
+        for (const control of actual.controls) assert.ok(control.visible && control.hit, JSON.stringify(control))
+      } else {
+        const identity = await reachPermission(`${permission} header`)
+        assert.ok(identity.visible && identity.hit, JSON.stringify(identity))
+      }
+      const readable = await reachPermission(`${permission} [aria-label="Permission context"]`)
+      assert.ok(readable.rect.height >= 96 && readable.readableLines >= 3, `Actual arguments must have readable lines: ${JSON.stringify(readable)}`)
+      const argumentsView = await reachPermission(`${permission} .chat-permission-input`)
+      assert.ok(argumentsView.readableLines >= 1 && argumentsView.label.includes(`${provider}-auth-${current.index + 1}.executed.json`),
+        `The actual tool arguments must be readable: ${JSON.stringify(argumentsView)}`)
+      const scopeView = await reachPermission(`${permission} [id$="-permission-scope"]`)
+      assert.ok(scopeView.readableLines >= 1, `The actual approval scope must be readable: ${JSON.stringify(scopeView)}`)
+      const reached = []
+      for (const label of ['Approve once', 'Approve all for this response', 'Deny', 'Cancel response']) {
+        const control = await reachPermission(`button=${label}`)
+        assert.ok(control.visible && control.hit, `Permission control must be fully reachable: ${JSON.stringify(control)}`)
+        reached.push(control)
+      }
+      geometry.at(-1).fit = fits
+      geometry.at(-1).readable = readable
+      geometry.at(-1).argumentsView = argumentsView
+      geometry.at(-1).scopeView = scopeView
+      geometry.at(-1).reached = reached
+      writeFileSync(join(process.env.QA_SCRIBE_E2E_ARTIFACTS, 'permission-geometry.json'), JSON.stringify({ before, geometry }, null, 2))
       assert.deepEqual(actual.controls.map((control) => control.label), ['Approve once', 'Approve all for this response', 'Deny', 'Cancel response'])
-      for (const control of actual.controls) assert.ok(control.visible && control.hit, `Permission control must be reachable: ${JSON.stringify(control)}`)
       assert.equal(actual.historyOwnsPermission, false, 'Permission attention must not share the transcript scroller')
       assert.equal(actual.approvalFocused, false, 'Arrival or review must never focus approval')
       assert.ok(actual.contextText.includes('Approve once applies to this tool call only.'))

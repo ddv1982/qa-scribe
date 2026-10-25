@@ -5,7 +5,8 @@ import { createRequire } from 'node:module'
 import { click, createSession, database, directory, execution, finishChat, insertNote, journal, openSession,
   preference, read, refresh, settings } from './model-evidence-ui.mjs'
 import { configureCatalog, generation, historyText, menuGeometry, modelPreference, outputRoot,
-  quickInput, quickSection, send, switchProviderOnly } from './model-selection-ui.mjs'
+  quickInput, quickOptions, quickSection, send, switchProviderOnly, attachPickerDraftImage, openQuickPicker, pickerState, activeQuickOption, domModelKey } from './model-selection-ui.mjs'
+import { inspectLayout, layoutViewport, wideLayoutViewport, minimumLayoutViewport } from './chat-layout-geometry.mjs'
 import { nativeKeySender } from './preflight-native-keys.mjs'
 
 const require = createRequire(new URL('../../frontend/package.json', import.meta.url))
@@ -83,7 +84,7 @@ async function restartProof() {
     assert.equal(await $(quickInput).getValue(), model)
     await $(`${quickSection} [aria-label="Open model choices"]`).click()
     const labels = []
-    for (const entry of await $$(`${quickSection} [role="option"] strong`)) labels.push(await entry.getText())
+    for (const entry of await quickOptions()) labels.push(await (await entry.$('strong')).getText())
     assert.equal(labels.some((label) => ['Claude Fixture', 'Codex Page One', 'Codex Page Two', 'Copilot Fixture'].includes(label)), false)
     await $(`${quickSection} [aria-label="Open model choices"]`).click()
   }
@@ -106,6 +107,175 @@ describe('Built application native quick model selection M03', () => {
     return
   }
 
+  it('opens pointer choices outside transcript clipping and preserves the draft across narrow resize', async () => {
+    await fresh('claude', 'M03 pointer geometry')
+    const wide = await wideLayoutViewport()
+    const short = await minimumLayoutViewport()
+    try {
+      const draft = 'Retained literal model layout draft'
+      await $('[aria-label="Session chat"] textarea').setValue(draft)
+      const samples = []
+      for (const [width, height] of [[1280, wide.height], [360, 645], [320, 645], [640, short.height]]) {
+        const actual = await layoutViewport(width, height)
+        assert.deepEqual(actual, { width, height })
+        const input = await $(quickInput)
+        await input.scrollIntoView({ block: 'center', inline: 'nearest' })
+        if (await input.getAttribute('aria-expanded') !== 'true') await input.click()
+        await browser.executeAsync(done => requestAnimationFrame(() => requestAnimationFrame(done)))
+        const geometry = await menuGeometry()
+        samples.push({ actual, geometry })
+        writeFileSync(join(outputRoot, 'pointer-geometry.json'), JSON.stringify(samples, null, 2))
+        await browser.saveScreenshot(join(outputRoot, `pointer-${width}-${height}.png`))
+        assert.ok(geometry?.visible && geometry.options > 0, JSON.stringify(geometry))
+        assert.ok(geometry.left >= geometry.panel.left && geometry.right <= geometry.panel.right
+          && geometry.top >= geometry.panel.top && geometry.bottom <= geometry.panel.bottom, JSON.stringify(geometry))
+        if (width === 1280) for (const row of geometry.rows) assert.ok(row.visible && row.hit, JSON.stringify(row))
+        const reached = []
+        for (const option of await quickOptions()) {
+          await browser.execute(node => {
+            const list = node.closest('[role="listbox"]')
+            const r = node.getBoundingClientRect(), port = list.getBoundingClientRect()
+            if (r.top < port.top) list.scrollTop += r.top - port.top
+            else if (r.bottom > port.bottom) list.scrollTop += r.bottom - port.bottom
+          }, option)
+          await browser.executeAsync(done => requestAnimationFrame(() => requestAnimationFrame(done)))
+          const row = await browser.execute(inspectLayout, option)
+          assert.ok(row.visible && row.hit, `Every option must be fully reachable through internal scrolling: ${JSON.stringify(row)}`)
+          reached.push(row)
+        }
+        samples.at(-1).reached = reached
+        writeFileSync(join(outputRoot, 'pointer-geometry.json'), JSON.stringify(samples, null, 2))
+        assert.equal(await $('[aria-label="Session chat"] textarea').getValue(), draft)
+        await $(`${quickSection} [aria-label="Open model choices"]`).click()
+      }
+      await layoutViewport(1280, wide.height)
+      await $(quickInput).click()
+      const queryStates = []
+      const queryState = async stage => {
+        queryStates.push({ stage, state: await browser.execute(selector => {
+          const input = document.querySelector(selector)
+          return { value: input.value, open: input.getAttribute('aria-expanded'), focused: document.activeElement === input,
+            input: { top: input.getBoundingClientRect().top, bottom: input.getBoundingClientRect().bottom },
+            owners: [input.closest('.chat-scroll-region'), input.closest('.session-chat')].map(node => ({ top: node.getBoundingClientRect().top,
+              bottom: node.getBoundingClientRect().bottom, scrollTop: node.scrollTop, height: node.clientHeight })) }
+        }, quickInput) })
+        writeFileSync(join(outputRoot, 'query-resize.json'), JSON.stringify(queryStates, null, 2))
+      }
+      await queryState('before-query')
+      await $(quickInput).setValue('fixture')
+      await queryState('before-resize')
+      assert.equal(await $(quickInput).getValue(), 'fixture', 'Typing must establish the searched query before resize')
+      await layoutViewport(1100, wide.height)
+      await queryState('after-resize')
+      assert.equal(await $(quickInput).getValue(), 'fixture', 'An open query must survive viewport resize')
+      await browser.execute(selector => {
+        const owner = document.querySelector(selector).closest('.chat-scroll-region')
+        owner.scrollTop = Math.max(0, owner.scrollTop - 8)
+      }, quickInput)
+      await browser.executeAsync(done => requestAnimationFrame(() => requestAnimationFrame(done)))
+      assert.equal((await menuGeometry()).visible, true, 'The open popup must track ancestor scrolling')
+      await $(quickInput).setValue('')
+      const selected = (await quickOptions()).at(-1)
+      await selected.click()
+      await browser.waitUntil(async () => (await read('get_settings')).selectedAiModelsByProvider.claude_code === 'claude-fixture')
+      assert.equal(await $('[aria-label="Session chat"] textarea').getValue(), draft)
+    } finally {
+      await layoutViewport(1280, wide.height)
+    }
+  })
+
+  it('keeps a wrapped 40-model catalog visible, navigable, and draft-safe at the short supported viewport', async () => {
+    const wide = await wideLayoutViewport()
+    const short = await minimumLayoutViewport()
+    const samples = []
+    const keyboard = { method: 'DOM-key diagnostic; not OS delivery proof', imageInput: 'DOM file-input fixture; not OS dialog proof' }
+    const persist = () => writeFileSync(join(outputRoot, 'long-catalog.json'), JSON.stringify({ keyboard, samples }, null, 2))
+    const key = domModelKey
+    try {
+      configureCatalog('claude', 'long-catalog')
+      await settings(); await refresh(); await click('Back')
+      const sessionId = await fresh('claude', 'M03 long catalog geometry')
+      const draft = 'Retained long catalog draft with a local image'
+      await $('[aria-label="Session chat"] textarea').waitForEnabled()
+      await $('[aria-label="Session chat"] textarea').setValue(draft)
+      const held = await attachPickerDraftImage(sessionId)
+      assert.equal(held.composer, draft)
+      for (const [width, height] of [[640, short.height], [1280, wide.height], [360, 645], [320, 645]]) {
+        assert.deepEqual(await layoutViewport(width, height), { width, height })
+        await $(quickInput).scrollIntoView({ block: 'center', inline: 'nearest' })
+        if (await $(quickInput).getAttribute('aria-expanded') === 'true') await $(`${quickSection} [aria-label="Open model choices"]`).click()
+        const before = await pickerState()
+        await openQuickPicker()
+        const sample = { viewport: { width, height }, before, state: await pickerState(), geometry: await menuGeometry(), navigation: [] }
+        samples.push(sample); persist()
+        await browser.saveScreenshot(join(outputRoot, `long-catalog-${width}-${height}.png`))
+        assert.equal(sample.state.expanded, 'true')
+        assert.equal(sample.state.visibility, 'visible', JSON.stringify(sample.state))
+        assert.equal(sample.state.count, 41)
+        assert.ok(sample.geometry.visible, JSON.stringify(sample.geometry))
+        const input = await browser.execute(inspectLayout, await $(quickInput))
+        assert.ok(input.visible && input.hit, 'The aligned query must remain fully visible and hit-testable')
+        assert.match(sample.state.hintText, /40 models reported by CLI catalog/)
+        if (width === 640) assert.ok(sample.state.hintLines >= 2, 'The regression must retain the wrapped hint')
+        await browser.execute(selector => document.querySelector(selector).focus({ preventScroll: true }), quickInput)
+        await browser.executeAsync(done => requestAnimationFrame(() => requestAnimationFrame(done)))
+        const owners = (await pickerState()).owners
+        for (const [name, index] of [['Home', 0], ['End', 40], ['ArrowUp', 39], ['ArrowDown', 40]]) {
+          await key(name)
+          const state = await pickerState(), active = await activeQuickOption()
+          sample.navigation.push({ key: name, state, active }); persist()
+          assert.ok(state.activeId.endsWith(`-option-${index}`), JSON.stringify(state))
+          assert.ok(active.visible && active.hit, `The entire active option must be reachable: ${JSON.stringify(active)}`)
+          assert.deepEqual(state.owners, owners, 'Option traversal must scroll only the owned list')
+          assert.equal(state.focused, true)
+          assert.equal(state.visibility, 'visible')
+        }
+        await key('Escape')
+        assert.equal(await $(quickInput).getAttribute('aria-expanded'), 'false')
+        assert.deepEqual((await read('get_chat', { sessionId })).composerImages, held.composerImages)
+        assert.equal(await $('[aria-label="Session chat"] textarea').getValue(), draft)
+      }
+      await openQuickPicker()
+      await browser.execute(selector => document.querySelector(selector).focus({ preventScroll: true }), quickInput)
+      samples.push({ stage: 'before-exact-query', state: await pickerState() }); persist()
+      await $(quickInput).setValue('literal-model-39')
+      samples.push({ stage: 'exact-query', state: await pickerState() }); persist()
+      assert.equal((await quickOptions()).length, 1)
+      await $(quickInput).setValue('synthetic-custom-catalog-id')
+      samples.push({ stage: 'custom-query', state: await pickerState() }); persist()
+      assert.deepEqual(await layoutViewport(640, short.height), { width: 640, height: short.height })
+      const custom = await pickerState(); samples.push({ stage: 'custom-resize', state: custom }); persist()
+      assert.equal(custom.query, 'synthetic-custom-catalog-id')
+      assert.ok(custom.focused && custom.visibility === 'visible')
+      assert.equal((await quickOptions()).length, 1)
+      await (await quickOptions())[0].click()
+      await browser.waitUntil(async () => (await read('get_settings')).selectedAiModelsByProvider.claude_code === 'synthetic-custom-catalog-id' && await $(quickInput).isEnabled())
+      await openQuickPicker(); await key('End')
+      await (await quickOptions()).at(-1).click()
+      await browser.waitUntil(async () => (await read('get_settings')).selectedAiModelsByProvider.claude_code === 'literal-model-39' && await $(quickInput).isEnabled())
+      const focus = { stage: 'saved-literal-focus', state: null }
+      samples.push(focus)
+      await browser.waitUntil(async () => {
+        focus.state = await pickerState(); persist()
+        return focus.state.focused
+      }, { timeout: 2000, timeoutMsg: 'The saved model choice must return focus to the Model input' })
+      assert.equal(focus.state.focused, true)
+      await openQuickPicker(); await $('[aria-label="Session chat"] textarea').click()
+      assert.equal((await pickerState()).expanded, 'false')
+      await openQuickPicker(); await $('[aria-label="Close AI chat"]').click()
+      await browser.waitUntil(() => browser.execute(() => !document.querySelector('.model-combobox-popover--chat')))
+      const retained = await read('get_chat', { sessionId })
+      assert.equal(retained.composer, draft)
+      assert.deepEqual(retained.composerImages, held.composerImages)
+      assert.equal(database(sessionId).runs.length, 0, 'Picker use cannot launch a provider response')
+      samples.push({ stage: 'closed', composer: retained.composer, images: retained.composerImages }); persist()
+    } finally {
+      await layoutViewport(1280, wide.height)
+      configureCatalog('claude', 'fresh')
+      await settings(); await refresh(); await click('Back')
+    }
+  }).timeout(60_000)
+
   it('selects using real native keys, retains focus, and keeps the open menu in the viewport', () => lane(1, 'keyboard', async (output) => {
     const sessionId = await fresh('claude', 'M03 keyboard selection')
     const evidence = {}
@@ -122,8 +292,20 @@ describe('Built application native quick model selection M03', () => {
     assert.ok(geometry?.options > 0)
     assert.ok(geometry.left >= 0 && geometry.right <= geometry.viewportWidth && geometry.top >= 0 && geometry.bottom <= geometry.viewportHeight,
       `Quick model menu must remain visible: ${JSON.stringify(geometry)}`)
+    assert.equal(geometry.visible, true, `Clipping ancestors must expose the entire menu: ${JSON.stringify(geometry)}`)
     await browser.saveScreenshot(join(output, 'open-keyboard-menu.png'))
     await key(Key.End)
+    const activeId = await $(quickInput).getAttribute('aria-activedescendant')
+    const active = await browser.execute(() => {
+      const input = document.querySelector('[aria-label="Next invocation model"] [role="combobox"]')
+      const row = document.getElementById(input.getAttribute('aria-activedescendant'))
+      const list = row.closest('[role="listbox"]')
+      const r = row.getBoundingClientRect(), port = list.getBoundingClientRect()
+      return { id: row.id, visible: r.top >= port.top - 1 && r.bottom <= port.bottom + 1,
+        hit: row.contains(document.elementFromPoint((r.left + r.right) / 2, (r.top + r.bottom) / 2)) }
+    })
+    assert.equal(active.id, activeId)
+    assert.ok(active.visible && active.hit, JSON.stringify(active))
     await key(Key.Enter)
     await browser.waitUntil(async () => (await read('get_settings')).selectedAiModelsByProvider.claude_code === 'claude-fixture')
     await browser.waitUntil(async () => await $(quickInput).isEnabled())
