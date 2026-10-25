@@ -72,4 +72,3 @@ it.each(['finding', 'test_cases_draft'] as const)('%s delayed Save settles A whi
   expect(storedB.read().body).toBe('<p>Literal B proposal body</p>')
   expect(readConversation(aRef.draftId).proposals![0].state.kind).toBe('saved')
 })
-

@@ -68,8 +68,10 @@ it.each(kinds.flatMap(kind => (['resolve', 'reject'] as const).map(outcome => ({
   '$kind retires only its association before the restore hash can $outcome', async ({ kind, outcome }) => {
     const s = await subject(kind, true)
     const otherKey = `${kind}:other-record`
-    s.c.proposalStages.set(otherKey, s.stage)
+    const otherStage = { ...s.stage, id: 'other-stage', origin: stageOrigin(kind, 'other-record', 'other-stage', s.a.sessionId) }
+    s.c.bindStage(kind, 'other-record', s.a.sessionId, otherStage)
     const otherGuard = s.c.latestWriteGuards.get(otherKey)
+    expect(otherGuard).toEqual({ sessionId: s.a.sessionId, expectedStoredBase: s.stage.storedBaseToken, origin: { kind: 'proposal', stageId: 'other-stage' } })
     s.ctx.session.activeSessionIdRef.current = 'another-active-session'
     const boundary = holdHash(2, outcome === 'reject' ? new Error('restore hash failed') : undefined)
     const pending = s.confirm()
@@ -78,7 +80,7 @@ it.each(kinds.flatMap(kind => (['resolve', 'reject'] as const).map(outcome => ({
     expect(lease).toEqual(s.confirmed)
     expect(lease).not.toBe(s.source)
     expect(s.c.proposalStages.has(s.key)).toBe(false)
-    expect(s.c.proposalStages.get(otherKey)).toBe(s.stage)
+    expect(s.c.proposalStages.get(otherKey)).toBe(otherStage)
     expect(s.c.latestWriteGuards.get(otherKey)).toBe(otherGuard)
     expect(s.intent.restore).toBe(s.a)
     expect(s.intent.expected).toBeUndefined()

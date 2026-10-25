@@ -61,7 +61,9 @@ export function createChatSend(ctx: SessionChatContext, dependencies: Dependenci
     const inputVersion = entry.inputVersion
     const modeVersion = entry.modeVersion
     let result: StartChatJobResult
-    const pendingStart = { state: 'starting' as const, intent, previousJobId: entry.job?.jobId ?? null }
+    const previousUser = chat.messages.filter(message => message.role === 'user').at(-1)
+    const pendingStart = { state: 'starting' as const, intent, previousJobId: entry.job?.jobId ?? null,
+      previousUserTurn: previousUser ? { id: previousUser.id, turnId: previousUser.turnId } : null }
     entry.pendingStart = pendingStart; publish(entry)
     ++entry.refreshEpoch
     try {

@@ -7,7 +7,7 @@ import {
 } from '../tauri'
 import { formatError } from '../ui/format'
 import {
-  chatIsDirty, chatInputIsDirty, chatIsWorking, chatScope, emptyChatSnapshot, unresolvedChatReason,
+  chatIsDirty, chatInputIsDirty, chatIsWorking, chatHasCommittedStart, chatScope, emptyChatSnapshot, unresolvedChatReason,
   type ChatWorkspace, type SessionChatContext,
 } from './sessionChat.types'
 import { createChatPolling } from './sessionChat.polling'
@@ -68,8 +68,7 @@ export function createSessionChatActions(ctx: SessionChatContext) {
     const previousComposer = entry.composer
     const previousMode = entry.mode
     if (previousChat && previousChat.lastActiveOrder > chat.lastActiveOrder) chat = { ...chat, lastActiveOrder: previousChat.lastActiveOrder, lastActiveAt: previousChat.lastActiveAt }
-    const newTurn = chat.messages.some(message => message.role === 'user' && !previousChat?.messages.some(old => old.id === message.id))
-    if (newTurn && entry.pendingStart?.state === 'uncertain') {
+    if (entry.pendingStart?.state === 'uncertain' && chatHasCommittedStart(chat, entry.pendingStart)) {
       entry.pendingStart = null
       entry.composerImages = chat.composerImages
     }
@@ -316,9 +315,9 @@ export function createSessionChatActions(ctx: SessionChatContext) {
       || entry.chat.messages.some(message => message.status === 'running')) return null
     const { job, inputVersion, modeVersion, error } = entry
     const restartVersion = restartVersions.get(entry)
-    const epoch = activationEpoch
+    const epoch = { activation: activationEpoch, conversation: registry.epoch() }
     return async () => {
-      if (entry.error !== error || active() !== entry || activationEpoch !== epoch || restartVersions.get(entry) !== restartVersion || entry.job !== job
+      if (entry.error !== error || active() !== entry || activationEpoch !== epoch.activation || registry.epoch() !== epoch.conversation || restartVersions.get(entry) !== restartVersion || entry.job !== job
         || entry.inputVersion !== inputVersion || entry.modeVersion !== modeVersion || entry.loading
         || entry.operationKind || entry.permissionOperation || permissions.needsRecovery(entry)
         || ctx.noteRecovery.has(entry.sessionId)) return
@@ -335,12 +334,12 @@ export function createSessionChatActions(ctx: SessionChatContext) {
     if (!entry.chat) await hydrate(entry)
     if (!entry.chat) return
     const { inputVersion, modeVersion, job } = entry
-    const epoch = activationEpoch
+    const epoch = { activation: activationEpoch, conversation: registry.epoch() }
     const restartVersion = restartVersions.get(entry)
     const draftId = entry.chat.draftId
     const history = JSON.stringify([entry.chat.messages, entry.chat.submission, entry.chat.proposals])
     if (!await saveComposer(entry)) return
-    if (entry.retired || active() !== entry || activationEpoch !== epoch
+    if (entry.retired || active() !== entry || activationEpoch !== epoch.activation || registry.epoch() !== epoch.conversation
       || restartVersions.get(entry) !== restartVersion || entry.inputVersion !== inputVersion || entry.modeVersion !== modeVersion || entry.job !== job
       || entry.loading || entry.permissionOperation || permissions.needsRecovery(entry)
       || ctx.noteRecovery.has(entry.sessionId) || ctx.recordWritesPending?.() || entry.chat?.draftId !== draftId
@@ -379,7 +378,8 @@ export function createSessionChatActions(ctx: SessionChatContext) {
     if (!sessionId || ctx.noteRecovery.isRetired(sessionId)) { ctx.publish(emptyChatSnapshot); return }
     const epoch = activationEpoch
     const known = registry.notesBySession.has(sessionId)
-    registry.select(null)
+    const current = registry.active()
+    if (current?.sessionId !== sessionId || current.owner?.kind !== 'notes') registry.select(null)
     registry.loading(sessionId)
     return registry.notes(sessionId).then(async entry => {
       if (!entry || disposed || epoch !== activationEpoch || activatedSessionId !== sessionId) return

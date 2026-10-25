@@ -89,7 +89,7 @@ export type ChatWorkspace = {
   composerIntent: ChatComposerIntent
   composerImages: ChatImage[]
   imageFailures: ChatImageFailure[]
-  pendingStart: { state: 'starting' | 'uncertain'; intent: ChatSendIntent; previousJobId: string | null } | null
+  pendingStart: { state: 'starting' | 'uncertain'; intent: ChatSendIntent; previousJobId: string | null; previousUserTurn: { id: string; turnId: string } | null } | null
   mode: ChatMode
   inputVersion: number
   modeVersion: number
@@ -107,6 +107,11 @@ export type ChatWorkspace = {
 
 export function chatIsWorking(job: GenerationJobStatus | null): boolean {
   return Boolean(job && ['starting', 'running', 'cancelling'].includes(job.state))
+}
+
+export function chatHasCommittedStart(chat: ChatState, pending: ChatWorkspace['pendingStart']): boolean {
+  const latestUser = chat.messages.filter(message => message.role === 'user').at(-1)
+  return Boolean(pending && latestUser && (latestUser.id !== pending.previousUserTurn?.id || latestUser.turnId !== pending.previousUserTurn?.turnId))
 }
 
 export function chatIsDirty(workspace: ChatWorkspace): boolean {
