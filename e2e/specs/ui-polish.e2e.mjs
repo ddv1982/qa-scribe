@@ -46,6 +46,7 @@ async function snapshot(stage, width, theme, actionSelector) {
     window.scrollTo(0, 0)
     const workspace = document.querySelector('.center-workspace')
     if (workspace) workspace.scrollTop = 0
+    for (const collection of document.querySelectorAll('.collection-view')) collection.scrollTop = 0
   })
   // Save pixels before geometry assertions, including unchanged-CSS regressions.
   await browser.saveScreenshot(join(artifacts, `${stage}.png`))
