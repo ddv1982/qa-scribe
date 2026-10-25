@@ -17,6 +17,7 @@ Reports describe the exact source revisions they reviewed. A passing focused rev
 | [Saved Proposal recovery overlay](saved-proposal-overlay.md) | Pass with notes for the exact overlay on 37f1e43 | Actual service tests preserve stale-base conflicts and read-only conversation history. This bounded verdict does not approve the whole feature. |
 | [Combined source and native review, round four](source-native-round-four.md) | Pass with notes at 3374819 | The public association-retirement race closes. A subsequently reported Session-ownership objection requires separate investigation. |
 | [Combined source and native review, round five](source-native-round-five.md) | Pass with notes at fbdaa05 | Session-owned publication closes the new objection. Current-head hosted CI, supported OS input, performance and release remain separate gates. |
+| [Combined source and native review, round nine](source-native-round-nine.md) | Pass with notes at 04d1aa4 | Reviewed joining, focus and deleted-source retry closures hold. Publishing the missing generated baseline closes round eight's new Discard intersection. Test-only isolation, artifact equivalence, exact-head CI, performance and publication remain separate gates. |
 
 The [implementation run](../../implementation.md) records current acceptance and limits. These historical reports are not a release verdict.
 

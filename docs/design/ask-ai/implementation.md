@@ -1,14 +1,18 @@
 # Ask AI implementation run
 
-## Current acceptance
+## Acceptance checkpoint, 2026-10-25
 
-Application source `fbdaa05` has independent whole-PR [PASS+NOTES](implemented/reviews/source-native-round-five.md). The final source closes the reviewed long-catalog, Saved Proposal, completed-association, and Session-owned conflict-publication defects. The parent frontend gate passes 1,078 tests in 107 files, typecheck, type-aware lint, CSS, and contrast checks. The review freshly passes 156 focused tests, eight independent ownership probes, eleven native refinement tests, and three native Session-lifecycle tests. Historical and overlapping counts are not added together.
+Application source `04d1aa4` has independent whole-PR [PASS+NOTES](implemented/reviews/source-native-round-nine.md). The review closes the generated-baseline/Discard defect. Its fresh evidence includes 278 focused tests, fourteen independent probes, 29 native integration cases and two native Save-recovery checks. The parent full frontend gate passes 1,196 tests. These overlapping counts are not added together.
 
-The fresh optimized [fbdaa05 performance comparison](implemented/performance/fbdaa05.md) passes every explicit budget in all five reported baseline/head pairs. Separate qualification and profile runs are excluded. Guarded Save is slower, within its budget. The first measured Notes opening does not improve, and no general speedup is claimed. Historical `20bbeaf` timings remain separately labelled.
+Accepted saves now advance restoration content and its fingerprint together. A later Save joins an active forced pass, which recaptures current edits instead of dispatching a competing stale snapshot. Existing late-callback safety remains covered on the direct-write path. A fresh generated record publishes only an absent, owned saved baseline before queued normalization, so Discard can retire that write without losing its actual stored base. The review documents the intentional timing migrations and retained CAS, lease, history, image and Session safeguards.
 
-Earlier hosted failures and their corrections remain below as revision-specific checkpoints. The current resize contract measures the configured native minimum, waits for settlement, preserves strict client-size assertions, and keeps the Linux OS-key gate. Exact-head protected hosted CI and the dedicated [release workflow](../../releasing.md) are separate required evidence.
+Retry after source deletion replays the original immutable context and images. Fresh sends and record application retain live-record checks. The model picker restores focus within its owning selector while preserving external focus.
 
-Full local `bun run verify` is not green. Two unchanged tooling failures reproduce on initial main, as recorded below. No check was disabled. The [independent review index](implemented/reviews/README.md) preserves the historical failures and corrected-head verdicts.
+Linux CI at that runtime revision fails two late controller cases on the unchanged five-second deadline. Investigation confirms retained JSDOM selector listeners across the monolithic test file, but does not prove their exact contribution to the original Linux timeout. The test-only partition retains all 36 cases, 99 assertion lines, helper logic and deadlines across four fresh environments. Its local full suite passes 1,196 cases in 120 files. Fresh hosted Linux validation and artifact equivalence remain required at this checkpoint.
+
+The committed [fbdaa05 performance report](implemented/performance/fbdaa05.md) is historical. It does not approve the later runtime repairs. Current optimized qualification, protected exact-head CI and the actual [release workflow](../../releasing.md) are separate delivery gates. [PR #84](https://github.com/ddv1982/qa-scribe/pull/84) records their subsequent status.
+
+Full local `bun run verify` remains ungreen on two unchanged tooling failures also reproduced on initial main. No gate was disabled. The [review index](implemented/reviews/README.md) retains revision-specific failures and corrections. Native WebView checks do not establish OS-level keyboard delivery; Linux/X11 qualification remains separate from the unsupported macOS prerequisite.
 
 ## Done predicate
 
@@ -141,9 +145,9 @@ The macOS native-tooling check failed an unchanged harness process-observation a
 
 Protected Linux CI at `37f1e43` remains failed. Its actual X11 model-selection lane passes, including full menu visibility, active-row hit testing, and persisted choice. All ten model-selection lanes and native restart pass, but the separate new pointer case fails an exact viewport-size assertion. Permission workflows also fail size assertions with differing over- and undershoots. The shared resize helper currently samples immediately before issuing a correction; settlement synchronization is being repaired. The Linux UI-polish and four manual-creation tests pass. These results do not cover the forthcoming corrected source or establish a green aggregate gate.
 
-## Final integration at fbdaa05
+## Historical integration at fbdaa05
 
-The preceding entries are chronological checkpoints. Their pending states describe their named revisions. The current engineering acceptance is the independent whole-PR round-five PASS+NOTES at `fbdaa05`, with stable base-to-head patch ID `a400a0ff7a297be7953346f3e6800cf5b0bbaed8` against `1c34f3e`. No concrete P0/P1/P2 remains in that review. Current-head protected CI and the actual release workflow provide separate delivery evidence.
+The preceding entries are chronological checkpoints. Their pending states describe their named revisions. At that checkpoint, engineering acceptance was the independent whole-PR round-five PASS+NOTES at `fbdaa05`, with stable base-to-head patch ID `a400a0ff7a297be7953346f3e6800cf5b0bbaed8` against `1c34f3e`. No concrete P0/P1/P2 remains in that review. Current-head protected CI and the actual release workflow provide separate delivery evidence.
 
 Completed proposal associations retire at their exact confirmation-owned Editor publication, before the restoration hash. The Editor pin and base remain intact. Existing generation, expectation, restore, restored-base, object-lease, fresh-stage and same-token exclusions remain. The maintained public navigation/Save schedules reproduce the old false conflicts and pass on the correction.
 
