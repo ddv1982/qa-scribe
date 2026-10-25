@@ -24,10 +24,15 @@ export function useSessionChat(context: Omit<SessionChatContext, 'publish'> & {
   const noteReadOnly = Boolean(sessionId && context.noteRecovery.pendingSessionIds.includes(sessionId))
   const permissionJobId = current.job?.jobId ?? null
   const permissionProvider = current.job?.pendingPermission?.provider ?? context.selection.selectedProvider
+  const retryLoad = async () => {
+    if (!sessionId || sessionId !== context.session.activeSessionIdRef.current) return
+    context.feedback.setError(error => error === current.error ? null : error)
+    await actions.activate(sessionId)
+  }
   const sessionChat: SessionChatViewState = {
     onRefine: actions.onRefine,
     onDraftJira: actions.onDraftJira, onAnswerQuestion: actions.onAnswerQuestion, onPrepareAction: actions.onPrepareAction,
-    onRefresh: async () => { if (sessionId && current.chat) await actions.refresh({ sessionId, draftId: current.chat.draftId }) },
+    onRefresh: async () => { if (sessionId && current.chat) await actions.refresh({ sessionId, draftId: current.chat.draftId }); else await retryLoad() },
     handoff: deriveChatHandoff({ ...current, sessionId, noteEntry: context.session.noteEntry, recoveryPending: noteReadOnly }),
     chat: current.chat, composer: current.composer, composerIntent: current.composerIntent, composerImages: current.composerImages, imageFailures: current.imageFailures, job: current.job,
     loading: current.loading, saving: current.saving, working: current.working, error: current.error,
@@ -37,7 +42,7 @@ export function useSessionChat(context: Omit<SessionChatContext, 'publish'> & {
     permissionRecoveryPending: current.permissionRecoveryPending,
     onDecidePermission: (requestId, decision) => actions.isCurrentPermissionScope(sessionId, permissionJobId, permissionProvider)
       ? actions.onDecidePermission(requestId, decision) : Promise.resolve(),
-    onRecheck: () => actions.isCurrentPermissionScope(sessionId, permissionJobId, permissionProvider)
+    onRecheck: () => !current.chat && !current.loading ? retryLoad() : actions.isCurrentPermissionScope(sessionId, permissionJobId, permissionProvider)
       ? actions.onRecheck() : Promise.resolve(),
     onSetComposer: actions.onSetComposer, onAttachImages: actions.onAttachImages,
     onPasteNativeImage: actions.onPasteNativeImage, onRemoveImage: actions.onRemoveImage,

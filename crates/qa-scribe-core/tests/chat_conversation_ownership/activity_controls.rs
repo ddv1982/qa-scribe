@@ -120,7 +120,7 @@ fn background_association_completion_failure_and_startup_do_not_reorder_history(
         let a = f.save(&f.a, "Literal question");
         let started = f
             .service
-            .start_chat_turn(ChatStartRequest { scope: scope(&a) })
+            .start_chat_turn_with_context(ChatStartRequest { scope: scope(&a) }, owned_context(&a))
             .unwrap();
         let b = f.other();
         let run = f
@@ -197,9 +197,12 @@ fn background_association_completion_failure_and_startup_do_not_reorder_history(
         let next = f.save(&completed, "Interrupted question");
         let running = f
             .service
-            .start_chat_turn(ChatStartRequest {
-                scope: scope(&next),
-            })
+            .start_chat_turn_with_context(
+                ChatStartRequest {
+                    scope: scope(&next),
+                },
+                owned_context(&next),
+            )
             .unwrap();
         let b = f.other();
         let before = activity(&running.chat);

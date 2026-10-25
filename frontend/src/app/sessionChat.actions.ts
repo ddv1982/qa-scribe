@@ -163,7 +163,6 @@ export function createSessionChatActions(ctx: SessionChatContext) {
   function receiveStatus(entry: ChatWorkspace, status: GenerationJobStatus) {
     if (entry.retired || !statusOwns(entry, status)) return
     observeJob(status)
-
   }
   function clearAutosave(entry: ChatWorkspace) {
     if (entry.autosaveTimer) clearTimeout(entry.autosaveTimer)
@@ -242,7 +241,7 @@ export function createSessionChatActions(ctx: SessionChatContext) {
     publish(entry)
     if (!entry.chat?.submission) scheduleAutosave(entry)
   }
-  const { onAttachImages, onPasteNativeImage, onRemoveImage, onRetryImage, onDismissImageFailure } = createChatImageActions(ctx, {
+  const { onAttachImages, onPasteNativeImage, onRemoveImage, onRetryImage, onDismissImageFailure, clearImageFailures } = createChatImageActions(ctx, {
     active, run, saveComposer, acceptChat, refresh: id => refresh(id, false, true), publish, scheduleAutosave,
   })
   function run(kind: string, action: (entry: ChatWorkspace) => Promise<void>, bound?: ChatWorkspace): Promise<void> {
@@ -346,6 +345,7 @@ export function createSessionChatActions(ctx: SessionChatContext) {
       || JSON.stringify([entry.chat.messages, entry.chat.submission, entry.chat.proposals]) !== history) return
     const next = await restartChat({ scope: chatScope(entry.chat) })
     if (entry.retired) return
+    clearImageFailures(entry)
     ++entry.refreshEpoch
     const replacement = workspace({ sessionId: next.sessionId, draftId: next.draftId }, next.owner)
     acceptChat(replacement, next, 0, 0)
@@ -390,7 +390,7 @@ export function createSessionChatActions(ctx: SessionChatContext) {
       if (known) await refresh(entry.reference)
       if (chatIsDirty(entry)) scheduleAutosave(entry)
       if (entry.job) polling.watch(entry.job)
-    }).catch(cause => { if (epoch === activationEpoch) ctx.feedback.setError(formatError(cause)) })
+    }).catch(cause => { if (epoch === activationEpoch) registry.loadFailed(sessionId, formatError(cause)) })
   }
   function dispose() {
     ++activationEpoch

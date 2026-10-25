@@ -78,7 +78,11 @@ export function createChatWorkspaces(ctx: SessionChatContext, changed: (entry: C
     retired.add(sessionId); notesInput.delete(sessionId); notesBySession.delete(sessionId)
   }
   function loading(sessionId: string) { ctx.publish({ ...emptyChatSnapshot, sessionId, loading: true, ...notesInput.get(sessionId) }) }
-  return { workspaces, notesBySession, notes, workspace, current, visible, active, select, retire, buffer, loading,
+  function loadFailed(sessionId: string, error: string) {
+    ctx.publish({ ...emptyChatSnapshot, sessionId, error, ...notesInput.get(sessionId), dirty: notesInput.has(sessionId) })
+    ctx.feedback.setError(error)
+  }
+  return { workspaces, notesBySession, notes, workspace, current, visible, active, select, retire, buffer, loading, loadFailed,
     epoch: () => epoch, selected: () => selected, pendingInputs: () => notesInput.size > 0,
     async flushNotes() { await Promise.allSettled(notesLoads.values()) } }
 }

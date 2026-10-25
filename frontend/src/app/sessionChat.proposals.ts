@@ -134,7 +134,6 @@ export function useRefinementController(context: Context): SessionChatViewState 
         latest.ctx.feedback.setNotice('Suggested changes applied locally. Save the record to persist them.')
         latest.ctx.openEditor({ sessionId: latest.record.sessionId, kind: latest.kind === 'finding' ? 'finding' : 'testware', recordId: latest.record.id, editing: true })
       }
-      await refresh?.()
     } catch (cause) {
       if (prepared && prepared.target.kind !== 'session' && invocation.persistence.coordination.proposalStages.get(`${prepared.target.kind === 'finding' ? 'finding' : 'draft'}:${prepared.target.snapshot.recordId}`)?.id !== ('stage' in prepared.state ? prepared.state.stage.id : undefined)) {
         try {
@@ -143,8 +142,11 @@ export function useRefinementController(context: Context): SessionChatViewState 
         } catch { setErrors(previous => ({ ...previous, [id]: 'The prepared change remains unresolved. Keep current edits to resolve it without replacing them.' })) }
       }
       setErrors(previous => ({ ...previous, [id]: formatError(cause) }))
-      await refresh?.()
-    } finally { running.current.delete(id); setPending(new Set(running.current)) }
+    } finally {
+      try { await refresh?.() }
+      catch (cause) { setErrors(previous => ({ ...previous, [id]: previous[id] ?? `Conversation refresh failed. ${formatError(cause)} Review the saved conversation before another action.` })) }
+      running.current.delete(id); setPending(new Set(running.current))
+    }
   }
 
   useEffect(() => context.persistence.coordination.subscribeChanges((kind, recordId, reason, origin) => {
