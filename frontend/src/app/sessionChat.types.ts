@@ -89,7 +89,8 @@ export type ChatWorkspace = {
   composerIntent: ChatComposerIntent
   composerImages: ChatImage[]
   imageFailures: ChatImageFailure[]
-  pendingStart: { state: 'starting' | 'uncertain'; intent: ChatSendIntent; previousJobId: string | null; previousUserTurn: { id: string; turnId: string } | null } | null
+  pendingStart: { intent: ChatSendIntent; previousJobId: string | null; previousUserTurn: { id: string; turnId: string } | null }
+    & ({ state: 'starting' } | { state: 'uncertain'; outcome: 'unknown' | 'rejected' }) | null
   mode: ChatMode
   inputVersion: number
   modeVersion: number

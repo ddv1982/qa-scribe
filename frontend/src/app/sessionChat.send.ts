@@ -2,6 +2,7 @@ import { startChatJob, type ChatRef, type ChatSendIntent, type ChatState, type G
 import { statusOwns } from './sessionChat.workspaces'
 import { chatIsWorking, chatScope, unresolvedChatReason, type ChatWorkspace, type SessionChatContext } from './sessionChat.types'
 import { actionRequestText, occupiedChoiceReason, questionReason, sameChatTarget } from './sessionChat.questions'
+import { isCommandError } from '../ui/format'
 
 type Dependencies = {
   active: () => ChatWorkspace | null
@@ -76,11 +77,9 @@ export function createChatSend(ctx: SessionChatContext, dependencies: Dependenci
       }
     } catch (cause) {
       if (entry.retired) return
-      entry.pendingStart = { ...pendingStart, state: 'uncertain' }
-      try {
-        await refresh(entry.reference)
-        if (cause && typeof cause === 'object' && 'kind' in cause && (cause.kind === 'validation' || cause.kind === 'notFound')) entry.pendingStart = null
-      } catch { entry.pendingStart = { ...pendingStart, state: 'uncertain' } }
+      const rejected = isCommandError(cause) && ['validation', 'notFound', 'internal'].includes(cause.kind)
+      entry.pendingStart = { ...pendingStart, state: 'uncertain', outcome: rejected ? 'rejected' : 'unknown' }
+      await refresh(entry.reference).catch(() => undefined)
       throw cause
     }
     if (entry.retired) return

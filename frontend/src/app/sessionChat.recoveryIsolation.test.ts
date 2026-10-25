@@ -33,6 +33,68 @@ beforeEach(async () => {
 })
 afterEach(() => { engine.dispose(); vi.useRealTimers() })
 
+it.each([A, B])('unlocks $draftId after a definite non-committing internal rejection', async reference => {
+  const handle = await engine.select(reference)
+  handle.setComposer('Literal retained after preparation failure')
+  await handle.flush()
+  api.startChatJob.mockRejectedValue({ kind: 'internal', message: 'Synthetic attachment read failure' })
+  await handle.send()
+  expect(handle.snapshot().inputRecoveryPending).toBe(false)
+  expect(handle.snapshot().composer).toBe('Literal retained after preparation failure')
+  expect(handle.snapshot().chat?.messages).toEqual([])
+  expect(api.startChatJob).toHaveBeenCalledTimes(1)
+  await handle.send()
+  expect(api.startChatJob).toHaveBeenCalledTimes(2)
+  expect(handle.snapshot().inputRecoveryPending).toBe(false)
+})
+
+it.each(['internal', 'validation', 'notFound'] as const)('retains a definite %s rejection until a later exact Recheck succeeds', async kind => {
+  const handle = await engine.select(A)
+  handle.setComposer('Literal input while reconciliation is unavailable')
+  await handle.flush()
+  api.startChatJob.mockRejectedValue({ kind, message: 'Synthetic completed command rejection' })
+  api.getConversation.mockRejectedValueOnce(new Error('Exact read temporarily unavailable'))
+  await handle.send()
+  expect(handle.snapshot().inputRecoveryPending).toBe(true)
+  expect(api.startChatJob).toHaveBeenCalledTimes(1)
+  await handle.recheck()
+  expect(handle.snapshot().inputRecoveryPending).toBe(false)
+  expect(handle.snapshot().composer).toBe('Literal input while reconciliation is unavailable')
+  expect(handle.snapshot().chat?.messages).toEqual([])
+  expect(api.startChatJob).toHaveBeenCalledTimes(1)
+})
+
+it.each([new Error('Lost invoke reply'), 'Lost transport reply', { kind: 'internal' }, { kind: 'unexpected', message: 'Unknown rejection shape' }])('keeps an unacknowledged send suppressed for %j', async cause => {
+  const handle = await engine.select(A)
+  handle.setComposer('Literal input with unknown dispatch outcome')
+  await handle.flush()
+  api.startChatJob.mockRejectedValue(cause)
+  await handle.send(); await handle.recheck(); await handle.send()
+  expect(handle.snapshot().inputRecoveryPending).toBe(true)
+  expect(handle.snapshot().composer).toBe('Literal input with unknown dispatch outcome')
+  expect(api.startChatJob).toHaveBeenCalledTimes(1)
+})
+
+it('requires explicit Retry after a typed internal rejection with a committed failed turn', async () => {
+  const handle = await engine.select(A)
+  handle.setComposer('Literal committed question')
+  await handle.flush()
+  const rejectCommand = vi.fn<() => Promise<never>>().mockRejectedValue({ kind: 'internal', message: 'Synthetic worker creation failure' })
+  api.startChatJob.mockImplementation(() => {
+    rows.set(A.draftId, { ...rows.get(A.draftId)!, revision: 3, composer: '', messages: [{ id: 'committed-user', turnId: 'committed-turn', role: 'user', text: 'Literal committed question', images: [], status: 'failed', errorMessage: 'Worker creation failed', aiRunId: null, createdAt: 'now' }] })
+    return rejectCommand()
+  })
+  await handle.send()
+  expect(handle.snapshot().inputRecoveryPending).toBe(false)
+  expect(handle.snapshot().chat?.messages[0]).toMatchObject({ id: 'committed-user', text: 'Literal committed question', status: 'failed' })
+  await handle.send()
+  expect(api.startChatJob).toHaveBeenCalledTimes(1)
+  await handle.retry()
+  expect(api.startChatJob).toHaveBeenCalledTimes(2)
+  expect(api.startChatJob).toHaveBeenNthCalledWith(2, expect.objectContaining({ intent: { kind: 'retry' } }), expect.any(Function))
+  expect(handle.snapshot().chat?.messages).toHaveLength(1)
+})
+
 it.each([A, B].flatMap(reference => [false, true].map(refreshBeforeFailure => ({ reference, refreshBeforeFailure }))))('recovers a completed Retry in $reference.draftId, earlier refresh $refreshBeforeFailure', async ({ reference, refreshBeforeFailure }) => {
   const user = { id: 'same-user', turnId: 'old-attempt', role: 'user' as const, text: 'Literal retained retry question', images: [], status: 'failed' as const, errorMessage: 'fixture failure', aiRunId: 'old-run', createdAt: 'then' }
   rows.set(reference.draftId, { ...rows.get(reference.draftId)!, revision: 2, messages: [user] })

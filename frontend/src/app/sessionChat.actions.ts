@@ -68,9 +68,9 @@ export function createSessionChatActions(ctx: SessionChatContext) {
     const previousComposer = entry.composer
     const previousMode = entry.mode
     if (previousChat && previousChat.lastActiveOrder > chat.lastActiveOrder) chat = { ...chat, lastActiveOrder: previousChat.lastActiveOrder, lastActiveAt: previousChat.lastActiveAt }
-    if (entry.pendingStart?.state === 'uncertain' && chatHasCommittedStart(chat, entry.pendingStart)) {
+    if (entry.pendingStart?.state === 'uncertain' && (entry.pendingStart.outcome === 'rejected' || chatHasCommittedStart(chat, entry.pendingStart))) {
+      if (chatHasCommittedStart(chat, entry.pendingStart)) entry.composerImages = chat.composerImages
       entry.pendingStart = null
-      entry.composerImages = chat.composerImages
     }
     entry.chat = chat
     if (inputVersion === entry.inputVersion) {
