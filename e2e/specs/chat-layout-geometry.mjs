@@ -78,7 +78,7 @@ export async function wideLayoutViewport() {
   const frameHeight = driverRect.height - actual.height
   const contentCeiling = constraints.screen.availHeight - frameHeight
   const physicalCeiling = process.platform === 'darwin' && frameHeight >= 0
-    && driverRect.width === actual.width && driverRect.width <= constraints.screen.availWidth
+    && driverRect.width === actual.width
     && Math.abs(driverRect.height - constraints.screen.availHeight) <= 1
     && Math.abs(actual.height - contentCeiling) <= 1
   appendFileSync(join(process.env.QA_SCRIBE_E2E_ARTIFACTS, 'wide-viewport.jsonl'),
