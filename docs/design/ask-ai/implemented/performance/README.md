@@ -1,4 +1,6 @@
-# Ask AI UI performance acceptance
+# Historical Ask AI UI performance acceptance
+
+This comparison describes application source `20bbeaf`. The later record lease and compact layout changes require renewed performance qualification.
 
 All proposed budgets pass. Save is slower on the near-limit Finding workload, within its budget. The repeated Notes reveal is faster; the first measured reveal and scrolling show no meaningful improvement. This is not a general speedup claim.
 

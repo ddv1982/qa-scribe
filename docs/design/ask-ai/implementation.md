@@ -2,11 +2,13 @@
 
 ## Current acceptance
 
-Application source `20bbeaf` has independent source and native PASS+NOTES, 38 maintained native passes and eight additional native passes. Both reviewed P2s and the earlier stale-overwrite and readable-fallback findings are closed. The final frontend check passes all 971 tests. The workspace previously passed 719 Rust tests, build and smoke; later application corrections are TypeScript and CSS, with fresh independent core and controller coverage.
+Candidate `1e8210c` contains the record-restoration lease repair, compact chat correction, and bounded model-picker and permission layouts. The lease repair has independent source PASS+NOTES at `3cd9379`, with 156 focused tests and fourteen additional probes. The combined source and native review of the preceding `92f332f` candidate was FAIL. The two P2 layout defects have local native corrections in `1e8210c`; fresh independent acceptance remains pending. The renewed frontend gate passes all 1,027 tests, typecheck, type-aware lint, CSS, and contrast checks.
 
-All [performance budgets](implemented/performance/README.md) pass across five audited interleaved pairs. The near-limit guarded Save is slower within its budget. No general speedup is claimed. Later commits change verification helpers only. Final delivery still requires exact-head protected hosted CI and the repository's dedicated release preparation process.
+The historical [performance comparison](implemented/performance/README.md) describes `20bbeaf`. Runtime changes after that revision require a renewed comparison. Its timings and artifact equivalence do not approve the current candidate.
 
-Full local `bun run verify` is not green. Two unchanged tooling failures reproduce on initial main, as recorded below. No check was disabled. The [independent review index](implemented/reviews/README.md) preserves the historical failures and corrected-head verdict.
+Hosted CI on the earlier `1e9df7a` failed real chat geometry assertions on macOS and Linux. Linux also exposed a stale schema-15 expectation in the model evidence test, a cancellation timeout, and a model menu below the viewport. The schema expectation now matches schema 18. Independent model-evidence first and restart runs pass eleven cases, including the corrected cancellation synchronization. The model-menu and permission repairs require fresh independent acceptance and Linux native-key validation. Exact-head protected hosted CI and the dedicated release preparation process remain required.
+
+Full local `bun run verify` is not green. Two unchanged tooling failures reproduce on initial main, as recorded below. No check was disabled. The [independent review index](implemented/reviews/README.md) preserves the historical failures and corrected-head verdicts.
 
 ## Done predicate
 
@@ -39,7 +41,7 @@ C1 is committed as `0e046cb`. It passed seven native context cases covering the 
 
 The auxiliary image-fixture executable test passed all eight cases in the parent's isolated rerun. Commit `6b7edb8` then changed the shared release-marker helper to poll actual file existence. A forced silent-watcher reproduction failed before the change and passed afterward. The parent independently reran the affected forty-test bundle successfully. This establishes removal of the notification dependency, not the cause of the historical timeout. No deslop skill was installed. Parent cleanup used direct diff, whitespace, generated-binding, type-aware lint, dependency, duplication, and suppression checks before commits. Independent comment review remains separate from that cleanup.
 
-Interleaved performance measurement, a review video, Linux execution, and OS-level keyboard navigation are unverified. These are not covered by the ten native WebView cases.
+At the S1 checkpoint, performance measurement, a review video, Linux execution, and OS-level keyboard navigation were unverified. Later checkpoints record their separate coverage and limits.
 
 ## Release path
 
@@ -106,3 +108,25 @@ Fresh [source and native review](implemented/reviews/source-native-round-two.md)
 The first optimized baseline performance qualification failed. The SQL fixture contained a finding body larger than the existing 100,000-character limit, so the real Save correctly rejected it. No timing from that run is accepted. The fixture now uses a valid long record, validates the real body limit with space for edits, and is identical on both sides. The observer's long-record threshold follows that valid workload. This changes verification helpers only. Qualification is being repeated before any reported comparison.
 
 The corrected qualification and five-pair comparison are complete. Save-specific diagnostics identified the new frontend guard hash awaits as additional waiting. They also exposed an ineffective attempted override of Tauri's non-writable invoke bridge. That override and its blocking claim were removed. Actual persisted AI Run/message counts and provider fixture execution files are now checked. Fresh audited qualification and five reported pairs pass with those assertions. The detailed [performance receipt](implemented/performance/README.md) retains every result, uncertainty and excluded run.
+
+## PR feedback and compact workspace correction
+
+Sentry identified a further compensation schedule on `1e9df7a`. A newer ordinary Save can retire a restore callback before that callback publishes the restored base. The physical row is restored, but repeated Save uses the superseded pin. Delayed failed Saves can also adopt an obsolete conflict after a newer successful write.
+
+Commit `3cd9379` gives the restored-base publication an exact cached guard-object lease. A retired successful restore can advance that pin only while the matching ordinary Save lineage still owns the same object. It cannot replace newer saved content, editor fields, errors, or a Proposal guard. Failure paths check current generation before adopting conflicts. A no-op Editor stage release retains the same object. The independent review reproduces the original six failures and four public Keep current edits schedules on base, then verifies the correction on head. Its report is `/tmp/ask-ai-sentry-lease-review.md`.
+
+Commit `f2336ad` measures compact layout against the actual Session workspace height. It gives the short composer a 48-pixel default height, preserves visible context alerts, separates secondary actions from Attach and Send, and reveals the inner transcript within its owned outer scrollport. Paused or hidden transcript events do not change the reading policy. New tests cover nested clipping, hidden state, and paused history. The image workflow scrolls the complete attachment card when testing its preview and removal controls.
+
+Parent native checks on the final UI prototype pass six UI-polish cases, the full image workflow with 82 visual rows, and seven context cases including the 1,100-pixel split boundary. That binary contains the final UI but predates the lease repair. These results establish the UI correction only. The new independent review must verify the combined artifact.
+
+Commit `4d5da83` makes the existing Help test wait for the hydrated Session route before capturing the URL. Its no-navigation assertions remain. Commit `0348941` updates the native legacy migration expectation from schema 15 to schema 18 while retaining the physical schema-10 fixture and literal data preservation assertions.
+
+Commit `92f332f` corrects cancellation synchronization for structured chat. The test waits for the exact fixture partial text in the active job and asserts the visible Preparing reply heading. The prior text wait targeted intentionally hidden partial response content. Cancellation, process termination, frozen initialization evidence, successor isolation, and restart assertions remain unchanged. The independent native first and restart runs pass ten and one cases respectively.
+
+The combined independent review at the identical `92f332f` tree closes the lease, readable-fallback, and Undo protections. It passes the maintained image, context, refinement, Jira draft, record layout, and UI-polish workflows. It reproduces the model menu clipped by the transcript scrollport and the narrow permission context collapsing to 4px. Parent native reproductions confirm both defects. The permission diagnostic returns success because it records geometry; its unreadable context and failed control hit tests are failures of the product contract. Neither the diagnostic exit code nor the passing workflows approve release.
+
+Commit `1e8210c` moves only the chat model popup outside clipping ancestors. A private helper bounds transient geometry to the AI panel and viewport. Model choice, query, active option, and provider preference ownership remain in the existing components. Generation preflight retains its inline modal subtree. Open-only observers track resize and scrolling; hidden or detached anchors dismiss the popup. Native pointer checks cover 1,280×828, 360×645, 320×645, and 640×488 CSS viewports with option hit tests and retained draft content.
+
+Permission cards now size intrinsically around their identity, readable argument context, and wrapped decisions. The context has an 8rem minimum and 16rem maximum. The outer chat scrolls when the complete card is taller than its viewport. Tests retain simultaneous full visibility when the card fits. Smaller layouts must expose at least three actual text lines, literal arguments and scope, and every complete decision control through sequential scrolling and hit tests. Permission identity, consent scope, and Cancel handlers are unchanged. The local Codex authorization workflow passes all seven cases. This is synthetic fixture evidence, not real tool execution certification.
+
+The parent renewed the complete frontend gate at `1e8210c`: 103 files and 1,027 tests pass. The optimized native build succeeded with the existing three Rust warnings. The local model-selection workflow retains its macOS failure at the explicit Linux/X11 native-key prerequisite. Its pointer and persistence checks pass; the missing OS-key result is not converted to a skip or pass. Fresh independent review, performance measurement, and protected CI remain pending.
