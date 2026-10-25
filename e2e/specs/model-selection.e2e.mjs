@@ -253,7 +253,13 @@ describe('Built application native quick model selection M03', () => {
       await openQuickPicker(); await key('End')
       await (await quickOptions()).at(-1).click()
       await browser.waitUntil(async () => (await read('get_settings')).selectedAiModelsByProvider.claude_code === 'literal-model-39' && await $(quickInput).isEnabled())
-      assert.equal((await pickerState()).focused, true)
+      const focus = { stage: 'saved-literal-focus', state: null }
+      samples.push(focus)
+      await browser.waitUntil(async () => {
+        focus.state = await pickerState(); persist()
+        return focus.state.focused
+      }, { timeout: 2000, timeoutMsg: 'The saved model choice must return focus to the Model input' })
+      assert.equal(focus.state.focused, true)
       await openQuickPicker(); await $('[aria-label="Session chat"] textarea').click()
       assert.equal((await pickerState()).expanded, 'false')
       await openQuickPicker(); await $('[aria-label="Close AI chat"]').click()

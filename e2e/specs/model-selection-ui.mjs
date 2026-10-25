@@ -197,7 +197,8 @@ export async function pickerState() {
         for (const line of range.getClientRects()) if (line.width > 0 && line.height > 0) lines.push(rect({ getBoundingClientRect: () => line }))
       }
     }
-    return { expanded: input.getAttribute('aria-expanded'), focused: document.activeElement === input, query: input.value,
+    return { expanded: input.getAttribute('aria-expanded'), focused: document.activeElement === input,
+      focusTarget: { tag: document.activeElement?.tagName, label: document.activeElement?.getAttribute('aria-label'), id: document.activeElement?.id }, query: input.value,
       input: rect(input), panel: rect(input.closest('.ask-ai-panel')), owners, activeId: input.getAttribute('aria-activedescendant'),
       visibility: popup ? getComputedStyle(popup).visibility : null, popup: rect(popup), hint: rect(hint), hintText: hint?.textContent,
       hintLines: lines.length, count: list?.children.length, listScrollTop: list?.scrollTop }
