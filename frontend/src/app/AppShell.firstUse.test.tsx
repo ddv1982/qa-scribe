@@ -195,6 +195,7 @@ describe('first use and Help', () => {
     const open = vi.spyOn(window, 'open')
     render(<Workspace />)
     await screen.findByRole('textbox', { name: 'Session title' })
+    await waitFor(() => expect(window.location.hash).toBe('#/sessions/session-1'))
     const url = window.location.href
     await user.click(screen.getByRole('button', { name: 'Help' }))
     await user.click(screen.getByText('Send feedback'))
