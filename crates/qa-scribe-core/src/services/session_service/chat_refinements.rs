@@ -94,8 +94,7 @@ pub(super) fn guard_stage(
     let Some(stage_id) = guard.stage_id() else {
         return Ok(());
     };
-    ensure_stage_editable(connection, stage_id)?;
-    let raw: String = connection.query_row("SELECT r.proposal_json FROM chat_refinements r JOIN chat_editor_stages s ON s.proposal_id=r.id WHERE s.id=?1", [stage_id], |r| r.get(0))?;
+    let (raw, session_id): (String, String) = connection.query_row("SELECT r.proposal_json,d.session_id FROM chat_refinements r JOIN chat_editor_stages s ON s.proposal_id=r.id JOIN chat_drafts d ON d.id=r.draft_id WHERE s.id=?1", [stage_id], |r| Ok((r.get(0)?, r.get(1)?)))?;
     let proposal: RefinementProposal = decode(&raw)?;
     let snapshot = proposal
         .target
@@ -104,16 +103,26 @@ pub(super) fn guard_stage(
     if table(&proposal.target)? != table_name
         || snapshot.record_id != id
         || snapshot.session_id != guard.session_id
+        || session_id != guard.session_id
     {
         return Err(validation("Stage belongs to another record"));
     }
+    if let (RecordWriteOrigin::Proposal { .. }, RefinementState::Saved { stage }) =
+        (&guard.origin, &proposal.state)
+    {
+        return if stage.id == stage_id {
+            Ok(())
+        } else {
+            Err(validation("Proposal stage is no longer saveable"))
+        };
+    }
+    ensure_stage_editable(connection, stage_id)?;
     match (&guard.origin, &proposal.state) {
         (RecordWriteOrigin::Proposal { .. }, RefinementState::Staged { stage })
             if stage.stored_base_token == guard.expected_stored_base =>
         {
             Ok(())
         }
-        (RecordWriteOrigin::Proposal { .. }, RefinementState::Saved { .. }) => Ok(()),
         (
             RecordWriteOrigin::Compensation { .. },
             RefinementState::Saved { .. } | RefinementState::Reverted { .. },
@@ -126,14 +135,17 @@ pub(super) fn settle_stage(connection: &Connection, guard: &RecordWriteGuard) ->
     let Some(stage_id) = guard.stage_id() else {
         return Ok(());
     };
-    ensure_stage_editable(connection, stage_id)?;
     let raw: String = connection.query_row("SELECT r.proposal_json FROM chat_refinements r JOIN chat_editor_stages s ON s.proposal_id=r.id WHERE s.id=?1", [stage_id], |r| r.get(0))?;
     let mut proposal: RefinementProposal = decode(&raw)?;
+    if matches!((&guard.origin, &proposal.state), (RecordWriteOrigin::Proposal { .. }, RefinementState::Saved { stage }) if stage.id == stage_id)
+    {
+        return Ok(());
+    }
+    ensure_stage_editable(connection, stage_id)?;
     proposal.state = match (&guard.origin, proposal.state) {
         (RecordWriteOrigin::Proposal { .. }, RefinementState::Staged { stage }) => {
             RefinementState::Saved { stage }
         }
-        (RecordWriteOrigin::Proposal { .. }, RefinementState::Saved { .. }) => return Ok(()),
         (RecordWriteOrigin::Compensation { .. }, RefinementState::Saved { stage }) => {
             RefinementState::Reverted { stage }
         }
