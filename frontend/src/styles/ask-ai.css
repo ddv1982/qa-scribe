@@ -40,7 +40,6 @@
 .chat-context-label { margin: var(--space-1) 0; font-size: var(--font-size-sm); color: var(--text-secondary); overflow-wrap: anywhere; }
 .ask-ai-panel .session-chat { flex: 1; min-height: 0; min-width: 0; width: 100%; padding: var(--space-3) var(--space-4); overflow: auto; }
 .ask-ai-panel .chat-scroll-region { min-height: 160px; }
-.ask-ai-panel .chat-permission { height: min(360px, 100%); min-height: min(240px, 100%); }
 .ask-ai-panel .chat-transcript { max-height: none; overflow: visible; }
 .ask-ai-panel .chat-composer { flex-shrink: 0; padding-top: var(--space-3); border-top: 1px solid var(--border-default); }
 .ask-ai-panel .chat-topline, .ask-ai-panel .chat-meta, .ask-ai-panel .chat-buttons { flex-wrap: wrap; }

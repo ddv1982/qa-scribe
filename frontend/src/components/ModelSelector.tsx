@@ -1,4 +1,6 @@
-import { useEffect, useId, useRef, useState, type FocusEvent, type KeyboardEvent } from 'react'
+import { createPortal } from 'react-dom'
+import { useChatModelMenu } from './useChatModelMenu'
+import { useCallback, useEffect, useId, useRef, useState, type FocusEvent, type KeyboardEvent } from 'react'
 import { Bot, Check, ChevronDown, Command, Cpu, Search, Sparkles } from 'lucide-react'
 import type { ProviderModelDescriptor } from '../tauri'
 import { customModelCatalogAdvisory } from '../settings/modelAdvisories'
@@ -75,6 +77,11 @@ export function ModelCombobox({
     ? `${listboxId}-option-${Math.min(activeIndex, optionCount - 1)}`
     : undefined
 
+  const dismissPicker = useCallback(() => setOpen(false), [])
+  const { rootRef, popupRef, popupStyle, portalTarget } = useChatModelMenu({
+    open: popoverOpen, placement, query, activeOptionId, inputRef, onDismiss: dismissPicker,
+  })
+
   useEffect(() => {
     if (!disabled || !open) return
     const timeout = window.setTimeout(() => setOpen(false), 0)
@@ -105,7 +112,7 @@ export function ModelCombobox({
 
   function handleBlur(event: FocusEvent<HTMLDivElement>) {
     const nextFocus = event.relatedTarget
-    if (!(nextFocus instanceof Node) || !event.currentTarget.contains(nextFocus)) {
+    if (!(nextFocus instanceof Node) || !event.currentTarget.contains(nextFocus) && !popupRef.current?.contains(nextFocus)) {
       setOpen(false)
     }
   }
@@ -145,8 +152,66 @@ export function ModelCombobox({
     setOpen(true)
   }
 
+  const popup = popoverOpen ? (
+    <div ref={popupRef} style={popupStyle} className={`model-combobox-popover${portalTarget ? ' model-combobox-popover--chat' : ''}`}>
+      <div className="model-search-hint">
+        <Search size={14} />
+        {authoritySummary
+          ? `${authoritySummary} · custom IDs supported`
+          : `${providerLabel} default · custom IDs supported`}
+      </div>
+      <div id={listboxId} className="model-options" role="listbox" aria-label="AI models">
+        {filteredOptions.map((model, index) => {
+          const selectable = isModelSelectable(model)
+          return (
+            <div
+              id={`${listboxId}-option-${index}`}
+              key={model.id}
+              className={`${model.id === currentValue ? 'model-option selected' : 'model-option'}${index === activeIndex ? ' active' : ''}${selectable ? '' : ' disabled'}`}
+              role="option"
+              aria-disabled={!selectable}
+              aria-selected={model.id === currentValue}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => { if (selectable) chooseModel(model.id) }}
+              onMouseEnter={() => { if (selectable) setActiveIndex(index) }}
+            >
+              <span className="model-option-copy">
+                <strong>{isProviderManagedModel(model.id) ? providerManagedModelLabel(model.id) : model.label}</strong>
+                <small>{model.id === 'default'
+                  ? defaultOptionDescription(resolvedDefaultLabel, resolvedDefaultOrigin)
+                  : modelOptionDescription(model)}</small>
+              </span>
+              <span className="model-option-meta">
+                <em>{modelSourceLabel(model)}</em>
+                {model.id === currentValue ? <Check aria-hidden="true" size={15} /> : null}
+              </span>
+            </div>
+          )
+        })}
+        {showCustomOption ? (
+          <div
+            id={`${listboxId}-option-${filteredOptions.length}`}
+            className={`model-option custom${activeIndex === filteredOptions.length ? ' active' : ''}`}
+            role="option"
+            aria-selected={false}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => chooseModel(customModel)}
+            onMouseEnter={() => setActiveIndex(filteredOptions.length)}
+          >
+            <span className="model-option-copy">
+              <strong>Use custom model</strong>
+              <small>{customModel}</small>
+            </span>
+            <span className="model-option-meta"><em>Custom</em></span>
+          </div>
+        ) : null}
+        {filteredOptions.length === 0 && !showCustomOption ? <p className="model-options-empty">No matching models</p> : null}
+      </div>
+    </div>
+  ) : null
+
   return (
-    <div className={`model-combobox model-combobox-${placement}`} onBlur={handleBlur}>
+    <div ref={rootRef} className={`model-combobox model-combobox-${placement}`} onBlur={handleBlur}>
       <label className="model-combobox-trigger">
         <span className="model-combobox-label">
           <span className="ai-choice-icon"><Cpu size={17} /></span>
@@ -189,63 +254,7 @@ export function ModelCombobox({
           {customSelectionAdvisory}
         </p>
       ) : null}
-      {popoverOpen ? (
-        <div className="model-combobox-popover">
-          <div className="model-search-hint">
-            <Search size={14} />
-            {authoritySummary
-              ? `${authoritySummary} · custom IDs supported`
-              : `${providerLabel} default · custom IDs supported`}
-          </div>
-          <div id={listboxId} className="model-options" role="listbox" aria-label="AI models">
-            {filteredOptions.map((model, index) => {
-              const selectable = isModelSelectable(model)
-              return (
-                <div
-                  id={`${listboxId}-option-${index}`}
-                  key={model.id}
-                  className={`${model.id === currentValue ? 'model-option selected' : 'model-option'}${index === activeIndex ? ' active' : ''}${selectable ? '' : ' disabled'}`}
-                  role="option"
-                  aria-disabled={!selectable}
-                  aria-selected={model.id === currentValue}
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => { if (selectable) chooseModel(model.id) }}
-                  onMouseEnter={() => { if (selectable) setActiveIndex(index) }}
-                >
-                  <span className="model-option-copy">
-                    <strong>{isProviderManagedModel(model.id) ? providerManagedModelLabel(model.id) : model.label}</strong>
-                    <small>{model.id === 'default'
-                      ? defaultOptionDescription(resolvedDefaultLabel, resolvedDefaultOrigin)
-                      : modelOptionDescription(model)}</small>
-                  </span>
-                  <span className="model-option-meta">
-                    <em>{modelSourceLabel(model)}</em>
-                    {model.id === currentValue ? <Check aria-hidden="true" size={15} /> : null}
-                  </span>
-                </div>
-              )
-            })}
-            {showCustomOption ? (
-              <div
-                id={`${listboxId}-option-${filteredOptions.length}`}
-                className={`model-option custom${activeIndex === filteredOptions.length ? ' active' : ''}`}
-                role="option"
-                aria-selected={false}
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => chooseModel(customModel)}
-                onMouseEnter={() => setActiveIndex(filteredOptions.length)}
-              >
-                <span className="model-option-copy">
-                  <strong>Use custom model</strong>
-                  <small>{customModel}</small>
-                </span>
-                <span className="model-option-meta"><em>Custom</em></span>
-              </div>
-            ) : null}
-            {filteredOptions.length === 0 && !showCustomOption ? <p className="model-options-empty">No matching models</p> : null}
-          </div>
-        </div>
-      ) : null}
+      {popup ? portalTarget ? createPortal(popup, portalTarget) : popup : null}
     </div>
   )
 }

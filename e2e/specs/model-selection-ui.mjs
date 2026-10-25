@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { inspectLayout } from './chat-layout-geometry.mjs'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { click, database, directory, execution, finishChat, journal, providerIds, read, settings } from './model-evidence-ui.mjs'
@@ -8,14 +9,15 @@ export const quickInput = `${quickSection} [role="combobox"][aria-label="Model"]
 export const outputRoot = process.env.QA_SCRIBE_E2E_MODEL_EVIDENCE ?? '/tmp/qa-models/M03'
 
 export async function modelPreference(provider, model) {
-  const input = await $(quickInput)
+  const section = await quickScope()
+  const input = await $(`${section} [role="combobox"][aria-label="Model"]`)
   await input.waitForEnabled()
-  if (await input.getAttribute('aria-expanded') !== 'true') await $(`${quickSection} [aria-label="Open model choices"]`).click()
+  if (await input.getAttribute('aria-expanded') !== 'true') await $(`${section} [aria-label="Open model choices"]`).click()
   if (model !== null && model !== 'auto') await input.setValue(model)
   const label = model === null ? 'CLI default' : model === 'auto' ? 'CLI automatic' : 'Use custom model'
   let target
   await browser.waitUntil(async () => {
-    for (const option of await $$(`${quickSection} [role="option"]`)) {
+    for (const option of await quickOptions()) {
       if (await (await option.$('strong')).getText() === label) { target = option; return true }
     }
     return false
@@ -24,10 +26,10 @@ export async function modelPreference(provider, model) {
   await browser.waitUntil(async () => {
     const current = await read('get_settings')
     return (current.selectedAiModelsByProvider?.[providerIds[provider]] ?? null) === model
-      && await $(quickInput).isEnabled()
-      && !(await $(quickSection).getText()).includes('Saving model preference…')
+      && await input.isEnabled()
+      && !(await $(section).getText()).includes('Saving model preference…')
   }, { timeout: 7_000, timeoutMsg: 'Quick model selection did not persist through the shared Settings owner' })
-  assert.match(await $(quickSection).getText(), /Saved for this provider across QA Scribe\. Changes affect the next invocation\./)
+  assert.match(await $(section).getText(), /Saved for this provider across QA Scribe\. Changes affect the next invocation\./)
 }
 
 export async function send(sessionId, provider, mode, marker) {
@@ -84,14 +86,29 @@ export async function historyText() {
   return texts
 }
 
+async function quickScope() {
+  const modal = `dialog.generation-preflight[open] ${quickSection}`
+  return await $(modal).isExisting() ? modal : quickSection
+}
+
+export async function quickOptions() {
+  const section = await quickScope()
+  const id = await $(`${section} [role="combobox"][aria-label="Model"]`).getAttribute('aria-controls')
+  return id ? $$(`[id="${id}"] [role="option"]`) : []
+}
+
 export async function menuGeometry() {
-  return browser.execute((section) => {
-    const menu = document.querySelector(`${section} .model-combobox-popover`)
-    const bounds = menu?.getBoundingClientRect()
-    return bounds ? { left: bounds.left, right: bounds.right, top: bounds.top, bottom: bounds.bottom,
-      width: bounds.width, height: bounds.height, viewportWidth: innerWidth, viewportHeight: innerHeight,
-      options: menu.querySelectorAll('[role="option"]').length } : null
-  }, quickSection)
+  const section = await quickScope()
+  const id = await $(`${section} [role="combobox"][aria-label="Model"]`).getAttribute('aria-controls')
+  if (!id) return null
+  const geometry = await browser.execute(inspectLayout, `[id="${id}"]`, '.model-combobox-popover')
+  if (!geometry) return null
+  const panel = await browser.execute(inspectLayout, '.ask-ai-panel:not([hidden])')
+  const rows = []
+  for (const option of await quickOptions()) rows.push(await browser.execute(inspectLayout, option))
+  const viewport = await browser.execute(() => ({ width: innerWidth, height: innerHeight }))
+  return { ...geometry.rect, viewportWidth: viewport.width, viewportHeight: viewport.height, options: rows.length,
+    visible: geometry.visible, clip: geometry.clip, rows, panel: panel?.rect ?? null }
 }
 
 export function configureCatalog(provider, mode) {
