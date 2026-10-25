@@ -1,4 +1,10 @@
-# Historical Ask AI UI performance acceptance
+# Ask AI UI performance evidence
+
+The current [fbdaa05 comparison](fbdaa05.md) passes every explicit budget across five interleaved pairs. Guarded Save is slower within its budget. Its raw numeric receipt is [retained here](fbdaa05-summary.json).
+
+The remainder records the earlier 20bbeaf comparison. Its timings do not qualify later runtime changes.
+
+## Historical comparison at 20bbeaf
 
 This comparison describes application source `20bbeaf`. The later record lease and compact layout changes require renewed performance qualification.
 
