@@ -289,8 +289,16 @@ export function createRecordActionCoordination(ctx: RecordPersistenceContext) {
   }
 
   async function confirmedWrite(record: Finding | Draft, kind: 'finding' | 'draft', guard: RecordWriteGuard) {
+    const key = `${kind}:${record.id}`
+    const association = proposalStages.get(key)
     const next = await recordWriteGuard(record, kind === 'finding' ? 'findings' : 'drafts')
-    latestWriteGuards.set(`${kind}:${record.id}`, next)
+    const ownsAssociation = association !== undefined && guard.origin.kind === 'proposal'
+      && association.id === guard.origin.stageId && guard.sessionId === record.sessionId
+      && proposalStages.get(key) === association && latestWriteGuards.get(key) === guard
+    latestWriteGuards.set(key, next)
+    if (ownsAssociation && proposalStages.get(key) === association && latestWriteGuards.get(key) === next) {
+      proposalStages.delete(key)
+    }
     const intent = kind === 'finding' ? findingIntents.get(record.id) : draftIntents.get(record.id)
     if (intent) {
       const restore = intent.restore

@@ -12,8 +12,11 @@ type Patch=DraftPatch|FindingPatch
 beforeEach(setupControllerTest)
 afterEach(()=>{cleanupControllerTest();vi.restoreAllMocks()})
 const body=(text:string)=>richEditorDocumentToStoredBody(richEditorDocumentFromPlainText(text))
+const schedules = (['finding', 'test_cases_draft'] as const).flatMap(kind =>
+ [true, false].flatMap(proposalActive =>
+  (['ack', 'hash'] as const).map(boundary => ({ kind, proposalActive, boundary }))))
 
-it.each((['finding','test_cases_draft'] as const).flatMap(kind=>[true,false].map(proposalActive=>({kind,proposalActive}))))('$kind navigation flush and ordinary Save preserve the next literal Save, proposal $proposalActive',async({kind,proposalActive})=>{
+it.each(schedules)('$kind navigation flush and ordinary Save preserve the next literal Save, proposal $proposalActive, restoration $boundary',async({kind,proposalActive,boundary})=>{
  const table=kind==='finding'?'findings':'drafts'
  const a=kind==='finding'?findingFixture({title:'A',...body('Body A')}):draftFixture({title:'A',...body('Body A')})
  let stored={...a}
@@ -32,6 +35,16 @@ it.each((['finding','test_cases_draft'] as const).flatMap(kind=>[true,false].map
  const committedB=deferred<void>(),ackB=deferred<void>(),restoredA=deferred<void>(),ackA=deferred<void>()
  const requests:Array<{patch:Patch,guard:RecordWriteGuard,state:string,outcome:string}>=[]
  let armB=false,armA=false
+ let holdRestorationHash=false
+ if(boundary==='hash'){
+  const digest=crypto.subtle.digest.bind(crypto.subtle)
+  vi.spyOn(crypto.subtle,'digest').mockImplementation(async(algorithm,data)=>{
+   const hold=holdRestorationHash;holdRestorationHash=false
+   const hash=await digest(algorithm,data)
+   if(hold){restoredA.resolve();await ackA.promise}
+   return hash
+  })
+ }
  const command=kind==='finding'?api.updateFinding:api.updateDraft
  command.mockImplementation(async(id:string,patch:Patch,guard:RecordWriteGuard)=>{
   const request={patch,guard,state,outcome:'started'};requests.push(request)
@@ -53,7 +66,11 @@ it.each((['finding','test_cases_draft'] as const).flatMap(kind=>[true,false].map
   if(staged)state=guard.origin.kind==='proposal'?'saved':'reverted'
   request.outcome='committed'
   if(armB&&patch.title==='B'){armB=false;committedB.resolve();await ackB.promise}
-  if(armA&&guard.origin.kind==='compensation'){armA=false;restoredA.resolve();await ackA.promise}
+  if(armA&&guard.origin.kind==='compensation'){
+   armA=false
+   if(boundary==='hash')holdRestorationHash=true
+   else{restoredA.resolve();await ackA.promise}
+  }
   return {...next}
  })
  const {result}=renderHook(()=>useAppController())
@@ -92,7 +109,11 @@ it.each((['finding','test_cases_draft'] as const).flatMap(kind=>[true,false].map
  expect(future).toBe(true)
  expect(stored.title).toBe('D');expect(stored.body).toBe('<p>Body D</p>')
  expect(row().title).toBe('D')
+ expect(row().body).toBe('<p>Body D</p>')
  expect(row().bodyJson).toBe(body('Body D').bodyJson)
+ expect(stored.bodyJson).toBe(body('Body D').bodyJson)
+ expect(stored.metadataJson).toBe(a.metadataJson)
+ expect(row().metadataJson).toBe(a.metadataJson)
  expect(requests.find(request => request.patch.title === 'D' && request.outcome === 'committed')?.guard).toEqual(base)
  expect(state).toBe(proposalActive?'reverted':'offered')
 })
