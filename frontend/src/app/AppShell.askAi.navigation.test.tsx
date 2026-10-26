@@ -1,11 +1,13 @@
 import '@testing-library/jest-dom/vitest'
 import { useLayoutEffect } from 'react'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { afterEach, beforeEach, expect, it } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { AppShell } from './AppShell'
 import { findingFixture } from '../test/fixtures'
 import { chatJobFixture } from './useSessionChat.testSupport'
 import { cleanupControllerTest, getTauriMock, setupControllerTest, renderWithControllerStartup, useAppController } from './useAppController.testHarness'
+
+vi.mock('../editor/RichTextEditor', () => import('../test/askAiRichEditorMock'))
 
 const api = getTauriMock()
 let controller: ReturnType<typeof useAppController>
@@ -14,14 +16,15 @@ beforeEach(() => { setupControllerTest(); api.listFindings.mockResolvedValue([fi
 afterEach(cleanupControllerTest)
 async function setup() {
   await renderWithControllerStartup(() => render(<Subject />))
-  fireEvent.click(screen.getByRole('tab', { name: /Findings/ }))
-  fireEvent.click(await screen.findByRole('button', { name: 'Ask AI' }))
+  await act(async () => fireEvent.click(screen.getByRole('tab', { name: /Findings/ })))
+  const askAiButton = await screen.findByRole('button', { name: 'Ask AI' })
+  await act(async () => fireEvent.click(askAiButton))
   const panel = within(await screen.findByRole('complementary', { name: 'Ask AI' }))
   const input = await panel.findByRole('textbox', { name: 'Message' })
   await waitFor(() => expect(input).toBeEnabled())
   fireEvent.change(input, { target: { value: 'A saved input' } })
   act(() => controller.conversations.observeJob(chatJobFixture({ chat: { reference: controller.askAi.reference! } })))
-  fireEvent.click(panel.getByRole('button', { name: 'Close Ask AI' }))
+  await act(async () => fireEvent.click(panel.getByRole('button', { name: 'Close Ask AI' })))
   const recover = await screen.findByRole('button', { name: 'Recover Ask AI · A source' })
   const sort = screen.getByRole('combobox', { name: 'Sort' })
   const search = screen.getByRole('textbox', { name: 'Search Issues and risks' })
@@ -29,19 +32,19 @@ async function setup() {
   fireEvent.change(sort, { target: { value: 'title' } })
   fireEvent.change(search, { target: { value: 'B source' } })
   fireEvent.change(type, { target: { value: 'risk' } })
-  fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+  await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Edit' })))
   const title = screen.getByRole('textbox', { name: 'Finding title' })
   fireEvent.change(title, { target: { value: 'B unsaved title' } })
   return { recover, sort, search, type, title }
 }
 async function requestA(recover: HTMLElement) {
-  fireEvent.click(recover)
+  await act(async () => fireEvent.click(recover))
   return screen.findByRole('dialog', { name: /Save before leaving/ })
 }
 it('exact unfinished recovery protects the prior editor on Keep editing and failed Save before exact filtered reveal', async () => {
   const { recover, sort, search, type, title } = await setup()
   const first = await requestA(recover)
-  fireEvent.click(within(first).getByRole('button', { name: 'Keep editing' }))
+  await act(async () => fireEvent.click(within(first).getByRole('button', { name: 'Keep editing' })))
   expect(title).toBeVisible()
   expect(title).toHaveValue('B unsaved title')
   expect(search).toBeVisible()
@@ -51,15 +54,17 @@ it('exact unfinished recovery protects the prior editor on Keep editing and fail
   expect(screen.queryByRole('complementary', { name: 'Ask AI' })).not.toBeInTheDocument()
   api.updateFinding.mockRejectedValueOnce(new Error('Synthetic failed Save'))
   const second = await requestA(recover)
-  fireEvent.click(within(second).getByRole('button', { name: 'Save and continue' }))
+  await act(async () => fireEvent.click(within(second).getByRole('button', { name: 'Save and continue' })))
   await waitFor(() => expect(api.updateFinding).toHaveBeenCalledOnce())
+  expect(api.updateFinding.mock.calls[0]?.[0]).toBe('finding-2')
+  expect(api.updateFinding.mock.calls[0]?.[1]).toMatchObject({ title: 'B unsaved title', body: '<p>Payment submission returns a server error.</p>' })
   expect(title).toBeVisible()
   expect(title).toHaveValue('B unsaved title')
   expect(search).toBeVisible()
   expect(search).toHaveValue('B source')
   expect(type).toBeVisible()
   expect(type).toHaveValue('risk')
-  fireEvent.click(within(second).getByRole('button', { name: 'Discard changes' }))
+  await act(async () => fireEvent.click(within(second).getByRole('button', { name: 'Discard changes' })))
   const panel = within(await screen.findByRole('complementary', { name: 'Ask AI' }))
   const input = await panel.findByRole('textbox', { name: 'Message' })
   expect(input).toHaveValue('A saved input')
@@ -76,23 +81,24 @@ it('exact unfinished recovery protects the prior editor on Keep editing and fail
 
 it('Recovery on the current source keeps unsaved edits and non-excluding filters without asking to Save', async () => {
   await renderWithControllerStartup(() => render(<Subject />))
-  fireEvent.click(screen.getByRole('tab', { name: /Findings/ }))
-  fireEvent.click(await screen.findByRole('button', { name: 'Ask AI' }))
+  await act(async () => fireEvent.click(screen.getByRole('tab', { name: /Findings/ })))
+  const askAiButton = await screen.findByRole('button', { name: 'Ask AI' })
+  await act(async () => fireEvent.click(askAiButton))
   const panel = within(await screen.findByRole('complementary', { name: 'Ask AI' }))
   const input = await panel.findByRole('textbox', { name: 'Message' })
   await waitFor(() => expect(input).toBeEnabled())
   fireEvent.change(input, { target: { value: 'Return to this exact conversation' } })
   act(() => controller.conversations.observeJob(chatJobFixture({ chat: { reference: controller.askAi.reference! } })))
-  fireEvent.click(panel.getByRole('button', { name: 'Close Ask AI' }))
+  await act(async () => fireEvent.click(panel.getByRole('button', { name: 'Close Ask AI' })))
   const recover = await screen.findByRole('button', { name: 'Recover Ask AI · A source' })
   const search = screen.getByRole('textbox', { name: 'Search Issues and risks' })
   const type = screen.getByRole('combobox', { name: 'Type' })
   fireEvent.change(search, { target: { value: 'A source' } })
   fireEvent.change(type, { target: { value: 'bug' } })
-  fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+  await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Edit' })))
   fireEvent.change(screen.getByRole('textbox', { name: 'Finding title' }), { target: { value: 'A source unsaved' } })
   expect(recover).toHaveAccessibleName('Recover Ask AI · A source unsaved')
-  fireEvent.click(recover)
+  await act(async () => fireEvent.click(recover))
   const continued = await panel.findByRole('textbox', { name: 'Message' })
   expect(continued).toBe(input)
   expect(continued).toHaveValue('Return to this exact conversation')
