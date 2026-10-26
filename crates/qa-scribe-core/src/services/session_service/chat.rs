@@ -79,7 +79,7 @@ impl SessionService {
                 ChatTurnStatus::Running,
             )?;
             super::chat_context::store(tx, &chat.draft_id, &turn_id, &resolved.context)?;
-            super::chat_responses::start(tx, &chat.draft_id, &turn_id, resolved.purpose)?;
+            super::chat_responses::start(tx, &chat.draft_id, &turn_id, resolved.purpose, matches!(chat.owner, ConversationOwner::Record { .. }))?;
             if let Some(answer) = resolved.answer { super::chat_questions::store_answer(tx, &chat.draft_id, &turn_id, &answer)?; }
             tx.execute("INSERT INTO chat_message_images (message_id, attachment_id, ordinal)
                 SELECT m.id, i.attachment_id, i.ordinal FROM chat_composer_images i

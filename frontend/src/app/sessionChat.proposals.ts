@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { getConversation, resolveRefinement, type ChatRef, type StageOrigin, type RefinementAction, type RefinementProposal, type RecordWriteGuard } from '../tauri'
+import { applyRefinement, getConversation, resolveRefinement, type ChatRef, type StageOrigin, type RefinementAction, type RefinementProposal, type RecordWriteGuard } from '../tauri'
 import { parseRichEditorDocument, preserveManagedImageNodes, richEditorDocumentToStoredBody } from '../editor/editorDocument'
 import { sameReference } from './sessionChat.workspaces'
 import { editorKey, editorValue } from './recordWriteGuards'
@@ -15,6 +15,7 @@ export type ProposalControls = {
   applyUnavailable?: string
   errors: Readonly<Record<string, string>>
   pending: ReadonlySet<string>
+  onUpdate?: (proposalId: string, reference?: ChatRef) => Promise<void>
   preparedOnly?: ReadonlySet<string>
   onAction: (proposalId: string, action: RefinementAction, reference?: ChatRef) => Promise<void>
 }
@@ -150,6 +151,69 @@ export function useRefinementController(context: Context) {
     }
   }
 
+  async function onUpdate(id: string, capturedReference?: ChatRef) {
+    if (running.current.has(id)) return
+    running.current.add(id); setPending(new Set(running.current))
+    setErrors(previous => { const next = { ...previous }; delete next[id]; return next })
+    const invocation = live.current
+    const selectionEpoch = invocation.askAi.selectionEpoch.current
+    const current = capturedReference ? invocation.conversations.bind(capturedReference).snapshot().chat : invocation.chat.chat
+    const reference = current ? { sessionId: current.sessionId, draftId: current.draftId } : null
+    let finish: (() => void) | undefined
+    try {
+      const proposal = current?.proposals?.find(item => item.id === id)
+      if (!proposal || !reference || proposal.target.kind === 'session') throw new Error('This proposal is unavailable.')
+      const checked = local(proposal)
+      if (proposal.state.kind !== 'applied' && checked.key !== editorKey(proposal.before)) throw new Error('The editor changed. Your edits are retained. Request a fresh suggestion.')
+      finish = invocation.persistence.coordination.beginRecordOperation()
+      const result = await applyRefinement({ reference, proposalId: id })
+      const saved = result.updated.record
+      const ctx = live.current
+      const coordination = ctx.persistence.coordination
+      const intents = checked.kind === 'finding' ? coordination.findingIntents : coordination.draftIntents
+      const intent = intents.get(saved.id)
+      if (ctx.session.activeSessionIdRef.current === saved.sessionId && intent?.kind !== 'delete'
+        && ((intent?.generation ?? 0) === checked.generation || intent?.kind === 'discard')) {
+        const row = (checked.kind === 'finding' ? ctx.records.findingsRef.current : ctx.records.draftsRef.current).find(item => item.id === saved.id)
+        if (row) {
+          const dirty = checked.kind === 'finding' ? ctx.records.dirtyFindingIdsRef.current : ctx.records.dirtyDraftIdsRef.current
+          const unchanged = !dirty.has(saved.id) || (editorKey(editorValue(row)) === checked.key
+            && (proposal.state.kind !== 'applied' || checked.key === editorKey(proposal.before) || checked.key === editorKey(proposal.after)))
+          coordination.clearStage(checked.kind, saved.id)
+          if (result.updated.kind === 'finding') {
+            ctx.records.savedFindingsRef.current = coordination.replaceRecord(ctx.records.savedFindingsRef.current, result.updated.record)
+            if (unchanged) {
+              ctx.records.dirtyFindingIdsRef.current.delete(saved.id)
+              const next = coordination.replaceRecord(ctx.records.findingsRef.current, result.updated.record)
+              ctx.records.findingsRef.current = next; ctx.records.setFindings(next)
+            }
+          } else {
+            ctx.records.savedDraftsRef.current = coordination.replaceRecord(ctx.records.savedDraftsRef.current, result.updated.record)
+            if (unchanged) {
+              ctx.records.dirtyDraftIdsRef.current.delete(saved.id)
+              const next = coordination.replaceRecord(ctx.records.draftsRef.current, result.updated.record)
+              ctx.records.draftsRef.current = next; ctx.records.setDrafts(next)
+            }
+          }
+          if (unchanged && ctx.askAi.selectionEpoch.current === selectionEpoch) {
+            ctx.askAi.onSelectRecord({ kind: result.updated.kind, recordId: saved.id, title: saved.title, unsaved: false })
+            ctx.openEditor({ sessionId: saved.sessionId, kind: checked.kind === 'finding' ? 'finding' : 'testware', recordId: saved.id, editing: false })
+          }
+          ctx.feedback.setNotice(unchanged ? result.updated.kind === 'finding' ? 'Finding updated' : 'Test case updated' : 'Record updated. Your newer editor changes are still unsaved.')
+        }
+      }
+    } catch (cause) {
+      setErrors(previous => ({ ...previous, [id]: `${formatError(cause)} You can retry Update safely.` }))
+    } finally {
+      finish?.()
+      if (reference) {
+        try { await invocation.conversations.bind(reference).refresh() }
+        catch { setErrors(previous => ({ ...previous, [id]: previous[id] ?? 'Could not refresh the conversation. Reopen it to check the saved result.' })) }
+      }
+      running.current.delete(id); setPending(new Set(running.current))
+    }
+  }
+
   useEffect(() => context.persistence.coordination.subscribeChanges((kind, recordId, reason, origin) => {
     refreshActivity(value => value + 1)
     if (!reason || !origin) return
@@ -166,7 +230,7 @@ export function useRefinementController(context: Context) {
     void kind; void recordId
   }), [context.persistence, context.chat, context.conversations])
   const preparedOnly = new Set((context.chat.chat?.proposals ?? []).filter(item => item.state.kind === 'staged' && item.target.kind !== 'session' && context.persistence.coordination.proposalStages.get(`${item.target.kind === 'finding' ? 'finding' : 'draft'}:${item.target.snapshot.recordId}`)?.id !== (item.state.kind === 'staged' ? item.state.stage.id : undefined)).map(item => item.id))
-  const controls: ProposalControls = { errors, pending, onAction, preparedOnly }
+  const controls: ProposalControls = { errors, pending, onAction, onUpdate, preparedOnly }
   const recordWritesPending = context.persistence.coordination.hasPendingRecordCompensations()
   return { recordWritesPending, proposalControls: controls }
 }

@@ -306,7 +306,7 @@ fn summaries_keep_every_stage_across_notes_and_record_conversations() {
         .unwrap()
         .unwrap();
     let chat = service.finish_chat_turn(ChatFinishRequest { scope: scope(&started.chat), turn_id: started.turn_id,
-        assistant_text: json!({"version":contract.version(),"requestId":contract.request_id(),"markdown":"Review this local refinement.","refinement":{"kind":"finding","title":"Refined finding"}}).to_string(),
+        assistant_text: json!({"version":contract.version(),"requestId":contract.request_id(),"markdown":"Review this local refinement.","outcome":{"kind":"edit","patch":{"kind":"finding","title":"Refined finding"}}}).to_string(),
     }).unwrap();
     assert_eq!(chat.proposals.len(), 1);
     let chat = service

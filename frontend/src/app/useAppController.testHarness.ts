@@ -2,7 +2,7 @@ import { act, cleanup } from '@testing-library/react'
 import { vi } from 'vitest'
 import { draftFixture, entryFixture, findingFixture, providerStatusFixture, sessionFixture, settingsFixture } from '../test/fixtures'
 import { chatFixture } from './useSessionChat.testSupport'
-import type { ChatComposerRequest, ChatState, ChatRef } from '../bindings'
+import type { ChatComposerRequest, ChatState, ChatRef, ApplyRefinementRequest, AppliedRefinement } from '../bindings'
 
 const tauriMock = vi.hoisted(() => ({
   commands: { decideChatPermission: vi.fn() },
@@ -17,7 +17,7 @@ const tauriMock = vi.hoisted(() => ({
   reopenSession: vi.fn(), refreshProviderStatus: vi.fn(), retryAttachmentCleanup: vi.fn(), startAiActionJob: vi.fn(), updateDraft: vi.fn(),
   updateEntry: vi.fn(), updateFinding: vi.fn(), updateSession: vi.fn(), updateSettings: vi.fn(),
   beginRecordChat: vi.fn(), getConversation: vi.fn<(reference: ChatRef) => Promise<ChatState>>(), activateConversation: vi.fn(), listChatHistory: vi.fn(),
-  resolveRefinement: vi.fn(), getChat: vi.fn<(sessionId: string) => Promise<ChatState>>(), saveChatComposer: vi.fn(), startChatJob: vi.fn(), submitChat: vi.fn(), restartChat: vi.fn(),
+  applyRefinement: vi.fn<(request: ApplyRefinementRequest) => Promise<AppliedRefinement>>(), resolveRefinement: vi.fn(), getChat: vi.fn<(sessionId: string) => Promise<ChatState>>(), saveChatComposer: vi.fn(), startChatJob: vi.fn(), submitChat: vi.fn(), restartChat: vi.fn(),
   importChatImage: vi.fn(), readChatClipboardImageDataUrl: vi.fn(),
   EDITOR_HTML_TAGS: ['a', 'b', 'br', 'em', 'h2', 'h3', 'i', 'img', 'input', 'li', 'ol', 'p', 'strong', 'ul'],
   SELF_CLOSING_EDITOR_HTML_TAGS: ['br', 'img', 'input'],
@@ -117,6 +117,7 @@ export function setupControllerTest() {
     if (previous) rows.set(saved.draftId, saved)
     return saved
   })
+  tauriMock.applyRefinement.mockReset()
   tauriMock.resolveRefinement.mockReset()
   tauriMock.startChatJob.mockReset()
   tauriMock.submitChat.mockReset()

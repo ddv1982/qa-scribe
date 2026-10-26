@@ -28,6 +28,7 @@ export const commands = {
 	activateConversation: (reference: ChatRef) => __TAURI_INVOKE<ChatState>("activate_conversation", { reference }),
 	listChatHistory: (scope: ChatHistoryScope) => __TAURI_INVOKE<ChatHistoryEntry[]>("list_chat_history", { scope }),
 	resolveRefinement: (request: RefinementRequest) => __TAURI_INVOKE<ChatState>("resolve_refinement", { request }),
+	applyRefinement: (request: ApplyRefinementRequest) => __TAURI_INVOKE<AppliedRefinement>("apply_refinement", { request }),
 	saveChatComposer: (request: ChatComposerRequest) => __TAURI_INVOKE<ChatState>("save_chat_composer", { request }),
 	importChatImage: (scope: ChatRevision, filename: string, dataUrl: string) => __TAURI_INVOKE<ChatState>("import_chat_image", { scope, filename, dataUrl }),
 	restartChat: (request: ChatRestartRequest) => __TAURI_INVOKE<ChatState>("restart_chat", { request }),
@@ -114,6 +115,16 @@ export type AppSettings = {
 	testwareTemplate?: string,
 	findingTemplate?: string,
 	noteSummaryTemplate?: string,
+};
+
+export type AppliedRefinement = {
+	chat: ChatState,
+	updated: RefinedRecord,
+};
+
+export type ApplyRefinementRequest = {
+	reference: ChatRef,
+	proposalId: string,
 };
 
 export type Attachment = {
@@ -722,6 +733,8 @@ export type RecordWriteOrigin = { kind: "editor" } | { kind: "proposal"; stageId
 
 export type RecordWriteOutcome<T> = { kind: "saved"; record: T } | { kind: "conflict"; current: T };
 
+export type RefinedRecord = { kind: "finding"; record: Finding } | { kind: "test_cases_draft"; record: Draft };
+
 export type RefinementAction = "stage" | "dismiss" | "undo" | "discard" | "abandon";
 
 export type RefinementEditorValue = {
@@ -753,7 +766,7 @@ export type RefinementRequest = {
 	action: RefinementAction,
 };
 
-export type RefinementState = { kind: "offered" } | { kind: "staged"; stage: EditorStage } | { kind: "saved"; stage: EditorStage } | { kind: "dismissed" } | { kind: "undone"; stage: EditorStage } | { kind: "reverted"; stage: EditorStage } | { kind: "abandoned"; stage: EditorStage };
+export type RefinementState = { kind: "offered" } | { kind: "applied" } | { kind: "staged"; stage: EditorStage } | { kind: "saved"; stage: EditorStage } | { kind: "dismissed" } | { kind: "undone"; stage: EditorStage } | { kind: "reverted"; stage: EditorStage } | { kind: "abandoned"; stage: EditorStage };
 
 export type ReportedModel = { source: "claudeInitialization"; id: string } | { source: "claudeAssistantMessage"; id: string } | { source: "codexThreadConfiguration"; id: string };
 

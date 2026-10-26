@@ -23,6 +23,7 @@ pub(super) fn start(
     draft: &str,
     turn: &str,
     purpose: ChatResponsePurpose,
+    record_owned: bool,
 ) -> Result<()> {
     let id: String = connection.query_row(
         "SELECT id FROM chat_messages WHERE draft_id=?1 AND turn_id=?2 AND role='user'",
@@ -30,7 +31,11 @@ pub(super) fn start(
         |r| r.get(0),
     )?;
     let contract = ChatResponseContract::Current(ChatResponseContractV2 {
-        version: 2,
+        version: if record_owned && matches!(purpose, ChatResponsePurpose::Refinement { .. }) {
+            3
+        } else {
+            2
+        },
         request_id: id.clone(),
         purpose,
     });
@@ -75,7 +80,9 @@ pub(super) fn completed(
                         .map(str::to_owned)
                 })
                 .unwrap_or_else(|| raw.to_owned());
-            let warning = if matches!(purpose, ChatResponsePurpose::Refinement { .. }) {
+            let warning = if contract.version() == 3 {
+                "The AI reply could not be processed. No changes were applied from this reply. Try again."
+            } else if matches!(purpose, ChatResponsePurpose::Refinement { .. }) {
                 "No editable proposal was created. The response is retained as text without interactive controls."
             } else {
                 "This response is retained as text without interactive choices."

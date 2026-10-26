@@ -397,3 +397,12 @@ pub fn resolve_refinement(
 
 #[cfg(test)]
 mod record_assistance_tests;
+
+#[tauri::command]
+#[specta::specta]
+pub fn apply_refinement(
+    state: State<'_, AppState>,
+    request: ApplyRefinementRequest,
+) -> Result<AppliedRefinement, CommandError> {
+    state.with_service(|service| service.apply_refinement(request))
+}

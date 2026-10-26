@@ -3,7 +3,7 @@ use qa_scribe_core::ai::{GenerationOutputFormat, ProviderGenerationOutput};
 use serde_json::json;
 
 #[test]
-fn ordinary_record_assistance_crosses_preparation_and_completion_with_optional_patch() {
+fn ordinary_record_assistance_crosses_preparation_and_completion_with_tagged_outcomes() {
     for test_cases in [false, true] {
         for with_patch in [false, true] {
             let (service, notes, _, mut request) = conversation_ownership_tests::fixture();
@@ -46,19 +46,21 @@ fn ordinary_record_assistance_crosses_preparation_and_completion_with_optional_p
                 snapshot.record_kind = "testware".into();
                 request.context = ChatTarget::TestCasesDraft { snapshot };
             }
+            let findings_before = service.list_findings(&notes.session_id).unwrap();
+            let drafts_before = service.list_drafts(&notes.session_id).unwrap();
             let prepared =
                 lifecycle::prepare_with_images(&service, &request, &std::env::temp_dir()).unwrap();
             assert!(
                 prepared
                     .input
                     .text()
-                    .contains("A question or tool request does not require a patch")
+                    .contains("For requested improvements or edits, use outcome kind edit")
             );
             let user = &prepared.started.chat.messages[0];
             let patch = with_patch.then(|| json!({"kind":if test_cases {"test_cases_draft"} else {"finding"},"title":"Literal suggested title"}));
             let completed = lifecycle::finish(&service, &prepared, ProviderGenerationOutput {
                 model_report: None, exit_success: Some(true), stdout: vec![], stderr: vec![],
-                assistant_text: Some(json!({"version":2,"requestId":user.id,"markdown":"Literal ordinary answer","refinement":patch}).to_string()),
+                assistant_text: Some(json!({"version":3,"requestId":user.id,"markdown":"Literal ordinary answer","outcome":if with_patch {json!({"kind":"edit","patch":patch})} else {json!({"kind":"answer"})}}).to_string()),
                 output_format: GenerationOutputFormat::PlainText, cancelled: false,
             }).unwrap();
             assert_eq!(
@@ -72,6 +74,25 @@ fn ordinary_record_assistance_crosses_preparation_and_completion_with_optional_p
                     "Literal suggested title"
                 );
             }
+            assert!(
+                completed
+                    .messages
+                    .last()
+                    .unwrap()
+                    .response
+                    .as_ref()
+                    .unwrap()
+                    .warning
+                    .is_none()
+            );
+            assert_eq!(
+                service.list_findings(&notes.session_id).unwrap(),
+                findings_before
+            );
+            assert_eq!(
+                service.list_drafts(&notes.session_id).unwrap(),
+                drafts_before
+            );
             assert_eq!(service.load_chat(&notes.session_id).unwrap(), notes);
         }
     }

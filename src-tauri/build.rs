@@ -44,6 +44,7 @@ fn main() {
         "activate_conversation",
         "list_chat_history",
         "resolve_refinement",
+        "apply_refinement",
         "save_chat_composer",
         "import_chat_image",
         "restart_chat",

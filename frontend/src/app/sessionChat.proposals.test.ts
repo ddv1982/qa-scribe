@@ -3,7 +3,7 @@ import { createElement } from 'react'
 import { AppChat } from './AppChat'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it } from 'vitest'
-import type { BeginRecordChatRequest, ChatRef, ChatState } from '../bindings'
+import type { AppliedRefinement, ApplyRefinementRequest, BeginRecordChatRequest, ChatRef, ChatState } from '../bindings'
 import { findingFixture } from '../test/fixtures'
 import { editorValue, RecordWriteConflict } from './recordWriteGuards'
 import { chatFixture } from './useSessionChat.testSupport'
@@ -193,8 +193,8 @@ it.each(['held', 'rejected'] as const)('visible Notes dismisses its rendered pro
 })
 
 
-it.each(['finding', 'test_cases_draft'] as const)('rendered %s Apply keeps its exact reference when the engine selection differs', async kind => {
-  const { result, record, proposal, setConversation, readConversation } = await open(kind)
+it.each(['finding', 'test_cases_draft'] as const)('rendered %s Update keeps its exact reference when the engine selection differs', async kind => {
+  const { result, record, proposal, after, setConversation, readConversation } = await open(kind)
   const message = { id: proposal.assistantMessageId, turnId: 'record-turn', role: 'assistant' as const, text: 'A record suggestion.', images: [], status: 'completed' as const, errorMessage: null, aiRunId: null, createdAt: 'saved' }
   api.beginRecordChat.mockImplementation(async (request: BeginRecordChatRequest) => {
     const row = chatFixture({ ...request, owner: { kind: 'record', sessionId: request.sessionId, record: request.record }, mode: 'chat', proposals: [proposal], messages: [message] })
@@ -203,17 +203,24 @@ it.each(['finding', 'test_cases_draft'] as const)('rendered %s Apply keeps its e
   })
   await act(async () => { await result.current.askAi.onAskAi({ kind, recordId: record.id, title: record.title, unsaved: false }) })
   const reference = result.current.askAi.reference!
+  api.applyRefinement.mockImplementation(async (request: ApplyRefinementRequest): Promise<AppliedRefinement> => {
+    const chat = { ...readConversation(request.reference.draftId), proposals: [{ ...proposal, state: { kind: 'applied' as const } }] }
+    setConversation(chat)
+    const saved = { ...record, title: after.title }
+    return { chat, updated: kind === 'finding' ? { kind, record: saved as import('../bindings').Finding } : { kind, record: saved as import('../bindings').Draft } }
+  })
   await act(async () => { await result.current.conversations.select({ sessionId: record.sessionId, draftId: 'chat-session-1' }) })
   const view = () => createElement(AppChat, { c: result.current, modelSelectionControl: null, onConfigureAi: () => {} })
   const rendered = render(view())
   const panel = within(screen.getByRole('complementary', { name: 'Ask AI' }))
-  fireEvent.click(panel.getByRole('button', { name: 'Apply to editor' }))
+  fireEvent.click(panel.getByRole('button', { name: kind === 'finding' ? 'Update finding' : 'Update test case' }))
   await waitFor(() => expect((kind === 'finding' ? result.current.findings : result.current.testwareDrafts)[0].title).toBe('Refined title'))
   rendered.rerender(view())
-  expect(panel.queryByRole('button', { name: 'Apply to editor' })).not.toBeInTheDocument()
-  expect(readConversation(reference.draftId).proposals?.[0].state.kind).toBe('staged')
+  expect(panel.queryByRole('button', { name: kind === 'finding' ? 'Update finding' : 'Update test case' })).not.toBeInTheDocument()
+  expect(readConversation(reference.draftId).proposals?.[0].state.kind).toBe('applied')
   expect(readConversation('chat-session-1').proposals?.[0].state.kind).toBe('offered')
   expect(result.current.proposalControls.errors[proposal.id]).toBeUndefined()
+  expect(api.applyRefinement).toHaveBeenCalledWith({ reference, proposalId: proposal.id })
   expect(api.updateFinding).not.toHaveBeenCalled()
   expect(api.updateDraft).not.toHaveBeenCalled()
 })

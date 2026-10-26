@@ -1,6 +1,6 @@
 import { Channel } from '@tauri-apps/api/core'
 import { RecordWriteConflict } from './app/recordWriteGuards'
-import type { RecordWriteGuard, RefinementRequest } from './bindings'
+import type { RecordWriteGuard, RefinementRequest, ApplyRefinementRequest, AppliedRefinement } from './bindings'
 
 import {
   commands,
@@ -293,4 +293,8 @@ export function readNoteSource(sessionId: string, noteId: string) {
 
 export function resolveRefinement(request: RefinementRequest): Promise<ChatState> {
   return commands.resolveRefinement(request)
+}
+
+export function applyRefinement(request: ApplyRefinementRequest): Promise<AppliedRefinement> {
+  return commands.applyRefinement(request)
 }

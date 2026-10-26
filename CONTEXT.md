@@ -87,7 +87,7 @@ The action that opens a fresh conversation beside a saved Finding or Test cases 
 Notes chat and record Ask AI use separate conversations, input, images, and tool decisions. Close persists input before hiding, and keeps the panel visible if persistence fails. The provider and model preference applies globally to the next invocation through Notes and Settings. Only Notes chat can be added to the Session Note.
 
 **Refinement proposal**:
-A suggested local change reviewed before applying it to the record editor. Applying leaves the record unsaved. Ordinary Save persists the reviewed edit.
+A suggested change reviewed in Ask AI. Update finding or Update test case saves the proposal and its completion in one transaction. It rejects a changed saved record, and retrying the same proposal never writes it twice. Legacy Notes suggestions can still be applied to the editor and saved normally.
 
 **Jira conversation draft**:
 Jira content and follow-up answers in AI chat. The configured coding agent handles Jira tools and actions. This is separate from the clipboard-only Jira Bug Draft and does not introduce a stored Draft kind.

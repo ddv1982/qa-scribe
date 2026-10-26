@@ -55,13 +55,13 @@ it('hides refinement protocol output before the started chat snapshot is hydrate
   expect(screen.queryByText(/internal-contract|requestId/)).not.toBeInTheDocument()
 })
 
-it('shows every record patch field and Apply without a second review step', () => {
+it('shows every record patch field and Update without a second review step', () => {
   const item = proposal()
   item.after = { ...item.after, metadataJson: '{"severity":"high","status":"resolved","component":"Checkout","reference":"DEMO-9"}' }
   render(<ChatProposalReview presentation="record" proposal={item} controls={{ pending: new Set(), errors: {}, onAction: vi.fn(async () => {}) }} />)
   expect(screen.getByText('Suggested title')).toBeInTheDocument()
   expect(screen.getByLabelText('Suggested finding field changes')).toHaveTextContent('SeverityLow severity to High severityStatusOpen to ResolvedComponentNot set to CheckoutReferenceNot set to DEMO-9')
-  expect(screen.getByRole('button', { name: 'Apply to editor' })).toBeEnabled()
+  expect(screen.getByRole('button', { name: 'Update finding' })).toBeEnabled()
   expect(screen.queryByRole('button', { name: 'Review refinement' })).not.toBeInTheDocument()
   expect(screen.queryByLabelText('Before refinement')).not.toBeInTheDocument()
 })

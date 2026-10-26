@@ -171,7 +171,7 @@ impl Fixture {
             .unwrap()
             .unwrap();
         let completed = self.service.finish_chat_turn(ChatFinishRequest { scope: scope(&started.chat), turn_id: started.turn_id,
-            assistant_text: json!({"version":contract.version(),"requestId":contract.request_id(),"markdown":"Review this refinement.","refinement":{"kind":kind.patch_kind(),"title":"Refined title"}}).to_string(),
+            assistant_text: json!({"version":contract.version(),"requestId":contract.request_id(),"markdown":"Review this refinement.","outcome":{"kind":"edit","patch":{"kind":kind.patch_kind(),"title":"Refined title"}}}).to_string(),
         }).unwrap();
         assert_eq!(completed.proposals.len(), 1);
         assert_eq!(completed.proposals[0].state, RefinementState::Offered);

@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest'
 import { createElement } from 'react'
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it } from 'vitest'
 import { AppChat } from './AppChat'
 import type { ChatState, DraftPatch, FindingPatch, RecordWriteGuard, RefinementProposal } from '../bindings'
@@ -50,10 +50,9 @@ it.each(['finding', 'test_cases_draft'] as const)('%s delayed Save settles A whi
   await select(bRef, b)
   const view = () => createElement(AppChat, { c: result.current, modelSelectionControl: null, onConfigureAi: () => {} })
   const rendered = render(view())
-  const panel = within(screen.getByRole('complementary', { name: 'Ask AI' }))
   expect(result.current.askAi.reference).toEqual(bRef)
   expect(result.current.recordChat.chat?.owner).toEqual({ kind: 'record', sessionId: b.sessionId, record: { kind, recordId: b.id } })
-  fireEvent.click(panel.getByRole('button', { name: 'Apply to editor' }))
+  await act(async () => { await result.current.proposalControls.onAction(proposal.id, 'stage', bRef) })
   await waitFor(() => expect(readConversation(bRef.draftId).proposals![0].state.kind).toBe('staged'))
   expect(result.current.proposalControls.errors[proposal.id]).toBeUndefined()
   expect(result.current.sessionChat.proposalControls!.preparedOnly?.has(proposal.id)).toBe(false)

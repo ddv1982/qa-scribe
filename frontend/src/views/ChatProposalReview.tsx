@@ -14,14 +14,15 @@ export function ChatProposalReview({ proposal, controls, presentation = 'notes' 
   const pending = controls?.pending.has(proposal.id) ?? false
   const error = controls?.errors[proposal.id]
   if (presentation === 'record') {
-    if (!['offered', 'staged'].includes(status) && !error) return null
+    if (status === 'applied' && !error) return <p role="status">{proposal.target.kind === 'finding' ? 'Finding updated' : 'Test case updated'}</p>
+    if (!['offered', 'staged', 'applied'].includes(status) && !error) return null
     const prepared = controls?.preparedOnly?.has(proposal.id)
     return <section className="chat-proposal chat-proposal--record" aria-label={`Suggested changes for ${proposal.before.title}`}>
       {proposal.before.title !== proposal.after.title ? <><h3>Title</h3><p>{proposal.after.title}</p></> : null}
       {proposal.before.documentJson !== proposal.after.documentJson && after ? <RichTextEditor value={after} readOnly ariaLabel="Suggested content" /> : null}
       {proposal.target.kind === 'finding' ? <FindingMetadataChanges proposal={proposal} /> : null}
-      {controls && (status === 'offered' || prepared) ? <div className="chat-buttons">
-        <ActionButton variant="secondary" disabled={pending || Boolean(controls.applyUnavailable)} onClick={() => void controls.onAction(proposal.id, 'stage')}>Apply to editor</ActionButton>
+      {controls && (status === 'offered' || status === 'applied' || prepared) ? <div className="chat-buttons">
+        <ActionButton variant="secondary" disabled={pending || Boolean(controls.applyUnavailable)} onClick={() => void controls.onUpdate?.(proposal.id)}>{proposal.target.kind === 'finding' ? 'Update finding' : 'Update test case'}</ActionButton>
         {prepared ? <ActionButton variant="secondary" disabled={pending} onClick={() => void controls.onAction(proposal.id, 'abandon')}>Keep current edits</ActionButton> : null}
       </div> : null}
       {controls?.applyUnavailable ? <p className="chat-help">{controls.applyUnavailable}</p> : null}

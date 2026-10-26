@@ -70,6 +70,7 @@ pub fn builder() -> Builder<tauri::Wry> {
             commands::chat::activate_conversation,
             commands::chat::list_chat_history,
             commands::chat::resolve_refinement,
+            commands::chat::apply_refinement,
             commands::chat::save_chat_composer::<tauri::Wry>,
             commands::chat::import_chat_image,
             commands::chat::restart_chat,
