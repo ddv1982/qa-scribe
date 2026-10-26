@@ -64,17 +64,17 @@ Claude and Codex Chat use a fresh temporary directory each turn. Copilot Chat us
 
 ## Ask AI from a Finding or test case
 
-Select a saved Finding or test case and choose **Ask AI** beside Copy and Edit. Manual and generated records use the same AI chat. Closing or expanding the panel keeps its composer, images, conversation, and running response. A narrow window gives chat the available content area.
+Select a saved Finding or test case and choose **Ask AI** beside Copy and Edit. Manual and generated records use the same chat engine in a separate conversation for that record. Clicking Ask AI while it is open focuses the current Message. Closing and reopening a settled panel starts a fresh conversation; unfinished work remains recoverable from its original conversation.
 
-The context card identifies the record for the next message and whether it has unsaved edits. Sending captures that content without saving it. Earlier messages retain their original snapshots when you edit or switch records. **Detach record context** changes future messages only. Note chat uses Session Context rather than automatically attaching the record, the full Note, or other records.
+Sending includes the record's current content, including unsaved edits, without saving it. Notes chat has its own messages, input, images, and tool decisions. Record conversations cannot be added to the Session Note.
 
-Paste or choose screenshots in **Message** using the existing image controls. To ask about a screenshot, attach it to Message even if it already appears in the record. Record screenshots remain preserved during local refinement. They are not automatically sent as chat images or uploaded to Jira.
+Paste or choose screenshots in **Message** using the existing image controls. Attach a screenshot to Message to ask about it, even if it already appears in the record. Updating a record preserves its existing screenshots. They are not automatically sent as chat images or uploaded to Jira.
 
-To request an editable suggestion, describe the change and choose **Refine record**. Open **Review refinement** to compare the title, body, and any finding-field changes. **Apply to editor** changes the local record. Use its ordinary **Save** control to persist the changes, or **Undo refinement** to restore the previous content while it is still eligible. Dismiss an unapplied proposal to keep the record unchanged.
+Describe an improvement and choose **Send**. The reply shows suggested title, content, and finding-field changes. **Update finding** or **Update test case** saves the reviewed change in one action and confirms completion. Ordinary questions and tool requests continue as chat without requiring an edit.
 
-If the editor or saved record changes during refinement, QA Scribe keeps the newer content and explains why it cannot apply or save the old suggestion. Review the current record before requesting another proposal. Resolve applied changes with Save, Undo, or Discard before adding the conversation to Note or starting a new conversation. After a restart, review a recovered suggestion before applying it again.
+If the saved record changed, request a fresh suggestion. Newer edits made while Update is in progress remain in the editor. Retrying the same proposal after a failed response is safe: an already completed update is read back rather than written again. Legacy Notes suggestions retain their existing Apply, Save, and Undo controls.
 
-Record context is limited to 32 KiB per snapshot and 128 KiB across the conversation. An oversized request retains your composer and record edits. Shorten the record, detach its context, or start a new conversation as the error directs.
+Record context is limited to 32 KiB per snapshot and 128 KiB across a conversation. An oversized request retains Message and the record edits. Shorten the record or start a fresh conversation as the error directs.
 
 ## Draft Jira work in chat
 

@@ -131,11 +131,13 @@ describe('Minimal Ask AI in the built native application', () => {
       await click('.record-detail-pane button=Edit')
       const localTitle = `${record.title} draft`
       await fill(`[aria-label="${kind === 'finding' ? 'Finding' : 'Test case'} title"]`, localTitle)
+      if (kind === 'finding') await $('.finding-classification-fields select').selectByAttribute('value', 'risk')
       await ask(); await pasteImage()
       const before = await stored(kind, record.id)
       const turn = await start('Improve the expected result with this evidence.')
       assert.equal(turn.payload.messages.at(-1).context.snapshot.recordId, record.id)
       assert.equal(turn.payload.messages.at(-1).context.snapshot.origin, 'unsaved_editor')
+      assert.equal(turn.payload.messages.at(-1).context.snapshot.recordKind, kind === 'finding' ? 'risk' : 'testware')
       assert.equal(turn.payload.messages.at(-1).context.snapshot.title, localTitle)
       assert.equal(turn.payload.messages.at(-1).images.length, 1)
       await finish(turn)
@@ -160,6 +162,7 @@ describe('Minimal Ask AI in the built native application', () => {
       await close()
       const saved = await stored(kind, record.id)
       assert.equal(saved.id, record.id); assert.equal(saved.title, `${localTitle} refined`)
+      assert.equal(saved.kind, kind === 'finding' ? 'risk' : 'testware')
       assert.deepEqual(JSON.parse(saved.bodyJson), { schemaVersion: 1, doc: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'The application keeps the payment error visible after Retry.' }] }] } })
       if (kind === 'finding') assert.deepEqual(JSON.parse(saved.metadataJson), { ...JSON.parse(before.metadataJson ?? '{}'), severity: 'high', status: 'resolved', component: 'Checkout', reference: 'DEMO-184' })
       outcomes.push(saved); entry.record = saved

@@ -174,7 +174,7 @@ fn title_only_update_preserves_the_stored_rich_body_exactly() {
 }
 
 #[test]
-fn title_only_update_includes_unsaved_editor_content_in_the_saved_record() {
+fn title_only_update_includes_unsaved_editor_content_and_user_selected_finding_kind() {
     for test_cases in [false, true] {
         let (service, finding, _, start) = begin(test_cases, "Improve the title", true);
         let kind = if test_cases {
@@ -189,6 +189,7 @@ fn title_only_update_includes_unsaved_editor_content_in_the_saved_record() {
         );
         service.apply_refinement(update_request(&chat)).unwrap();
         let saved = stored_record(&service, &finding, test_cases);
+        assert_eq!(saved["kind"], if test_cases { "testware" } else { "risk" });
         assert_eq!(saved["bodyJson"], chat.proposals[0].after.document_json);
         assert!(saved["body"].as_str().unwrap().contains("Before body"));
         assert!(

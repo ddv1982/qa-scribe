@@ -30,7 +30,11 @@ pub(super) fn begin(
     }
     if unsaved {
         match &mut context {
-            ChatTarget::Finding { snapshot } | ChatTarget::TestCasesDraft { snapshot } => {
+            ChatTarget::Finding { snapshot } => {
+                snapshot.origin = RecordSnapshotOrigin::UnsavedEditor;
+                snapshot.record_kind = "risk".into();
+            }
+            ChatTarget::TestCasesDraft { snapshot } => {
                 snapshot.origin = RecordSnapshotOrigin::UnsavedEditor
             }
             ChatTarget::Session => unreachable!(),
