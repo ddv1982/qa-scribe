@@ -52,7 +52,7 @@ function RecordConversation({ c, common }: {
   }, [c.askAi.visible, c.askAi.focusRequest, state.chat?.draftId, reference])
   const source = c.askAi.source!
   const controls = handle ? { ...c.proposalControls, applyUnavailable: source.kind === 'available' ? undefined : 'The original source must be available before Update.',
-    onUpdate: (id: string) => c.proposalControls.onUpdate!(id, reference!),
+    onUpdate: (id: string) => c.proposalControls.onUpdate?.(id, reference!) ?? Promise.resolve(),
     onAction: (id: string, action: import('../bindings').RefinementAction) => c.proposalControls.onAction(id, action, reference!) } : undefined
   return <aside ref={ref} className="ask-ai-panel ask-ai-panel--record" hidden={!c.askAi.visible} inert={!c.askAi.visible} aria-label="Ask AI">
     <header className="ask-ai-header"><h2>Ask AI</h2>

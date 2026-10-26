@@ -26,12 +26,13 @@ export function createDraftRecordActions(
 
   function updateLocalDraft(id: string, patch: RichRecordPatch) {
     if (intents.get(id)?.kind === 'delete') return
-    coordination.recordLocalEdit('draft', id)
     ctx.registerRecordEditIntent()
     ctx.records.dirtyDraftIdsRef.current.add(id)
-    const next = ctx.records.draftsRef.current.map(record => record.id === id ? { ...record, ...patch } : record)
-    ctx.records.draftsRef.current = next
-    ctx.records.setDrafts(next)
+    ctx.records.setDrafts((previous) => {
+      const nextDrafts = previous.map((draft) => (draft.id === id ? { ...draft, ...patch } : draft))
+      ctx.records.draftsRef.current = nextDrafts
+      return nextDrafts
+    })
   }
 
   function discardLocalDraft(original: Draft) {

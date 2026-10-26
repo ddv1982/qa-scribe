@@ -42,6 +42,7 @@ permissions = [
   "allow-activate-conversation",
   "allow-list-chat-history",
   "allow-resolve-refinement",
+  "allow-apply-refinement",
   "allow-save-chat-composer",
   "allow-import-chat-image",
   "allow-restart-chat",

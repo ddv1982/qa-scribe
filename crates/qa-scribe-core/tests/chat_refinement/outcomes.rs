@@ -1,8 +1,9 @@
 use super::*;
 
-fn begin(
+pub(super) fn begin(
     test_cases: bool,
     composer: &str,
+    unsaved: bool,
 ) -> (SessionService, Finding, Option<Draft>, ChatTurnStarted) {
     let (service, finding) = setup();
     let draft = test_cases.then(|| {
@@ -26,6 +27,14 @@ fn begin(
         snapshot.record_kind = "testware".into();
         snapshot.metadata_json = draft.metadata_json.clone();
         context = ChatTarget::TestCasesDraft { snapshot };
+    }
+    if unsaved {
+        match &mut context {
+            ChatTarget::Finding { snapshot } | ChatTarget::TestCasesDraft { snapshot } => {
+                snapshot.origin = RecordSnapshotOrigin::UnsavedEditor
+            }
+            ChatTarget::Session => unreachable!(),
+        }
     }
     let chat = service
         .begin_record_chat(BeginRecordChatRequest {
@@ -63,7 +72,7 @@ fn begin(
     (service, finding, draft, start)
 }
 
-fn finish(
+pub(super) fn finish(
     service: &SessionService,
     start: ChatTurnStarted,
     outcome: serde_json::Value,
@@ -83,7 +92,8 @@ fn finish(
 fn record_outcomes_validate_edits_answers_and_clarifications_for_both_kinds() {
     for test_cases in [false, true] {
         for mode in ["edit", "answer", "clarification"] {
-            let (service, finding, draft, start) = begin(test_cases, "Improve the expected result");
+            let (service, finding, draft, start) =
+                begin(test_cases, "Improve the expected result", false);
             let kind = if test_cases {
                 "test_cases_draft"
             } else {
@@ -160,7 +170,8 @@ fn malformed_record_outcomes_preserve_explanation_without_proposal_or_record_wri
             json!({"kind":"clarification","question":{"prompt":"Which?","choices":[]}}),
             json!({"kind":"edit","patch":{"kind":kind,"title":"After"},"question":{"prompt":"Which?","choices":["One"]}}),
         ] {
-            let (service, finding, draft, start) = begin(test_cases, "Improve the expected result");
+            let (service, finding, draft, start) =
+                begin(test_cases, "Improve the expected result", false);
             let chat = finish(&service, start, outcome);
             assert!(chat.proposals.is_empty());
             assert_eq!(chat.messages.last().unwrap().text, "Readable explanation.");
@@ -202,7 +213,7 @@ fn malformed_non_edit_record_outcomes_preserve_explanation_without_controls_or_r
                 json!({"kind":"clarification","question":{"prompt":"Which?","choices":[]}}),
             ),
         ] {
-            let (service, finding, draft, start) = begin(test_cases, composer);
+            let (service, finding, draft, start) = begin(test_cases, composer, false);
             let chat = finish(&service, start, outcome);
             let message = chat.messages.last().unwrap();
             let response = message.response.as_ref().unwrap();
@@ -233,7 +244,7 @@ fn v2_record_contract_remains_readable_with_optional_patch() {
         json!(null),
         json!({"kind":"finding","title":"Legacy title"}),
     ] {
-        let (service, finding, _, start) = begin(false, "Improve the expected result");
+        let (service, finding, _, start) = begin(false, "Improve the expected result", false);
         let id = &start.chat.messages[0].id;
         let db = service.database().connection();
         db.execute_batch("DROP TRIGGER chat_contract_immutable")
@@ -265,7 +276,7 @@ fn v2_record_contract_remains_readable_with_optional_patch() {
 #[test]
 fn record_envelope_rejects_wrong_version_nonce_unknown_fields_blank_markdown_and_missing_outcome() {
     for field in ["version", "requestId", "unknown", "markdown", "outcome"] {
-        let (service, finding, _, start) = begin(false, "Explain the expected result");
+        let (service, finding, _, start) = begin(false, "Explain the expected result", false);
         let mut response = json!({"version":3,"requestId":start.chat.messages[0].id,"markdown":"Readable explanation.","outcome":{"kind":"answer"}});
         match field {
             "version" => response["version"] = json!(2),

@@ -87,7 +87,7 @@ pub(super) fn read(connection: &Connection, draft_id: &str) -> Result<Vec<Refine
         .collect()
 }
 
-fn write(connection: &Connection, proposal: &RefinementProposal) -> Result<()> {
+pub(super) fn write(connection: &Connection, proposal: &RefinementProposal) -> Result<()> {
     connection.execute(
         "UPDATE chat_refinements SET proposal_json=?1 WHERE id=?2",
         params![encode(proposal)?, proposal.id],
@@ -174,6 +174,7 @@ pub(super) fn settle_stage(connection: &Connection, guard: &RecordWriteGuard) ->
 pub(super) fn summary(proposal: &RefinementProposal) -> String {
     let status = match proposal.state {
         RefinementState::Offered => "Not applied",
+        RefinementState::Applied => "Updated record",
         RefinementState::Staged { .. } => "Unsaved local stage",
         RefinementState::Saved { .. } => "Saved through the record editor",
         RefinementState::Dismissed => "Dismissed",

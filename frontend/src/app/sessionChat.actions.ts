@@ -18,8 +18,6 @@ import { createChatImageActions } from './sessionChat.images'
 export function createSessionChatActions(ctx: SessionChatContext) {
   const snapshots = new WeakMap<ChatWorkspace, import('./sessionChat.types').ChatSnapshot>()
   const attentionListeners = new Set<() => void>()
-  let proposalUpdates: (() => readonly import('../bindings').StageOrigin[]) | null = null
-  function proposalUpdatesChanged() { for (const listener of attentionListeners) listener() }
   let selectionRequest = 0
   const listeners = new WeakMap<ChatWorkspace, Set<() => void>>()
   const registry = createChatWorkspaces(ctx, publish, () => { for (const listener of attentionListeners) listener() })
@@ -485,14 +483,9 @@ export function createSessionChatActions(ctx: SessionChatContext) {
   }
   const { snapshot: notesSnapshot, setInput: setNotesInput } = createNotesEntry({ registry, unavailable: id => disposed || ctx.noteRecovery.isRetired(id), snapshot: entry => snapshots.get(entry) ?? emptyChatSnapshot, update: (entry, input) => { if (input.composer !== undefined) onSetComposer(input.composer, entry); if (input.mode !== undefined) setMode(input.mode, entry) } })
   function attention(sessionId: string): ConversationAttention[] {
-    const updates = proposalUpdates?.() ?? []
-    return [...workspaces.values()].filter(entry => entry.sessionId === sessionId && !entry.retired).map(entry => ({ reference: entry.reference, owner: entry.owner, snapshot: snapshots.get(entry) ?? emptyChatSnapshot, unconfirmedUpdates: updates.filter(origin => sameReference(origin.reference, entry.reference)) }))
+    return [...workspaces.values()].filter(entry => entry.sessionId === sessionId && !entry.retired).map(entry => ({ reference: entry.reference, owner: entry.owner, snapshot: snapshots.get(entry) ?? emptyChatSnapshot }))
   }
-  function observeProposalUpdates(source: () => readonly import('../bindings').StageOrigin[]) {
-    proposalUpdates = source; proposalUpdatesChanged()
-    return () => { if (proposalUpdates === source) { proposalUpdates = null; proposalUpdatesChanged() } }
-  }
-  return { bind, select, attention, observeProposalUpdates, proposalUpdatesChanged, notesSnapshot, setNotesInput, subscribeAttention(this: void, listener: () => void) { attentionListeners.add(listener); return () => { attentionListeners.delete(listener) } }, flushInputs: flush, selectionEpoch: registry.epoch, refresh, onRefine, onDraftJira, onAnswerQuestion, onPrepareAction, activate, dispose, observeJob, flush, hasPendingChanges, setMode, retire, recoverSession,
+  return { bind, select, attention, notesSnapshot, setNotesInput, subscribeAttention(this: void, listener: () => void) { attentionListeners.add(listener); return () => { attentionListeners.delete(listener) } }, flushInputs: flush, selectionEpoch: registry.epoch, refresh, onRefine, onDraftJira, onAnswerQuestion, onPrepareAction, activate, dispose, observeJob, flush, hasPendingChanges, setMode, retire, recoverSession,
     onSetComposer, onAttachImages, onPasteNativeImage, onRemoveImage, onRetryImage, onDismissImageFailure, onSend, onRetry, onCancel, onSubmit,
     onRestart, captureRestart, onDecidePermission, onRecheck, isCurrentPermissionScope }
 }

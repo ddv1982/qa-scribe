@@ -45,14 +45,12 @@ export function unfinishedConversations(rows: ChatHistoryEntry[], attention: Con
       lastActiveOrder: 0, preview: '', archived: false, submission: null, hasContent: false, lastTurnStatus: null, unresolvedStages: [] })
   }
   return [...retained.values()].sort((a, b) => b.lastActiveOrder - a.lastActiveOrder).flatMap(row => {
-    const attention = localByReference.get(referenceKey(row.reference))
-    const local = attention?.snapshot
+    const local = localByReference.get(referenceKey(row.reference))?.snapshot
     const fresh = Boolean(local?.chat && local.chat.lastActiveOrder >= row.lastActiveOrder)
     const stages = fresh ? stageOrigins(row.reference, local!) : [...new Map([
       ...row.unresolvedStages, ...(local ? stageOrigins(row.reference, local) : []),
     ].map(origin => [origin.stageId, origin])).values()]
     const reasons = local ? attentionReasons(local) : []
-    if (attention?.unconfirmedUpdates?.length) reasons.push('Update confirmation required')
     if (!fresh && ['running', 'failed', 'interrupted', 'cancelled'].includes(row.lastTurnStatus ?? '')) reasons.push('Unfinished turn')
     if (stages.length) reasons.push('Prepared changes waiting')
     if (!reasons.length) return []

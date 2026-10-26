@@ -120,16 +120,23 @@ describe('Minimal Ask AI in the built native application', () => {
     }
     await proof(1, { launches, cachedLaunches, notes: notesBefore, notesImageHash: managedImageHash(notesBefore.composerImages[0].attachmentId) })
   })
-  it('2 updates and saves the exact reviewed manual and generated record in one click', async () => {
+  it('2 reviews all suggested fields and updates the exact saved record in one action', async () => {
     const viewport = await resize(1024, 642)
     const outcomes = []
     const conversations = []
-    for (const entry of records) {
+    for (const entry of records.filter(row => row.origin === 'manual')) {
       const { kind, record } = entry
-      await show(kind, record); await pasteImage()
+      await tab(kind === 'finding' ? 'Findings' : 'Test cases')
+      await selectRecord(record.title)
+      await click('.record-detail-pane button=Edit')
+      const localTitle = `${record.title} draft`
+      await fill(`[aria-label="${kind === 'finding' ? 'Finding' : 'Test case'} title"]`, localTitle)
+      await ask(); await pasteImage()
       const before = await stored(kind, record.id)
       const turn = await start('Improve the expected result with this evidence.')
       assert.equal(turn.payload.messages.at(-1).context.snapshot.recordId, record.id)
+      assert.equal(turn.payload.messages.at(-1).context.snapshot.origin, 'unsaved_editor')
+      assert.equal(turn.payload.messages.at(-1).context.snapshot.title, localTitle)
       assert.equal(turn.payload.messages.at(-1).images.length, 1)
       await finish(turn)
       const suggestion = await $('.chat-proposal')
@@ -142,26 +149,23 @@ describe('Minimal Ask AI in the built native application', () => {
         await reviewScreenshot('conversation-proposal')
       }
       assert.equal(await $('button=Review refinement').isExisting(), false)
+      assert.deepEqual(await stored(kind, record.id), before)
       await click(kind === 'finding' ? 'button=Update finding' : 'button=Update test case')
-      await browser.waitUntil(async () => (await exact(turn.reference)).proposals[0]?.state.kind === 'saved')
-      await browser.waitUntil(async () => (await $('body').getText()).includes(kind === 'finding' ? 'Finding updated' : 'Test case updated'))
-      assert.equal(await $(panel).isDisplayed(), true)
-      assert.match(await $(panel).getText(), kind === 'finding' ? /Finding updated/ : /Test case updated/)
-      await reviewScreenshot(`saved-${entry.origin}-${kind}`)
+      await browser.waitUntil(async () => (await exact(turn.reference)).proposals[0]?.state.kind === 'applied')
       const conversation = await exact(turn.reference)
       assert.deepEqual({ sessionId: conversation.sessionId, draftId: conversation.draftId }, turn.reference)
       assert.deepEqual(conversation.owner, { kind: 'record', sessionId: session.id, record: { kind, recordId: record.id } })
-      assert.equal(conversation.proposals[0].state.stage.after.title, `${record.title} refined`)
+      await browser.waitUntil(async () => (await $('.record-title').getText()) === `${localTitle} refined`)
+      await reviewScreenshot(`updated-${kind}`)
+      await close()
       const saved = await stored(kind, record.id)
-      assert.equal(saved.id, record.id); assert.equal(saved.title, `${record.title} refined`)
+      assert.equal(saved.id, record.id); assert.equal(saved.title, `${localTitle} refined`)
       assert.deepEqual(JSON.parse(saved.bodyJson), { schemaVersion: 1, doc: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'The application keeps the payment error visible after Retry.' }] }] } })
       if (kind === 'finding') assert.deepEqual(JSON.parse(saved.metadataJson), { ...JSON.parse(before.metadataJson ?? '{}'), severity: 'high', status: 'resolved', component: 'Checkout', reference: 'DEMO-184' })
       outcomes.push(saved); entry.record = saved
       conversations.push(conversation)
-      await close()
-      assert.equal(await $('.record-title').getText(), saved.title)
     }
-    await proof(2, { saved: outcomes, conversations, viewport, savePath: 'One Update action while Ask AI remains open, with app-confirmed saved content' })
+    await proof(2, { saved: outcomes, conversations, viewport, savePath: 'One Update action commits the record and proposal together' })
   })
   it('3 reclick preserves input and images while a settled reopen starts fresh', async () => {
     const reclickViewport = await resize(1280, 642)

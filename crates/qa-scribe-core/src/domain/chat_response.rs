@@ -62,6 +62,7 @@ pub struct EditorStage {
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum RefinementState {
     Offered,
+    Applied,
     Staged { stage: EditorStage },
     Saved { stage: EditorStage },
     Dismissed,
@@ -150,4 +151,25 @@ impl RecordWriteGuard {
             RecordWriteOrigin::Compensation { stage_id, .. } => stage_id.as_deref(),
         }
     }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ApplyRefinementRequest {
+    pub reference: super::ChatRef,
+    pub proposal_id: String,
+}
+
+#[derive(Clone, Debug, Serialize, specta::Type)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum RefinedRecord {
+    Finding { record: super::Finding },
+    TestCasesDraft { record: super::Draft },
+}
+
+#[derive(Clone, Debug, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct AppliedRefinement {
+    pub chat: super::ChatState,
+    pub updated: RefinedRecord,
 }

@@ -13,6 +13,7 @@ mod chat_images;
 mod chat_questions;
 mod chat_refinements;
 mod chat_responses;
+mod chat_updates;
 pub use chat_questions::readable_message as readable_chat_message;
 mod chat_rows;
 mod chat_submission;

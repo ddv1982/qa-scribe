@@ -31,11 +31,6 @@ type ConfirmedRecordWrite =
 export function createRecordActionCoordination(ctx: RecordPersistenceContext, hasForcedPass = () => false) {
   const draftIntents = new Map<string, RecordIntent<Draft>>()
   const findingIntents = new Map<string, RecordIntent<Finding>>()
-  const localEditEpochs = new Map<string, number>()
-  function recordLocalEdit(kind: 'finding' | 'draft', id: string) {
-    const key = `${kind}:${id}`
-    localEditEpochs.set(key, (localEditEpochs.get(key) ?? 0) + 1)
-  }
   const proposalStages = new Map<string, BoundProposalStage>()
   const latestWriteGuards = new Map<string, RecordWriteGuard>()
   const events = { onChanged: (_kind?: 'finding' | 'draft', _id?: string, _reason?: 'saved' | 'discard' | 'conflict', _origin?: StageOrigin) => {} }
@@ -396,7 +391,7 @@ export function createRecordActionCoordination(ctx: RecordPersistenceContext, ha
 
   return {
     subscribeChanges, beginRecordOperation, cleanupUnreferencedRecordAttachments,
-    localEditEpochs, recordLocalEdit, proposalStages, latestWriteGuards, bindStage, releaseStage, events, adoptConflict, guardFor, confirmedWrite, clearStage,
+    proposalStages, latestWriteGuards, bindStage, releaseStage, events, adoptConflict, guardFor, confirmedWrite, clearStage,
     attachmentsNotReferencedByRecord,
     draftIntents,
     draftPersistencePatch,

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-apply-refinement"
+description = "Enables the apply_refinement command without any pre-configured scope."
+commands.allow = ["apply_refinement"]
+
+[[permission]]
+identifier = "deny-apply-refinement"
+description = "Denies the apply_refinement command without any pre-configured scope."
+commands.deny = ["apply_refinement"]

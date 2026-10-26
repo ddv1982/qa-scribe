@@ -133,12 +133,14 @@ Verify the minimal Ask AI interface with its six synthetic native journeys:
 QA_SCRIBE_E2E_SPEC=ask-ai-conversation-isolation.e2e.mjs bun run e2e
 ```
 
-The fixture exercises fresh record launch, image-backed refinement and one-click Update,
+The fixture exercises fresh record launch, image-backed refinement with a single saved Update,
 reclick and close, exact unfinished recovery, typed Jira follow-ups, and short-window
 keyboard access. It uses the maintained embedded WebView driver, DOM keyboard events,
 and the operating-system clipboard. It does not call real providers or Jira. The
 separate `ask-ai-conversation-routing.e2e.mjs` initial/restart pair retains process
-recovery coverage. Completed record conversations have no History or Continue UI.
+recovery coverage. Completed record conversations have no History or Continue UI. The older
+`ask-ai-refinement.e2e.mjs` staging suite is retired; these journeys cover the
+current single-update interaction.
 
 Run the reproducible large-data startup measurement (five launches by default):
 

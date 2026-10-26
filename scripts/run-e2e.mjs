@@ -340,7 +340,7 @@ export function runE2e(environment = process.env, { spawnSyncImpl = spawnSync } 
       if (isolation) {
         invocationEnvironment.QA_SCRIBE_PROVIDER_CATALOG_MODE = 'selector'
       }
-      const recordContext = ['ask-ai-context.e2e.mjs', 'ask-ai-refinement.e2e.mjs', 'ask-ai-jira-draft.e2e.mjs', 'ask-ai-conversation-routing.e2e.mjs', 'ask-ai-conversation-isolation.e2e.mjs'].includes(invocationEnvironment.QA_SCRIBE_E2E_SPEC)
+      const recordContext = ['ask-ai-context.e2e.mjs', 'ask-ai-jira-draft.e2e.mjs', 'ask-ai-conversation-routing.e2e.mjs', 'ask-ai-conversation-isolation.e2e.mjs'].includes(invocationEnvironment.QA_SCRIBE_E2E_SPEC)
       if (invocationEnvironment.QA_SCRIBE_E2E_SPEC !== 'creation-composer.e2e.mjs') delete invocationEnvironment.QA_SCRIBE_E2E_CREATION_FORMATS_ONLY
       if (invocationEnvironment.QA_SCRIBE_E2E_SPEC !== 'chat-images.e2e.mjs') delete invocationEnvironment.QA_SCRIBE_E2E_CHAT_IMAGES
       else invocationEnvironment.QA_SCRIBE_PROVIDER_CATALOG_MODE = 'selector'

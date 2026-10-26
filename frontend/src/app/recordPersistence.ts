@@ -2,8 +2,7 @@ import type { RecordWorkspace, SessionWorkspace, WorkflowFeedback } from './type
 import type { ImportedAttachments } from './importedAttachments'
 import type { InlineImageMaterialization } from './attachmentActions'
 import type { RichEditorDocument } from '../editor/editorDocument'
-import type { Draft, Finding, StageOrigin } from '../bindings'
-import { editorKey, editorValue } from './recordWriteGuards'
+import type { Draft, Finding } from '../bindings'
 import { formatError } from '../ui/format'
 import { createRecordActionCoordination } from './recordActions.coordination'
 import { createDraftPersistence } from './recordPersistence.drafts'
@@ -17,23 +16,6 @@ export type RecordPersistenceContext = {
   feedback: WorkflowFeedback
   materializeInlineImages: (document: RichEditorDocument, options?: { entryId?: string | null; isCurrent?: () => boolean }) => Promise<InlineImageMaterialization>
   cleanupMaterializedAttachments: (attachmentIds: string[]) => Promise<boolean>
-}
-
-export type SavedRecord = Finding | Draft
-export type ProposalSaveResult =
-  | { kind: 'saved'; record: SavedRecord }
-  | { kind: 'superseded'; committed: SavedRecord | null }
-  | { kind: 'conflict'; current: SavedRecord }
-  | { kind: 'failed'; message: string }
-  | { kind: 'unconfirmed'; message: string }
-export type ExactProposalSave = { record: SavedRecord; origin: StageOrigin; isCurrent: () => boolean }
-export type ExactSaveOperation = {
-  isCurrent: (generation: number) => boolean
-  dispatched: boolean
-  acknowledged?: SavedRecord
-  settled?: SavedRecord
-  conflict?: SavedRecord
-  message?: string
 }
 
 type RecordPersistResult = 'saved' | 'superseded' | 'failed'
@@ -63,41 +45,6 @@ export function createRecordPersistence(ctx: RecordPersistenceContext) {
   function persistFinding(record: Finding): Promise<RecordPersistResult> {
     if (!activePass) return findingActions.persistFinding(record)
     return joinOrdinarySave(activePass, 'finding', record.id, record.sessionId)
-  }
-
-  async function persistProposalExact(command: ExactProposalSave, acknowledged?: SavedRecord): Promise<ProposalSaveResult> {
-    const { record, origin } = command
-    const kind = origin.record.kind === 'finding' ? 'finding' : 'draft'
-    const key = `${kind}:${record.id}`
-    const stage = coordination.proposalStages.get(key)
-    const pinned = coordination.latestWriteGuards.get(key)
-    const savedBase = (kind === 'finding' ? ctx.records.savedFindingsRef.current : ctx.records.savedDraftsRef.current).find(row => row.id === record.id)
-    const generation = (kind === 'finding' ? coordination.findingIntents : coordination.draftIntents).get(record.id)?.generation ?? 0
-    if (activePass || coordination.hasPendingRecordCompensations()) return { kind: 'failed', message: 'Wait for pending record writes, then retry Update.' }
-    if (acknowledged && (acknowledged.id !== record.id || acknowledged.sessionId !== record.sessionId
-      || editorKey(editorValue(acknowledged)) !== editorKey(editorValue(record)))) return { kind: 'failed', message: 'The confirmed record differs from this proposal.' }
-    if (!command.isCurrent() || !stage || stage.origin.proposalId !== origin.proposalId || stage.id !== origin.stageId
-      || stage.origin.reference.draftId !== origin.reference.draftId || record.sessionId !== origin.reference.sessionId
-      || origin.record.recordId !== record.id || editorKey(editorValue(record)) !== editorKey(stage.after)) {
-      return { kind: 'superseded', committed: null }
-    }
-    const operation: ExactSaveOperation = {
-      dispatched: false, acknowledged,
-      isCurrent: reserved => reserved === generation + 1 && command.isCurrent()
-        && (operation.acknowledged !== undefined || (coordination.proposalStages.get(key) === stage
-          && coordination.latestWriteGuards.get(key) === pinned
-          && (kind === 'finding' ? ctx.records.savedFindingsRef.current : ctx.records.savedDraftsRef.current).find(row => row.id === record.id) === savedBase)),
-    }
-    const result = await ('aiRunId' in record
-      ? draftActions.persistDraft(record, operation)
-      : findingActions.persistFinding(record, operation))
-    if (operation.conflict) return { kind: 'conflict', current: operation.conflict }
-    if (result === 'saved' && operation.settled) return { kind: 'saved', record: operation.settled }
-    if (result === 'superseded') return { kind: 'superseded', committed: operation.acknowledged ?? null }
-    return { kind: operation.dispatched || operation.acknowledged ? 'unconfirmed' : 'failed',
-      message: operation.acknowledged
-        ? 'The record save was acknowledged, but update completion failed. Your edits are retained. Select Update to check the saved result and retry cleanup.'
-        : operation.message ?? 'Update could not finish. Your local changes are retained. Retry after reviewing the record.' }
   }
 
   function joinOrdinarySave(owner: ForcedPass, kind: 'draft' | 'finding', id: string, sessionId: string): Promise<RecordPersistResult> {
@@ -240,7 +187,7 @@ export function createRecordPersistence(ctx: RecordPersistenceContext) {
   }
 
   return {
-    coordination, saveDirtyRecordsNow, persistProposalExact,
+    coordination, saveDirtyRecordsNow,
     drafts: { persistDraft, canonicalizeGeneratedDraft: (record: Draft, storedBase: Draft) => canonicalize(record, storedBase, 'draft', () => draftActions.canonicalizeGeneratedDraft(record, storedBase)) },
     findings: { persistFinding, canonicalizeGeneratedFinding: (record: Finding, storedBase: Finding) => canonicalize(record, storedBase, 'finding', () => findingActions.canonicalizeGeneratedFinding(record, storedBase)) },
     retryPendingRecordCompensations: (sessionId: string) => retryWhenAdmitted(() => coordination.retryPendingRecordCompensations(sessionId)),

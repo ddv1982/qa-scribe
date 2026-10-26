@@ -1,8 +1,7 @@
 import { updateDraft, type Draft } from '../tauri'
 import { richEditorDocumentToStoredBody } from '../editor/editorDocument'
-import { formatError, isCommandError } from '../ui/format'
-import { RecordWriteConflict } from './recordWriteGuards'
-import type { ExactSaveOperation, RecordPersistenceContext } from './recordPersistence'
+import { formatError } from '../ui/format'
+import type { RecordPersistenceContext } from './recordPersistence'
 import type { RecordActionCoordination } from './recordActions.coordination'
 
 type RecordPersistResult = 'saved' | 'superseded' | 'failed'
@@ -10,30 +9,25 @@ type RecordPersistResult = 'saved' | 'superseded' | 'failed'
 export function createDraftPersistence(ctx: RecordPersistenceContext, coordination: RecordActionCoordination) {
   const intents = coordination.draftIntents
 
-  async function persistDraft(draft: Draft, exact?: ExactSaveOperation): Promise<RecordPersistResult> {
+  async function persistDraft(draft: Draft): Promise<RecordPersistResult> {
     if (intents.get(draft.id)?.kind === 'delete') return 'superseded'
     const stageOrigin = coordination.proposalStages.get(`draft:${draft.id}`)?.origin
     const intentGeneration = coordination.reserveDraftIntent(draft.id, 'save')
     const finishOperation = coordination.beginRecordOperation()
-    const isCurrent = () => intents.get(draft.id)?.generation === intentGeneration && (exact?.isCurrent(intentGeneration) ?? true)
     let importedAttachmentIds: string[] = []
     try {
       ctx.feedback.setError(null)
       const guard = await coordination.guardFor(draft, 'draft')
-      if (!isCurrent()) return 'superseded'
       const materialized = await coordination.materializeRecordBody(
         draft,
-        isCurrent,
+        () => intents.get(draft.id)?.generation === intentGeneration,
       )
       importedAttachmentIds = materialized.importedAttachmentIds
-      if (!isCurrent()) {
+      if (intents.get(draft.id)?.generation !== intentGeneration) {
         return await ctx.cleanupMaterializedAttachments(importedAttachmentIds) ? 'superseded' : 'failed'
       }
       const storedBody = richEditorDocumentToStoredBody(materialized.document)
-      if (!isCurrent()) return await ctx.cleanupMaterializedAttachments(importedAttachmentIds) ? 'superseded' : 'failed'
-      if (exact && !exact.acknowledged) exact.dispatched = true
-      const saved = (exact?.acknowledged && 'aiRunId' in exact.acknowledged ? exact.acknowledged : undefined) ?? await coordination.trackWrite(updateDraft(draft.id, { title: draft.title, ...storedBody }, guard))
-      if (exact) exact.acknowledged = saved
+      const saved = await coordination.trackWrite(updateDraft(draft.id, { title: draft.title, ...storedBody }, guard))
       const completedOrigin = await coordination.confirmedWrite({ record: saved, kind: 'draft', guard, generation: intentGeneration, stageOrigin })
       const latestIntent = intents.get(draft.id)
       if (!latestIntent || latestIntent.generation !== intentGeneration) {
@@ -52,7 +46,7 @@ export function createDraftPersistence(ctx: RecordPersistenceContext, coordinati
       if (!current) {
         return 'failed'
       }
-      if (!isCurrent() || !draftEditableFieldsMatch(current, draft)) {
+      if (!draftEditableFieldsMatch(current, draft)) {
         return await ctx.cleanupMaterializedAttachments(
           coordination.attachmentsNotReferencedByRecord(importedAttachmentIds, current),
         ) ? 'superseded' : 'failed'
@@ -69,7 +63,7 @@ export function createDraftPersistence(ctx: RecordPersistenceContext, coordinati
         return reconciled && cleaned ? 'superseded' : 'failed'
       }
       const currentAfterSettlement = ctx.records.draftsRef.current.find((item) => item.id === draft.id)
-      if (!isCurrent() || !currentAfterSettlement || !draftEditableFieldsMatch(currentAfterSettlement, draft)) {
+      if (!currentAfterSettlement || !draftEditableFieldsMatch(currentAfterSettlement, draft)) {
         return await ctx.cleanupMaterializedAttachments(
           coordination.attachmentsNotReferencedByRecord(importedAttachmentIds, currentAfterSettlement),
         ) ? 'superseded' : 'failed'
@@ -83,14 +77,8 @@ export function createDraftPersistence(ctx: RecordPersistenceContext, coordinati
         })
       }
       coordination.clearStage('draft', draft.id, 'saved', completedOrigin)
-      if (exact) exact.settled = saved
       return 'saved'
     } catch (cause) {
-      if (exact) {
-        if (!exact.acknowledged && isCommandError(cause) && (cause.kind === 'validation' || cause.kind === 'notFound')) exact.dispatched = false
-        exact.message = formatError(cause)
-        if (cause instanceof RecordWriteConflict) exact.conflict = cause.current
-      }
       if (intents.get(draft.id)?.generation !== intentGeneration) {
         return await coordination.cleanupUnreferencedRecordAttachments('draft', draft.id, importedAttachmentIds) ? 'superseded' : 'failed'
       }
