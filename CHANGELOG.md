@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.8.24 - 2026-10-26
+
+- Save reviewed Ask AI suggestions with one Update finding or Update test case action. The record and suggestion completion are saved together, and retrying an update does not save it twice.
+- Preserve unsaved record content, user-selected finding types, existing images, and newer manual edits during an AI update. Return a successfully updated record to preview while keeping Ask AI open.
+- Distinguish editable suggestions, ordinary answers, and clarification questions in record chat. Keep Notes conversations, input, images, and coding-agent tools separate.
+
 ## v0.8.23 - 2026-10-26
 
 - Start a fresh, focused Ask AI conversation for a finding or test case while keeping Notes conversations and their input separate.
