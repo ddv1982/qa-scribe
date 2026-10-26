@@ -47,7 +47,7 @@ pub struct ChatAnswer {
     pub assistant_message_id: String,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum ChatResponseContract {
     Current(ChatResponseContractV2),
@@ -80,5 +80,23 @@ impl ChatResponseContract {
                 record_kind: c.record_kind,
             },
         }
+    }
+}
+
+impl<'de> Deserialize<'de> for ChatResponseContract {
+    fn deserialize<D: serde::Deserializer<'de>>(
+        deserializer: D,
+    ) -> std::result::Result<Self, D::Error> {
+        let value = serde_json::Value::deserialize(deserializer)?;
+        match value.get("version").and_then(serde_json::Value::as_u64) {
+            Some(1) => serde_json::from_value(value).map(Self::Legacy),
+            Some(2 | 3) => serde_json::from_value(value).map(Self::Current),
+            _ => {
+                return Err(serde::de::Error::custom(
+                    "Unsupported response contract version",
+                ));
+            }
+        }
+        .map_err(serde::de::Error::custom)
     }
 }

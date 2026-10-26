@@ -62,7 +62,19 @@ fn complete(
         .response_contract(&start.chat.messages[0].id)
         .unwrap()
         .unwrap();
-    service.finish_chat_turn(ChatFinishRequest { scope: scope(&start.chat), turn_id: start.turn_id, assistant_text: json!({"version":contract.version(),"requestId":contract.request_id(),"markdown":"Suggested clearer expected result.","refinement":patch}).to_string() }).unwrap()
+    let mut response = json!({"version":contract.version(),"requestId":contract.request_id(),"markdown":"Suggested clearer expected result."});
+    if contract.version() == 3 {
+        response["outcome"] = json!({"kind":"edit","patch":patch});
+    } else {
+        response["refinement"] = patch;
+    }
+    service
+        .finish_chat_turn(ChatFinishRequest {
+            scope: scope(&start.chat),
+            turn_id: start.turn_id,
+            assistant_text: response.to_string(),
+        })
+        .unwrap()
 }
 fn action(service: &SessionService, chat: &ChatState, action: RefinementAction) -> ChatState {
     service
@@ -479,3 +491,6 @@ fn newer_snapshot_stage_cannot_replace_an_older_editor_base() {
         staged.proposals
     );
 }
+
+#[path = "chat_refinement/outcomes.rs"]
+mod outcomes;

@@ -8,7 +8,7 @@ import { findingFixture } from '../test/fixtures'
 import { editorValue, RecordWriteConflict } from './recordWriteGuards'
 import { chatFixture } from './useSessionChat.testSupport'
 import { cleanupControllerTest, deferred, getTauriMock, setupControllerTest } from './useAppController.testHarness'
-import { open } from './sessionChat.proposals.testSupport'
+import { open, openExact } from './sessionChat.proposals.testSupport'
 
 const api = getTauriMock()
 beforeEach(setupControllerTest)
@@ -193,8 +193,8 @@ it.each(['held', 'rejected'] as const)('visible Notes dismisses its rendered pro
 })
 
 
-it.each(['finding', 'test_cases_draft'] as const)('rendered %s Apply keeps its exact reference when the engine selection differs', async kind => {
-  const { result, record, proposal, setConversation, readConversation } = await open(kind)
+it.each(['finding', 'test_cases_draft'] as const)('rendered %s Update keeps its exact reference when the engine selection differs', async kind => {
+  const { result, record, proposal, setConversation, readConversation } = await openExact(kind)
   const message = { id: proposal.assistantMessageId, turnId: 'record-turn', role: 'assistant' as const, text: 'A record suggestion.', images: [], status: 'completed' as const, errorMessage: null, aiRunId: null, createdAt: 'saved' }
   api.beginRecordChat.mockImplementation(async (request: BeginRecordChatRequest) => {
     const row = chatFixture({ ...request, owner: { kind: 'record', sessionId: request.sessionId, record: request.record }, mode: 'chat', proposals: [proposal], messages: [message] })
@@ -207,15 +207,16 @@ it.each(['finding', 'test_cases_draft'] as const)('rendered %s Apply keeps its e
   const view = () => createElement(AppChat, { c: result.current, modelSelectionControl: null, onConfigureAi: () => {} })
   const rendered = render(view())
   const panel = within(screen.getByRole('complementary', { name: 'Ask AI' }))
-  fireEvent.click(panel.getByRole('button', { name: 'Apply to editor' }))
+  fireEvent.click(panel.getByRole('button', { name: kind === 'finding' ? 'Update finding' : 'Update test case' }))
   await waitFor(() => expect((kind === 'finding' ? result.current.findings : result.current.testwareDrafts)[0].title).toBe('Refined title'))
+  await waitFor(() => expect(result.current.notice).toBe(kind === 'finding' ? 'Finding updated' : 'Test case updated'))
   rendered.rerender(view())
-  expect(panel.queryByRole('button', { name: 'Apply to editor' })).not.toBeInTheDocument()
-  expect(readConversation(reference.draftId).proposals?.[0].state.kind).toBe('staged')
+  expect(panel.queryByRole('button', { name: kind === 'finding' ? 'Update finding' : 'Update test case' })).not.toBeInTheDocument()
+  await waitFor(() => expect(readConversation(reference.draftId).proposals?.[0].state.kind).toBe('saved'))
+  await waitFor(() => expect(result.current.notice).toBe(kind === 'finding' ? 'Finding updated' : 'Test case updated'))
   expect(readConversation('chat-session-1').proposals?.[0].state.kind).toBe('offered')
   expect(result.current.proposalControls.errors[proposal.id]).toBeUndefined()
-  expect(api.updateFinding).not.toHaveBeenCalled()
-  expect(api.updateDraft).not.toHaveBeenCalled()
+  expect(kind === 'finding' ? api.updateFinding : api.updateDraft).toHaveBeenCalledOnce()
 })
 
 it('rendered legacy Notes recovery classifies and abandons its prepared stage despite an unrelated engine selection', async () => {

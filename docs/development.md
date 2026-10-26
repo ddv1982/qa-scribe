@@ -133,7 +133,7 @@ Verify the minimal Ask AI interface with its six synthetic native journeys:
 QA_SCRIBE_E2E_SPEC=ask-ai-conversation-isolation.e2e.mjs bun run e2e
 ```
 
-The fixture exercises fresh record launch, image-backed refinement and ordinary Save,
+The fixture exercises fresh record launch, image-backed refinement and one-click Update,
 reclick and close, exact unfinished recovery, typed Jira follow-ups, and short-window
 keyboard access. It uses the maintained embedded WebView driver, DOM keyboard events,
 and the operating-system clipboard. It does not call real providers or Jira. The

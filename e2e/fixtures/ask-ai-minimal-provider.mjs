@@ -27,6 +27,6 @@ export function inspectMinimalInput(input) {
   } else if (user.text === 'Give a detailed explanation.') {
     markdown = Array.from({ length: 18 }, (_, i) => `Paragraph ${i + 1}. Keep the error visible and preserve the current record until Save.`).join('\n\n')
   }
-  const response = JSON.stringify({ version: 2, requestId: contract.requestId, markdown, ...(refinement ? { refinement } : {}), ...(question ? { question } : {}) })
+  const response = JSON.stringify({ version: contract.version, requestId: contract.requestId, markdown, ...(contract.version === 3 ? { outcome: refinement ? { kind: 'edit', patch: refinement } : question ? { kind: 'clarification', question } : { kind: 'answer' } } : { ...(refinement ? { refinement } : {}), ...(question ? { question } : {}) }) })
   return { ...payload, contract, response, permission: user.text === 'Review with tool permission.', realVision: false, externalWrites: false }
 }

@@ -1,7 +1,8 @@
 import { updateFinding, type Finding } from '../tauri'
 import { richEditorDocumentToStoredBody } from '../editor/editorDocument'
 import { formatError } from '../ui/format'
-import type { RecordPersistenceContext } from './recordPersistence'
+import { RecordWriteConflict } from './recordWriteGuards'
+import type { ExactSaveOperation, RecordPersistenceContext } from './recordPersistence'
 import type { RecordActionCoordination } from './recordActions.coordination'
 
 type RecordPersistResult = 'saved' | 'superseded' | 'failed'
@@ -9,30 +10,35 @@ type RecordPersistResult = 'saved' | 'superseded' | 'failed'
 export function createFindingPersistence(ctx: RecordPersistenceContext, coordination: RecordActionCoordination) {
   const intents = coordination.findingIntents
 
-  async function persistFinding(finding: Finding): Promise<RecordPersistResult> {
+  async function persistFinding(finding: Finding, exact?: ExactSaveOperation): Promise<RecordPersistResult> {
     if (intents.get(finding.id)?.kind === 'delete') return 'superseded'
     const stageOrigin = coordination.proposalStages.get(`finding:${finding.id}`)?.origin
     const intentGeneration = coordination.reserveFindingIntent(finding.id, 'save')
     const finishOperation = coordination.beginRecordOperation()
+    const isCurrent = () => intents.get(finding.id)?.generation === intentGeneration && (exact?.isCurrent(intentGeneration) ?? true)
     let importedAttachmentIds: string[] = []
     try {
       ctx.feedback.setError(null)
       const guard = await coordination.guardFor(finding, 'finding')
+      if (!isCurrent()) return 'superseded'
       const materialized = await coordination.materializeRecordBody(
         finding,
-        () => intents.get(finding.id)?.generation === intentGeneration,
+        isCurrent,
       )
       importedAttachmentIds = materialized.importedAttachmentIds
-      if (intents.get(finding.id)?.generation !== intentGeneration) {
+      if (!isCurrent()) {
         return await ctx.cleanupMaterializedAttachments(importedAttachmentIds) ? 'superseded' : 'failed'
       }
       const storedBody = richEditorDocumentToStoredBody(materialized.document)
-      const saved = await coordination.trackWrite(updateFinding(finding.id, {
+      if (!isCurrent()) return await ctx.cleanupMaterializedAttachments(importedAttachmentIds) ? 'superseded' : 'failed'
+      if (exact && !exact.acknowledged) exact.dispatched = true
+      const saved = (exact?.acknowledged && !('aiRunId' in exact.acknowledged) ? exact.acknowledged : undefined) ?? await coordination.trackWrite(updateFinding(finding.id, {
         title: finding.title,
         ...storedBody,
         kind: finding.kind,
         metadataJson: finding.metadataJson,
       }, guard))
+      if (exact) exact.acknowledged = saved
       const completedOrigin = await coordination.confirmedWrite({ record: saved, kind: 'finding', guard, generation: intentGeneration, stageOrigin })
       const latestIntent = intents.get(finding.id)
       if (!latestIntent || latestIntent.generation !== intentGeneration) {
@@ -51,7 +57,7 @@ export function createFindingPersistence(ctx: RecordPersistenceContext, coordina
       if (!current) {
         return 'failed'
       }
-      if (!findingEditableFieldsMatch(current, finding)) {
+      if (!isCurrent() || !findingEditableFieldsMatch(current, finding)) {
         return await ctx.cleanupMaterializedAttachments(
           coordination.attachmentsNotReferencedByRecord(importedAttachmentIds, current),
         ) ? 'superseded' : 'failed'
@@ -68,7 +74,7 @@ export function createFindingPersistence(ctx: RecordPersistenceContext, coordina
         return reconciled && cleaned ? 'superseded' : 'failed'
       }
       const currentAfterSettlement = ctx.records.findingsRef.current.find((item) => item.id === finding.id)
-      if (!currentAfterSettlement || !findingEditableFieldsMatch(currentAfterSettlement, finding)) {
+      if (!isCurrent() || !currentAfterSettlement || !findingEditableFieldsMatch(currentAfterSettlement, finding)) {
         return await ctx.cleanupMaterializedAttachments(
           coordination.attachmentsNotReferencedByRecord(importedAttachmentIds, currentAfterSettlement),
         ) ? 'superseded' : 'failed'
@@ -82,8 +88,13 @@ export function createFindingPersistence(ctx: RecordPersistenceContext, coordina
         })
       }
       coordination.clearStage('finding', finding.id, 'saved', completedOrigin)
+      if (exact) exact.settled = saved
       return 'saved'
     } catch (cause) {
+      if (exact) {
+        exact.message = formatError(cause)
+        if (cause instanceof RecordWriteConflict) exact.conflict = cause.current
+      }
       if (intents.get(finding.id)?.generation !== intentGeneration) {
         return await coordination.cleanupUnreferencedRecordAttachments('finding', finding.id, importedAttachmentIds) ? 'superseded' : 'failed'
       }

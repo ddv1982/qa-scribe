@@ -2,7 +2,7 @@ use super::*;
 use serde_json::json;
 
 #[test]
-fn ordinary_record_assistance_accepts_optional_validated_patches_for_both_kinds() {
+fn ordinary_record_assistance_accepts_edit_and_answer_outcomes_for_both_kinds() {
     for test_cases in [false, true] {
         for with_patch in [false, true] {
             let service = SessionService::in_memory().unwrap();
@@ -59,7 +59,7 @@ fn ordinary_record_assistance_accepts_optional_validated_patches_for_both_kinds(
                 }
             );
             let patch = with_patch.then(|| json!({"kind": if test_cases {"test_cases_draft"} else {"finding"}, "bodyMarkdown":"Literal suggested expected result"}));
-            let completed = service.finish_chat_turn(ChatFinishRequest { scope: scope(&started.chat), turn_id: started.turn_id, assistant_text: json!({"version":2,"requestId":user.id,"markdown":"Literal helpful answer", "refinement":patch}).to_string() }).unwrap();
+            let completed = service.finish_chat_turn(ChatFinishRequest { scope: scope(&started.chat), turn_id: started.turn_id, assistant_text: json!({"version":contract.version(),"requestId":user.id,"markdown":"Literal helpful answer", "outcome":if with_patch {json!({"kind":"edit","patch":patch})} else {json!({"kind":"answer"})}}).to_string() }).unwrap();
             assert_eq!(
                 completed.messages.last().unwrap().text,
                 "Literal helpful answer"

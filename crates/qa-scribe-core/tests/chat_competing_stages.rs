@@ -31,7 +31,20 @@ fn offered(service: &SessionService, chat: ChatState, target: ChatTarget, kind: 
         .response_contract(&start.chat.messages.last().unwrap().id)
         .unwrap()
         .unwrap();
-    service.finish_chat_turn(ChatFinishRequest { scope: scope(&start.chat), turn_id: start.turn_id, assistant_text: json!({"version":2,"requestId":contract.request_id(),"markdown":"Reviewed source","refinement":{"kind":kind,"title":"Suggested"}}).to_string() }).unwrap()
+    let mut response = json!({"version":contract.version(),"requestId":contract.request_id(),"markdown":"Reviewed source"});
+    let patch = json!({"kind":kind,"title":"Suggested"});
+    if contract.version() == 3 {
+        response["outcome"] = json!({"kind":"edit","patch":patch});
+    } else {
+        response["refinement"] = patch;
+    }
+    service
+        .finish_chat_turn(ChatFinishRequest {
+            scope: scope(&start.chat),
+            turn_id: start.turn_id,
+            assistant_text: response.to_string(),
+        })
+        .unwrap()
 }
 fn resolve(
     service: &SessionService,

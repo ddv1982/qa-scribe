@@ -2,17 +2,17 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { expect } from 'vitest'
 import type { ChatState, Draft, Finding, DraftPatch, FindingPatch, RecordWriteGuard, RefinementProposal, RefinementRequest } from '../bindings'
 import { draftFixture, findingFixture } from '../test/fixtures'
-import { richEditorDocumentFromPlainText, richEditorDocumentToStoredBody } from '../editor/editorDocument'
+import { preserveManagedImageNodes, richEditorDocumentFromStoredBody, richEditorDocumentFromPlainText, richEditorDocumentToStoredBody } from '../editor/editorDocument'
 import { editorValue, recordWriteGuard, RecordWriteConflict } from './recordWriteGuards'
 import { chatFixture } from './useSessionChat.testSupport'
 import { getTauriMock, useAppController } from './useAppController.testHarness'
 
 const api = getTauriMock()
 
-export async function open(kind: 'finding' | 'test_cases_draft' = 'finding', additional: Array<Finding | Draft> = []) {
-  const record = kind === 'finding' ? findingFixture() : draftFixture()
+export async function open(kind: 'finding' | 'test_cases_draft' = 'finding', additional: Array<Finding | Draft> = [], initial?: Finding | Draft) {
+  const record = initial ?? (kind === 'finding' ? findingFixture() : draftFixture())
   const before = editorValue(record)
-  const after = { ...before, title: 'Refined title', documentJson: richEditorDocumentToStoredBody(richEditorDocumentFromPlainText('Refined expected result')).bodyJson }
+  const after = { ...before, title: 'Refined title', documentJson: richEditorDocumentToStoredBody(preserveManagedImageNodes(richEditorDocumentFromStoredBody(record), richEditorDocumentFromPlainText('Refined expected result'))).bodyJson }
   const base = await recordWriteGuard(record, kind === 'finding' ? 'findings' : 'drafts')
   const proposal: RefinementProposal = { version: 1, id: 'proposal-1', userMessageId: 'message-1', assistantMessageId: 'message-2', target: { kind, snapshot: { sessionId: record.sessionId, recordId: record.id, title: record.title, documentJson: before.documentJson, metadataJson: record.metadataJson, recordKind: record.kind, origin: 'saved', localFingerprint: 'local', storedBaseToken: base.expectedStoredBase } }, patch: kind === 'finding' ? { kind, title: 'Refined title', bodyMarkdown: 'Refined expected result', metadata: null } : { kind, title: 'Refined title', bodyMarkdown: 'Refined expected result' }, before, after, state: { kind: 'offered' } }
   let chat: ChatState = chatFixture({ draftId: 'chat-session-1', proposals: [proposal] })
@@ -78,4 +78,22 @@ export function editTitle(controller: ReturnType<typeof useAppController>, kind:
 export function discardCurrent(controller: ReturnType<typeof useAppController>, kind: 'finding' | 'test_cases_draft') {
   if (kind === 'finding') controller.discardLocalFinding(controller.findings[0])
   else controller.discardLocalDraft(controller.testwareDrafts[0])
+}
+
+export async function openExact(kind: 'finding' | 'test_cases_draft', initial?: Finding | Draft) {
+  const subject = await open(kind, [], initial)
+  const storage = storageOutcome(subject.record, kind)
+  const command = kind === 'finding' ? api.updateFinding : api.updateDraft
+  command.mockImplementation(async (id: string, patch: FindingPatch | DraftPatch, guard: RecordWriteGuard) => {
+    const saved = await storage.write(id, patch, guard)
+    for (const [request] of api.resolveRefinement.mock.calls) {
+      if (request.action !== 'stage') continue
+      const chat = subject.readConversation(request.scope.draftId)
+      const proposal = chat.proposals?.find(item => item.id === request.proposalId)
+      if (!proposal || proposal.state.kind !== 'staged') continue
+      subject.setConversation({ ...chat, revision: chat.revision + 1, proposals: [{ ...proposal, state: { kind: 'saved', stage: proposal.state.stage } }] })
+    }
+    return saved
+  })
+  return { ...subject, storage, command }
 }

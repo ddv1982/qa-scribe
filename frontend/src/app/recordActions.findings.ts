@@ -26,13 +26,12 @@ export function createFindingRecordActions(
 
   function updateLocalFinding(id: string, patch: FindingRecordPatch) {
     if (intents.get(id)?.kind === 'delete') return
+    coordination.recordLocalEdit('finding', id)
     ctx.registerRecordEditIntent()
     ctx.records.dirtyFindingIdsRef.current.add(id)
-    ctx.records.setFindings((previous) => {
-      const nextFindings = previous.map((finding) => (finding.id === id ? { ...finding, ...patch } : finding))
-      ctx.records.findingsRef.current = nextFindings
-      return nextFindings
-    })
+    const next = ctx.records.findingsRef.current.map(record => record.id === id ? { ...record, ...patch } : record)
+    ctx.records.findingsRef.current = next
+    ctx.records.setFindings(next)
   }
 
   function discardLocalFinding(original: Finding) {
