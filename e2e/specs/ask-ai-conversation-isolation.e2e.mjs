@@ -57,6 +57,31 @@ describe('Minimal Ask AI in the built native application', () => {
     notesBefore = await notes(session.id)
   })
   it('1 launches fresh on manual and generated records without changing Notes', async () => {
+    await resize(1280, 642)
+    const cachedLaunches = []
+    for (const kind of ['finding', 'test_cases_draft']) {
+      const label = kind === 'finding' ? 'Findings' : 'Test cases'
+      await tab(label)
+      const title = await $('.record-title').getText()
+      const record = (await list(kind)).find(row => row.title === title)
+      assert.ok(record)
+      await tab('Note')
+      await browser.waitUntil(async () => (await notes(session.id)).lastActiveOrder > notesBefore.lastActiveOrder)
+      const reactivatedNotes = await notes(session.id)
+      assert.deepEqual({ ...reactivatedNotes, lastActiveAt: notesBefore.lastActiveAt, lastActiveOrder: notesBefore.lastActiveOrder }, notesBefore)
+      notesBefore = reactivatedNotes
+      await tab(label)
+      const count = executions()
+      const chat = await ask()
+      assert.deepEqual(chat.owner, { kind: 'record', sessionId: session.id, record: { kind, recordId: record.id } })
+      assert.equal(await $(composer).getValue(), '')
+      assert.equal(executions(), count)
+      assert.deepEqual(await notes(session.id), notesBefore)
+      await reviewScreenshot(`cached-default-${kind}-first-click`)
+      cachedLaunches.push({ kind, reference: { sessionId: session.id, draftId: chat.draftId }, recordId: record.id,
+        viewport: await browser.execute(() => ({ width: innerWidth, height: innerHeight })), selectionPath: 'Cached default record, Note, return, first Ask AI click without selecting a row' })
+      await close()
+    }
     const launches = []
     for (const { kind, origin, record } of records) {
       const before = executions()
@@ -93,7 +118,7 @@ describe('Minimal Ask AI in the built native application', () => {
       launches.push({ kind, origin, reference: { sessionId: session.id, draftId: chat.draftId }, generatedSend })
       await close()
     }
-    await proof(1, { launches, notes: notesBefore, notesImageHash: managedImageHash(notesBefore.composerImages[0].attachmentId) })
+    await proof(1, { launches, cachedLaunches, notes: notesBefore, notesImageHash: managedImageHash(notesBefore.composerImages[0].attachmentId) })
   })
   it('2 reviews all suggested fields, applies locally, then saves the exact record', async () => {
     const viewport = await resize(1024, 642)

@@ -54,7 +54,7 @@ export function useAskAiContext(sessionId: string | null, view: MainView, record
   const [, changed] = useState(0)
   const recoveryEpoch = useRef(0)
   useEffect(() => ctx.conversations.subscribeAttention(() => changed(value => value + 1)), [ctx.conversations])
-  useLayoutEffect(() => {
+  useLayoutEffect(() => () => {
     ++selectionEpoch.current
     if (!internalReveal.current) { ++openingEpoch.current; if (panelRef.current) setPanel({ ...panelRef.current, open: false }) }
     selected.current = null

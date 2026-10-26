@@ -70,5 +70,5 @@ export function deriveChatHandoff(state: ChatActivity & {
 }
 
 export function handoffDuringRecordWrites(handoff: ChatHandoffPresentation, pending: boolean): ChatHandoffPresentation {
-  return pending && handoff.kind !== 'recover' ? { ...handoff, kind: 'settling', reason: 'Wait for pending record writes before adding the conversation.' } : handoff
+  return pending && handoff.kind === 'conversation' ? { ...handoff, disabled: true, reason: 'Wait for pending record writes before adding the conversation.' } : handoff
 }

@@ -46,6 +46,7 @@ describe('app-owned Session Chat turn lifecycle', () => {
     api.getChat.mockResolvedValue(chatFixture({ mode: 'chat' }))
     const { result } = renderHook(() => useAppController())
     await waitFor(() => expect(result.current.sessionChat.chat?.draftId).toBe('chat-1'))
+    await waitFor(() => expect(result.current.activeProvider?.available).toBe(true))
     const saving = deferred<ReturnType<typeof chatFixture>>()
     api.saveChatComposer.mockReturnValueOnce(saving.promise)
     api.startChatJob.mockResolvedValue(startedTurn())
@@ -99,6 +100,7 @@ describe('app-owned Session Chat turn lifecycle', () => {
     api.getChat.mockResolvedValue(chatFixture({ mode: 'chat', composer: 'What should I capture?' }))
     const { result } = renderHook(() => useAppController())
     await waitFor(() => expect(result.current.sessionChat.composer).toBe('What should I capture?'))
+    await waitFor(() => expect(result.current.activeProvider?.available).toBe(true))
     const start = deferred<StartChatJobResult>()
     api.startChatJob.mockReturnValueOnce(start.promise)
     let send!: Promise<void>
@@ -169,6 +171,7 @@ describe('app-owned Session Chat turn lifecycle', () => {
     await waitFor(() => expect(result.current.sessionChat.working).toBe(false))
     expect(api.startChatJob).not.toHaveBeenCalled()
     api.startChatJob.mockResolvedValue(startedTurn())
+    await waitFor(() => expect(result.current.activeProvider?.available).toBe(true))
     await act(async () => { await result.current.sessionChat.onRetry() })
     expect(api.startChatJob).toHaveBeenCalledWith(expect.objectContaining({
       scope: { sessionId: 'session-1', draftId: 'chat-1', expectedRevision: 3 }, intent: { kind: 'retry' },
@@ -199,6 +202,7 @@ describe('app-owned Session Chat turn lifecycle', () => {
     api.getChat.mockResolvedValue(failed)
     const { result } = renderHook(() => useAppController())
     await waitFor(() => expect(result.current.sessionChat.chat?.revision).toBe(3))
+    await waitFor(() => expect(result.current.activeProvider?.available).toBe(true))
     act(() => result.current.sessionChat.onSetComposer('A different question'))
     await act(async () => { await result.current.sessionChat.onSend() })
     expect(api.startChatJob).not.toHaveBeenCalled()
@@ -213,6 +217,7 @@ describe('app-owned Session Chat turn lifecycle', () => {
     api.getChat.mockResolvedValue(earlier)
     const { result } = renderHook(() => useAppController())
     await waitFor(() => expect(result.current.sessionChat.error).toContain('Start a new conversation'))
+    await waitFor(() => expect(result.current.activeProvider?.available).toBe(true))
     await act(async () => { await result.current.sessionChat.onRetry() })
     expect(api.startChatJob).not.toHaveBeenCalled()
     expect(result.current.sessionChat.error).toContain('earlier turn')
