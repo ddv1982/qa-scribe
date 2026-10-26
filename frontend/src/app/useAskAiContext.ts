@@ -12,7 +12,7 @@ import type { RecordLoadState } from './useRecordHydration'
 type RecordOwner = Extract<ConversationOwner, { kind: 'record' }>
 type Panel = { owner: RecordOwner; reference: ChatRef | null; open: boolean; recoveryReason?: string; focusRequest: number; legacyOrigin?: StageOrigin }
   & ({ phase: 'preparing' } | { phase: 'ready' } | { phase: 'error'; error: string; blockedReference?: ChatRef })
-type Launch = { reference: ChatRef; owner: RecordOwner; pending: Promise<void> | null }
+type Launch = { reference: ChatRef; owner: RecordOwner; pending: { promise: Promise<void>; current: () => boolean } | null }
 type Context = {
   conversations: ConversationEngine
   findingLoadState: RecordLoadState; draftLoadState: RecordLoadState
@@ -194,7 +194,8 @@ export function useAskAiContext(sessionId: string | null, view: MainView, record
     }
     const key = JSON.stringify(owner)
     let launch = attempts.current.get(key)
-    if (launch?.pending) return launch.pending
+    if (launch?.pending?.current()) return launch.pending.promise
+    const earlier = launch?.pending?.promise
     if (!launch) { launch = { owner, reference: { sessionId, draftId: crypto.randomUUID() }, pending: null }; attempts.current.set(key, launch) }
     const captured = launch
     const epoch = ++openingEpoch.current
@@ -204,6 +205,8 @@ export function useAskAiContext(sessionId: string | null, view: MainView, record
     setPanel(preparing)
     const pending = (async () => {
       try {
+        await earlier
+        if (!current()) return
         if (!await ctx.conversations.flushInputs()) throw new Error('Your earlier input could not be saved. Return to its conversation before starting another chat.')
         if (!current()) return
         const rows = await listChatHistory({ kind: 'session', sessionId: owner.sessionId })
@@ -211,22 +214,22 @@ export function useAskAiContext(sessionId: string | null, view: MainView, record
         setRecoveryRows(rows.filter(row => row.unresolvedStages.length || ['running', 'failed', 'interrupted', 'cancelled'].includes(row.lastTurnStatus ?? '')))
         const unfinished = unfinishedConversations(rows, ctx.conversations.attention(owner.sessionId)).find(item => sameOwner(item.owner, owner))
         if (unfinished) { attempts.current.delete(key); await openConversation(unfinished.reference, unfinished.origin, unfinished.reason, preparing); return }
-        const chat = await beginRecordChat({ ...captured.reference, record: owner.record })
-        if (!sameReference(chat, captured.reference) || !sameOwner(chat.owner, owner)) throw new Error('Creation returned an unexpected conversation.')
         const bound = ctx.conversations.bind(captured.reference)
+        const chat = bound.snapshot().chat ?? await beginRecordChat({ ...captured.reference, record: owner.record })
+        if (!sameReference(chat, captured.reference) || !sameOwner(chat.owner, owner)) throw new Error('Creation returned an unexpected conversation.')
         await bound.refresh()
-        attempts.current.delete(key)
         if (!current()) { void refreshRecovery(); return }
         await ctx.conversations.select(captured.reference)
         if (!current()) return
+        if (attempts.current.get(key) === captured) attempts.current.delete(key)
         setPanel({ owner, reference: captured.reference, open: true, focusRequest: (previous?.focusRequest ?? 0) + 1, phase: 'ready' })
         void refreshRecovery()
       } catch (cause) {
         if (current()) setPanel(previous?.reference && sameOwner(previous.owner, owner) ? { ...previous, open: true, phase: 'error', error: formatError(cause) }
           : { owner, reference: null, open: true, focusRequest: 0, phase: 'error', error: formatError(cause), blockedReference: previous?.reference ?? undefined })
       }
-    })().finally(() => { captured.pending = null })
-    captured.pending = pending
+    })().finally(() => { if (captured.pending?.promise === pending) captured.pending = null })
+    captured.pending = { promise: pending, current }
     return pending
   }
   const current = panel?.owner.sessionId === sessionId ? panel : null

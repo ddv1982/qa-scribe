@@ -287,8 +287,8 @@ export function useAppController() {
     restoredReference: initialNavigationRoute?.kind === 'session' ? initialNavigationRoute.conversation ?? null : null,
   })
   const recordChat = useConversationSnapshot(chatProtection.conversations, askAi.reference)
-  const selectedChat = chatProtection.selectedSnapshot.chat ? chatProtection.selectedSnapshot : baseSessionChat
-  const refinement = useRefinementController({ conversations: chatProtection.conversations, chat: selectedChat, askAi, records: recordWorkspace, actions: recordActions, persistence: recordPersistence, session: sessionWorkspace, openEditor: setCreatedRecordEditTarget, feedback })
+  const proposalChat = askAi.visible && recordChat.chat ? recordChat : baseSessionChat
+  const refinement = useRefinementController({ conversations: chatProtection.conversations, chat: proposalChat, askAi, records: recordWorkspace, actions: recordActions, persistence: recordPersistence, session: sessionWorkspace, openEditor: setCreatedRecordEditTarget, feedback })
   const sessionChat: SessionChatViewState = { ...baseSessionChat, ...refinement, handoff: handoffDuringRecordWrites(baseSessionChat.handoff, refinement.recordWritesPending) }
   const generationActions = useGenerationActions({
     session: sessionWorkspace,
