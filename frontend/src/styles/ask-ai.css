@@ -103,6 +103,9 @@
 .ask-ai-panel .chat-options[open] > summary { margin-bottom: var(--space-3); }
 
 .ask-ai-panel--notes .session-chat { overflow: auto; }
+.ask-ai-panel--notes .chat-review > button { justify-self: start; }
+.ask-ai-panel--notes .chat-handoff { flex-direction: column; align-items: stretch; }
+.ask-ai-panel--notes .chat-handoff > .chat-buttons { justify-content: flex-start; }
 .ask-ai-panel--notes .session-chat:has(> .chat-permission) > .chat-scroll-region { flex: 0 0 auto; overflow: visible; }
 /* Keep the 42px model control and scroll-region padding reachable beside image drafts. */
 .ask-ai-panel--notes .chat-scroll-region:has(.chat-options[open]) { min-height: calc(42px + 2 * var(--space-3)); }
