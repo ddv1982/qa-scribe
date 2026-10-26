@@ -91,9 +91,7 @@ export function useChatTranscriptScroll({ conversationId, userTurnId, messageId,
     outer?.addEventListener('scroll', observeOuterScroll)
     outer?.addEventListener('wheel', observeWheel, { passive: true })
     outer?.addEventListener('keydown', observeKey)
-    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => {
-      if (activeOutput) revealLatest()
-    })
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(observeWindowResize)
     observer?.observe(transcript)
     observer?.observe(viewport)
     revealLatest()

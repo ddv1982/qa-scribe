@@ -90,6 +90,24 @@ describe('chat transcript following', () => {
     expect(h.scrollTop()).toBe(260)
   })
 
+  it('follows idle layout changes observed after resize while preserving deliberate history', () => {
+    let resize: ResizeObserverCallback = () => {}
+    vi.stubGlobal('ResizeObserver', class {
+      constructor(callback: ResizeObserverCallback) { resize = callback }
+      observe() {}
+      disconnect() {}
+    })
+    const h = setup()
+    h.view.rerender(<h.Chat activeOutput={false} />)
+    h.setViewportHeight(60)
+    act(() => resize([], {} as ResizeObserver))
+    expect(h.scrollTop()).toBe(240)
+    h.scrollTo(50)
+    h.setViewportHeight(40)
+    act(() => resize([], {} as ResizeObserver))
+    expect(h.scrollTop()).toBe(50)
+  })
+
   it('follows the idle transcript after a native window width change wraps the response', () => {
     const h = setup()
     h.view.rerender(<h.Chat activeOutput={false} />)
