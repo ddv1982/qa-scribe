@@ -1,3 +1,4 @@
+import { layoutViewport } from './chat-layout-geometry.mjs'
 import { openCreationAi } from './creation-helpers.mjs'
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
@@ -22,6 +23,7 @@ const assistant3Source = markdownFixture
 const edit = ' Tester reviewed the submitted conversation and confirmed the reproduction.'
 
 async function click(label) {
+  if (label === 'Ask AI' && await $('.ask-ai-panel--notes').isDisplayed()) return
   if (['Configure AI', 'Start new conversation'].includes(label)) {
     const options = await $('.ask-ai-panel--notes .chat-options')
     if (await options.isExisting() && !await browser.execute(node => node.open, options)) await (await options.$('summary')).click()
@@ -179,6 +181,7 @@ async function capture(artifacts, filename, selector) {
 }
 
 export async function runChatToNoteWorkflow() {
+  await layoutViewport(1024, 642)
   const directory = process.env.QA_SCRIBE_E2E_FIXTURE_DIR
   const artifacts = process.env.QA_SCRIBE_E2E_ARTIFACTS ?? join(process.cwd(), 'artifacts', 'e2e')
   assert.equal(Buffer.byteLength(user1), 4 * 1024, 'Saved literal user fixture remains long and within the generation prompt budget')
@@ -250,7 +253,7 @@ export async function runChatToNoteWorkflow() {
 
   // A fresh WebView must recover messages and composer without billing another turn.
   await browser.refresh()
-  await $('[aria-label="Session title"]').waitForDisplayed()
+  await $('button=New Session').waitForDisplayed()
   await reopen(primaryTitle)
   await click('Ask AI')
   await settledChat(primaryId, user2)

@@ -1,3 +1,4 @@
+import { layoutViewport } from './chat-layout-geometry.mjs'
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync, readdirSync, realpathSync, writeFileSync } from 'node:fs'
 import { isAbsolute, join, relative } from 'node:path'
@@ -18,6 +19,7 @@ async function read(command, args = {}) {
 }
 
 async function click(label) {
+  if (label === 'Ask AI' && await $('.ask-ai-panel--notes').isDisplayed()) return
   if (['Configure AI', 'Start new conversation'].includes(label)) {
     const options = await $('.ask-ai-panel--notes .chat-options')
     if (await options.isExisting() && !await browser.execute(node => node.open, options)) await (await options.$('summary')).click()
@@ -115,6 +117,7 @@ describe('Built application Chat image transport fixtures, without real vision o
       osClipboard: 'not-exercised', nativeFileDialog: 'not-exercised', fileInputSelection: 'not-attempted',
       domPasteContract: false, webviewReload: false, nativeProcessRestart: 'not-exercised' }
     try {
+      await layoutViewport(1024, 642)
       await click('New Session')
       const title = 'E2E deterministic Chat images'
       await $('[aria-label="Session title"]').setValue(title)

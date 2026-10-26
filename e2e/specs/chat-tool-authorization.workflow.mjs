@@ -13,6 +13,7 @@ assert.ok(providerIds[provider], 'Authorization workflow requires a dedicated pr
 assert.ok(directory, 'Authorization workflow requires an isolated fixture directory')
 
 async function click(label) {
+  if (label === 'Ask AI' && await $('.ask-ai-panel--notes').isDisplayed()) return
   const button = await $(`button=${label}`)
   await button.waitForClickable()
   await button.click()
@@ -127,6 +128,7 @@ function assertChild(index, count) {
 
 describe(`Built application native ${provider} Chat tool authorization`, () => {
   before(async () => {
+    await layoutViewport(1024, 642)
     await $('button=New Session').waitForClickable()
     // Configure the real Settings UI. No application state or write commands are injected.
     await click('Settings')

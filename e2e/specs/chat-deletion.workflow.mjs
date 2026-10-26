@@ -11,6 +11,7 @@ async function publicRead(command, args = {}) {
 }
 
 async function click(label) {
+  if (label === 'Ask AI' && await $('.ask-ai-panel--notes').isDisplayed()) return
   const target = await $(label === 'Close Ask AI'
     ? '.ask-ai-panel:not([hidden]) [aria-label="Close Ask AI"]' : `button=${label}`)
   await target.waitForClickable()
