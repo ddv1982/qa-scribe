@@ -11,7 +11,7 @@ export function installUiPerformanceObserver() {
     const ready = messages.length === 100 && messages[0].textContent.includes('PERF_MESSAGE_000')
       && messages[99].textContent.includes('PERF_MESSAGE_099') && images.length === 4
       && images.every(image => image.complete && image.naturalWidth === 2 && image.naturalHeight === 2)
-      && panel.querySelector('.chat-meta [role="status"]')?.textContent === 'Conversation saved'
+      && panel.querySelector('[role="status"]')?.textContent === 'Conversation saved'
       && !panel.querySelector('textarea')?.disabled
     return ready ? { messages: messages.length, images: images.length, textCharacters: [...messages].reduce((n, node) => n + node.textContent.length, 0) } : null
   }

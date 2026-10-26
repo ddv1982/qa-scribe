@@ -25,12 +25,11 @@ export function installDomActionProvenance() {
 export function armDomAction(name, trigger, marker) {
   const visible = node => Boolean(node?.getClientRects().length && !node.closest('[hidden], [inert], [aria-hidden="true"]') && getComputedStyle(node).visibility !== 'hidden')
   if (window.__uiPerf.pending) throw Error('Overlapping measured action')
-  const scope = name === 'notes-open' ? '.document-mode' : '.record-detail-pane'
+  const scope = name === 'notes-open' ? '.session-workspace' : '.record-detail-pane'
   const button = [...document.querySelectorAll(`${scope} button`)].find(node => visible(node) && node.textContent.trim() === trigger && !node.disabled)
   if (!button) throw Error('Expected enabled UI action is missing')
   if (name === 'notes-open') {
-    const write = [...document.querySelectorAll('.document-mode button')].find(node => node.textContent.trim() === 'Write note')
-    if (!visible(document.querySelector('[aria-label="Note body"]')) || write?.getAttribute('aria-pressed') !== 'true' || button.getAttribute('aria-pressed') !== 'false') throw Error('Notes must start in visible Write note mode')
+    if (!visible(document.querySelector('[aria-label="Note body"]')) || button.getAttribute('aria-expanded') !== 'false') throw Error('Notes must start with the Ask AI panel closed')
   } else if (name === 'record-save') {
     const editor = document.querySelector('.record-detail-pane [contenteditable="true"]')
     if (!visible(editor) || !marker || !editor.textContent.includes(marker)) throw Error('Save must start with the literal edited marker')
@@ -52,7 +51,7 @@ export function validateDomSample(sample, capture, ordinal) {
   assert.equal(capture.actionId, ordinal)
   assert.equal(capture.action, sample.action)
   assert.equal(capture.eventType, 'click')
-  assert.equal(capture.buttonText, sample.action === 'notes-open' ? 'Chat' : 'Save')
+  assert.equal(capture.buttonText, sample.action === 'notes-open' ? 'Ask AI' : 'Save')
   assert.equal(capture.observerEventAtMs, sample.eventAtMs)
   assert.equal(capture.isTrusted, sample.trustedEvent, 'Keep the observed isTrusted value unchanged')
   assert.equal(capture.isTrusted, false, 'This contract requires the embedded driver programmatic click path')
@@ -199,9 +198,9 @@ function registerBenchmark() {
         await browser.execute(installDomActionProvenance)
         for (let index = 0; index < 20; index++) {
           await click('[role="tab"]*=Note')
-          await click('button=Write note')
+          if (await $('.ask-ai-panel:not([hidden]) [aria-label="Close Ask AI"]').isDisplayed()) await click('.ask-ai-panel:not([hidden]) button[aria-label="Close Ask AI"]')
           await $('[aria-label="Note body"]').waitForDisplayed()
-          await measure('notes-open', 'Chat', () => click('button=Chat'))
+          await measure('notes-open', 'Ask AI', () => click('button=Ask AI'))
         }
         await browser.saveScreenshot(join(artifacts, 'legacy-notes-open.png'))
         await click('[role="tab"]*=Findings')

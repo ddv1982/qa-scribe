@@ -40,9 +40,11 @@ Provider status can be ready, auth required, install required, or error. Provide
 
 ## Session Chat
 
-Create or open a Session, then choose **Write note** or **Chat**. Chat uses the same detected, authenticated local provider and model selection as existing Note actions. Send messages explicitly, exchange testing details, and choose **Add conversation to note** when every turn is complete and the composer is empty.
+Create or open a Session, then select **Ask AI** beside the Note. The conversation opens in the same panel style as Ask AI for Findings and test cases; the Note stays editable alongside it in a wide window. Close the panel to return to the Note in a narrow window. Notes keeps its own conversation, separate from record conversations. Chat uses the same detected, authenticated local provider and model selection as existing Note actions. Send messages explicitly, exchange testing details, and choose **Add conversation to note** when every turn is complete and the composer is empty.
 
-Submission appends the role-labelled conversation to the primary Note, preserves its existing rich content, and returns to Write note. You can edit it, choose **Create test cases** or **Create finding** and then **Generate with AI** inside the draft, or use **Summarize with AI**. Submission itself makes no AI request.
+Submission appends the role-labelled conversation to the primary Note, preserves its existing rich content, and closes the Ask AI panel. You can edit it, choose **Create test cases** or **Create finding** and then **Generate with AI** inside the draft, or use **Summarize with AI**. Submission itself makes no AI request.
+
+Expand **Conversation options** for model selection, provider setup, usage details, or **Start new conversation**. Closing and reopening Notes Ask AI retains its current messages, unsent text, and images.
 
 Paste a screenshot into **Message** with Ctrl+V or Cmd+V, or use the paperclip beside **Send** to choose images. Click a thumbnail to inspect it. Remove an image before sending with its remove button. You can send an image without text. Enter inserts a new line. Ctrl+Enter or Cmd+Enter sends the message.
 

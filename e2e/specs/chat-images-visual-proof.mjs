@@ -26,7 +26,7 @@ async function saved(sessionId, text, filenames) {
   await browser.waitUntil(async () => {
     const chat = await readChat(sessionId)
     return chat.composer === text && JSON.stringify(chat.composerImages.map(image => image.filename)) === JSON.stringify(filenames)
-      && await browser.execute(() => document.querySelector('.chat-meta [role="status"]')?.textContent === 'Conversation saved')
+      && await browser.execute(() => document.querySelector('.chat-status')?.textContent === 'Conversation saved')
   }, { timeout: 7_000, timeoutMsg: 'Visual probe composer and ordered image references must save' })
 }
 

@@ -41,7 +41,7 @@ async function showNotes(title) {
   await openSession(title)
   await click('[role="tab"]*=Note')
   await browser.waitUntil(async () => await $('[aria-label="Session title"]').getValue() === title)
-  await click('button=Chat')
+  await click('button=Ask AI')
   await $('.chat-messages').waitForDisplayed()
 }
 async function canonicalNote(sessionId, noteId) {

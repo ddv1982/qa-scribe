@@ -112,7 +112,7 @@ async function proposalRefinements() {
     await $(`[aria-label="${item.beforeTitle} finding preview"]`).waitForDisplayed()
     assert.deepEqual((await invoke('list_findings', { sessionId: companion.sessionId })).find(record => record.id === item.recordId), item.beforeRecord)
     await scopedClick('Hide refinement review')
-    await click('[aria-label="Close AI chat"]')
+    await click('.ask-ai-panel:not([hidden]) [aria-label="Close Ask AI"]')
     await $('[aria-label="Session chat"] textarea').waitForDisplayed({ reverse: true })
     receipt.proposal.cases.push({ recordId: item.recordId, proposalId: item.proposalId, stageId: staged.state.stage.id,
       stageKind: 'staged', storedUnchanged: true, dirtyLiteralEditorVerified: true, cleanupKind: 'undone-and-discarded' })
@@ -143,9 +143,9 @@ describe('Bounded native WebView UI performance preparation', () => {
       receipt.chatJsonBytes = Buffer.byteLength(JSON.stringify(chat))
       await browser.execute(installUiPerformanceObserver)
       for (let index = 0; index < 20; index++) {
-        await click('button=Write note')
+        if (await $('.ask-ai-panel:not([hidden]) [aria-label="Close Ask AI"]').isDisplayed()) await click('.ask-ai-panel:not([hidden]) button[aria-label="Close Ask AI"]')
         await $('[aria-label="Note body"]').waitForDisplayed()
-        await measure('notes-open', 'Chat', () => click('button=Chat'))
+        await measure('notes-open', 'Ask AI', () => click('button=Ask AI'))
       }
       await browser.saveScreenshot(join(artifacts, 'notes-chat-100-messages-four-images.png'))
       await click('[role="tab"]*=Findings')
@@ -182,7 +182,7 @@ describe('Bounded native WebView UI performance preparation', () => {
       if (side === 'head') {
         for (let index = 0; index < 20; index++) {
           await measure('ask-ai-open', 'Ask AI', () => click('button=Ask AI'))
-          await click('[aria-label="Close AI chat"]')
+          await click('.ask-ai-panel:not([hidden]) [aria-label="Close Ask AI"]')
           await $('[aria-label="Session chat"] textarea').waitForDisplayed({ reverse: true })
         }
         await proposalRefinements()

@@ -13,6 +13,7 @@ assert.ok(providerIds[provider], 'Authorization workflow requires a dedicated pr
 assert.ok(directory, 'Authorization workflow requires an isolated fixture directory')
 
 async function click(label) {
+  if (label === 'Ask AI' && await $('.ask-ai-panel--notes').isDisplayed()) return
   const button = await $(`button=${label}`)
   await button.waitForClickable()
   await button.click()
@@ -41,7 +42,7 @@ async function create(title) {
   await browser.waitUntil(async () => (await read('list_sessions')).some((session) => session.title === title),
     { timeout: 5_000, timeoutMsg: 'Authorization Session title did not persist' })
   const session = (await read('list_sessions')).find((session) => session.title === title)
-  await click('Chat')
+  await click('Ask AI')
   await $(composer).waitForEnabled()
   return session.id
 }
@@ -64,7 +65,7 @@ async function reopen(title) {
   await browser.waitUntil(async () => await option.getAttribute('aria-selected') === 'true'
     && (await $('[aria-label="Session title"]')).getValue().then((value) => value === title),
   { timeout: 10_000, timeoutMsg: `Exact Session did not reopen: ${title}` })
-  await click('Chat')
+  await click('Ask AI')
   await $(composer).waitForEnabled()
 }
 
@@ -127,6 +128,7 @@ function assertChild(index, count) {
 
 describe(`Built application native ${provider} Chat tool authorization`, () => {
   before(async () => {
+    await layoutViewport(1024, 642)
     await $('button=New Session').waitForClickable()
     // Configure the real Settings UI. No application state or write commands are injected.
     await click('Settings')
@@ -268,7 +270,7 @@ describe(`Built application native ${provider} Chat tool authorization`, () => {
     const geometry = []
     const wide = await wideLayoutViewport()
     const short = await minimumLayoutViewport()
-    for (const [width, height] of [[1280, wide.height], [1280, 645], [640, short.height], [360, 645], [320, 645]]) {
+    for (const [width, height] of [[1280, wide.height], [1280, 645], [1000, short.height], [640, short.height], [360, 645], [320, 645]]) {
       assert.deepEqual(await layoutViewport(width, height), { width, height })
       await $('button=Review permission').scrollIntoView()
       await reviewPermission()
@@ -299,6 +301,9 @@ describe(`Built application native ${provider} Chat tool authorization`, () => {
         assert.ok(control.visible && control.hit, `Permission control must be fully reachable: ${JSON.stringify(control)}`)
         reached.push(control)
       }
+      const input = await reachPermission(composer)
+      assert.ok(input.visible && input.hit, `Message input must remain reachable: ${JSON.stringify(input)}`)
+      geometry.at(-1).composer = input
       geometry.at(-1).fit = fits
       geometry.at(-1).readable = readable
       geometry.at(-1).argumentsView = argumentsView

@@ -138,7 +138,7 @@ describe('Ask AI with immutable record context in the built native application',
   })
 
   it('captures unsaved rich content without saving and keeps the original context while switching targets', async () => {
-    await click('[aria-label="Close Ask AI"]')
+    await click('.ask-ai-panel:not([hidden]) [aria-label="Close Ask AI"]')
     await click('button=Edit')
     await fill('.record-detail-pane [contenteditable="true"]', 'Unsaved synthetic evidence at Send')
     await ask()
@@ -148,7 +148,7 @@ describe('Ask AI with immutable record context in the built native application',
     assert.equal(original.snapshot.origin, 'unsaved_editor')
     assert.ok(original.snapshot.documentJson.includes('Unsaved synthetic evidence at Send'))
     assert.ok(!(await native('list_findings', { sessionId: session.id })).find(record => record.id === original.snapshot.recordId).body.includes('Unsaved synthetic evidence at Send'))
-    await click('[aria-label="Close Ask AI"]')
+    await click('.ask-ai-panel:not([hidden]) [aria-label="Close Ask AI"]')
     await click('button=Discard')
     await select(secondTitle)
     await ask()
@@ -179,7 +179,7 @@ describe('Ask AI with immutable record context in the built native application',
     await pasteNativeImage()
     image = (await chat()).composerImages[0]
     await tab('Note')
-    await click('button=Chat')
+    await click('button=Ask AI')
     await $('[aria-label="Session title"]').waitForDisplayed()
     assert.equal(await $(composer).getValue(), '')
     assert.deepEqual((await chat()).composerImages, [])
@@ -209,7 +209,7 @@ describe('Ask AI with immutable record context in the built native application',
   })
 
   it('uses the same context contract for saved manual and generated Test cases and generated findings', async () => {
-    await click('[aria-label="Close Ask AI"]')
+    await click('.ask-ai-panel:not([hidden]) [aria-label="Close Ask AI"]')
     await tab('Test cases')
     await select(casesTitle)
     await ask()
@@ -218,7 +218,7 @@ describe('Ask AI with immutable record context in the built native application',
     assert.equal(turn.payload.messages.at(-1).context.snapshot.recordKind, 'testware')
     assert.ok(turn.payload.messages.at(-1).context.snapshot.documentJson.includes('Synthetic saved test case body'))
     await complete(turn)
-    await click('[aria-label="Close Ask AI"]')
+    await click('.ask-ai-panel:not([hidden]) [aria-label="Close Ask AI"]')
     for (const kind of ['finding', 'testware']) {
       const generatedTitle = await generated(kind)
       await ask()
@@ -226,7 +226,7 @@ describe('Ask AI with immutable record context in the built native application',
       assert.equal(turn.payload.messages.at(-1).context.snapshot.title, generatedTitle)
       await complete(turn)
       await screenshot(`lane-${kind === 'finding' ? '2-generated-finding' : '3-generated-test-cases'}`)
-      await click('[aria-label="Close Ask AI"]')
+      await click('.ask-ai-panel:not([hidden]) [aria-label="Close Ask AI"]')
     }
   })
 
@@ -269,7 +269,7 @@ describe('Ask AI with immutable record context in the built native application',
   })
   for (const kind of ['finding', 'test_cases_draft']) {
     it(`retries the original ${kind} snapshot after deletion while new capture stays disabled`, async () => {
-      await click('[aria-label="Close Ask AI"]')
+      await click('.ask-ai-panel:not([hidden]) [aria-label="Close Ask AI"]')
       await tab(kind === 'finding' ? 'Findings' : 'Test cases')
       const recordTitle = kind === 'finding' ? findingTitle : casesTitle
       await select(recordTitle)
@@ -282,7 +282,7 @@ describe('Ask AI with immutable record context in the built native application',
       await click('button=Stop')
       await browser.waitUntil(async () => (await chat()).messages.at(-1)?.status === 'cancelled')
       await $('button=Retry response').waitForClickable()
-      await click('[aria-label="Close Ask AI"]')
+      await click('.ask-ai-panel:not([hidden]) [aria-label="Close Ask AI"]')
       await click(`[aria-label="Delete ${recordTitle}"]`)
       await click(`dialog button=Delete ${kind === 'finding' ? 'finding' : 'testware'} permanently`)
       await browser.waitUntil(async () => !(await native(kind === 'finding' ? 'list_findings' : 'list_drafts', { sessionId: session.id }))
@@ -328,7 +328,7 @@ describe('Ask AI with immutable record context in the built native application',
     await click('button=Save settings')
     await browser.waitUntil(async () => (await native('get_settings')).selectedAiProvider === 'copilot_cli')
     await click('button=Back')
-    await tab('Note'); await click('button=Chat')
+    await tab('Note'); await click('button=Ask AI')
     await $(composer).waitForDisplayed()
     const before = await chat()
     const invocations = count()

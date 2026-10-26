@@ -81,6 +81,7 @@ describe('chat attachment controls', () => {
     const callbacks = props({ chat: completedChatFixture(), composerImages: [image] })
     render(<SessionChatView {...callbacks} />)
     expect(screen.getByRole('button', { name: 'Add conversation to note' })).toBeDisabled()
+    fireEvent.click(screen.getByText('Conversation options'))
     fireEvent.click(screen.getByRole('button', { name: 'Start new conversation' }))
     expect(screen.getByRole('dialog', { name: 'Start a new conversation?' })).toBeVisible()
     expect(callbacks.onRestart).not.toHaveBeenCalled()

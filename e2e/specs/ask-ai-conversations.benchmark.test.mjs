@@ -6,25 +6,23 @@ import { armDomAction, armEditorInput, assertComparableInput, buildInputProvenan
 
 function notesCase({ changeUi = true } = {}) {
   const messages = Array.from({ length: 100 }, (_, index) => `<p class="chat-message">PERF_MESSAGE_${String(index).padStart(3, '0')}</p>`).join('')
-  const dom = new JSDOM(`<div class="document-mode"><button aria-pressed="true">Write note</button><button aria-pressed="false">Chat</button></div>
+  const dom = new JSDOM(`<div class="session-workspace"><button aria-expanded="false">Ask AI</button></div>
     <div aria-label="Note body">Original Note</div><section aria-label="Session chat" hidden>${messages}<div aria-label="Message images"><img><img><img><img></div>
-    <div class="chat-meta"><span role="status">Conversation saved</span></div><textarea>ISOLATION_ACTIVE_UNSENT_INPUT</textarea></section><aside><button>Chat</button></aside>`, { runScripts: 'outside-only' })
+    <div><span role="status">Conversation saved</span></div><textarea>ISOLATION_ACTIVE_UNSENT_INPUT</textarea></section><aside><button>Ask AI</button></aside>`, { runScripts: 'outside-only' })
   const w = dom.window, frames = []
   w.HTMLElement.prototype.getClientRects = function () { return this.closest('[hidden]') ? [] : [{}] }
   for (const image of w.document.querySelectorAll('img')) Object.defineProperties(image, { complete: { value: true }, naturalWidth: { value: 2 }, naturalHeight: { value: 2 } })
   w.requestAnimationFrame = callback => { frames.push(callback); return frames.length }
   w.eval(`(${installUiPerformanceObserver.toString()})()`)
   w.eval(`(${installDomActionProvenance.toString()})()`)
-  const button = w.document.querySelectorAll('.document-mode button')[1]
+  const button = w.document.querySelector('.session-workspace button')
   button.addEventListener('click', () => {
     if (!changeUi) return
-    w.document.querySelector('[aria-label="Note body"]').hidden = true
     w.document.querySelector('[aria-label="Session chat"]').hidden = false
-    button.setAttribute('aria-pressed', 'true')
-    w.document.querySelector('.document-mode button').setAttribute('aria-pressed', 'false')
+    button.setAttribute('aria-expanded', 'true')
   })
   return { dom, w, button,
-    arm: () => w.eval(`(${armDomAction.toString()})('notes-open','Chat',null)`),
+    arm: () => w.eval(`(${armDomAction.toString()})('notes-open','Ask AI',null)`),
     frame: () => { const callback = frames.shift(); assert.ok(callback); callback() },
     state: () => JSON.parse(JSON.stringify({ samples: w.__uiPerf.samples, clicks: w.__domAction.clicks, failures: w.__uiPerf.failures })) }
 }
@@ -43,11 +41,11 @@ test('programmatic HTMLElement.click preserves false isTrusted and requires two 
     assert.deepEqual(result.samples[0].proof, { messages: 100, images: 4, textCharacters: 1600 })
     assert.equal(result.samples[0].trustedEvent, false)
     assert.equal(result.clicks[0].isTrusted, false)
-    assert.equal(result.clicks[0].buttonText, 'Chat')
+    assert.equal(result.clicks[0].buttonText, 'Ask AI')
     assert.deepEqual(result.failures, [])
     assert.throws(() => assert.equal(result.samples[0].trustedEvent, true), /false !== true/)
     validateDomSample(result.samples[0], result.clicks[0], 1)
-    assert.throws(arm, /Notes must start in visible Write note mode/)
+    assert.throws(arm, /Notes must start with the Ask AI panel closed/)
   } finally { dom.window.close() }
 })
 
@@ -102,7 +100,7 @@ test('Save requires the edited marker and records editor input without declaring
 })
 
 function comparisonCase() {
-  const click = { eventType: 'click', eventClass: 'MouseEvent', isTrusted: false, inputType: null, action: 'notes-open', actionId: 1, buttonText: 'Chat', observerEventAtMs: 100 }
+  const click = { eventType: 'click', eventClass: 'MouseEvent', isTrusted: false, inputType: null, action: 'notes-open', actionId: 1, buttonText: 'Ask AI', observerEventAtMs: 100 }
   const sample = { action: 'notes-open', eventAtMs: 100, trustedEvent: false }
   const edit = { events: [{ eventType: 'input', eventClass: 'InputEvent', isTrusted: true, inputType: 'insertText' }] }
   const driver = { provider: 'embedded', version: '1.2.0', executorSha256: 'same-source' }

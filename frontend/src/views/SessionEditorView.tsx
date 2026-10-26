@@ -48,7 +48,6 @@ export function SessionEditorView({
   onUploadImage,
   sessionMode = 'write_note',
   onSetSessionMode,
-  chatContent,
   noteHandoffContent,
 }: {
   creationCommands: Record<'testware' | 'finding', RecordCreationCommands>
@@ -87,7 +86,6 @@ export function SessionEditorView({
   onUploadImage: (input: RichEditorImageUpload) => void | Promise<void>
   sessionMode?: ChatMode
   onSetSessionMode?: (mode: ChatMode) => void
-  chatContent?: ReactNode
   noteHandoffContent?: ReactNode
 }) {
   const deletingSession = busyAction === 'delete-session'
@@ -135,41 +133,39 @@ export function SessionEditorView({
   return (
     <div className="session-workspace">
       <header className="document-topline">
-        {onSetSessionMode ? (
-          <div className="document-mode" role="group" aria-label="Session input mode">
-            <button className="segmented-option" type="button" aria-pressed={sessionMode === 'write_note'} onClick={() => onSetSessionMode('write_note')}>Write note</button>
-            <button className="segmented-option" type="button" aria-pressed={sessionMode === 'chat'} onClick={() => onSetSessionMode('chat')}>Chat</button>
-          </div>
-        ) : <p className="document-mode"><FileText size={16} /> Session note</p>}
+        <p className="document-mode"><FileText size={16} /> Session note</p>
         <div className="document-actions">
-          {sessionMode === 'write_note' ? <>          <ActionButton variant="secondary" type="button" aria-describedby={!activeProviderAvailable ? "note-summary-unavailable" : undefined} disabled={isBusy || summaryPending || !noteIsReady || !activeProviderAvailable} onClick={() => void onAiAction('summary')}>
+          {onSetSessionMode ? <ActionButton variant="secondary" className="ask-ai-trigger" icon={Sparkles}
+            aria-expanded={sessionMode === 'chat'} aria-controls="notes-ask-ai"
+            onClick={() => { onSetSessionMode('chat'); document.querySelector<HTMLTextAreaElement>('#notes-ask-ai textarea:not(:disabled)')?.focus({ preventScroll: true }) }}>Ask AI</ActionButton> : null}
+          <ActionButton variant="secondary" type="button" aria-describedby={!activeProviderAvailable ? "note-summary-unavailable" : undefined} disabled={isBusy || summaryPending || !noteIsReady || !activeProviderAvailable} onClick={() => void onAiAction('summary')}>
             {busyAction === 'ai-summary' || summaryPending ? <Loader2 className="spin" size={16} /> : <Sparkles size={16} />}
             {summaryPending ? 'Summarizing notes' : 'Summarize with AI'}
-          </ActionButton></> : null}
-          {sessionMode === 'write_note' && canUndoLatestGeneration ? (
+          </ActionButton>
+          {canUndoLatestGeneration ? (
             <ActionButton variant="secondary" size="compact" type="button" disabled={isBusy || noteReadOnly} onClick={() => void onUndoLatestGeneration()}>
               {undoingGeneration ? <Loader2 className="spin" size={16} /> : <Undo2 size={16} />}
               Undo generation
             </ActionButton>
           ) : null}
-          {sessionMode === 'write_note' ? <div className="document-status" role="status">
+          <div className="document-status" role="status">
             {sessionSaveState === 'invalid' || sessionSaveState === 'unsaved'
               ? <AlertCircle size={15} />
               : sessionSaveState === 'saving' ? <Loader2 className="spin" size={15} /> : <CheckCircle2 size={15} />}
             <span>{saveStatusLabel}</span>
-          </div> : null}
-          {sessionMode === 'write_note' ? <CopyControls
+          </div>
+          <CopyControls
             snapshot={{ target: { kind: 'note', sessionId: activeSession.id, action: 'jira-text' }, title: sessionTitle, bodyHtml: noteBodyHtml }}
-            copyState={copyState} onCopy={onCopy} disabled={isBusy} label="Note" screenshotCount={noteScreenshotCount} /> : null}
+            copyState={copyState} onCopy={onCopy} disabled={isBusy} label="Note" screenshotCount={noteScreenshotCount} />
           <ActionButton variant="destructive-quiet" iconOnly icon={Trash2} aria-label="Delete Session" title="Delete Session" loading={deletingSession} disabled={isBusy} onClick={() => void onDeleteSession()} />
         </div>
-      {sessionMode === 'write_note' && !activeProviderAvailable ? <p className="field-description" id="note-summary-unavailable">
+      {!activeProviderAvailable ? <p className="field-description" id="note-summary-unavailable">
         AI summary unavailable. {activeProviderReason ?? 'Configure an available provider in Settings. You can keep writing and create records without AI.'}
       </p> : null}
       </header>
 
-      <section key={activeSession.id} className={sessionMode === 'chat' ? 'editor-card editor-card--chat' : 'editor-card'} aria-label="Session editor">
-        {sessionMode === 'write_note' && !noteReadOnly ? <FormatToolbar editorId={editorId} onUploadImage={onUploadImage} /> : null}
+      <section key={activeSession.id} className="editor-card" aria-label="Session editor">
+        {!noteReadOnly ? <FormatToolbar editorId={editorId} onUploadImage={onUploadImage} /> : null}
         <div className="document-body">
           <input
             className="session-title-input"
@@ -183,27 +179,26 @@ export function SessionEditorView({
           {sessionTitleValidationError ? (
             <p className="field-error" id="session-title-error">{sessionTitleValidationError}</p>
           ) : null}
-          {noteReadOnly && sessionMode === 'write_note' ? <div role="status">
+          {noteReadOnly ? <div role="status">
             <p>Chat submission needs canonical Note recovery. The Note is read-only until recovery succeeds.</p>
             {onRecoverNote ? <ActionButton variant="secondary" type="button" disabled={isBusy} onClick={() => void onRecoverNote()}>Recover Session Note</ActionButton> : null}
           </div> : null}
           {sessionMode === 'write_note' && !noteReadOnly ? noteHandoffContent : null}
-          {sessionMode === 'write_note' ? <RichTextEditor editorId={editorId} value={noteBody} readOnly={noteReadOnly} onChange={onSetNoteBody} className="note-rich-editor" /> : null}
-          {sessionMode === 'chat' ? chatContent : null}
+          <RichTextEditor editorId={editorId} value={noteBody} readOnly={noteReadOnly} onChange={onSetNoteBody} className="note-rich-editor" />
         </div>
-        {sessionMode === 'write_note' ? <footer className="editor-footer">
+        <footer className="editor-footer">
           <StatusPill notice={notice} error={sessionTitleValidationError ?? error} busyAction={busyAction} />
           <span>{noteWordCount} words</span>
-        </footer> : null}
+        </footer>
       </section>
 
-      {sessionMode === 'write_note' ? <footer className="bottom-command-bar" aria-label="Note actions">
+      <footer className="bottom-command-bar" aria-label="Note actions">
         <div className="ai-action-buttons">
           <RecordCreationActions commands={creationCommands.finding} secondary />
           <RecordCreationActions commands={creationCommands.testware} secondary />
 
         </div>
-      </footer> : null}
+      </footer>
     </div>
   )
 }

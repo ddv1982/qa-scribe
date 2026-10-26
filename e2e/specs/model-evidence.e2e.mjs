@@ -62,7 +62,7 @@ async function migrationProof() {
     provider: 'claude_code', model: 'ambiguous-old-model', model_selection_json: null, status: 'completed',
     error_message: null, selection: null })
   await openSession('M02 legacy schema 10')
-  await click('Write note')
+  if (await $('.ask-ai-panel:not([hidden]) [aria-label="Close Ask AI"]').isDisplayed()) await click('Close Ask AI')
   assert.equal(await $('[aria-label="Note body"]').getText(), 'Preserved legacy evidence.')
   const parentPid = journal().filter((entry) => entry.event === 'spawn').at(-1)?.parentPid
   assert.ok(Number.isInteger(parentPid), 'Native provider journal must identify its actual application parent')
@@ -178,7 +178,7 @@ describe('Built application native model evidence M02', () => {
     assert.deepEqual(rows[1], successor.row)
     assert.equal(journal().some((entry) => entry.configuration?.lane === 8 && entry.event === 'delayed-metadata-emitted'), false)
     await openSession('M02 lane 8 claude Chat')
-    await click('Chat')
+    await click('Ask AI')
     return { sessionId: current.sessionId, cancelled: cancelled.row, successor: successor.row,
       terminatedProviderPid: marker.pid, scope: 'Pending delayed child metadata cannot execute after process termination. Buffered-event freeze has separate unit coverage.' }
   })).timeout(45_000)

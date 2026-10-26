@@ -252,21 +252,7 @@ export function SessionChatView(props: SessionChatViewProps) {
       {notes ? permissionPanel : null}
       <div ref={viewportRef} className="chat-scroll-region" role="region" aria-label="Conversation and actions" tabIndex={0}>
         {record ? permissionPanel : null}
-        {notes ? <header className="chat-topline">
-          <div>
-            <h2>Conversation</h2>
-            <p className="chat-help">Ask questions, refine your record, or ask your configured coding agent to act.</p>
-          </div>
-          {notes.handoff.kind !== 'added' ? <StartNewConversation state={notes} /> : null}
-        </header> : null}
-
-        {notes ? <div className="chat-meta">
-          <span>Next invocation · {providerLabel} · {modelLabel}</span>
-          <span role="status" aria-live="polite">{status}</span>
-          <ActionButton variant="secondary" size="compact" type="button" onClick={onConfigureAi} disabled={busy}>
-            Configure AI
-          </ActionButton>
-        </div> : <>{loading || saving || working || activeJob || inputRecoveryPending || permissionRecoveryPending || error ? <p className="chat-help" role="status" aria-live="polite">{status}</p> : null}</>}
+        {notes || loading || saving || working || activeJob || inputRecoveryPending || permissionRecoveryPending || error ? <p className="chat-help chat-status" role="status" aria-live="polite">{status}</p> : null}
         {needsProviderRecovery && !permissionAttention ? (
           <div className="chat-provider-recovery">
             <p className="chat-help">
@@ -284,7 +270,11 @@ export function SessionChatView(props: SessionChatViewProps) {
               <h3>Improve this {record.owner.record.kind === 'finding' ? 'finding' : 'test case'}</h3>
               <p className="chat-help">{record.owner.record.kind === 'finding' ? 'Ask for clearer wording, better steps, or missing details.' : 'Ask for clearer steps, better coverage, or expected results.'}</p>
               <p className="chat-help chat-jira-tip">You can also ask to add it to Jira.</p>
-            </> : <p className="chat-help">No messages yet. Describe what you are testing or ask a question.</p>}
+            </> : <>
+              <h3>Explore your testing notes</h3>
+              <p className="chat-help">No messages yet. Ask a question, explore an idea, or describe what you are testing.</p>
+              <p className="chat-help">You can add the conversation to your note when you're ready.</p>
+            </>}
           </div> : (
             <ChatMessageList presentation={record ? 'record' : 'notes'} messages={messages} aiRuns={chat?.aiRuns ?? []} proposals={chat?.proposals} proposalControls={submitted ? undefined : props.proposalControls}
               questionControls={submitted || record ? undefined : { target: props.activeTarget ?? { kind: 'session' },
@@ -301,8 +291,16 @@ export function SessionChatView(props: SessionChatViewProps) {
           ) : null}
         </section>
 
-        {notes ? <details className="chat-details"><summary>Details</summary><p className="chat-counts">{messages.length} / 128 messages · {(transcriptBytes / 1024).toFixed(1)} / 128 KiB transcript</p></details> : null}
-        {notes ? <>{modelSelectionControl}<ChatHandoff state={notes} onOpenNote={notes.onOpenNote} onSubmit={notes.onSubmit} /></> : null}
+        {notes ? <>
+          <ChatHandoff state={notes} onOpenNote={notes.onOpenNote} onSubmit={notes.onSubmit} />
+          <details className="chat-options"><summary>Conversation options</summary>
+            <p className="chat-help">Next invocation · {providerLabel} · {modelLabel}</p>
+            {modelSelectionControl}
+            <div className="chat-buttons"><ActionButton variant="secondary" size="compact" type="button" onClick={onConfigureAi} disabled={busy}>Configure AI</ActionButton>
+            {notes.handoff.kind !== 'added' ? <StartNewConversation state={notes} /> : null}</div>
+            <p className="chat-counts">{messages.length} / 128 messages · {(transcriptBytes / 1024).toFixed(1)} / 128 KiB transcript</p>
+          </details>
+        </> : null}
       </div>
       <div className="chat-composer">
         {!permissionAttention && (error || job?.errorMessage) ? <p className="chat-error" role="alert">{error || job?.errorMessage}</p> : null}
@@ -341,7 +339,7 @@ export function SessionChatView(props: SessionChatViewProps) {
             if (!attachmentsLocked && files.length) void onAttachImages?.(files)
           }} />
         <div className="chat-compose-actions">
-          <span id={`${id}-shortcut`} className="chat-help">{record ? 'Paste or attach images · Ctrl/Cmd + Enter to send' : 'Enter for a new line. Ctrl/Cmd + Enter to send. Paste images with Ctrl/Cmd + V.'}</span>
+          <span id={`${id}-shortcut`} className="chat-help">Paste or attach images · Ctrl/Cmd + Enter to send</span>
           <div className="chat-buttons">
             {permissionAttention ? <ActionButton variant="secondary" type="button" onClick={() => { revealPermission(); permissionHeadingRef.current?.focus({ preventScroll: true }) }}>Review permission</ActionButton> : activeJob ? <ActionButton variant="secondary" type="button" disabled={job?.state === 'cancelling'} onClick={() => void onCancel()}>{record ? 'Stop' : 'Cancel response'}</ActionButton> : null}
             {retryable && !submitted ? <ActionButton variant="secondary" type="button" disabled={Boolean(retryReason)} aria-describedby={`${id}-retry-reason`} onClick={() => { if (!retryReason) void onRetry() }}>Retry response</ActionButton> : null}
@@ -355,7 +353,7 @@ export function SessionChatView(props: SessionChatViewProps) {
             </div>
           </div>
         </div>
-        <p className={`chat-help${!sendReason || sendReason === 'Write a message or attach an image to send.' ? record ? ' sr-only' : ' chat-compose-hint' : ''}`} id={`${id}-send-reason`}>{sendReason || 'Send this message to the selected AI provider.'}</p>
+        <p className={`chat-help${!sendReason || sendReason === 'Write a message or attach an image to send.' || sendReason === 'Saving conversation…' ? ' sr-only' : ''}`} id={`${id}-send-reason`}>{sendReason || 'Send this message to the selected AI provider.'}</p>
         {retryable && !submitted ? <p className="chat-help" id={`${id}-retry-reason`}>{retryReason || 'Retry sends the previous message again and may repeat tool actions or incur another AI usage charge. Check uncertain external results before retrying.'}</p> : null}
       </div>
     </section>

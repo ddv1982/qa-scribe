@@ -80,7 +80,7 @@ async function complete(turn) {
   if (turn.reference.draftId === (await notes()).draftId) {
     await browser.waitUntil(async () => !(await $('button=Cancel response').isExisting()))
     await browser.waitUntil(() => browser.execute(expected => [...document.querySelectorAll('.chat-message-assistant')].at(-1)?.textContent.replace(/\s/g, '').includes(expected.replace(/\s/g, '')) === true, chat.messages.at(-1).text))
-    await browser.waitUntil(() => browser.execute(() => document.querySelector('.chat-meta [role="status"]')?.textContent === 'Conversation saved'))
+    await browser.waitUntil(() => browser.execute(() => document.querySelector('.chat-status')?.textContent === 'Conversation saved'))
   }
   return chat
 }
@@ -93,7 +93,7 @@ async function visibleStart(text, button = 'Send') {
 }
 async function showNotes() {
   await tab('Note')
-  await click('button=Chat')
+  await click('button=Ask AI')
   await $(composer).waitForDisplayed()
 }
 async function upload(filename) {
@@ -286,7 +286,7 @@ if (phase === 'restart') {
       await click('button=Cancel response')
       await browser.waitUntil(async () => (await notes()).messages.at(-1).status === 'cancelled')
       const failed = (await notes()).messages.at(-1)
-      await click('[aria-label="Close AI chat"]')
+      await click('.ask-ai-panel:not([hidden]) [aria-label="Close Ask AI"]')
       await click(`[aria-label="Delete ${sourceA.title}"]`)
       await click('dialog button=Delete finding permanently')
       await browser.waitUntil(async () => !(await native('list_findings', { sessionId: session.id })).some(record => record.id === sourceA.id))

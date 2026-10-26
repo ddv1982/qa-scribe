@@ -12,6 +12,7 @@ export function AppChat({ c, modelSelectionControl, onConfigureAi }: {
 }) {
   const notesVisible = Boolean(c.activeSession && c.activeView === 'sessions' && c.sessionMode === 'chat')
   const notesRef = useRef<HTMLElement>(null)
+  const restoreNotesFocus = useRef(false)
   const notesDraftId = c.sessionChat.chat?.draftId
   const notesSessionId = c.sessionChat.chat?.sessionId
   const engine = c.conversations
@@ -20,6 +21,10 @@ export function AppChat({ c, modelSelectionControl, onConfigureAi }: {
   }, [notesVisible, notesDraftId, notesSessionId, engine])
   useLayoutEffect(() => {
     if (notesVisible) notesRef.current?.querySelector<HTMLTextAreaElement>('textarea:not(:disabled)')?.focus({ preventScroll: true })
+    else if (restoreNotesFocus.current) {
+      restoreNotesFocus.current = false
+      document.querySelector<HTMLButtonElement>('.session-workspace .ask-ai-trigger')?.focus()
+    }
   }, [notesVisible, c.sessionChat.chat?.draftId])
   const common = {
     providerLabel: c.activeProvider?.label ?? c.selectedProvider, modelLabel: c.selectedModel === 'default' ? 'CLI Default' : c.selectedModel,
@@ -27,8 +32,12 @@ export function AppChat({ c, modelSelectionControl, onConfigureAi }: {
     providerReason: c.effectiveAiSelection?.warning ?? c.activeProvider?.reason ?? 'Loading provider status', onConfigureAi,
   }
   return <>
-    <aside ref={notesRef} className="ask-ai-panel" hidden={!notesVisible} inert={!notesVisible} aria-label="Notes AI chat">
-      <header className="ask-ai-header"><h2>AI chat</h2><ActionButton variant="secondary" iconOnly icon={X} aria-label="Close AI chat" onClick={() => { c.setSessionMode('write_note') }} /></header>
+    <aside ref={notesRef} id="notes-ask-ai" className="ask-ai-panel ask-ai-panel--notes" hidden={!notesVisible} inert={!notesVisible} aria-label="Notes AI chat">
+      <header className="ask-ai-header"><h2>Ask AI</h2><ActionButton variant="secondary" iconOnly icon={X} aria-label="Close Ask AI" onClick={() => {
+        restoreNotesFocus.current = true
+        c.setSessionMode('write_note')
+      }} /></header>
+      <section className="chat-context-card" aria-label="Chat source"><div><span className="eyebrow">Session note</span><strong>{c.sessionTitle}</strong></div></section>
       <SessionChatView {...c.sessionChat} {...common} kind="notes" hidden={!notesVisible}
         modelSelectionControl={notesVisible ? modelSelectionControl : null}
         onOpenNote={() => { c.setSessionMode('write_note'); c.setActiveView('sessions') }} />

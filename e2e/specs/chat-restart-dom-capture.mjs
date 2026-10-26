@@ -16,24 +16,24 @@ export function installRestartDomCapture(key, lifetimeMs = 60_000) {
   const knownStatus = new Set(['Loading conversation…', 'Saving conversation…', 'Unsaved changes', 'Conversation saved',
     'Save failed', 'Session Note recovery required', 'Permission status recovery required', 'Working…', 'Conversation unavailable'])
   const status = () => {
-    const node = document.querySelector('.chat-meta [role="status"]')
+    const node = document.querySelector('.chat-status')
     const text = node?.textContent?.trim()
     return { nodeId: nodeId(node), value: knownStatus.has(text) ? text : node ? 'other-status' : 'absent' }
   }
   const buttonLabel = button => {
-    const label = button?.textContent?.trim()
-    return ['Chat', 'Start new conversation', 'Cancel', 'Write note'].includes(label) ? label : null
+    const label = button?.getAttribute('aria-label') ?? button?.textContent?.trim()
+    return ['Ask AI', 'Start new conversation', 'Cancel', 'Close Ask AI'].includes(label) ? label : null
   }
   const onEvent = event => safe(() => {
     const button = event.target?.closest?.('button'), label = buttonLabel(button)
-    if (event.type === 'click' && label === 'Chat' && !button.closest('dialog')) {
+    if (event.type === 'click' && label === 'Ask AI' && !button.closest('dialog')) {
       if (!entered) { entered = true; arm(lifetimeMs, 'lifetime') }
       active = true
     }
     if (!active || !label) return
     record(event.type, { label, trusted: event.isTrusted, button: identity(button),
       dialog: identity(button.closest('dialog')), documentHasFocus: document.hasFocus(), status: status() })
-    if (event.type === 'click' && label === 'Write note') active = false
+    if (event.type === 'click' && label === 'Close Ask AI') active = false
   })
   const observer = new MutationObserver(records => safe(() => {
     if (!active) return
@@ -51,7 +51,7 @@ export function installRestartDomCapture(key, lifetimeMs = 60_000) {
         }
       }
       const target = mutation.target.nodeType === 1 ? mutation.target : mutation.target.parentElement
-      if (target?.closest('.chat-meta') || [...mutation.addedNodes].some(node => node.nodeType === 1 && node.querySelector('.chat-meta'))) {
+      if (target?.closest('.chat-status') || [...mutation.addedNodes].some(node => node.nodeType === 1 && node.querySelector('.chat-status'))) {
         record('status', { status: status() })
       }
     }

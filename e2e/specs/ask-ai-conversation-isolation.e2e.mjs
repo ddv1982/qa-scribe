@@ -51,9 +51,34 @@ describe('Minimal Ask AI in the built native application', () => {
       { kind: 'finding', origin: 'generated', record: await generate('finding') },
       { kind: 'test_cases_draft', origin: 'generated', record: await generate('test_cases_draft') },
     ]
-    await tab('Note'); await click('button=Chat')
+    await tab('Note'); await click('button=Ask AI')
     const turn = await start('Notes conversation stays in Notes'); await finish(turn)
     await fill(composer, 'Literal unsent Notes request. 雪 4827.'); await pasteImage()
+    await resize(1280, 642)
+    assert.equal(await $('[aria-label="Note body"]').isDisplayed(), true)
+    assert.equal(await $('.session-workspace .ask-ai-trigger').getAttribute('aria-expanded'), 'true')
+    await reviewScreenshot('notes-ask-ai')
+    const retainedNotes = await notes(session.id)
+    await click('.ask-ai-panel:not([hidden]) [aria-label="Close Ask AI"]')
+    assert.equal(await $('.session-workspace .ask-ai-trigger').getAttribute('aria-expanded'), 'false')
+    await click('button=Ask AI')
+    assert.equal(await $(composer).getValue(), 'Literal unsent Notes request. 雪 4827.')
+    assert.deepEqual((await notes(session.id)).composerImages, retainedNotes.composerImages)
+    assert.equal((await notes(session.id)).draftId, retainedNotes.draftId)
+    await resize(800, 620)
+    const notesReachable = await browser.execute(() => {
+      const panel = document.querySelector('.ask-ai-panel--notes')
+      return ['textarea', '[aria-label="Attach images"]', '.ask-ai-panel:not([hidden]) [aria-label="Close Ask AI"]'].every(selector => {
+        const rect = panel.querySelector(selector).getBoundingClientRect()
+        return rect.width > 0 && rect.top >= 0 && rect.bottom <= innerHeight
+      })
+    })
+    assert.equal(notesReachable, true)
+    await reviewScreenshot('notes-ask-ai-narrow')
+    await click('.ask-ai-panel:not([hidden]) [aria-label="Close Ask AI"]')
+    assert.equal(await browser.execute(() => document.activeElement?.matches('.session-workspace .ask-ai-trigger')), true)
+    await click('button=Ask AI')
+    await resize(1280, 642)
     notesBefore = await notes(session.id)
   })
   it('1 launches fresh on manual and generated records without changing Notes', async () => {
@@ -234,7 +259,7 @@ describe('Minimal Ask AI in the built native application', () => {
     assert.deepEqual(recoveredJob.pendingPermission, pending.pendingPermission)
     assert.equal(await $('[aria-label="Tool permission"]').getText(), permission)
     assert.match(await $('.record-detail-pane').getText(), /Fallback B stays unrelated/)
-    assert.match(await $('[aria-label="Chat source"]').getText(), /no longer available/)
+    assert.match(await $(`${panel} [aria-label="Chat source"]`).getText(), /no longer available/)
     assert.equal(await (await $(panel)).$('button=Send').isEnabled(), false)
     assert.equal(executions(), beforeRecovery)
     assert.deepEqual(await stored('finding', fallback.id), fallback)
@@ -269,7 +294,7 @@ describe('Minimal Ask AI in the built native application', () => {
     await resize(1100, 620)
     const reachable = await browser.execute(() => {
       const panel = document.querySelector('.ask-ai-panel--record:not([hidden])')
-      return ['textarea', '[aria-label="Attach images"]', 'button.action-primary', '[aria-label="Close Ask AI"]'].map(selector => {
+      return ['textarea', '[aria-label="Attach images"]', 'button.action-primary', '.ask-ai-panel:not([hidden]) [aria-label="Close Ask AI"]'].map(selector => {
         const node = selector === 'button.action-primary' ? [...panel.querySelectorAll('button')].find(button => button.textContent === 'Send') : panel.querySelector(selector)
         const rect = node.getBoundingClientRect()
         return rect.width > 0 && rect.top >= 0 && rect.bottom <= innerHeight

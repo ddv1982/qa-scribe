@@ -22,6 +22,10 @@ async function read(command, args = {}) {
 }
 
 async function click(label) {
+  if (label === 'Configure AI') {
+    const options = await $('.ask-ai-panel--notes .chat-options')
+    if (!await browser.execute(node => node.open, options)) await (await options.$('summary')).click()
+  }
   const button = await $(`button=${label}`)
   await button.waitForClickable()
   await button.click()
@@ -50,7 +54,7 @@ async function saved(sessionId, ids) {
   await browser.waitUntil(async () => {
     const chat = await read('get_chat', { sessionId })
     return chat.composer === text && JSON.stringify(chat.composerImages.map(image => image.attachmentId)) === JSON.stringify(ids)
-      && await browser.execute(() => document.querySelector('.chat-meta [role="status"]')?.textContent === 'Conversation saved')
+      && await browser.execute(() => document.querySelector('.chat-status')?.textContent === 'Conversation saved')
   }, { timeout: 7_000, timeoutMsg: 'The real backend must retain the exact text and ordered intentional images' })
   return read('get_chat', { sessionId })
 }
@@ -146,15 +150,18 @@ async function geometry(appearance, width, evidence) {
   assert.equal(targets.length, 3)
   for (const [index, label] of targets.entries()) {
     const target = await $(actionSelector(label))
-    await target.scrollIntoView({ block: 'center', inline: 'nearest' })
+    await browser.execute(node => node.scrollIntoView({ block: 'center', inline: 'nearest' }), target)
+    await browser.executeAsync(done => requestAnimationFrame(() => requestAnimationFrame(done)))
     const measured = await browser.execute(label => {
       const button = [...document.querySelectorAll('[aria-label="Failed images"] button')].find(node => node.textContent.trim() === label)
       const panel = document.querySelector('[aria-label="Failed images"]')
       const rect = node => { const r = node.getBoundingClientRect(); return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height } }
       const r = rect(button)
       const clip = { left: 0, top: 0, right: innerWidth, bottom: innerHeight }
+      let blockedScroll = false
       for (let parent = button.parentElement; parent; parent = parent.parentElement) {
         const style = getComputedStyle(parent), p = rect(parent)
+        if (/(hidden|clip)/.test(style.overflowY) && parent.scrollHeight > parent.clientHeight + 2) blockedScroll = true
         if (/(auto|scroll|hidden|clip)/.test(style.overflowX)) { clip.left = Math.max(clip.left, p.left + parent.clientLeft); clip.right = Math.min(clip.right, p.left + parent.clientLeft + parent.clientWidth) }
         if (/(auto|scroll|hidden|clip)/.test(style.overflowY)) { clip.top = Math.max(clip.top, p.top + parent.clientTop); clip.bottom = Math.min(clip.bottom, p.top + parent.clientTop + parent.clientHeight) }
       }
@@ -163,7 +170,7 @@ async function geometry(appearance, width, evidence) {
         documentWidth: document.documentElement.scrollWidth, bodyWidth: document.body.scrollWidth,
         panel: rect(panel), button: r, clip, clientWidth: button.clientWidth, scrollWidth: button.scrollWidth,
         text: button.textContent, whiteSpace: getComputedStyle(button).whiteSpace,
-        centerHit: Boolean(hit && button.contains(hit)), disabled: button.disabled }
+        centerHit: Boolean(hit && button.contains(hit)), blockedScroll, disabled: button.disabled }
     }, label)
     const screenshot = join(artifacts, `chat-image-recovery-${appearance}-${width}-action-${index}.png`)
     await browser.saveScreenshot(screenshot)
@@ -174,6 +181,7 @@ async function geometry(appearance, width, evidence) {
     assert.ok(measured.button.left >= measured.panel.left - 2 && measured.button.right <= measured.panel.right + 2, 'Long action labels must stay within the failure panel')
     assert.ok(measured.scrollWidth <= measured.clientWidth + 2, 'The complete long action label must wrap without horizontal clipping')
     assert.ok(measured.button.top >= measured.clip.top - 2 && measured.button.bottom <= measured.clip.bottom + 2 && measured.centerHit, 'Each recovery action must be visible and hit-testable after ordinary scrolling')
+    assert.equal(measured.blockedScroll, false, 'Oversized recovery content must allow ordinary user scrolling')
     assert.equal(measured.disabled, false)
   }
 }
@@ -201,7 +209,7 @@ async function recovery(appearance) {
     await browser.waitUntil(async () => (await read('list_sessions')).some(session => session.title === title))
     const sessionId = (await read('list_sessions')).find(session => session.title === title).id
     evidence.sessionId = sessionId
-    await click('Chat')
+    await click('Ask AI')
     await click('Configure AI')
     await $('[aria-label="Refresh CLI configuration"]').waitForClickable()
     await $('[aria-label="Refresh CLI configuration"]').click()
