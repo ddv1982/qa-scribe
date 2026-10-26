@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.8.25 - 2026-10-26
+
+- Open Notes Ask AI in the same panel pattern as Findings and Test cases. Keep the note editable beside chat in wide windows, and return to the note and its Ask AI button on Close in narrow windows.
+- Keep Notes conversations, unsent text and images, tools, and add-to-note handoff intact. Group model selection, provider setup, restart, and usage details under Conversation options.
+- Keep completed replies visible after compact-window reflow, preserve composer geometry during autosave, and keep model choices, permission decisions, and image recovery actions reachable in short windows.
+- Update the pinned setup-node and cargo-binstall CI actions.
+
 ## v0.8.24 - 2026-10-26
 
 - Save reviewed Ask AI suggestions with one Update finding or Update test case action. The record and suggestion completion are saved together, and retrying an update does not save it twice.
