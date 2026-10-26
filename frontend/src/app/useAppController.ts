@@ -146,7 +146,7 @@ export function useAppController() {
     suspendRecordLoads,
     restoreRecordLoads,
     loadDraftsForSession,
-    loadFindingsForSession,
+    loadFindingsForSession, adoptPersistedDraftSource, adoptPersistedFindingSource,
   } = useRecordHydration({ activeSessionId: activeSession?.id ?? null, activeView })
   const {
     draftScreenshotCounts, filteredSessions, findingScreenshotCounts,
@@ -300,8 +300,8 @@ export function useAppController() {
     saveNoteNow: sessionActions.saveNoteNow, noteEligibility,
     saveNoteBody: sessionActions.saveBody,
     adoptCanonicalNoteBody: sessionActions.adoptCanonicalNoteBody,
-    canonicalizeGeneratedDraft: recordActions.canonicalizeGeneratedDraft,
-    canonicalizeGeneratedFinding: recordActions.canonicalizeGeneratedFinding,
+    canonicalizeGeneratedDraft: (draft, storedBase) => { adoptPersistedDraftSource(storedBase); return recordActions.canonicalizeGeneratedDraft(draft, storedBase) },
+    canonicalizeGeneratedFinding: (finding, storedBase) => { adoptPersistedFindingSource(storedBase); return recordActions.canonicalizeGeneratedFinding(finding, storedBase) },
   })
   const { creation, creationIntent, creationDecision, consumeSelectedRecord } = useCreationWorkspace({
     sourceAllowed: !noteReadOnly, noteEntryIdRef: sessionWorkspace.noteEntryIdRef, navigationIsCurrent: sessionActions.sessionNavigationIsCurrent, publishJob: generationActions.storeGenerationStatus,

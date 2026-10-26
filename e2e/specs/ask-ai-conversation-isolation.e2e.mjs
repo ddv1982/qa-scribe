@@ -18,13 +18,20 @@ async function show(kind, record) {
 async function generate(kind) {
   await tab(kind === 'finding' ? 'Findings' : 'Test cases')
   const before = new Set((await list(kind)).map(row => row.id))
+  await $('.record-detail-pane').waitForDisplayed()
+  assert.ok(before.size > 0)
+  receipt.generationHydration ??= []
+  receipt.generationHydration.push({ kind, existingIds: [...before], detailBeforeGeneration: await $('.record-detail-pane').getText(), entrypoint: 'Visible creation composer, which force-reloads the saved destination' }); persist()
   await openCreationAi(kind === 'finding' ? 'finding' : 'testware')
   const index = executions() + 1
   await click('dialog button=Generate')
   await browser.waitUntil(() => existsSync(join(fixture, `codex-exec-${index}.started`)))
   writeFileSync(join(fixture, `codex-exec-${index}.release`), 'Release synthetic generation')
   await $('.creation-composer').waitForExist({ reverse: true })
-  return (await list(kind)).find(row => !before.has(row.id))
+  await browser.waitUntil(async () => (await list(kind)).some(row => !before.has(row.id)))
+  const record = (await list(kind)).find(row => !before.has(row.id))
+  await selectRecord(record.title)
+  return record
 }
 async function stored(kind, id) { return (await list(kind)).find(row => row.id === id) }
 async function settled() { await browser.waitUntil(async () => (await $('button=Send')).isEnabled()) }
@@ -58,14 +65,40 @@ describe('Minimal Ask AI in the built native application', () => {
       assert.equal(chat.composer, ''); assert.deepEqual(chat.composerImages, []); assert.deepEqual(chat.messages, [])
       assert.equal(chat.submission, null); assert.equal(executions(), before)
       assert.deepEqual(await notes(session.id), notesBefore)
+      let generatedSend
+      if (origin === 'generated') {
+        assert.equal(await $(`${panel} [aria-label="Chat source"] strong`).getText(), record.title)
+        await fill(composer, 'Explain this generated evidence. 雪')
+        assert.equal(await (await $(panel)).$('button=Send').isEnabled(), true)
+        const turn = await start()
+        const context = turn.payload.messages.at(-1).context
+        assert.equal(turn.payload.messages.at(-1).text, 'Explain this generated evidence. 雪')
+        assert.deepEqual(context, { kind, snapshot: {
+          sessionId: session.id, recordId: record.id, title: kind === 'finding' ? 'E2E finding' : 'Synthetic minimal Ask AI Test Cases',
+          documentJson: context.snapshot.documentJson, metadataJson: kind === 'finding' ? null : '{"testwareGeneration":{"customInstructions":null,"depth":"balanced","includeBoundaryCases":true,"includeNegativeCases":true,"includeTestData":true,"outputFormat":"qa_cases","preserveEvidence":true,"technique":"auto"}}',
+          recordKind: kind === 'finding' ? 'bug' : 'testware', origin: 'saved', localFingerprint: context.snapshot.localFingerprint, storedBaseToken: context.snapshot.storedBaseToken,
+        } })
+        assert.deepEqual(JSON.parse(context.snapshot.documentJson), { schemaVersion: 1, doc: { type: 'doc', content: kind === 'finding'
+          ? [{ type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'E2E finding' }] }, { type: 'paragraph', content: [{ type: 'text', text: 'Deterministic provider output.' }] }]
+          : [{ type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'E2E test cases' }] }, { type: 'bulletList', content: [{ type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Deterministic generated case' }] }] }] }],
+        } })
+        const job = (await native('list_active_ai_action_jobs')).find(row => row.chat?.reference.draftId === chat.draftId)
+        assert.deepEqual(job.chat.reference, { sessionId: session.id, draftId: chat.draftId })
+        assert.deepEqual((await exact(turn.reference)).messages.at(-1).context, context)
+        assert.equal(executions(), before + 1)
+        await finish(turn)
+        generatedSend = { reference: turn.reference, context, job }
+      }
       if (origin === 'manual') await reviewScreenshot(kind === 'finding' ? 'finding' : 'test-case')
-      launches.push({ kind, origin, reference: { sessionId: session.id, draftId: chat.draftId } })
+      launches.push({ kind, origin, reference: { sessionId: session.id, draftId: chat.draftId }, generatedSend })
       await close()
     }
     await proof(1, { launches, notes: notesBefore, notesImageHash: managedImageHash(notesBefore.composerImages[0].attachmentId) })
   })
   it('2 reviews all suggested fields, applies locally, then saves the exact record', async () => {
+    const viewport = await resize(1024, 642)
     const outcomes = []
+    const conversations = []
     for (const entry of records.filter(row => row.origin === 'manual')) {
       const { kind, record } = entry
       await show(kind, record); await pasteImage()
@@ -85,20 +118,28 @@ describe('Minimal Ask AI in the built native application', () => {
       }
       assert.equal(await $('button=Review refinement').isExisting(), false)
       await click('button=Apply to editor')
-      await browser.waitUntil(async () => (await selected()).proposals[0]?.state.kind === 'staged')
+      await browser.waitUntil(async () => (await exact(turn.reference)).proposals[0]?.state.kind === 'staged')
+      const staged = await exact(turn.reference)
+      assert.deepEqual(await stored(kind, record.id), before)
+      await close()
       assert.deepEqual(await stored(kind, record.id), before)
       await click('.record-detail-pane button=Save')
-      await browser.waitUntil(async () => (await selected()).proposals[0]?.state.kind === 'saved')
+      await browser.waitUntil(async () => (await exact(turn.reference)).proposals[0]?.state.kind === 'saved')
+      const conversation = await exact(turn.reference)
+      assert.deepEqual({ sessionId: conversation.sessionId, draftId: conversation.draftId }, turn.reference)
+      assert.deepEqual(conversation.owner, { kind: 'record', sessionId: session.id, record: { kind, recordId: record.id } })
+      assert.equal(conversation.proposals[0].state.stage.id, staged.proposals[0].state.stage.id)
       const saved = await stored(kind, record.id)
       assert.equal(saved.id, record.id); assert.equal(saved.title, `${record.title} refined`)
       assert.deepEqual(JSON.parse(saved.bodyJson), { schemaVersion: 1, doc: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'The application keeps the payment error visible after Retry.' }] }] } })
       if (kind === 'finding') assert.deepEqual(JSON.parse(saved.metadataJson), { ...JSON.parse(before.metadataJson ?? '{}'), severity: 'high', status: 'resolved', component: 'Checkout', reference: 'DEMO-184' })
       outcomes.push(saved); entry.record = saved
-      await close()
+      conversations.push(conversation)
     }
-    await proof(2, { saved: outcomes })
+    await proof(2, { saved: outcomes, conversations, viewport, savePath: 'Close Ask AI, then ordinary record Save' })
   })
   it('3 reclick preserves input and images while a settled reopen starts fresh', async () => {
+    const reclickViewport = await resize(1280, 642)
     const { kind, record } = records[0]
     await show(kind, record); await fill(composer, 'Keep this literal input. 雪'); await pasteImage()
     const old = await selected()
@@ -107,11 +148,12 @@ describe('Minimal Ask AI in the built native application', () => {
     assert.equal((await selected()).draftId, old.draftId)
     assert.equal(await $(composer).getValue(), 'Keep this literal input. 雪')
     assert.deepEqual((await selected()).composerImages, old.composerImages)
+    const reopenViewport = await resize(1024, 642)
     await close(); const fresh = await ask()
     assert.notEqual(fresh.draftId, old.draftId); assert.equal(fresh.composer, '')
     assert.equal((await exact(ref)).composer, 'Keep this literal input. 雪')
     assert.deepEqual((await exact(ref)).composerImages, old.composerImages)
-    await proof(3, { retained: await exact(ref), freshId: fresh.draftId })
+    await proof(3, { retained: await exact(ref), freshId: fresh.draftId, reclickViewport, reopenViewport })
   })
   it('4 recovers exact hidden unfinished permission without resending', async () => {
     const turn = await start('Review with tool permission.')

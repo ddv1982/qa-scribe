@@ -148,11 +148,17 @@ export function useAskAiContext(sessionId: string | null, view: MainView, record
     if (openingEpoch.current === epoch && panelRef.current === current) setPanel({ ...current, open: false })
     await refreshRecovery()
   }
-  async function openConversation(reference: ChatRef, origin?: StageOrigin, recoveryReason = 'Unfinished conversation') {
+  async function openConversation(reference: ChatRef, origin?: StageOrigin, recoveryReason = 'Unfinished conversation', launchPanel?: Extract<Panel, { phase: 'preparing' }>) {
     const epoch = ++openingEpoch.current
     const active = live.current.sessionId
     const current = () => openingEpoch.current === epoch && live.current.sessionId === active && reference.sessionId === active
     const handle = ctx.conversations.bind(reference)
+    function fail(cause: unknown) {
+      if (!current()) return
+      const error = formatError(cause)
+      setRecoveryError(error)
+      if (launchPanel && panelRef.current === launchPanel) setPanel({ ...launchPanel, phase: 'error', error })
+    }
     try {
       await handle.refresh()
       const chat = handle.snapshot().chat
@@ -175,7 +181,8 @@ export function useAskAiContext(sessionId: string | null, view: MainView, record
       if (!sourceOwner) { setPanel(null); ctx.openNotes(); return }
       setPanel({ owner: sourceOwner, legacyOrigin: origin, recoveryReason, reference, open: true, focusRequest: (panelRef.current?.focusRequest ?? 0) + 1, phase: 'ready' })
       void refreshRecovery()
-    } catch (cause) { setRecoveryError(formatError(cause)) }
+    } catch (cause) { fail(cause) }
+    finally { if (launchPanel && panelRef.current === launchPanel) fail(new Error('The retained conversation could not be opened. Try Ask AI again.')) }
   }
   function onAskAi(target: RecordChatSelection) {
     if (!sessionId) return Promise.resolve()
@@ -193,7 +200,8 @@ export function useAskAiContext(sessionId: string | null, view: MainView, record
     const epoch = ++openingEpoch.current
     const recordEpoch = selectionEpoch.current
     const current = () => openingEpoch.current === epoch && selectionEpoch.current === recordEpoch && live.current.sessionId === owner.sessionId
-    setPanel({ owner, reference: null, open: true, focusRequest: previous?.focusRequest ?? 0, phase: 'preparing' })
+    const preparing: Extract<Panel, { phase: 'preparing' }> = { owner, reference: null, open: true, focusRequest: previous?.focusRequest ?? 0, phase: 'preparing' }
+    setPanel(preparing)
     const pending = (async () => {
       try {
         if (!await ctx.conversations.flushInputs()) throw new Error('Your earlier input could not be saved. Return to its conversation before starting another chat.')
@@ -202,7 +210,7 @@ export function useAskAiContext(sessionId: string | null, view: MainView, record
         if (!current()) return
         setRecoveryRows(rows.filter(row => row.unresolvedStages.length || ['running', 'failed', 'interrupted', 'cancelled'].includes(row.lastTurnStatus ?? '')))
         const unfinished = unfinishedConversations(rows, ctx.conversations.attention(owner.sessionId)).find(item => sameOwner(item.owner, owner))
-        if (unfinished) { attempts.current.delete(key); await openConversation(unfinished.reference, unfinished.origin, unfinished.reason); return }
+        if (unfinished) { attempts.current.delete(key); await openConversation(unfinished.reference, unfinished.origin, unfinished.reason, preparing); return }
         const chat = await beginRecordChat({ ...captured.reference, record: owner.record })
         if (!sameReference(chat, captured.reference) || !sameOwner(chat.owner, owner)) throw new Error('Creation returned an unexpected conversation.')
         const bound = ctx.conversations.bind(captured.reference)

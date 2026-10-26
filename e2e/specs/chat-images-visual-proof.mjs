@@ -5,6 +5,7 @@ import { imageFixture } from '../fixtures/chat-images-provider.mjs'
 import { settledViewport } from './preflight-native-keys.mjs'
 
 const composer = '[aria-label="Session chat"] textarea'
+const send = '.chat-send-buttons button.action-button--primary'
 const attached = '[aria-label="Attached images"]'
 const sourceName = `visual-proof-${'checkout-validation-'.repeat(6)}雪-literal-evidence.png`
 const longName = `visual-proof-${'checkout-validation-'.repeat(6)}_-literal-evidence.png`
@@ -164,10 +165,17 @@ export async function proveChatImagesVisual({ sessionId, include320 = false }) {
       check(image.remove.rect.right <= image.card.rect.right + 2 && image.remove.rect.left >= image.card.rect.left - 2, `${label} removal control stays inside its thumbnail`)
     }
   }
-  async function reach(selector, label) {
-    await $(selector).scrollIntoView({ block: 'center', inline: 'nearest' })
-    const value = await capture(label)
-    return value
+  async function reach(selector, label, field = 'send') {
+    await browser.execute(selector => document.querySelector(selector).scrollIntoView({ block: 'center', inline: 'nearest' }), selector)
+    let previous
+    await browser.waitUntil(async () => {
+      const target = (await geometry())[field]
+      const position = JSON.stringify({ rect: target.rect, clip: target.clip, scroll: target.ancestors.map(parent => parent.scrollTop) })
+      const settled = target.fullyVisible && target.centerHit && position === previous
+      previous = position
+      return settled
+    }, { timeoutMsg: `${label} ${field} must be fully visible and hit-testable after scrolling settles` })
+    return capture(label)
   }
   async function revealFirstImageCard() {
     await browser.execute(selector => {
@@ -201,12 +209,12 @@ export async function proveChatImagesVisual({ sessionId, include320 = false }) {
         const empty = await capture(`${label}-empty-before-manual-scroll`)
         check(empty.latestAssistantBody?.fullyVisible, `${label} latest assistant text is visible on return to Chat`)
         await $(composer).setValue(message)
-        const text = await reach(composer, `${label}-literal-textarea`)
+        const text = await reach(composer, `${label}-literal-textarea`, 'textarea')
         check(text.textarea.fullyVisible && text.textarea.centerHit, `${label} textarea remains reachable with the literal message`)
         await stage([sourceName])
         await saved(sessionId, message, [longName])
         await pixels()
-        const single = await reach('button[aria-label="Attach images"]', `${label}-one-send`)
+        const single = await reach(send, `${label}-one-send`)
         horizontal(single, label)
         check(single.attach.fullyVisible && single.send.fullyVisible && single.attach.centerHit && single.send.centerHit, `${label} paperclip and Send are reachable`)
         check(single.images[0]?.name.text === longName && single.images[0]?.name.title === longName && single.images[0]?.name.scrollWidth > single.images[0]?.name.clientWidth, `${label} retains the exact long filename and exercises truncation`)
@@ -222,7 +230,7 @@ export async function proveChatImagesVisual({ sessionId, include320 = false }) {
         await stage(names.slice(1))
         await saved(sessionId, message, names)
         await pixels()
-        const four = await reach('button[aria-label="Attach images"]', `${label}-four-send`)
+        const four = await reach(send, `${label}-four-send`)
         horizontal(four, `${label} four images`)
         check(four.images.length === 4 && four.attach.disabled && !four.send.disabled, `${label} four images reach the attachment limit without disabling Send`)
         check(four.send.fullyVisible && four.send.centerHit, `${label} Send remains reachable with four thumbnails`)

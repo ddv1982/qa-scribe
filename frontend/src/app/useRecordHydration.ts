@@ -35,6 +35,16 @@ export function useRecordHydration({ activeSessionId, activeView }: UseRecordHyd
   const findingLoadVersionRef = useRef(0)
   const activeSessionIdRef = useRef(activeSessionId)
 
+  const adoptPersistedDraftSource = useCallback((draft: Draft) => {
+    if (draft.kind !== 'testware' || activeSessionIdRef.current !== draft.sessionId || draftsSessionIdRef.current !== draft.sessionId) return
+    setDraftSourceIds(ids => ids && new Set([...ids, draft.id]))
+  }, [])
+
+  const adoptPersistedFindingSource = useCallback((finding: Finding) => {
+    if (activeSessionIdRef.current !== finding.sessionId || findingsSessionIdRef.current !== finding.sessionId) return
+    setFindingSourceIds(ids => ids && new Set([...ids, finding.id]))
+  }, [])
+
   const invalidateDraftLoads = useCallback(() => {
     draftLoadVersionRef.current += 1
     setDraftLoadState((current) => current === 'loading' ? 'ready' : current)
@@ -198,6 +208,8 @@ export function useRecordHydration({ activeSessionId, activeView }: UseRecordHyd
     restoreRecordLoads,
     loadDraftsForSession,
     loadFindingsForSession,
+    adoptPersistedDraftSource,
+    adoptPersistedFindingSource,
   }
 }
 
