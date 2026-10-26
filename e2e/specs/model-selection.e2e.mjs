@@ -218,9 +218,11 @@ describe('Built application native quick model selection M03', () => {
         assert.equal(sample.state.count, 41)
         assert.ok(sample.geometry.visible, JSON.stringify(sample.geometry))
         const input = await browser.execute(inspectLayout, await $(quickInput))
-        assert.ok(input.visible && input.hit, 'The aligned query must remain fully visible and hit-testable')
+        sample.input = input; persist()
+        assert.ok(input.visible && input.hit, `The aligned query must remain fully visible and hit-testable: ${JSON.stringify(input)}`)
         assert.match(sample.state.hintText, /40 models reported by CLI catalog/)
         if (width === 640) assert.ok(sample.state.hintLines >= 2, 'The regression must retain the wrapped hint')
+        await $(quickInput).moveTo()
         await browser.execute(selector => document.querySelector(selector).focus({ preventScroll: true }), quickInput)
         await browser.executeAsync(done => requestAnimationFrame(() => requestAnimationFrame(done)))
         const owners = (await pickerState()).owners

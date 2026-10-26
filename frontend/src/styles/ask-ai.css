@@ -103,4 +103,4 @@
 .ask-ai-panel .chat-options[open] > summary { margin-bottom: var(--space-3); }
 
 .ask-ai-panel--notes .session-chat { overflow: auto; }
-.ask-ai-panel--notes .session-chat:has(> .chat-permission) > .chat-scroll-region { flex: 0 0 auto; overflow: visible; }
+.ask-ai-panel--notes .session-chat:has(> .chat-permission, .chat-options[open]) > .chat-scroll-region { flex: 0 0 auto; overflow: visible; }
