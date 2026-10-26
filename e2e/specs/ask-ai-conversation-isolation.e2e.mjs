@@ -131,7 +131,10 @@ describe('Minimal Ask AI in the built native application', () => {
       await click('.record-detail-pane button=Edit')
       const localTitle = `${record.title} draft`
       await fill(`[aria-label="${kind === 'finding' ? 'Finding' : 'Test case'} title"]`, localTitle)
-      if (kind === 'finding') await $('.finding-classification-fields select').selectByAttribute('value', 'risk')
+      if (kind === 'finding') await browser.execute(() => {
+        const field = document.querySelector('.record-detail-pane .finding-classification-fields select')
+        field.value = 'risk'; field.dispatchEvent(new Event('change', { bubbles: true }))
+      })
       await ask(); await pasteImage()
       const before = await stored(kind, record.id)
       const turn = await start('Improve the expected result with this evidence.')
