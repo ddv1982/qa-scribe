@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.8.23 - 2026-10-26
+
+- Start a fresh, focused Ask AI conversation for a finding or test case while keeping Notes conversations and their input separate.
+- Improve wording, steps, coverage, and expected results through ordinary chat. Paste or attach images, review suggested changes, Apply to editor, then use the existing Save action.
+- Keep the record panel focused on messages, attachments, Send, and Close. Existing coding-agent tools remain available through typed requests, including Jira requests.
+- Recover exact unfinished conversations, pending permissions, and unsent input without automatically resending. Explain blocked Close actions and show the recovery lock for retained Notes conversations.
+
 ## v0.8.22 - 2026-10-25
 
 ### Added
