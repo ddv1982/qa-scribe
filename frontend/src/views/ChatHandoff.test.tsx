@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest'
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
-import { deriveChatHandoff } from '../app/sessionChat.presentation'
+import { deriveChatHandoff, handoffDuringRecordWrites } from '../app/sessionChat.presentation'
 import { completedChatFixture, chatJobFixture } from '../app/useSessionChat.testSupport'
 import { ChatAddedToNote, ChatHandoff } from './ChatHandoff'
 import { StartNewConversation, type ChatRestartState } from './StartNewConversation'
@@ -186,4 +186,27 @@ it('reviews the bounded 128-message transcript without callbacks', () => {
   expect(Array.from(review.querySelectorAll('.chat-message-text')).reduce((total, node) => total + new TextEncoder().encode(node.textContent ?? '').length, 0)).toBe(131072)
   expect(onSubmit).not.toHaveBeenCalled()
   expect(value.onRestart).not.toHaveBeenCalled()
+})
+
+
+it('retains the added banner through record writes and disables only prospective Add', () => {
+  const added = state({ chat: completedChatFixture({ submission: { draftId: 'chat-1', noteId: 'note-1', submittedAt: 'saved' } }) })
+  const onSubmit = vi.fn(async () => {})
+  const props = { onSubmit, onOpenNote: vi.fn() }
+  const view = render(<><ChatAddedToNote state={added} /><ChatHandoff state={added} {...props} /></>)
+  const banner = screen.getByLabelText('Conversation added')
+  for (const pending of [true, false]) {
+    const value = { ...added, handoff: handoffDuringRecordWrites(added.handoff, pending) }
+    view.rerender(<><ChatAddedToNote state={value} /><ChatHandoff state={value} {...props} /></>)
+    expect(screen.getByLabelText('Conversation added')).toBe(banner)
+    expect(button('Open updated Note')).toBeEnabled()
+    expect(screen.queryByRole('button', { name: 'Add conversation to note' })).not.toBeInTheDocument()
+  }
+  const prospective = state()
+  view.rerender(<ChatHandoff state={{ ...prospective, handoff: handoffDuringRecordWrites(prospective.handoff, true) }} {...props} />)
+  expect(button('Add conversation to note')).toBeDisabled()
+  fireEvent.click(button('Add conversation to note'))
+  expect(onSubmit).not.toHaveBeenCalled()
+  view.rerender(<ChatHandoff state={prospective} {...props} />)
+  expect(button('Add conversation to note')).toBeEnabled()
 })

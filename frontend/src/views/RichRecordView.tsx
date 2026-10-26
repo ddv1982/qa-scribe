@@ -1,5 +1,5 @@
 import { ActionButton } from '../components/ActionButton'
-import type { ReactNode, Ref } from 'react'
+import { useMemo, type ReactNode, type Ref } from 'react'
 import { copyMatchesSnapshot, type ClipboardSnapshot, type CopyState } from '../app/copyActions'
 import { CheckCircle2, Copy, Image as ImageIcon, Loader2, PencilLine, Save, Trash2, X } from 'lucide-react'
 import { FormatToolbar, RichTextEditor, type RichEditorImageUpload } from '../editor/RichTextEditor'
@@ -86,7 +86,8 @@ export function EditableRichRecord({
   onBodyChange: (patch: StoredRichBody) => void
   onUploadImage: (input: RichEditorImageUpload) => void | Promise<void>
 }) {
-  const document = richEditorDocumentFromStoredBody(record)
+  const { body, bodyJson } = record
+  const document = useMemo(() => richEditorDocumentFromStoredBody({ body, bodyJson }), [body, bodyJson])
 
   return (
     <article className="editable-record">

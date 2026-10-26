@@ -1,7 +1,7 @@
 import type { RecordChatActions } from '../app/sessionChat.context'
 import { ActionButton } from '../components/ActionButton'
 import { RecordCreationActions, type RecordCreationCommands } from './RecordCreationActions'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, Loader2, Search, SearchX, Sparkles } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
@@ -146,17 +146,32 @@ export function RecordCollectionView<T extends CollectionRecord>({
       ? left.title.localeCompare(right.title)
       : right.updatedAt.localeCompare(left.updatedAt))
   }, [filter, filterValue, query, records, sort])
-  const selectedRecord = visibleRecords.find((record) => record.id === (selectedRecordId ?? initialSelectedRecordId))
+  const reveal = recordChat?.revealRequest
+  const revealKind: 'finding' | 'test_cases_draft' = sourceKind === 'finding' ? 'finding' : 'test_cases_draft'
+  const requestedRecord = reveal?.record.kind === revealKind ? records.find(record => record.sessionId === reveal.sessionId && record.id === reveal.record.recordId) : null
+  const editingRecord = records.find(record => record.id === selectedRecordId && editingRecordIds[record.id])
+  const selectedRecord = requestedRecord ?? editingRecord ?? visibleRecords.find((record) => record.id === (selectedRecordId ?? initialSelectedRecordId))
     ?? visibleRecords[0]
     ?? null
+  const selectedCopyBody = useMemo(() => composer || !selectedRecord ? '' : copyBody?.(selectedRecord) ?? selectedRecord.body, [composer, selectedRecord, copyBody])
   const selectedEditing = selectedRecord ? Boolean(editingRecordIds[selectedRecord.id]) : false
 
   const selectedUnsaved = Boolean(selectedRecord && selectedEditing && editingOriginals[selectedRecord.id]
     && JSON.stringify(selectedRecord) !== JSON.stringify(editingOriginals[selectedRecord.id]))
-  useEffect(() => {
-    if (selectedRecord) recordChat?.onSelectRecord({ kind: sourceKind === 'finding' ? 'finding' : 'test_cases_draft',
-      recordId: selectedRecord.id, title: selectedRecord.title, unsaved: selectedUnsaved })
-  }, [selectedRecord, sourceKind, recordChat, selectedUnsaved])
+  if (requestedRecord && reveal) {
+    if (query.trim() && !`${requestedRecord.title} ${requestedRecord.body}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())) setQuery('')
+    if (filter && filterValue !== 'all' && filter.valueFor(requestedRecord) !== filterValue) setFilterValue('all')
+    if (selectedRecordId !== requestedRecord.id) setSelectedRecordId(requestedRecord.id)
+  }
+  useLayoutEffect(() => {
+    const target = !composer && selectedRecord ? { kind: revealKind, recordId: selectedRecord.id, title: selectedRecord.title, unsaved: selectedUnsaved } : null
+    recordChat?.onSelectRecord(target, reveal?.record.kind === revealKind ? reveal.requestId : undefined)
+    if (requestedRecord && reveal && !composer && selectedRecordId === requestedRecord.id
+      && visibleRecords.some(record => record.id === requestedRecord.id) && selectedRecord?.id === reveal.record.recordId) {
+      recordChat?.acknowledgeReveal?.(reveal)
+    }
+  }, [selectedRecord, sourceKind, recordChat, selectedUnsaved, reveal, requestedRecord, composer, revealKind, selectedRecordId, visibleRecords])
+
 
   const createdRecord = createdRecordEditTarget && records.find((record) => record.id === createdRecordEditTarget.recordId)
   if (createdRecord && appliedTarget !== createdRecordEditTarget) {
@@ -189,6 +204,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
   }, [appliedTarget, createdRecordEditTarget, onCreatedRecordEditTargetConsumed, selectedRecord?.id, selectedEditing])
 
   function startEditing(record: T) {
+    setSelectedRecordId(record.id)
     setEditingOriginals((previous) => ({ ...previous, [record.id]: record }))
     onPrepareEdit?.(record)
     setRecordEditing(record.id, true)
@@ -326,9 +342,9 @@ export function RecordCollectionView<T extends CollectionRecord>({
                 <RichRecordActions
                   copyControls={<>
                     {recordChat ? <ActionButton variant="secondary" type="button" className="ask-ai-trigger" icon={Sparkles} disabled={isBusy}
-                      onClick={() => recordChat.onAskAi({ kind: sourceKind === 'finding' ? 'finding' : 'test_cases_draft', recordId: record.id, title: record.title, unsaved: selectedUnsaved })}>Ask AI</ActionButton> : null}
+                      onClick={() => void recordChat.onAskAi({ kind: sourceKind === 'finding' ? 'finding' : 'test_cases_draft', recordId: record.id, title: record.title, unsaved: selectedUnsaved })}>Ask AI</ActionButton> : null}
                     <CopyControls
-                    snapshot={{ target: { kind: sourceKind, sessionId: record.sessionId, id: record.id, action: 'jira-text' }, title: record.title, bodyHtml: copyBody?.(record) ?? record.body }}
+                    snapshot={{ target: { kind: sourceKind, sessionId: record.sessionId, id: record.id, action: 'jira-text' }, title: record.title, bodyHtml: selectedCopyBody }}
                     copyState={copyState} onCopy={onCopy} disabled={isBusy}
                     label={record.title.trim() || labels.recordNounLower} screenshotCount={screenshotCount} /></>}
                   deleting={deleting}
@@ -373,7 +389,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
             description={labels.emptyDescription}
           />
         ) : null}
-        {records.length > 0 && visibleRecords.length === 0 ? (
+        {records.length > 0 && visibleRecords.length === 0 && !selectedEditing ? (
           <EmptyCollection
             icon={SearchX}
             title="No matching records"

@@ -86,7 +86,7 @@ async function completionSchedule({kind,proposalActive,boundary}: typeof schedul
  const save=()=>kind==='finding'?result.current.handleSaveFinding(result.current.findings[0]):result.current.handleSaveDraft(result.current.testwareDrafts[0])
  act(()=>edit('A'))
  await act(async()=>expect(await save()).toBe(true))
- act(()=>result.current.askAi.onAskAi({kind,recordId:a.id,title:a.title,unsaved:false}))
+ act(()=>result.current.askAi.onSelectRecord({kind,recordId:a.id,title:a.title,unsaved:false}))
  if(proposalActive)await act(async()=>result.current.sessionChat.proposalControls!.onAction(proposal.id,'stage'))
  else act(()=>edit('B'))
  expect(row().title).toBe('B')

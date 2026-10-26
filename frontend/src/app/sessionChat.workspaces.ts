@@ -7,11 +7,14 @@ export function sameReference(a: ChatRef | null | undefined, b: ChatRef | null |
 export function statusOwns(entry: ChatWorkspace, status: import('../bindings').GenerationJobStatus) {
   return status.action === 'chat' && status.sessionId === entry.sessionId && sameReference(status.chat?.reference, entry.reference)
 }
-export function createChatWorkspaces(ctx: SessionChatContext, changed: (entry: ChatWorkspace) => void) {
+export type NotesInputPatch = { composer?: string; mode?: import('../bindings').ChatMode }
+
+export function createChatWorkspaces(ctx: SessionChatContext, changed: (entry: ChatWorkspace) => void, notesChanged: () => void = () => {}) {
   const workspaces = new Map<string, ChatWorkspace>()
   const notesBySession = new Map<string, ChatRef>()
   const notesLoads = new Map<string, Promise<ChatWorkspace | null>>()
-  const notesInput = new Map<string, { composer?: string; mode?: import('../bindings').ChatMode }>()
+  const notesInput = new Map<string, NotesInputPatch>()
+  const notesSnapshots = new Map<string, ChatSnapshot & { chat: null }>()
   const retired = new Set<string>()
   let selected: ChatRef | null = null
   let epoch = 0
@@ -56,7 +59,8 @@ export function createChatWorkspaces(ctx: SessionChatContext, changed: (entry: C
       const input = notesInput.get(sessionId)
       if (input?.composer !== undefined) { entry.composer = input.composer; ++entry.inputVersion }
       if (input?.mode !== undefined) { entry.mode = input.mode; ++entry.modeVersion }
-      notesInput.delete(sessionId)
+      notesInput.delete(sessionId); notesSnapshots.delete(sessionId)
+      changed(entry)
       return entry
     })().finally(() => { notesLoads.delete(sessionId) })
     notesLoads.set(sessionId, load)
@@ -65,25 +69,35 @@ export function createChatWorkspaces(ctx: SessionChatContext, changed: (entry: C
   function initialize(entry: ChatWorkspace, chat: ChatState) {
     entry.chat = chat; entry.owner = chat.owner; entry.composer = chat.composer; entry.composerIntent = chat.composerIntent
     entry.composerImages = chat.composerImages; entry.mode = chat.mode
-    changed(entry)
   }
-  function buffer(input: { composer?: string; mode?: import('../bindings').ChatMode }) {
-    const sessionId = ctx.session.activeSessionIdRef.current
-    if (!sessionId || selected || notesBySession.has(sessionId) || retired.has(sessionId)) return false
+  function bufferNotes(sessionId: string, input: NotesInputPatch) {
+    if (ctx.session.activeSessionIdRef.current !== sessionId || notesBySession.has(sessionId) || retired.has(sessionId)) return false
     notesInput.set(sessionId, { ...notesInput.get(sessionId), ...input })
-    ctx.publish(previous => ({ ...previous, ...input, dirty: true }))
+    const previous = notesSnapshots.get(sessionId)
+    const snapshot = { ...emptyChatSnapshot, ...previous, sessionId, chat: null, ...notesInput.get(sessionId), dirty: true } as const
+    notesSnapshots.set(sessionId, snapshot)
+    notesChanged()
+    if (!selected) ctx.publish(snapshot)
     return true
   }
-  function retire(sessionId: string) {
-    retired.add(sessionId); notesInput.delete(sessionId); notesBySession.delete(sessionId)
+  function buffer(input: NotesInputPatch) {
+    const sessionId = ctx.session.activeSessionIdRef.current
+    return sessionId && !selected ? bufferNotes(sessionId, input) : false
   }
-  function loading(sessionId: string) { ctx.publish({ ...emptyChatSnapshot, sessionId, loading: true, ...notesInput.get(sessionId) }) }
-  function loadFailed(sessionId: string, error: string) {
-    ctx.publish({ ...emptyChatSnapshot, sessionId, error, ...notesInput.get(sessionId), dirty: notesInput.has(sessionId) })
-    ctx.feedback.setError(error)
+  function retire(sessionId: string) {
+    retired.add(sessionId); notesInput.delete(sessionId); notesBySession.delete(sessionId); notesSnapshots.delete(sessionId)
+  }
+  function loading(sessionId: string) {
+    const snapshot = { ...emptyChatSnapshot, sessionId, chat: null, loading: true, ...notesInput.get(sessionId) } as const
+    notesSnapshots.set(sessionId, snapshot); notesChanged(); ctx.publish(snapshot)
+  }
+  function loadFailed(sessionId: string, error: string, visible = true) {
+    const snapshot = { ...emptyChatSnapshot, sessionId, chat: null, error, ...notesInput.get(sessionId), dirty: notesInput.has(sessionId) } as const
+    notesSnapshots.set(sessionId, snapshot); notesChanged()
+    if (visible) { ctx.publish(snapshot); ctx.feedback.setError(error) }
   }
   return { workspaces, notesBySession, notes, workspace, current, visible, active, select, retire, buffer, loading, loadFailed,
-    epoch: () => epoch, selected: () => selected, pendingInputs: () => notesInput.size > 0,
+    epoch: () => epoch, selected: () => selected, bufferNotes, pendingNotes: (sessionId: string) => notesSnapshots.get(sessionId) ?? emptyChatSnapshot, pendingInputs: () => notesInput.size > 0,
     async flushNotes() { await Promise.allSettled(notesLoads.values()) } }
 }
 
@@ -91,4 +105,29 @@ export type ConversationAttention = {
   reference: ChatRef
   owner: ConversationOwner | null
   snapshot: ChatSnapshot
+}
+
+export function createNotesEntry(dependencies: {
+  registry: ReturnType<typeof createChatWorkspaces>
+  unavailable: (sessionId: string) => boolean
+  snapshot: (entry: ChatWorkspace) => ChatSnapshot
+  update: (entry: ChatWorkspace, input: NotesInputPatch) => void
+}) {
+  const entryFor = (sessionId: string) => {
+    const reference = dependencies.registry.notesBySession.get(sessionId)
+    return reference ? dependencies.registry.workspaces.get(reference.draftId) : null
+  }
+  return {
+    snapshot: (sessionId: string | null) => {
+      if (!sessionId || dependencies.unavailable(sessionId)) return emptyChatSnapshot
+      const entry = entryFor(sessionId)
+      return entry ? dependencies.snapshot(entry) : dependencies.registry.pendingNotes(sessionId)
+    },
+    setInput: (sessionId: string | null, input: NotesInputPatch) => {
+      if (!sessionId || dependencies.unavailable(sessionId)) return
+      const entry = entryFor(sessionId)
+      if (entry) dependencies.update(entry, input)
+      else dependencies.registry.bufferNotes(sessionId, input)
+    },
+  }
 }

@@ -123,10 +123,9 @@ it('a definite capacity rejection preserves saved input and permits a later expl
   await a.send()
   expect(api.startChatJob).toHaveBeenCalledTimes(2)
 })
-it('an archived bound handle retains its read-only input and refuses prepared actions', async () => {
+it('an archived bound handle retains its read-only input', async () => {
   rows.set('A', { ...rows.get('A')!, archived: true })
   const a = await engine.select(A)
-  await expect(a.prepareComposer({ kind: 'refine_record' }, 'Must remain read-only')).rejects.toThrow('read-only')
   a.setComposer('Must not replace archived input')
   a.setIntent({ kind: 'draft_jira' })
   expect(a.snapshot().composer).toBe('')

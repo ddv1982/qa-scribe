@@ -92,7 +92,7 @@ test('Linux defaults require the complete model proof chain while non-Linux defa
   const linux = createWdioInvocationPlan({}, '/tmp/root', '/tmp/artifacts', 'linux')
   assert.deepEqual(linux.map(({ id }) => id), [
     ...criticalScenarios, 'chat-to-note', 'chat-images', 'chat-tool-authorization-codex', 'chat-tool-authorization-claude',
-    'chat-tool-authorization-copilot', 'manual-formats', 'ui-polish', 'first-use', 'native-close', 'model-management', 'model-evidence', 'model-evidence-restart',
+    'chat-tool-authorization-copilot', 'manual-formats', 'ui-polish', 'first-use', 'native-close', 'ask-ai-isolation-initial', 'model-management', 'model-evidence', 'model-evidence-restart',
     'model-selection', 'model-selection-restart', 'provider-qualification-disabled', 'provider-qualification-diagnostics',
     'provider-qualification-selector',
   ])
@@ -100,7 +100,7 @@ test('Linux defaults require the complete model proof chain while non-Linux defa
   for (const platform of ['darwin', 'win32']) {
     assert.deepEqual(createWdioInvocationPlan({}, '/tmp/root', '/tmp/artifacts', platform).map(({ id }) => id), [
       ...criticalScenarios, 'chat-to-note', 'chat-images', 'chat-tool-authorization-codex', 'chat-tool-authorization-claude', 'chat-tool-authorization-copilot',
-      ...(platform === 'darwin' ? ['manual-formats', 'ui-polish', 'first-use'] : []),
+      ...(platform === 'darwin' ? ['manual-formats', 'ui-polish', 'first-use', 'ask-ai-isolation-initial'] : []),
     ])
   }
 })
@@ -340,6 +340,7 @@ test('default execution preserves migrated pair state through restart and isolat
         const spec = env.QA_SCRIBE_E2E_SPEC
         assert.equal(env.QA_SCRIBE_E2E_CHAT_IMAGES, spec === 'chat-images.e2e.mjs' ? '1' : undefined)
         if (spec === 'chat-images.e2e.mjs') assert.equal(env.QA_SCRIBE_PROVIDER_CATALOG_MODE, 'selector')
+        const isolation = spec === 'ask-ai-conversation-isolation.e2e.mjs'
         const restarting = env.QA_SCRIBE_E2E_EVIDENCE_RESTART === '1' || env.QA_SCRIBE_E2E_SELECTION_RESTART === '1'
         const state = join(env.QA_SCRIBE_E2E_APP_DATA_DIR, 'retained-model-state')
         const peer = join(env.QA_SCRIBE_E2E_FIXTURE_DIR, 'retained-model-peer')
@@ -348,7 +349,7 @@ test('default execution preserves migrated pair state through restart and isolat
         if (restarting) {
           assert.equal(readFileSync(state, 'utf8'), spec)
           assert.equal(readFileSync(peer, 'utf8'), spec)
-          assert.equal(readFileSync(join(env.QA_SCRIBE_E2E_APP_DATA_DIR, 'qa-scribe.sqlite'), 'utf8'), 'migrated-schema-11')
+          if (!isolation) assert.equal(readFileSync(join(env.QA_SCRIBE_E2E_APP_DATA_DIR, 'qa-scribe.sqlite'), 'utf8'), 'migrated-schema-11')
           assert.equal(env.HOME, homes.get(env.QA_SCRIBE_E2E_APP_DATA_DIR))
           restartChecks.push(spec)
         } else {
@@ -361,6 +362,7 @@ test('default execution preserves migrated pair state through restart and isolat
             writeFileSync(join(env.QA_SCRIBE_E2E_APP_DATA_DIR, 'qa-scribe.sqlite'), 'migrated-schema-11')
           }
         }
+        if (isolation) writeFileSync(join(env.QA_SCRIBE_E2E_ARTIFACTS, 'isolation-outcomes.json'), JSON.stringify({ phase: env.QA_SCRIBE_E2E_ISOLATION_PHASE, completed: true, scenarios: [1, 2, 3, 4, 5, 6].map(id => ({ id, status: 'passed' })) }))
         if (modelPhase) writeFileSync(join(env.QA_SCRIBE_E2E_MODEL_EVIDENCE, 'lane-results.json'), JSON.stringify({
           phase: modelPhase, passed: 10, completed: modelPhase === 'M01' || restarting, nativeRestartVerified: restarting,
           results: Array.from({ length: 10 }, (_, index) => ({ lane: index + 1, status: 'passed' })),

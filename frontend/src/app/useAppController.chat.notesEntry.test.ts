@@ -1,0 +1,75 @@
+import { act, renderHook, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, expect, it } from 'vitest'
+import { entryFixture, findingFixture, sessionFixture } from '../test/fixtures'
+import { chatFixture, chatJobFixture } from './useSessionChat.testSupport'
+import { cleanupControllerTest, deferred, getTauriMock, sessionNoteStateFixture, setupControllerTest, useAppController } from './useAppController.testHarness'
+
+const api = getTauriMock()
+const target = { kind: 'finding', recordId: 'finding-1', title: 'Finding', unsaved: false } as const
+beforeEach(() => { setupControllerTest(); api.listFindings.mockResolvedValue([findingFixture()]) })
+afterEach(cleanupControllerTest)
+async function launch(hook: ReturnType<typeof renderHook<ReturnType<typeof useAppController>, unknown>>) {
+  await waitFor(() => expect(hook.result.current.activeSession?.id).toBe('session-1'))
+  await act(async () => { hook.result.current.setActiveView('findings') })
+  await waitFor(() => expect(hook.result.current.findingLoadState).toBe('ready'))
+  act(() => hook.result.current.askAi.onSelectRecord(target))
+  await act(async () => { await hook.result.current.askAi.onAskAi(target) })
+  return hook.result.current.conversations.bind(hook.result.current.askAi.reference!)
+}
+it('a late initial Notes load cannot replace explicit Record selection and Notes binds its own result', async () => {
+  const gate = deferred<ReturnType<typeof chatFixture>>()
+  api.getChat.mockReturnValueOnce(gate.promise)
+  const hook = renderHook(() => useAppController())
+  const record = await launch(hook)
+  await act(async () => { gate.resolve(chatFixture({ draftId: 'chat-session-1', composer: 'Late Notes input' })) })
+  await waitFor(() => expect(hook.result.current.sessionChat.chat?.draftId).toBe('chat-session-1'))
+  expect(hook.result.current.selectedConversation.chat?.draftId).toBe(record.reference.draftId)
+  expect(hook.result.current.recordChat.chat?.draftId).toBe(record.reference.draftId)
+  expect(hook.result.current.sessionChat.composer).toBe('Late Notes input')
+  expect(record.snapshot().composer).toBe('')
+  expect(api.startChatJob).not.toHaveBeenCalled()
+})
+it('failed unbound Notes keeps Chat Recheck and buffered input separate from a selected Record', async () => {
+  api.getChat.mockRejectedValueOnce(new Error('Initial Notes read failed'))
+  const hook = renderHook(() => useAppController())
+  await waitFor(() => expect(hook.result.current.sessionChat.error).toContain('Initial Notes read failed'))
+  const record = await launch(hook)
+  act(() => record.setComposer('Record input stays here'))
+  await act(async () => { hook.result.current.setActiveView('sessions') })
+  act(() => { hook.result.current.setSessionMode('chat'); hook.result.current.sessionChat.onSetComposer('Buffered Notes input') })
+  expect(hook.result.current.sessionMode).toBe('chat')
+  expect(hook.result.current.sessionChat.error).toContain('Initial Notes read failed')
+  expect(hook.result.current.sessionChat.composer).toBe('Buffered Notes input')
+  expect(record.snapshot().composer).toBe('Record input stays here')
+  expect(api.getChat).toHaveBeenCalledTimes(1)
+  api.getChat.mockResolvedValue(chatFixture({ draftId: 'chat-session-1' }))
+  await act(async () => { await hook.result.current.sessionChat.onRecheck?.() })
+  expect(hook.result.current.sessionChat.chat?.draftId).toBe('chat-session-1')
+  expect(hook.result.current.sessionChat.composer).toBe('Buffered Notes input')
+  expect(hook.result.current.sessionMode).toBe('chat')
+  expect(record.snapshot().composer).toBe('Record input stays here')
+  expect(api.getChat).toHaveBeenCalledTimes(2)
+  expect(api.startChatJob).not.toHaveBeenCalled()
+})
+
+it('captured Notes permission and Recheck callbacks expire after switching away and back', async () => {
+  api.openSessionNoteState.mockImplementation(async (id: string) => sessionNoteStateFixture({ session: sessionFixture({ id }), noteEntry: entryFixture({ sessionId: id, id: `note-${id}` }) }))
+  const hook = renderHook(() => useAppController())
+  await waitFor(() => expect(hook.result.current.sessionChat.chat?.draftId).toBe('chat-session-1'))
+  const status = chatJobFixture({ chat: { reference: { sessionId: 'session-1', draftId: 'chat-session-1' } }, pendingPermission: { requestId: 'notes-permission', provider: 'codex_cli', title: 'Synthetic tool request', toolName: null, serverName: null, inputJson: null } })
+  api.getAiActionJobStatus.mockResolvedValue(status)
+  api.commands.decideChatPermission.mockResolvedValue({ ...status, pendingPermission: null })
+  act(() => hook.result.current.conversations.observeJob(status))
+  const stale = hook.result.current.sessionChat
+  await act(async () => { await hook.result.current.openSession(sessionFixture({ id: 'session-2', title: 'Other Session' })) })
+  await waitFor(() => expect(hook.result.current.sessionChat.chat?.draftId).toBe('chat-session-2'))
+  await act(async () => { await hook.result.current.openSession(sessionFixture()) })
+  await waitFor(() => expect(hook.result.current.sessionChat.chat?.draftId).toBe('chat-session-1'))
+  api.getAiActionJobStatus.mockClear()
+  await act(async () => { await stale.onDecidePermission?.('notes-permission', 'approve'); await stale.onRecheck?.() })
+  expect(api.commands.decideChatPermission).not.toHaveBeenCalled()
+  expect(api.getAiActionJobStatus).not.toHaveBeenCalled()
+  await act(async () => { await hook.result.current.sessionChat.onDecidePermission?.('notes-permission', 'approve') })
+  expect(api.commands.decideChatPermission).toHaveBeenCalledExactlyOnceWith({ jobId: 'job-chat', sessionId: 'session-1', requestId: 'notes-permission', provider: 'codex_cli', decision: 'approve' })
+  expect(api.startChatJob).not.toHaveBeenCalled()
+})

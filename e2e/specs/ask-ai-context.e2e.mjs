@@ -1,13 +1,14 @@
+import { click, selected, recoverExact } from './ask-ai-isolation-proof.mjs'
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { click, create, fill, fixture, native, out, save, tab } from './composer-proof.mjs'
+import { create, fill, fixture, native, out, save, tab } from './composer-proof.mjs'
 import { resize } from './chat-handoff-proof.mjs'
 import { openCreationAi } from './creation-helpers.mjs'
 import { contextResponse } from '../fixtures/ask-ai-context-provider.mjs'
 import { imageFixture } from '../fixtures/chat-images-provider.mjs'
 
-const composer = '.ask-ai-panel textarea'
+const composer = '.ask-ai-panel:not([hidden]) textarea'
 const evidence = []
 const title = 'Synthetic C1 checkout Session'
 const findingTitle = 'Synthetic saved checkout finding'
@@ -15,10 +16,17 @@ const secondTitle = 'Synthetic second checkout finding'
 const casesTitle = 'Synthetic saved checkout cases'
 let session
 let initialDraftId
+let lastReference
+let firstReference
+const turns = new Map()
 let firstSnapshot
 
 function count() { return readdirSync(fixture).filter(name => /^codex-exec-\d+\.started$/.test(name)).length }
-async function chat() { return native('get_chat', { sessionId: session.id }) }
+async function chat() {
+  const visible = await browser.execute(() => Boolean(document.querySelector('.ask-ai-panel:not([hidden]) [data-conversation-id]')))
+  if (visible) { const value = await selected(); lastReference = { sessionId: value.sessionId, draftId: value.draftId }; return value }
+  return lastReference ? native('get_conversation', { reference: lastReference }) : native('get_chat', { sessionId: session.id })
+}
 async function settle() { await browser.executeAsync(done => requestAnimationFrame(() => requestAnimationFrame(done))) }
 async function screenshot(name, details = {}) {
   const geometry = await browser.execute(() => {
@@ -27,9 +35,9 @@ async function screenshot(name, details = {}) {
       const box = node.getBoundingClientRect()
       return { top: box.top, bottom: box.bottom, left: box.left, right: box.right, width: box.width, height: box.height }
     }
-    return { viewport: { width: innerWidth, height: innerHeight }, panel: rect(document.querySelector('.ask-ai-panel')),
-      composer: rect(document.querySelector('.ask-ai-panel textarea')), document: rect(document.querySelector('.session-document-area')),
-      context: document.querySelector('[aria-label="Chat context"]')?.textContent,
+    return { viewport: { width: innerWidth, height: innerHeight }, panel: rect(document.querySelector('.ask-ai-panel:not([hidden])')),
+      composer: rect(document.querySelector('.ask-ai-panel:not([hidden]) textarea')), document: rect(document.querySelector('.session-document-area')),
+      context: document.querySelector('[aria-label="Chat source"]')?.textContent,
       outer: { scrollTop: document.scrollingElement.scrollTop, width: document.documentElement.scrollWidth, height: document.documentElement.scrollHeight } }
   })
   evidence.push({ name, geometry, ...details })
@@ -46,16 +54,16 @@ async function select(recordTitle) {
 async function ask() {
   await click('button=Ask AI')
   await $(composer).waitForDisplayed()
-  await browser.waitUntil(() => browser.execute(() => document.activeElement === document.querySelector('.ask-ai-panel textarea')))
+  await browser.waitUntil(() => browser.execute(() => document.activeElement === document.querySelector('.ask-ai-panel:not([hidden]) textarea')))
 }
 async function pasteNativeImage() {
   await browser.execute(() => {
-    const input = document.querySelector('.ask-ai-panel textarea')
+    const input = document.querySelector('.ask-ai-panel:not([hidden]) textarea')
     const event = new Event('paste', { bubbles: true, cancelable: true })
     Object.defineProperty(event, 'clipboardData', { value: { files: [], items: [], types: ['public.tiff'], getData: () => '' } })
     input.dispatchEvent(event)
   })
-  await $('[aria-label="Attached images"] img').waitForDisplayed()
+  await $('.ask-ai-panel:not([hidden]) [aria-label="Attached images"] img').waitForDisplayed()
   await browser.waitUntil(async () => (await chat()).composerImages.length === 1)
 }
 async function start(text) {
@@ -63,13 +71,15 @@ async function start(text) {
   await fill(composer, text)
   await click('button=Send')
   await browser.waitUntil(() => existsSync(join(fixture, `codex-exec-${index}.started`)))
+  const value = await chat(); turns.set(index, { sessionId: value.sessionId, draftId: value.draftId })
   return { index, payload: JSON.parse(readFileSync(join(fixture, `codex-exec-${index}.chat.json`), 'utf8')) }
 }
 async function complete(turn) {
   writeFileSync(join(fixture, `codex-exec-${turn.index}.release`), 'Release synthetic C1 response\n', { flag: 'wx' })
-  await browser.waitUntil(async () => (await chat()).messages.at(-1)?.role === 'assistant' && (await chat()).messages.every(message => message.status === 'completed'))
-  await browser.waitUntil(async () => await $('button=Send').isExisting() && !(await $('button=Cancel response').isExisting()))
-  assert.equal((await chat()).messages.at(-1).text, contextResponse)
+  const completed = () => native('get_conversation', { reference: turns.get(turn.index) })
+  await browser.waitUntil(async () => (await completed()).messages.at(-1)?.role === 'assistant' && (await completed()).messages.every(message => message.status === 'completed'))
+  await browser.waitUntil(async () => await $('button=Send').isExisting() && !(await $('button=Stop').isExisting()))
+  assert.equal((await completed()).messages.at(-1).text, contextResponse)
 }
 async function generated(kind) {
   await tab(kind === 'finding' ? 'Findings' : 'Test cases')
@@ -108,10 +118,10 @@ describe('Ask AI with immutable record context in the built native application',
     await select(findingTitle)
   })
 
-  it('opens the existing Session conversation for a saved manual finding with a focused composer', async () => {
+  it('opens a fresh record conversation for a saved manual finding with a focused composer', async () => {
     await ask()
-    assert.equal((await chat()).draftId, initialDraftId)
-    assert.match(await $('[aria-label="Chat context"]').getText(), /Saved record/)
+    assert.notEqual((await chat()).draftId, initialDraftId)
+    assert.match(await $('[aria-label="Chat source"]').getText(), /Current finding included/)
     const turn = await start('Review the saved synthetic finding')
     const message = turn.payload.messages.at(-1)
     assert.equal(message.context.kind, 'finding')
@@ -120,6 +130,7 @@ describe('Ask AI with immutable record context in the built native application',
     assert.equal(message.context.snapshot.origin, 'saved')
     assert.ok(!JSON.stringify(turn.payload).includes('Synthetic private Session Note'))
     firstSnapshot = message.context
+    firstReference = { sessionId: session.id, draftId: (await chat()).draftId }
     await complete(turn)
     const value = await screenshot('lane-1-saved-finding')
     assert.ok(value.document.width >= 400, 'A desktop split must leave a readable document')
@@ -127,39 +138,37 @@ describe('Ask AI with immutable record context in the built native application',
   })
 
   it('captures unsaved rich content without saving and keeps the original context while switching targets', async () => {
-    await click('[aria-label="Close AI chat"]')
+    await click('[aria-label="Close Ask AI"]')
     await click('button=Edit')
     await fill('.record-detail-pane [contenteditable="true"]', 'Unsaved synthetic evidence at Send')
     await ask()
-    assert.match(await $('[aria-label="Chat context"]').getText(), /Unsaved edits included/)
+    assert.match(await $('[aria-label="Chat source"]').getText(), /Unsaved edits included/)
     const turn = await start('Review my unsaved evidence')
     const original = turn.payload.messages.at(-1).context
     assert.equal(original.snapshot.origin, 'unsaved_editor')
     assert.ok(original.snapshot.documentJson.includes('Unsaved synthetic evidence at Send'))
     assert.ok(!(await native('list_findings', { sessionId: session.id })).find(record => record.id === original.snapshot.recordId).body.includes('Unsaved synthetic evidence at Send'))
-    await click('[aria-label="Close AI chat"]')
+    await click('[aria-label="Close Ask AI"]')
     await click('button=Discard')
     await select(secondTitle)
     await ask()
-    assert.match(await $('[aria-label="Chat context"]').getText(), /Synthetic second checkout finding/)
-    assert.deepEqual((await chat()).messages.at(-1).context, original)
+    assert.match(await $('[aria-label="Chat source"]').getText(), /Synthetic second checkout finding/)
+    assert.deepEqual((await native('get_conversation', { reference: turns.get(turn.index) })).messages.at(-1).context, original)
+    assert.deepEqual((await chat()).messages, [])
     await complete(turn)
-    assert.deepEqual((await chat()).messages[0].context, firstSnapshot)
+    assert.deepEqual((await native('get_conversation', { reference: firstReference })).messages[0].context, firstSnapshot)
     await screenshot('lane-4-unsaved-and-lane-5-target-switch', { original })
   })
 
-  it('reuses native clipboard images and retains input, images and scroll across close, expand and Notes', async () => {
+  it('reuses native clipboard images and retains input, images and scroll across reclick and Notes', async () => {
     const dataUrl = `data:image/png;base64,${readFileSync(imageFixture.path).toString('base64')}`
     await native('copy_local_image_to_clipboard', { dataUrl })
     assert.ok(await native('read_chat_clipboard_image_data_url'), 'Read actual pixels from the operating-system clipboard')
     await fill(composer, 'Retain composer and image while switching panels')
     await pasteNativeImage()
     let image = (await chat()).composerImages[0]
-    await browser.execute(() => { document.querySelector('.chat-scroll-region').scrollTop = 0 })
-    await click('[aria-label="Expand AI chat"]')
-    await click('[aria-label="Collapse AI chat"]')
-    await click('[aria-label="Close AI chat"]')
-    await ask()
+    await browser.execute(() => { document.querySelector('.ask-ai-panel:not([hidden]) .chat-scroll-region').scrollTop = 0 })
+    await click('button=Ask AI')
     assert.equal(await $(composer).getValue(), 'Retain composer and image while switching panels')
     assert.deepEqual((await chat()).composerImages, [image])
     const recordTurn = await start('Synthetic record screenshot question')
@@ -172,14 +181,16 @@ describe('Ask AI with immutable record context in the built native application',
     await tab('Note')
     await click('button=Chat')
     await $('[aria-label="Session title"]').waitForDisplayed()
-    assert.match(await $('[aria-label="Chat context"]').getText(), /Session context/)
-    assert.equal(await $(composer).getValue(), 'Retain composer and image while switching panels')
+    assert.equal(await $(composer).getValue(), '')
+    assert.deepEqual((await chat()).composerImages, [])
+    await fill(composer, 'Retain independent Notes input'); await pasteNativeImage()
+    image = (await chat()).composerImages[0]
     const notes = await screenshot('lane-6-native-clipboard-and-lane-10-notes')
     assert.ok(notes.composer.bottom <= notes.viewport.height + 1, 'Notes chat must keep its composer in view')
     assert.equal(notes.outer.scrollTop, 0, 'Notes chat must not scroll the outer page')
     await click(`[aria-label="Remove ${image.filename}"]`)
     await browser.waitUntil(async () => !(await chat()).composerImages.length)
-    assert.equal(await $(composer).getValue(), 'Retain composer and image while switching panels')
+    assert.equal(await $(composer).getValue(), 'Retain independent Notes input')
     await pasteNativeImage()
     const turn = await start('Synthetic screenshot question')
     assert.equal(turn.payload.messages.at(-1).images.length, 1)
@@ -187,21 +198,18 @@ describe('Ask AI with immutable record context in the built native application',
     await complete(turn)
   })
 
-  it('labels Notes as Session context and detaches records for future sends only', async () => {
+  it('Notes captures Session context while every record conversation keeps its fixed source', async () => {
     const noteTurn = await start('A Session-only question')
-    assert.deepEqual(noteTurn.payload.messages.at(-1).context, { kind: 'session' })
-    await complete(noteTurn)
-    await tab('Findings')
-    await ask()
-    await click('[aria-label="Detach record context"]')
-    const turn = await start('A detached Session question')
-    assert.deepEqual(turn.payload.messages.at(-1).context, { kind: 'session' })
-    assert.deepEqual(turn.payload.messages[0].context, firstSnapshot)
-    await complete(turn)
+    assert.deepEqual(noteTurn.payload.messages.at(-1).context, { kind: 'session' }); await complete(noteTurn)
+    await tab('Findings'); await ask()
+    assert.equal(await $('[aria-label="Detach record context"]').isExisting(), false)
+    const turn = await start('A fresh fixed-record question')
+    assert.equal(turn.payload.messages.at(-1).context.kind, 'finding')
+    assert.equal(turn.payload.messages.length, 1); await complete(turn)
   })
 
   it('uses the same context contract for saved manual and generated Test cases and generated findings', async () => {
-    await click('[aria-label="Close AI chat"]')
+    await click('[aria-label="Close Ask AI"]')
     await tab('Test cases')
     await select(casesTitle)
     await ask()
@@ -210,7 +218,7 @@ describe('Ask AI with immutable record context in the built native application',
     assert.equal(turn.payload.messages.at(-1).context.snapshot.recordKind, 'testware')
     assert.ok(turn.payload.messages.at(-1).context.snapshot.documentJson.includes('Synthetic saved test case body'))
     await complete(turn)
-    await click('[aria-label="Close AI chat"]')
+    await click('[aria-label="Close Ask AI"]')
     for (const kind of ['finding', 'testware']) {
       const generatedTitle = await generated(kind)
       await ask()
@@ -218,11 +226,11 @@ describe('Ask AI with immutable record context in the built native application',
       assert.equal(turn.payload.messages.at(-1).context.snapshot.title, generatedTitle)
       await complete(turn)
       await screenshot(`lane-${kind === 'finding' ? '2-generated-finding' : '3-generated-test-cases'}`)
-      await click('[aria-label="Close AI chat"]')
+      await click('[aria-label="Close Ask AI"]')
     }
   })
 
-  it('uses full content for a narrow workspace and preserves the composer on WebView reload', async () => {
+  it('uses full content for a narrow workspace and retains stored input while a settled WebView reload launches fresh', async () => {
     await ask()
     await fill(composer, 'Unsent text survives a WebView reload')
     await browser.waitUntil(async () => (await chat()).composer === 'Unsent text survives a WebView reload')
@@ -234,8 +242,8 @@ describe('Ask AI with immutable record context in the built native application',
       assert.ok(value.outer.width <= value.viewport.width + 1)
       assert.equal(value.outer.scrollTop, 0)
       const actions = await browser.execute(() => {
-        const panel = document.querySelector('.ask-ai-panel').getBoundingClientRect()
-        return [...document.querySelectorAll('.ask-ai-panel .chat-compose-actions button')].map(button => {
+        const panel = document.querySelector('.ask-ai-panel:not([hidden])').getBoundingClientRect()
+        return [...document.querySelectorAll('.ask-ai-panel:not([hidden]) .chat-compose-actions button')].map(button => {
           const bounds = button.getBoundingClientRect()
           return { label: button.textContent.trim() || button.getAttribute('aria-label'), left: bounds.left, right: bounds.right,
             minimum: Math.max(0, panel.left), maximum: Math.min(innerWidth, panel.right) }
@@ -250,17 +258,18 @@ describe('Ask AI with immutable record context in the built native application',
     await browser.refresh()
     await $(`[role="option"]*=${title}`).waitForClickable()
     await click(`[role="option"]*=${title}`)
-    await tab('Note')
-    await click('button=Chat')
-    assert.equal(await $(composer).getValue(), 'Unsent text survives a WebView reload')
-    assert.deepEqual((await chat()).messages, before.messages)
-    assert.equal((await chat()).draftId, initialDraftId)
+    assert.equal(await browser.execute(() => Boolean(document.querySelector('.ask-ai-panel:not([hidden])'))), false)
+    await ask()
+    assert.equal(await $(composer).getValue(), '')
+    assert.deepEqual((await chat()).messages, [])
+    assert.notEqual((await chat()).draftId, before.draftId)
+    assert.equal((await native('get_conversation', { reference: { sessionId: before.sessionId, draftId: before.draftId } })).composer, 'Unsent text survives a WebView reload')
     await screenshot('lane-9-persisted-context-webview-reload')
     await fill(composer, '')
   })
   for (const kind of ['finding', 'test_cases_draft']) {
-    it(`retries the original ${kind} snapshot after deleting its source and restores ordinary sending`, async () => {
-      await click('[aria-label="Close AI chat"]')
+    it(`retries the original ${kind} snapshot after deletion while new capture stays disabled`, async () => {
+      await click('[aria-label="Close Ask AI"]')
       await tab(kind === 'finding' ? 'Findings' : 'Test cases')
       const recordTitle = kind === 'finding' ? findingTitle : casesTitle
       await select(recordTitle)
@@ -270,18 +279,18 @@ describe('Ask AI with immutable record context in the built native application',
       const pending = (await chat()).messages.at(-1)
       assert.equal(pending.context.kind, kind)
       assert.equal(pending.images.length, 1)
-      await click('button=Cancel response')
+      await click('button=Stop')
       await browser.waitUntil(async () => (await chat()).messages.at(-1)?.status === 'cancelled')
       await $('button=Retry response').waitForClickable()
-      await click('[aria-label="Close AI chat"]')
+      await click('[aria-label="Close Ask AI"]')
       await click(`[aria-label="Delete ${recordTitle}"]`)
       await click(`dialog button=Delete ${kind === 'finding' ? 'finding' : 'testware'} permanently`)
       await browser.waitUntil(async () => !(await native(kind === 'finding' ? 'list_findings' : 'list_drafts', { sessionId: session.id }))
         .some(record => record.id === pending.context.snapshot.recordId))
-      await tab('Note')
-      await click('button=Chat')
+      const reference = turns.get(originalTurn.index)
+      await recoverExact(reference); await $(composer).waitForDisplayed()
       await $('button=Retry response').waitForClickable()
-      assert.equal(await $('button=Send').isEnabled(), false)
+      assert.equal(await (await $('.ask-ai-panel:not([hidden])')).$('button=Send').isEnabled(), false)
       const index = count() + 1
       await click('button=Retry response')
       await browser.waitUntil(() => existsSync(join(fixture, `codex-exec-${index}.started`)))
@@ -296,10 +305,10 @@ describe('Ask AI with immutable record context in the built native application',
       assert.deepEqual({ id: replay.id, role: replay.role, text: replay.text, context: replay.context },
         { id: original.id, role: original.role, text: original.text, context: original.context })
       assert.deepEqual(replay.images.map(image => image.sha256), original.images.map(image => image.sha256))
-      await complete({ index })
-      const next = await start(`New Session question after retrying ${kind}`)
-      assert.deepEqual(next.payload.messages.at(-1).context, { kind: 'session' })
-      await complete(next)
+      turns.set(index, reference); await complete({ index })
+      await fill(composer, 'Fresh capture must remain unavailable')
+      assert.equal(await (await $('.ask-ai-panel:not([hidden])')).$('button=Send').isEnabled(), false)
+      await fill(composer, '')
       assert.equal((await chat()).messages.at(-1).role, 'assistant')
       assert.ok(!(await native(kind === 'finding' ? 'list_findings' : 'list_drafts', { sessionId: session.id }))
         .some(record => record.id === pending.context.snapshot.recordId))
@@ -319,12 +328,13 @@ describe('Ask AI with immutable record context in the built native application',
     await click('button=Save settings')
     await browser.waitUntil(async () => (await native('get_settings')).selectedAiProvider === 'copilot_cli')
     await click('button=Back')
+    await tab('Note'); await click('button=Chat')
     await $(composer).waitForDisplayed()
     const before = await chat()
     const invocations = count()
     await fill(composer, 'Keep this question after unsupported images')
     await click('button=Send')
-    await browser.waitUntil(async () => (await $('.ask-ai-panel').getText()).includes('Copilot Chat does not support image attachments yet'))
+    await browser.waitUntil(async () => (await $('.ask-ai-panel:not([hidden])').getText()).includes('Copilot Chat does not support image attachments yet'))
     assert.equal(await $(composer).getValue(), 'Keep this question after unsupported images')
     assert.deepEqual((await chat()).messages, before.messages)
     assert.equal(count(), invocations)

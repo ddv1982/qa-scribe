@@ -69,7 +69,9 @@ function waitForFile(path) {
   })
 }
 
-if (modelManagementEnabled) {
+if (process.env.QA_SCRIBE_E2E_SPEC === 'ask-ai-conversation-isolation.e2e.mjs' && args.includes('--version')) {
+  process.stdout.write('codex-cli 0.163.0\n')
+} else if (modelManagementEnabled) {
   modelManagementFixture('codex', args)
 } else if (args[0] === 'app-server') {
   codexAppServer(args)

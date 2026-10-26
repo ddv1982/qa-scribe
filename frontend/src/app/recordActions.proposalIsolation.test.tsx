@@ -1,5 +1,8 @@
-import { act, waitFor } from '@testing-library/react'
+import '@testing-library/jest-dom/vitest'
+import { createElement } from 'react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it } from 'vitest'
+import { AppChat } from './AppChat'
 import type { ChatState, DraftPatch, FindingPatch, RecordWriteGuard, RefinementProposal } from '../bindings'
 import { draftFixture, findingFixture } from '../test/fixtures'
 import { richEditorDocumentFromPlainText, richEditorDocumentToStoredBody } from '../editor/editorDocument'
@@ -23,18 +26,39 @@ it.each(['finding', 'test_cases_draft'] as const)('%s delayed Save settles A whi
   const base = await recordWriteGuard(b, kind === 'finding' ? 'findings' : 'drafts')
   if (subject.proposal.target.kind === 'session') throw new Error('Record proposal expected')
   const proposal: RefinementProposal = { ...subject.proposal, id: 'proposal-B', target: { kind, snapshot: { ...subject.proposal.target.snapshot, recordId: b.id, title: b.title, documentJson: before.documentJson, storedBaseToken: base.expectedStoredBase } }, before, after }
-  setConversation(chatFixture({ ...bRef, owner: { kind: 'record', sessionId: b.sessionId, record: { kind, recordId: b.id } }, mode: 'chat', proposals: [proposal] }))
+  setConversation(chatFixture({ ...bRef, owner: { kind: 'record', sessionId: b.sessionId, record: { kind, recordId: b.id } }, mode: 'chat', proposals: [proposal],
+    messages: [{ id: proposal.assistantMessageId, turnId: 'B-turn', role: 'assistant', text: 'B suggestion', images: [], status: 'completed', errorMessage: null, aiRunId: null, createdAt: 'saved' }] }))
   await act(async () => { await result.current.sessionChat.proposalControls!.onAction(subject.proposal.id, 'stage') })
   const select = async (reference: typeof aRef, record: typeof a) => {
     await act(async () => {
+      if (reference.draftId === aRef.draftId) await result.current.askAi.close()
       result.current.askAi.onSelectRecord({ kind, recordId: record.id, title: record.title, unsaved: true })
       await result.current.conversations.select(reference)
     })
+    if (reference.draftId === bRef.draftId) {
+      let opening!: Promise<void>
+      act(() => { opening = result.current.askAi.openConversation(reference) })
+      await waitFor(() => expect(result.current.askAi.revealRequest?.record).toEqual({ kind, recordId: b.id }))
+      await act(async () => {
+        const request = result.current.askAi.revealRequest!
+        result.current.askAi.onSelectRecord({ kind, recordId: record.id, title: record.title, unsaved: true }, request.requestId)
+        result.current.askAi.acknowledgeReveal(request)
+        await opening
+      })
+    }
   }
   await select(bRef, b)
-  await act(async () => { await result.current.sessionChat.proposalControls!.onAction(proposal.id, 'stage') })
+  const view = () => createElement(AppChat, { c: result.current, modelSelectionControl: null, onConfigureAi: () => {} })
+  const rendered = render(view())
+  const panel = within(screen.getByRole('complementary', { name: 'Ask AI' }))
+  expect(result.current.askAi.reference).toEqual(bRef)
+  expect(result.current.recordChat.chat?.owner).toEqual({ kind: 'record', sessionId: b.sessionId, record: { kind, recordId: b.id } })
+  fireEvent.click(panel.getByRole('button', { name: 'Apply to editor' }))
+  await waitFor(() => expect(readConversation(bRef.draftId).proposals![0].state.kind).toBe('staged'))
+  expect(result.current.proposalControls.errors[proposal.id]).toBeUndefined()
   expect(result.current.sessionChat.proposalControls!.preparedOnly?.has(proposal.id)).toBe(false)
   await select(aRef, a)
+  rendered.rerender(view())
   const storedA = storageOutcome(a, kind)
   const storedB = storageOutcome(b, kind)
   const committed = deferred<void>(), release = deferred<void>()
@@ -58,10 +82,13 @@ it.each(['finding', 'test_cases_draft'] as const)('%s delayed Save settles A whi
   act(() => { saving = save(a.id) })
   await act(async () => { await committed.promise })
   await select(bRef, b)
+  rendered.rerender(view())
+  expect(screen.getByRole('complementary', { name: 'Ask AI' })).toBeVisible()
+  expect(result.current.askAi.reference).toEqual(bRef)
   const beforeB = readConversation(bRef.draftId)
   await act(async () => { release.resolve(); expect(await saving).toBe(true) })
-  await waitFor(() => expect(result.current.sessionChat.chat?.draftId).toBe(bRef.draftId))
-  expect(result.current.sessionChat.chat?.proposals).toEqual(beforeB.proposals)
+  await waitFor(() => expect(result.current.selectedConversation.chat?.draftId).toBe(bRef.draftId))
+  expect(result.current.selectedConversation.chat?.proposals).toEqual(beforeB.proposals)
   expect(result.current.sessionChat.proposalControls!.preparedOnly?.has(proposal.id)).toBe(false)
   expect(storedA.read().title).toBe(subject.after.title)
   expect(storedA.read().bodyJson).toBe(subject.after.documentJson)
@@ -71,4 +98,5 @@ it.each(['finding', 'test_cases_draft'] as const)('%s delayed Save settles A whi
   expect(command.mock.calls.at(-1)?.[2]).toEqual({ sessionId: b.sessionId, expectedStoredBase: base.expectedStoredBase, origin: { kind: 'proposal', stageId: 'stage-proposal-B' } })
   expect(storedB.read().body).toBe('<p>Literal B proposal body</p>')
   expect(readConversation(aRef.draftId).proposals![0].state.kind).toBe('saved')
+  expect(api.beginRecordChat).not.toHaveBeenCalled()
 })

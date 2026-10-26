@@ -104,6 +104,62 @@ describe('scalable record collection', () => {
     expect(onRetryLoad).toHaveBeenCalledOnce()
   })
 
+  it('updates finding severity and exact Copy snapshots for same-ID content, metadata and source changes', async () => {
+    const user = userEvent.setup()
+    const onCopy = vi.fn(async () => undefined)
+    let a = findingFixture({ id: 'finding-a', title: 'A evidence', body: '<h3>Severity</h3><p>High</p><h3>Evidence</h3><p>Original A</p>', metadataJson: '{"severity":"low"}' })
+    const b = findingFixture({ id: 'finding-b', title: 'B evidence', body: '<p>B only</p>', metadataJson: '{"severity":"low","status":"in_progress"}' })
+    const viewFor = (notice: string | null = null) => <FindingsView creationCommands={recordCreationCommandsFixture('finding')} busyAction={null}
+      copyState={{ status: 'idle' }} findingScreenshotCounts={{}} findings={[a, b]} notice={notice} error={null} isBusy={false}
+      activeGenerationJob={null} updateLocalFinding={vi.fn()} onCancelGenerationJob={async () => undefined} onCopy={onCopy}
+      onDeleteFinding={vi.fn()} onSaveFinding={async () => true} onDiscardFinding={vi.fn()} onUploadImage={vi.fn()} />
+    const view = render(viewFor())
+    const header = (title: string) => within(screen.getByRole('heading', { name: title }).closest('header')!)
+    const list = within(screen.getByRole('complementary', { name: 'Issues and risks records' }))
+    expect(header('A evidence').getByText('High severity')).toBeVisible()
+    expect(list.getByRole('button', { name: /A evidence/ })).toHaveTextContent('High severity')
+    view.rerender(viewFor('Unrelated chat status'))
+    await user.click(header('A evidence').getByRole('button', { name: 'Copy A evidence' }))
+    expect(onCopy).toHaveBeenLastCalledWith({ target: { kind: 'finding', sessionId: 'session-1', id: 'finding-a', action: 'jira-text' }, title: 'A evidence', bodyHtml: '<p><strong>Severity:</strong> High</p><h3>Evidence</h3><p>Original A</p>' })
+
+    a = { ...a, body: '<p>Changed A</p>' }
+    view.rerender(viewFor())
+    expect(header('A evidence').getByText('Low severity')).toBeVisible()
+    await user.click(header('A evidence').getByRole('button', { name: 'Copy A evidence' }))
+    expect(onCopy).toHaveBeenLastCalledWith({ target: { kind: 'finding', sessionId: 'session-1', id: 'finding-a', action: 'jira-text' }, title: 'A evidence', bodyHtml: '<p><strong>Severity:</strong> Low</p><p>Changed A</p>' })
+    a = { ...a, kind: 'risk' }
+    view.rerender(viewFor())
+    expect(header('A evidence').getByText('Risk')).toBeVisible()
+    a = { ...a, metadataJson: '{"severity":"critical","status":"closed"}' }
+    view.rerender(viewFor())
+    expect(header('A evidence').getByText('Critical severity')).toBeVisible()
+    expect(header('A evidence').getByText('Risk')).toBeVisible()
+    expect(header('A evidence').getByText('Closed')).toBeVisible()
+    expect(list.getByRole('button', { name: /A evidence/ })).toHaveTextContent('Critical severity')
+    await user.click(header('A evidence').getByRole('button', { name: 'Copy A evidence' }))
+    expect(onCopy).toHaveBeenLastCalledWith({ target: { kind: 'finding', sessionId: 'session-1', id: 'finding-a', action: 'jira-text' }, title: 'A evidence', bodyHtml: '<p><strong>Severity:</strong> Critical</p><p>Changed A</p>' })
+    a = { ...a, title: 'A renamed' }
+    view.rerender(viewFor())
+    await user.click(header('A renamed').getByRole('button', { name: 'Copy A renamed' }))
+    expect(onCopy).toHaveBeenLastCalledWith({ target: { kind: 'finding', sessionId: 'session-1', id: 'finding-a', action: 'jira-text' }, title: 'A renamed', bodyHtml: '<p><strong>Severity:</strong> Critical</p><p>Changed A</p>' })
+
+    a = { ...a, bodyJson: JSON.stringify({ schemaVersion: 1, doc: { type: 'doc', content: [{ type: 'heading', attrs: { level: 3 }, content: [{ type: 'text', text: 'Severity' }] }, { type: 'paragraph', content: [{ type: 'text', text: 'Medium' }] }] } }) }
+    view.rerender(viewFor())
+    expect(header('A renamed').getByText('Medium severity')).toBeVisible()
+    await user.click(header('A renamed').getByRole('button', { name: 'Copy A renamed' }))
+    expect(onCopy).toHaveBeenLastCalledWith(expect.objectContaining({ bodyHtml: '<p><strong>Severity:</strong> Critical</p><p>Changed A</p>' }))
+    a = { ...a, bodyJson: 'invalid stored JSON' }
+    view.rerender(viewFor())
+    expect(header('A renamed').getByText('Critical severity')).toBeVisible()
+
+    await user.click(list.getByRole('button', { name: /B evidence/ }))
+    expect(header('B evidence').getByText('Low severity')).toBeVisible()
+    expect(header('B evidence').getByText('In progress')).toBeVisible()
+    await user.click(header('B evidence').getByRole('button', { name: 'Copy B evidence' }))
+    expect(onCopy).toHaveBeenLastCalledWith({ target: { kind: 'finding', sessionId: 'session-1', id: 'finding-b', action: 'jira-text' }, title: 'B evidence', bodyHtml: '<p><strong>Severity:</strong> Low</p><p>B only</p>' })
+    expect(onCopy).toHaveBeenNthCalledWith(1, { target: { kind: 'finding', sessionId: 'session-1', id: 'finding-a', action: 'jira-text' }, title: 'A evidence', bodyHtml: '<p><strong>Severity:</strong> High</p><h3>Evidence</h3><p>Original A</p>' })
+  })
+
   it('selects the exact created record through an excluding query, preserves sort, and acknowledges committed focus once', async () => {
     const user = userEvent.setup()
     const existing = draftFixture({ id: 'first', title: 'A saved case' })

@@ -1,6 +1,9 @@
-import { act, waitFor } from '@testing-library/react'
+import '@testing-library/jest-dom/vitest'
+import { createElement } from 'react'
+import { AppChat } from './AppChat'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it } from 'vitest'
-import type { ChatState } from '../bindings'
+import type { BeginRecordChatRequest, ChatRef, ChatState } from '../bindings'
 import { findingFixture } from '../test/fixtures'
 import { editorValue, RecordWriteConflict } from './recordWriteGuards'
 import { chatFixture } from './useSessionChat.testSupport'
@@ -49,7 +52,7 @@ it('rejects navigation during the await and never writes the newly selected reco
   let applying!: Promise<void>
   act(() => { applying = result.current.sessionChat.proposalControls!.onAction('proposal-1', 'stage') })
   await waitFor(() => expect(api.resolveRefinement).toHaveBeenCalled())
-  act(() => result.current.askAi.detach())
+  act(() => result.current.askAi.onSelectRecord(null))
   await act(async () => { staging.resolve(chatFixture({ draftId: 'chat-session-1', proposals: [{ ...proposal, state: { kind: 'staged', stage: { id: 'stage-1', before: proposal.before, after, storedBaseToken: base.expectedStoredBase } } }] })); await applying })
   expect(result.current.findings[0].title).toBe(proposal.before.title)
   expect(result.current.sessionChat.proposalControls?.errors['proposal-1']).toContain('selection changed while preparing')
@@ -151,4 +154,96 @@ it('conversation selection A to B to A invalidates an awaited Apply on the same 
   expect(result.current.findings[0].title).toBe(record.title)
   expect(result.current.findings[0].body).toBe(record.body)
   expect(result.current.sessionChat.proposalControls!.errors[proposal.id]).toContain('selection changed')
+})
+
+
+it.each(['held', 'rejected'] as const)('visible Notes dismisses its rendered proposal while Notes selection is %s behind a record chat', async selection => {
+  const { result, record, proposal, setConversation, readConversation, setChat } = await open()
+  setChat({ ...result.current.sessionChat.chat!, mode: 'chat', messages: [{ id: proposal.assistantMessageId, turnId: 'notes-turn', role: 'assistant', text: 'A legacy Notes suggestion.', images: [], status: 'completed', errorMessage: null, aiRunId: null, createdAt: 'saved' }] })
+  await act(async () => { await result.current.sessionChat.onRefresh!() })
+  const reference = { sessionId: record.sessionId, draftId: 'record-selected-behind-notes' }
+  const row = chatFixture({ ...reference, owner: { kind: 'record', sessionId: record.sessionId, record: { kind: 'finding', recordId: record.id } }, mode: 'chat' })
+  setConversation(row)
+  await act(async () => { await result.current.conversations.select(reference) })
+  const held = deferred<void>()
+  const activate = api.activateConversation.getMockImplementation()!
+  api.activateConversation.mockImplementation(async (ref: ChatRef) => {
+    if (ref.draftId === 'chat-session-1') {
+      if (selection === 'held') await held.promise
+      throw new Error('Synthetic Notes activation rejected')
+    }
+    return activate(ref)
+  })
+  await act(async () => { result.current.setActiveView('sessions'); result.current.setSessionMode('chat') })
+  const view = () => createElement(AppChat, { c: result.current, modelSelectionControl: null, onConfigureAi: () => {} })
+  const rendered = render(view())
+  const panel = within(screen.getByRole('complementary', { name: 'Notes AI chat' }))
+  expect(panel.getByRole('region', { name: `Local refinement for ${record.title}` })).toHaveTextContent('Not applied.')
+  fireEvent.click(panel.getByRole('button', { name: 'Review refinement' }))
+  fireEvent.click(panel.getByRole('button', { name: 'Dismiss proposal' }))
+  await waitFor(() => expect(readConversation('chat-session-1').proposals?.[0].state.kind).toBe('dismissed'))
+  rendered.rerender(view())
+  expect(panel.getByRole('region', { name: `Local refinement for ${record.title}` })).toHaveTextContent('Dismissed.')
+  expect(readConversation(reference.draftId)).toEqual(row)
+  expect(result.current.sessionChat.chat?.proposals?.[0].id).toBe(proposal.id)
+  expect(result.current.sessionChat.proposalControls?.errors[proposal.id]).toBeUndefined()
+  expect(result.current.findings[0].title).toBe(record.title)
+  expect(api.updateFinding).not.toHaveBeenCalled()
+  await act(async () => { held.resolve() })
+})
+
+
+it.each(['finding', 'test_cases_draft'] as const)('rendered %s Apply keeps its exact reference when the engine selection differs', async kind => {
+  const { result, record, proposal, setConversation, readConversation } = await open(kind)
+  const message = { id: proposal.assistantMessageId, turnId: 'record-turn', role: 'assistant' as const, text: 'A record suggestion.', images: [], status: 'completed' as const, errorMessage: null, aiRunId: null, createdAt: 'saved' }
+  api.beginRecordChat.mockImplementation(async (request: BeginRecordChatRequest) => {
+    const row = chatFixture({ ...request, owner: { kind: 'record', sessionId: request.sessionId, record: request.record }, mode: 'chat', proposals: [proposal], messages: [message] })
+    setConversation(row)
+    return row
+  })
+  await act(async () => { await result.current.askAi.onAskAi({ kind, recordId: record.id, title: record.title, unsaved: false }) })
+  const reference = result.current.askAi.reference!
+  await act(async () => { await result.current.conversations.select({ sessionId: record.sessionId, draftId: 'chat-session-1' }) })
+  const view = () => createElement(AppChat, { c: result.current, modelSelectionControl: null, onConfigureAi: () => {} })
+  const rendered = render(view())
+  const panel = within(screen.getByRole('complementary', { name: 'Ask AI' }))
+  fireEvent.click(panel.getByRole('button', { name: 'Apply to editor' }))
+  await waitFor(() => expect((kind === 'finding' ? result.current.findings : result.current.testwareDrafts)[0].title).toBe('Refined title'))
+  rendered.rerender(view())
+  expect(panel.queryByRole('button', { name: 'Apply to editor' })).not.toBeInTheDocument()
+  expect(readConversation(reference.draftId).proposals?.[0].state.kind).toBe('staged')
+  expect(readConversation('chat-session-1').proposals?.[0].state.kind).toBe('offered')
+  expect(result.current.proposalControls.errors[proposal.id]).toBeUndefined()
+  expect(api.updateFinding).not.toHaveBeenCalled()
+  expect(api.updateDraft).not.toHaveBeenCalled()
+})
+
+it('rendered legacy Notes recovery classifies and abandons its prepared stage despite an unrelated engine selection', async () => {
+  const { result, record, proposal, after, base, setChat, setConversation, readConversation } = await open()
+  const reference = { sessionId: record.sessionId, draftId: 'chat-session-1' }
+  const stage = { id: 'legacy-stage', before: proposal.before, after, storedBaseToken: base.expectedStoredBase }
+  setChat(chatFixture({ ...reference, mode: 'chat', proposals: [{ ...proposal, state: { kind: 'staged', stage } }],
+    messages: [{ id: proposal.assistantMessageId, turnId: 'legacy-turn', role: 'assistant', text: 'A legacy Notes suggestion.', images: [], status: 'completed', errorMessage: null, aiRunId: null, createdAt: 'saved' }] }))
+  const fallback = findingFixture({ id: 'fallback', title: 'Unrelated fallback' })
+  api.listFindings.mockResolvedValue([fallback])
+  await act(async () => { await result.current.loadFindingsForSession(record.sessionId, { force: true, replace: true }) })
+  act(() => result.current.askAi.onSelectRecord({ kind: 'finding', recordId: fallback.id, title: fallback.title, unsaved: false }))
+  await act(async () => { await result.current.askAi.openStage({ reference, proposalId: proposal.id, stageId: stage.id, record: { kind: 'finding', recordId: record.id } }) })
+  const other = chatFixture({ sessionId: record.sessionId, draftId: 'other-record', owner: { kind: 'record', sessionId: record.sessionId, record: { kind: 'finding', recordId: fallback.id } } })
+  setConversation(other)
+  await act(async () => { await result.current.conversations.select(other) })
+  const view = () => createElement(AppChat, { c: result.current, modelSelectionControl: null, onConfigureAi: () => {} })
+  const rendered = render(view())
+  const panel = within(screen.getByRole('complementary', { name: 'Ask AI' }))
+  expect(panel.getByRole('region', { name: `Local refinement for ${record.title}` })).toHaveTextContent('Recovered suggestion awaiting review.')
+  fireEvent.click(panel.getByRole('button', { name: 'Review refinement' }))
+  expect(panel.getByRole('button', { name: 'Apply to editor' })).toBeDisabled()
+  expect(panel.getByRole('button', { name: 'Undo refinement' })).toBeDisabled()
+  fireEvent.click(panel.getByRole('button', { name: 'Keep current edits' }))
+  await waitFor(() => expect(readConversation(reference.draftId).proposals?.[0].state.kind).toBe('abandoned'))
+  rendered.rerender(view())
+  expect(panel.getByRole('region', { name: `Local refinement for ${record.title}` })).toHaveTextContent('Prepared change abandoned.')
+  expect(result.current.findings[0]).toEqual(fallback)
+  expect(readConversation(other.draftId)).toEqual(other)
+  expect(api.updateFinding).not.toHaveBeenCalled()
 })

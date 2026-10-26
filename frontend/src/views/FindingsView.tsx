@@ -1,5 +1,6 @@
 import { findingSeverityValue, prepareFindingForEditing } from '../findings/severity'
 import { findingCopyBody } from '../findings/copyBody'
+import { useMemo } from 'react'
 import type { RecordChatActions } from '../app/sessionChat.context'
 import type { RecordCreationCommands } from './RecordCreationActions'
 import { Flag } from 'lucide-react'
@@ -38,6 +39,20 @@ const findingsLabels: RecordCollectionLabels = {
 }
 
 const findingKindOptions: FindingKind[] = ['bug', 'question', 'risk', 'follow_up', 'note']
+
+function findingRecordCopyBody(finding: Finding) {
+  return findingCopyBody(finding.body, finding.metadataJson)
+}
+
+function FindingMeta({ finding }: { finding: Finding }) {
+  const { body, bodyJson, bodyFormat, metadataJson } = finding
+  const severity = useMemo(() => findingSeverityValue({ body, bodyJson, bodyFormat, metadataJson }), [body, bodyJson, bodyFormat, metadataJson])
+  return <div className="finding-meta-row">
+    <span>{formatFindingKind(finding.kind)}</span>
+    <span>{findingSeverityLabel(severity)}</span>
+    <span>{findingStatusLabel(parseFindingMetadata(metadataJson).status)}</span>
+  </div>
+}
 
 export function FindingsView({
   composer, settleCreation, recordChat,
@@ -100,7 +115,7 @@ export function FindingsView({
       emptyIcon={Flag}
       busyAction={busyAction}
       sourceKind="finding"
-      copyBody={(finding) => findingCopyBody(finding.body, finding.metadataJson)}
+      copyBody={findingRecordCopyBody}
       copyState={copyState}
       recordScreenshotCounts={findingScreenshotCounts}
       records={findings}
@@ -115,13 +130,7 @@ export function FindingsView({
       loadState={loadState}
       loadError={loadError}
       onRetryLoad={onRetryLoad}
-      renderMeta={(finding) => (
-        <div className="finding-meta-row">
-          <span>{formatFindingKind(finding.kind)}</span>
-          <span>{findingSeverityLabel(findingSeverityValue(finding))}</span>
-          <span>{findingStatusLabel(parseFindingMetadata(finding.metadataJson).status)}</span>
-        </div>
-      )}
+      renderMeta={(finding) => <FindingMeta finding={finding} />}
       filter={{
         label: 'Type',
         options: findingKindOptions.map((kind) => ({ id: kind, label: formatFindingKind(kind) })),

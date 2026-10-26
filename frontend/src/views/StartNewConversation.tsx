@@ -9,7 +9,7 @@ export type ChatRestartState = Pick<SessionChatViewState,
   | 'permissionWorking' | 'permissionRecoveryPending' | 'onRestart' | 'captureRestart'> & Partial<Pick<SessionChatViewState, 'composerImages' | 'imageFailures' | 'inputRecoveryPending' | 'recordWritesPending'>>
 
 function restartDisabled(state: ChatRestartState) {
-  return !state.chat || state.recordWritesPending || state.chat.proposals?.some(p => p.state.kind === 'staged') || chatIsBusy(state) || Boolean(state.recoveryPending
+  return !state.chat || state.chat.archived || state.recordWritesPending || state.chat.proposals?.some(p => p.state.kind === 'staged') || chatIsBusy(state) || Boolean(state.recoveryPending
     || state.permissionWorking || state.permissionRecoveryPending || state.inputRecoveryPending)
 }
 

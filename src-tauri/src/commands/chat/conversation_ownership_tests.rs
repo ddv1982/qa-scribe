@@ -141,7 +141,9 @@ fn conversation_ownership_composer_normalizes_saved_intent() {
             .unwrap()
             .unwrap();
         let expected = match intent {
-            ChatComposerIntent::Message => ChatResponsePurpose::Conversation,
+            ChatComposerIntent::Message => ChatResponsePurpose::Refinement {
+                record_kind: RefinementRecordKind::Finding,
+            },
             ChatComposerIntent::RefineRecord => ChatResponsePurpose::Refinement {
                 record_kind: RefinementRecordKind::Finding,
             },

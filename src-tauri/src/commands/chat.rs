@@ -394,3 +394,6 @@ pub fn resolve_refinement(
 ) -> Result<ChatState, CommandError> {
     state.with_service(|service| service.resolve_refinement(request))
 }
+
+#[cfg(test)]
+mod record_assistance_tests;

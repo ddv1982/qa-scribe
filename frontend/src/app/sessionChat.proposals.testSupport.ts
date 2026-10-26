@@ -43,7 +43,7 @@ export async function open(kind: 'finding' | 'test_cases_draft' = 'finding', add
   // oxlint-disable-next-line typescript/require-await -- Preserve the original async act boundary after moving from the exempt test file.
   await act(async () => { hook.result.current.setActiveView(kind === 'finding' ? 'findings' : 'testware') })
   await waitFor(() => expect(kind === 'finding' ? hook.result.current.findings.length : hook.result.current.testwareDrafts.length).toBe(1 + additional.length))
-  act(() => hook.result.current.askAi.onAskAi({ kind, recordId: record.id, title: record.title, unsaved: false }))
+  act(() => hook.result.current.askAi.onSelectRecord({ kind, recordId: record.id, title: record.title, unsaved: false }))
   return { ...hook, record, proposal, after, base, setConversation: (next: ChatState) => rows.set(next.draftId, next), readConversation: (id: string) => rows.get(id)!, setChat: (next: ChatState) => { chat = next; rows.set(next.draftId, next) } }
 }
 

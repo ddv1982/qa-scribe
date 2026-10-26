@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { deriveChatHandoff } from './sessionChat.presentation'
+import { deriveChatHandoff, handoffDuringRecordWrites } from './sessionChat.presentation'
 import { chatJobFixture, completedChatFixture } from './useSessionChat.testSupport'
 
 const ready = () => ({
@@ -110,4 +110,17 @@ it('Record ownership cannot authorize Notes handoff even for completed history',
   const chat = { ...state.chat, owner: { kind: 'record' as const, sessionId: 'session-1', record: { kind: 'finding' as const, recordId: 'A' } } }
   expect(deriveChatHandoff({ ...state, chat }).kind).toBe('settling')
   expect(deriveChatHandoff({ ...state, chat }).reviewAvailable).toBe(false)
+})
+
+
+it('pending record writes disable prospective Add without replacing typed receipt or recovery states', () => {
+  const conversation = deriveChatHandoff(ready())
+  expect(handoffDuringRecordWrites(conversation, true)).toEqual({ kind: 'conversation', disabled: true,
+    reason: 'Wait for pending record writes before adding the conversation.', hydrationPending: false, reviewAvailable: true })
+  expect(handoffDuringRecordWrites(conversation, false)).toBe(conversation)
+  for (const handoff of [
+    deriveChatHandoff({ ...ready(), chat: completedChatFixture({ submission: receipt }) }),
+    deriveChatHandoff({ ...ready(), recoveryPending: true }),
+    deriveChatHandoff({ ...ready(), loading: true }),
+  ]) expect(handoffDuringRecordWrites(handoff, true)).toBe(handoff)
 })
