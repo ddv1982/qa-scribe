@@ -38,7 +38,7 @@ export async function ask() {
   await browser.waitUntil(() => browser.execute(() => { const input = document.querySelector('.ask-ai-panel:not([hidden]) textarea'); return input && !input.disabled && document.activeElement === input }))
   return selected()
 }
-export async function close() { await click('[aria-label="Close Ask AI"]'); await $('.ask-ai-panel--record').waitForDisplayed({ reverse: true }) }
+export async function close() { await click('.ask-ai-panel:not([hidden]) [aria-label="Close Ask AI"]'); await $('.ask-ai-panel--record').waitForDisplayed({ reverse: true }) }
 export async function selectRecord(title) {
   const item = await (await $('.record-master-list')).$(`button*=${title}`)
   await item.waitForClickable(); await item.click()

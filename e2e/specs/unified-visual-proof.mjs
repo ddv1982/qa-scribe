@@ -14,6 +14,10 @@ const { Key } = await import(require.resolve('webdriverio'))
 const out = () => process.env.QA_SCRIBE_E2E_ARTIFACTS
 let restartTrace
 export async function click(selector) {
+  if (selector === 'button=Start new conversation') {
+    const options = await $('.ask-ai-panel--notes .chat-options')
+    if (await options.isExisting() && !await browser.execute(node => node.open, options)) await (await options.$('summary')).click()
+  }
   restartTrace?.click('lookup', selector)
   const scopedText = selector.match(/^(.*) (button)(\*?=.+)$/)
   const element = scopedText ? await (await $(scopedText[1])).$(`${scopedText[2]}${scopedText[3]}`) : await $(selector)
@@ -25,7 +29,7 @@ export async function click(selector) {
   restartTrace?.click('returned', selector, element.elementId)
 }
 export async function waitForSavedConversation() {
-  await browser.waitUntil(async () => await $('.chat-meta [role="status"]').getText() === 'Conversation saved')
+  await browser.waitUntil(async () => await $('.chat-status').getText() === 'Conversation saved')
 }
 const tab = label => click(`.session-workspace-tabs button*=${label}`)
 const native = (command, args = {}) => browser.tauri.execute(({ core }, { command, args }) => core.invoke(command, args), { command, args })
@@ -146,7 +150,8 @@ async function unifiedRouteBody() {
   await click('.settings-back-button')
   await tab('Note')
   restartTrace?.activate()
-  await click('button=Chat')
+  await click('button=Ask AI')
+  await click('.chat-options summary')
   await $('button=Start new conversation').waitForEnabled()
   await waitForSavedConversation()
   const oldChat = await native('get_chat', { sessionId: session.id })
@@ -168,7 +173,7 @@ async function unifiedRouteBody() {
     return chat.draftId !== oldChat.draftId
   })
   restartTrace?.deactivate()
-  await click('button=Write note')
+  if (await $('.ask-ai-panel:not([hidden]) [aria-label="Close Ask AI"]').isDisplayed()) await click('.ask-ai-panel:not([hidden]) button[aria-label="Close Ask AI"]')
   await click('button=Help')
   await $('dialog[open]').waitForDisplayed()
   await capture('uc3-help')

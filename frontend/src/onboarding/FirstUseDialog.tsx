@@ -81,7 +81,7 @@ export function FirstUseDialog({ kind, onClose, onExploreExample, onStartSession
           <li>GitHub Copilot CLI. Check <code>copilot version</code> then run <code>copilot</code> and enter <code>/login</code> to sign in.</li>
         </ul>
         <p>Open Settings and choose Refresh CLI configuration. Installed does not mean authenticated. A ready status is a local check, not a guarantee of account access, quota, model availability, or a successful response.</p>
-        <p>Expand Generate with AI inside a draft, or send a Chat message to request AI. Review the source before confirming. Successful draft generation saves one result immediately. In Notes Chat, Add conversation to note appends the finished conversation without another AI request. Ask AI beside a saved record starts a separate empty conversation. Close saves its input. Reopening starts fresh unless unfinished work needs recovery.</p>
+        <p>Expand Generate with AI inside a draft, or send a Chat message to request AI. Review the source before confirming. Successful draft generation saves one result immediately. Ask AI beside the Note opens its separate conversation. Add conversation to note appends the finished conversation without another AI request. Ask AI beside a saved record starts a separate empty conversation. Close saves its input. Reopening starts fresh unless unfinished work needs recovery.</p>
         <p>In Chat, paste screenshots with Ctrl+V or Cmd+V, or choose the paperclip beside Send. Inspect or remove thumbnails before sending. Images can be sent without text.</p>
       </details>
       <details>

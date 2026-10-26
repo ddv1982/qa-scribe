@@ -75,7 +75,3 @@
   .chat-permission { padding: var(--space-3); }
   .chat-permission .chat-buttons { justify-content: flex-start; }
 }
-
-@media (max-width: 760px) {
-  .editor-card--chat .chat-permission + .chat-scroll-region { flex: 0 0 auto; }
-}

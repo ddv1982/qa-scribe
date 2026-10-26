@@ -21,6 +21,10 @@ async function read(command, args = {}) {
 }
 
 async function click(label) {
+  if (label === 'Configure AI') {
+    const options = await $('.ask-ai-panel--notes .chat-options')
+    if (!await browser.execute(node => node.open, options)) await (await options.$('summary')).click()
+  }
   const target = await $(`button=${label}`)
   await target.waitForClickable()
   await target.click()
@@ -56,7 +60,7 @@ describe('AUTHENTICATED candidate native app Chat authorization (not fixtures)',
       await field.setValue(title)
       await browser.waitUntil(async () => (await read('list_sessions')).some((session) => session.title === title))
       const sessionId = (await read('list_sessions')).find((session) => session.title === title).id
-      await click('Chat')
+      await click('Ask AI')
       await click('Configure AI')
       evidence.stage = 'settings'
       evidence.checkpoint = 'settings-availability'
@@ -220,7 +224,7 @@ describe('AUTHENTICATED candidate native app Chat authorization (not fixtures)',
       const option = await $(`[role="option"]*=${title}`)
       await option.waitForClickable()
       await option.click()
-      const chatButton = await $('button=Chat')
+      const chatButton = await $('button=Ask AI')
       await chatButton.waitForClickable()
       await chatButton.click()
       await $('[aria-label="Conversation transcript"]').waitForDisplayed()

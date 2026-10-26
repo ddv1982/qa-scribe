@@ -89,7 +89,7 @@ describe('Short native creation and saved-chat geometry', () => {
   it('keeps Send and the unsent draft visible before and across real autosave acknowledgment at 640x520', async () => {
     await resize(1280, 645)
     await tab('Note')
-    await click('button=Chat')
+    await click('button=Ask AI')
     const message = 'Checkout evidence and expected result. '.repeat(240).trim()
     await fill('.chat-composer textarea', message)
     await browser.waitUntil(async () => (await native('get_chat', { sessionId })).composer === message)

@@ -49,7 +49,9 @@ async function lane(number, name, run) {
 async function fresh(provider, title) {
   await preference(provider, null)
   const sessionId = await createSession(title)
-  await click('Chat')
+  await click('Ask AI')
+  const options = await $('.chat-options')
+  if (!await browser.execute(node => node.open, options)) await (await options.$('summary')).click()
   await $(quickInput).waitForEnabled()
   return sessionId
 }
@@ -59,7 +61,7 @@ async function restartProof() {
   if (!restart) {
     for (const [provider, id] of [['claude', 'claude_code'], ['codex', 'codex_cli'], ['copilot', 'copilot_cli']]) {
       await preference(provider, null)
-      await click('Chat')
+      await click('Ask AI')
       await modelPreference(provider, expected[id])
     }
     const saved = await read('get_settings')
@@ -71,7 +73,9 @@ async function restartProof() {
   const previous = JSON.parse(readFileSync(restartPath, 'utf8'))
   const restoredSettings = await read('get_settings')
   assert.deepEqual(restoredSettings.selectedAiModelsByProvider, previous.expected)
-  await click('Chat')
+  await click('Ask AI')
+  const options = await $('.chat-options')
+  if (!await browser.execute(node => node.open, options)) await (await options.$('summary')).click()
   await $(quickInput).waitForEnabled()
   assert.equal(await $(quickInput).getValue(), previous.expected[restoredSettings.selectedAiProvider],
     'The first restored quick selection must be correct before any Settings write')
@@ -80,7 +84,7 @@ async function restartProof() {
   for (const provider of ['claude', 'codex', 'copilot']) {
     const model = previous.expected[{ claude: 'claude_code', codex: 'codex_cli', copilot: 'copilot_cli' }[provider]]
     await switchProviderOnly(provider, previous.expected)
-    await click('Chat')
+    await click('Ask AI')
     assert.equal(await $(quickInput).getValue(), model)
     await $(`${quickSection} [aria-label="Open model choices"]`).click()
     const labels = []
@@ -262,7 +266,7 @@ describe('Built application native quick model selection M03', () => {
       assert.equal(focus.state.focused, true)
       await openQuickPicker(); await $('[aria-label="Session chat"] textarea').click()
       assert.equal((await pickerState()).expanded, 'false')
-      await openQuickPicker(); await $('[aria-label="Close AI chat"]').click()
+      await openQuickPicker(); await $('.ask-ai-panel:not([hidden]) [aria-label="Close Ask AI"]').click()
       await browser.waitUntil(() => browser.execute(() => !document.querySelector('.model-combobox-popover--chat')))
       const retained = await read('get_chat', { sessionId })
       assert.equal(retained.composer, draft)
@@ -384,13 +388,13 @@ describe('Built application native quick model selection M03', () => {
   it('keeps historical reports and legacy provenance separate from current Settings', () => lane(6, 'history', async (output) => {
     await preference('claude', 'changed-after-history')
     await openSession(historical.title)
-    await click('Chat')
+    await click('Ask AI')
     const text = await historyText()
     assert.ok(text.some((entry) => entry.includes('Requested · claude-next-literal') && entry.includes('CLI report · claude-alias-resolved · Response metadata')))
     assert.deepEqual(database(historical.sessionId).runs.at(-1), historical.row)
     await browser.saveScreenshot(join(output, 'reported-history.png'))
     await openSession('M02 legacy schema 10')
-    await click('Chat')
+    await click('Ask AI')
     const legacy = await read('get_chat', { sessionId: 'model-evidence-legacy-session' })
     assert.deepEqual(legacy.aiRuns.map((run) => run.modelSelection), [{ kind: 'legacy', value: 'ambiguous-old-model' }])
     assert.ok((await historyText()).some((entry) => entry.includes('Legacy model · ambiguous-old-model · Source unknown')))
@@ -401,7 +405,7 @@ describe('Built application native quick model selection M03', () => {
     const firstSession = await fresh('claude', 'M03 global first Session')
     await modelPreference('claude', 'global-scope-literal')
     const secondSession = await createSession('M03 global second Session')
-    await click('Chat')
+    await click('Ask AI')
     assert.equal(await $(quickInput).getValue(), 'global-scope-literal')
     assert.match(await $(quickSection).getText(), /across QA Scribe/)
     return { firstSession, secondSession, scope: 'Shared per-provider preference. Dirty Settings draft races require rendered-controller coverage.' }

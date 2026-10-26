@@ -329,7 +329,7 @@ describe('Native UI polish before/after evidence', () => {
   it('keeps laptop actions visible and narrow actions reachable without losing edits', async function () {
     this.timeout(120_000)
     await tab('Note')
-    await click('button=Write note')
+    if (await $('.ask-ai-panel:not([hidden]) [aria-label="Close Ask AI"]').isDisplayed()) await click('.ask-ai-panel:not([hidden]) button[aria-label="Close Ask AI"]')
     for (const [width, height, theme, stage] of [[1280, 720, 'dark', 'note-dark-laptop'], [1280, 720, 'light', 'note-light-laptop'], [1024, 768, 'light', 'note-1024']]) {
       await laptopResize(width, height)
       await themeSettings(theme)
@@ -337,15 +337,19 @@ describe('Native UI polish before/after evidence', () => {
       await actions(stage, '.ai-action-buttons button')
     }
     await laptopResize(1280, 645)
-    await click('button=Chat')
+    await click('button=Ask AI')
     await (await $('.chat-composer textarea')).waitForEnabled()
     await actions('chat-empty', '.chat-composer textarea, .chat-compose-actions button')
     await browser.execute(() => { document.querySelector('.chat-composer textarea').style.height = '280px' })
     await scroll('.chat-compose-actions .action-button--primary')
     await actions('chat-composer-expanded', '.chat-compose-actions .action-button--primary', false)
-    await scroll('.chat-composer > p')
-    await actions('chat-expanded-help', '.chat-composer > p', false)
+    const description = await browser.execute(() => {
+      const input = document.querySelector('.ask-ai-panel--notes textarea')
+      return input.getAttribute('aria-describedby').split(/\s+/).map(id => document.getElementById(id)?.textContent).join(' ')
+    })
+    assert.match(description, /Write a message or attach an image to send/, 'The empty composer must expose its disabled Send reason to assistive technology')
     await browser.execute(() => { document.querySelector('.chat-composer textarea').style.height = '' })
+    await (await $('.chat-options summary')).click()
     await scroll('.next-model-selection', 'end')
     await click('[aria-label="Open model choices"]')
     await (await $('.model-combobox-popover')).waitForDisplayed()
@@ -394,10 +398,10 @@ describe('Native UI polish before/after evidence', () => {
     await browser.execute(() => { const region = document.querySelector('.chat-scroll-region'); region.scrollTop = region.scrollHeight })
     await actions('chat-long', '.chat-composer textarea, .chat-compose-actions button', false)
     await (await $('.chat-composer textarea')).setValue('Retained laptop composer draft')
-    await click('button=Write note')
-    await click('button=Chat')
+    if (await $('.ask-ai-panel:not([hidden]) [aria-label="Close Ask AI"]').isDisplayed()) await click('.ask-ai-panel:not([hidden]) button[aria-label="Close Ask AI"]')
+    await click('button=Ask AI')
     assert.equal(await (await $('.chat-composer textarea')).getValue(), 'Retained laptop composer draft')
-    await click('button=Write note')
+    if (await $('.ask-ai-panel:not([hidden]) [aria-label="Close Ask AI"]').isDisplayed()) await click('.ask-ai-panel:not([hidden]) button[aria-label="Close Ask AI"]')
     await tab('Test cases')
     await click('button=Create test cases')
     await (await $('[aria-label="Test case title"]')).waitForDisplayed()
@@ -433,7 +437,7 @@ describe('Native UI polish before/after evidence', () => {
           await button.scrollIntoView()
           await actions(`narrow-${width}-${theme}-action-${index}`, `.ai-action-buttons button:nth-child(${index + 1})`, false)
         }
-        await click('button=Chat')
+        await click('button=Ask AI')
         await (await $('.chat-compose-actions .action-button--primary')).waitForEnabled()
         await click('button=Review saved conversation')
         layoutFailures.push(...await pendingComposerSave(theme, sessionId, artifacts, save))
@@ -443,7 +447,7 @@ describe('Native UI polish before/after evidence', () => {
         await (await $('.chat-composer textarea')).scrollIntoView()
         await (await $('.chat-compose-actions .action-button--primary')).scrollIntoView()
         await actions(`chat-${width}-${theme}-reachable`, '.chat-compose-actions button', false)
-        await click('button=Write note')
+        if (await $('.ask-ai-panel:not([hidden]) [aria-label="Close Ask AI"]').isDisplayed()) await click('.ask-ai-panel:not([hidden]) button[aria-label="Close Ask AI"]')
       }
     }
     await laptopResize(1280, 720)
@@ -451,7 +455,7 @@ describe('Native UI polish before/after evidence', () => {
     await (await $('[aria-label="Link URL"]')).setValue('javascript:alert(1)')
     await click('[aria-label="Apply link"]')
     await (await $('.link-editor-error')).waitForDisplayed()
-    await browser.execute(() => document.querySelector('.document-mode button').focus())
+    await browser.execute(() => document.querySelector('.session-workspace-tabs button:last-child').focus())
     const keyboard = { platform: process.platform, inputBackend, nativeTabVerified: false }
     const sendKey = process.platform === 'linux'
       ? nativeKeySender(keyboard, () => save('native-keyboard', keyboard), Key)
@@ -460,10 +464,10 @@ describe('Native UI polish before/after evidence', () => {
       await sendKey(Key.Tab)
     } else {
       keyboard.unavailableMethodReason = 'Embedded WebDriver dispatches untrusted KeyboardEvent instances and cannot perform native Tab traversal.'
-      keyboard.focusMethod = 'Explicit Chat focus for outline geometry'
-      await browser.execute(() => document.querySelector('.document-mode button:last-child').focus())
+      keyboard.focusMethod = 'Explicit Ask AI focus for outline geometry'
+      await browser.execute(() => document.querySelector('.session-workspace .ask-ai-trigger').focus())
     }
-    await browser.waitUntil(async () => browser.execute(() => document.activeElement?.textContent.trim() === 'Chat'))
+    await browser.waitUntil(async () => browser.execute(() => document.activeElement?.matches('.session-workspace .ask-ai-trigger')))
     keyboard.nativeTabVerified = process.platform === 'linux'
     save('keyboard-input', keyboard)
     await actions('keyboard-error', '.ai-action-buttons button')

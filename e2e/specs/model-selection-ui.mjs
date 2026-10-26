@@ -10,6 +10,8 @@ export const outputRoot = process.env.QA_SCRIBE_E2E_MODEL_EVIDENCE ?? '/tmp/qa-m
 
 export async function modelPreference(provider, model) {
   const section = await quickScope()
+  const options = await $('.ask-ai-panel--notes .chat-options')
+  if (section === quickSection && await options.isExisting() && !await browser.execute(node => node.open, options)) await (await options.$('summary')).click()
   const input = await $(`${section} [role="combobox"][aria-label="Model"]`)
   await input.waitForEnabled()
   if (await input.getAttribute('aria-expanded') !== 'true') await $(`${section} [aria-label="Open model choices"]`).click()
@@ -166,6 +168,8 @@ export async function attachPickerDraftImage(sessionId) {
 }
 
 export async function openQuickPicker() {
+  const options = await $('.ask-ai-panel--notes .chat-options')
+  if (await options.isExisting() && !await browser.execute(node => node.open, options)) await (await options.$('summary')).click()
   if (await $(quickInput).getAttribute('aria-expanded') !== 'true') await $(`${quickSection} [aria-label="Open model choices"]`).click()
   await browser.executeAsync(done => requestAnimationFrame(() => requestAnimationFrame(done)))
 }

@@ -118,6 +118,10 @@ async function theme(name, readySelector = '[aria-label="Session chat"]') {
 }
 
 export async function actionProof(selector, filename) {
+  if (selector.startsWith('.chat-options')) {
+    const options = await $('.ask-ai-panel--notes .chat-options')
+    if (!await browser.execute(node => node.open, options)) await (await options.$('summary')).click()
+  }
   await $(selector).scrollIntoView({ block: 'center', inline: 'nearest' })
   let actual
   await browser.waitUntil(async () => {
@@ -221,10 +225,10 @@ export async function reviewMatrix() {
       const count = await browser.execute(() => document.querySelectorAll('[aria-label="Saved conversation"] .chat-messages > li').length)
       assert.equal(count, 4)
       await actionProof('.chat-handoff button', `chat-completed-${width}-${height}-${name}.png`)
-      await actionProof('.chat-topline button', `chat-restart-control-${width}-${height}-${name}.png`)
+      await actionProof('.chat-options .chat-buttons button:last-child', `chat-restart-control-${width}-${height}-${name}.png`)
       if (width >= 1024) {
         await nativeKeyboard('.chat-review > button', `chat-handoff-keyboard-${width}-${height}-${name}.png`)
-        await nativeKeyboard('.chat-topline button', `chat-restart-keyboard-${width}-${height}-${name}.png`)
+        await nativeKeyboard('.chat-options .chat-buttons button:last-child', `chat-restart-keyboard-${width}-${height}-${name}.png`)
       }
       await review.scrollIntoView()
       await review.click()
@@ -256,7 +260,7 @@ export async function restartProof(sessionId, read, expectedNote) {
   const restart = await $('button=Start new conversation')
   await restart.scrollIntoView()
   await restart.waitForClickable()
-  await browser.execute(() => document.querySelector('.chat-added button, .chat-topline button')?.focus())
+  await browser.execute(() => document.querySelector('.chat-added button, .chat-options .chat-buttons button:last-child')?.focus())
   await restart.click()
   await $('dialog[open]').waitForDisplayed()
   assert.ok(await browser.execute(() => document.activeElement?.textContent.trim() === 'Cancel'))
@@ -279,7 +283,7 @@ export async function restartProof(sessionId, read, expectedNote) {
   await (await $('dialog')).$('button=Start new conversation').click()
   await $('button=Send').waitForDisplayed()
   await browser.waitUntil(async () => (await read('get_chat', { sessionId })).draftId !== expectedNote.receipt.draftId)
-  await actionProof('.chat-topline button', 'chat-restart.png')
+  await actionProof('.chat-options .chat-buttons button:last-child', 'chat-restart.png')
   const entries = await read('list_entries', { sessionId })
   assert.deepEqual(entries.find(entry => entry.id === expectedNote.note.id), expectedNote.note)
   assert.deepEqual(await confirmationCalls(), [

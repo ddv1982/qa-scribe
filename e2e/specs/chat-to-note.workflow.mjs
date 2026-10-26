@@ -22,7 +22,12 @@ const assistant3Source = markdownFixture
 const edit = ' Tester reviewed the submitted conversation and confirmed the reproduction.'
 
 async function click(label) {
-  const target = await $(`button=${label}`)
+  if (['Configure AI', 'Start new conversation'].includes(label)) {
+    const options = await $('.ask-ai-panel--notes .chat-options')
+    if (await options.isExisting() && !await browser.execute(node => node.open, options)) await (await options.$('summary')).click()
+  }
+  const target = await $(label === 'Close Ask AI'
+    ? '.ask-ai-panel:not([hidden]) [aria-label="Close Ask AI"]' : `button=${label}`)
   await target.waitForClickable()
   await target.click()
 }
@@ -183,7 +188,7 @@ export async function runChatToNoteWorkflow() {
   const primaryTitle = `E2E Chat primary ${suffix}`
   const secondaryTitle = `E2E Chat isolation ${suffix}`
   const primaryId = await create(primaryTitle)
-  await click('Write note')
+  if (await $('.ask-ai-panel:not([hidden]) [aria-label="Close Ask AI"]').isDisplayed()) await click('Close Ask AI')
   await insertNote(originalNote, true)
   // Select actual editor text, then use its real formatting toolbar.
   await browser.execute((selector) => {
@@ -212,7 +217,7 @@ export async function runChatToNoteWorkflow() {
   assertRichNote(original, originalNodes, false)
 
   noteAudit('start')
-  await click('Chat')
+  await click('Ask AI')
   await settledChat(primaryId, '')
   await assertTranscript([])
   assert.match(await $('[aria-label="Conversation transcript"]').getText(), /No messages yet/)
@@ -233,7 +238,7 @@ export async function runChatToNoteWorkflow() {
   assert.equal(await $('button=Review saved conversation').isExisting(), true)
   assert.equal(await $('button=Add conversation to note').isEnabled(), false)
   const secondaryId = await create(secondaryTitle)
-  await click('Chat')
+  await click('Ask AI')
   await settledChat(secondaryId, '')
   await assertTranscript([])
   assert.equal(await $(composerSelector).getValue(), '')
@@ -247,7 +252,7 @@ export async function runChatToNoteWorkflow() {
   await browser.refresh()
   await $('[aria-label="Session title"]').waitForDisplayed()
   await reopen(primaryTitle)
-  await click('Chat')
+  await click('Ask AI')
   await settledChat(primaryId, user2)
   assert.equal(await $(composerSelector).getValue(), user2)
   await assertTranscript(transcriptRows())
@@ -314,7 +319,7 @@ export async function runChatToNoteWorkflow() {
   assert.deepEqual(await confirmationCalls(), [], 'One ordinary Add must not ask for confirmation')
   await $('[aria-label="Conversation added"]').waitForDisplayed()
   await actionProof('.chat-added button', 'chat-added.png')
-  assert.equal(await $('button=Write note').getAttribute('aria-pressed'), 'true')
+  assert.equal(await $('.session-workspace .ask-ai-trigger').getAttribute('aria-expanded'), 'false')
   const submitted = await chat(primaryId)
   assert.ok(submitted.submission)
   const handoff = await canonicalNote(primaryId)
@@ -342,7 +347,7 @@ export async function runChatToNoteWorkflow() {
   assert.equal(invocationCount(directory), 3, 'Submit must not invoke AI')
   assert.deepEqual(await publicRead('list_drafts', { sessionId: primaryId }), [])
   await capture(artifacts, 'chat-submitted-note.png', '.chat-added button')
-  await click('Chat')
+  await click('Ask AI')
   await settledChat(primaryId, '')
   await assertTranscript(transcriptRows('Completed'))
   assert.equal(await $('button=Open updated Note').isEnabled(), true)
@@ -374,7 +379,7 @@ export async function runChatToNoteWorkflow() {
     { timeout: 5_000, timeoutMsg: 'Submitted Note edit did not reach storage' })
   await reopen(secondaryTitle)
   await reopen(primaryTitle)
-  await click('Write note')
+  if (await $('.ask-ai-panel:not([hidden]) [aria-label="Close Ask AI"]').isDisplayed()) await click('Close Ask AI')
   await $(noteSelector).waitForDisplayed()
   assert.ok((await $(noteSelector).getText()).includes(edit.trim()))
   const edited = await canonicalNote(primaryId)
@@ -408,7 +413,7 @@ export async function runChatToNoteWorkflow() {
   assert.deepEqual(await publicRead('list_drafts', { sessionId: primaryId }), drafts)
   assert.equal(invocationCount(directory), 4, 'Only explicit generation may start invocation four')
   await $('[role="tab"]*=Note').click()
-  await click('Write note')
+  if (await $('.ask-ai-panel:not([hidden]) [aria-label="Close Ask AI"]').isDisplayed()) await click('Close Ask AI')
   await noteMatrix()
   writeFileSync(join(artifacts, 'handoff-protocol.json'), JSON.stringify({ sessionId: primaryId, original, submitted, handoff, replayedReceipt: receipt, edited }, null, 2))
   await restartProof(primaryId, publicRead, { note: edited, receipt: submitted.submission })

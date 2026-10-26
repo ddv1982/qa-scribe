@@ -13,14 +13,6 @@
 @import './styles/responsive.css';
 @import './styles/first-use.css';
 
-.editor-card--chat { grid-template-rows: minmax(0, 1fr); }
-.editor-card--chat .document-body {
-  display: flex;
-  flex-direction: column;
-  overflow: auto;
-}
-.editor-card--chat .session-title-input { flex: 0 0 auto; }
-.editor-card--chat .session-chat { flex: 1; min-height: 0; padding: 0; }
 .chat-scroll-region {
   display: flex;
   flex: 1 1 0;
@@ -31,8 +23,6 @@
   padding: 2px;
 }
 .chat-scroll-region > * { flex-shrink: 0; }
-.editor-card--chat .chat-transcript { max-height: none; overflow: visible; }
-.editor-card--chat .chat-composer { flex-shrink: 0; }
 .chat-scroll-region:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 
 .session-chat {
@@ -45,8 +35,6 @@
   gap: var(--space-3);
 }
 
-.chat-topline,
-.chat-meta,
 .chat-compose-actions,
 .chat-buttons,
 .chat-handoff {
@@ -57,7 +45,6 @@
   min-width: 0;
 }
 
-.chat-topline h2,
 .chat-partial > h3 {
   margin: 0 0 var(--space-1);
   font-size: var(--font-size-lg);
@@ -65,21 +52,13 @@
 }
 
 .chat-help,
-.chat-counts,
-.chat-meta {
+.chat-counts {
   margin: 0;
   color: var(--text-secondary);
   font-size: var(--font-size-sm);
   line-height: var(--leading-normal);
   overflow-wrap: anywhere;
 }
-
-.chat-meta {
-  flex-wrap: wrap;
-  justify-content: flex-start;
-}
-
-.chat-meta [role="status"] { margin-left: auto; }
 
 .chat-transcript {
   min-height: 120px;
@@ -175,16 +154,10 @@
 @media (max-width: 600px) {
   .session-chat { padding: var(--space-4) var(--space-3); }
   .chat-topline, .chat-compose-actions, .chat-handoff { align-items: stretch; flex-direction: column; }
-  .chat-topline > button { align-self: flex-start; }
-  .chat-meta [role="status"] { margin-left: 0; }
   .chat-transcript { padding: var(--space-3); }
   .chat-handoff > button { align-self: flex-start; max-width: 100%; }
 }
 
-@media (max-width: 760px) {
-  .editor-card--chat .document-body { display: block; }
-  .editor-card--chat .chat-scroll-region { flex: 0 0 auto; overflow: visible; }
-}
 
 .chat-review { display: grid; gap: var(--space-3); }
 .chat-review > [role="region"] {

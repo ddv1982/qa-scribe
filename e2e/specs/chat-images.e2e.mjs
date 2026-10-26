@@ -18,7 +18,12 @@ async function read(command, args = {}) {
 }
 
 async function click(label) {
-  const button = await $(`button=${label}`)
+  if (['Configure AI', 'Start new conversation'].includes(label)) {
+    const options = await $('.ask-ai-panel--notes .chat-options')
+    if (await options.isExisting() && !await browser.execute(node => node.open, options)) await (await options.$('summary')).click()
+  }
+  const button = await $(label === 'Close Ask AI'
+    ? '.ask-ai-panel:not([hidden]) [aria-label="Close Ask AI"]' : `button=${label}`)
   await button.waitForClickable()
   await button.click()
 }
@@ -31,7 +36,7 @@ async function saved(sessionId, text, filenames) {
   await browser.waitUntil(async () => {
     const chat = await read('get_chat', { sessionId })
     return chat.composer === text && JSON.stringify(chat.composerImages.map(image => image.filename)) === JSON.stringify(filenames)
-      && await browser.execute(() => document.querySelector('.chat-meta [role="status"]')?.textContent === 'Conversation saved')
+      && await browser.execute(() => document.querySelector('.chat-status')?.textContent === 'Conversation saved')
   }, { timeout: 7_000, timeoutMsg: 'Chat text and ordered image references must become durable' })
   return read('get_chat', { sessionId })
 }
@@ -72,7 +77,7 @@ async function reopen(title) {
   const option = await $(`[role="option"]*=${title}`)
   await option.waitForClickable()
   await option.click()
-  await click('Chat')
+  await click('Ask AI')
   await $(composer).waitForDisplayed()
 }
 
@@ -115,7 +120,7 @@ describe('Built application Chat image transport fixtures, without real vision o
       await $('[aria-label="Session title"]').setValue(title)
       await browser.waitUntil(async () => (await read('list_sessions')).some(session => session.title === title))
       const sessionId = (await read('list_sessions')).find(session => session.title === title).id
-      await click('Write note')
+      if (await $('.ask-ai-panel:not([hidden]) [aria-label="Close Ask AI"]').isDisplayed()) await click('Close Ask AI')
       await $(note).waitForDisplayed()
       assert.equal(await browser.execute((selector, text) => {
         const editor = document.querySelector(selector)
@@ -129,7 +134,7 @@ describe('Built application Chat image transport fixtures, without real vision o
       }, note, originalNote), true)
       await browser.waitUntil(async () => (await read('list_entries', { sessionId })).some(entry => entry.entryType === 'note' && entry.body.includes(originalNote)))
       const original = (await read('list_entries', { sessionId })).find(entry => entry.entryType === 'note')
-      await click('Chat')
+      await click('Ask AI')
       await click('Configure AI')
       await $('[aria-label="Refresh CLI configuration"]').waitForClickable()
       await $('[aria-label="Refresh CLI configuration"]').click()

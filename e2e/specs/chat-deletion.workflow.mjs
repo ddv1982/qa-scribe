@@ -11,7 +11,8 @@ async function publicRead(command, args = {}) {
 }
 
 async function click(label) {
-  const target = await $(`button=${label}`)
+  const target = await $(label === 'Close Ask AI'
+    ? '.ask-ai-panel:not([hidden]) [aria-label="Close Ask AI"]' : `button=${label}`)
   await target.waitForClickable()
   await target.click()
 }
@@ -83,7 +84,7 @@ export async function runChatDeletionWorkflow() {
   try {
     const sessionId = await create(title)
     observations.sessionId = sessionId
-    await click('Chat')
+    await click('Ask AI')
     await $('[aria-label="Session chat"] textarea').setValue(message)
     // Send is the real UI preflight and provider-readiness boundary.
     await click('Send')
@@ -138,12 +139,12 @@ export async function runChatDeletionWorkflow() {
     await $(`[role="option"]*=${title}`).waitForExist({ reverse: true })
 
     await reopen(surviving.title)
-    await click('Write note')
+    if (await $('.ask-ai-panel:not([hidden]) [aria-label="Close Ask AI"]').isDisplayed()) await click('Close Ask AI')
     await $(noteSelector).waitForDisplayed()
     assert.match(await $(noteSelector).getText(), /Primary note persisted/)
     const freshTitle = `E2E after Chat deletion ${suffix}`
     const freshId = await create(freshTitle)
-    await click('Write note')
+    if (await $('.ask-ai-panel:not([hidden]) [aria-label="Close Ask AI"]').isDisplayed()) await click('Close Ask AI')
     const text = `Note writes still persist after Session-owned Chat cancellation ${suffix}.`
     await $(noteSelector).setValue(text)
     await browser.waitUntil(async () => (await publicRead('list_entries', { sessionId: freshId }))
@@ -151,7 +152,7 @@ export async function runChatDeletionWorkflow() {
     { timeout: 5_000, timeoutMsg: 'New Session Note did not persist after deleting running Chat' })
     await reopen(surviving.title)
     await reopen(freshTitle)
-    await click('Write note')
+    if (await $('.ask-ai-panel:not([hidden]) [aria-label="Close Ask AI"]').isDisplayed()) await click('Close Ask AI')
     await browser.waitUntil(async () => (await $(noteSelector).getText()).includes(text),
       { timeout: 5_000, timeoutMsg: 'New Session Note did not reopen after Chat deletion' })
     assert.equal(existsSync(releasePath), false)

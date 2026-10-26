@@ -25,7 +25,12 @@ function configure(provider, mode) {
 }
 
 async function click(label) {
-  const target = await $(`button=${label}`)
+  if (['Configure AI', 'Start new conversation'].includes(label)) {
+    const options = await $('.ask-ai-panel--notes .chat-options')
+    if (await options.isExisting() && !await browser.execute(node => node.open, options)) await (await options.$('summary')).click()
+  }
+  const target = await $(label === 'Close Ask AI'
+    ? '.ask-ai-panel:not([hidden]) [aria-label="Close Ask AI"]' : `button=${label}`)
   await target.waitForClickable()
   await target.click()
 }
@@ -162,7 +167,7 @@ async function copilotChat(model) {
   await $('[aria-label="Session title"]').setValue(title)
   await browser.waitUntil(async () => (await read('list_sessions')).some((session) => session.title === title))
   const sessionId = (await read('list_sessions')).find((session) => session.title === title).id
-  await click('Chat')
+  await click('Ask AI')
   const before = journal().length
   await $('[aria-label="Session chat"] textarea').setValue(`Verify ${model} request in a synthetic fixture.`)
   await click('Send')
@@ -178,7 +183,7 @@ async function copilotGeneration(model) {
   await choose(model === 'auto' ? 'CLI automatic' : 'CLI default')
   await save('copilot', model === 'default' ? null : model)
   await click('Back')
-  await click('Write note')
+  if (await $('.ask-ai-panel:not([hidden]) [aria-label="Close Ask AI"]').isDisplayed()) await click('Close Ask AI')
   const note = await $('[aria-label="Note body"][contenteditable="true"]')
   await note.waitForDisplayed()
   assert.ok(await browser.execute((value) => {

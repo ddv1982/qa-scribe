@@ -33,7 +33,12 @@ export function database(sessionId) {
 }
 
 export async function click(label) {
-  const target = await $(`button=${label}`)
+  if (['Configure AI', 'Start new conversation'].includes(label)) {
+    const options = await $('.ask-ai-panel--notes .chat-options')
+    if (await options.isExisting() && !await browser.execute(node => node.open, options)) await (await options.$('summary')).click()
+  }
+  const target = await $(label === 'Close Ask AI'
+    ? '.ask-ai-panel:not([hidden]) [aria-label="Close Ask AI"]' : `button=${label}`)
   await target.waitForClickable()
   await target.click()
 }
@@ -107,7 +112,7 @@ export async function createSession(title) {
 }
 
 export async function insertNote(text) {
-  await click('Write note')
+  if (await $('.ask-ai-panel:not([hidden]) [aria-label="Close Ask AI"]').isDisplayed()) await click('Close Ask AI')
   await $('[aria-label="Note body"][contenteditable="true"]').waitForDisplayed()
   assert.ok(await browser.execute((value) => {
     const editor = document.querySelector('[aria-label="Note body"][contenteditable="true"]')
@@ -142,7 +147,7 @@ export async function startChat(provider, model, mode, lane) {
   execution(provider, mode, lane)
   await preference(provider, model)
   const sessionId = await createSession(`M02 lane ${lane} ${provider} Chat`)
-  await click('Chat')
+  await click('Ask AI')
   const before = journal().length
   await $('[aria-label="Session chat"] textarea').setValue(`Verify native evidence lane ${lane}.`)
   await click('Send')

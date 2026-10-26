@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { click, waitForSavedConversation } from './unified-visual-proof.mjs'
 const native = (command, args = {}) => browser.tauri.execute(({ core }, { command, args }) => core.invoke(command, args), { command, args })
-const saved = () => browser.waitUntil(async () => await $('.chat-meta [role="status"]').getText() === 'Conversation saved')
+const saved = () => browser.waitUntil(async () => await $('.chat-status').getText() === 'Conversation saved')
 const composer = 'Controlled restart readiness unsent message'
 const receipts = []
 const retain = (stage, value) => {
@@ -35,12 +35,12 @@ async function prepare() {
     note = (await native('open_session_note_state', { id: session.id })).noteEntry
     return note?.body.includes('Canonical Note preserved by the restart readiness fixture.')
   })
-  await click('button=Chat')
+  await click('button=Ask AI')
   await $('.chat-composer textarea').setValue(composer)
   await saved()
   const chat = await native('get_chat', { sessionId: session.id })
   assert.equal(chat.composer, composer)
-  await click('button=Write note')
+  if (await $('.ask-ai-panel:not([hidden]) [aria-label="Close Ask AI"]').isDisplayed()) await click('.ask-ai-panel:not([hidden]) button[aria-label="Close Ask AI"]')
   await browser.waitUntil(async () => (await native('get_chat', { sessionId: session.id })).mode === 'write_note')
   await browser.execute((sessionId, composer) => {
     const callbacks = window.__TAURI_INTERNALS__.callbacks, originalGet = callbacks.get, originalTimeout = window.setTimeout
@@ -76,7 +76,7 @@ async function prepare() {
 const gateState = () => browser.execute(() => ({ held: window.__restartReadinessGate.held,
   queued: window.__restartReadinessGate.queued, clicks: window.__restartReadinessGate.clicks,
   ack: window.__restartReadinessGate.ack, disabled: [...document.querySelectorAll('button')].find(node => node.textContent.trim() === 'Start new conversation' && !node.closest('dialog'))?.disabled,
-  status: document.querySelector('.chat-meta [role="status"]')?.textContent.trim(), dialog: !!document.querySelector('dialog[open]') }))
+  status: document.querySelector('.chat-status')?.textContent.trim(), dialog: !!document.querySelector('dialog[open]') }))
 async function fireSave() {
   await browser.waitUntil(() => browser.execute(() => window.__restartReadinessGate.queued))
   await browser.execute(() => window.__restartReadinessGate.fire())
@@ -95,7 +95,8 @@ function rows() {
 it('reproduces the missing dialog when a real mode save starts between clickable check and driver dispatch', async () => {
   const { session, note, chat } = await prepare()
   try {
-    await click('button=Chat')
+    await click('button=Ask AI')
+    await (await $('.chat-options summary')).click()
     await click('button=Start new conversation')
     await $('dialog[open]').waitForDisplayed()
     await click('dialog button=Cancel')
@@ -134,7 +135,7 @@ it('waits for the real saved-state acknowledgement before the first restart, the
   const { session, note, chat } = await prepare()
   const before = rows()
   try {
-    await click('button=Chat')
+    await click('button=Ask AI')
     let ready = false
     const pending = waitForSavedConversation().then(() => { ready = true })
     await fireSave()
