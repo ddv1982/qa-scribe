@@ -105,6 +105,7 @@ export type ConversationAttention = {
   reference: ChatRef
   owner: ConversationOwner | null
   snapshot: ChatSnapshot
+  unconfirmedUpdates?: readonly import('../bindings').StageOrigin[]
 }
 
 export function createNotesEntry(dependencies: {

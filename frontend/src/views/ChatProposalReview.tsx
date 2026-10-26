@@ -13,6 +13,7 @@ export function ChatProposalReview({ proposal, controls, presentation = 'notes' 
   const status = proposal.state.kind
   const pending = controls?.pending.has(proposal.id) ?? false
   const error = controls?.errors[proposal.id]
+  const unconfirmed = controls?.unconfirmed?.has(proposal.id)
   if (presentation === 'record') {
     if (!['offered', 'staged', 'saved'].includes(status) && !error) return null
     const prepared = controls?.preparedOnly?.has(proposal.id)
@@ -21,9 +22,9 @@ export function ChatProposalReview({ proposal, controls, presentation = 'notes' 
       {proposal.before.title !== proposal.after.title ? <><h3>Title</h3><p>{proposal.after.title}</p></> : null}
       {proposal.before.documentJson !== proposal.after.documentJson && after ? <RichTextEditor value={after} readOnly ariaLabel="Suggested content" /> : null}
       {proposal.target.kind === 'finding' ? <FindingMetadataChanges proposal={proposal} /> : null}
-      {controls && (status === 'offered' || status === 'staged') ? <div className="chat-buttons">
-        <ActionButton variant="secondary" disabled={pending || Boolean(controls.applyUnavailable)} onClick={() => void controls.onUpdate?.(proposal.id)}>{proposal.target.kind === 'finding' ? 'Update finding' : 'Update test case'}</ActionButton>
-        {prepared ? <ActionButton variant="secondary" disabled={pending} onClick={() => void controls.onAction(proposal.id, 'abandon')}>Keep current edits</ActionButton> : null}
+      {controls && !controls.abandoned?.has(proposal.id) && (unconfirmed || status === 'offered' || status === 'staged') ? <div className="chat-buttons">
+        <ActionButton variant="secondary" disabled={pending || Boolean(controls.applyUnavailable)} onClick={() => void controls.onUpdate?.(proposal.id)}>{unconfirmed ? 'Check update' : proposal.target.kind === 'finding' ? 'Update finding' : 'Update test case'}</ActionButton>
+        {prepared && !unconfirmed ? <ActionButton variant="secondary" disabled={pending} onClick={() => void controls.onAction(proposal.id, 'abandon')}>Keep current edits</ActionButton> : null}
       </div> : null}
       {controls?.applyUnavailable ? <p className="chat-help">{controls.applyUnavailable}</p> : null}
       {error ? <p className="chat-error" role="alert">{error}</p> : null}

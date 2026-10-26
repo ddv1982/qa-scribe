@@ -21,6 +21,8 @@ export type ProposalControls = {
   pending: ReadonlySet<string>
   preparedOnly?: ReadonlySet<string>
   updated?: ReadonlySet<string>
+  unconfirmed?: ReadonlySet<string>
+  abandoned?: ReadonlySet<string>
   onUpdate?: (proposalId: string, reference?: ChatRef) => Promise<RecordUpdateResult>
   onAction: (proposalId: string, action: RefinementAction, reference?: ChatRef) => Promise<void>
 }
@@ -52,9 +54,12 @@ export function useRefinementController(context: Context) {
   const running = useRef(new Set<string>())
   const updates = useRef(new Map<string, Promise<RecordUpdateResult>>())
   const unconfirmed = useRef(new Map<string, { record: SavedRecord; origin: StageOrigin }>())
+  const [unconfirmedIds, setUnconfirmedIds] = useState<ReadonlySet<string>>(new Set())
+  const [abandoned, setAbandoned] = useState<ReadonlySet<string>>(new Set())
   const [pending, setPending] = useState<ReadonlySet<string>>(new Set())
   const [, refreshActivity] = useState(0)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  useEffect(() => context.conversations.observeProposalUpdates(() => [...unconfirmed.current.values()].map(update => update.origin)), [context.conversations])
 
   function local(proposal: RefinementProposal) {
     const ctx = live.current
@@ -209,6 +214,7 @@ export function useRefinementController(context: Context) {
         || editorKey(subject.after) !== editorKey(proposal.after) || editorKey(subject.before) !== editorKey(proposal.before)) throw new Error('The reviewed proposal changed. Request a fresh refinement.')
       const unknown = unconfirmed.current.get(id)
       if (unknown) {
+        if (!sameReference(unknown.origin.reference, reference)) throw new Error('Open the original conversation to check this update.')
         const stored = (await (checked.kind === 'finding' ? listFindings(reference.sessionId) : listDrafts(reference.sessionId))).find(row => row.id === unknown.record.id)
         if (!ownsPreparation()) throw new Error('The selection or editor changed while checking the earlier update. Your newer edits are retained.')
         if (stored && subject.state.kind === 'staged' && subject.state.stage.id === unknown.origin.stageId) {
@@ -281,10 +287,17 @@ export function useRefinementController(context: Context) {
         } catch {
           return fail(`${formatError(cause)} The prepared change remains unresolved. Reopen its original conversation before trying another update.`)
         }
+        setAbandoned(previous => new Set(previous).add(id))
+        try { await invocation.conversations.bind(reference).refresh() }
+        catch (refreshCause) {
+          return fail(`${formatError(cause)} Prepared change was abandoned; your current edits were retained, but conversation refresh failed. ${formatError(refreshCause)} Reopen its original conversation to refresh it.`)
+        }
       }
       return fail(formatError(cause))
     } finally {
       running.current.delete(id); setPending(new Set(running.current))
+      setUnconfirmedIds(new Set(unconfirmed.current.keys()))
+      invocation.conversations.proposalUpdatesChanged()
     }
   }
 
@@ -314,7 +327,7 @@ export function useRefinementController(context: Context) {
     return record !== undefined && editorKey(editorValue(record)) === confirmation.key
       && (context.persistence.coordination.localEditEpochs.get(`${kind}:${id}`) ?? 0) === confirmation.editEpoch
   }).map(proposal => proposal.id))
-  const controls: ProposalControls = { errors, pending, onAction, onUpdate, preparedOnly, updated }
+  const controls: ProposalControls = { errors, pending, onAction, onUpdate, preparedOnly, updated, abandoned, unconfirmed: unconfirmedIds }
   const recordWritesPending = context.persistence.coordination.hasPendingRecordCompensations()
   return { recordWritesPending, proposalControls: controls }
 }
