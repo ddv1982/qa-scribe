@@ -64,6 +64,7 @@ function RecordConversation({ c, common }: {
     </div></section>
     {panel.phase === 'preparing' ? <p role="status">Preparing conversation…</p> : null}
     {panel.phase === 'error' ? <div><p className="chat-error" role="alert">{panel.error}</p>{panel.blockedReference ? <ActionButton variant="secondary" onClick={() => void c.askAi.openConversation(panel.blockedReference!)}>Return to retained chat</ActionButton> : null}</div> : null}
+    {panel.closeError ? <p className="chat-error" role="alert">{panel.closeError}</p> : null}
     {panel.recoveryReason && c.askAi.recovery.some(item => item.reference.draftId === reference?.draftId) ? <p className="chat-recovery-reason" role="status">{panel.recoveryReason}</p> : null}
     {handle && reference ? <div className="conversation-presentation" key={reference.draftId}>
       {panel.legacyOrigin ? <BoundNotes c={c} common={common} hidden={!c.askAi.visible} modelSelectionControl={null} /> : <SessionChatView {...state} {...common} kind="record" owner={panel.owner} source={source} hidden={!c.askAi.visible}
@@ -81,8 +82,8 @@ function BoundNotes({ c, common, hidden, modelSelectionControl }: {
 }) {
   const handle = c.conversations.bind(c.askAi.reference!)
   const state = c.recordChat
-  return <SessionChatView {...state} {...common} kind="notes" legacySource={c.askAi.panel?.legacyOrigin ? c.askAi.source ?? undefined : undefined} hidden={hidden} modelSelectionControl={modelSelectionControl}
-    handoff={handoffDuringRecordWrites(deriveChatHandoff({ ...state, sessionId: state.chat?.sessionId ?? null, noteEntry: c.noteEntry }), Boolean(c.sessionChat.recordWritesPending))}
+  return <SessionChatView {...state} {...common} kind="notes" recoveryPending={c.noteReadOnly} legacySource={c.askAi.panel?.legacyOrigin ? c.askAi.source ?? undefined : undefined} hidden={hidden} modelSelectionControl={modelSelectionControl}
+    handoff={handoffDuringRecordWrites(deriveChatHandoff({ ...state, sessionId: state.chat?.sessionId ?? null, noteEntry: c.noteEntry, recoveryPending: c.noteReadOnly }), Boolean(c.sessionChat.recordWritesPending))}
     activeTarget={c.askAi.context} proposalControls={{ ...c.proposalControls, applyUnavailable: c.askAi.panel?.legacyOrigin && c.askAi.source?.kind !== 'available' ? 'The original source must be available before Apply or Undo.' : undefined, onAction: (id, action) => c.proposalControls.onAction(id, action, handle.reference) }}
     onSetComposer={handle.setComposer} onSend={handle.send} onRetry={handle.retry} onCancel={handle.cancel} onSubmit={handle.submit} onRestart={handle.restart} captureRestart={handle.captureRestart}
     onOpenNote={() => { c.setSessionMode('write_note'); c.setActiveView('sessions') }} onAttachImages={handle.attachImages} onPasteNativeImage={handle.pasteImage}

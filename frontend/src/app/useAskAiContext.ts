@@ -10,7 +10,7 @@ import { unfinishedConversations, sameOwner, sameRecord, type RecordRevealReques
 import type { RecordLoadState } from './useRecordHydration'
 
 type RecordOwner = Extract<ConversationOwner, { kind: 'record' }>
-type Panel = { owner: RecordOwner; reference: ChatRef | null; open: boolean; recoveryReason?: string; focusRequest: number; legacyOrigin?: StageOrigin }
+type Panel = { owner: RecordOwner; reference: ChatRef | null; open: boolean; closeError?: string; recoveryReason?: string; focusRequest: number; legacyOrigin?: StageOrigin }
   & ({ phase: 'preparing' } | { phase: 'ready' } | { phase: 'error'; error: string; blockedReference?: ChatRef })
 type Launch = { reference: ChatRef; owner: RecordOwner; pending: { promise: Promise<void>; current: () => boolean } | null }
 type Context = {
@@ -144,8 +144,13 @@ export function useAskAiContext(sessionId: string | null, view: MainView, record
     const epoch = ++openingEpoch.current
     const current = panelRef.current
     if (!current) return
-    if (!await ctx.conversations.flushInputs()) return
-    if (openingEpoch.current === epoch && panelRef.current === current) setPanel({ ...current, open: false })
+    const flushed = await ctx.conversations.flushInputs()
+    if (openingEpoch.current !== epoch || panelRef.current !== current) return
+    if (!flushed) {
+      setPanel({ ...current, closeError: 'Some conversation input could not be saved. Resolve failed saves or images in the affected conversation, then try Close again.' })
+      return
+    }
+    setPanel({ ...current, open: false, closeError: undefined })
     await refreshRecovery()
   }
   async function openConversation(reference: ChatRef, origin?: StageOrigin, recoveryReason = 'Unfinished conversation', launchPanel?: Extract<Panel, { phase: 'preparing' }>) {
