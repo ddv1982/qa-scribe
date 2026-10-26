@@ -204,7 +204,7 @@ it.each(['finding', 'test_cases_draft'] as const)('%s failed recovery read keeps
   api.getConversation.mockRejectedValueOnce(new Error('Recovery refresh unavailable'))
   const view = () => <ChatProposalReview presentation="record" proposal={result.current.sessionChat.chat!.proposals![0]} controls={result.current.proposalControls} />
   const rendered = render(view())
-  fireEvent.click(screen.getByRole('button', { name: 'Check update' }))
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Check update' })) })
   await waitFor(() => expect(result.current.proposalControls.errors['proposal-1']).toContain('Recovery refresh unavailable'))
   rendered.rerender(view())
   expect(screen.getByRole('button', { name: 'Check update' })).toBeEnabled()
@@ -212,7 +212,7 @@ it.each(['finding', 'test_cases_draft'] as const)('%s failed recovery read keeps
   api.getConversation.mockImplementation(read)
   if (kind === 'finding') api.listFindings.mockResolvedValue([storage.read()])
   else api.listDrafts.mockResolvedValue([storage.read()])
-  fireEvent.click(screen.getByRole('button', { name: 'Check update' }))
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Check update' })) })
   await waitFor(() => expect(result.current.proposalControls.unconfirmed?.size).toBe(0))
   rendered.rerender(view())
   expect(screen.getByRole('status')).toHaveTextContent(kind === 'finding' ? 'Finding updated' : 'Test case updated')

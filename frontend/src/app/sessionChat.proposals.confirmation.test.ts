@@ -162,6 +162,39 @@ it.each(['finding', 'test_cases_draft'] as const)('%s a failed dispatch is check
   expect(command).toHaveBeenCalledTimes(2)
 })
 
+it.each((['finding', 'test_cases_draft'] as const).flatMap(kind => (['validation', 'notFound'] as const).map(errorKind => ({ kind, errorKind }))))(
+  '$kind definite $errorKind rejection retains edits and allows a direct Update retry', async ({ kind, errorKind }) => {
+  const { result, command, storage, record, after } = await openExact(kind)
+  const message = errorKind === 'validation' ? 'Prepared change is no longer valid.' : 'not found: prepared change'
+  const expectedError = errorKind === 'validation' ? 'Prepared change is no longer valid.' : 'Something went wrong: not found: prepared change'
+  command.mockRejectedValueOnce({ kind: errorKind, message })
+  await act(async () => {
+    expect(await result.current.proposalControls.onUpdate!('proposal-1')).toEqual({ kind: 'failed', message: expectedError })
+  })
+  expect(result.current.proposalControls.errors['proposal-1']).toBe(expectedError)
+  expect(result.current.proposalControls.unconfirmed?.size).toBe(0)
+  expect(result.current.proposalControls.pending.size).toBe(0)
+  expect(result.current.proposalControls.updated?.has('proposal-1')).toBe(false)
+  expect(storage.read()).toEqual(record)
+  expect(storage.read()).toMatchObject(kind === 'finding'
+    ? { title: 'Checkout returns 500', body: '<p>Payment submission returns a server error.</p>', bodyJson: null }
+    : { title: 'Checkout test cases', body: '<ol><li>Submit payment.</li></ol>', bodyJson: null })
+  expect(currentRecord(result.current, kind)).toMatchObject({ title: 'Refined title', body: '<p>Refined expected result</p>', bodyJson: after.documentJson })
+  expect(command).toHaveBeenCalledOnce()
+  expect(result.current.hasPendingRecordCompensations()).toBe(false)
+  await act(async () => {
+    const saved = await result.current.proposalControls.onUpdate!('proposal-1')
+    expect(saved).toEqual({ kind: 'saved', record: storage.read(), refresh: 'ok' })
+  })
+  expect(storage.read()).toMatchObject({ title: 'Refined title', body: '<p>Refined expected result</p>', bodyJson: after.documentJson })
+  expect(currentRecord(result.current, kind)).toEqual(storage.read())
+  expect(result.current.notice).toBe(kind === 'finding' ? 'Finding updated' : 'Test case updated')
+  expect(result.current.proposalControls.unconfirmed?.size).toBe(0)
+  expect(command).toHaveBeenCalledTimes(2)
+  expect(command.mock.calls[1][2]).toEqual(command.mock.calls[0][2])
+  expect(result.current.hasPendingRecordCompensations()).toBe(false)
+})
+
 it.each(['finding', 'test_cases_draft'] as const)('%s recovered unbound Stage saves the reviewed snapshot', async kind => {
   const { result, proposal, base, setChat, command, storage } = await openExact(kind)
   setChat({ ...result.current.sessionChat.chat!, proposals: [{ ...proposal, state: { kind: 'staged', stage: { id: 'recovered-stage', before: proposal.before, after: proposal.after, storedBaseToken: base.expectedStoredBase } } }] })

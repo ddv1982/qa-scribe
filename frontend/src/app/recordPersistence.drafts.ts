@@ -1,6 +1,6 @@
 import { updateDraft, type Draft } from '../tauri'
 import { richEditorDocumentToStoredBody } from '../editor/editorDocument'
-import { formatError } from '../ui/format'
+import { formatError, isCommandError } from '../ui/format'
 import { RecordWriteConflict } from './recordWriteGuards'
 import type { ExactSaveOperation, RecordPersistenceContext } from './recordPersistence'
 import type { RecordActionCoordination } from './recordActions.coordination'
@@ -87,6 +87,7 @@ export function createDraftPersistence(ctx: RecordPersistenceContext, coordinati
       return 'saved'
     } catch (cause) {
       if (exact) {
+        if (!exact.acknowledged && isCommandError(cause) && (cause.kind === 'validation' || cause.kind === 'notFound')) exact.dispatched = false
         exact.message = formatError(cause)
         if (cause instanceof RecordWriteConflict) exact.conflict = cause.current
       }

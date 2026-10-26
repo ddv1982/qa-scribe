@@ -81,7 +81,7 @@ pub(super) fn completed(
                 })
                 .unwrap_or_else(|| raw.to_owned());
             let warning = if contract.version() == 3 {
-                "Update preparation failed. No editable proposal was created. The record was not updated. Review the response and retry the request."
+                "The AI reply could not be processed. No changes were applied from this reply. Try again."
             } else if matches!(purpose, ChatResponsePurpose::Refinement { .. }) {
                 "No editable proposal was created. The response is retained as text without interactive controls."
             } else {

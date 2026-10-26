@@ -1,6 +1,9 @@
 use super::*;
 
-fn begin(test_cases: bool) -> (SessionService, Finding, Option<Draft>, ChatTurnStarted) {
+fn begin(
+    test_cases: bool,
+    composer: &str,
+) -> (SessionService, Finding, Option<Draft>, ChatTurnStarted) {
     let (service, finding) = setup();
     let draft = test_cases.then(|| {
         service
@@ -43,7 +46,7 @@ fn begin(test_cases: bool) -> (SessionService, Finding, Option<Draft>, ChatTurnS
         .save_chat_composer(ChatComposerRequest {
             scope: scope(&chat),
             intent: ChatComposerIntent::Message,
-            composer: "Improve the expected result".into(),
+            composer: composer.into(),
             mode: ChatMode::Chat,
             attachment_ids: vec![],
         })
@@ -80,7 +83,7 @@ fn finish(
 fn record_outcomes_validate_edits_answers_and_clarifications_for_both_kinds() {
     for test_cases in [false, true] {
         for mode in ["edit", "answer", "clarification"] {
-            let (service, finding, draft, start) = begin(test_cases);
+            let (service, finding, draft, start) = begin(test_cases, "Improve the expected result");
             let kind = if test_cases {
                 "test_cases_draft"
             } else {
@@ -144,8 +147,8 @@ fn malformed_record_outcomes_preserve_explanation_without_proposal_or_record_wri
             "finding"
         };
         for outcome in [
-            json!(null),
             json!({"kind":"edit"}),
+            json!(null),
             json!({"kind":"edit","patch":null}),
             json!({"kind":"edit","patch":{"kind":kind}}),
             json!({"kind":"edit","patch":{"kind":kind,"title":" "}}),
@@ -157,11 +160,11 @@ fn malformed_record_outcomes_preserve_explanation_without_proposal_or_record_wri
             json!({"kind":"clarification","question":{"prompt":"Which?","choices":[]}}),
             json!({"kind":"edit","patch":{"kind":kind,"title":"After"},"question":{"prompt":"Which?","choices":["One"]}}),
         ] {
-            let (service, finding, draft, start) = begin(test_cases);
+            let (service, finding, draft, start) = begin(test_cases, "Improve the expected result");
             let chat = finish(&service, start, outcome);
             assert!(chat.proposals.is_empty());
             assert_eq!(chat.messages.last().unwrap().text, "Readable explanation.");
-            assert!(
+            assert_eq!(
                 chat.messages
                     .last()
                     .unwrap()
@@ -169,10 +172,49 @@ fn malformed_record_outcomes_preserve_explanation_without_proposal_or_record_wri
                     .as_ref()
                     .unwrap()
                     .warning
-                    .as_ref()
-                    .unwrap()
-                    .starts_with("Update preparation failed.")
+                    .as_deref(),
+                Some(
+                    "The AI reply could not be processed. No changes were applied from this reply. Try again."
+                )
             );
+            assert_eq!(
+                service.list_findings(&finding.session_id).unwrap(),
+                vec![finding.clone()]
+            );
+            assert_eq!(
+                service.list_drafts(&finding.session_id).unwrap(),
+                draft.into_iter().collect::<Vec<_>>()
+            );
+        }
+    }
+}
+
+#[test]
+fn malformed_non_edit_record_outcomes_preserve_explanation_without_controls_or_record_write() {
+    for test_cases in [false, true] {
+        for (composer, outcome) in [
+            (
+                "Why does retry need an expected result?",
+                json!({"kind":"answer","patch":{"kind":"finding","title":"After"}}),
+            ),
+            (
+                "Which retry do you mean?",
+                json!({"kind":"clarification","question":{"prompt":"Which?","choices":[]}}),
+            ),
+        ] {
+            let (service, finding, draft, start) = begin(test_cases, composer);
+            let chat = finish(&service, start, outcome);
+            let message = chat.messages.last().unwrap();
+            let response = message.response.as_ref().unwrap();
+            assert_eq!(message.text, "Readable explanation.");
+            assert_eq!(
+                response.warning.as_deref(),
+                Some(
+                    "The AI reply could not be processed. No changes were applied from this reply. Try again."
+                )
+            );
+            assert!(response.question.is_none());
+            assert!(chat.proposals.is_empty());
             assert_eq!(
                 service.list_findings(&finding.session_id).unwrap(),
                 vec![finding.clone()]
@@ -191,7 +233,7 @@ fn v2_record_contract_remains_readable_with_optional_patch() {
         json!(null),
         json!({"kind":"finding","title":"Legacy title"}),
     ] {
-        let (service, finding, _, start) = begin(false);
+        let (service, finding, _, start) = begin(false, "Improve the expected result");
         let id = &start.chat.messages[0].id;
         let db = service.database().connection();
         db.execute_batch("DROP TRIGGER chat_contract_immutable")
@@ -223,7 +265,7 @@ fn v2_record_contract_remains_readable_with_optional_patch() {
 #[test]
 fn record_envelope_rejects_wrong_version_nonce_unknown_fields_blank_markdown_and_missing_outcome() {
     for field in ["version", "requestId", "unknown", "markdown", "outcome"] {
-        let (service, finding, _, start) = begin(false);
+        let (service, finding, _, start) = begin(false, "Explain the expected result");
         let mut response = json!({"version":3,"requestId":start.chat.messages[0].id,"markdown":"Readable explanation.","outcome":{"kind":"answer"}});
         match field {
             "version" => response["version"] = json!(2),
@@ -242,7 +284,7 @@ fn record_envelope_rejects_wrong_version_nonce_unknown_fields_blank_markdown_and
             })
             .unwrap();
         assert!(chat.proposals.is_empty());
-        assert!(
+        assert_eq!(
             chat.messages
                 .last()
                 .unwrap()
@@ -250,9 +292,10 @@ fn record_envelope_rejects_wrong_version_nonce_unknown_fields_blank_markdown_and
                 .as_ref()
                 .unwrap()
                 .warning
-                .as_ref()
-                .unwrap()
-                .starts_with("Update preparation failed.")
+                .as_deref(),
+            Some(
+                "The AI reply could not be processed. No changes were applied from this reply. Try again."
+            )
         );
         assert_eq!(
             service.list_findings(&finding.session_id).unwrap(),
