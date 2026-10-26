@@ -156,6 +156,7 @@ export function useRefinementController(context: Context) {
     running.current.add(id); setPending(new Set(running.current))
     setErrors(previous => { const next = { ...previous }; delete next[id]; return next })
     const invocation = live.current
+    const selectionEpoch = invocation.askAi.selectionEpoch.current
     const current = capturedReference ? invocation.conversations.bind(capturedReference).snapshot().chat : invocation.chat.chat
     const reference = current ? { sessionId: current.sessionId, draftId: current.draftId } : null
     let finish: (() => void) | undefined
@@ -193,6 +194,10 @@ export function useRefinementController(context: Context) {
               const next = coordination.replaceRecord(ctx.records.draftsRef.current, result.updated.record)
               ctx.records.draftsRef.current = next; ctx.records.setDrafts(next)
             }
+          }
+          if (unchanged && ctx.askAi.selectionEpoch.current === selectionEpoch) {
+            ctx.askAi.onSelectRecord({ kind: result.updated.kind, recordId: saved.id, title: saved.title, unsaved: false })
+            ctx.openEditor({ sessionId: saved.sessionId, kind: checked.kind === 'finding' ? 'finding' : 'testware', recordId: saved.id, editing: false })
           }
           ctx.feedback.setNotice(unchanged ? result.updated.kind === 'finding' ? 'Finding updated' : 'Test case updated' : 'Record updated. Your newer editor changes are still unsaved.')
         }
