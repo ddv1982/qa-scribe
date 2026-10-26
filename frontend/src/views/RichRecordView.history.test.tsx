@@ -76,6 +76,45 @@ afterEach(async () => {
 })
 
 describe('real rich-record editor history ownership', () => {
+  it('synchronizes same-ID HTML and JSON replacements, source changes and preview fallbacks in the real editor', async () => {
+    const canonical = JSON.stringify({ schemaVersion: 1, doc: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Canonical JSON body' }] }] } })
+    let record: RecordBody = { title: 'A', body: '<p>Original HTML body</p>', bodyJson: null }
+    const viewFor = (editorId = 'record-a', editing = false, fallback = '<p>Empty preview</p>') => <EditableRichRecord
+      record={record} editing={editing} editorId={editorId} titleInputLabel="Record title" bodyAriaLabel="Record content"
+      placeholder="Record body" previewFallbackHtml={fallback} previewHeader={<h2>{record.title}</h2>} actions={<button>Unrelated action</button>}
+      onTitleChange={() => undefined} onBodyChange={() => undefined} onUploadImage={() => undefined} />
+    const view = render(viewFor())
+    const content = await screen.findByRole('textbox', { name: 'Record content' })
+    await waitFor(() => expect(content).toHaveTextContent('Original HTML body'))
+    record = { ...record, title: 'A renamed' }
+    view.rerender(viewFor())
+    expect(screen.getByRole('heading', { name: 'A renamed' })).toBeVisible()
+    expect(content).toHaveTextContent('Original HTML body')
+    record = { ...record, body: '<p>Same ID HTML replacement</p>' }
+    view.rerender(viewFor())
+    await waitFor(() => expect(content).toHaveTextContent('Same ID HTML replacement'))
+    record = { ...record, bodyJson: canonical }
+    view.rerender(viewFor())
+    await waitFor(() => expect(content).toHaveTextContent('Canonical JSON body'))
+    expect(content).not.toHaveTextContent('Same ID HTML replacement')
+    record = { ...record, bodyJson: 'invalid stored JSON' }
+    view.rerender(viewFor())
+    await waitFor(() => expect(content).toHaveTextContent('Same ID HTML replacement'))
+    record = { title: 'B', body: '<p>Source B body</p>', bodyJson: null }
+    view.rerender(viewFor('record-b'))
+    await waitFor(() => expect(content).toHaveTextContent('Source B body'))
+    expect(screen.getByRole('textbox', { name: 'Record content' })).toBe(content)
+    expect(content).toHaveAttribute('contenteditable', 'false')
+    record = { ...record, body: '', bodyJson: canonical }
+    view.rerender(viewFor('record-b'))
+    await waitFor(() => expect(content).toHaveTextContent('Empty preview'))
+    view.rerender(viewFor('record-b', false, '<p>Changed preview fallback</p>'))
+    await waitFor(() => expect(content).toHaveTextContent('Changed preview fallback'))
+    view.rerender(viewFor('record-b', true))
+    await waitFor(() => expect(content).toHaveTextContent('Canonical JSON body'))
+    expect(content).toHaveAttribute('contenteditable', 'true')
+  })
+
   it('keeps B and its emitted body isolated after A preview, B preview, B Edit and Undo', async () => {
     const workspace = renderWorkspace()
     const preview = await screen.findByRole('textbox', { name: 'A preview' })

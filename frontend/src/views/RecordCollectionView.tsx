@@ -153,6 +153,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
   const selectedRecord = requestedRecord ?? editingRecord ?? visibleRecords.find((record) => record.id === (selectedRecordId ?? initialSelectedRecordId))
     ?? visibleRecords[0]
     ?? null
+  const selectedCopyBody = useMemo(() => composer || !selectedRecord ? '' : copyBody?.(selectedRecord) ?? selectedRecord.body, [composer, selectedRecord, copyBody])
   const selectedEditing = selectedRecord ? Boolean(editingRecordIds[selectedRecord.id]) : false
 
   const selectedUnsaved = Boolean(selectedRecord && selectedEditing && editingOriginals[selectedRecord.id]
@@ -343,7 +344,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
                     {recordChat ? <ActionButton variant="secondary" type="button" className="ask-ai-trigger" icon={Sparkles} disabled={isBusy}
                       onClick={() => void recordChat.onAskAi({ kind: sourceKind === 'finding' ? 'finding' : 'test_cases_draft', recordId: record.id, title: record.title, unsaved: selectedUnsaved })}>Ask AI</ActionButton> : null}
                     <CopyControls
-                    snapshot={{ target: { kind: sourceKind, sessionId: record.sessionId, id: record.id, action: 'jira-text' }, title: record.title, bodyHtml: copyBody?.(record) ?? record.body }}
+                    snapshot={{ target: { kind: sourceKind, sessionId: record.sessionId, id: record.id, action: 'jira-text' }, title: record.title, bodyHtml: selectedCopyBody }}
                     copyState={copyState} onCopy={onCopy} disabled={isBusy}
                     label={record.title.trim() || labels.recordNounLower} screenshotCount={screenshotCount} /></>}
                   deleting={deleting}
