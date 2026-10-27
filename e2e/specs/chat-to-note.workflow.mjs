@@ -356,6 +356,15 @@ export async function runChatToNoteWorkflow() {
   assert.equal(await $('button=Open updated Note').isEnabled(), true)
   assert.equal(await $('button=Review saved conversation').isEnabled(), true)
   assert.equal(await $(composerSelector).isEnabled(), false)
+  await actionProof('.chat-handoff button', 'chat-submitted-actions.png')
+  const handoffLayout = await browser.execute(() => {
+    const footer = document.querySelector('.chat-handoff')
+    const text = footer.querySelector('div').getBoundingClientRect()
+    const actions = footer.querySelector('.chat-buttons').getBoundingClientRect()
+    return { textBottom: text.bottom, actionsTop: actions.top, textWidth: text.width, footerWidth: footer.getBoundingClientRect().width }
+  })
+  assert.ok(handoffLayout.actionsTop >= handoffLayout.textBottom, 'Handoff actions must sit below the explanation')
+  assert.ok(handoffLayout.textWidth >= handoffLayout.footerWidth - 1, 'Handoff explanation must use the available width')
   const beforeReplay = await canonicalNote(primaryId)
   const updatesBeforeReplay = noteAudit('read')
   // Repeat only the public idempotent command after the UI completed the handoff.

@@ -11,7 +11,7 @@ function SavedConversationReview({ chat, unsent }: { chat: ChatState; unsent: bo
   const [expanded, setExpanded] = useState(false)
   const id = useId()
   return <section className="chat-review" aria-label="Saved conversation review">
-    <ActionButton variant="secondary" type="button" aria-expanded={expanded} aria-controls={id} onClick={() => setExpanded(!expanded)}>
+    <ActionButton variant="secondary" size="compact" type="button" aria-expanded={expanded} aria-controls={id} onClick={() => setExpanded(!expanded)}>
       Review saved conversation
     </ActionButton>
     <p className="chat-help">Read-only saved messages. {unsent ? 'Your unsent message is excluded from what is added to the note.' : 'This is the conversation that is appended to the note.'}</p>
@@ -50,9 +50,9 @@ export function ChatHandoff({ state, onSubmit, onOpenNote }: {
       </div>
       <div className="chat-buttons">
         {handoff.kind === 'added' ? <>
-          <ActionButton variant="secondary" type="button" onClick={onOpenNote}>Open updated Note</ActionButton>
+          <ActionButton variant="secondary" size="compact" type="button" onClick={onOpenNote}>Open updated Note</ActionButton>
           <StartNewConversation state={state} />
-        </> : <ActionButton variant="secondary" type="button"
+        </> : <ActionButton variant="secondary" size="compact" type="button"
           disabled={handoff.kind === 'recover' ? handoff.disabled : !canAdd}
           aria-describedby={reason ? `${id}-reason` : undefined}
           onClick={() => { if (canAdd || (handoff.kind === 'recover' && !handoff.disabled)) void onSubmit() }}>
