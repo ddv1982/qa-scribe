@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.8.26 - 2026-10-27
+
+- Polish Notes Ask AI handoff actions with compact controls and a readable layout that matches the Findings and Test cases experience.
+
 ## v0.8.25 - 2026-10-26
 
 - Open Notes Ask AI in the same panel pattern as Findings and Test cases. Keep the note editable beside chat in wide windows, and return to the note and its Ask AI button on Close in narrow windows.
