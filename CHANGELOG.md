@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.8.27 - 2026-10-27
+
+- Simplified CI and release validation by sharing Linux dependency setup.
+
 ## v0.8.26 - 2026-10-27
 
 - Polish Notes Ask AI handoff actions with compact controls and a readable layout that matches the Findings and Test cases experience.
