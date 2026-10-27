@@ -292,8 +292,9 @@ test('release validation uses the protected Linux quality environment and budget
   const gate = job => job.steps.find(step => step.uses === '$/.github/actions/validate-build')
   assert.equal(gate(release).with['runner-class'], gate(ci).with['runner-class'])
   assert.equal(gate(release).with['expected-tag'], '${{ needs.release-context.outputs.tag }}')
-  const dependencies = job => job.steps.find(step => step.name === 'Install Linux Tauri desktop dependencies').run
-  assert.equal(dependencies(release), dependencies(ci))
+  const dependencies = job => job.steps.find(step => step.name === 'Install Linux Tauri desktop dependencies')
+  assert.equal(dependencies(ci).uses, '$/.github/actions/install-linux-validation-deps')
+  assert.deepEqual(dependencies(release), dependencies(ci))
 })
 
 test('shared setup normalizes APT once after Node with trusted hosted Linux context', () => {
@@ -321,7 +322,7 @@ test('all four APT callers complete shared setup before APT with existing job bu
   for (const file of ['ci.yml', 'release.yml']) {
     const { jobs } = parse(readFileSync(resolve(root, '.github/workflows', file), 'utf8'))
     for (const [id, job] of Object.entries(jobs)) {
-      const aptIndex = job.steps?.findIndex(step => /\bapt-get\b/.test(step.run ?? '')) ?? -1
+      const aptIndex = job.steps?.findIndex(step => /\bapt-get\b/.test(step.run ?? '') || step.uses === '$/.github/actions/install-linux-validation-deps') ?? -1
       if (aptIndex < 0) continue
       const setup = job.steps.filter(step => step.uses === '$/.github/actions/setup-project')
       assert.equal(setup.length, 1)

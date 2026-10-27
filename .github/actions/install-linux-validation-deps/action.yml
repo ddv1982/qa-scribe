@@ -1,0 +1,19 @@
+name: Install Linux validation dependencies
+description: Install the desktop and test dependencies shared by CI and release validation.
+runs:
+  using: composite
+  steps:
+    - name: Install Linux Tauri desktop dependencies
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo env DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get install -y \
+          pkg-config \
+          libayatana-appindicator3-dev \
+          librsvg2-dev \
+          libssl-dev \
+          libwebkit2gtk-4.1-dev \
+          xauth \
+          xclip \
+          xdotool \
+          xvfb
