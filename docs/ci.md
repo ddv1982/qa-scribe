@@ -1,6 +1,6 @@
 # Continuous integration
 
-Linux CI jobs run on `ubuntu-26.04`. Release validation and Linux release builds
+Linux CI and release validation run on `ubuntu-26.04`. Linux release builds
 remain on `ubuntu-24.04` to preserve the published installer ABI baseline.
 The [check inventory](verification/check-inventory.md) maps local commands,
 hosted jobs, triggers, runners, proof obligations, and artifacts.
@@ -65,6 +65,10 @@ then compare changed-path cases with literal applicable job sets. Linux quality
 and observational macOS E2E still run for documentation-only changes.
 
 ## Shared setup and source-of-truth rules
+
+`.github/actions/install-linux-validation-deps/action.yml` owns the shared Linux
+desktop and test package list for CI and release validation. Packaging jobs have
+additional dependencies and retain their own lists.
 
 `.github/actions/setup-project/action.yml` owns Node, Bun, Rust, Rust-cache, and
 frozen frontend dependency setup. Bun is resolved from the root

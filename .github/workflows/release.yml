@@ -112,18 +112,7 @@ jobs:
           cache-key: release-validation-linux
 
       - name: Install Linux Tauri desktop dependencies
-        run: |
-          sudo apt-get update
-          sudo env DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a apt-get install -y \
-            pkg-config \
-            libayatana-appindicator3-dev \
-            librsvg2-dev \
-            libssl-dev \
-            libwebkit2gtk-4.1-dev \
-            xauth \
-            xclip \
-            xdotool \
-            xvfb
+        uses: $/.github/actions/install-linux-validation-deps
 
       - name: Validate frontend and Rust build
         uses: $/.github/actions/validate-build
