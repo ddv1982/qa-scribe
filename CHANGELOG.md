@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.8.29 - 2026-10-29
+
+- Run release platform builds alongside validation while keeping publication gated on every required check.
+- Reuse verified build tools and dependency caches, and remove duplicate E2E work while retaining distinct recovery and authorization coverage.
+
 ## v0.8.28 - 2026-10-28
 
 - Upgrade the pinned tsc-rs compiler and editor SDK to 0.8.0.
