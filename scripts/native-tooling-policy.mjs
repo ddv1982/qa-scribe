@@ -5,7 +5,7 @@ import { assertNativeChecking } from './native-compiler-policy.mjs'
 
 const require = createRequire(new URL('../frontend/package.json', import.meta.url))
 const { valid } = require('semver')
-const pins = { 'tsc-rs': '0.7.0', oxlint: '1.89.0', 'oxlint-tsgolint': '7.0.2004' }
+const pins = { 'tsc-rs': '0.8.0', oxlint: '1.89.0', 'oxlint-tsgolint': '7.0.2004' }
 const compilerSdk = name => name === 'typescript' || name === '@typescript/native-preview' || /^@typescript\/(?:typescript|native-preview)-/.test(name)
 const legacy = name => name === '@typescript/typescript6' || name.startsWith('@typescript-eslint/') || ['typescript-eslint', 'ts-api-utils', 'eslint', '@eslint/js', 'eslint-plugin-react-hooks', 'eslint-plugin-react-refresh'].includes(name)
 const normalize = value => {

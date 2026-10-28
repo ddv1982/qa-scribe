@@ -6,7 +6,7 @@ import test from 'node:test'
 import { checkRustLsp } from './check-rust-typescript-lsp.mjs'
 import { prepareRustSdk } from './prepare-rust-typescript-sdk.mjs'
 
-function peer(t, scenario, version = '0.7.0') {
+function peer(t, scenario, version = '0.8.0') {
   const root = mkdtempSync(join(tmpdir(), 'rust-lsp-peer-'))
   t.after(() => rmSync(root, { recursive: true, force: true }))
   const name = `@tsc-rs/${process.platform}-${process.arch}`
@@ -84,7 +84,7 @@ for (const scenario of ['normal', 'registration']) test(`successful ordered hand
 
 test('only the exact pinned upstream shutdown signature is explicitly qualified', async t => {
   const result = await checkRustLsp(peer(t, 'qualified'))
-  assert.equal(result.outcome, 'QUALIFIED_PINNED_0_7_0_SHUTDOWN_EOF')
+  assert.equal(result.outcome, 'QUALIFIED_PINNED_0_8_0_SHUTDOWN_EOF')
   assert.deepEqual(result.stopped, { code: 1, signal: null })
   assert.equal(result.stderr, 'context canceled\n')
   assert.match(result.qualification, /not a normal exit/)
@@ -95,7 +95,7 @@ for (const scenario of ['code-1', 'code-2', 'code-17', 'code-42', 'code-255', 'q
 })
 
 test('the exact shutdown signature does not qualify another SDK version', async t => {
-  await assert.rejects(checkRustLsp(peer(t, 'qualified', '0.7.1')), /Unexpected Rust LSP exit code or shutdown signature/)
+  await assert.rejects(checkRustLsp(peer(t, 'qualified', '0.8.1')), /Unexpected Rust LSP exit code or shutdown signature/)
 })
 
 for (const [scenario, expected] of [

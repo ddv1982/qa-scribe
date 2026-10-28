@@ -28,7 +28,7 @@ cargo binstall cargo-audit --locked --version "=$(node -p 'require("./scripts/to
 
 ## Compiler and editor setup
 
-Frontend checks and editor language features use [`tsc-rs`](https://github.com/pingdotgg/ts-rust), pinned to `0.7.0`. Both the UI and Vite configuration are checked before production builds. Vite bundles the frontend. Oxlint `1.89.0` and its Go-based `oxlint-tsgolint` `7.0.2004` engine provide typed linting. The separate Microsoft compiler SDK is not installed.
+Frontend checks and editor language features use [`tsc-rs`](https://github.com/pingdotgg/ts-rust), pinned to `0.8.0`. Both the UI and Vite configuration are checked before production builds. Vite bundles the frontend. Oxlint `1.89.0` and its Go-based `oxlint-tsgolint` `7.0.2004` engine provide typed linting. The separate Microsoft compiler SDK is not installed.
 
 The npm package version identifies the Rust release. Its TypeScript language version, reported by `tsc-rs --version`, is `7.1.0-dev`. Builds and the editor use the same native executable. The Microsoft **TypeScript 7** extension remains the editor client.
 

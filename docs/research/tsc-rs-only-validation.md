@@ -1,6 +1,6 @@
 # Rust compiler and editor SDK validation
 
-The migration uses `tsc-rs` 0.7.0 for frontend type checks and editor language features. Its executable reports TypeScript language version `7.1.0-dev`. The frontend dependency graph excludes the separate Microsoft compiler SDK and its platform packages.
+The original migration used `tsc-rs` 0.7.0; the current pin is 0.8.0 for frontend type checks and editor language features. Its executable reports TypeScript language version `7.1.0-dev`. The frontend dependency graph excludes the separate Microsoft compiler SDK and its platform packages.
 
 The Microsoft TypeScript 7 VS Code extension remains the editor client. Oxlint and its Go-based typed engine remain responsible for lint rules. Vite still bundles the frontend. This change does not replace application code or every tool with Rust.
 
@@ -22,7 +22,7 @@ The initial macOS ARM64 feasibility run passed actual Trust and SDK approval, co
 
 The installation probe checks ordered initialization, shutdown acknowledgment, exit transmission, and process termination. It preserves protocol and stream errors after initialization and rejects unexpected exits.
 
-The pinned 0.7.0 SDK has an observed shutdown qualification. After acknowledging shutdown and receiving exit, it can emit `error handling method 'exit': EOF`, write `context canceled`, and return code 1. The probe accepts only that exact pinned signature as `QUALIFIED_PINNED_0_7_0_SHUTDOWN_EOF`. It records the actual code and does not call it normal termination. Other failures remain errors. Focused fake-peer cases cover these rejection paths.
+The 0.8.0 upgrade reproduced the same shutdown qualification previously observed with 0.7.0 on macOS ARM64. After acknowledging shutdown and receiving exit, it can emit `error handling method 'exit': EOF`, write `context canceled`, and return code 1. The probe accepts only that exact signature from the pinned 0.8.0 SDK as `QUALIFIED_PINNED_0_8_0_SHUTDOWN_EOF`. It records the actual code and does not call it normal termination. Other failures remain errors. Focused fake-peer cases cover these rejection paths.
 
 This requested-shutdown outcome is separate from the active editor's crash and restart checks.
 

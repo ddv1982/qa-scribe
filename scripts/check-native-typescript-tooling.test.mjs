@@ -8,7 +8,7 @@ import { inspectFrontend, validateNativeTooling } from './check-native-typescrip
 
 const frontend = new URL('../frontend/', import.meta.url)
 const parity = JSON.parse(readFileSync(new URL('./fixtures/native-tooling/lint-parity.json', import.meta.url)))
-const pins = { 'tsc-rs': '0.7.0', oxlint: '1.89.0', 'oxlint-tsgolint': '7.0.2004', json5: '2.2.3' }
+const pins = { 'tsc-rs': '0.8.0', oxlint: '1.89.0', 'oxlint-tsgolint': '7.0.2004', json5: '2.2.3' }
 const json = (file, value) => writeFileSync(file, JSON.stringify(value))
 
 function fixture(run) {
@@ -282,7 +282,7 @@ test('an unrelated @typescript scoped package remains allowed', () => fixture(ro
 test('locked native Rust package must match the compiler pin', () => fixture((root, lock) => {
   lock.packages['@tsc-rs/linux-x64'] = ['@tsc-rs/linux-x64@0.6.0', '', {}, 'sha512-fixture']
   json(join(root, 'bun.lock'), lock)
-  rejects(root, /Rust native package must match tsc-rs@0.7.0/)
+  rejects(root, /Rust native package must match tsc-rs@0.8.0/)
 }))
 for (const name of ['postinstall', 'sdk:prepare']) {
   test(`SDK preparation dispatcher ${name} cannot be omitted`, () => fixture(root => {

@@ -128,9 +128,9 @@ export async function checkRustLsp(frontend) {
           assert.equal(errors.length, 0, 'Unexpected Rust LSP error log on normal exit')
           outcome = 'NORMAL_EXIT'
         } else {
-          assert.ok(stopped.code === 1 && sdk.umbrella.version === '0.7.0' && sdk.native.version === '0.7.0' && stderr === 'context canceled\n' && errors.length === 1 && errors[0].params.message === shutdownEOF, `Unexpected Rust LSP exit code or shutdown signature: ${stopped.code}`)
-          outcome = 'QUALIFIED_PINNED_0_7_0_SHUTDOWN_EOF'
-          qualification = "Pinned SDK 0.7.0 acknowledged shutdown, then reported exit EOF and context canceled. This is a known upstream shutdown outcome, not a normal exit."
+          assert.ok(stopped.code === 1 && sdk.umbrella.version === '0.8.0' && sdk.native.version === '0.8.0' && stderr === 'context canceled\n' && errors.length === 1 && errors[0].params.message === shutdownEOF, `Unexpected Rust LSP exit code or shutdown signature: ${stopped.code}`)
+          outcome = 'QUALIFIED_PINNED_0_8_0_SHUTDOWN_EOF'
+          qualification = "Pinned SDK 0.8.0 acknowledged shutdown, then reported exit EOF and context canceled. This is a known upstream shutdown outcome, not a normal exit."
         }
       } catch (error) { fail(error) }
     }
@@ -150,7 +150,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     assert.ok(process.argv.length === 2 || process.argv.length === 3, 'Usage: node scripts/check-rust-typescript-lsp.mjs [receipt.json]')
     const receipt = await checkRustLsp(fileURLToPath(new URL('../frontend', import.meta.url)))
     if (process.argv[2]) writeFileSync(process.argv[2], `${JSON.stringify(receipt, null, 2)}\n`)
-    const status = receipt.outcome === 'NORMAL_EXIT' ? 'PASS NORMAL_EXIT' : 'QUALIFIED PINNED_0_7_0_SHUTDOWN_EOF'
+    const status = receipt.outcome === 'NORMAL_EXIT' ? 'PASS NORMAL_EXIT' : 'QUALIFIED PINNED_0_8_0_SHUTDOWN_EOF'
     console.log(`${status}: initialize/shutdown replies from ${receipt.sdk.native.name}@${receipt.sdk.native.version}; exit sent; owned child ${receipt.pid} stopped with actual code ${receipt.stopped.code}${receipt.qualification ? '; ' + receipt.qualification : ''}`)
   } catch (error) {
     if (process.argv[2]) writeFileSync(process.argv[2], `${JSON.stringify(error.receipt ?? { outcome: 'FAIL', error: error.message }, null, 2)}\n`)
