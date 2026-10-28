@@ -12,9 +12,9 @@ test('critical workflows use separate WDIO processes, app data, fixtures, and ar
   const plan = createWdioInvocationPlan({}, '/tmp/e2e-root', '/tmp/e2e-artifacts')
 
   assert.deepEqual(plan.slice(0, criticalScenarios.length).map(({ id }) => id), criticalScenarios)
-  const legacy = plan.slice(0, criticalScenarios.length + 5 + (['linux', 'darwin'].includes(process.platform) ? 3 : 0) + (process.platform === 'linux' ? 1 : 0))
+  const legacy = plan.slice(0, criticalScenarios.length + 4 + (['linux', 'darwin'].includes(process.platform) ? 3 : 0) + (process.platform === 'linux' ? 1 : 0))
   assert.deepEqual(legacy.slice(criticalScenarios.length).map(({ id }) => id), [
-    'chat-to-note', 'chat-images', 'chat-tool-authorization-codex', 'chat-tool-authorization-claude', 'chat-tool-authorization-copilot',
+    'chat-images', 'chat-tool-authorization-codex', 'chat-tool-authorization-claude', 'chat-tool-authorization-copilot',
     ...(['linux', 'darwin'].includes(process.platform) ? ['manual-formats', 'ui-polish', 'first-use'] : []),
     ...(process.platform === 'linux' ? ['native-close'] : []),
   ])
@@ -22,9 +22,11 @@ test('critical workflows use separate WDIO processes, app data, fixtures, and ar
     assert.equal(new Set(legacy.map(({ environment }) => environment[key])).size, legacy.length)
   }
   assert.ok(plan.slice(0, criticalScenarios.length).every(({ environment }) => environment.QA_SCRIBE_E2E_SPEC === 'critical-workflows.e2e.mjs'))
-  assert.equal(plan[criticalScenarios.length].environment.QA_SCRIBE_E2E_SPEC, 'chat-to-note.e2e.mjs')
+  assert.equal(plan[criticalScenarios.length].environment.QA_SCRIBE_E2E_SPEC, 'chat-images.e2e.mjs')
+  assert.equal(plan.some(({ id }) => id === 'chat-to-note'), false)
+  assert.equal(createWdioInvocationPlan({ QA_SCRIBE_E2E_SPEC: 'chat-to-note.e2e.mjs' }, '/tmp/root', '/tmp/artifacts')[0].environment.QA_SCRIBE_E2E_SPEC, 'chat-to-note.e2e.mjs')
   for (const [index, provider] of ['codex', 'claude', 'copilot'].entries()) {
-    const environment = plan[criticalScenarios.length + 2 + index].environment
+    const environment = plan[criticalScenarios.length + 1 + index].environment
     assert.equal(environment.QA_SCRIBE_E2E_SPEC, 'chat-tool-authorization.workflow.mjs')
     assert.equal(environment.QA_SCRIBE_E2E_AUTH_PROVIDER, provider)
   }
@@ -91,7 +93,7 @@ test('explicit model selection uses X11 and remains exactly one invocation', () 
 test('Linux defaults require the complete model proof chain while non-Linux defaults retain their supported workflows', () => {
   const linux = createWdioInvocationPlan({}, '/tmp/root', '/tmp/artifacts', 'linux')
   assert.deepEqual(linux.map(({ id }) => id), [
-    ...criticalScenarios, 'chat-to-note', 'chat-images', 'chat-tool-authorization-codex', 'chat-tool-authorization-claude',
+    ...criticalScenarios, 'chat-images', 'chat-tool-authorization-codex', 'chat-tool-authorization-claude',
     'chat-tool-authorization-copilot', 'manual-formats', 'ui-polish', 'first-use', 'native-close', 'ask-ai-isolation-initial', 'model-management', 'model-evidence', 'model-evidence-restart',
     'model-selection', 'model-selection-restart', 'provider-qualification-disabled', 'provider-qualification-diagnostics',
     'provider-qualification-selector',
@@ -99,7 +101,7 @@ test('Linux defaults require the complete model proof chain while non-Linux defa
   assert.equal(linux.find(({ id }) => id === 'model-selection').environment.GDK_BACKEND, 'x11')
   for (const platform of ['darwin', 'win32']) {
     assert.deepEqual(createWdioInvocationPlan({}, '/tmp/root', '/tmp/artifacts', platform).map(({ id }) => id), [
-      ...criticalScenarios, 'chat-to-note', 'chat-images', 'chat-tool-authorization-codex', 'chat-tool-authorization-claude', 'chat-tool-authorization-copilot',
+      ...criticalScenarios, 'chat-images', 'chat-tool-authorization-codex', 'chat-tool-authorization-claude', 'chat-tool-authorization-copilot',
       ...(platform === 'darwin' ? ['manual-formats', 'ui-polish', 'first-use', 'ask-ai-isolation-initial'] : []),
     ])
   }

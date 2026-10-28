@@ -268,9 +268,14 @@ describe(`Built application native ${provider} Chat tool authorization`, () => {
     const prompt = JSON.parse(readFileSync(await markerFile(current.index + 1, 'prompt.json'), 'utf8'))
     assert.ok(prompt.prompt.includes(JSON.stringify(text)))
     const geometry = []
-    const wide = await wideLayoutViewport()
+    // The permission widget is shared by all providers. Sweep its full layout
+    // matrix once; still prove each provider's actual arguments and actions fit
+    // the supported narrow viewport, in addition to every authorization flow.
     const short = await minimumLayoutViewport()
-    for (const [width, height] of [[1280, wide.height], [1280, 645], [1000, short.height], [640, short.height], [360, 645], [320, 645]]) {
+    const sizes = provider === 'codex'
+      ? [[1280, (await wideLayoutViewport()).height], [1280, 645], [1000, short.height], [640, short.height], [360, 645], [320, 645]]
+      : [[640, short.height]]
+    for (const [width, height] of sizes) {
       assert.deepEqual(await layoutViewport(width, height), { width, height })
       await $('button=Review permission').scrollIntoView()
       await reviewPermission()

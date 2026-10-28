@@ -339,3 +339,44 @@ test('all four APT callers complete shared setup before APT with existing job bu
     ['release.yml', 'build-linux-release', 'ubuntu-24.04', 45],
   ])
 })
+
+
+test('release builds overlap validation while every publication path waits for it', () => {
+  const { jobs } = parse(readFileSync(resolve(root, '.github/workflows/release.yml'), 'utf8'))
+  const needs = id => [jobs[id].needs ?? []].flat()
+  const ancestors = id => [...new Set(needs(id).flatMap(parent => [parent, ...ancestors(parent)]))]
+  for (const id of ['build-macos-release', 'build-linux-release']) {
+    assert.deepEqual(needs(id), ['release-context'], `${id} must start without waiting for validation`)
+    assert.equal(jobs[id].if, "needs.release-context.outputs.should-release == 'true'",
+      'A normal main push with an existing version must not start platform builds')
+    assert.deepEqual(jobs[id].permissions, { contents: 'read' })
+  }
+  for (const id of ['create-release', 'publish-release-assets', 'sign-release-checksums', 'publish-apt-repository', 'publish-release']) {
+    assert.ok(ancestors(id).includes('validate-release'), `${id} must wait for successful validation`)
+    assert.equal(jobs[id].if, undefined, `${id} must retain the default success gate on failed, cancelled or skipped dependencies`)
+  }
+  assert.ok(ancestors('publish-release-assets').includes('create-release'))
+  for (const id of ['build-macos-release', 'build-linux-release']) {
+    assert.ok(ancestors('publish-release-assets').includes(id))
+  }
+  for (const id of ['sign-release-checksums', 'publish-apt-repository']) {
+    assert.ok(ancestors('publish-release').includes(id))
+  }
+  const setup = jobs['validate-release'].steps.find(step => step.uses === '$/.github/actions/setup-project')
+  assert.equal(setup.with['cache-key'], 'quality-linux', 'Same-host CI and release validation reuse dependencies')
+})
+
+test('audit executable cache is exact and always passes through version verification', () => {
+  const { runs } = parse(readFileSync(resolve(root, '.github/actions/validate-build/action.yml'), 'utf8'))
+  const index = runs.steps.findIndex(step => step.name === 'Restore pinned cargo-audit executable')
+  const cache = runs.steps[index]
+  assert.ok(cache.uses.startsWith('actions/cache@'))
+  assert.equal(cache.with.path, '~/.cargo/bin/cargo-audit')
+  for (const token of ['runner.os', 'runner.arch', 'inputs.runner-class', 'scripts/tool-versions.json', 'scripts/install-cargo-audit.mjs']) {
+    assert.ok(cache.with.key.includes(token), `Audit cache must include ${token}`)
+  }
+  assert.equal(cache.with['restore-keys'], undefined)
+  const install = runs.steps[index + 1]
+  assert.equal(install.run, 'node scripts/install-cargo-audit.mjs')
+  assert.equal(install.if, undefined, 'Cache hits must still verify the executable pin')
+})

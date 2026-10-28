@@ -114,6 +114,12 @@ runs:
       shell: bash
       run: cargo fmt --all --check
 
+    - name: Restore pinned cargo-audit executable
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # pinned, same revision as native-tooling-validation
+      with:
+        path: ~/.cargo/bin/cargo-audit
+        key: cargo-audit-${{ runner.os }}-${{ runner.arch }}-${{ inputs.runner-class }}-${{ hashFiles('scripts/tool-versions.json', 'scripts/install-cargo-audit.mjs') }}
+
     - name: Install cargo-audit
       shell: bash
       run: node scripts/install-cargo-audit.mjs
