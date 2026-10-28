@@ -26,7 +26,7 @@ function fixture(t) {
     write(root, `${folder}.vscode/settings.json`, settings)
     write(root, `${folder}.vscode/extensions.json`, { recommendations: ['TypeScriptTeam.native-preview', 'oxc.oxc-vscode'] })
   }
-  const pins = { 'tsc-rs': '0.7.0', oxlint: '1.89.0', 'oxlint-tsgolint': '7.0.2004' }
+  const pins = { 'tsc-rs': '0.8.0', oxlint: '1.89.0', 'oxlint-tsgolint': '7.0.2004' }
   write(root, 'frontend/package.json', { devDependencies: pins })
   for (const [name, bin] of [['oxlint', { oxlint: './bin/oxlint' }], ['oxlint-tsgolint', { tsgolint: './bin/tsgolint.js' }]]) {
     write(root, `frontend/node_modules/${name}/package.json`, { name, version: pins[name], bin })

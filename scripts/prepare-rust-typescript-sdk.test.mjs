@@ -12,11 +12,11 @@ function fixture(t, host = { platform: 'linux', arch: 'x64' }, nested = false) {
   const root = mkdtempSync(join(tmpdir(), 'rust-sdk-'))
   t.after(() => rmSync(root, { recursive: true, force: true }))
   const frontend = join(root, 'frontend'); const modules = join(frontend, 'node_modules'); const tuple = `${host.platform}-${host.arch}`
-  const umbrella = join(modules, nested ? '.bun/tsc-rs@0.7.0/node_modules/tsc-rs' : 'tsc-rs')
-  const native = join(modules, nested ? `.bun/@tsc-rs+${tuple}@0.7.0/node_modules/@tsc-rs/${tuple}` : `@tsc-rs/${tuple}`)
-  write(join(frontend, 'package.json'), { devDependencies: { 'tsc-rs': '0.7.0' } })
-  write(join(umbrella, 'package.json'), { name: 'tsc-rs', version: '0.7.0', optionalDependencies: { [`@tsc-rs/${tuple}`]: '0.7.0' } })
-  write(join(native, 'package.json'), { name: `@tsc-rs/${tuple}`, version: '0.7.0', os: [host.platform], cpu: [host.arch] })
+  const umbrella = join(modules, nested ? '.bun/tsc-rs@0.8.0/node_modules/tsc-rs' : 'tsc-rs')
+  const native = join(modules, nested ? `.bun/@tsc-rs+${tuple}@0.8.0/node_modules/@tsc-rs/${tuple}` : `@tsc-rs/${tuple}`)
+  write(join(frontend, 'package.json'), { devDependencies: { 'tsc-rs': '0.8.0' } })
+  write(join(umbrella, 'package.json'), { name: 'tsc-rs', version: '0.8.0', optionalDependencies: { [`@tsc-rs/${tuple}`]: '0.8.0' } })
+  write(join(native, 'package.json'), { name: `@tsc-rs/${tuple}`, version: '0.8.0', os: [host.platform], cpu: [host.arch] })
   write(join(native, 'lib/tsc'), '#!/bin/sh\nexit 0\n'); chmodSync(join(native, 'lib/tsc'), 0o755)
   for (const file of ['lib.d.ts', 'lib.es5.d.ts', 'lib.dom.d.ts', 'lib.esnext.full.d.ts']) write(join(native, 'lib', file), 'declare const library: number\n')
   if (nested) {
@@ -31,7 +31,7 @@ for (const host of [{ platform: 'linux', arch: 'x64' }, { platform: 'darwin', ar
   test(`preparation and read-only resolution on ${host.platform}-${host.arch}`, t => {
     const f = fixture(t, host); const sdk = resolveRustSdk(f.frontend, host)
     assert.equal(existsSync(f.link), false, 'Read-only resolution must not repair')
-    assert.deepEqual(sdk, { platform: host.platform, arch: host.arch, umbrella: { name: 'tsc-rs', version: '0.7.0', root: f.umbrella }, native: { name: `@tsc-rs/${host.platform}-${host.arch}`, version: '0.7.0', root: f.native }, libDir: join(f.native, 'lib'), executable: join(f.native, 'lib/tsc'), linkPath: f.link, relativeTarget: `@tsc-rs/${host.platform}-${host.arch}/lib` })
+    assert.deepEqual(sdk, { platform: host.platform, arch: host.arch, umbrella: { name: 'tsc-rs', version: '0.8.0', root: f.umbrella }, native: { name: `@tsc-rs/${host.platform}-${host.arch}`, version: '0.8.0', root: f.native }, libDir: join(f.native, 'lib'), executable: join(f.native, 'lib/tsc'), linkPath: f.link, relativeTarget: `@tsc-rs/${host.platform}-${host.arch}/lib` })
     assert.throws(() => assertRustSdkPrepared(sdk), /Rust SDK link missing/)
     prepareRustSdk(f.frontend, host); const before = lstatSync(f.link)
     assertRustSdkPrepared(sdk); prepareRustSdk(f.frontend, host)
@@ -44,7 +44,7 @@ test('umbrella-relative nested Bun resolution and relocation', t => {
   const f = fixture(t, undefined, true)
   write(join(f.modules, '@tsc-rs/linux-x64/package.json'), { name: 'foreign-top-level', version: '9.0.0' })
   const sdk = prepareRustSdk(f.frontend, f.host)
-  assert.equal(sdk.relativeTarget, '.bun/@tsc-rs+linux-x64@0.7.0/node_modules/@tsc-rs/linux-x64/lib')
+  assert.equal(sdk.relativeTarget, '.bun/@tsc-rs+linux-x64@0.8.0/node_modules/@tsc-rs/linux-x64/lib')
   const relocated = join(f.root, 'moved'); renameSync(f.frontend, relocated)
   assertRustSdkPrepared(resolveRustSdk(relocated, f.host))
 })
@@ -60,7 +60,7 @@ for (const target of ['@tsc-rs/darwin-arm64/lib', '.bun/@tsc-rs+linux-x64@0.6.0/
   })
 }
 
-for (const target of ['/tmp/foreign-sdk', '../private/lib', 'unrelated/@tsc-rs/linux-x64/lib', '.bun/@tsc-rs+linux-x64@0.7.0/node_modules/@tsc-rs/darwin-x64/lib']) {
+for (const target of ['/tmp/foreign-sdk', '../private/lib', 'unrelated/@tsc-rs/linux-x64/lib', '.bun/@tsc-rs+linux-x64@0.8.0/node_modules/@tsc-rs/darwin-x64/lib']) {
   test(`foreign link is preserved: ${target}`, t => {
     const f = fixture(t); symlinkSync(target, f.link)
     assert.throws(() => prepareRustSdk(f.frontend, f.host), /Refusing foreign/)
