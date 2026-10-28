@@ -14,22 +14,34 @@ test('the repository pins the reviewed cargo-audit version', () => {
   assert.equal(readCargoAuditVersion(), '0.22.2')
 })
 
-test('installCargoAudit invokes cargo install with the exact tool pin', () => {
-  let invocation
+test('installCargoAudit reuses only the exact executable version', () => {
+  const calls = []
   installCargoAudit('0.22.2', (command, args, options) => {
-    invocation = { command, args, options }
-    return { status: 0 }
+    calls.push({ command, args, options })
+    return { status: 0, stdout: 'cargo-audit 0.22.2\n' }
   })
-
-  assert.deepEqual(invocation, {
-    command: 'cargo',
-    args: ['install', 'cargo-audit', '--locked', '--version', '=0.22.2'],
-    options: { stdio: 'inherit' },
-  })
+  assert.deepEqual(calls, [{ command: 'cargo-audit', args: ['--version'], options: { encoding: 'utf8' } }])
 })
 
-test('installCargoAudit rejects a failed cargo install process', () => {
+for (const probe of [{ error: new Error('missing'), status: null }, { status: 0, stdout: 'cargo-audit 0.22.1\n' }]) {
+  test(`installCargoAudit replaces a ${probe.error ? 'missing' : 'stale'} executable with the exact pin`, () => {
+    const calls = []
+    installCargoAudit('0.22.2', (command, args, options) => {
+      calls.push({ command, args, options })
+      if (calls.length === 1) return probe
+      return { status: 0, stdout: 'cargo-audit 0.22.2\n' }
+    })
+    assert.deepEqual(calls[1], {
+      command: 'cargo', args: ['install', 'cargo-audit', '--locked', '--version', '=0.22.2', '--force'],
+      options: { stdio: 'inherit' },
+    })
+    assert.equal(calls.length, 3, 'The installed executable must be verified after a cache miss')
+  })
+}
+
+test('installCargoAudit rejects a failed install or incorrect resulting executable', () => {
   assert.throws(() => installCargoAudit('0.22.2', () => ({ status: 7 })), /status 7/)
+  assert.throws(() => installCargoAudit('0.22.2', () => ({ status: 0, stdout: 'cargo-audit 0.22.1' })), /does not match pinned version/)
 })
 
 test('the shared CI and release gate installs cargo-audit through the pinned installer', () => {

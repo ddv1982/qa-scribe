@@ -109,7 +109,7 @@ jobs:
       - name: Setup project
         uses: $/.github/actions/setup-project
         with:
-          cache-key: release-validation-linux
+          cache-key: quality-linux
 
       - name: Install Linux Tauri desktop dependencies
         uses: $/.github/actions/install-linux-validation-deps
@@ -174,7 +174,8 @@ jobs:
 
   build-macos-release:
     name: Build macOS ${{ matrix.arch }}
-    needs: [release-context, create-release]
+    needs: release-context
+    if: needs.release-context.outputs.should-release == 'true'
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     permissions:
@@ -411,7 +412,8 @@ jobs:
 
   build-linux-release:
     name: Build Linux x64
-    needs: [release-context, create-release]
+    needs: release-context
+    if: needs.release-context.outputs.should-release == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     permissions:
@@ -644,7 +646,7 @@ jobs:
 
   publish-release-assets:
     name: Publish Release Assets
-    needs: [release-context, build-macos-release, build-linux-release]
+    needs: [release-context, validate-release, create-release, build-macos-release, build-linux-release]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:

@@ -223,6 +223,13 @@ release version. It also skips an already published release and can resume an
 existing draft. An explicitly authorized `v*` tag push is supported as a
 fallback trigger, but is not the normal release sequence.
 
+Platform builds and full validation start in parallel after version resolution.
+Draft creation waits for validation; release asset upload waits for validation,
+the draft, and every platform build. A validation or build failure therefore
+blocks checksum publication, APT deployment, and final release publication.
+See [release duration and E2E coverage](ci.md#release-duration-and-e2e-coverage)
+for the measured baseline and retained test coverage.
+
 The release workflow:
 
 - runs the shared full validation gate on Ubuntu 26.04, matching protected Linux

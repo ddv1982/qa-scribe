@@ -276,6 +276,54 @@ provider refresh, and records production JavaScript raw/gzip sizes. The job
 summary includes those measurements and observational p50/p95
 latency for an edit in the large active Note Entry.
 
+## Release duration and E2E coverage
+
+The v0.8.28 publication took 48m30s: validation occupied 29m03s before the
+platform builds could start, and the final Intel build took another 18m17s.
+Release builds now start immediately after version resolution, alongside
+validation. They only stage artifacts. Draft creation still waits for validation;
+asset upload, checksum signing, APT deployment, and final publication wait for
+both validation and the successful platform builds. No version bump still means
+no release jobs. This trades some runner work on a rejected release for a
+shorter successful release path. Actual savings require a new release run.
+
+Release validation shares the `quality-linux` Rust cache partition with CI on
+the same Ubuntu 26.04 environment. The exact `cargo-audit` executable has its
+own cache keyed by host class, OS, architecture, tool pins, and installer source.
+The installer verifies its version on both cache hits and after installation;
+missing or stale binaries trigger a locked, exact-version source install. Audit
+reports and advisory data are not cached by this executable cache.
+
+The Intel v0.8.28 build had no matching Rust cache after the compiler change;
+it saved a dependency cache for subsequent releases. Keep compiler, dependency,
+architecture, and environment invalidation enabled. The 2m39s cache post-step
+was cold-cache cleanup/compression/upload, not part of signing. Do not disable
+cache saves based on that one cold run or weaken cache keys to reuse another
+compiler's artifacts.
+
+The default E2E suite retains all distinct persistence, authorization, clipboard,
+cancellation, restart, isolation, and native-close journeys. Its simplifications
+remove repeated work:
+
+- Chat-to-Note runs once inside `session-lifecycle`, including submission,
+  cancellation/retry, and explicit Testware generation. Its standalone spec
+  remains selectable for diagnosis but is no longer a second default run
+  (19.9s in v0.8.28). Defaults now launch 22 invocations on Linux and 13 on macOS.
+- First-use owns the empty-workspace light/dark and viewport matrix. UI polish
+  starts with populated-editor and collection coverage instead of repeating the
+  empty screen; its populated, keyboard, and modal assertions remain.
+- All three providers retain every authorization decision, process-marker,
+  persistence, and scrolled-history check. Codex sweeps the shared permission
+  widget's six viewport sizes; Claude and Copilot each prove their own actual
+  arguments and decision controls at the supported 640px narrow viewport.
+
+No high-value failure-path suite is demoted to optional, no timeout is raised,
+and no test retries are added. Separate app profiles remain necessary for
+startup modes, first-use, and restart pairs. Use the per-command timings in
+`latest-run.json` and the quality summary to measure future changes before
+adding concurrency or removing journeys. No batching of isolated profiles is
+introduced.
+
 ## Release privilege boundaries
 
 Build jobs have read-only repository permissions. They stage assets with the

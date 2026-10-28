@@ -260,15 +260,11 @@ describe('Native UI polish before/after evidence', () => {
     assert.equal(await browser.tauri.execute(async ({ core }) => (await core.invoke('list_sessions')).length), 0,
       'Run through the isolated E2E runner with a fresh Session Library')
 
-    for (const width of [1280, 640]) {
-      await laptopResize(width, 860)
-      for (const theme of ['light', 'dark']) {
-        await themeSettings(theme)
-        await back()
-        await (await $('.workspace-empty')).waitForDisplayed()
-        await snapshot(`empty-${width}-${theme}`, width, theme, '.top-new-button')
-      }
-    }
+    // first-use owns the empty-workspace theme/viewport matrix. This suite
+    // exercises the populated editor, collections, and command palette.
+    await laptopResize(640, 860)
+    await themeSettings('dark')
+    await back()
 
     await click('button=New Session')
     await (await $('[aria-label="Session title"]')).waitForDisplayed()

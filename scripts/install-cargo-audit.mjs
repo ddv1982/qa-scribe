@@ -15,14 +15,21 @@ export function readCargoAuditVersion(
 }
 
 export function installCargoAudit(version, spawn = spawnSync) {
+  const installed = () => {
+    const probe = spawn('cargo-audit', ['--version'], { encoding: 'utf8' })
+    return !probe.error && probe.status === 0 && probe.stdout?.trim() === `cargo-audit ${version}`
+  }
+  if (installed()) return
+
   const result = spawn(
     'cargo',
-    ['install', 'cargo-audit', '--locked', '--version', `=${version}`],
+    ['install', 'cargo-audit', '--locked', '--version', `=${version}`, '--force'],
     { stdio: 'inherit' },
   )
 
   if (result.error) throw result.error
   if (result.status !== 0) throw new Error(`cargo install cargo-audit exited with status ${result.status}`)
+  if (!installed()) throw new Error(`Installed cargo-audit does not match pinned version ${version}`)
 }
 
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]
