@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.8.28 - 2026-10-28
+
+- Upgrade the pinned tsc-rs compiler and editor SDK to 0.8.0.
+- Update pulldown-cmark to 0.13.5 for RUSTSEC-2026-0414 without adding audit exceptions.
+
 ## v0.8.27 - 2026-10-27
 
 - Simplified CI and release validation by sharing Linux dependency setup.
