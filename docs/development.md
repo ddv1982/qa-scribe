@@ -28,6 +28,12 @@ cargo binstall cargo-audit --locked --version "=$(node -p 'require("./scripts/to
 
 ## Compiler and editor setup
 
+The application Rust workspace uses Cargo/rustc, Clippy, and rustfmt from
+[rust-toolchain.toml](../rust-toolchain.toml). Lust is not a supported compiler
+for this workspace. The [feasibility study](research/lust-compiler-feasibility.md)
+records the current macro, dependency, async, native-code, and platform blockers;
+the [phased plan](lust-adoption-plan.md) defines the gates for a future experiment.
+
 Frontend checks and editor language features use [`tsc-rs`](https://github.com/pingdotgg/ts-rust), pinned to `0.7.0`. Both the UI and Vite configuration are checked before production builds. Vite bundles the frontend. Oxlint `1.89.0` and its Go-based `oxlint-tsgolint` `7.0.2004` engine provide typed linting. The separate Microsoft compiler SDK is not installed.
 
 The npm package version identifies the Rust release. Its TypeScript language version, reported by `tsc-rs --version`, is `7.1.0-dev`. Builds and the editor use the same native executable. The Microsoft **TypeScript 7** extension remains the editor client.

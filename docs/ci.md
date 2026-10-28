@@ -5,6 +5,12 @@ remain on `ubuntu-24.04` to preserve the published installer ABI baseline.
 The [check inventory](verification/check-inventory.md) maps local commands,
 hosted jobs, triggers, runners, proof obligations, and artifacts.
 
+Rust checks and release builds use the pinned Cargo/rustc toolchain. The
+[Lust investigation](research/lust-compiler-feasibility.md) deferred migration;
+there is no Lust installation, experimental lane, or replacement gate in CI.
+The [adoption plan](lust-adoption-plan.md) records the compatibility and parity
+evidence required before adding a development experiment.
+
 The CI workflow is deliberately divided by responsibility:
 
 - **Quality gate (Linux)** is the authoritative repository gate. It runs the

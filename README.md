@@ -51,6 +51,8 @@ The bootstrap verifies the repository setup package with the pinned signing key.
 
 Contributor setup, toolchains, editor configuration, and checks are in the [development guide](docs/development.md). For a first testing task, follow [Get started](docs/getting-started.md). Optional AI setup is in [AI providers and Session Chat](docs/ai-providers.md).
 
+Rust builds use Cargo/rustc with the pinned toolchain. [Lust adoption is deferred](docs/research/lust-compiler-feasibility.md): its current subset and verified platforms do not cover this Rust/Tauri workspace. The [phased plan](docs/lust-adoption-plan.md) records the prerequisites for reconsidering it.
+
 ## Data and privacy
 
 Sessions and Drafts live in local SQLite. Attachments are managed files in the app-data directory. Deleting a Session removes its database records and attachments. Older Electrobun databases are not migrated.
