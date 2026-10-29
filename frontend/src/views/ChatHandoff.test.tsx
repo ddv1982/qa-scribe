@@ -102,14 +102,15 @@ it('adds normally once without review or confirmation', () => {
   expect(confirm).not.toHaveBeenCalled()
 })
 
-it('uses navigation for the actual updated Note and keeps saved review after submission', () => {
+it('uses navigation for the updated Note without repeating the transcript or handoff explanation', () => {
   const value = state({ chat: completedChatFixture({ submission: { draftId: 'chat-1', noteId: 'note-1', submittedAt: 'saved' } }) })
   const onSubmit = vi.fn(async () => {})
   const onOpenNote = vi.fn()
   const view = render(<ChatHandoff state={value} onSubmit={onSubmit} onOpenNote={onOpenNote} />)
   fireEvent.click(button('Open updated Note'))
-  fireEvent.click(button('Review saved conversation'))
-  expect(screen.getByRole('region', { name: 'Saved conversation' })).toHaveTextContent('Which build?')
+  expect(screen.queryByRole('button', { name: 'Review saved conversation' })).not.toBeInTheDocument()
+  expect(screen.queryByText(/Your existing Note stays intact/)).not.toBeInTheDocument()
+  expect(screen.getByText('Conversation added to note')).toBeVisible()
   expect(onOpenNote).toHaveBeenCalledTimes(1)
   expect(onSubmit).not.toHaveBeenCalled()
   view.rerender(<ChatAddedToNote state={value} />)

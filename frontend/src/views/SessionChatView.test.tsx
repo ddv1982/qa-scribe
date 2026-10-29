@@ -185,7 +185,7 @@ describe('SessionChatView', () => {
   })
 
   it.each(['loading', 'saving', 'working'] as const)('blocks mutation while %s and supplies status', (flag) => {
-    mount({ composer: 'Question', [flag]: true })
+    mount({ chat: chat([message('user', 'Question'), message('assistant', 'Answer')]), composer: 'Question', [flag]: true })
     expect(button('Send')).toBeDisabled()
     expect(button('Add conversation to note')).toBeDisabled()
     expect(button('Start new conversation')).toBeDisabled()
@@ -246,7 +246,7 @@ describe('SessionChatView', () => {
     expect(button('Add conversation to note')).toBeDisabled()
     expect(screen.getByText(/Send or clear.*message/i)).toBeInTheDocument()
     rerender(<SessionChatView {...props} chat={chat()} />)
-    expect(button('Add conversation to note')).toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'Add conversation to note' })).not.toBeInTheDocument()
   })
 
   it('preserves submitted history and offers an explicit new conversation', () => {
@@ -254,7 +254,10 @@ describe('SessionChatView', () => {
     mount({ chat: submitted })
     expect(screen.getByText(/Conversation added to note/)).toBeInTheDocument()
     expect(screen.getByText('Answer')).toBeInTheDocument()
-    expect(button('Send')).toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'Send' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: 'Message' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Review saved conversation' })).not.toBeInTheDocument()
+    expect(button('Open updated Note').closest('.chat-completion')).not.toBeNull()
     expect(button('Open updated Note')).toBeEnabled()
     expect(button('Start new conversation')).toBeEnabled()
   })

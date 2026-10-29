@@ -86,6 +86,7 @@ export function SessionChatView(props: SessionChatViewProps) {
   const notes = props.kind === 'notes' ? props : null
   const record = props.kind === 'record' ? props : null
   const recoveryPending = notes?.recoveryPending ?? false
+  const addedToNote = notes?.handoff.kind === 'added'
   const hydrationPending = Boolean(chat && job?.state === 'completed' && (!job.aiRunId || !chat.messages.some(m => m.role === 'assistant' && m.aiRunId === job.aiRunId)))
   const structuredOutput = Boolean(props.responseStarting || chat?.pendingResponse)
   const refinementOutput = props.responseStarting?.kind === 'refine_record' || chat?.pendingResponse?.kind === 'refinement'
@@ -252,7 +253,7 @@ export function SessionChatView(props: SessionChatViewProps) {
       {notes ? permissionPanel : null}
       <div ref={viewportRef} className="chat-scroll-region" role="region" aria-label="Conversation and actions" tabIndex={0}>
         {record ? permissionPanel : null}
-        {notes || loading || saving || working || activeJob || inputRecoveryPending || permissionRecoveryPending || error ? <p className="chat-help chat-status" role="status" aria-live="polite">{status}</p> : null}
+        {notes || loading || saving || working || activeJob || inputRecoveryPending || permissionRecoveryPending || error ? <p className={`chat-help chat-status${status === 'Conversation saved' ? ' sr-only' : ''}`} role="status" aria-live="polite">{status}</p> : null}
         {needsProviderRecovery && !permissionAttention ? (
           <div className="chat-provider-recovery">
             <p className="chat-help">
@@ -263,6 +264,15 @@ export function SessionChatView(props: SessionChatViewProps) {
             {onRecheck ? <ActionButton variant="secondary" size="compact" type="button" disabled={recheckDisabled} onClick={() => { if (!recheckDisabled) void onRecheck() }}>Recheck status</ActionButton> : null}
           </div>
         ) : null}
+
+        {notes ? <details className="chat-options"><summary>Conversation options</summary>
+          <div className="chat-options-content">
+            {modelSelectionControl || <p className="chat-help">Next invocation · {providerLabel} · {modelLabel}</p>}
+            <div className="chat-buttons"><ActionButton variant="secondary" size="compact" type="button" onClick={onConfigureAi} disabled={busy}>Configure AI</ActionButton>
+              {!addedToNote ? <StartNewConversation state={notes} /> : null}</div>
+            <p className="chat-counts">{messages.length} / 128 messages · {(transcriptBytes / 1024).toFixed(1)} / 128 KiB transcript</p>
+          </div>
+        </details> : null}
 
         <section ref={transcriptRef} className="chat-transcript" aria-label="Conversation transcript" tabIndex={0}>
           {messages.length === 0 ? <div className="chat-empty-state">
@@ -291,19 +301,11 @@ export function SessionChatView(props: SessionChatViewProps) {
           ) : null}
         </section>
 
-        {notes ? <>
-          <ChatHandoff state={notes} onOpenNote={notes.onOpenNote} onSubmit={notes.onSubmit} />
-          <details className="chat-options"><summary>Conversation options</summary>
-            <p className="chat-help">Next invocation · {providerLabel} · {modelLabel}</p>
-            {modelSelectionControl}
-            <div className="chat-buttons"><ActionButton variant="secondary" size="compact" type="button" onClick={onConfigureAi} disabled={busy}>Configure AI</ActionButton>
-            {notes.handoff.kind !== 'added' ? <StartNewConversation state={notes} /> : null}</div>
-            <p className="chat-counts">{messages.length} / 128 messages · {(transcriptBytes / 1024).toFixed(1)} / 128 KiB transcript</p>
-          </details>
-        </> : null}
+        {notes && !addedToNote && (messages.length > 0 || recovering) ? <ChatHandoff state={notes} onOpenNote={notes.onOpenNote} onSubmit={notes.onSubmit} /> : null}
       </div>
-      <div className="chat-composer">
+      <div className={`chat-composer${addedToNote ? ' chat-completion' : ''}`}>
         {!permissionAttention && (error || job?.errorMessage) ? <p className="chat-error" role="alert">{error || job?.errorMessage}</p> : null}
+        {addedToNote && notes ? <ChatHandoff state={notes} onOpenNote={notes.onOpenNote} onSubmit={notes.onSubmit} /> : <>
         <label htmlFor={`${id}-message`}>Message</label>
         <ChatImages images={composerImages} disabled={locked || inputRecoveryPending} onRemove={onRemoveImage}
           unverifiedIds={imageFailures.flatMap(failure => failure.recovery?.images.map(image => image.attachmentId) ?? [])} />
@@ -355,6 +357,7 @@ export function SessionChatView(props: SessionChatViewProps) {
         </div>
         <p className={`chat-help${!sendReason || sendReason === 'Write a message or attach an image to send.' || sendReason === 'Saving conversation…' ? ' sr-only' : ''}`} id={`${id}-send-reason`}>{sendReason || 'Send this message to the selected AI provider.'}</p>
         {retryable && !submitted ? <p className="chat-help" id={`${id}-retry-reason`}>{retryReason || 'Retry sends the previous message again and may repeat tool actions or incur another AI usage charge. Check uncertain external results before retrying.'}</p> : null}
+        </>}
       </div>
     </section>
   )

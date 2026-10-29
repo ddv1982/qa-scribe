@@ -11,6 +11,7 @@ export function AppChat({ c, modelSelectionControl, onConfigureAi }: {
   c: AppController; modelSelectionControl: SessionChatViewProps['modelSelectionControl']; onConfigureAi: () => void
 }) {
   const notesVisible = Boolean(c.activeSession && c.activeView === 'sessions' && c.sessionMode === 'chat')
+  const notesAddedToNote = c.sessionChat.handoff.kind === 'added'
   const notesRef = useRef<HTMLElement>(null)
   const restoreNotesFocus = useRef(false)
   const notesDraftId = c.sessionChat.chat?.draftId
@@ -20,12 +21,12 @@ export function AppChat({ c, modelSelectionControl, onConfigureAi }: {
     if (notesVisible && notesDraftId && notesSessionId) void engine.select({ sessionId: notesSessionId, draftId: notesDraftId }).catch(() => undefined)
   }, [notesVisible, notesDraftId, notesSessionId, engine])
   useLayoutEffect(() => {
-    if (notesVisible) notesRef.current?.querySelector<HTMLTextAreaElement>('textarea:not(:disabled)')?.focus({ preventScroll: true })
+    if (notesVisible) notesRef.current?.querySelector<HTMLElement>('textarea:not(:disabled), .chat-completion button:not(:disabled)')?.focus({ preventScroll: true })
     else if (restoreNotesFocus.current) {
       restoreNotesFocus.current = false
       document.querySelector<HTMLButtonElement>('.session-workspace .ask-ai-trigger')?.focus()
     }
-  }, [notesVisible, c.sessionChat.chat?.draftId])
+  }, [notesVisible, c.sessionChat.chat?.draftId, notesAddedToNote])
   const common = {
     providerLabel: c.activeProvider?.label ?? c.selectedProvider, modelLabel: c.selectedModel === 'default' ? 'CLI Default' : c.selectedModel,
     modelSelectionPending: c.settingsWritePending, providerAvailable: Boolean(c.activeProvider?.available) && !c.effectiveAiSelection?.warning,
@@ -40,7 +41,7 @@ export function AppChat({ c, modelSelectionControl, onConfigureAi }: {
       <section className="chat-context-card" aria-label="Chat source"><div><span className="eyebrow">Session note</span><strong>{c.sessionTitle}</strong></div></section>
       <SessionChatView {...c.sessionChat} {...common} kind="notes" hidden={!notesVisible}
         modelSelectionControl={notesVisible ? modelSelectionControl : null}
-        onOpenNote={() => { c.setSessionMode('write_note'); c.setActiveView('sessions') }} />
+        onOpenNote={() => { restoreNotesFocus.current = true; c.setSessionMode('write_note'); c.setActiveView('sessions') }} />
     </aside>
     {c.askAi.panel ? <RecordConversation key={c.activeSession?.id} c={c} common={common} /> : null}
   </>
