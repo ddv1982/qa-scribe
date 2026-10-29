@@ -74,13 +74,13 @@ async function previewPixels(selector) {
   }, selector), { width: 2, height: 2, rgba: imageFixture.rgba })
 }
 
-async function reopen(title) {
+async function reopen(title, completed = false) {
   await browser.refresh()
   const option = await $(`[role="option"]*=${title}`)
   await option.waitForClickable()
   await option.click()
   await click('Ask AI')
-  await $(composer).waitForDisplayed()
+  await $(completed ? '.chat-completion' : composer).waitForDisplayed()
 }
 
 async function complete(sessionId, index, expectedMessages) {
@@ -262,7 +262,8 @@ describe('Built application Chat image transport fixtures, without real vision o
       assert.ok(notes[0].body.includes(imageResponse) && notes[0].body.includes(followup))
       await previewPixels(`${note} img`)
       const handedOff = await read('get_chat', { sessionId })
-      await reopen(title)
+      await reopen(title, true)
+      assert.equal(await $(composer).isExisting(), false)
       await saved(sessionId, '', [])
       assert.deepEqual((await read('get_chat', { sessionId })).submission, handedOff.submission)
       assert.deepEqual((await read('get_chat', { sessionId })).messages, handedOff.messages)
