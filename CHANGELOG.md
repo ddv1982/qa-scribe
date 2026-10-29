@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.8.30 - 2026-10-29
+
+- Keep Notes Ask AI focused on the conversation with compact options, one provider label, and fewer unavailable actions.
+- Show clear Open updated Note and Start new conversation actions after adding a conversation to the note, while keeping the transcript readable and keyboard focus on the next action.
+
 ## v0.8.29 - 2026-10-29
 
 - Run release platform builds alongside validation while keeping publication gated on every required check.
