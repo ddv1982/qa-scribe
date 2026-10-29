@@ -144,7 +144,7 @@ export async function actionProof(selector, filename) {
         handoff: handoff ? { explanation: bounds(handoff.firstElementChild),
           actions: Array.from(handoff.querySelectorAll('button'), bounds), body: bounds(handoff),
           composer: bounds(handoff.closest('.session-chat').querySelector('.chat-composer')),
-          historyOverflow: getComputedStyle(handoff.closest('.chat-scroll-region')).overflowY } : null,
+          historyOverflow: handoff.closest('.chat-scroll-region') ? getComputedStyle(handoff.closest('.chat-scroll-region')).overflowY : null } : null,
         texts: Array.from(document.querySelectorAll('.chat-message-text'), element => ({ client: element.clientWidth, scroll: element.scrollWidth })) }
     }, selector)
     return actual.left >= 0 && actual.right <= actual.width + 1 && actual.top >= 0

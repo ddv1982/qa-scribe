@@ -39,12 +39,12 @@ export function ChatHandoff({ state, onSubmit, onOpenNote }: {
   const reason = handoff.kind === 'added' ? '' : handoff.reason
   const canAdd = handoff.kind === 'conversation' && !handoff.disabled && !reason
   return <>
-    {handoff.reviewAvailable && chat ? <SavedConversationReview
+    {handoff.kind !== 'added' && handoff.reviewAvailable && chat ? <SavedConversationReview
       key={JSON.stringify([chat.sessionId, chat.draftId])} chat={chat}
       unsent={state.composer !== '' || Boolean((state.composerImages ?? chat.composerImages ?? []).length)} /> : null}
     <footer className="chat-handoff">
       <div>
-        <p className="chat-help">Your existing Note stays intact. The saved, role-labelled conversation is appended to your Session Note. This does not generate test cases.</p>
+        {handoff.kind !== 'added' ? <p className="chat-help">Your existing Note stays intact. The saved, role-labelled conversation is appended to your Session Note. This does not generate test cases.</p> : null}
         {reason ? <p className="chat-help" id={`${id}-reason`}>{reason}</p> : null}
         {handoff.kind === 'added' ? <p className="chat-help">Conversation added to note</p> : null}
       </div>
