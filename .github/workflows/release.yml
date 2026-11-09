@@ -204,7 +204,7 @@ jobs:
         run: bun run frontend:build
 
       - name: Install cargo-binstall
-        uses: cargo-bins/cargo-binstall@8a2045612414e945291083f820cd50b4d8fc2218 # v1.26.0
+        uses: cargo-bins/cargo-binstall@851112458b5f28a29e5bc14a690c3f283d9dcc6f # v1.26.2
 
       - name: Install Tauri CLI
         # --force: the rust cache restores ~/.cargo/.crates.toml (the install
@@ -455,7 +455,7 @@ jobs:
         run: bun run frontend:build
 
       - name: Install cargo-binstall
-        uses: cargo-bins/cargo-binstall@8a2045612414e945291083f820cd50b4d8fc2218 # v1.26.0
+        uses: cargo-bins/cargo-binstall@851112458b5f28a29e5bc14a690c3f283d9dcc6f # v1.26.2
 
       - name: Install Tauri CLI
         # --force: the rust cache restores ~/.cargo/.crates.toml (the install

@@ -56,7 +56,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         for index in 0..4 {
             let id = format!("perf-image-{index}");
-            tx.execute("INSERT INTO attachments(id,session_id,filename,mime_type,size_bytes,sha256,relative_path,created_at) VALUES(?1,'perf-session',?2,'image/png',?3,?4,?5,?6)", params![id, format!("synthetic-{index}.png"), image.len(), image_hash, format!("attachments/perf-session/{id}.png"), timestamp])?;
+            tx.execute("INSERT INTO attachments(id,session_id,filename,mime_type,size_bytes,sha256,relative_path,created_at) VALUES(?1,'perf-session',?2,'image/png',?3,?4,?5,?6)", params![id, format!("synthetic-{index}.png"), image.len() as i64, image_hash, format!("attachments/perf-session/{id}.png"), timestamp])?;
             tx.execute("INSERT INTO chat_message_images(message_id,attachment_id,ordinal) VALUES('perf-message-98',?1,?2)", params![id, index])?;
         }
         tx.execute("UPDATE chat_messages SET status='completed' WHERE id='perf-message-98'", [])?;
