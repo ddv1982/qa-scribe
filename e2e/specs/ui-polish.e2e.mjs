@@ -451,7 +451,8 @@ describe('Native UI polish before/after evidence', () => {
     await (await $('[aria-label="Link URL"]')).setValue('javascript:alert(1)')
     await click('[aria-label="Apply link"]')
     await (await $('.link-editor-error')).waitForDisplayed()
-    await browser.execute(() => document.querySelector('.session-workspace-tabs button:last-child').focus())
+    // Ask AI follows the creation actions in the note dock, so one native Tab from the last of them reaches it.
+    await browser.execute(() => document.querySelector('.ai-action-buttons button:nth-child(2)').focus())
     const keyboard = { platform: process.platform, inputBackend, nativeTabVerified: false }
     const sendKey = process.platform === 'linux'
       ? nativeKeySender(keyboard, () => save('native-keyboard', keyboard), Key)
