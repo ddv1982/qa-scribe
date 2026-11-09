@@ -22,7 +22,6 @@ import {
 } from '../findings/metadata'
 
 const findingsLabels: RecordCollectionLabels = {
-  eyebrow: 'Findings',
   heading: 'Issues and risks',
   emptyTitle: 'No findings yet',
   emptyDescription: 'Capture a bug, question, risk, or follow-up from the current Session note.',
@@ -49,7 +48,7 @@ function FindingMeta({ finding }: { finding: Finding }) {
   const severity = useMemo(() => findingSeverityValue({ body, bodyJson, bodyFormat, metadataJson }), [body, bodyJson, bodyFormat, metadataJson])
   return <div className="finding-meta-row">
     <span>{formatFindingKind(finding.kind)}</span>
-    <span>{findingSeverityLabel(severity)}</span>
+    <span className="finding-severity" data-severity={severity}>{findingSeverityLabel(severity)}</span>
     <span>{findingStatusLabel(parseFindingMetadata(metadataJson).status)}</span>
   </div>
 }
@@ -61,7 +60,6 @@ export function FindingsView({
   copyState,
   findingScreenshotCounts,
   findings,
-  sessionTitle = null,
   notice,
   error,
   isBusy,
@@ -88,7 +86,6 @@ export function FindingsView({
   copyState: CopyState
   findingScreenshotCounts: Record<string, number>
   findings: Finding[]
-  sessionTitle?: string | null
   notice: string | null
   error: string | null
   isBusy: boolean
@@ -119,7 +116,6 @@ export function FindingsView({
       copyState={copyState}
       recordScreenshotCounts={findingScreenshotCounts}
       records={findings}
-      sessionTitle={sessionTitle}
       notice={notice}
       error={error}
       isBusy={isBusy}

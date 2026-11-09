@@ -2,6 +2,8 @@
 /* The default import registers only upright faces; with `font-synthesis: none`
    the italic mark renders upright without this italic companion file. */
 @import '@fontsource-variable/inter/wght-italic.css';
+/* Display face for the Session title, record titles and headings. */
+@import '@fontsource-variable/bricolage-grotesque';
 
 @import './styles/base.css';
 @import './styles/shell.css';

@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict'
 import { join } from 'node:path'
 
+// Ink on paper in light, paper on ink in dark: the enabled primary action follows the theme.
+const primaryPaint = {
+  light: { background: 'rgb(26, 32, 29)', text: 'rgb(252, 252, 249)' },
+  dark: { background: 'rgb(233, 237, 233)', text: 'rgb(20, 23, 21)' },
+}
+
 export async function pendingComposerSave(theme, sessionId, artifacts, save) {
   const composer = `Controlled ${theme} unsent message`
   const failures = []
@@ -82,10 +88,10 @@ export async function pendingComposerSave(theme, sessionId, artifacts, save) {
     await browser.saveScreenshot(join(artifacts, `save-${theme}-pending.png`))
     await browser.execute(() => window.__ac4SaveGate.release())
     await (await $('.chat-compose-actions .action-button--primary')).waitForEnabled()
-    await browser.waitUntil(() => browser.execute(() => {
+    await browser.waitUntil(() => browser.execute((expected) => {
       const paint = getComputedStyle(document.querySelector('.chat-compose-actions .action-button--primary'))
-      return paint.backgroundColor === 'rgb(36, 86, 196)' && paint.color === 'rgb(255, 255, 255)'
-    }), { timeoutMsg: 'Enabled Send must settle to the shared blue and white in both themes' })
+      return paint.backgroundColor === expected.background && paint.color === expected.text
+    }, primaryPaint[theme]), { timeoutMsg: 'Enabled Send must settle to the themed primary fill and text' })
     const after = await browser.execute(() => window.__ac4SaveGate.sample())
     save(`save-${theme}-completed`, after)
     await browser.saveScreenshot(join(artifacts, `save-${theme}-completed.png`))
@@ -99,7 +105,7 @@ export async function pendingComposerSave(theme, sessionId, artifacts, save) {
     }
     assert.deepEqual(during.disabled, { add: true, send: true, restart: true })
     assert.deepEqual(after.disabled, { add: true, send: false, restart: false })
-    assert.deepEqual(after.sendPaint, { background: 'rgb(36, 86, 196)', text: 'rgb(255, 255, 255)' })
+    assert.deepEqual(after.sendPaint, primaryPaint[theme])
     for (const control of ['composer', 'send']) {
       if (before[control].y < 0 || before[control].bottom > before.viewport.height) failures.push(`${theme}: ${control} is clipped before acknowledgment`)
       if (JSON.stringify(before[control]) !== JSON.stringify(during[control])

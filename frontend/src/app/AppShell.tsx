@@ -1,12 +1,9 @@
 import { ActionButton } from '../components/ActionButton'
 import { CreationWorkspace } from '../views/CreationTools'
 import { useEffect, useState, type KeyboardEvent } from 'react'
-import { BookOpen, Box, ChevronRight, Command as CommandIcon, FileText, Flag, CircleHelp, Loader2, PencilLine, Plus, Search, Settings } from 'lucide-react'
 import { catalogSelectorEnabled } from '../settings/catalog'
 import { customModelCatalogAdvisory } from '../settings/modelAdvisories'
 import { NextModelSelection } from '../components/NextModelSelection'
-import { RailItem } from '../components/Common'
-import { formatSessionDate } from '../ui/format'
 import { FindingsView } from '../views/FindingsView'
 import { SessionEditorView } from '../views/SessionEditorView'
 import { AppChat } from './AppChat'
@@ -19,7 +16,8 @@ import { GenerationPreflight } from '../workflows/generationPreflight'
 import type { AppController } from './useAppController'
 import { createCommandRegistry, type AppCommandId } from './commandRegistry'
 import { CommandPalette, DeleteConfirmationDialog, PendingChangesDialog } from './AppOverlays'
-import { primaryModifierPressed, primaryShortcutLabel } from './platformShortcuts'
+import { primaryModifierPressed } from './platformShortcuts'
+import { AppRail } from './AppRail'
 import { FirstUseDialog } from '../onboarding/FirstUseDialog'
 import { AttachmentCleanupWarning } from './AttachmentCleanupWarning'
 
@@ -37,6 +35,7 @@ export function AppShell(c: AppController) {
   const modelSelectionControl = <NextModelSelection {...modelSelectionProps} />
   const [overlay, setOverlay] = useState<'commands' | 'help' | 'example' | null>(null)
   const [librarySidebarTarget, setLibrarySidebarTarget] = useState<HTMLDivElement | null>(null)
+  const [noteActionsTarget, setNoteActionsTarget] = useState<HTMLDivElement | null>(null)
   const commands = createCommandRegistry(c, () => setOverlay('help'))
   const commandById = (id: AppCommandId) => commands.find((command) => command.id === id)
   const runCommand = (id: AppCommandId) => commandById(id)?.run()
@@ -46,13 +45,6 @@ export function AppShell(c: AppController) {
   const creationResultReady = c.creationIntent?.phase.state === 'saved'
     && c.creationIntent.phase.selection === 'ready'
   const composer = c.creationIntent && !creationResultReady ? <CreationWorkspace c={c} /> : null
-  const topAction = c.activeView === 'sessions'
-    ? { command: commandById('session.new'), busy: 'new-session' as const }
-    : null
-  const visibleSessions = c.filteredSessions.slice(0, 8)
-  const tabbableSessionId = visibleSessions.some((session) => session.id === c.activeSession?.id) ? c.activeSession?.id : visibleSessions[0]?.id
-  const sessionScopedView = c.activeView === 'sessions' || c.activeView === 'testware' || c.activeView === 'findings'
-  const libraryView = c.activeView === 'testware-library' || c.activeView === 'findings-library'
 
   useEffect(() => {
     function handleShortcut(event: globalThis.KeyboardEvent) {
@@ -72,141 +64,28 @@ export function AppShell(c: AppController) {
     return () => window.removeEventListener('keydown', handleShortcut)
   }, [commands, overlay])
 
-  function handleSessionOptionKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
-    focusListboxOption(event)
-  }
-
   return (
     <main className="app-shell" onPaste={overlay ? undefined : c.handlePaste}>
-      <header className="top-bar">
-        <div className="brand-cluster">
-          <span className="brand-mark">
-            <PencilLine size={21} strokeWidth={2.4} />
-          </span>
-          <strong>QA Scribe</strong>
-        </div>
-
-        {c.activeView === 'sessions' ? (
-          <label className="global-search">
-            <Search size={17} />
-            <span className="sr-only">Search Sessions</span>
-            <input value={c.searchQuery} onChange={(event) => c.setSearchQuery(event.target.value)} placeholder="Search Sessions…" />
-          </label>
-        ) : c.activeView === 'testware' || c.activeView === 'findings' ? (
-          <div className="top-context-label" aria-label="Current search scope">
-            <span>{c.activeSession?.title}</span>
-            <ChevronRight size={14} />
-            <strong>{c.activeView === 'testware' ? 'Test cases' : 'Findings'}</strong>
-          </div>
-        ) : c.activeView === 'testware-library' || c.activeView === 'findings-library' ? (
-          <div className="top-context-label" aria-label="Current search scope"><strong>{c.activeView === 'testware-library' ? 'Test cases library' : 'Findings library'}</strong></div>
-        ) : <div className="top-context-label"><strong>Settings</strong></div>}
-
-        <div className="top-actions">
-          <ActionButton variant="secondary" className="command-palette-trigger" type="button" aria-label="Open command palette" onClick={() => setOverlay('commands')}>
-            <CommandIcon size={16} />
-            <span className="command-trigger-label">Commands</span>
-            <kbd>{primaryShortcutLabel('k')}</kbd>
-          </ActionButton>
-          {topAction?.command ? (
-            <ActionButton variant="primary" className="top-new-button" type="button" disabled={!topAction.command.available} onClick={topAction.command.run}>
-              {c.busyAction === topAction.busy ? <Loader2 className="spin" size={17} /> : <Plus size={17} />}
-              {topAction.command.label}
-            </ActionButton>
-          ) : null}
-        </div>
-      </header>
-
-      <aside className="left-rail" aria-label="Workspace navigation">
-        <nav className="workspace-nav" aria-label="Workspace sections">
-          <RailItem icon={FileText} label="Sessions" count={c.sessions.length} active={sessionScopedView} onClick={() => runCommand('view.note')} />
-          <RailItem icon={BookOpen} label="Test cases library" active={c.activeView === 'testware-library'} onClick={() => runCommand('library.testware')} />
-          <RailItem icon={Flag} label="Findings library" active={c.activeView === 'findings-library'} onClick={() => runCommand('library.findings')} />
-        </nav>
-
-        {sessionScopedView ? <section className="session-picker contextual-rail" aria-label="Sessions">
-          <p className="rail-heading">Recent sessions</p>
-          <div className="session-picker-list" role="listbox" aria-label="Sessions">
-            {visibleSessions.map((session) => (
-              <button
-                key={session.id}
-                className={c.activeSession?.id === session.id ? 'session-picker-item active' : 'session-picker-item'}
-                type="button"
-                role="option"
-                aria-selected={c.activeSession?.id === session.id}
-                tabIndex={tabbableSessionId === session.id ? 0 : -1}
-                disabled={c.isBusy && c.activeSession?.id !== session.id}
-                onClick={() => void c.openSessionInCurrentView(session)}
-                onKeyDown={handleSessionOptionKeyDown}
-              >
-                <span className="session-picker-title" title={session.title}>{session.title}</span>
-                <small className="session-picker-date">{formatSessionDate(session.updatedAt)}</small>
-              </button>
-            ))}
-            {c.filteredSessions.length === 0 ? <p className="session-picker-empty">No matching sessions</p> : null}
-          </div>
-          {c.filteredSessions.length > 8 ? <p className="session-picker-more">Showing 8 of {c.filteredSessions.length}. Search to narrow.</p> : null}
-          {!c.sessionLibraryComplete ? (
-            <ActionButton variant="secondary" type="button" disabled={!commandById('sessions.load-all')?.available} onClick={() => runCommand('sessions.load-all')}>
-              {c.busyAction === 'load-session-library' ? <Loader2 className="spin" size={16} /> : null}
-              {commandById('sessions.load-all')?.label}
-            </ActionButton>
-          ) : null}
-        </section> : null}
-
-        {libraryView ? (
-          <section className="library-sidebar contextual-rail" aria-label={c.activeView === 'testware-library' ? 'Test cases library records' : 'Findings library records'}>
-            <p className="rail-heading">{c.activeView === 'testware-library' ? 'Test cases' : 'Findings'}</p>
-            <div className="library-sidebar-slot" ref={setLibrarySidebarTarget} />
-          </section>
-        ) : null}
-
-        {sessionScopedView ? <label className="compact-session-select">
-          <span>Session</span>
-          <select
-            value={c.activeSession?.id ?? ''}
-            disabled={c.isBusy || c.sessions.length === 0}
-            onChange={(event) => {
-              const session = c.sessions.find((candidate) => candidate.id === event.target.value)
-              if (session) void c.openSessionInCurrentView(session)
-            }}
-          >
-            {c.sessions.length === 0 ? <option value="">No Sessions yet</option> : null}
-            {c.sessions.map((session) => <option key={session.id} value={session.id}>{session.title}</option>)}
-          </select>
-        </label> : null}
-
-        <div className="rail-utilities">
-          <button className="help-link" type="button" aria-label="Help" title="Help" onClick={() => runCommand('help.open')}>
-            <CircleHelp size={17} /> Help
-          </button>
-          <button className={c.activeView === 'settings' ? 'settings-link active' : 'settings-link'} type="button" aria-current={c.activeView === 'settings' ? 'page' : undefined} onClick={() => runCommand('settings.open')}>
-            <Settings size={17} />
-            Settings
-          </button>
-        </div>
-      </aside>
+      <AppRail c={c} commandById={commandById} onOpenCommands={() => setOverlay('commands')} onLibrarySidebarTarget={setLibrarySidebarTarget} />
 
       <section className="center-workspace" aria-label="Workspace">
         <AttachmentCleanupWarning cleanup={c.attachmentCleanup} />
         {c.activeSession && ['sessions', 'testware', 'findings'].includes(c.activeView) ? (
           <header className="session-context-header">
-            <div className="session-breadcrumb" aria-label="Breadcrumb">
-              <button type="button" onClick={() => runCommand('view.note')}>Sessions</button>
-              <ChevronRight size={14} />
-              <strong>{c.activeSession.title}</strong>
-            </div>
             <nav className="session-workspace-tabs" role="tablist" aria-label={`${c.activeSession.title} workspace`}>
               <button type="button" role="tab" className={c.activeView === 'sessions' ? 'active' : ''} aria-selected={c.activeView === 'sessions'} onClick={() => runCommand('view.note')} onKeyDown={activateAdjacentTab}>
-                <FileText size={16} /> Note
+                Note
               </button>
               <button type="button" role="tab" className={c.activeView === 'testware' ? 'active' : ''} aria-selected={c.activeView === 'testware'} onClick={() => runCommand('view.testware')} onKeyDown={activateAdjacentTab}>
-                <Box size={16} /> Test cases <span>{c.testwareDraftCount}</span>
+                Test cases <span>{c.testwareDraftCount}</span>
               </button>
               <button type="button" role="tab" className={c.activeView === 'findings' ? 'active' : ''} aria-selected={c.activeView === 'findings'} onClick={() => runCommand('view.findings')} onKeyDown={activateAdjacentTab}>
-                <Flag size={16} /> Findings <span>{c.findingCount}</span>
+                Findings <span>{c.findingCount}</span>
               </button>
             </nav>
+            {c.activeView === 'sessions'
+              ? <div className="session-header-actions" ref={setNoteActionsTarget} />
+              : <div className="top-context-label" aria-label="Current search scope"><span title={c.activeSession.title}>{c.activeSession.title}</span></div>}
         {c.askAi.recovery.filter(item => !c.askAi.visible || item.reference.draftId !== c.askAi.reference?.draftId || Boolean(item.origin && item.origin.stageId !== c.askAi.panel?.legacyOrigin?.stageId)).map(item =>
           <div className="chat-recovery-notice" key={item.origin?.stageId ?? item.reference.draftId}>
             <span>{item.reason}</span>
@@ -220,6 +99,7 @@ export function AppShell(c: AppController) {
         {c.activeView === 'sessions' ? (
           <SessionEditorView
             creationCommands={{ testware: creationCommands('testware'), finding: creationCommands('finding') }}
+            headerActionsTarget={noteActionsTarget}
             noteReadOnly={c.noteReadOnly}
             onRecoverNote={c.sessionChat.onSubmit}
             sessionMode={c.sessionMode}
@@ -274,7 +154,6 @@ export function AppShell(c: AppController) {
             copyState={c.copyState}
             draftScreenshotCounts={c.draftScreenshotCounts}
             drafts={c.testwareDrafts}
-            sessionTitle={c.activeSession?.title ?? null}
             notice={c.notice}
             error={c.error}
             isBusy={c.isBusy}
@@ -306,7 +185,6 @@ export function AppShell(c: AppController) {
             copyState={c.copyState}
             findingScreenshotCounts={c.findingScreenshotCounts}
             findings={c.findings}
-            sessionTitle={c.activeSession?.title ?? null}
             notice={c.notice}
             error={c.error}
             isBusy={c.isBusy}
@@ -455,25 +333,6 @@ export function AppShell(c: AppController) {
       ) : null}
     </main>
   )
-}
-
-function focusListboxOption(event: KeyboardEvent<HTMLButtonElement>) {
-  if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
-  const listbox = event.currentTarget.closest('[role="listbox"]')
-  const options = Array.from(listbox?.querySelectorAll<HTMLButtonElement>('button[role="option"]:not(:disabled)') ?? [])
-  if (options.length === 0) return
-
-  const currentIndex = Math.max(0, options.indexOf(event.currentTarget))
-  const nextIndex = optionIndexForKey(event.key, currentIndex, options.length)
-  event.preventDefault()
-  options[nextIndex]?.focus()
-}
-
-function optionIndexForKey(key: string, currentIndex: number, optionCount: number): number {
-  if (key === 'Home') return 0
-  if (key === 'End') return optionCount - 1
-  if (key === 'ArrowUp') return Math.max(0, currentIndex - 1)
-  return Math.min(optionCount - 1, currentIndex + 1)
 }
 
 function activateAdjacentTab(event: KeyboardEvent<HTMLButtonElement>) {

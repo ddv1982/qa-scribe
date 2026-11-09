@@ -27,7 +27,6 @@ type CollectionRecord = {
 type CollectionRecordPatch = Partial<Pick<CollectionRecord, 'title' | 'body' | 'bodyJson' | 'bodyFormat'>>
 
 export type RecordCollectionLabels = {
-  eyebrow: string
   heading: string
   emptyTitle: string
   emptyDescription: string
@@ -56,7 +55,6 @@ export function RecordCollectionView<T extends CollectionRecord>({
   copyBody,
   copyState,  recordScreenshotCounts,
   records,
-  sessionTitle,
   notice,
   error,
   isBusy,
@@ -93,7 +91,6 @@ export function RecordCollectionView<T extends CollectionRecord>({
   copyState: CopyState
   recordScreenshotCounts: Record<string, number>
   records: T[]
-  sessionTitle: string | null
   notice: string | null
   error: string | null
   isBusy: boolean
@@ -228,11 +225,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
   return (
     <section className="collection-view">
       <header className="collection-header">
-        <div>
-          <p className="eyebrow">{labels.eyebrow}</p>
-          <h1>{labels.heading}</h1>
-          {sessionTitle ? <p className="collection-context">Session: {sessionTitle}</p> : null}
-        </div>
+        <h1>{labels.heading}</h1>
         <div className="collection-header-actions">
           {!composer ? <RecordCreationActions commands={creationCommands} /> : null}
         </div>

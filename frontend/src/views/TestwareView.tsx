@@ -16,7 +16,6 @@ import type { CreatedRecordEditTarget } from '../app/types'
 import { RecordCollectionView, type RecordCollectionLabels } from './RecordCollectionView'
 
 const testwareLabels: RecordCollectionLabels = {
-  eyebrow: 'Test cases',
   heading: 'Test cases',
   emptyTitle: 'No test cases yet',
   emptyDescription: 'Create test cases, then edit and save them here.',
@@ -39,7 +38,6 @@ export function TestwareView({
   copyState,
   draftScreenshotCounts,
   drafts,
-  sessionTitle = null,
   notice,
   error,
   isBusy,
@@ -66,7 +64,6 @@ export function TestwareView({
   copyState: CopyState
   draftScreenshotCounts: Record<string, number>
   drafts: Draft[]
-  sessionTitle?: string | null
   notice: string | null
   error: string | null
   isBusy: boolean
@@ -96,7 +93,6 @@ export function TestwareView({
       copyState={copyState}
       recordScreenshotCounts={draftScreenshotCounts}
       records={drafts}
-      sessionTitle={sessionTitle}
       notice={notice}
       error={error}
       isBusy={isBusy}

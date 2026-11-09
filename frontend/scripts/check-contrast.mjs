@@ -90,6 +90,7 @@ const PAIRS = [
   ['danger', 'surface-raised', 4.5],
   ['danger', 'surface-sunken', 4.5], // error text on input wells
   ['on-accent', 'accent', 4.5],
+  ['on-mark', 'mark', 4.5], // highlighter marks the current Session, tab and record
   ['on-accent', 'success', 4.5],
   ['on-accent', 'danger', 4.5],
   ['action-primary-text', 'action-primary-fill', 4.5],

@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<title>QA Scribe redesign A: Notebook</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..700&family=Inter:wght@400..650&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+html{background:#d5d8d3;color:#1b1e1c}
+html[data-theme=dark]{background:#0b0c0d;color:#dfe2df}
+body{margin:0;padding:28px;font:14px/1.5 system-ui,sans-serif;display:grid;justify-items:center;gap:14px}
+.pg{width:1280px;margin:0}
+header.pg{display:flex;align-items:baseline;gap:16px}
+header.pg h1{font-size:20px;margin:0}
+header.pg p{margin:0;opacity:.72;flex:1}
+#tg{font:inherit;padding:6px 12px;border-radius:8px;border:1px solid currentColor;background:none;color:inherit;cursor:pointer}
+h2.pg{font-size:14px;font-weight:600;margin-top:14px}
+.win{width:1280px;height:800px;border-radius:12px;overflow:hidden;box-shadow:0 20px 60px -20px rgba(0,0,0,.45)}
+.win *{box-sizing:border-box}
+.win button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+.win .i{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+html.shot body{padding:0;gap:0}
+html.shot .pg{display:none}
+html.shot .win{border-radius:0;box-shadow:none}
+html.shot1 #s2,html.shot2 #s1{display:none}
+
+.A{--desk:#e9ebe6;--paper:#fcfcf9;--ink:#1a201d;--ink2:#4f5954;--ink3:#69736e;--line:#dfe3dc;--mark:#ffe45c;--onmark:#1a201d;--amber:#9a5d08;--green:#2a774a;--lift:0 1px 2px rgba(26,32,29,.06),0 8px 24px -12px rgba(26,32,29,.18);
+  --soft:color-mix(in srgb,var(--ink) 5%,var(--paper));--dsoft:color-mix(in srgb,var(--ink) 7%,transparent);--disp:"Bricolage Grotesque",Inter,system-ui,sans-serif;
+  font:13px/1.45 Inter,system-ui,sans-serif;color:var(--ink);background:var(--desk);display:grid;grid-template-columns:236px 1fr}
+html[data-theme=dark] .A{--desk:#141715;--paper:#1c201e;--ink:#e9ede9;--ink2:#b3bcb6;--ink3:#8f9993;--line:#2e3431;--mark:#f0d447;--onmark:#17190f;--amber:#f0b24a;--green:#5fcf8d;--lift:0 0 0 1px rgba(255,255,255,.05)}
+
+/* sidebar */
+.A .side{display:flex;flex-direction:column;padding:14px 12px 12px;min-height:0}
+.A .brand{display:flex;align-items:center;gap:8px;font:600 15px var(--disp);padding:2px 6px 14px}
+.A .brand kbd{margin-left:auto;font:500 11px Inter,sans-serif;color:var(--ink3);border:1px solid var(--line);border-radius:5px;padding:1px 6px}
+.A .new{display:flex;align-items:center;justify-content:center;gap:6px;height:34px;border-radius:8px;background:var(--ink);color:var(--paper);font-weight:550}
+.A .find{display:flex;align-items:center;gap:8px;height:32px;padding:0 10px;margin:8px 0 2px;border-radius:8px;background:var(--dsoft);color:var(--ink3)}
+.A .grp{margin:14px 8px 4px;font-size:12px;color:var(--ink3)}
+.A .ses{display:flex;align-items:baseline;gap:8px;padding:6px 8px;border-radius:7px;color:var(--ink2)}
+.A .ses time{margin-left:auto;font-size:11.5px;color:var(--ink3);white-space:nowrap}
+.A .ses.on{color:var(--onmark);font-weight:600}
+.A .hl{background:var(--mark);color:var(--onmark);padding:2px 6px;margin:-2px -6px;border-radius:4px;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+.A .libs{margin-top:auto;display:grid;gap:1px;padding-top:10px;border-top:1px solid var(--line)}
+.A .libs a{display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:7px;color:var(--ink2)}
+.A .libs hr{border:0;border-top:1px solid var(--line);margin:6px 0;width:100%}
+
+/* sheet + single header row */
+.A .sheet{margin:8px 8px 8px 0;background:var(--paper);border-radius:12px;box-shadow:var(--lift);display:flex;flex-direction:column;min-width:0;min-height:0;position:relative;overflow:hidden}
+.A .bar{display:flex;align-items:center;height:52px;padding:0 16px 0 26px;border-bottom:1px solid var(--line);flex:none}
+.A .tabs{display:flex;gap:26px}
+.A .tab{display:flex;align-items:center;gap:7px;color:var(--ink2);font-weight:500}
+.A .tab small{font-size:12px;color:var(--ink3);font-weight:400}
+.A:not(.v2) .t-note span,.A.v2 .t-find span{background:var(--mark);color:var(--onmark);padding:3px 8px;margin:0 0 0 -8px;border-radius:5px;font-weight:600}
+.A .bar-r{margin-left:auto;display:flex;align-items:center;gap:4px}
+.A .saved{display:flex;gap:5px;align-items:center;color:var(--ink3);font-size:12px;margin-right:8px}
+.A .saved .i{color:var(--green);width:14px;height:14px}
+.A .q{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:30px;min-width:30px;padding:0 10px;border-radius:7px;color:var(--ink2);font-weight:500;white-space:nowrap}
+.A .q.o{border:1px solid var(--line);color:var(--ink)}
+.A .q.p{background:var(--ink);color:var(--paper)}
+.A .q.sq{padding:0}
+
+/* note view */
+.A .v-note{flex:1;overflow:hidden;padding:22px 0 0}
+.A.v2 .v-note,.A:not(.v2) .v-find{display:none}
+.A .col{width:660px;margin:0 auto}
+.A .fmt{display:flex;align-items:center;gap:2px;margin:0 0 20px -8px}
+.A .fmt .q{height:28px;min-width:28px;padding:0 6px}
+.A .fmt i{width:1px;height:16px;background:var(--line);margin:0 6px}
+.A .ttl{font:650 30px/1.15 var(--disp);letter-spacing:-.015em;margin:0 0 6px}
+.A .meta{color:var(--ink3);font-size:12.5px;margin:0 0 20px;display:flex;gap:14px}
+.A .prose{font-size:15px;line-height:1.62}
+.A .prose p{margin:0 0 12px}
+.A .prose h3{font:600 17px/1.3 var(--disp);margin:20px 0 8px}
+.A .prose ul,.A .prose ol{margin:0 0 12px;padding-left:20px}
+.A .prose li{margin:3px 0}
+.A pre{font:12.5px/1.5 "JetBrains Mono",ui-monospace,monospace;background:var(--soft);border-radius:8px;padding:9px 12px;margin:0 0 12px;white-space:pre-wrap}
+.A .shot{margin:0 0 12px;display:flex;gap:14px;align-items:flex-end}
+.A .im{width:236px;height:112px;border:1px solid var(--line);border-radius:8px;background:var(--soft);padding:12px;display:grid;gap:7px;align-content:start}
+.A .im u{display:block;height:8px;border-radius:4px;background:color-mix(in srgb,var(--ink) 14%,transparent)}
+.A .im em{justify-self:start;font:normal 600 10px Inter,sans-serif;background:var(--ink2);color:var(--paper);padding:5px 10px;border-radius:5px;margin-top:6px}
+.A figcaption{font-size:12.5px;color:var(--ink3)}
+.A .chk{list-style:none;padding:0!important;display:grid;grid-template-columns:1fr 1fr;gap:2px}
+.A .chk li{display:flex;gap:9px;align-items:center}
+.A .chk b{width:15px;height:15px;border:1.5px solid var(--ink3);border-radius:4px;display:grid;place-items:center;flex:none}
+.A .chk .d{color:var(--ink3);text-decoration:line-through}
+.A .chk .d b{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.A .chk .i{width:11px;height:11px;stroke-width:3}
+.A .dock{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);display:flex;align-items:center;gap:4px;padding:6px;border-radius:13px;background:var(--paper);border:1px solid var(--line);box-shadow:0 12px 32px -10px rgba(0,0,0,.32)}
+.A .dock>span{padding:0 6px 0 10px;color:var(--ink3);white-space:nowrap}
+.A .dock i{width:1px;height:20px;background:var(--line);margin:0 4px}
+.A .fade{position:absolute;left:0;right:0;bottom:0;height:96px;background:linear-gradient(transparent,var(--paper) 70%)}
+
+/* findings view */
+.A .v-find{flex:1;display:grid;grid-template-columns:252px 1fr 336px;min-height:0}
+.A .lst{border-right:1px solid var(--line);padding:12px 10px;display:flex;flex-direction:column;gap:2px}
+.A .lst-h{display:flex;gap:6px;margin-bottom:8px}
+.A .lst .find{margin:0;flex:1;background:var(--soft)}
+.A .row{padding:9px 10px;border-radius:8px;display:grid;gap:4px}
+.A .row b{font-weight:550;line-height:1.35}
+.A .row small{color:var(--ink3);font-size:12px;display:flex;align-items:center;gap:10px}
+.A .row.on{background:var(--soft)}
+.A .sev{display:inline-flex;align-items:center;gap:5px;font-weight:550}
+.A .sev::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.A .sev.m{color:var(--amber)}
+.A .rec{padding:26px 30px;overflow:hidden;min-width:0}
+.A .rec h1{font:650 23px/1.2 var(--disp);letter-spacing:-.01em;margin:0 0 12px}
+.A .props{display:flex;flex-wrap:wrap;gap:4px 18px;margin:0 0 14px;font-size:12.5px}
+.A .props div{display:flex;gap:6px}
+.A .props dt{color:var(--ink3)}
+.A .props dd{margin:0;font-weight:550}
+.A .acts{display:flex;gap:6px;margin:0 0 18px;padding-bottom:16px;border-bottom:1px solid var(--line)}
+.A .acts .r{margin-left:auto}
+.A .rec .prose{font-size:14px}
+.A .rec .prose h3{font-size:15px;margin:16px 0 6px}
+.A .ai{border-left:1px solid var(--line);display:flex;flex-direction:column;background:color-mix(in srgb,var(--desk) 40%,var(--paper));min-height:0}
+.A .ai header{display:flex;align-items:center;gap:8px;height:48px;padding:0 8px 0 16px;font-weight:600;flex:none}
+.A .ai header small{font-weight:400;color:var(--ink3);margin-right:auto}
+.A .th{flex:1;padding:6px 16px;display:flex;flex-direction:column;gap:12px;overflow:hidden}
+.A .me{align-self:flex-end;max-width:88%;background:var(--ink);color:var(--paper);padding:8px 11px;border-radius:12px 12px 3px 12px}
+.A .it{margin:0;line-height:1.5}
+.A .prop{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:12px}
+.A .prop h4{margin:0 0 8px;font-size:13px}
+.A .prop ul{list-style:none;margin:0 0 12px;padding:0;display:grid;gap:5px;font-size:12.5px;color:var(--ink2)}
+.A .prop ins{text-decoration:none;color:var(--green);font-weight:600;margin-right:6px}
+.A .prop div{display:flex;gap:6px}
+.A .cmp{margin:12px;border:1px solid var(--line);border-radius:10px;background:var(--paper);padding:10px 8px 8px 12px;flex:none}
+.A .cmp p{margin:0 0 16px;color:var(--ink3)}
+.A .cmp div{display:flex;align-items:center;gap:6px;color:var(--ink3);font-size:12px}
+.A .cmp div span{margin-right:auto}
+</style>
+</head>
+<body>
+<header class="pg"><h1>Design A: Notebook</h1><p>One thing at a time. A single header row, a page you write on, and a highlighter that shows where you are.</p><button id="tg">Switch light / dark</button></header>
+<h2 class="pg">Writing a Session note</h2>
+
+<div class="win A" id="s1">
+  <aside class="side">
+    <div class="brand"><svg class="i"><use href="#pen"/></svg>QA Scribe<kbd>⌘K</kbd></div>
+    <button class="new"><svg class="i"><use href="#plus"/></svg>New Session</button>
+    <div class="find"><svg class="i"><use href="#search"/></svg>Search Sessions</div>
+    <p class="grp">Today</p>
+    <a class="ses on"><span class="hl">Checkout regression</span></a>
+    <p class="grp">Earlier</p>
+    <a class="ses"><span>Account settings</span><time>Yesterday</time></a>
+    <a class="ses"><span>Search and filtering</span><time>22 Oct</time></a>
+    <a class="ses"><span>Onboarding emails</span><time>20 Oct</time></a>
+    <a class="ses"><span>Export to CSV</span><time>17 Oct</time></a>
+    <a class="ses"><span>Mobile navigation</span><time>14 Oct</time></a>
+    <nav class="libs">
+      <a><svg class="i"><use href="#book"/></svg>Test cases library</a>
+      <a><svg class="i"><use href="#flag"/></svg>Findings library</a>
+      <hr>
+      <a><svg class="i"><use href="#gear"/></svg>Settings</a>
+      <a><svg class="i"><use href="#help"/></svg>Help</a>
+    </nav>
+  </aside>
+
+  <main class="sheet">
+    <header class="bar">
+      <nav class="tabs">
+        <a class="tab t-note"><span>Note</span></a>
+        <a class="tab t-case"><span>Test cases</span><small>5</small></a>
+        <a class="tab t-find"><span>Findings</span><small>2</small></a>
+      </nav>
+      <div class="bar-r">
+        <span class="saved"><svg class="i"><use href="#check"/></svg>Saved</span>
+        <button class="q"><svg class="i"><use href="#copy"/></svg>Copy</button>
+        <button class="q sq" title="Copy first screenshot, delete Session"><svg class="i"><use href="#more"/></svg></button>
+      </div>
+    </header>
+
+    <section class="v-note">
+      <div class="col">
+        <div class="fmt">
+          <button class="q">Paragraph<svg class="i"><use href="#down"/></svg></button><i></i>
+          <button class="q"><svg class="i"><use href="#bold"/></svg></button>
+          <button class="q"><svg class="i"><use href="#italic"/></svg></button><i></i>
+          <button class="q"><svg class="i"><use href="#list"/></svg></button>
+          <button class="q"><svg class="i"><use href="#todo"/></svg></button><i></i>
+          <button class="q"><svg class="i"><use href="#link"/></svg></button>
+          <button class="q"><svg class="i"><use href="#image"/></svg></button>
+        </div>
+        <h1 class="ttl">Checkout regression</h1>
+        <p class="meta"><span>Today, 14:02</span><span>214 words</span><span>2 screenshots</span></p>
+        <div class="prose">
+          <p>Build 4.12.0-rc2 on staging, Safari 18 and Chrome 130. Checking that retry after a declined card still works since the payment provider upgrade.</p>
+          <h3>Declined card retry</h3>
+          <ul>
+            <li>Card ending 0002 is declined as expected and the inline error shows.</li>
+            <li>Retry without changing the card: the error disappears, a spinner shows for about two seconds, then nothing. The order stays pending.</li>
+          </ul>
+          <figure class="shot"><div class="im"><u style="width:55%"></u><u></u><u style="width:80%"></u><em>Retry payment</em></div><figcaption>After retry: no error, order still pending</figcaption></figure>
+          <pre>POST /api/payments/retry  402  {"code":"card_declined"}</pre>
+          <h3>Coverage</h3>
+          <ul class="chk">
+            <li class="d"><b><svg class="i"><use href="#check"/></svg></b>Guest checkout</li>
+            <li class="d"><b><svg class="i"><use href="#check"/></svg></b>Saved card</li>
+            <li><b></b>Apple Pay</li>
+            <li><b></b>3DS challenge</li>
+          </ul>
+        </div>
+      </div>
+      <div class="fade"></div>
+      <div class="dock">
+        <span>Turn this note into</span>
+        <button class="q o"><svg class="i"><use href="#flag"/></svg>Finding</button>
+        <button class="q o"><svg class="i"><use href="#box"/></svg>Test cases</button>
+        <i></i>
+        <button class="q"><svg class="i"><use href="#spark"/></svg>Ask AI</button>
+        <button class="q">Summarize</button>
+      </div>
+    </section>
+
+    <section class="v-find">
+      <div class="lst">
+        <div class="lst-h"><div class="find"><svg class="i"><use href="#search"/></svg>Search findings</div><button class="q o sq" title="New finding"><svg class="i"><use href="#plus"/></svg></button></div>
+        <a class="row on"><b><span class="hl">Checkout hides the payment error after retry</span></b><small><span class="sev m">Medium</span><span>Bug</span><span>Open</span></small></a>
+        <a class="row"><b>Order total flickers when a promo code is removed</b><small><span class="sev">Low</span><span>Bug</span><span>Open</span></small></a>
+      </div>
+      <article class="rec">
+        <h1>Checkout hides the payment error after retry</h1>
+        <dl class="props">
+          <div><dt>Type</dt><dd>Bug</dd></div>
+          <div><dt>Severity</dt><dd class="sev m">Medium</dd></div>
+          <div><dt>Status</dt><dd>Open</dd></div>
+          <div><dt>Area</dt><dd>Checkout</dd></div>
+          <div><dt>Reference</dt><dd>SHOP-482</dd></div>
+        </dl>
+        <div class="acts">
+          <button class="q p"><svg class="i"><use href="#edit"/></svg>Edit</button>
+          <button class="q o"><svg class="i"><use href="#copy"/></svg>Copy</button>
+          <button class="q o"><svg class="i"><use href="#spark"/></svg>Ask AI</button>
+          <button class="q sq r" title="Delete finding"><svg class="i"><use href="#trash"/></svg></button>
+        </div>
+        <div class="prose">
+          <h3 style="margin-top:0">Summary</h3>
+          <p>After retrying a declined payment, the error message disappears while the payment remains incomplete.</p>
+          <h3>Steps to reproduce</h3>
+          <ol><li>Open checkout with an item in the cart.</li><li>Submit a card that returns a decline.</li><li>Select Retry without changing the card.</li></ol>
+          <h3>Expected result</h3>
+          <p>The error stays visible and explains how to resolve it.</p>
+          <h3>Actual result</h3>
+          <p>The error clears and the order stays pending with no feedback.</p>
+        </div>
+      </article>
+      <aside class="ai">
+        <header>Ask AI<small>Claude Code</small><button class="q sq"><svg class="i"><use href="#x"/></svg></button></header>
+        <div class="th">
+          <div class="me">Tighten the steps and add the environment from my note.</div>
+          <p class="it">I split the retry into its own step and added an Environment section using the build and browsers from your Session note.</p>
+          <div class="prop">
+            <h4>Suggested update</h4>
+            <ul><li><ins>Added</ins>Environment: build 4.12.0-rc2, staging, Safari 18</li><li><ins>Changed</ins>Steps to reproduce: 3 steps become 4</li></ul>
+            <div><button class="q p">Update finding</button><button class="q">Dismiss</button></div>
+          </div>
+        </div>
+        <div class="cmp"><p>Tell AI what you'd like to improve…</p><div><span>⌘ Enter to send</span><button class="q sq"><svg class="i"><use href="#clip"/></svg></button><button class="q p">Send</button></div></div>
+      </aside>
+    </section>
+  </main>
+</div>
+
+<h2 class="pg" id="c2">Reviewing a Finding with Ask AI</h2>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="pen" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></symbol>
+<symbol id="search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+<symbol id="plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="file" viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z"/><path d="M14 3v6h6M8 13h8M8 17h6"/></symbol>
+<symbol id="book" viewBox="0 0 24 24"><path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2Z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7Z"/></symbol>
+<symbol id="flag" viewBox="0 0 24 24"><path d="M4 21V4h13l-2 5 2 5H4"/></symbol>
+<symbol id="gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></symbol>
+<symbol id="help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .9-1 1.7M12 17h.01"/></symbol>
+<symbol id="copy" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></symbol>
+<symbol id="more" viewBox="0 0 24 24"><path d="M5 12h.01M12 12h.01M19 12h.01"/></symbol>
+<symbol id="check" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></symbol>
+<symbol id="spark" viewBox="0 0 24 24"><path d="m11 3 1.9 5.1L18 10l-5.1 1.9L11 17l-1.9-5.1L4 10l5.1-1.9Z"/><path d="M19 15v5M16.5 17.5h5"/></symbol>
+<symbol id="bold" viewBox="0 0 24 24"><path d="M7 5h6a3.5 3.5 0 0 1 0 7H7ZM7 12h7a3.5 3.5 0 0 1 0 7H7Z"/></symbol>
+<symbol id="italic" viewBox="0 0 24 24"><path d="M19 5h-9M14 19H5M15 5 9 19"/></symbol>
+<symbol id="list" viewBox="0 0 24 24"><path d="M9 6h12M9 12h12M9 18h12M4 6h.01M4 12h.01M4 18h.01"/></symbol>
+<symbol id="todo" viewBox="0 0 24 24"><path d="m3 6 2 2 3-3M3 17l2 2 3-3M12 7h9M12 18h9"/></symbol>
+<symbol id="link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3A4 4 0 0 0 13 5.3l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3A4 4 0 0 0 11 18.7l1-1"/></symbol>
+<symbol id="image" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.5"/><path d="m21 16-5-5-8 8"/></symbol>
+<symbol id="x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+<symbol id="clip" viewBox="0 0 24 24"><path d="M21 11.5 12.5 20a5 5 0 0 1-7-7l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4l7.7-7.8"/></symbol>
+<symbol id="down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+<symbol id="box" viewBox="0 0 24 24"><path d="M21 8 12 3 3 8v8l9 5 9-5Z"/><path d="m3 8 9 5 9-5M12 13v8"/></symbol>
+<symbol id="trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></symbol>
+<symbol id="edit" viewBox="0 0 24 24"><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></symbol>
+</defs></svg>
+<script>
+const h=document.documentElement,q=new URLSearchParams(location.search);
+const s2=document.getElementById('s1').cloneNode(true);s2.id='s2';s2.classList.add('v2');document.getElementById('c2').after(s2);
+if(q.get('theme'))h.dataset.theme=q.get('theme');
+if(q.get('shot'))h.classList.add('shot','shot'+q.get('shot'));
+document.getElementById('tg').onclick=()=>{h.dataset.theme=h.dataset.theme==='dark'?'light':'dark'};
+</script>
+
+</body>
+</html>

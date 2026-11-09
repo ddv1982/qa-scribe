@@ -285,7 +285,6 @@ function testware(drafts = [draftFixture()], overrides: Partial<ComponentProps<t
       copyState={{ status: 'idle' }}
       draftScreenshotCounts={{}}
       drafts={drafts}
-      sessionTitle="Checkout validation"
       notice={null}
       error={null}
       isBusy={false}

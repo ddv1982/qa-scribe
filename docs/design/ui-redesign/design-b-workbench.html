@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<title>QA Scribe redesign B: Workbench</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+html{background:#d5d8d3;color:#1b1e1c}
+html[data-theme=dark]{background:#0b0c0d;color:#dfe2df}
+body{margin:0;padding:28px;font:14px/1.5 system-ui,sans-serif;display:grid;justify-items:center;gap:14px}
+.pg{width:1280px;margin:0}
+header.pg{display:flex;align-items:baseline;gap:16px}
+header.pg h1{font-size:20px;margin:0}
+header.pg p{margin:0;opacity:.72;flex:1}
+#tg{font:inherit;padding:6px 12px;border-radius:8px;border:1px solid currentColor;background:none;color:inherit;cursor:pointer}
+h2.pg{font-size:14px;font-weight:600;margin-top:14px}
+.win{width:1280px;height:800px;border-radius:12px;overflow:hidden;box-shadow:0 20px 60px -20px rgba(0,0,0,.45)}
+.win *{box-sizing:border-box}
+.win button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+.win .i{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+html.shot body{padding:0;gap:0}
+html.shot .pg{display:none}
+html.shot .win{border-radius:0;box-shadow:none}
+html.shot1 #s2,html.shot2 #s1{display:none}
+
+.B{--bg:#16181c;--panel:#1c1f24;--raised:#252930;--line:#2f343c;--tx:#e7e9ec;--tx2:#a7aeb8;--tx3:#868e99;--sel:#2a2f37;--inv:#e7e9ec;--oninv:#16181c;--high:#f08c3e;--med:#e3b83a;--low:#73a6da;--ok:#52ba7b;--mono:"IBM Plex Mono",ui-monospace,monospace;
+  font:13px/1.4 "IBM Plex Sans",system-ui,sans-serif;color:var(--tx);background:var(--bg);display:grid;grid-template:44px 1fr 26px/48px 204px 1fr 456px}
+html[data-theme=light] .B{--bg:#fff;--panel:#f4f5f7;--raised:#fff;--line:#d9dde3;--tx:#1b1e23;--tx2:#4f5661;--tx3:#69707b;--sel:#e3e6ea;--inv:#1b1e23;--oninv:#fff;--high:#b6570d;--med:#8a6a00;--low:#2d6aa8;--ok:#1f7a45}
+.B.v2{grid-template-columns:48px 1fr 440px 336px}
+.B.v2 .sess,.B:not(.v2) .aip{display:none}
+
+.B .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:28px;min-width:28px;padding:0 9px;border-radius:6px;color:var(--tx2);font-weight:500;white-space:nowrap}
+.B .btn.o{border:1px solid var(--line);color:var(--tx)}
+.B .btn.p{background:var(--inv);color:var(--oninv)}
+.B .btn.sq{padding:0}
+.B .btn.act{background:var(--sel);color:var(--tx)}
+.B:not(.v2) .btn.ask.act{background:none;color:var(--tx);border:1px solid var(--line)}
+.B kbd{font:500 11px var(--mono);color:var(--tx3);border:1px solid var(--line);border-radius:4px;padding:0 5px}
+
+/* top bar */
+.B .top{grid-column:1/-1;display:flex;align-items:center;gap:10px;padding:0 10px 0 16px;border-bottom:1px solid var(--line);background:var(--panel)}
+.B .brand{display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px;width:226px}
+.B .cmd{margin:0 auto;display:flex;align-items:center;gap:8px;width:400px;height:28px;padding:0 8px 0 10px;border-radius:6px;background:var(--bg);border:1px solid var(--line);color:var(--tx3)}
+.B .cmd span{margin-right:auto}
+.B .top-r{width:226px;display:flex;justify-content:flex-end}
+
+/* rail + sessions */
+.B .rail{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0;border-right:1px solid var(--line);background:var(--panel)}
+.B .rail .btn{width:32px;height:32px}
+.B .rail .sp{margin-top:auto}
+.B .sess{border-right:1px solid var(--line);padding:8px;display:flex;flex-direction:column;gap:1px;background:var(--panel);min-width:0}
+.B .sess p{margin:4px 8px 6px;display:flex;justify-content:space-between;color:var(--tx3);font-size:12px}
+.B .ses{display:flex;align-items:baseline;gap:8px;padding:6px 8px;border-radius:5px;color:var(--tx2)}
+.B .ses span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.B .ses time{margin-left:auto;font:11px var(--mono);color:var(--tx3);white-space:nowrap}
+.B .ses.on,.B .row.on{background:var(--sel);color:var(--tx);box-shadow:inset 2px 0 var(--inv)}
+.B .ses.on{font-weight:500}
+
+/* panes */
+.B .pane{display:flex;flex-direction:column;min-width:0;min-height:0;border-right:1px solid var(--line)}
+.B .pane:last-of-type{border-right:0}
+.B .ph{display:flex;align-items:center;gap:2px;height:38px;padding:0 8px 0 16px;border-bottom:1px solid var(--line);flex:none}
+.B .ph>b{font-weight:600;margin-right:10px}
+.B .ph i{width:1px;height:16px;background:var(--line);margin:0 5px}
+.B .ph .r{margin-left:auto}
+.B .ph small{color:var(--tx3);font-size:12px}
+
+/* note */
+.B .nb{padding:18px 24px;overflow:hidden;flex:1}
+.B .ttl{font-size:21px;font-weight:600;letter-spacing:-.01em;margin:0 0 12px}
+.B .prose{font-size:14px;line-height:1.58}
+.B .prose p{margin:0 0 10px}
+.B .prose h3{font-size:15px;font-weight:600;margin:18px 0 6px}
+.B .prose ul,.B .prose ol{margin:0 0 10px;padding-left:20px}
+.B .prose li{margin:3px 0}
+.B pre{font:12px/1.5 var(--mono);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin:0 0 10px;white-space:pre-wrap}
+.B .shot{margin:0 0 10px;display:flex;gap:12px;align-items:flex-end}
+.B .im{width:212px;height:104px;border:1px solid var(--line);border-radius:6px;background:var(--panel);padding:11px;display:grid;gap:7px;align-content:start;flex:none}
+.B .im u{display:block;height:7px;border-radius:4px;background:var(--line)}
+.B .im em{justify-self:start;font:normal 600 10px "IBM Plex Sans",sans-serif;background:var(--tx3);color:var(--bg);padding:4px 9px;border-radius:4px;margin-top:5px}
+.B figcaption{font-size:12px;color:var(--tx3)}
+.B .chk{list-style:none;padding:0!important;display:grid;grid-template-columns:1fr 1fr;gap:2px}
+.B .chk li{display:flex;gap:9px;align-items:center}
+.B .chk b{width:14px;height:14px;border:1.5px solid var(--tx3);border-radius:3px;display:grid;place-items:center;flex:none}
+.B .chk .d{color:var(--tx3);text-decoration:line-through}
+.B .chk .d b{background:var(--ok);border-color:var(--ok);color:var(--bg)}
+.B .chk .i{width:10px;height:10px;stroke-width:3.5}
+
+/* records */
+.B .seg{display:flex;gap:2px;margin-left:-8px}
+.B .seg .btn small{font:11px var(--mono);color:var(--tx3)}
+.B .row{display:grid;grid-template-columns:74px 1fr auto;gap:2px 8px;padding:9px 12px 9px 16px;border-bottom:1px solid var(--line)}
+.B .row b{font-weight:500}
+.B .row small{grid-column:2;color:var(--tx3);font-size:12px;display:flex;gap:10px}
+.B .row time,.B .mono{font:11.5px var(--mono);color:var(--tx3)}
+.B .sev{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500}
+.B .sev::before{content:"";width:8px;height:8px;border-radius:2px;background:currentColor}
+.B .sev.m{color:var(--med)}
+.B .sev.l{color:var(--low)}
+.B .det{flex:1;padding:16px 18px 0;overflow:hidden;background:var(--raised)}
+.B .det h2{font-size:17px;font-weight:600;line-height:1.25;margin:0 0 10px}
+.B .acts{display:flex;gap:6px;margin-bottom:14px}
+.B .acts .r{margin-left:auto}
+.B .props{display:grid;grid-template-columns:repeat(5,auto);justify-content:space-between;margin:0 0 14px;padding:9px 12px;border:1px solid var(--line);border-radius:6px}
+.B .props dt{color:var(--tx3);font-size:11.5px}
+.B .props dd{margin:1px 0 0;font-weight:500}
+.B .det .prose{font-size:13.5px}
+.B .det .prose h3{font-size:13.5px;margin:12px 0 3px}
+
+/* ask ai */
+.B .th{flex:1;padding:14px 16px;display:flex;flex-direction:column;gap:12px;overflow:hidden}
+.B .me{align-self:flex-end;max-width:88%;background:var(--sel);padding:8px 11px;border-radius:8px}
+.B .it{margin:0;line-height:1.5}
+.B .prop{border:1px solid var(--line);border-radius:6px;background:var(--raised)}
+.B .prop h4{margin:0;padding:8px 12px;font-size:13px;font-weight:600;border-bottom:1px solid var(--line)}
+.B .prop ul{list-style:none;margin:0;padding:8px 12px;display:grid;gap:5px;font-size:12.5px;color:var(--tx2)}
+.B .prop ins{text-decoration:none;color:var(--ok);font-weight:600;margin-right:8px;font-family:var(--mono)}
+.B .prop div{display:flex;gap:6px;padding:0 12px 10px}
+.B .cmp{margin:12px;border:1px solid var(--line);border-radius:6px;background:var(--bg);padding:10px 8px 8px 12px;flex:none}
+.B .cmp p{margin:0 0 16px;color:var(--tx3)}
+.B .cmp div{display:flex;align-items:center;gap:6px}
+.B .cmp div span{margin-right:auto}
+
+/* status bar */
+.B .stat{grid-column:1/-1;display:flex;align-items:center;gap:18px;padding:0 14px;border-top:1px solid var(--line);background:var(--panel);font-size:12px;color:var(--tx2)}
+.B .stat .ok{display:flex;align-items:center;gap:6px}
+.B .stat .ok::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--ok)}
+.B .stat .r{margin-left:auto}
+</style>
+</head>
+<body>
+<header class="pg"><h1>Design B: Workbench</h1><p>The whole Session on one screen. Note on the left, Findings and Test cases on the right, and colour used only for severity and status.</p><button id="tg">Switch light / dark</button></header>
+<h2 class="pg">Note and Findings side by side</h2>
+
+<div class="win B" id="s1">
+  <header class="top">
+    <div class="brand"><svg class="i"><use href="#pen"/></svg>QA Scribe</div>
+    <div class="cmd"><svg class="i"><use href="#search"/></svg><span>Search Sessions or run a command</span><kbd>⌘K</kbd></div>
+    <div class="top-r"><button class="btn p"><svg class="i"><use href="#plus"/></svg>New Session</button></div>
+  </header>
+
+  <nav class="rail">
+    <button class="btn sq act" title="Sessions"><svg class="i"><use href="#file"/></svg></button>
+    <button class="btn sq" title="Test cases library"><svg class="i"><use href="#book"/></svg></button>
+    <button class="btn sq" title="Findings library"><svg class="i"><use href="#flag"/></svg></button>
+    <button class="btn sq sp" title="Help"><svg class="i"><use href="#help"/></svg></button>
+    <button class="btn sq" title="Settings"><svg class="i"><use href="#gear"/></svg></button>
+  </nav>
+
+  <aside class="sess">
+    <p><span>Sessions</span><span class="mono">6</span></p>
+    <a class="ses on"><span>Checkout regression</span><time>14:02</time></a>
+    <a class="ses"><span>Account settings</span><time>Yest.</time></a>
+    <a class="ses"><span>Search and filtering</span><time>22 Oct</time></a>
+    <a class="ses"><span>Onboarding emails</span><time>20 Oct</time></a>
+    <a class="ses"><span>Export to CSV</span><time>17 Oct</time></a>
+    <a class="ses"><span>Mobile navigation</span><time>14 Oct</time></a>
+  </aside>
+
+  <section class="pane">
+    <div class="ph">
+      <b>Note</b>
+      <button class="btn">Paragraph<svg class="i"><use href="#down"/></svg></button><i></i>
+      <button class="btn sq"><svg class="i"><use href="#bold"/></svg></button>
+      <button class="btn sq"><svg class="i"><use href="#italic"/></svg></button>
+      <button class="btn sq"><svg class="i"><use href="#list"/></svg></button>
+      <button class="btn sq"><svg class="i"><use href="#todo"/></svg></button>
+      <button class="btn sq"><svg class="i"><use href="#link"/></svg></button>
+      <button class="btn sq"><svg class="i"><use href="#image"/></svg></button>
+      <button class="btn r"><svg class="i"><use href="#spark"/></svg>Ask AI</button>
+      <button class="btn sq" title="Copy note"><svg class="i"><use href="#copy"/></svg></button>
+      <button class="btn sq" title="Summarize, copy first screenshot, delete Session"><svg class="i"><use href="#more"/></svg></button>
+    </div>
+    <div class="nb">
+      <h1 class="ttl">Checkout regression</h1>
+      <div class="prose">
+        <p>Build 4.12.0-rc2 on staging, Safari 18 and Chrome 130. Checking that retry after a declined card still works since the payment provider upgrade.</p>
+        <h3>Declined card retry</h3>
+        <ul>
+          <li>Card ending 0002 is declined as expected and the inline error shows.</li>
+          <li>Retry without changing the card: the error disappears, a spinner shows for about two seconds, then nothing. The order stays pending.</li>
+        </ul>
+        <figure class="shot"><div class="im"><u style="width:55%"></u><u></u><u style="width:80%"></u><em>Retry payment</em></div><figcaption>After retry: no error, order still pending</figcaption></figure>
+        <pre>POST /api/payments/retry  402  {"code":"card_declined"}</pre>
+        <h3>Coverage</h3>
+        <ul class="chk">
+          <li class="d"><b><svg class="i"><use href="#check"/></svg></b>Guest checkout</li>
+          <li class="d"><b><svg class="i"><use href="#check"/></svg></b>Saved card</li>
+          <li><b></b>Apple Pay</li>
+          <li><b></b>3DS challenge</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="pane">
+    <div class="ph">
+      <div class="seg">
+        <button class="btn act">Findings<small>2</small></button>
+        <button class="btn">Test cases<small>5</small></button>
+      </div>
+      <button class="btn o r"><svg class="i"><use href="#plus"/></svg>New finding</button>
+    </div>
+    <a class="row on"><span class="sev m">Medium</span><b>Checkout hides the payment error after retry</b><time>14:02</time><small><span>Bug</span><span>Open</span><span>Checkout</span><span class="mono">SHOP-482</span></small></a>
+    <a class="row"><span class="sev l">Low</span><b>Order total flickers when a promo code is removed</b><time>13:40</time><small><span>Bug</span><span>Open</span><span>Checkout</span></small></a>
+    <article class="det">
+      <h2>Checkout hides the payment error after retry</h2>
+      <div class="acts">
+        <button class="btn p"><svg class="i"><use href="#edit"/></svg>Edit</button>
+        <button class="btn o"><svg class="i"><use href="#copy"/></svg>Copy</button>
+        <button class="btn ask act"><svg class="i"><use href="#spark"/></svg>Ask AI</button>
+        <button class="btn sq r" title="Delete finding"><svg class="i"><use href="#trash"/></svg></button>
+      </div>
+      <dl class="props">
+        <div><dt>Type</dt><dd>Bug</dd></div>
+        <div><dt>Severity</dt><dd class="sev m">Medium</dd></div>
+        <div><dt>Status</dt><dd>Open</dd></div>
+        <div><dt>Area</dt><dd>Checkout</dd></div>
+        <div><dt>Reference</dt><dd class="mono" style="color:var(--tx)">SHOP-482</dd></div>
+      </dl>
+      <div class="prose">
+        <h3 style="margin-top:0">Summary</h3>
+        <p>After retrying a declined payment, the error message disappears while the payment remains incomplete.</p>
+        <h3>Steps to reproduce</h3>
+        <ol><li>Open checkout with an item in the cart.</li><li>Submit a card that returns a decline.</li><li>Select Retry without changing the card.</li></ol>
+        <h3>Expected result</h3>
+        <p>The error stays visible and explains how to resolve it.</p>
+        <h3>Actual result</h3>
+        <p>The error clears and the order stays pending with no feedback.</p>
+      </div>
+    </article>
+  </section>
+
+  <aside class="pane aip">
+    <div class="ph"><b>Ask AI</b><small>about this finding</small><button class="btn sq r"><svg class="i"><use href="#x"/></svg></button></div>
+    <div class="th">
+      <div class="me">Tighten the steps and add the environment from my note.</div>
+      <p class="it">I split the retry into its own step and added an Environment section using the build and browsers from your Session note.</p>
+      <div class="prop">
+        <h4>Suggested update</h4>
+        <ul><li><ins>+</ins>Environment: build 4.12.0-rc2, staging, Safari 18</li><li><ins>~</ins>Steps to reproduce: 3 steps become 4</li></ul>
+        <div><button class="btn p">Update finding</button><button class="btn">Dismiss</button></div>
+      </div>
+    </div>
+    <div class="cmp"><p>Tell AI what you'd like to improve…</p><div><span><kbd>⌘ Enter</kbd></span><button class="btn sq"><svg class="i"><use href="#clip"/></svg></button><button class="btn p">Send</button></div></div>
+  </aside>
+
+  <footer class="stat">
+    <span class="ok">Saved 14:02</span><span>214 words</span><span>2 screenshots</span>
+    <span class="r">Claude Code, CLI default model</span>
+  </footer>
+</div>
+
+<h2 class="pg" id="c2">Refining a Finding with Ask AI, note still in view</h2>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="pen" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></symbol>
+<symbol id="search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+<symbol id="plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="file" viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z"/><path d="M14 3v6h6M8 13h8M8 17h6"/></symbol>
+<symbol id="book" viewBox="0 0 24 24"><path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2Z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7Z"/></symbol>
+<symbol id="flag" viewBox="0 0 24 24"><path d="M4 21V4h13l-2 5 2 5H4"/></symbol>
+<symbol id="gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></symbol>
+<symbol id="help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .9-1 1.7M12 17h.01"/></symbol>
+<symbol id="copy" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></symbol>
+<symbol id="more" viewBox="0 0 24 24"><path d="M5 12h.01M12 12h.01M19 12h.01"/></symbol>
+<symbol id="check" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></symbol>
+<symbol id="spark" viewBox="0 0 24 24"><path d="m11 3 1.9 5.1L18 10l-5.1 1.9L11 17l-1.9-5.1L4 10l5.1-1.9Z"/><path d="M19 15v5M16.5 17.5h5"/></symbol>
+<symbol id="bold" viewBox="0 0 24 24"><path d="M7 5h6a3.5 3.5 0 0 1 0 7H7ZM7 12h7a3.5 3.5 0 0 1 0 7H7Z"/></symbol>
+<symbol id="italic" viewBox="0 0 24 24"><path d="M19 5h-9M14 19H5M15 5 9 19"/></symbol>
+<symbol id="list" viewBox="0 0 24 24"><path d="M9 6h12M9 12h12M9 18h12M4 6h.01M4 12h.01M4 18h.01"/></symbol>
+<symbol id="todo" viewBox="0 0 24 24"><path d="m3 6 2 2 3-3M3 17l2 2 3-3M12 7h9M12 18h9"/></symbol>
+<symbol id="link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3A4 4 0 0 0 13 5.3l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3A4 4 0 0 0 11 18.7l1-1"/></symbol>
+<symbol id="image" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.5"/><path d="m21 16-5-5-8 8"/></symbol>
+<symbol id="x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+<symbol id="clip" viewBox="0 0 24 24"><path d="M21 11.5 12.5 20a5 5 0 0 1-7-7l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4l7.7-7.8"/></symbol>
+<symbol id="down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+<symbol id="box" viewBox="0 0 24 24"><path d="M21 8 12 3 3 8v8l9 5 9-5Z"/><path d="m3 8 9 5 9-5M12 13v8"/></symbol>
+<symbol id="trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></symbol>
+<symbol id="edit" viewBox="0 0 24 24"><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></symbol>
+</defs></svg>
+<script>
+const h=document.documentElement,q=new URLSearchParams(location.search);
+const s2=document.getElementById('s1').cloneNode(true);s2.id='s2';s2.classList.add('v2');document.getElementById('c2').after(s2);
+if(q.get('theme'))h.dataset.theme=q.get('theme');
+if(q.get('shot'))h.classList.add('shot','shot'+q.get('shot'));
+document.getElementById('tg').onclick=()=>{h.dataset.theme=h.dataset.theme==='dark'?'light':'dark'};
+</script>
+
+</body>
+</html>
