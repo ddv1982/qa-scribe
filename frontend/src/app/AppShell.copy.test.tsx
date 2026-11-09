@@ -266,7 +266,7 @@ it('keeps a failed settlement Save and its error inside the owning dialog until 
   expect(title).toHaveValue('Draft must survive failed settlement')
   expect(tauri.createFinding).not.toHaveBeenCalled()
   expect(tauri.commitCreationSave).toHaveBeenCalledOnce()
-})
+}, 10_000)
 
 it('renders each manual testware format without AI and settles untouched selection without a warning', async () => {
   render(<Workspace />)

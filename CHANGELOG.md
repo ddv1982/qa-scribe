@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.8.31 - 2026-11-09
+
+- Refresh the interface with a focused page for the Session Note, one header row, and a sidebar for Sessions and app navigation.
+- Keep Create finding, Create test cases, Ask AI, and Summarize together beneath the note. Highlight the active Session, tab, and record in light and dark themes.
+- Give Findings and Test cases a cleaner document layout, with clearer typography and compact metadata.
+- Patch SQLite and Markdown parser dependencies to address published security advisories.
+
 ## v0.8.30 - 2026-10-29
 
 - Keep Notes Ask AI focused on the conversation with compact options, one provider label, and fewer unavailable actions.
