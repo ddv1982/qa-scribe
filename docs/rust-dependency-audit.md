@@ -25,6 +25,8 @@ Registry reconciliation on 2026-10-04 removed ten GTK3 unmaintained advisory ent
 
 On 2026-10-28, `RUSTSEC-2026-0414` caused the CI audit to fail for locked `pulldown-cmark 0.13.4`. Updating only that package to patched `0.13.5` restored the same ten reviewed findings without adding an exception. The affected `ENABLE_WIKILINKS` option is not enabled by the application's Markdown parser.
 
+On 2026-11-09, `RUSTSEC-2026-0433` (`pulldown-cmark 0.13.5`) and `RUSTSEC-2026-0459` (`libsqlite3-sys 0.35.0`, bundled SQLite) caused the CI audit to fail. Updating `pulldown-cmark` to patched `0.13.6` and `rusqlite` from `0.37.0` to `0.41.1` (which resolves `libsqlite3-sys 0.39.1`) restored the same ten reviewed findings without adding an exception. The `rusqlite` upgrade removed implicit `usize` conversions; the one runtime read now converts from `i64`. The affected `ENABLE_WIKILINKS` option remains disabled in the application's Markdown parser.
+
 `cargo update --dry-run` on 2026-10-14 proposes 192 package changes, including wayland-scanner 0.31.11 with quick-xml 0.42.0, Tauri 2.12.3, and removal of the unic family. These are available upgrade paths, not an unavailable-upstream blocker. This feature release temporarily retains the audited lockfile pending targeted dependency upgrade and platform validation, with a one-month review deadline rather than a quarterly extension. The dry run did not mutate Cargo.lock or demonstrate upgrade behavior. In particular, the broader Tauri upgrade requires revalidating the pinned CLI/runtime major-minor contract. The two quick-xml vulnerabilities are build-only on static protocol XML; glib remains runtime-transitively reachable and is not claimed to be fixed.
 
 ### Vulnerabilities

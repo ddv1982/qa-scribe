@@ -12,11 +12,14 @@ pub fn recover_chat_image_imports(service: &SessionService, root: &Path) -> Resu
     for (path, temp, session) in paths {
         recover_import(service, root, &path, &temp, &session)?;
     }
-    Ok(database
-        .connection()
-        .query_row("SELECT count(*) FROM chat_image_imports", [], |row| {
-            row.get(0)
-        })?)
+    // rusqlite no longer reads SQLite integers as usize directly; count(*) is never negative.
+    let remaining: i64 =
+        database
+            .connection()
+            .query_row("SELECT count(*) FROM chat_image_imports", [], |row| {
+                row.get(0)
+            })?;
+    Ok(usize::try_from(remaining).unwrap_or_default())
 }
 
 pub(super) fn recover_chat_image_import(
