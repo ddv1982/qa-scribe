@@ -384,7 +384,7 @@ if (process.env.QA_SCRIBE_E2E_SPEC === 'generation-preflight-layout.e2e.mjs') {
       await openCreationAi('testware')
       await runGenerationPreflightLayoutWorkflow({ button })
       const variants = []
-      for (const [triggerLabel, heading] of [['Create finding with AI', 'Create finding?'], ['Summarize with AI', 'Summarize note?']]) {
+      for (const [triggerLabel, heading] of [['Create finding with AI', 'Create finding?'], ['Summarize', 'Summarize note?']]) {
         await $('[role="tab"]*=Note').click()
         const trigger = triggerLabel.includes('finding') ? await openCreationAi('finding') : await button(triggerLabel)
         if (!triggerLabel.includes('finding')) { await browser.execute((node) => node.focus(), trigger); await trigger.click() }

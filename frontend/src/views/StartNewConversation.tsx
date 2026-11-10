@@ -34,7 +34,7 @@ export function StartNewConversation({ state }: { state: ChatRestartState }) {
   }
   return <>
     {state.chat?.proposals?.some(p => p.state.kind === 'staged') ? <p className="chat-help">Save, Undo, or Discard the local refinement before starting a new conversation.</p> : state.recordWritesPending ? <p className="chat-help">Wait for pending record writes before starting a new conversation.</p> : null}
-    <ActionButton variant="secondary" size="compact" disabled={restartDisabled(state)} onClick={restart}>
+    <ActionButton variant="secondary" disabled={restartDisabled(state)} onClick={restart}>
       Start new conversation
     </ActionButton>
     {confirmation ? <RestartDialog submitted={confirmation.submitted}

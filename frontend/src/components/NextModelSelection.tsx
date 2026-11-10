@@ -1,3 +1,4 @@
+import { ChevronRight } from 'lucide-react'
 import { useId } from 'react'
 import { ModelCombobox } from './ModelSelector'
 import type { ProviderDescriptor } from '../tauri'
@@ -28,7 +29,7 @@ export function NextModelSelection({ provider, value, pending, disabled, catalog
       resolvedDefaultModel={snapshot?.model.value ?? null}
       resolvedDefaultOrigin={originSummary(snapshot?.model.origin ?? null)}
       catalogChecked={catalogEnabled && ['fresh', 'stale'].includes(provider?.catalogSnapshot.state ?? '')} />
-    <details className="model-details" open><summary>Model details</summary><p className="chat-help" id={descriptionId}>Saved for this provider across QA Scribe. Changes affect the next invocation.</p>
+    <details className="model-details" open><summary><ChevronRight className="disclosure-chevron" size={14} aria-hidden="true" />Model details</summary><p className="chat-help" id={descriptionId}>Saved for this provider across QA Scribe. Changes affect the next invocation.</p>
     {snapshot?.model.value ? <p className="chat-help">Observed CLI default · {snapshot.model.value} · {snapshot.state}{snapshot.checkedAt ? ` · Checked ${new Date(snapshot.checkedAt).toLocaleString()}` : ''}</p> : null}
     </details>
     {pending ? <p className="chat-help" role="status">Saving model preference…</p> : null}

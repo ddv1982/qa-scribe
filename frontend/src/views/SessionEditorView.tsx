@@ -9,7 +9,7 @@ import { ActionButton } from '../components/ActionButton'
 import { StatusPill } from '../components/Common'
 import type { BusyAction } from '../ui/types'
 import type { PendingAiActions } from '../ui/types'
-import type { ReactNode } from 'react'
+import { useLayoutEffect, useRef, type ComponentProps, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import type { ChatMode } from '../bindings'
 
@@ -137,7 +137,7 @@ export function SessionEditorView({
   const headerActions = (
     <div className="document-actions">
       {canUndoLatestGeneration ? (
-        <ActionButton variant="quiet" size="compact" type="button" disabled={isBusy || noteReadOnly} onClick={() => void onUndoLatestGeneration()}>
+        <ActionButton variant="secondary" size="compact" type="button" disabled={isBusy || noteReadOnly} onClick={() => void onUndoLatestGeneration()}>
           {undoingGeneration ? <Loader2 className="spin" size={16} /> : <Undo2 size={16} />}
           Undo generation
         </ActionButton>
@@ -150,7 +150,7 @@ export function SessionEditorView({
       </div>
       <CopyControls
         snapshot={{ target: { kind: 'note', sessionId: activeSession.id, action: 'jira-text' }, title: sessionTitle, bodyHtml: noteBodyHtml }}
-        copyState={copyState} onCopy={onCopy} disabled={isBusy} label="Note" screenshotCount={noteScreenshotCount} />
+        copyState={copyState} onCopy={onCopy} disabled={isBusy} label="Note" screenshotCount={noteScreenshotCount} size="compact" />
       <ActionButton variant="destructive-quiet" size="compact" iconOnly icon={Trash2} aria-label="Delete Session" title="Delete Session" loading={deletingSession} disabled={isBusy} onClick={() => void onDeleteSession()} />
     </div>
   )
@@ -163,10 +163,9 @@ export function SessionEditorView({
       <section key={activeSession.id} className="editor-card" aria-label="Session editor">
         {!noteReadOnly ? <FormatToolbar editorId={editorId} onUploadImage={onUploadImage} /> : null}
         <div className="document-body">
-          <input
-            className="session-title-input"
+          <SessionTitleField
             value={sessionTitle}
-            onChange={(event) => onSetSessionTitle(event.target.value)}
+            onChange={onSetSessionTitle}
             placeholder="Untitled session"
             aria-label="Session title"
             aria-invalid={sessionTitleValidationError ? true : undefined}
@@ -192,12 +191,12 @@ export function SessionEditorView({
         <div className="ai-action-buttons">
           <RecordCreationActions commands={creationCommands.finding} secondary />
           <RecordCreationActions commands={creationCommands.testware} secondary />
-          {onSetSessionMode ? <ActionButton variant="quiet" className="ask-ai-trigger" icon={Sparkles}
+          {onSetSessionMode ? <ActionButton variant="secondary" className="ask-ai-trigger" icon={Sparkles}
             aria-expanded={sessionMode === 'chat'} aria-controls="notes-ask-ai"
             onClick={() => { onSetSessionMode('chat'); document.querySelector<HTMLTextAreaElement>('#notes-ask-ai textarea:not(:disabled)')?.focus({ preventScroll: true }) }}>Ask AI</ActionButton> : null}
-          <ActionButton variant="quiet" type="button" aria-describedby={!activeProviderAvailable ? "note-summary-unavailable" : undefined} disabled={isBusy || summaryPending || !noteIsReady || !activeProviderAvailable} onClick={() => void onAiAction('summary')}>
-            {busyAction === 'ai-summary' || summaryPending ? <Loader2 className="spin" size={16} /> : <Sparkles size={16} />}
-            {summaryPending ? 'Summarizing notes' : 'Summarize with AI'}
+          <ActionButton variant="secondary" type="button" icon={Sparkles} loading={busyAction === 'ai-summary' || summaryPending}
+            aria-describedby={!activeProviderAvailable ? "note-summary-unavailable" : undefined} disabled={isBusy || !noteIsReady || !activeProviderAvailable} onClick={() => void onAiAction('summary')}>
+            {summaryPending ? 'Summarizing' : 'Summarize'}
           </ActionButton>
         </div>
         {!activeProviderAvailable ? <p className="field-description" id="note-summary-unavailable">
@@ -207,3 +206,24 @@ export function SessionEditorView({
     </div>
   )
 }
+
+/** A one-line title that wraps instead of clipping (F8). Newlines never enter the value. */
+function SessionTitleField({ value, onChange, ...props }: Omit<ComponentProps<'textarea'>, 'value' | 'onChange'> & {
+  value: string
+  onChange: (value: string) => void
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null)
+  useLayoutEffect(() => {
+    const node = ref.current
+    if (!node) return
+    const fit = () => { node.style.height = 'auto'; node.style.height = `${node.scrollHeight}px` }
+    fit()
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(fit)
+    observer?.observe(node)
+    return () => observer?.disconnect()
+  }, [value])
+  return <textarea {...props} ref={ref} rows={1} className="session-title-input" value={value}
+    onKeyDown={(event) => { if (event.key === 'Enter') event.preventDefault() }}
+    onChange={(event) => onChange(event.target.value.replace(/\r?\n/g, ' '))} />
+}
+

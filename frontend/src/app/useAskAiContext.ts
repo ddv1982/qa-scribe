@@ -245,6 +245,7 @@ export function useAskAiContext(sessionId: string | null, view: MainView, record
   return {
     invalidateNavigation,
     selectionEpoch, visible: Boolean(current?.open && recordView),
+    openRecordId: current?.open && recordView ? current.owner.record.recordId : null,
     focusRequest: current?.focusRequest ?? 0, panel: current, reference: current?.reference ?? null, source,
     context, contextError: source?.kind === 'unavailable' ? 'This record is no longer available in this Session.' : source?.kind === 'error' ? source.message : null,
     capture, captureNotesContext, onAskAi, onSelectRecord, close, openConversation, openStage: (origin: StageOrigin) => openConversation(origin.reference, origin), revealRequest, acknowledgeReveal,

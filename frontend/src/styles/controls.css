@@ -48,6 +48,14 @@
 }
 
 .action-button:enabled:hover { background: var(--action-hover-fill); }
+/* An Ask AI trigger whose panel is open reads as selected (R3). */
+.ask-ai-trigger[aria-expanded="true"] {
+  --action-text: var(--accent);
+  --action-fill: var(--accent-tint);
+  --action-hover-fill: var(--accent-tint);
+  border-color: var(--accent-border);
+}
+.ask-ai-trigger[aria-expanded="true"]:enabled:hover { border-color: var(--accent-border); }
 .action-button--secondary:enabled:hover { border-color: var(--border-strong); }
 
 .action-button:focus-visible {
@@ -55,12 +63,11 @@
   outline-offset: 2px;
 }
 
-.action-button:disabled { opacity: 1; }
-.action-button:disabled:not([aria-busy="true"]) {
-  color: var(--text-secondary);
-  background: var(--surface-sunken);
-  border-color: var(--border-default);
-}
+/* Disabled is a dimmed version of the same control, never a different grey one (F12).
+   A busy button keeps full strength so its spinner reads as progress. */
+.action-button:disabled { cursor: not-allowed; }
+.action-button:disabled:not([aria-busy="true"]) { opacity: 0.5; }
+.action-button[aria-busy="true"] { cursor: progress; opacity: 1; }
 
 .action-button--compact {
   min-height: var(--control-md);
@@ -189,3 +196,23 @@
     min-width: 44px;
   }
 }
+
+/* Disclosures (R7): a lucide chevron that turns when open, not the native triangle. */
+summary:has(> .disclosure-chevron) { list-style: none; }
+summary:has(> .disclosure-chevron)::-webkit-details-marker { display: none; }
+.disclosure-chevron { flex-shrink: 0; transition: transform var(--duration-fast) var(--ease-out); }
+details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }
+
+/* Selects (R7): every native select draws the same lucide chevron instead of the engine's own arrow. */
+select:not([multiple]) {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: calc(var(--space-2) + 20px);
+  background-image: var(--select-chevron);
+  background-repeat: no-repeat;
+  background-position: right var(--space-2) center;
+  background-size: 16px 16px;
+  cursor: pointer;
+}
+select:not([multiple]):disabled { cursor: not-allowed; }
+summary:has(> .disclosure-chevron) { display: flex; align-items: center; gap: 6px; cursor: pointer; }

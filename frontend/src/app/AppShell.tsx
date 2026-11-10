@@ -83,9 +83,7 @@ export function AppShell(c: AppController) {
                 Findings <span>{c.findingCount}</span>
               </button>
             </nav>
-            {c.activeView === 'sessions'
-              ? <div className="session-header-actions" ref={setNoteActionsTarget} />
-              : <div className="top-context-label" aria-label="Current search scope"><span title={c.activeSession.title}>{c.activeSession.title}</span></div>}
+            {c.activeView === 'sessions' ? <div className="session-header-actions" ref={setNoteActionsTarget} /> : null}
         {c.askAi.recovery.filter(item => !c.askAi.visible || item.reference.draftId !== c.askAi.reference?.draftId || Boolean(item.origin && item.origin.stageId !== c.askAi.panel?.legacyOrigin?.stageId)).map(item =>
           <div className="chat-recovery-notice" key={item.origin?.stageId ?? item.reference.draftId}>
             <span>{item.reason}</span>

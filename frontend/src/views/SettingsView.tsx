@@ -1,4 +1,4 @@
-import { ArrowLeft, BrainCircuit, Cpu, Loader2, RefreshCw, RotateCcw } from 'lucide-react'
+import { ArrowLeft, BrainCircuit, ChevronRight, Cpu, Loader2, RefreshCw, RotateCcw } from 'lucide-react'
 import { ActionButton } from '../components/ActionButton'
 import { SaveSettingsButton } from '../components/Common'
 import { ModelCombobox, ProviderGlyph } from '../components/ModelSelector'
@@ -125,7 +125,7 @@ export function SettingsView({
     <section className="settings-view">
       <header className="collection-header">
         <div className="settings-title-group">
-          <ActionButton variant="secondary" size="compact" className="settings-back-button" type="button" onClick={onBack}>
+          <ActionButton variant="secondary" className="settings-back-button" type="button" onClick={onBack}>
             <ArrowLeft size={15} />
             Back
           </ActionButton>
@@ -159,7 +159,7 @@ export function SettingsView({
                 <p className="eyebrow">AI</p>
                 <h2>Generation defaults</h2>
               </div>
-              <ActionButton variant="secondary" size="compact" type="button" aria-label="Refresh CLI configuration" title="Refresh CLI configuration" disabled={busyAction !== null} onClick={() => void onRefreshProviderStatus()}>
+              <ActionButton variant="secondary" type="button" aria-label="Refresh CLI configuration" title="Refresh CLI configuration" disabled={busyAction !== null} onClick={() => void onRefreshProviderStatus()}>
                 {providerDiscoveryState === 'refreshing' ? <Loader2 className="spin" size={14} /> : <RefreshCw size={14} />}
                 Refresh
               </ActionButton>
@@ -219,7 +219,7 @@ export function SettingsView({
                   {catalogStatusDescription(defaultProviderStatus, catalog, providerStatus?.catalogRollout ?? null)}
                 </p>
                 {modelOverrideForProvider(settingsDraft, defaultProvider) ? (
-                  <ActionButton variant="quiet" size="compact" type="button" disabled={!settingsDraft || aiDefaultControlsDisabled} onClick={() => updateDefaultModel('default')}><RotateCcw size={12} /> Reset to CLI default</ActionButton>
+                  <ActionButton variant="quiet" type="button" disabled={!settingsDraft || aiDefaultControlsDisabled} onClick={() => updateDefaultModel('default')}><RotateCcw size={12} /> Reset to CLI default</ActionButton>
                 ) : null}
               </div>
 
@@ -254,7 +254,7 @@ export function SettingsView({
                   {defaultValueDescription('reasoning', Boolean(reasoningEffort), snapshot, providerDiscoveryState)}
                 </p>
                 {reasoningEffort ? (
-                  <ActionButton variant="quiet" size="compact" type="button" disabled={!settingsDraft || aiDefaultControlsDisabled} onClick={() => updateReasoningEffort('')}><RotateCcw size={12} /> Reset to CLI default</ActionButton>
+                  <ActionButton variant="quiet" type="button" disabled={!settingsDraft || aiDefaultControlsDisabled} onClick={() => updateReasoningEffort('')}><RotateCcw size={12} /> Reset to CLI default</ActionButton>
                 ) : null}
               </div>
             </div>
@@ -269,7 +269,7 @@ export function SettingsView({
               <p className="inline-message advisory" role="status">{discoveryStatusTitle(providerDiscoveryState, snapshot?.state)}. {discoveryStatusBody(providerDiscoveryState, snapshot)} {snapshot?.error && snapshot.state === 'stale' ? sanitizedDiscoveryRecovery(snapshot.error.code, defaultProviderStatus?.label ?? 'the CLI') : null}</p>
             ) : null}
             <details className="cli-details">
-              <summary>Execution diagnostics</summary>
+              <summary><ChevronRight className="disclosure-chevron" size={14} aria-hidden="true" />Execution diagnostics</summary>
               <div className={`execution-overview ${providerDiscoveryState}`} role="status" aria-live="polite">
                 <div className="execution-status-row">
                   <span className="execution-status-icon">{discoveryStatusIcon(providerDiscoveryState)}</span>
@@ -366,7 +366,7 @@ export function SettingsView({
 
         <section className="wide-setting advanced-setting" id="template-settings">
           <details>
-            <summary>Output templates</summary>
+            <summary><ChevronRight className="disclosure-chevron" size={14} aria-hidden="true" />Output templates</summary>
             <TemplatesView settingsDraft={settingsDraft} updateSettingsDraft={updateSettingsDraft} />
           </details>
         </section>

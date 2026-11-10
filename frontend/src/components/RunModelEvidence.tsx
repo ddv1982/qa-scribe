@@ -9,7 +9,8 @@ const reportSourceLabels: Record<ReportedModel['source'], string> = {
 const providers = { claude_code: 'Claude Code', codex_cli: 'Codex', copilot_cli: 'GitHub Copilot' }
 
 export function RunModelEvidence({ run }: { run: AiRun | undefined }) {
-  if (!run) return <p className="chat-model-evidence">Model evidence unavailable</p>
+  // No run means nothing to report; an "unavailable" line under every answer is noise (R6).
+  if (!run) return null
   const selection = run.modelSelection
   if (selection.kind === 'legacy') return <p className="chat-model-evidence">{providers[run.provider]} · Legacy model · {selection.value} · Source unknown</p>
   const requested = selection.requested.kind === 'default' ? 'CLI Default'

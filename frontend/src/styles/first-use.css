@@ -49,8 +49,10 @@
 }
 @media (max-width: 760px) {
   .rail-utilities { display: flex; gap: var(--space-1); }
+  /* One treatment for every icon control in the narrow top bar (F15): 36x36, like the section buttons. */
   .rail-utilities .help-link, .rail-utilities .settings-link {
     width: var(--control-lg);
+    min-height: var(--control-lg);
     flex: 0 0 var(--control-lg);
     padding: 0;
     gap: 0;

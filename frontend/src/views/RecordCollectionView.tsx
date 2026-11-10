@@ -250,7 +250,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
             <input
               value={query}
               disabled={selectedEditing}
-              placeholder={`Search ${labels.heading.toLocaleLowerCase()}…`}
+              placeholder={`Search ${labels.heading.toLocaleLowerCase()} in this Session…`}
               onChange={(event) => setQuery(event.target.value)}
             />
           </label>
@@ -335,6 +335,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
                 <RichRecordActions
                   copyControls={<>
                     {recordChat ? <ActionButton variant="secondary" type="button" className="ask-ai-trigger" icon={Sparkles} disabled={isBusy}
+                      aria-expanded={recordChat.openRecordId === record.id}
                       onClick={() => void recordChat.onAskAi({ kind: sourceKind === 'finding' ? 'finding' : 'test_cases_draft', recordId: record.id, title: record.title, unsaved: selectedUnsaved })}>Ask AI</ActionButton> : null}
                     <CopyControls
                     snapshot={{ target: { kind: sourceKind, sessionId: record.sessionId, id: record.id, action: 'jira-text' }, title: record.title, bodyHtml: selectedCopyBody }}
