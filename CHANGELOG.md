@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.8.32 - 2026-11-10
+
+- Soften the highlight for the active Session, tab, and record: pale yellow in light mode and a muted amber with light text in dark mode.
+- Keep test case badges readable on the highlighted row in dark mode, and stop dropdowns showing light native styling in dark mode on Linux.
+- Keep keyboard focus rings fully visible on Session and record rows.
+- Roughly halve CI time by running the built-app E2E suite and Linux packaging in parallel with the quality gate, and stop slow shared runners from failing unit tests.
+
 ## v0.8.31 - 2026-11-09
 
 - Refresh the interface with a focused page for the Session Note, one header row, and a sidebar for Sessions and app navigation.
