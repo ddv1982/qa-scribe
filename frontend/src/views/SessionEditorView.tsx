@@ -9,7 +9,7 @@ import { ActionButton } from '../components/ActionButton'
 import { StatusPill } from '../components/Common'
 import type { BusyAction } from '../ui/types'
 import type { PendingAiActions } from '../ui/types'
-import type { ReactNode } from 'react'
+import { useLayoutEffect, useRef, type ComponentProps, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import type { ChatMode } from '../bindings'
 
@@ -163,10 +163,9 @@ export function SessionEditorView({
       <section key={activeSession.id} className="editor-card" aria-label="Session editor">
         {!noteReadOnly ? <FormatToolbar editorId={editorId} onUploadImage={onUploadImage} /> : null}
         <div className="document-body">
-          <input
-            className="session-title-input"
+          <SessionTitleField
             value={sessionTitle}
-            onChange={(event) => onSetSessionTitle(event.target.value)}
+            onChange={onSetSessionTitle}
             placeholder="Untitled session"
             aria-label="Session title"
             aria-invalid={sessionTitleValidationError ? true : undefined}
@@ -207,3 +206,24 @@ export function SessionEditorView({
     </div>
   )
 }
+
+/** A one-line title that wraps instead of clipping (F8). Newlines never enter the value. */
+function SessionTitleField({ value, onChange, ...props }: Omit<ComponentProps<'textarea'>, 'value' | 'onChange'> & {
+  value: string
+  onChange: (value: string) => void
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null)
+  useLayoutEffect(() => {
+    const node = ref.current
+    if (!node) return
+    const fit = () => { node.style.height = 'auto'; node.style.height = `${node.scrollHeight}px` }
+    fit()
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(fit)
+    observer?.observe(node)
+    return () => observer?.disconnect()
+  }, [value])
+  return <textarea {...props} ref={ref} rows={1} className="session-title-input" value={value}
+    onKeyDown={(event) => { if (event.key === 'Enter') event.preventDefault() }}
+    onChange={(event) => onChange(event.target.value.replace(/\r?\n/g, ' '))} />
+}
+

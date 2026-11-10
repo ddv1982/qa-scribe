@@ -80,6 +80,13 @@ describe('Record toolbar (R1, R2, R3)', () => {
   })
 })
 
+describe('Record search scope (R5)', () => {
+  it('names the Session scope in the search placeholder', () => {
+    renderRecord()
+    expect(screen.getByRole('textbox', { name: 'Search Test cases' })).toHaveAttribute('placeholder', 'Search test cases in this Session…')
+  })
+})
+
 describe('Ask AI transcript (R6)', () => {
   it('shows no model meta line when the answer has no recorded run', async () => {
     const { ChatMessageList } = await import('./ChatMessageList')

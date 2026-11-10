@@ -67,16 +67,6 @@
   box-shadow: 0 0 0 3px var(--focus-halo);
 }
 
-.top-context-label {
-  min-width: 0;
-  margin-left: auto;
-  overflow: hidden;
-  color: var(--text-secondary);
-  font-size: var(--font-size-sm);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .sr-only {
   position: absolute;
   width: 1px;
@@ -550,13 +540,18 @@
   white-space: nowrap;
 }
 
-.session-workspace-tabs button.active {
+.session-workspace-tabs button[aria-selected="true"] {
   font-weight: 600;
   color: var(--on-mark);
   background: var(--mark);
 }
 
-.session-workspace-tabs button:hover:not(.active) {
+.session-workspace-tabs button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.session-workspace-tabs button:hover:not([aria-selected="true"]) {
   color: var(--text-primary);
   background: var(--surface-sunken);
 }
@@ -567,7 +562,7 @@
   font-weight: 400;
 }
 
-.session-workspace-tabs button.active span {
+.session-workspace-tabs button[aria-selected="true"] span {
   color: inherit;
 }
 

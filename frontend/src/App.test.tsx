@@ -361,7 +361,9 @@ describe('App workflows', () => {
     await user.click(within(screen.getByRole('listbox', { name: 'Sessions' })).getByRole('option', { name: /beta session/i }))
     await waitFor(() => expect(tauriMock.openSessionNoteState).toHaveBeenLastCalledWith('session-2'))
     await waitFor(() => expect(screen.getByRole('tab', { name: /test cases/i })).toHaveAttribute('aria-selected', 'true'))
-    expect(screen.getByLabelText('Current search scope')).toHaveTextContent('Beta session')
+    expect(screen.getByRole('tablist', { name: 'Beta session workspace' })).toBeInTheDocument()
+    // R5: the header right side holds only the tab's own actions; the scope lives in the search placeholder.
+    expect(screen.queryByLabelText('Current search scope')).toBeNull()
   })
 
   it('uses the single left rail as the master list for library records', async () => {
@@ -425,7 +427,8 @@ describe('App workflows', () => {
     render(<App />)
 
     await waitFor(() => expect(screen.getByRole('tab', { name: /findings/i })).toHaveAttribute('aria-selected', 'true'))
-    expect(screen.getByLabelText('Current search scope')).toHaveTextContent('Account recovery')
+    expect(screen.getByRole('tablist', { name: 'Account recovery workspace' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Current search scope')).toBeNull()
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Reset email delayed' })).toBeInTheDocument())
     expect(window.location.hash).toBe('#/sessions/session-2/findings/finding-2')
 

@@ -181,6 +181,10 @@
   font-weight: 650;
   line-height: 1.15;
   letter-spacing: -0.015em;
+  display: block;
+  overflow: hidden;
+  resize: none;
+  overflow-wrap: anywhere;
 }
 
 .rich-editor {

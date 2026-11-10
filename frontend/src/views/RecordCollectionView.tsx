@@ -250,7 +250,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
             <input
               value={query}
               disabled={selectedEditing}
-              placeholder={`Search ${labels.heading.toLocaleLowerCase()}…`}
+              placeholder={`Search ${labels.heading.toLocaleLowerCase()} in this Session…`}
               onChange={(event) => setQuery(event.target.value)}
             />
           </label>

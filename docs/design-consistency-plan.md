@@ -129,10 +129,10 @@ Check: frontend tests, the Ask AI e2e specs (CI), and a look at all three Ask AI
 
 ### Phase 3: header, tabs, title, toolbar
 
-- [ ] P3.1 Apply R4 (F7) with an accessible focus ring.
-- [ ] P3.2 Apply R5 (F6).
-- [ ] P3.3 The long title wraps instead of clipping, and it stays visually above H2 at 640 px (F8).
-- [ ] P3.4 Align the formatting toolbar with the text column (F14).
+- [x] P3.1 Apply R4 (F7) with an accessible focus ring.
+- [x] P3.2 Apply R5 (F6).
+- [x] P3.3 The long title wraps instead of clipping, and it stays visually above H2 at 640 px (F8).
+- [x] P3.4 Align the formatting toolbar with the text column (F14).
 
 Check: tests, the contrast check, and a look at a long title at 1280 and 640 px.
 
@@ -168,6 +168,9 @@ Check: the release check output, the generated icons at 16, 32, 128 and 512 px, 
 - 2026-11-10: R1 is enforced by `frontend/scripts/check-css-colors.mjs`: `size="compact"` is allowed only in the Session header row and on the image-thumbnail remove overlay.
 - 2026-11-10: P2.3 keeps the record list hidden while Ask AI is open. Beside the 454 px panel the record column is about 580 px, too narrow for a list and a readable record; the record under discussion is the focus. The filter row stays on one line instead.
 - 2026-11-10: R6 "header menu" became one quiet row at the top of the transcript: the status text on the left and a "Conversation options" disclosure on the right. Moving it into the panel header would mean lifting `SessionChatView` state into `AppChat`, and e2e specs drive `.chat-options summary` in place.
+- 2026-11-10: F7 did not reproduce on a fresh load: the inactive Note tab computes a transparent background and weight 500. The tint in the earlier screenshot was the preview cursor's hover. R4 now keys the tint on `aria-selected` and tabs gained a focus ring.
+- 2026-11-10: F14 is kept as is. The toolbar's -8 px offset is a deliberate hang so the block-style label, not its invisible box, lines up with the title; the residual is about 5 px of native select padding. Removing the offset would push the label 13 px right of the text column.
+- 2026-11-10: The Session title is a one-row `<textarea>` that grows to fit, because an `<input>` cannot wrap (F8). Enter is ignored and pasted newlines become spaces.
 - 2026-11-10: Run as "full send". The phase stops and the P5.1 icon pick are made without waiting; the chosen concept and why are recorded here.
 
 - 2026-11-10: No mockup round and no screenshot tooling. Rules R1-R7 above stand in for the design pass. The icon is chosen from concepts in P5.1.
