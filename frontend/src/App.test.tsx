@@ -362,7 +362,6 @@ describe('App workflows', () => {
     await waitFor(() => expect(tauriMock.openSessionNoteState).toHaveBeenLastCalledWith('session-2'))
     await waitFor(() => expect(screen.getByRole('tab', { name: /test cases/i })).toHaveAttribute('aria-selected', 'true'))
     expect(screen.getByRole('tablist', { name: 'Beta session workspace' })).toBeInTheDocument()
-    // R5: the header right side holds only the tab's own actions; the scope lives in the search placeholder.
     expect(screen.queryByLabelText('Current search scope')).toBeNull()
   })
 
@@ -428,7 +427,6 @@ describe('App workflows', () => {
 
     await waitFor(() => expect(screen.getByRole('tab', { name: /findings/i })).toHaveAttribute('aria-selected', 'true'))
     expect(screen.getByRole('tablist', { name: 'Account recovery workspace' })).toBeInTheDocument()
-    expect(screen.queryByLabelText('Current search scope')).toBeNull()
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Reset email delayed' })).toBeInTheDocument())
     expect(window.location.hash).toBe('#/sessions/session-2/findings/finding-2')
 

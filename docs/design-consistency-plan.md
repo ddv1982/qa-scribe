@@ -157,7 +157,7 @@ Check: the release check output, the generated icons at 16, 32, 128 and 512 px, 
 
 ### Phase 6: close-out
 
-- [ ] P6.1 `bun run verify:fast` and the frontend tests pass.
+- [x] P6.1 `bun run verify:fast` and the frontend tests pass.
 - [ ] P6.2 Walk every finding F1-F17 in the running frontend and confirm it is fixed; CI's e2e suite (real WebKitGTK) is green.
 - [ ] P6.3 Re-read this file and list every unchecked item with its reason.
 
