@@ -1,5 +1,5 @@
 import { ActionButton } from '../components/ActionButton'
-import { ChevronRight, Paperclip, SlidersHorizontal } from 'lucide-react'
+import { ChevronRight, Paperclip } from 'lucide-react'
 import { useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { occupiedChoiceReason } from '../app/sessionChat.questions'
 import type { ChatContextPresentation } from '../app/sessionChat.context'
@@ -256,7 +256,7 @@ export function SessionChatView(props: SessionChatViewProps) {
         {/* One quiet row: conversation state on the left, options on the right (R6). */}
         <div className="chat-toolbar">
         {notes || loading || saving || working || activeJob || inputRecoveryPending || permissionRecoveryPending || error ? <p className={`chat-help chat-status${status === 'Conversation saved' ? ' sr-only' : ''}`} role="status" aria-live="polite">{status}</p> : null}
-        {notes ? <details className="chat-options"><summary><SlidersHorizontal size={14} aria-hidden="true" />Conversation options<ChevronRight className="disclosure-chevron" size={14} aria-hidden="true" /></summary>
+        {notes ? <details className="chat-options"><summary><ChevronRight className="disclosure-chevron" size={14} aria-hidden="true" />Conversation options</summary>
           <div className="chat-options-content">
             {modelSelectionControl || <p className="chat-help">Next invocation · {providerLabel} · {modelLabel}</p>}
             <div className="chat-buttons"><ActionButton variant="secondary" type="button" onClick={onConfigureAi} disabled={busy}>Configure AI</ActionButton>

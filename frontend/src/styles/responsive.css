@@ -149,9 +149,9 @@
     min-width: 0;
     width: 100%;
     height: var(--control-lg);
-    padding: 0 var(--space-2);
+    padding-left: var(--space-2);
     color: var(--text-primary);
-    background: var(--surface-raised);
+    background-color: var(--surface-raised);
     border: 1px solid var(--border-default);
     border-radius: var(--radius-md);
   }

@@ -1,3 +1,4 @@
+import { ChevronRight } from 'lucide-react'
 import { ActionButton } from '../components/ActionButton'
 import { useState } from 'react'
 import { writePlainClipboard } from '../editor/clipboardExport'
@@ -68,12 +69,12 @@ export function FirstUseDialog({ kind, onClose, onExploreExample, onStartSession
         <ActionButton variant="secondary" type="button" onClick={onExploreExample}>Explore an example</ActionButton>
       </section>
       <details>
-        <summary>Copy text and screenshots</summary>
+        <summary><ChevronRight className="disclosure-chevron" size={14} aria-hidden="true" />Copy text and screenshots</summary>
         <p>Copy uses the visible title and content, including unsaved edits. In a library, Copy uses the saved record. Copy does not save edits.</p>
         <p>Copy puts formatted text and a plain-text version on the clipboard. Images appear as text references. Use Copy first screenshot, then paste the image separately into your reporting tool. Repeat for other screenshots manually.</p>
       </details>
       <details>
-        <summary>Optional AI setup</summary>
+        <summary><ChevronRight className="disclosure-chevron" size={14} aria-hidden="true" />Optional AI setup</summary>
         <p>Capture, create, edit, and Copy work without AI. Install one supported CLI using its provider's instructions, then sign in in a terminal.</p>
         <ul>
           <li>Claude Code. Check <code>claude --version</code>, sign in with <code>claude auth login</code>, then check <code>claude auth status --json</code>.</li>
@@ -85,7 +86,7 @@ export function FirstUseDialog({ kind, onClose, onExploreExample, onStartSession
         <p>In Chat, paste screenshots with Ctrl+V or Cmd+V, or choose the paperclip beside Send. Inspect or remove thumbnails before sending. Images can be sent without text.</p>
       </details>
       <details>
-        <summary>Local data, privacy, and recovery</summary>
+        <summary><ChevronRight className="disclosure-chevron" size={14} aria-hidden="true" />Local data, privacy, and recovery</summary>
         <p>Sessions, Notes, Findings, test cases, and Chat live in a local database. Managed screenshots live in the same app-data directory.</p>
         <ul>
           <li>Linux. <code>~/.local/share/io.github.ddv1982.qa-scribe</code>, or under <code>$XDG_DATA_HOME</code> when set.</li>
@@ -96,7 +97,7 @@ export function FirstUseDialog({ kind, onClose, onExploreExample, onStartSession
         <p>AI sends selected context through your chosen CLI. Generation includes attachment metadata rather than raw image files. Images sent in Chat include their pixels. Chat tools can access data allowed by the CLI's permissions. Review those permissions before approval.</p>
       </details>
       <details>
-        <summary>Send feedback</summary>
+        <summary><ChevronRight className="disclosure-chevron" size={14} aria-hidden="true" />Send feedback</summary>
         <p>Copy this link and paste it into your browser to write a GitHub issue. Review and edit your report before you submit it. Remove private evidence.</p>
         <label className="feedback-url">Feedback URL<input readOnly value={feedbackUrl} onFocus={(event) => event.currentTarget.select()} /></label>
         <ActionButton variant="secondary" type="button" disabled={feedbackState === 'copying'} onClick={() => void copyFeedbackLink()}>Copy feedback link</ActionButton>

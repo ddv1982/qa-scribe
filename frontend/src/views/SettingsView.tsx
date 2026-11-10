@@ -1,4 +1,4 @@
-import { ArrowLeft, BrainCircuit, Cpu, Loader2, RefreshCw, RotateCcw } from 'lucide-react'
+import { ArrowLeft, BrainCircuit, ChevronRight, Cpu, Loader2, RefreshCw, RotateCcw } from 'lucide-react'
 import { ActionButton } from '../components/ActionButton'
 import { SaveSettingsButton } from '../components/Common'
 import { ModelCombobox, ProviderGlyph } from '../components/ModelSelector'
@@ -269,7 +269,7 @@ export function SettingsView({
               <p className="inline-message advisory" role="status">{discoveryStatusTitle(providerDiscoveryState, snapshot?.state)}. {discoveryStatusBody(providerDiscoveryState, snapshot)} {snapshot?.error && snapshot.state === 'stale' ? sanitizedDiscoveryRecovery(snapshot.error.code, defaultProviderStatus?.label ?? 'the CLI') : null}</p>
             ) : null}
             <details className="cli-details">
-              <summary>Execution diagnostics</summary>
+              <summary><ChevronRight className="disclosure-chevron" size={14} aria-hidden="true" />Execution diagnostics</summary>
               <div className={`execution-overview ${providerDiscoveryState}`} role="status" aria-live="polite">
                 <div className="execution-status-row">
                   <span className="execution-status-icon">{discoveryStatusIcon(providerDiscoveryState)}</span>
@@ -366,7 +366,7 @@ export function SettingsView({
 
         <section className="wide-setting advanced-setting" id="template-settings">
           <details>
-            <summary>Output templates</summary>
+            <summary><ChevronRight className="disclosure-chevron" size={14} aria-hidden="true" />Output templates</summary>
             <TemplatesView settingsDraft={settingsDraft} updateSettingsDraft={updateSettingsDraft} />
           </details>
         </section>

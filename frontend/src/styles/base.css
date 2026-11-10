@@ -59,6 +59,8 @@
 
   --text-primary: #1a201d;
   --text-secondary: #4a544f;
+  /* lucide chevron-down for native selects (R7); its stroke tracks --text-secondary. */
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234a544f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   --text-tertiary: #59635e;
 
   --border-subtle: rgba(26, 32, 29, 0.08);
@@ -120,6 +122,7 @@
 
   --text-primary: #e9ede9;
   --text-secondary: #b3bcb6;
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23b3bcb6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   --text-tertiary: #9aa49e;
 
   --border-subtle: rgba(255, 255, 255, 0.07);

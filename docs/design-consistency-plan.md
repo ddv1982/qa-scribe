@@ -138,10 +138,10 @@ Check: tests, the contrast check, and a look at a long title at 1280 and 640 px.
 
 ### Phase 4: Settings, selects, small screens
 
-- [ ] P4.1 Reproduce the heavy grey busy state (F12), then make disabled and busy states dimmed versions of the same control.
-- [ ] P4.2 Apply R7 (F11, F16).
-- [ ] P4.3 One icon-button treatment in the 640 px top bar (F15).
-- [ ] P4.4 Fix any rows added since this revision.
+- [x] P4.1 Reproduce the heavy grey busy state (F12), then make disabled and busy states dimmed versions of the same control.
+- [x] P4.2 Apply R7 (F11, F16).
+- [x] P4.3 One icon-button treatment in the 640 px top bar (F15).
+- [x] P4.4 Fix any rows added since this revision.
 
 Check: tests, the contrast check, and a look at Settings and the 640 px layout in both themes.
 
@@ -171,6 +171,9 @@ Check: the release check output, the generated icons at 16, 32, 128 and 512 px, 
 - 2026-11-10: F7 did not reproduce on a fresh load: the inactive Note tab computes a transparent background and weight 500. The tint in the earlier screenshot was the preview cursor's hover. R4 now keys the tint on `aria-selected` and tabs gained a focus ring.
 - 2026-11-10: F14 is kept as is. The toolbar's -8 px offset is a deliberate hang so the block-style label, not its invisible box, lines up with the title; the residual is about 5 px of native select padding. Removing the offset would push the label 13 px right of the text column.
 - 2026-11-10: The Session title is a one-row `<textarea>` that grows to fit, because an `<input>` cannot wrap (F8). Enter is ignored and pasted newlines become spaces.
+- 2026-11-10: F12 reproduced live: the disabled primary "Save settings" computed a sunken grey fill, a border and secondary text. Disabled buttons now keep their variant at 50% opacity; busy buttons stay at full strength.
+- 2026-11-10: R7 keeps the Settings AI choice row at 42 px, the height the Model combobox already uses and that e2e geometry checks rely on. Every native select now draws the same lucide chevron (`--select-chevron` in `base.css`), and every `<details>` summary uses the rotating `ChevronRight`.
+- 2026-11-10: P4.4 had no new rows; no inventory codes were added after revision 2.
 - 2026-11-10: Run as "full send". The phase stops and the P5.1 icon pick are made without waiting; the chosen concept and why are recorded here.
 
 - 2026-11-10: No mockup round and no screenshot tooling. Rules R1-R7 above stand in for the design pass. The icon is chosen from concepts in P5.1.
