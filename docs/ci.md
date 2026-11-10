@@ -10,9 +10,13 @@ The CI workflow is deliberately divided by responsibility:
 - **Quality gate (Linux)** is the authoritative repository gate. It runs the
   frontend and dependency audits, static checks, tests, release-script tests,
   production build, Tauri contracts, Rust formatting, clippy, tests, build,
-  smoke harness, a built-application WebdriverIO suite, and the deterministic
-  large-fixture startup budget. This job always runs so changes cannot
-  accidentally fall outside a path filter.
+  and smoke harness. This job always runs so changes cannot accidentally fall
+  outside a path filter.
+- **Built application E2E (Linux)** runs the built-application WebdriverIO
+  suite and the deterministic large-fixture startup budget through the same
+  `run-built-app-e2e` action that release validation uses. It is the longest
+  check, so it runs unconditionally in parallel with the quality gate instead
+  of extending it. Both are required through `CI success`.
 - **Platform tests (macOS)** run native Rust tests and an Intel cross-compile
   when Rust, Tauri, frontend, icon, workflow, toolchain, or setup-helper inputs
   change. Platform-neutral frontend checks and dependency audits are not repeated here.
@@ -21,8 +25,8 @@ The CI workflow is deliberately divided by responsibility:
   execution. The job is non-blocking and deliberately excluded from the
   `CI success` dependency graph while it accumulates promotion evidence.
 - **Package test (Linux)** builds and validates distributable Linux artifacts
-  only when a packaging input changes. It starts only after the quality gate
-  succeeds. After metadata validation it installs and launches the final deb
+  only when a packaging input changes. It runs in parallel with the quality
+  gate; `CI success` still requires both. After metadata validation it installs and launches the final deb
   and executes the AppImage on Ubuntu, then mounts the same artifact directory
   into a digest-pinned Fedora 44 container where `dnf` resolves the final RPM's
   dependencies before launch. Fedora 44 matches the CI build host's glibc 2.43
