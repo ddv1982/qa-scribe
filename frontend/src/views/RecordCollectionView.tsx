@@ -340,7 +340,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
                     <CopyControls
                     snapshot={{ target: { kind: sourceKind, sessionId: record.sessionId, id: record.id, action: 'jira-text' }, title: record.title, bodyHtml: selectedCopyBody }}
                     copyState={copyState} onCopy={onCopy} disabled={isBusy}
-                    label={record.title.trim() || labels.recordNounLower} screenshotCount={screenshotCount} size="regular" /></>}
+                    label={record.title.trim() || labels.recordNounLower} screenshotCount={screenshotCount} /></>}
                   deleting={deleting}
                   deleteLabel={`Delete ${record.title}`}
                   deleteTitle={`Delete ${labels.recordNounLower}`}

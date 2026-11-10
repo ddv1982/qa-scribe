@@ -113,7 +113,7 @@ export function EditableRichRecord({
   )
 }
 
-export function CopyControls({ snapshot, copyState, onCopy, disabled = false, label, screenshotCount = 0, size = 'compact' }: {
+export function CopyControls({ snapshot, copyState, onCopy, disabled = false, label, screenshotCount = 0, size = 'regular' }: {
   snapshot: ClipboardSnapshot
   copyState: CopyState
   onCopy: (snapshot: ClipboardSnapshot) => Promise<void>

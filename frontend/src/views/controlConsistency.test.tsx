@@ -97,3 +97,12 @@ describe('Ask AI transcript (R6)', () => {
     expect(document.querySelector('.chat-model-evidence')).toBeNull()
   })
 })
+
+describe('Copy outside the Session header (R1)', () => {
+  it('defaults to the regular height', async () => {
+    const { CopyControls } = await import('./RichRecordView')
+    render(<CopyControls snapshot={{ target: { kind: 'draft', sessionId: 's', id: 'd', action: 'jira-text' }, title: 'T', bodyHtml: '<p>B</p>' }}
+      copyState={{ status: 'idle' }} onCopy={async () => {}} label="T" />)
+    expect(screen.getByRole('button', { name: 'Copy T' })).not.toHaveClass('action-button--compact')
+  })
+})
