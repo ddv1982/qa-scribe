@@ -286,7 +286,7 @@ describe('AC3 first use, read-only example, and Help', function () {
     const finished = await saved()
     await browser.refresh()
     await $('h2=Required postcode accepted empty').waitForDisplayed()
-    assert.match(await $('[aria-label="Current search scope"]').getText(), /AC3 required postcode/)
+    assert.match(await $('[role="tablist"]').getAttribute('aria-label'), /AC3 required postcode/)
     assert.equal(await $('dialog').isExisting(), false)
     assert.equal(await $('button=Explore an example').isExisting(), false)
     const reopened = await saved()
