@@ -335,11 +335,12 @@ export function RecordCollectionView<T extends CollectionRecord>({
                 <RichRecordActions
                   copyControls={<>
                     {recordChat ? <ActionButton variant="secondary" type="button" className="ask-ai-trigger" icon={Sparkles} disabled={isBusy}
+                      aria-expanded={recordChat.openRecordId === record.id}
                       onClick={() => void recordChat.onAskAi({ kind: sourceKind === 'finding' ? 'finding' : 'test_cases_draft', recordId: record.id, title: record.title, unsaved: selectedUnsaved })}>Ask AI</ActionButton> : null}
                     <CopyControls
                     snapshot={{ target: { kind: sourceKind, sessionId: record.sessionId, id: record.id, action: 'jira-text' }, title: record.title, bodyHtml: selectedCopyBody }}
                     copyState={copyState} onCopy={onCopy} disabled={isBusy}
-                    label={record.title.trim() || labels.recordNounLower} screenshotCount={screenshotCount} /></>}
+                    label={record.title.trim() || labels.recordNounLower} screenshotCount={screenshotCount} size="regular" /></>}
                   deleting={deleting}
                   deleteLabel={`Delete ${record.title}`}
                   deleteTitle={`Delete ${labels.recordNounLower}`}

@@ -265,7 +265,7 @@ describe('App workflows', () => {
     render(<App />)
 
     await screen.findByDisplayValue('Original note.')
-    await user.click(screen.getByRole('button', { name: /summarize with AI/i }))
+    await user.click(screen.getByRole('button', { name: /^summarize$/i }))
     const dialog = screen.getByRole('dialog', { name: /summarize note/i })
     await user.click(within(dialog).getByRole('button', { name: /summarize note/i }))
 

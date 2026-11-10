@@ -16,7 +16,7 @@ Open **Settings** and choose **Refresh CLI configuration** after installation or
 
 Installed means the CLI executable responds. Authenticated means the CLI has accepted local credentials. Ready means QA Scribe's current checks passed. Readiness does not guarantee account entitlement, quota, network availability, or success with a selected model.
 
-Choose **Generate with AI** inside a new Finding or test-case draft, choose **Summarize with AI** on Note, or send a Chat message to request AI. Review the context before generation. A status refresh checks configuration and can run CLI probes, but does not request generated output. Opening Help or the synthetic example does not refresh providers.
+Choose **Generate with AI** inside a new Finding or test-case draft, choose **Summarize** on Note, or send a Chat message to request AI. Review the context before generation. A status refresh checks configuration and can run CLI probes, but does not request generated output. Opening Help or the synthetic example does not refresh providers.
 
 ## Create with optional AI
 
@@ -42,7 +42,7 @@ Provider status can be ready, auth required, install required, or error. Provide
 
 Create or open a Session, then select **Ask AI** beside the Note. The conversation opens in the same panel style as Ask AI for Findings and test cases; the Note stays editable alongside it in a wide window. Close the panel to return to the Note in a narrow window. Notes keeps its own conversation, separate from record conversations. Chat uses the same detected, authenticated local provider and model selection as existing Note actions. Send messages explicitly, exchange testing details, and choose **Add conversation to note** when every turn is complete and the composer is empty.
 
-Submission appends the role-labelled conversation to the primary Note, preserves its existing rich content, and closes the Ask AI panel. You can edit it, choose **Create test cases** or **Create finding** and then **Generate with AI** inside the draft, or use **Summarize with AI**. Submission itself makes no AI request.
+Submission appends the role-labelled conversation to the primary Note, preserves its existing rich content, and closes the Ask AI panel. You can edit it, choose **Create test cases** or **Create finding** and then **Generate with AI** inside the draft, or use **Summarize**. Submission itself makes no AI request.
 
 Expand **Conversation options** for model selection, provider setup, usage details, or **Start new conversation**. Closing and reopening Notes Ask AI retains its current messages, unsent text, and images.
 

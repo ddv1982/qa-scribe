@@ -72,3 +72,30 @@ if (legacyCallers.length > 0) {
   process.exit(1);
 }
 console.log('action callers: OK; navigation, options, segmented selections and editor commands retain their semantic controls');
+
+// R1 (docs/design-consistency-plan.md): compact 32px buttons belong to the
+// Session header row only, plus the remove overlay on an image thumbnail.
+const compactAllowance = new Map([
+  ['views/SessionEditorView.tsx', 2],
+  ['app/AppShell.tsx', 1],
+  ['views/ChatImages.tsx', 1],
+]);
+const compactViolations = [];
+function checkCompact(directory) {
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) checkCompact(path);
+    else if (entry.name.endsWith('.tsx') && !entry.name.includes('.test.')) {
+      const count = (readFileSync(path, 'utf8').match(/size="compact"/g) ?? []).length;
+      const relative = path.slice(sourceDir.length + 1).replaceAll('\\', '/');
+      if (count > (compactAllowance.get(relative) ?? 0)) compactViolations.push(`${relative}: ${count} compact button(s), ${compactAllowance.get(relative) ?? 0} allowed`);
+    }
+  }
+}
+checkCompact(sourceDir);
+if (compactViolations.length > 0) {
+  console.error(`Compact buttons outside the Session header row:\n${compactViolations.join('\n')}`);
+  process.exit(1);
+}
+console.log('control sizes: OK; compact buttons appear only in the Session header row');
+

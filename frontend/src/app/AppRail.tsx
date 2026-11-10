@@ -73,7 +73,7 @@ export function AppRail({ c, commandById, onOpenCommands, onLibrarySidebarTarget
         </div>
         {c.filteredSessions.length > visibleSessionLimit ? <p className="session-picker-more">Showing {visibleSessionLimit} of {c.filteredSessions.length}. Search to narrow.</p> : null}
         {!c.sessionLibraryComplete ? (
-          <ActionButton variant="secondary" size="compact" type="button" disabled={!loadAll?.available} onClick={() => runCommand('sessions.load-all')}>
+          <ActionButton variant="secondary" type="button" disabled={!loadAll?.available} onClick={() => runCommand('sessions.load-all')}>
             {c.busyAction === 'load-session-library' ? <Loader2 className="spin" size={16} /> : null}
             {loadAll?.label}
           </ActionButton>

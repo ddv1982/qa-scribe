@@ -10,6 +10,8 @@ export type RecordChatActions = {
   onSelectRecord: (target: RecordChatSelection | null, requestId?: string) => void
   revealRequest?: import('./conversationPresentation').RecordRevealRequest | null
   acknowledgeReveal?: (request: import('./conversationPresentation').RecordRevealRequest) => void
+  /** The record whose Ask AI panel is open, for the trigger's pressed state. */
+  openRecordId?: string | null
 }
 
 export function captureRecordContext(sessionId: string, target: RecordChatTarget, records: RecordWorkspace): ChatTarget {

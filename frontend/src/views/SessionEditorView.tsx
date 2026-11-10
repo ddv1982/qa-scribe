@@ -137,7 +137,7 @@ export function SessionEditorView({
   const headerActions = (
     <div className="document-actions">
       {canUndoLatestGeneration ? (
-        <ActionButton variant="quiet" size="compact" type="button" disabled={isBusy || noteReadOnly} onClick={() => void onUndoLatestGeneration()}>
+        <ActionButton variant="secondary" size="compact" type="button" disabled={isBusy || noteReadOnly} onClick={() => void onUndoLatestGeneration()}>
           {undoingGeneration ? <Loader2 className="spin" size={16} /> : <Undo2 size={16} />}
           Undo generation
         </ActionButton>
@@ -192,12 +192,12 @@ export function SessionEditorView({
         <div className="ai-action-buttons">
           <RecordCreationActions commands={creationCommands.finding} secondary />
           <RecordCreationActions commands={creationCommands.testware} secondary />
-          {onSetSessionMode ? <ActionButton variant="quiet" className="ask-ai-trigger" icon={Sparkles}
+          {onSetSessionMode ? <ActionButton variant="secondary" className="ask-ai-trigger" icon={Sparkles}
             aria-expanded={sessionMode === 'chat'} aria-controls="notes-ask-ai"
             onClick={() => { onSetSessionMode('chat'); document.querySelector<HTMLTextAreaElement>('#notes-ask-ai textarea:not(:disabled)')?.focus({ preventScroll: true }) }}>Ask AI</ActionButton> : null}
-          <ActionButton variant="quiet" type="button" aria-describedby={!activeProviderAvailable ? "note-summary-unavailable" : undefined} disabled={isBusy || summaryPending || !noteIsReady || !activeProviderAvailable} onClick={() => void onAiAction('summary')}>
-            {busyAction === 'ai-summary' || summaryPending ? <Loader2 className="spin" size={16} /> : <Sparkles size={16} />}
-            {summaryPending ? 'Summarizing notes' : 'Summarize with AI'}
+          <ActionButton variant="secondary" type="button" icon={Sparkles} loading={busyAction === 'ai-summary' || summaryPending}
+            aria-describedby={!activeProviderAvailable ? "note-summary-unavailable" : undefined} disabled={isBusy || !noteIsReady || !activeProviderAvailable} onClick={() => void onAiAction('summary')}>
+            {summaryPending ? 'Summarizing' : 'Summarize'}
           </ActionButton>
         </div>
         {!activeProviderAvailable ? <p className="field-description" id="note-summary-unavailable">

@@ -342,7 +342,7 @@ const workflows = {
     title: 'reconciles a Summary that completes after the WebView reloads',
     run: async () => {
       await createSessionFixture('E2E Summary recovery session', 'Summarize this Note after a WebView reload.')
-      const summarize = await button('Summarize with AI')
+      const summarize = await button('Summarize')
       await summarize.waitForClickable()
       await summarize.click()
       const confirm = await (await $('dialog')).$('button=Summarize note')
@@ -351,7 +351,7 @@ const workflows = {
       await waitForFixtureFile('codex-exec-1.started')
 
       await browser.refresh()
-      const recoveredPending = await button('Summarizing notes')
+      const recoveredPending = await button('Summarizing')
       await recoveredPending.waitForDisplayed({ timeout: 10_000 })
       await releaseFixtureInvocation(1)
 

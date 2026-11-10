@@ -25,14 +25,14 @@ export function ChatImageFailures({ failures, images, disabled, onRetry, onRemov
         <p>These attachments could belong to this failed import or another client. Retry verification, or remove each unverified attachment below and then choose Remove failed. Sending stays blocked until this is resolved.</p>
         <ul aria-label={`Unverified attachments for ${failure.filename}`}>
           {failure.recovery.images.map(image => <li key={image.attachmentId}>
-            <ActionButton variant="secondary" size="compact" disabled={disabled || !images.some(value => value.attachmentId === image.attachmentId)}
+            <ActionButton variant="secondary" disabled={disabled || !images.some(value => value.attachmentId === image.attachmentId)}
               onClick={() => onRemoveImage?.(image.attachmentId)}>Remove unverified {image.filename}</ActionButton>
             {!images.some(value => value.attachmentId === image.attachmentId) ? <span> Removed from message</span> : null}
           </li>)}
         </ul>
       </> : null}
-      <ActionButton variant="secondary" size="compact" disabled={disabled} onClick={() => void onRetry?.(failure.id)}>Retry {failure.filename}</ActionButton>
-      <ActionButton variant="quiet" size="compact" disabled={disabled} onClick={() => void onRemove?.(failure.id)}>Remove failed {failure.filename}</ActionButton>
+      <ActionButton variant="secondary" disabled={disabled} onClick={() => void onRetry?.(failure.id)}>Retry {failure.filename}</ActionButton>
+      <ActionButton variant="quiet" disabled={disabled} onClick={() => void onRemove?.(failure.id)}>Remove failed {failure.filename}</ActionButton>
     </li>)}
   </ul>
 }
@@ -72,7 +72,7 @@ function ChatImage({ image, disabled, onRemove, unverified }: {
       <img src={preview} alt={image.filename} />
     </button> : <div className="chat-image-placeholder">
       <span>{loaded ? 'Preview unavailable' : 'Loading image…'}</span>
-      {loaded ? <ActionButton variant="quiet" size="compact" onClick={() => setAttempt(value => value + 1)}>Retry preview</ActionButton> : null}
+      {loaded ? <ActionButton variant="quiet" onClick={() => setAttempt(value => value + 1)}>Retry preview</ActionButton> : null}
     </div>}
     <span className="chat-image-name" title={image.filename}>{image.filename}</span>
     {onRemove ? <span className="chat-image-status">{unverified ? 'Verification pending' : 'Ready to send'}</span> : null}

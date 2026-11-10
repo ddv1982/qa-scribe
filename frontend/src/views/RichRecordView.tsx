@@ -113,13 +113,15 @@ export function EditableRichRecord({
   )
 }
 
-export function CopyControls({ snapshot, copyState, onCopy, disabled = false, label, screenshotCount = 0 }: {
+export function CopyControls({ snapshot, copyState, onCopy, disabled = false, label, screenshotCount = 0, size = 'compact' }: {
   snapshot: ClipboardSnapshot
   copyState: CopyState
   onCopy: (snapshot: ClipboardSnapshot) => Promise<void>
   disabled?: boolean
   label: string
   screenshotCount?: number
+  /** `compact` belongs to the Session header row only (R1). */
+  size?: 'regular' | 'compact'
 }) {
   const identity = snapshot.target.kind === 'note' ? `note ${snapshot.title}` : label
   const screenshot: ClipboardSnapshot = { ...snapshot, target: { ...snapshot.target, action: 'screenshot' } }
@@ -132,13 +134,13 @@ export function CopyControls({ snapshot, copyState, onCopy, disabled = false, la
   const copyDisabled = disabled || copyState.status === 'pending'
   const failure = copyState.status === 'failed' && (textMatches || screenshotMatches) ? copyState : null
   return <>
-    <ActionButton variant="secondary" size="compact"
+    <ActionButton variant="secondary" size={size}
       type="button" aria-label={copied ? `${identity} copied` : `Copy ${identity}`}
       disabled={copyDisabled} onClick={() => void onCopy(snapshot)}>
       {copying ? <Loader2 className="spin" size={16} /> : copied ? <CheckCircle2 size={16} /> : <Copy size={16} />}
       {copied ? 'Copied' : copying ? 'Copying' : 'Copy'}
     </ActionButton>
-    {screenshotCount > 0 ? <ActionButton variant="secondary" size="compact"
+    {screenshotCount > 0 ? <ActionButton variant="secondary" size={size}
       type="button" aria-label={screenshotCopied ? `${identity} screenshot copied` : `Copy first ${identity} screenshot`}
       disabled={copyDisabled} onClick={() => void onCopy(screenshot)}>
       {copyingScreenshot ? <Loader2 className="spin" size={16} /> : screenshotCopied ? <CheckCircle2 size={16} /> : <ImageIcon size={16} />}
@@ -169,7 +171,7 @@ export function RichRecordActions({
 }) {
   return <>
     {copyControls}
-    <ActionButton variant="primary" icon={editing ? Save : PencilLine} loading={saving} disabled={isBusy} onClick={editing ? onSave : onEdit}>
+    <ActionButton variant={editing ? 'primary' : 'secondary'} icon={editing ? Save : PencilLine} loading={saving} disabled={isBusy} onClick={editing ? onSave : onEdit}>
       {editing ? 'Save' : 'Edit'}
     </ActionButton>
     {editing ? <ActionButton variant="destructive-quiet" icon={X} disabled={isBusy} onClick={onCancelEdit}>Discard</ActionButton>

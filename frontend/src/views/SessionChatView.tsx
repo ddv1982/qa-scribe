@@ -222,7 +222,7 @@ export function SessionChatView(props: SessionChatViewProps) {
                   <p id={`${id}-permission-input`} className="chat-message-text chat-permission-input" tabIndex={0} aria-label={permissionExpanded ? 'Complete arguments' : 'Arguments preview'}>{permissionPreview}</p>
                   {permissionTruncated ? <>
                     <p className="chat-help">Arguments preview truncated to the first {permissionPreviewLimit.toLocaleString('en-US')} characters.</p>
-                    <ActionButton variant="secondary" size="compact" type="button" aria-controls={`${id}-permission-input`} onClick={() => setExpandedPermissionKey(permissionKey)}>Show complete arguments</ActionButton>
+                    <ActionButton variant="secondary" type="button" aria-controls={`${id}-permission-input`} onClick={() => setExpandedPermissionKey(permissionKey)}>Show complete arguments</ActionButton>
                   </> : null}
                 </> : null}
               </div>
@@ -241,7 +241,7 @@ export function SessionChatView(props: SessionChatViewProps) {
               </div>
             ) : null}
             <div className="chat-buttons">
-              {needsProviderRecovery && onRecheck ? <ActionButton variant="secondary" size="compact" type="button" disabled={recheckDisabled} onClick={() => { if (!recheckDisabled) void onRecheck() }}>Recheck status</ActionButton> : null}
+              {needsProviderRecovery && onRecheck ? <ActionButton variant="secondary" type="button" disabled={recheckDisabled} onClick={() => { if (!recheckDisabled) void onRecheck() }}>Recheck status</ActionButton> : null}
               {activeJob ? <ActionButton variant="secondary" type="button" disabled={job?.state === 'cancelling'} onClick={() => void onCancel()}>{record ? 'Stop' : 'Cancel response'}</ActionButton> : null}
             </div>
           </footer>
@@ -261,14 +261,14 @@ export function SessionChatView(props: SessionChatViewProps) {
                 ? 'The permission decision could not be confirmed. Recheck status to recover its current state without repeating the decision.'
                 : 'Configure AI to review provider setup or sign-in. Rechecking status does not send a message or retry a response.'}
             </p>
-            {onRecheck ? <ActionButton variant="secondary" size="compact" type="button" disabled={recheckDisabled} onClick={() => { if (!recheckDisabled) void onRecheck() }}>Recheck status</ActionButton> : null}
+            {onRecheck ? <ActionButton variant="secondary" type="button" disabled={recheckDisabled} onClick={() => { if (!recheckDisabled) void onRecheck() }}>Recheck status</ActionButton> : null}
           </div>
         ) : null}
 
         {notes ? <details className="chat-options"><summary>Conversation options</summary>
           <div className="chat-options-content">
             {modelSelectionControl || <p className="chat-help">Next invocation · {providerLabel} · {modelLabel}</p>}
-            <div className="chat-buttons"><ActionButton variant="secondary" size="compact" type="button" onClick={onConfigureAi} disabled={busy}>Configure AI</ActionButton>
+            <div className="chat-buttons"><ActionButton variant="secondary" type="button" onClick={onConfigureAi} disabled={busy}>Configure AI</ActionButton>
               {!addedToNote ? <StartNewConversation state={notes} /> : null}</div>
             <p className="chat-counts">{messages.length} / 128 messages · {(transcriptBytes / 1024).toFixed(1)} / 128 KiB transcript</p>
           </div>

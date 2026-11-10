@@ -48,6 +48,14 @@
 }
 
 .action-button:enabled:hover { background: var(--action-hover-fill); }
+/* An Ask AI trigger whose panel is open reads as selected (R3). */
+.ask-ai-trigger[aria-expanded="true"] {
+  --action-text: var(--accent);
+  --action-fill: var(--accent-tint);
+  --action-hover-fill: var(--accent-tint);
+  border-color: var(--accent-border);
+}
+.ask-ai-trigger[aria-expanded="true"]:enabled:hover { border-color: var(--accent-border); }
 .action-button--secondary:enabled:hover { border-color: var(--border-strong); }
 
 .action-button:focus-visible {
