@@ -23,8 +23,8 @@ export async function pendingComposerSave(theme, sessionId, artifacts, save) {
       const sendPaint = getComputedStyle(document.querySelector('.chat-compose-actions .action-button--primary'))
       return {
         viewport: { width: innerWidth, height: innerHeight },
-        review: review ? { text: review.querySelector('.chat-help').textContent,
-          messages: [...review.querySelectorAll('.chat-message-text')].map(node => node.textContent),
+        review: review ? { text: review.closest('.chat-handoff').querySelector('.chat-help').textContent,
+          messages: [...document.querySelectorAll('[role="region"][aria-label="Saved conversation"] .chat-message-text')].map(node => node.textContent),
           expanded: review.querySelector('button').getAttribute('aria-expanded') } : null,
         reason: document.querySelector('.chat-handoff [id$="-reason"]')?.textContent ?? '',
         counts: document.querySelector('.chat-counts').textContent,
