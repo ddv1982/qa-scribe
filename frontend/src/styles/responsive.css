@@ -20,18 +20,7 @@
 
 @media (max-width: 1100px) {
   .app-shell {
-    width: 100%;
-    min-height: 100vh;
-    margin: 0;
-    border-radius: 0;
-    grid-template-columns: 244px minmax(0, 1fr);
-    grid-template-rows: 56px 1fr;
-  }
-
-  .top-bar {
-    grid-template-columns: 204px minmax(0, 1fr) auto;
-    gap: var(--space-4);
-    padding-inline: var(--space-4);
+    grid-template-columns: 228px minmax(0, 1fr);
   }
 
   .session-workspace {
@@ -72,7 +61,7 @@
   }
 
   .document-body {
-    padding-block: var(--space-4);
+    padding-block: var(--space-2);
   }
 
   .session-title-input {
@@ -99,103 +88,54 @@
 
 @media (max-width: 760px) {
   .app-shell {
-    width: 100%;
-    min-height: 100dvh;
-    margin: 0;
-    grid-template-columns: 1fr;
-    grid-template-rows: auto auto 1fr;
-    border: 0;
-    border-radius: 0;
-  }
-
-  .top-bar {
-    grid-column: 1;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: var(--space-3);
-    padding: var(--space-4);
-  }
-
-  .global-search,
-  .top-context-label {
-    grid-column: 1 / -1;
-    grid-row: 2;
-  }
-
-  .top-actions {
-    grid-column: 2;
-    grid-row: 1;
-  }
-
-  .command-trigger-label,
-  .command-palette-trigger kbd {
-    display: none;
-  }
-
-  .command-palette-trigger {
-    width: var(--control-lg);
-    padding: 0;
-  }
-
-  .top-bar:not(:has(.top-new-button)) {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-
-  .top-bar:not(:has(.top-new-button)) .top-context-label {
-    grid-column: 1 / -1;
-    grid-row: 2;
-  }
-
-  .top-bar:not(:has(.top-new-button)) .top-actions {
-    grid-column: 2;
-    grid-row: 1;
-  }
-
-  .top-new-button {
-    flex: 0 0 auto;
-  }
-
-  .top-actions {
-    justify-content: stretch;
-    flex-wrap: wrap;
-  }
-
-  .top-actions .theme-toggle {
-    flex: 1 1 100%;
-    width: 100%;
-  }
-
-  .top-actions .theme-toggle button {
-    flex: 1 1 0;
-    justify-content: center;
-  }
-
-  .top-context-label {
-    min-height: var(--control-md);
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
   }
 
   .left-rail {
     grid-column: 1;
-    grid-row: 2;
+    grid-row: 1;
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "head head new"
+      "nav select utilities";
     align-items: center;
     gap: var(--space-2);
     padding: var(--space-2) var(--space-3);
-    border-right: 0;
-    border-bottom: 1px solid var(--border-default);
   }
 
   .workspace-nav {
+    grid-area: nav;
     display: flex;
     gap: var(--space-1);
-    order: 1;
+    margin: 0;
+    padding: 0;
+    border: 0;
   }
 
+  .rail-head {
+    grid-area: head;
+    padding: 0;
+  }
+
+  .top-new-button {
+    grid-area: new;
+    width: auto;
+  }
+
+  .rail-utilities {
+    grid-area: utilities;
+  }
+
+  /* Search narrows the Session list, which the compact select replaces here. */
+  .global-search,
   .session-picker {
     display: none;
   }
 
   .compact-session-select {
+    grid-area: select;
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
     align-items: center;
@@ -203,7 +143,6 @@
     min-width: 0;
     color: var(--text-secondary);
     font-size: var(--font-size-sm);
-    order: 2;
   }
 
   .compact-session-select select {
@@ -217,16 +156,9 @@
     border-radius: var(--radius-md);
   }
 
-  .left-rail .settings-link {
-    width: var(--control-lg);
-    padding: 0;
-    justify-content: center;
-    font-size: 0;
-    order: 3;
-  }
-
   .left-rail .rail-item {
     width: var(--control-lg);
+    min-height: var(--control-lg);
     padding: 0;
     justify-content: center;
     font-size: 0;
@@ -238,8 +170,7 @@
 
   .library-sidebar {
     grid-column: 1 / -1;
-    order: 4;
-    padding: var(--space-2) 0 0;
+    padding: 0;
     margin: 0;
     overflow: visible;
   }
@@ -265,23 +196,14 @@
 
   .center-workspace {
     grid-column: 1;
-    grid-row: 3;
+    grid-row: 2;
+    margin: 0 var(--space-2) var(--space-2);
   }
 
   .session-context-header {
-    align-items: stretch;
-    flex-direction: column;
-    gap: var(--space-2);
-    padding: var(--space-3) var(--space-3) 0;
-  }
-
-  .session-workspace-tabs {
-    width: 100%;
-  }
-
-  .session-workspace-tabs button {
-    flex: 1 0 auto;
-    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0 var(--space-2);
+    padding: var(--space-1) var(--space-3);
   }
 
   .session-workspace {
@@ -290,18 +212,13 @@
     padding: var(--space-4) var(--space-3);
   }
 
-  .document-topline,
   .collection-header {
     flex-wrap: wrap;
   }
 
-  .bottom-command-bar {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .document-actions {
-    justify-content: space-between;
+  .session-header-actions {
+    flex: 1 1 100%;
+    margin: 0;
   }
 
   .collection-header-actions {
@@ -312,13 +229,18 @@
     flex: 1 1 170px;
   }
 
-  .bottom-command-bar button {
+  .ai-action-buttons {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     width: 100%;
   }
 
-  .ai-action-buttons {
-    grid-template-columns: 1fr;
-    width: 100%;
+  .ai-action-buttons > .ask-ai-trigger {
+    margin: 0;
+  }
+
+  .ai-action-buttons > .ask-ai-trigger::before {
+    display: none;
   }
 
   .ai-provider-summary {
@@ -367,10 +289,6 @@
 
   .testware-metadata-badges {
     justify-content: flex-start;
-  }
-
-  .document-body {
-    padding: var(--space-4);
   }
 
   .session-title-input {
@@ -449,49 +367,6 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .top-bar {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-
-  .global-search,
-  .top-context-label {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    min-width: 0;
-  }
-
-  .top-actions {
-    grid-column: 2;
-    grid-row: 1;
-  }
-
-  .command-palette-trigger {
-    width: var(--control-lg);
-    padding: 0;
-    font-size: 0;
-  }
-
-  .command-palette-trigger kbd {
-    display: none;
-  }
-
-  .top-bar:has(.top-new-button) .top-actions {
-    grid-column: 1 / -1;
-    grid-row: 3;
-  }
-
-  .top-new-button {
-    flex: 1 1 auto;
-  }
-
-  .session-breadcrumb {
-    display: none;
-  }
-
-  .session-context-header {
-    padding-top: 0;
-  }
-
   .session-workspace-tabs button {
     min-width: 0;
     padding-inline: var(--space-2);
@@ -501,13 +376,17 @@
   .session-workspace-tabs {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    width: 100%;
+    flex: 1 1 100%;
     overflow: visible;
   }
 
   .session-workspace-tabs button {
     justify-content: center;
     gap: var(--space-1);
+  }
+
+  .brand-cluster strong {
+    display: none;
   }
 
   .compact-session-select {

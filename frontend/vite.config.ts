@@ -24,6 +24,8 @@ export default defineConfig({
     environment: 'jsdom',
     // Bound JSDOM contention on developer desktops and shared CI hosts.
     maxWorkers: 2,
+    // Multi-step controller workflows can exceed five seconds on shared CI hosts.
+    testTimeout: 10_000,
     setupFiles: ['./src/test/dialogPolyfill.ts']
   }
 })

@@ -10,6 +10,7 @@ import { StatusPill } from '../components/Common'
 import type { BusyAction } from '../ui/types'
 import type { PendingAiActions } from '../ui/types'
 import type { ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import type { ChatMode } from '../bindings'
 
 export function SessionEditorView({
@@ -49,6 +50,7 @@ export function SessionEditorView({
   sessionMode = 'write_note',
   onSetSessionMode,
   noteHandoffContent,
+  headerActionsTarget,
 }: {
   creationCommands: Record<'testware' | 'finding', RecordCreationCommands>
   activeProviderAvailable: boolean
@@ -87,6 +89,8 @@ export function SessionEditorView({
   sessionMode?: ChatMode
   onSetSessionMode?: (mode: ChatMode) => void
   noteHandoffContent?: ReactNode
+  /** Host beside the Session tabs. `null` waits for the host; omit it to render the actions in place. */
+  headerActionsTarget?: HTMLElement | null
 }) {
   const deletingSession = busyAction === 'delete-session'
   const undoingGeneration = busyAction === 'undo-generation'
@@ -130,39 +134,31 @@ export function SessionEditorView({
     )
   }
 
+  const headerActions = (
+    <div className="document-actions">
+      {canUndoLatestGeneration ? (
+        <ActionButton variant="quiet" size="compact" type="button" disabled={isBusy || noteReadOnly} onClick={() => void onUndoLatestGeneration()}>
+          {undoingGeneration ? <Loader2 className="spin" size={16} /> : <Undo2 size={16} />}
+          Undo generation
+        </ActionButton>
+      ) : null}
+      <div className="document-status" role="status">
+        {sessionSaveState === 'invalid' || sessionSaveState === 'unsaved'
+          ? <AlertCircle size={15} />
+          : sessionSaveState === 'saving' ? <Loader2 className="spin" size={15} /> : <CheckCircle2 size={15} />}
+        <span>{saveStatusLabel}</span>
+      </div>
+      <CopyControls
+        snapshot={{ target: { kind: 'note', sessionId: activeSession.id, action: 'jira-text' }, title: sessionTitle, bodyHtml: noteBodyHtml }}
+        copyState={copyState} onCopy={onCopy} disabled={isBusy} label="Note" screenshotCount={noteScreenshotCount} />
+      <ActionButton variant="destructive-quiet" size="compact" iconOnly icon={Trash2} aria-label="Delete Session" title="Delete Session" loading={deletingSession} disabled={isBusy} onClick={() => void onDeleteSession()} />
+    </div>
+  )
+
   return (
     <div className="session-workspace">
-      <header className="document-topline">
-        <p className="document-mode"><FileText size={16} /> Session note</p>
-        <div className="document-actions">
-          {onSetSessionMode ? <ActionButton variant="secondary" className="ask-ai-trigger" icon={Sparkles}
-            aria-expanded={sessionMode === 'chat'} aria-controls="notes-ask-ai"
-            onClick={() => { onSetSessionMode('chat'); document.querySelector<HTMLTextAreaElement>('#notes-ask-ai textarea:not(:disabled)')?.focus({ preventScroll: true }) }}>Ask AI</ActionButton> : null}
-          <ActionButton variant="secondary" type="button" aria-describedby={!activeProviderAvailable ? "note-summary-unavailable" : undefined} disabled={isBusy || summaryPending || !noteIsReady || !activeProviderAvailable} onClick={() => void onAiAction('summary')}>
-            {busyAction === 'ai-summary' || summaryPending ? <Loader2 className="spin" size={16} /> : <Sparkles size={16} />}
-            {summaryPending ? 'Summarizing notes' : 'Summarize with AI'}
-          </ActionButton>
-          {canUndoLatestGeneration ? (
-            <ActionButton variant="secondary" size="compact" type="button" disabled={isBusy || noteReadOnly} onClick={() => void onUndoLatestGeneration()}>
-              {undoingGeneration ? <Loader2 className="spin" size={16} /> : <Undo2 size={16} />}
-              Undo generation
-            </ActionButton>
-          ) : null}
-          <div className="document-status" role="status">
-            {sessionSaveState === 'invalid' || sessionSaveState === 'unsaved'
-              ? <AlertCircle size={15} />
-              : sessionSaveState === 'saving' ? <Loader2 className="spin" size={15} /> : <CheckCircle2 size={15} />}
-            <span>{saveStatusLabel}</span>
-          </div>
-          <CopyControls
-            snapshot={{ target: { kind: 'note', sessionId: activeSession.id, action: 'jira-text' }, title: sessionTitle, bodyHtml: noteBodyHtml }}
-            copyState={copyState} onCopy={onCopy} disabled={isBusy} label="Note" screenshotCount={noteScreenshotCount} />
-          <ActionButton variant="destructive-quiet" iconOnly icon={Trash2} aria-label="Delete Session" title="Delete Session" loading={deletingSession} disabled={isBusy} onClick={() => void onDeleteSession()} />
-        </div>
-      {!activeProviderAvailable ? <p className="field-description" id="note-summary-unavailable">
-        AI summary unavailable. {activeProviderReason ?? 'Configure an available provider in Settings. You can keep writing and create records without AI.'}
-      </p> : null}
-      </header>
+      {/* The shell hosts these beside the Session tabs; without a host they render in place. */}
+      {headerActionsTarget === undefined ? headerActions : headerActionsTarget ? createPortal(headerActions, headerActionsTarget) : null}
 
       <section key={activeSession.id} className="editor-card" aria-label="Session editor">
         {!noteReadOnly ? <FormatToolbar editorId={editorId} onUploadImage={onUploadImage} /> : null}
@@ -196,8 +192,17 @@ export function SessionEditorView({
         <div className="ai-action-buttons">
           <RecordCreationActions commands={creationCommands.finding} secondary />
           <RecordCreationActions commands={creationCommands.testware} secondary />
-
+          {onSetSessionMode ? <ActionButton variant="quiet" className="ask-ai-trigger" icon={Sparkles}
+            aria-expanded={sessionMode === 'chat'} aria-controls="notes-ask-ai"
+            onClick={() => { onSetSessionMode('chat'); document.querySelector<HTMLTextAreaElement>('#notes-ask-ai textarea:not(:disabled)')?.focus({ preventScroll: true }) }}>Ask AI</ActionButton> : null}
+          <ActionButton variant="quiet" type="button" aria-describedby={!activeProviderAvailable ? "note-summary-unavailable" : undefined} disabled={isBusy || summaryPending || !noteIsReady || !activeProviderAvailable} onClick={() => void onAiAction('summary')}>
+            {busyAction === 'ai-summary' || summaryPending ? <Loader2 className="spin" size={16} /> : <Sparkles size={16} />}
+            {summaryPending ? 'Summarizing notes' : 'Summarize with AI'}
+          </ActionButton>
         </div>
+        {!activeProviderAvailable ? <p className="field-description" id="note-summary-unavailable">
+          AI summary unavailable. {activeProviderReason ?? 'Configure an available provider in Settings. You can keep writing and create records without AI.'}
+        </p> : null}
       </footer>
     </div>
   )

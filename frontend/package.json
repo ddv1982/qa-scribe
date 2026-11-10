@@ -1,7 +1,7 @@
 {
   "name": "qa-scribe-frontend",
   "private": true,
-  "version": "0.8.30",
+  "version": "0.8.31",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -20,6 +20,7 @@
     "sdk:prepare": "node ../scripts/prepare-rust-typescript-sdk.mjs"
   },
   "dependencies": {
+    "@fontsource-variable/bricolage-grotesque": "^5.3.0",
     "@fontsource-variable/inter": "^5.3.0",
     "@tauri-apps/api": "^2.12.3",
     "@tiptap/core": "^3.32.0",

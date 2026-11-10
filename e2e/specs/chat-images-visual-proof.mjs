@@ -154,7 +154,7 @@ export async function proveChatImagesVisual({ sessionId, include320 = false }) {
       check(target?.rect.left >= -2 && target?.rect.right <= value.viewport.width + 2, `${label} ${name} stays within the window width`)
       check(target?.rect.left >= value.composer.rect.left - 2 && target?.rect.right <= value.composer.rect.right + 2, `${label} ${name} stays within the composer width`)
     }
-    check(value.send.style.primaryFill === '#2456c4' && value.send.style.primaryText === '#ffffff', `${label} primary action uses the shared blue and white treatment`)
+    check(value.theme === 'dark' ? value.send.style.primaryFill === '#e9ede9' && value.send.style.primaryText === '#141715' : value.send.style.primaryFill === '#1a201d' && value.send.style.primaryText === '#fcfcf9', `${label} primary action uses the themed ink and paper treatment`)
     check(value.shortcut.rect.right <= value.attach.rect.left + 2 || value.shortcut.rect.bottom <= value.attach.rect.top + 2, `${label} keyboard help does not overlap action controls`)
     check(value.attachNextLabel === 'Send', `${label} paperclip is immediately before Send`)
     check(Math.abs(value.attach.rect.top - value.send.rect.top) <= 2 && value.attach.rect.right <= value.send.rect.left, `${label} paperclip stays immediately left of Send on the same row`)

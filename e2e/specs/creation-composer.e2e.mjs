@@ -23,7 +23,9 @@ let session, note, localImage, shared, ordinary, generated, activeRecorder
 
 describe('Unified creation composer in the built native application', () => {
   after(async () => { if (activeRecorder) await activeRecorder.stop() })
-  it('opens and saves all four ordinary routes without provider setup or blank records', async () => {
+  it('opens and saves all four ordinary routes without provider setup or blank records', async function () {
+    // Four create/cancel/save/edit routes and reloads can exceed a minute on hosted macOS.
+    this.timeout(120_000)
     await $('button=New Session').waitForClickable()
     await click('button=New Session')
     await fill('[aria-label="Session title"]', 'Composer native proof')

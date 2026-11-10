@@ -23,7 +23,7 @@
   --action-text: var(--action-primary-text);
   --action-fill: var(--action-primary-fill);
   --action-hover-fill: var(--action-primary-hover);
-  border-color: var(--accent);
+  border-color: transparent;
   font-weight: 600;
 }
 
@@ -162,10 +162,8 @@
 
 .field-stack span {
   color: var(--text-secondary);
-  font-size: var(--font-size-xs);
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
 }
 
 .field-stack textarea {
@@ -173,7 +171,7 @@
 }
 
 
-#note-summary-unavailable { flex-basis: 100%; margin: 0; }
+#note-summary-unavailable { margin: 0; text-align: center; }
 
 .rich-editor[contenteditable="true"]:focus {
   outline: 2px solid var(--accent);

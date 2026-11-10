@@ -297,7 +297,7 @@ export async function runGenerationPreflightLayoutWorkflow({ button }) {
     assert.equal(await title.getValue(), longTitle)
     await browser.waitUntil(async () => browser.execute(() =>
       document.querySelector('.document-status span')?.textContent === 'Autosaved'
-        && document.querySelector('.session-breadcrumb strong')?.textContent === document.querySelector('[aria-label="Session title"]')?.value),
+        && document.querySelector('.session-picker-item.active .session-picker-title')?.textContent === document.querySelector('[aria-label="Session title"]')?.value),
     { timeout: 5_000, timeoutMsg: 'Long valid Session title must save before leaving for Settings' })
     evidence.sessionTitle = longTitle
     for (const theme of ['light', 'dark']) {

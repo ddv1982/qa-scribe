@@ -1,10 +1,12 @@
 .center-workspace {
   grid-column: 2;
-  grid-row: 2;
   min-width: 0;
   min-height: 0;
+  margin: var(--space-2) var(--space-2) var(--space-2) 0;
   overflow: auto;
-  background: var(--surface-panel);
+  background: var(--surface-raised);
+  border-radius: var(--radius-sheet);
+  box-shadow: var(--shadow-sheet);
 }
 
 .center-workspace:has(> .session-context-header) {
@@ -26,95 +28,80 @@
 }
 
 .session-workspace {
-  width: min(100%, 980px);
+  width: min(100%, 780px);
   height: 100%;
   min-height: 0;
   margin: 0 auto;
-  padding: var(--space-6) var(--space-6) var(--space-5);
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: var(--space-4);
-}
-
-.document-topline {
+  padding: var(--space-4) var(--space-6);
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-  min-width: 0;
-}
-
-.document-mode {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: var(--font-size-sm);
-  font-weight: 600;
+  flex-direction: column;
+  gap: var(--space-3);
 }
 
 .document-status {
-  gap: var(--space-2);
-  color: var(--text-secondary);
-  font-size: var(--font-size-md);
+  gap: var(--space-1);
+  margin-right: var(--space-2);
+  color: var(--text-tertiary);
+  font-size: var(--font-size-sm);
   white-space: nowrap;
 }
 
 .document-actions {
   display: flex;
   flex-wrap: wrap;
-  flex: 0 1 auto;
   min-width: 0;
   align-items: center;
-  gap: var(--space-2);
+  justify-content: flex-end;
+  gap: var(--space-1);
+}
+
+/* Beside the Session tabs the note actions recede; the page keeps the attention. */
+.session-header-actions .action-button--secondary {
+  --action-text: var(--text-secondary);
+  --action-fill: transparent;
+  border-color: transparent;
 }
 
 .editor-card {
+  flex: 1 1 auto;
   min-height: 0;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  background: var(--surface-raised);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  overflow: hidden;
 }
 
 .format-toolbar {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  min-height: 48px;
-  padding: var(--space-2) var(--space-4);
-  border-bottom: 1px solid var(--border-default);
-  background: var(--surface-panel);
+  gap: 2px;
+  min-height: var(--control-lg);
+  margin-left: calc(-1 * var(--space-2));
 }
 
 .format-toolbar select {
-  height: var(--control-md);
+  height: var(--control-sm);
   padding: 0 var(--space-2);
-  color: var(--text-primary);
+  color: var(--text-secondary);
   background: transparent;
   border: 1px solid transparent;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
 }
 
 .toolbar-divider {
   width: 1px;
-  height: 24px;
+  height: 16px;
+  margin: 0 var(--space-1);
   background: var(--border-default);
 }
 
 .toolbar-button {
   display: grid;
-  width: var(--control-md);
-  height: var(--control-md);
+  width: var(--control-sm);
+  height: var(--control-sm);
   place-items: center;
-  color: var(--text-primary);
+  color: var(--text-secondary);
   background: transparent;
   border: 1px solid transparent;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   cursor: pointer;
 }
 
@@ -125,9 +112,8 @@
 }
 
 .toolbar-button[aria-pressed="true"] {
-  color: var(--accent);
-  background: var(--accent-tint);
-  border-color: var(--accent-border);
+  color: var(--text-primary);
+  background: var(--surface-tint);
 }
 
 .toolbar-button:disabled {
@@ -179,21 +165,22 @@
 .document-body {
   min-height: 0;
   overflow: auto;
-  padding: var(--space-5) var(--space-6) var(--space-6);
+  padding: var(--space-3) 0 var(--space-5);
 }
 
 .session-title-input {
   width: 100%;
-  margin: 0 0 var(--space-5);
+  margin: 0 0 var(--space-3);
   padding: 0;
   color: var(--text-primary);
   background: transparent;
   border: 0;
   outline: 0;
-  font-size: var(--font-size-3xl);
-  font-weight: 600;
-  line-height: var(--leading-tight);
-  letter-spacing: var(--tracking-tight);
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 650;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
 }
 
 .rich-editor {
@@ -222,11 +209,9 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  min-height: 52px;
-  padding: 0 var(--space-4);
-  color: var(--text-secondary);
-  border-top: 1px solid var(--border-default);
-  font-size: var(--font-size-md);
+  min-height: var(--control-sm);
+  color: var(--text-tertiary);
+  font-size: var(--font-size-sm);
 }
 
 .status-pill {
@@ -247,12 +232,9 @@
 }
 
 .bottom-command-bar {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: var(--space-3);
-  padding-bottom: 2px;
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
 }
 
 .ai-provider-summary {
@@ -378,13 +360,33 @@
 }
 
 .ai-action-buttons {
-  display: grid;
-  grid-template-columns: repeat(2, max-content);
+  display: flex;
+  flex-wrap: wrap;
   max-width: 100%;
   align-items: center;
-  justify-content: end;
-  gap: var(--space-2);
-  flex: 0 0 auto;
+  justify-content: center;
+  gap: var(--space-1);
+  padding: 6px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
+  border-radius: 13px;
+  box-shadow: var(--shadow-md);
+}
+
+/* A hairline separates "turn this note into" from "ask about this note". */
+.ai-action-buttons > .ask-ai-trigger {
+  position: relative;
+  margin-left: var(--space-2);
+}
+
+.ai-action-buttons > .ask-ai-trigger::before {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: calc(-1 * var(--space-1) - 1px);
+  width: 1px;
+  background: var(--border-default);
+  content: "";
 }
 
 .workspace-empty,

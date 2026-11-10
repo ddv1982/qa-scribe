@@ -3,7 +3,7 @@
 .settings-view {
   width: min(100%, 1060px);
   margin: 0 auto;
-  padding: var(--space-8) var(--space-6);
+  padding: var(--space-6);
   font-size: var(--font-size-md);
   line-height: var(--leading-normal);
 }
@@ -13,7 +13,7 @@
 }
 
 .collection-view > .collection-header {
-  padding-top: var(--space-8);
+  padding-top: var(--space-5);
 }
 
 .collection-header {
@@ -21,12 +21,12 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
-  margin-bottom: var(--space-5);
+  margin-bottom: var(--space-4);
 }
 
 .collection-header h1 {
-  margin: var(--space-1) 0 0;
-  font-size: var(--font-size-3xl);
+  margin: 0;
+  font-size: var(--font-size-2xl);
   line-height: var(--leading-tight);
 }
 
@@ -61,8 +61,6 @@
   color: var(--text-secondary);
   font-size: var(--font-size-sm);
   font-weight: 600;
-  letter-spacing: var(--tracking-wide);
-  text-transform: uppercase;
 }
 
 .collection-toolbar {
@@ -79,15 +77,15 @@
   gap: var(--space-2);
   height: var(--control-lg);
   padding: 0 var(--space-3);
-  color: var(--text-secondary);
-  background: var(--surface-raised);
-  border: 1px solid var(--border-default);
+  color: var(--text-tertiary);
+  background: var(--surface-sunken);
+  border: 1px solid transparent;
   border-radius: var(--radius-md);
 }
 
 .collection-search:focus-within {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-tint);
+  box-shadow: 0 0 0 3px var(--focus-halo);
 }
 
 .collection-search input {
@@ -112,7 +110,6 @@
   min-height: var(--control-lg);
   padding: 0 var(--space-3);
   color: var(--text-secondary);
-  background: var(--surface-raised);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
 }
@@ -162,25 +159,23 @@
 .record-master-list {
   display: grid;
   align-content: start;
-  gap: var(--space-1);
+  gap: 1px;
   max-height: min(66vh, 720px);
-  padding: var(--space-2);
+  /* Room for the focus ring inside the scroll container. */
+  padding: 2px;
   overflow-y: auto;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
 }
 
 .record-master-list > button {
   display: grid;
   gap: 3px;
   width: 100%;
-  min-height: 64px;
+  min-height: 60px;
   padding: var(--space-2) var(--space-3);
   color: var(--text-primary);
   text-align: left;
   background: transparent;
-  border: 1px solid transparent;
+  border: 0;
   border-radius: var(--radius-md);
   cursor: pointer;
 }
@@ -190,10 +185,8 @@
 }
 
 .record-master-list > button.active {
-  color: var(--text-primary);
-  background: var(--accent-tint);
-  border-color: var(--accent-border);
-  box-shadow: inset 3px 0 var(--accent);
+  color: var(--on-mark);
+  background: var(--mark);
 }
 
 .record-master-list strong {
@@ -206,17 +199,25 @@
 .record-master-list span,
 .record-master-list .finding-meta-row {
   color: var(--text-secondary);
-  font-size: var(--font-size-xs);
-  font-weight: 500;
-  text-transform: none;
+  font-size: var(--font-size-sm);
+  font-weight: 400;
+}
+
+.record-master-list > button.active :is(span, .finding-meta-row) {
+  color: inherit;
 }
 
 .record-detail-pane {
   min-width: 0;
 }
 
-.record-detail-pane .editable-record {
+/* An open record reads as a page on the sheet, not a card inside it. */
+.record-detail-pane .editable-record,
+.editable-record.record-detail-pane {
   min-height: 520px;
+  padding: 0 0 0 var(--space-3);
+  background: transparent;
+  border: 0;
 }
 
 .editable-record,
@@ -238,8 +239,9 @@
 .record-title {
   margin: 0;
   color: var(--text-primary);
-  font-size: var(--font-size-2xl);
-  line-height: var(--leading-tight);
+  font-size: 23px;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
 }
 
 .record-heading-row {
@@ -260,30 +262,28 @@
 .testware-metadata-badges span {
   display: inline-flex;
   align-items: center;
-  min-height: 24px;
-  padding: var(--space-1) var(--space-2);
-  color: var(--accent);
-  background: var(--accent-tint);
-  border: 1px solid var(--accent-border);
-  border-radius: 999px;
+  min-height: 22px;
+  padding: 0 var(--space-2);
+  color: var(--text-secondary);
+  background: var(--surface-sunken);
+  border-radius: var(--radius-full);
   font-size: var(--font-size-sm);
-  font-weight: 600;
   white-space: nowrap;
 }
 
 .rich-record-editor-field {
   display: grid;
   min-height: 260px;
-  background: var(--surface-sunken);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   overflow: hidden;
 }
 
 .rich-record-editor-field .format-toolbar {
-  min-height: 46px;
+  min-height: 44px;
+  margin-left: 0;
   padding: var(--space-2);
-  background: var(--surface-raised);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .rich-record-editor-field .rich-editor {
@@ -293,22 +293,41 @@
 
 .rich-record-preview-field {
   min-height: 180px;
+  border: 0;
+  border-radius: 0;
 }
 
 .rich-record-preview-field .rich-editor {
   min-height: 178px;
+  padding: 0;
 }
 
 .finding-meta-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  color: var(--accent-alt);
+  gap: var(--space-1) var(--space-3);
+  color: var(--text-secondary);
   font-size: var(--font-size-sm);
-  font-weight: 600;
-  text-transform: uppercase;
 }
+
+.finding-severity {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.finding-severity::before {
+  width: 7px;
+  height: 7px;
+  background: currentColor;
+  border-radius: var(--radius-full);
+  content: "";
+}
+
+.finding-severity[data-severity="medium"] { color: var(--warning); }
+.finding-severity:is([data-severity="high"], [data-severity="critical"]) { color: var(--danger); }
+.record-master-list > button.active .finding-severity { color: inherit; }
 
 .record-actions {
   position: sticky;
@@ -319,7 +338,7 @@
   padding-block: var(--space-2);
   background: var(--surface-raised);
   align-items: center;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: var(--space-2);
 }
 
@@ -695,9 +714,7 @@
   color: var(--text-secondary);
   font-size: var(--font-size-xs);
   font-weight: 650;
-  letter-spacing: 0.05em;
   line-height: var(--leading-tight);
-  text-transform: uppercase;
 }
 
 .execution-status-row strong,
@@ -817,7 +834,6 @@
 .cli-details dt {
   color: var(--text-secondary);
   font-size: var(--font-size-xs);
-  text-transform: uppercase;
 }
 
 .cli-details dd {

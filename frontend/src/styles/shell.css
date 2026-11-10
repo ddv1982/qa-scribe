@@ -3,21 +3,10 @@
   min-height: 100dvh;
   margin: 0;
   display: grid;
-  grid-template-columns: 248px minmax(0, 1fr);
-  grid-template-rows: 64px 1fr;
+  grid-template-columns: 240px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   overflow: hidden;
-  background: var(--surface-panel);
-}
-
-.top-bar {
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: 208px minmax(0, 560px) minmax(max-content, 1fr);
-  align-items: center;
-  gap: var(--space-6);
-  padding: 0 var(--space-5);
-  border-bottom: 1px solid var(--border-default);
-  background: var(--surface-raised);
+  background: var(--surface-base);
 }
 
 .brand-cluster,
@@ -34,21 +23,20 @@
 }
 
 .brand-cluster {
-  gap: var(--space-3);
+  gap: var(--space-2);
   min-width: 0;
 }
 
 .brand-mark {
   display: grid;
-  width: 28px;
-  height: 28px;
   place-items: center;
-  color: var(--accent);
+  color: var(--text-primary);
 }
 
 .brand-cluster strong {
-  font-size: var(--font-size-xl);
-  letter-spacing: var(--tracking-tight);
+  font-family: var(--font-display);
+  font-size: var(--font-size-lg);
+  font-weight: 600;
 }
 
 .global-search {
@@ -56,11 +44,12 @@
   align-items: center;
   gap: var(--space-2);
   min-width: 0;
-  height: var(--control-lg);
-  padding: 0 var(--space-4);
-  color: var(--text-secondary);
-  background: var(--surface-raised);
-  border: 1px solid var(--border-default);
+  height: var(--control-md);
+  margin-top: var(--space-2);
+  padding: 0 var(--space-3);
+  color: var(--text-tertiary);
+  background: var(--surface-tint);
+  border: 1px solid transparent;
   border-radius: var(--radius-md);
 }
 
@@ -75,31 +64,17 @@
 
 .global-search:focus-within {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-tint);
+  box-shadow: 0 0 0 3px var(--focus-halo);
 }
 
 .top-context-label {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
   min-width: 0;
-  color: var(--text-secondary);
-}
-
-.top-context-label span,
-.top-context-label strong {
+  margin-left: auto;
   overflow: hidden;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.top-context-label strong {
-  flex: 0 0 auto;
-  color: var(--text-primary);
-}
-
-.top-context-label > span {
-  flex: 1 1 auto;
 }
 
 .sr-only {
@@ -115,15 +90,15 @@
 }
 
 .top-new-button {
-  flex: 0 0 auto;
+  width: 100%;
 }
 
-.top-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--space-2);
-  min-width: 0;
+.command-palette-trigger {
+  padding: var(--space-1);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
 }
 
 .command-palette-trigger kbd,
@@ -132,7 +107,6 @@
   color: var(--text-secondary);
   font-family: inherit;
   font-size: var(--font-size-xs);
-  background: var(--surface-sunken);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-sm);
 }
@@ -371,7 +345,6 @@
   color: var(--text-secondary);
   font-size: var(--font-size-sm);
   font-weight: 600;
-  text-transform: uppercase;
 }
 
 .preflight-list dd {
@@ -417,7 +390,6 @@
   color: var(--text-secondary);
   font-size: var(--font-size-sm);
   font-weight: 600;
-  text-transform: uppercase;
 }
 
 .preflight-technique-grid {
@@ -447,8 +419,8 @@
 .preflight-choice:hover,
 .preflight-choice.active {
   color: var(--text-primary);
-  border-color: color-mix(in oklab, var(--accent) 62%, var(--border-default));
-  background: color-mix(in oklab, var(--accent) 12%, var(--surface-sunken));
+  border-color: var(--accent);
+  background: var(--accent-tint);
 }
 
 /* Integrated ring instead of the offset outline: dialogs auto-focus the
@@ -539,79 +511,49 @@
 }
 
 .left-rail {
-  grid-row: 2;
   display: flex;
   flex-direction: column;
   min-height: 0;
   overflow: visible;
   position: relative;
-  padding: var(--space-4);
-  border-right: 1px solid var(--border-default);
-  background: var(--surface-panel);
+  padding: var(--space-4) var(--space-3) var(--space-3);
 }
 
 .session-context-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
+  gap: var(--space-3);
   min-width: 0;
-  padding: var(--space-3) var(--space-5) 0;
-  background: var(--surface-panel);
-  border-bottom: 1px solid var(--border-default);
-}
-
-.session-breadcrumb {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  min-width: 0;
-  flex: 1 1 0;
-  color: var(--text-secondary);
-  font-size: var(--font-size-sm);
-}
-
-.session-breadcrumb button {
-  padding: var(--space-1);
-  color: var(--accent);
-  background: transparent;
-  border: 0;
-  cursor: pointer;
-}
-
-.session-breadcrumb strong {
-  overflow: hidden;
-  color: var(--text-primary);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-height: 52px;
+  padding: 0 var(--space-4) 0 var(--space-5);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .session-workspace-tabs {
   display: flex;
   flex: 0 0 auto;
-  align-self: end;
   gap: var(--space-1);
-  overflow-x: auto;
 }
 
 .session-workspace-tabs button {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: 42px;
-  padding: 0 var(--space-3);
+  min-height: var(--control-sm);
+  padding: 0 var(--space-2);
   color: var(--text-secondary);
+  font-weight: 500;
   background: transparent;
   border: 0;
-  border-bottom: 2px solid transparent;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   white-space: nowrap;
 }
 
 .session-workspace-tabs button.active {
   font-weight: 600;
-  color: var(--accent);
-  border-bottom-color: var(--accent);
+  color: var(--on-mark);
+  background: var(--mark);
 }
 
 .session-workspace-tabs button:hover:not(.active) {
@@ -620,16 +562,21 @@
 }
 
 .session-workspace-tabs button span {
-  min-width: 22px;
-  padding: 1px var(--space-1);
-  color: var(--text-secondary);
-  font-size: var(--font-size-xs);
-  text-align: center;
-  background: var(--surface-sunken);
-  border-radius: 999px;
+  color: var(--text-tertiary);
+  font-size: var(--font-size-sm);
+  font-weight: 400;
 }
 
-.top-bar,
+.session-workspace-tabs button.active span {
+  color: inherit;
+}
+
+.session-header-actions {
+  display: flex;
+  min-width: 0;
+  margin-left: auto;
+}
+
 .left-rail,
 .editor-footer,
 .document-status {

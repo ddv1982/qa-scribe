@@ -1,6 +1,17 @@
 .workspace-nav {
   display: grid;
-  gap: var(--space-1);
+  gap: 1px;
+  margin-top: auto;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border-default);
+}
+
+.rail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 0 var(--space-1) var(--space-3) var(--space-2);
 }
 
 .contextual-rail {
@@ -15,28 +26,27 @@
 .settings-link {
   width: 100%;
   justify-content: flex-start;
-  gap: var(--space-3);
-  min-height: var(--control-lg);
-  padding: 0 var(--space-3);
-  color: var(--text-primary);
+  gap: var(--space-2);
+  min-height: var(--control-md);
+  padding: 0 var(--space-2);
+  color: var(--text-secondary);
   background: transparent;
   border: 1px solid transparent;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   cursor: pointer;
 }
 
 .rail-item strong {
   margin-left: auto;
-  color: var(--accent);
-  font-size: var(--font-size-md);
-  font-weight: 600;
+  color: var(--text-tertiary);
+  font-size: var(--font-size-sm);
+  font-weight: 400;
 }
 
 .rail-item.active,
 .settings-link.active {
-  color: var(--accent);
-  background: var(--accent-tint);
-  box-shadow: inset 3px 0 var(--accent);
+  color: var(--text-primary);
+  background: var(--surface-tint);
   font-weight: 600;
 }
 
@@ -47,21 +57,17 @@
 
 .session-picker {
   display: grid;
-  gap: var(--space-2);
-  padding-top: var(--space-6);
-  margin-top: var(--space-6);
-  border-top: 1px solid var(--border-default);
+  gap: var(--space-1);
+  margin-top: var(--space-3);
 }
 
 .library-sidebar {
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
-  gap: var(--space-2);
-  padding-top: var(--space-6);
-  margin-top: var(--space-6);
+  gap: var(--space-1);
+  margin: var(--space-3) 0;
   overflow: hidden;
-  border-top: 1px solid var(--border-default);
 }
 
 .library-sidebar-slot {
@@ -80,12 +86,9 @@
 }
 
 .rail-heading {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: var(--font-size-xs);
-  font-weight: 600;
-  letter-spacing: var(--tracking-wide);
-  text-transform: uppercase;
+  margin: 0 var(--space-2);
+  color: var(--text-tertiary);
+  font-size: var(--font-size-sm);
 }
 
 .select-shell {
@@ -111,13 +114,13 @@
 
 .select-shell:focus-within {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-tint);
+  box-shadow: 0 0 0 3px var(--focus-halo);
 }
 
 .session-picker-list,
 .model-options {
   display: grid;
-  gap: var(--space-2);
+  gap: 1px;
 }
 
 .session-picker-list {
@@ -131,16 +134,16 @@
 .session-picker-item {
   display: grid;
   align-content: start;
-  gap: var(--space-1);
+  gap: 2px;
   width: 100%;
   min-width: 0;
-  min-height: 48px;
-  padding: var(--space-2);
+  min-height: 44px;
+  padding: 6px var(--space-2);
   color: var(--text-primary);
   text-align: left;
   background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
+  border: 0;
+  border-radius: var(--radius-sm);
   cursor: pointer;
 }
 
@@ -165,7 +168,6 @@
   white-space: normal;
 }
 
-.session-picker-date,
 .session-picker-empty,
 .session-picker-more,
 .model-combobox-trigger span,
@@ -177,25 +179,35 @@
 }
 
 .session-picker-date {
+  color: var(--text-tertiary);
+  font-size: var(--font-size-sm);
   line-height: var(--leading-tight);
   white-space: nowrap;
 }
 
 .session-picker-item.active {
-  color: var(--text-primary);
-  background: var(--accent-tint);
-  border-color: var(--accent-border);
+  color: var(--on-mark);
+  background: var(--mark);
+  font-weight: 600;
+}
+
+.session-picker-item.active .session-picker-date {
+  color: inherit;
+  font-weight: 400;
 }
 
 .rail-item.active:hover,
-.settings-link.active:hover,
+.settings-link.active:hover {
+  background: var(--surface-tint);
+}
+
 .session-picker-item.active:hover {
-  background: var(--accent-tint);
+  background: var(--mark);
 }
 
 .session-picker-item:hover,
 .model-option:hover {
-  background: var(--surface-sunken);
+  background: var(--surface-tint);
 }
 
 .session-picker-empty,
@@ -254,7 +266,7 @@
 
 .model-combobox-control:focus-within {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-tint);
+  box-shadow: 0 0 0 3px var(--focus-halo);
 }
 
 .model-combobox-control input {
@@ -381,8 +393,4 @@
 
 .model-option.custom {
   border-color: var(--border-default);
-}
-
-.settings-link {
-  margin-top: auto;
 }
