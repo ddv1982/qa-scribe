@@ -83,6 +83,8 @@
 .ask-ai-panel .chat-message { min-width: 0; padding: 0; border: 0; border-radius: 0; background: transparent; }
 .ask-ai-panel .chat-message header { margin-bottom: var(--space-1); color: var(--text-secondary); font-size: var(--font-size-xs); font-weight: 600; }
 .ask-ai-panel .chat-message-user {
+  /* Contains the visually hidden "You" label, which would otherwise extend the page. */
+  position: relative;
   align-self: flex-end;
   max-width: 85%;
   padding: var(--space-2) var(--space-3);
