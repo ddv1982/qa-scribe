@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.8.33 - 2026-11-10
+
+- Give every action one consistent look: the Note's Create, Ask AI and Summarize buttons now match, record Edit and Copy match their neighbours, and Ask AI shows when its panel is open.
+- Make Ask AI one panel for notes, test cases and findings, with message bubbles, a single "add to note" block and a composer that keeps attach and Send inside it.
+- Wrap long Session titles instead of cutting them off, highlight only the selected tab, and stop repeating the Session title above Test cases and Findings.
+- Dim disabled buttons instead of turning them grey, and give dropdowns and expandable sections matching chevrons.
+- Introduce a new app icon, favicon and sidebar mark.
+
 ## v0.8.32 - 2026-11-10
 
 - Soften the highlight for the active Session, tab, and record: pale yellow in light mode and a muted amber with light text in dark mode.
