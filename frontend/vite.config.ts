@@ -24,8 +24,10 @@ export default defineConfig({
     environment: 'jsdom',
     // Bound JSDOM contention on developer desktops and shared CI hosts.
     maxWorkers: 2,
-    // Multi-step controller workflows can exceed five seconds on shared CI hosts.
-    testTimeout: 10_000,
+    // The slowest test takes about two seconds on an idle machine, but shared CI
+    // hosts have stalled single tests past ten. This ceiling only catches hangs;
+    // assertion failures still surface through waitFor's own one-second limit.
+    testTimeout: 30_000,
     setupFiles: ['./src/test/dialogPolyfill.ts']
   }
 })

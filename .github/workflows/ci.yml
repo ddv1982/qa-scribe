@@ -99,6 +99,37 @@ jobs:
         uses: $/.github/actions/validate-build
         with:
           runner-class: ubuntu-26.04-github-x64
+          # The built-application suite is the longest check, so it runs in
+          # e2e-linux in parallel instead of extending this job.
+          built-app-e2e: 'false'
+
+  e2e-linux:
+    name: Built application E2E (Linux)
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup project
+        uses: $/.github/actions/setup-project
+        with:
+          cache-key: quality-linux
+
+      - name: Install Linux Tauri desktop dependencies
+        uses: $/.github/actions/install-linux-validation-deps
+
+      - name: Run Linux built-application quality gate
+        uses: $/.github/actions/run-built-app-e2e
+        with:
+          artifact_prefix: qa-scribe-e2e
+          failure_artifact_prefix: qa-scribe-quality-failure
+          runner_class: ubuntu-26.04-github-x64
+          use_xvfb: 'true'
+          run_startup_benchmark: 'true'
 
   rust-macos:
     name: Platform tests (macOS arm64 + Intel check)
@@ -157,11 +188,10 @@ jobs:
 
   package-linux:
     name: Package test (Linux x64)
-    needs: [changes, quality-linux]
-    if: >-
-      !cancelled() &&
-      needs.changes.outputs.run_package_ci == 'true' &&
-      needs.quality-linux.result == 'success'
+    needs: changes
+    # Runs alongside the quality gate instead of after it; CI success still
+    # requires both, so packaging never lands without the full gate.
+    if: needs.changes.outputs.run_package_ci == 'true'
     runs-on: ubuntu-26.04
     timeout-minutes: 40
 
@@ -174,8 +204,7 @@ jobs:
       - name: Setup project
         uses: $/.github/actions/setup-project
         with:
-          # This job starts after quality-linux, so it can reuse that job's
-          # dependency cache instead of creating a second cache silo.
+          # Shares the quality cache partition instead of creating a second silo.
           cache-key: quality-linux
           rust-targets: ${{ env.TAURI_TARGET }}
 
@@ -249,7 +278,7 @@ jobs:
 
   ci-success:
     name: CI success
-    needs: [changes, quality-linux, rust-macos, package-linux]
+    needs: [changes, quality-linux, e2e-linux, rust-macos, package-linux]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-26.04
     timeout-minutes: 5
@@ -259,10 +288,11 @@ jobs:
         env:
           CHANGES_RESULT: ${{ needs.changes.result }}
           QUALITY_RESULT: ${{ needs.quality-linux.result }}
+          E2E_LINUX_RESULT: ${{ needs.e2e-linux.result }}
           MACOS_RESULT: ${{ needs.rust-macos.result }}
           PACKAGE_RESULT: ${{ needs.package-linux.result }}
         run: |
-          for result in "$CHANGES_RESULT" "$QUALITY_RESULT" "$MACOS_RESULT" "$PACKAGE_RESULT"; do
+          for result in "$CHANGES_RESULT" "$QUALITY_RESULT" "$E2E_LINUX_RESULT" "$MACOS_RESULT" "$PACKAGE_RESULT"; do
             if [ "$result" != success ] && [ "$result" != skipped ]; then
               echo "An applicable CI job did not pass (result: $result)." >&2
               exit 1

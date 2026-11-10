@@ -201,6 +201,10 @@
   background: var(--surface-tint);
 }
 
+.session-picker-item:focus-visible {
+  outline-offset: -2px;
+}
+
 .session-picker-item.active:hover {
   background: var(--mark);
 }
@@ -215,6 +219,11 @@
 .model-options-empty {
   margin: 0;
   line-height: var(--leading-normal);
+}
+
+.session-picker-empty,
+.session-picker-more {
+  padding: var(--space-1) var(--space-2) 0;
 }
 
 .model-combobox {

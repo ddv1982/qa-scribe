@@ -72,7 +72,7 @@
   --accent-alt: #5b3fa8;
   --on-accent: #ffffff;
 
-  --mark: #ffe45c;
+  --mark: #fff1ad;
   --on-mark: #1a201d;
   --surface-tint: color-mix(in oklab, var(--text-primary) 7%, transparent);
   --focus-halo: color-mix(in oklab, var(--accent) 22%, transparent);
@@ -133,8 +133,9 @@
   --accent-alt: #b3a0f5;
   --on-accent: #111412;
 
-  --mark: #f0d447;
-  --on-mark: #17190f;
+  /* A soft amber wash: dark mode keeps light text instead of a saturated yellow block. */
+  --mark: #45401f;
+  --on-mark: #f6efc6;
 
   --success: #5fcf8d;
   --success-hover: color-mix(in oklab, var(--success) 88%, #fff);

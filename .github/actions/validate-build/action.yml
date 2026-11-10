@@ -16,6 +16,12 @@ inputs:
       without tag matching, as CI does.
     required: false
     default: ''
+  built-app-e2e:
+    description: >-
+      Whether to run the built-application E2E suite and startup budget here.
+      CI runs that suite in its own parallel job; release validation keeps it inline.
+    required: false
+    default: 'true'
 
 runs:
   using: composite
@@ -145,6 +151,7 @@ runs:
       run: bun run smoke
 
     - name: Run Linux built-application quality gate
+      if: inputs.built-app-e2e == 'true'
       uses: $/.github/actions/run-built-app-e2e
       with:
         artifact_prefix: qa-scribe-e2e

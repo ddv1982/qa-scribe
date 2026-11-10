@@ -81,7 +81,7 @@
   height: var(--control-sm);
   padding: 0 var(--space-2);
   color: var(--text-secondary);
-  background: transparent;
+  background-color: var(--surface-raised);
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
 }

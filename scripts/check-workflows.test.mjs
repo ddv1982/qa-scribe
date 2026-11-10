@@ -192,28 +192,28 @@ test('changed paths select the applicable CI and native tooling jobs from workfl
   assert.equal(native.jobs['native-tooling'].if, undefined)
   assert.equal(native.jobs['native-tooling']['continue-on-error'], undefined)
   const cases = [
-    ['rust-toolchain.toml', ['changes', 'quality-linux', 'rust-macos', 'e2e-macos', 'package-linux', 'ci-success']],
-    ['scripts/normalize-ci-apt-sources.mjs', ['changes', 'quality-linux', 'e2e-macos', 'package-linux', 'ci-success']],
-    ['scripts/normalize-ci-apt-sources.test.mjs', ['changes', 'quality-linux', 'e2e-macos', 'package-linux', 'ci-success']],
-    ['scripts/normalize-ci-rust-toolchains.sh', ['changes', 'quality-linux', 'rust-macos', 'e2e-macos', 'package-linux', 'ci-success']],
-    ['scripts/prepare-rust-typescript-sdk.mjs', ['changes', 'quality-linux', 'rust-macos', 'e2e-macos', 'package-linux', 'ci-success', 'native-tooling']],
-    ['scripts/rust-typescript-sdk.mjs', ['changes', 'quality-linux', 'rust-macos', 'e2e-macos', 'package-linux', 'ci-success', 'native-tooling']],
-    ['.github/actions/setup-project/action.yml', ['changes', 'quality-linux', 'rust-macos', 'e2e-macos', 'package-linux', 'ci-success', 'native-tooling']],
-    ['frontend/vite.config.ts', ['changes', 'quality-linux', 'rust-macos', 'e2e-macos', 'package-linux', 'ci-success', 'native-tooling']],
-    ['frontend/src/main.tsx', ['changes', 'quality-linux', 'rust-macos', 'e2e-macos', 'package-linux', 'ci-success']],
-    ['frontend/.oxlintrc.json', ['changes', 'quality-linux', 'rust-macos', 'e2e-macos', 'package-linux', 'ci-success', 'native-tooling']],
-    ['frontend/tsconfig.node.json', ['changes', 'quality-linux', 'rust-macos', 'e2e-macos', 'package-linux', 'ci-success', 'native-tooling']],
-    ['frontend/scripts/check-contrast.mjs', ['changes', 'quality-linux', 'rust-macos', 'e2e-macos', 'package-linux', 'ci-success', 'native-tooling']],
-    ['scripts/package-tauri-linux.mjs', ['changes', 'quality-linux', 'e2e-macos', 'package-linux', 'ci-success']],
-    ['scripts/check-native-tooling-installations.mjs', ['changes', 'quality-linux', 'e2e-macos', 'package-linux', 'ci-success', 'native-tooling']],
-    ['scripts/check-e2e-isolation.mjs', ['changes', 'quality-linux', 'e2e-macos', 'package-linux', 'ci-success', 'native-tooling']],
-    ['scripts/run-e2e.mjs', ['changes', 'quality-linux', 'e2e-macos', 'package-linux', 'ci-success', 'native-tooling']],
-    ['scripts/check-release-metadata.mjs', ['changes', 'quality-linux', 'e2e-macos', 'package-linux', 'ci-success', 'native-tooling']],
-    ['scripts/command-utils.mjs', ['changes', 'quality-linux', 'e2e-macos', 'package-linux', 'ci-success', 'native-tooling']],
-    ['scripts/release-constants.json', ['changes', 'quality-linux', 'e2e-macos', 'package-linux', 'ci-success', 'native-tooling']],
-    ['package.json', ['changes', 'quality-linux', 'rust-macos', 'e2e-macos', 'package-linux', 'ci-success', 'native-tooling']],
-    ['crates/qa-scribe-core/src/lib.rs', ['changes', 'quality-linux', 'rust-macos', 'e2e-macos', 'package-linux', 'ci-success']],
-    ['docs/ci.md', ['changes', 'quality-linux', 'e2e-macos', 'ci-success']],
+    ['rust-toolchain.toml', ['changes', 'quality-linux', 'e2e-linux', 'rust-macos', 'e2e-macos', 'package-linux', 'ci-success']],
+    ['scripts/normalize-ci-apt-sources.mjs', ['changes', 'quality-linux', 'e2e-linux', 'e2e-macos', 'package-linux', 'ci-success']],
+    ['scripts/normalize-ci-apt-sources.test.mjs', ['changes', 'quality-linux', 'e2e-linux', 'e2e-macos', 'package-linux', 'ci-success']],
+    ['scripts/normalize-ci-rust-toolchains.sh', ['changes', 'quality-linux', 'e2e-linux', 'rust-macos', 'e2e-macos', 'package-linux', 'ci-success']],
+    ['scripts/prepare-rust-typescript-sdk.mjs', ['changes', 'quality-linux', 'e2e-linux', 'rust-macos', 'e2e-macos', 'package-linux', 'ci-success', 'native-tooling']],
+    ['scripts/rust-typescript-sdk.mjs', ['changes', 'quality-linux', 'e2e-linux', 'rust-macos', 'e2e-macos', 'package-linux', 'ci-success', 'native-tooling']],
+    ['.github/actions/setup-project/action.yml', ['changes', 'quality-linux', 'e2e-linux', 'rust-macos', 'e2e-macos', 'package-linux', 'ci-success', 'native-tooling']],
+    ['frontend/vite.config.ts', ['changes', 'quality-linux', 'e2e-linux', 'rust-macos', 'e2e-macos', 'package-linux', 'ci-success', 'native-tooling']],
+    ['frontend/src/main.tsx', ['changes', 'quality-linux', 'e2e-linux', 'rust-macos', 'e2e-macos', 'package-linux', 'ci-success']],
+    ['frontend/.oxlintrc.json', ['changes', 'quality-linux', 'e2e-linux', 'rust-macos', 'e2e-macos', 'package-linux', 'ci-success', 'native-tooling']],
+    ['frontend/tsconfig.node.json', ['changes', 'quality-linux', 'e2e-linux', 'rust-macos', 'e2e-macos', 'package-linux', 'ci-success', 'native-tooling']],
+    ['frontend/scripts/check-contrast.mjs', ['changes', 'quality-linux', 'e2e-linux', 'rust-macos', 'e2e-macos', 'package-linux', 'ci-success', 'native-tooling']],
+    ['scripts/package-tauri-linux.mjs', ['changes', 'quality-linux', 'e2e-linux', 'e2e-macos', 'package-linux', 'ci-success']],
+    ['scripts/check-native-tooling-installations.mjs', ['changes', 'quality-linux', 'e2e-linux', 'e2e-macos', 'package-linux', 'ci-success', 'native-tooling']],
+    ['scripts/check-e2e-isolation.mjs', ['changes', 'quality-linux', 'e2e-linux', 'e2e-macos', 'package-linux', 'ci-success', 'native-tooling']],
+    ['scripts/run-e2e.mjs', ['changes', 'quality-linux', 'e2e-linux', 'e2e-macos', 'package-linux', 'ci-success', 'native-tooling']],
+    ['scripts/check-release-metadata.mjs', ['changes', 'quality-linux', 'e2e-linux', 'e2e-macos', 'package-linux', 'ci-success', 'native-tooling']],
+    ['scripts/command-utils.mjs', ['changes', 'quality-linux', 'e2e-linux', 'e2e-macos', 'package-linux', 'ci-success', 'native-tooling']],
+    ['scripts/release-constants.json', ['changes', 'quality-linux', 'e2e-linux', 'e2e-macos', 'package-linux', 'ci-success', 'native-tooling']],
+    ['package.json', ['changes', 'quality-linux', 'e2e-linux', 'rust-macos', 'e2e-macos', 'package-linux', 'ci-success', 'native-tooling']],
+    ['crates/qa-scribe-core/src/lib.rs', ['changes', 'quality-linux', 'e2e-linux', 'rust-macos', 'e2e-macos', 'package-linux', 'ci-success']],
+    ['docs/ci.md', ['changes', 'quality-linux', 'e2e-linux', 'e2e-macos', 'ci-success']],
   ]
   for (const [path, expected] of cases) {
     await t.test(path, () => {
@@ -248,31 +248,34 @@ test('quality and release validation retain the full frontend behavior suite', (
   }
 })
 
-test('Linux quality stays unconditional, macOS E2E observational, and CI success propagates failures', () => {
+test('Linux quality and E2E stay unconditional, macOS E2E observational, and CI success propagates failures', () => {
   const { jobs, on } = parse(readFileSync(resolve(root, '.github/workflows/ci.yml'), 'utf8'))
   assert.deepEqual(on, { push: { branches: ['main'] }, pull_request: { branches: ['main'] }, merge_group: { types: ['checks_requested'] } })
-  assert.equal(jobs['quality-linux'].if, undefined)
-  assert.equal(jobs['quality-linux'].needs, undefined)
-  for (const id of ['quality-linux', 'rust-macos', 'package-linux', 'ci-success']) {
+  for (const id of ['quality-linux', 'e2e-linux']) {
+    assert.equal(jobs[id].if, undefined)
+    assert.equal(jobs[id].needs, undefined)
+  }
+  for (const id of ['quality-linux', 'e2e-linux', 'rust-macos', 'package-linux', 'ci-success']) {
     assert.equal(jobs[id]['continue-on-error'], undefined)
   }
   assert.equal(jobs['e2e-macos'].if, undefined)
   assert.equal(jobs['e2e-macos']['continue-on-error'], true)
   assert.equal(jobs['rust-macos'].if, "needs.changes.outputs.run_macos_ci == 'true'")
-  assert.deepEqual(jobs['package-linux'].needs, ['changes', 'quality-linux'])
-  assert.equal(jobs['package-linux'].if, "!cancelled() && needs.changes.outputs.run_package_ci == 'true' && needs.quality-linux.result == 'success'")
+  assert.equal(jobs['package-linux'].needs, 'changes')
+  assert.equal(jobs['package-linux'].if, "needs.changes.outputs.run_package_ci == 'true'")
   const success = jobs['ci-success']
   assert.equal(success.name, 'CI success')
   assert.equal(success.if, '${{ !cancelled() }}')
-  assert.deepEqual(success.needs, ['changes', 'quality-linux', 'rust-macos', 'package-linux'])
+  assert.deepEqual(success.needs, ['changes', 'quality-linux', 'e2e-linux', 'rust-macos', 'package-linux'])
   const gate = success.steps[0]
   assert.deepEqual(gate.env, {
     CHANGES_RESULT: '${{ needs.changes.result }}',
     QUALITY_RESULT: '${{ needs.quality-linux.result }}',
+    E2E_LINUX_RESULT: '${{ needs.e2e-linux.result }}',
     MACOS_RESULT: '${{ needs.rust-macos.result }}',
     PACKAGE_RESULT: '${{ needs.package-linux.result }}',
   })
-  const passed = { CHANGES_RESULT: 'success', QUALITY_RESULT: 'success', MACOS_RESULT: 'success', PACKAGE_RESULT: 'success' }
+  const passed = { CHANGES_RESULT: 'success', QUALITY_RESULT: 'success', E2E_LINUX_RESULT: 'success', MACOS_RESULT: 'success', PACKAGE_RESULT: 'success' }
   for (const [results, expected] of [
     [passed, 0],
     [{ ...passed, MACOS_RESULT: 'skipped', PACKAGE_RESULT: 'skipped' }, 0],
@@ -317,7 +320,7 @@ sudo "$node_path" scripts/normalize-ci-apt-sources.mjs --root /etc/apt \\
 `)
 })
 
-test('all four APT callers complete shared setup before APT with existing job budgets', () => {
+test('all APT callers complete shared setup before APT with existing job budgets', () => {
   const callers = []
   for (const file of ['ci.yml', 'release.yml']) {
     const { jobs } = parse(readFileSync(resolve(root, '.github/workflows', file), 'utf8'))
@@ -334,6 +337,7 @@ test('all four APT callers complete shared setup before APT with existing job bu
   }
   assert.deepEqual(callers, [
     ['ci.yml', 'quality-linux', 'ubuntu-26.04', 30],
+    ['ci.yml', 'e2e-linux', 'ubuntu-26.04', 30],
     ['ci.yml', 'package-linux', 'ubuntu-26.04', 40],
     ['release.yml', 'validate-release', 'ubuntu-26.04', 30],
     ['release.yml', 'build-linux-release', 'ubuntu-24.04', 45],
