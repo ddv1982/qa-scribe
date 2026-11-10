@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef, type ReactNode, type Ref } from 'react'
 import { X } from 'lucide-react'
 import { ActionButton } from '../components/ActionButton'
 import { SessionChatView } from '../views/SessionChatView'
@@ -33,16 +33,15 @@ export function AppChat({ c, modelSelectionControl, onConfigureAi }: {
     providerReason: c.effectiveAiSelection?.warning ?? c.activeProvider?.reason ?? 'Loading provider status', onConfigureAi,
   }
   return <>
-    <aside ref={notesRef} id="notes-ask-ai" className="ask-ai-panel ask-ai-panel--notes" hidden={!notesVisible} inert={!notesVisible} aria-label="Notes AI chat">
-      <header className="ask-ai-header"><h2>Ask AI</h2><ActionButton variant="secondary" iconOnly icon={X} aria-label="Close Ask AI" onClick={() => {
+    <AskAiPanel panelRef={notesRef} id="notes-ask-ai" kind="notes" visible={notesVisible} label="Notes AI chat" eyebrow="Session note"
+      source={<strong>{c.sessionTitle}</strong>} onClose={() => {
         restoreNotesFocus.current = true
         c.setSessionMode('write_note')
-      }} /></header>
-      <section className="chat-context-card" aria-label="Chat source"><div><span className="eyebrow">Session note</span><strong>{c.sessionTitle}</strong></div></section>
+      }}>
       <SessionChatView {...c.sessionChat} {...common} kind="notes" hidden={!notesVisible}
         modelSelectionControl={notesVisible ? modelSelectionControl : null}
         onOpenNote={() => { restoreNotesFocus.current = true; c.setSessionMode('write_note'); c.setActiveView('sessions') }} />
-    </aside>
+    </AskAiPanel>
     {c.askAi.panel ? <RecordConversation key={c.activeSession?.id} c={c} common={common} /> : null}
   </>
 }
@@ -64,15 +63,12 @@ function RecordConversation({ c, common }: {
   const controls = handle ? { ...c.proposalControls, applyUnavailable: source.kind === 'available' ? undefined : 'The original source must be available before Update.',
     onUpdate: (id: string) => c.proposalControls.onUpdate?.(id, reference!) ?? Promise.resolve(),
     onAction: (id: string, action: import('../bindings').RefinementAction) => c.proposalControls.onAction(id, action, reference!) } : undefined
-  return <aside ref={ref} className="ask-ai-panel ask-ai-panel--record" hidden={!c.askAi.visible} inert={!c.askAi.visible} aria-label="Ask AI">
-    <header className="ask-ai-header"><h2>Ask AI</h2>
-      <ActionButton variant="secondary" iconOnly icon={X} aria-label="Close Ask AI" onClick={() => void c.askAi.close()} />
-    </header>
-    <section className="chat-context-card" aria-label="Chat source"><div><span className="eyebrow">{panel.owner.record.kind === 'finding' ? 'Finding' : 'Test case'}</span>
+  return <AskAiPanel panelRef={ref} kind="record" visible={c.askAi.visible} label="Ask AI" eyebrow={panel.owner.record.kind === 'finding' ? 'Finding' : 'Test case'}
+    onClose={() => void c.askAi.close()} source={<>
       {source.kind === 'available' ? <strong title={source.title}>{source.title}</strong>
         : <p role={source.kind === 'error' ? 'alert' : 'status'}>{source.kind === 'loading' ? 'Loading source…' : source.kind === 'error' ? source.message : `This ${panel.owner.record.kind === 'finding' ? 'finding is' : 'Test cases draft is'} no longer available.`}</p>}
       {source.kind === 'error' ? <ActionButton variant="secondary" onClick={c.askAi.retrySource}>Try again</ActionButton> : null}
-    </div></section>
+    </>}>
     {panel.phase === 'preparing' ? <p role="status">Preparing conversation…</p> : null}
     {panel.phase === 'error' ? <div><p className="chat-error" role="alert">{panel.error}</p>{panel.blockedReference ? <ActionButton variant="secondary" onClick={() => void c.askAi.openConversation(panel.blockedReference!)}>Return to retained chat</ActionButton> : null}</div> : null}
     {panel.closeError ? <p className="chat-error" role="alert">{panel.closeError}</p> : null}
@@ -84,6 +80,18 @@ function RecordConversation({ c, common }: {
         onAttachImages={handle.attachImages} onPasteNativeImage={handle.pasteImage} onRemoveImage={handle.removeImage} onRetryImage={handle.retryImage} onDismissImageFailure={handle.dismissImage}
         onDecidePermission={handle.decidePermission} onRecheck={handle.recheck} />}
     </div> : null}
+  </AskAiPanel>
+}
+
+/** The one Ask AI shell (R6): header, source line, then the conversation. Notes and records differ only in their body. */
+function AskAiPanel({ panelRef, id, kind, visible, label, eyebrow, source, onClose, children }: {
+  panelRef: Ref<HTMLElement>; id?: string; kind: 'notes' | 'record'; visible: boolean; label: string
+  eyebrow: string; source: ReactNode; onClose: () => void; children: ReactNode
+}) {
+  return <aside ref={panelRef} id={id} className={`ask-ai-panel ask-ai-panel--${kind}`} hidden={!visible} inert={!visible} aria-label={label}>
+    <header className="ask-ai-header"><h2>Ask AI</h2><ActionButton variant="secondary" iconOnly icon={X} aria-label="Close Ask AI" onClick={onClose} /></header>
+    <section className="chat-context-card" aria-label="Chat source"><div><span className="eyebrow">{eyebrow}</span>{source}</div></section>
+    {children}
   </aside>
 }
 

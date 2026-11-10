@@ -120,10 +120,10 @@ Check: frontend tests, `frontend:check` (lint, CSS color lint, contrast), and a 
 
 ### Phase 2: Ask AI panel
 
-- [ ] P2.1 Make one panel shell used by both `ask-ai-panel--notes` and `ask-ai-panel--record` (R6).
-- [ ] P2.2 Restyle the transcript, meta line and composer, and merge the handoff copy, without changing behaviour (F4, F5).
-- [ ] P2.3 Fix the record view with the panel open: list stays visible, filter row stays on one line, single scroll region (F13).
-- [ ] P2.4 Keep the existing Ask AI unit and e2e tests green, adjusting selectors only where markup moved.
+- [x] P2.1 Make one panel shell used by both `ask-ai-panel--notes` and `ask-ai-panel--record` (R6).
+- [x] P2.2 Restyle the transcript, meta line and composer, and merge the handoff copy, without changing behaviour (F4, F5).
+- [x] P2.3 Fix the record view with the panel open: list stays visible, filter row stays on one line, single scroll region (F13).
+- [x] P2.4 Keep the existing Ask AI unit and e2e tests green, adjusting selectors only where markup moved.
 
 Check: frontend tests, the Ask AI e2e specs (CI), and a look at all three Ask AI surfaces in both themes.
 
@@ -166,6 +166,8 @@ Check: the release check output, the generated icons at 16, 32, 128 and 512 px, 
 - 2026-11-10: R3 uses `aria-expanded`, not `aria-pressed`. The trigger opens a panel and does not toggle it, and existing tests already pin `aria-expanded` on the Note trigger.
 - 2026-11-10: "Summarize with AI" is now "Summarize" (busy: "Summarizing"). Four bordered buttons did not fit the 530 px Note column beside Ask AI; the Sparkles icon still marks it as AI. Unit tests, e2e specs and `docs/ai-providers.md` follow the label.
 - 2026-11-10: R1 is enforced by `frontend/scripts/check-css-colors.mjs`: `size="compact"` is allowed only in the Session header row and on the image-thumbnail remove overlay.
+- 2026-11-10: P2.3 keeps the record list hidden while Ask AI is open. Beside the 454 px panel the record column is about 580 px, too narrow for a list and a readable record; the record under discussion is the focus. The filter row stays on one line instead.
+- 2026-11-10: R6 "header menu" became one quiet row at the top of the transcript: the status text on the left and a "Conversation options" disclosure on the right. Moving it into the panel header would mean lifting `SessionChatView` state into `AppChat`, and e2e specs drive `.chat-options summary` in place.
 - 2026-11-10: Run as "full send". The phase stops and the P5.1 icon pick are made without waiting; the chosen concept and why are recorded here.
 
 - 2026-11-10: No mockup round and no screenshot tooling. Rules R1-R7 above stand in for the design pass. The icon is chosen from concepts in P5.1.

@@ -1,5 +1,5 @@
 import { ActionButton } from '../components/ActionButton'
-import { Paperclip } from 'lucide-react'
+import { ChevronRight, Paperclip, SlidersHorizontal } from 'lucide-react'
 import { useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { occupiedChoiceReason } from '../app/sessionChat.questions'
 import type { ChatContextPresentation } from '../app/sessionChat.context'
@@ -253,7 +253,18 @@ export function SessionChatView(props: SessionChatViewProps) {
       {notes ? permissionPanel : null}
       <div ref={viewportRef} className="chat-scroll-region" role="region" aria-label="Conversation and actions" tabIndex={0}>
         {record ? permissionPanel : null}
+        {/* One quiet row: conversation state on the left, options on the right (R6). */}
+        <div className="chat-toolbar">
         {notes || loading || saving || working || activeJob || inputRecoveryPending || permissionRecoveryPending || error ? <p className={`chat-help chat-status${status === 'Conversation saved' ? ' sr-only' : ''}`} role="status" aria-live="polite">{status}</p> : null}
+        {notes ? <details className="chat-options"><summary><SlidersHorizontal size={14} aria-hidden="true" />Conversation options<ChevronRight className="disclosure-chevron" size={14} aria-hidden="true" /></summary>
+          <div className="chat-options-content">
+            {modelSelectionControl || <p className="chat-help">Next invocation · {providerLabel} · {modelLabel}</p>}
+            <div className="chat-buttons"><ActionButton variant="secondary" type="button" onClick={onConfigureAi} disabled={busy}>Configure AI</ActionButton>
+              {!addedToNote ? <StartNewConversation state={notes} /> : null}</div>
+            <p className="chat-counts">{messages.length} / 128 messages · {(transcriptBytes / 1024).toFixed(1)} / 128 KiB transcript</p>
+          </div>
+        </details> : null}
+        </div>
         {needsProviderRecovery && !permissionAttention ? (
           <div className="chat-provider-recovery">
             <p className="chat-help">
@@ -264,15 +275,6 @@ export function SessionChatView(props: SessionChatViewProps) {
             {onRecheck ? <ActionButton variant="secondary" type="button" disabled={recheckDisabled} onClick={() => { if (!recheckDisabled) void onRecheck() }}>Recheck status</ActionButton> : null}
           </div>
         ) : null}
-
-        {notes ? <details className="chat-options"><summary>Conversation options</summary>
-          <div className="chat-options-content">
-            {modelSelectionControl || <p className="chat-help">Next invocation · {providerLabel} · {modelLabel}</p>}
-            <div className="chat-buttons"><ActionButton variant="secondary" type="button" onClick={onConfigureAi} disabled={busy}>Configure AI</ActionButton>
-              {!addedToNote ? <StartNewConversation state={notes} /> : null}</div>
-            <p className="chat-counts">{messages.length} / 128 messages · {(transcriptBytes / 1024).toFixed(1)} / 128 KiB transcript</p>
-          </div>
-        </details> : null}
 
         <section ref={transcriptRef} className="chat-transcript" aria-label="Conversation transcript" tabIndex={0}>
           {messages.length === 0 ? <div className="chat-empty-state">
@@ -311,6 +313,7 @@ export function SessionChatView(props: SessionChatViewProps) {
           unverifiedIds={imageFailures.flatMap(failure => failure.recovery?.images.map(image => image.attachmentId) ?? [])} />
         <ChatImageFailures failures={imageFailures} images={composerImages} disabled={locked || inputRecoveryPending}
           onRetry={props.onRetryImage} onRemove={props.onDismissImageFailure} onRemoveImage={onRemoveImage} />
+        <div className="chat-compose-box">
         <textarea
           ref={composerInput} id={`${id}-message`} rows={3} value={composer} disabled={!chat || loading || submitted || recovering}
           aria-describedby={`${id}-shortcut ${id}-send-reason`}
@@ -354,6 +357,7 @@ export function SessionChatView(props: SessionChatViewProps) {
             <ActionButton variant="primary" type="button" disabled={Boolean(sendReason)} aria-describedby={`${id}-send-reason`} onClick={() => { if (!sendReason) void onSend() }}>Send</ActionButton>
             </div>
           </div>
+        </div>
         </div>
         <p className={`chat-help${!sendReason || sendReason === 'Write a message or attach an image to send.' || sendReason === 'Saving conversation…' ? ' sr-only' : ''}`} id={`${id}-send-reason`}>{sendReason || 'Send this message to the selected AI provider.'}</p>
         {retryable && !submitted ? <p className="chat-help" id={`${id}-retry-reason`}>{retryReason || 'Retry sends the previous message again and may repeat tool actions or incur another AI usage charge. Check uncertain external results before retrying.'}</p> : null}

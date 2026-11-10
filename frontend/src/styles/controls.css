@@ -197,3 +197,9 @@
     min-width: 44px;
   }
 }
+
+/* Disclosures (R7): a lucide chevron that turns when open, not the native triangle. */
+summary:has(> .disclosure-chevron) { list-style: none; }
+summary:has(> .disclosure-chevron)::-webkit-details-marker { display: none; }
+.disclosure-chevron { flex-shrink: 0; transition: transform var(--duration-fast) var(--ease-out); }
+details[open] > summary > .disclosure-chevron { transform: rotate(90deg); }

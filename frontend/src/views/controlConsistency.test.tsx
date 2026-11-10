@@ -79,3 +79,14 @@ describe('Record toolbar (R1, R2, R3)', () => {
     expect(screen.getByRole('button', { name: 'Ask AI' })).toHaveAttribute('aria-expanded', 'false')
   })
 })
+
+describe('Ask AI transcript (R6)', () => {
+  it('shows no model meta line when the answer has no recorded run', async () => {
+    const { ChatMessageList } = await import('./ChatMessageList')
+    const { completedChatFixture } = await import('../app/useSessionChat.testSupport')
+    const chat = completedChatFixture()
+    render(<ChatMessageList messages={chat.messages.map((message) => ({ ...message, aiRunId: 'missing-run' }))} aiRuns={[]} />)
+    expect(screen.queryByText('Model evidence unavailable')).toBeNull()
+    expect(document.querySelector('.chat-model-evidence')).toBeNull()
+  })
+})
