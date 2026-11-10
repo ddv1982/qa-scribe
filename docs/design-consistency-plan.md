@@ -147,11 +147,11 @@ Check: tests, the contrast check, and a look at Settings and the 640 px layout i
 
 ### Phase 5: new icon and favicon
 
-- [ ] P5.1 Draw 2-3 icon concepts as SVG in the app's palette (warm neutral, ink, highlighter yellow; flat, legible at 16 px) and show them at 16, 32 and 256 px. Stop for your pick.
-- [ ] P5.2 Commit the chosen SVG as the source in `build/icons/`.
-- [ ] P5.3 Generate the 16-1024 px PNGs, `AppIcon.icns` and `src-tauri/icons/icon.png` from the SVG with a checked-in script.
-- [ ] P5.4 Add a favicon link to `frontend/index.html` and replace the sidebar brand glyph with the same mark (F17).
-- [ ] P5.5 `bun run release:check` passes (it validates the Linux icon set).
+- [x] P5.1 Draw 2-3 icon concepts as SVG in the app's palette (warm neutral, ink, highlighter yellow; flat, legible at 16 px) and show them at 16, 32 and 256 px. Stop for your pick.
+- [x] P5.2 Commit the chosen SVG as the source in `build/icons/`.
+- [x] P5.3 Generate the 16-1024 px PNGs, `AppIcon.icns` and `src-tauri/icons/icon.png` from the SVG with a checked-in script.
+- [x] P5.4 Add a favicon link to `frontend/index.html` and replace the sidebar brand glyph with the same mark (F17).
+- [x] P5.5 `bun run release:check` passes (it validates the Linux icon set).
 
 Check: the release check output, the generated icons at 16, 32, 128 and 512 px, and a look at the sidebar brand.
 
@@ -174,6 +174,8 @@ Check: the release check output, the generated icons at 16, 32, 128 and 512 px, 
 - 2026-11-10: F12 reproduced live: the disabled primary "Save settings" computed a sunken grey fill, a border and secondary text. Disabled buttons now keep their variant at 50% opacity; busy buttons stay at full strength.
 - 2026-11-10: R7 keeps the Settings AI choice row at 42 px, the height the Model combobox already uses and that e2e geometry checks rely on. Every native select now draws the same lucide chevron (`--select-chevron` in `base.css`), and every `<details>` summary uses the rotating `ChevronRight`.
 - 2026-11-10: P4.4 had no new rows; no inventory codes were added after revision 2.
+- 2026-11-10: P5.1 concepts were a highlighted page, a checkmark on a highlighter stroke, and a "Q" ring with a highlighter tail, each on an ink square. Chosen: the "Q" ring. It is the only one still recognisable at 16 px, and the tail carries the UI's highlighter. The page blurred into stripes at 16 px, and the checkmark is generic. The tail uses #ffe15c, a stronger take on `--mark`, so it holds at small sizes.
+- 2026-11-10: `scripts/generate-app-icon.py` (Python + Pillow) is the single source: it writes `build/icons/app-icon.svg`, `frontend/public/favicon.svg`, the Linux PNGs, the macOS iconset and `AppIcon.icns` (written directly, because Pillow's writer drops the 16 and 32 px 1x entries), and `src-tauri/icons/icon.png`. The unreferenced `app-icon-source.png` is removed. `BrandMark.test.tsx` keeps the sidebar mark's geometry equal to the favicon.
 - 2026-11-10: Run as "full send". The phase stops and the P5.1 icon pick are made without waiting; the chosen concept and why are recorded here.
 
 - 2026-11-10: No mockup round and no screenshot tooling. Rules R1-R7 above stand in for the design pass. The icon is chosen from concepts in P5.1.

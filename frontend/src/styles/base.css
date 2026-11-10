@@ -75,6 +75,8 @@
   --on-accent: #ffffff;
 
   --mark: #fff1ad;
+  /* The app icon's highlighter tail; one value in both themes. */
+  --brand-highlight: #ffe15c;
   --on-mark: #1a201d;
   --surface-tint: color-mix(in oklab, var(--text-primary) 7%, transparent);
   --focus-halo: color-mix(in oklab, var(--accent) 22%, transparent);

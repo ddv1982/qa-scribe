@@ -1,5 +1,6 @@
 import type { KeyboardEvent } from 'react'
-import { BookOpen, CircleHelp, FileText, Flag, Loader2, PencilLine, Plus, Search, Settings } from 'lucide-react'
+import { BrandMark } from '../components/BrandMark'
+import { BookOpen, CircleHelp, FileText, Flag, Loader2, Plus, Search, Settings } from 'lucide-react'
 import { ActionButton } from '../components/ActionButton'
 import { RailItem } from '../components/Common'
 import { formatSessionDate } from '../ui/format'
@@ -27,7 +28,7 @@ export function AppRail({ c, commandById, onOpenCommands, onLibrarySidebarTarget
     <aside className="left-rail" aria-label="Workspace navigation">
       <div className="rail-head">
         <div className="brand-cluster">
-          <span className="brand-mark"><PencilLine size={18} strokeWidth={2.2} /></span>
+          <span className="brand-mark"><BrandMark size={20} /></span>
           <strong>QA Scribe</strong>
         </div>
         <button className="command-palette-trigger" type="button" aria-label="Open command palette" title="Commands" onClick={onOpenCommands}>

@@ -7,6 +7,7 @@ release/
 build/*
 !build/icons/
 !build/icons/*.png
+!build/icons/*.svg
 !build/linux/
 !build/linux/**
 !build/macos/
