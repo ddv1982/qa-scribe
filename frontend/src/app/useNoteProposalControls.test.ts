@@ -112,3 +112,36 @@ it('does not save or record an update while the Note is read-only', async () => 
   expect(note()).toBe('Original')
   expect(view.result.current.errors.p1).toBe('Recover the Session Note before updating it.')
 })
+
+function deferredSave() {
+  let finish!: (ok: boolean) => void
+  const save = vi.fn(() => new Promise<boolean>(done => { finish = done }))
+  return { save, finish: (ok = true) => finish(ok) }
+}
+
+it('records the update against the conversation revision left by saving', async () => {
+  resolveRefinement.mockReset().mockResolvedValue(completedChatFixture())
+  const saving = deferredSave()
+  const { view, show } = setup(vi.fn(async () => {}), saving.save)
+  let pending: Promise<void> | undefined
+  act(() => { pending = view.result.current.onUpdate?.('p1') })
+  act(() => show({ chat: completedChatFixture({ revision: 9, proposals: [proposal] }) }))
+  await act(async () => { saving.finish(); await pending })
+  expect(resolveRefinement).toHaveBeenCalledWith(expect.objectContaining({ scope: expect.objectContaining({ expectedRevision: 9 }) }))
+})
+
+it('does not re-apply an undone suggestion over edits saved during Update', async () => {
+  resolveRefinement.mockReset().mockResolvedValue(completedChatFixture())
+  const saving = deferredSave()
+  const { view, show, note } = setup(vi.fn(async () => {}), saving.save)
+  let pending: Promise<void> | undefined
+  act(() => { pending = view.result.current.onUpdate?.('p1') })
+  await act(async () => { saving.finish(); await pending })
+  await act(async () => { await view.result.current.onAction('p1', 'undo') })
+  act(() => { pending = view.result.current.onUpdate?.('p1') })
+  act(() => show({ body: richEditorDocumentFromPlainText('Typed while saving') }))
+  await act(async () => { saving.finish(); await pending })
+  expect(note()).toBe('Typed while saving')
+  expect(resolveRefinement).toHaveBeenCalledTimes(1)
+  expect(view.result.current.errors.p1).toBe(noteChangedWhileUpdatingReason)
+})
