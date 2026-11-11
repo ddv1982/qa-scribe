@@ -222,11 +222,9 @@ export async function reviewMatrix() {
       await actionProof('.chat-handoff button', `chat-completed-${width}-${height}-${name}.png`)
       await actionProof('.chat-options .chat-buttons button:last-child', `chat-restart-control-${width}-${height}-${name}.png`)
       if (width >= 1024) {
-        await nativeKeyboard('.chat-review > button', `chat-handoff-keyboard-${width}-${height}-${name}.png`)
+        await nativeKeyboard('.chat-handoff button', `chat-handoff-keyboard-${width}-${height}-${name}.png`)
         await nativeKeyboard('.chat-options .chat-buttons button:last-child', `chat-restart-keyboard-${width}-${height}-${name}.png`)
       }
-      await review.scrollIntoView()
-      await review.click()
       results.push({ theme: name, planned: { width, height }, actual, reviewRows: count })
     }
   }

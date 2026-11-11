@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { afterEach, beforeEach, expect, it } from 'vitest'
 import { AppShell } from './AppShell'
 import { cleanupControllerTest, getTauriMock, setupControllerTest, renderWithControllerStartup, useAppController } from './useAppController.testHarness'
+import { completedChatFixture } from './useSessionChat.testSupport'
 
 const api = getTauriMock()
 function Subject() { return <AppShell {...useAppController()} /> }
@@ -49,4 +50,23 @@ it('keeps the Note editable beside its own Ask AI conversation and retains unsen
   expect(api.beginRecordChat).not.toHaveBeenCalled()
   expect(api.startChatJob).not.toHaveBeenCalled()
   expect(api.submitChat).not.toHaveBeenCalled()
+})
+
+it('keeps Conversation options open while the restart confirmation owns Escape', async () => {
+  api.getChat.mockResolvedValue(completedChatFixture())
+  await renderWithControllerStartup(() => render(<Subject />))
+  fireEvent.click(screen.getByRole('button', { name: 'Ask AI' }))
+  const panel = within(screen.getByRole('complementary', { name: 'Notes AI chat' }))
+  fireEvent.click(panel.getByLabelText('Conversation options'))
+  const options = panel.getByLabelText('Conversation options').closest('details')!
+  fireEvent.click(await panel.findByRole('button', { name: 'Start new conversation' }))
+  const dialog = await screen.findByRole('dialog', { name: 'Start a new conversation?' })
+  fireEvent.keyDown(dialog, { key: 'Escape' })
+  expect(options).toHaveAttribute('open')
+  fireEvent.keyDown(document.body, { key: 'Escape' })
+  fireEvent(dialog, new Event('cancel', { cancelable: true }))
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  expect(options).toHaveAttribute('open')
+  fireEvent.keyDown(document.body, { key: 'Escape' })
+  expect(options).not.toHaveAttribute('open')
 })

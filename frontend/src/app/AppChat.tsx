@@ -124,16 +124,20 @@ function ConversationOptions({ children }: { children: ReactNode }) {
     const close = (event: Event) => {
       const options = ref.current
       if (!options?.open) return
+      // A modal opened from the options (restart confirmation) owns Escape and focus until it closes.
+      if (document.querySelector('dialog[open]')) return
       // The model menu renders its choices into document.body; they still belong to these options.
       const inside = event.target instanceof Element && (options.contains(event.target) || Boolean(event.target.closest('.model-combobox-popover')))
-      if (event instanceof KeyboardEvent ? event.key === 'Escape' && !document.querySelector('.model-combobox-popover') : !inside) {
+      // Captured before the combobox handles it: an open model menu closes first.
+      const menuOpen = event.target instanceof Element && Boolean(event.target.closest('[role="combobox"][aria-expanded="true"]'))
+      if (event instanceof KeyboardEvent ? event.key === 'Escape' && !menuOpen : !inside) {
         options.open = false
         if (event instanceof KeyboardEvent) options.querySelector('summary')?.focus()
       }
     }
     document.addEventListener('pointerdown', close, true)
-    document.addEventListener('keydown', close)
-    return () => { document.removeEventListener('pointerdown', close, true); document.removeEventListener('keydown', close) }
+    document.addEventListener('keydown', close, true)
+    return () => { document.removeEventListener('pointerdown', close, true); document.removeEventListener('keydown', close, true) }
   }, [])
   return <details ref={ref} className="chat-options">
     <summary aria-label="Conversation options" title="Conversation options"><SlidersHorizontal size={16} aria-hidden="true" /></summary>

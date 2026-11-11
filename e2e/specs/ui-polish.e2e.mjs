@@ -370,6 +370,9 @@ describe('Native UI polish before/after evidence', () => {
     await firstModel.click()
     await (await $('.model-combobox-popover')).waitForExist({ reverse: true })
     await browser.waitUntil(async () => (await $('[role="combobox"][aria-label="Model"]')).getValue().then((value) => value.startsWith('CLI default')))
+    // Close Conversation options; its popover overlays the conversation while open.
+    await (await $('.chat-options summary')).click()
+    await browser.waitUntil(() => browser.execute(() => !document.querySelector('.chat-options').open))
     await laptopResize(1024, 768)
     await actions('chat-empty-1024', '.chat-composer textarea, .chat-compose-actions button')
     await laptopResize(1280, 720)
