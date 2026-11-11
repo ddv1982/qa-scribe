@@ -214,3 +214,12 @@ fn notes_context_reports_whether_the_whole_note_fits() {
     assert!(notes_session_context_is_complete("", &near));
     assert!(!notes_session_context_is_complete(&"c".repeat(2000), &near));
 }
+
+#[test]
+fn a_whole_note_rewrite_is_only_offered_when_it_fits_in_one_reply() {
+    let fits = format!("<p>{}</p>", "x".repeat(MAX_NOTE_REWRITE_BYTES));
+    let too_long = format!("<p>{}</p>", "x".repeat(MAX_NOTE_REWRITE_BYTES + 1));
+    assert!(note_rewrite_fits("", &fits));
+    assert!(!note_rewrite_fits("", &too_long));
+    assert!(notes_session_context_is_complete("", &too_long));
+}

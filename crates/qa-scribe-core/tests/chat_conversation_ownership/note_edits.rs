@@ -202,3 +202,76 @@ fn a_suggestion_is_rejected_once_the_note_changed_after_it_was_requested() {
         .unwrap_err();
     assert!(error.to_string().contains("The note changed"), "{error}");
 }
+
+fn set_note(service: &SessionService, session_id: &str, body: String) {
+    let note = service.get_or_create_note_entry(session_id).unwrap();
+    service
+        .update_entry(
+            &note.id,
+            EntryPatch {
+                body: Some(body),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+}
+
+fn failed_notes_turn(service: &SessionService, session_id: &str) -> ChatState {
+    let chat = service.load_chat(session_id).unwrap();
+    let chat = service
+        .save_chat_composer(composer(
+            &chat,
+            "Rewrite my note",
+            ChatComposerIntent::Message,
+        ))
+        .unwrap();
+    let started = service
+        .start_chat_turn_with_response(
+            ChatStartRequest {
+                scope: scope(&chat),
+            },
+            ChatTarget::Session,
+            ChatRequestIntent::Message,
+        )
+        .unwrap();
+    service
+        .fail_chat_turn(ChatFailRequest {
+            scope: scope(&started.chat),
+            turn_id: started.turn_id,
+            kind: ChatFailureKind::Failed,
+            error_message: "Synthetic failure".into(),
+        })
+        .unwrap()
+}
+
+#[test]
+fn a_retry_after_the_note_changed_cannot_overwrite_it() {
+    // Response contracts are immutable, so a retried turn keeps the fingerprint of the Note it was
+    // first sent with; any rewrite from it is rejected once the Note has changed since.
+    let service = SessionService::in_memory().unwrap();
+    let session_id = session(&service);
+    set_note(&service, &session_id, "<p>First draft</p>".into());
+    let failed = failed_notes_turn(&service, &session_id);
+    set_note(&service, &session_id, "<p>Edited before Retry</p>".into());
+    let retried = service
+        .retry_chat_turn(ChatStartRequest {
+            scope: scope(&failed),
+        })
+        .unwrap();
+    let user = retried.chat.messages.last().unwrap().id.clone();
+    let done = service
+        .finish_chat_turn(ChatFinishRequest {
+            scope: scope(&retried.chat),
+            turn_id: retried.turn_id,
+            assistant_text: json!({"version":3,"requestId":user,"markdown":"Clearer.","outcome":{"kind":"edit","patch":{"kind":"note","bodyMarkdown":"Rewritten"}}}).to_string(),
+        })
+        .unwrap();
+    let error = service
+        .resolve_refinement(RefinementRequest {
+            scope: scope(&done),
+            proposal_id: done.proposals[0].id.clone(),
+            action: RefinementAction::Stage,
+        })
+        .unwrap_err();
+    assert!(error.to_string().contains("The note changed"), "{error}");
+}

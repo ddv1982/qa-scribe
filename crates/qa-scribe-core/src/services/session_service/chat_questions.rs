@@ -26,7 +26,7 @@ fn note_fits_context(connection: &Connection, session_id: &str) -> Result<bool> 
         |row| row.get(0),
     )?;
     let note = super::entries::note_entry(connection, session_id)?;
-    Ok(crate::chat::notes_session_context_is_complete(
+    Ok(crate::chat::note_rewrite_fits(
         session_context.as_deref().unwrap_or_default(),
         note.as_ref().map_or("", |entry| entry.body.as_str()),
     ))
