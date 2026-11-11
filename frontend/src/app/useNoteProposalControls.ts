@@ -7,7 +7,7 @@ import type { SessionChatViewState } from './sessionChat.types'
 
 export const noteChangedReason = 'The note changed after the update. Use Ctrl+Z in the note to step back.'
 
-type Applied = { before: RichEditorDocument; after: string }
+type Applied = { sessionId: string; before: RichEditorDocument; after: string }
 
 /** Update note replaces the live Note editor content (one undoable editor change); autosave persists it. */
 export function useNoteProposalControls({ chat, onRefresh, noteBody, setNoteBody, recordControls }: Pick<SessionChatViewState, 'chat' | 'onRefresh'> & {
@@ -19,8 +19,11 @@ export function useNoteProposalControls({ chat, onRefresh, noteBody, setNoteBody
   const [errors, setErrors] = useState<Readonly<Record<string, string>>>({})
   const [applied, setApplied] = useState<ReadonlyMap<string, Applied>>(new Map())
   const current = serializeRichEditorDocument(noteBody)
-  const latest = useRef(current)
-  useLayoutEffect(() => { latest.current = current })
+  const sessionId = chat?.sessionId ?? null
+  const latest = useRef({ sessionId, note: current })
+  useLayoutEffect(() => { latest.current = { sessionId, note: current } })
+  /** The editor still shows this Session's applied Note, so restoring cannot touch newer or other-Session content. */
+  const stillApplied = (entry: Applied) => latest.current.sessionId === entry.sessionId && latest.current.note === entry.after
   const fail = (id: string, message: string) => setErrors(previous => ({ ...previous, [id]: message }))
   const clear = (id: string) => setErrors(previous => { const { [id]: _removed, ...rest } = previous; return rest })
 
@@ -31,18 +34,22 @@ export function useNoteProposalControls({ chat, onRefresh, noteBody, setNoteBody
     // Apply to the live editor before any await, so a Session switch or a newer edit cannot be overwritten.
     const before = noteBody
     const next = preserveManagedImageNodes(before, after)
-    const appliedText = serializeRichEditorDocument(next)
+    const entry: Applied = { sessionId: chat.sessionId, before, after: serializeRichEditorDocument(next) }
     setNoteBody(next)
-    setApplied(previous => new Map(previous).set(id, { before, after: appliedText }))
+    setApplied(previous => new Map(previous).set(id, entry))
     setPending(previous => new Set(previous).add(id))
     try {
-      await resolveRefinement({ scope: { sessionId: chat.sessionId, draftId: chat.draftId, expectedRevision: chat.revision }, proposalId: id, action: 'stage' })
+      try {
+        await resolveRefinement({ scope: { sessionId: chat.sessionId, draftId: chat.draftId, expectedRevision: chat.revision }, proposalId: id, action: 'stage' })
+      } catch (cause) {
+        if (stillApplied(entry)) setNoteBody(before)
+        setApplied(previous => { const rest = new Map(previous); rest.delete(id); return rest })
+        fail(id, cause instanceof Error ? cause.message : String(cause))
+        return
+      }
       clear(id)
-      await onRefresh?.()
-    } catch (cause) {
-      if (latest.current === appliedText) setNoteBody(before)
-      setApplied(previous => { const rest = new Map(previous); rest.delete(id); return rest })
-      fail(id, cause instanceof Error ? cause.message : String(cause))
+      // The update is recorded; a failed refresh keeps the applied Note and its Undo.
+      await onRefresh?.().catch(() => undefined)
     } finally {
       setPending(previous => { const rest = new Set(previous); rest.delete(id); return rest })
     }
@@ -50,7 +57,7 @@ export function useNoteProposalControls({ chat, onRefresh, noteBody, setNoteBody
 
   function undo(id: string) {
     const entry = applied.get(id)
-    if (!entry || entry.after !== current) { fail(id, noteChangedReason); return }
+    if (!entry || !stillApplied(entry)) { fail(id, noteChangedReason); return }
     setNoteBody(entry.before)
     setApplied(previous => { const rest = new Map(previous); rest.delete(id); return rest })
     clear(id)
@@ -61,7 +68,7 @@ export function useNoteProposalControls({ chat, onRefresh, noteBody, setNoteBody
     ...recordControls,
     errors: { ...recordControls?.errors, ...errors },
     pending: new Set([...recordControls?.pending ?? [], ...pending]),
-    undoable: new Set([...applied].filter(([, entry]) => entry.after === current).map(([id]) => id)),
+    undoable: new Set([...applied].filter(([, entry]) => entry.sessionId === sessionId && entry.after === current).map(([id]) => id)),
     onUpdate: async (id, reference) => { if (isNote(id)) await onUpdate(id); else await recordControls?.onUpdate?.(id, reference) },
     onAction: async (id, action, reference) => {
       if (!isNote(id)) await recordControls?.onAction(id, action, reference)

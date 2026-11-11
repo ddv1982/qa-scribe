@@ -133,3 +133,43 @@ fn a_note_too_long_for_the_context_gets_no_whole_note_edit_contract() {
     assert_eq!(contract.purpose(), ChatResponsePurpose::Conversation);
     assert_eq!(contract.version(), 2);
 }
+
+#[test]
+fn a_clarification_reply_loses_the_note_edit_contract_once_the_note_no_longer_fits() {
+    let service = SessionService::in_memory().unwrap();
+    let session_id = session(&service);
+    let asked = notes_turn(
+        &service,
+        &session_id,
+        json!({"kind":"clarification","question":{"prompt":"Which part?","choices":["Setup","Result"]}}),
+    );
+    let assistant = asked.messages.last().unwrap().id.clone();
+    let note = service.get_or_create_note_entry(&session_id).unwrap();
+    service
+        .update_entry(
+            &note.id,
+            EntryPatch {
+                body: Some(format!("<p>{}</p>", "observation ".repeat(2000))),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    let chat = service.load_chat(&session_id).unwrap();
+    let started = service
+        .start_chat_turn_with_response(
+            ChatStartRequest {
+                scope: scope(&chat),
+            },
+            ChatTarget::Session,
+            ChatRequestIntent::QuestionReply {
+                assistant_message_id: assistant,
+                text: "Setup".into(),
+            },
+        )
+        .unwrap();
+    let contract = service
+        .response_contract(&started.chat.messages.last().unwrap().id)
+        .unwrap()
+        .unwrap();
+    assert_eq!(contract.purpose(), ChatResponsePurpose::Conversation);
+}

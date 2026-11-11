@@ -62,11 +62,6 @@ pub(super) fn resolve(
         });
     let mut text = chat.composer.clone();
     let mut answer = None;
-    // A whole-note edit is only offered when the AI receives the whole Note.
-    let note_editable = matches!(
-        (&chat.owner, &active),
-        (ConversationOwner::Notes { .. }, ChatTarget::Session)
-    ) && note_fits_context(connection, &chat.session_id)?;
     let mut purpose = match (&chat.owner, &active) {
         (ConversationOwner::Record { .. }, ChatTarget::Finding { .. }) => {
             ChatResponsePurpose::Refinement {
@@ -78,11 +73,9 @@ pub(super) fn resolve(
                 record_kind: RefinementRecordKind::TestCasesDraft,
             }
         }
-        (ConversationOwner::Notes { .. }, ChatTarget::Session) if note_editable => {
-            ChatResponsePurpose::Refinement {
-                record_kind: RefinementRecordKind::Note,
-            }
-        }
+        (ConversationOwner::Notes { .. }, ChatTarget::Session) => ChatResponsePurpose::Refinement {
+            record_kind: RefinementRecordKind::Note,
+        },
         _ => ChatResponsePurpose::Conversation,
     };
     let mut pinned = None;
@@ -158,6 +151,16 @@ pub(super) fn resolve(
                 }
             );
         }
+    }
+    // A whole-note edit is only offered when the AI receives the whole Note, including
+    // for replies that inherit an earlier Note purpose.
+    if purpose
+        == (ChatResponsePurpose::Refinement {
+            record_kind: RefinementRecordKind::Note,
+        })
+        && !note_fits_context(connection, &chat.session_id)?
+    {
+        purpose = ChatResponsePurpose::Conversation;
     }
     let context = if let Some(context) = pinned {
         chat_context::validate_owner(connection, &chat.session_id, &context)?;
