@@ -158,8 +158,8 @@ Check: the release check output, the generated icons at 16, 32, 128 and 512 px, 
 ### Phase 6: close-out
 
 - [x] P6.1 `bun run verify:fast` and the frontend tests pass.
-- [ ] P6.2 Walk every finding F1-F17 in the running frontend and confirm it is fixed; CI's e2e suite (real WebKitGTK) is green.
-- [ ] P6.3 Re-read this file and list every unchecked item with its reason.
+- [x] P6.2 Walk every finding F1-F17 in the running frontend and confirm it is fixed; CI's e2e suite (real WebKitGTK) is green.
+- [x] P6.3 Re-read this file and list every unchecked item with its reason.
 
 ## Decisions
 
@@ -176,6 +176,8 @@ Check: the release check output, the generated icons at 16, 32, 128 and 512 px, 
 - 2026-11-10: P4.4 had no new rows; no inventory codes were added after revision 2.
 - 2026-11-10: P5.1 concepts were a highlighted page, a checkmark on a highlighter stroke, and a "Q" ring with a highlighter tail, each on an ink square. Chosen: the "Q" ring. It is the only one still recognisable at 16 px, and the tail carries the UI's highlighter. The page blurred into stripes at 16 px, and the checkmark is generic. The tail uses #ffe15c, a stronger take on `--mark`, so it holds at small sizes.
 - 2026-11-10: `scripts/generate-app-icon.py` (Python + Pillow) is the single source: it writes `build/icons/app-icon.svg`, `frontend/public/favicon.svg`, the Linux PNGs, the macOS iconset and `AppIcon.icns` (written directly, because Pillow's writer drops the 16 and 32 px 1x entries), and `src-tauri/icons/icon.png`. The unreferenced `app-icon-source.png` is removed. `BrandMark.test.tsx` keeps the sidebar mark's geometry equal to the favicon.
+- 2026-11-11: P6.2 closed on #113 at 9123b77. Every required and observational CI check passed, including the WebKitGTK e2e suite on Linux and macOS. CI caught one regression before merge (the hidden "You" label could extend the page at 640x520); it was fixed in 9123b77.
+- 2026-11-11: P6.3: no unchecked items remain. Still not checked live: the libraries, Help, the first-use dialog, and error and empty states. They share the changed controls and CI's e2e suite covers them, but nobody looked at them in the browser.
 - 2026-11-10: Run as "full send". The phase stops and the P5.1 icon pick are made without waiting; the chosen concept and why are recorded here.
 
 - 2026-11-10: No mockup round and no screenshot tooling. Rules R1-R7 above stand in for the design pass. The icon is chosen from concepts in P5.1.
