@@ -75,7 +75,16 @@ export function useNoteProposalControls({ chat, onRefresh, noteBody, setNoteBody
         fail(id, cause instanceof Error ? cause.message : String(cause))
         return
       }
-      if (latest.current.sessionId !== chat.sessionId || latest.current.note !== saved.note) { fail(id, noteChangedWhileUpdatingReason); return }
+      if (latest.current.sessionId !== chat.sessionId || latest.current.note !== saved.note) {
+        // Nothing was applied, so the recorded update is undone and the suggestion is offered again.
+        const recordedOn = returned.current
+        if (recordedOn) {
+          await resolveRefinement({ scope: { sessionId: recordedOn.sessionId, draftId: recordedOn.draftId, expectedRevision: recordedOn.revision }, proposalId: id, action: 'undo' })
+            .then(result => { returned.current = result }, () => undefined)
+        }
+        fail(id, noteChangedWhileUpdatingReason)
+        return
+      }
       const next = preserveManagedImageNodes(saved.body, after)
       setNoteBody(next)
       setApplied(previous => new Map(previous).set(id, { sessionId: chat.sessionId, before: saved.body, beforeText: saved.note, after: serializeRichEditorDocument(next) }))

@@ -45,6 +45,8 @@ it('does not apply when the Session changes while the update is recorded', async
   await act(async () => { resolve(completedChatFixture()); await pending })
   expect(note()).toBe('Other Session')
   expect(view.result.current.errors.p1).toBe(noteChangedWhileUpdatingReason)
+  // The recorded update is undone because nothing was applied.
+  expect(resolveRefinement).toHaveBeenLastCalledWith(expect.objectContaining({ proposalId: 'p1', action: 'undo' }))
 })
 
 it('leaves the Note untouched when the server rejects a stale suggestion or the save fails', async () => {
