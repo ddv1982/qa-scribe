@@ -110,6 +110,8 @@ export function createSessionActions(ctx: SessionActionsContext) {
       ctx.session.activeSessionIdRef.current = reopened.id
       ctx.session.noteEntryIdRef.current = editableNote.id
       ctx.session.setActiveSession(reopened)
+      // A Session opened by search, a deep link or the Library may be older than the loaded list; keep it in the sidebar.
+      ctx.session.setSessions((previous) => mergeSessions(previous, [reopened]))
       ctx.session.setNoteEntry(editableNote)
       ctx.generation.setLatestNoteGenerationUndo(null)
       ctx.records.setDrafts([])

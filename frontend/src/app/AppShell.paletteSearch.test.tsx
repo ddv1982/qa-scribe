@@ -1,8 +1,8 @@
 import '@testing-library/jest-dom/vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { sessionFixture } from '../test/fixtures'
-import { cleanupControllerTest, getTauriMock, setupControllerTest, useAppController } from './useAppController.testHarness'
+import { entryFixture, sessionFixture } from '../test/fixtures'
+import { cleanupControllerTest, getTauriMock, sessionNoteStateFixture, setupControllerTest, useAppController } from './useAppController.testHarness'
 
 const { AppShell } = await import('./AppShell')
 const api = getTauriMock()
@@ -34,5 +34,9 @@ describe('Ctrl+K Session search', () => {
 
     expect(await within(screen.getByRole('dialog', { name: 'Command palette' })).findByRole('group', { name: 'Sessions' })).toHaveTextContent('Archived release checks')
     expect(within(screen.getByRole('listbox', { name: 'Sessions' })).queryByText('Archived release checks')).not.toBeInTheDocument()
+
+    api.openSessionNoteState.mockResolvedValueOnce(sessionNoteStateFixture({ session: archived, noteEntry: entryFixture({ id: 'entry-archived', sessionId: 'session-archived' }) }))
+    fireEvent.click(within(screen.getByRole('group', { name: 'Sessions' })).getByRole('option', { name: /archived release checks/i }))
+    expect(await within(screen.getByRole('listbox', { name: 'Sessions' })).findByRole('option', { name: /archived release checks/i, selected: true })).toBeInTheDocument()
   })
 })
