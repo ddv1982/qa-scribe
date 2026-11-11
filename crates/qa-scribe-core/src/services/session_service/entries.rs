@@ -206,7 +206,7 @@ fn entry(connection: &Connection, id: &str) -> Result<Option<Entry>> {
         .map_err(Into::into)
 }
 
-fn note_entry(connection: &Connection, session_id: &str) -> Result<Option<Entry>> {
+pub(super) fn note_entry(connection: &Connection, session_id: &str) -> Result<Option<Entry>> {
     connection
         .query_row(
             "SELECT id, session_id, type, title, body, body_json, body_format, metadata_json, excluded_from_generation, created_at, updated_at

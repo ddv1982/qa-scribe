@@ -3,9 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { afterEach, beforeEach, expect, it } from 'vitest'
 import type { RefinementProposal } from '../bindings'
 // The harness installs the Tauri mocks, so it loads before AppShell and its command imports.
-import { cleanupControllerTest, getTauriMock, sessionNoteStateFixture, setupControllerTest, renderWithControllerStartup, useAppController } from './useAppController.testHarness'
-import { entryFixture } from '../test/fixtures'
-import { noteTooLongReason } from './useNoteProposalControls'
+import { cleanupControllerTest, getTauriMock, setupControllerTest, renderWithControllerStartup, useAppController } from './useAppController.testHarness'
 import { AppShell } from './AppShell'
 import { completedChatFixture } from './useSessionChat.testSupport'
 
@@ -50,15 +48,16 @@ it('applies a suggested Note with Update note and restores the previous Note wit
   expect(panel.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument()
 })
 
-it('refuses to replace a Note too long for the AI to have read in full', async () => {
+it('restores the previous Note when the update cannot be recorded', async () => {
   api.getChat.mockResolvedValue(completedChatFixture({ proposals: [proposal({ kind: 'offered' })] }))
-  api.openSessionNoteState.mockResolvedValue(sessionNoteStateFixture({ noteEntry: entryFixture({ body: `<p>${'Long observation. '.repeat(1000)}</p>` }) }))
+  api.resolveRefinement.mockRejectedValue(new Error('Chat changed. Reload the conversation before retrying.'))
   await renderWithControllerStartup(() => render(<Subject />))
   fireEvent.click(screen.getByRole('button', { name: 'Ask AI' }))
   const panel = within(screen.getByRole('complementary', { name: 'Notes AI chat' }))
   const suggestion = await panel.findByRole('region', { name: 'Suggested note' })
+  const note = screen.getByLabelText('Note body')
+  const original = note.textContent
   fireEvent.click(within(suggestion).getByRole('button', { name: 'Update note' }))
-  expect(await within(suggestion).findByRole('alert')).toHaveTextContent(noteTooLongReason)
-  expect(api.resolveRefinement).not.toHaveBeenCalled()
-  expect(screen.getByLabelText('Note body')).not.toHaveTextContent('Rewritten note 5512')
+  expect(await within(suggestion).findByRole('alert')).toHaveTextContent('Chat changed')
+  await waitFor(() => expect(note.textContent).toBe(original))
 })

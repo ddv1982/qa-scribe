@@ -81,6 +81,13 @@ pub fn notes_session_context(session_context: &str, note_html: &str) -> String {
     context
 }
 
+/// Whether the whole saved Note fits in the Notes Session context, so the AI may rewrite it as a whole.
+pub fn notes_session_context_is_complete(session_context: &str, note_html: &str) -> bool {
+    let note = crate::generation::project_html_to_prompt_text(note_html);
+    let note = note.trim();
+    note.is_empty() || notes_session_context(session_context, note_html).ends_with(note)
+}
+
 pub(super) fn validate_chat_messages(
     session_context: &str,
     messages: &[ChatPromptMessage],

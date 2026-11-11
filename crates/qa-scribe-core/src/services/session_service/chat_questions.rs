@@ -19,6 +19,18 @@ impl SessionService {
         resolve(self.database.connection(), chat, context, intent)
     }
 }
+fn note_fits_context(connection: &Connection, session_id: &str) -> Result<bool> {
+    let session_context: Option<String> = connection.query_row(
+        "SELECT session_context FROM sessions WHERE id = ?1",
+        [session_id],
+        |row| row.get(0),
+    )?;
+    let note = super::entries::note_entry(connection, session_id)?;
+    Ok(crate::chat::notes_session_context_is_complete(
+        session_context.as_deref().unwrap_or_default(),
+        note.as_ref().map_or("", |entry| entry.body.as_str()),
+    ))
+}
 fn same_target(a: &ChatTarget, b: &ChatTarget) -> bool {
     std::mem::discriminant(a) == std::mem::discriminant(b)
         && a.snapshot().map(|s| (&s.session_id, &s.record_id))
@@ -50,6 +62,11 @@ pub(super) fn resolve(
         });
     let mut text = chat.composer.clone();
     let mut answer = None;
+    // A whole-note edit is only offered when the AI receives the whole Note.
+    let note_editable = matches!(
+        (&chat.owner, &active),
+        (ConversationOwner::Notes { .. }, ChatTarget::Session)
+    ) && note_fits_context(connection, &chat.session_id)?;
     let mut purpose = match (&chat.owner, &active) {
         (ConversationOwner::Record { .. }, ChatTarget::Finding { .. }) => {
             ChatResponsePurpose::Refinement {
@@ -61,9 +78,11 @@ pub(super) fn resolve(
                 record_kind: RefinementRecordKind::TestCasesDraft,
             }
         }
-        (ConversationOwner::Notes { .. }, ChatTarget::Session) => ChatResponsePurpose::Refinement {
-            record_kind: RefinementRecordKind::Note,
-        },
+        (ConversationOwner::Notes { .. }, ChatTarget::Session) if note_editable => {
+            ChatResponsePurpose::Refinement {
+                record_kind: RefinementRecordKind::Note,
+            }
+        }
         _ => ChatResponsePurpose::Conversation,
     };
     let mut pinned = None;

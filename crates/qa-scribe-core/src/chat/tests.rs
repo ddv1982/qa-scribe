@@ -200,3 +200,17 @@ fn notes_context_carries_the_saved_note_within_the_context_limit() {
     let full = "c".repeat(MAX_CHAT_CONTEXT_BYTES);
     assert_eq!(notes_session_context(&full, "<p>note</p>"), full);
 }
+
+#[test]
+fn notes_context_reports_whether_the_whole_note_fits() {
+    assert!(notes_session_context_is_complete(
+        "ctx",
+        "<p>Short note</p>"
+    ));
+    assert!(notes_session_context_is_complete("ctx", ""));
+    let long = format!("<p>{}</p>", "word ".repeat(MAX_CHAT_CONTEXT_BYTES / 4));
+    assert!(!notes_session_context_is_complete("", &long));
+    let near = format!("<p>{}</p>", "x".repeat(MAX_CHAT_CONTEXT_BYTES - 200));
+    assert!(notes_session_context_is_complete("", &near));
+    assert!(!notes_session_context_is_complete(&"c".repeat(2000), &near));
+}
