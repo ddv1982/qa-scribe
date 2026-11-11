@@ -13,6 +13,8 @@ pub struct RefinementResponseContract {
 pub enum RefinementRecordKind {
     Finding,
     TestCasesDraft,
+    /// The Session Note of a Notes conversation; the frontend applies it to the Note editor.
+    Note,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
@@ -28,6 +30,11 @@ pub enum RefinementPatch {
         title: Option<String>,
         #[serde(rename = "bodyMarkdown")]
         body_markdown: Option<String>,
+    },
+    /// A whole replacement Note body.
+    Note {
+        #[serde(rename = "bodyMarkdown")]
+        body_markdown: String,
     },
 }
 

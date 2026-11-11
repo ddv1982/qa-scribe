@@ -11,6 +11,14 @@ impl SessionService {
                 .ok_or_else(|| validation("Proposal is not in this conversation"))?;
             let previous_state = proposal.state.clone();
             match request.action {
+                // A Note edit is applied by the frontend to the live Note editor; the server records it.
+                RefinementAction::Stage if matches!(proposal.patch, RefinementPatch::Note { .. }) => {
+                    match proposal.state {
+                        RefinementState::Offered => proposal.state = RefinementState::Applied,
+                        RefinementState::Applied => return Ok(chat),
+                        _ => return Err(validation("This proposal can no longer be applied")),
+                    }
+                }
                 RefinementAction::Stage => {
                     super::chat_context::validate_owner(tx, &chat.session_id, &proposal.target)?;
                     let snapshot = proposal.target.snapshot().ok_or_else(|| validation("Record context is missing"))?;

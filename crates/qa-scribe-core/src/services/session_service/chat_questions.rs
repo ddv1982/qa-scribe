@@ -61,6 +61,9 @@ pub(super) fn resolve(
                 record_kind: RefinementRecordKind::TestCasesDraft,
             }
         }
+        (ConversationOwner::Notes { .. }, ChatTarget::Session) => ChatResponsePurpose::Refinement {
+            record_kind: RefinementRecordKind::Note,
+        },
         _ => ChatResponsePurpose::Conversation,
     };
     let mut pinned = None;

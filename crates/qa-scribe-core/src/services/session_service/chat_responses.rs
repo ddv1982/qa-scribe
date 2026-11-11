@@ -31,7 +31,13 @@ pub(super) fn start(
         |r| r.get(0),
     )?;
     let contract = ChatResponseContract::Current(ChatResponseContractV2 {
-        version: if record_owned && matches!(purpose, ChatResponsePurpose::Refinement { .. }) {
+        version: if matches!(
+            purpose,
+            ChatResponsePurpose::Refinement {
+                record_kind: RefinementRecordKind::Note
+            }
+        ) || record_owned && matches!(purpose, ChatResponsePurpose::Refinement { .. })
+        {
             3
         } else {
             2

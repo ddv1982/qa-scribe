@@ -3,6 +3,7 @@ import { SlidersHorizontal, X } from 'lucide-react'
 import { ActionButton } from '../components/ActionButton'
 import { SessionChatView } from '../views/SessionChatView'
 import { StartNewConversation } from '../views/StartNewConversation'
+import { useNoteProposalControls } from './useNoteProposalControls'
 import type { SessionChatViewProps } from '../views/SessionChatView'
 import type { AppController } from './useAppController'
 import { deriveChatHandoff, handoffDuringRecordWrites } from './sessionChat.presentation'
@@ -19,6 +20,7 @@ export function AppChat({ c, modelSelectionControl, onConfigureAi }: {
   const notesSessionId = c.sessionChat.chat?.sessionId
   const engine = c.conversations
   const notesMessages = c.sessionChat.chat?.messages ?? []
+  const noteControls = useNoteProposalControls({ chat: c.sessionChat.chat, onRefresh: c.sessionChat.onRefresh, noteBody: c.noteBody, setNoteBody: c.setNoteBody, recordControls: c.sessionChat.proposalControls })
   useEffect(() => {
     if (notesVisible && notesDraftId && notesSessionId) void engine.select({ sessionId: notesSessionId, draftId: notesDraftId }).catch(() => undefined)
   }, [notesVisible, notesDraftId, notesSessionId, engine])
@@ -46,7 +48,7 @@ export function AppChat({ c, modelSelectionControl, onConfigureAi }: {
         restoreNotesFocus.current = true
         c.setSessionMode('write_note')
       }}>
-      <SessionChatView {...c.sessionChat} {...common} kind="notes" hidden={!notesVisible}
+      <SessionChatView {...c.sessionChat} {...common} kind="notes" hidden={!notesVisible} proposalControls={noteControls}
         onOpenNote={() => { restoreNotesFocus.current = true; c.setSessionMode('write_note'); c.setActiveView('sessions') }} />
     </AskAiPanel>
     {c.askAi.panel ? <RecordConversation key={c.activeSession?.id} c={c} common={common} /> : null}

@@ -14,5 +14,9 @@ every Note conversation turn should carry the current saved note text.
 - [x] N5. Empty state and placeholder match the record panel ("Improve this note").
 - [x] N6. Live check at 1280 and 640, light and dark, plus `verify:fast` and `cargo test` for the core crate.
 - [ ] N7. Sol review, PR, CI green, merged.
-- [ ] N8. Note edits as reviewable proposals (Update / Undo), designed from the record flow; scope decided after N7.
+- [ ] N8. Note edits as reviewable proposals (Update / Undo), designed from the record flow (lean option: frontend applies to the live Note editor):
+  - [x] N8a. Core: Notes conversations get a v3 Note refinement contract; an edit outcome carries a whole-note `bodyMarkdown`; Stage marks the proposal Applied (core tests).
+  - [x] N8b. Frontend: Suggested note card with Update note; Note updated with Undo while the Note still equals the applied text; refuses to rewrite notes over 15 KiB of text (AppShell test).
+  - [x] N8c. Live check in the harness: Update note replaces the Note and autosaves, Undo restores it.
+  - [ ] N8d. verify:fast, cargo test, Sol review, PR, CI green, merged.
 - [ ] N9. Release published.
