@@ -368,31 +368,10 @@
   max-width: 100%;
   align-items: center;
   justify-content: center;
-  gap: var(--space-1);
-  padding: var(--space-1);
-  background: var(--surface-raised);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-md);
+  gap: var(--space-2);
 }
 
 .ai-action-buttons > .action-button { padding-inline: var(--space-3); }
-
-/* A hairline separates "turn this note into" from "ask about this note". */
-.ai-action-buttons > .ask-ai-trigger {
-  position: relative;
-  margin-left: var(--space-2);
-}
-
-.ai-action-buttons > .ask-ai-trigger::before {
-  position: absolute;
-  top: 8px;
-  bottom: 8px;
-  left: calc(-1 * var(--space-1) - 1px);
-  width: 1px;
-  background: var(--border-default);
-  content: "";
-}
 
 /* Too narrow for one row: two even columns, never a lone wrapped button. */
 @container note-column (max-width: 560px) {
@@ -401,8 +380,6 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     width: 100%;
   }
-  .ai-action-buttons > .ask-ai-trigger { margin: 0; }
-  .ai-action-buttons > .ask-ai-trigger::before { display: none; }
 }
 
 .workspace-empty,
