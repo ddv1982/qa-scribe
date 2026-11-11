@@ -45,7 +45,7 @@ pub(crate) fn interpret(
         return Err(validation("Response is too large"));
     }
     let envelope = match contract.version() {
-        1 | 2 => serde_json::from_str::<CompletedResponse>(raw)
+        2 => serde_json::from_str::<CompletedResponse>(raw)
             .map_err(|_| validation("Invalid refinement envelope"))?,
         3 => {
             if !matches!(contract.purpose(), ChatResponsePurpose::Refinement { .. }) {
@@ -94,9 +94,6 @@ pub(crate) fn interpret(
         return Err(validation(
             "This request does not permit a local refinement",
         ));
-    }
-    if contract.version() == 1 && envelope.question.is_some() {
-        return Err(validation("Legacy responses do not offer choices"));
     }
     let question = envelope.question.map(validate_question).transpose()?;
     let values = envelope

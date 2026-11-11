@@ -73,7 +73,7 @@ if (legacyCallers.length > 0) {
 }
 console.log('action callers: OK; navigation, options, segmented selections and editor commands retain their semantic controls');
 
-// R1 (docs/design-consistency-plan.md): compact 32px buttons belong to the
+// R1 (docs/archive/design-consistency-plan.md): compact 32px buttons belong to the
 // Session header row only, plus the remove overlay on an image thumbnail.
 const compactAllowance = new Map([
   ['views/SessionEditorView.tsx', 3],

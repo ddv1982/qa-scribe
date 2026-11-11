@@ -12,7 +12,7 @@ GitHub Copilot model discovery. The implementation is in
 ## Transport decision and measured cost
 
 The measurements in this section are the historical Phase 0 baseline, not the October 2026 model-management qualification.
-Current installed CLI results and release limits are recorded in [CLI model management qualification](verification/cli-model-management-qualification.md).
+Current installed CLI results and release limits are recorded in [CLI model management qualification](archive/verification/cli-model-management-qualification.md).
 
 Both integrations use small Rust transports against the exact CLI executable
 already resolved by QA Scribe. Neither transport sends a prompt, creates a
@@ -134,7 +134,7 @@ Claude Code 2.1.50; the follow-up returned 3 models in 359 ms. Copilot was not
 installed on that historical host.
 On 2026-10-16 Linux, Claude Code 2.1.301 returned 13 models and Codex CLI 0.163.0 returned seven visible paginated models.
 Copilot 1.0.69 was installed; its live contract failed with the app classification `PolicyDenied`, whose underlying cause remains unidentified.
-The current [qualification record](verification/cli-model-management-qualification.md) retains exact receipts and optional generation results.
+The current [qualification record](archive/verification/cli-model-management-qualification.md) retains exact receipts and optional generation results.
 Do not install or authenticate a provider as an application behavior or required deterministic CI step.
 
 ## Release evidence checklist
@@ -163,7 +163,7 @@ Claude discovery as generally released.
 The October CLI model-management work retains those gates. Its qualification
 record distinguishes no-prompt contracts, deterministic native behavior and
 optional authenticated generation. See the
-[current qualification record](verification/cli-model-management-qualification.md).
+[current qualification record](archive/verification/cli-model-management-qualification.md).
 CLI catalog labels describe returned choices rather than independently verified
 account entitlement. Codex retains its existing catalog authority in disabled and
 diagnostic modes; the new rollout switch gates Claude and Copilot.

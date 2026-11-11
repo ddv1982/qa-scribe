@@ -5,6 +5,27 @@ Use this workflow when publishing downloadable QA Scribe desktop artifacts.
 The app runtime is Tauri with a bundled Vite frontend. Bun is used for the
 frontend install/build/test path; Node is used for repository release scripts.
 
+## When To Release
+
+Releases are batched. Merging a PR does not by itself mean a release.
+
+- Release at most once a week, collecting the user-visible changes merged since the last tag.
+- Release immediately only for a security fix, a data-loss bug, or a crash on startup.
+- Changes that only touch docs, tests, CI or internal refactoring never trigger a release on their own. They ship with the next batch.
+
+From v0.8.0 to v0.8.35 (2026-10 to 2026-11-11) a release followed almost every merged PR, which made each release carry the full release overhead for a single change.
+
+## 1.0 Criteria
+
+1.0 is the first release that promises stable behavior and data compatibility. Every item below must hold on the release commit:
+
+- The checks can be trusted. The native E2E suite passes locally and on CI with no known flakes, and main CI is green for 5 consecutive runs (project health plan P1).
+- macOS built-app E2E is a required check, not observational.
+- Ask AI matches the approved target spec in `docs/ask-ai-spec.md` on the Notes, Test cases and Findings panels (project health plan P3).
+- The threat model is refreshed for chat tools and chat images (see `docs/backlog.md`).
+- The user pilot in `docs/user-research-pilot.md` has been run, and its blocking findings are fixed.
+- Upgrading from the previous release keeps every Session, record and conversation, which is proven by a test that opens a database written by that release.
+
 ## Version And Tag
 
 The stable release workflow accepts only stable SemVer versions and tags in the

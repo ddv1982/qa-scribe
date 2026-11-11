@@ -414,8 +414,8 @@ New-record selection, library copy, and Chat handoff feasibility come from exist
 
 ## Appendix D. Links and reading list
 
-Read [CONTEXT.md](../CONTEXT.md), [the development guide](development.md), [the existing UI polish plan](ui-polish-plan.md), [the sidebar and preflight plan](sidebar-preflight-ui-plan.md), and [the Chat plan](session-chat-plan.md).
-Read [SessionEditorView](../frontend/src/views/SessionEditorView.tsx), [RecordCollectionView](../frontend/src/views/RecordCollectionView.tsx), [generationPreflight](../frontend/src/workflows/generationPreflight.tsx), [OutputLibraryView](../frontend/src/views/OutputLibraryView.tsx), and [SessionChatView](../frontend/src/views/SessionChatView.tsx) before editing each owner.
+Read [CONTEXT.md](../../CONTEXT.md), [the development guide](../development.md), [the existing UI polish plan](ui-polish-plan.md), [the sidebar and preflight plan](sidebar-preflight-ui-plan.md), and [the Chat plan](session-chat-plan.md).
+Read [SessionEditorView](../../frontend/src/views/SessionEditorView.tsx), [RecordCollectionView](../../frontend/src/views/RecordCollectionView.tsx), [generationPreflight](../../frontend/src/workflows/generationPreflight.tsx), [OutputLibraryView](../../frontend/src/views/OutputLibraryView.tsx), and [SessionChatView](../../frontend/src/views/SessionChatView.tsx) before editing each owner.
 Use the installed `how` skill to trace each affected flow. Use `architect` before changing shared creation intent or library-copy interfaces. Use `interrogate` only if a real design objection remains unresolved.
 Apply Experience First by prioritizing visible task actions. Apply Subtract Before You Add by reducing repeated execution details before adding handoff controls. Apply Sequence Work into Verifiable Units through the five independent gates. Apply Prove It Works through actual desktop and clipboard checks.
 Keep the decision trail local at `artifacts/ux-improvements/decisions.tsv`. Keep historical plans and failed verification evidence intact.

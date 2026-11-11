@@ -1,13 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct RefinementResponseContract {
-    pub version: u8,
-    pub request_id: String,
-    pub record_kind: RefinementRecordKind,
-}
-
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
 #[serde(rename_all = "snake_case")]
 pub enum RefinementRecordKind {

@@ -406,9 +406,9 @@ These observations are not performance measurements, model-selection proof, or a
 ## Appendix D. Links and reading list
 
 - [Investigation and source map](investigations/2026-10-16-cli-model-discovery.md).
-- [Existing catalog compatibility and release contract](provider-catalog-contract.md).
+- [Existing catalog compatibility and release contract](../provider-catalog-contract.md).
 - [Existing Claude and Copilot model detection plan](claude-copilot-model-detection-plan.md).
-- [Release process](releasing.md).
+- [Release process](../releasing.md).
 - Read installed `skills/how/SKILL.md` for each phase. Use `skills/interrogate/SKILL.md` if a phase has a contested design.
 - Follow installed `skills/show-me-your-work/SKILL.md`. Keep the current trail at `.audit/cli-model-investigation-20261016.tsv`.
 - Use installed `skills/benchmark-checklist/SKILL.md` before collecting or interpreting performance samples.

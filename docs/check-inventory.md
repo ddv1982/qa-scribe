@@ -11,7 +11,7 @@ The workflow YAML and `package.json` remain authoritative.
 | `bun run verify:fast` | Local edit loop on Linux or macOS | Size, terminology, source E2E isolation, native tooling and compiler contracts, frontend checks and tests, command surface, Rust format and clippy. Ensures frontend output exists. Omits dependency audits, Rust tests, full build, smoke, and built-app E2E. | Command output |
 | `bun run verify` | Local full gate on the host platform | Dependency audits, static checks, frontend and release-script tests, production build and isolation, Tauri contracts and bindings, Rust format, clippy, tests, build, and non-GUI smoke. Omits workflow lint, online Actions audit, built-app E2E, platform matrix, and package installation. | Command output |
 | `node --test scripts/check-workflows.test.mjs` and `node scripts/check-workflows.mjs` | Workflow edits on Node 24 with pinned actionlint | YAML routing contracts, lint adapter behavior, and all declared workflows. Routing cases are source contracts, not hosted PR events. | Test and lint logs |
-| Authenticated Zizmor command in [CI](../ci.md#shared-setup-and-source-of-truth-rules) | Workflow edits locally and in the shared validation action | Maintained online Actions security audit | Audit output and Actions log |
+| Authenticated Zizmor command in [CI](ci.md#shared-setup-and-source-of-truth-rules) | Workflow edits locally and in the shared validation action | Maintained online Actions security audit | Audit output and Actions log |
 | `bun run frontend:test`, `bun run release:script-tests`, and `bun run linux:metadata:test` | Focused edits on the host platform | Frontend behavior, orchestration contracts, and package metadata units respectively | Test output |
 | `bun run e2e` and `bun run startup:benchmark` | Built-app changes on an isolated supported host | Deterministic desktop workflows and startup budgets. Linux uses Xvfb. | `artifacts/e2e`, `artifacts/startup` |
 
@@ -63,7 +63,7 @@ and Ubuntu 24.04 ABI baseline before signing or publication. Those duties are
 intentional. Local fast and full gates overlap for different feedback needs;
 running both and every constituent command against unchanged source adds no
 separate proof. Startup budgets and first-attempt reliability policy remain in
-[CI](../ci.md#built-application-and-startup-evidence).
+[CI](ci.md#built-application-and-startup-evidence).
 
 ## AC4 command and evidence changes
 
@@ -86,7 +86,7 @@ E2E `latest-run.json`, native installation `receipt.json`, and startup
 `startup-report.json` retain running and completed command stages. Each records
 the command, exit code, signal, spawn error, timeout limit and outcome, and elapsed
 time. Startup retains partial samples. The summary shows incomplete reports and
-links the workflow's artifact page. See [CI](../ci.md#built-application-and-startup-evidence)
+links the workflow's artifact page. See [CI](ci.md#built-application-and-startup-evidence)
 for command caps, first-failure policy, and the direct-child cleanup limit.
 
 Focused verification uses `node --test scripts/run-e2e.test.mjs

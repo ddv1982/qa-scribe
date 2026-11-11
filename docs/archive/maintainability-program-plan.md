@@ -470,7 +470,7 @@ Do not use test count or line count as the sole maintainability result. A protoc
 
 ## Appendix D. Links and reading list
 
-Read [the investigation](investigations/2026-10-16-maintainability-and-t3code.md), [quality scenarios](quality-scenarios.md), [the catalog contract](provider-catalog-contract.md), [the current roadmap](refactoring-roadmap.md), and [CI ownership](ci.md).
+Read [the investigation](investigations/2026-10-16-maintainability-and-t3code.md), [quality scenarios](../quality-scenarios.md), [the catalog contract](../provider-catalog-contract.md), [the current roadmap](refactoring-roadmap.md), and [CI ownership](../ci.md).
 Read `CONTEXT.md` before changing domain names.
 Use the installed `skills/how/SKILL.md` for P02, P03, P05, and P06 architecture tracing.
 Use the installed `skills/interrogate/SKILL.md` if implementation uncovers contested design. This plan does not claim that an adversarial multi-model round ran.

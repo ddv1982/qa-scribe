@@ -336,12 +336,12 @@ No performance baseline was measured in this design task. Performance thresholds
 
 Read these application entry points before editing.
 
-- [CreationIntent and creationIsAuthored](../frontend/src/app/creationIntent.ts).
-- [Creation composer](../frontend/src/views/CreationComposer.tsx), [creation tools](../frontend/src/views/CreationTools.tsx), and [save lifecycle](../frontend/src/app/creationActions.ts).
-- [Generated output format catalog](../frontend/src/testware/generationPreferences.ts), [Rust preferences](../crates/qa-scribe-core/src/generation/preferences.rs), and [shared starters](../shared/creation-starters.json).
-- [Chat composer](../frontend/src/views/SessionChatView.tsx), [chat actions](../frontend/src/app/sessionChat.actions.ts), and [chat domain](../crates/qa-scribe-core/src/domain/chat.rs).
-- [Chat transport](../src-tauri/src/commands/chat/transport.rs), [protocol adapters](../crates/qa-scribe-core/src/ai/chat_protocol), and [attachment retention](../crates/qa-scribe-core/src/services/session_service/attachments.rs).
-- [Theme tokens](../frontend/src/styles/base.css), [collection layout](../frontend/src/styles/collections.css), and [development and native E2E workflow](development.md).
+- [CreationIntent and creationIsAuthored](../../frontend/src/app/creationIntent.ts).
+- [Creation composer](../../frontend/src/views/CreationComposer.tsx), [creation tools](../../frontend/src/views/CreationTools.tsx), and [save lifecycle](../../frontend/src/app/creationActions.ts).
+- [Generated output format catalog](../../frontend/src/testware/generationPreferences.ts), [Rust preferences](../../crates/qa-scribe-core/src/generation/preferences.rs), and [shared starters](../../shared/creation-starters.json).
+- [Chat composer](../../frontend/src/views/SessionChatView.tsx), [chat actions](../../frontend/src/app/sessionChat.actions.ts), and [chat domain](../../crates/qa-scribe-core/src/domain/chat.rs).
+- [Chat transport](../../src-tauri/src/commands/chat/transport.rs), [protocol adapters](../../crates/qa-scribe-core/src/ai/chat_protocol), and [attachment retention](../../crates/qa-scribe-core/src/services/session_service/attachments.rs).
+- [Theme tokens](../../frontend/src/styles/base.css), [collection layout](../../frontend/src/styles/collections.css), and [development and native E2E workflow](../development.md).
 
 Exa found current provider documentation. Ref checked clipboard and app-server API documentation on 24 October 2026.
 These sources establish documented formats. They do not certify the installed CLI versions.

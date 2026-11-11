@@ -6,7 +6,7 @@ The Microsoft TypeScript 7 VS Code extension remains the editor client. Oxlint a
 
 ## Installation and ownership
 
-A frozen frontend install runs the SDK preparation command. The command resolves the installed host package, validates its identity and standard libraries, and creates a relative `.tsc-rs-sdk` link inside the local installation. It preserves vendor files and workspace settings. The explicit repair command is documented in [Development](../development.md).
+A frozen frontend install runs the SDK preparation command. The command resolves the installed host package, validates its identity and standard libraries, and creates a relative `.tsc-rs-sdk` link inside the local installation. It preserves vendor files and workspace settings. The explicit repair command is documented in [Development](../../development.md).
 
 The supported installation hosts are Linux x64, macOS ARM64, and macOS x64. The editor guard checks both direct folder layouts without repairing their setup. Native CI verifies cold and restored-cache installations on all three hosts. Its ARM64 macOS job additionally drives the actual desktop editor.
 

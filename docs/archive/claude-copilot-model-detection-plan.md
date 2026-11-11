@@ -7,7 +7,7 @@ Branch: `codex/claude-copilot-model-detection`
 Implementation evidence, compatibility floors, rollout controls, fixture
 refresh instructions, live-test commands, and outstanding external release
 gates are recorded in
-[`provider-catalog-contract.md`](provider-catalog-contract.md). The code defaults
+[`provider-catalog-contract.md`](../provider-catalog-contract.md). The code defaults
 to diagnostic rollout until those gates are satisfied.
 
 ## October 2026 reconciliation
@@ -59,7 +59,7 @@ This section records the pre-implementation state that motivated the phased
 work. The branch implementation and its remaining external release gates are
 described in `provider-catalog-contract.md`.
 
-Codex already uses a structured `codex app-server` session, initializes it, reads configuration, and paginates `model/list` in [`probe.rs`](../src-tauri/src/commands/providers/probe.rs). [`models.rs`](../src-tauri/src/commands/providers/models.rs) treats that live catalog as authoritative before falling back to `codex debug models` and presets.
+Codex already uses a structured `codex app-server` session, initializes it, reads configuration, and paginates `model/list` in [`probe.rs`](../../src-tauri/src/commands/providers/probe.rs). [`models.rs`](../../src-tauri/src/commands/providers/models.rs) treats that live catalog as authoritative before falling back to `codex debug models` and presets.
 
 Claude and Copilot currently rely on weaker evidence:
 
@@ -203,8 +203,8 @@ Goal: make catalog authority, lifecycle, and safety provider-neutral.
 
 Work:
 
-- Add the catalog snapshot, availability, evidence-source, confidence, capability, and sanitized-error types in [`types.rs`](../src-tauri/src/commands/providers/types.rs).
-- Separate model-catalog cache/freshness from the provider/default snapshot in [`cache.rs`](../src-tauri/src/commands/providers/cache.rs) and the frontend status cache.
+- Add the catalog snapshot, availability, evidence-source, confidence, capability, and sanitized-error types in [`types.rs`](../../src-tauri/src/commands/providers/types.rs).
+- Separate model-catalog cache/freshness from the provider/default snapshot in [`cache.rs`](../../src-tauri/src/commands/providers/cache.rs) and the frontend status cache.
 - Route all deep probes and default resolution through `NeutralProviderCwd`; remove process-CWD leakage.
 - Add a transaction supervisor with absolute deadline, frame/page/model/output bounds, and process-tree cleanup.
 - Add executable/version and redacted auth-state inputs to cache invalidation without storing secrets.

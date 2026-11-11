@@ -1,7 +1,6 @@
 use qa_scribe_core::{
     domain::*,
     services::{SessionService, readable_chat_message},
-    storage::Database,
 };
 use serde_json::{Value, json};
 
@@ -314,67 +313,6 @@ fn unicode_bound_and_readable_projection_retain_question_as_literal_text() {
         choices
     );
     assert!(readable_chat_message(c.messages.last().unwrap()).contains("Which type?"));
-}
-
-#[test]
-fn additive_migration_retains_v1_contract_without_reparsing_historical_prose() {
-    let (s, f, t) = setup();
-    let c = save(&s, &s.load_chat(&f.session_id).unwrap(), "Refine");
-    let st = start(&s, &c, t, ChatRequestIntent::RefineRecord);
-    let id = &st.chat.messages[0].id;
-    let db = s.database().connection();
-    db.execute_batch("DROP TRIGGER chat_contract_immutable")
-        .unwrap();
-    db.execute(
-        "UPDATE chat_response_contracts SET contract_json=?1 WHERE message_id=?2",
-        rusqlite::params![
-            json!({"version":1,"requestId":id,"recordKind":"finding"}).to_string(),
-            id
-        ],
-    )
-    .unwrap();
-    let c=s.finish_chat_turn(ChatFinishRequest { scope:scope(&st.chat),turn_id:st.turn_id,assistant_text:json!({"version":1,"requestId":id,"markdown":"Legacy review","refinement":{"kind":"finding","title":"Legacy changed"}}).to_string() }).unwrap();
-    assert_eq!(c.proposals[0].after.title, "Legacy changed");
-    assert_eq!(s.response_contract(id).unwrap().unwrap().version(), 1);
-    let tmp = std::env::temp_dir().join(format!("jira-migration-{}.sqlite", uuid::Uuid::new_v4()));
-    s.database()
-        .connection()
-        .execute("VACUUM INTO ?1", [tmp.to_str().unwrap()])
-        .unwrap();
-    let db = Database::open(&tmp).unwrap();
-    db.connection()
-        .execute_batch(
-            "DROP TABLE chat_answers; DROP TABLE chat_response_messages; PRAGMA user_version=17;",
-        )
-        .unwrap();
-    drop(db);
-    let db = Database::open(&tmp).unwrap();
-    assert_eq!(
-        db.connection()
-            .query_row("PRAGMA user_version", [], |r| r.get::<_, i32>(0))
-            .unwrap(),
-        19
-    );
-    let reopened = SessionService::new(db).unwrap();
-    assert_eq!(
-        reopened.response_contract(id).unwrap().unwrap().version(),
-        1
-    );
-    let history = reopened.load_chat(&f.session_id).unwrap();
-    assert_eq!(history.messages[0].context, c.messages[0].context);
-    assert_eq!(
-        history.messages.last().unwrap().text,
-        c.messages.last().unwrap().text
-    );
-    assert_eq!(history.proposals, c.proposals);
-    assert!(
-        history
-            .messages
-            .iter()
-            .all(|message| message.response.is_none())
-    );
-    drop(reopened);
-    std::fs::remove_file(tmp).unwrap();
 }
 
 #[test]

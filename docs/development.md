@@ -51,15 +51,15 @@ bun run frontend:tooling:check
 bun run frontend:compiler:check
 ```
 
-The probe checks the installed package version and removes its temporary fixtures. Both verification commands and CI run the probe. Read the [migration findings](research/ts-rust-adoption.md) for compatibility evidence and scope.
+The probe checks the installed package version and removes its temporary fixtures. Both verification commands and CI run the probe. Read the [migration findings](archive/research/ts-rust-adoption.md) for compatibility evidence and scope.
 
-Read the [Rust SDK validation record](research/tsc-rs-only-validation.md) for editor coverage, the pinned shutdown qualification, and current limits.
+Read the [Rust SDK validation record](archive/research/tsc-rs-only-validation.md) for editor coverage, the pinned shutdown qualification, and current limits.
 
 ## Continuous checks
 
 For continuous native checks on Linux or macOS, run `bun run frontend:typecheck:watch`. To run both checkers with Vite, run `bun run frontend:dev:checked`. From `frontend`, use `bun run typecheck:watch` or `bun run dev:checked`. Both project watchers show type errors and recover after edits. The checked session uses Vite's configured port, defaulting to 5173, and fails if it is occupied.
 
-These opt-in watchers add resident memory. On the probe host, median additional RSS was about 296 to 349 MiB. This [watch measurement](research/typescript-7-watch-evidence.json) is conditional on that host and workload, rather than a universal memory cost.
+These opt-in watchers add resident memory. On the probe host, median additional RSS was about 296 to 349 MiB. This [watch measurement](archive/research/typescript-7-watch-evidence.json) is conditional on that host and workload, rather than a universal memory cost.
 
 For these development watchers, Ctrl-C stops every owned process group. A second interrupt skips the shutdown grace period. A failed or unexpectedly terminated child stops the session without restarting it. Process-group cleanup does not cover Ctrl-Z, killing the supervisor with SIGKILL, or descendants that create independent sessions. Ordinary `bun run --cwd frontend dev` runs Vite alone. Production builds and CI use their existing one-shot checks.
 
@@ -99,7 +99,7 @@ built-app E2E, startup launches, workflow lint and online audit, platform matrix
 and installed-package checks. CI supplies those applicable obligations. Do not
 run both gates and every constituent command against unchanged source. Use
 focused tests while editing and the full gate when its broader proof is needed.
-See the [check inventory](verification/check-inventory.md) for the exact scope.
+See the [check inventory](check-inventory.md) for the exact scope.
 
 Run the non-GUI smoke harness:
 

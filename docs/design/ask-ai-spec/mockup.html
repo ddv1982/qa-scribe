@@ -1,0 +1,213 @@
+<title>Ask AI Unified Panel</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;650&family=Inter:wght@400;500;600&display=swap">
+<style>
+/* Layout: a spec sheet. Rows of real-size Ask AI panels (360px, the app's panel width), each captioned with the spec rule it shows. */
+:root {
+  --bg: #f4f5f7; --surface: #ffffff; --sunken: #eef0f3; --line: #d9dde3;
+  --fg: #1c2230; --muted: #5d6677; --accent: #3557d4; --accent-fg: #ffffff;
+  --ok: #1f7a4d; --warn: #9a5b00; --danger: #b3261e; --focus: #3557d4;
+  --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body: "Inter", "Segoe UI", system-ui, sans-serif;
+  --mono: ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #12151c; --surface: #1b1f29; --sunken: #232836; --line: #333a4a;
+  --fg: #e7eaf0; --muted: #9aa3b5; --accent: #8aa2ff; --accent-fg: #0f1320;
+  --ok: #5fd39b; --warn: #f0b45a; --danger: #ff8a80; --focus: #8aa2ff; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #12151c; --surface: #1b1f29; --sunken: #232836; --line: #333a4a;
+  --fg: #e7eaf0; --muted: #9aa3b5; --accent: #8aa2ff; --accent-fg: #0f1320;
+  --ok: #5fd39b; --warn: #f0b45a; --danger: #ff8a80; --focus: #8aa2ff; color-scheme: dark }
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--fg); font: 14px/1.5 var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 32px 48px }
+main { max-width: 1180px; margin: 0 auto; display: grid; gap: 40px }
+h1, h2 { font-family: var(--display); text-wrap: balance; margin: 0 }
+h1 { font-size: 30px; font-weight: 650 }
+h2 { font-size: 19px; font-weight: 650 }
+.intro { display: grid; gap: 8px; max-width: 68ch }
+.intro p, .row > p { margin: 0; color: var(--muted) }
+.status { display: inline-flex; gap: 6px; align-items: center; font-size: 12px; letter-spacing: .04em; text-transform: uppercase; color: var(--warn); font-weight: 600 }
+.row { display: grid; gap: 14px }
+.panels { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start }
+figure { margin: 0; display: grid; gap: 8px; width: 360px; max-width: 100% }
+figcaption { font-size: 12.5px; color: var(--muted); min-width: 0 }
+figcaption b { color: var(--fg); font-weight: 600 }
+code { font: 12px var(--mono); background: var(--sunken); padding: 1px 5px; border-radius: 4px }
+
+/* The panel itself */
+.panel { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; display: flex; flex-direction: column; min-height: 470px; overflow: hidden }
+.hdr { display: flex; align-items: center; gap: 8px; padding: 12px 14px 10px }
+.hdr h3 { margin: 0; font: 600 15px var(--display); flex: 1 }
+.icon-btn { width: 30px; height: 30px; border-radius: 7px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); display: grid; place-items: center; cursor: pointer }
+.icon-btn:focus-visible, .btn:focus-visible, .chip:focus-visible, textarea:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px }
+.icon-btn[aria-expanded="true"] { background: var(--sunken) }
+.src { padding: 0 14px 10px; border-bottom: 1px solid var(--line); min-width: 0 }
+.eyebrow { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600 }
+.src strong { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600 }
+.convo { flex: 1; padding: 14px; display: flex; flex-direction: column; gap: 12px; overflow: auto; min-width: 0 }
+.empty { margin: auto 0; display: grid; gap: 10px; text-align: left }
+.empty h4 { margin: 0; font: 600 16px var(--display) }
+.chips { display: flex; flex-wrap: wrap; gap: 6px }
+.chip { border: 1px solid var(--line); background: var(--sunken); color: var(--fg); border-radius: 999px; padding: 5px 11px; font: 500 12.5px var(--body); cursor: pointer }
+.msg { max-width: 92%; padding: 8px 11px; border-radius: 10px; min-width: 0 }
+.msg.user { align-self: flex-end; background: var(--accent); color: var(--accent-fg) }
+.msg.ai { align-self: flex-start; background: var(--sunken) }
+.working { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: pulse 1.2s ease-in-out infinite }
+@keyframes pulse { 50% { opacity: .3 } }
+@media (prefers-reduced-motion: reduce) { .dot { animation: none } }
+.card { border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px; display: grid; gap: 8px; background: var(--surface) }
+.card h5 { margin: 0; font-size: 12px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted) }
+.doc { font-size: 13px; border-left: 3px solid var(--line); padding-left: 10px; display: grid; gap: 4px }
+.doc p, .doc ol { margin: 0 } .doc ol { padding-left: 18px }
+dl { margin: 0; display: grid; gap: 2px; font-size: 12.5px } dl div { display: flex; gap: 6px } dt { color: var(--muted); min-width: 70px }
+.btn { border-radius: 7px; padding: 6px 12px; font: 600 13px var(--body); cursor: pointer; border: 1px solid var(--line); background: var(--surface); color: var(--fg); justify-self: start }
+.btn.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent) }
+.btn[disabled] { opacity: .5; cursor: not-allowed }
+.done { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--ok); font-weight: 600; font-size: 13px }
+.err { color: var(--danger); font-size: 13px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap }
+.help { color: var(--muted); font-size: 12.5px; margin: 0 }
+.composer { border-top: 1px solid var(--line); padding: 10px 12px; display: grid; gap: 8px }
+textarea { width: 100%; resize: none; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--fg); font: 13.5px var(--body); padding: 8px 10px; min-height: 58px }
+textarea::placeholder { color: var(--muted) }
+.comp-row { display: flex; justify-content: space-between; align-items: center }
+.footer { border-top: 1px solid var(--line); padding: 8px 12px }
+.unavail { border-top: 1px solid var(--line); padding: 12px; display: grid; gap: 8px; background: var(--sunken) }
+.menu { position: absolute; top: 46px; right: 14px; width: min(260px, calc(100% - 28px)); background: var(--surface); border: 1px solid var(--line); border-radius: 9px; box-shadow: 0 10px 30px rgb(0 0 0 / .16); padding: 10px; display: grid; gap: 8px; z-index: 2 }
+.menu label { font-size: 12px; color: var(--muted); display: grid; gap: 4px }
+.menu select { font: 13px var(--body); padding: 5px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--fg) }
+.menu .usage { font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; border-top: 1px solid var(--line); padding-top: 8px }
+.menu .btn { width: 100%; text-align: left }
+.perm { border: 1px solid var(--warn); border-radius: 9px; padding: 10px 12px; display: grid; gap: 8px }
+.perm code { word-break: break-all }
+.btns { display: flex; gap: 8px; flex-wrap: wrap }
+table { border-collapse: collapse; width: 100%; font-size: 13px } th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top } th { font-weight: 600; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em }
+.table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px }
+svg { display: block }
+</style>
+
+<main>
+  <header class="intro">
+    <span class="status">Draft for approval</span>
+    <h1>Ask AI, one panel everywhere</h1>
+    <p>These mockups go with <code>docs/ask-ai-spec.md</code>. Each panel is drawn at the app's 360px panel width. The Note, Test case and Finding panels share one anatomy: header, source line, conversation and composer. The only differences are the noun, the example prompts, the Finding fields and the Notes footer.</p>
+  </header>
+
+  <section class="row" aria-labelledby="r1">
+    <h2 id="r1">Same panel, three sources (empty state S1)</h2>
+    <p>Opening Ask AI focuses the composer. The example prompts fill the composer and do not send.</p>
+    <div class="panels">
+      <figure><div class="panel" aria-label="Ask AI for a Note, empty">
+        <div class="hdr"><h3>Ask AI</h3><button class="icon-btn" aria-label="Conversation options" aria-expanded="false"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg></button><button class="icon-btn" aria-label="Close Ask AI">✕</button></div>
+        <div class="src"><span class="eyebrow">Note</span><strong title="Checkout validation on build 4.2.1">Checkout validation on build 4.2.1</strong></div>
+        <div class="convo"><div class="empty"><h4>Improve this note</h4><div class="chips"><button class="chip">Make this note clearer</button><button class="chip">Turn this into steps</button><button class="chip">What did I miss?</button></div></div></div>
+        <div class="composer"><textarea id="c1" aria-label="Message" placeholder="Ask AI to improve this note…"></textarea><div class="comp-row"><button class="icon-btn" aria-label="Attach image">＋</button><button class="btn primary">Send</button></div></div>
+      </div><figcaption><b>Note.</b> Eyebrow "Note", not "Session note" (G6). The heading and placeholder follow the shared pattern (G2, G3).</figcaption></figure>
+
+      <figure><div class="panel" aria-label="Ask AI for a Test case, empty">
+        <div class="hdr"><h3>Ask AI</h3><button class="icon-btn" aria-label="Conversation options" aria-expanded="false"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg></button><button class="icon-btn" aria-label="Close Ask AI">✕</button></div>
+        <div class="src"><span class="eyebrow">Test case</span><strong>Voucher SPRING10 at checkout</strong></div>
+        <div class="convo"><div class="empty"><h4>Improve this test case</h4><div class="chips"><button class="chip">Make the steps clearer</button><button class="chip">Add expected results</button><button class="chip">Add edge cases</button></div></div></div>
+        <div class="composer"><textarea id="c2" aria-label="Message" placeholder="Ask AI to improve this test case…"></textarea><div class="comp-row"><button class="icon-btn" aria-label="Attach image">＋</button><button class="btn primary">Send</button></div></div>
+      </div><figcaption><b>Test case.</b> It gains the options icon it lacks today (G1).</figcaption></figure>
+
+      <figure><div class="panel" aria-label="Ask AI for a Finding, empty">
+        <div class="hdr"><h3>Ask AI</h3><button class="icon-btn" aria-label="Conversation options" aria-expanded="false"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg></button><button class="icon-btn" aria-label="Close Ask AI">✕</button></div>
+        <div class="src"><span class="eyebrow">Finding</span><strong>Checkout returns 500 after 3DS</strong></div>
+        <div class="convo"><div class="empty"><h4>Improve this finding</h4><div class="chips"><button class="chip">Make this easier to reproduce</button><button class="chip">Suggest a severity</button><button class="chip">Add the expected result</button></div></div></div>
+        <div class="composer"><textarea id="c3" aria-label="Message" placeholder="Ask AI to improve this finding…"></textarea><div class="comp-row"><button class="icon-btn" aria-label="Attach image">＋</button><button class="btn primary">Send</button></div></div>
+      </div><figcaption><b>Finding.</b> The same anatomy. Only the noun and the example prompts change.</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="row" aria-labelledby="r2">
+    <h2 id="r2">One suggestion card: Suggested, then Applied with Undo</h2>
+    <p>The AI never edits by itself. "Update {noun}" applies the change and "Undo" puts it back, the same way in every panel.</p>
+    <div class="panels">
+      <figure><div class="panel" aria-label="Note suggestion">
+        <div class="hdr"><h3>Ask AI</h3><button class="icon-btn" aria-label="Conversation options"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg></button><button class="icon-btn" aria-label="Close Ask AI">✕</button></div>
+        <div class="src"><span class="eyebrow">Note</span><strong>Checkout validation on build 4.2.1</strong></div>
+        <div class="convo">
+          <div class="msg user">Turn this into steps</div>
+          <div class="msg ai">I grouped the setup and turned the checkout into numbered steps.</div>
+          <div class="card"><h5>Suggested note</h5><div class="doc"><p><b>Setup:</b> staging, build 4.2.1, Chrome 131</p><ol><li>Add two items to the cart</li><li>Apply SPRING10</li><li>Pay with the saved card</li></ol></div><button class="btn primary">Update note</button></div>
+        </div>
+        <div class="composer"><textarea id="c4" aria-label="Message" placeholder="Ask AI to improve this note…"></textarea><div class="comp-row"><button class="icon-btn" aria-label="Attach image">＋</button><button class="btn primary">Send</button></div></div>
+        <div class="footer"><button class="btn">Add conversation to note</button></div>
+      </div><figcaption><b>Suggested.</b> The Notes footer appears only after the first reply (G8).</figcaption></figure>
+
+      <figure><div class="panel" aria-label="Finding suggestion with fields">
+        <div class="hdr"><h3>Ask AI</h3><button class="icon-btn" aria-label="Conversation options"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg></button><button class="icon-btn" aria-label="Close Ask AI">✕</button></div>
+        <div class="src"><span class="eyebrow">Finding</span><strong>Checkout returns 500 after 3DS</strong></div>
+        <div class="convo">
+          <div class="msg user">Suggest a severity</div>
+          <div class="msg ai">Payment fails for every saved card, so this blocks checkout.</div>
+          <div class="card"><h5>Suggested finding</h5><div class="doc"><p>Payment returns 500 after the 3DS challenge. <b>Expected:</b> confirmation page.</p></div>
+            <dl><div><dt>Severity</dt><dd>Medium to Critical</dd></div><div><dt>Component</dt><dd>Not set to Payments</dd></div></dl>
+            <button class="btn primary">Update finding</button></div>
+        </div>
+        <div class="composer"><textarea id="c5" aria-label="Message" placeholder="Ask AI to improve this finding…"></textarea><div class="comp-row"><button class="icon-btn" aria-label="Attach image">＋</button><button class="btn primary">Send</button></div></div>
+      </div><figcaption><b>Finding fields.</b> Changed fields are listed under the content. Unchanged ones are left out.</figcaption></figure>
+
+      <figure><div class="panel" aria-label="Applied with undo">
+        <div class="hdr"><h3>Ask AI</h3><button class="icon-btn" aria-label="Conversation options"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg></button><button class="icon-btn" aria-label="Close Ask AI">✕</button></div>
+        <div class="src"><span class="eyebrow">Test case</span><strong>Voucher SPRING10 at checkout</strong></div>
+        <div class="convo">
+          <div class="msg user">Add expected results</div>
+          <div class="msg ai">Each step now ends with what you should see.</div>
+          <div class="card"><div class="done"><span role="status">Test case updated</span><button class="btn">Undo</button></div></div>
+          <div class="card"><h5>Suggested test case</h5><div class="doc"><p>Apply SPRING10. <b>Expected:</b> the total drops by 10%.</p></div><button class="btn primary" disabled aria-describedby="stale">Update test case</button><p class="help" id="stale">The test case changed after this suggestion. Ask AI again to get a fresh one.</p></div>
+        </div>
+        <div class="composer"><textarea id="c6" aria-label="Message" placeholder="Ask AI to improve this test case…"></textarea><div class="comp-row"><button class="icon-btn" aria-label="Attach image">＋</button><button class="btn primary">Send</button></div></div>
+      </div><figcaption><b>Applied, then out of date.</b> Undo now exists for records too (G4). A suggestion made before your edit is disabled and says why.</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="row" aria-labelledby="r3">
+    <h2 id="r3">Options, working, and the edge states</h2>
+    <p>Everything that isn't the conversation sits behind the sliders icon. Each state replaces one part of the panel and leaves the rest alone.</p>
+    <div class="panels">
+      <figure><div class="panel" aria-label="Options menu open">
+        <div class="hdr"><h3>Ask AI</h3><button class="icon-btn" aria-label="Conversation options" aria-expanded="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg></button><button class="icon-btn" aria-label="Close Ask AI">✕</button></div>
+        <div class="menu" role="group" aria-label="Conversation options"><label for="m1">Model<select id="m1"><option>Claude Code · CLI default</option><option>Codex CLI · gpt-5</option></select></label><button class="btn">Configure AI</button><button class="btn">New conversation</button><div class="usage">12 / 128 messages · 3.4 / 128 KiB</div></div>
+        <div class="src"><span class="eyebrow">Finding</span><strong>Checkout returns 500 after 3DS</strong></div>
+        <div class="convo"><div class="msg user">Suggest a severity</div><div class="working" role="status"><span class="dot"></span>Writing a suggestion…</div></div>
+        <div class="composer"><textarea id="c7" aria-label="Message" placeholder="Ask AI to improve this finding…"></textarea><div class="comp-row"><button class="icon-btn" aria-label="Attach image">＋</button><button class="btn">Stop</button></div></div>
+      </div><figcaption><b>Options and Working (S2).</b> The same four options items in every panel (G1, G9). While the AI works, Send becomes Stop.</figcaption></figure>
+
+      <figure><div class="panel" aria-label="Error and permission">
+        <div class="hdr"><h3>Ask AI</h3><button class="icon-btn" aria-label="Conversation options"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg></button><button class="icon-btn" aria-label="Close Ask AI">✕</button></div>
+        <div class="src"><span class="eyebrow">Note</span><strong>Checkout validation on build 4.2.1</strong></div>
+        <div class="convo"><div class="msg user">Check the Jira story for this build</div><div class="err" role="alert">The AI stopped before replying. <button class="btn">Retry</button></div>
+          <div class="perm"><b>The AI wants to run a tool</b><code>jira issue view SHOP-412</code><div class="btns"><button class="btn primary">Allow once</button><button class="btn">Deny</button></div></div></div>
+        <div class="composer"><textarea id="c8" aria-label="Message" placeholder="Ask AI to improve this note…"></textarea><div class="comp-row"><button class="icon-btn" aria-label="Attach image">＋</button><button class="btn primary">Send</button></div></div>
+      </div><figcaption><b>Error (S4) and tool permission (S6).</b> Retry sits right under the turn that failed. The permission card sits above the composer.</figcaption></figure>
+
+      <figure><div class="panel" aria-label="AI unavailable">
+        <div class="hdr"><h3>Ask AI</h3><button class="icon-btn" aria-label="Conversation options"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg></button><button class="icon-btn" aria-label="Close Ask AI">✕</button></div>
+        <div class="src"><span class="eyebrow">Test case</span><strong>Voucher SPRING10 at checkout</strong></div>
+        <div class="convo"><div class="msg user">Add edge cases</div><div class="msg ai">Here are three edge cases: an expired voucher, a voucher with a gift card, and the minimum basket value.</div></div>
+        <div class="unavail" role="status"><p class="help">Claude Code is not signed in. Sign in from a terminal with <code>claude</code>, then return here.</p><button class="btn">Configure AI</button></div>
+      </div><figcaption><b>AI unavailable (S5).</b> One message replaces the composer. Earlier messages stay readable.</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="row" aria-labelledby="r4">
+    <h2 id="r4">What changes from today</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Gap</th><th>Today (v0.8.35)</th><th>Target</th></tr></thead>
+      <tbody>
+        <tr><td>G1, G9</td><td>Only the Notes panel has options, so a record panel has no model choice, no new conversation and no usage line.</td><td>The options icon in all three panels.</td></tr>
+        <tr><td>G2</td><td>Two placeholders: "Ask about this note…" and "Tell AI what you'd like to improve…".</td><td>"Ask AI to improve this {noun}…"</td></tr>
+        <tr><td>G3</td><td>"Work on this note" next to "Improve this finding", with no example prompts.</td><td>"Improve this {noun}" plus 3 example prompts.</td></tr>
+        <tr><td>G4</td><td>"Finding updated" and "Test case updated" have no Undo.</td><td>Undo on every applied suggestion.</td></tr>
+        <tr><td>G5</td><td>Conversations from v0.8.22 to v0.8.34 still show "Review refinement", "Apply to editor" and "Dismiss proposal".</td><td>Old suggestions use the same card.</td></tr>
+        <tr><td>G6</td><td>The Notes eyebrow reads "Session note".</td><td>"Note"</td></tr>
+        <tr><td>G7</td><td>"Preparing reply" and "Preparing suggested changes".</td><td>"Thinking…" and "Writing a suggestion…"</td></tr>
+        <tr><td>G8</td><td>"Add conversation to note" appears, disabled, before any reply.</td><td>It appears after the first reply.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+</main>
