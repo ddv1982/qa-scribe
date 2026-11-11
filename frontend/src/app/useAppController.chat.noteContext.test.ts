@@ -35,4 +35,16 @@ it('keeps the message and does not ask AI when the on-screen Note cannot be save
   await act(async () => { await result.current.sessionChat.onRetry() })
   expect(api.startChatJob).not.toHaveBeenCalled()
   expect(result.current.sessionChat.composer).toBe('Make the setup clearer')
+  expect(result.current.error).toBeTruthy()
+})
+
+it('keeps the specific save error instead of replacing it with the generic reason', async () => {
+  api.getChat.mockResolvedValue(chatFixture({ mode: 'chat', composer: 'Make the setup clearer' }))
+  const { result } = renderHook(() => useAppController())
+  await waitFor(() => expect(result.current.sessionChat.composer).toBe('Make the setup clearer'))
+  await waitFor(() => expect(result.current.activeProvider?.available).toBe(true))
+  act(() => result.current.setNoteBody(richEditorDocumentFromPlainText('x'.repeat(100_001))))
+  await act(async () => { await result.current.sessionChat.onSend() })
+  expect(api.startChatJob).not.toHaveBeenCalled()
+  expect(result.current.error).toMatch(/too large to autosave/)
 })

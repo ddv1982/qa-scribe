@@ -289,7 +289,7 @@ export function useAppController() {
   const recordChat = useConversationSnapshot(chatProtection.conversations, askAi.reference)
   const proposalChat = askAi.visible && recordChat.chat ? recordChat : baseSessionChat
   const refinement = useRefinementController({ conversations: chatProtection.conversations, chat: proposalChat, askAi, records: recordWorkspace, actions: recordActions, persistence: recordPersistence, session: sessionWorkspace, openEditor: setCreatedRecordEditTarget, feedback })
-  const sessionChat: SessionChatViewState = { ...baseSessionChat, ...refinement, ...savedNoteTurns(baseSessionChat, async () => !sessionHasPendingChanges || sessionActions.savePendingSessionEdits(), setError), handoff: handoffDuringRecordWrites(baseSessionChat.handoff, refinement.recordWritesPending) }
+  const sessionChat: SessionChatViewState = { ...baseSessionChat, ...refinement, ...savedNoteTurns(baseSessionChat, async () => !sessionHasPendingChanges || sessionActions.savePendingSessionEdits(), reason => setError(current => current ?? reason)), handoff: handoffDuringRecordWrites(baseSessionChat.handoff, refinement.recordWritesPending) }
   const generationActions = useGenerationActions({
     session: sessionWorkspace,
     records: recordWorkspace,
