@@ -60,3 +60,22 @@ it('shows Note updated with Undo, not Update note, when the refresh after Update
   expect(screen.getByRole('button', { name: 'Undo' })).toBeTruthy()
   expect(screen.queryByRole('button', { name: 'Update note' })).toBeNull()
 })
+
+it('offers the suggestion again after Undo and can apply it a second time', async () => {
+  const { render, within } = await import('@testing-library/react')
+  const { createElement } = await import('react')
+  const { ChatProposalReview } = await import('../views/ChatProposalReview')
+  resolveRefinement.mockReset().mockResolvedValue(completedChatFixture())
+  const { view, note } = setup(vi.fn(async () => {}))
+  await act(async () => { await view.result.current.onUpdate?.('p1') })
+  await act(async () => { await view.result.current.onAction('p1', 'undo') })
+  expect(note()).toBe('Original')
+  const applied = { ...proposal, state: { kind: 'applied' as const } }
+  const card = render(createElement(ChatProposalReview, { proposal: applied, controls: view.result.current }))
+  expect(within(card.container).queryByText('Note updated')).toBeNull()
+  expect(within(card.container).getByRole('button', { name: 'Update note' })).toBeTruthy()
+  card.unmount()
+  await act(async () => { await view.result.current.onUpdate?.('p1') })
+  expect(note()).toBe('Rewritten')
+  expect(resolveRefinement).toHaveBeenCalledTimes(2)
+})

@@ -15,12 +15,13 @@ export function ChatProposalReview({ proposal, controls, presentation = 'notes' 
   const error = controls?.errors[proposal.id]
   if (proposal.target.kind === 'session' && proposal.patch.kind === 'note') {
     const undoable = controls?.undoable?.has(proposal.id) ?? false
-    if (status === 'applied' || controls?.applied?.has(proposal.id)) return <section className="chat-proposal chat-proposal--record" aria-label="Note update">
+    const offeredAgain = controls?.undone?.has(proposal.id) ?? false
+    if ((status === 'applied' || controls?.applied?.has(proposal.id)) && !offeredAgain) return <section className="chat-proposal chat-proposal--record" aria-label="Note update">
       <p role="status">Note updated</p>
       {undoable ? <div className="chat-buttons"><ActionButton variant="secondary" disabled={pending} onClick={() => void controls?.onAction(proposal.id, 'undo')}>Undo</ActionButton></div> : null}
       {error ? <p className="chat-error" role="alert">{error}</p> : null}
     </section>
-    if (status !== 'offered') return null
+    if (status !== 'offered' && !offeredAgain) return null
     return <section className="chat-proposal chat-proposal--record" aria-label="Suggested note">
       {after ? <RichTextEditor value={after} readOnly ariaLabel="Suggested note" /> : null}
       {controls?.onUpdate ? <div className="chat-buttons">
