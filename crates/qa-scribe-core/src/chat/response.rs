@@ -182,6 +182,8 @@ fn values(
     Ok((before, after))
 }
 
+const MAX_NOTE_PROPOSAL_DOCUMENT_BYTES: usize = 200 * 1024;
+
 /// A Note edit replaces the whole Note. The frontend applies `after` to the live Note
 /// editor and keeps its images, so `before` is only an empty placeholder.
 fn note_values(markdown: &str) -> Result<(RefinementEditorValue, RefinementEditorValue)> {
@@ -197,7 +199,9 @@ fn note_values(markdown: &str) -> Result<(RefinementEditorValue, RefinementEdito
         })
     };
     let after = value(super::markdown::parse(markdown))?;
-    if after.document_json.len() > super::MAX_CHAT_RECORD_CONTEXT_BYTES {
+    // A rewrite is bounded by the 12 KiB note limit, but list-heavy Markdown expands several times
+    // as editor JSON; the proposal row allows 256 KiB and a Note proposal's `before` is empty.
+    if after.document_json.len() > MAX_NOTE_PROPOSAL_DOCUMENT_BYTES {
         return Err(validation("Proposed note exceeds the context limit"));
     }
     Ok((value(Vec::new())?, after))
