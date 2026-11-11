@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.8.37 - 2026-11-11
+
+- A calmer app. Your Sessions are always listed in the sidebar, on every screen, and the one you have open is marked.
+- One Library replaces the two separate ones: switch between Test cases and Findings at the top, and see which Session each record belongs to.
+- Ctrl+K (Cmd+K on macOS) now searches your Sessions, test cases and findings as well as commands. Enter opens the first result.
+- Less noise: no more "Opened …" banner, a heading that repeats the record title is hidden in the preview, test case badges show only the format, unset severity is hidden, and "Issues and risks" is now "Findings".
+- Switching Sessions no longer makes the New Session button, the other Sessions and the header buttons flicker, and you can pick another Session while one is still opening.
+
 ## v0.8.36 - 2026-11-11
 
 - No change to how the app looks or behaves. This release is maintenance only.
