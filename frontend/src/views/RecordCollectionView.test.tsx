@@ -115,7 +115,7 @@ describe('scalable record collection', () => {
       onDeleteFinding={vi.fn()} onSaveFinding={async () => true} onDiscardFinding={vi.fn()} onUploadImage={vi.fn()} />
     const view = render(viewFor())
     const header = (title: string) => within(screen.getByRole('heading', { name: title }).closest('header')!)
-    const list = within(screen.getByRole('complementary', { name: 'Issues and risks records' }))
+    const list = within(screen.getByRole('complementary', { name: 'Findings records' }))
     expect(header('A evidence').getByText('High severity')).toBeVisible()
     expect(list.getByRole('button', { name: /A evidence/ })).toHaveTextContent('High severity')
     view.rerender(viewFor('Unrelated chat status'))
@@ -243,7 +243,7 @@ describe('scalable record collection', () => {
     await user.click(screen.getByRole('button', { name: 'Clear filters' }))
     expect(screen.getByRole('combobox', { name: 'Type' })).toHaveValue('all')
     expect(screen.getByRole('heading', { name: 'Checkout bug' })).toBeInTheDocument()
-    await user.type(screen.getByRole('textbox', { name: 'Search Issues and risks' }), 'not present')
+    await user.type(screen.getByRole('textbox', { name: 'Search Findings' }), 'not present')
     expect(screen.queryByRole('button', { name: 'Clear filters' })).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Clear search' }))
     expect(screen.getByRole('heading', { name: 'Checkout bug' })).toBeInTheDocument()

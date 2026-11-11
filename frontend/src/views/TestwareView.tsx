@@ -2,12 +2,7 @@ import type { RecordChatActions } from '../app/sessionChat.context'
 import type { RecordCreationCommands } from './RecordCreationActions'
 import { Box } from 'lucide-react'
 import type { RichEditorImageUpload } from '../editor/RichTextEditor'
-import {
-  parseTestwareGenerationMetadata,
-  testwareDepthLabel,
-  testwareOutputFormatLabel,
-  testwareTechniqueLabel,
-} from '../testware/generationPreferences'
+import { testwareGenerationSummary } from '../testware/generationPreferences'
 import type { Draft, GenerationJobStatus } from '../tauri'
 import type { BusyAction } from '../ui/types'
 import type { RecordLoadState } from '../app/useRecordHydration'
@@ -130,14 +125,12 @@ export function TestwareView({
 }
 
 function TestwareGenerationBadges({ draft }: { draft: Draft }) {
-  const metadata = parseTestwareGenerationMetadata(draft)
-  if (!metadata) return null
+  const summary = testwareGenerationSummary(draft)
+  if (!summary) return null
 
   return (
-    <div className="testware-metadata-badges" aria-label="Test case generation settings">
-      <span>{testwareTechniqueLabel(metadata.technique)}</span>
-      <span>{testwareDepthLabel(metadata.depth)}</span>
-      <span>{testwareOutputFormatLabel(metadata.outputFormat)}</span>
+    <div className="testware-metadata-badges" title={summary.detail}>
+      <span>{summary.format}</span>
     </div>
   )
 }

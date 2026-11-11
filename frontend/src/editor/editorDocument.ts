@@ -166,6 +166,20 @@ export function parseRichEditorDocument(value: string | null | undefined): RichE
   }
 }
 
+/** Read-only previews show a record title once: a leading heading that only repeats it is hidden. */
+export function withoutRepeatedTitleHeading(document: RichEditorDocument, title: string): RichEditorDocument {
+  const [first, ...rest] = document.doc.content ?? []
+  const normalizedTitle = normalizeHeadingText(title)
+  if (first?.type !== 'heading' || !normalizedTitle || rest.length === 0) return document
+  const headingText = (first.content ?? []).map((node) => node.text ?? '').join('')
+  if (normalizeHeadingText(headingText) !== normalizedTitle) return document
+  return { ...document, doc: { ...document.doc, content: rest } }
+}
+
+function normalizeHeadingText(value: string): string {
+  return value.trim().replace(/\s+/g, ' ').toLocaleLowerCase()
+}
+
 export function richEditorDocumentsEqual(left: RichEditorDocument, right: RichEditorDocument): boolean {
   return serializeRichEditorDocument(left) === serializeRichEditorDocument(right)
 }

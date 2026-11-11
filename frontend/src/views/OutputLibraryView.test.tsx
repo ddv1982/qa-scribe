@@ -93,9 +93,11 @@ describe('cross-session output libraries', () => {
     )
 
     const list = screen.getByRole('complementary', { name: 'Test cases library records' })
-    const balancedRecord = within(list).getByRole('button', { name: /gmail login cases.*balanced/i })
-    const leanRecord = within(list).getByRole('button', { name: /gmail login cases.*lean/i })
-    expect(balancedRecord).not.toHaveAccessibleName(leanRecord.getAttribute('aria-label') ?? leanRecord.textContent ?? '')
+    // Rows show the format at a glance and keep technique and depth as detail.
+    const [balancedRecord, leanRecord] = within(list).getAllByRole('button', { name: /gmail login cases.*qa cases/i })
+    expect(balancedRecord).toHaveAttribute('title', expect.stringContaining('Balanced depth'))
+    expect(leanRecord).toHaveAttribute('title', expect.stringContaining('Lean depth'))
+    expect(balancedRecord).not.toHaveAccessibleName(leanRecord.textContent ?? '')
 
     await user.click(leanRecord)
     await user.click(screen.getByRole('button', { name: 'Open in Session' }))
@@ -104,6 +106,18 @@ describe('cross-session output libraries', () => {
     await user.click(balancedRecord)
     await user.click(screen.getByRole('button', { name: 'Open in Session' }))
     expect(onOpenRecord).toHaveBeenLastCalledWith('session-1', 'draft-newer')
+  })
+
+  it('keeps shown records when a refresh fails and offers a retry', async () => {
+    const user = userEvent.setup()
+    const onRetry = vi.fn()
+    render(<OutputLibraryView copyState={{ status: 'idle' }} onCopy={async () => undefined} isBusy={false} kind="testware"
+      draftItems={[{ draft: draftFixture({ title: 'Checkout cases' }), sessionTitle: 'Checkout' }]}
+      loadState="error" loadError="Database temporarily unavailable" onRetry={onRetry} onOpenRecord={vi.fn()} />)
+    expect(screen.getByRole('complementary', { name: 'Test cases library records' })).toHaveTextContent('Checkout cases')
+    expect(screen.getByRole('alert')).toHaveTextContent('Database temporarily unavailable')
+    await user.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(onRetry).toHaveBeenCalledOnce()
   })
 
   it('filters Finding types and offers recovery after a load error', async () => {
@@ -131,6 +145,7 @@ describe('cross-session output libraries', () => {
     )
     await user.selectOptions(screen.getByRole('combobox', { name: 'Type' }), 'risk')
     expect(screen.getByRole('status')).toHaveTextContent('1 of 2 records')
+    expect(screen.getByRole('complementary', { name: 'Findings library records' })).not.toHaveTextContent('Severity not set')
     expect(screen.getByRole('complementary', { name: 'Findings library records' })).toHaveTextContent('Email delay')
   })
 })

@@ -82,7 +82,7 @@ it.each([
     expect(target.snapshot.recordId).toBe('source-A')
   }
   if (!noFallback) {
-    const recordList = screen.getByRole('complementary', { name: kind === 'finding' ? 'Issues and risks records' : 'Test cases records' })
+    const recordList = screen.getByRole('complementary', { name: kind === 'finding' ? 'Findings records' : 'Test cases records' })
     await act(async () => fireEvent.click(within(recordList).getByRole('button', { name: /Other C source/ })))
     await waitFor(() => expect(screen.queryByRole('complementary', { name: 'Ask AI' })).not.toBeInTheDocument())
     await act(async () => fireEvent.click(within(recordList).getByRole('button', { name: missing ? /Visible B source/ : /Original A source/ })))
@@ -140,7 +140,7 @@ it.each(['finding', 'test_cases_draft'] as const)('a %s source read held across 
     fireEvent.change(input, { target: { value: 'Session 2 owned literal input' } })
     const newerReference = controller.askAi.reference!
     expect(controller.askAi.panel?.owner).toEqual({ kind: 'record', sessionId: 'session-2', record: { kind, recordId: 'session-2-B' } })
-    const recordList = screen.getByRole('complementary', { name: kind === 'finding' ? 'Issues and risks records' : 'Test cases records' })
+    const recordList = screen.getByRole('complementary', { name: kind === 'finding' ? 'Findings records' : 'Test cases records' })
     await act(async () => fireEvent.click(within(recordList).getByRole('button', { name: /Visible C/ })))
     await screen.findByRole('heading', { name: 'Visible C' })
     await waitFor(() => expect(controller.askAi.visible).toBe(false))

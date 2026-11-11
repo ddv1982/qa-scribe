@@ -1,6 +1,6 @@
 import type { KeyboardEvent } from 'react'
 import { BrandMark } from '../components/BrandMark'
-import { BookOpen, CircleHelp, FileText, Flag, Loader2, Plus, Search, Settings } from 'lucide-react'
+import { BookOpen, CircleHelp, FileText, Loader2, Plus, Search, Settings } from 'lucide-react'
 import { ActionButton } from '../components/ActionButton'
 import { RailItem } from '../components/Common'
 import { formatSessionDate } from '../ui/format'
@@ -8,21 +8,20 @@ import type { AppController } from './useAppController'
 import type { AppCommand, AppCommandId } from './commandRegistry'
 import { primaryShortcutLabel } from './platformShortcuts'
 
-const visibleSessionLimit = 8
-
-export function AppRail({ c, commandById, onOpenCommands, onLibrarySidebarTarget }: {
+export function AppRail({ c, commandById, onOpenCommands }: {
   c: AppController
   commandById: (id: AppCommandId) => AppCommand | undefined
   onOpenCommands: () => void
-  onLibrarySidebarTarget: (target: HTMLDivElement | null) => void
 }) {
   const runCommand = (id: AppCommandId) => commandById(id)?.run()
   const newSession = commandById('session.new')
   const loadAll = commandById('sessions.load-all')
-  const visibleSessions = c.filteredSessions.slice(0, visibleSessionLimit)
-  const tabbableSessionId = visibleSessions.some((session) => session.id === c.activeSession?.id) ? c.activeSession?.id : visibleSessions[0]?.id
+  const sessions = c.filteredSessions
   const sessionScopedView = c.activeView === 'sessions' || c.activeView === 'testware' || c.activeView === 'findings'
-  const libraryKind = c.activeView === 'testware-library' ? 'Test cases' : c.activeView === 'findings-library' ? 'Findings' : null
+  // The open Session stays marked only while one of its tabs is showing.
+  const currentSessionId = sessionScopedView ? c.activeSession?.id : undefined
+  const tabbableSessionId = sessions.some((session) => session.id === currentSessionId) ? currentSessionId : sessions[0]?.id
+  const libraryView = c.activeView === 'testware-library' || c.activeView === 'findings-library'
 
   return (
     <aside className="left-rail" aria-label="Workspace navigation">
@@ -31,36 +30,34 @@ export function AppRail({ c, commandById, onOpenCommands, onLibrarySidebarTarget
           <span className="brand-mark"><BrandMark size={20} /></span>
           <strong>QA Scribe</strong>
         </div>
-        <button className="command-palette-trigger" type="button" aria-label="Open command palette" title="Commands" onClick={onOpenCommands}>
+        <button className="command-palette-trigger" type="button" aria-label="Open command palette" title="Search and commands" onClick={onOpenCommands}>
           <kbd>{primaryShortcutLabel('k')}</kbd>
         </button>
       </div>
 
       {newSession ? (
-        <ActionButton variant="primary" className="top-new-button" type="button" disabled={!newSession.available} onClick={newSession.run}>
+        <ActionButton variant="secondary" className="top-new-button" type="button" disabled={!newSession.available} onClick={newSession.run}>
           {c.busyAction === 'new-session' ? <Loader2 className="spin" size={16} /> : <Plus size={16} />}
           {newSession.label}
         </ActionButton>
       ) : null}
 
-      {sessionScopedView ? (
-        <label className="global-search">
-          <Search size={16} />
-          <span className="sr-only">Search Sessions</span>
-          <input value={c.searchQuery} onChange={(event) => c.setSearchQuery(event.target.value)} placeholder="Search Sessions…" />
-        </label>
-      ) : null}
+      <label className="global-search">
+        <Search size={16} />
+        <span className="sr-only">Search Sessions</span>
+        <input value={c.searchQuery} onChange={(event) => c.setSearchQuery(event.target.value)} placeholder="Search Sessions…" />
+      </label>
 
-      {sessionScopedView ? <section className="session-picker contextual-rail" aria-label="Sessions">
-        <p className="rail-heading">Recent sessions</p>
+      <section className="session-picker contextual-rail" aria-label="Sessions">
+        <p className="rail-heading">Sessions</p>
         <div className="session-picker-list" role="listbox" aria-label="Sessions">
-          {visibleSessions.map((session) => (
+          {sessions.map((session) => (
             <button
               key={session.id}
-              className={c.activeSession?.id === session.id ? 'session-picker-item active' : 'session-picker-item'}
+              className={currentSessionId === session.id ? 'session-picker-item active' : 'session-picker-item'}
               type="button"
               role="option"
-              aria-selected={c.activeSession?.id === session.id}
+              aria-selected={currentSessionId === session.id}
               tabIndex={tabbableSessionId === session.id ? 0 : -1}
               disabled={c.isBusy && c.activeSession?.id !== session.id}
               onClick={() => void c.openSessionInCurrentView(session)}
@@ -70,25 +67,17 @@ export function AppRail({ c, commandById, onOpenCommands, onLibrarySidebarTarget
               <small className="session-picker-date">{formatSessionDate(session.updatedAt)}</small>
             </button>
           ))}
-          {c.filteredSessions.length === 0 ? <p className="session-picker-empty">No matching sessions</p> : null}
+          {sessions.length === 0 ? <p className="session-picker-empty">No matching sessions</p> : null}
         </div>
-        {c.filteredSessions.length > visibleSessionLimit ? <p className="session-picker-more">Showing {visibleSessionLimit} of {c.filteredSessions.length}. Search to narrow.</p> : null}
         {!c.sessionLibraryComplete ? (
           <ActionButton variant="secondary" type="button" disabled={!loadAll?.available} onClick={() => runCommand('sessions.load-all')}>
             {c.busyAction === 'load-session-library' ? <Loader2 className="spin" size={16} /> : null}
             {loadAll?.label}
           </ActionButton>
         ) : null}
-      </section> : null}
+      </section>
 
-      {libraryKind ? (
-        <section className="library-sidebar contextual-rail" aria-label={`${libraryKind} library records`}>
-          <p className="rail-heading">{libraryKind}</p>
-          <div className="library-sidebar-slot" ref={onLibrarySidebarTarget} />
-        </section>
-      ) : null}
-
-      {sessionScopedView ? <label className="compact-session-select">
+      <label className="compact-session-select">
         <span>Session</span>
         <select
           value={c.activeSession?.id ?? ''}
@@ -101,12 +90,11 @@ export function AppRail({ c, commandById, onOpenCommands, onLibrarySidebarTarget
           {c.sessions.length === 0 ? <option value="">No Sessions yet</option> : null}
           {c.sessions.map((session) => <option key={session.id} value={session.id}>{session.title}</option>)}
         </select>
-      </label> : null}
+      </label>
 
       <nav className="workspace-nav" aria-label="Workspace sections">
         <RailItem icon={FileText} label="Sessions" count={c.sessions.length} active={sessionScopedView} onClick={() => runCommand('view.note')} />
-        <RailItem icon={BookOpen} label="Test cases library" active={c.activeView === 'testware-library'} onClick={() => runCommand('library.testware')} />
-        <RailItem icon={Flag} label="Findings library" active={c.activeView === 'findings-library'} onClick={() => runCommand('library.findings')} />
+        <RailItem icon={BookOpen} label="Library" active={libraryView} onClick={() => runCommand(c.activeView === 'findings-library' ? 'library.findings' : 'library.testware')} />
       </nav>
 
       <div className="rail-utilities">

@@ -178,9 +178,11 @@ async function unifiedRouteBody() {
   await $('dialog[open]').waitForDisplayed()
   await capture('uc3-help')
   await click('dialog button=Close')
-  await click('nav[aria-label="Workspace sections"] button*=Findings library')
+  await click('nav[aria-label="Workspace sections"] button*=Library')
+  const libraryTab = async (label) => { const tab = await (await $('[aria-label="Library output type"]')).$(`[role="tab"]=${label}`); await tab.waitForClickable(); await tab.click() }
+  await libraryTab('Findings')
   await capture('uc3-findings-library')
-  await click('nav[aria-label="Workspace sections"] button*=Test cases library')
+  await libraryTab('Test cases')
   await capture('uc3-test-cases-library')
   assert.deepEqual((await native('open_session_note_state', { id: session.id })).noteEntry, originalNote)
   receipts.push({ name: 'route-complete', noteUnchanged: true, sessionId: session.id, findingRows: (await native('list_findings', { sessionId: session.id })).length,

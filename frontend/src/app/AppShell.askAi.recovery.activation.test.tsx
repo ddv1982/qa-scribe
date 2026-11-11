@@ -54,7 +54,7 @@ it.each(['close', 'session', 'newer'])('late missing-source activation cannot ov
     await waitFor(() => expect(controller.activeSession?.id).toBe('session-2'))
   }
   if (action === 'newer') {
-    const list = screen.getByRole('complementary', { name: 'Issues and risks records' })
+    const list = screen.getByRole('complementary', { name: 'Findings records' })
     fireEvent.click(within(list).getByRole('button', { name: /Visible C/ }))
     await waitFor(() => expect(controller.askAi.visible).toBe(false))
     fireEvent.click(screen.getByRole('button', { name: 'Ask AI' }))

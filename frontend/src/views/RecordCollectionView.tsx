@@ -152,6 +152,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
     ?? null
   const selectedCopyBody = useMemo(() => composer || !selectedRecord ? '' : copyBody?.(selectedRecord) ?? selectedRecord.body, [composer, selectedRecord, copyBody])
   const selectedEditing = selectedRecord ? Boolean(editingRecordIds[selectedRecord.id]) : false
+  const filtered = visibleRecords.length !== records.length
 
   const selectedUnsaved = Boolean(selectedRecord && selectedEditing && editingOriginals[selectedRecord.id]
     && JSON.stringify(selectedRecord) !== JSON.stringify(editingOriginals[selectedRecord.id]))
@@ -225,7 +226,38 @@ export function RecordCollectionView<T extends CollectionRecord>({
   return (
     <section className="collection-view">
       <header className="collection-header">
-        <h1>{labels.heading}</h1>
+        <h1 className="sr-only">{labels.heading}</h1>
+        {records.length > 0 ? (
+          <div className="collection-toolbar">
+            <label className="collection-search">
+              <Search size={16} />
+              <span className="sr-only">Search {labels.heading}</span>
+              <input
+                value={query}
+                disabled={selectedEditing}
+                placeholder={`Search ${labels.heading.toLocaleLowerCase()} in this Session…`}
+                onChange={(event) => setQuery(event.target.value)}
+              />
+            </label>
+            <label className="collection-sort">
+              <span>Sort</span>
+              <select value={sort} disabled={selectedEditing} onChange={(event) => setSort(event.target.value as 'updated' | 'title')}>
+                <option value="updated">Recently updated</option>
+                <option value="title">Title</option>
+              </select>
+            </label>
+            {filter ? (
+              <label className="collection-sort">
+                <span>{filter.label}</span>
+                <select value={filterValue} disabled={selectedEditing} onChange={(event) => setFilterValue(event.target.value)}>
+                  <option value="all">All</option>
+                  {filter.options.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+                </select>
+              </label>
+            ) : null}
+            <p role="status" aria-live="polite" className={filtered ? undefined : 'sr-only'}>{visibleRecords.length} of {records.length} {labels.recordNounLower} record{records.length === 1 ? '' : 's'}</p>
+          </div>
+        ) : null}
         <div className="collection-header-actions">
           {!composer ? <RecordCreationActions commands={creationCommands} /> : null}
         </div>
@@ -242,39 +274,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
         </div>
       ) : null}
 
-      {records.length > 0 ? (
-        <div className="collection-toolbar">
-          <label className="collection-search">
-            <Search size={16} />
-            <span className="sr-only">Search {labels.heading}</span>
-            <input
-              value={query}
-              disabled={selectedEditing}
-              placeholder={`Search ${labels.heading.toLocaleLowerCase()} in this Session…`}
-              onChange={(event) => setQuery(event.target.value)}
-            />
-          </label>
-          <label className="collection-sort">
-            <span>Sort</span>
-            <select value={sort} disabled={selectedEditing} onChange={(event) => setSort(event.target.value as 'updated' | 'title')}>
-              <option value="updated">Recently updated</option>
-              <option value="title">Title</option>
-            </select>
-          </label>
-          {filter ? (
-            <label className="collection-sort">
-              <span>{filter.label}</span>
-              <select value={filterValue} disabled={selectedEditing} onChange={(event) => setFilterValue(event.target.value)}>
-                <option value="all">All</option>
-                {filter.options.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-              </select>
-            </label>
-          ) : null}
-          <p role="status" aria-live="polite">{visibleRecords.length} of {records.length} {labels.recordNounLower} record{records.length === 1 ? '' : 's'}</p>
-        </div>
-      ) : null}
-
-      <div className={visibleRecords.length ? "collection-workspace" : "collection-workspace collection-workspace--single-sidebar"}>
+      <div className={visibleRecords.length ? 'collection-workspace' : 'collection-workspace collection-workspace--single-sidebar'}>
         {activeGenerationJob ? (
           <GenerationRecord
             title={labels.generationTitle}

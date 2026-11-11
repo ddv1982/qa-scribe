@@ -17,6 +17,8 @@ import type { AppController } from './useAppController'
 import { createCommandRegistry, type AppCommandId } from './commandRegistry'
 import { CommandPalette, DeleteConfirmationDialog, PendingChangesDialog } from './AppOverlays'
 import { primaryModifierPressed } from './platformShortcuts'
+import { createSearchTargets } from './searchTargets'
+import { listSessions, type Session } from '../tauri'
 import { AppRail } from './AppRail'
 import { FirstUseDialog } from '../onboarding/FirstUseDialog'
 import { AttachmentCleanupWarning } from './AttachmentCleanupWarning'
@@ -34,7 +36,6 @@ export function AppShell(c: AppController) {
     onChange: (model: string) => { void c.persistModelChoice(c.selectedProvider, model) } }
   const modelSelectionControl = <NextModelSelection {...modelSelectionProps} />
   const [overlay, setOverlay] = useState<'commands' | 'help' | 'example' | null>(null)
-  const [librarySidebarTarget, setLibrarySidebarTarget] = useState<HTMLDivElement | null>(null)
   const [noteActionsTarget, setNoteActionsTarget] = useState<HTMLDivElement | null>(null)
   const commands = createCommandRegistry(c, () => setOverlay('help'))
   const commandById = (id: AppCommandId) => commands.find((command) => command.id === id)
@@ -45,6 +46,20 @@ export function AppShell(c: AppController) {
   const creationResultReady = c.creationIntent?.phase.state === 'saved'
     && c.creationIntent.phase.selection === 'ready'
   const composer = c.creationIntent && !creationResultReady ? <CreationWorkspace c={c} /> : null
+
+  const { loadDraftLibrary, loadFindingLibrary, sessionLibraryComplete } = c
+  // Startup loads only recent Sessions; the palette searches every Session without changing the sidebar.
+  const [paletteSessions, setPaletteSessions] = useState<Session[] | null>(null)
+  useEffect(() => {
+    // Ctrl+K also searches saved test cases and findings, so read them fresh each time it opens.
+    if (overlay !== 'commands') return
+    void loadDraftLibrary()
+    void loadFindingLibrary()
+    if (sessionLibraryComplete) return
+    let current = true
+    listSessions().then((sessions) => { if (current) setPaletteSessions(sessions) }, () => undefined)
+    return () => { current = false }
+  }, [overlay, loadDraftLibrary, loadFindingLibrary, sessionLibraryComplete])
 
   useEffect(() => {
     function handleShortcut(event: globalThis.KeyboardEvent) {
@@ -66,7 +81,7 @@ export function AppShell(c: AppController) {
 
   return (
     <main className="app-shell" onPaste={overlay ? undefined : c.handlePaste}>
-      <AppRail c={c} commandById={commandById} onOpenCommands={() => setOverlay('commands')} onLibrarySidebarTarget={setLibrarySidebarTarget} />
+      <AppRail c={c} commandById={commandById} onOpenCommands={() => setOverlay('commands')} />
 
       <section className="center-workspace" aria-label="Workspace">
         <AttachmentCleanupWarning cleanup={c.attachmentCleanup} />
@@ -205,31 +220,23 @@ export function AppShell(c: AppController) {
           />
         ) : null}
 
-        {c.activeView === 'testware-library' ? (
-          <OutputLibraryView
-            kind="testware"
-            draftItems={c.draftLibrary}
-            loadState={c.draftLibraryState}
-            loadError={c.draftLibraryError}
-            onRetry={() => void c.loadDraftLibrary()}
-            onOpenRecord={(sessionId, recordId) => void c.openLibraryRecord(sessionId, 'testware', recordId)}
-            sidebarTarget={librarySidebarTarget}
-            onCopy={c.copy} copyState={c.copyState} isBusy={c.isBusy}
-          />
-        ) : null}
-
-        {c.activeView === 'findings-library' ? (
-          <OutputLibraryView
-            kind="findings"
-            findingItems={c.findingLibrary}
-            loadState={c.findingLibraryState}
-            loadError={c.findingLibraryError}
-            onRetry={() => void c.loadFindingLibrary()}
-            onOpenRecord={(sessionId, recordId) => void c.openLibraryRecord(sessionId, 'findings', recordId)}
-            sidebarTarget={librarySidebarTarget}
-            onCopy={c.copy} copyState={c.copyState} isBusy={c.isBusy}
-          />
-        ) : null}
+        {c.activeView === 'testware-library' || c.activeView === 'findings-library' ? (() => {
+          const kind = c.activeView === 'testware-library' ? 'testware' : 'findings'
+          return (
+            <OutputLibraryView
+              key={kind}
+              kind={kind}
+              onSelectKind={(next) => runCommand(next === 'testware' ? 'library.testware' : 'library.findings')}
+              draftItems={c.draftLibrary}
+              findingItems={c.findingLibrary}
+              loadState={kind === 'testware' ? c.draftLibraryState : c.findingLibraryState}
+              loadError={kind === 'testware' ? c.draftLibraryError : c.findingLibraryError}
+              onRetry={() => void (kind === 'testware' ? c.loadDraftLibrary() : c.loadFindingLibrary())}
+              onOpenRecord={(sessionId, recordId) => void c.openLibraryRecord(sessionId, kind, recordId)}
+              onCopy={c.copy} copyState={c.copyState} isBusy={c.isBusy}
+            />
+          )
+        })() : null}
 
         {c.activeView === 'settings' ? (
           <SettingsView
@@ -276,7 +283,10 @@ export function AppShell(c: AppController) {
       ) : null}
 
       {overlay === 'commands' ? (
-        <CommandPalette commands={commands} onClose={() => setOverlay(null)} />
+        <CommandPalette commands={commands} onClose={() => setOverlay(null)}
+          targets={createSearchTargets({ sessions: !c.sessionLibraryComplete && paletteSessions ? paletteSessions : c.sessions, draftLibrary: c.draftLibrary, findingLibrary: c.findingLibrary,
+            openSession: (session) => void c.openSessionInCurrentView(session),
+            openRecord: (sessionId, view, recordId) => void c.openLibraryRecord(sessionId, view, recordId) })} />
       ) : null}
 
       {overlay === 'help' || overlay === 'example' ? (

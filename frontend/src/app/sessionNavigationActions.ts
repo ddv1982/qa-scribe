@@ -9,7 +9,6 @@ type SessionOpenActions = {
   sessionNavigationIsCurrent: (epoch: number) => boolean
   openSession: (
     session: Session,
-    showNotice?: boolean,
     onOpened?: () => void,
     requestedEpoch?: number,
   ) => Promise<void>
@@ -39,7 +38,7 @@ export function createSessionNavigationActions(ctx: SessionNavigationContext) {
       ctx.sessionActions.beginSessionNavigation()
       return Promise.resolve()
     }
-    return ctx.requestSessionNavigation(destination, () => ctx.sessionActions.openSession(session, true, () => ctx.setActiveView(destination)))
+    return ctx.requestSessionNavigation(destination, () => ctx.sessionActions.openSession(session, () => ctx.setActiveView(destination)))
   }
 
   async function openLibraryRecord(sessionId: string, view: 'testware' | 'findings', recordId: string) {
@@ -48,7 +47,7 @@ export function createSessionNavigationActions(ctx: SessionNavigationContext) {
       try {
         const session = ctx.sessions.find((candidate) => candidate.id === sessionId) ?? await reopenSession(sessionId)
         if (!ctx.sessionActions.sessionNavigationIsCurrent(epoch)) return
-        await ctx.sessionActions.openSession(session, false, () => {
+        await ctx.sessionActions.openSession(session, () => {
           ctx.setFocusedRecordId(recordId)
           ctx.setActiveView(view)
         }, epoch)
@@ -82,7 +81,7 @@ export function createSessionNavigationActions(ctx: SessionNavigationContext) {
       try {
         const session = ctx.sessions.find((candidate) => candidate.id === route.sessionId) ?? await reopenSession(route.sessionId!)
         if (!ctx.sessionActions.sessionNavigationIsCurrent(epoch)) return
-        await ctx.sessionActions.openSession(session, false, () => {
+        await ctx.sessionActions.openSession(session, () => {
           ctx.setFocusedRecordId(route.recordId)
           ctx.setActiveView(route.view)
         }, epoch)

@@ -8,6 +8,8 @@ const titles = [
   'CHO-2982', 'EMP-990', 'Testplan IRIS Oracle2Cloud integration',
   'Untitled session 1', 'Breeding overview testcases covering every validation path and exception',
   'UnbrokenSessionTitle'.repeat(7), 'Checkout regression checks', 'Release candidate',
+  // The Session list now fills the rail, so the fixture needs enough rows to overflow it.
+  'Goldengate', 'CHO-3463 Herd overview', 'sirematch-adapter test', 'Payments sandbox', 'Login smoke', 'Mobile release',
 ]
 const evidence = []
 

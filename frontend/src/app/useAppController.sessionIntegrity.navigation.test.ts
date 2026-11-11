@@ -56,6 +56,23 @@ describe('useAppController Session integrity', () => {
     expect(result.current.noteEntry?.id).toBe('entry-3')
   })
 
+  it('asks about unsaved Settings before the sidebar switches Session from Settings', async () => {
+    const { result } = renderHook(() => useAppController())
+    await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
+    const sessionTwo = sessionFixture({ id: 'session-2', title: 'Session Two' })
+    tauriMock.openSessionNoteState.mockResolvedValueOnce(sessionNoteStateFixture({ session: sessionTwo, noteEntry: entryFixture({ id: 'entry-2', sessionId: 'session-2' }) }))
+    act(() => result.current.openSettingsSection())
+    act(() => result.current.updateSettingsDraft({ testwareTemplate: 'Unsaved template' }))
+
+    await act(async () => { await result.current.openSessionInCurrentView(sessionTwo) })
+    expect(result.current.pendingNavigationView).toBe('sessions')
+    expect(tauriMock.openSessionNoteState).not.toHaveBeenCalledWith('session-2')
+
+    await act(async () => { await result.current.discardPendingNavigationChanges() })
+    await waitFor(() => expect(result.current.activeSession?.id).toBe('session-2'))
+    expect(result.current.settingsDirty).toBe(false)
+  })
+
   it('lets reselecting the active Session cancel a pending Session open', async () => {
     const { result } = renderHook(() => useAppController())
     await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))

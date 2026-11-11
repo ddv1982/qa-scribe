@@ -107,7 +107,7 @@ it.each(kinds)('%s late retained read failure cannot reset a newer panel or pain
     act(() => { opening = controller.askAi.onAskAi(target) })
     await waitFor(() => expect(api.getConversation).toHaveBeenCalledWith({ sessionId: 'session-1', draftId: 'retained-failed-read' }))
     expect(controller.askAi.panel?.phase).toBe('preparing')
-    const list = screen.getByRole('complementary', { name: kind === 'finding' ? 'Issues and risks records' : 'Test cases records' })
+    const list = screen.getByRole('complementary', { name: kind === 'finding' ? 'Findings records' : 'Test cases records' })
     await act(async () => fireEvent.click(within(list).getByRole('button', { name: /Other source/ })))
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Ask AI' })))
     const input = await screen.findByRole('textbox', { name: 'Message' })
@@ -172,7 +172,7 @@ it.each([
       await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Close Ask AI' })))
       await waitFor(() => expect(controller.askAi.visible).toBe(false))
     } else {
-      const list = within(screen.getByRole('complementary', { name: kind === 'finding' ? 'Issues and risks records' : 'Test cases records' }))
+      const list = within(screen.getByRole('complementary', { name: kind === 'finding' ? 'Findings records' : 'Test cases records' }))
       await act(async () => fireEvent.click(list.getByRole('button', { name: /Other source/ })))
       await act(async () => fireEvent.click(list.getByRole('button', { name: /Original source/ })))
       expect(controller.askAi.visible).toBe(false)

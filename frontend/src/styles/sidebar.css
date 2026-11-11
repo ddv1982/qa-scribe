@@ -1,7 +1,6 @@
 .workspace-nav {
   display: grid;
   gap: 1px;
-  margin-top: auto;
   padding-top: var(--space-2);
   border-top: 1px solid var(--border-default);
 }
@@ -56,33 +55,12 @@
 }
 
 .session-picker {
-  display: grid;
-  gap: var(--space-1);
-  margin-top: var(--space-3);
-}
-
-.library-sidebar {
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
   gap: var(--space-1);
-  margin: var(--space-3) 0;
-  overflow: hidden;
-}
-
-.library-sidebar-slot {
-  flex: 1 1 auto;
   min-height: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-}
-
-.library-sidebar-slot .record-master-list {
-  max-height: none;
-  padding: 0 2px 0 0;
-  background: transparent;
-  border: 0;
-  border-radius: 0;
+  margin: var(--space-3) 0;
 }
 
 .rail-heading {
@@ -124,9 +102,10 @@
 }
 
 .session-picker-list {
+  flex: 1 1 auto;
   grid-auto-rows: max-content;
   align-content: start;
-  max-height: 278px;
+  min-height: 0;
   overflow: auto;
   padding-right: 2px;
 }
@@ -169,7 +148,6 @@
 }
 
 .session-picker-empty,
-.session-picker-more,
 .model-combobox-trigger span,
 .model-option small,
 .model-option em,
@@ -186,13 +164,11 @@
 }
 
 .session-picker-item.active {
-  color: var(--on-mark);
-  background: var(--mark);
+  background: var(--surface-selected);
   font-weight: 600;
 }
 
 .session-picker-item.active .session-picker-date {
-  color: inherit;
   font-weight: 400;
 }
 
@@ -206,7 +182,7 @@
 }
 
 .session-picker-item.active:hover {
-  background: var(--mark);
+  background: var(--surface-selected);
 }
 
 .session-picker-item:hover,
@@ -215,14 +191,12 @@
 }
 
 .session-picker-empty,
-.session-picker-more,
 .model-options-empty {
   margin: 0;
   line-height: var(--leading-normal);
 }
 
-.session-picker-empty,
-.session-picker-more {
+.session-picker-empty {
   padding: var(--space-1) var(--space-2) 0;
 }
 

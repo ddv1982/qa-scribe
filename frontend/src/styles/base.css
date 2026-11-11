@@ -79,6 +79,8 @@
   --brand-highlight: #ffe15c;
   --on-mark: #1a201d;
   --surface-tint: color-mix(in oklab, var(--text-primary) 7%, transparent);
+  /* The one selection colour: a quiet tint, so the highlighter stays the only yellow. */
+  --surface-selected: color-mix(in oklab, var(--text-primary) 11%, transparent);
   --focus-halo: color-mix(in oklab, var(--accent) 22%, transparent);
 
   --success: #17693a;

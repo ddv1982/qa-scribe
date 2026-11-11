@@ -20,6 +20,13 @@ export async function runClipboardWorkflow() {
   const click = async (selector) => { const item = await $(selector); await item.waitForClickable(); await item.click() }
   const rail = async (label) => { await (await $('nav[aria-label="Workspace sections"]')).$(`button*=${label}`).click() }
   const tab = async (label) => { await (await $('[role="tablist"]')).$(`[role="tab"]*=${label}`).click() }
+  const records = (kind) => $(`aside[aria-label="${kind} library records"]`)
+  const library = async (kind) => {
+    await rail('Library')
+    await $('h1=Library').waitForDisplayed()
+    await (await $('[aria-label="Library output type"]')).$(`[role="tab"]=${kind}`).click()
+    await browser.waitUntil(async () => (await records(kind)).isDisplayed(), { timeoutMsg: `${kind} library records must be displayed` })
+  }
   const capture = (name) => browser.saveScreenshot(join(out, `${name}.png`))
   await $('button=New Session').waitForClickable()
   const fixtures = await browser.tauri.execute(async ({ core }) => {
@@ -97,9 +104,8 @@ export async function runClipboardWorkflow() {
   save('Lane 3. Copy a Finding', { ...payload, id: fixtures[0].finding.id })
   await capture('copy-finding')
 
-  await rail('Test cases library')
-  await $('h1=Test cases library').waitForDisplayed()
-  const list = await $('.library-sidebar .record-master-list')
+  await library('Test cases')
+  const list = await records('Test cases')
   await (await list.$('button*=UX4 Beta')).click()
   await $('h2=Duplicate case').waitForDisplayed()
   const before = await readSaved()
@@ -134,9 +140,8 @@ export async function runClipboardWorkflow() {
   save('Lane 5. Select duplicate titles from different Sessions', { ...payload, target: fixtures[0].draft })
   await capture('copy-identity')
 
-  await rail('Findings library')
-  await $('h1=Findings library').waitForDisplayed()
-  await (await $('.library-sidebar .record-master-list')).$('button*=UX4 Beta').click()
+  await library('Findings')
+  await (await records('Findings')).$('button*=UX4 Beta').click()
   await click('[aria-label="Copy Duplicate finding"]')
   await $('[aria-label="Duplicate finding copied"]').waitForDisplayed()
   payload = readClipboardText()
@@ -148,15 +153,15 @@ export async function runClipboardWorkflow() {
   await $('button=Edit').waitForClickable()
   await click('button=Edit')
   await $('[aria-label="Finding title"]').setValue('Dirty local finding')
-  await rail('Test cases library')
+  await rail('Library')
   await $('dialog').waitForDisplayed()
   assert.match(await $('dialog').getText(), /unsaved|changes/i)
   save('Lane 6. Copy while another Session has dirty edits', { qualification: 'Single-window library navigation is guarded. This native lane proves the guard. The real-controller test separately proves direct Copy preserves dirty Note, Draft and Finding state and causes zero writes.' })
   await capture('copy-dirty-other-session')
   await (await $('dialog')).$('button=Discard changes').click()
   await browser.waitUntil(async () => {
-    const heading = await $('h1=Test cases library')
-    return heading.isDisplayed()
+    const list = await records('Test cases')
+    return list.isDisplayed()
   }, { timeout: 10_000, timeoutMsg: 'Discard must reveal the Test cases library' })
 
   const images = await browser.execute(() => [
@@ -176,11 +181,9 @@ export async function runClipboardWorkflow() {
     const draft = await core.invoke('create_draft', { draft: { sessionId: input.sessionId, aiRunId: null, kind: 'testware', title: 'Screenshot case', body: attachments.map(({ id }) => `<img src="qa-scribe-attachment://${id}" data-attachment-id="${id}" alt="Pixel">`).join('') } })
     return { attachments, draft }
   }, { images, sessionId: fixtures[0].session.id })
-  await rail('Findings library')
-  await $('h1=Findings library').waitForDisplayed()
-  await rail('Test cases library')
-  await $('h1=Test cases library').waitForDisplayed()
-  await (await $('.library-sidebar .record-master-list')).$('button*=Screenshot case').click()
+  await library('Findings')
+  await library('Test cases')
+  await (await records('Test cases')).$('button*=Screenshot case').click()
   await click('button=Open in Session')
   await $('[aria-label="Copy first Screenshot case screenshot"]').waitForClickable()
   assert.equal(await $('[aria-label="Copy first Screenshot case screenshot"]').getText(), 'Copy first screenshot')

@@ -168,32 +168,6 @@
     display: none;
   }
 
-  .library-sidebar {
-    grid-column: 1 / -1;
-    padding: 0;
-    margin: 0;
-    overflow: visible;
-  }
-
-  .library-sidebar .rail-heading {
-    display: none;
-  }
-
-  .library-sidebar-slot {
-    overflow: visible;
-  }
-
-  .library-sidebar-slot .record-master-list {
-    display: flex;
-    max-height: none;
-    padding: 0;
-    overflow-x: auto;
-  }
-
-  .library-sidebar-slot .record-master-list > button {
-    flex: 0 0 220px;
-  }
-
   .center-workspace {
     grid-column: 1;
     grid-row: 2;
@@ -293,6 +267,10 @@
   .collection-toolbar,
   .collection-workspace {
     grid-template-columns: 1fr;
+  }
+
+  .collection-toolbar {
+    grid-auto-flow: row;
   }
 
   .collection-toolbar > p {

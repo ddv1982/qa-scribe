@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
-import { Command as CommandIcon } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { ActionButton } from '../components/ActionButton'
 import { useModalDialog } from '../hooks/useModalDialog'
 import type { AppCommand } from './commandRegistry'
@@ -59,17 +59,40 @@ export function PendingChangesDialog({
   )
 }
 
-export function CommandPalette({ commands, onClose }: { commands: AppCommand[]; onClose: () => void }) {
+/** Something the palette can open besides a command: a Session or a saved record. */
+export type SearchTarget = {
+  key: string
+  group: 'Sessions' | 'Test cases' | 'Findings'
+  label: string
+  detail: string
+  /** Lower-cased text the query is matched against. */
+  text: string
+  open: () => void
+}
+
+const targetGroups: Array<SearchTarget['group']> = ['Sessions', 'Test cases', 'Findings']
+const targetsPerGroup = 5
+
+export function CommandPalette({ commands, targets = [], onClose }: { commands: AppCommand[]; targets?: SearchTarget[]; onClose: () => void }) {
   const [query, setQuery] = useState('')
   const dialogRef = useModalDialog(onClose)
-  const normalized = query.trim().toLocaleLowerCase()
-  const matches = commands.filter((command) => !normalized
-    || `${command.label} ${command.description} ${command.keywords.join(' ')}`.toLocaleLowerCase().includes(normalized))
+  const terms = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean)
+  const matchesTerms = (text: string) => terms.every((term) => text.includes(term))
+  const matches = commands.filter((command) => matchesTerms(`${command.label} ${command.description} ${command.keywords.join(' ')}`.toLocaleLowerCase()))
+  // Saved work appears once there is a query; an empty palette stays a short list of commands.
+  const targetMatches = terms.length === 0 ? [] : targetGroups
+    .map((group) => ({ group, items: targets.filter((target) => target.group === group && matchesTerms(target.text)).slice(0, targetsPerGroup) }))
+    .filter(({ items }) => items.length > 0)
 
   function run(command: AppCommand) {
     if (!command.available) return
     onClose()
     command.run()
+  }
+
+  function open(target: SearchTarget) {
+    onClose()
+    target.open()
   }
 
   function handleSearchKeyDown(event: KeyboardEvent<HTMLInputElement>) {
@@ -78,8 +101,13 @@ export function CommandPalette({ commands, onClose }: { commands: AppCommand[]; 
       onClose()
       return
     }
-    if (!['ArrowDown', 'ArrowUp'].includes(event.key)) return
     const options = Array.from(dialogRef.current?.querySelectorAll<HTMLButtonElement>('.command-palette-list button:not(:disabled)') ?? [])
+    if (event.key === 'Enter' && terms.length > 0) {
+      event.preventDefault()
+      options[0]?.click()
+      return
+    }
+    if (!['ArrowDown', 'ArrowUp'].includes(event.key)) return
     if (options.length === 0) return
     event.preventDefault()
     options[event.key === 'ArrowUp' ? options.length - 1 : 0]?.focus()
@@ -88,29 +116,44 @@ export function CommandPalette({ commands, onClose }: { commands: AppCommand[]; 
   return (
     <dialog ref={dialogRef} className="command-palette" aria-labelledby="command-palette-title">
       <div className="command-palette-search">
-        <CommandIcon size={18} />
+        <Search size={18} />
         <label>
           <span className="sr-only" id="command-palette-title">Command palette</span>
-          <input type="search" aria-label="Search commands" value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={handleSearchKeyDown} placeholder="Type a command…" />
+          <input type="search" aria-label="Search Sessions, records, and commands" value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={handleSearchKeyDown} placeholder="Search Sessions, test cases, findings, or commands…" />
         </label>
         <kbd>Esc</kbd>
       </div>
-      <div className="command-palette-list" role="listbox" aria-label="Commands">
-        {matches.map((command) => (
-          <button
-            key={command.id}
-            type="button"
-            role="option"
-            aria-selected={false}
-            disabled={!command.available}
-            onClick={() => run(command)}
-            onKeyDown={focusListboxOption}
-          >
-            <span><strong>{command.label}</strong><small>{command.description}</small></span>
-            {command.shortcut ? <kbd>{command.shortcut.display}</kbd> : null}
-          </button>
+      <div className="command-palette-list" role="listbox" aria-label="Results">
+        {targetMatches.map(({ group, items }) => (
+          <div key={group} role="group" aria-label={group}>
+            <p className="command-palette-group" aria-hidden="true">{group}</p>
+            {items.map((target) => (
+              <button key={target.key} type="button" role="option" aria-selected={false} onClick={() => open(target)} onKeyDown={focusListboxOption}>
+                <span><strong>{target.label}</strong><small>{target.detail}</small></span>
+              </button>
+            ))}
+          </div>
         ))}
-        {matches.length === 0 ? <p>No matching commands. Try “Settings,” “Testware,” or “refresh.”</p> : null}
+        {matches.length > 0 ? (
+          <div role="group" aria-label="Commands">
+            {targetMatches.length > 0 ? <p className="command-palette-group" aria-hidden="true">Commands</p> : null}
+            {matches.map((command) => (
+              <button
+                key={command.id}
+                type="button"
+                role="option"
+                aria-selected={false}
+                disabled={!command.available}
+                onClick={() => run(command)}
+                onKeyDown={focusListboxOption}
+              >
+                <span><strong>{command.label}</strong><small>{command.description}</small></span>
+                {command.shortcut ? <kbd>{command.shortcut.display}</kbd> : null}
+              </button>
+            ))}
+          </div>
+        ) : null}
+        {matches.length === 0 && targetMatches.length === 0 ? <p>Nothing matches “{query.trim()}”. Try a Session name, a record title, or “Settings.”</p> : null}
       </div>
     </dialog>
   )

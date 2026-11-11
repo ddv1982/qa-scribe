@@ -6,6 +6,7 @@ import { App } from './App'
 import { draftFixture, entryFixture, findingFixture, generationStatusFixture, providerStatusFixture, sessionFixture, settingsFixture } from './test/fixtures'
 import { richEditorDocumentFromHtml, richEditorDocumentToStoredBody } from './editor/editorDocument'
 import { managedAttachmentImageHtml } from './editor/editorHtml'
+import { chatFixture } from './app/useSessionChat.testSupport'
 
 const tauriMock = vi.hoisted(() => ({
   cancelAiActionJob: vi.fn(),
@@ -18,7 +19,7 @@ const tauriMock = vi.hoisted(() => ({
   deleteDraft: vi.fn(),
   deleteFinding: vi.fn(),
   deleteSession: vi.fn(), retryAttachmentCleanup: vi.fn(),
-  getProviderStatus: vi.fn(),
+  getChat: vi.fn(), getProviderStatus: vi.fn(),
   getSettings: vi.fn(),
   importClipboardScreenshot: vi.fn(), deleteAttachment: vi.fn(),
   listDraftLibrary: vi.fn(),
@@ -365,22 +366,18 @@ describe('App workflows', () => {
     expect(screen.queryByLabelText('Current search scope')).toBeNull()
   })
 
-  it('uses the single left rail as the master list for library records', async () => {
+  it('keeps Sessions in the rail while one Library switches between test cases and findings', async () => {
     const user = userEvent.setup()
-    tauriMock.listDraftLibrary.mockResolvedValueOnce([
-      {
-        draft: draftFixture({ id: 'draft-library', title: 'Checkout coverage' }),
-        sessionTitle: 'Checkout session',
-      },
-    ])
-    render(<App />)
+    tauriMock.listDraftLibrary.mockResolvedValue([{ draft: draftFixture({ id: 'draft-library', title: 'Checkout coverage' }), sessionTitle: 'Checkout session' }])
+    tauriMock.listFindingLibrary.mockResolvedValue([{ finding: findingFixture({ id: 'finding-library', title: 'Checkout total drifts' }), sessionTitle: 'Checkout session' }])
+    tauriMock.getChat.mockImplementation(async (sessionId: string) => chatFixture({ sessionId, owner: { kind: 'notes', sessionId } })); render(<App />)
     await waitFor(() => expect(screen.getByRole('textbox', { name: 'Session title' })).toHaveValue('Checkout session'))
-    const workspaceNavigation = screen.getByRole('navigation', { name: 'Workspace sections' })
-    await user.click(within(workspaceNavigation).getByRole('button', { name: 'Test cases library' }))
-
-    const libraryList = await screen.findByRole('complementary', { name: 'Test cases library records' })
-    expect(libraryList.closest('.left-rail')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Checkout coverage' })).toBeInTheDocument()
+    await user.click(within(screen.getByRole('navigation', { name: 'Workspace sections' })).getByRole('button', { name: 'Library' }))
+    expect((await screen.findByRole('complementary', { name: 'Test cases library records' })).closest('.left-rail')).not.toBeInTheDocument()
+    await user.click(within(screen.getByRole('tablist', { name: 'Library output type' })).getByRole('tab', { name: 'Findings' }))
+    expect(await screen.findByRole('complementary', { name: 'Findings library records' })).toHaveTextContent('Checkout total drifts')
+    await user.click(within(screen.getByRole('listbox', { name: 'Sessions' })).getByRole('option', { name: /checkout session/i }))
+    await waitFor(() => expect(screen.getByRole('tab', { name: 'Note' })).toHaveAttribute('aria-selected', 'true'))
   })
 
   it('opens and cancels an unsaved testware composer without inserting a record', async () => {
@@ -397,19 +394,22 @@ describe('App workflows', () => {
     expect(tauriMock.prepareCreationSave).not.toHaveBeenCalled()
   })
 
-  it('opens the command palette from the keyboard and runs its canonical navigation command', async () => {
+  it('searches saved work and runs canonical commands from the keyboard command palette', async () => {
     const user = userEvent.setup()
+    const draft = draftFixture({ id: 'draft-1', title: 'Smoketest passes for IRIS apps' })
+    tauriMock.listDraftLibrary.mockResolvedValue([{ draft, sessionTitle: 'Checkout session' }]); tauriMock.listDrafts.mockResolvedValue([draft])
     render(<App />)
-
     await waitFor(() => expect(screen.getByRole('textbox', { name: 'Session title' })).toHaveValue('Checkout session'))
     await user.keyboard('{Control>}k{/Control}')
-
-    const palette = screen.getByRole('dialog', { name: 'Command palette' })
-    await user.type(within(palette).getByRole('searchbox'), 'session findings')
-    await user.click(within(palette).getByRole('option', { name: /open session findings/i }))
-
+    await user.type(within(screen.getByRole('dialog', { name: 'Command palette' })).getByRole('searchbox'), 'iris smoke')
+    expect(within(await screen.findByRole('group', { name: 'Test cases' })).getByRole('option')).toHaveTextContent('Smoketest passes for IRIS apps')
+    await user.keyboard('{Enter}')
+    await waitFor(() => expect(screen.getByRole('tab', { name: /test cases/i })).toHaveAttribute('aria-selected', 'true'))
+    expect(await screen.findByRole('heading', { name: 'Smoketest passes for IRIS apps' })).toBeInTheDocument()
+    await user.keyboard('{Control>}k{/Control}')
+    await user.type(screen.getByRole('searchbox'), 'session findings')
+    await user.click(screen.getByRole('option', { name: /open session findings/i }))
     expect(screen.getByRole('tab', { name: /findings/i })).toHaveAttribute('aria-selected', 'true')
-    expect(screen.queryByRole('dialog', { name: 'Command palette' })).not.toBeInTheDocument()
   })
 
   it('hydrates a record deep link outside the recent Session set and follows history navigation', async () => {
@@ -432,7 +432,7 @@ describe('App workflows', () => {
 
     window.history.pushState(null, '', '#/libraries/testware')
     window.dispatchEvent(new HashChangeEvent('hashchange'))
-    expect(await screen.findByRole('heading', { name: 'Test cases library' })).toBeInTheDocument()
+    expect(within(await screen.findByRole('tablist', { name: 'Library output type' })).getByRole('tab', { name: 'Test cases' })).toHaveAttribute('aria-selected', 'true')
   })
 
   it('deep-links directly to the AI execution Settings section', async () => {
