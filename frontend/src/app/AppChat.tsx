@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, type ReactNode, type Ref } from 're
 import { X } from 'lucide-react'
 import { ActionButton } from '../components/ActionButton'
 import { SessionChatView } from '../views/SessionChatView'
+import { StartNewConversation } from '../views/StartNewConversation'
 import type { SessionChatViewProps } from '../views/SessionChatView'
 import type { AppController } from './useAppController'
 import { deriveChatHandoff, handoffDuringRecordWrites } from './sessionChat.presentation'
@@ -34,6 +35,7 @@ export function AppChat({ c, modelSelectionControl, onConfigureAi }: {
   }
   return <>
     <AskAiPanel panelRef={notesRef} id="notes-ask-ai" kind="notes" visible={notesVisible} label="Notes AI chat" eyebrow="Session note"
+      actions={notesAddedToNote ? null : <StartNewConversation state={c.sessionChat} compact />}
       source={<strong>{c.sessionTitle}</strong>} onClose={() => {
         restoreNotesFocus.current = true
         c.setSessionMode('write_note')
@@ -84,12 +86,12 @@ function RecordConversation({ c, common }: {
 }
 
 /** The one Ask AI shell (R6): header, source line, then the conversation. Notes and records differ only in their body. */
-function AskAiPanel({ panelRef, id, kind, visible, label, eyebrow, source, onClose, children }: {
+function AskAiPanel({ panelRef, id, kind, visible, label, eyebrow, source, actions, onClose, children }: {
   panelRef: Ref<HTMLElement>; id?: string; kind: 'notes' | 'record'; visible: boolean; label: string
-  eyebrow: string; source: ReactNode; onClose: () => void; children: ReactNode
+  eyebrow: string; source: ReactNode; actions?: ReactNode; onClose: () => void; children: ReactNode
 }) {
   return <aside ref={panelRef} id={id} className={`ask-ai-panel ask-ai-panel--${kind}`} hidden={!visible} inert={!visible} aria-label={label}>
-    <header className="ask-ai-header"><h2>Ask AI</h2><ActionButton variant="secondary" iconOnly icon={X} aria-label="Close Ask AI" onClick={onClose} /></header>
+    <header className="ask-ai-header"><h2>Ask AI</h2><div className="ask-ai-header-actions">{actions}<ActionButton variant="secondary" iconOnly icon={X} aria-label="Close Ask AI" onClick={onClose} /></div></header>
     <section className="chat-context-card" aria-label="Chat source"><div><span className="eyebrow">{eyebrow}</span>{source}</div></section>
     {children}
   </aside>

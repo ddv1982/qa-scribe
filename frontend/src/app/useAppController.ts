@@ -32,7 +32,7 @@ import { useAttachmentCleanup } from './useAttachmentCleanup'
 import { useSummaryRecovery } from './useSummaryRecovery'
 import { useAskAiContext } from './useAskAiContext'
 import { captureAvailableRecordContext } from './conversationPresentation'
-import { handoffDuringRecordWrites } from './sessionChat.presentation'
+import { handoffDuringRecordWrites, savedNoteTurns } from './sessionChat.presentation'
 import { useConversationSnapshot } from './useConversationSnapshot'
 import type { SessionChatViewState } from './sessionChat.types'
 import { useSessionChat } from './useSessionChat'
@@ -289,7 +289,7 @@ export function useAppController() {
   const recordChat = useConversationSnapshot(chatProtection.conversations, askAi.reference)
   const proposalChat = askAi.visible && recordChat.chat ? recordChat : baseSessionChat
   const refinement = useRefinementController({ conversations: chatProtection.conversations, chat: proposalChat, askAi, records: recordWorkspace, actions: recordActions, persistence: recordPersistence, session: sessionWorkspace, openEditor: setCreatedRecordEditTarget, feedback })
-  const sessionChat: SessionChatViewState = { ...baseSessionChat, ...refinement, handoff: handoffDuringRecordWrites(baseSessionChat.handoff, refinement.recordWritesPending) }
+  const sessionChat: SessionChatViewState = { ...baseSessionChat, ...refinement, ...savedNoteTurns(baseSessionChat, async () => !sessionHasPendingChanges || sessionActions.savePendingSessionEdits(), setError), handoff: handoffDuringRecordWrites(baseSessionChat.handoff, refinement.recordWritesPending) }
   const generationActions = useGenerationActions({
     session: sessionWorkspace,
     records: recordWorkspace,

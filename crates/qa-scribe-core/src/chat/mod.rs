@@ -49,6 +49,38 @@ pub fn build_chat_prompt(
     Ok(format!("{}\n{data}", chat_instructions()))
 }
 
+pub const NOTE_TRUNCATED_MARKER: &str = "\n[Session Note truncated to fit the context limit]";
+
+/// Session context for a Notes conversation: the stored Session context plus the
+/// saved Session Note as plain prompt text, bounded to `MAX_CHAT_CONTEXT_BYTES`.
+pub fn notes_session_context(session_context: &str, note_html: &str) -> String {
+    let note = crate::generation::project_html_to_prompt_text(note_html);
+    let note = note.trim();
+    if note.is_empty() {
+        return session_context.to_string();
+    }
+    let mut context = session_context.to_string();
+    if !context.is_empty() {
+        context.push_str("\n\n");
+    }
+    context.push_str("SESSION_NOTE (the user's current saved Note; when asked to improve or rewrite it, work from this text)\n");
+    let budget = MAX_CHAT_CONTEXT_BYTES.saturating_sub(context.len());
+    if note.len() <= budget {
+        context.push_str(note);
+        return context;
+    }
+    if budget <= NOTE_TRUNCATED_MARKER.len() {
+        return session_context.to_string();
+    }
+    let mut end = budget.saturating_sub(NOTE_TRUNCATED_MARKER.len());
+    while !note.is_char_boundary(end) {
+        end -= 1;
+    }
+    context.push_str(&note[..end]);
+    context.push_str(NOTE_TRUNCATED_MARKER);
+    context
+}
+
 pub(super) fn validate_chat_messages(
     session_context: &str,
     messages: &[ChatPromptMessage],

@@ -29,6 +29,8 @@ mod ownership_tests;
 mod permission_tests;
 mod preparation;
 #[cfg(test)]
+mod preparation_note_tests;
+#[cfg(test)]
 mod preparation_tests;
 #[cfg(test)]
 mod question_tests;

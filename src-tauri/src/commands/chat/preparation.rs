@@ -9,7 +9,7 @@ use qa_scribe_core::{
     },
     chat::{
         ChatInput, ChatInputMessage, ChatPromptMessage, ChatPromptRole, MAX_CHAT_MESSAGES,
-        MAX_CHAT_TRANSCRIPT_BYTES, build_chat_input, build_chat_prompt,
+        MAX_CHAT_TRANSCRIPT_BYTES, build_chat_input, build_chat_prompt, notes_session_context,
     },
     domain::*,
     services::SessionService,
@@ -47,11 +47,25 @@ impl ChatPreparationSnapshot {
             return Err(changed());
         }
         let revision = scope(&chat);
-        let context = service
+        let session_context = service
             .get_session(&chat.session_id)?
             .ok_or_else(|| QaScribeError::NotFound(chat.session_id.clone()))?
             .session_context
             .unwrap_or_default();
+        // A Notes conversation works on the Session Note, so every turn carries its saved text.
+        let context = match chat.owner {
+            ConversationOwner::Notes { .. } => {
+                let note = service
+                    .list_entries(&chat.session_id)?
+                    .into_iter()
+                    .find(|entry| entry.entry_type == EntryType::Note);
+                notes_session_context(
+                    &session_context,
+                    note.as_ref().map_or("", |entry| entry.body.as_str()),
+                )
+            }
+            ConversationOwner::Record { .. } => session_context,
+        };
         if !matches!(intent, ChatRequestIntent::Retry) {
             if chat.messages.len().saturating_add(2) > MAX_CHAT_MESSAGES {
                 return Err(QaScribeError::Validation(

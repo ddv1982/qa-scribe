@@ -1,5 +1,5 @@
 import type { ChatImage, ChatState, Entry, GenerationJobStatus } from '../bindings'
-import type { ChatImageFailure } from './sessionChat.types'
+import type { ChatImageFailure, SessionChatViewState } from './sessionChat.types'
 
 export type ChatActivity = {
   chat: ChatState | null
@@ -71,4 +71,17 @@ export function deriveChatHandoff(state: ChatActivity & {
 
 export function handoffDuringRecordWrites(handoff: ChatHandoffPresentation, pending: boolean): ChatHandoffPresentation {
   return pending && handoff.kind === 'conversation' ? { ...handoff, disabled: true, reason: 'Wait for pending record writes before adding the conversation.' } : handoff
+}
+
+type NotesTurns = Pick<SessionChatViewState, 'onSend' | 'onRetry' | 'onAnswerQuestion'>
+export const noteSaveFailedReason = 'Save the note before asking AI. Your message is kept.'
+
+/** Notes turns read the saved Note, so each one first saves on-screen Note edits and stops if that save fails. */
+export function savedNoteTurns(chat: NotesTurns, saveNote: () => Promise<boolean>, fail: (reason: string) => void): NotesTurns {
+  const first = <A extends unknown[]>(turn: (...args: A) => Promise<void>) => async (...args: A) => {
+    if (!await saveNote()) { fail(noteSaveFailedReason); return }
+    await turn(...args)
+  }
+  const { onAnswerQuestion } = chat
+  return { onSend: first(chat.onSend), onRetry: first(chat.onRetry), onAnswerQuestion: onAnswerQuestion ? first(onAnswerQuestion) : undefined }
 }

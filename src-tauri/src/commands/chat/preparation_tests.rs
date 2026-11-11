@@ -11,7 +11,7 @@ use qa_scribe_core::{
 
 use super::*;
 
-fn fixture() -> (Arc<AppState>, ChatState, std::path::PathBuf) {
+pub(super) fn fixture() -> (Arc<AppState>, ChatState, std::path::PathBuf) {
     fixture_with_size(0)
 }
 
@@ -38,7 +38,7 @@ fn fixture_with_size(size: usize) -> (Arc<AppState>, ChatState, std::path::PathB
     (Arc::new(AppState::new(service, dir.clone())), chat, dir)
 }
 
-fn request(chat: &ChatState) -> StartChatJobRequest {
+pub(super) fn request(chat: &ChatState) -> StartChatJobRequest {
     StartChatJobRequest {
         intent: crate::commands::chat::ChatSendIntent::Composer,
         context: ChatTarget::Session,

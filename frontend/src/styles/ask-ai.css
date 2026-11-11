@@ -24,6 +24,7 @@
 }
 .ask-ai-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-3) var(--space-4); }
 .ask-ai-header h2 { margin: 0; font-size: var(--font-size-lg); }
+.ask-ai-header-actions { display: flex; align-items: center; gap: var(--space-2); }
 .ask-ai-header p, .chat-context-card p { margin: var(--space-1) 0 0; font-size: var(--font-size-sm); color: var(--text-secondary); }
 .chat-context-card { display: flex; justify-content: space-between; align-items: start; flex-shrink: 0; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-block: 1px solid var(--border-subtle); }
 .chat-context-card > div { min-width: 0; overflow-wrap: anywhere; }
@@ -96,12 +97,10 @@
 .ask-ai-panel .chat-message-user .chat-message-text { line-height: var(--leading-normal); }
 .ask-ai-panel .chat-model-evidence { margin-top: var(--space-2); color: var(--text-tertiary); font-size: var(--font-size-xs); }
 
-/* Status and options share one quiet row above the transcript. */
+/* Conversation status gets a quiet row above the transcript when it has something to say. */
 .ask-ai-panel .chat-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); }
 .ask-ai-panel .chat-toolbar:empty { display: none; }
 .ask-ai-panel .chat-toolbar > .chat-status:not(.sr-only) { color: var(--text-secondary); font-size: var(--font-size-xs); }
-.ask-ai-panel .chat-toolbar > .chat-options { margin-left: auto; }
-.ask-ai-panel .chat-toolbar > .chat-options[open] { flex-basis: 100%; }
 
 /* The composer is one bordered box; attach and Send sit inside it. */
 .chat-compose-box {
@@ -136,31 +135,10 @@
 .session-context-header:has(.chat-recovery-notice) { flex-wrap: wrap; }
 .session-context-header .chat-recovery-notice { flex-basis: 100%; padding: 0; }
 
-.ask-ai-panel .chat-options-content { display: grid; gap: var(--space-3); }
-.ask-ai-panel .chat-options > summary {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  min-height: var(--control-sm);
-  padding: 0 var(--space-2);
-  color: var(--text-secondary);
-  font-size: var(--font-size-sm);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  list-style: none;
-}
-.ask-ai-panel .chat-options > summary:hover { background: var(--surface-sunken); }
-.ask-ai-panel .chat-options[open] { padding: var(--space-3); background: var(--surface-raised); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); }
-.ask-ai-panel .chat-options[open] > summary { margin: calc(-1 * var(--space-1)) 0 0 calc(-1 * var(--space-2)); }
-.ask-ai-panel .chat-options[open] > summary { margin-bottom: var(--space-3); }
-
 .ask-ai-panel--notes .session-chat { overflow: auto; }
-.ask-ai-panel .chat-handoff { flex-direction: column; align-items: stretch; gap: var(--space-2); padding: var(--space-3); background: var(--surface-raised); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); }
+.ask-ai-panel .chat-handoff { flex-direction: column; align-items: stretch; gap: var(--space-2); padding: 0; background: transparent; border: 0; }
 .ask-ai-panel .chat-handoff > .chat-buttons { flex-wrap: wrap; justify-content: flex-start; gap: var(--space-2); }
-.ask-ai-panel .chat-review { display: flex; }
-.chat-review-transcript { padding-top: var(--space-3); border-top: 1px solid var(--border-subtle); }
 .ask-ai-panel--notes .session-chat:has(> .chat-permission) > .chat-scroll-region { flex: 0 0 auto; overflow: visible; }
 /* Keep the 42px model control and scroll-region padding reachable beside image drafts. */
-.ask-ai-panel--notes .chat-scroll-region:has(.chat-options[open]) { min-height: calc(42px + 2 * var(--space-3)); }
 
 .ask-ai-panel .chat-completion .chat-handoff { margin: 0; padding: 0; border: 0; }
