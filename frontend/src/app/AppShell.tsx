@@ -18,6 +18,7 @@ import { createCommandRegistry, type AppCommandId } from './commandRegistry'
 import { CommandPalette, DeleteConfirmationDialog, PendingChangesDialog } from './AppOverlays'
 import { primaryModifierPressed } from './platformShortcuts'
 import { createSearchTargets } from './searchTargets'
+import { listSessions, type Session } from '../tauri'
 import { AppRail } from './AppRail'
 import { FirstUseDialog } from '../onboarding/FirstUseDialog'
 import { AttachmentCleanupWarning } from './AttachmentCleanupWarning'
@@ -46,13 +47,19 @@ export function AppShell(c: AppController) {
     && c.creationIntent.phase.selection === 'ready'
   const composer = c.creationIntent && !creationResultReady ? <CreationWorkspace c={c} /> : null
 
-  const { loadDraftLibrary, loadFindingLibrary } = c
+  const { loadDraftLibrary, loadFindingLibrary, sessionLibraryComplete } = c
+  // Startup loads only recent Sessions; the palette searches every Session without changing the sidebar.
+  const [paletteSessions, setPaletteSessions] = useState<Session[] | null>(null)
   useEffect(() => {
     // Ctrl+K also searches saved test cases and findings, so read them fresh each time it opens.
     if (overlay !== 'commands') return
     void loadDraftLibrary()
     void loadFindingLibrary()
-  }, [overlay, loadDraftLibrary, loadFindingLibrary])
+    if (sessionLibraryComplete) return
+    let current = true
+    listSessions().then((sessions) => { if (current) setPaletteSessions(sessions) }, () => undefined)
+    return () => { current = false }
+  }, [overlay, loadDraftLibrary, loadFindingLibrary, sessionLibraryComplete])
 
   useEffect(() => {
     function handleShortcut(event: globalThis.KeyboardEvent) {
@@ -277,7 +284,7 @@ export function AppShell(c: AppController) {
 
       {overlay === 'commands' ? (
         <CommandPalette commands={commands} onClose={() => setOverlay(null)}
-          targets={createSearchTargets({ sessions: c.sessions, draftLibrary: c.draftLibrary, findingLibrary: c.findingLibrary,
+          targets={createSearchTargets({ sessions: !c.sessionLibraryComplete && paletteSessions ? paletteSessions : c.sessions, draftLibrary: c.draftLibrary, findingLibrary: c.findingLibrary,
             openSession: (session) => void c.openSessionInCurrentView(session),
             openRecord: (sessionId, view, recordId) => void c.openLibraryRecord(sessionId, view, recordId) })} />
       ) : null}
