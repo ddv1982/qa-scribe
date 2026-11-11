@@ -119,6 +119,8 @@ export function useAppController() {
     /* oxlint-enable react-hooks/refs */
   })
   const isBusy = busyAction !== null
+  // A Session open is superseded by the next Session choice, so it never blocks choosing another one.
+  const canSwitchSession = busyAction === null || busyAction === 'open-session'
   const attachmentCleanup = useAttachmentCleanup(isBusy)
   const deleteCopy = deleteConfirmation ? deleteConfirmationCopy(deleteConfirmation) : null
   const generationState = useAppControllerGenerationState({
@@ -249,7 +251,7 @@ export function useAppController() {
     deleteCopy,
     error,
     focusedRecordId,
-    isBusy,
+    isBusy, canSwitchSession,
     latestNoteGenerationUndo,
     noteBody, noteBodyHtml,
     noteEntry,

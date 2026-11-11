@@ -101,6 +101,30 @@ describe('useAppController Session integrity', () => {
     expect(result.current.noteEntry?.id).toBe('entry-1')
   })
 
+  it('keeps Session choices available while a Session opens and lets New Session supersede it', async () => {
+    const { result } = renderHook(() => useAppController())
+    await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
+    const slowSession = sessionFixture({ id: 'session-3', title: 'Slow Session' })
+    const slowOpen = deferred<ReturnType<typeof sessionNoteStateFixture>>()
+    tauriMock.openSessionNoteState.mockReturnValueOnce(slowOpen.promise)
+    tauriMock.createEntry.mockResolvedValue(entryFixture({ id: 'entry-new', sessionId: 'session-2' }))
+
+    let pendingOpen!: Promise<void>
+    act(() => { pendingOpen = result.current.openSessionInCurrentView(slowSession) })
+    await waitFor(() => expect(result.current.busyAction).toBe('open-session'))
+    expect(result.current.isBusy).toBe(true)
+    expect(result.current.canSwitchSession).toBe(true)
+
+    await act(async () => { await result.current.handleNewSession() })
+    await act(async () => {
+      slowOpen.resolve(sessionNoteStateFixture({ session: slowSession, noteEntry: entryFixture({ id: 'entry-3', sessionId: 'session-3' }) }))
+      await pendingOpen
+    })
+    expect(result.current.activeSession?.id).toBe('session-2')
+    expect(result.current.noteEntry?.id).toBe('entry-new')
+    expect(result.current.busyAction).toBeNull()
+  })
+
   it('does not let a stale open release the latest operation busy state', async () => {
     const { result } = renderHook(() => useAppController())
     await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))

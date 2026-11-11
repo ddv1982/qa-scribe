@@ -224,6 +224,9 @@ button {
 button:disabled {
   cursor: not-allowed;
   opacity: 0.5;
+  /* A control that is unavailable for only a few frames, such as while a Session opens, must not flash.
+     Dimming waits briefly; becoming available again is immediate. */
+  transition: opacity 0s linear 200ms;
 }
 
 button:focus-visible,

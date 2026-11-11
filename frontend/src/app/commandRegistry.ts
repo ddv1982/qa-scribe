@@ -35,7 +35,7 @@ export function createCommandRegistry(controller: AppController, openHelp: () =>
   const hasSession = Boolean(controller.activeSession)
   return [
     command('creation.save', 'Save draft', 'Save the active creation draft.', ['save'], 's', Boolean(controller.creationIntent?.title.trim()) && Object.keys(controller.creationIntent?.imageOperations ?? {}).length === 0 && ['editing', 'uncertain'].includes(controller.creationIntent?.phase.state ?? ''), () => void controller.creation.save()),
-    command('session.new', 'New Session', 'Create a blank testing Session.', ['create', 'capture'], 'n', !controller.isBusy, () => void controller.handleNewSession()),
+    command('session.new', 'New Session', 'Create a blank testing Session.', ['create', 'capture'], 'n', controller.canSwitchSession, () => void controller.handleNewSession()),
     command('testware.new', 'Create test cases', 'Create a test case in the active Session.', ['test cases', 'draft'], undefined, hasSession && !controller.isBusy, () => void controller.handleManualTestware()),
     command('finding.new', 'Create finding', 'Create a Finding in the active Session.', ['bug', 'risk', 'issue'], undefined, hasSession && !controller.isBusy, () => void controller.handleManualFinding()),
     command('testware.ai', 'Create test cases with AI', 'Review AI options before generating test cases from the Note.', ['generate', 'AI'], undefined, hasSession && !controller.isBusy && !controller.pendingAiActions.testware, () => void controller.openGenerationPreflight('testware')),
