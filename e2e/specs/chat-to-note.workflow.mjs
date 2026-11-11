@@ -353,7 +353,7 @@ export async function runChatToNoteWorkflow() {
   await actionProof('.chat-handoff button', 'chat-submitted-actions.png')
   const handoffLayout = await browser.execute(() => {
     const footer = document.querySelector('.chat-handoff')
-    const text = footer.querySelector('div').getBoundingClientRect()
+    const text = footer.querySelector(':scope > p:not(.sr-only)').getBoundingClientRect()
     const actions = footer.querySelector('.chat-buttons').getBoundingClientRect()
     return { textBottom: text.bottom, actionsTop: actions.top, textWidth: text.width, footerWidth: footer.getBoundingClientRect().width }
   })
