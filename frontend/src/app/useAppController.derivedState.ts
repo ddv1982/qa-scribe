@@ -1,13 +1,15 @@
 import { useMemo } from 'react'
-import type { Draft, Finding, GenerateAiActionKind, GenerationJobStatus, Session } from '../tauri'
+import type { Draft, Entry, Finding, GenerateAiActionKind, GenerationJobStatus, Session } from '../tauri'
 import {
   richEditorDocumentToPlainText,
+  serializeRichEditorDocument,
   type RichEditorDocument,
 } from '../editor/editorDocument'
 import { managedAttachmentReferencesForClipboard } from '../editor/clipboardExport'
 import { countWords } from '../ui/format'
-import type { PendingAiActions } from '../ui/types'
+import type { BusyAction, PendingAiActions } from '../ui/types'
 import { generationIsActive } from './generationActions'
+import type { LatestNoteGenerationUndo } from './types'
 
 type PresentationStateOptions = {
   drafts: Draft[]
@@ -92,5 +94,55 @@ export function useAppControllerGenerationState({ activeSession, generationJobs 
     activeFindingJob: activeSessionJobs.find((job) => job.action === 'finding') ?? null,
     activeTestwareJob: activeSessionJobs.find((job) => job.action === 'testware') ?? null,
     pendingAiActions,
+  }
+}
+
+type SessionSaveStateInput = {
+  activeSession: Session | null
+  noteEntry: Entry | null
+  sessionTitle: string
+  noteBody: RichEditorDocument
+  latestNoteGenerationUndo: LatestNoteGenerationUndo | null
+  busyAction: BusyAction | null
+  savedTitle: string
+  savedBody: string
+}
+
+export function deriveSessionSaveState({
+  activeSession,
+  noteEntry,
+  sessionTitle,
+  noteBody,
+  latestNoteGenerationUndo,
+  busyAction,
+  savedTitle,
+  savedBody,
+}: SessionSaveStateInput) {
+  const noteIsReady = Boolean(activeSession && noteEntry)
+  const sessionTitleValidationError = activeSession && !sessionTitle.trim()
+    ? 'Session title is required.'
+    : null
+  const pendingRecoveredSummaryDecision = Boolean(
+    latestNoteGenerationUndo?.kind === 'recovery-choice'
+    && latestNoteGenerationUndo.entryId === noteEntry?.id,
+  )
+  const sessionHasPendingChanges = Boolean(
+    pendingRecoveredSummaryDecision
+    || (activeSession && sessionTitle !== savedTitle)
+    || (noteEntry && serializeRichEditorDocument(noteBody) !== savedBody),
+  )
+  const sessionSaveState = sessionTitleValidationError
+    ? 'invalid' as const
+    : busyAction === 'save-title' || busyAction === 'save-body'
+      ? 'saving' as const
+      : sessionHasPendingChanges
+        ? 'unsaved' as const
+        : 'saved' as const
+  return {
+    noteIsReady,
+    sessionTitleValidationError,
+    pendingRecoveredSummaryDecision,
+    sessionHasPendingChanges,
+    sessionSaveState,
   }
 }
