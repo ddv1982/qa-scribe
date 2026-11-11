@@ -744,7 +744,9 @@ export type RefinementEditorValue = {
 	recordKind: string,
 };
 
-export type RefinementPatch = { kind: "finding"; title: string | null; bodyMarkdown: string | null; metadata: FindingMetadataRefinement | null } | { kind: "test_cases_draft"; title: string | null; bodyMarkdown: string | null };
+export type RefinementPatch = { kind: "finding"; title: string | null; bodyMarkdown: string | null; metadata: FindingMetadataRefinement | null } | { kind: "test_cases_draft"; title: string | null; bodyMarkdown: string | null } | 
+/**  A whole replacement Note body. */
+{ kind: "note"; bodyMarkdown: string };
 
 export type RefinementProposal = {
 	version: number,
@@ -758,7 +760,9 @@ export type RefinementProposal = {
 	state: RefinementState,
 };
 
-export type RefinementRecordKind = "finding" | "test_cases_draft";
+export type RefinementRecordKind = "finding" | "test_cases_draft" | 
+/**  The Session Note of a Notes conversation; the frontend applies it to the Note editor. */
+"note";
 
 export type RefinementRequest = {
 	scope: ChatRevision,

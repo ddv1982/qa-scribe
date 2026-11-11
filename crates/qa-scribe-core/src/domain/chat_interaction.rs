@@ -59,6 +59,10 @@ pub struct ChatResponseContractV2 {
     pub version: u8,
     pub request_id: String,
     pub purpose: ChatResponsePurpose,
+    /// SHA-256 of the saved Note body sent with a whole-note edit request; a
+    /// suggestion is only applied while the stored Note still matches it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub note_source: Option<String>,
 }
 impl ChatResponseContract {
     pub fn request_id(&self) -> &str {

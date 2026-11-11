@@ -17,6 +17,12 @@ export type ProposalControls = {
   pending: ReadonlySet<string>
   onUpdate?: (proposalId: string, reference?: ChatRef) => Promise<void>
   preparedOnly?: ReadonlySet<string>
+  /** Note proposals whose Update can still be reverted from the panel. */
+  undoable?: ReadonlySet<string>
+  /** Note proposals applied in this panel, before the refreshed conversation reports them. */
+  applied?: ReadonlySet<string>
+  /** Note proposals undone in this panel; they are offered again. */
+  undone?: ReadonlySet<string>
   onAction: (proposalId: string, action: RefinementAction, reference?: ChatRef) => Promise<void>
 }
 

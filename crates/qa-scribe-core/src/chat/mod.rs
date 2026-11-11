@@ -81,6 +81,24 @@ pub fn notes_session_context(session_context: &str, note_html: &str) -> String {
     context
 }
 
+/// Whether the whole saved Note fits in the Notes Session context, so the AI may rewrite it as a whole.
+pub fn notes_session_context_is_complete(session_context: &str, note_html: &str) -> bool {
+    let note = crate::generation::project_html_to_prompt_text(note_html);
+    let note = note.trim();
+    note.is_empty() || notes_session_context(session_context, note_html).ends_with(note)
+}
+
+/// A whole-note rewrite must fit in one reply (`MAX_CHAT_MESSAGE_BYTES`) next to its summary
+/// and JSON escaping, so it is only offered for Notes up to this much prompt text.
+pub const MAX_NOTE_REWRITE_BYTES: usize = 12 * 1024;
+
+/// Whether the AI may rewrite the whole Note: it sees all of it, and the rewrite fits in a reply.
+pub fn note_rewrite_fits(session_context: &str, note_html: &str) -> bool {
+    let note = crate::generation::project_html_to_prompt_text(note_html);
+    note.trim().len() <= MAX_NOTE_REWRITE_BYTES
+        && notes_session_context_is_complete(session_context, note_html)
+}
+
 pub(super) fn validate_chat_messages(
     session_context: &str,
     messages: &[ChatPromptMessage],

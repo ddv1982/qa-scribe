@@ -200,3 +200,47 @@ fn notes_context_carries_the_saved_note_within_the_context_limit() {
     let full = "c".repeat(MAX_CHAT_CONTEXT_BYTES);
     assert_eq!(notes_session_context(&full, "<p>note</p>"), full);
 }
+
+#[test]
+fn notes_context_reports_whether_the_whole_note_fits() {
+    assert!(notes_session_context_is_complete(
+        "ctx",
+        "<p>Short note</p>"
+    ));
+    assert!(notes_session_context_is_complete("ctx", ""));
+    let long = format!("<p>{}</p>", "word ".repeat(MAX_CHAT_CONTEXT_BYTES / 4));
+    assert!(!notes_session_context_is_complete("", &long));
+    let near = format!("<p>{}</p>", "x".repeat(MAX_CHAT_CONTEXT_BYTES - 200));
+    assert!(notes_session_context_is_complete("", &near));
+    assert!(!notes_session_context_is_complete(&"c".repeat(2000), &near));
+}
+
+#[test]
+fn a_whole_note_rewrite_is_only_offered_when_it_fits_in_one_reply() {
+    let fits = format!("<p>{}</p>", "x".repeat(MAX_NOTE_REWRITE_BYTES));
+    let too_long = format!("<p>{}</p>", "x".repeat(MAX_NOTE_REWRITE_BYTES + 1));
+    assert!(note_rewrite_fits("", &fits));
+    assert!(!note_rewrite_fits("", &too_long));
+    assert!(notes_session_context_is_complete("", &too_long));
+}
+
+#[test]
+fn a_list_heavy_note_rewrite_within_the_note_limit_is_accepted() {
+    use crate::domain::{
+        ChatResponseContract, ChatResponseContractV2, ChatResponsePurpose, ChatTarget,
+        RefinementRecordKind,
+    };
+    let contract = ChatResponseContract::Current(ChatResponseContractV2 {
+        version: 3,
+        request_id: "request-1".into(),
+        purpose: ChatResponsePurpose::Refinement {
+            record_kind: RefinementRecordKind::Note,
+        },
+        note_source: None,
+    });
+    let body = "- item\n".repeat(MAX_NOTE_REWRITE_BYTES / 7);
+    let raw = serde_json::json!({"version":3,"requestId":"request-1","markdown":"Listed.","outcome":{"kind":"edit","patch":{"kind":"note","bodyMarkdown":body}}}).to_string();
+    let parsed = response::interpret(&raw, &contract, &ChatTarget::Session).unwrap();
+    let (_, after) = parsed.values.unwrap();
+    assert!(after.document_json.len() > MAX_CHAT_RECORD_CONTEXT_BYTES);
+}

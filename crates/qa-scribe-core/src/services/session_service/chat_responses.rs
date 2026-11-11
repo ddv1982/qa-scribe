@@ -7,6 +7,15 @@ impl SessionService {
         contract(self.database.connection(), message_id)
     }
 }
+/// Fingerprint of the stored Session Note body, used to reject stale whole-note suggestions.
+pub(super) fn note_fingerprint(connection: &Connection, session_id: &str) -> Result<String> {
+    use sha2::{Digest, Sha256};
+    let note = super::entries::note_entry(connection, session_id)?;
+    Ok(format!(
+        "{:x}",
+        Sha256::digest(note.map(|entry| entry.body).unwrap_or_default().as_bytes())
+    ))
+}
 pub(super) fn contract(connection: &Connection, id: &str) -> Result<Option<ChatResponseContract>> {
     let raw: Option<String> = connection
         .query_row(
@@ -20,6 +29,7 @@ pub(super) fn contract(connection: &Connection, id: &str) -> Result<Option<ChatR
 }
 pub(super) fn start(
     connection: &Connection,
+    session_id: &str,
     draft: &str,
     turn: &str,
     purpose: ChatResponsePurpose,
@@ -30,8 +40,20 @@ pub(super) fn start(
         params![draft, turn],
         |r| r.get(0),
     )?;
+    let note_edit = purpose
+        == (ChatResponsePurpose::Refinement {
+            record_kind: RefinementRecordKind::Note,
+        });
+    let note_source = if note_edit {
+        Some(note_fingerprint(connection, session_id)?)
+    } else {
+        None
+    };
     let contract = ChatResponseContract::Current(ChatResponseContractV2 {
-        version: if record_owned && matches!(purpose, ChatResponsePurpose::Refinement { .. }) {
+        note_source,
+        version: if note_edit
+            || record_owned && matches!(purpose, ChatResponsePurpose::Refinement { .. })
+        {
             3
         } else {
             2

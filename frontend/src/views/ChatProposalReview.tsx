@@ -13,6 +13,24 @@ export function ChatProposalReview({ proposal, controls, presentation = 'notes' 
   const status = proposal.state.kind
   const pending = controls?.pending.has(proposal.id) ?? false
   const error = controls?.errors[proposal.id]
+  if (proposal.target.kind === 'session' && proposal.patch.kind === 'note') {
+    const undoable = controls?.undoable?.has(proposal.id) ?? false
+    const offeredAgain = controls?.undone?.has(proposal.id) ?? false
+    if ((status === 'applied' || controls?.applied?.has(proposal.id)) && !offeredAgain) return <section className="chat-proposal chat-proposal--record" aria-label="Note update">
+      {error ? null : <p role="status">Note updated</p>}
+      {undoable ? <div className="chat-buttons"><ActionButton variant="secondary" disabled={pending} onClick={() => void controls?.onAction(proposal.id, 'undo')}>Undo</ActionButton></div> : null}
+      {error ? <p className="chat-error" role="alert">{error}</p> : null}
+    </section>
+    if (status !== 'offered' && !offeredAgain) return null
+    return <section className="chat-proposal chat-proposal--record" aria-label="Suggested note">
+      {after ? <RichTextEditor value={after} readOnly ariaLabel="Suggested note" /> : null}
+      {controls?.onUpdate ? <div className="chat-buttons">
+        <ActionButton variant="secondary" disabled={pending || Boolean(controls.applyUnavailable)} onClick={() => void controls.onUpdate?.(proposal.id)}>Update note</ActionButton>
+      </div> : null}
+      {controls?.applyUnavailable ? <p className="chat-help">{controls.applyUnavailable}</p> : null}
+      {error ? <p className="chat-error" role="alert">{error}</p> : null}
+    </section>
+  }
   if (presentation === 'record') {
     if (status === 'applied' && !error) return <p role="status">{proposal.target.kind === 'finding' ? 'Finding updated' : 'Test case updated'}</p>
     if (!['offered', 'staged', 'applied'].includes(status) && !error) return null

@@ -11,6 +11,32 @@ impl SessionService {
                 .ok_or_else(|| validation("Proposal is not in this conversation"))?;
             let previous_state = proposal.state.clone();
             match request.action {
+                // A Note edit is applied by the frontend to the live Note editor; the server records it.
+                RefinementAction::Stage if matches!(proposal.patch, RefinementPatch::Note { .. }) => {
+                    match proposal.state {
+                        RefinementState::Offered => {
+                            let source = super::chat_responses::contract(tx, &proposal.user_message_id)?
+                                .and_then(|contract| match contract {
+                                    ChatResponseContract::Current(current) => current.note_source,
+                                    _ => None,
+                                });
+                            if source.as_deref() != Some(super::chat_responses::note_fingerprint(tx, &chat.session_id)?.as_str()) {
+                                return Err(validation("The note changed after this suggestion was made. Ask AI again for a suggestion based on the current note."));
+                            }
+                            proposal.state = RefinementState::Applied
+                        }
+                        RefinementState::Applied => return Ok(chat),
+                        _ => return Err(validation("This proposal can no longer be applied")),
+                    }
+                }
+                // Undo of a Note edit is done in the Note editor; the suggestion is offered again.
+                RefinementAction::Undo if matches!(proposal.patch, RefinementPatch::Note { .. }) => {
+                    match proposal.state {
+                        RefinementState::Applied => proposal.state = RefinementState::Offered,
+                        RefinementState::Offered => return Ok(chat),
+                        _ => return Err(validation("This suggestion has no update to undo")),
+                    }
+                }
                 RefinementAction::Stage => {
                     super::chat_context::validate_owner(tx, &chat.session_id, &proposal.target)?;
                     let snapshot = proposal.target.snapshot().ok_or_else(|| validation("Record context is missing"))?;

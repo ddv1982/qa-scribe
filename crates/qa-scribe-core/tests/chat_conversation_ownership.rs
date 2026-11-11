@@ -6,6 +6,8 @@ mod activity;
 mod assistance;
 #[path = "chat_conversation_ownership/migration.rs"]
 mod migration;
+#[path = "chat_conversation_ownership/note_edits.rs"]
+mod note_edits;
 #[path = "chat_conversation_ownership/operations.rs"]
 mod operations;
 #[path = "chat_conversation_ownership/protections.rs"]
