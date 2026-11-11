@@ -1,8 +1,10 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
-import { afterEach, beforeEach, expect, it } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { richEditorDocumentFromPlainText } from '../editor/editorDocument'
 import { chatFixture, chatJobFixture } from './useSessionChat.testSupport'
-import { cleanupControllerTest, getTauriMock, setupControllerTest, useAppController } from './useAppController.testHarness'
+import { cleanupControllerTest, getTauriMock, sessionNoteStateFixture, setupControllerTest, useAppController } from './useAppController.testHarness'
+import { entryFixture, generationStatusFixture } from '../test/fixtures'
+import { recoveredSummaryChoiceReason } from './sessionChat.presentation'
 
 const api = getTauriMock()
 beforeEach(setupControllerTest)
@@ -47,4 +49,25 @@ it('keeps the specific save error instead of replacing it with the generic reaso
   await act(async () => { await result.current.sessionChat.onSend() })
   expect(api.startChatJob).not.toHaveBeenCalled()
   expect(result.current.error).toMatch(/too large to autosave/)
+})
+
+it('does not choose a side of a recovered Summary by asking AI', async () => {
+  vi.useFakeTimers()
+  api.getChat.mockResolvedValue(chatFixture({ mode: 'chat', composer: 'Make the setup clearer' }))
+  api.listActiveAiActionJobs.mockResolvedValue([generationStatusFixture({ jobId: 'job-summary', action: 'summary', state: 'running' })])
+  api.getAiActionJobStatus.mockResolvedValue(generationStatusFixture({ jobId: 'job-summary', action: 'summary', state: 'completed' }))
+  api.openSessionNoteState
+    .mockResolvedValueOnce(sessionNoteStateFixture({ noteEntry: entryFixture({ body: '<p>Startup Note.</p>' }) }))
+    .mockResolvedValueOnce(sessionNoteStateFixture({ noteEntry: entryFixture({ body: '<p>Generated Summary.</p>' }) }))
+  const { result } = renderHook(() => useAppController())
+  await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+  act(() => result.current.setNoteBody(richEditorDocumentFromPlainText('Authored during recovery')))
+  await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+  expect(result.current.pendingRecoveredSummaryDecision).toBe(true)
+  api.updateEntry.mockClear()
+  await act(async () => { await result.current.sessionChat.onSend() })
+  expect(api.updateEntry).not.toHaveBeenCalled()
+  expect(api.startChatJob).not.toHaveBeenCalled()
+  expect(result.current.error).toBe(recoveredSummaryChoiceReason)
+  vi.useRealTimers()
 })

@@ -75,6 +75,8 @@ export function handoffDuringRecordWrites(handoff: ChatHandoffPresentation, pend
 
 type NotesTurns = Pick<SessionChatViewState, 'onSend' | 'onRetry' | 'onAnswerQuestion'>
 export const noteSaveFailedReason = 'Save the note before asking AI. Your message is kept.'
+/** Asking AI would save the on-screen Note and so silently choose the authored side of a recovered Summary. */
+export const recoveredSummaryChoiceReason = 'Choose which version of the note to keep before asking AI. Your message is kept.'
 
 /** Notes turns read the saved Note, so each one first saves on-screen Note edits and stops if that save fails. */
 export function savedNoteTurns(chat: NotesTurns, saveNote: () => Promise<boolean>, fail: (reason: string) => void): NotesTurns {
