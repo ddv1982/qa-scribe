@@ -260,7 +260,7 @@ export function createSessionChatActions(ctx: SessionChatContext) {
     publish(entry)
     return operation
   }
-  const { onSend, onRefine, onDraftJira, onAnswerQuestion, onPrepareAction, onRetry } = createChatSend(ctx, {
+  const { onSend, onAnswerQuestion, onPrepareAction, onRetry } = createChatSend(ctx, {
     active, run, saveComposer, hydrate, refresh: id => refresh(id, false, true), publish, acceptChat, receiveStatus, observeJob, onSetComposer,
   })
   const { onDecidePermission, onRecheck } = permissions
@@ -485,7 +485,7 @@ export function createSessionChatActions(ctx: SessionChatContext) {
   function attention(sessionId: string): ConversationAttention[] {
     return [...workspaces.values()].filter(entry => entry.sessionId === sessionId && !entry.retired).map(entry => ({ reference: entry.reference, owner: entry.owner, snapshot: snapshots.get(entry) ?? emptyChatSnapshot }))
   }
-  return { bind, select, attention, notesSnapshot, setNotesInput, subscribeAttention(this: void, listener: () => void) { attentionListeners.add(listener); return () => { attentionListeners.delete(listener) } }, flushInputs: flush, selectionEpoch: registry.epoch, refresh, onRefine, onDraftJira, onAnswerQuestion, onPrepareAction, activate, dispose, observeJob, flush, hasPendingChanges, setMode, retire, recoverSession,
+  return { bind, select, attention, notesSnapshot, setNotesInput, subscribeAttention(this: void, listener: () => void) { attentionListeners.add(listener); return () => { attentionListeners.delete(listener) } }, flushInputs: flush, selectionEpoch: registry.epoch, refresh, onAnswerQuestion, onPrepareAction, activate, dispose, observeJob, flush, hasPendingChanges, setMode, retire, recoverSession,
     onSetComposer, onAttachImages, onPasteNativeImage, onRemoveImage, onRetryImage, onDismissImageFailure, onSend, onRetry, onCancel, onSubmit,
     onRestart, captureRestart, onDecidePermission, onRecheck, isCurrentPermissionScope }
 }

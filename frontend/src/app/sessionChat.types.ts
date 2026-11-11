@@ -12,8 +12,6 @@ export type ChatImageFailure = { id: string; filename: string; message: string; 
 export interface SessionChatViewState {
   responseStarting?: ChatSendIntent | ChatComposerIntent
   recordWritesPending?: boolean
-  onRefine?: () => Promise<void>
-  onDraftJira?: () => Promise<void>
   onAnswerQuestion?: (assistantMessageId: string, text: string) => Promise<void>
   onPrepareAction?: (assistantMessageId: string) => Promise<void>
   onRefresh?: () => Promise<void>

@@ -94,19 +94,6 @@ export function createChatSend(ctx: SessionChatContext, dependencies: Dependenci
     if (entry.owner?.kind === 'notes' && !entry.pendingStart && entry.composerIntent.kind !== 'message') { entry.composerIntent = { kind: 'message' }; ++entry.inputVersion }
     await send(entry, { kind: 'composer' })
   }, bound)
-  async function legacySend(entry: ChatWorkspace, kind: 'refine_record' | 'draft_jira') {
-    const previous = entry.composerIntent
-    entry.composerIntent = { kind }; ++entry.inputVersion
-    try { await send(entry, { kind: 'composer' }) }
-    finally {
-      if (!entry.retired && !entry.pendingStart && entry.composerIntent.kind === kind) {
-        entry.composerIntent = previous; ++entry.inputVersion; publish(entry)
-        await saveComposer(entry)
-      }
-    }
-  }
-  const onRefine = () => run('send', entry => legacySend(entry, 'refine_record'))
-  const onDraftJira = () => run('send', entry => legacySend(entry, 'draft_jira'))
   const onRetry = (bound?: ChatWorkspace) => run('retry', entry => send(entry, { kind: 'retry' }), bound)
   const onAnswerQuestion = (assistantMessageId: string, text: string, bound?: ChatWorkspace) => run('send', entry => send(entry, { kind: 'question_reply', assistantMessageId, text }), bound)
   const onPrepareAction = (assistantMessageId: string, bound?: ChatWorkspace) => run('prepare-action', async entry => {
@@ -120,5 +107,5 @@ export function createChatSend(ctx: SessionChatContext, dependencies: Dependenci
     dependencies.onSetComposer(actionRequestText, entry)
     await saveComposer(entry)
   }, bound)
-  return { onSend, onRefine, onDraftJira, onRetry, onAnswerQuestion, onPrepareAction }
+  return { onSend, onRetry, onAnswerQuestion, onPrepareAction }
 }

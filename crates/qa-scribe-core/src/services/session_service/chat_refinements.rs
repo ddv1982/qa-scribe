@@ -16,10 +16,7 @@ impl SessionService {
                     match proposal.state {
                         RefinementState::Offered => {
                             let source = super::chat_responses::contract(tx, &proposal.user_message_id)?
-                                .and_then(|contract| match contract {
-                                    ChatResponseContract::Current(current) => current.note_source,
-                                    _ => None,
-                                });
+                                .and_then(|ChatResponseContract::Current(current)| current.note_source);
                             if source.as_deref() != Some(super::chat_responses::note_fingerprint(tx, &chat.session_id)?.as_str()) {
                                 return Err(validation("The note changed after this suggestion was made. Ask AI again for a suggestion based on the current note."));
                             }

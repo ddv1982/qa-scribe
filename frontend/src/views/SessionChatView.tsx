@@ -18,10 +18,8 @@ import { useChatTranscriptScroll } from './useChatTranscriptScroll'
 export type SharedChatViewProps = {
   responseStarting?: ChatSendIntent | ChatComposerIntent
   activeTarget?: ChatContextPresentation
-  onDraftJira?: () => Promise<void>
   onAnswerQuestion?: (assistantMessageId: string, text: string) => Promise<void>
   onPrepareAction?: (assistantMessageId: string) => Promise<void>
-  onRefine?: () => Promise<void>
   proposalControls?: import('../app/sessionChat.proposals').ProposalControls
   hidden?: boolean
   chat: ChatState | null

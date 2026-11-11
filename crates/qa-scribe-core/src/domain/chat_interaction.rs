@@ -51,7 +51,6 @@ pub struct ChatAnswer {
 #[serde(untagged)]
 pub enum ChatResponseContract {
     Current(ChatResponseContractV2),
-    Legacy(super::RefinementResponseContract),
 }
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -68,21 +67,16 @@ impl ChatResponseContract {
     pub fn request_id(&self) -> &str {
         match self {
             Self::Current(c) => &c.request_id,
-            Self::Legacy(c) => &c.request_id,
         }
     }
     pub fn version(&self) -> u8 {
         match self {
             Self::Current(c) => c.version,
-            Self::Legacy(c) => c.version,
         }
     }
     pub fn purpose(&self) -> ChatResponsePurpose {
         match self {
             Self::Current(c) => c.purpose.clone(),
-            Self::Legacy(c) => ChatResponsePurpose::Refinement {
-                record_kind: c.record_kind,
-            },
         }
     }
 }
@@ -93,7 +87,6 @@ impl<'de> Deserialize<'de> for ChatResponseContract {
     ) -> std::result::Result<Self, D::Error> {
         let value = serde_json::Value::deserialize(deserializer)?;
         match value.get("version").and_then(serde_json::Value::as_u64) {
-            Some(1) => serde_json::from_value(value).map(Self::Legacy),
             Some(2 | 3) => serde_json::from_value(value).map(Self::Current),
             _ => {
                 return Err(serde::de::Error::custom(

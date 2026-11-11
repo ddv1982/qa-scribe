@@ -244,3 +244,16 @@ fn a_list_heavy_note_rewrite_within_the_note_limit_is_accepted() {
     let (_, after) = parsed.values.unwrap();
     assert!(after.document_json.len() > MAX_CHAT_RECORD_CONTEXT_BYTES);
 }
+
+#[test]
+fn only_released_contract_versions_are_accepted() {
+    use crate::domain::ChatResponseContract;
+    for version in [2, 3] {
+        let json = serde_json::json!({"version": version, "requestId": "r", "purpose": {"kind": "conversation"}});
+        let contract: ChatResponseContract = serde_json::from_value(json).unwrap();
+        assert_eq!(contract.version(), version);
+    }
+    // Version 1 never shipped in a release (#84 was squashed with v2), so it is not a stored format.
+    let v1 = serde_json::json!({"version": 1, "requestId": "r", "recordKind": "finding"});
+    assert!(serde_json::from_value::<ChatResponseContract>(v1).is_err());
+}
