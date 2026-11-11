@@ -29,6 +29,14 @@ impl SessionService {
                         _ => return Err(validation("This proposal can no longer be applied")),
                     }
                 }
+                // Undo of a Note edit is done in the Note editor; the suggestion is offered again.
+                RefinementAction::Undo if matches!(proposal.patch, RefinementPatch::Note { .. }) => {
+                    match proposal.state {
+                        RefinementState::Applied => proposal.state = RefinementState::Offered,
+                        RefinementState::Offered => return Ok(chat),
+                        _ => return Err(validation("This suggestion has no update to undo")),
+                    }
+                }
                 RefinementAction::Stage => {
                     super::chat_context::validate_owner(tx, &chat.session_id, &proposal.target)?;
                     let snapshot = proposal.target.snapshot().ok_or_else(|| validation("Record context is missing"))?;

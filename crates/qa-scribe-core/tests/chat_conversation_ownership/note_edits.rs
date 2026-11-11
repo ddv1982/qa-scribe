@@ -275,3 +275,39 @@ fn a_retry_after_the_note_changed_cannot_overwrite_it() {
         .unwrap_err();
     assert!(error.to_string().contains("The note changed"), "{error}");
 }
+
+#[test]
+fn undoing_a_note_update_offers_the_suggestion_again_and_rechecks_freshness() {
+    let service = SessionService::in_memory().unwrap();
+    let session_id = session(&service);
+    let chat = notes_turn(
+        &service,
+        &session_id,
+        json!({"kind":"edit","patch":{"kind":"note","bodyMarkdown":"Rewritten"}}),
+    );
+    let request = |chat: &ChatState, action| RefinementRequest {
+        scope: scope(chat),
+        proposal_id: chat.proposals[0].id.clone(),
+        action,
+    };
+    let applied = service
+        .resolve_refinement(request(&chat, RefinementAction::Stage))
+        .unwrap();
+    let undone = service
+        .resolve_refinement(request(&applied, RefinementAction::Undo))
+        .unwrap();
+    assert_eq!(undone.proposals[0].state, RefinementState::Offered);
+    let again = service
+        .resolve_refinement(request(&undone, RefinementAction::Stage))
+        .unwrap();
+    assert_eq!(again.proposals[0].state, RefinementState::Applied);
+    let undone = service
+        .resolve_refinement(request(&again, RefinementAction::Undo))
+        .unwrap();
+    set_note(&service, &session_id, "<p>Edited after Undo</p>".into());
+    assert!(
+        service
+            .resolve_refinement(request(&undone, RefinementAction::Stage))
+            .is_err()
+    );
+}

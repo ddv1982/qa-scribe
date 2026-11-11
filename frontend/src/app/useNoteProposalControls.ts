@@ -80,7 +80,7 @@ export function useNoteProposalControls({ chat, onRefresh, noteBody, setNoteBody
     }
   }
 
-  function undo(id: string) {
+  async function undo(id: string) {
     const entry = applied.get(id)
     if (!entry || !stillApplied(entry)) { fail(id, noteChangedReason); return }
     setNoteBody(entry.before)
@@ -88,6 +88,15 @@ export function useNoteProposalControls({ chat, onRefresh, noteBody, setNoteBody
     setRecorded(previous => { const rest = new Set(previous); rest.delete(id); return rest })
     setUndone(previous => new Map(previous).set(id, { sessionId: entry.sessionId, beforeText: entry.beforeText }))
     clear(id)
+    // The server offers the suggestion again, so the card stays truthful after a reload.
+    const conversation = latest.current.chat
+    if (!conversation || conversation.sessionId !== entry.sessionId) return
+    try {
+      await resolveRefinement({ scope: { sessionId: conversation.sessionId, draftId: conversation.draftId, expectedRevision: conversation.revision }, proposalId: id, action: 'undo' })
+      await onRefresh?.().catch(() => undefined)
+    } catch {
+      // The local undo record keeps offering the suggestion until the conversation refreshes.
+    }
   }
 
   const isNote = (id: string) => chat?.proposals?.find(item => item.id === id)?.patch.kind === 'note'
@@ -101,7 +110,7 @@ export function useNoteProposalControls({ chat, onRefresh, noteBody, setNoteBody
     onUpdate: async (id, reference) => { if (isNote(id)) await onUpdate(id); else await recordControls?.onUpdate?.(id, reference) },
     onAction: async (id, action, reference) => {
       if (!isNote(id)) await recordControls?.onAction(id, action, reference)
-      else if (action === 'undo') undo(id)
+      else if (action === 'undo') await undo(id)
     },
   }
 }

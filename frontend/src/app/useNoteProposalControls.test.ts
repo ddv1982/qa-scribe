@@ -4,7 +4,7 @@ import type { ChatState, RefinementProposal } from '../bindings'
 import { richEditorDocumentFromPlainText, richEditorDocumentToPlainText, type RichEditorDocument } from '../editor/editorDocument'
 import { completedChatFixture } from './useSessionChat.testSupport'
 
-const resolveRefinement = vi.hoisted(() => vi.fn())
+const resolveRefinement = vi.hoisted(() => vi.fn<(request: import('../bindings').RefinementRequest) => Promise<import('../bindings').ChatState>>())
 vi.mock('../tauri', async (importOriginal) => ({ ...await importOriginal<typeof import('../tauri')>(), resolveRefinement }))
 const { noteChangedWhileUpdatingReason, useNoteProposalControls } = await import('./useNoteProposalControls')
 
@@ -89,7 +89,7 @@ it('offers the suggestion again after Undo and can apply it a second time', asyn
   card.unmount()
   await act(async () => { await view.result.current.onUpdate?.('p1') })
   expect(note()).toBe('Rewritten')
-  expect(resolveRefinement).toHaveBeenCalledTimes(2)
+  expect(resolveRefinement.mock.calls.filter(([request]) => request.action === 'stage')).toHaveLength(2)
 })
 
 it('does not offer an undone suggestion again once the Note was edited', async () => {
@@ -142,6 +142,14 @@ it('does not re-apply an undone suggestion over edits saved during Update', asyn
   act(() => show({ body: richEditorDocumentFromPlainText('Typed while saving') }))
   await act(async () => { saving.finish(); await pending })
   expect(note()).toBe('Typed while saving')
-  expect(resolveRefinement).toHaveBeenCalledTimes(1)
+  expect(resolveRefinement.mock.calls.filter(([request]) => request.action === 'stage')).toHaveLength(1)
   expect(view.result.current.errors.p1).toBe(noteChangedWhileUpdatingReason)
+})
+
+it('records Undo on the server so the suggestion is offered again after a reload', async () => {
+  resolveRefinement.mockReset().mockResolvedValue(completedChatFixture())
+  const { view } = setup(vi.fn(async () => {}))
+  await act(async () => { await view.result.current.onUpdate?.('p1') })
+  await act(async () => { await view.result.current.onAction('p1', 'undo') })
+  expect(resolveRefinement).toHaveBeenLastCalledWith(expect.objectContaining({ proposalId: 'p1', action: 'undo' }))
 })
