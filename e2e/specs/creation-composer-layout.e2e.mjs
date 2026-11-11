@@ -56,7 +56,7 @@ describe('Destination AI setup at the approved native widths', () => {
     unlinkSync(link)
     try {
       await browser.refresh()
-      await $('h1=Test cases').waitForDisplayed()
+      await $('h1=Test cases').waitForExist()
       await tab('Findings')
       await create('finding')
       await fill('[aria-label="Finding title"]', 'No provider required for ordinary Save')

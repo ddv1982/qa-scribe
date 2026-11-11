@@ -11,6 +11,7 @@ import {
   richEditorDocumentToStoredBody,
   richEditorDocumentsEqual,
   serializeRichEditorDocument,
+  withoutRepeatedTitleHeading,
   type RichEditorDocument,
 } from './editorDocument'
 import { managedAttachmentImageHtml } from './editorHtml'
@@ -257,5 +258,21 @@ describe('editorDocument', () => {
     const imageNode = document.doc.content?.[0]?.content?.[0]
 
     expect(imageNode?.attrs?.src).toBe('qa-scribe-attachment://attachment-2')
+  })
+})
+
+describe('withoutRepeatedTitleHeading', () => {
+  it('hides a leading heading that only repeats the record title', () => {
+    const document = richEditorDocumentFromHtml('<h2>Testplan  IRIS Oracle2Cloud</h2><p>This note is a test plan.</p>')
+    expect(richEditorDocumentToPlainText(withoutRepeatedTitleHeading(document, 'testplan iris oracle2cloud'))).toBe('This note is a test plan.')
+  })
+
+  it('keeps headings that add information, later headings, and a heading that is the whole body', () => {
+    const feature = richEditorDocumentFromHtml('<h2>Feature: Testplan IRIS Oracle2Cloud</h2><p>Scenario</p>')
+    const later = richEditorDocumentFromHtml('<p>Intro</p><h2>Same title</h2>')
+    const only = richEditorDocumentFromHtml('<h2>Same title</h2>')
+    expect(withoutRepeatedTitleHeading(feature, 'Testplan IRIS Oracle2Cloud')).toBe(feature)
+    expect(withoutRepeatedTitleHeading(later, 'Same title')).toBe(later)
+    expect(withoutRepeatedTitleHeading(only, 'Same title')).toBe(only)
   })
 })

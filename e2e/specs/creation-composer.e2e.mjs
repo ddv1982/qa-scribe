@@ -214,7 +214,7 @@ describe('Unified creation composer in the built native application', () => {
     const sourceBody = `<p>Exact source for the native review.</p><img src="qa-scribe-attachment://${shared.id}" data-attachment-id="${shared.id}" alt="Shared Note screenshot">`
     await native('update_entry', { id: note.id, patch: { body: sourceBody, bodyJson: JSON.stringify({ schemaVersion: 1, doc: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Exact source for the native review.' }] }, { type: 'image', attrs: { src: `qa-scribe-attachment://${shared.id}`, attachmentId: shared.id, alt: 'Shared Note screenshot' } }] } }), bodyFormat: 'tiptap_json' } })
     await browser.refresh()
-    await $('h1=Issues and risks').waitForDisplayed()
+    await $('h1=Findings').waitForExist()
     await tab('Test cases')
     await create('testware')
     await $('[aria-label="Test case output format"]').selectByAttribute('value', 'gherkin')
@@ -259,7 +259,7 @@ describe('Unified creation composer in the built native application', () => {
     await capture('uc1-shared-save-and-copy')
     await native('delete_finding', { id: borrowedRecord.id })
     await browser.refresh()
-    await $('h1=Issues and risks').waitForDisplayed()
+    await $('h1=Findings').waitForExist()
     activeRecorder = recordVideo()
     await create('finding')
     await fill(input('finding'), 'x'.repeat(161))

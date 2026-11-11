@@ -175,6 +175,18 @@
   cursor: pointer;
 }
 
+.command-palette-list [role="group"] {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.command-palette-group {
+  margin: var(--space-2) var(--space-3) 0;
+  color: var(--text-tertiary);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
 .command-palette-list button:hover,
 .command-palette-list button:focus-visible {
   background: var(--accent-tint);
@@ -546,8 +558,8 @@
 
 .session-workspace-tabs button[aria-selected="true"] {
   font-weight: 600;
-  color: var(--on-mark);
-  background: var(--mark);
+  color: var(--text-primary);
+  background: var(--surface-selected);
 }
 
 .session-workspace-tabs button:focus-visible {
@@ -564,10 +576,6 @@
   color: var(--text-tertiary);
   font-size: var(--font-size-sm);
   font-weight: 400;
-}
-
-.session-workspace-tabs button[aria-selected="true"] span {
-  color: inherit;
 }
 
 .session-header-actions {

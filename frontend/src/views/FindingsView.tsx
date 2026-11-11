@@ -22,7 +22,7 @@ import {
 } from '../findings/metadata'
 
 const findingsLabels: RecordCollectionLabels = {
-  heading: 'Issues and risks',
+  heading: 'Findings',
   emptyTitle: 'No findings yet',
   emptyDescription: 'Capture a bug, question, risk, or follow-up from the current Session note.',
   generationTitle: 'Generating finding',
@@ -48,7 +48,7 @@ function FindingMeta({ finding }: { finding: Finding }) {
   const severity = useMemo(() => findingSeverityValue({ body, bodyJson, bodyFormat, metadataJson }), [body, bodyJson, bodyFormat, metadataJson])
   return <div className="finding-meta-row">
     <span>{formatFindingKind(finding.kind)}</span>
-    <span className="finding-severity" data-severity={severity}>{findingSeverityLabel(severity)}</span>
+    {severity === 'unspecified' ? null : <span className="finding-severity" data-severity={severity}>{findingSeverityLabel(severity)}</span>}
     <span>{findingStatusLabel(parseFindingMetadata(metadataJson).status)}</span>
   </div>
 }

@@ -44,8 +44,9 @@ QA Scribe does not submit the report for you. Your reporting tool may need a dif
 Notes and Session titles autosave. Wait for **Autosaved** before you quit. Findings and test cases have an explicit **Save** action.
 
 1. Quit and reopen QA Scribe. An existing Session opens without the welcome preview.
-2. Select your Session from **Recent sessions**, or use **Search Sessions** to find it. Use **Load All Sessions** when older Sessions are not loaded.
-3. Open **Findings** or **Test cases**. Your saved output is also available in the corresponding library.
+2. Select your Session from **Sessions** in the sidebar, or use **Search Sessions** to find it. Use **Load All Sessions** when older Sessions are not loaded.
+3. Open **Findings** or **Test cases**. Your saved output from every Session is also in the **Library**.
+4. Press Ctrl+K (⌘K on macOS) to find a Session, test case, or finding by name, or to run a command.
 
 If a save fails, keep the app open and retain your text before retrying. There is no trash or general undo for deletion.
 

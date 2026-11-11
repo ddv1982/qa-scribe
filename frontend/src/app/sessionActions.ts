@@ -71,7 +71,6 @@ export function createSessionActions(ctx: SessionActionsContext) {
 
   async function openSession(
     session: Session,
-    showNotice = true,
     onOpened?: () => void,
     requestedEpoch?: number,
   ) {
@@ -124,7 +123,6 @@ export function createSessionActions(ctx: SessionActionsContext) {
       ctx.session.savedBodyRef.current = serializeRichEditorDocument(noteDocument)
       writes.resetTitleIntent(reopened.id, reopened.title)
       ctx.navigation.setActiveView('sessions')
-      if (showNotice) ctx.feedback.setNotice(`Opened ${reopened.title}`)
       onOpened?.()
     } catch (cause) {
       if (writes.sessionNavigationIsCurrent(navigationEpoch)) ctx.feedback.setError(formatError(cause))
@@ -250,7 +248,7 @@ export function createSessionActions(ctx: SessionActionsContext) {
       ctx.session.setSessions(nextSessions)
 
       if (nextSessions[0]) {
-        await openSession(nextSessions[0], false)
+        await openSession(nextSessions[0])
       } else {
         ctx.navigation.setActiveView('sessions')
       }

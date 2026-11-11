@@ -101,6 +101,14 @@ export function testwareDepthLabel(depth: TestwareDepth): string {
   return testwareDepthOptions.find((option) => option.id === depth)?.label ?? depth
 }
 
+/** The output format is shown at a glance; technique and depth stay available as detail. */
+export function testwareGenerationSummary(draft: Pick<Draft, 'metadataJson'>): { format: string; detail: string } | null {
+  const metadata = parseTestwareGenerationMetadata(draft)
+  if (!metadata) return null
+  const format = testwareOutputFormatLabel(metadata.outputFormat)
+  return { format, detail: `${format} · ${testwareTechniqueLabel(metadata.technique)} technique · ${testwareDepthLabel(metadata.depth)} depth` }
+}
+
 export function parseTestwareGenerationMetadata(draft: Pick<Draft, 'metadataJson'>): TestwareGenerationPreferences | null {
   if (!draft.metadataJson) return null
   try {

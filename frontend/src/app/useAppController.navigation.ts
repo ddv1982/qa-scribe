@@ -40,6 +40,8 @@ type AppControllerNavigationContext = {
   setSettingsSection: Dispatch<SetStateAction<string | null>>
 }
 
+const sessionScopedViews: MainView[] = ['sessions', 'testware', 'findings']
+
 export function useAppControllerNavigation(ctx: AppControllerNavigationContext) {
   function beginSessionNavigation() {
     ctx.pendingNavigationContinuationRef.current?.cancel?.()
@@ -164,13 +166,13 @@ export function useAppControllerNavigation(ctx: AppControllerNavigationContext) 
     await navigate()
   }
 
-  function requestOpenSession(session: Session, showNotice = true, onOpened?: () => void): Promise<void> {
+  function requestOpenSession(session: Session, onOpened?: () => void): Promise<void> {
     if (ctx.activeSession?.id === session.id) {
       beginSessionNavigation()
       return ctx.chat.recoverSession(session.id).then(() => undefined)
     }
     const destination = ctx.activeView === 'testware' || ctx.activeView === 'findings' ? ctx.activeView : 'sessions'
-    return requestSessionNavigation(destination, () => ctx.sessionActions.openSession(session, showNotice, onOpened))
+    return requestSessionNavigation(destination, () => ctx.sessionActions.openSession(session, onOpened))
   }
 
   function requestNewSession(): Promise<void> {
@@ -251,7 +253,9 @@ export function useAppControllerNavigation(ctx: AppControllerNavigationContext) 
     ...sessionNavigationActions,
     openSessionInCurrentView: async (session: Session) => {
       if (ctx.activeSession?.id === session.id) {
-        beginSessionNavigation()
+        // The rail lists Sessions on every view, so choosing the open one from the Library or Settings returns to it.
+        if (sessionScopedViews.includes(ctx.activeView)) beginSessionNavigation()
+        else requestActiveView('sessions')
         await ctx.chat.recoverSession(session.id)
         return
       }

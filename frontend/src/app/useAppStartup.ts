@@ -8,7 +8,7 @@ const STARTUP_SESSION_LIMIT = 50
 
 type UseAppStartupOptions = {
   loadSettings: (settings: AppSettings) => void
-  openSession: (session: Session, showNotice?: boolean) => Promise<void>
+  openSession: (session: Session) => Promise<void>
   captureActiveJobs: () => Promise<void>
   reconcileActiveJobs: () => Promise<void>
   loadProviderStatus: () => Promise<void>
@@ -77,7 +77,7 @@ export function useAppStartup(options: UseAppStartupOptions) {
       setSessionLibraryComplete(sessions.length < STARTUP_SESSION_LIMIT)
       bootedRef.current = true
       if (sessions[0]) {
-        await openSession(sessions[0], false)
+        await openSession(sessions[0])
         startupMark('first-session-opened')
         startupMeasure('boot-to-first-session-opened', 'boot-start', 'first-session-opened')
       } else {

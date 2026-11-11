@@ -3,7 +3,7 @@ import { useMemo, type ReactNode, type Ref } from 'react'
 import { copyMatchesSnapshot, type ClipboardSnapshot, type CopyState } from '../app/copyActions'
 import { CheckCircle2, Copy, Image as ImageIcon, Loader2, PencilLine, Save, Trash2, X } from 'lucide-react'
 import { FormatToolbar, RichTextEditor, type RichEditorImageUpload } from '../editor/RichTextEditor'
-import { richEditorDocumentFromHtml, richEditorDocumentFromStoredBody, richEditorDocumentToStoredBody, type StoredRichBody } from '../editor/editorDocument'
+import { richEditorDocumentFromHtml, richEditorDocumentFromStoredBody, richEditorDocumentToStoredBody, withoutRepeatedTitleHeading, type StoredRichBody } from '../editor/editorDocument'
 import type { GenerationJobStatus } from '../tauri'
 import { TestwareGenerationPreview } from '../content/TestwareGenerationPreview'
 
@@ -88,6 +88,7 @@ export function EditableRichRecord({
 }) {
   const { body, bodyJson } = record
   const document = useMemo(() => richEditorDocumentFromStoredBody({ body, bodyJson }), [body, bodyJson])
+  const previewDocument = useMemo(() => withoutRepeatedTitleHeading(document, record.title), [document, record.title])
 
   return (
     <article className="editable-record">
@@ -102,7 +103,7 @@ export function EditableRichRecord({
         <RichTextEditor
           editorId={editing ? editorId : undefined}
           historyScope={`${editorId}:${editing ? 'editing' : 'preview'}`}
-          value={editing || record.body ? document : richEditorDocumentFromHtml(previewFallbackHtml)}
+          value={editing ? document : record.body ? previewDocument : richEditorDocumentFromHtml(previewFallbackHtml)}
           onChange={editing ? (body) => onBodyChange(richEditorDocumentToStoredBody(body)) : undefined}
           ariaLabel={bodyAriaLabel}
           placeholder={editing ? placeholder : undefined}

@@ -57,7 +57,7 @@ with sqlite3.connect('file:'+sys.argv[1]+'?mode=ro',uri=True) as db:
     await capture('uc2-native-keyboard-escape-and-enter')
     await click('button=Cancel')
     await click('[aria-label="Open command palette"]')
-    await fill('[aria-label="Search commands"]', 'Create finding with AI')
+    await fill('[aria-label="Search Sessions, records, and commands"]', 'Create finding with AI')
     await click('[role="option"]*=Create finding with AI')
     await $('dialog.generation-preflight[open]').waitForDisplayed()
     assert.deepEqual(rows(), beforeKeyboard)
@@ -72,7 +72,7 @@ with sqlite3.connect('file:'+sys.argv[1]+'?mode=ro',uri=True) as db:
     const custom = await native('create_finding', { draft: { sessionId: seed.sessionId, kind: 'bug', title: 'Custom severity remains unclassified',
       body: '<h2>Custom finding</h2><h3>Severity</h3><p>Release-specific custom severity</p><h3>Evidence</h3><p>Retain original facts.</p>', metadataJson: '{"severity":"high"}' } })
     await browser.refresh()
-    await $('h1=Issues and risks').waitForDisplayed()
+    await $('h1=Findings').waitForExist()
     await (await $('.record-master-list')).$('button*=Custom severity remains unclassified').click()
     await click('button=Edit')
     const severityValue = () => browser.execute(() => Array.from(document.querySelectorAll('.editable-record label')).find(label => label.querySelector('span')?.textContent === 'Severity').querySelector('select').value)

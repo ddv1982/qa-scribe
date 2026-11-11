@@ -24,6 +24,52 @@
   margin-bottom: var(--space-4);
 }
 
+/* Search, sort and filters share the row with the create action instead of stacking under a heading. */
+.collection-header > .collection-toolbar {
+  flex: 1 1 520px;
+  margin-bottom: 0;
+}
+
+.collection-header > .collection-header-actions {
+  margin-left: auto;
+}
+
+.segmented-tabs {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--surface-sunken);
+  border-radius: var(--radius-md);
+}
+
+.segmented-tabs button {
+  min-height: var(--control-sm);
+  padding: 0 var(--space-3);
+  color: var(--text-secondary);
+  font-weight: 500;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.segmented-tabs button.active {
+  color: var(--text-primary);
+  font-weight: 600;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-sm);
+}
+
+.segmented-tabs button:hover:not(.active) {
+  color: var(--text-primary);
+}
+
+.record-meta-line {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
 .collection-header h1 {
   margin: 0;
   font-size: var(--font-size-2xl);
@@ -65,7 +111,10 @@
 
 .collection-toolbar {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) repeat(2, auto) auto;
+  /* Search takes the room; any number of filters and the count follow on the same row. */
+  grid-template-columns: minmax(220px, 1fr);
+  grid-auto-columns: auto;
+  grid-auto-flow: column;
   align-items: center;
   gap: var(--space-3);
   margin-bottom: var(--space-3);
@@ -186,8 +235,7 @@
 }
 
 .record-master-list > button.active {
-  color: var(--on-mark);
-  background: var(--mark);
+  background: var(--surface-selected);
 }
 
 .record-master-list strong {
@@ -208,10 +256,6 @@
 .record-master-list > button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
-}
-
-.record-master-list > button.active :is(span, .finding-meta-row) {
-  color: inherit;
 }
 
 .record-detail-pane {
@@ -311,6 +355,8 @@
 }
 
 .rich-record-preview-field .rich-editor {
+  /* Keep reading lines comfortable when a lone record spans the full width. */
+  max-width: 76ch;
   min-height: 178px;
   padding: 0;
 }
@@ -340,7 +386,6 @@
 
 .finding-severity[data-severity="medium"] { color: var(--warning); }
 .finding-severity:is([data-severity="high"], [data-severity="critical"]) { color: var(--danger); }
-.record-master-list > button.active .finding-severity { color: inherit; }
 
 .record-actions {
   position: sticky;
@@ -478,12 +523,6 @@
   color: var(--text-secondary);
   font-size: var(--font-size-md);
   line-height: 1.5;
-}
-
-.collection-context {
-  margin: var(--space-1) 0 0;
-  color: var(--text-secondary);
-  font-size: var(--font-size-sm);
 }
 
 .advanced-setting details {

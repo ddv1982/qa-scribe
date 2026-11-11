@@ -127,13 +127,13 @@ async function palette(stage, width, theme) {
   await click(trigger)
   await (await $('dialog.command-palette[open]')).waitForDisplayed()
   await snapshot(stage, width, theme)
-  assert.ok(await browser.execute(() => document.activeElement?.matches('[aria-label="Search commands"]')),
+  assert.ok(await browser.execute(() => document.activeElement?.matches('[aria-label="Search Sessions, records, and commands"]')),
     'Command palette must initially focus search')
-  await (await $('[aria-label="Search commands"]')).setValue('Settings')
+  await (await $('[aria-label="Search Sessions, records, and commands"]')).setValue('Settings')
   // Embedded-driver modifier keys are unreliable. Dispatch to the real React
   // search keyboard handler, as critical-workflows does for editor shortcuts.
   assert.ok(await browser.execute(() => {
-    const input = document.querySelector('[aria-label="Search commands"]')
+    const input = document.querySelector('[aria-label="Search Sessions, records, and commands"]')
     const event = new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true })
     input.dispatchEvent(event)
     return event.defaultPrevented && document.activeElement?.matches('.command-palette-list button:not(:disabled)')
@@ -154,13 +154,13 @@ async function paletteEscape() {
     ['option', 'Settings', true], ['reopened', '', false]]) {
     await browser.execute((selector) => document.querySelector(selector).focus(), trigger)
     await click(trigger)
-    const search = await $('[aria-label="Search commands"]')
+    const search = await $('[aria-label="Search Sessions, records, and commands"]')
     await search.waitForDisplayed()
     assert.equal(await search.getValue(), '', 'Reopening the palette resets search')
     if (query) await search.setValue(query)
     if (result) await sendKey(Key.ArrowDown)
     assert.ok(await browser.execute((result) => document.activeElement?.matches(result
-      ? '.command-palette-list button:not(:disabled)' : '[aria-label="Search commands"]'), result),
+      ? '.command-palette-list button:not(:disabled)' : '[aria-label="Search Sessions, records, and commands"]'), result),
     `${stage}: Escape starts from the expected control`)
     await browser.execute(() => {
       window.__paletteEscape = []
