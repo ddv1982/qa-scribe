@@ -232,6 +232,8 @@ export function createSessionActions(ctx: SessionActionsContext) {
   }
 
   async function handleDeleteSession(sessionToDelete: Session) {
+    // The follow-up open can be superseded from the sidebar; a newer navigation then owns the busy state.
+    let navigationEpoch: number | null = null
     try {
       ctx.session.deletingSessionIdRef.current = sessionToDelete.id
       ctx.feedback.setBusyAction('delete-session')
@@ -250,7 +252,8 @@ export function createSessionActions(ctx: SessionActionsContext) {
       ctx.session.setSessions(nextSessions)
 
       if (nextSessions[0]) {
-        await openSession(nextSessions[0])
+        navigationEpoch = writes.beginSessionNavigation()
+        await openSession(nextSessions[0], undefined, navigationEpoch)
       } else {
         ctx.navigation.setActiveView('sessions')
       }
@@ -259,7 +262,7 @@ export function createSessionActions(ctx: SessionActionsContext) {
       ctx.feedback.setError(formatError(cause))
     } finally {
       ctx.session.deletingSessionIdRef.current = null
-      ctx.feedback.setBusyAction(null)
+      if (navigationEpoch === null || writes.sessionNavigationIsCurrent(navigationEpoch)) ctx.feedback.setBusyAction(null)
     }
   }
 

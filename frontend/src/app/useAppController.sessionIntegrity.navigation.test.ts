@@ -125,6 +125,37 @@ describe('useAppController Session integrity', () => {
     expect(result.current.busyAction).toBeNull()
   })
 
+  it('keeps a New Session chosen during the post-delete open busy until it finishes', async () => {
+    const { result } = renderHook(() => useAppController())
+    await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
+    const nextSession = sessionFixture({ id: 'session-3', title: 'Next Session' })
+    const nextOpen = deferred<ReturnType<typeof sessionNoteStateFixture>>()
+    const created = deferred<ReturnType<typeof sessionFixture>>()
+    tauriMock.deleteSession.mockResolvedValueOnce({ pendingFiles: 0 })
+    tauriMock.listSessions.mockResolvedValueOnce([nextSession])
+    tauriMock.openSessionNoteState.mockReturnValueOnce(nextOpen.promise)
+    tauriMock.createSession.mockReturnValueOnce(created.promise)
+
+    act(() => result.current.requestDeleteSession())
+    let deletion!: Promise<void>
+    act(() => { deletion = result.current.confirmDelete() })
+    await waitFor(() => expect(result.current.busyAction).toBe('open-session'))
+    let newSession!: Promise<void>
+    act(() => { newSession = result.current.handleNewSession() })
+    await act(async () => {
+      nextOpen.resolve(sessionNoteStateFixture({ session: nextSession }))
+      await deletion
+    })
+    expect(result.current.busyAction).toBe('new-session')
+
+    await act(async () => {
+      created.resolve(sessionFixture({ id: 'session-2', title: 'Untitled session 2' }))
+      await newSession
+    })
+    expect(result.current.activeSession?.id).toBe('session-2')
+    expect(result.current.busyAction).toBeNull()
+  })
+
   it('does not let a stale open release the latest operation busy state', async () => {
     const { result } = renderHook(() => useAppController())
     await waitFor(() => expect(result.current.activeSession?.id).toBe('session-1'))
