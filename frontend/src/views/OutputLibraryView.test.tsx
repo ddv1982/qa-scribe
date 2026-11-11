@@ -108,6 +108,18 @@ describe('cross-session output libraries', () => {
     expect(onOpenRecord).toHaveBeenLastCalledWith('session-1', 'draft-newer')
   })
 
+  it('keeps shown records when a refresh fails and offers a retry', async () => {
+    const user = userEvent.setup()
+    const onRetry = vi.fn()
+    render(<OutputLibraryView copyState={{ status: 'idle' }} onCopy={async () => undefined} isBusy={false} kind="testware"
+      draftItems={[{ draft: draftFixture({ title: 'Checkout cases' }), sessionTitle: 'Checkout' }]}
+      loadState="error" loadError="Database temporarily unavailable" onRetry={onRetry} onOpenRecord={vi.fn()} />)
+    expect(screen.getByRole('complementary', { name: 'Test cases library records' })).toHaveTextContent('Checkout cases')
+    expect(screen.getByRole('alert')).toHaveTextContent('Database temporarily unavailable')
+    await user.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(onRetry).toHaveBeenCalledOnce()
+  })
+
   it('filters Finding types and offers recovery after a load error', async () => {
     const user = userEvent.setup()
     const onRetry = vi.fn()

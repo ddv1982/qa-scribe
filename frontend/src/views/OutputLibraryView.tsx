@@ -142,9 +142,15 @@ export function OutputLibraryView({
       </header>
       {firstLoad ? (
         <StatePanel icon={Loader2} title={`Loading ${scopeLabel.toLocaleLowerCase()}`} description="Collecting Session-owned output and its provenance." />
-      ) : loadState === 'error' ? (
+      ) : loadState === 'error' && records.length === 0 ? (
         <StatePanel icon={SearchX} title={`Could not load ${scopeLabel.toLocaleLowerCase()}`} description={loadError ?? 'The local output library could not be read.'} action={{ label: 'Try again', onClick: onRetry }} />
       ) : <>
+        {loadState === 'error' ? (
+          <div className="collection-load-advisory" role="alert">
+            <span>{loadError ?? `The ${scopeLabel.toLocaleLowerCase()} could not be refreshed.`}</span>
+            <ActionButton variant="secondary" type="button" onClick={onRetry}>Try again</ActionButton>
+          </div>
+        ) : null}
         {records.length > 0 ? (
           <div className="collection-toolbar">
             <label className="collection-search">

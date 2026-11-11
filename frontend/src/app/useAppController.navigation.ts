@@ -156,8 +156,9 @@ export function useAppControllerNavigation(ctx: AppControllerNavigationContext) 
     if (ctx.creation && !await ctx.creation.settle()) return
     if (!await ctx.chat.flush() || !ctx.sessionActions.sessionNavigationIsCurrent(epoch)) return
     // A recovered Summary represents two valid canonical outcomes and must not
-    // be silently selected by the ordinary Session-switch flush.
-    if (ctx.sessionActions.settlement.snapshot().recoveryChoice) {
+    // be silently selected by the ordinary Session-switch flush. Settings are
+    // explicit-save, and the sidebar can switch Sessions while Settings is open.
+    if (ctx.sessionActions.settlement.snapshot().recoveryChoice || ctx.settingsDirty) {
       ctx.pendingNavigationEpochRef.current += 1
       ctx.pendingNavigationContinuationRef.current = navigate
       ctx.setPendingNavigationView(view)
