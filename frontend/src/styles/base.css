@@ -82,6 +82,8 @@
   /* The one selection colour: a quiet tint, so the highlighter stays the only yellow. */
   --surface-selected: color-mix(in oklab, var(--text-primary) 11%, transparent);
   --focus-halo: color-mix(in oklab, var(--accent) 22%, transparent);
+  /* The one keyboard focus ring colour. */
+  --focus-ring: var(--accent);
 
   --success: #17693a;
   --success-hover: color-mix(in oklab, var(--success) 88%, #000);
@@ -229,15 +231,17 @@ button:disabled {
   transition: opacity 0s linear 200ms;
 }
 
-button:focus-visible,
-summary:focus-visible,
-.model-combobox-trigger:focus-visible,
-.model-combobox-control input:focus-visible,
-.model-option:focus-visible,
-.session-picker-item:focus-visible,
-.toolbar-button:focus-visible {
-  outline: 2px solid var(--accent);
+/* One keyboard focus ring for every control. Text fields use the halo below instead. */
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
+}
+
+/* The ring is for keyboard use. WebKit also draws it when a script moves focus after a click,
+   such as a dialog opening or focus returning to the button that opened it, so pointer use hides it.
+   Text fields keep their focus indication either way. */
+:root[data-input-modality="pointer"] :focus-visible:not(input, textarea, select, [contenteditable="true"]) {
+  outline: none;
 }
 
 button,

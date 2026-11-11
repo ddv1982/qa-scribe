@@ -461,7 +461,11 @@ describe('Native UI polish before/after evidence', () => {
     } else {
       keyboard.unavailableMethodReason = 'Embedded WebDriver dispatches untrusted KeyboardEvent instances and cannot perform native Tab traversal.'
       keyboard.focusMethod = 'Explicit Ask AI focus for outline geometry'
-      await browser.execute(() => document.querySelector('.session-workspace .ask-ai-trigger').focus())
+      // Focus rings show for keyboard use only; this focus stands in for keyboard traversal.
+      await browser.execute(() => {
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }))
+        document.querySelector('.session-workspace .ask-ai-trigger').focus()
+      })
     }
     await browser.waitUntil(async () => browser.execute(() => document.activeElement?.matches('.session-workspace .ask-ai-trigger')))
     keyboard.nativeTabVerified = process.platform === 'linux'

@@ -429,14 +429,6 @@
   background: var(--accent-tint);
 }
 
-/* Integrated ring instead of the offset outline: dialogs auto-focus the
- * first tile on open, and outline-over-border reads as a double border. */
-.preflight-choice:focus-visible {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-tint);
-}
-
 .preflight-choice span {
   color: var(--accent);
   font-size: var(--font-size-md);
@@ -560,11 +552,6 @@
   font-weight: 600;
   color: var(--text-primary);
   background: var(--surface-selected);
-}
-
-.session-workspace-tabs button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
 }
 
 .session-workspace-tabs button:hover:not([aria-selected="true"]) {
