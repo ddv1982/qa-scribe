@@ -340,3 +340,13 @@ it('keeps missing and legacy historical model evidence explicit', () => {
   rerender(<SessionChatView {...props} chat={history} />)
   expect(screen.getByText('Codex · Legacy model · old-ambiguous · Source unknown')).toBeInTheDocument()
 })
+
+it('offers Draft Jira issue and Refine record only when a Notes conversation is bound to a record', () => {
+  const callbacks = { onDraftJira: vi.fn(async () => {}), onRefine: vi.fn(async () => {}) }
+  const { rerender, props } = mount({ ...callbacks, activeTarget: { kind: 'session' } })
+  expect(screen.queryByRole('button', { name: 'Draft Jira issue' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Refine record' })).not.toBeInTheDocument()
+  rerender(<SessionChatView {...props} activeTarget={{ kind: 'finding', recordId: 'finding-1', title: 'Checkout', unsaved: false }} />)
+  expect(screen.getByRole('button', { name: 'Draft Jira issue' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Refine record' })).toBeInTheDocument()
+})

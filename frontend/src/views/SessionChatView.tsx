@@ -84,6 +84,7 @@ export function SessionChatView(props: SessionChatViewProps) {
   } = props
   const notes = props.kind === 'notes' ? props : null
   const record = props.kind === 'record' ? props : null
+  const recordBound = Boolean(notes && props.activeTarget && props.activeTarget.kind !== 'session')
   const recoveryPending = notes?.recoveryPending ?? false
   const addedToNote = notes?.handoff.kind === 'added'
   const hydrationPending = Boolean(chat && job?.state === 'completed' && (!job.aiRunId || !chat.messages.some(m => m.role === 'assistant' && m.aiRunId === job.aiRunId)))
@@ -341,6 +342,10 @@ export function SessionChatView(props: SessionChatViewProps) {
           <div className="chat-buttons">
             {permissionAttention ? <ActionButton variant="secondary" type="button" onClick={() => { revealPermission(); permissionHeadingRef.current?.focus({ preventScroll: true }) }}>Review permission</ActionButton> : activeJob ? <ActionButton variant="secondary" type="button" disabled={job?.state === 'cancelling'} onClick={() => void onCancel()}>{record ? 'Stop' : 'Cancel response'}</ActionButton> : null}
             {retryable && !submitted ? <ActionButton variant="secondary" type="button" disabled={Boolean(retryReason)} aria-describedby={`${id}-retry-reason`} onClick={() => { if (!retryReason) void onRetry() }}>Retry response</ActionButton> : null}
+            {/* Record actions only apply when a Notes conversation is bound to a record (legacy origin). */}
+            {recordBound && props.onDraftJira ? <ActionButton variant="secondary" type="button" disabled={Boolean(sendReason && (composer.trim() || composerImages.length || sendReason !== 'Write a message or attach an image to send.'))}
+              onClick={() => { void props.onDraftJira?.() }}>Draft Jira issue</ActionButton> : null}
+            {recordBound && props.onRefine ? <ActionButton variant="secondary" type="button" disabled={Boolean(sendReason)} onClick={() => { if (!sendReason) void props.onRefine?.() }}>Refine record</ActionButton> : null}
             <div className="chat-send-buttons">
             <ActionButton variant="secondary" type="button" iconOnly icon={Paperclip} aria-label="Attach images"
               title="Attach up to 4 images, 10 MiB each" disabled={attachmentsLocked} onClick={() => fileInput.current?.click()} />

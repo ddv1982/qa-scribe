@@ -1,5 +1,4 @@
 import { useId, useLayoutEffect, useRef, useState } from 'react'
-import { SquarePen } from 'lucide-react'
 import type { SessionChatViewState } from '../app/sessionChat.types'
 import { chatIsBusy } from '../app/sessionChat.presentation'
 import { ActionButton } from '../components/ActionButton'
@@ -14,7 +13,7 @@ function restartDisabled(state: ChatRestartState) {
     || state.permissionWorking || state.permissionRecoveryPending || state.inputRecoveryPending)
 }
 
-export function StartNewConversation({ state, compact = false }: { state: ChatRestartState; compact?: boolean }) {
+export function StartNewConversation({ state }: { state: ChatRestartState }) {
   const [confirmation, setConfirmation] = useState<null | { submitted: boolean; confirm: () => Promise<void> }>(null)
   const latest = useRef(state)
   useLayoutEffect(() => { latest.current = state })
@@ -35,10 +34,9 @@ export function StartNewConversation({ state, compact = false }: { state: ChatRe
   }
   return <>
     {state.chat?.proposals?.some(p => p.state.kind === 'staged') ? <p className="chat-help">Save, Undo, or Discard the local refinement before starting a new conversation.</p> : state.recordWritesPending ? <p className="chat-help">Wait for pending record writes before starting a new conversation.</p> : null}
-    {compact ? <ActionButton variant="secondary" iconOnly icon={SquarePen} aria-label="Start new conversation" title="Start new conversation"
-      disabled={restartDisabled(state)} onClick={restart} /> : <ActionButton variant="secondary" disabled={restartDisabled(state)} onClick={restart}>
+    <ActionButton variant="secondary" disabled={restartDisabled(state)} onClick={restart}>
       Start new conversation
-    </ActionButton>}
+    </ActionButton>
     {confirmation ? <RestartDialog submitted={confirmation.submitted}
       onCancel={() => setConfirmation(null)} onConfirm={() => {
         setConfirmation(null)
