@@ -117,6 +117,8 @@
 .chat-composer .chat-compose-box textarea { min-height: 64px; padding: var(--space-3) var(--space-3) var(--space-1); background: transparent; border: 0; border-radius: var(--radius-lg) var(--radius-lg) 0 0; resize: none; }
 .chat-compose-box textarea:focus-visible,
 .chat-composer .chat-compose-box textarea:focus-visible { outline: 0; }
+/* The box carries the focus ring; a halo on the inner field would cut across Attach and Send. */
+.chat-compose-box textarea:focus { box-shadow: none; }
 .chat-compose-box .chat-compose-actions { padding: 0 var(--space-2) var(--space-2) var(--space-3); }
 .ask-ai-panel .chat-compose-actions { align-items: center; }
 .chat-compose-box .chat-compose-actions > .chat-help { color: var(--text-tertiary); font-size: var(--font-size-xs); }
