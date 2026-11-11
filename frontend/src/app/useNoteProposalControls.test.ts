@@ -153,3 +153,17 @@ it('records Undo on the server so the suggestion is offered again after a reload
   await act(async () => { await view.result.current.onAction('p1', 'undo') })
   expect(resolveRefinement).toHaveBeenLastCalledWith(expect.objectContaining({ proposalId: 'p1', action: 'undo' }))
 })
+
+it('re-applies after Undo on the revision Undo returned when the refresh fails', async () => {
+  resolveRefinement.mockReset()
+    .mockResolvedValueOnce(completedChatFixture({ revision: 4, proposals: [{ ...proposal, state: { kind: 'applied' } }] }))
+    .mockResolvedValueOnce(completedChatFixture({ revision: 5, proposals: [proposal] }))
+    .mockResolvedValueOnce(completedChatFixture({ revision: 6, proposals: [{ ...proposal, state: { kind: 'applied' } }] }))
+  const { view, note } = setup(vi.fn(async () => { throw new Error('offline') }))
+  await act(async () => { await view.result.current.onUpdate?.('p1') })
+  await act(async () => { await view.result.current.onAction('p1', 'undo') })
+  expect(resolveRefinement).toHaveBeenLastCalledWith(expect.objectContaining({ action: 'undo', scope: expect.objectContaining({ expectedRevision: 4 }) }))
+  await act(async () => { await view.result.current.onUpdate?.('p1') })
+  expect(resolveRefinement).toHaveBeenLastCalledWith(expect.objectContaining({ action: 'stage', scope: expect.objectContaining({ expectedRevision: 5 }) }))
+  expect(note()).toBe('Rewritten')
+})

@@ -35,6 +35,14 @@ export function useNoteProposalControls({ chat, onRefresh, noteBody, setNoteBody
   const sessionId = chat?.sessionId ?? null
   const latest = useRef({ sessionId, note: current, body: noteBody, chat })
   useLayoutEffect(() => { latest.current = { sessionId, note: current, body: noteBody, chat } })
+  /** The newest conversation a refinement call returned, in case the refresh that follows fails. */
+  const returned = useRef<NonNullable<typeof chat> | null>(null)
+  const conversationNow = () => {
+    const shown = latest.current.chat
+    const fresher = returned.current
+    return shown && fresher && fresher.draftId === shown.draftId && fresher.revision > shown.revision ? fresher : shown
+  }
+  const markPending = (id: string, on: boolean) => setPending(previous => { const next = new Set(previous); if (on) next.add(id); else next.delete(id); return next })
   /** The editor still shows this Session's applied Note, so restoring cannot touch newer or other-Session content. */
   const stillApplied = (entry: Applied) => latest.current.sessionId === entry.sessionId && latest.current.note === entry.after
   const offeredAgain = (id: string) => { const entry = undone.get(id); return Boolean(entry && entry.sessionId === sessionId && entry.beforeText === current) }
@@ -47,6 +55,7 @@ export function useNoteProposalControls({ chat, onRefresh, noteBody, setNoteBody
     const after = proposal ? parseRichEditorDocument(proposal.after.documentJson) : null
     // An undone suggestion is offered again while the Note is back to its pre-update text.
     if (!chat || !proposal || (proposal.state.kind !== 'offered' && !offeredAgain(id)) || !after) { fail(id, 'This suggestion can no longer be applied.'); return }
+    if (pending.has(id)) return
     if (blockedReason) { fail(id, blockedReason); return }
     // Any undone suggestion is re-applied without a server freshness check, whatever the local proposal state says.
     const reoffer = undone.get(id) ?? null
@@ -55,13 +64,13 @@ export function useNoteProposalControls({ chat, onRefresh, noteBody, setNoteBody
       if (!await saveNote()) { fail(id, 'Save the note before updating it. Your edits are kept.'); return }
       // Saving can also save the composer, so Stage uses the conversation as it is now.
       const saved = latest.current
-      const conversation = saved.chat
+      const conversation = conversationNow()
       const stillOffered = conversation?.draftId === chat.draftId && conversation.proposals?.some(item => item.id === id)
       // Re-applying an undone suggestion skips the server freshness check, so the Note must still be its pre-update text.
       const reofferStale = reoffer && (saved.sessionId !== reoffer.sessionId || saved.note !== reoffer.beforeText)
       if (!conversation || !stillOffered || reofferStale) { fail(id, noteChangedWhileUpdatingReason); return }
       try {
-        await resolveRefinement({ scope: { sessionId: conversation.sessionId, draftId: conversation.draftId, expectedRevision: conversation.revision }, proposalId: id, action: 'stage' })
+        returned.current = await resolveRefinement({ scope: { sessionId: conversation.sessionId, draftId: conversation.draftId, expectedRevision: conversation.revision }, proposalId: id, action: 'stage' })
       } catch (cause) {
         fail(id, cause instanceof Error ? cause.message : String(cause))
         return
@@ -89,13 +98,16 @@ export function useNoteProposalControls({ chat, onRefresh, noteBody, setNoteBody
     setUndone(previous => new Map(previous).set(id, { sessionId: entry.sessionId, beforeText: entry.beforeText }))
     clear(id)
     // The server offers the suggestion again, so the card stays truthful after a reload.
-    const conversation = latest.current.chat
+    const conversation = conversationNow()
     if (!conversation || conversation.sessionId !== entry.sessionId) return
+    markPending(id, true)
     try {
-      await resolveRefinement({ scope: { sessionId: conversation.sessionId, draftId: conversation.draftId, expectedRevision: conversation.revision }, proposalId: id, action: 'undo' })
+      returned.current = await resolveRefinement({ scope: { sessionId: conversation.sessionId, draftId: conversation.draftId, expectedRevision: conversation.revision }, proposalId: id, action: 'undo' })
       await onRefresh?.().catch(() => undefined)
     } catch {
       // The local undo record keeps offering the suggestion until the conversation refreshes.
+    } finally {
+      markPending(id, false)
     }
   }
 
