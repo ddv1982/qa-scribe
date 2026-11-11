@@ -1,20 +1,21 @@
 import { createNotesEntry, createChatWorkspaces, sameReference, statusOwns, type ConversationAttention } from './sessionChat.workspaces'
 import { createChatSend } from './sessionChat.send'
 import {
-  cancelAiActionJob, getConversation, activateConversation, restartChat, saveChatComposer,
+  cancelAiActionJob, getConversation, activateConversation,
   type ChatRef, type ChatComposerIntent,
-  type ChatMode, type ChatState, type ChatSubmissionReceipt, type GenerationJobStatus,
+  type ChatMode, type ChatState, type GenerationJobStatus,
 } from '../tauri'
 import { formatError } from '../ui/format'
 import {
-  chatIsDirty, chatInputIsDirty, chatIsWorking, chatHasCommittedStart, chatScope, emptyChatSnapshot, unresolvedChatReason,
+  chatIsDirty, chatInputIsDirty, chatIsWorking, chatHasCommittedStart, emptyChatSnapshot, unresolvedChatReason,
   type ChatWorkspace, type SessionChatContext,
 } from './sessionChat.types'
 import { createChatPolling } from './sessionChat.polling'
-import { submitChatToCanonicalNote } from './sessionChat.noteHandoff'
 import { recoverChatCanonicalNote } from './sessionChat.noteRecovery'
 import { createChatPermissions } from './sessionChat.permissions'
 import { createChatImageActions } from './sessionChat.images'
+import { createChatComposer } from './sessionChat.composer'
+import { createChatHandoff } from './sessionChat.handoff'
 export function createSessionChatActions(ctx: SessionChatContext) {
   const snapshots = new WeakMap<ChatWorkspace, import('./sessionChat.types').ChatSnapshot>()
   const attentionListeners = new Set<() => void>()
@@ -163,83 +164,9 @@ export function createSessionChatActions(ctx: SessionChatContext) {
     if (entry.retired || !statusOwns(entry, status)) return
     observeJob(status)
   }
-  function clearAutosave(entry: ChatWorkspace) {
-    if (entry.autosaveTimer) clearTimeout(entry.autosaveTimer)
-    entry.autosaveTimer = null
-  }
-  async function saveComposer(entry: ChatWorkspace): Promise<boolean> {
-    if (entry.retired) return true
-    if (entry.owner?.kind === 'notes' && ctx.noteRecovery.has(entry.sessionId)) return false
-    clearAutosave(entry)
-    if (entry.save) return entry.save
-    if (entry.pendingStart?.state === 'uncertain') {
-      try { await refresh(entry.reference, false, true) } catch { return false }
-      return !chatIsDirty(entry)
-    }
-    if (!chatIsDirty(entry)) return true
-    const pending = (async () => {
-      if (!entry.chat) await hydrate(entry)
-      if (entry.retired) return true
-      if (!entry.chat || (entry.owner?.kind === 'notes' && ctx.noteRecovery.has(entry.sessionId))) return false
-      while (chatIsDirty(entry)) {
-        const chat = entry.chat
-        const inputVersion = entry.inputVersion
-        const modeVersion = entry.modeVersion
-        const composer = entry.composer
-        const attachmentIds = entry.composerImages.map(image => image.attachmentId)
-        const mode = entry.mode
-        try {
-          const saved = await Promise.race([
-            saveChatComposer({ scope: chatScope(chat), composer, intent: entry.composerIntent, attachmentIds, mode }), entry.retirement.then(() => null),
-          ])
-          if (!saved || entry.retired) return true
-          if (saved.sessionId !== chat.sessionId || saved.draftId !== chat.draftId) {
-            throw new Error('Composer save returned an unexpected conversation.')
-          }
-          // A save establishes a new revision, not permission to replace newer input.
-          ++entry.refreshEpoch
-          const priorError = entry.error
-          entry.error = null
-          acceptChat(entry, saved, inputVersion, modeVersion, true)
-          if (priorError && registry.visible(entry)) {
-            ctx.feedback.setError((current) => current === priorError ? null : current)
-          }
-        } catch (cause) { report(entry, cause); return false }
-      }
-      return true
-    })().finally(() => { entry.save = null; publish(entry) })
-    entry.save = pending
-    publish(entry)
-    return pending
-  }
-  function scheduleAutosave(entry: ChatWorkspace) {
-    if (entry.retired) return
-    clearAutosave(entry)
-    entry.autosaveTimer = setTimeout(() => {
-      entry.autosaveTimer = null
-      if (!entry.operationKind) void saveComposer(entry)
-    }, 500)
-  }
-  function onSetComposer(text: string, bound?: ChatWorkspace) {
-    const entry = bound ?? active()
-    if (!entry) { registry.buffer({ composer: text }); return }
-    if (!entry || entry.retired || entry.chat?.archived || (entry.owner?.kind === 'notes' && ctx.noteRecovery.has(entry.sessionId)) || entry.chat?.submission || ['submit', 'restart'].includes(entry.operationKind ?? '')) return
-    if (text === entry.composer) return
-    entry.composer = text
-    ++entry.inputVersion
-    entry.error = null
-    publish(entry)
-    scheduleAutosave(entry)
-  }
-  function setMode(mode: ChatMode, bound?: ChatWorkspace) {
-    const entry = bound ?? active()
-    if (!entry) { registry.buffer({ mode }); return }
-    if (!entry || entry.retired || entry.chat?.archived || entry.operationKind === 'submit' || mode === entry.mode) return
-    entry.mode = mode
-    ++entry.modeVersion
-    publish(entry)
-    if (!entry.chat?.submission) scheduleAutosave(entry)
-  }
+  const { clearAutosave, saveComposer, scheduleAutosave, onSetComposer, setMode } = createChatComposer(ctx, {
+    registry, active, hydrate, refresh, acceptChat, report, publish,
+  })
   const { onAttachImages, onPasteNativeImage, onRemoveImage, onRetryImage, onDismissImageFailure, clearImageFailures } = createChatImageActions(ctx, {
     active, run, saveComposer, acceptChat, refresh: id => refresh(id, false, true), publish, scheduleAutosave,
   })
@@ -272,88 +199,10 @@ export function createSessionChatActions(ctx: SessionChatContext) {
     observeJob(status)
     if (!chatIsWorking(status)) { polling.stop(status.jobId); await refresh(entry.reference) }
   }, bound)
-  const onSubmit = (bound?: ChatWorkspace) => run('submit',
- async (entry) => {
-    if (entry.owner?.kind !== 'notes') throw new Error('Only Notes conversations can be added to the Note.')
-    if (ctx.recordWritesPending?.()) throw new Error('Wait for pending record writes before adding the conversation.')
-    if (entry.pendingStart) throw new Error('Recheck status to recover the previous send before continuing.')
-    if (ctx.noteRecovery.has(entry.sessionId)) { await recoverNote(entry); return }
-    if (!entry.chat) await hydrate(entry)
-    if (!entry.chat) throw new Error('Load Chat before submitting it.')
-    if (entry.chat.submission) { entry.mode = 'write_note'; publish(entry); return }
-    if (chatIsWorking(entry.job) || entry.chat.messages.some((message) => message.status !== 'completed')) {
-      throw new Error(unresolvedChatReason(entry.chat, false) ?? 'Complete every turn before submitting Chat.')
-    }
-    if (entry.composer.length > 0 || entry.composerImages.length > 0 || entry.imageFailures.length) throw new Error('Send or clear the composer before submitting Chat.')
-    if (!entry.chat.messages.length) throw new Error('Complete a conversation before submitting Chat.')
-    if (!await saveComposer(entry)) return
-    if (entry.retired) return
-    let receipt: ChatSubmissionReceipt
-    try {
-      receipt = await submitChatToCanonicalNote(ctx, entry.chat)
-    } catch (cause) {
-      if (entry.retired) return
-      // The transaction may have committed even if its response or the Note
-      // reload failed. Recover immutable history without pretending adoption succeeded.
-      await refresh(entry.reference, true)
-      throw cause
-    }
-    if (entry.retired) return
-    ++entry.refreshEpoch
-    entry.chat = { ...entry.chat, submission: receipt, mode: 'write_note' }
-    entry.mode = 'write_note'
-    ++entry.modeVersion
-    publish(entry)
-    await refresh(entry.reference)
-  }, bound)
-  function captureRestart(bound?: ChatWorkspace) {
-    const entry = bound ?? active()
-    if (entry?.chat?.archived || ctx.recordWritesPending?.() || entry?.chat?.proposals?.some(p => p.state.kind === 'staged') || !entry?.chat || entry.pendingStart || entry.loading || entry.save || entry.operationKind || entry.permissionOperation
-      || permissions.needsRecovery(entry) || ctx.noteRecovery.has(entry.sessionId) || chatIsWorking(entry.job)
-      || entry.chat.messages.some(message => message.status === 'running')) return null
-    const { job, inputVersion, modeVersion, error } = entry
-    const restartVersion = restartVersions.get(entry)
-    const epoch = { activation: activationEpoch, conversation: registry.epoch() }
-    return async () => {
-      if (entry.error !== error || active() !== entry || activationEpoch !== epoch.activation || registry.epoch() !== epoch.conversation || restartVersions.get(entry) !== restartVersion || entry.job !== job
-        || entry.inputVersion !== inputVersion || entry.modeVersion !== modeVersion || entry.loading
-        || entry.operationKind || entry.permissionOperation || permissions.needsRecovery(entry)
-        || ctx.noteRecovery.has(entry.sessionId)) return
-      // onRestart owns the operation and drains an autosave started after capture.
-      await onRestart(entry)
-    }
-  }
-  const onRestart = (bound?: ChatWorkspace) => run('restart', async (entry) => {
-    if (entry.owner?.kind !== 'notes') throw new Error('Only Notes conversations can be restarted.')
-    if (entry.pendingStart) throw new Error('Recheck status to recover the previous send before continuing.')
-    if (ctx.recordWritesPending?.() || entry.chat?.proposals?.some(p => p.state.kind === 'staged')) throw new Error('Save, Undo, or Discard the local refinement and wait for pending record writes before starting a new conversation.')
-    if (ctx.noteRecovery.has(entry.sessionId)) throw new Error('Recover the canonical Note before starting a new conversation.')
-    if (chatIsWorking(entry.job)) throw new Error('Cancel or finish the active turn before starting a new conversation.')
-    if (!entry.chat) await hydrate(entry)
-    if (!entry.chat) return
-    const { inputVersion, modeVersion, job } = entry
-    const epoch = { activation: activationEpoch, conversation: registry.epoch() }
-    const restartVersion = restartVersions.get(entry)
-    const draftId = entry.chat.draftId
-    const history = JSON.stringify([entry.chat.messages, entry.chat.submission, entry.chat.proposals])
-    if (!await saveComposer(entry)) return
-    if (entry.retired || active() !== entry || activationEpoch !== epoch.activation || registry.epoch() !== epoch.conversation
-      || restartVersions.get(entry) !== restartVersion || entry.inputVersion !== inputVersion || entry.modeVersion !== modeVersion || entry.job !== job
-      || entry.loading || entry.permissionOperation || permissions.needsRecovery(entry)
-      || ctx.noteRecovery.has(entry.sessionId) || ctx.recordWritesPending?.() || entry.chat?.draftId !== draftId
-      || JSON.stringify([entry.chat.messages, entry.chat.submission, entry.chat.proposals]) !== history) return
-    const next = await restartChat({ scope: chatScope(entry.chat) })
-    if (entry.retired) return
-    clearImageFailures(entry)
-    ++entry.refreshEpoch
-    const replacement = workspace({ sessionId: next.sessionId, draftId: next.draftId }, next.owner)
-    acceptChat(replacement, next, 0, 0)
-    registry.notesBySession.set(next.sessionId, replacement.reference)
-    if (registry.visible(entry)) registry.select(replacement.reference)
-    replacement.mode = 'chat'; ++replacement.modeVersion
-    publish(replacement)
-    await saveComposer(replacement)
-  }, bound)
+  const { onSubmit, captureRestart, onRestart } = createChatHandoff(ctx, {
+    registry, workspace, active, run, hydrate, refresh, acceptChat, publish, saveComposer, recoverNote, clearImageFailures,
+    needsRecovery: permissions.needsRecovery, restartVersions, activationEpoch: () => activationEpoch,
+  })
   async function flush(): Promise<boolean> {
     for (const entry of workspaces.values()) {
       if (entry.operation && ['attach', 'remove-image', 'submit', 'restart'].includes(entry.operationKind ?? '')) await entry.operation
