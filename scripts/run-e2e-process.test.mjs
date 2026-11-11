@@ -57,8 +57,7 @@ for (const [platform, expectedCount] of [['linux', 22], ['darwin', 13]]) {
     assert.deepEqual(plan.find(({ id }) => id === 'first-use'), {
       id: 'first-use', environment: {
         QA_SCRIBE_E2E_SPEC: 'first-use.e2e.mjs',
-        ...(platform === 'linux' ? { GDK_BACKEND: 'x11' } : {}),
-        QA_SCRIBE_E2E_APP_DATA_DIR: '/tmp/owned/app-data/first-use',
+          QA_SCRIBE_E2E_APP_DATA_DIR: '/tmp/owned/app-data/first-use',
         QA_SCRIBE_E2E_ARTIFACTS: '/tmp/evidence/first-use',
         QA_SCRIBE_E2E_FIXTURE_DIR: '/tmp/owned/fixtures/first-use',
       },
@@ -66,7 +65,6 @@ for (const [platform, expectedCount] of [['linux', 22], ['darwin', 13]]) {
     assert.deepEqual(createWdioInvocationPlan({ QA_SCRIBE_E2E_SCENARIO: 'clipboard' }, '/tmp/owned', '/tmp/evidence', platform).map(({ id }) => id), ['clipboard'])
     const selected = createWdioInvocationPlan({ QA_SCRIBE_E2E_SPEC: 'first-use.e2e.mjs' }, '/tmp/owned', '/tmp/evidence', platform)
     assert.deepEqual(selected.map(({ id }) => id), ['first-use.e2e.mjs'])
-    assert.equal(selected[0].environment.GDK_BACKEND, platform === 'linux' ? 'x11' : undefined)
   })
 }
 
@@ -132,3 +130,19 @@ for (const mode of ['spawn-error', 'timeout']) {
     } finally { rmSync(directory, { recursive: true, force: true }) }
   })
 }
+
+test('every Linux WDIO invocation uses the isolated X11 display, never an inherited Wayland session', { skip: process.platform !== 'linux' }, () => {
+  const directory = mkdtempSync(join(tmpdir(), 'qa-scribe-x11-backend-'))
+  const seen = []
+  try {
+    runE2e({ QA_SCRIBE_E2E_SKIP_BUILD: '1', WAYLAND_DISPLAY: 'wayland-0', GDK_BACKEND: 'wayland',
+      QA_SCRIBE_E2E_SCENARIO: 'session-lifecycle',
+      QA_SCRIBE_E2E_TEMP_ROOT: join(directory, 'profile'), QA_SCRIBE_E2E_ARTIFACTS: join(directory, 'artifacts') }, {
+      spawnSyncImpl(_command, _args, options) {
+        if (options.env.QA_SCRIBE_E2E_SPEC) seen.push({ GDK_BACKEND: options.env.GDK_BACKEND, WAYLAND_DISPLAY: options.env.WAYLAND_DISPLAY })
+        return { status: 0, stdout: '', stderr: '' }
+      },
+    })
+    assert.deepEqual(seen, [{ GDK_BACKEND: 'x11', WAYLAND_DISPLAY: undefined }])
+  } finally { rmSync(directory, { recursive: true, force: true }) }
+})

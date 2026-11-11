@@ -72,7 +72,6 @@ export function createWdioInvocationPlan(environment, temporaryRoot, artifacts, 
           ...(/^(model-(management|evidence|selection)|provider-qualification)\.e2e\.mjs$/.test(requestedSpec) ? {
             QA_SCRIBE_E2E_MODEL_EVIDENCE: environment.QA_SCRIBE_E2E_MODEL_EVIDENCE ?? artifacts,
           } : {}),
-          ...(['native-close.e2e.mjs', 'model-selection.e2e.mjs'].includes(requestedSpec) || (['ui-polish.e2e.mjs', 'first-use.e2e.mjs'].includes(requestedSpec) && platform === 'linux') ? { GDK_BACKEND: 'x11' } : {}),
           QA_SCRIBE_E2E_APP_DATA_DIR: join(temporaryRoot, 'app-data'),
           QA_SCRIBE_E2E_ARTIFACTS: artifacts,
           QA_SCRIBE_E2E_FIXTURE_DIR: join(temporaryRoot, 'fixtures'),
@@ -106,7 +105,6 @@ export function createWdioInvocationPlan(environment, temporaryRoot, artifacts, 
         ...(id === 'manual-formats' ? { QA_SCRIBE_E2E_CREATION_FORMATS_ONLY: '1' } : {}),
         ...(id === 'chat-images' ? { QA_SCRIBE_E2E_CHAT_IMAGES: '1' } : {}),
         ...(provider ? { QA_SCRIBE_E2E_AUTH_PROVIDER: provider } : {}),
-        ...(id === 'native-close' || (['ui-polish', 'first-use'].includes(id) && platform === 'linux') ? { GDK_BACKEND: 'x11' } : {}),
         QA_SCRIBE_E2E_APP_DATA_DIR: join(temporaryRoot, 'app-data', id),
         QA_SCRIBE_E2E_ARTIFACTS: join(artifacts, id),
         QA_SCRIBE_E2E_FIXTURE_DIR: join(temporaryRoot, 'fixtures', id),
@@ -118,8 +116,8 @@ export function createWdioInvocationPlan(environment, temporaryRoot, artifacts, 
         ['model-management', 'model-management', null, {}],
         ['model-evidence', 'model-evidence', null, { QA_SCRIBE_E2E_EVIDENCE_RESTART: '0' }],
         ['model-evidence-restart', 'model-evidence', 'model-evidence', { QA_SCRIBE_E2E_EVIDENCE_RESTART: '1' }],
-        ['model-selection', 'model-selection', null, { GDK_BACKEND: 'x11', QA_SCRIBE_E2E_SELECTION_RESTART: '0' }],
-        ['model-selection-restart', 'model-selection', 'model-selection', { GDK_BACKEND: 'x11', QA_SCRIBE_E2E_SELECTION_RESTART: '1' }],
+        ['model-selection', 'model-selection', null, { QA_SCRIBE_E2E_SELECTION_RESTART: '0' }],
+        ['model-selection-restart', 'model-selection', 'model-selection', { QA_SCRIBE_E2E_SELECTION_RESTART: '1' }],
         ...['disabled', 'diagnostics', 'selector'].map((mode) => [`provider-qualification-${mode}`, 'provider-qualification', null,
           { QA_SCRIBE_E2E_CATALOG_MODE: mode }]),
       ]
@@ -245,6 +243,9 @@ export function runE2e(environment = process.env, { spawnSyncImpl = spawnSync } 
   tauriConfig.build.frontendDist = frontendDist
   const isolatedEnvironment = {
     ...environment,
+    // Linux runs on an isolated X display (Xvfb). Native keys and clipboard
+    // checks drive X11, so the app must not open on an inherited Wayland session.
+    ...(process.platform === 'linux' ? { GDK_BACKEND: 'x11' } : {}),
     HOME: join(temporaryRoot, 'home'),
     CODEX_HOME: join(temporaryRoot, 'home', '.codex'),
     CLAUDE_CONFIG_DIR: join(temporaryRoot, 'home', '.claude'),
@@ -264,6 +265,8 @@ export function runE2e(environment = process.env, { spawnSyncImpl = spawnSync } 
     QA_SCRIBE_E2E_BINARY: join(root, 'target', 'debug', process.platform === 'win32' ? 'qa-scribe-tauri.exe' : 'qa-scribe-tauri'),
     TAURI_CONFIG: JSON.stringify(tauriConfig),
   }
+
+  if (process.platform === 'linux') delete isolatedEnvironment.WAYLAND_DISPLAY
 
   for (const directory of ['home', 'config', 'data', 'cache', 'tmp', 'app-data', 'fixtures']) {
     mkdirSync(join(temporaryRoot, directory), { recursive: true })

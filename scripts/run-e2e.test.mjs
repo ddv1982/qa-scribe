@@ -38,13 +38,11 @@ test('UI polish runs with isolated artifacts in supported desktop defaults', () 
     const polish = plan.find(({ id }) => id === 'ui-polish')
     assert.deepEqual(polish.environment, {
       QA_SCRIBE_E2E_SPEC: 'ui-polish.e2e.mjs',
-      ...(platform === 'linux' ? { GDK_BACKEND: 'x11' } : {}),
       QA_SCRIBE_E2E_APP_DATA_DIR: '/tmp/root/app-data/ui-polish',
       QA_SCRIBE_E2E_ARTIFACTS: '/tmp/artifacts/ui-polish',
       QA_SCRIBE_E2E_FIXTURE_DIR: '/tmp/root/fixtures/ui-polish',
     })
     const selected = createWdioInvocationPlan({ QA_SCRIBE_E2E_SPEC: 'ui-polish.e2e.mjs' }, '/tmp/root', '/tmp/artifacts', platform)
-    assert.equal(selected[0].environment.GDK_BACKEND, platform === 'linux' ? 'x11' : undefined)
     assert.ok(plan.filter(({ id }) => id !== 'ui-polish').every(({ environment }) =>
       environment.QA_SCRIBE_E2E_APP_DATA_DIR !== polish.environment.QA_SCRIBE_E2E_APP_DATA_DIR))
   }
@@ -72,9 +70,8 @@ test('native close is a required Linux default workflow and excluded on other pl
   const linux = createWdioInvocationPlan({}, '/tmp/root', '/tmp/artifacts', 'linux')
   const nativeClose = linux.find(({ id }) => id === 'native-close')
   assert.equal(nativeClose.environment.QA_SCRIBE_E2E_SPEC, 'native-close.e2e.mjs')
-  assert.equal(nativeClose.environment.GDK_BACKEND, 'x11')
   const explicit = createWdioInvocationPlan({ QA_SCRIBE_E2E_SPEC: 'native-close.e2e.mjs' }, '/tmp/root', '/tmp/artifacts', 'linux')
-  assert.equal(explicit[0].environment.GDK_BACKEND, 'x11')
+  assert.equal(explicit[0].environment.QA_SCRIBE_E2E_SPEC, 'native-close.e2e.mjs')
   for (const platform of ['darwin', 'win32']) {
     const plan = createWdioInvocationPlan({}, '/tmp/root', '/tmp/artifacts', platform)
     assert.equal(plan.some(({ id }) => id === 'native-close'), false)
@@ -83,10 +80,9 @@ test('native close is a required Linux default workflow and excluded on other pl
   assert.deepEqual(selected.map(({ id }) => id), ['clipboard'])
 })
 
-test('explicit model selection uses X11 and remains exactly one invocation', () => {
+test('explicit model selection remains exactly one invocation', () => {
   const plan = createWdioInvocationPlan({ QA_SCRIBE_E2E_SPEC: 'model-selection.e2e.mjs' }, '/tmp/root', '/tmp/artifacts', 'linux')
   assert.equal(plan.length, 1)
-  assert.equal(plan[0].environment.GDK_BACKEND, 'x11')
   assert.equal(plan[0].environment.QA_SCRIBE_E2E_SPEC, 'model-selection.e2e.mjs')
 })
 
@@ -98,7 +94,6 @@ test('Linux defaults require the complete model proof chain while non-Linux defa
     'model-selection', 'model-selection-restart', 'provider-qualification-disabled', 'provider-qualification-diagnostics',
     'provider-qualification-selector',
   ])
-  assert.equal(linux.find(({ id }) => id === 'model-selection').environment.GDK_BACKEND, 'x11')
   for (const platform of ['darwin', 'win32']) {
     assert.deepEqual(createWdioInvocationPlan({}, '/tmp/root', '/tmp/artifacts', platform).map(({ id }) => id), [
       ...criticalScenarios, 'chat-images', 'chat-tool-authorization-codex', 'chat-tool-authorization-claude', 'chat-tool-authorization-copilot',
