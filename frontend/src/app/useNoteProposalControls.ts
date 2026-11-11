@@ -99,6 +99,8 @@ export function useNoteProposalControls({ chat, onRefresh, noteBody, setNoteBody
   }
 
   async function undo(id: string) {
+    // The editor refuses edits while blocked, so Undo must not record an undo it cannot show.
+    if (blockedReason) { fail(id, blockedReason); return }
     const entry = applied.get(id)
     if (!entry || !stillApplied(entry)) { fail(id, noteChangedReason); return }
     setNoteBody(entry.before)

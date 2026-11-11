@@ -17,12 +17,14 @@ const proposal: RefinementProposal = {
   state: { kind: 'offered' },
 }
 
-function setup(onRefresh: () => Promise<void>, saveNote: () => Promise<boolean> = async () => true, blockedReason?: string) {
+function setup(onRefresh: () => Promise<void>, saveNote: () => Promise<boolean> = async () => true, initialBlockedReason?: string) {
+  let blockedReason = initialBlockedReason
   const state: { body: RichEditorDocument; chat: ChatState } = { body: richEditorDocumentFromPlainText('Original'), chat: completedChatFixture({ proposals: [proposal] }) }
   const view = renderHook(({ body, chat }) => useNoteProposalControls({ chat, onRefresh, saveNote, blockedReason, noteBody: body,
     setNoteBody: next => { state.body = next; view.rerender({ ...state }) } }), { initialProps: { ...state } })
   const show = (patch: Partial<typeof state>) => { Object.assign(state, patch); view.rerender({ ...state }) }
-  return { view, show, note: () => richEditorDocumentToPlainText(state.body) }
+  const block = (reason: string) => { blockedReason = reason; view.rerender({ ...state }) }
+  return { view, show, block, note: () => richEditorDocumentToPlainText(state.body) }
 }
 
 it('keeps the applied Note and Undo when only the refresh after Update fails', async () => {
@@ -168,4 +170,15 @@ it('re-applies after Undo on the revision Undo returned when the refresh fails',
   await act(async () => { await view.result.current.onUpdate?.('p1') })
   expect(resolveRefinement).toHaveBeenLastCalledWith(expect.objectContaining({ action: 'stage', scope: expect.objectContaining({ expectedRevision: 5 }) }))
   expect(note()).toBe('Rewritten')
+})
+
+it('does not undo while the Note is read-only', async () => {
+  resolveRefinement.mockReset().mockResolvedValue(completedChatFixture())
+  const { view, block, note } = setup(vi.fn(async () => {}))
+  await act(async () => { await view.result.current.onUpdate?.('p1') })
+  act(() => block('Recover the Session Note before updating it.'))
+  await act(async () => { await view.result.current.onAction('p1', 'undo') })
+  expect(note()).toBe('Rewritten')
+  expect(resolveRefinement.mock.calls.filter(([request]) => request.action === 'undo')).toHaveLength(0)
+  expect(view.result.current.errors.p1).toBe('Recover the Session Note before updating it.')
 })
