@@ -2,7 +2,7 @@
 // Invocation: node scripts/run-chat-authorization-live.mjs --armed [--provider claude|codex]
 // Native-app checks use existing CLI accounts and a harmless, process-local MCP
 // marker. A nonce journal proves tool execution; only bounded outcome metadata
-// is retained. See docs/chat-tool-authorization-plan.md for delivery evidence.
+// is retained. See docs/archive/chat-tool-authorization-plan.md for delivery evidence.
 import { spawn, spawnSync } from 'node:child_process'
 import { accessSync, constants, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'

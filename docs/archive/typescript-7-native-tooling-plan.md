@@ -376,7 +376,7 @@ Release publication is an external effect under the execution request's authorit
 
 Read [Microsoft's TypeScript 7 announcement](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/), the [official editor extension](https://marketplace.visualstudio.com/items?itemName=TypeScriptTeam.native-preview), [Oxlint migration guidance](https://oxc.rs/docs/guide/usage/linter/migrate-from-eslint.html), [type-aware lint documentation](https://oxc.rs/docs/guide/usage/linter/type-aware.html), and [editor setup](https://oxc.rs/docs/guide/usage/linter/editors.html) before editing.
 
-Read the existing [compiler adoption record](research/ts-rust-adoption.md), [CI guide](ci.md), and [v0.8.13 release plan](release-v0.8.13-plan.md). Keep the working decision trail at [decisions.tsv](../artifacts/ts7-native-plan/decisions.tsv). Artifacts are local planning receipts and are not committed; share the planning evidence summary with the plan instead.
+Read the existing [compiler adoption record](research/ts-rust-adoption.md), [CI guide](../ci.md), and [v0.8.13 release plan](release-v0.8.13-plan.md). Keep the working decision trail at [decisions.tsv](../artifacts/ts7-native-plan/decisions.tsv). Artifacts are local planning receipts and are not committed; share the planning evidence summary with the plan instead.
 
 T7-1 and T7-2 use How and Architect before changing rule ownership or lifecycle behavior. T7-3 uses How for SDK discovery and actual extension behavior. Any unresolved design disagreement goes through Interrogate before shipping. Each PR uses Prove It Works, Sequence Work into Verifiable Units, and the applicable live-control skill. Performance reports use Benchmark Checklist and Explain the Number.
 

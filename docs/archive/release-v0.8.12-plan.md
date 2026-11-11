@@ -23,7 +23,7 @@ The parent owns the release worktree, dependency state, Cargo output, authoritat
 
 ## Release conditions
 
-Use the existing GitHub process in [Release workflow](releasing.md). Protected main requires the current `CI success` check with a current base. The normal merge triggers the tag and release. Do not manually push a tag, bypass protection, or publish a release before its platform and APT jobs succeed.
+Use the existing GitHub process in [Release workflow](../releasing.md). Protected main requires the current `CI success` check with a current base. The normal merge triggers the tag and release. Do not manually push a tag, bypass protection, or publish a release before its platform and APT jobs succeed.
 
 Current main already contains the reviewed Rust-advisory and packaging-size exceptions due on 2026-11-14. This release retains those reviewed constraints and the current CI runner/tool changes. The previous migration receipts describe the historical v0.7.24 checkout. New release evidence is recorded in [Release validation](research/ts-rust-release-validation.md) and `artifacts/tsrust-release`.
 

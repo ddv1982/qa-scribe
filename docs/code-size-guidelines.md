@@ -4,7 +4,7 @@ qa-scribe uses file size as a maintainability signal, not as a mechanical rewrit
 
 ## Threshold
 
-- Split maintained source, test, and workflow files above 500 physical lines when there is a cohesive module seam. After Phase 4 of `docs/refactoring-roadmap.md`, exceeding this threshold requires an explicit exception.
+- Split maintained source, test, and workflow files above 500 physical lines when there is a cohesive module seam. After Phase 4 of `docs/archive/refactoring-roadmap.md`, exceeding this threshold requires an explicit exception.
 - Treat 300-500 physical lines as a watch range. Leave cohesive files alone until a real responsibility split appears.
 - Exclude generated files, binary assets, lockfiles, packaged icon outputs, and release metadata where splitting would reduce clarity.
 - Prefer behavior-preserving extractions with unchanged public exports, Tauri command names, storage schemas, and product language.
@@ -78,7 +78,7 @@ Measured on 2026-07-13 at v0.7.13, four maintained Rust test files have grown ab
 | `crates/qa-scribe-core/src/generation/workflow/tests.rs` | 673 | Generation workflow unit tests | Split preparation, completion, stale-write, and evidence scenarios into sibling test modules. |
 | `crates/qa-scribe-core/tests/session_storage/generation_and_relationships.rs` | 539 | Storage integration tests | Split AI Run/Draft lifecycle from Evidence relationship scenarios. |
 
-This is documentation and test-organization drift, not a production-source regression. Phase 4 of `docs/refactoring-roadmap.md` owns the cleanup.
+This is documentation and test-organization drift, not a production-source regression. Phase 4 of `docs/archive/refactoring-roadmap.md` owns the cleanup.
 
 ## Enforcement Target
 

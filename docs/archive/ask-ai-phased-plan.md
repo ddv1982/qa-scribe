@@ -537,15 +537,15 @@ All performance budgets are proposed acceptance criteria. No speedup or regressi
 
 Read these current entry points before implementation.
 
-- [Shared record collection](../frontend/src/views/RecordCollectionView.tsx), [rich record view](../frontend/src/views/RichRecordView.tsx), and [app shell](../frontend/src/app/AppShell.tsx).
-- [Chat view](../frontend/src/views/SessionChatView.tsx), [message rendering](../frontend/src/views/ChatMessageList.tsx), and [chat actions](../frontend/src/app/sessionChat.actions.ts).
-- [Chat domain](../crates/qa-scribe-core/src/domain/chat.rs), [chat service](../crates/qa-scribe-core/src/services/session_service/chat.rs), and [turn preparation](../src-tauri/src/commands/chat/preparation.rs).
-- [Trusted chat instructions](../crates/qa-scribe-core/src/chat/mod.rs) and [typed image input](../crates/qa-scribe-core/src/chat/input.rs).
-- [Provider tool defaults](../crates/qa-scribe-core/src/ai/chat.rs), [protocol events](../crates/qa-scribe-core/src/ai/chat_protocol.rs), and [duplex execution](../src-tauri/src/commands/ai/chat_duplex.rs).
-- [Record editor conversion](../frontend/src/editor/editorDocument.ts), [finding actions](../frontend/src/app/recordActions.findings.ts), and [finding storage updates](../crates/qa-scribe-core/src/services/session_service/findings.rs).
-- [Test cases draft actions](../frontend/src/app/recordActions.drafts.ts), [draft persistence](../frontend/src/app/recordPersistence.drafts.ts), [draft storage updates](../crates/qa-scribe-core/src/services/session_service/drafts.rs), and [draft commands](../src-tauri/src/commands/generation.rs).
-- [Product language](../CONTEXT.md) and [existing Jira clipboard export](../frontend/src/editor/clipboardExport.ts).
-- [Existing chat authorization plan](chat-tool-authorization-plan.md), [chat images plan](manual-formats-chat-attachments-plan.md), and [native development and testing](development.md).
+- [Shared record collection](../../frontend/src/views/RecordCollectionView.tsx), [rich record view](../../frontend/src/views/RichRecordView.tsx), and [app shell](../../frontend/src/app/AppShell.tsx).
+- [Chat view](../../frontend/src/views/SessionChatView.tsx), [message rendering](../../frontend/src/views/ChatMessageList.tsx), and [chat actions](../../frontend/src/app/sessionChat.actions.ts).
+- [Chat domain](../../crates/qa-scribe-core/src/domain/chat.rs), [chat service](../../crates/qa-scribe-core/src/services/session_service/chat.rs), and [turn preparation](../../src-tauri/src/commands/chat/preparation.rs).
+- [Trusted chat instructions](../../crates/qa-scribe-core/src/chat/mod.rs) and [typed image input](../../crates/qa-scribe-core/src/chat/input.rs).
+- [Provider tool defaults](../../crates/qa-scribe-core/src/ai/chat.rs), [protocol events](../../crates/qa-scribe-core/src/ai/chat_protocol.rs), and [duplex execution](../../src-tauri/src/commands/ai/chat_duplex.rs).
+- [Record editor conversion](../../frontend/src/editor/editorDocument.ts), [finding actions](../../frontend/src/app/recordActions.findings.ts), and [finding storage updates](../../crates/qa-scribe-core/src/services/session_service/findings.rs).
+- [Test cases draft actions](../../frontend/src/app/recordActions.drafts.ts), [draft persistence](../../frontend/src/app/recordPersistence.drafts.ts), [draft storage updates](../../crates/qa-scribe-core/src/services/session_service/drafts.rs), and [draft commands](../../src-tauri/src/commands/generation.rs).
+- [Product language](../../CONTEXT.md) and [existing Jira clipboard export](../../frontend/src/editor/clipboardExport.ts).
+- [Existing chat authorization plan](chat-tool-authorization-plan.md), [chat images plan](manual-formats-chat-attachments-plan.md), and [native development and testing](../development.md).
 - [Jira create issue and metadata API](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issues/).
 - [Jira issue and subtask creation](https://support.atlassian.com/jira-software-cloud/docs/create-a-work-item-and-a-subtask/).
 - [Jira subtask type configuration](https://support.atlassian.com/jira-cloud-administration/docs/configure-sub-tasks/).

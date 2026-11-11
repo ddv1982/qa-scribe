@@ -23,7 +23,7 @@ These boundaries have different jobs. A common event type does not justify combi
 Catalog discovery does not submit a prompt. Chat can execute tools and requires an interactive permission lifecycle.
 Copilot catalog discovery uses server protocol 3. Copilot Chat uses ACP protocol 1.
 Their request sets, authentication observations, and failure conditions must stay distinct.
-See [the existing provider catalog contract](../provider-catalog-contract.md).
+See [the existing provider catalog contract](../../provider-catalog-contract.md).
 
 ## T3 Code patterns that earn further investigation
 
@@ -89,7 +89,7 @@ Avoid expanding provider settings into a generic plugin marketplace or account m
 ## Frontend state ownership is at least as important
 
 The earlier capability refactor and native E2E program already exist. Repeating them would produce little value.
-See [the current roadmap](../refactoring-roadmap.md) and [quality scenarios](../quality-scenarios.md).
+See [the current roadmap](../refactoring-roadmap.md) and [quality scenarios](../../quality-scenarios.md).
 
 Recovered generation polling in `frontend/src/app/generationActions.ts` uses an untracked asynchronous loop.
 Chat polling in `sessionChat.polling.ts` already has duplicate suppression, stop, and dispose operations.

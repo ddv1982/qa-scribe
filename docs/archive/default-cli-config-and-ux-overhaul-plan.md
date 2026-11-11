@@ -331,7 +331,7 @@ Each phase should ship behind evidence, not only screenshots.
 
 ## Open decisions
 
-Resolved in [ADR 0010](adr/0010-session-workspace-and-cli-discovery.md): outputs are
+Resolved in [ADR 0010](../adr/0010-session-workspace-and-cli-discovery.md): outputs are
 Session-owned with secondary cross-session libraries; snapshots use a five-minute
 freshness policy; discovery mismatches are advisory; full paths stay inside CLI
 details; custom model entry remains; Settings stays explicit-save; and passed or

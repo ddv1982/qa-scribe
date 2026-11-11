@@ -2,7 +2,7 @@
 
 Linux CI and release validation run on `ubuntu-26.04`. Linux release builds
 remain on `ubuntu-24.04` to preserve the published installer ABI baseline.
-The [check inventory](verification/check-inventory.md) maps local commands,
+The [check inventory](check-inventory.md) maps local commands,
 hosted jobs, triggers, runners, proof obligations, and artifacts.
 
 The CI workflow is deliberately divided by responsibility:
@@ -147,7 +147,7 @@ are not runtime dependencies. The guard checks runtime TypeScript peer ranges,
 literal runtime compiler API imports, retained lint rules, options, scopes, and
 behavioral fixtures. Computed dynamic imports cannot be proved absent by a
 static literal-import check. Review new compiler consumers when changing dependencies.
-Historical migration evidence remains in the [TypeScript 7 plan](typescript-7-native-tooling-plan.md).
+Historical migration evidence remains in the [TypeScript 7 plan](archive/typescript-7-native-tooling-plan.md).
 
 Run workflow linting locally after editing Actions configuration:
 

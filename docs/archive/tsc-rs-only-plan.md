@@ -190,7 +190,7 @@ The installed Rust package records upstream revision `3644f3244d9a93082c69e6691e
 
 - Read [upstream tsc-rs editor setup and known problems](https://github.com/pingdotgg/ts-rust/blob/main/npm/tsc-rs-readme.md).
 - Read [the editor SDK resolver](https://github.com/microsoft/TypeScript/blob/main/packages/vscode-typescript/src/util.ts) and [workspace SDK approval](https://github.com/microsoft/TypeScript/blob/main/packages/vscode-typescript/src/session.ts).
-- Read [the current frontend package](../frontend/package.json), [editor guard](../scripts/native-tooling-editor.mjs), [native package policy](../scripts/native-tooling-policy.mjs), and [native installation workflow](../.github/workflows/native-tooling-validation.yml).
+- Read [the current frontend package](../../frontend/package.json), [editor guard](../../scripts/native-tooling-editor.mjs), [native package policy](../../scripts/native-tooling-policy.mjs), and [native installation workflow](../../.github/workflows/native-tooling-validation.yml).
 - Read [the shipped validation scope and limits](research/typescript-7-validation.md) and the release-scope amendment in [the preceding plan](typescript-7-native-tooling-plan.md).
 - Use the installed `how`, `technical-writing`, `unslop`, and `show-me-your-work` skills for RS-1. Use `architect` before changing shared SDK interfaces and `interrogate` only for unresolved contested design.
 - Keep this planning decision trail at `artifacts/tscrs-only-plan/decisions.tsv`. This local trail records the planning scope, evidence, and review limits.

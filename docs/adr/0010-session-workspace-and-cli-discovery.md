@@ -13,7 +13,7 @@ clearly distinguish that intent from the most recently observed CLI
 configuration.
 
 The implementation plan in
-`docs/default-cli-config-and-ux-overhaul-plan.md` requires these product choices
+`docs/archive/default-cli-config-and-ux-overhaul-plan.md` requires these product choices
 to be settled before the shell and provider contract are changed.
 
 ## Decision
