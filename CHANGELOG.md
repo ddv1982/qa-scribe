@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.8.34 - 2026-11-11
+
+- Drop the extra border and divider around the Note action buttons, and stop the focused Ask AI message box from drawing a line through Attach and Send.
+
 ## v0.8.33 - 2026-11-10
 
 - Give every action one consistent look: the Note's Create, Ask AI and Summarize buttons now match, record Edit and Copy match their neighbours, and Ask AI shows when its panel is open.
