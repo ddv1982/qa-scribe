@@ -173,3 +173,32 @@ fn a_clarification_reply_loses_the_note_edit_contract_once_the_note_no_longer_fi
         .unwrap();
     assert_eq!(contract.purpose(), ChatResponsePurpose::Conversation);
 }
+
+#[test]
+fn a_suggestion_is_rejected_once_the_note_changed_after_it_was_requested() {
+    let service = SessionService::in_memory().unwrap();
+    let session_id = session(&service);
+    let chat = notes_turn(
+        &service,
+        &session_id,
+        json!({"kind":"edit","patch":{"kind":"note","bodyMarkdown":"Rewritten"}}),
+    );
+    let note = service.get_or_create_note_entry(&session_id).unwrap();
+    service
+        .update_entry(
+            &note.id,
+            EntryPatch {
+                body: Some("<p>Edited while the AI was writing</p>".into()),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    let error = service
+        .resolve_refinement(RefinementRequest {
+            scope: scope(&chat),
+            proposal_id: chat.proposals[0].id.clone(),
+            action: RefinementAction::Stage,
+        })
+        .unwrap_err();
+    assert!(error.to_string().contains("The note changed"), "{error}");
+}

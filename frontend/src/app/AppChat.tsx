@@ -6,7 +6,7 @@ import { StartNewConversation } from '../views/StartNewConversation'
 import { useNoteProposalControls } from './useNoteProposalControls'
 import type { SessionChatViewProps } from '../views/SessionChatView'
 import type { AppController } from './useAppController'
-import { deriveChatHandoff, handoffDuringRecordWrites } from './sessionChat.presentation'
+import { deriveChatHandoff, handoffDuringRecordWrites, recoveredSummaryChoiceReason } from './sessionChat.presentation'
 import '../styles/ask-ai.css'
 
 export function AppChat({ c, modelSelectionControl, onConfigureAi }: {
@@ -20,7 +20,8 @@ export function AppChat({ c, modelSelectionControl, onConfigureAi }: {
   const notesSessionId = c.sessionChat.chat?.sessionId
   const engine = c.conversations
   const notesMessages = c.sessionChat.chat?.messages ?? []
-  const noteControls = useNoteProposalControls({ chat: c.sessionChat.chat, onRefresh: c.sessionChat.onRefresh, noteBody: c.noteBody, setNoteBody: c.setNoteBody, recordControls: c.sessionChat.proposalControls })
+  const noteControls = useNoteProposalControls({ chat: c.sessionChat.chat, onRefresh: c.sessionChat.onRefresh, noteBody: c.noteBody, setNoteBody: c.setNoteBody,
+    saveNote: c.saveAllPendingChanges, blockedReason: c.pendingRecoveredSummaryDecision ? recoveredSummaryChoiceReason : undefined, recordControls: c.sessionChat.proposalControls })
   useEffect(() => {
     if (notesVisible && notesDraftId && notesSessionId) void engine.select({ sessionId: notesSessionId, draftId: notesDraftId }).catch(() => undefined)
   }, [notesVisible, notesDraftId, notesSessionId, engine])

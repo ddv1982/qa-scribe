@@ -6,7 +6,7 @@ import { completedChatFixture } from './useSessionChat.testSupport'
 
 const resolveRefinement = vi.hoisted(() => vi.fn())
 vi.mock('../tauri', async (importOriginal) => ({ ...await importOriginal<typeof import('../tauri')>(), resolveRefinement }))
-const { useNoteProposalControls } = await import('./useNoteProposalControls')
+const { noteChangedWhileUpdatingReason, useNoteProposalControls } = await import('./useNoteProposalControls')
 
 const doc = (text: string) => JSON.stringify({ schemaVersion: 1, doc: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] } })
 const proposal: RefinementProposal = {
@@ -17,9 +17,9 @@ const proposal: RefinementProposal = {
   state: { kind: 'offered' },
 }
 
-function setup(onRefresh: () => Promise<void>) {
+function setup(onRefresh: () => Promise<void>, saveNote: () => Promise<boolean> = async () => true) {
   const state: { body: RichEditorDocument; chat: ChatState } = { body: richEditorDocumentFromPlainText('Original'), chat: completedChatFixture({ proposals: [proposal] }) }
-  const view = renderHook(({ body, chat }) => useNoteProposalControls({ chat, onRefresh, noteBody: body,
+  const view = renderHook(({ body, chat }) => useNoteProposalControls({ chat, onRefresh, saveNote, noteBody: body,
     setNoteBody: next => { state.body = next; view.rerender({ ...state }) } }), { initialProps: { ...state } })
   const show = (patch: Partial<typeof state>) => { Object.assign(state, patch); view.rerender({ ...state }) }
   return { view, show, note: () => richEditorDocumentToPlainText(state.body) }
@@ -34,18 +34,30 @@ it('keeps the applied Note and Undo when only the refresh after Update fails', a
   expect(view.result.current.undoable?.has('p1')).toBe(true)
 })
 
-it('does not roll back into another Session when Update cannot be recorded', async () => {
-  let reject!: (error: Error) => void
-  resolveRefinement.mockReturnValue(new Promise((_, fail) => { reject = fail }))
+it('does not apply when the Session changes while the update is recorded', async () => {
+  let resolve!: (chat: ChatState) => void
+  resolveRefinement.mockReset().mockReturnValue(new Promise(done => { resolve = done }))
   const { view, show, note } = setup(vi.fn(async () => {}))
   let pending: Promise<void> | undefined
   act(() => { pending = view.result.current.onUpdate?.('p1') })
-  expect(note()).toBe('Rewritten')
-  // Another Session opens whose Note happens to read the same.
-  act(() => show({ chat: completedChatFixture({ sessionId: 'session-2', proposals: [] }), body: richEditorDocumentFromPlainText('Rewritten') }))
-  await act(async () => { reject(new Error('Chat changed')); await pending })
-  expect(note()).toBe('Rewritten')
-  expect(view.result.current.errors.p1).toBe('Chat changed')
+  await act(async () => { await Promise.resolve() })
+  act(() => show({ chat: completedChatFixture({ sessionId: 'session-2', proposals: [] }), body: richEditorDocumentFromPlainText('Other Session') }))
+  await act(async () => { resolve(completedChatFixture()); await pending })
+  expect(note()).toBe('Other Session')
+  expect(view.result.current.errors.p1).toBe(noteChangedWhileUpdatingReason)
+})
+
+it('leaves the Note untouched when the server rejects a stale suggestion or the save fails', async () => {
+  resolveRefinement.mockReset().mockRejectedValue(new Error('The note changed after this suggestion was made.'))
+  const stale = setup(vi.fn(async () => {}))
+  await act(async () => { await stale.view.result.current.onUpdate?.('p1') })
+  expect(stale.note()).toBe('Original')
+  expect(stale.view.result.current.errors.p1).toMatch(/The note changed/)
+  resolveRefinement.mockReset()
+  const unsaved = setup(vi.fn(async () => {}), async () => false)
+  await act(async () => { await unsaved.view.result.current.onUpdate?.('p1') })
+  expect(resolveRefinement).not.toHaveBeenCalled()
+  expect(unsaved.note()).toBe('Original')
 })
 
 it('shows Note updated with Undo, not Update note, when the refresh after Update fails', async () => {
@@ -78,4 +90,14 @@ it('offers the suggestion again after Undo and can apply it a second time', asyn
   await act(async () => { await view.result.current.onUpdate?.('p1') })
   expect(note()).toBe('Rewritten')
   expect(resolveRefinement).toHaveBeenCalledTimes(2)
+})
+
+it('does not offer an undone suggestion again once the Note was edited', async () => {
+  resolveRefinement.mockReset().mockResolvedValue(completedChatFixture())
+  const { view, show } = setup(vi.fn(async () => {}))
+  await act(async () => { await view.result.current.onUpdate?.('p1') })
+  await act(async () => { await view.result.current.onAction('p1', 'undo') })
+  expect(view.result.current.undone?.has('p1')).toBe(true)
+  act(() => show({ body: richEditorDocumentFromPlainText('Original, then edited') }))
+  expect(view.result.current.undone?.has('p1')).toBe(false)
 })
