@@ -3,7 +3,7 @@ import { SlidersHorizontal, X } from 'lucide-react'
 import { ActionButton } from '../components/ActionButton'
 import { SessionChatView } from '../views/SessionChatView'
 import { StartNewConversation } from '../views/StartNewConversation'
-import { useNoteProposalControls } from './useNoteProposalControls'
+import { noteReadOnlyReason, useNoteProposalControls } from './useNoteProposalControls'
 import type { SessionChatViewProps } from '../views/SessionChatView'
 import type { AppController } from './useAppController'
 import { deriveChatHandoff, handoffDuringRecordWrites, recoveredSummaryChoiceReason } from './sessionChat.presentation'
@@ -21,7 +21,7 @@ export function AppChat({ c, modelSelectionControl, onConfigureAi }: {
   const engine = c.conversations
   const notesMessages = c.sessionChat.chat?.messages ?? []
   const noteControls = useNoteProposalControls({ chat: c.sessionChat.chat, onRefresh: c.sessionChat.onRefresh, noteBody: c.noteBody, setNoteBody: c.setNoteBody,
-    saveNote: c.saveAllPendingChanges, blockedReason: c.pendingRecoveredSummaryDecision ? recoveredSummaryChoiceReason : undefined, recordControls: c.sessionChat.proposalControls })
+    saveNote: c.saveAllPendingChanges, blockedReason: c.noteReadOnly ? noteReadOnlyReason : c.pendingRecoveredSummaryDecision ? recoveredSummaryChoiceReason : undefined, recordControls: c.sessionChat.proposalControls })
   useEffect(() => {
     if (notesVisible && notesDraftId && notesSessionId) void engine.select({ sessionId: notesSessionId, draftId: notesDraftId }).catch(() => undefined)
   }, [notesVisible, notesDraftId, notesSessionId, engine])

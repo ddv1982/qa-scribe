@@ -17,9 +17,9 @@ const proposal: RefinementProposal = {
   state: { kind: 'offered' },
 }
 
-function setup(onRefresh: () => Promise<void>, saveNote: () => Promise<boolean> = async () => true) {
+function setup(onRefresh: () => Promise<void>, saveNote: () => Promise<boolean> = async () => true, blockedReason?: string) {
   const state: { body: RichEditorDocument; chat: ChatState } = { body: richEditorDocumentFromPlainText('Original'), chat: completedChatFixture({ proposals: [proposal] }) }
-  const view = renderHook(({ body, chat }) => useNoteProposalControls({ chat, onRefresh, saveNote, noteBody: body,
+  const view = renderHook(({ body, chat }) => useNoteProposalControls({ chat, onRefresh, saveNote, blockedReason, noteBody: body,
     setNoteBody: next => { state.body = next; view.rerender({ ...state }) } }), { initialProps: { ...state } })
   const show = (patch: Partial<typeof state>) => { Object.assign(state, patch); view.rerender({ ...state }) }
   return { view, show, note: () => richEditorDocumentToPlainText(state.body) }
@@ -100,4 +100,15 @@ it('does not offer an undone suggestion again once the Note was edited', async (
   expect(view.result.current.undone?.has('p1')).toBe(true)
   act(() => show({ body: richEditorDocumentFromPlainText('Original, then edited') }))
   expect(view.result.current.undone?.has('p1')).toBe(false)
+})
+
+it('does not save or record an update while the Note is read-only', async () => {
+  resolveRefinement.mockReset()
+  const saveNote = vi.fn(async () => true)
+  const { view, note } = setup(vi.fn(async () => {}), saveNote, 'Recover the Session Note before updating it.')
+  await act(async () => { await view.result.current.onUpdate?.('p1') })
+  expect(saveNote).not.toHaveBeenCalled()
+  expect(resolveRefinement).not.toHaveBeenCalled()
+  expect(note()).toBe('Original')
+  expect(view.result.current.errors.p1).toBe('Recover the Session Note before updating it.')
 })

@@ -6,6 +6,8 @@ import type { ProposalControls } from './sessionChat.proposals'
 import type { SessionChatViewState } from './sessionChat.types'
 
 export const noteChangedReason = 'The note changed after the update. Use Ctrl+Z in the note to step back.'
+/** The Note editor refuses edits while the Session Note is being recovered. */
+export const noteReadOnlyReason = 'Recover the Session Note before updating it.'
 export const noteChangedWhileUpdatingReason = 'The note changed while updating, so the suggestion was not applied. Ask AI again for a suggestion based on the current note.'
 
 type Applied = { sessionId: string; before: RichEditorDocument; beforeText: string; after: string }
