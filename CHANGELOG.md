@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.8.36 - 2026-11-11
+
+- No change to how the app looks or behaves. This release is maintenance only.
+- Remove a chat reply format that no release ever saved, and code left over from the removed Draft Jira and Refine buttons. Conversations saved by earlier releases still load.
+- The local end-to-end tests now pass on Linux desktops that run Wayland, matching CI.
+
 ## v0.8.35 - 2026-11-11
 
 - Ask AI on the Note now reads your saved note, so "make this clearer" works on what you wrote. Edits on screen are saved before the AI is asked.
