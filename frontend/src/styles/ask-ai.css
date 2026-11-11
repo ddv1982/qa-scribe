@@ -24,7 +24,48 @@
 }
 .ask-ai-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-3) var(--space-4); }
 .ask-ai-header h2 { margin: 0; font-size: var(--font-size-lg); }
-.ask-ai-header p, .chat-context-card p { margin: var(--space-1) 0 0; font-size: var(--font-size-sm); color: var(--text-secondary); }
+.ask-ai-header-actions { display: flex; align-items: center; gap: var(--space-2); }
+
+/* Conversation options: one icon in the header that opens model choice and AI setup. */
+.ask-ai-panel { position: relative; }
+.ask-ai-header .chat-options > summary {
+  display: inline-grid;
+  place-items: center;
+  width: var(--control-lg);
+  height: var(--control-lg);
+  color: var(--text-secondary);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  list-style: none;
+}
+.ask-ai-header .chat-options > summary::-webkit-details-marker { display: none; }
+.ask-ai-header .chat-options > summary:hover { background: var(--surface-sunken); color: var(--text-primary); }
+.ask-ai-header .chat-options > summary:focus-visible { outline: 0; border-color: var(--accent-border); box-shadow: 0 0 0 3px var(--focus-halo); }
+.ask-ai-header .chat-options[open] > summary { background: var(--surface-sunken); color: var(--text-primary); }
+/* WebKit still lays out a closed details' content; a fixed box there would make the app shell scrollable. */
+.ask-ai-header .chat-options:not([open]) .chat-options-content { display: none; }
+.ask-ai-header .chat-options-content {
+  /* Positioned in the panel and bounded by its height, so it never overflows anything scrollable. */
+  position: absolute;
+  top: calc(var(--control-lg) + 2 * var(--space-3) + var(--space-1));
+  right: var(--space-4);
+  z-index: 20;
+  display: grid;
+  gap: var(--space-3);
+  width: min(340px, calc(100% - 2 * var(--space-4)));
+  max-height: calc(100% - var(--control-lg) - 2 * var(--space-3) - var(--space-1) - var(--space-4));
+  overflow-y: auto;
+  padding: var(--space-3);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+.ask-ai-header .chat-options-content .chat-buttons { flex-wrap: wrap; justify-content: flex-start; gap: var(--space-2); }
+.ask-ai-header .chat-counts { margin: 0; color: var(--text-tertiary); font-size: var(--font-size-xs); }
+.ask-ai-header > p, .chat-context-card p { margin: var(--space-1) 0 0; font-size: var(--font-size-sm); color: var(--text-secondary); }
 .chat-context-card { display: flex; justify-content: space-between; align-items: start; flex-shrink: 0; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-block: 1px solid var(--border-subtle); }
 .chat-context-card > div { min-width: 0; overflow-wrap: anywhere; }
 .chat-context-card strong { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-top: var(--space-1); }
@@ -46,7 +87,7 @@
   :is(.session-content--record-chat, .session-content--notes-chat) .ask-ai-panel { flex: 1; min-width: 0; border-left: 0; }
 }
 @container session-workspace (max-height: 680px) {
-  .ask-ai-header p, .chat-context-card p:not([role="alert"]) { display: none; }
+  .ask-ai-header > p, .chat-context-card p:not([role="alert"]) { display: none; }
   .ask-ai-header, .chat-context-card { padding-block: var(--space-2); }
   .ask-ai-panel .chat-composer textarea { height: 48px; min-height: 48px; max-height: 80px; }
 }
@@ -96,12 +137,10 @@
 .ask-ai-panel .chat-message-user .chat-message-text { line-height: var(--leading-normal); }
 .ask-ai-panel .chat-model-evidence { margin-top: var(--space-2); color: var(--text-tertiary); font-size: var(--font-size-xs); }
 
-/* Status and options share one quiet row above the transcript. */
+/* Conversation status gets a quiet row above the transcript when it has something to say. */
 .ask-ai-panel .chat-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); }
 .ask-ai-panel .chat-toolbar:empty { display: none; }
 .ask-ai-panel .chat-toolbar > .chat-status:not(.sr-only) { color: var(--text-secondary); font-size: var(--font-size-xs); }
-.ask-ai-panel .chat-toolbar > .chat-options { margin-left: auto; }
-.ask-ai-panel .chat-toolbar > .chat-options[open] { flex-basis: 100%; }
 
 /* The composer is one bordered box; attach and Send sit inside it. */
 .chat-compose-box {
@@ -136,31 +175,10 @@
 .session-context-header:has(.chat-recovery-notice) { flex-wrap: wrap; }
 .session-context-header .chat-recovery-notice { flex-basis: 100%; padding: 0; }
 
-.ask-ai-panel .chat-options-content { display: grid; gap: var(--space-3); }
-.ask-ai-panel .chat-options > summary {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  min-height: var(--control-sm);
-  padding: 0 var(--space-2);
-  color: var(--text-secondary);
-  font-size: var(--font-size-sm);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  list-style: none;
-}
-.ask-ai-panel .chat-options > summary:hover { background: var(--surface-sunken); }
-.ask-ai-panel .chat-options[open] { padding: var(--space-3); background: var(--surface-raised); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); }
-.ask-ai-panel .chat-options[open] > summary { margin: calc(-1 * var(--space-1)) 0 0 calc(-1 * var(--space-2)); }
-.ask-ai-panel .chat-options[open] > summary { margin-bottom: var(--space-3); }
-
 .ask-ai-panel--notes .session-chat { overflow: auto; }
-.ask-ai-panel .chat-handoff { flex-direction: column; align-items: stretch; gap: var(--space-2); padding: var(--space-3); background: var(--surface-raised); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); }
+.ask-ai-panel .chat-handoff { flex-direction: column; align-items: stretch; gap: var(--space-2); padding: 0; background: transparent; border: 0; }
 .ask-ai-panel .chat-handoff > .chat-buttons { flex-wrap: wrap; justify-content: flex-start; gap: var(--space-2); }
-.ask-ai-panel .chat-review { display: flex; }
-.chat-review-transcript { padding-top: var(--space-3); border-top: 1px solid var(--border-subtle); }
 .ask-ai-panel--notes .session-chat:has(> .chat-permission) > .chat-scroll-region { flex: 0 0 auto; overflow: visible; }
 /* Keep the 42px model control and scroll-region padding reachable beside image drafts. */
-.ask-ai-panel--notes .chat-scroll-region:has(.chat-options[open]) { min-height: calc(42px + 2 * var(--space-3)); }
 
 .ask-ai-panel .chat-completion .chat-handoff { margin: 0; padding: 0; border: 0; }

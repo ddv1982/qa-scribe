@@ -16,76 +16,25 @@ function state(patch: Partial<ChatRestartState> = {}) {
 }
 const button = (name: string) => screen.getByRole('button', { name })
 
-it('reviews literal user text and assistant Markdown without any callbacks or automatic confirmation', () => {
-  const value = state({ composer: ' ' })
-  if (!value.chat) throw new Error('Missing fixture')
-  value.chat.messages[0].text = '**Keep literal**\n<script>unsafe()</script>'
-  value.chat.messages[1].text = '## Saved answer\n\n**Evidence**'
-  value.chat.messages[1].errorMessage = 'Saved error detail'
-  const onSubmit = vi.fn(async () => {})
-  const onOpenNote = vi.fn()
-  const confirm = vi.spyOn(window, 'confirm')
-  const { container } = render(<ChatHandoff state={value} onSubmit={onSubmit} onOpenNote={onOpenNote} />)
-  fireEvent.click(button('Review saved conversation'))
-  const review = screen.getByRole('region', { name: 'Saved conversation' })
-  expect(within(review).getByText('You')).toBeVisible()
-  expect(within(review).getByText('**Keep literal** <script>unsafe()</script>')).toHaveClass('chat-message-text')
-  expect(within(review).getByRole('heading', { name: 'Saved answer' })).toBeVisible()
-  expect(within(review).getByText('Evidence').tagName).toBe('STRONG')
-  expect(within(review).getByText('Saved error detail')).toBeVisible()
-  expect(container.querySelector('script')).toBeNull()
-  expect(screen.getByText(/Your unsent message is excluded/)).toBeVisible()
-  expect(button('Add conversation to note')).toBeDisabled()
-  fireEvent.click(button('Review saved conversation'))
-  expect(screen.queryByRole('region', { name: 'Saved conversation' })).toBeNull()
-  for (const callback of [onSubmit, onOpenNote, value.onRestart, confirm]) expect(callback).not.toHaveBeenCalled()
-})
 
-it('keeps review live across accepted revisions and resets on Session/draft or unavailable history', () => {
-  const first = state()
-  const props = { onSubmit: vi.fn(async () => {}), onOpenNote: vi.fn() }
-  const view = render(<ChatHandoff state={first} {...props} />)
-  fireEvent.click(button('Review saved conversation'))
-  const updated = state({ chat: completedChatFixture({ revision: 9 }) })
-  if (!updated.chat) throw new Error('Missing fixture')
-  updated.chat.messages[1].text = 'Updated accepted answer'
-  view.rerender(<ChatHandoff state={updated} {...props} />)
-  expect(within(screen.getByRole('region', { name: 'Saved conversation' })).getByText('Updated accepted answer')).toBeVisible()
-  for (const chat of [completedChatFixture({ draftId: 'next' }), completedChatFixture({ sessionId: 'session-2', draftId: 'next' })]) {
-    view.rerender(<ChatHandoff state={{ ...updated, chat }} {...props} />)
-    expect(button('Review saved conversation')).toHaveAttribute('aria-expanded', 'false')
-    expect(screen.queryByRole('region', { name: 'Saved conversation' })).toBeNull()
-    fireEvent.click(button('Review saved conversation'))
-  }
-  view.rerender(<ChatHandoff state={state({ loading: true })} {...props} />)
-  expect(screen.queryByRole('button', { name: 'Review saved conversation' })).toBeNull()
-  view.rerender(<ChatHandoff state={first} {...props} />)
-  expect(button('Review saved conversation')).toHaveAttribute('aria-expanded', 'false')
-})
 
-it('preserves expanded accepted review and the unsent explanation across composer and mode saves', () => {
+it('keeps the unsent explanation and disabled Add across composer and mode saves', () => {
   const props = { onSubmit: vi.fn(async () => {}), onOpenNote: vi.fn() }
   const composer = 'Keep this unsent question'
   const view = render(<ChatHandoff state={state({ composer })} {...props} />)
-  fireEvent.click(button('Review saved conversation'))
-  const review = screen.getByRole('region', { name: 'Saved conversation' })
   for (const saving of [true, false, true, false]) {
     view.rerender(<ChatHandoff state={state({ composer, saving })} {...props} />)
-    expect(button('Review saved conversation')).toHaveAttribute('aria-expanded', 'true')
-    expect(screen.getByRole('region', { name: 'Saved conversation' })).toBe(review)
-    expect(review).toHaveTextContent('Which build?')
     expect(screen.getByText('Send or clear the unsent message before adding the conversation.')).toBeVisible()
-    expect(screen.getByText(/Your unsent message is excluded/)).toBeVisible()
+    expect(screen.getByText(/Your unsent message is excluded/)).toHaveClass('sr-only')
     expect(button('Add conversation to note')).toBeDisabled()
     fireEvent.click(button('Add conversation to note'))
   }
   expect(props.onSubmit).not.toHaveBeenCalled()
 })
 
-it('disables Add with no unsent message during autosave while retaining read-only review', () => {
+it('disables Add with no unsent message during autosave', () => {
   const onSubmit = vi.fn(async () => {})
   render(<ChatHandoff state={state({ saving: true })} onSubmit={onSubmit} onOpenNote={vi.fn()} />)
-  expect(button('Review saved conversation')).toBeEnabled()
   expect(button('Add conversation to note')).toBeDisabled()
   fireEvent.click(button('Add conversation to note'))
   expect(onSubmit).not.toHaveBeenCalled()
@@ -95,8 +44,8 @@ it('adds normally once without review or confirmation', () => {
   const onSubmit = vi.fn(async () => {})
   const confirm = vi.spyOn(window, 'confirm')
   render(<ChatHandoff state={state()} onSubmit={onSubmit} onOpenNote={vi.fn()} />)
-  expect(screen.getByText(/Your existing Note stays intact/)).toHaveTextContent('This does not generate test cases.')
-  expect(button('Review saved conversation')).toHaveAttribute('aria-expanded', 'false')
+  expect(screen.queryByRole('button', { name: 'Review saved conversation' })).not.toBeInTheDocument()
+  expect(button('Add conversation to note')).toHaveAccessibleDescription(/existing note stays intact/i)
   fireEvent.click(button('Add conversation to note'))
   expect(onSubmit).toHaveBeenCalledTimes(1)
   expect(confirm).not.toHaveBeenCalled()
@@ -174,20 +123,6 @@ it.each([
   expect(value.onRestart).not.toHaveBeenCalled()
 })
 
-it('reviews the bounded 128-message transcript without callbacks', () => {
-  const chat = completedChatFixture()
-  chat.messages = Array.from({ length: 128 }, (_, index) => ({ ...chat.messages[index % 2],
-    id: `message-${index}`, text: 'x'.repeat(1024), aiRunId: null }))
-  const value = state({ chat })
-  const onSubmit = vi.fn(async () => {})
-  render(<ChatHandoff state={value} onSubmit={onSubmit} onOpenNote={vi.fn()} />)
-  fireEvent.click(button('Review saved conversation'))
-  const review = screen.getByRole('region', { name: 'Saved conversation' })
-  expect(within(review).getAllByRole('listitem')).toHaveLength(128)
-  expect(Array.from(review.querySelectorAll('.chat-message-text')).reduce((total, node) => total + new TextEncoder().encode(node.textContent ?? '').length, 0)).toBe(131072)
-  expect(onSubmit).not.toHaveBeenCalled()
-  expect(value.onRestart).not.toHaveBeenCalled()
-})
 
 
 it('retains the added banner through record writes and disables only prospective Add', () => {

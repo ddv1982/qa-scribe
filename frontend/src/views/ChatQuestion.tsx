@@ -30,7 +30,6 @@ export function ChatQuestion({ message, messages, controls }: { message: ChatMes
   return <section className="chat-question" aria-label="Assistant question">
     {source?.context ? <ChatContextLabel context={source.context} /> : null}
     <p className="chat-question-prompt">{question.prompt}</p>
-    <p className="chat-help">Agent-suggested replies. You can also type your own answer.</p>
     <div className="chat-question-choices">
       {question.choices.map(choice => <div className="chat-question-choice" key={choice}>
         <ActionButton variant="secondary" type="button" disabled={Boolean(reason) || !controls?.onAnswer} aria-describedby={`${id}-reason`}
@@ -38,6 +37,6 @@ export function ChatQuestion({ message, messages, controls }: { message: ChatMes
         {choice === 'Finding subtask' && source?.context?.kind === 'finding' ? <span className="chat-choice-recommendation">Recommended</span> : null}
       </div>)}
     </div>
-    <p className="chat-help" id={`${id}-reason`}>{reason || 'A choice sends exactly its displayed text as a chat reply.'}</p>
+    <p className={`chat-help${reason ? '' : ' sr-only'}`} id={`${id}-reason`}>{reason || 'Suggested replies. A choice sends its text as your reply; you can also type your own.'}</p>
   </section>
 }

@@ -172,3 +172,31 @@ fn chat_prompt_rejects_total_bytes_count_and_context_overflow() {
     assert!(build_chat_prompt(&"c".repeat(MAX_CHAT_CONTEXT_BYTES), &one).is_ok());
     assert!(build_chat_prompt(&"c".repeat(MAX_CHAT_CONTEXT_BYTES + 1), &one).is_err());
 }
+
+#[test]
+fn notes_context_carries_the_saved_note_within_the_context_limit() {
+    let context = notes_session_context(
+        "Staging, build 4.2.1",
+        "<h2>Setup</h2><p>Pay with the saved card</p>",
+    );
+    assert!(context.starts_with("Staging, build 4.2.1"));
+    assert!(context.contains("SESSION_NOTE"));
+    assert!(context.contains("Setup"));
+    assert!(context.contains("Pay with the saved card"));
+    assert!(!context.contains("<p>"));
+
+    assert_eq!(notes_session_context("", "<p></p>"), "");
+    let empty_note = notes_session_context("Only context", "");
+    assert_eq!(empty_note, "Only context");
+
+    let long = notes_session_context(
+        "",
+        &format!("<p>{}</p>", "é".repeat(MAX_CHAT_CONTEXT_BYTES)),
+    );
+    assert!(long.len() <= MAX_CHAT_CONTEXT_BYTES);
+    assert!(long.ends_with(NOTE_TRUNCATED_MARKER));
+    let one = [message(ChatPromptRole::User, "Rewrite the setup")];
+    assert!(build_chat_prompt(&long, &one).is_ok());
+    let full = "c".repeat(MAX_CHAT_CONTEXT_BYTES);
+    assert_eq!(notes_session_context(&full, "<p>note</p>"), full);
+}

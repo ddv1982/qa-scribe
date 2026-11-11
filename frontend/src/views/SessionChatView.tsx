@@ -1,5 +1,5 @@
 import { ActionButton } from '../components/ActionButton'
-import { ChevronRight, Paperclip } from 'lucide-react'
+import { Paperclip } from 'lucide-react'
 import { useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { occupiedChoiceReason } from '../app/sessionChat.questions'
 import type { ChatContextPresentation } from '../app/sessionChat.context'
@@ -9,7 +9,6 @@ import { ChatImages, ChatImageFailures } from './ChatImages'
 import type { ChatImageFailure } from '../app/sessionChat.types'
 import { imageFileFromClipboardData, shouldReadNativeClipboardImage } from '../app/attachmentActions'
 import { ChatHandoff } from './ChatHandoff'
-import { StartNewConversation } from './StartNewConversation'
 import { chatIsBusy, type ChatHandoffPresentation } from '../app/sessionChat.presentation'
 import '../styles/chat-permissions.css'
 import type { AiProvider, ChatImage, ChatPermissionDecision, ChatState, GenerationJobStatus } from '../bindings'
@@ -79,7 +78,7 @@ export function SessionChatView(props: SessionChatViewProps) {
   const {
     chat, composer, job, loading, saving, working, error, dirty = false,
     permissionWorking = false, permissionRecoveryPending = false,
-    providerLabel, modelLabel, providerAvailable, providerReason, modelSelectionControl, modelSelectionPending = false,
+    providerAvailable, providerReason, modelSelectionPending = false,
     onSetComposer, onAttachImages, onPasteNativeImage, onRemoveImage, onSend, onRetry, onCancel, onConfigureAi,
     onDecidePermission, onRecheck,
   } = props
@@ -256,14 +255,6 @@ export function SessionChatView(props: SessionChatViewProps) {
         {/* One quiet row: conversation state on the left, options on the right (R6). */}
         <div className="chat-toolbar">
         {notes || loading || saving || working || activeJob || inputRecoveryPending || permissionRecoveryPending || error ? <p className={`chat-help chat-status${status === 'Conversation saved' ? ' sr-only' : ''}`} role="status" aria-live="polite">{status}</p> : null}
-        {notes ? <details className="chat-options"><summary><ChevronRight className="disclosure-chevron" size={14} aria-hidden="true" />Conversation options</summary>
-          <div className="chat-options-content">
-            {modelSelectionControl || <p className="chat-help">Next invocation · {providerLabel} · {modelLabel}</p>}
-            <div className="chat-buttons"><ActionButton variant="secondary" type="button" onClick={onConfigureAi} disabled={busy}>Configure AI</ActionButton>
-              {!addedToNote ? <StartNewConversation state={notes} /> : null}</div>
-            <p className="chat-counts">{messages.length} / 128 messages · {(transcriptBytes / 1024).toFixed(1)} / 128 KiB transcript</p>
-          </div>
-        </details> : null}
         </div>
         {needsProviderRecovery && !permissionAttention ? (
           <div className="chat-provider-recovery">
@@ -272,7 +263,10 @@ export function SessionChatView(props: SessionChatViewProps) {
                 ? 'The permission decision could not be confirmed. Recheck status to recover its current state without repeating the decision.'
                 : 'Configure AI to review provider setup or sign-in. Rechecking status does not send a message or retry a response.'}
             </p>
-            {onRecheck ? <ActionButton variant="secondary" type="button" disabled={recheckDisabled} onClick={() => { if (!recheckDisabled) void onRecheck() }}>Recheck status</ActionButton> : null}
+            <div className="chat-buttons">
+              <ActionButton variant="secondary" type="button" onClick={onConfigureAi} disabled={busy}>Configure AI</ActionButton>
+              {onRecheck ? <ActionButton variant="secondary" type="button" disabled={recheckDisabled} onClick={() => { if (!recheckDisabled) void onRecheck() }}>Recheck status</ActionButton> : null}
+            </div>
           </div>
         ) : null}
 
@@ -283,9 +277,8 @@ export function SessionChatView(props: SessionChatViewProps) {
               <p className="chat-help">{record.owner.record.kind === 'finding' ? 'Ask for clearer wording, better steps, or missing details.' : 'Ask for clearer steps, better coverage, or expected results.'}</p>
               <p className="chat-help chat-jira-tip">You can also ask to add it to Jira.</p>
             </> : <>
-              <h3>Explore your testing notes</h3>
-              <p className="chat-help">No messages yet. Ask a question, explore an idea, or describe what you are testing.</p>
-              <p className="chat-help">You can add the conversation to your note when you're ready.</p>
+              <h3>Work on this note</h3>
+              <p className="chat-help">Ask a question, or ask for clearer wording, structure, or missing test ideas. AI reads your saved note.</p>
             </>}
           </div> : (
             <ChatMessageList presentation={record ? 'record' : 'notes'} messages={messages} aiRuns={chat?.aiRuns ?? []} proposals={chat?.proposals} proposalControls={submitted ? undefined : props.proposalControls}
@@ -335,7 +328,7 @@ export function SessionChatView(props: SessionChatViewProps) {
               if (!sendReason && !event.repeat) void onSend()
             }
           }}
-          placeholder={record ? "Tell AI what you'd like to improve…" : 'Describe your testing context or ask a question'}
+          placeholder={record ? "Tell AI what you'd like to improve…" : 'Ask about this note or what to improve…'}
         />
         <input ref={fileInput} className="chat-image-input" type="file" multiple accept="image/png,image/jpeg,image/webp,image/gif"
           aria-label="Choose chat images" tabIndex={-1} onChange={(event) => {
@@ -348,9 +341,6 @@ export function SessionChatView(props: SessionChatViewProps) {
           <div className="chat-buttons">
             {permissionAttention ? <ActionButton variant="secondary" type="button" onClick={() => { revealPermission(); permissionHeadingRef.current?.focus({ preventScroll: true }) }}>Review permission</ActionButton> : activeJob ? <ActionButton variant="secondary" type="button" disabled={job?.state === 'cancelling'} onClick={() => void onCancel()}>{record ? 'Stop' : 'Cancel response'}</ActionButton> : null}
             {retryable && !submitted ? <ActionButton variant="secondary" type="button" disabled={Boolean(retryReason)} aria-describedby={`${id}-retry-reason`} onClick={() => { if (!retryReason) void onRetry() }}>Retry response</ActionButton> : null}
-            {notes && props.onDraftJira ? <ActionButton variant="secondary" type="button" disabled={Boolean(sendReason && (composer.trim() || composerImages.length || sendReason !== 'Write a message or attach an image to send.'))}
-              onClick={() => { void props.onDraftJira?.() }}>Draft Jira issue</ActionButton> : null}
-            {notes && props.onRefine ? <ActionButton variant="secondary" type="button" disabled={Boolean(sendReason)} onClick={() => { if (!sendReason) void props.onRefine?.() }}>Refine record</ActionButton> : null}
             <div className="chat-send-buttons">
             <ActionButton variant="secondary" type="button" iconOnly icon={Paperclip} aria-label="Attach images"
               title="Attach up to 4 images, 10 MiB each" disabled={attachmentsLocked} onClick={() => fileInput.current?.click()} />

@@ -160,7 +160,7 @@ describe('Built application native quick model selection M03', () => {
           const input = document.querySelector(selector)
           return { value: input.value, open: input.getAttribute('aria-expanded'), focused: document.activeElement === input,
             input: { top: input.getBoundingClientRect().top, bottom: input.getBoundingClientRect().bottom },
-            owners: [input.closest('.chat-scroll-region'), input.closest('.session-chat')].map(node => ({ top: node.getBoundingClientRect().top,
+            owners: [input.closest('.chat-options-content'), input.closest('.ask-ai-panel')].map(node => ({ top: node.getBoundingClientRect().top,
               bottom: node.getBoundingClientRect().bottom, scrollTop: node.scrollTop, height: node.clientHeight })) }
         }, quickInput) })
         writeFileSync(join(outputRoot, 'query-resize.json'), JSON.stringify(queryStates, null, 2))
@@ -173,7 +173,8 @@ describe('Built application native quick model selection M03', () => {
       await queryState('after-resize')
       assert.equal(await $(quickInput).getValue(), 'fixture', 'An open query must survive viewport resize')
       await browser.execute(selector => {
-        const owner = document.querySelector(selector).closest('.chat-scroll-region')
+        // The quick picker lives in the scrollable Conversation options popover.
+        const owner = document.querySelector(selector).closest('.chat-options-content')
         owner.scrollTop = Math.max(0, owner.scrollTop - 8)
       }, quickInput)
       await browser.executeAsync(done => requestAnimationFrame(() => requestAnimationFrame(done)))

@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, type ReactNode, type Ref } from 'react'
-import { X } from 'lucide-react'
+import { SlidersHorizontal, X } from 'lucide-react'
 import { ActionButton } from '../components/ActionButton'
 import { SessionChatView } from '../views/SessionChatView'
+import { StartNewConversation } from '../views/StartNewConversation'
 import type { SessionChatViewProps } from '../views/SessionChatView'
 import type { AppController } from './useAppController'
 import { deriveChatHandoff, handoffDuringRecordWrites } from './sessionChat.presentation'
@@ -17,6 +18,7 @@ export function AppChat({ c, modelSelectionControl, onConfigureAi }: {
   const notesDraftId = c.sessionChat.chat?.draftId
   const notesSessionId = c.sessionChat.chat?.sessionId
   const engine = c.conversations
+  const notesMessages = c.sessionChat.chat?.messages ?? []
   useEffect(() => {
     if (notesVisible && notesDraftId && notesSessionId) void engine.select({ sessionId: notesSessionId, draftId: notesDraftId }).catch(() => undefined)
   }, [notesVisible, notesDraftId, notesSessionId, engine])
@@ -34,12 +36,17 @@ export function AppChat({ c, modelSelectionControl, onConfigureAi }: {
   }
   return <>
     <AskAiPanel panelRef={notesRef} id="notes-ask-ai" kind="notes" visible={notesVisible} label="Notes AI chat" eyebrow="Session note"
+      actions={<ConversationOptions>
+          {notesVisible ? modelSelectionControl : null}
+          <div className="chat-buttons"><ActionButton variant="secondary" type="button" onClick={onConfigureAi}>Configure AI</ActionButton>
+            {notesAddedToNote ? null : <StartNewConversation state={c.sessionChat} />}</div>
+          <p className="chat-counts">{notesMessages.length} / 128 messages · {(notesMessages.reduce((total, message) => total + new TextEncoder().encode(message.text).length, 0) / 1024).toFixed(1)} / 128 KiB transcript</p>
+      </ConversationOptions>}
       source={<strong>{c.sessionTitle}</strong>} onClose={() => {
         restoreNotesFocus.current = true
         c.setSessionMode('write_note')
       }}>
       <SessionChatView {...c.sessionChat} {...common} kind="notes" hidden={!notesVisible}
-        modelSelectionControl={notesVisible ? modelSelectionControl : null}
         onOpenNote={() => { restoreNotesFocus.current = true; c.setSessionMode('write_note'); c.setActiveView('sessions') }} />
     </AskAiPanel>
     {c.askAi.panel ? <RecordConversation key={c.activeSession?.id} c={c} common={common} /> : null}
@@ -84,12 +91,12 @@ function RecordConversation({ c, common }: {
 }
 
 /** The one Ask AI shell (R6): header, source line, then the conversation. Notes and records differ only in their body. */
-function AskAiPanel({ panelRef, id, kind, visible, label, eyebrow, source, onClose, children }: {
+function AskAiPanel({ panelRef, id, kind, visible, label, eyebrow, source, actions, onClose, children }: {
   panelRef: Ref<HTMLElement>; id?: string; kind: 'notes' | 'record'; visible: boolean; label: string
-  eyebrow: string; source: ReactNode; onClose: () => void; children: ReactNode
+  eyebrow: string; source: ReactNode; actions?: ReactNode; onClose: () => void; children: ReactNode
 }) {
   return <aside ref={panelRef} id={id} className={`ask-ai-panel ask-ai-panel--${kind}`} hidden={!visible} inert={!visible} aria-label={label}>
-    <header className="ask-ai-header"><h2>Ask AI</h2><ActionButton variant="secondary" iconOnly icon={X} aria-label="Close Ask AI" onClick={onClose} /></header>
+    <header className="ask-ai-header"><h2>Ask AI</h2><div className="ask-ai-header-actions">{actions}<ActionButton variant="secondary" iconOnly icon={X} aria-label="Close Ask AI" onClick={onClose} /></div></header>
     <section className="chat-context-card" aria-label="Chat source"><div><span className="eyebrow">{eyebrow}</span>{source}</div></section>
     {children}
   </aside>
@@ -108,4 +115,32 @@ function BoundNotes({ c, common, hidden, modelSelectionControl }: {
     onOpenNote={() => { c.setSessionMode('write_note'); c.setActiveView('sessions') }} onAttachImages={handle.attachImages} onPasteNativeImage={handle.pasteImage}
     onRemoveImage={handle.removeImage} onRetryImage={handle.retryImage} onDismissImageFailure={handle.dismissImage} onAnswerQuestion={handle.answer}
     onPrepareAction={handle.prepareAction} onDecidePermission={handle.decidePermission} onRecheck={handle.recheck} />
+}
+
+/** One header icon for model choice, AI setup and restart. It closes on Escape or a press outside, so it never covers the conversation. */
+function ConversationOptions({ children }: { children: ReactNode }) {
+  const ref = useRef<HTMLDetailsElement>(null)
+  useEffect(() => {
+    const close = (event: Event) => {
+      const options = ref.current
+      if (!options?.open) return
+      // A modal opened from the options (restart confirmation) owns Escape and focus until it closes.
+      if (document.querySelector('dialog[open]')) return
+      // The model menu renders its choices into document.body; they still belong to these options.
+      const inside = event.target instanceof Element && (options.contains(event.target) || Boolean(event.target.closest('.model-combobox-popover')))
+      // Captured before the combobox handles it: an open model menu closes first.
+      const menuOpen = event.target instanceof Element && Boolean(event.target.closest('[role="combobox"][aria-expanded="true"]'))
+      if (event instanceof KeyboardEvent ? event.key === 'Escape' && !menuOpen : !inside) {
+        options.open = false
+        if (event instanceof KeyboardEvent) options.querySelector('summary')?.focus()
+      }
+    }
+    document.addEventListener('pointerdown', close, true)
+    document.addEventListener('keydown', close, true)
+    return () => { document.removeEventListener('pointerdown', close, true); document.removeEventListener('keydown', close, true) }
+  }, [])
+  return <details ref={ref} className="chat-options">
+    <summary aria-label="Conversation options" title="Conversation options"><SlidersHorizontal size={16} aria-hidden="true" /></summary>
+    <div className="chat-options-content">{children}</div>
+  </details>
 }

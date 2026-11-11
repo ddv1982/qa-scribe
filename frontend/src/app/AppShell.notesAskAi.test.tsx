@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { afterEach, beforeEach, expect, it } from 'vitest'
 import { AppShell } from './AppShell'
 import { cleanupControllerTest, getTauriMock, setupControllerTest, renderWithControllerStartup, useAppController } from './useAppController.testHarness'
+import { completedChatFixture } from './useSessionChat.testSupport'
 
 const api = getTauriMock()
 function Subject() { return <AppShell {...useAppController()} /> }
@@ -21,7 +22,10 @@ it('keeps the Note editable beside its own Ask AI conversation and retains unsen
   expect(panel.getByRole('region', { name: 'Chat source' })).toHaveTextContent('Checkout session')
   expect(panel.queryByRole('heading', { name: 'Conversation' })).not.toBeInTheDocument()
   expect(panel.queryByRole('button', { name: 'Add conversation to note' })).not.toBeInTheDocument()
-  expect(panel.getByText('Conversation options').closest('details')).not.toHaveAttribute('open')
+  const options = panel.getByLabelText('Conversation options').closest('details')
+  expect(options).not.toHaveAttribute('open')
+  expect(panel.queryByRole('button', { name: 'Draft Jira issue' })).not.toBeInTheDocument()
+  expect(panel.queryByRole('button', { name: 'Refine record' })).not.toBeInTheDocument()
   expect(note).toBeVisible()
   expect(note).toHaveAttribute('contenteditable', 'true')
   const input = panel.getByRole('textbox', { name: 'Message' })
@@ -38,11 +42,31 @@ it('keeps the Note editable beside its own Ask AI conversation and retains unsen
   fireEvent.click(trigger)
   expect(panel.getByRole('textbox', { name: 'Message' })).toBe(input)
   expect(input).toHaveValue('Keep this Notes question. 雪')
-  fireEvent.click(panel.getByText('Conversation options'))
+  fireEvent.click(panel.getByLabelText('Conversation options'))
+  expect(options).toHaveAttribute('open')
   expect(panel.getAllByText(/^Next invocation/)).toHaveLength(1)
   expect(panel.getByRole('button', { name: 'Configure AI' })).toBeVisible()
-  expect(panel.getByRole('button', { name: 'Start new conversation' })).toBeVisible()
+  expect(panel.getByRole('button', { name: 'Start new conversation' })).toBeEnabled()
   expect(api.beginRecordChat).not.toHaveBeenCalled()
   expect(api.startChatJob).not.toHaveBeenCalled()
   expect(api.submitChat).not.toHaveBeenCalled()
+})
+
+it('keeps Conversation options open while the restart confirmation owns Escape', async () => {
+  api.getChat.mockResolvedValue(completedChatFixture())
+  await renderWithControllerStartup(() => render(<Subject />))
+  fireEvent.click(screen.getByRole('button', { name: 'Ask AI' }))
+  const panel = within(screen.getByRole('complementary', { name: 'Notes AI chat' }))
+  fireEvent.click(panel.getByLabelText('Conversation options'))
+  const options = panel.getByLabelText('Conversation options').closest('details')!
+  fireEvent.click(await panel.findByRole('button', { name: 'Start new conversation' }))
+  const dialog = await screen.findByRole('dialog', { name: 'Start a new conversation?' })
+  fireEvent.keyDown(dialog, { key: 'Escape' })
+  expect(options).toHaveAttribute('open')
+  fireEvent.keyDown(document.body, { key: 'Escape' })
+  fireEvent(dialog, new Event('cancel', { cancelable: true }))
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  expect(options).toHaveAttribute('open')
+  fireEvent.keyDown(document.body, { key: 'Escape' })
+  expect(options).not.toHaveAttribute('open')
 })

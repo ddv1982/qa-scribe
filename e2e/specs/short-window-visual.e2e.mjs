@@ -108,8 +108,6 @@ describe('Short native creation and saved-chat geometry', () => {
       await resize(1280, 645)
       await theme(appearance)
       await resize(640, 520)
-      const review = await $('button=Review saved conversation')
-      if (await review.getAttribute('aria-expanded') !== 'true') await click('button=Review saved conversation')
       failures.push(...await pendingComposerSave(appearance, sessionId, artifacts, save))
     }
     assert.deepEqual(failures, [], 'Saved review, draft, model, counts and visible Send survive autosave')

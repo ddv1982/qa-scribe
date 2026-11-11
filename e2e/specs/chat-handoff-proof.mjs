@@ -215,23 +215,16 @@ export async function reviewMatrix() {
     await theme(name)
     for (const [width, height] of sizes) {
       const actual = await resize(width, height)
-      const review = await $('button=Review saved conversation')
-      await review.scrollIntoView()
-      await review.waitForClickable()
-      if (await review.getAttribute('aria-expanded') !== 'true') await review.click()
-      await $('[aria-label="Saved conversation"]').waitForDisplayed()
-      const geometry = await actionProof('.chat-review > button', `chat-review-${width}-${height}-${name}.png`)
+      const geometry = await actionProof('.chat-handoff button', `chat-review-${width}-${height}-${name}.png`)
       assert.equal(geometry.theme, name)
-      const count = await browser.execute(() => document.querySelectorAll('[aria-label="Saved conversation"] .chat-messages > li').length)
+      const count = await browser.execute(() => document.querySelectorAll('[aria-label="Conversation transcript"] .chat-messages > li').length)
       assert.equal(count, 4)
       await actionProof('.chat-handoff button', `chat-completed-${width}-${height}-${name}.png`)
       await actionProof('.chat-options .chat-buttons button:last-child', `chat-restart-control-${width}-${height}-${name}.png`)
       if (width >= 1024) {
-        await nativeKeyboard('.chat-review > button', `chat-handoff-keyboard-${width}-${height}-${name}.png`)
+        await nativeKeyboard('.chat-handoff button', `chat-handoff-keyboard-${width}-${height}-${name}.png`)
         await nativeKeyboard('.chat-options .chat-buttons button:last-child', `chat-restart-keyboard-${width}-${height}-${name}.png`)
       }
-      await review.scrollIntoView()
-      await review.click()
       results.push({ theme: name, planned: { width, height }, actual, reviewRows: count })
     }
   }

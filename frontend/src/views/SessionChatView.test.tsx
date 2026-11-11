@@ -148,8 +148,6 @@ describe('SessionChatView', () => {
     expect(within(transcript).getByText('Assistant')).toBeInTheDocument()
     expect(within(transcript).getByText('<img src=x onerror=alert(1)>')).toBeInTheDocument()
     expect(container.querySelector('img, script')).toBeNull()
-    expect(screen.getByText(/2 \/ 128 messages/)).toBeInTheDocument()
-    expect(screen.getByText(/128 KiB/)).toBeInTheDocument()
   })
 
   it('provides a controlled multiline composer and sends only with an explicit action', () => {
@@ -241,7 +239,7 @@ describe('SessionChatView', () => {
     const { props, rerender } = mount({ chat: completed })
     fireEvent.click(button('Add conversation to note'))
     expect(props.onSubmit).toHaveBeenCalledTimes(1)
-    expect(screen.getByText(/does not generate test cases/i)).toBeInTheDocument()
+    expect(screen.getByText(/existing note stays intact/i)).toHaveClass('sr-only')
     rerender(<SessionChatView {...props} composer=" " />)
     expect(button('Add conversation to note')).toBeDisabled()
     expect(screen.getByText(/Send or clear.*message/i)).toBeInTheDocument()
@@ -293,7 +291,6 @@ describe('SessionChatView', () => {
   it('reserves both user and assistant slots at the transcript message limit', () => {
     mount({ chat: chat(Array.from({ length: 127 }, (_, index) => message(index % 2 ? 'assistant' : 'user', 'x', 'completed', `message-${index}`))), composer: 'Next' })
     expect(button('Send')).toBeDisabled()
-    expect(screen.getByText(/127 \/ 128 messages/)).toBeInTheDocument()
     expect(screen.getByText(/limit.*new conversation/i)).toBeInTheDocument()
   })
 
@@ -329,7 +326,7 @@ it.each(reportCases)('preserves saved $label provenance after the next preferenc
   rerender(<SessionChatView {...props} providerLabel="GitHub Copilot" modelLabel="auto" />)
   const retainedEvidence = screen.getByText(new RegExp(`${providerLabel} · Requested · saved-alias`))
   expect(retainedEvidence).toHaveTextContent(`CLI report · reported-model · ${label}`)
-  expect(screen.getByText('Next invocation · GitHub Copilot · auto')).toBeInTheDocument()
+  expect(screen.queryByText(/^Next invocation/)).not.toBeInTheDocument()
 })
 
 it('keeps missing and legacy historical model evidence explicit', () => {
@@ -343,3 +340,4 @@ it('keeps missing and legacy historical model evidence explicit', () => {
   rerender(<SessionChatView {...props} chat={history} />)
   expect(screen.getByText('Codex · Legacy model · old-ambiguous · Source unknown')).toBeInTheDocument()
 })
+
