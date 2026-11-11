@@ -15,7 +15,7 @@ export function ChatProposalReview({ proposal, controls, presentation = 'notes' 
   const error = controls?.errors[proposal.id]
   if (proposal.target.kind === 'session' && proposal.patch.kind === 'note') {
     const undoable = controls?.undoable?.has(proposal.id) ?? false
-    if (status === 'applied') return <section className="chat-proposal chat-proposal--record" aria-label="Note update">
+    if (status === 'applied' || controls?.applied?.has(proposal.id)) return <section className="chat-proposal chat-proposal--record" aria-label="Note update">
       <p role="status">Note updated</p>
       {undoable ? <div className="chat-buttons"><ActionButton variant="secondary" disabled={pending} onClick={() => void controls?.onAction(proposal.id, 'undo')}>Undo</ActionButton></div> : null}
       {error ? <p className="chat-error" role="alert">{error}</p> : null}

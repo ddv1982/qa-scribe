@@ -47,3 +47,16 @@ it('does not roll back into another Session when Update cannot be recorded', asy
   expect(note()).toBe('Rewritten')
   expect(view.result.current.errors.p1).toBe('Chat changed')
 })
+
+it('shows Note updated with Undo, not Update note, when the refresh after Update fails', async () => {
+  const { render, screen } = await import('@testing-library/react')
+  const { ChatProposalReview } = await import('../views/ChatProposalReview')
+  resolveRefinement.mockResolvedValue(completedChatFixture())
+  const { view } = setup(vi.fn(async () => { throw new Error('offline') }))
+  await act(async () => { await view.result.current.onUpdate?.('p1') })
+  const { createElement } = await import('react')
+  render(createElement(ChatProposalReview, { proposal, controls: view.result.current }))
+  expect(screen.getByText('Note updated')).toBeTruthy()
+  expect(screen.getByRole('button', { name: 'Undo' })).toBeTruthy()
+  expect(screen.queryByRole('button', { name: 'Update note' })).toBeNull()
+})

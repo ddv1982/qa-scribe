@@ -18,6 +18,7 @@ export function useNoteProposalControls({ chat, onRefresh, noteBody, setNoteBody
   const [pending, setPending] = useState<ReadonlySet<string>>(new Set())
   const [errors, setErrors] = useState<Readonly<Record<string, string>>>({})
   const [applied, setApplied] = useState<ReadonlyMap<string, Applied>>(new Map())
+  const [recorded, setRecorded] = useState<ReadonlySet<string>>(new Set())
   const current = serializeRichEditorDocument(noteBody)
   const sessionId = chat?.sessionId ?? null
   const latest = useRef({ sessionId, note: current })
@@ -48,6 +49,7 @@ export function useNoteProposalControls({ chat, onRefresh, noteBody, setNoteBody
         return
       }
       clear(id)
+      setRecorded(previous => new Set(previous).add(id))
       // The update is recorded; a failed refresh keeps the applied Note and its Undo.
       await onRefresh?.().catch(() => undefined)
     } finally {
@@ -68,6 +70,7 @@ export function useNoteProposalControls({ chat, onRefresh, noteBody, setNoteBody
     ...recordControls,
     errors: { ...recordControls?.errors, ...errors },
     pending: new Set([...recordControls?.pending ?? [], ...pending]),
+    applied: recorded,
     undoable: new Set([...applied].filter(([, entry]) => entry.sessionId === sessionId && entry.after === current).map(([id]) => id)),
     onUpdate: async (id, reference) => { if (isNote(id)) await onUpdate(id); else await recordControls?.onUpdate?.(id, reference) },
     onAction: async (id, action, reference) => {
