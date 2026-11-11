@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.8.35 - 2026-11-11
+
+- Ask AI on the Note now reads your saved note, so "make this clearer" works on what you wrote. Edits on screen are saved before the AI is asked.
+- Ask AI can rewrite the whole Note as a Suggested note. Update note puts it in the editor, and Undo brings back your previous text. Suggestions made from an older version of the note are refused instead of overwriting newer edits.
+- The Note's Ask AI panel now matches Test cases and Findings: model choice, Configure AI and Start new conversation sit behind one Conversation options icon in the header, and the extra buttons and explanations are gone.
+- Update rustix to 1.1.6 for RUSTSEC-2026-0486.
+
 ## v0.8.34 - 2026-11-11
 
 - Drop the extra border and divider around the Note action buttons, and stop the focused Ask AI message box from drawing a line through Attach and Send.
