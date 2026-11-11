@@ -59,7 +59,7 @@ export function AppRail({ c, commandById, onOpenCommands }: {
               role="option"
               aria-selected={currentSessionId === session.id}
               tabIndex={tabbableSessionId === session.id ? 0 : -1}
-              disabled={c.isBusy && c.activeSession?.id !== session.id}
+              disabled={!c.canSwitchSession && c.activeSession?.id !== session.id}
               onClick={() => void c.openSessionInCurrentView(session)}
               onKeyDown={focusListboxOption}
             >
@@ -81,7 +81,7 @@ export function AppRail({ c, commandById, onOpenCommands }: {
         <span>Session</span>
         <select
           value={c.activeSession?.id ?? ''}
-          disabled={c.isBusy || c.sessions.length === 0}
+          disabled={!c.canSwitchSession || c.sessions.length === 0}
           onChange={(event) => {
             const session = c.sessions.find((candidate) => candidate.id === event.target.value)
             if (session) void c.openSessionInCurrentView(session)
