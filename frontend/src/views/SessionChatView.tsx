@@ -88,7 +88,9 @@ export function SessionChatView(props: SessionChatViewProps) {
   const addedToNote = notes?.handoff.kind === 'added'
   const hydrationPending = Boolean(chat && job?.state === 'completed' && (!job.aiRunId || !chat.messages.some(m => m.role === 'assistant' && m.aiRunId === job.aiRunId)))
   const structuredOutput = Boolean(props.responseStarting || chat?.pendingResponse)
-  const refinementOutput = props.responseStarting?.kind === 'refine_record' || chat?.pendingResponse?.kind === 'refinement'
+  // Every Notes turn may answer or rewrite the Note, so a Note refinement is announced as an ordinary reply.
+  const refinementOutput = props.responseStarting?.kind === 'refine_record'
+    || (chat?.pendingResponse?.kind === 'refinement' && chat.pendingResponse.recordKind !== 'note')
   const id = useId()
   const fileInput = useRef<HTMLInputElement>(null)
   const composerInput = useRef<HTMLTextAreaElement>(null)

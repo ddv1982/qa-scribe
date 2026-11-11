@@ -65,3 +65,9 @@ it('shows every record patch field and Update without a second review step', () 
   expect(screen.queryByRole('button', { name: 'Review refinement' })).not.toBeInTheDocument()
   expect(screen.queryByLabelText('Before refinement')).not.toBeInTheDocument()
 })
+
+it('announces a pending Notes turn as a reply, since it may answer or rewrite the Note', () => {
+  view(chatFixture({ pendingResponse: { kind: 'refinement', recordKind: 'note' } }))
+  expect(screen.getByRole('heading', { name: 'Preparing reply' })).toBeInTheDocument()
+  expect(screen.queryByText(/internal-contract|requestId/)).not.toBeInTheDocument()
+})
