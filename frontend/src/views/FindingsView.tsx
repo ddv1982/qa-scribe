@@ -11,6 +11,7 @@ import type { BusyAction } from '../ui/types'
 import type { RecordLoadState } from '../app/useRecordHydration'
 import type { ClipboardSnapshot, CopyState } from '../app/copyActions'
 import type { CreatedRecordEditTarget } from '../app/types'
+import { Field } from '../components/Field'
 import { RecordCollectionView, type RecordCollectionLabels } from './RecordCollectionView'
 import {
   findingSeverityLabel,
@@ -158,8 +159,7 @@ export function FindingFields({ finding, onChange }: { finding: Pick<Finding, 'k
   return (
         <>
           <div className="finding-classification-fields">
-          <label className="field-stack">
-            <span>Finding type</span>
+          <Field label="Finding type">
             <select value={finding.kind} onChange={(event) => onChange({ kind: event.target.value as FindingKind })}>
               {findingKindOptions.map((option) => (
                 <option key={option} value={option}>
@@ -167,9 +167,8 @@ export function FindingFields({ finding, onChange }: { finding: Pick<Finding, 'k
                 </option>
               ))}
             </select>
-          </label>
-          <label className="field-stack">
-            <span>Severity</span>
+          </Field>
+          <Field label="Severity">
             <select
               value={parseFindingMetadata(finding.metadataJson).severity}
               onChange={(event) => onChange({ metadataJson: updateFindingMetadata(finding.metadataJson, { severity: event.target.value as FindingSeverity }) })}
@@ -180,9 +179,8 @@ export function FindingFields({ finding, onChange }: { finding: Pick<Finding, 'k
               <option value="high">High</option>
               <option value="critical">Critical</option>
             </select>
-          </label>
-          <label className="field-stack">
-            <span>Status</span>
+          </Field>
+          <Field label="Status">
             <select
               value={parseFindingMetadata(finding.metadataJson).status}
               onChange={(event) => onChange({ metadataJson: updateFindingMetadata(finding.metadataJson, { status: event.target.value as FindingStatus }) })}
@@ -192,25 +190,23 @@ export function FindingFields({ finding, onChange }: { finding: Pick<Finding, 'k
               <option value="resolved">Resolved</option>
               <option value="closed">Closed</option>
             </select>
-          </label>
+          </Field>
           </div>
           <div className="finding-reference-fields">
-          <label className="field-stack">
-            <span>Component or area</span>
+          <Field label="Component or area">
             <input
               value={parseFindingMetadata(finding.metadataJson).component}
               onChange={(event) => onChange({ metadataJson: updateFindingMetadata(finding.metadataJson, { component: event.target.value }) })}
               placeholder="Checkout, API, mobile…"
             />
-          </label>
-          <label className="field-stack">
-            <span>External reference</span>
+          </Field>
+          <Field label="External reference">
             <input
               value={parseFindingMetadata(finding.metadataJson).reference}
               onChange={(event) => onChange({ metadataJson: updateFindingMetadata(finding.metadataJson, { reference: event.target.value }) })}
               placeholder="Issue ID or URL"
             />
-          </label>
+          </Field>
           </div>
         </>
   )

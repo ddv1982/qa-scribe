@@ -203,23 +203,6 @@
     flex: 1 1 170px;
   }
 
-  .ai-provider-summary {
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    flex: 0 0 auto;
-    width: 100%;
-    max-width: none;
-  }
-
-  .ai-provider-summary .ai-configure-button {
-    width: 32px;
-  }
-
-  .ai-provider-meta {
-    flex-wrap: wrap;
-    row-gap: var(--space-1);
-    white-space: normal;
-  }
-
   .confirmation-actions {
     flex-direction: column;
   }
@@ -362,15 +345,6 @@
     display: none;
   }
 
-  .ai-provider-summary {
-    grid-template-columns: auto minmax(0, 1fr) auto;
-  }
-
-  .ai-provider-summary .ai-configure-button {
-    grid-column: auto;
-    justify-self: end;
-  }
-
   .ai-choice-card,
   .execution-run-preview,
   .execution-status-row {
@@ -384,10 +358,6 @@
 
 @media (max-width: 360px) {
   .session-workspace-tabs button span {
-    display: none;
-  }
-
-  .ai-configure-button > span {
     display: none;
   }
 }

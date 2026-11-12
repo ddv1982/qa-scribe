@@ -1,8 +1,8 @@
-import { useId, useLayoutEffect, useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import type { SessionChatViewState } from '../app/sessionChat.types'
 import { chatIsBusy } from '../app/sessionChat.presentation'
 import { ActionButton } from '../components/ActionButton'
-import { useModalDialog } from '../hooks/useModalDialog'
+import { Dialog } from '../components/Dialog'
 
 export type ChatRestartState = Pick<SessionChatViewState,
   'chat' | 'composer' | 'job' | 'loading' | 'saving' | 'working' | 'recoveryPending'
@@ -48,18 +48,12 @@ export function StartNewConversation({ state }: { state: ChatRestartState }) {
 function RestartDialog({ submitted, onCancel, onConfirm }: {
   submitted: boolean; onCancel: () => void; onConfirm: () => void
 }) {
-  const id = useId()
-  const ref = useModalDialog(onCancel)
-  return <dialog ref={ref} className="confirmation-dialog" aria-labelledby={`${id}-title`} aria-describedby={`${id}-description`}>
-    <div>
-      <h2 id={`${id}-title`}>Start a new conversation?</h2>
-      <p id={`${id}-description`}>{submitted
-        ? 'Submitted history remains saved. Any unsent message will be discarded.'
-        : 'This replaces the current conversation and discards any unsent message. Submit completed messages to the Session Note first if you want to keep them.'}</p>
-    </div>
-    <footer className="confirmation-actions">
+  return <Dialog title="Start a new conversation?" onCancel={onCancel}
+    description={<p>{submitted
+      ? 'Submitted history remains saved. Any unsent message will be discarded.'
+      : 'This replaces the current conversation and discards any unsent message. Submit completed messages to the Session Note first if you want to keep them.'}</p>}
+    actions={<>
       <ActionButton variant="secondary" onClick={onCancel}>Cancel</ActionButton>
       <ActionButton variant="primary" onClick={onConfirm}>Start new conversation</ActionButton>
-    </footer>
-  </dialog>
+    </>} />
 }

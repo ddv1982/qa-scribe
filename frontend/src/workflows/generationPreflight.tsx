@@ -1,7 +1,8 @@
 import { ActionButton } from '../components/ActionButton'
+import { Dialog } from '../components/Dialog'
+import { Field } from '../components/Field'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { GenerateAiActionKind, ProviderDefaultOrigin, TestwareDepth, TestwareGenerationPreferences, TestwareOutputFormat } from '../tauri'
-import { useModalDialog } from '../hooks/useModalDialog'
 import {
   defaultTestwareGenerationPreferences,
   testwareDepthOptions,
@@ -67,7 +68,7 @@ export function GenerationPreflight({
   const isTestware = action === 'testware'
   const updateTestwarePreferences = (patch: Partial<TestwareGenerationPreferences>) =>
     setTestwarePreferences((previous) => ({ ...previous, ...patch }))
-  const dialogRef = useModalDialog(onCancel)
+  const bodyRef = useRef<HTMLDivElement>(null)
   const executionDetailsRef = useRef<HTMLDetailsElement>(null)
   useEffect(() => {
     if (executionDetailsRef.current && (selectionWarning || !activeProviderAvailable || modelSelectionPending)) {
@@ -75,18 +76,33 @@ export function GenerationPreflight({
     }
   }, [selectionWarning, activeProviderAvailable, modelSelectionPending])
   useEffect(() => {
-    const dialog = dialogRef.current
-    if (!dialog) return
-    dialog.querySelector<HTMLElement>('#generation-preflight-title')?.focus({ preventScroll: true })
-    const body = dialog.querySelector<HTMLElement>('.preflight-body')
-    if (body) body.scrollTop = 0
-  }, [dialogRef])
+    if (bodyRef.current) bodyRef.current.scrollTop = 0
+  }, [])
 
   return (
-    <dialog
-      ref={dialogRef}
-      className={isTestware ? 'confirmation-dialog generation-preflight testware-preflight' : 'confirmation-dialog generation-preflight'}
-      aria-labelledby="generation-preflight-title"
+    <Dialog
+      className={isTestware ? 'generation-preflight testware-preflight' : 'generation-preflight'}
+      headerClassName="preflight-header"
+      titleId="generation-preflight-title"
+      eyebrow="Generation preflight"
+      title={copy.title}
+      description={<p>{disclosure ?? copy.body}</p>}
+      initialFocus="title"
+      onCancel={onCancel}
+      actions={<>
+        {onConfigureAi ? <ActionButton variant="quiet" type="button" disabled={isBusy} onClick={onConfigureAi}>Configure AI execution…</ActionButton> : null}
+        <ActionButton variant="secondary" type="button" disabled={isBusy} onClick={onCancel}>
+          Cancel
+        </ActionButton>
+        <ActionButton
+          variant="primary"
+          type="button"
+          disabled={isBusy || modelSelectionPending || !activeProviderAvailable || Boolean(selectionWarning)}
+          onClick={() => onConfirm(isTestware ? testwarePreferences : undefined)}
+        >
+          {confirmLabel ?? copy.confirmLabel}
+        </ActionButton>
+      </>}
       onKeyDown={(event) => {
         if (event.key !== 'Tab' || event.defaultPrevented) return
         const focusable = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('summary, button, input, select, textarea, a[href], [tabindex]'))
@@ -106,12 +122,7 @@ export function GenerationPreflight({
         }
       }}
     >
-      <div className="preflight-header">
-        <p className="eyebrow">Generation preflight</p>
-        <h2 id="generation-preflight-title" tabIndex={-1}>{copy.title}</h2>
-        <p>{disclosure ?? copy.body}</p>
-      </div>
-      <div className="preflight-body">
+      <div className="preflight-body" ref={bodyRef}>
         {sourceReview}
         {selectionWarning ? <p className="inline-message blocking" role="alert">{selectionWarning}</p> : null}
         {selectionAdvisories.map((advisory) => <p className="inline-message advisory" role="status" key={advisory}>{advisory}</p>)}
@@ -160,8 +171,7 @@ export function GenerationPreflight({
         {isTestware ? (
           <div className="preflight-testware-options">
             <div className="preflight-control-grid">
-              <label className="preflight-select-field">
-                <span>Output</span>
+              <Field label="Output">
                 <select disabled={isBusy}
                   value={testwarePreferences.outputFormat}
                   onChange={(event) => updateTestwarePreferences({ outputFormat: event.target.value as TestwareOutputFormat })}
@@ -172,9 +182,8 @@ export function GenerationPreflight({
                     </option>
                   ))}
                 </select>
-              </label>
-              <label className="preflight-select-field">
-                <span>Depth</span>
+              </Field>
+              <Field label="Depth">
                 <select disabled={isBusy}
                   value={testwarePreferences.depth}
                   onChange={(event) => updateTestwarePreferences({ depth: event.target.value as TestwareDepth })}
@@ -185,7 +194,7 @@ export function GenerationPreflight({
                     </option>
                   ))}
                 </select>
-              </label>
+              </Field>
             </div>
 
             <fieldset className="preflight-fieldset">
@@ -246,32 +255,17 @@ export function GenerationPreflight({
               </div>
             </fieldset>
 
-            <label className="preflight-textarea-field">
-              <span>Additional guidance</span>
-              <textarea disabled={isBusy}
+            <Field label="Additional guidance">
+              <textarea className="preflight-guidance" disabled={isBusy}
                 value={testwarePreferences.customInstructions ?? ''}
                 placeholder="Optional constraints, priorities, or areas to emphasize."
                 onChange={(event) => updateTestwarePreferences({ customInstructions: event.target.value || null })}
               />
-            </label>
+            </Field>
           </div>
         ) : null}
       </div>
-      <div className="confirmation-actions">
-        {onConfigureAi ? <ActionButton variant="quiet" type="button" disabled={isBusy} onClick={onConfigureAi}>Configure AI execution…</ActionButton> : null}
-        <ActionButton variant="secondary" type="button" disabled={isBusy} onClick={onCancel}>
-          Cancel
-        </ActionButton>
-        <ActionButton
-          variant="primary"
-          type="button"
-          disabled={isBusy || modelSelectionPending || !activeProviderAvailable || Boolean(selectionWarning)}
-          onClick={() => onConfirm(isTestware ? testwarePreferences : undefined)}
-        >
-          {confirmLabel ?? copy.confirmLabel}
-        </ActionButton>
-      </div>
-    </dialog>
+    </Dialog>
   )
 }
 

@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { useRef, useState, type KeyboardEvent } from 'react'
 import { Search } from 'lucide-react'
 import { ActionButton } from '../components/ActionButton'
+import { Dialog } from '../components/Dialog'
 import { useModalDialog } from '../hooks/useModalDialog'
 import type { AppCommand } from './commandRegistry'
 
@@ -24,21 +25,22 @@ export function PendingChangesDialog({
   onSave: () => void
 }) {
   const cancelRef = useRef<HTMLButtonElement>(null)
-  const dialogRef = useModalDialog(onCancel)
-  useEffect(() => { cancelRef.current?.focus() }, [])
   const title = generationPending ? 'Generation is still running' : recoveredSummaryConflict ? 'Choose which Note to keep' : 'Save before leaving?'
   const body = generationPending ? 'Keep waiting, or cancel generation before settling this unsaved draft. A result that already committed stays saved.' : recoveredSummaryConflict
     ? 'A recovered Summary replaced locally authored text. Restore the authored text, keep the visible generated Summary and its edits, or stay here. Keeping the Summary also discards any other unsaved changes.'
     : creationDraft ? 'This draft is not saved yet. Save it, discard it, or keep editing.' : 'Explicit edits to Settings, Testware, or Findings have not been saved. Save them, discard them, or stay here.'
   return (
-    <dialog ref={dialogRef} className="confirmation-dialog" aria-labelledby="pending-changes-title">
-      <div>
-        <p className="eyebrow">{recoveredSummaryConflict ? 'Recovered Summary conflict' : 'Unsaved changes'}</p>
-        <h2 id="pending-changes-title">{title}</h2>
+    <Dialog
+      titleId="pending-changes-title"
+      eyebrow={recoveredSummaryConflict ? 'Recovered Summary conflict' : 'Unsaved changes'}
+      title={title}
+      description={<>
         <p>{body}</p>
         {errorMessage ? <p className="inline-message blocking" role="alert">{errorMessage}</p> : null}
-      </div>
-      <div className="confirmation-actions pending-change-actions">
+      </>}
+      initialFocus={cancelRef}
+      onCancel={onCancel}
+      actions={<>
         {generationPending ? <>
           <ActionButton ref={cancelRef} disabled={isBusy} onClick={onCancel}>Keep waiting</ActionButton>
           <ActionButton variant="primary" disabled={isBusy} onClick={onCancelGeneration}>Cancel generation</ActionButton>
@@ -54,8 +56,8 @@ export function PendingChangesDialog({
           </>
         )}
         {!generationPending ? <ActionButton variant="primary" disabled={isBusy} onClick={onSave}>{recoveredSummaryConflict ? 'Restore authored text' : creationDraft ? 'Save draft' : 'Save and continue'}</ActionButton> : null}
-      </div>
-    </dialog>
+      </>}
+    />
   )
 }
 
@@ -188,19 +190,18 @@ export function DeleteConfirmationDialog({
   onConfirm: () => void
 }) {
   const cancelRef = useRef<HTMLButtonElement>(null)
-  const dialogRef = useModalDialog(onCancel)
-  useEffect(() => { cancelRef.current?.focus() }, [])
   return (
-    <dialog ref={dialogRef} className="confirmation-dialog" aria-labelledby="delete-dialog-title">
-      <div>
-        <p className="eyebrow">Confirm delete</p>
-        <h2 id="delete-dialog-title">{copy.title}</h2>
-        <p>{copy.body}</p>
-      </div>
-      <div className="confirmation-actions">
+    <Dialog
+      titleId="delete-dialog-title"
+      eyebrow="Confirm delete"
+      title={copy.title}
+      description={<p>{copy.body}</p>}
+      initialFocus={cancelRef}
+      onCancel={onCancel}
+      actions={<>
         <ActionButton ref={cancelRef} disabled={isBusy} onClick={onCancel}>Cancel</ActionButton>
         <ActionButton variant="destructive-confirmation" disabled={isBusy} onClick={onConfirm}>{copy.confirmLabel}</ActionButton>
-      </div>
-    </dialog>
+      </>}
+    />
   )
 }
