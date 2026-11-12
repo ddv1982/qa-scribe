@@ -2,14 +2,15 @@ import { createPortal } from 'react-dom'
 import { customModelCatalogAdvisory } from '../settings/modelAdvisories'
 import { CreationComposer } from './CreationComposer'
 import { FindingFields } from './FindingsView'
-import { useRef, useState } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { FileText, Sparkles } from 'lucide-react'
 import { ActionButton } from '../components/ActionButton'
+import { Dialog } from '../components/Dialog'
+import { Field } from '../components/Field'
 import { ModelCombobox } from '../components/ModelSelector'
 import { RichTextEditor } from '../editor/RichTextEditor'
 import { richEditorDocumentFromHtml } from '../editor/editorDocument'
 import { stripHtml } from '../editor/editorHtml'
-import { useModalDialog } from '../hooks/useModalDialog'
 import { effectiveSelection, executionReasoningOverride, reasoningEffortsFor } from '../settings/defaults'
 import { catalogSelectorEnabled } from '../settings/catalog'
 import { GenerationPreflight } from '../workflows/generationPreflight'
@@ -89,12 +90,12 @@ export function CreationTools({ intent, c }: { intent: CreationIntent; c: AppCon
       selectionAdvisories={[...execution.advisories.map((warning) => warning.message), ...(customAdvisory ? [customAdvisory] : [])]}
       modelSelectionControl={<>
         <p>These choices apply only to this generation. Settings defaults stay as saved.</p>
-        <label className="field-stack"><span>Provider</span><select disabled={confirming} value={selection.provider} onChange={(event) => setSelection({ provider: event.target.value as AiProvider, model: 'default', reasoning: null })}>{c.providerStatus?.providers.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
+        <Field label="Provider"><select disabled={confirming} value={selection.provider} onChange={(event) => setSelection({ provider: event.target.value as AiProvider, model: 'default', reasoning: null })}>{c.providerStatus?.providers.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></Field>
         <ModelCombobox disabled={confirming} models={provider?.models ?? []} value={selection.model} onChange={(model) => setSelection({ ...selection, model })}
           providerLabel={provider?.label} catalogChecked={catalogSelectorEnabled(provider, c.providerStatus?.catalogRollout ?? null)} />
-        <label className="field-stack"><span>Reasoning</span><select disabled={confirming} value={selection.reasoning ?? ''} onChange={(event) => setSelection({ ...selection, reasoning: event.target.value || null })}>
+        <Field label="Reasoning"><select disabled={confirming} value={selection.reasoning ?? ''} onChange={(event) => setSelection({ ...selection, reasoning: event.target.value || null })}>
           <option value="">CLI default</option><option value="model-recommended">Model recommendation</option>{reasoningEffortsFor(provider).map((effort) => <option key={effort} value={effort}>{effort}</option>)}
-        </select></label>
+        </select></Field>
       </>}
       onConfigureAi={() => { setMode(null); c.openSettingsSection('ai-execution-settings') }} onCancel={cancelAiSetup}
       onConfirm={(preferences) => {
@@ -108,15 +109,13 @@ export function CreationTools({ intent, c }: { intent: CreationIntent; c: AppCon
 }
 
 function PrefillReview({ source, authored, finding, busy, onCancel, onConfirm }: {
-  source: import('react').ReactNode; authored: boolean; finding: boolean; busy: boolean; onCancel: () => void; onConfirm: () => void
+  source: ReactNode; authored: boolean; finding: boolean; busy: boolean; onCancel: () => void; onConfirm: () => void
 }) {
-  const dialogRef = useModalDialog(onCancel)
-  return createPortal(<dialog ref={dialogRef} className="confirmation-dialog generation-preflight" aria-labelledby="prefill-title">
-    <div className="preflight-header"><h2 id="prefill-title">Use this Note content?</h2>
-      <p>Prefill uses plain text without formatting or screenshots.{finding ? ' Only the first 4,000 characters are included.' : ''}{authored ? ' This replaces the text in this unsaved draft.' : ''}</p></div>
+  return <Dialog portal className="generation-preflight" headerClassName="preflight-header" titleId="prefill-title" title="Use this Note content?" onCancel={onCancel}
+    description={<p>Prefill uses plain text without formatting or screenshots.{finding ? ' Only the first 4,000 characters are included.' : ''}{authored ? ' This replaces the text in this unsaved draft.' : ''}</p>}
+    actions={<><ActionButton disabled={busy} onClick={onCancel}>Keep editing</ActionButton><ActionButton variant="primary" loading={busy} onClick={onConfirm}>{authored ? 'Prefill and replace draft' : 'Prefill draft'}</ActionButton></>}>
     <div className="preflight-body">{source}</div>
-    <div className="confirmation-actions"><ActionButton disabled={busy} onClick={onCancel}>Keep editing</ActionButton><ActionButton variant="primary" loading={busy} onClick={onConfirm}>{authored ? 'Prefill and replace draft' : 'Prefill draft'}</ActionButton></div>
-  </dialog>, document.body)
+  </Dialog>
 }
 
 export function CreationWorkspace({ c }: { c: AppController }) {

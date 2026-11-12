@@ -91,25 +91,6 @@
   .action-button { min-width: 44px; min-height: 44px; }
 }
 
-.segmented-option {
-  min-height: var(--control-md);
-  padding: 0 var(--space-3);
-  color: var(--text-secondary);
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-}
-.segmented-option:hover { background: var(--surface-sunken); }
-.segmented-option[aria-pressed="true"] {
-  color: var(--accent);
-  background: var(--accent-tint);
-  border-color: var(--accent-border);
-}
-@media (pointer: coarse) {
-  .segmented-option { min-height: 44px; min-width: 44px; }
-}
-
 .attachment-cleanup-warning {
   display: flex;
   align-items: center;
@@ -157,19 +138,37 @@
   line-height: var(--leading-normal);
 }
 
-.field-stack {
+/* Field (components/Field.tsx): one look wherever it sits. It follows the `.editable-record`
+   rules so its box wins inside a record editor. Focus comes from the global text-field rule. */
+.field {
   display: grid;
   gap: var(--space-1);
+  min-width: 0;
 }
 
-.field-stack span {
+.field-label {
   color: var(--text-secondary);
   font-size: var(--font-size-sm);
   font-weight: 500;
 }
 
-.field-stack textarea {
-  min-height: 84px;
+.field :is(input, select, textarea) {
+  width: 100%;
+  color: var(--text-primary);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+}
+
+.field :is(input, select) {
+  height: var(--control-lg);
+  padding: 0 var(--space-3);
+}
+
+.field textarea {
+  padding: var(--space-3);
+  resize: vertical;
+  line-height: var(--leading-normal);
 }
 
 

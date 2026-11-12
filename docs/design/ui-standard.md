@@ -49,9 +49,9 @@ are the next ones to extract; until then, copy the named pattern exactly.
 | Any action | `ActionButton` in `components/ActionButton.tsx`. Variants: `primary`, `secondary`, `quiet`, `destructive-quiet`, `destructive-confirmation`. One `primary` per screen. | Shared |
 | Empty, loading or failed list | `StatePanel` and `EmptyCollection` in `components/Common.tsx` | Shared |
 | Save state line | `StatusPill` in `components/Common.tsx` | Shared |
-| Modal dialog | Native `<dialog>` with `useModalDialog` and the `confirmation-dialog` class: title, one paragraph, actions on the right, the safe action focused first | Pattern, to extract as `Dialog` |
-| Labelled field | A `<label class="field-stack">` with a `span` label and the control. Hint text uses `field-description`; error text uses `field-error` with `aria-invalid` and `aria-describedby` | Pattern, to extract as `Field` |
-| Select | Native `<select>`. The shared chevron is applied globally | Pattern, to extract with `Field` |
+| Modal dialog | `Dialog` in `components/Dialog.tsx`: native `<dialog>` with `useModalDialog`, title, description, actions on the right. Pass `initialFocus` to focus the safe action first | Shared |
+| Labelled field | `Field` in `components/Field.tsx`: a label above the control, with optional `hint` and `error` linked by `aria-describedby` | Shared |
+| Select | Native `<select>` inside a `Field`. The shared chevron is applied globally | Shared |
 | Tabs | `role="tablist"` with `role="tab"` buttons and `aria-selected` | Pattern, to extract as `Tabs` |
 | Small status label | The `testware-metadata-badges` pill | Pattern, to extract as `Badge` |
 

@@ -154,7 +154,7 @@ describe('Unified creation composer in the built native application', () => {
     })
     assert.ok(heading.height <= heading.lineHeight + 1, 'Creation title must remain on one line beside screenshot-copy controls')
     await openCreationAi('testware')
-    assert.equal(await $('dialog .preflight-select-field select').getValue(), 'gherkin')
+    assert.equal(await $('//dialog//label[span="Output"]/select').getValue(), 'gherkin')
     await click('dialog button=Cancel')
     assert.equal(await $(draftBody).getHTML(false), authored)
     await choose('[aria-label="Test case output format"]', 'checklist')

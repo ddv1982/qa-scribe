@@ -111,11 +111,9 @@
 .ask-ai-panel .chat-compose-actions > .chat-help { font-size: var(--font-size-xs); }
 .ask-ai-panel .chat-compose-actions > .chat-buttons { width: auto; margin-left: auto; }
 .chat-empty-state { padding-block: var(--space-4); }
-.chat-details { margin-block: var(--space-2); color: var(--text-secondary); font-size: var(--font-size-sm); }
-.chat-details summary, .model-details summary { cursor: pointer; }
+.model-details summary { cursor: pointer; }
 @container session-workspace (max-height: 680px) {
   .ask-ai-panel .chat-composer { gap: var(--space-1); padding-top: var(--space-1); }
-  .ask-ai-panel .chat-compose-hint { display: none; }
 }
 
 /* Transcript (R6): your messages are tinted bubbles on the right, answers sit plain on the left. */

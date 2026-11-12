@@ -155,7 +155,7 @@
 
 @media (max-width: 600px) {
   .session-chat { padding: var(--space-4) var(--space-3); }
-  .chat-topline, .chat-compose-actions, .chat-handoff { align-items: stretch; flex-direction: column; }
+  .chat-compose-actions, .chat-handoff { align-items: stretch; flex-direction: column; }
   .chat-transcript { padding: var(--space-3); }
   .chat-handoff > button { align-self: flex-start; max-width: 100%; }
 }
