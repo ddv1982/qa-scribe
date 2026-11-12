@@ -84,7 +84,6 @@ const PAIRS = [
   ['accent', 'surface-panel', 4.5],
   ['accent', 'surface-sunken', 4.5],
   ['accent', 'surface-base', 3.0], // focus ring vs page background
-  ['accent-alt', 'surface-raised', 4.5],
   ['success', 'surface-raised', 4.5],
   ['warning', 'surface-raised', 4.5],
   ['danger', 'surface-raised', 4.5],

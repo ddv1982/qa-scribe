@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict'
 import { join } from 'node:path'
 
-// Ink on paper in light, paper on ink in dark: the enabled primary action follows the theme.
+// The enabled primary action is the teal accent in both themes.
 const primaryPaint = {
-  light: { background: 'rgb(26, 32, 29)', text: 'rgb(252, 252, 249)' },
-  dark: { background: 'rgb(233, 237, 233)', text: 'rgb(20, 23, 21)' },
+  light: { background: 'rgb(15, 110, 92)', text: 'rgb(255, 255, 255)' },
+  dark: { background: 'rgb(95, 208, 180)', text: 'rgb(17, 20, 18)' },
 }
 
 export async function pendingComposerSave(theme, sessionId, artifacts, save) {

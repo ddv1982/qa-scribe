@@ -33,8 +33,8 @@
   color: var(--text-primary);
 }
 
-.brand-mark-square { fill: var(--action-primary-fill); }
-.brand-mark-ring { stroke: var(--action-primary-text); }
+.brand-mark-square { fill: var(--brand-ink); }
+.brand-mark-ring { stroke: var(--brand-paper); }
 .brand-mark-tail { fill: var(--brand-highlight); }
 
 .brand-cluster strong {

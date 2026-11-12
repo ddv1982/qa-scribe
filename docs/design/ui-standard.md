@@ -1,0 +1,64 @@
+# UI standard
+
+Use this page to plan a new screen or change an existing one. The decision
+behind it is [ADR 0011](../adr/0011-one-accent-and-shared-components.md).
+
+## Rules
+
+1. **The Note stays the whole screen.** A new feature lives in one quiet row or
+   behind an existing tab. Do not add panels or navigation items for it.
+2. **Empty means invisible.** A feature with nothing in it shows nothing.
+3. **One component per job.** Compose the shared components below. A screen
+   stylesheet lays things out. It does not style a control.
+4. **Colour carries meaning only.** Teal is the accent. Green, amber and red
+   mean a result or a severity. Yellow is the highlighter that marks where you
+   are.
+5. **Tokens only.** Every colour, space, radius, size and duration comes from
+   `frontend/src/styles/base.css`. `bun run --cwd frontend check` enforces the
+   colours and their contrast.
+
+## Tokens
+
+| Need | Token |
+|---|---|
+| Page, panel, sheet, well, overlay | `--surface-base`, `--surface-panel`, `--surface-raised`, `--surface-sunken`, `--surface-overlay` |
+| Text | `--text-primary`, `--text-secondary`, `--text-tertiary` |
+| Borders | `--border-subtle`, `--border-default`, `--border-strong` |
+| Accent | `--accent`, `--accent-tint`, `--accent-border`, `--on-accent` |
+| Result and severity | `--success`, `--warning`, `--danger` and their `-tint` forms |
+| Space, on a 4px grid | `--space-1` to `--space-8` |
+| Control heights | `--control-sm` 28px, `--control-md` 32px, `--control-lg` 36px |
+| Corners | `--radius-sm`, `--radius-md`, `--radius-lg`, `--radius-full` |
+| Type | `--font-size-xs` to `--font-size-3xl`; `--font-display` for titles |
+
+## Focus
+
+- A button, link, tab or checkbox shows a 2px teal ring, and only after
+  keyboard use.
+- A text field, select or search box turns its own border teal. It has no
+  outline and no glow. An invalid field keeps its red border.
+- The Note and the Session title show no box. The caret is their focus sign.
+
+## Components
+
+A component is listed as **shared** when screens already import it. The others
+are the next ones to extract; until then, copy the named pattern exactly.
+
+| Job | Component | State |
+|---|---|---|
+| Any action | `ActionButton` in `components/ActionButton.tsx`. Variants: `primary`, `secondary`, `quiet`, `destructive-quiet`, `destructive-confirmation`. One `primary` per screen. | Shared |
+| Empty, loading or failed list | `StatePanel` and `EmptyCollection` in `components/Common.tsx` | Shared |
+| Save state line | `StatusPill` in `components/Common.tsx` | Shared |
+| Modal dialog | Native `<dialog>` with `useModalDialog` and the `confirmation-dialog` class: title, one paragraph, actions on the right, the safe action focused first | Pattern, to extract as `Dialog` |
+| Labelled field | A `<label class="field-stack">` with a `span` label and the control. Hint text uses `field-description`; error text uses `field-error` with `aria-invalid` and `aria-describedby` | Pattern, to extract as `Field` |
+| Select | Native `<select>`. The shared chevron is applied globally | Pattern, to extract with `Field` |
+| Tabs | `role="tablist"` with `role="tab"` buttons and `aria-selected` | Pattern, to extract as `Tabs` |
+| Small status label | The `testware-metadata-badges` pill | Pattern, to extract as `Badge` |
+
+## Adding a screen
+
+1. Sketch it with the components above. If one is missing, extract it first, in
+   its own pull request, together with the screens that already need it.
+2. Give the screen one layout class. Use `gap` on flex or grid, not margins.
+3. Find elements in tests by role and label, not by class name.
+4. Check both themes in the running app before you open the pull request.
