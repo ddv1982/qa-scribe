@@ -4,15 +4,17 @@ import { Badge } from '../components/Badge'
 import { Dialog } from '../components/Dialog'
 import { Field } from '../components/Field'
 import type { Session } from '../tauri'
+import { ACCEPTANCE_CRITERIA_MAX_LENGTH, normalizeCriteria, parseCriteria } from '../testware/acceptanceCriteria'
 import { formatError } from '../ui/format'
 
 /** The Session fields the sheet edits. The charter is stored as Objective Notes. */
 export type SessionSheetPatch = Pick<Session,
-  'objectiveNotes' | 'relatedReference' | 'timeboxMinutes' | 'debriefNotes' | 'testingPercent' | 'bugPercent' | 'setupPercent'>
+  'objectiveNotes' | 'relatedReference' | 'acceptanceCriteria' | 'timeboxMinutes' | 'debriefNotes' | 'testingPercent' | 'bugPercent' | 'setupPercent'>
 
 type SheetValues = {
   charter: string
   reference: string
+  criteria: string
   timebox: string
   debrief: string
   testing: string
@@ -30,12 +32,16 @@ function hasDebrief(session: Session): boolean {
 }
 
 function hasSessionSheet(session: Session): boolean {
-  return Boolean(session.objectiveNotes || session.relatedReference)
+  return Boolean(session.objectiveNotes || session.relatedReference || session.acceptanceCriteria)
     || typeof session.timeboxMinutes === 'number' || hasDebrief(session)
 }
 
 /** Turns the form into a patch, or explains the first problem. Blank fields clear. */
 function sheetPatch(values: SheetValues): { patch: SessionSheetPatch } | { error: string } {
+  const acceptanceCriteria = normalizeCriteria(values.criteria)
+  if ([...acceptanceCriteria].length > ACCEPTANCE_CRITERIA_MAX_LENGTH) {
+    return { error: `Acceptance criteria must be at most ${ACCEPTANCE_CRITERIA_MAX_LENGTH} characters.` }
+  }
   let timeboxMinutes: number | null = null
   if (values.timebox.trim()) {
     timeboxMinutes = wholeNumber(values.timebox)
@@ -61,6 +67,7 @@ function sheetPatch(values: SheetValues): { patch: SessionSheetPatch } | { error
     patch: {
       objectiveNotes: cleared(values.charter),
       relatedReference: cleared(values.reference),
+      acceptanceCriteria: acceptanceCriteria || null,
       timeboxMinutes,
       debriefNotes: cleared(values.debrief),
       testingPercent,
@@ -80,6 +87,7 @@ export function SessionSheetDialog({ session, onSave, onCancel }: {
   const [values, setValues] = useState<SheetValues>(() => ({
     charter: text(session.objectiveNotes),
     reference: text(session.relatedReference),
+    criteria: text(session.acceptanceCriteria),
     timebox: number(session.timeboxMinutes),
     debrief: text(session.debriefNotes),
     testing: number(session.testingPercent),
@@ -135,6 +143,9 @@ export function SessionSheetDialog({ session, onSave, onCancel }: {
         <Field label="Ticket or reference">
           <input type="text" placeholder="Issue ID or URL" {...bind('reference')} />
         </Field>
+        <Field label="Acceptance criteria" hint="One per line. Lines without an id are numbered AC-1, AC-2, … when you save.">
+          <textarea aria-label="Acceptance criteria" rows={4} placeholder="AC-1 Empty street shows an error" {...bind('criteria')} />
+        </Field>
         <Field label="Timebox (minutes)">
           <input type="number" inputMode="numeric" min={1} max={1440} placeholder="45" {...bind('timebox')} />
         </Field>
@@ -161,11 +172,13 @@ export function SessionSheetDialog({ session, onSave, onCancel }: {
 /** One quiet row under the Session title. It renders nothing while the sheet is empty. */
 export function SessionSheetRow({ session, onOpen }: { session: Session; onOpen: () => void }) {
   if (!hasSessionSheet(session)) return null
+  const criteriaCount = parseCriteria(session.acceptanceCriteria).length
   return (
     <button type="button" className="session-sheet-row" aria-label="Edit Session sheet" onClick={onOpen}>
       {session.objectiveNotes ? <span className="session-sheet-charter">{session.objectiveNotes}</span> : null}
       {typeof session.timeboxMinutes === 'number' ? <Badge>{session.timeboxMinutes} min</Badge> : null}
       {session.relatedReference ? <Badge><span className="session-sheet-reference">{session.relatedReference}</span></Badge> : null}
+      {criteriaCount > 0 ? <Badge>{criteriaCount} {criteriaCount === 1 ? 'criterion' : 'criteria'}</Badge> : null}
       {hasDebrief(session) ? <Badge>Debriefed</Badge> : null}
     </button>
   )

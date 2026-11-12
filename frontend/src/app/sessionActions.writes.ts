@@ -384,6 +384,7 @@ export function createSessionWriteActions(ctx: SessionActionsContext) {
       ...session,
       objectiveNotes: saved.objectiveNotes,
       relatedReference: saved.relatedReference,
+      acceptanceCriteria: saved.acceptanceCriteria,
       timeboxMinutes: saved.timeboxMinutes,
       debriefNotes: saved.debriefNotes,
       testingPercent: saved.testingPercent,

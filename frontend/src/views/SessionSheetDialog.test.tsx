@@ -66,12 +66,41 @@ describe('SessionSheetDialog', () => {
     expect(onSave).toHaveBeenCalledWith({
       objectiveNotes: 'Explore refunds',
       relatedReference: null,
+      acceptanceCriteria: null,
       timeboxMinutes: 90,
       debriefNotes: null,
       testingPercent: null,
       bugPercent: null,
       setupPercent: null,
     })
+  })
+
+  it('numbers acceptance criteria without an id when it saves them', async () => {
+    const { onSave } = renderDialog()
+    const criteria = field('Acceptance criteria')
+    expect(criteria).toHaveAttribute('placeholder', 'AC-1 Empty street shows an error')
+    expect(criteria).toHaveAccessibleDescription('One per line. Lines without an id are numbered AC-1, AC-2, … when you save.')
+    type(criteria, '  Empty street shows an error\n\nAC-1: Postcode is validated\nSHOP-412 Country\nAC-1 Duplicate  ')
+    save()
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+      acceptanceCriteria: 'AC-2 Empty street shows an error\nAC-1 Postcode is validated\nSHOP-412 Country\nAC-3 Duplicate',
+    })))
+  })
+
+  it('clears acceptance criteria to null', async () => {
+    const { onSave } = renderDialog(sessionFixture({ acceptanceCriteria: 'AC-1 Empty street' }))
+    expect(field('Acceptance criteria')).toHaveValue('AC-1 Empty street')
+    type(field('Acceptance criteria'), ' \n ')
+    save()
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ acceptanceCriteria: null })))
+  })
+
+  it('keeps the dialog open when the acceptance criteria are too long', () => {
+    const { onSave } = renderDialog()
+    type(field('Acceptance criteria'), `AC-1 ${'x'.repeat(7996)}`)
+    save()
+    expect(screen.getByRole('alert')).toHaveTextContent('Acceptance criteria must be at most 8000 characters.')
+    expect(onSave).not.toHaveBeenCalled()
   })
 
   it('saves a full debrief split', async () => {
@@ -147,6 +176,14 @@ describe('Session sheet in the Session editor', () => {
     expect(row).toHaveTextContent('Debriefed')
     fireEvent.click(row)
     expect(onOpenSessionSheet).toHaveBeenCalledTimes(1)
+  })
+
+  it('counts acceptance criteria in the row, and criteria alone show it', () => {
+    renderNote(sessionFixture({ acceptanceCriteria: 'AC-1 Empty street\nAC-2 Postcode' }))
+    expect(screen.getByRole('button', { name: 'Edit Session sheet' })).toHaveTextContent('2 criteria')
+    cleanup()
+    renderNote(sessionFixture({ acceptanceCriteria: 'AC-1 Empty street' }))
+    expect(screen.getByRole('button', { name: 'Edit Session sheet' })).toHaveTextContent(/^1 criterion$/)
   })
 
   it('shows a row for a timebox alone, without a debrief badge', () => {

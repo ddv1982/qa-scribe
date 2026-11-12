@@ -102,6 +102,27 @@
   width: fit-content;
 }
 
+/* Coverage line (views/CoverageLine.tsx): acceptance criteria the saved test cases cite. */
+.coverage-line {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-secondary);
+  background: var(--surface-sunken);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  line-height: var(--leading-normal);
+  overflow-wrap: anywhere;
+}
+
+.coverage-line strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.coverage-line span[title] {
+  cursor: help;
+}
+
 .eyebrow {
   margin: 0;
   color: var(--text-secondary);

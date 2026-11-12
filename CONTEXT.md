@@ -41,7 +41,7 @@ Optional intent for a Session, describing what the tester is trying to learn, ve
 _Avoid_: Goal, Mission
 
 **Session sheet**:
-The optional plan and wrap-up of a Session: its Charter, a ticket or reference, a Timebox, and a Debrief. It is edited in one dialog, and an empty sheet shows nothing beyond its header button.
+The optional plan and wrap-up of a Session: its Charter, a ticket or reference, its Acceptance criteria, a Timebox, and a Debrief. It is edited in one dialog, and an empty sheet shows nothing beyond its header button.
 _Avoid_: Session form, Session metadata
 
 **Charter**:
@@ -55,6 +55,14 @@ _Avoid_: Deadline, Duration
 **Debrief**:
 The tester's wrap-up of a Session in the Session sheet: notes on what was covered, what is left, and what got in the way, plus an optional time split across testing, bug investigation and setup that adds up to 100.
 _Avoid_: Retrospective, Report
+
+**Acceptance criteria**:
+The optional test basis of a Session in the Session sheet: plain text, one criterion per line, each starting with an id such as `AC-1` or `SHOP-412`. Lines saved without an id are numbered `AC-1`, `AC-2`, and so on. A criterion id written in a test case is the link between the two; there is no other traceability record.
+_Avoid_: Requirements, User stories
+
+**Coverage line**:
+One quiet line above a Session's Test cases that counts the acceptance criteria its saved Test cases drafts name by id, and lists the ones none does yet. It appears only when the Session has acceptance criteria, and unsaved edits count only once they are saved.
+_Avoid_: Traceability matrix, Coverage report
 
 **Session Timeline**:
 The chronological stream of Entries captured during a Session.

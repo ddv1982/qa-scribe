@@ -70,6 +70,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
   filter,
   renderEditFields, onPrepareEdit,
   renderPreviewHeader,
+  renderSummary,
   updateLocalRecord,
   onCancelGenerationJob,
   onCopy,
@@ -109,6 +110,8 @@ export function RecordCollectionView<T extends CollectionRecord>({
     valueFor: (record: T) => string
   }
   renderPreviewHeader: (record: T) => ReactNode
+  /** A line above the records, given each record as last saved: an edit in progress shows its original. */
+  renderSummary?: (savedRecords: T[]) => ReactNode
   onPrepareEdit?: (record: T) => void
   renderEditFields?: (record: T) => ReactNode
   updateLocalRecord: (id: string, patch: CollectionRecordPatch) => void
@@ -153,6 +156,8 @@ export function RecordCollectionView<T extends CollectionRecord>({
   const selectedCopyBody = useMemo(() => composer || !selectedRecord ? '' : copyBody?.(selectedRecord) ?? selectedRecord.body, [composer, selectedRecord, copyBody])
   const selectedEditing = selectedRecord ? Boolean(editingRecordIds[selectedRecord.id]) : false
   const filtered = visibleRecords.length !== records.length
+  const savedRecords = useMemo(() => records.map((record) => editingRecordIds[record.id] ? editingOriginals[record.id] ?? record : record),
+    [editingOriginals, editingRecordIds, records])
 
   const selectedUnsaved = Boolean(selectedRecord && selectedEditing && editingOriginals[selectedRecord.id]
     && JSON.stringify(selectedRecord) !== JSON.stringify(editingOriginals[selectedRecord.id]))
@@ -273,6 +278,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
           {onRetryLoad ? <ActionButton variant="secondary" type="button" onClick={onRetryLoad}>Try again</ActionButton> : null}
         </div>
       ) : null}
+      {renderSummary?.(savedRecords)}
 
       <div className={visibleRecords.length ? 'collection-workspace' : 'collection-workspace collection-workspace--single-sidebar'}>
         {activeGenerationJob ? (
