@@ -376,9 +376,8 @@ export async function recordFocus(theme, input) {
     scannedRules: diagnostic.scannedRules, ruleScanTruncated: diagnostic.ruleScanTruncated,
     errorCount: diagnostic.errors.length, errors: diagnostic.errors.slice(0, 3), artifactError: diagnostic.artifactError })}`)
   assert.equal(focus.label, 'Note body')
-  assert.equal(focus.outline, 'solid')
-  assert.equal(focus.offset, '-2px')
-  assert.equal(focus.width, '2px')
+  // The Note reads as a page: the caret shows focus, with no box around it.
+  assert.equal(focus.outline, 'none')
   assert.equal(focus.focused, true)
   assert.equal(focus.editableRichText, true)
 }

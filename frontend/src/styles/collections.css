@@ -133,8 +133,7 @@
 }
 
 .collection-search:focus-within {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--focus-halo);
+  border-color: var(--field-focus-border);
 }
 
 .collection-search input {
@@ -164,6 +163,10 @@
 }
 
 /* WebKitGTK paints native select chrome for a transparent background, so give it the sheet colour. */
+.collection-sort:focus-within {
+  border-color: var(--field-focus-border);
+}
+
 .collection-sort select {
   color: var(--text-primary);
   background-color: var(--surface-raised);

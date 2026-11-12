@@ -175,14 +175,15 @@
 
 #note-summary-unavailable { margin: 0; text-align: center; }
 
-.rich-editor[contenteditable="true"]:focus {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: -2px;
+/* The Note and the Session title read as a page, so the caret is their only focus sign. A record
+   editor sits in a bordered field, which firms up its border like every other text field. */
+.session-title-input:focus,
+.rich-editor[contenteditable="true"]:focus-visible {
+  outline: none;
+  box-shadow: none;
 }
-.session-title-input:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
-  border-radius: var(--radius-sm);
+.rich-record-editor-field:not(.rich-record-preview-field):focus-within {
+  border-color: var(--field-focus-border);
 }
 .field-error { color: var(--danger); font-size: var(--font-size-sm); }
 @media (pointer: coarse) {

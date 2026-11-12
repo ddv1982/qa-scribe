@@ -91,8 +91,7 @@
 }
 
 .select-shell:focus-within {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--focus-halo);
+  border-color: var(--field-focus-border);
 }
 
 .session-picker-list,
@@ -248,8 +247,7 @@
 }
 
 .model-combobox-control:focus-within {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--focus-halo);
+  border-color: var(--field-focus-border);
 }
 
 .model-combobox-control input {
