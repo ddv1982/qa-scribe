@@ -266,7 +266,9 @@ textarea {
 /* Text fields show focus persistently (not only keyboard-driven). `:root` lifts this above
    component field styles such as `.editable-record select`, which reset the border. Checkboxes and
    radios keep the shared keyboard ring instead, and an invalid field keeps its error border. */
-:root :is(input:where(:not([type="checkbox"], [type="radio"])), textarea, select):focus:where(:not([aria-invalid="true"])) {
+:root :is(input:where(:not([type="checkbox"], [type="radio"])), textarea, select):focus {
   outline: none;
+}
+:root :is(input:where(:not([type="checkbox"], [type="radio"])), textarea, select):focus:where(:not([aria-invalid="true"])) {
   border-color: var(--field-focus-border);
 }
