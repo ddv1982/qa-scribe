@@ -108,3 +108,45 @@ fn testware_preferences_are_added_to_prompt_and_draft_metadata() {
     assert!(metadata.contains("\"outputFormat\":\"coverage_outline\""));
     assert!(metadata.contains("\"includeTestData\":false"));
 }
+
+#[test]
+fn added_techniques_render_their_guidance_and_persist_their_id() {
+    use crate::generation::preferences::{testware_metadata_json, testware_preferences_prompt};
+
+    for (technique, id, label, guidance) in [
+        (
+            TestwareTechnique::ClassificationTree,
+            "classification_tree",
+            "Technique: Classification tree",
+            "disjoint classes",
+        ),
+        (
+            TestwareTechnique::ErrorGuessing,
+            "error_guessing",
+            "Technique: Error guessing",
+            "Derive one check per suspected error",
+        ),
+        (
+            TestwareTechnique::ChecklistBased,
+            "checklist_based",
+            "Technique: Checklist-based",
+            "answered yes or no",
+        ),
+    ] {
+        let preferences = TestwareGenerationPreferences {
+            technique,
+            output_format: TestwareOutputFormat::QaCases,
+            depth: TestwareDepth::Balanced,
+            include_negative_cases: true,
+            include_boundary_cases: true,
+            include_test_data: true,
+            preserve_evidence: true,
+            custom_instructions: None,
+        };
+        let prompt = testware_preferences_prompt(Some(&preferences));
+        assert!(prompt.contains(label), "{id} label missing");
+        assert!(prompt.contains(guidance), "{id} guidance missing");
+        let metadata = testware_metadata_json(Some(&preferences)).expect("metadata");
+        assert!(metadata.contains(&format!("\"technique\":\"{id}\"")));
+    }
+}

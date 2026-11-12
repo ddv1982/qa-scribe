@@ -122,6 +122,22 @@ describe('GenerationPreflight behavior and modal accessibility', () => {
     })
   })
 
+  it('offers twelve test design techniques, including the added black-box and experience-based ones', () => {
+    const { onConfirm } = renderPreflight({ action: 'testware' })
+    const techniques = within(screen.getByRole('group', { name: 'Test design' })).getAllByRole('button')
+    expect(techniques).toHaveLength(12)
+    expect(techniques[0].textContent).toMatch(/^Auto/)
+    expect(techniques[11].textContent).toMatch(/^BDD/)
+
+    for (const name of [/^ClassesTest data/, /^ErrorsWeak spots/, /^ChecklistRegression/]) {
+      const technique = screen.getByRole('button', { name })
+      fireEvent.click(technique)
+      expect(technique.getAttribute('aria-pressed')).toBe('true')
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Generate test cases' }))
+    expect(onConfirm).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ technique: 'checklist_based' }))
+  })
+
   it('preserves every changed preference in the exact confirmation payload', () => {
     const { onConfirm } = renderPreflight({ action: 'testware' })
     const rules = screen.getByRole('button', { name: /^RulesBusiness rules/ })

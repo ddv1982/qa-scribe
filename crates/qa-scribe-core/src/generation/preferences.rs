@@ -15,6 +15,9 @@ pub enum TestwareTechnique {
     DecisionTable,
     StateTransition,
     Pairwise,
+    ClassificationTree,
+    ErrorGuessing,
+    ChecklistBased,
     RiskBased,
     Exploratory,
     Bdd,
@@ -60,6 +63,9 @@ impl TestwareTechnique {
             TestwareTechnique::DecisionTable => "Decision table",
             TestwareTechnique::StateTransition => "State transition",
             TestwareTechnique::Pairwise => "Pairwise coverage",
+            TestwareTechnique::ClassificationTree => "Classification tree",
+            TestwareTechnique::ErrorGuessing => "Error guessing",
+            TestwareTechnique::ChecklistBased => "Checklist-based",
             TestwareTechnique::RiskBased => "Risk-based",
             TestwareTechnique::Exploratory => "Exploratory charters",
             TestwareTechnique::Bdd => "BDD scenarios",
@@ -85,6 +91,15 @@ impl TestwareTechnique {
             }
             TestwareTechnique::Pairwise => {
                 "Extract parameters and values, then create a compact pairwise-style scenario set. If dimensions are missing, state assumptions and fall back to scenario coverage."
+            }
+            TestwareTechnique::ClassificationTree => {
+                "Identify the test-relevant aspects (classifications) and their disjoint classes, then combine classes across classifications into a compact set of cases. Show the classifications and classes first as headings and lists, not a diagram or literal HTML table. If the note does not give classes, state assumptions."
+            }
+            TestwareTechnique::ErrorGuessing => {
+                "List likely mistakes, defects, and failure modes suggested by the note and by common defect patterns for this kind of feature, such as empty, duplicate, out-of-order, interrupted, concurrent, stale, and malformed input. Derive one check per suspected error, keep every check traceable to something in the note, and mark guesses as assumptions."
+            }
+            TestwareTechnique::ChecklistBased => {
+                "Derive a reusable checklist of conditions to verify from the note, grouped by area. Phrase each item as a single verifiable condition that can be answered yes or no. Do not invent product rules that are not in the note."
             }
             TestwareTechnique::RiskBased => {
                 "Prioritize cases by likely product risk, impact, likelihood, and recent change complexity. Add concise risk notes per group."

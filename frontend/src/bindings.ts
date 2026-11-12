@@ -952,5 +952,5 @@ export type TestwareGenerationPreferences = {
 
 export type TestwareOutputFormat = "qa_cases" | "checklist" | "gherkin" | "charters" | "coverage_outline";
 
-export type TestwareTechnique = "auto" | "use_case" | "equivalence_boundary" | "decision_table" | "state_transition" | "pairwise" | "risk_based" | "exploratory" | "bdd";
+export type TestwareTechnique = "auto" | "use_case" | "equivalence_boundary" | "decision_table" | "state_transition" | "pairwise" | "classification_tree" | "error_guessing" | "checklist_based" | "risk_based" | "exploratory" | "bdd";
 
