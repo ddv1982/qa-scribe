@@ -4,6 +4,7 @@ import { primaryShortcutLabel } from './platformShortcuts'
 export type AppCommandId =
   | 'creation.save'
   | 'session.new'
+  | 'session.sheet'
   | 'testware.new'
   | 'finding.new'
   | 'testware.ai'
@@ -31,11 +32,12 @@ export type AppCommand = {
   run: () => void
 }
 
-export function createCommandRegistry(controller: AppController, openHelp: () => void): AppCommand[] {
+export function createCommandRegistry(controller: AppController, openHelp: () => void, openSessionSheet: () => void): AppCommand[] {
   const hasSession = Boolean(controller.activeSession)
   return [
     command('creation.save', 'Save draft', 'Save the active creation draft.', ['save'], 's', Boolean(controller.creationIntent?.title.trim()) && Object.keys(controller.creationIntent?.imageOperations ?? {}).length === 0 && ['editing', 'uncertain'].includes(controller.creationIntent?.phase.state ?? ''), () => void controller.creation.save()),
     command('session.new', 'New Session', 'Create a blank testing Session.', ['create', 'capture'], 'n', controller.canSwitchSession, () => void controller.handleNewSession()),
+    command('session.sheet', 'Session sheet', 'Set the charter, timebox and debrief for this Session.', ['charter', 'timebox', 'debrief', 'reference'], undefined, hasSession, openSessionSheet),
     command('testware.new', 'Create test cases', 'Create a test case in the active Session.', ['test cases', 'draft'], undefined, hasSession && !controller.isBusy, () => void controller.handleManualTestware()),
     command('finding.new', 'Create finding', 'Create a Finding in the active Session.', ['bug', 'risk', 'issue'], undefined, hasSession && !controller.isBusy, () => void controller.handleManualFinding()),
     command('testware.ai', 'Create test cases with AI', 'Review AI options before generating test cases from the Note.', ['generate', 'AI'], undefined, hasSession && !controller.isBusy && !controller.pendingAiActions.testware, () => void controller.openGenerationPreflight('testware')),

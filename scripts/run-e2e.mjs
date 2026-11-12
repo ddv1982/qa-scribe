@@ -98,7 +98,7 @@ export function createWdioInvocationPlan(environment, temporaryRoot, artifacts, 
   if (!requestedSpec && !requestedScenario) {
     // session-lifecycle already executes the complete Chat-to-Note workflow.
     // Keep its standalone spec selectable without replaying it in every gate.
-    for (const id of ['chat-images', ...['codex', 'claude', 'copilot'].map((provider) => `chat-tool-authorization-${provider}`), ...(['linux', 'darwin'].includes(platform) ? ['manual-formats', 'ui-polish', 'first-use'] : []), ...(platform === 'linux' ? ['native-close'] : [])]) {
+    for (const id of ['chat-images', ...['codex', 'claude', 'copilot'].map((provider) => `chat-tool-authorization-${provider}`), ...(['linux', 'darwin'].includes(platform) ? ['manual-formats', 'ui-polish', 'first-use', 'session-sheet'] : []), ...(platform === 'linux' ? ['native-close'] : [])]) {
       const provider = id.startsWith('chat-tool-authorization-') ? id.slice('chat-tool-authorization-'.length) : null
       plan.push({ id, environment: {
         QA_SCRIBE_E2E_SPEC: provider ? 'chat-tool-authorization.workflow.mjs' : id === 'manual-formats' ? 'creation-composer.e2e.mjs' : `${id}.e2e.mjs`,

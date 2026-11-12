@@ -317,19 +317,6 @@
   min-width: 0;
 }
 
-.testware-metadata-badges span {
-  display: inline-flex;
-  align-items: center;
-  min-height: 22px;
-  padding: 0 var(--space-2);
-  color: var(--text-secondary);
-  /* Translucent so badges stay readable on the highlighted list row in both themes. */
-  background: var(--surface-tint);
-  border-radius: var(--radius-full);
-  font-size: var(--font-size-sm);
-  white-space: nowrap;
-}
-
 .rich-record-editor-field {
   display: grid;
   min-height: 260px;

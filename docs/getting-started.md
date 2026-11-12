@@ -24,6 +24,8 @@ Use a test shop you have permission to test. Check what happens when you try to 
 6. Give the Finding a title. Describe the steps, expected behavior, actual behavior, and impact. A Finding can record a passed check as well as a bug.
 7. Choose **Save finding**. Check that your saved Finding appears in the Session's **Findings** tab.
 
+To work session-based, choose **Session sheet**, the clipboard button beside **Copy**, and state a **Charter**, a ticket or reference, and a **Timebox** in minutes. When you finish, add a **Debrief**: what you covered, what is left, and how your time split across testing, bug investigation and setup. Every field is optional. A filled sheet shows as one line under the Session title; select it to edit the sheet. **Summarize** reads the sheet, so a summary can report against the charter.
+
 For a reusable check, choose **Create test cases**, select **Output format**, fill in the starter sections, and choose **Save test cases**. Choose QA cases, Checklist, Gherkin, Charters, or Coverage outline. Empty sections are optional. Findings offer **Template** choices for Structured finding or Blank. If you change the format after writing, choose **Keep editing** to retain your body or **Apply format** to replace it. The title and finding details stay intact.
 
 Before leaving an authored draft, choose **Save draft**, **Discard draft**, or **Keep editing**. Cancelling an untouched draft saves no record. Notes autosave; save a new creation draft before quitting.

@@ -78,7 +78,7 @@ function mountSession(initialBody = doc('A original'), onUploadImage: ViewProps[
       isBusy={false} noteBody={body} noteIsReady noteScreenshotCount={0} sessionTitle={session.title}
       noteWordCount={2} notice={null} error={null} pendingAiActions={{}}
       onAiAction={async () => {}} onUndoLatestGeneration={async () => {}} onCopy={async () => {}}
-      onCreateSession={() => {}} canCreateSession onDeleteSession={() => {}} onOpenSession={async () => {}}
+      onCreateSession={() => {}} canCreateSession onDeleteSession={() => {}} onOpenSessionSheet={() => {}} onOpenSession={async () => {}}
       onSetNoteBody={onSetNoteBody} onSetSessionTitle={() => {}} onUploadImage={onUploadImage} {...presentation}
     />
     <ControllerProbe capture={(next) => { controller = next }} />

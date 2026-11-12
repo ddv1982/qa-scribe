@@ -53,7 +53,7 @@ are the next ones to extract; until then, copy the named pattern exactly.
 | Labelled field | `Field` in `components/Field.tsx`: a label above the control, with optional `hint` and `error` linked by `aria-describedby` | Shared |
 | Select | Native `<select>` inside a `Field`. The shared chevron is applied globally | Shared |
 | Tabs | `role="tablist"` with `role="tab"` buttons and `aria-selected` | Pattern, to extract as `Tabs` |
-| Small status label | The `testware-metadata-badges` pill | Pattern, to extract as `Badge` |
+| Small status label | `Badge` in `components/Badge.tsx`: a quiet pill for a short fact such as a format, a timebox or a state | Shared |
 
 ## Adding a screen
 

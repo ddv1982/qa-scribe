@@ -286,6 +286,7 @@ export function createSessionActions(ctx: SessionActionsContext) {
     saveBody: writes.saveBody,
     saveNoteNow: saving.saveNoteNow,
     savePendingSessionEdits: saving.savePendingSessionEdits,
+    saveSessionSheet: writes.saveSessionSheet,
     saveTitle: writes.saveTitle,
     sessionNavigationIsCurrent: writes.sessionNavigationIsCurrent,
     waitForPendingSessionWrites: writes.waitForPendingSessionWrites,

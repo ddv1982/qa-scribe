@@ -76,7 +76,7 @@ console.log('action callers: OK; navigation, options, segmented selections and e
 // R1 (docs/archive/design-consistency-plan.md): compact 32px buttons belong to the
 // Session header row only, plus the remove overlay on an image thumbnail.
 const compactAllowance = new Map([
-  ['views/SessionEditorView.tsx', 3],
+  ['views/SessionEditorView.tsx', 4],
   ['app/AppShell.tsx', 1],
   ['views/ChatImages.tsx', 1],
 ]);

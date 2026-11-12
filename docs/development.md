@@ -114,7 +114,7 @@ GDK_BACKEND=x11 xvfb-run -a bun run e2e
 ```
 
 On macOS, run `bun run e2e`. Both desktop defaults include first use, the
-read-only example, Help, ordinary creation, and Copy. Each default workflow has
+read-only example, Help, ordinary creation, Copy, and the Session sheet. Each default workflow has
 isolated app data and artifacts. The model evidence and selection restart pairs
 intentionally share only their own state on Linux. Select one maintained spec
 with `QA_SCRIBE_E2E_SPEC=first-use.e2e.mjs bun run e2e` when working on first use.

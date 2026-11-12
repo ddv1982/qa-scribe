@@ -6,6 +6,7 @@ import { customModelCatalogAdvisory } from '../settings/modelAdvisories'
 import { NextModelSelection } from '../components/NextModelSelection'
 import { FindingsView } from '../views/FindingsView'
 import { SessionEditorView } from '../views/SessionEditorView'
+import { SessionSheetDialog } from '../views/SessionSheetDialog'
 import { AppChat } from './AppChat'
 import { ChatAddedToNote } from '../views/ChatHandoff'
 import type { SessionChatViewState } from './useSessionChat'
@@ -35,9 +36,9 @@ export function AppShell(c: AppController) {
     catalogEnabled: catalogSelectorEnabled(c.activeProvider, c.providerStatus?.catalogRollout ?? null),
     onChange: (model: string) => { void c.persistModelChoice(c.selectedProvider, model) } }
   const modelSelectionControl = <NextModelSelection {...modelSelectionProps} />
-  const [overlay, setOverlay] = useState<'commands' | 'help' | 'example' | null>(null)
+  const [overlay, setOverlay] = useState<'commands' | 'help' | 'example' | 'session-sheet' | null>(null)
   const [noteActionsTarget, setNoteActionsTarget] = useState<HTMLDivElement | null>(null)
-  const commands = createCommandRegistry(c, () => setOverlay('help'))
+  const commands = createCommandRegistry(c, () => setOverlay('help'), () => setOverlay('session-sheet'))
   const commandById = (id: AppCommandId) => commands.find((command) => command.id === id)
   const runCommand = (id: AppCommandId) => commandById(id)?.run()
   const creationCommands = (kind: 'testware' | 'finding') => ({
@@ -145,6 +146,7 @@ export function AppShell(c: AppController) {
             onExploreExample={() => setOverlay('example')}
             canCreateSession={Boolean(commandById('session.new')?.available)}
             onDeleteSession={c.requestDeleteSession}
+            onOpenSessionSheet={() => runCommand('session.sheet')}
             onOpenSession={c.openSession}
             onSetNoteBody={c.setNoteBody}
             onSetSessionTitle={c.setSessionTitle}
@@ -288,6 +290,15 @@ export function AppShell(c: AppController) {
             openSession: (session) => void c.openSessionInCurrentView(session),
             openRecord: (sessionId, view, recordId) => void c.openLibraryRecord(sessionId, view, recordId) })} />
       ) : null}
+
+      {overlay === 'session-sheet' && c.activeSession ? (() => {
+        const sessionId = c.activeSession.id
+        return <SessionSheetDialog key={sessionId} session={c.activeSession} onCancel={() => setOverlay(null)}
+          onSave={async (patch) => {
+            await c.saveSessionSheet(sessionId, patch)
+            setOverlay(null)
+          }} />
+      })() : null}
 
       {overlay === 'help' || overlay === 'example' ? (
         <FirstUseDialog key={overlay} kind={overlay} onClose={() => setOverlay(null)}
