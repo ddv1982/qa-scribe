@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.8.40 - 2026-11-12
+
+- No more white box around the Note or the Session title when you click into them. The blinking cursor shows where you are typing.
+- Text fields, search boxes, dropdowns, the Ask AI box and the Finding and test case editors now show focus with a slightly darker border instead of a white border and glow.
+- A link field with an invalid address keeps its red border while you type in it.
+
 ## v0.8.39 - 2026-11-12
 
 - Clicking Help, or closing a dialog, with the mouse no longer leaves a white border around the Close or Help button. That border is the keyboard focus ring, and it now appears only when you use the keyboard.
