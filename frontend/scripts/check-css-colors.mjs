@@ -99,3 +99,32 @@ if (compactViolations.length > 0) {
 }
 console.log('control sizes: OK; compact buttons appear only in the Session header row');
 
+
+// docs/design/ui-standard.md: a screen composes the shared components. A raw <dialog> or a
+// retired field wrapper in a new screen is how screens drifted apart before.
+const rawDialogAllowed = new Set([
+  'components/Dialog.tsx', // the shared dialog itself
+  'app/AppOverlays.tsx', // the command palette: a search surface, not a confirmation
+  'views/ChatImages.tsx', // the image viewer
+  'onboarding/FirstUseDialog.tsx', // its header holds the Close button
+]);
+const retiredFieldClasses = /\b(?:field-stack|preflight-select-field|preflight-textarea-field)\b/;
+const standardViolations = [];
+function checkStandard(directory) {
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) checkStandard(path);
+    else if (entry.name.endsWith('.tsx') && !entry.name.includes('.test.')) {
+      const source = readFileSync(path, 'utf8');
+      const relative = path.slice(sourceDir.length + 1).replaceAll('\\', '/');
+      if (/<dialog\b/.test(source) && !rawDialogAllowed.has(relative)) standardViolations.push(`${relative}: use components/Dialog instead of a raw <dialog>`);
+      if (retiredFieldClasses.test(source)) standardViolations.push(`${relative}: use components/Field instead of a retired field wrapper class`);
+    }
+  }
+}
+checkStandard(sourceDir);
+if (standardViolations.length > 0) {
+  console.error(`Shared component standard (docs/design/ui-standard.md):\n${standardViolations.join('\n')}`);
+  process.exit(1);
+}
+console.log('shared components: OK; dialogs and labelled fields go through components/Dialog and components/Field');
