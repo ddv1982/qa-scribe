@@ -3,8 +3,8 @@ use rusqlite::{Connection, OptionalExtension, params};
 use crate::{
     QaScribeError, Result,
     domain::{
-        SESSION_BUILD_VERSION_MAX_LENGTH, SESSION_DEBRIEF_NOTES_MAX_LENGTH,
-        SESSION_ENVIRONMENT_MAX_LENGTH, SESSION_NOTES_MAX_LENGTH,
+        SESSION_ACCEPTANCE_CRITERIA_MAX_LENGTH, SESSION_BUILD_VERSION_MAX_LENGTH,
+        SESSION_DEBRIEF_NOTES_MAX_LENGTH, SESSION_ENVIRONMENT_MAX_LENGTH, SESSION_NOTES_MAX_LENGTH,
         SESSION_RELATED_REFERENCE_MAX_LENGTH, SESSION_TIMEBOX_MINUTES_RANGE, Session, SessionDraft,
         SessionNoteState, SessionPatch, TITLE_MAX_LENGTH, validate_optional_range,
         validate_optional_text, validate_required_text, validate_time_split,
@@ -174,6 +174,13 @@ impl SessionService {
                 patch.bug_percent.unwrap_or(previous.bug_percent),
                 patch.setup_percent.unwrap_or(previous.setup_percent),
             ))?;
+            let acceptance_criteria = validate_optional_text(
+                "Acceptance criteria",
+                patch
+                    .acceptance_criteria
+                    .unwrap_or(previous.acceptance_criteria),
+                SESSION_ACCEPTANCE_CRITERIA_MAX_LENGTH,
+            )?;
 
             tx.execute(
                 "UPDATE sessions SET
@@ -188,8 +195,9 @@ impl SessionService {
                     debrief_notes = ?9,
                     testing_percent = ?10,
                     bug_percent = ?11,
-                    setup_percent = ?12
-                 WHERE id = ?13",
+                    setup_percent = ?12,
+                    acceptance_criteria = ?13
+                 WHERE id = ?14",
                 params![
                     title,
                     session_context,
@@ -203,6 +211,7 @@ impl SessionService {
                     testing_percent,
                     bug_percent,
                     setup_percent,
+                    acceptance_criteria,
                     id
                 ],
             )?;

@@ -20,6 +20,9 @@ pub struct Session {
     pub testing_percent: Option<i64>,
     pub bug_percent: Option<i64>,
     pub setup_percent: Option<i64>,
+    /// Session sheet: the acceptance criteria under test, one per line, each
+    /// line starting with an id such as `AC-1`.
+    pub acceptance_criteria: Option<String>,
     pub created_at: String,
     pub updated_at: String,
     pub last_opened_at: String,
@@ -102,6 +105,9 @@ pub struct SessionPatch {
     #[specta(optional, type = Option<i64>)]
     #[serde(default, deserialize_with = "clearable")]
     pub setup_percent: Option<Option<i64>>,
+    #[specta(optional, type = Option<String>)]
+    #[serde(default, deserialize_with = "clearable")]
+    pub acceptance_criteria: Option<Option<String>>,
 }
 
 /// Deserializes a present field into `Some`, so an explicit JSON `null`
@@ -122,7 +128,7 @@ mod tests {
     #[test]
     fn patch_distinguishes_absent_null_and_value() {
         let patch: SessionPatch = serde_json::from_str(
-            r#"{"objectiveNotes":null,"timeboxMinutes":45,"debriefNotes":"Done"}"#,
+            r#"{"objectiveNotes":null,"timeboxMinutes":45,"debriefNotes":"Done","acceptanceCriteria":null}"#,
         )
         .expect("patch should deserialize");
         assert_eq!(patch.objective_notes, Some(None));
@@ -130,5 +136,6 @@ mod tests {
         assert_eq!(patch.debrief_notes, Some(Some("Done".to_string())));
         assert_eq!(patch.related_reference, None);
         assert_eq!(patch.testing_percent, None);
+        assert_eq!(patch.acceptance_criteria, Some(None));
     }
 }

@@ -47,7 +47,7 @@ impl GenerateAiActionKind {
 
     pub fn prompt_version(self) -> &'static str {
         match self {
-            GenerateAiActionKind::Testware => "testware-v4",
+            GenerateAiActionKind::Testware => "testware-v5",
             GenerateAiActionKind::Finding => "finding-v4",
             GenerateAiActionKind::Summary => "note-summary-v5",
         }

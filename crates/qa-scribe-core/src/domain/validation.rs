@@ -29,6 +29,9 @@ pub const SESSION_RELATED_REFERENCE_MAX_LENGTH: usize = 500;
 /// Maximum length for a Session's `debrief_notes` field.
 pub const SESSION_DEBRIEF_NOTES_MAX_LENGTH: usize = SESSION_NOTES_MAX_LENGTH;
 
+/// Maximum length for a Session's `acceptance_criteria` field.
+pub const SESSION_ACCEPTANCE_CRITERIA_MAX_LENGTH: usize = 8_000;
+
 /// Allowed range for a Session's `timebox_minutes`: one minute to one day.
 pub const SESSION_TIMEBOX_MINUTES_RANGE: std::ops::RangeInclusive<i64> = 1..=1_440;
 

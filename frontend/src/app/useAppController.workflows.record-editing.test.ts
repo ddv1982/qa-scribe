@@ -32,7 +32,7 @@ describe('useAppController workflows and record hydration', () => {
             provider: 'codex_cli',
             modelSelection: { kind: 'recorded', requested: { kind: 'default' }, reported: null },
             reasoningEffort: null,
-            promptVersion: 'testware-v4',
+            promptVersion: 'testware-v5',
             status: 'completed',
             errorMessage: null,
             createdAt: '2026-06-24T10:00:00.000Z',

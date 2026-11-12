@@ -28,6 +28,7 @@ export function sessionFixture(patch: Partial<Session> = {}): Session {
     testingPercent: null,
     bugPercent: null,
     setupPercent: null,
+    acceptanceCriteria: null,
     createdAt: now,
     updatedAt: now,
     lastOpenedAt: now,

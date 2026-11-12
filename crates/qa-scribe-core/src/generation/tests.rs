@@ -3,6 +3,8 @@ use crate::domain::{AppSettings, EntryType};
 use super::test_support::{test_attachment, test_entry, test_session};
 use super::*;
 
+#[path = "tests/acceptance_criteria_prompt.rs"]
+mod acceptance_criteria_prompt;
 #[path = "tests/images.rs"]
 mod images;
 #[path = "tests/prompt_and_projection.rs"]
