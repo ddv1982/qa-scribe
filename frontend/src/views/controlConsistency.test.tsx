@@ -24,7 +24,7 @@ function renderNote(overrides: Partial<ComponentProps<typeof SessionEditorView>>
     copyState={{ status: 'idle' }} filteredSessions={[session]} isBusy={false} noteBody={richEditorDocumentFromHtml('<p>Body</p>')} noteIsReady
     noteScreenshotCount={0} sessionTitle={session.title} noteWordCount={1} notice={null} error={null} pendingAiActions={{}}
     onAiAction={async () => {}} onUndoLatestGeneration={async () => {}} onCopy={async () => {}} onCreateSession={() => {}} canCreateSession
-    onDeleteSession={() => {}} onOpenSession={async () => {}} onSetNoteBody={() => {}} onSetSessionTitle={() => {}} onUploadImage={() => {}}
+    onDeleteSession={() => {}} onOpenSessionSheet={() => {}} onOpenSession={async () => {}} onSetNoteBody={() => {}} onSetSessionTitle={() => {}} onUploadImage={() => {}}
     onSetSessionMode={() => {}} {...overrides} />)
 }
 

@@ -49,7 +49,7 @@ impl GenerateAiActionKind {
         match self {
             GenerateAiActionKind::Testware => "testware-v4",
             GenerateAiActionKind::Finding => "finding-v4",
-            GenerateAiActionKind::Summary => "note-summary-v4",
+            GenerateAiActionKind::Summary => "note-summary-v5",
         }
     }
 
@@ -136,7 +136,7 @@ pub fn prepare_ai_action_generation(
     let output_marker = OutputMarker::new();
     let prompt = render_action_prompt(
         &settings,
-        &session.title,
+        &session,
         note_entry,
         &attachments,
         request.action.prompt_kind(),

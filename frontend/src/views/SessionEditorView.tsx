@@ -1,4 +1,4 @@
-import { AlertCircle, CheckCircle2, FileText, Loader2, Plus, Sparkles, Trash2, Undo2 } from 'lucide-react'
+import { AlertCircle, CheckCircle2, ClipboardList, FileText, Loader2, Plus, Sparkles, Trash2, Undo2 } from 'lucide-react'
 import type { ClipboardSnapshot, CopyState } from '../app/copyActions'
 import { RecordCreationActions, type RecordCreationCommands } from './RecordCreationActions'
 import { CopyControls } from './RichRecordView'
@@ -7,6 +7,7 @@ import type { GenerateAiActionKind, Session } from '../tauri'
 import type { RichEditorDocument } from '../editor/editorDocument'
 import { ActionButton } from '../components/ActionButton'
 import { StatusPill } from '../components/Common'
+import { SessionSheetRow } from './SessionSheetDialog'
 import type { BusyAction } from '../ui/types'
 import type { PendingAiActions } from '../ui/types'
 import { useLayoutEffect, useRef, type ComponentProps, type ReactNode } from 'react'
@@ -43,6 +44,7 @@ export function SessionEditorView({
   hasSavedSessions = false,
   onExploreExample,
   onDeleteSession,
+  onOpenSessionSheet,
   onOpenSession,
   onSetNoteBody,
   onSetSessionTitle,
@@ -82,6 +84,8 @@ export function SessionEditorView({
   hasSavedSessions?: boolean
   onExploreExample?: () => void
   onDeleteSession: () => void
+  /** Opens the Session sheet dialog: charter, reference, timebox and debrief. */
+  onOpenSessionSheet: () => void
   onOpenSession: (session: Session) => Promise<void>
   onSetNoteBody: (value: RichEditorDocument) => void
   onSetSessionTitle: (value: string) => void
@@ -148,6 +152,7 @@ export function SessionEditorView({
           : sessionSaveState === 'saving' ? <Loader2 className="spin" size={15} /> : <CheckCircle2 size={15} />}
         <span>{saveStatusLabel}</span>
       </div>
+      <ActionButton variant="quiet" size="compact" iconOnly icon={ClipboardList} aria-label="Session sheet" title="Session sheet" onClick={onOpenSessionSheet} />
       <CopyControls
         snapshot={{ target: { kind: 'note', sessionId: activeSession.id, action: 'jira-text' }, title: sessionTitle, bodyHtml: noteBodyHtml }}
         copyState={copyState} onCopy={onCopy} disabled={isBusy} label="Note" screenshotCount={noteScreenshotCount} size="compact" />
@@ -174,6 +179,7 @@ export function SessionEditorView({
           {sessionTitleValidationError ? (
             <p className="field-error" id="session-title-error">{sessionTitleValidationError}</p>
           ) : null}
+          <SessionSheetRow session={activeSession} onOpen={onOpenSessionSheet} />
           {noteReadOnly ? <div role="status">
             <p>Chat submission needs canonical Note recovery. The Note is read-only until recovery succeeds.</p>
             {onRecoverNote ? <ActionButton variant="secondary" type="button" disabled={isBusy} onClick={() => void onRecoverNote()}>Recover Session Note</ActionButton> : null}

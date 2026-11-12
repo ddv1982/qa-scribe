@@ -1,6 +1,7 @@
 import type { RecordChatActions } from '../app/sessionChat.context'
 import type { RecordCreationCommands } from './RecordCreationActions'
 import { Box } from 'lucide-react'
+import { Badge } from '../components/Badge'
 import type { RichEditorImageUpload } from '../editor/RichTextEditor'
 import { testwareGenerationSummary } from '../testware/generationPreferences'
 import type { Draft, GenerationJobStatus } from '../tauri'
@@ -130,7 +131,7 @@ function TestwareGenerationBadges({ draft }: { draft: Draft }) {
 
   return (
     <div className="testware-metadata-badges" title={summary.detail}>
-      <span>{summary.format}</span>
+      <Badge>{summary.format}</Badge>
     </div>
   )
 }

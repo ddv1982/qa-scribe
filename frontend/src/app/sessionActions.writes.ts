@@ -1,4 +1,5 @@
 import { updateEntry, updateSession, type Session } from '../tauri'
+import type { SessionSheetPatch } from '../views/SessionSheetDialog'
 import {
   emptyRichEditorDocument,
   parseRichEditorDocument,
@@ -370,6 +371,31 @@ export function createSessionWriteActions(ctx: SessionActionsContext) {
     }
   }
 
+  /**
+   * Saves the Session sheet from its dialog: an explicit save, outside the pending-changes
+   * machinery. Earlier Session writes settle first, so their responses cannot overwrite the
+   * sheet afterwards. Only the sheet fields are published, which leaves title state alone.
+   * Throws on failure so the dialog can stay open with the error.
+   */
+  async function saveSessionSheet(sessionId: string, patch: SessionSheetPatch): Promise<void> {
+    await waitForPendingSessionWrites()
+    const saved = await trackWrite(updateSession(sessionId, patch))
+    const withSheet = (session: Session): Session => session.id === saved.id ? {
+      ...session,
+      objectiveNotes: saved.objectiveNotes,
+      relatedReference: saved.relatedReference,
+      timeboxMinutes: saved.timeboxMinutes,
+      debriefNotes: saved.debriefNotes,
+      testingPercent: saved.testingPercent,
+      bugPercent: saved.bugPercent,
+      setupPercent: saved.setupPercent,
+      updatedAt: saved.updatedAt,
+    } : session
+    ctx.session.setSessions((previous) => previous.map(withSheet))
+    ctx.session.setActiveSession((current) => current ? withSheet(current) : current)
+    ctx.feedback.setNotice('Session sheet saved')
+  }
+
   async function saveBody(
     body: RichEditorDocument,
     options: {
@@ -453,6 +479,7 @@ export function createSessionWriteActions(ctx: SessionActionsContext) {
     retryPendingNoteCompensation,
     retryPendingTitleCompensation,
     saveBody,
+    saveSessionSheet,
     saveTitle,
     selectRecoveredSummaryChoice,
     sessionNavigationIsCurrent,

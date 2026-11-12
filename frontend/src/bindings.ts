@@ -19,7 +19,7 @@ export const commands = {
 	createSession: (draft: SessionDraft) => __TAURI_INVOKE<Session>("create_session", { draft }),
 	reopenSession: (id: string) => __TAURI_INVOKE<Session>("reopen_session", { id }),
 	openSessionNoteState: (id: string) => __TAURI_INVOKE<SessionNoteState>("open_session_note_state", { id }),
-	updateSession: (id: string, patch: SessionPatch) => __TAURI_INVOKE<Session>("update_session", { id, patch }),
+	updateSession: (id: string, patch: SessionPatch_Deserialize) => __TAURI_INVOKE<Session>("update_session", { id, patch }),
 	deleteSession: (id: string) => __TAURI_INVOKE<AttachmentCleanupStatus>("delete_session", { id }),
 	retryAttachmentCleanup: () => __TAURI_INVOKE<AttachmentCleanupStatus>("retry_attachment_cleanup"),
 	getChat: (sessionId: string) => __TAURI_INVOKE<ChatState>("get_chat", { sessionId }),
@@ -786,6 +786,14 @@ export type Session = {
 	environment: string | null,
 	buildVersion: string | null,
 	relatedReference: string | null,
+	/**  Session sheet: the planned length of the Session, in minutes. */
+	timeboxMinutes: number | null,
+	/**  Session sheet: what the tester covered, what is left, what got in the way. */
+	debriefNotes: string | null,
+	/**  Session sheet: the debrief time split. All three are set or none is. */
+	testingPercent: number | null,
+	bugPercent: number | null,
+	setupPercent: number | null,
 	createdAt: string,
 	updatedAt: string,
 	lastOpenedAt: string,
@@ -809,26 +817,80 @@ export type SessionNoteState = {
 
 /**
  *  Partial update for a `Session`. Every field is optional on the wire
- *  (deserialize-only: a missing field naturally deserializes its `Option` as
- *  `None`, so no `#[serde(default)]` is needed → generated `field?:`): an
- *  absent field means "no change".
+ *  (generated `field?:`): an absent field means "no change".
  * 
  *  Two distinct null contracts, made explicit in the generated TypeScript:
  *  - `title` is required on a Session and cannot be cleared, so it is typed
  *    `title?: string` (`#[specta(type = String)]` drops the `| null`): the
  *    frontend can only set it or omit it, never send `null`. This kills the
  *    prior defect where a `title: null` silently no-oped.
- *  - the `Option<Option<String>>` fields are clearable: absent = no change,
- *    `null` = clear to NULL, a string = set. specta renders them
- *    `field?: string | null`, matching that three-state contract.
+ *  - the `Option<Option<_>>` fields are clearable: absent = no change,
+ *    `null` = clear to NULL, a value = set. specta renders them
+ *    `field?: string | null` (or `number | null`), matching that three-state
+ *    contract. `clearable` keeps an explicit `null` apart from an absent
+ *    field; that custom deserializer is why the bindings show a
+ *    `SessionPatch_Deserialize` phase.
  */
-export type SessionPatch = {
+export type SessionPatch = SessionPatch_Serialize | SessionPatch_Deserialize;
+
+/**
+ *  Partial update for a `Session`. Every field is optional on the wire
+ *  (generated `field?:`): an absent field means "no change".
+ * 
+ *  Two distinct null contracts, made explicit in the generated TypeScript:
+ *  - `title` is required on a Session and cannot be cleared, so it is typed
+ *    `title?: string` (`#[specta(type = String)]` drops the `| null`): the
+ *    frontend can only set it or omit it, never send `null`. This kills the
+ *    prior defect where a `title: null` silently no-oped.
+ *  - the `Option<Option<_>>` fields are clearable: absent = no change,
+ *    `null` = clear to NULL, a value = set. specta renders them
+ *    `field?: string | null` (or `number | null`), matching that three-state
+ *    contract. `clearable` keeps an explicit `null` apart from an absent
+ *    field; that custom deserializer is why the bindings show a
+ *    `SessionPatch_Deserialize` phase.
+ */
+export type SessionPatch_Deserialize = {
 	title?: string,
 	sessionContext?: string | null,
 	objectiveNotes?: string | null,
 	environment?: string | null,
 	buildVersion?: string | null,
 	relatedReference?: string | null,
+	timeboxMinutes?: number | null,
+	debriefNotes?: string | null,
+	testingPercent?: number | null,
+	bugPercent?: number | null,
+	setupPercent?: number | null,
+};
+
+/**
+ *  Partial update for a `Session`. Every field is optional on the wire
+ *  (generated `field?:`): an absent field means "no change".
+ * 
+ *  Two distinct null contracts, made explicit in the generated TypeScript:
+ *  - `title` is required on a Session and cannot be cleared, so it is typed
+ *    `title?: string` (`#[specta(type = String)]` drops the `| null`): the
+ *    frontend can only set it or omit it, never send `null`. This kills the
+ *    prior defect where a `title: null` silently no-oped.
+ *  - the `Option<Option<_>>` fields are clearable: absent = no change,
+ *    `null` = clear to NULL, a value = set. specta renders them
+ *    `field?: string | null` (or `number | null`), matching that three-state
+ *    contract. `clearable` keeps an explicit `null` apart from an absent
+ *    field; that custom deserializer is why the bindings show a
+ *    `SessionPatch_Deserialize` phase.
+ */
+export type SessionPatch_Serialize = {
+	title?: string,
+	sessionContext?: string | null,
+	objectiveNotes?: string | null,
+	environment?: string | null,
+	buildVersion?: string | null,
+	relatedReference?: string | null,
+	timeboxMinutes?: number | null,
+	debriefNotes?: string | null,
+	testingPercent?: number | null,
+	bugPercent?: number | null,
+	setupPercent?: number | null,
 };
 
 export type StageOrigin = {

@@ -1,4 +1,4 @@
-use crate::domain::{Attachment, Entry, EntryType};
+use crate::domain::{Attachment, Entry, EntryType, Session};
 
 pub fn test_entry(id: &str, entry_type: EntryType, title: Option<&str>, body: &str) -> Entry {
     Entry {
@@ -27,5 +27,25 @@ pub fn test_attachment(id: &str, entry_id: Option<&str>, filename: &str) -> Atta
         sha256: "a".repeat(64),
         relative_path: format!("attachments/session/{id}_{filename}"),
         created_at: "2026-06-23T00:00:00Z".to_string(),
+    }
+}
+
+pub fn test_session(title: &str) -> Session {
+    Session {
+        id: "session-1".to_string(),
+        title: title.to_string(),
+        session_context: None,
+        objective_notes: None,
+        environment: None,
+        build_version: None,
+        related_reference: None,
+        timebox_minutes: None,
+        debrief_notes: None,
+        testing_percent: None,
+        bug_percent: None,
+        setup_percent: None,
+        created_at: "2026-06-23T00:00:00Z".to_string(),
+        updated_at: "2026-06-23T00:00:00Z".to_string(),
+        last_opened_at: "2026-06-23T00:00:00Z".to_string(),
     }
 }

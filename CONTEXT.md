@@ -37,8 +37,24 @@ Optional product, feature, environment, build, ticket, URL, API, flow, objective
 _Avoid_: Subject, System under test
 
 **Objective Notes**:
-Optional intent for a Session, describing what the tester is trying to learn, verify, or explore.
+Optional intent for a Session, describing what the tester is trying to learn, verify, or explore. The Session sheet shows it as the Charter.
 _Avoid_: Goal, Mission
+
+**Session sheet**:
+The optional plan and wrap-up of a Session: its Charter, a ticket or reference, a Timebox, and a Debrief. It is edited in one dialog, and an empty sheet shows nothing beyond its header button.
+_Avoid_: Session form, Session metadata
+
+**Charter**:
+The UI label for Objective Notes in the Session sheet: one statement of what the Session explores and what it hopes to find, such as "Explore checkout to find payment failures".
+_Avoid_: Mission, Goal
+
+**Timebox**:
+The planned length of a Session, in whole minutes from 1 to 1440. QA Scribe records it and does not run a timer.
+_Avoid_: Deadline, Duration
+
+**Debrief**:
+The tester's wrap-up of a Session in the Session sheet: notes on what was covered, what is left, and what got in the way, plus an optional time split across testing, bug investigation and setup that adds up to 100.
+_Avoid_: Retrospective, Report
 
 **Session Timeline**:
 The chronological stream of Entries captured during a Session.

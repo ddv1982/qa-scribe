@@ -113,13 +113,12 @@ fn version_nine_upgrade_preserves_note_and_adds_session_owned_chat_tables() {
     ).unwrap();
     drop(service);
     let service = SessionService::new(Database::open(&path).unwrap()).unwrap();
-    assert_eq!(SCHEMA_VERSION, 19);
     let version: i32 = service
         .database()
         .connection()
         .query_row("PRAGMA user_version", [], |r| r.get(0))
         .unwrap();
-    assert_eq!(version, 19);
+    assert_eq!(version, SCHEMA_VERSION);
     assert_eq!(service.get_or_create_note_entry(&id).unwrap(), note);
     let chat = service.load_chat(&id).unwrap();
     let chat = complete(&service, &chat, "Question", "Answer");

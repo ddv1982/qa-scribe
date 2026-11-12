@@ -552,7 +552,7 @@
 
 .rail-item strong,
 .document-status,
-.testware-metadata-badges span {
+.badge {
   font-variant-numeric: tabular-nums;
 }
 

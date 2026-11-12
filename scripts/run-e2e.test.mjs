@@ -12,10 +12,10 @@ test('critical workflows use separate WDIO processes, app data, fixtures, and ar
   const plan = createWdioInvocationPlan({}, '/tmp/e2e-root', '/tmp/e2e-artifacts')
 
   assert.deepEqual(plan.slice(0, criticalScenarios.length).map(({ id }) => id), criticalScenarios)
-  const legacy = plan.slice(0, criticalScenarios.length + 4 + (['linux', 'darwin'].includes(process.platform) ? 3 : 0) + (process.platform === 'linux' ? 1 : 0))
+  const legacy = plan.slice(0, criticalScenarios.length + 4 + (['linux', 'darwin'].includes(process.platform) ? 4 : 0) + (process.platform === 'linux' ? 1 : 0))
   assert.deepEqual(legacy.slice(criticalScenarios.length).map(({ id }) => id), [
     'chat-images', 'chat-tool-authorization-codex', 'chat-tool-authorization-claude', 'chat-tool-authorization-copilot',
-    ...(['linux', 'darwin'].includes(process.platform) ? ['manual-formats', 'ui-polish', 'first-use'] : []),
+    ...(['linux', 'darwin'].includes(process.platform) ? ['manual-formats', 'ui-polish', 'first-use', 'session-sheet'] : []),
     ...(process.platform === 'linux' ? ['native-close'] : []),
   ])
   for (const key of ['QA_SCRIBE_E2E_APP_DATA_DIR', 'QA_SCRIBE_E2E_ARTIFACTS', 'QA_SCRIBE_E2E_FIXTURE_DIR']) {
@@ -90,14 +90,14 @@ test('Linux defaults require the complete model proof chain while non-Linux defa
   const linux = createWdioInvocationPlan({}, '/tmp/root', '/tmp/artifacts', 'linux')
   assert.deepEqual(linux.map(({ id }) => id), [
     ...criticalScenarios, 'chat-images', 'chat-tool-authorization-codex', 'chat-tool-authorization-claude',
-    'chat-tool-authorization-copilot', 'manual-formats', 'ui-polish', 'first-use', 'native-close', 'ask-ai-isolation-initial', 'model-management', 'model-evidence', 'model-evidence-restart',
+    'chat-tool-authorization-copilot', 'manual-formats', 'ui-polish', 'first-use', 'session-sheet', 'native-close', 'ask-ai-isolation-initial', 'model-management', 'model-evidence', 'model-evidence-restart',
     'model-selection', 'model-selection-restart', 'provider-qualification-disabled', 'provider-qualification-diagnostics',
     'provider-qualification-selector',
   ])
   for (const platform of ['darwin', 'win32']) {
     assert.deepEqual(createWdioInvocationPlan({}, '/tmp/root', '/tmp/artifacts', platform).map(({ id }) => id), [
       ...criticalScenarios, 'chat-images', 'chat-tool-authorization-codex', 'chat-tool-authorization-claude', 'chat-tool-authorization-copilot',
-      ...(platform === 'darwin' ? ['manual-formats', 'ui-polish', 'first-use', 'ask-ai-isolation-initial'] : []),
+      ...(platform === 'darwin' ? ['manual-formats', 'ui-polish', 'first-use', 'session-sheet', 'ask-ai-isolation-initial'] : []),
     ])
   }
 })
