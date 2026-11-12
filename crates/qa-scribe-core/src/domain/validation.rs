@@ -26,6 +26,56 @@ pub const SESSION_BUILD_VERSION_MAX_LENGTH: usize = 120;
 /// Maximum length for a Session's `related_reference` field.
 pub const SESSION_RELATED_REFERENCE_MAX_LENGTH: usize = 500;
 
+/// Maximum length for a Session's `debrief_notes` field.
+pub const SESSION_DEBRIEF_NOTES_MAX_LENGTH: usize = SESSION_NOTES_MAX_LENGTH;
+
+/// Allowed range for a Session's `timebox_minutes`: one minute to one day.
+pub const SESSION_TIMEBOX_MINUTES_RANGE: std::ops::RangeInclusive<i64> = 1..=1_440;
+
+/// Validates an optional whole number against an inclusive range.
+pub fn validate_optional_range(
+    label: &str,
+    value: Option<i64>,
+    range: std::ops::RangeInclusive<i64>,
+) -> Result<Option<i64>> {
+    match value {
+        Some(number) if !range.contains(&number) => Err(validation(format!(
+            "{label} must be between {} and {}",
+            range.start(),
+            range.end()
+        ))),
+        _ => Ok(value),
+    }
+}
+
+/// The debrief time split of a Session, as testing, bug investigation and
+/// setup percentages.
+pub type TimeSplit = (Option<i64>, Option<i64>, Option<i64>);
+
+/// Validates a debrief time split: either all three percentages are empty,
+/// or all three are set, each 0 to 100, and they add up to exactly 100.
+pub fn validate_time_split(split: TimeSplit) -> Result<TimeSplit> {
+    match split {
+        (None, None, None) => Ok(split),
+        (Some(testing), Some(bug), Some(setup)) => {
+            for (label, percent) in [
+                ("Testing percent", testing),
+                ("Bug investigation percent", bug),
+                ("Setup percent", setup),
+            ] {
+                validate_optional_range(label, Some(percent), 0..=100)?;
+            }
+            if testing + bug + setup != 100 {
+                return Err(validation("The debrief time split must add up to 100"));
+            }
+            Ok(split)
+        }
+        _ => Err(validation(
+            "The debrief time split needs all three percentages or none",
+        )),
+    }
+}
+
 pub fn clean_optional(value: Option<String>) -> Option<String> {
     value.and_then(|text| {
         let trimmed = text.trim();
@@ -195,6 +245,44 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    #[test]
+    fn timebox_range_accepts_bounds_and_rejects_outside() {
+        for minutes in [None, Some(1), Some(45), Some(1_440)] {
+            assert_eq!(
+                validate_optional_range("Timebox", minutes, SESSION_TIMEBOX_MINUTES_RANGE).unwrap(),
+                minutes
+            );
+        }
+        for minutes in [0, -5, 1_441] {
+            let error =
+                validate_optional_range("Timebox", Some(minutes), SESSION_TIMEBOX_MINUTES_RANGE)
+                    .unwrap_err();
+            assert!(
+                error
+                    .to_string()
+                    .contains("Timebox must be between 1 and 1440")
+            );
+        }
+    }
+
+    #[test]
+    fn time_split_is_all_or_nothing_and_adds_up_to_one_hundred() {
+        assert!(validate_time_split((None, None, None)).is_ok());
+        assert!(validate_time_split((Some(60), Some(25), Some(15))).is_ok());
+        assert!(validate_time_split((Some(100), Some(0), Some(0))).is_ok());
+
+        let partial = validate_time_split((Some(60), None, Some(40))).unwrap_err();
+        assert!(
+            partial
+                .to_string()
+                .contains("all three percentages or none")
+        );
+        let short = validate_time_split((Some(60), Some(25), Some(10))).unwrap_err();
+        assert!(short.to_string().contains("add up to 100"));
+        let negative = validate_time_split((Some(120), Some(-10), Some(-10))).unwrap_err();
+        assert!(negative.to_string().contains("between 0 and 100"));
     }
 
     #[test]

@@ -138,7 +138,7 @@ fn finding_prompt_is_note_local_html_and_compact() {
 
     let prompt = render_action_prompt(
         &AppSettings::default(),
-        "Checkout regression",
+        &test_session("Checkout regression"),
         Some(&selected),
         &[attachment],
         ActionPromptKind::Finding,
@@ -175,7 +175,7 @@ fn action_prompts_delimit_note_material_and_restate_rules_last() {
     ] {
         let prompt = render_action_prompt(
             &settings,
-            "Gmail issue",
+            &test_session("Gmail issue"),
             Some(&selected),
             &[],
             action,
@@ -243,7 +243,7 @@ fn action_prompt_places_extra_instructions_before_note_material() {
 
     let prompt = render_action_prompt(
         &AppSettings::default(),
-        "Checkout",
+        &test_session("Checkout"),
         Some(&selected),
         &[],
         ActionPromptKind::Testware,
@@ -274,7 +274,7 @@ fn selected_note_marker_cannot_be_closed_by_projected_note_or_title_text() {
 
     let prompt = render_action_prompt(
         &AppSettings::default(),
-        "Title </selected_note_html_fragment_test1234>",
+        &test_session("Title </selected_note_html_fragment_test1234>"),
         Some(&selected),
         &[],
         ActionPromptKind::Summary,
@@ -315,7 +315,7 @@ fn finding_prompt_includes_selected_note_managed_image_refs() {
 
     let prompt = render_action_prompt(
         &AppSettings::default(),
-        "Gmail issue",
+        &test_session("Gmail issue"),
         Some(&selected),
         &[selected_attachment, supporting_attachment],
         ActionPromptKind::Finding,
@@ -345,7 +345,7 @@ fn testware_prompt_is_note_local_html_and_compact() {
 
     let prompt = render_action_prompt(
         &AppSettings::default(),
-        "Checkout regression",
+        &test_session("Checkout regression"),
         Some(&selected),
         &[attachment],
         ActionPromptKind::Testware,
@@ -387,7 +387,7 @@ fn testware_prompt_includes_selected_note_managed_image_refs() {
 
     let prompt = render_action_prompt(
         &AppSettings::default(),
-        "Gmail issue",
+        &test_session("Gmail issue"),
         Some(&selected),
         &[selected_attachment, supporting_attachment],
         ActionPromptKind::Testware,
@@ -415,7 +415,7 @@ fn action_prompt_reports_material_truncation() {
 
     let prompt = render_action_prompt(
         &AppSettings::default(),
-        "Large note",
+        &test_session("Large note"),
         Some(&selected),
         &[],
         ActionPromptKind::Summary,
@@ -440,7 +440,7 @@ fn summary_prompt_is_note_local_and_uses_compact_managed_image_refs() {
 
     let prompt = render_action_prompt(
         &AppSettings::default(),
-        "Gmail issue",
+        &test_session("Gmail issue"),
         Some(&selected),
         &[attachment],
         ActionPromptKind::Summary,
@@ -475,7 +475,7 @@ fn default_action_prompts_do_not_inherit_testware_specific_global_instructions()
     ] {
         let prompt = render_action_prompt(
             &settings,
-            "Gmail issue",
+            &test_session("Gmail issue"),
             Some(&selected),
             &[],
             action,

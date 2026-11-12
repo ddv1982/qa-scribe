@@ -8,6 +8,12 @@ use crate::{
     },
 };
 
+/// The columns `map_session` reads, in order.
+pub(super) const SESSION_COLUMNS: &str =
+    "id, title, session_context, objective_notes, environment, build_version,
+    related_reference, created_at, updated_at, last_opened_at,
+    timebox_minutes, debrief_notes, testing_percent, bug_percent, setup_percent";
+
 pub(super) fn map_session(row: &Row<'_>) -> rusqlite::Result<Session> {
     Ok(Session {
         id: row.get(0)?,
@@ -20,6 +26,11 @@ pub(super) fn map_session(row: &Row<'_>) -> rusqlite::Result<Session> {
         created_at: row.get(7)?,
         updated_at: row.get(8)?,
         last_opened_at: row.get(9)?,
+        timebox_minutes: row.get(10)?,
+        debrief_notes: row.get(11)?,
+        testing_percent: row.get(12)?,
+        bug_percent: row.get(13)?,
+        setup_percent: row.get(14)?,
     })
 }
 

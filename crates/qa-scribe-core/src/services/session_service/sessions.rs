@@ -3,13 +3,15 @@ use rusqlite::{Connection, OptionalExtension, params};
 use crate::{
     QaScribeError, Result,
     domain::{
-        SESSION_BUILD_VERSION_MAX_LENGTH, SESSION_ENVIRONMENT_MAX_LENGTH, SESSION_NOTES_MAX_LENGTH,
-        SESSION_RELATED_REFERENCE_MAX_LENGTH, Session, SessionDraft, SessionNoteState,
-        SessionPatch, TITLE_MAX_LENGTH, validate_optional_text, validate_required_text,
+        SESSION_BUILD_VERSION_MAX_LENGTH, SESSION_DEBRIEF_NOTES_MAX_LENGTH,
+        SESSION_ENVIRONMENT_MAX_LENGTH, SESSION_NOTES_MAX_LENGTH,
+        SESSION_RELATED_REFERENCE_MAX_LENGTH, SESSION_TIMEBOX_MINUTES_RANGE, Session, SessionDraft,
+        SessionNoteState, SessionPatch, TITLE_MAX_LENGTH, validate_optional_range,
+        validate_optional_text, validate_required_text, validate_time_split,
     },
 };
 
-use super::super::session_rows::map_session;
+use super::super::session_rows::{SESSION_COLUMNS, map_session};
 use super::{SessionService, new_id, now};
 
 impl SessionService {
@@ -64,12 +66,11 @@ impl SessionService {
     }
 
     pub fn list_sessions(&self) -> Result<Vec<Session>> {
-        let mut statement = self.database.connection().prepare(
-            "SELECT id, title, session_context, objective_notes, environment, build_version,
-                related_reference, created_at, updated_at, last_opened_at
+        let mut statement = self.database.connection().prepare(&format!(
+            "SELECT {SESSION_COLUMNS}
              FROM sessions
-             ORDER BY last_opened_at DESC",
-        )?;
+             ORDER BY last_opened_at DESC"
+        ))?;
         let sessions = statement
             .query_map([], map_session)?
             .collect::<std::result::Result<Vec<_>, _>>()?;
@@ -81,13 +82,12 @@ impl SessionService {
             return Ok(Vec::new());
         }
 
-        let mut statement = self.database.connection().prepare(
-            "SELECT id, title, session_context, objective_notes, environment, build_version,
-                related_reference, created_at, updated_at, last_opened_at
+        let mut statement = self.database.connection().prepare(&format!(
+            "SELECT {SESSION_COLUMNS}
              FROM sessions
              ORDER BY last_opened_at DESC, updated_at DESC, id ASC
-             LIMIT ?1",
-        )?;
+             LIMIT ?1"
+        ))?;
         let sessions = statement
             .query_map([i64::from(limit)], map_session)?
             .collect::<std::result::Result<Vec<_>, _>>()?;
@@ -159,6 +159,21 @@ impl SessionService {
                     .unwrap_or(previous.related_reference),
                 SESSION_RELATED_REFERENCE_MAX_LENGTH,
             )?;
+            let timebox_minutes = validate_optional_range(
+                "Timebox",
+                patch.timebox_minutes.unwrap_or(previous.timebox_minutes),
+                SESSION_TIMEBOX_MINUTES_RANGE,
+            )?;
+            let debrief_notes = validate_optional_text(
+                "Debrief notes",
+                patch.debrief_notes.unwrap_or(previous.debrief_notes),
+                SESSION_DEBRIEF_NOTES_MAX_LENGTH,
+            )?;
+            let (testing_percent, bug_percent, setup_percent) = validate_time_split((
+                patch.testing_percent.unwrap_or(previous.testing_percent),
+                patch.bug_percent.unwrap_or(previous.bug_percent),
+                patch.setup_percent.unwrap_or(previous.setup_percent),
+            ))?;
 
             tx.execute(
                 "UPDATE sessions SET
@@ -168,8 +183,13 @@ impl SessionService {
                     environment = ?4,
                     build_version = ?5,
                     related_reference = ?6,
-                    updated_at = ?7
-                 WHERE id = ?8",
+                    updated_at = ?7,
+                    timebox_minutes = ?8,
+                    debrief_notes = ?9,
+                    testing_percent = ?10,
+                    bug_percent = ?11,
+                    setup_percent = ?12
+                 WHERE id = ?13",
                 params![
                     title,
                     session_context,
@@ -178,6 +198,11 @@ impl SessionService {
                     build_version,
                     related_reference,
                     now,
+                    timebox_minutes,
+                    debrief_notes,
+                    testing_percent,
+                    bug_percent,
+                    setup_percent,
                     id
                 ],
             )?;
@@ -228,10 +253,7 @@ impl SessionService {
 fn session(connection: &Connection, id: &str) -> Result<Option<Session>> {
     connection
         .query_row(
-            "SELECT id, title, session_context, objective_notes, environment, build_version,
-                related_reference, created_at, updated_at, last_opened_at
-             FROM sessions
-             WHERE id = ?1",
+            &format!("SELECT {SESSION_COLUMNS} FROM sessions WHERE id = ?1"),
             [id],
             map_session,
         )

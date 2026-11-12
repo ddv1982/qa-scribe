@@ -9,7 +9,12 @@ CREATE TABLE IF NOT EXISTS sessions (
   related_reference TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
-  last_opened_at TEXT NOT NULL
+  last_opened_at TEXT NOT NULL,
+  timebox_minutes INTEGER CHECK (timebox_minutes BETWEEN 1 AND 1440),
+  debrief_notes TEXT,
+  testing_percent INTEGER CHECK (testing_percent BETWEEN 0 AND 100),
+  bug_percent INTEGER CHECK (bug_percent BETWEEN 0 AND 100),
+  setup_percent INTEGER CHECK (setup_percent BETWEEN 0 AND 100)
 );
 
 CREATE TABLE IF NOT EXISTS app_settings (

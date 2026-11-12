@@ -44,7 +44,7 @@ describe('copy success buttons', () => {
         onUndoLatestGeneration={async () => undefined}
         onCopy={async () => undefined}
         onCreateSession={() => undefined} canCreateSession
-        onDeleteSession={() => undefined}
+        onDeleteSession={() => undefined} onOpenSessionSheet={() => undefined}
         onOpenSession={async () => undefined}
         onSetNoteBody={() => undefined}
         onSetSessionTitle={() => undefined}
@@ -81,7 +81,7 @@ describe('copy success buttons', () => {
         onUndoLatestGeneration={async () => undefined}
         onCopy={async () => undefined}
         onCreateSession={() => undefined} canCreateSession
-        onDeleteSession={() => undefined}
+        onDeleteSession={() => undefined} onOpenSessionSheet={() => undefined}
         onOpenSession={async () => undefined}
         onSetNoteBody={() => undefined}
         onSetSessionTitle={() => undefined}
@@ -118,7 +118,7 @@ describe('copy success buttons', () => {
         onUndoLatestGeneration={async () => undefined}
         onCopy={async () => undefined}
         onCreateSession={() => undefined} canCreateSession
-        onDeleteSession={() => undefined}
+        onDeleteSession={() => undefined} onOpenSessionSheet={() => undefined}
         onOpenSession={async () => undefined}
         onSetNoteBody={() => undefined}
         onSetSessionTitle={() => undefined}
@@ -207,7 +207,7 @@ describe('copy success buttons', () => {
         onUndoLatestGeneration={async () => undefined}
         onCopy={async () => undefined}
         onCreateSession={() => undefined} canCreateSession
-        onDeleteSession={() => undefined}
+        onDeleteSession={() => undefined} onOpenSessionSheet={() => undefined}
         onOpenSession={async () => undefined}
         onSetNoteBody={() => undefined}
         onSetSessionTitle={() => undefined}
@@ -338,6 +338,11 @@ const session: Session = {
   environment: null,
   buildVersion: null,
   relatedReference: null,
+  timeboxMinutes: null,
+  debriefNotes: null,
+  testingPercent: null,
+  bugPercent: null,
+  setupPercent: null,
   createdAt: '2026-06-24T08:00:00Z',
   updatedAt: '2026-06-24T08:00:00Z',
   lastOpenedAt: '2026-06-24T08:00:00Z',

@@ -71,7 +71,7 @@ fn genuine_schema18_upgrade_preserves_every_original_cell_and_reopens_twice() {
         assert_eq!(
             c.query_row("PRAGMA user_version", [], |r| r.get::<_, i32>(0))
                 .unwrap(),
-            19
+            qa_scribe_core::storage::SCHEMA_VERSION
         );
         assert_eq!(c.query_row("SELECT COUNT(*) FROM chat_drafts WHERE owner_kind='notes' AND owner_record_id IS NULL AND composer_intent='message'", [], |r| r.get::<_, i64>(0)).unwrap(), 103);
         assert_eq!(
