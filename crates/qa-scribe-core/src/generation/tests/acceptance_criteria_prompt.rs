@@ -58,13 +58,16 @@ fn testware_prompt_carries_the_criteria_as_data_inside_the_note_block_with_rules
         COVERS_RULE,
         "using the ids exactly as written. Never invent criteria or ids.",
         "A test case that verifies none omits the line.",
-        "end with a short section titled \"Not covered\" listing those ids.",
+        "Do not list or mention criteria that have no test case",
     ] {
         let at = prompt
             .find(rule)
             .unwrap_or_else(|| panic!("missing rule: {rule}"));
         assert!(at < open, "{rule} should precede the data");
     }
+    // An id anywhere in saved output counts as covered, so the prompt must
+    // never ask for a list of uncovered criteria.
+    assert!(!prompt.contains("Not covered"));
     assert!(!prompt.contains("session_sheet"));
 }
 
