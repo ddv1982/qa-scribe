@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.8.39 - 2026-11-12
+
+- Clicking Help, or closing a dialog, with the mouse no longer leaves a white border around the Close or Help button. That border is the keyboard focus ring, and it now appears only when you use the keyboard.
+- Every button, tab, link and list row now uses the same focus ring. Text fields keep their own highlight.
+
 ## v0.8.38 - 2026-11-11
 
 - A calmer app. Your Sessions are always listed in the sidebar, on every screen, and the one you have open is marked.
