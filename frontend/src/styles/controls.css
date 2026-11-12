@@ -108,7 +108,6 @@
 .attachment-cleanup-warning [role="alert"] { color: var(--danger); }
 
 .editable-record input,
-.editable-record select,
 .editable-record textarea,
 .template-field textarea,
 .settings-grid textarea {
@@ -124,11 +123,6 @@
   height: var(--control-lg);
   padding: 0 var(--space-3);
   font-weight: 600;
-}
-
-.editable-record select {
-  height: var(--control-lg);
-  padding: 0 var(--space-3);
 }
 
 .editable-record textarea {
