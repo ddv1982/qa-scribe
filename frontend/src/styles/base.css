@@ -67,11 +67,10 @@
   --border-default: rgba(26, 32, 29, 0.14);
   --border-strong: rgba(26, 32, 29, 0.26);
 
-  --accent: #26302b;
-  --accent-hover: color-mix(in oklab, var(--accent) 88%, #000);
+  /* The one accent: where you are, the main action, links and keyboard focus. */
+  --accent: #0f6e5c;
   --accent-tint: color-mix(in oklab, var(--accent) 7%, var(--surface-raised));
   --accent-border: color-mix(in oklab, var(--accent) 30%, var(--border-default));
-  --accent-alt: #5b3fa8;
   --on-accent: #ffffff;
 
   --mark: #fff1ad;
@@ -81,9 +80,8 @@
   --surface-tint: color-mix(in oklab, var(--text-primary) 7%, transparent);
   /* The one selection colour: a quiet tint, so the highlighter stays the only yellow. */
   --surface-selected: color-mix(in oklab, var(--text-primary) 11%, transparent);
-  /* A focused text field only firms up its border: a bright accent outline or halo reads as a stray
-     white box in dark mode. */
-  --field-focus-border: var(--border-strong);
+  /* A focused text field turns its own border the accent colour. No outline and no halo. */
+  --field-focus-border: var(--accent);
   /* The one keyboard focus ring colour. */
   --focus-ring: var(--accent);
 
@@ -96,9 +94,12 @@
   --danger-hover: color-mix(in oklab, var(--danger) 88%, #000);
   --danger-tint: color-mix(in oklab, var(--danger) 8%, var(--surface-raised));
 
-  --action-primary-fill: #1a201d;
-  --action-primary-text: #fcfcf9;
-  --action-primary-hover: #333c37;
+  --action-primary-fill: var(--accent);
+  --action-primary-text: var(--on-accent);
+  --action-primary-hover: #0b5a4b;
+  /* The app mark keeps its ink square in both themes. */
+  --brand-ink: #1a201d;
+  --brand-paper: #fcfcf9;
   --action-danger-hover: #931c15;
   --action-danger-tint: #f8e9e6;
 
@@ -137,11 +138,9 @@
   --border-default: rgba(255, 255, 255, 0.11);
   --border-strong: rgba(255, 255, 255, 0.2);
 
-  --accent: #dfe5e0;
-  --accent-hover: color-mix(in oklab, var(--accent) 88%, #fff);
+  --accent: #5fd0b4;
   --accent-tint: color-mix(in oklab, var(--accent) 10%, var(--surface-raised));
   --accent-border: color-mix(in oklab, var(--accent) 30%, var(--border-default));
-  --accent-alt: #b3a0f5;
   --on-accent: #111412;
 
   /* A soft amber wash: dark mode keeps light text instead of a saturated yellow block. */
@@ -157,9 +156,9 @@
   --danger-hover: color-mix(in oklab, var(--danger) 88%, #fff);
   --danger-tint: color-mix(in oklab, var(--danger) 12%, var(--surface-panel));
 
-  --action-primary-fill: #e9ede9;
-  --action-primary-text: #141715;
-  --action-primary-hover: #ffffff;
+  --action-primary-hover: #7adcc3;
+  --brand-ink: #e9ede9;
+  --brand-paper: #141715;
   --action-danger-hover: #ffa698;
   --action-danger-tint: #3a2622;
 
