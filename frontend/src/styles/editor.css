@@ -360,6 +360,21 @@
   text-overflow: ellipsis;
 }
 
+/* The title and the actions stay put; only the fields scroll in a short window. */
+.session-sheet-dialog {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  width: min(100%, 520px);
+  overflow: hidden;
+}
+
+.session-sheet-dialog > .session-sheet-body {
+  min-height: 0;
+  overflow-y: auto;
+  /* Room for the focused field's border and the scrollbar. */
+  padding: 1px var(--space-1) 1px 1px;
+  scrollbar-gutter: stable;
+}
+
 .session-sheet-body {
   display: grid;
   gap: var(--space-3);

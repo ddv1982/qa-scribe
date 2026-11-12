@@ -126,6 +126,7 @@ export function SessionSheetDialog({ session, onSave, onCancel }: {
 
   return (
     <Dialog
+      className="session-sheet-dialog"
       title="Session sheet"
       description={<p>Optional. State what this Session explores, and wrap it up when you finish.</p>}
       initialFocus={charterRef}
@@ -138,13 +139,13 @@ export function SessionSheetDialog({ session, onSave, onCancel }: {
       <div className="session-sheet-body">
         {/* Field's label wraps its hint too, so the charter names its control explicitly. */}
         <Field label="Charter" hint="What this Session sets out to explore.">
-          <textarea ref={charterRef} aria-label="Charter" rows={3} placeholder="Explore … to find …" {...bind('charter')} />
+          <textarea ref={charterRef} aria-label="Charter" rows={2} placeholder="Explore … to find …" {...bind('charter')} />
         </Field>
         <Field label="Ticket or reference">
           <input type="text" placeholder="Issue ID or URL" {...bind('reference')} />
         </Field>
         <Field label="Acceptance criteria" hint="One per line. Lines without an id are numbered AC-1, AC-2, … when you save.">
-          <textarea aria-label="Acceptance criteria" rows={4} placeholder="AC-1 Empty street shows an error" {...bind('criteria')} />
+          <textarea aria-label="Acceptance criteria" rows={3} placeholder="AC-1 Empty street shows an error" {...bind('criteria')} />
         </Field>
         <Field label="Timebox (minutes)">
           <input type="number" inputMode="numeric" min={1} max={1440} placeholder="45" {...bind('timebox')} />
@@ -153,7 +154,7 @@ export function SessionSheetDialog({ session, onSave, onCancel }: {
           <legend>Debrief</legend>
           <div className="session-sheet-body">
             <Field label="Debrief notes">
-              <textarea rows={3} placeholder="What you covered, what is left, and what got in the way." {...bind('debrief')} />
+              <textarea rows={2} placeholder="What you covered, what is left, and what got in the way." {...bind('debrief')} />
             </Field>
             <div className="session-sheet-split">
               <Field label="Testing %">{percentInput('testing')}</Field>
