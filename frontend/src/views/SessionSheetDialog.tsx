@@ -122,7 +122,7 @@ export function SessionSheetDialog({ session, onSave, onCancel }: {
       onCancel={onCancel}
       actions={<>
         <ActionButton variant="secondary" disabled={saving} onClick={onCancel}>Cancel</ActionButton>
-        <ActionButton variant="primary" loading={saving} onClick={() => void save()}>Save</ActionButton>
+        <ActionButton variant="primary" disabled={saving} onClick={() => void save()}>{saving ? 'Saving' : 'Save'}</ActionButton>
       </>}
     >
       <div className="session-sheet-body">
