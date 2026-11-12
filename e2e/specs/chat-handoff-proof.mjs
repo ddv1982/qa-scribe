@@ -168,6 +168,8 @@ export async function actionProof(selector, filename) {
 async function nativeKeyboard(selector, filename) {
   await $(selector).scrollIntoView({ block: 'center', inline: 'nearest' })
   await browser.execute(selector => {
+    // Focus rings show for keyboard use only; this focus stands in for keyboard traversal.
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }))
     document.querySelector(selector).focus()
     window.__ux5Keys = []
     window.__ux5KeyListener = event => window.__ux5Keys.push({ key: event.key, trusted: event.isTrusted })

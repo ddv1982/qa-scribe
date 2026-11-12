@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from './App'
+import { trackInputModality } from './app/inputModality'
 import './styles.css'
 
 async function bootstrap() {
@@ -12,6 +13,7 @@ async function bootstrap() {
     document.title = 'QA Scribe E2E (dev)'
   }
 
+  trackInputModality()
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <App />

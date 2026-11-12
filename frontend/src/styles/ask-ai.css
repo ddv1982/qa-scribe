@@ -42,7 +42,6 @@
 }
 .ask-ai-header .chat-options > summary::-webkit-details-marker { display: none; }
 .ask-ai-header .chat-options > summary:hover { background: var(--surface-sunken); color: var(--text-primary); }
-.ask-ai-header .chat-options > summary:focus-visible { outline: 0; border-color: var(--accent-border); box-shadow: 0 0 0 3px var(--focus-halo); }
 .ask-ai-header .chat-options[open] > summary { background: var(--surface-sunken); color: var(--text-primary); }
 /* WebKit still lays out a closed details' content; a fixed box there would make the app shell scrollable. */
 .ask-ai-header .chat-options:not([open]) .chat-options-content { display: none; }
@@ -151,7 +150,7 @@
   border-radius: var(--radius-lg);
   transition: border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
 }
-.chat-compose-box:focus-within { border-color: var(--accent-border); box-shadow: 0 0 0 3px var(--focus-halo); }
+.chat-compose-box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--focus-halo); }
 .chat-compose-box textarea,
 .chat-composer .chat-compose-box textarea { min-height: 64px; padding: var(--space-3) var(--space-3) var(--space-1); background: transparent; border: 0; border-radius: var(--radius-lg) var(--radius-lg) 0 0; resize: none; }
 .chat-compose-box textarea:focus-visible,

@@ -58,11 +58,6 @@
 .ask-ai-trigger[aria-expanded="true"]:enabled:hover { border-color: var(--accent-border); }
 .action-button--secondary:enabled:hover { border-color: var(--border-strong); }
 
-.action-button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
 /* Disabled is a dimmed version of the same control, never a different grey one (F12).
    A busy button keeps full strength so its spinner reads as progress. */
 .action-button:disabled { cursor: not-allowed; }
@@ -181,11 +176,11 @@
 #note-summary-unavailable { margin: 0; text-align: center; }
 
 .rich-editor[contenteditable="true"]:focus {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus-ring);
   outline-offset: -2px;
 }
 .session-title-input:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
   border-radius: var(--radius-sm);
 }
