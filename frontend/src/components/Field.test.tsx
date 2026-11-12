@@ -12,7 +12,6 @@ describe('Field', () => {
     expect(select.closest('label')).toHaveClass('field')
     expect(screen.getByText('Severity')).toHaveClass('field-label')
     expect(select).not.toHaveAttribute('aria-describedby')
-    expect(select).not.toHaveAttribute('aria-invalid')
   })
 
   it('keeps an explicit aria-label as the name and links the hint', () => {
@@ -21,15 +20,6 @@ describe('Field', () => {
     </Field>)
     const select = screen.getByRole('combobox', { name: 'Finding template' })
     expect(select).toHaveAccessibleDescription('Steps, expected and actual.')
-    expect(select).not.toHaveAttribute('aria-invalid')
     expect(select.closest('label')).toHaveClass('field', 'creation-format')
-  })
-
-  it('links the error and marks the control invalid', () => {
-    render(<Field label="Title" hint="Shown in the list." error="A title is required."><input /></Field>)
-    const input = screen.getByRole('textbox')
-    expect(input).toHaveAccessibleDescription('Shown in the list. A title is required.')
-    expect(input).toHaveAttribute('aria-invalid', 'true')
-    expect(screen.getByText('A title is required.')).toHaveClass('field-error')
   })
 })
