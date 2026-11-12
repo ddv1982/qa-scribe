@@ -92,6 +92,8 @@ export function SessionSheetDialog({ session, onSave, onCancel }: {
   const splitHintId = useId()
   const bind = (key: keyof SheetValues) => ({
     value: values[key],
+    // The patch is captured when Save starts, so later typing would be lost.
+    disabled: saving,
     onChange: (event: { target: { value: string } }) => setValues((current) => ({ ...current, [key]: event.target.value })),
   })
   const percentInput = (key: 'testing' | 'bug' | 'setup') => (
