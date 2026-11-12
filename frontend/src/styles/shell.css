@@ -400,6 +400,8 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-2);
   min-width: 0;
+  /* Space above the selected technique's description. */
+  margin-bottom: var(--space-2);
 }
 
 .preflight-choice {
@@ -440,8 +442,7 @@
 }
 
 /* Only the selected technique explains itself, so twelve choices stay one glance. */
-.preflight-fieldset .preflight-technique-description {
-  margin-top: var(--space-2);
+.preflight-technique-description {
   min-height: calc(2em * var(--leading-normal));
 }
 
