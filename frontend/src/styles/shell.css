@@ -397,7 +397,7 @@
 
 .preflight-technique-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-2);
   min-width: 0;
 }
@@ -405,11 +405,11 @@
 .preflight-choice {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  align-content: start;
-  align-items: baseline;
-  gap: var(--space-1);
+  align-items: center;
+  gap: var(--space-2);
   min-width: 0;
-  padding: var(--space-2);
+  min-height: var(--control-lg);
+  padding: var(--space-1) var(--space-2);
   color: var(--text-secondary);
   text-align: left;
   background: var(--surface-sunken);
@@ -439,12 +439,10 @@
   text-align: right;
 }
 
-.preflight-choice small {
-  grid-column: 1 / -1;
-  min-width: 0;
-  color: var(--text-secondary);
-  font-size: var(--font-size-sm);
-  line-height: var(--leading-tight);
+/* Only the selected technique explains itself, so twelve choices stay one glance. */
+.preflight-fieldset .preflight-technique-description {
+  margin-top: var(--space-2);
+  min-height: calc(2em * var(--leading-normal));
 }
 
 .preflight-control-grid {
