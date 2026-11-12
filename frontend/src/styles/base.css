@@ -81,7 +81,9 @@
   --surface-tint: color-mix(in oklab, var(--text-primary) 7%, transparent);
   /* The one selection colour: a quiet tint, so the highlighter stays the only yellow. */
   --surface-selected: color-mix(in oklab, var(--text-primary) 11%, transparent);
-  --focus-halo: color-mix(in oklab, var(--accent) 22%, transparent);
+  /* A focused text field only firms up its border: a bright accent outline or halo reads as a stray
+     white box in dark mode. */
+  --field-focus-border: var(--border-strong);
   /* The one keyboard focus ring colour. */
   --focus-ring: var(--accent);
 
@@ -266,6 +268,5 @@ input:focus,
 textarea:focus,
 select:focus {
   outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--focus-halo);
+  border-color: var(--field-focus-border);
 }
