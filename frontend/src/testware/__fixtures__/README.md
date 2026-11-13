@@ -22,6 +22,8 @@ Real model output on synthetic notes. Nothing here comes from a user's data.
   went through `richEditorDocumentFromStoredBody` and `richEditorDocumentToStoredBody`, as the
   frontend does when it opens and saves a generated draft.
 - File names are `<format>-<provider>-<note>.json`. Technique and depth vary per file.
+- All three checklist generations came back in the QA cases shape (an h3 per test case with its
+  checks as a bullet list). That is why a checklist with level-3 headings splits by headings.
 
 Do not edit these by hand. To refresh them, repeat the steps above and update the expected
 titles in `../testCases.test.ts`.

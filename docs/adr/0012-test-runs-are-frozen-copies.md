@@ -30,10 +30,13 @@ models do not always follow the format they were asked for.
      split at headings. The case level is 3 when the draft has a level-3
      heading, otherwise 2. A case runs from its heading to the next heading at
      that level or above. Over level-3 cases, the level-2 heading names the
-     group. A leading label such as `Test case:`, `Scenario:` or `TC-1:` is
-     dropped from the title.
-   - A checklist splits per item: every item of a top-level list is one test
-     case, titled by its first line, grouped by the nearest heading above it.
+     group. A leading label such as `Test case:`, `Scenario:`, `Feature:` or
+     `TC-1:` is dropped from the title and the group.
+   - A checklist with a level-3 heading splits by headings in the same way,
+     because models write a checklist as a heading per test case with its
+     checks listed under it. A checklist without level-3 headings splits per
+     item: every item of a top-level list is one test case, titled by its
+     first line, grouped by the nearest heading above it.
    - Text outside any case stays with the draft as context. A draft with no
      case cannot be run.
 3. **Only some formats can be run.** QA test cases, Gherkin-style scenarios and
@@ -54,8 +57,7 @@ models do not always follow the format they were asked for.
   its parts, so it splits the same way as generated drafts. Drafts saved from
   the earlier starter, which used an h3 for every section, are not migrated and
   split at every section.
-- Models asked for a checklist so far answer with the QA test cases shape, so
-  each step of a case becomes a checklist item. The prompt or the rule needs a
-  follow-up before checklist runs ship.
+- Prefill from Note writes the Note as a labelled paragraph, not under a
+  heading, so it is never counted as a test case.
 - A test run shows the cases as they were. Fixing a typo in the draft needs a
   new test run to show up there.

@@ -6,8 +6,9 @@
  * first case in `preamble`, between two cases in the later case's `lead` (a group heading and its
  * intro, for example), and after the last case in `trailing`. So
  * `[...preamble, ...cases.flatMap(c => [...c.lead, ...c.content]), ...trailing]` is the document's
- * top-level content. For a checklist each top-level list is first cut into one single-item list per
- * item, with the list's own type and attributes, so every case's content can be shown on its own.
+ * top-level content. For a checklist without level-3 headings, which splits per item, each top-level
+ * list is first cut into one single-item list per item, with the list's own type and attributes, so
+ * every case's content can be shown on its own.
  */
 import type { JSONContent } from '@tiptap/core'
 import type { RichEditorDocument } from '../editor/editorDocument'
@@ -31,10 +32,11 @@ export type TestCaseSplit = { preamble: JSONContent[]; cases: TestCase[]; traili
 
 const listTypes = new Set(['taskList', 'bulletList', 'orderedList'])
 
-/** A leading label that only repeats what a case is. Word labels need a colon. */
+/** A leading label that only repeats what a case or its group is. Word labels need a colon. */
 const titleLabels = [
   /^test case(?:\s+#?\d+)?\s*:\s*/i,
   /^scenario(?:\s+outline)?\s*:\s*/i,
+  /^feature\s*:\s*/i,
   /^tc[-\s]?\d+\s*(?::|[-–—·](?=\s))\s*/i,
 ]
 
@@ -53,7 +55,10 @@ export function draftOutputFormat(draft: Pick<Draft, 'metadataJson'>): TestwareO
 export function splitTestCases(document: RichEditorDocument, format: string | null): TestCaseSplit | null {
   if (format === 'charters' || format === 'coverage_outline') return null
   const nodes = document.doc.content ?? []
-  const split = format === 'checklist' ? splitChecklist(nodes) : splitByHeadings(nodes)
+  // Models write a checklist as a level-3 heading per test case with its checks listed under it, so
+  // headings win when they are there. Only a checklist without them is split by item.
+  const byItem = format === 'checklist' && !nodes.some((node) => headingLevel(node) === 3)
+  const split = byItem ? splitChecklist(nodes) : splitByHeadings(nodes)
   return split && split.cases.length > 0 ? split : null
 }
 
@@ -69,7 +74,7 @@ function splitByHeadings(nodes: JSONContent[]): TestCaseSplit | null {
   let open = false
   for (const node of nodes) {
     const nodeLevel = headingLevel(node)
-    if (level === 3 && nodeLevel === 2) group = plainText(node) || null
+    if (level === 3 && nodeLevel === 2) group = caseTitle(plainText(node)) || null
     if (nodeLevel !== null && nodeLevel <= level) open = false
     if (nodeLevel === level && plainText(node)) {
       builder.startCase({ group: level === 3 ? group : null, title: caseTitle(plainText(node)), node })
@@ -83,12 +88,12 @@ function splitByHeadings(nodes: JSONContent[]): TestCaseSplit | null {
   return builder.finish()
 }
 
-/** Each item with text in a top-level list is one case, titled by its first line. */
+/** Each item with text in a top-level list is one case, titled by its first line and grouped by the nearest heading. */
 function splitChecklist(nodes: JSONContent[]): TestCaseSplit {
   const builder = new SplitBuilder()
   let group: string | null = null
   for (const node of nodes) {
-    if (node.type === 'heading') group = plainText(node) || group
+    if (node.type === 'heading') group = caseTitle(plainText(node)) || group
     if (!listTypes.has(node.type ?? '')) {
       builder.addLoose(node)
       continue

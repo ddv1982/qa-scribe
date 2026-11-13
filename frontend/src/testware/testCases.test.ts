@@ -1,6 +1,7 @@
 import type { JSONContent } from '@tiptap/core'
 import { describe, expect, it } from 'vitest'
 import { richEditorDocumentFromHtml, type RichEditorDocument } from '../editor/editorDocument'
+import { renderPrefilledTestware } from '../workflows/prefillTemplates'
 import { draftOutputFormat, splitTestCases, type TestCaseSplit } from './testCases'
 
 type Fixture = { format: string | null; metadataJson: string | null; bodyHtml: string; document: RichEditorDocument }
@@ -10,10 +11,10 @@ const fixtures = Object.fromEntries(
     .map(([path, fixture]) => [path.replace('./__fixtures__/', '').replace('.json', ''), fixture]),
 )
 
-/** The document's top-level content, with each checklist list cut into single-item lists. */
+/** The document's top-level content; in a checklist without level-3 headings each list is cut into single-item lists. */
 function expectedParts(document: RichEditorDocument, format: string | null): JSONContent[] {
   const nodes = document.doc.content ?? []
-  if (format !== 'checklist') return nodes
+  if (format !== 'checklist' || nodes.some((node) => node.type === 'heading' && node.attrs?.level === 3)) return nodes
   return nodes.flatMap((node) => ['taskList', 'bulletList', 'orderedList'].includes(node.type ?? '')
     ? (node.content ?? []).map((item) => ({ ...node, content: [item] }))
     : [node])
@@ -49,77 +50,106 @@ describe('every fixture', () => {
   })
 })
 
-describe('generated QA cases and Gherkin drafts split at their level-3 headings', () => {
+describe('generated drafts split at their level-3 headings', () => {
   const expected: Record<string, Array<[string, string]>> = {
     'generated/qa_cases-claude-invoice': [
-      ['Scenario: Export availability by invoice state', 'Export PDF is enabled for a sent invoice (R1)'],
-      ['Scenario: Export availability by invoice state', 'Export PDF is enabled for a paid invoice (R2)'],
-      ['Scenario: Export availability by invoice state', 'Export PDF is disabled with a tooltip for a draft invoice (R3)'],
-      ['Scenario: Export availability by invoice state', 'Export PDF is disabled with a tooltip for a cancelled invoice (R4)'],
-      ['Scenario: PDF content and pagination', '25 line items fit on a single page (R5, boundary)'],
-      ['Scenario: PDF content and pagination', '26 line items continue on a second page with the header repeated (R6, boundary)'],
-      ['Scenario: PDF content and pagination', 'A 60-line invoice exports across pages with the header repeated (R6)'],
-      ['Scenario: PDF content and pagination', 'VAT is shown separately for each rate, with correct totals (R7)'],
-      ['Scenario: Export file naming', 'The file name follows invoice-<number>.pdf (A5)'],
-      ['Scenario: Export file naming', 'Customer name with special characters: "Müller & Söhne" (R8)'],
+      ['Export availability by invoice state', 'Export PDF is enabled for a sent invoice (R1)'],
+      ['Export availability by invoice state', 'Export PDF is enabled for a paid invoice (R2)'],
+      ['Export availability by invoice state', 'Export PDF is disabled with a tooltip for a draft invoice (R3)'],
+      ['Export availability by invoice state', 'Export PDF is disabled with a tooltip for a cancelled invoice (R4)'],
+      ['PDF content and pagination', '25 line items fit on a single page (R5, boundary)'],
+      ['PDF content and pagination', '26 line items continue on a second page with the header repeated (R6, boundary)'],
+      ['PDF content and pagination', 'A 60-line invoice exports across pages with the header repeated (R6)'],
+      ['PDF content and pagination', 'VAT is shown separately for each rate, with correct totals (R7)'],
+      ['Export file naming', 'The file name follows invoice-<number>.pdf (A5)'],
+      ['Export file naming', 'Customer name with special characters: "Müller & Söhne" (R8)'],
     ],
     'generated/qa_cases-claude-login': [
-      ['Scenario: Account lockout after failed passwords', 'Lock triggers at the 5-failure boundary within 15 minutes'],
-      ['Scenario: Account lockout after failed passwords', 'A successful sign-in resets the failed-attempt counter'],
-      ['Scenario: Generic errors and the per-IP limit', 'The lock message and the unknown-email error do not reveal whether an account exists'],
-      ['Scenario: Generic errors and the per-IP limit', 'The per-IP limit of 20 attempts in 15 minutes'],
-      ['Scenario: Recovery while locked', 'The password reset link works while the account is locked'],
+      ['Account lockout after failed passwords', 'Lock triggers at the 5-failure boundary within 15 minutes'],
+      ['Account lockout after failed passwords', 'A successful sign-in resets the failed-attempt counter'],
+      ['Generic errors and the per-IP limit', 'The lock message and the unknown-email error do not reveal whether an account exists'],
+      ['Generic errors and the per-IP limit', 'The per-IP limit of 20 attempts in 15 minutes'],
+      ['Recovery while locked', 'The password reset link works while the account is locked'],
     ],
     'generated/qa_cases-codex-checkout': [
-      ['Scenario: Required address fields and validation timing', 'Continue availability as required fields are completed'],
-      ['Scenario: Required address fields and validation timing', 'Invalid postcode error appears after leaving the field'],
-      ['Scenario: Country-specific postcode formats', 'NL postcode accepts optional internal space and rejects invalid structure'],
-      ['Scenario: Country-specific postcode formats', 'BE postcode requires four digits'],
-      ['Scenario: Country-specific postcode formats', 'DE postcode requires five digits'],
-      ['Scenario: Country-specific postcode formats', 'Country changes revalidate an existing postcode'],
-      ['Scenario: Address text length limits', 'Full name at and above the 60-character limit'],
-      ['Scenario: Address text length limits', 'Street and number at and above the 100-character limit'],
-      ['Scenario: Recorded postcode entry and navigation behavior', 'Compare pasted and typed NL postcodes with a trailing space'],
-      ['Scenario: Recorded postcode entry and navigation behavior', 'Shipping address persists when returning from payment'],
+      ['Required address fields and validation timing', 'Continue availability as required fields are completed'],
+      ['Required address fields and validation timing', 'Invalid postcode error appears after leaving the field'],
+      ['Country-specific postcode formats', 'NL postcode accepts optional internal space and rejects invalid structure'],
+      ['Country-specific postcode formats', 'BE postcode requires four digits'],
+      ['Country-specific postcode formats', 'DE postcode requires five digits'],
+      ['Country-specific postcode formats', 'Country changes revalidate an existing postcode'],
+      ['Address text length limits', 'Full name at and above the 60-character limit'],
+      ['Address text length limits', 'Street and number at and above the 100-character limit'],
+      ['Recorded postcode entry and navigation behavior', 'Compare pasted and typed NL postcodes with a trailing space'],
+      ['Recorded postcode entry and navigation behavior', 'Shipping address persists when returning from payment'],
     ],
     'generated/qa_cases-codex-invoice': [
-      ['Scenario: Export availability by invoice state', 'Export sent and paid invoices'],
-      ['Scenario: Export availability by invoice state', 'Prevent export of draft and cancelled invoices'],
-      ['Scenario: PDF content accuracy', 'Preserve invoice details, VAT rates and totals'],
-      ['Scenario: Pagination and large exports', 'Check the 25-line boundary and 60-line export'],
-      ['Scenario: Filename and special-character handling', 'Export an invoice for Müller & Söhne'],
+      ['Export availability by invoice state', 'Export sent and paid invoices'],
+      ['Export availability by invoice state', 'Prevent export of draft and cancelled invoices'],
+      ['PDF content accuracy', 'Preserve invoice details, VAT rates and totals'],
+      ['Pagination and large exports', 'Check the 25-line boundary and 60-line export'],
+      ['Filename and special-character handling', 'Export an invoice for Müller & Söhne'],
     ],
     'generated/gherkin-claude-checkout': [
-      ['Scenario: Postcode validation per country', 'Valid NL postcode is accepted with and without a space'],
-      ['Scenario: Postcode validation per country', 'Invalid NL postcode shows an inline error'],
-      ['Scenario: Postcode validation per country', 'BE and DE postcode digit length boundaries'],
-      ['Scenario: Postcode validation per country', 'Changing the country re-validates an entered postcode'],
-      ['Scenario: Postcode validation per country', 'Pasted and typed NL postcode with a trailing space are validated the same way'],
-      ['Scenario: Field length limits', 'Full name maximum of 60 characters'],
-      ['Scenario: Field length limits', 'Street and number maximum of 100 characters'],
-      ['Scenario: Form completion and inline errors', 'Continue stays disabled until all required fields are filled'],
-      ['Scenario: Form completion and inline errors', 'Inline error appears under the field after leaving it'],
-      ['Scenario: Navigation between checkout steps', 'Address is kept when going back from payment to shipping'],
+      ['Postcode validation per country', 'Valid NL postcode is accepted with and without a space'],
+      ['Postcode validation per country', 'Invalid NL postcode shows an inline error'],
+      ['Postcode validation per country', 'BE and DE postcode digit length boundaries'],
+      ['Postcode validation per country', 'Changing the country re-validates an entered postcode'],
+      ['Postcode validation per country', 'Pasted and typed NL postcode with a trailing space are validated the same way'],
+      ['Field length limits', 'Full name maximum of 60 characters'],
+      ['Field length limits', 'Street and number maximum of 100 characters'],
+      ['Form completion and inline errors', 'Continue stays disabled until all required fields are filled'],
+      ['Form completion and inline errors', 'Inline error appears under the field after leaving it'],
+      ['Navigation between checkout steps', 'Address is kept when going back from payment to shipping'],
     ],
     'generated/gherkin-claude-invoice': [
-      ['Scenario: Export availability by invoice state', 'Export is enabled for sent and paid invoices'],
-      ['Scenario: Export availability by invoice state', 'Export is blocked for draft and cancelled invoices'],
-      ['Scenario: PDF content and layout', 'The PDF contains all required sections and the VAT breakdown'],
-      ['Scenario: PDF content and layout', 'Page break after 25 line items (boundary)'],
-      ['Scenario: Export file naming', 'File name pattern with special characters in the customer name'],
+      ['Export availability by invoice state', 'Export is enabled for sent and paid invoices'],
+      ['Export availability by invoice state', 'Export is blocked for draft and cancelled invoices'],
+      ['PDF content and layout', 'The PDF contains all required sections and the VAT breakdown'],
+      ['PDF content and layout', 'Page break after 25 line items (boundary)'],
+      ['Export file naming', 'File name pattern with special characters in the customer name'],
     ],
     'generated/gherkin-codex-login': [
-      ['Scenario: Account lock threshold and duration', 'Lock after five failed passwords within 15 minutes'],
-      ['Scenario: Successful sign-in resets failed attempts', 'Earlier failures do not carry over after success'],
-      ['Scenario: Generic errors and the per-IP limit', 'Unknown email attempts remain generic and count toward the IP limit'],
-      ['Scenario: Password reset remains available during lock', 'Use the password reset link while sign-in is locked'],
+      ['Account lock threshold and duration', 'Lock after five failed passwords within 15 minutes'],
+      ['Successful sign-in resets failed attempts', 'Earlier failures do not carry over after success'],
+      ['Generic errors and the per-IP limit', 'Unknown email attempts remain generic and count toward the IP limit'],
+      ['Password reset remains available during lock', 'Use the password reset link while sign-in is locked'],
+    ],
+    // All three models answered the checklist format with the QA cases shape: an h3 per test case and
+    // its checks as a bullet list. Headings win, so these split like QA cases.
+    'generated/checklist-claude-invoice': [
+      ['Export PDF availability by invoice state', 'Export is enabled only for sent and paid invoices'],
+      ['PDF content', 'The exported PDF has all required elements and VAT broken down by rate'],
+      ['Multi-page layout', 'Invoices with more than 25 line items continue on a second page'],
+      ['File naming', 'The file name follows invoice-<number>.pdf, including when the customer name has special characters'],
+      ['Export of large invoices', 'A 60-line invoice exports successfully'],
+    ],
+    'generated/checklist-codex-checkout': [
+      ['Required fields and inline validation', 'Continue requires completed required fields'],
+      ['Required fields and inline validation', 'Field errors appear after leaving the field'],
+      ['Country-specific postcode formats', 'NL accepts the optional space'],
+      ['Country-specific postcode formats', 'BE requires four digits'],
+      ['Country-specific postcode formats', 'DE requires five digits'],
+      ['Country-specific postcode formats', 'Changing country revalidates an existing postcode'],
+      ['Text field length boundaries', 'Full name has a 60-character maximum'],
+      ['Text field length boundaries', 'Street has a 100-character maximum'],
+      ['Recorded postcode entry behavior', 'NL trailing space through paste and typing'],
+      ['Address retention during checkout navigation', 'Returning from payment retains the shipping address'],
+    ],
+    'generated/checklist-codex-login': [
+      ['Account lock threshold and duration', 'Lock begins on the fifth failed password and expires after 15 minutes'],
+      ['Failed-attempt counter reset', 'Successful sign-in clears earlier failures'],
+      ['Unknown addresses and per-IP counting', 'Unknown addresses receive generic errors and contribute to the IP limit'],
+      ['Password reset during account lock', 'Password reset link remains usable while sign-in is locked'],
+      ['Lock scope across devices', 'Check whether switching devices bypasses an account lock'],
     ],
   }
 
   it.each(Object.keys(expected))('%s', (name) => {
     const { split } = splitFixture(name)
     expect(split?.cases.map(({ group, title }) => [group, title])).toEqual(expected[name])
-    // Each case starts at its own heading; a Feature heading or a technique note stays in the preamble.
+    // Each case starts at its own heading and keeps its steps and expected result; a Feature heading or
+    // a technique note stays in the preamble.
     for (const testCase of split!.cases) expect(testCase.content[0]).toMatchObject({ type: 'heading', attrs: { level: 3 } })
   })
 
@@ -131,65 +161,11 @@ describe('generated QA cases and Gherkin drafts split at their level-3 headings'
   })
 })
 
-describe('generated checklists split per list item', () => {
-  // All three models answered the checklist format with the QA cases shape (an h3 per test case and
-  // its steps as a bullet list), so every step becomes a case and its h3 becomes the group.
-  const expected: Record<string, { count: number; groups: string[]; first: string }> = {
-    'generated/checklist-claude-invoice': {
-      count: 25,
-      first: 'Open the detail page of a sent invoice. Is the Export PDF button enabled, and does clicking it produce a PDF?',
-      groups: [
-        'Test case: Export is enabled only for sent and paid invoices',
-        'Test case: The exported PDF has all required elements and VAT broken down by rate',
-        'Test case: Invoices with more than 25 line items continue on a second page',
-        'Test case: The file name follows invoice-<number>.pdf, including when the customer name has special characters',
-        'Test case: A 60-line invoice exports successfully',
-      ],
-    },
-    'generated/checklist-codex-checkout': {
-      count: 22,
-      first: 'Leave each required field empty in turn while completing the other required fields; verify Continue remains disabled.',
-      groups: [
-        'Test case: Continue requires completed required fields',
-        'Test case: Field errors appear after leaving the field',
-        'Test case: NL accepts the optional space',
-        'Test case: BE requires four digits',
-        'Test case: DE requires five digits',
-        'Test case: Changing country revalidates an existing postcode',
-        'Test case: Full name has a 60-character maximum',
-        'Test case: Street has a 100-character maximum',
-        'Test case: NL trailing space through paste and typing',
-        'Test case: Returning from payment retains the shipping address',
-      ],
-    },
-    'generated/checklist-codex-login': {
-      count: 13,
-      first: 'Submit four incorrect passwords within 15 minutes; verify that sign-in is not yet locked.',
-      groups: [
-        'Test case: Lock begins on the fifth failed password and expires after 15 minutes',
-        'Test case: Successful sign-in clears earlier failures',
-        'Test case: Unknown addresses receive generic errors and contribute to the IP limit',
-        'Test case: Password reset link remains usable while sign-in is locked',
-        'Test case: Check whether switching devices bypasses an account lock',
-      ],
-    },
-  }
-
-  it.each(Object.keys(expected))('%s', (name) => {
-    const { split } = splitFixture(name)
-    const cases = split!.cases
-    expect(cases).toHaveLength(expected[name].count)
-    expect(cases[0].title).toBe(expected[name].first)
-    expect([...new Set(cases.map(({ group }) => group))]).toEqual(expected[name].groups)
-    for (const testCase of cases) expect(testCase.content).toMatchObject([{ type: 'bulletList', content: [{ type: 'listItem' }] }])
-  })
-})
-
 describe('manual drafts', () => {
   it('splits the QA cases starter into its test cases', () => {
     expect(splitFixture('manual/qa_cases-starter').split?.cases.map(({ group, title }) => [group, title])).toEqual([
-      ['Scenario: Shipping address', 'Continue stays disabled until required fields are filled'],
-      ['Scenario: Shipping address', 'NL postcode accepts an optional space'],
+      ['Shipping address', 'Continue stays disabled until required fields are filled'],
+      ['Shipping address', 'NL postcode accepts an optional space'],
     ])
   })
 
@@ -200,7 +176,7 @@ describe('manual drafts', () => {
 
   it('splits the Gherkin starter at its scenario and the checklist starter per check', () => {
     expect(splitFixture('manual/gherkin-starter').split?.cases.map(({ group, title }) => [group, title]))
-      .toEqual([['Feature: Login lock', 'Five failures lock the account']])
+      .toEqual([['Login lock', 'Five failures lock the account']])
     const checklist = splitFixture('manual/checklist-starter').split
     expect(checklist?.cases.map(({ group, title }) => [group, title])).toEqual([
       ['Checklist', 'Export a sent invoice: the file is named invoice-<number>.pdf.'],
@@ -226,6 +202,15 @@ describe('manual drafts', () => {
       ['Checkout regression', 'Cancel payment'],
     ])
     expect(split?.preamble).toHaveLength(2)
+  })
+
+  it('keeps a prefilled Source note in the preamble, so only the starter\'s cases count', () => {
+    for (const [format, cases] of [['qa_cases', [['Scenario', 'Test case']]], ['gherkin', [['Feature', 'Scenario']]]] as const) {
+      const document = richEditorDocumentFromHtml(renderPrefilledTestware('Title', '<p>Pay with a <strong>saved</strong> card.</p>', format))
+      const result = splitTestCases(document, format)
+      expect(result?.cases.map(({ group, title }) => [group, title]), format).toEqual(cases)
+      expect(result?.preamble[0], format).toMatchObject({ type: 'paragraph', content: [{ text: 'Source note:' }, { text: ' Pay with a saved card.' }] })
+    }
   })
 
   it('returns null for the empty starters, which have nothing to run', () => {
@@ -276,11 +261,11 @@ describe('splitTestCases', () => {
     expect(result?.cases.map(({ title, lead, content }) => [title, lead.length, content.length])).toEqual([['First', 0, 2], ['Second', 2, 1]])
   })
 
-  it('makes each top-level list item of a checklist a case, keeps nested lists inside and the nearest heading as group', () => {
+  it('makes each top-level list item of a checklist without level-3 headings a case, with the nearest heading as group', () => {
     const document = richEditorDocumentFromHtml([
       '<p>Run on staging.</p>',
       '<ul><li><p>Before any heading</p></li></ul>',
-      '<h2>Export</h2><h3>Pages</h3>',
+      '<h2>Pages</h2><h2>Feature: Export</h2>',
       '<ul data-type="taskList"><li data-type="taskItem" data-checked="false"><p>Header repeats<br>on page 2</p></li>',
       '<li data-type="taskItem" data-checked="true"><p></p></li></ul>',
       '<p>Between lists.</p>',
@@ -290,8 +275,8 @@ describe('splitTestCases', () => {
     const result = splitTestCases(document, 'checklist')
     expect(result?.cases.map(({ group, title, lead }) => [group, title, lead.length])).toEqual([
       [null, 'Before any heading', 0],
-      ['Pages', 'Header repeats', 2],
-      ['Pages', 'Second paragraph is the title', 2],
+      ['Export', 'Header repeats', 2],
+      ['Export', 'Second paragraph is the title', 2],
     ])
     expect(result?.cases[2].content[0].content?.[0].content?.[2]).toMatchObject({ type: 'bulletList', content: [{}, {}] })
     expect(result?.preamble).toHaveLength(1)
@@ -299,8 +284,18 @@ describe('splitTestCases', () => {
     expect(joined(result!)).toEqual(expectedParts(document, 'checklist'))
   })
 
+  it('splits a checklist with level-3 headings by its headings, and its list items stay inside the cases', () => {
+    const result = split('<h2>Area</h2><h3>Test case: Case</h3><ul><li><p>Check one</p></li><li><p>Check two</p></li></ul><p>Expected: ok</p>', 'checklist')
+    expect(result?.cases.map(({ group, title, content }) => [group, title, content.length])).toEqual([['Area', 'Case', 3]])
+  })
+
   it('does not treat checklist headings or paragraphs as cases', () => {
-    expect(split('<h2>Area</h2><h3>Case</h3><p>Body</p>', 'checklist')).toBeNull()
+    expect(split('<h2>Area</h2><p>Body</p>', 'checklist')).toBeNull()
+  })
+
+  it('drops a leading label from group headings too, unless nothing would be left', () => {
+    const result = split('<h2>Feature: Login</h2><h3>One</h3><h2>Scenario: Lock</h2><h3>Two</h3><h2>Scenario:</h2><h3>Three</h3>', 'gherkin')
+    expect(result?.cases.map(({ group }) => group)).toEqual(['Login', 'Lock', 'Scenario:'])
   })
 })
 
