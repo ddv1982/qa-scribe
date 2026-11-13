@@ -97,9 +97,12 @@ export function TestRunView({ open, draftRuns, error, askAi, onSelectRun, onBack
           {run && askAi ? <ActionButton variant="secondary" className="ask-ai-trigger" icon={Sparkles} aria-expanded={askAi.expanded}
             onClick={() => void askAi.onOpen(run.id)}>Ask AI</ActionButton> : null}
           {run ? <CopyReportButton run={run} /> : null}
-          <ActionButton variant="quiet" icon={ArrowLeft} onClick={onBack}>Back to test cases</ActionButton>
-          <ActionButton variant="destructive-quiet" iconOnly icon={Trash2} aria-label="Delete test run" title="Delete test run"
-            onClick={() => setConfirmingDelete(true)} />
+          {/* Kept together, so a narrow header never leaves the delete icon alone on a line. */}
+          <span className="test-run-leave">
+            <ActionButton variant="quiet" icon={ArrowLeft} onClick={onBack}>Back to test cases</ActionButton>
+            <ActionButton variant="destructive-quiet" iconOnly icon={Trash2} aria-label="Delete test run" title="Delete test run"
+              onClick={() => setConfirmingDelete(true)} />
+          </span>
         </div>
       </header>
       {error ? <p className="field-error" role="alert">{error}</p> : null}

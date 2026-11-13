@@ -34,7 +34,7 @@ async function click(selector) {
 const inPanel = async (selector) => (await $(panel)).$(selector)
 
 const resultButton = (title, label) => `//section[@aria-label="${title}"]//div[@role="group"]/button[normalize-space()="${label}"]`
-const runAction = (label) => `//div[contains(@class,"test-run-actions")]/button[normalize-space()="${label}"]`
+const runAction = (label) => `//div[contains(@class,"test-run-actions")]//button[normalize-space()="${label}"]`
 
 /** Sets the block the caret is in through the editor's own Block style control. */
 async function blockStyle(editor, style) {
