@@ -71,6 +71,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
   renderEditFields, onPrepareEdit,
   renderPreviewHeader,
   renderSummary,
+  renderActions, renderDetail, onSelectedRecordChange,
   updateLocalRecord,
   onCancelGenerationJob,
   onCopy,
@@ -112,6 +113,11 @@ export function RecordCollectionView<T extends CollectionRecord>({
   renderPreviewHeader: (record: T) => ReactNode
   /** A line above the records, given each record as last saved: an edit in progress shows its original. */
   renderSummary?: (savedRecords: T[]) => ReactNode
+  /** More actions after Copy on the selected record, told whether it is being edited. */
+  renderActions?: (record: T, editing: boolean) => ReactNode
+  /** Something to show in place of the selected record, such as its test run; null shows the record. */
+  renderDetail?: (record: T) => ReactNode
+  onSelectedRecordChange?: (id: string | null) => void
   onPrepareEdit?: (record: T) => void
   renderEditFields?: (record: T) => ReactNode
   updateLocalRecord: (id: string, patch: CollectionRecordPatch) => void
@@ -174,6 +180,8 @@ export function RecordCollectionView<T extends CollectionRecord>({
       recordChat?.acknowledgeReveal?.(reveal)
     }
   }, [selectedRecord, sourceKind, recordChat, selectedUnsaved, reveal, requestedRecord, composer, revealKind, selectedRecordId, visibleRecords])
+  const selectedId = selectedRecord?.id ?? null
+  useEffect(() => onSelectedRecordChange?.(selectedId), [onSelectedRecordChange, selectedId])
 
 
   const createdRecord = createdRecordEditTarget && records.find((record) => record.id === createdRecordEditTarget.recordId)
@@ -320,9 +328,10 @@ export function RecordCollectionView<T extends CollectionRecord>({
           const saving = busyAction === busyActionFor(record, 'saving')
           const editorId = `${labels.editorIdPrefix}-${record.id}`
           const editing = Boolean(editingRecordIds[record.id])
+          const detail = editing ? null : renderDetail?.(record)
           return (
             <div className="record-detail-pane" ref={previewRef}>
-            <EditableRichRecord
+            {detail ?? <EditableRichRecord
               record={record}
               editing={editing}
               editorId={editorId}
@@ -346,7 +355,8 @@ export function RecordCollectionView<T extends CollectionRecord>({
                     <CopyControls
                     snapshot={{ target: { kind: sourceKind, sessionId: record.sessionId, id: record.id, action: 'jira-text' }, title: record.title, bodyHtml: selectedCopyBody }}
                     copyState={copyState} onCopy={onCopy} disabled={isBusy}
-                    label={record.title.trim() || labels.recordNounLower} screenshotCount={screenshotCount} /></>}
+                    label={record.title.trim() || labels.recordNounLower} screenshotCount={screenshotCount} />
+                    {renderActions?.(record, editing)}</>}
                   deleting={deleting}
                   deleteLabel={`Delete ${record.title}`}
                   deleteTitle={`Delete ${labels.recordNounLower}`}
@@ -363,7 +373,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
                   onCancelEdit={() => discardEditing(record)}
                 />
               }
-            />
+            />}
             </div>
           )
         })() : null}

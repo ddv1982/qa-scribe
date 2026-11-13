@@ -1,0 +1,112 @@
+/* Test runs (views/TestRunView.tsx, views/TestRunEntryPoints.tsx). Layout only; the controls are shared. */
+
+/* The Last test run line under a draft title: a quiet text button. */
+.last-test-run {
+  justify-self: start;
+  padding: 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.last-test-run:hover { color: var(--text-primary); }
+
+/* A test run reads as a page in the record pane, like the draft it replaces. */
+.test-run {
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: 0 0 0 var(--space-3);
+}
+
+.test-run-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-block: var(--space-2);
+}
+
+.test-run-heading {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.test-run-heading p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.test-run-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.test-run-actions select {
+  height: var(--control-lg);
+  padding-left: var(--space-3);
+  color: var(--text-primary);
+  background-color: var(--surface-raised);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+}
+
+.test-run-group {
+  margin: var(--space-4) 0 0;
+  color: var(--text-secondary);
+  font-family: var(--font-display);
+  font-size: var(--font-size-md);
+  font-weight: 600;
+}
+
+.test-run-case {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-2) var(--space-3);
+  align-items: center;
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.test-run-case > .test-run-remark,
+.test-run-case > .test-run-case-body {
+  grid-column: 1 / -1;
+}
+
+.test-run-case-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  min-height: var(--control-sm);
+  padding: 0;
+  color: var(--text-primary);
+  font-weight: 600;
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.test-run-case-toggle > span { overflow-wrap: anywhere; }
+.test-run-case-toggle[aria-expanded="true"] > .disclosure-chevron { transform: rotate(90deg); }
+
+/* The content reads like the draft preview, without the room a full record keeps for its body. */
+.test-run-case-body { padding-left: var(--space-6); }
+.test-run-case-body .rich-editor {
+  max-width: 76ch;
+  min-height: 0;
+  padding: 0;
+}
+
+@media (max-width: 560px) {
+  .test-run-case { grid-template-columns: minmax(0, 1fr); }
+}

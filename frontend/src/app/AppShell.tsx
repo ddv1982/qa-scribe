@@ -161,7 +161,7 @@ export function AppShell(c: AppController) {
         ) : null}
 
         {c.activeView === 'testware' ? (
-          <TestwareView recordChat={c.askAi} acceptanceCriteria={c.activeSession?.acceptanceCriteria ?? null}
+          <TestwareView recordChat={c.askAi} sessionId={c.activeSession?.id ?? null} acceptanceCriteria={c.activeSession?.acceptanceCriteria ?? null}
             composer={c.creationIntent?.kind === 'testware' ? composer : null} settleCreation={c.creation.settle}
             creationCommands={creationCommands('testware')}
             key={c.activeSession?.id ?? 'no-session'}

@@ -9,8 +9,11 @@ import type { BusyAction } from '../ui/types'
 import type { RecordLoadState } from '../app/useRecordHydration'
 import type { ClipboardSnapshot, CopyState } from '../app/copyActions'
 import type { CreatedRecordEditTarget } from '../app/types'
+import { useTestRuns } from '../testware/useTestRuns'
 import { CoverageLine } from './CoverageLine'
 import { RecordCollectionView, type RecordCollectionLabels } from './RecordCollectionView'
+import { LastTestRunLine, StartTestRunButton } from './TestRunEntryPoints'
+import { TestRunView } from './TestRunView'
 
 const testwareLabels: RecordCollectionLabels = {
   heading: 'Test cases',
@@ -30,6 +33,7 @@ const testwareLabels: RecordCollectionLabels = {
 
 export function TestwareView({
   composer, settleCreation, recordChat,
+  sessionId = null,
   acceptanceCriteria = null,
   creationCommands,
   busyAction,
@@ -54,6 +58,8 @@ export function TestwareView({
   onDiscardDraft,
   onUploadImage,
 }: {
+  /** The active Session, whose test cases can be run. Without it no test run is offered. */
+  sessionId?: string | null
   /** The active Session's acceptance criteria, shown as a coverage line above the test cases. */
   acceptanceCriteria?: string | null
   recordChat?: RecordChatActions
@@ -77,11 +83,14 @@ export function TestwareView({
   updateLocalDraft: (id: string, patch: Partial<Pick<Draft, 'title' | 'body' | 'bodyJson' | 'bodyFormat'>>) => void
   onCancelGenerationJob: (jobId: string) => Promise<void>
   onCopy: (snapshot: ClipboardSnapshot) => Promise<void>
-  onDeleteDraft: (draft: Draft) => void
+  /** Asks to delete a draft, told how many test runs go with it. */
+  onDeleteDraft: (draft: Draft, testRunCount: number) => void
   onSaveDraft: (draft: Draft) => Promise<boolean>
   onDiscardDraft: (draft: Draft) => void
   onUploadImage: (input: RichEditorImageUpload, recordId: string) => void | Promise<void>
 }) {
+  const testRuns = useTestRuns(sessionId)
+  const runsOf = (draftId: string) => testRuns.summaries.filter((summary) => summary.draftId === draftId)
   return (
     <RecordCollectionView
       composer={composer} settleCreation={settleCreation} recordChat={recordChat}
@@ -94,7 +103,7 @@ export function TestwareView({
       recordScreenshotCounts={draftScreenshotCounts}
       records={drafts}
       notice={notice}
-      error={error}
+      error={testRuns.startError ?? (testRuns.open ? null : testRuns.error) ?? error}
       isBusy={isBusy}
       activeGenerationJob={activeGenerationJob}
       initialSelectedRecordId={initialSelectedRecordId}
@@ -105,12 +114,25 @@ export function TestwareView({
       onRetryLoad={onRetryLoad}
       renderSummary={(savedDrafts) => <CoverageLine acceptanceCriteria={acceptanceCriteria} records={savedDrafts} />}
       renderListMeta={(draft) => <TestwareGenerationBadges draft={draft} />}
-      renderPreviewHeader={(draft) => (
-        <div className="record-heading-row">
-          <h2 className="record-title">{draft.title}</h2>
-          <TestwareGenerationBadges draft={draft} />
-        </div>
-      )}
+      renderPreviewHeader={(draft) => {
+        const lastRun = runsOf(draft.id)[0]
+        return <>
+          <div className="record-heading-row">
+            <h2 className="record-title">{draft.title}</h2>
+            <TestwareGenerationBadges draft={draft} />
+          </div>
+          {lastRun ? <LastTestRunLine summary={lastRun} onOpen={() => void testRuns.openRun(lastRun.id, draft.id)} /> : null}
+        </>
+      }}
+      renderActions={(draft, editing) => sessionId && !editing
+        ? <StartTestRunButton draft={draft} starting={testRuns.starting} disabled={isBusy} onStart={(cases) => void testRuns.start(draft.id, cases)} />
+        : null}
+      renderDetail={(draft) => testRuns.open?.draftId === draft.id ? (
+        <TestRunView open={testRuns.open} draftRuns={runsOf(draft.id)} error={testRuns.error}
+          onSelectRun={(runId) => void testRuns.openRun(runId, draft.id)} onBack={testRuns.close}
+          onDelete={testRuns.deleteRun} onChangeCase={testRuns.changeCase} />
+      ) : null}
+      onSelectedRecordChange={testRuns.keepForDraft}
       busyActionFor={(draft, kind) => {
         switch (kind) {
           case 'delete':
@@ -122,7 +144,7 @@ export function TestwareView({
       updateLocalRecord={updateLocalDraft}
       onCancelGenerationJob={onCancelGenerationJob}
       onCopy={onCopy}
-      onDeleteRecord={onDeleteDraft}
+      onDeleteRecord={(draft) => onDeleteDraft(draft, runsOf(draft.id).length)}
       onSaveRecord={onSaveDraft}
       onDiscardRecord={onDiscardDraft}
       onUploadImage={onUploadImage}

@@ -30,6 +30,8 @@ List the **Acceptance criteria** you are testing in the sheet, one per line; lin
 
 For a reusable check, choose **Create test cases**, select **Output format**, fill in the starter sections, and choose **Save test cases**. Choose QA cases, Checklist, Gherkin, Charters, or Coverage outline. Empty sections are optional. Findings offer **Template** choices for Structured finding or Blank. If you change the format after writing, choose **Keep editing** to retain your body or **Apply format** to replace it. The title and finding details stay intact.
 
+To run saved QA cases, Gherkin scenarios, or a checklist, open them in the Session's **Test cases** tab and choose **Start test run**. The test run is a copy of the test cases as they are now, so later edits to the draft do not change it. Mark each test case **Passed**, **Failed**, or **Blocked**, or press P, F, or B, and add a remark about what happened. Every choice saves at once. **Back to test cases** returns to the draft, where a line under the title sums up the last test run; choose it to open that test run again. Deleting the draft deletes its test runs.
+
 Before leaving an authored draft, choose **Save draft**, **Discard draft**, or **Keep editing**. Cancelling an untouched draft saves no record. Notes autosave; save a new creation draft before quitting.
 
 ## Copy output into your reporting tool

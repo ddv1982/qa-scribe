@@ -16,7 +16,6 @@
 .select-shell,
 .status-pill,
 .provider-lines article,
-.theme-toggle,
 .empty-session-actions {
   display: flex;
   align-items: center;

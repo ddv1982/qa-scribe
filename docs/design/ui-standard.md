@@ -54,6 +54,7 @@ are the next ones to extract; until then, copy the named pattern exactly.
 | Select | Native `<select>` inside a `Field`. The shared chevron is applied globally | Shared |
 | Tabs | `role="tablist"` with `role="tab"` buttons and `aria-selected` | Pattern, to extract as `Tabs` |
 | Small status label | `Badge` in `components/Badge.tsx`: a quiet pill for a short fact such as a format, a timebox or a state | Shared |
+| One choice from a few, or none | `Segmented` in `components/Segmented.tsx`: toggle buttons on a sunken track with `aria-pressed`. `allowDeselect` lets the pressed option be pressed again to clear it; a `tone` (`success`, `danger`, `warning`) colours a pressed result. Used by the theme setting and test run results | Shared |
 
 ## Adding a screen
 

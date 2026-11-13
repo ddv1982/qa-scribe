@@ -2,7 +2,8 @@ import type { Draft, Finding, Session } from '../tauri'
 
 export type DeleteConfirmation =
   | { kind: 'session'; session: Session }
-  | { kind: 'draft'; draft: Draft }
+  /** `testRunCount`: how many test runs of the draft are deleted with it. */
+  | { kind: 'draft'; draft: Draft; testRunCount?: number }
   | { kind: 'finding'; finding: Finding }
 
 export function deleteConfirmationCopy(confirmation: DeleteConfirmation) {
@@ -15,9 +16,12 @@ export function deleteConfirmationCopy(confirmation: DeleteConfirmation) {
   }
 
   if (confirmation.kind === 'draft') {
+    const runs = confirmation.testRunCount ?? 0
     return {
       title: `Delete "${confirmation.draft.title}"?`,
-      body: 'This removes this testware draft only. AI run history is kept. This cannot be undone.',
+      body: runs === 0
+        ? 'This removes this testware draft only. AI run history is kept. This cannot be undone.'
+        : `This removes this testware draft. ${runs === 1 ? 'Its test run is' : `Its ${runs} test runs are`} deleted too. AI run history is kept. This cannot be undone.`,
       confirmLabel: 'Delete testware permanently',
     }
   }
