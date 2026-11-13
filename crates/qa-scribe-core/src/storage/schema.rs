@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS sessions (
   debrief_notes TEXT,
   testing_percent INTEGER CHECK (testing_percent BETWEEN 0 AND 100),
   bug_percent INTEGER CHECK (bug_percent BETWEEN 0 AND 100),
-  setup_percent INTEGER CHECK (setup_percent BETWEEN 0 AND 100)
+  setup_percent INTEGER CHECK (setup_percent BETWEEN 0 AND 100),
+  acceptance_criteria TEXT
 );
 
 CREATE TABLE IF NOT EXISTS app_settings (

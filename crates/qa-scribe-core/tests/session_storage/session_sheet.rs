@@ -183,7 +183,6 @@ fn schema_19_database_gains_an_empty_session_sheet_and_keeps_its_data() {
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .expect("user_version should read");
     assert_eq!(user_version, SCHEMA_VERSION);
-    assert_eq!(SCHEMA_VERSION, 20);
     assert_no_foreign_key_violations(connection);
 
     let session = service

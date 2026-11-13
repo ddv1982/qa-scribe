@@ -29,3 +29,4 @@ include!("session_storage/attachments.rs");
 include!("session_storage/ai_run_lifecycle.rs");
 include!("session_storage/not_found_references.rs");
 include!("session_storage/session_sheet.rs");
+include!("session_storage/acceptance_criteria.rs");

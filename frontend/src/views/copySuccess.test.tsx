@@ -343,6 +343,7 @@ const session: Session = {
   testingPercent: null,
   bugPercent: null,
   setupPercent: null,
+  acceptanceCriteria: null,
   createdAt: '2026-06-24T08:00:00Z',
   updatedAt: '2026-06-24T08:00:00Z',
   lastOpenedAt: '2026-06-24T08:00:00Z',

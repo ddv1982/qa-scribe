@@ -794,6 +794,11 @@ export type Session = {
 	testingPercent: number | null,
 	bugPercent: number | null,
 	setupPercent: number | null,
+	/**
+	 *  Session sheet: the acceptance criteria under test, one per line, each
+	 *  line starting with an id such as `AC-1`.
+	 */
+	acceptanceCriteria: string | null,
 	createdAt: string,
 	updatedAt: string,
 	lastOpenedAt: string,
@@ -861,6 +866,7 @@ export type SessionPatch_Deserialize = {
 	testingPercent?: number | null,
 	bugPercent?: number | null,
 	setupPercent?: number | null,
+	acceptanceCriteria?: string | null,
 };
 
 /**
@@ -891,6 +897,7 @@ export type SessionPatch_Serialize = {
 	testingPercent?: number | null,
 	bugPercent?: number | null,
 	setupPercent?: number | null,
+	acceptanceCriteria?: string | null,
 };
 
 export type StageOrigin = {

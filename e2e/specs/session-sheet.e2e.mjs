@@ -107,4 +107,39 @@ describe('Session sheet in the built native application', () => {
     save('debriefed', { row: reread, session: afterDebrief })
     await browser.saveScreenshot(join(artifacts, 'sheet-row-debriefed.png'))
   })
+
+  it('lists acceptance criteria and shows which ones the saved test cases cover', async function () {
+    this.timeout(120_000)
+    const coverage = '.coverage-line'
+    const coverageText = async () => (await $(coverage)).getText()
+
+    await openSheet(row)
+    // The second criterion is typed without an id; Save numbers it.
+    await typeInto('dialog[open] textarea[aria-label="Acceptance criteria"]', 'AC-1 Empty street shows an error\nPostcode is validated')
+    await saveSheet()
+    await browser.waitUntil(async () => /2 criteria/.test(await $(row).getText()), { timeoutMsg: 'the row did not count 2 criteria' })
+    const withCriteria = await storedSession()
+    assert.equal(withCriteria.acceptanceCriteria, 'AC-1 Empty street shows an error\nAC-2 Postcode is validated')
+
+    // Only the Test cases tab shows coverage.
+    await click('[role="tab"]*=Findings')
+    await browser.waitUntil(() => browser.execute(() => document.querySelector('[role="tab"][aria-selected="true"]')?.textContent.includes('Findings')),
+      { timeoutMsg: 'the Findings tab did not open' })
+    assert.equal(await $(coverage).isExisting(), false)
+    await click('[role="tab"]*=Test cases')
+    await $(coverage).waitForDisplayed()
+    assert.equal(await coverageText(), '0 of 2 criteria covered. Not covered: AC-1, AC-2')
+
+    // A saved test case that names AC-1 covers it.
+    await click('button=Create test cases')
+    await typeInto('[aria-label="Test case title"]', 'Street error, covers AC-1')
+    await click('button=Save test cases')
+    await $('button=Edit').waitForDisplayed()
+    await browser.waitUntil(async () => (await coverageText()) === '1 of 2 criteria covered. Not covered: AC-2', {
+      timeoutMsg: 'the coverage line did not count the saved test case',
+    })
+    assert.equal(await $(`${coverage} span[title]`).getAttribute('title'), 'Postcode is validated')
+    save('coverage', { line: await coverageText(), session: withCriteria })
+    await browser.saveScreenshot(join(artifacts, 'coverage-line.png'))
+  })
 })

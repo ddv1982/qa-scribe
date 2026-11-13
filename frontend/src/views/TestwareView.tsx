@@ -9,6 +9,7 @@ import type { BusyAction } from '../ui/types'
 import type { RecordLoadState } from '../app/useRecordHydration'
 import type { ClipboardSnapshot, CopyState } from '../app/copyActions'
 import type { CreatedRecordEditTarget } from '../app/types'
+import { CoverageLine } from './CoverageLine'
 import { RecordCollectionView, type RecordCollectionLabels } from './RecordCollectionView'
 
 const testwareLabels: RecordCollectionLabels = {
@@ -29,6 +30,7 @@ const testwareLabels: RecordCollectionLabels = {
 
 export function TestwareView({
   composer, settleCreation, recordChat,
+  acceptanceCriteria = null,
   creationCommands,
   busyAction,
   copyState,
@@ -52,6 +54,8 @@ export function TestwareView({
   onDiscardDraft,
   onUploadImage,
 }: {
+  /** The active Session's acceptance criteria, shown as a coverage line above the test cases. */
+  acceptanceCriteria?: string | null
   recordChat?: RecordChatActions
   settleCreation?: () => Promise<boolean>
   composer?: import('react').ReactNode
@@ -99,6 +103,7 @@ export function TestwareView({
       loadState={loadState}
       loadError={loadError}
       onRetryLoad={onRetryLoad}
+      renderSummary={(savedDrafts) => <CoverageLine acceptanceCriteria={acceptanceCriteria} records={savedDrafts} />}
       renderListMeta={(draft) => <TestwareGenerationBadges draft={draft} />}
       renderPreviewHeader={(draft) => (
         <div className="record-heading-row">

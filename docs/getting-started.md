@@ -26,6 +26,8 @@ Use a test shop you have permission to test. Check what happens when you try to 
 
 To work session-based, choose **Session sheet**, the clipboard button beside **Copy**, and state a **Charter**, a ticket or reference, and a **Timebox** in minutes. When you finish, add a **Debrief**: what you covered, what is left, and how your time split across testing, bug investigation and setup. Every field is optional. A filled sheet shows as one line under the Session title; select it to edit the sheet. **Summarize** reads the sheet, so a summary can report against the charter.
 
+List the **Acceptance criteria** you are testing in the sheet, one per line; lines without an id such as `AC-1` are numbered when you save. Test cases created with AI cite them in a `Covers:` line, and the **Test cases** tab shows which criteria no saved test case names yet, so write the id, such as `Covers: AC-1`, into a test case to link it.
+
 For a reusable check, choose **Create test cases**, select **Output format**, fill in the starter sections, and choose **Save test cases**. Choose QA cases, Checklist, Gherkin, Charters, or Coverage outline. Empty sections are optional. Findings offer **Template** choices for Structured finding or Blank. If you change the format after writing, choose **Keep editing** to retain your body or **Apply format** to replace it. The title and finding details stay intact.
 
 Before leaving an authored draft, choose **Save draft**, **Discard draft**, or **Keep editing**. Cancelling an untouched draft saves no record. Notes autosave; save a new creation draft before quitting.

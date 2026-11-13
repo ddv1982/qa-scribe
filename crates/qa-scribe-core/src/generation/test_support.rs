@@ -44,6 +44,7 @@ pub fn test_session(title: &str) -> Session {
         testing_percent: None,
         bug_percent: None,
         setup_percent: None,
+        acceptance_criteria: None,
         created_at: "2026-06-23T00:00:00Z".to_string(),
         updated_at: "2026-06-23T00:00:00Z".to_string(),
         last_opened_at: "2026-06-23T00:00:00Z".to_string(),

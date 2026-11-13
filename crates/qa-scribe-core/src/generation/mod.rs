@@ -3,6 +3,7 @@ mod html_projection;
 mod preferences;
 mod prompt;
 mod response;
+mod session_material;
 mod workflow;
 
 pub use html::managed_attachment_protocol;
