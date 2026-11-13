@@ -71,6 +71,8 @@ Saving: Update writes the saved {noun}. Pending edits in the open editor are sav
 
 Anything not in this table must be identical.
 
+**Test run (read-only).** A test run also has Ask AI, on its run screen before Copy report. It is the one source the panel only reads: the source line says "Test run" above "{draft title}, {run date}", every message sends the test run report (draft title, run date, totals, each case with its result, remark and linked Finding) built from the stored results, and there is no suggestion card, Update action or Jira-draft action. The AI can use the CLI's tools under the usual permission prompts, for example to post the results to Jira or Confluence, but it can never set or rewrite a result. The panel closes when the tester goes back to the test cases, opens another test run or draft, or leaves the Test cases tab. See [ADR 0012](adr/0012-test-runs-are-frozen-copies.md).
+
 ## Keyboard and focus
 
 - Opening the panel focuses the composer. Closing returns focus to the button that opened it.

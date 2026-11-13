@@ -121,7 +121,7 @@ A copy-ready bug report Draft shaped for manual creation of a Jira issue.
 _Avoid_: Jira ticket, Jira issue
 
 **Ask AI**:
-The action that opens a fresh conversation beside a saved Finding or Test cases draft. The conversation belongs to that record. Reclicking an open panel focuses its current input. A settled close and reopen starts fresh. Exact unfinished turns and prepared edits remain recoverable through their original references. Sending includes that record's current content without saving its edits.
+The action that opens a fresh conversation beside a saved Finding, a Test cases draft, or a test run. The conversation belongs to that record or test run; for a test run it is read-only: it gets the test run report and never changes a result. Reclicking an open panel focuses its current input. A settled close and reopen starts fresh. Exact unfinished turns and prepared edits remain recoverable through their original references. Sending includes that record's current content without saving its edits.
 
 **AI chat**:
 Notes chat and record Ask AI use separate conversations, input, images, and tool decisions. Close persists input before hiding, and keeps the panel visible if persistence fails. The provider and model preference applies globally to the next invocation through Notes and Settings. Only Notes chat can be added to the Session Note.
