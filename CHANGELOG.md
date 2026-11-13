@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.11.0 - 2026-11-13
+
+- Copy is now a quiet icon in the top-right corner of what it copies: a Finding, test cases, a new draft, a library record, the Note, a test run report and the feedback link under Help. Hover over it to read "Copy"; after a copy it shows a green check and "Copied". "Copy first screenshot" is a second icon beside it.
+- The record list on the left of Test cases, Findings and both libraries can be hidden with a button left of the search box, so the open record gets the full width. The choice is remembered.
+- Icon-only buttons such as Session sheet and Delete show the same small hover message.
+
 ## v0.10.0 - 2026-11-13
 
 - Test runs. A saved Test cases draft in a Session has a new Start test run button. It copies the test cases as they are at that moment, and you mark each one Passed, Failed or Blocked, with a remark where it helps. Every click is saved at once. The copy never changes, so editing the draft or asking AI to rewrite it cannot touch a run.
