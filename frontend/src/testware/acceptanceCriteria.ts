@@ -6,7 +6,8 @@
 
 export type AcceptanceCriterion = { id: string; text: string }
 
-export type CriteriaCoverage = { covered: string[]; uncovered: AcceptanceCriterion[] }
+/** `failing` lists covered criteria that a failed test case names, in criteria order. */
+export type CriteriaCoverage = { covered: string[]; uncovered: AcceptanceCriterion[]; failing: AcceptanceCriterion[] }
 
 /** Maximum stored length, matching `SESSION_ACCEPTANCE_CRITERIA_MAX_LENGTH` in the core crate. */
 export const ACCEPTANCE_CRITERIA_MAX_LENGTH = 8000
@@ -66,14 +67,24 @@ function idPattern(id: string): RegExp {
   return new RegExp(`(?:^|[^A-Za-z0-9-])${escapeRegExp(id)}(?![A-Za-z0-9]|\\.\\d)`, 'i')
 }
 
-/** Which criteria the documents (plain text of saved test cases) mention by id. */
-export function criteriaCoverage(criteria: AcceptanceCriterion[], documents: string[]): CriteriaCoverage {
+/**
+ * Which criteria the documents (plain text of saved test cases) mention by id, and which of those
+ * a failed test case (plain text of a case that failed in a latest test run) mentions. A criterion no
+ * document mentions is only uncovered, never failing.
+ */
+export function criteriaCoverage(criteria: AcceptanceCriterion[], documents: string[], failedCases: string[] = []): CriteriaCoverage {
   const covered: string[] = []
   const uncovered: AcceptanceCriterion[] = []
+  const failing: AcceptanceCriterion[] = []
   for (const criterion of criteria) {
     const pattern = idPattern(criterion.id)
-    if (documents.some((document) => pattern.test(document))) covered.push(criterion.id)
-    else uncovered.push(criterion)
+    const mentioned = (text: string) => pattern.test(text)
+    if (!documents.some(mentioned)) {
+      uncovered.push(criterion)
+      continue
+    }
+    covered.push(criterion.id)
+    if (failedCases.some(mentioned)) failing.push(criterion)
   }
-  return { covered, uncovered }
+  return { covered, uncovered, failing }
 }

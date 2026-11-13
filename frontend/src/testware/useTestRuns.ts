@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import { deleteTestRun, getTestRun, listTestRuns, setTestCaseResult, startTestRun, type TestRun, type TestRunCase, type TestRunCaseDraft, type TestRunSummary } from '../tauri'
 import { CaseSaveQueue, type CasePatch } from './caseSaveQueue'
+import { latestTestRunIds } from './testRuns'
 import { formatError } from '../ui/format'
 
 /** The test run on screen: loading while `run` and `error` are both null. */
@@ -48,6 +49,8 @@ function drain(left: ScreenQueue) {
  */
 export function useTestRuns(sessionId: string | null) {
   const [summaries, setSummaries] = useState<TestRunSummary[]>([])
+  /** The newest test run of each draft, with its cases, for the coverage line. */
+  const [latestRuns, setLatestRuns] = useState<TestRun[]>([])
   const [open, setOpen] = useState<OpenTestRun | null>(null)
   const [starting, setStarting] = useState(false)
   const [startError, setStartError] = useState<string | null>(null)
@@ -73,9 +76,12 @@ export function useTestRuns(sessionId: string | null) {
     const request = ++summariesRequestRef.current
     try {
       const next = await listTestRuns(session)
-      if (request === summariesRequestRef.current && sessionRef.current === session) setSummaries(next)
+      const latest = await Promise.all(latestTestRunIds(next).map((runId) => getTestRun(runId)))
+      if (request !== summariesRequestRef.current || sessionRef.current !== session) return
+      setSummaries(next)
+      setLatestRuns(latest)
     } catch {
-      // The Last test run line is a hint; a failed refresh keeps the previous one.
+      // The Last test run line and the coverage line are hints; a failed refresh keeps the previous ones.
     }
   }, [])
 
@@ -125,6 +131,7 @@ export function useTestRuns(sessionId: string | null) {
   if (shownSession !== sessionId) {
     setShownSession(sessionId)
     setSummaries([])
+    setLatestRuns([])
     setOpen(null)
     setError(null)
     setStartError(null)
@@ -214,7 +221,7 @@ export function useTestRuns(sessionId: string | null) {
     }
   }, [detachQueue, openRun, refresh, show])
 
-  return { summaries, open, starting, startError, error, openRun, close, keepForDraft, start, changeCase, deleteRun }
+  return { summaries, latestRuns, open, starting, startError, error, openRun, close, keepForDraft, start, changeCase, deleteRun }
 }
 
 /** A save queue for `run` that shows each case change on screen while `run` is the open one. */

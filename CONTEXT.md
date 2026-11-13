@@ -61,7 +61,7 @@ The optional test basis of a Session in the Session sheet: plain text, one crite
 _Avoid_: Requirements, User stories
 
 **Coverage line**:
-One quiet line above a Session's Test cases that counts the acceptance criteria its saved Test cases drafts name by id, and lists the ones none does yet. It appears only when the Session has acceptance criteria, and unsaved edits count only once they are saved.
+One quiet line above a Session's Test cases that counts the acceptance criteria its saved Test cases drafts name by id, lists the ones none does yet, and names as failing the covered ones that a failed test case in the latest Test run of a draft names. It appears only when the Session has acceptance criteria, and unsaved edits count only once they are saved.
 _Avoid_: Traceability matrix, Coverage report
 
 **Session Timeline**:

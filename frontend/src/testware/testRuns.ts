@@ -1,5 +1,6 @@
 import { emptyRichEditorDocument, parseRichEditorDocument, richEditorDocumentFromStoredBody, serializeRichEditorDocument, type RichEditorDocument } from '../editor/editorDocument'
-import type { Draft, TestRunCase, TestRunCaseDraft, TestRunSummary } from '../tauri'
+import type { JSONContent } from '@tiptap/core'
+import type { Draft, TestRun, TestRunCase, TestRunCaseDraft, TestRunSummary } from '../tauri'
 import { formatShortDate } from '../ui/format'
 import { draftOutputFormat, splitTestCases } from './testCases'
 
@@ -40,4 +41,30 @@ export function lastTestRunText(summary: Pick<TestRunSummary, 'createdAt' | 'pas
     .filter(([, count]) => count > 0)
     .map(([label, count]) => `${count} ${label}`)
   return `Last test run ${formatShortDate(summary.createdAt)}: ${counts.length ? counts.join(', ') : 'nothing recorded yet'}`
+}
+
+/** The newest test run of each draft, from summaries listed newest first. */
+export function latestTestRunIds(summaries: Pick<TestRunSummary, 'id' | 'draftId'>[]): string[] {
+  const latest = new Map<string, string>()
+  for (const summary of summaries) if (!latest.has(summary.draftId)) latest.set(summary.draftId, summary.id)
+  return Array.from(latest.values())
+}
+
+/**
+ * The plain text of every case that failed in the given runs: its group title, its title and its
+ * copied content. Blocks are kept apart by a space, so `AC-1` ending one paragraph never runs into
+ * the next; text inside one block is joined as written, so `AC-` and a bold `1` still read `AC-1`.
+ */
+export function failedTestCaseTexts(runs: Pick<TestRun, 'cases'>[]): string[] {
+  return runs.flatMap((run) => run.cases)
+    .filter((testCase) => testCase.result === 'failed')
+    .map((testCase) => [testCase.groupTitle ?? '', testCase.title, nodeText(testRunCaseDocument(testCase).doc)].join(' '))
+}
+
+function nodeText(node: JSONContent): string {
+  if (node.type === 'text') return node.text ?? ''
+  if (node.type === 'hardBreak') return ' '
+  const children = node.content ?? []
+  const inline = children.every((child) => child.type === 'text' || child.type === 'hardBreak')
+  return children.map(nodeText).join(inline ? '' : ' ')
 }

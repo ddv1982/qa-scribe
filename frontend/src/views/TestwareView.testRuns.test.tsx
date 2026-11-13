@@ -161,3 +161,18 @@ describe('Test runs and their draft', () => {
     expect(onDeleteDraft).toHaveBeenCalledWith(runnable, 2)
   })
 })
+
+describe('Coverage line with test results', () => {
+  it('names the criteria a failed case of the latest test run mentions', async () => {
+    const covering = draftFixture({ id: 'draft-1', title: 'Checkout cases', body: '<h3>Pay by card AC-1</h3><p>Covers: AC-1, AC-2</p>' })
+    api.listTestRuns.mockResolvedValue([summary({ id: 'run-2' }), summary()])
+    api.getTestRun.mockResolvedValue({ ...run, id: 'run-2', cases: [
+      { ...run.cases[0], title: 'Pay by card AC-1', result: 'passed' },
+      { ...run.cases[0], id: 'case-2', title: 'Pay with a gift card', bodyJson: JSON.stringify({ schemaVersion: 1, doc: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Covers: AC-2' }] }] } }), result: 'failed' },
+    ] })
+    renderTestware([covering], { acceptanceCriteria: 'AC-1 Card\nAC-2 Gift card' })
+    await waitFor(() => expect(document.querySelector('.coverage-line')).toHaveTextContent(/^All 2 criteria covered, 1 failing\. Failing: AC-2$/))
+    expect(api.getTestRun).toHaveBeenCalledWith('run-2')
+    expect(api.getTestRun).not.toHaveBeenCalledWith('run-1')
+  })
+})

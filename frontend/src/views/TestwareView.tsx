@@ -112,7 +112,7 @@ export function TestwareView({
       loadState={loadState}
       loadError={loadError}
       onRetryLoad={onRetryLoad}
-      renderSummary={(savedDrafts) => <CoverageLine acceptanceCriteria={acceptanceCriteria} records={savedDrafts} />}
+      renderSummary={(savedDrafts) => <CoverageLine acceptanceCriteria={acceptanceCriteria} records={savedDrafts} latestRuns={testRuns.latestRuns} />}
       renderListMeta={(draft) => <TestwareGenerationBadges draft={draft} />}
       renderPreviewHeader={(draft) => {
         const lastRun = runsOf(draft.id)[0]

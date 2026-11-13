@@ -79,6 +79,22 @@ describe('useTestRuns', () => {
     expect(result.current.open?.run?.cases.map((item) => item.id)).toEqual(['a', 'b'])
   })
 
+  it('loads the newest test run of each draft with its cases, and reads them again once a result is stored', async () => {
+    const other = { ...run([testCase('c', { result: 'failed' })]), id: 'run-3', draftId: 'draft-2' }
+    api.listTestRuns.mockResolvedValue([summary({ id: 'run-3', draftId: 'draft-2' }), summary(), summary({ id: 'run-0' })])
+    api.getTestRun.mockImplementation(async (runId: string) => runId === 'run-3' ? other : run())
+    const { result } = renderHook(() => useTestRuns('session-1'))
+    await waitFor(() => expect(result.current.latestRuns).toHaveLength(2))
+    expect(result.current.latestRuns.map(({ id }) => id)).toEqual(['run-3', 'run-1'])
+    expect(api.getTestRun.mock.calls.map(([runId]) => runId as string)).toEqual(['run-3', 'run-1'])
+
+    await act(() => result.current.openRun('run-1', 'draft-1'))
+    api.setTestCaseResult.mockResolvedValue(testCase('a', { result: 'failed' }))
+    api.getTestRun.mockImplementation(async (runId: string) => runId === 'run-3' ? other : run([testCase('a', { result: 'failed' }), testCase('b')]))
+    act(() => result.current.changeCase('a', { result: 'failed' }))
+    await waitFor(() => expect(result.current.latestRuns[1].cases[0].result).toBe('failed'))
+  })
+
   it('loads nothing without a Session', () => {
     const { result } = renderHook(() => useTestRuns(null))
     expect(api.listTestRuns).not.toHaveBeenCalled()
@@ -173,7 +189,8 @@ describe('useTestRuns', () => {
     await act(() => saves.settle())
     expect(api.getTestRun).not.toHaveBeenCalled()
     await act(async () => { await saves.settle(); await reopening })
-    expect(api.getTestRun).toHaveBeenCalledTimes(1)
+    // Read by the reopen, and by the refresh of the latest test runs once the save was stored.
+    expect(api.getTestRun).toHaveBeenCalledTimes(2)
     expect(result.current.open?.run?.cases[0].result).toBe('failed')
     // One queue for the run: a new change saves at once.
     act(() => result.current.changeCase('a', { result: 'passed' }))

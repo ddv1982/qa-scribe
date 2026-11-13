@@ -53,7 +53,20 @@ describe('criteriaCoverage', () => {
     expect(criteriaCoverage(criteria, ['Covers: ac-1', 'Nothing here', 'Covers: SHOP-412, AC-9'])).toEqual({
       covered: ['AC-1', 'SHOP-412'],
       uncovered: [{ id: 'AC-2', text: 'Postcode' }],
+      failing: [],
     })
+  })
+
+  it('reports a covered criterion as failing when a failed test case names it as a whole token', () => {
+    const coverage = criteriaCoverage(criteria, ['Covers: AC-1, AC-2, SHOP-412'], ['Street Covers: ac-1', 'City AC-22 SHOP-4120'])
+    expect(coverage.covered).toEqual(['AC-1', 'AC-2', 'SHOP-412'])
+    expect(coverage.failing).toEqual([{ id: 'AC-1', text: 'Empty street' }])
+  })
+
+  it('reports an uncovered criterion only as uncovered, even when a failed test case names it', () => {
+    const coverage = criteriaCoverage(criteria, ['Covers: AC-1'], ['Covers: AC-1, AC-2'])
+    expect(coverage.uncovered.map(({ id }) => id)).toEqual(['AC-2', 'SHOP-412'])
+    expect(coverage.failing.map(({ id }) => id)).toEqual(['AC-1'])
   })
 
   it('does not match an id inside a longer id', () => {
