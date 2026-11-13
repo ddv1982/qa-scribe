@@ -21,7 +21,7 @@ const drafts = [
 ]
 function run(id: string, createdAt = at): TestRun {
   return { id, sessionId: 'session-1', draftId: 'draft-1', draftTitle: 'Checkout test cases', createdAt, updatedAt: createdAt,
-    cases: [{ id: `${id}-case`, runId: id, position: 0, groupTitle: 'Checkout', title: 'Pay by card', bodyJson: '{"type":"doc","content":[]}', result: 'failed', remark: 'Declined', findingId: null, updatedAt: createdAt }] }
+    cases: [{ id: `${id}-case`, runId: id, position: 0, groupTitle: 'Checkout', title: 'Pay by card', bodyJson: '{"type":"doc","content":[]}', result: 'failed', remark: 'Declined', findingId: null, findingTitle: null, updatedAt: createdAt }] }
 }
 function summary(source: TestRun): TestRunSummary {
   return { id: source.id, sessionId: source.sessionId, draftId: source.draftId, draftTitle: source.draftTitle, createdAt: source.createdAt, updatedAt: source.updatedAt,

@@ -2,8 +2,6 @@
 //! sections and labels follow `frontend/src/testware/testRunReport.ts`, the
 //! report the tester copies; change both together.
 
-use std::collections::HashMap;
-
 use rusqlite::{Connection, OptionalExtension};
 
 use super::{SessionService, test_runs::test_run};
@@ -28,7 +26,7 @@ impl SessionService {
         let connection = self.database.connection();
         require_run(connection, session_id, run_id)?;
         let run = test_run(connection, run_id)?;
-        Ok(report(&run, &finding_titles(connection, &run)?))
+        Ok(report(&run))
     }
 }
 
@@ -58,22 +56,6 @@ pub(super) fn require_owner_run(connection: &Connection, chat: &ChatState) -> Re
     }
 }
 
-// After the finding_title change lands, read case.finding_title instead.
-fn finding_titles(connection: &Connection, run: &TestRun) -> Result<HashMap<String, String>> {
-    let mut titles = HashMap::new();
-    let mut statement =
-        connection.prepare("SELECT title FROM findings WHERE id = ?1 AND session_id = ?2")?;
-    for id in run.cases.iter().filter_map(|case| case.finding_id.as_ref()) {
-        if let Some(title) = statement
-            .query_row([id, &run.session_id], |row| row.get::<_, String>(0))
-            .optional()?
-        {
-            titles.insert(id.clone(), title);
-        }
-    }
-    Ok(titles)
-}
-
 fn label(result: TestCaseResult) -> &'static str {
     match result {
         TestCaseResult::Passed => "Passed",
@@ -98,7 +80,7 @@ fn started(created_at: &str) -> String {
 /// The title, start, totals and every case with its Result, Remark and linked
 /// Finding title. Cases without a group come first; the others follow under
 /// their group title in the order the groups first appear.
-fn report(run: &TestRun, finding_titles: &HashMap<String, String>) -> String {
+fn report(run: &TestRun) -> String {
     let totals = RESULT_ORDER
         .iter()
         .map(|result| {
@@ -116,11 +98,7 @@ fn report(run: &TestRun, finding_titles: &HashMap<String, String>) -> String {
         if let Some(remark) = case.remark.as_deref().filter(|remark| !remark.is_empty()) {
             lines.push(format!("  Remark: {remark}"));
         }
-        if let Some(title) = case
-            .finding_id
-            .as_ref()
-            .and_then(|id| finding_titles.get(id))
-        {
+        if let Some(title) = &case.finding_title {
             lines.push(format!("  Finding: {title}"));
         }
         lines
