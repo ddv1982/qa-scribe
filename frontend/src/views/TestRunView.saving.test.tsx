@@ -18,7 +18,7 @@ import { TestRunView } from './TestRunView'
 
 const at = '2026-11-13T14:02:00Z'
 const stored = (patch: Partial<TestRunCase> = {}): TestRunCase => ({
-  id: 'a', runId: 'run-1', position: 0, groupTitle: null, title: 'Pay by card', bodyJson: '{}', result: 'not_run', remark: null, findingId: null, updatedAt: at, ...patch,
+  id: 'a', runId: 'run-1', position: 0, groupTitle: null, title: 'Pay by card', bodyJson: '{}', result: 'not_run', remark: null, findingId: null, findingTitle: null, updatedAt: at, ...patch,
 })
 const run = (testCase: TestRunCase): TestRun => ({ id: 'run-1', sessionId: 'session-1', draftId: 'draft-1', draftTitle: 'Checkout', createdAt: at, updatedAt: at, cases: [testCase] })
 

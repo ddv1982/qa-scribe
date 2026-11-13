@@ -1,16 +1,19 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
-import { AlertTriangle, ArrowLeft, ChevronRight, Loader2, Trash2 } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { AlertTriangle, ArrowLeft, CheckCircle2, ChevronRight, Copy, Loader2, Trash2 } from 'lucide-react'
+import { COPIED_FEEDBACK_MS } from '../app/copyActions'
 import { ActionButton } from '../components/ActionButton'
 import { Badge } from '../components/Badge'
 import { StatePanel } from '../components/Common'
 import { Dialog } from '../components/Dialog'
 import { Segmented, type SegmentedOption } from '../components/Segmented'
+import { writePlainClipboard } from '../editor/clipboardExport'
 import { RichTextEditor } from '../editor/RichTextEditor'
 import { testRunCaseDocument } from '../testware/testRuns'
+import { testRunReport } from '../testware/testRunReport'
 import type { OpenTestRun } from '../testware/useTestRuns'
 import type { CasePatch } from '../testware/caseSaveQueue'
-import type { TestCaseResult, TestRunCase, TestRunSummary } from '../tauri'
-import { formatDateTime } from '../ui/format'
+import type { TestCaseResult, TestRun, TestRunCase, TestRunSummary } from '../tauri'
+import { formatDateTime, formatError } from '../ui/format'
 
 type RecordedResult = Exclude<TestCaseResult, 'not_run'>
 
@@ -28,7 +31,7 @@ const REMARK_MAX_LENGTH = 500
  * A test run in place of its draft: the copied test cases in order, each with a Result and a Remark
  * saved the moment they change. There is no Save button.
  */
-export function TestRunView({ open, draftRuns, error, onSelectRun, onBack, onDelete, onChangeCase }: {
+export function TestRunView({ open, draftRuns, error, onSelectRun, onBack, onDelete, onChangeCase, onCreateFinding, onOpenFinding }: {
   open: OpenTestRun
   /** The draft's test runs, newest first. */
   draftRuns: TestRunSummary[]
@@ -38,6 +41,10 @@ export function TestRunView({ open, draftRuns, error, onSelectRun, onBack, onDel
   onDelete: (runId: string) => Promise<boolean>
   /** Changes one field of a case; the other keeps its value, so a remark and a result never overwrite each other. */
   onChangeCase: (caseId: string, patch: CasePatch) => void
+  /** Starts a Finding from a failed case; without it no Create Finding is offered. */
+  onCreateFinding?: (testCase: TestRunCase) => void
+  /** Opens the Finding a case is linked to. */
+  onOpenFinding?: (findingId: string) => void
 }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -85,6 +92,7 @@ export function TestRunView({ open, draftRuns, error, onSelectRun, onBack, onDel
               {draftRuns.map((summary) => <option key={summary.id} value={summary.id}>{formatDateTime(summary.createdAt)}</option>)}
             </select>
           ) : null}
+          {run ? <CopyReportButton run={run} /> : null}
           <ActionButton variant="quiet" icon={ArrowLeft} onClick={onBack}>Back to test cases</ActionButton>
           <ActionButton variant="destructive-quiet" iconOnly icon={Trash2} aria-label="Delete test run" title="Delete test run"
             onClick={() => setConfirmingDelete(true)} />
@@ -100,6 +108,7 @@ export function TestRunView({ open, draftRuns, error, onSelectRun, onBack, onDel
         <div className="test-run-cases">
           {cases.map((testCase, index) => (
             <TestRunCaseRow key={testCase.id} testCase={testCase}
+              finding={<CaseFinding testCase={testCase} onCreateFinding={onCreateFinding} onOpenFinding={onOpenFinding} />}
               group={testCase.groupTitle && testCase.groupTitle !== cases[index - 1]?.groupTitle ? testCase.groupTitle : null}
               toggleRef={(element) => { toggleRefs.current[index] = element }}
               onKeyDown={(event) => onCaseKeyDown(event, index)}
@@ -123,9 +132,42 @@ export function TestRunView({ open, draftRuns, error, onSelectRun, onBack, onDel
   )
 }
 
-function TestRunCaseRow({ testCase, group, toggleRef, onKeyDown, onChangeCase }: {
+/** Copies the test run as plain text, and says Copied for a moment like the other Copy buttons. */
+function CopyReportButton({ run }: { run: TestRun }) {
+  const [copied, setCopied] = useState(false)
+  const [failure, setFailure] = useState<string | null>(null)
+  const timer = useRef<number | null>(null)
+  useEffect(() => () => { if (timer.current !== null) window.clearTimeout(timer.current) }, [])
+
+  async function copy() {
+    if (timer.current !== null) window.clearTimeout(timer.current)
+    timer.current = null
+    setFailure(null)
+    try {
+      await writePlainClipboard(testRunReport(run))
+      setCopied(true)
+      timer.current = window.setTimeout(() => {
+        timer.current = null
+        setCopied(false)
+      }, COPIED_FEEDBACK_MS)
+    } catch (cause) {
+      setCopied(false)
+      setFailure(formatError(cause))
+    }
+  }
+
+  return <>
+    <ActionButton variant="secondary" icon={copied ? CheckCircle2 : Copy} onClick={() => void copy()}>{copied ? 'Copied' : 'Copy report'}</ActionButton>
+    <span className="sr-only" role="status">{copied ? 'Report copied' : ''}</span>
+    {failure ? <span className="copy-error" role="alert">Copy failed: {failure}</span> : null}
+  </>
+}
+
+function TestRunCaseRow({ testCase, group, finding, toggleRef, onKeyDown, onChangeCase }: {
   testCase: TestRunCase
   group: string | null
+  /** What follows the remark: the linked Finding, or Create Finding for a failed case. */
+  finding: ReactNode
   toggleRef: (element: HTMLButtonElement | null) => void
   onKeyDown: (event: KeyboardEvent<HTMLElement>) => void
   onChangeCase: (caseId: string, patch: CasePatch) => void
@@ -144,7 +186,12 @@ function TestRunCaseRow({ testCase, group, toggleRef, onKeyDown, onChangeCase }:
       <Segmented label={`Result for ${title}`} allowDeselect options={resultOptions}
         value={result === 'not_run' ? null : result}
         onChange={(next) => onChangeCase(id, { result: next ?? 'not_run' })} />
-      {showRemark ? <RemarkInput title={title} remark={remark} onSave={(next) => onChangeCase(id, { remark: next })} /> : null}
+      {showRemark ? (
+        <div className="test-run-remark-row">
+          <RemarkInput title={title} remark={remark} onSave={(next) => onChangeCase(id, { remark: next })} />
+          {finding}
+        </div>
+      ) : null}
       {document ? (
         <div className="test-run-case-body">
           <RichTextEditor value={document} ariaLabel={`${title} test case`} readOnly />
@@ -152,6 +199,21 @@ function TestRunCaseRow({ testCase, group, toggleRef, onKeyDown, onChangeCase }:
       ) : null}
     </section>
   </>
+}
+
+/**
+ * For a failed case: the Finding it is linked to, as a quiet line that opens it, or Create Finding
+ * when it has none.
+ */
+function CaseFinding({ testCase, onCreateFinding, onOpenFinding }: {
+  testCase: TestRunCase
+  onCreateFinding?: (testCase: TestRunCase) => void
+  onOpenFinding?: (findingId: string) => void
+}) {
+  if (testCase.result !== 'failed') return null
+  const { findingId, findingTitle } = testCase
+  if (findingId) return <button type="button" className="test-run-finding" onClick={() => onOpenFinding?.(findingId)}>Finding: {findingTitle}</button>
+  return onCreateFinding ? <ActionButton variant="secondary" onClick={() => onCreateFinding(testCase)}>Create Finding</ActionButton> : null
 }
 
 /** One line for what happened, saved on blur and on Enter when it changed. */

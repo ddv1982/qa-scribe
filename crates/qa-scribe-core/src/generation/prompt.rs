@@ -1,9 +1,9 @@
-use crate::domain::{AppSettings, Attachment, Entry, Session};
+use crate::domain::{AppSettings, Attachment, Entry};
 
 use super::html::{MANAGED_ATTACHMENT_PROTOCOL, escape_html_attribute};
 use super::html_projection::project_html_to_prompt_text;
 use super::response::OutputMarker;
-use super::session_material::SessionMaterial;
+use super::session_material::{PromptSession, SessionMaterial};
 
 const SELECTED_NOTE_PROMPT_CHAR_LIMIT: usize = 20_000;
 const TOTAL_PROMPT_MATERIAL_CHAR_LIMIT: usize = 40_000;
@@ -101,9 +101,9 @@ fn action_spec<'a>(action: ActionPromptKind, settings: &'a AppSettings) -> Actio
 /// preferences), then the hardcoded output contract that overrides them,
 /// then a skeleton example, then the note material as delimited data, and a
 /// final restatement of the critical constraints.
-pub fn render_action_prompt(
+pub fn render_action_prompt<'a>(
     settings: &AppSettings,
-    session: &Session,
+    session: impl Into<PromptSession<'a>>,
     note_entry: Option<&Entry>,
     attachments: &[Attachment],
     action: ActionPromptKind,
@@ -111,12 +111,13 @@ pub fn render_action_prompt(
     marker: &OutputMarker,
 ) -> String {
     let spec = action_spec(action, settings);
-    let session_title = session.title.as_str();
+    let session = session.into();
+    let session_title = session.session.title.as_str();
     let session_material = SessionMaterial::for_action(session, action);
-    let [sheet_text, criteria_text] = session_material.texts();
+    let [sheet_text, results_text, criteria_text] = session_material.texts();
     let selected_note_marker = selected_note_marker(
         marker,
-        &[session_title, sheet_text, criteria_text],
+        &[session_title, sheet_text, results_text, criteria_text],
         note_entry,
     );
     let mut budget = PromptMaterialBudget::with_limit(spec.total_limit);

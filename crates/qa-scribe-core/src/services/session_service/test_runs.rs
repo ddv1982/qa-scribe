@@ -16,8 +16,12 @@ use super::{
     SessionService, drafts::draft_by_id, new_id, now, require_row_in_session, require_session,
 };
 
-const CASE_COLUMNS: &str =
-    "id, run_id, position, group_title, title, body_json, result, remark, finding_id, updated_at";
+/// Reads cases with the title of their linked Finding, which a case never
+/// stores, so a renamed Finding shows its new title. Every read of a case goes
+/// through this select and [`map_case`]; callers append the `WHERE` clause.
+const CASE_SELECT: &str = "SELECT c.id, c.run_id, c.position, c.group_title, c.title, c.body_json,
+        c.result, c.remark, c.finding_id, f.title, c.updated_at
+ FROM test_run_cases c LEFT JOIN findings f ON f.id = c.finding_id";
 
 impl SessionService {
     /// Copies `cases` into a new test run of the Test cases draft `draft_id`.
@@ -59,6 +63,28 @@ impl SessionService {
 
     pub fn get_test_run(&self, run_id: &str) -> Result<TestRun> {
         test_run(self.database.connection(), run_id)
+    }
+
+    /// The newest test run of each of the Session's Test cases drafts, with
+    /// its cases, newest first. Newest is the order `list_test_runs` uses.
+    pub fn latest_test_runs(&self, session_id: &str) -> Result<Vec<TestRun>> {
+        let connection = self.database.connection();
+        let mut statement = connection.prepare(
+            "SELECT r.id FROM test_runs r
+             WHERE r.session_id = ?1 AND NOT EXISTS (
+                 SELECT 1 FROM test_runs newer
+                 WHERE newer.draft_id = r.draft_id
+                   AND (newer.created_at > r.created_at
+                        OR (newer.created_at = r.created_at AND newer.id > r.id)))
+             ORDER BY r.created_at DESC, r.id DESC",
+        )?;
+        let run_ids = statement
+            .query_map([session_id], |row| row.get::<_, String>(0))?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        run_ids
+            .iter()
+            .map(|run_id| test_run(connection, run_id))
+            .collect()
     }
 
     /// The Session's test runs, newest first, with how many cases have each Result.
@@ -175,7 +201,7 @@ impl SessionService {
                 params![now, run_id],
             )?;
             Ok(tx.query_row(
-                &format!("SELECT {CASE_COLUMNS} FROM test_run_cases WHERE id = ?1"),
+                &format!("{CASE_SELECT} WHERE c.id = ?1"),
                 [case_id],
                 map_case,
             )?)
@@ -250,7 +276,7 @@ fn test_run(connection: &Connection, run_id: &str) -> Result<TestRun> {
         .optional()?
         .ok_or_else(|| QaScribeError::NotFound(run_id.to_string()))?;
     let mut statement = connection.prepare(&format!(
-        "SELECT {CASE_COLUMNS} FROM test_run_cases WHERE run_id = ?1 ORDER BY position"
+        "{CASE_SELECT} WHERE c.run_id = ?1 ORDER BY c.position"
     ))?;
     run.cases = statement
         .query_map([run_id], map_case)?
@@ -270,6 +296,7 @@ fn map_case(row: &Row<'_>) -> rusqlite::Result<TestRunCase> {
         result: TestCaseResult::from_stored(&result).map_err(to_sql_error)?,
         remark: row.get(7)?,
         finding_id: row.get(8)?,
-        updated_at: row.get(9)?,
+        finding_title: row.get(9)?,
+        updated_at: row.get(10)?,
     })
 }

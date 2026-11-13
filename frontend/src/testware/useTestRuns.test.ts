@@ -15,7 +15,7 @@ import { BACKGROUND_SAVE_ERROR, forgetDrainingTestRuns, useTestRuns } from './us
 
 const at = '2026-11-13T14:02:00Z'
 const testCase = (id: string, patch: Partial<TestRunCase> = {}): TestRunCase => ({
-  id, runId: 'run-1', position: 0, groupTitle: null, title: `Case ${id}`, bodyJson: '{}', result: 'not_run', remark: null, findingId: null, updatedAt: at, ...patch,
+  id, runId: 'run-1', position: 0, groupTitle: null, title: `Case ${id}`, bodyJson: '{}', result: 'not_run', remark: null, findingId: null, findingTitle: null, updatedAt: at, ...patch,
 })
 const run = (cases = [testCase('a'), testCase('b')]): TestRun => ({ id: 'run-1', sessionId: 'session-1', draftId: 'draft-1', draftTitle: 'Checkout', createdAt: at, updatedAt: at, cases })
 const summary = (patch: Partial<TestRunSummary> = {}): TestRunSummary => ({
@@ -77,6 +77,22 @@ describe('useTestRuns', () => {
     expect(api.getTestRun).toHaveBeenCalledWith('run-1')
     expect(result.current.open).toMatchObject({ runId: 'run-1', draftId: 'draft-1', error: null })
     expect(result.current.open?.run?.cases.map((item) => item.id)).toEqual(['a', 'b'])
+  })
+
+  it('loads the newest test run of each draft with its cases, and reads them again once a result is stored', async () => {
+    const other = { ...run([testCase('c', { result: 'failed' })]), id: 'run-3', draftId: 'draft-2' }
+    api.listTestRuns.mockResolvedValue([summary({ id: 'run-3', draftId: 'draft-2' }), summary(), summary({ id: 'run-0' })])
+    api.getTestRun.mockImplementation(async (runId: string) => runId === 'run-3' ? other : run())
+    const { result } = renderHook(() => useTestRuns('session-1'))
+    await waitFor(() => expect(result.current.latestRuns).toHaveLength(2))
+    expect(result.current.latestRuns.map(({ id }) => id)).toEqual(['run-3', 'run-1'])
+    expect(api.getTestRun.mock.calls.map(([runId]) => runId as string)).toEqual(['run-3', 'run-1'])
+
+    await act(() => result.current.openRun('run-1', 'draft-1'))
+    api.setTestCaseResult.mockResolvedValue(testCase('a', { result: 'failed' }))
+    api.getTestRun.mockImplementation(async (runId: string) => runId === 'run-3' ? other : run([testCase('a', { result: 'failed' }), testCase('b')]))
+    act(() => result.current.changeCase('a', { result: 'failed' }))
+    await waitFor(() => expect(result.current.latestRuns[1].cases[0].result).toBe('failed'))
   })
 
   it('loads nothing without a Session', () => {
@@ -173,7 +189,8 @@ describe('useTestRuns', () => {
     await act(() => saves.settle())
     expect(api.getTestRun).not.toHaveBeenCalled()
     await act(async () => { await saves.settle(); await reopening })
-    expect(api.getTestRun).toHaveBeenCalledTimes(1)
+    // Read by the reopen, and by the refresh of the latest test runs once the save was stored.
+    expect(api.getTestRun).toHaveBeenCalledTimes(2)
     expect(result.current.open?.run?.cases[0].result).toBe('failed')
     // One queue for the run: a new change saves at once.
     act(() => result.current.changeCase('a', { result: 'passed' }))
@@ -187,6 +204,8 @@ describe('useTestRuns', () => {
     act(() => first.result.current.changeCase('a', { result: 'failed' }))
     // Leaving the Test cases tab unmounts the view; its save keeps going.
     first.unmount()
+    // No summaries, so the only read of a run below is the reopened one.
+    api.listTestRuns.mockResolvedValue([])
     api.getTestRun.mockClear()
     api.getTestRun.mockResolvedValue(run([testCase('a', { result: 'failed' }), testCase('b')]))
     const second = renderHook(() => useTestRuns('session-1'))
@@ -216,6 +235,8 @@ describe('useTestRuns', () => {
   it('stores a change that arrives just after its run left the screen', async () => {
     const { result } = await opened()
     const saves = deferredSaves()
+    // No summaries, so the only read of a run below is the reopened one.
+    api.listTestRuns.mockResolvedValue([])
     // Back detaches the run's queue before React unmounts the remark input, whose cleanup commits.
     act(() => result.current.close())
     act(() => result.current.changeCase('a', { remark: 'Typed, never blurred' }))

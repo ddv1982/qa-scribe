@@ -3,12 +3,12 @@ import { createCreationSourceActions } from './creationSourceActions'
 import type { GenerationJobStatus, TestwareGenerationPreferences } from '../tauri'
 import type { AiSelection } from './types'
 import { useState } from 'react'
-import { abortCreationSave, commitCreationSave, prepareCreationSave, readClipboardImageDataUrl, type CreatedRecord, type CreationKind, type CreationOutcome } from '../tauri'
+import { abortCreationSave, commitCreationSave, linkTestCaseFinding, prepareCreationSave, readClipboardImageDataUrl, type CreatedRecord, type CreationKind, type CreationOutcome } from '../tauri'
 import { cloneRichEditorDocument, serializeRichEditorDocument } from '../editor/editorDocument'
 import { pastedImageFilename, readFileAsDataUrl } from '../editor/editorHtml'
 import { richEditorImageInserterForId, type RichEditorImageUpload } from '../editor/richEditorRegistry'
 import { formatError, toCommandError } from '../ui/format'
-import { creationBodyIsAuthored, creationIsAuthored, type CreationAttempt, type CreationContent, type CreationImageOperation, type CreationIntent } from './creationIntent'
+import { creationBodyIsAuthored, creationIsAuthored, type CreationAttempt, type CreationContent, type CreationImageOperation, type CreationIntent, type CreationSeed } from './creationIntent'
 import { creationImageInputs, materializeCreationDocument } from './creationImages'
 import { useStableCapability } from './useStableCapability'
 
@@ -65,13 +65,13 @@ export function createCreationActions(ctx: CreationContext) {
     publish({ ...intent, format, document: creationStarter(format), metadataJson: withCreationFormatMetadata(intent.metadataJson, format) })
     return true
   }
-  async function open(kind: CreationKind, isCurrent: () => boolean = () => true, expandAi = false) {
+  async function open(kind: CreationKind, isCurrent: () => boolean = () => true, expandAi = false, seed: CreationSeed | null = null) {
     if (!await settle() || !isCurrent()) return
     const sessionId = ctx.activeSessionId()
     if (!sessionId) return
     const epoch = ctx.beginNavigation()
     const format = defaultCreationFormat(kind)
-    publish({ id: crypto.randomUUID(), sessionId, epoch, kind, format, title: '', document: creationStarter(format), metadataJson: null, findingKind: 'bug', imageOperations: {}, source: null, sourceNoteId: ctx.noteId?.() ?? null, setup: expandAi ? 'ai' : null, phase: { state: 'editing' } })
+    publish({ id: crypto.randomUUID(), sessionId, epoch, kind, format, title: seed?.title ?? '', document: seed?.document ?? creationStarter(format), metadataJson: null, findingKind: 'bug', imageOperations: {}, source: null, sourceNoteId: ctx.noteId?.() ?? null, setup: expandAi ? 'ai' : null, phase: { state: 'editing' }, ...seed ? { testCaseId: seed.testCaseId } : {} })
     ctx.error(null)
     ctx.openDestination(kind)
     void source.reviewSource()
@@ -139,8 +139,10 @@ export function createCreationActions(ctx: CreationContext) {
     if (!matches(captured)) return false
     if (outcome.state === 'committed') {
       if (selectionInFlight) return selectionInFlight
+      const firstCommit = intent!.phase.state !== 'saved'
       publish({ ...intent!, phase: { state: 'saved', record: outcome.record, selection: 'loading' } })
-      selectionInFlight = ctx.selectSaved(captured, outcome.record).then((selected) => {
+      const linked = firstCommit ? linkTestCase(captured, outcome.record) : Promise.resolve()
+      selectionInFlight = linked.then(() => ctx.selectSaved(captured, outcome.record)).then((selected) => {
         if (!matches(captured) || selected === 'stale') return false
         if (selected === 'deleted') {
           publish({ ...intent!, phase: { state: 'committed-deleted', recordId: outcome.record.record.id } })
@@ -164,6 +166,15 @@ export function createCreationActions(ctx: CreationContext) {
     }
     if (outcome.state === 'aborted') publish({ ...intent!, phase: { state: 'editing' } })
     return false
+  }
+  /** Links a Finding created from a test case to that case. A failed link leaves the Finding saved and says so. */
+  async function linkTestCase(captured: CreationIntent, record: CreatedRecord): Promise<void> {
+    if (!captured.testCaseId || record.kind !== 'finding') return
+    try {
+      await linkTestCaseFinding(captured.testCaseId, record.record.id)
+    } catch (cause) {
+      if (matches(captured)) ctx.error(`The Finding is saved, but could not be linked to its test case. ${formatError(cause)}`)
+    }
   }
   function save(): Promise<boolean> {
     if (saveInFlight) return saveInFlight

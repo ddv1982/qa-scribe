@@ -4,7 +4,7 @@ import { Box } from 'lucide-react'
 import { Badge } from '../components/Badge'
 import type { RichEditorImageUpload } from '../editor/RichTextEditor'
 import { testwareGenerationSummary } from '../testware/generationPreferences'
-import type { Draft, GenerationJobStatus } from '../tauri'
+import type { Draft, GenerationJobStatus, TestRunCase } from '../tauri'
 import type { BusyAction } from '../ui/types'
 import type { RecordLoadState } from '../app/useRecordHydration'
 import type { ClipboardSnapshot, CopyState } from '../app/copyActions'
@@ -35,6 +35,8 @@ export function TestwareView({
   composer, settleCreation, recordChat,
   sessionId = null,
   acceptanceCriteria = null,
+  onCreateFinding,
+  onOpenFinding,
   creationCommands,
   busyAction,
   copyState,
@@ -62,6 +64,10 @@ export function TestwareView({
   sessionId?: string | null
   /** The active Session's acceptance criteria, shown as a coverage line above the test cases. */
   acceptanceCriteria?: string | null
+  /** Starts a Finding from a failed test case of a test run. */
+  onCreateFinding?: (testCase: TestRunCase) => void
+  /** Opens a Finding of the Session in its Findings tab. */
+  onOpenFinding?: (findingId: string) => void
   recordChat?: RecordChatActions
   settleCreation?: () => Promise<boolean>
   composer?: import('react').ReactNode
@@ -112,7 +118,7 @@ export function TestwareView({
       loadState={loadState}
       loadError={loadError}
       onRetryLoad={onRetryLoad}
-      renderSummary={(savedDrafts) => <CoverageLine acceptanceCriteria={acceptanceCriteria} records={savedDrafts} />}
+      renderSummary={(savedDrafts) => <CoverageLine acceptanceCriteria={acceptanceCriteria} records={savedDrafts} latestRuns={testRuns.latestRuns} />}
       renderListMeta={(draft) => <TestwareGenerationBadges draft={draft} />}
       renderPreviewHeader={(draft) => {
         const lastRun = runsOf(draft.id)[0]
@@ -129,6 +135,7 @@ export function TestwareView({
         : null}
       renderDetail={(draft) => testRuns.open?.draftId === draft.id ? (
         <TestRunView open={testRuns.open} draftRuns={runsOf(draft.id)} error={testRuns.error}
+          onCreateFinding={onCreateFinding} onOpenFinding={onOpenFinding}
           onSelectRun={(runId) => void testRuns.openRun(runId, draft.id)} onBack={testRuns.close}
           onDelete={testRuns.deleteRun} onChangeCase={testRuns.changeCase} />
       ) : null}

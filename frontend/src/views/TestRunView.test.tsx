@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest'
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import type { ComponentProps } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -9,7 +9,12 @@ vi.mock('../editor/RichTextEditor', () => ({
   ),
 }))
 
+const clipboard = vi.hoisted(() => ({ writePlainClipboard: vi.fn() }))
+vi.mock('../editor/clipboardExport', () => clipboard)
+
+import { COPIED_FEEDBACK_MS } from '../app/copyActions'
 import type { TestRunCase, TestRunSummary } from '../tauri'
+import { testRunReport } from '../testware/testRunReport'
 import { formatDateTime } from '../ui/format'
 import { TestRunView } from './TestRunView'
 
@@ -21,7 +26,7 @@ const body = JSON.stringify({ schemaVersion: 1, doc: { type: 'doc', content: [
   { type: 'paragraph', content: [{ type: 'text', text: 'Order is placed.' }] },
 ] } })
 const testCase = (id: string, title: string, patch: Partial<TestRunCase> = {}): TestRunCase => ({
-  id, runId: 'run-1', position: 0, groupTitle: null, title, bodyJson: body, result: 'not_run', remark: null, findingId: null, updatedAt: at, ...patch,
+  id, runId: 'run-1', position: 0, groupTitle: null, title, bodyJson: body, result: 'not_run', remark: null, findingId: null, findingTitle: null, updatedAt: at, ...patch,
 })
 const summary = (id: string, createdAt: string): TestRunSummary => ({
   id, sessionId: 'session-1', draftId: 'draft-1', draftTitle: 'Checkout', createdAt, updatedAt: createdAt, total: 3, passed: 0, failed: 0, blocked: 0, notRun: 3,
@@ -145,6 +150,56 @@ describe('TestRunView', () => {
     expect(within(switcher).getAllByRole('option').map((option) => option.textContent)).toEqual([formatDateTime(later), formatDateTime(at)])
     fireEvent.change(switcher, { target: { value: 'run-2' } })
     expect(onSelectRun).toHaveBeenCalledWith('run-2')
+  })
+
+  it('copies the test run as a plain text report, then says Copied for a moment', async () => {
+    vi.useFakeTimers()
+    try {
+      clipboard.writePlainClipboard.mockResolvedValue(undefined)
+      const { open } = renderRun()
+      await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Copy report' })) })
+      expect(clipboard.writePlainClipboard).toHaveBeenCalledWith(testRunReport(open.run!))
+      expect(screen.getByRole('button', { name: 'Copied' })).toBeInTheDocument()
+      expect(screen.getByRole('status')).toHaveTextContent('Report copied')
+      act(() => { vi.advanceTimersByTime(COPIED_FEEDBACK_MS) })
+      expect(screen.getByRole('button', { name: 'Copy report' })).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('says when the report could not be copied', async () => {
+    clipboard.writePlainClipboard.mockRejectedValue(new Error('Clipboard text writing is not available'))
+    renderRun()
+    fireEvent.click(screen.getByRole('button', { name: 'Copy report' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Copy failed: Something went wrong: Clipboard text writing is not available')
+    expect(screen.getByRole('button', { name: 'Copy report' })).toBeInTheDocument()
+  })
+
+  it('offers Create Finding only on a failed case without a linked Finding', () => {
+    const onCreateFinding = vi.fn()
+    const failed = testCase('d', 'Change email', { result: 'failed', remark: 'Old address stays' })
+    renderRun({ onCreateFinding, open: { runId: 'run-1', draftId: 'draft-1', error: null, run: { id: 'run-1', sessionId: 'session-1', draftId: 'draft-1', draftTitle: 'Checkout', createdAt: at, updatedAt: at, cases: [
+      testCase('a', 'Passed case', { result: 'passed', remark: 'Slow' }),
+      testCase('b', 'Blocked case', { result: 'blocked' }),
+      failed,
+    ] } } })
+    expect(screen.getAllByRole('button', { name: 'Create Finding' })).toHaveLength(1)
+    const create = within(row('Change email')).getByRole('button', { name: 'Create Finding' })
+    expect(create).toHaveClass('action-button--secondary', 'action-button--regular')
+    fireEvent.click(create)
+    expect(onCreateFinding).toHaveBeenCalledWith(failed)
+  })
+
+  it('shows the linked Finding of a failed case instead of Create Finding, and opens it', () => {
+    const onOpenFinding = vi.fn()
+    renderRun({ onCreateFinding: vi.fn(), onOpenFinding,
+      open: { runId: 'run-1', draftId: 'draft-1', error: null, run: { id: 'run-1', sessionId: 'session-1', draftId: 'draft-1', draftTitle: 'Checkout', createdAt: at, updatedAt: at, cases: [
+        testCase('c', 'Reset password', { result: 'failed', findingId: 'finding-1', findingTitle: 'Reset mail is never sent' }),
+      ] } } })
+    expect(screen.queryByRole('button', { name: 'Create Finding' })).not.toBeInTheDocument()
+    fireEvent.click(within(row('Reset password')).getByRole('button', { name: 'Finding: Reset mail is never sent' }))
+    expect(onOpenFinding).toHaveBeenCalledWith('finding-1')
   })
 
   it('goes back to the test cases', () => {

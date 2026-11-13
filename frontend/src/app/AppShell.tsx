@@ -162,6 +162,7 @@ export function AppShell(c: AppController) {
 
         {c.activeView === 'testware' ? (
           <TestwareView recordChat={c.askAi} sessionId={c.activeSession?.id ?? null} acceptanceCriteria={c.activeSession?.acceptanceCriteria ?? null}
+            onCreateFinding={(testCase) => void c.handleFindingFromTestCase(testCase)} onOpenFinding={(findingId) => void c.openSessionFinding(findingId)}
             composer={c.creationIntent?.kind === 'testware' ? composer : null} settleCreation={c.creation.settle}
             creationCommands={creationCommands('testware')}
             key={c.activeSession?.id ?? 'no-session'}

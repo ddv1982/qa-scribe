@@ -33,6 +33,8 @@ import { useAttachmentCleanup } from './useAttachmentCleanup'
 import { useSummaryRecovery } from './useSummaryRecovery'
 import { captureAvailableRecordContext } from './conversationPresentation'
 import { useSessionChat } from './useSessionChat'
+import { prefilledFindingFromTestCase } from '../workflows/prefillTemplates'
+import type { TestRunCase } from '../tauri'
 export { mergeRecordLists } from './useRecordHydration'
 export function useAppController() {
   const {
@@ -239,6 +241,9 @@ export function useAppController() {
     ...recordActions,
     handleManualFinding: () => requestCreation('findings', (epoch) => creation.open('finding', () => sessionActions.sessionNavigationIsCurrent(epoch))),
     handleManualTestware: () => requestCreation('testware', (epoch) => creation.open('testware', () => sessionActions.sessionNavigationIsCurrent(epoch))),
+    handleFindingFromTestCase: (testCase: TestRunCase) => requestCreation('findings', (epoch) => creation.open('finding', () => sessionActions.sessionNavigationIsCurrent(epoch), false,
+      { title: testCase.title, document: prefilledFindingFromTestCase(testCase), testCaseId: testCase.id })),
+    openSessionFinding: (findingId: string) => applyNavigationRoute({ kind: 'session', sessionId: activeSession?.id ?? null, view: 'findings', recordId: findingId }),
     ...sessionActions,
     ...outputLibraries,
     // These parts follow every action spread, so their keys win exactly as the former inline keys did.

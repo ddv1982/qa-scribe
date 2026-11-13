@@ -2,7 +2,9 @@ use rusqlite::params;
 
 use crate::{
     QaScribeError, Result,
-    domain::{AiRun, AiRunCreate, Attachment, Entry, EntryType, GenerationContext, Session},
+    domain::{
+        AiRun, AiRunCreate, Attachment, Entry, EntryType, GenerationContext, Session, TestRun,
+    },
     error::validation,
     generation::{GenerateAiActionKind, GenerateAiActionRequest, managed_attachment_ids_from_html},
 };
@@ -15,6 +17,8 @@ pub(crate) struct CapturedGenerationMaterial {
     pub attachments: Vec<Attachment>,
     pub context: GenerationContext,
     pub run: AiRun,
+    /// The newest test run of each Test cases draft, read for the Note summary only.
+    pub latest_test_runs: Vec<TestRun>,
 }
 
 impl SessionService {
@@ -59,7 +63,12 @@ impl SessionService {
                 provider: request.provider, model: request.model.clone(), reasoning_effort: request.reasoning_effort.clone(),
                 prompt_version: request.action.prompt_version().into(),
             })?;
-            Ok(CapturedGenerationMaterial { session, note: note.cloned(), attachments, context, run })
+            let latest_test_runs = if matches!(request.action, GenerateAiActionKind::Summary) {
+                self.latest_test_runs(&session.id)?
+            } else {
+                Vec::new()
+            };
+            Ok(CapturedGenerationMaterial { session, note: note.cloned(), attachments, context, run, latest_test_runs })
         })
     }
 }

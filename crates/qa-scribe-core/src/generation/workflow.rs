@@ -19,7 +19,7 @@ use crate::{
 };
 
 use super::{
-    ActionPromptKind, OutputMarker, managed_attachment_ids_from_html,
+    ActionPromptKind, OutputMarker, PromptSession, managed_attachment_ids_from_html,
     parse_rich_html_fragment_response,
     preferences::{
         TestwareGenerationPreferences, testware_metadata_json, testware_preferences_prompt,
@@ -49,7 +49,7 @@ impl GenerateAiActionKind {
         match self {
             GenerateAiActionKind::Testware => "testware-v5",
             GenerateAiActionKind::Finding => "finding-v4",
-            GenerateAiActionKind::Summary => "note-summary-v5",
+            GenerateAiActionKind::Summary => "note-summary-v6",
         }
     }
 
@@ -124,6 +124,7 @@ pub fn prepare_ai_action_generation(
     let attachments = captured.attachments;
     let generation_context = captured.context;
     let ai_run = captured.run;
+    let latest_test_runs = captured.latest_test_runs;
 
     // Testware preferences are instructions, so they render inside the
     // prompt's instruction section (before the source material and the final
@@ -136,7 +137,10 @@ pub fn prepare_ai_action_generation(
     let output_marker = OutputMarker::new();
     let prompt = render_action_prompt(
         &settings,
-        &session,
+        PromptSession {
+            session: &session,
+            latest_test_runs: &latest_test_runs,
+        },
         note_entry,
         &attachments,
         request.action.prompt_kind(),

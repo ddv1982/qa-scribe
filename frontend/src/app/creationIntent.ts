@@ -34,7 +34,12 @@ export type CreationIntent = CreationContent & {
   sourceNoteId: string | null
   setup: 'ai' | null
   phase: CreationLifecycle
+  /** The test run case this Finding is created from; the saved Finding is linked to it. */
+  testCaseId?: string
 }
+
+/** What a creation draft starts with instead of the empty starter, such as a Finding from a failed test case. */
+export type CreationSeed = { title: string; document: RichEditorDocument; testCaseId: string }
 
 export function creationBodyIsAuthored(intent: CreationIntent): boolean {
   return Object.keys(intent.imageOperations).length > 0 || !richEditorDocumentsEqual(intent.document, creationStarter(intent.format))

@@ -3,7 +3,7 @@ import type { TestRunCase } from '../tauri'
 import { CaseSaveQueue, type CaseValue } from './caseSaveQueue'
 
 const testCase = (id: string, patch: Partial<TestRunCase> = {}): TestRunCase => ({
-  id, runId: 'run-1', position: 0, groupTitle: null, title: `Case ${id}`, bodyJson: '{}', result: 'not_run', remark: null, findingId: null, updatedAt: 'saved', ...patch,
+  id, runId: 'run-1', position: 0, groupTitle: null, title: `Case ${id}`, bodyJson: '{}', result: 'not_run', remark: null, findingId: null, findingTitle: null, updatedAt: 'saved', ...patch,
 })
 
 type Pending = { caseId: string; value: CaseValue; resolve: (saved: TestRunCase) => void; reject: (cause: unknown) => void }

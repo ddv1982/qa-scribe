@@ -37,7 +37,7 @@ const summary = (patch: Partial<TestRunSummary> = {}): TestRunSummary => ({
 })
 const run: TestRun = {
   id: 'run-1', sessionId: 'session-1', draftId: 'draft-1', draftTitle: 'Checkout cases', createdAt: at, updatedAt: at,
-  cases: [{ id: 'case-1', runId: 'run-1', position: 0, groupTitle: 'Checkout', title: 'Pay by card', bodyJson: '{}', result: 'not_run', remark: null, findingId: null, updatedAt: at }],
+  cases: [{ id: 'case-1', runId: 'run-1', position: 0, groupTitle: 'Checkout', title: 'Pay by card', bodyJson: '{}', result: 'not_run', remark: null, findingId: null, findingTitle: null, updatedAt: at }],
 }
 
 beforeEach(() => {
@@ -159,5 +159,38 @@ describe('Test runs and their draft', () => {
     await screen.findByRole('button', { name: /^Last test run/ })
     fireEvent.click(screen.getByRole('button', { name: 'Delete Checkout cases' }))
     expect(onDeleteDraft).toHaveBeenCalledWith(runnable, 2)
+  })
+})
+
+describe('Coverage line with test results', () => {
+  it('names the criteria a failed case of the latest test run mentions', async () => {
+    const covering = draftFixture({ id: 'draft-1', title: 'Checkout cases', body: '<h3>Pay by card AC-1</h3><p>Covers: AC-1, AC-2</p>' })
+    api.listTestRuns.mockResolvedValue([summary({ id: 'run-2' }), summary()])
+    api.getTestRun.mockResolvedValue({ ...run, id: 'run-2', cases: [
+      { ...run.cases[0], title: 'Pay by card AC-1', result: 'passed' },
+      { ...run.cases[0], id: 'case-2', title: 'Pay with a gift card', bodyJson: JSON.stringify({ schemaVersion: 1, doc: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Covers: AC-2' }] }] } }), result: 'failed' },
+    ] })
+    renderTestware([covering], { acceptanceCriteria: 'AC-1 Card\nAC-2 Gift card' })
+    await waitFor(() => expect(document.querySelector('.coverage-line')).toHaveTextContent(/^All 2 criteria covered, 1 failing\. Failing: AC-2$/))
+    expect(api.getTestRun).toHaveBeenCalledWith('run-2')
+    expect(api.getTestRun).not.toHaveBeenCalledWith('run-1')
+  })
+})
+
+describe('Findings on the run screen', () => {
+  it('names the linked Finding the test run carries and starts a Finding from a failed case', async () => {
+    api.listTestRuns.mockResolvedValue([summary()])
+    api.getTestRun.mockResolvedValue({ ...run, cases: [
+      { ...run.cases[0], result: 'failed', findingId: 'finding-1', findingTitle: 'Card is declined' },
+      { ...run.cases[0], id: 'case-2', title: 'Pay with a gift card', result: 'failed' },
+    ] })
+    const onCreateFinding = vi.fn()
+    const onOpenFinding = vi.fn()
+    renderTestware([runnable], { onCreateFinding, onOpenFinding })
+    fireEvent.click(await screen.findByRole('button', { name: /^Last test run/ }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Finding: Card is declined' }))
+    expect(onOpenFinding).toHaveBeenCalledWith('finding-1')
+    fireEvent.click(screen.getByRole('button', { name: 'Create Finding' }))
+    expect(onCreateFinding).toHaveBeenCalledWith(expect.objectContaining({ id: 'case-2' }))
   })
 })

@@ -8,13 +8,16 @@ vi.mock('../editor/RichTextEditor', () => ({
 }))
 
 import { draftFixture, recordCreationCommandsFixture } from '../test/fixtures'
-import type { Draft } from '../tauri'
+import type { Draft, TestCaseResult, TestRunCase } from '../tauri'
 import { CoverageLine } from './CoverageLine'
 import { TestwareView } from './TestwareView'
 
 afterEach(cleanup)
 
 const record = (title: string, body = '<p>Steps</p>') => ({ title, body })
+const run = (...cases: Array<[title: string, result: TestCaseResult]>) => ({ cases: cases.map(([title, result], position): TestRunCase => ({
+  id: `case-${position}`, runId: 'run-1', position, groupTitle: null, title, bodyJson: '{}', result, remark: null, findingId: null, findingTitle: null, updatedAt: '',
+})) })
 
 describe('CoverageLine', () => {
   it('renders nothing without criteria', () => {
@@ -58,6 +61,43 @@ describe('CoverageLine', () => {
       /^1 of 11 criteria covered\. Not covered: AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8 and 2 more$/,
     )
     expect(screen.queryByText('AC-9')).not.toBeInTheDocument()
+  })
+})
+
+describe('CoverageLine with test results', () => {
+  const criteria = 'AC-1 Street\nAC-2 Postcode\nAC-3 City\nAC-4 Country'
+
+  it('says nothing more while no case that names a criterion failed', () => {
+    render(<CoverageLine acceptanceCriteria={criteria} records={[record('Covers AC-1 AC-2 AC-3')]}
+      latestRuns={[run(['Covers AC-1', 'passed'], ['Covers AC-2', 'blocked'], ['Covers AC-3', 'not_run'])]} />)
+    expect(screen.getByRole('status')).toHaveTextContent(/^3 of 4 criteria covered\. Not covered: AC-4$/)
+  })
+
+  it('counts and names failing criteria before the ones not covered', () => {
+    render(<CoverageLine acceptanceCriteria={criteria} records={[record('Covers AC-1 AC-2 AC-3')]}
+      latestRuns={[run(['Covers AC-1', 'passed'], ['Covers AC-3', 'failed']), run(['Also AC-2', 'failed'])]} />)
+    expect(screen.getByRole('status')).toHaveTextContent(/^3 of 4 criteria covered, 2 failing\. Failing: AC-2, AC-3\. Not covered: AC-4$/)
+    expect(screen.getByText('3 of 4 criteria covered, 2 failing.').tagName).toBe('STRONG')
+    expect(screen.getByText('AC-3')).toHaveAttribute('title', 'City')
+  })
+
+  it('leaves out the Not covered list when everything is covered', () => {
+    render(<CoverageLine acceptanceCriteria={criteria} records={[record('Covers AC-1 AC-2 AC-3 AC-4')]} latestRuns={[run(['Covers AC-3', 'failed'])]} />)
+    expect(screen.getByRole('status')).toHaveTextContent(/^All 4 criteria covered, 1 failing\. Failing: AC-3$/)
+  })
+
+  it('names a criterion no saved test case covers only as not covered', () => {
+    render(<CoverageLine acceptanceCriteria={criteria} records={[record('Covers AC-1 AC-2 AC-3')]} latestRuns={[run(['Covers AC-4', 'failed'])]} />)
+    expect(screen.getByRole('status')).toHaveTextContent(/^3 of 4 criteria covered\. Not covered: AC-4$/)
+  })
+
+  it('lists at most eight failing ids, then how many more', () => {
+    const many = Array.from({ length: 10 }, (_, index) => `AC-${index + 1} Criterion ${index + 1}`).join('\n')
+    const ids = Array.from({ length: 10 }, (_, index) => `AC-${index + 1}`).join(' ')
+    render(<CoverageLine acceptanceCriteria={many} records={[record(ids)]} latestRuns={[run([ids, 'failed'])]} />)
+    expect(screen.getByRole('status')).toHaveTextContent(
+      /^All 10 criteria covered, 10 failing\. Failing: AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8 and 2 more$/,
+    )
   })
 })
 

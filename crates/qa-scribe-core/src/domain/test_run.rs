@@ -66,6 +66,9 @@ pub struct TestRunCase {
     pub result: TestCaseResult,
     pub remark: Option<String>,
     pub finding_id: Option<String>,
+    /// The linked Finding's current title, read with the case and never
+    /// stored on it. `None` without a linked Finding.
+    pub finding_title: Option<String>,
     pub updated_at: String,
 }
 

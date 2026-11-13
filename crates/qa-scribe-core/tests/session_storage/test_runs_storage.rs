@@ -62,6 +62,58 @@ fn deleting_a_finding_unlinks_its_test_cases() {
     let stored = service.get_test_run(&run.id).expect("run survives");
     assert_eq!(stored.cases.len(), 2);
     assert_eq!(stored.cases[0].finding_id, None);
+    assert_eq!(stored.cases[0].finding_title, None);
+}
+
+#[test]
+fn every_case_read_carries_the_current_title_of_its_linked_finding() {
+    let service = SessionService::in_memory().expect("in-memory service should open");
+    let run = started_run(&service);
+    let titles = |cases: &[qa_scribe_core::domain::TestRunCase]| {
+        cases
+            .iter()
+            .map(|case| case.finding_title.clone())
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(titles(&run.cases), [None, None], "start_test_run");
+    let finding = run_finding(&service, &run.session_id);
+    let case_id = run.cases[0].id.clone();
+
+    let linked = service
+        .link_test_case_finding(&case_id, Some(finding.id.clone()))
+        .expect("links");
+    assert_eq!(linked.finding_title.as_deref(), Some("Card declined"));
+    let failed = service
+        .set_test_case_result(&case_id, TestCaseResult::Failed, None)
+        .expect("result saves");
+    assert_eq!(failed.finding_title.as_deref(), Some("Card declined"));
+    let stored = service.get_test_run(&run.id).expect("run reads back");
+    assert_eq!(titles(&stored.cases), [Some("Card declined".to_string()), None]);
+    let latest = service
+        .latest_test_runs(&run.session_id)
+        .expect("latest runs read");
+    assert_eq!(titles(&latest[0].cases), titles(&stored.cases));
+
+    // The title is read, not stored: a renamed Finding shows its new title.
+    service
+        .update_finding(
+            &finding.id,
+            FindingPatch {
+                title: Some("Gift card declined".to_string()),
+                ..FindingPatch::default()
+            },
+            qa_scribe_core::domain::RecordWriteGuard::finding(&finding),
+        )
+        .expect("finding renames")
+        .into_saved()
+        .expect("rename is saved");
+    let renamed = service.get_test_run(&run.id).expect("run reads back");
+    assert_eq!(renamed.cases[0].finding_title.as_deref(), Some("Gift card declined"));
+
+    let unlinked = service
+        .link_test_case_finding(&case_id, None)
+        .expect("unlinks");
+    assert_eq!(unlinked.finding_title, None);
 }
 
 #[test]

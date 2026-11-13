@@ -8,6 +8,9 @@ export type CopyTarget =
   | Readonly<{ kind: 'note'; sessionId: string; action: CopyAction }>
   | Readonly<{ kind: 'draft' | 'finding'; sessionId: string; id: string; action: CopyAction }>
 export type ClipboardSnapshot = Readonly<{ target: CopyTarget; title: string; bodyHtml: string }>
+/** How long a copy button says Copied after a copy succeeded. */
+export const COPIED_FEEDBACK_MS = 1800
+
 export type CopyState =
   | Readonly<{ status: 'idle' }>
   | Readonly<{ status: 'pending' | 'succeeded'; snapshot: ClipboardSnapshot }>
@@ -68,7 +71,7 @@ export function useCopyActions() {
       successTimer.current = window.setTimeout(() => {
         if (alive.current && attempt.current === currentAttempt) setCopyState({ status: 'idle' })
         successTimer.current = null
-      }, 1800)
+      }, COPIED_FEEDBACK_MS)
     } catch (cause) {
       if (alive.current && attempt.current === currentAttempt) setCopyState({ status: 'failed', snapshot, error: formatError(cause) })
     } finally {
