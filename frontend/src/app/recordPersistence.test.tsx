@@ -9,13 +9,13 @@ import { useRecordPersistence, type RecordPersistenceContext } from './recordPer
 
 const api = getTauriMock()
 
-function context(importedAttachments: RecordPersistenceContext['importedAttachments']): RecordPersistenceContext {
+function context(importedAttachments: RecordPersistenceContext['importedAttachments'], dirty = true): RecordPersistenceContext {
   const draft = draftFixture({ title: 'Latest Testware', body: '<p>Persist this edit</p>' })
   return {
     importedAttachments,
     session: { activeSessionIdRef: { current: 'session-1' } },
     records: {
-      dirtyDraftIdsRef: { current: new Set([draft.id]) }, dirtyFindingIdsRef: { current: new Set() },
+      dirtyDraftIdsRef: { current: new Set(dirty ? [draft.id] : []) }, dirtyFindingIdsRef: { current: new Set() },
       draftsRef: { current: [draft] }, findingsRef: { current: [] }, savedDraftsRef: { current: [] }, savedFindingsRef: { current: [] },
       setDrafts: vi.fn(), setFindings: vi.fn(), setTestwareDraftCount: vi.fn(), setFindingCount: vi.fn(),
     },
@@ -49,5 +49,22 @@ describe('Record persistence construction', () => {
     expect(api.updateDraft).toHaveBeenCalledWith(stored.id, expect.objectContaining({ title: 'Latest Testware', body: '<p>Persist this edit</p>' }), expect.objectContaining({ expectedStoredBase: expect.any(String) }))
     expect(records!.dirtyDraftIdsRef.current.has(stored.id)).toBe(!succeeds)
     expect(records!.savedDraftsRef.current).toEqual(succeeds ? [stored] : [])
+  })
+
+  // A pass runs on every launch and navigation; only one that saved something reports it.
+  it.each([['one dirty record', true, 1], ['nothing dirty', false, 0]])('%s: saves and reports pending edits %i times', async (_case, dirty, notices) => {
+    api.updateDraft.mockResolvedValue(draftFixture({ title: 'Latest Testware', body: '<p>Persist this edit</p>' }))
+    let completion: Promise<boolean> | null = null
+    let feedback: RecordPersistenceContext['feedback'] | null = null
+    renderHook(() => {
+      const ctx = context(useImportedAttachments(), dirty)
+      feedback = ctx.feedback
+      const persistence = useRecordPersistence(ctx)
+      useLayoutEffect(() => { completion = persistence.saveDirtyRecordsNow() }, [persistence])
+    })
+    await act(async () => { expect(await completion).toBe(true) })
+    expect(api.updateDraft).toHaveBeenCalledTimes(notices)
+    expect(feedback!.setNotice).toHaveBeenCalledTimes(notices)
+    if (notices) expect(feedback!.setNotice).toHaveBeenCalledWith('Pending record edits saved')
   })
 })
