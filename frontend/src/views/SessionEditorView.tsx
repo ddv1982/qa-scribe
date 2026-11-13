@@ -152,11 +152,11 @@ export function SessionEditorView({
           : sessionSaveState === 'saving' ? <Loader2 className="spin" size={15} /> : <CheckCircle2 size={15} />}
         <span>{saveStatusLabel}</span>
       </div>
-      <ActionButton variant="quiet" size="compact" iconOnly icon={ClipboardList} aria-label="Session sheet" title="Session sheet" onClick={onOpenSessionSheet} />
+      <ActionButton variant="quiet" size="compact" iconOnly icon={ClipboardList} aria-label="Session sheet" tooltip="Session sheet" onClick={onOpenSessionSheet} />
       <CopyControls
         snapshot={{ target: { kind: 'note', sessionId: activeSession.id, action: 'jira-text' }, title: sessionTitle, bodyHtml: noteBodyHtml }}
         copyState={copyState} onCopy={onCopy} disabled={isBusy} label="Note" screenshotCount={noteScreenshotCount} size="compact" />
-      <ActionButton variant="destructive-quiet" size="compact" iconOnly icon={Trash2} aria-label="Delete Session" title="Delete Session" loading={deletingSession} disabled={isBusy} onClick={() => void onDeleteSession()} />
+      <ActionButton variant="destructive-quiet" size="compact" iconOnly icon={Trash2} aria-label="Delete Session" tooltip="Delete Session" tooltipAlign="end" loading={deletingSession} disabled={isBusy} onClick={() => void onDeleteSession()} />
     </div>
   )
 

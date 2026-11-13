@@ -159,7 +159,7 @@ describe('TestRunView', () => {
       const { open } = renderRun()
       await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Copy report' })) })
       expect(clipboard.writePlainClipboard).toHaveBeenCalledWith(testRunReport(open.run!))
-      expect(screen.getByRole('button', { name: 'Copied' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Report copied' })).toHaveAttribute('data-tooltip', 'Copied')
       expect(screen.getByRole('status')).toHaveTextContent('Report copied')
       act(() => { vi.advanceTimersByTime(COPIED_FEEDBACK_MS) })
       expect(screen.getByRole('button', { name: 'Copy report' })).toBeInTheDocument()

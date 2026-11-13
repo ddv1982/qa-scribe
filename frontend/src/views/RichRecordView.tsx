@@ -1,7 +1,8 @@
 import { ActionButton } from '../components/ActionButton'
+import { CopyButton } from '../components/CopyButton'
 import { useMemo, type ReactNode, type Ref } from 'react'
 import { copyMatchesSnapshot, type ClipboardSnapshot, type CopyState } from '../app/copyActions'
-import { CheckCircle2, Copy, Image as ImageIcon, Loader2, PencilLine, Save, Trash2, X } from 'lucide-react'
+import { Copy, Image as ImageIcon, Loader2, PencilLine, Save, Trash2, X } from 'lucide-react'
 import { FormatToolbar, RichTextEditor, type RichEditorImageUpload } from '../editor/RichTextEditor'
 import { richEditorDocumentFromHtml, richEditorDocumentFromStoredBody, richEditorDocumentToStoredBody, withoutRepeatedTitleHeading, type StoredRichBody } from '../editor/editorDocument'
 import type { GenerationJobStatus } from '../tauri'
@@ -65,6 +66,7 @@ export function EditableRichRecord({
   editFields,
   meta,
   previewHeader,
+  copyControls,
   actions,
   onTitleChange,
   onBodyChange,
@@ -81,6 +83,8 @@ export function EditableRichRecord({
   editFields?: ReactNode
   meta?: ReactNode
   previewHeader: ReactNode
+  /** The Copy icons, in the top-right corner beside the title. */
+  copyControls?: ReactNode
   actions: ReactNode
   onTitleChange: (title: string) => void
   onBodyChange: (patch: StoredRichBody) => void
@@ -93,7 +97,10 @@ export function EditableRichRecord({
   return (
     <article className="editable-record">
       <header className="record-header">
-        {editing ? <input ref={titleInputRef} value={record.title} aria-label={titleInputLabel} onChange={(event) => onTitleChange(event.target.value)} /> : previewHeader}
+        <div className="record-title-row">
+          {editing ? <input ref={titleInputRef} value={record.title} aria-label={titleInputLabel} onChange={(event) => onTitleChange(event.target.value)} /> : previewHeader}
+          {copyControls}
+        </div>
         {meta}
         <div className="record-actions">{actions}</div>
       </header>
@@ -135,18 +142,15 @@ export function CopyControls({ snapshot, copyState, onCopy, disabled = false, la
   const copyDisabled = disabled || copyState.status === 'pending'
   const failure = copyState.status === 'failed' && (textMatches || screenshotMatches) ? copyState : null
   return <>
-    <ActionButton variant="secondary" size={size}
-      type="button" aria-label={copied ? `${identity} copied` : `Copy ${identity}`}
-      disabled={copyDisabled} onClick={() => void onCopy(snapshot)}>
-      {copying ? <Loader2 className="spin" size={16} /> : copied ? <CheckCircle2 size={16} /> : <Copy size={16} />}
-      {copied ? 'Copied' : copying ? 'Copying' : 'Copy'}
-    </ActionButton>
-    {screenshotCount > 0 ? <ActionButton variant="secondary" size={size}
-      type="button" aria-label={screenshotCopied ? `${identity} screenshot copied` : `Copy first ${identity} screenshot`}
-      disabled={copyDisabled} onClick={() => void onCopy(screenshot)}>
-      {copyingScreenshot ? <Loader2 className="spin" size={16} /> : screenshotCopied ? <CheckCircle2 size={16} /> : <ImageIcon size={16} />}
-      {screenshotCopied ? 'Screenshot copied' : copyingScreenshot ? 'Copying first screenshot…' : 'Copy first screenshot'}
-    </ActionButton> : null}
+    <span className="copy-controls">
+      {screenshotCount > 0 ? <CopyButton icon={ImageIcon} size={size} disabled={copyDisabled} onCopy={() => void onCopy(screenshot)}
+        label={`Copy first ${identity} screenshot`} copiedLabel={`${identity} screenshot copied`}
+        tooltip="Copy first screenshot" pendingTooltip="Copying first screenshot" copiedTooltip="Screenshot copied"
+        pending={copyingScreenshot} copied={screenshotCopied} /> : null}
+      <CopyButton icon={Copy} size={size} disabled={copyDisabled} onCopy={() => void onCopy(snapshot)}
+        label={`Copy ${identity}`} copiedLabel={`${identity} copied`}
+        tooltip="Copy" pendingTooltip="Copying" pending={copying} copied={copied} />
+    </span>
     {textMatches || screenshotMatches ? <span className="sr-only" role="status">
       {copyState.status === 'pending' ? 'Copy in progress' : copyState.status === 'succeeded' ? (textMatches ? 'Copied' : 'First screenshot copied') : ''}
     </span> : null}
@@ -155,10 +159,11 @@ export function CopyControls({ snapshot, copyState, onCopy, disabled = false, la
 }
 
 export function RichRecordActions({
-  copyControls, deleting, deleteLabel, deleteTitle, editing, isBusy, saving,
+  leadingActions, deleting, deleteLabel, deleteTitle, editing, isBusy, saving,
   onDelete, onEdit, onSave, onCancelEdit,
 }: {
-  copyControls: ReactNode
+  /** Actions before Edit, such as Ask AI. */
+  leadingActions?: ReactNode
   deleting: boolean
   deleteLabel: string
   deleteTitle: string
@@ -171,11 +176,11 @@ export function RichRecordActions({
   onCancelEdit: () => void
 }) {
   return <>
-    {copyControls}
+    {leadingActions}
     <ActionButton variant={editing ? 'primary' : 'secondary'} icon={editing ? Save : PencilLine} loading={saving} disabled={isBusy} onClick={editing ? onSave : onEdit}>
       {editing ? 'Save' : 'Edit'}
     </ActionButton>
     {editing ? <ActionButton variant="destructive-quiet" icon={X} disabled={isBusy} onClick={onCancelEdit}>Discard</ActionButton>
-      : <ActionButton variant="destructive-quiet" iconOnly icon={Trash2} aria-label={deleteLabel} title={deleteTitle} loading={deleting} disabled={isBusy} onClick={onDelete} />}
+      : <ActionButton variant="destructive-quiet" iconOnly icon={Trash2} aria-label={deleteLabel} tooltip={deleteTitle} loading={deleting} disabled={isBusy} onClick={onDelete} />}
   </>
 }

@@ -427,10 +427,25 @@
   padding-block: 0;
 }
 
-.record-header > .record-heading-row {
+.record-title-row > .record-heading-row {
   min-width: 0;
   flex-wrap: wrap;
 }
+
+/* A record's title line with its Copy icons in the top-right corner. Whatever else the title line
+   holds stacks under the title; a copy failure takes the full width below. */
+.record-title-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.record-title-row > * { grid-column: 1; }
+/* Centred on the first title line (23px at 1.2) without making that line taller; beside the edit-mode input it sits level. */
+.record-title-row > .copy-controls { grid-column: 2; grid-row: 1; margin-block: calc((23px * 1.2 - var(--control-lg)) / 2); }
+.record-title-row:has(> input) > .copy-controls { margin-block: 0; }
+.record-title-row > .copy-error { grid-column: 1 / -1; }
 
 .generation-record input,
 .generation-record textarea,
@@ -1083,7 +1098,8 @@
 }
 
 @container (min-width: 850px) {
-  .creation-composer > .record-heading-row { grid-column: 1; grid-row: 1; align-items: center; }
+  .creation-composer > .record-title-row { grid-column: 1; grid-row: 1; align-items: center; }
+  .creation-composer > .record-title-row > .record-heading-row { align-items: center; }
   .creation-composer > .record-actions { grid-column: 2; grid-row: 1; margin: 0; padding-block: 0; }
   .creation-composer > .field { grid-column: 1; grid-row: 2; align-self: start; }
   .creation-composer > .creation-format { grid-column: 2; }

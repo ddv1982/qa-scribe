@@ -203,13 +203,15 @@ export function OutputLibraryView({
           {selected && selectedDocument ? (
             <article className="editable-record record-detail-pane library-record-detail">
               <header className="record-header">
-                <div className="record-heading-row">
-                  <h2 className="record-title">{selected.title}</h2>
+                <div className="record-title-row">
+                  <div className="record-heading-row">
+                    <h2 className="record-title">{selected.title}</h2>
+                  </div>
+                  <CopyControls snapshot={{ target: { kind: selected.sourceKind, sessionId: selected.sessionId, id: selected.id, action: 'jira-text' }, title: selected.title, bodyHtml: selected.sourceKind === 'finding' ? findingCopyBody(selected.body, selected.metadataJson) : selected.body }}
+                    copyState={copyState} onCopy={onCopy} disabled={isBusy} label={selected.title} />
                 </div>
                 <p className="record-meta-line" title={selected.metadataDetail}>{[selected.sessionTitle, ...selected.metadata].join(' · ')}</p>
                 <div className="record-actions">
-                  <CopyControls snapshot={{ target: { kind: selected.sourceKind, sessionId: selected.sessionId, id: selected.id, action: 'jira-text' }, title: selected.title, bodyHtml: selected.sourceKind === 'finding' ? findingCopyBody(selected.body, selected.metadataJson) : selected.body }}
-                    copyState={copyState} onCopy={onCopy} disabled={isBusy} label={selected.title} />
                   <ActionButton variant="secondary" icon={ArrowUpRight} type="button" onClick={() => onOpenRecord(selected.sessionId, selected.id)}>Open in Session</ActionButton>
                 </div>
               </header>

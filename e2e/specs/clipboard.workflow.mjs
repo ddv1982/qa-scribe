@@ -186,7 +186,7 @@ export async function runClipboardWorkflow() {
   await (await records('Test cases')).$('button*=Screenshot case').click()
   await click('button=Open in Session')
   await $('[aria-label="Copy first Screenshot case screenshot"]').waitForClickable()
-  assert.equal(await $('[aria-label="Copy first Screenshot case screenshot"]').getText(), 'Copy first screenshot')
+  assert.equal(await $('[aria-label="Copy first Screenshot case screenshot"]').getAttribute('data-tooltip'), 'Copy first screenshot')
   const firstPath = join(process.env.QA_SCRIBE_E2E_APP_DATA_DIR, imageFixture.attachments[0].relativePath)
   const hiddenPath = `${firstPath}.ux4-held`
   renameSync(firstPath, hiddenPath)
@@ -206,7 +206,8 @@ export async function runClipboardWorkflow() {
     const keyboard = {}
     const sendKey = nativeKeySender(keyboard, () => save('Screenshot keyboard', keyboard), Key)
     await browser.execute(() => document.querySelector('[aria-label="Copy Screenshot case"]').focus())
-    await sendKey(Key.Tab)
+    // The screenshot icon sits just before Copy.
+    await sendKey('Shift+Tab')
     assert.equal(await browser.execute(() => document.activeElement?.getAttribute('aria-label')), 'Copy first Screenshot case screenshot')
     await capture('copy-screenshot-keyboard')
     await sendKey(Key.Enter)

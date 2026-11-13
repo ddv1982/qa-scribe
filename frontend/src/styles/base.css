@@ -48,6 +48,7 @@
   --duration-fast: 150ms;
   --duration-base: 200ms;
   --duration-slow: 300ms;
+  --delay-tooltip: 400ms; /* a hover message waits this long, so passing over a button shows nothing */
   --ease-out: cubic-bezier(0.2, 0, 0, 1);
 
   /* ---- light theme: paper sheet on a desk, ink actions, highlighter for "you are here" ---- */

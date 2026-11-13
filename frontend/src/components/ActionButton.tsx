@@ -7,6 +7,12 @@ type ActionButtonProps = ComponentProps<'button'> & {
   variant?: ActionButtonVariant
   size?: 'regular' | 'compact'
   loading?: boolean
+  /** A short hover message shown below the button. It is decoration: the accessible name stays the label. */
+  tooltip?: string
+  /** Which button edge the message lines up with; `end` keeps it inside a right window edge, `start` a left one. */
+  tooltipAlign?: 'center' | 'end' | 'start'
+  /** Shows the message without hover, such as a Copied confirmation. */
+  tooltipOpen?: boolean
 } & (
   | { iconOnly: true; icon: LucideIcon; 'aria-label': string; children?: never }
   | { iconOnly?: false; icon?: LucideIcon; children: ReactNode }
@@ -18,6 +24,9 @@ export function ActionButton({
   loading,
   icon: Icon,
   iconOnly = false,
+  tooltip,
+  tooltipAlign = 'center',
+  tooltipOpen = false,
   type = 'button',
   disabled,
   className = '',
@@ -28,6 +37,10 @@ export function ActionButton({
   return (
     <button
       {...props}
+      title={tooltip ? undefined : props.title}
+      data-tooltip={tooltip}
+      data-tooltip-align={tooltip && tooltipAlign !== 'center' ? tooltipAlign : undefined}
+      data-tooltip-open={tooltip && tooltipOpen ? '' : undefined}
       className={`action-button action-button--${variant} action-button--${size}${iconOnly ? ' action-button--icon-only' : ''} ${className}`.trim()}
       type={type}
       disabled={disabled || loading}

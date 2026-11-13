@@ -254,8 +254,8 @@ describe('Test runs in the built native application', () => {
     await screenshot('run-screen-finding')
 
     // Copy report puts the test run on the clipboard as plain text.
-    await click('button=Copy report')
-    await $('button=Copied').waitForDisplayed()
+    await click('[aria-label="Copy report"]')
+    await $('[aria-label="Report copied"]').waitForDisplayed()
     const expected = [
       `## Test run: ${draftTitle}`,
       await appDateTime(linked.createdAt),
@@ -270,7 +270,7 @@ describe('Test runs in the built native application', () => {
     ].join('\n')
     await browser.waitUntil(() => clipboardPlainText() === expected, { timeoutMsg: `the clipboard did not hold the report: ${clipboardPlainText()}` })
     save('copy-report', { clipboard: clipboardPlainText() })
-    await $('button=Copy report').waitForDisplayed({ timeout: 5_000 })
+    await $('[aria-label="Copy report"]').waitForDisplayed({ timeout: 5_000 })
 
     // The Finding line opens the Finding in the Findings tab.
     await click(findingLine)

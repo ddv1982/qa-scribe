@@ -33,7 +33,7 @@ async function selectRecord(title) {
 
 async function activateVisibleAction(label) {
   await browser.execute(label => {
-    const button = Array.from(document.querySelectorAll('.record-detail-pane .record-actions button'))
+    const button = Array.from(document.querySelectorAll('.record-detail-pane :is(.copy-controls, .record-actions) button'))
       .find(node => (node.getAttribute('aria-label') ?? node.textContent.trim()) === label)
     if (!button || button.disabled) throw new Error(`Record action unavailable: ${label}`)
     const box = button.getBoundingClientRect()
@@ -66,7 +66,7 @@ async function capture(name) {
       heading: rect(document.querySelector('.collection-header')),
       search: rect(document.querySelector('.collection-search')),
       body: rect(record.querySelector('.rich-record-editor-field')),
-      actions: Array.from(record.querySelectorAll('.record-actions button'), node => ({ ...rect(node), label: node.getAttribute('aria-label') ?? node.textContent.trim(), focused: node === document.activeElement })),
+      actions: Array.from(record.querySelectorAll(':is(.copy-controls, .record-actions) button'), node => ({ ...rect(node), label: node.getAttribute('aria-label') ?? node.textContent.trim(), focused: node === document.activeElement })),
       page: { width: document.documentElement.scrollWidth, height: document.documentElement.scrollHeight, scrollTop: document.scrollingElement.scrollTop },
     }
   })
@@ -188,9 +188,9 @@ describe('Record workspace layout in the built native application', () => {
 
   it('keeps each focused record action visible without changing document scroll', async () => {
     await scroll(650)
-    const buttons = await $$('.record-detail-pane .record-actions button')
+    const buttons = await $$('.record-detail-pane :is(.copy-controls, .record-actions) button')
     for (let index = 0; index < buttons.length; index++) {
-      await browser.execute(index => document.querySelectorAll('.record-detail-pane .record-actions button')[index].focus({ preventScroll: true }), index)
+      await browser.execute(index => document.querySelectorAll('.record-detail-pane :is(.copy-controls, .record-actions) button')[index].focus({ preventScroll: true }), index)
       const value = await capture(`lane-8-focused-action-${index + 1}`)
       assertPinned(value)
       assert.equal(value.scroller.scrollTop, 650)
