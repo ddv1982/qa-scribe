@@ -43,6 +43,7 @@ pub(super) fn resolve(
     intent: &ChatRequestIntent,
 ) -> Result<ResolvedChatMessage> {
     chat_context::validate_anchor(chat, &active)?;
+    super::test_run_report::require_owner_run(connection, chat)?;
     chat_rows::editable(chat)?;
     chat_rows::idle(chat)?;
     let eligible = chat

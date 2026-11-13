@@ -43,6 +43,11 @@ pub enum ConversationOwner {
         session_id: String,
         record: ConversationRecord,
     },
+    /// A read-only conversation about one test run: it never proposes a change.
+    TestRun {
+        session_id: String,
+        run_id: String,
+    },
 }
 
 impl ConversationOwner {
@@ -58,6 +63,9 @@ impl ConversationOwner {
             }
             ("test_cases_draft", Some(record_id)) if !record_id.trim().is_empty() => {
                 ConversationRecord::TestCasesDraft { record_id }
+            }
+            ("test_run", Some(run_id)) if !run_id.trim().is_empty() => {
+                return Ok(Self::TestRun { session_id, run_id });
             }
             _ => {
                 return Err(crate::error::validation(
@@ -102,6 +110,14 @@ pub struct BeginRecordChatRequest {
     pub session_id: String,
     pub draft_id: String,
     pub record: ConversationRecord,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct BeginTestRunChatRequest {
+    pub session_id: String,
+    pub draft_id: String,
+    pub run_id: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]

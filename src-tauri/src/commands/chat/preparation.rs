@@ -22,6 +22,8 @@ pub(super) struct ChatPreparationSnapshot {
     intent: ChatRequestIntent,
     composer_intent: ChatComposerIntent,
     context: String,
+    /// The current report of the test run that owns the conversation.
+    test_run_report: Option<String>,
     messages: Vec<ChatInputMessage>,
     sources: Vec<Vec<ChatImageSource>>,
 }
@@ -64,7 +66,14 @@ impl ChatPreparationSnapshot {
                     note.as_ref().map_or("", |entry| entry.body.as_str()),
                 )
             }
-            ConversationOwner::Record { .. } => session_context,
+            ConversationOwner::Record { .. } | ConversationOwner::TestRun { .. } => session_context,
+        };
+        // A test run conversation reads the run's current results on every turn, Retry included.
+        let test_run_report = match &chat.owner {
+            ConversationOwner::TestRun { session_id, run_id } => {
+                Some(service.test_run_report(session_id, run_id)?)
+            }
+            _ => None,
         };
         if !matches!(intent, ChatRequestIntent::Retry) {
             if chat.messages.len().saturating_add(2) > MAX_CHAT_MESSAGES {
@@ -190,8 +199,17 @@ impl ChatPreparationSnapshot {
             intent,
             composer_intent,
             context,
+            test_run_report,
             messages,
             sources,
+        })
+    }
+
+    fn chat_input(&self, messages: Vec<ChatInputMessage>) -> Result<ChatInput> {
+        let input = build_chat_input(&self.context, messages).map_err(QaScribeError::Validation)?;
+        Ok(match &self.test_run_report {
+            Some(report) => input.with_test_run_report(report),
+            None => input,
         })
     }
 
@@ -224,8 +242,7 @@ impl ChatPreparationSnapshot {
             }
         }
         check_cancelled(&cancelled)?;
-        build_chat_input(&self.context, messages.clone())
-            .map_err(QaScribeError::Validation)?
+        self.chat_input(messages.clone())?
             .preflight_wire(provider)
             .map_err(QaScribeError::Validation)?;
         check_cancelled(&cancelled)?;
@@ -247,6 +264,7 @@ impl VerifiedChatPreparation {
             || current.composer_intent != self.snapshot.composer_intent
             || current.revision != self.snapshot.revision
             || current.context != self.snapshot.context
+            || current.test_run_report != self.snapshot.test_run_report
             || current.sources != self.snapshot.sources
             || current
                 .messages
@@ -265,7 +283,7 @@ impl VerifiedChatPreparation {
 
     pub fn input(mut self, user_id: String) -> Result<ChatInput> {
         self.messages.last_mut().expect("verified user message").id = user_id;
-        build_chat_input(&self.snapshot.context, self.messages).map_err(QaScribeError::Validation)
+        self.snapshot.chat_input(self.messages)
     }
 }
 

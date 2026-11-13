@@ -17,6 +17,7 @@ impl SessionService {
                 .ok_or_else(|| validation("The latest Chat message is not retryable"))?;
             super::chat_context::validate_anchor(&chat, &message.context)?;
             super::chat_context::validate_retry_owner(tx, &chat.session_id, &message.context)?;
+            super::test_run_report::require_owner_run(tx, &chat)?;
             let turn_id = new_id();
             tx.execute("UPDATE chat_messages SET turn_id = ?1, status = 'running', error_message = NULL, ai_run_id = NULL WHERE id = ?2",
                 params![turn_id, message.id])?;

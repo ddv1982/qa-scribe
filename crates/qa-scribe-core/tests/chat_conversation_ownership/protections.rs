@@ -197,6 +197,8 @@ fn sqlite_enforces_owner_shape_identity_and_notes_only_uniqueness() {
         ("finding", None),
         ("test_cases_draft", None),
         ("finding", Some(" ")),
+        ("test_run", None),
+        ("test_run", Some(" ")),
         ("unknown", Some("record")),
     ] {
         assert!(c.execute("INSERT INTO chat_drafts(id,session_id,owner_kind,owner_record_id,created_at) VALUES ('bad',?1,?2,?3,'t')", rusqlite::params![id, kind, record]).is_err());

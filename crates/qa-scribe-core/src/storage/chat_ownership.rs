@@ -35,6 +35,13 @@ pub(super) fn migrate(connection: &Connection) -> Result<()> {
     Ok(())
 }
 
+/// Schema 23: a test run can own a conversation. The owner trigger is created
+/// with `IF NOT EXISTS`, so the older one is dropped for `install` to replace.
+pub(super) fn migrate_test_run_owner(connection: &Connection) -> Result<()> {
+    connection.execute_batch("DROP TRIGGER IF EXISTS chat_owner_valid_insert;")?;
+    Ok(())
+}
+
 pub(super) fn install(connection: &Connection) -> Result<()> {
     connection.execute_batch(r#"
 DROP INDEX IF EXISTS idx_chat_active_session;
@@ -44,7 +51,7 @@ CREATE INDEX IF NOT EXISTS idx_chat_session_activity ON chat_drafts(session_id,l
 CREATE INDEX IF NOT EXISTS idx_chat_refinements_draft ON chat_refinements(draft_id);
 CREATE TRIGGER IF NOT EXISTS chat_owner_valid_insert BEFORE INSERT ON chat_drafts
 WHEN NOT ((NEW.owner_kind='notes' AND NEW.owner_record_id IS NULL)
- OR (NEW.owner_kind IN ('finding','test_cases_draft') AND NEW.owner_record_id IS NOT NULL AND length(trim(NEW.owner_record_id))>0))
+ OR (NEW.owner_kind IN ('finding','test_cases_draft','test_run') AND NEW.owner_record_id IS NOT NULL AND length(trim(NEW.owner_record_id))>0))
  OR NEW.owner_kind IS NULL
 BEGIN SELECT RAISE(ABORT, 'Invalid conversation owner'); END;
 CREATE TRIGGER IF NOT EXISTS chat_owner_immutable BEFORE UPDATE ON chat_drafts

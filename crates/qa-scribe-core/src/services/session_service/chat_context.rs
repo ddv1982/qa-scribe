@@ -230,6 +230,12 @@ fn json_bytes(value: &impl serde::Serialize) -> Result<Vec<u8>> {
 }
 
 pub(super) fn validate_anchor(chat: &ChatState, context: &ChatTarget) -> Result<()> {
+    // A test run conversation carries its report in place of a record snapshot.
+    if matches!(chat.owner, ConversationOwner::TestRun { .. }) && *context != ChatTarget::Session {
+        return Err(validation(
+            "A test run conversation cannot carry record context",
+        ));
+    }
     if let ConversationOwner::Record { session_id, record } = &chat.owner {
         let matches = match (record, context) {
             (ConversationRecord::Finding { record_id }, ChatTarget::Finding { snapshot })

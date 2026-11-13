@@ -207,7 +207,7 @@ fn schema_21_database_gains_empty_test_runs_and_keeps_its_data() {
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .expect("user_version should read");
     assert_eq!(user_version, SCHEMA_VERSION);
-    assert_eq!(SCHEMA_VERSION, 22);
+    assert_eq!(SCHEMA_VERSION, 23);
     assert_no_foreign_key_violations(connection);
 
     let session = service
@@ -262,6 +262,76 @@ fn schema_21_database_gains_empty_test_runs_and_keeps_its_data() {
             .as_deref(),
         Some("f")
     );
+    drop(service);
+    fs::remove_dir_all(temp_dir).expect("temp dir should be removed");
+}
+
+#[test]
+fn schema_22_database_lets_a_test_run_own_a_conversation_and_keeps_its_data() {
+    let temp_dir = unique_temp_dir();
+    fs::create_dir_all(&temp_dir).expect("temp dir should be created");
+    let database_path = temp_dir.join("schema-22.sqlite");
+    {
+        let connection =
+            rusqlite::Connection::open(&database_path).expect("legacy database should open");
+        connection
+            .execute_batch(include_str!("../fixtures/schema_v22.sql"))
+            .expect("schema 22 fixture should load");
+        connection
+            .execute_batch(
+                "INSERT INTO sessions (id, title, created_at, updated_at, last_opened_at)
+                 VALUES ('s', 'Legacy', 't1', 't2', 't3');
+                 INSERT INTO drafts (id, session_id, kind, title, body, created_at, updated_at)
+                 VALUES ('d', 's', 'testware', 'Legacy cases', '', 't', 't');
+                 INSERT INTO test_runs (id, session_id, draft_id, draft_title, created_at, updated_at)
+                 VALUES ('r', 's', 'd', 'Legacy cases', 't', 't');
+                 INSERT INTO test_run_cases (id, run_id, position, title, body_json, result, remark, updated_at)
+                 VALUES ('c', 'r', 0, 'Pay', '{}', 'failed', 'Refused', 't');
+                 INSERT INTO chat_drafts (id, session_id, owner_kind, owner_record_id, created_at)
+                 VALUES ('chat', 's', 'test_cases_draft', 'd', 't');",
+            )
+            .expect("legacy rows should insert");
+        assert!(
+            connection
+                .execute("INSERT INTO chat_drafts (id, session_id, owner_kind, owner_record_id, created_at) VALUES ('early', 's', 'test_run', 'r', 't')", [])
+                .is_err(),
+            "schema 22 has no test run owner"
+        );
+    }
+
+    let service =
+        SessionService::new(Database::open(&database_path).expect("database should migrate"))
+            .expect("session service should construct");
+    let connection = service.database().connection();
+    let user_version: i32 = connection
+        .query_row("PRAGMA user_version", [], |row| row.get(0))
+        .expect("user_version should read");
+    assert_eq!((user_version, SCHEMA_VERSION), (23, 23));
+    assert_no_foreign_key_violations(connection);
+    let fresh = Database::in_memory().expect("fresh database should open");
+    assert_eq!(schema_objects(connection), schema_objects(fresh.connection()));
+
+    let run = service.get_test_run("r").expect("legacy run survives");
+    assert_eq!(
+        (run.cases[0].result, run.cases[0].remark.as_deref()),
+        (TestCaseResult::Failed, Some("Refused"))
+    );
+    assert_eq!(count_rows(connection, "chat_drafts"), 1);
+    let insert = |id: &str, kind: &str, owner: Option<&str>| {
+        connection.execute(
+            "INSERT INTO chat_drafts (id, session_id, owner_kind, owner_record_id, created_at) VALUES (?1, 's', ?2, ?3, 't')",
+            rusqlite::params![id, kind, owner],
+        )
+    };
+    insert("run-chat", "test_run", Some("r")).expect("a test run owns a conversation");
+    for (id, kind, owner) in [
+        ("blank", "test_run", Some(" ")),
+        ("missing", "test_run", None),
+        ("unknown", "test_runs", Some("r")),
+        ("notes-with-id", "notes", Some("r")),
+    ] {
+        assert!(insert(id, kind, owner).is_err(), "{kind} {owner:?} must be rejected");
+    }
     drop(service);
     fs::remove_dir_all(temp_dir).expect("temp dir should be removed");
 }
