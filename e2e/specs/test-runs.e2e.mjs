@@ -142,6 +142,7 @@ describe('Test runs in the built native application', () => {
     await browser.waitUntil(async () => (await $('.last-test-run').isExisting()) && /: 1 passed, 1 failed$/.test(await $('.last-test-run').getText()),
       { timeoutMsg: 'the Last test run line did not count the results' })
     save('last-run-line', { line: await $('.last-test-run').getText() })
+    await screenshot('draft-with-last-run')
 
     // The results are stored, not held in view state.
     await browser.refresh()
