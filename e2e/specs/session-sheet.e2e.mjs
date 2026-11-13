@@ -51,7 +51,6 @@ async function storedSession() {
 
 describe('Session sheet in the built native application', () => {
   it('adds a charter, timebox and reference, then a debrief, and keeps them', async function () {
-    this.timeout(120_000)
     await click('button=New Session')
     const titleField = await $('[aria-label="Session title"]')
     await titleField.waitForDisplayed()
@@ -106,10 +105,9 @@ describe('Session sheet in the built native application', () => {
     for (const expected of [charter, '45 min', reference, 'Debriefed']) assert.ok(reread.includes(expected), `${expected} missing from ${reread}`)
     save('debriefed', { row: reread, session: afterDebrief })
     await browser.saveScreenshot(join(artifacts, 'sheet-row-debriefed.png'))
-  })
+  }).timeout(120_000)
 
   it('lists acceptance criteria and shows which ones the saved test cases cover', async function () {
-    this.timeout(120_000)
     const coverage = '.coverage-line'
     const coverageText = async () => (await $(coverage)).getText()
 
@@ -141,5 +139,5 @@ describe('Session sheet in the built native application', () => {
     assert.equal(await $(`${coverage} span[title]`).getAttribute('title'), 'Postcode is validated')
     save('coverage', { line: await coverageText(), session: withCriteria })
     await browser.saveScreenshot(join(artifacts, 'coverage-line.png'))
-  })
+  }).timeout(120_000)
 })

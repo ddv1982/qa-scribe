@@ -373,7 +373,6 @@ export async function runGenerationPreflightLayoutWorkflow({ button }) {
 if (process.env.QA_SCRIBE_E2E_SPEC === 'generation-preflight-layout.e2e.mjs') {
   describe('Generation preflight focused layout', () => {
     it('keeps its heading static and context visible across responsive layouts', async function () {
-      this.timeout(180_000)
       const button = async (label) => $(`button=${label}`)
       await $('h1=Turn testing evidence into useful output').waitForDisplayed()
       await (await button('New Session')).click()
@@ -416,6 +415,6 @@ if (process.env.QA_SCRIBE_E2E_SPEC === 'generation-preflight-layout.e2e.mjs') {
         await $(dialog).waitForExist({ reverse: true })
         assert.ok(await browser.execute((node) => document.activeElement === node, trigger), 'Cancel restores the variant trigger')
       }
-    })
+    }).timeout(180_000)
   })
 }

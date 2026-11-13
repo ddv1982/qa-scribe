@@ -213,7 +213,6 @@ async function toggleNote() {
 
 describe('Native Checklist layout in Note and editable Record', () => {
   it('measures actual NodeViews, wrapping, compact checkboxes, and persisted toggles', async function () {
-    this.timeout(120_000)
     // Use the configured native desktop window first, before any unsupported resize command.
     await (await $('button=New Session')).waitForClickable()
     await (await $('button=New Session')).click()
@@ -254,5 +253,5 @@ describe('Native Checklist layout in Note and editable Record', () => {
     }
     await snapshot(note, 'note-narrow', 640)
     await resize(1280)
-  })
+  }).timeout(120_000)
 })
