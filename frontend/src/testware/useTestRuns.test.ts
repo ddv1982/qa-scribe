@@ -1,5 +1,5 @@
-import { act, renderHook, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { TestRun, TestRunCase, TestRunSummary } from '../tauri'
 
 const api = vi.hoisted(() => ({
@@ -28,6 +28,9 @@ beforeEach(() => {
   api.listTestRuns.mockResolvedValue([summary()])
   api.getTestRun.mockResolvedValue(run())
 })
+
+// Every mounted hook hears about background saves, so none may outlive its test.
+afterEach(cleanup)
 
 function deferred<T>() {
   let resolve!: (value: T) => void
@@ -194,6 +197,20 @@ describe('useTestRuns', () => {
     await act(async () => { await saves.settle(); await reopening })
     expect(api.getTestRun).toHaveBeenCalledTimes(1)
     expect(second.result.current.open?.run?.cases[0].result).toBe('failed')
+  })
+
+  it('tells a view opened meanwhile when a save from the view before it failed, and refreshes its counts', async () => {
+    const first = renderHook(() => useTestRuns('session-1'))
+    await act(() => first.result.current.openRun('run-1', 'draft-1'))
+    const saves = deferredSaves()
+    act(() => first.result.current.changeCase('a', { result: 'failed' }))
+    first.unmount()
+    const second = renderHook(() => useTestRuns('session-1'))
+    await waitFor(() => expect(second.result.current.summaries).toHaveLength(1))
+    api.listTestRuns.mockClear()
+    await act(async () => { await saves.fail(new Error('disk full')); await Promise.resolve() })
+    await waitFor(() => expect(second.result.current.error).toBe(BACKGROUND_SAVE_ERROR))
+    expect(api.listTestRuns).toHaveBeenCalledWith('session-1')
   })
 
   it('finishes a save across a Session change without showing anything from the old Session', async () => {

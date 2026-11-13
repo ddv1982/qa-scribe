@@ -21,6 +21,15 @@ export function forgetDrainingTestRuns() {
 }
 
 /**
+ * Told when a run's background saves have all settled. The view that started them may be gone by
+ * then, so whichever view shows that Session now refreshes its counts and reports a failure.
+ */
+type Drained = { sessionId: string; failed: boolean }
+const drainedListeners = new Set<(event: Drained) => void>()
+
+type ScreenQueue = { runId: string; sessionId: string; queue: CaseSaveQueue; background: { failed: boolean } }
+
+/**
  * Test runs of one Session, owned by its Test cases view and kept out of the app controller. Results
  * and remarks are saved as they change: the screen updates at once, saves of one case go one at a time
  * (see CaseSaveQueue), and a failed save shows the stored value again. A change is stored even when the
@@ -38,7 +47,7 @@ export function useTestRuns(sessionId: string | null) {
   const openRef = useRef<Pick<OpenTestRun, 'runId' | 'draftId'> | null>(null)
   const summariesRequestRef = useRef(0)
   /** Saves of the run on screen. */
-  const queueRef = useRef<{ runId: string; queue: CaseSaveQueue } | null>(null)
+  const queueRef = useRef<ScreenQueue | null>(null)
   /**
    * Bumped when the Session or the selected draft changes. A test run that is started or opened shows
    * only if nothing changed while it was being read.
@@ -68,6 +77,7 @@ export function useTestRuns(sessionId: string | null) {
     draining.set(current.runId, current.queue)
     void current.queue.whenIdle().then(() => {
       if (draining.get(current.runId) === current.queue) draining.delete(current.runId)
+      for (const listener of drainedListeners) listener({ sessionId: current.sessionId, failed: current.background.failed })
     })
   }, [])
 
@@ -75,13 +85,25 @@ export function useTestRuns(sessionId: string | null) {
     openRef.current = next ? { runId: next.runId, draftId: next.draftId } : null
     detachQueue()
     if (next?.run) {
-      const session = sessionRef.current
-      const sameSession = () => sessionRef.current === session
-      queueRef.current = { runId: next.runId, queue: saveQueue(next.run, setOpen, setError, sameSession, refresh) }
+      const background = { failed: false }
+      // Once the queue has left the screen, the drained notice refreshes the counts instead.
+      const onSaved = () => { if (queueRef.current?.queue === queue) void refresh() }
+      const queue = saveQueue(next.run, setOpen, setError, onSaved, background)
+      queueRef.current = { runId: next.runId, sessionId: next.run.sessionId, background, queue }
     }
     setError(null)
     setOpen(next)
   }, [detachQueue, refresh])
+
+  useEffect(() => {
+    const onDrained = (event: Drained) => {
+      if (event.sessionId !== sessionRef.current) return
+      void refresh()
+      if (event.failed) setError(BACKGROUND_SAVE_ERROR)
+    }
+    drainedListeners.add(onDrained)
+    return () => { drainedListeners.delete(onDrained) }
+  }, [refresh])
 
   /** Abandons a pending start: whatever it returns no longer opens. */
   const leaveContext = useCallback(() => {
@@ -178,15 +200,16 @@ export function useTestRuns(sessionId: string | null) {
 
 /** A save queue for `run` that shows each case change on screen while `run` is the open one. */
 function saveQueue(run: TestRun, setOpen: Dispatch<SetStateAction<OpenTestRun | null>>, setError: (error: string) => void,
-  sameSession: () => boolean, refresh: () => Promise<void>) {
+  onSaved: () => void, background: { failed: boolean }) {
   const showCase = (next: TestRunCase) => setOpen((current) => current?.run && current.runId === run.id
     ? { ...current, run: { ...current.run, cases: current.run.cases.map((testCase) => testCase.id === next.id ? next : testCase) } }
     : current)
   return new CaseSaveQueue(run.cases, (caseId, { result, remark }) => setTestCaseResult(caseId, result, remark), {
     onShow: showCase,
-    onSaved: () => { if (sameSession()) void refresh() },
+    onSaved,
     onError: (_caseId, cause) => setError(formatError(cause)),
-    onBackgroundError: () => { if (sameSession()) setError(BACKGROUND_SAVE_ERROR) },
+    // Reported once the run's saves have all settled, to whichever view shows the Session then.
+    onBackgroundError: () => { background.failed = true },
   })
 }
 

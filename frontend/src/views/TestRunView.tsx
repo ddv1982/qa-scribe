@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { AlertTriangle, ArrowLeft, ChevronRight, Loader2, Trash2 } from 'lucide-react'
 import { ActionButton } from '../components/ActionButton'
 import { Badge } from '../components/Badge'
@@ -166,6 +166,10 @@ function RemarkInput({ title, remark, onSave }: { title: string; remark: string 
     const next = value.trim() || null
     if (next !== remark) onSave(next)
   }
+  // A remark still being typed is kept when the screen goes away without a blur, as a shortcut does.
+  const commitRef = useRef(commit)
+  useEffect(() => { commitRef.current = commit })
+  useEffect(() => () => commitRef.current(), [])
   return (
     <div className="field test-run-remark">
       <input aria-label={`Remark for ${title}`} placeholder="What happened?" maxLength={REMARK_MAX_LENGTH} value={value}

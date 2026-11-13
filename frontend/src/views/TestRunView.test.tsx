@@ -168,6 +168,17 @@ describe('TestRunView', () => {
     await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
 
+  it('keeps a remark that was still being typed when the screen goes away', () => {
+    const props = { open: { runId: 'run-1', draftId: 'draft-1', error: null, run: { id: 'run-1', sessionId: 'session-1', draftId: 'draft-1', draftTitle: 'Checkout', createdAt: at, updatedAt: at, cases } },
+      draftRuns: [summary('run-1', at)], error: null, onSelectRun: vi.fn(), onBack: vi.fn(), onDelete: vi.fn(async () => true), onChangeCase: vi.fn() }
+    const { unmount } = render(<TestRunView {...props} />)
+    const failed = cases.find((testCase) => testCase.result === 'failed')!
+    fireEvent.change(screen.getByRole('textbox', { name: `Remark for ${failed.title}` }), { target: { value: 'Typed, never blurred' } })
+    expect(props.onChangeCase).not.toHaveBeenCalled()
+    unmount()
+    expect(props.onChangeCase).toHaveBeenCalledWith(failed.id, { remark: 'Typed, never blurred' })
+  })
+
   it('keeps the delete dialog open while deleting, and closes it when deleting failed', async () => {
     let finish!: (deleted: boolean) => void
     const onDelete = vi.fn(() => new Promise<boolean>((resolve) => { finish = resolve }))
