@@ -1,16 +1,19 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
-import { AlertTriangle, ArrowLeft, ChevronRight, Loader2, Trash2 } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, CheckCircle2, ChevronRight, Copy, Loader2, Trash2 } from 'lucide-react'
+import { COPIED_FEEDBACK_MS } from '../app/copyActions'
 import { ActionButton } from '../components/ActionButton'
 import { Badge } from '../components/Badge'
 import { StatePanel } from '../components/Common'
 import { Dialog } from '../components/Dialog'
 import { Segmented, type SegmentedOption } from '../components/Segmented'
+import { writePlainClipboard } from '../editor/clipboardExport'
 import { RichTextEditor } from '../editor/RichTextEditor'
 import { testRunCaseDocument } from '../testware/testRuns'
+import { testRunReport } from '../testware/testRunReport'
 import type { OpenTestRun } from '../testware/useTestRuns'
 import type { CasePatch } from '../testware/caseSaveQueue'
-import type { TestCaseResult, TestRunCase, TestRunSummary } from '../tauri'
-import { formatDateTime } from '../ui/format'
+import type { TestCaseResult, TestRun, TestRunCase, TestRunSummary } from '../tauri'
+import { formatDateTime, formatError } from '../ui/format'
 
 type RecordedResult = Exclude<TestCaseResult, 'not_run'>
 
@@ -28,11 +31,13 @@ const REMARK_MAX_LENGTH = 500
  * A test run in place of its draft: the copied test cases in order, each with a Result and a Remark
  * saved the moment they change. There is no Save button.
  */
-export function TestRunView({ open, draftRuns, error, onSelectRun, onBack, onDelete, onChangeCase }: {
+export function TestRunView({ open, draftRuns, error, findingTitles = {}, onSelectRun, onBack, onDelete, onChangeCase }: {
   open: OpenTestRun
   /** The draft's test runs, newest first. */
   draftRuns: TestRunSummary[]
   error: string | null
+  /** Titles of the Session's Findings by id, for the cases linked to one. */
+  findingTitles?: Readonly<Record<string, string>>
   onSelectRun: (runId: string) => void
   onBack: () => void
   onDelete: (runId: string) => Promise<boolean>
@@ -85,6 +90,7 @@ export function TestRunView({ open, draftRuns, error, onSelectRun, onBack, onDel
               {draftRuns.map((summary) => <option key={summary.id} value={summary.id}>{formatDateTime(summary.createdAt)}</option>)}
             </select>
           ) : null}
+          {run ? <CopyReportButton run={run} findingTitles={findingTitles} /> : null}
           <ActionButton variant="quiet" icon={ArrowLeft} onClick={onBack}>Back to test cases</ActionButton>
           <ActionButton variant="destructive-quiet" iconOnly icon={Trash2} aria-label="Delete test run" title="Delete test run"
             onClick={() => setConfirmingDelete(true)} />
@@ -121,6 +127,37 @@ export function TestRunView({ open, draftRuns, error, onSelectRun, onBack, onDel
       ) : null}
     </article>
   )
+}
+
+/** Copies the test run as plain text, and says Copied for a moment like the other Copy buttons. */
+function CopyReportButton({ run, findingTitles }: { run: TestRun; findingTitles: Readonly<Record<string, string>> }) {
+  const [copied, setCopied] = useState(false)
+  const [failure, setFailure] = useState<string | null>(null)
+  const timer = useRef<number | null>(null)
+  useEffect(() => () => { if (timer.current !== null) window.clearTimeout(timer.current) }, [])
+
+  async function copy() {
+    if (timer.current !== null) window.clearTimeout(timer.current)
+    timer.current = null
+    setFailure(null)
+    try {
+      await writePlainClipboard(testRunReport(run, findingTitles))
+      setCopied(true)
+      timer.current = window.setTimeout(() => {
+        timer.current = null
+        setCopied(false)
+      }, COPIED_FEEDBACK_MS)
+    } catch (cause) {
+      setCopied(false)
+      setFailure(formatError(cause))
+    }
+  }
+
+  return <>
+    <ActionButton variant="secondary" icon={copied ? CheckCircle2 : Copy} onClick={() => void copy()}>{copied ? 'Copied' : 'Copy report'}</ActionButton>
+    <span className="sr-only" role="status">{copied ? 'Report copied' : ''}</span>
+    {failure ? <span className="copy-error" role="alert">Copy failed: {failure}</span> : null}
+  </>
 }
 
 function TestRunCaseRow({ testCase, group, toggleRef, onKeyDown, onChangeCase }: {
