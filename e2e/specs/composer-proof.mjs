@@ -33,6 +33,10 @@ export async function fill(selector, value) {
   receipt(`type ${selector}`, await state())
 }
 export async function native(command, args = {}) {
+  // Several tests ask the app something right after a reload. A command sent while the page is still
+  // loading fails with a script exception, so the page must be up first.
+  await browser.waitUntil(() => browser.execute(() => document.readyState === 'complete' && Boolean(window.__TAURI_INTERNALS__)).catch(() => false),
+    { timeoutMsg: 'The page did not finish loading' })
   return browser.tauri.execute(({ core }, name, input) => core.invoke(name, input), command, args)
 }
 export function rows() {
