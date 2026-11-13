@@ -101,7 +101,7 @@ function splitChecklist(nodes: JSONContent[]): TestCaseSplit {
     for (const item of node.content ?? []) {
       const single = { ...node, content: [item] }
       const title = firstLine(item)
-      if (title) builder.startCase({ group, title, node: single })
+      if (title) builder.startCase({ group, title: caseTitle(title), node: single })
       else builder.addLoose(single)
     }
   }

@@ -299,6 +299,14 @@ describe('splitTestCases', () => {
   })
 })
 
+describe('checklist item titles', () => {
+  it('lose a leading label and keep words that only look like one', () => {
+    const item = (text: string) => `<li data-type="taskItem" data-checked="false"><p>${text}</p></li>`
+    const result = split(`<ul data-type="taskList">${['Test case: Export invoice', 'Scenario planning', 'TC-12 timeout', 'TC-3: Empty cart'].map(item).join('')}</ul>`, 'checklist')
+    expect(result?.cases.map((testCase) => testCase.title)).toEqual(['Export invoice', 'Scenario planning', 'TC-12 timeout', 'Empty cart'])
+  })
+})
+
 describe('draftOutputFormat', () => {
   it('reads a generated draft, then a manual draft, and returns null for anything else', () => {
     expect(draftOutputFormat({ metadataJson: '{"testwareGeneration":{"technique":"auto","outputFormat":"gherkin","depth":"lean"}}' })).toBe('gherkin')
