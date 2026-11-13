@@ -13,6 +13,8 @@ mod prompt_and_projection;
 mod response_parser;
 #[path = "tests/session_sheet_prompt.rs"]
 mod session_sheet_prompt;
+#[path = "tests/test_results_prompt.rs"]
+mod test_results_prompt;
 
 /// A fixed marker for deterministic parser/prompt tests.
 fn test_marker() -> OutputMarker {

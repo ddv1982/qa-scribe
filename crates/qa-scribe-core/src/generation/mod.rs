@@ -17,6 +17,7 @@ pub use response::{
     preserve_managed_attachment_images, sanitize_generated_rich_html,
     self_closing_editor_html_tags,
 };
+pub use session_material::PromptSession;
 pub use workflow::{
     GenerateAiActionKind, GenerateAiActionRequest, GenerateAiActionResult, PreparedGeneration,
     finish_ai_action_generation, prepare_ai_action_generation,

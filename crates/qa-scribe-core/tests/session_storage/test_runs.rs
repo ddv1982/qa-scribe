@@ -411,3 +411,42 @@ fn delete_test_run_removes_the_run_and_its_cases() {
         Err(QaScribeError::NotFound(_))
     ));
 }
+
+#[test]
+fn latest_test_runs_keeps_the_newest_run_of_each_draft_with_its_cases() {
+    let service = SessionService::in_memory().expect("in-memory service should open");
+    let session = run_session(&service, "Checkout");
+    let other_session = run_session(&service, "Account");
+    let first = run_draft(&service, &session.id, DraftKind::Testware);
+    let second = run_draft(&service, &session.id, DraftKind::Testware);
+    let elsewhere = run_draft(&service, &other_session.id, DraftKind::Testware);
+    service
+        .start_test_run(&first.id, run_cases(1))
+        .expect("older run of the first draft starts");
+    next_millisecond();
+    let second_run = service
+        .start_test_run(&second.id, run_cases(2))
+        .expect("run of the second draft starts");
+    next_millisecond();
+    let first_newer = service
+        .start_test_run(&first.id, run_cases(3))
+        .expect("newer run of the first draft starts");
+    service
+        .start_test_run(&elsewhere.id, run_cases(1))
+        .expect("run in another Session starts");
+
+    let latest = service
+        .latest_test_runs(&session.id)
+        .expect("latest runs should read");
+
+    let ids: Vec<_> = latest.iter().map(|run| run.id.as_str()).collect();
+    assert_eq!(ids, [first_newer.id.as_str(), second_run.id.as_str()]);
+    assert_eq!(latest[0].cases.len(), 3);
+    assert_eq!(latest[1].cases.len(), 2);
+    assert!(
+        service
+            .latest_test_runs(&run_session(&service, "Empty").id)
+            .expect("a Session without runs reads")
+            .is_empty()
+    );
+}

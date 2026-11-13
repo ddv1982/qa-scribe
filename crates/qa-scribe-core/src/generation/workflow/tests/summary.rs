@@ -333,3 +333,84 @@ fn summary_malformed_structured_output_reports_compatibility_before_stale_note_e
         "failed"
     );
 }
+
+#[test]
+fn summary_prompt_reads_the_latest_test_run_of_each_draft_and_the_finding_prompt_none() {
+    use crate::domain::{DraftCreate, DraftKind, TestCaseResult, TestRunCaseDraft};
+
+    let service = SessionService::in_memory().expect("service should open");
+    let session = create_session(&service, "Checkout");
+    let note = create_note(&service, &session.id, "Checkout", "<p>Paid by card.</p>");
+    let draft = service
+        .create_draft(DraftCreate {
+            session_id: session.id.clone(),
+            ai_run_id: None,
+            kind: DraftKind::Testware,
+            title: "Checkout cases".into(),
+            body: String::new(),
+            body_json: None,
+            body_format: None,
+            metadata_json: None,
+        })
+        .expect("draft should create");
+    let start = |title: &str| {
+        service
+            .start_test_run(
+                &draft.id,
+                vec![TestRunCaseDraft {
+                    group_title: None,
+                    title: title.into(),
+                    body_json: r#"{"type":"doc","content":[]}"#.into(),
+                }],
+            )
+            .expect("run should start")
+    };
+    let older = start("Older case");
+    service
+        .set_test_case_result(
+            &older.cases[0].id,
+            TestCaseResult::Failed,
+            Some("Old".into()),
+        )
+        .expect("result saves");
+    std::thread::sleep(std::time::Duration::from_millis(5));
+    let newer = start("Newer case");
+    service
+        .set_test_case_result(
+            &newer.cases[0].id,
+            TestCaseResult::Blocked,
+            Some("No test card".into()),
+        )
+        .expect("result saves");
+
+    let summary = prepare_ai_action_generation(
+        &service,
+        &request_for(
+            &service,
+            &session.id,
+            GenerateAiActionKind::Summary,
+            Some(&note.id),
+        ),
+    )
+    .expect("summary should prepare");
+    assert_eq!(summary.ai_run.prompt_version, "note-summary-v6");
+    assert!(
+        summary
+            .prompt
+            .contains("- Blocked: Newer case\n  Remark: No test card\n")
+    );
+    assert!(!summary.prompt.contains("Older case"));
+
+    let finding = prepare_ai_action_generation(
+        &service,
+        &request_for(
+            &service,
+            &session.id,
+            GenerateAiActionKind::Finding,
+            Some(&note.id),
+        ),
+    )
+    .expect("finding should prepare");
+    assert!(!finding.prompt.contains("test_results"));
+    assert!(!finding.prompt.contains("Newer case"));
+}

@@ -61,6 +61,28 @@ impl SessionService {
         test_run(self.database.connection(), run_id)
     }
 
+    /// The newest test run of each of the Session's Test cases drafts, with
+    /// its cases, newest first. Newest is the order `list_test_runs` uses.
+    pub fn latest_test_runs(&self, session_id: &str) -> Result<Vec<TestRun>> {
+        let connection = self.database.connection();
+        let mut statement = connection.prepare(
+            "SELECT r.id FROM test_runs r
+             WHERE r.session_id = ?1 AND NOT EXISTS (
+                 SELECT 1 FROM test_runs newer
+                 WHERE newer.draft_id = r.draft_id
+                   AND (newer.created_at > r.created_at
+                        OR (newer.created_at = r.created_at AND newer.id > r.id)))
+             ORDER BY r.created_at DESC, r.id DESC",
+        )?;
+        let run_ids = statement
+            .query_map([session_id], |row| row.get::<_, String>(0))?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        run_ids
+            .iter()
+            .map(|run_id| test_run(connection, run_id))
+            .collect()
+    }
+
     /// The Session's test runs, newest first, with how many cases have each Result.
     pub fn list_test_runs(&self, session_id: &str) -> Result<Vec<TestRunSummary>> {
         let connection = self.database.connection();
