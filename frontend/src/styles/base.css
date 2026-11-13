@@ -199,7 +199,8 @@ body {
   display: flow-root;
 }
 
-:root { color-scheme: light; }
+/* Native checkboxes and radios take the accent too. */
+:root { color-scheme: light; accent-color: var(--accent); }
 :root[data-theme="dark"] { color-scheme: dark; }
 
 input::placeholder,

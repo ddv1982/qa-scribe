@@ -207,14 +207,17 @@ export function GenerationPreflight({
                     type="button"
                     key={preset.id}
                     aria-pressed={testwarePreferences.technique === preset.id}
+                    title={preset.description}
                     onClick={() => updateTestwarePreferences({ technique: preset.id })}
                   >
                     <span>{preset.shortLabel}</span>
                     <strong>{preset.bestFor}</strong>
-                    <small>{preset.description}</small>
                   </button>
                 ))}
               </div>
+              <p className="field-description preflight-technique-description">
+                {testwareTechniquePresets.find((preset) => preset.id === testwarePreferences.technique)?.description}
+              </p>
             </fieldset>
 
             <fieldset className="preflight-fieldset compact">

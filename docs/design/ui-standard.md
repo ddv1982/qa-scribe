@@ -50,7 +50,7 @@ are the next ones to extract; until then, copy the named pattern exactly.
 | Empty, loading or failed list | `StatePanel` and `EmptyCollection` in `components/Common.tsx` | Shared |
 | Save state line | `StatusPill` in `components/Common.tsx` | Shared |
 | Modal dialog | `Dialog` in `components/Dialog.tsx`: native `<dialog>` with `useModalDialog`, title, description, actions on the right. Pass `initialFocus` to focus the safe action first | Shared |
-| Labelled field | `Field` in `components/Field.tsx`: a label above the control, with optional `hint` and `error` linked by `aria-describedby` | Shared |
+| Labelled field | `Field` in `components/Field.tsx`: a label above the control, with an optional `hint` linked by `aria-describedby` | Shared |
 | Select | Native `<select>` inside a `Field`. The shared chevron is applied globally | Shared |
 | Tabs | `role="tablist"` with `role="tab"` buttons and `aria-selected` | Pattern, to extract as `Tabs` |
 | Small status label | `Badge` in `components/Badge.tsx`: a quiet pill for a short fact such as a format, a timebox or a state | Shared |
@@ -62,3 +62,6 @@ are the next ones to extract; until then, copy the named pattern exactly.
 2. Give the screen one layout class. Use `gap` on flex or grid, not margins.
 3. Find elements in tests by role and label, not by class name.
 4. Check both themes in the running app before you open the pull request.
+
+`bun run --cwd frontend check` fails when a screen uses a raw `<dialog>` or a
+retired field wrapper class instead of `Dialog` and `Field`.

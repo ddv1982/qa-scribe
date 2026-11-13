@@ -56,6 +56,24 @@ export const testwareTechniquePresets: TestwareTechniquePreset[] = [
     description: 'Compress parameter combinations into a practical high-signal set.',
   },
   {
+    id: 'classification_tree',
+    shortLabel: 'Classes',
+    bestFor: 'Test data',
+    description: 'Split each aspect into disjoint classes, then combine them into compact cases.',
+  },
+  {
+    id: 'error_guessing',
+    shortLabel: 'Errors',
+    bestFor: 'Weak spots',
+    description: 'Anticipate likely mistakes and failure modes, then check each one directly.',
+  },
+  {
+    id: 'checklist_based',
+    shortLabel: 'Checklist',
+    bestFor: 'Regression',
+    description: 'Build a reusable list of yes-or-no conditions grouped by area.',
+  },
+  {
     id: 'risk_based',
     shortLabel: 'Risk',
     bestFor: 'Triage',
