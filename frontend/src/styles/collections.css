@@ -132,8 +132,8 @@
 
 .collection-toolbar {
   display: grid;
-  /* Search takes the room; any number of filters and the count follow on the same row. */
-  grid-template-columns: minmax(220px, 1fr);
+  /* The list toggle leads, search takes the room; any number of filters and the count follow on the same row. */
+  grid-template-columns: auto minmax(220px, 1fr);
   grid-auto-columns: auto;
   grid-auto-flow: column;
   align-items: center;

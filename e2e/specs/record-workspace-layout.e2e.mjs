@@ -159,6 +159,29 @@ describe('Record workspace layout in the built native application', () => {
     assert.ok(value.body.top > value.header.bottom, 'Document must remain separated from the header')
   })
 
+  it('hides the record list to give the open record the full width, and shows it again', async () => {
+    await scroll(0)
+    const paneWidth = () => browser.execute(() => document.querySelector('.record-detail-pane').getBoundingClientRect().width)
+    const title = await $('.record-detail-pane .record-title').getText()
+    const before = await paneWidth()
+    try {
+      await click('[aria-label="Hide list"]')
+      await $('.record-master-list').waitForExist({ reverse: true })
+      await settle()
+      const wider = await paneWidth()
+      assert.ok(wider > before + 100, `The open record must take the list's room; ${before}px became ${wider}px`)
+      assert.equal(await $('.record-detail-pane .record-title').getText(), title)
+      assert.ok(await $('.record-detail-pane .record-title').isDisplayed())
+      await browser.saveScreenshot(join(artifacts, 'lane-4b-list-hidden.png'))
+    } finally {
+      // Later tests pick records from the list, so it must be back whatever happened above.
+      if (await $('[aria-label="Show list"]').isExisting()) await click('[aria-label="Show list"]')
+    }
+    await $('.record-master-list').waitForDisplayed()
+    await settle()
+    assert.ok(Math.abs(await paneWidth() - before) <= 1, 'The record returns to its width beside the list')
+  }).timeout(60_000)
+
   it('keeps actions and document scrolling usable in short and narrow native windows', async () => {
     try {
       for (const width of [1280, 768]) {
