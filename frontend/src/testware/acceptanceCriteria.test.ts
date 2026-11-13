@@ -64,4 +64,12 @@ describe('criteriaCoverage', () => {
   it('reports everything uncovered without documents', () => {
     expect(criteriaCoverage(criteria, []).uncovered.map(({ id }) => id)).toEqual(['AC-1', 'AC-2', 'SHOP-412'])
   })
+
+  it('keeps hierarchical ids apart', () => {
+    expect(normalizeCriteria('REQ-1.2 Street\nREQ-1.3 Postcode\nAC-1. City')).toBe('REQ-1.2 Street\nREQ-1.3 Postcode\nAC-1 City')
+    const criteria = parseCriteria('REQ-1 Parent\nREQ-1.2 Street\nREQ-1.3 Postcode')
+    const coverage = criteriaCoverage(criteria, ['Covers: REQ-1.2. Then the next step.'])
+    expect(coverage.covered).toEqual(['REQ-1.2'])
+    expect(coverage.uncovered.map(({ id }) => id)).toEqual(['REQ-1', 'REQ-1.3'])
+  })
 })

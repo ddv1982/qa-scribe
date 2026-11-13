@@ -11,8 +11,11 @@ export type CriteriaCoverage = { covered: string[]; uncovered: AcceptanceCriteri
 /** Maximum stored length, matching `SESSION_ACCEPTANCE_CRITERIA_MAX_LENGTH` in the core crate. */
 export const ACCEPTANCE_CRITERIA_MAX_LENGTH = 8000
 
-/** A leading id, then an optional `:` `.` `)` or `-` separator and spaces before the text. */
-const leadingId = /^([A-Za-z][A-Za-z0-9]*-\d+)(?:[:.)-]\s*|\s+|$)/
+/**
+ * A leading id, then an optional `:` `.` `)` or `-` separator and spaces before the text. An id may
+ * be hierarchical, such as `REQ-1.2`.
+ */
+const leadingId = /^([A-Za-z][A-Za-z0-9]*-\d+(?:\.\d+)*)(?:[:.)-]\s*|\s+|$)/
 
 function parseLine(line: string): { id: string | null; text: string } {
   const match = leadingId.exec(line)
@@ -58,9 +61,9 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-/** A criterion id as a whole token: not inside a longer id such as `AC-12` or `XAC-1`. */
+/** A criterion id as a whole token: not inside a longer id such as `AC-12`, `XAC-1` or `AC-1.2`. */
 function idPattern(id: string): RegExp {
-  return new RegExp(`(?:^|[^A-Za-z0-9-])${escapeRegExp(id)}(?![A-Za-z0-9])`, 'i')
+  return new RegExp(`(?:^|[^A-Za-z0-9-])${escapeRegExp(id)}(?![A-Za-z0-9]|\\.\\d)`, 'i')
 }
 
 /** Which criteria the documents (plain text of saved test cases) mention by id. */
