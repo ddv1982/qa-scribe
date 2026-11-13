@@ -3,12 +3,12 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 // The harness mocks the Tauri bridge, so it loads before the views that read test runs through it.
 import { cleanupControllerTest, getTauriMock, renderWithControllerStartup, setupControllerTest, useAppController } from './useAppController.testHarness'
-import type { BeginTestRunChatRequest, ChatState, RefinementProposal, TestRun, TestRunSummary } from '../bindings'
+import type { BeginTestRunChatRequest, ChatRef, ChatState, RefinementProposal, TestRun, TestRunSummary } from '../bindings'
 import { draftFixture } from '../test/fixtures'
 import { formatDateTime } from '../ui/format'
 import { AppShell } from './AppShell'
 import { presentRun, type ShownTestRun } from './conversationPresentation'
-import { chatFixture } from './useSessionChat.testSupport'
+import { chatFixture, chatJobFixture } from './useSessionChat.testSupport'
 
 const api = getTauriMock()
 function Subject() { return <AppShell {...useAppController()} /> }
@@ -154,5 +154,55 @@ describe('the source line of a test run', () => {
     expect(presentRun(owner, null)).toEqual({ kind: 'unavailable' })
     expect(presentRun(owner, shown({ runId: 'run-2' }))).toEqual({ kind: 'unavailable' })
     expect(presentRun(owner, shown({ sessionId: 'session-2' }))).toEqual({ kind: 'unavailable' })
+  })
+})
+
+describe('an unfinished conversation of a deleted test run', () => {
+  const reference = { sessionId: 'session-1', draftId: 'run-chat-unfinished' }
+  const owner = { kind: 'test_run' as const, sessionId: 'session-1', runId: 'run-deleted' }
+  const message = { id: 'run-user', turnId: 'run-turn', role: 'user' as const, text: 'Post the results to PAY-12', images: [], status: 'running' as const, errorMessage: null, aiRunId: 'run-chat', createdAt: at }
+  const row = chatFixture({ ...reference, owner, mode: 'chat', lastActiveOrder: 5, messages: [message] })
+  const job = chatJobFixture({ chat: { reference }, progressMessage: 'Waiting for tool permission', partialText: null, pendingPermission: {
+    requestId: 'permission-run', provider: 'codex_cli', title: 'Comment on PAY-12?', toolName: 'add_comment', serverName: 'jira', inputJson: '{"issue":"PAY-12"}' } })
+  const history = (lastTurnStatus: 'running' | 'completed') => [{ reference, owner, createdAt: '', lastActiveAt: '', lastActiveOrder: 5, preview: '', archived: false, submission: null, hasContent: true, lastTurnStatus, unresolvedStages: [] }]
+
+  beforeEach(() => {
+    const fallback = api.getConversation.getMockImplementation()!
+    api.getConversation.mockImplementation(async (ref: ChatRef) => ref.draftId === reference.draftId ? row : fallback(ref))
+    api.listActiveAiActionJobs.mockResolvedValue([job])
+    api.getAiActionJobStatus.mockResolvedValue(job)
+  })
+
+  it('is recovered from the Session bar into an unavailable-source panel that keeps Stop and the permission prompt', async () => {
+    api.listTestRuns.mockResolvedValue([summary(newer)])
+    api.listChatHistory.mockResolvedValue(history('running'))
+    await renderWithControllerStartup(() => render(<Subject />))
+    fireEvent.click(await screen.findByRole('button', { name: 'Recover Ask AI · Deleted test run' }))
+    const panel = await screen.findByRole('complementary', { name: 'Ask AI' })
+    expect(screen.getByRole('tab', { name: /Test cases/ })).toHaveAttribute('aria-selected', 'true')
+    const source = within(panel).getByRole('region', { name: 'Chat source' })
+    expect(source).toHaveTextContent('Test run')
+    expect(source).toHaveTextContent('This test run is no longer available.')
+    expect(within(panel).getByText('Post the results to PAY-12')).toBeInTheDocument()
+    expect(await within(panel).findByRole('button', { name: 'Approve once' })).toBeEnabled()
+    expect(within(panel).getByRole('button', { name: 'Deny' })).toBeEnabled()
+    expect(within(panel).getByRole('button', { name: 'Stop' })).toBeEnabled()
+    expect(within(panel).getByRole('button', { name: 'Send' })).toBeDisabled()
+  })
+
+  it('is not listed while its run still exists, or once the conversation is finished', async () => {
+    api.listTestRuns.mockResolvedValue([summary(newer), { ...summary(older), id: 'run-deleted' }])
+    api.listChatHistory.mockResolvedValue(history('running'))
+    const { unmount } = await renderWithControllerStartup(() => render(<Subject />))
+    await waitFor(() => expect(api.listTestRuns).toHaveBeenCalled())
+    expect(screen.queryByRole('button', { name: /Recover Ask AI/ })).not.toBeInTheDocument()
+    unmount()
+
+    api.listTestRuns.mockResolvedValue([])
+    api.listActiveAiActionJobs.mockResolvedValue([])
+    api.listChatHistory.mockResolvedValue(history('completed'))
+    await renderWithControllerStartup(() => render(<Subject />))
+    await waitFor(() => expect(api.listChatHistory).toHaveBeenCalled())
+    expect(screen.queryByRole('button', { name: /Recover Ask AI/ })).not.toBeInTheDocument()
   })
 })

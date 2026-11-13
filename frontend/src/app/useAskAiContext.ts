@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { beginRecordChat, beginTestRunChat, listChatHistory, type ChatHistoryEntry, type ChatRef, type ChatTarget, type ConversationOwner, type ConversationRecord, type StageOrigin } from '../tauri'
+import { beginRecordChat, beginTestRunChat, listChatHistory, listTestRuns, type ChatHistoryEntry, type ChatRef, type ChatTarget, type ConversationOwner, type ConversationRecord, type StageOrigin } from '../tauri'
 import type { MainView } from '../ui/types'
 import { formatError } from '../ui/format'
 import { captureRecordContext, type RecordChatSelection, type ChatContextPresentation } from './sessionChat.context'
@@ -48,6 +48,16 @@ export function useAskAiContext(sessionId: string | null, view: MainView, record
   /** The test run on the run screen, told by the Test cases view. */
   const [shownRun, setShownRunState] = useState<ShownTestRun | null>(null)
   const shownRunRef = useRef<ShownTestRun | null>(null)
+  /** The Session's test runs as of the last recovery refresh; null until a run conversation needed them. */
+  const [runIds, setRunIds] = useState<ReadonlySet<string> | null>(null)
+  const runIdsRef = useRef<ReadonlySet<string> | null>(null)
+  const testwareShown = useRef<((shown: boolean) => void) | null>(null)
+  useLayoutEffect(() => {
+    if (view !== 'testware' || !testwareShown.current) return
+    const finish = testwareShown.current
+    testwareShown.current = null
+    finish(true)
+  }, [view])
   const selected = useRef<RecordChatSelection | null>(null)
   const attempts = useRef(new Map<string, Launch>())
   const revealWaiter = useRef<{ request: RecordRevealRequest; finish: (accepted: boolean) => void } | null>(null)
@@ -68,6 +78,7 @@ export function useAskAiContext(sessionId: string | null, view: MainView, record
     internalReveal.current = null
     const waiter = revealWaiter.current
     revealWaiter.current = null; setRevealRequest(null); waiter?.finish(false)
+    testwareShown.current?.(false); testwareShown.current = null
   }
   useLayoutEffect(() => invalidateNavigation, [sessionId])
   async function refreshRecovery() {
@@ -76,8 +87,15 @@ export function useAskAiContext(sessionId: string | null, view: MainView, record
     if (!active) { setRecoveryRows([]); return }
     try {
       const rows = await listChatHistory({ kind: 'session', sessionId: active })
-      if (live.current.sessionId === active && recoveryEpoch.current === epoch) { setRecoveryRows(rows.filter(row => row.unresolvedStages.length || ['running', 'failed', 'interrupted', 'cancelled'].includes(row.lastTurnStatus ?? ''))); setRecoveryError(null) }
+      const unfinished = rows.filter(row => row.unresolvedStages.length || ['running', 'failed', 'interrupted', 'cancelled'].includes(row.lastTurnStatus ?? ''))
+      // Which runs still exist decides whether an unfinished run conversation is recovered here or on its run screen.
+      const runs = unfinished.some(row => row.owner.kind === 'test_run') ? new Set((await listTestRuns(active)).map(run => run.id)) : runIdsRef.current
+      if (live.current.sessionId === active && recoveryEpoch.current === epoch) { runIdsRef.current = runs; setRunIds(runs); setRecoveryRows(unfinished); setRecoveryError(null) }
     } catch (cause) { if (live.current.sessionId === active && recoveryEpoch.current === epoch) setRecoveryError(formatError(cause)) }
+  }
+  /** A run conversation whose test run was deleted: it can only be reached from the recovery list. */
+  function runGone(owner: AskAiOwner, ids: ReadonlySet<string> | null = runIdsRef.current) {
+    return owner.kind === 'test_run' && ids !== null && !ids.has(owner.runId)
   }
   useEffect(() => { void Promise.resolve().then(() => { setRecoveryRows([]); return refreshRecovery() }) }, [sessionId])
   useEffect(() => {
@@ -122,6 +140,8 @@ export function useAskAiContext(sessionId: string | null, view: MainView, record
     ++openingEpoch.current
     const current = panelRef.current
     if (current?.open && current.owner.kind === 'test_run' && (current.owner.runId !== next?.runId || current.owner.sessionId !== next.sessionId)) setPanel({ ...current, open: false })
+    // A run that left the screen may have been deleted with its conversation still unfinished.
+    void refreshRecovery()
   }
   function onSelectRecord(target: RecordChatSelection | null, requestId?: string) {
     if (target) {
@@ -137,7 +157,8 @@ export function useAskAiContext(sessionId: string | null, view: MainView, record
     if (identityChanged && !revealing && !internalReveal.current) {
       ++openingEpoch.current
       const current = panelRef.current
-      if (current?.open && (!target || current.owner.kind !== 'record' || !sameRecord(current.owner.record, target))) setPanel({ ...current, open: false })
+      // A run's panel follows the run screen instead (onShowRun).
+      if (current?.open && current.owner.kind === 'record' && (!target || !sameRecord(current.owner.record, target))) setPanel({ ...current, open: false })
     }
   }
   function acknowledgeReveal(request: RecordRevealRequest) {
@@ -184,8 +205,18 @@ export function useAskAiContext(sessionId: string | null, view: MainView, record
       if (!current() || !chat || !sameReference(chat, reference) || chat.owner.sessionId !== active) return
       const owner = chat.owner
       if (owner.kind === 'test_run') {
-        // The run screen is where a test run conversation lives; it is not revealed from elsewhere.
-        if (sourceFor(owner).kind === 'unavailable') throw new Error('Open this test run to continue its conversation.')
+        // A run conversation lives on its run screen. Once the run is deleted it opens in the Test cases
+        // tab without a source, so Stop and a waiting permission stay reachable.
+        if (sourceFor(owner).kind === 'unavailable') {
+          if (!runGone(owner)) throw new Error('Open this test run to continue its conversation.')
+          internalReveal.current = epoch
+          // Holds the reveal open until the Test cases tab has rendered, so leaving the old view does not cancel it.
+          const reveal = live.current.view === 'testware' ? null : () => new Promise<boolean>(finish => { testwareShown.current = finish })
+          let accepted: boolean
+          try { accepted = await ctx.revealOwner(owner, reveal, Boolean(handle.snapshot().error || handle.snapshot().imageFailures.length)) }
+          finally { if (internalReveal.current === epoch) internalReveal.current = null }
+          if (!accepted || !current()) return
+        }
         await ctx.conversations.select(reference)
         if (!current() || !sameOwner(handle.snapshot().chat?.owner, owner)) return
         setPanel({ owner, recoveryReason, reference, open: true, focusRequest: (panelRef.current?.focusRequest ?? 0) + 1, phase: 'ready' })
@@ -271,8 +302,8 @@ export function useAskAiContext(sessionId: string | null, view: MainView, record
   const source = current ? presentSource(current.owner, sessionId, records, ctx, selection, shownRun) : null
   const recordView = view === 'findings' || view === 'testware'
   const owner = current?.owner
-  // A test run's panel shows only beside its own run screen.
-  const visible = Boolean(current?.open && (owner?.kind === 'test_run' ? view === 'testware' && shownRun?.runId === owner.runId : recordView))
+  // A test run's panel shows beside its own run screen, or in the Test cases tab once its run is deleted.
+  const visible = Boolean(current?.open && (owner?.kind === 'test_run' ? view === 'testware' && (shownRun?.runId === owner.runId || runGone(owner, runIds)) : recordView))
   const context: ChatContextPresentation = owner?.kind === 'record' ? { ...owner.record, title: source?.kind === 'available' ? source.title : 'Unavailable source', unsaved: source?.kind === 'available' && source.unsaved }
     : owner ? { kind: 'session' } : selection && recordView ? selection : { kind: 'session' }
   const attention = sessionId ? ctx.conversations.attention(sessionId) : []
@@ -285,12 +316,8 @@ export function useAskAiContext(sessionId: string | null, view: MainView, record
     context, contextError: source?.kind === 'unavailable' ? 'This record is no longer available in this Session.' : source?.kind === 'error' ? source.message : null,
     capture, captureNotesContext, onAskAi, onAskAiRun, onShowRun, onSelectRecord, close, openConversation, openStage: (origin: StageOrigin) => openConversation(origin.reference, origin), revealRequest, acknowledgeReveal,
     retrySource: () => { if (owner?.kind === 'record') ctx.retrySource(owner.record); else shownRun?.retry() },
-    // A test run conversation is recovered from its run screen through Ask AI, not from the Session bar.
-    recovery: unfinishedConversations(recoveryRows.filter(row => row.reference.sessionId === sessionId), attention).filter(isRecordRecovery), recoveryError,
+    // An existing run's conversation is recovered through Ask AI on its run; a deleted run's from here.
+    recovery: unfinishedConversations(recoveryRows.filter(row => row.reference.sessionId === sessionId), attention).filter(item => item.owner.kind === 'record' || runGone(item.owner, runIds)), recoveryError,
     recover: (item: UnfinishedConversation) => openConversation(item.reference, item.origin, item.reason),
   }
-}
-
-function isRecordRecovery(item: UnfinishedConversation): item is UnfinishedConversation & { owner: RecordOwner } {
-  return item.owner.kind === 'record'
 }

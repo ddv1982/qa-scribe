@@ -15,6 +15,7 @@ import { TestwareView } from '../views/TestwareView'
 import { OutputLibraryView } from '../views/OutputLibraryView'
 import { GenerationPreflight } from '../workflows/generationPreflight'
 import type { AppController } from './useAppController'
+import type { AskAiOwner } from './conversationPresentation'
 import { createCommandRegistry, type AppCommandId } from './commandRegistry'
 import { CommandPalette, DeleteConfirmationDialog, PendingChangesDialog } from './AppOverlays'
 import { primaryModifierPressed } from './platformShortcuts'
@@ -103,7 +104,7 @@ export function AppShell(c: AppController) {
         {c.askAi.recovery.filter(item => !c.askAi.visible || item.reference.draftId !== c.askAi.reference?.draftId || Boolean(item.origin && item.origin.stageId !== c.askAi.panel?.legacyOrigin?.stageId)).map(item =>
           <div className="chat-recovery-notice" key={item.origin?.stageId ?? item.reference.draftId}>
             <span>{item.reason}</span>
-            <ActionButton variant="secondary" size="compact" data-recovery-draft={item.reference.draftId} onClick={() => void c.askAi.recover(item)}>Recover Ask AI · {(item.owner.record.kind === 'finding' ? c.findings : c.testwareDrafts).find(row => row.id === item.owner.record.recordId)?.title ?? 'Unavailable source'}</ActionButton>
+            <ActionButton variant="secondary" size="compact" data-recovery-draft={item.reference.draftId} onClick={() => void c.askAi.recover(item)}>Recover Ask AI · {recoveryTitle(c, item.owner)}</ActionButton>
           </div>)}
         {c.askAi.recoveryError ? <p className="chat-error" role="alert">{c.askAi.recoveryError}</p> : null}
           </header>
@@ -370,4 +371,11 @@ function activateAdjacentTab(event: KeyboardEvent<HTMLButtonElement>) {
   event.preventDefault()
   tabs[nextIndex]?.focus()
   tabs[nextIndex]?.click()
+}
+
+/** Names an unfinished conversation in the recovery list by its source; a run is recovered there only once deleted. */
+function recoveryTitle(c: AppController, owner: AskAiOwner) {
+  if (owner.kind === 'test_run') return 'Deleted test run'
+  const { kind, recordId } = owner.record
+  return (kind === 'finding' ? c.findings : c.testwareDrafts).find(row => row.id === recordId)?.title ?? 'Unavailable source'
 }
