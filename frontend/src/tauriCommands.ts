@@ -14,6 +14,7 @@ import {
   type AttachmentCleanupStatus,
   type ChatComposerRequest,
   type BeginRecordChatRequest,
+  type BeginTestRunChatRequest,
   type ChatRef,
   type ChatHistoryScope,
   type ChatHistoryEntry,
@@ -68,6 +69,10 @@ export function getChat(sessionId: string): Promise<ChatState> {
 
 export function beginRecordChat(request: BeginRecordChatRequest): Promise<ChatState> {
   return commands.beginRecordChat(request)
+}
+
+export function beginTestRunChat(request: BeginTestRunChatRequest): Promise<ChatState> {
+  return commands.beginTestRunChat(request)
 }
 
 export function getConversation(reference: ChatRef): Promise<ChatState> {

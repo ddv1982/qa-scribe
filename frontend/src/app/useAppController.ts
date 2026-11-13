@@ -140,6 +140,8 @@ export function useAppController() {
     selection, provider: activeProvider, providerWarning: effectiveAiSelection?.warning ?? null,
     feedback, jobs: generationJobs, refreshProviderStatus, captureContext: (sessionId, owner) => {
       if (sessionId !== sessionWorkspace.activeSessionIdRef.current) throw new Error('The active Session changed before sending.')
+      // A test run conversation sends the run's report from storage, never a record snapshot.
+      if (owner?.kind === 'test_run') return { kind: 'session' }
       return owner?.kind === 'record' ? captureAvailableRecordContext(sessionId, owner.record, recordWorkspace, owner.record.kind === 'finding' ? { state: findingLoadState, ids: findingSourceIds } : { state: draftLoadState, ids: draftSourceIds }) : activeView === 'sessions' ? { kind: 'session' } : askAi.captureNotesContext(sessionId)
     }, recordWritesPending: recordPersistence.coordination.hasPendingRecordCompensations,
   })

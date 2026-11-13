@@ -57,7 +57,7 @@ export type SharedChatViewProps = {
 
 export type NotesPresentation = { kind: 'notes'; legacySource?: import('../app/conversationPresentation').SourcePresentation; handoff: ChatHandoffPresentation; onOpenNote: () => void;
   onSubmit: () => Promise<void>; onRestart: () => Promise<void>; captureRestart?: () => (() => Promise<void>) | null; recoveryPending?: boolean }
-export type RecordPresentation = { kind: 'record'; owner: Extract<ConversationOwner, { kind: 'record' }>;
+export type RecordPresentation = { kind: 'record'; owner: Exclude<ConversationOwner, { kind: 'notes' }>;
   source: import('../app/conversationPresentation').SourcePresentation; composerIntent: ChatComposerIntent }
 export type SessionChatViewProps = SharedChatViewProps & (NotesPresentation | RecordPresentation)
 
@@ -82,6 +82,7 @@ export function SessionChatView(props: SessionChatViewProps) {
   } = props
   const notes = props.kind === 'notes' ? props : null
   const record = props.kind === 'record' ? props : null
+  const testRun = record?.owner.kind === 'test_run'
   const recoveryPending = notes?.recoveryPending ?? false
   const addedToNote = notes?.handoff.kind === 'added'
   const hydrationPending = Boolean(chat && job?.state === 'completed' && (!job.aiRunId || !chat.messages.some(m => m.role === 'assistant' && m.aiRunId === job.aiRunId)))
@@ -272,7 +273,9 @@ export function SessionChatView(props: SessionChatViewProps) {
 
         <section ref={transcriptRef} className="chat-transcript" aria-label="Conversation transcript" tabIndex={0}>
           {messages.length === 0 ? <div className="chat-empty-state">
-            {loading ? <p className="chat-help">Loading saved messages…</p> : record ? <>
+            {loading ? <p className="chat-help">Loading saved messages…</p> : record?.owner.kind === 'test_run' ? (
+              <p className="chat-help">Ask about this test run, or ask to post its results somewhere. Results cannot be changed from here.</p>
+            ) : record?.owner.kind === 'record' ? <>
               <h3>Improve this {record.owner.record.kind === 'finding' ? 'finding' : 'test case'}</h3>
               <p className="chat-help">{record.owner.record.kind === 'finding' ? 'Ask for clearer wording, better steps, or missing details.' : 'Ask for clearer steps, better coverage, or expected results.'}</p>
               <p className="chat-help chat-jira-tip">You can also ask to add it to Jira.</p>
@@ -281,7 +284,8 @@ export function SessionChatView(props: SessionChatViewProps) {
               <p className="chat-help">Ask a question, or ask for clearer wording, structure, or missing test ideas. AI reads your saved note.</p>
             </>}
           </div> : (
-            <ChatMessageList presentation={record ? 'record' : 'notes'} messages={messages} aiRuns={chat?.aiRuns ?? []} proposals={chat?.proposals} proposalControls={submitted ? undefined : props.proposalControls}
+            <ChatMessageList presentation={record ? 'record' : 'notes'} messages={messages} aiRuns={chat?.aiRuns ?? []} proposals={testRun ? undefined : chat?.proposals} proposalControls={submitted || testRun ? undefined : props.proposalControls}
+              userContextLabel={testRun ? 'Test run' : undefined}
               questionControls={submitted || record ? undefined : { target: props.activeTarget ?? { kind: 'session' },
                 blockedReason: sourceReason || (composer !== '' || composerImages.length || imageFailures.length ? occupiedChoiceReason
                   : busy || inputRecoveryPending || recovering || permissionRecoveryPending || modelSelectionPending || hydrationPending ? 'Wait until the conversation and images are ready. Your input is retained.'
@@ -328,7 +332,7 @@ export function SessionChatView(props: SessionChatViewProps) {
               if (!sendReason && !event.repeat) void onSend()
             }
           }}
-          placeholder={record ? "Tell AI what you'd like to improve…" : 'Ask about this note or what to improve…'}
+          placeholder={testRun ? 'Ask about this test run…' : record ? "Tell AI what you'd like to improve…" : 'Ask about this note or what to improve…'}
         />
         <input ref={fileInput} className="chat-image-input" type="file" multiple accept="image/png,image/jpeg,image/webp,image/gif"
           aria-label="Choose chat images" tabIndex={-1} onChange={(event) => {

@@ -12,6 +12,12 @@ export type RecordChatActions = {
   acknowledgeReveal?: (request: import('./conversationPresentation').RecordRevealRequest) => void
   /** The record whose Ask AI panel is open, for the trigger's pressed state. */
   openRecordId?: string | null
+  /** Opens Ask AI on a test run of the Session; the run is only read. */
+  onAskAiRun?: (runId: string) => void | Promise<void>
+  /** Tells Ask AI which test run the run screen shows, or that it shows none. */
+  onShowRun?: (run: import('./conversationPresentation').ShownTestRun | null) => void
+  /** The test run whose Ask AI panel is open, for the trigger's pressed state. */
+  openRunId?: string | null
 }
 
 export function captureRecordContext(sessionId: string, target: RecordChatTarget, records: RecordWorkspace): ChatTarget {

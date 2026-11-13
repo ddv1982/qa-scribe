@@ -10,7 +10,8 @@ const resultOrder: TestCaseResult[] = ['passed', 'failed', 'blocked', 'not_run']
  * A test run as plain Markdown-style text: the draft title, when it started, the totals and every
  * test case with its Result, its Remark and the title of its linked Finding.
  * Cases without a group come first; the others follow under their group title in the order the
- * groups first appear. This is the one place a test run becomes text.
+ * groups first appear. The read-only Ask AI conversation of a test run gets the same report from
+ * `crates/qa-scribe-core/src/services/session_service/test_run_report.rs`; change both together.
  */
 export function testRunReport(run: Pick<TestRun, 'draftTitle' | 'createdAt' | 'cases'>): string {
   const totals = resultOrder

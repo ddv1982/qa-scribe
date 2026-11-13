@@ -12,3 +12,11 @@ test('C1 fixture decodes per-message snapshots and does not infer a target for N
     { id: 'user-2', text: 'Notes only', kind: 'session' },
   ])
 })
+
+test('the fixture keeps the instructions before the first message, where a test run report travels', () => {
+  const report = JSON.stringify('## Test run: Checkout\n- Failed: Pay with a gift card\n  Remark: Refused')
+  const text = `instructions\nTEST_RUN_REPORT_JSON\n${report}\nMESSAGE user-1 User\n"Post the results"`
+  const { instructions, messages } = inspectContextInput([{ type: 'text', text }])
+  assert.equal(instructions, `instructions\nTEST_RUN_REPORT_JSON\n${report}`)
+  assert.deepEqual(messages.map(({ text, context }) => [text, context.kind]), [['Post the results', 'session']])
+})

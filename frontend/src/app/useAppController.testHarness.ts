@@ -16,9 +16,10 @@ const tauriMock = vi.hoisted(() => ({
   listFindingLibrary: vi.fn(), listFindings: vi.fn(), listRecentSessions: vi.fn(), listSessions: vi.fn(), openSessionNoteState: vi.fn(),
   reopenSession: vi.fn(), refreshProviderStatus: vi.fn(), retryAttachmentCleanup: vi.fn(), startAiActionJob: vi.fn(), updateDraft: vi.fn(),
   updateEntry: vi.fn(), updateFinding: vi.fn(), updateSession: vi.fn(), updateSettings: vi.fn(),
-  beginRecordChat: vi.fn(), getConversation: vi.fn<(reference: ChatRef) => Promise<ChatState>>(), activateConversation: vi.fn(), listChatHistory: vi.fn(),
+  beginRecordChat: vi.fn(), beginTestRunChat: vi.fn(), getConversation: vi.fn<(reference: ChatRef) => Promise<ChatState>>(), activateConversation: vi.fn(), listChatHistory: vi.fn(),
   applyRefinement: vi.fn<(request: ApplyRefinementRequest) => Promise<AppliedRefinement>>(), resolveRefinement: vi.fn(), getChat: vi.fn<(sessionId: string) => Promise<ChatState>>(), saveChatComposer: vi.fn(), startChatJob: vi.fn(), submitChat: vi.fn(), restartChat: vi.fn(),
   importChatImage: vi.fn(), readChatClipboardImageDataUrl: vi.fn(),
+  listTestRuns: vi.fn(), getTestRun: vi.fn(), startTestRun: vi.fn(), setTestCaseResult: vi.fn(), deleteTestRun: vi.fn(),
   EDITOR_HTML_TAGS: ['a', 'b', 'br', 'em', 'h2', 'h3', 'i', 'img', 'input', 'li', 'ol', 'p', 'strong', 'ul'],
   SELF_CLOSING_EDITOR_HTML_TAGS: ['br', 'img', 'input'],
   MANAGED_ATTACHMENT_PROTOCOL: 'qa-scribe-attachment://',
@@ -105,6 +106,12 @@ export function setupControllerTest() {
     const row = rows.get(request.draftId) ?? chatFixture({ sessionId: request.sessionId, draftId: request.draftId, mode: 'chat', owner: { kind: 'record', sessionId: request.sessionId, record: request.record } })
     rows.set(row.draftId, row); return row
   })
+  tauriMock.beginTestRunChat.mockReset().mockImplementation(async (request: import('../bindings').BeginTestRunChatRequest) => {
+    const row = rows.get(request.draftId) ?? chatFixture({ sessionId: request.sessionId, draftId: request.draftId, mode: 'chat', owner: { kind: 'test_run', sessionId: request.sessionId, runId: request.runId } })
+    rows.set(row.draftId, row); return row
+  })
+  tauriMock.listTestRuns.mockReset().mockResolvedValue([])
+  tauriMock.getTestRun.mockReset()
   tauriMock.activateConversation.mockReset().mockImplementation(async (reference: import('../bindings').ChatRef) => tauriMock.getConversation(reference))
   tauriMock.listChatHistory.mockReset().mockImplementation(async () => [...rows.values()].map(row => ({ reference: { sessionId: row.sessionId, draftId: row.draftId }, owner: row.owner, createdAt: '', lastActiveAt: row.lastActiveAt, lastActiveOrder: row.lastActiveOrder, preview: row.composer || row.messages[0]?.text || '', archived: row.archived, submission: row.submission, hasContent: Boolean(row.composer || row.composerImages.length || row.messages.length || row.composerIntent.kind !== 'message'), lastTurnStatus: row.messages.at(-1)?.status ?? null, unresolvedStages: [] })))
   tauriMock.saveChatComposer.mockReset().mockImplementation(async (request: ChatComposerRequest) => {

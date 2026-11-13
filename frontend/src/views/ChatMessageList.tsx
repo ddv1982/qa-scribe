@@ -7,8 +7,10 @@ import { MarkdownContent } from '../content/MarkdownContent'
 import { RunModelEvidence } from '../components/RunModelEvidence'
 import { ChatImages } from './ChatImages'
 
-export function ChatMessageList({ messages, aiRuns, proposals = [], proposalControls, questionControls, presentation = 'notes' }: {
+export function ChatMessageList({ messages, aiRuns, proposals = [], proposalControls, questionControls, presentation = 'notes', userContextLabel }: {
   presentation?: 'notes' | 'record'
+  /** Names what every message of the tester was sent with, when the conversation has one fixed source. */
+  userContextLabel?: string
   messages: Readonly<ChatState['messages']>
   aiRuns: Readonly<ChatState['aiRuns']>
   proposals?: ChatState['proposals']
@@ -23,6 +25,7 @@ export function ChatMessageList({ messages, aiRuns, proposals = [], proposalCont
             <strong>{message.role === 'user' ? 'You' : 'Assistant'}</strong>
             {message.status !== 'completed' ? <span className="chat-turn-status">{message.status[0].toUpperCase() + message.status.slice(1)}</span> : null}
           </header>
+          {message.role === 'user' && userContextLabel ? <p className="chat-context-label">{userContextLabel}</p> : null}
           {presentation === 'notes' && message.role === 'user' && message.context && message.context.kind !== 'session' ? <ChatContextLabel context={message.context} /> : null}
           {message.text ? message.role === 'assistant'
             ? <MarkdownContent text={message.text} />

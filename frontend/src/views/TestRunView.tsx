@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
-import { AlertTriangle, ArrowLeft, CheckCircle2, ChevronRight, Copy, Loader2, Trash2 } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, CheckCircle2, ChevronRight, Copy, Loader2, Sparkles, Trash2 } from 'lucide-react'
 import { COPIED_FEEDBACK_MS } from '../app/copyActions'
 import { ActionButton } from '../components/ActionButton'
 import { Badge } from '../components/Badge'
@@ -31,7 +31,7 @@ const REMARK_MAX_LENGTH = 500
  * A test run in place of its draft: the copied test cases in order, each with a Result and a Remark
  * saved the moment they change. There is no Save button.
  */
-export function TestRunView({ open, draftRuns, error, onSelectRun, onBack, onDelete, onChangeCase, onCreateFinding, onOpenFinding }: {
+export function TestRunView({ open, draftRuns, error, askAi, onSelectRun, onBack, onDelete, onChangeCase, onCreateFinding, onOpenFinding }: {
   open: OpenTestRun
   /** The draft's test runs, newest first. */
   draftRuns: TestRunSummary[]
@@ -45,6 +45,8 @@ export function TestRunView({ open, draftRuns, error, onSelectRun, onBack, onDel
   onCreateFinding?: (testCase: TestRunCase) => void
   /** Opens the Finding a case is linked to. */
   onOpenFinding?: (findingId: string) => void
+  /** Ask AI on this test run, read-only; `expanded` while its panel is open. */
+  askAi?: { expanded: boolean; onOpen: (runId: string) => void | Promise<void> }
 }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -92,6 +94,8 @@ export function TestRunView({ open, draftRuns, error, onSelectRun, onBack, onDel
               {draftRuns.map((summary) => <option key={summary.id} value={summary.id}>{formatDateTime(summary.createdAt)}</option>)}
             </select>
           ) : null}
+          {run && askAi ? <ActionButton variant="secondary" className="ask-ai-trigger" icon={Sparkles} aria-expanded={askAi.expanded}
+            onClick={() => void askAi.onOpen(run.id)}>Ask AI</ActionButton> : null}
           {run ? <CopyReportButton run={run} /> : null}
           <ActionButton variant="quiet" icon={ArrowLeft} onClick={onBack}>Back to test cases</ActionButton>
           <ActionButton variant="destructive-quiet" iconOnly icon={Trash2} aria-label="Delete test run" title="Delete test run"

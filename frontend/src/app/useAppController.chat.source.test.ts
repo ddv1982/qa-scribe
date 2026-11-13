@@ -32,7 +32,7 @@ it('loading and failed hydration retain the saved source identity and prevent st
   await act(async () => { gate.resolve([]); await loading.catch(() => undefined) })
   expect(result.current.askAi.source?.kind).toBe('error')
   expect(result.current.findings[0].id).toBe('finding-1')
-  expect(result.current.askAi.panel?.owner.record).toEqual({ kind: 'finding', recordId: 'finding-1' })
+  expect(result.current.askAi.panel?.owner).toMatchObject({ record: { kind: 'finding', recordId: 'finding-1' } })
   api.listFindings.mockResolvedValueOnce([])
   await act(async () => { await result.current.loadFindingsForSession('session-1', { force: true }) })
   expect(result.current.askAi.source).toEqual({ kind: 'unavailable' })
