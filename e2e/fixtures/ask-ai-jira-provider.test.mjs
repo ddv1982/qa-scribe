@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { inspectJiraInput } from './ask-ai-jira-provider.mjs'
-function input(text, kind = 'finding') {
+function input(text, kind = 'finding', version = 2) {
   const context = { kind, snapshot: { title: 'Original finding', documentJson: '{"schemaVersion":1}', localFingerprint: 'a'.repeat(64), storedBaseToken: 'b'.repeat(64) } }
-  return [{ type: 'text', text: `CHAT_RESPONSE_CONTRACT_JSON\n${JSON.stringify({ version: 2, requestId: 'u', purpose: { kind: 'jira_drafting' } })}\nMESSAGE u User\n${JSON.stringify(text)}\nMESSAGE_CONTEXT_JSON\n${JSON.stringify(context)}` }]
+  return [{ type: 'text', text: `CHAT_RESPONSE_CONTRACT_JSON\n${JSON.stringify({ version, requestId: 'u', purpose: { kind: 'jira_drafting' } })}\nMESSAGE u User\n${JSON.stringify(text)}\nMESSAGE_CONTEXT_JSON\n${JSON.stringify(context)}` }]
 }
 for (const [reply, expected] of [['Draft Jira content', ['New issue', 'Subtask']], ['New issue', ['DEMO', 'OTHER']], ['Subtask', ['DEMO-184', 'DEMO-205']], ['DEMO', ['Bug', 'Customer incident']], ['DEMO-184', ['Finding subtask', 'Other custom subtask']], ['Finding subtask', ['Web', 'Mobile']]]) {
   test(`the local agent fixture reports all visible ${reply} replies without hidden values`, () => {
@@ -19,4 +19,11 @@ test('the review, absent tools, and wrong nonce are deterministic with readable 
   assert.equal(JSON.parse(inspectJiraInput(input('Web')).response).question, undefined)
   assert.match(JSON.parse(inspectJiraInput(input('missing tools')).response).markdown, /Draft retained/)
   assert.equal(JSON.parse(inspectJiraInput(input('wrong nonce')).response).requestId, 'invalid-fixture-nonce')
+})
+test('the current version 3 contract carries the same choices as a tagged clarification or answer', () => {
+  const question = JSON.parse(inspectJiraInput(input('Draft Jira content', 'finding', 3)).response)
+  assert.equal(question.version, 3)
+  assert.deepEqual(question.outcome, { kind: 'clarification', question: { prompt: 'Create a new issue or a subtask?', choices: ['New issue', 'Subtask'] } })
+  assert.equal(question.question, undefined)
+  assert.deepEqual(JSON.parse(inspectJiraInput(input('Web', 'finding', 3)).response).outcome, { kind: 'answer' })
 })

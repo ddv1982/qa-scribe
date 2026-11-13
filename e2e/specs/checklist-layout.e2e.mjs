@@ -234,7 +234,9 @@ describe('Native Checklist layout in Note and editable Record', () => {
       assert.equal(await (await $(`${record} li`)).getAttribute('data-checked'), String(checked))
       assert.equal(await (await $(`${record} li p`)).getText(), short)
     }
-    await (await recordButton('Save')).click()
+    // A new draft needs a title and is saved from the creation composer; the saved record then reopens through Edit.
+    await (await $('[aria-label="Test case title"]')).setValue('E2E checklist layout test cases')
+    await (await recordButton('Save test cases')).click()
     await (await recordButton('Edit')).waitForClickable()
     await (await recordButton('Edit')).click()
     await snapshot(record, 'record-reopened', 1280)

@@ -13,3 +13,9 @@ test('the routing fixture keeps literal owner-specific replies and permission se
   assert.equal(inspectRoutingInput(input('ROUTING_PERMISSION_NOTES')).permission, true)
   assert.throws(() => inspectRoutingInput([{ type: 'text', text: 'Unframed or missing contract' }]))
 })
+test('a record refinement outside the routing markers returns a current version 3 edit', () => {
+  const context = { kind: 'finding', snapshot: { title: 'Source A', documentJson: '{"schemaVersion":1}', localFingerprint: 'a'.repeat(64), storedBaseToken: 'b'.repeat(64) } }
+  const result = inspectRoutingInput([{ type: 'text', text: `MESSAGE user-A User\n${JSON.stringify('Make the expected result clearer.')}\nMESSAGE_CONTEXT_JSON\n${JSON.stringify(context)}\nCHAT_RESPONSE_CONTRACT_JSON\n{"version":3,"requestId":"user-A","purpose":{"kind":"refinement","recordKind":"finding"}}` }])
+  assert.equal(JSON.parse(result.response).outcome.kind, 'edit')
+  assert.equal(result.externalWrites, false)
+})

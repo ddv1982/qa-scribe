@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { click, create, fill, fixture, native, out, save, tab } from './composer-proof.mjs'
+import { ask, click, close, create, fill, finish, fixture, native, out, panel, recoverExact, save, selectRecord, start as recordStart, tab } from './ask-ai-isolation-proof.mjs'
 import { imageFixture } from '../fixtures/chat-images-provider.mjs'
 
 const env = process.env
@@ -17,7 +17,7 @@ const receipt = { schema: 'qa-scribe-i2-routing-v1', phase, base: '96be7f218800f
   inputMechanism: 'Maintained embedded driver programmatic native WebView clicks and DOM input. No OS-key claim.',
   scope: 'Released Notes interaction and separately labelled hidden Tauri boundaries. No I3 launch, Continue, or History controls.', cases: [], completed: false }
 const persist = () => writeFileSync(join(out, 'conversation-routing.json'), `${JSON.stringify(receipt, null, 2)}\n`)
-const composer = '.ask-ai-panel textarea'
+const composer = `${panel} textarea`
 const title = 'I2 deterministic routing Session'
 const exact = reference => native('get_conversation', { reference })
 const reference = chat => ({ sessionId: chat.sessionId, draftId: chat.draftId })
@@ -30,12 +30,14 @@ let sourceB
 let A
 let B
 let C
+let R
+let offered
 
 async function proof(lane, facts, kind = 'released-notes-plus-hidden-tauri-boundary') {
   const directory = join(dirname(out), `lane-${lane}`)
   mkdirSync(directory, { recursive: true })
   await browser.saveScreenshot(join(directory, 'result.png'))
-  const ui = await browser.execute(() => ({ text: document.body.innerText.slice(-10000), composer: document.querySelector('.ask-ai-panel textarea')?.value }))
+  const ui = await browser.execute(() => ({ text: document.body.innerText.slice(-10000), composer: document.querySelector('.ask-ai-panel:not([hidden]) textarea')?.value }))
   receipt.cases.push({ lane, kind, facts, ui }); persist()
   writeFileSync(join(directory, 'assertions.json'), `${JSON.stringify(receipt.cases.at(-1), null, 2)}\n`)
 }
@@ -103,15 +105,6 @@ async function upload(filename) {
     const input = document.querySelector('input[aria-label="Choose chat images"]')
     input.files = transfer.files; input.dispatchEvent(new Event('change', { bubbles: true }))
   }, [...readFileSync(imageFixture.path)], filename)
-}
-async function recordControl(label) {
-  const button = await (await $('.record-detail-pane')).$(`button=${label}`)
-  await button.waitForClickable(); await button.click()
-}
-async function proposalControl(label) {
-  const panel = (await $$('.chat-proposal')).at(-1)
-  const button = await panel.$(`button=${label}`)
-  await button.scrollIntoView(); await button.waitForClickable(); await button.click()
 }
 
 if (phase === 'restart') {
@@ -249,60 +242,71 @@ if (phase === 'restart') {
       await click('[aria-label="Remove notes-held.png"]')
       await browser.waitUntil(async () => (await notes()).composerImages.length === 0 && (await notes()).composer === '')
     })
-    it('lane 8 stages Notes and atomically refuses the hidden competitor', async () => {
+    it('lane 8 Update saves the visible record proposal while hidden chats keep their own state', async () => {
       await tab('Findings')
-      const selection = await (await $('.record-master-list')).$(`button*=${sourceA.title}`)
-      await selection.waitForClickable(); await selection.click()
-      await click('button=Ask AI')
-      const turn = await visibleStart('Review the expected result', 'Refine record')
-      await complete(turn)
-      await proposalControl('Review refinement')
-      const hidden = await hiddenStart(C, sourceA, 'Hidden competitor refinement', 'refine_record')
-      const offered = await complete(hidden)
-      await proposalControl('Apply to editor')
-      await browser.waitUntil(async () => (await notes()).proposals.at(-1).state.kind === 'staged')
-      const stagedProposal = (await notes()).proposals.at(-1)
-      await browser.waitUntil(async () => await $('[aria-label="Finding title"]').getValue() === stagedProposal.after.title)
-      await assert.rejects(native('resolve_refinement', { request: { scope: scope(offered), proposalId: offered.proposals.at(-1).id, action: 'stage' } }))
-      assert.deepEqual(await exact(reference(C)), offered)
-      await proof(8, { notes: await notes(), hiddenOffered: offered, database: storedRows() })
-    })
-    it('lane 9 ordinary guarded Save settles the original proposal while a hidden chat completes', async () => {
+      await selectRecord(sourceA.title)
+      R = reference(await ask())
+      const visible = await recordStart('Make the expected result clearer.')
+      assert.equal(visible.payload.messages.at(-1).context.snapshot.recordId, sourceA.id)
+      await finish(visible)
+      const competitor = await hiddenStart(C, sourceA, 'Make the expected result clearer.')
+      offered = await complete(competitor)
+      assert.equal(offered.proposals.at(-1).state.kind, 'offered')
       const d = await ownerChat(sourceB)
-      const turn = await hiddenStart(d, sourceB, 'ROUTING_D_DURING_SAVE')
-      const staged = (await notes()).proposals.at(-1)
-      await recordControl('Save')
-      await browser.waitUntil(async () => (await notes()).proposals.at(-1).state.kind === 'saved')
-      const hidden = await complete(turn)
+      const running = await hiddenStart(d, sourceB, 'ROUTING_D_DURING_UPDATE')
+      const proposal = (await exact(R)).proposals.at(-1)
+      assert.equal(proposal.state.kind, 'offered')
+      await click(`${panel} button=Update finding`)
+      await browser.waitUntil(async () => (await exact(R)).proposals.at(-1).state.kind === 'applied')
       const stored = (await native('list_findings', { sessionId: session.id })).find(record => record.id === sourceA.id)
-      assert.equal(stored.title, staged.after.title)
-      assert.equal(stored.bodyJson, staged.after.documentJson)
-      assert.equal((await notes()).proposals.at(-1).state.stage.id, staged.state.stage.id)
+      assert.equal(stored.title, proposal.after.title)
+      assert.equal(stored.bodyJson, proposal.after.documentJson)
+      assert.equal((await exact(running.reference)).messages.at(-1).status, 'running')
+      const hidden = await complete(running)
+      assert.equal(hidden.messages.at(-1).text, 'Routing reply for ROUTING_D_DURING_UPDATE')
+      assert.deepEqual(await exact(reference(C)), offered)
       sourceA = stored
-      await proof(9, { stored, settled: (await notes()).proposals.at(-1), hidden, database: storedRows() })
+      await proof(8, { visible: await exact(R), hiddenOffered: offered, hidden, stored, database: storedRows() })
+    })
+    it('lane 9 atomically refuses the hidden competitor proposal after Update', async () => {
+      const competitor = offered.proposals.at(-1)
+      await assert.rejects(native('apply_refinement', { request: { reference: reference(C), proposalId: competitor.id } }), /saved record changed/)
+      await assert.rejects(native('resolve_refinement', { request: { scope: scope(offered), proposalId: competitor.id, action: 'stage' } }))
+      assert.deepEqual(await exact(reference(C)), offered)
+      const stored = (await native('list_findings', { sessionId: session.id })).find(record => record.id === sourceA.id)
+      assert.deepEqual(stored, sourceA)
+      await proof(9, { competitor: await exact(reference(C)), stored, database: storedRows() })
     })
     it('lane 10 explicit Retry preserves a deleted source snapshot', async () => {
-      const turn = await visibleStart('ROUTING_DELETED_SOURCE')
-      await click('button=Cancel response')
-      await browser.waitUntil(async () => (await notes()).messages.at(-1).status === 'cancelled')
-      const failed = (await notes()).messages.at(-1)
-      await click('.ask-ai-panel:not([hidden]) [aria-label="Close Ask AI"]')
+      const turn = await recordStart('ROUTING_DELETED_SOURCE')
+      await click(`${panel} button=Stop`)
+      await browser.waitUntil(async () => (await exact(R)).messages.at(-1).status === 'cancelled')
+      const failed = (await exact(R)).messages.at(-1)
+      assert.equal(failed.context.snapshot.recordId, sourceA.id)
+      await close()
       await click(`[aria-label="Delete ${sourceA.title}"]`)
       await click('dialog button=Delete finding permanently')
       await browser.waitUntil(async () => !(await native('list_findings', { sessionId: session.id })).some(record => record.id === sourceA.id))
-      await showNotes()
-      const retry = await visibleStart(null, 'Retry response')
-      const payload = JSON.parse(readFileSync(join(fixture, `codex-exec-${retry.index}.chat.json`), 'utf8'))
+      await recoverExact(R)
+      await $(composer).waitForDisplayed()
+      const index = executions() + 1
+      await click(`${panel} button=Retry response`)
+      await browser.waitUntil(() => existsSync(join(fixture, `codex-exec-${index}.started`)))
+      const payload = JSON.parse(readFileSync(join(fixture, `codex-exec-${index}.chat.json`), 'utf8'))
       assert.deepEqual(payload.messages.at(-1).context, failed.context)
-      const done = await complete(retry)
+      await finish({ index, reference: R, payload })
+      const done = await exact(R)
+      assert.equal(done.messages.at(-1).text, 'Routing reply for ROUTING_DELETED_SOURCE')
       assert.equal(done.messages.at(-2).id, failed.id)
       const competitor = await exact(reference(C))
-      await assert.rejects(native('resolve_refinement', { request: { scope: scope(competitor), proposalId: competitor.proposals.at(-1).id, action: 'stage' } }))
+      await assert.rejects(native('apply_refinement', { request: { reference: reference(C), proposalId: competitor.proposals.at(-1).id } }))
       await assert.rejects(hiddenStart(C, sourceA, 'FRESH_MISSING_SOURCE'))
       assert.equal((await exact(reference(C))).composer, 'FRESH_MISSING_SOURCE')
+      await close()
       await proof(10, { freshCaptureRejected: true, failed, retry: done.messages.at(-2), cancelledInvocation: turn.index, freshApplyRejected: true })
     })
     it('leaves one real committed Notes turn for the separate native restart', async () => {
+      await showNotes()
       const turn = await visibleStart('ROUTING_RESTART')
       const chat = await notes()
       assert.equal(chat.messages.at(-1).status, 'running')

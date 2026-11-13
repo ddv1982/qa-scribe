@@ -51,6 +51,11 @@ async function select(recordTitle) {
   await button.waitForClickable()
   await button.click()
 }
+// The source card names the record kind and title once; it carries no saved-state banner.
+async function source() {
+  const card = await $('.ask-ai-panel:not([hidden]) [aria-label="Chat source"]')
+  return { kind: await card.$('.eyebrow').getText(), title: await card.$('strong').getText() }
+}
 async function ask() {
   await click('button=Ask AI')
   await $(composer).waitForDisplayed()
@@ -121,7 +126,7 @@ describe('Ask AI with immutable record context in the built native application',
   it('opens a fresh record conversation for a saved manual finding with a focused composer', async () => {
     await ask()
     assert.notEqual((await chat()).draftId, initialDraftId)
-    assert.match(await $('[aria-label="Chat source"]').getText(), /Current finding included/)
+    assert.deepEqual(await source(), { kind: 'Finding', title: findingTitle })
     const turn = await start('Review the saved synthetic finding')
     const message = turn.payload.messages.at(-1)
     assert.equal(message.context.kind, 'finding')
@@ -142,7 +147,7 @@ describe('Ask AI with immutable record context in the built native application',
     await click('button=Edit')
     await fill('.record-detail-pane [contenteditable="true"]', 'Unsaved synthetic evidence at Send')
     await ask()
-    assert.match(await $('[aria-label="Chat source"]').getText(), /Unsaved edits included/)
+    assert.deepEqual(await source(), { kind: 'Finding', title: findingTitle })
     const turn = await start('Review my unsaved evidence')
     const original = turn.payload.messages.at(-1).context
     assert.equal(original.snapshot.origin, 'unsaved_editor')
@@ -152,7 +157,7 @@ describe('Ask AI with immutable record context in the built native application',
     await click('button=Discard')
     await select(secondTitle)
     await ask()
-    assert.match(await $('[aria-label="Chat source"]').getText(), /Synthetic second checkout finding/)
+    assert.deepEqual(await source(), { kind: 'Finding', title: secondTitle })
     assert.deepEqual((await native('get_conversation', { reference: turns.get(turn.index) })).messages.at(-1).context, original)
     assert.deepEqual((await chat()).messages, [])
     await complete(turn)
