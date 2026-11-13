@@ -103,7 +103,7 @@ export function TestwareView({
       recordScreenshotCounts={draftScreenshotCounts}
       records={drafts}
       notice={notice}
-      error={testRuns.startError ?? error}
+      error={testRuns.startError ?? (testRuns.open ? null : testRuns.error) ?? error}
       isBusy={isBusy}
       activeGenerationJob={activeGenerationJob}
       initialSelectedRecordId={initialSelectedRecordId}

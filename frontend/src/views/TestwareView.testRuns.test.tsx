@@ -130,7 +130,7 @@ describe('Last test run line', () => {
     renderTestware([runnable, unrunnable])
     const line = await screen.findByRole('button', { name: /^Last test run .*: 1 passed$/ })
     fireEvent.click(line)
-    expect(api.getTestRun).toHaveBeenCalledWith('run-1')
+    await waitFor(() => expect(api.getTestRun).toHaveBeenCalledWith('run-1'))
     expect(await screen.findByRole('region', { name: 'Pay by card' })).toBeInTheDocument()
   })
 

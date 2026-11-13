@@ -13,7 +13,7 @@ function setup(cases = [testCase('a'), testCase('b')]) {
   const pending: Pending[] = []
   const save = vi.fn((caseId: string, value: CaseValue) => new Promise<TestRunCase>((resolve, reject) => { pending.push({ caseId, value, resolve, reject }) }))
   const shown = new Map<string, TestRunCase>()
-  const listener = { onShow: vi.fn((next: TestRunCase) => { shown.set(next.id, next) }), onSaved: vi.fn(), onError: vi.fn() }
+  const listener = { onShow: vi.fn((next: TestRunCase) => { shown.set(next.id, next) }), onSaved: vi.fn(), onError: vi.fn(), onBackgroundError: vi.fn() }
   const queue = new CaseSaveQueue(cases, save, listener)
   /** Stores the oldest pending save as sent and settles it. */
   const settle = async (patch: Partial<TestRunCase> = {}) => {
@@ -93,14 +93,52 @@ describe('CaseSaveQueue', () => {
     await settle()
   })
 
-  it('reports nothing once disposed', async () => {
-    const { queue, listener, settle } = setup()
+  it('keeps saving after detach: a queued change is still sent, but nothing is shown', async () => {
+    const { queue, save, pending, listener, settle } = setup()
+    queue.change('a', { result: 'passed' })
+    queue.change('a', { result: 'failed' })
+    listener.onShow.mockClear()
+    queue.detach()
+    queue.change('a', { result: 'blocked' })
+    expect(save).toHaveBeenCalledTimes(1)
+    await settle()
+    expect(save).toHaveBeenLastCalledWith('a', { result: 'failed', remark: null })
+    expect(pending).toHaveLength(1)
+    await settle()
+    expect(save).toHaveBeenCalledTimes(2)
+    expect(listener.onShow).not.toHaveBeenCalled()
+    expect(listener.onSaved).toHaveBeenCalledWith('a')
+  })
+
+  it('says when it is idle, after the last save of every case', async () => {
+    const { queue, settle } = setup()
+    expect(queue.idle).toBe(true)
+    await queue.whenIdle()
+    queue.change('a', { result: 'passed' })
+    queue.change('a', { result: 'failed' })
+    queue.change('b', { result: 'blocked' })
+    expect(queue.idle).toBe(false)
+    let idle = false
+    void queue.whenIdle().then(() => { idle = true })
+    await settle()
+    await settle()
+    expect(idle).toBe(false)
+    await settle()
+    await Promise.resolve()
+    expect(queue.idle).toBe(true)
+    expect(idle).toBe(true)
+  })
+
+  it('reports a failure after detach only as a background failure, and still becomes idle', async () => {
+    const { queue, listener, fail } = setup()
     queue.change('a', { result: 'passed' })
     listener.onShow.mockClear()
-    queue.dispose()
-    await settle()
-    queue.change('a', { result: 'failed' })
+    queue.detach()
+    const idle = queue.whenIdle()
+    await fail()
+    await idle
+    expect(listener.onBackgroundError).toHaveBeenCalledWith('a', expect.any(Error))
+    expect(listener.onError).not.toHaveBeenCalled()
     expect(listener.onShow).not.toHaveBeenCalled()
-    expect(listener.onSaved).not.toHaveBeenCalled()
   })
 })

@@ -11,7 +11,7 @@ const api = vi.hoisted(() => ({
 }))
 vi.mock('../tauri', async (original) => ({ ...await original<typeof import('../tauri')>(), ...api }))
 
-import { useTestRuns } from './useTestRuns'
+import { BACKGROUND_SAVE_ERROR, useTestRuns } from './useTestRuns'
 
 const at = '2026-11-13T14:02:00Z'
 const testCase = (id: string, patch: Partial<TestRunCase> = {}): TestRunCase => ({
@@ -141,12 +141,75 @@ describe('useTestRuns', () => {
     expect(saves.pending.map(({ caseId }) => caseId)).toEqual(['a', 'b'])
   })
 
-  it('ignores a save that settles after the run was closed', async () => {
+  it('stores every change made before leaving the run, in order, then refreshes the counts', async () => {
+    const { result } = await opened()
+    const saves = deferredSaves()
+    api.listTestRuns.mockClear()
+    act(() => result.current.changeCase('a', { result: 'passed' }))
+    act(() => result.current.changeCase('a', { result: 'failed' }))
+    act(() => result.current.close())
+    await act(() => saves.settle())
+    expect(api.listTestRuns).not.toHaveBeenCalled()
+    await act(() => saves.settle())
+    expect(api.setTestCaseResult.mock.calls.map(([, sent]) => sent as string)).toEqual(['passed', 'failed'])
+    expect(api.listTestRuns).toHaveBeenCalledTimes(1)
+    expect(result.current.open).toBeNull()
+  })
+
+  it('reads a reopened run only after its pending saves are stored', async () => {
+    const { result } = await opened()
+    const saves = deferredSaves()
+    act(() => result.current.changeCase('a', { result: 'passed' }))
+    act(() => result.current.changeCase('a', { result: 'failed' }))
+    act(() => result.current.close())
+    api.getTestRun.mockClear()
+    api.getTestRun.mockResolvedValue(run([testCase('a', { result: 'failed' }), testCase('b')]))
+    let reopening!: Promise<void>
+    act(() => { reopening = result.current.openRun('run-1', 'draft-1') })
+    await act(() => saves.settle())
+    expect(api.getTestRun).not.toHaveBeenCalled()
+    await act(async () => { await saves.settle(); await reopening })
+    expect(api.getTestRun).toHaveBeenCalledTimes(1)
+    expect(result.current.open?.run?.cases[0].result).toBe('failed')
+    // One queue for the run: a new change saves at once.
+    act(() => result.current.changeCase('a', { result: 'passed' }))
+    expect(saves.pending).toHaveLength(1)
+  })
+
+  it('finishes a save across a Session change without showing anything from the old Session', async () => {
+    const hook = renderHook(({ session }) => useTestRuns(session), { initialProps: { session: 'session-1' } })
+    await act(() => hook.result.current.openRun('run-1', 'draft-1'))
+    const saves = deferredSaves()
+    act(() => hook.result.current.changeCase('a', { result: 'passed' }))
+    api.listTestRuns.mockResolvedValue([])
+    hook.rerender({ session: 'session-2' })
+    await act(() => saves.fail(new Error('disk full')))
+    expect(api.setTestCaseResult).toHaveBeenCalledWith('a', 'passed', null)
+    expect(hook.result.current.open).toBeNull()
+    expect(hook.result.current.error).toBeNull()
+    expect(hook.result.current.summaries).toEqual([])
+  })
+
+  it('reports a save that fails after the run was left, in the same Session', async () => {
     const { result } = await opened()
     const saves = deferredSaves()
     act(() => result.current.changeCase('a', { result: 'passed' }))
     act(() => result.current.close())
-    await act(() => saves.fail(new Error('late')))
+    await act(() => saves.fail(new Error('disk full')))
+    expect(result.current.error).toBe(BACKGROUND_SAVE_ERROR)
+  })
+
+  it('deletes a run only after its pending save settled', async () => {
+    const { result } = await opened()
+    const saves = deferredSaves()
+    api.deleteTestRun.mockResolvedValue(undefined)
+    act(() => result.current.changeCase('a', { result: 'passed' }))
+    let deleting!: Promise<boolean>
+    act(() => { deleting = result.current.deleteRun('run-1') })
+    await act(() => Promise.resolve())
+    expect(api.deleteTestRun).not.toHaveBeenCalled()
+    await act(async () => { await saves.settle(); expect(await deleting).toBe(true) })
+    expect(api.deleteTestRun).toHaveBeenCalledWith('run-1')
     expect(result.current.open).toBeNull()
     expect(result.current.error).toBeNull()
   })
@@ -193,6 +256,24 @@ describe('useTestRuns', () => {
     act(() => result.current.keepForDraft('draft-1'))
     expect(result.current.open).toBeNull()
     expect(api.listTestRuns).toHaveBeenCalledTimes(2)
+  })
+
+  it('stops showing a start as pending once another draft is selected, and starts again normally', async () => {
+    const started = deferred<TestRun>()
+    api.startTestRun.mockReturnValueOnce(started.promise)
+    const { result } = renderHook(() => useTestRuns('session-1'))
+    act(() => result.current.keepForDraft('draft-1'))
+    act(() => { void result.current.start('draft-1', []) })
+    expect(result.current.starting).toBe(true)
+    act(() => result.current.keepForDraft('draft-2'))
+    expect(result.current.starting).toBe(false)
+    await act(async () => { started.resolve(run()); await started.promise })
+    expect(result.current.starting).toBe(false)
+    expect(result.current.open).toBeNull()
+    api.startTestRun.mockResolvedValueOnce({ ...run(), id: 'run-2', draftId: 'draft-2' })
+    await act(() => result.current.start('draft-2', []))
+    expect(result.current.open).toMatchObject({ runId: 'run-2', draftId: 'draft-2' })
+    expect(result.current.starting).toBe(false)
   })
 
   it('closes the run when another draft is selected, not when its own draft is', async () => {
