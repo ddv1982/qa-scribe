@@ -1,7 +1,9 @@
 import { ActionButton } from '../components/ActionButton'
 import { findingCopyBody } from '../findings/copyBody'
 import { findingSeverityValue } from '../findings/severity'
-import { useMemo, useState } from 'react'
+import { RecordListToggle } from '../components/RecordListToggle'
+import { useRecordListVisible } from '../hooks/useRecordListVisible'
+import { useId, useMemo, useState } from 'react'
 import { ArrowUpRight, BookOpen, Flag, Loader2, Search, SearchX } from 'lucide-react'
 import { EmptyCollection, StatePanel } from '../components/Common'
 import { richEditorDocumentFromStoredBody, withoutRepeatedTitleHeading } from '../editor/editorDocument'
@@ -67,6 +69,8 @@ export function OutputLibraryView({
   const [kindFilter, setKindFilter] = useState('all')
   const [sort, setSort] = useState<'updated' | 'title' | 'session'>('updated')
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [listVisible, toggleList] = useRecordListVisible()
+  const listId = useId()
   const isTestware = kind === 'testware'
   const kindLabel = isTestware ? 'Test cases' : 'Findings'
   const scopeLabel = `${kindLabel} library`
@@ -153,6 +157,7 @@ export function OutputLibraryView({
         ) : null}
         {records.length > 0 ? (
           <div className="collection-toolbar">
+            <RecordListToggle visible={listVisible} listId={listId} onToggle={toggleList} />
             <label className="collection-search">
               <Search size={16} />
               <span className="sr-only">Search {scopeLabel}</span>
@@ -185,9 +190,9 @@ export function OutputLibraryView({
             <p role="status" aria-live="polite">{filtered ? `${visibleRecords.length} of ${records.length} records` : `${records.length} record${records.length === 1 ? '' : 's'}`}</p>
           </div>
         ) : null}
-        <div className="collection-workspace">
-          {visibleRecords.length > 0 ? (
-            <aside className="record-master-list" aria-label={`${scopeLabel} records`}>
+        <div className={listVisible ? 'collection-workspace' : 'collection-workspace collection-workspace--single-sidebar'}>
+          {listVisible && visibleRecords.length > 0 ? (
+            <aside id={listId} className="record-master-list" aria-label={`${scopeLabel} records`}>
               {visibleRecords.map((record) => {
                 const current = Boolean(selected && libraryRecordKey(selected) === libraryRecordKey(record))
                 return (

@@ -49,6 +49,7 @@ are the next ones to extract; until then, copy the named pattern exactly.
 | Any action | `ActionButton` in `components/ActionButton.tsx`. Variants: `primary`, `secondary`, `quiet`, `destructive-quiet`, `destructive-confirmation`. One `primary` per screen. | Shared |
 | Hover message on an icon-only button | `tooltip` on `ActionButton`: a small label below the button. Set `tooltipAlign="end"` for a button at the right edge. Never use the native `title`. The `aria-label` stays the accessible name | Shared |
 | Copy | `CopyControls` in `views/RichRecordView.tsx`: a quiet icon in the top-right corner of what it copies, with a second icon for the first screenshot. It says Copied in its tooltip. `CopyButton` in `components/CopyButton.tsx` is the single icon | Shared |
+| Hide or show the record list | `RecordListToggle` in `components/RecordListToggle.tsx`: a quiet icon left of the search box that folds the list away so the open record gets the full width. `useRecordListVisible` in `hooks/useRecordListVisible.ts` remembers the choice for Test cases, Findings and both libraries. Beside Ask AI the list is already hidden, so the toggle is too | Shared |
 | Empty, loading or failed list | `StatePanel` and `EmptyCollection` in `components/Common.tsx` | Shared |
 | Save state line | `StatusPill` in `components/Common.tsx` | Shared |
 | Modal dialog | `Dialog` in `components/Dialog.tsx`: native `<dialog>` with `useModalDialog`, title, description, actions on the right. Pass `initialFocus` to focus the safe action first | Shared |

@@ -11,9 +11,35 @@ vi.mock('../tauri', async (importOriginal) => ({ ...await importOriginal<typeof 
 const nativeText = vi.mocked(copyHtmlToClipboard)
 
 import { OutputLibraryView } from './OutputLibraryView'
+import { recordListStorageKey } from '../hooks/useRecordListVisible'
 
 describe('cross-session output libraries', () => {
-  afterEach(cleanup)
+  afterEach(() => {
+    cleanup()
+    window.localStorage.removeItem(recordListStorageKey)
+  })
+
+  it('hides and shows the record list while the selected record stays open', async () => {
+    const user = userEvent.setup()
+    render(
+      <OutputLibraryView copyState={{ status: 'idle' }} onCopy={async () => undefined} isBusy={false} kind="findings"
+        findingItems={[
+          { finding: findingFixture({ id: 'bug-1', title: 'Checkout fails', updatedAt: '2026-07-02T10:00:00Z' }), sessionTitle: 'Checkout' },
+          { finding: findingFixture({ id: 'bug-2', title: 'Email delay', updatedAt: '2026-07-01T10:00:00Z' }), sessionTitle: 'Recovery' },
+        ]}
+        loadState="ready" loadError={null} onRetry={vi.fn()} onOpenRecord={vi.fn()} />,
+    )
+    await user.click(within(screen.getByRole('complementary', { name: 'Findings library records' })).getByRole('button', { name: /Email delay/ }))
+
+    await user.click(screen.getByRole('button', { name: 'Hide list' }))
+    expect(screen.queryByRole('complementary', { name: 'Findings library records' })).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Email delay' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Show list' }))
+    const list = screen.getByRole('complementary', { name: 'Findings library records' })
+    expect(within(list).getByRole('button', { name: /Email delay/ })).toHaveAttribute('aria-current', 'true')
+    expect(screen.getByRole('heading', { name: 'Email delay' })).toBeInTheDocument()
+  })
 
   it('keeps Session provenance visible and opens the selected Testware in its owner', async () => {
     const user = userEvent.setup()

@@ -1,7 +1,9 @@
 import type { RecordChatActions } from '../app/sessionChat.context'
 import { ActionButton } from '../components/ActionButton'
 import { RecordCreationActions, type RecordCreationCommands } from './RecordCreationActions'
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { RecordListToggle } from '../components/RecordListToggle'
+import { useRecordListVisible } from '../hooks/useRecordListVisible'
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, Loader2, Search, SearchX, Sparkles } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
@@ -134,6 +136,8 @@ export function RecordCollectionView<T extends CollectionRecord>({
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<'updated' | 'title'>('updated')
   const [filterValue, setFilterValue] = useState('all')
+  const [listVisible, toggleList] = useRecordListVisible()
+  const listId = useId()
   const selectionEpochRef = useRef(0)
   const previewRef = useRef<HTMLDivElement>(null)
   const titleInputRef = useRef<HTMLInputElement>(null)
@@ -242,6 +246,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
         <h1 className="sr-only">{labels.heading}</h1>
         {records.length > 0 ? (
           <div className="collection-toolbar">
+            <RecordListToggle visible={listVisible} listId={listId} onToggle={toggleList} />
             <label className="collection-search">
               <Search size={16} />
               <span className="sr-only">Search {labels.heading}</span>
@@ -288,7 +293,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
       ) : null}
       {renderSummary?.(savedRecords)}
 
-      <div className={visibleRecords.length ? 'collection-workspace' : 'collection-workspace collection-workspace--single-sidebar'}>
+      <div className={listVisible && visibleRecords.length ? 'collection-workspace' : 'collection-workspace collection-workspace--single-sidebar'}>
         {activeGenerationJob ? (
           <GenerationRecord
             title={labels.generationTitle}
@@ -299,8 +304,8 @@ export function RecordCollectionView<T extends CollectionRecord>({
             onCancelGenerationJob={onCancelGenerationJob}
           />
         ) : null}
-        {visibleRecords.length > 0 ? (
-          <aside className="record-master-list" aria-label={`${labels.heading} records`}>
+        {listVisible && visibleRecords.length > 0 ? (
+          <aside id={listId} className="record-master-list" aria-label={`${labels.heading} records`}>
             {visibleRecords.map((record) => (
               <button
                 key={record.id}

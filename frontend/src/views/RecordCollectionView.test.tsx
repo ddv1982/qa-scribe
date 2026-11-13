@@ -14,12 +14,14 @@ import { draftFixture, findingFixture } from '../test/fixtures'
 import { FindingsView } from './FindingsView'
 import type { CreatedRecordEditTarget } from '../app/types'
 import { TestwareView } from './TestwareView'
+import { recordListStorageKey } from '../hooks/useRecordListVisible'
 
 describe('scalable record collection', () => {
   const scrollIntoView = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollIntoView')
   beforeEach(() => Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', { value: vi.fn(), configurable: true }))
   afterEach(() => {
     cleanup()
+    window.localStorage.removeItem(recordListStorageKey)
     if (scrollIntoView) Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', scrollIntoView)
     else Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView')
   })
@@ -42,6 +44,26 @@ describe('scalable record collection', () => {
 
     expect(within(list).getAllByRole('button')).toHaveLength(1)
     expect(screen.getByRole('status')).toHaveTextContent('1 of 50 test case records')
+  })
+
+  it('hides and shows the record list while the selected record stays open', async () => {
+    const user = userEvent.setup()
+    renderTestware([
+      draftFixture({ id: 'draft-newer', title: 'Newer cases', updatedAt: '2026-07-02T10:00:00Z' }),
+      draftFixture({ id: 'draft-older', title: 'Older cases', updatedAt: '2026-07-01T10:00:00Z' }),
+    ])
+    await user.click(within(screen.getByRole('complementary', { name: 'Test cases records' })).getByRole('button', { name: /Older cases/ }))
+
+    await user.click(screen.getByRole('button', { name: 'Hide list' }))
+    expect(screen.queryByRole('complementary', { name: 'Test cases records' })).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Older cases' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Show list' })).toHaveAttribute('aria-expanded', 'false')
+
+    await user.click(screen.getByRole('button', { name: 'Show list' }))
+    const list = screen.getByRole('complementary', { name: 'Test cases records' })
+    expect(screen.getByRole('button', { name: 'Hide list' })).toHaveAttribute('aria-controls', list.id)
+    expect(within(list).getByRole('button', { name: /Older cases/ })).toHaveAttribute('aria-current', 'true')
+    expect(screen.getByRole('heading', { name: 'Older cases' })).toBeInTheDocument()
   })
 
   it('restores the original record when an explicit edit is discarded', async () => {

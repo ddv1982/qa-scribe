@@ -77,6 +77,8 @@
 .ask-ai-panel textarea { max-height: 160px; }
 .session-content--notes-chat .session-workspace { padding-inline: var(--space-4); }
 .session-content--record-chat .record-master-list { display: none; }
+/* The list is already folded away beside Ask AI, so its toggle would do nothing. */
+.session-content--record-chat .record-list-toggle { display: none; }
 .session-content--record-chat .collection-workspace { grid-template-columns: minmax(0, 1fr); }
 /* Beside the panel the row is narrow: the create action drops under the search and sort instead of covering them. */
 .session-content--record-chat .collection-header { flex-wrap: wrap; }
