@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.9.0 - 2026-11-13
+
+- A colour of its own. The main action, links, keyboard focus and the border of a focused field are now teal-green. Checkboxes follow.
+- Session sheet. A clipboard button in the Session header opens a small sheet for the charter, a ticket or reference, a timebox, and a debrief with notes and the split of time between testing, bug investigation and setup. A Session with an empty sheet looks the same as before.
+- Acceptance criteria. List what a Session tests against, one criterion per line. The Test cases tab then shows one line such as "5 of 6 criteria covered. Not covered: AC-4". A criterion counts as covered when its id appears in a saved test case.
+- Generated test cases cite the acceptance criteria with a "Covers:" line, and the Note summary knows the charter.
+- Three more test design techniques: classification tree, error guessing and checklist-based. The technique picker is more compact and fits a laptop-height window.
+- The two dropdowns in the "Generate with AI" dialog now look like every other field, and the format dropdown in a Finding or test case editor no longer stretches across the toolbar.
+- Your existing Sessions, test cases and findings are kept. This version adds optional fields to the database.
+
 ## v0.8.40 - 2026-11-12
 
 - No more white box around the Note or the Session title when you click into them. The blinking cursor shows where you are typing.
