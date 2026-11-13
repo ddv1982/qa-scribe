@@ -4,7 +4,7 @@
   "testwareFormats": {
     "qa_cases": {
       "guidance": "Use h2 scenario groups and h3 test cases. For each case include preconditions, test data, steps, expected result, and coverage notes when applicable.",
-      "html": "<h2>Scenario</h2><h3>Test case</h3><p></p><h3>Purpose</h3><p></p><h3>Preconditions</h3><p></p><h3>Test data</h3><p></p><h3>Steps</h3><ol><li><p></p></li></ol><h3>Expected result</h3><p></p><h3>Coverage notes</h3><p></p>",
+      "html": "<h2>Scenario</h2><h3>Test case</h3><p><strong>Purpose:</strong> </p><p><strong>Preconditions:</strong> </p><p><strong>Test data:</strong> </p><p><strong>Steps:</strong></p><ol><li><p></p></li></ol><p><strong>Expected result:</strong> </p><p><strong>Coverage notes:</strong> </p>",
       "hint": "Name the behavior, add executable steps, and describe the observable result. Coverage notes are optional."
     },
     "checklist": {

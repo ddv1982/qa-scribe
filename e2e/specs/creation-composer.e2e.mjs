@@ -81,7 +81,7 @@ describe('Unified creation composer in the built native application', () => {
   })
   it('creates, reopens and copies every manual testware format without AI', async () => {
     const formats = [
-      ['qa_cases', 'QA cases', ['Scenario', 'Test case', 'Purpose', 'Preconditions', 'Test data', 'Steps', 'Expected result', 'Coverage notes']],
+      ['qa_cases', 'QA cases', ['Scenario', 'Test case']],
       ['checklist', 'Checklist', ['Checklist']],
       ['gherkin', 'Gherkin', ['Feature', 'Scenario']],
       ['charters', 'Charters', ['Mission', 'Scope', 'Risks', 'Setup and test data', 'Timebox', 'Observations']],
@@ -113,6 +113,8 @@ describe('Unified creation composer in the built native application', () => {
       await $(`[aria-label="${title} copied"]`).waitForDisplayed()
       const copied = readClipboardText()
       for (const heading of headings) assert.ok(copied.plain.includes(heading))
+      // QA cases keep one heading per test case; its parts are bold labels.
+      if (id === 'qa_cases') for (const label of ['Purpose:', 'Preconditions:', 'Test data:', 'Steps:', 'Expected result:', 'Coverage notes:']) assert.ok(copied.plain.includes(label), label)
       await save('testware')
       const record = (await list('testware', session.id)).find(record => record.title === title)
       assert.ok(record)

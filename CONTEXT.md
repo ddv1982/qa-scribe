@@ -96,6 +96,22 @@ _Avoid_: AI output, Result
 An immutable record of an AI generation request and its response metadata.
 _Avoid_: Completion, Inference
 
+**Test case**:
+One case in a Test cases draft, and the unit a Test run copies. How a draft splits into test cases depends on its output format: a heading per case for QA cases and Gherkin, a list item per check for a checklist. Charters and coverage outlines have no test cases to run.
+_Avoid_: Test, Check, Step
+
+**Test run**:
+A frozen copy of a saved Test cases draft's test cases, made when the tester chooses Start test run, with a Result and an optional Remark per test case. Editing the draft later does not change it, Ask AI is not offered on it, and deleting the draft deletes its test runs. The UI always says "test run", never "run" alone, because an AI Run is something else.
+_Avoid_: Run, Execution, Test cycle
+
+**Result**:
+The outcome a tester records for one test case in a Test run: passed, failed, blocked or not run. Only the tester sets it; AI never does.
+_Avoid_: Status, Verdict, Outcome
+
+**Remark**:
+An optional plain note a tester adds to one test case's Result in a Test run, such as why it was blocked.
+_Avoid_: Comment, Note
+
 **Session Report Draft**:
 A Draft that summarizes a Session as structured Testware for review, editing, and reuse.
 _Avoid_: Report, Summary
