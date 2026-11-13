@@ -255,7 +255,6 @@ describe('Native UI polish before/after evidence', () => {
   })
 
   it('captures both themes at desktop and native640, with reachable creation and persisted editing', async function () {
-    this.timeout(180_000)
     await (await $('h1=Turn testing evidence into useful output')).waitForDisplayed()
     assert.equal(await browser.tauri.execute(async ({ core }) => (await core.invoke('list_sessions')).length), 0,
       'Run through the isolated E2E runner with a fresh Session Library')
@@ -320,10 +319,9 @@ describe('Native UI polish before/after evidence', () => {
     // Deferred only to retain the complete visual matrix if baseline CSS overflows.
     // QA_SCRIBE_UI_BASELINE labels evidence, it never weakens assertions.
     assert.deepEqual(layoutFailures, [], 'Page overflow, primary-action reachability, and modal geometry')
-  })
+  }).timeout(180_000)
 
   it('keeps laptop actions visible and narrow actions reachable without losing edits', async function () {
-    this.timeout(120_000)
     await tab('Note')
     if (await $('.ask-ai-panel:not([hidden]) [aria-label="Close Ask AI"]').isDisplayed()) await click('.ask-ai-panel:not([hidden]) button[aria-label="Close Ask AI"]')
     for (const [width, height, theme, stage] of [[1280, 720, 'dark', 'note-dark-laptop'], [1280, 720, 'light', 'note-light-laptop'], [1024, 768, 'light', 'note-1024']]) {
@@ -483,7 +481,7 @@ describe('Native UI polish before/after evidence', () => {
     assert.deepEqual(invocations, ['codex-exec-1.started'], 'Long Chat uses exactly one isolated fixture request')
     assert.deepEqual(layoutFailures, [], 'Saved review, unsent explanation, and composer geometry stay stable across autosave')
     save('laptop-layout-result', { completed: true, platform: process.platform, providerInvocations: invocations.length })
-  })
+  }).timeout(120_000)
 
   registerUnifiedProof()
 

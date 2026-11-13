@@ -35,9 +35,15 @@ async function markerFile(index, suffix) {
 }
 
 async function create(title) {
+  const before = (await read('list_sessions')).length
   await click('New Session')
+  // The title field is replaced when the new Session opens. Looking it up before that happens
+  // keeps a reference to the old Session's field, which never becomes displayed again.
+  await browser.waitUntil(async () => (await read('list_sessions')).length === before + 1,
+    { timeout: 10_000, timeoutMsg: 'New Session was not created' })
+  await browser.waitUntil(async () => (await $('[aria-label="Session title"]').getValue()).startsWith('Untitled session'),
+    { timeout: 10_000, timeoutMsg: 'The new Session did not open' })
   const field = await $('[aria-label="Session title"]')
-  await field.waitForDisplayed()
   await field.setValue(title)
   await browser.waitUntil(async () => (await read('list_sessions')).some((session) => session.title === title),
     { timeout: 5_000, timeoutMsg: 'Authorization Session title did not persist' })

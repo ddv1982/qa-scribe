@@ -268,7 +268,6 @@ async function selectText(text) {
 
 function test(label, run) {
   it(label, async function () {
-    this.timeout(60_000)
     caseName = label.split(':')[0]
     owned = []
     evidence = []
@@ -291,7 +290,7 @@ function test(label, run) {
       throw error
     }
     writeFileSync(join(artifacts, `${caseName}-evidence.json`), JSON.stringify({ owned, evidence }, null, 2))
-  })
+  }).timeout(60_000)
 }
 
 describe('Built application Session-local Note undo history', () => {

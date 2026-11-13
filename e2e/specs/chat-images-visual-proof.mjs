@@ -234,6 +234,11 @@ export async function proveChatImagesVisual({ sessionId, include320 = false }) {
         horizontal(four, `${label} four images`)
         check(four.images.length === 4 && four.attach.disabled && !four.send.disabled, `${label} four images reach the attachment limit without disabling Send`)
         check(four.send.fullyVisible && four.send.centerHit, `${label} Send remains reachable with four thumbnails`)
+        // A late layout change (a resize, or the transcript settling) must not pull the panel away from Send.
+        await browser.execute(() => window.dispatchEvent(new Event('resize')))
+        await browser.pause(200)
+        const afterLayout = (await geometry()).send
+        check(afterLayout.fullyVisible && afterLayout.centerHit, `${label} Send stays in view when the layout changes with four thumbnails`)
         for (let index = 0; index < names.length; index++) {
           const remove = await $(`${attached} .chat-image-remove`)
           await revealFirstImageCard()
