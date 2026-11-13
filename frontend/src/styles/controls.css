@@ -219,3 +219,46 @@ summary:has(> .disclosure-chevron) { display: flex; align-items: center; gap: 6p
   font-size: var(--font-size-sm);
   white-space: nowrap;
 }
+
+/* Segmented (components/Segmented.tsx): toggle buttons on a sunken track; the pressed one is a raised
+   pill, or carries its result colour when it has a tone. */
+.segmented {
+  display: flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+}
+
+.segmented-option {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--control-sm);
+  padding: 0 var(--space-3);
+  color: var(--text-secondary);
+  font-size: var(--font-size-md);
+  font-weight: 500;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.segmented-option:disabled { cursor: not-allowed; opacity: 0.5; }
+
+.segmented-option[aria-pressed="true"] {
+  color: var(--text-primary);
+  font-weight: 600;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-sm);
+}
+
+.segmented-option--success[aria-pressed="true"] { color: var(--success); background: var(--success-tint); box-shadow: none; }
+.segmented-option--danger[aria-pressed="true"] { color: var(--danger); background: var(--danger-tint); box-shadow: none; }
+.segmented-option--warning[aria-pressed="true"] { color: var(--warning); background: var(--warning-tint); box-shadow: none; }
