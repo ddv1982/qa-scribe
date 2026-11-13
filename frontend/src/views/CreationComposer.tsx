@@ -99,11 +99,13 @@ export function CreationComposer({ intent, actions, copyState, onCopy, fields, m
   </article>
 }
 
-/** Generate's first choice (the Output select for test cases), or, with no choices to make, its primary action. */
+/** Generate's first choice (the Output select for test cases); with no choices to make, its primary action; while that is
+    still disabled (the Note not shown yet), the pressed Generate option of the switch, so focus never falls to the page. */
 function firstGenerateControl(composer: HTMLElement | null): HTMLElement | null {
   const choice = Array.from(composer?.querySelectorAll<HTMLElement>('.creation-generate :is(select, input, textarea, button):not(:disabled)') ?? [])
     .find((control) => !control.closest('details:not([open])'))
-  return choice ?? composer?.querySelector<HTMLElement>('.record-actions > .action-button--primary:not(:disabled)') ?? null
+  return choice ?? composer?.querySelector<HTMLElement>('.record-actions > .action-button--primary:not(:disabled)')
+    ?? composer?.querySelector<HTMLElement>('.record-actions [aria-pressed="true"]') ?? null
 }
 
 export function CreationFormatSelector({ intent, actions }: { intent: CreationIntent; actions: CreationActions }) {

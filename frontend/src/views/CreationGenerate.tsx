@@ -93,7 +93,7 @@ export function useCreationGenerate(intent: CreationIntent, c: AppController) {
  * criteria) there is nothing to generate from.
  */
 function creationSourceWarning(intent: CreationIntent, c: AppController): string | null {
-  if (Object.keys(intent.imageOperations).length) return 'Finish adding images or continue without failed images before generating.'
+  if (Object.keys(intent.imageOperations).length) return 'Finish adding images under Write, or continue without the failed ones there, before generating.'
   if (c.noteReadOnly) return 'Recover the Session Note before using it as a source.'
   if (intent.sourceNoteId && !intent.source) return 'Wait for the Note to show beside the draft before generating.'
   const criteria = c.activeSession?.id === intent.sessionId ? c.activeSession.acceptanceCriteria?.trim() : null

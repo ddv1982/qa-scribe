@@ -12,6 +12,7 @@ function Subject() {
   const controller = useAppController()
   return <>
     <button type="button" onClick={() => void controller.openGenerationPreflight('testware')}>AI entry point</button>
+    <button type="button" onClick={() => void controller.openGenerationPreflight('finding')}>AI finding entry point</button>
     <AppShell {...controller} />
   </>
 }
@@ -232,4 +233,30 @@ it('makes Create with AI unavailable in Commands without a ready AI provider', a
   expect(option('Create test cases with AI')).toBeDisabled()
   expect(option('Create finding with AI')).toBeDisabled()
   expect(option('Create test cases')).toBeEnabled()
+})
+
+it('focuses the Generate option when a finding opens in Generate before its Note is shown', async () => {
+  const source = deferred<Awaited<ReturnType<typeof tauri.readNoteSource>>>()
+  tauri.readNoteSource.mockReturnValue(source.promise)
+  render(<Subject />)
+  await screen.findByRole('textbox', { name: 'Session title' })
+  await waitFor(() => expect(tauri.getProviderStatus).toHaveBeenCalled())
+  fireEvent.click(screen.getByRole('button', { name: 'AI finding entry point' }))
+  await waitFor(() => expect(creationMode('Generate')).toHaveAttribute('aria-pressed', 'true'))
+  expect(generateAction(creationComposer('finding'))).toBeDisabled()
+  expect(creationMode('Generate')).toHaveFocus()
+  source.resolve({ entry: entryFixture({ body: '<p>Arrived.</p>' }), revision: 0 })
+  await waitFor(() => expect(generateAction(creationComposer('finding'))).toBeEnabled())
+})
+
+it('says where to finish or drop images that block Generate', async () => {
+  tauri.readClipboardImageDataUrl.mockReturnValue(new Promise<string | null>(() => {}))
+  render(<Subject />)
+  await createDraft('finding')
+  const editor = screen.getByRole('textbox', { name: 'Creation draft body' })
+  fireEvent.paste(editor, { clipboardData: { files: [], items: [], types: ['image/png'], getData: () => '' } })
+  await screen.findByText('Adding image…')
+  const composer = await generateMode('finding')
+  expect(within(composer).getByRole('alert')).toHaveTextContent('Finish adding images under Write, or continue without the failed ones there, before generating.')
+  expect(generateAction(composer)).toBeDisabled()
 })
