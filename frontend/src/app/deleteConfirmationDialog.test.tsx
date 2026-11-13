@@ -127,6 +127,10 @@ describe('UC-0 deletion target and consequence copy', () => {
       title: 'Delete "Checkout finding"?', body: 'This removes this finding and its evidence links. Source notes and attachments are kept. This cannot be undone.', label: 'Delete finding permanently' },
     { confirmation: { kind: 'draft', draft: draftFixture({ title: 'Checkout cases' }) } as const,
       title: 'Delete "Checkout cases"?', body: 'This removes this testware draft only. AI run history is kept. This cannot be undone.', label: 'Delete testware permanently' },
+    { confirmation: { kind: 'draft', draft: draftFixture({ title: 'Checkout cases' }), testRunCount: 1 } as const,
+      title: 'Delete "Checkout cases"?', body: 'This removes this testware draft. Its test run is deleted too. AI run history is kept. This cannot be undone.', label: 'Delete testware permanently' },
+    { confirmation: { kind: 'draft', draft: draftFixture({ title: 'Checkout cases' }), testRunCount: 3 } as const,
+      title: 'Delete "Checkout cases"?', body: 'This removes this testware draft. Its 3 test runs are deleted too. AI run history is kept. This cannot be undone.', label: 'Delete testware permanently' },
     { confirmation: { kind: 'session', session: sessionFixture({ title: 'Checkout Session' }) } as const,
       title: 'Delete “Checkout Session”?', body: 'This removes the Session, its Note Entry, testware, findings, and attachments. This cannot be undone.', label: 'Delete Session permanently' },
   ])('preserves $label identity and consequences', async ({ confirmation, title, body, label }) => {

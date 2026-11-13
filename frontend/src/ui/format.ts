@@ -101,3 +101,17 @@ function escapeRegExp(value: string): string {
 export function statusLabel(status: string): string {
   return status.replace(/([A-Z])/g, ' $1').toLowerCase()
 }
+
+/** A day and month, such as `13 Nov` in a day-first locale. */
+export function formatShortDate(value: string): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' }).format(date)
+}
+
+/** A full date and time, such as `13 Nov 2026, 14:02` in a day-first locale. */
+export function formatDateTime(value: string): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(date)
+}

@@ -60,8 +60,8 @@ export function createDraftRecordActions(
     ctx.feedback.setNotice('Testware changes discarded')
   }
 
-  function requestDeleteDraft(draft: Draft) {
-    ctx.deletion.setDeleteConfirmation({ kind: 'draft', draft })
+  function requestDeleteDraft(draft: Draft, testRunCount = 0) {
+    ctx.deletion.setDeleteConfirmation({ kind: 'draft', draft, testRunCount })
   }
 
   async function handleDeleteDraft(draft: Draft) {

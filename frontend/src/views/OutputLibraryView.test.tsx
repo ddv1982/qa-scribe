@@ -47,6 +47,16 @@ describe('cross-session output libraries', () => {
     expect(onOpenRecord).toHaveBeenCalledWith('session-recovery', 'draft-recovery')
   })
 
+  it('offers no test run: test runs start from the Session', () => {
+    render(
+      <OutputLibraryView copyState={{ status: 'idle' }} onCopy={async () => undefined} isBusy={false} kind="testware"
+        draftItems={[{ draft: draftFixture({ title: 'Checkout cases', body: '<h3>Pay by card</h3><p>Order is placed.</p>' }), sessionTitle: 'Checkout' }]}
+        loadState="ready" loadError={null} onRetry={vi.fn()} onOpenRecord={vi.fn()} />,
+    )
+    expect(screen.getByRole('button', { name: 'Open in Session' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Start test run' })).not.toBeInTheDocument()
+  })
+
   it('distinguishes and opens duplicate-titled Testware records independently', async () => {
     const user = userEvent.setup()
     const onOpenRecord = vi.fn()

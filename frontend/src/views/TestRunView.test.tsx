@@ -1,0 +1,183 @@
+import '@testing-library/jest-dom/vitest'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import type { ComponentProps } from 'react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+
+vi.mock('../editor/RichTextEditor', () => ({
+  RichTextEditor: ({ ariaLabel, value }: { ariaLabel?: string; value: { doc: { content?: Array<{ type?: string }> } } }) => (
+    <div role="textbox" aria-label={ariaLabel}>{(value.doc.content ?? []).map((node) => node.type).join(',')}</div>
+  ),
+}))
+
+import type { TestRunCase, TestRunSummary } from '../tauri'
+import { formatDateTime } from '../ui/format'
+import { TestRunView } from './TestRunView'
+
+afterEach(cleanup)
+
+const at = '2026-11-13T14:02:00Z'
+const body = JSON.stringify({ schemaVersion: 1, doc: { type: 'doc', content: [
+  { type: 'heading', attrs: { level: 3 }, content: [{ type: 'text', text: 'Pay by card' }] },
+  { type: 'paragraph', content: [{ type: 'text', text: 'Order is placed.' }] },
+] } })
+const testCase = (id: string, title: string, patch: Partial<TestRunCase> = {}): TestRunCase => ({
+  id, runId: 'run-1', position: 0, groupTitle: null, title, bodyJson: body, result: 'not_run', remark: null, findingId: null, updatedAt: at, ...patch,
+})
+const summary = (id: string, createdAt: string): TestRunSummary => ({
+  id, sessionId: 'session-1', draftId: 'draft-1', draftTitle: 'Checkout', createdAt, updatedAt: createdAt, total: 3, passed: 0, failed: 0, blocked: 0, notRun: 3,
+})
+const cases = [
+  testCase('a', 'Pay by card', { groupTitle: 'Checkout', result: 'passed' }),
+  testCase('b', 'Pay with a gift card', { groupTitle: 'Checkout' }),
+  testCase('c', 'Reset password', { groupTitle: 'Account', result: 'failed', remark: 'No email' }),
+]
+
+function renderRun(overrides: Partial<ComponentProps<typeof TestRunView>> = {}) {
+  const props = {
+    open: { runId: 'run-1', draftId: 'draft-1', error: null, run: { id: 'run-1', sessionId: 'session-1', draftId: 'draft-1', draftTitle: 'Checkout', createdAt: at, updatedAt: at, cases } },
+    draftRuns: [summary('run-1', at)], error: null,
+    onSelectRun: vi.fn(), onBack: vi.fn(), onDelete: vi.fn(async () => true), onSetResult: vi.fn(),
+    ...overrides,
+  }
+  render(<TestRunView {...props} />)
+  return props
+}
+
+const row = (title: string) => screen.getByRole('region', { name: title })
+const result = (title: string, label: string) => within(row(title)).getByRole('button', { name: label })
+
+describe('TestRunView', () => {
+  it('shows the draft title, when the run started, its progress and group headings', () => {
+    renderRun()
+    expect(screen.getByRole('heading', { level: 2, name: 'Checkout' })).toBeInTheDocument()
+    expect(screen.getByText(`Test run of ${formatDateTime(at)}`)).toBeInTheDocument()
+    expect(screen.getByText('2 of 3 run')).toBeInTheDocument()
+    expect(screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)).toEqual(['Checkout', 'Account'])
+    expect(screen.getAllByRole('region').map((region) => region.getAttribute('aria-label'))).toEqual(['Pay by card', 'Pay with a gift card', 'Reset password'])
+  })
+
+  it('shows a case content only when it is expanded, without repeating its heading', () => {
+    renderRun()
+    const toggle = within(row('Pay by card')).getByRole('button', { name: 'Pay by card' })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('textbox', { name: 'Pay by card test case' })).not.toBeInTheDocument()
+    fireEvent.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('textbox', { name: 'Pay by card test case' })).toHaveTextContent(/^paragraph$/)
+  })
+
+  it('records a result, keeping the remark, and clears it when pressed again', () => {
+    const { onSetResult } = renderRun()
+    fireEvent.click(result('Pay with a gift card', 'Blocked'))
+    expect(onSetResult).toHaveBeenLastCalledWith('b', 'blocked', null)
+    fireEvent.click(result('Reset password', 'Passed'))
+    expect(onSetResult).toHaveBeenLastCalledWith('c', 'passed', 'No email')
+    expect(result('Pay by card', 'Passed')).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(result('Pay by card', 'Passed'))
+    expect(onSetResult).toHaveBeenLastCalledWith('a', 'not_run', null)
+  })
+
+  it('offers a remark only for a failed or blocked case, or one that has a remark', () => {
+    renderRun({ open: { runId: 'run-1', draftId: 'draft-1', error: null, run: { id: 'run-1', sessionId: 'session-1', draftId: 'draft-1', draftTitle: 'Checkout', createdAt: at, updatedAt: at, cases: [
+      testCase('a', 'Passed case', { result: 'passed' }),
+      testCase('b', 'Not run case'),
+      testCase('c', 'Failed case', { result: 'failed' }),
+      testCase('d', 'Blocked case', { result: 'blocked' }),
+      testCase('e', 'Passed with remark', { result: 'passed', remark: 'Slow' }),
+    ] } } })
+    expect(screen.getAllByRole('textbox').map((input) => input.getAttribute('aria-label')))
+      .toEqual(['Remark for Failed case', 'Remark for Blocked case', 'Remark for Passed with remark'])
+    const remark = screen.getByRole('textbox', { name: 'Remark for Failed case' })
+    expect(remark).toHaveAttribute('placeholder', 'What happened?')
+    expect(remark).toHaveAttribute('maxLength', '500')
+  })
+
+  it('saves a remark on blur and on Enter, only when it changed', () => {
+    const { onSetResult } = renderRun()
+    const remark = screen.getByRole('textbox', { name: 'Remark for Reset password' })
+    fireEvent.blur(remark)
+    fireEvent.keyDown(remark, { key: 'Enter' })
+    expect(onSetResult).not.toHaveBeenCalled()
+    fireEvent.change(remark, { target: { value: '  No email sent  ' } })
+    fireEvent.keyDown(remark, { key: 'Enter' })
+    expect(onSetResult).toHaveBeenLastCalledWith('c', 'failed', 'No email sent')
+    fireEvent.change(remark, { target: { value: ' ' } })
+    fireEvent.blur(remark)
+    expect(onSetResult).toHaveBeenLastCalledWith('c', 'failed', null)
+    expect(onSetResult).toHaveBeenCalledTimes(2)
+  })
+
+  it('sets a result with p, f and b inside a case, but not while typing a remark', () => {
+    const { onSetResult } = renderRun()
+    const toggle = within(row('Pay with a gift card')).getByRole('button', { name: 'Pay with a gift card' })
+    fireEvent.keyDown(toggle, { key: 'f' })
+    expect(onSetResult).toHaveBeenLastCalledWith('b', 'failed', null)
+    fireEvent.keyDown(result('Pay with a gift card', 'Passed'), { key: 'b' })
+    expect(onSetResult).toHaveBeenLastCalledWith('b', 'blocked', null)
+    fireEvent.keyDown(within(row('Pay by card')).getByRole('button', { name: 'Pay by card' }), { key: 'p' })
+    expect(onSetResult).toHaveBeenLastCalledWith('a', 'not_run', null)
+    fireEvent.keyDown(toggle, { key: 'p', metaKey: true })
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Remark for Reset password' }), { key: 'p' })
+    expect(onSetResult).toHaveBeenCalledTimes(3)
+  })
+
+  it('moves between cases with the arrow keys', () => {
+    renderRun()
+    const toggles = ['Pay by card', 'Pay with a gift card', 'Reset password'].map((title) => within(row(title)).getByRole('button', { name: title }))
+    fireEvent.keyDown(result('Pay by card', 'Failed'), { key: 'ArrowDown' })
+    expect(toggles[1]).toHaveFocus()
+    fireEvent.keyDown(toggles[1], { key: 'ArrowDown' })
+    expect(toggles[2]).toHaveFocus()
+    fireEvent.keyDown(toggles[2], { key: 'ArrowDown' })
+    expect(toggles[2]).toHaveFocus()
+    fireEvent.keyDown(toggles[2], { key: 'ArrowUp' })
+    expect(toggles[1]).toHaveFocus()
+  })
+
+  it('offers a run switcher only when the draft has more than one test run', () => {
+    renderRun()
+    expect(screen.queryByRole('combobox', { name: 'Test run' })).not.toBeInTheDocument()
+    cleanup()
+    const later = '2026-11-14T09:30:00Z'
+    const { onSelectRun } = renderRun({ draftRuns: [summary('run-2', later), summary('run-1', at)] })
+    const switcher = screen.getByRole('combobox', { name: 'Test run' })
+    expect(switcher).toHaveValue('run-1')
+    expect(within(switcher).getAllByRole('option').map((option) => option.textContent)).toEqual([formatDateTime(later), formatDateTime(at)])
+    fireEvent.change(switcher, { target: { value: 'run-2' } })
+    expect(onSelectRun).toHaveBeenCalledWith('run-2')
+  })
+
+  it('goes back to the test cases', () => {
+    const { onBack } = renderRun()
+    fireEvent.click(screen.getByRole('button', { name: 'Back to test cases' }))
+    expect(onBack).toHaveBeenCalled()
+  })
+
+  it('deletes the test run only after confirming, with Cancel focused first', async () => {
+    const { onDelete } = renderRun()
+    fireEvent.click(screen.getByRole('button', { name: 'Delete test run' }))
+    const dialog = screen.getByRole('dialog', { name: 'Delete this test run?' })
+    expect(dialog).toHaveAccessibleDescription('Its results and remarks are removed. The test cases stay.')
+    expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveFocus()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(onDelete).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Delete test run' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete test run' }))
+    expect(onDelete).toHaveBeenCalledWith('run-1')
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('shows a save failure as one alert, and loading and load failure as state panels', () => {
+    renderRun({ error: 'Something went wrong: disk full' })
+    expect(screen.getByRole('alert')).toHaveTextContent('Something went wrong: disk full')
+    cleanup()
+    renderRun({ open: { runId: 'run-1', draftId: 'draft-1', run: null, error: null } })
+    expect(screen.getByRole('heading', { name: 'Opening test run' })).toBeInTheDocument()
+    cleanup()
+    const { onSelectRun } = renderRun({ open: { runId: 'run-1', draftId: 'draft-1', run: null, error: 'Something went wrong: gone' } })
+    expect(screen.getByRole('heading', { name: 'Could not open the test run' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(onSelectRun).toHaveBeenCalledWith('run-1')
+  })
+})

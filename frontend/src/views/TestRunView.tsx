@@ -1,0 +1,174 @@
+import { useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { AlertTriangle, ArrowLeft, ChevronRight, Loader2, Trash2 } from 'lucide-react'
+import { ActionButton } from '../components/ActionButton'
+import { Badge } from '../components/Badge'
+import { StatePanel } from '../components/Common'
+import { Dialog } from '../components/Dialog'
+import { Segmented, type SegmentedOption } from '../components/Segmented'
+import { RichTextEditor } from '../editor/RichTextEditor'
+import { testRunCaseDocument } from '../testware/testRuns'
+import type { OpenTestRun } from '../testware/useTestRuns'
+import type { TestCaseResult, TestRunCase, TestRunSummary } from '../tauri'
+import { formatDateTime } from '../ui/format'
+
+type RecordedResult = Exclude<TestCaseResult, 'not_run'>
+
+const resultOptions: ReadonlyArray<SegmentedOption<RecordedResult>> = [
+  { value: 'passed', label: 'Passed', tone: 'success' },
+  { value: 'failed', label: 'Failed', tone: 'danger' },
+  { value: 'blocked', label: 'Blocked', tone: 'warning' },
+]
+
+const resultKeys: Record<string, RecordedResult> = { p: 'passed', f: 'failed', b: 'blocked' }
+
+const REMARK_MAX_LENGTH = 500
+
+/**
+ * A test run in place of its draft: the copied test cases in order, each with a Result and a Remark
+ * saved the moment they change. There is no Save button.
+ */
+export function TestRunView({ open, draftRuns, error, onSelectRun, onBack, onDelete, onSetResult }: {
+  open: OpenTestRun
+  /** The draft's test runs, newest first. */
+  draftRuns: TestRunSummary[]
+  error: string | null
+  onSelectRun: (runId: string) => void
+  onBack: () => void
+  onDelete: (runId: string) => Promise<boolean>
+  onSetResult: (caseId: string, result: TestCaseResult, remark: string | null) => void
+}) {
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const cancelRef = useRef<HTMLButtonElement>(null)
+  const toggleRefs = useRef<Array<HTMLButtonElement | null>>([])
+  const { run } = open
+  const cases = run?.cases ?? []
+  const recorded = cases.filter((testCase) => testCase.result !== 'not_run').length
+
+  function onCaseKeyDown(event: KeyboardEvent<HTMLElement>, index: number) {
+    if (event.target instanceof HTMLInputElement || event.metaKey || event.ctrlKey || event.altKey) return
+    const testCase = cases[index]
+    const result = resultKeys[event.key.toLowerCase()]
+    if (result) {
+      event.preventDefault()
+      onSetResult(testCase.id, testCase.result === result ? 'not_run' : result, testCase.remark)
+      return
+    }
+    const step = event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0
+    const target = step ? toggleRefs.current[index + step] : null
+    if (!target) return
+    event.preventDefault()
+    target.focus()
+  }
+
+  async function confirmDelete() {
+    setDeleting(true)
+    const deleted = await onDelete(open.runId)
+    setDeleting(false)
+    if (deleted) setConfirmingDelete(false)
+  }
+
+  return (
+    <article className="test-run">
+      <header className="test-run-header">
+        <div className="test-run-heading">
+          <h2 className="record-title">{run?.draftTitle ?? draftRuns.find((summary) => summary.id === open.runId)?.draftTitle ?? 'Test run'}</h2>
+          {run ? <p>Test run of {formatDateTime(run.createdAt)}</p> : null}
+        </div>
+        <div className="test-run-actions">
+          {run ? <Badge>{recorded} of {cases.length} run</Badge> : null}
+          {draftRuns.length > 1 ? (
+            <select aria-label="Test run" value={open.runId} onChange={(event) => onSelectRun(event.target.value)}>
+              {draftRuns.map((summary) => <option key={summary.id} value={summary.id}>{formatDateTime(summary.createdAt)}</option>)}
+            </select>
+          ) : null}
+          <ActionButton variant="quiet" icon={ArrowLeft} onClick={onBack}>Back to test cases</ActionButton>
+          <ActionButton variant="destructive-quiet" iconOnly icon={Trash2} aria-label="Delete test run" title="Delete test run"
+            onClick={() => setConfirmingDelete(true)} />
+        </div>
+      </header>
+      {error ? <p className="field-error" role="alert">{error}</p> : null}
+      {open.error ? (
+        <StatePanel icon={AlertTriangle} title="Could not open the test run" description={open.error}
+          action={{ label: 'Try again', onClick: () => onSelectRun(open.runId) }} />
+      ) : !run ? (
+        <StatePanel icon={Loader2} title="Opening test run" description="Reading its test cases and results." />
+      ) : (
+        <div className="test-run-cases">
+          {cases.map((testCase, index) => (
+            <TestRunCaseRow key={testCase.id} testCase={testCase}
+              group={testCase.groupTitle && testCase.groupTitle !== cases[index - 1]?.groupTitle ? testCase.groupTitle : null}
+              toggleRef={(element) => { toggleRefs.current[index] = element }}
+              onKeyDown={(event) => onCaseKeyDown(event, index)}
+              onSetResult={onSetResult} />
+          ))}
+        </div>
+      )}
+      {confirmingDelete ? (
+        <Dialog
+          title="Delete this test run?"
+          description={<p>Its results and remarks are removed. The test cases stay.</p>}
+          initialFocus={cancelRef}
+          onCancel={() => setConfirmingDelete(false)}
+          actions={<>
+            <ActionButton ref={cancelRef} disabled={deleting} onClick={() => setConfirmingDelete(false)}>Cancel</ActionButton>
+            <ActionButton variant="destructive-confirmation" loading={deleting} onClick={() => void confirmDelete()}>Delete test run</ActionButton>
+          </>}
+        />
+      ) : null}
+    </article>
+  )
+}
+
+function TestRunCaseRow({ testCase, group, toggleRef, onKeyDown, onSetResult }: {
+  testCase: TestRunCase
+  group: string | null
+  toggleRef: (element: HTMLButtonElement | null) => void
+  onKeyDown: (event: KeyboardEvent<HTMLElement>) => void
+  onSetResult: (caseId: string, result: TestCaseResult, remark: string | null) => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const document = useMemo(() => expanded ? testRunCaseDocument(testCase) : null, [expanded, testCase])
+  const { id, title, result, remark } = testCase
+  const showRemark = result === 'failed' || result === 'blocked' || Boolean(remark)
+  return <>
+    {group ? <h3 className="test-run-group">{group}</h3> : null}
+    <section className="test-run-case" aria-label={title} onKeyDown={onKeyDown}>
+      <button ref={toggleRef} type="button" className="test-run-case-toggle" aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>
+        <ChevronRight size={16} className="disclosure-chevron" aria-hidden="true" />
+        <span>{title}</span>
+      </button>
+      <Segmented label={`Result for ${title}`} allowDeselect options={resultOptions}
+        value={result === 'not_run' ? null : result}
+        onChange={(next) => onSetResult(id, next ?? 'not_run', remark)} />
+      {showRemark ? <RemarkInput title={title} remark={remark} onSave={(next) => onSetResult(id, result, next)} /> : null}
+      {document ? (
+        <div className="test-run-case-body">
+          <RichTextEditor value={document} ariaLabel={`${title} test case`} readOnly />
+        </div>
+      ) : null}
+    </section>
+  </>
+}
+
+/** One line for what happened, saved on blur and on Enter when it changed. */
+function RemarkInput({ title, remark, onSave }: { title: string; remark: string | null; onSave: (remark: string | null) => void }) {
+  const [value, setValue] = useState(remark ?? '')
+  const [stored, setStored] = useState(remark)
+  if (stored !== remark) {
+    setStored(remark)
+    setValue(remark ?? '')
+  }
+  function commit() {
+    const next = value.trim() || null
+    if (next !== remark) onSave(next)
+  }
+  return (
+    <div className="field test-run-remark">
+      <input aria-label={`Remark for ${title}`} placeholder="What happened?" maxLength={REMARK_MAX_LENGTH} value={value}
+        onChange={(event) => setValue(event.target.value)}
+        onBlur={commit}
+        onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); commit() } }} />
+    </div>
+  )
+}
