@@ -13,6 +13,7 @@ pub(crate) mod generation;
 pub(crate) mod providers;
 pub(crate) mod sessions;
 pub(crate) mod settings;
+pub(crate) mod test_runs;
 
 // The command functions are registered through `specta_bindings::builder`'s
 // `collect_commands!` by their module paths, so they need no re-export here.

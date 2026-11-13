@@ -52,6 +52,12 @@ export const commands = {
 	updateDraft: (id: string, patch: DraftPatch, guard: RecordWriteGuard) => __TAURI_INVOKE<RecordWriteOutcome<Draft>>("update_draft", { id, patch, guard }),
 	deleteDraft: (id: string) => __TAURI_INVOKE<null>("delete_draft", { id }),
 	deleteFinding: (id: string) => __TAURI_INVOKE<null>("delete_finding", { id }),
+	startTestRun: (draftId: string, cases: TestRunCaseDraft[]) => __TAURI_INVOKE<TestRun>("start_test_run", { draftId, cases }),
+	getTestRun: (runId: string) => __TAURI_INVOKE<TestRun>("get_test_run", { runId }),
+	listTestRuns: (sessionId: string) => __TAURI_INVOKE<TestRunSummary[]>("list_test_runs", { sessionId }),
+	setTestCaseResult: (caseId: string, result: TestCaseResult, remark: string | null) => __TAURI_INVOKE<TestRunCase>("set_test_case_result", { caseId, result, remark }),
+	linkTestCaseFinding: (caseId: string, findingId: string | null) => __TAURI_INVOKE<TestRunCase>("link_test_case_finding", { caseId, findingId }),
+	deleteTestRun: (runId: string) => __TAURI_INVOKE<null>("delete_test_run", { runId }),
 	startAiActionJob: (request: GenerateAiActionRequest, events: Channel<GenerationJobEvent_Deserialize>) => __TAURI_INVOKE<StartAiActionJobResult_Serialize>("start_ai_action_job", { request, events }),
 	getAiActionJobStatus: (jobId: string) => __TAURI_INVOKE<GenerationJobStatus_Serialize>("get_ai_action_job_status", { jobId }),
 	/**
@@ -942,6 +948,64 @@ export type StartChatJobResult_Serialize = {
 	turnId: string,
 	chat: ChatState,
 	status: GenerationJobStatus_Serialize,
+};
+
+/**  The Result a tester records for one test case in a test run. */
+export type TestCaseResult = "not_run" | "passed" | "failed" | "blocked";
+
+/**  A frozen copy of a saved Test cases draft's test cases (ADR 0012). */
+export type TestRun = {
+	id: string,
+	sessionId: string,
+	draftId: string,
+	/**  The draft's title when the run started. */
+	draftTitle: string,
+	createdAt: string,
+	/**  Changes whenever a case of the run changes. */
+	updatedAt: string,
+	/**  Ordered by position. */
+	cases: TestRunCase[],
+};
+
+/**
+ *  One copied test case of a test run. Its group title, title and body never
+ *  change after the run starts.
+ */
+export type TestRunCase = {
+	id: string,
+	runId: string,
+	position: number,
+	groupTitle: string | null,
+	title: string,
+	/**  The case's content as a TipTap document JSON. */
+	bodyJson: string,
+	result: TestCaseResult,
+	remark: string | null,
+	findingId: string | null,
+	updatedAt: string,
+};
+
+/**  One test case to copy when a test run starts, as the frontend split it. */
+export type TestRunCaseDraft = {
+	groupTitle?: string | null,
+	title: string,
+	/**  The case's content as a TipTap document JSON. */
+	bodyJson: string,
+};
+
+/**  A test run without its cases, with how many cases have each Result. */
+export type TestRunSummary = {
+	id: string,
+	sessionId: string,
+	draftId: string,
+	draftTitle: string,
+	createdAt: string,
+	updatedAt: string,
+	total: number,
+	passed: number,
+	failed: number,
+	blocked: number,
+	notRun: number,
 };
 
 export type TestwareDepth = "lean" | "balanced" | "thorough";

@@ -27,6 +27,7 @@ mod record_bases;
 mod rich_body;
 mod sessions;
 mod settings;
+mod test_runs;
 
 pub struct SessionService {
     database: Database,

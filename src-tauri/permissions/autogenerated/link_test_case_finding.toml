@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-link-test-case-finding"
+description = "Enables the link_test_case_finding command without any pre-configured scope."
+commands.allow = ["link_test_case_finding"]
+
+[[permission]]
+identifier = "deny-link-test-case-finding"
+description = "Denies the link_test_case_finding command without any pre-configured scope."
+commands.deny = ["link_test_case_finding"]
