@@ -213,6 +213,23 @@ describe('useTestRuns', () => {
     expect(api.listTestRuns).toHaveBeenCalledWith('session-1')
   })
 
+  it('stores a change that arrives just after its run left the screen', async () => {
+    const { result } = await opened()
+    const saves = deferredSaves()
+    // Back detaches the run's queue before React unmounts the remark input, whose cleanup commits.
+    act(() => result.current.close())
+    act(() => result.current.changeCase('a', { remark: 'Typed, never blurred' }))
+    expect(api.setTestCaseResult).toHaveBeenCalledWith('a', 'not_run', 'Typed, never blurred')
+    // Reopening waits for it, so the screen shows what is stored.
+    api.getTestRun.mockClear()
+    let reopening!: Promise<void>
+    act(() => { reopening = result.current.openRun('run-1', 'draft-1') })
+    await act(async () => { await Promise.resolve(); await Promise.resolve() })
+    expect(api.getTestRun).not.toHaveBeenCalled()
+    await act(async () => { await saves.settle(); await reopening })
+    expect(api.getTestRun).toHaveBeenCalledTimes(1)
+  })
+
   it('finishes a save across a Session change without showing anything from the old Session', async () => {
     const hook = renderHook(({ session }) => useTestRuns(session), { initialProps: { session: 'session-1' } })
     await act(() => hook.result.current.openRun('run-1', 'draft-1'))

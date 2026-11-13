@@ -29,6 +29,16 @@ const drainedListeners = new Set<(event: Drained) => void>()
 
 type ScreenQueue = { runId: string; sessionId: string; queue: CaseSaveQueue; background: { failed: boolean } }
 
+/** Keeps a queue that left the screen until its saves have settled, then tells the views. */
+function drain(left: ScreenQueue) {
+  if (left.queue.idle || draining.get(left.runId) === left.queue) return
+  draining.set(left.runId, left.queue)
+  void left.queue.whenIdle().then(() => {
+    if (draining.get(left.runId) === left.queue) draining.delete(left.runId)
+    for (const listener of drainedListeners) listener({ sessionId: left.sessionId, failed: left.background.failed })
+  })
+}
+
 /**
  * Test runs of one Session, owned by its Test cases view and kept out of the app controller. Results
  * and remarks are saved as they change: the screen updates at once, saves of one case go one at a time
@@ -48,6 +58,8 @@ export function useTestRuns(sessionId: string | null) {
   const summariesRequestRef = useRef(0)
   /** Saves of the run on screen. */
   const queueRef = useRef<ScreenQueue | null>(null)
+  /** The queue that last left the screen. A remark committed as its input unmounts still belongs to it. */
+  const leftRef = useRef<ScreenQueue | null>(null)
   /**
    * Bumped when the Session or the selected draft changes. A test run that is started or opened shows
    * only if nothing changed while it was being read.
@@ -73,12 +85,8 @@ export function useTestRuns(sessionId: string | null) {
     queueRef.current = null
     if (!current) return
     current.queue.detach()
-    if (current.queue.idle) return
-    draining.set(current.runId, current.queue)
-    void current.queue.whenIdle().then(() => {
-      if (draining.get(current.runId) === current.queue) draining.delete(current.runId)
-      for (const listener of drainedListeners) listener({ sessionId: current.sessionId, failed: current.background.failed })
-    })
+    leftRef.current = current
+    drain(current)
   }, [])
 
   const show = useCallback((next: OpenTestRun | null) => {
@@ -138,7 +146,9 @@ export function useTestRuns(sessionId: string | null) {
     show({ runId, draftId, run: null, error: null })
     const current = () => contextRef.current === context && openRef.current?.runId === runId
     try {
-      // Saves made before the run was left land first, so what is read is what is stored.
+      // Saves made before the run was left land first, so what is read is what is stored. The pause
+      // lets a remark committed as its input unmounts join them.
+      await Promise.resolve()
       await draining.get(runId)?.whenIdle()
       const run = await getTestRun(runId)
       if (current()) show({ runId, draftId, run, error: null })
@@ -174,7 +184,16 @@ export function useTestRuns(sessionId: string | null) {
   /** Changes one case of the open run: `{ result }` from a result button, `{ remark }` from the remark field. */
   const changeCase = useCallback((caseId: string, patch: CasePatch) => {
     setError(null)
-    queueRef.current?.queue.change(caseId, patch)
+    const current = queueRef.current
+    if (current?.queue.has(caseId)) {
+      current.queue.change(caseId, patch)
+      return
+    }
+    // The run just left the screen: its queue stores the change in the background.
+    const left = leftRef.current
+    if (!left?.queue.has(caseId)) return
+    left.queue.change(caseId, patch)
+    drain(left)
   }, [])
 
   const deleteRun = useCallback(async (runId: string) => {

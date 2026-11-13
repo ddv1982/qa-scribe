@@ -99,10 +99,12 @@ describe('CaseSaveQueue', () => {
     queue.change('a', { result: 'failed' })
     listener.onShow.mockClear()
     queue.detach()
-    queue.change('a', { result: 'blocked' })
+    // A change that arrives just after the screen moved on, such as a remark committed as its input
+    // goes away, is stored too.
+    queue.change('a', { remark: 'Typed last' })
     expect(save).toHaveBeenCalledTimes(1)
     await settle()
-    expect(save).toHaveBeenLastCalledWith('a', { result: 'failed', remark: null })
+    expect(save).toHaveBeenLastCalledWith('a', { result: 'failed', remark: 'Typed last' })
     expect(pending).toHaveLength(1)
     await settle()
     expect(save).toHaveBeenCalledTimes(2)

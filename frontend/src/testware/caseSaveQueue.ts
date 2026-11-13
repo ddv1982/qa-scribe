@@ -32,7 +32,8 @@ const sameValue = (left: CaseValue, right: CaseValue) => left.result === right.r
  * after a newer one. Different cases save independently.
  *
  * A change the tester made is always stored: after `detach`, when the screen has moved on, the queue
- * takes no new changes and shows nothing, but keeps saving until it is idle.
+ * shows nothing but keeps saving until it is idle. It still takes a change then: a remark committed
+ * as its input goes away arrives just after the screen moved on.
  */
 export class CaseSaveQueue {
   private readonly entries = new Map<string, Entry>()
@@ -48,15 +49,19 @@ export class CaseSaveQueue {
     for (const testCase of cases) this.entries.set(testCase.id, { confirmed: testCase, desired: valueOf(testCase), sending: null })
   }
 
+  has(caseId: string): boolean {
+    return this.entries.has(caseId)
+  }
+
   change(caseId: string, patch: CasePatch) {
     const entry = this.entries.get(caseId)
-    if (!entry || !this.attached) return
+    if (!entry) return
     entry.desired = { ...entry.desired, ...patch }
-    this.listener.onShow({ ...entry.confirmed, ...entry.desired })
+    if (this.attached) this.listener.onShow({ ...entry.confirmed, ...entry.desired })
     if (!entry.sending) this.send(caseId, entry)
   }
 
-  /** Stops taking changes and showing them; saves already asked for still go through. */
+  /** Stops showing changes; every change asked for still goes through. */
   detach() {
     this.attached = false
   }
