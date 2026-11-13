@@ -4,8 +4,13 @@ import { readFileSync } from 'node:fs'
 
 export const contextResponse = 'Synthetic record context received. No external tool or Jira operation was performed.'
 
+/**
+ * The labelled messages of one Chat input, each with its record context, and the instructions before
+ * them. A test run conversation sends its report in the instructions, so a spec reads it there.
+ */
 export function inspectContextInput(input, validateAssistant = true) {
   const messages = []
+  let instructions = null
   let current
   for (const block of input) {
     if (block.type === 'localImage') {
@@ -14,6 +19,7 @@ export function inspectContextInput(input, validateAssistant = true) {
       continue
     }
     assert.equal(block.type, 'text')
+    instructions ??= block.text.split(/\nMESSAGE \S+ (?:User|Assistant)\n/)[0]
     const frames = [...block.text.matchAll(/(?:^|\n)MESSAGE (\S+) (User|Assistant)\n([^\n]*)(?:\nMESSAGE_CONTEXT_JSON\n([^\n]*))?/g)]
     for (const frame of frames) {
       const context = frame[4] ? JSON.parse(frame[4]) : { kind: 'session' }
@@ -31,5 +37,5 @@ export function inspectContextInput(input, validateAssistant = true) {
   }
   assert.ok(messages.length > 0 && messages.length % 2 === 1)
   messages.forEach((message, index) => assert.equal(message.role, index % 2 ? 'assistant' : 'user'))
-  return { messages, response: contextResponse, realVision: false, externalWrites: false }
+  return { instructions, messages, response: contextResponse, realVision: false, externalWrites: false }
 }

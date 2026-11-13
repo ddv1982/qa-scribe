@@ -1,7 +1,11 @@
 mod input;
 pub(crate) mod markdown;
 pub mod response;
+mod test_run;
 pub use input::{ChatInput, ChatInputMessage, MAX_CHAT_INPUT_FRAME_BYTES, build_chat_input};
+pub use test_run::{
+    MAX_CHAT_TEST_RUN_REPORT_BYTES, TEST_RUN_REPORT_TRUNCATED_MARKER, bounded_test_run_report,
+};
 
 use serde::{Deserialize, Serialize};
 

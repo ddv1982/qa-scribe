@@ -41,8 +41,16 @@ models do not always follow the format they were asked for.
      case cannot be run.
 3. **Only some formats can be run.** QA test cases, Gherkin-style scenarios and
    checklists can be run. Exploratory charters and coverage outlines cannot.
-4. **AI stays on drafts.** Ask AI is not offered on a test run, and AI never
-   sets a result.
+4. **AI only reads a test run.** Ask AI on a test run is read-only: the
+   conversation gets the test run report as context and can act on it with
+   the tools of the tester's AI CLI, under its usual permission prompts. AI
+   never sets or rewrites a result, and no change to a test run is ever
+   offered or accepted.
+
+   _Changed 2026-11-13._ This decision first said that Ask AI is not offered
+   on a test run. Testers want to hand the results on, to a Jira issue or a
+   Confluence page, and the AI CLI already has the tools and permissions for
+   that, so Ask AI is now offered on a test run, read-only.
 5. **Runs belong to their draft.** Deleting a Test cases draft deletes its test
    runs, and the delete confirmation says so.
 6. **One name.** The UI always says "test run", never "run", because AI Run
@@ -61,3 +69,7 @@ models do not always follow the format they were asked for.
   heading, so it is never counted as a test case.
 - A test run shows the cases as they were. Fixing a typo in the draft needs a
   new test run to show up there.
+- A test run owns its own Ask AI conversation (owner kind `test_run`). Every
+  turn reads the run's current results from storage into a plain text report,
+  laid out like Copy report, and the conversation never carries a record
+  snapshot, so it cannot produce a proposal for the draft.

@@ -1,30 +1,66 @@
 use super::{SessionService, chat_rows as rows, now, require_row_in_session, require_session};
 use crate::{Result, domain::*, error::validation};
-use rusqlite::params;
+use rusqlite::{Connection, params};
 
 impl SessionService {
     pub fn begin_record_chat(&self, request: BeginRecordChatRequest) -> Result<ChatState> {
         self.database.with_immediate_tx(|tx| {
-            let owner = ConversationOwner::Record { session_id: request.session_id.clone(), record: request.record.clone() };
-            let exists: bool = tx.query_row("SELECT EXISTS(SELECT 1 FROM chat_drafts WHERE id=?1)", [&request.draft_id], |r| r.get(0))?;
-            if exists {
-                let chat = rows::read(tx, &request.draft_id)?;
-                if chat.owner != owner { return Err(validation("Launch ID belongs to another conversation owner")); }
+            let owner = ConversationOwner::Record {
+                session_id: request.session_id.clone(),
+                record: request.record.clone(),
+            };
+            if let Some(chat) = replayed(tx, &request.draft_id, &owner)? {
                 return Ok(chat);
             }
-            uuid::Uuid::parse_str(&request.draft_id).map_err(|_| validation("Conversation launch ID must be a UUID"))?;
-            require_session(tx, &request.session_id)?;
+            launchable(tx, &request.draft_id, &request.session_id)?;
             let (kind, record_id) = request.record.stored();
             rows::text("Conversation record ID", record_id, false)?;
-            let table = if kind == "finding" { "findings" } else { "drafts" };
-            require_row_in_session(tx, table, record_id, &request.session_id, "Conversation record must belong to the Session")?;
+            let table = if kind == "finding" {
+                "findings"
+            } else {
+                "drafts"
+            };
+            require_row_in_session(
+                tx,
+                table,
+                record_id,
+                &request.session_id,
+                "Conversation record must belong to the Session",
+            )?;
             if kind == "test_cases_draft" {
-                let stored_kind: String = tx.query_row("SELECT kind FROM drafts WHERE id=?1", [record_id], |r| r.get(0))?;
-                if stored_kind != DraftKind::Testware.as_str() { return Err(validation("Only Test cases drafts can own a record conversation")); }
+                let stored_kind: String =
+                    tx.query_row("SELECT kind FROM drafts WHERE id=?1", [record_id], |r| {
+                        r.get(0)
+                    })?;
+                if stored_kind != DraftKind::Testware.as_str() {
+                    return Err(validation(
+                        "Only Test cases drafts can own a record conversation",
+                    ));
+                }
             }
-            tx.execute("INSERT INTO chat_drafts (id,session_id,owner_kind,owner_record_id,mode,created_at) VALUES (?1,?2,?3,?4,'chat',?5)", params![request.draft_id,request.session_id,kind,record_id,now()])?;
-            rows::touch_activity(tx, &request.draft_id)?;
-            rows::read(tx, &request.draft_id)
+            insert(tx, &request.draft_id, &request.session_id, kind, record_id)
+        })
+    }
+
+    /// Begins the read-only conversation about one test run of the Session.
+    pub fn begin_test_run_chat(&self, request: BeginTestRunChatRequest) -> Result<ChatState> {
+        self.database.with_immediate_tx(|tx| {
+            let owner = ConversationOwner::TestRun {
+                session_id: request.session_id.clone(),
+                run_id: request.run_id.clone(),
+            };
+            if let Some(chat) = replayed(tx, &request.draft_id, &owner)? {
+                return Ok(chat);
+            }
+            launchable(tx, &request.draft_id, &request.session_id)?;
+            super::test_run_report::require_run(tx, &request.session_id, &request.run_id)?;
+            insert(
+                tx,
+                &request.draft_id,
+                &request.session_id,
+                "test_run",
+                &request.run_id,
+            )
         })
     }
 
@@ -112,4 +148,45 @@ impl SessionService {
         }
         Ok(history)
     }
+}
+
+/// The conversation a repeated launch already created, when its owner is the same.
+fn replayed(
+    tx: &Connection,
+    draft_id: &str,
+    owner: &ConversationOwner,
+) -> Result<Option<ChatState>> {
+    let exists: bool = tx.query_row(
+        "SELECT EXISTS(SELECT 1 FROM chat_drafts WHERE id=?1)",
+        [draft_id],
+        |r| r.get(0),
+    )?;
+    if !exists {
+        return Ok(None);
+    }
+    let chat = rows::read(tx, draft_id)?;
+    if chat.owner != *owner {
+        return Err(validation(
+            "Launch ID belongs to another conversation owner",
+        ));
+    }
+    Ok(Some(chat))
+}
+
+fn launchable(tx: &Connection, draft_id: &str, session_id: &str) -> Result<()> {
+    uuid::Uuid::parse_str(draft_id)
+        .map_err(|_| validation("Conversation launch ID must be a UUID"))?;
+    require_session(tx, session_id)
+}
+
+fn insert(
+    tx: &Connection,
+    draft_id: &str,
+    session_id: &str,
+    kind: &str,
+    owner_id: &str,
+) -> Result<ChatState> {
+    tx.execute("INSERT INTO chat_drafts (id,session_id,owner_kind,owner_record_id,mode,created_at) VALUES (?1,?2,?3,?4,'chat',?5)", params![draft_id, session_id, kind, owner_id, now()])?;
+    rows::touch_activity(tx, draft_id)?;
+    rows::read(tx, draft_id)
 }

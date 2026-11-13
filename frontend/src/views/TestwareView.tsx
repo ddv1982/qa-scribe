@@ -1,6 +1,7 @@
 import type { RecordChatActions } from '../app/sessionChat.context'
 import type { RecordCreationCommands } from './RecordCreationActions'
 import { Box } from 'lucide-react'
+import { useEffect, useRef } from 'react'
 import { Badge } from '../components/Badge'
 import type { RichEditorImageUpload } from '../editor/RichTextEditor'
 import { testwareGenerationSummary } from '../testware/generationPreferences'
@@ -96,6 +97,7 @@ export function TestwareView({
   onUploadImage: (input: RichEditorImageUpload, recordId: string) => void | Promise<void>
 }) {
   const testRuns = useTestRuns(sessionId)
+  useShownTestRun(recordChat, sessionId, testRuns)
   const runsOf = (draftId: string) => testRuns.summaries.filter((summary) => summary.draftId === draftId)
   return (
     <RecordCollectionView
@@ -137,7 +139,8 @@ export function TestwareView({
         <TestRunView open={testRuns.open} draftRuns={runsOf(draft.id)} error={testRuns.error}
           onCreateFinding={onCreateFinding} onOpenFinding={onOpenFinding}
           onSelectRun={(runId) => void testRuns.openRun(runId, draft.id)} onBack={testRuns.close}
-          onDelete={testRuns.deleteRun} onChangeCase={testRuns.changeCase} />
+          onDelete={testRuns.deleteRun} onChangeCase={testRuns.changeCase}
+          askAi={recordChat?.onAskAiRun ? { expanded: recordChat.openRunId === testRuns.open.runId, onOpen: recordChat.onAskAiRun } : undefined} />
       ) : null}
       onSelectedRecordChange={testRuns.keepForDraft}
       busyActionFor={(draft, kind) => {
@@ -157,6 +160,22 @@ export function TestwareView({
       onUploadImage={onUploadImage}
     />
   )
+}
+
+/** Tells Ask AI which test run the run screen shows, so its panel names the run and closes when the run leaves. */
+function useShownTestRun(recordChat: RecordChatActions | undefined, sessionId: string | null, testRuns: ReturnType<typeof useTestRuns>) {
+  const show = useRef(recordChat?.onShowRun)
+  useEffect(() => { show.current = recordChat?.onShowRun })
+  const { open, openRun } = testRuns
+  const runId = open?.runId ?? null
+  const draftId = open?.draftId ?? null
+  const draftTitle = open?.run?.draftTitle ?? null
+  const createdAt = open?.run?.createdAt ?? null
+  const error = open?.error ?? null
+  useEffect(() => {
+    show.current?.(sessionId && runId && draftId ? { sessionId, runId, draftTitle, createdAt, error, retry: () => void openRun(runId, draftId) } : null)
+  }, [sessionId, runId, draftId, draftTitle, createdAt, error, openRun])
+  useEffect(() => () => show.current?.(null), [])
 }
 
 function TestwareGenerationBadges({ draft }: { draft: Draft }) {

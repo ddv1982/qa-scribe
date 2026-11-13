@@ -18,7 +18,7 @@ export function codexAppServer(argv) {
   const routingFixture = ['ask-ai-conversation-routing.e2e.mjs', 'ask-ai-conversation-isolation.e2e.mjs'].includes(process.env.QA_SCRIBE_E2E_SPEC)
   const jiraFixture = process.env.QA_SCRIBE_E2E_SPEC === 'ask-ai-jira-draft.e2e.mjs'
   const refinementFixture = process.env.QA_SCRIBE_E2E_SPEC === 'ask-ai-refinement.e2e.mjs'
-  const contextFixture = process.env.QA_SCRIBE_E2E_SPEC === 'ask-ai-context.e2e.mjs'
+  const contextFixture = ['ask-ai-context.e2e.mjs', 'ask-ai-test-run.e2e.mjs'].includes(process.env.QA_SCRIBE_E2E_SPEC)
   const images = process.env.QA_SCRIBE_E2E_CHAT_IMAGES === '1' || contextFixture || refinementFixture || jiraFixture || routingFixture
   const scope = () => ({ threadId, turnId })
   const complete = (text, emittedPrefix = 0) => {

@@ -255,7 +255,7 @@ fn validate_cases(cases: Vec<TestRunCaseDraft>) -> Result<Vec<TestRunCaseDraft>>
     Ok(cases)
 }
 
-fn test_run(connection: &Connection, run_id: &str) -> Result<TestRun> {
+pub(super) fn test_run(connection: &Connection, run_id: &str) -> Result<TestRun> {
     let mut run = connection
         .query_row(
             "SELECT id, session_id, draft_id, draft_title, created_at, updated_at

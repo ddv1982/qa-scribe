@@ -35,6 +35,8 @@ mod preparation_tests;
 #[cfg(test)]
 mod question_tests;
 mod runner;
+#[cfg(test)]
+mod test_run_preparation_tests;
 mod transport;
 
 fn apply_chat_permission_decision(
@@ -248,6 +250,15 @@ pub fn begin_record_chat(
     request: BeginRecordChatRequest,
 ) -> Result<ChatState, CommandError> {
     state.with_service(|service| service.begin_record_chat(request))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn begin_test_run_chat(
+    state: State<'_, AppState>,
+    request: BeginTestRunChatRequest,
+) -> Result<ChatState, CommandError> {
+    state.with_service(|service| service.begin_test_run_chat(request))
 }
 
 #[tauri::command]

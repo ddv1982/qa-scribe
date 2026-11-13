@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-begin-test-run-chat"
+description = "Enables the begin_test_run_chat command without any pre-configured scope."
+commands.allow = ["begin_test_run_chat"]
+
+[[permission]]
+identifier = "deny-begin-test-run-chat"
+description = "Denies the begin_test_run_chat command without any pre-configured scope."
+commands.deny = ["begin_test_run_chat"]

@@ -24,6 +24,7 @@ export const commands = {
 	retryAttachmentCleanup: () => __TAURI_INVOKE<AttachmentCleanupStatus>("retry_attachment_cleanup"),
 	getChat: (sessionId: string) => __TAURI_INVOKE<ChatState>("get_chat", { sessionId }),
 	beginRecordChat: (request: BeginRecordChatRequest) => __TAURI_INVOKE<ChatState>("begin_record_chat", { request }),
+	beginTestRunChat: (request: BeginTestRunChatRequest) => __TAURI_INVOKE<ChatState>("begin_test_run_chat", { request }),
 	getConversation: (reference: ChatRef) => __TAURI_INVOKE<ChatState>("get_conversation", { reference }),
 	activateConversation: (reference: ChatRef) => __TAURI_INVOKE<ChatState>("activate_conversation", { reference }),
 	listChatHistory: (scope: ChatHistoryScope) => __TAURI_INVOKE<ChatHistoryEntry[]>("list_chat_history", { scope }),
@@ -154,6 +155,12 @@ export type BeginRecordChatRequest = {
 	sessionId: string,
 	draftId: string,
 	record: ConversationRecord,
+};
+
+export type BeginTestRunChatRequest = {
+	sessionId: string,
+	draftId: string,
+	runId: string,
 };
 
 export type ChatAnswer = {
@@ -330,7 +337,9 @@ export type CommitCreationSave = {
 	sharedAttachmentIds: string[],
 };
 
-export type ConversationOwner = { kind: "notes"; sessionId: string } | { kind: "record"; sessionId: string; record: ConversationRecord };
+export type ConversationOwner = { kind: "notes"; sessionId: string } | { kind: "record"; sessionId: string; record: ConversationRecord } | 
+/**  A read-only conversation about one test run: it never proposes a change. */
+{ kind: "test_run"; sessionId: string; runId: string };
 
 export type ConversationRecord = { kind: "finding"; recordId: string } | { kind: "test_cases_draft"; recordId: string };
 

@@ -46,6 +46,7 @@ fn main() {
         "cancel_ai_action_job",
         "get_chat",
         "begin_record_chat",
+        "begin_test_run_chat",
         "get_conversation",
         "activate_conversation",
         "list_chat_history",

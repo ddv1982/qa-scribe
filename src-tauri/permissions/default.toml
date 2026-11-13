@@ -44,6 +44,7 @@ permissions = [
   "allow-cancel-ai-action-job",
   "allow-get-chat",
   "allow-begin-record-chat",
+  "allow-begin-test-run-chat",
   "allow-get-conversation",
   "allow-activate-conversation",
   "allow-list-chat-history",

@@ -39,7 +39,7 @@ impl ChatInputMessage {
 
 #[derive(Clone, Debug)]
 pub struct ChatInput {
-    instructions: String,
+    pub(super) instructions: String,
     messages: Vec<ChatInputMessage>,
 }
 

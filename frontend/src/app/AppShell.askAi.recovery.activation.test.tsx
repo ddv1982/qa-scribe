@@ -58,7 +58,7 @@ it.each(['close', 'session', 'newer'])('late missing-source activation cannot ov
     fireEvent.click(within(list).getByRole('button', { name: /Visible C/ }))
     await waitFor(() => expect(controller.askAi.visible).toBe(false))
     fireEvent.click(screen.getByRole('button', { name: 'Ask AI' }))
-    await waitFor(() => expect(controller.askAi.panel?.owner.record.recordId).toBe('session-1-C'))
+    await waitFor(() => expect(controller.askAi.panel?.owner).toMatchObject({ record: { recordId: 'session-1-C' } }))
     await screen.findByRole('textbox', { name: 'Message' })
     newer = controller.askAi.reference
     fireEvent.change(screen.getByRole('textbox', { name: 'Message' }), { target: { value: 'Literal C newer input' } })
@@ -69,7 +69,7 @@ it.each(['close', 'session', 'newer'])('late missing-source activation cannot ov
   if (action === 'newer') {
     expect(controller.askAi.visible).toBe(true)
     expect(controller.askAi.reference).toEqual(newer)
-    expect(controller.askAi.panel?.owner.record.recordId).toBe('session-1-C')
+    expect(controller.askAi.panel?.owner).toMatchObject({ record: { recordId: 'session-1-C' } })
     expect(screen.getByRole('textbox', { name: 'Message' })).toHaveValue('Literal C newer input')
     const previousRef = api.beginRecordChat.mock.calls[0][0] as BeginRecordChatRequest
     expect(controller.conversations.bind(previousRef).snapshot().composer).toBe('Literal B previous input')

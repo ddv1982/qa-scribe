@@ -72,7 +72,7 @@ export function useAppControllerNavigation(ctx: AppControllerNavigationContext) 
     if (!current()) return false
     const savedInput = await ctx.chat.flush()
     if ((!savedInput && !recoverInput) || !current()) return false
-    const view = owner.kind === 'notes' ? 'sessions' : owner.record.kind === 'finding' ? 'findings' : 'testware'
+    const view = owner.kind === 'notes' ? 'sessions' : owner.kind === 'record' && owner.record.kind === 'finding' ? 'findings' : 'testware'
     if (preserveEditor && ctx.activeView === view) {
       const accepted = reveal ? await reveal() : true
       return accepted && current()
