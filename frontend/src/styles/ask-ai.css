@@ -11,8 +11,9 @@
 .session-document-area { flex: 1; min-width: 0; min-height: 0; overflow: auto; container: note-column / inline-size; }
 .session-document-area:has(> .collection-view) { overflow: hidden; }
 .session-document-area > .collection-view { height: 100%; min-height: 0; overflow: auto; }
-.session-document-area[hidden], .ask-ai-panel[hidden] { display: none; }
-.ask-ai-panel {
+.session-document-area[hidden], .side-panel[hidden] { display: none; }
+/* A panel on the right of the document area: Ask AI, or the Note beside a new draft (session-content--side-panel). */
+.side-panel {
   display: flex;
   flex: 0 0 min(44%, 490px);
   flex-direction: column;
@@ -22,8 +23,8 @@
   border-left: 1px solid var(--border-subtle);
   background: var(--surface-panel);
 }
-.ask-ai-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-3) var(--space-4); }
-.ask-ai-header h2 { margin: 0; font-size: var(--font-size-lg); }
+.side-panel-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-3) var(--space-4); }
+.side-panel-header h2 { margin: 0; font-size: var(--font-size-lg); }
 .ask-ai-header-actions { display: flex; align-items: center; gap: var(--space-2); }
 
 /* Conversation options: one icon in the header that opens model choice and AI setup. */
@@ -76,19 +77,20 @@
 .ask-ai-panel .chat-buttons { flex-wrap: wrap; }
 .ask-ai-panel textarea { max-height: 160px; }
 .session-content--notes-chat .session-workspace { padding-inline: var(--space-4); }
-.session-content--record-chat .record-master-list { display: none; }
-/* The list is already folded away beside Ask AI, so its toggle would do nothing. */
-.session-content--record-chat .record-list-toggle { display: none; }
-.session-content--record-chat .collection-workspace { grid-template-columns: minmax(0, 1fr); }
+.session-content--side-panel .record-master-list { display: none; }
+/* The list is already folded away beside the panel, so its toggle would do nothing. */
+.session-content--side-panel .record-list-toggle { display: none; }
+.session-content--side-panel .collection-workspace { grid-template-columns: minmax(0, 1fr); }
 /* Beside the panel the row is narrow: the create action drops under the search and sort instead of covering them. */
-.session-content--record-chat .collection-header { flex-wrap: wrap; }
-.session-content--record-chat .collection-header > .collection-toolbar { min-width: 0; }
-.session-content--record-chat .collection-toolbar { display: flex; flex-wrap: wrap; }
-.session-content--record-chat .collection-search { flex: 1 1 180px; min-width: 0; }
-.session-content--record-chat .collection-toolbar > p { flex-basis: 100%; }
+.session-content--side-panel .collection-header { flex-wrap: wrap; }
+.session-content--side-panel .collection-header > .collection-toolbar { min-width: 0; }
+.session-content--side-panel .collection-toolbar { display: flex; flex-wrap: wrap; }
+.session-content--side-panel .collection-search { flex: 1 1 180px; min-width: 0; }
+.session-content--side-panel .collection-toolbar > p { flex-basis: 100%; }
+/* A narrow workspace has no room beside the panel: it covers the document area until closed (CreationNotePanel measures the same width). */
 @container (max-width: 850px) {
-  :is(.session-content--record-chat, .session-content--notes-chat) .session-document-area { display: none; }
-  :is(.session-content--record-chat, .session-content--notes-chat) .ask-ai-panel { flex: 1; min-width: 0; border-left: 0; }
+  :is(.session-content--side-panel, .session-content--notes-chat) .session-document-area { display: none; }
+  :is(.session-content--side-panel, .session-content--notes-chat) .side-panel { flex: 1; min-width: 0; border-left: 0; }
 }
 @container session-workspace (max-height: 680px) {
   .ask-ai-header > p, .chat-context-card p:not([role="alert"]) { display: none; }

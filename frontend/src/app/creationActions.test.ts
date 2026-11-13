@@ -375,7 +375,7 @@ it.each([
 describe('a Finding created from a test case', () => {
   const seed = { title: 'Pay with a gift card', document: richEditorDocumentFromHtml('<h3>Steps to reproduce</h3><p>Pay</p>'), testCaseId: 'case-1' }
 
-  it('opens prefilled and asks before closing, like any authored draft', async () => {
+  it('opens with seeded content and asks before closing, like any authored draft', async () => {
     const { actions } = setup()
     await actions.open('finding', () => true, false, seed)
     expect(actions.current()).toMatchObject({ kind: 'finding', title: seed.title, document: seed.document, testCaseId: 'case-1', phase: { state: 'editing' } })

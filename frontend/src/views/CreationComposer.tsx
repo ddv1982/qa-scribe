@@ -15,13 +15,16 @@ import type { ClipboardSnapshot, CopyState } from '../app/copyActions'
 import { CopyControls } from './RichRecordView'
 import { creationFormatForId, creationFormatHint, creationFormatId, creationFormatOptions, type CreationFormat } from '../app/creationFormats'
 
-export function CreationComposer({ intent, actions, copyState, onCopy, fields, source }: {
+export function CreationComposer({ intent, actions, copyState, onCopy, fields, generate, headerAction }: {
   intent: CreationIntent
   actions: CreationActions
   copyState: CopyState
   onCopy: (snapshot: ClipboardSnapshot) => Promise<void>
   fields?: ReactNode
-  source?: ReactNode
+  /** Generate with AI, first in the action row. */
+  generate?: ReactNode
+  /** A quiet icon after Copy, such as Show Note. */
+  headerAction?: ReactNode
 }) {
   const titleRef = useRef<HTMLInputElement>(null)
   useEffect(() => { titleRef.current?.focus() }, [intent.id])
@@ -58,8 +61,10 @@ export function CreationComposer({ intent, actions, copyState, onCopy, fields, s
     <header className="record-title-row">
       <div className="record-heading-row"><h2 className="record-title">New {intent.kind === 'finding' ? 'finding' : 'test cases'}</h2><span>{intent.phase.state === 'saved' ? 'Saved result, opening for review' : intent.phase.state === 'committed-deleted' ? 'Saved result was deleted' : 'Draft, not saved yet'}</span></div>
       <CopyControls snapshot={{ target: { kind: intent.kind === 'finding' ? 'finding' : 'draft', sessionId: intent.sessionId, id: intent.id, action: 'jira-text' }, title: intent.title, bodyHtml: html }} label={intent.title || 'draft'} copyState={copyState} onCopy={onCopy} screenshotCount={screenshotCount} />
+      {headerAction}
     </header>
     <div className="record-actions">
+      {generate}
       <ActionButton variant="quiet" icon={X} disabled={intent.phase.state === 'saving' || intent.phase.state === 'discarding'} onClick={() => void actions.settle()}>Cancel</ActionButton>
       <ActionButton variant="primary" icon={Save} loading={intent.phase.state === 'saving'} disabled={!intent.title.trim() || readingImages || failedImages.length > 0 || !['editing', 'uncertain', 'saved'].includes(intent.phase.state)} onClick={() => void actions.save()}>{intent.phase.state === 'uncertain' ? 'Retry Save' : intent.phase.state === 'saved' ? 'Open saved result' : `Save ${intent.kind === 'finding' ? 'finding' : 'test cases'}`}</ActionButton>
     </div>
@@ -74,7 +79,6 @@ export function CreationComposer({ intent, actions, copyState, onCopy, fields, s
     {failedImages.length ? <div role="alert">{failedImages.map((operation, index) => <p key={index}>{operation.state === 'failed' ? operation.message : ''}</p>)}
       <ActionButton variant="quiet" disabled={locked} onClick={actions.dismissImageFailures}>Continue without failed images</ActionButton>
     </div> : null}
-    {source}
   </article>
 }
 

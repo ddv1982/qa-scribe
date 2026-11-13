@@ -33,7 +33,7 @@ import { useAttachmentCleanup } from './useAttachmentCleanup'
 import { useSummaryRecovery } from './useSummaryRecovery'
 import { captureAvailableRecordContext } from './conversationPresentation'
 import { useSessionChat } from './useSessionChat'
-import { prefilledFindingFromTestCase } from '../workflows/prefillTemplates'
+import { findingFromTestCase } from '../findings/fromTestCase'
 import type { TestRunCase } from '../tauri'
 export { mergeRecordLists } from './useRecordHydration'
 export function useAppController() {
@@ -244,7 +244,7 @@ export function useAppController() {
     handleManualFinding: () => requestCreation('findings', (epoch) => creation.open('finding', () => sessionActions.sessionNavigationIsCurrent(epoch))),
     handleManualTestware: () => requestCreation('testware', (epoch) => creation.open('testware', () => sessionActions.sessionNavigationIsCurrent(epoch))),
     handleFindingFromTestCase: (testCase: TestRunCase) => requestCreation('findings', (epoch) => creation.open('finding', () => sessionActions.sessionNavigationIsCurrent(epoch), false,
-      { title: testCase.title, document: prefilledFindingFromTestCase(testCase), testCaseId: testCase.id })),
+      { title: testCase.title, document: findingFromTestCase(testCase), testCaseId: testCase.id })),
     openSessionFinding: (findingId: string) => applyNavigationRoute({ kind: 'session', sessionId: activeSession?.id ?? null, view: 'findings', recordId: findingId }),
     ...sessionActions,
     ...outputLibraries,

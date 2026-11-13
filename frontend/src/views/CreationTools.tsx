@@ -2,10 +2,10 @@ import { createPortal } from 'react-dom'
 import { customModelCatalogAdvisory } from '../settings/modelAdvisories'
 import { CreationComposer } from './CreationComposer'
 import { FindingFields } from './FindingsView'
-import { useRef, useState, type ReactNode } from 'react'
-import { FileText, Sparkles } from 'lucide-react'
+import { ShowNoteButton } from './CreationNotePanel'
+import { useRef, useState } from 'react'
+import { Sparkles } from 'lucide-react'
 import { ActionButton } from '../components/ActionButton'
-import { Dialog } from '../components/Dialog'
 import { Field } from '../components/Field'
 import { ModelCombobox } from '../components/ModelSelector'
 import { RichTextEditor } from '../editor/RichTextEditor'
@@ -18,22 +18,16 @@ import { creationIsAuthored, type CreationIntent } from '../app/creationIntent'
 import type { AppController } from '../app/useAppController'
 import type { AiProvider, AppSettings } from '../tauri'
 
-export function CreationTools({ intent, c }: { intent: CreationIntent; c: AppController }) {
-  const [mode, setMode] = useState<'prefill' | 'ai' | null>(intent.setup)
+/** "Generate with AI" in the draft's action row, and its setup dialog. The Note it uses shows beside the draft. */
+export function GenerateWithAi({ intent, c }: { intent: CreationIntent; c: AppController }) {
+  const [open, setOpen] = useState(intent.setup === 'ai')
   const [confirming, setConfirming] = useState(false)
-  const prefillConfirmation = useRef<symbol | null>(null)
-  function cancelPrefill() {
-    prefillConfirmation.current = null
-    c.creation.cancelPrefill()
-    setConfirming(false)
-    setMode(null)
-  }
-  const generateTriggerRef = useRef<HTMLButtonElement>(null)
-  function cancelAiSetup() {
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  function cancel() {
     if (confirming) void c.creation.cancelGeneration()
-    setMode(null)
+    setOpen(false)
     requestAnimationFrame(() => {
-      const trigger = generateTriggerRef.current
+      const trigger = triggerRef.current
       if (trigger && !trigger.disabled) trigger.focus()
       else trigger?.closest('.creation-composer')?.querySelector<HTMLInputElement>('input')?.focus()
     })
@@ -41,7 +35,7 @@ export function CreationTools({ intent, c }: { intent: CreationIntent; c: AppCon
   const [selection, setSelection] = useState({ provider: c.selectedProvider, model: c.selectedModel, reasoning: c.selectedReasoningEffort })
   const provider = c.providerStatus?.providers.find((candidate) => candidate.id === selection.provider) ?? null
   const settings = c.settingsDraft
-  if (!settings) return <p role="status">Loading creation setup…</p>
+  if (!settings) return <ActionButton icon={Sparkles} disabled>Generate with AI</ActionButton>
   const localSettings: AppSettings = { ...settings, selectedAiProvider: selection.provider,
     selectedAiModelsByProvider: { ...settings.selectedAiModelsByProvider, [selection.provider]: selection.model === 'default' ? null : selection.model },
     selectedAiReasoningEffortsByProvider: { ...settings.selectedAiReasoningEffortsByProvider, [selection.provider]: selection.reasoning } }
@@ -51,34 +45,14 @@ export function CreationTools({ intent, c }: { intent: CreationIntent; c: AppCon
   const ready = Boolean(intent.source) && !c.noteReadOnly
   const imagesReady = Object.keys(intent.imageOperations).length === 0
   const locked = intent.phase.state !== 'editing'
-  function openSetup(next: 'prefill' | 'ai') { c.setError(null); setMode(next) }
-  const reviewedSource = intent.source ? <section className="creation-source-review" aria-label="Reviewed Note source">
-    <h3>Source Note</h3><p>{intent.source.entry.title || c.sessionTitle} · Revision {intent.source.revision}</p>
-    <RichTextEditor value={richEditorDocumentFromHtml(intent.source.entry.body)} readOnly ariaLabel="Reviewed Note content" />
-  </section> : <p role="status">{intent.sourceNoteId ? 'Read the latest saved Note before continuing.' : 'This Session has no Note. You can still write and save this draft.'}</p>
-  const source = <>{c.error ? <p className="inline-message blocking" role="alert">{c.error}</p> : null}{reviewedSource}</>
-  return <section className="creation-tools" aria-label="Optional Note content and AI">
-    <h3>Start with your Note, if useful</h3>
-    <p>Ordinary writing works without AI. Source actions use the latest saved Note.</p>
-    <div className="creation-source-actions">
-      <ActionButton icon={FileText} disabled={locked || !ready || !imagesReady} onClick={() => openSetup('prefill')}>Prefill from note</ActionButton>
-      <ActionButton ref={generateTriggerRef} icon={Sparkles} disabled={locked || !ready || !imagesReady} onClick={() => openSetup('ai')}>Generate with AI</ActionButton>
-      {!ready && intent.sourceNoteId ? <ActionButton variant="quiet" disabled={locked} onClick={() => void c.creation.reviewSource()}>Read source Note</ActionButton> : null}
-    </div>
-    {c.noteReadOnly ? <p role="status">Recover the Session Note before using it as a source. Ordinary writing remains available.</p> : !ready ? source : null}
-    {mode === 'prefill' ? <PrefillReview source={source} authored={authored} finding={intent.kind === 'finding'} busy={confirming}
-      onCancel={cancelPrefill} onConfirm={() => {
-        if (prefillConfirmation.current) return
-        const confirmation = Symbol('prefill-confirmation')
-        prefillConfirmation.current = confirmation
-        setConfirming(true)
-        void c.creation.prefill().then((applied) => { if (prefillConfirmation.current === confirmation && applied) setMode(null) }).finally(() => {
-          if (prefillConfirmation.current !== confirmation) return
-          prefillConfirmation.current = null
-          setConfirming(false)
-        })
-      }} /> : null}
-    {mode === 'ai' ? createPortal(<GenerationPreflight action={intent.kind} initialOutputFormat={intent.format.kind === 'testware' ? intent.format.outputFormat : undefined} sourceReview={source}
+  const sourceReview = <>{c.error ? <p className="inline-message blocking" role="alert">{c.error}</p> : null}
+    {intent.source ? <section className="creation-source-review" aria-label="Reviewed Note source">
+      <h3>Source Note</h3><p>{intent.source.entry.title || c.sessionTitle} · Revision {intent.source.revision}</p>
+      <RichTextEditor value={richEditorDocumentFromHtml(intent.source.entry.body)} readOnly ariaLabel="Reviewed Note content" />
+    </section> : null}</>
+  return <>
+    <ActionButton ref={triggerRef} icon={Sparkles} disabled={locked || !ready || !imagesReady} onClick={() => { c.setError(null); setOpen(true) }}>Generate with AI</ActionButton>
+    {open ? createPortal(<GenerationPreflight action={intent.kind} initialOutputFormat={intent.format.kind === 'testware' ? intent.format.outputFormat : undefined} sourceReview={sourceReview}
       disclosure={authored ? 'Success immediately saves one AI result, closes this draft, and discards its unsaved text and local images. Cancellation or failure keeps this exact draft.' : 'Success immediately saves one AI result. No blank record is saved first.'}
       confirmLabel={authored ? 'Generate and replace draft' : 'Generate'} isBusy={confirming}
       activeProviderAvailable={Boolean(provider?.available)} activeProviderLabel={provider?.label ?? selection.provider}
@@ -86,7 +60,7 @@ export function CreationTools({ intent, c }: { intent: CreationIntent; c: AppCon
       noteScreenshotCount={intent.source ? new DOMParser().parseFromString(intent.source.entry.body, 'text/html').querySelectorAll('img').length : 0}
       selectedModel={execution.model} selectedReasoning={execution.reasoning} modelOrigin={execution.modelOrigin} reasoningOrigin={execution.reasoningOrigin}
       delegatesModel={execution.delegatesModel} delegatesReasoning={execution.delegatesReasoning} executionSummary={execution.runtimeSummary}
-      selectionWarning={!imagesReady ? 'Finish adding images or continue without failed images before generating.' : c.noteReadOnly ? 'Recover the Session Note before using it as a source.' : !ready ? (intent.sourceNoteId ? 'Read the source Note before generating.' : 'This Session has no Note to generate from.') : execution.warning ?? provider?.defaultSnapshot.warnings.find((warning) => warning.severity === 'blocking')?.message}
+      selectionWarning={!imagesReady ? 'Finish adding images or continue without failed images before generating.' : c.noteReadOnly ? 'Recover the Session Note before using it as a source.' : !ready ? (intent.sourceNoteId ? 'Wait for the Note to show beside the draft before generating.' : 'This Session has no Note to generate from.') : execution.warning ?? provider?.defaultSnapshot.warnings.find((warning) => warning.severity === 'blocking')?.message}
       selectionAdvisories={[...execution.advisories.map((warning) => warning.message), ...(customAdvisory ? [customAdvisory] : [])]}
       modelSelectionControl={<>
         <p>These choices apply only to this generation. Settings defaults stay as saved.</p>
@@ -97,31 +71,22 @@ export function CreationTools({ intent, c }: { intent: CreationIntent; c: AppCon
           <option value="">CLI default</option><option value="model-recommended">Model recommendation</option>{reasoningEffortsFor(provider).map((effort) => <option key={effort} value={effort}>{effort}</option>)}
         </select></Field>
       </>}
-      onConfigureAi={() => { setMode(null); c.openSettingsSection('ai-execution-settings') }} onCancel={cancelAiSetup}
+      onConfigureAi={() => { setOpen(false); c.openSettingsSection('ai-execution-settings') }} onCancel={cancel}
       onConfirm={(preferences) => {
         if (confirming || !ready) return
         setConfirming(true)
         void c.creation.generate({ selectedProvider: selection.provider, selectedModel: selection.model,
           selectedReasoningEffort: executionReasoningOverride(localSettings, provider) }, preferences)
-          .then((started) => { if (started) setMode(null) }).finally(() => setConfirming(false))
+          .then((started) => { if (started) setOpen(false) }).finally(() => setConfirming(false))
       }} />, document.body) : null}
-  </section>
+  </>
 }
 
-function PrefillReview({ source, authored, finding, busy, onCancel, onConfirm }: {
-  source: ReactNode; authored: boolean; finding: boolean; busy: boolean; onCancel: () => void; onConfirm: () => void
-}) {
-  return <Dialog portal className="generation-preflight" headerClassName="preflight-header" titleId="prefill-title" title="Use this Note content?" onCancel={onCancel}
-    description={<p>Prefill uses plain text without formatting or screenshots.{finding ? ' Only the first 4,000 characters are included.' : ''}{authored ? ' This replaces the text in this unsaved draft.' : ''}</p>}
-    actions={<><ActionButton disabled={busy} onClick={onCancel}>Keep editing</ActionButton><ActionButton variant="primary" loading={busy} onClick={onConfirm}>{authored ? 'Prefill and replace draft' : 'Prefill draft'}</ActionButton></>}>
-    <div className="preflight-body">{source}</div>
-  </Dialog>
-}
-
-export function CreationWorkspace({ c }: { c: AppController }) {
+export function CreationWorkspace({ c, onShowNote }: { c: AppController; onShowNote?: () => void }) {
   const intent = c.creationIntent
   if (!intent) return null
   return <CreationComposer intent={intent} actions={c.creation} copyState={c.copyState} onCopy={c.copy}
-    source={<CreationTools key={intent.id} intent={intent} c={c} />}
+    headerAction={onShowNote ? <ShowNoteButton onShow={onShowNote} /> : undefined}
+    generate={<GenerateWithAi key={intent.id} intent={intent} c={c} />}
     fields={intent.kind === 'finding' ? <FindingFields finding={{ kind: intent.findingKind, metadataJson: intent.metadataJson }} onChange={(patch) => c.creation.update({ ...(patch.kind ? { findingKind: patch.kind } : {}), ...('metadataJson' in patch ? { metadataJson: patch.metadataJson } : {}) })} /> : undefined} />
 }

@@ -2,7 +2,7 @@ import { ActionButton } from '../components/ActionButton'
 import { findingCopyBody } from '../findings/copyBody'
 import { findingSeverityValue } from '../findings/severity'
 import { RecordListToggle } from '../components/RecordListToggle'
-import { useRecordListVisible } from '../hooks/useRecordListVisible'
+import { recordListStorageKey, useRememberedVisible } from '../hooks/useRememberedVisible'
 import { useId, useMemo, useState } from 'react'
 import { ArrowUpRight, BookOpen, Flag, Loader2, Search, SearchX } from 'lucide-react'
 import { EmptyCollection, StatePanel } from '../components/Common'
@@ -69,7 +69,7 @@ export function OutputLibraryView({
   const [kindFilter, setKindFilter] = useState('all')
   const [sort, setSort] = useState<'updated' | 'title' | 'session'>('updated')
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [listVisible, toggleList] = useRecordListVisible()
+  const [listVisible, setListVisible] = useRememberedVisible(recordListStorageKey)
   const listId = useId()
   const isTestware = kind === 'testware'
   const kindLabel = isTestware ? 'Test cases' : 'Findings'
@@ -157,7 +157,7 @@ export function OutputLibraryView({
         ) : null}
         {records.length > 0 ? (
           <div className="collection-toolbar">
-            <RecordListToggle visible={listVisible} listId={listId} onToggle={toggleList} />
+            <RecordListToggle visible={listVisible} listId={listId} onToggle={() => setListVisible(!listVisible)} />
             <label className="collection-search">
               <Search size={16} />
               <span className="sr-only">Search {scopeLabel}</span>

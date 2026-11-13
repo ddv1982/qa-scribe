@@ -127,6 +127,17 @@ describe('Ask AI on a test run', () => {
     await waitFor(() => expect(screen.queryByRole('complementary', { name: 'Ask AI' })).not.toBeInTheDocument())
   })
 
+  it('gives way to the Note while a new draft is open, and returns when the draft closes', async () => {
+    await openRun()
+    await askAi()
+    fireEvent.click(screen.getByRole('button', { name: 'Create test cases' }))
+    await screen.findByRole('complementary', { name: 'Note' })
+    expect(screen.queryByRole('complementary', { name: 'Ask AI' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(await screen.findByRole('complementary', { name: 'Ask AI' })).toBeVisible()
+    expect(screen.queryByRole('complementary', { name: 'Note' })).not.toBeInTheDocument()
+  })
+
   it('starts fresh after a settled close', async () => {
     await openRun()
     await askAi()

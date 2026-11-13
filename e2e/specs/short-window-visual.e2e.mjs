@@ -37,7 +37,7 @@ async function creationGeometry() {
     const controls = [...document.querySelectorAll('.creation-composer button, .creation-composer input:not([type="file"]), .creation-composer select')]
       .filter(node => node.getBoundingClientRect().width > 0)
       .map(node => ({ label: node.getAttribute('aria-label') ?? node.closest('label')?.querySelector('span')?.textContent ?? node.textContent.trim(),
-        aboveBody: !node.closest('.creation-tools'), ...rect(node), hit: node.contains(document.elementFromPoint(node.getBoundingClientRect().x + node.clientWidth / 2,
+        ...rect(node), hit: node.contains(document.elementFromPoint(node.getBoundingClientRect().x + node.clientWidth / 2,
           node.getBoundingClientRect().y + node.clientHeight / 2)) }))
     return { viewport: { width: innerWidth, height: innerHeight }, pageWidth: Math.max(document.body.scrollWidth, document.documentElement.scrollWidth),
       starter: rect(document.querySelector('.creation-composer .rich-editor h3')),
@@ -77,7 +77,7 @@ describe('Short native creation and saved-chat geometry', () => {
         assert.ok(geometry.controls.every(control => control.x >= -1 && control.right <= width + 1), 'Creation controls stay within the page')
         if (width === 1280) {
           if (geometry.starter.y >= height - 40) failures.push(`${appearance} ${width}x${height}: starter begins at ${geometry.starter.y}`)
-          const clipped = geometry.controls.filter(control => control.aboveBody && (!control.hit || control.y < 0 || control.bottom > height))
+          const clipped = geometry.controls.filter(control => !control.hit || control.y < 0 || control.bottom > height)
           if (clipped.length) failures.push(`${appearance} ${width}x${height}: clipped controls ${JSON.stringify(clipped)}`)
         }
       }

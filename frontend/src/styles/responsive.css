@@ -257,6 +257,8 @@
     grid-auto-flow: row;
   }
 
+  .collection-toolbar:not(:has(> .record-list-toggle)) { grid-template-columns: minmax(0, 1fr); }
+
   .collection-toolbar > .collection-sort,
   .collection-toolbar > p {
     grid-column: 1 / -1;

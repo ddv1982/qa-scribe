@@ -14,7 +14,7 @@ import { draftFixture, findingFixture } from '../test/fixtures'
 import { FindingsView } from './FindingsView'
 import type { CreatedRecordEditTarget } from '../app/types'
 import { TestwareView } from './TestwareView'
-import { recordListStorageKey } from '../hooks/useRecordListVisible'
+import { recordListStorageKey } from '../hooks/useRememberedVisible'
 
 describe('scalable record collection', () => {
   const scrollIntoView = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollIntoView')

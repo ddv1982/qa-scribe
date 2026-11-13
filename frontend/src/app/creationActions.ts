@@ -51,17 +51,12 @@ export function createCreationActions(ctx: CreationContext) {
   }
   function update(patch: Partial<Omit<CreationContent, 'format'>>) {
     if (intent?.phase.state !== 'editing') return
-    if ((patch.title !== undefined && patch.title !== intent.title)
-      || ('metadataJson' in patch && patch.metadataJson !== intent.metadataJson)
-      || (patch.findingKind !== undefined && patch.findingKind !== intent.findingKind)
-      || (patch.document && serializeRichEditorDocument(patch.document) !== serializeRichEditorDocument(intent.document))) source.cancelPrefill()
     publish({ ...intent, ...patch })
   }
   function applyFormat(format: CreationFormat, confirmed = false): boolean {
     if (!intent || intent.phase.state !== 'editing' || format.kind !== intent.kind || Object.keys(intent.imageOperations).length) return false
     if (creationFormatId(format) === creationFormatId(intent.format)) return true
     if (creationBodyIsAuthored(intent) && !confirmed) return false
-    source.cancelPrefill()
     publish({ ...intent, format, document: creationStarter(format), metadataJson: withCreationFormatMetadata(intent.metadataJson, format) })
     return true
   }
@@ -123,12 +118,11 @@ export function createCreationActions(ctx: CreationContext) {
   function pasteImage(input: Pick<RichEditorImageUpload, 'editorId' | 'insertImage'>) {
     return stageLocalImage(input, readClipboardImageDataUrl, 'pasted-image.png')
   }
-  async function withSettledImages(action: () => Promise<boolean>, isCurrent: () => boolean = () => true) {
+  async function withSettledImages(action: () => Promise<boolean>) {
     const captured = intent
     if (!captured) return false
     const document = serializeRichEditorDocument(captured.document)
     await Promise.all(staging)
-    if (!isCurrent()) return false
     if (!matches(captured) || !intent || serializeRichEditorDocument(intent.document) !== document) {
       ctx.error('Images finished loading. Review the draft and confirm again.')
       return false
@@ -294,7 +288,7 @@ export function createCreationActions(ctx: CreationContext) {
     if (settled) finishDecision(true)
   }
   const source = createCreationSourceActions({
-    current: () => intent, publish, matches, acceptOutcome, withSettledImages, sourceAllowed: () => ctx.sourceAllowed?.() ?? true,
+    current: () => intent, publish, matches, acceptOutcome, sourceAllowed: () => ctx.sourceAllowed?.() ?? true,
     beginNavigation: () => ctx.beginNavigation(), navigationIsCurrent: (epoch) => ctx.navigationIsCurrent?.(epoch) ?? true,
     error: (message) => ctx.error(message), notice: (message) => ctx.notice?.(message), publishJob: (status) => ctx.publishJob?.(status), finished: () => finishDecision(true),
   })

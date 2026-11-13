@@ -27,9 +27,9 @@ describe('Dialog', () => {
   })
 
   it('keeps a caller-supplied title id and extra classes', () => {
-    render(<Dialog titleId="prefill-title" className="generation-preflight" headerClassName="preflight-header" title="Use this Note?" onCancel={vi.fn()} actions={actions()} />)
+    render(<Dialog titleId="custom-title" className="generation-preflight" headerClassName="preflight-header" title="Use this Note?" onCancel={vi.fn()} actions={actions()} />)
     const heading = screen.getByRole('heading', { name: 'Use this Note?' })
-    expect(heading).toHaveAttribute('id', 'prefill-title')
+    expect(heading).toHaveAttribute('id', 'custom-title')
     expect(heading.parentElement).toHaveClass('preflight-header')
     expect(screen.getByRole('dialog')).toHaveClass('confirmation-dialog', 'generation-preflight')
     expect(screen.getByRole('dialog')).not.toHaveAttribute('aria-describedby')
