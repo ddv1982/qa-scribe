@@ -277,7 +277,7 @@ it('renders each manual testware format without AI and settles untouched selecti
   expect(within(select).getAllByRole('option').map(option => option.textContent)).toEqual(['QA cases', 'Checklist', 'Gherkin', 'Charters', 'Coverage outline'])
   const body = screen.getByRole('textbox', { name: 'Creation draft body' })
   for (const [value, headings] of [
-    ['qa_cases', ['Scenario', 'Test case', 'Purpose', 'Preconditions', 'Test data', 'Steps', 'Expected result', 'Coverage notes']],
+    ['qa_cases', ['Scenario', 'Test case']],
     ['checklist', ['Checklist']],
     ['gherkin', ['Feature', 'Scenario']],
     ['charters', ['Mission', 'Scope', 'Risks', 'Setup and test data', 'Timebox', 'Observations']],

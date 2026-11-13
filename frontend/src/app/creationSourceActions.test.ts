@@ -312,7 +312,7 @@ it('prefills the selected Gherkin structure with escaped source and retains its 
   const { actions } = await opened('testware')
   actions.applyFormat({ kind: 'testware', outputFormat: 'gherkin' })
   expect(await actions.prefill()).toBe(true)
-  expect(richEditorDocumentToHtml(actions.current()!.document)).toBe('<h3>Source note</h3><p>Reviewed exact source</p><h2>Feature</h2><p></p><h3>Scenario</h3><p></p><p><strong>Given</strong></p><p><strong>When</strong></p><p><strong>Then</strong></p>')
+  expect(richEditorDocumentToHtml(actions.current()!.document)).toBe('<p><strong>Source note:</strong> Reviewed exact source</p><h2>Feature</h2><p></p><h3>Scenario</h3><p></p><p><strong>Given</strong></p><p><strong>When</strong></p><p><strong>Then</strong></p>')
   expect(actions.current()?.format).toEqual({ kind: 'testware', outputFormat: 'gherkin' })
   expect(latest.entry.body).toBe('<p>Reviewed exact source</p>')
 })

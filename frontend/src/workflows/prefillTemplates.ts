@@ -3,9 +3,10 @@ import { escapeHtml } from '../editor/htmlUtils'
 import { richEditorDocumentToHtml } from '../editor/editorDocument'
 import { creationStarter, type CreationFormat } from '../app/creationFormats'
 
+/** The Note goes in as a labelled paragraph, not under a heading: a heading would count as a test case. */
 export function renderPrefilledTestware(_title: string, body: string, outputFormat: import('../tauri').TestwareOutputFormat = 'qa_cases'): string {
   const note = stripHtml(body)
-  return `${note ? `<h3>Source note</h3><p>${escapeHtml(note)}</p>` : ''}${richEditorDocumentToHtml(creationStarter({ kind: 'testware', outputFormat }))}`
+  return `${note ? `<p><strong>Source note:</strong> ${escapeHtml(note)}</p>` : ''}${richEditorDocumentToHtml(creationStarter({ kind: 'testware', outputFormat }))}`
 }
 
 export function renderPrefilledFinding(body: string, template: Extract<CreationFormat, { kind: 'finding' }>['template'] = 'structured'): string {

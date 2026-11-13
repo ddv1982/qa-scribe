@@ -3,7 +3,7 @@ import { richEditorDocumentToHtml } from '../editor/editorDocument'
 import { creationFormatForId, creationStarter, hasAuthoredCreationMetadata, withCreationFormatMetadata } from './creationFormats'
 
 const expected = {
-  qa_cases: '<h2>Scenario</h2><h3>Test case</h3><p></p><h3>Purpose</h3><p></p><h3>Preconditions</h3><p></p><h3>Test data</h3><p></p><h3>Steps</h3><ol><li><p></p></li></ol><h3>Expected result</h3><p></p><h3>Coverage notes</h3><p></p>',
+  qa_cases: '<h2>Scenario</h2><h3>Test case</h3><p><strong>Purpose:</strong></p><p><strong>Preconditions:</strong></p><p><strong>Test data:</strong></p><p><strong>Steps:</strong></p><ol><li><p></p></li></ol><p><strong>Expected result:</strong></p><p><strong>Coverage notes:</strong></p>',
   checklist: '<h2>Checklist</h2><ul data-type="taskList"><li data-type="taskItem" data-checked="false"><input type="checkbox"><p></p></li></ul>',
   gherkin: '<h2>Feature</h2><p></p><h3>Scenario</h3><p></p><p><strong>Given</strong></p><p><strong>When</strong></p><p><strong>Then</strong></p>',
   charters: '<h3>Mission</h3><p></p><h3>Scope</h3><p></p><h3>Risks</h3><p></p><h3>Setup and test data</h3><p></p><h3>Timebox</h3><p></p><h3>Observations</h3><p></p>',
