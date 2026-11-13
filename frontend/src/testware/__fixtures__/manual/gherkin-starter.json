@@ -1,0 +1,7 @@
+{
+  "description": "Manual Gherkin from the starter, filled in with one scenario.",
+  "format": "gherkin",
+  "metadataJson": "{\"manualCreationFormat\":{\"version\":1,\"format\":{\"kind\":\"testware\",\"outputFormat\":\"gherkin\"}}}",
+  "bodyHtml": "<h2>Feature: Login lock</h2><p>Accounts lock after repeated failed sign-ins.</p><h3>Scenario: Five failures lock the account</h3><p></p><p><strong>Given</strong> an account with no failed attempts</p><p><strong>When</strong> the tester enters a wrong password five times</p><p><strong>Then</strong> the lock message is shown</p>",
+  "document": {"schemaVersion":1,"doc":{"content":[{"attrs":{"level":2},"content":[{"text":"Feature: Login lock","type":"text"}],"type":"heading"},{"content":[{"text":"Accounts lock after repeated failed sign-ins.","type":"text"}],"type":"paragraph"},{"attrs":{"level":3},"content":[{"text":"Scenario: Five failures lock the account","type":"text"}],"type":"heading"},{"type":"paragraph"},{"content":[{"marks":[{"type":"bold"}],"text":"Given","type":"text"},{"text":" an account with no failed attempts","type":"text"}],"type":"paragraph"},{"content":[{"marks":[{"type":"bold"}],"text":"When","type":"text"},{"text":" the tester enters a wrong password five times","type":"text"}],"type":"paragraph"},{"content":[{"marks":[{"type":"bold"}],"text":"Then","type":"text"},{"text":" the lock message is shown","type":"text"}],"type":"paragraph"}],"type":"doc"}}
+}

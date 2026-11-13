@@ -50,6 +50,15 @@ export function withCreationFormatMetadata(current: string | null, format: Creat
   return JSON.stringify({ ...creationMetadata(current), [creationFormatMetadataKey]: { version: 1, format } })
 }
 
+/** The manual format a record was created with, read back from its metadata; null when unknown. */
+export function manualCreationFormat(current: string | null): CreationFormat | null {
+  const saved = creationMetadata(current)?.[creationFormatMetadataKey] as { format?: Partial<Record<string, unknown>> } | undefined
+  const format = saved?.format
+  if (format?.kind === 'testware' && typeof format.outputFormat === 'string') return creationFormatForId('testware', format.outputFormat)
+  if (format?.kind === 'finding' && typeof format.template === 'string') return creationFormatForId('finding', format.template)
+  return null
+}
+
 export function hasAuthoredCreationMetadata(current: string | null): boolean {
   if (!current) return false
   const metadata = creationMetadata(current)
