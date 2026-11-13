@@ -16,15 +16,15 @@ Open **Settings** and choose **Refresh CLI configuration** after installation or
 
 Installed means the CLI executable responds. Authenticated means the CLI has accepted local credentials. Ready means QA Scribe's current checks passed. Readiness does not guarantee account entitlement, quota, network availability, or success with a selected model.
 
-Choose **Generate with AI** inside a new Finding or test-case draft, choose **Summarize** on Note, or send a Chat message to request AI. Review the context before generation. A status refresh checks configuration and can run CLI probes, but does not request generated output. Opening Help or the synthetic example does not refresh providers.
+Choose **Generate** at the top of a new Finding or test-case draft, choose **Summarize** on Note, or send a Chat message to request AI. Review the context before generation. A status refresh checks configuration and can run CLI probes, but does not request generated output. Opening Help or the synthetic example does not refresh providers.
 
 ## Create with optional AI
 
 Choose **Create finding** or **Create test cases** from Note or the corresponding collection. Both open the same local, unsaved creation flow with shared starter sections. You can write and Save without a provider.
 
-The draft shows the saved Note read-only on the right. That is the source **Generate with AI** uses.
+The draft shows the saved Note read-only on the right. That is the source generation uses.
 
-**Generate with AI** reviews the saved source Note, including its revision, and the selected provider and output choices. Successful generation saves one result immediately and opens it for review. If the draft already has authored work, confirmation is **Generate and replace draft**: success closes the local draft and discards its unsaved text and local images. Cancellation or failure keeps that draft. A changed Note must be reviewed again before it can be used as the source.
+When at least one provider is ready, a **Write** | **Generate** switch sits under the draft heading. **Write** is the draft itself. **Generate** replaces the draft fields with the generation choices: the output choices for test cases, and the provider, model and reasoning under **Execution details**. Generation never fills the draft. Success saves one result immediately and opens it for review. If the draft already has authored work, the action is **Generate and replace draft**: success closes the local draft and discards its unsaved text and local images. Cancellation or failure keeps that draft, and **Write** shows it as you left it. A changed Note must be reviewed again before it can be used as the source. **Create test cases with AI** and **Create finding with AI** in Commands open the draft in **Generate**.
 
 ## Providers
 
@@ -42,7 +42,7 @@ Provider status can be ready, auth required, install required, or error. Provide
 
 Create or open a Session, then select **Ask AI** beside the Note. The conversation opens in the same panel style as Ask AI for Findings and test cases; the Note stays editable alongside it in a wide window. Close the panel to return to the Note in a narrow window. Notes keeps its own conversation, separate from record conversations. Chat uses the same detected, authenticated local provider and model selection as existing Note actions. Send messages explicitly, exchange testing details, and choose **Add conversation to note** when every turn is complete and the composer is empty.
 
-Submission appends the role-labelled conversation to the primary Note, preserves its existing rich content, and closes the Ask AI panel. You can edit it, choose **Create test cases** or **Create finding** and then **Generate with AI** inside the draft, or use **Summarize**. Submission itself makes no AI request.
+Submission appends the role-labelled conversation to the primary Note, preserves its existing rich content, and closes the Ask AI panel. You can edit it, choose **Create test cases** or **Create finding** and then **Generate** at the top of the draft, or use **Summarize**. Submission itself makes no AI request.
 
 Expand **Conversation options** for model selection, provider setup, usage details, or **Start new conversation**. Closing and reopening Notes Ask AI retains its current messages, unsent text, and images.
 

@@ -3,7 +3,7 @@ import { existsSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { ask, close, composer, createReceipt, exact, executions, fill, finish, fixture, manual, managedImageHash, native, notes, panel, pasteImage, recoverExact, reviewScreenshot, selectRecord, selected, start, tab, click } from './ask-ai-isolation-proof.mjs'
 import { resize } from './chat-handoff-proof.mjs'
-import { openCreationAi } from './creation-helpers.mjs'
+import { confirmCreationAi, openCreationAi } from './creation-helpers.mjs'
 
 const { receipt, persist, proof } = createReceipt('initial')
 let session
@@ -24,7 +24,7 @@ async function generate(kind) {
   receipt.generationHydration.push({ kind, existingIds: [...before], detailBeforeGeneration: await $('.record-detail-pane').getText(), entrypoint: 'Visible creation composer, which force-reloads the saved destination' }); persist()
   await openCreationAi(kind === 'finding' ? 'finding' : 'testware')
   const index = executions() + 1
-  await click('dialog button=Generate')
+  await confirmCreationAi()
   await browser.waitUntil(() => existsSync(join(fixture, `codex-exec-${index}.started`)))
   writeFileSync(join(fixture, `codex-exec-${index}.release`), 'Release synthetic generation')
   await $('.creation-composer').waitForExist({ reverse: true })

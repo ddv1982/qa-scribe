@@ -4,7 +4,7 @@ import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { create, fill, fixture, native, out, save, tab } from './composer-proof.mjs'
 import { resize } from './chat-handoff-proof.mjs'
-import { openCreationAi } from './creation-helpers.mjs'
+import { confirmCreationAi, openCreationAi } from './creation-helpers.mjs'
 import { contextResponse } from '../fixtures/ask-ai-context-provider.mjs'
 import { imageFixture } from '../fixtures/chat-images-provider.mjs'
 
@@ -91,7 +91,7 @@ async function generated(kind) {
   await create(kind)
   await openCreationAi(kind)
   const index = count() + 1
-  await click('dialog button=Generate')
+  await confirmCreationAi()
   await browser.waitUntil(() => existsSync(join(fixture, `codex-exec-${index}.started`)))
   writeFileSync(join(fixture, `codex-exec-${index}.release`), 'Release synthetic record generation\n', { flag: 'wx' })
   await $('.creation-composer').waitForExist({ reverse: true })

@@ -13,7 +13,7 @@ export function ShowNoteButton({ onShow }: { onShow: () => void }) {
     tooltip={showNoteLabel} tooltipAlign="end" aria-expanded={false} aria-controls={creationNotePanelId} onClick={onShow} />
 }
 
-/** The Session's Note, read-only on the right of a new draft: the source "Generate with AI" uses. */
+/** The Session's Note, read-only on the right of a new draft: the source Generate uses. */
 export function CreationNotePanel({ intent, noteReadOnly, onReadNote, onClose }: {
   intent: CreationIntent
   noteReadOnly: boolean

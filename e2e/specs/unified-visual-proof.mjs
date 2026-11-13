@@ -7,6 +7,7 @@ import { DatabaseSync } from 'node:sqlite'
 import { readClipboardText } from '../fixtures/clipboard-readback.mjs'
 import { resize } from './chat-handoff-proof.mjs'
 import { nativeKeySender } from './preflight-native-keys.mjs'
+import { confirmCreationAi, openCreationAi } from './creation-helpers.mjs'
 import { captureRestartRoute } from './chat-restart-capture.mjs'
 const require = createRequire(new URL('../../frontend/package.json', import.meta.url))
 const { Key } = await import(require.resolve('webdriverio'))
@@ -113,11 +114,10 @@ async function unifiedRouteBody() {
   await browser.waitUntil(async () => (await native('list_findings', { sessionId: session.id })).length === before.length)
   await tab('Test cases')
   await click('button=Create test cases')
-  await click('button=Generate with AI')
-  await $('dialog[open]').waitForDisplayed()
-  await capture('uc3-optional-ai', ['dialog .confirmation-actions button:last-child'])
+  await openCreationAi('testware')
+  await capture('uc3-optional-ai', ['.creation-composer .action-button--primary'])
   const priorDrafts = await native('list_drafts', { sessionId: session.id })
-  await click('dialog button=Generate')
+  await confirmCreationAi()
   const marker = join(process.env.QA_SCRIBE_E2E_FIXTURE_DIR, 'codex-exec-2.started')
   await browser.waitUntil(() => existsSync(marker))
   await capture('uc3-generation-busy')
@@ -412,10 +412,8 @@ export async function unifiedWidths(theme) {
     await tab('Test cases')
     await click('button=Create test cases')
     await capture(`uc3-record-${width}-${theme}`, ['.creation-composer .action-button--primary'])
-    await click('button=Generate with AI')
-    await $('dialog[open]').waitForDisplayed()
-    await capture(`uc3-ai-${width}-${theme}`, ['dialog .confirmation-actions button:last-child'])
-    await click('dialog button=Cancel')
+    await openCreationAi('testware')
+    await capture(`uc3-ai-${width}-${theme}`, ['.creation-composer .action-button--primary'])
     await click('.creation-composer button=Cancel')
     await tab('Note')
     if (width === 320) {

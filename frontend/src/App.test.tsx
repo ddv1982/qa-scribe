@@ -7,6 +7,7 @@ import { draftFixture, entryFixture, findingFixture, generationStatusFixture, pr
 import { richEditorDocumentFromHtml, richEditorDocumentToStoredBody } from './editor/editorDocument'
 import { managedAttachmentImageHtml } from './editor/editorHtml'
 import { chatFixture } from './app/useSessionChat.testSupport'
+import { creationComposer, creationMode, generateAction } from './test/creationModes'
 
 const tauriMock = vi.hoisted(() => ({
   cancelAiActionJob: vi.fn(),
@@ -192,19 +193,18 @@ describe('App workflows', () => {
     })
   })
 
-  it('confirms generation through preflight before starting an AI job', async () => {
+  it('confirms generation in Generate mode before starting an AI job', async () => {
     const user = userEvent.setup()
     render(<App />)
 
     await waitFor(() => expect(screen.getByRole('textbox', { name: 'Session title' })).toHaveValue('Checkout session'))
     await user.click(screen.getByRole('button', { name: /^create test cases$/i }))
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Generate with AI' })).toBeEnabled())
-    await user.click(screen.getByRole('button', { name: 'Generate with AI' }))
-    const dialog = screen.getByRole('dialog', { name: /generate test cases/i })
-    expect(dialog).toBeInTheDocument()
+    await user.click(await waitFor(() => creationMode('Generate')))
+    const composer = creationComposer('testware')
+    await waitFor(() => expect(generateAction(composer)).toBeEnabled())
     expect(tauriMock.startAiActionJob).not.toHaveBeenCalled()
 
-    await user.click(within(dialog).getByRole('button', { name: /^generate$/i }))
+    await user.click(generateAction(composer))
 
     await waitFor(() =>
       expect(tauriMock.startAiActionJob).toHaveBeenCalledWith(
@@ -233,11 +233,11 @@ describe('App workflows', () => {
 
     await waitFor(() => expect(screen.getByRole('textbox', { name: 'Session title' })).toHaveValue('Checkout session'))
     await user.click(screen.getByRole('button', { name: /^create test cases$/i }))
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Generate with AI' })).toBeEnabled())
-    await user.click(screen.getByRole('button', { name: 'Generate with AI' }))
-    const dialog = screen.getByRole('dialog', { name: /generate test cases/i })
-    await user.click(within(dialog).getByRole('button', { name: /boundaries/i }))
-    await user.click(within(dialog).getByRole('button', { name: /^generate$/i }))
+    await user.click(await waitFor(() => creationMode('Generate')))
+    const composer = creationComposer('testware')
+    await user.click(within(composer).getByRole('button', { name: /boundaries/i }))
+    await waitFor(() => expect(generateAction(composer)).toBeEnabled())
+    await user.click(generateAction(composer))
 
     await waitFor(() =>
       expect(tauriMock.startAiActionJob).toHaveBeenCalledWith(

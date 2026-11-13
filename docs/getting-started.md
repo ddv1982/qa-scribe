@@ -62,7 +62,7 @@ Choose **Help** beside Settings for the workflow, Copy behavior, provider setup,
 
 While either draft is open, the Session's Note shows read-only on the right, in place of the record list, so you can write from it and copy what you need. Close it for the full width; the draft header brings it back, and the choice is remembered. In a narrow window the Note starts closed and covers the draft while it is open.
 
-For optional AI, follow [AI providers and Session Chat](ai-providers.md#set-up-one-provider), then choose **Generate with AI** inside the draft. It uses the saved Note shown beside the draft. Review the confirmation: success immediately saves one AI result and replaces the local draft. Cancellation or failure keeps the draft. Ordinary writing and Save remain available without a ready provider.
+For optional AI, follow [AI providers and Session Chat](ai-providers.md#set-up-one-provider). With a ready provider, the draft starts with a **Write** | **Generate** switch. **Generate** shows the generation choices in place of the draft fields and uses the saved Note shown beside the draft. Success immediately saves one AI result and replaces the local draft. Cancellation or failure keeps the draft, and switching back to **Write** shows it unchanged. Without a ready provider there is no switch: you write and Save.
 
 Local data lives under `~/.local/share/io.github.ddv1982.qa-scribe` on Linux, or `$XDG_DATA_HOME/io.github.ddv1982.qa-scribe` when set. On macOS, use `~/Library/Application Support/io.github.ddv1982.qa-scribe`.
 

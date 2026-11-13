@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
 import { nativeKeySender } from './preflight-native-keys.mjs'
 import { readClipboardText } from '../fixtures/clipboard-readback.mjs'
-import { openCreationAi } from './creation-helpers.mjs'
+import { creationGenerateSetup, openCreationAi, returnToWrite } from './creation-helpers.mjs'
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -41,32 +41,24 @@ with sqlite3.connect('file:'+sys.argv[1]+'?mode=ro',uri=True) as db:
     const key = nativeKeySender(keyboard, () => receipt('native-keyboard', keyboard), Key)
     await create('finding')
     await openCreationAi('finding')
-    await key(Key.Tab)
-    assert.ok(await browser.execute(() => document.querySelector('dialog[open]').contains(document.activeElement)))
-    await key('Shift+Tab')
-    await key(Key.Escape)
-    await $('dialog[open]').waitForExist({ reverse: true })
-    await browser.waitUntil(() => browser.execute(() => document.activeElement?.textContent.trim() === 'Generate with AI'))
-    await openCreationAi('finding')
-    await key('Shift+Tab')
+    assert.ok(await browser.execute(() => document.activeElement?.matches('.creation-generate summary')), 'Generate focuses its first control')
+    await returnToWrite()
+    assert.equal(await browser.execute(() => document.activeElement?.getAttribute('aria-label')), 'Finding title')
     await key('Shift+Tab')
     assert.equal(await browser.execute(() => document.activeElement?.textContent.trim()), 'Cancel')
     await key(Key.Enter)
-    await $('dialog[open]').waitForExist({ reverse: true })
+    await $('.creation-composer').waitForExist({ reverse: true })
     assert.deepEqual(rows(), beforeKeyboard)
-    await capture('uc2-native-keyboard-escape-and-enter')
-    await click('button=Cancel')
+    await capture('uc2-native-keyboard-switch-and-cancel')
     await click('[aria-label="Open command palette"]')
     await fill('[aria-label="Search Sessions, records, and commands"]', 'Create finding with AI')
     await click('[role="option"]*=Create finding with AI')
-    await $('dialog.generation-preflight[open]').waitForDisplayed()
+    await $(creationGenerateSetup).waitForDisplayed()
     assert.deepEqual(rows(), beforeKeyboard)
     await capture('uc2-direct-ai-command-no-job')
-    await (await $('dialog[open]')).$('button=Generate').waitForEnabled()
-    await key(Key.Escape)
-    await $('dialog[open]').waitForExist({ reverse: true })
-    await browser.waitUntil(() => browser.execute(() => document.activeElement?.textContent.trim() === 'Generate with AI'))
+    await (await $('.creation-composer .record-actions')).$('./button[normalize-space()="Generate"]').waitForEnabled()
     await click('button=Cancel')
+    await $('.creation-composer').waitForExist({ reverse: true })
     assert.deepEqual(rows(), beforeKeyboard)
 
     const custom = await native('create_finding', { draft: { sessionId: seed.sessionId, kind: 'bug', title: 'Custom severity remains unclassified',

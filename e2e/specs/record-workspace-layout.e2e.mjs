@@ -3,7 +3,7 @@ import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { click, create, fill, fixture, fixtureStarted, native, save, tab } from './composer-proof.mjs'
 import { resize } from './chat-handoff-proof.mjs'
-import { openCreationAi } from './creation-helpers.mjs'
+import { confirmCreationAi, openCreationAi } from './creation-helpers.mjs'
 import { readClipboardText } from '../fixtures/clipboard-readback.mjs'
 
 const artifacts = process.env.QA_SCRIBE_E2E_ARTIFACTS
@@ -131,7 +131,7 @@ describe('Record workspace layout in the built native application', () => {
       await tab(kind === 'finding' ? 'Findings' : 'Test cases')
       await create(kind)
       await openCreationAi(kind)
-      await click('dialog button=Generate')
+      await confirmCreationAi()
       await fixtureStarted(index + 1)
       writeFileSync(join(fixture, `codex-exec-${index + 1}.release`), 'Release synthetic layout fixture\n')
       await $('.creation-composer').waitForExist({ reverse: true })

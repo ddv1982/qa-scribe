@@ -6,7 +6,6 @@ import { join } from 'node:path'
 import { runChatToNoteWorkflow } from './chat-to-note.workflow.mjs'
 import { runChatDeletionWorkflow } from './chat-deletion.workflow.mjs'
 import { runTestwareStreamdownWorkflow } from './testware-streamdown.e2e.mjs'
-import { runGenerationPreflightLayoutWorkflow } from './generation-preflight-layout.e2e.mjs'
 
 const primaryTitle = 'E2E primary session'
 const secondaryTitle = 'E2E secondary session'
@@ -315,7 +314,7 @@ const workflows = {
   'generation-cancellation': {
     title: 'streams rich Testware safely across themes, saves and reopens edits, and cancels a held second generation',
     run: async () => {
-      await createSessionFixture('E2E generation preflight layout', 'Check generation options and execution details before starting Testware.')
+      await createSessionFixture('E2E optional AI setup', 'Check generation options and execution details before starting Testware.')
       const beforePreflight = await browser.tauri.execute(async ({ core }) => {
         const sessions = await core.invoke('list_sessions')
         return Promise.all(sessions.map(async ({ id }) => ({ id, drafts: await core.invoke('list_drafts', { sessionId: id }), findings: await core.invoke('list_findings', { sessionId: id }) })))
@@ -323,17 +322,13 @@ const workflows = {
       for (const [tab, label] of [['Note', 'Create finding with AI'], ['Test cases', 'Create test cases with AI'], ['Findings', 'Create finding with AI']]) {
         await (await sessionTab(tab)).click()
         await openCreationAi(label.includes('test cases') ? 'testware' : 'finding')
-        await $('dialog.generation-preflight[open]').waitForDisplayed()
         await browser.saveScreenshot(join(process.env.QA_SCRIBE_E2E_ARTIFACTS, `optional-ai-${tab}.png`))
-        await (await $('dialog.generation-preflight')).$('button=Cancel').click()
-        await $('dialog.generation-preflight[open]').waitForExist({ reverse: true })
+        await (await $('.creation-composer')).$('button=Cancel').click()
+        await $('.creation-composer').waitForExist({ reverse: true })
         const after = await browser.tauri.execute(async ({ core }, ids) => Promise.all(ids.map(async (id) => ({ id, drafts: await core.invoke('list_drafts', { sessionId: id }), findings: await core.invoke('list_findings', { sessionId: id }) }))), beforePreflight.map(({ id }) => id))
         assert.deepEqual(after, beforePreflight, 'Opening and cancelling AI must create no blank record')
       }
       writeFileSync(join(process.env.QA_SCRIBE_E2E_ARTIFACTS, 'optional-ai-cancel.json'), JSON.stringify({ before: beforePreflight, cancelledSurfaces: ['Note', 'Test cases', 'Findings'], unchanged: true }, null, 2))
-      await (await sessionTab('Note')).click()
-      await openCreationAi('testware')
-      await runGenerationPreflightLayoutWorkflow({ button })
       await runTestwareStreamdownWorkflow({ createSessionFixture, sessionTab, sessionOption, button,
         waitForFixtureFile, releaseFixtureInvocation })
     },

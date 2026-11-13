@@ -1,83 +1,25 @@
 import { ActionButton } from '../components/ActionButton'
 import { Dialog } from '../components/Dialog'
-import { Field } from '../components/Field'
-import { useEffect, useRef, useState, type ReactNode } from 'react'
-import type { GenerateAiActionKind, ProviderDefaultOrigin, TestwareDepth, TestwareGenerationPreferences, TestwareOutputFormat } from '../tauri'
-import {
-  defaultTestwareGenerationPreferences,
-  testwareDepthOptions,
-  testwareOutputFormatOptions,
-  testwareTechniquePresets,
-} from '../testware/generationPreferences'
-import { originSummary } from '../settings/defaults'
+import { useEffect, useRef, useState } from 'react'
+import type { GenerateAiActionKind, TestwareGenerationPreferences } from '../tauri'
+import { defaultTestwareGenerationPreferences } from '../testware/generationPreferences'
+import { GenerationSetup, type GenerationSetupProps } from './generationSetup'
+import { generationSetupBlocked } from './generationReadiness'
 
-export function GenerationPreflight({
-  sourceReview, disclosure, confirmLabel, initialOutputFormat = 'qa_cases',
-  action,
-  activeProviderAvailable,
-  activeProviderLabel,
-  isBusy,
-  noteScreenshotCount,
-  sessionTitle,
-  noteWordCount,
-  selectedModel,
-  selectedReasoning = null,
-  modelOrigin = null,
-  reasoningOrigin = null,
-  delegatesModel = false,
-  delegatesReasoning = false,
-  executionSummary,
-  checkedAt = null,
-  selectionWarning = null,
-  selectionAdvisories = [],
-  modelSelectionControl,
-  modelSelectionPending = false,
-  onConfigureAi,
-  onCancel,
-  onConfirm,
-}: {
-  initialOutputFormat?: TestwareOutputFormat
-  sourceReview?: ReactNode
-  disclosure?: string
-  confirmLabel?: string
-  action: GenerateAiActionKind
-  activeProviderAvailable: boolean
-  activeProviderLabel: string
-  isBusy: boolean
-  noteScreenshotCount: number
-  sessionTitle: string
-  noteWordCount: number
-  selectedModel: string
-  selectedReasoning?: string | null
-  modelOrigin?: ProviderDefaultOrigin | null
-  reasoningOrigin?: ProviderDefaultOrigin | null
-  delegatesModel?: boolean
-  delegatesReasoning?: boolean
-  executionSummary?: string
-  checkedAt?: string | null
-  selectionWarning?: string | null
-  selectionAdvisories?: string[]
-  modelSelectionControl?: ReactNode
-  modelSelectionPending?: boolean
+/** The generation setup as a modal dialog, opened from the Note (Summarize). A new draft shows the same setup inline. */
+export function GenerationPreflight({ onConfigureAi, onCancel, onConfirm, ...setup }: Omit<GenerationSetupProps, 'testwarePreferences' | 'onTestwarePreferencesChange'> & {
   onConfigureAi?: () => void
   onCancel: () => void
   onConfirm: (testwarePreferences?: TestwareGenerationPreferences) => void
 }) {
-  const copy = generationPreflightCopy(action)
-  const [testwarePreferences, setTestwarePreferences] = useState<TestwareGenerationPreferences>(() => ({ ...defaultTestwareGenerationPreferences, outputFormat: initialOutputFormat }))
-  const isTestware = action === 'testware'
-  const updateTestwarePreferences = (patch: Partial<TestwareGenerationPreferences>) =>
-    setTestwarePreferences((previous) => ({ ...previous, ...patch }))
+  const copy = generationPreflightCopy(setup.action)
+  const [testwarePreferences, setTestwarePreferences] = useState<TestwareGenerationPreferences>(defaultTestwareGenerationPreferences)
+  const isTestware = setup.action === 'testware'
   const bodyRef = useRef<HTMLDivElement>(null)
-  const executionDetailsRef = useRef<HTMLDetailsElement>(null)
-  useEffect(() => {
-    if (executionDetailsRef.current && (selectionWarning || !activeProviderAvailable || modelSelectionPending)) {
-      executionDetailsRef.current.open = true
-    }
-  }, [selectionWarning, activeProviderAvailable, modelSelectionPending])
   useEffect(() => {
     if (bodyRef.current) bodyRef.current.scrollTop = 0
   }, [])
+  const { isBusy } = setup
 
   return (
     <Dialog
@@ -86,7 +28,7 @@ export function GenerationPreflight({
       titleId="generation-preflight-title"
       eyebrow="Generation preflight"
       title={copy.title}
-      description={<p>{disclosure ?? copy.body}</p>}
+      description={<p>{copy.body}</p>}
       initialFocus="title"
       onCancel={onCancel}
       actions={<>
@@ -97,10 +39,10 @@ export function GenerationPreflight({
         <ActionButton
           variant="primary"
           type="button"
-          disabled={isBusy || modelSelectionPending || !activeProviderAvailable || Boolean(selectionWarning)}
+          disabled={generationSetupBlocked(setup)}
           onClick={() => onConfirm(isTestware ? testwarePreferences : undefined)}
         >
-          {confirmLabel ?? copy.confirmLabel}
+          {copy.confirmLabel}
         </ActionButton>
       </>}
       onKeyDown={(event) => {
@@ -123,159 +65,10 @@ export function GenerationPreflight({
       }}
     >
       <div className="preflight-body" ref={bodyRef}>
-        {sourceReview}
-        {selectionWarning ? <p className="inline-message blocking" role="alert">{selectionWarning}</p> : null}
-        {selectionAdvisories.map((advisory) => <p className="inline-message advisory" role="status" key={advisory}>{advisory}</p>)}
-        {!activeProviderAvailable ? <p className="inline-message blocking" role="alert">{activeProviderLabel} is unavailable. Configure AI execution to review setup and choose a ready provider.</p> : null}
-        {modelSelectionPending ? <p className="inline-message advisory" role="status">Saving model preference… Wait before generating.</p> : null}
-        <details className="preflight-execution-details" ref={executionDetailsRef}>
-          <summary tabIndex={0}>
-            Execution details
-            <span>{noteWordCount} words · {noteScreenshotCount} screenshot{noteScreenshotCount === 1 ? '' : 's'} · {activeProviderLabel} · {delegatesModel ? 'CLI default' : selectedModel}</span>
-          </summary>
-          <div className="preflight-execution-content">
-            <dl className="preflight-list">
-              <div>
-                <dt>Session</dt>
-                <dd>{sessionTitle.trim() || 'Untitled session'}</dd>
-              </div>
-              <div>
-                <dt>Material</dt>
-                <dd>
-                  {noteWordCount} words, {noteScreenshotCount} screenshot{noteScreenshotCount === 1 ? '' : 's'}
-                </dd>
-              </div>
-              <div>
-                <dt>Provider</dt>
-                <dd>{activeProviderLabel}</dd>
-              </div>
-              <div>
-                <dt>Model</dt>
-                <dd>
-                  {selectedModel} {delegatesModel ? <small>CLI default</small> : <small>QA Scribe override</small>}
-                  {modelOrigin ? <span>{originSummary(modelOrigin)}</span> : null}
-                </dd>
-              </div>
-              <div>
-                <dt>Reasoning</dt>
-                <dd>
-                  {selectedReasoning ?? 'CLI resolves at run time'} {delegatesReasoning ? <small>CLI default</small> : <small>QA Scribe override</small>}
-                  {reasoningOrigin ? <span>{originSummary(reasoningOrigin)}</span> : null}
-                </dd>
-              </div>
-            </dl>
-            {executionSummary ? <p className="preflight-execution-summary">{executionSummary}{checkedAt ? ` Last checked ${formatCheckedAt(checkedAt)}.` : ''}</p> : null}
-            {modelSelectionControl}
-          </div>
-        </details>
-        {isTestware ? (
-          <div className="preflight-testware-options">
-            <div className="preflight-control-grid">
-              <Field label="Output">
-                <select disabled={isBusy}
-                  value={testwarePreferences.outputFormat}
-                  onChange={(event) => updateTestwarePreferences({ outputFormat: event.target.value as TestwareOutputFormat })}
-                >
-                  {testwareOutputFormatOptions.map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Depth">
-                <select disabled={isBusy}
-                  value={testwarePreferences.depth}
-                  onChange={(event) => updateTestwarePreferences({ depth: event.target.value as TestwareDepth })}
-                >
-                  {testwareDepthOptions.map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            </div>
-
-            <fieldset className="preflight-fieldset">
-              <legend>Test design</legend>
-              <div className="preflight-technique-grid">
-                {testwareTechniquePresets.map((preset) => (
-                  <button
-                    disabled={isBusy}
-                    className={testwarePreferences.technique === preset.id ? 'preflight-choice active' : 'preflight-choice'}
-                    type="button"
-                    key={preset.id}
-                    aria-pressed={testwarePreferences.technique === preset.id}
-                    title={preset.description}
-                    onClick={() => updateTestwarePreferences({ technique: preset.id })}
-                  >
-                    <span>{preset.shortLabel}</span>
-                    <strong>{preset.bestFor}</strong>
-                  </button>
-                ))}
-              </div>
-              <p className="field-description preflight-technique-description">
-                {testwareTechniquePresets.find((preset) => preset.id === testwarePreferences.technique)?.description}
-              </p>
-            </fieldset>
-
-            <fieldset className="preflight-fieldset compact">
-              <legend>Include</legend>
-              <div className="preflight-toggle-grid">
-                <label>
-                  <input
-                    type="checkbox" disabled={isBusy}
-                    checked={testwarePreferences.includeNegativeCases}
-                    onChange={(event) => updateTestwarePreferences({ includeNegativeCases: event.target.checked })}
-                  />
-                  Negative cases
-                </label>
-                <label>
-                  <input
-                    type="checkbox" disabled={isBusy}
-                    checked={testwarePreferences.includeBoundaryCases}
-                    onChange={(event) => updateTestwarePreferences({ includeBoundaryCases: event.target.checked })}
-                  />
-                  Boundary cases
-                </label>
-                <label>
-                  <input
-                    type="checkbox" disabled={isBusy}
-                    checked={testwarePreferences.includeTestData}
-                    onChange={(event) => updateTestwarePreferences({ includeTestData: event.target.checked })}
-                  />
-                  Test data
-                </label>
-                <label>
-                  <input
-                    type="checkbox" disabled={isBusy}
-                    checked={testwarePreferences.preserveEvidence}
-                    onChange={(event) => updateTestwarePreferences({ preserveEvidence: event.target.checked })}
-                  />
-                  Preserve evidence
-                </label>
-              </div>
-            </fieldset>
-
-            <Field label="Additional guidance">
-              <textarea className="preflight-guidance" disabled={isBusy}
-                value={testwarePreferences.customInstructions ?? ''}
-                placeholder="Optional constraints, priorities, or areas to emphasize."
-                onChange={(event) => updateTestwarePreferences({ customInstructions: event.target.value || null })}
-              />
-            </Field>
-          </div>
-        ) : null}
+        <GenerationSetup {...setup} testwarePreferences={testwarePreferences} onTestwarePreferencesChange={setTestwarePreferences} />
       </div>
     </Dialog>
   )
-}
-
-function formatCheckedAt(value: string): string {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
 }
 
 function generationPreflightCopy(action: GenerateAiActionKind) {

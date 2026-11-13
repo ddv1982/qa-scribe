@@ -15,19 +15,29 @@ import type { ClipboardSnapshot, CopyState } from '../app/copyActions'
 import { CopyControls } from './RichRecordView'
 import { creationFormatForId, creationFormatHint, creationFormatId, creationFormatOptions, type CreationFormat } from '../app/creationFormats'
 
-export function CreationComposer({ intent, actions, copyState, onCopy, fields, generate, headerAction }: {
+/** Generate mode: the setup form in place of the draft fields, and its primary action after Cancel. */
+export type CreationGenerateMode = { form: ReactNode; confirm: ReactNode }
+
+export function CreationComposer({ intent, actions, copyState, onCopy, fields, modeSwitch, generate, headerAction }: {
   intent: CreationIntent
   actions: CreationActions
   copyState: CopyState
   onCopy: (snapshot: ClipboardSnapshot) => Promise<void>
   fields?: ReactNode
-  /** Generate with AI, first in the action row. */
-  generate?: ReactNode
+  /** Write | Generate, first in the row under the heading; absent when no AI provider is available. */
+  modeSwitch?: ReactNode
+  /** Present in Generate mode. The Write fields stay mounted but hidden, so switching back keeps them as they were. */
+  generate?: CreationGenerateMode | null
   /** A quiet icon after Copy, such as Show Note. */
   headerAction?: ReactNode
 }) {
   const titleRef = useRef<HTMLInputElement>(null)
-  useEffect(() => { titleRef.current?.focus() }, [intent.id])
+  const generateRef = useRef<HTMLDivElement>(null)
+  const generating = Boolean(generate)
+  useEffect(() => {
+    if (generating) generateRef.current?.querySelector<HTMLElement>(firstControl)?.focus()
+    else titleRef.current?.focus()
+  }, [intent.id, generating])
   const editorId = `creation-${intent.id}`
   const locked = intent.phase.state !== 'editing'
   const imageOperations = Object.values(intent.imageOperations)
@@ -57,30 +67,36 @@ export function CreationComposer({ intent, actions, copyState, onCopy, fields, g
       void actions.pasteImage({ editorId, insertImage })
     }
   }
+  const status = intent.phase.state === 'saved' ? 'Saved result, opening for review' : intent.phase.state === 'committed-deleted' ? 'Saved result was deleted' : generate ? null : 'Draft, not saved yet'
   return <article className="editable-record creation-composer" aria-label={intent.kind === 'finding' ? 'New finding' : 'New test cases'} onPasteCapture={paste}>
     <header className="record-title-row">
-      <div className="record-heading-row"><h2 className="record-title">New {intent.kind === 'finding' ? 'finding' : 'test cases'}</h2><span>{intent.phase.state === 'saved' ? 'Saved result, opening for review' : intent.phase.state === 'committed-deleted' ? 'Saved result was deleted' : 'Draft, not saved yet'}</span></div>
-      <CopyControls snapshot={{ target: { kind: intent.kind === 'finding' ? 'finding' : 'draft', sessionId: intent.sessionId, id: intent.id, action: 'jira-text' }, title: intent.title, bodyHtml: html }} label={intent.title || 'draft'} copyState={copyState} onCopy={onCopy} screenshotCount={screenshotCount} />
+      <div className="record-heading-row"><h2 className="record-title">New {intent.kind === 'finding' ? 'finding' : 'test cases'}</h2>{status ? <span>{status}</span> : null}</div>
+      {generate ? null : <CopyControls snapshot={{ target: { kind: intent.kind === 'finding' ? 'finding' : 'draft', sessionId: intent.sessionId, id: intent.id, action: 'jira-text' }, title: intent.title, bodyHtml: html }} label={intent.title || 'draft'} copyState={copyState} onCopy={onCopy} screenshotCount={screenshotCount} />}
       {headerAction}
     </header>
     <div className="record-actions">
-      {generate}
+      {modeSwitch}
       <ActionButton variant="quiet" icon={X} disabled={intent.phase.state === 'saving' || intent.phase.state === 'discarding'} onClick={() => void actions.settle()}>Cancel</ActionButton>
-      <ActionButton variant="primary" icon={Save} loading={intent.phase.state === 'saving'} disabled={!intent.title.trim() || readingImages || failedImages.length > 0 || !['editing', 'uncertain', 'saved'].includes(intent.phase.state)} onClick={() => void actions.save()}>{intent.phase.state === 'uncertain' ? 'Retry Save' : intent.phase.state === 'saved' ? 'Open saved result' : `Save ${intent.kind === 'finding' ? 'finding' : 'test cases'}`}</ActionButton>
+      {generate ? generate.confirm : <ActionButton variant="primary" icon={Save} loading={intent.phase.state === 'saving'} disabled={!intent.title.trim() || readingImages || failedImages.length > 0 || !['editing', 'uncertain', 'saved'].includes(intent.phase.state)} onClick={() => void actions.save()}>{intent.phase.state === 'uncertain' ? 'Retry Save' : intent.phase.state === 'saved' ? 'Open saved result' : `Save ${intent.kind === 'finding' ? 'finding' : 'test cases'}`}</ActionButton>}
     </div>
-    <Field label="Title"><input ref={titleRef} aria-label={intent.kind === 'finding' ? 'Finding title' : 'Test case title'} value={intent.title} readOnly={locked} onChange={(event) => actions.update({ title: event.target.value })} placeholder="Give this draft a title" /></Field>
-    <CreationFormatSelector key={`format-${intent.id}`} intent={intent} actions={actions} />
-    {fields ? <fieldset disabled={locked} className="creation-fields">{fields}</fieldset> : null}
-    <div className="rich-record-editor-field">
-      <FormatToolbar editorId={editorId} onUploadImage={actions.stageImage} />
-      <RichTextEditor editorId={editorId} value={intent.document} onChange={(document) => actions.update({ document })} ariaLabel="Creation draft body" readOnly={locked} placeholder="Add what you observed. Empty sections are optional." />
+    {generate ? <div ref={generateRef} className="creation-generate">{generate.form}</div> : null}
+    <div className="creation-write" hidden={generating}>
+      <Field label="Title"><input ref={titleRef} aria-label={intent.kind === 'finding' ? 'Finding title' : 'Test case title'} value={intent.title} readOnly={locked} onChange={(event) => actions.update({ title: event.target.value })} placeholder="Give this draft a title" /></Field>
+      <CreationFormatSelector key={`format-${intent.id}`} intent={intent} actions={actions} />
+      {fields ? <fieldset disabled={locked} className="creation-fields">{fields}</fieldset> : null}
+      <div className="rich-record-editor-field">
+        <FormatToolbar editorId={editorId} onUploadImage={actions.stageImage} />
+        <RichTextEditor editorId={editorId} value={intent.document} onChange={(document) => actions.update({ document })} ariaLabel="Creation draft body" readOnly={locked} placeholder="Add what you observed. Empty sections are optional." />
+      </div>
+      {readingImages ? <p role="status">Adding image…</p> : null}
+      {failedImages.length ? <div role="alert">{failedImages.map((operation, index) => <p key={index}>{operation.state === 'failed' ? operation.message : ''}</p>)}
+        <ActionButton variant="quiet" disabled={locked} onClick={actions.dismissImageFailures}>Continue without failed images</ActionButton>
+      </div> : null}
     </div>
-    {readingImages ? <p role="status">Adding image…</p> : null}
-    {failedImages.length ? <div role="alert">{failedImages.map((operation, index) => <p key={index}>{operation.state === 'failed' ? operation.message : ''}</p>)}
-      <ActionButton variant="quiet" disabled={locked} onClick={actions.dismissImageFailures}>Continue without failed images</ActionButton>
-    </div> : null}
   </article>
 }
+
+const firstControl = 'summary, button:not(:disabled), select:not(:disabled), input:not(:disabled), textarea:not(:disabled)'
 
 export function CreationFormatSelector({ intent, actions }: { intent: CreationIntent; actions: CreationActions }) {
   const [pending, setPending] = useState<CreationFormat | null>(null)
