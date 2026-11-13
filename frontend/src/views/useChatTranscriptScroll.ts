@@ -24,7 +24,7 @@ export function useChatTranscriptScroll({ conversationId, userTurnId, messageId,
       || (userTurnId !== null && previous.current.userTurnId !== userTurnId)) following.current = true
     previous.current = { conversationId, userTurnId }
 
-    function revealOuterViewport() {
+    function revealOuterViewport(layoutOnly: boolean) {
       if (!outer || !viewport || !transcript || outer.clientHeight === 0) return
       const focused = document.activeElement
       if (!activeOutput && focused instanceof HTMLTextAreaElement && focused.value !== '' && outer.contains(focused)) return
@@ -45,15 +45,18 @@ export function useChatTranscriptScroll({ conversationId, userTurnId, messageId,
       const delta = bounds.height <= bottom - top
         ? bounds.top < top ? bounds.top - top : bounds.bottom > bottom ? bounds.bottom - bottom : 0
         : end > bottom ? end - bottom : end < top ? end - top : 0
+      // A layout change alone follows output that grows downwards. It never pulls the panel back
+      // up to the transcript: the reader may have scrolled down to the composer and Send.
+      if (layoutOnly && delta < 0) return
       outer.scrollTop += delta
     }
-    function revealLatest() {
+    function revealLatest(layoutOnly = false) {
       if (paused || !following.current || !viewport || !transcript || viewport.clientHeight === 0) return
       if (viewport.clientHeight > 0 && getComputedStyle(viewport).overflowY === 'visible') {
         transcript.scrollIntoView({ block: 'end', inline: 'nearest' })
       } else {
         viewport.scrollTop += transcript.getBoundingClientRect().bottom - viewport.getBoundingClientRect().bottom
-        revealOuterViewport()
+        revealOuterViewport(layoutOnly)
       }
     }
     function observeScroll() {
@@ -81,7 +84,7 @@ export function useChatTranscriptScroll({ conversationId, userTurnId, messageId,
       const focused = document.activeElement
       if (!activeOutput && focused instanceof HTMLTextAreaElement && focused.value !== ''
         && viewport?.parentElement?.contains(focused)) return
-      revealLatest()
+      revealLatest(true)
     }
     window.addEventListener('scroll', observePageScroll, true)
     window.addEventListener('resize', observeWindowResize)
