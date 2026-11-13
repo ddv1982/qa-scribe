@@ -52,6 +52,12 @@ describe('Tauri command bridge', () => {
     coreMock.invoke.mockResolvedValueOnce({ kind: 'saved', record: {} })
     await expectCommand('update_draft', () => tauri.updateDraft('draft-1', { title: 'Draft' }, { sessionId: 'session-1', expectedStoredBase: 'base', origin: { kind: 'editor' } }))
     await expectCommand('delete_draft', () => tauri.deleteDraft('draft-1'))
+    await expectCommand('start_test_run', () => tauri.startTestRun('draft-1', [{ title: 'Case', bodyJson: '{}' }]))
+    await expectCommand('get_test_run', () => tauri.getTestRun('run-1'))
+    await expectCommand('list_test_runs', () => tauri.listTestRuns('session-1'))
+    await expectCommand('set_test_case_result', () => tauri.setTestCaseResult('case-1', 'passed', null))
+    await expectCommand('link_test_case_finding', () => tauri.linkTestCaseFinding('case-1', 'finding-1'))
+    await expectCommand('delete_test_run', () => tauri.deleteTestRun('run-1'))
     await expectCommand('get_provider_status', () => tauri.getProviderStatus())
     await expectCommand('refresh_provider_status', () => tauri.refreshProviderStatus())
     await expectCommand('start_ai_action_job', () =>

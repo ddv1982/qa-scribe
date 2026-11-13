@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-list-test-runs"
+description = "Enables the list_test_runs command without any pre-configured scope."
+commands.allow = ["list_test_runs"]
+
+[[permission]]
+identifier = "deny-list-test-runs"
+description = "Denies the list_test_runs command without any pre-configured scope."
+commands.deny = ["list_test_runs"]

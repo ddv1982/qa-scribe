@@ -44,6 +44,11 @@ import {
   type SessionNoteState,
   type SessionPatch,
   type StartAiActionJobResult,
+  type TestCaseResult,
+  type TestRun,
+  type TestRunCase,
+  type TestRunCaseDraft,
+  type TestRunSummary,
   type TestwareGenerationPreferences,
 } from './bindings'
 
@@ -232,6 +237,30 @@ export async function updateDraft(id: string, patch: DraftPatch, guard: RecordWr
 
 export function deleteDraft(id: string): Promise<void> {
   return commands.deleteDraft(id).then(() => undefined)
+}
+
+export function startTestRun(draftId: string, cases: TestRunCaseDraft[]): Promise<TestRun> {
+  return commands.startTestRun(draftId, cases)
+}
+
+export function getTestRun(runId: string): Promise<TestRun> {
+  return commands.getTestRun(runId)
+}
+
+export function listTestRuns(sessionId: string): Promise<TestRunSummary[]> {
+  return commands.listTestRuns(sessionId)
+}
+
+export function setTestCaseResult(caseId: string, result: TestCaseResult, remark: string | null): Promise<TestRunCase> {
+  return commands.setTestCaseResult(caseId, result, remark)
+}
+
+export function linkTestCaseFinding(caseId: string, findingId: string | null): Promise<TestRunCase> {
+  return commands.linkTestCaseFinding(caseId, findingId)
+}
+
+export function deleteTestRun(runId: string): Promise<void> {
+  return commands.deleteTestRun(runId).then(() => undefined)
 }
 
 export function getProviderStatus(): Promise<ProviderStatus> {
