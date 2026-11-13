@@ -210,8 +210,20 @@ export async function editorSmoke({ source, output, provision = false, tools = p
       const downloads = []
       const download = async (name, url) => {
         const file = join(directory, name)
-        const response = await fetch(url, { signal: AbortSignal.timeout(budget(90_000)) })
-        assert.ok(response.ok, `Download ${name}: HTTP ${response.status}`)
+        // The download hosts answer 503 or 429 now and then. That is not a fault in this repository,
+        // so a busy or unreachable host gets two more tries before the lane fails.
+        let response
+        for (let attempt = 1; ; attempt++) {
+          const failure = await fetch(url, { signal: AbortSignal.timeout(budget(90_000)) })
+            .then(result => { response = result; return result.ok ? null : `HTTP ${result.status}` }, error => String(error))
+          if (!failure) break
+          const temporary = !response || response.status === 429 || response.status >= 500
+          // A refused download is not read, so its connection is released before the next try.
+          await response?.body?.cancel().catch(() => {})
+          assert.ok(temporary && attempt < 3, `Download ${name}: ${failure}`)
+          response = undefined
+          await new Promise(resolve => setTimeout(resolve, 5_000 * attempt))
+        }
         await pipeline(Readable.fromWeb(response.body), createWriteStream(file))
         downloads.push({ url, file, sha256: hash(file) }); save(join(output, 'downloads.json'), downloads)
         return file
