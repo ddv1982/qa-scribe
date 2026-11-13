@@ -13,6 +13,7 @@ mod chat_refinements;
 mod creation;
 mod schema;
 mod session_sheet;
+mod test_runs;
 
 use schema::SCHEMA;
 
@@ -75,7 +76,7 @@ pub fn with_immediate_tx<T>(
 /// final time, and settles on a `user_version` this build can trust from then
 /// on. Once every database in the wild has passed through this once, future
 /// bumps can go strictly by increment again.
-pub const SCHEMA_VERSION: i32 = 21;
+pub const SCHEMA_VERSION: i32 = 22;
 
 fn initialize(connection: &Connection) -> Result<()> {
     let initialize_started = Instant::now();
@@ -138,6 +139,9 @@ fn initialize(connection: &Connection) -> Result<()> {
         }
         if found < 21 {
             acceptance_criteria::migrate(tx)?;
+        }
+        if found < 22 {
+            tx.execute_batch(test_runs::SCHEMA)?;
         }
         if migrations_run {
             assert_no_foreign_key_violations(tx)?;

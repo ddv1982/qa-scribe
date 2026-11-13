@@ -137,6 +137,6 @@ pub(super) fn map_draft(row: &Row<'_>) -> rusqlite::Result<Draft> {
     })
 }
 
-fn to_sql_error(error: QaScribeError) -> rusqlite::Error {
+pub(super) fn to_sql_error(error: QaScribeError) -> rusqlite::Error {
     rusqlite::Error::FromSqlConversionFailure(0, rusqlite::types::Type::Text, Box::new(error))
 }

@@ -99,7 +99,6 @@ fn schema_20_database_gains_empty_acceptance_criteria_and_keeps_its_sheet() {
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .expect("user_version should read");
     assert_eq!(user_version, SCHEMA_VERSION);
-    assert_eq!(SCHEMA_VERSION, 21);
     assert_no_foreign_key_violations(connection);
 
     let session = service

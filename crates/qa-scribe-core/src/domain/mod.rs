@@ -15,6 +15,7 @@ mod model_selection;
 mod record_write;
 mod session;
 mod settings;
+mod test_run;
 mod validation;
 
 pub use ai_run::*;
@@ -29,4 +30,5 @@ pub use finding::*;
 pub use model_selection::*;
 pub use session::*;
 pub use settings::*;
+pub use test_run::*;
 pub use validation::*;

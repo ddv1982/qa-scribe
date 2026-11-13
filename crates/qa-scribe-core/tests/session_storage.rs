@@ -30,3 +30,5 @@ include!("session_storage/ai_run_lifecycle.rs");
 include!("session_storage/not_found_references.rs");
 include!("session_storage/session_sheet.rs");
 include!("session_storage/acceptance_criteria.rs");
+include!("session_storage/test_runs.rs");
+include!("session_storage/test_runs_storage.rs");
