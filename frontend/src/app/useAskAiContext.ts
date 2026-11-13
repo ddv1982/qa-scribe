@@ -36,6 +36,8 @@ function presentSource(owner: AskAiOwner, sessionId: string | null, records: Rec
   return record ? { kind: 'available', title: record.title, unsaved: Boolean(sameRecord(selection, owner.record) && selection?.unsaved) } : { kind: 'unavailable' }
 }
 
+type SessionRuns = { sessionId: string; ids: ReadonlySet<string> }
+
 export function useAskAiContext(sessionId: string | null, view: MainView, records: RecordWorkspace, ctx: Context) {
   const [panel, setPanelState] = useState<Panel | null>(null)
   const panelRef = useRef(panel)
@@ -49,8 +51,9 @@ export function useAskAiContext(sessionId: string | null, view: MainView, record
   const [shownRun, setShownRunState] = useState<ShownTestRun | null>(null)
   const shownRunRef = useRef<ShownTestRun | null>(null)
   /** The Session's test runs as of the last recovery refresh; null until a run conversation needed them. */
-  const [runIds, setRunIds] = useState<ReadonlySet<string> | null>(null)
-  const runIdsRef = useRef<ReadonlySet<string> | null>(null)
+  /** The test runs of one Session as last read. They say nothing about a run of another Session. */
+  const [runIds, setRunIds] = useState<SessionRuns | null>(null)
+  const runIdsRef = useRef<SessionRuns | null>(null)
   const testwareShown = useRef<((shown: boolean) => void) | null>(null)
   useLayoutEffect(() => {
     if (view !== 'testware' || !testwareShown.current) return
@@ -89,13 +92,15 @@ export function useAskAiContext(sessionId: string | null, view: MainView, record
       const rows = await listChatHistory({ kind: 'session', sessionId: active })
       const unfinished = rows.filter(row => row.unresolvedStages.length || ['running', 'failed', 'interrupted', 'cancelled'].includes(row.lastTurnStatus ?? ''))
       // Which runs still exist decides whether an unfinished run conversation is recovered here or on its run screen.
-      const runs = unfinished.some(row => row.owner.kind === 'test_run') ? new Set((await listTestRuns(active)).map(run => run.id)) : runIdsRef.current
+      const runs = unfinished.some(row => row.owner.kind === 'test_run')
+        ? { sessionId: active, ids: new Set((await listTestRuns(active)).map(run => run.id)) }
+        : runIdsRef.current?.sessionId === active ? runIdsRef.current : null
       if (live.current.sessionId === active && recoveryEpoch.current === epoch) { runIdsRef.current = runs; setRunIds(runs); setRecoveryRows(unfinished); setRecoveryError(null) }
     } catch (cause) { if (live.current.sessionId === active && recoveryEpoch.current === epoch) setRecoveryError(formatError(cause)) }
   }
   /** A run conversation whose test run was deleted: it can only be reached from the recovery list. */
-  function runGone(owner: AskAiOwner, ids: ReadonlySet<string> | null = runIdsRef.current) {
-    return owner.kind === 'test_run' && ids !== null && !ids.has(owner.runId)
+  function runGone(owner: AskAiOwner, runs: SessionRuns | null = runIdsRef.current) {
+    return owner.kind === 'test_run' && runs?.sessionId === owner.sessionId && !runs.ids.has(owner.runId)
   }
   useEffect(() => { void Promise.resolve().then(() => { setRecoveryRows([]); return refreshRecovery() }) }, [sessionId])
   useEffect(() => {
