@@ -112,7 +112,7 @@ function assertLayout(value) {
   assert.equal(value.grid.columns.trim().split(/\s+/).length, 1,
     `${name}: warning and active Session must not create implicit columns: ${value.grid.columns}`)
   for (const [label, box, width] of [['warning', warning, container.width - 2 * value.warningInset], ['header', header, container.width],
-    ['Note workspace', workspace, Math.min(container.width, 980)]]) {
+    ['Note workspace', workspace, Math.min(container.width, 780)]]) { // the Note page's readable measure
     assert.ok(Math.abs(box.width - width) <= 2, `${name}: ${label} width ${box.width} must be ${width}`)
     assert.ok(Math.abs(box.x + box.width / 2 - container.x - container.width / 2) <= 2,
       `${name}: ${label} must share the center container's horizontal center`)

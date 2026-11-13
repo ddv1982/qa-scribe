@@ -65,6 +65,32 @@ running both and every constituent command against unchanged source adds no
 separate proof. Startup budgets and first-attempt reliability policy remain in
 [CI](ci.md#built-application-and-startup-evidence).
 
+## On-request built-app specs
+
+These specs in `e2e/specs/` are outside the default `bun run e2e` plan, so no
+gate runs them. Run each from the repository root with
+`QA_SCRIBE_E2E_SPEC=<spec> bun run e2e` plus the listed environment, when the
+listed area changes. Last checked on macOS arm64 on 2026-11-13.
+
+| Spec | Extra environment | Run when changing |
+| --- | --- | --- |
+| `ask-ai-context.e2e.mjs` | none | Ask AI record context, source card, Retry after deletion |
+| `ask-ai-conversation-routing.e2e.mjs` | `QA_SCRIBE_I2_SOURCE_MANIFEST=<any existing file>`; runs initial and restart phases | Conversation routing, hidden jobs, Update, restart recovery |
+| `ask-ai-jira-draft.e2e.mjs` | none | Ask AI Jira drafting and the chat response contract |
+| `attachment-cleanup.e2e.mjs` | `QA_SCRIBE_CLEANUP_STAGE=delete`, then `restart`, both with one shared `QA_SCRIBE_E2E_TEMP_ROOT` | Session deletion and attachment cleanup |
+| `checklist-layout.e2e.mjs` | none | Checklist editing and record save |
+| `record-workspace-layout.e2e.mjs` | none | Record header, collection layout |
+| `undo-history-isolation.e2e.mjs` | none | Note undo history |
+| `chat-image-recovery.e2e.mjs`, `chat-restart-readiness.e2e.mjs`, `chat-to-note.e2e.mjs`, `creation-composer-layout.e2e.mjs`, `generation-preflight-layout.e2e.mjs`, `short-window-visual.e2e.mjs`, `sidebar-session-layout.e2e.mjs` | none | Their named area |
+| `model-picker-performance.e2e.mjs` | `QA_SCRIBE_E2E_BENCHMARK_REVISION=<commit>` | Model picker |
+| `creation-composer-restart.e2e.mjs`, `creation-prefill.e2e.mjs` | Linux only: after a full `creation-composer.e2e.mjs` run sharing one `QA_SCRIBE_E2E_TEMP_ROOT`, without `QA_SCRIBE_E2E_CREATION_FORMATS_ONLY` | Creation recovery and Prefill |
+| `ask-ai-ownership-migration.e2e.mjs` | `QA_SCRIBE_I1_NATIVE_LANE_RELEASED=1`, `QA_SCRIBE_E2E_SOURCE_SHA=<commit>` | Conversation storage migrations. Fails on 2026-11-13: its Session header, activity and legacy-stage lanes predate the current Ask AI design. |
+
+`chat-authorization-live.e2e.mjs` needs real provider accounts and runs only
+through `node scripts/run-chat-authorization-live.mjs --armed`. The
+`native-ui-performance` and `ask-ai-conversations` benchmarks need a prepared
+release-production lane and are not maintained for routine runs.
+
 ## AC4 command and evidence changes
 
 Use `bun run verify:fast` for the edit loop and `bun run verify` for the full

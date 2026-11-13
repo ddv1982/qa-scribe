@@ -7,7 +7,7 @@ export function inspectJiraInput(input) {
   const match = instructions.match(/CHAT_RESPONSE_CONTRACT_JSON\n([^\n]+)/)
   assert.ok(match, 'A completed-response contract is required')
   const contract = JSON.parse(match[1])
-  assert.equal(contract.version, 2)
+  assert.ok([2, 3].includes(contract.version), 'Jira drafting uses a released chat contract')
   const user = payload.messages.at(-1)
   assert.equal(contract.requestId, user.id)
   const text = user.text.trim()
@@ -25,6 +25,8 @@ export function inspectJiraInput(input) {
   else markdown = 'Synthetic general chat remains available. Your message and explicitly attached images were received. No external system was changed.'
   const permission = /permission fixture/i.test(text)
   if (permission) markdown = 'Synthetic tool permission was handled through the existing approval UI. No Jira operation occurred.'
-  const response = JSON.stringify({ version: 2, requestId: /wrong nonce/i.test(text) ? 'invalid-fixture-nonce' : contract.requestId, markdown, ...(question ? { question } : {}) })
+  // Version 3 tags every reply with an outcome; Jira drafting never carries a record patch.
+  const reply = contract.version === 3 ? { outcome: question ? { kind: 'clarification', question } : { kind: 'answer' } } : question ? { question } : {}
+  const response = JSON.stringify({ version: contract.version, requestId: /wrong nonce/i.test(text) ? 'invalid-fixture-nonce' : contract.requestId, markdown, ...reply })
   return { ...payload, contract, response, permission, externalWrites: false, realVision: false }
 }

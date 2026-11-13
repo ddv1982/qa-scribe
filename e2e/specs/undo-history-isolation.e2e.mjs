@@ -188,7 +188,9 @@ async function shortcut(redo = false) {
     const editor = document.querySelector('[aria-label="Note body"][contenteditable="true"]')
     if (!editor) throw new Error('Shortcut target is not an editable Note')
     editor.focus()
-    const event = new KeyboardEvent('keydown', { key: 'z', code: 'KeyZ', ctrlKey: true,
+    // The editor binds Mod-z: Command on macOS, Control elsewhere.
+    const mac = /Mac/.test(navigator.platform)
+    const event = new KeyboardEvent('keydown', { key: 'z', code: 'KeyZ', ctrlKey: !mac, metaKey: mac,
       shiftKey: shift, bubbles: true, cancelable: true })
     editor.dispatchEvent(event)
     return event.defaultPrevented
