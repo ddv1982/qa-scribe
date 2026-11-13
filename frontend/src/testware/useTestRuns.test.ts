@@ -251,6 +251,10 @@ describe('useTestRuns', () => {
     expect(result.current.open).toBeNull()
     expect(result.current.startError).toBe('Only a Test cases draft can start a test run')
     expect(result.current.starting).toBe(false)
+    // The error belongs to that draft; another draft does not show it.
+    act(() => result.current.keepForDraft('draft-1'))
+    act(() => result.current.keepForDraft('draft-2'))
+    expect(result.current.startError).toBeNull()
   })
 
   it('does not open a started run when the Session changed meanwhile', async () => {

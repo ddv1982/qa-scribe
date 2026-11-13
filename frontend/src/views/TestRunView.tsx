@@ -65,9 +65,10 @@ export function TestRunView({ open, draftRuns, error, onSelectRun, onBack, onDel
 
   async function confirmDelete() {
     setDeleting(true)
-    const deleted = await onDelete(open.runId)
+    await onDelete(open.runId)
     setDeleting(false)
-    if (deleted) setConfirmingDelete(false)
+    // Closed either way: a failure shows in the error line above the cases, which the dialog would cover.
+    setConfirmingDelete(false)
   }
 
   return (
@@ -111,7 +112,7 @@ export function TestRunView({ open, draftRuns, error, onSelectRun, onBack, onDel
           title="Delete this test run?"
           description={<p>Its results and remarks are removed. The test cases stay.</p>}
           initialFocus={cancelRef}
-          onCancel={() => setConfirmingDelete(false)}
+          onCancel={() => { if (!deleting) setConfirmingDelete(false) }}
           actions={<>
             <ActionButton ref={cancelRef} disabled={deleting} onClick={() => setConfirmingDelete(false)}>Cancel</ActionButton>
             <ActionButton variant="destructive-confirmation" loading={deleting} onClick={() => void confirmDelete()}>Delete test run</ActionButton>

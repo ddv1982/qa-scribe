@@ -87,6 +87,7 @@ export function useTestRuns(sessionId: string | null) {
   const leaveContext = useCallback(() => {
     contextRef.current += 1
     setStarting(false)
+    setStartError(null)
   }, [])
 
   // Another Session starts with nothing on screen; its test runs load below.

@@ -168,6 +168,21 @@ describe('TestRunView', () => {
     await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
 
+  it('keeps the delete dialog open while deleting, and closes it when deleting failed', async () => {
+    let finish!: (deleted: boolean) => void
+    const onDelete = vi.fn(() => new Promise<boolean>((resolve) => { finish = resolve }))
+    renderRun({ onDelete })
+    fireEvent.click(screen.getByRole('button', { name: 'Delete test run' }))
+    const dialog = screen.getByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete test run' }))
+    // Escape must not dismiss the dialog while the delete is under way.
+    fireEvent(dialog, new Event('cancel', { cancelable: true }))
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    finish(false)
+    // A failure is shown in the error line, which the dialog would cover.
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
   it('shows a save failure as one alert, and loading and load failure as state panels', () => {
     renderRun({ error: 'Something went wrong: disk full' })
     expect(screen.getByRole('alert')).toHaveTextContent('Something went wrong: disk full')
