@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.10.0 - 2026-11-13
+
+- Test runs. A saved Test cases draft in a Session has a new Start test run button. It copies the test cases as they are at that moment, and you mark each one Passed, Failed or Blocked, with a remark where it helps. Every click is saved at once. The copy never changes, so editing the draft or asking AI to rewrite it cannot touch a run.
+- The draft shows its last test run in one line, such as "Last test run 13 Nov: 3 passed, 1 failed". Running again makes a new run.
+- Copy report puts a run on the clipboard as plain text: date, totals, and each test case with its result, remark and linked Finding.
+- A failed test case offers Create Finding. The Finding opens with the case title, its steps and your remark filled in, and the run links to it once you save.
+- The coverage line now also says what is failing, for example "All 6 criteria covered, 1 failing. Failing: AC-3".
+- The Note summary knows the latest test results.
+- Ask AI on a test run. It sees the current results with every message and can hand them on with the tools your AI CLI has, such as a comment on a Jira issue. It cannot change a result.
+- The manual QA cases template now has one heading per test case, with Purpose, Steps and Expected result as labels. Charters and coverage outlines cannot be run.
+- Fixed: with several images attached in a narrow window, the Ask AI panel could jump away from the Send button.
+- Your existing Sessions, test cases and findings are kept. This version adds new tables to the database.
+
 ## v0.9.0 - 2026-11-13
 
 - A colour of its own. The main action, links, keyboard focus and the border of a focused field are now teal-green. Checkboxes follow.
