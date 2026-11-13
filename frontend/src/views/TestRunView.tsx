@@ -31,13 +31,11 @@ const REMARK_MAX_LENGTH = 500
  * A test run in place of its draft: the copied test cases in order, each with a Result and a Remark
  * saved the moment they change. There is no Save button.
  */
-export function TestRunView({ open, draftRuns, error, findingTitles = {}, onSelectRun, onBack, onDelete, onChangeCase, onCreateFinding, onOpenFinding }: {
+export function TestRunView({ open, draftRuns, error, onSelectRun, onBack, onDelete, onChangeCase, onCreateFinding, onOpenFinding }: {
   open: OpenTestRun
   /** The draft's test runs, newest first. */
   draftRuns: TestRunSummary[]
   error: string | null
-  /** Titles of the Session's Findings by id, for the cases linked to one. */
-  findingTitles?: Readonly<Record<string, string>>
   onSelectRun: (runId: string) => void
   onBack: () => void
   onDelete: (runId: string) => Promise<boolean>
@@ -94,7 +92,7 @@ export function TestRunView({ open, draftRuns, error, findingTitles = {}, onSele
               {draftRuns.map((summary) => <option key={summary.id} value={summary.id}>{formatDateTime(summary.createdAt)}</option>)}
             </select>
           ) : null}
-          {run ? <CopyReportButton run={run} findingTitles={findingTitles} /> : null}
+          {run ? <CopyReportButton run={run} /> : null}
           <ActionButton variant="quiet" icon={ArrowLeft} onClick={onBack}>Back to test cases</ActionButton>
           <ActionButton variant="destructive-quiet" iconOnly icon={Trash2} aria-label="Delete test run" title="Delete test run"
             onClick={() => setConfirmingDelete(true)} />
@@ -110,7 +108,7 @@ export function TestRunView({ open, draftRuns, error, findingTitles = {}, onSele
         <div className="test-run-cases">
           {cases.map((testCase, index) => (
             <TestRunCaseRow key={testCase.id} testCase={testCase}
-              finding={<CaseFinding testCase={testCase} findingTitles={findingTitles} onCreateFinding={onCreateFinding} onOpenFinding={onOpenFinding} />}
+              finding={<CaseFinding testCase={testCase} onCreateFinding={onCreateFinding} onOpenFinding={onOpenFinding} />}
               group={testCase.groupTitle && testCase.groupTitle !== cases[index - 1]?.groupTitle ? testCase.groupTitle : null}
               toggleRef={(element) => { toggleRefs.current[index] = element }}
               onKeyDown={(event) => onCaseKeyDown(event, index)}
@@ -135,7 +133,7 @@ export function TestRunView({ open, draftRuns, error, findingTitles = {}, onSele
 }
 
 /** Copies the test run as plain text, and says Copied for a moment like the other Copy buttons. */
-function CopyReportButton({ run, findingTitles }: { run: TestRun; findingTitles: Readonly<Record<string, string>> }) {
+function CopyReportButton({ run }: { run: TestRun }) {
   const [copied, setCopied] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
   const timer = useRef<number | null>(null)
@@ -146,7 +144,7 @@ function CopyReportButton({ run, findingTitles }: { run: TestRun; findingTitles:
     timer.current = null
     setFailure(null)
     try {
-      await writePlainClipboard(testRunReport(run, findingTitles))
+      await writePlainClipboard(testRunReport(run))
       setCopied(true)
       timer.current = window.setTimeout(() => {
         timer.current = null
@@ -205,20 +203,16 @@ function TestRunCaseRow({ testCase, group, finding, toggleRef, onKeyDown, onChan
 
 /**
  * For a failed case: the Finding it is linked to, as a quiet line that opens it, or Create Finding
- * when it has none. A linked Finding whose title is not known yet shows nothing.
+ * when it has none.
  */
-function CaseFinding({ testCase, findingTitles, onCreateFinding, onOpenFinding }: {
+function CaseFinding({ testCase, onCreateFinding, onOpenFinding }: {
   testCase: TestRunCase
-  findingTitles: Readonly<Record<string, string>>
   onCreateFinding?: (testCase: TestRunCase) => void
   onOpenFinding?: (findingId: string) => void
 }) {
   if (testCase.result !== 'failed') return null
-  const { findingId } = testCase
-  if (findingId) {
-    const title = findingTitles[findingId]
-    return title ? <button type="button" className="test-run-finding" onClick={() => onOpenFinding?.(findingId)}>Finding: {title}</button> : null
-  }
+  const { findingId, findingTitle } = testCase
+  if (findingId) return <button type="button" className="test-run-finding" onClick={() => onOpenFinding?.(findingId)}>Finding: {findingTitle}</button>
   return onCreateFinding ? <ActionButton variant="secondary" onClick={() => onCreateFinding(testCase)}>Create Finding</ActionButton> : null
 }
 

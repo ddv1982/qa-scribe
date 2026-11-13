@@ -26,7 +26,7 @@ const body = JSON.stringify({ schemaVersion: 1, doc: { type: 'doc', content: [
   { type: 'paragraph', content: [{ type: 'text', text: 'Order is placed.' }] },
 ] } })
 const testCase = (id: string, title: string, patch: Partial<TestRunCase> = {}): TestRunCase => ({
-  id, runId: 'run-1', position: 0, groupTitle: null, title, bodyJson: body, result: 'not_run', remark: null, findingId: null, updatedAt: at, ...patch,
+  id, runId: 'run-1', position: 0, groupTitle: null, title, bodyJson: body, result: 'not_run', remark: null, findingId: null, findingTitle: null, updatedAt: at, ...patch,
 })
 const summary = (id: string, createdAt: string): TestRunSummary => ({
   id, sessionId: 'session-1', draftId: 'draft-1', draftTitle: 'Checkout', createdAt, updatedAt: createdAt, total: 3, passed: 0, failed: 0, blocked: 0, notRun: 3,
@@ -193,15 +193,13 @@ describe('TestRunView', () => {
 
   it('shows the linked Finding of a failed case instead of Create Finding, and opens it', () => {
     const onOpenFinding = vi.fn()
-    renderRun({ onCreateFinding: vi.fn(), onOpenFinding, findingTitles: { 'finding-1': 'Reset mail is never sent' },
+    renderRun({ onCreateFinding: vi.fn(), onOpenFinding,
       open: { runId: 'run-1', draftId: 'draft-1', error: null, run: { id: 'run-1', sessionId: 'session-1', draftId: 'draft-1', draftTitle: 'Checkout', createdAt: at, updatedAt: at, cases: [
-        testCase('c', 'Reset password', { result: 'failed', findingId: 'finding-1' }),
-        testCase('d', 'Change email', { result: 'failed', findingId: 'finding-unknown' }),
+        testCase('c', 'Reset password', { result: 'failed', findingId: 'finding-1', findingTitle: 'Reset mail is never sent' }),
       ] } } })
     expect(screen.queryByRole('button', { name: 'Create Finding' })).not.toBeInTheDocument()
     fireEvent.click(within(row('Reset password')).getByRole('button', { name: 'Finding: Reset mail is never sent' }))
     expect(onOpenFinding).toHaveBeenCalledWith('finding-1')
-    expect(within(row('Change email')).queryByRole('button', { name: /^Finding:/ })).not.toBeInTheDocument()
   })
 
   it('goes back to the test cases', () => {

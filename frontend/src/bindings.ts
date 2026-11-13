@@ -982,6 +982,11 @@ export type TestRunCase = {
 	result: TestCaseResult,
 	remark: string | null,
 	findingId: string | null,
+	/**
+	 *  The linked Finding's current title, read with the case and never
+	 *  stored on it. `None` without a linked Finding.
+	 */
+	findingTitle: string | null,
 	updatedAt: string,
 };
 

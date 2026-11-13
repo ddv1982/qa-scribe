@@ -5,19 +5,19 @@ import { testRunReport } from './testRunReport'
 
 const at = '2026-11-13T14:02:00Z'
 const testCase = (title: string, patch: Partial<TestRunCase> = {}): TestRunCase => ({
-  id: title, runId: 'run-1', position: 0, groupTitle: null, title, bodyJson: '{}', result: 'not_run', remark: null, findingId: null, updatedAt: at, ...patch,
+  id: title, runId: 'run-1', position: 0, groupTitle: null, title, bodyJson: '{}', result: 'not_run', remark: null, findingId: null, findingTitle: null, updatedAt: at, ...patch,
 })
 
 describe('testRunReport', () => {
-  it('lists ungrouped cases first, then each group under its title, with remarks and known Findings', () => {
+  it('lists ungrouped cases first, then each group under its title, with remarks and linked Findings', () => {
     const report = testRunReport({ draftTitle: 'Checkout cases', createdAt: at, cases: [
       testCase('Pay by card', { groupTitle: 'Checkout', result: 'passed' }),
       testCase('Smoke', { result: 'passed', remark: 'Slow' }),
-      testCase('Pay with a gift card', { groupTitle: 'Checkout', result: 'failed', remark: 'Card declined', findingId: 'finding-1' }),
+      testCase('Pay with a gift card', { groupTitle: 'Checkout', result: 'failed', remark: 'Card declined', findingId: 'finding-1', findingTitle: 'Gift card payment is declined' }),
       testCase('Reset password', { groupTitle: 'Account', result: 'blocked', remark: 'No mail server' }),
-      testCase('Change email', { groupTitle: 'Account', result: 'failed', findingId: 'finding-gone' }),
+      testCase('Change email', { groupTitle: 'Account', result: 'failed' }),
       testCase('Log out', { groupTitle: 'Checkout' }),
-    ] }, { 'finding-1': 'Gift card payment is declined' })
+    ] })
     expect(report).toBe([
       '## Test run: Checkout cases',
       formatDateTime(at),

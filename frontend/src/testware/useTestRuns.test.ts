@@ -15,7 +15,7 @@ import { BACKGROUND_SAVE_ERROR, forgetDrainingTestRuns, useTestRuns } from './us
 
 const at = '2026-11-13T14:02:00Z'
 const testCase = (id: string, patch: Partial<TestRunCase> = {}): TestRunCase => ({
-  id, runId: 'run-1', position: 0, groupTitle: null, title: `Case ${id}`, bodyJson: '{}', result: 'not_run', remark: null, findingId: null, updatedAt: at, ...patch,
+  id, runId: 'run-1', position: 0, groupTitle: null, title: `Case ${id}`, bodyJson: '{}', result: 'not_run', remark: null, findingId: null, findingTitle: null, updatedAt: at, ...patch,
 })
 const run = (cases = [testCase('a'), testCase('b')]): TestRun => ({ id: 'run-1', sessionId: 'session-1', draftId: 'draft-1', draftTitle: 'Checkout', createdAt: at, updatedAt: at, cases })
 const summary = (patch: Partial<TestRunSummary> = {}): TestRunSummary => ({

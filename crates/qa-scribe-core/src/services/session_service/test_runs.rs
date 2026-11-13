@@ -16,8 +16,12 @@ use super::{
     SessionService, drafts::draft_by_id, new_id, now, require_row_in_session, require_session,
 };
 
-const CASE_COLUMNS: &str =
-    "id, run_id, position, group_title, title, body_json, result, remark, finding_id, updated_at";
+/// Reads cases with the title of their linked Finding, which a case never
+/// stores, so a renamed Finding shows its new title. Every read of a case goes
+/// through this select and [`map_case`]; callers append the `WHERE` clause.
+const CASE_SELECT: &str = "SELECT c.id, c.run_id, c.position, c.group_title, c.title, c.body_json,
+        c.result, c.remark, c.finding_id, f.title, c.updated_at
+ FROM test_run_cases c LEFT JOIN findings f ON f.id = c.finding_id";
 
 impl SessionService {
     /// Copies `cases` into a new test run of the Test cases draft `draft_id`.
@@ -197,7 +201,7 @@ impl SessionService {
                 params![now, run_id],
             )?;
             Ok(tx.query_row(
-                &format!("SELECT {CASE_COLUMNS} FROM test_run_cases WHERE id = ?1"),
+                &format!("{CASE_SELECT} WHERE c.id = ?1"),
                 [case_id],
                 map_case,
             )?)
@@ -272,7 +276,7 @@ fn test_run(connection: &Connection, run_id: &str) -> Result<TestRun> {
         .optional()?
         .ok_or_else(|| QaScribeError::NotFound(run_id.to_string()))?;
     let mut statement = connection.prepare(&format!(
-        "SELECT {CASE_COLUMNS} FROM test_run_cases WHERE run_id = ?1 ORDER BY position"
+        "{CASE_SELECT} WHERE c.run_id = ?1 ORDER BY c.position"
     ))?;
     run.cases = statement
         .query_map([run_id], map_case)?
@@ -292,6 +296,7 @@ fn map_case(row: &Row<'_>) -> rusqlite::Result<TestRunCase> {
         result: TestCaseResult::from_stored(&result).map_err(to_sql_error)?,
         remark: row.get(7)?,
         finding_id: row.get(8)?,
-        updated_at: row.get(9)?,
+        finding_title: row.get(9)?,
+        updated_at: row.get(10)?,
     })
 }

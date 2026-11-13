@@ -16,7 +16,7 @@ afterEach(cleanup)
 
 const record = (title: string, body = '<p>Steps</p>') => ({ title, body })
 const run = (...cases: Array<[title: string, result: TestCaseResult]>) => ({ cases: cases.map(([title, result], position): TestRunCase => ({
-  id: `case-${position}`, runId: 'run-1', position, groupTitle: null, title, bodyJson: '{}', result, remark: null, findingId: null, updatedAt: '',
+  id: `case-${position}`, runId: 'run-1', position, groupTitle: null, title, bodyJson: '{}', result, remark: null, findingId: null, findingTitle: null, updatedAt: '',
 })) })
 
 describe('CoverageLine', () => {

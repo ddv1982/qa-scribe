@@ -7,7 +7,7 @@ const body = (content: unknown[]) => JSON.stringify({ schemaVersion: 1, doc: { t
 const paragraph = (...content: unknown[]) => ({ type: 'paragraph', content })
 const text = (value: string, marks?: unknown[]) => ({ type: 'text', text: value, ...marks ? { marks } : {} })
 const testCase = (title: string, patch: Partial<TestRunCase> = {}): TestRunCase => ({
-  id: title, runId: 'run-1', position: 0, groupTitle: null, title, bodyJson: body([]), result: 'failed', remark: null, findingId: null, updatedAt: '', ...patch,
+  id: title, runId: 'run-1', position: 0, groupTitle: null, title, bodyJson: body([]), result: 'failed', remark: null, findingId: null, findingTitle: null, updatedAt: '', ...patch,
 })
 
 describe('latestTestRunIds', () => {

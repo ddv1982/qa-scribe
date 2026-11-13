@@ -8,11 +8,11 @@ const resultOrder: TestCaseResult[] = ['passed', 'failed', 'blocked', 'not_run']
 
 /**
  * A test run as plain Markdown-style text: the draft title, when it started, the totals and every
- * test case with its Result, its Remark and the title of its linked Finding when that is known.
+ * test case with its Result, its Remark and the title of its linked Finding.
  * Cases without a group come first; the others follow under their group title in the order the
  * groups first appear. This is the one place a test run becomes text.
  */
-export function testRunReport(run: Pick<TestRun, 'draftTitle' | 'createdAt' | 'cases'>, findingTitles: Readonly<Record<string, string>> = {}): string {
+export function testRunReport(run: Pick<TestRun, 'draftTitle' | 'createdAt' | 'cases'>): string {
   const totals = resultOrder
     .map((result) => `${run.cases.filter((testCase) => testCase.result === result).length} ${resultLabels[result].toLowerCase()}`)
     .join(', ')
@@ -22,14 +22,11 @@ export function testRunReport(run: Pick<TestRun, 'draftTitle' | 'createdAt' | 'c
     if (!testCase.groupTitle) ungrouped.push(testCase)
     else groups.set(testCase.groupTitle, [...groups.get(testCase.groupTitle) ?? [], testCase])
   }
-  const caseLines = (testCase: TestRunCase) => {
-    const findingTitle = testCase.findingId ? findingTitles[testCase.findingId] : undefined
-    return [
-      `- ${resultLabels[testCase.result]}: ${testCase.title}`,
-      ...testCase.remark ? [`  Remark: ${testCase.remark}`] : [],
-      ...findingTitle ? [`  Finding: ${findingTitle}`] : [],
-    ]
-  }
+  const caseLines = (testCase: TestRunCase) => [
+    `- ${resultLabels[testCase.result]}: ${testCase.title}`,
+    ...testCase.remark ? [`  Remark: ${testCase.remark}`] : [],
+    ...testCase.findingTitle ? [`  Finding: ${testCase.findingTitle}`] : [],
+  ]
   const sections = [
     ...ungrouped.length ? [ungrouped.flatMap(caseLines).join('\n')] : [],
     ...Array.from(groups, ([group, cases]) => [`### ${group}`, ...cases.flatMap(caseLines)].join('\n')),

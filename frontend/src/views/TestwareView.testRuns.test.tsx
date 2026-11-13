@@ -37,7 +37,7 @@ const summary = (patch: Partial<TestRunSummary> = {}): TestRunSummary => ({
 })
 const run: TestRun = {
   id: 'run-1', sessionId: 'session-1', draftId: 'draft-1', draftTitle: 'Checkout cases', createdAt: at, updatedAt: at,
-  cases: [{ id: 'case-1', runId: 'run-1', position: 0, groupTitle: 'Checkout', title: 'Pay by card', bodyJson: '{}', result: 'not_run', remark: null, findingId: null, updatedAt: at }],
+  cases: [{ id: 'case-1', runId: 'run-1', position: 0, groupTitle: 'Checkout', title: 'Pay by card', bodyJson: '{}', result: 'not_run', remark: null, findingId: null, findingTitle: null, updatedAt: at }],
 }
 
 beforeEach(() => {
@@ -178,15 +178,15 @@ describe('Coverage line with test results', () => {
 })
 
 describe('Findings on the run screen', () => {
-  it('names the linked Finding from the Session Findings and starts a Finding from a failed case', async () => {
+  it('names the linked Finding the test run carries and starts a Finding from a failed case', async () => {
     api.listTestRuns.mockResolvedValue([summary()])
     api.getTestRun.mockResolvedValue({ ...run, cases: [
-      { ...run.cases[0], result: 'failed', findingId: 'finding-1' },
+      { ...run.cases[0], result: 'failed', findingId: 'finding-1', findingTitle: 'Card is declined' },
       { ...run.cases[0], id: 'case-2', title: 'Pay with a gift card', result: 'failed' },
     ] })
     const onCreateFinding = vi.fn()
     const onOpenFinding = vi.fn()
-    renderTestware([runnable], { findings: [{ id: 'finding-1', title: 'Card is declined' }], onCreateFinding, onOpenFinding })
+    renderTestware([runnable], { onCreateFinding, onOpenFinding })
     fireEvent.click(await screen.findByRole('button', { name: /^Last test run/ }))
     fireEvent.click(await screen.findByRole('button', { name: 'Finding: Card is declined' }))
     expect(onOpenFinding).toHaveBeenCalledWith('finding-1')

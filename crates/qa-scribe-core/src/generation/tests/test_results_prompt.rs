@@ -23,6 +23,7 @@ fn case(title: &str, result: TestCaseResult, remark: Option<&str>) -> TestRunCas
         result,
         remark: remark.map(Into::into),
         finding_id: None,
+        finding_title: None,
         updated_at: "2026-11-13T14:05:00Z".into(),
     }
 }
