@@ -108,6 +108,8 @@ export function createRecordPersistence(ctx: RecordPersistenceContext) {
   async function runForcedPass(owner: ForcedPass): Promise<boolean> {
     let failed = false
     let allSaved = true
+    // A pass with nothing dirty saves nothing, so it has nothing to report.
+    let savedAny = false
     const sameSession = () => ctx.session.activeSessionIdRef.current === owner.sessionId
     try {
       await coordination.waitForPendingRecordWrites()
@@ -143,13 +145,14 @@ export function createRecordPersistence(ctx: RecordPersistenceContext) {
           if (!sameSession()) return false
           failed = result === 'failed'
           allSaved = result === 'saved' && allSaved
+          savedAny ||= result === 'saved'
         }
         while (owner.canonical.length > 0) {
           if (!await drainCanonical(owner)) failed = true
         }
         if (!sameSession()) return false
       } while (!failed && owner.rescanRequested)
-      if (!failed && allSaved) ctx.feedback.setNotice('Pending record edits saved')
+      if (!failed && allSaved && savedAny) ctx.feedback.setNotice('Pending record edits saved')
       return !failed
     } catch (cause) {
       ctx.feedback.setError(formatError(cause))
