@@ -1,11 +1,10 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 import { entryFixture, findingFixture, generationStatusFixture } from '../test/fixtures'
-import { richEditorDocumentFromHtml, richEditorDocumentToHtml } from '../editor/editorDocument'
+import { richEditorDocumentFromHtml } from '../editor/editorDocument'
 import { createCreationActions, type CreationSelection } from './creationActions'
 import type { AiSelection } from './types'
 import type { CreatedRecord, GenerationJobEvent, GenerationJobStatus, NoteSource } from '../tauri'
 import type { CreationIntent } from './creationIntent'
-import * as editorRegistry from '../editor/richEditorRegistry'
 
 const bridge = vi.hoisted(() => ({ readNoteSource: vi.fn(), startAiActionJob: vi.fn(), cancelAiActionJob: vi.fn(), readClipboardImageDataUrl: vi.fn() }))
 vi.mock('../tauri', async (original) => ({ ...await original<object>(), ...bridge }))
@@ -47,24 +46,19 @@ beforeEach(() => {
   bridge.cancelAiActionJob.mockResolvedValue(status({ state: 'cancelling' }))
 })
 
-it('reviews canonical source without creating a job, and Prefill mutates the same intent', async () => {
+it('reads the canonical source as the draft opens, without creating a job', async () => {
   const { actions } = await opened()
-  const id = actions.current()?.id
-  expect(bridge.startAiActionJob).not.toHaveBeenCalled()
-  expect(await actions.prefill()).toBe(true)
-  expect(actions.current()?.id).toBe(id)
-  expect(richEditorDocumentToHtml(actions.current()!.document)).toContain('Reviewed exact source')
-  expect(richEditorDocumentToHtml(actions.current()!.document)).not.toContain('Describe the finding')
+  expect(actions.current()?.source).toEqual(latest)
   expect(bridge.startAiActionJob).not.toHaveBeenCalled()
 })
-it.each(['prefill', 'generate'] as const)('refreshes an ABA Note and requires a second confirmation for %s', async (operation) => {
+it('refreshes an ABA Note and requires a second confirmation before generating', async () => {
   const { actions, error } = await opened()
   latest = { ...latest, revision: 2 }
-  expect(operation === 'prefill' ? await actions.prefill() : await actions.generate(selection)).toBe(false)
+  expect(await actions.generate(selection)).toBe(false)
   expect(actions.current()?.source?.revision).toBe(2)
   expect(error).toHaveBeenLastCalledWith('The Note changed. Review the refreshed source and confirm again.')
   expect(bridge.startAiActionJob).not.toHaveBeenCalled()
-  expect(operation === 'prefill' ? await actions.prefill() : await actions.generate(selection)).toBe(true)
+  expect(await actions.generate(selection)).toBe(true)
 })
 it('starts exactly one job from the displayed source token and request-local identity', async () => {
   const { actions } = await opened()
@@ -156,7 +150,6 @@ it('preserves the existing Note-recovery source gate while ordinary writing stay
   actions.update({ title: 'Ordinary work' })
   blockSource()
   expect(await actions.generate(selection)).toBe(false)
-  expect(await actions.prefill()).toBe(false)
   expect(actions.current()?.title).toBe('Ordinary work')
   expect(bridge.startAiActionJob).not.toHaveBeenCalled()
 })
@@ -209,121 +202,6 @@ it('cannot consume a newer A-to-B-to-A intent from an earlier generation complet
   expect(actions.current()?.title).toBe('New A intent must survive')
   expect(selected).not.toHaveBeenCalled()
 })
-it.each(['finding', 'testware'] as const)('rejects a pending %s Prefill after authored content changes', async (kind) => {
-  const { actions } = await opened(kind)
-  actions.update({ title: 'Before confirmation', document: richEditorDocumentFromHtml('<p>Before body</p>') })
-  const id = actions.current()!.id
-  let finish!: (source: NoteSource) => void
-  bridge.readNoteSource.mockReturnValueOnce(new Promise(resolve => { finish = resolve }))
-  const pending = actions.prefill()
-  await vi.waitFor(() => expect(bridge.readNoteSource).toHaveBeenCalledTimes(2))
-  const document = richEditorDocumentFromHtml('<p><strong>New authored body</strong></p>')
-  actions.update({ title: 'New authored title', document })
-  finish(latest)
-  expect(await pending).toBe(false)
-  expect(actions.current()).toMatchObject({ id, title: 'New authored title', document, phase: { state: 'editing' } })
-  expect(bridge.startAiActionJob).not.toHaveBeenCalled()
-})
-
-it.each(['revision', 'error'] as const)('ignores late %s feedback after Prefill dismissal without requiring another edit', async (result) => {
-  const { actions, error } = await opened()
-  let resolve!: (source: NoteSource) => void
-  let reject!: (cause: Error) => void
-  bridge.readNoteSource.mockReturnValueOnce(new Promise((yes, no) => { resolve = yes; reject = no }))
-  const pending = actions.prefill()
-  await vi.waitFor(() => expect(bridge.readNoteSource).toHaveBeenCalledTimes(2))
-  actions.cancelPrefill()
-  const retained = actions.current()
-  error.mockClear()
-  if (result === 'revision') resolve({ ...latest, revision: 8 })
-  else reject(new Error('Old transport failure'))
-  expect(await pending).toBe(false)
-  expect(actions.current()).toBe(retained)
-  expect(error).not.toHaveBeenCalled()
-})
-
-it('does not let an older Prefill completion clear a superseding confirmation', async () => {
-  const { actions, error } = await opened()
-  let oldRead!: (source: NoteSource) => void
-  let newRead!: (source: NoteSource) => void
-  bridge.readNoteSource.mockReturnValueOnce(new Promise(resolve => { oldRead = resolve }))
-  const old = actions.prefill()
-  await vi.waitFor(() => expect(bridge.readNoteSource).toHaveBeenCalledTimes(2))
-  bridge.readNoteSource.mockReturnValueOnce(new Promise(resolve => { newRead = resolve }))
-  const next = actions.prefill()
-  await vi.waitFor(() => expect(bridge.readNoteSource).toHaveBeenCalledTimes(3))
-  error.mockClear()
-  oldRead({ ...latest, revision: 7 })
-  expect(await old).toBe(false)
-  expect(error).not.toHaveBeenCalled()
-  expect(actions.current()?.source?.revision).toBe(0)
-  newRead(latest)
-  expect(await next).toBe(true)
-  expect(richEditorDocumentToHtml(actions.current()!.document)).toContain('Reviewed exact source')
-})
-
-it.each(['title', 'body', 'metadata', 'kind', 'format'] as const)('invalidates pending Prefill on a %s edit even when the content returns to its initial value', async (field) => {
-  const { actions } = await opened()
-  const originalDocument = actions.current()!.document
-  let finish!: (source: NoteSource) => void
-  bridge.readNoteSource.mockReturnValueOnce(new Promise(resolve => { finish = resolve }))
-  const pending = actions.prefill()
-  await vi.waitFor(() => expect(bridge.readNoteSource).toHaveBeenCalledTimes(2))
-  if (field === 'title') { actions.update({ title: 'Changed' }); actions.update({ title: '' }) }
-  if (field === 'body') { actions.update({ document: richEditorDocumentFromHtml('<p>Changed body</p>') }); actions.update({ document: originalDocument }) }
-  if (field === 'metadata') { actions.update({ metadataJson: '{"severity":"high"}' }); actions.update({ metadataJson: null }) }
-  if (field === 'kind') { actions.update({ findingKind: 'risk' }); actions.update({ findingKind: 'bug' }) }
-  if (field === 'format') { actions.applyFormat({ kind: 'finding', template: 'blank' }); actions.applyFormat({ kind: 'finding', template: 'structured' }) }
-  finish(latest)
-  expect(await pending).toBe(false)
-})
-
-it('can confirm Prefill after a navigation epoch changed while the same draft stayed open', async () => {
-  const { actions, changeSession } = await opened()
-  changeSession('session-1')
-  expect(await actions.prefill()).toBe(true)
-  expect(richEditorDocumentToHtml(actions.current()!.document)).toContain('Reviewed exact source')
-})
-
-it('cancels the Prefill that is still waiting for a local image and retains that image', async () => {
-  const { actions, error } = await opened()
-  let finishImage!: (data: string) => void
-  bridge.readClipboardImageDataUrl.mockReturnValueOnce(new Promise(resolve => { finishImage = resolve }))
-  const document = richEditorDocumentFromHtml('<p>Keep this image</p><img src="data:image/png;base64,aGVsbG8=">')
-  const insertImage = vi.fn(() => { actions.update({ document }); return true })
-  const registry = vi.spyOn(editorRegistry, 'richEditorImageInserterForId').mockReturnValue(insertImage)
-  try {
-    const image = actions.pasteImage({ editorId: 'current-editor', insertImage })
-    const pending = actions.prefill()
-    actions.cancelPrefill()
-    error.mockClear()
-    finishImage('data:image/png;base64,aGVsbG8=')
-    await image
-    expect(await pending).toBe(false)
-    expect(actions.current()?.document).toBe(document)
-    expect(actions.current()?.imageOperations).toEqual({})
-    expect(bridge.readNoteSource).toHaveBeenCalledTimes(1)
-    expect(error).not.toHaveBeenCalled()
-    expect(bridge.startAiActionJob).not.toHaveBeenCalled()
-  } finally { registry.mockRestore() }
-})
-
-it('prefills the selected Gherkin structure with escaped source and retains its selection', async () => {
-  const { actions } = await opened('testware')
-  actions.applyFormat({ kind: 'testware', outputFormat: 'gherkin' })
-  expect(await actions.prefill()).toBe(true)
-  expect(richEditorDocumentToHtml(actions.current()!.document)).toBe('<p><strong>Source note:</strong> Reviewed exact source</p><h2>Feature</h2><p></p><h3>Scenario</h3><p></p><p><strong>Given</strong></p><p><strong>When</strong></p><p><strong>Then</strong></p>')
-  expect(actions.current()?.format).toEqual({ kind: 'testware', outputFormat: 'gherkin' })
-  expect(latest.entry.body).toBe('<p>Reviewed exact source</p>')
-})
-
-it('prefills a blank finding with plain Note content and no structured sections', async () => {
-  const { actions } = await opened()
-  actions.applyFormat({ kind: 'finding', template: 'blank' })
-  expect(await actions.prefill()).toBe(true)
-  expect(richEditorDocumentToHtml(actions.current()!.document)).toBe('<p>Reviewed exact source</p>')
-})
-
 it('inherits the selected format for generation and retains it on failure', async () => {
   const { actions } = await opened('testware')
   actions.applyFormat({ kind: 'testware', outputFormat: 'coverage_outline' })

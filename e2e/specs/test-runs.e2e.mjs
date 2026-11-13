@@ -224,9 +224,9 @@ describe('Test runs in the built native application', () => {
     const body = await $('[aria-label="Creation draft body"][contenteditable="true"]')
     await body.waitForDisplayed()
     // One entry per block of the draft body, in order. The case keeps the empty paragraph the draft ends with.
-    const prefilled = await browser.execute((body) => Array.from(body.children, (block) => block.textContent), body)
-    save('finding-prefill', { title: await findingTitle.getValue(), body: prefilled })
-    assert.deepEqual(prefilled, [
+    const seeded = await browser.execute((body) => Array.from(body.children, (block) => block.textContent), body)
+    save('finding-from-test-case', { title: await findingTitle.getValue(), body: seeded })
+    assert.deepEqual(seeded, [
       'Environment', '', 'Steps to reproduce', 'Gift card is charged.', '', 'Expected result', '',
       'Actual result', remark, 'Evidence', '', 'Impact', '',
     ])

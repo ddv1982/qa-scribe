@@ -1,8 +1,6 @@
 import { defaultTestwareGenerationPreferences } from '../testware/generationPreferences'
 import { cancelAiActionJob, readNoteSource, startAiActionJob, type CreatedRecord, type CreationOutcome, type GenerationJobEvent, type GenerationJobStatus, type NoteSource, type TestwareGenerationPreferences } from '../tauri'
-import { richEditorDocumentFromHtml } from '../editor/editorDocument'
 import { formatError } from '../ui/format'
-import { renderPrefilledFinding, renderPrefilledTestware } from '../workflows/prefillTemplates'
 import type { AiSelection } from './types'
 import type { CreationIntent } from './creationIntent'
 
@@ -18,14 +16,11 @@ export type CreationSourceHost = {
   publishJob: (status: GenerationJobStatus) => void
   acceptOutcome: (intent: CreationIntent, outcome: CreationOutcome) => Promise<boolean>
   finished: () => void
-  withSettledImages: (action: () => Promise<boolean>, isCurrent: () => boolean) => Promise<boolean>
 }
 
 export function createCreationSourceActions(host: CreationSourceHost) {
   let sourceRead = 0
   let cancellation: Promise<void> | null = null
-  let prefillOperation: symbol | null = null
-  function cancelPrefill() { prefillOperation = null }
   async function reviewSource(): Promise<void> {
     const current = host.current()
     if (!current || current.phase.state !== 'editing' || !current.sourceNoteId) return
@@ -36,39 +31,16 @@ export function createCreationSourceActions(host: CreationSourceHost) {
       if (read === sourceRead && host.matches(captured)) host.publish({ ...host.current()!, source })
     } catch (cause) { if (host.matches(captured)) host.error(formatError(cause)) }
   }
-  async function confirmSource(captured: CreationIntent, isCurrent: () => boolean = () => true): Promise<NoteSource | null> {
+  async function confirmSource(captured: CreationIntent): Promise<NoteSource | null> {
     if (!host.sourceAllowed() || !captured.source || !captured.sourceNoteId) return null
     const latest = await readNoteSource(captured.sessionId, captured.sourceNoteId)
-    if (!isCurrent() || !host.matches(captured) || !host.navigationIsCurrent(captured.epoch) || !host.sourceAllowed()) return null
+    if (!host.matches(captured) || !host.navigationIsCurrent(captured.epoch) || !host.sourceAllowed()) return null
     if (!latest || latest.entry.id !== captured.source.entry.id || latest.revision !== captured.source.revision) {
       host.publish({ ...host.current()!, source: latest })
       host.error('The Note changed. Review the refreshed source and confirm again.')
       return null
     }
     return latest
-  }
-  async function prefill(): Promise<boolean> {
-    const current = host.current()
-    if (!current || current.phase.state !== 'editing' || !host.sourceAllowed()) return false
-    let captured = current
-    const epoch = host.beginNavigation()
-    const operation = Symbol('prefill')
-    prefillOperation = operation
-    const owned = () => prefillOperation === operation && host.matches(captured)
-      && host.navigationIsCurrent(epoch) && host.current()?.phase.state === 'editing'
-    try {
-      return await host.withSettledImages(async () => {
-        captured = { ...host.current()!, epoch }
-        host.publish(captured)
-        const source = await confirmSource(captured, owned)
-        if (!source || !owned()) return false
-        const html = captured.format.kind === 'finding' ? renderPrefilledFinding(source.entry.body, captured.format.template) : renderPrefilledTestware(source.entry.title ?? '', source.entry.body, captured.format.outputFormat)
-        host.publish({ ...host.current()!, document: richEditorDocumentFromHtml(html), title: captured.title || source.entry.title || '' })
-        host.error(null)
-        return true
-      }, owned)
-    } catch (cause) { if (owned()) host.error(formatError(cause)); return false }
-    finally { if (prefillOperation === operation) prefillOperation = null }
   }
   async function generate(selection: AiSelection, preferences?: TestwareGenerationPreferences): Promise<boolean> {
     const currentIntent = host.current()
@@ -145,5 +117,5 @@ export function createCreationSourceActions(host: CreationSourceHost) {
     }).finally(() => { cancellation = null })
     return cancellation
   }
-  return { reviewSource, prefill, cancelPrefill, generate, cancelGeneration }
+  return { reviewSource, generate, cancelGeneration }
 }

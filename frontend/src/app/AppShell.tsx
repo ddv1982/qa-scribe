@@ -1,6 +1,8 @@
 import { ActionButton } from '../components/ActionButton'
 import { CreationWorkspace } from '../views/CreationTools'
-import { useEffect, useState, type KeyboardEvent } from 'react'
+import { CreationNotePanel } from '../views/CreationNotePanel'
+import { useCreationNoteVisible } from '../hooks/useCreationNoteVisible'
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { catalogSelectorEnabled } from '../settings/catalog'
 import { customModelCatalogAdvisory } from '../settings/modelAdvisories'
 import { NextModelSelection } from '../components/NextModelSelection'
@@ -47,7 +49,13 @@ export function AppShell(c: AppController) {
   })
   const creationResultReady = c.creationIntent?.phase.state === 'saved'
     && c.creationIntent.phase.selection === 'ready'
-  const composer = c.creationIntent && !creationResultReady ? <CreationWorkspace c={c} /> : null
+  // The draft on screen, if any: its Note shows beside it in place of the record list and Ask AI.
+  const shownDraft = c.creationIntent && !creationResultReady
+    && c.activeView === (c.creationIntent.kind === 'finding' ? 'findings' : 'testware') ? c.creationIntent : null
+  const contentRef = useRef<HTMLDivElement>(null)
+  const [noteVisible, toggleNote] = useCreationNoteVisible(shownDraft?.id ?? null, contentRef)
+  const askAiVisible = c.askAi.visible && !shownDraft
+  const composer = c.creationIntent && !creationResultReady ? <CreationWorkspace c={c} onShowNote={noteVisible ? undefined : toggleNote} /> : null
 
   const { loadDraftLibrary, loadFindingLibrary, sessionLibraryComplete } = c
   // Startup loads only recent Sessions; the palette searches every Session without changing the sidebar.
@@ -101,7 +109,8 @@ export function AppShell(c: AppController) {
               </button>
             </nav>
             {c.activeView === 'sessions' ? <div className="session-header-actions" ref={setNoteActionsTarget} /> : null}
-        {c.askAi.recovery.filter(item => !c.askAi.visible || item.reference.draftId !== c.askAi.reference?.draftId || Boolean(item.origin && item.origin.stageId !== c.askAi.panel?.legacyOrigin?.stageId)).map(item =>
+        {/* Ask AI is not offered beside a new draft, so neither is its recovery. */}
+        {shownDraft ? null : c.askAi.recovery.filter(item => !askAiVisible || item.reference.draftId !== c.askAi.reference?.draftId || Boolean(item.origin && item.origin.stageId !== c.askAi.panel?.legacyOrigin?.stageId)).map(item =>
           <div className="chat-recovery-notice" key={item.origin?.stageId ?? item.reference.draftId}>
             <span>{item.reason}</span>
             <ActionButton variant="secondary" size="compact" data-recovery-draft={item.reference.draftId} onClick={() => void c.askAi.recover(item)}>Recover Ask AI · {recoveryTitle(c, item.owner)}</ActionButton>
@@ -109,7 +118,7 @@ export function AppShell(c: AppController) {
         {c.askAi.recoveryError ? <p className="chat-error" role="alert">{c.askAi.recoveryError}</p> : null}
           </header>
         ) : null}
-        <div className={`session-content${c.askAi.visible ? ' session-content--record-chat' : ''}${c.activeView === 'sessions' && c.sessionMode === 'chat' ? ' session-content--notes-chat' : ''}`}>
+        <div ref={contentRef} className={`session-content${askAiVisible || (shownDraft && noteVisible) ? ' session-content--side-panel' : ''}${c.activeView === 'sessions' && c.sessionMode === 'chat' ? ' session-content--notes-chat' : ''}`}>
         <div className="session-document-area">
         {c.activeView === 'sessions' ? (
           <SessionEditorView
@@ -164,7 +173,7 @@ export function AppShell(c: AppController) {
         {c.activeView === 'testware' ? (
           <TestwareView recordChat={c.askAi} sessionId={c.activeSession?.id ?? null} acceptanceCriteria={c.activeSession?.acceptanceCriteria ?? null}
             onCreateFinding={(testCase) => void c.handleFindingFromTestCase(testCase)} onOpenFinding={(findingId) => void c.openSessionFinding(findingId)}
-            composer={c.creationIntent?.kind === 'testware' ? composer : null} settleCreation={c.creation.settle}
+            composer={c.creationIntent?.kind === 'testware' ? composer : null}
             creationCommands={creationCommands('testware')}
             key={c.activeSession?.id ?? 'no-session'}
             busyAction={c.busyAction}
@@ -195,7 +204,7 @@ export function AppShell(c: AppController) {
 
         {c.activeView === 'findings' ? (
           <FindingsView recordChat={c.askAi}
-            composer={c.creationIntent?.kind === 'finding' ? composer : null} settleCreation={c.creation.settle}
+            composer={c.creationIntent?.kind === 'finding' ? composer : null}
             creationCommands={creationCommands('finding')}
             key={c.activeSession?.id ?? 'no-session'}
             busyAction={c.busyAction}
@@ -262,7 +271,8 @@ export function AppShell(c: AppController) {
           />
         ) : null}
         </div>
-        <AppChat c={c} modelSelectionControl={modelSelectionControl} onConfigureAi={() => runCommand('ai.configure')} />
+        {shownDraft && noteVisible ? <CreationNotePanel intent={shownDraft} noteReadOnly={c.noteReadOnly} onReadNote={() => void c.creation.reviewSource()} onClose={toggleNote} /> : null}
+        <AppChat c={c} recordVisible={askAiVisible} modelSelectionControl={modelSelectionControl} onConfigureAi={() => runCommand('ai.configure')} />
         </div>
       </section>
 

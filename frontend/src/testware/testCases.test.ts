@@ -1,7 +1,6 @@
 import type { JSONContent } from '@tiptap/core'
 import { describe, expect, it } from 'vitest'
 import { richEditorDocumentFromHtml, type RichEditorDocument } from '../editor/editorDocument'
-import { renderPrefilledTestware } from '../workflows/prefillTemplates'
 import { draftOutputFormat, splitTestCases, type TestCaseSplit } from './testCases'
 
 type Fixture = { format: string | null; metadataJson: string | null; bodyHtml: string; document: RichEditorDocument }
@@ -202,15 +201,6 @@ describe('manual drafts', () => {
       ['Checkout regression', 'Cancel payment'],
     ])
     expect(split?.preamble).toHaveLength(2)
-  })
-
-  it('keeps a prefilled Source note in the preamble, so only the starter\'s cases count', () => {
-    for (const [format, cases] of [['qa_cases', [['Scenario', 'Test case']]], ['gherkin', [['Feature', 'Scenario']]]] as const) {
-      const document = richEditorDocumentFromHtml(renderPrefilledTestware('Title', '<p>Pay with a <strong>saved</strong> card.</p>', format))
-      const result = splitTestCases(document, format)
-      expect(result?.cases.map(({ group, title }) => [group, title]), format).toEqual(cases)
-      expect(result?.preamble[0], format).toMatchObject({ type: 'paragraph', content: [{ text: 'Source note:' }, { text: ' Pay with a saved card.' }] })
-    }
   })
 
   it('returns null for the empty starters, which have nothing to run', () => {

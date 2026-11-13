@@ -1052,25 +1052,14 @@
 }
 
 .creation-fields,
-.creation-source-review,
-.creation-tools {
+.creation-source-review {
   min-width: 0;
   overflow-wrap: anywhere;
 }
 
+/* The Note under review in the Generate with AI dialog. */
 .creation-source-review .rich-editor {
   max-width: 100%;
-}
-
-.creation-source-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--space-2);
-}
-
-.creation-source-review .rich-editor {
   min-height: 0;
 }
 
@@ -1080,6 +1069,26 @@
 
 .creation-source-review > p {
   margin: 0 0 var(--space-1);
+}
+
+/* Show Note sits right of Copy, level with it, while the Note beside the draft is closed. */
+.creation-composer > .record-title-row:has(> .creation-note-toggle) { grid-template-columns: minmax(0, 1fr) auto auto; }
+.creation-composer > .record-title-row > .creation-note-toggle { grid-column: 3; grid-row: 1; margin-block: calc((23px * 1.2 - var(--control-lg)) / 2); }
+
+/* The Note beside a new draft (CreationNotePanel, a side-panel): read-only, scrolling on its own. */
+.creation-note-body {
+  display: grid;
+  flex: 1;
+  align-content: start;
+  gap: var(--space-3);
+  min-height: 0;
+  padding: 0 var(--space-4) var(--space-4);
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+}
+
+.creation-note-body .rich-editor {
+  min-height: 0;
 }
 
 .finding-classification-fields,
@@ -1104,4 +1113,9 @@
   .creation-composer > .field { grid-column: 1; grid-row: 2; align-self: start; }
   .creation-composer > .creation-format { grid-column: 2; }
   .creation-composer > .creation-fields { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
+}
+
+/* A short workspace keeps the draft's first section in view beside the Note: the format hint gives way (it stays the select's description). */
+@container session-workspace (max-height: 680px) {
+  .creation-format > .field-description { display: none; }
 }

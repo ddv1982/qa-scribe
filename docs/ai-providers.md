@@ -22,7 +22,7 @@ Choose **Generate with AI** inside a new Finding or test-case draft, choose **Su
 
 Choose **Create finding** or **Create test cases** from Note or the corresponding collection. Both open the same local, unsaved creation flow with shared starter sections. You can write and Save without a provider.
 
-**Prefill from note** uses the reviewed saved Note's plain text, without formatting or screenshots. Findings use only its first 4,000 characters. It fills the current draft rather than creating another record; confirm before replacing authored text.
+The draft shows the saved Note read-only on the right. That is the source **Generate with AI** uses.
 
 **Generate with AI** reviews the saved source Note, including its revision, and the selected provider and output choices. Successful generation saves one result immediately and opens it for review. If the draft already has authored work, confirmation is **Generate and replace draft**: success closes the local draft and discards its unsaved text and local images. Cancellation or failure keeps that draft. A changed Note must be reviewed again before it can be used as the source.
 

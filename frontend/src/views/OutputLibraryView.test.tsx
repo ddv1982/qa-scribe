@@ -11,7 +11,7 @@ vi.mock('../tauri', async (importOriginal) => ({ ...await importOriginal<typeof 
 const nativeText = vi.mocked(copyHtmlToClipboard)
 
 import { OutputLibraryView } from './OutputLibraryView'
-import { recordListStorageKey } from '../hooks/useRecordListVisible'
+import { recordListStorageKey } from '../hooks/useRememberedVisible'
 
 describe('cross-session output libraries', () => {
   afterEach(() => {

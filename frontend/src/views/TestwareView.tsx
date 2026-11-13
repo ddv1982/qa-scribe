@@ -33,7 +33,7 @@ const testwareLabels: RecordCollectionLabels = {
 }
 
 export function TestwareView({
-  composer, settleCreation, recordChat,
+  composer, recordChat,
   sessionId = null,
   acceptanceCriteria = null,
   onCreateFinding,
@@ -70,7 +70,6 @@ export function TestwareView({
   /** Opens a Finding of the Session in its Findings tab. */
   onOpenFinding?: (findingId: string) => void
   recordChat?: RecordChatActions
-  settleCreation?: () => Promise<boolean>
   composer?: import('react').ReactNode
   creationCommands: RecordCreationCommands
   busyAction: BusyAction | null
@@ -101,7 +100,7 @@ export function TestwareView({
   const runsOf = (draftId: string) => testRuns.summaries.filter((summary) => summary.draftId === draftId)
   return (
     <RecordCollectionView
-      composer={composer} settleCreation={settleCreation} recordChat={recordChat}
+      composer={composer} recordChat={recordChat}
       creationCommands={creationCommands}
       labels={testwareLabels}
       emptyIcon={Box}

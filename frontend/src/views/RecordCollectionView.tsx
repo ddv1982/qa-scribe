@@ -2,7 +2,7 @@ import type { RecordChatActions } from '../app/sessionChat.context'
 import { ActionButton } from '../components/ActionButton'
 import { RecordCreationActions, type RecordCreationCommands } from './RecordCreationActions'
 import { RecordListToggle } from '../components/RecordListToggle'
-import { useRecordListVisible } from '../hooks/useRecordListVisible'
+import { recordListStorageKey, useRememberedVisible } from '../hooks/useRememberedVisible'
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, Loader2, Search, SearchX, Sparkles } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -47,7 +47,7 @@ export type RecordCollectionLabels = {
 export type RecordBusyActionKind = 'delete' | 'saving'
 
 export function RecordCollectionView<T extends CollectionRecord>({
-  composer, settleCreation, recordChat,
+  composer, recordChat,
   creationCommands,
   labels,
   emptyIcon,
@@ -83,7 +83,6 @@ export function RecordCollectionView<T extends CollectionRecord>({
   onUploadImage,
 }: {
   recordChat?: RecordChatActions
-  settleCreation?: () => Promise<boolean>
   composer?: ReactNode
   creationCommands: RecordCreationCommands
   labels: RecordCollectionLabels
@@ -136,9 +135,10 @@ export function RecordCollectionView<T extends CollectionRecord>({
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<'updated' | 'title'>('updated')
   const [filterValue, setFilterValue] = useState('all')
-  const [listVisible, toggleList] = useRecordListVisible()
+  const [listVisible, setListVisible] = useRememberedVisible(recordListStorageKey)
+  // A new draft gets the room the list had: beside it shows the Note instead.
+  const showList = listVisible && !composer
   const listId = useId()
-  const selectionEpochRef = useRef(0)
   const previewRef = useRef<HTMLDivElement>(null)
   const titleInputRef = useRef<HTMLInputElement>(null)
   const [appliedTarget, setAppliedTarget] = useState<CreatedRecordEditTarget | null>(null)
@@ -244,9 +244,10 @@ export function RecordCollectionView<T extends CollectionRecord>({
     <section className="collection-view">
       <header className="collection-header">
         <h1 className="sr-only">{labels.heading}</h1>
-        {records.length > 0 ? (
+        {/* Beside a new draft there is no list to search, sort or filter. */}
+        {records.length > 0 && !composer ? (
           <div className="collection-toolbar">
-            <RecordListToggle visible={listVisible} listId={listId} onToggle={toggleList} />
+            <RecordListToggle visible={listVisible} listId={listId} onToggle={() => setListVisible(!listVisible)} />
             <label className="collection-search">
               <Search size={16} />
               <span className="sr-only">Search {labels.heading}</span>
@@ -293,7 +294,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
       ) : null}
       {renderSummary?.(savedRecords)}
 
-      <div className={listVisible && visibleRecords.length ? 'collection-workspace' : 'collection-workspace collection-workspace--single-sidebar'}>
+      <div className={showList && visibleRecords.length ? 'collection-workspace' : 'collection-workspace collection-workspace--single-sidebar'}>
         {activeGenerationJob ? (
           <GenerationRecord
             title={labels.generationTitle}
@@ -304,20 +305,16 @@ export function RecordCollectionView<T extends CollectionRecord>({
             onCancelGenerationJob={onCancelGenerationJob}
           />
         ) : null}
-        {listVisible && visibleRecords.length > 0 ? (
+        {showList && visibleRecords.length > 0 ? (
           <aside id={listId} className="record-master-list" aria-label={`${labels.heading} records`}>
             {visibleRecords.map((record) => (
               <button
                 key={record.id}
                 type="button"
-                className={!composer && selectedRecord?.id === record.id ? 'active' : ''}
-                aria-current={!composer && selectedRecord?.id === record.id ? 'true' : undefined}
+                className={selectedRecord?.id === record.id ? 'active' : ''}
+                aria-current={selectedRecord?.id === record.id ? 'true' : undefined}
                 disabled={selectedEditing && selectedRecord?.id !== record.id}
-                onClick={() => {
-                  const epoch = ++selectionEpochRef.current
-                  if (composer && settleCreation) void settleCreation().then((settled) => { if (settled && selectionEpochRef.current === epoch) setSelectedRecordId(record.id) })
-                  else setSelectedRecordId(record.id)
-                }}
+                onClick={() => setSelectedRecordId(record.id)}
               >
                 <strong>{record.title.trim() || `Untitled ${labels.recordNounLower}`}</strong>
                 <span>Updated {formatRecordDate(record.updatedAt)}</span>

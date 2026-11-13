@@ -6,7 +6,9 @@ behind it is [ADR 0011](../adr/0011-one-accent-and-shared-components.md).
 ## Rules
 
 1. **The Note stays the whole screen.** A new feature lives in one quiet row or
-   behind an existing tab. Do not add panels or navigation items for it.
+   behind an existing tab. Do not add panels or navigation items for it. The
+   only panels are the side panels listed below: Ask AI, and the Note beside a
+   new draft.
 2. **Empty means invisible.** A feature with nothing in it shows nothing.
 3. **One component per job.** Compose the shared components below. A screen
    stylesheet lays things out. It does not style a control.
@@ -49,7 +51,8 @@ are the next ones to extract; until then, copy the named pattern exactly.
 | Any action | `ActionButton` in `components/ActionButton.tsx`. Variants: `primary`, `secondary`, `quiet`, `destructive-quiet`, `destructive-confirmation`. One `primary` per screen. | Shared |
 | Hover message on an icon-only button | `tooltip` on `ActionButton`: a small label below the button. Set `tooltipAlign="end"` for a button at the right edge. Never use the native `title`. The `aria-label` stays the accessible name | Shared |
 | Copy | `CopyControls` in `views/RichRecordView.tsx`: a quiet icon in the top-right corner of what it copies, with a second icon for the first screenshot. It says Copied in its tooltip. `CopyButton` in `components/CopyButton.tsx` is the single icon | Shared |
-| Hide or show the record list | `RecordListToggle` in `components/RecordListToggle.tsx`: a quiet icon left of the search box that folds the list away so the open record gets the full width. `useRecordListVisible` in `hooks/useRecordListVisible.ts` remembers the choice for Test cases, Findings and both libraries. Beside Ask AI the list is already hidden, so the toggle is too | Shared |
+| Hide or show the record list | `RecordListToggle` in `components/RecordListToggle.tsx`: a quiet icon left of the search box that folds the list away so the open record gets the full width. `useRememberedVisible(recordListStorageKey)` in `hooks/useRememberedVisible.ts` remembers the choice for Test cases, Findings and both libraries. Beside a side panel or a new draft the list is hidden, so the toggle is too | Shared |
+| Side panel on the right | `side-panel` with a `side-panel-header` (title, then a close icon), and `session-content--side-panel` on the workspace to fold the record list away. At a workspace width of 850px or less the panel covers the document area until closed. Used by Ask AI beside a saved record and by `CreationNotePanel` in `views/CreationNotePanel.tsx`, the Note read-only beside a new draft, opened and closed through `useCreationNoteVisible` in `hooks/useCreationNoteVisible.ts`. Never both at once: Ask AI is not offered beside a new draft | Shared |
 | Empty, loading or failed list | `StatePanel` and `EmptyCollection` in `components/Common.tsx` | Shared |
 | Save state line | `StatusPill` in `components/Common.tsx` | Shared |
 | Modal dialog | `Dialog` in `components/Dialog.tsx`: native `<dialog>` with `useModalDialog`, title, description, actions on the right. Pass `initialFocus` to focus the safe action first | Shared |

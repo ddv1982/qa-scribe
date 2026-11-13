@@ -9,8 +9,11 @@ import type { AppController } from './useAppController'
 import { deriveChatHandoff, handoffDuringRecordWrites, recoveredSummaryChoiceReason } from './sessionChat.presentation'
 import '../styles/ask-ai.css'
 
-export function AppChat({ c, modelSelectionControl, onConfigureAi }: {
-  c: AppController; modelSelectionControl: SessionChatViewProps['modelSelectionControl']; onConfigureAi: () => void
+export function AppChat({ c, recordVisible = c.askAi.visible, modelSelectionControl, onConfigureAi }: {
+  c: AppController
+  /** Whether a record's Ask AI shows: never beside a new draft, where the Note takes its place. */
+  recordVisible?: boolean
+  modelSelectionControl: SessionChatViewProps['modelSelectionControl']; onConfigureAi: () => void
 }) {
   const notesVisible = Boolean(c.activeSession && c.activeView === 'sessions' && c.sessionMode === 'chat')
   const notesAddedToNote = c.sessionChat.handoff.kind === 'added'
@@ -52,12 +55,12 @@ export function AppChat({ c, modelSelectionControl, onConfigureAi }: {
       <SessionChatView {...c.sessionChat} {...common} kind="notes" hidden={!notesVisible} proposalControls={noteControls}
         onOpenNote={() => { restoreNotesFocus.current = true; c.setSessionMode('write_note'); c.setActiveView('sessions') }} />
     </AskAiPanel>
-    {c.askAi.panel ? <RecordConversation key={c.activeSession?.id} c={c} common={common} /> : null}
+    {c.askAi.panel ? <RecordConversation key={c.activeSession?.id} c={c} visible={recordVisible} common={common} /> : null}
   </>
 }
 
-function RecordConversation({ c, common }: {
-  c: AppController; common: Pick<SessionChatViewProps, 'providerLabel' | 'modelLabel' | 'modelSelectionPending' | 'providerAvailable' | 'providerReason' | 'onConfigureAi'>
+function RecordConversation({ c, visible, common }: {
+  c: AppController; visible: boolean; common: Pick<SessionChatViewProps, 'providerLabel' | 'modelLabel' | 'modelSelectionPending' | 'providerAvailable' | 'providerReason' | 'onConfigureAi'>
 }) {
   const ref = useRef<HTMLElement>(null)
   const panel = c.askAi.panel!
@@ -65,10 +68,10 @@ function RecordConversation({ c, common }: {
   const handle = reference ? c.conversations.bind(reference) : null
   const state = c.recordChat
   useLayoutEffect(() => {
-    if (!c.askAi.visible || !reference) return
+    if (!visible || !reference) return
     const input = ref.current?.querySelector<HTMLTextAreaElement>('textarea:not(:disabled)')
     input?.focus({ preventScroll: true })
-  }, [c.askAi.visible, c.askAi.focusRequest, state.chat?.draftId, reference])
+  }, [visible, c.askAi.focusRequest, state.chat?.draftId, reference])
   const source = c.askAi.source!
   const owner = panel.owner
   // A test run is only read: its conversation offers no change to apply.
@@ -77,7 +80,7 @@ function RecordConversation({ c, common }: {
     onAction: (id: string, action: import('../bindings').RefinementAction) => c.proposalControls.onAction(id, action, reference!) } : undefined
   const noun = owner.kind === 'test_run' ? { eyebrow: 'Test run', missing: 'test run is' }
     : owner.record.kind === 'finding' ? { eyebrow: 'Finding', missing: 'finding is' } : { eyebrow: 'Test case', missing: 'Test cases draft is' }
-  return <AskAiPanel panelRef={ref} kind="record" visible={c.askAi.visible} label="Ask AI" eyebrow={noun.eyebrow}
+  return <AskAiPanel panelRef={ref} kind="record" visible={visible} label="Ask AI" eyebrow={noun.eyebrow}
     onClose={() => void c.askAi.close()} source={<>
       {source.kind === 'available' ? <strong title={source.title}>{source.title}</strong>
         : <p role={source.kind === 'error' ? 'alert' : 'status'}>{source.kind === 'loading' ? 'Loading source…' : source.kind === 'error' ? source.message : `This ${noun.missing} no longer available.`}</p>}
@@ -88,7 +91,7 @@ function RecordConversation({ c, common }: {
     {panel.closeError ? <p className="chat-error" role="alert">{panel.closeError}</p> : null}
     {panel.recoveryReason && c.askAi.recovery.some(item => item.reference.draftId === reference?.draftId) ? <p className="chat-recovery-reason" role="status">{panel.recoveryReason}</p> : null}
     {handle && reference ? <div className="conversation-presentation" key={reference.draftId}>
-      {panel.legacyOrigin ? <BoundNotes c={c} common={common} hidden={!c.askAi.visible} modelSelectionControl={null} /> : <SessionChatView {...state} {...common} kind="record" owner={owner} source={source} hidden={!c.askAi.visible}
+      {panel.legacyOrigin ? <BoundNotes c={c} common={common} hidden={!visible} modelSelectionControl={null} /> : <SessionChatView {...state} {...common} kind="record" owner={owner} source={source} hidden={!visible}
         modelSelectionControl={null} proposalControls={controls} activeTarget={c.askAi.context}
         onSetComposer={handle.setComposer} onSend={handle.send} onRetry={handle.retry} onCancel={handle.cancel}
         onAttachImages={handle.attachImages} onPasteNativeImage={handle.pasteImage} onRemoveImage={handle.removeImage} onRetryImage={handle.retryImage} onDismissImageFailure={handle.dismissImage}
@@ -102,8 +105,8 @@ function AskAiPanel({ panelRef, id, kind, visible, label, eyebrow, source, actio
   panelRef: Ref<HTMLElement>; id?: string; kind: 'notes' | 'record'; visible: boolean; label: string
   eyebrow: string; source: ReactNode; actions?: ReactNode; onClose: () => void; children: ReactNode
 }) {
-  return <aside ref={panelRef} id={id} className={`ask-ai-panel ask-ai-panel--${kind}`} hidden={!visible} inert={!visible} aria-label={label}>
-    <header className="ask-ai-header"><h2>Ask AI</h2><div className="ask-ai-header-actions">{actions}<ActionButton variant="secondary" iconOnly icon={X} aria-label="Close Ask AI" onClick={onClose} /></div></header>
+  return <aside ref={panelRef} id={id} className={`side-panel ask-ai-panel ask-ai-panel--${kind}`} hidden={!visible} inert={!visible} aria-label={label}>
+    <header className="side-panel-header ask-ai-header"><h2>Ask AI</h2><div className="ask-ai-header-actions">{actions}<ActionButton variant="secondary" iconOnly icon={X} aria-label="Close Ask AI" onClick={onClose} /></div></header>
     <section className="chat-context-card" aria-label="Chat source"><div><span className="eyebrow">{eyebrow}</span>{source}</div></section>
     {children}
   </aside>

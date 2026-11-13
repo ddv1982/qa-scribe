@@ -17,8 +17,6 @@ export type BusyAction =
   | 'refresh-providers'
   | 'manual-testware'
   | 'manual-finding'
-  | 'prefill-testware'
-  | 'prefill-finding'
   | 'ai-testware'
   | 'ai-finding'
   | 'ai-summary'

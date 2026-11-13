@@ -65,8 +65,6 @@ models do not always follow the format they were asked for.
   its parts, so it splits the same way as generated drafts. Drafts saved from
   the earlier starter, which used an h3 for every section, are not migrated and
   split at every section.
-- Prefill from Note writes the Note as a labelled paragraph, not under a
-  heading, so it is never counted as a test case.
 - A test run shows the cases as they were. Fixing a typo in the draft needs a
   new test run to show up there.
 - A test run owns its own Ask AI conversation (owner kind `test_run`). Every

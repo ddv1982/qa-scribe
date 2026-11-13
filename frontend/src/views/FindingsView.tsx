@@ -55,7 +55,7 @@ function FindingMeta({ finding }: { finding: Finding }) {
 }
 
 export function FindingsView({
-  composer, settleCreation, recordChat,
+  composer, recordChat,
   creationCommands,
   busyAction,
   copyState,
@@ -80,7 +80,6 @@ export function FindingsView({
   onUploadImage,
 }: {
   recordChat?: RecordChatActions
-  settleCreation?: () => Promise<boolean>
   composer?: import('react').ReactNode
   creationCommands: RecordCreationCommands
   busyAction: BusyAction | null
@@ -107,7 +106,7 @@ export function FindingsView({
 }) {
   return (
     <RecordCollectionView
-      composer={composer} settleCreation={settleCreation} recordChat={recordChat}
+      composer={composer} recordChat={recordChat}
       creationCommands={creationCommands}
       labels={findingsLabels}
       emptyIcon={Flag}
