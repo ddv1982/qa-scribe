@@ -176,6 +176,34 @@ describe('TestRunView', () => {
     expect(screen.getByRole('button', { name: 'Copy report' })).toBeInTheDocument()
   })
 
+  it('offers Create Finding only on a failed case without a linked Finding', () => {
+    const onCreateFinding = vi.fn()
+    const failed = testCase('d', 'Change email', { result: 'failed', remark: 'Old address stays' })
+    renderRun({ onCreateFinding, open: { runId: 'run-1', draftId: 'draft-1', error: null, run: { id: 'run-1', sessionId: 'session-1', draftId: 'draft-1', draftTitle: 'Checkout', createdAt: at, updatedAt: at, cases: [
+      testCase('a', 'Passed case', { result: 'passed', remark: 'Slow' }),
+      testCase('b', 'Blocked case', { result: 'blocked' }),
+      failed,
+    ] } } })
+    expect(screen.getAllByRole('button', { name: 'Create Finding' })).toHaveLength(1)
+    const create = within(row('Change email')).getByRole('button', { name: 'Create Finding' })
+    expect(create).toHaveClass('action-button--secondary', 'action-button--regular')
+    fireEvent.click(create)
+    expect(onCreateFinding).toHaveBeenCalledWith(failed)
+  })
+
+  it('shows the linked Finding of a failed case instead of Create Finding, and opens it', () => {
+    const onOpenFinding = vi.fn()
+    renderRun({ onCreateFinding: vi.fn(), onOpenFinding, findingTitles: { 'finding-1': 'Reset mail is never sent' },
+      open: { runId: 'run-1', draftId: 'draft-1', error: null, run: { id: 'run-1', sessionId: 'session-1', draftId: 'draft-1', draftTitle: 'Checkout', createdAt: at, updatedAt: at, cases: [
+        testCase('c', 'Reset password', { result: 'failed', findingId: 'finding-1' }),
+        testCase('d', 'Change email', { result: 'failed', findingId: 'finding-unknown' }),
+      ] } } })
+    expect(screen.queryByRole('button', { name: 'Create Finding' })).not.toBeInTheDocument()
+    fireEvent.click(within(row('Reset password')).getByRole('button', { name: 'Finding: Reset mail is never sent' }))
+    expect(onOpenFinding).toHaveBeenCalledWith('finding-1')
+    expect(within(row('Change email')).queryByRole('button', { name: /^Finding:/ })).not.toBeInTheDocument()
+  })
+
   it('goes back to the test cases', () => {
     const { onBack } = renderRun()
     fireEvent.click(screen.getByRole('button', { name: 'Back to test cases' }))

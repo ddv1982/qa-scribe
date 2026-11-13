@@ -1,10 +1,11 @@
 import type { RecordChatActions } from '../app/sessionChat.context'
 import type { RecordCreationCommands } from './RecordCreationActions'
 import { Box } from 'lucide-react'
+import { useMemo } from 'react'
 import { Badge } from '../components/Badge'
 import type { RichEditorImageUpload } from '../editor/RichTextEditor'
 import { testwareGenerationSummary } from '../testware/generationPreferences'
-import type { Draft, GenerationJobStatus } from '../tauri'
+import type { Draft, Finding, GenerationJobStatus, TestRunCase } from '../tauri'
 import type { BusyAction } from '../ui/types'
 import type { RecordLoadState } from '../app/useRecordHydration'
 import type { ClipboardSnapshot, CopyState } from '../app/copyActions'
@@ -14,6 +15,8 @@ import { CoverageLine } from './CoverageLine'
 import { RecordCollectionView, type RecordCollectionLabels } from './RecordCollectionView'
 import { LastTestRunLine, StartTestRunButton } from './TestRunEntryPoints'
 import { TestRunView } from './TestRunView'
+
+const noFindings: Pick<Finding, 'id' | 'title'>[] = []
 
 const testwareLabels: RecordCollectionLabels = {
   heading: 'Test cases',
@@ -35,6 +38,9 @@ export function TestwareView({
   composer, settleCreation, recordChat,
   sessionId = null,
   acceptanceCriteria = null,
+  findings = noFindings,
+  onCreateFinding,
+  onOpenFinding,
   creationCommands,
   busyAction,
   copyState,
@@ -62,6 +68,12 @@ export function TestwareView({
   sessionId?: string | null
   /** The active Session's acceptance criteria, shown as a coverage line above the test cases. */
   acceptanceCriteria?: string | null
+  /** The Session's Findings, to name the one a test case is linked to. */
+  findings?: Pick<Finding, 'id' | 'title'>[]
+  /** Starts a Finding from a failed test case of a test run. */
+  onCreateFinding?: (testCase: TestRunCase) => void
+  /** Opens a Finding of the Session in its Findings tab. */
+  onOpenFinding?: (findingId: string) => void
   recordChat?: RecordChatActions
   settleCreation?: () => Promise<boolean>
   composer?: import('react').ReactNode
@@ -90,6 +102,7 @@ export function TestwareView({
   onUploadImage: (input: RichEditorImageUpload, recordId: string) => void | Promise<void>
 }) {
   const testRuns = useTestRuns(sessionId)
+  const findingTitles = useMemo(() => Object.fromEntries(findings.map((finding) => [finding.id, finding.title])), [findings])
   const runsOf = (draftId: string) => testRuns.summaries.filter((summary) => summary.draftId === draftId)
   return (
     <RecordCollectionView
@@ -128,7 +141,8 @@ export function TestwareView({
         ? <StartTestRunButton draft={draft} starting={testRuns.starting} disabled={isBusy} onStart={(cases) => void testRuns.start(draft.id, cases)} />
         : null}
       renderDetail={(draft) => testRuns.open?.draftId === draft.id ? (
-        <TestRunView open={testRuns.open} draftRuns={runsOf(draft.id)} error={testRuns.error}
+        <TestRunView open={testRuns.open} draftRuns={runsOf(draft.id)} error={testRuns.error} findingTitles={findingTitles}
+          onCreateFinding={onCreateFinding} onOpenFinding={onOpenFinding}
           onSelectRun={(runId) => void testRuns.openRun(runId, draft.id)} onBack={testRuns.close}
           onDelete={testRuns.deleteRun} onChangeCase={testRuns.changeCase} />
       ) : null}

@@ -9,7 +9,7 @@ function deferred<T>() {
   return { promise, resolve }
 }
 
-const bridge = vi.hoisted(() => ({ prepareCreationSave: vi.fn(), commitCreationSave: vi.fn(), abortCreationSave: vi.fn() }))
+const bridge = vi.hoisted(() => ({ prepareCreationSave: vi.fn(), commitCreationSave: vi.fn(), abortCreationSave: vi.fn(), linkTestCaseFinding: vi.fn() }))
 vi.mock('../tauri', async (original) => ({ ...await original<object>(), ...bridge }))
 const committed: CreationOutcome = { state: 'committed', record: { kind: 'finding', record: findingFixture() } }
 function setup() {
@@ -370,4 +370,48 @@ it.each([
   await actions.decide('keep')
   expect(await pending).toBe(false)
   expect(actions.current()).toMatchObject({ ...patch, format: { kind: 'finding', template: 'blank' }, title: '' })
+})
+
+describe('a Finding created from a test case', () => {
+  const seed = { title: 'Pay with a gift card', document: richEditorDocumentFromHtml('<h3>Steps to reproduce</h3><p>Pay</p>'), testCaseId: 'case-1' }
+
+  it('opens prefilled and asks before closing, like any authored draft', async () => {
+    const { actions } = setup()
+    await actions.open('finding', () => true, false, seed)
+    expect(actions.current()).toMatchObject({ kind: 'finding', title: seed.title, document: seed.document, testCaseId: 'case-1', phase: { state: 'editing' } })
+    const settling = actions.settle()
+    await actions.decide('discard')
+    expect(await settling).toBe(true)
+    expect(bridge.linkTestCaseFinding).not.toHaveBeenCalled()
+  })
+
+  it('links the saved Finding to the test case before the Finding is opened, once', async () => {
+    const { actions, selected } = setup()
+    bridge.linkTestCaseFinding.mockResolvedValue({})
+    selected.mockImplementation(async () => {
+      expect(bridge.linkTestCaseFinding).toHaveBeenCalledWith('case-1', findingFixture().id)
+      return 'selected'
+    })
+    await actions.open('finding', () => true, false, seed)
+    expect(await actions.save()).toBe(true)
+    expect(bridge.linkTestCaseFinding).toHaveBeenCalledTimes(1)
+    expect(selected).toHaveBeenCalledOnce()
+  })
+
+  it('keeps the Finding saved and says so when linking fails', async () => {
+    const { actions, error } = setup()
+    bridge.linkTestCaseFinding.mockRejectedValue(new Error('Test case Finding must belong to the test run\'s Session'))
+    await actions.open('finding', () => true, false, seed)
+    expect(await actions.save()).toBe(true)
+    expect(error).toHaveBeenLastCalledWith(expect.stringMatching(/^The Finding is saved, but could not be linked to its test case\. .*Session$/))
+    expect(actions.current()).toBeNull()
+  })
+
+  it('links nothing for a Finding created without a test case', async () => {
+    const { actions } = setup()
+    await actions.open('finding')
+    actions.update({ title: 'Plain finding' })
+    expect(await actions.save()).toBe(true)
+    expect(bridge.linkTestCaseFinding).not.toHaveBeenCalled()
+  })
 })

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { AlertTriangle, ArrowLeft, CheckCircle2, ChevronRight, Copy, Loader2, Trash2 } from 'lucide-react'
 import { COPIED_FEEDBACK_MS } from '../app/copyActions'
 import { ActionButton } from '../components/ActionButton'
@@ -31,7 +31,7 @@ const REMARK_MAX_LENGTH = 500
  * A test run in place of its draft: the copied test cases in order, each with a Result and a Remark
  * saved the moment they change. There is no Save button.
  */
-export function TestRunView({ open, draftRuns, error, findingTitles = {}, onSelectRun, onBack, onDelete, onChangeCase }: {
+export function TestRunView({ open, draftRuns, error, findingTitles = {}, onSelectRun, onBack, onDelete, onChangeCase, onCreateFinding, onOpenFinding }: {
   open: OpenTestRun
   /** The draft's test runs, newest first. */
   draftRuns: TestRunSummary[]
@@ -43,6 +43,10 @@ export function TestRunView({ open, draftRuns, error, findingTitles = {}, onSele
   onDelete: (runId: string) => Promise<boolean>
   /** Changes one field of a case; the other keeps its value, so a remark and a result never overwrite each other. */
   onChangeCase: (caseId: string, patch: CasePatch) => void
+  /** Starts a Finding from a failed case; without it no Create Finding is offered. */
+  onCreateFinding?: (testCase: TestRunCase) => void
+  /** Opens the Finding a case is linked to. */
+  onOpenFinding?: (findingId: string) => void
 }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -106,6 +110,7 @@ export function TestRunView({ open, draftRuns, error, findingTitles = {}, onSele
         <div className="test-run-cases">
           {cases.map((testCase, index) => (
             <TestRunCaseRow key={testCase.id} testCase={testCase}
+              finding={<CaseFinding testCase={testCase} findingTitles={findingTitles} onCreateFinding={onCreateFinding} onOpenFinding={onOpenFinding} />}
               group={testCase.groupTitle && testCase.groupTitle !== cases[index - 1]?.groupTitle ? testCase.groupTitle : null}
               toggleRef={(element) => { toggleRefs.current[index] = element }}
               onKeyDown={(event) => onCaseKeyDown(event, index)}
@@ -160,9 +165,11 @@ function CopyReportButton({ run, findingTitles }: { run: TestRun; findingTitles:
   </>
 }
 
-function TestRunCaseRow({ testCase, group, toggleRef, onKeyDown, onChangeCase }: {
+function TestRunCaseRow({ testCase, group, finding, toggleRef, onKeyDown, onChangeCase }: {
   testCase: TestRunCase
   group: string | null
+  /** What follows the remark: the linked Finding, or Create Finding for a failed case. */
+  finding: ReactNode
   toggleRef: (element: HTMLButtonElement | null) => void
   onKeyDown: (event: KeyboardEvent<HTMLElement>) => void
   onChangeCase: (caseId: string, patch: CasePatch) => void
@@ -181,7 +188,12 @@ function TestRunCaseRow({ testCase, group, toggleRef, onKeyDown, onChangeCase }:
       <Segmented label={`Result for ${title}`} allowDeselect options={resultOptions}
         value={result === 'not_run' ? null : result}
         onChange={(next) => onChangeCase(id, { result: next ?? 'not_run' })} />
-      {showRemark ? <RemarkInput title={title} remark={remark} onSave={(next) => onChangeCase(id, { remark: next })} /> : null}
+      {showRemark ? (
+        <div className="test-run-remark-row">
+          <RemarkInput title={title} remark={remark} onSave={(next) => onChangeCase(id, { remark: next })} />
+          {finding}
+        </div>
+      ) : null}
       {document ? (
         <div className="test-run-case-body">
           <RichTextEditor value={document} ariaLabel={`${title} test case`} readOnly />
@@ -189,6 +201,25 @@ function TestRunCaseRow({ testCase, group, toggleRef, onKeyDown, onChangeCase }:
       ) : null}
     </section>
   </>
+}
+
+/**
+ * For a failed case: the Finding it is linked to, as a quiet line that opens it, or Create Finding
+ * when it has none. A linked Finding whose title is not known yet shows nothing.
+ */
+function CaseFinding({ testCase, findingTitles, onCreateFinding, onOpenFinding }: {
+  testCase: TestRunCase
+  findingTitles: Readonly<Record<string, string>>
+  onCreateFinding?: (testCase: TestRunCase) => void
+  onOpenFinding?: (findingId: string) => void
+}) {
+  if (testCase.result !== 'failed') return null
+  const { findingId } = testCase
+  if (findingId) {
+    const title = findingTitles[findingId]
+    return title ? <button type="button" className="test-run-finding" onClick={() => onOpenFinding?.(findingId)}>Finding: {title}</button> : null
+  }
+  return onCreateFinding ? <ActionButton variant="secondary" onClick={() => onCreateFinding(testCase)}>Create Finding</ActionButton> : null
 }
 
 /** One line for what happened, saved on blur and on Enter when it changed. */

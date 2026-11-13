@@ -176,3 +176,21 @@ describe('Coverage line with test results', () => {
     expect(api.getTestRun).not.toHaveBeenCalledWith('run-1')
   })
 })
+
+describe('Findings on the run screen', () => {
+  it('names the linked Finding from the Session Findings and starts a Finding from a failed case', async () => {
+    api.listTestRuns.mockResolvedValue([summary()])
+    api.getTestRun.mockResolvedValue({ ...run, cases: [
+      { ...run.cases[0], result: 'failed', findingId: 'finding-1' },
+      { ...run.cases[0], id: 'case-2', title: 'Pay with a gift card', result: 'failed' },
+    ] })
+    const onCreateFinding = vi.fn()
+    const onOpenFinding = vi.fn()
+    renderTestware([runnable], { findings: [{ id: 'finding-1', title: 'Card is declined' }], onCreateFinding, onOpenFinding })
+    fireEvent.click(await screen.findByRole('button', { name: /^Last test run/ }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Finding: Card is declined' }))
+    expect(onOpenFinding).toHaveBeenCalledWith('finding-1')
+    fireEvent.click(screen.getByRole('button', { name: 'Create Finding' }))
+    expect(onCreateFinding).toHaveBeenCalledWith(expect.objectContaining({ id: 'case-2' }))
+  })
+})
