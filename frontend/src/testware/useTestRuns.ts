@@ -9,6 +9,18 @@ export type OpenTestRun = { runId: string; draftId: string; run: TestRun | null;
 export const BACKGROUND_SAVE_ERROR = 'A change to a test run could not be saved.'
 
 /**
+ * Queues of runs no longer on screen that still have saves to make, by run id. It lives outside the
+ * hook because the Test cases view unmounts on a tab or Session change while its saves keep going;
+ * a run reopened afterwards must still wait for them.
+ */
+const draining = new Map<string, CaseSaveQueue>()
+
+/** Forgets every draining queue. For tests, which share this module. */
+export function forgetDrainingTestRuns() {
+  draining.clear()
+}
+
+/**
  * Test runs of one Session, owned by its Test cases view and kept out of the app controller. Results
  * and remarks are saved as they change: the screen updates at once, saves of one case go one at a time
  * (see CaseSaveQueue), and a failed save shows the stored value again. A change is stored even when the
@@ -27,8 +39,6 @@ export function useTestRuns(sessionId: string | null) {
   const summariesRequestRef = useRef(0)
   /** Saves of the run on screen. */
   const queueRef = useRef<{ runId: string; queue: CaseSaveQueue } | null>(null)
-  /** Queues of runs no longer on screen that still have saves to make, by run id. */
-  const drainingRef = useRef(new Map<string, CaseSaveQueue>())
   /**
    * Bumped when the Session or the selected draft changes. A test run that is started or opened shows
    * only if nothing changed while it was being read.
@@ -55,7 +65,6 @@ export function useTestRuns(sessionId: string | null) {
     if (!current) return
     current.queue.detach()
     if (current.queue.idle) return
-    const draining = drainingRef.current
     draining.set(current.runId, current.queue)
     void current.queue.whenIdle().then(() => {
       if (draining.get(current.runId) === current.queue) draining.delete(current.runId)
@@ -107,7 +116,7 @@ export function useTestRuns(sessionId: string | null) {
     const current = () => contextRef.current === context && openRef.current?.runId === runId
     try {
       // Saves made before the run was left land first, so what is read is what is stored.
-      await drainingRef.current.get(runId)?.whenIdle()
+      await draining.get(runId)?.whenIdle()
       const run = await getTestRun(runId)
       if (current()) show({ runId, draftId, run, error: null })
     } catch (cause) {
@@ -149,7 +158,7 @@ export function useTestRuns(sessionId: string | null) {
     const wasOpen = openRef.current?.runId === runId ? openRef.current : null
     // No save may land on a case after it is deleted, so every save of the run settles first.
     if (queueRef.current?.runId === runId) detachQueue()
-    await drainingRef.current.get(runId)?.whenIdle()
+    await draining.get(runId)?.whenIdle()
     try {
       await deleteTestRun(runId)
       if (openRef.current?.runId === runId) show(null)

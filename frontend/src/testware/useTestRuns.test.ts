@@ -11,7 +11,7 @@ const api = vi.hoisted(() => ({
 }))
 vi.mock('../tauri', async (original) => ({ ...await original<typeof import('../tauri')>(), ...api }))
 
-import { BACKGROUND_SAVE_ERROR, useTestRuns } from './useTestRuns'
+import { BACKGROUND_SAVE_ERROR, forgetDrainingTestRuns, useTestRuns } from './useTestRuns'
 
 const at = '2026-11-13T14:02:00Z'
 const testCase = (id: string, patch: Partial<TestRunCase> = {}): TestRunCase => ({
@@ -24,6 +24,7 @@ const summary = (patch: Partial<TestRunSummary> = {}): TestRunSummary => ({
 
 beforeEach(() => {
   for (const command of Object.values(api)) command.mockReset()
+  forgetDrainingTestRuns()
   api.listTestRuns.mockResolvedValue([summary()])
   api.getTestRun.mockResolvedValue(run())
 })
@@ -174,6 +175,25 @@ describe('useTestRuns', () => {
     // One queue for the run: a new change saves at once.
     act(() => result.current.changeCase('a', { result: 'passed' }))
     expect(saves.pending).toHaveLength(1)
+  })
+
+  it('still waits for pending saves when the view was left and opened again', async () => {
+    const first = renderHook(() => useTestRuns('session-1'))
+    await act(() => first.result.current.openRun('run-1', 'draft-1'))
+    const saves = deferredSaves()
+    act(() => first.result.current.changeCase('a', { result: 'failed' }))
+    // Leaving the Test cases tab unmounts the view; its save keeps going.
+    first.unmount()
+    api.getTestRun.mockClear()
+    api.getTestRun.mockResolvedValue(run([testCase('a', { result: 'failed' }), testCase('b')]))
+    const second = renderHook(() => useTestRuns('session-1'))
+    let reopening!: Promise<void>
+    act(() => { reopening = second.result.current.openRun('run-1', 'draft-1') })
+    await act(async () => { await Promise.resolve() })
+    expect(api.getTestRun).not.toHaveBeenCalled()
+    await act(async () => { await saves.settle(); await reopening })
+    expect(api.getTestRun).toHaveBeenCalledTimes(1)
+    expect(second.result.current.open?.run?.cases[0].result).toBe('failed')
   })
 
   it('finishes a save across a Session change without showing anything from the old Session', async () => {
