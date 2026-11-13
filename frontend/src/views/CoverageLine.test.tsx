@@ -33,6 +33,12 @@ describe('CoverageLine', () => {
     expect(screen.getByRole('status')).toHaveTextContent(/^1 criterion covered\.$/)
   })
 
+  it('reads an id through inline formatting but not across blocks', () => {
+    render(<CoverageLine acceptanceCriteria={'AC-1 Street\nAC-2 Postcode\nAC-12 City'}
+      records={[record('Case', '<p>Covers: AC-<strong>1</strong></p><p>AC-1<strong>2</strong></p><p>AC-</p><p>2</p>')]} />)
+    expect(screen.getByRole('status')).toHaveTextContent(/^2 of 3 criteria covered\. Not covered: AC-2$/)
+  })
+
   it('names the criteria no test case covers, with their text on hover', () => {
     render(<CoverageLine acceptanceCriteria={'AC-1 Empty street shows an error\nAC-2 Postcode is validated\nSHOP-412 Country'}
       records={[record('Street', '<p>Covers: AC-1</p><p>Also AC-12 and XAC-2</p>')]} />)

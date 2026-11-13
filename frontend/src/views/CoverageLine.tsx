@@ -7,16 +7,14 @@ const MAX_LISTED_IDS = 8
 type CoverageRecord = { title: string; body: string }
 
 /**
- * The plain text of a saved record: its title and every text node of its body HTML, kept apart
- * by spaces. Blocks must not run together, or `AC-1</p><p>Expected` would read as `AC-1Expected`
- * and no longer match the id as a whole token.
+ * The plain text of a saved record: its title and its body. Blocks and line breaks are kept apart
+ * by a space, or `AC-1</p><p>Expected` would read as `AC-1Expected`. Inline formatting is not, so
+ * `AC-<strong>1</strong>` still reads as `AC-1`.
  */
 function recordText(record: CoverageRecord): string {
   const body = new DOMParser().parseFromString(record.body, 'text/html').body
-  const walker = body.ownerDocument.createTreeWalker(body, NodeFilter.SHOW_TEXT)
-  const parts = [record.title]
-  for (let node = walker.nextNode(); node; node = walker.nextNode()) parts.push(node.nodeValue ?? '')
-  return parts.join(' ')
+  for (const block of body.querySelectorAll('p, h2, h3, li, br')) block.after(' ')
+  return `${record.title} ${body.textContent ?? ''}`
 }
 
 const criteriaNoun = (count: number) => count === 1 ? 'criterion' : 'criteria'
