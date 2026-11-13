@@ -64,13 +64,13 @@ it('opens execution details for intervention but keeps warnings and pending writ
 it.each([false, true])('wraps focus across visible controls with execution details open=%s', (open) => {
   render(<GenerationPreflight {...props} modelSelectionControl={<input aria-label="Execution control" />} />)
   const dialog = screen.getByRole('dialog')
-  const summary = dialog.querySelector<HTMLElement>('summary')!
-  summary.closest('details')!.open = open
+  dialog.querySelector('details')!.open = open
+  const first = within(dialog).getByRole('combobox', { name: 'Output' })
   const last = within(dialog).getByRole('button', { name: 'Generate test cases' })
   last.focus()
   fireEvent.keyDown(last, { key: 'Tab' })
-  expect(summary).toHaveFocus()
-  fireEvent.keyDown(summary, { key: 'Tab', shiftKey: true })
+  expect(first).toHaveFocus()
+  fireEvent.keyDown(first, { key: 'Tab', shiftKey: true })
   expect(last).toHaveFocus()
 })
 

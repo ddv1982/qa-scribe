@@ -377,7 +377,7 @@ describe('a Finding created from a test case', () => {
 
   it('opens with seeded content and asks before closing, like any authored draft', async () => {
     const { actions } = setup()
-    await actions.open('finding', () => true, false, seed)
+    await actions.open('finding', () => true, 'write', seed)
     expect(actions.current()).toMatchObject({ kind: 'finding', title: seed.title, document: seed.document, testCaseId: 'case-1', phase: { state: 'editing' } })
     const settling = actions.settle()
     await actions.decide('discard')
@@ -392,7 +392,7 @@ describe('a Finding created from a test case', () => {
       expect(bridge.linkTestCaseFinding).toHaveBeenCalledWith('case-1', findingFixture().id)
       return 'selected'
     })
-    await actions.open('finding', () => true, false, seed)
+    await actions.open('finding', () => true, 'write', seed)
     expect(await actions.save()).toBe(true)
     expect(bridge.linkTestCaseFinding).toHaveBeenCalledTimes(1)
     expect(selected).toHaveBeenCalledOnce()
@@ -401,7 +401,7 @@ describe('a Finding created from a test case', () => {
   it('keeps the Finding saved and says so when linking fails', async () => {
     const { actions, error } = setup()
     bridge.linkTestCaseFinding.mockRejectedValue(new Error('Test case Finding must belong to the test run\'s Session'))
-    await actions.open('finding', () => true, false, seed)
+    await actions.open('finding', () => true, 'write', seed)
     expect(await actions.save()).toBe(true)
     expect(error).toHaveBeenLastCalledWith(expect.stringMatching(/^The Finding is saved, but could not be linked to its test case\. .*Session$/))
     expect(actions.current()).toBeNull()

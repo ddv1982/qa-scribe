@@ -34,6 +34,9 @@ describe('Generate mode of a new draft at the approved native widths', () => {
           const geometry = await inspect('.creation-composer')
           receipt(`ai-${kind}-${theme}-${width}`, { geometry, rows: rows() })
           assertReadable(geometry)
+          // The Write fields stay mounted for the round trip but render nothing, so Tab and screen readers skip them.
+          assert.deepEqual(await browser.execute(() => Array.from(document.querySelectorAll('.creation-write input, .creation-write select, .creation-write [contenteditable]'),
+            node => node.getClientRects().length).filter(Boolean)), [])
           for (const control of await $$('.creation-composer .record-actions button')) {
             await control.scrollIntoView()
             assert.ok(await control.isDisplayed())

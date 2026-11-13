@@ -41,7 +41,9 @@ with sqlite3.connect('file:'+sys.argv[1]+'?mode=ro',uri=True) as db:
     const key = nativeKeySender(keyboard, () => receipt('native-keyboard', keyboard), Key)
     await create('finding')
     await openCreationAi('finding')
-    assert.ok(await browser.execute(() => document.activeElement?.matches('.creation-generate summary')), 'Generate focuses its first control')
+    // A finding has no generation choices: Generate focuses its primary action, or keeps focus on the switch
+    // while that action is still disabled (the Note not shown yet).
+    assert.ok(['Generate finding', 'Generate'].includes(await browser.execute(() => document.activeElement?.textContent.trim())))
     await returnToWrite()
     assert.equal(await browser.execute(() => document.activeElement?.getAttribute('aria-label')), 'Finding title')
     await key('Shift+Tab')
@@ -56,7 +58,7 @@ with sqlite3.connect('file:'+sys.argv[1]+'?mode=ro',uri=True) as db:
     await $(creationGenerateSetup).waitForDisplayed()
     assert.deepEqual(rows(), beforeKeyboard)
     await capture('uc2-direct-ai-command-no-job')
-    await (await $('.creation-composer .record-actions')).$('./button[normalize-space()="Generate"]').waitForEnabled()
+    await (await $('.creation-composer .record-actions')).$('./button[normalize-space()="Generate finding"]').waitForEnabled()
     await click('button=Cancel')
     await $('.creation-composer').waitForExist({ reverse: true })
     assert.deepEqual(rows(), beforeKeyboard)

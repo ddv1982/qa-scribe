@@ -20,6 +20,8 @@ export type GenerationSetupProps = {
   delegatesReasoning?: boolean
   executionSummary?: string
   checkedAt?: string | null
+  /** Why the source cannot be used yet, such as an empty Note. Unlike a selection warning, it does not open the execution details. */
+  sourceWarning?: string | null
   selectionWarning?: string | null
   selectionAdvisories?: string[]
   modelSelectionControl?: ReactNode
@@ -29,7 +31,7 @@ export type GenerationSetupProps = {
   onTestwarePreferencesChange: (preferences: TestwareGenerationPreferences) => void
 }
 
-/** The setup for one AI generation: its warnings, execution details and, for test cases, the output choices. */
+/** The setup for one AI generation: its warnings, for test cases the output choices, then the execution details. */
 export function GenerationSetup({
   action,
   activeProviderAvailable,
@@ -46,6 +48,7 @@ export function GenerationSetup({
   delegatesReasoning = false,
   executionSummary,
   checkedAt = null,
+  sourceWarning = null,
   selectionWarning = null,
   selectionAdvisories = [],
   modelSelectionControl,
@@ -63,48 +66,11 @@ export function GenerationSetup({
   const screenshots = `${noteScreenshotCount} screenshot${noteScreenshotCount === 1 ? '' : 's'}`
 
   return <>
+    {sourceWarning ? <p className="inline-message blocking" role="alert">{sourceWarning}</p> : null}
     {selectionWarning ? <p className="inline-message blocking" role="alert">{selectionWarning}</p> : null}
     {selectionAdvisories.map((advisory) => <p className="inline-message advisory" role="status" key={advisory}>{advisory}</p>)}
     {!activeProviderAvailable ? <p className="inline-message blocking" role="alert">{activeProviderLabel} is unavailable. Configure AI execution to review setup and choose a ready provider.</p> : null}
     {modelSelectionPending ? <p className="inline-message advisory" role="status">Saving model preference… Wait before generating.</p> : null}
-    <details className="preflight-execution-details" ref={executionDetailsRef}>
-      <summary tabIndex={0}>
-        Execution details
-        <span>{noteWordCount} words · {screenshots} · {activeProviderLabel} · {delegatesModel ? 'CLI default' : selectedModel}</span>
-      </summary>
-      <div className="preflight-execution-content">
-        <dl className="preflight-list">
-          <div>
-            <dt>Session</dt>
-            <dd>{sessionTitle.trim() || 'Untitled session'}</dd>
-          </div>
-          <div>
-            <dt>Material</dt>
-            <dd>{noteWordCount} words, {screenshots}</dd>
-          </div>
-          <div>
-            <dt>Provider</dt>
-            <dd>{activeProviderLabel}</dd>
-          </div>
-          <div>
-            <dt>Model</dt>
-            <dd>
-              {selectedModel} {delegatesModel ? <small>CLI default</small> : <small>QA Scribe override</small>}
-              {modelOrigin ? <span>{originSummary(modelOrigin)}</span> : null}
-            </dd>
-          </div>
-          <div>
-            <dt>Reasoning</dt>
-            <dd>
-              {selectedReasoning ?? 'CLI resolves at run time'} {delegatesReasoning ? <small>CLI default</small> : <small>QA Scribe override</small>}
-              {reasoningOrigin ? <span>{originSummary(reasoningOrigin)}</span> : null}
-            </dd>
-          </div>
-        </dl>
-        {executionSummary ? <p className="preflight-execution-summary">{executionSummary}{checkedAt ? ` Last checked ${formatCheckedAt(checkedAt)}.` : ''}</p> : null}
-        {modelSelectionControl}
-      </div>
-    </details>
     {action === 'testware' ? (
       <div className="preflight-testware-options">
         <div className="preflight-control-grid">
@@ -164,6 +130,44 @@ export function GenerationSetup({
         </Field>
       </div>
     ) : null}
+    <details className="preflight-execution-details" ref={executionDetailsRef}>
+      <summary tabIndex={0}>
+        Execution details
+        <span>{noteWordCount} words · {screenshots} · {activeProviderLabel} · {delegatesModel ? 'CLI default' : selectedModel}</span>
+      </summary>
+      <div className="preflight-execution-content">
+        <dl className="preflight-list">
+          <div>
+            <dt>Session</dt>
+            <dd>{sessionTitle.trim() || 'Untitled session'}</dd>
+          </div>
+          <div>
+            <dt>Material</dt>
+            <dd>{noteWordCount} words, {screenshots}</dd>
+          </div>
+          <div>
+            <dt>Provider</dt>
+            <dd>{activeProviderLabel}</dd>
+          </div>
+          <div>
+            <dt>Model</dt>
+            <dd>
+              {selectedModel} {delegatesModel ? <small>CLI default</small> : <small>QA Scribe override</small>}
+              {modelOrigin ? <span>{originSummary(modelOrigin)}</span> : null}
+            </dd>
+          </div>
+          <div>
+            <dt>Reasoning</dt>
+            <dd>
+              {selectedReasoning ?? 'CLI resolves at run time'} {delegatesReasoning ? <small>CLI default</small> : <small>QA Scribe override</small>}
+              {reasoningOrigin ? <span>{originSummary(reasoningOrigin)}</span> : null}
+            </dd>
+          </div>
+        </dl>
+        {executionSummary ? <p className="preflight-execution-summary">{executionSummary}{checkedAt ? ` Last checked ${formatCheckedAt(checkedAt)}.` : ''}</p> : null}
+        {modelSelectionControl}
+      </div>
+    </details>
   </>
 }
 

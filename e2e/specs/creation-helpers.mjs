@@ -25,10 +25,9 @@ export async function returnToWrite() {
   await $(creationGenerateSetup).waitForExist({ reverse: true })
 }
 
-/** Clicks Generate mode's primary action ("Generate", or "Generate and replace draft" for an authored draft). */
-export async function confirmCreationAi(label = 'Generate') {
-  // The Write | Generate switch shares this row; its Generate option is not the action.
-  const action = await (await $('.creation-composer .record-actions')).$(`./button[normalize-space()="${label}"]`)
+/** Clicks Generate mode's primary action, "Generate test cases" or "Generate finding". */
+export async function confirmCreationAi() {
+  const action = await (await $('.creation-composer .record-actions')).$('./button[normalize-space()="Generate test cases" or normalize-space()="Generate finding"]')
   await action.waitForClickable()
   await action.click()
   return action

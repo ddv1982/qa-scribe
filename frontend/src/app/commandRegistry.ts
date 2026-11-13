@@ -1,5 +1,6 @@
 import type { AppController } from './useAppController'
 import { primaryShortcutLabel } from './platformShortcuts'
+import { creationAiActive, shownCreationMode } from './creationMode'
 
 export type AppCommandId =
   | 'creation.save'
@@ -34,8 +35,11 @@ export type AppCommand = {
 
 export function createCommandRegistry(controller: AppController, openHelp: () => void, openSessionSheet: () => void): AppCommand[] {
   const hasSession = Boolean(controller.activeSession)
+  const draft = controller.creationIntent
   return [
-    command('creation.save', 'Save draft', 'Save the active creation draft.', ['save'], 's', Boolean(controller.creationIntent?.title.trim()) && Object.keys(controller.creationIntent?.imageOperations ?? {}).length === 0 && ['editing', 'uncertain'].includes(controller.creationIntent?.phase.state ?? ''), () => void controller.creation.save()),
+    // Save belongs to Write: in Generate mode the draft's fields are hidden, so the shortcut does nothing.
+    command('creation.save', 'Save draft', 'Save the active creation draft.', ['save'], 's', Boolean(draft?.title.trim()) && Object.keys(draft?.imageOperations ?? {}).length === 0 && ['editing', 'uncertain'].includes(draft?.phase.state ?? '')
+      && Boolean(draft && shownCreationMode(draft, creationAiActive(controller)) === 'write'), () => void controller.creation.save()),
     command('session.new', 'New Session', 'Create a blank testing Session.', ['create', 'capture'], 'n', controller.canSwitchSession, () => void controller.handleNewSession()),
     command('session.sheet', 'Session sheet', 'Set the charter, timebox and debrief for this Session.', ['charter', 'timebox', 'debrief', 'reference'], undefined, hasSession, openSessionSheet),
     command('testware.new', 'Create test cases', 'Create a test case in the active Session.', ['test cases', 'draft'], undefined, hasSession && !controller.isBusy, () => void controller.handleManualTestware()),

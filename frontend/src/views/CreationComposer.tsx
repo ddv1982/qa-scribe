@@ -32,10 +32,10 @@ export function CreationComposer({ intent, actions, copyState, onCopy, fields, m
   headerAction?: ReactNode
 }) {
   const titleRef = useRef<HTMLInputElement>(null)
-  const generateRef = useRef<HTMLDivElement>(null)
+  const articleRef = useRef<HTMLElement>(null)
   const generating = Boolean(generate)
   useEffect(() => {
-    if (generating) generateRef.current?.querySelector<HTMLElement>(firstControl)?.focus()
+    if (generating) firstGenerateControl(articleRef.current)?.focus()
     else titleRef.current?.focus()
   }, [intent.id, generating])
   const editorId = `creation-${intent.id}`
@@ -50,7 +50,8 @@ export function CreationComposer({ intent, actions, copyState, onCopy, fields, m
     const target = event.target as HTMLElement
     const editor = target.closest<HTMLElement>('.rich-editor')
     const insertImage = editor && richEditorImageInserterForElement(editor)
-    if (!insertImage || locked) return
+    // The Write fields are hidden in Generate mode, so a paste there never reaches them.
+    if (!insertImage || locked || generating) return
     const html = event.clipboardData.getData('text/html')
     const htmlImages = html ? Array.from(new DOMParser().parseFromString(html, 'text/html').querySelectorAll('img')) : []
     if (htmlImages.some(image => image.getAttribute('data-attachment-id') || image.getAttribute('src')?.startsWith(managedAttachmentProtocol))) return
@@ -68,7 +69,7 @@ export function CreationComposer({ intent, actions, copyState, onCopy, fields, m
     }
   }
   const status = intent.phase.state === 'saved' ? 'Saved result, opening for review' : intent.phase.state === 'committed-deleted' ? 'Saved result was deleted' : generate ? null : 'Draft, not saved yet'
-  return <article className="editable-record creation-composer" aria-label={intent.kind === 'finding' ? 'New finding' : 'New test cases'} onPasteCapture={paste}>
+  return <article ref={articleRef} className="editable-record creation-composer" aria-label={intent.kind === 'finding' ? 'New finding' : 'New test cases'} onPasteCapture={paste}>
     <header className="record-title-row">
       <div className="record-heading-row"><h2 className="record-title">New {intent.kind === 'finding' ? 'finding' : 'test cases'}</h2>{status ? <span>{status}</span> : null}</div>
       {generate ? null : <CopyControls snapshot={{ target: { kind: intent.kind === 'finding' ? 'finding' : 'draft', sessionId: intent.sessionId, id: intent.id, action: 'jira-text' }, title: intent.title, bodyHtml: html }} label={intent.title || 'draft'} copyState={copyState} onCopy={onCopy} screenshotCount={screenshotCount} />}
@@ -79,7 +80,7 @@ export function CreationComposer({ intent, actions, copyState, onCopy, fields, m
       <ActionButton variant="quiet" icon={X} disabled={intent.phase.state === 'saving' || intent.phase.state === 'discarding'} onClick={() => void actions.settle()}>Cancel</ActionButton>
       {generate ? generate.confirm : <ActionButton variant="primary" icon={Save} loading={intent.phase.state === 'saving'} disabled={!intent.title.trim() || readingImages || failedImages.length > 0 || !['editing', 'uncertain', 'saved'].includes(intent.phase.state)} onClick={() => void actions.save()}>{intent.phase.state === 'uncertain' ? 'Retry Save' : intent.phase.state === 'saved' ? 'Open saved result' : `Save ${intent.kind === 'finding' ? 'finding' : 'test cases'}`}</ActionButton>}
     </div>
-    {generate ? <div ref={generateRef} className="creation-generate">{generate.form}</div> : null}
+    {generate ? <div className="creation-generate">{generate.form}</div> : null}
     <div className="creation-write" hidden={generating}>
       <Field label="Title"><input ref={titleRef} aria-label={intent.kind === 'finding' ? 'Finding title' : 'Test case title'} value={intent.title} readOnly={locked} onChange={(event) => actions.update({ title: event.target.value })} placeholder="Give this draft a title" /></Field>
       <CreationFormatSelector key={`format-${intent.id}`} intent={intent} actions={actions} />
@@ -96,7 +97,12 @@ export function CreationComposer({ intent, actions, copyState, onCopy, fields, m
   </article>
 }
 
-const firstControl = 'summary, button:not(:disabled), select:not(:disabled), input:not(:disabled), textarea:not(:disabled)'
+/** Generate's first choice (the Output select for test cases), or, with no choices to make, its primary action. */
+function firstGenerateControl(composer: HTMLElement | null): HTMLElement | null {
+  const choice = Array.from(composer?.querySelectorAll<HTMLElement>('.creation-generate :is(select, input, textarea, button):not(:disabled)') ?? [])
+    .find((control) => !control.closest('details:not([open])'))
+  return choice ?? composer?.querySelector<HTMLElement>('.record-actions > .action-button--primary:not(:disabled)') ?? null
+}
 
 export function CreationFormatSelector({ intent, actions }: { intent: CreationIntent; actions: CreationActions }) {
   const [pending, setPending] = useState<CreationFormat | null>(null)

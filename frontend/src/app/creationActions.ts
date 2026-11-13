@@ -8,7 +8,7 @@ import { cloneRichEditorDocument, serializeRichEditorDocument } from '../editor/
 import { pastedImageFilename, readFileAsDataUrl } from '../editor/editorHtml'
 import { richEditorImageInserterForId, type RichEditorImageUpload } from '../editor/richEditorRegistry'
 import { formatError, toCommandError } from '../ui/format'
-import { creationBodyIsAuthored, creationIsAuthored, type CreationAttempt, type CreationContent, type CreationImageOperation, type CreationIntent, type CreationSeed } from './creationIntent'
+import { creationBodyIsAuthored, creationIsAuthored, type CreationAttempt, type CreationContent, type CreationImageOperation, type CreationIntent, type CreationMode, type CreationSeed } from './creationIntent'
 import { creationImageInputs, materializeCreationDocument } from './creationImages'
 import { useStableCapability } from './useStableCapability'
 
@@ -49,6 +49,10 @@ export function createCreationActions(ctx: CreationContext) {
     publish({ ...intent, phase: { ...intent.phase, selection: 'ready' } })
     return true
   }
+  function setMode(mode: CreationMode) {
+    if (intent?.phase.state !== 'editing') return
+    publish({ ...intent, mode })
+  }
   function update(patch: Partial<Omit<CreationContent, 'format'>>) {
     if (intent?.phase.state !== 'editing') return
     publish({ ...intent, ...patch })
@@ -60,13 +64,13 @@ export function createCreationActions(ctx: CreationContext) {
     publish({ ...intent, format, document: creationStarter(format), metadataJson: withCreationFormatMetadata(intent.metadataJson, format) })
     return true
   }
-  async function open(kind: CreationKind, isCurrent: () => boolean = () => true, expandAi = false, seed: CreationSeed | null = null) {
+  async function open(kind: CreationKind, isCurrent: () => boolean = () => true, mode: CreationMode = 'write', seed: CreationSeed | null = null) {
     if (!await settle() || !isCurrent()) return
     const sessionId = ctx.activeSessionId()
     if (!sessionId) return
     const epoch = ctx.beginNavigation()
     const format = defaultCreationFormat(kind)
-    publish({ id: crypto.randomUUID(), sessionId, epoch, kind, format, title: seed?.title ?? '', document: seed?.document ?? creationStarter(format), metadataJson: null, findingKind: 'bug', imageOperations: {}, source: null, sourceNoteId: ctx.noteId?.() ?? null, setup: expandAi ? 'ai' : null, phase: { state: 'editing' }, ...seed ? { testCaseId: seed.testCaseId } : {} })
+    publish({ id: crypto.randomUUID(), sessionId, epoch, kind, format, title: seed?.title ?? '', document: seed?.document ?? creationStarter(format), metadataJson: null, findingKind: 'bug', imageOperations: {}, source: null, sourceNoteId: ctx.noteId?.() ?? null, mode, phase: { state: 'editing' }, ...seed ? { testCaseId: seed.testCaseId } : {} })
     ctx.error(null)
     ctx.openDestination(kind)
     void source.reviewSource()
@@ -293,7 +297,7 @@ export function createCreationActions(ctx: CreationContext) {
     error: (message) => ctx.error(message), notice: (message) => ctx.notice?.(message), publishJob: (status) => ctx.publishJob?.(status), finished: () => finishDecision(true),
   })
   return { ...source, generate: (selection: AiSelection, preferences?: TestwareGenerationPreferences) => withSettledImages(() => source.generate(selection, preferences)),
-    pasteImage, dismissImageFailures, ownsGeneration, markSelectionReady, open, update, applyFormat, save, discard, settle, decide, stageImage, current: () => intent,
+    pasteImage, dismissImageFailures, ownsGeneration, markSelectionReady, open, setMode, update, applyFormat, save, discard, settle, decide, stageImage, current: () => intent,
     hasPendingChanges: () => Boolean(intent), isSaving: () => Boolean(saveInFlight || discardInFlight || selectionInFlight) }
 }
 
