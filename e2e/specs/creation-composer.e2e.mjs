@@ -35,9 +35,6 @@ describe('Unified creation composer in the built native application', () => {
     const providerTarget = readlinkSync(providerLink)
     unlinkSync(providerLink)
     await browser.refresh()
-    // The reloaded page must be up before the app is asked anything: a command sent while it is
-    // still loading fails with a script exception.
-    await $('button=New Session').waitForClickable()
     assert.ok((await native('get_provider_status')).providers.every(provider => !provider.available))
     for (const route of ['Note', 'collection']) {
       for (const kind of ['finding', 'testware']) {
