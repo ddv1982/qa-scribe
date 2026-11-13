@@ -242,9 +242,9 @@ describe('AC3 first use, read-only example, and Help', function () {
     await browser.execute(() => document.querySelector('.help-link').focus())
     await click('button=Help')
     await click('summary=Send feedback')
-    await $('button=Copy feedback link').scrollIntoView()
+    await $('[aria-label="Copy feedback link"]').scrollIntoView()
     const beforeFeedback = await saved()
-    await click('button=Copy feedback link')
+    await click('[aria-label="Copy feedback link"]')
     await browser.waitUntil(async () => (await $('dialog [role="status"]').getText()) === 'Feedback link copied.')
     const feedbackText = process.platform === 'linux'
       ? execFileSync('xclip', ['-selection', 'clipboard', '-o'], { encoding: 'utf8', timeout: 5_000 })

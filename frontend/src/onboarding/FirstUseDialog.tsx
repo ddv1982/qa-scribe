@@ -1,6 +1,8 @@
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, Copy } from 'lucide-react'
 import { ActionButton } from '../components/ActionButton'
-import { useState } from 'react'
+import { useEffect, useId, useState } from 'react'
+import { COPIED_FEEDBACK_MS } from '../app/copyActions'
+import { CopyButton } from '../components/CopyButton'
 import { writePlainClipboard } from '../editor/clipboardExport'
 import { useModalDialog } from '../hooks/useModalDialog'
 import { exampleSession } from './exampleSession'
@@ -16,6 +18,14 @@ export function FirstUseDialog({ kind, onClose, onExploreExample, onStartSession
 }) {
   const dialogRef = useModalDialog(onClose)
   const [feedbackState, setFeedbackState] = useState<'idle' | 'copying' | 'copied' | 'failed'>('idle')
+
+  const feedbackUrlId = useId()
+  // The Copied confirmation lasts as long as on every other Copy.
+  useEffect(() => {
+    if (feedbackState !== 'copied') return
+    const timer = window.setTimeout(() => setFeedbackState('idle'), COPIED_FEEDBACK_MS)
+    return () => window.clearTimeout(timer)
+  }, [feedbackState])
 
   async function copyFeedbackLink() {
     if (feedbackState === 'copying') return
@@ -99,8 +109,14 @@ export function FirstUseDialog({ kind, onClose, onExploreExample, onStartSession
       <details>
         <summary><ChevronRight className="disclosure-chevron" size={14} aria-hidden="true" />Send feedback</summary>
         <p>Copy this link and paste it into your browser to write a GitHub issue. Review and edit your report before you submit it. Remove private evidence.</p>
-        <label className="feedback-url">Feedback URL<input readOnly value={feedbackUrl} onFocus={(event) => event.currentTarget.select()} /></label>
-        <ActionButton variant="secondary" type="button" disabled={feedbackState === 'copying'} onClick={() => void copyFeedbackLink()}>Copy feedback link</ActionButton>
+        <div className="feedback-url">
+          <label htmlFor={feedbackUrlId}>Feedback URL</label>
+          <div className="feedback-url-box">
+            <input id={feedbackUrlId} readOnly value={feedbackUrl} onFocus={(event) => event.currentTarget.select()} />
+            <CopyButton icon={Copy} label="Copy feedback link" copiedLabel="Feedback link copied" tooltip="Copy"
+              pending={feedbackState === 'copying'} copied={feedbackState === 'copied'} onCopy={() => void copyFeedbackLink()} />
+          </div>
+        </div>
         <p role="status">{feedbackState === 'copied' ? 'Feedback link copied.' : feedbackState === 'failed' ? 'Could not copy. Select the URL and copy it manually.' : 'Only the link is copied. Nothing is uploaded or submitted.'}</p>
       </details>
     </>}
