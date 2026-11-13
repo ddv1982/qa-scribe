@@ -28,6 +28,37 @@ beforeEach(() => {
   api.getTestRun.mockResolvedValue(run())
 })
 
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (cause: unknown) => void
+  const promise = new Promise<T>((done, fail) => { resolve = done; reject = fail })
+  return { promise, resolve, reject }
+}
+
+/** Makes every setTestCaseResult wait until the test settles it, oldest first. */
+function deferredSaves() {
+  const pending: Array<{ caseId: string; result: TestRunCase['result']; remark: string | null } & ReturnType<typeof deferred<TestRunCase>>> = []
+  api.setTestCaseResult.mockImplementation((caseId: string, result: TestRunCase['result'], remark: string | null) => {
+    const save = { caseId, result, remark, ...deferred<TestRunCase>() }
+    pending.push(save)
+    return save.promise
+  })
+  return {
+    pending,
+    /** Stores the oldest save as it was sent. */
+    settle: async (patch: Partial<TestRunCase> = {}) => {
+      const save = pending.shift()!
+      save.resolve(testCase(save.caseId, { result: save.result, remark: save.remark, ...patch }))
+      await save.promise
+    },
+    fail: async (cause: unknown) => {
+      const save = pending.shift()!
+      save.reject(cause)
+      await save.promise.catch(() => undefined)
+    },
+  }
+}
+
 async function opened() {
   const hook = renderHook(() => useTestRuns('session-1'))
   await waitFor(() => expect(hook.result.current.summaries).toHaveLength(1))
@@ -50,41 +81,73 @@ describe('useTestRuns', () => {
     expect(result.current.summaries).toEqual([])
   })
 
-  it('shows a result at once, keeps what the store returns and refreshes the counts', async () => {
+  it('shows a change at once, saves the full value and refreshes the counts once the case is stored', async () => {
     const { result } = await opened()
-    let resolve!: (value: TestRunCase) => void
-    api.setTestCaseResult.mockReturnValue(new Promise((done) => { resolve = done }))
+    const saves = deferredSaves()
+    api.listTestRuns.mockClear()
     api.listTestRuns.mockResolvedValue([summary({ failed: 1, notRun: 1 })])
-    let saving!: Promise<void>
-    act(() => { saving = result.current.setResult('a', 'failed', 'Declined') })
+    act(() => result.current.changeCase('a', { result: 'failed' }))
+    act(() => result.current.changeCase('a', { remark: 'Declined' }))
     expect(result.current.open?.run?.cases[0]).toMatchObject({ result: 'failed', remark: 'Declined' })
-    expect(api.setTestCaseResult).toHaveBeenCalledWith('a', 'failed', 'Declined')
-    await act(async () => { resolve(testCase('a', { result: 'failed', remark: 'Declined', updatedAt: 'later' })); await saving })
-    expect(result.current.open?.run?.cases[0].updatedAt).toBe('later')
+    expect(api.setTestCaseResult).toHaveBeenCalledTimes(1)
+    expect(api.setTestCaseResult).toHaveBeenCalledWith('a', 'failed', null)
+    await act(() => saves.settle())
+    expect(api.setTestCaseResult).toHaveBeenCalledTimes(2)
+    expect(api.setTestCaseResult).toHaveBeenLastCalledWith('a', 'failed', 'Declined')
+    expect(api.listTestRuns).not.toHaveBeenCalled()
+    await act(() => saves.settle({ updatedAt: 'later' }))
+    expect(result.current.open?.run?.cases[0]).toMatchObject({ result: 'failed', remark: 'Declined', updatedAt: 'later' })
     await waitFor(() => expect(result.current.summaries[0].failed).toBe(1))
+    expect(api.listTestRuns).toHaveBeenCalledTimes(1)
     expect(result.current.error).toBeNull()
   })
 
-  it('rolls a failed save back to what the store last confirmed and says why', async () => {
+  it('sends a second change of a case only after the first save settles, with the latest value', async () => {
     const { result } = await opened()
-    api.setTestCaseResult.mockResolvedValueOnce(testCase('a', { result: 'passed' }))
-    await act(() => result.current.setResult('a', 'passed', null))
-    api.setTestCaseResult.mockRejectedValueOnce({ kind: 'internal', message: 'disk full' })
-    await act(() => result.current.setResult('a', 'blocked', 'No card'))
-    expect(result.current.open?.run?.cases[0]).toMatchObject({ result: 'passed', remark: null })
-    expect(result.current.error).toBe('Something went wrong: disk full')
+    const saves = deferredSaves()
+    act(() => result.current.changeCase('a', { result: 'passed' }))
+    act(() => result.current.changeCase('a', { result: 'failed' }))
+    act(() => result.current.changeCase('a', { result: 'blocked' }))
+    expect(saves.pending).toHaveLength(1)
+    await act(() => saves.settle())
+    expect(saves.pending).toHaveLength(1)
+    expect(api.setTestCaseResult.mock.calls.map(([, sent]) => sent as string)).toEqual(['passed', 'blocked'])
+    await act(() => saves.settle())
+    expect(result.current.open?.run?.cases[0].result).toBe('blocked')
   })
 
-  it('lets only the newest save of a case settle it', async () => {
+  it('drops queued changes when a save fails and shows the stored value and the error', async () => {
     const { result } = await opened()
-    let failFirst!: (reason: unknown) => void
-    api.setTestCaseResult.mockReturnValueOnce(new Promise((_, reject) => { failFirst = reject }))
-    api.setTestCaseResult.mockResolvedValueOnce(testCase('a', { result: 'blocked' }))
-    let first!: Promise<void>
-    act(() => { first = result.current.setResult('a', 'failed', null) })
-    await act(() => result.current.setResult('a', 'blocked', null))
-    await act(async () => { failFirst(new Error('late')); await first })
-    expect(result.current.open?.run?.cases[0].result).toBe('blocked')
+    const saves = deferredSaves()
+    act(() => result.current.changeCase('a', { result: 'passed' }))
+    await act(() => saves.settle())
+    act(() => result.current.changeCase('a', { result: 'failed' }))
+    act(() => result.current.changeCase('a', { result: 'blocked' }))
+    await act(() => saves.fail({ kind: 'internal', message: 'disk full' }))
+    expect(api.setTestCaseResult).toHaveBeenCalledTimes(2)
+    expect(saves.pending).toHaveLength(0)
+    expect(result.current.open?.run?.cases[0]).toMatchObject({ result: 'passed', remark: null })
+    expect(result.current.error).toBe('Something went wrong: disk full')
+    act(() => result.current.changeCase('a', { result: 'blocked' }))
+    expect(result.current.error).toBeNull()
+    expect(api.setTestCaseResult).toHaveBeenLastCalledWith('a', 'blocked', null)
+  })
+
+  it('saves two cases at the same time', async () => {
+    const { result } = await opened()
+    const saves = deferredSaves()
+    act(() => result.current.changeCase('a', { result: 'passed' }))
+    act(() => result.current.changeCase('b', { result: 'failed' }))
+    expect(saves.pending.map(({ caseId }) => caseId)).toEqual(['a', 'b'])
+  })
+
+  it('ignores a save that settles after the run was closed', async () => {
+    const { result } = await opened()
+    const saves = deferredSaves()
+    act(() => result.current.changeCase('a', { result: 'passed' }))
+    act(() => result.current.close())
+    await act(() => saves.fail(new Error('late')))
+    expect(result.current.open).toBeNull()
     expect(result.current.error).toBeNull()
   })
 
@@ -105,6 +168,31 @@ describe('useTestRuns', () => {
     expect(result.current.open).toBeNull()
     expect(result.current.startError).toBe('Only a Test cases draft can start a test run')
     expect(result.current.starting).toBe(false)
+  })
+
+  it('does not open a started run when the Session changed meanwhile', async () => {
+    const started = deferred<TestRun>()
+    api.startTestRun.mockReturnValue(started.promise)
+    const hook = renderHook(({ session }) => useTestRuns(session), { initialProps: { session: 'session-1' } })
+    act(() => { void hook.result.current.start('draft-1', []) })
+    hook.rerender({ session: 'session-2' })
+    await act(async () => { started.resolve(run()); await started.promise })
+    expect(hook.result.current.open).toBeNull()
+    expect(hook.result.current.starting).toBe(false)
+  })
+
+  it('does not open a started run when another draft was selected meanwhile, not even after selecting back', async () => {
+    const started = deferred<TestRun>()
+    api.startTestRun.mockReturnValue(started.promise)
+    const { result } = renderHook(() => useTestRuns('session-1'))
+    act(() => result.current.keepForDraft('draft-1'))
+    act(() => { void result.current.start('draft-1', []) })
+    act(() => result.current.keepForDraft('draft-2'))
+    await act(async () => { started.resolve(run()); await started.promise })
+    expect(result.current.open).toBeNull()
+    act(() => result.current.keepForDraft('draft-1'))
+    expect(result.current.open).toBeNull()
+    expect(api.listTestRuns).toHaveBeenCalledTimes(2)
   })
 
   it('closes the run when another draft is selected, not when its own draft is', async () => {

@@ -8,6 +8,7 @@ import { Segmented, type SegmentedOption } from '../components/Segmented'
 import { RichTextEditor } from '../editor/RichTextEditor'
 import { testRunCaseDocument } from '../testware/testRuns'
 import type { OpenTestRun } from '../testware/useTestRuns'
+import type { CasePatch } from '../testware/caseSaveQueue'
 import type { TestCaseResult, TestRunCase, TestRunSummary } from '../tauri'
 import { formatDateTime } from '../ui/format'
 
@@ -27,7 +28,7 @@ const REMARK_MAX_LENGTH = 500
  * A test run in place of its draft: the copied test cases in order, each with a Result and a Remark
  * saved the moment they change. There is no Save button.
  */
-export function TestRunView({ open, draftRuns, error, onSelectRun, onBack, onDelete, onSetResult }: {
+export function TestRunView({ open, draftRuns, error, onSelectRun, onBack, onDelete, onChangeCase }: {
   open: OpenTestRun
   /** The draft's test runs, newest first. */
   draftRuns: TestRunSummary[]
@@ -35,7 +36,8 @@ export function TestRunView({ open, draftRuns, error, onSelectRun, onBack, onDel
   onSelectRun: (runId: string) => void
   onBack: () => void
   onDelete: (runId: string) => Promise<boolean>
-  onSetResult: (caseId: string, result: TestCaseResult, remark: string | null) => void
+  /** Changes one field of a case; the other keeps its value, so a remark and a result never overwrite each other. */
+  onChangeCase: (caseId: string, patch: CasePatch) => void
 }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -51,7 +53,7 @@ export function TestRunView({ open, draftRuns, error, onSelectRun, onBack, onDel
     const result = resultKeys[event.key.toLowerCase()]
     if (result) {
       event.preventDefault()
-      onSetResult(testCase.id, testCase.result === result ? 'not_run' : result, testCase.remark)
+      onChangeCase(testCase.id, { result: testCase.result === result ? 'not_run' : result })
       return
     }
     const step = event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0
@@ -100,7 +102,7 @@ export function TestRunView({ open, draftRuns, error, onSelectRun, onBack, onDel
               group={testCase.groupTitle && testCase.groupTitle !== cases[index - 1]?.groupTitle ? testCase.groupTitle : null}
               toggleRef={(element) => { toggleRefs.current[index] = element }}
               onKeyDown={(event) => onCaseKeyDown(event, index)}
-              onSetResult={onSetResult} />
+              onChangeCase={onChangeCase} />
           ))}
         </div>
       )}
@@ -120,12 +122,12 @@ export function TestRunView({ open, draftRuns, error, onSelectRun, onBack, onDel
   )
 }
 
-function TestRunCaseRow({ testCase, group, toggleRef, onKeyDown, onSetResult }: {
+function TestRunCaseRow({ testCase, group, toggleRef, onKeyDown, onChangeCase }: {
   testCase: TestRunCase
   group: string | null
   toggleRef: (element: HTMLButtonElement | null) => void
   onKeyDown: (event: KeyboardEvent<HTMLElement>) => void
-  onSetResult: (caseId: string, result: TestCaseResult, remark: string | null) => void
+  onChangeCase: (caseId: string, patch: CasePatch) => void
 }) {
   const [expanded, setExpanded] = useState(false)
   const document = useMemo(() => expanded ? testRunCaseDocument(testCase) : null, [expanded, testCase])
@@ -140,8 +142,8 @@ function TestRunCaseRow({ testCase, group, toggleRef, onKeyDown, onSetResult }: 
       </button>
       <Segmented label={`Result for ${title}`} allowDeselect options={resultOptions}
         value={result === 'not_run' ? null : result}
-        onChange={(next) => onSetResult(id, next ?? 'not_run', remark)} />
-      {showRemark ? <RemarkInput title={title} remark={remark} onSave={(next) => onSetResult(id, result, next)} /> : null}
+        onChange={(next) => onChangeCase(id, { result: next ?? 'not_run' })} />
+      {showRemark ? <RemarkInput title={title} remark={remark} onSave={(next) => onChangeCase(id, { remark: next })} /> : null}
       {document ? (
         <div className="test-run-case-body">
           <RichTextEditor value={document} ariaLabel={`${title} test case`} readOnly />

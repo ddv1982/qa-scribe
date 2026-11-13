@@ -36,7 +36,7 @@ function renderRun(overrides: Partial<ComponentProps<typeof TestRunView>> = {}) 
   const props = {
     open: { runId: 'run-1', draftId: 'draft-1', error: null, run: { id: 'run-1', sessionId: 'session-1', draftId: 'draft-1', draftTitle: 'Checkout', createdAt: at, updatedAt: at, cases } },
     draftRuns: [summary('run-1', at)], error: null,
-    onSelectRun: vi.fn(), onBack: vi.fn(), onDelete: vi.fn(async () => true), onSetResult: vi.fn(),
+    onSelectRun: vi.fn(), onBack: vi.fn(), onDelete: vi.fn(async () => true), onChangeCase: vi.fn(),
     ...overrides,
   }
   render(<TestRunView {...props} />)
@@ -66,15 +66,15 @@ describe('TestRunView', () => {
     expect(screen.getByRole('textbox', { name: 'Pay by card test case' })).toHaveTextContent(/^paragraph$/)
   })
 
-  it('records a result, keeping the remark, and clears it when pressed again', () => {
-    const { onSetResult } = renderRun()
+  it('changes only the result when a result is pressed, and clears it when pressed again', () => {
+    const { onChangeCase } = renderRun()
     fireEvent.click(result('Pay with a gift card', 'Blocked'))
-    expect(onSetResult).toHaveBeenLastCalledWith('b', 'blocked', null)
+    expect(onChangeCase).toHaveBeenLastCalledWith('b', { result: 'blocked' })
     fireEvent.click(result('Reset password', 'Passed'))
-    expect(onSetResult).toHaveBeenLastCalledWith('c', 'passed', 'No email')
+    expect(onChangeCase).toHaveBeenLastCalledWith('c', { result: 'passed' })
     expect(result('Pay by card', 'Passed')).toHaveAttribute('aria-pressed', 'true')
     fireEvent.click(result('Pay by card', 'Passed'))
-    expect(onSetResult).toHaveBeenLastCalledWith('a', 'not_run', null)
+    expect(onChangeCase).toHaveBeenLastCalledWith('a', { result: 'not_run' })
   })
 
   it('offers a remark only for a failed or blocked case, or one that has a remark', () => {
@@ -93,32 +93,32 @@ describe('TestRunView', () => {
   })
 
   it('saves a remark on blur and on Enter, only when it changed', () => {
-    const { onSetResult } = renderRun()
+    const { onChangeCase } = renderRun()
     const remark = screen.getByRole('textbox', { name: 'Remark for Reset password' })
     fireEvent.blur(remark)
     fireEvent.keyDown(remark, { key: 'Enter' })
-    expect(onSetResult).not.toHaveBeenCalled()
+    expect(onChangeCase).not.toHaveBeenCalled()
     fireEvent.change(remark, { target: { value: '  No email sent  ' } })
     fireEvent.keyDown(remark, { key: 'Enter' })
-    expect(onSetResult).toHaveBeenLastCalledWith('c', 'failed', 'No email sent')
+    expect(onChangeCase).toHaveBeenLastCalledWith('c', { remark: 'No email sent' })
     fireEvent.change(remark, { target: { value: ' ' } })
     fireEvent.blur(remark)
-    expect(onSetResult).toHaveBeenLastCalledWith('c', 'failed', null)
-    expect(onSetResult).toHaveBeenCalledTimes(2)
+    expect(onChangeCase).toHaveBeenLastCalledWith('c', { remark: null })
+    expect(onChangeCase).toHaveBeenCalledTimes(2)
   })
 
   it('sets a result with p, f and b inside a case, but not while typing a remark', () => {
-    const { onSetResult } = renderRun()
+    const { onChangeCase } = renderRun()
     const toggle = within(row('Pay with a gift card')).getByRole('button', { name: 'Pay with a gift card' })
     fireEvent.keyDown(toggle, { key: 'f' })
-    expect(onSetResult).toHaveBeenLastCalledWith('b', 'failed', null)
+    expect(onChangeCase).toHaveBeenLastCalledWith('b', { result: 'failed' })
     fireEvent.keyDown(result('Pay with a gift card', 'Passed'), { key: 'b' })
-    expect(onSetResult).toHaveBeenLastCalledWith('b', 'blocked', null)
+    expect(onChangeCase).toHaveBeenLastCalledWith('b', { result: 'blocked' })
     fireEvent.keyDown(within(row('Pay by card')).getByRole('button', { name: 'Pay by card' }), { key: 'p' })
-    expect(onSetResult).toHaveBeenLastCalledWith('a', 'not_run', null)
+    expect(onChangeCase).toHaveBeenLastCalledWith('a', { result: 'not_run' })
     fireEvent.keyDown(toggle, { key: 'p', metaKey: true })
     fireEvent.keyDown(screen.getByRole('textbox', { name: 'Remark for Reset password' }), { key: 'p' })
-    expect(onSetResult).toHaveBeenCalledTimes(3)
+    expect(onChangeCase).toHaveBeenCalledTimes(3)
   })
 
   it('moves between cases with the arrow keys', () => {

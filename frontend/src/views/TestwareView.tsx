@@ -130,7 +130,7 @@ export function TestwareView({
       renderDetail={(draft) => testRuns.open?.draftId === draft.id ? (
         <TestRunView open={testRuns.open} draftRuns={runsOf(draft.id)} error={testRuns.error}
           onSelectRun={(runId) => void testRuns.openRun(runId, draft.id)} onBack={testRuns.close}
-          onDelete={testRuns.deleteRun} onSetResult={(caseId, result, remark) => void testRuns.setResult(caseId, result, remark)} />
+          onDelete={testRuns.deleteRun} onChangeCase={testRuns.changeCase} />
       ) : null}
       onSelectedRecordChange={testRuns.keepForDraft}
       busyActionFor={(draft, kind) => {

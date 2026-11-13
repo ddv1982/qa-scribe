@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { deleteTestRun, getTestRun, listTestRuns, setTestCaseResult, startTestRun, type TestCaseResult, type TestRun, type TestRunCase, type TestRunCaseDraft, type TestRunSummary } from '../tauri'
+import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
+import { deleteTestRun, getTestRun, listTestRuns, setTestCaseResult, startTestRun, type TestRun, type TestRunCase, type TestRunCaseDraft, type TestRunSummary } from '../tauri'
+import { CaseSaveQueue, type CasePatch } from './caseSaveQueue'
 import { formatError } from '../ui/format'
 
 /** The test run on screen: loading while `run` and `error` are both null. */
@@ -7,7 +8,8 @@ export type OpenTestRun = { runId: string; draftId: string; run: TestRun | null;
 
 /**
  * Test runs of one Session, owned by its Test cases view and kept out of the app controller. Results
- * are saved as they are chosen: the screen updates at once and rolls back when the save fails.
+ * and remarks are saved as they change: the screen updates at once, saves of one case go one at a time
+ * (see CaseSaveQueue), and a failed save shows the stored value again.
  */
 export function useTestRuns(sessionId: string | null) {
   const [summaries, setSummaries] = useState<TestRunSummary[]>([])
@@ -19,10 +21,14 @@ export function useTestRuns(sessionId: string | null) {
   /** The run on screen and its draft, read by callbacks that outlive a render. */
   const openRef = useRef<Pick<OpenTestRun, 'runId' | 'draftId'> | null>(null)
   const summariesRequestRef = useRef(0)
-  /** Per case: the last save request, so only the newest one settles the screen. */
-  const caseRequestsRef = useRef(new Map<string, number>())
-  /** Per case: what the store last confirmed, the value a failed save rolls back to. */
-  const confirmedRef = useRef(new Map<string, TestRunCase>())
+  /** Saves of the open run's cases; replaced, and the old one silenced, whenever the run changes. */
+  const queueRef = useRef<CaseSaveQueue | null>(null)
+  /**
+   * Bumped when the Session or the selected draft changes. A started test run opens only if nothing
+   * changed while it was being created.
+   */
+  const contextRef = useRef(0)
+  const selectedDraftRef = useRef<string | null>(null)
 
   const refresh = useCallback(async () => {
     const session = sessionRef.current
@@ -38,11 +44,11 @@ export function useTestRuns(sessionId: string | null) {
 
   const show = useCallback((next: OpenTestRun | null) => {
     openRef.current = next ? { runId: next.runId, draftId: next.draftId } : null
-    caseRequestsRef.current.clear()
-    confirmedRef.current = new Map(next?.run?.cases.map((testCase) => [testCase.id, testCase]) ?? [])
+    queueRef.current?.dispose()
+    queueRef.current = next?.run ? saveQueue(next.run, setOpen, setError, refresh) : null
     setError(null)
     setOpen(next)
-  }, [])
+  }, [refresh])
 
   // Another Session starts with nothing on screen; its test runs load below.
   const [shownSession, setShownSession] = useState(sessionId)
@@ -52,14 +58,19 @@ export function useTestRuns(sessionId: string | null) {
     setOpen(null)
     setError(null)
     setStartError(null)
+    setStarting(false)
   }
 
   useEffect(() => {
     sessionRef.current = sessionId
+    contextRef.current += 1
     openRef.current = null
-    caseRequestsRef.current.clear()
+    queueRef.current?.dispose()
+    queueRef.current = null
     void refresh()
   }, [sessionId, refresh])
+
+  useEffect(() => () => queueRef.current?.dispose(), [])
 
   const openRun = useCallback(async (runId: string, draftId: string) => {
     show({ runId, draftId, run: null, error: null })
@@ -75,46 +86,31 @@ export function useTestRuns(sessionId: string | null) {
 
   /** Closes the run screen unless it belongs to `draftId`, the draft now selected. */
   const keepForDraft = useCallback((draftId: string | null) => {
+    if (selectedDraftRef.current !== draftId) contextRef.current += 1
+    selectedDraftRef.current = draftId
     if (openRef.current && openRef.current.draftId !== draftId) show(null)
   }, [show])
 
   const start = useCallback(async (draftId: string, cases: TestRunCaseDraft[]) => {
+    const context = contextRef.current
     setStarting(true)
     setStartError(null)
     try {
       const run = await startTestRun(draftId, cases)
-      show({ runId: run.id, draftId, run, error: null })
+      if (contextRef.current === context) show({ runId: run.id, draftId, run, error: null })
       void refresh()
     } catch (cause) {
-      setStartError(formatError(cause))
+      if (contextRef.current === context) setStartError(formatError(cause))
     } finally {
-      setStarting(false)
+      if (contextRef.current === context) setStarting(false)
     }
   }, [refresh, show])
 
-  const setResult = useCallback(async (caseId: string, result: TestCaseResult, remark: string | null) => {
-    const runId = openRef.current?.runId
-    const request = (caseRequestsRef.current.get(caseId) ?? 0) + 1
-    caseRequestsRef.current.set(caseId, request)
-    const replaceCase = (next: TestRunCase) => setOpen((current) => current?.run && current.runId === runId
-      ? { ...current, run: { ...current.run, cases: current.run.cases.map((testCase) => testCase.id === caseId ? next : testCase) } }
-      : current)
-    const confirmed = confirmedRef.current.get(caseId)
-    if (confirmed) replaceCase({ ...confirmed, result, remark })
+  /** Changes one case of the open run: `{ result }` from a result button, `{ remark }` from the remark field. */
+  const changeCase = useCallback((caseId: string, patch: CasePatch) => {
     setError(null)
-    try {
-      const saved = await setTestCaseResult(caseId, result, remark)
-      if (openRef.current?.runId !== runId) return
-      confirmedRef.current.set(caseId, saved)
-      if (caseRequestsRef.current.get(caseId) === request) replaceCase(saved)
-      void refresh()
-    } catch (cause) {
-      if (openRef.current?.runId !== runId || caseRequestsRef.current.get(caseId) !== request) return
-      const previous = confirmedRef.current.get(caseId)
-      if (previous) replaceCase(previous)
-      setError(formatError(cause))
-    }
-  }, [refresh])
+    queueRef.current?.change(caseId, patch)
+  }, [])
 
   const deleteRun = useCallback(async (runId: string) => {
     try {
@@ -128,7 +124,19 @@ export function useTestRuns(sessionId: string | null) {
     }
   }, [refresh, show])
 
-  return { summaries, open, starting, startError, error, openRun, close, keepForDraft, start, setResult, deleteRun }
+  return { summaries, open, starting, startError, error, openRun, close, keepForDraft, start, changeCase, deleteRun }
+}
+
+/** A save queue for `run` that shows each case change on screen while `run` is the open one. */
+function saveQueue(run: TestRun, setOpen: Dispatch<SetStateAction<OpenTestRun | null>>, setError: (error: string) => void, refresh: () => Promise<void>) {
+  const showCase = (next: TestRunCase) => setOpen((current) => current?.run && current.runId === run.id
+    ? { ...current, run: { ...current.run, cases: current.run.cases.map((testCase) => testCase.id === next.id ? next : testCase) } }
+    : current)
+  return new CaseSaveQueue(run.cases, (caseId, { result, remark }) => setTestCaseResult(caseId, result, remark), {
+    onShow: showCase,
+    onSaved: () => void refresh(),
+    onError: (_caseId, cause) => setError(formatError(cause)),
+  })
 }
 
 export type TestRuns = ReturnType<typeof useTestRuns>
