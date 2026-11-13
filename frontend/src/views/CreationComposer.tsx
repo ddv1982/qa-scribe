@@ -68,6 +68,8 @@ export function CreationComposer({ intent, actions, copyState, onCopy, fields, m
       void actions.pasteImage({ editorId, insertImage })
     }
   }
+  // A committed result that could not be opened yet: Open saved result retries, in either mode and with any title.
+  const savedResult = intent.phase.state === 'saved'
   const status = intent.phase.state === 'saved' ? 'Saved result, opening for review' : intent.phase.state === 'committed-deleted' ? 'Saved result was deleted' : generate ? null : 'Draft, not saved yet'
   return <article ref={articleRef} className="editable-record creation-composer" aria-label={intent.kind === 'finding' ? 'New finding' : 'New test cases'} onPasteCapture={paste}>
     <header className="record-title-row">
@@ -78,7 +80,7 @@ export function CreationComposer({ intent, actions, copyState, onCopy, fields, m
     <div className="record-actions">
       {modeSwitch}
       <ActionButton variant="quiet" icon={X} disabled={intent.phase.state === 'saving' || intent.phase.state === 'discarding'} onClick={() => void actions.settle()}>Cancel</ActionButton>
-      {generate ? generate.confirm : <ActionButton variant="primary" icon={Save} loading={intent.phase.state === 'saving'} disabled={!intent.title.trim() || readingImages || failedImages.length > 0 || !['editing', 'uncertain', 'saved'].includes(intent.phase.state)} onClick={() => void actions.save()}>{intent.phase.state === 'uncertain' ? 'Retry Save' : intent.phase.state === 'saved' ? 'Open saved result' : `Save ${intent.kind === 'finding' ? 'finding' : 'test cases'}`}</ActionButton>}
+      {generate && !savedResult ? generate.confirm : <ActionButton variant="primary" icon={Save} loading={intent.phase.state === 'saving'} disabled={!savedResult && (!intent.title.trim() || readingImages || failedImages.length > 0 || !['editing', 'uncertain'].includes(intent.phase.state))} onClick={() => void actions.save()}>{intent.phase.state === 'uncertain' ? 'Retry Save' : intent.phase.state === 'saved' ? 'Open saved result' : `Save ${intent.kind === 'finding' ? 'finding' : 'test cases'}`}</ActionButton>}
     </div>
     {generate ? <div className="creation-generate">{generate.form}</div> : null}
     <div className="creation-write" hidden={generating}>

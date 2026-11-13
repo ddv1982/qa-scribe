@@ -36,6 +36,8 @@ export type AppCommand = {
 export function createCommandRegistry(controller: AppController, openHelp: () => void, openSessionSheet: () => void): AppCommand[] {
   const hasSession = Boolean(controller.activeSession)
   const draft = controller.creationIntent
+  // A draft opened with AI starts in Generate, which needs a ready provider; without one these commands are unavailable.
+  const aiCreation = hasSession && !controller.isBusy && creationAiActive(controller)
   return [
     // Save belongs to Write: in Generate mode the draft's fields are hidden, so the shortcut does nothing.
     command('creation.save', 'Save draft', 'Save the active creation draft.', ['save'], 's', Boolean(draft?.title.trim()) && Object.keys(draft?.imageOperations ?? {}).length === 0 && ['editing', 'uncertain'].includes(draft?.phase.state ?? '')
@@ -44,8 +46,8 @@ export function createCommandRegistry(controller: AppController, openHelp: () =>
     command('session.sheet', 'Session sheet', 'Set the charter, timebox and debrief for this Session.', ['charter', 'timebox', 'debrief', 'reference'], undefined, hasSession, openSessionSheet),
     command('testware.new', 'Create test cases', 'Create a test case in the active Session.', ['test cases', 'draft'], undefined, hasSession && !controller.isBusy, () => void controller.handleManualTestware()),
     command('finding.new', 'Create finding', 'Create a Finding in the active Session.', ['bug', 'risk', 'issue'], undefined, hasSession && !controller.isBusy, () => void controller.handleManualFinding()),
-    command('testware.ai', 'Create test cases with AI', 'Review AI options before generating test cases from the Note.', ['generate', 'AI'], undefined, hasSession && !controller.isBusy && !controller.pendingAiActions.testware, () => void controller.openGenerationPreflight('testware')),
-    command('finding.ai', 'Create finding with AI', 'Review AI options before generating a finding from the Note.', ['generate', 'AI'], undefined, hasSession && !controller.isBusy && !controller.pendingAiActions.finding, () => void controller.openGenerationPreflight('finding')),
+    command('testware.ai', 'Create test cases with AI', 'Review AI options before generating test cases from the Note.', ['generate', 'AI'], undefined, aiCreation && !controller.pendingAiActions.testware, () => void controller.openGenerationPreflight('testware')),
+    command('finding.ai', 'Create finding with AI', 'Review AI options before generating a finding from the Note.', ['generate', 'AI'], undefined, aiCreation && !controller.pendingAiActions.finding, () => void controller.openGenerationPreflight('finding')),
     command('view.note', 'Open Sessions', 'Browse Sessions and show the active Session note.', ['capture', 'editor'], '1', true, () => controller.setActiveView('sessions')),
     command('view.testware', 'Open Session Test cases', 'Show Test cases owned by the active Session.', ['test cases', 'output'], '2', hasSession, () => controller.setActiveView('testware')),
     command('view.findings', 'Open Session Findings', 'Show Findings owned by the active Session.', ['bugs', 'risks', 'output'], '3', hasSession, () => controller.setActiveView('findings')),

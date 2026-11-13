@@ -1,7 +1,8 @@
 import '@testing-library/jest-dom/vitest'
 import { fireEvent, isInaccessible, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { entryFixture, providerStatusFixture, sessionFixture } from '../test/fixtures'
+import { entryFixture, findingFixture, generationStatusFixture, providerStatusFixture, sessionFixture } from '../test/fixtures'
+import type { GenerationJobEvent } from '../tauri'
 import { creationComposer, creationMode, generateAction } from '../test/creationModes'
 import { cleanupControllerTest, deferred, getTauriMock, sessionNoteStateFixture, setupControllerTest, useAppController } from './useAppController.testHarness'
 
@@ -187,4 +188,48 @@ it('opens a draft started from an AI entry point in Generate mode', async () => 
   fireEvent.click(screen.getByRole('button', { name: 'AI entry point' }))
   await waitFor(() => expect(creationMode('Generate')).toHaveAttribute('aria-pressed', 'true'))
   expect(within(creationComposer('testware')).getByRole('combobox', { name: 'Output' })).toBeVisible()
+})
+
+it('offers Open saved result in Generate when the generated finding is saved but could not be opened, with no title', async () => {
+  const saved = findingFixture({ id: 'generated-finding', title: 'Generated finding' })
+  const status = generationStatusFixture({ action: 'finding', jobId: 'job-1', state: 'completed' })
+  const completed: GenerationJobEvent = { type: 'completed', job_id: 'job-1', status, result: {
+    generationContext: { id: 'context-1', sessionId: 'session-1', createdAt: 'now' },
+    aiRun: { id: 'run-1', sessionId: 'session-1', generationContextId: 'context-1', provider: 'codex_cli', modelSelection: { kind: 'recorded', requested: { kind: 'default' }, reported: null }, reasoningEffort: null, promptVersion: 'finding-v4', status: 'completed', errorMessage: null, createdAt: 'now', completedAt: 'now' },
+    finding: saved, draft: null, noteEntry: null,
+  } }
+  tauri.startAiActionJob.mockImplementation(async (_request: unknown, onEvent: (event: GenerationJobEvent) => void) => {
+    setTimeout(() => onEvent(completed), 0)
+    return { jobId: 'job-1', status: { ...status, state: 'running' } }
+  })
+  render(<Subject />)
+  await createDraft('finding')
+  const composer = await generateMode('finding')
+  await waitFor(() => expect(generateAction(composer)).toBeEnabled())
+  // The record list reload after the commit fails once, so the saved finding cannot be opened yet.
+  tauri.listFindings.mockRejectedValueOnce(new Error('list failed'))
+  fireEvent.click(generateAction(composer))
+  const open = await within(composer).findByRole('button', { name: 'Open saved result' })
+  expect(composer).toHaveTextContent('Saved result, opening for review')
+  expect(open).toBeEnabled()
+  tauri.listFindings.mockResolvedValue([saved])
+  fireEvent.click(open)
+  await waitFor(() => expect(screen.queryByRole('article', { name: 'New finding' })).not.toBeInTheDocument())
+})
+
+it('makes Create with AI unavailable in Commands without a ready AI provider', async () => {
+  const status = providerStatusFixture()
+  status.providers = status.providers.map((provider) => ({ ...provider, available: false }))
+  tauri.getProviderStatus.mockResolvedValue(status)
+  tauri.refreshProviderStatus.mockResolvedValue(status)
+  render(<Subject />)
+  await screen.findByRole('textbox', { name: 'Session title' })
+  await waitFor(() => expect(tauri.getProviderStatus).toHaveBeenCalled())
+  fireEvent.keyDown(window, { key: 'k', ctrlKey: true })
+  fireEvent.keyDown(window, { key: 'k', metaKey: true })
+  const palette = await screen.findByRole('dialog')
+  const option = (label: string) => within(palette).getAllByRole('option').find((node) => node.textContent?.startsWith(label) && !node.textContent.startsWith(`${label} with AI`))!
+  expect(option('Create test cases with AI')).toBeDisabled()
+  expect(option('Create finding with AI')).toBeDisabled()
+  expect(option('Create test cases')).toBeEnabled()
 })
