@@ -82,6 +82,51 @@
 .action-button--icon-only { width: var(--control-lg); padding: 0; }
 .action-button--icon-only.action-button--compact { width: var(--control-md); }
 
+/* Hover message (`tooltip` on ActionButton): a small label below the button, after a short wait on hover,
+   at once on keyboard focus or while forced open. Decoration only; the accessible name is the label. */
+.action-button[data-tooltip] { position: relative; }
+.action-button[data-tooltip]::after {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  left: 50%;
+  z-index: 40;
+  padding: var(--space-1) var(--space-2);
+  color: var(--text-primary);
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+  content: attr(data-tooltip);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  line-height: var(--leading-normal);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(-50%);
+  transition: opacity var(--duration-fast) var(--ease-out), visibility 0s linear var(--duration-fast);
+}
+.action-button[data-tooltip-align="end"]::after { left: auto; right: 0; transform: none; }
+.action-button[data-tooltip-align="start"]::after { left: 0; transform: none; }
+.action-button[data-tooltip]:hover::after,
+:root:not([data-input-modality="pointer"]) .action-button[data-tooltip]:focus-visible::after,
+.action-button[data-tooltip][data-tooltip-open]::after {
+  opacity: 1;
+  visibility: visible;
+  transition-delay: var(--delay-tooltip);
+}
+:root:not([data-input-modality="pointer"]) .action-button[data-tooltip]:focus-visible::after,
+.action-button[data-tooltip][data-tooltip-open]::after { transition-delay: 0s; }
+
+/* Copy (CopyControls, CopyButton): quiet icons kept together, green while they say Copied. */
+.copy-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.copy-button[data-copied] { --action-text: var(--success); }
+
 .settings-save-feedback { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: var(--space-2); max-width: 28rem; }
 .settings-save-error { flex-basis: 100%; margin: 0; color: var(--danger); font-size: var(--font-size-sm); line-height: var(--leading-normal); overflow-wrap: anywhere; }
 .settings-save-status { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--success); }

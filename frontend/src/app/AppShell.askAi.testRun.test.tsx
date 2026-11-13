@@ -59,7 +59,7 @@ async function askAi() {
 describe('Ask AI on a test run', () => {
   it('opens a read-only conversation about the run beside it and focuses the composer again on a second click', async () => {
     await openRun()
-    const actions = [...screen.getByRole('article').querySelectorAll('.test-run-actions > button')].map(button => button.textContent)
+    const actions = [...screen.getByRole('article').querySelectorAll('.test-run-actions > button')].map(button => button.getAttribute('aria-label') ?? button.textContent)
     expect(actions.slice(0, 2)).toEqual(['Ask AI', 'Copy report'])
     expect(trigger()).toHaveAttribute('aria-expanded', 'false')
     const input = await askAi()

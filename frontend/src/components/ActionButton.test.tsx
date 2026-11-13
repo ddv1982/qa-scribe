@@ -68,3 +68,29 @@ describe('ActionButton native behavior', () => {
     expect(screen.queryByRole('img')).not.toBeInTheDocument()
   })
 })
+
+describe('ActionButton hover message', () => {
+  it('renders the tooltip as a data attribute instead of a native title, keeping the label as the name', () => {
+    render(<ActionButton iconOnly icon={Trash2} aria-label="Delete Case" title="Native" tooltip="Delete finding" />)
+    const button = screen.getByRole('button', { name: 'Delete Case' })
+    expect(button).toHaveAttribute('data-tooltip', 'Delete finding')
+    expect(button).not.toHaveAttribute('title')
+    expect(button).not.toHaveAttribute('data-tooltip-align')
+    expect(button).not.toHaveAttribute('data-tooltip-open')
+  })
+
+  it.each(['end', 'start'] as const)('aligns the tooltip to the %s edge and can show it without hover', (align) => {
+    render(<ActionButton iconOnly icon={Trash2} aria-label="Delete Case" tooltip="Delete finding" tooltipAlign={align} tooltipOpen />)
+    const button = screen.getByRole('button', { name: 'Delete Case' })
+    expect(button).toHaveAttribute('data-tooltip-align', align)
+    expect(button).toHaveAttribute('data-tooltip-open', '')
+  })
+
+  it('keeps a native title and adds no tooltip attributes when no tooltip is given', () => {
+    render(<ActionButton title="Saved locally" tooltipOpen>Save</ActionButton>)
+    const button = screen.getByRole('button', { name: 'Save' })
+    expect(button).toHaveAttribute('title', 'Saved locally')
+    expect(button).not.toHaveAttribute('data-tooltip')
+    expect(button).not.toHaveAttribute('data-tooltip-open')
+  })
+})

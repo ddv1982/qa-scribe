@@ -256,6 +256,6 @@ describe('saved library clipboard boundary', () => {
     nativeText.mockResolvedValueOnce(undefined)
     await user.click(screen.getByRole('button', { name: 'Copy Same' }))
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Same copied' })).toHaveTextContent('Copied')
+    expect(screen.getByRole('button', { name: 'Same copied' })).toHaveAttribute('data-tooltip', 'Copied')
   })
 })

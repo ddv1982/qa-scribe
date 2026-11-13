@@ -53,7 +53,7 @@ describe('copy success buttons', () => {
     )
 
     const button = screen.getByRole('button', { name: 'note Login session copied' })
-    expect(button).toHaveTextContent(/Copied|Screenshot copied/)
+    expect(button).toHaveAttribute('data-tooltip', 'Copied')
     expect(button).toBeEnabled()
   })
 
@@ -155,7 +155,7 @@ describe('copy success buttons', () => {
     )
 
     const button = screen.getByRole('button', { name: 'Login case copied' })
-    expect(button).toHaveTextContent(/Copied|Screenshot copied/)
+    expect(button).toHaveAttribute('data-tooltip', 'Copied')
     expect(button).toBeEnabled()
   })
 
@@ -181,7 +181,7 @@ describe('copy success buttons', () => {
     )
 
     const button = screen.getByRole('button', { name: 'Login finding copied' })
-    expect(button).toHaveTextContent(/Copied|Screenshot copied/)
+    expect(button).toHaveAttribute('data-tooltip', 'Copied')
     expect(button).toBeEnabled()
   })
 
@@ -216,7 +216,7 @@ describe('copy success buttons', () => {
     )
 
     const button = screen.getByRole('button', { name: 'note Login session screenshot copied' })
-    expect(button).toHaveTextContent(/Copied|Screenshot copied/)
+    expect(button).toHaveAttribute('data-tooltip', 'Screenshot copied')
     expect(button).toBeEnabled()
   })
 
@@ -242,7 +242,7 @@ describe('copy success buttons', () => {
     )
 
     const button = screen.getByRole('button', { name: 'Login case screenshot copied' })
-    expect(button).toHaveTextContent(/Copied|Screenshot copied/)
+    expect(button).toHaveAttribute('data-tooltip', 'Screenshot copied')
     expect(button).toBeEnabled()
   })
 
@@ -268,7 +268,7 @@ describe('copy success buttons', () => {
     )
 
     const button = screen.getByRole('button', { name: 'Login finding screenshot copied' })
-    expect(button).toHaveTextContent(/Copied|Screenshot copied/)
+    expect(button).toHaveAttribute('data-tooltip', 'Screenshot copied')
     expect(button).toBeEnabled()
   })
 

@@ -122,7 +122,7 @@ describe('Ask AI on a test run in the built native application', () => {
       'the results and remark were not saved')
 
     // Ask AI sits before Copy report and opens the panel beside the run with the composer focused.
-    const actions = await browser.execute(() => Array.from(document.querySelectorAll('.test-run-actions > button'), (button) => button.textContent))
+    const actions = await browser.execute(() => Array.from(document.querySelectorAll('.test-run-actions > button'), (button) => button.getAttribute('aria-label') ?? button.textContent))
     assert.deepEqual(actions.slice(0, 2), ['Ask AI', 'Copy report'])
     assert.equal(await $(runAction('Ask AI')).getAttribute('aria-expanded'), 'false')
     await click(runAction('Ask AI'))

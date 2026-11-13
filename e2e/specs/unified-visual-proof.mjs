@@ -95,7 +95,7 @@ async function unifiedRouteBody() {
   assert.match(clipboard, /Edited native clipboard evidence\./)
   assert.ok(!clipboard.includes('Authored visual migration evidence.'))
   receipts.push({ name: 'edited-copy', clipboard, sessionId: session.id, rows: (await native('list_findings', { sessionId: session.id })).length })
-  await capture('uc3-edited-copy', ['.record-detail-pane .action-button--secondary'])
+  await capture('uc3-edited-copy', ['.record-detail-pane .copy-controls .action-button'])
   const type = await $('.collection-toolbar label:last-of-type select')
   await browser.execute(() => {
     const select = document.querySelector('.collection-toolbar label:last-of-type select')
@@ -391,7 +391,7 @@ export async function unifiedWidths(theme) {
   await tab('Note')
   for (const width of [1280, 1024, 768, 360, 320]) {
     await resize(width, 860)
-    await capture(`uc3-note-${width}-${theme}`, ['.document-actions .action-button--secondary'])
+    await capture(`uc3-note-${width}-${theme}`, ['.document-actions .copy-controls .action-button'])
     if (width === 320) {
       await $('[aria-label="Note body"]').click()
       await recordFocus(theme, 'pointer: WebDriver elementClick')

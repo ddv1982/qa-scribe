@@ -48,7 +48,7 @@ describe('clipboard and creation wiring', () => {
     expect(tauri.copyHtmlToClipboard.mock.calls).toEqual([['<h2>Local title</h2><p><strong>Local rich Note</strong></p>', '## Local title\n\n**Local rich Note**']])
     expect(tauri.updateSession).not.toHaveBeenCalled()
     expect(tauri.updateEntry).not.toHaveBeenCalled()
-    expect(screen.getByRole('button', { name: 'note Local title copied' })).toHaveTextContent('Copied')
+    expect(screen.getByRole('button', { name: 'note Local title copied' })).toHaveAttribute('data-tooltip', 'Copied')
   })
 
   it('uses the existing new-Session command once and its availability for the central action', async () => {

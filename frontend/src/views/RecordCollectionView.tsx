@@ -113,7 +113,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
   renderPreviewHeader: (record: T) => ReactNode
   /** A line above the records, given each record as last saved: an edit in progress shows its original. */
   renderSummary?: (savedRecords: T[]) => ReactNode
-  /** More actions after Copy on the selected record, told whether it is being edited. */
+  /** More actions after Ask AI on the selected record, told whether it is being edited. */
   renderActions?: (record: T, editing: boolean) => ReactNode
   /** Something to show in place of the selected record, such as its test run; null shows the record. */
   renderDetail?: (record: T) => ReactNode
@@ -346,16 +346,16 @@ export function RecordCollectionView<T extends CollectionRecord>({
               onTitleChange={(title) => updateLocalRecord(record.id, { title })}
               onBodyChange={(patch) => updateLocalRecord(record.id, patch)}
               onUploadImage={(input) => onUploadImage(input, record.id)}
+              copyControls={<CopyControls
+                snapshot={{ target: { kind: sourceKind, sessionId: record.sessionId, id: record.id, action: 'jira-text' }, title: record.title, bodyHtml: selectedCopyBody }}
+                copyState={copyState} onCopy={onCopy} disabled={isBusy}
+                label={record.title.trim() || labels.recordNounLower} screenshotCount={screenshotCount} />}
               actions={
                 <RichRecordActions
-                  copyControls={<>
+                  leadingActions={<>
                     {recordChat ? <ActionButton variant="secondary" type="button" className="ask-ai-trigger" icon={Sparkles} disabled={isBusy}
                       aria-expanded={recordChat.openRecordId === record.id}
                       onClick={() => void recordChat.onAskAi({ kind: sourceKind === 'finding' ? 'finding' : 'test_cases_draft', recordId: record.id, title: record.title, unsaved: selectedUnsaved })}>Ask AI</ActionButton> : null}
-                    <CopyControls
-                    snapshot={{ target: { kind: sourceKind, sessionId: record.sessionId, id: record.id, action: 'jira-text' }, title: record.title, bodyHtml: selectedCopyBody }}
-                    copyState={copyState} onCopy={onCopy} disabled={isBusy}
-                    label={record.title.trim() || labels.recordNounLower} screenshotCount={screenshotCount} />
                     {renderActions?.(record, editing)}</>}
                   deleting={deleting}
                   deleteLabel={`Delete ${record.title}`}

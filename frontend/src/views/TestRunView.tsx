@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
-import { AlertTriangle, ArrowLeft, CheckCircle2, ChevronRight, Copy, Loader2, Sparkles, Trash2 } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, ChevronRight, Copy, Loader2, Sparkles, Trash2 } from 'lucide-react'
 import { COPIED_FEEDBACK_MS } from '../app/copyActions'
 import { ActionButton } from '../components/ActionButton'
+import { CopyButton } from '../components/CopyButton'
 import { Badge } from '../components/Badge'
 import { StatePanel } from '../components/Common'
 import { Dialog } from '../components/Dialog'
@@ -100,7 +101,7 @@ export function TestRunView({ open, draftRuns, error, askAi, onSelectRun, onBack
           {/* Kept together, so a narrow header never leaves the delete icon alone on a line. */}
           <span className="test-run-leave">
             <ActionButton variant="quiet" icon={ArrowLeft} onClick={onBack}>Back to test cases</ActionButton>
-            <ActionButton variant="destructive-quiet" iconOnly icon={Trash2} aria-label="Delete test run" title="Delete test run"
+            <ActionButton variant="destructive-quiet" iconOnly icon={Trash2} aria-label="Delete test run" tooltip="Delete test run" tooltipAlign="end"
               onClick={() => setConfirmingDelete(true)} />
           </span>
         </div>
@@ -164,7 +165,7 @@ function CopyReportButton({ run }: { run: TestRun }) {
   }
 
   return <>
-    <ActionButton variant="secondary" icon={copied ? CheckCircle2 : Copy} onClick={() => void copy()}>{copied ? 'Copied' : 'Copy report'}</ActionButton>
+    <CopyButton icon={Copy} label="Copy report" copiedLabel="Report copied" tooltip="Copy report" copied={copied} onCopy={() => void copy()} />
     <span className="sr-only" role="status">{copied ? 'Report copied' : ''}</span>
     {failure ? <span className="copy-error" role="alert">Copy failed: {failure}</span> : null}
   </>

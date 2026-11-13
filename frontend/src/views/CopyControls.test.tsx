@@ -12,17 +12,22 @@ describe('shared copy controls', () => {
     const user = userEvent.setup()
     const onCopy = vi.fn().mockResolvedValue(undefined)
     render(<CopyControls snapshot={snapshot} copyState={{ status: 'idle' }} onCopy={onCopy} label="Case" screenshotCount={screenshotCount} />)
-    expect(screen.getByRole('button', { name: 'Copy Case' })).toHaveTextContent('Copy')
+    const copy = screen.getByRole('button', { name: 'Copy Case' })
+    expect(copy).toHaveAttribute('data-tooltip', 'Copy')
+    expect(copy.textContent).toBe('')
     await user.click(screen.getByRole('button', { name: 'Copy first Case screenshot' }))
     expect(onCopy.mock.calls).toEqual([[{ target: { kind: 'finding', sessionId: 'session-1', id: 'finding-1', action: 'screenshot' }, title: 'Case', bodyHtml: '<p>Saved</p>' }]])
-    expect(screen.getByRole('button', { name: 'Copy first Case screenshot' })).toHaveTextContent('Copy first screenshot')
+    expect(screen.getByRole('button', { name: 'Copy first Case screenshot' })).toHaveAttribute('data-tooltip', 'Copy first screenshot')
+    // The screenshot icon sits left of Copy, so Copy is the corner.
+    expect(screen.getAllByRole('button').map((button) => button.getAttribute('aria-label'))).toEqual(['Copy first Case screenshot', 'Copy Case'])
   })
 
   it('disables every Copy while pending without marking Edit or Delete busy', () => {
-    render(<RichRecordActions copyControls={<CopyControls snapshot={snapshot} copyState={{ status: 'pending', snapshot }} onCopy={vi.fn()} label="Case" screenshotCount={2} />}
-      deleting={false} deleteLabel="Delete Case" deleteTitle="Delete Finding" editing={false} isBusy={false} saving={false}
-      onDelete={vi.fn()} onEdit={vi.fn()} onSave={vi.fn()} onCancelEdit={vi.fn()} />)
+    render(<><CopyControls snapshot={snapshot} copyState={{ status: 'pending', snapshot }} onCopy={vi.fn()} label="Case" screenshotCount={2} />
+      <RichRecordActions deleting={false} deleteLabel="Delete Case" deleteTitle="Delete Finding" editing={false} isBusy={false} saving={false}
+      onDelete={vi.fn()} onEdit={vi.fn()} onSave={vi.fn()} onCancelEdit={vi.fn()} /></>)
     expect(screen.getByRole('button', { name: 'Copy Case' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Copy Case' })).toHaveAttribute('data-tooltip', 'Copying')
     expect(screen.getByRole('button', { name: 'Copy first Case screenshot' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Edit' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Delete Case' })).toBeEnabled()
@@ -37,5 +42,20 @@ describe('shared copy controls', () => {
     rerender(<CopyControls snapshot={{ ...snapshot, bodyHtml: '<p>Edited</p>' }} copyState={state} onCopy={vi.fn()} label="Case" />)
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(screen.queryByText('Copied')).not.toBeInTheDocument()
+  })
+
+  it.each([
+    ['text', 'jira-text', 'Case copied', 'Copied'],
+    ['screenshot', 'screenshot', 'Case screenshot copied', 'Screenshot copied'],
+  ] as const)('says the %s copy worked in a tooltip shown without hover', (_, action, name, tooltip) => {
+    const copied = { ...snapshot, target: { ...snapshot.target, action } }
+    render(<CopyControls snapshot={snapshot} copyState={{ status: 'succeeded', snapshot: copied }} onCopy={vi.fn()} label="Case" screenshotCount={1} />)
+    const button = screen.getByRole('button', { name })
+    expect(button).toHaveAttribute('data-tooltip', tooltip)
+    expect(button).toHaveAttribute('data-tooltip-open')
+    expect(button).toHaveAttribute('data-copied')
+    expect(button).toHaveClass('action-button--quiet')
+    expect(screen.getAllByRole('button').filter((other) => other !== button).every((other) => !other.hasAttribute('data-tooltip-open'))).toBe(true)
+    expect(screen.getByRole('status')).toHaveTextContent(action === 'screenshot' ? 'First screenshot copied' : 'Copied')
   })
 })
