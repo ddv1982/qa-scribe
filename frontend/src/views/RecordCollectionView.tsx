@@ -244,9 +244,10 @@ export function RecordCollectionView<T extends CollectionRecord>({
     <section className="collection-view">
       <header className="collection-header">
         <h1 className="sr-only">{labels.heading}</h1>
-        {records.length > 0 ? (
+        {/* Beside a new draft there is no list to search, sort or filter. */}
+        {records.length > 0 && !composer ? (
           <div className="collection-toolbar">
-            {composer ? null : <RecordListToggle visible={listVisible} listId={listId} onToggle={() => setListVisible(!listVisible)} />}
+            <RecordListToggle visible={listVisible} listId={listId} onToggle={() => setListVisible(!listVisible)} />
             <label className="collection-search">
               <Search size={16} />
               <span className="sr-only">Search {labels.heading}</span>

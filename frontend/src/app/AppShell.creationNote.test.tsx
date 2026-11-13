@@ -34,11 +34,14 @@ it('shows the Note read-only beside a new draft in place of the record list, whi
   expect(within(note).getByRole('textbox', { name: 'Note content' })).toHaveAttribute('aria-readonly', 'true')
   expect(screen.queryByRole('complementary', { name: 'Findings records' })).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Hide list' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('textbox', { name: 'Search Findings' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('combobox', { name: 'Sort' })).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Show Note' })).not.toBeInTheDocument()
 
   fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
   await waitFor(() => expect(screen.queryByRole('complementary', { name: 'Note' })).not.toBeInTheDocument())
   expect(screen.getByRole('complementary', { name: 'Findings records' })).toBeInTheDocument()
+  expect(screen.getByRole('textbox', { name: 'Search Findings' })).toBeInTheDocument()
 })
 
 it('remembers that the Note was closed for the next draft, and brings it back from the draft header', async () => {

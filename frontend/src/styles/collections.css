@@ -140,8 +140,6 @@
   gap: var(--space-3);
   margin-bottom: var(--space-3);
 }
-/* Beside a new draft there is no list to toggle, so search leads. */
-.collection-toolbar:not(:has(> .record-list-toggle)) { grid-template-columns: minmax(220px, 1fr); }
 
 .collection-search {
   display: flex;

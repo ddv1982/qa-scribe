@@ -336,7 +336,6 @@ describe('Unified creation composer in the built native application', () => {
     assert.equal(await $(draftBody).getText(), authoredBody)
     assert.equal(rows().findings, beforeCancel.findings)
     await capture('uc2-cancel-restores-local-images')
-    await browser.execute(() => { const sort = document.querySelector('.collection-sort select'); sort.value = 'title'; sort.dispatchEvent(new Event('change', { bubbles: true })) })
     await openCreationAi('finding')
     await click('dialog button=Generate and replace draft')
     await fixtureStarted(2)
