@@ -204,6 +204,8 @@ describe('useTestRuns', () => {
     act(() => first.result.current.changeCase('a', { result: 'failed' }))
     // Leaving the Test cases tab unmounts the view; its save keeps going.
     first.unmount()
+    // No summaries, so the only read of a run below is the reopened one.
+    api.listTestRuns.mockResolvedValue([])
     api.getTestRun.mockClear()
     api.getTestRun.mockResolvedValue(run([testCase('a', { result: 'failed' }), testCase('b')]))
     const second = renderHook(() => useTestRuns('session-1'))
@@ -233,6 +235,8 @@ describe('useTestRuns', () => {
   it('stores a change that arrives just after its run left the screen', async () => {
     const { result } = await opened()
     const saves = deferredSaves()
+    // No summaries, so the only read of a run below is the reopened one.
+    api.listTestRuns.mockResolvedValue([])
     // Back detaches the run's queue before React unmounts the remark input, whose cleanup commits.
     act(() => result.current.close())
     act(() => result.current.changeCase('a', { remark: 'Typed, never blurred' }))
