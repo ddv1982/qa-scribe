@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { creationNoteStorageKey } from '../hooks/useRememberedVisible'
 import { draftFixture, entryFixture, findingFixture } from '../test/fixtures'
+import { creationMode } from '../test/creationModes'
 import { cleanupControllerTest, getTauriMock, setupControllerTest, useAppController } from './useAppController.testHarness'
 
 const { AppShell } = await import('./AppShell')
@@ -37,7 +38,8 @@ it('shows the Note read-only beside a new draft in place of the record list, whi
   expect(screen.queryByRole('button', { name: 'Hide list' })).not.toBeInTheDocument()
   expect(screen.queryByRole('textbox', { name: 'Search Findings' })).not.toBeInTheDocument()
   expect(screen.queryByRole('combobox', { name: 'Sort' })).not.toBeInTheDocument()
-  expect(screen.queryByRole('button', { name: 'Show Note' })).not.toBeInTheDocument()
+  // One toggle in the draft header, named for what shows, says the panel is open.
+  expect(within(screen.getByRole('article', { name: 'New finding' })).getByRole('button', { name: 'Note' })).toHaveAttribute('aria-expanded', 'true')
 
   fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
   await waitFor(() => expect(screen.queryByRole('complementary', { name: 'Note' })).not.toBeInTheDocument())
@@ -45,7 +47,7 @@ it('shows the Note read-only beside a new draft in place of the record list, whi
   expect(screen.getByRole('textbox', { name: 'Search Findings' })).toBeInTheDocument()
 })
 
-it('remembers that the Note was closed for the next draft, and brings it back from the draft header', async () => {
+it('remembers that the Note was closed for the next draft, and brings it back from the toggle in the draft header', async () => {
   render(<Subject />)
   await createFinding()
   fireEvent.click(within(await screen.findByRole('complementary', { name: 'Note' })).getByRole('button', { name: 'Close Note' }))
@@ -57,7 +59,9 @@ it('remembers that the Note was closed for the next draft, and brings it back fr
   fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
   await createFinding()
   expect(screen.queryByRole('complementary', { name: 'Note' })).not.toBeInTheDocument()
-  fireEvent.click(within(screen.getByRole('article', { name: 'New finding' })).getByRole('button', { name: 'Show Note' }))
+  const toggle = within(screen.getByRole('article', { name: 'New finding' })).getByRole('button', { name: 'Note' })
+  expect(toggle).toHaveAttribute('aria-expanded', 'false')
+  fireEvent.click(toggle)
   expect(await screen.findByRole('complementary', { name: 'Note' })).toHaveTextContent('Pay with a saved card.')
   expect(window.localStorage.getItem(creationNoteStorageKey)).toBe('shown')
 })
@@ -76,9 +80,9 @@ it('says so in the panel when the Session has no Note, and the draft still saves
 it('shows a saved test case or Finding beside the draft in place of the Note, chosen per draft', async () => {
   render(<Subject />)
   await createFinding()
-  const choice = within(await screen.findByRole('complementary', { name: 'Note' })).getByRole('combobox', { name: 'Show beside the draft' })
+  const choice = within(await screen.findByRole('complementary', { name: 'Note' })).getByRole('combobox', { name: 'Showing' })
   // The draft's own kind is listed first.
-  expect(within(choice).getAllByRole('group').map(group => group.getAttribute('label'))).toEqual(['Findings', 'Test cases'])
+  expect(within(choice).getAllByRole('group').map(group => group.getAttribute('label'))).toEqual(['Findings (1)', 'Test cases (1)'])
 
   fireEvent.change(choice, { target: { value: 'testware:draft-saved' } })
   const testCase = await screen.findByRole('complementary', { name: 'Checkout test cases' })
@@ -86,9 +90,10 @@ it('shows a saved test case or Finding beside the draft in place of the Note, ch
   expect(within(testCase).getByRole('textbox', { name: 'Checkout test cases content' })).toHaveAttribute('aria-readonly', 'true')
   expect(testCase).not.toHaveTextContent('Pay with a saved card.')
 
-  // Closed, the panel is brought back by what it shows.
+  // The toggle is named for what shows, open or closed.
+  expect(within(screen.getByRole('article', { name: 'New finding' })).getByRole('button', { name: 'Test case' })).toHaveAttribute('aria-expanded', 'true')
   fireEvent.click(within(testCase).getByRole('button', { name: 'Close test case' }))
-  fireEvent.click(within(screen.getByRole('article', { name: 'New finding' })).getByRole('button', { name: 'Show test case' }))
+  fireEvent.click(within(screen.getByRole('article', { name: 'New finding' })).getByRole('button', { name: 'Test case' }))
   fireEvent.change(within(await screen.findByRole('complementary', { name: 'Checkout test cases' })).getByRole('combobox'), { target: { value: 'finding:finding-saved' } })
   await waitFor(() => expect(screen.getByRole('complementary', { name: 'Saved finding' })).toHaveTextContent('Card payment fails at checkout.'))
 
@@ -96,4 +101,25 @@ it('shows a saved test case or Finding beside the draft in place of the Note, ch
   fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
   await createFinding()
   expect(await screen.findByRole('complementary', { name: 'Note' })).toHaveTextContent('Pay with a saved card.')
+})
+
+it('shows only the Note under Generate, the source it uses, and the chosen record again under Write', async () => {
+  render(<Subject />)
+  await createFinding()
+  fireEvent.change(within(await screen.findByRole('complementary', { name: 'Note' })).getByRole('combobox', { name: 'Showing' }), { target: { value: 'testware:draft-saved' } })
+  await screen.findByRole('complementary', { name: 'Checkout test cases' })
+
+  fireEvent.click(await waitFor(() => creationMode('Generate')))
+  const note = await screen.findByRole('complementary', { name: 'Note' })
+  expect(within(note).getByRole('heading', { name: 'Note' })).toBeInTheDocument()
+  expect(within(note).queryByRole('combobox')).not.toBeInTheDocument()
+  expect(note).toHaveTextContent('Generate uses this Note.')
+  await waitFor(() => expect(note).toHaveTextContent('Pay with a saved card.'))
+  expect(within(screen.getByRole('article', { name: 'New finding' })).getByRole('button', { name: 'Note' })).toHaveAttribute('aria-expanded', 'true')
+  expect(screen.getByRole('article', { name: 'New finding' })).toHaveTextContent('Generates from: Note (5 words, 0 screenshots)')
+
+  fireEvent.click(creationMode('Write'))
+  const testCase = await screen.findByRole('complementary', { name: 'Checkout test cases' })
+  expect(within(testCase).getByRole('combobox', { name: 'Showing' })).toHaveValue('testware:draft-saved')
+  expect(testCase).not.toHaveTextContent('Generate uses this Note.')
 })

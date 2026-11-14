@@ -51,6 +51,8 @@ export function useCreationGenerate(intent: CreationIntent, c: AppController) {
       selectionAdvisories: [...execution.advisories.map((warning) => warning.message), ...(customAdvisory ? [customAdvisory] : [])],
     }
     const authored = creationIsAuthored(intent)
+    const screenshots = `${setup.noteScreenshotCount} screenshot${setup.noteScreenshotCount === 1 ? '' : 's'}`
+    const withCriteria = intent.kind === 'testware' && Boolean(sessionCriteria(intent, c))
     function confirm() {
       if (busy || !ready) return
       setConfirming(true)
@@ -60,6 +62,7 @@ export function useCreationGenerate(intent: CreationIntent, c: AppController) {
     }
     return {
       form: <>
+        <p className="creation-generate-source">Generates from: <strong>Note</strong> ({setup.noteWordCount} words, {screenshots}){withCriteria ? ' and the acceptance criteria' : ''}</p>
         <p className="field-description">The AI result is saved as {intent.kind === 'finding' ? 'a new finding' : 'new test cases'} and opens for you to review.{authored
           ? ' What you wrote under Write is discarded when that succeeds, and kept if it fails or you cancel.' : ''}</p>
         <GenerationSetup {...setup} testwarePreferences={preferences} onTestwarePreferencesChange={setPreferences} modelSelectionControl={<>
@@ -96,9 +99,14 @@ function creationSourceWarning(intent: CreationIntent, c: AppController): string
   if (Object.keys(intent.imageOperations).length) return 'Finish adding images under Write, or continue without the failed ones there, before generating.'
   if (c.noteReadOnly) return 'Recover the Session Note before using it as a source.'
   if (intent.sourceNoteId && !intent.source) return 'Wait for the Note to show beside the draft before generating.'
-  const criteria = c.activeSession?.id === intent.sessionId ? c.activeSession.acceptanceCriteria?.trim() : null
+  const criteria = sessionCriteria(intent, c)
   const material = intent.source && (htmlHasContent(intent.source.entry.body) || (intent.kind === 'testware' && Boolean(criteria)))
   return material ? null : 'Write a Note first. There is nothing to generate from yet.'
+}
+
+/** The draft's Session acceptance criteria, which Generate sends for test cases, when that Session is open. */
+function sessionCriteria(intent: CreationIntent, c: AppController): string | null {
+  return c.activeSession?.id === intent.sessionId ? c.activeSession.acceptanceCriteria?.trim() || null : null
 }
 
 function withDraftFormat(preferences: TestwareGenerationPreferences, intent: CreationIntent): TestwareGenerationPreferences {

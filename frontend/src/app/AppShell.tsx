@@ -2,6 +2,7 @@ import { ActionButton } from '../components/ActionButton'
 import { CreationWorkspace } from '../views/CreationTools'
 import { CreationNotePanel } from '../views/CreationNotePanel'
 import { referenceLabel, useCreationReference } from './creationReference'
+import { creationAiActive, shownCreationMode } from './creationMode'
 import { useCreationNoteVisible } from '../hooks/useCreationNoteVisible'
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { catalogSelectorEnabled } from '../settings/catalog'
@@ -58,8 +59,10 @@ export function AppShell(c: AppController) {
   const [reference, setReference] = useCreationReference(shownDraft?.id ?? null)
   const referenceRecords = { testware: c.testwareDrafts, finding: c.findings }
   const askAiVisible = c.askAi.visible && !shownDraft
+  // Under Generate the panel shows only the Note, the source Generate uses; the choice of record comes back under Write.
+  const generatingFromNote = shownDraft ? shownCreationMode(shownDraft, creationAiActive(c)) === 'generate' : false
   const composer = c.creationIntent && !creationResultReady ? <CreationWorkspace c={c}
-    showPanel={noteVisible ? undefined : { label: referenceLabel(reference, referenceRecords), onShow: toggleNote }} /> : null
+    panel={shownDraft ? { label: generatingFromNote ? 'Note' : referenceLabel(reference, referenceRecords), open: noteVisible, onToggle: toggleNote } : undefined} /> : null
 
   // The panel lists both kinds of saved record, and each kind loads with its own tab, so load the other one here.
   const { loadDraftsForSession, loadFindingsForSession } = c
@@ -286,7 +289,7 @@ export function AppShell(c: AppController) {
           />
         ) : null}
         </div>
-        {shownDraft && noteVisible ? <CreationNotePanel intent={shownDraft} records={referenceRecords} reference={reference} onReferenceChange={setReference} noteReadOnly={c.noteReadOnly} onReadNote={() => void c.creation.reviewSource()} onClose={toggleNote} /> : null}
+        {shownDraft && noteVisible ? <CreationNotePanel intent={shownDraft} records={referenceRecords} reference={reference} onReferenceChange={setReference} generating={generatingFromNote} noteReadOnly={c.noteReadOnly} onReadNote={() => void c.creation.reviewSource()} onClose={toggleNote} /> : null}
         <AppChat c={c} recordVisible={askAiVisible} modelSelectionControl={modelSelectionControl} onConfigureAi={() => runCommand('ai.configure')} />
         </div>
       </section>
