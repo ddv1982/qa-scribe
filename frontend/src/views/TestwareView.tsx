@@ -1,7 +1,7 @@
 import type { RecordChatActions } from '../app/sessionChat.context'
 import type { RecordCreationCommands } from './RecordCreationActions'
 import { Box } from 'lucide-react'
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { Badge } from '../components/Badge'
 import type { RichEditorImageUpload } from '../editor/RichTextEditor'
 import { testwareGenerationSummary } from '../testware/generationPreferences'
@@ -48,6 +48,7 @@ export function TestwareView({
   isBusy,
   activeGenerationJob,
   initialSelectedRecordId = null,
+  onSelectedRecordChange,
   createdRecordEditTarget = null,
   onCreatedRecordEditTargetConsumed,
   loadState = 'ready',
@@ -80,7 +81,9 @@ export function TestwareView({
   error: string | null
   isBusy: boolean
   activeGenerationJob: GenerationJobStatus | null
+  /** The record to show first; told each record the view selects, so it can be shown again after the view returns. */
   initialSelectedRecordId?: string | null
+  onSelectedRecordChange?: (id: string | null) => void
   createdRecordEditTarget?: CreatedRecordEditTarget | null
   onCreatedRecordEditTargetConsumed?: (target: CreatedRecordEditTarget) => void
   loadState?: RecordLoadState
@@ -97,6 +100,11 @@ export function TestwareView({
 }) {
   const testRuns = useTestRuns(sessionId)
   useShownTestRun(recordChat, sessionId, testRuns)
+  const { keepForDraft } = testRuns
+  const selectDraft = useCallback((id: string | null) => {
+    keepForDraft(id)
+    onSelectedRecordChange?.(id)
+  }, [keepForDraft, onSelectedRecordChange])
   const runsOf = (draftId: string) => testRuns.summaries.filter((summary) => summary.draftId === draftId)
   return (
     <RecordCollectionView
@@ -141,7 +149,7 @@ export function TestwareView({
           onDelete={testRuns.deleteRun} onChangeCase={testRuns.changeCase}
           askAi={recordChat?.onAskAiRun ? { expanded: recordChat.openRunId === testRuns.open.runId, onOpen: recordChat.onAskAiRun } : undefined} />
       ) : null}
-      onSelectedRecordChange={testRuns.keepForDraft}
+      onSelectedRecordChange={selectDraft}
       busyActionFor={(draft, kind) => {
         switch (kind) {
           case 'delete':

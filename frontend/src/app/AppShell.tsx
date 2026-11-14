@@ -184,7 +184,8 @@ export function AppShell(c: AppController) {
             error={c.error}
             isBusy={c.isBusy}
             activeGenerationJob={c.activeTestwareJob}
-            initialSelectedRecordId={c.focusedRecordId}
+            initialSelectedRecordId={c.selectedRecordIds.testware}
+            onSelectedRecordChange={c.selectRecord.testware}
             createdRecordEditTarget={c.createdRecordEditTarget?.sessionId === c.activeSession?.id && c.createdRecordEditTarget?.kind === 'testware' ? c.createdRecordEditTarget : null}
             onCreatedRecordEditTargetConsumed={c.consumeCreatedRecordEditTarget}
             loadState={c.draftLoadState}
@@ -215,7 +216,8 @@ export function AppShell(c: AppController) {
             error={c.error}
             isBusy={c.isBusy}
             activeGenerationJob={c.activeFindingJob}
-            initialSelectedRecordId={c.focusedRecordId}
+            initialSelectedRecordId={c.selectedRecordIds.findings}
+            onSelectedRecordChange={c.selectRecord.findings}
             createdRecordEditTarget={c.createdRecordEditTarget?.sessionId === c.activeSession?.id && c.createdRecordEditTarget?.kind === 'finding' ? c.createdRecordEditTarget : null}
             onCreatedRecordEditTargetConsumed={c.consumeCreatedRecordEditTarget}
             loadState={c.findingLoadState}
