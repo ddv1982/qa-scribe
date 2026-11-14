@@ -30,12 +30,12 @@ import { useSettingsSectionFocus } from './useAppController.settingsFocus'
 import { useAppSettlement } from './appSettlement'
 import { useAppControllerNavigation } from './useAppController.navigation'
 import { useAttachmentCleanup } from './useAttachmentCleanup'
+import { useRecordSelection } from './useRecordSelection'
 import { useSummaryRecovery } from './useSummaryRecovery'
 import { captureAvailableRecordContext } from './conversationPresentation'
 import { useSessionChat } from './useSessionChat'
 import { findingFromTestCase } from '../findings/fromTestCase'
 import type { TestRunCase } from '../tauri'
-export { mergeRecordLists } from './useRecordHydration'
 export function useAppController() {
   const {
     sessions,
@@ -68,7 +68,7 @@ export function useAppController() {
   const pendingNavigationContinuationRef = useRef<(() => void | Promise<void>) | null>(null)
   const pendingNavigationEpochRef = useRef(0)
   const [settingsSection, setSettingsSection] = useState<string | null>(null)
-  const [focusedRecordId, setFocusedRecordId] = useState<string | null>(null)
+  const { focusedRecordId, selectedRecordIds, selectRecord, focusRecord } = useRecordSelection()
   const [createdRecordEditTarget, setCreatedRecordEditTarget] = useState<CreatedRecordEditTarget | null>(null)
   const [initialNavigationRoute] = useState(() => parseNavigationRoute(window.location.hash))
   const settingsReturnViewRef = useRef<MainView>('sessions')
@@ -208,7 +208,7 @@ export function useAppController() {
     discardSettingsDraft, focusedRecordId, pendingNavigationContinuationRef, pendingNavigationEpochRef,
     pendingNavigationView, recordActions,
     sessionActions, sessions, settingsDirty, settingsReturnViewRef, settingsSection,
-    setActiveView, setError, setFocusedRecordId, setCreatedRecordEditTarget, setPendingNavigationView, setPendingSettingsSection, setSettingsSection,
+    setActiveView, setError, focusRecord, setCreatedRecordEditTarget, setPendingNavigationView, setPendingSettingsSection, setSettingsSection,
   })
   usePendingChangeProtection({
     hasPendingChanges: settlement.hasPendingChanges,
@@ -257,7 +257,7 @@ export function useAppController() {
     busyAction, deleteConfirmation,
     deleteCopy,
     error,
-    focusedRecordId,
+    focusedRecordId, selectedRecordIds, selectRecord,
     isBusy, canSwitchSession,
     latestNoteGenerationUndo,
     noteBody, noteBodyHtml,

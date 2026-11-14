@@ -66,6 +66,7 @@ export function FindingsView({
   isBusy,
   activeGenerationJob,
   initialSelectedRecordId = null,
+  onSelectedRecordChange,
   createdRecordEditTarget = null,
   onCreatedRecordEditTargetConsumed,
   loadState = 'ready',
@@ -90,7 +91,9 @@ export function FindingsView({
   error: string | null
   isBusy: boolean
   activeGenerationJob: GenerationJobStatus | null
+  /** The record to show first; told each record the view selects, so it can be shown again after the view returns. */
   initialSelectedRecordId?: string | null
+  onSelectedRecordChange?: (id: string | null) => void
   createdRecordEditTarget?: CreatedRecordEditTarget | null
   onCreatedRecordEditTargetConsumed?: (target: CreatedRecordEditTarget) => void
   loadState?: RecordLoadState
@@ -121,6 +124,7 @@ export function FindingsView({
       isBusy={isBusy}
       activeGenerationJob={activeGenerationJob}
       initialSelectedRecordId={initialSelectedRecordId}
+      onSelectedRecordChange={onSelectedRecordChange}
       createdRecordEditTarget={createdRecordEditTarget}
       onCreatedRecordEditTargetConsumed={onCreatedRecordEditTargetConsumed}
       loadState={loadState}

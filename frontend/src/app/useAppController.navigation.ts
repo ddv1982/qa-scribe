@@ -33,7 +33,7 @@ type AppControllerNavigationContext = {
   settingsSection: string | null
   setActiveView: Dispatch<SetStateAction<MainView>>
   setError: Dispatch<SetStateAction<string | null>>
-  setFocusedRecordId: Dispatch<SetStateAction<string | null>>
+  focusRecord: (view: MainView, recordId: string | null) => void
   setCreatedRecordEditTarget: Dispatch<SetStateAction<CreatedRecordEditTarget | null>>
   setPendingNavigationView: Dispatch<SetStateAction<MainView | null>>
   setPendingSettingsSection: Dispatch<SetStateAction<string | null>>
@@ -58,7 +58,7 @@ export function useAppControllerNavigation(ctx: AppControllerNavigationContext) 
     const view = target.kind === 'testware' ? 'testware' : 'findings'
     finishActiveViewNavigation(view, () => {
       if (!isCurrent()) return
-      ctx.setFocusedRecordId(null)
+      ctx.focusRecord(view, null)
       ctx.setCreatedRecordEditTarget(target)
       ctx.setActiveView(view)
     })
@@ -190,7 +190,7 @@ export function useAppControllerNavigation(ctx: AppControllerNavigationContext) 
     requestSessionNavigation,
     setActiveView: ctx.setActiveView,
     setError: ctx.setError,
-    setFocusedRecordId: ctx.setFocusedRecordId,
+    focusRecord: ctx.focusRecord,
     setPendingSettingsSection: ctx.setPendingSettingsSection,
     setSettingsSection: ctx.setSettingsSection,
   })

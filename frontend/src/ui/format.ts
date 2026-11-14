@@ -98,10 +98,6 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-export function statusLabel(status: string): string {
-  return status.replace(/([A-Z])/g, ' $1').toLowerCase()
-}
-
 /** A day and month, such as `13 Nov` in a day-first locale. */
 export function formatShortDate(value: string): string {
   const date = new Date(value)

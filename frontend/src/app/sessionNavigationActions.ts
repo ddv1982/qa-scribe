@@ -24,7 +24,7 @@ type SessionNavigationContext = {
   requestSessionNavigation: (view: MainView, navigate: () => Promise<void>) => Promise<void>
   setActiveView: Dispatch<SetStateAction<MainView>>
   setError: Dispatch<SetStateAction<string | null>>
-  setFocusedRecordId: Dispatch<SetStateAction<string | null>>
+  focusRecord: (view: MainView, recordId: string | null) => void
   setPendingSettingsSection: Dispatch<SetStateAction<string | null>>
   setSettingsSection: Dispatch<SetStateAction<string | null>>
 }
@@ -48,7 +48,7 @@ export function createSessionNavigationActions(ctx: SessionNavigationContext) {
         const session = ctx.sessions.find((candidate) => candidate.id === sessionId) ?? await reopenSession(sessionId)
         if (!ctx.sessionActions.sessionNavigationIsCurrent(epoch)) return
         await ctx.sessionActions.openSession(session, () => {
-          ctx.setFocusedRecordId(recordId)
+          ctx.focusRecord(view, recordId)
           ctx.setActiveView(view)
         }, epoch)
       } catch (cause) {
@@ -72,7 +72,7 @@ export function createSessionNavigationActions(ctx: SessionNavigationContext) {
       return
     }
     if (!route.sessionId || ctx.activeSessionId === route.sessionId) {
-      ctx.setFocusedRecordId(route.recordId)
+      ctx.focusRecord(route.view, route.recordId)
       ctx.requestActiveView(route.view)
       return
     }
@@ -82,7 +82,7 @@ export function createSessionNavigationActions(ctx: SessionNavigationContext) {
         const session = ctx.sessions.find((candidate) => candidate.id === route.sessionId) ?? await reopenSession(route.sessionId!)
         if (!ctx.sessionActions.sessionNavigationIsCurrent(epoch)) return
         await ctx.sessionActions.openSession(session, () => {
-          ctx.setFocusedRecordId(route.recordId)
+          ctx.focusRecord(route.view, route.recordId)
           ctx.setActiveView(route.view)
         }, epoch)
       } catch (cause) {
