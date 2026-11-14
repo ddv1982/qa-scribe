@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.12.0 - 2026-11-14
+
+- Create test cases and Findings with the Session Note open beside the draft. The record list folds away while you write, and the Note can be closed or brought back from the draft header.
+- New drafts have a Write | Generate switch when an AI provider is ready. Write keeps the manual editor; Generate shows the AI choices beside the Note instead of opening a dialog. Your writing survives switching modes, and is kept if generation fails or you cancel.
+- Generation needs a Note to work from; test cases can also use the Session's acceptance criteria. AI creation commands are unavailable without a ready provider. The separate Prefill action has been removed.
+- Fixed: a generated result that was saved but could not be opened can be opened again from Generate. Keyboard focus stays inside the composer while the Note loads, and image recovery guidance says where to find the action.
+- Fixed: "Pending record edits saved" no longer appears after launch or navigation when nothing was edited.
+- The README now shows the app in light and dark, writing beside the Note, generation, test results and a Finding with Ask AI.
+
 ## v0.11.0 - 2026-11-13
 
 - Copy is now a quiet icon in the top-right corner of what it copies: a Finding, test cases, a new draft, a library record, the Note, a test run report and the feedback link under Help. Hover over it to read "Copy"; after a copy it shows a green check and "Copied". "Copy first screenshot" is a second icon beside it.
