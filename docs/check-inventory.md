@@ -82,6 +82,7 @@ listed area changes. Last checked on macOS arm64 on 2026-11-13.
 | `record-workspace-layout.e2e.mjs` | none | Record header, collection layout |
 | `undo-history-isolation.e2e.mjs` | none | Note undo history |
 | `chat-image-recovery.e2e.mjs`, `chat-restart-readiness.e2e.mjs`, `chat-to-note.e2e.mjs`, `creation-composer-layout.e2e.mjs`, `generation-preflight-layout.e2e.mjs`, `short-window-visual.e2e.mjs`, `sidebar-session-layout.e2e.mjs` | none | Their named area |
+| `readme-screenshots.mjs` | none; writes the PNGs into `docs/images/`, so look at each one and commit them | The README screenshots, before a release |
 | `model-picker-performance.e2e.mjs` | `QA_SCRIBE_E2E_BENCHMARK_REVISION=<commit>` | Model picker |
 | `creation-composer-restart.e2e.mjs` | Linux only: after a full `creation-composer.e2e.mjs` run sharing one `QA_SCRIBE_E2E_TEMP_ROOT`, without `QA_SCRIBE_E2E_CREATION_FORMATS_ONLY` | Creation recovery |
 | `ask-ai-ownership-migration.e2e.mjs` | `QA_SCRIBE_I1_NATIVE_LANE_RELEASED=1`, `QA_SCRIBE_E2E_SOURCE_SHA=<commit>` | Conversation storage migrations. Fails on 2026-11-13: its Session header, activity and legacy-stage lanes predate the current Ask AI design. |

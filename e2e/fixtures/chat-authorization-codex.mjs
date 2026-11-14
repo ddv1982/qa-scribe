@@ -8,6 +8,7 @@ import { catalogObservation } from './chat-authorization-catalog.mjs'
 import { inspectContextInput } from './ask-ai-context-provider.mjs'
 import { inspectRefinementInput } from './ask-ai-refinement-provider.mjs'
 import { inspectImageInput } from './chat-images-provider.mjs'
+import { inspectReadmeInput } from './readme-screenshots-provider.mjs'
 
 export function codexAppServer(argv) {
   let threadId
@@ -19,6 +20,7 @@ export function codexAppServer(argv) {
   const jiraFixture = process.env.QA_SCRIBE_E2E_SPEC === 'ask-ai-jira-draft.e2e.mjs'
   const refinementFixture = process.env.QA_SCRIBE_E2E_SPEC === 'ask-ai-refinement.e2e.mjs'
   const contextFixture = ['ask-ai-context.e2e.mjs', 'ask-ai-test-run.e2e.mjs'].includes(process.env.QA_SCRIBE_E2E_SPEC)
+  const readmeFixture = process.env.QA_SCRIBE_E2E_SPEC === 'readme-screenshots.mjs'
   const images = process.env.QA_SCRIBE_E2E_CHAT_IMAGES === '1' || contextFixture || refinementFixture || jiraFixture || routingFixture
   const scope = () => ({ threadId, turnId })
   const complete = (text, emittedPrefix = 0) => {
@@ -43,7 +45,7 @@ export function codexAppServer(argv) {
     } else if (request.method === 'turn/start') {
       if (!threadId || request.params.threadId !== threadId || active) throw new Error('Invalid Chat turn scope')
       active = true
-      const imageInput = isolationFixture ? inspectMinimalInput(request.params.input) : routingFixture ? inspectRoutingInput(request.params.input) : jiraFixture ? inspectJiraInput(request.params.input) : refinementFixture ? inspectRefinementInput(request.params.input) : contextFixture ? inspectContextInput(request.params.input) : images ? inspectImageInput(request.params.input) : null
+      const imageInput = isolationFixture ? inspectMinimalInput(request.params.input) : routingFixture ? inspectRoutingInput(request.params.input) : jiraFixture ? inspectJiraInput(request.params.input) : refinementFixture ? inspectRefinementInput(request.params.input) : contextFixture ? inspectContextInput(request.params.input) : readmeFixture ? inspectReadmeInput(request.params.input) : images ? inspectImageInput(request.params.input) : null
       const prompt = imageInput ? null : request.params.input.map((input) => {
         if (input.type !== 'text') throw new Error('Only text Chat input supported')
         return input.text
