@@ -142,7 +142,7 @@ export function GenerationSetup({
             <dd>{sessionTitle.trim() || 'Untitled session'}</dd>
           </div>
           <div>
-            <dt>Material</dt>
+            <dt>Note</dt>
             <dd>{noteWordCount} words, {screenshots}</dd>
           </div>
           <div>
