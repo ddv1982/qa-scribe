@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.12.1 - 2026-11-14
+
+- Fixed: the test case or Finding you selected stays selected when you open another tab and come back, or start a new draft and cancel it. Before, the tab returned to the newest record.
+
 ## v0.12.0 - 2026-11-14
 
 - Create test cases and Findings with the Session Note open beside the draft. The record list folds away while you write, and the Note can be closed or brought back from the draft header.
