@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.13.0 - 2026-11-14
+
+- The panel beside a new test case or Finding draft can now show any test case or Finding saved in this Session, not only the Note. Choose it from the panel's header. The draft's own kind is listed first, and each new draft starts with the Note.
+
 ## v0.12.1 - 2026-11-14
 
 - Fixed: the test case or Finding you selected stays selected when you open another tab and come back, or start a new draft and cancel it. Before, the tab returned to the newest record.
