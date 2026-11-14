@@ -16,9 +16,10 @@ export function useRecordSelection() {
   const [selectedRecordIds, setSelectedRecordIds] = useState<RecordSelection>({ testware: null, findings: null })
   const select = useCallback((view: RecordView, id: string | null) =>
     setSelectedRecordIds((previous) => previous[view] === id ? previous : { ...previous, [view]: id }), [])
+  // A view shows no record while its records load, so an empty report keeps the record navigation asked for.
   const selectRecord = useMemo(() => ({
-    testware: (id: string | null) => select('testware', id),
-    findings: (id: string | null) => select('findings', id),
+    testware: (id: string | null) => { if (id) select('testware', id) },
+    findings: (id: string | null) => { if (id) select('findings', id) },
   }), [select])
   const focusRecord = useCallback((view: MainView, id: string | null) => {
     setFocusedRecordId(id)
