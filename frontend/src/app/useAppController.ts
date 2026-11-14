@@ -243,7 +243,7 @@ export function useAppController() {
     ...recordActions,
     handleManualFinding: () => requestCreation('findings', (epoch) => creation.open('finding', () => sessionActions.sessionNavigationIsCurrent(epoch))),
     handleManualTestware: () => requestCreation('testware', (epoch) => creation.open('testware', () => sessionActions.sessionNavigationIsCurrent(epoch))),
-    handleFindingFromTestCase: (testCase: TestRunCase) => requestCreation('findings', (epoch) => creation.open('finding', () => sessionActions.sessionNavigationIsCurrent(epoch), false,
+    handleFindingFromTestCase: (testCase: TestRunCase) => requestCreation('findings', (epoch) => creation.open('finding', () => sessionActions.sessionNavigationIsCurrent(epoch), 'write',
       { title: testCase.title, document: findingFromTestCase(testCase), testCaseId: testCase.id })),
     openSessionFinding: (findingId: string) => applyNavigationRoute({ kind: 'session', sessionId: activeSession?.id ?? null, view: 'findings', recordId: findingId }),
     ...sessionActions,
@@ -273,7 +273,7 @@ export function useAppController() {
     handleNewSession: requestNewSession,
     openLibraryRecord,
     openGenerationPreflight: (action: Parameters<typeof openGenerationPreflight>[0]) => action === 'summary' ? openGenerationPreflight(action)
-      : requestCreation(action === 'finding' ? 'findings' : 'testware', (epoch) => creation.open(action, () => sessionActions.sessionNavigationIsCurrent(epoch), true)),
+      : requestCreation(action === 'finding' ? 'findings' : 'testware', (epoch) => creation.open(action, () => sessionActions.sessionNavigationIsCurrent(epoch), 'generate')),
     notice,
     pendingGenerationAction,
     pendingNavigationView,

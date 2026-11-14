@@ -4,7 +4,7 @@ import { ActionButton } from '../components/ActionButton'
 import { StatePanel } from '../components/Common'
 import { RichTextEditor } from '../editor/RichTextEditor'
 import { richEditorDocumentFromHtml } from '../editor/editorDocument'
-import { stripHtml } from '../editor/editorHtml'
+import { htmlHasContent } from '../editor/editorHtml'
 import { creationNotePanelId, showNoteLabel } from '../hooks/useCreationNoteVisible'
 import type { CreationIntent } from '../app/creationIntent'
 
@@ -13,7 +13,7 @@ export function ShowNoteButton({ onShow }: { onShow: () => void }) {
     tooltip={showNoteLabel} tooltipAlign="end" aria-expanded={false} aria-controls={creationNotePanelId} onClick={onShow} />
 }
 
-/** The Session's Note, read-only on the right of a new draft: the source "Generate with AI" uses. */
+/** The Session's Note, read-only on the right of a new draft: the source Generate uses. */
 export function CreationNotePanel({ intent, noteReadOnly, onReadNote, onClose }: {
   intent: CreationIntent
   noteReadOnly: boolean
@@ -21,7 +21,7 @@ export function CreationNotePanel({ intent, noteReadOnly, onReadNote, onClose }:
   onClose: () => void
 }) {
   const body = intent.source?.entry.body
-  const written = body !== undefined && (Boolean(stripHtml(body).trim()) || body.includes('<img'))
+  const written = body !== undefined && htmlHasContent(body)
   const note = useMemo(() => body === undefined ? null : richEditorDocumentFromHtml(body), [body])
   return <aside id={creationNotePanelId} className="side-panel" aria-label="Note">
     <header className="side-panel-header">

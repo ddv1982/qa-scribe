@@ -1,4 +1,4 @@
-import { openCreationAi } from './creation-helpers.mjs'
+import { confirmCreationAi, openCreationAi } from './creation-helpers.mjs'
 import assert from 'node:assert/strict'
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
@@ -149,9 +149,7 @@ export async function runTestwareStreamdownWorkflow({ createSessionFixture, sess
   const generate = async () => {
     await (await sessionTab('Note')).click()
     await openCreationAi('testware')
-    const confirm = await (await $('dialog')).$('button=Generate')
-    await confirm.waitForClickable()
-    await confirm.click()
+    await confirmCreationAi()
   }
   const waitRich = async (selector, attachmentId) => {
     await $(selector).waitForDisplayed({ timeout: 10_000 })

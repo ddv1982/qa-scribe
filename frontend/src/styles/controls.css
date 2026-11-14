@@ -152,8 +152,8 @@
 .attachment-cleanup-warning p { flex: 1 1 240px; margin: 0; }
 .attachment-cleanup-warning [role="alert"] { color: var(--danger); }
 
-.editable-record input,
-.editable-record textarea,
+/* The Generate setup in a new draft keeps its controls' own look (checkboxes, the model search), as in the dialog. */
+.editable-record input:where(:not(.creation-generate input)),
 .template-field textarea,
 .settings-grid textarea {
   width: 100%;
@@ -164,17 +164,10 @@
   outline: 0;
 }
 
-.editable-record input {
+.editable-record input:where(:not(.creation-generate input)) {
   height: var(--control-lg);
   padding: 0 var(--space-3);
   font-weight: 600;
-}
-
-.editable-record textarea {
-  min-height: 260px;
-  padding: var(--space-3);
-  resize: vertical;
-  line-height: var(--leading-normal);
 }
 
 /* Field (components/Field.tsx): one look wherever it sits. It follows the `.editable-record`

@@ -2,6 +2,8 @@ import type { CommitCreationSave, CreatedRecord, CreationKind, FindingKind, Note
 import { richEditorDocumentsEqual, type RichEditorDocument } from '../editor/editorDocument'
 import { creationStarter, hasAuthoredCreationMetadata, type CreationFormat } from './creationFormats'
 
+export type CreationMode = 'write' | 'generate'
+
 export type CreationAttempt = {
   preparation: PrepareCreationSave
   snapshot: CreationContent
@@ -32,7 +34,8 @@ export type CreationIntent = CreationContent & {
   imageOperations: Record<string, CreationImageOperation>
   source: NoteSource | null
   sourceNoteId: string | null
-  setup: 'ai' | null
+  /** Write by hand or Generate from the Note. Generate shows only while an AI provider is ready. */
+  mode: CreationMode
   phase: CreationLifecycle
   /** The test run case this Finding is created from; the saved Finding is linked to it. */
   testCaseId?: string

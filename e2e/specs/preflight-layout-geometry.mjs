@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 const dialog = 'dialog.generation-preflight[open]'
 
-export async function inspect() {
+/** Geometry of the open preflight dialog, or of another region such as a new draft's Generate setup. */
+export async function inspect(rootSelector = dialog) {
   return browser.execute((selector) => {
     const root = document.querySelector(selector)
     if (!root) return null
@@ -79,11 +80,13 @@ export async function inspect() {
       })),
       visibleTexts, overlaps,
     }
-  }, dialog)
+  }, rootSelector)
 }
 
-function assertNoOverlap(value) {
-  assert.deepEqual(value.overlaps, [], 'Visible preflight text must not overlap other visible text')
+/** No visible text overlaps other text, and nothing scrolls sideways. */
+export function assertReadable(value) {
+  assert.deepEqual(value.horizontalOverflow, [], 'No horizontal overflow in the generation setup, its choices or actions')
+  assert.deepEqual(value.overlaps, [], 'Visible generation setup text must not overlap other visible text')
 }
 
 export function assertStructure(value, initial = value) {
@@ -101,6 +104,5 @@ export function assertStructure(value, initial = value) {
         `${region} ${axis} must remain invariant while body content scrolls`)
     }
   }
-  assert.deepEqual(value.horizontalOverflow, [], 'No horizontal overflow in preflight body, metadata, choices or actions')
-  assertNoOverlap(value)
+  assertReadable(value)
 }

@@ -18,7 +18,8 @@
   overflow-wrap: anywhere;
 }
 
-.generation-preflight .model-combobox-popover {
+/* In the generation setup the model list opens in place, pushing the choices below it down. */
+:is(.generation-preflight, .creation-generate) .model-combobox-popover {
   position: static;
   width: 100%;
   max-height: none;

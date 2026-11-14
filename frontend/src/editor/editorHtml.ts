@@ -201,6 +201,11 @@ export function stripHtml(value: string): string {
   return documentFragment.body.textContent?.replace(/\s+/g, ' ').trim() ?? ''
 }
 
+/** Whether rich text holds anything a reader or a generation can use: text or an image. */
+export function htmlHasContent(value: string): boolean {
+  return Boolean(stripHtml(value)) || /<img\b/i.test(value)
+}
+
 function dataUrlImageExtension(dataUrl: string): string {
   const match = /^data:image\/([a-z0-9.+-]+);base64,/i.exec(dataUrl)
   const subtype = match?.[1]?.toLowerCase()

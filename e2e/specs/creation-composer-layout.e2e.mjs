@@ -2,10 +2,10 @@ import assert from 'node:assert/strict'
 import { readlinkSync, symlinkSync, unlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { capture, click, create, fill, fixture, native, receipt, resize, rows, save, tab } from './composer-proof.mjs'
-import { openCreationAi } from './creation-helpers.mjs'
-import { assertStructure, inspect } from './preflight-layout-geometry.mjs'
+import { openCreationAi, returnToWrite } from './creation-helpers.mjs'
+import { assertReadable, inspect } from './preflight-layout-geometry.mjs'
 
-describe('Destination AI setup at the approved native widths', () => {
+describe('Generate mode of a new draft at the approved native widths', () => {
   before(async () => {
     await $('button=New Session').waitForClickable()
     await click('button=New Session')
@@ -18,7 +18,7 @@ describe('Destination AI setup at the approved native widths', () => {
     })
   })
   for (const kind of ['finding', 'testware']) {
-    it(`keeps ${kind} source, execution controls and actions reachable in both themes`, async () => {
+    it(`keeps ${kind} generation choices and actions readable and reachable in both themes`, async () => {
       const before = rows()
       for (const theme of ['light', 'dark']) {
         await resize(1280)
@@ -31,16 +31,18 @@ describe('Destination AI setup at the approved native widths', () => {
         for (const width of [1280, 1024, 768, 360, 320]) {
           await resize(width)
           await openCreationAi(kind)
-          await browser.executeAsync(done => Promise.all(document.querySelector('dialog[open]').getAnimations().map(animation => animation.finished.catch(() => {}))).then(() => done()))
-          const geometry = await inspect()
+          const geometry = await inspect('.creation-composer')
           receipt(`ai-${kind}-${theme}-${width}`, { geometry, rows: rows() })
-          assertStructure(geometry)
-          for (const control of await $$('dialog[open] .confirmation-actions button')) {
+          assertReadable(geometry)
+          // The Write fields stay mounted for the round trip but render nothing, so Tab and screen readers skip them.
+          assert.deepEqual(await browser.execute(() => Array.from(document.querySelectorAll('.creation-write input, .creation-write select, .creation-write [contenteditable]'),
+            node => node.getClientRects().length).filter(Boolean)), [])
+          for (const control of await $$('.creation-composer .record-actions button')) {
             await control.scrollIntoView()
             assert.ok(await control.isDisplayed())
           }
           await capture(`uc2-ai-${kind}-${theme}-${width}`)
-          await click('dialog button=Cancel')
+          await returnToWrite()
           assert.equal(await $(`[aria-label="${kind === 'finding' ? 'Finding' : 'Test case'} title"]`).getValue(), 'Authored draft retained when setup closes')
         }
         await resize(1280)
@@ -50,22 +52,22 @@ describe('Destination AI setup at the approved native widths', () => {
       assert.deepEqual(rows(), before)
     })
   }
-  it('explains an unavailable provider inside setup while ordinary Save remains available', async () => {
+  it('offers no Generate without an available provider while ordinary Save remains available', async () => {
     const link = join(fixture, 'bin/codex')
     const target = readlinkSync(link)
     unlinkSync(link)
     try {
       await browser.refresh()
       await $('h1=Test cases').waitForExist()
+      // The Note's Summarize explains an unavailable provider once the live status replaces any cached one.
+      await tab('Note')
+      await $('#note-summary-unavailable').waitForExist()
       await tab('Findings')
       await create('finding')
       await fill('[aria-label="Finding title"]', 'No provider required for ordinary Save')
-      await openCreationAi('finding')
-      await browser.waitUntil(() => browser.execute(() => Array.from(document.querySelectorAll('dialog[open] [role="alert"]')).some(node => node.textContent.includes('unavailable'))))
-      assert.equal(await (await $('dialog[open]')).$('button=Generate and replace draft').isEnabled(), false)
-      assert.equal(await (await $('dialog[open]')).$('button=Configure AI execution…').isEnabled(), true)
-      await capture('uc2-ai-unavailable-inside-setup')
-      await click('dialog button=Cancel')
+      assert.equal(await $('[role="group"][aria-label="How to create"]').isExisting(), false)
+      assert.equal(await (await $('.creation-composer')).$('button*=Generate').isExisting(), false)
+      await capture('uc2-ai-unavailable-write-only')
       await save('finding')
       assert.equal(rows().ai_runs, 0)
       assert.equal(rows().generation_contexts, 0)
