@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.14.0 - 2026-11-14
+
+- One toggle in the draft header opens and closes the panel beside a new test case or Finding. It is named for what the panel shows, and its icon fills while the panel is open. The panel closes with ✕.
+- Under Write, the panel's "Showing" field lists the Note and the saved test cases and Findings, with how many there are of each.
+- Under Generate, the panel shows only the Note, with "Generate uses this Note.", and the form says "Generates from: Note" with its word and screenshot count. Back in Write, the record you chose is shown again.
+
 ## v0.13.0 - 2026-11-14
 
 - The panel beside a new test case or Finding draft can now show any test case or Finding saved in this Session, not only the Note. Choose it from the panel's header. The draft's own kind is listed first, and each new draft starts with the Note.
