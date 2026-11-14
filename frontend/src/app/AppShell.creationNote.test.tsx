@@ -2,7 +2,7 @@ import '@testing-library/jest-dom/vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { creationNoteStorageKey } from '../hooks/useRememberedVisible'
-import { entryFixture, findingFixture } from '../test/fixtures'
+import { draftFixture, entryFixture, findingFixture } from '../test/fixtures'
 import { cleanupControllerTest, getTauriMock, setupControllerTest, useAppController } from './useAppController.testHarness'
 
 const { AppShell } = await import('./AppShell')
@@ -13,7 +13,8 @@ beforeEach(() => {
   setupControllerTest()
   window.localStorage.removeItem(creationNoteStorageKey)
   HTMLElement.prototype.scrollIntoView = vi.fn()
-  tauri.listFindings.mockResolvedValue([findingFixture({ title: 'Saved finding' })])
+  tauri.listFindings.mockResolvedValue([findingFixture({ id: 'finding-saved', title: 'Saved finding', body: '<p>Card payment fails at checkout.</p>' })])
+  tauri.listDrafts.mockResolvedValue([draftFixture({ id: 'draft-saved', title: 'Checkout test cases', body: '<p>Pay with an expired card.</p>' })])
   tauri.readNoteSource.mockResolvedValue({ entry: entryFixture({ body: '<h2>Checkout</h2><ul><li><p>Pay with a saved card.</p></li></ul>' }), revision: 0 })
 })
 afterEach(cleanupControllerTest)
@@ -70,4 +71,29 @@ it('says so in the panel when the Session has no Note, and the draft still saves
   expect(within(note).queryByRole('textbox')).not.toBeInTheDocument()
   fireEvent.change(screen.getByRole('textbox', { name: 'Finding title' }), { target: { value: 'Written without a Note' } })
   expect(screen.getByRole('button', { name: 'Save finding' })).toBeEnabled()
+})
+
+it('shows a saved test case or Finding beside the draft in place of the Note, chosen per draft', async () => {
+  render(<Subject />)
+  await createFinding()
+  const choice = within(await screen.findByRole('complementary', { name: 'Note' })).getByRole('combobox', { name: 'Show beside the draft' })
+  // The draft's own kind is listed first.
+  expect(within(choice).getAllByRole('group').map(group => group.getAttribute('label'))).toEqual(['Findings', 'Test cases'])
+
+  fireEvent.change(choice, { target: { value: 'testware:draft-saved' } })
+  const testCase = await screen.findByRole('complementary', { name: 'Checkout test cases' })
+  await waitFor(() => expect(testCase).toHaveTextContent('Pay with an expired card.'))
+  expect(within(testCase).getByRole('textbox', { name: 'Checkout test cases content' })).toHaveAttribute('aria-readonly', 'true')
+  expect(testCase).not.toHaveTextContent('Pay with a saved card.')
+
+  // Closed, the panel is brought back by what it shows.
+  fireEvent.click(within(testCase).getByRole('button', { name: 'Close test case' }))
+  fireEvent.click(within(screen.getByRole('article', { name: 'New finding' })).getByRole('button', { name: 'Show test case' }))
+  fireEvent.change(within(await screen.findByRole('complementary', { name: 'Checkout test cases' })).getByRole('combobox'), { target: { value: 'finding:finding-saved' } })
+  await waitFor(() => expect(screen.getByRole('complementary', { name: 'Saved finding' })).toHaveTextContent('Card payment fails at checkout.'))
+
+  // A new draft starts with the Note again.
+  fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+  await createFinding()
+  expect(await screen.findByRole('complementary', { name: 'Note' })).toHaveTextContent('Pay with a saved card.')
 })

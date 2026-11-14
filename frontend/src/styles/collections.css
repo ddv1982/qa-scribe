@@ -1078,7 +1078,25 @@
 .creation-composer > .record-title-row:has(> .creation-note-toggle) { grid-template-columns: minmax(0, 1fr) auto auto; }
 .creation-composer > .record-title-row > .creation-note-toggle { grid-column: 3; grid-row: 1; margin-block: calc((23px * 1.2 - var(--control-lg)) / 2); }
 
-/* The Note beside a new draft (CreationNotePanel, a side-panel): read-only, scrolling on its own. */
+/* The panel beside a new draft (CreationNotePanel, a side-panel): the Note or a saved record, read-only, scrolling on its own. */
+/* The choice of what shows reads as the panel's heading: quiet until pointed at. The panel's colour behind it, for WebKitGTK. */
+.creation-reference-select {
+  flex: 1;
+  min-width: 0;
+  height: var(--control-lg);
+  margin-left: calc(-1 * var(--space-2));
+  padding-left: var(--space-2);
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: var(--font-size-lg);
+  font-weight: 650;
+  text-overflow: ellipsis;
+  background-color: var(--surface-panel);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+}
+.creation-reference-select:hover { border-color: var(--border-default); }
+
 .creation-note-body {
   display: grid;
   flex: 1;

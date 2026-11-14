@@ -1,6 +1,7 @@
 import { ActionButton } from '../components/ActionButton'
 import { CreationWorkspace } from '../views/CreationTools'
 import { CreationNotePanel } from '../views/CreationNotePanel'
+import { referenceLabel, useCreationReference } from './creationReference'
 import { useCreationNoteVisible } from '../hooks/useCreationNoteVisible'
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { catalogSelectorEnabled } from '../settings/catalog'
@@ -54,8 +55,20 @@ export function AppShell(c: AppController) {
     && c.activeView === (c.creationIntent.kind === 'finding' ? 'findings' : 'testware') ? c.creationIntent : null
   const contentRef = useRef<HTMLDivElement>(null)
   const [noteVisible, toggleNote] = useCreationNoteVisible(shownDraft?.id ?? null, contentRef)
+  const [reference, setReference] = useCreationReference(shownDraft?.id ?? null)
+  const referenceRecords = { testware: c.testwareDrafts, finding: c.findings }
   const askAiVisible = c.askAi.visible && !shownDraft
-  const composer = c.creationIntent && !creationResultReady ? <CreationWorkspace c={c} onShowNote={noteVisible ? undefined : toggleNote} /> : null
+  const composer = c.creationIntent && !creationResultReady ? <CreationWorkspace c={c}
+    showPanel={noteVisible ? undefined : { label: referenceLabel(reference, referenceRecords), onShow: toggleNote }} /> : null
+
+  // The panel lists both kinds of saved record, and each kind loads with its own tab, so load the other one here.
+  const { loadDraftsForSession, loadFindingsForSession } = c
+  const referenceSessionId = shownDraft && noteVisible ? shownDraft.sessionId : null
+  useEffect(() => {
+    if (!referenceSessionId) return
+    void loadDraftsForSession(referenceSessionId).catch(() => undefined)
+    void loadFindingsForSession(referenceSessionId).catch(() => undefined)
+  }, [referenceSessionId, loadDraftsForSession, loadFindingsForSession])
 
   const { loadDraftLibrary, loadFindingLibrary, sessionLibraryComplete } = c
   // Startup loads only recent Sessions; the palette searches every Session without changing the sidebar.
@@ -273,7 +286,7 @@ export function AppShell(c: AppController) {
           />
         ) : null}
         </div>
-        {shownDraft && noteVisible ? <CreationNotePanel intent={shownDraft} noteReadOnly={c.noteReadOnly} onReadNote={() => void c.creation.reviewSource()} onClose={toggleNote} /> : null}
+        {shownDraft && noteVisible ? <CreationNotePanel intent={shownDraft} records={referenceRecords} reference={reference} onReferenceChange={setReference} noteReadOnly={c.noteReadOnly} onReadNote={() => void c.creation.reviewSource()} onClose={toggleNote} /> : null}
         <AppChat c={c} recordVisible={askAiVisible} modelSelectionControl={modelSelectionControl} onConfigureAi={() => runCommand('ai.configure')} />
         </div>
       </section>

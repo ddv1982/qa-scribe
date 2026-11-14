@@ -2,7 +2,6 @@ import { useLayoutEffect, useState, type RefObject } from 'react'
 import { creationNoteStorageKey, useRememberedVisible } from './useRememberedVisible'
 
 export const creationNotePanelId = 'creation-note'
-export const showNoteLabel = 'Show Note'
 
 /** The workspace width at or below which a side panel covers the document area: the container query in ask-ai.css. */
 const narrowWorkspace = 850
@@ -21,7 +20,7 @@ function useNarrowWorkspace(workspace: RefObject<HTMLElement | null>): boolean {
 }
 
 /**
- * Whether the Note shows beside the open draft. In a wide workspace the choice is remembered. In a narrow one
+ * Whether the panel beside the open draft (the Note, or a saved record) shows. In a wide workspace the choice is remembered. In a narrow one
  * the Note would cover the draft, so it is closed until opened for this draft, and that choice is not kept.
  */
 export function useCreationNoteVisible(draftId: string | null, workspace: RefObject<HTMLElement | null>): [boolean, () => void] {
@@ -34,7 +33,7 @@ export function useCreationNoteVisible(draftId: string | null, workspace: RefObj
     if (narrow) setChosen({ draftId, visible: !visible })
     else { setChosen(null); remember(!visible) }
     // Focus follows the Note: into the panel when it opens, back to the button that brings it back when it closes.
-    requestAnimationFrame(() => document.querySelector<HTMLElement>(visible ? `[aria-label="${showNoteLabel}"]` : `#${creationNotePanelId} button`)?.focus())
+    requestAnimationFrame(() => document.querySelector<HTMLElement>(visible ? '.creation-note-toggle' : `#${creationNotePanelId} :is(select, button)`)?.focus())
   }
   return [visible, toggle]
 }
