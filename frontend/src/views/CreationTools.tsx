@@ -10,19 +10,22 @@ import type { AppController } from '../app/useAppController'
 
 const creationModes = [{ value: 'write', label: 'Write', icon: PenLine }, { value: 'generate', label: 'Generate', icon: Sparkles }] satisfies ReadonlyArray<SegmentedOption<CreationMode>>
 
-export function CreationWorkspace({ c, onShowNote }: { c: AppController; onShowNote?: () => void }) {
+/** `showPanel` brings back the closed panel beside the draft, named for what it shows. */
+export type ShowPanel = { label: string; onShow: () => void }
+
+export function CreationWorkspace({ c, showPanel }: { c: AppController; showPanel?: ShowPanel }) {
   const intent = c.creationIntent
   if (!intent) return null
-  return <CreationDraft key={intent.id} intent={intent} c={c} onShowNote={onShowNote} />
+  return <CreationDraft key={intent.id} intent={intent} c={c} showPanel={showPanel} />
 }
 
 /** A new draft: written by hand, or, when AI is ready, generated from the Note shown beside it. */
-function CreationDraft({ intent, c, onShowNote }: { intent: CreationIntent; c: AppController; onShowNote?: () => void }) {
+function CreationDraft({ intent, c, showPanel }: { intent: CreationIntent; c: AppController; showPanel?: ShowPanel }) {
   const generation = useCreationGenerate(intent, c)
   const aiActive = creationAiActive(c)
   const mode = shownCreationMode(intent, aiActive)
   return <CreationComposer intent={intent} actions={c.creation} copyState={c.copyState} onCopy={c.copy}
-    headerAction={onShowNote ? <ShowNoteButton onShow={onShowNote} /> : undefined}
+    headerAction={showPanel ? <ShowNoteButton label={showPanel.label} onShow={showPanel.onShow} /> : undefined}
     modeSwitch={aiActive ? <Segmented label="How to create" options={creationModes} value={mode}
       disabled={intent.phase.state !== 'editing' || generation.busy}
       onChange={(next) => {
