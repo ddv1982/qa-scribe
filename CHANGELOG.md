@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.15.0 - 2026-11-19
+
+- Security: Generate, Create Finding and Summarize now run your AI CLI with no tools. Pasted logs, tickets or API responses can no longer make it run commands, read files or call MCP tools without asking. With Codex, every MCP server in your Codex config is turned off for these runs. Chat still asks before each tool.
+- New setting "Generate may read": let Generate look up Jira issues, Confluence pages, Teams channels or Teams chats that your note refers to, read-only, through the Claude Code Atlassian and Microsoft 365 connectors. All sources are off by default. Codex and Copilot always run without tools.
+- Chat's "Approve all for this response" is now "Approve all for this tool". It only covers later requests for the same tool in this response; other tools still ask. With Copilot, which does not name its tools, approve each request once.
+- Your Sessions, chats and screenshots are stored in a folder only your user can open on macOS and Linux.
+- Pasted and generated images must be PNG, JPEG, WebP or GIF.
+
 ## v0.14.0 - 2026-11-14
 
 - One toggle in the draft header opens and closes the panel beside a new test case or Finding. It is named for what the panel shows, and its icon fills while the panel is open. The panel closes with ✕.
