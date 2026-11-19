@@ -6,13 +6,17 @@ use std::{io, path::Path};
 /// The mode is also applied to an existing directory, so profiles created by
 /// older versions with the default umask become private on the next start.
 /// Everything inside is unreachable for other users once this directory is
-/// 0700, whatever the modes of the files in it.
+/// 0700, whatever the modes of the files in it. A filesystem that rejects
+/// the mode change (some network or FUSE mounts) only gets a warning, so the
+/// app still starts.
 pub fn ensure_private_app_data_dir(path: &Path) -> io::Result<()> {
     std::fs::create_dir_all(path)?;
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700))?;
+        if let Err(error) = std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700)) {
+            eprintln!("qa-scribe could not make the app data folder private: {error}");
+        }
     }
     Ok(())
 }
