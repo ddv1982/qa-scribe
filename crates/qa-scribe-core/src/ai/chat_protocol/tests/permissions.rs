@@ -157,6 +157,12 @@ fn chat_duplex_claude_opaque_ids_original_input_no_updated_permissions() {
             assert!(p.permission_reply(approved).is_err());
         }
     }
+    // Codex names the tool in `_meta.tool_name` when it knows it.
+    let mut p = ready(AiProvider::CodexCli);
+    let mut request = codex_request(json!(72));
+    request["params"]["request"]["_meta"]["tool_name"] = json!("write");
+    let events = p.handle(&request).unwrap();
+    assert_eq!(permission(&events).tool_name.as_deref(), Some("write"));
 }
 
 #[test]

@@ -2,6 +2,7 @@ use super::html::{
     MANAGED_ATTACHMENT_PROTOCOL, attribute_value_with_decoder, decode_basic_html_entities,
     escape_html_attribute, find_case_insensitive, find_html_tag_end,
 };
+use crate::attachments::is_raster_image_data_url;
 
 mod images;
 mod lists;
@@ -358,8 +359,7 @@ fn is_safe_editor_image_source(source: &str) -> bool {
     if let Some(id) = source.strip_prefix(MANAGED_ATTACHMENT_PROTOCOL) {
         return clean_managed_attachment_id(id).is_some();
     }
-    source.to_ascii_lowercase().starts_with("data:image/")
-        || is_safe_url_with_protocols(source, &["http", "https"])
+    is_raster_image_data_url(source) || is_safe_url_with_protocols(source, &["http", "https"])
 }
 
 fn clean_managed_attachment_id(value: &str) -> Option<String> {

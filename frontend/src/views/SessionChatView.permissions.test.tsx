@@ -43,13 +43,14 @@ const choice = (name: string) => within(panel()).getByRole('button', { name })
 const noPanel = () => expect(screen.queryByRole('region', { name: 'Tool permission' })).not.toBeInTheDocument()
 
 describe('SessionChatView tool permission contract (F4auth-ui)', () => {
-  it('offers explicit response bulk approval with future-request scope, not a saved preference', () => {
+  it('offers bulk approval scoped to the same tool in this response, not a saved preference', () => {
     const { props } = mount()
-    const bulk = choice('Approve all for this response')
+    const bulk = choice('Approve all for this tool')
     expect(bulk).toBeEnabled()
-    expect(bulk).toHaveAccessibleName('Approve all for this response')
-    expect(panel()).toHaveTextContent(/future (tool )?(permission )?requests/i)
+    expect(bulk).toHaveAccessibleName('Approve all for this tool')
+    expect(panel()).toHaveTextContent(/later requests for the same tool/i)
     expect(panel()).toHaveTextContent(/(current|this) response/i)
+    expect(panel()).toHaveTextContent(/other tools still ask/i)
     expect(panel()).toHaveTextContent(/(not saved|not (a )?saved|does not save|isn't saved|does not change saved permissions)/i)
     fireEvent.click(bulk)
     expect(props.onDecidePermission).toHaveBeenCalledExactlyOnceWith('opaque-request-token', 'approveAll')
@@ -61,28 +62,38 @@ describe('SessionChatView tool permission contract (F4auth-ui)', () => {
   it.each(['claude_code', 'codex_cli', 'copilot_cli'] as const)('disables bulk approval for a reject-only %s request', (provider) => {
     const request = Object.assign(permission({ provider }), { canApprove: false })
     const { props } = mount({ job: job({ pendingPermission: request }) })
-    expect(choice('Approve all for this response')).toBeDisabled()
-    fireEvent.click(choice('Approve all for this response'))
+    expect(choice('Approve all for this tool')).toBeDisabled()
+    fireEvent.click(choice('Approve all for this tool'))
     expect(props.onDecidePermission).not.toHaveBeenCalled()
     expect(choice('Deny')).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Cancel response' })).toBeEnabled()
   })
 
+  it('offers only one-time approval when the provider does not name the tool', () => {
+    const { props } = mount({ job: job({ pendingPermission: permission({ provider: 'copilot_cli', toolName: null }) }) })
+    expect(choice('Approve all for this tool')).toBeDisabled()
+    expect(choice('Approve all for this tool')).toHaveAccessibleDescription('The provider does not name this tool, so approve each request on its own.')
+    fireEvent.click(choice('Approve all for this tool'))
+    expect(props.onDecidePermission).not.toHaveBeenCalled()
+    fireEvent.click(choice('Approve once'))
+    expect(props.onDecidePermission).toHaveBeenCalledExactlyOnceWith('opaque-request-token', 'approve')
+  })
+
   it('disables bulk approval during any permission decision without disabling Cancel', () => {
     const { props, rerender } = mount()
-    fireEvent.click(choice('Approve all for this response'))
+    fireEvent.click(choice('Approve all for this tool'))
     rerender(<SessionChatView {...props} permissionWorking />)
-    expect(choice('Approve all for this response')).toBeDisabled()
+    expect(choice('Approve all for this tool')).toBeDisabled()
     expect(choice('Approve once')).toBeDisabled()
     expect(choice('Deny')).toBeDisabled()
-    fireEvent.click(choice('Approve all for this response'))
+    fireEvent.click(choice('Approve all for this tool'))
     expect(props.onDecidePermission).toHaveBeenCalledExactlyOnceWith('opaque-request-token', 'approveAll')
     expect(screen.getByRole('button', { name: 'Cancel response' })).toBeEnabled()
   })
 
   it('disables bulk approval without a decision callback', () => {
     mount({ onDecidePermission: undefined })
-    expect(choice('Approve all for this response')).toBeDisabled()
+    expect(choice('Approve all for this tool')).toBeDisabled()
   })
 
   it('shows an accessible backend permission request with exact structured identity and one-call scope', () => {

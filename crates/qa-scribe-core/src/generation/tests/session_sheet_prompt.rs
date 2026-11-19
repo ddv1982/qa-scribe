@@ -82,3 +82,47 @@ fn sheet_text_cannot_close_the_selected_note_block() {
     assert!(prompt.contains("<selected_note_html_fragment_test1234_1>\nTitle: Checkout"));
     assert!(prompt.contains("</selected_note_html_fragment_test1234_1>"));
 }
+
+#[test]
+fn read_sources_qualify_note_only_rules_for_testware_and_findings() {
+    let plain = render(&test_session("Checkout"), ActionPromptKind::Testware);
+    assert!(!plain.contains("read-only tools"));
+    assert!(!plain.contains("items it refers to that you looked up"));
+
+    let settings = AppSettings {
+        generation_read_sources: vec![crate::domain::GenerationReadSource::Jira],
+        ..AppSettings::default()
+    };
+    for (action, note_only_rule) in [
+        (
+            ActionPromptKind::Testware,
+            "test cases from the selected note only",
+        ),
+        (
+            ActionPromptKind::Finding,
+            "finding from the selected note only",
+        ),
+    ] {
+        let prompt = render_action_prompt(
+            &settings,
+            &test_session("Checkout"),
+            Some(&note()),
+            &[],
+            action,
+            "",
+            &test_marker(),
+        );
+        let only = prompt.find(note_only_rule).expect("note-only action rule");
+        let rule = prompt.find("look up Jira issues").expect("lookup rule");
+        let note = prompt
+            .find("Checked guest checkout")
+            .expect("note material");
+        assert!(only < rule, "the lookup rule qualifies the action rule");
+        assert!(
+            rule < note,
+            "the lookup rule is an instruction, not note data"
+        );
+        assert!(prompt.contains("the items you look up count as source material too"));
+        assert!(prompt.contains("items it refers to that you looked up"));
+    }
+}

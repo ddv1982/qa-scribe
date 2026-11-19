@@ -122,6 +122,11 @@ export type AppSettings = {
 	testwareTemplate?: string,
 	findingTemplate?: string,
 	noteSummaryTemplate?: string,
+	/**
+	 *  Read-only sources Generate may look up. Empty means Generate runs with
+	 *  no tools at all.
+	 */
+	generationReadSources?: GenerationReadSource[],
 };
 
 export type AppliedRefinement = {
@@ -574,6 +579,12 @@ export type GenerationJobStatus_Serialize = {
 	partialText: string | null,
 	pendingPermission?: ChatPermissionRequest_Serialize | null,
 };
+
+/**
+ *  A read-only source that Generate may look up through the user's Claude Code
+ *  connectors. Only read tools are ever allowed; see `ai::generation_tools`.
+ */
+export type GenerationReadSource = "jira" | "confluence" | "teamsChannels" | "teamsChats";
 
 export type NoteSource = {
 	entry: Entry,

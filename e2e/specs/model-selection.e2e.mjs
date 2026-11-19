@@ -341,7 +341,13 @@ describe('Built application native quick model selection M03', () => {
     const sessionId = await createSession('M03 Codex preflight model')
     await insertNote('Synthetic Codex preflight selection source.')
     const current = await generation(sessionId, 'codex', 'codex-next-literal', 'M03-3')
-    assert.deepEqual(current.argv, ['exec', '--skip-git-repo-check', '--json', '--model', 'codex-next-literal', '-'])
+    // Generate runs Codex without tools and turns off the fixture's MCP server.
+    assert.deepEqual(current.argv, ['exec', '--skip-git-repo-check', '--json', '--model', 'codex-next-literal',
+      '--ephemeral', '--sandbox', 'read-only', '-c', 'web_search="disabled"', '-c', 'features.shell_tool=false',
+      '-c', 'features.unified_exec=false', '-c', 'features.apps=false', '-c', 'features.plugins=false',
+      '-c', 'features.hooks=false', '-c', 'features.image_generation=false', '-c', 'features.multi_agent=false',
+      '-c', 'features.multi_agent_v2=false', '-c', 'features.view_image=false',
+      '-c', 'mcp_servers.fixture_server.enabled=false', '-'])
     assert.deepEqual(current.row.selection, recorded('codex-next-literal'))
     return current
   }))

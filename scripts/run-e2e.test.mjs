@@ -444,7 +444,10 @@ test('the Codex fixture accepts the current production Chat prompt and inherited
   }
 })
 
-function startFixture(fixture, controlDirectory, args = ['exec', '--json']) {
+// A Generate run: tools and the fixture's MCP server are off, as the fixture requires.
+const generateArgs = ['exec', '--json', '-c', 'features.shell_tool=false', '-c', 'features.apps=false', '-c', 'mcp_servers.fixture_server.enabled=false']
+
+function startFixture(fixture, controlDirectory, args = generateArgs) {
   let output = ''
   const child = spawn(process.execPath, [fixture, ...args], {
     env: { ...process.env, QA_SCRIBE_E2E_FIXTURE_DIR: controlDirectory },

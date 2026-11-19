@@ -57,7 +57,7 @@ export function codexAppServer(argv) {
           emit({ id, method: 'mcpServer/elicitation/request', params: {
             ...scope(), serverName: 'fixture-marker', mode: 'form', message: 'Execute the marker child once',
             requestedSchema: { type: 'object', properties: {} },
-            _meta: { codex_approval_kind: 'mcp_tool_call', tool_params: { marker } },
+            _meta: { codex_approval_kind: 'mcp_tool_call', tool_name: 'execute_marker', tool_params: { marker } },
           } })
         })
       } else {

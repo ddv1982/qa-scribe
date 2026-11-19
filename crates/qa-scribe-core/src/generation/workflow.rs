@@ -10,10 +10,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     QaScribeError, Result,
-    ai::ProviderGenerationOutput,
+    ai::{ProviderGenerationOutput, generation_tools::effective_read_sources},
     domain::{
         AiProvider, AiRun, Attachment, Draft, DraftCreate, DraftKind, Entry, EntryPatch, Finding,
-        FindingDraft, FindingKind, GenerationContext, TITLE_MAX_LENGTH,
+        FindingDraft, FindingKind, GenerationContext, GenerationReadSource, TITLE_MAX_LENGTH,
     },
     services::SessionService,
 };
@@ -111,13 +111,17 @@ pub struct PreparedGeneration {
     pub selected_note_id: Option<String>,
     pub selected_note_body: Option<String>,
     pub attachments: Vec<Attachment>,
+    /// Read-only sources this run may look up; empty means no tools at all.
+    pub read_sources: Vec<GenerationReadSource>,
 }
 
 pub fn prepare_ai_action_generation(
     service: &SessionService,
     request: &GenerateAiActionRequest,
 ) -> Result<PreparedGeneration> {
-    let settings = service.get_settings()?;
+    let mut settings = service.get_settings()?;
+    settings.generation_read_sources =
+        effective_read_sources(request.provider, &settings.generation_read_sources);
     let captured = service.capture_action_material(request)?;
     let session = captured.session;
     let note_entry = captured.note.as_ref();
@@ -134,6 +138,7 @@ pub fn prepare_ai_action_generation(
     } else {
         String::new()
     };
+    let read_sources = settings.generation_read_sources.clone();
     let output_marker = OutputMarker::new();
     let prompt = render_action_prompt(
         &settings,
@@ -158,6 +163,7 @@ pub fn prepare_ai_action_generation(
         selected_note_id: note_entry.map(|entry| entry.id.clone()),
         selected_note_body: note_entry.map(|entry| entry.body.clone()),
         attachments,
+        read_sources,
     })
 }
 

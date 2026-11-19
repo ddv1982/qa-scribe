@@ -106,7 +106,7 @@ impl CodexProtocol {
                     ChatProtocolPermission {
                         can_approve: true,
                         title,
-                        tool_name: None,
+                        tool_name: request["_meta"]["tool_name"].as_str().map(str::to_owned),
                         server_name: Some(server),
                         input_json: input,
                     },

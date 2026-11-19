@@ -51,7 +51,7 @@ fn managed_attachments_preview_generation_context_and_evidence_flow() {
         &session.id,
         None,
         "clipboard.png".to_string(),
-        "data:image/png;base64,aGVsbG8=",
+        "data:image/png;base64,iVBORw0KGgo=",
     )
     .expect("clipboard screenshot should import");
     assert_eq!(pasted.mime_type.as_deref(), Some("image/png"));
@@ -125,7 +125,7 @@ fn imported_attachment_cleanup_removes_its_row_and_managed_file() {
         &session.id,
         None,
         "discarded.png".to_string(),
-        "data:image/png;base64,aGVsbG8=",
+        "data:image/png;base64,iVBORw0KGgo=",
     )
     .expect("clipboard screenshot should import");
     let attachment_path = temp_dir.join(&attachment.relative_path);
@@ -167,7 +167,7 @@ fn imported_attachment_cleanup_keeps_referenced_content() {
         &session.id,
         None,
         "referenced.png".to_string(),
-        "data:image/png;base64,aGVsbG8=",
+        "data:image/png;base64,iVBORw0KGgo=",
     )
     .expect("clipboard screenshot should import");
     service
@@ -217,7 +217,7 @@ fn imported_attachment_cleanup_keeps_row_when_file_removal_fails() {
         &session.id,
         None,
         "retry.png".to_string(),
-        "data:image/png;base64,aGVsbG8=",
+        "data:image/png;base64,iVBORw0KGgo=",
     )
     .expect("clipboard screenshot should import");
     let attachment_path = temp_dir.join(&attachment.relative_path);

@@ -91,14 +91,15 @@ impl SystemProbeRunner {
             None => NeutralProviderCwd::new(),
         }
     }
-}
 
-impl ProbeRunner for SystemProbeRunner {
-    fn executable_path(&self, program: &str) -> Option<PathBuf> {
-        provider_executable_path(program, self.path_mode)
-    }
-
-    fn run(&self, program: &str, args: &[&str]) -> CommandProbe {
+    /// Run a provider command with its own timeout instead of the short
+    /// discovery probe limit.
+    pub(in crate::commands::providers) fn run_with_timeout(
+        &self,
+        program: &str,
+        args: &[&str],
+        timeout: Duration,
+    ) -> CommandProbe {
         let executable = match provider_executable_path(program, self.path_mode)
             .map(Ok)
             .unwrap_or_else(|| provider_process_path(program))
@@ -118,7 +119,7 @@ impl ProbeRunner for SystemProbeRunner {
             command.env("COPILOT_AUTO_UPDATE", "false");
         }
 
-        match run_command_with_cancellation(command, self.remaining(), &self.cancellation) {
+        match run_command_with_cancellation(command, timeout, &self.cancellation) {
             Ok(output) => CommandProbe::from_output(output),
             Err(error) => CommandProbe {
                 success: false,
@@ -128,6 +129,16 @@ impl ProbeRunner for SystemProbeRunner {
                 scope_error: None,
             },
         }
+    }
+}
+
+impl ProbeRunner for SystemProbeRunner {
+    fn executable_path(&self, program: &str) -> Option<PathBuf> {
+        provider_executable_path(program, self.path_mode)
+    }
+
+    fn run(&self, program: &str, args: &[&str]) -> CommandProbe {
+        self.run_with_timeout(program, args, self.remaining())
     }
 
     fn cache_fingerprint(&self, provider: AiProvider) -> u64 {

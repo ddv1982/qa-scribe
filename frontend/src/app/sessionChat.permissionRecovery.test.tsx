@@ -88,7 +88,7 @@ describe('controller-to-view permission recovery (F4retry2, R57-01)', () => {
     api.getAiActionJobStatus.mockRejectedValueOnce(new Error('Status unavailable')).mockResolvedValue(accepted)
     const h = await mountControllerView(provider)
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Approve all for this response' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Approve all for this tool' }))
     })
     expect(api.decideChatPermission).toHaveBeenCalledExactlyOnceWith({
       jobId: canonical.jobId, sessionId: canonical.sessionId, provider,
@@ -113,12 +113,12 @@ describe('controller-to-view permission recovery (F4retry2, R57-01)', () => {
       .mockResolvedValueOnce(chatJobFixture({ pendingPermission: null }))
     api.getAiActionJobStatus.mockRejectedValueOnce(new Error('Status unavailable')).mockResolvedValue(canonical)
     await mountControllerView('codex_cli')
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Approve all for this response' })) })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Approve all for this tool' })) })
     await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
     expect(screen.queryByRole('region', { name: 'Tool permission' })).not.toBeInTheDocument()
     expect(api.decideChatPermission).toHaveBeenCalledTimes(1)
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Recheck status' })) })
-    expect(screen.getByRole('button', { name: 'Approve all for this response' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Approve all for this tool' })).toBeEnabled()
     expect(api.decideChatPermission).toHaveBeenCalledTimes(1)
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Deny' })) })
     expect(api.decideChatPermission).toHaveBeenCalledTimes(2)

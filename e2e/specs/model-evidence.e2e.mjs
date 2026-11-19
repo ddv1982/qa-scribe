@@ -4,6 +4,12 @@ import { join } from 'node:path'
 import { click, database, directory, evidenceRoot, execution, finishChat,
   generate, journal, openSession, read, refresh, settings, startChat } from './model-evidence-ui.mjs'
 
+// Generate runs every provider without tools (crates/qa-scribe-core/src/ai/generation_tools.rs).
+const claudeStream = ['-p', '--verbose', '--output-format', 'stream-json', '--include-partial-messages']
+const claudeNoTools = ['--tools', '', '--permission-mode', 'dontAsk', '--disable-slash-commands', '--no-session-persistence',
+  '--settings', '{"disableAllHooks":true}', '--strict-mcp-config', '--mcp-config', '{"mcpServers":{}}']
+const copilotNoTools = ['--disable-builtin-mcps', '--deny-tool=shell', '--deny-tool=write', '--deny-tool=read', '--deny-tool=url']
+
 const restart = process.env.QA_SCRIBE_E2E_EVIDENCE_RESTART === '1'
 const resultsPath = join(evidenceRoot, 'lane-results.json')
 const restartPath = join(directory, 'model-evidence-restart.json')
@@ -97,7 +103,7 @@ describe('Built application native model evidence M02', () => {
     const current = await generate('claude', null, 'init', 1)
     assertRun(current.row, recorded(defaultIntent, report('claudeInitialization', 'claude-default-resolved')))
     assert.deepEqual(executionArgv(current.observations, 'claude'),
-      ['-p', '--verbose', '--output-format', 'stream-json', '--include-partial-messages'])
+      [...claudeStream, ...claudeNoTools])
     return current
   }))
 
@@ -105,7 +111,7 @@ describe('Built application native model evidence M02', () => {
     const current = await generate('claude', 'alias-literal', 'alias', 2)
     assertRun(current.row, recorded({ kind: 'explicit', id: 'alias-literal' }, report('claudeAssistantMessage', 'claude-alias-resolved')))
     assert.deepEqual(executionArgv(current.observations, 'claude'),
-      ['-p', '--verbose', '--output-format', 'stream-json', '--include-partial-messages', '--model', 'alias-literal'])
+      [...claudeStream, '--model', 'alias-literal', ...claudeNoTools])
     return current
   }))
 
@@ -113,7 +119,7 @@ describe('Built application native model evidence M02', () => {
     const current = await generate('claude', 'explicit-model-literal', 'explicit', 3)
     assertRun(current.row, recorded({ kind: 'explicit', id: 'explicit-model-literal' }, report('claudeInitialization', 'claude-explicit-reported')))
     assert.deepEqual(executionArgv(current.observations, 'claude'),
-      ['-p', '--verbose', '--output-format', 'stream-json', '--include-partial-messages', '--model', 'explicit-model-literal'])
+      [...claudeStream, '--model', 'explicit-model-literal', ...claudeNoTools])
     return current
   }))
 
@@ -128,7 +134,7 @@ describe('Built application native model evidence M02', () => {
   it('keeps Copilot Auto intent without trusting plaintext metadata', () => lane(5, 'copilot-unknown', async () => {
     const current = await generate('copilot', 'auto', 'prose', 5)
     assertRun(current.row, recorded({ kind: 'copilotAutomatic' }))
-    assert.deepEqual(executionArgv(current.observations, 'copilot'), ['-s', '--no-ask-user', '--model', 'auto'])
+    assert.deepEqual(executionArgv(current.observations, 'copilot'), ['-s', '--no-ask-user', '--model', 'auto', ...copilotNoTools])
     assert.match(await $('[aria-label="Note body"]').getText(), /forged-prose/)
     return current
   }))

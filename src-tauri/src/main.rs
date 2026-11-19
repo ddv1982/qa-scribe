@@ -1,3 +1,4 @@
+mod app_data;
 mod commands;
 mod jobs;
 mod process_io;
@@ -59,7 +60,7 @@ fn main() {
                 .unwrap_or(app.path().app_data_dir()?);
             #[cfg(not(feature = "e2e"))]
             let app_data_dir = app.path().app_data_dir()?;
-            std::fs::create_dir_all(&app_data_dir)?;
+            app_data::ensure_private_app_data_dir(&app_data_dir)?;
             eprintln!(
                 "qa-scribe startup app data ready: elapsed_ms={}",
                 span_started.elapsed().as_millis()

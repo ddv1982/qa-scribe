@@ -23,10 +23,12 @@ pub mod chat_imports;
 mod cleanup;
 pub mod creation;
 mod managed_import;
+mod raster;
 pub(crate) use cleanup::is_exact_attachment_path;
 pub use cleanup::{
     delete_session_attachment_files, delete_session_with_attachment_files, retry_attachment_cleanup,
 };
+pub use raster::is_raster_image_data_url;
 
 /// A UUIDv4 string is 36 characters; the on-disk basename is
 /// `{attachment_id}_{filename}`, so this plus the `_` separator is the fixed
@@ -98,6 +100,7 @@ pub fn import_clipboard_screenshot_data_url(
     data_url: &str,
 ) -> Result<Attachment> {
     let (mime_type, bytes) = decode_image_data_url(data_url)?;
+    raster::ensure_raster_image(&mime_type, &bytes)?;
     import_managed_attachment_bytes(
         service,
         app_data_dir,
@@ -131,13 +134,14 @@ pub fn decode_image_data_url(data_url: &str) -> Result<(String, Vec<u8>)> {
             "attachment must be at most {MAX_ATTACHMENT_BYTES} bytes"
         )));
     }
-    Ok((
-        mime_type
-            .trim_start_matches("data:")
-            .trim_end_matches(";base64")
-            .to_string(),
-        bytes,
-    ))
+    let mime_type = mime_type
+        .trim_start_matches("data:")
+        .trim_end_matches(";base64")
+        .to_string();
+    if raster::raster_image_format(&mime_type).is_none() {
+        return Err(validation("Images must be PNG, JPEG, WebP or GIF"));
+    }
+    Ok((mime_type, bytes))
 }
 
 pub fn import_managed_attachment_bytes(
