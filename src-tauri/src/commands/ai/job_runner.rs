@@ -207,6 +207,7 @@ fn run_ai_action_job(
         &request.model,
         request.reasoning_effort.as_deref(),
         &prepared.prompt,
+        &prepared.read_sources,
         &format!("AI action action={}", request.action.label()),
         &job_id,
         &jobs,

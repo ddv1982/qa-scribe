@@ -95,6 +95,13 @@ impl JobStore {
             if request.decision != ChatPermissionDecision::Deny && !pending.can_approve {
                 return Err(invalid("Chat permission request does not offer approval"));
             }
+            if request.decision == ChatPermissionDecision::ApproveAll
+                && !offers_approve_all(pending)
+            {
+                return Err(invalid(
+                    "Chat permission request does not name its tool, so it can only be approved once",
+                ));
+            }
             let sender = record
                 .permission_reply
                 .take()
@@ -187,6 +194,14 @@ impl JobRecord {
 
 fn invalid(message: &str) -> JobStoreError {
     JobStoreError::InvalidPermission(message.to_string())
+}
+
+/// "Approve all" needs a provider-supplied tool name to scope it to one tool.
+fn offers_approve_all(request: &ChatPermissionRequest) -> bool {
+    request
+        .tool_name
+        .as_deref()
+        .is_some_and(|name| !name.trim().is_empty())
 }
 
 fn default_can_approve() -> bool {

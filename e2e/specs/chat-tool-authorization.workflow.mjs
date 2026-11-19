@@ -203,8 +203,15 @@ describe(`Built application native ${provider} Chat tool authorization`, () => {
     assert.equal(bulkMarkers().length, 0, 'The initial burst cannot execute before consent')
     assert.equal(existsSync(join(directory, `${provider}-auth-${current.index}.request-4.json`)), false,
       'The later request must not be emitted with the initial burst')
-    // This real UI action deliberately fails against the previous once-only UI.
-    await click('Approve all for this response')
+    if (provider === 'copilot') {
+      // Copilot does not name its tools, so a title cannot scope bulk approval.
+      assert.equal(await $('button=Approve all for this tool').isEnabled(), false)
+      assert.ok(await $(`${permission} [id$="-permission-approve-all-reason"]`).isDisplayed())
+      for (let request = 1; request <= 4; request += 1) await click('Approve once')
+    } else {
+      // This real UI action deliberately fails against the previous once-only UI.
+      await click('Approve all for this tool')
+    }
     const chat = await settled(current.sessionId, 'completed', 2)
     assert.equal(chat.messages[1].text, 'Four independent marker children executed after response approval.')
     assert.equal(bulkMarkers().length, 4, 'One click must execute all three queued children and the later child')
@@ -235,7 +242,7 @@ describe(`Built application native ${provider} Chat tool authorization`, () => {
     await click('Send')
     await markerFile(current.index + 1, 'started')
     await $(permission).waitForDisplayed()
-    await $('button=Approve all for this response').waitForDisplayed()
+    await $('button=Approve all for this tool').waitForDisplayed()
     const followUpPrompt = JSON.parse(readFileSync(await markerFile(current.index + 1, 'prompt.json'), 'utf8'))
     assert.ok(followUpPrompt.prompt.includes(JSON.stringify(text)), 'The new response must receive the follow-up user prompt')
     assertChild(current.index + 1, 0)
@@ -307,7 +314,7 @@ describe(`Built application native ${provider} Chat tool authorization`, () => {
       const scopeView = await reachPermission(`${permission} [id$="-permission-scope"]`)
       assert.ok(scopeView.readableLines >= 1, `The actual approval scope must be readable: ${JSON.stringify(scopeView)}`)
       const reached = []
-      for (const label of ['Approve once', 'Approve all for this response', 'Deny', 'Cancel response']) {
+      for (const label of ['Approve once', 'Approve all for this tool', 'Deny', 'Cancel response']) {
         const control = await reachPermission(`button=${label}`)
         assert.ok(control.visible && control.hit, `Permission control must be fully reachable: ${JSON.stringify(control)}`)
         reached.push(control)
@@ -321,7 +328,7 @@ describe(`Built application native ${provider} Chat tool authorization`, () => {
       geometry.at(-1).scopeView = scopeView
       geometry.at(-1).reached = reached
       writeFileSync(join(process.env.QA_SCRIBE_E2E_ARTIFACTS, 'permission-geometry.json'), JSON.stringify({ before, geometry }, null, 2))
-      assert.deepEqual(actual.controls.map((control) => control.label), ['Approve once', 'Approve all for this response', 'Deny', 'Cancel response'])
+      assert.deepEqual(actual.controls.map((control) => control.label), ['Approve once', 'Approve all for this tool', 'Deny', 'Cancel response'])
       assert.equal(actual.historyOwnsPermission, false, 'Permission attention must not share the transcript scroller')
       assert.equal(actual.approvalFocused, false, 'Arrival or review must never focus approval')
       assert.ok(actual.contextText.includes('Approve once applies to this tool call only.'))

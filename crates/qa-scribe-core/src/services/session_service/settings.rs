@@ -127,7 +127,11 @@ impl SessionService {
             &settings.note_summary_template,
             12_000,
         )?;
+        let mut generation_read_sources = settings.generation_read_sources.clone();
+        generation_read_sources.sort();
+        generation_read_sources.dedup();
         let next = AppSettings {
+            generation_read_sources,
             generation_system_prompt: prompt,
             selected_ai_model: model,
             selected_ai_models_by_provider,
@@ -157,7 +161,39 @@ mod tests {
     use serde_json::json;
 
     use super::{SessionService, normalize_loaded_settings};
-    use crate::domain::{AiProvider, AppSettings};
+    use crate::domain::{AiProvider, AppSettings, GenerationReadSource};
+
+    #[test]
+    fn generation_read_sources_default_off_and_save_sorted_without_duplicates() {
+        let service = SessionService::in_memory().unwrap();
+        assert!(
+            service
+                .get_settings()
+                .unwrap()
+                .generation_read_sources
+                .is_empty()
+        );
+        let stored = serde_json::to_value(AppSettings::default()).unwrap();
+        let mut legacy = stored.as_object().unwrap().clone();
+        legacy.remove("generationReadSources");
+        let legacy: AppSettings = serde_json::from_value(legacy.into()).unwrap();
+        assert!(legacy.generation_read_sources.is_empty());
+
+        service
+            .update_settings(AppSettings {
+                generation_read_sources: vec![
+                    GenerationReadSource::TeamsChats,
+                    GenerationReadSource::Jira,
+                    GenerationReadSource::TeamsChats,
+                ],
+                ..AppSettings::default()
+            })
+            .unwrap();
+        assert_eq!(
+            service.get_settings().unwrap().generation_read_sources,
+            [GenerationReadSource::Jira, GenerationReadSource::TeamsChats]
+        );
+    }
 
     #[test]
     fn legacy_default_model_sentinels_migrate_to_empty_overrides() {

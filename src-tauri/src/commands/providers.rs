@@ -62,6 +62,26 @@ pub fn provider_readiness_for_job(provider: AiProvider, control: &JobControl) ->
     )
 }
 
+/// Names of the Codex MCP servers that are on, so Generate can turn each off.
+/// Fails closed: if the list cannot be read, the run does not start.
+pub fn codex_enabled_mcp_servers_for_job(control: &JobControl) -> Result<Vec<String>, String> {
+    // Listing checks each HTTP server's sign-in status, which takes about
+    // five seconds for an unreachable server, so the short probe limit is
+    // too tight here.
+    let probe = SystemProbeRunner::for_job(ProviderPathMode::Deep, control).run_with_timeout(
+        "codex",
+        qa_scribe_core::ai::generation_tools::CODEX_MCP_LIST_ARGS,
+        std::time::Duration::from_secs(20),
+    );
+    if !probe.success {
+        return Err(format!(
+            "Could not list Codex MCP servers to turn them off for this run: {}",
+            probe.stderr
+        ));
+    }
+    qa_scribe_core::ai::generation_tools::enabled_codex_mcp_servers(&probe.stdout)
+}
+
 #[cfg(test)]
 fn provider_status_with_runner(runner: &impl ProbeRunner, mode: DetectionMode) -> ProviderStatus {
     ProviderStatus {

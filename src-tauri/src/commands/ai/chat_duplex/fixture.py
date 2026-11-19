@@ -190,7 +190,7 @@ elif provider == "codex":
     request = {"id": wire_id, "method": "mcpServer/elicitation/request", "params": {
         "threadId": "thread-1", "turnId": "turn-1", "serverName": "local", "request": {
             "mode": "form", "message": "Allow local.write?", "requestedSchema": {"type": "object", "properties": {}},
-            "_meta": {"codex_approval_kind": "mcp_tool_call", "tool_params": original}}}}
+            "_meta": {"codex_approval_kind": "mcp_tool_call", "tool_name": "write", "tool_params": original}}}}
 else:
     request = {"jsonrpc": "2.0", "id": wire_id, "method": "session/request_permission", "params": {
         "sessionId": "session-1", "toolCall": {"toolCallId": "call-1", "title": "Write local fixture", "rawInput": original},
@@ -293,15 +293,11 @@ if mode in ("queued_ui_cancel", "queued_session_delete", "queued_bad_publish",
     unexpected = receive()
     raise AssertionError("unexpected unresolved queued reply: %r" % unexpected)
 
-if mode in ("bulk", "bulk_reject_only"):
+if mode == "bulk":
     for index in range(3):
-        frame = concurrent_request(index)[0]
-        if mode == "bulk_reject_only" and index == 1:
-            assert provider == "copilot"
-            frame["params"]["options"] = [frame["params"]["options"][1]]
-        send(frame)
+        send(concurrent_request(index)[0])
     for index in range(3):
-        verify_concurrent_reply(index, not (mode == "bulk_reject_only" and index == 1))
+        verify_concurrent_reply(index, True)
     # This request did not exist when the user granted response-local consent.
     send(concurrent_request(3)[0])
     verify_concurrent_reply(3, True)

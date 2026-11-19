@@ -1,6 +1,6 @@
 # Rust Dependency Audit
 
-Last reviewed: 2026-10-14 against the locked v0.7.24 graph during Session Chat implementation. Next scheduled review: 2026-11-14, or earlier when a removal trigger below occurs.
+Last reviewed: 2026-11-19 against the locked v0.14.0 graph during the security audit fixes. Next scheduled review: 2026-12-19, or earlier when a removal trigger below occurs.
 
 ## Gate
 
@@ -19,7 +19,7 @@ Every ignore must record:
 
 ## Current Registry
 
-A raw `cargo audit --json` run on 2026-10-14 reports 10 reviewed advisories: 2 vulnerabilities, 1 unsoundness warning, and 7 unmaintained warnings.
+A raw `cargo audit --json` run on 2026-11-19 reports 9 reviewed advisories: 0 vulnerabilities, 1 unsoundness warning, and 8 unmaintained warnings.
 
 Registry reconciliation on 2026-10-04 removed ten GTK3 unmaintained advisory entries no longer reported by the current advisory database. The 2026-10-14 raw audit (database commit `6aed84668c23d7f535077a9fe918bf1fa0f6a5bc`) still reports the same ten IDs and classifications. Linux inverse dependency trees for quick-xml, glib, proc-macro-error, paste and unic-char-range confirm the locked paths and exposures below. No new advisory exceptions were added.
 
@@ -27,15 +27,15 @@ On 2026-10-28, `RUSTSEC-2026-0414` caused the CI audit to fail for locked `pulld
 
 On 2026-11-09, `RUSTSEC-2026-0433` (`pulldown-cmark 0.13.5`) and `RUSTSEC-2026-0459` (`libsqlite3-sys 0.35.0`, bundled SQLite) caused the CI audit to fail. Updating `pulldown-cmark` to patched `0.13.6` and `rusqlite` from `0.37.0` to `0.41.1` (which resolves `libsqlite3-sys 0.39.1`) restored the same ten reviewed findings without adding an exception. The `rusqlite` upgrade removed implicit `usize` conversions; the one runtime read now converts from `i64`. The affected `ENABLE_WIKILINKS` option remains disabled in the application's Markdown parser.
 
+On 2026-11-19, the registry review had expired and `RUSTSEC-2026-0543` (unmaintained, `chrono 0.4.45`) was new. Updating only `wayland-scanner` from 0.31.10 to 0.31.11 resolves patched `quick-xml 0.41.0` and removes `RUSTSEC-2026-0194` and `RUSTSEC-2026-0195`. `chrono` is a direct dependency with no patched release; it is registered as an unmaintained exception until timestamps migrate to `jiff` or `time`. The remaining exceptions were re-reviewed with unchanged inverse paths.
+
 On 2026-11-11, `RUSTSEC-2026-0486` (unsound, `rustix 1.1.4`, transitive through the Linux clipboard and Wayland stack) caused the CI audit to fail. Updating only `rustix` to patched `1.1.6` restored the same ten reviewed findings without adding an exception.
 
 `cargo update --dry-run` on 2026-10-14 proposes 192 package changes, including wayland-scanner 0.31.11 with quick-xml 0.42.0, Tauri 2.12.3, and removal of the unic family. These are available upgrade paths, not an unavailable-upstream blocker. This feature release temporarily retains the audited lockfile pending targeted dependency upgrade and platform validation, with a one-month review deadline rather than a quarterly extension. The dry run did not mutate Cargo.lock or demonstrate upgrade behavior. In particular, the broader Tauri upgrade requires revalidating the pinned CLI/runtime major-minor contract. The two quick-xml vulnerabilities are build-only on static protocol XML; glib remains runtime-transitively reachable and is not claimed to be fixed.
 
 ### Vulnerabilities
 
-| Advisories | Package | Exposure and blocker | Removal trigger |
-| --- | --- | --- | --- |
-| `RUSTSEC-2026-0194`, `RUSTSEC-2026-0195` | `quick-xml 0.39.4` | Build-only static XML through locked wayland-scanner 0.31.10. A scanner upgrade resolving patched quick-xml is now available but not yet validated in this release. | Validate the targeted scanner upgrade and remove these exceptions; recheck on every Wayland, Tauri, or clipboard-plugin upgrade. |
+None. The `quick-xml` advisories were removed on 2026-11-19 by updating `wayland-scanner` to 0.31.11.
 
 ### Unsoundness
 
@@ -53,6 +53,7 @@ Removal trigger: upgrade the upstream Tauri/Linux webview stack away from the un
 
 | Advisories | Packages | Exposure and blocker | Removal trigger |
 | --- | --- | --- | --- |
+| `RUSTSEC-2026-0543` | `chrono 0.4.45` | Direct dependency (clock and serde features) for timestamps. Unmaintained, no known vulnerability, no patched release. | Remove when timestamps migrate to `jiff` or `time`. |
 | `RUSTSEC-2024-0370` | `proc-macro-error 1.0.4` | Transitive build/procedural-macro dependency; no maintained release in the same package line. | Remove when the owning upstream dependency migrates to a maintained diagnostic crate. |
 | `RUSTSEC-2024-0436` | `paste 1.0.15` | Transitive macro dependency; the crate is unmaintained and has no patched release. | Remove when upstream stops depending on `paste` or adopts maintained equivalent code. |
 | `RUSTSEC-2025-0075`, `RUSTSEC-2025-0080`, `RUSTSEC-2025-0081`, `RUSTSEC-2025-0098`, `RUSTSEC-2025-0100` | `unic-char-range`, `unic-common`, `unic-char-property`, `unic-ucd-version`, `unic-ucd-ident` 0.9.0 | Transitive Unicode stack with no maintained release in the same package family. | Remove when the upstream dependency migrates to maintained Unicode/ICU crates. |

@@ -73,6 +73,7 @@ export function createChatPermissions(ctx: SessionChatContext, host: {
       return Promise.resolve()
     }
     if ((decision === 'approve' || decision === 'approveAll') && request.canApprove === false) return Promise.resolve()
+    if (decision === 'approveAll' && !request.toolName?.trim()) return Promise.resolve()
     const state = ledger(entry, job.jobId)
     if (state.attempted.has(requestId) || state.resolved.has(requestId)) return Promise.resolve()
     const scopeCurrent = () => host.current(entry)

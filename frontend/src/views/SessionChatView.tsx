@@ -113,6 +113,7 @@ export function SessionChatView(props: SessionChatViewProps) {
     && job.action === 'chat' && job.state === 'running' ? job.pendingPermission : null
   const permissionDisabled = permissionWorking || !onDecidePermission
   const approvalUnavailable = pendingPermission?.canApprove === false
+  const approveAllUnavailable = approvalUnavailable || !pendingPermission?.toolName?.trim()
   const permissionKey = pendingPermission && job
     ? JSON.stringify([job.sessionId, job.jobId, pendingPermission.requestId]) : null
   const permissionExpanded = permissionKey !== null && expandedPermissionKey === permissionKey
@@ -226,8 +227,9 @@ export function SessionChatView(props: SessionChatViewProps) {
                   </> : null}
                 </> : null}
               </div>
-              <p className="chat-help" id={`${id}-permission-scope`}>Approve once applies to this tool call only. Approve all for this response approves this and remaining supported tool requests, including future tool requests in this response. Does not change saved permissions.</p>
-              {approvalUnavailable ? <p className="chat-help" id={`${id}-permission-approval-reason`}>The provider does not offer one-time approval.</p> : null}
+              <p className="chat-help" id={`${id}-permission-scope`}>Approve once applies to this tool call only. Approve all for this tool also approves later requests for the same tool in this response. Other tools still ask. Does not change saved permissions.</p>
+              {approvalUnavailable ? <p className="chat-help" id={`${id}-permission-approval-reason`}>The provider does not offer one-time approval.</p>
+                : approveAllUnavailable ? <p className="chat-help" id={`${id}-permission-approve-all-reason`}>The provider does not name this tool, so approve each request on its own.</p> : null}
               {permissionWorking ? <p className="chat-help">Sending permission decision… You can still cancel the response.</p>
                 : !onDecidePermission ? <p className="chat-help">Permission decisions are unavailable. You can cancel the response.</p> : null}
             </> : null}
@@ -236,7 +238,7 @@ export function SessionChatView(props: SessionChatViewProps) {
             {pendingPermission ? (
               <div className="chat-buttons" key={permissionKey}>
                 <ActionButton variant="primary" type="button" disabled={permissionDisabled || approvalUnavailable} aria-describedby={approvalUnavailable ? `${id}-permission-approval-reason` : undefined} onClick={() => { if (!permissionDisabled && !approvalUnavailable) void onDecidePermission?.(pendingPermission.requestId, 'approve') }}>Approve once</ActionButton>
-                <ActionButton variant="secondary" type="button" disabled={permissionDisabled || approvalUnavailable} aria-describedby={approvalUnavailable ? `${id}-permission-approval-reason` : undefined} onClick={() => { if (!permissionDisabled && !approvalUnavailable) void onDecidePermission?.(pendingPermission.requestId, 'approveAll') }}>Approve all for this response</ActionButton>
+                <ActionButton variant="secondary" type="button" disabled={permissionDisabled || approveAllUnavailable} aria-describedby={approvalUnavailable ? `${id}-permission-approval-reason` : approveAllUnavailable ? `${id}-permission-approve-all-reason` : undefined} onClick={() => { if (!permissionDisabled && !approveAllUnavailable) void onDecidePermission?.(pendingPermission.requestId, 'approveAll') }}>Approve all for this tool</ActionButton>
                 <ActionButton variant="secondary" type="button" disabled={permissionDisabled} onClick={() => { if (!permissionDisabled) void onDecidePermission?.(pendingPermission.requestId, 'deny') }}>Deny</ActionButton>
               </div>
             ) : null}

@@ -69,7 +69,12 @@ function waitForFile(path) {
   })
 }
 
-if (process.env.QA_SCRIBE_E2E_SPEC === 'ask-ai-conversation-isolation.e2e.mjs' && args.includes('--version')) {
+// Generate turns off every enabled MCP server; the fixture reports one.
+const generationLockdown = ['features.shell_tool=false', 'features.apps=false', 'mcp_servers.fixture_server.enabled=false']
+
+if (args.includes('mcp') && args.includes('list') && args.includes('--json') && args.includes('features.plugins=false')) {
+  process.stdout.write(`${JSON.stringify([{ name: 'fixture_server', enabled: true }, { name: 'off.server', enabled: false }])}\n`)
+} else if (process.env.QA_SCRIBE_E2E_SPEC === 'ask-ai-conversation-isolation.e2e.mjs' && args.includes('--version')) {
   process.stdout.write('codex-cli 0.163.0\n')
 } else if (modelManagementEnabled) {
   modelManagementFixture('codex', args)
@@ -91,6 +96,9 @@ if (process.env.QA_SCRIBE_E2E_SPEC === 'ask-ai-conversation-isolation.e2e.mjs' &
       const releasePath = join(controlDirectory, `codex-exec-${invocation}.release`)
 
       const chat = /^QA_SCRIBE_CHAT_V[23]\n/.test(prompt) ? parseChat(prompt) : null
+      if (!chat && generationLockdown.some((setting) => !args.includes(setting))) {
+        throw new Error(`Generate must run with tools and MCP servers off: ${args.join(' ')}`)
+      }
       const isTestware = !chat && /Create test scenarios with test cases from the selected note only/i.test(prompt)
       const isSummary = /Keep the output as a summarized QA note/i.test(prompt)
       const streamConfigPath = join(controlDirectory, 'testware-streamdown.json')

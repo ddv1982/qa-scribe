@@ -15,6 +15,7 @@ import {
 import type { AiProvider, AppSettings, ProviderStatus } from '../tauri'
 import type { BusyAction, ProviderDiscoveryUiState, SettingsSaveState, ThemePreference } from '../ui/types'
 import { catalogSelectorEnabled } from '../settings/catalog'
+import { GenerationReadSourcesSetting } from './GenerationReadSourcesSetting'
 import { TemplatesView } from './TemplatesView'
 import {
   catalogSourceDescription,
@@ -363,6 +364,8 @@ export function SettingsView({
             />
           </section>
         ) : null}
+
+        {settingsDraft ? <GenerationReadSourcesSetting settingsDraft={settingsDraft} updateSettingsDraft={updateSettingsDraft} /> : null}
 
         <section className="wide-setting advanced-setting" id="template-settings">
           <details>

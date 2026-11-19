@@ -550,6 +550,35 @@
   line-height: 1.5;
 }
 
+.read-source-fieldset {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.read-source-fieldset legend {
+  padding: 0;
+}
+
+.read-source-fieldset legend h2 {
+  margin: 0;
+}
+
+.read-source-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+}
+
+.read-source-option {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-primary);
+}
+
 .advanced-setting details {
   display: grid;
   gap: var(--space-3);

@@ -23,6 +23,23 @@ pub struct AppSettings {
     pub finding_template: String,
     #[serde(default = "default_note_summary_template")]
     pub note_summary_template: String,
+    /// Read-only sources Generate may look up. Empty means Generate runs with
+    /// no tools at all.
+    #[serde(default)]
+    pub generation_read_sources: Vec<GenerationReadSource>,
+}
+
+/// A read-only source that Generate may look up through the user's Claude Code
+/// connectors. Only read tools are ever allowed; see `ai::generation_tools`.
+#[derive(
+    Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, specta::Type,
+)]
+#[serde(rename_all = "camelCase")]
+pub enum GenerationReadSource {
+    Jira,
+    Confluence,
+    TeamsChannels,
+    TeamsChats,
 }
 
 impl Default for AppSettings {
@@ -38,6 +55,7 @@ impl Default for AppSettings {
             testware_template: default_testware_template(),
             finding_template: default_finding_template(),
             note_summary_template: default_note_summary_template(),
+            generation_read_sources: Vec::new(),
         }
     }
 }

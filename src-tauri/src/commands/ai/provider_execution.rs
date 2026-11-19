@@ -6,10 +6,11 @@ use std::time::{Duration, Instant};
 
 use qa_scribe_core::{
     ai::{
-        ProviderExecutionError, ProviderGenerationOutput, stream::StreamUpdate,
-        streaming_generation_command,
+        ProviderExecutionError, ProviderGenerationOutput,
+        generation_tools::{GenerationToolPolicy, generation_command_with_tool_policy},
+        stream::StreamUpdate,
     },
-    domain::AiProvider,
+    domain::{AiProvider, GenerationReadSource},
 };
 use tauri::ipc::Channel;
 
@@ -18,7 +19,7 @@ use super::{
     streaming_exec::run_generation_command_streaming,
 };
 use crate::{
-    commands::providers::provider_readiness_for_job,
+    commands::providers::{codex_enabled_mcp_servers_for_job, provider_readiness_for_job},
     jobs::{JobControl, JobStore},
 };
 
@@ -31,6 +32,7 @@ pub(super) fn execute_provider_generation_streaming(
     model: &str,
     reasoning_effort: Option<&str>,
     prompt: &str,
+    read_sources: &[GenerationReadSource],
     log_context: &str,
     job_id: &str,
     jobs: &JobStore,
@@ -50,12 +52,21 @@ pub(super) fn execute_provider_generation_streaming(
 
     validate_effective_selection(&readiness.descriptor, model, reasoning_effort)?;
 
-    let command = streaming_generation_command(
+    let policy = GenerationToolPolicy {
+        read_sources: read_sources.to_vec(),
+        codex_mcp_servers: if provider == AiProvider::CodexCli {
+            codex_enabled_mcp_servers_for_job(control)?
+        } else {
+            Vec::new()
+        },
+    };
+    let command = generation_command_with_tool_policy(
         provider,
         prompt,
         model,
         reasoning_effort,
         readiness.copilot_direct_cli_ready,
+        &policy,
     )?;
     let started = Instant::now();
     let mut last_partial_len = 0usize;

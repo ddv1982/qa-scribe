@@ -5,7 +5,7 @@ use std::{
     io::Write,
     path::Path,
     process::{Command, Stdio},
-    sync::mpsc::{self, Receiver, TryRecvError},
+    sync::mpsc::{self, TryRecvError},
     thread,
     time::{Duration, Instant},
 };
@@ -29,7 +29,9 @@ use crate::{
     provider_command::{NeutralProviderCwd, apply_provider_path, provider_process_path},
 };
 
+mod approval;
 mod process;
+use approval::{PendingPermission, ToolIdentity, covered_by_approve_all, tool_identity};
 use process::{DiagnosticCapture, ImageEchoPolicy, Peer, read_lines_with_echo, read_stderr};
 
 pub(crate) struct ChatDuplexContext<'a> {
@@ -171,9 +173,10 @@ fn execute_chat_duplex(
     };
     peer.stderr = Some(thread::spawn(move || read_stderr(stderr, diagnostics)));
     let started = Instant::now();
-    let mut pending: Option<Receiver<ChatPermissionDecision>> = None;
-    // Consent expires with this execution, including cancellation and retries.
-    let mut approve_all = false;
+    let mut pending: Option<PendingPermission> = None;
+    // Consent expires with this execution, including cancellation and retries,
+    // and covers only the tools the user chose "Approve all" for.
+    let mut approved_tools: Vec<ToolIdentity> = Vec::new();
     let mut exited_at: Option<Instant> = None;
     let mut writer_failure: Option<(String, Instant)> = None;
     let mut frames_since_service = 0usize;
@@ -225,7 +228,7 @@ fn execute_chat_duplex(
                 service_due = true;
             }
             if service_due && priority_frames.is_empty() {
-                if let Some(decision) = pending.as_ref() {
+                if let Some(PendingPermission { decision, tool }) = pending.as_ref() {
                     match decision.try_recv() {
                         Ok(decision) => {
                             // Re-check immediately before using a queued UI
@@ -235,7 +238,12 @@ fn execute_chat_duplex(
                                     "Provider exited before the chat permission decision".into()
                                 );
                             }
-                            approve_all |= decision == ChatPermissionDecision::ApproveAll;
+                            if decision == ChatPermissionDecision::ApproveAll
+                                && let Some(tool) = tool
+                                && !approved_tools.contains(tool)
+                            {
+                                approved_tools.push(tool.clone());
+                            }
                             let reply = protocol
                                 .permission_reply(decision != ChatPermissionDecision::Deny)
                                 .map_err(|error| error.to_string())?;
@@ -251,7 +259,7 @@ fn execute_chat_duplex(
                                 pending = Some(publish_permission(
                                     context,
                                     details,
-                                    approve_all,
+                                    &approved_tools,
                                     &mut on_status,
                                 )?);
                             }
@@ -308,7 +316,7 @@ fn execute_chat_duplex(
                         pending = Some(publish_permission(
                             context,
                             details,
-                            approve_all,
+                            &approved_tools,
                             &mut on_status,
                         )?);
                     }
@@ -365,13 +373,14 @@ fn execute_chat_duplex(
 fn publish_permission(
     context: &ChatDuplexContext<'_>,
     details: ChatProtocolPermission,
-    approve_all: bool,
+    approved_tools: &[ToolIdentity],
     on_status: &mut impl FnMut(GenerationJobStatus),
-) -> Result<Receiver<ChatPermissionDecision>, String> {
+) -> Result<PendingPermission, String> {
     if context.control.child_exit_status()?.is_some() {
         return Err("Provider exited before publishing chat permission".into());
     }
-    let auto_approve = approve_all && details.can_approve;
+    let tool = tool_identity(&details);
+    let auto_approve = covered_by_approve_all(&details, approved_tools);
     let (mut status, decision) = context
         .jobs
         .publish_chat_permission(
@@ -405,7 +414,7 @@ fn publish_permission(
             .map_err(|error| error.to_string())?;
     }
     on_status(status);
-    Ok(decision)
+    Ok(PendingPermission { decision, tool })
 }
 
 fn output(text: Option<String>, cancelled: bool) -> ProviderGenerationOutput {

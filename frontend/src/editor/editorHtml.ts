@@ -359,7 +359,7 @@ function sanitizeListItemElement(item: HTMLLIElement) {
 
 export function isSafeEditorImageSource(source: string): boolean {
   if (source.startsWith(managedAttachmentProtocol)) return true
-  if (/^data:image\//i.test(source)) return true
+  if (/^data:image\/(?:png|jpeg|gif|webp);base64,/i.test(source)) return true
   return isSafeUrlWithProtocols(source, new Set(['http:', 'https:']))
 }
 

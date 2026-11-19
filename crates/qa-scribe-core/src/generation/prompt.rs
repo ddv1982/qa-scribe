@@ -1,3 +1,4 @@
+use crate::ai::generation_tools::read_sources_prompt_rule;
 use crate::domain::{AppSettings, Attachment, Entry};
 
 use super::html::{MANAGED_ATTACHMENT_PROTOCOL, escape_html_attribute};
@@ -36,6 +37,8 @@ const EXAMPLE_LEAD_IN: &str = "\nFollow the structure of this skeleton example, 
 /// the end of the prompt most heavily; the load-bearing constraints must not
 /// sit only thousands of characters before the output starts.
 const FINAL_REMINDER: &str = "\nFinal reminder: base the output only on the source material inside <selected_note>, follow the output rules above, and return only the HTML fragment wrapped in <html_fragment> markers.\n";
+/// Used instead when Generate may look up items the note refers to.
+const FINAL_REMINDER_WITH_LOOKUPS: &str = "\nFinal reminder: base the output only on the source material inside <selected_note> and on the items it refers to that you looked up, follow the output rules above, and return only the HTML fragment wrapped in <html_fragment> markers.\n";
 
 const TESTWARE_EXAMPLE: &str = "<example_output>\n<html_fragment><h2>Scenario: [area under test]</h2><h3>Test case: [behavior being verified]</h3><p><strong>Purpose:</strong> [what this case verifies]</p><p><strong>Preconditions:</strong> [state required before the steps]</p><ul><li><input type=\"checkbox\" /> [executable step]</li><li><input type=\"checkbox\" /> [executable step]</li></ul><p><strong>Expected result:</strong> [observable outcome from the note]</p></html_fragment>\n</example_output>\n";
 
@@ -149,6 +152,12 @@ pub fn render_action_prompt<'a>(
         prompt.push_str(rule);
         prompt.push('\n');
     }
+    // After the action rules, so it qualifies their "selected note only".
+    let lookup_rule = read_sources_prompt_rule(&settings.generation_read_sources);
+    if !lookup_rule.is_empty() {
+        prompt.push_str(&lookup_rule);
+        prompt.push('\n');
+    }
     prompt.push_str(&with_prompt_markers(
         &session_material.rules(),
         marker,
@@ -197,7 +206,11 @@ pub fn render_action_prompt<'a>(
     append_managed_images(&mut prompt, note_entry, attachments);
     budget.append_omissions(&mut prompt);
     prompt.push_str(&with_prompt_markers(
-        FINAL_REMINDER,
+        if lookup_rule.is_empty() {
+            FINAL_REMINDER
+        } else {
+            FINAL_REMINDER_WITH_LOOKUPS
+        },
         marker,
         &selected_note_marker,
     ));

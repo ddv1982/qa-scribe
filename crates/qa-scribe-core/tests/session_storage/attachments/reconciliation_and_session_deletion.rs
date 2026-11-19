@@ -15,7 +15,7 @@ fn delete_session_with_attachment_files_preserves_unknown_sibling_file() {
         &session.id,
         None,
         "managed.png".to_string(),
-        "data:image/png;base64,aGVsbG8=",
+        "data:image/png;base64,iVBORw0KGgo=",
     )
     .expect("managed attachment should import");
     let managed_path = temp_dir.join(&attachment.relative_path);
@@ -53,7 +53,7 @@ fn delete_session_with_attachment_files_persists_failed_cleanup_intent_across_re
         &session.id,
         None,
         "blocked.png".to_string(),
-        "data:image/png;base64,aGVsbG8=",
+        "data:image/png;base64,iVBORw0KGgo=",
     )
     .expect("managed attachment should import");
     let managed_path = temp_dir.join(&attachment.relative_path);
