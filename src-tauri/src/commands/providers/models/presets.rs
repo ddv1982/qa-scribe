@@ -6,7 +6,7 @@ pub(super) const CODEX_PRESET_MODELS: [&str; 5] = [
     "gpt-5-mini",
 ];
 
-pub(super) const CLAUDE_PRESET_MODELS: [&str; 12] = [
+pub(super) const CLAUDE_PRESET_MODELS: [&str; 14] = [
     "opus",
     "sonnet",
     "haiku",
@@ -18,6 +18,8 @@ pub(super) const CLAUDE_PRESET_MODELS: [&str; 12] = [
     "claude-opus-4-7",
     "claude-opus-4-6",
     "claude-sonnet-4-6",
+    "claude-sonnet-4-5",
+    "claude-opus-4-5",
     "claude-haiku-4-5",
 ];
 

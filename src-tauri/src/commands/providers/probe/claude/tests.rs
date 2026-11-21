@@ -7,8 +7,8 @@ use crate::commands::providers::{ProviderDiscoveryError, ProviderDiscoveryErrorC
 use super::{
     CLAUDE_DISCOVERY_ARGS, CLAUDE_HOST_SESSION_ENV, ClaudeCatalogResult, INITIALIZE_REQUEST_ID,
     MAX_FRAMES, MAX_MODELS, MAX_OUTPUT_BYTES, MAX_QUEUED_FRAMES, ReaderEvent,
-    configure_discovery_command, discovery_args, discovery_error, ensure_before_deadline,
-    protocol::parse_frame, read_frames, write_initialize_frame,
+    configure_discovery_command, discovery_error, ensure_before_deadline, protocol::parse_frame,
+    read_frames, write_initialize_frame,
 };
 
 fn parse_fixture(
@@ -250,24 +250,11 @@ fn argv_is_an_exact_non_prompt_safety_policy() {
 }
 
 #[test]
-fn managed_mcp_config_drops_only_strict_mcp_mode() {
-    assert_eq!(discovery_args(false), CLAUDE_DISCOVERY_ARGS);
-    let managed = discovery_args(true);
-    let expected: Vec<_> = CLAUDE_DISCOVERY_ARGS
-        .iter()
-        .copied()
-        .filter(|argument| *argument != "--strict-mcp-config")
-        .collect();
-    assert_eq!(managed, expected);
-    assert!(managed.contains(&"--mcp-config"));
-}
-
-#[test]
 fn discovery_command_turns_off_connectors_and_drops_host_session_env() {
     let mut command = std::process::Command::new("claude");
     command.env("CLAUDECODE", "1");
     command.env("CLAUDE_CODE_SESSION_ID", "host-session");
-    configure_discovery_command(&mut command, false);
+    configure_discovery_command(&mut command);
 
     let envs: std::collections::HashMap<_, _> = command
         .get_envs()

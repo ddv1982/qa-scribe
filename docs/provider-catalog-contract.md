@@ -99,9 +99,10 @@ is green and sanitized failure/fallback rates are acceptable.
 
 The Claude discovery child drops the host Claude Code session variables, sets
 `ENABLE_CLAUDEAI_MCP_SERVERS=false`, `CLAUDE_CODE_AUTO_CONNECT_IDE=0` and
-`CLAUDE_CODE_IDE_SKIP_AUTO_INSTALL=1`, and omits `--strict-mcp-config` when an
-administrator's `managed-mcp.json` exists, because Claude Code refuses that flag
-next to an enterprise MCP config. The catalog's `default` row names the model it
+`CLAUDE_CODE_IDE_SKIP_AUTO_INSTALL=1`. When an administrator's
+`managed-mcp.json` exists, discovery is skipped and compatibility choices are
+used: Claude Code refuses `--strict-mcp-config` next to an enterprise MCP config,
+and without that flag the managed MCP servers would start. The catalog's `default` row names the model it
 resolves to; QA Scribe shows that model as the recommended default when no
 setting or `ANTHROPIC_MODEL` overrides it. Claude image support is known for the
 `opus`, `sonnet`, `haiku` and `fable` aliases and families at major versions 4
