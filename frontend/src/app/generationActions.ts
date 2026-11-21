@@ -85,7 +85,9 @@ export function createGenerationActions(ctx: GenerationActionsContext) {
       allowRecoveryWrite: true,
     }).then((saved) => {
       // The image write's "Note saved" would replace the warning.
-      if (saved && warning) ctx.feedback.setWarning(warning)
+      const sameNote = ctx.session.noteEntryIdRef.current === richNoteEntry.id
+        && ctx.session.activeSessionIdRef.current === richNoteEntry.sessionId
+      if (saved && warning && sameNote) ctx.feedback.setWarning(warning)
     })
     ctx.feedback.setNotice('Note summarized')
   }
