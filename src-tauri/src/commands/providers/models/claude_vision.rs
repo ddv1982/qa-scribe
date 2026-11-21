@@ -46,28 +46,29 @@ pub(super) fn image_support(
     .or_else(|| known_image_support(resolved_model.unwrap_or(id)))
 }
 
+/// Claude ids with confirmed image input. Unknown and future ids stay
+/// unknown, so image prompts fail closed until a release lists them.
 pub(super) fn known_image_support(id: &str) -> Option<bool> {
-    const MODELS: &[&str] = &[
-        "sonnet",
-        "opus",
-        "haiku",
-        "fable",
-        "sonnet[1m]",
-        "opus[1m]",
-        "claude-sonnet-4-5",
+    // Dated snapshots are listed one by one; undated ids match by family.
+    const DATED_MODELS: &[&str] = &[
         "claude-sonnet-4-5-20250929",
-        "claude-sonnet-4-6",
-        "claude-haiku-4-5",
         "claude-haiku-4-5-20251001",
-        "claude-opus-4-5",
         "claude-opus-4-5-20251101",
-        "claude-opus-4-6",
-        "claude-opus-4-7",
-        "claude-opus-4-8",
-        "claude-opus-5-5",
-        "claude-sonnet-5-5",
-        "claude-haiku-5-5",
-        "claude-fable-5-1",
     ];
-    MODELS.contains(&id).then_some(true)
+    const FAMILIES: &[&str] = &["sonnet", "opus", "haiku", "fable"];
+    let id = id.strip_suffix("[1m]").unwrap_or(id);
+    if FAMILIES.contains(&id) || DATED_MODELS.contains(&id) {
+        return Some(true);
+    }
+    let rest = id.strip_prefix("claude-")?;
+    let (family, version) = rest.split_once('-')?;
+    if !FAMILIES.contains(&family) {
+        return None;
+    }
+    let mut parts = version.split('-');
+    let major_known = matches!(parts.next(), Some("4" | "5"));
+    let minor_known = parts
+        .next()
+        .is_none_or(|minor| minor.len() == 1 && minor.as_bytes()[0].is_ascii_digit());
+    (major_known && minor_known && parts.next().is_none()).then_some(true)
 }

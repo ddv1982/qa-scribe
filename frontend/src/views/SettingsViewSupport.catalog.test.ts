@@ -19,14 +19,15 @@ it('keeps Codex structured catalog descriptions active under both gated modes', 
   }
 })
 
-it('keeps Claude and Copilot diagnostic and disabled choices gated', () => {
+it('switches Claude and Copilot off with the kill switch, and keeps only Copilot gated in diagnostics', () => {
   const providers: AiProvider[] = ['claude_code', 'copilot_cli']
   for (const id of providers) {
     const provider = { ...providerStatusFixture().providers[0], id }
     expect(catalogStatusDescription(provider, provider.catalogSnapshot, 'disabled'))
       .toBe('Using compatibility model choices. Structured catalog discovery is disabled.')
-    expect(catalogStatusDescription(provider, { ...provider.catalogSnapshot, state: 'fresh' }, 'diagnostics'))
-      .toContain('Compatibility model choices remain active while catalog diagnostics run.')
+    const diagnostics = catalogStatusDescription(provider, { ...provider.catalogSnapshot, state: 'fresh' }, 'diagnostics')
+    if (id === 'copilot_cli') expect(diagnostics).toContain('Compatibility model choices remain active while catalog diagnostics run.')
+    else expect(diagnostics).not.toContain('Compatibility model choices')
   }
 })
 

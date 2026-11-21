@@ -133,7 +133,7 @@ describe(`Built application provider qualification ${mode}`, () => {
   }
 
   if (mode === 'diagnostics') {
-    it('shows fresh CLI catalog health while keeping its inventory outside compatibility choices', () => lane(5, 'diagnostics', async () => {
+    it('shows the Claude and Codex catalogs while Copilot keeps compatibility choices', () => lane(5, 'diagnostics', async () => {
       const before = journal().length
       await refresh()
       const observations = journal().slice(before)
@@ -142,19 +142,24 @@ describe(`Built application provider qualification ${mode}`, () => {
         await provider(name)
         const health = await $('#model-catalog-description').getText()
         assert.match(health, /^Reported by CLI catalog · checked /)
-        assert.match(health, /Compatibility model choices remain active while catalog diagnostics run\./)
         const returned = observations.find((entry) => entry.provider === name && entry.event === 'catalog-response')
         assert.deepEqual(returned?.ids, [`qualification-${name}-model`])
         const choices = await rows()
-        assert.equal(choices.some((row) => row.label === `qualification-${name}-model`), false)
         assert.ok(choices.some((row) => row.label === 'CLI default'))
+        if (name === 'copilot') {
+          assert.match(health, /Compatibility model choices remain active while catalog diagnostics run\./)
+          assert.equal(choices.some((row) => row.label === `qualification-${name}-model`), false)
+        } else {
+          assert.doesNotMatch(health, /Compatibility/)
+          assert.ok(choices.some((row) => row.label === `qualification-${name}-model`))
+        }
         providers[name] = { health, returned, choices }
       }
       await provider('codex')
       assert.match(await $('#model-catalog-description').getText(), /^Reported by CLI catalog · checked /)
       assert.doesNotMatch(await $('#model-catalog-description').getText(), /Compatibility/)
       assert.ok((await rows()).some((row) => row.label === 'qualification-codex-model'))
-      return { providers, scope: 'Health exposes source/freshness. Unique inventory ID is proven by actual peer response, not rendered as a diagnostic inventory.' }
+      return { providers, scope: 'Claude and Codex show their CLI catalogs in diagnostics mode. Copilot keeps compatibility choices; its inventory ID is proven by the peer response.' }
     }))
     return
   }

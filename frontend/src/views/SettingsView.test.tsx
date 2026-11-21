@@ -214,7 +214,7 @@ describe('SettingsView AI defaults', () => {
 
   it('uses the backend selector projection during catalog diagnostics', async () => {
     const user = userEvent.setup()
-    const provider = providerDescriptor('claude_code', 'Claude Code', true, [
+    const provider = providerDescriptor('copilot_cli', 'GitHub Copilot CLI', true, [
       modelDescriptor('default', 'Use CLI default'),
       { ...modelDescriptor('sonnet-compat', 'Sonnet compatibility'), source: 'preset', availability: 'staticHint', confidence: 'static' },
     ])
@@ -226,7 +226,7 @@ describe('SettingsView AI defaults', () => {
       ],
     })
     renderSettingsView({
-      settings: settingsFixture({ selectedAiProvider: 'claude_code' }),
+      settings: settingsFixture({ selectedAiProvider: 'copilot_cli' }),
       providerStatus: providerStatusWith([provider], 'diagnostics'),
     })
 
@@ -236,6 +236,16 @@ describe('SettingsView AI defaults', () => {
     const listbox = screen.getByRole('listbox', { name: /ai models/i })
     expect(within(listbox).getByRole('option', { name: /Sonnet compatibility/i })).toBeInTheDocument()
     expect(within(listbox).queryByRole('option', { name: /Opus account/i })).not.toBeInTheDocument()
+  })
+
+  it('shows the Claude catalog during catalog diagnostics', () => {
+    const provider = providerDescriptor('claude_code', 'Claude Code', true, [
+      modelDescriptor('default', 'Use CLI default'),
+      { ...modelDescriptor('opus-account', 'Opus account'), source: 'cliCatalog', availability: 'available', confidence: 'authoritative' },
+    ])
+    setCatalogSnapshot(provider, { source: 'cliCatalog', models: provider.models })
+    renderSettingsView({ settings: settingsFixture({ selectedAiProvider: 'claude_code' }), providerStatus: providerStatusWith([provider], 'diagnostics') })
+    expect(screen.queryByText(/Compatibility model choices remain active while catalog diagnostics run/i)).not.toBeInTheDocument()
   })
 
   it('labels CLI-recognized rows by their source instead of inferring structured catalog authority', () => {

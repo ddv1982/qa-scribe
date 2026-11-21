@@ -1,6 +1,6 @@
 # Provider catalog compatibility and release contract
 
-Status: implemented, release-gated
+Status: implemented; Claude Code promoted, Copilot release-gated
 Owner: QA Scribe maintainers
 Implementation qualification: 2026-10-16. Transport cost figures below remain the July Phase 0 measurements.
 
@@ -81,14 +81,32 @@ Set `QA_SCRIBE_PROVIDER_CATALOG_MODE` before launching QA Scribe:
 
 - `disabled` or `off`: do not run the new Claude/Copilot structured adapters;
   use compatibility choices. This is the release kill switch.
-- unset, `diagnostics`, or an unknown value: discover and display catalog health,
-  but retain compatibility choices as the selector projection.
+- unset, `diagnostics`, or an unknown value: Claude Code's catalog is the model
+  selector source. Copilot's catalog health is shown, but Copilot keeps
+  compatibility choices.
 - `selector`, `enabled`, or `on`: use structured Claude/Copilot catalogs as the
   model selector source.
 
-Codex behavior is unchanged by this flag. Promote a release from diagnostics to
-selector only after the live matrix below is green and sanitized failure/fallback
-rates are acceptable.
+Codex behavior is unchanged by this flag. The rule lives in
+`catalog_selector_enabled` (`rollout.rs`) and its frontend mirror
+`frontend/src/settings/catalog.ts`.
+
+Claude Code was promoted on 2026-11-21 at the maintainer's decision, after live
+Claude Code 2.1.330 runs on macOS returned 14 models signed in and 5 aliases
+signed out without a prompt. The external gates below still apply to Copilot.
+Promote Copilot from diagnostics to selector only after the live matrix below
+is green and sanitized failure/fallback rates are acceptable.
+
+The Claude discovery child drops the host Claude Code session variables, sets
+`ENABLE_CLAUDEAI_MCP_SERVERS=false`, `CLAUDE_CODE_AUTO_CONNECT_IDE=0` and
+`CLAUDE_CODE_IDE_SKIP_AUTO_INSTALL=1`. When an administrator's
+`managed-mcp.json` exists, discovery is skipped and compatibility choices are
+used: Claude Code refuses `--strict-mcp-config` next to an enterprise MCP config,
+and without that flag the managed MCP servers would start. The catalog's `default` row names the model it
+resolves to; QA Scribe shows that model as the recommended default when no
+setting or `ANTHROPIC_MODEL` overrides it. Claude image support is known for the
+`opus`, `sonnet`, `haiku` and `fable` aliases and families at major versions 4
+and 5; other ids stay unknown, so image prompts fail closed.
 
 ## Deterministic fixtures
 
@@ -156,9 +174,10 @@ Before selector rollout, record the following outside committed fixtures:
   authenticated Claude Code subscription.
 
 The last two items and the multi-platform/account matrix are external release
-gates. They are intentionally not claimed by fixture tests. Until they are
-complete, keep the default in diagnostics and do not market subscription-backed
-Claude discovery as generally released.
+gates. They are intentionally not claimed by fixture tests. Claude Code was
+promoted without them at the maintainer's decision (see Rollout); billing
+telemetry, Anthropic's written position and the Windows/Linux matrix remain open
+for Claude. Until they are complete for Copilot, keep Copilot in diagnostics.
 
 The October CLI model-management work retains those gates. Its qualification
 record distinguishes no-prompt contracts, deterministic native behavior and

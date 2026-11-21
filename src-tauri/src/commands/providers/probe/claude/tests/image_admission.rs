@@ -18,7 +18,7 @@ impl ProbeRunner for NormalizedCatalogRunner {
         CommandProbe::not_found()
     }
 
-    fn claude_structured_catalog(&self) -> StructuredCatalogProbe {
+    fn claude_structured_catalog(&self, _cli_version: Option<&str>) -> StructuredCatalogProbe {
         StructuredCatalogProbe::Success(StructuredCatalog {
             models: self.0.clone(),
             cli_version: None,
@@ -175,6 +175,12 @@ fn image_admission_preserves_evidence_through_normalization_and_catalog_parsing(
             unknown.clone(),
         ),
         (
+            json!([{"value":"default","resolvedModel":"claude-opus-5-5"}]),
+            None,
+            "default",
+            Ok(()),
+        ),
+        (
             json!([{"value":"sonnet","resolvedModel":"custom"}]),
             None,
             "sonnet",
@@ -290,7 +296,7 @@ impl ProbeRunner for DetectionCatalogRunner {
         }
     }
 
-    fn claude_structured_catalog(&self) -> StructuredCatalogProbe {
+    fn claude_structured_catalog(&self, _cli_version: Option<&str>) -> StructuredCatalogProbe {
         StructuredCatalogProbe::Success(StructuredCatalog {
             models: self.0.clone(),
             cli_version: None,

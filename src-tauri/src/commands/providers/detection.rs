@@ -10,11 +10,10 @@ use super::{
     defaults::{claude_default_snapshot, codex_default_snapshot, copilot_default_snapshot},
     models::{compatibility_models, normalize_models, provider_catalog, provider_default_model},
     probe::{CommandProbe, DetectionMode, ProbeRunner},
-    rollout::provider_catalog_rollout,
+    rollout::{catalog_selector_enabled, provider_catalog_rollout},
     types::{
-        ProviderCatalogRollout, ProviderDefaultSnapshot, ProviderDescriptor,
-        ProviderDiscoveryErrorCode, ProviderModelCatalogSnapshot, ProviderModelDescriptor,
-        ProviderReadiness, ProviderState,
+        ProviderDefaultSnapshot, ProviderDescriptor, ProviderDiscoveryErrorCode,
+        ProviderModelCatalogSnapshot, ProviderModelDescriptor, ProviderReadiness, ProviderState,
     },
 };
 
@@ -374,8 +373,7 @@ fn descriptor_readiness(
 ) -> ProviderReadiness {
     catalog_snapshot.cli_version = sanitize_cli_version(catalog_snapshot.cli_version);
     default_snapshot.cli_version = sanitize_cli_version(default_snapshot.cli_version);
-    let models = if capability.id == AiProvider::CodexCli
-        || provider_catalog_rollout() == ProviderCatalogRollout::Selector
+    let models = if catalog_selector_enabled(capability.id, provider_catalog_rollout())
         || catalog_snapshot.source != super::ProviderCatalogSource::CliCatalog
     {
         normalize_models(catalog_snapshot.models.clone())
@@ -406,7 +404,7 @@ fn default_snapshot(
     cli_version: Option<String>,
 ) -> ProviderDefaultSnapshot {
     match provider {
-        AiProvider::ClaudeCode => claude_default_snapshot(cli_version),
+        AiProvider::ClaudeCode => claude_default_snapshot(models, cli_version),
         AiProvider::CodexCli => codex_default_snapshot(runner, models, cli_version),
         AiProvider::CopilotCli => copilot_default_snapshot(cli_version),
     }

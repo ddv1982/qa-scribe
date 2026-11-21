@@ -166,7 +166,7 @@ impl ProbeRunner for SystemProbeRunner {
             .clone()
     }
 
-    fn claude_structured_catalog(&self) -> StructuredCatalogProbe {
+    fn claude_structured_catalog(&self, cli_version: Option<&str>) -> StructuredCatalogProbe {
         if self.path_mode != ProviderPathMode::Deep {
             return StructuredCatalogProbe::NotAttempted;
         }
@@ -175,15 +175,22 @@ impl ProbeRunner for SystemProbeRunner {
                 let Some(executable) = provider_executable_path("claude", self.path_mode) else {
                     return StructuredCatalogProbe::NotAttempted;
                 };
-                let version = self.run("claude", &["--version"]);
-                if !version.success || !claude::version_is_supported(&version.stdout) {
+                let version = match cli_version {
+                    Some(version) => Some(version.to_string()),
+                    None => {
+                        let probe = self.run("claude", &["--version"]);
+                        probe.success.then_some(probe.stdout)
+                    }
+                };
+                let Some(version) = version.filter(|version| claude::version_is_supported(version))
+                else {
                     return StructuredCatalogProbe::Failed(ProviderDiscoveryError {
                         code: ProviderDiscoveryErrorCode::Unsupported,
                         message: "This Claude Code version does not support safe model discovery."
                             .to_string(),
                         retryable: false,
                     });
-                }
+                };
                 match claude::discover_with_cancellation(
                     &executable,
                     self.deadline,
@@ -192,7 +199,7 @@ impl ProbeRunner for SystemProbeRunner {
                 ) {
                     Ok(result) => StructuredCatalogProbe::Success(StructuredCatalog {
                         models: result.models,
-                        cli_version: Some(version.stdout),
+                        cli_version: Some(version),
                     }),
                     Err(error) => StructuredCatalogProbe::Failed(error),
                 }
