@@ -18,6 +18,7 @@ import {
 } from '../editor/editorDocument'
 import { formatError } from '../ui/format'
 import type { AiSelection } from './types'
+import { readSourceWarning } from './readSourceWarning'
 import type { GenerationActionsContext } from './generationActions.types'
 import { useStableCapability } from './useStableCapability'
 import { createGenerationRecovery } from './generationActions.recovery'
@@ -236,6 +237,8 @@ export function createGenerationActions(ctx: GenerationActionsContext) {
     } else {
       ctx.feedback.setNotice(result.aiRun.errorMessage ?? 'AI action finished')
     }
+    const warning = readSourceWarning(result.unavailableReadSources)
+    if (warning) ctx.feedback.setWarning(warning)
   }
 
   async function handleAiAction(action: GenerateAiActionKind, testwarePreferences?: TestwareGenerationPreferences, displayedSelection?: AiSelection) {

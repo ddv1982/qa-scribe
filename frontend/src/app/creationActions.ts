@@ -26,6 +26,7 @@ export type CreationContext = {
   changed: (intent: CreationIntent | null) => void
   decisionChanged: (open: boolean) => void
   notice?: (message: string) => void
+  warning?: (message: string) => void
   error: (message: string | null) => void
 }
 
@@ -294,7 +295,7 @@ export function createCreationActions(ctx: CreationContext) {
   const source = createCreationSourceActions({
     current: () => intent, publish, matches, acceptOutcome, sourceAllowed: () => ctx.sourceAllowed?.() ?? true,
     beginNavigation: () => ctx.beginNavigation(), navigationIsCurrent: (epoch) => ctx.navigationIsCurrent?.(epoch) ?? true,
-    error: (message) => ctx.error(message), notice: (message) => ctx.notice?.(message), publishJob: (status) => ctx.publishJob?.(status), finished: () => finishDecision(true),
+    error: (message) => ctx.error(message), notice: (message) => ctx.notice?.(message), warning: (message) => ctx.warning?.(message), publishJob: (status) => ctx.publishJob?.(status), finished: () => finishDecision(true),
   })
   return { ...source, generate: (selection: AiSelection, preferences?: TestwareGenerationPreferences) => withSettledImages(() => source.generate(selection, preferences)),
     pasteImage, dismissImageFailures, ownsGeneration, markSelectionReady, open, setMode, update, applyFormat, save, discard, settle, decide, stageImage, current: () => intent,

@@ -22,7 +22,7 @@ function subject(kind: Kind) {
   const table = kind === 'finding' ? 'findings' as const : 'drafts' as const
   const dirty = { current: new Set([a.id]) }
   const cleanup = vi.fn(async (_ids: string[]) => true)
-  const feedback = { setError: vi.fn(), setNotice: vi.fn(), setBusyAction: vi.fn() }
+  const feedback = { setError: vi.fn(), setNotice: vi.fn(), setWarning: vi.fn(), setBusyAction: vi.fn() }
   const ctx: RecordPersistenceContext = {
     session: { activeSessionIdRef: { current: a.sessionId } },
     records: {

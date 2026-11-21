@@ -22,7 +22,7 @@ export function createOwnerBoundary(kind: RecordKind) {
     importedAttachments: { pending: () => [], register: vi.fn(), remember: vi.fn(), forget: vi.fn(), clear: vi.fn() },
     materializeInlineImages: document => Promise.resolve({ document, importedAttachmentIds: [] }),
     cleanupMaterializedAttachments: () => Promise.resolve(true),
-    feedback: { setError: vi.fn(), setNotice: vi.fn(), setBusyAction: vi.fn() },
+    feedback: { setError: vi.fn(), setNotice: vi.fn(), setWarning: vi.fn(), setBusyAction: vi.fn() },
   }
   api.updateDraft.mockImplementation(storage.write); api.updateFinding.mockImplementation(storage.write)
   const persistence = createRecordPersistence(ctx)

@@ -173,15 +173,22 @@ impl ProviderGenerationOutput {
         !self.cancelled && self.exit_success == Some(true) && self.claude_failure().is_none()
     }
 
+    /// The parsed Claude stream-json events; empty for other formats.
+    pub fn claude_events(&self) -> impl Iterator<Item = serde_json::Value> + '_ {
+        let stdout = match self.output_format {
+            GenerationOutputFormat::ClaudeStreamJson => self.stdout.as_slice(),
+            _ => &[],
+        };
+        stdout
+            .split(|byte| *byte == b'\n')
+            .filter_map(|line| serde_json::from_slice(line).ok())
+    }
+
     /// A terminal protocol failure takes precedence over a successful OS exit.
     fn claude_failure(&self) -> Option<String> {
-        if self.output_format != GenerationOutputFormat::ClaudeStreamJson {
-            return None;
-        }
-        String::from_utf8_lossy(&self.stdout)
-            .lines()
-            .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
-            .rfind(|event| event["type"] == "result")
+        self.claude_events()
+            .filter(|event| event["type"] == "result")
+            .last()
             .filter(|event| {
                 event["is_error"] == true
                     || event["subtype"]

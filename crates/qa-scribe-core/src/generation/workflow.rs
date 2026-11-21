@@ -10,7 +10,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     QaScribeError, Result,
-    ai::{ProviderGenerationOutput, generation_tools::effective_read_sources},
+    ai::{
+        ProviderGenerationOutput,
+        generation_tools::effective_read_sources,
+        read_source_availability::{UnavailableReadSource, unavailable_read_sources},
+    },
     domain::{
         AiProvider, AiRun, Attachment, Draft, DraftCreate, DraftKind, Entry, EntryPatch, Finding,
         FindingDraft, FindingKind, GenerationContext, GenerationReadSource, TITLE_MAX_LENGTH,
@@ -94,6 +98,9 @@ pub struct GenerateAiActionResult {
     pub draft: Option<Draft>,
     pub finding: Option<Finding>,
     pub note_entry: Option<Entry>,
+    /// Enabled read sources Claude Code could not offer this run. The run
+    /// still succeeds; the app warns that the result may lack their context.
+    pub unavailable_read_sources: Vec<UnavailableReadSource>,
 }
 
 /// Everything the prepare step persisted and derived: the AiRun to complete
@@ -204,6 +211,8 @@ fn finish_successful_generation(
     output: ProviderGenerationOutput,
 ) -> Result<GenerateAiActionResult> {
     let ai_run_id = prepared.ai_run.id.clone();
+    let unavailable_read_sources =
+        unavailable_read_sources(output.claude_events(), &prepared.read_sources);
     let result = (|| {
         let response = output.response_text().map_err(QaScribeError::Validation)?;
         let body = parse_rich_html_fragment_response(&response, &prepared.output_marker);
@@ -218,7 +227,10 @@ fn finish_successful_generation(
     })();
 
     match result {
-        Ok(result) => Ok(result),
+        Ok(result) => Ok(GenerateAiActionResult {
+            unavailable_read_sources,
+            ..result
+        }),
         Err(error) => {
             let _ = service.fail_ai_run(&ai_run_id, &error.to_string());
             Err(error)
@@ -277,6 +289,7 @@ fn finish_testware_generation(
         draft: Some(draft),
         finding: None,
         note_entry: None,
+        unavailable_read_sources: Vec::new(),
     })
 }
 
@@ -315,6 +328,7 @@ fn finish_finding_generation(
         draft: None,
         finding: Some(finding),
         note_entry: None,
+        unavailable_read_sources: Vec::new(),
     })
 }
 
@@ -353,6 +367,7 @@ fn finish_summary_generation(
         draft: None,
         finding: None,
         note_entry: Some(note_entry),
+        unavailable_read_sources: Vec::new(),
     })
 }
 
@@ -363,6 +378,7 @@ fn failed_generation_result(prepared: PreparedGeneration, ai_run: AiRun) -> Gene
         draft: None,
         finding: None,
         note_entry: None,
+        unavailable_read_sources: Vec::new(),
     }
 }
 

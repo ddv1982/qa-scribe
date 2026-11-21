@@ -51,7 +51,7 @@ export function useAppController() {
     setSessionLibraryComplete,
     workspace: sessionWorkspace,
   } = useSessionWorkspace()
-  const { busyAction, notice, error, setBusyAction, setNotice, setError, feedback } = useWorkflowFeedback()
+  const { busyAction, notice, error, setBusyAction, setNotice, setWarning, setError, feedback } = useWorkflowFeedback()
   const {
     generationJobs,
     pendingGenerationAction,
@@ -187,7 +187,7 @@ export function useAppController() {
   const { creation, creationIntent, creationDecision, consumeSelectedRecord } = useCreationWorkspace({
     sourceAllowed: !noteReadOnly, noteEntryIdRef: sessionWorkspace.noteEntryIdRef, navigationIsCurrent: sessionActions.sessionNavigationIsCurrent, publishJob: generationActions.storeGenerationStatus,
     activeSessionIdRef: sessionWorkspace.activeSessionIdRef, beginNavigation: () => beginSessionNavigation(),
-    loadDraftsForSession, loadFindingsForSession, setActiveView, setError, setNotice, setCreatedRecordEditTarget,
+    loadDraftsForSession, loadFindingsForSession, setActiveView, setError, setNotice, setWarning, setCreatedRecordEditTarget,
     consumeCreatedRecordEditTarget: (target) => consumeCreatedRecordEditTarget(target),
   })
   const copyActions = useCopyActions()

@@ -19,6 +19,8 @@ use super::{
 mod completion;
 #[path = "tests/context_and_preferences.rs"]
 mod context_and_preferences;
+#[path = "tests/read_sources.rs"]
+mod read_sources;
 #[path = "tests/reviewed_source.rs"]
 mod reviewed_source;
 #[path = "tests/summary.rs"]

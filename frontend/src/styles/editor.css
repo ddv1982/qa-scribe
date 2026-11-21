@@ -231,6 +231,10 @@
   color: var(--danger);
 }
 
+.status-pill.warning {
+  color: var(--warning);
+}
+
 .status-pill.busy {
   color: var(--text-secondary);
 }

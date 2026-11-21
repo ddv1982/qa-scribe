@@ -210,7 +210,7 @@ function workflowContext(): AttachmentActionsContext {
     feedback: {
       setBusyAction: vi.fn(),
       setError: vi.fn(),
-      setNotice: vi.fn(),
+      setNotice: vi.fn(), setWarning: vi.fn(),
     },
     registerImportedAttachment: vi.fn(),
   }

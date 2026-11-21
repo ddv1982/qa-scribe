@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { Bug, Check, CheckCircle2, Loader2, Save, type LucideIcon } from 'lucide-react'
+import { AlertTriangle, Bug, Check, CheckCircle2, Loader2, Save, type LucideIcon } from 'lucide-react'
 import { ActionButton } from './ActionButton'
 import type { BusyAction, SettingsSaveState } from '../ui/types'
+import type { Notice } from '../app/types'
 
 export function StatePanel({
   icon: Icon,
@@ -96,7 +97,7 @@ export function SaveSettingsButton({
   )
 }
 
-export function StatusPill({ notice, error, busyAction }: { notice: string | null; error: string | null; busyAction: BusyAction | null }) {
+export function StatusPill({ notice, error, busyAction }: { notice: Notice; error: string | null; busyAction: BusyAction | null }) {
   if (error) {
     return (
       <p className="status-pill error" role="alert">
@@ -111,6 +112,15 @@ export function StatusPill({ notice, error, busyAction }: { notice: string | nul
       <p className="status-pill busy" role="status" aria-live="polite">
         <Loader2 className="spin" size={16} />
         Saving note
+      </p>
+    )
+  }
+
+  if (typeof notice === 'object' && notice) {
+    return (
+      <p className="status-pill warning" role="status" aria-live="polite">
+        <AlertTriangle size={16} />
+        {notice.warning}
       </p>
     )
   }

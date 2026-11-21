@@ -195,7 +195,7 @@ it('offers Open saved result in Generate when the generated finding is saved but
   const saved = findingFixture({ id: 'generated-finding', title: 'Generated finding' })
   const status = generationStatusFixture({ action: 'finding', jobId: 'job-1', state: 'completed' })
   const completed: GenerationJobEvent = { type: 'completed', job_id: 'job-1', status, result: {
-    generationContext: { id: 'context-1', sessionId: 'session-1', createdAt: 'now' },
+    generationContext: { id: 'context-1', sessionId: 'session-1', createdAt: 'now' }, unavailableReadSources: [],
     aiRun: { id: 'run-1', sessionId: 'session-1', generationContextId: 'context-1', provider: 'codex_cli', modelSelection: { kind: 'recorded', requested: { kind: 'default' }, reported: null }, reasoningEffort: null, promptVersion: 'finding-v4', status: 'completed', errorMessage: null, createdAt: 'now', completedAt: 'now' },
     finding: saved, draft: null, noteEntry: null,
   } }

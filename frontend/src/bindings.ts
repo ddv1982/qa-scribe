@@ -536,6 +536,11 @@ export type GenerateAiActionResult = {
 	draft: Draft | null,
 	finding: Finding | null,
 	noteEntry: Entry | null,
+	/**
+	 *  Enabled read sources Claude Code could not offer this run. The run
+	 *  still succeeds; the app warns that the result may lack their context.
+	 */
+	unavailableReadSources: UnavailableReadSource[],
 };
 
 export type GenerationContext = {
@@ -734,6 +739,20 @@ export type ProviderWarning = {
 };
 
 export type ProviderWarningSeverity = "advisory" | "blocking";
+
+/**  Why an enabled read source was not available to a run. */
+export type ReadSourceUnavailableReason = 
+/**
+ *  Claude Code did not load the connector at all: it is not added, is
+ *  turned off, or is blocked by policy.
+ */
+"connectorMissing" | 
+/**  The connector needs the user to sign in again. */
+"needsSignIn" | 
+/**  The connector loaded but did not connect. */
+"notConnected" | 
+/**  The connector connected but some of the source's tools are missing. */
+"toolsMissing";
 
 export type RecordContextSnapshot = {
 	sessionId: string,
@@ -1049,4 +1068,9 @@ export type TestwareGenerationPreferences = {
 export type TestwareOutputFormat = "qa_cases" | "checklist" | "gherkin" | "charters" | "coverage_outline";
 
 export type TestwareTechnique = "auto" | "use_case" | "equivalence_boundary" | "decision_table" | "state_transition" | "pairwise" | "classification_tree" | "error_guessing" | "checklist_based" | "risk_based" | "exploratory" | "bdd";
+
+export type UnavailableReadSource = {
+	source: GenerationReadSource,
+	reason: ReadSourceUnavailableReason,
+};
 

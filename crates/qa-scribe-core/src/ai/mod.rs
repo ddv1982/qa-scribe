@@ -3,6 +3,7 @@ pub mod chat_protocol;
 mod executor;
 pub mod generation_tools;
 mod model_report;
+pub mod read_source_availability;
 pub mod stream;
 
 pub use executor::{
