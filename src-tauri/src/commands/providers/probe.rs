@@ -70,7 +70,9 @@ pub(super) trait ProbeRunner {
     fn codex_app_server_defaults(&self) -> CodexDefaultsProbe {
         CodexDefaultsProbe::NotAttempted
     }
-    fn claude_structured_catalog(&self) -> StructuredCatalogProbe {
+    /// `cli_version` is the `claude --version` output the caller already has,
+    /// so discovery does not run it again.
+    fn claude_structured_catalog(&self, _cli_version: Option<&str>) -> StructuredCatalogProbe {
         StructuredCatalogProbe::NotAttempted
     }
     fn copilot_structured_catalog(&self) -> StructuredCatalogProbe {

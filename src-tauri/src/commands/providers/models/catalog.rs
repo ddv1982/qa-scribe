@@ -113,7 +113,7 @@ fn claude_catalog(
     runner: &dyn ProbeRunner,
     cli_version: Option<String>,
 ) -> ProviderModelCatalogSnapshot {
-    let structured_error = match runner.claude_structured_catalog() {
+    let structured_error = match runner.claude_structured_catalog(cli_version.as_deref()) {
         StructuredCatalogProbe::Success(catalog) => {
             let models = parse_claude_structured_models(&catalog.models);
             if !models.is_empty() {

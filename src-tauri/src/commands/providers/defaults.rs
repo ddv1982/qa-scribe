@@ -131,19 +131,34 @@ pub(super) fn codex_default_snapshot(
     }
 }
 
-pub(super) fn claude_default_snapshot(cli_version: Option<String>) -> ProviderDefaultSnapshot {
+pub(super) fn claude_default_snapshot(
+    models: &[ProviderModelDescriptor],
+    cli_version: Option<String>,
+) -> ProviderDefaultSnapshot {
     claude_default_snapshot_from_sources(
         claude_settings_paths(),
         env::var("ANTHROPIC_MODEL").ok(),
         env::var("CLAUDE_CODE_EFFORT_LEVEL").ok(),
+        claude_catalog_default_model(models),
         cli_version,
     )
+}
+
+/// The model Claude Code's own `default` entry points at, when its live
+/// catalog names one.
+fn claude_catalog_default_model(models: &[ProviderModelDescriptor]) -> Option<String> {
+    models
+        .iter()
+        .find(|model| model.id.eq_ignore_ascii_case("default"))
+        .and_then(|model| model.resolved_model.clone())
+        .and_then(configured_value)
 }
 
 fn claude_default_snapshot_from_sources(
     settings_paths: impl IntoIterator<Item = PathBuf>,
     environment_model: Option<String>,
     environment_reasoning: Option<String>,
+    recommended_model: Option<String>,
     cli_version: Option<String>,
 ) -> ProviderDefaultSnapshot {
     let mut model = None;
@@ -178,6 +193,19 @@ fn claude_default_snapshot_from_sources(
             .as_ref()
             .map(|_| environment_origin("CLAUDE_CODE_EFFORT_LEVEL"));
     }
+    let model_resolution = if model.is_some() {
+        ProviderDefaultResolution::Configured
+    } else if recommended_model.is_some() {
+        ProviderDefaultResolution::Recommended
+    } else {
+        ProviderDefaultResolution::ProviderManaged
+    };
+    let model_origin = model_origin.or_else(|| {
+        recommended_model
+            .as_ref()
+            .map(|_| recommendation_origin("Claude Code model catalog default"))
+    });
+    let model = model.or_else(|| recommended_model.clone());
     let detected = model.is_some() || reasoning.is_some();
     ProviderDefaultSnapshot {
         state: if detected {
@@ -185,7 +213,7 @@ fn claude_default_snapshot_from_sources(
         } else {
             ProviderDiscoveryState::ProviderManaged
         },
-        model: observed_value(model, model_origin),
+        model: ProviderDefaultValue::new(model, model_resolution, model_origin, recommended_model),
         reasoning_effort: observed_value(reasoning, reasoning_origin),
         checked_at: Some(checked_at_now()),
         cli_version,

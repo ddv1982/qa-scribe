@@ -76,7 +76,7 @@ impl ProbeRunner for StructuredRunner {
         self.help.clone()
     }
 
-    fn claude_structured_catalog(&self) -> StructuredCatalogProbe {
+    fn claude_structured_catalog(&self, _cli_version: Option<&str>) -> StructuredCatalogProbe {
         self.claude.clone()
     }
 
@@ -182,6 +182,9 @@ fn claude_structured_image_capabilities_use_explicit_evidence_before_identity() 
             None,
         ),
         (json!({"id":"claude-sonnet-99-0"}), None),
+        (json!({"id":"claude-opus-6"}), None),
+        (json!({"id":"claude-opus-5-10"}), None),
+        (json!({"id":"claude-mythos-5"}), None),
         (json!({"id":"claude-sonnet-4-6-custom"}), None),
         (json!({"id":"claude-opus-4-8-20260101"}), None),
         (json!({"id":"claude-sonnet-4-5-20990101"}), None),
@@ -222,6 +225,11 @@ fn claude_structured_image_policy_accepts_documented_models_and_aliases() {
         "claude-sonnet-5-5",
         "claude-haiku-5-5",
         "claude-fable-5-1",
+        "claude-fable-5-2",
+        "claude-fable-5",
+        "claude-opus-5",
+        "claude-sonnet-5",
+        "claude-opus-5-5[1m]",
     ] {
         let models = parse_claude_structured_models(&[json!({"value":id})]);
         assert_eq!(models[0].capabilities.vision, Some(true), "{id}");

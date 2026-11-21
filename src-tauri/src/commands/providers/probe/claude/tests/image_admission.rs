@@ -18,7 +18,7 @@ impl ProbeRunner for NormalizedCatalogRunner {
         CommandProbe::not_found()
     }
 
-    fn claude_structured_catalog(&self) -> StructuredCatalogProbe {
+    fn claude_structured_catalog(&self, _cli_version: Option<&str>) -> StructuredCatalogProbe {
         StructuredCatalogProbe::Success(StructuredCatalog {
             models: self.0.clone(),
             cli_version: None,
@@ -290,7 +290,7 @@ impl ProbeRunner for DetectionCatalogRunner {
         }
     }
 
-    fn claude_structured_catalog(&self) -> StructuredCatalogProbe {
+    fn claude_structured_catalog(&self, _cli_version: Option<&str>) -> StructuredCatalogProbe {
         StructuredCatalogProbe::Success(StructuredCatalog {
             models: self.0.clone(),
             cli_version: None,

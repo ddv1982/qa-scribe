@@ -1,6 +1,6 @@
 use std::{
     io::{Read, Write},
-    path::Path,
+    path::{Path, PathBuf},
     process::{ChildStdout, Command, Stdio},
     sync::mpsc,
     thread,
@@ -41,7 +41,7 @@ const CLAUDE_DISCOVERY_ARGS: &[&str] = &[
     "",
     "--no-session-persistence",
     "--disable-slash-commands",
-    "--strict-mcp-config",
+    STRICT_MCP_CONFIG_ARG,
     "--mcp-config",
     r#"{"mcpServers":{}}"#,
     "--tools",
@@ -49,6 +49,68 @@ const CLAUDE_DISCOVERY_ARGS: &[&str] = &[
     "--settings",
     r#"{"disableAllHooks":true}"#,
 ];
+
+const STRICT_MCP_CONFIG_ARG: &str = "--strict-mcp-config";
+
+// Keep claude.ai connectors and IDE integrations from starting.
+const CLAUDE_DISCOVERY_ENV: &[(&str, &str)] = &[
+    ("ENABLE_CLAUDEAI_MCP_SERVERS", "false"),
+    ("CLAUDE_CODE_AUTO_CONNECT_IDE", "0"),
+    ("CLAUDE_CODE_IDE_SKIP_AUTO_INSTALL", "1"),
+];
+
+// A Claude Code session that started QA Scribe exports these. A child that
+// inherits them acts as part of that session.
+const CLAUDE_HOST_SESSION_ENV: &[&str] = &[
+    "CLAUDECODE",
+    "CLAUDE_CODE_SESSION_ID",
+    "CLAUDE_CODE_HOST_SESSION_ID",
+    "CLAUDE_CODE_CHILD_SESSION",
+    "CLAUDE_CODE_SESSION_ATTENDED",
+    "CLAUDE_CODE_MESSAGING_SOCKET",
+    "CLAUDE_CODE_MESSAGING_TOKEN",
+    "CLAUDE_CODE_EXECPATH",
+    "CLAUDE_EFFORT",
+    "CLAUDE_PID",
+    "CLAUDE_AGENT_SDK_VERSION",
+];
+
+/// Discovery arguments for this machine. Claude Code refuses
+/// `--strict-mcp-config` when an administrator's `managed-mcp.json` exists,
+/// and that file already has exclusive control over MCP servers.
+fn discovery_args(managed_mcp_config: bool) -> Vec<&'static str> {
+    CLAUDE_DISCOVERY_ARGS
+        .iter()
+        .copied()
+        .filter(|arg| !(managed_mcp_config && *arg == STRICT_MCP_CONFIG_ARG))
+        .collect()
+}
+
+fn managed_mcp_config_paths() -> Vec<PathBuf> {
+    if cfg!(target_os = "macos") {
+        vec![PathBuf::from(
+            "/Library/Application Support/ClaudeCode/managed-mcp.json",
+        )]
+    } else if cfg!(windows) {
+        let mut paths = vec![PathBuf::from(
+            r"C:\Program Files\ClaudeCode\managed-mcp.json",
+        )];
+        if let Some(program_data) = std::env::var_os("PROGRAMDATA") {
+            paths.push(PathBuf::from(program_data).join(r"ClaudeCode\managed-mcp.json"));
+        }
+        paths
+    } else {
+        vec![PathBuf::from("/etc/claude-code/managed-mcp.json")]
+    }
+}
+
+fn configure_discovery_command(command: &mut Command, managed_mcp_config: bool) {
+    command.args(discovery_args(managed_mcp_config));
+    for name in CLAUDE_HOST_SESSION_ENV {
+        command.env_remove(name);
+    }
+    command.envs(CLAUDE_DISCOVERY_ENV.iter().copied());
+}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct ClaudeCatalogResult {
@@ -86,9 +148,10 @@ pub(super) fn discover_with_cancellation(
         message: error.to_string(),
         retryable: true,
     })?;
+    let managed_mcp_config = managed_mcp_config_paths().iter().any(|path| path.exists());
     let mut command = Command::new(executable);
+    configure_discovery_command(&mut command, managed_mcp_config);
     command
-        .args(CLAUDE_DISCOVERY_ARGS)
         .current_dir(provider_cwd.path())
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())

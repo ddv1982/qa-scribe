@@ -83,8 +83,9 @@ available even when absent from a fresh catalog.
 
 The Claude and Copilot structured catalogs roll out through
 `QA_SCRIBE_PROVIDER_CATALOG_MODE`: `disabled` is the kill switch,
-`diagnostics` observes the catalog while retaining compatibility selector
-choices, and `selector` makes the catalog the selector source. Codex retains its
+`diagnostics` (the default) makes the Claude catalog the selector source and
+observes the Copilot catalog while retaining compatibility selector choices,
+and `selector` makes both catalogs the selector source. Codex retains its
 existing structured behavior in every mode.
 
 ## Benchmark workflows

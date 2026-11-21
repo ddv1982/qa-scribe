@@ -5,8 +5,9 @@ use serde_json::{Value, json};
 use crate::commands::providers::{ProviderDiscoveryError, ProviderDiscoveryErrorCode};
 
 use super::{
-    CLAUDE_DISCOVERY_ARGS, ClaudeCatalogResult, INITIALIZE_REQUEST_ID, MAX_FRAMES, MAX_MODELS,
-    MAX_OUTPUT_BYTES, MAX_QUEUED_FRAMES, ReaderEvent, discovery_error, ensure_before_deadline,
+    CLAUDE_DISCOVERY_ARGS, CLAUDE_HOST_SESSION_ENV, ClaudeCatalogResult, INITIALIZE_REQUEST_ID,
+    MAX_FRAMES, MAX_MODELS, MAX_OUTPUT_BYTES, MAX_QUEUED_FRAMES, ReaderEvent,
+    configure_discovery_command, discovery_args, discovery_error, ensure_before_deadline,
     protocol::parse_frame, read_frames, write_initialize_frame,
 };
 
@@ -246,6 +247,68 @@ fn argv_is_an_exact_non_prompt_safety_policy() {
             .iter()
             .any(|argument| { matches!(*argument, "-p" | "--print" | "--prompt" | "--model") })
     );
+}
+
+#[test]
+fn managed_mcp_config_drops_only_strict_mcp_mode() {
+    assert_eq!(discovery_args(false), CLAUDE_DISCOVERY_ARGS);
+    let managed = discovery_args(true);
+    let expected: Vec<_> = CLAUDE_DISCOVERY_ARGS
+        .iter()
+        .copied()
+        .filter(|argument| *argument != "--strict-mcp-config")
+        .collect();
+    assert_eq!(managed, expected);
+    assert!(managed.contains(&"--mcp-config"));
+}
+
+#[test]
+fn discovery_command_turns_off_connectors_and_drops_host_session_env() {
+    let mut command = std::process::Command::new("claude");
+    command.env("CLAUDECODE", "1");
+    command.env("CLAUDE_CODE_SESSION_ID", "host-session");
+    configure_discovery_command(&mut command, false);
+
+    let envs: std::collections::HashMap<_, _> = command
+        .get_envs()
+        .map(|(name, value)| (name.to_string_lossy().into_owned(), value))
+        .collect();
+    for name in CLAUDE_HOST_SESSION_ENV {
+        assert_eq!(envs.get(*name), Some(&None), "{name} must be removed");
+    }
+    assert_eq!(
+        envs.get("ENABLE_CLAUDEAI_MCP_SERVERS"),
+        Some(&Some(std::ffi::OsStr::new("false")))
+    );
+    assert_eq!(
+        envs.get("CLAUDE_CODE_AUTO_CONNECT_IDE"),
+        Some(&Some(std::ffi::OsStr::new("0")))
+    );
+    assert_eq!(
+        envs.get("CLAUDE_CODE_IDE_SKIP_AUTO_INSTALL"),
+        Some(&Some(std::ffi::OsStr::new("1")))
+    );
+    let args: Vec<_> = command.get_args().collect();
+    assert_eq!(args.len(), CLAUDE_DISCOVERY_ARGS.len());
+}
+
+#[test]
+fn current_cli_catalog_keeps_aliases_and_drops_account_details() {
+    let result = parse_fixture(
+        include_str!("../fixtures/claude/current_2_1_330.jsonl"),
+        MAX_MODELS,
+    )
+    .unwrap();
+    let serialized = serde_json::to_string(&result.models).unwrap();
+
+    assert_eq!(result.models.len(), 14);
+    assert_eq!(result.models[0]["id"], "default");
+    assert_eq!(result.models[0]["resolvedModel"], "claude-opus-5-5");
+    assert_eq!(result.models[2]["id"], "fable");
+    assert_eq!(result.models[2]["resolvedModel"], "claude-fable-5-2");
+    for forbidden in ["person@example.com", "subscriptionType", "tokenSource"] {
+        assert!(!serialized.contains(forbidden), "{forbidden}");
+    }
 }
 
 #[test]

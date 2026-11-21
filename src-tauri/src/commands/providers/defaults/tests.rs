@@ -95,6 +95,7 @@ fn claude_defaults_apply_managed_then_environment_precedence_without_project_set
         vec![user.clone(), managed.clone()],
         Some("environment-model".to_string()),
         None,
+        Some("catalog-default".to_string()),
         Some("2.1.50".to_string()),
     );
 
@@ -118,13 +119,36 @@ fn claude_defaults_apply_managed_then_environment_precedence_without_project_set
         ProviderResolutionScope::neutral()
     );
 
-    let provider_managed =
-        claude_default_snapshot_from_sources(Vec::new(), Some("default".to_string()), None, None);
+    let provider_managed = claude_default_snapshot_from_sources(
+        Vec::new(),
+        Some("default".to_string()),
+        None,
+        None,
+        None,
+    );
     assert_eq!(
         provider_managed.state,
         ProviderDiscoveryState::ProviderManaged
     );
     assert_eq!(provider_managed.model.value, None);
+
+    let recommended = claude_default_snapshot_from_sources(
+        Vec::new(),
+        None,
+        None,
+        Some("claude-opus-5-5".to_string()),
+        None,
+    );
+    assert_eq!(recommended.state, ProviderDiscoveryState::Detected);
+    assert_eq!(recommended.model.value.as_deref(), Some("claude-opus-5-5"));
+    assert_eq!(
+        recommended.model.resolution,
+        ProviderDefaultResolution::Recommended
+    );
+    assert_eq!(
+        recommended.model.origin.as_ref().map(|origin| origin.kind),
+        Some(ProviderDefaultOriginKind::CliRecommendation)
+    );
 
     let _ = fs::remove_file(user);
     let _ = fs::remove_file(managed);
