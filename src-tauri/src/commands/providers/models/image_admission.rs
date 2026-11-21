@@ -7,7 +7,13 @@ impl ProviderDescriptor {
             || selection.eq_ignore_ascii_case("default")
             || selection.eq_ignore_ascii_case("auto")
         {
-            self.default_snapshot.model.value.as_deref()
+            // A retained stale catalog can outlive the default it resolved
+            // to; its own `default` row still knows the model's image support.
+            self.default_snapshot
+                .model
+                .value
+                .as_deref()
+                .or(Some("default"))
         } else {
             Some(selection)
         };

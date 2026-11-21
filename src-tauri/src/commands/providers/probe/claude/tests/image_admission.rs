@@ -175,6 +175,12 @@ fn image_admission_preserves_evidence_through_normalization_and_catalog_parsing(
             unknown.clone(),
         ),
         (
+            json!([{"value":"default","resolvedModel":"claude-opus-5-5"}]),
+            None,
+            "default",
+            Ok(()),
+        ),
+        (
             json!([{"value":"sonnet","resolvedModel":"custom"}]),
             None,
             "sonnet",
