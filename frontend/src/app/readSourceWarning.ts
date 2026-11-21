@@ -13,7 +13,7 @@ function connector(source: GenerationReadSource) {
 
 function cause(name: string, reason: Exclude<ReadSourceUnavailableReason, 'toolsMissing'>) {
   if (reason === 'needsSignIn') return `the ${name} connector needs you to sign in again in Claude Code`
-  if (reason === 'notConnected') return `the ${name} connector didn't connect in Claude Code`
+  if (reason === 'notConnected') return `the ${name} connector wasn't connected in Claude Code when the run started`
   return `the ${name} connector isn't on in Claude Code`
 }
 

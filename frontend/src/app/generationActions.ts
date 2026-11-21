@@ -57,7 +57,7 @@ export function createGenerationActions(ctx: GenerationActionsContext) {
     })
   }
 
-  function applyGeneratedNoteEntry(generatedEntry: Entry) {
+  function applyGeneratedNoteEntry(generatedEntry: Entry, warning: string | null) {
     if (!ctx.noteEligibility.canAdoptSummary(generatedEntry.sessionId)) return
     const previousBody = ctx.session.noteBodyRef.current
     const generatedBody = richEditorDocumentFromStoredBody(generatedEntry)
@@ -83,6 +83,9 @@ export function createGenerationActions(ctx: GenerationActionsContext) {
       sessionId: richNoteEntry.sessionId,
       expectedCurrentBody: nextSerialized,
       allowRecoveryWrite: true,
+    }).then((saved) => {
+      // The image write's "Note saved" would replace the warning.
+      if (saved && warning) ctx.feedback.setWarning(warning)
     })
     ctx.feedback.setNotice('Note summarized')
   }
@@ -216,6 +219,7 @@ export function createGenerationActions(ctx: GenerationActionsContext) {
     }
 
     const { result } = event
+    const warning = readSourceWarning(result.unavailableReadSources)
     if (result.draft && ctx.session.activeSessionIdRef.current === result.draft.sessionId) {
       const draftDocument = richEditorDocumentFromStoredBody(result.draft)
       const storedBody = richEditorDocumentToStoredBody(draftDocument)
@@ -233,11 +237,10 @@ export function createGenerationActions(ctx: GenerationActionsContext) {
       ctx.navigation.setActiveView('findings')
       ctx.feedback.setNotice('Finding created')
     } else if (result.noteEntry && ctx.session.noteEntryIdRef.current === result.noteEntry.id) {
-      applyGeneratedNoteEntry(result.noteEntry)
+      applyGeneratedNoteEntry(result.noteEntry, warning)
     } else {
       ctx.feedback.setNotice(result.aiRun.errorMessage ?? 'AI action finished')
     }
-    const warning = readSourceWarning(result.unavailableReadSources)
     if (warning) ctx.feedback.setWarning(warning)
   }
 

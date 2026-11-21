@@ -4,7 +4,7 @@ import { StatusPill } from '../components/Common'
 import { entryFixture, generationStatusFixture } from '../test/fixtures'
 import { readSourceWarning } from './readSourceWarning'
 import { useWorkflowFeedback } from './useWorkflowFeedback'
-import { cleanupControllerTest, getTauriMock, renderWithControllerStartup, setupControllerTest, useAppController } from './useAppController.testHarness'
+import { cleanupControllerTest, getTauriMock, renderWithControllerStartup, sessionNoteStateFixture, setupControllerTest, useAppController } from './useAppController.testHarness'
 
 const tauriMock = getTauriMock()
 
@@ -28,7 +28,7 @@ describe('readSourceWarning', () => {
       { source: 'jira', reason: 'toolsMissing' },
       { source: 'teamsChannels', reason: 'notConnected' },
     ])).toBe("Some lookups in Jira weren't available."
-      + " Couldn't look up Teams channels: the Microsoft 365 connector didn't connect in Claude Code.")
+      + " Couldn't look up Teams channels: the Microsoft 365 connector wasn't connected in Claude Code when the run started.")
   })
 
   it('keeps a warning until the next notice replaces it', () => {
@@ -54,6 +54,28 @@ describe('a Summarize run without its read source', () => {
   afterEach(cleanupControllerTest)
 
   it('keeps the summary and Undo, and shows the warning', async () => {
+    mockSummaryWithoutJira()
+    const { result } = await renderWithControllerStartup(() => renderHook(() => useAppController()))
+    await act(async () => { await result.current.handleAiAction('summary') })
+
+    await waitFor(() => expect(result.current.latestNoteGenerationUndo).not.toBeNull())
+    expect(result.current.notice).toEqual({ warning: "Couldn't look up Jira: the Atlassian connector isn't on in Claude Code." })
+  })
+
+  it("keeps the warning after the Note's images are written back", async () => {
+    const image = '<p><img data-attachment-id="attachment-1" src="qa-scribe-attachment://attachment-1" alt="Evidence"></p>'
+    tauriMock.openSessionNoteState.mockResolvedValueOnce(sessionNoteStateFixture({ noteEntry: entryFixture({ body: `<p>Original Note.</p>${image}` }) }))
+    tauriMock.updateEntry.mockImplementationOnce(async (_id: string, patch: { body: string }) => entryFixture({ body: patch.body }))
+    mockSummaryWithoutJira()
+    const { result } = await renderWithControllerStartup(() => renderHook(() => useAppController()))
+    await act(async () => { await result.current.handleAiAction('summary') })
+
+    await waitFor(() => expect(tauriMock.updateEntry).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(result.current.notice).toEqual({ warning: "Couldn't look up Jira: the Atlassian connector isn't on in Claude Code." }))
+  })
+})
+
+function mockSummaryWithoutJira() {
     tauriMock.startAiActionJob.mockImplementationOnce(async (_request: unknown, onEvent: (event: unknown) => void) => {
       // Real job events arrive after the start call returns.
       setTimeout(() => onEvent({
@@ -75,11 +97,4 @@ describe('a Summarize run without its read source', () => {
       }))
       return { jobId: 'job-summary', status: generationStatusFixture({ jobId: 'job-summary', action: 'summary', state: 'completed' }) }
     })
-
-    const { result } = await renderWithControllerStartup(() => renderHook(() => useAppController()))
-    await act(async () => { await result.current.handleAiAction('summary') })
-
-    await waitFor(() => expect(result.current.latestNoteGenerationUndo).not.toBeNull())
-    expect(result.current.notice).toEqual({ warning: "Couldn't look up Jira: the Atlassian connector isn't on in Claude Code." })
-  })
-})
+}

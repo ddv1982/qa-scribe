@@ -46,7 +46,10 @@ pub fn unavailable_read_sources(
         eprintln!("Generate read sources: Claude Code sent no init event; availability unknown.");
         return Vec::new();
     };
-    let Some(tools) = init["tools"].as_array() else {
+    let Some(tools) = init["tools"]
+        .as_array()
+        .filter(|tools| tools.iter().all(Value::is_string))
+    else {
         eprintln!(
             "Generate read sources: Claude Code init has no tool list; availability unknown."
         );
@@ -96,6 +99,7 @@ fn reason(servers: &Value, tool_prefix: &str) -> ReadSourceUnavailableReason {
         None => ReadSourceUnavailableReason::ConnectorMissing,
         Some(Some("needs-auth")) => ReadSourceUnavailableReason::NeedsSignIn,
         Some(Some("connected")) => ReadSourceUnavailableReason::ToolsMissing,
+        Some(Some("disabled")) => ReadSourceUnavailableReason::ConnectorMissing,
         Some(_) => ReadSourceUnavailableReason::NotConnected,
     }
 }
@@ -182,6 +186,8 @@ mod tests {
                 gap(TeamsChannels, NotConnected)
             ]
         );
+        let event = init(Vec::new(), &[(ATLASSIAN, "disabled")]);
+        assert_eq!(check(event, &[Jira]), [gap(Jira, ConnectorMissing)]);
     }
 
     #[test]
@@ -210,6 +216,8 @@ mod tests {
         assert!(unavailable_read_sources([json!({"type": "result"})], &[Jira]).is_empty());
         let mut event = init(Vec::new(), &[]);
         event.as_object_mut().unwrap().remove("tools");
+        assert!(check(event.clone(), &[Jira]).is_empty());
+        event["tools"] = json!([null]);
         assert!(check(event, &[Jira]).is_empty());
     }
 
