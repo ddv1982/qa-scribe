@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.16.0 - 2026-11-22
+
+- When "Generate may read" is on and Claude Code can't reach Jira, Confluence or Teams, Generate, Create Finding and Summarize still finish, and the status line now says which source was skipped and why: the connector is off, needs you to sign in again, or wasn't connected when the run started. Before, the result looked normal but lacked that context.
+- Claude's model picker now lists the models your Claude Code actually offers, including new ones, instead of a fixed list. The recommended default follows Claude Code's own default. Set `QA_SCRIBE_PROVIDER_CATALOG_MODE=off` to go back to the fixed list.
+- New Claude models such as Fable 5.2, Opus 5 and Sonnet 5 can be used with screenshots in your Note.
+
 ## v0.15.0 - 2026-11-19
 
 - Security: Generate, Create Finding and Summarize now run your AI CLI with no tools. Pasted logs, tickets or API responses can no longer make it run commands, read files or call MCP tools without asking. With Codex, every MCP server in your Codex config is turned off for these runs. Chat still asks before each tool.
