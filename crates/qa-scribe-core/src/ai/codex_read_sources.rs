@@ -104,12 +104,48 @@ pub(super) fn codex_atlassian_run_args(tools: &[&str]) -> Vec<String> {
     args
 }
 
-/// Turns the reserved server name off for a run that does not use it.
+/// Turns the reserved server name off for a run that does not use it. The
+/// URL is defined too: Codex refuses to load a server entry without one.
 pub(super) fn codex_atlassian_disabled_args() -> Vec<String> {
-    vec![
+    let mut args = codex_atlassian_config_args();
+    args.extend([
         "-c".to_owned(),
         format!("mcp_servers.{CODEX_ATLASSIAN_SERVER}.enabled=false"),
-    ]
+    ]);
+    args
+}
+
+/// Looks the reserved name up in the user's own config, without QA Scribe's
+/// overrides. `mcp get` reads config only, so nothing is sent anywhere.
+pub const CODEX_RESERVED_NAME_ARGS: &[&str] = &[
+    "-c",
+    "features.plugins=false",
+    "-c",
+    "features.apps=false",
+    "mcp",
+    "get",
+    CODEX_ATLASSIAN_SERVER,
+    "--json",
+];
+
+/// Refuses a user server with the reserved name, given the outcome of
+/// [`CODEX_RESERVED_NAME_ARGS`]. It must run before any command that adds
+/// QA Scribe's URL: Codex would merge the user's headers or token settings
+/// into that server and could send them to Atlassian.
+pub fn codex_reserved_name_free(success: bool, stderr: &str) -> Result<(), String> {
+    if success {
+        return Err(format!(
+            "Your Codex config has its own MCP server named \"{CODEX_ATLASSIAN_SERVER}\", so this was stopped. Rename or remove that server so QA Scribe can use the name for Jira and Confluence lookups."
+        ));
+    }
+    if stderr.contains("No MCP server named") {
+        Ok(())
+    } else {
+        Err(format!(
+            "Could not check your Codex config for an MCP server named \"{CODEX_ATLASSIAN_SERVER}\": {}",
+            stderr.trim()
+        ))
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, specta::Type)]
@@ -191,7 +227,7 @@ fn atlassian_status(server: &ListedServer) -> Result<CodexAtlassianStatus, Strin
         });
     if !only_ours {
         return Err(format!(
-            "Codex lists an MCP server named \"{CODEX_ATLASSIAN_SERVER}\" with settings QA Scribe did not add, so Jira and Confluence lookups are off. Rename or remove that server in your Codex config. If you have none, update QA Scribe: your Codex version may report new server settings."
+            "Codex lists an MCP server named \"{CODEX_ATLASSIAN_SERVER}\" with settings QA Scribe did not add, so this run was stopped. Rename or remove that server in your Codex config. If you have none, update QA Scribe: your Codex version may report new server settings."
         ));
     }
     Ok(
@@ -233,30 +269,35 @@ pub fn codex_failed_lookups(
     events: impl IntoIterator<Item = Value>,
     sources: &[GenerationReadSource],
 ) -> Vec<UnavailableReadSource> {
-    let mut failed: Vec<UnavailableReadSource> = Vec::new();
+    // The last outcome of each tool counts, so a retry that succeeded does
+    // not warn.
+    let mut last_failed: Vec<(String, bool)> = Vec::new();
     for event in events {
         let item = &event["item"];
         if event["type"] != "item.completed"
             || item["type"] != "mcp_tool_call"
             || item["server"] != CODEX_ATLASSIAN_SERVER
-            || item["status"] != "failed"
         {
             continue;
         }
-        let tool = item["tool"].as_str().unwrap_or_default();
-        for source in sources.iter().filter(|source| {
-            codex_supports_read_source(**source) && read_tools(**source).contains(&tool)
-        }) {
-            let gap = UnavailableReadSource {
-                source: *source,
-                reason: ReadSourceUnavailableReason::NotConnected,
-            };
-            if !failed.contains(&gap) {
-                failed.push(gap);
-            }
-        }
+        let tool = item["tool"].as_str().unwrap_or_default().to_owned();
+        let failed = item["status"] == "failed";
+        last_failed.retain(|(seen, _)| *seen != tool);
+        last_failed.push((tool, failed));
     }
-    failed
+    sources
+        .iter()
+        .filter(|source| {
+            codex_supports_read_source(**source)
+                && last_failed
+                    .iter()
+                    .any(|(tool, failed)| *failed && read_tools(**source).contains(&tool.as_str()))
+        })
+        .map(|source| UnavailableReadSource {
+            source: *source,
+            reason: ReadSourceUnavailableReason::NotConnected,
+        })
+        .collect()
 }
 
 /// Codex's built-in MCP resource operations. They reach only servers that

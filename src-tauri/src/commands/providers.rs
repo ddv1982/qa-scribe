@@ -1,7 +1,10 @@
 use qa_scribe_core::{
     ai::{
         ProviderCapability,
-        codex_read_sources::{CodexMcpInventory, codex_atlassian_tools, codex_mcp_inventory},
+        codex_read_sources::{
+            CODEX_RESERVED_NAME_ARGS, CodexMcpInventory, codex_atlassian_tools,
+            codex_mcp_inventory, codex_reserved_name_free,
+        },
         generation_tools::codex_mcp_list_args,
         provider_capabilities,
     },
@@ -75,17 +78,17 @@ pub fn codex_mcp_inventory_for_job(
     control: &JobControl,
     read_sources: &[GenerationReadSource],
 ) -> Result<CodexMcpInventory, String> {
+    let runner = SystemProbeRunner::for_job(ProviderPathMode::Deep, control);
     let with_atlassian = !codex_atlassian_tools(read_sources).is_empty();
+    if with_atlassian {
+        codex_reserved_name_free_with(&runner)?;
+    }
     let args = codex_mcp_list_args(with_atlassian);
     let args: Vec<&str> = args.iter().map(String::as_str).collect();
     // Listing checks each HTTP server's sign-in status, which takes about
     // five seconds for an unreachable server, so the short probe limit is
     // too tight here.
-    let probe = SystemProbeRunner::for_job(ProviderPathMode::Deep, control).run_with_timeout(
-        "codex",
-        &args,
-        std::time::Duration::from_secs(20),
-    );
+    let probe = runner.run_with_timeout("codex", &args, std::time::Duration::from_secs(20));
     if !probe.success {
         return Err(format!(
             "Could not list Codex MCP servers to turn them off for this run: {}",
@@ -93,6 +96,17 @@ pub fn codex_mcp_inventory_for_job(
         ));
     }
     codex_mcp_inventory(&probe.stdout, with_atlassian)
+}
+
+/// Refuses a user Codex server with QA Scribe's reserved Atlassian name
+/// before any command adds QA Scribe's URL to it.
+fn codex_reserved_name_free_with(runner: &SystemProbeRunner) -> Result<(), String> {
+    let probe = runner.run_with_timeout(
+        "codex",
+        CODEX_RESERVED_NAME_ARGS,
+        std::time::Duration::from_secs(10),
+    );
+    codex_reserved_name_free(probe.success, &probe.stderr)
 }
 
 #[cfg(test)]

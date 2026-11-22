@@ -72,7 +72,11 @@ fn the_server_stays_out_unless_signed_in_with_an_atlassian_source() {
         // URL override hid cannot run.
         assert_eq!(
             server_settings(&codex_args(&[Jira], status)),
-            ["enabled=false"]
+            [
+                r#"url="https://mcp.atlassian.com/v2/mcp?tools=all""#,
+                r#"scopes=["read:me","offline_access","read:jira:agent-interface","search:jira:agent-interface","read:confluence:agent-interface","search:confluence:agent-interface"]"#,
+                "enabled=false",
+            ]
         );
     }
     for sources in [&[TeamsChannels, TeamsChats][..], &[][..]] {
@@ -256,24 +260,54 @@ fn without_the_overrides_the_reserved_name_is_an_ordinary_user_server() {
 
 #[test]
 fn a_failed_lookup_is_reported_for_the_sources_it_serves() {
-    let mut failed = tool_call(CODEX_ATLASSIAN_SERVER, "getAccessibleAtlassianResources");
-    failed["item"]["status"] = json!("failed");
-    let mut jira_failed = tool_call(CODEX_ATLASSIAN_SERVER, "getJiraIssue");
-    jira_failed["item"]["status"] = json!("failed");
-    let ok = tool_call(CODEX_ATLASSIAN_SERVER, "searchConfluence");
+    let failed = |tool| {
+        let mut call = tool_call(CODEX_ATLASSIAN_SERVER, tool);
+        call["item"]["status"] = json!("failed");
+        call
+    };
+    let ok = |tool| tool_call(CODEX_ATLASSIAN_SERVER, tool);
     let not_connected = |source| UnavailableReadSource {
         source,
         reason: ReadSourceUnavailableReason::NotConnected,
     };
     assert_eq!(
         codex_failed_lookups(
-            [failed, jira_failed.clone(), ok.clone()],
+            [
+                failed("getAccessibleAtlassianResources"),
+                ok("searchConfluence")
+            ],
             &[Jira, Confluence]
         ),
         [not_connected(Jira), not_connected(Confluence)]
     );
     assert_eq!(
-        codex_failed_lookups([jira_failed, ok], &[Jira, Confluence]),
+        codex_failed_lookups(
+            [failed("getJiraIssue"), ok("searchConfluence")],
+            &[Jira, Confluence]
+        ),
         [not_connected(Jira)]
+    );
+    // A retry that succeeded clears the failure.
+    assert!(
+        codex_failed_lookups(
+            [
+                failed("searchJiraIssuesUsingJql"),
+                ok("searchJiraIssuesUsingJql")
+            ],
+            &[Jira]
+        )
+        .is_empty()
+    );
+}
+
+#[test]
+fn only_a_missing_reserved_name_lets_the_overrides_run() {
+    let missing = "Error: No MCP server named 'qa_scribe_atlassian' found.";
+    assert!(codex_reserved_name_free(false, missing).is_ok());
+    assert!(codex_reserved_name_free(true, "").is_err());
+    assert!(codex_reserved_name_free(false, "Error loading config.toml").is_err());
+    assert_eq!(
+        CODEX_RESERVED_NAME_ARGS[4..],
+        ["mcp", "get", CODEX_ATLASSIAN_SERVER, "--json"]
     );
 }

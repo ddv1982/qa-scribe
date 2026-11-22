@@ -23,6 +23,8 @@ const LIST_TIMEOUT: Duration = Duration::from_secs(20);
 const SIGN_IN_TIMEOUT: Duration = Duration::from_secs(300);
 const SIGN_OUT_TIMEOUT: Duration = Duration::from_secs(20);
 
+const SIGN_IN_LABEL: &str = "Signing in to Atlassian for Codex";
+
 static SIGN_IN_RUNNING: AtomicBool = AtomicBool::new(false);
 
 #[tauri::command]
@@ -40,11 +42,7 @@ pub async fn sign_in_codex_atlassian() -> Result<CodexAtlassianStatus, String> {
         if SIGN_IN_RUNNING.swap(true, Ordering::AcqRel) {
             return Err("A Codex sign-in is already waiting in your browser.".to_owned());
         }
-        let result = run_server_command(
-            "login",
-            SIGN_IN_TIMEOUT,
-            "Signing in to Atlassian for Codex",
-        );
+        let result = run_server_command("login", SIGN_IN_TIMEOUT, SIGN_IN_LABEL);
         SIGN_IN_RUNNING.store(false, Ordering::Release);
         result?;
         status()
@@ -75,6 +73,8 @@ async fn blocking(
 }
 
 fn status() -> Result<CodexAtlassianStatus, String> {
+    let runner = SystemProbeRunner::new(ProviderPathMode::Deep);
+    super::codex_reserved_name_free_with(&runner)?;
     let args = codex_mcp_list_args(true);
     let probe = run_codex(&args, LIST_TIMEOUT);
     if !probe.success {
@@ -121,7 +121,11 @@ fn failure(label: &str, probe: &CommandProbe) -> String {
         .or_else(|| last_line(&probe.stdout))
         .unwrap_or_else(|| "Codex stopped without saying why.".to_owned());
     if detail.contains("timed out") || detail.contains("deadline has elapsed") {
-        return format!("{label} timed out. Finish the sign-in in your browser within 5 minutes.");
+        return if label == SIGN_IN_LABEL {
+            format!("{label} timed out. Finish the sign-in in your browser within 5 minutes.")
+        } else {
+            format!("{label} timed out.")
+        };
     }
     format!("{label} failed: {detail}")
 }
