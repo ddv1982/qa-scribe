@@ -365,7 +365,7 @@ export function SettingsView({
           </section>
         ) : null}
 
-        {settingsDraft ? <GenerationReadSourcesSetting settingsDraft={settingsDraft} updateSettingsDraft={updateSettingsDraft} /> : null}
+        {settingsDraft ? <GenerationReadSourcesSetting settingsDraft={settingsDraft} updateSettingsDraft={updateSettingsDraft} codexAvailable={providerOptions.some((provider) => provider.id === 'codex_cli' && provider.available)} /> : null}
 
         <section className="wide-setting advanced-setting" id="template-settings">
           <details>

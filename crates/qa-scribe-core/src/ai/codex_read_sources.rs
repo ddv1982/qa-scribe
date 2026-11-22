@@ -77,9 +77,14 @@ pub fn codex_atlassian_tools(sources: &[GenerationReadSource]) -> Vec<&'static s
 }
 
 /// Run arguments that turn the server on with only `tools` callable.
+///
+/// `codex exec` cannot ask, so it refuses any MCP call that needs approval,
+/// and its default mode needs approval for every tool the server does not
+/// mark read-only. Each allowlisted read tool is approved explicitly; the
+/// read-only token and the allowlist still bound what it can do.
 pub(super) fn codex_atlassian_run_args(tools: &[&str]) -> Vec<String> {
     let mut args = codex_atlassian_config_args();
-    let tools = tools
+    let allowlist = tools
         .iter()
         .map(|tool| format!("{tool:?}"))
         .collect::<Vec<_>>()
@@ -88,9 +93,23 @@ pub(super) fn codex_atlassian_run_args(tools: &[&str]) -> Vec<String> {
         "-c".to_owned(),
         format!("mcp_servers.{CODEX_ATLASSIAN_SERVER}.enabled=true"),
         "-c".to_owned(),
-        format!("mcp_servers.{CODEX_ATLASSIAN_SERVER}.enabled_tools=[{tools}]"),
+        format!("mcp_servers.{CODEX_ATLASSIAN_SERVER}.enabled_tools=[{allowlist}]"),
     ]);
+    for tool in tools {
+        args.extend([
+            "-c".to_owned(),
+            format!("mcp_servers.{CODEX_ATLASSIAN_SERVER}.tools.{tool}.approval_mode=\"approve\""),
+        ]);
+    }
     args
+}
+
+/// Turns the reserved server name off for a run that does not use it.
+pub(super) fn codex_atlassian_disabled_args() -> Vec<String> {
+    vec![
+        "-c".to_owned(),
+        format!("mcp_servers.{CODEX_ATLASSIAN_SERVER}.enabled=false"),
+    ]
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, specta::Type)]
@@ -123,7 +142,14 @@ struct ListedServer {
 /// bare `-c` key is refused, so a server is never left on silently. A user
 /// server that shares QA Scribe's Atlassian name is refused too: Codex merges
 /// config tables, so its headers or token settings would leak into the run.
-pub fn codex_mcp_inventory(list_json: &str) -> Result<CodexMcpInventory, String> {
+///
+/// `with_atlassian` says the list ran with QA Scribe's overrides. Without
+/// them, a server with the reserved name is the user's own and is turned off
+/// like any other.
+pub fn codex_mcp_inventory(
+    list_json: &str,
+    with_atlassian: bool,
+) -> Result<CodexMcpInventory, String> {
     let servers: Vec<ListedServer> = serde_json::from_str(list_json)
         .map_err(|error| format!("Could not read the Codex MCP server list: {error}"))?;
     let mut inventory = CodexMcpInventory {
@@ -131,7 +157,7 @@ pub fn codex_mcp_inventory(list_json: &str) -> Result<CodexMcpInventory, String>
         atlassian: None,
     };
     for server in servers {
-        if server.name == CODEX_ATLASSIAN_SERVER {
+        if with_atlassian && server.name == CODEX_ATLASSIAN_SERVER {
             inventory.atlassian = Some(atlassian_status(&server)?);
             continue;
         }
@@ -165,7 +191,7 @@ fn atlassian_status(server: &ListedServer) -> Result<CodexAtlassianStatus, Strin
         });
     if !only_ours {
         return Err(format!(
-            "Your Codex config has its own MCP server named \"{CODEX_ATLASSIAN_SERVER}\". Rename or remove it so QA Scribe can use that name for Jira and Confluence lookups."
+            "Codex lists an MCP server named \"{CODEX_ATLASSIAN_SERVER}\" with settings QA Scribe did not add, so Jira and Confluence lookups are off. Rename or remove that server in your Codex config. If you have none, update QA Scribe: your Codex version may report new server settings."
         ));
     }
     Ok(
@@ -200,9 +226,52 @@ pub fn codex_unavailable_read_sources(
         .collect()
 }
 
-/// The first MCP call in a Codex run that was not one of the enabled
-/// sources' read tools, as `server/tool`. Codex should never make one; if a
-/// Codex release stops honoring `enabled_tools`, this fails the run.
+/// The enabled sources whose lookup failed during a Codex run, such as an
+/// expired token or a renamed tool, so the draft is not silently missing
+/// context the note referred to.
+pub fn codex_failed_lookups(
+    events: impl IntoIterator<Item = Value>,
+    sources: &[GenerationReadSource],
+) -> Vec<UnavailableReadSource> {
+    let mut failed: Vec<UnavailableReadSource> = Vec::new();
+    for event in events {
+        let item = &event["item"];
+        if event["type"] != "item.completed"
+            || item["type"] != "mcp_tool_call"
+            || item["server"] != CODEX_ATLASSIAN_SERVER
+            || item["status"] != "failed"
+        {
+            continue;
+        }
+        let tool = item["tool"].as_str().unwrap_or_default();
+        for source in sources.iter().filter(|source| {
+            codex_supports_read_source(**source) && read_tools(**source).contains(&tool)
+        }) {
+            let gap = UnavailableReadSource {
+                source: *source,
+                reason: ReadSourceUnavailableReason::NotConnected,
+            };
+            if !failed.contains(&gap) {
+                failed.push(gap);
+            }
+        }
+    }
+    failed
+}
+
+/// Codex's built-in MCP resource operations. They reach only servers that
+/// are on for the run, and Codex reports them as MCP calls on `codex` (all
+/// servers) or on the server named in the call.
+const CODEX_RESOURCE_TOOLS: &[&str] = &[
+    "list_mcp_resources",
+    "list_mcp_resource_templates",
+    "read_mcp_resource",
+];
+
+/// The first MCP tool call in a Codex run that was neither one of the
+/// enabled sources' read tools nor a resource operation on a permitted
+/// server, as `server/tool`. Codex should never make one; if a Codex release
+/// stops honoring `enabled_tools`, this fails the run.
 pub fn codex_disallowed_tool_call(
     events: impl IntoIterator<Item = Value>,
     sources: &[GenerationReadSource],
@@ -215,7 +284,9 @@ pub fn codex_disallowed_tool_call(
         }
         let server = item["server"].as_str().unwrap_or_default();
         let tool = item["tool"].as_str().unwrap_or_default();
-        let permitted = server == CODEX_ATLASSIAN_SERVER && allowed.contains(&tool);
+        let ours = server == CODEX_ATLASSIAN_SERVER && !allowed.is_empty();
+        let permitted = (ours && allowed.contains(&tool))
+            || ((ours || server == "codex") && CODEX_RESOURCE_TOOLS.contains(&tool));
         (!permitted).then(|| format!("{server}/{tool}"))
     })
 }

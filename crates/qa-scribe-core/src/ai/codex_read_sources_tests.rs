@@ -45,6 +45,12 @@ fn a_signed_in_run_exposes_only_the_enabled_read_tools() {
             r#"scopes=["read:me","offline_access","read:jira:agent-interface","search:jira:agent-interface","read:confluence:agent-interface","search:confluence:agent-interface"]"#,
             "enabled=true",
             r#"enabled_tools=["getAccessibleAtlassianResources","getJiraIssue","searchJiraIssuesUsingJql","listJiraIssueComments","getConfluenceContent","searchConfluence"]"#,
+            r#"tools.getAccessibleAtlassianResources.approval_mode="approve""#,
+            r#"tools.getJiraIssue.approval_mode="approve""#,
+            r#"tools.searchJiraIssuesUsingJql.approval_mode="approve""#,
+            r#"tools.listJiraIssueComments.approval_mode="approve""#,
+            r#"tools.getConfluenceContent.approval_mode="approve""#,
+            r#"tools.searchConfluence.approval_mode="approve""#,
         ]
     );
     assert!(args.contains(&"features.apps=false".to_owned()));
@@ -61,26 +67,27 @@ fn the_allowlist_follows_the_enabled_sources() {
 
 #[test]
 fn the_server_stays_out_unless_signed_in_with_an_atlassian_source() {
-    for (sources, status) in [
-        (&[Jira][..], Some(CodexAtlassianStatus::SignedOut)),
-        (&[Jira][..], None),
-        (
-            &[TeamsChannels, TeamsChats][..],
-            Some(CodexAtlassianStatus::SignedIn),
-        ),
-        (&[][..], Some(CodexAtlassianStatus::SignedIn)),
-    ] {
-        assert!(server_settings(&codex_args(sources, status)).is_empty());
+    for status in [Some(CodexAtlassianStatus::SignedOut), None] {
+        // The reserved name is turned off, so a user server that the list's
+        // URL override hid cannot run.
+        assert_eq!(
+            server_settings(&codex_args(&[Jira], status)),
+            ["enabled=false"]
+        );
+    }
+    for sources in [&[TeamsChannels, TeamsChats][..], &[][..]] {
+        let args = codex_args(sources, Some(CodexAtlassianStatus::SignedIn));
+        assert!(server_settings(&args).is_empty());
     }
 }
 
 #[test]
 fn the_server_list_includes_the_atlassian_server_only_when_needed() {
-    let plain = codex_mcp_list_args(&[TeamsChats]);
+    let plain = codex_mcp_list_args(false);
     assert_eq!(plain.first().map(String::as_str), Some("-c"));
     assert!(server_settings(&plain).is_empty());
     assert!(plain.ends_with(&["mcp".into(), "list".into(), "--json".into()]));
-    let with_atlassian = codex_mcp_list_args(&[Jira]);
+    let with_atlassian = codex_mcp_list_args(true);
     assert_eq!(server_settings(&with_atlassian).len(), 2);
     assert!(with_atlassian.ends_with(&plain));
 }
@@ -96,7 +103,7 @@ fn listed(name: &str, enabled: bool, url: &str, auth: &str) -> Value {
 }
 
 fn inventory(servers: Vec<Value>) -> Result<CodexMcpInventory, String> {
-    codex_mcp_inventory(&Value::Array(servers).to_string())
+    codex_mcp_inventory(&Value::Array(servers).to_string(), true)
 }
 
 #[test]
@@ -150,7 +157,7 @@ fn unsafe_server_names_and_bad_json_are_refused() {
             .servers_to_disable
             .is_empty()
     );
-    assert!(codex_mcp_inventory("not json").is_err());
+    assert!(codex_mcp_inventory("not json", true).is_err());
 }
 
 #[test]
@@ -207,5 +214,66 @@ fn a_call_outside_the_allowlist_is_caught() {
     assert_eq!(
         codex_disallowed_tool_call([read], &[]),
         Some(format!("{CODEX_ATLASSIAN_SERVER}/getJiraIssue"))
+    );
+}
+
+#[test]
+fn built_in_resource_operations_are_allowed_on_permitted_servers_only() {
+    let listing = tool_call("codex", "list_mcp_resources");
+    assert_eq!(codex_disallowed_tool_call([listing.clone()], &[]), None);
+    let read = tool_call(CODEX_ATLASSIAN_SERVER, "read_mcp_resource");
+    assert_eq!(
+        codex_disallowed_tool_call([listing, read.clone()], &[Jira]),
+        None
+    );
+    assert_eq!(
+        codex_disallowed_tool_call([read], &[]),
+        Some(format!("{CODEX_ATLASSIAN_SERVER}/read_mcp_resource"))
+    );
+    assert_eq!(
+        codex_disallowed_tool_call([tool_call("exa", "list_mcp_resources")], &[Jira]),
+        Some("exa/list_mcp_resources".into())
+    );
+}
+
+#[test]
+fn without_the_overrides_the_reserved_name_is_an_ordinary_user_server() {
+    let user = listed(
+        CODEX_ATLASSIAN_SERVER,
+        true,
+        "https://example.com/mcp",
+        "o_auth",
+    );
+    let json = Value::Array(vec![user]).to_string();
+    assert_eq!(
+        codex_mcp_inventory(&json, false).unwrap(),
+        CodexMcpInventory {
+            servers_to_disable: vec![CODEX_ATLASSIAN_SERVER.into()],
+            atlassian: None,
+        }
+    );
+}
+
+#[test]
+fn a_failed_lookup_is_reported_for_the_sources_it_serves() {
+    let mut failed = tool_call(CODEX_ATLASSIAN_SERVER, "getAccessibleAtlassianResources");
+    failed["item"]["status"] = json!("failed");
+    let mut jira_failed = tool_call(CODEX_ATLASSIAN_SERVER, "getJiraIssue");
+    jira_failed["item"]["status"] = json!("failed");
+    let ok = tool_call(CODEX_ATLASSIAN_SERVER, "searchConfluence");
+    let not_connected = |source| UnavailableReadSource {
+        source,
+        reason: ReadSourceUnavailableReason::NotConnected,
+    };
+    assert_eq!(
+        codex_failed_lookups(
+            [failed, jira_failed.clone(), ok.clone()],
+            &[Jira, Confluence]
+        ),
+        [not_connected(Jira), not_connected(Confluence)]
+    );
+    assert_eq!(
+        codex_failed_lookups([jira_failed, ok], &[Jira, Confluence]),
+        [not_connected(Jira)]
     );
 }

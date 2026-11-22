@@ -26,7 +26,7 @@ it('signs in, then offers sign-out', async () => {
   expect(screen.getByRole('status').textContent).toBe('Checking…')
   await waitFor(() => expect(screen.getByRole('status').textContent).toBe('Not signed in'))
   await user.click(screen.getByRole('button', { name: 'Sign in for Codex' }))
-  expect(screen.getByRole('status').textContent).toBe('Waiting for the browser sign-in…')
+  expect(screen.getByRole('status').textContent).toBe('Finish signing in in your browser (up to 5 minutes)…')
   expect(screen.getByRole('button', { name: 'Sign in for Codex' }).hasAttribute("disabled")).toBe(true)
 
   finishSignIn('signedIn')

@@ -8,7 +8,7 @@ type SignInState =
   | { kind: 'known', status: CodexAtlassianStatus }
   | { kind: 'failed', message: string }
 
-const busyLabels = { checking: 'Checking…', signingIn: 'Waiting for the browser sign-in…', signingOut: 'Signing out…' }
+const busyLabels = { checking: 'Checking…', signingIn: 'Finish signing in in your browser (up to 5 minutes)…', signingOut: 'Signing out…' }
 
 /** Codex's own Atlassian sign-in for Jira and Confluence lookups. */
 export function CodexAtlassianSignIn() {

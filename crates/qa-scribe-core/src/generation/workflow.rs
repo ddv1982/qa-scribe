@@ -12,7 +12,7 @@ use crate::{
     QaScribeError, Result,
     ai::{
         GenerationOutputFormat, ProviderGenerationOutput,
-        codex_read_sources::codex_disallowed_tool_call,
+        codex_read_sources::{codex_disallowed_tool_call, codex_failed_lookups},
         generation_tools::effective_read_sources,
         read_source_availability::{UnavailableReadSource, unavailable_read_sources},
     },
@@ -220,7 +220,14 @@ fn finish_successful_generation(
         GenerationOutputFormat::ClaudeStreamJson => {
             unavailable_read_sources(output.claude_events(), &prepared.read_sources)
         }
-        _ => prepared.unavailable_read_sources.clone(),
+        _ => {
+            let mut gaps = prepared.unavailable_read_sources.clone();
+            gaps.extend(codex_failed_lookups(
+                output.codex_events(),
+                &prepared.read_sources,
+            ));
+            gaps
+        }
     };
     let result = (|| {
         if let Some(call) =

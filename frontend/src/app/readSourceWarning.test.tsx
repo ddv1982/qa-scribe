@@ -36,6 +36,8 @@ describe('readSourceWarning', () => {
       { source: 'jira', reason: 'needsSignIn' },
       { source: 'confluence', reason: 'needsSignIn' },
     ])).toBe("Couldn't look up Jira and Confluence: sign in to Atlassian for Codex in Settings.")
+    expect(readSourceWarning('codex_cli', [{ source: 'jira', reason: 'notConnected' }]))
+      .toBe("Couldn't look up Jira: the lookup failed in Codex. If this keeps happening, sign out and sign in again for Codex in Settings.")
   })
 
   it('keeps a warning until the next notice replaces it', () => {

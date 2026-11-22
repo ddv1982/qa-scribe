@@ -1,7 +1,7 @@
 use qa_scribe_core::{
     ai::{
         ProviderCapability,
-        codex_read_sources::{CodexMcpInventory, codex_mcp_inventory},
+        codex_read_sources::{CodexMcpInventory, codex_atlassian_tools, codex_mcp_inventory},
         generation_tools::codex_mcp_list_args,
         provider_capabilities,
     },
@@ -75,7 +75,8 @@ pub fn codex_mcp_inventory_for_job(
     control: &JobControl,
     read_sources: &[GenerationReadSource],
 ) -> Result<CodexMcpInventory, String> {
-    let args = codex_mcp_list_args(read_sources);
+    let with_atlassian = !codex_atlassian_tools(read_sources).is_empty();
+    let args = codex_mcp_list_args(with_atlassian);
     let args: Vec<&str> = args.iter().map(String::as_str).collect();
     // Listing checks each HTTP server's sign-in status, which takes about
     // five seconds for an unreachable server, so the short probe limit is
@@ -91,7 +92,7 @@ pub fn codex_mcp_inventory_for_job(
             probe.stderr
         ));
     }
-    codex_mcp_inventory(&probe.stdout)
+    codex_mcp_inventory(&probe.stdout, with_atlassian)
 }
 
 #[cfg(test)]

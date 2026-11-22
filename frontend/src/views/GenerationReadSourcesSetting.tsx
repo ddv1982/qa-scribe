@@ -9,9 +9,11 @@ const readSourceOptions: ReadonlyArray<{ source: GenerationReadSource, label: st
 ]
 
 /** Opt-in read-only lookups for Generate. Generate has no tools otherwise. */
-export function GenerationReadSourcesSetting({ settingsDraft, updateSettingsDraft }: {
+export function GenerationReadSourcesSetting({ settingsDraft, updateSettingsDraft, codexAvailable }: {
   settingsDraft: AppSettings
   updateSettingsDraft: (patch: Partial<AppSettings>) => void
+  /** The Codex sign-in only shows when Codex is installed. */
+  codexAvailable: boolean
 }) {
   const selected = new Set(settingsDraft.generationReadSources ?? [])
 
@@ -37,7 +39,7 @@ export function GenerationReadSourcesSetting({ settingsDraft, updateSettingsDraf
             </label>
           ))}
         </div>
-        {selected.has('jira') || selected.has('confluence') ? <CodexAtlassianSignIn /> : null}
+        {codexAvailable && (selected.has('jira') || selected.has('confluence')) ? <CodexAtlassianSignIn /> : null}
       </fieldset>
     </section>
   )

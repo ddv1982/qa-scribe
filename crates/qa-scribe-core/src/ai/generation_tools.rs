@@ -6,8 +6,8 @@
 //! Chat keeps the provider's own tools because it asks before each tool runs.
 
 use super::codex_read_sources::{
-    CodexAtlassianStatus, codex_atlassian_config_args, codex_atlassian_run_args,
-    codex_atlassian_tools, codex_supports_read_source,
+    CodexAtlassianStatus, codex_atlassian_config_args, codex_atlassian_disabled_args,
+    codex_atlassian_run_args, codex_atlassian_tools, codex_supports_read_source,
 };
 use super::{GenerationCommand, streaming_generation_command};
 use crate::domain::{AiProvider, GenerationReadSource};
@@ -104,11 +104,11 @@ pub const CODEX_MCP_LIST_ARGS: &[&str] = &[
     "--json",
 ];
 
-/// [`CODEX_MCP_LIST_ARGS`], plus QA Scribe's Atlassian server when a run
-/// may look up Jira or Confluence, so the list also reports its sign-in.
-pub fn codex_mcp_list_args(sources: &[GenerationReadSource]) -> Vec<String> {
+/// [`CODEX_MCP_LIST_ARGS`], plus QA Scribe's Atlassian server when
+/// `with_atlassian`, so the list also reports its sign-in.
+pub fn codex_mcp_list_args(with_atlassian: bool) -> Vec<String> {
     let mut args = Vec::new();
-    if !codex_atlassian_tools(sources).is_empty() {
+    if with_atlassian {
         args.extend(codex_atlassian_config_args());
     }
     args.extend(CODEX_MCP_LIST_ARGS.iter().map(|arg| (*arg).to_owned()));
@@ -141,8 +141,15 @@ pub fn generation_command_with_tool_policy(
             ]);
         }
         let tools = codex_atlassian_tools(&read_sources);
-        if !tools.is_empty() && policy.codex_atlassian == Some(CodexAtlassianStatus::SignedIn) {
+        if tools.is_empty() {
+            // The list ran without QA Scribe's overrides, so a user server
+            // with the reserved name is already in `codex_mcp_servers`.
+        } else if policy.codex_atlassian == Some(CodexAtlassianStatus::SignedIn) {
             args.extend(codex_atlassian_run_args(&tools));
+        } else {
+            // The list's URL override hid any user server with the reserved
+            // name from `codex_mcp_servers`; turn that name off explicitly.
+            args.extend(codex_atlassian_disabled_args());
         }
     }
     // Codex reads the prompt from stdin through a trailing "-"; keep it last.

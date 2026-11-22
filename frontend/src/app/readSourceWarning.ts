@@ -12,8 +12,8 @@ function connector(source: GenerationReadSource) {
 }
 
 function cause(provider: AiProvider, name: string, reason: Exclude<ReadSourceUnavailableReason, 'toolsMissing'>) {
-  // Codex reports only a missing Atlassian sign-in, which Settings fixes.
-  if (provider === 'codex_cli') return 'sign in to Atlassian for Codex in Settings'
+  if (reason === 'needsSignIn' && provider === 'codex_cli') return 'sign in to Atlassian for Codex in Settings'
+  if (provider === 'codex_cli') return 'the lookup failed in Codex. If this keeps happening, sign out and sign in again for Codex in Settings'
   if (reason === 'needsSignIn') return `the ${name} connector needs you to sign in again in Claude Code`
   if (reason === 'notConnected') return `the ${name} connector wasn't connected in Claude Code when the run started`
   return `the ${name} connector isn't on in Claude Code`
