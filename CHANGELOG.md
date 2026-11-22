@@ -4,6 +4,7 @@
 
 - "Generate may read" now works with Codex for Jira and Confluence. Turn on a source, then choose **Sign in for Codex** in Settings once; QA Scribe adds Atlassian's own connection to each Codex run without changing your Codex config. The sign-in asks Atlassian for read and search access only, Codex is limited to the read tools of the sources you turned on, and a run that calls anything else is discarded. Teams lookups still need Claude Code, and Copilot still runs without tools.
 - When Codex isn't signed in, or a lookup fails during the run, Generate, Create Finding and Summarize still finish and the status line says which source was skipped and what to do.
+- Security: updated the `url` library to 2.5.9 (RUSTSEC-2026-0592, a stack overflow on deeply nested `blob:` URLs).
 
 ## v0.16.0 - 2026-11-22
 
