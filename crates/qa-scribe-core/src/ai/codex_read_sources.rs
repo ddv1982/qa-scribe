@@ -104,17 +104,6 @@ pub(super) fn codex_atlassian_run_args(tools: &[&str]) -> Vec<String> {
     args
 }
 
-/// Turns the reserved server name off for a run that does not use it. The
-/// URL is defined too: Codex refuses to load a server entry without one.
-pub(super) fn codex_atlassian_disabled_args() -> Vec<String> {
-    let mut args = codex_atlassian_config_args();
-    args.extend([
-        "-c".to_owned(),
-        format!("mcp_servers.{CODEX_ATLASSIAN_SERVER}.enabled=false"),
-    ]);
-    args
-}
-
 /// Looks the reserved name up in the user's own config, without QA Scribe's
 /// overrides. `mcp get` reads config only, so nothing is sent anywhere.
 pub const CODEX_RESERVED_NAME_ARGS: &[&str] = &[
@@ -269,9 +258,10 @@ pub fn codex_failed_lookups(
     events: impl IntoIterator<Item = Value>,
     sources: &[GenerationReadSource],
 ) -> Vec<UnavailableReadSource> {
-    // The last outcome of each tool counts, so a retry that succeeded does
-    // not warn.
-    let mut last_failed: Vec<(String, bool)> = Vec::new();
+    // The last outcome of each lookup (tool and arguments) counts, so a
+    // retry that succeeded does not warn, but another lookup's success does
+    // not hide a failure.
+    let mut last_failed: Vec<(String, Value, bool)> = Vec::new();
     for event in events {
         let item = &event["item"];
         if event["type"] != "item.completed"
@@ -281,17 +271,19 @@ pub fn codex_failed_lookups(
             continue;
         }
         let tool = item["tool"].as_str().unwrap_or_default().to_owned();
+        let arguments = item["arguments"].clone();
         let failed = item["status"] == "failed";
-        last_failed.retain(|(seen, _)| *seen != tool);
-        last_failed.push((tool, failed));
+        last_failed
+            .retain(|(seen, seen_arguments, _)| *seen != tool || *seen_arguments != arguments);
+        last_failed.push((tool, arguments, failed));
     }
     sources
         .iter()
         .filter(|source| {
             codex_supports_read_source(**source)
-                && last_failed
-                    .iter()
-                    .any(|(tool, failed)| *failed && read_tools(**source).contains(&tool.as_str()))
+                && last_failed.iter().any(|(tool, _, failed)| {
+                    *failed && read_tools(**source).contains(&tool.as_str())
+                })
         })
         .map(|source| UnavailableReadSource {
             source: *source,

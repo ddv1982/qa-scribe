@@ -67,21 +67,16 @@ fn the_allowlist_follows_the_enabled_sources() {
 
 #[test]
 fn the_server_stays_out_unless_signed_in_with_an_atlassian_source() {
-    for status in [Some(CodexAtlassianStatus::SignedOut), None] {
-        // The reserved name is turned off, so a user server that the list's
-        // URL override hid cannot run.
-        assert_eq!(
-            server_settings(&codex_args(&[Jira], status)),
-            [
-                r#"url="https://mcp.atlassian.com/v2/mcp?tools=all""#,
-                r#"scopes=["read:me","offline_access","read:jira:agent-interface","search:jira:agent-interface","read:confluence:agent-interface","search:confluence:agent-interface"]"#,
-                "enabled=false",
-            ]
-        );
-    }
-    for sources in [&[TeamsChannels, TeamsChats][..], &[][..]] {
-        let args = codex_args(sources, Some(CodexAtlassianStatus::SignedIn));
-        assert!(server_settings(&args).is_empty());
+    for (sources, status) in [
+        (&[Jira][..], Some(CodexAtlassianStatus::SignedOut)),
+        (&[Jira][..], None),
+        (
+            &[TeamsChannels, TeamsChats][..],
+            Some(CodexAtlassianStatus::SignedIn),
+        ),
+        (&[][..], Some(CodexAtlassianStatus::SignedIn)),
+    ] {
+        assert!(server_settings(&codex_args(sources, status)).is_empty());
     }
 }
 
@@ -287,16 +282,31 @@ fn a_failed_lookup_is_reported_for_the_sources_it_serves() {
         ),
         [not_connected(Jira)]
     );
-    // A retry that succeeded clears the failure.
+    // A retry of the same lookup clears its failure; another lookup's
+    // success does not.
+    let with_key = |mut call: Value, key: &str| {
+        call["item"]["arguments"] = json!({"issueIdOrKey": key});
+        call
+    };
     assert!(
         codex_failed_lookups(
             [
-                failed("searchJiraIssuesUsingJql"),
-                ok("searchJiraIssuesUsingJql")
+                with_key(failed("getJiraIssue"), "QA-101"),
+                with_key(ok("getJiraIssue"), "QA-101")
             ],
             &[Jira]
         )
         .is_empty()
+    );
+    assert_eq!(
+        codex_failed_lookups(
+            [
+                with_key(failed("getJiraIssue"), "QA-101"),
+                with_key(ok("getJiraIssue"), "QA-102")
+            ],
+            &[Jira]
+        ),
+        [not_connected(Jira)]
     );
 }
 
