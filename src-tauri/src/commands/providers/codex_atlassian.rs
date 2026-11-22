@@ -10,7 +10,7 @@ use std::{
 use qa_scribe_core::ai::{
     codex_read_sources::{
         CODEX_ATLASSIAN_SERVER, CodexAtlassianStatus, codex_atlassian_config_args,
-        codex_mcp_inventory,
+        codex_atlassian_status_from_list,
     },
     generation_tools::codex_mcp_list_args,
 };
@@ -80,9 +80,7 @@ fn status() -> Result<CodexAtlassianStatus, String> {
     if !probe.success {
         return Err(failure("Checking the Codex Atlassian sign-in", &probe));
     }
-    codex_mcp_inventory(&probe.stdout, true)?
-        .atlassian
-        .ok_or_else(|| "Codex did not list QA Scribe's Atlassian server.".to_owned())
+    codex_atlassian_status_from_list(&probe.stdout)
 }
 
 /// Runs `codex mcp <action>` for QA Scribe's server. The status check first

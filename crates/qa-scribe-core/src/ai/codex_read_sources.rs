@@ -205,6 +205,19 @@ pub fn codex_mcp_inventory(
     Ok(inventory)
 }
 
+/// QA Scribe's Atlassian sign-in from `codex mcp list --json` taken with its
+/// overrides. Settings only needs this entry, so unrelated servers whose
+/// names a run would refuse do not block signing in or out.
+pub fn codex_atlassian_status_from_list(list_json: &str) -> Result<CodexAtlassianStatus, String> {
+    let servers: Vec<ListedServer> = serde_json::from_str(list_json)
+        .map_err(|error| format!("Could not read the Codex MCP server list: {error}"))?;
+    let server = servers
+        .iter()
+        .find(|server| server.name == CODEX_ATLASSIAN_SERVER)
+        .ok_or_else(|| "Codex did not list QA Scribe's Atlassian server.".to_owned())?;
+    atlassian_status(server)
+}
+
 fn atlassian_status(server: &ListedServer) -> Result<CodexAtlassianStatus, String> {
     let transport = &server.transport;
     let only_ours = transport["type"] == "streamable_http"

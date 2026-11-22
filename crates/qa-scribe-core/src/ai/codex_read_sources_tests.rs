@@ -321,3 +321,16 @@ fn only_a_missing_reserved_name_lets_the_overrides_run() {
         ["mcp", "get", CODEX_ATLASSIAN_SERVER, "--json"]
     );
 }
+
+#[test]
+fn settings_status_ignores_servers_a_run_would_refuse() {
+    let ours = listed(CODEX_ATLASSIAN_SERVER, true, CODEX_ATLASSIAN_URL, "o_auth");
+    let dotted = listed("a.b", true, "https://x", "unsupported");
+    let json = Value::Array(vec![dotted, ours]).to_string();
+    assert!(codex_mcp_inventory(&json, true).is_err());
+    assert_eq!(
+        codex_atlassian_status_from_list(&json),
+        Ok(CodexAtlassianStatus::SignedIn)
+    );
+    assert!(codex_atlassian_status_from_list("[]").is_err());
+}
