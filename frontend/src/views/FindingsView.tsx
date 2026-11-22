@@ -10,7 +10,7 @@ import { formatFindingKind } from '../ui/format'
 import type { BusyAction } from '../ui/types'
 import type { RecordLoadState } from '../app/useRecordHydration'
 import type { ClipboardSnapshot, CopyState } from '../app/copyActions'
-import type { CreatedRecordEditTarget } from '../app/types'
+import type { CreatedRecordEditTarget, Notice } from '../app/types'
 import { Field } from '../components/Field'
 import { RecordCollectionView, type RecordCollectionLabels } from './RecordCollectionView'
 import {
@@ -87,7 +87,7 @@ export function FindingsView({
   copyState: CopyState
   findingScreenshotCounts: Record<string, number>
   findings: Finding[]
-  notice: string | null
+  notice: Notice
   error: string | null
   isBusy: boolean
   activeGenerationJob: GenerationJobStatus | null

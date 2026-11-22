@@ -9,7 +9,7 @@ import type { Draft, GenerationJobStatus, TestRunCase } from '../tauri'
 import type { BusyAction } from '../ui/types'
 import type { RecordLoadState } from '../app/useRecordHydration'
 import type { ClipboardSnapshot, CopyState } from '../app/copyActions'
-import type { CreatedRecordEditTarget } from '../app/types'
+import type { CreatedRecordEditTarget, Notice } from '../app/types'
 import { useTestRuns } from '../testware/useTestRuns'
 import { CoverageLine } from './CoverageLine'
 import { RecordCollectionView, type RecordCollectionLabels } from './RecordCollectionView'
@@ -77,7 +77,7 @@ export function TestwareView({
   copyState: CopyState
   draftScreenshotCounts: Record<string, number>
   drafts: Draft[]
-  notice: string | null
+  notice: Notice
   error: string | null
   isBusy: boolean
   activeGenerationJob: GenerationJobStatus | null

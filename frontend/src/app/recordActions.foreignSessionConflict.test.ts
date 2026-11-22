@@ -23,7 +23,7 @@ it.each(kinds.flatMap(kind => boundaries.map(boundary => ({ kind, boundary }))))
         setDrafts: vi.fn(), setFindings: vi.fn(), setTestwareDraftCount: vi.fn(), setFindingCount: vi.fn(),
       },
       importedAttachments: { register: vi.fn(), remember: vi.fn(), pending: vi.fn(() => []), clear: vi.fn(), forget: vi.fn() },
-      feedback: { setError: vi.fn(), setNotice: vi.fn(), setBusyAction: vi.fn() },
+      feedback: { setError: vi.fn(), setNotice: vi.fn(), setWarning: vi.fn(), setBusyAction: vi.fn() },
       materializeInlineImages: vi.fn(async document => ({ document, importedAttachmentIds: [] })),
       cleanupMaterializedAttachments: vi.fn(async () => true),
     }

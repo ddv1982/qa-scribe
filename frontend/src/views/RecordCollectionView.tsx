@@ -13,7 +13,7 @@ import type { GenerationJobStatus } from '../tauri'
 import type { BusyAction } from '../ui/types'
 import type { RecordLoadState } from '../app/useRecordHydration'
 import type { ClipboardSnapshot, CopyState } from '../app/copyActions'
-import type { CreatedRecordEditTarget } from '../app/types'
+import type { CreatedRecordEditTarget, Notice } from '../app/types'
 import { CopyControls, EditableRichRecord, GenerationRecord, RichRecordActions } from './RichRecordView'
 
 type CollectionRecord = {
@@ -94,7 +94,7 @@ export function RecordCollectionView<T extends CollectionRecord>({
   copyState: CopyState
   recordScreenshotCounts: Record<string, number>
   records: T[]
-  notice: string | null
+  notice: Notice
   error: string | null
   isBusy: boolean
   activeGenerationJob: GenerationJobStatus | null

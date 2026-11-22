@@ -15,6 +15,7 @@ export function useCreationWorkspace(ctx: RecordLoaders & {
   beginNavigation: () => number
   setActiveView: Dispatch<SetStateAction<MainView>>
   setNotice: Dispatch<SetStateAction<string | null>>
+  setWarning: (message: string) => void
   setError: Dispatch<SetStateAction<string | null>>
   setCreatedRecordEditTarget: Dispatch<SetStateAction<CreatedRecordEditTarget | null>>
   consumeCreatedRecordEditTarget: (target: CreatedRecordEditTarget) => void
@@ -24,7 +25,7 @@ export function useCreationWorkspace(ctx: RecordLoaders & {
     activeSessionId: () => ctx.activeSessionIdRef.current,
     sourceAllowed: () => ctx.sourceAllowed, beginNavigation: ctx.beginNavigation, noteId: () => ctx.noteEntryIdRef.current, navigationIsCurrent: ctx.navigationIsCurrent, publishJob: ctx.publishJob,
     openDestination: (kind: CreationKind) => ctx.setActiveView(kind === 'finding' ? 'findings' : 'testware'),
-    error: ctx.setError, notice: ctx.setNotice,
+    error: ctx.setError, notice: ctx.setNotice, warning: ctx.setWarning,
     selectSaved: async (intent, result) => {
       if (result.record.sessionId !== intent.sessionId) return 'stale'
       const records = result.kind === 'finding'

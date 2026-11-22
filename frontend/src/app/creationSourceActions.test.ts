@@ -18,12 +18,13 @@ function setup() {
   let allowed = true
   const error = vi.fn()
   const notice = vi.fn()
+  const warning = vi.fn()
   const selected = vi.fn(async (_intent: CreationIntent, _record: CreatedRecord): Promise<CreationSelection> => 'selected')
   const jobs = vi.fn((_status: GenerationJobStatus) => undefined)
   const actions = createCreationActions({ activeSessionId: () => session, sourceAllowed: () => allowed, noteId: () => 'entry-1', beginNavigation: () => ++epoch,
     navigationIsCurrent: (captured) => captured === epoch, publishJob: jobs,
-    openDestination: vi.fn(), changed: vi.fn(), decisionChanged: vi.fn(), error, notice, selectSaved: selected })
-  return { actions, error, notice, selected, jobs, blockSource: () => { allowed = false }, changeSession: (id: string) => { session = id; ++epoch } }
+    openDestination: vi.fn(), changed: vi.fn(), decisionChanged: vi.fn(), error, notice, warning, selectSaved: selected })
+  return { actions, error, notice, warning, selected, jobs, blockSource: () => { allowed = false }, changeSession: (id: string) => { session = id; ++epoch } }
 }
 async function opened(kind: 'finding' | 'testware' = 'finding') {
   const owner = setup()
@@ -33,7 +34,7 @@ async function opened(kind: 'finding' | 'testware' = 'finding') {
 }
 function completed(): GenerationJobEvent {
   return { type: 'completed', job_id: 'owned-job', status: status({ state: 'completed' }), result: {
-    generationContext: { id: 'context-1', sessionId: 'session-1', createdAt: 'now' },
+    generationContext: { id: 'context-1', sessionId: 'session-1', createdAt: 'now' }, unavailableReadSources: [],
     aiRun: { id: 'run-1', sessionId: 'session-1', generationContextId: 'context-1', provider: 'codex_cli', modelSelection: { kind: 'recorded', requested: { kind: 'default' }, reported: null }, reasoningEffort: null, promptVersion: 'finding-v4', status: 'completed', errorMessage: null, createdAt: 'now', completedAt: 'now' },
     finding: findingFixture({ id: 'returned-result' }), draft: null, noteEntry: null,
   } }
@@ -103,6 +104,16 @@ it('consumes the matching intent only after the returned result is selected', as
   expect(selected.mock.calls[0][1].record.id).toBe('returned-result')
   finish('selected')
   await vi.waitFor(() => expect(actions.current()).toBeNull())
+})
+it('warns after the saved notice when a read source was unavailable', async () => {
+  const { actions, notice, warning } = await opened()
+  await actions.generate(selection)
+  const event = completed()
+  if (event.type === 'completed') event.result.unavailableReadSources = [{ source: 'jira', reason: 'needsSignIn' }]
+  receive(event)
+  await vi.waitFor(() => expect(warning).toHaveBeenCalledWith("Couldn't look up Jira: the Atlassian connector needs you to sign in again in Claude Code."))
+  expect(notice).toHaveBeenLastCalledWith('Finding generated and saved')
+  expect(notice.mock.invocationCallOrder.at(-1)).toBeLessThan(warning.mock.invocationCallOrder[0])
 })
 it('does not revive the intent from a late start status after synchronous completion', async () => {
   const { actions, jobs } = await opened()

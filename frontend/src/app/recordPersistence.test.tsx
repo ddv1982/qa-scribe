@@ -19,7 +19,7 @@ function context(importedAttachments: RecordPersistenceContext['importedAttachme
       draftsRef: { current: [draft] }, findingsRef: { current: [] }, savedDraftsRef: { current: [] }, savedFindingsRef: { current: [] },
       setDrafts: vi.fn(), setFindings: vi.fn(), setTestwareDraftCount: vi.fn(), setFindingCount: vi.fn(),
     },
-    feedback: { setError: vi.fn(), setBusyAction: vi.fn(), setNotice: vi.fn() },
+    feedback: { setError: vi.fn(), setBusyAction: vi.fn(), setNotice: vi.fn(), setWarning: vi.fn() },
     materializeInlineImages: async () => ({ document: richEditorDocumentFromStoredBody(draft), importedAttachmentIds: [] }),
     cleanupMaterializedAttachments: async () => true,
   }

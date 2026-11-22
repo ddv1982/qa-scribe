@@ -26,7 +26,7 @@ async function subject(kind: Kind, superseded = false) {
       setDrafts: vi.fn(), setFindings: vi.fn(), setTestwareDraftCount: vi.fn(), setFindingCount: vi.fn(),
     },
     importedAttachments: { register: vi.fn(), remember: vi.fn(), pending: () => [], clear: vi.fn(), forget: vi.fn() },
-    feedback: { setError: vi.fn(), setNotice: vi.fn(), setBusyAction: vi.fn() },
+    feedback: { setError: vi.fn(), setNotice: vi.fn(), setWarning: vi.fn(), setBusyAction: vi.fn() },
     materializeInlineImages: async document => ({ document, importedAttachmentIds: [] }),
     cleanupMaterializedAttachments: async () => true,
   }

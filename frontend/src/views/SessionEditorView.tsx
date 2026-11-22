@@ -7,6 +7,7 @@ import type { GenerateAiActionKind, Session } from '../tauri'
 import type { RichEditorDocument } from '../editor/editorDocument'
 import { ActionButton } from '../components/ActionButton'
 import { StatusPill } from '../components/Common'
+import type { Notice } from '../app/types'
 import { SessionSheetRow } from './SessionSheetDialog'
 import type { BusyAction } from '../ui/types'
 import type { PendingAiActions } from '../ui/types'
@@ -73,7 +74,7 @@ export function SessionEditorView({
   sessionTitleValidationError?: string | null
   sessionSaveState?: 'invalid' | 'saving' | 'unsaved' | 'saved'
   noteWordCount: number
-  notice: string | null
+  notice: Notice
   error: string | null
   pendingAiActions: PendingAiActions
   onAiAction: (action: GenerateAiActionKind) => Promise<void>

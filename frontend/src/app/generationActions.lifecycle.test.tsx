@@ -18,7 +18,7 @@ function context(): GenerationActionsContext {
     latestNoteGenerationUndoRef: { current: null },
     summaryRecovery: { recoveredJobsRef: { current: new Map() }, unresolvedSummaryJobsRef: { current: new Map() }, completedSummaryEntriesRef: { current: new Map() }, openingSessionIdRef: { current: null }, discoveryPendingRef: { current: true }, blockedSaveSessionIdsRef: { current: new Set() } },
     selection: { selectedProvider: 'codex_cli', selectedModel: 'default', selectedReasoningEffort: null },
-    feedback: { setBusyAction: vi.fn(), setError: vi.fn(), setNotice: vi.fn() }, navigation: { setActiveView: vi.fn() },
+    feedback: { setBusyAction: vi.fn(), setError: vi.fn(), setNotice: vi.fn(), setWarning: vi.fn() }, navigation: { setActiveView: vi.fn() },
     saveNoteNow: vi.fn(async () => true), saveNoteBody: vi.fn(async () => true), adoptCanonicalNoteBody: vi.fn(), canonicalizeGeneratedDraft: vi.fn(async () => {}), canonicalizeGeneratedFinding: vi.fn(async () => {}),
   }
 }

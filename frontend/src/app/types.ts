@@ -87,9 +87,14 @@ export type AiSelection = {
   selectedReasoningEffort: string | null
 }
 
+/** The status line's message; a warning shows in the warning tone. */
+export type Notice = string | { warning: string } | null
+
 export type WorkflowFeedback = {
   setBusyAction: Dispatch<SetStateAction<BusyAction | null>>
   setNotice: Dispatch<SetStateAction<string | null>>
+  /** Shows a warning until the next notice replaces it. */
+  setWarning: (message: string) => void
   setError: Dispatch<SetStateAction<string | null>>
 }
 

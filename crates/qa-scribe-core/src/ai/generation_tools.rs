@@ -11,7 +11,7 @@ const ATLASSIAN: &str = "mcp__claude_ai_Atlassian_MCP__";
 const MICROSOFT_365: &str = "mcp__claude_ai_Microsoft_365__";
 
 /// Read tools each source allows, as Claude Code permission rules.
-fn read_tools(source: GenerationReadSource) -> &'static [&'static str] {
+pub(super) fn read_tools(source: GenerationReadSource) -> &'static [&'static str] {
     match source {
         GenerationReadSource::Jira => &[
             "getAccessibleAtlassianResources",
@@ -33,7 +33,7 @@ fn read_tools(source: GenerationReadSource) -> &'static [&'static str] {
     }
 }
 
-fn server(source: GenerationReadSource) -> &'static str {
+pub(super) fn server(source: GenerationReadSource) -> &'static str {
     match source {
         GenerationReadSource::Jira | GenerationReadSource::Confluence => ATLASSIAN,
         GenerationReadSource::TeamsChannels | GenerationReadSource::TeamsChats => MICROSOFT_365,

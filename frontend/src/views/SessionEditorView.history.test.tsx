@@ -273,7 +273,7 @@ describe('SessionEditorView Session-scoped editor lifetime', () => {
     const noteA = entryFixture({ id: 'entry-a', sessionId: sessionA.id })
     const ctx: AttachmentActionsContext = {
       session: { activeSession: sessionA, noteEntry: noteA },
-      feedback: { setBusyAction: vi.fn(), setError: vi.fn(), setNotice: vi.fn() },
+      feedback: { setBusyAction: vi.fn(), setError: vi.fn(), setNotice: vi.fn(), setWarning: vi.fn() },
       registerImportedAttachment: vi.fn(),
     }
     const actions = createAttachmentActions(ctx)
