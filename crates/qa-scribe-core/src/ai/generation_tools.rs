@@ -1,9 +1,14 @@
 //! Tool policy for Generate and Summarize. These runs turn pasted, untrusted
 //! test material into drafts, so the provider CLI gets no shell, file, web or
 //! MCP tools and no hooks. The one exception is an explicit opt-in to
-//! read-only lookups through the user's Claude Code claude.ai connectors.
+//! read-only lookups: through the user's Claude Code claude.ai connectors, or
+//! for Codex through QA Scribe's Atlassian server (codex_read_sources.rs).
 //! Chat keeps the provider's own tools because it asks before each tool runs.
 
+use super::codex_read_sources::{
+    CodexAtlassianStatus, codex_atlassian_config_args, codex_atlassian_run_args,
+    codex_atlassian_tools, codex_supports_read_source,
+};
 use super::{GenerationCommand, streaming_generation_command};
 use crate::domain::{AiProvider, GenerationReadSource};
 
@@ -54,28 +59,36 @@ const DENIED_WRITE_TOOLS: &[&str] = &[
     "mcp__claude_ai_Microsoft_365__sharepoint_*",
 ];
 
-/// The read sources that apply to `provider`. Only Claude Code can reach the
-/// claude.ai connectors, so other providers always run without tools.
+/// The read sources that apply to `provider`. Claude Code reaches all of
+/// them through its claude.ai connectors; Codex reaches Jira and Confluence
+/// through QA Scribe's Atlassian server; Copilot always runs without tools.
 pub fn effective_read_sources(
     provider: AiProvider,
     sources: &[GenerationReadSource],
 ) -> Vec<GenerationReadSource> {
-    if provider == AiProvider::ClaudeCode {
-        sources.to_vec()
-    } else {
-        Vec::new()
+    match provider {
+        AiProvider::ClaudeCode => sources.to_vec(),
+        AiProvider::CodexCli => sources
+            .iter()
+            .copied()
+            .filter(|source| codex_supports_read_source(*source))
+            .collect(),
+        AiProvider::CopilotCli => Vec::new(),
     }
 }
 
 /// What a Generate or Summarize run may use besides plain text.
 #[derive(Clone, Debug, Default)]
 pub struct GenerationToolPolicy {
-    /// Read-only lookups; applied only for Claude Code.
+    /// Read-only lookups, narrowed by [`effective_read_sources`].
     pub read_sources: Vec<GenerationReadSource>,
     /// Codex MCP servers that are on in the user's config. Each is turned
     /// off for the run, because `codex exec` runs read-only MCP tools
     /// without asking and has no switch for all servers at once.
     pub codex_mcp_servers: Vec<String>,
+    /// Sign-in of QA Scribe's Codex Atlassian server; the server joins the
+    /// run only when it is signed in.
+    pub codex_atlassian: Option<CodexAtlassianStatus>,
 }
 
 /// Arguments that list the MCP servers Generate must turn off. Plugins and
@@ -91,36 +104,15 @@ pub const CODEX_MCP_LIST_ARGS: &[&str] = &[
     "--json",
 ];
 
-/// Names of the enabled servers in `codex mcp list --json` output. A name
-/// that cannot be written as a bare `-c` config key is refused, so a server
-/// is never left on silently.
-pub fn enabled_codex_mcp_servers(list_json: &str) -> Result<Vec<String>, String> {
-    #[derive(serde::Deserialize)]
-    struct Server {
-        name: String,
-        enabled: bool,
+/// [`CODEX_MCP_LIST_ARGS`], plus QA Scribe's Atlassian server when a run
+/// may look up Jira or Confluence, so the list also reports its sign-in.
+pub fn codex_mcp_list_args(sources: &[GenerationReadSource]) -> Vec<String> {
+    let mut args = Vec::new();
+    if !codex_atlassian_tools(sources).is_empty() {
+        args.extend(codex_atlassian_config_args());
     }
-    let servers: Vec<Server> = serde_json::from_str(list_json)
-        .map_err(|error| format!("Could not read the Codex MCP server list: {error}"))?;
-    servers
-        .into_iter()
-        .filter(|server| server.enabled)
-        .map(|server| {
-            let bare = !server.name.is_empty()
-                && server
-                    .name
-                    .chars()
-                    .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-'));
-            if bare {
-                Ok(server.name)
-            } else {
-                Err(format!(
-                    "Codex MCP server \"{}\" cannot be turned off for this run. Rename it to letters, digits, '_' or '-', or turn it off in your Codex config.",
-                    server.name
-                ))
-            }
-        })
-        .collect()
+    args.extend(CODEX_MCP_LIST_ARGS.iter().map(|arg| (*arg).to_owned()));
+    args
 }
 
 /// The command for a Generate or Summarize run, with tools locked down.
@@ -139,16 +131,18 @@ pub fn generation_command_with_tool_policy(
         reasoning_effort,
         copilot_direct_cli_ready,
     )?;
-    let mut args = tool_policy_args(
-        provider,
-        &effective_read_sources(provider, &policy.read_sources),
-    );
+    let read_sources = effective_read_sources(provider, &policy.read_sources);
+    let mut args = tool_policy_args(provider, &read_sources);
     if provider == AiProvider::CodexCli {
         for server in &policy.codex_mcp_servers {
             args.extend([
                 "-c".to_owned(),
                 format!("mcp_servers.{server}.enabled=false"),
             ]);
+        }
+        let tools = codex_atlassian_tools(&read_sources);
+        if !tools.is_empty() && policy.codex_atlassian == Some(CodexAtlassianStatus::SignedIn) {
+            args.extend(codex_atlassian_run_args(&tools));
         }
     }
     // Codex reads the prompt from stdin through a trailing "-"; keep it last.
@@ -307,6 +301,7 @@ mod tests {
         let policy = GenerationToolPolicy {
             read_sources: sources.to_vec(),
             codex_mcp_servers: vec!["exa".into(), "node_repl".into()],
+            codex_atlassian: None,
         };
         generation_command_with_tool_policy(provider, "note", "default", None, true, &policy)
             .unwrap()
@@ -400,23 +395,6 @@ mod tests {
     }
 
     #[test]
-    fn codex_mcp_servers_are_listed_from_enabled_entries_only() {
-        let json = r#"[{"name":"exa","enabled":true,"transport":{}},
-            {"name":"computer-use","enabled":false},{"name":"node_repl","enabled":true}]"#;
-        assert_eq!(
-            enabled_codex_mcp_servers(json).unwrap(),
-            ["exa", "node_repl"]
-        );
-        assert!(enabled_codex_mcp_servers(r#"[{"name":"a.b","enabled":true}]"#).is_err());
-        assert!(
-            enabled_codex_mcp_servers(r#"[{"name":"a.b","enabled":false}]"#)
-                .unwrap()
-                .is_empty()
-        );
-        assert!(enabled_codex_mcp_servers("not json").is_err());
-    }
-
-    #[test]
     fn mcp_servers_are_only_turned_off_for_codex() {
         let args = command(AiProvider::ClaudeCode, &[]);
         assert!(!args.iter().any(|arg| arg.starts_with("mcp_servers.")));
@@ -437,13 +415,17 @@ mod tests {
     }
 
     #[test]
-    fn read_sources_only_apply_to_claude_code() {
-        let sources = [GenerationReadSource::Jira];
+    fn read_sources_narrow_by_provider() {
+        use GenerationReadSource::{Confluence, Jira, TeamsChats};
+        let sources = [Jira, TeamsChats, Confluence];
         assert_eq!(
             effective_read_sources(AiProvider::ClaudeCode, &sources),
             sources
         );
-        assert!(effective_read_sources(AiProvider::CodexCli, &sources).is_empty());
+        assert_eq!(
+            effective_read_sources(AiProvider::CodexCli, &sources),
+            [Jira, Confluence]
+        );
         assert!(effective_read_sources(AiProvider::CopilotCli, &sources).is_empty());
         assert!(read_sources_prompt_rule(&[]).is_empty());
         assert!(read_sources_prompt_rule(&sources).contains("Jira issues"));

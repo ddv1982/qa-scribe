@@ -7,7 +7,9 @@ use std::time::{Duration, Instant};
 use qa_scribe_core::{
     ai::{
         ProviderExecutionError, ProviderGenerationOutput,
+        codex_read_sources::codex_unavailable_read_sources,
         generation_tools::{GenerationToolPolicy, generation_command_with_tool_policy},
+        read_source_availability::UnavailableReadSource,
         stream::StreamUpdate,
     },
     domain::{AiProvider, GenerationReadSource},
@@ -19,7 +21,7 @@ use super::{
     streaming_exec::run_generation_command_streaming,
 };
 use crate::{
-    commands::providers::{codex_enabled_mcp_servers_for_job, provider_readiness_for_job},
+    commands::providers::{codex_mcp_inventory_for_job, provider_readiness_for_job},
     jobs::{JobControl, JobStore},
 };
 
@@ -33,6 +35,7 @@ pub(super) fn execute_provider_generation_streaming(
     reasoning_effort: Option<&str>,
     prompt: &str,
     read_sources: &[GenerationReadSource],
+    unavailable_read_sources: &mut Vec<UnavailableReadSource>,
     log_context: &str,
     job_id: &str,
     jobs: &JobStore,
@@ -52,14 +55,17 @@ pub(super) fn execute_provider_generation_streaming(
 
     validate_effective_selection(&readiness.descriptor, model, reasoning_effort)?;
 
-    let policy = GenerationToolPolicy {
+    let mut policy = GenerationToolPolicy {
         read_sources: read_sources.to_vec(),
-        codex_mcp_servers: if provider == AiProvider::CodexCli {
-            codex_enabled_mcp_servers_for_job(control)?
-        } else {
-            Vec::new()
-        },
+        ..GenerationToolPolicy::default()
     };
+    if provider == AiProvider::CodexCli {
+        let inventory = codex_mcp_inventory_for_job(control, read_sources)?;
+        *unavailable_read_sources =
+            codex_unavailable_read_sources(read_sources, inventory.atlassian);
+        policy.codex_mcp_servers = inventory.servers_to_disable;
+        policy.codex_atlassian = inventory.atlassian;
+    }
     let command = generation_command_with_tool_policy(
         provider,
         prompt,

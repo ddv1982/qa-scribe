@@ -75,6 +75,9 @@ export const commands = {
 	deleteAttachment: (attachmentId: string) => __TAURI_INVOKE<boolean>("delete_attachment", { attachmentId }),
 	getProviderStatus: () => __TAURI_INVOKE<ProviderStatus>("get_provider_status"),
 	refreshProviderStatus: () => __TAURI_INVOKE<ProviderStatus>("refresh_provider_status"),
+	getCodexAtlassianStatus: () => __TAURI_INVOKE<CodexAtlassianStatus>("get_codex_atlassian_status"),
+	signInCodexAtlassian: () => __TAURI_INVOKE<CodexAtlassianStatus>("sign_in_codex_atlassian"),
+	signOutCodexAtlassian: () => __TAURI_INVOKE<CodexAtlassianStatus>("sign_out_codex_atlassian"),
 	getAttachmentPreviewDataUrl: (attachmentId: string) => __TAURI_INVOKE<string | null>("get_attachment_preview_data_url", { attachmentId }),
 	readClipboardImageDataUrl: () => __TAURI_INVOKE<string | null>("read_clipboard_image_data_url"),
 	readChatClipboardImageDataUrl: () => __TAURI_INVOKE<string | null>("read_chat_clipboard_image_data_url"),
@@ -327,6 +330,8 @@ export type ChatSubmitRequest = {
 export type ChatTarget = { kind: "session" } | { kind: "finding"; snapshot: RecordContextSnapshot } | { kind: "test_cases_draft"; snapshot: RecordContextSnapshot };
 
 export type ChatTurnStatus = "running" | "completed" | "failed" | "cancelled" | "interrupted";
+
+export type CodexAtlassianStatus = "signedIn" | "signedOut";
 
 export type CommandError = {
 	kind: CommandErrorKind,

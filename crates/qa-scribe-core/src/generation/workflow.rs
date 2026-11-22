@@ -11,7 +11,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     QaScribeError, Result,
     ai::{
-        ProviderGenerationOutput,
+        GenerationOutputFormat, ProviderGenerationOutput,
+        codex_read_sources::codex_disallowed_tool_call,
         generation_tools::effective_read_sources,
         read_source_availability::{UnavailableReadSource, unavailable_read_sources},
     },
@@ -120,6 +121,9 @@ pub struct PreparedGeneration {
     pub attachments: Vec<Attachment>,
     /// Read-only sources this run may look up; empty means no tools at all.
     pub read_sources: Vec<GenerationReadSource>,
+    /// Sources the executor found unavailable before starting a Codex run
+    /// (Claude Code reports its own in the output stream instead).
+    pub unavailable_read_sources: Vec<UnavailableReadSource>,
 }
 
 pub fn prepare_ai_action_generation(
@@ -171,6 +175,7 @@ pub fn prepare_ai_action_generation(
         selected_note_body: note_entry.map(|entry| entry.body.clone()),
         attachments,
         read_sources,
+        unavailable_read_sources: Vec::new(),
     })
 }
 
@@ -211,9 +216,20 @@ fn finish_successful_generation(
     output: ProviderGenerationOutput,
 ) -> Result<GenerateAiActionResult> {
     let ai_run_id = prepared.ai_run.id.clone();
-    let unavailable_read_sources =
-        unavailable_read_sources(output.claude_events(), &prepared.read_sources);
+    let unavailable_read_sources = match output.output_format {
+        GenerationOutputFormat::ClaudeStreamJson => {
+            unavailable_read_sources(output.claude_events(), &prepared.read_sources)
+        }
+        _ => prepared.unavailable_read_sources.clone(),
+    };
     let result = (|| {
+        if let Some(call) =
+            codex_disallowed_tool_call(output.codex_events(), &prepared.read_sources)
+        {
+            return Err(QaScribeError::Validation(format!(
+                "Codex called {call}, which Generate does not allow, so the result was discarded."
+            )));
+        }
         let response = output.response_text().map_err(QaScribeError::Validation)?;
         let body = parse_rich_html_fragment_response(&response, &prepared.output_marker);
         validate_generated_body(&body)?;

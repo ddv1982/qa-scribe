@@ -5,6 +5,8 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { GenerationReadSourcesSetting } from './GenerationReadSourcesSetting'
 import { settingsFixture } from '../test/fixtures'
 
+vi.mock('./CodexAtlassianSignIn', () => ({ CodexAtlassianSignIn: () => <p>Codex sign-in row</p> }))
+
 afterEach(cleanup)
 
 it('starts with every read source off and turns sources on in a stable order', async () => {
@@ -27,4 +29,13 @@ it('starts with every read source off and turns sources on in a stable order', a
   rerender(<GenerationReadSourcesSetting settingsDraft={{ ...settingsFixture(), generationReadSources: ['jira', 'teamsChats'] }} updateSettingsDraft={updateSettingsDraft} />)
   await user.click(screen.getByRole('checkbox', { name: 'Jira issues' }))
   expect(updateSettingsDraft).toHaveBeenLastCalledWith({ generationReadSources: ['teamsChats'] })
+})
+
+it('shows the Codex sign-in only when Jira or Confluence is on', () => {
+  const updateSettingsDraft = vi.fn()
+  const { rerender } = render(<GenerationReadSourcesSetting settingsDraft={{ ...settingsFixture(), generationReadSources: ['teamsChats'] }} updateSettingsDraft={updateSettingsDraft} />)
+  expect(screen.queryByText('Codex sign-in row')).toBeNull()
+  expect(screen.getByRole('group', { name: 'Generate may read' })).toHaveAccessibleDescription(/Codex looks up Jira and Confluence/)
+  rerender(<GenerationReadSourcesSetting settingsDraft={{ ...settingsFixture(), generationReadSources: ['confluence'] }} updateSettingsDraft={updateSettingsDraft} />)
+  expect(screen.getByText('Codex sign-in row')).toBeTruthy()
 })

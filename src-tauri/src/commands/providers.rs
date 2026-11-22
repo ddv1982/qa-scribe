@@ -1,9 +1,15 @@
 use qa_scribe_core::{
-    ai::{ProviderCapability, provider_capabilities},
-    domain::AiProvider,
+    ai::{
+        ProviderCapability,
+        codex_read_sources::{CodexMcpInventory, codex_mcp_inventory},
+        generation_tools::codex_mcp_list_args,
+        provider_capabilities,
+    },
+    domain::{AiProvider, GenerationReadSource},
 };
 
 mod cache;
+pub mod codex_atlassian;
 mod defaults;
 mod detection;
 mod models;
@@ -62,15 +68,21 @@ pub fn provider_readiness_for_job(provider: AiProvider, control: &JobControl) ->
     )
 }
 
-/// Names of the Codex MCP servers that are on, so Generate can turn each off.
+/// The Codex MCP servers that are on, so Generate can turn each off, and the
+/// sign-in of QA Scribe's Atlassian server when `read_sources` need it.
 /// Fails closed: if the list cannot be read, the run does not start.
-pub fn codex_enabled_mcp_servers_for_job(control: &JobControl) -> Result<Vec<String>, String> {
+pub fn codex_mcp_inventory_for_job(
+    control: &JobControl,
+    read_sources: &[GenerationReadSource],
+) -> Result<CodexMcpInventory, String> {
+    let args = codex_mcp_list_args(read_sources);
+    let args: Vec<&str> = args.iter().map(String::as_str).collect();
     // Listing checks each HTTP server's sign-in status, which takes about
     // five seconds for an unreachable server, so the short probe limit is
     // too tight here.
     let probe = SystemProbeRunner::for_job(ProviderPathMode::Deep, control).run_with_timeout(
         "codex",
-        qa_scribe_core::ai::generation_tools::CODEX_MCP_LIST_ARGS,
+        &args,
         std::time::Duration::from_secs(20),
     );
     if !probe.success {
@@ -79,7 +91,7 @@ pub fn codex_enabled_mcp_servers_for_job(control: &JobControl) -> Result<Vec<Str
             probe.stderr
         ));
     }
-    qa_scribe_core::ai::generation_tools::enabled_codex_mcp_servers(&probe.stdout)
+    codex_mcp_inventory(&probe.stdout)
 }
 
 #[cfg(test)]

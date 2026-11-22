@@ -10,12 +10,12 @@ const tauriMock = getTauriMock()
 
 describe('readSourceWarning', () => {
   it('says nothing when every source was available', () => {
-    expect(readSourceWarning([])).toBeNull()
-    expect(readSourceWarning(undefined)).toBeNull()
+    expect(readSourceWarning('claude_code', [])).toBeNull()
+    expect(readSourceWarning('claude_code', undefined)).toBeNull()
   })
 
   it('names the cause once per connector', () => {
-    expect(readSourceWarning([
+    expect(readSourceWarning('claude_code', [
       { source: 'jira', reason: 'needsSignIn' },
       { source: 'confluence', reason: 'needsSignIn' },
       { source: 'teamsChats', reason: 'connectorMissing' },
@@ -24,11 +24,18 @@ describe('readSourceWarning', () => {
   })
 
   it('separates a partial tool set from a connector that did not connect', () => {
-    expect(readSourceWarning([
+    expect(readSourceWarning('claude_code', [
       { source: 'jira', reason: 'toolsMissing' },
       { source: 'teamsChannels', reason: 'notConnected' },
     ])).toBe("Some lookups in Jira weren't available."
       + " Couldn't look up Teams channels: the Microsoft 365 connector wasn't connected in Claude Code when the run started.")
+  })
+
+  it('points Codex users to the Atlassian sign-in in Settings', () => {
+    expect(readSourceWarning('codex_cli', [
+      { source: 'jira', reason: 'needsSignIn' },
+      { source: 'confluence', reason: 'needsSignIn' },
+    ])).toBe("Couldn't look up Jira and Confluence: sign in to Atlassian for Codex in Settings.")
   })
 
   it('keeps a warning until the next notice replaces it', () => {

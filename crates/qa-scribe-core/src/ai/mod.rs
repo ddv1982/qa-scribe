@@ -1,5 +1,6 @@
 pub mod chat;
 pub mod chat_protocol;
+pub mod codex_read_sources;
 mod executor;
 pub mod generation_tools;
 mod model_report;
