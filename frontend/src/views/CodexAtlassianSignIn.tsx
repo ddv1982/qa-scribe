@@ -3,38 +3,43 @@ import { ActionButton } from '../components/ActionButton'
 import { getCodexAtlassianStatus, signInCodexAtlassian, signOutCodexAtlassian, type CodexAtlassianStatus } from '../tauri'
 import { formatError } from '../ui/format'
 
-type SignInState =
+type Activity =
   | { kind: 'checking' | 'signingIn' | 'signingOut' }
-  | { kind: 'known', status: CodexAtlassianStatus }
+  | { kind: 'idle' }
   | { kind: 'failed', message: string }
 
 const busyLabels = { checking: 'Checking…', signingIn: 'Finish signing in in your browser (up to 5 minutes)…', signingOut: 'Signing out…' }
 
 /** Codex's own Atlassian sign-in for Jira and Confluence lookups. */
 export function CodexAtlassianSignIn() {
-  const [state, setState] = useState<SignInState>({ kind: 'checking' })
+  // The last known sign-in survives a failed action, so a failed sign-out
+  // still offers Sign out again.
+  const [known, setKnown] = useState<CodexAtlassianStatus | null>(null)
+  const [activity, setActivity] = useState<Activity>({ kind: 'checking' })
+
+  function settle(action: Promise<CodexAtlassianStatus>, isActive: () => boolean = () => true) {
+    action
+      .then((status) => { if (isActive()) { setKnown(status); setActivity({ kind: 'idle' }) } })
+      .catch((cause: unknown) => { if (isActive()) setActivity({ kind: 'failed', message: formatError(cause) }) })
+  }
 
   useEffect(() => {
     let active = true
-    getCodexAtlassianStatus()
-      .then((status) => { if (active) setState({ kind: 'known', status }) })
-      .catch((cause: unknown) => { if (active) setState({ kind: 'failed', message: formatError(cause) }) })
+    settle(getCodexAtlassianStatus(), () => active)
     return () => { active = false }
   }, [])
 
   function run(kind: 'signingIn' | 'signingOut', action: () => Promise<CodexAtlassianStatus>) {
-    setState({ kind })
-    action()
-      .then((status) => setState({ kind: 'known', status }))
-      .catch((cause: unknown) => setState({ kind: 'failed', message: formatError(cause) }))
+    setActivity({ kind })
+    settle(action())
   }
 
-  const busy = state.kind === 'checking' || state.kind === 'signingIn' || state.kind === 'signingOut'
-  const signedIn = state.kind === 'known' && state.status === 'signedIn'
+  const busy = activity.kind === 'checking' || activity.kind === 'signingIn' || activity.kind === 'signingOut'
+  const signedIn = known === 'signedIn'
   const status = busy
-    ? busyLabels[state.kind]
-    : state.kind === 'failed'
-      ? state.message
+    ? busyLabels[activity.kind]
+    : activity.kind === 'failed'
+      ? activity.message
       : signedIn ? 'Signed in' : 'Not signed in'
 
   return (

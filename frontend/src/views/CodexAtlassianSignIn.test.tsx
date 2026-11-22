@@ -46,3 +46,16 @@ it('shows why a sign-in failed and lets you retry', async () => {
   await user.click(screen.getByRole('button', { name: 'Sign in for Codex' }))
   await waitFor(() => expect(screen.getByRole('status').textContent).toBe('Signed in'))
 })
+
+it('keeps offering sign-out when signing out fails', async () => {
+  const user = userEvent.setup()
+  vi.mocked(getCodexAtlassianStatus).mockResolvedValue('signedIn')
+  vi.mocked(signOutCodexAtlassian).mockRejectedValueOnce(new Error('Signing out of Atlassian for Codex timed out.')).mockResolvedValueOnce('signedOut')
+  render(<CodexAtlassianSignIn />)
+
+  await waitFor(() => expect(screen.getByRole('status').textContent).toBe('Signed in'))
+  await user.click(screen.getByRole('button', { name: 'Sign out' }))
+  await waitFor(() => expect(screen.getByRole('status').textContent).toContain('timed out'))
+  await user.click(screen.getByRole('button', { name: 'Sign out' }))
+  await waitFor(() => expect(screen.getByRole('status').textContent).toBe('Not signed in'))
+})
