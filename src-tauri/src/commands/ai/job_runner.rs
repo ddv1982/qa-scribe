@@ -100,7 +100,7 @@ fn run_ai_action_job(
     }
 
     let prepare_started = Instant::now();
-    let prepared =
+    let mut prepared =
         match state.with_service(|service| prepare_ai_action_generation(service, &request)) {
             Ok(prepared) => prepared,
             Err(error) => {
@@ -202,12 +202,14 @@ fn run_ai_action_job(
         return;
     }
 
+    let mut unavailable_read_sources = Vec::new();
     let output = execute_provider_generation_streaming(
         request.provider,
         &request.model,
         request.reasoning_effort.as_deref(),
         &prepared.prompt,
         &prepared.read_sources,
+        &mut unavailable_read_sources,
         &format!("AI action action={}", request.action.label()),
         &job_id,
         &jobs,
@@ -239,6 +241,7 @@ fn run_ai_action_job(
         return;
     }
 
+    prepared.unavailable_read_sources = unavailable_read_sources;
     let ai_run_id = prepared.ai_run.id.clone();
     let finalization = control.run_if_not_cancelled(|| {
         let result = state.with_service(|service| {

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-sign-in-codex-atlassian"
+description = "Enables the sign_in_codex_atlassian command without any pre-configured scope."
+commands.allow = ["sign_in_codex_atlassian"]
+
+[[permission]]
+identifier = "deny-sign-in-codex-atlassian"
+description = "Denies the sign_in_codex_atlassian command without any pre-configured scope."
+commands.deny = ["sign_in_codex_atlassian"]

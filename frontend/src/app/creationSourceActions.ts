@@ -70,7 +70,7 @@ export function createCreationSourceActions(host: CreationSourceHost) {
         const record: CreatedRecord | null = event.result.finding ? { kind: 'finding', record: event.result.finding }
           : event.result.draft ? { kind: 'testware', record: event.result.draft } : null
         if (!record || record.kind !== captured.kind) { restore(); host.error('Generation finished without the expected saved result.'); return }
-        void host.acceptOutcome(captured, { state: 'committed', record }).then((selected) => { if (selected) { host.notice?.(captured.kind === 'testware' ? 'Testware generated and saved' : 'Finding generated and saved'); const warning = readSourceWarning(event.result.unavailableReadSources); if (warning) host.warning?.(warning); host.finished() } }).catch((cause: unknown) => host.error(formatError(cause)))
+        void host.acceptOutcome(captured, { state: 'committed', record }).then((selected) => { if (selected) { host.notice?.(captured.kind === 'testware' ? 'Testware generated and saved' : 'Finding generated and saved'); const warning = readSourceWarning(event.result.aiRun.provider, event.result.unavailableReadSources); if (warning) host.warning?.(warning); host.finished() } }).catch((cause: unknown) => host.error(formatError(cause)))
       }
     }
     try {

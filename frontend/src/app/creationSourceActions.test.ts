@@ -111,7 +111,7 @@ it('warns after the saved notice when a read source was unavailable', async () =
   const event = completed()
   if (event.type === 'completed') event.result.unavailableReadSources = [{ source: 'jira', reason: 'needsSignIn' }]
   receive(event)
-  await vi.waitFor(() => expect(warning).toHaveBeenCalledWith("Couldn't look up Jira: the Atlassian connector needs you to sign in again in Claude Code."))
+  await vi.waitFor(() => expect(warning).toHaveBeenCalledWith("Couldn't look up Jira: sign in to Atlassian for Codex in Settings."))
   expect(notice).toHaveBeenLastCalledWith('Finding generated and saved')
   expect(notice.mock.invocationCallOrder.at(-1)).toBeLessThan(warning.mock.invocationCallOrder[0])
 })

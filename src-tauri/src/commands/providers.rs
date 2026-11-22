@@ -1,9 +1,18 @@
 use qa_scribe_core::{
-    ai::{ProviderCapability, provider_capabilities},
-    domain::AiProvider,
+    ai::{
+        ProviderCapability,
+        codex_read_sources::{
+            CODEX_RESERVED_NAME_ARGS, CodexMcpInventory, codex_atlassian_tools,
+            codex_mcp_inventory, codex_reserved_name_free,
+        },
+        generation_tools::codex_mcp_list_args,
+        provider_capabilities,
+    },
+    domain::{AiProvider, GenerationReadSource},
 };
 
 mod cache;
+pub mod codex_atlassian;
 mod defaults;
 mod detection;
 mod models;
@@ -62,24 +71,42 @@ pub fn provider_readiness_for_job(provider: AiProvider, control: &JobControl) ->
     )
 }
 
-/// Names of the Codex MCP servers that are on, so Generate can turn each off.
+/// The Codex MCP servers that are on, so Generate can turn each off, and the
+/// sign-in of QA Scribe's Atlassian server when `read_sources` need it.
 /// Fails closed: if the list cannot be read, the run does not start.
-pub fn codex_enabled_mcp_servers_for_job(control: &JobControl) -> Result<Vec<String>, String> {
+pub fn codex_mcp_inventory_for_job(
+    control: &JobControl,
+    read_sources: &[GenerationReadSource],
+) -> Result<CodexMcpInventory, String> {
+    let runner = SystemProbeRunner::for_job(ProviderPathMode::Deep, control);
+    let with_atlassian = !codex_atlassian_tools(read_sources).is_empty();
+    if with_atlassian {
+        codex_reserved_name_free_with(&runner)?;
+    }
+    let args = codex_mcp_list_args(with_atlassian);
+    let args: Vec<&str> = args.iter().map(String::as_str).collect();
     // Listing checks each HTTP server's sign-in status, which takes about
     // five seconds for an unreachable server, so the short probe limit is
     // too tight here.
-    let probe = SystemProbeRunner::for_job(ProviderPathMode::Deep, control).run_with_timeout(
-        "codex",
-        qa_scribe_core::ai::generation_tools::CODEX_MCP_LIST_ARGS,
-        std::time::Duration::from_secs(20),
-    );
+    let probe = runner.run_with_timeout("codex", &args, std::time::Duration::from_secs(20));
     if !probe.success {
         return Err(format!(
             "Could not list Codex MCP servers to turn them off for this run: {}",
             probe.stderr
         ));
     }
-    qa_scribe_core::ai::generation_tools::enabled_codex_mcp_servers(&probe.stdout)
+    codex_mcp_inventory(&probe.stdout, with_atlassian)
+}
+
+/// Refuses a user Codex server with QA Scribe's reserved Atlassian name
+/// before any command adds QA Scribe's URL to it.
+fn codex_reserved_name_free_with(runner: &SystemProbeRunner) -> Result<(), String> {
+    let probe = runner.run_with_timeout(
+        "codex",
+        CODEX_RESERVED_NAME_ARGS,
+        std::time::Duration::from_secs(10),
+    );
+    codex_reserved_name_free(probe.success, &probe.stderr)
 }
 
 #[cfg(test)]

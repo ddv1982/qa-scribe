@@ -175,9 +175,22 @@ impl ProviderGenerationOutput {
 
     /// The parsed Claude stream-json events; empty for other formats.
     pub fn claude_events(&self) -> impl DoubleEndedIterator<Item = serde_json::Value> + '_ {
-        let stdout = match self.output_format {
-            GenerationOutputFormat::ClaudeStreamJson => self.stdout.as_slice(),
-            _ => &[],
+        self.json_events(GenerationOutputFormat::ClaudeStreamJson)
+    }
+
+    /// The parsed `codex exec --json` events; empty for other formats.
+    pub fn codex_events(&self) -> impl DoubleEndedIterator<Item = serde_json::Value> + '_ {
+        self.json_events(GenerationOutputFormat::CodexJsonl)
+    }
+
+    fn json_events(
+        &self,
+        format: GenerationOutputFormat,
+    ) -> impl DoubleEndedIterator<Item = serde_json::Value> + '_ {
+        let stdout = if self.output_format == format {
+            self.stdout.as_slice()
+        } else {
+            &[]
         };
         stdout
             .split(|byte| *byte == b'\n')

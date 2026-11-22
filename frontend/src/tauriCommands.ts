@@ -9,6 +9,7 @@ import {
   type CommitCreationSave,
   type CreationOutcome,
   type AiProvider,
+  type CodexAtlassianStatus,
   type AppSettings,
   type Attachment,
   type AttachmentCleanupStatus,
@@ -274,6 +275,18 @@ export function getProviderStatus(): Promise<ProviderStatus> {
 
 export function refreshProviderStatus(): Promise<ProviderStatus> {
   return commands.refreshProviderStatus()
+}
+
+export function getCodexAtlassianStatus(): Promise<CodexAtlassianStatus> {
+  return commands.getCodexAtlassianStatus()
+}
+
+export function signInCodexAtlassian(): Promise<CodexAtlassianStatus> {
+  return commands.signInCodexAtlassian()
+}
+
+export function signOutCodexAtlassian(): Promise<CodexAtlassianStatus> {
+  return commands.signOutCodexAtlassian()
 }
 
 export function startAiActionJob(

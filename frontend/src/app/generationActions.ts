@@ -221,7 +221,7 @@ export function createGenerationActions(ctx: GenerationActionsContext) {
     }
 
     const { result } = event
-    const warning = readSourceWarning(result.unavailableReadSources)
+    const warning = readSourceWarning(result.aiRun.provider, result.unavailableReadSources)
     if (result.draft && ctx.session.activeSessionIdRef.current === result.draft.sessionId) {
       const draftDocument = richEditorDocumentFromStoredBody(result.draft)
       const storedBody = richEditorDocumentToStoredBody(draftDocument)
