@@ -15,7 +15,7 @@ impl SessionService {
                 RefinementAction::Stage if matches!(proposal.patch, RefinementPatch::Note { .. }) => {
                     match proposal.state {
                         RefinementState::Offered => {
-                            let source = super::chat_responses::note_source(tx, &proposal)?;
+                            let source = super::chat_responses::note_source(tx, &proposal.user_message_id, &proposal.assistant_message_id)?;
                             let legacy = super::chat_responses::note_fingerprint(tx, &chat.session_id)?;
                             let note = super::entries::note_entry(tx, &chat.session_id)?;
                             let current = super::chat_note_updates::content_fingerprint(note.as_ref());

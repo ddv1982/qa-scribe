@@ -223,3 +223,78 @@ fn consecutive_note_updates_can_be_undone_in_order() {
         "<p>Original</p>"
     );
 }
+
+#[test]
+fn legacy_note_suggestion_can_be_regenerated_from_its_original_request() {
+    let service = SessionService::in_memory().unwrap();
+    let session_id = session(&service);
+    set_note(&service, &session_id, "<p>Original</p>".into());
+    let note = service.get_or_create_note_entry(&session_id).unwrap();
+    let chat = notes_turn(
+        &service,
+        &session_id,
+        json!({"kind":"edit","patch":{"kind":"note","bodyMarkdown":"Old suggestion"}}),
+    );
+    let proposal = &chat.proposals[0];
+    let connection = service.database().connection();
+    connection
+        .execute_batch("DROP TRIGGER chat_contract_immutable")
+        .unwrap();
+    use sha2::{Digest, Sha256};
+    connection.execute(
+        "UPDATE chat_response_contracts SET contract_json=json_set(contract_json, '$.noteSource', ?1) WHERE message_id=?2",
+        rusqlite::params![format!("{:x}", Sha256::digest(note.body.as_bytes())), proposal.user_message_id],
+    ).unwrap();
+    let refreshed = service.load_chat(&session_id).unwrap();
+    assert!(
+        refreshed
+            .messages
+            .last()
+            .unwrap()
+            .response
+            .as_ref()
+            .unwrap()
+            .note_source_needs_refresh
+    );
+    let request = ApplyNoteRefinementRequest {
+        reference: ChatRef {
+            session_id: session_id.clone(),
+            draft_id: chat.draft_id.clone(),
+        },
+        proposal_id: proposal.id.clone(),
+        undo: false,
+    };
+    assert!(service.apply_note_refinement(request.clone()).is_err());
+    let started = service
+        .start_chat_turn_with_response(
+            ChatStartRequest {
+                scope: scope(&refreshed),
+            },
+            ChatTarget::Session,
+            ChatRequestIntent::SuggestEdit {
+                assistant_message_id: Some(proposal.assistant_message_id.clone()),
+            },
+        )
+        .unwrap();
+    let user = started.chat.messages.last().unwrap();
+    assert_eq!(user.text, "Make my note clearer");
+    assert!(
+        service
+            .response_contract(&user.id)
+            .unwrap()
+            .unwrap()
+            .local_edit()
+    );
+    let updated = service.finish_chat_turn(ChatFinishRequest {
+        scope: scope(&started.chat),
+        turn_id: started.turn_id,
+        assistant_text: json!({"version":3,"requestId":user.id,"markdown":"A fresh proposal.","outcome":{"kind":"edit","patch":{"kind":"note","bodyMarkdown":"Fresh suggestion"}}}).to_string(),
+    }).unwrap();
+    let applied = service
+        .apply_note_refinement(ApplyNoteRefinementRequest {
+            proposal_id: updated.proposals.last().unwrap().id.clone(),
+            ..request
+        })
+        .unwrap();
+    assert!(applied.note.body.contains("Fresh suggestion"));
+}

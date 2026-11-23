@@ -36,7 +36,9 @@ export function ChatMessageList({ messages, aiRuns, proposals = [], proposalCont
           {message.text ? message.role === 'assistant'
             ? <MarkdownContent text={message.text} />
             : <p className="chat-message-text">{message.text}</p> : null}
-          {proposals.filter(proposal => proposal.assistantMessageId === message.id).map(proposal => <ChatProposalReview key={proposal.id} proposal={proposal} controls={proposalControls} presentation={presentation} />)}
+          {proposals.filter(proposal => proposal.assistantMessageId === message.id).map(proposal => <ChatProposalReview key={proposal.id} proposal={proposal} controls={proposalControls} presentation={presentation}
+            noteSourceNeedsRefresh={message.response?.noteSourceNeedsRefresh}
+            onRegenerate={onSuggestEdit && message.response?.noteSourceNeedsRefresh ? () => onSuggestEdit(message.id) : undefined} />)}
           {presentation === 'notes' || message.response?.localEdit ? <ChatQuestion message={message} messages={messages} controls={questionControls} /> : message.response?.question && !message.response.warning ? <div className="chat-follow-up">
             <p className="chat-message-text">{message.response.question.prompt}</p>
             <p className="chat-message-text">{message.response.question.choices.join(' · ')}</p>

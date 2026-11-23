@@ -7,7 +7,7 @@ import { RichTextEditor } from '../editor/RichTextEditor'
 import { findingSeverityLabel, findingStatusLabel, parseFindingMetadata } from '../findings/metadata'
 import { parseRichEditorDocument } from '../editor/editorDocument'
 
-export function ChatProposalReview({ proposal, controls, presentation = 'notes' }: { proposal: RefinementProposal; controls?: ProposalControls; presentation?: 'notes' | 'record' }) {
+export function ChatProposalReview({ proposal, controls, presentation = 'notes', noteSourceNeedsRefresh, onRegenerate }: { proposal: RefinementProposal; controls?: ProposalControls; presentation?: 'notes' | 'record'; noteSourceNeedsRefresh?: boolean; onRegenerate?: () => Promise<void> }) {
   const [reviewing, setReviewing] = useState(false)
   const before = parseRichEditorDocument(proposal.before.documentJson)
   const after = parseRichEditorDocument(proposal.after.documentJson)
@@ -25,7 +25,10 @@ export function ChatProposalReview({ proposal, controls, presentation = 'notes' 
     if (status !== 'offered' && !offeredAgain) return null
     return <section className="chat-proposal chat-proposal--record" aria-label="Suggested note">
       {after ? <ChatProposalContent before={controls?.noteBefore ?? before} after={after} /> : null}
-      {controls?.onUpdate ? <div className="chat-buttons">
+      {noteSourceNeedsRefresh ? <>
+        <p className="chat-help">Refresh this suggestion against the current Note before applying it.</p>
+        {onRegenerate ? <ActionButton variant="secondary" type="button" onClick={() => void onRegenerate()}>Regenerate suggestion</ActionButton> : null}
+      </> : controls?.onUpdate ? <div className="chat-buttons">
         <ActionButton variant="secondary" disabled={pending || Boolean(controls.applyUnavailable)} onClick={() => void controls.onUpdate?.(proposal.id)}>Update note</ActionButton>
       </div> : null}
       {controls?.applyUnavailable ? <p className="chat-help">{controls.applyUnavailable}</p> : null}

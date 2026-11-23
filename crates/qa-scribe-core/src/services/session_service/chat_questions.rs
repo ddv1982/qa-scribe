@@ -148,10 +148,14 @@ pub(super) fn resolve(
                         "Clear the composer before requesting a suggestion from the last reply",
                     ));
                 }
+                let offered = chat
+                    .proposals
+                    .iter()
+                    .find(|proposal| proposal.assistant_message_id == *id);
                 let latest = chat
                     .messages
-                    .last()
-                    .filter(|m| {
+                    .iter()
+                    .find(|m| {
                         m.id == *id
                             && m.role == ChatRole::Assistant
                             && m.status == ChatTurnStatus::Completed
@@ -169,12 +173,21 @@ pub(super) fn resolve(
                         m.id == response.source_user_message_id && same_target(&active, &m.context)
                     })
                     .ok_or_else(|| validation("The response belongs to another source"))?;
-                if chat
-                    .proposals
-                    .iter()
-                    .any(|p| p.assistant_message_id == latest.id)
+                let old_note_suggestion = response.note_source_needs_refresh
+                    && offered.is_some_and(|proposal| {
+                        matches!(proposal.patch, RefinementPatch::Note { .. })
+                            && proposal.state == RefinementState::Offered
+                    });
+                if !old_note_suggestion
+                    && (offered.is_some()
+                        || chat
+                            .messages
+                            .last()
+                            .is_none_or(|message| message.id != latest.id))
                 {
-                    return Err(validation("This response already has a suggestion"));
+                    return Err(validation(
+                        "This response is no longer current or already has a suggestion",
+                    ));
                 }
                 text = user.text.clone();
             }

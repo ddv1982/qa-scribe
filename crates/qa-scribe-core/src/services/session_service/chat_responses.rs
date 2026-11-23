@@ -56,20 +56,21 @@ pub(super) fn capture_note_retry(
 
 pub(super) fn note_source(
     connection: &Connection,
-    proposal: &RefinementProposal,
+    message_id: &str,
+    assistant_id: &str,
 ) -> Result<Option<String>> {
     let retry: Option<String> = connection
         .query_row(
             "SELECT s.fingerprint FROM chat_note_retry_sources s
          JOIN chat_messages a ON a.id=?2 AND a.turn_id=s.turn_id WHERE s.message_id=?1",
-            params![proposal.user_message_id, proposal.assistant_message_id],
+            params![message_id, assistant_id],
             |row| row.get(0),
         )
         .optional()?;
     if retry.is_some() {
         return Ok(retry);
     }
-    Ok(contract(connection, &proposal.user_message_id)?
+    Ok(contract(connection, message_id)?
         .and_then(|ChatResponseContract::Current(contract)| contract.note_source))
 }
 
@@ -164,6 +165,7 @@ pub(super) fn completed(
                 purpose,
                 question: None,
                 local_edit: contract.local_edit(),
+                note_source_needs_refresh: false,
                 warning: Some(warning.into()),
             });
             return Ok(result);
@@ -175,6 +177,7 @@ pub(super) fn completed(
         purpose,
         question: parsed.question,
         local_edit: contract.local_edit(),
+        note_source_needs_refresh: false,
         warning: None,
     });
     if let Some((before, after)) = parsed.values {
@@ -220,11 +223,18 @@ pub(super) fn read(connection: &Connection, id: &str) -> Result<Option<ChatRespo
         let question = question
             .map(|s| serde_json::from_str(&s).map_err(|e| validation(e.to_string())))
             .transpose()?;
+        let note_source_needs_refresh = purpose
+            == (ChatResponsePurpose::Refinement {
+                record_kind: RefinementRecordKind::Note,
+            })
+            && !note_source(connection, &source, id)?
+                .is_some_and(|source| source.starts_with("document:"));
         Ok(ChatResponseInfo {
             source_user_message_id: source,
             purpose,
             question,
             local_edit: contract.local_edit(),
+            note_source_needs_refresh,
             warning,
         })
     })

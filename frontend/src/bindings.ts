@@ -333,6 +333,7 @@ export type ChatResponseInfo_Deserialize = {
 	purpose: ChatResponsePurpose,
 	question: ChatQuestion | null,
 	localEdit?: boolean,
+	noteSourceNeedsRefresh?: boolean,
 	warning: string | null,
 };
 
@@ -341,6 +342,7 @@ export type ChatResponseInfo_Serialize = {
 	purpose: ChatResponsePurpose,
 	question: ChatQuestion | null,
 	localEdit?: boolean,
+	noteSourceNeedsRefresh?: boolean,
 	warning: string | null,
 };
 

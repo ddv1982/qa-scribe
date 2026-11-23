@@ -44,6 +44,8 @@ pub struct ChatResponseInfo {
     pub question: Option<ChatQuestion>,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub local_edit: bool,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub note_source_needs_refresh: bool,
     pub warning: Option<String>,
 }
 

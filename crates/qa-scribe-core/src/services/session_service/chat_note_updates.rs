@@ -44,7 +44,7 @@ impl SessionService {
                     proposal.state = RefinementState::Offered;
                 }
                 (false, RefinementState::Offered) => {
-                    let source = chat_responses::note_source(tx, &proposal)?;
+                    let source = chat_responses::note_source(tx, &proposal.user_message_id, &proposal.assistant_message_id)?;
                     if source.as_deref() != Some(content_fingerprint(Some(&note)).as_str()) {
                         return Err(validation("The Note changed after the suggestion was made. Request a fresh suggestion."));
                     }

@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { afterEach, beforeEach, expect, it } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import type { RefinementProposal } from '../bindings'
 // The harness installs the Tauri mocks, so it loads before AppShell and its command imports.
 import { sessionNoteStateFixture, cleanupControllerTest, getTauriMock, setupControllerTest, renderWithControllerStartup, useAppController } from './useAppController.testHarness'
@@ -61,4 +61,15 @@ it('restores the previous Note when the update cannot be recorded', async () => 
   fireEvent.click(within(suggestion).getByRole('button', { name: 'Update note' }))
   expect(await within(suggestion).findByRole('alert')).toHaveTextContent('Chat changed')
   await waitFor(() => expect(note.textContent).toBe(original))
+})
+
+
+it('offers regeneration for an older suggestion without exposing Update note', async () => {
+  const { ChatProposalReview } = await import('../views/ChatProposalReview')
+  const regenerate = vi.fn(async () => {})
+  render(<ChatProposalReview proposal={proposal({ kind: 'offered' })} noteSourceNeedsRefresh onRegenerate={regenerate}
+    controls={{ errors: {}, pending: new Set(), onUpdate: vi.fn(), onAction: vi.fn() }} />)
+  expect(screen.queryByRole('button', { name: 'Update note' })).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Regenerate suggestion' }))
+  expect(regenerate).toHaveBeenCalledTimes(1)
 })
