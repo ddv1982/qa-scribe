@@ -106,3 +106,36 @@ fn other_inline_html_and_unclosed_underline_stay_literal_text() {
         vec![json!({"type":"paragraph","content":[text("stray </u> close")]})]
     );
 }
+
+#[test]
+fn a_managed_image_in_a_checklist_item_stays_in_that_item() {
+    let image = json!({"type":"image","attrs":{"src":"qa-scribe-attachment://att-1","alt":"shot.png","attachmentId":"att-1"}});
+    let note = "<ul data-type=\"taskList\"><li data-type=\"taskItem\" data-checked=\"true\"><label><input type=\"checkbox\" checked></label><div><p>Logged in</p><img src=\"qa-scribe-attachment://att-1\" data-attachment-id=\"att-1\" alt=\"shot.png\"><p>After</p></div></li><li data-type=\"taskItem\" data-checked=\"false\"><label><input type=\"checkbox\"></label><div><p>Next</p></div></li></ul>";
+    let markdown = crate::generation::project_html_to_prompt_markdown(note);
+    let nodes = super::parse_with_images(&markdown, std::slice::from_ref(&image)).unwrap();
+    let paragraph = |value: &str| json!({"type":"paragraph","content":[text(value)]});
+    assert_eq!(
+        nodes,
+        vec![json!({"type":"taskList","content":[
+            {"type":"taskItem","attrs":{"checked":true},"content":[paragraph("Logged in"), image, paragraph("After")]},
+            {"type":"taskItem","attrs":{"checked":false},"content":[paragraph("Next")]},
+        ]})],
+        "{markdown}"
+    );
+}
+
+#[test]
+fn a_checklist_item_starting_with_an_image_gets_its_leading_paragraph() {
+    let image = json!({"type":"image","attrs":{"src":"qa-scribe-attachment://att-1","alt":"shot.png","attachmentId":"att-1"}});
+    let nodes = super::parse_with_images(
+        "- [ ] ![shot.png](qa-scribe-attachment://att-1)",
+        std::slice::from_ref(&image),
+    )
+    .unwrap();
+    assert_eq!(
+        nodes,
+        vec![json!({"type":"taskList","content":[
+            {"type":"taskItem","attrs":{"checked":false},"content":[{"type":"paragraph","content":[]}, image]},
+        ]})]
+    );
+}

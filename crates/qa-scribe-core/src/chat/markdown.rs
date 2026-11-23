@@ -224,7 +224,7 @@ fn finish(mut frame: Frame<'_>) -> Vec<Value> {
             if let Some(checked) = frame.checked {
                 // The current TaskItem extension disallows nested block lists.
                 vec![
-                    json!({"type":"taskItem", "attrs":{"checked":checked}, "content":paragraphs(children)}),
+                    json!({"type":"taskItem", "attrs":{"checked":checked}, "content":task_item_content(children)}),
                 ]
             } else {
                 let mut children = children;
@@ -305,20 +305,30 @@ fn blocks(nodes: Vec<Value>) -> Vec<Value> {
     result
 }
 
-fn paragraphs(nodes: Vec<Value>) -> Vec<Value> {
+/// A task item's content: `paragraph (paragraph | image)*`, in document order.
+fn task_item_content(nodes: Vec<Value>) -> Vec<Value> {
     let mut result = vec![];
-    for value in nodes {
-        let children = value["content"].as_array().cloned().unwrap_or_default();
-        if matches!(value["type"].as_str(), Some("paragraph" | "heading")) {
-            result.push(node("paragraph", children));
-        } else {
-            result.extend(paragraphs(children));
-        }
-    }
-    if result.is_empty() {
-        result.push(node("paragraph", vec![]));
+    paragraphs_and_images(nodes, &mut result);
+    if result.first().is_none_or(|n| n["type"] != "paragraph") {
+        result.insert(0, node("paragraph", vec![]));
     }
     result
+}
+
+fn paragraphs_and_images(nodes: Vec<Value>, result: &mut Vec<Value>) {
+    for value in nodes {
+        match value["type"].as_str() {
+            Some("image") => result.push(value),
+            Some("paragraph" | "heading") => {
+                let children = value["content"].as_array().cloned().unwrap_or_default();
+                result.push(node("paragraph", children));
+            }
+            _ => {
+                let children = value["content"].as_array().cloned().unwrap_or_default();
+                paragraphs_and_images(children, result);
+            }
+        }
+    }
 }
 
 fn lists(items: Vec<Value>, start: Option<u64>) -> Vec<Value> {
