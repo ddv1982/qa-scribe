@@ -29,6 +29,8 @@ mod record_bases;
 mod rich_body;
 mod sessions;
 mod settings;
+mod test_run_notes;
+pub use test_run_notes::PreparedTestCaseNotes;
 mod test_run_report;
 mod test_runs;
 

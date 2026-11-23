@@ -1,22 +1,27 @@
-import type { TestCaseResult, TestRunCase } from '../tauri'
+import type { TestCaseNoteImage, TestCaseNotes, TestCaseResult, TestRunCase } from '../tauri'
+import { formatError } from '../ui/format'
 
 /** What a tester sets on a test case. The store always takes both, so both are always sent. */
 export type CaseValue = { result: TestCaseResult; remark: string | null }
-export type CasePatch = Partial<CaseValue>
+type NotesDraft = { notes: TestCaseNotes; images: TestCaseNoteImage[] }
+export type CasePatch = Partial<CaseValue> & { notesDraft?: NotesDraft }
+export type EditableTestCase = TestRunCase & { notesSave?: 'saving' | 'failed'; notesError?: string }
 
 type Entry = {
   /** What the store returned last. A failed save shows this again. */
   confirmed: TestRunCase
   /** `confirmed` with every change not yet saved applied in order: what the screen shows. */
   desired: CaseValue
-  /** The value being saved, or null when nothing is in flight. */
-  sending: CaseValue | null
+  /** A status or notes write is in flight. */
+  sending: boolean
+  notesDraft?: NotesDraft
+  notesError?: string
 }
 
 export type CaseSaveListener = {
   /** The case as the screen should show it now. Not called once detached. */
-  onShow: (testCase: TestRunCase) => void
-  /** Every change of the case is stored. Also called once detached. */
+  onShow: (testCase: EditableTestCase) => void
+  /** Status and remark changes have settled. Also called once detached. */
   onSaved: (caseId: string) => void
   /** A save failed; the case shows its stored value again and its unsaved changes are dropped. */
   onError: (caseId: string, cause: unknown) => void
@@ -45,8 +50,9 @@ export class CaseSaveQueue {
     cases: TestRunCase[],
     private readonly save: (caseId: string, value: CaseValue) => Promise<TestRunCase>,
     private readonly listener: CaseSaveListener,
+    private readonly saveNotes?: (caseId: string, draft: NotesDraft) => Promise<TestRunCase>,
   ) {
-    for (const testCase of cases) this.entries.set(testCase.id, { confirmed: testCase, desired: valueOf(testCase), sending: null })
+    for (const testCase of cases) this.entries.set(testCase.id, { confirmed: testCase, desired: valueOf(testCase), sending: false })
   }
 
   has(caseId: string): boolean {
@@ -56,8 +62,13 @@ export class CaseSaveQueue {
   change(caseId: string, patch: CasePatch) {
     const entry = this.entries.get(caseId)
     if (!entry) return
-    entry.desired = { ...entry.desired, ...patch }
-    if (this.attached) this.listener.onShow({ ...entry.confirmed, ...entry.desired })
+    const { notesDraft, ...result } = patch
+    entry.desired = { ...entry.desired, ...result }
+    if (notesDraft) {
+      entry.notesDraft = notesDraft
+      entry.notesError = undefined
+    }
+    this.show(entry)
     if (!entry.sending) this.send(caseId, entry)
   }
 
@@ -75,30 +86,42 @@ export class CaseSaveQueue {
     return this.idle ? Promise.resolve() : new Promise((resolve) => this.idleWaiters.push(resolve))
   }
 
+  private show(entry: Entry) {
+    if (!this.attached) return
+    this.listener.onShow({
+      ...entry.confirmed,
+      ...entry.desired,
+      ...entry.notesDraft && { notes: entry.notesDraft.notes, notesSave: entry.notesError ? 'failed' : 'saving', notesError: entry.notesError },
+    })
+  }
+
   private send(caseId: string, entry: Entry) {
     const value = entry.desired
-    entry.sending = value
+    const writeResult = !sameValue(value, valueOf(entry.confirmed))
+    const draft = !writeResult && !entry.notesError ? entry.notesDraft : undefined
+    const save = writeResult ? this.save(caseId, value) : draft && this.saveNotes?.(caseId, draft)
+    if (!save) return
+
+    entry.sending = true
     this.inFlight += 1
-    this.save(caseId, value).then((saved) => {
+    void save.then((saved) => {
       entry.confirmed = saved
-      entry.sending = null
-      if (!sameValue(entry.desired, value)) {
-        this.send(caseId, entry)
-      } else {
-        entry.desired = valueOf(saved)
-        if (this.attached) this.listener.onShow(saved)
-        this.listener.onSaved(caseId)
-      }
+      if (draft && entry.notesDraft === draft) entry.notesDraft = undefined
+      const resultSettled = writeResult && sameValue(entry.desired, value)
+      if (resultSettled) entry.desired = valueOf(saved)
+      entry.sending = false
+      this.show(entry)
+      if (resultSettled) this.listener.onSaved(caseId)
+      this.send(caseId, entry)
       this.settled()
     }, (cause: unknown) => {
-      entry.sending = null
-      entry.desired = valueOf(entry.confirmed)
-      if (this.attached) {
-        this.listener.onShow(entry.confirmed)
-        this.listener.onError(caseId, cause)
-      } else {
-        this.listener.onBackgroundError(caseId, cause)
-      }
+      entry.sending = false
+      if (writeResult) entry.desired = valueOf(entry.confirmed)
+      else if (entry.notesDraft === draft) entry.notesError = formatError(cause)
+      this.show(entry)
+      if (!this.attached) this.listener.onBackgroundError(caseId, cause)
+      else if (writeResult) this.listener.onError(caseId, cause)
+      this.send(caseId, entry)
       this.settled()
     })
   }

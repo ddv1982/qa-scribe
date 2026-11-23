@@ -32,3 +32,4 @@ include!("session_storage/session_sheet.rs");
 include!("session_storage/acceptance_criteria.rs");
 include!("session_storage/test_runs.rs");
 include!("session_storage/test_runs_storage.rs");
+include!("session_storage/test_run_notes.rs");

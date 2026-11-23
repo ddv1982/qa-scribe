@@ -12,7 +12,8 @@ const sessionTitle = 'E2E Test runs'
 const draftTitle = 'Checkout payments'
 const cases = ['Pay by card AC-1', 'Pay with a gift card AC-2']
 const criteria = 'AC-1 Card payments go through\nAC-2 Gift card payments go through'
-const remark = 'The gift card was refused.'
+const observation = 'The gift card was refused.'
+const notesHeading = 'Gateway response'
 const evidence = []
 
 function save(stage, value) {
@@ -156,18 +157,38 @@ describe('Test runs in the built native application', () => {
 
     await click(resultButton(cases[0], 'Passed'))
     await click(resultButton(cases[1], 'Failed'))
-    const remarkField = await $(`[aria-label="Remark for ${cases[1]}"]`)
-    await remarkField.waitForDisplayed()
-    assert.equal(await $(`[aria-label="Remark for ${cases[0]}"]`).isExisting(), false)
-    await remarkField.click()
-    await remarkField.setValue(remark)
-    await browser.keys('Enter')
+    await click(`button[aria-label="Add result notes for ${cases[1]}"]`)
+    const notes = await $([`[aria-label="Result notes for ${cases[1]}"]`, '[contenteditable="true"]'].join(''))
+    await notes.waitForDisplayed()
+    await notes.setValue(notesHeading)
+    await blockStyle(notes, 'h2')
+    assert.ok(await browser.execute((text) => document.execCommand('insertParagraph', false) && document.execCommand('insertText', false, text), observation))
+    await blockStyle(notes, 'p')
+    assert.equal(await browser.execute(async (editor) => {
+      const canvas = document.createElement('canvas')
+      canvas.width = 420
+      canvas.height = 130
+      const context = canvas.getContext('2d')
+      context.fillStyle = '#f6f4ee'
+      context.fillRect(0, 0, 420, 130)
+      context.fillStyle = '#9f2035'
+      context.font = 'bold 20px sans-serif'
+      context.fillText('Payment declined', 22, 56)
+      context.font = '16px sans-serif'
+      context.fillText('Gateway code GC-04', 22, 89)
+      const image = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
+      const clipboard = new DataTransfer()
+      clipboard.items.add(new File([image], 'gateway.png', { type: 'image/png' }))
+      return !editor.dispatchEvent(new ClipboardEvent('paste', { clipboardData: clipboard, bubbles: true, cancelable: true }))
+    }, notes), true)
     await waitForProgress('2 of 2 run')
     await browser.waitUntil(async () => {
       runs = await native('list_test_runs', { sessionId: session.id })
       const run = runs.length === 1 ? await native('get_test_run', { runId: runs[0].id }) : null
-      return run?.cases[1].remark === remark && run.cases[0].result === 'passed'
-    }, { timeoutMsg: 'the results and remark were not saved' })
+      return run?.cases[1].notes?.text === `${notesHeading}\n${observation}` && run.cases[1].notes.imageCount === 1
+        && run.cases[0].result === 'passed'
+    }, { timeoutMsg: 'the results and rich notes with screenshot were not saved' })
+    await screenshot('result-notes-editor')
 
     await click('button=Back to test cases')
     await browser.waitUntil(async () => (await $('.last-test-run').isExisting()) && /: 1 passed, 1 failed$/.test(await $('.last-test-run').getText()),
@@ -199,17 +220,39 @@ describe('Test runs in the built native application', () => {
     await waitForProgress('2 of 2 run')
     assert.equal(await pressed(cases[0]), 'Passed')
     assert.equal(await pressed(cases[1]), 'Failed')
-    assert.equal(await $(`[aria-label="Remark for ${cases[1]}"]`).getValue(), remark)
+    await click(`button[aria-label="Result notes for ${cases[1]}"]`)
+    const editor = `[aria-label="Result notes for ${cases[1]}"][contenteditable="true"]`
+    assert.equal(await $(`${editor} h2`).getText(), notesHeading)
+    const loadedImage = () => browser.execute((selector) => {
+      const image = document.querySelector(`${selector} img`)
+      return image?.complete && image.naturalWidth === 420 && image.naturalHeight === 130
+    }, editor)
+    await browser.waitUntil(loadedImage, { timeoutMsg: 'the saved evidence did not decode after reopening' })
     const stored = await native('get_test_run', { runId: runs[0].id })
-    assert.deepEqual(stored.cases.map(({ groupTitle, title, result, remark }) => ({ groupTitle, title, result, remark })), [
-      { groupTitle: 'Checkout', title: cases[0], result: 'passed', remark: null },
-      { groupTitle: 'Checkout', title: cases[1], result: 'failed', remark },
+    assert.deepEqual(stored.cases.map(({ title, result, notes }) => [title, result, notes?.imageCount ?? 0]), [
+      [cases[0], 'passed', 0], [cases[1], 'failed', 1],
     ])
+    if (process.platform === 'linux') {
+      const wide = await browser.getWindowSize()
+      for (const width of [480, 320]) {
+        await browser.setWindowSize(width, 760)
+        await browser.waitUntil(() => browser.execute((width) => Math.abs(innerWidth - width) < 20, width))
+        assert.equal(await browser.execute((selector) => {
+          const element = document.querySelector(selector)
+          const bounds = element.getBoundingClientRect()
+          const toolbar = element.closest('.test-run-notes-editor').querySelector('.format-toolbar')
+          return bounds.left >= 0 && bounds.right <= innerWidth && toolbar.scrollWidth <= toolbar.clientWidth + 1
+        }, editor), true, 'the editor and formatting toolbar should fit the narrow window')
+        await $(editor).scrollIntoView()
+        await screenshot(`result-notes-${width}px`)
+      }
+      await browser.setWindowSize(wide.width, wide.height)
+    }
     const [listed] = await native('list_test_runs', { sessionId: session.id })
     assert.deepEqual([listed.total, listed.passed, listed.failed, listed.blocked, listed.notRun], [2, 1, 1, 0, 0])
     save('persisted', { run: stored, summary: listed })
 
-    await click(`//section[@aria-label="${cases[0]}"]//button[@aria-expanded]`)
+    await click(`//section[@aria-label="${cases[0]}"]//button[contains(@class,"test-run-case-toggle")]`)
     await $(`[aria-label="${cases[0]} test case"]`).waitForDisplayed()
     await screenshotInTheme('run-screen-light', 'light')
     await screenshotInTheme('run-screen-dark', 'dark')
@@ -228,7 +271,7 @@ describe('Test runs in the built native application', () => {
     save('finding-from-test-case', { title: await findingTitle.getValue(), body: seeded })
     assert.deepEqual(seeded, [
       'Environment', '', 'Steps to reproduce', 'Gift card is charged.', '', 'Expected result', '',
-      'Actual result', remark, 'Evidence', '', 'Impact', '',
+      'Actual result', notesHeading, observation, '', '', 'Evidence', '', 'Impact', '',
     ])
     await click('button=Save finding')
     let finding
@@ -237,6 +280,10 @@ describe('Test runs in the built native application', () => {
       return Boolean(finding)
     }, { timeoutMsg: 'the Finding was not saved' })
     assert.equal(finding.title, failed)
+    const attachmentIds = (bodyJson) => JSON.parse(bodyJson).doc.content.filter((node) => node.type === 'image').map((node) => node.attrs.attachmentId)
+    const fromRun = await native('get_test_run', { runId: runs[0].id })
+    assert.deepEqual(attachmentIds(finding.bodyJson), attachmentIds(fromRun.cases[1].notes.bodyJson))
+    assert.equal(attachmentIds(finding.bodyJson).length, 1)
     let linked
     await browser.waitUntil(async () => {
       linked = await native('get_test_run', { runId: runs[0].id })
@@ -265,7 +312,10 @@ describe('Test runs in the built native application', () => {
       '### Checkout',
       `- Passed: ${cases[0]}`,
       `- Failed: ${failed}`,
-      `  Remark: ${remark}`,
+      '  Result notes:',
+      `    ${notesHeading}`,
+      `    ${observation}`,
+      '  Evidence: 1 image',
       `  Finding: ${failed}`,
     ].join('\n')
     await browser.waitUntil(() => clipboardPlainText() === expected, { timeoutMsg: `the clipboard did not hold the report: ${clipboardPlainText()}` })

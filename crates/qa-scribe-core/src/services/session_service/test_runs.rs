@@ -20,7 +20,7 @@ use super::{
 /// stores, so a renamed Finding shows its new title. Every read of a case goes
 /// through this select and [`map_case`]; callers append the `WHERE` clause.
 const CASE_SELECT: &str = "SELECT c.id, c.run_id, c.position, c.group_title, c.title, c.body_json,
-        c.result, c.remark, c.finding_id, f.title, c.updated_at
+        c.result, c.remark, c.finding_id, f.title, c.updated_at, c.notes_json
  FROM test_run_cases c LEFT JOIN findings f ON f.id = c.finding_id";
 
 impl SessionService {
@@ -185,28 +185,36 @@ impl SessionService {
         change: impl FnOnce(&Connection, &str, &str) -> Result<()>,
     ) -> Result<TestRunCase> {
         let now = now();
-        self.database.with_immediate_tx(|tx| {
-            let (run_id, session_id): (String, String) = tx
-                .query_row(
-                    "SELECT r.id, r.session_id FROM test_run_cases c
-                     JOIN test_runs r ON r.id = c.run_id WHERE c.id = ?1",
-                    [case_id],
-                    |row| Ok((row.get(0)?, row.get(1)?)),
-                )
-                .optional()?
-                .ok_or_else(|| QaScribeError::NotFound(case_id.to_string()))?;
-            change(tx, &session_id, &now)?;
-            tx.execute(
-                "UPDATE test_runs SET updated_at = ?1 WHERE id = ?2",
-                params![now, run_id],
-            )?;
-            Ok(tx.query_row(
-                &format!("{CASE_SELECT} WHERE c.id = ?1"),
-                [case_id],
-                map_case,
-            )?)
-        })
+        self.database
+            .with_immediate_tx(|tx| update_case_on(tx, case_id, &now, change))
     }
+}
+
+pub(super) fn update_case_on(
+    tx: &Connection,
+    case_id: &str,
+    now: &str,
+    change: impl FnOnce(&Connection, &str, &str) -> Result<()>,
+) -> Result<TestRunCase> {
+    let (run_id, session_id): (String, String) = tx
+        .query_row(
+            "SELECT r.id, r.session_id FROM test_run_cases c
+                     JOIN test_runs r ON r.id = c.run_id WHERE c.id = ?1",
+            [case_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()?
+        .ok_or_else(|| QaScribeError::NotFound(case_id.to_string()))?;
+    change(tx, &session_id, now)?;
+    tx.execute(
+        "UPDATE test_runs SET updated_at = ?1 WHERE id = ?2",
+        params![now, run_id],
+    )?;
+    Ok(tx.query_row(
+        &format!("{CASE_SELECT} WHERE c.id = ?1"),
+        [case_id],
+        map_case,
+    )?)
 }
 
 /// Trims and checks every case the way a draft's title and body JSON are
@@ -295,6 +303,9 @@ fn map_case(row: &Row<'_>) -> rusqlite::Result<TestRunCase> {
         body_json: row.get(5)?,
         result: TestCaseResult::from_stored(&result).map_err(to_sql_error)?,
         remark: row.get(7)?,
+        notes: row
+            .get::<_, Option<String>>(11)?
+            .map(super::test_run_notes::summarize),
         finding_id: row.get(8)?,
         finding_title: row.get(9)?,
         updated_at: row.get(10)?,

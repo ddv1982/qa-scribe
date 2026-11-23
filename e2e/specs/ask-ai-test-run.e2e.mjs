@@ -108,18 +108,24 @@ describe('Ask AI on a test run in the built native application', () => {
     await click('button=Save test cases')
     await $('button=Edit').waitForDisplayed()
 
-    // A Passed and a Failed result with a remark.
+    // A Passed and a Failed result with result notes and a screenshot.
     await click('button=Start test run')
     await $(`section[aria-label="${cases[0]}"]`).waitForDisplayed()
     await click(resultButton(cases[0], 'Passed'))
     await click(resultButton(cases[1], 'Failed'))
-    const remarkField = await $(`[aria-label="Remark for ${cases[1]}"]`)
-    await remarkField.waitForDisplayed()
-    await remarkField.click()
-    await remarkField.setValue(remark)
-    await browser.keys('Enter')
-    await waitForStored((run) => run.cases[0].result === 'passed' && run.cases[1].result === 'failed' && run.cases[1].remark === remark,
-      'the results and remark were not saved')
+    await click(`button[aria-label="Add result notes for ${cases[1]}"]`)
+    const notes = await $(`[aria-label="Result notes for ${cases[1]}"][contenteditable="true"]`)
+    await notes.waitForDisplayed()
+    await notes.setValue(remark)
+    await browser.execute(async (editor) => {
+      const canvas = document.createElement('canvas')
+      const bytes = await new Promise((resolve) => canvas.toBlob(resolve))
+      const transfer = new DataTransfer()
+      transfer.items.add(new File([bytes], 'proof.png', { type: 'image/png' }))
+      editor.dispatchEvent(new ClipboardEvent('paste', { clipboardData: transfer, bubbles: true, cancelable: true }))
+    }, notes)
+    await waitForStored((run) => run.cases[0].result === 'passed' && run.cases[1].result === 'failed'
+      && run.cases[1].notes?.text === remark && run.cases[1].notes.imageCount === 1, 'the result notes and screenshot were not saved')
 
     // Ask AI sits before Copy report and opens the panel beside the run with the composer focused.
     const actions = await browser.execute(() => Array.from(document.querySelectorAll('.test-run-actions > button'), (button) => button.getAttribute('aria-label') ?? button.textContent))
@@ -141,8 +147,9 @@ describe('Ask AI on a test run in the built native application', () => {
     save('first-turn', { report: firstReport, messages: first.messages })
     assert.match(firstReport, /^## Test run: Checkout payments\n/)
     assert.ok(firstReport.includes('1 passed, 1 failed, 0 blocked, 0 not run'), firstReport)
-    assert.ok(firstReport.includes(`### Checkout\n- Passed: ${cases[0]}\n- Failed: ${cases[1]}\n  Remark: ${remark}`), firstReport)
-    assert.ok(first.instructions.includes('Results and remarks cannot be changed from this conversation'))
+    assert.ok(firstReport.includes(`### Checkout\n- Passed: ${cases[0]}\n- Failed: ${cases[1]}\n  Result notes:\n    ${remark}\n  Evidence: 1 image`), firstReport)
+    assert.ok(first.instructions.includes('Results and result notes cannot be changed from this conversation'))
+    assert.doesNotMatch(JSON.stringify(first), /data:image|qa-scribe-attachment:/)
     assert.ok(first.instructions.includes('"purpose":{"kind":"conversation"}'), 'a run conversation never asks for a refinement')
     assert.deepEqual(first.messages.map((message) => message.context.kind), ['session'])
     assert.ok(await (await $(panel)).$(`p*=${contextResponse.slice(0, 30)}`).isDisplayed())

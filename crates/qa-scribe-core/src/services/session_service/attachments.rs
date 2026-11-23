@@ -156,7 +156,8 @@ pub(crate) fn attachment_is_referenced_on(connection: &Connection, id: &str) -> 
                     UNION ALL
                     SELECT 1 FROM generation_context_attachments WHERE attachment_id = ?1
                     UNION ALL
-                    SELECT 1 FROM test_run_cases WHERE instr(body_json, ?1) > 0
+                    SELECT 1 FROM test_run_cases
+                     WHERE instr(body_json, ?1) > 0 OR instr(COALESCE(notes_json, ''), ?1) > 0
                     UNION ALL
                     SELECT 1 FROM chat_visual_undo
                      WHERE instr(before_body, ?1) > 0 OR instr(COALESCE(before_json, ''), ?1) > 0

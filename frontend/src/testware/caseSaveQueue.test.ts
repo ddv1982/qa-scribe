@@ -144,3 +144,27 @@ describe('CaseSaveQueue', () => {
     expect(listener.onShow).not.toHaveBeenCalled()
   })
 })
+
+it('keeps failed result notes available to retry while the status still saves', async () => {
+  const original = testCase('a')
+  const notes = { bodyJson: '{"schemaVersion":1,"doc":{"type":"doc"}}', text: 'Gateway error', imageCount: 0 }
+  const draft = { notes, images: [] }
+  const saveResult = vi.fn(async (_id, value: CaseValue) => ({ ...original, ...value }))
+  const saveNotes = vi.fn().mockRejectedValueOnce(new Error('disk full')).mockResolvedValueOnce({ ...original, result: 'blocked', notes })
+  const listener = { onShow: vi.fn(), onSaved: vi.fn(), onError: vi.fn(), onBackgroundError: vi.fn() }
+  const queue = new CaseSaveQueue([original], saveResult, listener, saveNotes)
+
+  queue.change('a', { notesDraft: draft })
+  await queue.whenIdle()
+  expect(listener.onShow).toHaveBeenLastCalledWith(expect.objectContaining({ notes, notesSave: 'failed', notesError: expect.stringContaining('disk full') }))
+
+  queue.change('a', { result: 'blocked' })
+  await queue.whenIdle()
+  expect(saveResult).toHaveBeenCalledWith('a', { result: 'blocked', remark: null })
+  expect(saveNotes).toHaveBeenCalledTimes(1)
+  expect(listener.onShow).toHaveBeenLastCalledWith(expect.objectContaining({ result: 'blocked', notes, notesSave: 'failed' }))
+
+  queue.change('a', { notesDraft: draft })
+  await queue.whenIdle()
+  expect(listener.onShow).toHaveBeenLastCalledWith({ ...original, result: 'blocked', notes })
+})

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
-import { deleteTestRun, getTestRun, listTestRuns, setTestCaseResult, startTestRun, type TestRun, type TestRunCase, type TestRunCaseDraft, type TestRunSummary } from '../tauri'
+import { deleteTestRun, getTestRun, listTestRuns, saveTestCaseNotes, setTestCaseResult, startTestRun, type TestRun, type TestRunCase, type TestRunCaseDraft, type TestRunSummary } from '../tauri'
 import { CaseSaveQueue, type CasePatch } from './caseSaveQueue'
 import { latestTestRunIds } from './testRuns'
 import { formatError } from '../ui/format'
@@ -203,6 +203,13 @@ export function useTestRuns(sessionId: string | null) {
     drain(left)
   }, [])
 
+  const readSavedRun = useCallback(async (runId: string) => {
+    const current = queueRef.current
+    const queue = current?.runId === runId ? current.queue : draining.get(runId)
+    await queue?.whenIdle()
+    return getTestRun(runId)
+  }, [])
+
   const deleteRun = useCallback(async (runId: string) => {
     const wasOpen = openRef.current?.runId === runId ? openRef.current : null
     // No save may land on a case after it is deleted, so every save of the run settles first.
@@ -221,7 +228,7 @@ export function useTestRuns(sessionId: string | null) {
     }
   }, [detachQueue, openRun, refresh, show])
 
-  return { summaries, latestRuns, open, starting, startError, error, openRun, close, keepForDraft, start, changeCase, deleteRun }
+  return { summaries, latestRuns, open, starting, startError, error, openRun, close, keepForDraft, start, changeCase, readSavedRun, deleteRun }
 }
 
 /** A save queue for `run` that shows each case change on screen while `run` is the open one. */
@@ -236,7 +243,7 @@ function saveQueue(run: TestRun, setOpen: Dispatch<SetStateAction<OpenTestRun | 
     onError: (_caseId, cause) => setError(formatError(cause)),
     // Reported once the run's saves have all settled, to whichever view shows the Session then.
     onBackgroundError: () => { background.failed = true },
-  })
+  }, (caseId, { notes, images }) => saveTestCaseNotes(caseId, notes.bodyJson, images))
 }
 
 export type TestRuns = ReturnType<typeof useTestRuns>

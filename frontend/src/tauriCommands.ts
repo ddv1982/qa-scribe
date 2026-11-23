@@ -49,6 +49,7 @@ import {
   type TestCaseResult,
   type TestRun,
   type TestRunCase,
+  type TestCaseNoteImage,
   type TestRunCaseDraft,
   type TestRunSummary,
   type TestwareGenerationPreferences,
@@ -259,6 +260,10 @@ export function listTestRuns(sessionId: string): Promise<TestRunSummary[]> {
 
 export function setTestCaseResult(caseId: string, result: TestCaseResult, remark: string | null): Promise<TestRunCase> {
   return commands.setTestCaseResult(caseId, result, remark)
+}
+
+export function saveTestCaseNotes(caseId: string, bodyJson: string, images: TestCaseNoteImage[]): Promise<TestRunCase> {
+  return commands.saveTestCaseNotes(caseId, bodyJson, images)
 }
 
 export function linkTestCaseFinding(caseId: string, findingId: string | null): Promise<TestRunCase> {

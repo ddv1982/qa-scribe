@@ -93,7 +93,7 @@ fn each_turn_carries_the_current_run_report_and_the_read_only_rule() {
     let text = prompt(&first);
     assert!(text.contains("TEST_RUN_REPORT_JSON"), "{text}");
     assert!(
-        text.contains("Results and remarks cannot be changed from this conversation"),
+        text.contains("Results and result notes cannot be changed from this conversation"),
         "{text}"
     );
     assert!(

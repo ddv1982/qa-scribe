@@ -36,6 +36,7 @@ permissions = [
   "allow-get-test-run",
   "allow-list-test-runs",
   "allow-set-test-case-result",
+  "allow-save-test-case-notes",
   "allow-link-test-case-finding",
   "allow-delete-test-run",
   "allow-start-ai-action-job",

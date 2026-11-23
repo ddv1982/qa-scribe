@@ -22,7 +22,8 @@ models do not always follow the format they were asked for.
 1. **A Test run is a frozen copy.** "Start test run" on a saved Test cases draft
    copies the draft's test cases as they are at that moment. Each copied test
    case gets a result (passed, failed, blocked or not run) and an optional
-   remark. Results never live in the draft document. Editing the draft later
+   rich result note with inline screenshots. Results and result notes are stored
+   on the run case and leave the copied instructions intact. Editing the draft later
    does not change its runs.
 2. **One splitting rule per format.** The draft's output format decides how it
    splits into test cases. Nothing is guessed from wording.

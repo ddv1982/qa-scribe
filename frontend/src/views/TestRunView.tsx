@@ -12,9 +12,10 @@ import { RichTextEditor } from '../editor/RichTextEditor'
 import { testRunCaseDocument } from '../testware/testRuns'
 import { testRunReport } from '../testware/testRunReport'
 import type { OpenTestRun } from '../testware/useTestRuns'
-import type { CasePatch } from '../testware/caseSaveQueue'
+import type { CasePatch, EditableTestCase } from '../testware/caseSaveQueue'
 import type { TestCaseResult, TestRun, TestRunCase, TestRunSummary } from '../tauri'
 import { formatDateTime, formatError } from '../ui/format'
+import { TestRunNotes } from './TestRunNotes'
 
 type RecordedResult = Exclude<TestCaseResult, 'not_run'>
 
@@ -26,13 +27,10 @@ const resultOptions: ReadonlyArray<SegmentedOption<RecordedResult>> = [
 
 const resultKeys: Record<string, RecordedResult> = { p: 'passed', f: 'failed', b: 'blocked' }
 
-const REMARK_MAX_LENGTH = 500
-
 /**
- * A test run in place of its draft: the copied test cases in order, each with a Result and a Remark
- * saved the moment they change. There is no Save button.
+ * A test run shows copied test cases with autosaved results and notes.
  */
-export function TestRunView({ open, draftRuns, error, askAi, onSelectRun, onBack, onDelete, onChangeCase, onCreateFinding, onOpenFinding }: {
+export function TestRunView({ open, draftRuns, error, askAi, onSelectRun, onBack, onDelete, onChangeCase, onReadSavedRun, onCreateFinding, onOpenFinding }: {
   open: OpenTestRun
   /** The draft's test runs, newest first. */
   draftRuns: TestRunSummary[]
@@ -42,6 +40,7 @@ export function TestRunView({ open, draftRuns, error, askAi, onSelectRun, onBack
   onDelete: (runId: string) => Promise<boolean>
   /** Changes one field of a case; the other keeps its value, so a remark and a result never overwrite each other. */
   onChangeCase: (caseId: string, patch: CasePatch) => void
+  onReadSavedRun?: (runId: string) => Promise<TestRun>
   /** Starts a Finding from a failed case; without it no Create Finding is offered. */
   onCreateFinding?: (testCase: TestRunCase) => void
   /** Opens the Finding a case is linked to. */
@@ -58,7 +57,8 @@ export function TestRunView({ open, draftRuns, error, askAi, onSelectRun, onBack
   const recorded = cases.filter((testCase) => testCase.result !== 'not_run').length
 
   function onCaseKeyDown(event: KeyboardEvent<HTMLElement>, index: number) {
-    if (event.target instanceof HTMLInputElement || event.metaKey || event.ctrlKey || event.altKey) return
+    if (event.metaKey || event.ctrlKey || event.altKey || event.nativeEvent.isComposing
+      || (event.target instanceof Element && event.target.closest('.test-run-notes'))) return
     const testCase = cases[index]
     const result = resultKeys[event.key.toLowerCase()]
     if (result) {
@@ -97,7 +97,7 @@ export function TestRunView({ open, draftRuns, error, askAi, onSelectRun, onBack
           ) : null}
           {run && askAi ? <ActionButton variant="secondary" className="ask-ai-trigger" icon={Sparkles} aria-expanded={askAi.expanded}
             onClick={() => void askAi.onOpen(run.id)}>Ask AI</ActionButton> : null}
-          {run ? <CopyReportButton run={run} /> : null}
+          {run ? <CopyReportButton run={run} readSavedRun={onReadSavedRun} /> : null}
           {/* Kept together, so a narrow header never leaves the delete icon alone on a line. */}
           <span className="test-run-leave">
             <ActionButton variant="quiet" icon={ArrowLeft} onClick={onBack}>Back to test cases</ActionButton>
@@ -127,7 +127,7 @@ export function TestRunView({ open, draftRuns, error, askAi, onSelectRun, onBack
       {confirmingDelete ? (
         <Dialog
           title="Delete this test run?"
-          description={<p>Its results and remarks are removed. The test cases stay.</p>}
+          description={<p>Its results and result notes are removed. The test cases stay.</p>}
           initialFocus={cancelRef}
           onCancel={() => { if (!deleting) setConfirmingDelete(false) }}
           actions={<>
@@ -141,7 +141,7 @@ export function TestRunView({ open, draftRuns, error, askAi, onSelectRun, onBack
 }
 
 /** Copies the test run as plain text, and says Copied for a moment like the other Copy buttons. */
-function CopyReportButton({ run }: { run: TestRun }) {
+function CopyReportButton({ run, readSavedRun }: { run: TestRun; readSavedRun?: (runId: string) => Promise<TestRun> }) {
   const [copied, setCopied] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
   const timer = useRef<number | null>(null)
@@ -152,7 +152,8 @@ function CopyReportButton({ run }: { run: TestRun }) {
     timer.current = null
     setFailure(null)
     try {
-      await writePlainClipboard(testRunReport(run))
+      const saved = readSavedRun ? await readSavedRun(run.id) : run
+      await writePlainClipboard(testRunReport(saved))
       setCopied(true)
       timer.current = window.setTimeout(() => {
         timer.current = null
@@ -172,7 +173,7 @@ function CopyReportButton({ run }: { run: TestRun }) {
 }
 
 function TestRunCaseRow({ testCase, group, finding, toggleRef, onKeyDown, onChangeCase }: {
-  testCase: TestRunCase
+  testCase: EditableTestCase
   group: string | null
   /** What follows the remark: the linked Finding, or Create Finding for a failed case. */
   finding: ReactNode
@@ -182,8 +183,7 @@ function TestRunCaseRow({ testCase, group, finding, toggleRef, onKeyDown, onChan
 }) {
   const [expanded, setExpanded] = useState(false)
   const document = useMemo(() => expanded ? testRunCaseDocument(testCase) : null, [expanded, testCase])
-  const { id, title, result, remark } = testCase
-  const showRemark = result === 'failed' || result === 'blocked' || Boolean(remark)
+  const { id, title, result } = testCase
   return <>
     {group ? <h3 className="test-run-group">{group}</h3> : null}
     <section className="test-run-case" aria-label={title} onKeyDown={onKeyDown}>
@@ -194,12 +194,10 @@ function TestRunCaseRow({ testCase, group, finding, toggleRef, onKeyDown, onChan
       <Segmented label={`Result for ${title}`} allowDeselect options={resultOptions}
         value={result === 'not_run' ? null : result}
         onChange={(next) => onChangeCase(id, { result: next ?? 'not_run' })} />
-      {showRemark ? (
-        <div className="test-run-remark-row">
-          <RemarkInput title={title} remark={remark} onSave={(next) => onChangeCase(id, { remark: next })} />
-          {finding}
-        </div>
-      ) : null}
+      <div className="test-run-outcome">
+        <TestRunNotes testCase={testCase} onChange={(patch) => onChangeCase(id, patch)} />
+        {finding}
+      </div>
       {document ? (
         <div className="test-run-case-body">
           <RichTextEditor value={document} ariaLabel={`${title} test case`} readOnly />
@@ -214,38 +212,12 @@ function TestRunCaseRow({ testCase, group, finding, toggleRef, onKeyDown, onChan
  * when it has none.
  */
 function CaseFinding({ testCase, onCreateFinding, onOpenFinding }: {
-  testCase: TestRunCase
+  testCase: EditableTestCase
   onCreateFinding?: (testCase: TestRunCase) => void
   onOpenFinding?: (findingId: string) => void
 }) {
   if (testCase.result !== 'failed') return null
   const { findingId, findingTitle } = testCase
   if (findingId) return <button type="button" className="test-run-finding" onClick={() => onOpenFinding?.(findingId)}>Finding: {findingTitle}</button>
-  return onCreateFinding ? <ActionButton variant="secondary" onClick={() => onCreateFinding(testCase)}>Create Finding</ActionButton> : null
-}
-
-/** One line for what happened, saved on blur and on Enter when it changed. */
-function RemarkInput({ title, remark, onSave }: { title: string; remark: string | null; onSave: (remark: string | null) => void }) {
-  const [value, setValue] = useState(remark ?? '')
-  const [stored, setStored] = useState(remark)
-  if (stored !== remark) {
-    setStored(remark)
-    setValue(remark ?? '')
-  }
-  function commit() {
-    const next = value.trim() || null
-    if (next !== remark) onSave(next)
-  }
-  // A remark still being typed is kept when the screen goes away without a blur, as a shortcut does.
-  const commitRef = useRef(commit)
-  useEffect(() => { commitRef.current = commit })
-  useEffect(() => () => commitRef.current(), [])
-  return (
-    <div className="field test-run-remark">
-      <input aria-label={`Remark for ${title}`} placeholder="What happened?" maxLength={REMARK_MAX_LENGTH} value={value}
-        onChange={(event) => setValue(event.target.value)}
-        onBlur={commit}
-        onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); commit() } }} />
-    </div>
-  )
+  return onCreateFinding ? <ActionButton variant="secondary" disabled={Boolean(testCase.notesSave)} onClick={() => onCreateFinding(testCase)}>Create Finding</ActionButton> : null
 }

@@ -4,8 +4,9 @@ import type { ComponentProps } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('../editor/RichTextEditor', () => ({
-  RichTextEditor: ({ ariaLabel, value }: { ariaLabel?: string; value: { doc: { content?: Array<{ type?: string }> } } }) => (
-    <div role="textbox" aria-label={ariaLabel}>{(value.doc.content ?? []).map((node) => node.type).join(',')}</div>
+  FormatToolbar: () => null,
+  RichTextEditor: ({ ariaLabel, value }: { ariaLabel?: string; value: { doc: { content?: Array<{ type?: string; content?: { text?: string }[] }> } } }) => (
+    <div role="textbox" aria-label={ariaLabel}>{(value.doc.content ?? []).map((node) => node.content?.map((child) => child.text).filter(Boolean).join('') || node.type).join(',')}</div>
   ),
 }))
 
@@ -68,7 +69,7 @@ describe('TestRunView', () => {
     expect(screen.queryByRole('textbox', { name: 'Pay by card test case' })).not.toBeInTheDocument()
     fireEvent.click(toggle)
     expect(toggle).toHaveAttribute('aria-expanded', 'true')
-    expect(screen.getByRole('textbox', { name: 'Pay by card test case' })).toHaveTextContent(/^paragraph$/)
+    expect(screen.getByRole('textbox', { name: 'Pay by card test case' })).toHaveTextContent('Order is placed.')
   })
 
   it('changes only the result when a result is pressed, and clears it when pressed again', () => {
@@ -82,37 +83,17 @@ describe('TestRunView', () => {
     expect(onChangeCase).toHaveBeenLastCalledWith('a', { result: 'not_run' })
   })
 
-  it('offers a remark only for a failed or blocked case, or one that has a remark', () => {
-    renderRun({ open: { runId: 'run-1', draftId: 'draft-1', error: null, run: { id: 'run-1', sessionId: 'session-1', draftId: 'draft-1', draftTitle: 'Checkout', createdAt: at, updatedAt: at, cases: [
-      testCase('a', 'Passed case', { result: 'passed' }),
-      testCase('b', 'Not run case'),
-      testCase('c', 'Failed case', { result: 'failed' }),
-      testCase('d', 'Blocked case', { result: 'blocked' }),
-      testCase('e', 'Passed with remark', { result: 'passed', remark: 'Slow' }),
-    ] } } })
-    expect(screen.getAllByRole('textbox').map((input) => input.getAttribute('aria-label')))
-      .toEqual(['Remark for Failed case', 'Remark for Blocked case', 'Remark for Passed with remark'])
-    const remark = screen.getByRole('textbox', { name: 'Remark for Failed case' })
-    expect(remark).toHaveAttribute('placeholder', 'What happened?')
-    expect(remark).toHaveAttribute('maxLength', '500')
+  it('offers result notes while instructions are collapsed, including for Passed and Not run', () => {
+    renderRun()
+    expect(within(row('Pay by card')).getByRole('button', { name: 'Add result notes for Pay by card' })).toBeVisible()
+    expect(within(row('Pay with a gift card')).getByRole('button', { name: 'Add result notes for Pay with a gift card' })).toBeVisible()
+    expect(within(row('Reset password')).getByText('No email')).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Result notes for Reset password' }))
+    expect(screen.getByRole('textbox', { name: 'Result notes for Reset password' })).toHaveTextContent('No email')
+    expect(screen.queryByRole('textbox', { name: 'Reset password test case' })).not.toBeInTheDocument()
   })
 
-  it('saves a remark on blur and on Enter, only when it changed', () => {
-    const { onChangeCase } = renderRun()
-    const remark = screen.getByRole('textbox', { name: 'Remark for Reset password' })
-    fireEvent.blur(remark)
-    fireEvent.keyDown(remark, { key: 'Enter' })
-    expect(onChangeCase).not.toHaveBeenCalled()
-    fireEvent.change(remark, { target: { value: '  No email sent  ' } })
-    fireEvent.keyDown(remark, { key: 'Enter' })
-    expect(onChangeCase).toHaveBeenLastCalledWith('c', { remark: 'No email sent' })
-    fireEvent.change(remark, { target: { value: ' ' } })
-    fireEvent.blur(remark)
-    expect(onChangeCase).toHaveBeenLastCalledWith('c', { remark: null })
-    expect(onChangeCase).toHaveBeenCalledTimes(2)
-  })
-
-  it('sets a result with p, f and b inside a case, but not while typing a remark', () => {
+  it('sets a result with p, f and b inside a case, but not while editing result notes', () => {
     const { onChangeCase } = renderRun()
     const toggle = within(row('Pay with a gift card')).getByRole('button', { name: 'Pay with a gift card' })
     fireEvent.keyDown(toggle, { key: 'f' })
@@ -122,7 +103,8 @@ describe('TestRunView', () => {
     fireEvent.keyDown(within(row('Pay by card')).getByRole('button', { name: 'Pay by card' }), { key: 'p' })
     expect(onChangeCase).toHaveBeenLastCalledWith('a', { result: 'not_run' })
     fireEvent.keyDown(toggle, { key: 'p', metaKey: true })
-    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Remark for Reset password' }), { key: 'p' })
+    fireEvent.click(screen.getByRole('button', { name: 'Result notes for Reset password' }))
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Result notes for Reset password' }), { key: 'p' })
     expect(onChangeCase).toHaveBeenCalledTimes(3)
   })
 
@@ -160,7 +142,7 @@ describe('TestRunView', () => {
       await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Copy report' })) })
       expect(clipboard.writePlainClipboard).toHaveBeenCalledWith(testRunReport(open.run!))
       expect(screen.getByRole('button', { name: 'Report copied' })).toHaveAttribute('data-tooltip', 'Copied')
-      expect(screen.getByRole('status')).toHaveTextContent('Report copied')
+      expect(screen.getByText('Report copied', { selector: '[role=status]' })).toBeInTheDocument()
       act(() => { vi.advanceTimersByTime(COPIED_FEEDBACK_MS) })
       expect(screen.getByRole('button', { name: 'Copy report' })).toBeInTheDocument()
     } finally {
@@ -212,7 +194,7 @@ describe('TestRunView', () => {
     const { onDelete } = renderRun()
     fireEvent.click(screen.getByRole('button', { name: 'Delete test run' }))
     const dialog = screen.getByRole('dialog', { name: 'Delete this test run?' })
-    expect(dialog).toHaveAccessibleDescription('Its results and remarks are removed. The test cases stay.')
+    expect(dialog).toHaveAccessibleDescription('Its results and result notes are removed. The test cases stay.')
     expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveFocus()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -221,17 +203,6 @@ describe('TestRunView', () => {
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete test run' }))
     expect(onDelete).toHaveBeenCalledWith('run-1')
     await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-  })
-
-  it('keeps a remark that was still being typed when the screen goes away', () => {
-    const props = { open: { runId: 'run-1', draftId: 'draft-1', error: null, run: { id: 'run-1', sessionId: 'session-1', draftId: 'draft-1', draftTitle: 'Checkout', createdAt: at, updatedAt: at, cases } },
-      draftRuns: [summary('run-1', at)], error: null, onSelectRun: vi.fn(), onBack: vi.fn(), onDelete: vi.fn(async () => true), onChangeCase: vi.fn() }
-    const { unmount } = render(<TestRunView {...props} />)
-    const failed = cases.find((testCase) => testCase.result === 'failed')!
-    fireEvent.change(screen.getByRole('textbox', { name: `Remark for ${failed.title}` }), { target: { value: 'Typed, never blurred' } })
-    expect(props.onChangeCase).not.toHaveBeenCalled()
-    unmount()
-    expect(props.onChangeCase).toHaveBeenCalledWith(failed.id, { remark: 'Typed, never blurred' })
   })
 
   it('keeps the delete dialog open while deleting, and closes it when deleting failed', async () => {

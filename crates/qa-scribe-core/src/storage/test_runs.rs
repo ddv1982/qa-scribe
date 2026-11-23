@@ -39,3 +39,23 @@ CREATE TRIGGER IF NOT EXISTS test_run_case_text_immutable
 BEFORE UPDATE OF run_id, position, group_title, title, body_json ON test_run_cases
 BEGIN SELECT RAISE(ABORT, 'Test run case text is immutable'); END;
 ";
+
+pub(super) fn migrate_result_notes(connection: &rusqlite::Connection) -> rusqlite::Result<()> {
+    let notes_exist: bool = connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM pragma_table_info('test_run_cases') WHERE name = 'notes_json')",
+        [],
+        |row| row.get(0),
+    )?;
+    if !notes_exist {
+        connection.execute_batch("ALTER TABLE test_run_cases ADD COLUMN notes_json TEXT;")?;
+    }
+    connection.execute_batch(
+        "
+CREATE TABLE IF NOT EXISTS test_run_note_images (
+  attachment_id TEXT PRIMARY KEY REFERENCES attachments(id) ON DELETE CASCADE,
+  case_id TEXT REFERENCES test_run_cases(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_test_run_note_images_case ON test_run_note_images(case_id);
+",
+    )
+}
