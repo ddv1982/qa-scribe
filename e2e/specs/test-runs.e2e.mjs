@@ -181,11 +181,8 @@ describe('Test runs in the built native application', () => {
     await click(`button[aria-label="Add result notes for ${cases[1]}"]`)
     const notes = await $([`[aria-label="Result notes for ${cases[1]}"]`, '[contenteditable="true"]'].join(''))
     await notes.waitForDisplayed()
-    await notes.setValue(notesHeading)
-    await blockStyle(notes, 'h2')
-    assert.ok(await browser.execute(() => document.execCommand('insertParagraph', false)))
-    await blockStyle(notes, 'p')
-    await browser.execute(async (editor, observation) => {
+    await notes.click()
+    await browser.execute(async (editor, heading, observation) => {
       const canvas = document.createElement('canvas')
       canvas.width = 420
       canvas.height = 130
@@ -200,9 +197,9 @@ describe('Test runs in the built native application', () => {
       const image = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
       const clipboard = new DataTransfer()
       clipboard.items.add(new File([image], 'gateway.png', { type: 'image/png' }))
-      clipboard.setData('text/html', `<p><strong>${observation}</strong><img src="https://example.invalid/preview.png" alt="remote"></p>`)
+      clipboard.setData('text/html', `<h2>${heading}</h2><p><strong>${observation}</strong><img src="https://example.invalid/preview.png" alt="remote"></p>`)
       editor.dispatchEvent(new ClipboardEvent('paste', { clipboardData: clipboard, bubbles: true, cancelable: true }))
-    }, notes, observation)
+    }, notes, notesHeading, observation)
     assert.equal(await browser.execute(editor => editor.querySelector('strong')?.textContent, notes), observation)
     await waitForProgress('2 of 2 run')
     await browser.waitUntil(async () => {

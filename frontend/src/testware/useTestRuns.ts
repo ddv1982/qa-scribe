@@ -250,6 +250,7 @@ export function useTestRuns(sessionId: string | null) {
     const queue = current?.runId === runId ? current.queue : draining.get(runId)
     await Promise.allSettled(readsForRun(runId))
     await queue?.whenIdle()
+    if (queue?.hasPendingNotes) throw new Error('Retry the unsaved result notes before copying the report.')
     return getTestRun(runId)
   }, [])
 
