@@ -184,28 +184,18 @@ fn inline(node: &Node) -> String {
         } => (name.as_str(), tag, children),
     };
     let content: String = children.iter().map(inline).collect();
-    let wrap = |marker: &str| {
-        if content.trim().is_empty() {
-            content.clone()
-        } else {
-            format!("{marker}{content}{marker}")
-        }
-    };
+    let wrap = |marker: &str| outside_spaces(&content, |inner| format!("{marker}{inner}{marker}"));
     match name {
         "br" => "\n".into(),
         "img" => image(tag),
         "strong" | "b" => wrap("**"),
         "em" | "i" => wrap("*"),
         "s" => wrap("~~"),
-        "code" => {
-            let code = raw_text(children).replace(['\n', '\r', '\t'], " ");
-            if code.trim().is_empty() {
-                code
-            } else {
-                code_span(&code)
-            }
-        }
-        "u" if !content.trim().is_empty() => format!("<u>{content}</u>"),
+        "code" => outside_spaces(
+            &raw_text(children).replace(['\n', '\r', '\t'], " "),
+            code_span,
+        ),
+        "u" => outside_spaces(&content, |inner| format!("<u>{inner}</u>")),
         "a" => match attribute_value(tag, "href").map(|href| href.trim().to_string()) {
             Some(href) if safe_link(&href) && !content.trim().is_empty() => {
                 format!("[{content}]({href})")
@@ -266,6 +256,19 @@ fn escape_line_start(line: &str) -> String {
         Some(at) => format!("{}\\{}", &line[..at], &line[at..]),
         None => line.to_string(),
     }
+}
+
+/// Wraps the content without its edge white space, which stays outside the delimiters: a
+/// delimiter next to a space does not open or close emphasis or strikethrough. White space
+/// alone stays unwrapped.
+fn outside_spaces(content: &str, wrap: impl Fn(&str) -> String) -> String {
+    let inner = content.trim();
+    if inner.is_empty() {
+        return content.to_string();
+    }
+    let start = content.len() - content.trim_start().len();
+    let end = content.trim_end().len();
+    format!("{}{}{}", &content[..start], wrap(inner), &content[end..])
 }
 
 /// A code span whose backtick fence is longer than any backtick run inside it, padded with a

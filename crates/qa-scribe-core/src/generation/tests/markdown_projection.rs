@@ -164,3 +164,41 @@ fn inline_code_with_backticks_and_edge_spaces_stays_one_code_span() {
         );
     }
 }
+
+#[test]
+fn a_mark_selected_with_surrounding_spaces_keeps_its_mark() {
+    for (tag, mark) in [
+        ("strong", "bold"),
+        ("em", "italic"),
+        ("s", "strike"),
+        ("u", "underline"),
+        ("code", "code"),
+    ] {
+        let html = format!("<p>Result<{tag}> fail </{tag}>here</p>");
+        assert_eq!(
+            round_trip(&html),
+            vec![serde_json::json!({"type":"paragraph","content":[
+                {"type":"text","text":"Result "},
+                {"type":"text","text":"fail","marks":[{"type":mark}]},
+                {"type":"text","text":" here"},
+            ]})],
+            "{html} -> {}",
+            project(&html)
+        );
+    }
+}
+
+#[test]
+fn nested_marks_with_edge_spaces_keep_both_marks() {
+    let html = "<p>a<strong><em> both </em></strong>b</p>";
+    assert_eq!(
+        round_trip(html),
+        vec![serde_json::json!({"type":"paragraph","content":[
+            {"type":"text","text":"a "},
+            {"type":"text","text":"both","marks":[{"type":"bold"},{"type":"italic"}]},
+            {"type":"text","text":" b"},
+        ]})],
+        "{html} -> {}",
+        project(html)
+    );
+}
