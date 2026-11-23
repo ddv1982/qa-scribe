@@ -145,3 +145,22 @@ fn literal_markdown_in_a_heading_stays_heading_text() {
         );
     }
 }
+
+fn code_text(text: &str) -> serde_json::Value {
+    serde_json::json!({"type":"text","text":text,"marks":[{"type":"code"}]})
+}
+
+#[test]
+fn inline_code_with_backticks_and_edge_spaces_stays_one_code_span() {
+    for code in ["a`b", "``x", "`edge`", "a ``` b", "*not bold* <u>x</u> \\"] {
+        let html = format!("<p>Run <code>{}</code> now</p>", html_text(code));
+        assert_eq!(
+            round_trip(&html),
+            vec![serde_json::json!({"type":"paragraph","content":[
+                {"type":"text","text":"Run "}, code_text(code), {"type":"text","text":" now"},
+            ]})],
+            "{html} -> {}",
+            project(&html)
+        );
+    }
+}

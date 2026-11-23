@@ -91,7 +91,7 @@ export function managedAttachmentReferencesForClipboard(record: ClipboardRecord)
 // clipboard format differs: text is not HTML-entity-escaped (this is plain
 // text, not markup), italic uses `*`, headings get a separating blank line,
 // task lists render checkbox markers, nested lists indent, code blocks have no
-// language, and label==href links stay bare.
+// language, inline code outgrows backticks inside it, and label==href links stay bare.
 function renderMarkdownFromDocument(editorDocument: RichEditorDocument): string {
   if (!editorDocument.doc.content?.length) return ''
 
@@ -116,6 +116,7 @@ function renderMarkdownFromDocument(editorDocument: RichEditorDocument): string 
       },
       markMapping: {
         italic: ({ children }: { children?: string | string[] }) => `*${joinChildren(children)}*`,
+        code: ({ children }: { children?: string | string[] }) => codeSpan(joinChildren(children)),
         link: ({ mark, children }: { mark: Mark; children?: string | string[] }) => {
           const href = typeof mark.attrs.href === 'string' ? mark.attrs.href : ''
           const label = joinChildren(children)
@@ -160,6 +161,15 @@ function codeFence(code: string): string {
   let fence = '```'
   while (code.includes(fence)) fence += '`'
   return fence
+}
+
+// The fence outgrows every backtick run in the code; a space pads code that starts or ends
+// with a backtick, which CommonMark strips again.
+function codeSpan(code: string): string {
+  const longest = Math.max(0, ...(code.match(/`+/g) ?? []).map((run) => run.length))
+  const fence = '`'.repeat(longest + 1)
+  const pad = code.startsWith('`') || code.endsWith('`') ? ' ' : ''
+  return `${fence}${pad}${code}${pad}${fence}`
 }
 
 function indentLines(value: string): string {

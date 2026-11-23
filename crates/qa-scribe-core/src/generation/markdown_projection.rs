@@ -197,7 +197,14 @@ fn inline(node: &Node) -> String {
         "strong" | "b" => wrap("**"),
         "em" | "i" => wrap("*"),
         "s" => wrap("~~"),
-        "code" => wrap("`"),
+        "code" => {
+            let code = raw_text(children).replace(['\n', '\r', '\t'], " ");
+            if code.trim().is_empty() {
+                code
+            } else {
+                code_span(&code)
+            }
+        }
         "u" if !content.trim().is_empty() => format!("<u>{content}</u>"),
         "a" => match attribute_value(tag, "href").map(|href| href.trim().to_string()) {
             Some(href) if safe_link(&href) && !content.trim().is_empty() => {
@@ -259,6 +266,23 @@ fn escape_line_start(line: &str) -> String {
         Some(at) => format!("{}\\{}", &line[..at], &line[at..]),
         None => line.to_string(),
     }
+}
+
+/// A code span whose backtick fence is longer than any backtick run inside it, padded with a
+/// space when the code starts or ends with a backtick (CommonMark strips one space each side).
+fn code_span(code: &str) -> String {
+    let longest = code
+        .split(|character| character != '`')
+        .map(str::len)
+        .max()
+        .unwrap_or(0);
+    let fence = "`".repeat(longest + 1);
+    let pad = if code.starts_with('`') || code.ends_with('`') {
+        " "
+    } else {
+        ""
+    };
+    format!("{fence}{pad}{code}{pad}{fence}")
 }
 
 fn safe_link(href: &str) -> bool {
