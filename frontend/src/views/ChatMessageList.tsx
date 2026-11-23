@@ -30,12 +30,12 @@ export function ChatMessageList({ messages, aiRuns, proposals = [], proposalCont
           {message.role === 'user' && userContextLabel ? <p className="chat-context-label">{userContextLabel}</p> : null}
           {presentation === 'notes' && message.role === 'user' && message.context && message.context.kind !== 'session' ? <ChatContextLabel context={message.context} /> : null}
           {message.response?.warning ? <p className="chat-help" role="status">{message.response.warning}</p> : null}
-          {onSuggestEdit && message === messages.at(-1) && message.response?.purpose.kind === 'refinement'
-            && !message.response.question && !proposals.some(proposal => proposal.assistantMessageId === message.id)
-            ? <ActionButton variant="secondary" type="button" onClick={() => void onSuggestEdit(message.id)}>Generate editable suggestion</ActionButton> : null}
           {message.text ? message.role === 'assistant'
             ? <MarkdownContent text={message.text} />
             : <p className="chat-message-text">{message.text}</p> : null}
+          {onSuggestEdit && message === messages.at(-1) && message.response?.purpose.kind === 'refinement'
+            && !message.response.question && !proposals.some(proposal => proposal.assistantMessageId === message.id)
+            ? <ActionButton className="chat-suggestion-recovery" variant="secondary" type="button" onClick={() => void onSuggestEdit(message.id)}>Generate editable suggestion</ActionButton> : null}
           {proposals.filter(proposal => proposal.assistantMessageId === message.id).map(proposal => <ChatProposalReview key={proposal.id} proposal={proposal} controls={proposalControls} presentation={presentation}
             noteSourceNeedsRefresh={message.response?.noteSourceNeedsRefresh}
             onRegenerate={onSuggestEdit && message.response?.noteSourceNeedsRefresh ? () => onSuggestEdit(message.id) : undefined} />)}

@@ -186,3 +186,20 @@
 /* Keep the 42px model control and scroll-region padding reachable beside image drafts. */
 
 .ask-ai-panel .chat-completion .chat-handoff { margin: 0; padding: 0; border: 0; }
+
+.ask-ai-panel .chat-suggestion-recovery { margin-block-start: var(--space-2); }
+
+@container session-workspace (max-width: 420px) {
+  .ask-ai-panel .ask-ai-header,
+  .ask-ai-panel .chat-context-card,
+  .ask-ai-panel .chat-scroll-region,
+  .ask-ai-panel .chat-composer { padding-inline: var(--space-3); }
+  .ask-ai-panel .ask-ai-header,
+  .ask-ai-panel .chat-context-card,
+  .ask-ai-panel .chat-composer { padding-block: var(--space-2); }
+  .ask-ai-panel .chat-composer .chat-compose-box textarea { min-height: 48px; height: 48px; }
+  .ask-ai-panel .chat-messages { gap: var(--space-3); }
+  .ask-ai-panel .chat-message-user { max-width: 90%; }
+  .ask-ai-panel .chat-message .chat-image { width: 112px; }
+  .ask-ai-panel .chat-message .chat-image-preview { height: 64px; }
+}
