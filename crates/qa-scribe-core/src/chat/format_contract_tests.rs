@@ -23,7 +23,9 @@ fn text(value: &Value) -> String {
 #[test]
 fn markdown_parses_to_the_golden_document() {
     let fixture = fixture();
-    let nodes = super::markdown::parse(&text(&fixture["markdown"]));
+    let mut images = vec![];
+    super::response::preserve_images(&fixture["document"], &mut images, 0).unwrap();
+    let nodes = super::markdown::parse_with_images(&text(&fixture["markdown"]), &images).unwrap();
     assert_eq!(
         json!({"type":"doc","content":nodes}),
         fixture["parsedDocument"]

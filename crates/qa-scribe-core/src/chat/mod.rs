@@ -172,4 +172,6 @@ pub(super) fn chat_instructions() -> String {
 #[cfg(test)]
 mod format_contract_tests;
 #[cfg(test)]
+mod image_position_tests;
+#[cfg(test)]
 mod tests;

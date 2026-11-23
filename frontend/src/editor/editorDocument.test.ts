@@ -164,6 +164,15 @@ describe('editorDocument', () => {
     expect(html.match(/data-attachment-id="attachment-1"/g)).toHaveLength(1)
   })
 
+  it('keeps an image where the rewrite placed it and appends only the one it left out', () => {
+    const original = richEditorDocumentFromHtml(`<p>A</p>${managedAttachmentImageHtml('first', 'first.png')}<p>B</p>${managedAttachmentImageHtml('second', 'second.png')}`)
+    const generated = richEditorDocumentFromHtml(`${managedAttachmentImageHtml('second', 'second.png')}<p>B, reworded</p>`)
+
+    const types = preserveManagedImageNodes(original, generated).doc.content?.map((node) => node.attrs?.attachmentId ?? node.type)
+
+    expect(types).toEqual(['second', 'paragraph', 'first'])
+  })
+
   it('preserves safe external image nodes from the original document', () => {
     const imageSource = 'https://example.com/evidence.png'
     const original = richEditorDocumentFromHtml(`<p>Original</p><img src="${imageSource}" alt="Evidence screenshot" />`)

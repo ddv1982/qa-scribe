@@ -1,5 +1,6 @@
 //! Convert only newly submitted assistant Markdown into the existing editor schema.
 //! HTML is derived from the same nodes as JSON; no raw provider HTML is trusted.
+use crate::{Result, error::validation, generation::managed_attachment_protocol};
 use pulldown_cmark::{Event, Options, Parser, Tag};
 use serde_json::{Value, json};
 
@@ -31,7 +32,18 @@ pub(crate) fn literal(text: &str) -> Vec<Value> {
     vec![node("paragraph", text_nodes(text))]
 }
 
+/// Assistant Markdown for display. Images become their alt text.
 pub(crate) fn parse(text: &str) -> Vec<Value> {
+    parse_inner(text, None).expect("display parsing places no images")
+}
+
+/// A rewrite of a record or the Note. A managed image (`![alt](qa-scribe-attachment://<id>)`)
+/// becomes the `known` image node with that id, in place; an unknown id refuses the reply.
+pub(crate) fn parse_with_images(text: &str, known: &[Value]) -> Result<Vec<Value>> {
+    parse_inner(text, Some(known))
+}
+
+fn parse_inner(text: &str, images: Option<&[Value]>) -> Result<Vec<Value>> {
     let options =
         Options::ENABLE_TABLES | Options::ENABLE_TASKLISTS | Options::ENABLE_STRIKETHROUGH;
     let mut stack = vec![Frame::new(None, false)];
@@ -40,14 +52,22 @@ pub(crate) fn parse(text: &str) -> Vec<Value> {
             Event::Start(tag) => {
                 // Deep input remains readable rather than overflowing recursive renderers.
                 if stack.len() >= 48 {
-                    return literal(text);
+                    return Ok(literal(text));
                 }
                 stack.push(Frame::new(Some(tag), false));
             }
             Event::End(_) => {
                 close_underline(&mut stack);
                 let frame = stack.pop().expect("balanced Markdown parser events");
-                stack.last_mut().unwrap().nodes.extend(finish(frame));
+                let nodes = match (&frame.tag, images) {
+                    (Some(Tag::Image { dest_url, .. }), Some(known))
+                        if dest_url.starts_with(&managed_attachment_protocol()) =>
+                    {
+                        vec![known_image(known, dest_url)?]
+                    }
+                    _ => finish(frame),
+                };
+                stack.last_mut().unwrap().nodes.extend(nodes);
             }
             Event::TaskListMarker(checked) => {
                 if let Some(item) = stack
@@ -72,7 +92,7 @@ pub(crate) fn parse(text: &str) -> Vec<Value> {
                 .push(json!({"type":"text", "text":value.as_ref(), "marks":[{"type":"code"}]})),
             Event::InlineHtml(value) if value.eq_ignore_ascii_case("<u>") => {
                 if stack.len() >= 48 {
-                    return literal(text);
+                    return Ok(literal(text));
                 }
                 stack.push(Frame::new(None, true));
             }
@@ -102,7 +122,45 @@ pub(crate) fn parse(text: &str) -> Vec<Value> {
     close_underline(&mut stack);
     let mut nodes = blocks(stack.pop().unwrap().nodes);
     merge_text(&mut nodes);
-    nodes
+    Ok(nodes)
+}
+
+fn known_image(known: &[Value], source: &str) -> Result<Value> {
+    let id = &source[managed_attachment_protocol().len()..];
+    known
+        .iter()
+        .find(|node| node["attrs"]["attachmentId"] == id || node["attrs"]["src"] == source)
+        .cloned()
+        .ok_or_else(|| validation("The suggestion refers to an image that is not in this content"))
+}
+
+/// Images are blocks in the editor, so an image inside a paragraph or heading splits it.
+fn without_inline_images(kind: &str, attrs: Option<Value>, nodes: Vec<Value>) -> Vec<Value> {
+    let mut result = vec![];
+    let mut run = vec![];
+    let flush = |run: &mut Vec<Value>, result: &mut Vec<Value>, last: bool| {
+        let blank = run.iter().all(|n| {
+            n["type"] == "hardBreak" || n["text"].as_str().is_some_and(|t| t.trim().is_empty())
+        });
+        if !blank || (last && result.is_empty()) {
+            let mut block = node(kind, std::mem::take(run));
+            if let Some(attrs) = &attrs {
+                block["attrs"] = attrs.clone();
+            }
+            result.push(block);
+        }
+        run.clear();
+    };
+    for value in nodes {
+        if value["type"] == "image" {
+            flush(&mut run, &mut result, false);
+            result.push(value);
+        } else {
+            run.push(value);
+        }
+    }
+    flush(&mut run, &mut result, true);
+    result
 }
 
 /// An `<u>` without its `</u>` before the enclosing element ends stays literal text.
@@ -118,7 +176,7 @@ fn close_underline(stack: &mut Vec<Frame<'_>>) {
 fn finish(mut frame: Frame<'_>) -> Vec<Value> {
     let tag = frame.tag.unwrap();
     match tag {
-        Tag::Paragraph | Tag::HtmlBlock => vec![node("paragraph", frame.nodes)],
+        Tag::Paragraph | Tag::HtmlBlock => without_inline_images("paragraph", None, frame.nodes),
         Tag::CodeBlock(_) => {
             let code: String = frame
                 .nodes
@@ -141,7 +199,7 @@ fn finish(mut frame: Frame<'_>) -> Vec<Value> {
             vec![node("blockquote", children)]
         }
         Tag::Heading { level, .. } => {
-            vec![json!({"type":"heading", "attrs":{"level":level as u8}, "content":frame.nodes})]
+            without_inline_images("heading", Some(json!({"level":level as u8})), frame.nodes)
         }
         Tag::Strong | Tag::Emphasis | Tag::Strikethrough => {
             let kind = match tag {

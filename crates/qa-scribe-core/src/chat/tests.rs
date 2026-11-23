@@ -240,7 +240,7 @@ fn a_list_heavy_note_rewrite_within_the_note_limit_is_accepted() {
     });
     let body = "- item\n".repeat(MAX_NOTE_REWRITE_BYTES / 7);
     let raw = serde_json::json!({"version":3,"requestId":"request-1","markdown":"Listed.","outcome":{"kind":"edit","patch":{"kind":"note","bodyMarkdown":body}}}).to_string();
-    let parsed = response::interpret(&raw, &contract, &ChatTarget::Session, 0).unwrap();
+    let parsed = response::interpret(&raw, &contract, &ChatTarget::Session, 0, &[]).unwrap();
     let (_, after) = parsed.values.unwrap();
     assert!(after.document_json.len() > MAX_CHAT_RECORD_CONTEXT_BYTES);
 }

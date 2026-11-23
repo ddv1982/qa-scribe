@@ -36,11 +36,13 @@ pub(crate) struct CompletedChatResponse {
     pub values: Option<(RefinementEditorValue, RefinementEditorValue)>,
 }
 
+/// `note_images` are the saved Session Note's images, which a Note rewrite may place by id.
 pub(crate) fn interpret(
     raw: &str,
     contract: &ChatResponseContract,
     target: &ChatTarget,
     image_count: usize,
+    note_images: &[Value],
 ) -> Result<CompletedChatResponse> {
     if raw.len() > super::MAX_CHAT_MESSAGE_BYTES {
         return Err(validation("Response is too large"));
@@ -114,7 +116,7 @@ pub(crate) fn interpret(
     let values = envelope
         .refinement
         .as_ref()
-        .map(|patch| values(target, patch))
+        .map(|patch| values(target, patch, note_images))
         .transpose()?;
     Ok(CompletedChatResponse {
         question,
@@ -127,9 +129,10 @@ pub(crate) fn interpret(
 fn values(
     target: &ChatTarget,
     patch: &RefinementPatch,
+    note_images: &[Value],
 ) -> Result<(RefinementEditorValue, RefinementEditorValue)> {
     if let (ChatTarget::Session, RefinementPatch::Note { body_markdown }) = (target, patch) {
-        return note_values(body_markdown);
+        return note_values(body_markdown, note_images);
     }
     let snapshot = target
         .snapshot()
@@ -180,7 +183,9 @@ fn values(
     if let Some(markdown) = markdown {
         let base: Value = serde_json::from_str(&before.document_json)
             .map_err(|_| validation("Invalid snapshot document"))?;
-        let mut nodes = super::markdown::parse(markdown);
+        let mut known = vec![];
+        preserve_images(&base["doc"], &mut known, 0)?;
+        let mut nodes = super::markdown::parse_with_images(markdown, &known)?;
         preserve_images(&base["doc"], &mut nodes, 0)?;
         after.document_json =
             serde_json::to_string(&json!({"schemaVersion":1,"doc":{"type":"doc","content":nodes}}))
@@ -206,7 +211,10 @@ const MAX_NOTE_PROPOSAL_DOCUMENT_BYTES: usize = 200 * 1024;
 
 /// A Note edit replaces the whole Note. The frontend applies `after` to the live Note
 /// editor and keeps its images, so `before` is only an empty placeholder.
-fn note_values(markdown: &str) -> Result<(RefinementEditorValue, RefinementEditorValue)> {
+fn note_values(
+    markdown: &str,
+    note_images: &[Value],
+) -> Result<(RefinementEditorValue, RefinementEditorValue)> {
     let value = |content: Vec<Value>| -> Result<RefinementEditorValue> {
         Ok(RefinementEditorValue {
             title: "Session Note".into(),
@@ -218,7 +226,7 @@ fn note_values(markdown: &str) -> Result<(RefinementEditorValue, RefinementEdito
             record_kind: "note".into(),
         })
     };
-    let after = value(super::markdown::parse(markdown))?;
+    let after = value(super::markdown::parse_with_images(markdown, note_images)?)?;
     // A rewrite is bounded by the 12 KiB note limit, but list-heavy Markdown expands several times
     // as editor JSON; the proposal row allows 256 KiB and a Note proposal's `before` is empty.
     if after.document_json.len() > MAX_NOTE_PROPOSAL_DOCUMENT_BYTES {
@@ -227,11 +235,13 @@ fn note_values(markdown: &str) -> Result<(RefinementEditorValue, RefinementEdito
     Ok((value(Vec::new())?, after))
 }
 
+/// Appends each image of `node` that `nodes` does not already hold, so a rewrite that leaves an
+/// image out still keeps it, and one that places it is not given a copy.
 pub(crate) fn preserve_images(node: &Value, nodes: &mut Vec<Value>, depth: usize) -> Result<()> {
     if depth > 48 {
         return Err(validation("Record document is too deeply nested"));
     }
-    if node["type"] == "image" {
+    if node["type"] == "image" && !nodes.iter().any(|kept| holds_image(kept, node, 0)) {
         nodes.push(node.clone());
     }
     if let Some(children) = node["content"].as_array() {
@@ -240,6 +250,18 @@ pub(crate) fn preserve_images(node: &Value, nodes: &mut Vec<Value>, depth: usize
         }
     }
     Ok(())
+}
+
+fn holds_image(kept: &Value, image: &Value, depth: usize) -> bool {
+    let key = |node: &Value| match node["attrs"]["attachmentId"].as_str() {
+        Some(id) if !id.is_empty() => format!("attachment:{id}"),
+        _ => format!("src:{}", node["attrs"]["src"].as_str().unwrap_or_default()),
+    };
+    (kept["type"] == "image" && key(kept) == key(image))
+        || depth < 48
+            && kept["content"]
+                .as_array()
+                .is_some_and(|children| children.iter().any(|c| holds_image(c, image, depth + 1)))
 }
 
 fn merge_metadata(raw: Option<&str>, patch: &FindingMetadataRefinement) -> Result<Option<String>> {

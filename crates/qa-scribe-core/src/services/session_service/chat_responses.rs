@@ -128,6 +128,7 @@ pub(super) struct Completion {
 }
 pub(super) fn completed(
     connection: &Connection,
+    session_id: &str,
     user: &ChatMessage,
     raw: &str,
 ) -> Result<Completion> {
@@ -140,11 +141,22 @@ pub(super) fn completed(
         return Ok(result);
     };
     let purpose = contract.purpose();
+    let note_images = if matches!(
+        purpose,
+        ChatResponsePurpose::Refinement {
+            record_kind: RefinementRecordKind::Note
+        }
+    ) {
+        note_images(connection, session_id)?
+    } else {
+        vec![]
+    };
     let parsed = match crate::chat::response::interpret(
         raw,
         &contract,
         &user.context,
         user.images.len(),
+        &note_images,
     ) {
         Ok(response) => response,
         Err(_) => {
@@ -257,4 +269,16 @@ pub(super) fn answer(connection: &Connection, id: &str) -> Result<Option<ChatAns
             },
         )
         .optional()?)
+}
+
+/// The saved Note's images, which a Note rewrite may place by id.
+fn note_images(connection: &Connection, session_id: &str) -> Result<Vec<serde_json::Value>> {
+    let mut images = vec![];
+    let note = super::entries::note_entry(connection, session_id)?;
+    if let Some(json) = note.and_then(|note| note.body_json) {
+        let document: serde_json::Value =
+            serde_json::from_str(&json).map_err(|_| validation("Invalid saved Note document"))?;
+        crate::chat::response::preserve_images(&document["doc"], &mut images, 0)?;
+    }
+    Ok(images)
 }
