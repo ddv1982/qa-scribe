@@ -29,6 +29,12 @@ export function inspectMinimalInput(input) {
     assert.equal(contract.localEdit, true)
     refinement = { kind: 'test_cases_draft', bodyMarkdown: 'The application keeps the payment error visible after Retry.\n\n## TC06 Before and after\n\n- Compare matching inputs and expected results.' }
     markdown = 'Proposed a before/after comparison.'
+  } else if (user.text.startsWith('Generate an editable suggestion using the images attached to my message ')) {
+    assert.equal(contract.localEdit, true)
+    const source = payload.messages.find(message => user.text.endsWith(`${message.id}.`))
+    assert.equal(source?.images.length, 1, 'Recovery replays the image on the original message')
+    assert.equal(user.images.length, 0, 'Recovery does not duplicate the attachment')
+    refinement = { kind: 'test_cases_draft', bodyMarkdown: '## TC06 Before and after\n\n- Compare matching inputs and expected results.\n- Check the screenshot evidence.' }
   } else if (user.text === 'Rewrite the Note as a short checklist.') {
     assert.equal(contract.localEdit, true)
     refinement = { kind: 'note', bodyMarkdown: '## Checklist\n\n- [ ] Verify matching inputs.' }

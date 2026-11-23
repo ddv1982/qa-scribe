@@ -366,6 +366,18 @@ describe('Minimal Ask AI in the built native application', () => {
     await click('button=Update test cases')
     await browser.waitUntil(async () => (await list('test_cases_draft')).some(row => row.body.includes('TC06 Before and after')))
     await reviewScreenshot('recovered-edit')
+
+    await pasteImage()
+    turn = await start()
+    const imageOnly = turn.payload.messages.at(-1)
+    assert.equal(imageOnly.images.length, 1)
+    await finish(turn)
+    turn = await start(undefined, 'Generate editable suggestion')
+    await finish(turn)
+    assert.equal(turn.payload.contract.localEdit, true)
+    assert.deepEqual(turn.payload.messages.find(message => message.id === imageOnly.id).images, imageOnly.images)
+    const proposal = (await exact(turn.reference)).proposals.at(-1)
+    assert.match(proposal.patch.bodyMarkdown, /Check the screenshot evidence/)
     await close()
   })
 

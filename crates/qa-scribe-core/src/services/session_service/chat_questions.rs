@@ -189,7 +189,14 @@ pub(super) fn resolve(
                         "This response is no longer current or already has a suggestion",
                     ));
                 }
-                text = user.text.clone();
+                text = if user.text.trim().is_empty() && !user.images.is_empty() {
+                    format!(
+                        "Generate an editable suggestion using the images attached to my message {}.",
+                        user.id
+                    )
+                } else {
+                    user.text.clone()
+                };
             }
         }
         ChatRequestIntent::RefineRecord => {
