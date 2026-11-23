@@ -1,9 +1,9 @@
 import '@testing-library/jest-dom/vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { afterEach, beforeEach, expect, it } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import type { RefinementProposal } from '../bindings'
 // The harness installs the Tauri mocks, so it loads before AppShell and its command imports.
-import { cleanupControllerTest, getTauriMock, setupControllerTest, renderWithControllerStartup, useAppController } from './useAppController.testHarness'
+import { sessionNoteStateFixture, cleanupControllerTest, getTauriMock, setupControllerTest, renderWithControllerStartup, useAppController } from './useAppController.testHarness'
 import { AppShell } from './AppShell'
 import { completedChatFixture } from './useSessionChat.testSupport'
 
@@ -24,10 +24,11 @@ const proposal = (state: RefinementProposal['state']): RefinementProposal => ({
 it('applies a suggested Note with Update note and restores the previous Note with Undo', async () => {
   const offered = completedChatFixture({ proposals: [proposal({ kind: 'offered' })] })
   api.getChat.mockResolvedValue(offered)
-  api.resolveRefinement.mockImplementation(async () => {
-    const applied = completedChatFixture({ revision: 4, proposals: [proposal({ kind: 'applied' })] })
-    api.getChat.mockResolvedValue(applied)
-    return applied
+  api.applyNoteRefinement.mockImplementation(async ({ undo }) => {
+    const chat = completedChatFixture({ revision: undo ? 5 : 4, proposals: [proposal({ kind: undo ? 'offered' : 'note_applied' })] })
+    api.getChat.mockResolvedValue(chat)
+    const original = sessionNoteStateFixture().noteEntry
+    return { chat, note: undo ? original : { ...original, body: '<p>Rewritten note 5512</p>', bodyJson: doc('Rewritten note 5512'), bodyFormat: 'tiptap_json' } }
   })
   await renderWithControllerStartup(() => render(<Subject />))
   fireEvent.click(screen.getByRole('button', { name: 'Ask AI' }))
@@ -40,7 +41,7 @@ it('applies a suggested Note with Update note and restores the previous Note wit
 
   fireEvent.click(within(suggestion).getByRole('button', { name: 'Update note' }))
   await waitFor(() => expect(note).toHaveTextContent('Rewritten note 5512'))
-  expect(api.resolveRefinement).toHaveBeenCalledWith({ scope: { sessionId: 'session-1', draftId: offered.draftId, expectedRevision: 3 }, proposalId: 'proposal-1', action: 'stage' })
+  expect(api.applyNoteRefinement).toHaveBeenCalledWith({ reference: { sessionId: 'session-1', draftId: offered.draftId }, proposalId: 'proposal-1', undo: false })
   expect(panel.getByText('Note updated')).toBeVisible()
 
   fireEvent.click(panel.getByRole('button', { name: 'Undo' }))
@@ -50,7 +51,7 @@ it('applies a suggested Note with Update note and restores the previous Note wit
 
 it('restores the previous Note when the update cannot be recorded', async () => {
   api.getChat.mockResolvedValue(completedChatFixture({ proposals: [proposal({ kind: 'offered' })] }))
-  api.resolveRefinement.mockRejectedValue(new Error('Chat changed. Reload the conversation before retrying.'))
+  api.applyNoteRefinement.mockRejectedValue(new Error('Chat changed. Reload the conversation before retrying.'))
   await renderWithControllerStartup(() => render(<Subject />))
   fireEvent.click(screen.getByRole('button', { name: 'Ask AI' }))
   const panel = within(screen.getByRole('complementary', { name: 'Notes AI chat' }))
@@ -60,4 +61,15 @@ it('restores the previous Note when the update cannot be recorded', async () => 
   fireEvent.click(within(suggestion).getByRole('button', { name: 'Update note' }))
   expect(await within(suggestion).findByRole('alert')).toHaveTextContent('Chat changed')
   await waitFor(() => expect(note.textContent).toBe(original))
+})
+
+
+it('offers regeneration for an older suggestion without exposing Update note', async () => {
+  const { ChatProposalReview } = await import('../views/ChatProposalReview')
+  const regenerate = vi.fn(async () => {})
+  render(<ChatProposalReview proposal={proposal({ kind: 'offered' })} noteSourceNeedsRefresh onRegenerate={regenerate}
+    controls={{ errors: {}, pending: new Set(), onUpdate: vi.fn(), onAction: vi.fn() }} />)
+  expect(screen.queryByRole('button', { name: 'Update note' })).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Regenerate suggestion' }))
+  expect(regenerate).toHaveBeenCalledTimes(1)
 })

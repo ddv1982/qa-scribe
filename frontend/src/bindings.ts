@@ -22,24 +22,25 @@ export const commands = {
 	updateSession: (id: string, patch: SessionPatch_Deserialize) => __TAURI_INVOKE<Session>("update_session", { id, patch }),
 	deleteSession: (id: string) => __TAURI_INVOKE<AttachmentCleanupStatus>("delete_session", { id }),
 	retryAttachmentCleanup: () => __TAURI_INVOKE<AttachmentCleanupStatus>("retry_attachment_cleanup"),
-	getChat: (sessionId: string) => __TAURI_INVOKE<ChatState>("get_chat", { sessionId }),
-	beginRecordChat: (request: BeginRecordChatRequest) => __TAURI_INVOKE<ChatState>("begin_record_chat", { request }),
-	beginTestRunChat: (request: BeginTestRunChatRequest) => __TAURI_INVOKE<ChatState>("begin_test_run_chat", { request }),
-	getConversation: (reference: ChatRef) => __TAURI_INVOKE<ChatState>("get_conversation", { reference }),
-	activateConversation: (reference: ChatRef) => __TAURI_INVOKE<ChatState>("activate_conversation", { reference }),
+	getChat: (sessionId: string) => __TAURI_INVOKE<ChatState_Serialize>("get_chat", { sessionId }),
+	beginRecordChat: (request: BeginRecordChatRequest) => __TAURI_INVOKE<ChatState_Serialize>("begin_record_chat", { request }),
+	beginTestRunChat: (request: BeginTestRunChatRequest) => __TAURI_INVOKE<ChatState_Serialize>("begin_test_run_chat", { request }),
+	getConversation: (reference: ChatRef) => __TAURI_INVOKE<ChatState_Serialize>("get_conversation", { reference }),
+	activateConversation: (reference: ChatRef) => __TAURI_INVOKE<ChatState_Serialize>("activate_conversation", { reference }),
 	listChatHistory: (scope: ChatHistoryScope) => __TAURI_INVOKE<ChatHistoryEntry[]>("list_chat_history", { scope }),
-	resolveRefinement: (request: RefinementRequest) => __TAURI_INVOKE<ChatState>("resolve_refinement", { request }),
-	applyRefinement: (request: ApplyRefinementRequest) => __TAURI_INVOKE<AppliedRefinement>("apply_refinement", { request }),
-	saveChatComposer: (request: ChatComposerRequest) => __TAURI_INVOKE<ChatState>("save_chat_composer", { request }),
-	importChatImage: (scope: ChatRevision, filename: string, dataUrl: string) => __TAURI_INVOKE<ChatState>("import_chat_image", { scope, filename, dataUrl }),
-	restartChat: (request: ChatRestartRequest) => __TAURI_INVOKE<ChatState>("restart_chat", { request }),
+	resolveRefinement: (request: RefinementRequest) => __TAURI_INVOKE<ChatState_Serialize>("resolve_refinement", { request }),
+	applyRefinement: (request: ApplyRefinementRequest) => __TAURI_INVOKE<AppliedRefinement_Serialize>("apply_refinement", { request }),
+	applyNoteRefinement: (request: ApplyNoteRefinementRequest) => __TAURI_INVOKE<AppliedNoteRefinement_Serialize>("apply_note_refinement", { request }),
+	saveChatComposer: (request: ChatComposerRequest) => __TAURI_INVOKE<ChatState_Serialize>("save_chat_composer", { request }),
+	importChatImage: (scope: ChatRevision, filename: string, dataUrl: string) => __TAURI_INVOKE<ChatState_Serialize>("import_chat_image", { scope, filename, dataUrl }),
+	restartChat: (request: ChatRestartRequest) => __TAURI_INVOKE<ChatState_Serialize>("restart_chat", { request }),
 	submitChat: (request: ChatSubmitRequest) => __TAURI_INVOKE<ChatSubmissionReceipt>("submit_chat", { request }),
 	/**
 	 *  The status channel deliberately shares polling/cancellation with AI actions.
 	 *  Reload the canonical ChatState when the job reaches a terminal status.
 	 */
 	startChatJob: (request: StartChatJobRequest, events: Channel<GenerationJobStatus_Deserialize>) => __TAURI_INVOKE<StartChatJobResult_Serialize>("start_chat_job", { request, events }),
-	decideChatPermission: (request: ChatPermissionDecisionRequest) => __TAURI_INVOKE<GenerationJobStatus_Serialize>("decide_chat_permission", { request }),
+	decideChatPermission: (request: ChatPermissionDecisionRequest_Deserialize) => __TAURI_INVOKE<GenerationJobStatus_Serialize>("decide_chat_permission", { request }),
 	createEntry: (draft: EntryDraft) => __TAURI_INVOKE<Entry>("create_entry", { draft }),
 	listEntries: (sessionId: string) => __TAURI_INVOKE<Entry[]>("list_entries", { sessionId }),
 	updateEntry: (id: string, patch: EntryPatch) => __TAURI_INVOKE<Entry>("update_entry", { id, patch }),
@@ -132,9 +133,34 @@ export type AppSettings = {
 	generationReadSources?: GenerationReadSource[],
 };
 
-export type AppliedRefinement = {
-	chat: ChatState,
+export type AppliedNoteRefinement = AppliedNoteRefinement_Serialize | AppliedNoteRefinement_Deserialize;
+
+export type AppliedNoteRefinement_Deserialize = {
+	chat: ChatState_Deserialize,
+	note: Entry,
+};
+
+export type AppliedNoteRefinement_Serialize = {
+	chat: ChatState_Serialize,
+	note: Entry,
+};
+
+export type AppliedRefinement = AppliedRefinement_Serialize | AppliedRefinement_Deserialize;
+
+export type AppliedRefinement_Deserialize = {
+	chat: ChatState_Deserialize,
 	updated: RefinedRecord,
+};
+
+export type AppliedRefinement_Serialize = {
+	chat: ChatState_Serialize,
+	updated: RefinedRecord,
+};
+
+export type ApplyNoteRefinementRequest = {
+	reference: ChatRef,
+	proposalId: string,
+	undo: boolean,
 };
 
 export type ApplyRefinementRequest = {
@@ -212,8 +238,25 @@ export type ChatJobIdentity = {
 	reference: ChatRef,
 };
 
-export type ChatMessage = {
-	response?: ChatResponseInfo | null,
+export type ChatMessage = ChatMessage_Serialize | ChatMessage_Deserialize;
+
+export type ChatMessage_Deserialize = {
+	response?: ChatResponseInfo_Deserialize | null,
+	answer?: ChatAnswer | null,
+	id: string,
+	turnId: string,
+	role: ChatRole,
+	text: string,
+	images: ChatImage[],
+	context?: ChatTarget,
+	status: ChatTurnStatus,
+	errorMessage: string | null,
+	aiRunId: string | null,
+	createdAt: string,
+};
+
+export type ChatMessage_Serialize = {
+	response?: ChatResponseInfo_Serialize | null,
 	answer?: ChatAnswer | null,
 	id: string,
 	turnId: string,
@@ -229,14 +272,26 @@ export type ChatMessage = {
 
 export type ChatMode = "write_note" | "chat";
 
-export type ChatPermissionDecision = "approve" | "approveAll" | "deny";
+export type ChatPermissionDecision = "approve" | "approveBatch" | "deny";
 
-export type ChatPermissionDecisionRequest = {
+export type ChatPermissionDecisionRequest = ChatPermissionDecisionRequest_Serialize | ChatPermissionDecisionRequest_Deserialize;
+
+export type ChatPermissionDecisionRequest_Deserialize = {
 	jobId: string,
 	sessionId: string,
 	requestId: string,
 	provider: AiProvider,
 	decision: ChatPermissionDecision,
+	additionalRequestIds?: string[],
+};
+
+export type ChatPermissionDecisionRequest_Serialize = {
+	jobId: string,
+	sessionId: string,
+	requestId: string,
+	provider: AiProvider,
+	decision: ChatPermissionDecision,
+	additionalRequestIds?: string[],
 };
 
 export type ChatPermissionRequest = ChatPermissionRequest_Serialize | ChatPermissionRequest_Deserialize;
@@ -271,10 +326,23 @@ export type ChatRef = {
 	draftId: string,
 };
 
-export type ChatResponseInfo = {
+export type ChatResponseInfo = ChatResponseInfo_Serialize | ChatResponseInfo_Deserialize;
+
+export type ChatResponseInfo_Deserialize = {
 	sourceUserMessageId: string,
 	purpose: ChatResponsePurpose,
 	question: ChatQuestion | null,
+	localEdit?: boolean,
+	noteSourceNeedsRefresh?: boolean,
+	warning: string | null,
+};
+
+export type ChatResponseInfo_Serialize = {
+	sourceUserMessageId: string,
+	purpose: ChatResponsePurpose,
+	question: ChatQuestion | null,
+	localEdit?: boolean,
+	noteSourceNeedsRefresh?: boolean,
 	warning: string | null,
 };
 
@@ -292,9 +360,11 @@ export type ChatRevision = {
 
 export type ChatRole = "user" | "assistant";
 
-export type ChatSendIntent = { kind: "composer" } | { kind: "question_reply"; assistantMessageId: string; text: string } | { kind: "retry" };
+export type ChatSendIntent = { kind: "composer" } | { kind: "suggest_edit"; assistantMessageId: string | null } | { kind: "question_reply"; assistantMessageId: string; text: string } | { kind: "retry" };
 
-export type ChatState = {
+export type ChatState = ChatState_Serialize | ChatState_Deserialize;
+
+export type ChatState_Deserialize = {
 	owner: ConversationOwner,
 	archived: boolean,
 	composerIntent: ChatComposerIntent,
@@ -308,7 +378,26 @@ export type ChatState = {
 	composer: string,
 	composerImages: ChatImage[],
 	mode: ChatMode,
-	messages: ChatMessage[],
+	messages: ChatMessage_Deserialize[],
+	aiRuns: AiRun[],
+	submission: ChatSubmissionReceipt | null,
+};
+
+export type ChatState_Serialize = {
+	owner: ConversationOwner,
+	archived: boolean,
+	composerIntent: ChatComposerIntent,
+	lastActiveOrder: number,
+	lastActiveAt: string,
+	pendingResponse?: ChatResponsePurpose | null,
+	proposals?: RefinementProposal[],
+	sessionId: string,
+	draftId: string,
+	revision: number,
+	composer: string,
+	composerImages: ChatImage[],
+	mode: ChatMode,
+	messages: ChatMessage_Serialize[],
 	aiRuns: AiRun[],
 	submission: ChatSubmissionReceipt | null,
 };
@@ -575,6 +664,7 @@ export type GenerationJobStatus_Deserialize = {
 	errorMessage: string | null,
 	partialText: string | null,
 	pendingPermission?: ChatPermissionRequest_Deserialize | null,
+	queuedPermissions?: ChatPermissionRequest_Deserialize[],
 };
 
 export type GenerationJobStatus_Serialize = {
@@ -588,6 +678,7 @@ export type GenerationJobStatus_Serialize = {
 	errorMessage: string | null,
 	partialText: string | null,
 	pendingPermission?: ChatPermissionRequest_Serialize | null,
+	queuedPermissions?: ChatPermissionRequest_Serialize[],
 };
 
 /**
@@ -820,7 +911,7 @@ export type RefinementRequest = {
 	action: RefinementAction,
 };
 
-export type RefinementState = { kind: "offered" } | { kind: "applied" } | { kind: "staged"; stage: EditorStage } | { kind: "saved"; stage: EditorStage } | { kind: "dismissed" } | { kind: "undone"; stage: EditorStage } | { kind: "reverted"; stage: EditorStage } | { kind: "abandoned"; stage: EditorStage };
+export type RefinementState = { kind: "offered" } | { kind: "applied" } | { kind: "note_applied" } | { kind: "staged"; stage: EditorStage } | { kind: "saved"; stage: EditorStage } | { kind: "dismissed" } | { kind: "undone"; stage: EditorStage } | { kind: "reverted"; stage: EditorStage } | { kind: "abandoned"; stage: EditorStage };
 
 export type ReportedModel = { source: "claudeInitialization"; id: string } | { source: "claudeAssistantMessage"; id: string } | { source: "codexThreadConfiguration"; id: string };
 
@@ -983,14 +1074,14 @@ export type StartChatJobResult = StartChatJobResult_Serialize | StartChatJobResu
 export type StartChatJobResult_Deserialize = {
 	jobId: string,
 	turnId: string,
-	chat: ChatState,
+	chat: ChatState_Deserialize,
 	status: GenerationJobStatus_Deserialize,
 };
 
 export type StartChatJobResult_Serialize = {
 	jobId: string,
 	turnId: string,
-	chat: ChatState,
+	chat: ChatState_Serialize,
 	status: GenerationJobStatus_Serialize,
 };
 

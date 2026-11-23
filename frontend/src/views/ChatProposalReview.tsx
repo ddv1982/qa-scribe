@@ -1,3 +1,4 @@
+import { ChatProposalContent } from './ChatProposalContent'
 import { useState } from 'react'
 import type { RefinementProposal } from '../bindings'
 import type { ProposalControls } from '../app/sessionChat.proposals'
@@ -6,7 +7,7 @@ import { RichTextEditor } from '../editor/RichTextEditor'
 import { findingSeverityLabel, findingStatusLabel, parseFindingMetadata } from '../findings/metadata'
 import { parseRichEditorDocument } from '../editor/editorDocument'
 
-export function ChatProposalReview({ proposal, controls, presentation = 'notes' }: { proposal: RefinementProposal; controls?: ProposalControls; presentation?: 'notes' | 'record' }) {
+export function ChatProposalReview({ proposal, controls, presentation = 'notes', noteSourceNeedsRefresh, onRegenerate }: { proposal: RefinementProposal; controls?: ProposalControls; presentation?: 'notes' | 'record'; noteSourceNeedsRefresh?: boolean; onRegenerate?: () => Promise<void> }) {
   const [reviewing, setReviewing] = useState(false)
   const before = parseRichEditorDocument(proposal.before.documentJson)
   const after = parseRichEditorDocument(proposal.after.documentJson)
@@ -16,15 +17,18 @@ export function ChatProposalReview({ proposal, controls, presentation = 'notes' 
   if (proposal.target.kind === 'session' && proposal.patch.kind === 'note') {
     const undoable = controls?.undoable?.has(proposal.id) ?? false
     const offeredAgain = controls?.undone?.has(proposal.id) ?? false
-    if ((status === 'applied' || controls?.applied?.has(proposal.id)) && !offeredAgain) return <section className="chat-proposal chat-proposal--record" aria-label="Note update">
+    if ((status === 'applied' || status === 'note_applied' || controls?.applied?.has(proposal.id)) && !offeredAgain) return <section className="chat-proposal chat-proposal--record" aria-label="Note update">
       {error ? null : <p role="status">Note updated</p>}
       {undoable ? <div className="chat-buttons"><ActionButton variant="secondary" disabled={pending} onClick={() => void controls?.onAction(proposal.id, 'undo')}>Undo</ActionButton></div> : null}
       {error ? <p className="chat-error" role="alert">{error}</p> : null}
     </section>
     if (status !== 'offered' && !offeredAgain) return null
     return <section className="chat-proposal chat-proposal--record" aria-label="Suggested note">
-      {after ? <RichTextEditor value={after} readOnly ariaLabel="Suggested note" /> : null}
-      {controls?.onUpdate ? <div className="chat-buttons">
+      {after ? <ChatProposalContent before={controls?.noteBefore ?? before} after={after} /> : null}
+      {noteSourceNeedsRefresh ? <>
+        <p className="chat-help">Refresh this suggestion against the current Note before applying it.</p>
+        {onRegenerate ? <ActionButton variant="secondary" type="button" onClick={() => void onRegenerate()}>Regenerate suggestion</ActionButton> : null}
+      </> : controls?.onUpdate ? <div className="chat-buttons">
         <ActionButton variant="secondary" disabled={pending || Boolean(controls.applyUnavailable)} onClick={() => void controls.onUpdate?.(proposal.id)}>Update note</ActionButton>
       </div> : null}
       {controls?.applyUnavailable ? <p className="chat-help">{controls.applyUnavailable}</p> : null}
@@ -32,15 +36,15 @@ export function ChatProposalReview({ proposal, controls, presentation = 'notes' 
     </section>
   }
   if (presentation === 'record') {
-    if (status === 'applied' && !error) return <p role="status">{proposal.target.kind === 'finding' ? 'Finding updated' : 'Test case updated'}</p>
+    if (status === 'applied' && !error) return <p role="status">{proposal.target.kind === 'finding' ? 'Finding updated' : 'Test cases updated'}</p>
     if (!['offered', 'staged', 'applied'].includes(status) && !error) return null
     const prepared = controls?.preparedOnly?.has(proposal.id)
     return <section className="chat-proposal chat-proposal--record" aria-label={`Suggested changes for ${proposal.before.title}`}>
       {proposal.before.title !== proposal.after.title ? <><h3>Title</h3><p>{proposal.after.title}</p></> : null}
-      {proposal.before.documentJson !== proposal.after.documentJson && after ? <RichTextEditor value={after} readOnly ariaLabel="Suggested content" /> : null}
+      {proposal.before.documentJson !== proposal.after.documentJson && after ? <ChatProposalContent before={before} after={after} /> : null}
       {proposal.target.kind === 'finding' ? <FindingMetadataChanges proposal={proposal} /> : null}
       {controls && (status === 'offered' || status === 'applied' || prepared) ? <div className="chat-buttons">
-        <ActionButton variant="secondary" disabled={pending || Boolean(controls.applyUnavailable)} onClick={() => void controls.onUpdate?.(proposal.id)}>{proposal.target.kind === 'finding' ? 'Update finding' : 'Update test case'}</ActionButton>
+        <ActionButton variant="secondary" disabled={pending || Boolean(controls.applyUnavailable)} onClick={() => void controls.onUpdate?.(proposal.id)}>{proposal.target.kind === 'finding' ? 'Update finding' : 'Update test cases'}</ActionButton>
         {prepared ? <ActionButton variant="secondary" disabled={pending} onClick={() => void controls.onAction(proposal.id, 'abandon')}>Keep current edits</ActionButton> : null}
       </div> : null}
       {controls?.applyUnavailable ? <p className="chat-help">{controls.applyUnavailable}</p> : null}

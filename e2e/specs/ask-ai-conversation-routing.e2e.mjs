@@ -184,7 +184,7 @@ if (phase === 'restart') {
       const token = hidden.pendingPermission
       await assert.rejects(native('decide_chat_permission', { request: { jobId: hidden.jobId, sessionId: session.id, requestId: token.requestId, provider: 'claude_code', decision: 'approve' } }))
       assert.deepEqual((await native('get_ai_action_job_status', { jobId: hidden.jobId })).pendingPermission, token)
-      await click('button=Approve once')
+      await click('button=Approve this request')
       await browser.waitUntil(async () => (await notes()).messages.at(-1).role === 'assistant')
       await native('decide_chat_permission', { request: { jobId: hidden.jobId, sessionId: session.id, requestId: token.requestId, provider: token.provider, decision: 'deny' } })
       await browser.waitUntil(async () => (await exact(reference(A))).messages.at(-1).role === 'assistant')

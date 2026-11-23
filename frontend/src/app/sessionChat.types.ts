@@ -12,6 +12,7 @@ export type ChatImageFailure = { id: string; filename: string; message: string; 
 export interface SessionChatViewState {
   responseStarting?: ChatSendIntent | ChatComposerIntent
   recordWritesPending?: boolean
+  onSuggestEdit?: (assistantMessageId: string | null) => Promise<void>
   onAnswerQuestion?: (assistantMessageId: string, text: string) => Promise<void>
   onPrepareAction?: (assistantMessageId: string) => Promise<void>
   onRefresh?: () => Promise<void>
@@ -32,7 +33,7 @@ export interface SessionChatViewState {
   recoveryPending?: boolean
   permissionWorking?: boolean
   permissionRecoveryPending?: boolean
-  onDecidePermission?: (requestId: string, decision: ChatPermissionDecision) => Promise<void>
+  onDecidePermission?: (requestId: string, decision: ChatPermissionDecision, additionalRequestIds?: string[]) => Promise<void>
   onRecheck?: () => Promise<void>
   onSetComposer: (text: string) => void
   onAttachImages: (files: File[]) => Promise<void>

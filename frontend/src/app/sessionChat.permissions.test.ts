@@ -28,7 +28,7 @@ function pending(provider: AiProvider = 'claude_code', patch: Partial<Generation
 const stopped: GenerationJobStatus = chatJobFixture({ state: 'cancelled', pendingPermission: null })
 const clean: GenerationJobStatus = chatJobFixture({ pendingPermission: null })
 // Temporary compatibility until the backend regenerates ChatPermissionDecision.
-const approveAll: ChatPermissionDecision = 'approveAll'
+const approveBatch: ChatPermissionDecision = 'approveBatch'
 
 async function harness(provider: AiProvider = 'claude_code') {
   let snapshot: ChatSnapshot = emptyChatSnapshot
@@ -90,16 +90,17 @@ describe('Session Chat explicit permission authority', () => {
     const gate = deferred<GenerationJobStatus>()
     api.decideChatPermission.mockReturnValue(gate.promise)
     const h = await setup(provider)
-    const first = h.actions.onDecidePermission('permission-1', approveAll)
-    const duplicate = h.actions.onDecidePermission('permission-1', approveAll)
+    h.actions.observeJob(pending(provider, { queuedPermissions: [{ ...pending(provider).pendingPermission!, requestId: 'permission-2' }] }))
+    const first = h.actions.onDecidePermission('permission-1', approveBatch, undefined, ['permission-2'])
+    const duplicate = h.actions.onDecidePermission('permission-1', approveBatch, undefined, ['permission-2'])
     expect(h.snapshot.permissionWorking).toBe(true)
     expect(api.decideChatPermission).toHaveBeenCalledExactlyOnceWith({
-      jobId: 'job-chat', sessionId: 'session-1', provider, requestId: 'permission-1', decision: 'approveAll',
+      jobId: 'job-chat', sessionId: 'session-1', provider, requestId: 'permission-1', decision: 'approveBatch', additionalRequestIds: ['permission-2'],
     })
     gate.resolve(clean)
     await Promise.all([first, duplicate])
     h.actions.observeJob(pending(provider))
-    await h.actions.onDecidePermission('permission-1', approveAll)
+    await h.actions.onDecidePermission('permission-1', approveBatch)
     expect(h.snapshot.job?.pendingPermission).toBeFalsy()
     expect(h.snapshot.permissionWorking).toBe(false)
     expect(api.decideChatPermission).toHaveBeenCalledTimes(1)
@@ -113,7 +114,7 @@ describe('Session Chat explicit permission authority', () => {
     const h = await setup(provider)
     await Promise.resolve()
     h.actions.observeJob(status)
-    const forged = h.actions.onDecidePermission(request.requestId, approveAll)
+    const forged = h.actions.onDecidePermission(request.requestId, approveBatch)
     expect(api.decideChatPermission).not.toHaveBeenCalled()
     expect(h.snapshot.permissionWorking).toBe(false)
     expect(h.snapshot.job?.pendingPermission).toEqual(request)
@@ -134,7 +135,7 @@ describe('Session Chat explicit permission authority', () => {
     if (change === 'disposed') h.actions.dispose()
     if (change === 'retired') { h.retired.add('session-1'); h.actions.retire('session-1') }
     if (change === 'terminal') h.actions.observeJob(stopped)
-    await h.actions.onDecidePermission(change === 'forged' ? 'forged-token' : 'permission-1', approveAll)
+    await h.actions.onDecidePermission(change === 'forged' ? 'forged-token' : 'permission-1', approveBatch)
     expect(api.decideChatPermission).not.toHaveBeenCalled()
     expect(h.snapshot.permissionWorking).toBe(false)
     expect(api.startChatJob).not.toHaveBeenCalled()

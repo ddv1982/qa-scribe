@@ -122,6 +122,7 @@ impl Fixture {
                     request_id: pending.request_id,
                     provider: self.provider,
                     decision,
+                    additional_request_ids: vec![],
                 })
                 .unwrap();
         }
@@ -167,6 +168,7 @@ fn assert_copilot_one_sided_deny(mode: &str) {
                             request_id: pending.request_id.clone(),
                             provider: AiProvider::CopilotCli,
                             decision: ChatPermissionDecision::Approve,
+                            additional_request_ids: vec![],
                         };
                         assert!(fixture.jobs.decide_chat_permission(forged).is_err());
                         assert_eq!(fixture.jobs.status("job").unwrap(), status);

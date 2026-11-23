@@ -188,9 +188,7 @@ fn malformed_record_outcomes_preserve_explanation_without_proposal_or_record_wri
                     .unwrap()
                     .warning
                     .as_deref(),
-                Some(
-                    "The AI reply could not be processed. No changes were applied from this reply. Try again."
-                )
+                Some("No edit was created. The reply did not contain a usable suggestion.")
             );
             assert_eq!(
                 service.list_findings(&finding.session_id).unwrap(),
@@ -224,9 +222,7 @@ fn malformed_non_edit_record_outcomes_preserve_explanation_without_controls_or_r
             assert_eq!(message.text, "Readable explanation.");
             assert_eq!(
                 response.warning.as_deref(),
-                Some(
-                    "The AI reply could not be processed. No changes were applied from this reply. Try again."
-                )
+                Some("No edit was created. The reply did not contain a usable suggestion.")
             );
             assert!(response.question.is_none());
             assert!(chat.proposals.is_empty());
@@ -308,9 +304,7 @@ fn record_envelope_rejects_wrong_version_nonce_unknown_fields_blank_markdown_and
                 .unwrap()
                 .warning
                 .as_deref(),
-            Some(
-                "The AI reply could not be processed. No changes were applied from this reply. Try again."
-            )
+            Some("No edit was created. The reply did not contain a usable suggestion.")
         );
         assert_eq!(
             service.list_findings(&finding.session_id).unwrap(),

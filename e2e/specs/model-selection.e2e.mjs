@@ -381,7 +381,7 @@ describe('Built application native quick model selection M03', () => {
     assert.deepEqual(changed.pendingPermission, initial.pendingPermission)
     assert.deepEqual(database(sessionId).runs.at(-1).selection.requested, { kind: 'explicit', id: 'active-first-literal' })
     await browser.saveScreenshot(join(output, 'active-pending-permission.png'))
-    await click('Approve once')
+    await click('Approve this request')
     const first = await finishChat(sessionId)
     assert.deepEqual(first.row.selection, recorded('active-first-literal', { source: 'claudeAssistantMessage', id: 'claude-active-reported' }))
     const child = JSON.parse(readFileSync(join(directory, 'model-evidence-M03-5.executed.json'), 'utf8'))

@@ -18,6 +18,7 @@ import { useChatTranscriptScroll } from './useChatTranscriptScroll'
 export type SharedChatViewProps = {
   responseStarting?: ChatSendIntent | ChatComposerIntent
   activeTarget?: ChatContextPresentation
+  onSuggestEdit?: (assistantMessageId: string | null) => Promise<void>
   onAnswerQuestion?: (assistantMessageId: string, text: string) => Promise<void>
   onPrepareAction?: (assistantMessageId: string) => Promise<void>
   proposalControls?: import('../app/sessionChat.proposals').ProposalControls
@@ -51,7 +52,7 @@ export type SharedChatViewProps = {
   onRetry: () => Promise<void>
   onCancel: () => Promise<void>
   onConfigureAi: () => void
-  onDecidePermission?: (requestId: string, decision: ChatPermissionDecision) => Promise<void>
+  onDecidePermission?: (requestId: string, decision: ChatPermissionDecision, additionalRequestIds?: string[]) => Promise<void>
   onRecheck?: () => Promise<void>
 }
 
@@ -96,6 +97,7 @@ export function SessionChatView(props: SessionChatViewProps) {
   const composerImages = props.composerImages ?? chat?.composerImages ?? []
   const imageFailures = props.imageFailures ?? []
   const inputRecoveryPending = props.inputRecoveryPending ?? false
+  const [selectedBatch, setSelectedBatch] = useState<string | null>(null)
   const [expandedPermissionKey, setExpandedPermissionKey] = useState<string | null>(null)
   const attentionRef = useRef<HTMLElement>(null)
   const permissionContextRef = useRef<HTMLDivElement>(null)
@@ -113,13 +115,16 @@ export function SessionChatView(props: SessionChatViewProps) {
     && job.action === 'chat' && job.state === 'running' ? job.pendingPermission : null
   const permissionDisabled = permissionWorking || !onDecidePermission
   const approvalUnavailable = pendingPermission?.canApprove === false
-  const approveAllUnavailable = approvalUnavailable || !pendingPermission?.toolName?.trim()
   const permissionKey = pendingPermission && job
     ? JSON.stringify([job.sessionId, job.jobId, pendingPermission.requestId]) : null
   const permissionExpanded = permissionKey !== null && expandedPermissionKey === permissionKey
   const permissionInput = pendingPermission?.inputJson
+  const queuedPermissions = !approvalUnavailable && permissionInput != null ? job?.queuedPermissions ?? [] : []
+  const queuedIds = queuedPermissions.map(request => request.requestId)
+  const batchKey = JSON.stringify([permissionKey, queuedIds])
   const permissionPreview = permissionExpanded ? permissionInput : permissionInput?.slice(0, permissionPreviewLimit)
   const permissionTruncated = !permissionExpanded && Boolean(permissionInput && permissionInput.length > permissionPreviewLimit)
+  const approveBatch = queuedIds.length > 0 && !permissionTruncated && selectedBatch === batchKey
   const permissionAttention = Boolean(pendingPermission || permissionRecoveryPending)
   const { viewportRef, transcriptRef } = useChatTranscriptScroll({ conversationId: chat?.draftId ?? null,
     userTurnId: latest?.role === 'user' ? latest.turnId : null, messageId: latest?.id ?? null,
@@ -227,9 +232,21 @@ export function SessionChatView(props: SessionChatViewProps) {
                   </> : null}
                 </> : null}
               </div>
-              <p className="chat-help" id={`${id}-permission-scope`}>Approve once applies to this tool call only. Approve all for this tool also approves later requests for the same tool in this response. Other tools still ask. Does not change saved permissions.</p>
-              {approvalUnavailable ? <p className="chat-help" id={`${id}-permission-approval-reason`}>The provider does not offer one-time approval.</p>
-                : approveAllUnavailable ? <p className="chat-help" id={`${id}-permission-approve-all-reason`}>The provider does not name this tool, so approve each request on its own.</p> : null}
+              {queuedPermissions.length ? <>
+                <ul className="chat-queued-permissions" aria-label="Additional permission requests">
+                  {queuedPermissions.map(request => <li key={request.requestId}>
+                    <p className="chat-message-text">{request.toolName ?? request.title}{request.serverName ? ` · ${request.serverName}` : ''}</p>
+                    <p className="chat-message-text chat-permission-input">{request.inputJson}</p>
+                  </li>)}
+                </ul>
+                <label className="chat-help">
+                  <input type="checkbox" checked={approveBatch} disabled={permissionDisabled || permissionTruncated}
+                    onChange={event => setSelectedBatch(event.target.checked ? batchKey : null)} />
+                  Include the {queuedIds.length} additional requests shown
+                </label>
+              </> : null}
+              <p className="chat-help" id={`${id}-permission-scope`}>{approveBatch ? 'Approval covers the requests shown. Later requests still ask.' : 'Approval covers this request only.'}</p>
+              {approvalUnavailable ? <p className="chat-help" id={`${id}-permission-approval-reason`}>The provider does not offer one-time approval.</p> : null}
               {permissionWorking ? <p className="chat-help">Sending permission decision… You can still cancel the response.</p>
                 : !onDecidePermission ? <p className="chat-help">Permission decisions are unavailable. You can cancel the response.</p> : null}
             </> : null}
@@ -237,8 +254,13 @@ export function SessionChatView(props: SessionChatViewProps) {
           <footer className="chat-permission-decisions">
             {pendingPermission ? (
               <div className="chat-buttons" key={permissionKey}>
-                <ActionButton variant="primary" type="button" disabled={permissionDisabled || approvalUnavailable} aria-describedby={approvalUnavailable ? `${id}-permission-approval-reason` : undefined} onClick={() => { if (!permissionDisabled && !approvalUnavailable) void onDecidePermission?.(pendingPermission.requestId, 'approve') }}>Approve once</ActionButton>
-                <ActionButton variant="secondary" type="button" disabled={permissionDisabled || approveAllUnavailable} aria-describedby={approvalUnavailable ? `${id}-permission-approval-reason` : approveAllUnavailable ? `${id}-permission-approve-all-reason` : undefined} onClick={() => { if (!permissionDisabled && !approveAllUnavailable) void onDecidePermission?.(pendingPermission.requestId, 'approveAll') }}>Approve all for this tool</ActionButton>
+                <ActionButton variant="primary" type="button" disabled={permissionDisabled || approvalUnavailable}
+                  aria-describedby={approvalUnavailable ? `${id}-permission-approval-reason` : `${id}-permission-scope`}
+                  onClick={() => {
+                    if (permissionDisabled || approvalUnavailable) return
+                    if (approveBatch) void onDecidePermission?.(pendingPermission.requestId, 'approveBatch', queuedIds)
+                    else void onDecidePermission?.(pendingPermission.requestId, 'approve')
+                  }}>{approveBatch ? `Approve ${queuedIds.length + 1} requests` : 'Approve this request'}</ActionButton>
                 <ActionButton variant="secondary" type="button" disabled={permissionDisabled} onClick={() => { if (!permissionDisabled) void onDecidePermission?.(pendingPermission.requestId, 'deny') }}>Deny</ActionButton>
               </div>
             ) : null}
@@ -287,8 +309,10 @@ export function SessionChatView(props: SessionChatViewProps) {
             </>}
           </div> : (
             <ChatMessageList presentation={record ? 'record' : 'notes'} messages={messages} aiRuns={chat?.aiRuns ?? []} proposals={testRun ? undefined : chat?.proposals} proposalControls={submitted || testRun ? undefined : props.proposalControls}
+              onSuggestEdit={!testRun && !submitted && !locked && !sourceReason && providerAvailable && !inputRecoveryPending && !modelSelectionPending && !atLimit
+                && !composer && !composerImages.length && !imageFailures.length ? props.onSuggestEdit : undefined}
               userContextLabel={testRun ? 'Test run' : undefined}
-              questionControls={submitted || record ? undefined : { target: props.activeTarget ?? { kind: 'session' },
+              questionControls={submitted || testRun ? undefined : { target: props.activeTarget ?? { kind: 'session' },
                 blockedReason: sourceReason || (composer !== '' || composerImages.length || imageFailures.length ? occupiedChoiceReason
                   : busy || inputRecoveryPending || recovering || permissionRecoveryPending || modelSelectionPending || hydrationPending ? 'Wait until the conversation and images are ready. Your input is retained.'
                   : !providerAvailable ? providerReason : ''), onAnswer: props.onAnswerQuestion, onPrepareAction: props.onPrepareAction ? async assistantId => { await props.onPrepareAction?.(assistantId); composerInput.current?.focus({ preventScroll: true }) } : undefined }} />
@@ -350,6 +374,8 @@ export function SessionChatView(props: SessionChatViewProps) {
             <div className="chat-send-buttons">
             <ActionButton variant="secondary" type="button" iconOnly icon={Paperclip} aria-label="Attach images"
               title="Attach up to 4 images, 10 MiB each" disabled={attachmentsLocked} onClick={() => fileInput.current?.click()} />
+            {!testRun && !submitted && props.onSuggestEdit ? <ActionButton variant="secondary" type="button" disabled={Boolean(sendReason)}
+              onClick={() => { if (!sendReason) void props.onSuggestEdit?.(null) }}>Suggest edit</ActionButton> : null}
             <ActionButton variant="primary" type="button" disabled={Boolean(sendReason)} aria-describedby={`${id}-send-reason`} onClick={() => { if (!sendReason) void onSend() }}>Send</ActionButton>
             </div>
           </div>

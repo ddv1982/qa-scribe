@@ -237,6 +237,7 @@ fn a_list_heavy_note_rewrite_within_the_note_limit_is_accepted() {
             record_kind: RefinementRecordKind::Note,
         },
         note_source: None,
+        local_edit: false,
     });
     let body = "- item\n".repeat(MAX_NOTE_REWRITE_BYTES / 7);
     let raw = serde_json::json!({"version":3,"requestId":"request-1","markdown":"Listed.","outcome":{"kind":"edit","patch":{"kind":"note","bodyMarkdown":body}}}).to_string();

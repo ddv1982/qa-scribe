@@ -12,7 +12,7 @@ fn pending_decision(
     jobs: &JobStore,
 ) -> (
     ChatPermissionDecisionRequest,
-    std::sync::mpsc::Receiver<ChatPermissionDecision>,
+    std::sync::mpsc::Receiver<crate::jobs::PermissionReply>,
 ) {
     jobs.insert_generation_job("job".into(), "session".into(), "chat".into())
         .expect("insert Chat job");
@@ -38,6 +38,7 @@ fn pending_decision(
         request_id: pending.request_id,
         provider: pending.provider,
         decision: ChatPermissionDecision::Approve,
+        additional_request_ids: vec![],
     };
     (request, receiver)
 }

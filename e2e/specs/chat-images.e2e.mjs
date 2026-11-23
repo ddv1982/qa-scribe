@@ -154,12 +154,12 @@ describe('Built application Chat image transport fixtures, without real vision o
       assert.deepEqual(await browser.execute(() => {
         const input = document.querySelector('input[aria-label="Choose chat images"]')
         const attach = document.querySelector('button[aria-label="Attach images"]')
-        const send = attach.nextElementSibling
+        const send = Array.from(attach.parentElement.querySelectorAll('button')).find(button => button.textContent.trim() === 'Send')
         const a = attach.getBoundingClientRect(), s = send.getBoundingClientRect()
         return { type: input.type, multiple: input.multiple, accept: input.accept.split(',').sort(),
-          next: send.textContent.trim(), leftOfSend: a.right <= s.left, sameRow: Math.abs(a.top - s.top) < 2 }
+          leftOfSend: a.right <= s.left, sameRow: Math.abs(a.top - s.top) < 2 }
       }), { type: 'file', multiple: true, accept: ['image/gif', 'image/jpeg', 'image/png', 'image/webp'],
-        next: 'Send', leftOfSend: true, sameRow: true })
+        leftOfSend: true, sameRow: true })
       await browser.execute(() => {
         const input = document.querySelector('input[aria-label="Choose chat images"]')
         input.addEventListener('click', event => {

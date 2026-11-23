@@ -22,6 +22,7 @@ pub(super) struct ChatPreparationSnapshot {
     intent: ChatRequestIntent,
     composer_intent: ChatComposerIntent,
     context: String,
+    note: Option<Entry>,
     /// The current report of the test run that owns the conversation.
     test_run_report: Option<String>,
     messages: Vec<ChatInputMessage>,
@@ -55,18 +56,21 @@ impl ChatPreparationSnapshot {
             .session_context
             .unwrap_or_default();
         // A Notes conversation works on the Session Note, so every turn carries its saved text.
-        let context = match chat.owner {
-            ConversationOwner::Notes { .. } => {
-                let note = service
-                    .list_entries(&chat.session_id)?
-                    .into_iter()
-                    .find(|entry| entry.entry_type == EntryType::Note);
-                notes_session_context(
-                    &session_context,
-                    note.as_ref().map_or("", |entry| entry.body.as_str()),
-                )
-            }
-            ConversationOwner::Record { .. } | ConversationOwner::TestRun { .. } => session_context,
+        let note = if matches!(chat.owner, ConversationOwner::Notes { .. }) {
+            service
+                .list_entries(&chat.session_id)?
+                .into_iter()
+                .find(|entry| entry.entry_type == EntryType::Note)
+        } else {
+            None
+        };
+        let context = if matches!(chat.owner, ConversationOwner::Notes { .. }) {
+            notes_session_context(
+                &session_context,
+                note.as_ref().map_or("", |entry| entry.body.as_str()),
+            )
+        } else {
+            session_context
         };
         // A test run conversation reads the run's current results on every turn, Retry included.
         let test_run_report = match &chat.owner {
@@ -199,6 +203,7 @@ impl ChatPreparationSnapshot {
             intent,
             composer_intent,
             context,
+            note,
             test_run_report,
             messages,
             sources,
@@ -264,6 +269,7 @@ impl VerifiedChatPreparation {
             || current.composer_intent != self.snapshot.composer_intent
             || current.revision != self.snapshot.revision
             || current.context != self.snapshot.context
+            || current.note != self.snapshot.note
             || current.test_run_report != self.snapshot.test_run_report
             || current.sources != self.snapshot.sources
             || current

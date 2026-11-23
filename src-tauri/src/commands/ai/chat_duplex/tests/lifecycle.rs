@@ -15,6 +15,7 @@ fn chat_duplex_process_parent_exit_pending_revokes_permission_and_reaps_group() 
                         job_id: status.job_id, session_id: status.session_id,
                         request_id: pending.request_id, provider: pending.provider,
                         decision: ChatPermissionDecision::Approve,
+                        additional_request_ids: vec![],
                     });
                 }
             },
@@ -184,12 +185,16 @@ fn assert_queued_authority_boundary(provider: AiProvider, mode: &str) {
         |status| {
             final_pending = status.pending_permission.is_some();
             if let Some(pending) = status.pending_permission {
+                if let Some(head) = stale.borrow().as_ref() {
+                    assert_eq!(pending.request_id, head.request_id, "queued previews must keep the active request");
+                    return;
+                }
                 publications += 1;
-                assert_eq!(publications, 1, "unresolved queued requests must never publish");
                 *stale.borrow_mut() = Some(ChatPermissionDecisionRequest {
                     job_id: status.job_id, session_id: status.session_id,
                     request_id: pending.request_id, provider: pending.provider,
                     decision: ChatPermissionDecision::Deny,
+                    additional_request_ids: vec![],
                 });
             } else if resolves_head && buffered.get() && !head_consumed.replace(true) {
                 // This is the runner's post-reply callback, before it takes and

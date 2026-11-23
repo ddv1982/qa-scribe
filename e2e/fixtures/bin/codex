@@ -78,7 +78,7 @@ if (args.includes('mcp') && args.includes('list') && args.includes('--json') && 
   process.stdout.write('codex-cli 0.163.0\n')
 } else if (modelManagementEnabled) {
   modelManagementFixture('codex', args)
-} else if (args[0] === 'app-server') {
+} else if (args.includes('app-server')) {
   codexAppServer(args)
 } else if (args[0] === 'exec') {
   let prompt = ''

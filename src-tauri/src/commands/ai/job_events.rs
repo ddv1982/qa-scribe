@@ -117,5 +117,6 @@ pub(super) fn fallback_status(
         error_message: (!message.is_empty()).then(|| message.to_string()),
         partial_text: None,
         pending_permission: None,
+        queued_permissions: vec![],
     }
 }

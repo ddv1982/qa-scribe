@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-apply-note-refinement"
+description = "Enables the apply_note_refinement command without any pre-configured scope."
+commands.allow = ["apply_note_refinement"]
+
+[[permission]]
+identifier = "deny-apply-note-refinement"
+description = "Denies the apply_note_refinement command without any pre-configured scope."
+commands.deny = ["apply_note_refinement"]

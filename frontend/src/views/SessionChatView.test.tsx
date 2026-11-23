@@ -30,6 +30,17 @@ function mount(patch: Partial<Props> = {}) {
 const button = (name: string) => screen.getByRole('button', { name })
 
 describe('SessionChatView', () => {
+  it('keeps the generated reply ahead of the suggestion recovery action', () => {
+    mount({ chat: chat([message('user', 'Suggest a revision'), {
+      ...message('assistant', 'Compare matching inputs and expected results.'),
+      response: { sourceUserMessageId: 'user', purpose: { kind: 'refinement', recordKind: 'note' },
+        warning: 'No edit was created.', question: null },
+    }]), onSuggestEdit: vi.fn(async () => {}) })
+    const reply = screen.getByText('Compare matching inputs and expected results.')
+    const recover = button('Generate editable suggestion')
+    expect(reply.compareDocumentPosition(recover) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
   it('formats assistant Markdown while keeping user syntax literal', () => {
     const text = '## Requirements\n\n**Important** and `record_id`\n\n- Parent\n  - Nested\n- [x] Verified\n\n> Context\n\n```sql\nselect 1;\n```\n\n| Check | Result |\n| --- | --- |\n| Linking | Pass |'
     const { container } = mount({ chat: chat([message('user', '**Keep literal**'), message('assistant', text)]) })

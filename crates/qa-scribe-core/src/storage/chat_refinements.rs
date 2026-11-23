@@ -10,6 +10,19 @@ CREATE TABLE IF NOT EXISTS chat_refinements (
  assistant_message_id TEXT NOT NULL UNIQUE REFERENCES chat_messages(id) ON DELETE CASCADE,
  proposal_json TEXT NOT NULL CHECK(length(CAST(proposal_json AS BLOB)) <= 262144)
 );
+CREATE TABLE IF NOT EXISTS chat_note_retry_sources (
+ message_id TEXT PRIMARY KEY REFERENCES chat_messages(id) ON DELETE CASCADE,
+ turn_id TEXT NOT NULL,
+ fingerprint TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS chat_note_undo (
+ proposal_id TEXT PRIMARY KEY REFERENCES chat_refinements(id) ON DELETE CASCADE,
+ before_body TEXT NOT NULL,
+ before_json TEXT,
+ before_format TEXT,
+ before_fingerprint TEXT NOT NULL,
+ applied_fingerprint TEXT NOT NULL
+);
 CREATE TRIGGER IF NOT EXISTS chat_contract_immutable BEFORE UPDATE ON chat_response_contracts
 BEGIN SELECT RAISE(ABORT, 'Response contract is immutable'); END;
 CREATE TRIGGER IF NOT EXISTS chat_refinement_editable_update BEFORE UPDATE ON chat_refinements

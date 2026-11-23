@@ -73,7 +73,7 @@ export function handoffDuringRecordWrites(handoff: ChatHandoffPresentation, pend
   return pending && handoff.kind === 'conversation' ? { ...handoff, disabled: true, reason: 'Wait for pending record writes before adding the conversation.' } : handoff
 }
 
-type NotesTurns = Pick<SessionChatViewState, 'onSend' | 'onRetry' | 'onAnswerQuestion'>
+type NotesTurns = Pick<SessionChatViewState, 'onSend' | 'onRetry' | 'onAnswerQuestion' | 'onSuggestEdit'>
 export const noteSaveFailedReason = 'Save the note before asking AI. Your message is kept.'
 /** Asking AI would save the on-screen Note and so silently choose the authored side of a recovered Summary. */
 export const recoveredSummaryChoiceReason = 'Choose which version of the note to keep before asking AI. Your message is kept.'
@@ -84,6 +84,6 @@ export function savedNoteTurns(chat: NotesTurns, saveNote: () => Promise<boolean
     if (!await saveNote()) { fail(noteSaveFailedReason); return }
     await turn(...args)
   }
-  const { onAnswerQuestion } = chat
-  return { onSend: first(chat.onSend), onRetry: first(chat.onRetry), onAnswerQuestion: onAnswerQuestion ? first(onAnswerQuestion) : undefined }
+  const { onAnswerQuestion, onSuggestEdit } = chat
+  return { onSuggestEdit: onSuggestEdit ? first(onSuggestEdit) : undefined, onSend: first(chat.onSend), onRetry: first(chat.onRetry), onAnswerQuestion: onAnswerQuestion ? first(onAnswerQuestion) : undefined }
 }

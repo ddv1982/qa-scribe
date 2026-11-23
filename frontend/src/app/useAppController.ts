@@ -145,7 +145,7 @@ export function useAppController() {
       return owner?.kind === 'record' ? captureAvailableRecordContext(sessionId, owner.record, recordWorkspace, owner.record.kind === 'finding' ? { state: findingLoadState, ids: findingSourceIds } : { state: draftLoadState, ids: draftSourceIds }) : activeView === 'sessions' ? { kind: 'session' } : askAi.captureNotesContext(sessionId)
     }, recordWritesPending: recordPersistence.coordination.hasPendingRecordCompensations,
   })
-  const { setEditedSessionTitle, setEditedNoteBody } = createNoteEditors({
+  const { setEditedSessionTitle, setEditedNoteBody, adoptRefinedNote } = createNoteEditors({
     session: sessionWorkspace, sessionActions, latestNoteGenerationUndoRef, setLatestNoteGenerationUndo,
   })
   const recordActions = useRecordActions({
@@ -284,6 +284,7 @@ export function useAppController() {
     setDeleteConfirmation,
     setError,
     setLatestNoteGenerationUndo,
+    adoptRefinedNote,
     setNoteBody: setEditedNoteBody,
     setSessionTitle: setEditedSessionTitle,
     setPendingGenerationAction,

@@ -225,9 +225,13 @@ def concurrent_request(index):
     if provider == "claude":
         value["request_id"] = identity
         value["request"]["input"] = inputs
+        if mode == "bulk":
+            value["request"]["tool_name"] = "mcp__local__fixture_%s" % index
     elif provider == "codex":
         value["id"] = identity
         value["params"]["request"]["_meta"]["tool_params"] = inputs
+        if mode == "bulk":
+            value["params"]["request"]["_meta"]["tool_name"] = "fixture_%s" % index
     else:
         value["id"] = identity
         value["params"]["toolCall"]["toolCallId"] = "call-%s" % index

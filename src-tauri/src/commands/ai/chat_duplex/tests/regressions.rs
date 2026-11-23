@@ -302,6 +302,7 @@ fn chat_duplex_process_successive_then_burst_permissions_fifo_all_providers() {
                     } else {
                         ChatPermissionDecision::Deny
                     },
+                    additional_request_ids: vec![],
                 }).unwrap();
             }).unwrap_or_else(|error| panic!("{provider:?}/{id_kind}: {error}"));
             assert!(output.success(), "{provider:?}: {}", output.failure_message());
