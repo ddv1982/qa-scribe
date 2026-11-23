@@ -1,5 +1,6 @@
 mod html;
 mod html_projection;
+mod markdown_projection;
 mod preferences;
 mod prompt;
 mod response;
@@ -8,6 +9,7 @@ mod workflow;
 
 pub use html::managed_attachment_protocol;
 pub use html_projection::project_html_to_prompt_text;
+pub use markdown_projection::project_html_to_prompt_markdown;
 pub use preferences::{
     TestwareDepth, TestwareGenerationPreferences, TestwareOutputFormat, TestwareTechnique,
 };

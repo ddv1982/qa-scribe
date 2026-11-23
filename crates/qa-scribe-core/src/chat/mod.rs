@@ -57,9 +57,9 @@ pub fn build_chat_prompt(
 pub const NOTE_TRUNCATED_MARKER: &str = "\n[Session Note truncated to fit the context limit]";
 
 /// Session context for a Notes conversation: the stored Session context plus the
-/// saved Session Note as plain prompt text, bounded to `MAX_CHAT_CONTEXT_BYTES`.
+/// saved Session Note as Markdown (see `project_html_to_prompt_markdown`), bounded to `MAX_CHAT_CONTEXT_BYTES`.
 pub fn notes_session_context(session_context: &str, note_html: &str) -> String {
-    let note = crate::generation::project_html_to_prompt_text(note_html);
+    let note = crate::generation::project_html_to_prompt_markdown(note_html);
     let note = note.trim();
     if note.is_empty() {
         return session_context.to_string();
@@ -88,7 +88,7 @@ pub fn notes_session_context(session_context: &str, note_html: &str) -> String {
 
 /// Whether the whole saved Note fits in the Notes Session context, so the AI may rewrite it as a whole.
 pub fn notes_session_context_is_complete(session_context: &str, note_html: &str) -> bool {
-    let note = crate::generation::project_html_to_prompt_text(note_html);
+    let note = crate::generation::project_html_to_prompt_markdown(note_html);
     let note = note.trim();
     note.is_empty() || notes_session_context(session_context, note_html).ends_with(note)
 }
@@ -99,7 +99,7 @@ pub const MAX_NOTE_REWRITE_BYTES: usize = 12 * 1024;
 
 /// Whether the AI may rewrite the whole Note: it sees all of it, and the rewrite fits in a reply.
 pub fn note_rewrite_fits(session_context: &str, note_html: &str) -> bool {
-    let note = crate::generation::project_html_to_prompt_text(note_html);
+    let note = crate::generation::project_html_to_prompt_markdown(note_html);
     note.trim().len() <= MAX_NOTE_REWRITE_BYTES
         && notes_session_context_is_complete(session_context, note_html)
 }

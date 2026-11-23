@@ -63,3 +63,15 @@ fn result_notes_text_keeps_every_block_on_its_own_line() {
     assert_eq!(notes.text, text(&fixture["notesText"]));
     assert_eq!(notes.image_count as u64, fixture["notesImageCount"]);
 }
+
+#[test]
+fn ask_ai_notes_projection_writes_the_markdown_the_parser_reads_back() {
+    let fixture = fixture();
+    let markdown = text(&fixture["markdown"]);
+    for html in [&fixture["html"], &fixture["rustHtml"]] {
+        assert_eq!(
+            crate::generation::project_html_to_prompt_markdown(&text(html)),
+            markdown
+        );
+    }
+}

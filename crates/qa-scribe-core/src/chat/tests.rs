@@ -181,8 +181,7 @@ fn notes_context_carries_the_saved_note_within_the_context_limit() {
     );
     assert!(context.starts_with("Staging, build 4.2.1"));
     assert!(context.contains("SESSION_NOTE"));
-    assert!(context.contains("Setup"));
-    assert!(context.contains("Pay with the saved card"));
+    assert!(context.contains("## Setup\n\nPay with the saved card"));
     assert!(!context.contains("<p>"));
 
     assert_eq!(notes_session_context("", "<p></p>"), "");
