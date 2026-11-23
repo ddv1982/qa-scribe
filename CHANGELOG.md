@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.18.0 - 2026-11-23
+
+- Use **Suggest edit** to refine the open Note, Test cases draft, or Finding with external tools disabled. Review the changed sections before applying. If a reply leaves out the edit, **Generate editable suggestion** can recover it, including requests sent with only an image.
+- **Update note** saves the Note and the suggestion status together. Undo survives reopening the conversation and protects newer manual edits. Older suggestions can be refreshed against the current Note.
+- Use one **Approve** button for the current tool request or a batch of requests you’ve reviewed and included. Calls that arrive later ask separately.
+- Ask AI gives replies more room on narrow screens. The recovery action follows the reply, and the composer and image previews take up less space.
+- Updated the transitive `cookie` dependency to 0.18.3 to address RUSTSEC-2026-0594.
+
 ## v0.17.0 - 2026-11-22
 
 - "Generate may read" now works with Codex for Jira and Confluence. Turn on a source, then choose **Sign in for Codex** in Settings once; QA Scribe adds Atlassian's own connection to each Codex run without changing your Codex config. The sign-in asks Atlassian for read and search access only, Codex is limited to the read tools of the sources you turned on, and a run that calls anything else is discarded. Teams lookups still need Claude Code, and Copilot still runs without tools.
