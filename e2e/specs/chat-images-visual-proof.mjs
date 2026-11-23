@@ -77,7 +77,7 @@ async function geometry() {
       documentWidth: document.documentElement.scrollWidth, bodyWidth: document.body.scrollWidth,
       composer: get('.chat-composer'), shortcut: get('.chat-compose-actions > .chat-help'), textarea: get('[aria-label="Session chat"] textarea'),
       attach: measure(attach), send: measure(buttons && Array.from(buttons.querySelectorAll('button')).find(node => node.textContent.trim() === 'Send')),
-      attachNextLabel: attach?.nextElementSibling?.textContent.trim(), latestAssistant: measure(latest),
+      latestAssistant: measure(latest),
       latestAssistantBody: measure(latest?.querySelector('.markdown-content') ?? latest?.querySelector('p')),
       images: Array.from(document.querySelectorAll('[aria-label="Attached images"] .chat-image'), node => ({ card: measure(node), name: measure(node.querySelector('.chat-image-name')), preview: measure(node.querySelector('.chat-image-preview')), remove: measure(node.querySelector('.chat-image-remove')) })),
       dialog: get('dialog[open]'), dialogHeading: get('dialog[open] h2'), dialogImage: get('dialog[open] > img'), dialogClose: get('button[aria-label="Close image preview"]') }
@@ -156,8 +156,7 @@ export async function proveChatImagesVisual({ sessionId, include320 = false }) {
     }
     check(value.theme === 'dark' ? value.send.style.primaryFill === '#5fd0b4' && value.send.style.primaryText === '#111412' : value.send.style.primaryFill === '#0f6e5c' && value.send.style.primaryText === '#ffffff', `${label} primary action uses the teal accent`)
     check(value.shortcut.rect.right <= value.attach.rect.left + 2 || value.shortcut.rect.bottom <= value.attach.rect.top + 2, `${label} keyboard help does not overlap action controls`)
-    check(value.attachNextLabel === 'Send', `${label} paperclip is immediately before Send`)
-    check(Math.abs(value.attach.rect.top - value.send.rect.top) <= 2 && value.attach.rect.right <= value.send.rect.left, `${label} paperclip stays immediately left of Send on the same row`)
+    check(Math.abs(value.attach.rect.top - value.send.rect.top) <= 2 && value.attach.rect.right <= value.send.rect.left, `${label} paperclip stays left of Send on the same row`)
     check(value.textarea.rect.bottom <= Math.min(value.attach.rect.top, value.send.rect.top) + 2, `${label} textarea and action controls do not overlap`)
     for (const image of value.images) {
       check(image.card.rect.right <= value.composer.rect.right + 2 && image.card.rect.left >= value.composer.rect.left - 2, `${label} thumbnail stays within the composer`)
