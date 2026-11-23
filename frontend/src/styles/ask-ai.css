@@ -203,3 +203,9 @@
   .ask-ai-panel .chat-message .chat-image { width: 112px; }
   .ask-ai-panel .chat-message .chat-image-preview { height: 64px; }
 }
+
+.chat-visual-preview { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr)); gap: var(--space-3); margin-top: var(--space-2); }
+.chat-visual-preview figure { margin: 0; min-width: 0; }
+.chat-visual-preview figcaption { margin-bottom: var(--space-1); font-size: var(--font-size-sm); }
+.chat-visual-preview button { display: grid; width: 100%; place-items: center; border: 0; padding: 0; background: transparent; cursor: zoom-in; }
+.chat-visual-preview img { display: block; width: auto; max-width: 100%; height: auto; max-height: min(12rem, 40vh); object-fit: contain; border-radius: 6px; }

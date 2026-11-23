@@ -312,3 +312,20 @@ fn record_envelope_rejects_wrong_version_nonce_unknown_fields_blank_markdown_and
         );
     }
 }
+
+#[test]
+fn a_visual_requiring_an_unattached_chat_image_keeps_the_readable_reply() {
+    let (service, _, _, turn) = begin(true, "Add the screenshot", false);
+    let chat = finish(
+        &service,
+        turn,
+        json!({"kind":"edit","patch":{
+            "kind":"test_cases_visual","visual":{"target":[0],"caption":"Screenshot",
+            "action":{"kind":"place","replace":false,"source":{"kind":"chat","index":0}}}
+        }}),
+    );
+    assert!(chat.proposals.is_empty());
+    let assistant = chat.messages.last().unwrap();
+    assert_eq!(assistant.text, "Readable explanation.");
+    assert!(assistant.response.as_ref().unwrap().warning.is_some());
+}

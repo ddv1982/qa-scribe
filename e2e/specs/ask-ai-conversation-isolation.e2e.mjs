@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { existsSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { ask, close, composer, createReceipt, exact, executions, fill, finish, fixture, manual, managedImageHash, native, notes, panel, pasteImage, recoverExact, reviewScreenshot, selectRecord, selected, start, tab, click } from './ask-ai-isolation-proof.mjs'
+import { ask, close, composer, create, save, createReceipt, exact, executions, fill, finish, fixture, manual, managedImageHash, native, notes, panel, pasteImage, recoverExact, reviewScreenshot, selectRecord, selected, start, tab, click } from './ask-ai-isolation-proof.mjs'
 import { resize } from './chat-handoff-proof.mjs'
 import { confirmCreationAi, openCreationAi } from './creation-helpers.mjs'
 
@@ -378,6 +378,100 @@ describe('Minimal Ask AI in the built native application', () => {
     assert.deepEqual(turn.payload.messages.find(message => message.id === imageOnly.id).images, imageOnly.images)
     const proposal = (await exact(turn.reference)).proposals.at(-1)
     assert.match(proposal.patch.bodyMarkdown, /Check the screenshot evidence/)
+    await close()
+  })
+
+  it('adds a reviewed PNG to TC01, attaches and redacts a screenshot, and preserves the frozen run', async () => {
+    const title = 'Queue routing visual workflow'
+    await tab('Test cases')
+    await create('testware')
+    await fill('[aria-label="Test case title"]', title)
+    const body = await $('[aria-label="Creation draft body"]')
+    await body.setValue('TC01 Route a request')
+    const blockStyle = await $(`[aria-label="Block style"][aria-controls="${await body.getAttribute('id')}"]`)
+    async function style(value) {
+      await browser.execute((node, value) => { node.value = value; node.dispatchEvent(new Event('change', { bubbles: true })) }, blockStyle, value)
+    }
+    await style('h3')
+    for (const [text, value] of [['Publish a request.', 'p'], ['TC02 Retry', 'h3'], ['Retry once.', 'p']]) {
+      assert.ok(await browser.execute((text) => document.execCommand('insertParagraph', false) && document.execCommand('insertText', false, text), text))
+      await style(value)
+    }
+    await save('testware')
+    const record = (await list('test_cases_draft')).find(value => value.title === title)
+    await ask()
+    let turn = await start('Add a queue-routing diagram to TC01.', 'Suggest edit')
+    await finish(turn)
+    assert.equal(turn.payload.contract.localEdit, true)
+    const diagram = await $('.chat-visual-preview img[alt="Queue routing"]')
+    await diagram.waitForDisplayed()
+    const reviewed = await diagram.getAttribute('src')
+    assert.match(reviewed, /^data:image\/png;base64,/)
+    assert.match(await $('.chat-proposal').getText(), /TC01 Route a request/)
+    await click('button[aria-label="View Queue routing"]')
+    await reviewScreenshot('test-case-diagram-preview')
+    await click('dialog[open] button[aria-label="Close image preview"]')
+    await click('button=Update test cases')
+    await browser.waitUntil(async () => (await exact(turn.reference)).proposals.at(-1)?.state.kind === 'visual_applied')
+    let applied = (await exact(turn.reference)).proposals.at(-1)
+    assert.equal(await native('get_attachment_preview_data_url', { attachmentId: applied.state.attachmentId }), reviewed)
+    await click('button=Copy image')
+    await $('p=Image copied').waitForDisplayed()
+    assert.notEqual(await native('read_clipboard_image_data_url'), null)
+    await close()
+    await $('img[alt="Queue routing"]').waitForDisplayed()
+
+    await ask()
+    await pasteImage()
+    turn = await start('Add this screenshot to TC02.')
+    await finish(turn)
+    await $('.chat-visual-preview img[alt="Captured screenshot"]').waitForDisplayed()
+    await click('button=Update test cases')
+    await browser.waitUntil(async () => (await exact(turn.reference)).proposals.at(-1)?.state.kind === 'visual_applied')
+    applied = (await exact(turn.reference)).proposals.at(-1)
+    const captured = applied.state.attachmentId
+    const capturedHash = managedImageHash(captured)
+
+    await close()
+    await click('button=Start test run')
+    for (const key of ['TC01 Route a request', 'TC02 Retry']) {
+      await click(`.test-run-case[aria-label="${key}"] .test-run-case-toggle`)
+    }
+    await $('.test-run-case img[alt="Queue routing"]').waitForDisplayed()
+    const caseFor = alt => browser.execute(alt => document.querySelector(`.test-run-case img[alt="${alt}"]`)?.closest('.test-run-case')?.getAttribute('aria-label'), alt)
+    assert.match(await caseFor('Queue routing'), /Route a request/)
+    assert.match(await caseFor('Captured screenshot'), /Retry/)
+    await click('button=Back to test cases')
+    await selectRecord(title)
+    await ask()
+    await pasteImage()
+    turn = await start('Replace the TC02 screenshot with this redacted copy.')
+    await finish(turn)
+    const redaction = await $('.chat-visual-preview img[alt="Redacted screenshot"]')
+    await redaction.waitForDisplayed()
+    const reviewedRedaction = await redaction.getAttribute('src')
+    await reviewScreenshot('test-case-redaction-preview')
+    await click('button=Update test cases')
+    await browser.waitUntil(async () => (await exact(turn.reference)).proposals.at(-1)?.state.kind === 'visual_applied')
+    applied = (await exact(turn.reference)).proposals.at(-1)
+    assert.equal(await native('get_attachment_preview_data_url', { attachmentId: applied.state.attachmentId }), reviewedRedaction)
+    assert.deepEqual(await browser.execute(async src => {
+      const image = new Image()
+      image.src = src
+      await image.decode()
+      const canvas = document.createElement('canvas')
+      const context = canvas.getContext('2d')
+      context.drawImage(image, 0, 0, 1, 1)
+      return Array.from(context.getImageData(0, 0, 1, 1).data)
+    }, reviewedRedaction), [0, 0, 0, 255])
+    assert.equal(managedImageHash(captured), capturedHash)
+    assert.match((await stored('test_cases_draft', record.id)).body, /Redacted screenshot/)
+    const runs = await native('list_test_runs', { sessionId: session.id })
+    const frozen = await native('get_test_run', { runId: runs[0].id })
+    assert.match(frozen.cases[1].bodyJson, new RegExp(captured))
+    await click('button=Undo')
+    await browser.waitUntil(async () => (await exact(turn.reference)).proposals.at(-1)?.state.kind === 'visual_undone')
+    assert.match((await stored('test_cases_draft', record.id)).body, /Captured screenshot/)
     await close()
   })
 

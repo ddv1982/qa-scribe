@@ -1,14 +1,15 @@
 import { ChatQuestion, type QuestionControls } from './ChatQuestion'
 import { ChatProposalReview } from './ChatProposalReview'
 import type { ProposalControls } from '../app/sessionChat.proposals'
-import type { ChatState } from '../bindings'
+import type { ChatRef, ChatState } from '../bindings'
 import { ChatContextLabel } from './ChatContextCard'
 import { MarkdownContent } from '../content/MarkdownContent'
 import { RunModelEvidence } from '../components/RunModelEvidence'
 import { ActionButton } from '../components/ActionButton'
 import { ChatImages } from './ChatImages'
 
-export function ChatMessageList({ messages, aiRuns, proposals = [], proposalControls, questionControls, onSuggestEdit, presentation = 'notes', userContextLabel }: {
+export function ChatMessageList({ messages, aiRuns, proposals = [], proposalControls, questionControls, onSuggestEdit, reference, presentation = 'notes', userContextLabel }: {
+  reference?: ChatRef
   presentation?: 'notes' | 'record'
   /** Names what every message of the tester was sent with, when the conversation has one fixed source. */
   userContextLabel?: string
@@ -36,7 +37,7 @@ export function ChatMessageList({ messages, aiRuns, proposals = [], proposalCont
           {onSuggestEdit && message === messages.at(-1) && message.response?.purpose.kind === 'refinement'
             && !message.response.question && !proposals.some(proposal => proposal.assistantMessageId === message.id)
             ? <ActionButton className="chat-suggestion-recovery" variant="secondary" type="button" onClick={() => void onSuggestEdit(message.id)}>Generate editable suggestion</ActionButton> : null}
-          {proposals.filter(proposal => proposal.assistantMessageId === message.id).map(proposal => <ChatProposalReview key={proposal.id} proposal={proposal} controls={proposalControls} presentation={presentation}
+          {proposals.filter(proposal => proposal.assistantMessageId === message.id).map(proposal => <ChatProposalReview key={proposal.id} proposal={proposal} reference={reference} controls={proposalControls} presentation={presentation}
             noteSourceNeedsRefresh={message.response?.noteSourceNeedsRefresh}
             onRegenerate={onSuggestEdit && message.response?.noteSourceNeedsRefresh ? () => onSuggestEdit(message.id) : undefined} />)}
           {presentation === 'notes' || message.response?.localEdit ? <ChatQuestion message={message} messages={messages} controls={questionControls} /> : message.response?.question && !message.response.warning ? <div className="chat-follow-up">

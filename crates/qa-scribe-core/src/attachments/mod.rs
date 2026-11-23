@@ -22,7 +22,7 @@ pub mod chat_cleanup;
 pub mod chat_imports;
 mod cleanup;
 pub mod creation;
-mod managed_import;
+pub(crate) mod managed_import;
 mod raster;
 pub(crate) use cleanup::is_exact_attachment_path;
 pub use cleanup::{

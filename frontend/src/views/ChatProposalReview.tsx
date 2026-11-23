@@ -1,14 +1,18 @@
 import { ChatProposalContent } from './ChatProposalContent'
 import { useState } from 'react'
-import type { RefinementProposal } from '../bindings'
+import type { ChatRef, RefinementProposal } from '../bindings'
 import type { ProposalControls } from '../app/sessionChat.proposals'
 import { ActionButton } from '../components/ActionButton'
 import { RichTextEditor } from '../editor/RichTextEditor'
 import { findingSeverityLabel, findingStatusLabel, parseFindingMetadata } from '../findings/metadata'
+import { VisualProposalReview } from './VisualProposalReview'
 import { parseRichEditorDocument } from '../editor/editorDocument'
 
-export function ChatProposalReview({ proposal, controls, presentation = 'notes', noteSourceNeedsRefresh, onRegenerate }: { proposal: RefinementProposal; controls?: ProposalControls; presentation?: 'notes' | 'record'; noteSourceNeedsRefresh?: boolean; onRegenerate?: () => Promise<void> }) {
+export function ChatProposalReview({ proposal, controls, reference, presentation = 'notes', noteSourceNeedsRefresh, onRegenerate }: { proposal: RefinementProposal; reference?: ChatRef; controls?: ProposalControls; presentation?: 'notes' | 'record'; noteSourceNeedsRefresh?: boolean; onRegenerate?: () => Promise<void> }) {
   const [reviewing, setReviewing] = useState(false)
+  if (proposal.patch.kind === 'test_cases_visual') {
+    return <VisualProposalReview proposal={proposal} visual={proposal.patch.visual} reference={reference} controls={controls} />
+  }
   const before = parseRichEditorDocument(proposal.before.documentJson)
   const after = parseRichEditorDocument(proposal.after.documentJson)
   const status = proposal.state.kind

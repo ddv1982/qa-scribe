@@ -23,7 +23,9 @@ pub enum RefinementPatch {
         #[serde(rename = "bodyMarkdown")]
         body_markdown: Option<String>,
     },
-    /// A whole replacement Note body.
+    TestCasesVisual {
+        visual: super::TestCaseVisual,
+    },
     Note {
         #[serde(rename = "bodyMarkdown")]
         body_markdown: String,
@@ -63,12 +65,27 @@ pub enum RefinementState {
     Offered,
     Applied,
     NoteApplied,
-    Staged { stage: EditorStage },
-    Saved { stage: EditorStage },
+    VisualApplied {
+        #[serde(rename = "attachmentId")]
+        attachment_id: String,
+    },
+    VisualUndone,
+    Staged {
+        stage: EditorStage,
+    },
+    Saved {
+        stage: EditorStage,
+    },
     Dismissed,
-    Undone { stage: EditorStage },
-    Reverted { stage: EditorStage },
-    Abandoned { stage: EditorStage },
+    Undone {
+        stage: EditorStage,
+    },
+    Reverted {
+        stage: EditorStage,
+    },
+    Abandoned {
+        stage: EditorStage,
+    },
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]

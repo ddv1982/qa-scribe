@@ -52,6 +52,8 @@ fn main() {
         "list_chat_history",
         "resolve_refinement",
         "apply_refinement",
+        "review_visual_refinement",
+        "apply_visual_refinement",
         "apply_note_refinement",
         "save_chat_composer",
         "import_chat_image",

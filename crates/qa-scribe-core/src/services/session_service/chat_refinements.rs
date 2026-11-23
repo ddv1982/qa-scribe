@@ -10,6 +10,9 @@ impl SessionService {
             let mut proposal = read(tx, &chat.draft_id)?.into_iter().find(|p| p.id == request.proposal_id)
                 .ok_or_else(|| validation("Proposal is not in this conversation"))?;
             let previous_state = proposal.state.clone();
+            if matches!(proposal.patch, RefinementPatch::TestCasesVisual { .. }) && request.action != RefinementAction::Dismiss {
+                return Err(validation("Use the visual review to update or undo this suggestion"));
+            }
             match request.action {
                 // A Note edit is applied by the frontend to the live Note editor; the server records it.
                 RefinementAction::Stage if matches!(proposal.patch, RefinementPatch::Note { .. }) => {
@@ -199,11 +202,13 @@ pub(super) fn settle_stage(connection: &Connection, guard: &RecordWriteGuard) ->
 pub(super) fn summary(proposal: &RefinementProposal) -> String {
     let status = match proposal.state {
         RefinementState::Offered => "Not applied",
-        RefinementState::Applied | RefinementState::NoteApplied => "Updated record",
+        RefinementState::Applied
+        | RefinementState::NoteApplied
+        | RefinementState::VisualApplied { .. } => "Updated record",
         RefinementState::Staged { .. } => "Unsaved local stage",
         RefinementState::Saved { .. } => "Saved through the record editor",
         RefinementState::Dismissed => "Dismissed",
-        RefinementState::Undone { .. } => "Undone or discarded",
+        RefinementState::Undone { .. } | RefinementState::VisualUndone => "Undone or discarded",
         RefinementState::Reverted { .. } => "Superseded save restored",
         RefinementState::Abandoned { .. } => {
             "Prepared change abandoned without changing the editor"

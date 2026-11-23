@@ -60,7 +60,7 @@ export function useNoteProposalControls({ chat, onRefresh, noteBody, adoptNote, 
     undoable: new Set(noteProposals.filter(proposal => proposal.state.kind === 'note_applied').map(proposal => proposal.id)),
     applyUnavailable: blockedReason ?? recordControls?.applyUnavailable,
     noteBefore: noteBody,
-    onUpdate: async (id, reference) => { if (isNote(id)) await change(id, false); else await recordControls?.onUpdate?.(id, reference) },
+    onUpdate: async (id, reference, visual) => { if (isNote(id)) await change(id, false); else await recordControls?.onUpdate?.(id, reference, visual) },
     onAction: async (id, action, reference) => {
       if (!isNote(id)) await recordControls?.onAction(id, action, reference)
       else if (action === 'undo') await change(id, true)

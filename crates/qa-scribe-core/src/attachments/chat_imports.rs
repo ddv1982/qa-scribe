@@ -22,7 +22,7 @@ pub fn recover_chat_image_imports(service: &SessionService, root: &Path) -> Resu
     Ok(usize::try_from(remaining).unwrap_or_default())
 }
 
-pub(super) fn recover_chat_image_import(
+pub(crate) fn recover_chat_image_import(
     service: &SessionService,
     root: &Path,
     path: &str,

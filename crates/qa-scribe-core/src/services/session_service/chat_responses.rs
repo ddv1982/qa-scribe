@@ -140,7 +140,12 @@ pub(super) fn completed(
         return Ok(result);
     };
     let purpose = contract.purpose();
-    let parsed = match crate::chat::response::interpret(raw, &contract, &user.context) {
+    let parsed = match crate::chat::response::interpret(
+        raw,
+        &contract,
+        &user.context,
+        user.images.len(),
+    ) {
         Ok(response) => response,
         Err(_) => {
             result.markdown = serde_json::from_str::<serde_json::Value>(raw)

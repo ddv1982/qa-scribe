@@ -155,6 +155,16 @@ pub(crate) fn attachment_is_referenced_on(connection: &Connection, id: &str) -> 
                     SELECT 1 FROM evidence_links WHERE attachment_id = ?1
                     UNION ALL
                     SELECT 1 FROM generation_context_attachments WHERE attachment_id = ?1
+                    UNION ALL
+                    SELECT 1 FROM test_run_cases WHERE instr(body_json, ?1) > 0
+                    UNION ALL
+                    SELECT 1 FROM chat_visual_undo
+                     WHERE instr(before_body, ?1) > 0 OR instr(COALESCE(before_json, ''), ?1) > 0
+                    UNION ALL
+                    SELECT 1 FROM chat_refinements
+                     WHERE json_extract(proposal_json, '$.patch.kind') = 'test_cases_visual'
+                       AND json_extract(proposal_json, '$.state.kind') = 'offered'
+                       AND instr(proposal_json, ?1) > 0
                 )",
             [id],
             |row| row.get::<_, bool>(0),

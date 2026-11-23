@@ -3,6 +3,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { click, database, directory, evidenceRoot, execution, finishChat,
   generate, journal, openSession, read, refresh, settings, startChat } from './model-evidence-ui.mjs'
+import { expectedStorageSchemaVersion } from './storage-schema.mjs'
 
 // Generate runs every provider without tools (crates/qa-scribe-core/src/ai/generation_tools.rs).
 const claudeStream = ['-p', '--verbose', '--output-format', 'stream-json', '--include-partial-messages']
@@ -61,7 +62,7 @@ async function migrationProof() {
   assert.equal(seed.schemaVersion, 10)
   assert.equal(seed.aiRunColumns.includes('model_selection_json'), false)
   const legacy = database('model-evidence-legacy-session')
-  assert.equal(legacy.schemaVersion, 23)
+  assert.equal(legacy.schemaVersion, expectedStorageSchemaVersion)
   assert.deepEqual(legacy.foreignKeyViolations, [])
   assert.equal(legacy.runs.length, 1)
   assert.deepEqual(legacy.runs[0], { id: 'model-evidence-legacy-run', session_id: 'model-evidence-legacy-session',

@@ -308,7 +308,7 @@ export function SessionChatView(props: SessionChatViewProps) {
               <p className="chat-help">Ask a question, or ask for clearer wording, structure, or missing test ideas. AI reads your saved note.</p>
             </>}
           </div> : (
-            <ChatMessageList presentation={record ? 'record' : 'notes'} messages={messages} aiRuns={chat?.aiRuns ?? []} proposals={testRun ? undefined : chat?.proposals} proposalControls={submitted || testRun ? undefined : props.proposalControls}
+            <ChatMessageList reference={chat ? { sessionId: chat.sessionId, draftId: chat.draftId } : undefined} presentation={record ? 'record' : 'notes'} messages={messages} aiRuns={chat?.aiRuns ?? []} proposals={testRun ? undefined : chat?.proposals} proposalControls={submitted || testRun ? undefined : props.proposalControls}
               onSuggestEdit={!testRun && !submitted && !locked && !sourceReason && providerAvailable && !inputRecoveryPending && !modelSelectionPending && !atLimit
                 && !composer && !composerImages.length && !imageFailures.length ? props.onSuggestEdit : undefined}
               userContextLabel={testRun ? 'Test run' : undefined}

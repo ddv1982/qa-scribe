@@ -17,6 +17,7 @@ mod session;
 mod settings;
 mod test_run;
 mod validation;
+mod visual;
 
 pub use ai_run::*;
 pub use attachment::*;
@@ -32,3 +33,4 @@ pub use session::*;
 pub use settings::*;
 pub use test_run::*;
 pub use validation::*;
+pub use visual::*;

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { applyRefinement, getConversation, resolveRefinement, type ChatRef, type StageOrigin, type RefinementAction, type RefinementProposal, type RecordWriteGuard } from '../tauri'
+import { applyRefinement, commands, getConversation, resolveRefinement, type ChatRef, type StageOrigin, type RefinementAction, type RefinementProposal, type RecordWriteGuard } from '../tauri'
 import { parseRichEditorDocument, preserveManagedImageNodes, richEditorDocumentToStoredBody } from '../editor/editorDocument'
 import { sameReference } from './sessionChat.workspaces'
 import { editorKey, editorValue } from './recordWriteGuards'
@@ -11,12 +11,14 @@ import type { RecordPersistence } from './recordPersistence'
 import type { useAskAiContext } from './useAskAiContext'
 import type { CreatedRecordEditTarget, RecordWorkspace } from './types'
 
+export type VisualUpdate = { image: string | null; undo: boolean }
+
 export type ProposalControls = {
   noteBefore?: import('../editor/editorDocument').RichEditorDocument
   applyUnavailable?: string
   errors: Readonly<Record<string, string>>
   pending: ReadonlySet<string>
-  onUpdate?: (proposalId: string, reference?: ChatRef) => Promise<void>
+  onUpdate?: (proposalId: string, reference?: ChatRef, visual?: VisualUpdate) => Promise<void>
   preparedOnly?: ReadonlySet<string>
   /** Note proposals whose Update can still be reverted from the panel. */
   undoable?: ReadonlySet<string>
@@ -158,7 +160,7 @@ export function useRefinementController(context: Context) {
     }
   }
 
-  async function onUpdate(id: string, capturedReference?: ChatRef) {
+  async function onUpdate(id: string, capturedReference?: ChatRef, visual?: VisualUpdate) {
     if (running.current.has(id)) return
     running.current.add(id); setPending(new Set(running.current))
     setErrors(previous => { const next = { ...previous }; delete next[id]; return next })
@@ -171,9 +173,14 @@ export function useRefinementController(context: Context) {
       const proposal = current?.proposals?.find(item => item.id === id)
       if (!proposal || !reference || proposal.target.kind === 'session') throw new Error('This proposal is unavailable.')
       const checked = local(proposal)
-      if (proposal.state.kind !== 'applied' && checked.key !== editorKey(proposal.before)) throw new Error('The editor changed. Your edits are retained. Request a fresh suggestion.')
+      if (visual?.undo && invocation.records.dirtyDraftIdsRef.current.has(checked.record.id)) {
+        throw new Error('Save or discard your current editor changes before undoing this update.')
+      }
+      if (!visual?.undo && proposal.state.kind !== 'applied' && proposal.state.kind !== 'visual_applied' && checked.key !== editorKey(proposal.before)) throw new Error('The editor changed. Your edits are retained. Request a fresh suggestion.')
       finish = invocation.persistence.coordination.beginRecordOperation()
-      const result = await applyRefinement({ reference, proposalId: id })
+      const result = visual
+        ? await commands.applyVisualRefinement({ reference, proposalId: id, imageDataUrl: visual.image, undo: visual.undo })
+        : await applyRefinement({ reference, proposalId: id })
       const saved = result.updated.record
       const ctx = live.current
       const coordination = ctx.persistence.coordination
@@ -206,11 +213,11 @@ export function useRefinementController(context: Context) {
             ctx.askAi.onSelectRecord({ kind: result.updated.kind, recordId: saved.id, title: saved.title, unsaved: false })
             ctx.openEditor({ sessionId: saved.sessionId, kind: checked.kind === 'finding' ? 'finding' : 'testware', recordId: saved.id, editing: false })
           }
-          ctx.feedback.setNotice(unchanged ? result.updated.kind === 'finding' ? 'Finding updated' : 'Test case updated' : 'Record updated. Your newer editor changes are still unsaved.')
+          ctx.feedback.setNotice(unchanged ? visual?.undo ? 'Visual update undone' : result.updated.kind === 'finding' ? 'Finding updated' : 'Test case updated' : 'Record updated. Your newer editor changes are still unsaved.')
         }
       }
     } catch (cause) {
-      setErrors(previous => ({ ...previous, [id]: `${formatError(cause)} You can retry Update safely.` }))
+      setErrors(previous => ({ ...previous, [id]: `${formatError(cause)} You can retry ${visual?.undo ? 'Undo' : 'Update'} safely.` }))
     } finally {
       finish?.()
       if (reference) {

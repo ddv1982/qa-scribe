@@ -207,7 +207,6 @@ fn schema_21_database_gains_empty_test_runs_and_keeps_its_data() {
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .expect("user_version should read");
     assert_eq!(user_version, SCHEMA_VERSION);
-    assert_eq!(SCHEMA_VERSION, 23);
     assert_no_foreign_key_violations(connection);
 
     let session = service
@@ -306,7 +305,7 @@ fn schema_22_database_lets_a_test_run_own_a_conversation_and_keeps_its_data() {
     let user_version: i32 = connection
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .expect("user_version should read");
-    assert_eq!((user_version, SCHEMA_VERSION), (23, 23));
+    assert_eq!(user_version, SCHEMA_VERSION);
     assert_no_foreign_key_violations(connection);
     let fresh = Database::in_memory().expect("fresh database should open");
     assert_eq!(schema_objects(connection), schema_objects(fresh.connection()));

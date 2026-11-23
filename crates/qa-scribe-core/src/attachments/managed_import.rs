@@ -10,7 +10,7 @@ use super::{
 };
 use crate::{Result, domain::AttachmentDraft, error::validation};
 
-pub(super) struct PreparedManagedAttachment {
+pub(crate) struct PreparedManagedAttachment {
     pub draft: AttachmentDraft,
     pub temp_relative: String,
     bytes: Vec<u8>,

@@ -12,6 +12,9 @@ impl SessionService {
                 .find(|p| p.id == request.proposal_id)
                 .cloned()
                 .ok_or_else(|| validation("Proposal is not in this conversation"))?;
+            if matches!(proposal.patch, RefinementPatch::TestCasesVisual { .. }) {
+                return Err(validation("Use the visual review to apply this suggestion"));
+            }
             let snapshot = proposal
                 .target
                 .snapshot()

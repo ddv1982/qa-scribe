@@ -307,3 +307,17 @@ describe('draftOutputFormat', () => {
     expect(draftOutputFormat({ metadataJson: null })).toBeNull()
   })
 })
+
+it('copies a managed visual inside its checklist item instead of a neighboring case', () => {
+  const cases = split(
+    '<ul data-type="taskList"><li data-type="taskItem"><p>Route the request</p>' +
+    '<img src="qa-scribe-attachment://route-diagram" data-attachment-id="route-diagram" alt="Queue routing"></li>' +
+    '<li data-type="taskItem"><p>Retry once</p></li></ul>',
+    'checklist',
+  )?.cases
+  expect(cases?.map(item => item.title)).toEqual(['Route the request', 'Retry once'])
+  expect(cases?.[0]?.content[0]?.content?.[0]?.content?.[1]).toMatchObject({
+    type: 'image', attrs: { attachmentId: 'route-diagram', alt: 'Queue routing' },
+  })
+  expect(JSON.stringify(cases?.[1]?.content)).not.toContain('route-diagram')
+})

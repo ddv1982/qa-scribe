@@ -82,7 +82,7 @@ function ChatImage({ image, disabled, onRemove, unverified }: {
   </li>
 }
 
-function ImageDialog({ filename, preview, onClose }: { filename: string; preview: string; onClose: () => void }) {
+export function ImageDialog({ filename, preview, onClose }: { filename: string; preview: string; onClose: () => void }) {
   const ref = useModalDialog(onClose)
   const id = useId()
   return <dialog ref={ref} className="chat-image-dialog" aria-labelledby={id}>
