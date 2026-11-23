@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.20.0 - 2026-11-23
+
+- Add **Result notes** to any test case in a test run. Use the Note editor to write formatted observations and paste or upload screenshots. Notes autosave, stay with the case when its result changes, and open older remarks in the same editor.
+- Create a Finding from a failed case with its formatted result notes and screenshots. Copy report and Ask AI include the saved note text and image count. Ask AI keeps screenshots local.
+- Retry a failed notes save after reopening the test run. Copy report prompts you to retry when it would otherwise omit unsaved notes.
+
 ## v0.19.0 - 2026-11-23
 
 - Ask AI can add real PNG diagrams to Test cases. Ask for a queue flow, a rollout timeline, or another diagram and review its placement before applying it. You can open the full-size preview or copy the image.
