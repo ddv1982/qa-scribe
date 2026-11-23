@@ -18,7 +18,6 @@ use crate::{
 
 const MAX_DOCUMENT_BYTES: usize = 64 * 1024;
 const MAX_IMAGES: usize = 8;
-const MAX_PENDING_IMAGE_BYTES: usize = 25 * 1024 * 1024;
 
 pub struct PreparedTestCaseNotes {
     session_id: String,
@@ -42,15 +41,6 @@ impl PreparedTestCaseNotes {
         collect_images(&document["doc"], &mut references)?;
         if references.len() > MAX_IMAGES || images.len() > MAX_IMAGES {
             return Err(validation("Result notes can contain up to 8 images"));
-        }
-        let max_encoded = MAX_PENDING_IMAGE_BYTES.div_ceil(3) * 4 + 64 * MAX_IMAGES;
-        if images
-            .iter()
-            .map(|image| image.data_url.len())
-            .sum::<usize>()
-            > max_encoded
-        {
-            return Err(validation("Save up to 25 MiB of new images at a time"));
         }
         let mut seen = BTreeSet::new();
         let mut files = Vec::new();
@@ -134,7 +124,10 @@ impl PreparedTestCaseNotes {
                         id,
                         owner,
                         "Result notes images must belong to the test run's Session",
-                    )?;
+                    ).map_err(|error| match error {
+                        QaScribeError::NotFound(_) => validation("A screenshot is missing. Remove it from the result notes or add it again."),
+                        other => other,
+                    })?;
                 }
                 tx.execute(
                     "UPDATE test_run_cases SET notes_json = ?1, updated_at = ?2 WHERE id = ?3",

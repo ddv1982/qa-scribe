@@ -96,8 +96,12 @@ export function TestRunNotes({ testCase, onChange }: { testCase: EditableTestCas
     if (!insertImage || !(event.target instanceof Element) || !event.target.closest('[contenteditable="true"]')) return
     const file = imageFileFromClipboardData(event.clipboardData)
     if (file) {
-      event.preventDefault()
-      event.stopPropagation()
+      const hasText = event.clipboardData.getData('text/plain').trim()
+        || pastedMarkup(event.clipboardData.getData('text/html')).content.textContent?.trim()
+      if (!hasText) {
+        event.preventDefault()
+        event.stopPropagation()
+      }
       void chooseImage({ editorId, file, insertImage })
     } else if (shouldReadNativeClipboardImage(event.clipboardData)) {
       event.preventDefault()
@@ -133,9 +137,14 @@ export function TestRunNotes({ testCase, onChange }: { testCase: EditableTestCas
   </div>
 }
 
-function withoutPastedImages(html: string): string {
+function pastedMarkup(html: string): HTMLTemplateElement {
   const template = document.createElement('template')
   template.innerHTML = html
+  return template
+}
+
+function withoutPastedImages(html: string): string {
+  const template = pastedMarkup(html)
   template.content.querySelectorAll('img').forEach(image => image.remove())
   return template.innerHTML
 }

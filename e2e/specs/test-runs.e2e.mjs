@@ -164,13 +164,7 @@ describe('Test runs in the built native application', () => {
     await blockStyle(notes, 'h2')
     assert.ok(await browser.execute(() => document.execCommand('insertParagraph', false)))
     await blockStyle(notes, 'p')
-    await browser.execute((editor, observation) => {
-      const mixed = new DataTransfer()
-      mixed.setData('text/html', `<p><strong>${observation}</strong><img src="https://example.invalid/preview.png" alt="remote"></p>`)
-      editor.dispatchEvent(new ClipboardEvent('paste', { clipboardData: mixed, bubbles: true, cancelable: true }))
-    }, notes, observation)
-    assert.equal(await browser.execute(editor => editor.querySelector('strong')?.textContent, notes), observation)
-    assert.equal(await browser.execute(async (editor) => {
+    await browser.execute(async (editor, observation) => {
       const canvas = document.createElement('canvas')
       canvas.width = 420
       canvas.height = 130
@@ -185,8 +179,10 @@ describe('Test runs in the built native application', () => {
       const image = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
       const clipboard = new DataTransfer()
       clipboard.items.add(new File([image], 'gateway.png', { type: 'image/png' }))
-      return !editor.dispatchEvent(new ClipboardEvent('paste', { clipboardData: clipboard, bubbles: true, cancelable: true }))
-    }, notes), true)
+      clipboard.setData('text/html', `<p><strong>${observation}</strong><img src="https://example.invalid/preview.png" alt="remote"></p>`)
+      editor.dispatchEvent(new ClipboardEvent('paste', { clipboardData: clipboard, bubbles: true, cancelable: true }))
+    }, notes, observation)
+    assert.equal(await browser.execute(editor => editor.querySelector('strong')?.textContent, notes), observation)
     await waitForProgress('2 of 2 run')
     await browser.waitUntil(async () => {
       runs = await native('list_test_runs', { sessionId: session.id })

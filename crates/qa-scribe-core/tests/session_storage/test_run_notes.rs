@@ -182,3 +182,47 @@ fn losing_an_image_reservation_cannot_commit_result_notes() {
     drop(prepared);
     fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn missing_screenshot_reports_an_editable_validation_error() {
+    let service = SessionService::in_memory().unwrap();
+    let run = started_run(&service);
+    let case = &run.cases[0];
+    let missing = uuid::Uuid::new_v4().to_string();
+    let error = save_case_notes(&service, &unique_temp_dir(), &case.id, notes_json(&[&missing]), vec![]).unwrap_err();
+    assert!(matches!(error, QaScribeError::Validation(message) if message.contains("A screenshot is missing")));
+    assert_eq!(service.get_test_run(&run.id).unwrap().cases[0], *case);
+}
+
+#[test]
+fn several_individually_valid_large_screenshots_can_save_together() {
+    use base64::Engine;
+    use image::{ImageFormat, RgbaImage};
+
+    let root = unique_temp_dir();
+    fs::create_dir_all(&root).unwrap();
+    let service = SessionService::in_memory().unwrap();
+    let run = started_run(&service);
+    let ids = (0..3).map(|_| uuid::Uuid::new_v4().to_string()).collect::<Vec<_>>();
+    let mut seed = 317u32;
+    let image = RgbaImage::from_fn(1600, 1500, |_, _| {
+        seed ^= seed << 13;
+        seed ^= seed >> 17;
+        seed ^= seed << 5;
+        image::Rgba(seed.to_le_bytes())
+    });
+    let mut png = std::io::Cursor::new(Vec::new());
+    image.write_to(&mut png, ImageFormat::Png).unwrap();
+    assert!((9 * 1024 * 1024..=10 * 1024 * 1024).contains(&png.get_ref().len()));
+    let encoded = base64::engine::general_purpose::STANDARD.encode(png.into_inner());
+    let images = ids.iter().map(|id| qa_scribe_core::domain::TestCaseNoteImage {
+        id: id.clone(),
+        filename: "large-evidence.png".into(),
+        data_url: format!("data:image/png;base64,{encoded}"),
+    }).collect();
+    let doc = notes_json(&ids.iter().map(String::as_str).collect::<Vec<_>>());
+    let saved = save_case_notes(&service, &root, &run.cases[0].id, doc, images).unwrap();
+    assert_eq!(saved.notes.unwrap().image_count, 3);
+    assert_eq!(service.list_attachments(&run.session_id).unwrap().len(), 3);
+    fs::remove_dir_all(root).unwrap();
+}
