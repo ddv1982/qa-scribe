@@ -61,7 +61,7 @@ Goal: H1 to H6, numbered list button, strikethrough, inline code, plain code blo
 - [x] Clipboard mappings and notes text separators for the new nodes, TS and Rust in step. Tests.
 - [x] Rust `should_decode_escaped_editor_html` returns false when literal editor tags are present, matching the frontend; `<hr>` counts as non-empty content (`editorHtml.ts:289`). Tests on both sides with HTML samples inside a code block.
 - [x] Splitter (`testware/testCases.ts`): H1 closes a case and clears the group; H4 to H6 stay inside a case; every fixture in `__fixtures__/generated/` splits as before. ADR 0012 decision 2 amended.
-- [ ] Toolbar: block style select (Normal, Heading 1 to 6, Code block, Quote), numbered list, strike, inline code, divider. Vitest per command; `bun run frontend:check` passes.
+- [x] Toolbar: block style select (Normal, Heading 1 to 6, Code block, Quote), numbered list, strike, inline code, divider. Vitest per command; `bun run frontend:check` passes.
 - [ ] New spec `e2e/specs/editor-rich-content.e2e.mjs`: author H1, H4, H6, code block, quote, strike, underline; restart; fake Ask AI Update returns the same constructs; all survive; case count unchanged. Spec id added to the gate list at `scripts/run-e2e.mjs:101`.
 - [ ] CHANGELOG.md entry: documents saved by this version may lose formatting when opened in older versions.
 

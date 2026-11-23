@@ -1,7 +1,7 @@
 import { ActionButton } from '../components/ActionButton'
 import { useEffect, useId, useRef, useState, type ChangeEvent, type FormEvent, type MouseEvent } from 'react'
 import type { Editor } from '@tiptap/react'
-import { Bold, ImageIcon, Italic, Link2, List, ListChecks, type LucideIcon } from 'lucide-react'
+import { Bold, Code, ImageIcon, Italic, Link2, List, ListChecks, ListOrdered, SeparatorHorizontal, Strikethrough, type LucideIcon } from 'lucide-react'
 import { isSafeEditorLinkUrl } from './editorHtml'
 import { useRichEditorController, type RichEditorImageInserter, type RichEditorImageUpload } from './richEditorRegistry'
 
@@ -21,7 +21,7 @@ export function FormatToolbar({ editorId, onUploadImage }: FormatToolbarProps) {
   const controller = useRichEditorController(editorId)
   const editor = controller?.editor ?? null
   const disabled = !editor || Boolean(controller?.readOnly)
-  const blockValue = editor?.isActive('heading', { level: 2 }) ? 'h2' : editor?.isActive('heading', { level: 3 }) ? 'h3' : 'p'
+  const blockValue = currentBlockStyle(editor)
   const linkErrorId = `${editorId ?? generatedId}-link-error`
 
   function saveEditorSelection() {
@@ -121,13 +121,24 @@ export function FormatToolbar({ editorId, onUploadImage }: FormatToolbarProps) {
           applyBlockStyle(event.target.value)
         }}
       >
-        <option value="p">Paragraph</option>
-        <option value="h2">Heading</option>
-        <option value="h3">Subheading</option>
+        {blockStyles.map(({ value, label }) => (
+          <option key={value} value={value}>
+            {label}
+          </option>
+        ))}
       </select>
       <span className="toolbar-divider" aria-hidden="true" />
       <ToolbarButton label="Bold" icon={Bold} active={editor?.isActive('bold')} disabled={disabled} controlsId={editorId} command={() => editor?.chain().focus().toggleBold().run()} />
       <ToolbarButton label="Italic" icon={Italic} active={editor?.isActive('italic')} disabled={disabled} controlsId={editorId} command={() => editor?.chain().focus().toggleItalic().run()} />
+      <ToolbarButton
+        label="Strikethrough"
+        icon={Strikethrough}
+        active={editor?.isActive('strike')}
+        disabled={disabled}
+        controlsId={editorId}
+        command={() => editor?.chain().focus().toggleStrike().run()}
+      />
+      <ToolbarButton label="Inline code" icon={Code} active={editor?.isActive('code')} disabled={disabled} controlsId={editorId} command={() => editor?.chain().focus().toggleCode().run()} />
       <ToolbarButton
         label="Bulleted list"
         icon={List}
@@ -137,12 +148,27 @@ export function FormatToolbar({ editorId, onUploadImage }: FormatToolbarProps) {
         command={() => editor?.chain().focus().toggleBulletList().run()}
       />
       <ToolbarButton
+        label="Numbered list"
+        icon={ListOrdered}
+        active={editor?.isActive('orderedList')}
+        disabled={disabled}
+        controlsId={editorId}
+        command={() => editor?.chain().focus().toggleOrderedList().run()}
+      />
+      <ToolbarButton
         label="Checklist"
         icon={ListChecks}
         active={editor?.isActive('taskList')}
         disabled={disabled}
         controlsId={editorId}
         command={() => editor?.chain().focus().toggleTaskList().run()}
+      />
+      <ToolbarButton
+        label="Divider"
+        icon={SeparatorHorizontal}
+        disabled={disabled}
+        controlsId={editorId}
+        command={() => editor?.chain().focus().setHorizontalRule().run()}
       />
       <ToolbarButton label="Link" icon={Link2} active={editor?.isActive('link')} disabled={disabled} controlsId={editorId} command={openLinkEditor} />
       <ToolbarButton label="Upload image" icon={ImageIcon} command={requestImageUpload} disabled={disabled || !onUploadImage} controlsId={editorId} />
@@ -217,15 +243,30 @@ function ToolbarButton({
   )
 }
 
+const headingLevels = [1, 2, 3, 4, 5, 6] as const
+
+const blockStyles = [
+  { value: 'p', label: 'Normal' },
+  ...headingLevels.map((level) => ({ value: `h${level}`, label: `Heading ${level}` })),
+  { value: 'codeBlock', label: 'Code block' },
+  { value: 'blockquote', label: 'Quote' },
+]
+
+function currentBlockStyle(editor: Editor | null): string {
+  if (!editor) return 'p'
+  const level = headingLevels.find((candidate) => editor.isActive('heading', { level: candidate }))
+  if (level) return `h${level}`
+  if (editor.isActive('codeBlock')) return 'codeBlock'
+  if (editor.isActive('blockquote')) return 'blockquote'
+  return 'p'
+}
+
 function setBlockStyle(editor: Editor | null, value: string) {
   if (!editor) return
-  if (value === 'h2') {
-    editor.chain().focus().toggleHeading({ level: 2 }).run()
-    return
-  }
-  if (value === 'h3') {
-    editor.chain().focus().toggleHeading({ level: 3 }).run()
-    return
-  }
-  editor.chain().focus().setParagraph().run()
+  const chain = editor.chain().focus()
+  const level = headingLevels.find((candidate) => value === `h${candidate}`)
+  if (level) chain.setNode('heading', { level }).run()
+  else if (value === 'codeBlock') chain.setCodeBlock().run()
+  else if (value === 'blockquote') chain.clearNodes().setBlockquote().run()
+  else chain.clearNodes().setParagraph().run()
 }
