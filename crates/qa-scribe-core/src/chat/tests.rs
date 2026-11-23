@@ -258,3 +258,33 @@ fn only_released_contract_versions_are_accepted() {
     let v1 = serde_json::json!({"version": 1, "requestId": "r", "recordKind": "finding"});
     assert!(serde_json::from_value::<ChatResponseContract>(v1).is_err());
 }
+
+#[test]
+fn every_refinement_contract_names_the_markdown_the_parser_keeps() {
+    use crate::domain::{
+        ChatResponseContract, ChatResponseContractV2, ChatResponsePurpose, RefinementRecordKind,
+    };
+    for record_kind in [
+        RefinementRecordKind::Note,
+        RefinementRecordKind::Finding,
+        RefinementRecordKind::TestCasesDraft,
+    ] {
+        let contract = ChatResponseContract::Current(ChatResponseContractV2 {
+            version: 3,
+            request_id: "request-1".into(),
+            purpose: ChatResponsePurpose::Refinement { record_kind },
+            note_source: None,
+            local_edit: false,
+        });
+        let text = response::instructions(&contract);
+        for form in [
+            "# to ###### for heading levels 1 to 6",
+            "``` fences",
+            "~~strike~~",
+            "<u>underline</u>",
+            "![alt](qa-scribe-attachment://<id>)",
+        ] {
+            assert!(text.contains(form), "{record_kind:?} misses {form}");
+        }
+    }
+}
