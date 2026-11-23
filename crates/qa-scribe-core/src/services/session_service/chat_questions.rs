@@ -20,7 +20,7 @@ impl SessionService {
         resolve(self.database.connection(), chat, context, intent)
     }
 }
-fn note_fits_context(connection: &Connection, session_id: &str) -> Result<bool> {
+pub(super) fn note_fits_context(connection: &Connection, session_id: &str) -> Result<bool> {
     let session_context: Option<String> = connection.query_row(
         "SELECT session_context FROM sessions WHERE id = ?1",
         [session_id],

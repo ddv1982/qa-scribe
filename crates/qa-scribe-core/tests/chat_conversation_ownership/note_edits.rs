@@ -245,9 +245,7 @@ fn failed_notes_turn(service: &SessionService, session_id: &str) -> ChatState {
 }
 
 #[test]
-fn a_retry_after_the_note_changed_cannot_overwrite_it() {
-    // Response contracts are immutable, so a retried turn keeps the fingerprint of the Note it was
-    // first sent with; any rewrite from it is rejected once the Note has changed since.
+fn a_retried_note_suggestion_only_applies_to_the_note_used_for_that_retry() {
     let service = SessionService::in_memory().unwrap();
     let session_id = session(&service);
     set_note(&service, &session_id, "<p>First draft</p>".into());
@@ -266,14 +264,32 @@ fn a_retry_after_the_note_changed_cannot_overwrite_it() {
             assistant_text: json!({"version":3,"requestId":user,"markdown":"Clearer.","outcome":{"kind":"edit","patch":{"kind":"note","bodyMarkdown":"Rewritten"}}}).to_string(),
         })
         .unwrap();
-    let error = service
-        .resolve_refinement(RefinementRequest {
-            scope: scope(&done),
-            proposal_id: done.proposals[0].id.clone(),
-            action: RefinementAction::Stage,
-        })
-        .unwrap_err();
-    assert!(error.to_string().contains("The note changed"), "{error}");
+    let request = ApplyNoteRefinementRequest {
+        reference: ChatRef {
+            session_id: session_id.clone(),
+            draft_id: done.draft_id,
+        },
+        proposal_id: done.proposals[0].id.clone(),
+        undo: false,
+    };
+    set_note(&service, &session_id, "<p>First draft</p>".into());
+    assert!(service.apply_note_refinement(request.clone()).is_err());
+    assert!(
+        service
+            .get_or_create_note_entry(&session_id)
+            .unwrap()
+            .body
+            .contains("First draft")
+    );
+    set_note(&service, &session_id, "<p>Edited before Retry</p>".into());
+    assert!(
+        service
+            .apply_note_refinement(request)
+            .unwrap()
+            .note
+            .body
+            .contains("Rewritten")
+    );
 }
 
 #[test]

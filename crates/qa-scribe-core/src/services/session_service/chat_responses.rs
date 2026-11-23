@@ -27,6 +27,52 @@ pub(super) fn contract(connection: &Connection, id: &str) -> Result<Option<ChatR
     raw.map(|s| serde_json::from_str(&s).map_err(|e| validation(e.to_string())))
         .transpose()
 }
+pub(super) fn capture_note_retry(
+    connection: &Connection,
+    session_id: &str,
+    message_id: &str,
+    turn_id: &str,
+) -> Result<()> {
+    if contract(connection, message_id)?.is_some_and(|contract| {
+        contract.purpose()
+            == ChatResponsePurpose::Refinement {
+                record_kind: RefinementRecordKind::Note,
+            }
+    }) {
+        if !super::chat_questions::note_fits_context(connection, session_id)? {
+            return Err(validation(
+                "The Note is too long to rewrite in one response.",
+            ));
+        }
+        let note = super::entries::note_entry(connection, session_id)?;
+        connection.execute(
+            "INSERT INTO chat_note_retry_sources (message_id,turn_id,fingerprint) VALUES (?1,?2,?3)
+             ON CONFLICT(message_id) DO UPDATE SET turn_id=excluded.turn_id,fingerprint=excluded.fingerprint",
+            params![message_id, turn_id, super::chat_note_updates::content_fingerprint(note.as_ref())],
+        )?;
+    }
+    Ok(())
+}
+
+pub(super) fn note_source(
+    connection: &Connection,
+    proposal: &RefinementProposal,
+) -> Result<Option<String>> {
+    let retry: Option<String> = connection
+        .query_row(
+            "SELECT s.fingerprint FROM chat_note_retry_sources s
+         JOIN chat_messages a ON a.id=?2 AND a.turn_id=s.turn_id WHERE s.message_id=?1",
+            params![proposal.user_message_id, proposal.assistant_message_id],
+            |row| row.get(0),
+        )
+        .optional()?;
+    if retry.is_some() {
+        return Ok(retry);
+    }
+    Ok(contract(connection, &proposal.user_message_id)?
+        .and_then(|ChatResponseContract::Current(contract)| contract.note_source))
+}
+
 pub(super) fn start(
     connection: &Connection,
     session_id: &str,

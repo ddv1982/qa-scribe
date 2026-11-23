@@ -10,6 +10,11 @@ CREATE TABLE IF NOT EXISTS chat_refinements (
  assistant_message_id TEXT NOT NULL UNIQUE REFERENCES chat_messages(id) ON DELETE CASCADE,
  proposal_json TEXT NOT NULL CHECK(length(CAST(proposal_json AS BLOB)) <= 262144)
 );
+CREATE TABLE IF NOT EXISTS chat_note_retry_sources (
+ message_id TEXT PRIMARY KEY REFERENCES chat_messages(id) ON DELETE CASCADE,
+ turn_id TEXT NOT NULL,
+ fingerprint TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS chat_note_undo (
  proposal_id TEXT PRIMARY KEY REFERENCES chat_refinements(id) ON DELETE CASCADE,
  before_body TEXT NOT NULL,
