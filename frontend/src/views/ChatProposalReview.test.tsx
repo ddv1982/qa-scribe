@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
-import type { RefinementProposal } from '../bindings'
+import { commands, type RefinementProposal } from '../bindings'
 import { findingFixture } from '../test/fixtures'
 import { editorValue } from '../app/recordWriteGuards'
 import { chatFixture, chatJobFixture } from '../app/useSessionChat.testSupport'
@@ -70,4 +70,26 @@ it('announces a pending Notes turn as a reply, since it may answer or rewrite th
   view(chatFixture({ pendingResponse: { kind: 'refinement', recordKind: 'note' } }))
   expect(screen.getByRole('heading', { name: 'Preparing reply' })).toBeInTheDocument()
   expect(screen.queryByText(/internal-contract|requestId/)).not.toBeInTheDocument()
+})
+
+it('keeps the reviewed image on conversation refresh and labels the outgoing image as a replacement', async () => {
+  const reference = { sessionId: 'session-1', draftId: 'chat-1' }
+  const read = vi.spyOn(commands, 'reviewVisualRefinement').mockResolvedValue({
+    source: 'data:image/png;base64,AA==',
+    replaced: 'data:image/png;base64,BB==',
+  })
+  const item = { ...proposal(), patch: { kind: 'test_cases_visual', visual: {
+    target: [0], caption: 'Checkout evidence', action: { kind: 'place', replace: true, source: { kind: 'chat', index: 0 } },
+  } } } satisfies RefinementProposal
+  try {
+    const { rerender } = render(<ChatProposalReview proposal={item} reference={reference} />)
+    expect(await screen.findByAltText('Checkout evidence')).toBeInTheDocument()
+    expect(screen.getByText('Will replace')).toBeInTheDocument()
+    await act(async () => {
+      rerender(<ChatProposalReview proposal={{ ...item, patch: { ...item.patch, visual: { ...item.patch.visual } } }} reference={{ ...reference }} />)
+    })
+    expect(read).toHaveBeenCalledExactlyOnceWith(reference, item.id)
+  } finally {
+    read.mockRestore()
+  }
 })

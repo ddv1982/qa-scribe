@@ -174,8 +174,11 @@ pub(crate) fn edit(
         TestCaseVisualAction::Move { source } => {
             let (index, parent) = parent_path(source)?;
             let image = children_mut(doc, parent)?.remove(index);
-            if target.starts_with(parent) && target[parent.len()] > index as u32 {
-                target[parent.len()] -= 1;
+            if target.starts_with(parent)
+                && let Some(slot) = target.get_mut(parent.len())
+                && *slot > index as u32
+            {
+                *slot -= 1;
             }
             image
         }
@@ -213,3 +216,25 @@ For a requested Test Cases visual edit, use outcome kind edit with patch {"kind"
 Paths index into the latest bound snapshot's documentJson, starting from doc.content, then into each node's content. They are zero-based. Insert immediately after the chosen node inside the intended test case, or after a paragraph inside its list item. Set replace:true only when the target is an image occurrence. For a follow-up diagram revision, use the existing image's attrs.visualSource nodes and edges and target that image with replace:true. Diagrams support at most 12 nodes in a grid with rows 0–5 and columns 0–3, 20 directed edges indexed by node order, single-line labels, and no URLs or markup. Prefer vertical layout for simple flows.
 Other actions are {"kind":"place","replace":false,"source":{"kind":"chat","index":0}}, {"kind":"move","source":[3]}, and {"kind":"caption"} (target an image). Image sources are {"kind":"record","path":[3]} for a managed image in the bound snapshot or {"kind":"chat","index":0} for an image attached to this latest user message, numbered in attachment order. For screenshot changes use {"kind":"annotate","replace":false,"source":{"kind":"chat","index":0},"edits":[{"kind":"highlight","region":{"x":100,"y":200,"width":300,"height":100}}]}. Allowed edits are crop, highlight, redact (opaque), and arrow with from/to pairs. Coordinates are thousandths of original width and height. Only suggest coordinates when you can see the image. If the user asks to change record screenshot pixels, ask them to attach the image to chat so you can see it, and use the attached image as source. The original remains available. Ask for clarification if the source, steps, or placement are ambiguous.
 "#;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn moves_an_image_after_its_containing_block() {
+        let managed = json!({"type":"image","attrs":{"attachmentId":"old","src":"qa-scribe-attachment://old"}});
+        let mut doc = json!({"type":"doc","content":[
+            {"type":"paragraph","content":[managed, {"type":"text","text":"Keep this"}]}
+        ]});
+        let visual = TestCaseVisual {
+            target: vec![0],
+            caption: "Moved evidence".into(),
+            action: TestCaseVisualAction::Move { source: vec![0, 0] },
+        };
+        edit(&mut doc, &visual, None, Some("old")).unwrap();
+        assert_eq!(doc["content"][0]["content"][0]["text"], "Keep this");
+        assert_eq!(doc["content"][1]["attrs"]["attachmentId"], "old");
+        assert_eq!(doc["content"][1]["attrs"]["alt"], "Moved evidence");
+    }
+}

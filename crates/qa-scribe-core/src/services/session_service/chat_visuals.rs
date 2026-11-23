@@ -97,7 +97,11 @@ impl SessionService {
                 .with_immediate_tx(|tx| commit(tx, &request, file.as_ref()))
         })();
         if let Some(file) = &file {
-            files::chat_imports::recover_chat_image_import(self, root, &file.draft.relative_path)?;
+            let _ = files::chat_imports::recover_chat_image_import(
+                self,
+                root,
+                &file.draft.relative_path,
+            );
         }
         result
     }

@@ -21,14 +21,14 @@ async function previewVisual(reference: ChatRef, id: string, visual: TestCaseVis
   const { source, replaced } = await commands.reviewVisualRefinement(reference, id)
   if (action.kind === 'diagram') {
     const image = renderDiagram(action)
-    return { image, before: replaced, upload: image }
+    return { image, before: null, replaced, upload: image }
   }
   if (!source) throw new Error('The source image is unavailable.')
   if (action.kind === 'annotate') {
     const image = await renderScreenshot(action, source)
     return { image, before: source, replaced: replaced === source ? null : replaced, upload: image }
   }
-  return { image: source, before: replaced === source ? null : replaced, upload: null }
+  return { image: source, before: null, replaced: replaced === source ? null : replaced, upload: null }
 }
 
 function text(node: JSONContent | undefined): string {
@@ -52,6 +52,7 @@ export function VisualProposalReview({ proposal, visual, reference, controls }: 
   reference?: ChatRef
   controls?: ProposalControls
 }) {
+  const [initialVisual] = useState(visual)
   const [preview, setPreview] = useState<PreviewState | null>(null)
   const [attempt, setAttempt] = useState(0)
   const [expanded, setExpanded] = useState<{ title: string; source: string } | null>(null)
@@ -65,13 +66,13 @@ export function VisualProposalReview({ proposal, visual, reference, controls }: 
   useEffect(() => {
     if (!offered || !sessionId || !draftId) return
     let active = true
-    void previewVisual({ sessionId, draftId }, proposal.id, visual).then(value => {
+    void previewVisual({ sessionId, draftId }, proposal.id, initialVisual).then(value => {
       if (active) setPreview({ kind: 'ready', value })
     }).catch(error => {
       if (active) setPreview({ kind: 'error', message: formatError(error) })
     })
     return () => { active = false }
-  }, [offered, sessionId, draftId, proposal.id, visual, attempt])
+  }, [offered, sessionId, draftId, proposal.id, initialVisual, attempt])
 
   async function copy() {
     try {

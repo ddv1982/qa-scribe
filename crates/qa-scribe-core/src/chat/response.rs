@@ -40,6 +40,7 @@ pub(crate) fn interpret(
     raw: &str,
     contract: &ChatResponseContract,
     target: &ChatTarget,
+    image_count: usize,
 ) -> Result<CompletedChatResponse> {
     if raw.len() > super::MAX_CHAT_MESSAGE_BYTES {
         return Err(validation("Response is too large"));
@@ -99,6 +100,14 @@ pub(crate) fn interpret(
     {
         return Err(validation(
             "This request does not permit a local refinement",
+        ));
+    }
+    if let Some(RefinementPatch::TestCasesVisual { visual }) = &envelope.refinement
+        && let Some(VisualImageSource::Chat { index }) = visual.action.source()
+        && *index as usize >= image_count
+    {
+        return Err(validation(
+            "The requested chat image is not attached to this message",
         ));
     }
     let question = envelope.question.map(validate_question).transpose()?;
