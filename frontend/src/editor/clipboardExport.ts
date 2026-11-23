@@ -189,13 +189,13 @@ function indentContinuation(body: string, width: number): string {
 }
 
 function codeBlockPlaceholder(index: number): string {
-  return `\u0000${index}\u0000`
+  return `\uE000${index}\uE001`
 }
 
 // Each placeholder line becomes its fenced code, every line under the placeholder's prefix
 // (a list indent or quote marker); an empty code line keeps only the trimmed prefix.
 function restoreCodeBlocks(value: string, codeBlocks: string[]): string {
-  return value.replace(/^(.*)\u0000(\d+)\u0000$/gm, (_match, prefix: string, index: string) =>
+  return value.replace(/^(.*)\uE000(\d+)\uE001$/gm, (_match, prefix: string, index: string) =>
     (codeBlocks[Number(index)] ?? '')
       .split('\n')
       .map((line) => (line ? `${prefix}${line}` : prefix.trimEnd()))
