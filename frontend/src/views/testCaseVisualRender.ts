@@ -5,6 +5,16 @@ type Rect = Point & { width: number; height: number }
 type Diagram = Extract<TestCaseVisualAction, { kind: 'diagram' }>
 type Annotate = Extract<TestCaseVisualAction, { kind: 'annotate' }>
 
+// Match the native visual apply limit, which counts decoded PNG bytes.
+const maxPngBytes = 10 * 1024 * 1024
+const pngPrefix = 'data:image/png;base64,'
+
+function pngBytes(dataUrl: string) {
+  if (!dataUrl.startsWith(pngPrefix)) throw new Error('The visual could not be encoded as a PNG.')
+  const padding = dataUrl.endsWith('==') ? 2 : dataUrl.endsWith('=') ? 1 : 0
+  return (dataUrl.length - pngPrefix.length) * 3 / 4 - padding
+}
+
 function createCanvas(width: number, height: number) {
   const canvas = document.createElement('canvas')
   canvas.width = width
@@ -134,7 +144,9 @@ export function renderDiagram(action: Diagram): string {
     context.fillStyle = '#236051'
     lines.forEach((line, index) => context.fillText(line, x, y + (index - (lines.length - 1) / 2) * 17))
   }
-  return canvas.toDataURL('image/png')
+  const png = canvas.toDataURL('image/png')
+  if (pngBytes(png) > maxPngBytes) throw new Error('The diagram exceeds the 10 MiB image limit.')
+  return png
 }
 
 function scaledRegion(region: VisualRegion, width: number, height: number): Rect {
@@ -153,9 +165,19 @@ export async function renderScreenshot(action: Annotate, source: string): Promis
   image.src = source
   await image.decode()
   const pixels = image.naturalWidth * image.naturalHeight
-  const scale = Math.min(1, 4096 / Math.max(image.naturalWidth, image.naturalHeight), Math.sqrt(6_000_000 / pixels))
-  const width = Math.max(1, Math.round(image.naturalWidth * scale))
-  const height = Math.max(1, Math.round(image.naturalHeight * scale))
+  let scale = Math.min(1, 4096 / Math.max(image.naturalWidth, image.naturalHeight), Math.sqrt(6_000_000 / pixels))
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const width = Math.max(1, Math.round(image.naturalWidth * scale))
+    const height = Math.max(1, Math.round(image.naturalHeight * scale))
+    const png = renderScreenshotAtSize(action, image, width, height)
+    const size = pngBytes(png)
+    if (size <= maxPngBytes) return png
+    scale *= Math.min(0.8, Math.sqrt(maxPngBytes / size) * 0.95)
+  }
+  throw new Error('The edited screenshot exceeds the 10 MiB image limit.')
+}
+
+function renderScreenshotAtSize(action: Annotate, image: HTMLImageElement, width: number, height: number) {
   const crop = action.edits.find(edit => edit.kind === 'crop')
   const view = crop ? scaledRegion(crop.region, width, height) : { x: 0, y: 0, width, height }
   const { canvas, context } = createCanvas(view.width, view.height)
