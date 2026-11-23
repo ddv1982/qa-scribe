@@ -23,6 +23,18 @@ CREATE TABLE IF NOT EXISTS chat_note_undo (
  before_fingerprint TEXT NOT NULL,
  applied_fingerprint TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS chat_visual_undo (
+ proposal_id TEXT PRIMARY KEY REFERENCES chat_refinements(id) ON DELETE CASCADE,
+ record_id TEXT NOT NULL REFERENCES drafts(id) ON DELETE CASCADE,
+ before_title TEXT NOT NULL,
+ before_body TEXT NOT NULL,
+ before_json TEXT,
+ before_format TEXT NOT NULL,
+ before_metadata TEXT,
+ before_at TEXT NOT NULL,
+ applied_base TEXT NOT NULL,
+ applied_at TEXT NOT NULL
+);
 CREATE TRIGGER IF NOT EXISTS chat_contract_immutable BEFORE UPDATE ON chat_response_contracts
 BEGIN SELECT RAISE(ABORT, 'Response contract is immutable'); END;
 CREATE TRIGGER IF NOT EXISTS chat_refinement_editable_update BEFORE UPDATE ON chat_refinements

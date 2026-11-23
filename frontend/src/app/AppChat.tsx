@@ -76,7 +76,7 @@ function RecordConversation({ c, visible, common }: {
   const owner = panel.owner
   // A test run is only read: its conversation offers no change to apply.
   const controls = handle && owner.kind === 'record' ? { ...c.proposalControls, applyUnavailable: source.kind === 'available' ? undefined : 'The original source must be available before Update.',
-    onUpdate: (id: string) => c.proposalControls.onUpdate?.(id, reference!) ?? Promise.resolve(),
+    onUpdate: (id: string, _reference?: import('../bindings').ChatRef, visual?: import('./sessionChat.proposals').VisualUpdate) => c.proposalControls.onUpdate?.(id, reference!, visual) ?? Promise.resolve(),
     onAction: (id: string, action: import('../bindings').RefinementAction) => c.proposalControls.onAction(id, action, reference!) } : undefined
   const noun = owner.kind === 'test_run' ? { eyebrow: 'Test run', missing: 'test run is' }
     : owner.record.kind === 'finding' ? { eyebrow: 'Finding', missing: 'finding is' } : { eyebrow: 'Test cases draft', missing: 'Test cases draft is' }

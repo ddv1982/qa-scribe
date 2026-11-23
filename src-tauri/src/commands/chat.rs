@@ -1,6 +1,6 @@
 use qa_scribe_core::domain::*;
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, State, ipc::Channel};
+use tauri::{AppHandle, Manager, State, ipc::Channel};
 
 use crate::{
     commands::CommandError,
@@ -435,4 +435,33 @@ pub fn apply_note_refinement(
     request: ApplyNoteRefinementRequest,
 ) -> Result<AppliedNoteRefinement, CommandError> {
     state.with_service(|service| service.apply_note_refinement(request))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn review_visual_refinement(
+    app: AppHandle,
+    reference: qa_scribe_core::domain::ChatRef,
+    proposal_id: String,
+) -> Result<qa_scribe_core::domain::VisualReviewSources, CommandError> {
+    super::files::attachment_task("Visual suggestion preview", move || {
+        let state = app.state::<AppState>();
+        state.with_service(|service| {
+            service.review_visual_refinement(state.app_data_dir(), &reference, &proposal_id)
+        })
+    })
+    .await
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn apply_visual_refinement(
+    app: AppHandle,
+    request: qa_scribe_core::domain::ApplyVisualRefinementRequest,
+) -> Result<AppliedRefinement, CommandError> {
+    super::files::attachment_task("Visual suggestion update", move || {
+        let state = app.state::<AppState>();
+        state.with_service(|service| service.apply_visual_refinement(state.app_data_dir(), request))
+    })
+    .await
 }

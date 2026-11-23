@@ -496,3 +496,6 @@ fn newer_snapshot_stage_cannot_replace_an_older_editor_base() {
 mod outcomes;
 #[path = "chat_refinement/updates.rs"]
 mod updates;
+
+#[path = "chat_refinement/visuals.rs"]
+mod visuals;

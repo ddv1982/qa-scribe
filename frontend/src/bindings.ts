@@ -30,6 +30,8 @@ export const commands = {
 	listChatHistory: (scope: ChatHistoryScope) => __TAURI_INVOKE<ChatHistoryEntry[]>("list_chat_history", { scope }),
 	resolveRefinement: (request: RefinementRequest) => __TAURI_INVOKE<ChatState_Serialize>("resolve_refinement", { request }),
 	applyRefinement: (request: ApplyRefinementRequest) => __TAURI_INVOKE<AppliedRefinement_Serialize>("apply_refinement", { request }),
+	reviewVisualRefinement: (reference: ChatRef, proposalId: string) => __TAURI_INVOKE<VisualReviewSources>("review_visual_refinement", { reference, proposalId }),
+	applyVisualRefinement: (request: ApplyVisualRefinementRequest) => __TAURI_INVOKE<AppliedRefinement_Serialize>("apply_visual_refinement", { request }),
 	applyNoteRefinement: (request: ApplyNoteRefinementRequest) => __TAURI_INVOKE<AppliedNoteRefinement_Serialize>("apply_note_refinement", { request }),
 	saveChatComposer: (request: ChatComposerRequest) => __TAURI_INVOKE<ChatState_Serialize>("save_chat_composer", { request }),
 	importChatImage: (scope: ChatRevision, filename: string, dataUrl: string) => __TAURI_INVOKE<ChatState_Serialize>("import_chat_image", { scope, filename, dataUrl }),
@@ -166,6 +168,13 @@ export type ApplyNoteRefinementRequest = {
 export type ApplyRefinementRequest = {
 	reference: ChatRef,
 	proposalId: string,
+};
+
+export type ApplyVisualRefinementRequest = {
+	reference: ChatRef,
+	proposalId: string,
+	imageDataUrl: string | null,
+	undo: boolean,
 };
 
 export type Attachment = {
@@ -462,6 +471,18 @@ export type CreationKind = "finding" | "testware";
 export type CreationOutcome = { state: "preparing" } | { state: "committed"; record: CreatedRecord } | { state: "committedDeleted"; recordId: string } | { state: "aborted" };
 
 export type CreationRecordInput = { kind: "finding"; title: string; body: string; bodyJson: string | null; bodyFormat: string | null; metadataJson: string | null; findingKind: FindingKind } | { kind: "testware"; title: string; body: string; bodyJson: string | null; bodyFormat: string | null; metadataJson: string | null };
+
+export type DiagramEdge = {
+	from: number,
+	to: number,
+	label: string | null,
+};
+
+export type DiagramNode = {
+	label: string,
+	row: number,
+	column: number,
+};
 
 export type Draft = {
 	id: string,
@@ -885,9 +906,7 @@ export type RefinementEditorValue = {
 	recordKind: string,
 };
 
-export type RefinementPatch = { kind: "finding"; title: string | null; bodyMarkdown: string | null; metadata: FindingMetadataRefinement | null } | { kind: "test_cases_draft"; title: string | null; bodyMarkdown: string | null } | 
-/**  A whole replacement Note body. */
-{ kind: "note"; bodyMarkdown: string };
+export type RefinementPatch = { kind: "finding"; title: string | null; bodyMarkdown: string | null; metadata: FindingMetadataRefinement | null } | { kind: "test_cases_draft"; title: string | null; bodyMarkdown: string | null } | { kind: "test_cases_visual"; visual: TestCaseVisual } | { kind: "note"; bodyMarkdown: string };
 
 export type RefinementProposal = {
 	version: number,
@@ -911,13 +930,15 @@ export type RefinementRequest = {
 	action: RefinementAction,
 };
 
-export type RefinementState = { kind: "offered" } | { kind: "applied" } | { kind: "note_applied" } | { kind: "staged"; stage: EditorStage } | { kind: "saved"; stage: EditorStage } | { kind: "dismissed" } | { kind: "undone"; stage: EditorStage } | { kind: "reverted"; stage: EditorStage } | { kind: "abandoned"; stage: EditorStage };
+export type RefinementState = { kind: "offered" } | { kind: "applied" } | { kind: "note_applied" } | { kind: "visual_applied"; attachmentId: string } | { kind: "visual_undone" } | { kind: "staged"; stage: EditorStage } | { kind: "saved"; stage: EditorStage } | { kind: "dismissed" } | { kind: "undone"; stage: EditorStage } | { kind: "reverted"; stage: EditorStage } | { kind: "abandoned"; stage: EditorStage };
 
 export type ReportedModel = { source: "claudeInitialization"; id: string } | { source: "claudeAssistantMessage"; id: string } | { source: "codexThreadConfiguration"; id: string };
 
 export type RequestedModel = { kind: "default" } | { kind: "copilotAutomatic" } | { kind: "explicit"; id: string };
 
 export type RunModelSelection = { kind: "legacy"; value: string } | { kind: "recorded"; requested: RequestedModel; reported: ReportedModel | null };
+
+export type ScreenshotEdit = { kind: "crop"; region: VisualRegion } | { kind: "highlight"; region: VisualRegion } | { kind: "redact"; region: VisualRegion } | { kind: "arrow"; from: [number, number]; to: [number, number] };
 
 export type Session = {
 	id: string,
@@ -1088,6 +1109,15 @@ export type StartChatJobResult_Serialize = {
 /**  The Result a tester records for one test case in a test run. */
 export type TestCaseResult = "not_run" | "passed" | "failed" | "blocked";
 
+export type TestCaseVisual = {
+	/**  Zero-based path through the snapshot's doc.content arrays. */
+	target: number[],
+	caption: string,
+	action: TestCaseVisualAction,
+};
+
+export type TestCaseVisualAction = { kind: "diagram"; replace: boolean; nodes: DiagramNode[]; edges: DiagramEdge[] } | { kind: "place"; replace: boolean; source: VisualImageSource } | { kind: "move"; source: number[] } | { kind: "caption" } | { kind: "annotate"; replace: boolean; source: VisualImageSource; edits: ScreenshotEdit[] };
+
 /**  A frozen copy of a saved Test cases draft's test cases (ADR 0012). */
 export type TestRun = {
 	id: string,
@@ -1168,5 +1198,20 @@ export type TestwareTechnique = "auto" | "use_case" | "equivalence_boundary" | "
 export type UnavailableReadSource = {
 	source: GenerationReadSource,
 	reason: ReadSourceUnavailableReason,
+};
+
+export type VisualImageSource = { kind: "record"; path: number[] } | { kind: "chat"; index: number };
+
+/**  Coordinates are thousandths of the natural source image dimensions. */
+export type VisualRegion = {
+	x: number,
+	y: number,
+	width: number,
+	height: number,
+};
+
+export type VisualReviewSources = {
+	source: string | null,
+	replaced: string | null,
 };
 

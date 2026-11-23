@@ -50,6 +50,8 @@ permissions = [
   "allow-list-chat-history",
   "allow-resolve-refinement",
   "allow-apply-refinement",
+  "allow-review-visual-refinement",
+  "allow-apply-visual-refinement",
   "allow-apply-note-refinement",
   "allow-save-chat-composer",
   "allow-import-chat-image",

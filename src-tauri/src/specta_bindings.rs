@@ -72,6 +72,8 @@ pub fn builder() -> Builder<tauri::Wry> {
             commands::chat::list_chat_history,
             commands::chat::resolve_refinement,
             commands::chat::apply_refinement,
+            commands::chat::review_visual_refinement,
+            commands::chat::apply_visual_refinement,
             commands::chat::apply_note_refinement,
             commands::chat::save_chat_composer::<tauri::Wry>,
             commands::chat::import_chat_image,

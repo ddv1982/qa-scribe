@@ -29,6 +29,7 @@ const ManagedImage = Image.extend({
           return attachmentId ? { 'data-attachment-id': attachmentId } : {}
         },
       },
+      visualSource: { default: null, rendered: false },
       alt: {
         default: null,
         parseHTML: (element: HTMLElement) => element.getAttribute('alt'),
@@ -68,7 +69,7 @@ export function richTextEditorExtensions(placeholder?: string) {
       allowBase64: true,
     }),
     TaskList,
-    TaskItem.configure({
+    TaskItem.extend({ content: 'paragraph (paragraph | image)*' }).configure({
       nested: false,
     }),
   ]
