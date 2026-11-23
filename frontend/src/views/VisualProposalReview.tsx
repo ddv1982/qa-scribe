@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react'
-import type { JSONContent } from '@tiptap/core'
 import { commands, type ChatRef, type RefinementProposal, type TestCaseVisual } from '../bindings'
 import { copyAttachmentImageToClipboard, copyLocalImageToClipboard } from '../tauri'
 import type { ProposalControls } from '../app/sessionChat.proposals'
 import { ActionButton } from '../components/ActionButton'
 import { ImageDialog } from './ChatImages'
-import { parseRichEditorDocument } from '../editor/editorDocument'
+import { placement } from './visualPlacement'
 import { formatError } from '../ui/format'
 import { renderDiagram, renderScreenshot } from './testCaseVisualRender'
 
@@ -29,21 +28,6 @@ async function previewVisual(reference: ChatRef, id: string, visual: TestCaseVis
     return { image, before: source, replaced: replaced === source ? null : replaced, upload: image }
   }
   return { image: source, before: null, replaced: replaced === source ? null : replaced, upload: null }
-}
-
-function text(node: JSONContent | undefined): string {
-  return node?.text ?? node?.content?.map(text).join('') ?? ''
-}
-
-function placement(proposal: RefinementProposal, visual: TestCaseVisual) {
-  const document = parseRichEditorDocument(proposal.before.documentJson)
-  const top = document?.doc.content ?? []
-  const [index, ...nested] = visual.target
-  const heading = top.slice(0, index + 1).reverse().find(node => node.type === 'heading')
-  const target = nested.reduce<JSONContent | undefined>((node, part) => node?.content?.[part], top[index])
-  const label = target?.type === 'image' ? target.attrs?.alt as unknown : text(target)
-  const names = [...new Set([text(heading), typeof label === 'string' ? label : ''].filter(Boolean))]
-  return names.join(' · ').slice(0, 220)
 }
 
 export function VisualProposalReview({ proposal, visual, reference, controls }: {

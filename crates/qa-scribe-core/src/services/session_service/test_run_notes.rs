@@ -252,7 +252,7 @@ fn collect_images<'a>(node: &'a Value, ids: &mut BTreeSet<&'a str>) -> Result<()
     Ok(())
 }
 
-pub(super) fn summarize(body_json: String) -> TestCaseNotes {
+pub(crate) fn summarize(body_json: String) -> TestCaseNotes {
     let mut text = String::new();
     let mut image_count = 0;
     if let Ok(document) = parse(&body_json) {
