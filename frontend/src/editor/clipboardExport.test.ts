@@ -18,6 +18,26 @@ describe('clipboardExport', () => {
     expect(payload.plain).toBe('````\nbefore\n```\nafter\n````')
   })
 
+  it('keeps a code block exactly, with edge spaces, blank lines and a trailing newline', () => {
+    const payload = formatRecordForClipboard({ title: '', bodyHtml: '<p>Log</p><pre><code>  indented  \n\n\n\nlast  \n</code></pre><p>After</p>' })
+    expect(payload.plain).toBe('Log\n\n```\n  indented  \n\n\n\nlast  \n\n```\n\nAfter')
+  })
+
+  it('indents a code block, quote and divider inside a list item to its content column', () => {
+    const payload = formatRecordForClipboard({
+      title: '',
+      bodyHtml: '<ul><li><p>Item</p><pre><code>code\n\n  x</code></pre><blockquote><p>quoted</p></blockquote><hr></li></ul><ol><li><p>One</p><pre><code>c</code></pre></li></ol>',
+    })
+    expect(payload.plain).toBe(
+      ['- Item', '', '  ```', '  code', '', '    x', '  ```', '', '  > quoted', '', '  ---', '', '1. One', '', '   ```', '   c', '   ```'].join('\n'),
+    )
+  })
+
+  it('keeps a code block inside a quote exactly', () => {
+    const payload = formatRecordForClipboard({ title: '', bodyHtml: '<blockquote><pre><code>a  \n\n\n b</code></pre></blockquote>' })
+    expect(payload.plain).toBe(['> ```', '> a  ', '>', '>', '>  b', '> ```'].join('\n'))
+  })
+
   it('wraps inline code past any backtick run inside it', () => {
     const payload = formatRecordForClipboard({ title: '', bodyHtml: '<p><code>a`b</code> <code>``x</code> <code>`edge`</code> <code>plain</code></p>' })
     expect(payload.plain).toBe('``a`b`` ``` ``x ``` `` `edge` `` `plain`')

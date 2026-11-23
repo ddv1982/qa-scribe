@@ -202,3 +202,24 @@ fn nested_marks_with_edge_spaces_keep_both_marks() {
         project(html)
     );
 }
+
+#[test]
+fn a_code_block_keeps_its_trailing_newlines_through_a_rewrite() {
+    for code in ["a\n", "a\n\n\n", "\n\na  \n  b  ", "\n"] {
+        let expected = serde_json::json!({"type":"codeBlock","attrs":{"language":null},"content":[{"type":"text","text":code}]});
+        let html = format!("<pre><code>{code}</code></pre>");
+        assert_eq!(
+            round_trip(&html),
+            vec![expected.clone()],
+            "{:?}",
+            project(&html)
+        );
+        let html = format!("<ul><li><p>Item</p><pre><code>{code}</code></pre></li></ul>");
+        assert_eq!(
+            round_trip(&html)[0]["content"][0]["content"][1],
+            expected,
+            "{:?}",
+            project(&html)
+        );
+    }
+}

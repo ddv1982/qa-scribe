@@ -24,12 +24,13 @@ export type ClipboardImageReference = {
 export function formatRecordForClipboard(record: ClipboardRecord): ClipboardPayload {
   const title = record.title.trim()
   const editorDocument = richEditorDocumentFromHtml(record.bodyHtml)
-  const plainParts = [title ? `## ${title}` : '', renderMarkdownFromDocument(editorDocument)]
+  const codeBlocks: string[] = []
+  const plainParts = [title ? `## ${title}` : '', renderMarkdownFromDocument(editorDocument, codeBlocks)]
     .map((part) => trimBlankLines(part))
     .filter(Boolean)
 
   return {
-    plain: trimBlankLines(plainParts.join('\n\n')),
+    plain: restoreCodeBlocks(trimBlankLines(plainParts.join('\n\n')), codeBlocks),
     html: renderClipboardHtml(title, editorDocument),
   }
 }
@@ -92,7 +93,9 @@ export function managedAttachmentReferencesForClipboard(record: ClipboardRecord)
 // text, not markup), italic uses `*`, headings get a separating blank line,
 // task lists render checkbox markers, nested lists indent, code blocks have no
 // language, inline code outgrows backticks inside it, and label==href links stay bare.
-function renderMarkdownFromDocument(editorDocument: RichEditorDocument): string {
+// Each code block renders as a placeholder line, so the white space cleanup between blocks
+// leaves its code alone; `restoreCodeBlocks` puts the fenced code back.
+function renderMarkdownFromDocument(editorDocument: RichEditorDocument, codeBlocks: string[]): string {
   if (!editorDocument.doc.content?.length) return ''
 
   return renderToMarkdown({
@@ -110,9 +113,13 @@ function renderMarkdownFromDocument(editorDocument: RichEditorDocument): string 
           listItemMarkdown(node, children, parent),
         taskList: ({ children }: { children?: string | string[] }) => `\n${joinChildren(children)}`,
         taskItem: ({ node, children }: { node: ProseMirrorNode; children?: string | string[] }) =>
-          `- [${node.attrs.checked ? 'x' : ' '}] ${joinChildren(children).trim()}\n`,
+          `- [${node.attrs.checked ? 'x' : ' '}] ${indentContinuation(joinChildren(children).trim(), 2)}\n`,
         // A plain code block: no language after the fence, which grows past any fence inside.
-        codeBlock: ({ node }: { node: ProseMirrorNode }) => `\n${codeFence(node.textContent)}\n${node.textContent}\n${codeFence(node.textContent)}\n`,
+        codeBlock: ({ node }: { node: ProseMirrorNode }) => {
+          const fence = codeFence(node.textContent)
+          codeBlocks.push(`${fence}\n${node.textContent}\n${fence}`)
+          return `\n${codeBlockPlaceholder(codeBlocks.length - 1)}\n`
+        },
       },
       markMapping: {
         italic: ({ children }: { children?: string | string[] }) => `*${joinChildren(children)}*`,
@@ -144,7 +151,7 @@ function listItemMarkdown(node: ProseMirrorNode, children: string | string[] | u
   })
 
   const marker = parent?.type.name === 'orderedList' ? `${orderedListPosition(node, parent)}.` : '-'
-  const line = `${marker} ${bodyParts.join('').trim()}`
+  const line = `${marker} ${indentContinuation(bodyParts.join('').trim(), marker.length + 1)}`
   return nestedParts.length ? `${line}\n${nestedParts.join('\n')}\n` : `${line}\n`
 }
 
@@ -170,6 +177,30 @@ function codeSpan(code: string): string {
   const fence = '`'.repeat(longest + 1)
   const pad = code.startsWith('`') || code.endsWith('`') ? ' ' : ''
   return `${fence}${pad}${code}${pad}${fence}`
+}
+
+// Further blocks of a list item (paragraphs, code, quotes, dividers) sit at its content column.
+function indentContinuation(body: string, width: number): string {
+  const indent = ' '.repeat(width)
+  return body
+    .split('\n')
+    .map((line, index) => (index > 0 && line.trim() ? `${indent}${line}` : line))
+    .join('\n')
+}
+
+function codeBlockPlaceholder(index: number): string {
+  return `\u0000${index}\u0000`
+}
+
+// Each placeholder line becomes its fenced code, every line under the placeholder's prefix
+// (a list indent or quote marker); an empty code line keeps only the trimmed prefix.
+function restoreCodeBlocks(value: string, codeBlocks: string[]): string {
+  return value.replace(/^(.*)\u0000(\d+)\u0000$/gm, (_match, prefix: string, index: string) =>
+    (codeBlocks[Number(index)] ?? '')
+      .split('\n')
+      .map((line) => (line ? `${prefix}${line}` : prefix.trimEnd()))
+      .join('\n'),
+  )
 }
 
 function indentLines(value: string): string {

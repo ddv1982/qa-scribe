@@ -379,8 +379,8 @@ fn indent_lines(block: &str, first: &str, rest: &str) -> String {
 }
 
 fn code_block(children: &[Node]) -> String {
+    // The parser drops only the line end before the closing fence, so trailing newlines stay.
     let code = raw_text(children);
-    let code = code.trim_end_matches('\n');
     let mut fence = "```".to_string();
     while code.contains(&fence) {
         fence.push('`');
