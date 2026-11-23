@@ -75,6 +75,25 @@ describe('FormatToolbar', () => {
     expect(screen.getByRole<HTMLSelectElement>('combobox', { name: 'Block style' }).value).toBe(value)
   })
 
+  it.each([
+    ['h1', '<h1>Evidence</h1>'],
+    ['h3', '<h3>Evidence</h3>'],
+    ['codeBlock', '<pre><code>Evidence</code></pre>'],
+  ])('moves a quoted block out of its quote for the %s block style', async (value, expected) => {
+    const { editor, html } = await renderEditor('<blockquote><p>Evidence</p></blockquote>')
+    selectText(editor)
+    chooseBlockStyle(value)
+    await waitFor(() => expect(html()).toBe(`${expected}<p></p>`))
+    expect(screen.getByRole<HTMLSelectElement>('combobox', { name: 'Block style' }).value).toBe(value)
+  })
+
+  it('moves a block out of nested quotes for a heading', async () => {
+    const { editor, html } = await renderEditor('<blockquote><blockquote><p>Evidence</p></blockquote></blockquote>')
+    selectText(editor)
+    chooseBlockStyle('h2')
+    await waitFor(() => expect(html()).toBe('<h2>Evidence</h2><p></p>'))
+  })
+
   it('returns a heading to Normal', async () => {
     const { editor, html } = await renderEditor('<h5>Evidence</h5>')
     selectText(editor)

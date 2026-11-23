@@ -263,10 +263,21 @@ function currentBlockStyle(editor: Editor | null): string {
 
 function setBlockStyle(editor: Editor | null, value: string) {
   if (!editor) return
-  const chain = editor.chain().focus()
+  let chain = editor.chain().focus()
   const level = headingLevels.find((candidate) => value === `h${candidate}`)
+  // A heading or code block leaves every quote around it, so the splitter sees a heading as a case heading.
+  if (level || value === 'codeBlock') {
+    for (let depth = quoteDepth(editor); depth > 0; depth -= 1) chain = chain.lift('blockquote')
+  }
   if (level) chain.setNode('heading', { level }).run()
   else if (value === 'codeBlock') chain.setCodeBlock().run()
   else if (value === 'blockquote') chain.clearNodes().setBlockquote().run()
   else chain.clearNodes().setParagraph().run()
+}
+
+function quoteDepth(editor: Editor): number {
+  const { $from } = editor.state.selection
+  let quotes = 0
+  for (let depth = $from.depth; depth > 0; depth -= 1) if ($from.node(depth).type.name === 'blockquote') quotes += 1
+  return quotes
 }
