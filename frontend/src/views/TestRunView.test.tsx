@@ -17,6 +17,7 @@ import { COPIED_FEEDBACK_MS } from '../app/copyActions'
 import type { TestRunCase, TestRunSummary } from '../tauri'
 import { testRunReport } from '../testware/testRunReport'
 import { formatDateTime } from '../ui/format'
+import { testRunSummaryText } from '../testware/testRuns'
 import { TestRunView } from './TestRunView'
 
 afterEach(cleanup)
@@ -129,7 +130,8 @@ describe('TestRunView', () => {
     const { onSelectRun } = renderRun({ draftRuns: [summary('run-2', later), summary('run-1', at)] })
     const switcher = screen.getByRole('combobox', { name: 'Test run' })
     expect(switcher).toHaveValue('run-1')
-    expect(within(switcher).getAllByRole('option').map((option) => option.textContent)).toEqual([formatDateTime(later), formatDateTime(at)])
+    expect(within(switcher).getAllByRole('option').map((option) => option.textContent)).toEqual([testRunSummaryText(summary('run-2', later)), testRunSummaryText(summary('run-1', at))])
+    expect(screen.getByText('Test run', { selector: 'label span' })).toBeVisible()
     fireEvent.change(switcher, { target: { value: 'run-2' } })
     expect(onSelectRun).toHaveBeenCalledWith('run-2')
   })

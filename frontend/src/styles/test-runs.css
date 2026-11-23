@@ -1,7 +1,8 @@
 /* Test runs (views/TestRunView.tsx, views/TestRunEntryPoints.tsx). Layout only; the controls are shared. */
 
-/* The Last test run line under a draft title, and a failed case's linked Finding: quiet text buttons. */
-.last-test-run,
+/* The test runs under a draft title, and a failed case's linked Finding: quiet text buttons. */
+.test-run-list-item,
+.test-run-list-more,
 .test-run-finding {
   justify-self: start;
   padding: 0;
@@ -12,8 +13,37 @@
   border: 0;
   cursor: pointer;
 }
-.last-test-run:hover,
+.test-run-list-item:hover,
+.test-run-list-more:hover,
 .test-run-finding:hover { color: var(--text-primary); }
+
+.test-run-list {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-1);
+}
+.test-run-list ul {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.test-run-list-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.test-run-list-more { text-decoration: underline; }
+
+/* The switcher between a draft's test runs, labelled in view. */
+.test-run-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
 
 /* A test run reads as a page in the record pane, like the draft it replaces. */
 .test-run {

@@ -184,7 +184,7 @@ describe('README screenshots', () => {
     }
     await browser.refresh()
     await tab('Test cases')
-    await click('.last-test-run')
+    await click('.test-run-list-item')
     await browser.waitUntil(async () => (await $('.test-run-actions .badge').getText()) === '3 of 3 run', { timeoutMsg: 'the test run did not show its results' })
     // Open the failed case, so its steps show beside the Result, the Remark and the linked Finding.
     await click(`//section[@aria-label="${content.cases.secure}"]//button[@aria-expanded]`)

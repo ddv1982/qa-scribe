@@ -9,7 +9,7 @@ import { Dialog } from '../components/Dialog'
 import { Segmented, type SegmentedOption } from '../components/Segmented'
 import { writePlainClipboard } from '../editor/clipboardExport'
 import { RichTextEditor } from '../editor/RichTextEditor'
-import { testRunCaseDocument } from '../testware/testRuns'
+import { testRunCaseDocument, testRunSummaryText } from '../testware/testRuns'
 import { testRunReport } from '../testware/testRunReport'
 import type { OpenTestRun } from '../testware/useTestRuns'
 import type { CasePatch, EditableTestCase } from '../testware/caseSaveQueue'
@@ -91,9 +91,12 @@ export function TestRunView({ open, draftRuns, error, askAi, onSelectRun, onBack
         <div className="test-run-actions">
           {run ? <Badge>{recorded} of {cases.length} run</Badge> : null}
           {draftRuns.length > 1 ? (
-            <select aria-label="Test run" value={open.runId} onChange={(event) => onSelectRun(event.target.value)}>
-              {draftRuns.map((summary) => <option key={summary.id} value={summary.id}>{formatDateTime(summary.createdAt)}</option>)}
-            </select>
+            <label className="test-run-switch">
+              <span>Test run</span>
+              <select value={open.runId} onChange={(event) => onSelectRun(event.target.value)}>
+                {draftRuns.map((summary) => <option key={summary.id} value={summary.id}>{testRunSummaryText(summary)}</option>)}
+              </select>
+            </label>
           ) : null}
           {run && askAi ? <ActionButton variant="secondary" className="ask-ai-trigger" icon={Sparkles} aria-expanded={askAi.expanded}
             onClick={() => void askAi.onOpen(run.id)}>Ask AI</ActionButton> : null}
