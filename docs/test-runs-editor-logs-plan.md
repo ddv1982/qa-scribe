@@ -62,7 +62,7 @@ Goal: H1 to H6, numbered list button, strikethrough, inline code, plain code blo
 - [x] Rust `should_decode_escaped_editor_html` returns false when literal editor tags are present, matching the frontend; `<hr>` counts as non-empty content (`editorHtml.ts:289`). Tests on both sides with HTML samples inside a code block.
 - [x] Splitter (`testware/testCases.ts`): H1 closes a case and clears the group; H4 to H6 stay inside a case; every fixture in `__fixtures__/generated/` splits as before. ADR 0012 decision 2 amended.
 - [x] Toolbar: block style select (Normal, Heading 1 to 6, Code block, Quote), numbered list, strike, inline code, divider. Vitest per command; `bun run frontend:check` passes.
-- [ ] New spec `e2e/specs/editor-rich-content.e2e.mjs`: author H1, H4, H6, code block, quote, strike, underline; restart; fake Ask AI Update returns the same constructs; all survive; case count unchanged. Spec id added to the gate list at `scripts/run-e2e.mjs:101`.
+- [x] New spec `e2e/specs/editor-rich-content.e2e.mjs`: author H1, H4, H6, code block, quote, strike, underline; restart; fake Ask AI Update returns the same constructs; all survive; case count unchanged. Spec id added to the gate list at `scripts/run-e2e.mjs:101`. (Deviation: a restart needs a second app process on the same data, so the spec runs as two runner phases, `editor-rich-content` and `editor-rich-content-restart`, like the model evidence pair; both are in the Linux and macOS gate. Ask AI is faked through the Codex fixture in `e2e/fixtures/editor-rich-content-provider.mjs`.)
 - [x] CHANGELOG.md entry: documents saved by this version may lose formatting when opened in older versions.
 
 Acceptance: the format contract test and the E2E pass.
