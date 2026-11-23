@@ -1,7 +1,7 @@
 import { emptyRichEditorDocument, parseRichEditorDocument, richEditorDocumentFromStoredBody, serializeRichEditorDocument, type RichEditorDocument } from '../editor/editorDocument'
 import type { JSONContent } from '@tiptap/core'
 import type { Draft, TestRun, TestRunCase, TestRunCaseDraft, TestRunSummary } from '../tauri'
-import { formatShortDate } from '../ui/format'
+import { formatDateTime } from '../ui/format'
 import { draftOutputFormat, splitTestCases } from './testCases'
 
 /**
@@ -35,12 +35,12 @@ export function testRunCaseDocument(testCase: Pick<TestRunCase, 'bodyJson'>): Ri
   return { ...document, doc: { ...document.doc, content: rest } }
 }
 
-/** `Last test run 13 Nov: 3 passed, 1 failed`, leaving out zero counts. */
-export function lastTestRunText(summary: Pick<TestRunSummary, 'createdAt' | 'passed' | 'failed' | 'blocked'>): string {
-  const counts = ([['passed', summary.passed], ['failed', summary.failed], ['blocked', summary.blocked]] as const)
+/** `13 Nov 2026, 14:02 · 3 passed · 1 failed · 2 not run`, leaving out zero counts. */
+export function testRunSummaryText(summary: Pick<TestRunSummary, 'createdAt' | 'passed' | 'failed' | 'blocked' | 'notRun'>): string {
+  const counts = ([['passed', summary.passed], ['failed', summary.failed], ['blocked', summary.blocked], ['not run', summary.notRun]] as const)
     .filter(([, count]) => count > 0)
     .map(([label, count]) => `${count} ${label}`)
-  return `Last test run ${formatShortDate(summary.createdAt)}: ${counts.length ? counts.join(', ') : 'nothing recorded yet'}`
+  return [formatDateTime(summary.createdAt), ...counts].join(' · ')
 }
 
 /** The newest test run of each draft, from summaries listed newest first. */

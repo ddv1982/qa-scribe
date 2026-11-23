@@ -1,7 +1,8 @@
 /* Test runs (views/TestRunView.tsx, views/TestRunEntryPoints.tsx). Layout only; the controls are shared. */
 
-/* The Last test run line under a draft title, and a failed case's linked Finding: quiet text buttons. */
-.last-test-run,
+/* The test runs under a draft title, and a failed case's linked Finding: quiet text buttons. */
+.test-run-list-item,
+.test-run-list-more,
 .test-run-finding {
   justify-self: start;
   padding: 0;
@@ -12,8 +13,49 @@
   border: 0;
   cursor: pointer;
 }
-.last-test-run:hover,
+.test-run-list-item:hover,
+.test-run-list-more:hover,
 .test-run-finding:hover { color: var(--text-primary); }
+
+.test-run-list {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-1);
+}
+/* The list sits in the sticky record header, so it scrolls within a bounded height instead of pushing the draft away. */
+.test-run-list ul {
+  display: grid;
+  gap: var(--space-1);
+  max-height: 10rem;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+.test-run-list-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.test-run-list-more { text-decoration: underline; }
+/* Rows sit flush in a scroll container, so an outset ring would be clipped. */
+.test-run-list-item:focus-visible { outline-offset: -2px; }
+
+/* The switcher between a draft's test runs, labelled in view. */
+.test-run-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  max-width: 100%;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+/* A select sizes itself to its longest option; let it shrink to the pane instead. */
+.test-run-switch select {
+  min-width: 0;
+  max-width: 100%;
+}
 
 /* A test run reads as a page in the record pane, like the draft it replaces. */
 .test-run {
@@ -30,6 +72,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-3);
+  min-width: 0;
   padding-block: var(--space-2);
 }
 
@@ -51,6 +94,8 @@
   align-items: center;
   justify-content: flex-end;
   gap: var(--space-2);
+  min-width: 0;
+  max-width: 100%;
 }
 
 .test-run-leave {

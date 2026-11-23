@@ -98,13 +98,6 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-/** A day and month, such as `13 Nov` in a day-first locale. */
-export function formatShortDate(value: string): string {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' }).format(date)
-}
-
 /** A full date and time, such as `13 Nov 2026, 14:02` in a day-first locale. */
 export function formatDateTime(value: string): string {
   const date = new Date(value)

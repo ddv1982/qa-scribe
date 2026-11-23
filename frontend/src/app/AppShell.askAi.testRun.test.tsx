@@ -41,7 +41,7 @@ afterEach(cleanupControllerTest)
 async function openRun() {
   await renderWithControllerStartup(() => render(<Subject />))
   fireEvent.click(screen.getByRole('tab', { name: /Test cases/ }))
-  fireEvent.click(await screen.findByRole('button', { name: /^Last test run/ }))
+  fireEvent.click(within(await screen.findByRole('region', { name: 'Test runs' })).getAllByRole('button')[0])
   await screen.findByRole('button', { name: 'Copy report' })
 }
 

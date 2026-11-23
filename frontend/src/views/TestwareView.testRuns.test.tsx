@@ -18,7 +18,7 @@ vi.mock('../tauri', async (original) => ({ ...await original<typeof import('../t
 
 import { draftFixture, recordCreationCommandsFixture } from '../test/fixtures'
 import type { Draft, TestRun, TestRunCaseDraft, TestRunSummary } from '../tauri'
-import { formatShortDate } from '../ui/format'
+import { testRunSummaryText } from '../testware/testRuns'
 import { TestwareView } from './TestwareView'
 
 const at = '2026-11-13T14:02:00Z'
@@ -31,6 +31,14 @@ const charters = draftFixture({
   id: 'draft-3', title: 'Charters', body: '<h3>Explore checkout</h3><p>Mission.</p>',
   metadataJson: JSON.stringify({ manualCreationFormat: { version: 1, format: { kind: 'testware', outputFormat: 'charters' } } }),
 })
+async function runList() {
+  return screen.findByRole('region', { name: 'Test runs' })
+}
+
+async function openLatestRun() {
+  fireEvent.click(within(await runList()).getAllByRole('button')[0])
+}
+
 const summary = (patch: Partial<TestRunSummary> = {}): TestRunSummary => ({
   id: 'run-1', sessionId: 'session-1', draftId: 'draft-1', draftTitle: 'Checkout cases', createdAt: at, updatedAt: at,
   total: 5, passed: 0, failed: 0, blocked: 0, notRun: 5, ...patch,
@@ -112,32 +120,48 @@ describe('Start test run', () => {
   })
 })
 
-describe('Last test run line', () => {
-  it.each([
-    [{ passed: 3, failed: 1, blocked: 1, notRun: 0 }, '3 passed, 1 failed, 1 blocked'],
-    [{ passed: 1, failed: 1, notRun: 3 }, '1 passed, 1 failed'],
-    [{ blocked: 2, notRun: 3 }, '2 blocked'],
-    [{ failed: 1, blocked: 1, notRun: 3 }, '1 failed, 1 blocked'],
-    [{}, 'nothing recorded yet'],
-  ])('reads %o as "%s"', async (counts, text) => {
-    api.listTestRuns.mockResolvedValue([summary(counts)])
-    renderTestware([runnable])
-    expect(await screen.findByRole('button', { name: `Last test run ${formatShortDate(at)}: ${text}` })).toBeInTheDocument()
+describe('Test run list', () => {
+  const day = (n: number) => `2026-11-${String(n).padStart(2, '0')}T14:02:00Z`
+
+  it('lists every test run of the draft newest first, marks the latest, and counts the results', async () => {
+    api.listTestRuns.mockResolvedValue([
+      summary({ id: 'run-2', createdAt: day(14), passed: 3, failed: 1, notRun: 1 }),
+      summary({ id: 'run-x', draftId: 'draft-2', createdAt: day(13) }),
+      summary({ createdAt: day(12) }),
+    ])
+    renderTestware([runnable, unrunnable])
+    const rows = within(await runList()).getAllByRole('button')
+    expect(rows.map((row) => row.textContent)).toEqual([
+      `${testRunSummaryText(summary({ createdAt: day(14), passed: 3, failed: 1, notRun: 1 }))}Latest`,
+      testRunSummaryText(summary({ createdAt: day(12) })),
+    ])
   })
 
-  it('shows the newest run of the selected draft only, and opens it', async () => {
-    api.listTestRuns.mockResolvedValue([summary({ id: 'run-2', draftId: 'draft-2', passed: 4 }), summary({ passed: 1 })])
-    renderTestware([runnable, unrunnable])
-    const line = await screen.findByRole('button', { name: /^Last test run .*: 1 passed$/ })
-    fireEvent.click(line)
+  it('opens an older test run directly', async () => {
+    api.listTestRuns.mockResolvedValue([summary({ id: 'run-2', createdAt: day(14) }), summary({ createdAt: day(12) })])
+    renderTestware([runnable])
+    fireEvent.click(within(await runList()).getAllByRole('button')[1])
     await waitFor(() => expect(api.getTestRun).toHaveBeenCalledWith('run-1'))
     expect(await screen.findByRole('region', { name: 'Pay by card' })).toBeInTheDocument()
+    expect(api.startTestRun).not.toHaveBeenCalled()
+  })
+
+  it('shows five test runs and the rest behind Show all', async () => {
+    api.listTestRuns.mockResolvedValue([7, 6, 5, 4, 3, 2].map((n) => summary({ id: `run-${n}`, createdAt: day(n) })))
+    renderTestware([runnable])
+    const list = await runList()
+    expect(within(list).getAllByRole('button', { name: /·/ })).toHaveLength(5)
+    const more = within(list).getByRole('button', { name: 'Show all (6)' })
+    expect(more).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(more)
+    expect(within(list).getAllByRole('button', { name: /·/ })).toHaveLength(6)
+    expect(within(list).getByRole('button', { name: 'Show fewer' })).toHaveAttribute('aria-expanded', 'true')
   })
 
   it('is absent for a draft that was never run', async () => {
     renderTestware([runnable])
     await waitFor(() => expect(api.listTestRuns).toHaveBeenCalled())
-    expect(screen.queryByRole('button', { name: /^Last test run/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Test runs' })).not.toBeInTheDocument()
   })
 })
 
@@ -145,7 +169,7 @@ describe('Test runs and their draft', () => {
   it('closes the run screen when another draft is selected', async () => {
     api.listTestRuns.mockResolvedValue([summary()])
     renderTestware([runnable, unrunnable])
-    fireEvent.click(await screen.findByRole('button', { name: /^Last test run/ }))
+    await openLatestRun()
     await screen.findByRole('region', { name: 'Pay by card' })
     selectDraft('Notes only')
     selectDraft('Checkout cases')
@@ -156,7 +180,7 @@ describe('Test runs and their draft', () => {
   it('tells the delete confirmation how many test runs go with the draft', async () => {
     api.listTestRuns.mockResolvedValue([summary(), summary({ id: 'run-0' }), summary({ id: 'run-x', draftId: 'draft-2' })])
     const { onDeleteDraft } = renderTestware([runnable, unrunnable])
-    await screen.findByRole('button', { name: /^Last test run/ })
+    await runList()
     fireEvent.click(screen.getByRole('button', { name: 'Delete Checkout cases' }))
     expect(onDeleteDraft).toHaveBeenCalledWith(runnable, 2)
   })
@@ -187,7 +211,7 @@ describe('Findings on the run screen', () => {
     const onCreateFinding = vi.fn()
     const onOpenFinding = vi.fn()
     renderTestware([runnable], { onCreateFinding, onOpenFinding })
-    fireEvent.click(await screen.findByRole('button', { name: /^Last test run/ }))
+    await openLatestRun()
     fireEvent.click(await screen.findByRole('button', { name: 'Finding: Card is declined' }))
     expect(onOpenFinding).toHaveBeenCalledWith('finding-1')
     fireEvent.click(screen.getByRole('button', { name: 'Create Finding' }))

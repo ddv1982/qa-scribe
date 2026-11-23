@@ -1,13 +1,30 @@
 import { describe, expect, it } from 'vitest'
 import type { TestRunCase } from '../tauri'
 import { richEditorDocumentFromHtml, richEditorDocumentToStoredBody } from '../editor/editorDocument'
-import { failedTestCaseTexts, latestTestRunIds, testRunCasesFromDraft } from './testRuns'
+import { formatDateTime } from '../ui/format'
+import { failedTestCaseTexts, latestTestRunIds, testRunCasesFromDraft, testRunSummaryText } from './testRuns'
 
 const body = (content: unknown[]) => JSON.stringify({ schemaVersion: 1, doc: { type: 'doc', content } })
 const paragraph = (...content: unknown[]) => ({ type: 'paragraph', content })
 const text = (value: string, marks?: unknown[]) => ({ type: 'text', text: value, ...marks ? { marks } : {} })
 const testCase = (title: string, patch: Partial<TestRunCase> = {}): TestRunCase => ({
   id: title, runId: 'run-1', position: 0, groupTitle: null, title, bodyJson: body([]), result: 'failed', remark: null, findingId: null, findingTitle: null, updatedAt: '', ...patch,
+})
+
+describe('testRunSummaryText', () => {
+  const createdAt = '2026-11-13T14:02:00Z'
+  it.each([
+    [{ passed: 3, failed: 1, blocked: 0, notRun: 2 }, '3 passed · 1 failed · 2 not run'],
+    [{ passed: 0, failed: 0, blocked: 2, notRun: 0 }, '2 blocked'],
+    [{ passed: 0, failed: 0, blocked: 0, notRun: 5 }, '5 not run'],
+    [{ passed: 1, failed: 1, blocked: 1, notRun: 1 }, '1 passed · 1 failed · 1 blocked · 1 not run'],
+  ])('reads %o as its date and "%s"', (counts, text) => {
+    expect(testRunSummaryText({ createdAt, ...counts })).toBe(`${formatDateTime(createdAt)} · ${text}`)
+  })
+
+  it('shows only the date for a test run without cases', () => {
+    expect(testRunSummaryText({ createdAt, passed: 0, failed: 0, blocked: 0, notRun: 0 })).toBe(formatDateTime(createdAt))
+  })
 })
 
 describe('latestTestRunIds', () => {

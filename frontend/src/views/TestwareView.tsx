@@ -13,7 +13,7 @@ import type { CreatedRecordEditTarget, Notice } from '../app/types'
 import { useTestRuns } from '../testware/useTestRuns'
 import { CoverageLine } from './CoverageLine'
 import { RecordCollectionView, type RecordCollectionLabels } from './RecordCollectionView'
-import { LastTestRunLine, StartTestRunButton } from './TestRunEntryPoints'
+import { TestRunList, StartTestRunButton } from './TestRunEntryPoints'
 import { TestRunView } from './TestRunView'
 
 const testwareLabels: RecordCollectionLabels = {
@@ -130,13 +130,12 @@ export function TestwareView({
       renderSummary={(savedDrafts) => <CoverageLine acceptanceCriteria={acceptanceCriteria} records={savedDrafts} latestRuns={testRuns.latestRuns} />}
       renderListMeta={(draft) => <TestwareGenerationBadges draft={draft} />}
       renderPreviewHeader={(draft) => {
-        const lastRun = runsOf(draft.id)[0]
         return <>
           <div className="record-heading-row">
             <h2 className="record-title">{draft.title}</h2>
             <TestwareGenerationBadges draft={draft} />
           </div>
-          {lastRun ? <LastTestRunLine summary={lastRun} onOpen={() => void testRuns.openRun(lastRun.id, draft.id)} /> : null}
+          <TestRunList key={draft.id} runs={runsOf(draft.id)} onOpen={(runId) => void testRuns.openRun(runId, draft.id)} />
         </>
       }}
       renderActions={(draft, editing) => sessionId && !editing

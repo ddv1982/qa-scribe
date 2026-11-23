@@ -148,8 +148,8 @@ describe('Test runs in the built native application', () => {
       .map((node) => [node.attrs.level, node.content.map((child) => child.text).join('')])
     assert.deepEqual(headings, [[2, 'Checkout'], [3, cases[0]], [3, cases[1]]])
 
-    // A draft that was never run shows no Last test run line.
-    assert.equal(await $('.last-test-run').isExisting(), false)
+    // A draft that was never run shows no test run list.
+    assert.equal(await $('.test-run-list').isExisting(), false)
     await click('button=Start test run')
     await $(row(cases[0])).waitForDisplayed()
     assert.deepEqual(await browser.execute(() => Array.from(document.querySelectorAll('.test-run-case'), (section) => section.getAttribute('aria-label'))), cases)
@@ -211,9 +211,9 @@ describe('Test runs in the built native application', () => {
     await screenshot('result-notes-editor')
 
     await click('button=Back to test cases')
-    await browser.waitUntil(async () => (await $('.last-test-run').isExisting()) && /: 1 passed, 1 failed$/.test(await $('.last-test-run').getText()),
-      { timeoutMsg: 'the Last test run line did not count the results' })
-    save('last-run-line', { line: await $('.last-test-run').getText() })
+    await browser.waitUntil(async () => (await $('.test-run-list-item').isExisting()) && /· 1 passed · 1 failed\s*Latest$/.test(await $('.test-run-list-item').getText()),
+      { timeoutMsg: 'the test run list did not count the results' })
+    save('test-run-list', { line: await $('.test-run-list-item').getText() })
     await screenshot('draft-with-last-run')
 
     // The coverage line names the criterion whose test case failed in the latest test run.
@@ -235,7 +235,7 @@ describe('Test runs in the built native application', () => {
       await browser.waitUntil(async () => (await $('[aria-label="Session title"]').getValue()) === sessionTitle, { timeoutMsg: 'the Session did not reopen' })
     }
     await openTestCasesTab()
-    await click('.last-test-run')
+    await click('.test-run-list-item')
     await $(row(cases[0])).waitForDisplayed()
     await waitForProgress('2 of 2 run')
     assert.equal(await pressed(cases[0]), 'Passed')
@@ -314,7 +314,7 @@ describe('Test runs in the built native application', () => {
 
     // Back on the test run, the case shows its Finding.
     await openTestCasesTab()
-    await click('.last-test-run')
+    await click('.test-run-list-item')
     const findingLine = `//section[@aria-label="${failed}"]//button[normalize-space()="Finding: ${failed}"]`
     await $(findingLine).waitForDisplayed()
     assert.equal(await $(`//section[@aria-label="${failed}"]//button[normalize-space()="Create Finding"]`).isExisting(), false)
@@ -358,17 +358,57 @@ describe('Test runs in the built native application', () => {
     // A second test run, and the switcher between the two.
     await click('button=Start test run')
     await waitForProgress('0 of 2 run')
-    const switcher = await $('select[aria-label="Test run"]')
+    const switcher = await $('.test-run-switch select')
     await switcher.waitForDisplayed()
+    assert.equal(await $('.test-run-switch span').getText(), 'Test run')
     assert.equal((await switcher.$$('option')).length, 2)
     assert.equal((await native('list_test_runs', { sessionId: session.id })).length, 2)
+
+    // Four more test runs, so the draft has six and the list needs Show all.
+    for (let started = 3; started <= 6; started += 1) {
+      await click('button=Back to test cases')
+      await click('button=Start test run')
+      await browser.waitUntil(async () => (await native('list_test_runs', { sessionId: session.id })).length === started,
+        { timeoutMsg: `test run ${started} was not started` })
+      await waitForProgress('0 of 2 run')
+    }
+    await click('button=Back to test cases')
+
+    // The oldest test run, the one with results, opens from the list without starting a new one.
+    await $('.test-run-list').waitForDisplayed()
+    assert.equal((await $$('.test-run-list-item')).length, 5)
+    await click('button=Show all (6)')
+    const items = await $$('.test-run-list-item')
+    assert.equal(items.length, 6)
+    assert.match(await items[0].getText(), /Latest$/)
+    assert.match(await items[5].getText(), /· 1 passed · 1 failed$/)
+    await screenshot('test-run-list-all')
+    await items[5].click()
+    await $(row(cases[0])).waitForDisplayed()
+    await waitForProgress('2 of 2 run')
+    assert.equal(await pressed(cases[0]), 'Passed')
+    assert.equal(await pressed(cases[1]), 'Failed')
+    assert.equal((await native('list_test_runs', { sessionId: session.id })).length, 6)
+    // The switcher with all counts in its options still fits the pane.
+    const fit = await browser.execute(() => {
+      const pane = document.querySelector('.test-run').getBoundingClientRect()
+      const switcher = document.querySelector('.test-run-switch').getBoundingClientRect()
+      const wide = Array.from(document.querySelectorAll('body *'), (element) => [element, element.getBoundingClientRect()])
+        .filter(([, box]) => box.right > document.documentElement.clientWidth + 1)
+        .map(([element, box]) => `${element.tagName.toLowerCase()}.${element.className}:${Math.round(box.right)}`).slice(0, 8)
+      return { pane: Math.round(pane.right), switcher: Math.round(switcher.right), wide }
+    })
+    await screenshot('test-run-switcher')
+    save('switcher-fit', fit)
+    assert.ok(fit.switcher <= fit.pane, `the switcher overflows its pane: ${JSON.stringify(fit)}`)
+    save('opened-oldest', { testRuns: 6 })
 
     // Deleting the draft deletes its test runs, and the confirmation says so.
     await click('button=Back to test cases')
     await click(`[aria-label="Delete ${draftTitle}"]`)
     const dialog = await $('dialog[open]')
     await dialog.waitForDisplayed()
-    assert.match(await dialog.getText(), /Its 2 test runs are deleted too\./)
+    assert.match(await dialog.getText(), /Its 6 test runs are deleted too\./)
     await click('//dialog[@open]//button[normalize-space()="Delete testware permanently"]')
     await browser.waitUntil(async () => (await native('list_drafts', { sessionId: session.id })).length === 0, { timeoutMsg: 'the draft was not deleted' })
     assert.deepEqual(await native('list_test_runs', { sessionId: session.id }), [])
