@@ -389,6 +389,18 @@ describe('Test runs in the built native application', () => {
     assert.equal(await pressed(cases[0]), 'Passed')
     assert.equal(await pressed(cases[1]), 'Failed')
     assert.equal((await native('list_test_runs', { sessionId: session.id })).length, 6)
+    // The switcher with all counts in its options still fits the pane.
+    const fit = await browser.execute(() => {
+      const pane = document.querySelector('.test-run').getBoundingClientRect()
+      const switcher = document.querySelector('.test-run-switch').getBoundingClientRect()
+      const wide = Array.from(document.querySelectorAll('body *'), (element) => [element, element.getBoundingClientRect()])
+        .filter(([, box]) => box.right > document.documentElement.clientWidth + 1)
+        .map(([element, box]) => `${element.tagName.toLowerCase()}.${element.className}:${Math.round(box.right)}`).slice(0, 8)
+      return { pane: Math.round(pane.right), switcher: Math.round(switcher.right), wide }
+    })
+    await screenshot('test-run-switcher')
+    save('switcher-fit', fit)
+    assert.ok(fit.switcher <= fit.pane, `the switcher overflows its pane: ${JSON.stringify(fit)}`)
     save('opened-oldest', { testRuns: 6 })
 
     // Deleting the draft deletes its test runs, and the confirmation says so.

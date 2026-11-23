@@ -22,11 +22,14 @@
   justify-items: start;
   gap: var(--space-1);
 }
+/* The list sits in the sticky record header, so it scrolls within a bounded height instead of pushing the draft away. */
 .test-run-list ul {
   display: grid;
   gap: var(--space-1);
+  max-height: 10rem;
   margin: 0;
   padding: 0;
+  overflow-y: auto;
   list-style: none;
 }
 .test-run-list-item {
@@ -41,8 +44,15 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
+  min-width: 0;
+  max-width: 100%;
   color: var(--text-secondary);
   font-size: var(--font-size-sm);
+}
+/* A select sizes itself to its longest option; let it shrink to the pane instead. */
+.test-run-switch select {
+  min-width: 0;
+  max-width: 100%;
 }
 
 /* A test run reads as a page in the record pane, like the draft it replaces. */
@@ -60,6 +70,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-3);
+  min-width: 0;
   padding-block: var(--space-2);
 }
 
@@ -81,6 +92,8 @@
   align-items: center;
   justify-content: flex-end;
   gap: var(--space-2);
+  min-width: 0;
+  max-width: 100%;
 }
 
 .test-run-leave {
