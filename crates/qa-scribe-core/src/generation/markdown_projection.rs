@@ -5,9 +5,13 @@ use super::html::{
     MANAGED_ATTACHMENT_PROTOCOL, attribute_value, decode_html_entities, find_case_insensitive,
     find_html_tag_end,
 };
-use super::html_projection::redact_data_urls;
+use super::html_projection::{project_html_to_prompt_text, redact_data_urls};
 
 const VOID_TAGS: &[&str] = &["br", "hr", "img", "input"];
+/// Elements nested deeper than this make the Note fall back to the plain projection, so the
+/// recursive walk and drop of the tree stay within the thread stack. The Markdown parser keeps
+/// the same bound on a rewrite.
+const MAX_DEPTH: usize = 48;
 
 enum Node {
     Element {
@@ -19,10 +23,14 @@ enum Node {
 }
 
 pub fn project_html_to_prompt_markdown(value: &str) -> String {
-    blocks(&parse(value).iter().collect::<Vec<_>>()).join("\n\n")
+    match parse(value) {
+        Some(nodes) => blocks(&nodes.iter().collect::<Vec<_>>()).join("\n\n"),
+        None => project_html_to_prompt_text(value),
+    }
 }
 
-fn parse(source: &str) -> Vec<Node> {
+/// The element tree, or `None` when elements nest deeper than `MAX_DEPTH`.
+fn parse(source: &str) -> Option<Vec<Node>> {
     // Each open element with its raw tag and children; the root has no name.
     let mut stack: Vec<(String, String, Vec<Node>)> = vec![(String::new(), String::new(), vec![])];
     let mut index = 0usize;
@@ -67,6 +75,8 @@ fn parse(source: &str) -> Vec<Node> {
                 children: vec![],
             };
             stack.last_mut().unwrap().2.push(element);
+        } else if stack.len() > MAX_DEPTH {
+            return None;
         } else {
             stack.push((name, raw.to_string(), vec![]));
         }
@@ -75,7 +85,7 @@ fn parse(source: &str) -> Vec<Node> {
     while stack.len() > 1 {
         close(&mut stack);
     }
-    stack.pop().unwrap().2
+    stack.pop().map(|(.., nodes)| nodes)
 }
 
 fn push_text(stack: &mut [(String, String, Vec<Node>)], text: &str) {

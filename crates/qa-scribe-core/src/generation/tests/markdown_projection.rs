@@ -223,3 +223,31 @@ fn a_code_block_keeps_its_trailing_newlines_through_a_rewrite() {
         );
     }
 }
+
+#[test]
+fn a_deeply_nested_note_falls_back_to_the_plain_projection() {
+    for depth in [1_000, 100_000] {
+        let html = format!(
+            "{}<p>Deep <strong>text</strong></p>{}",
+            "<blockquote>".repeat(depth),
+            "</blockquote>".repeat(depth)
+        );
+        assert_eq!(
+            project(&html),
+            crate::generation::project_html_to_prompt_text(&html)
+        );
+    }
+}
+
+#[test]
+fn a_note_within_the_nesting_bound_keeps_its_markdown() {
+    let html = format!(
+        "{}<p>Deep</p>{}",
+        "<blockquote>".repeat(20),
+        "</blockquote>".repeat(20)
+    );
+    assert_eq!(
+        project(&html),
+        format!("{} Deep", "> ".repeat(20).trim_end())
+    );
+}
