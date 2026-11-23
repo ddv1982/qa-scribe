@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { imageFixture } from '../fixtures/chat-images-provider.mjs'
 import { settledViewport } from './preflight-native-keys.mjs'
+import { expectedStorageSchemaVersion } from './storage-schema.mjs'
 
 const composer = '[aria-label="Session chat"] textarea'
 const failures = '[aria-label="Failed images"]'
@@ -225,7 +226,7 @@ async function recovery(appearance) {
     assert.equal((await faultState()).imports.length, 1, 'The fault probe must observe real import A before arming simulated response loss')
     await browser.waitUntil(() => browser.execute(selector => document.querySelector(`${selector} img`)?.naturalWidth === 2, attached))
     evidence.before = database(sessionId)
-    assert.equal(evidence.before.schemaVersion, 23)
+    assert.equal(evidence.before.schemaVersion, expectedStorageSchemaVersion)
     assert.deepEqual(evidence.before.composerIds, [imageA.attachmentId])
     assert.equal(evidence.before.files[0].sha256, imageFixture.sha256)
     await browser.execute(() => { window.__qaChatRecovery.armed = true })
