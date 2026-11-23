@@ -287,7 +287,7 @@ function applyEditorAttributePolicy(root: HTMLElement) {
 function isVisuallyEmptyEditorHtml(value: string): boolean {
   if (!value.trim()) return true
   const documentFragment = new DOMParser().parseFromString(value, 'text/html')
-  if (documentFragment.body.querySelector('img, input')) return false
+  if (documentFragment.body.querySelector('hr, img, input')) return false
   return !(documentFragment.body.textContent ?? '').replace(/\u00a0/g, ' ').trim()
 }
 

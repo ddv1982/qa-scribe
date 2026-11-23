@@ -186,6 +186,13 @@ describe('editorHtml', () => {
     )
   })
 
+  it('keeps a divider as content and HTML samples inside a code block as text', () => {
+    expect(normalizeEditorHtml('<hr>')).toBe('<hr>')
+    expect(normalizeEditorHtml('<p></p><hr><p></p>')).toBe('<p></p><hr><p></p>')
+    const code = '<h2>Sample</h2><pre><code>&lt;p&gt;Hello&lt;/p&gt;\n&lt;br&gt;</code></pre><hr>'
+    expect(normalizeEditorHtml(code)).toBe(code)
+  })
+
   it('accepts only safe rich editor links and images', () => {
     expect(isSafeEditorLinkUrl('https://example.test')).toBe(true)
     expect(isSafeEditorLinkUrl('mailto:qa@example.test')).toBe(true)

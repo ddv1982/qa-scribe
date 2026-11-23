@@ -3,13 +3,13 @@ use super::{EDITOR_HTML_TAGS, SELF_CLOSING_EDITOR_HTML_TAGS};
 
 pub(super) fn should_decode_escaped_editor_html(value: &str) -> bool {
     let lower = value.to_ascii_lowercase();
-    if !contains_escaped_editor_opening_tag(&lower) {
+    // Genuine HTML already has an encoding boundary. Escapes inside it are text, including code
+    // samples, not legacy markup to decode again. The frontend's `normalizeEditorHtml` agrees.
+    if contains_literal_editor_tag(&lower) || !contains_escaped_editor_opening_tag(&lower) {
         return false;
     }
 
-    contains_escaped_editor_closing_tag(&lower)
-        || contains_literal_editor_tag(&lower)
-        || contains_escaped_self_closing_editor_tag(&lower)
+    contains_escaped_editor_closing_tag(&lower) || contains_escaped_self_closing_editor_tag(&lower)
 }
 
 fn contains_escaped_editor_opening_tag(lower: &str) -> bool {
