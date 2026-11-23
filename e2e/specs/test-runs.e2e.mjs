@@ -14,6 +14,7 @@ const cases = ['Pay by card AC-1', 'Pay with a gift card AC-2']
 const criteria = 'AC-1 Card payments go through\nAC-2 Gift card payments go through'
 const observation = 'The gift card was refused.'
 const notesHeading = 'Gateway response'
+const passedObservation = 'The payment was authorised.'
 const evidence = []
 
 function save(stage, value) {
@@ -156,6 +157,26 @@ describe('Test runs in the built native application', () => {
     await waitForProgress('0 of 2 run')
 
     await click(resultButton(cases[0], 'Passed'))
+    await click(`button[aria-label="Add result notes for ${cases[0]}"]`)
+    const passedEditor = await $(`[aria-label="Result notes for ${cases[0]}"][contenteditable="true"]`)
+    await passedEditor.waitForDisplayed()
+    await passedEditor.click()
+    await browser.execute(async (editor, text) => {
+      const canvas = document.createElement('canvas')
+      canvas.width = canvas.height = 4
+      const image = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
+      const clipboard = new DataTransfer()
+      clipboard.items.add(new File([image], 'accepted.png', { type: 'image/png' }))
+      clipboard.setData('text/plain', text)
+      clipboard.setData('text/html', '<img src="https://example.invalid/preview.png" alt="remote">')
+      editor.dispatchEvent(new ClipboardEvent('paste', { clipboardData: clipboard, bubbles: true, cancelable: true }))
+    }, passedEditor, passedObservation)
+    await browser.waitUntil(async () => {
+      const [summary] = await native('list_test_runs', { sessionId: session.id })
+      const passed = (await native('get_test_run', { runId: summary.id })).cases[0]
+      return passed.notes?.text === passedObservation && passed.notes.imageCount === 1
+    }, { timeoutMsg: 'plain text from the mixed clipboard did not save with the screenshot' })
+    await click(`button[aria-label="Result notes for ${cases[0]}"]`)
     await click(resultButton(cases[1], 'Failed'))
     await click(`button[aria-label="Add result notes for ${cases[1]}"]`)
     const notes = await $([`[aria-label="Result notes for ${cases[1]}"]`, '[contenteditable="true"]'].join(''))
@@ -232,7 +253,7 @@ describe('Test runs in the built native application', () => {
     await browser.waitUntil(loadedImage, { timeoutMsg: 'the saved evidence did not decode after reopening' })
     const stored = await native('get_test_run', { runId: runs[0].id })
     assert.deepEqual(stored.cases.map(({ title, result, notes }) => [title, result, notes?.imageCount ?? 0]), [
-      [cases[0], 'passed', 0], [cases[1], 'failed', 1],
+      [cases[0], 'passed', 1], [cases[1], 'failed', 1],
     ])
     if (process.platform === 'linux') {
       const wide = await browser.getWindowSize()
@@ -313,6 +334,9 @@ describe('Test runs in the built native application', () => {
       '',
       '### Checkout',
       `- Passed: ${cases[0]}`,
+      '  Result notes:',
+      `    ${passedObservation}`,
+      '  Evidence: 1 image',
       `- Failed: ${failed}`,
       '  Result notes:',
       `    ${notesHeading}`,

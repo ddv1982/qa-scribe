@@ -8,7 +8,7 @@ import {
 } from '../editor/editorDocument'
 import { managedAttachmentProtocol, pastedImageFilename, readFileAsDataUrl } from '../editor/editorHtml'
 import { FormatToolbar, RichTextEditor, type RichEditorImageUpload } from '../editor/RichTextEditor'
-import { richEditorImageInserterForId, type RichEditorImageInserter } from '../editor/richEditorRegistry'
+import { richEditorControllerForId, richEditorImageInserterForId, type RichEditorImageInserter } from '../editor/richEditorRegistry'
 import { readClipboardImageDataUrl, type TestCaseNoteImage } from '../tauri'
 import type { CasePatch, EditableTestCase } from '../testware/caseSaveQueue'
 import { notesText } from '../testware/testRunNotes'
@@ -92,18 +92,24 @@ export function TestRunNotes({ testCase, onChange }: { testCase: EditableTestCas
   }
 
   function paste(event: ClipboardEvent<HTMLElement>) {
-    const insertImage = richEditorImageInserterForId(editorId)
-    if (!insertImage || !(event.target instanceof Element) || !event.target.closest('[contenteditable="true"]')) return
-    const file = imageFileFromClipboardData(event.clipboardData)
+    const controller = richEditorControllerForId(editorId)
+    if (!controller || !(event.target instanceof Element) || !event.target.closest('[contenteditable="true"]')) return
+    const { editor, insertImage } = controller
+    const clipboard = event.clipboardData
+    const file = imageFileFromClipboardData(clipboard)
+    const plain = clipboard.getData('text/plain')
+    const html = clipboard.getData('text/html')
+    const hasPlainText = Boolean(plain.trim())
+    const hasHtmlText = Boolean(html && pastedMarkup(html).content.textContent?.trim())
+    const usePlainText = html && !hasHtmlText && hasPlainText
+    if (usePlainText || (file && !hasHtmlText && !hasPlainText)) {
+      event.preventDefault()
+      event.stopPropagation()
+      if (usePlainText) editor.view.pasteText(plain)
+    }
     if (file) {
-      const hasText = event.clipboardData.getData('text/plain').trim()
-        || pastedMarkup(event.clipboardData.getData('text/html')).content.textContent?.trim()
-      if (!hasText) {
-        event.preventDefault()
-        event.stopPropagation()
-      }
       void chooseImage({ editorId, file, insertImage })
-    } else if (shouldReadNativeClipboardImage(event.clipboardData)) {
+    } else if (!hasPlainText && !hasHtmlText && shouldReadNativeClipboardImage(clipboard)) {
       event.preventDefault()
       event.stopPropagation()
       void addImage(insertImage, 'pasted-screenshot.png', readClipboardImageDataUrl)
