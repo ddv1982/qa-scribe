@@ -1,0 +1,231 @@
+import { ActionButton } from '../components/ActionButton'
+import { useEffect, useId, useRef, useState, type ChangeEvent, type FormEvent, type MouseEvent } from 'react'
+import type { Editor } from '@tiptap/react'
+import { Bold, ImageIcon, Italic, Link2, List, ListChecks, type LucideIcon } from 'lucide-react'
+import { isSafeEditorLinkUrl } from './editorHtml'
+import { useRichEditorController, type RichEditorImageInserter, type RichEditorImageUpload } from './richEditorRegistry'
+
+type FormatToolbarProps = {
+  editorId?: string
+  onUploadImage?: (input: RichEditorImageUpload) => void | Promise<void>
+}
+
+type EditorSelection = Editor['state']['selection']
+
+export function FormatToolbar({ editorId, onUploadImage }: FormatToolbarProps) {
+  const generatedId = useId()
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const uploadInserterRef = useRef<RichEditorImageInserter | null>(null)
+  const linkInputRef = useRef<HTMLInputElement | null>(null)
+  const savedSelectionRef = useRef<EditorSelection | null>(null)
+  const controller = useRichEditorController(editorId)
+  const editor = controller?.editor ?? null
+  const disabled = !editor || Boolean(controller?.readOnly)
+  const blockValue = editor?.isActive('heading', { level: 2 }) ? 'h2' : editor?.isActive('heading', { level: 3 }) ? 'h3' : 'p'
+  const linkErrorId = `${editorId ?? generatedId}-link-error`
+
+  function saveEditorSelection() {
+    if (!editor || editor.state.selection.empty) {
+      savedSelectionRef.current = null
+      return
+    }
+    savedSelectionRef.current = editor.state.selection
+  }
+
+  function restoreSavedSelection() {
+    const selection = savedSelectionRef.current
+    savedSelectionRef.current = null
+    if (!editor || !selection) return
+
+    try {
+      editor.view.dispatch(editor.state.tr.setSelection(selection))
+    } catch {
+      // The document changed after the selection was captured; let TipTap use its current selection.
+    }
+  }
+
+  function applyBlockStyle(value: string) {
+    restoreSavedSelection()
+    setBlockStyle(editor, value)
+  }
+
+  // Inline link editor. `window.prompt`/`window.alert` are no-ops on macOS wry
+  // (WKWebView returns null without a WKUIDelegate), so we edit links in an
+  // inline popover instead. Behaviour parity with the old prompt flow: the
+  // current href is prefilled, an empty submit removes the link, and an unsafe
+  // scheme is rejected with an inline message.
+  const [linkPopover, setLinkPopover] = useState<{ value: string; error: string | null } | null>(null)
+
+  function openLinkEditor() {
+    if (!editor) return
+    saveEditorSelection()
+    const currentHref: unknown = editor.getAttributes('link').href
+    setLinkPopover({ value: typeof currentHref === 'string' ? currentHref : '', error: null })
+  }
+
+  function closeLinkEditor() {
+    savedSelectionRef.current = null
+    setLinkPopover(null)
+    editor?.chain().focus().run()
+  }
+
+  function submitLinkEditor(event: FormEvent) {
+    event.preventDefault()
+    if (!editor || !linkPopover) return
+    const trimmedUrl = linkPopover.value.trim()
+    if (!trimmedUrl) {
+      restoreSavedSelection()
+      editor.chain().focus().extendMarkRange('link').unsetLink().run()
+      setLinkPopover(null)
+      return
+    }
+    if (!isSafeEditorLinkUrl(trimmedUrl)) {
+      setLinkPopover({ value: linkPopover.value, error: 'Use an http, https, or mailto link.' })
+      return
+    }
+    restoreSavedSelection()
+    editor.chain().focus().extendMarkRange('link').setLink({ href: trimmedUrl }).run()
+    setLinkPopover(null)
+  }
+
+  useEffect(() => {
+    if (linkPopover) linkInputRef.current?.focus()
+  }, [linkPopover])
+
+  function requestImageUpload() {
+    if (!controller || !onUploadImage) return
+    uploadInserterRef.current = controller.insertImage
+    controller.editor.chain().focus().run()
+    fileInputRef.current?.click()
+  }
+
+  function handleImageSelected(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.currentTarget.files?.[0]
+    event.currentTarget.value = ''
+    const insertImage = uploadInserterRef.current
+    uploadInserterRef.current = null
+    if (!file || !insertImage || !onUploadImage || !editorId) return
+    void onUploadImage({ editorId, file, insertImage })
+  }
+
+  return (
+    <div className="format-toolbar" role="toolbar" aria-label="Formatting toolbar">
+      <select
+        value={blockValue}
+        aria-label="Block style"
+        aria-controls={editorId}
+        disabled={disabled}
+        onMouseDown={saveEditorSelection}
+        onFocus={saveEditorSelection}
+        onChange={(event) => {
+          applyBlockStyle(event.target.value)
+        }}
+      >
+        <option value="p">Paragraph</option>
+        <option value="h2">Heading</option>
+        <option value="h3">Subheading</option>
+      </select>
+      <span className="toolbar-divider" aria-hidden="true" />
+      <ToolbarButton label="Bold" icon={Bold} active={editor?.isActive('bold')} disabled={disabled} controlsId={editorId} command={() => editor?.chain().focus().toggleBold().run()} />
+      <ToolbarButton label="Italic" icon={Italic} active={editor?.isActive('italic')} disabled={disabled} controlsId={editorId} command={() => editor?.chain().focus().toggleItalic().run()} />
+      <ToolbarButton
+        label="Bulleted list"
+        icon={List}
+        active={editor?.isActive('bulletList')}
+        disabled={disabled}
+        controlsId={editorId}
+        command={() => editor?.chain().focus().toggleBulletList().run()}
+      />
+      <ToolbarButton
+        label="Checklist"
+        icon={ListChecks}
+        active={editor?.isActive('taskList')}
+        disabled={disabled}
+        controlsId={editorId}
+        command={() => editor?.chain().focus().toggleTaskList().run()}
+      />
+      <ToolbarButton label="Link" icon={Link2} active={editor?.isActive('link')} disabled={disabled} controlsId={editorId} command={openLinkEditor} />
+      <ToolbarButton label="Upload image" icon={ImageIcon} command={requestImageUpload} disabled={disabled || !onUploadImage} controlsId={editorId} />
+      <input ref={fileInputRef} className="toolbar-file-input" type="file" accept="image/*" aria-label="Upload image file" onChange={handleImageSelected} />
+      {linkPopover ? (
+        <form className="link-editor-popover" aria-label="Edit link" onSubmit={submitLinkEditor}>
+          <input
+            ref={linkInputRef}
+            className="link-editor-input"
+            type="text"
+            inputMode="url"
+            value={linkPopover.value}
+            placeholder="https://example.com — leave blank to remove"
+            aria-label="Link URL"
+            aria-invalid={linkPopover.error ? true : undefined}
+            aria-describedby={linkPopover.error ? linkErrorId : undefined}
+            onChange={(event) => setLinkPopover({ value: event.target.value, error: null })}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') {
+                event.preventDefault()
+                closeLinkEditor()
+              }
+            }}
+          />
+          <ActionButton variant="secondary" className="link-editor-apply" type="submit" aria-label="Apply link">
+            Apply
+          </ActionButton>
+          {linkPopover.error ? (
+            <p id={linkErrorId} className="link-editor-error" role="alert">
+              {linkPopover.error}
+            </p>
+          ) : null}
+        </form>
+      ) : null}
+    </div>
+  )
+}
+
+function ToolbarButton({
+  label,
+  icon: Icon,
+  command,
+  active = false,
+  disabled = false,
+  controlsId,
+}: {
+  label: string
+  icon: LucideIcon
+  command: () => void
+  active?: boolean
+  disabled?: boolean
+  controlsId?: string
+}) {
+  function preserveEditorSelection(event: MouseEvent<HTMLButtonElement>) {
+    event.preventDefault()
+  }
+
+  return (
+    <button
+      className="toolbar-button"
+      type="button"
+      aria-label={label}
+      title={label}
+      disabled={disabled}
+      aria-pressed={active}
+      aria-controls={controlsId}
+      onMouseDown={preserveEditorSelection}
+      onClick={command}
+    >
+      <Icon size={16} />
+    </button>
+  )
+}
+
+function setBlockStyle(editor: Editor | null, value: string) {
+  if (!editor) return
+  if (value === 'h2') {
+    editor.chain().focus().toggleHeading({ level: 2 }).run()
+    return
+  }
+  if (value === 'h3') {
+    editor.chain().focus().toggleHeading({ level: 3 }).run()
+    return
+  }
+  editor.chain().focus().setParagraph().run()
+}

@@ -51,7 +51,7 @@ Acceptance: the E2E passes, with its output shown.
 
 Goal: H1 to H6, numbered list button, strikethrough, inline code, plain code block, quote, divider and underline, each surviving save and reload, Ask AI Update, clipboard copy, prompt projection, Result notes text and test case splitting.
 
-- [ ] Extract `FormatToolbar.tsx` from `RichTextEditor.tsx` with no behaviour change; existing tests pass.
+- [x] Extract `FormatToolbar.tsx` from `RichTextEditor.tsx` with no behaviour change; existing tests pass.
 - [ ] Format contract test: one golden document with every node and mark, and for each path the expected output written out (JSON→HTML→JSON, both sanitisers, Markdown→JSON, prompt projection, clipboard plain and HTML, notes text in TS and Rust, splitter, `fromTestCase.ts`, `ChatProposalContent.tsx`, `VisualProposalReview.tsx`). Watch it fail before the schema change.
 - [ ] Enable the nodes and marks in `editorExtensions.ts`; add `h1 h4 h5 h6 blockquote pre code hr s u` to `EDITOR_HTML_TAGS` (`hr` self-closing) with no attributes; `editorHtml.ts:283` strips attributes from every tag outside `a, img, input, ul, ol, li`, matching Rust's default strip (`generation/response.rs:266-276`); regenerate bindings; sanitiser tests on both sides.
 - [ ] `chat/markdown.rs` and `chat/markdown/html.rs`: keep heading levels 1 to 6, code block with newlines, quote, rule, strike, inline code, and `<u>…</u>` as underline (other inline HTML stays literal). `Options::ENABLE_GFM` stays off until Phase 4. Rust tests, including `# A` staying level 1.
