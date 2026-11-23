@@ -345,3 +345,7 @@ export function resolveRefinement(request: RefinementRequest): Promise<ChatState
 export function applyRefinement(request: ApplyRefinementRequest): Promise<AppliedRefinement> {
   return commands.applyRefinement(request)
 }
+
+export function applyNoteRefinement(request: import('./bindings').ApplyNoteRefinementRequest) {
+  return commands.applyNoteRefinement(request)
+}

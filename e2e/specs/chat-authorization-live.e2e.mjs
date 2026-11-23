@@ -174,7 +174,7 @@ describe('AUTHENTICATED candidate native app Chat authorization (not fixtures)',
       evidence.pendingPanel = true
       evidence.stage = 'decision'
       if (scenario === 'cancel') await click('Cancel response')
-      else await click(scenario === 'approve' ? 'Approve once' : 'Deny')
+      else await click(scenario === 'approve' ? 'Approve this request' : 'Deny')
       evidence.decision = scenario
       evidence.stage = 'terminal'
       let terminal

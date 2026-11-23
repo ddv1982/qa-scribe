@@ -19,7 +19,7 @@ fn notes_turn(service: &SessionService, session_id: &str, outcome: serde_json::V
             ChatRequestIntent::Message,
         )
         .unwrap();
-    let user = &started.chat.messages[0];
+    let user = started.chat.messages.last().unwrap();
     let contract = service.response_contract(&user.id).unwrap().unwrap();
     assert_eq!(contract.version(), 3);
     assert_eq!(
@@ -311,3 +311,6 @@ fn undoing_a_note_update_offers_the_suggestion_again_and_rechecks_freshness() {
             .is_err()
     );
 }
+
+#[path = "note_update_transactions.rs"]
+mod updates;

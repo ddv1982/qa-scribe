@@ -19,6 +19,19 @@ export function inspectMinimalInput(input) {
   } else if (user.text === 'Make the expected result clearer.') {
     refinement = { kind: user.context.kind, bodyMarkdown: 'Keep the payment error visible after Retry and explain how to recover.' }
     markdown = 'The expected result can explain how the user should recover after a declined payment.'
+  } else if (user.text === 'Can you update the testcases based on this?') {
+    if (!contract.localEdit) {
+      return { ...payload, contract, response: "I've made it an explicit before/after case (TC06).", externalWrites: false }
+    }
+    markdown = 'I need one detail before proposing the update.'
+    question = { prompt: 'How should I handle the existing cases?', choices: ['Preserve existing cases', 'Replace existing cases'] }
+  } else if (user.text === 'Preserve existing cases') {
+    assert.equal(contract.localEdit, true)
+    refinement = { kind: 'test_cases_draft', bodyMarkdown: 'The application keeps the payment error visible after Retry.\n\n## TC06 Before and after\n\n- Compare matching inputs and expected results.' }
+    markdown = 'Proposed a before/after comparison.'
+  } else if (user.text === 'Rewrite the Note as a short checklist.') {
+    assert.equal(contract.localEdit, true)
+    refinement = { kind: 'note', bodyMarkdown: '## Checklist\n\n- [ ] Verify matching inputs.' }
   } else if (user.text === 'Add this to Jira.') {
     markdown = 'I can use your configured tools after the destination is clear.'
     question = { prompt: 'Which project and configured issue type?', choices: ['DEMO Bug', 'DEMO Finding subtask'] }

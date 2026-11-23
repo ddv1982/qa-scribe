@@ -12,6 +12,7 @@ import type { useAskAiContext } from './useAskAiContext'
 import type { CreatedRecordEditTarget, RecordWorkspace } from './types'
 
 export type ProposalControls = {
+  noteBefore?: import('../editor/editorDocument').RichEditorDocument
   applyUnavailable?: string
   errors: Readonly<Record<string, string>>
   pending: ReadonlySet<string>

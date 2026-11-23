@@ -246,6 +246,10 @@ impl CodexProtocol {
                         announced_thread: None,
                     };
                     let mut params = json!({"ephemeral":true,"cwd":self.cwd});
+                    if self.input.local_edit() {
+                        params["sandbox"] = json!("read-only");
+                        params["approvalPolicy"] = json!("never");
+                    }
                     if let Some(model) = &self.model {
                         params["model"] = json!(model);
                     }

@@ -17,7 +17,10 @@ impl SessionService {
                         RefinementState::Offered => {
                             let source = super::chat_responses::contract(tx, &proposal.user_message_id)?
                                 .and_then(|ChatResponseContract::Current(current)| current.note_source);
-                            if source.as_deref() != Some(super::chat_responses::note_fingerprint(tx, &chat.session_id)?.as_str()) {
+                            let legacy = super::chat_responses::note_fingerprint(tx, &chat.session_id)?;
+                            let note = super::entries::note_entry(tx, &chat.session_id)?;
+                            let current = super::chat_note_updates::content_fingerprint(note.as_ref());
+                            if !source.as_deref().is_some_and(|source| source == current || source == legacy) {
                                 return Err(validation("The note changed after this suggestion was made. Ask AI again for a suggestion based on the current note."));
                             }
                             proposal.state = RefinementState::Applied
@@ -197,7 +200,7 @@ pub(super) fn settle_stage(connection: &Connection, guard: &RecordWriteGuard) ->
 pub(super) fn summary(proposal: &RefinementProposal) -> String {
     let status = match proposal.state {
         RefinementState::Offered => "Not applied",
-        RefinementState::Applied => "Updated record",
+        RefinementState::Applied | RefinementState::NoteApplied => "Updated record",
         RefinementState::Staged { .. } => "Unsaved local stage",
         RefinementState::Saved { .. } => "Saved through the record editor",
         RefinementState::Dismissed => "Dismissed",

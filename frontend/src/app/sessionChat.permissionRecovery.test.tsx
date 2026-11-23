@@ -55,7 +55,7 @@ async function mountControllerView(provider: AiProvider) {
       providerAvailable: true, providerReason: '', onConfigureAi: vi.fn(),
       onSetComposer: actions.onSetComposer, onSend: actions.onSend, onRetry: actions.onRetry,
       onCancel: actions.onCancel, onSubmit: actions.onSubmit, onRestart: actions.onRestart,
-      onDecidePermission: actions.onDecidePermission, onRecheck: actions.onRecheck,
+      onDecidePermission: (id, decision, additional) => actions.onDecidePermission(id, decision, undefined, additional), onRecheck: actions.onRecheck,
     }
   }
   const view = render(<SessionChatView {...props()} />)
@@ -81,20 +81,20 @@ describe('controller-to-view permission recovery (F4retry2, R57-01)', () => {
     vi.useRealTimers()
   })
 
-  it.each(['claude_code', 'codex_cli', 'copilot_cli'] as const)('does not replay a %s bulk grant after a lost decision response or explicit recheck', async (provider) => {
+  it.each(['claude_code', 'codex_cli', 'copilot_cli'] as const)('does not replay a %s permission after a lost decision response or explicit recheck', async (provider) => {
     const canonical = pending(provider)
     const accepted = chatJobFixture({ pendingPermission: null })
-    api.decideChatPermission.mockRejectedValueOnce(new Error('Bulk approval response lost'))
+    api.decideChatPermission.mockRejectedValueOnce(new Error('Approval response lost'))
     api.getAiActionJobStatus.mockRejectedValueOnce(new Error('Status unavailable')).mockResolvedValue(accepted)
     const h = await mountControllerView(provider)
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Approve all for this tool' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Approve this request' }))
     })
     expect(api.decideChatPermission).toHaveBeenCalledExactlyOnceWith({
       jobId: canonical.jobId, sessionId: canonical.sessionId, provider,
-      requestId: canonical.pendingPermission!.requestId, decision: 'approveAll',
+      requestId: canonical.pendingPermission!.requestId, decision: 'approve',
     })
-    expect(screen.getByRole('alert')).toHaveTextContent('Bulk approval response lost')
+    expect(screen.getByRole('alert')).toHaveTextContent('Approval response lost')
     expect(screen.queryByRole('region', { name: 'Tool permission' })).not.toBeInTheDocument()
     await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Recheck status' })) })
@@ -107,18 +107,18 @@ describe('controller-to-view permission recovery (F4retry2, R57-01)', () => {
     expect(screen.getByRole('textbox', { name: 'Message' })).toHaveValue(composer)
   })
 
-  it('requires a new explicit choice after recovering an unresolved bulk decision', async () => {
+  it('requires a new explicit choice after recovering an unresolved permission decision', async () => {
     const canonical = pending('codex_cli')
-    api.decideChatPermission.mockRejectedValueOnce(new Error('Bulk approval response lost'))
+    api.decideChatPermission.mockRejectedValueOnce(new Error('Approval response lost'))
       .mockResolvedValueOnce(chatJobFixture({ pendingPermission: null }))
     api.getAiActionJobStatus.mockRejectedValueOnce(new Error('Status unavailable')).mockResolvedValue(canonical)
     await mountControllerView('codex_cli')
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Approve all for this tool' })) })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Approve this request' })) })
     await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
     expect(screen.queryByRole('region', { name: 'Tool permission' })).not.toBeInTheDocument()
     expect(api.decideChatPermission).toHaveBeenCalledTimes(1)
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Recheck status' })) })
-    expect(screen.getByRole('button', { name: 'Approve all for this tool' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Approve this request' })).toBeEnabled()
     expect(api.decideChatPermission).toHaveBeenCalledTimes(1)
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Deny' })) })
     expect(api.decideChatPermission).toHaveBeenCalledTimes(2)
@@ -147,7 +147,7 @@ describe('controller-to-view permission recovery (F4retry2, R57-01)', () => {
       expect(screen.getByRole('textbox', { name: 'Message' })).toHaveValue(composer)
 
       // Both failures occur through the actual view callback and controller.
-      await act(async () => { fireEvent.click(within(panel()).getByRole('button', { name: 'Approve once' })) })
+      await act(async () => { fireEvent.click(within(panel()).getByRole('button', { name: 'Approve this request' })) })
       expect(api.decideChatPermission).toHaveBeenCalledExactlyOnceWith({ ...payload, decision: 'approve' })
       expect(api.getAiActionJobStatus).toHaveBeenCalledExactlyOnceWith(canonical.jobId)
       expect(screen.getByRole('alert')).toHaveTextContent('Permission transport lost')
@@ -199,7 +199,7 @@ describe('controller-to-view permission recovery (F4retry2, R57-01)', () => {
       expect(api.getConversation).toHaveBeenCalledExactlyOnceWith({ sessionId: 'session-1', draftId: 'chat-1' })
       expect(h.refreshProviderStatus).toHaveBeenCalledTimes(1)
       expect(h.snapshot.job?.pendingPermission).toEqual(canonical.pendingPermission)
-      expect(within(panel()).getByRole('button', { name: 'Approve once' })).toBeEnabled()
+      expect(within(panel()).getByRole('button', { name: 'Approve this request' })).toBeEnabled()
       expect(within(panel()).getByRole('button', { name: 'Deny' })).toBeEnabled()
       expect(screen.queryByRole('alert')).not.toBeInTheDocument()
       expect(api.decideChatPermission).toHaveBeenCalledTimes(1)

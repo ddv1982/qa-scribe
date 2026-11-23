@@ -1,3 +1,5 @@
+import type { Entry } from '../bindings'
+import { richEditorDocumentFromStoredBody, serializeRichEditorDocument } from '../editor/editorDocument'
 import { useRef } from 'react'
 import type { useSessionActions } from './sessionActions'
 import type { SessionWorkspace } from './types'
@@ -68,5 +70,18 @@ export function createNoteEditors({
     }
     session.setNoteBody(next)
   }
-  return { setEditedSessionTitle, setEditedNoteBody }
+  function adoptRefinedNote(note: Entry, expected: string) {
+    if (session.activeSessionIdRef.current !== note.sessionId || session.noteEntryIdRef.current !== note.id) return
+    const document = richEditorDocumentFromStoredBody(note)
+    const current = serializeRichEditorDocument(session.noteBodyRef.current)
+    session.savedBodyRef.current = serializeRichEditorDocument(document)
+    session.setNoteEntry(note)
+    if (current === expected) {
+      sessionActions.adoptCanonicalNoteBody(document, note.id, note.sessionId)
+      session.setNoteBody(document)
+    }
+    setLatestNoteGenerationUndo(null)
+  }
+
+  return { setEditedSessionTitle, setEditedNoteBody, adoptRefinedNote }
 }

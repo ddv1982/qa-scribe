@@ -6,6 +6,7 @@ pub struct ResolvedChatMessage {
     pub text: String,
     pub context: ChatTarget,
     pub purpose: ChatResponsePurpose,
+    pub local_edit: bool,
     pub answer: Option<ChatAnswer>,
     pub images: Vec<ChatImage>,
 }
@@ -80,6 +81,7 @@ pub(super) fn resolve(
         _ => ChatResponsePurpose::Conversation,
     };
     let mut pinned = None;
+    let mut local_edit = false;
     match intent {
         ChatRequestIntent::Retry => return Err(validation("Retry uses the existing user message")),
         ChatRequestIntent::QuestionReply {
@@ -106,7 +108,11 @@ pub(super) fn resolve(
             }
             text = selected.clone();
             purpose = response.purpose.clone();
-            pinned = Some(user.context.clone());
+            local_edit = super::chat_responses::contract(connection, &user.id)?
+                .is_some_and(|contract| contract.local_edit());
+            if !local_edit {
+                pinned = Some(user.context.clone());
+            }
             answer = Some(ChatAnswer {
                 assistant_message_id: message.id.clone(),
             });
@@ -117,10 +123,60 @@ pub(super) fn resolve(
                 && question.choices.iter().any(|c| c == text.trim())
             {
                 purpose = response.purpose.clone();
-                pinned = Some(user.context.clone());
+                local_edit = super::chat_responses::contract(connection, &user.id)?
+                    .is_some_and(|contract| contract.local_edit());
+                if !local_edit {
+                    pinned = Some(user.context.clone());
+                }
                 answer = Some(ChatAnswer {
                     assistant_message_id: message.id.clone(),
                 });
+            }
+        }
+        ChatRequestIntent::SuggestEdit {
+            assistant_message_id,
+        } => {
+            if !matches!(purpose, ChatResponsePurpose::Refinement { .. }) {
+                return Err(validation(
+                    "Open a Note, Finding, or Test cases draft to request an edit",
+                ));
+            }
+            local_edit = true;
+            if let Some(id) = assistant_message_id {
+                if !text.is_empty() || !chat.composer_images.is_empty() {
+                    return Err(validation(
+                        "Clear the composer before requesting a suggestion from the last reply",
+                    ));
+                }
+                let latest = chat
+                    .messages
+                    .last()
+                    .filter(|m| {
+                        m.id == *id
+                            && m.role == ChatRole::Assistant
+                            && m.status == ChatTurnStatus::Completed
+                    })
+                    .ok_or_else(|| validation("This response is no longer current"))?;
+                let response = latest
+                    .response
+                    .as_ref()
+                    .filter(|r| r.purpose == purpose && r.question.is_none())
+                    .ok_or_else(|| validation("This response cannot be used to request an edit"))?;
+                let user = chat
+                    .messages
+                    .iter()
+                    .find(|m| {
+                        m.id == response.source_user_message_id && same_target(&active, &m.context)
+                    })
+                    .ok_or_else(|| validation("The response belongs to another source"))?;
+                if chat
+                    .proposals
+                    .iter()
+                    .any(|p| p.assistant_message_id == latest.id)
+                {
+                    return Err(validation("This response already has a suggestion"));
+                }
+                text = user.text.clone();
             }
         }
         ChatRequestIntent::RefineRecord => {
@@ -161,6 +217,11 @@ pub(super) fn resolve(
         })
         && !note_fits_context(connection, &chat.session_id)?
     {
+        if local_edit {
+            return Err(validation(
+                "The Note is too long to rewrite in one response.",
+            ));
+        }
         purpose = ChatResponsePurpose::Conversation;
     }
     let context = if let Some(context) = pinned {
@@ -176,6 +237,7 @@ pub(super) fn resolve(
         text,
         context,
         purpose,
+        local_edit,
         answer,
         images: chat.composer_images.clone(),
     })

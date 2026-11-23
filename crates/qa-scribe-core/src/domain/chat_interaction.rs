@@ -5,6 +5,10 @@ use serde::{Deserialize, Serialize};
 pub enum ChatRequestIntent {
     Message,
     RefineRecord,
+    SuggestEdit {
+        #[serde(rename = "assistantMessageId")]
+        assistant_message_id: Option<String>,
+    },
     DraftJira,
     QuestionReply {
         #[serde(rename = "assistantMessageId")]
@@ -38,6 +42,8 @@ pub struct ChatResponseInfo {
     pub source_user_message_id: String,
     pub purpose: ChatResponsePurpose,
     pub question: Option<ChatQuestion>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub local_edit: bool,
     pub warning: Option<String>,
 }
 
@@ -58,12 +64,18 @@ pub struct ChatResponseContractV2 {
     pub version: u8,
     pub request_id: String,
     pub purpose: ChatResponsePurpose,
-    /// SHA-256 of the saved Note body sent with a whole-note edit request; a
-    /// suggestion is only applied while the stored Note still matches it.
+    /// Fingerprint of the saved Note content used for the suggestion.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub note_source: Option<String>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub local_edit: bool,
 }
 impl ChatResponseContract {
+    pub fn local_edit(&self) -> bool {
+        let Self::Current(contract) = self;
+        contract.local_edit
+    }
+
     pub fn request_id(&self) -> &str {
         match self {
             Self::Current(c) => &c.request_id,

@@ -62,6 +62,7 @@ pub struct EditorStage {
 pub enum RefinementState {
     Offered,
     Applied,
+    NoteApplied,
     Staged { stage: EditorStage },
     Saved { stage: EditorStage },
     Dismissed,
@@ -171,4 +172,19 @@ pub enum RefinedRecord {
 pub struct AppliedRefinement {
     pub chat: super::ChatState,
     pub updated: RefinedRecord,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, specta::Type)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ApplyNoteRefinementRequest {
+    pub reference: super::ChatRef,
+    pub proposal_id: String,
+    pub undo: bool,
+}
+
+#[derive(Clone, Debug, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct AppliedNoteRefinement {
+    pub chat: super::ChatState,
+    pub note: super::Entry,
 }

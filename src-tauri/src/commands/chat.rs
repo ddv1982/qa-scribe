@@ -188,6 +188,9 @@ fn reconcile_chat_failure(
 )]
 pub enum ChatSendIntent {
     Composer,
+    SuggestEdit {
+        assistant_message_id: Option<String>,
+    },
     QuestionReply {
         assistant_message_id: String,
         text: String,
@@ -202,6 +205,11 @@ impl ChatSendIntent {
                 ChatComposerIntent::Message => ChatRequestIntent::Message,
                 ChatComposerIntent::RefineRecord => ChatRequestIntent::RefineRecord,
                 ChatComposerIntent::DraftJira => ChatRequestIntent::DraftJira,
+            },
+            Self::SuggestEdit {
+                assistant_message_id,
+            } => ChatRequestIntent::SuggestEdit {
+                assistant_message_id: assistant_message_id.clone(),
             },
             Self::QuestionReply {
                 assistant_message_id,
@@ -418,4 +426,13 @@ pub fn apply_refinement(
     request: ApplyRefinementRequest,
 ) -> Result<AppliedRefinement, CommandError> {
     state.with_service(|service| service.apply_refinement(request))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn apply_note_refinement(
+    state: State<'_, AppState>,
+    request: ApplyNoteRefinementRequest,
+) -> Result<AppliedNoteRefinement, CommandError> {
+    state.with_service(|service| service.apply_note_refinement(request))
 }

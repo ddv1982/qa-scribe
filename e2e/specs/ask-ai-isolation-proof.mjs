@@ -48,11 +48,11 @@ export async function recoverExact(reference) {
   await button.waitForClickable(); await button.click()
   return button
 }
-export async function start(text) {
+export async function start(text, action = 'Send') {
   if (text !== undefined) await fill(composer, text)
   const index = executions() + 1
   const chat = await selected()
-  await click(`${panel} button=Send`)
+  await click(`${panel} button=${action}`)
   await browser.waitUntil(() => existsSync(join(fixture, `codex-exec-${index}.started`)))
   return { index, reference: { sessionId: chat.sessionId, draftId: chat.draftId }, payload: JSON.parse(readFileSync(join(fixture, `codex-exec-${index}.chat.json`), 'utf8')) }
 }

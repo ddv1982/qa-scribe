@@ -13,6 +13,8 @@ use crate::domain::{AiProvider, ReportedModel};
 use serde_json::{Value, json};
 use std::collections::VecDeque;
 
+pub const MAX_PENDING_CHAT_PERMISSIONS: usize = 32;
+
 #[derive(Clone, Debug)]
 pub enum ChatProtocolEvent {
     Send(Value),
@@ -139,6 +141,14 @@ impl ChatProtocol {
         self.output.reported.clone()
     }
 
+    pub fn queued_permissions(&self) -> impl Iterator<Item = &ChatProtocolPermission> {
+        self.output
+            .pending
+            .iter()
+            .skip(1)
+            .filter_map(|pending| pending.detail.as_ref())
+    }
+
     /// Publish the next queued prompt without consuming its correlated reply.
     pub fn take_queued_permission(&mut self) -> Option<ChatProtocolPermission> {
         self.output.pending.front_mut()?.detail.take()
@@ -221,7 +231,7 @@ impl TurnData {
                 "Duplicate or stale permission request".into(),
             ));
         }
-        if self.pending.len() >= 32 {
+        if self.pending.len() >= MAX_PENDING_CHAT_PERMISSIONS {
             return Err(ProtocolError::InvalidFrame(
                 "Too many pending permission requests (maximum 32)".into(),
             ));

@@ -17,6 +17,7 @@ const tauriMock = vi.hoisted(() => ({
   reopenSession: vi.fn(), refreshProviderStatus: vi.fn(), retryAttachmentCleanup: vi.fn(), startAiActionJob: vi.fn(), updateDraft: vi.fn(),
   updateEntry: vi.fn(), updateFinding: vi.fn(), updateSession: vi.fn(), updateSettings: vi.fn(),
   beginRecordChat: vi.fn(), beginTestRunChat: vi.fn(), getConversation: vi.fn<(reference: ChatRef) => Promise<ChatState>>(), activateConversation: vi.fn(), listChatHistory: vi.fn(),
+  applyNoteRefinement: vi.fn<(request: import('../bindings').ApplyNoteRefinementRequest) => Promise<import('../bindings').AppliedNoteRefinement>>(),
   applyRefinement: vi.fn<(request: ApplyRefinementRequest) => Promise<AppliedRefinement>>(), resolveRefinement: vi.fn(), getChat: vi.fn<(sessionId: string) => Promise<ChatState>>(), saveChatComposer: vi.fn(), startChatJob: vi.fn(), submitChat: vi.fn(), restartChat: vi.fn(),
   importChatImage: vi.fn(), readChatClipboardImageDataUrl: vi.fn(),
   listTestRuns: vi.fn(), getTestRun: vi.fn(), startTestRun: vi.fn(), setTestCaseResult: vi.fn(), deleteTestRun: vi.fn(),
@@ -124,6 +125,7 @@ export function setupControllerTest() {
     if (previous) rows.set(saved.draftId, saved)
     return saved
   })
+  tauriMock.applyNoteRefinement.mockReset()
   tauriMock.applyRefinement.mockReset()
   tauriMock.resolveRefinement.mockReset()
   tauriMock.startChatJob.mockReset()

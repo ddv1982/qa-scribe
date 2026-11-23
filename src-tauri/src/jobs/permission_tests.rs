@@ -34,7 +34,7 @@ fn insert(store: &JobStore, action: &str, running: bool) -> JobControl {
     control
 }
 
-fn publish(store: &JobStore) -> (GenerationJobStatus, Receiver<ChatPermissionDecision>) {
+fn publish(store: &JobStore) -> (GenerationJobStatus, Receiver<super::PermissionReply>) {
     store
         .publish_chat_permission("job", details())
         .expect("running chat requests permission")
@@ -48,35 +48,48 @@ fn decision(status: &GenerationJobStatus) -> ChatPermissionDecisionRequest {
         request_id: pending.request_id.clone(),
         provider: pending.provider,
         decision: ChatPermissionDecision::Approve,
+        additional_request_ids: vec![],
     }
 }
 
-fn assert_cleared(store: &JobStore, receiver: &Receiver<ChatPermissionDecision>) {
+fn assert_cleared(store: &JobStore, receiver: &Receiver<super::PermissionReply>) {
     assert!(store.status("job").unwrap().pending_permission.is_none());
     assert_eq!(receiver.try_recv(), Err(TryRecvError::Disconnected));
 }
 
 #[test]
 fn chat_permission_bulk_is_single_use_bound_to_prompt_and_respects_unavailable_approval() {
-    let bulk: ChatPermissionDecision = serde_json::from_str("\"approveAll\"").unwrap();
+    let bulk: ChatPermissionDecision = serde_json::from_str("\"approveBatch\"").unwrap();
     let store = JobStore::default();
     insert(&store, "chat", true);
     let (status, receiver) = publish(&store);
     let mut request = decision(&status);
     request.decision = bulk;
-    for field in ["job", "session", "token", "provider"] {
+    let queued = store
+        .show_queued_chat_permissions("job", [details()].into_iter())
+        .unwrap()
+        .unwrap();
+    request.additional_request_ids = vec![queued.queued_permissions[0].request_id.clone()];
+    for field in ["job", "session", "token", "batch", "provider"] {
         let mut forged = request.clone();
         match field {
             "job" => forged.job_id = "another-job".into(),
             "session" => forged.session_id = "another-session".into(),
             "token" => forged.request_id = "another-token".into(),
+            "batch" => forged.additional_request_ids = vec!["unseen-token".into()],
             _ => forged.provider = AiProvider::CodexCli,
         }
         assert!(store.decide_chat_permission(forged).is_err());
         assert_eq!(receiver.try_recv(), Err(TryRecvError::Empty));
     }
     store.decide_chat_permission(request.clone()).unwrap();
-    assert_eq!(receiver.try_recv(), Ok(bulk));
+    assert_eq!(
+        receiver.try_recv(),
+        Ok(super::PermissionReply {
+            decision: bulk,
+            additional: 1
+        })
+    );
     assert!(store.decide_chat_permission(request).is_err());
 
     let mut metadata = details();
@@ -89,7 +102,13 @@ fn chat_permission_bulk_is_single_use_bound_to_prompt_and_respects_unavailable_a
     assert_eq!(receiver.try_recv(), Err(TryRecvError::Empty));
     request.decision = ChatPermissionDecision::Deny;
     store.decide_chat_permission(request).unwrap();
-    assert_eq!(receiver.try_recv(), Ok(ChatPermissionDecision::Deny));
+    assert_eq!(
+        receiver.try_recv(),
+        Ok(super::PermissionReply {
+            decision: ChatPermissionDecision::Deny,
+            additional: 0
+        })
+    );
 }
 
 #[test]
@@ -99,7 +118,7 @@ fn chat_permission_bulk_cannot_be_granted_after_cancellation_deletion_or_termina
         insert(&store, "chat", true);
         let (status, receiver) = publish(&store);
         let mut request = decision(&status);
-        request.decision = ChatPermissionDecision::ApproveAll;
+        request.decision = ChatPermissionDecision::ApproveBatch;
         let deletion = if ending == "delete" {
             Some(store.begin_session_deletion("session").unwrap())
         } else {
@@ -152,7 +171,13 @@ fn chat_permission_unavailable_approve_keeps_token_for_explicit_deny() {
             .pending_permission
             .is_none()
     );
-    assert_eq!(receiver.try_recv(), Ok(ChatPermissionDecision::Deny));
+    assert_eq!(
+        receiver.try_recv(),
+        Ok(super::PermissionReply {
+            decision: ChatPermissionDecision::Deny,
+            additional: 0
+        })
+    );
     assert_eq!(receiver.try_recv(), Err(TryRecvError::Disconnected));
     assert!(store.decide_chat_permission(request).is_err());
 }
@@ -222,7 +247,13 @@ fn chat_permission_approve_and_deny_delivered_once_with_unique_tokens() {
         .decide_chat_permission(request.clone())
         .expect("approve");
     assert!(decided.pending_permission.is_none());
-    assert_eq!(receiver.try_recv(), Ok(ChatPermissionDecision::Approve));
+    assert_eq!(
+        receiver.try_recv(),
+        Ok(super::PermissionReply {
+            decision: ChatPermissionDecision::Approve,
+            additional: 0
+        })
+    );
     assert_eq!(receiver.try_recv(), Err(TryRecvError::Disconnected));
     assert!(store.decide_chat_permission(request.clone()).is_err());
     let (second, receiver) = publish(&store);
@@ -232,7 +263,13 @@ fn chat_permission_approve_and_deny_delivered_once_with_unique_tokens() {
     assert_eq!(store.status("job").unwrap(), second);
     deny.decision = ChatPermissionDecision::Deny;
     store.decide_chat_permission(deny).expect("deny");
-    assert_eq!(receiver.try_recv(), Ok(ChatPermissionDecision::Deny));
+    assert_eq!(
+        receiver.try_recv(),
+        Ok(super::PermissionReply {
+            decision: ChatPermissionDecision::Deny,
+            additional: 0
+        })
+    );
     assert_eq!(receiver.try_recv(), Err(TryRecvError::Disconnected));
 }
 
@@ -242,7 +279,7 @@ fn chat_permission_forged_identity_does_not_consume_pending_request() {
     insert(&store, "chat", true);
     let (status, receiver) = publish(&store);
     let legitimate = decision(&status);
-    for field in ["job", "session", "token", "provider"] {
+    for field in ["job", "session", "token", "batch", "provider"] {
         let mut forged = legitimate.clone();
         match field {
             "job" => forged.job_id = "other-job".into(),
@@ -257,7 +294,13 @@ fn chat_permission_forged_identity_does_not_consume_pending_request() {
     assert!(store.publish_chat_permission("job", details()).is_err());
     assert_eq!(store.status("job").unwrap(), status);
     store.decide_chat_permission(legitimate).unwrap();
-    assert_eq!(receiver.try_recv(), Ok(ChatPermissionDecision::Approve));
+    assert_eq!(
+        receiver.try_recv(),
+        Ok(super::PermissionReply {
+            decision: ChatPermissionDecision::Approve,
+            additional: 0
+        })
+    );
 }
 
 #[test]
@@ -375,7 +418,13 @@ fn chat_permission_public_cancel_races_decision_without_leaking_pending() {
         GenerationJobState::Cancelling
     );
     if result.is_ok() {
-        assert_eq!(receiver.try_recv(), Ok(ChatPermissionDecision::Approve));
+        assert_eq!(
+            receiver.try_recv(),
+            Ok(super::PermissionReply {
+                decision: ChatPermissionDecision::Approve,
+                additional: 0
+            })
+        );
     }
     assert_cleared(&store, &receiver);
 }

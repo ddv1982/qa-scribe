@@ -1,7 +1,8 @@
 use std::time::{Duration, Instant};
 
 use qa_scribe_core::ai::{
-    ProviderExecutionError, ProviderGenerationOutput, chat::duplex_chat_command,
+    ProviderExecutionError, ProviderGenerationOutput,
+    chat::{duplex_chat_command, restrict_local_edit},
     stream::StreamUpdate,
 };
 use tauri::ipc::Channel;
@@ -13,7 +14,7 @@ use crate::{
             chat_duplex::{ChatDuplexContext, run_chat_duplex},
             provider_execution::validate_effective_selection,
         },
-        providers::provider_readiness_for_job,
+        providers::{codex_mcp_inventory_for_job, provider_readiness_for_job},
     },
     jobs::{GenerationJobStatus, JobControl, JobStore},
 };
@@ -51,13 +52,21 @@ impl ChatTransport<'_> {
             &request.model,
             request.reasoning_effort.as_deref(),
         )?;
-        let command = duplex_chat_command(
+        let mut command = duplex_chat_command(
             request.provider,
             "",
             &request.model,
             request.reasoning_effort.as_deref(),
             readiness.copilot_direct_cli_ready,
         )?;
+        if input.local_edit() {
+            let servers = if request.provider == qa_scribe_core::domain::AiProvider::CodexCli {
+                codex_mcp_inventory_for_job(self.control, &[])?.servers_to_disable
+            } else {
+                Vec::new()
+            };
+            restrict_local_edit(&mut command, request.provider, &servers);
+        }
         let mut partial = String::new();
         let mut last_emit = Instant::now();
         let mut last_len = 0usize;

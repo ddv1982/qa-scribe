@@ -62,9 +62,9 @@ export function createChatPermissions(ctx: SessionChatContext, host: {
       && token && state?.attempted.has(token) && !state.resolved.has(token)
       && !entry.permissionOperation)
   }
-  function onDecidePermission(requestId: string, decision: ChatPermissionDecision, bound?: ChatWorkspace): Promise<void> {
+  function onDecidePermission(requestId: string, decision: ChatPermissionDecision, bound?: ChatWorkspace, additionalRequestIds: string[] = []): Promise<void> {
     const entry = bound ?? host.active()
-    if (!entry || !host.current(entry) || !['approve', 'approveAll', 'deny'].includes(decision)) return Promise.resolve()
+    if (!entry || !host.current(entry) || !['approve', 'approveBatch', 'deny'].includes(decision)) return Promise.resolve()
     if (entry.permissionOperation) return entry.permissionOperation
     const job = entry.job
     const request = job?.pendingPermission
@@ -72,8 +72,9 @@ export function createChatPermissions(ctx: SessionChatContext, host: {
       || !request || request.requestId !== requestId || !statusOwns(entry, job)) {
       return Promise.resolve()
     }
-    if ((decision === 'approve' || decision === 'approveAll') && request.canApprove === false) return Promise.resolve()
-    if (decision === 'approveAll' && !request.toolName?.trim()) return Promise.resolve()
+    if ((decision === 'approve' || decision === 'approveBatch') && request.canApprove === false) return Promise.resolve()
+    if (decision === 'approveBatch' && (!additionalRequestIds.length || !request.inputJson
+      || additionalRequestIds.some((id, index) => job.queuedPermissions?.[index]?.requestId !== id))) return Promise.resolve()
     const state = ledger(entry, job.jobId)
     if (state.attempted.has(requestId) || state.resolved.has(requestId)) return Promise.resolve()
     const scopeCurrent = () => host.current(entry)
@@ -88,7 +89,7 @@ export function createChatPermissions(ctx: SessionChatContext, host: {
     const operation = Promise.race([(async () => {
       try {
         const status = await commands.decideChatPermission({ jobId: job.jobId,
-          sessionId: entry.sessionId, requestId, provider: request.provider, decision })
+          sessionId: entry.sessionId, requestId, provider: request.provider, decision, ...(additionalRequestIds.length ? { additionalRequestIds } : {}) })
         if (!stillCurrent()) return
         if (status.jobId !== job.jobId || !statusOwns(entry, status)) return
         if (status.pendingPermission && status.pendingPermission.provider !== request.provider) return

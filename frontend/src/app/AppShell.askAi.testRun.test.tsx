@@ -195,7 +195,7 @@ describe('an unfinished conversation of a deleted test run', () => {
     expect(source).toHaveTextContent('Test run')
     expect(source).toHaveTextContent('This test run is no longer available.')
     expect(within(panel).getByText('Post the results to PAY-12')).toBeInTheDocument()
-    expect(await within(panel).findByRole('button', { name: 'Approve once' })).toBeEnabled()
+    expect(await within(panel).findByRole('button', { name: 'Approve this request' })).toBeEnabled()
     expect(within(panel).getByRole('button', { name: 'Deny' })).toBeEnabled()
     expect(within(panel).getByRole('button', { name: 'Stop' })).toBeEnabled()
     expect(within(panel).getByRole('button', { name: 'Send' })).toBeDisabled()

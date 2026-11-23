@@ -157,7 +157,10 @@ pub fn generation_command_with_tool_policy(
     Ok(command)
 }
 
-fn tool_policy_args(provider: AiProvider, read_sources: &[GenerationReadSource]) -> Vec<String> {
+pub(super) fn tool_policy_args(
+    provider: AiProvider,
+    read_sources: &[GenerationReadSource],
+) -> Vec<String> {
     let args: Vec<String> = match provider {
         // https://code.claude.com/docs/en/cli-reference
         AiProvider::ClaudeCode => {
@@ -212,33 +215,11 @@ fn tool_policy_args(provider: AiProvider, read_sources: &[GenerationReadSource])
         // never asks, so MCP calls that need approval are refused. Features
         // are set with `-c` because `--disable` rejects names an older Codex
         // does not know.
-        AiProvider::CodexCli => [
-            "--ephemeral",
-            "--sandbox",
-            "read-only",
-            "-c",
-            r#"web_search="disabled""#,
-            "-c",
-            "features.shell_tool=false",
-            "-c",
-            "features.unified_exec=false",
-            "-c",
-            "features.apps=false",
-            "-c",
-            "features.plugins=false",
-            "-c",
-            "features.hooks=false",
-            "-c",
-            "features.image_generation=false",
-            "-c",
-            "features.multi_agent=false",
-            "-c",
-            "features.multi_agent_v2=false",
-            "-c",
-            "features.view_image=false",
-        ]
-        .map(str::to_owned)
-        .to_vec(),
+        AiProvider::CodexCli => ["--ephemeral", "--sandbox", "read-only"]
+            .map(str::to_owned)
+            .into_iter()
+            .chain(codex_no_tool_config_args())
+            .collect(),
         // https://docs.github.com/en/copilot/reference/cli-command-reference.
         // Requests that need approval are already denied with --no-ask-user;
         // these rules also deny shell, file reads and writes, and URLs
@@ -254,6 +235,33 @@ fn tool_policy_args(provider: AiProvider, read_sources: &[GenerationReadSource])
         .to_vec(),
     };
     args
+}
+
+pub(super) fn codex_no_tool_config_args() -> impl Iterator<Item = String> {
+    [
+        "-c",
+        r#"web_search="disabled""#,
+        "-c",
+        "features.shell_tool=false",
+        "-c",
+        "features.unified_exec=false",
+        "-c",
+        "features.apps=false",
+        "-c",
+        "features.plugins=false",
+        "-c",
+        "features.hooks=false",
+        "-c",
+        "features.image_generation=false",
+        "-c",
+        "features.multi_agent=false",
+        "-c",
+        "features.multi_agent_v2=false",
+        "-c",
+        "features.view_image=false",
+    ]
+    .into_iter()
+    .map(str::to_owned)
 }
 
 /// Claude Code settings with a PreToolUse hook that blocks every tool whose

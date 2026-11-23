@@ -57,13 +57,14 @@ export function useSessionChat(context: Omit<SessionChatContext, 'publish'> & {
     inputRecoveryPending: current.inputRecoveryPending, responseStarting: current.responseStarting,
     permissionWorking: current.permissionWorking,
     permissionRecoveryPending: current.permissionRecoveryPending,
-    onDecidePermission: (requestId, decision) => notes && permissionScopeIsCurrent()
-      ? notes.decidePermission(requestId, decision) : Promise.resolve(),
+    onDecidePermission: (requestId, decision, additionalRequestIds) => notes && permissionScopeIsCurrent()
+      ? notes.decidePermission(requestId, decision, additionalRequestIds) : Promise.resolve(),
     onRecheck: () => !current.chat && !current.loading ? retryLoad() : notes && permissionScopeIsCurrent()
       ? notes.recheck() : Promise.resolve(),
     onSetComposer: notes?.setComposer ?? (text => actions.setNotesInput(sessionId, { composer: text })), onAttachImages: notes?.attachImages ?? (async () => {}),
     onPasteNativeImage: notes?.pasteImage ?? (async () => {}), onRemoveImage: notes?.removeImage ?? (() => {}),
     onRetryImage: notes?.retryImage ?? (async () => {}), onDismissImageFailure: notes?.dismissImage ?? (async () => {}),
+    onSuggestEdit: notes?.suggestEdit,
     onSend: notes?.send ?? (async () => {}), onRetry: notes?.retry ?? (async () => {}),
     onCancel: notes?.cancel ?? (async () => {}), onSubmit: notes?.submit ?? (async () => {}), onRestart: notes?.restart ?? (async () => {}), captureRestart: notes?.captureRestart ?? (() => null),
   }

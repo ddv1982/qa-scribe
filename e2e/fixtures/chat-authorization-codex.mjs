@@ -12,6 +12,7 @@ import { inspectReadmeInput } from './readme-screenshots-provider.mjs'
 
 export function codexAppServer(argv) {
   let threadId
+  let playbackPolicy
   let turnId
   let active = false
   const directory = process.env.QA_SCRIBE_E2E_FIXTURE_DIR
@@ -40,12 +41,17 @@ export function codexAppServer(argv) {
     else if (request.method === 'initialized') { /* notification */ }
     else if (request.method === 'thread/start') {
       if (request.params.ephemeral !== true || active) throw new Error('Chat requires one ephemeral thread')
+      playbackPolicy = request.params
       threadId = `fixture-thread-${process.pid}`
       emit({ id: request.id, result: { thread: { id: threadId } } })
     } else if (request.method === 'turn/start') {
       if (!threadId || request.params.threadId !== threadId || active) throw new Error('Invalid Chat turn scope')
       active = true
       const imageInput = isolationFixture ? inspectMinimalInput(request.params.input) : routingFixture ? inspectRoutingInput(request.params.input) : jiraFixture ? inspectJiraInput(request.params.input) : refinementFixture ? inspectRefinementInput(request.params.input) : contextFixture ? inspectContextInput(request.params.input) : readmeFixture ? inspectReadmeInput(request.params.input) : images ? inspectImageInput(request.params.input) : null
+      if (imageInput?.contract?.localEdit && (playbackPolicy.sandbox !== 'read-only' || playbackPolicy.approvalPolicy !== 'never'
+        || !argv.includes('features.shell_tool=false') || !argv.includes('mcp_servers.fixture_server.enabled=false'))) {
+        throw new Error('Local refinement must start with tools disabled')
+      }
       const prompt = imageInput ? null : request.params.input.map((input) => {
         if (input.type !== 'text') throw new Error('Only text Chat input supported')
         return input.text

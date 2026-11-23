@@ -64,6 +64,33 @@ pub fn duplex_chat_command(
     Ok(command)
 }
 
+/// Restrict the duplex process before it can run a tool, including tools
+/// already allowed by user configuration.
+pub fn restrict_local_edit(
+    command: &mut GenerationCommand,
+    provider: AiProvider,
+    codex_servers: &[String],
+) {
+    use super::generation_tools::{codex_no_tool_config_args, tool_policy_args};
+    match provider {
+        AiProvider::ClaudeCode => command.args.extend(tool_policy_args(provider, &[])),
+        AiProvider::CodexCli => {
+            let mut config: Vec<_> = codex_no_tool_config_args().collect();
+            for server in codex_servers {
+                config.extend(["-c".into(), format!("mcp_servers.{server}.enabled=false")]);
+            }
+            command.args.splice(..0, config);
+        }
+        AiProvider::CopilotCli => {
+            command.args.extend(tool_policy_args(provider, &[]));
+            // Copilot's allowlist also excludes user-configured MCP tools.
+            command
+                .args
+                .push("--available-tools=qa_scribe_no_tools".into());
+        }
+    }
+}
+
 /// Reuses provider defaults, including configured tools and permissions.
 /// Only provider-session persistence is disabled because the app owns replay.
 pub fn streaming_chat_command(

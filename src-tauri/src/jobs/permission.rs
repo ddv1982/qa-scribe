@@ -36,7 +36,7 @@ pub struct ChatPermissionRequest {
 #[serde(rename_all = "camelCase")]
 pub enum ChatPermissionDecision {
     Approve,
-    ApproveAll,
+    ApproveBatch,
     Deny,
 }
 
@@ -48,6 +48,28 @@ pub struct ChatPermissionDecisionRequest {
     pub request_id: String,
     pub provider: AiProvider,
     pub decision: ChatPermissionDecision,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub additional_request_ids: Vec<String>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct PermissionReply {
+    pub decision: ChatPermissionDecision,
+    pub additional: usize,
+}
+
+impl From<ChatPermissionDetails> for ChatPermissionRequest {
+    fn from(details: ChatPermissionDetails) -> Self {
+        Self {
+            can_approve: details.can_approve,
+            request_id: uuid::Uuid::new_v4().to_string(),
+            provider: details.provider,
+            title: details.title,
+            tool_name: details.tool_name,
+            server_name: details.server_name,
+            input_json: details.input_json,
+        }
+    }
 }
 
 impl JobStore {
@@ -55,24 +77,43 @@ impl JobStore {
         &self,
         job_id: &str,
         details: ChatPermissionDetails,
-    ) -> Result<(GenerationJobStatus, Receiver<ChatPermissionDecision>), JobStoreError> {
+    ) -> Result<(GenerationJobStatus, Receiver<PermissionReply>), JobStoreError> {
         validate_details(&details)?;
         self.with_permission_job(job_id, |record| {
             if record.status.pending_permission.is_some() || record.permission_reply.is_some() {
                 return Err(invalid("A chat permission request is already pending"));
             }
             let (sender, receiver) = mpsc::channel();
-            record.status.pending_permission = Some(ChatPermissionRequest {
-                can_approve: details.can_approve,
-                request_id: uuid::Uuid::new_v4().to_string(),
-                provider: details.provider,
-                title: details.title,
-                tool_name: details.tool_name,
-                server_name: details.server_name,
-                input_json: details.input_json,
-            });
+            record.status.pending_permission = Some(details.into());
             record.permission_reply = Some(sender);
             Ok((record.status.clone(), receiver))
+        })
+    }
+
+    pub fn show_queued_chat_permissions(
+        &self,
+        job_id: &str,
+        details: impl Iterator<Item = ChatPermissionDetails>,
+    ) -> Result<Option<GenerationJobStatus>, JobStoreError> {
+        self.with_permission_job(job_id, |record| {
+            if record.status.pending_permission.is_none() {
+                return Ok(None);
+            }
+            let queued = &mut record.status.queued_permissions;
+            let batch: Vec<_> = details
+                .skip(queued.len())
+                .take_while(|request| {
+                    request.can_approve
+                        && request.input_json.is_some()
+                        && validate_details(request).is_ok()
+                })
+                .map(ChatPermissionRequest::from)
+                .collect();
+            if batch.is_empty() {
+                return Ok(None);
+            }
+            queued.extend(batch);
+            Ok(Some(record.status.clone()))
         })
     }
 
@@ -95,11 +136,29 @@ impl JobStore {
             if request.decision != ChatPermissionDecision::Deny && !pending.can_approve {
                 return Err(invalid("Chat permission request does not offer approval"));
             }
-            if request.decision == ChatPermissionDecision::ApproveAll
-                && !offers_approve_all(pending)
-            {
+            let additional = request.additional_request_ids.len();
+            if request.decision == ChatPermissionDecision::ApproveBatch {
+                if additional == 0
+                    || pending.input_json.is_none()
+                    || additional > record.status.queued_permissions.len()
+                    || !record
+                        .status
+                        .queued_permissions
+                        .iter()
+                        .zip(&request.additional_request_ids)
+                        .all(|(entry, id)| {
+                            entry.can_approve
+                                && entry.provider == request.provider
+                                && entry.request_id == *id
+                        })
+                {
+                    return Err(invalid(
+                        "Visible permission requests changed. Review the current requests.",
+                    ));
+                }
+            } else if additional != 0 {
                 return Err(invalid(
-                    "Chat permission request does not name its tool, so it can only be approved once",
+                    "Only a batch approval can include additional requests",
                 ));
             }
             let sender = record
@@ -107,10 +166,14 @@ impl JobStore {
                 .take()
                 .ok_or_else(|| invalid("Chat permission receiver is unavailable"))?;
             record.status.pending_permission = None;
+            record.status.queued_permissions.clear();
             // Unbounded mpsc send cannot block. Keep delivery inside the gate
             // and store lock so accepted cancellation cannot interleave it.
             sender
-                .send(request.decision)
+                .send(PermissionReply {
+                    decision: request.decision,
+                    additional,
+                })
                 .map_err(|_| invalid("Chat permission receiver was disconnected"))?;
             Ok(record.status.clone())
         })
@@ -188,20 +251,13 @@ impl JobStore {
 impl JobRecord {
     pub(super) fn clear_permission(&mut self) {
         self.status.pending_permission = None;
+        self.status.queued_permissions.clear();
         self.permission_reply = None;
     }
 }
 
 fn invalid(message: &str) -> JobStoreError {
     JobStoreError::InvalidPermission(message.to_string())
-}
-
-/// "Approve all" needs a provider-supplied tool name to scope it to one tool.
-fn offers_approve_all(request: &ChatPermissionRequest) -> bool {
-    request
-        .tool_name
-        .as_deref()
-        .is_some_and(|name| !name.trim().is_empty())
 }
 
 fn default_can_approve() -> bool {

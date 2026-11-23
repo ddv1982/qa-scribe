@@ -187,7 +187,7 @@ export function createSessionChatActions(ctx: SessionChatContext) {
     publish(entry)
     return operation
   }
-  const { onSend, onAnswerQuestion, onPrepareAction, onRetry } = createChatSend(ctx, {
+  const { onSend, onAnswerQuestion, onPrepareAction, onRetry, onSuggestEdit } = createChatSend(ctx, {
     active, run, saveComposer, hydrate, refresh: id => refresh(id, false, true), publish, acceptChat, receiveStatus, observeJob, onSetComposer,
   })
   const { onDecidePermission, onRecheck } = permissions
@@ -311,10 +311,11 @@ export function createSessionChatActions(ctx: SessionChatContext) {
       setMode: (mode: ChatMode) => setMode(mode, entry),
       submit: () => onSubmit(entry), restart: () => onRestart(entry), captureRestart: () => captureRestart(entry), prepareAction: (id: string) => onPrepareAction(id, entry),
       send: () => onSend(entry), retry: () => onRetry(entry),
+      suggestEdit: (id: string | null) => onSuggestEdit(id, entry),
       answer: (id: string, text: string) => onAnswerQuestion(id, text, entry),
       cancel: () => onCancel(entry), attachImages: (files: File[]) => onAttachImages(files, entry), pasteImage: () => onPasteNativeImage(entry),
       removeImage: (id: string) => onRemoveImage(id, entry), retryImage: (id: string) => onRetryImage(id, entry), dismissImage: (id: string) => onDismissImageFailure(id, entry),
-      decidePermission: (id: string, decision: import('../bindings').ChatPermissionDecision) => onDecidePermission(id, decision, entry),
+      decidePermission: (id: string, decision: import('../bindings').ChatPermissionDecision, additionalIds?: string[]) => onDecidePermission(id, decision, entry, additionalIds),
       recheck: () => onRecheck(entry),
     }
     handles.set(entry, handle)
@@ -339,4 +340,4 @@ export function createSessionChatActions(ctx: SessionChatContext) {
     onRestart, captureRestart, onDecidePermission, onRecheck, isCurrentPermissionScope }
 }
 export type ConversationEngine = ReturnType<typeof createSessionChatActions>
-export type ConversationHandle = { reference: ChatRef; snapshot: () => import('./sessionChat.types').ChatSnapshot; subscribe: (listener: () => void) => () => void; refresh: () => Promise<void>; flush: () => Promise<boolean>; setComposer: (text: string) => void; setIntent: (intent: ChatComposerIntent) => void; setMode: (mode: ChatMode) => void; submit: () => Promise<void>; restart: () => Promise<void>; captureRestart: () => (() => Promise<void>) | null; prepareAction: (id: string) => Promise<void>; send: () => Promise<void>; retry: () => Promise<void>; answer: (id: string, text: string) => Promise<void>; cancel: () => Promise<void>; attachImages: (files: File[]) => Promise<void>; pasteImage: () => Promise<void>; removeImage: (id: string) => void; retryImage: (id: string) => Promise<void>; dismissImage: (id: string) => Promise<void>; decidePermission: (id: string, decision: import('../bindings').ChatPermissionDecision) => Promise<void>; recheck: () => Promise<void> }
+export type ConversationHandle = { reference: ChatRef; snapshot: () => import('./sessionChat.types').ChatSnapshot; subscribe: (listener: () => void) => () => void; refresh: () => Promise<void>; flush: () => Promise<boolean>; setComposer: (text: string) => void; setIntent: (intent: ChatComposerIntent) => void; setMode: (mode: ChatMode) => void; submit: () => Promise<void>; restart: () => Promise<void>; captureRestart: () => (() => Promise<void>) | null; prepareAction: (id: string) => Promise<void>; send: () => Promise<void>; suggestEdit: (id: string | null) => Promise<void>; retry: () => Promise<void>; answer: (id: string, text: string) => Promise<void>; cancel: () => Promise<void>; attachImages: (files: File[]) => Promise<void>; pasteImage: () => Promise<void>; removeImage: (id: string) => void; retryImage: (id: string) => Promise<void>; dismissImage: (id: string) => Promise<void>; decidePermission: (id: string, decision: import('../bindings').ChatPermissionDecision, additionalIds?: string[]) => Promise<void>; recheck: () => Promise<void> }

@@ -23,7 +23,7 @@ export function AppChat({ c, recordVisible = c.askAi.visible, modelSelectionCont
   const notesSessionId = c.sessionChat.chat?.sessionId
   const engine = c.conversations
   const notesMessages = c.sessionChat.chat?.messages ?? []
-  const noteControls = useNoteProposalControls({ chat: c.sessionChat.chat, onRefresh: c.sessionChat.onRefresh, noteBody: c.noteBody, setNoteBody: c.setNoteBody,
+  const noteControls = useNoteProposalControls({ chat: c.sessionChat.chat, onRefresh: c.sessionChat.onRefresh, noteBody: c.noteBody, adoptNote: c.adoptRefinedNote,
     saveNote: c.saveAllPendingChanges, blockedReason: c.noteReadOnly ? noteReadOnlyReason : c.pendingRecoveredSummaryDecision ? recoveredSummaryChoiceReason : undefined, recordControls: c.sessionChat.proposalControls })
   useEffect(() => {
     if (notesVisible && notesDraftId && notesSessionId) void engine.select({ sessionId: notesSessionId, draftId: notesDraftId }).catch(() => undefined)
@@ -79,7 +79,7 @@ function RecordConversation({ c, visible, common }: {
     onUpdate: (id: string) => c.proposalControls.onUpdate?.(id, reference!) ?? Promise.resolve(),
     onAction: (id: string, action: import('../bindings').RefinementAction) => c.proposalControls.onAction(id, action, reference!) } : undefined
   const noun = owner.kind === 'test_run' ? { eyebrow: 'Test run', missing: 'test run is' }
-    : owner.record.kind === 'finding' ? { eyebrow: 'Finding', missing: 'finding is' } : { eyebrow: 'Test case', missing: 'Test cases draft is' }
+    : owner.record.kind === 'finding' ? { eyebrow: 'Finding', missing: 'finding is' } : { eyebrow: 'Test cases draft', missing: 'Test cases draft is' }
   return <AskAiPanel panelRef={ref} kind="record" visible={visible} label="Ask AI" eyebrow={noun.eyebrow}
     onClose={() => void c.askAi.close()} source={<>
       {source.kind === 'available' ? <strong title={source.title}>{source.title}</strong>
@@ -93,7 +93,7 @@ function RecordConversation({ c, visible, common }: {
     {handle && reference ? <div className="conversation-presentation" key={reference.draftId}>
       {panel.legacyOrigin ? <BoundNotes c={c} common={common} hidden={!visible} modelSelectionControl={null} /> : <SessionChatView {...state} {...common} kind="record" owner={owner} source={source} hidden={!visible}
         modelSelectionControl={null} proposalControls={controls} activeTarget={c.askAi.context}
-        onSetComposer={handle.setComposer} onSend={handle.send} onRetry={handle.retry} onCancel={handle.cancel}
+        onSetComposer={handle.setComposer} onSend={handle.send} onSuggestEdit={handle.suggestEdit} onAnswerQuestion={handle.answer} onRetry={handle.retry} onCancel={handle.cancel}
         onAttachImages={handle.attachImages} onPasteNativeImage={handle.pasteImage} onRemoveImage={handle.removeImage} onRetryImage={handle.retryImage} onDismissImageFailure={handle.dismissImage}
         onDecidePermission={handle.decidePermission} onRecheck={handle.recheck} />}
     </div> : null}
@@ -123,7 +123,7 @@ function BoundNotes({ c, common, hidden, modelSelectionControl }: {
     activeTarget={c.askAi.context} proposalControls={{ ...c.proposalControls, applyUnavailable: c.askAi.panel?.legacyOrigin && c.askAi.source?.kind !== 'available' ? 'The original source must be available before Apply or Undo.' : undefined, onAction: (id, action) => c.proposalControls.onAction(id, action, handle.reference) }}
     onSetComposer={handle.setComposer} onSend={handle.send} onRetry={handle.retry} onCancel={handle.cancel} onSubmit={handle.submit} onRestart={handle.restart} captureRestart={handle.captureRestart}
     onOpenNote={() => { c.setSessionMode('write_note'); c.setActiveView('sessions') }} onAttachImages={handle.attachImages} onPasteNativeImage={handle.pasteImage}
-    onRemoveImage={handle.removeImage} onRetryImage={handle.retryImage} onDismissImageFailure={handle.dismissImage} onAnswerQuestion={handle.answer}
+    onRemoveImage={handle.removeImage} onRetryImage={handle.retryImage} onDismissImageFailure={handle.dismissImage} onAnswerQuestion={handle.answer} onSuggestEdit={handle.suggestEdit}
     onPrepareAction={handle.prepareAction} onDecidePermission={handle.decidePermission} onRecheck={handle.recheck} />
 }
 

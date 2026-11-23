@@ -21,8 +21,9 @@ export function createChatSend(ctx: SessionChatContext, dependencies: Dependenci
   async function send(entry: ChatWorkspace, intent: ChatSendIntent) {
     const retry = intent.kind === 'retry'
     const direct = intent.kind === 'question_reply'
+    const recovery = intent.kind === 'suggest_edit' && intent.assistantMessageId !== null
     const startVersion = entry.inputVersion
-    if (direct && (entry.composer !== '' || entry.composerImages.length || entry.imageFailures.length)) throw new Error(occupiedChoiceReason)
+    if ((direct || recovery) && (entry.composer !== '' || entry.composerImages.length || entry.imageFailures.length)) throw new Error(occupiedChoiceReason)
     if (entry.pendingStart) throw new Error('Recheck status to recover the previous send before continuing.')
     if (!entry.chat) await hydrate(entry)
     if (entry.retired) return
@@ -43,7 +44,7 @@ export function createChatSend(ctx: SessionChatContext, dependencies: Dependenci
     const reason = unresolvedChatReason(entry.chat, retry)
     if (reason) throw new Error(reason)
     if (retry && (entry.composer.length > 0 || entry.composerImages.length > 0 || entry.composerIntent.kind !== 'message')) throw new Error('Clear the composer before retrying the failed turn.')
-    if (!retry && !direct && entry.composerIntent.kind !== 'draft_jira' && !entry.composer.trim() && !entry.composerImages.length) throw new Error('Enter a message or attach an image before sending.')
+    if (!retry && !direct && !recovery && entry.composerIntent.kind !== 'draft_jira' && !entry.composer.trim() && !entry.composerImages.length) throw new Error('Enter a message or attach an image before sending.')
     if (direct && context) {
       const message = entry.chat.messages.find(item => item.id === intent.assistantMessageId)
       const reason = message ? questionReason(entry.chat.messages, message, context) : 'This question is no longer active.'
@@ -52,7 +53,7 @@ export function createChatSend(ctx: SessionChatContext, dependencies: Dependenci
     }
     if (!await saveComposer(entry)) return
     if (entry.retired) return
-    if (direct) {
+    if (direct || recovery) {
       const current = ctx.captureContext?.(entry.sessionId, entry.owner) ?? { kind: 'session' as const }
       if (!context || !sameChatTarget(context, current)) throw new Error('The source changed before replying. Your input is retained.')
       if (entry.inputVersion !== startVersion || entry.composer !== '' || entry.composerImages.length || entry.imageFailures.length) throw new Error(occupiedChoiceReason)
@@ -107,5 +108,7 @@ export function createChatSend(ctx: SessionChatContext, dependencies: Dependenci
     dependencies.onSetComposer(actionRequestText, entry)
     await saveComposer(entry)
   }, bound)
-  return { onSend, onRetry, onAnswerQuestion, onPrepareAction }
+  const onSuggestEdit = (assistantMessageId: string | null, bound?: ChatWorkspace) =>
+    run('send', entry => send(entry, { kind: 'suggest_edit', assistantMessageId }), bound)
+  return { onSend, onRetry, onAnswerQuestion, onPrepareAction, onSuggestEdit }
 }

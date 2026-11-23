@@ -13,6 +13,7 @@ mod registration;
 mod session_deletion;
 pub use control::JobControl;
 pub use permission::ChatPermissionDetails;
+pub(crate) use permission::PermissionReply;
 pub use permission::{
     ChatPermissionDecision, ChatPermissionDecisionRequest, ChatPermissionRequest,
 };
@@ -99,6 +100,8 @@ pub struct GenerationJobStatus {
     pub partial_text: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pending_permission: Option<ChatPermissionRequest>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub queued_permissions: Vec<ChatPermissionRequest>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, specta::Type)]
@@ -136,7 +139,7 @@ struct JobRecord {
     status: GenerationJobStatus,
     control: JobControl,
     terminal_sequence: Option<u64>,
-    permission_reply: Option<std::sync::mpsc::Sender<ChatPermissionDecision>>,
+    permission_reply: Option<std::sync::mpsc::Sender<permission::PermissionReply>>,
 }
 
 #[derive(Default)]
