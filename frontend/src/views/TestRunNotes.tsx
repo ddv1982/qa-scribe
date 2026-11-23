@@ -6,7 +6,7 @@ import {
   managedAttachmentImagesInDocument, parseRichEditorDocument, richEditorDocumentFromPlainText,
   serializeRichEditorDocument, type RichEditorDocument,
 } from '../editor/editorDocument'
-import { managedAttachmentProtocol, pastedImageFilename, readFileAsDataUrl } from '../editor/editorHtml'
+import { managedAttachmentProtocol, normalizeEditorHtml, pastedImageFilename, readFileAsDataUrl, stripHtml } from '../editor/editorHtml'
 import { FormatToolbar, RichTextEditor, type RichEditorImageUpload } from '../editor/RichTextEditor'
 import { richEditorControllerForId, richEditorImageInserterForId, type RichEditorImageInserter } from '../editor/richEditorRegistry'
 import { readClipboardImageDataUrl, type TestCaseNoteImage } from '../tauri'
@@ -100,7 +100,7 @@ export function TestRunNotes({ testCase, onChange }: { testCase: EditableTestCas
     const plain = clipboard.getData('text/plain')
     const html = clipboard.getData('text/html')
     const hasPlainText = Boolean(plain.trim())
-    const hasHtmlText = Boolean(html && pastedMarkup(html).content.textContent?.trim())
+    const hasHtmlText = Boolean(html && stripHtml(withoutPastedImages(html)))
     const usePlainText = html && !hasHtmlText && hasPlainText
     if (usePlainText || (file && !hasHtmlText && !hasPlainText)) {
       event.preventDefault()
@@ -143,14 +143,9 @@ export function TestRunNotes({ testCase, onChange }: { testCase: EditableTestCas
   </div>
 }
 
-function pastedMarkup(html: string): HTMLTemplateElement {
-  const template = document.createElement('template')
-  template.innerHTML = html
-  return template
-}
-
 function withoutPastedImages(html: string): string {
-  const template = pastedMarkup(html)
+  const template = document.createElement('template')
+  template.innerHTML = normalizeEditorHtml(html)
   template.content.querySelectorAll('img').forEach(image => image.remove())
   return template.innerHTML
 }

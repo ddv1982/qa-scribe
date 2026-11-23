@@ -168,7 +168,7 @@ describe('Test runs in the built native application', () => {
       const clipboard = new DataTransfer()
       clipboard.items.add(new File([image], 'accepted.png', { type: 'image/png' }))
       clipboard.setData('text/plain', text)
-      clipboard.setData('text/html', '<img src="https://example.invalid/preview.png" alt="remote">')
+      clipboard.setData('text/html', '<head><style>p { color: black; }</style></head><img src="https://example.invalid/preview.png" alt="remote">')
       editor.dispatchEvent(new ClipboardEvent('paste', { clipboardData: clipboard, bubbles: true, cancelable: true }))
     }, passedEditor, passedObservation)
     await browser.waitUntil(async () => {
