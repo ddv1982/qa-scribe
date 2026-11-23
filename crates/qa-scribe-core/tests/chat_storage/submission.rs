@@ -42,7 +42,7 @@ fn assistant_markdown_submission_formats_html_and_json_and_preserves_user_litera
         let result = service.get_or_create_note_entry(&id).unwrap();
         assert!(result.body.starts_with("<p>Existing</p>"));
         assert!(
-            result.body.contains("<h2>Requirements</h2>"),
+            result.body.contains("<h1>Requirements</h1>"),
             "{}",
             result.body
         );
@@ -67,7 +67,7 @@ fn assistant_markdown_submission_formats_html_and_json_and_preserves_user_litera
             assert!(
                 nodes
                     .iter()
-                    .any(|node| node["type"] == "heading" && node["attrs"]["level"] == 2)
+                    .any(|node| node["type"] == "heading" && node["attrs"]["level"] == 1)
             );
             let serialized = parsed.to_string();
             for kind in [
@@ -117,11 +117,11 @@ fn markdown_fallbacks_keep_text_boundaries_and_block_unsafe_resources() {
     service.submit_chat(submit_request(&chat, &note)).unwrap();
     let result = service.get_or_create_note_entry(&id).unwrap();
     for fragment in [
-        "<h3>Deep heading</h3>",
-        "inline",
-        "retained",
-        "Quote α<br>next β",
-        "select &#39;&lt;x&gt;&#39;;<br>second line",
+        "<h6>Deep heading</h6>",
+        "<code>inline</code>",
+        "<s>retained</s>",
+        "<blockquote><p>Quote α<br>next β</p></blockquote>",
+        "<pre><code>select &#39;&lt;x&gt;&#39;;\nsecond line</code></pre>",
         "Name | Result",
         "α | Pass",
         "Evidence",
@@ -141,8 +141,6 @@ fn markdown_fallbacks_keep_text_boundaries_and_block_unsafe_resources() {
         "href=\"file:",
         "href=\"/settings",
         "<table",
-        "<code",
-        "<blockquote",
     ] {
         assert!(!result.body.contains(forbidden), "unexpected {forbidden}");
     }

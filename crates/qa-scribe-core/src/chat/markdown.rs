@@ -1,15 +1,30 @@
 //! Convert only newly submitted assistant Markdown into the existing editor schema.
 //! HTML is derived from the same nodes as JSON; no raw provider HTML is trusted.
-use pulldown_cmark::{Event, HeadingLevel, Options, Parser, Tag};
+use pulldown_cmark::{Event, Options, Parser, Tag};
 use serde_json::{Value, json};
 
 mod html;
 pub(crate) use html::to_html;
+#[cfg(test)]
+mod tests;
 
 struct Frame<'a> {
     tag: Option<Tag<'a>>,
     nodes: Vec<Value>,
     checked: Option<bool>,
+    /// An open `<u>` inline HTML tag, the one inline HTML form kept as a mark.
+    underline: bool,
+}
+
+impl<'a> Frame<'a> {
+    fn new(tag: Option<Tag<'a>>, underline: bool) -> Self {
+        Self {
+            tag,
+            nodes: vec![],
+            checked: None,
+            underline,
+        }
+    }
 }
 
 pub(crate) fn literal(text: &str) -> Vec<Value> {
@@ -19,11 +34,7 @@ pub(crate) fn literal(text: &str) -> Vec<Value> {
 pub(crate) fn parse(text: &str) -> Vec<Value> {
     let options =
         Options::ENABLE_TABLES | Options::ENABLE_TASKLISTS | Options::ENABLE_STRIKETHROUGH;
-    let mut stack = vec![Frame {
-        tag: None,
-        nodes: vec![],
-        checked: None,
-    }];
+    let mut stack = vec![Frame::new(None, false)];
     for event in Parser::new_ext(text, options) {
         match event {
             Event::Start(tag) => {
@@ -31,13 +42,10 @@ pub(crate) fn parse(text: &str) -> Vec<Value> {
                 if stack.len() >= 48 {
                     return literal(text);
                 }
-                stack.push(Frame {
-                    tag: Some(tag),
-                    nodes: vec![],
-                    checked: None,
-                });
+                stack.push(Frame::new(Some(tag), false));
             }
             Event::End(_) => {
+                close_underline(&mut stack);
                 let frame = stack.pop().expect("balanced Markdown parser events");
                 stack.last_mut().unwrap().nodes.extend(finish(frame));
             }
@@ -50,10 +58,32 @@ pub(crate) fn parse(text: &str) -> Vec<Value> {
                     item.checked = Some(checked);
                 }
             }
-            Event::Text(value)
-            | Event::Code(value)
-            | Event::Html(value)
-            | Event::InlineHtml(value) => {
+            Event::Text(value) if matches!(stack.last().unwrap().tag, Some(Tag::CodeBlock(_))) => {
+                stack
+                    .last_mut()
+                    .unwrap()
+                    .nodes
+                    .push(json!({"type":"text", "text":value.as_ref()}));
+            }
+            Event::Code(value) => stack
+                .last_mut()
+                .unwrap()
+                .nodes
+                .push(json!({"type":"text", "text":value.as_ref(), "marks":[{"type":"code"}]})),
+            Event::InlineHtml(value) if value.eq_ignore_ascii_case("<u>") => {
+                if stack.len() >= 48 {
+                    return literal(text);
+                }
+                stack.push(Frame::new(None, true));
+            }
+            Event::InlineHtml(value)
+                if value.eq_ignore_ascii_case("</u>") && stack.last().unwrap().underline =>
+            {
+                let mut frame = stack.pop().unwrap();
+                mark(&mut frame.nodes, json!({"type":"underline"}));
+                stack.last_mut().unwrap().nodes.extend(frame.nodes);
+            }
+            Event::Text(value) | Event::Html(value) | Event::InlineHtml(value) => {
                 stack.last_mut().unwrap().nodes.extend(text_nodes(&value));
             }
             Event::SoftBreak | Event::HardBreak => stack
@@ -61,30 +91,63 @@ pub(crate) fn parse(text: &str) -> Vec<Value> {
                 .unwrap()
                 .nodes
                 .push(json!({"type":"hardBreak"})),
-            Event::Rule => stack.last_mut().unwrap().nodes.extend(literal("---")),
+            Event::Rule => stack
+                .last_mut()
+                .unwrap()
+                .nodes
+                .push(json!({"type":"horizontalRule"})),
             _ => {}
         }
     }
-    blocks(stack.pop().unwrap().nodes)
+    close_underline(&mut stack);
+    let mut nodes = blocks(stack.pop().unwrap().nodes);
+    merge_text(&mut nodes);
+    nodes
+}
+
+/// An `<u>` without its `</u>` before the enclosing element ends stays literal text.
+fn close_underline(stack: &mut Vec<Frame<'_>>) {
+    while stack.last().is_some_and(|frame| frame.underline) {
+        let frame = stack.pop().unwrap();
+        let parent = &mut stack.last_mut().unwrap().nodes;
+        parent.push(json!({"type":"text","text":"<u>"}));
+        parent.extend(frame.nodes);
+    }
 }
 
 fn finish(mut frame: Frame<'_>) -> Vec<Value> {
     let tag = frame.tag.unwrap();
     match tag {
-        Tag::Paragraph | Tag::CodeBlock(_) | Tag::HtmlBlock => vec![node("paragraph", frame.nodes)],
-        Tag::Heading { level, .. } => {
-            let level = if matches!(level, HeadingLevel::H1 | HeadingLevel::H2) {
-                2
+        Tag::Paragraph | Tag::HtmlBlock => vec![node("paragraph", frame.nodes)],
+        Tag::CodeBlock(_) => {
+            let code: String = frame
+                .nodes
+                .iter()
+                .filter_map(|node| node["text"].as_str())
+                .collect();
+            let code = code.strip_suffix('\n').unwrap_or(&code);
+            let content = if code.is_empty() {
+                vec![]
             } else {
-                3
+                vec![json!({"type":"text","text":code})]
             };
-            vec![json!({"type":"heading", "attrs":{"level":level}, "content":frame.nodes})]
+            vec![json!({"type":"codeBlock", "attrs":{"language":null}, "content":content})]
         }
-        Tag::Strong | Tag::Emphasis => {
-            let kind = if matches!(tag, Tag::Strong) {
-                "bold"
-            } else {
-                "italic"
+        Tag::BlockQuote(_) => {
+            let mut children = blocks(frame.nodes);
+            if children.is_empty() {
+                children.push(node("paragraph", vec![]));
+            }
+            vec![node("blockquote", children)]
+        }
+        Tag::Heading { level, .. } => {
+            vec![json!({"type":"heading", "attrs":{"level":level as u8}, "content":frame.nodes})]
+        }
+        Tag::Strong | Tag::Emphasis | Tag::Strikethrough => {
+            let kind = match tag {
+                Tag::Strong => "bold",
+                Tag::Emphasis => "italic",
+                _ => "strike",
             };
             mark(&mut frame.nodes, json!({"type":kind}));
             frame.nodes
@@ -125,8 +188,7 @@ fn finish(mut frame: Frame<'_>) -> Vec<Value> {
             frame.nodes.push(json!({"type":"text","text":" | "}));
             frame.nodes
         }
-        // Quotes keep paragraph boundaries; images become their alt-text children.
-        // Strikethrough loses only its unsupported mark, never its text.
+        // Images become their alt-text children.
         _ => frame.nodes,
     }
 }
@@ -224,6 +286,31 @@ fn lists(items: Vec<Value>, start: Option<u64>) -> Vec<Value> {
             .push(item);
     }
     result
+}
+
+/// Adjacent text with the same marks is one text node, as in the editor's own documents.
+fn merge_text(nodes: &mut Vec<Value>) {
+    let mut merged: Vec<Value> = Vec::with_capacity(nodes.len());
+    for mut value in nodes.drain(..) {
+        if let Some(children) = value.get_mut("content").and_then(Value::as_array_mut) {
+            merge_text(children);
+        }
+        if let Some(previous) = merged.last_mut()
+            && previous["type"] == "text"
+            && value["type"] == "text"
+            && previous.get("marks") == value.get("marks")
+        {
+            let text = format!(
+                "{}{}",
+                previous["text"].as_str().unwrap_or_default(),
+                value["text"].as_str().unwrap_or_default()
+            );
+            previous["text"] = Value::String(text);
+            continue;
+        }
+        merged.push(value);
+    }
+    *nodes = merged;
 }
 
 pub(super) fn escape(text: &str) -> String {
