@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- The editor has headings 1 to 6, a numbered list button, strikethrough, inline code, plain code blocks, quotes, dividers and underline. They are kept when you save and reopen, apply an Ask AI suggestion, copy for Jira, and start a test run. A level-1 heading ends a test case and its group; headings 4 to 6 stay inside a test case.
+- Ask AI rewrites keep each image where the suggestion places it, and add only the images it left out at the end.
+- Documents saved with these new formats may lose that formatting when opened in an older version of QA Scribe.
+
 ## v0.20.0 - 2026-11-23
 
 - Add **Result notes** to any test case in a test run. Use the Note editor to write formatted observations and paste or upload screenshots. Notes autosave, stay with the case when its result changes, and open older remarks in the same editor.
