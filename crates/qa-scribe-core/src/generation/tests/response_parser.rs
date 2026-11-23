@@ -377,3 +377,16 @@ fn escaped_summary_response_can_restore_attachment_images() {
     assert!(!preserved.contains("&lt;img"));
     assert!(!preserved.contains("src=\"attachments/session/attachment-1_gmail-error.png\""));
 }
+
+#[test]
+fn generated_rich_html_keeps_the_rich_editor_tags_without_attributes() {
+    let sanitized = sanitize_generated_rich_html(
+        r#"<h1 class="a">One</h1><h4 id="b">Four</h4><h5 style="x">Five</h5><h6 onclick="x()">Six</h6><p><s style="c">gone</s> <u title="u">under</u> <code class="c">x()</code></p><pre class="language-sql"><code class="language-sql">SELECT 1;
+SELECT 2;</code></pre><blockquote cite="https://example.test"><p>Quote</p></blockquote><hr class="rule" /><hr></hr>"#,
+    );
+
+    assert_eq!(
+        sanitized,
+        "<h1>One</h1><h4>Four</h4><h5>Five</h5><h6>Six</h6><p><s>gone</s> <u>under</u> <code>x()</code></p><pre><code>SELECT 1;\nSELECT 2;</code></pre><blockquote><p>Quote</p></blockquote><hr><hr>"
+    );
+}

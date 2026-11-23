@@ -280,7 +280,8 @@ function applyEditorAttributePolicy(root: HTMLElement) {
       list.setAttribute('start', String(start))
     }
   })
-  root.querySelectorAll('b, br, em, h2, h3, i, p, strong').forEach(removeAllAttributes)
+  // Every other tag keeps no attributes, as in Rust's sanitizer (`generation/response.rs`).
+  root.querySelectorAll(':not(a, img, input, ul, ol, li)').forEach(removeAllAttributes)
 }
 
 function isVisuallyEmptyEditorHtml(value: string): boolean {

@@ -90,7 +90,7 @@ export const commands = {
 };
 
 /* Constants */
-export const EDITOR_HTML_TAGS = ["a","b","br","em","h2","h3","i","img","input","li","ol","p","strong","ul"] as const;
+export const EDITOR_HTML_TAGS = ["a","b","blockquote","br","code","em","h1","h2","h3","h4","h5","h6","hr","i","img","input","li","ol","p","pre","s","strong","u","ul"] as const;
 
 export const MANAGED_ATTACHMENT_PROTOCOL = "qa-scribe-attachment://" as const;
 
@@ -98,7 +98,7 @@ export const PROVIDER_MODEL_DEFAULTS = {"claude_code":null,"codex_cli":null,"cop
 
 export const PROVIDER_REASONING_DEFAULTS = {"claude_code":null,"codex_cli":null,"copilot_cli":null} as const;
 
-export const SELF_CLOSING_EDITOR_HTML_TAGS = ["br","img","input"] as const;
+export const SELF_CLOSING_EDITOR_HTML_TAGS = ["br","hr","img","input"] as const;
 
 /* Types */
 export type AiProvider = "claude_code" | "codex_cli" | "copilot_cli";

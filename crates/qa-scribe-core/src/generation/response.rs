@@ -11,9 +11,32 @@ mod lists;
 pub use images::preserve_managed_attachment_images;
 
 const EDITOR_HTML_TAGS: &[&str] = &[
-    "a", "b", "br", "em", "h2", "h3", "i", "img", "input", "li", "ol", "p", "strong", "ul",
+    "a",
+    "b",
+    "blockquote",
+    "br",
+    "code",
+    "em",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "hr",
+    "i",
+    "img",
+    "input",
+    "li",
+    "ol",
+    "p",
+    "pre",
+    "s",
+    "strong",
+    "u",
+    "ul",
 ];
-const SELF_CLOSING_EDITOR_HTML_TAGS: &[&str] = &["br", "img", "input"];
+const SELF_CLOSING_EDITOR_HTML_TAGS: &[&str] = &["br", "hr", "img", "input"];
 const REMOVED_EDITOR_HTML_TAGS: &[&str] = &[
     "embed", "form", "iframe", "math", "meta", "object", "script", "style", "svg", "template",
 ];
@@ -273,6 +296,7 @@ fn sanitize_opening_editor_tag(tag_name: &str, raw_tag: &str) -> Option<String> 
         "ol" => Some(lists::sanitize_ordered_list_tag(raw_tag)),
         "li" => Some(sanitize_list_item_tag(raw_tag)),
         "br" => Some("<br>".to_string()),
+        "hr" => Some("<hr>".to_string()),
         _ => Some(format!("<{tag_name}>")),
     }
 }

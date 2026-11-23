@@ -76,7 +76,7 @@ describe('editor format contract', () => {
     const content = finding.doc.content ?? []
     const title = (node: JSONContent) => node.content?.map((child) => child.text ?? '').join('')
     const start = content.findIndex((node) => node.type === 'heading' && title(node) === 'Steps to reproduce') + 1
-    const end = content.findIndex((node, index) => index >= start && node.type === 'heading' && node.attrs?.level === 2)
+    const end = content.findIndex((node) => node.type === 'heading' && title(node) === 'Expected result')
     expect(content.slice(start, end)).toEqual(range(contract.findingStepsToReproduce))
   })
 

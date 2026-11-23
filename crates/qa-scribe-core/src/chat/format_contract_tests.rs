@@ -3,8 +3,10 @@
 use serde_json::{Value, json};
 
 fn fixture() -> Value {
-    serde_json::from_str(include_str!("../../../../shared/editor-format-contract.json"))
-        .expect("valid format contract fixture")
+    serde_json::from_str(include_str!(
+        "../../../../shared/editor-format-contract.json"
+    ))
+    .expect("valid format contract fixture")
 }
 
 fn text(value: &Value) -> String {
