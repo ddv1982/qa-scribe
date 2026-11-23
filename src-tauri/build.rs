@@ -38,6 +38,7 @@ fn main() {
         "get_test_run",
         "list_test_runs",
         "set_test_case_result",
+        "save_test_case_notes",
         "link_test_case_finding",
         "delete_test_run",
         "start_ai_action_job",

@@ -62,6 +62,10 @@ export function richEditorImageInserterForElement(element: HTMLElement): RichEdi
   return editorRegistry.get(editor.id)?.insertImage ?? null
 }
 
+export function richEditorControllerForId(editorId: string): RichEditorController | null {
+  return editorRegistry.get(editorId) ?? null
+}
+
 export function richEditorImageInserterForId(editorId: string): RichEditorImageInserter | null {
-  return editorRegistry.get(editorId)?.insertImage ?? null
+  return richEditorControllerForId(editorId)?.insertImage ?? null
 }

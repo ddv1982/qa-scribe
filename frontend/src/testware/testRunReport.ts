@@ -1,5 +1,6 @@
 import type { TestCaseResult, TestRun, TestRunCase } from '../tauri'
 import { formatDateTime } from '../ui/format'
+import { resultNotesLines } from './testRunNotes'
 
 const resultLabels: Record<TestCaseResult, string> = { passed: 'Passed', failed: 'Failed', blocked: 'Blocked', not_run: 'Not run' }
 
@@ -25,7 +26,7 @@ export function testRunReport(run: Pick<TestRun, 'draftTitle' | 'createdAt' | 'c
   }
   const caseLines = (testCase: TestRunCase) => [
     `- ${resultLabels[testCase.result]}: ${testCase.title}`,
-    ...testCase.remark ? [`  Remark: ${testCase.remark}`] : [],
+    ...(testCase.notes ? resultNotesLines(testCase.notes) : testCase.remark ? [`  Remark: ${testCase.remark}`] : []),
     ...testCase.findingTitle ? [`  Finding: ${testCase.findingTitle}`] : [],
   ]
   const sections = [

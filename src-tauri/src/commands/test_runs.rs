@@ -1,7 +1,8 @@
 use qa_scribe_core::domain::{
-    TestCaseResult, TestRun, TestRunCase, TestRunCaseDraft, TestRunSummary,
+    TestCaseNoteImage, TestCaseResult, TestRun, TestRunCase, TestRunCaseDraft, TestRunSummary,
 };
-use tauri::State;
+use qa_scribe_core::services::PreparedTestCaseNotes;
+use tauri::{AppHandle, Manager, State};
 
 use crate::{commands::CommandError, settings::AppState};
 
@@ -55,4 +56,38 @@ pub fn link_test_case_finding(
 #[specta::specta]
 pub fn delete_test_run(state: State<'_, AppState>, run_id: String) -> Result<(), CommandError> {
     state.with_service(|service| service.delete_test_run(&run_id))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn save_test_case_notes(
+    app: AppHandle,
+    case_id: String,
+    body_json: String,
+    images: Vec<TestCaseNoteImage>,
+) -> Result<TestRunCase, CommandError> {
+    super::files::attachment_task("Result notes save", move || {
+        let state = app.state::<AppState>();
+        let session_id = state.with_service(|service| service.test_case_session_id(&case_id))?;
+        let mut prepared = PreparedTestCaseNotes::new(
+            state.app_data_dir(),
+            session_id,
+            case_id,
+            body_json,
+            images,
+        )?;
+        state.with_service(|service| prepared.reserve(service))?;
+        let result = prepared
+            .write(state.app_data_dir())
+            .map_err(CommandError::from)
+            .and_then(|()| state.with_service(|service| prepared.commit(service)));
+        if result.is_err() {
+            let _ = state.with_service(|service| {
+                prepared.recover(service, state.app_data_dir());
+                Ok(())
+            });
+        }
+        result
+    })
+    .await
 }

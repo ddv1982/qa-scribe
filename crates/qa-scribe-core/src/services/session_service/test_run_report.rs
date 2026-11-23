@@ -95,7 +95,20 @@ fn report(run: &TestRun) -> String {
         .join(", ");
     let case_lines = |case: &TestRunCase| {
         let mut lines = vec![format!("- {}: {}", label(case.result), case.title)];
-        if let Some(remark) = case.remark.as_deref().filter(|remark| !remark.is_empty()) {
+        if let Some(notes) = &case.notes {
+            if !notes.text.is_empty() {
+                lines.push("  Result notes:".into());
+                lines.extend(notes.text.split('\n').map(|line| format!("    {line}")));
+            }
+            if notes.image_count > 0 {
+                let label = if notes.image_count == 1 {
+                    "image"
+                } else {
+                    "images"
+                };
+                lines.push(format!("  Evidence: {} {label}", notes.image_count));
+            }
+        } else if let Some(remark) = case.remark.as_deref().filter(|remark| !remark.is_empty()) {
             lines.push(format!("  Remark: {remark}"));
         }
         if let Some(title) = &case.finding_title {

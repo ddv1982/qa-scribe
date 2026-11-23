@@ -210,6 +210,8 @@ type RichTextEditorProps = {
   className?: string
   editorId?: string
   historyScope?: string
+  transformPastedHTML?: (html: string) => string
+  pendingImagePreviews?: readonly { id: string; dataUrl: string }[]
 }
 
 export function RichTextEditor({
@@ -221,6 +223,8 @@ export function RichTextEditor({
   className,
   editorId,
   historyScope,
+  transformPastedHTML,
+  pendingImagePreviews,
 }: RichTextEditorProps) {
   const previewLoadRef = useRef(0)
   const previewRetryTimerRef = useRef<number | null>(null)
@@ -248,6 +252,7 @@ export function RichTextEditor({
       editable: !readOnly,
       immediatelyRender: false,
       editorProps: {
+        transformPastedHTML,
         attributes: editorAttributes({ editorId, className, ariaLabel, placeholder, readOnly }),
         handleDOMEvents: {
           focus: () => {
@@ -280,6 +285,7 @@ export function RichTextEditor({
 
   useEffect(() => {
     if (!editor || editor.isDestroyed) return
+    for (const { id, dataUrl } of pendingImagePreviews ?? []) previewCache.seed(id, dataUrl)
     const normalizedValue = normalizeRichEditorDocument(value)
     const currentValue = normalizeRichEditorDocument({ schemaVersion: 1, doc: editor.getJSON() })
     if (!richEditorDocumentsEqual(currentValue, normalizedValue)) {
@@ -294,7 +300,7 @@ export function RichTextEditor({
       historyScopeRef.current = historyScope
     }
     queueManagedPreviewHydration(editor, previewLoadRef, previewRetryTimerRef, previewCache)
-  }, [editor, historyScope, previewCache, value])
+  }, [editor, historyScope, pendingImagePreviews, previewCache, value])
 
   useEffect(() => {
     if (!editor || editor.isDestroyed || !editorId) return

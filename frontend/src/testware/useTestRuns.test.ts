@@ -7,6 +7,7 @@ const api = vi.hoisted(() => ({
   getTestRun: vi.fn(),
   startTestRun: vi.fn(),
   setTestCaseResult: vi.fn(),
+  saveTestCaseNotes: vi.fn(),
   deleteTestRun: vi.fn(),
 }))
 vi.mock('../tauri', async (original) => ({ ...await original<typeof import('../tauri')>(), ...api }))
@@ -77,6 +78,33 @@ describe('useTestRuns', () => {
     expect(api.getTestRun).toHaveBeenCalledWith('run-1')
     expect(result.current.open).toMatchObject({ runId: 'run-1', draftId: 'draft-1', error: null })
     expect(result.current.open?.run?.cases.map((item) => item.id)).toEqual(['a', 'b'])
+  })
+
+  it('rejects copying a saved report while a failed notes draft is still visible', async () => {
+    const { result } = await opened()
+    const pending = deferred<TestRunCase>()
+    api.saveTestCaseNotes.mockReturnValueOnce(pending.promise)
+    const notes = { bodyJson: '{}', text: 'Payment confirmed', imageCount: 0 }
+    act(() => result.current.changeCase('a', { notesDraft: { notes, images: [] } }))
+    api.getTestRun.mockClear()
+
+    await act(async () => {
+      const report = result.current.readSavedRun('run-1')
+      const assertion = expect(report).rejects.toThrow('Retry the unsaved result notes')
+      pending.reject(new Error('disk full'))
+      await assertion
+    })
+
+    expect(result.current.open?.run?.cases[0]?.notes).toEqual(notes)
+    expect(api.getTestRun).not.toHaveBeenCalled()
+
+    const saved = testCase('a', { notes })
+    api.saveTestCaseNotes.mockResolvedValueOnce(saved)
+    api.getTestRun.mockResolvedValueOnce(run([saved]))
+    await act(async () => {
+      result.current.changeCase('a', { notesDraft: { notes, images: [] } })
+      await expect(result.current.readSavedRun('run-1')).resolves.toMatchObject({ cases: [saved] })
+    })
   })
 
   it('loads the newest test run of each draft with its cases, and reads them again once a result is stored', async () => {

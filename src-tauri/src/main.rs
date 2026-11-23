@@ -83,6 +83,9 @@ fn main() {
             let span_started = Instant::now();
             // Retry only the durable exact-path queue. Cleanup failure must not
             // prevent an otherwise usable Session Library from opening.
+            if let Err(error) = session_service.reclaim_test_run_note_images() {
+                eprintln!("qa-scribe startup result notes image cleanup unavailable: {error}");
+            }
             match qa_scribe_core::attachments::retry_attachment_cleanup(
                 &session_service,
                 &app_data_dir,

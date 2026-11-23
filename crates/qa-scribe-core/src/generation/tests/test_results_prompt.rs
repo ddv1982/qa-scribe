@@ -23,6 +23,7 @@ fn case(title: &str, result: TestCaseResult, remark: Option<&str>) -> TestRunCas
         body_json: r#"{"schemaVersion":1,"doc":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Secret case body"}]}]}}"#.into(),
         result,
         remark: remark.map(Into::into),
+        notes: None,
         finding_id: None,
         finding_title: None,
         updated_at: "2026-11-13T14:05:00Z".into(),

@@ -131,6 +131,14 @@ describe('RichTextEditor toolbar', () => {
     expect(getAttachmentPreviewDataUrlMock).toHaveBeenCalledTimes(1)
   })
 
+  it('hydrates pending screenshots without loading an uncommitted attachment', async () => {
+    const dataUrl = 'data:image/png;base64,AAAA'
+    const value = richEditorDocumentFromHtml(managedAttachmentImageHtml('pending', 'evidence.png'))
+    const { container } = render(<RichTextEditor value={value} pendingImagePreviews={[{ id: 'pending', dataUrl }]} />)
+    await waitFor(() => expect(container.querySelector('img')?.getAttribute('src')).toBe(dataUrl))
+    expect(getAttachmentPreviewDataUrlMock).not.toHaveBeenCalled()
+  })
+
   it('retries failed previews on backoff without using editor updates as retries', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(0)

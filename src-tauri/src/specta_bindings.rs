@@ -98,6 +98,7 @@ pub fn builder() -> Builder<tauri::Wry> {
             commands::test_runs::get_test_run,
             commands::test_runs::list_test_runs,
             commands::test_runs::set_test_case_result,
+            commands::test_runs::save_test_case_notes,
             commands::test_runs::link_test_case_finding,
             commands::test_runs::delete_test_run,
             commands::ai::job_runner::start_ai_action_job,

@@ -60,6 +60,7 @@ export const commands = {
 	getTestRun: (runId: string) => __TAURI_INVOKE<TestRun>("get_test_run", { runId }),
 	listTestRuns: (sessionId: string) => __TAURI_INVOKE<TestRunSummary[]>("list_test_runs", { sessionId }),
 	setTestCaseResult: (caseId: string, result: TestCaseResult, remark: string | null) => __TAURI_INVOKE<TestRunCase>("set_test_case_result", { caseId, result, remark }),
+	saveTestCaseNotes: (caseId: string, bodyJson: string, images: TestCaseNoteImage[]) => __TAURI_INVOKE<TestRunCase>("save_test_case_notes", { caseId, bodyJson, images }),
 	linkTestCaseFinding: (caseId: string, findingId: string | null) => __TAURI_INVOKE<TestRunCase>("link_test_case_finding", { caseId, findingId }),
 	deleteTestRun: (runId: string) => __TAURI_INVOKE<null>("delete_test_run", { runId }),
 	startAiActionJob: (request: GenerateAiActionRequest, events: Channel<GenerationJobEvent_Deserialize>) => __TAURI_INVOKE<StartAiActionJobResult_Serialize>("start_ai_action_job", { request, events }),
@@ -1106,6 +1107,18 @@ export type StartChatJobResult_Serialize = {
 	status: GenerationJobStatus_Serialize,
 };
 
+export type TestCaseNoteImage = {
+	id: string,
+	filename: string,
+	dataUrl: string,
+};
+
+export type TestCaseNotes = {
+	bodyJson: string,
+	text: string,
+	imageCount: number,
+};
+
 /**  The Result a tester records for one test case in a test run. */
 export type TestCaseResult = "not_run" | "passed" | "failed" | "blocked";
 
@@ -1146,6 +1159,7 @@ export type TestRunCase = {
 	bodyJson: string,
 	result: TestCaseResult,
 	remark: string | null,
+	notes?: TestCaseNotes | null,
 	findingId: string | null,
 	/**
 	 *  The linked Finding's current title, read with the case and never

@@ -4,17 +4,25 @@ import userEvent from '@testing-library/user-event'
 import { useEffect } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('../editor/RichTextEditor', () => ({ RichTextEditor: () => null }))
+vi.mock('../editor/RichTextEditor', () => ({
+  FormatToolbar: () => null,
+  RichTextEditor: ({ ariaLabel, onChange, value }: { ariaLabel: string; onChange: (next: RichEditorDocument) => void; value: RichEditorDocument }) =>
+    <input aria-label={ariaLabel} value={value.doc.content?.[0]?.content?.[0]?.text ?? ''} onChange={(event) => onChange({
+      schemaVersion: 1, doc: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: event.target.value }] }] },
+    })} />,
+}))
 const api = vi.hoisted(() => ({
   listTestRuns: vi.fn(),
   getTestRun: vi.fn(),
   setTestCaseResult: vi.fn(),
+  saveTestCaseNotes: vi.fn(),
 }))
 vi.mock('../tauri', async (original) => ({ ...await original<typeof import('../tauri')>(), ...api }))
 
 import type { TestCaseResult, TestRun, TestRunCase } from '../tauri'
-import { useTestRuns } from '../testware/useTestRuns'
+import { flushPendingTestRunNotes, forgetDrainingTestRuns, hasPendingTestRunNotes, useTestRuns } from '../testware/useTestRuns'
 import { TestRunView } from './TestRunView'
+import type { RichEditorDocument } from '../editor/editorDocument'
 
 const at = '2026-11-13T14:02:00Z'
 const stored = (patch: Partial<TestRunCase> = {}): TestRunCase => ({
@@ -22,15 +30,19 @@ const stored = (patch: Partial<TestRunCase> = {}): TestRunCase => ({
 })
 const run = (testCase: TestRunCase): TestRun => ({ id: 'run-1', sessionId: 'session-1', draftId: 'draft-1', draftTitle: 'Checkout', createdAt: at, updatedAt: at, cases: [testCase] })
 
-/** Every save, settled by hand so the order is explicit. */
-let saves: Array<{ result: TestCaseResult; remark: string | null; resolve: () => void }>
+let saved: TestRunCase
+let saves: Array<() => void>
 
 beforeEach(() => {
   saves = []
+  forgetDrainingTestRuns()
   for (const command of Object.values(api)) command.mockReset()
   api.listTestRuns.mockResolvedValue([])
-  api.setTestCaseResult.mockImplementation((caseId: string, result: TestCaseResult, remark: string | null) => new Promise<TestRunCase>((resolve) => {
-    saves.push({ result, remark, resolve: () => resolve(stored({ id: caseId, result, remark })) })
+  api.setTestCaseResult.mockImplementation((_caseId: string, result: TestCaseResult) => new Promise<TestRunCase>((resolve) => {
+    saves.push(() => resolve(saved = { ...saved, result }))
+  }))
+  api.saveTestCaseNotes.mockImplementation((_caseId: string, bodyJson: string) => new Promise<TestRunCase>((resolve) => {
+    saves.push(() => resolve(saved = { ...saved, notes: { bodyJson, text: 'Card declined', imageCount: 0 } }))
   }))
 })
 afterEach(cleanup)
@@ -39,11 +51,16 @@ function Harness() {
   const runs = useTestRuns('session-1')
   const { openRun } = runs
   useEffect(() => { void openRun('run-1', 'draft-1') }, [openRun])
-  return runs.open ? <TestRunView open={runs.open} draftRuns={[]} error={runs.error} onSelectRun={vi.fn()} onBack={vi.fn()}
-    onDelete={async () => true} onChangeCase={runs.changeCase} /> : null
+  return <>
+    <button onClick={runs.close}>Leave test run</button>
+    <button onClick={() => void openRun('run-1', 'draft-1')}>Reopen test run</button>
+    {runs.open ? <TestRunView open={runs.open} draftRuns={[]} error={runs.error} onSelectRun={vi.fn()} onBack={vi.fn()}
+    onDelete={async () => true} onChangeCase={runs.changeCase} /> : null}
+  </>
 }
 
 async function renderOpen(testCase: TestRunCase) {
+  saved = testCase
   api.getTestRun.mockResolvedValue(run(testCase))
   render(<Harness />)
   return screen.findByRole('region', { name: 'Pay by card' })
@@ -51,40 +68,59 @@ async function renderOpen(testCase: TestRunCase) {
 
 /** Settles every save, including the ones a settled save sends next. */
 async function settleAll() {
-  while (saves.length) await act(async () => { saves.shift()!.resolve(); await Promise.resolve() })
+  while (saves.length) await act(async () => { saves.shift()!(); await Promise.resolve() })
 }
 
-const lastSave = () => api.setTestCaseResult.mock.lastCall as [string, TestCaseResult, string | null]
-
-describe('Saving a result and a remark together', () => {
-  it('keeps a typed remark when a result is clicked without leaving the field first', async () => {
+describe('Saving test result notes', () => {
+  it('keeps edits made during a status save and preserves notes when the result clears', async () => {
     const user = userEvent.setup()
-    const row = await renderOpen(stored({ result: 'failed' }))
-    await user.type(within(row).getByRole('textbox', { name: 'Remark for Pay by card' }), 'Card declined')
-    await user.click(within(row).getByRole('button', { name: 'Blocked' }))
+    const row = await renderOpen(stored())
+    const button = (name: string) => within(row).getByRole('button', { name })
+    await user.click(button('Failed'))
+    await user.click(button('Add result notes for Pay by card'))
+    const editor = within(row).getByRole('textbox', { name: 'Result notes for Pay by card' })
+    await user.type(editor, 'Card declined')
+    expect(api.saveTestCaseNotes).not.toHaveBeenCalled()
+    expect(editor).toHaveValue('Card declined')
+    await act(async () => { saves.shift()!(); await Promise.resolve() })
+    expect(editor).toHaveValue('Card declined')
+    expect(api.saveTestCaseNotes).toHaveBeenCalledTimes(1)
+    await user.click(button('Failed'))
     await settleAll()
-    expect(lastSave()).toEqual(['a', 'blocked', 'Card declined'])
-    expect(within(row).getByRole('button', { name: 'Blocked' })).toHaveAttribute('aria-pressed', 'true')
-    expect(within(row).getByRole('textbox', { name: 'Remark for Pay by card' })).toHaveValue('Card declined')
+    expect(saved.result).toBe('not_run')
+    expect(saved.notes?.text).toBe('Card declined')
+    expect(editor).toHaveValue('Card declined')
   })
 
-  it('keeps a remark saved with Enter when a result is clicked right after', async () => {
+  it('drains notes for app close and restores a failed draft after leaving the test run', async () => {
     const user = userEvent.setup()
-    const row = await renderOpen(stored({ result: 'blocked' }))
-    await user.type(within(row).getByRole('textbox', { name: 'Remark for Pay by card' }), 'No test card{Enter}')
-    await user.click(within(row).getByRole('button', { name: 'Failed' }))
-    expect(api.setTestCaseResult).toHaveBeenCalledTimes(1)
+    let reject!: (error: Error) => void
+    api.saveTestCaseNotes.mockImplementationOnce(() => new Promise((_, fail) => { reject = fail }))
+    const row = await renderOpen(stored())
+    await user.click(within(row).getByRole('button', { name: 'Add result notes for Pay by card' }))
+    const editor = within(row).getByRole('textbox', { name: 'Result notes for Pay by card' })
+    await user.type(editor, 'X')
+    expect(hasPendingTestRunNotes()).toBe(true)
+    const close = flushPendingTestRunNotes()
+    await user.click(screen.getByRole('button', { name: 'Leave test run' }))
+    await act(async () => { reject(new Error('disk full')); await close })
+    expect(await close).toBe(false)
+    expect(hasPendingTestRunNotes()).toBe(true)
+
+    await user.click(screen.getByRole('button', { name: 'Reopen test run' }))
+    const reopened = await screen.findByRole('region', { name: 'Pay by card' })
+    expect(within(reopened).getByText('X')).toBeVisible()
+    await user.click(within(reopened).getByRole('button', { name: 'Retry' }))
     await settleAll()
-    expect(lastSave()).toEqual(['a', 'failed', 'No test card'])
+    expect(hasPendingTestRunNotes()).toBe(false)
+    expect(saved.notes?.bodyJson).toContain('"text":"X"')
   })
 
-  it('keeps the remark, stored and visible, when the result is cleared', async () => {
+  it('shows the legacy remark in the editor before it gets a rich note', async () => {
     const user = userEvent.setup()
-    const row = await renderOpen(stored({ result: 'failed', remark: 'Declined' }))
-    await user.click(within(row).getByRole('button', { name: 'Failed' }))
-    await settleAll()
-    expect(lastSave()).toEqual(['a', 'not_run', 'Declined'])
-    for (const label of ['Passed', 'Failed', 'Blocked']) expect(within(row).getByRole('button', { name: label })).toHaveAttribute('aria-pressed', 'false')
-    expect(within(row).getByRole('textbox', { name: 'Remark for Pay by card' })).toHaveValue('Declined')
+    const row = await renderOpen(stored({ result: 'blocked', remark: 'No test card' }))
+    await user.click(within(row).getByRole('button', { name: 'Result notes for Pay by card' }))
+    expect(within(row).getByRole('textbox', { name: 'Result notes for Pay by card' })).toHaveValue('No test card')
+    expect(api.saveTestCaseNotes).not.toHaveBeenCalled()
   })
 })

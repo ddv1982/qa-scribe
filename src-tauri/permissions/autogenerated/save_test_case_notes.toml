@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-save-test-case-notes"
+description = "Enables the save_test_case_notes command without any pre-configured scope."
+commands.allow = ["save_test_case_notes"]
+
+[[permission]]
+identifier = "deny-save-test-case-notes"
+description = "Denies the save_test_case_notes command without any pre-configured scope."
+commands.deny = ["save_test_case_notes"]

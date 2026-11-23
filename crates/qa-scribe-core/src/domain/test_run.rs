@@ -65,11 +65,29 @@ pub struct TestRunCase {
     pub body_json: String,
     pub result: TestCaseResult,
     pub remark: Option<String>,
+    #[specta(optional)]
+    pub notes: Option<TestCaseNotes>,
     pub finding_id: Option<String>,
     /// The linked Finding's current title, read with the case and never
     /// stored on it. `None` without a linked Finding.
     pub finding_title: Option<String>,
     pub updated_at: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct TestCaseNotes {
+    pub body_json: String,
+    pub text: String,
+    pub image_count: usize,
+}
+
+#[derive(Debug, Deserialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct TestCaseNoteImage {
+    pub id: String,
+    pub filename: String,
+    pub data_url: String,
 }
 
 /// A frozen copy of a saved Test cases draft's test cases (ADR 0012).

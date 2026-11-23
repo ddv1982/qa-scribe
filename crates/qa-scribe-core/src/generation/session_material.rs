@@ -188,7 +188,11 @@ fn run_results(run: &TestRun) -> RunResults {
                 TestCaseResult::Passed | TestCaseResult::NotRun => return None,
             };
             let mut unit = format!("- {label}: {}", case.title);
-            if let Some(remark) = &case.remark {
+            let remark = match &case.notes {
+                Some(notes) => (!notes.text.is_empty()).then_some(&notes.text),
+                None => case.remark.as_ref(),
+            };
+            if let Some(remark) = remark {
                 unit.push_str(&format!("\n  Remark: {remark}"));
             }
             Some(unit)

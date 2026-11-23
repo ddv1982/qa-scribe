@@ -76,7 +76,7 @@ pub fn with_immediate_tx<T>(
 /// final time, and settles on a `user_version` this build can trust from then
 /// on. Once every database in the wild has passed through this once, future
 /// bumps can go strictly by increment again.
-pub const SCHEMA_VERSION: i32 = 24;
+pub const SCHEMA_VERSION: i32 = 25;
 
 fn initialize(connection: &Connection) -> Result<()> {
     let initialize_started = Instant::now();
@@ -145,6 +145,9 @@ fn initialize(connection: &Connection) -> Result<()> {
         }
         if found < 22 {
             tx.execute_batch(test_runs::SCHEMA)?;
+        }
+        if found < 25 {
+            test_runs::migrate_result_notes(tx)?;
         }
         if migrations_run {
             assert_no_foreign_key_violations(tx)?;
