@@ -3,6 +3,7 @@ import type { TestCaseNotes } from '../tauri'
 
 export function notesText(document: RichEditorDocument): string {
   const visit = (node: RichEditorDocument['doc']): string => {
+    if (node.type === 'horizontalRule') return '---\n'
     const text = (node.text ?? '') + (node.content ?? []).map(visit).join('')
     return ['heading', 'paragraph', 'codeBlock', 'hardBreak'].includes(node.type ?? '') ? text + '\n' : text
   }

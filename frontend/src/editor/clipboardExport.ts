@@ -90,8 +90,8 @@ export function managedAttachmentReferencesForClipboard(record: ClipboardRecord)
 // The default renderToMarkdown mappings are overridden where the pinned
 // clipboard format differs: text is not HTML-entity-escaped (this is plain
 // text, not markup), italic uses `*`, headings get a separating blank line,
-// task lists render checkbox markers, nested lists indent, and label==href
-// links stay bare.
+// task lists render checkbox markers, nested lists indent, code blocks have no
+// language, and label==href links stay bare.
 function renderMarkdownFromDocument(editorDocument: RichEditorDocument): string {
   if (!editorDocument.doc.content?.length) return ''
 
@@ -111,6 +111,8 @@ function renderMarkdownFromDocument(editorDocument: RichEditorDocument): string 
         taskList: ({ children }: { children?: string | string[] }) => `\n${joinChildren(children)}`,
         taskItem: ({ node, children }: { node: ProseMirrorNode; children?: string | string[] }) =>
           `- [${node.attrs.checked ? 'x' : ' '}] ${joinChildren(children).trim()}\n`,
+        // A plain code block: no language after the fence, which grows past any fence inside.
+        codeBlock: ({ node }: { node: ProseMirrorNode }) => `\n${codeFence(node.textContent)}\n${node.textContent}\n${codeFence(node.textContent)}\n`,
       },
       markMapping: {
         italic: ({ children }: { children?: string | string[] }) => `*${joinChildren(children)}*`,
@@ -152,6 +154,12 @@ function orderedListPosition(node: ProseMirrorNode, parent: ProseMirrorNode): nu
     if (child === node) position = start + index
   })
   return position
+}
+
+function codeFence(code: string): string {
+  let fence = '```'
+  while (code.includes(fence)) fence += '`'
+  return fence
 }
 
 function indentLines(value: string): string {

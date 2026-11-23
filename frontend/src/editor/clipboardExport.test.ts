@@ -13,6 +13,11 @@ describe('clipboardExport', () => {
     expect(payload.plain).toContain('<strong>literal</strong>')
   })
 
+  it('fences a code block past any fence inside it', () => {
+    const payload = formatRecordForClipboard({ title: '', bodyHtml: '<pre><code>before\n```\nafter</code></pre>' })
+    expect(payload.plain).toBe('````\nbefore\n```\nafter\n````')
+  })
+
   it('preserves non-default ordered numbering around separate task lists', () => {
     const payload = formatRecordForClipboard({ title: '', bodyHtml: '<ol start="7"><li><p>Seventh</p></li><li><p>Eighth</p></li></ol><ul data-type="taskList"><li data-type="taskItem" data-checked="true"><p>Done</p></li></ul><ol start="10"><li><p>Tenth</p></li></ol>' })
     expect(payload.plain).toContain('7. Seventh')
