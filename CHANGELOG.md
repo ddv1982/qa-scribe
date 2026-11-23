@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.19.0 - 2026-11-23
+
+- Ask AI can add real PNG diagrams to Test cases. Ask for a queue flow, a rollout timeline, or another diagram and review its placement before applying it. You can open the full-size preview or copy the image.
+- Ask AI can place, move, caption, and replace images, or propose a crop, arrow, highlight, or opaque redaction. Screenshot edits run locally and preserve the original as evidence.
+- Undo restores the previous Test cases draft and protects newer manual edits. Existing test runs keep the images they started with.
+
 ## v0.18.0 - 2026-11-23
 
 - Use **Suggest edit** to refine the open Note, Test cases draft, or Finding with external tools disabled. Review the changed sections before applying. If a reply leaves out the edit, **Generate editable suggestion** can recover it, including requests sent with only an image.
