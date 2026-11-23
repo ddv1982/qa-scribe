@@ -18,12 +18,10 @@ test('critical workflows use separate WDIO processes, app data, fixtures, and ar
     ...(['linux', 'darwin'].includes(process.platform) ? ['manual-formats', 'ui-polish', 'first-use', 'session-sheet', 'test-runs', 'editor-rich-content', 'editor-rich-content-restart'] : []),
     ...(process.platform === 'linux' ? ['native-close'] : []),
   ])
-  // A restart reopens the state of the invocation it restarts, so only its artifacts are its own.
-  const separate = legacy.filter(({ restartOf }) => !restartOf)
-  for (const key of ['QA_SCRIBE_E2E_APP_DATA_DIR', 'QA_SCRIBE_E2E_ARTIFACTS', 'QA_SCRIBE_E2E_FIXTURE_DIR']) {
-    assert.equal(new Set(separate.map(({ environment }) => environment[key])).size, separate.length)
+  // A restart reopens the state of the invocation it restarts; only its artifacts are its own.
+  for (const [key, entries] of [['QA_SCRIBE_E2E_APP_DATA_DIR', legacy.filter(({ restartOf }) => !restartOf)], ['QA_SCRIBE_E2E_FIXTURE_DIR', legacy.filter(({ restartOf }) => !restartOf)], ['QA_SCRIBE_E2E_ARTIFACTS', legacy]]) {
+    assert.equal(new Set(entries.map(({ environment }) => environment[key])).size, entries.length)
   }
-  assert.equal(new Set(legacy.map(({ environment }) => environment.QA_SCRIBE_E2E_ARTIFACTS)).size, legacy.length)
   assert.ok(plan.slice(0, criticalScenarios.length).every(({ environment }) => environment.QA_SCRIBE_E2E_SPEC === 'critical-workflows.e2e.mjs'))
   assert.equal(plan[criticalScenarios.length].environment.QA_SCRIBE_E2E_SPEC, 'chat-images.e2e.mjs')
   assert.equal(plan.some(({ id }) => id === 'chat-to-note'), false)
@@ -108,13 +106,11 @@ test('Linux defaults require the complete model proof chain while non-Linux defa
 test('the rich editor content restart reopens the app data its authoring run wrote', () => {
   for (const plan of [createWdioInvocationPlan({}, '/tmp/root', '/tmp/artifacts', 'linux'),
     createWdioInvocationPlan({ QA_SCRIBE_E2E_SPEC: 'editor-rich-content.e2e.mjs' }, '/tmp/root', '/tmp/artifacts')]) {
-    const author = plan.find(({ id }) => id === 'editor-rich-content')
-    const restart = plan.find(({ id }) => id === 'editor-rich-content-restart')
-    assert.equal(restart.restartOf, 'editor-rich-content')
+    const [author, restart] = ['editor-rich-content', 'editor-rich-content-restart'].map((id) => plan.find((entry) => entry.id === id))
+    assert.ok(restart.restartOf === 'editor-rich-content' && plan.indexOf(author) < plan.indexOf(restart))
     assert.deepEqual([author.environment.QA_SCRIBE_E2E_EDITOR_PHASE, restart.environment.QA_SCRIBE_E2E_EDITOR_PHASE], ['author', 'restart'])
     for (const key of ['QA_SCRIBE_E2E_SPEC', 'QA_SCRIBE_E2E_APP_DATA_DIR', 'QA_SCRIBE_E2E_FIXTURE_DIR']) assert.equal(restart.environment[key], author.environment[key])
     assert.notEqual(restart.environment.QA_SCRIBE_E2E_ARTIFACTS, author.environment.QA_SCRIBE_E2E_ARTIFACTS)
-    assert.ok(plan.indexOf(author) < plan.indexOf(restart))
   }
 })
 
