@@ -20,7 +20,7 @@ const api = vi.hoisted(() => ({
 vi.mock('../tauri', async (original) => ({ ...await original<typeof import('../tauri')>(), ...api }))
 
 import type { TestCaseResult, TestRun, TestRunCase } from '../tauri'
-import { forgetDrainingTestRuns, useTestRuns } from '../testware/useTestRuns'
+import { flushPendingTestRunNotes, forgetDrainingTestRuns, hasPendingTestRunNotes, useTestRuns } from '../testware/useTestRuns'
 import { TestRunView } from './TestRunView'
 import type { RichEditorDocument } from '../editor/editorDocument'
 
@@ -51,8 +51,12 @@ function Harness() {
   const runs = useTestRuns('session-1')
   const { openRun } = runs
   useEffect(() => { void openRun('run-1', 'draft-1') }, [openRun])
-  return runs.open ? <TestRunView open={runs.open} draftRuns={[]} error={runs.error} onSelectRun={vi.fn()} onBack={vi.fn()}
-    onDelete={async () => true} onChangeCase={runs.changeCase} /> : null
+  return <>
+    <button onClick={runs.close}>Leave test run</button>
+    <button onClick={() => void openRun('run-1', 'draft-1')}>Reopen test run</button>
+    {runs.open ? <TestRunView open={runs.open} draftRuns={[]} error={runs.error} onSelectRun={vi.fn()} onBack={vi.fn()}
+    onDelete={async () => true} onChangeCase={runs.changeCase} /> : null}
+  </>
 }
 
 async function renderOpen(testCase: TestRunCase) {
@@ -86,6 +90,30 @@ describe('Saving test result notes', () => {
     expect(saved.result).toBe('not_run')
     expect(saved.notes?.text).toBe('Card declined')
     expect(editor).toHaveValue('Card declined')
+  })
+
+  it('drains notes for app close and restores a failed draft after leaving the test run', async () => {
+    const user = userEvent.setup()
+    let reject!: (error: Error) => void
+    api.saveTestCaseNotes.mockImplementationOnce(() => new Promise((_, fail) => { reject = fail }))
+    const row = await renderOpen(stored())
+    await user.click(within(row).getByRole('button', { name: 'Add result notes for Pay by card' }))
+    const editor = within(row).getByRole('textbox', { name: 'Result notes for Pay by card' })
+    await user.type(editor, 'X')
+    expect(hasPendingTestRunNotes()).toBe(true)
+    const close = flushPendingTestRunNotes()
+    await user.click(screen.getByRole('button', { name: 'Leave test run' }))
+    await act(async () => { reject(new Error('disk full')); await close })
+    expect(await close).toBe(false)
+    expect(hasPendingTestRunNotes()).toBe(true)
+
+    await user.click(screen.getByRole('button', { name: 'Reopen test run' }))
+    const reopened = await screen.findByRole('region', { name: 'Pay by card' })
+    expect(within(reopened).getByText('X')).toBeVisible()
+    await user.click(within(reopened).getByRole('button', { name: 'Retry' }))
+    await settleAll()
+    expect(hasPendingTestRunNotes()).toBe(false)
+    expect(saved.notes?.bodyJson).toContain('"text":"X"')
   })
 
   it('shows the legacy remark in the editor before it gets a rich note', async () => {

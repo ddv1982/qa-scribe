@@ -6,12 +6,13 @@ import {
   managedAttachmentImagesInDocument, parseRichEditorDocument, richEditorDocumentFromPlainText,
   serializeRichEditorDocument, type RichEditorDocument,
 } from '../editor/editorDocument'
-import { pastedImageFilename, readFileAsDataUrl } from '../editor/editorHtml'
+import { managedAttachmentProtocol, pastedImageFilename, readFileAsDataUrl } from '../editor/editorHtml'
 import { FormatToolbar, RichTextEditor, type RichEditorImageUpload } from '../editor/RichTextEditor'
 import { richEditorImageInserterForId, type RichEditorImageInserter } from '../editor/richEditorRegistry'
 import { readClipboardImageDataUrl, type TestCaseNoteImage } from '../tauri'
 import type { CasePatch, EditableTestCase } from '../testware/caseSaveQueue'
 import { notesText } from '../testware/testRunNotes'
+import { trackNoteImageRead } from '../testware/useTestRuns'
 import { formatError } from '../ui/format'
 
 const maxImageBytes = 10 * 1024 * 1024
@@ -26,6 +27,8 @@ export function TestRunNotes({ testCase, onChange }: { testCase: EditableTestCas
   const readingRef = useRef(false)
   const { notes, remark, title, notesSave, notesError } = testCase
   const document = useMemo(() => parseRichEditorDocument(notes?.bodyJson) ?? richEditorDocumentFromPlainText(remark ?? ''), [notes?.bodyJson, remark])
+  const latestDocument = useRef(document)
+  useEffect(() => { latestDocument.current = document }, [document])
   const references = useMemo(() => managedAttachmentImagesInDocument(document), [document])
   const preview = notes?.text ?? remark
   const count = notes?.imageCount ?? 0
@@ -38,6 +41,7 @@ export function TestRunNotes({ testCase, onChange }: { testCase: EditableTestCas
   }, [notesSave, references])
 
   function save(next: RichEditorDocument) {
+    latestDocument.current = next
     const imageRefs = managedAttachmentImagesInDocument(next)
     const bodyJson = serializeRichEditorDocument(next)
     onChange({ notesDraft: {
@@ -46,7 +50,11 @@ export function TestRunNotes({ testCase, onChange }: { testCase: EditableTestCas
     } })
   }
 
-  async function addImage(insert: RichEditorImageInserter, filename: string, read: () => Promise<string | null>) {
+  function addImage(insert: RichEditorImageInserter, filename: string, read: () => Promise<string | null>) {
+    return trackNoteImageRead(testCase.runId, readAndInsertImage(insert, filename, read))
+  }
+
+  async function readAndInsertImage(insert: RichEditorImageInserter, filename: string, read: () => Promise<string | null>) {
     if (readingRef.current) return
     readingRef.current = true
     setReading(true)
@@ -54,12 +62,17 @@ export function TestRunNotes({ testCase, onChange }: { testCase: EditableTestCas
     try {
       if (references.length >= 8) throw new Error('Result notes can contain up to 8 images.')
       const dataUrl = await read()
-      if (richEditorImageInserterForId(editorId) !== insert) return
       if (!dataUrl) throw new Error('There is no screenshot on the clipboard.')
       if (dataUrl.length > Math.ceil(maxImageBytes / 3) * 4 + 64) throw new Error('Images must be at most 10 MiB each.')
       const image = { id: crypto.randomUUID(), filename, dataUrl }
       pending.current.set(image.id, image)
-      if (!insert(image.id, filename, dataUrl)) {
+      if (richEditorImageInserterForId(editorId) !== insert) {
+        const latest = latestDocument.current
+        save({ ...latest, doc: { ...latest.doc, content: [
+          ...latest.doc.content ?? [],
+          { type: 'image', attrs: { attachmentId: image.id, src: managedAttachmentProtocol + image.id, alt: filename } },
+        ] } })
+      } else if (!insert(image.id, filename, dataUrl)) {
         pending.current.delete(image.id)
         throw new Error('The screenshot could not be inserted.')
       }
@@ -105,7 +118,8 @@ export function TestRunNotes({ testCase, onChange }: { testCase: EditableTestCas
       {editing ? <div className="test-run-notes-editor">
         <FormatToolbar editorId={editorId} onUploadImage={chooseImage} />
         <RichTextEditor editorId={editorId} value={document} onChange={save}
-          ariaLabel={`Result notes for ${title}`} placeholder="Write what happened or paste a screenshot…" />
+          ariaLabel={`Result notes for ${title}`} placeholder="Write what happened or paste a screenshot…"
+          transformPastedHTML={withoutPastedImages} pendingImagePreviews={testCase.pendingNoteImages} />
       </div> : null}
     </div>
     <div className="test-run-notes-status" role="status">
@@ -119,3 +133,9 @@ export function TestRunNotes({ testCase, onChange }: { testCase: EditableTestCas
   </div>
 }
 
+function withoutPastedImages(html: string): string {
+  const template = document.createElement('template')
+  template.innerHTML = html
+  template.content.querySelectorAll('img').forEach(image => image.remove())
+  return template.innerHTML
+}

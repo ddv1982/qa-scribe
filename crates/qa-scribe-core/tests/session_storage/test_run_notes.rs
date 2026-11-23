@@ -32,6 +32,7 @@ fn save_case_notes(
     images: Vec<qa_scribe_core::domain::TestCaseNoteImage>,
 ) -> qa_scribe_core::Result<qa_scribe_core::domain::TestRunCase> {
     let mut prepared = qa_scribe_core::services::PreparedTestCaseNotes::new(
+        root,
         service.test_case_session_id(case_id)?, case_id.into(), body, images,
     )?;
     prepared.reserve(service)?;
@@ -133,5 +134,51 @@ fn schema_24_upgrade_preserves_existing_results_remarks_and_links() {
     assert!(saved.notes.is_some());
     assert_no_foreign_key_violations(service.database().connection());
     drop(service);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn startup_recovery_leaves_a_live_result_notes_import_alone() {
+    let root = unique_temp_dir();
+    fs::create_dir_all(&root).unwrap();
+    let path = root.join("notes.sqlite");
+    let service = SessionService::new(Database::open(&path).unwrap()).unwrap();
+    let run = started_run(&service);
+    let case_id = &run.cases[0].id;
+    let id = uuid::Uuid::new_v4().to_string();
+    let mut prepared = qa_scribe_core::services::PreparedTestCaseNotes::new(
+        &root, run.session_id, case_id.into(), notes_json(&[&id]), vec![notes_image(&id)],
+    ).unwrap();
+    prepared.reserve(&service).unwrap();
+    prepared.write(&root).unwrap();
+
+    let other = SessionService::new(Database::open(&path).unwrap()).unwrap();
+    let remaining = qa_scribe_core::attachments::chat_imports::recover_chat_image_imports(&other, &root).unwrap();
+    assert_eq!(remaining, 1);
+    prepared.commit(&service).unwrap();
+    assert!(attachment_preview_data_url(&other, &root, &id).unwrap().is_some());
+    drop(prepared);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn losing_an_image_reservation_cannot_commit_result_notes() {
+    let root = unique_temp_dir();
+    fs::create_dir_all(&root).unwrap();
+    let service = SessionService::in_memory().unwrap();
+    let run = started_run(&service);
+    let case_id = &run.cases[0].id;
+    let id = uuid::Uuid::new_v4().to_string();
+    let mut prepared = qa_scribe_core::services::PreparedTestCaseNotes::new(
+        &root, run.session_id, case_id.into(), notes_json(&[&id]), vec![notes_image(&id)],
+    ).unwrap();
+    prepared.reserve(&service).unwrap();
+    prepared.write(&root).unwrap();
+    service.database().connection().execute("DELETE FROM chat_image_imports", []).unwrap();
+
+    assert!(prepared.commit(&service).is_err());
+    assert!(service.get_attachment(&id).unwrap().is_none());
+    assert!(service.get_test_run(&run.id).unwrap().cases[0].notes.is_none());
+    drop(prepared);
     fs::remove_dir_all(root).unwrap();
 }

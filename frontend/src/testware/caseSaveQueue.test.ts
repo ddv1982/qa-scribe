@@ -168,3 +168,35 @@ it('keeps failed result notes available to retry while the status still saves', 
   await queue.whenIdle()
   expect(listener.onShow).toHaveBeenLastCalledWith({ ...original, result: 'blocked', notes })
 })
+
+it('adopts a fresher result from a notes response without writing it back', async () => {
+  const original = testCase('a')
+  const notes = { bodyJson: '{}', text: 'Gateway error', imageCount: 0 }
+  const saved = { ...original, notes, result: 'passed' as const, remark: 'New remark' }
+  const saveResult = vi.fn()
+  const listener = { onShow: vi.fn(), onSaved: vi.fn(), onError: vi.fn(), onBackgroundError: vi.fn() }
+  const queue = new CaseSaveQueue([original], saveResult, listener, vi.fn().mockResolvedValue(saved))
+  queue.change('a', { notesDraft: { notes, images: [] } })
+  await queue.whenIdle()
+  expect(listener.onShow).toHaveBeenLastCalledWith(saved)
+  expect(saveResult).not.toHaveBeenCalled()
+})
+
+it('omits acknowledged screenshot bytes from a later coalesced notes save', async () => {
+  const original = testCase('a')
+  const image = (id: string) => ({ id, filename: id + '.png', dataUrl: 'data:image/png;base64,AAAA' })
+  const images = ['first', 'second', 'third'].map(image)
+  const notes = (ids: string[]) => ({
+    bodyJson: JSON.stringify(ids.map(id => `qa-scribe-attachment://${id}`)), text: '', imageCount: ids.length,
+  })
+  let settle!: (value: TestRunCase) => void
+  const saveNotes = vi.fn().mockImplementationOnce(() => new Promise(resolve => { settle = resolve }))
+    .mockResolvedValueOnce({ ...original, notes: notes(['first', 'second', 'third']) })
+  const listener = { onShow: vi.fn(), onSaved: vi.fn(), onError: vi.fn(), onBackgroundError: vi.fn() }
+  const queue = new CaseSaveQueue([original], vi.fn(), listener, saveNotes)
+  queue.change('a', { notesDraft: { notes: notes(['first']), images: images.slice(0, 1) } })
+  queue.change('a', { notesDraft: { notes: notes(['first', 'second', 'third']), images } })
+  settle({ ...original, notes: notes(['first']) })
+  await queue.whenIdle()
+  expect(saveNotes).toHaveBeenLastCalledWith('a', { notes: notes(['first', 'second', 'third']), images: images.slice(1) })
+})

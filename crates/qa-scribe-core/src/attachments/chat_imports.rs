@@ -1,10 +1,29 @@
 use super::cleanup::{is_exact_attachment_path, remove_queued_file};
 use crate::{Result, services::SessionService};
 use rusqlite::{OptionalExtension, params};
-use std::path::Path;
+use std::{
+    fs::{File, OpenOptions, TryLockError},
+    path::Path,
+};
 
-/// Startup-only recovery, before any import workers can reserve or write files.
+pub(crate) fn image_import_recovery_lock(root: &Path) -> Result<File> {
+    std::fs::create_dir_all(root)?;
+    Ok(OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(root.join(".image-import-recovery.lock"))?)
+}
+
+/// Startup-only recovery. An active Result notes import may be in another app instance.
 pub fn recover_chat_image_imports(service: &SessionService, root: &Path) -> Result<usize> {
+    let lock = image_import_recovery_lock(root)?;
+    match lock.try_lock() {
+        Ok(()) => {}
+        Err(TryLockError::WouldBlock) => return pending_count(service),
+        Err(TryLockError::Error(error)) => return Err(error.into()),
+    }
     let database = service.database();
     let paths = database.connection().prepare("SELECT relative_path, temp_path, session_id FROM chat_image_imports ORDER BY attempt_count, relative_path LIMIT 50")?
         .query_map([], |row| Ok((row.get::<_,String>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?)))?
@@ -12,13 +31,15 @@ pub fn recover_chat_image_imports(service: &SessionService, root: &Path) -> Resu
     for (path, temp, session) in paths {
         recover_import(service, root, &path, &temp, &session)?;
     }
-    // rusqlite no longer reads SQLite integers as usize directly; count(*) is never negative.
-    let remaining: i64 =
-        database
-            .connection()
-            .query_row("SELECT count(*) FROM chat_image_imports", [], |row| {
-                row.get(0)
-            })?;
+    pending_count(service)
+}
+
+fn pending_count(service: &SessionService) -> Result<usize> {
+    let remaining: i64 = service.database().connection().query_row(
+        "SELECT count(*) FROM chat_image_imports",
+        [],
+        |row| row.get(0),
+    )?;
     Ok(usize::try_from(remaining).unwrap_or_default())
 }
 
@@ -51,10 +72,12 @@ fn recover_import(
 ) -> Result<()> {
     let database = service.database();
     database.with_immediate_tx(|tx| {
-        tx.execute(
+        if tx.execute(
             "UPDATE chat_image_imports SET attempt_count = attempt_count + 1 WHERE relative_path = ?1",
             [path],
-        )?;
+        )? == 0 {
+            return Ok(());
+        }
         if !is_exact_attachment_path(path, session) || !is_exact_attachment_path(temp, session) {
             return Ok(());
         }

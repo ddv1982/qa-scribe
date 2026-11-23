@@ -1,4 +1,4 @@
-use std::{collections::BTreeSet, path::Path};
+use std::{collections::BTreeSet, fs::File, path::Path};
 
 use rusqlite::{OptionalExtension, params};
 use serde_json::Value;
@@ -26,10 +26,12 @@ pub struct PreparedTestCaseNotes {
     body_json: String,
     references: BTreeSet<String>,
     files: Vec<(String, PreparedManagedAttachment)>,
+    _import_lock: Option<File>,
 }
 
 impl PreparedTestCaseNotes {
     pub fn new(
+        root: &Path,
         session_id: String,
         case_id: String,
         body_json: String,
@@ -60,12 +62,20 @@ impl PreparedTestCaseNotes {
             files.push((image.id, file));
         }
         let references = references.into_iter().map(str::to_owned).collect();
+        let import_lock = if files.is_empty() {
+            None
+        } else {
+            let lock = files::chat_imports::image_import_recovery_lock(root)?;
+            lock.lock_shared()?;
+            Some(lock)
+        };
         Ok(Self {
             session_id,
             case_id,
             body_json,
             references,
             files,
+            _import_lock: import_lock,
         })
     }
 
@@ -104,14 +114,17 @@ impl PreparedTestCaseNotes {
                     ));
                 }
                 for (id, file) in &self.files {
+                    if tx.execute(
+                        "DELETE FROM chat_image_imports WHERE relative_path = ?1",
+                        [&file.draft.relative_path],
+                    )? != 1
+                    {
+                        return Err(validation("Result notes image import was interrupted"));
+                    }
                     attachments::create_attachment_on(tx, id.clone(), file.draft.clone())?;
                     tx.execute(
                         "INSERT INTO test_run_note_images (attachment_id, case_id) VALUES (?1, ?2)",
                         params![id, self.case_id],
-                    )?;
-                    tx.execute(
-                        "DELETE FROM chat_image_imports WHERE relative_path = ?1",
-                        [&file.draft.relative_path],
                     )?;
                 }
                 for id in &self.references {

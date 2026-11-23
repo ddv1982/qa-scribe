@@ -1,5 +1,5 @@
 import { useCreationWorkspace } from './useCreationWorkspace'
-import { useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import type { MainView } from '../ui/types'
 import { deleteConfirmationCopy } from '../workflows/deleteConfirmation'
 import { useCopyActions } from './copyActions'
@@ -8,6 +8,7 @@ import { useRecordActions } from './recordActions'
 import type { CreatedRecordEditTarget, WorkflowNavigation } from './types'
 import { useAppStartup } from './useAppStartup'
 import { usePendingChangeProtection } from './usePendingChangeProtection'
+import { flushPendingTestRunNotes, hasPendingTestRunNotes } from '../testware/useTestRuns'
 import { useSessionWorkspace } from './useSessionWorkspace'
 import { useWorkflowFeedback } from './useWorkflowFeedback'
 import { useDeletionWorkspace } from './useDeletionWorkspace'
@@ -210,9 +211,16 @@ export function useAppController() {
     sessionActions, sessions, settingsDirty, settingsReturnViewRef, settingsSection,
     setActiveView, setError, focusRecord, setCreatedRecordEditTarget, setPendingNavigationView, setPendingSettingsSection, setSettingsSection,
   })
+  const hasPendingCloseChanges = useCallback(() => settlement.hasPendingChanges() || hasPendingTestRunNotes(), [settlement])
   usePendingChangeProtection({
-    hasPendingChanges: settlement.hasPendingChanges,
-    savePendingChanges: () => creation.hasPendingChanges() ? creation.settle().then((settled) => settled ? settlement.flush() : false) : settlement.flush(),
+    hasPendingChanges: hasPendingCloseChanges,
+    savePendingChanges: async () => {
+      if (creation.hasPendingChanges() && !await creation.settle()) return false
+      if (!await settlement.flush()) return false
+      if (await flushPendingTestRunNotes()) return true
+      setError('Some result notes could not be saved. Reopen the test run to retry.')
+      return false
+    },
   })
   const { bootedRef, handleLoadSessionLibrary, handleRefreshProviderStatus, handleSaveSettings } = useAppStartup({
     loadSettings,

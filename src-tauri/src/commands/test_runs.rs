@@ -69,7 +69,13 @@ pub async fn save_test_case_notes(
     super::files::attachment_task("Result notes save", move || {
         let state = app.state::<AppState>();
         let session_id = state.with_service(|service| service.test_case_session_id(&case_id))?;
-        let mut prepared = PreparedTestCaseNotes::new(session_id, case_id, body_json, images)?;
+        let mut prepared = PreparedTestCaseNotes::new(
+            state.app_data_dir(),
+            session_id,
+            case_id,
+            body_json,
+            images,
+        )?;
         state.with_service(|service| prepared.reserve(service))?;
         let result = prepared
             .write(state.app_data_dir())

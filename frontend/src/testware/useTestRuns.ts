@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
-import { deleteTestRun, getTestRun, listTestRuns, saveTestCaseNotes, setTestCaseResult, startTestRun, type TestRun, type TestRunCase, type TestRunCaseDraft, type TestRunSummary } from '../tauri'
-import { CaseSaveQueue, type CasePatch } from './caseSaveQueue'
+import { deleteTestRun, getTestRun, listTestRuns, saveTestCaseNotes, setTestCaseResult, startTestRun, type TestRun, type TestRunCaseDraft, type TestRunSummary } from '../tauri'
+import { CaseSaveQueue, type CasePatch, type CaseSaveListener } from './caseSaveQueue'
 import { latestTestRunIds } from './testRuns'
 import { formatError } from '../ui/format'
 
@@ -15,10 +15,38 @@ export const BACKGROUND_SAVE_ERROR = 'A change to a test run could not be saved.
  * a run reopened afterwards must still wait for them.
  */
 const draining = new Map<string, CaseSaveQueue>()
+const onScreen = new Set<CaseSaveQueue>()
+const noteImageReads = new Map<Promise<unknown>, string>()
+
+export function trackNoteImageRead<T>(runId: string, read: Promise<T>): Promise<T> {
+  noteImageReads.set(read, runId)
+  return read.finally(() => noteImageReads.delete(read))
+}
+
+function readsForRun(runId: string): Promise<unknown>[] {
+  return [...noteImageReads].flatMap(([read, owner]) => owner === runId ? [read] : [])
+}
+
+function runQueues() {
+  return new Set([...onScreen, ...draining.values()])
+}
+
+export function hasPendingTestRunNotes(): boolean {
+  return noteImageReads.size > 0 || [...runQueues()].some(queue => queue.hasPendingNotes)
+}
+
+export async function flushPendingTestRunNotes(): Promise<boolean> {
+  const queues = runQueues()
+  for (const queue of queues) queue.retryNotes()
+  while (noteImageReads.size) await Promise.allSettled(noteImageReads.keys())
+  await Promise.all([...runQueues()].map(queue => queue.whenIdle()))
+  return !hasPendingTestRunNotes()
+}
 
 /** Forgets every draining queue. For tests, which share this module. */
 export function forgetDrainingTestRuns() {
   draining.clear()
+  onScreen.clear()
 }
 
 /**
@@ -32,10 +60,12 @@ type ScreenQueue = { runId: string; sessionId: string; queue: CaseSaveQueue; bac
 
 /** Keeps a queue that left the screen until its saves have settled, then tells the views. */
 function drain(left: ScreenQueue) {
-  if (left.queue.idle || draining.get(left.runId) === left.queue) return
+  const reads = readsForRun(left.runId)
+  if (draining.get(left.runId) === left.queue) return
+  if (!reads.length && left.queue.idle && !left.queue.hasPendingNotes) return
   draining.set(left.runId, left.queue)
-  void left.queue.whenIdle().then(() => {
-    if (draining.get(left.runId) === left.queue) draining.delete(left.runId)
+  void Promise.allSettled(reads).then(() => left.queue.whenIdle()).then(() => {
+    if (draining.get(left.runId) === left.queue && !left.queue.hasPendingNotes) draining.delete(left.runId)
     for (const listener of drainedListeners) listener({ sessionId: left.sessionId, failed: left.background.failed })
   })
 }
@@ -90,6 +120,7 @@ export function useTestRuns(sessionId: string | null) {
     const current = queueRef.current
     queueRef.current = null
     if (!current) return
+    onScreen.delete(current.queue)
     current.queue.detach()
     leftRef.current = current
     drain(current)
@@ -102,8 +133,13 @@ export function useTestRuns(sessionId: string | null) {
       const background = { failed: false }
       // Once the queue has left the screen, the drained notice refreshes the counts instead.
       const onSaved = () => { if (queueRef.current?.queue === queue) void refresh() }
-      const queue = saveQueue(next.run, setOpen, setError, onSaved, background)
+      const listener = caseListener(next.run.id, setOpen, setError, onSaved, background)
+      const existing = draining.get(next.runId)
+      const queue = existing ?? saveQueue(next.run, listener)
+      draining.delete(next.runId)
+      onScreen.add(queue)
       queueRef.current = { runId: next.runId, sessionId: next.run.sessionId, background, queue }
+      if (existing) next = { ...next, run: { ...next.run, cases: queue.attach(next.run.cases, listener) } }
     }
     setError(null)
     setOpen(next)
@@ -156,6 +192,7 @@ export function useTestRuns(sessionId: string | null) {
       // Saves made before the run was left land first, so what is read is what is stored. The pause
       // lets a remark committed as its input unmounts join them.
       await Promise.resolve()
+      await Promise.allSettled(readsForRun(runId))
       await draining.get(runId)?.whenIdle()
       const run = await getTestRun(runId)
       if (current()) show({ runId, draftId, run, error: null })
@@ -198,14 +235,20 @@ export function useTestRuns(sessionId: string | null) {
     }
     // The run just left the screen: its queue stores the change in the background.
     const left = leftRef.current
-    if (!left?.queue.has(caseId)) return
-    left.queue.change(caseId, patch)
-    drain(left)
+    if (left?.queue.has(caseId)) {
+      left.queue.change(caseId, patch)
+      drain(left)
+      return
+    }
+    for (const queue of draining.values()) {
+      if (queue.has(caseId)) { queue.change(caseId, patch); break }
+    }
   }, [])
 
   const readSavedRun = useCallback(async (runId: string) => {
     const current = queueRef.current
     const queue = current?.runId === runId ? current.queue : draining.get(runId)
+    await Promise.allSettled(readsForRun(runId))
     await queue?.whenIdle()
     return getTestRun(runId)
   }, [])
@@ -214,9 +257,11 @@ export function useTestRuns(sessionId: string | null) {
     const wasOpen = openRef.current?.runId === runId ? openRef.current : null
     // No save may land on a case after it is deleted, so every save of the run settles first.
     if (queueRef.current?.runId === runId) detachQueue()
+    await Promise.allSettled(readsForRun(runId))
     await draining.get(runId)?.whenIdle()
     try {
       await deleteTestRun(runId)
+      draining.delete(runId)
       if (openRef.current?.runId === runId) show(null)
       await refresh()
       return true
@@ -231,19 +276,21 @@ export function useTestRuns(sessionId: string | null) {
   return { summaries, latestRuns, open, starting, startError, error, openRun, close, keepForDraft, start, changeCase, readSavedRun, deleteRun }
 }
 
-/** A save queue for `run` that shows each case change on screen while `run` is the open one. */
-function saveQueue(run: TestRun, setOpen: Dispatch<SetStateAction<OpenTestRun | null>>, setError: (error: string) => void,
-  onSaved: () => void, background: { failed: boolean }) {
-  const showCase = (next: TestRunCase) => setOpen((current) => current?.run && current.runId === run.id
-    ? { ...current, run: { ...current.run, cases: current.run.cases.map((testCase) => testCase.id === next.id ? next : testCase) } }
-    : current)
-  return new CaseSaveQueue(run.cases, (caseId, { result, remark }) => setTestCaseResult(caseId, result, remark), {
-    onShow: showCase,
+function saveQueue(run: TestRun, listener: CaseSaveListener) {
+  return new CaseSaveQueue(run.cases, (caseId, { result, remark }) => setTestCaseResult(caseId, result, remark),
+    listener, (caseId, { notes, images }) => saveTestCaseNotes(caseId, notes.bodyJson, images))
+}
+
+function caseListener(runId: string, setOpen: Dispatch<SetStateAction<OpenTestRun | null>>, setError: (error: string) => void,
+  onSaved: () => void, background: { failed: boolean }): CaseSaveListener {
+  return {
+    onShow: (next) => setOpen((current) => current?.run && current.runId === runId
+      ? { ...current, run: { ...current.run, cases: current.run.cases.map((testCase) => testCase.id === next.id ? next : testCase) } }
+      : current),
     onSaved,
     onError: (_caseId, cause) => setError(formatError(cause)),
-    // Reported once the run's saves have all settled, to whichever view shows the Session then.
     onBackgroundError: () => { background.failed = true },
-  }, (caseId, { notes, images }) => saveTestCaseNotes(caseId, notes.bodyJson, images))
+  }
 }
 
 export type TestRuns = ReturnType<typeof useTestRuns>

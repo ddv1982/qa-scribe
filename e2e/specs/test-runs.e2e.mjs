@@ -162,8 +162,14 @@ describe('Test runs in the built native application', () => {
     await notes.waitForDisplayed()
     await notes.setValue(notesHeading)
     await blockStyle(notes, 'h2')
-    assert.ok(await browser.execute((text) => document.execCommand('insertParagraph', false) && document.execCommand('insertText', false, text), observation))
+    assert.ok(await browser.execute(() => document.execCommand('insertParagraph', false)))
     await blockStyle(notes, 'p')
+    await browser.execute((editor, observation) => {
+      const mixed = new DataTransfer()
+      mixed.setData('text/html', `<p><strong>${observation}</strong><img src="https://example.invalid/preview.png" alt="remote"></p>`)
+      editor.dispatchEvent(new ClipboardEvent('paste', { clipboardData: mixed, bubbles: true, cancelable: true }))
+    }, notes, observation)
+    assert.equal(await browser.execute(editor => editor.querySelector('strong')?.textContent, notes), observation)
     assert.equal(await browser.execute(async (editor) => {
       const canvas = document.createElement('canvas')
       canvas.width = 420
