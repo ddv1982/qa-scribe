@@ -42,7 +42,7 @@ fn nested_marks_and_unsafe_links_stay_readable() {
         project(
             "<p><strong><em>both</em></strong> <a href=\"javascript:x\">bad</a> <a href=\"https://e.com\">good</a> data:text/plain;base64,QUJD</p>"
         ),
-        "***both*** bad [good](https://e.com) [data URL omitted]"
+        "***both*** bad [good](https://e.com) \\[data URL omitted\\]"
     );
 }
 
@@ -52,4 +52,96 @@ fn legacy_html_with_loose_text_becomes_paragraphs() {
         project("Intro text\n<div>Block</div>\n<p>  Spaced   words </p>"),
         "Intro text\n\nBlock\n\nSpaced words"
     );
+}
+
+fn html_text(text: &str) -> String {
+    text.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+}
+
+/// The editor nodes Ask AI gets back when it returns the projected Markdown unchanged.
+fn round_trip(html: &str) -> Vec<serde_json::Value> {
+    crate::chat::markdown::parse_with_images(&project(html), &[]).unwrap()
+}
+
+fn text_line(lines: &[&str]) -> serde_json::Value {
+    let mut content = vec![];
+    for (index, line) in lines.iter().enumerate() {
+        if index > 0 {
+            content.push(serde_json::json!({"type":"hardBreak"}));
+        }
+        content.push(serde_json::json!({"type":"text","text":line}));
+    }
+    serde_json::json!({"type":"paragraph","content":content})
+}
+
+#[test]
+fn literal_markdown_in_text_survives_projection_and_parsing() {
+    let samples: &[&[&str]] = &[
+        &["# not a heading"],
+        &["#hashtag and issue #12"],
+        &["<u>literal</u> tags and <b>bold</b>"],
+        &["*stars* and _underscores_ and snake_case_name"],
+        &["`ticks` and ``double``"],
+        &["[link](https://example.com) and ![img](x)"],
+        &["~~not struck~~ and ~one~"],
+        &["- not a list"],
+        &["+ plus"],
+        &["* star"],
+        &["1. not ordered"],
+        &["2) paren"],
+        &["> not a quote"],
+        &["---"],
+        &["***"],
+        &["___"],
+        &["&amp; and &#65; stay entity names"],
+        &["back\\slash \\* escaped"],
+        &["a | b | c"],
+        &["<https://example.com> autolink"],
+        &["```"],
+        &["~~~"],
+        &["Title", "==="],
+        &["Title", "---"],
+        &["a | b", "--- | ---"],
+        &["line", "# heading after a break"],
+        &["trailing backslash\\", "next"],
+    ];
+    for lines in samples {
+        let html = lines.iter().map(|line| html_text(line)).collect::<Vec<_>>();
+        let expected = text_line(lines);
+        for (wrapped, unwrap) in [
+            (format!("<p>{}</p>", html.join("<br>")), 0),
+            (format!("<ul><li><p>{}</p></li></ul>", html.join("<br>")), 1),
+            (format!("<ol><li><p>{}</p></li></ol>", html.join("<br>")), 1),
+            (
+                format!("<blockquote><p>{}</p></blockquote>", html.join("<br>")),
+                2,
+            ),
+        ] {
+            let nodes = round_trip(&wrapped);
+            let actual = match unwrap {
+                0 => nodes[0].clone(),
+                1 => nodes[0]["content"][0]["content"][0].clone(),
+                _ => nodes[0]["content"][0].clone(),
+            };
+            assert_eq!(nodes.len(), 1, "{wrapped} -> {}", project(&wrapped));
+            assert_eq!(actual, expected, "{wrapped} -> {}", project(&wrapped));
+        }
+    }
+}
+
+#[test]
+fn literal_markdown_in_a_heading_stays_heading_text() {
+    for text in ["# inner", "Uses C#", "Closing ##", "<u>x</u> *y*"] {
+        let html = format!("<h2>{}</h2>", html_text(text));
+        assert_eq!(
+            round_trip(&html),
+            vec![
+                serde_json::json!({"type":"heading","attrs":{"level":2},"content":[{"type":"text","text":text}]})
+            ],
+            "{html} -> {}",
+            project(&html)
+        );
+    }
 }

@@ -145,7 +145,11 @@ fn kinded_blocks(nodes: &[&Node]) -> Vec<(String, bool)> {
                 if text.is_empty() {
                     String::new()
                 } else {
-                    format!("{} {text}", "#".repeat(level))
+                    // A trailing `#` run would read as the heading's closing sequence.
+                    let run = text.len() - text.trim_end_matches('#').len();
+                    let (body, hashes) = text.split_at(text.len() - run);
+                    let escape = if run > 0 { "\\" } else { "" };
+                    format!("{} {body}{escape}{hashes}", "#".repeat(level))
                 }
             }
             "p" => paragraph(children.iter()),
@@ -163,7 +167,7 @@ fn kinded_blocks(nodes: &[&Node]) -> Vec<(String, bool)> {
 fn paragraph<'a>(nodes: impl Iterator<Item = &'a Node>) -> String {
     let text: String = nodes.map(inline).collect();
     text.split('\n')
-        .map(|line| line.split_whitespace().collect::<Vec<_>>().join(" "))
+        .map(|line| escape_line_start(&line.split_whitespace().collect::<Vec<_>>().join(" ")))
         .collect::<Vec<_>>()
         .join("\n")
         .trim_matches('\n')
@@ -172,7 +176,7 @@ fn paragraph<'a>(nodes: impl Iterator<Item = &'a Node>) -> String {
 
 fn inline(node: &Node) -> String {
     let (name, tag, children) = match node {
-        Node::Text(text) => return text.replace(['\n', '\r', '\t'], " "),
+        Node::Text(text) => return escape_text(&text.replace(['\n', '\r', '\t'], " ")),
         Node::Element {
             name,
             tag,
@@ -202,6 +206,58 @@ fn inline(node: &Node) -> String {
             _ => content,
         },
         _ => content,
+    }
+}
+
+/// Backslash-escapes the characters that would start inline Markdown, so literal text in the
+/// Note reads back as the same text. Line starts are handled by `escape_line_start`.
+fn escape_text(text: &str) -> String {
+    let chars: Vec<char> = text.chars().collect();
+    let mut escaped = String::with_capacity(text.len());
+    for (index, &character) in chars.iter().enumerate() {
+        let escape = match character {
+            '\\' | '`' | '*' | '[' | ']' | '<' | '~' | '|' => true,
+            // `_` between two letters or digits never opens or closes emphasis.
+            '_' => {
+                !(index > 0
+                    && chars[index - 1].is_alphanumeric()
+                    && chars
+                        .get(index + 1)
+                        .is_some_and(|next| next.is_alphanumeric()))
+            }
+            '&' => {
+                let name = chars[index + 1..]
+                    .iter()
+                    .take_while(|next| next.is_ascii_alphanumeric() || **next == '#')
+                    .count();
+                name > 0 && chars.get(index + 1 + name) == Some(&';')
+            }
+            _ => false,
+        };
+        if escape {
+            escaped.push('\\');
+        }
+        escaped.push(character);
+    }
+    escaped
+}
+
+/// Escapes a line start that would open a block: heading, quote, list item, rule or setext
+/// underline. Inline escaping already covers `*`, `_`, backticks, `~` and `|`.
+fn escape_line_start(line: &str) -> String {
+    let digits = line.chars().take_while(char::is_ascii_digit).count();
+    let mut rest = line[digits..].chars();
+    let marker = rest.next();
+    let spaced = rest.next().is_none_or(char::is_whitespace);
+    let escape_at = match marker {
+        Some('.' | ')') if digits > 0 && spaced => Some(digits),
+        Some('#' | '>' | '=') if digits == 0 => Some(0),
+        Some('-' | '+') if digits == 0 && (spaced || line[1..].starts_with('-')) => Some(0),
+        _ => None,
+    };
+    match escape_at {
+        Some(at) => format!("{}\\{}", &line[..at], &line[at..]),
+        None => line.to_string(),
     }
 }
 
